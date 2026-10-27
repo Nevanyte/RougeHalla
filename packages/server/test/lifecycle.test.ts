@@ -1503,7 +1503,7 @@ describe("end of a run", () => {
     const events = step(world, TICK_MS);
     const won = ofType(events, "resolved").find((e) => e.id === "a")!;
     expect(won.result).toMatchObject({
-      outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN }, winBonusWithheld: false,
+      outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: GV_WIN }, winBonusWithheld: false,
     });
   });
 
@@ -1571,7 +1571,7 @@ describe("end of a run", () => {
     const events = step(world, TICK_MS);
     const won = ofType(events, "resolved").find((e) => e.id === "a")!;
     expect(won.result).toMatchObject({
-      outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+      outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: true,
     });
     expect(world.state.winner).toBe("alice");
   });
@@ -1693,7 +1693,7 @@ describe("removePlayer", () => {
     expect(resolved[0].id).toBe("a");
     expect(resolved[0].result).toEqual({
       outcome: "mia", profile: "alice", durationSec: 2, kills: 0, killedBy: null, place: 3, players: 3,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
+      gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: false,
     });
     // The others keep the run going.
     expect(ofType(events, "raidEnded")).toHaveLength(0);

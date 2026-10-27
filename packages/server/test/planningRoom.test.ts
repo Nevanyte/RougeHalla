@@ -351,7 +351,7 @@ describe("leaving during planning (owner ruling: a loss)", () => {
     for (const p of group.slice(0, 7)) await p.room.leave(true);
     await until(() => last.results.length === 1, "the last player's result");
     expect(last.results[0]).toMatchObject({
-      outcome: "won", profile: last.who.name, players: 8, kills: 0, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+      outcome: "won", profile: last.who.name, players: 8, kills: 0, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: true,
     });
     expect(world.state.phase).toBe("ended");
     expect(world.state.startedWith).toBe(8);

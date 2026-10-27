@@ -11,7 +11,8 @@
     "tournament": "tsx src/bots/tournament/runTournament.ts",
     "harness:factions": "tsx src/harness/runFactionCycle.ts",
     "harness": "tsx src/harness/runHarness.ts",
-    "harness:zones": "tsx src/harness/zoneDuel.ts"
+    "harness:zones": "tsx src/harness/zoneDuel.ts",
+    "questbench": "tsx bench/questBench.ts"
   },
   "dependencies": {
     "@colyseus/core": "^0.18.10",

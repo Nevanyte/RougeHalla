@@ -455,7 +455,7 @@ describe("train camp", () => {
     expect(fxOf(events, "campCleared")).toEqual([]);
     expect(fxOf(events, "buff")).toEqual([]);
     expect([p.gv, p.mobKills, p.kills, p.bounty]).toEqual([0, 0, 0, 0]);
-    expect(rtOf(world).gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(rtOf(world).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(rtOf(world).mobKills).toBe(0);
     expect(p.buffs.size).toBe(0);
     expect(world.state.containers.size).toBe(containers); // no weapon dropped, no chest
@@ -695,7 +695,7 @@ describe("the console never makes the training room record anything", () => {
     ]) events.push(...train(world, msg, GAP_TICKS));
     expect(events.filter((e) => e.type === "gv" || e.type === "resolved" || e.type === "raidEnded")).toEqual([]);
     expect([p.gv, p.kills, p.mobKills, p.bounty]).toEqual([0, 0, 0, 0]);
-    expect(rtOf(world).gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(rtOf(world).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(rtOf(world).resolved).toBe(false);
     expect(world.state).toMatchObject({ phase: "active", training: true, patienceEndsAt: 0, gatesLocked: false });
     expect(world.state.camps.length).toBe(0);
@@ -714,7 +714,7 @@ describe("the console never makes the training room record anything", () => {
     const events = skip(world);
     expect(fxOf(events, "chestTaken")).toEqual([expect.objectContaining({ by: ME, option: -1 })]); // the skip itself went through
     expect(events.filter((e) => e.type === "gv")).toEqual([]);
-    expect([me(world).gv, rtOf(world).gv]).toEqual([0, { kills: 0, mobs: 0, bounty: 0 }]);
+    expect([me(world).gv, rtOf(world).gv]).toEqual([0, { kills: 0, mobs: 0, bounty: 0, quest: 0 }]);
 
     // Hurt and out of combat: the heal pays, still no GV. In combat the heal is locked out (the other GV branch).
     const hurt = trainingWorld("plague");

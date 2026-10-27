@@ -1,9 +1,9 @@
-// The lobby rules the fill bots rely on (docs/BOTS.md 7.2): filler never cuts a human's countdown, and a last top-up hook
-// runs once right before the raid starts, on both start paths.
+// The lobby rules the fill bots rely on (docs/BOTS.md 7.2): filler never cuts a human's countdown and never closes the lobby
+// early (only eight humans do, or the timer), and a last top-up hook runs once right before the raid starts, on both start paths.
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, mulberry32, TICK_MS } from "@raid/shared";
 import { createGameWorld } from "../src/sim/gameplay";
-import { addPlayer, step } from "../src/sim/step";
+import { addPlayer, removePlayer, step } from "../src/sim/step";
 import { chainHook, type SimConfig, type World } from "../src/sim/world";
 
 function makeWorld(cfg: Partial<SimConfig> = {}): World {
@@ -79,13 +79,53 @@ describe("bots do not shorten a human's countdown", () => {
     expect(onlyBots.state.lobbyEndsAt).toBe(60_000);
   });
 
-  it("a full lobby still starts at once: MAX_PLAYERS counts everyone", () => {
+  it("a lobby full of humans still starts at once", () => {
     const w = makeWorld({ minPlayers: 2, lobbySeconds: 600 });
-    human(w, 0);
-    for (let i = 0; i < MAX_PLAYERS - 1; i++) bot(w, i);
-    expect(w.state.players.size).toBe(MAX_PLAYERS);
+    for (let i = 0; i < MAX_PLAYERS; i++) human(w, i);
     step(w, TICK_MS);
     expect(w.state.phase).toBe("active");
+  });
+});
+
+describe("bots do not close the lobby early", () => {
+  it("a lobby of MAX_PLAYERS that holds bots waits for the countdown, so the next human can take a bot's seat", () => {
+    for (const humans of [1, 2, MAX_PLAYERS - 1]) {
+      const w = makeWorld({ minPlayers: 2, lobbySeconds: 600, fillSeconds: 3 });
+      for (let i = 0; i < humans; i++) human(w, i);
+      for (let i = 0; i < MAX_PLAYERS - humans; i++) bot(w, i);
+      expect(w.state.players.size, `${humans} humans`).toBe(MAX_PLAYERS);
+      run(w, 40); // 2 s: a moment, not a countdown
+      expect(w.state.phase, `${humans} humans`).toBe("lobby");
+      expect(w.state.players.size).toBe(MAX_PLAYERS);
+    }
+  });
+
+  it("starts when the countdown runs out, with everyone placed and alive (a bot that arrived last included)", () => {
+    const w = makeWorld({ minPlayers: 2, lobbySeconds: 600, fillSeconds: 1 });
+    for (let i = 0; i < MAX_PLAYERS - 1; i++) human(w, i);
+    bot(w, 0);
+    let calls = 0;
+    w.hooks.lobbyClosing = () => { calls++; };
+    run(w, 20); // seven humans: the countdown is the fill window, 1 s from the first step
+    expect(w.state.phase).toBe("lobby");
+    step(w, TICK_MS);
+    expect(calls).toBe(1);
+    expect(w.state.phase).toBe("active");
+    for (const [id, p] of w.state.players) expect(p.status, id).toBe("alive");
+    expect(w.state.players.get("bot~0")!.bot).toBe(true);
+  });
+
+  it("the eighth human, seated by a bot's yield, is what closes it", () => {
+    const w = makeWorld({ minPlayers: 2, lobbySeconds: 600 });
+    for (let i = 0; i < MAX_PLAYERS - 1; i++) human(w, i);
+    bot(w, 0);
+    run(w, 5);
+    expect(w.state.phase).toBe("lobby");
+    removePlayer(w, "bot~0"); // the bot yields its seat, as RaidRoom.onJoin does ...
+    human(w, MAX_PLAYERS - 1); // ... and the eighth human takes it
+    step(w, TICK_MS);
+    expect(w.state.phase).toBe("active");
+    expect([...w.players.values()].filter((rt) => rt.bot)).toHaveLength(0);
   });
 });
 
@@ -154,19 +194,6 @@ describe("the lobbyClosing hook", () => {
     expect(w.state.players.get("bot~7")!.bot).toBe(true);
     expect(w.players.get("bot~8")!.bot).toBe(true);
     expect(w.state.players.get("bot~7")!.weapon0).not.toBe("");
-  });
-
-  it("on the full-lobby path everyone, a bot that arrived last included, is placed and alive", () => {
-    const w = makeWorld({ minPlayers: 2, lobbySeconds: 600 });
-    for (let i = 0; i < MAX_PLAYERS - 1; i++) human(w, i);
-    bot(w, 0);
-    let calls = 0;
-    w.hooks.lobbyClosing = () => { calls++; };
-    step(w, TICK_MS);
-    expect(calls).toBe(1);
-    expect(w.state.phase).toBe("active");
-    for (const [id, p] of w.state.players) expect(p.status, id).toBe("alive");
-    expect(w.state.players.get("bot~0")!.bot).toBe(true);
   });
 
   it("chained hooks all run, in the order they were added", () => {

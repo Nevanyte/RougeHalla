@@ -13,6 +13,7 @@ import {
   ChestPanel, NOT_CONFIRMED_SAY, PENDING_EXPIRE_MS, PICKED_HOLD_MS, RECONNECTING_SAY, REFUSED_HOLD_MS, chestKeyAction,
   type ChestPanelFrame, type ChestPanelMe,
 } from "../src/ui/chestPanel";
+import { playerLabel } from "../src/render/displayName";
 import { MapHold } from "../src/ui/mapHold";
 import { campTitle } from "../src/ui/planning";
 import { fake, installChromeDom, type FEl, type FakeDocument, type FakeWindow } from "./chromeDom";
@@ -291,6 +292,15 @@ describe("what it shows", () => {
     r.frame();
     expect(r.cards().map((c) => c.disabled)).toEqual([true, true, false]);
     expect(cardState(r.cards()[0]!)).toBe("Taken by Eve");
+  });
+
+  it("tags a bot that took a card, with the label the scene hands the panel", () => {
+    const r = setup();
+    const players = new Map([["bob", { name: "Bob", bot: false }], ["grim", { name: "Grimbold", bot: true }]]);
+    r.chests.set("c1", chest({ takenBy: ["grim", "bob", ""], pickers: ["grim", "bob"] }));
+    r.frame(1000, { nameOf: (id) => playerLabel(players, id) });
+    expect(cardState(r.cards()[0]!)).toBe("Taken by [BOT] Grimbold");
+    expect(cardState(r.cards()[1]!)).toBe("Taken by Bob");
   });
 
   it("a taker the room has no name for reads as another player", () => {

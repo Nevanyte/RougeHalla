@@ -26,6 +26,8 @@ import {
   labelSizePx, placeLabels, planningMapSize, previewMapSize, routeAhead, zoneJump, type CampSpot, type PxBox, type RoutePlan,
 } from "./planningMath";
 import type { RouteState } from "./route";
+import { PlanningQuests } from "./questPlanning";
+import type { QuestCollection } from "./questModel";
 import "./planning.css";
 
 export type PlanningMode = "hidden" | "preview" | "planning" | "map";
@@ -66,6 +68,10 @@ export interface PlanningFrame {
   campStates?: readonly number[];
   /** The local fighter's ground position, for the in-run map. */
   local: { x: number; y: number; alive: boolean } | null;
+  /** Public quest offers and the number still hidden server-side. */
+  quests?: QuestCollection;
+  hiddenQuests?: number;
+  localId?: string;
 }
 
 export interface PlanningViewOptions {
@@ -186,6 +192,7 @@ export class PlanningView {
   private readonly clearButton = el("button", "pl-clear", "Clear route");
   private readonly info = el("div", "pl-info");
   private readonly status = el("div", "pl-status");
+  private readonly quests = new PlanningQuests();
 
   private readonly camps: CampMarker[] = [];
   /** The zone names on the map, in `map.regions` order; `relayout` moves them off the camps. */
@@ -287,6 +294,7 @@ export class PlanningView {
     this.zones.setAttribute("aria-hidden", "true");
     this.markers.setAttribute("role", "group");
     this.markers.setAttribute("aria-label", "Map markers. Arrow keys move between them; Page Up and Page Down jump between zones.");
+    this.zones.append(this.quests.markers);
     this.mapWrap.append(this.base, this.dyn, this.zones, this.markers);
     this.dyn.addEventListener("click", this.onMapClick);
     this.dyn.addEventListener("contextmenu", (e: Event) => { if (this.shownMode === "planning") e.preventDefault(); });
@@ -318,7 +326,7 @@ export class PlanningView {
 
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
-    this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.playerBox, this.hintBox, this.routeBox, this.status);
+    this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.hintBox, this.routeBox, this.status);
     const body = el("div", "pl-body");
     body.append(this.mapCol, this.side);
     this.element.append(body);
@@ -341,8 +349,9 @@ export class PlanningView {
     this.map = map;
     this.camps.length = 0;
     this.markers.replaceChildren();
-    this.zones.replaceChildren();
+    this.zones.replaceChildren(this.quests.markers);
     this.zoneLabels = [];
+    this.quests.setMap(map);
     this.spawnOptions = [];
     this.stopMarkers = [];
     this.spawnStruct = "";
@@ -438,6 +447,7 @@ export class PlanningView {
     this.renderPlan(frame);
     this.renderRoute(frame);
     this.renderHint(frame);
+    this.quests.update({ mode: frame.mode, serverNow: frame.serverNow, localId: frame.localId ?? "", quests: frame.quests, hiddenQuests: frame.hiddenQuests });
   }
 
   private applyMode(mode: PlanningMode): void {

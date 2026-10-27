@@ -1,5 +1,5 @@
 // Post-run summary: outcome, placing, run stats and the Glorious Victory the run paid out.
-import { WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, achievementById, cosmeticById, type RunOutcome, type RunResult } from "@raid/shared";
+import { WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, achievementById, cosmeticById, type RunOutcome, type RunResult, type WinBonusWhy } from "@raid/shared";
 import { formatNumber } from "../net/profile";
 import { displayName } from "../render/displayName";
 import { el, uiRoot } from "./dom";
@@ -22,8 +22,20 @@ function fmtPlace(r: RunResult): string {
   return r.outcome === "draw" ? `${base} (shared)` : base;
 }
 
-/** Why a winner's bonus row reads +0: the anti alt-farming rule (shared constants, so the text can't drift). */
-const WITHHELD = `Win bonus: needs ${WIN_BONUS_MIN_PLAYERS}+ players and damage on ${WIN_BONUS_MIN_OPPONENTS}+ opponents`;
+/**
+ * Why a winner's bonus row reads +0: the anti alt-farming rule (shared constants, so the text can't drift). The bonus counts
+ * humans only, which the state alone doesn't show, so the server says which rule held it back; an older server's payload
+ * has no reason and gets the rule as a whole.
+ */
+const WITHHELD: Record<WinBonusWhy | "unknown", string> = {
+  starters: `No win bonus: fewer than ${WIN_BONUS_MIN_PLAYERS} human starters`,
+  opponents: `No win bonus: you damaged fewer than ${WIN_BONUS_MIN_OPPONENTS} other human players`,
+  unknown: `No win bonus: needs ${WIN_BONUS_MIN_PLAYERS}+ human players and damage on ${WIN_BONUS_MIN_OPPONENTS}+ opponents`,
+};
+
+function withheldText(r: RunResult): string {
+  return WITHHELD[r.winBonusWhy ?? "unknown"] ?? WITHHELD.unknown;
+}
 
 /** One headline number of the run: a big value over a small label. */
 function fact(label: string, value: string): HTMLElement {
@@ -35,8 +47,8 @@ function fact(label: string, value: string): HTMLElement {
 function gvRows(r: RunResult): HTMLElement {
   const gv = r.gv;
   const box = el("div", "gv-box");
-  const winText = r.winBonusWithheld ? WITHHELD : "Win bonus";
-  for (const [text, amount] of [["Kills", gv.kills], ["Mobs", gv.mobs], ["Bounties", gv.bounty], [winText, gv.win]] as const) {
+  const winText = r.winBonusWithheld ? withheldText(r) : "Win bonus";
+  for (const [text, amount] of [["Kills", gv.kills], ["Mobs", gv.mobs], ["Bounties", gv.bounty], ["Quests", gv.quest], [winText, gv.win]] as const) {
     // `|| 0`: a field missing from the payload (an older server) reads as nothing earned, not as "+NaN".
     const earned = amount || 0;
     const row = el("div", earned > 0 ? "gv-row" : "gv-row zero");

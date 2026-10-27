@@ -12,6 +12,7 @@ import { install as installMobLife } from "./mobLife";
 import { install as installMobs } from "./mobs";
 import { install as installMods } from "./mods";
 import { install as installProjectiles } from "./projectiles";
+import { install as installQuests } from "./quests";
 import { install as installTargeting } from "./targeting";
 import { install as installTerrain } from "./terrainEffects";
 import { install as installWeapons } from "./weapons";
@@ -38,6 +39,7 @@ const MODULES: Array<(world: World) => void> = [
   // (light heals once this tick's combat clock is stamped), before the stat mirrors.
   installTerrain,
   installAbilities,
+  installQuests,
   // Last: its system folds the stat mirrors once every other system of the tick has run.
   installMods,
 ];

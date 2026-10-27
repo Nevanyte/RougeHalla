@@ -761,7 +761,7 @@ describe("bots in whole games", () => {
     const refusals: string[] = [];
     room.runUntilEnd(400_000, (events) => {
       for (const e of events) {
-        if (e.type === "toast" && room.manager.isBot(e.to) && /^(Already|Too far|Can't reach|Chest gone|You already)/.test(e.text)) refusals.push(`${e.to}: ${e.text}`);
+        if (e.type === "toast" && e.to !== null && room.manager.isBot(e.to) && /^(Already|Too far|Can't reach|Chest gone|You already)/.test(e.text)) refusals.push(`${e.to}: ${e.text}`);
         if (e.type !== "fx") continue;
         if (e.fx.kind === "campCleared") cleared++;
         if (e.fx.kind === "chestTaken") taken.push({ chest: e.fx.chest, by: e.fx.by, option: e.fx.option });

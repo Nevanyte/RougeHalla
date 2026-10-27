@@ -748,7 +748,7 @@ describe("a run", () => {
     }
     expect(b!.results[0]).toMatchObject({
       outcome: "died", profile: B.name, kills: 0, killedBy: A.name, place: 3, players: 3,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
+      gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 },
     });
     expectBanked(B, 0, { runs: 1, deaths: 1 });
     expect(isActive(B)).toBe(false); // free to queue while still looking at the results
@@ -841,7 +841,7 @@ describe("a run", () => {
     // A hurt both others in a run that started with three: the win bonus is theirs, and the client is told it wasn't held back.
     expect(a!.results[0]).toMatchObject({
       outcome: "won", profile: A.name, kills: 2, killedBy: null, place: 1, players: 3,
-      gv: { kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN }, winBonusWithheld: false,
+      gv: { kills: 2 * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN }, winBonusWithheld: false,
     });
     expect(b!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name, place: 3, gv: { total: 0 }, winBonusWithheld: false });
     expect(c!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name, place: 2, gv: { total: 0 }, winBonusWithheld: false });
@@ -912,7 +912,7 @@ describe("a run", () => {
       winBonusWithheld: false,
     });
     expect(a!.results[0]).toMatchObject({
-      outcome: "died", profile: A.name, kills: 3, killedBy: E.name, gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, win: 0, total: 3 * GV_KILL },
+      outcome: "died", profile: A.name, kills: 3, killedBy: E.name, gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: 3 * GV_KILL },
     });
     // Banked once, at each player's own result: the bounty is in E's balance, lifetime total and month.
     expectBanked(E, GV_KILL + 10 + GV_WIN, { runs: 1, wins: 1, kills: 1 });
@@ -933,7 +933,7 @@ describe("a run", () => {
 
       expect(a!.results[0]).toMatchObject({
         outcome: "won", profile: A.name, kills: 1, place: 1, players: 2,
-        gv: { kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL }, winBonusWithheld: true,
+        gv: { kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL }, winBonusWithheld: true,
       });
       expect(b!.results[0]).toMatchObject({ outcome: "died", place: 2, gv: { total: 0 }, winBonusWithheld: false });
       expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, weapon: expect.any(String), winQualified: false });
@@ -977,7 +977,7 @@ describe("a run", () => {
 
     expect(a!.results[0]).toMatchObject({
       outcome: "draw", profile: A.name, kills: 1, killedBy: null, place: 1, players: 3,
-      gv: { kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL }, winBonusWithheld: false, // a draw has no bonus to withhold
+      gv: { kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL }, winBonusWithheld: false, // a draw has no bonus to withhold
     });
     expect(b!.results[0]).toMatchObject({
       outcome: "draw", profile: B.name, kills: 0, killedBy: null, place: 1, gv: { total: 0 }, winBonusWithheld: false,

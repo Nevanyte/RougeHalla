@@ -14,6 +14,22 @@ export function displayName(p: Nameable): string {
   return p.bot === true ? `${BOT_TAG} ${p.name}` : p.name;
 }
 
+/** A player by id as the HUD names them (the chest panel's "Taken by"): tagged for a bot, undefined for someone not in the room. */
+export function playerLabel(players: { get(id: string): Nameable | undefined }, id: string): string | undefined {
+  const p = players.get(id);
+  return p ? displayName(p) : undefined;
+}
+
+/** The chest panel's `nameOf` for a scene: reads the room's players when asked (the room may not exist yet), tagging a bot. */
+export function chestNameOf(
+  getPlayers: () => { get(id: string): Nameable | undefined } | undefined,
+): (id: string) => string | undefined {
+  return (id) => {
+    const players = getPlayers();
+    return players ? playerLabel(players, id) : undefined;
+  };
+}
+
 /** Something to walk the room's players with: a MapSchema's `forEach`, or an array's. */
 export interface PlayerWalk {
   forEach(each: (p: Nameable) => void): void;

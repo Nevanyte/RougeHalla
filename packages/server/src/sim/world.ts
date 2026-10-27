@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import {
   generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId,
-  type FieldKind, type FxEvent, type GameMap, type GvReason, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
+  type FieldKind, type FxEvent, type GameMap, type GvReason, type MobTypeId, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
   type RunResult, type Sample, type SignatureKind, type SlipState, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
@@ -11,6 +11,7 @@ import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
+import type { QuestsRuntime } from "./quests";
 import type { TerrainRuntime } from "./terrainEffects";
 
 export interface SimConfig {
@@ -28,6 +29,8 @@ export interface SimConfig {
   dummies?: boolean;
   /** Regional mobs: place a mob at every camp spot when the run starts (sim/mobLife.ts). Off unless set; the server turns it on. */
   mobs?: boolean;
+  /** NPC quests, rolled at planning start (or raid start without planning). Always off in training. */
+  quests?: boolean;
   /**
    * A training world (sim/training.ts): the run never ends and nothing is recorded: no patience timer, teleport, sudden
    * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
@@ -202,7 +205,7 @@ export interface PlayerRuntime extends CombatRuntime {
   /** The player who killed this one was a bot (shown on the results screen). Absent otherwise. */
   killedByBot?: true;
   /** GV earned this run, by source. A win bonus is decided when the run resolves and is never kept here. */
-  gv: { kills: number; mobs: number; bounty: number };
+  gv: { kills: number; mobs: number; bounty: number; quest: number };
   /** Mobs killed this run (feeds the feed score with FEED_MOB_KILL_WEIGHT; player kills are PlayerState.kills). */
   mobKills: number;
   /** Player kills of bots this run; PlayerState.kills counts them, a RunResult's `kills` does not (arena.ts resolve). Absent = 0. */
@@ -474,12 +477,14 @@ export function newHazardStats(): HazardStats {
 
 export type SimEvent =
   | { type: "fx"; fx: FxEvent }
-  | { type: "toast"; to: string; text: string }
+  | { type: "toast"; to: string | null; text: string }
   | { type: "raidStarted" }
   /** The lobby closed into the planning phase (sim/planning.ts): the Room locks itself, as it does at raidStarted. */
   | { type: "planningStarted" }
   /** A player's private planning deal changed (or was just dealt): the Room sends `plan` to that player only. */
   | { type: "plan"; to: string; plan: PlanMessage }
+  /** A hidden offer's private head-start reveal; public sync follows four seconds later. */
+  | { type: "questReveal"; to: string; quest: import("@raid/shared").QuestRevealMessage }
   | { type: "raidEnded" }
   /** Feedback only: GV a player just earned. It is banked through their `resolved` result, never from this. */
   | { type: "gv"; id: string; amount: number; reason: GvReason }
@@ -513,6 +518,9 @@ export type ModSource = (world: World, c: Combatant) => ModContribution | null;
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
+  /** The lobby just turned into planning: private deals and public planning offers are ready. */
+  planningStarted?(world: World): void;
+
   /**
    * The lobby is about to start the raid (full, or the countdown ran out), before anyone is placed. A hook may still add
    * players (addPlayer is safe here: startRaid places everyone next): BotManager's last top-up. Called once per start.
@@ -527,8 +535,10 @@ export interface WorldHooks {
   teleported?(world: World): void;
   /** `killer` just claimed `victim`'s bounty (already paid). sim/buffs.ts moves half of each of the victim's buffs here. */
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
-  /** A player just killed another player (kill GV paid, bounty claimed). Nothing hangs here since the kill combos went (R4a); R7's kill triggers will. */
-  playerKilled?(world: World, killer: PlayerRuntime): void;
+  /** A player just killed another player (kill GV and bounty paid); quest objectives chain here. */
+  playerKilled?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void;
+  /** A regional mob's spoils were just paid; quest objectives chain here. `camp` is its map index, or -1 when camp-less. */
+  mobKilled?(world: World, killer: PlayerRuntime, mob: { type: MobTypeId; zone: FactionId; camp: number; elite: boolean }): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
   /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
@@ -603,6 +613,13 @@ export interface World {
    * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
    */
   rewardRandom: () => number;
+  /**
+   * The quests' own 128-bit stream (rosters and every giver, token and parcel position): quest code draws only from it,
+   * never from `rewardRandom` or `random`, so switching quests on or off moves neither. The Room seeds it from its own
+   * crypto words (`questSalt`), so it is independent of the reward stream whose early outputs (rosters, chest options)
+   * players see; without one it is a mixed derivation of the reward salt (tests).
+   */
+  questRandom: () => number;
   /** Events produced during the current step; drained by step(). */
   events: SimEvent[];
   /** True while step() runs. Things created outside it (e.g. a body from a leave) belong to the next tick. */
@@ -633,6 +650,8 @@ export interface World {
   hazards: HazardRuntime;
   /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
   abilities: AbilitiesRuntime | null;
+  /** Quest offers and their server-only hidden state (sim/quests.ts); null when disabled or training. */
+  quests: QuestsRuntime | null;
 }
 
 export function createWorld(opts: {
@@ -655,6 +674,11 @@ export function createWorld(opts: {
    * expanded. Derived from orderSalt when absent (tests only).
    */
   rewardSalt?: number | readonly number[];
+  /**
+   * The secret behind `questRandom`, in the same forms. The Room passes four more crypto-random words, so the hidden
+   * quests do not share a state with the reward stream; without it (tests) the stream is mixed from the reward salt.
+   */
+  questSalt?: number | readonly number[];
 }): World {
   const state = new RaidState();
   const given = opts.seed === undefined ? undefined : opts.seed >>> 0;
@@ -666,6 +690,7 @@ export function createWorld(opts: {
   state.minPlayers = opts.config.minPlayers;
   // The only draw from opts.random here: tests script that stream, so the reward stream must not take from it.
   const orderSalt = Math.floor(opts.random() * 2 ** 32) >>> 0;
+  const rewardSalt = opts.rewardSalt ?? rewardSaltFrom(orderSalt);
   const map = opts.map ?? generateMap(state.seed);
   // What a client needs to build the same map with one attempt, and to know it did.
   state.attempt = map.attempt;
@@ -683,7 +708,8 @@ export function createWorld(opts: {
     combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], campWakes: [], medianFeed: null },
     random: opts.random,
     orderSalt,
-    rewardRandom: rewardStream(opts.rewardSalt ?? rewardSaltFrom(orderSalt)),
+    rewardRandom: rewardStream(rewardSalt),
+    questRandom: rewardStream(opts.questSalt ?? questSaltFrom(rewardSalt)),
     events: [],
     stepping: false,
     actions: {},
@@ -699,6 +725,7 @@ export function createWorld(opts: {
     terrain: null,
     hazards: { stats: newHazardStats() },
     abilities: null,
+    quests: null,
   };
 }
 
@@ -713,25 +740,52 @@ function rewardSaltFrom(orderSalt: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+function saltWords(seed: number | readonly number[]): Uint32Array {
+  const words = new Uint32Array(4);
+  if (typeof seed !== "number") {
+    for (let i = 0; i < 4; i++) words[i] = (seed[i] ?? 0) >>> 0;
+    return words;
+  }
+  let x = seed >>> 0;
+  for (let i = 0; i < 4; i++) {
+    x = (x + 0x9e3779b9) >>> 0;
+    let z = x;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+    words[i] = (z ^ (z >>> 16)) >>> 0;
+  }
+  return words;
+}
+
 /**
- * The reward stream: sfc32 over a 128-bit state, so seeing rolls (a revealed "?" camp, a chest's options) does not let a
- * client brute-force the seed the way a 32-bit mulberry32 state could be. A single number is expanded (splitmix32) into the
- * four words; the Room passes four crypto-random ones.
+ * A quest salt from the reward salt, for a world whose Room gave none (tests): four lanes under a tag, mixed so that each
+ * output word depends on all four input words (a leaked reward word says nothing of one quest word) while the whole map
+ * stays 128 bits in, 128 bits out (every step is a bijection of its own lane given the others).
+ */
+function questSaltFrom(seed: number | readonly number[]): number[] {
+  const fmix = (x: number): number => {
+    let h = x >>> 0;
+    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    return (h ^ (h >>> 16)) >>> 0;
+  };
+  const rotl = (x: number, k: number): number => ((x << k) | (x >>> (32 - k))) >>> 0;
+  const words = saltWords(seed);
+  const lane = Array.from(words, (w, i) => (w ^ 0x51554553 ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0); // "QUES"
+  for (let round = 0; round < 3; round++) {
+    for (let i = 0; i < 4; i++) {
+      lane[i] = fmix((lane[i]! + (lane[(i + 1) & 3]! ^ rotl(lane[(i + 2) & 3]!, 7 + 5 * i))) >>> 0);
+    }
+  }
+  return lane;
+}
+
+/**
+ * A private 128-bit stream: sfc32 over four salt words, so seeing rolls does not let a client brute-force a 32-bit seed.
+ * A single number is expanded into four words; the Room passes four crypto-random ones.
  */
 export function rewardStream(seed: number | readonly number[]): () => number {
-  const words = new Uint32Array(4);
-  if (typeof seed === "number") {
-    let x = seed >>> 0;
-    for (let i = 0; i < 4; i++) {
-      x = (x + 0x9e3779b9) >>> 0;
-      let z = x;
-      z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
-      z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
-      words[i] = (z ^ (z >>> 16)) >>> 0;
-    }
-  } else {
-    for (let i = 0; i < 4; i++) words[i] = (seed[i] ?? 0) >>> 0;
-  }
+  const words = saltWords(seed);
   let a = words[0]!, b = words[1]!, c = words[2]!, d = words[3]!;
   const next = (): number => {
     const t0 = (a + b) | 0;
@@ -752,8 +806,8 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 type ChainableHook =
-  | "teleported" | "lobbyClosing" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
-  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared";
+  | "teleported" | "lobbyClosing" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
+  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

@@ -100,10 +100,15 @@ export function standing(c: Combatant): boolean {
 
 /**
  * May `a` attack `b`? Not itself, and mobs are allies of each other (they never hurt each other, so a player's target lock
- * and a mob's fight both skip them). There are no player teams: any two players, and a player and any mob, are enemies.
+ * and a mob's fight both skip them). Quest givers are nobody's enemy. Otherwise any two players, and a player and any
+ * regional mob or dummy, are enemies.
  */
+export function isQuestGiver(c: Combatant): boolean {
+  return c.kind === "mob" && c.s.kind === "quest";
+}
+
 export function hostile(a: Combatant, b: Combatant): boolean {
-  return a.id !== b.id && !(a.kind === "mob" && b.kind === "mob");
+  return a.id !== b.id && !isQuestGiver(a) && !isQuestGiver(b) && !(a.kind === "mob" && b.kind === "mob");
 }
 
 export function combatant(world: World, id: string): Combatant | null {

@@ -6,7 +6,7 @@ import { installUiDom, type UiEl } from "./uiDom";
 function result(over: Partial<RunResult> = {}): RunResult {
   return {
     outcome: "won", profile: "op-test", durationSec: 252, kills: 3, killedBy: null, place: 1, players: 8,
-    gv: { kills: 120, mobs: 30, bounty: 0, win: 500, total: 650 }, winBonusWithheld: false,
+    gv: { kills: 120, mobs: 30, bounty: 0, quest: 0, win: 500, total: 650 }, winBonusWithheld: false,
     ...over,
   };
 }
@@ -75,8 +75,8 @@ describe("ResultsScreen", () => {
   it("lists the GV rows, dims the empty ones and ends with the banked total", () => {
     screen.show(result());
     const rows = panel().allByClass("gv-row").map((r) => [r.children.map((c) => (typeof c === "string" ? c : c.textContent))]);
-    expect(rows).toEqual([[["Kills", "+120"]], [["Mobs", "+30"]], [["Bounties", "+0"]], [["Win bonus", "+500"]]]);
-    expect(panel().allByClass("gv-row").map((r) => r.classList.contains("zero"))).toEqual([false, false, true, false]);
+    expect(rows).toEqual([[["Kills", "+120"]], [["Mobs", "+30"]], [["Bounties", "+0"]], [["Quests", "+0"]], [["Win bonus", "+500"]]]);
+    expect(panel().allByClass("gv-row").map((r) => r.classList.contains("zero"))).toEqual([false, false, true, true, false]);
     const total = panel().byClass("gv-total")!;
     expect(total.byClass("gv-total-l")!.textContent).toBe("GV banked");
     expect(total.byClass("gv-amount")!.textContent).toBe("+650");
@@ -85,12 +85,38 @@ describe("ResultsScreen", () => {
   it("a GV field missing from an older server's payload reads as nothing, not +NaN", () => {
     screen.show(result({ gv: { kills: 5, total: 5 } as RunResult["gv"] }));
     const amounts = panel().allByClass("gv-amount").map((a) => a.textContent);
-    expect(amounts).toEqual(["+5", "+0", "+0", "+0", "+5"]);
+    expect(amounts).toEqual(["+5", "+0", "+0", "+0", "+0", "+5"]);
   });
 
-  it("says why a withheld win bonus reads +0", () => {
-    screen.show(result({ winBonusWithheld: true, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 } }));
-    expect(panel().text).toMatch(/Win bonus: needs \d+\+ players and damage on \d+\+ opponents/);
+  describe("a withheld win bonus", () => {
+    const withheld = (over: Partial<RunResult> = {}): RunResult =>
+      result({ winBonusWithheld: true, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, ...over });
+    const winRow = (): string[] => panel().allByClass("gv-row").at(-1)!.children.map((c) => (typeof c === "string" ? c : c.textContent));
+
+    it("says there were too few human starters, from the server's reason", () => {
+      screen.show(withheld({ winBonusWhy: "starters" }));
+      expect(winRow()).toEqual(["No win bonus: fewer than 3 human starters", "+0"]);
+    });
+
+    it("says the winner damaged too few other humans, from the server's reason", () => {
+      screen.show(withheld({ winBonusWhy: "opponents" }));
+      expect(winRow()).toEqual(["No win bonus: you damaged fewer than 2 other human players", "+0"]);
+    });
+
+    it("an older server sends no reason and gets the rule as a whole", () => {
+      screen.show(withheld());
+      expect(winRow()[0]).toMatch(/^No win bonus: needs \d+\+ human players and damage on \d+\+ opponents$/);
+    });
+
+    it("a reason this client does not know reads as the rule as a whole", () => {
+      screen.show(withheld({ winBonusWhy: "later" as RunResult["winBonusWhy"] }));
+      expect(winRow()[0]).toMatch(/^No win bonus: needs/);
+    });
+
+    it("an earned bonus keeps its plain label, whatever a stray reason says", () => {
+      screen.show(result({ winBonusWhy: "starters" }));
+      expect(winRow()).toEqual(["Win bonus", "+500"]);
+    });
   });
 
   it("lists unlocked achievements by their catalog names and skips ids it does not know", () => {

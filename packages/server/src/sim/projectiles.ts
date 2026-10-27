@@ -18,7 +18,7 @@ import {
   reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { activeWeapon, combatant, isEvading, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, isEvading, isQuestGiver, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { positionAt } from "./movement";
 import { chainHook, collisionMap, emit, nextId, type DamagePacket, type ProjectileRuntime, type World } from "./world";
@@ -139,7 +139,7 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
  * The first standing body (not the owner) the stretch meets at substep time `t`, and the contact point. Bodies met at
  * the same point (both already within reach when the step began) go by whose centre is nearer the stretch's start,
  * then by the tick's secret rank, never by join order. A mob's shot flies past other mobs (they never hurt each other),
- * so a camp's archers don't eat their own arrows and a player can't hide behind a camp-mate.
+ * so a camp's archers don't eat their own arrows and a player can't hide behind a camp-mate. Every shot passes quest givers.
  */
 function firstBody(
   world: World, s: Stretch, bodies: readonly Combatant[], t: number, rank: ReadonlyMap<string, number>,
@@ -147,7 +147,7 @@ function firstBody(
   let best: { c: Combatant; u: number; d: number; r: number } | null = null;
   const mobShot = world.mobs.has(s.pr.owner);
   for (const c of bodies) {
-    if (c.id === s.pr.owner || (mobShot && c.kind === "mob") || isEvading(c)) continue;
+    if (c.id === s.pr.owner || (mobShot && c.kind === "mob") || isEvading(c) || isQuestGiver(c)) continue;
     const at = positionAt(c.rt, c.s, t);
     const u = contactShare(s, at);
     if (u === null) continue;

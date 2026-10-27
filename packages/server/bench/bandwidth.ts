@@ -1,6 +1,6 @@
 // Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 170 or so mobs
 // (zone-shapes maps: 40 camps of 3 to 5; the roguelike R2 maps had 20 camps and about 80), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
-//   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N override the defaults)
+//   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N quests=1 override the defaults)
 // test/bandwidth.test.ts runs the same scenarios against the gate (under 20 KB/s per client).
 //
 // What is counted, per client (the room has no StateView, so every client gets the same bytes):
@@ -92,6 +92,8 @@ export interface BandwidthOptions {
   strafeMs?: number;
   /** Camp chests (R5) kept up at all times besides the ones the fights drop: each picked at 3 s, skipped at 6 s, replaced when it expires. */
   chests?: number;
+  /** Quest offers, givers and items (the shipped default, off here unless asked). `quests=1` on the CLI. */
+  quests?: boolean;
   /** Called after every measured step, before the patch is encoded: for analysis scripts that look at what changed. */
   probe?: (world: World) => void;
   /** Called after every measured step with the size of that tick's patch frame (0 when nothing changed). */
@@ -116,8 +118,10 @@ export interface BandwidthResult {
   avgFighting: number;
   avgAwake: number;
   avgProjectiles: number;
-  /** Mobs in the state at the end. */
+  /** Mobs in the state at the end (quest givers included when quests are on). */
   mobs: number;
+  /** Quest offers in the synced state at the end (0 with quests off). */
+  quests: number;
   /** The first full-state sync a joiner gets (protocol byte and ws header included). Not part of the rates. */
   initialSyncBytes: number;
   /** Set when the run had fill bots: what the manager did over the whole run, and how many bots were still standing. */
@@ -139,13 +143,16 @@ function sessionId(rnd: () => number): string {
   return s;
 }
 
-function config(players: number, mobs: boolean): SimConfig {
+function config(players: number, mobs: boolean, quests: boolean): SimConfig {
   // Nothing ends the run while we measure: no patience teleport, no sudden death.
   return {
     minPlayers: players, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6,
-    suddenDeathSeconds: 1e6, mobs,
+    suddenDeathSeconds: 1e6, mobs, quests,
   };
 }
+
+/** A camp mob, not a quest giver (quests add `kind: "quest"` mobs to world.mobs; the bench fights and counts camp mobs only). */
+const isRegionalMob = (m: { kind: string }): boolean => m.kind === "mob" || m.kind === "elite";
 
 /** Ticks between the wake-ups of an occupied camp: every mob of it turns on the player standing there (a mob already fighting just gains threat). */
 const WAKE_TICKS = 10;
@@ -196,13 +203,16 @@ interface Driver {
  * clearing and so inside the camp's territory, and carries the camp's reference: it leashes like the shipped mobs.
  */
 function topUp(world: World, d: Driver, target: number): void {
-  if (world.mobs.size >= target || d.camps.length === 0) return;
+  if (d.camps.length === 0) return;
   const count = d.camps.map(() => 0);
+  let total = 0;
   for (const [id, rt] of world.mobs) {
-    const ref = world.state.mobs.get(id)?.camp ?? 0;
-    if (rt.brain && ref >= 1 && ref <= count.length) count[ref - 1]!++;
+    const m = world.state.mobs.get(id);
+    if (!m || !isRegionalMob(m)) continue;
+    total++;
+    if (rt.brain && m.camp >= 1 && m.camp <= count.length) count[m.camp - 1]!++;
   }
-  while (world.mobs.size < target) {
+  while (total < target) {
     let ci = 0;
     count.forEach((n, i) => {
       if (n < count[ci]!) ci = i;
@@ -214,6 +224,7 @@ function topUp(world: World, d: Driver, target: number): void {
       region, elite: false, at: freeFloorNear(world, spot, 12, 24, d.placeRnd) ?? spot, facing: Math.atan2(camp.y - spot.y, camp.x - spot.x),
       camp: ci,
     });
+    total++;
   }
 }
 
@@ -245,7 +256,7 @@ function nearestTarget(world: World, d: Driver, pid: string): Combatant | null {
       bestId = id;
     }
   };
-  if (d.campOf.has(pid)) for (const [mid, m] of world.state.mobs) consider(mid, m);
+  if (d.campOf.has(pid)) for (const [mid, m] of world.state.mobs) { if (isRegionalMob(m)) consider(mid, m); }
   else for (const [oid, o] of world.state.players) if (oid !== pid) consider(oid, o);
   return bestId === null ? null : combatant(world, bestId);
 }
@@ -254,7 +265,7 @@ function nearestTarget(world: World, d: Driver, pid: string): Combatant | null {
 function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: number): void {
   const now = world.state.serverTime;
   d.ticks++;
-  if (mobsWanted > 0 && world.mobs.size < mobsWanted) topUp(world, d, mobsWanted);
+  if (mobsWanted > 0) topUp(world, d, mobsWanted);
   for (const bid of d.botIds) {
     const b = world.state.players.get(bid);
     if (b && b.status === "alive" && b.hp < b.maxHp * 0.5) b.hp = b.maxHp;
@@ -389,6 +400,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const warmup = opts.warmup ?? 200;
   const strafeMs = opts.strafeMs ?? 600;
   const chestsWanted = opts.chests ?? 0;
+  const questsOn = opts.quests === true;
 
   let uid = 0;
   const map = generateMap(seed);
@@ -398,12 +410,12 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   let world: World;
   if (botCount > 0) {
     room = createHeadlessRoom({
-      seed, map, config: config(playerCount, mobsWanted > 0), bots: { ...BOT_FILL_DEFAULTS, fillTo: playerCount },
+      seed, map, config: config(playerCount, mobsWanted > 0, questsOn), bots: { ...BOT_FILL_DEFAULTS, fillTo: playerCount },
     });
     world = room.world;
   } else {
     world = createGameWorld({
-      seed, config: config(playerCount, mobsWanted > 0), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
+      seed, config: config(playerCount, mobsWanted > 0, questsOn), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
     });
   }
   // What the room's SchemaSerializer does in `reset(state)`, before anyone joins. The server raises the encoder's buffer where it
@@ -420,12 +432,14 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     ids.push(id);
     addPlayer(world, id, `Player${i + 1}x`);
   }
-  // The bots take the seats the clients left, and the raid starts with the next tick (a full lobby does not wait).
+  // The bots take the seats the clients left. Bots never close a lobby early, so the countdown is ended by hand: the raid starts
+  // with the next tick.
   for (let i = 0; i < botCount; i++) {
     const spec = room!.manager.addBot(opts.botTier ? { tier: opts.botTier } : {});
     if (spec === null) throw new Error("the bandwidth lobby has no seat for a bot");
     botIds.push(spec.id);
   }
+  if (botCount > 0) world.state.lobbyEndsAt = world.state.serverTime;
   if (room) room.tick();
   else step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bandwidth run did not start");
@@ -561,6 +575,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     avgAwake: awake / ticks,
     avgProjectiles: projectiles / ticks,
     mobs: world.mobs.size,
+    quests: world.state.quests.size,
     initialSyncBytes,
     fxByKind,
     ...(room
@@ -580,11 +595,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const common: BandwidthOptions = {};
   if (args.seed !== undefined) common.seed = Number(args.seed);
   if (args.ticks !== undefined) common.ticks = Number(args.ticks);
+  common.quests = args.quests === "1" || args.quests === "true";
   const f = (n: number): string => n.toFixed(2);
   const show = (label: string, o: BandwidthOptions): void => {
     const r = runBandwidth({ ...common, ...o });
     console.log(
-      `${label}: ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
+      `${label}: ${r.mobs} mobs (${r.quests} quest offers), ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
       `  total ${f(r.totalKBps)} KB/s = patch ${f(r.patchKBps)} (${r.patchFramesPerSecond.toFixed(0)} frames/s)` +
       ` + fx ${f(r.fxKBps)} (${r.fxFramesPerSecond.toFixed(0)} frames/s)   joiner's first sync ${(r.initialSyncBytes / KIB).toFixed(1)} KB`,
     );

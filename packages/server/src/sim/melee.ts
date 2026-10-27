@@ -7,8 +7,8 @@
 //   - "What I saw is what I hit": the attacker's position AND every target's position are sampled at req.rewindT
 //     (positionAt over their history). Present walls (collisionMap) block: a target counts only with a clear line from
 //     the attacker's sampled position to the target's sampled centre (raycast; LOW stops a swing but not a shot: reachMask).
-//   - Targets: every standing combatant except the attacker, players and mobs alike, inside the arc
-//     (inArc(origin, req.a, shape.reach, shape.halfArc, targetPos, PLAYER_RADIUS)). A swing hits everyone in it.
+//   - Targets: every standing combatant except the attacker and quest givers, inside the arc
+//     (inArc(origin, req.a, shape.reach, shape.halfArc, targetPos, PLAYER_RADIUS)). A swing hits everyone eligible in it.
 //   - A target with a shield in hand (activeWeapon === "shield") whose front faces the attacker
 //     (onShieldFront(targetPos, target.facing, origin), both sampled positions, the holder's current facing):
 //     shieldOutcome({ melee: weapon }): "pierce" (axe) is a normal hit; "block" (a bash) is negated; "riposte" (sword)
@@ -28,7 +28,7 @@ import {
   inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, reachMask, riposteShare, shieldOutcome, staggers, swingVsBall,
   WEAPONS, type ArcShape, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { activeWeapon, combatant, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { positionAt } from "./movement";
 import { ballsThisTick, interceptBall } from "./projectiles";
@@ -43,7 +43,7 @@ export function resolveMelee(world: World): void {
   if (requests.length === 0) return;
   const map = collisionMap(world);
   // Nobody goes down before the ledger is applied, so one list serves every request.
-  const bodies = standingCombatants(world).filter((c) => !isEvading(c));
+  const bodies = standingCombatants(world).filter((c) => !isEvading(c) && !isQuestGiver(c));
   for (const req of requests) {
     const attacker = combatant(world, req.attacker);
     const shape = WEAPONS[req.weapon].shape;

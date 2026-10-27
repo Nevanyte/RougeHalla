@@ -22,9 +22,10 @@ export type PlayerStatus = "lobby" | "alive" | "dead" | "mia";
 /**
  * A chest holds one weapon and stays (opened) once emptied; a ground weapon vanishes when taken; a body holds what a
  * fallen player carried. A "reward" (roguelike R5) is a cleared camp's shared skill chest: no items, its options in the
- * container's `options`/`takenBy`/`pickers`, taken with `choose` (never `pickup`), gone at `expiresAt`.
+ * container's `options`/`takenBy`/`pickers`, taken with `choose` (never `pickup`), gone at `expiresAt`. A "quest"
+ * container holds a quest token or parcel (shared/quests.ts): picking it up never changes the weapon slots.
  */
-export type ContainerKind = "chest" | "ground" | "body" | "reward";
+export type ContainerKind = "chest" | "ground" | "body" | "reward" | "quest";
 
 /**
  * Client -> server. Keys are the Colyseus message types. Angles are radians on the ground plane, measured from where
@@ -198,16 +199,19 @@ export type FxEvent =
 export type RunOutcome = "won" | "draw" | "died" | "mia";
 
 /** Why GV was credited during a run (a `gv` event). The win bonus is not one: it is decided when the run resolves. */
-/** "skip": a chest skip that healed nothing (D12); it counts with the mob GV, under GV_MOB_CAP. */
-export type GvReason = "kill" | "mob" | "elite" | "bounty" | "skip";
+/** "skip": a chest skip that healed nothing (D12); it counts with the mob GV, under GV_MOB_CAP. Quest GV has its own cap. */
+export type GvReason = "kill" | "mob" | "elite" | "bounty" | "skip" | "quest";
 
 /**
  * GV a run paid out. `bounty` is from killing bountied players; `mobs` includes chest skips' GV (both under GV_MOB_CAP).
- * `total` is what was banked: kills + mobs + bounty + win.
+ * `quest` is capped separately at QUEST_GV_CAP. `total` is kills + mobs + bounty + quest + win.
  */
-export interface GvBreakdown { kills: number; mobs: number; bounty: number; win: number; total: number }
+export interface GvBreakdown { kills: number; mobs: number; bounty: number; quest: number; win: number; total: number }
 
 export interface ItemDTO { uid: string; def: string }
+
+/** Why the results screen shows no win bonus: "starters" = fewer than WIN_BONUS_MIN_PLAYERS human starters, "opponents" = damaged fewer than WIN_BONUS_MIN_OPPONENTS different human players. */
+export type WinBonusWhy = "starters" | "opponents";
 
 /** Sent once per player when their run resolves; by then its GV is banked. */
 export interface RunResult {
@@ -225,10 +229,16 @@ export interface RunResult {
   players: number;
   gv: GvBreakdown;
   /**
-   * True only for a winner whose win bonus was withheld: the run started with fewer than WIN_BONUS_MIN_PLAYERS, or
-   * they damaged fewer than WIN_BONUS_MIN_OPPONENTS different players.
+   * True only for a winner whose win bonus was withheld: the run started with fewer than WIN_BONUS_MIN_PLAYERS human
+   * starters, or they damaged fewer than WIN_BONUS_MIN_OPPONENTS different human players (fill bots count for neither).
    */
   winBonusWithheld: boolean;
+  /**
+   * Why the bonus was withheld, for the results screen; present only with `winBonusWithheld`. The bonus counts humans only
+   * (bots fill a lobby), so a player cannot tell from the state which rule held it back: "starters" is fewer than
+   * WIN_BONUS_MIN_PLAYERS human starters, "opponents" is damage on fewer than WIN_BONUS_MIN_OPPONENTS other humans.
+   */
+  winBonusWhy?: WinBonusWhy;
   /** Achievement ids this run unlocked, set by the Room when it banks the run. Absent when nothing unlocked. */
   achievements?: string[];
 }
@@ -295,6 +305,20 @@ export interface PlanMessage {
   boon: -1 | 0 | 1;
 }
 
+/**
+ * A hidden quest revealed to its finder only, QUEST_REVEAL_HEAD_START_MS before it appears in RaidState.quests.
+ * Until this message the finder receives no quest id, def or position either; the public state carries only a count.
+ */
+export interface QuestRevealMessage {
+  id: string;
+  /** QuestDef id in shared/quests.ts. */
+  def: string;
+  x: number;
+  y: number;
+  /** Server time the offer lapses. */
+  expiresAt: number;
+}
+
 /** Server → client. */
 export interface ServerMessages {
   fxs: FxBatch;
@@ -302,6 +326,8 @@ export interface ServerMessages {
   result: RunResult;
   /** Private: only the player it is dealt to receives it (see PlanMessage). */
   plan: PlanMessage;
+  /** Private: only the finder receives the head-start reveal. */
+  questReveal: QuestRevealMessage;
 }
 
 /**

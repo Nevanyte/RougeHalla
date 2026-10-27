@@ -14,7 +14,7 @@
 //   - The run ends when nobody is alive, or, in a contested run (2+ starters), when one player is. A lone
 //     survivor wins. With nobody left, the players who went down in this last tick are compared by hp fraction at
 //     the start of the tick: a single highest wins, an exact tie is a draw for those tied. Solo runs have no winner.
-//   - GV earned during the run (kills, mobs, bounties) is kept whatever the outcome. The winner also gets GV_WIN, but
+//   - GV earned during the run (kills, mobs, bounties, quests) is kept whatever the outcome. The winner also gets GV_WIN, but
 //     only when the run went active with WIN_BONUS_MIN_PLAYERS and they damaged WIN_BONUS_MIN_OPPONENTS different
 //     players (so a second callsign can't feed someone wins). Bots count for neither: the gate reads human starters
 //     and human opponents (docs/BOTS.md). All of it banks when the player's result is emitted (the Room persists
@@ -24,10 +24,10 @@
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
 import {
-  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_SKIP, GV_WIN,
+  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_SKIP, GV_WIN, QUEST_GV_CAP,
   KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
-  type Vec2,
+  type Vec2, type WinBonusWhy,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
@@ -188,7 +188,7 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
   // After the bounty hook (half the victim's buffs already moved).
-  world.hooks.playerKilled?.(world, by.rt);
+  world.hooks.playerKilled?.(world, by.rt, rtv, rtv.down?.outcome ?? "died");
   updateBounty(world, by.p, by.rt);
 }
 
@@ -238,10 +238,17 @@ function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude
   if (rt.resolved || amount <= 0) return 0;
   if (reason === "kill") rt.gv.kills += amount;
   else if (reason === "bounty") rt.gv.bounty += amount;
+  else if (reason === "quest") rt.gv.quest += amount;
   else rt.gv.mobs += amount; // mob, elite and a chest skip: one pot under GV_MOB_CAP
-  p.gv = rt.gv.kills + rt.gv.mobs + rt.gv.bounty;
+  p.gv = rt.gv.kills + rt.gv.mobs + rt.gv.bounty + rt.gv.quest;
   emit(world, { type: "gv", id: rt.id, amount, reason });
   return amount;
+}
+
+/** Quest GV has its own per-run pot, separate from the mob cap. Returns the amount that fit. */
+export function awardQuestGv(world: World, p: PlayerState, rt: PlayerRuntime, amount: number): number {
+  if (world.config.training) return 0;
+  return credit(world, p, rt, "quest", Math.min(amount, Math.max(0, QUEST_GV_CAP - rt.gv.quest)));
 }
 
 /**
@@ -297,7 +304,7 @@ function releaseHeld(world: World, id: string): void {
 
 /** GV earned so far and not yet banked: what a run voided by a server shutdown still pays. */
 export function unbankedGv(rt: PlayerRuntime): number {
-  return rt.resolved ? 0 : rt.gv.kills + rt.gv.mobs + rt.gv.bounty;
+  return rt.resolved ? 0 : rt.gv.kills + rt.gv.mobs + rt.gv.bounty + rt.gv.quest;
 }
 
 /**
@@ -339,14 +346,15 @@ export function missInPlanning(world: World, p: PlayerState, rt: PlayerRuntime):
 }
 
 function resolve(
-  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWithheld = false,
+  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWhy?: WinBonusWhy,
 ): void {
   if (rt.resolved) return;
   rt.resolved = true;
   rt.path = [];
   const s = world.state;
   const gv: GvBreakdown = {
-    kills: rt.gv.kills, mobs: rt.gv.mobs, bounty: rt.gv.bounty, win, total: rt.gv.kills + rt.gv.mobs + rt.gv.bounty + win,
+    kills: rt.gv.kills, mobs: rt.gv.mobs, bounty: rt.gv.bounty, quest: rt.gv.quest,
+    win, total: rt.gv.kills + rt.gv.mobs + rt.gv.bounty + rt.gv.quest + win,
   };
   const result: RunResult = {
     outcome,
@@ -359,7 +367,8 @@ function resolve(
     place,
     players: world.arena.startedWith,
     gv,
-    winBonusWithheld,
+    winBonusWithheld: winBonusWhy !== undefined,
+    ...(winBonusWhy ? { winBonusWhy } : {}),
   };
   emit(world, { type: "resolved", id: rt.id, result, ...(rt.bot ? { bot: true as const } : {}) });
 }
@@ -429,8 +438,8 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   }
   for (const w of winners) {
     if (draw) { resolve(world, w.p, w.rt, "draw", 1, 0); continue; }
-    const earned = contested && earnedWinBonus(world, w.rt);
-    resolve(world, w.p, w.rt, "won", 1, earned ? GV_WIN : 0, !earned);
+    const why = contested ? withheldWhy(world, w.rt) : "starters";
+    resolve(world, w.p, w.rt, "won", 1, why ? 0 : GV_WIN, why);
   }
 
   const winner = !draw && winners.length === 1 ? winners[0]! : null;
@@ -449,9 +458,13 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   emit(world, { type: "raidEnded" });
 }
 
-/** Humans only: bots fill a lobby but never make a run count for the win bonus (owner question, docs/BOTS.md "Owner questions"). */
-function earnedWinBonus(world: World, rt: PlayerRuntime): boolean {
-  return world.arena.startedHumans >= WIN_BONUS_MIN_PLAYERS && (rt.damagedHumans?.size ?? 0) >= WIN_BONUS_MIN_OPPONENTS;
+/**
+ * Why a winner gets no win bonus, or undefined when they earned it. Humans only: bots fill a lobby but never make a run count
+ * for it (owner question, docs/BOTS.md "Owner questions"). The starters check comes first, so a run that fails both says that.
+ */
+function withheldWhy(world: World, rt: PlayerRuntime): WinBonusWhy | undefined {
+  if (world.arena.startedHumans < WIN_BONUS_MIN_PLAYERS) return "starters";
+  return (rt.damagedHumans?.size ?? 0) < WIN_BONUS_MIN_OPPONENTS ? "opponents" : undefined;
 }
 
 /**

@@ -5,8 +5,8 @@
 // must have given it that one. Three play it out; the fourth walks out a second into the run, which the server must settle
 // as MIA (it leaves, so it may never see its result: that one is checked through the store). What is asserted is what must
 // hold whoever wins: the run ended in one winner or a draw, every bot that stayed got exactly one sensible result, the GV
-// ledger balances for every profile (kills pay GV_KILL, mobs pay what the sim paid under the per-run cap, the winner gets
-// GV_WIN unless the anti alt-farming rule withheld it, all of it banked once, in the profile, its lifetime total and the
+// ledger balances for every profile (kills pay GV_KILL, mobs and quests pay what the sim paid under their per-run caps,
+// the winner gets GV_WIN unless the anti alt-farming rule withheld it, all banked once, in the profile, its lifetime and the
 // month), the stats add up, the file on disk says the same, no bot stood stuck, and nothing blew up. The bots must really
 // fight: somebody gets killed by a bot, and the kills the results claim match the deaths they name; the faction signatures
 // fire (damage over time and Fire's backlash are broadcast as `hit` fx with a `sig`, each dealt by a fighter of the faction
@@ -468,7 +468,7 @@ async function playRun(
     // --- the GV each result paid
     const winBonus = sum(all.map((r) => r.gv.win));
     for (const r of all) {
-      expect(r.gv.total, `${r.profile} total`).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.win);
+      expect(r.gv.total, `${r.profile} total`).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.quest + r.gv.win);
       expect(r.gv.kills, `${r.profile} kill GV`).toBe(GV_KILL * r.kills);
       // Mob GV is what the sim paid per mob killed (1 to 2 for a normal one, 3 to 10 for an elite, scaled by the reward curve
       // and, for a player far behind the lobby's feed, the catch-up bonus), under the per-run cap: the death fx name the killer,
@@ -487,8 +487,8 @@ async function playRun(
     }
     expect(sum(all.map((r) => r.gv.kills))).toBe(GV_KILL * totalKills);
     expect(winBonus, "the win bonus is paid at most once, to a winner who earned it").toBe(bonusPaid);
-    expect(sum(all.map((r) => r.gv.total)), "GV_KILL × kills + mobs + bounties + the win bonus actually paid").toBe(
-      GV_KILL * totalKills + sum(all.map((r) => r.gv.mobs)) + sum(all.map((r) => r.gv.bounty)) + bonusPaid,
+    expect(sum(all.map((r) => r.gv.total)), "GV_KILL × kills + mobs + bounties + quests + the win bonus actually paid").toBe(
+      GV_KILL * totalKills + sum(all.map((r) => r.gv.mobs)) + sum(all.map((r) => r.gv.bounty)) + sum(all.map((r) => r.gv.quest)) + bonusPaid,
     );
     // The mobs: a bot killed one in the run that had the time for it, and no mob GV exists without a kill behind it.
     if (expectMobKill) {

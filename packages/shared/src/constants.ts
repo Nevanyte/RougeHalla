@@ -303,3 +303,29 @@ export const SWIFT_BOOTS_PAUSE_MS = 2500;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;
+
+// Quests (GAME_DESIGN 2.2, shared/quests.ts): optional NPC quests that pull a player across the map.
+/** Quests offered per run. */
+export const QUEST_COUNT = 10;
+/** Of those, this many (and their giver's position) are public from the start, so a run can be planned around them. */
+export const QUEST_KNOWN_COUNT = 5;
+/** The rest stay server-only until scouted; only this numeric count is public. */
+export const QUEST_UNKNOWN_COUNT = QUEST_COUNT - QUEST_KNOWN_COUNT;
+/** A standing player this close to an unknown quest's giver discovers it. */
+export const QUEST_REVEAL_RADIUS = 12 * TILE;
+/** The finder gets a private reveal this long before the quest enters synced state for everyone. */
+export const QUEST_REVEAL_HEAD_START_MS = 4000;
+/** Turn-in reach: standing this close to the giver with the objective met completes the quest (INTERACT_RANGE is for loot). */
+export const QUEST_TURN_IN_RANGE = 64;
+/** A giver never spawns closer than this to a player start. */
+export const QUEST_NPC_SPAWN_MIN_TILES = 8;
+/** Givers keep at least this far apart (relaxed to half when a map runs out of room). */
+export const QUEST_NPC_GAP_TILES = 7;
+/** A fetch quest's parcel lies at least this many tiles from its giver (Chebyshev), when the map has room. */
+export const QUEST_FETCH_MIN_TILES = 36;
+/** Item def prefix of quest tokens and parcels: loot.ts hands any of these to the quests module. */
+export const QUEST_ITEM_PREFIX = "quest:";
+/** Parcels one player may carry at once. */
+export const QUEST_MAX_CARRIED = 1;
+/** Quest GV has its own per-run pot, separate from mob and bounty GV. */
+export const QUEST_GV_CAP = 24;
