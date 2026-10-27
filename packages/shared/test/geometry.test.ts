@@ -689,9 +689,22 @@ describe("circleClear and segmentClear on LOW maps", () => {
 // Generated maps without stylers have no LOW tiles, and gates open and locked are both walls only: every query must give
 // exactly the numbers it gave before TILE_LOW and the masks existed. The hashes (FNV-1a over the 8 bytes of every result)
 // were first recorded with the code before LOW (geometry.ts and pathfind.ts at f5dc7cd) on the 96x96 zone maps of seeds 1..5
-// (R2), where the masked code gave the same; they pin raycast, circleClear, segmentClear and findPath. ZT-6 re-recorded them on the
-// same seeds' plain maps (`styleZones: null`: the generator now picks its spawn pool before the stylers and walls up small cut-off
-// pieces, so the plain maps moved; the geometry and pathfinding code did not).
+// (R2), where the masked code gave the same; they pin raycast, circleClear, segmentClear and findPath. Every change to the zone
+// generator moved those maps, so ZT-6 took the generator out of this test: the maps are built here, from a stream of their own
+// (a border, scattered rocks and a few long walls, 96x96), and the values were re-recorded on them (the geometry and pathfinding
+// code did not change).
+/** A 96x96 wall-only map of `seed` that no generator change can move: the border, about 14% scattered rocks and eight long walls. */
+function wallMap(seed: number): GameMap {
+  const n = 96, rng = mulberry32(seed * 0x9e3779b1 + 17), tiles = new Uint8Array(n * n);
+  for (let i = 0; i < n; i++) { tiles[i] = TILE_WALL; tiles[(n - 1) * n + i] = TILE_WALL; tiles[i * n] = TILE_WALL; tiles[i * n + n - 1] = TILE_WALL; }
+  for (let i = 0; i < n * n; i++) if (rng() < 0.14) tiles[i] = TILE_WALL;
+  for (let k = 0; k < 8; k++) {
+    const horizontal = rng() < 0.5, len = 12 + Math.floor(rng() * 20), x0 = 4 + Math.floor(rng() * (n - 40)), y0 = 4 + Math.floor(rng() * (n - 40));
+    for (let j = 0; j < len; j++) tiles[(horizontal ? y0 : y0 + j) * n + (horizontal ? x0 + j : x0)] = TILE_WALL;
+  }
+  return mapFromTiles(n, n, tiles, seed);
+}
+
 describe("identity golden on wall-only maps", () => {
   const f64 = new Float64Array(1);
   const bytes = new Uint8Array(f64.buffer);
@@ -704,7 +717,7 @@ describe("identity golden on wall-only maps", () => {
   function identityHashes(): { raycast: number; circle: number; segment: number; path: number } {
     let hr = 2166136261, hc = 2166136261, hs = 2166136261, hp = 2166136261;
     for (let seed = 1; seed <= 5; seed++) {
-      const open = generateMap(seed, undefined, { styleZones: null });
+      const open = wallMap(seed);
       const maps = [open, withGates(open)];
       for (let m = 0; m < 2; m++) {
         const map = maps[m];
@@ -734,6 +747,6 @@ describe("identity golden on wall-only maps", () => {
   }
 
   it("gives the same 5000 raycasts, 5000 disc tests, 5000 swept tests and 500 paths as the code before LOW", () => {
-    expect(identityHashes()).toEqual({ raycast: 1352108942, circle: 4235002456, segment: 2209238725, path: 871460771 });
+    expect(identityHashes()).toEqual({ raycast: 3600333401, circle: 4243701605, segment: 4055928901, path: 894344229 });
   });
 });

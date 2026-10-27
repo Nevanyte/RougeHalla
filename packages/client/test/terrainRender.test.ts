@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  generateMap, INTERACT_RANGE, mapFromTiles, PLAYER_RADIUS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE,
+  generateMap, INTERACT_RANGE, mapFromTiles, mulberry32, PLAYER_RADIUS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE,
   TERRAIN_LAVA, TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, Y_SCALE,
   type GameMap, type Vec2,
 } from "@raid/shared";
@@ -169,6 +169,18 @@ describe("MapView draws LOW tiles", () => {
 // If the bake fails the map is drawn the plain way, and a floor hazard (ember, bog, ice, light) must still show. A map with no such
 // terrain must draw exactly what it drew before the tint existed (pinned below as digests of every call of every made object).
 
+/** A 96x96 map of `seed` that no generator change can move: the wall border, about 14% rocks, and the floor in five bands of zone codes. */
+function plainBands(seed: number): GameMap {
+  const n = 96, rng = mulberry32(seed * 0x9e3779b1 + 5), tiles = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    const x = i % n, y = (i - x) / n;
+    tiles[i] = x === 0 || y === 0 || x === n - 1 || y === n - 1 || rng() < 0.14 ? TILE_WALL : TILE_FLOOR;
+  }
+  const map = mapFromTiles(n, n, tiles, seed);
+  for (let i = 0; i < n * n; i++) { const x = i % n, y = (i - x) / n; if (x > 0 && y > 0 && x < n - 1 && y < n - 1) map.regionGrid[i] = 1 + Math.floor((x * 5) / n); }
+  return map;
+}
+
 describe("MapView's plain way tints floor hazards", () => {
   /** The floor is a base rectangle at DEPTH_FLOOR under chunks one above it (R2's culled chunks); the tints are in the chunks. */
   const DEPTH_FLOOR_CHUNK = -1e6 + 1;
@@ -197,13 +209,13 @@ describe("MapView's plain way tints floor hazards", () => {
   };
 
   it("draws a map with no floor terrain exactly as it was drawn before the tint: a LOW tile, a wall that kept a kind, plain maps", () => {
-    // Digests taken from the code with the hazard tint taken out (the chunked plain way of the R2 + zone terrain merge, on
-    // 96x96 zone maps); the tint must leave them unchanged. ZT-6 re-recorded them on the same seeds' plain maps (`styleZones: null`:
-    // the generator's plain maps moved when it began picking its spawn pool before the stylers); the drawing code did not.
+    // Digests taken from the code with the hazard tint taken out (the chunked plain way of the R2 + zone terrain merge); the tint must
+    // leave them unchanged. The 96x96 maps are built here (a border, scattered rocks, five bands of zone codes), not by the generator,
+    // whose every change moved the maps of the seeds this test once used (ZT-6 re-recorded the digests on these).
     const lava = room(12, 10, { "4,3": TERRAIN_LAVA });
     expect(digest(lava)).toBe("fb5da7bb9d7c13fa 14");
-    expect(digest(generateMap(3, undefined, { styleZones: null }))).toBe("2b1e599b4f8b8933 440");
-    expect(digest(generateMap(11, undefined, { styleZones: null }))).toBe("3d4e192630233cd7 440");
+    expect(digest(plainBands(3))).toBe("923af7b3ce73b4b0 427");
+    expect(digest(plainBands(11))).toBe("64fbe936ff3df712 426");
     // A floor kind on a tile that is not floor (a stale byte under a wall or LOW tile) is not drawn either.
     expect(digest(field({ "4,3": [TILE_LOW, TERRAIN_LAVA], "6,5": [TILE_WALL, TERRAIN_EMBER] }))).toBe(digest(field({ "4,3": [TILE_LOW, TERRAIN_LAVA], "6,5": [TILE_WALL, 0] })));
   });

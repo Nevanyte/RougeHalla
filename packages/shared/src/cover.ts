@@ -58,6 +58,12 @@ const POCKET_MAX = 30;
 const LEVEL_COST = 2048;
 /** The same for standing on a soft-protected tile: more than any number of lanes a rock could cut, so it is a last resort. */
 const SOFT_COST = 1 << 24;
+/**
+ * A rock that would split its zone's floor locally (see guardLevel) is as bad as a rock on soft-protected ground: a last resort, tried
+ * only when nothing else cuts the corridor. As a mere preference (level 2) the cover split a zone's floor, and with it territories and
+ * the zone's pool and area, in about one attempt in ten on a styled map; as a last resort it does so in none of 600 seeds.
+ */
+const ZONE_GUARD_LEVEL = 3;
 const penalty = (lvl: number): number => (lvl >= 3 ? SOFT_COST : lvl * LEVEL_COST);
 
 export const TWO_PI = 6.283185307179586;
@@ -447,11 +453,11 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
   const lines = lineStart.length - 1;
   const open = openMask(tiles, regionGrid, new Uint8Array(N));
   const limit = target + LANE_EPS;
-  // The territory guard: a rock on floor keeps that tile's territory floor locally connected (a simple point of the
-  // territory's own floor), so it never splits a territory whose pieces would stay linked only through another one. The
-  // zone's floor gets the same: a rock never cuts a zone into two floors that only another zone's ground joins.
-  const guardOK = (t: number): boolean => {
-    if (!guard || !guard[t]) return true;
+  // The guards: a rock on floor keeps that tile's territory floor locally connected (a simple point of the territory's own floor), so
+  // it never splits a territory whose pieces would stay linked only through another one (level 2, a preference), and its zone's floor
+  // the same, so it never cuts a zone into two floors that only another zone's ground joins (ZONE_GUARD_LEVEL, a last resort).
+  const guardLevel = (t: number): number => {
+    if (!guard || !guard[t]) return 0;
     const g = guard[t], z = regionGrid[t];
     let m = 0, mz = 0;
     for (let q = 0; q < 8; q++) {
@@ -460,7 +466,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
       if (guard[j] === g) m |= 1 << q;
       if (regionGrid[j] === z) mz |= 1 << q;
     }
-    return SIMPLE[m] === 1 && SIMPLE[mz] === 1;
+    return SIMPLE[mz] !== 1 ? ZONE_GUARD_LEVEL : SIMPLE[m] !== 1 ? 2 : 0;
   };
   // A lane through k tiles is at most k * sqrt(2) long, so a shorter run of open tiles is never a long lane.
   const minRun = Math.floor(limit / 1.4142135623730951) + 1;
@@ -758,7 +764,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
       if (r !== 0 && r !== rock && lvl < 1) lvl = 1;
       if ((tiles[j] & MASK_MOVE) === 0) mask |= 1 << q;
     }
-    if (lvl < 2 && (tiles[t] & MASK_MOVE) === 0 && !guardOK(t)) lvl = 2;
+    if (lvl < 3 && (tiles[t] & MASK_MOVE) === 0) { const gl = guardLevel(t); if (gl > lvl) lvl = gl; }
     if ((tiles[t] & MASK_MOVE) === 0 && !SIMPLE[mask]) {
       if (lvl < 2) lvl = 2;
       if (lvl > worst || score - penalty(lvl) <= beat || !sealed(t)) return NEVER;

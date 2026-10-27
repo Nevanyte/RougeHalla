@@ -247,8 +247,11 @@ option of `styleZones`; the hook returns nothing where `styleZones` returns a `S
    cannot be walled still changes zone, its hazards cleared (T6), and fails the attempt if it holds low ground (`A:rezoneLow`). The
    area balance no longer aborts when a trade gets stuck (the 8-tile spread check judges the result), and trades make partial
    progress. These took `A:areaPost` from 19% of the themed attempts that reached the repair (21 of 109) to 2.2% of all of them (24 of 1104), and from about 5% to 2.1% on the plain generator.
-5. *Zone floor.* The cover keeps a zone's floor locally connected (`guardOK` checks the zone as well as the territory) and the
-   generator checks that each zone's floor is one 4-connected piece (`A:zoneFloorSplit`); the certifier checks it too.
+5. *Zone floor.* The cover treats a rock that would split its zone's floor locally (`guardLevel` in `cover.ts`) as a last resort, level 3 like
+   a rock on a spawn's soft ground (`ZONE_GUARD_LEVEL`); as a level-2 preference zone floors split in about one attempt in ten, and with
+   them territories, the pool and the area: attempts per seed fell from 1.10 to 1.04 (and the plain generator's from 1.056 to 1.018) when
+   it became a last resort, and `A:zoneFloorSplit` from 13 per 1000 seeds to none seen. The generator checks that each zone's floor is one
+   4-connected piece anyway (`A:zoneFloorSplit`) and the certifier checks it too.
 6. *The walking contour is judged after the repair*, which can wall up floor: a pool that had passed the 8% check before the repair
    failed the independent certifier's at 1.23 once a wall moved a walk.
 7. Decor stays off spawns, crates and ground spots; a `validateTerrain` failure fails the attempt (`A:terrain`, about 1 in 1000).
@@ -264,20 +267,17 @@ another process; `PINNED_PLAIN` for `styleZones: null`), and the certifier's `st
 
 | 1000 seeds (0..999) | mean | p50 | p90 | p99 | max | attempts per seed | certified at attempt 0/1/2 | discarded |
 |---|---|---|---|---|---|---|---|---|
-| themed | 39.7 ms | 34.7 | 57.7 | 96.4 | 219.8 | 1.104 | 904 / 88 / 8 | 0 |
-| plain (`styler=none`) | 30.6 ms | 27.9 | 36.0 | 64.9 | 101.8 | 1.056 | 950 / 44 / 6 | 0 |
-| themed, a second window (load 11-13) | 44.6 ms | 41.1 | 62.8 | 103.3 | 179.1 | 1.104 | 904 / 88 / 8 | 0 |
-| plain, the same window | 32.0 ms | 27.8 | 43.9 | 80.4 | 97.1 | 1.056 | 950 / 44 / 6 | 0 |
+| themed | 39.0 ms | 36.5 | 43.5 | 79.3 | 175.6 | 1.041 | 960 / 39 / 1 | 0 |
+| themed, with the plain yardstick interleaved | 37.8 ms | 35.0 | 44.0 | 79.5 | 121.6 | 1.041 | 960 / 39 / 1 | 0 |
+| plain (`styler=none`) | 30.4 ms | 28.7 | 35.7 | 56.3 | 81.5 | 1.018 | 982 / 18 / 0 | 0 |
 
-An interleaved run of the plain generator as the yardstick read 31.9 ms mean and 72.6 p99 over 300 maps while the themed one read the
-39.7 and 96.4 above (35.9 and 89.3 against 44.6 and 103.3 in the second window): the themed generator costs about 1.25 to 1.4 times the
-plain one. The targets (mean 40 ms, p99 120 on a quiet machine) are met at both loads; scaled by the R2 doc's 0.75 for a quiet
-machine the means are about 30-33 ms. Extra attempts over the plain generator: +4.5% (the contract asked for 2%: see CLAUDE.md Known TODOs for where
-they come from). The styler stage costs 5.8 ms per attempt (5.4 ms per call; the gate is 8). Time per attempt by stage, in ms:
-zones 5.68, ruins 0.31, spawn pool 1.11, styler 5.77, crates 0.65, pre-lattices 3.43, coarse 5.78, fine 10.61, post 1.25,
-records 1.06. The cost gate (`mapgen.perf.test.ts`) is 60 ms scaled with the stylers and 45 without; it reads 50-58 ms and 36 ms.
-Failures per 1104 attempts (themed; plain per 1056): pool after the cover 15 (2), zone floor split 13 (2), territory radius 15 (3),
-area 24 (22), stray piece 15 (10), crate in a rezoned piece 10 (9), fine cover 9 (6), `A:rezoneLow` 1, `A:rezoneRuin` 2 (2).
+The interleaved plain generator read 31.5 ms mean and 67.2 p99 over 300 maps in the second row's windows: the themed generator costs
+about 1.2 to 1.4 times the plain one. Extra attempts over the plain generator: +2.3% (the contract asked for 2%). The targets (mean 40 ms,
+p99 120 on a quiet machine) are met at load 8-13; scaled by the R2 doc's 0.75 for a quiet machine the means are about 28-30 ms. The
+styler stage costs 5.6-5.9 ms per attempt (the gate is 8). Time per attempt by stage, in ms: zones 5.81, ruins 0.31, spawn pool 1.15,
+styler 5.88, crates 0.67, pre-lattices 3.51, coarse 5.76, fine 10.66, post 1.20, records 1.16. The cost gate (`mapgen.perf.test.ts`)
+is 60 ms scaled with the stylers and 45 without. Failures per 1041 attempts (themed; plain per 1018): pool after the cover 8 (0),
+territory radius 9 (0), area 9 (5), stray piece 4 (2), crate in a rezoned piece 7 (7), fine cover 4 (2), zone floor split 0 (2).
 
 **Certification** (the independent certifier in `styler=zone` mode: every plain check plus `validateTerrain` T1-T11, each zone's
 floor 4-connected, every kind in its home zone, ICE with plain floor on all eight sides, no kind on a spawn 3x3, no hazard on a
@@ -285,16 +285,17 @@ spawn 5x5 or a ground spot's 3x3, no kind on a crate 3x3 or a camp clearing + ha
 
 | sweep | seeds | failures | discarded | lane max | exact strip max | disc max | floor share max | walk ratio BFS 5/7 | findPath walk ratio mean / p90 / max |
 |---|---|---|---|---|---|---|---|---|---|
-| default (themed) | 0..499 | 0 | 0 | 479.4 u | 465.1 u | 454.0 u | 1.143 | 1.174 | 1.169 / 1.181 / 1.189 |
-| default (themed) | 500..999 | 0 | 0 | 479.4 u | 462.7 u | 454.0 u | 1.146 | 1.174 | 1.171 / 1.186 / 1.200 |
-| default (themed), a fresh range | 40000..40199 | 0 | 0 | 479.4 u | 464.4 u | 441.8 u | 1.143 | 1.174 | 1.163 / 1.181 / 1.182 |
+| default (themed) | 0..499 | 0 | 0 | 479.4 u | 465.0 u | 447.7 u | 1.109 | 1.174 | 1.169 / 1.191 / 1.200 |
+| default (themed) | 500..999 | 0 | 0 | 479.4 u | 464.4 u | 447.7 u | 1.102 | 1.174 | 1.168 / 1.191 / 1.201 |
+| default (themed), a fresh range | 40000..40199 | 0 | 0 | 479.4 u | 461.7 u | 441.8 u | 1.122 | 1.174 | 1.167 / 1.180 / 1.190 |
 
 The 480 u cap is certified with the stylers' walls counted (a wall cuts a lane, LOW does not: sight reads `MASK_SIGHT`). The sealed
 coliseum lane is 418 u, ring contact at least 29, slivers at most 100, territory radius at most 30.0 tiles, the pool 24-32. The
-independent certifier found no failure and no discard. Themes present (lava, fence, bog, ice, light): on every map of all three
-sweeps. Mean tiles of each kind per map: lava 62, ember 68, fence 49, bog 97, ice 41 (crevasse 20), light 18; rock tiles 2037.
-Hazard exposure (report only, contract 0.8): 35% of pool members cross at least one terrain tile on their walk to the centre; mean
-1.4 over all members, p90 5, max 24.
+independent certifier found no failure and no discard (1200 seeds; attempts 1155 / 44 / 1 at 0 / 1 / 2). Themes present (lava, fence,
+bog, ice, light): on every map of all three sweeps. Mean tiles of each kind per map: lava 62, ember 68, fence 50, bog 97, ice 42
+(crevasse 20), light 18; rock tiles 2007. Hazard exposure (report only, contract 0.8): 35% of pool members cross at least one terrain
+tile on their walk to the centre; mean 1.3 over all members, p90 5, max 20. The findPath walk ratio reaches 1.201 on one seed (the
+owner's report-only target is 1.2).
 
 **Determinism.** The pins were recorded by `scripts/pinMaps.ts` in its own process and are compared in the shards and in a fresh-module
 rebuild (50 seeds); the Math spy runs through a generation with the stylers on. In headless Chrome 155, five seeds (5:1, 123:0,
