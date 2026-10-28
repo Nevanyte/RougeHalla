@@ -198,11 +198,12 @@ def duel(a: PowerSpec, b: PowerSpec, dt: float = 0.002, t_max: float = 120.0):
             dealt = plain + exe
             out[i] = dealt
             if f[i].sustain:
-                heal[i] = dealt * SUSTAIN[f[i].sustain](f[i].params, st.own_hp_frac)
+                # The sentence cuts what a fighter deals, never what it heals from it (docs/SENTENCED_REDESIGN.md R6).
+                heal[i] = (dealt / cut) * SUSTAIN[f[i].sustain](f[i].params, st.own_hp_frac)
         hp[0] = min(f[0].hp, hp[0] - out[1] + heal[0])
         hp[1] = min(f[1].hp, hp[1] - out[0] + heal[1])
         for i in (0, 1):
-            hits[i] += rate[i] * dt
+            hits[i] += f[i].rate * dt              # the tiers climb at the unslowed pace: a slow on the cadence never delays them
             if denied[i] and stacks[i] < 1.0:      # a denied execute is worth one stack, once per mark
                 stacks[i] = 1.0
         t += dt

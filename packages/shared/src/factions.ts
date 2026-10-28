@@ -50,8 +50,8 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 950, rate: 0.9, hit: 23, phys: 0.9, trueShare: 0.0, armor: 125, shield: 210,
-    mechanic: "marked", params: { mark_pct: 0.0235, mark_kill: 0.005875, mark_amp: 1.5, tax_keep: 0.5, tax_cap: 1.6, suppress: 0.8 },
+    hp: 850, rate: 0.9, hit: 30, phys: 0.7, trueShare: 0.0, armor: 125, shield: 210,
+    mechanic: "marked", params: { mark_pct: 0.039, mark_kill: 0.00975, mark_amp: 1.5, tax_keep: 0.5, tax_cap: 1.6, suppress: 0.8 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
@@ -255,12 +255,13 @@ export function duel(a: FactionSpec, b: FactionSpec, dt = 0.002, tMax = 120): Du
       }
       const dealt = plain + exe;
       out[i] = dealt;
-      heal[i] = dealt * lifestealFraction(f[i], st.ownHpFrac);
+      // The sentence cuts what a fighter deals, never what it heals from it (docs/SENTENCED_REDESIGN.md R6).
+      heal[i] = (dealt / cut) * lifestealFraction(f[i], st.ownHpFrac);
     }
     hp[0] = Math.min(f[0].hp, hp[0]! - out[1]! + heal[0]!);
     hp[1] = Math.min(f[1].hp, hp[1]! - out[0]! + heal[1]!);
     for (const i of [0, 1] as const) {
-      hits[i]! += rate[i]! * dt;
+      hits[i]! += f[i].rate * dt; // the tiers climb at the unslowed pace: a slow on the cadence never delays them
       if (denied[i] && stacks[i]! < 1) stacks[i] = 1;
     }
     t += dt;
