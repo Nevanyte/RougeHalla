@@ -17,12 +17,15 @@ export interface QuestViewFrame {
   localId: string;
   me?: QuestPlayer;
   highlightId?: string;
+  trackedId?: string;
+  serverNow?: number;
 }
 
 interface GiverView {
   root: Phaser.GameObjects.Container;
   offer: Phaser.GameObjects.Text;
   hint: Phaser.GameObjects.Text;
+  trackedLabel: Phaser.GameObjects.Text;
   /** The mark now drawn: "!" for an offer the local player has not accepted, "?" for one they hold. */
   accepted: boolean | null;
 }
@@ -45,7 +48,7 @@ export class QuestView {
     const seenGivers = new Set<string>();
     const carrierIds = new Set<string>();
     frame.quests.forEach((quest) => {
-      if (!visibleQuest(quest) || quest.status !== "open") return;
+      if (!visibleQuest(quest) || quest.status !== "open" || (frame.serverNow !== undefined && frame.serverNow >= quest.expiresAt)) return;
       const def = questDefById(quest.def);
       if (!def) return;
       seenGivers.add(quest.id);
@@ -59,6 +62,7 @@ export class QuestView {
         giver.offer.setText(accepted ? "?" : "!").setAlpha(accepted ? 0.6 : 1);
       }
       giver.hint.setVisible(frame.me?.status === "alive" && questTurnIn(quest, def, frame.localId, frame.me));
+      giver.trackedLabel.setVisible(frame.trackedId === quest.id);
       if (quest.carrier) {
         const at = frame.positions.get(quest.carrier) ?? frame.players.get(quest.carrier);
         if (at) {
@@ -81,13 +85,14 @@ export class QuestView {
       const questId = questItemQuestId(container);
       if (!questId) return;
       const quest = this.questById(frame.quests, questId);
-      if (!quest || !visibleQuest(quest) || quest.status !== "open") return;
+      if (!quest || !visibleQuest(quest) || quest.status !== "open" || !questAccepted(quest, frame.localId)
+        || (frame.serverNow !== undefined && frame.serverNow >= quest.expiresAt)) return;
       const def = questDefById(quest.def);
       if (!def) return;
       seenItems.add(container.id);
       const item = this.items.get(container.id) ?? this.makeItem(container.x, container.y, container.label, def.kind);
       this.items.set(container.id, item);
-      item.label.setVisible(frame.highlightId === container.id);
+      item.label.setVisible(frame.highlightId === container.id || frame.trackedId === quest.id);
     });
     for (const [id, view] of this.items) {
       if (!seenItems.has(id)) { view.root.destroy(); this.items.delete(id); }
@@ -127,11 +132,14 @@ export class QuestView {
     const offer = this.scene.add.text(0, -BODY_LIFT - 60, "!", {
       ...LABEL_STYLE, fontSize: "22px", fontStyle: "bold", color: `#${color.toString(16).padStart(6, "0")}`,
     }).setOrigin(0.5, 1);
+    const trackedLabel = this.scene.add.text(0, -BODY_LIFT - 78, "TRACKED", {
+      ...LABEL_STYLE, fontSize: "9px", fontStyle: "bold", color: "#fff59d",
+    }).setOrigin(0.5, 1).setVisible(false);
     const hint = this.scene.add.text(0, 16, "Turn in here", {
       ...LABEL_STYLE, fontSize: "12px", fontStyle: "bold", color: "#fff59d",
     }).setOrigin(0.5, 0).setVisible(false);
-    const root = this.scene.add.container(projX(quest.x), projY(quest.y), [shape, label, offer, hint]).setDepth(depthFor(quest.y));
-    return { root, offer, hint, accepted: null };
+    const root = this.scene.add.container(projX(quest.x), projY(quest.y), [shape, label, offer, trackedLabel, hint]).setDepth(depthFor(quest.y));
+    return { root, offer, hint, trackedLabel, accepted: null };
   }
 
   private makeItem(x: number, y: number, text: string, kind: QuestKind): ItemView {

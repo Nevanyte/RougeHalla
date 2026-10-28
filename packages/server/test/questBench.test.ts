@@ -20,7 +20,7 @@ function timeline(over: Partial<PowerTimeline>): PowerTimeline {
 
 describe("quest benchmark", () => {
   it("runs the smallest configuration end to end and reports real quest observations", () => {
-    const observation = runQuestBench({ seeds: 1, players: 2, capSeconds: 20 });
+    const observation = runQuestBench({ seeds: 1, players: 2, capSeconds: 60 });
     expect(observation.errors).toEqual([]);
     // 3 policies x 2 solo seats + the mixed lobby
     expect(observation.runs).toHaveLength(7);
@@ -31,7 +31,9 @@ describe("quest benchmark", () => {
     const offered = new Set(observation.runs.flatMap((run) => run.offers.map((o) => o.name)));
     expect(offered.size).toBeGreaterThan(0);
     // Quest-taking policies pick up the offers they can see.
-    expect(observation.runs.flatMap((run) => run.attempts).length).toBeGreaterThan(0);
+    const attempts = observation.runs.flatMap((run) => run.attempts);
+    expect(attempts.length).toBeGreaterThan(0);
+    expect(attempts.some((attempt) => attempt.accepted)).toBe(true);
     const report = buildQuestBenchReport(observation);
     expect(report).toContain("# QUESTBENCH");
     expect(report).not.toContain("(no quest observations)");
@@ -41,6 +43,8 @@ describe("quest benchmark", () => {
     expect(report).toContain("BELOW 1");
     expect(report).toContain("1.0-1.35");
     expect(report).toContain("live card power");
+    expect(report).toContain("done/accepted/selected");
+    expect(report).toContain("public server confirmation");
     expect(report).toContain("Farm-only baseline");
     expect(report).toContain("Harness failures\n\nNone.");
   }, 90_000);

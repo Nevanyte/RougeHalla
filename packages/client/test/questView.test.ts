@@ -7,7 +7,7 @@ import { fakeScene } from "./fakes";
 function frame(over: Partial<QuestViewFrame> = {}): QuestViewFrame {
   const quest: QuestStateLike = {
     id: "q1", def: "banner-fire", x: 100, y: 200, status: "open", doneBy: "", expiresAt: 1000,
-    carrier: "remote", progress: new Map(),
+    carrier: "remote", progress: new Map(), accepted: new Map([["me", true]]),
   };
   return {
     quests: { forEach(cb: (q: QuestStateLike, id: string) => void) { cb(quest, quest.id); } },
@@ -59,15 +59,16 @@ describe("QuestView", () => {
     view.update(frame({ localId: "remote", me: { x: 105, y: 200, status: "alive" } }));
     const roots = ofKind("container");
     const giverChildren = roots[0]!.args[2] as Array<{ state: Record<string, unknown> }>;
-    expect(giverChildren[3]!.state.visible).toBe(true);
+    expect(giverChildren[4]!.state.visible).toBe(true);
     view.update(frame({ localId: "remote", me: { x: 500, y: 200, status: "alive" } }));
-    expect(giverChildren[3]!.state.visible).toBe(false);
+    expect(giverChildren[4]!.state.visible).toBe(false);
     view.destroy();
   });
 
   it("takes a giver, its item and its carrier marker off the world the moment the offer closes", () => {
     const live: QuestStateLike = {
       id: "q1", def: "banner-fire", x: 100, y: 200, status: "open", doneBy: "", expiresAt: 1000, carrier: "remote", progress: new Map(),
+      accepted: new Map([["me", true]]),
     };
     const item: QuestContainerLike = { id: "item", kind: "quest", x: 300, y: 300, label: "Parcel", items: [{ def: "quest:q1" }] };
     const quests = (q: QuestStateLike) => ({ forEach(cb: (q: QuestStateLike, id: string) => void) { cb(q, q.id); } });
@@ -84,6 +85,33 @@ describe("QuestView", () => {
       expect(roots.every((r) => r.calls.some(([n]) => n === "destroy")), status).toBe(true);
       view.destroy();
     }
+  });
+
+  it("highlights the tracked giver and accepted item, hides unaccepted items, and expires both on the clock", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new QuestView(scene);
+    let q: QuestStateLike = {
+      id: "q1", def: "banner-fire", x: 100, y: 200, status: "open", doneBy: "", expiresAt: 1000,
+      carrier: "", progress: new Map(), accepted: new Map(),
+    };
+    const quests = (value: QuestStateLike) => ({ forEach(cb: (q: QuestStateLike, id: string) => void) { cb(value, value.id); } });
+    const item: QuestContainerLike = { id: "item", kind: "quest", x: 300, y: 300, label: "Parcel", items: [{ def: "quest:q1" }] };
+    const containers = { forEach(cb: (c: QuestContainerLike, id: string) => void) { cb(item, item.id); } };
+    const base = { quests: quests(q), containers, positions: new Map(), players: { get: () => undefined }, trackedId: "q1", serverNow: 100 };
+    view.update(frame(base));
+    expect(ofKind("container")).toHaveLength(1); // giver only; the parcel is not yet available to this player
+    const giverChildren = ofKind("container")[0]!.args[2] as Array<{ state: Record<string, unknown> }>;
+    expect(giverChildren[3]!.state.visible).toBe(true); // tracked label
+
+    q = { ...q, accepted: new Map([["me", true]]) };
+    view.update(frame({ ...base, quests: quests(q) }));
+    expect(ofKind("container")).toHaveLength(2);
+    const itemChildren = ofKind("container")[1]!.args[2] as Array<{ state: Record<string, unknown> }>;
+    expect(itemChildren[1]!.state.visible).toBe(true); // tracked objective label
+
+    view.update(frame({ ...base, serverNow: 1000, quests: quests(q) }));
+    expect(ofKind("container").every((root) => root.calls.some(([name]) => name === "destroy"))).toBe(true);
+    view.destroy();
   });
 
   it("does not draw closed givers, carriers or leftover quest items", () => {

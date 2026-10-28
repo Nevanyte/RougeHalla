@@ -39,6 +39,12 @@ export interface QuestAttemptSample {
   atSeconds: number;
   /** The lobby had no other player: a quest that needs a second one cannot be done. */
   solo: boolean;
+  /** Whether the server accepted this first selection before the run ended. */
+  accepted: boolean;
+  /** Highest public objective progress this player reached, including zero if never accepted. */
+  maxProgress: number;
+  /** Final public offer status; an open offer at the cap is right-censored, not an expiry. */
+  outcome: "open" | "done" | "expired";
 }
 
 /** How a run's power curve ends: it died, it made no kill for 75 s (stalled), or it was still going at the end of the run. */
@@ -171,6 +177,8 @@ export function runQuestLobby(
   const previousMobModes = new Map<string, string>();
   const diedAt = new Map<string, number>();
   const attemptedAt = new Map<string, number>();
+  const attemptsByKey = new Map<string, QuestAttemptSample>();
+  const offersByDefId = new Map(offers.map((offer) => [offer.q.def.id, offer]));
   const selectedQuests = new Map<string, string | null>();
   const startedAt = world.state.raidStartedAt;
   for (const [id, p] of world.state.players) {
@@ -193,9 +201,12 @@ export function runQuestLobby(
         const q = selected ? world.quests?.quests.get(selected) : undefined;
         if (q && !attemptedAt.has(`${id}:${q.def.id}`)) {
           attemptedAt.set(`${id}:${q.def.id}`, sinceStart);
-          observation.attempts.push({
+          const attempt: QuestAttemptSample = {
             defId: q.def.id, name: q.def.name, policy: policyAt(policies, id), playerId: id, seed, atSeconds: sinceStart, solo,
-          });
+            accepted: false, maxProgress: 0, outcome: "open",
+          };
+          observation.attempts.push(attempt);
+          attemptsByKey.set(`${id}:${q.def.id}`, attempt);
         }
       }
       const p = world.state.players.get(id)!;
@@ -208,6 +219,18 @@ export function runQuestLobby(
     const events = step(world, TICK_MS);
     observation.ticks++;
     const elapsed = (world.state.serverTime - startedAt) / 1000;
+
+    for (const attempt of attemptsByKey.values()) {
+      const offer = offersByDefId.get(attempt.defId);
+      if (!offer) continue;
+      attempt.accepted ||= offer.q.s.accepted.get(attempt.playerId) === true;
+      const player = world.state.players.get(attempt.playerId);
+      const progress = offer.q.def.kind === "fetch"
+        ? Number(offer.q.s.carrier === attempt.playerId || (offer.q.s.status === "done" && player?.name === offer.q.s.doneBy))
+        : offer.q.s.progress.get(attempt.playerId) ?? 0;
+      attempt.maxProgress = Math.max(attempt.maxProgress, progress);
+      attempt.outcome = offer.q.s.status === "done" || offer.q.s.status === "expired" ? offer.q.s.status : "open";
+    }
 
     for (const offer of offers) {
       const q = offer.q;
@@ -260,6 +283,17 @@ export function runQuestLobby(
     }
   }
   const finalSeconds = Math.min(options.capSeconds, (world.state.serverTime - startedAt) / 1000);
+  for (const attempt of observation.attempts) {
+    const offer = offersByDefId.get(attempt.defId);
+    if (!offer) continue;
+    attempt.accepted ||= offer.q.s.accepted.get(attempt.playerId) === true;
+    const player = world.state.players.get(attempt.playerId);
+    const progress = offer.q.def.kind === "fetch"
+      ? Number(offer.q.s.carrier === attempt.playerId || (offer.q.s.status === "done" && player?.name === offer.q.s.doneBy))
+      : offer.q.s.progress.get(attempt.playerId) ?? 0;
+    attempt.maxProgress = Math.max(attempt.maxProgress, progress);
+    attempt.outcome = offer.q.s.status === "done" || offer.q.s.status === "expired" ? offer.q.s.status : "open";
+  }
   for (const [id, p] of world.state.players) {
     const timeline = timelines.get(id)!;
     if (timeline.seconds[timeline.seconds.length - 1] !== finalSeconds) {

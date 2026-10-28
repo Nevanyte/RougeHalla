@@ -18,7 +18,7 @@ import { TERRAIN_NONE, terrainAt } from "../src/terrain";
 import {
   CAMP_SECONDS, CARD_TIER_RATE, npcCandidates, parityGv, placeQuests, QUEST_DEFS, QUEST_FEED_BRAKE, QUEST_REFUSAL, QUEST_REFUSALS,
   questAcceptedText, questAcceptFirstText, questBase, questDefById,
-  questRewardCard, questRewardText, questTier, questTierPoints, selectQuests, spreadSpots, STACK_PREMIUM, type QuestPlacement,
+  questRewardCard, questRewardCopies, questRewardText, questTier, questTierPoints, selectQuests, spreadSpots, STACK_PREMIUM, type QuestPlacement,
   type RosterEntry,
 } from "../src/quests";
 
@@ -34,12 +34,12 @@ describe("the catalog", () => {
   });
 
   /** BALANCE_CONTRACT 8.4's table: quest -> [tier points, card, GV]. The points are the rule's, the card is the catalog's. */
-  const CONTRACT_TABLE: Record<string, [number, string, number]> = {
-    "cull-fire": [1.94, "ad2", 10], "cull-sentenced": [1.94, "ad2", 10], "cull-plague": [1.94, "haste2", 10], "cull-frost": [2.13, "vitality2", 11],
-    "elite-hunt": [1.42, "ap1", 7], "headhunter": [0, "ad1", 5], "grand-tour": [2.46, "fleet2", 13], "bloom-plague": [1.46, "haste1", 8],
-    "shards-frost": [1.46, "armor1", 8], "ashcap-fire": [1.46, "mr1", 8], "chains-sentenced": [1.46, "ap1", 8], "tithe-holy": [1.46, "ap1", 8],
-    "cache": [1.81, "haste2", 10], "tithe-rim": [2.23, "vitality2", 12], "banner-fire": [1.55, "fleet2", 8], "banner-frost": [1.55, "vitality2", 8],
-    "banner-plague": [1.55, "haste2", 8], "banner-sentenced": [1.55, "ad2", 8], "banner-holy": [1.55, "leech2", 8], "long-haul": [2.2, "haste2", 12],
+  const CONTRACT_TABLE: Record<string, [number, string, number, number]> = {
+    "cull-fire": [1.94, "ad2", 10, 2], "cull-sentenced": [1.94, "ad2", 10, 3], "cull-plague": [1.94, "haste2", 10, 4], "cull-frost": [2.13, "vitality2", 11, 3],
+    "elite-hunt": [1.42, "ap1", 7, 5], "headhunter": [0, "ad1", 5, 3], "grand-tour": [2.46, "fleet2", 13, 2], "bloom-plague": [1.46, "haste1", 8, 6],
+    "shards-frost": [1.46, "armor1", 8, 4], "ashcap-fire": [1.46, "mr1", 8, 6], "chains-sentenced": [1.46, "ap1", 8, 6], "tithe-holy": [1.46, "ap1", 8, 5],
+    "cache": [1.81, "haste2", 10, 2], "tithe-rim": [2.23, "vitality2", 12, 3], "banner-fire": [1.55, "fleet2", 8, 4], "banner-frost": [1.55, "vitality2", 8, 4],
+    "banner-plague": [1.55, "haste2", 8, 4], "banner-sentenced": [1.55, "ad2", 8, 4], "banner-holy": [1.55, "leech2", 8, 5], "long-haul": [2.2, "haste2", 12, 4],
   };
 
   it("pays the card the tier rule says: points = (objSec + 0.4 x travelSec) / 48 x 1.35 x 1.15, tier = round clamped to 1-3, a player kill at tier 1", () => {
@@ -52,6 +52,7 @@ describe("the catalog", () => {
       expect(card!.kind, d.id).toBe("base");
       expect(card!.tier, `${d.id} pays ${d.reward.card}`).toBe(want);
       expect(card!.ready, d.id).toBe("a");
+      expect(Number.isInteger(questRewardCopies(d)) && questRewardCopies(d) >= 2 && questRewardCopies(d) <= 6, d.id).toBe(true);
       expect(questBase(d), d.id).toBe(card!.base);
       if (d.region) expect(d.farZone, d.id).toBe(d.region);
     }
@@ -60,9 +61,10 @@ describe("the catalog", () => {
   it("matches the contract's table of twenty rows, points and GV included", () => {
     expect(Object.keys(CONTRACT_TABLE).sort()).toEqual(QUEST_DEFS.map((d) => d.id).sort());
     for (const d of QUEST_DEFS) {
-      const [points, card, gv] = CONTRACT_TABLE[d.id]!;
+      const [points, card, gv, copies] = CONTRACT_TABLE[d.id]!;
       expect(d.reward.card, d.id).toBe(card);
       expect(d.reward.gv, d.id).toBe(gv);
+      expect(questRewardCopies(d), d.id).toBe(copies);
       if (!d.players) expect(Math.round(questTierPoints(d.objSec, d.travelSec) * 100) / 100, d.id).toBeCloseTo(points, 2);
     }
   });
@@ -83,8 +85,8 @@ describe("the catalog", () => {
       expect(text, d.id).toContain(cardText(d.reward.card));
       expect(text, d.id).toContain(`${d.reward.gv} GV`);
     }
-    expect(questRewardText(questDefById("cull-fire")!)).toBe("Attack Damage II (+21 attack damage) and 10 GV");
-    expect(questRewardText(questDefById("bloom-plague")!)).toBe("Haste I (+9% attack speed) and 8 GV");
+    expect(questRewardText(questDefById("cull-fire")!)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
+    expect(questRewardText(questDefById("bloom-plague")!)).toBe("6 × Haste I (+9% attack speed each) and 8 GV");
   });
 
   it("drops a fed player's card one tier (never below tier 1) once the mob reward curve is under the brake", () => {
@@ -148,7 +150,7 @@ describe("hidden and reward wire contracts", () => {
 
   it("pins the K1 reveal head start and separate quest GV cap", () => {
     expect(QUEST_REVEAL_HEAD_START_MS).toBe(4000);
-    expect(QUEST_GV_CAP).toBe(24);
+    expect(QUEST_GV_CAP).toBe(40);
   });
 });
 

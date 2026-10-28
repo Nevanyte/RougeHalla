@@ -1,6 +1,6 @@
 import {
   cardTitle, hasLineOfSight, placeQuests, QUEST_ACCEPT_RANGE, QUEST_ITEM_PREFIX, QUEST_REFUSAL, QUEST_REVEAL_HEAD_START_MS,
-  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, questAcceptedText, questAcceptFirstText, questRewardCard, selectQuests,
+  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, questAcceptedText, questAcceptFirstText, questRewardCard, questRewardCopies, selectQuests,
   type MobTypeId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import { QuestState, type ContainerState, type PlayerState } from "@raid/shared/schema";
@@ -232,6 +232,7 @@ function onMobKilled(
       let seen = qt.tours.get(killer.id);
       if (!seen) qt.tours.set(killer.id, (seen = new Set()));
       seen.add(mob.zone);
+      qt.s.visitedRegions.set(killer.id, [...seen].join(","));
       qt.s.progress.set(killer.id, Math.min(def.count, seen.size));
     } else if (!def.elite && def.region && mob.zone !== def.region) {
       continue;
@@ -308,11 +309,18 @@ function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
   qt.s.doneBy = p.name;
   retire(world, qt);
   awardQuestGv(world, p, rt, qt.def.reward.gv);
-  // The card: the quest's nominal one, a tier lower once the finisher's feed has braked the mob reward curve (shared questRewardCard).
+  // The stack: each base card is a copy of the nominal card, a tier lower once the finisher's feed has braked the mob reward curve.
   const card = questRewardCard(qt.def, feedOfPlayer(p, rt));
   const c = combatant(world, playerId);
-  if (c?.kind === "player" && grantCard(world, c, card) !== null) {
-    emit(world, { type: "toast", to: playerId, text: `Quest complete: ${cardTitle(card)}` });
+  if (c?.kind === "player") {
+    let granted = 0;
+    for (let i = 0; i < questRewardCopies(qt.def); i++) {
+      if (grantCard(world, c, card) !== null) granted++;
+    }
+    if (granted > 0) {
+      const copies = granted > 1 ? `${granted} × ` : "";
+      emit(world, { type: "toast", to: playerId, text: `Quest complete: ${copies}${cardTitle(card)}` });
+    }
   }
   announce(world, `${p.name} completed quest: ${qt.def.name}`);
 }

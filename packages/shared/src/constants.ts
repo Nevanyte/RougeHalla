@@ -485,5 +485,5 @@ export const QUEST_FETCH_MIN_TILES = 36;
 export const QUEST_ITEM_PREFIX = "quest:";
 /** Parcels one player may carry at once. */
 export const QUEST_MAX_CARRIED = 1;
-/** Quest GV has its own per-run pot, separate from mob and bounty GV. */
-export const QUEST_GV_CAP = 24;
+/** Separate from mob and bounty GV; supports roughly four or five completions instead of exhausting after two or three. */
+export const QUEST_GV_CAP = 40;

@@ -251,7 +251,11 @@ export class Minimap {
     for (const b of this.quests) {
       hash = (Math.imul(hash, 31) + Math.round(b.x * this.k)) | 0;
       hash = (Math.imul(hash, 31) + Math.round(b.y * this.k)) | 0;
-      hash = (Math.imul(hash, 31) + b.role.length + b.kind.length + (b.accepted === false ? 7 : 0)) | 0;
+      hash = (Math.imul(hash, 31) + b.role.length + b.kind.length + (b.accepted === false ? 7 : 0) + (b.tracked ? 13 : 0)) | 0;
+      if (b.route) for (const p of b.route) {
+        hash = (Math.imul(hash, 31) + Math.round(p.x * this.k)) | 0;
+        hash = (Math.imul(hash, 31) + Math.round(p.y * this.k)) | 0;
+      }
     }
     this.questsHash = this.quests.length === 0 ? 0 : (Math.imul(hash, 31) + this.quests.length) | 0;
   }

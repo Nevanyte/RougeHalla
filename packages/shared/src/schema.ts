@@ -241,6 +241,8 @@ export const QuestState = schema({
   progress: t.map("float32"),
   /** Player ids that accepted this offer at its giver (`questAccept`); public, like `progress`. Nothing counts for a player not in it. */
   accepted: t.map("boolean"),
+  /** Comma-separated visited zone ids per accepting player for the Grand Tour. */
+  visitedRegions: t.map("string"),
 }, "QuestState");
 export type QuestState = SchemaType<typeof QuestState>;
 

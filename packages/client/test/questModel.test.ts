@@ -24,17 +24,17 @@ describe("the reward a quest row shows", () => {
   const def = questDefById("cull-fire")!; // Attack Damage II and 10 GV
 
   it("is the nominal card for a player who has fed little, and for the planning screen (no feed given)", () => {
-    expect(questReward(def)).toBe("Attack Damage II (+21 attack damage) and 10 GV");
-    expect(questReward(def, 0)).toBe("Attack Damage II (+21 attack damage) and 10 GV");
-    expect(questReward(def, feedScore(1, 4))).toBe("Attack Damage II (+21 attack damage) and 10 GV");
+    expect(questReward(def)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
+    expect(questReward(def, 0)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
+    expect(questReward(def, feedScore(1, 4))).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
   });
 
   it("is the card the server will actually grant once the player's feed has braked the reward curve: a tier lower, and it says so", () => {
     const fed = questBrakeFeed() + 0.5;
     expect(rewardCurve(fed)).toBeLessThan(QUEST_FEED_BRAKE);
-    expect(questReward(def, fed)).toBe("Attack Damage I (+12 attack damage) and 10 GV. A tier lower, as you are far ahead");
+    expect(questReward(def, fed)).toBe("2 × Attack Damage I (+12 attack damage each) and 10 GV. A tier lower, as you are far ahead");
     // Just under the brake: still nominal.
-    expect(questReward(def, questBrakeFeed() - 0.5)).toBe("Attack Damage II (+21 attack damage) and 10 GV");
+    expect(questReward(def, questBrakeFeed() - 0.5)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
     // A tier-1 card cannot go lower.
     const t1 = questDefById("headhunter")!;
     expect(questReward(t1, fed)).toBe(questReward(t1));
@@ -42,8 +42,8 @@ describe("the reward a quest row shows", () => {
 
   it("is carried by the rows when a feed is given, and the feed is kills plus a quarter per mob kill", () => {
     const row = (feed?: number) => questRows({ forEach: (cb) => cb(quest(), "q1") }, "me", 5_000, "", false, feed)[0]!;
-    expect(row().reward).toBe("Attack Damage II (+21 attack damage) and 10 GV");
-    expect(row(questBrakeFeed() + 1).reward).toMatch(/^Attack Damage I \(.*A tier lower/);
+    expect(row().reward).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
+    expect(row(questBrakeFeed() + 1).reward).toMatch(/^2 × Attack Damage I \(.*A tier lower/);
     expect(feedScore(2, 8)).toBe(2 + 8 * FEED_MOB_KILL_WEIGHT);
   });
 
@@ -60,7 +60,7 @@ describe("quest presentation model", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       objective: "Kill 3 mobs in Fire", progress: "1 / 3", time: "1:00", status: "Open",
-      reward: "Attack Damage II (+21 attack damage) and 10 GV",
+      reward: "2 × Attack Damage II (+21 attack damage each) and 10 GV",
     });
   });
 
@@ -105,6 +105,19 @@ describe("quest presentation model", () => {
     expect(questRows(quests([quest()]), "me", 5_000)[0]).toMatchObject({ closed: false, time: "1:00" });
   });
 
+  it("keeps the nominal reward in closed history regardless of the viewer's current feed", () => {
+    const def = questDefById("cull-fire")!;
+    const fed = questBrakeFeed() + 10;
+    const completed = [
+      quest({ status: "done", doneBy: "Bravo" }),
+      quest({ status: "expired" }),
+      quest({ expiresAt: 0 }), // expired by the server clock
+    ];
+    for (const q of completed) {
+      expect(questRows(quests([q]), "me", 70_000, "", false, fed)[0]?.reward).toBe(questReward(def));
+    }
+  });
+
   it("does not count a revealed offer as rumoured while its preview row is shown", () => {
     const preview = questFromReveal({ id: "q1", def: "cull-fire", x: 100, y: 200, expiresAt: 65_000 });
     expect(questCollections({ quests: quests([]), unknownQuests: 5 }, preview, 0).hidden).toBe(4);
@@ -147,7 +160,7 @@ describe("quest presentation model", () => {
   });
 
   it("words the reward as its card (title and text) and the GV, whatever the quest kind", () => {
-    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toBe("Fleet II (+10% move speed (off while shooting)) and 8 GV");
+    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toBe("4 × Fleet II (+10% move speed (off while shooting) each) and 8 GV");
   });
 });
 
@@ -188,7 +201,7 @@ describe("quest minimap model", () => {
   it("uses a ready local objective's giver as the turn-in blip", () => {
     const ready = quest({ def: "bloom-plague", progress: new Map([["me", 3]]) });
     const data = questMinimapBlips(quests([ready]), boxes([]), "me", { x: 100, y: 100 }, new Map(), null);
-    expect(data).toContainEqual({ role: "objective", kind: "collect", x: 100, y: 200 });
+    expect(data).toContainEqual(expect.objectContaining({ role: "objective", kind: "collect", x: 100, y: 200 }));
   });
 
   it("leaves no giver, carrier or objective for a done or expired offer", () => {
@@ -241,7 +254,7 @@ describe("the accept state in rows and on the minimap", () => {
     // Items of an offer that has not been accepted are not what to walk to: the giver is.
     const items = [container({ id: "i", x: 110, y: 100, items: [{ def: "quest:far" }] })];
     const data = questMinimapBlips(quests([far, near]), boxes(items), "me", { x: 100, y: 100 }, new Map(), null);
-    expect(data.filter((b) => b.role === "objective")).toEqual([{ role: "objective", kind: "collect", x: 200, y: 100 }]);
+    expect(data.filter((b) => b.role === "objective")).toMatchObject([{ role: "objective", kind: "collect", x: 200, y: 100 }]);
   });
 
   it("points at an accepted offer's objective even when an unaccepted giver is nearer", () => {
@@ -249,6 +262,6 @@ describe("the accept state in rows and on the minimap", () => {
     const open = quest({ id: "open", def: "tithe-holy", x: 120, y: 100, accepted: none });
     const items = [container({ id: "i", x: 700, y: 100, items: [{ def: "quest:held" }] })];
     const data = questMinimapBlips(quests([held, open]), boxes(items), "me", { x: 100, y: 100 }, new Map(), null);
-    expect(data.filter((b) => b.role === "objective")).toEqual([{ role: "objective", kind: "collect", x: 700, y: 100 }]);
+    expect(data.filter((b) => b.role === "objective")).toMatchObject([{ role: "objective", kind: "collect", x: 700, y: 100 }]);
   });
 });

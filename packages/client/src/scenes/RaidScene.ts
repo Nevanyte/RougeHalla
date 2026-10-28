@@ -47,7 +47,7 @@ import { Minimap } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
 import { QuestDialog, type QuestDialogFrame, type QuestDialogMe } from "../ui/questDialog";
 import { QuestLog } from "../ui/questLog";
-import { expireQuestPreviews, questCollections, questFromReveal, questMinimapBlips, type QuestStateLike } from "../ui/questModel";
+import { expireQuestPreviews, questAccepted, questItemQuestId, questCollections, questFromReveal, questMinimapBlips, type QuestMobTarget, type QuestStateLike } from "../ui/questModel";
 import { RouteState } from "../ui/route";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
@@ -279,7 +279,7 @@ export class RaidScene extends Phaser.Scene {
     this.lastArenaPatchT = 0;
     this.hud = new Hud();
     this.opponentInspector = new OpponentInspector();
-    this.questLog = new QuestLog();
+    this.questLog = new QuestLog({ onTalk: (id) => { this.questDialog?.open(id); } });
     this.questPreviews.clear();
     this.weaponBar = new WeaponBar();
     this.wishSlot = new AbilitySlotView({ key: "D" });
@@ -525,7 +525,19 @@ export class RaidScene extends Phaser.Scene {
     expireQuestPreviews(this.questPreviews, serverNow, gatesLocked || state.phase === "ended");
     const questData = questCollections(state, this.questPreviews.values(), serverNow);
     // F: the nearest of a weapon or quest item to take and a quest giver to talk to (the public offers only: a preview has no giver yet).
-    this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(state.containers, state.quests, pickupMap, me, {
+    const visibleContainers = {
+      forEach: (cb: (container: ContainerState, id: string) => void): void => {
+        state.containers.forEach((container, id) => {
+          const questId = questItemQuestId(container);
+          if (questId) {
+            const quest = state.quests.get(questId);
+            if (!quest || !questAccepted(quest, this.room.sessionId)) return;
+          }
+          cb(container, id);
+        });
+      },
+    };
+    this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(visibleContainers, state.quests, pickupMap, me, {
       quests: questData.quests, localId: this.room.sessionId,
     }) : null;
     this.nearest = this.interaction?.kind === "pickup" ? this.interaction.container : null;
@@ -537,12 +549,13 @@ export class RaidScene extends Phaser.Scene {
     this.updateQuestDialog(state, me, pickupMap ?? null, serverNow);
     this.questView.update({
       quests: questData.quests, containers: questData.containers, players: state.players, positions: this.rendered,
-      localId: this.room.sessionId, me, highlightId: questFocus?.kind === "quest" ? questFocus.id : undefined,
+      localId: this.room.sessionId, me, trackedId: this.questLog.trackedId ?? undefined, serverNow, highlightId: questFocus?.kind === "quest" ? questFocus.id : undefined,
     });
     this.questLog.update({
       phase: state.phase, training: state.training === true, quests: questData.quests, hidden: questData.hidden,
       localId: this.room.sessionId, localName: me?.name, serverNow, feed: me ? feedScore(me.kills, me.mobKills) : undefined,
       ui: { w: currentView().uiW, h: currentView().uiH }, plate: () => this.hud.plate,
+      local: me, alive: me?.status === "alive", sight: pickupMap ?? null,
     });
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
@@ -561,7 +574,15 @@ export class RaidScene extends Phaser.Scene {
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.setMobs(state.mobs);
     this.minimap.setChests(this.blips);
-    this.minimap.setQuests(questMinimapBlips(questData.quests, questData.containers, this.room.sessionId, this.rendered.get(this.room.sessionId), this.rendered, map ?? null));
+    const questBlips = questMinimapBlips(
+      questData.quests, questData.containers, this.room.sessionId, this.rendered.get(this.room.sessionId),
+      this.rendered, pickupMap ?? null, {
+        trackedId: this.questLog.trackedId, serverNow,
+        mobs: this.questMobs(),
+      },
+    );
+    this.minimap.setQuests(questBlips);
+    this.questLog.setDestination(questBlips.find((blip) => blip.role === "objective" && blip.tracked) ?? null);
     this.fillCampStates(state, map?.camps.length ?? 0);
     this.minimap.setCampStates(this.campStates);
     const cam = this.cameras.main;
@@ -605,6 +626,13 @@ export class RaidScene extends Phaser.Scene {
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
       quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,
     });
+  }
+
+  /** Mob details are only read when guidance needs a kill target, rather than allocated on every frame. */
+  private *questMobs(): Generator<QuestMobTarget> {
+    for (const [id, mob] of this.room.state.mobs) {
+      yield { id, x: mob.x, y: mob.y, kind: mob.kind, status: mob.status, faction: mob.faction };
+    }
   }
 
   /**
@@ -1275,8 +1303,8 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * F: closes an open quest offer; else does the nearest thing there is to do: take the weapon or quest item (`pickup`), or open the
-   * dialog of the quest giver in reach (the dialog sends `questAccept` itself, on Accept). A quest item of an offer not accepted yet
-   * is sent as a `pickup` too: the server leaves it and its toast says to accept at the giver first.
+   * dialog of the quest giver in reach (the dialog sends `questAccept` itself, on Accept). The scene excludes unaccepted
+   * quest items because they are hidden locally; the server separately refuses a forged pickup without acceptance.
    */
   private interact(): void {
     if (this.questDialog?.isOpen) {
