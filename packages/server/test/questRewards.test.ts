@@ -69,12 +69,12 @@ describe("quest rewards", () => {
 
     const events = complete(world, qt);
 
-    expect(P(world).build.get(reward.card)).toBe(1);
+    expect(P(world).build.get(reward.card)).toBe(reward.copies);
     expect(P(world).build.size).toBe(1);
-    expect(events.filter((e) => e.type === "toast" && e.to === "p0").map((e) => (e as { text: string }).text)).toContain("Quest complete: Attack Damage II");
+    expect(events.filter((e) => e.type === "toast" && e.to === "p0").map((e) => (e as { text: string }).text)).toContain(`Quest complete: ${reward.copies} × Attack Damage II`);
     expect(RT(world).gv.quest).toBe(reward.gv);
     // The card folds at once: Attack Damage II is 21 AD on the mirror.
-    expect(P(world).adBonus).toBe(210);
+    expect(P(world).adBonus).toBe(210 * reward.copies);
   });
 
   it("drops a fed player's card one tier once the mob reward curve is under the brake, and never below tier 1", () => {
@@ -88,13 +88,13 @@ describe("quest rewards", () => {
 
     expect(rewardCurve(0)).toBeGreaterThanOrEqual(QUEST_FEED_BRAKE);
     expect(rewardCurve(20)).toBeLessThan(QUEST_FEED_BRAKE);
-    expect(P(hungry).build.get("ad2")).toBe(1);
-    expect(P(fed).build.get("ad1")).toBe(1);
+    expect(P(hungry).build.get("ad2")).toBe(hungryQuest.def.reward.copies);
+    expect(P(fed).build.get("ad1")).toBe(fedQuest.def.reward.copies);
     expect(P(fed).build.get("ad2") ?? 0).toBe(0);
     // A tier-1 quest card has nowhere to fall.
     const fedHunter = ready(fed, "headhunter");
     complete(fed, fedHunter);
-    expect(P(fed).build.get("ad1")).toBe(2);
+    expect(P(fed).build.get("ad1")).toBe(fedQuest.def.reward.copies + fedHunter.def.reward.copies);
   });
 
   it("does not use the catch-up: the brake reads the feed curve alone, and a trailing player's tier is the nominal one", () => {
@@ -104,29 +104,30 @@ describe("quest rewards", () => {
 
     complete(world, qt);
 
-    expect(P(world).build.get("ad2")).toBe(1);
+    expect(P(world).build.get("ad2")).toBe(qt.def.reward.copies);
   });
 
   it("pays the same card to the same quest whoever else is in the lobby, and a base card stacks across quests", () => {
     const world = makeRun();
     complete(world, ready(world, "cull-fire")); // ad2
     complete(world, ready(world, "cull-sentenced")); // ad2 again
-    expect(P(world).build.get("ad2")).toBe(2);
-    expect(cardPower(P(world).build)).toBe(4);
+    expect(P(world).build.get("ad2")).toBe(questDefById("cull-fire")!.reward.copies + questDefById("cull-sentenced")!.reward.copies);
+    expect(cardPower(P(world).build)).toBe(2 * P(world).build.get("ad2")!);
   });
 
   it("caps only the separate per-run quest GV pot at QUEST_GV_CAP", () => {
     const world = makeRun();
-    expect(QUEST_GV_CAP).toBe(24);
+    expect(QUEST_GV_CAP).toBe(40);
 
     complete(world, ready(world, "cull-fire"));
     complete(world, ready(world, "cull-sentenced"));
-    const events = complete(world, ready(world, "cull-plague"));
+    complete(world, ready(world, "cull-plague"));
+    const events = complete(world, ready(world, "cull-frost"));
 
     expect(RT(world).gv.quest).toBe(QUEST_GV_CAP);
     expect(P(world).gv).toBe(QUEST_GV_CAP);
     const questGv = events.filter((e): e is Extract<SimEvent, { type: "gv" }> => e.type === "gv" && e.reason === "quest");
-    expect(questGv.map((e) => e.amount)).toEqual([4]);
+    expect(questGv.map((e) => e.amount)).toEqual([10]);
     expect(RT(world).gv.mobs).toBe(0);
     expect(RT(world).gv.kills).toBe(0);
 

@@ -1,7 +1,9 @@
+import { TILE, type GameMap } from "@raid/shared";
 import { isTypingTarget } from "./chrome";
 import { el, uiRoot } from "./dom";
+import { canTalk } from "./questDialogMath";
 import { placeQuestLog, type PlateBox, type UiSize } from "./questLogLayout";
-import { questKindCss, questRows, type QuestCollection, type QuestRow } from "./questModel";
+import { questKindCss, questRows, type QuestCollection, type QuestPosition, type QuestMapBlip, type QuestRow } from "./questModel";
 import "./questLog.css";
 
 export interface QuestLogFrame {
@@ -11,110 +13,241 @@ export interface QuestLogFrame {
   hidden: number;
   localId: string;
   localName?: string;
-  /** The local player's feed (shared feedScore): a quest's card is paid a tier lower once it is high. Absent: the nominal card, with a note. */
   feed?: number;
   serverNow: number;
-  /** The overlay's laid-out size (`--ui-w` x `--ui-h`). */
   ui?: UiSize;
-  /** The HUD plate's box; asked for only while the log is up, since it reads layout. */
   plate?: () => PlateBox | null;
+  local?: QuestPosition;
+  alive?: boolean;
+  sight?: GameMap | null;
 }
 
-/** The log opens in planning (the world is frozen, the known offers are public) and in the run, practice included. */
+export interface QuestLogOptions {
+  /** Opens the existing nearby-giver dialog. Acceptance remains server-validated at the giver. */
+  onTalk?: (id: string) => void;
+}
+
+interface RowView {
+  root: HTMLElement;
+  time: HTMLElement;
+  status: HTMLElement;
+  progress: HTMLElement;
+  acceptance: HTMLElement;
+  reward: HTMLElement;
+  meter: HTMLElement;
+  fill: HTMLElement;
+  track: HTMLButtonElement;
+  talk: HTMLButtonElement;
+}
+
+/** Quests can be inspected during planning and during the run, including the practice explanation. */
 export function questLogAvailable(phase: string): boolean {
   return phase === "active" || phase === "planning";
 }
 
-/** The page's focus is inside one of its dialogs (the help card, the settings card): J is theirs, not the log's. */
 function insideDialog(node: unknown): boolean {
   const n = node as { closest?: (selector: string) => unknown } | null | undefined;
   return typeof n?.closest === "function" && n.closest('[role="dialog"]') !== null;
 }
 
-function rowElement(row: QuestRow): HTMLElement {
-  const root = el("article", `quest-log-row kind-${row.def.kind}${row.ready ? " ready" : ""}${row.closed ? " closed" : ""}${row.expired ? " expired" : ""}`);
-  root.style.setProperty("--quest-color", questKindCss(row.def.kind));
-  const head = el("div", "quest-log-head");
-  head.append(el("h3", "quest-log-name", row.def.name), el("span", "quest-log-kind", row.def.kind));
-  if (row.time !== "") head.append(el("time", "quest-log-time", row.time));
-  const objective = el("p", "quest-log-objective", row.objective);
-  const progress = el("div", "quest-log-progress");
-  progress.append(el("span", undefined, `Your progress ${row.progress}`), el("span", "quest-log-status", row.status));
-  root.append(head, el("div", "quest-log-giver", row.def.giver), objective, progress);
-  // Whether the offer counts for the player: nothing does until they accept at the giver (F next to it).
-  if (row.acceptance !== "") root.append(el("div", `quest-log-accept${row.accepted ? " yes" : " no"}`, row.acceptance));
-  root.append(el("div", "quest-log-reward", `Reward: ${row.reward}`));
-  return root;
-}
-
 export class QuestLog {
   readonly element = el("section", "quest-log");
+  readonly launcher = el("button", "quest-log-launcher", "Quests · J");
+  readonly tracker = el("section", "quest-tracker");
+  private readonly closeButton = el("button", "quest-log-close", "Close");
+  private readonly trackerText = el("span", "quest-tracker-text");
   private readonly list = el("div", "quest-log-list");
   private readonly rumoured = el("div", "quest-log-rumoured");
+  private readonly views = new Map<string, RowView>();
+  private accepted = new Set<string>();
+  private order = "";
   private open = false;
   private enabled = false;
-  private signature = "";
   private placed = "";
+  private tracked: string | null = null;
+  private frame?: QuestLogFrame;
+  private destination: QuestMapBlip | null = null;
 
-  constructor() {
+  constructor(private readonly options: QuestLogOptions = {}) {
     this.element.setAttribute("aria-label", "Quest log");
     this.element.setAttribute("aria-live", "off");
+    this.element.id = "quest-log";
     const head = el("div", "quest-log-title");
-    head.append(el("h2", undefined, "Quests"), el("span", "quest-log-key", "J"));
+    head.append(el("h2", undefined, "Quests"), this.closeButton);
+    this.closeButton.type = "button";
+    this.closeButton.setAttribute("aria-label", "Close quest log");
+    this.closeButton.addEventListener("click", () => this.setOpen(false));
     this.element.append(head, this.list, this.rumoured);
     this.element.hidden = true;
-    uiRoot().append(this.element);
-    for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) {
-      this.element.addEventListener(type, this.stopPointer, { passive: true });
+    this.launcher.type = "button";
+    this.launcher.hidden = true;
+    this.launcher.setAttribute("aria-controls", "quest-log");
+    this.launcher.setAttribute("aria-expanded", "false");
+    this.launcher.setAttribute("aria-keyshortcuts", "J");
+    this.launcher.addEventListener("click", () => this.toggle());
+    this.tracker.hidden = true;
+    this.tracker.setAttribute("aria-label", "Tracked quest");
+    const untrack = el("button", "quest-tracker-untrack", "Untrack");
+    untrack.type = "button";
+    untrack.addEventListener("click", () => this.track(null));
+    this.tracker.append(this.trackerText, untrack);
+    uiRoot().append(this.launcher, this.element, this.tracker);
+    for (const node of [this.element, this.launcher, this.tracker]) {
+      for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) node.addEventListener(type, this.stopPointer, { passive: true });
+      node.addEventListener("contextmenu", this.noMenu);
     }
-    this.element.addEventListener("contextmenu", this.noMenu);
-    window.addEventListener("keydown", this.onKeyDown);
+    // Capture Escape while this panel is open, before the scene reads it.
+    window.addEventListener("keydown", this.onKeyDown, true);
   }
 
-  get visible(): boolean {
-    return this.open && this.enabled;
-  }
+  get visible(): boolean { return this.open && this.enabled; }
+  get trackedId(): string | null { return this.tracked; }
 
   toggle(): void {
-    if (!this.enabled) return;
-    this.open = !this.open;
-    this.signature = "";
-    this.element.hidden = !this.open;
+    if (this.enabled) this.setOpen(!this.open);
+  }
+
+  track(id: string | null): void {
+    if (id !== null && !this.rows().some((row) => row.id === id && !row.closed)) return;
+    this.tracked = id;
+    this.destination = null;
+    if (this.frame) this.update(this.frame);
+  }
+
+  /** The same reachable destination the minimap draws, so the HUD never quotes distance to a different step. */
+  setDestination(at: QuestMapBlip | null): void {
+    this.destination = at;
+    this.updateTracker(this.rows());
   }
 
   update(frame: QuestLogFrame): void {
+    this.frame = frame;
     this.enabled = questLogAvailable(frame.phase);
+    if (!this.enabled) this.open = false;
     this.element.hidden = !this.visible;
+    this.launcher.hidden = !this.enabled;
+    this.launcher.setAttribute("aria-expanded", String(this.visible));
+    const rows = frame.training ? [] : this.rows();
+    const newlyAccepted = rows.find((row) => row.accepted && !row.closed && !this.accepted.has(row.id));
+    this.accepted = new Set(rows.filter((row) => row.accepted).map((row) => row.id));
+    if (this.tracked && !rows.some((row) => row.id === this.tracked && !row.closed)) this.tracked = null;
+    if (newlyAccepted && this.tracked === null) this.tracked = newlyAccepted.id;
+    this.updateTracker(rows);
     if (!this.visible) return;
     this.place(frame);
     if (frame.training) {
-      if (this.signature !== "practice") {
-        this.signature = "practice";
+      if (this.order !== "practice") {
+        this.order = "practice";
         this.list.replaceChildren(el("p", "quest-log-empty", "No quests in practice"));
-        this.rumoured.textContent = "";
-        this.rumoured.hidden = true;
       }
+      this.rumoured.hidden = true;
       return;
     }
-    const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName, frame.phase === "planning", frame.feed);
-    const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}|${r.reward}|${r.acceptance}`).join("|") + `|${frame.hidden}`;
-    if (signature === this.signature) return;
-    this.signature = signature;
-    this.list.replaceChildren(...(rows.length > 0 ? rows.map(rowElement) : [el("p", "quest-log-empty", "No quests revealed yet.")]));
+    const order = rows.map((row) => row.id).join("|");
+    for (const row of rows) {
+      const view = this.views.get(row.id) ?? this.createRow(row);
+      this.views.set(row.id, view);
+      this.updateRow(view, row, frame);
+    }
+    if (order !== this.order || this.list.children.length === 0) {
+      this.order = order;
+      this.list.replaceChildren(...(rows.length ? rows.map((row) => this.views.get(row.id)!.root) : [el("p", "quest-log-empty", "No quests revealed yet.")]));
+    }
+    for (const [id] of this.views) if (!rows.some((row) => row.id === id)) this.views.delete(id);
     this.rumoured.textContent = frame.hidden > 0 ? `+${frame.hidden} rumoured quest${frame.hidden === 1 ? "" : "s"} — explore to reveal them` : "";
     this.rumoured.hidden = frame.hidden === 0;
   }
 
-  destroy(): void {
-    window.removeEventListener("keydown", this.onKeyDown);
-    for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) {
-      this.element.removeEventListener(type, this.stopPointer);
-    }
-    this.element.removeEventListener("contextmenu", this.noMenu);
-    this.element.remove();
+  private rows(): QuestRow[] {
+    const f = this.frame;
+    return f ? questRows(f.quests, f.localId, f.serverNow, f.localName, f.phase === "planning", f.feed) : [];
   }
 
-  /** Under the HUD plate wherever it ends this frame; the style is written only when the box moved. */
+  private createRow(row: QuestRow): RowView {
+    const root = el("article", "quest-log-row");
+    const head = el("div", "quest-log-head");
+    const time = el("time", "quest-log-time");
+    head.append(el("h3", "quest-log-name", row.def.name), el("span", "quest-log-kind", row.def.kind));
+    if (!row.closed) head.append(time);
+    const progress = el("div", "quest-log-progress");
+    const status = el("span", "quest-log-status");
+    const count = el("span");
+    progress.append(count, status);
+    const acceptance = el("div", "quest-log-accept");
+    const reward = el("div", "quest-log-reward");
+    const meter = el("div", "quest-log-meter");
+    const fill = el("span", "quest-log-meter-fill");
+    meter.setAttribute("role", "progressbar");
+    meter.setAttribute("aria-label", `${row.def.name} progress`);
+    meter.setAttribute("aria-valuemin", "0");
+    meter.append(fill);
+    const actions = el("div", "quest-log-actions");
+    const track = el("button", "quest-log-track", "Track");
+    track.type = "button";
+    track.addEventListener("click", () => this.track(this.tracked === row.id ? null : row.id));
+    const talk = el("button", "quest-log-talk", "Talk & accept");
+    talk.type = "button";
+    talk.addEventListener("click", () => {
+      if (talk.hidden) return;
+      this.setOpen(false);
+      this.options.onTalk?.(row.id);
+    });
+    actions.append(track, talk);
+    root.append(head, el("div", "quest-log-giver", row.def.giver), el("p", "quest-log-objective", row.objective), meter, progress);
+    if (row.acceptance) root.append(acceptance);
+    root.append(reward, actions);
+    return { root, time, status, progress: count, acceptance, reward, meter, fill, track, talk };
+  }
+
+  private updateRow(view: RowView, row: QuestRow, frame: QuestLogFrame): void {
+    const tracked = row.id === this.tracked;
+    view.root.className = `quest-log-row kind-${row.def.kind}${row.ready ? " ready" : ""}${row.closed ? " closed" : ""}${row.expired ? " expired" : ""}${tracked ? " tracked" : ""}`;
+    view.root.style.setProperty("--quest-color", questKindCss(row.def.kind));
+    view.time.textContent = row.time;
+    // A closing row loses its timer and acceptance nodes, matching the server's history view.
+    if (row.closed) { view.time.remove(); view.acceptance.remove(); }
+    view.progress.textContent = `Your progress ${row.progress}`;
+    view.status.textContent = row.status;
+    view.acceptance.className = `quest-log-accept${row.accepted ? " yes" : " no"}`;
+    view.acceptance.textContent = row.acceptance;
+    view.reward.textContent = `Reward: ${row.reward}`;
+    const [done, count] = row.progress.split("/").map(Number);
+    view.meter.setAttribute("aria-valuemax", String(count));
+    view.meter.setAttribute("aria-valuenow", String(done));
+    view.fill.style.width = `${Math.max(0, Math.min(100, done! / count! * 100))}%`;
+    view.track.hidden = row.closed;
+    view.track.textContent = tracked ? "Untrack" : "Track";
+    view.track.setAttribute("aria-pressed", String(tracked));
+    view.talk.hidden = !this.options.onTalk || row.closed || frame.phase !== "active" || frame.alive === false || !frame.local || !row.quest.accepted || !canTalk(frame.sight ?? null, frame.local, row.quest);
+    view.talk.textContent = row.accepted ? "View offer" : "Talk & accept";
+  }
+
+  private updateTracker(rows: QuestRow[]): void {
+    const f = this.frame;
+    const row = rows.find((r) => r.id === this.tracked && !r.closed);
+    this.tracker.hidden = !f || f.phase !== "active" || f.training || f.alive === false || !row;
+    if (!f || !row) return;
+    const destination = this.destination;
+    const step = !row.accepted ? `Talk to ${row.def.giver} to accept` : row.ready ? `Return to ${row.def.giver}` : destination?.waypoint?.label ?? row.objective;
+    let length = 0;
+    const route = destination?.route;
+    if (route && f.local) {
+      let from: QuestPosition = f.local;
+      for (const point of route) { length += Math.hypot(point.x - from.x, point.y - from.y); from = point; }
+    }
+    const distance = destination && route ? ` · ${Math.ceil(length / TILE)} tiles along route` : "";
+    this.trackerText.textContent = `${row.def.name} · ${step} · ${row.progress}${distance}`;
+    this.trackerText.title = this.trackerText.textContent;
+  }
+
+  private setOpen(open: boolean): void {
+    if (!this.enabled || this.open === open) return;
+    this.open = open;
+    this.element.hidden = !open;
+    this.launcher.setAttribute("aria-expanded", String(open));
+    (open ? this.closeButton : this.launcher).focus();
+  }
+
   private place(frame: QuestLogFrame): void {
     if (!frame.ui) return;
     const box = placeQuestLog(frame.ui, frame.plate?.() ?? null);
@@ -130,11 +263,24 @@ export class QuestLog {
 
   private readonly stopPointer = (event: Event): void => { event.stopPropagation(); };
   private readonly noMenu = (event: Event): void => { event.preventDefault(); event.stopPropagation(); };
-
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.code !== "KeyJ" || event.repeat || event.ctrlKey || event.metaKey || event.altKey || !this.enabled) return;
-    if (isTypingTarget(event.target) || insideDialog(event.target)) return;
-    event.preventDefault();
-    this.toggle();
+    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || !this.enabled || isTypingTarget(event.target) || insideDialog(event.target)) return;
+    if (event.code === "Escape" && this.visible) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.setOpen(false);
+    } else if (event.code === "KeyJ") {
+      event.preventDefault();
+      this.toggle();
+    }
   };
+
+  destroy(): void {
+    window.removeEventListener("keydown", this.onKeyDown, true);
+    for (const node of [this.element, this.launcher, this.tracker]) {
+      for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) node.removeEventListener(type, this.stopPointer);
+      node.removeEventListener("contextmenu", this.noMenu);
+      node.remove();
+    }
+  }
 }

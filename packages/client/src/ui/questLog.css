@@ -42,3 +42,49 @@
 .quest-log-accept.yes { color: var(--ok-text, #a5d6a7); border: 1px solid var(--ok-line, #43a047); }
 .quest-log-accept.no { color: var(--warn, #ffcc80); border: 1px dashed var(--warn, #ffcc80); }
 .quest-log-rumoured { margin-top: 10px; }
+
+#ui > .quest-log-launcher {
+  position: absolute;
+  z-index: 11;
+  bottom: 12px;
+  left: 12px;
+  pointer-events: auto;
+}
+.quest-log-launcher, .quest-log-close, .quest-log-track, .quest-log-talk, .quest-tracker-untrack {
+  padding: 4px 8px;
+  border: 1px solid var(--line-hi, #4a5563);
+  border-radius: 5px;
+  background: var(--panel, #171d26);
+  color: var(--text, #e6e9ed);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.quest-log-launcher:focus-visible, .quest-log-close:focus-visible, .quest-log-track:focus-visible, .quest-log-talk:focus-visible, .quest-tracker-untrack:focus-visible {
+  outline: 2px solid var(--accent, #ffe082);
+  outline-offset: 2px;
+}
+.quest-log-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 7px; }
+.quest-log-row.tracked { outline: 1px solid var(--quest-color); outline-offset: 1px; }
+.quest-log-meter { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; margin: 6px 0; }
+.quest-log-meter-fill { display: block; height: 100%; background: var(--quest-color); }
+#ui > .quest-tracker {
+  position: absolute;
+  z-index: 7;
+  bottom: 112px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: min(640px, calc(var(--ui-w, 800px) - 32px));
+  padding: 7px 10px;
+  border: 1px solid var(--line-hi, #4a5563);
+  border-radius: 6px;
+  background: var(--panel, rgba(20,24,30,.96));
+  color: var(--text, #e6e9ed);
+  pointer-events: auto;
+}
+.quest-tracker-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.quest-tracker-untrack { flex: none; }

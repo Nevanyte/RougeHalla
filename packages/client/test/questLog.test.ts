@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { questDefById } from "@raid/shared";
+import { TILE, questDefById } from "@raid/shared";
 import { QuestLog, questLogAvailable, type QuestLogFrame } from "../src/ui/questLog";
 import { QUEST_LOG_BOTTOM_RESERVE, QUEST_LOG_GAP } from "../src/ui/questLogLayout";
 import type { QuestStateLike } from "../src/ui/questModel";
@@ -59,7 +59,7 @@ describe("QuestLog", () => {
     expect(dom.ui.byClass("quest-log-objective")[0]?.textContent).toBe("Kill 3 mobs in Fire");
     expect(dom.ui.byClass("quest-log-progress")[0]?.textContent).toContain("Your progress 2 / 3");
     expect(dom.ui.byClass("quest-log-time")[0]?.textContent).toBe("1:00");
-    expect(dom.ui.byClass("quest-log-reward")[0]?.textContent).toContain("Attack Damage II (+21 attack damage) and 10 GV");
+    expect(dom.ui.byClass("quest-log-reward")[0]?.textContent).toContain("2 × Attack Damage II (+21 attack damage each) and 10 GV");
     expect(dom.ui.byClass("quest-log-status")[0]?.textContent).toBe("Open");
     expect(dom.ui.byClass("quest-log-rumoured")[0]?.textContent).toContain("+5 rumoured");
     dom.press("KeyJ");
@@ -194,6 +194,7 @@ describe("QuestLog", () => {
       log.update(frame({ phase }));
       expect(log.visible, phase).toBe(false);
     }
+    dom.doc.body.focus();
     // Planning's own keys, the chest panel's (C, the digits, Esc) and Tab are none of the log's business.
     log.update(frame({ phase: "planning" }));
     for (const code of ["Digit1", "Digit2", "Digit0", "ArrowLeft", "ArrowDown", "Enter", "Delete", "KeyC", "Escape", "Tab", "KeyF"]) {
@@ -245,6 +246,93 @@ describe("QuestLog", () => {
     expect(dom.ui.byClass("quest-log-time")).toHaveLength(1);
     const mine = articles.find((a) => a.textContent.includes("Done by Me"))!;
     expect(mine.textContent).toContain("Your progress 1 / 1");
+    log.destroy();
+  });
+});
+
+describe("quest tracking controls", () => {
+  it("tracks the giver before acceptance, preserves focus through timer updates, and clears closed tracking", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    const q = { ...state, accepted: new Map<string, boolean>() };
+    const publicQuests = { forEach(cb: (quest: QuestStateLike, id: string) => void) { cb(q, q.id); } };
+    const f = frame({ quests: publicQuests, alive: true, local: { x: 600, y: 600 } });
+    log.update(f);
+    asEl(log.launcher).click();
+    log.update(f);
+    const track = dom.ui.byClass("quest-log-track")[0]!;
+    track.focus();
+    track.click();
+    expect(log.trackedId).toBe("q1");
+    expect(log.tracker.hidden).toBe(false);
+    expect(dom.ui.byClass("quest-tracker-text")[0]?.textContent).toContain("Talk to Ashmother Vela to accept");
+    const article = dom.ui.byClass("quest-log-row")[0];
+    log.update({ ...f, serverNow: 1000 });
+    expect(dom.ui.byClass("quest-log-row")[0]).toBe(article);
+    expect(dom.doc.activeElement).toBe(track);
+    track.click();
+    expect(log.trackedId).toBeNull();
+    log.update({ ...f, serverNow: 2000 });
+    expect(log.trackedId).toBeNull();
+    q.accepted.set("me", true);
+    log.update(f);
+    expect(log.trackedId).toBe("q1");
+    const escape = dom.press("Escape");
+    expect(escape.defaultPrevented).toBe(true);
+    expect(log.visible).toBe(false);
+    expect(dom.doc.activeElement).toBe(asEl(log.launcher));
+    q.status = "expired";
+    log.update(f);
+    expect(log.trackedId).toBeNull();
+    expect(log.tracker.hidden).toBe(true);
+    log.destroy();
+  });
+
+  it("only offers the existing accept dialog beside a published giver during the active run", () => {
+    const dom = installPlanningDom();
+    const onTalk = vi.fn();
+    const log = new QuestLog({ onTalk });
+    const q = { ...state, accepted: new Map<string, boolean>() };
+    const publicQuests = { forEach(cb: (quest: QuestStateLike, id: string) => void) { cb(q, q.id); } };
+    const f = frame({ quests: publicQuests, alive: true, local: { x: q.x, y: q.y } });
+    log.update(f);
+    log.toggle();
+    log.update(f);
+    const talk = dom.ui.byClass("quest-log-talk")[0]!;
+    expect(talk.hidden).toBe(false);
+    talk.click();
+    expect(onTalk).toHaveBeenCalledWith(q.id);
+    expect(log.visible).toBe(false);
+    log.toggle();
+    for (const update of [
+      { ...f, local: { x: 1000, y: 1000 } },
+      { ...f, phase: "planning" },
+      { ...f, alive: false },
+    ]) {
+      log.update(update);
+      expect(talk.hidden).toBe(true);
+    }
+    // A reveal has no public acceptance map yet: tracking information is allowed, accepting it is not.
+    const preview = { ...q, accepted: undefined };
+    log.update({ ...f, quests: { forEach: (cb) => cb(preview, preview.id) } });
+    expect(talk.hidden).toBe(true);
+    log.destroy();
+  });
+});
+
+
+describe("tracked waypoint distance", () => {
+  it("uses the destination label and routed length rather than distance through a wall", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    const q = { ...state, accepted: new Map([["me", true]]) };
+    log.update(frame({ quests: { forEach: (cb) => cb(q, q.id) }, alive: true, local: { x: 0, y: 0 } }));
+    log.setDestination({ role: "objective", kind: "kill", x: TILE, y: TILE, tracked: true,
+      waypoint: { label: "Defeat a Fire mob", step: 3, total: 3 },
+      route: [{ x: 0, y: 0 }, { x: 3 * TILE, y: 0 }, { x: 3 * TILE, y: TILE }, { x: TILE, y: TILE }],
+    });
+    expect(dom.ui.byClass("quest-tracker-text")[0]?.textContent).toContain("Defeat a Fire mob");
+    expect(dom.ui.byClass("quest-tracker-text")[0]?.textContent).toContain("6 tiles along route");
     log.destroy();
   });
 });

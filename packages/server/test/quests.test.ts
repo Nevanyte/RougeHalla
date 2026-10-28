@@ -181,6 +181,7 @@ describe("kill quests", () => {
     expect(cull.s.progress.get("p0")).toBe(3);
     killMobOf(w, "frost", "p0");
     expect(tour.s.progress.get("p0")).toBe(3);
+    expect(tour.s.visitedRegions.get("p0")).toBe("plague,fire,frost");
   });
 
   it("an elite counts for the elite hunt and for its region's cull alike", () => {
@@ -220,15 +221,15 @@ describe("turn-in", () => {
     const winner = qt.s.doneBy === "alice" ? 0 : 1;
     expect(RT(w, winner).gv.quest).toBe(qt.def.reward.gv);
     expect(RT(w, winner).gv.quest + RT(w, 1 - winner).gv.quest).toBe(qt.def.reward.gv);
-    // A feed of 0.75 is nowhere near the brake: the nominal card, once, to the winner alone.
-    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(1);
+    // A feed of 0.75 is nowhere near the brake: every nominal copy goes to the winner alone.
+    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies);
     expect(P(w, 1 - winner).build.size).toBe(0);
-    expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === "Quest complete: Attack Damage II")).toBe(true);
+    expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === `Quest complete: ${qt.def.reward.copies} × Attack Damage II`)).toBe(true);
     expect(ev.some((e) => e.type === "gv" && e.reason === "quest" && e.amount === qt.def.reward.gv)).toBe(true);
     expect(ev.some((e) => e.type === "toast" && e.to === null && e.text.includes(qt.s.doneBy) && e.text.includes(qt.def.name))).toBe(true);
     step(w, TICK_MS);
     expect(P(w, 1 - winner).build.size).toBe(0);
-    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(1); // paid once
+    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies); // paid once
   });
 
   it.each([["p0", "p1"], ["p1", "p0"]])(
@@ -358,7 +359,7 @@ describe("collect quests", () => {
     P(w, 0).y = GIVER.y;
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
-    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(1);
+    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies);
   });
 });
 
@@ -383,7 +384,7 @@ describe("fetch quests", () => {
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
     expect(w.quests!.carried.has("p0")).toBe(false);
-    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(1);
+    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies);
   });
 
   it("a carrier who goes down drops the parcel where they fell, and anyone may reclaim it", () => {

@@ -95,10 +95,12 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     "  had before the quest (a quest done late in a build gains its Δ where the S-curve and the camps are different); farm runs",
     "  that never got that far are left out and it needs 3 of them. The two agree for a quest done from nothing.",
     "- Power is live card power: shared cardPower (the sum of tier x count) over the live cards only, so a card that waits for its hook",
-    "  counts for nothing in any figure, the policies' valuations included. GV is not power. Quest Δ is the change on the completion",
-    "  tick (median before → after): the tier of the card (one tier less for a fed player).",
-    "- Completion rate = completions by the player who chose the quest / first choices of it (one per player and quest). Farm-only",
-    "  seats never choose a quest and the lobby that merely offered it is not counted; a kill-a-player quest (†) needs another",
+    "  counts for nothing in any figure, the policies' valuations included. GV is not power. Quest Δ is the total live power added",
+    "  on the completion tick (median before → after): card tier × copies, one tier lower per copy for a fed player.",
+    "- Quest selection shows completions by the chooser / accepted players / first selections (one per player and quest).",
+    "  Acceptance is the public server confirmation, not a policy command; max progress is the median objective count among",
+    "  accepted attempts. Expired counts selections whose offer closed before the run ended; open offers at the cap are censored.",
+    "  Farm-only seats never choose a quest and offers merely present in a lobby are not counted; a kill-a-player quest (†) needs another",
     "  standing player, so only mixed lobbies can attempt it. 'seeds' is the distinct map seeds among the attempts: the policies",
     "  are deterministic, so seats of one seed differ by faction alone.",
     "- Deaths and fights are within 8 tiles of a giver, quest item or relevant kill camp (fights: new locks and idle-mob",
@@ -107,6 +109,7 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     "  the mixed lobby seats consecutive factions. The farm-only baseline farms by the cost of a whole camp as measured by",
     "  bench/campDuel.ts, retreats only when it is losing, waits out the heal lockout to skip a camp chest, and with no camp it",
     "  can afford waits at most 5 s before it pulls the cheapest (questBenchPolicy.ts).",
+    "  Choice travel estimates use the map path around walls, not straight-line distance.",
     "- Patience and sudden death: patienceSeconds, patienceMinSeconds, firstPatienceSeconds and suddenDeathSeconds are 1e6 s, so",
     "  no coliseum teleport (which closes every quest and seals the gates) falls inside the cap: the policies measure farming and",
     "  questing, not the endgame, and the 5 min column and win rate are not the endgame's. A lobby with no winner by the cap has",
@@ -129,6 +132,7 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     const tried = attempts.filter((a) => a.defId === defId);
     const done = completions.filter((c) => c.defId === defId);
     const doneByChooser = done.filter((c) => c.costSeconds !== null);
+    const acceptedAttempts = tried.filter((a) => a.accepted);
     const priced = doneByChooser.filter((c) => c.powerGain >= MIN_GAIN);
     const worthless = doneByChooser.length - priced.length;
     const farmTimes: number[] = [];
@@ -159,7 +163,11 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
       return cell;
     }, { deaths: 0, fights: 0 });
     const completed = doneByChooser.length;
-    const rate = tried.length ? `${completed}/${tried.length} (${percent(completed / tried.length)})` : pvp.has(defId) ? "0/0 (mixed only)" : "0/0";
+    const rate = `${completed}/${acceptedAttempts.length}/${tried.length}`;
+    const acceptance = tried.length ? `${acceptedAttempts.length}/${tried.length} (${percent(acceptedAttempts.length / tried.length)})`
+      : pvp.has(defId) ? "0/0 (mixed only)" : "0/0";
+    const maxProgress = acceptedAttempts.length ? number(median(acceptedAttempts.map((a) => a.maxProgress)), 1) : "-";
+    const expired = tried.filter((a) => a.outcome === "expired").length;
     const farmCell = farmTimes.length ? number(median(farmTimes), 1) : upperBounds.length ? `>${number(farmMaxSeconds, 0)}` : "-";
     const ratioCell = ratios.length ? number(median(ratios))
       : upperBounds.length ? `<${number(median(upperBounds))}`
@@ -167,6 +175,9 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     return [
       pvp.has(defId) ? `${name} †` : name,
       rate,
+      acceptance,
+      maxProgress,
+      String(expired),
       String(new Set(tried.map((a) => a.seed)).size),
       number(done.length ? median(done.map((c) => c.seconds)) : NaN, 1),
       number(percentile(done.map((c) => c.seconds), 0.9), 1),
@@ -182,8 +193,8 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
   });
   lines.push("## Per quest (ratio: below 1 = quest faster than farming, target 1.0-1.35)", "");
   lines.push(...table(
-    ["quest", "done/attempts", "seeds", "median s", "p90 s", "cost s", "quest Δ (before→after)", "farm s", "ratio", "marginal", "cens", "deaths", "fights"],
-    questRows.length ? questRows : [["(no quest observations)", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]],
+    ["quest", "done/accepted/selected", "acceptance", "median objective", "expired", "seeds", "median s", "p90 s", "cost s", "quest Δ (before→after)", "farm s", "ratio", "marginal", "cens", "deaths", "fights"],
+    questRows.length ? questRows : [["(no quest observations)", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]],
   ));
   if (pvp.size > 0) lines.push("", "† needs another standing player: solo seats cannot attempt it.");
   const incidental = completions.filter((c) => c.costSeconds === null).length;

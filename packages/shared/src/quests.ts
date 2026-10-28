@@ -2,14 +2,16 @@
 // offers to the whole lobby: five public offers support spawn planning, while five private offers stay out of synced
 // state until scouted. Every objective pulls players away from their spawn and pays a card and some GV.
 //
-// Balance ("roughly time parity with farming, slightly more for the risk"; BALANCE_CONTRACT 8.4): a player farming flat out clears a
+// The real-sim questBench showed that one card per quest badly underpays: farming earns 1–2 live power in 11.5–15 s while most
+// quest completions cost 38–71 s. Keep the card identity and tier from the objective worksheet, then use reward.copies (calibrated
+// per offer from the 10-seed, 4-seat questBench) to pay the observed opportunity cost. A player farming flat out clears a
 // camp (CAMP_SECONDS, four mobs of FARM_SECONDS_PER_MOB each) in the time a quest asks, and a normal camp's chest gives CARD_TIER_RATE
 // tier points on average. A quest costs objSec at the objective plus travelSec of pure walking; walking only earns TRAVEL_RATE_SHARE of
 // the farm rate (camps met on the way). Its card's tier is those camps' worth of points, rounded into 1-3 (questTier), and pays a
 // little OVER parity, STACK_PREMIUM, because the walker is exposed (a gank target carrying a parcel) in a way a camper is not. The
 // base stat comes from the zone it visits (the old buff's stat); the player-kill quest (no mob parity) is capped at tier 1. A fed
 // player (the mob reward curve below QUEST_FEED_BRAKE) gets one tier less (questRewardCard). The catalog test holds every card to
-// this rule, and every GV amount inside a band around its parity, so the numbers below and the formulas cannot drift apart.
+// the tier rule and measured copy counts, and every GV amount inside a band around its parity, so those contracts cannot drift.
 import {
   PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE,
 } from "./constants";
@@ -54,8 +56,8 @@ export interface QuestDef {
   objSec: number;
   /** Expected seconds of pure travel the offer asks for; feeds the parity maths above. */
   travelSec: number;
-  /** The card it pays at the nominal tier (questTier: before the feed brake, questRewardCard) and the GV it adds. */
-  reward: { card: CardId; gv: number };
+  /** The base card and stack count it pays (the feed brake lowers tier, not count), plus the GV it adds. */
+  reward: { card: CardId; copies: number; gv: number };
   /** The offer lapses this many seconds into the run (no farming first, turning in at leisure). */
   expiresAtSec: number;
 }
@@ -94,104 +96,104 @@ export const QUEST_DEFS: readonly QuestDef[] = [
   {
     id: "cull-fire", kind: "kill", name: "Cinder Cull", giver: "Ashmother Vela",
     text: "The ashwoods breed vermin faster than we can burn them. Cull three.", count: 3, region: "fire", farZone: "fire",
-    objSec: 36, travelSec: 60, reward: { card: "ad2", gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "ad2", copies: 2, gv: 10 }, expiresAtSec: 150,
   },
   {
     id: "cull-sentenced", kind: "kill", name: "Break the Chains", giver: "Magistrate Ohm",
     text: "Three convicts walk free who shouldn't. Remind them what chains are for.", count: 3, region: "sentenced", farZone: "sentenced",
-    objSec: 36, travelSec: 60, reward: { card: "ad2", gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "ad2", copies: 3, gv: 10 }, expiresAtSec: 150,
   },
   {
     id: "cull-plague", kind: "kill", name: "Plague Purge", giver: "Sister Mercia",
     text: "The rats carry it further every night. Three fewer carriers, please.", count: 3, region: "plague", farZone: "plague",
-    objSec: 36, travelSec: 60, reward: { card: "haste2", gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "haste2", copies: 4, gv: 10 }, expiresAtSec: 150,
   },
   {
     id: "cull-frost", kind: "kill", name: "Thaw the Watch", giver: "Warden Sigur",
     text: "Rimeguards on the far ridge, three of them. End their watch.", count: 3, region: "frost", farZone: "frost",
-    objSec: 36, travelSec: 75, reward: { card: "vitality2", gv: 11 }, expiresAtSec: 165,
+    objSec: 36, travelSec: 75, reward: { card: "vitality2", copies: 3, gv: 11 }, expiresAtSec: 165,
   },
   {
     id: "elite-hunt", kind: "kill", name: "Worth the Walk", giver: "Huntmaster Brack",
     text: "Any elite, anywhere. Prove you can bring down something that fights back.", count: 1, elite: true, farZone: "fire",
-    objSec: 20, travelSec: 60, reward: { card: "ap1", gv: 7 }, expiresAtSec: 240,
+    objSec: 20, travelSec: 60, reward: { card: "ap1", copies: 5, gv: 7 }, expiresAtSec: 240,
   },
   {
     id: "headhunter", kind: "kill", name: "A Head for a Head", giver: "The Broker",
     text: "One of your fellow champions. Any of them. I don't deal in specifics.", count: 1, players: true, farZone: "sentenced",
-    objSec: 30, travelSec: 60, reward: { card: "ad1", gv: 5 }, expiresAtSec: 300,
+    objSec: 30, travelSec: 60, reward: { card: "ad1", copies: 3, gv: 5 }, expiresAtSec: 300,
   },
   {
     id: "grand-tour", kind: "kill", name: "The Grand Tour", giver: "Cartographer Ines",
     text: "Blood on your blade in three different lands. Bring me the itinerary.", count: 3, tour: 3, farZone: "fire",
-    objSec: 36, travelSec: 100, reward: { card: "fleet2", gv: 13 }, expiresAtSec: 300,
+    objSec: 36, travelSec: 100, reward: { card: "fleet2", copies: 2, gv: 13 }, expiresAtSec: 300,
   },
   // Collect (7)
   {
     id: "bloom-plague", kind: "collect", name: "Blight Blooms", giver: "Apothecary Nyx",
     text: "Pale blooms grow where the rats nest. Three, stems and all.", count: 3, region: "plague", farZone: "plague", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "haste1", gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "haste1", copies: 6, gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "shards-frost", kind: "collect", name: "Shards of the Watch", giver: "Smith Halvar",
     text: "Rimeshard splinters litter the far camp. Three will reforge nicely.", count: 3, region: "frost", farZone: "frost", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "armor1", gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "armor1", copies: 4, gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "ashcap-fire", kind: "collect", name: "Ashcaps", giver: "Cook Farrell",
     text: "Ashcap mushrooms, the big grey ones, from the ember camp. Three. Don't ask what for.", count: 3, region: "fire", farZone: "fire", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "mr1", gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "mr1", copies: 6, gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "chains-sentenced", kind: "collect", name: "Loose Links", giver: "Warden Ohm the Younger",
     text: "Broken links from the chain camp, three of them. Evidence, you understand.", count: 3, region: "sentenced", farZone: "sentenced", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "ap1", gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "ap1", copies: 6, gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "tithe-holy", kind: "collect", name: "The Tithe", giver: "Cantor Lucien",
     text: "Blood tokens the imps hoard at their camp. Three, for the collection plate.", count: 3, region: "holy", farZone: "holy", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "ap1", gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "ap1", copies: 5, gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "cache", kind: "collect", name: "The Quartermaster's Cache", giver: "Quartermaster Bly",
     text: "I scattered supply stubs around the middle camps. Four of them buy you my gratitude.", count: 4, farZone: "plague", tokens: "mid", tokenSpawns: 6,
-    objSec: 20, travelSec: 90, reward: { card: "haste2", gv: 10 }, expiresAtSec: 220,
+    objSec: 20, travelSec: 90, reward: { card: "haste2", copies: 2, gv: 10 }, expiresAtSec: 220,
   },
   {
     id: "tithe-rim", kind: "collect", name: "Offerings at the Edge", giver: "Pilgrim Saoirse",
     text: "Five shrines by the outer starts, an offering at each. The long way round is the point.", count: 5, farZone: "frost", tokens: "rim", tokenSpawns: 8,
-    objSec: 25, travelSec: 110, reward: { card: "vitality2", gv: 12 }, expiresAtSec: 240,
+    objSec: 25, travelSec: 110, reward: { card: "vitality2", copies: 3, gv: 12 }, expiresAtSec: 240,
   },
   // Fetch (6)
   {
     id: "banner-fire", kind: "fetch", name: "The Ember Banner", giver: "Herald Kest",
     text: "My banner stands in the ashlands. Carry it back and mind the carrier's curse: everyone sees you.", count: 1, region: "fire", farZone: "fire",
-    objSec: 8, travelSec: 100, reward: { card: "fleet2", gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "fleet2", copies: 4, gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-frost", kind: "fetch", name: "The Frozen Standard", giver: "Skald Runa",
     text: "A standard lost on the glacier. Bring it home and I'll sing of you.", count: 1, region: "frost", farZone: "frost",
-    objSec: 8, travelSec: 100, reward: { card: "vitality2", gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "vitality2", copies: 4, gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-plague", kind: "fetch", name: "The Physician's Satchel", giver: "Physician Aldous",
     text: "My satchel, left behind in the sicklands. Fetch it and try not to touch anything.", count: 1, region: "plague", farZone: "plague",
-    objSec: 8, travelSec: 100, reward: { card: "haste2", gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "haste2", copies: 4, gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-sentenced", kind: "fetch", name: "The Warden's Seal", giver: "Clerk Demain",
     text: "The old seal lies in the prison yards. Bureaucracy demands its return.", count: 1, region: "sentenced", farZone: "sentenced",
-    objSec: 8, travelSec: 100, reward: { card: "ad2", gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "ad2", copies: 4, gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-holy", kind: "fetch", name: "The Reliquary", giver: "Abbot Gavril",
     text: "A reliquary abandoned at the blood shrine. Handle with reverence. And haste.", count: 1, region: "holy", farZone: "holy",
-    objSec: 8, travelSec: 100, reward: { card: "leech2", gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "leech2", copies: 5, gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "long-haul", kind: "fetch", name: "The Long Haul", giver: "Freight Captain Mora",
     text: "One parcel, the whole way across. Nobody who matters will carry it. Will you?", count: 1, farZone: "plague",
-    objSec: 8, travelSec: 150, reward: { card: "haste2", gv: 12 }, expiresAtSec: 280,
+    objSec: 8, travelSec: 150, reward: { card: "haste2", copies: 4, gv: 12 }, expiresAtSec: 280,
   },
 ];
 
@@ -225,11 +227,18 @@ export function questRewardCard(def: Pick<QuestDef, "reward">, feed: number): Ca
   return `${base}${lowered}` as CardId;
 }
 
-/** Nominal reward wording for the quest log and planning screen: "Haste II (+16% attack speed) and 10 GV". */
+/** Number of copies paid; every quest reward is a stackable base card. */
+export function questRewardCopies(def: Pick<QuestDef, "reward">): number {
+  return def.reward.copies;
+}
+
+/** Nominal reward wording for the quest log and planning screen. */
 export function questRewardText(def: QuestDef): string {
   const title = cardTitle(def.reward.card);
   if (title === "") return `${def.reward.gv} GV`;
-  return `${title} (${cardText(def.reward.card)}) and ${def.reward.gv} GV`;
+  const quantity = def.reward.copies > 1 ? `${def.reward.copies} × ` : "";
+  const each = def.reward.copies > 1 ? " each" : "";
+  return `${quantity}${title} (${cardText(def.reward.card)}${each}) and ${def.reward.gv} GV`;
 }
 
 /**

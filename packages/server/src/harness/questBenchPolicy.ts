@@ -15,7 +15,7 @@
 //     longest stand-still in 15 solo runs was 8 s. A farmer that makes no kill for 75 s is flagged `stalledAt`, which the bench reports as a censored
 //     end of the baseline, and the farmer carries on.
 import {
-  CARD_TIER_RATE, cardDef, cardLive, cardPower, FACTION_IDS, findPath, hasLineOfSight, INTERACT_RANGE, isEliteCamp, isFactionId,
+  CARD_TIER_RATE, cardDef, cardLive, cardPower, findPath, hasLineOfSight, INTERACT_RANGE, isEliteCamp, isFactionId,
   isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, QUEST_ACCEPT_RANGE, questDefById, segmentClear, TARGET_RANGE, TILE,
   type CampDef, type CardCounts, type FactionId, type QuestDef, type Vec2,
 } from "@raid/shared";
@@ -144,6 +144,27 @@ interface Target {
 }
 
 const distance = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
+const ROUTE_CACHE_LIMIT = 4096;
+const routeDistanceCache = new WeakMap<World, Map<string, number>>();
+/** Cached route cost for policy ranking only; authoritative movement still uses the sim's full path. */
+function routeDistance(world: World, from: Vec2, to: Vec2): number {
+  let cache = routeDistanceCache.get(world);
+  if (!cache) routeDistanceCache.set(world, (cache = new Map()));
+  // Round to map tiles: ranking can tolerate a sub-tile endpoint approximation and reuses routes while a player walks.
+  const tile = (n: number): number => Math.round(n / TILE);
+  const key = `${world.state.gatesLocked ? 1 : 0}:${tile(from.x)},${tile(from.y)}>${tile(to.x)},${tile(to.y)}`;
+  const cached = cache.get(key);
+  if (cached !== undefined) {
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached;
+  }
+  const route = findPath(collisionMap(world), from, to);
+  const length = route.length > 0 ? pathLength(from, route) : Infinity;
+  cache.set(key, length);
+  if (cache.size > ROUTE_CACHE_LIMIT) cache.delete(cache.keys().next().value!);
+  return length;
+}
 const regional = (m: MobState): boolean => m.status === "alive" && (m.kind === "mob" || m.kind === "elite");
 
 function moveTo(world: World, rt: PlayerRuntime, mem: PolicyMemory, target: Target): void {
@@ -234,7 +255,7 @@ function campViews(world: World, p: PlayerState): CampView[] {
   const out: CampView[] = [];
   for (const [camp, mobs] of groups) {
     const def = world.map.camps[camp - 1];
-    if (def) out.push({ index: camp, camp: def, mobs, risk: campRisk(faction, mobs, power), d: distance(p, def) });
+    if (def) out.push({ index: camp, camp: def, mobs, risk: campRisk(faction, mobs, power), d: routeDistance(world, p, def) });
   }
   return out;
 }
@@ -312,7 +333,8 @@ function nearestQuestItem(world: World, p: PlayerState, q: QuestDecisionView): T
     if (box.kind !== "quest") continue;
     const item = box.items.at(0);
     if (!item || !item.def.endsWith(suffix)) continue;
-    const d = distance(p, box);
+    const d = routeDistance(world, p, box);
+    if (!Number.isFinite(d)) continue;
     if (!best || d < best.d) best = { id, at: box, d };
   }
   return best ? { key: `item:${best.id}`, at: best.at, container: best.id } : null;
@@ -332,12 +354,19 @@ function questItem(world: World, p: PlayerState, mem: PolicyMemory, q: QuestDeci
   return target;
 }
 
-function acceptKillMob(q: QuestDecisionView, mem: PolicyMemory): (m: MobState) => boolean {
+function visitedTourRegions(q: QuestDecisionView, playerId: string, mem: PolicyMemory): ReadonlySet<string> {
+  const synced = q.s.visitedRegions?.get(playerId);
+  // The public quest state is authoritative across reselects; memory is only a legacy fallback for old runtimes.
+  return typeof synced === "string" ? new Set(synced.split(",").filter(Boolean)) : mem.tourRegions;
+}
+
+function acceptKillMob(q: QuestDecisionView, playerId: string, mem: PolicyMemory): (m: MobState) => boolean {
   const def = q.def;
+  const visited = def.tour ? visitedTourRegions(q, playerId, mem) : null;
   return (m) => {
     if (def.elite && m.kind !== "elite") return false;
     if (def.region && m.faction !== def.region) return false;
-    if (def.tour && mem.tourRegions.has(m.faction)) return false;
+    if (visited?.has(m.faction)) return false;
     return true;
   };
 }
@@ -356,7 +385,7 @@ function questCampTarget(
     let bestDistance = Infinity;
     world.map.camps.forEach((camp, i) => {
       if (![...world.state.mobs.values()].some((m) => regional(m) && m.camp === i + 1 && accept(m))) return;
-      const d = distance(p, camp);
+      const d = routeDistance(world, p, camp);
       if (d < bestDistance) { best = i + 1; bestDistance = d; }
     });
     mem.camp = best;
@@ -367,13 +396,7 @@ function questCampTarget(
 
 function killTarget(world: World, playerId: string, p: PlayerState, mem: PolicyMemory, q: QuestDecisionView): Target | null {
   if (q.def.players) return nearestPlayer(world, playerId, p);
-  let target = questCampTarget(world, p, mem, `quest:${q.id}`, acceptKillMob(q, mem));
-  if (!target && q.def.tour) {
-    const progress = q.s.progress.get(playerId) ?? 0;
-    const region = FACTION_IDS[progress % FACTION_IDS.length]!;
-    target = questCampTarget(world, p, mem, `quest:${q.id}:fallback`, (m) => m.faction === region);
-  }
-  return target;
+  return questCampTarget(world, p, mem, `quest:${q.id}`, acceptKillMob(q, playerId, mem));
 }
 
 function carrierTarget(world: World, q: QuestDecisionView): Target | null {
@@ -393,10 +416,10 @@ function questTarget(
   return questItem(world, p, mem, q);
 }
 
-/** Live power the nominal reward adds to this player: its card's tier (the server's feed brake is not priced in). */
+/** Live power the nominal reward adds to this player: card tier × copies (the server's feed brake is not priced in). */
 export function questRewardPower(_p: PlayerState, q: QuestDecisionView): number {
   const def = cardDef(q.def.reward.card);
-  return def && cardLive(def) ? def.tier : 0;
+  return def && cardLive(def) ? def.tier * q.def.reward.copies : 0;
 }
 
 function nearestQuest(world: World, p: PlayerState, mem: PolicyMemory, playerId: string): QuestDecisionView | null {
@@ -404,7 +427,8 @@ function nearestQuest(world: World, p: PlayerState, mem: PolicyMemory, playerId:
   let best: { q: QuestDecisionView; d: number } | null = null;
   for (const q of visibleQuests(world, playerId)) {
     if ((mem.skipQuests.get(q.id) ?? 0) > now) continue;
-    const d = distance(p, q.s);
+    const d = routeDistance(world, p, q.s);
+    if (!Number.isFinite(d)) continue;
     if (!best || d < best.d) best = { q, d };
   }
   return best?.q ?? null;
@@ -417,18 +441,18 @@ function nearestPlayer(world: World, playerId: string, p: PlayerState): Target |
   return chosen ? { key: `player:${chosen[0]}`, id: chosen[0], at: chosen[1] } : null;
 }
 
-function estimatePoint(world: World, playerId: string, p: PlayerState, q: QuestDecisionView): Vec2 {
+function estimatePoint(world: World, playerId: string, p: PlayerState, mem: PolicyMemory, q: QuestDecisionView): Vec2 | null {
   if (questReady(q, playerId)) return q.s;
-  if (q.def.kind === "fetch") return carrierTarget(world, q)?.at ?? nearestQuestItem(world, p, q)?.at ?? q.s;
-  if (q.def.kind === "collect") return nearestQuestItem(world, p, q)?.at ?? q.s;
-  if (q.def.players) return nearestPlayer(world, playerId, p)?.at ?? q.s;
-  const visited = new Set<string>(FACTION_IDS.slice(0, q.s.progress.get(playerId) ?? 0));
+  if (q.def.kind === "fetch") return carrierTarget(world, q)?.at ?? nearestQuestItem(world, p, q)?.at ?? null;
+  if (q.def.kind === "collect") return nearestQuestItem(world, p, q)?.at ?? null;
+  if (q.def.players) return nearestPlayer(world, playerId, p)?.at ?? null;
+  const visited = q.def.tour ? visitedTourRegions(q, playerId, mem) : null;
   return nearestMob(world, p, (m) => {
     if (q.def.elite && m.kind !== "elite") return false;
     if (q.def.region && m.faction !== q.def.region) return false;
-    if (q.def.tour && visited.has(m.faction)) return false;
+    if (visited?.has(m.faction)) return false;
     return true;
-  })?.at ?? q.s;
+  })?.at ?? null;
 }
 
 function mixedQuest(world: World, playerId: string, p: PlayerState, mem: PolicyMemory): QuestDecisionView | null {
@@ -437,12 +461,15 @@ function mixedQuest(world: World, playerId: string, p: PlayerState, mem: PolicyM
   let best: { q: QuestDecisionView; rate: number; d: number } | null = null;
   for (const q of visibleQuests(world, playerId)) {
     if ((mem.skipQuests.get(q.id) ?? 0) > now) continue;
-    const at = estimatePoint(world, playerId, p, q);
+    const at = estimatePoint(world, playerId, p, mem, q);
+    if (!at) continue;
     // An offer not yet accepted costs the detour through its giver.
-    const walk = acceptedBy(q, playerId) ? distance(p, at) : distance(p, q.s) + distance(q.s, at);
+    const walk = acceptedBy(q, playerId)
+      ? routeDistance(world, p, at)
+      : routeDistance(world, p, q.s) + routeDistance(world, q.s, at);
     const seconds = walk / PLAYER_SPEED + q.def.objSec;
     const rate = seconds > 0 ? questRewardPower(p, q) / seconds : 0;
-    const d = distance(p, q.s);
+    const d = routeDistance(world, p, q.s);
     if (rate > farmRate && (!best || rate > best.rate || (rate === best.rate && d < best.d))) best = { q, rate, d };
   }
   return best?.q ?? null;
