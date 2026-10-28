@@ -11,6 +11,7 @@ import { FigureJuice, type DustSink } from "./FigureJuice";
 import { displayName } from "./displayName";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
+import { MarkPlate } from "./MarkPlate";
 import { MarksMemory } from "./signatureLook";
 import { StatusArt } from "./StatusArt";
 import { TrailView } from "./TrailView";
@@ -85,6 +86,7 @@ export class PlayerView {
   private readonly hpBar: HpBar;
   private readonly barrierRing: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
+  private readonly markPlate: MarkPlate;
   private readonly shieldRing: Phaser.GameObjects.Graphics;
   private readonly crown: Phaser.GameObjects.Graphics;
   private readonly crownLabel: Phaser.GameObjects.Text;
@@ -149,6 +151,7 @@ export class PlayerView {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
       stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
+    this.markPlate = new MarkPlate(scene, LABEL_Y);
     this.crown = scene.add.graphics().setVisible(false);
     this.crown.fillStyle(CROWN_COLOR, 1).lineStyle(1.5, CROWN_EDGE, 1);
     this.crown.beginPath()
@@ -167,7 +170,7 @@ export class PlayerView {
     this.root = scene.add.container(0, 0, [
       shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body.image, this.barrierRing, this.core.image, this.nose,
       this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.crown, this.crownLabel, this.title,
-      this.status.g, this.wishIcon,
+      this.status.g, this.wishIcon, this.markPlate.pips, this.markPlate.cues,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.core.image), y0: -BODY_LIFT, scaled: true },
@@ -203,7 +206,7 @@ export class PlayerView {
    */
   update(
     x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false,
-    facing: number | null = null, ground: TerrainStates = NO_STATES,
+    facing: number | null = null, ground: TerrainStates = NO_STATES, markDim = false,
   ): void {
     const now = performance.now();
     // The look is set once at join and never changes in a run, so this decodes once per player.
@@ -238,6 +241,7 @@ export class PlayerView {
     const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
     this.label.setText(displayName(p));
+    this.markPlate.update(signatures ? p.markTier : 0, signatures ? p.markTax : 0, signatures ? p.sig : 0, markDim, this.label.width);
     this.setWishIcon(p, renderT);
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");

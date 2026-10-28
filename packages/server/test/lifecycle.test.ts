@@ -218,7 +218,7 @@ describe("createWorld / addPlayer", () => {
       });
     });
     expect(joined.slice(0, 5).map((p) => p.faction)).toEqual(["fire", "sentenced", "plague", "frost", "holy"]);
-    expect(joined.slice(0, 5).map((p) => p.hp)).toEqual([835, 1050, 1375, 1200, 1400]);
+    expect(joined.slice(0, 5).map((p) => p.hp)).toEqual(FACTION_IDS.map((id) => FACTIONS[id].hp));
     expect(joined.map((p) => [p.weapon0, p.weapon1, p.slot])).toEqual(joined.map(() => ["", "", 0]));
   });
 
@@ -697,7 +697,7 @@ describe("raid spawns", () => {
     expect(rtA.weapon).toEqual(newWeaponRuntime());
     expect([a.readyAt, a.drawStartedAt]).toEqual([0, 0]);
     expect(a).toMatchObject({ faction: "fire", hp: 835, weapon0: "", weapon1: "", slot: 0 });
-    expect(b).toMatchObject({ faction: "sentenced", hp: 1050, weapon0: "", weapon1: "", slot: 0 });
+    expect(b).toMatchObject({ faction: "sentenced", hp: FACTIONS.sentenced.hp, weapon0: "", weapon1: "", slot: 0 });
   });
 
   it("re-spawns players onto map spawns wherever they stood in the lobby", () => {
@@ -1559,7 +1559,7 @@ describe("end of a run", () => {
 
     it("an exact tie in hp fraction is a draw", () => {
       for (const seed of SEEDS) {
-        const { world, events } = mutualKill(seed, 417.5, 525); // 417.5/835 = 525/1050
+        const { world, events } = mutualKill(seed, FACTIONS.fire.hp * 0.5, FACTIONS.sentenced.hp * 0.5); // equal starting hp fractions
         const results = ofType(events, "resolved");
         expect(results.map((e) => [e.result.outcome, e.result.place])).toEqual([["draw", 1], ["draw", 1]]);
         expect(world.state.winner).toBe("");

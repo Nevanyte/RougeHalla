@@ -1,7 +1,7 @@
 // PlayerView's barrier (Phase 11, R4a): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
 // public state, against BARRIER_FULL_SHARE of max hp. The bow's draw follows the attack-speed and windup mirrors. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
 import { describe, expect, it } from "vitest";
-import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
+import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult, mirrorTimings } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
 import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
@@ -292,10 +292,8 @@ describe("PlayerView Wish icon", () => {
 
 describe("PlayerView bow draw", () => {
   const HELD = 9;
-  // 0.45 s into a Sentenced bow's draw: 86% of the 0.524 s base pull, not a full draw (the glow) at any attack-speed mirror: since the
-  // balance pass (G9, shared mirrorTimings) attack speed never shortens a ranged windup, so x1.25 draws as long as x1 (it was 0.419 s);
-  // a windup mirror x0.85 leaves it alone, and so it does a Fire bow's 0.6 s draw (a windup mod never shortens a ranged windup: it
-  // is still not full at 0.56 s). The mirrors are the wire form (thousandths), as the state carries them.
+  // Draw thresholds come from the shared server timing helper, so the test follows faction rate changes without hard-coded seconds.
+  const sentencedDrawMs = (asMult = 1, windupMult = 1) => Math.ceil(mirrorTimings(FACTIONS.sentenced, "bow", asMult, windupMult).windup * 1000);
   const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1450): boolean => {
     const { root, view, bakedCalls } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
@@ -308,14 +306,19 @@ describe("PlayerView bow draw", () => {
       expect(glows({}, facing), `identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: 1000 }, facing), `explicit identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: encodeMult(1.25) }, facing, 1530), `attack speed x1.25 at 0.53 s, facing ${facing}`).toBe(true);
-      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1530), `windup x1.2 at 0.53 s (0.570 s draw), facing ${facing}`).toBe(false);
+      const baseFullMs = sentencedDrawMs();
+      const longerDrawMs = sentencedDrawMs(1, 1.2);
+      expect(glows({ asMult: encodeMult(1.25) }, facing, 1000 + baseFullMs - 1), `attack speed x1.25 one millisecond before the base draw, facing ${facing}`).toBe(false);
+      expect(glows({ asMult: encodeMult(1.25) }, facing, 1000 + baseFullMs), `attack speed x1.25 at the shared base draw, facing ${facing}`).toBe(true);
+      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1000 + longerDrawMs - 1), `windup x1.2 one millisecond before its shared draw, facing ${facing}`).toBe(false);
+      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1000 + longerDrawMs), `windup x1.2 at its shared draw, facing ${facing}`).toBe(true);
       expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(false);
       expect(glows({ faction: "fire" }, facing, 1560), `fire identity, facing ${facing}`).toBe(false);
       expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1560), `fire windup x0.85, facing ${facing}`).toBe(false);
       expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1600), `fire windup x0.85 at 0.6 s, facing ${facing}`).toBe(true);
       expect(glows({ faction: "fire", windupMult: encodeMult(0.5) }, facing, 1540), `fire windup x0.5 at 0.54 s, facing ${facing}`).toBe(false);
-      expect(glows({ windupMult: encodeMult(1.2) }, facing), `windup x1.2, facing ${facing}`).toBe(false);
+      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1000 + baseFullMs - 1), `windup x1.2 before its longer draw, facing ${facing}`).toBe(false);
+      expect(glows({ asMult: encodeMult(1.25), windupMult: encodeMult(1.2) }, facing, 1000 + sentencedDrawMs(1.25, 1.2)), `faster attack speed keeps the shared base draw floor, facing ${facing}`).toBe(true);
     }
   });
 

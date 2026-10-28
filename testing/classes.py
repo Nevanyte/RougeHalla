@@ -18,9 +18,9 @@ FIRE = PowerSpec(
     sig_types=dict(burn=(0.0, 0.0), backlash=(1.0, 0.0)),
 )
 SENTENCED = PowerSpec(
-    name="Sentenced", hp=1050, rate=0.90, hit=20,
-    phys=0.9, true=0.0, armor=150, shield=240,
-    mechanic="marked", params=dict(mark_pct=0.019, mark_kill=0.00475, mark_amp=1.5, tier_hits=3.0, tax_keep=0.5, tax_cap=1.6, suppress=0.8),
+    name="Sentenced", hp=880, rate=0.806449, hit=41.041892,
+    phys=0.35, true=0.0, armor=135, shield=120,
+    mechanic="marked", params=dict(mark_pct=0.028, mark_kill=0.007, mark_amp=1.5, tier_hits=3.0, tax_keep=0.38, tax_cap=1.6, suppress=0.8),
     sig_types=dict(mark=(0.0, 1.0)),
 )
 PLAGUE = PowerSpec(
@@ -30,7 +30,7 @@ PLAGUE = PowerSpec(
     sig_types=dict(disease=(0.0, 0.0), execute=(0.0, 0.0)),
 )
 FROST = PowerSpec(
-    name="Frost", hp=1200, rate=0.45, hit=175,
+    name="Frost", hp=1200, rate=0.45, hit=170,
     phys=0.9, true=0.0, armor=20, shield=190,
     aura="wall_of_ice", params=dict(slow=0.52),
 )

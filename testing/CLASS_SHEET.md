@@ -1,5 +1,7 @@
 # RPSLS Combat System: Design Sheet
 
+**Sentenced redesign (2026-10-28):** The current tiered per-hit mark, camp rules, sheet and tuning evidence are in [../docs/SENTENCED_REDESIGN.md](../docs/SENTENCED_REDESIGN.md) and [TUNING_SENTENCED.md](TUNING_SENTENCED.md). Matchup and identity measurements below involving Sentenced predate the redesign unless explicitly marked current; `classes.py` is the executable current sheet.
+
 Five powers, one rulebook, zero matchup rules. Every counter below comes from the same six laws applied to different numbers, and every signature mechanic is *felt*: remove it and matchups visibly flip. Rates and damage shares sit on the original design grid (rates in 0.05s, shares in 10%s); since the balance pass the HP, hit, armor, shield and signature numbers do not (see the next note).
 
 **Revision note (balance pass).** The sheet below is the compressed one of docs/ and testing/TUNING_BALANCE.md (BALANCE_CONTRACT 5.2). The old sheet was a clean five-cycle in which the favourite won every duel with 27-77% of its health left (the loser's time-to-kill ratio r ran 1.35 to 6.1); a favourite that always wins is not a matchup, it is a wall. The numbers were moved, by search over the whole sheet and checked in the real sim, so that every edge leaves its winner **10-35% hp** (r 1.12-1.54) and wins **60-70% of even duels once play noise is in** (each fighter's damage times exp(0.45 Z): P(favourite) = Phi(ln r / 0.636)). The laws (section 1) and the matrix shape do not change; the signature **damage types** do (decision D6): burn and disease are magic, Fire's backlash physical, the mark true, whatever the faction's own shares are (`engine.PowerSpec.sig_types`). The identity test still holds (section 4: the recorded numbers are the new sheet's). The tables in sections 4, 5 and 6 are regenerated; the class cards in section 3 describe the identities, which are unchanged.
@@ -13,7 +15,7 @@ Five powers, one rulebook, zero matchup rules. Every counter below comes from th
 3. **Defense:** *armor* cuts the physical share, *shield* cuts the magic share, *true* ignores both. Reduction is `1 / (1 + stat/100)`, so 100 = half damage and 300 = quarter damage.
 4. **Rate effects:** one aura exists (Frost's slow). It multiplies any opponent's attack rate. Only `rate x hit` is slowed; flat bonuses (burn, disease, mark) are not.
 5. **Health effects:** mechanics may read health fractions (the target's for execute, one's own for lifesteal). Never an opponent's identity.
-6. **Time effects:** a mechanic may read elapsed time (the mark ramp). Nothing else.
+6. **Progress effects:** a mechanic may read elapsed time, landed hits and weapon swaps.
 
 A signature mechanic is a function of *(own parameters, universal state)* and nothing else. The engine contains no power names and no pair logic, and the test suite audits that.
 
@@ -22,12 +24,12 @@ A signature mechanic is a function of *(own parameters, universal state)* and no
 | Power | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield |
 |---|---|---|---|---|---|---|---|---|
 | Fire | Glass-cannon duelist | 835 (Mid) | 0.6/s (Low) | 100 | 60 (High) | 0% / 100% / 0% | 0 | 45 |
-| Sentenced | Patient executioner | 800 (Mid) | 0.9/s (Mid) | 10 | 9 (Very low) | 0% / 100% / 0% | 125 | 210 |
+| Sentenced | Patient executioner | 880 | 0.806449/s | 41.041892 | 33.1 | 35% / 65% / 0% | 135 | 120 |
 | Plague | Attrition swarm | 1375 (High) | 1.85/s (Very high) | 20 | 37 (Low) | 80% / 20% / 0% | 190 | 0 |
-| Frost | Control bruiser | 1200 (Mid) | 0.45/s (Very low) | 175 | 79 (High) | 90% / 10% / 0% | 20 | 190 |
+| Frost | Control bruiser | 1200 (Mid) | 0.45/s (Very low) | 170 | 76.5 | 90% / 10% / 0% | 20 | 190 |
 | Holy | Sustain juggernaut | 1400 (High) | 0.95/s (High) | 96 | 91 (Very high) | 100% / 0% / 0% | 0 | 250 |
 
-Signature numbers (raw per second unless noted; paced x2, the mark ramp x4): Fire burn 18 (magic), backlash 145 (physical, per second of the foe's attack rate); Sentenced mark ramp 17.5/s up to a cap of 72 (true; full in 4.1 s, 2.1 s paced); Plague disease 43 (magic) plus an execute of 415 below half hp; Frost slow 0.52 (attack rate x0.48; move x0.7 inside 100 u); Holy lifesteal 10% + 80% of its missing health, capped at 75%.
+Signature numbers (historical pre-redesign summary; the current mark is per hit, see the redesign contract): Fire burn 18 (magic), backlash 145 (physical, per second of the foe's attack rate); Sentenced mark ramp 17.5/s up to a cap of 72 (true; full in 4.1 s, 2.1 s paced); Plague disease 43 (magic) plus an execute of 415 below half hp; Frost slow 0.52 (attack rate x0.48; move x0.7 inside 100 u); Holy lifesteal 10% + 80% of its missing health, capped at 75%.
 
 Signature damage types (`SIGNATURE_SHARES` in `packages/shared/src/signatureShares.ts`, `PowerSpec.sig_types` in `engine.py`: each part is mitigated with its own type, whatever the faction's own damage shares are):
 
@@ -35,7 +37,7 @@ Signature damage types (`SIGNATURE_SHARES` in `packages/shared/src/signatureShar
 |---|---|---|
 | Fire's burn | magic, over time | shield |
 | Fire's backlash | physical, returned | armor |
-| Sentenced's mark | true, ramping, over time | nothing |
+| Sentenced's mark | true, per landed hit | nothing |
 | Plague's disease and execute | magic, over time | shield |
 | Frost's slow, Holy's lifesteal | not damage | |
 
@@ -57,11 +59,11 @@ Each card says what the class does, how it feels in a fight, and the **identity 
 ### Sentenced: Patient executioner  
 *Marked for judgment*
 
-- **Signature (Marked):** true damage that ramps 17.5 per second for every second spent in the fight, capped at 72 per second (4.1s to full; 2.1s at duel pace). It depends on time, not attack count, so slows cannot suppress it, and nothing cuts it: it is true damage.
-- **Identity:** its attacks barely matter (10 damage); nearly all output is the mark. 100% magic hits, 800 HP, 125 armor, 210 shield.
-- **Feel:** a fight that gets worse for the opponent every second. It beats Plague in 18.8s (the mark lands in full, while Plague's physical damage is cut to 42% by Sentenced's armor) and Frost in 18.3s.
-- **Loses to** burst and hp pools. Fire's backlash wins in 9.6s, and Holy's 1,400 HP outlast a mark that is capped at 72 a second (19.7s, Holy keeps 27%).
-- **Identity test:** without the mark Sentenced loses Sentenced > Plague, Sentenced > Frost. If the mark arrived at full strength with no ramp, margins would still shift by 17.7 points, so the build-up itself is felt.
+- **Signature (Marked, current):** each landed weapon hit adds a true-damage pulse based on target max HP. Hits and enemy weapon swaps promote four tiers: Accused, Charged (attack-speed tax), Convicted (output suppression), Sentenced (pulse amplification and execute denial).
+- **Camp farming:** the first hit marks the living camp together. Progress survives switching camp members and the focused member dying. Each member receives a reduced pulse, with a fixed `1 / sqrt(initial living group size)` share, at most once per tick.
+- **Counterplay:** disengage to break the mark; weapon swaps promote it. The tax lifts beyond 300 units unless the target is in the caster's Trial. Tier 3 suppression and tier 4 execute denial are resolved from the ledger's pass-start mark state.
+- **Progression:** player kills and a first denied execute add run-only sentence stacks (maximum five). Mobs give no sentence stacks.
+- **Identity and numbers:** current values and measured effects are in `classes.py`, `test_rpsls.py` and `TUNING_SENTENCED.md`; the historical tables below describe the old ramping mark.
 
 ### Plague: Attrition swarm  
 *Rat King, disease*

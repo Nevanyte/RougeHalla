@@ -32,14 +32,15 @@ describe("damage vignette", () => {
     expect(p.value(1200 + VIGNETTE_DECAY_MS)).toBe(0);
   });
 
-  it("is fed by damageFlash, so damage over time and tiny hits leave it at 0", () => {
+  it("is fed by weapon hits and mark pulses, while damage over time and tiny hits leave it at 0", () => {
     const p = new DamagePulse();
     for (const [amount, sig] of [[500, "burn"], [500, "disease"], [500, "mark"], [1, undefined]] as const) {
       const s = damageFlash(amount, 700, sig);
-      expect(s).toBe(0);
+      if (sig === "mark") expect(s).toBeGreaterThan(0);
+      else expect(s).toBe(0);
       if (s > 0) p.hit(s, 0);
     }
-    expect(p.value(0)).toBe(0);
+    expect(p.value(0)).toBeGreaterThan(0);
     expect(damageFlash(500, 700, "backlash")).toBeGreaterThan(0);
   });
 });

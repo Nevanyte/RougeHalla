@@ -23,7 +23,7 @@ interface Cell {
 
 /** The part of a player the strip reads: the synced PlayerState, or a test's plain object. */
 export type BuildSource = Pick<PlayerState, "faction" | "build" | "asMult" | "windupMult" | "speedMult" | "armorBonus" | "shieldBonus" | "adBonus" | "apBonus"
-  | "weapon0" | "weapon1" | "slot" | "hp" | "maxHp">;
+  | "weapon0" | "weapon1" | "slot" | "hp" | "maxHp" | "sentence">;
 
 /** The weapon in hand by id: "fists" for an empty slot or an id from newer server content. */
 export function heldWeapon(me: Pick<BuildSource, "weapon0" | "weapon1" | "slot">): WeaponId {
@@ -41,7 +41,7 @@ export function inputKey(me: BuildSource): string {
   if (typeof forEach === "function") (me.build as unknown as { forEach(cb: (count: number, id: string) => void): void }).forEach((count, id) => { cards += `${id}:${count},`; });
   else if (me.build) for (const [id, count] of Object.entries(me.build as unknown as Record<string, number>)) cards += `${id}:${count},`;
   const low = me.maxHp > 0 && me.hp / me.maxHp < 0.5;
-  return `${me.faction}|${heldWeapon(me)}|${me.asMult}|${me.windupMult}|${me.speedMult}|${me.armorBonus}|${me.shieldBonus}|${me.adBonus}|${me.apBonus}|${low ? "L" : ""}|${cards}`;
+  return `${me.faction}|${me.sentence}|${heldWeapon(me)}|${me.asMult}|${me.windupMult}|${me.speedMult}|${me.armorBonus}|${me.shieldBonus}|${me.adBonus}|${me.apBonus}|${low ? "L" : ""}|${cards}`;
 }
 
 /** The strip's cells for a player. */
@@ -103,6 +103,8 @@ export class BuildHud {
     const inputs = inputKey(me);
     if (!this.root.hidden && inputs === this.inputs) return;
     this.inputs = inputs;
+    const label = me.faction === "sentenced" ? `${BUILD_LABEL} · Sentence: ${Math.max(0, Math.min(5, me.sentence))}/5` : BUILD_LABEL;
+    if (this.label.textContent !== label) this.label.textContent = label;
     const stats = statsOf(me);
     const sig = stats.map((s) => `${s.id}=${s.value}${s.dim ? "-" : ""}|${s.tip}`).join(";");
     if (this.root.hidden) this.root.hidden = false;

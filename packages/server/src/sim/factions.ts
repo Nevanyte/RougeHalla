@@ -103,6 +103,10 @@ export interface SigFighter {
    * or a lost one starts all of it over.
    */
   tier: number;
+  /** Stable target-group key (a camp id for regional mobs; the target id otherwise). */
+  markGroup: string | null;
+  /** Original group size, captured on first mark so synthetic/training groups and later deaths keep stable scaling. */
+  markGroupSize: number;
   markHits: number;
   markProgress: number;
   markSwaps: number;
@@ -162,7 +166,7 @@ function newRuntime(): FactionsRuntime {
 
 function newFighter(): SigFighter {
   return {
-    target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markHits: 0, markProgress: 0, markSwaps: 0,
+    target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markGroup: null, markGroupSize: 1, markHits: 0, markProgress: 0, markSwaps: 0,
     markDenied: false, farSince: -Infinity, ampUntil: 0, hpFrac: 1,
     combatAt: -Infinity, chill: 1, chillers: [], seenAction: null, dotPausedUntil: 0, engagedOn: null,
   };
@@ -207,6 +211,8 @@ function resetAll(world: World, keepCombat: boolean): void {
 /** The mark starts over (its tier, hits, swaps and denial latch, and the distance clock); the amplifier's linger runs on. */
 function resetMark(f: SigFighter): void {
   f.tier = 0;
+  f.markGroup = null;
+  f.markGroupSize = 1;
   f.markHits = 0;
   f.markProgress = 0;
   f.markSwaps = 0;
@@ -343,7 +349,20 @@ function signatureDamage(world: World, dtMs: number): void {
     const f = sigOf(world, c.id);
     f.hpFrac = c.s.maxHp > 0 ? c.s.hp / c.s.maxHp : 0;
     // A fighter loses its target when the target is gone or is walking home, and a mob walking home keeps none.
-    if (f.target !== null && (!byId.has(f.target) || evading(c) || evading(byId.get(f.target)))) clearTarget(f);
+    if (f.target !== null && (!byId.has(f.target) || evading(c) || evading(byId.get(f.target)))) {
+      if (f.tier <= 0) { clearTarget(f); continue; }
+      const oldGroup = f.markGroup;
+      const survivor = oldGroup?.startsWith("camp:")
+        ? fighters.filter((member) => member.kind === "mob" && markGroupOf(member) === oldGroup && member.rt.brain?.mode !== "return")
+          .sort((a, b) => a.id.localeCompare(b.id))[0]
+        : undefined;
+      if (survivor) {
+        f.target = survivor.id;
+        f.inReach = false;
+        f.engaged = false;
+        f.reachAt = -Infinity;
+      } else clearTarget(f);
+    }
   }
 
   const { out, inc } = contactsOf(world, byId);
@@ -351,12 +370,26 @@ function signatureDamage(world: World, dtMs: number): void {
     const f = sigOf(world, c.id);
     const hit = out.get(c.id) ?? [];
     const taken = inc.get(c.id) ?? [];
-    if (f.target === null || !hit.some((x) => x.other === f.target)) {
+    const sameMarkGroup = (id: string): boolean => {
+      if (f.tier <= 0 || f.markGroup === null) return false;
+      const other = byId.get(id);
+      return !!other && markGroupOf(other) === f.markGroup;
+    };
+    if (f.target === null || (!hit.some((x) => x.other === f.target) && !hit.some((x) => sameMarkGroup(x.other)))) {
       const active = hit.filter((x) => !x.passive);
-      if (active.length > 0) setTarget(f, largest(world, active), now);
+      if (active.length > 0) {
+        const selected = largest(world, active);
+        if (!sameMarkGroup(selected)) setTarget(f, selected, now);
+        else { f.target = selected; f.contactAt = now; }
+      }
     }
     if (f.target === null && hit.length + taken.length > 0) setTarget(f, largest(world, [...hit, ...taken]), now);
-    if (f.target !== null && (hit.some((x) => x.other === f.target) || taken.some((x) => x.other === f.target))) {
+    const groupContact = hit.some((x) => sameMarkGroup(x.other)) || taken.some((x) => sameMarkGroup(x.other));
+    if (f.target !== null && groupContact && !hit.some((x) => x.other === f.target) && !taken.some((x) => x.other === f.target)) {
+      const groupHit = hit.filter((x) => sameMarkGroup(x.other));
+      if (groupHit.length > 0) f.target = largest(world, groupHit);
+    }
+    if (f.target !== null && (hit.some((x) => x.other === f.target) || taken.some((x) => x.other === f.target) || groupContact)) {
       f.contactAt = now;
     }
   }
@@ -493,7 +526,11 @@ function bonus(
 /** The tier of the mark `ownerId` holds on `targetId` right now (0 for none): Trial reads it as the ring lands. */
 export function markTierOn(world: World, ownerId: string, targetId: string): number {
   const f = world.factions?.fighters.get(ownerId);
-  return f && f.target === targetId ? f.tier : 0;
+  const target = combatant(world, targetId);
+  if (!f || f.tier <= 0 || !target || !standing(target) || evading(target) || f.markGroup !== markGroupOf(target)) return 0;
+  const owner = combatant(world, ownerId);
+  if (!owner || !standing(owner) || evading(owner)) return 0;
+  return f.markGroup?.startsWith("camp:") && !inMarkedGroup(world, owner, target) ? 0 : f.tier;
 }
 
 /** Is `t` inside a Trial ring cast by `ownerId`? The owner's mark on it is then at full strength whatever the distance. */
@@ -506,6 +543,12 @@ function inRing(world: World, ownerId: string, t: Combatant): boolean {
 /** The mark is at full strength: the target is within MARK_NEAR_RANGE of its owner, or inside the owner's Trial ring. */
 function markNear(world: World, c: Combatant, t: Combatant): boolean {
   return Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) <= MARK_NEAR_RANGE || inRing(world, c.id, t);
+}
+
+/** A camp member belongs to the live group only while inside the mark's existing target leash. */
+function inMarkedGroup(world: World, owner: Combatant, member: Combatant): boolean {
+  if (member.kind !== "mob" || member.rt.brain?.mode === "return") return false;
+  return Math.hypot(member.s.x - owner.s.x, member.s.y - owner.s.y) <= TARGET_RANGE;
 }
 
 /** Does the entry count as a landed hit for a mark (R2): a weapon hit, not a signature, an ability, a damage over time, a riposte, a splash or returned damage? */
@@ -522,7 +565,9 @@ function markHitsOf(world: World, byId: ReadonlyMap<string, Combatant>): Map<str
     const a = byId.get(e.by.id);
     const v = byId.get(e.victim);
     if (!a || !v || immune(world, v) || evading(v) || evading(a) || (a.kind === "mob" && v.kind === "mob")) continue;
-    if (factionOf(a.s)?.mechanic !== "marked") continue;
+    const mark = sigOf(world, a.id);
+    const group = mark.markGroup ?? (mark.target === null ? null : byId.get(mark.target) ? markGroupOf(byId.get(mark.target)!) : null);
+    if (factionOf(a.s)?.mechanic !== "marked" || (mark.target !== v.id && !(group !== null && markGroupOf(v) === group))) continue;
     const list = out.get(e.by.id);
     if (list) list.push(e);
     else out.set(e.by.id, [e]);
@@ -554,6 +599,16 @@ function markPool(t: Combatant): number {
   return t.kind === "mob" && isRegionalKind(t.s.kind) && f ? f.hp : t.s.maxHp;
 }
 
+/** Camp members share a mark; camp-less mobs and players remain singleton groups. */
+function markGroupOf(t: Combatant): string {
+  return t.kind === "mob" && t.s.camp > 0 ? `camp:${t.s.camp}` : `fighter:${t.id}`;
+}
+
+/** Diminishing per-mob pulse share, based on original size so kills cannot increase surviving members' power. */
+function markMemberShare(f: SigFighter): number {
+  return Math.min(1, 1 / Math.sqrt(Math.max(1, f.markGroupSize)));
+}
+
 /**
  * The pulse for one landed hit: a share of the target's max hp (`markPool`) as true damage, in this tick's ledger. The share is the faction's `mark_pct`
  * (kill-stacks and Heavier Sentence on it), times the hit's weight (its share of the faction's base hit, paid back for Frost's chill: a chilled
@@ -561,14 +616,14 @@ function markPool(t: Combatant): number {
  * beyond MARK_NEAR_RANGE unless the target stands in the owner's Trial ring. The ledger multiplies it like any hit (damage rows, the PvP factor,
  * Trial's x1.2) and nothing mitigates it.
  */
-function recordPulse(world: World, c: Combatant, spec: FactionSpec, f: SigFighter, t: Combatant, hit: LedgerEntry, tier: number, near: boolean): void {
+function recordPulse(world: World, c: Combatant, spec: FactionSpec, f: SigFighter, t: Combatant, hit: LedgerEntry, tier: number, near: boolean, memberShare = 1): void {
   const now = world.state.serverTime;
   const weapon = hit.weapon!;
   const stacks = c.kind === "player" ? c.s.sentence : 0;
   const heavier = hasFlag(c.s, "heavierSentence") && spec.hp > 0 ? 1 + HEAVIER_SENTENCE_PER_BONUS * (bonusMaxHpOf(c.s) / spec.hp) : 1;
   const weight = markWeight(spec, weapon, attackSpeedMult(c.s)) / Math.max(f.chill, 0.05);
   const amp = tier >= MARK_TOP_TIER || now < f.ampUntil ? spec.params.mark_amp! : 1;
-  const raw = markPct(spec, stacks, heavier) * markPool(t) * weight * amp * (near ? 1 : MARK_FAR_SHARE);
+  const raw = markPct(spec, stacks, heavier) * markPool(t) * weight * amp * (near ? 1 : MARK_FAR_SHARE) * memberShare;
   if (!(raw > 0)) return;
   recordHit(world, {
     victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...SIGNATURE_SHARES.mark }, weapon, stagger: false, sig: "mark",
@@ -599,15 +654,34 @@ function markStep(world: World, fighters: readonly Combatant[], byId: ReadonlyMa
     } else {
       f.farSince = -Infinity;
     }
-    const near = markNear(world, c, t);
-    for (const hit of hitsBy.get(c.id) ?? []) {
-      if (hit.victim !== t.id) continue;
-      f.markHits += 1;
-      // A chilled fighter lands fewer hits, and each is paid back for the time it took: the tiers climb at the unchilled pace (R3).
-      f.markProgress += markRateOf(c.s) / Math.max(f.chill, 0.05);
-      recordPulse(world, c, spec, f, t, hit, Math.max(1, promote(world, c, f, t)), near);
+    const group = f.markGroup ?? markGroupOf(t);
+    if (f.tier > 0 && f.markGroup !== group) { clearTarget(f); continue; }
+    if (f.tier === 0) {
+      f.markGroup = group;
+      f.markGroupSize = group.startsWith("camp:")
+        ? Math.max(1, fighters.filter((member) => member.kind === "mob" && markGroupOf(member) === group && member.rt.brain?.mode !== "return").length)
+        : 1;
     }
-    if (f.tier > 0) promote(world, c, f, t);
+    const members = t.kind === "mob" && t.s.camp > 0
+      ? fighters.filter((member) => member.kind === "mob" && member.s.camp === t.s.camp && inMarkedGroup(world, c, member))
+      : [t];
+    const groupedCamp = group.startsWith("camp:");
+    const qualifyingHits = (hitsBy.get(c.id) ?? []).filter((hit) => members.some((member) => member.id === hit.victim));
+    for (const _hit of qualifyingHits) {
+      f.markHits += 1;
+      f.markProgress += markRateOf(c.s) / Math.max(f.chill, 0.05);
+    }
+    if (qualifyingHits.length > 0 || f.tier > 0) promote(world, c, f, t);
+    const pulseTier = Math.max(1, f.tier);
+    const pulsed = new Set<string>();
+    for (const hit of qualifyingHits) {
+      for (const member of members) {
+        if (groupedCamp && pulsed.has(member.id)) continue;
+        if (evading(member) || immune(world, member)) continue;
+        recordPulse(world, c, spec, f, member, hit, pulseTier, markNear(world, c, member), markMemberShare(f));
+        pulsed.add(member.id);
+      }
+    }
   }
   if (any || world.combat.marks) rebuildMarkIndex(world, fighters, byId);
 }
@@ -625,13 +699,20 @@ function rebuildMarkIndex(world: World, fighters: readonly Combatant[], byId: Re
     const f = sigOf(world, c.id);
     const t = f.tier > 0 && f.target !== null ? byId.get(f.target) : undefined;
     if (!t) continue;
-    if (f.tier >= 3) next.suppressed.set(t.id, Math.min(next.suppressed.get(t.id) ?? 1, spec.params.suppress ?? 1));
-    if (f.tier >= MARK_TOP_TIER) next.denies.set(c.id, new Set([t.id]));
-    if (f.tier >= 2 && markNear(world, c, t)) {
-      const best = next.taxed.get(t.id);
-      if (best === undefined || f.tier > taxTier.get(t.id)! || (f.tier === taxTier.get(t.id) && c.id < best)) {
-        next.taxed.set(t.id, c.id);
-        taxTier.set(t.id, f.tier);
+    const group = f.markGroup ?? markGroupOf(t);
+    const members = t.kind === "mob" && t.s.camp > 0
+      ? fighters.filter((member) => member.kind === "mob" && member.s.camp === t.s.camp && inMarkedGroup(world, c, member))
+      : [t];
+    if (f.markGroup !== group) continue;
+    for (const member of members) {
+      if (f.tier >= 3) next.suppressed.set(member.id, Math.min(next.suppressed.get(member.id) ?? 1, spec.params.suppress ?? 1));
+      if (f.tier >= MARK_TOP_TIER) next.denies.set(c.id, new Set([...(next.denies.get(c.id) ?? []), member.id]));
+      if (f.tier >= 2 && markNear(world, c, member)) {
+        const best = next.taxed.get(member.id);
+        if (best === undefined || f.tier > taxTier.get(member.id)! || (f.tier === taxTier.get(member.id) && c.id < best)) {
+          next.taxed.set(member.id, c.id);
+          taxTier.set(member.id, f.tier);
+        }
       }
     }
   }
@@ -754,7 +835,32 @@ function afterDamage(world: World, dtMs: number): void {
 
   staggerPause(world, fighters);
   updateChill(world, fighters, byId, dtMs);
-  syncVisuals(world, byId);
+  // Keep the ledger's pass-start mark index unchanged while applying damage, then drop marks whose owner or target
+  // went down in this pass before writing the frame's public state. A focused camp member may die, but the group mark
+  // follows a deterministic surviving member.
+  const standingAfterPass = standingCombatants(world);
+  const afterById = new Map(standingAfterPass.map((c) => [c.id, c]));
+  for (const c of allCombatants(world)) {
+    const f = rt.fighters.get(c.id);
+    if (!f || factionOf(c.s)?.mechanic !== "marked") continue;
+    if (!standing(c) || evading(c)) { clearTarget(f); continue; }
+    if (f.target === null) continue;
+    const target = afterById.get(f.target);
+    if (target && !evading(target)) continue;
+    const group = f.markGroup;
+    const survivor = f.tier > 0 && group?.startsWith("camp:")
+      ? standingAfterPass.filter((member) => member.kind === "mob" && markGroupOf(member) === group && !evading(member))
+        .sort((a, b) => a.id.localeCompare(b.id))[0]
+      : undefined;
+    if (survivor) {
+      f.target = survivor.id;
+      f.inReach = false;
+      f.engaged = false;
+      f.reachAt = -Infinity;
+    } else clearTarget(f);
+  }
+  rebuildMarkIndex(world, standingAfterPass, afterById);
+  syncVisuals(world, afterById);
 
   if (now - rt.dotSince >= DOT_FX_MS) flushDotFx(world);
 }
@@ -877,8 +983,13 @@ function syncVisuals(world: World, byId: Map<string, Combatant>): void {
     const t = f.target !== null ? byId.get(f.target) : undefined;
     if (!spec || !t) continue;
     if (spec.mechanic === "marked" && f.tier > 0) {
-      const best = mark.get(t.id);
-      if (!best || f.tier > best.tier || (f.tier === best.tier && c.id < best.by)) mark.set(t.id, { tier: f.tier, by: c.id });
+      const members = t.kind === "mob" && t.s.camp > 0
+        ? [...byId.values()].filter((member) => member.kind === "mob" && member.s.camp === t.s.camp && inMarkedGroup(world, c, member))
+        : [t];
+      for (const member of members) {
+        const best = mark.get(member.id);
+        if (!best || f.tier > best.tier || (f.tier === best.tier && c.id < best.by)) mark.set(member.id, { tier: f.tier, by: c.id });
+      }
     }
     if (!f.engaged) continue;
     let b = bits.get(t.id) ?? 0;
@@ -912,7 +1023,10 @@ function syncVisuals(world: World, byId: Map<string, Combatant>): void {
 
 /** The target swapped the weapon in hand: every mark on it counts a swap (it promotes at the next tick's mark step). */
 function onWeaponSwapped(world: World, c: Combatant): void {
-  for (const f of rtOf(world).fighters.values()) if (f.target === c.id && f.tier > 0) f.markSwaps += 1;
+  for (const f of rtOf(world).fighters.values()) {
+    if (f.tier <= 0 || f.markGroup === null) continue;
+    if (markGroupOf(c) === f.markGroup) f.markSwaps += 1;
+  }
 }
 
 /**

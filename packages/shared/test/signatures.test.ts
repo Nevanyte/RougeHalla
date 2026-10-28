@@ -169,13 +169,15 @@ describe("taxedRate (the tier-2 attack-speed tax, R5)", () => {
     for (const r of [0.45, 0.6, 0.9, 0.95, 1.0]) expect(taxedRate(r, keep, cap)).toBe(r);
   });
 
-  it("keeps half of the excess above 1.0: Plague's 1.85 becomes 1.425", () => {
-    expect(taxedRate(1.85, keep, cap)).toBeCloseTo(1.425, 12);
-    expect(taxedRate(1.2, keep, cap)).toBeCloseTo(1.1, 12);
+  it("keeps the configured 38% of excess speed: Plague’s 1.85 becomes 1.323", () => {
+    expect(keep).toBe(0.38);
+    expect(taxedRate(1.85, keep, cap)).toBeCloseTo(1.323, 12);
+    expect(taxedRate(1.2, keep, cap)).toBeCloseTo(1.076, 12);
+    expect(taxedRate(1.85, 0.5, cap)).toBeCloseTo(1.425, 12);
   });
 
   it("is held to the 1.6 ceiling however fast the fighter is", () => {
-    expect(taxedRate(2.2, keep, cap)).toBeCloseTo(1.6, 12);
+    expect(taxedRate(2.2, keep, cap)).toBeCloseTo(1.456, 12);
     expect(taxedRate(3.0, keep, cap)).toBe(1.6);
     expect(taxedRate(10, keep, cap)).toBe(1.6);
   });

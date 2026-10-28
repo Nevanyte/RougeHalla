@@ -671,7 +671,8 @@ describe("anti-heal and attack slow", () => {
 
 function blankSig() {
   return {
-    target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, markElapsed: 0, hpFrac: 1,
+    target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markGroup: null, markGroupSize: 1,
+    markHits: 0, markProgress: 0, markSwaps: 0, markDenied: false, farSince: -Infinity, ampUntil: 0, hpFrac: 1,
     combatAt: -Infinity, chill: 1, chillers: [] as string[], seenAction: null, dotPausedUntil: 0,
   };
 }

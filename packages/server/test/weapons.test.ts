@@ -6,7 +6,7 @@ import {
   AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, damagePerHit, damageShares, FACTIONS,
   mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH,
   SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
-  weaponTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
+  weaponTimings, mirrorTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { applyDamage, downPlayer } from "../src/sim/arena";
 import { activeWeapon, combatant } from "../src/sim/combatant";
@@ -621,20 +621,21 @@ describe("the bow", () => {
     expect(P(world).x).toBeGreaterThan(x0 + STEP);
   });
 
-  it("a short interval shortens the draw (Sentenced: 524.2 ms, 0.92 of its interval), and the cooldown is the interval from the start", () => {
+  it("a short interval shortens the draw according to the shared timing mirror, and the cooldown is the interval from the start", () => {
     const world = startRun();
     arm(world, 0, "sentenced", "bow");
     const tm = timings("sentenced", "bow");
-    expect(tm.windup * 1000).toBeCloseTo(524.22, 2);
+    expect(tm).toEqual(mirrorTimings(FACTIONS.sentenced, "bow", 1, 1));
     tap(world);
     tick(world);
     const S = T(world);
     expect(P(world).readyAt).toBeCloseTo(S + intervalMs("sentenced", "bow"), 6);
-    runTo(world, S + 500);
+    const windupTicks = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-9);
+    runTo(world, S + (windupTicks - 1) * TICK_MS);
     expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(S + 550);
+    expect(shots[0]!.at).toBe(S + windupTicks * TICK_MS);
   });
 
   it("a release with no draw and no recent press does nothing, and does not pre-load the next draw", () => {

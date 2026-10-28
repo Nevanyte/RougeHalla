@@ -65,13 +65,13 @@ describe("what the console offers", () => {
     }
   });
 
-  it("lists the 75 cards by kind: the 24 base cards, the 11 conditionals, the 40 augments, each once, in catalog order", () => {
+  it("lists the 80 cards by kind: the 24 base cards, the 13 conditionals, the 43 augments, each once, in catalog order", () => {
     const groups = cardGroups();
     expect(groups.map((g) => g.label)).toEqual(["Base cards", "Conditional cards", "Augments"]);
-    expect(groups.map((g) => g.items.length)).toEqual([24, 11, 40]);
+    expect(groups.map((g) => g.items.length)).toEqual([24, 13, 43]);
     const ids = groups.flatMap((g) => g.items.map((c) => c.id));
-    expect(ids).toHaveLength(75);
-    expect(new Set(ids).size).toBe(75);
+    expect(ids).toHaveLength(80);
+    expect(new Set(ids).size).toBe(80);
     expect(ids).toEqual(CARDS.map((c) => c.id));
     expect(groups.map((g) => g.items.every((c) => c.kind === (g.label === "Base cards" ? "base" : g.label === "Augments" ? "augment" : "conditional")))).toEqual([true, true, true]);
   });
@@ -120,13 +120,13 @@ describe("the pickers", () => {
     expect(select.getAttribute("aria-label")).toBe("Mob type");
   });
 
-  it("the card picker holds the 75 cards in three kind groups, with the card's words for a tooltip and the not live ones marked", () => {
+  it("the card picker holds the 80 cards in three kind groups, with the card's words for a tooltip and the not live ones marked", () => {
     const { root } = mount();
     const select = root.byClass("train-card")!;
     const groups = select.children.filter((c): c is UiEl => typeof c !== "string");
     expect(groups.map((g) => (g as unknown as { label: string }).label)).toEqual(["Base cards", "Conditional cards", "Augments"]);
     const options = [...select.walk()].filter((n) => n.tag === "option");
-    expect(options).toHaveLength(75);
+    expect(options).toHaveLength(80);
     expect(options.map(valueOf)).toEqual(CARDS.map((c) => c.id));
     expect(options.map((o) => o.text)).toEqual(CARDS.map(cardLabel));
     const hereComesTheBoom = options.find((o) => valueOf(o) === "hereComesTheBoom")!;
@@ -230,7 +230,7 @@ describe("the messages the buttons send", () => {
         expect(m.count).toBeLessThanOrEqual(known.get(m.id)!.unique ? 1 : TRAIN_MAX_CARD_COUNT);
       } else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(known.has(m.options![0]!)).toBe(true); }
     }
-    expect(sent.length).toBe(MOB_TYPES.length + 75 * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
+    expect(sent.length).toBe(MOB_TYPES.length + 80 * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
   });
 
   it("the message builders are the one place that makes the shapes", () => {

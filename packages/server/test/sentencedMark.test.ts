@@ -14,7 +14,7 @@ import {
 import type { PlayerState } from "@raid/shared/schema";
 import { grantCard } from "../src/sim/chests";
 import { combatant, type Combatant } from "../src/sim/combatant";
-import { noteContact, signatureState } from "../src/sim/factions";
+import { markTierOn, noteContact, signatureState } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { recordHit } from "../src/sim/ledger";
@@ -35,6 +35,8 @@ const CONFIG: SimConfig = {
 const SENTENCED = pacedFaction(FACTIONS.sentenced);
 const PLAGUE = pacedFaction(FACTIONS.plague);
 const AMP = SENTENCED.params.mark_amp!;
+const PLAGUE_TAX_FACTOR = taxedRate(PLAGUE.rate, SENTENCED.params.tax_keep!, SENTENCED.params.tax_cap!) / PLAGUE.rate;
+const PLAGUE_TAX_PERCENT = Math.round((1 - PLAGUE_TAX_FACTOR) * 100);
 
 // ---- rig ----
 
@@ -170,6 +172,103 @@ const pair = (b: Partial<Fighter> = {}, s: Partial<Fighter> = {}): World => {
 // ---- tiers ----
 
 describe("the tiers (R3)", () => {
+  it("marks every living member of a camp; a hit on another member advances the same mark and pulses the whole group", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    world.map.camps = [{ id: "test", zone: "fire", x: 400, y: 300, r: 100, spots: [], eliteSpot: -1, chest: { x: 400, y: 300 }, area: 1, radius: 100 }];
+    world.map.camps[0]!.spots = [0, 1, 2, 3].map((i) => ({ x: 340 + i * 20, y: 300 }));
+    const mobs = [0, 1, 2, 3].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    const inj = injector(world);
+    inj.hit("s", mobs[0]!);
+    const first = tick(world);
+    expect(mobs.map((id) => C(world, id).s.markTier)).toEqual([1, 1, 1, 1]);
+    expect(first.landed.filter((h) => h.sig === "mark" && h.by === "s")).toHaveLength(4);
+    inj.hit("s", mobs[1]!);
+    const second = tick(world);
+    expect(SIG(world, "s").markHits).toBe(2);
+    expect(mobs.map((id) => C(world, id).s.markTier)).toEqual([1, 1, 1, 1]);
+    expect(second.landed.filter((h) => h.sig === "mark" && h.by === "s")).toHaveLength(4);
+    // Both the same-tick four-member pulse and a later pulse keep the designed camp-size share.
+    const expected = markPct(SENTENCED, 0) * FACTIONS.fire.hp * markWeight(SENTENCED, "sword") / 2;
+    expect(first.landed.filter((h) => h.sig === "mark" && h.by === "s").map((h) => h.amount)).toEqual(mobs.map(() => expect.closeTo(expected, 5)));
+    // Killing one member does not increase the share paid to the remaining members.
+    C(world, mobs[0]!).s.status = "dead";
+    C(world, mobs[0]!).s.hp = 0;
+    inj.hit("s", mobs[1]!);
+    const third = tick(world);
+    expect(SIG(world, "s").tier).toBe(2);
+    expect(SIG(world, "s").target).toBe(mobs[1]);
+    expect(third.landed.filter((h) => h.sig === "mark" && h.by === "s")).toHaveLength(3);
+    expect(third.landed.find((h) => h.sig === "mark" && h.victim === mobs[1])!.amount).toBeCloseTo(expected, 5);
+  });
+
+  it("preserves a camp mark when its focused member dies and follows a survivor", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    const mobs = [0, 1, 2].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    const inj = injector(world);
+    landHits(world, inj, 4, "s", mobs[0]!);
+    expect(SIG(world, "s").tier).toBe(2);
+    C(world, mobs[0]!).s.status = "dead";
+    C(world, mobs[0]!).s.hp = 0;
+    tick(world);
+    expect(SIG(world, "s").tier).toBe(2);
+    expect(SIG(world, "s").target).toBe(mobs[1]);
+    expect([C(world, mobs[1]!).s.markTier, C(world, mobs[2]!).s.markTier]).toEqual([2, 2]);
+  });
+
+  it("Trial reads a camp tier only for living, non-returning members within the mark leash", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    const mobs = [0, 1].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    landHits(world, injector(world), 6, "s", mobs[0]!);
+    const other = C(world, mobs[1]!);
+    expect(markTierOn(world, "s", other.id)).toBe(3);
+    other.s.x = 300 + TARGET_RANGE + 1;
+    expect(markTierOn(world, "s", other.id)).toBe(0);
+    other.s.x = 360;
+    expect(markTierOn(world, "s", other.id)).toBe(3);
+    if (other.kind === "mob" && other.rt.brain) other.rt.brain.mode = "return";
+    expect(markTierOn(world, "s", other.id)).toBe(0);
+    other.s.status = "dead";
+    expect(markTierOn(world, "s", other.id)).toBe(0);
+  });
+
+  it("a hit on another camp member refreshes the group contact timer", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    const mobs = [0, 1].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    const inj = injector(world);
+    landHits(world, inj, 1, "s", mobs[0]!);
+    for (let i = 0; i < 30; i++) { inj.hit("s", mobs[1]!); tick(world); }
+    expect(SIG(world, "s").tier).toBe(4);
+    expect(SIG(world, "s").target).toBe(mobs[0]);
+  });
+
+  it("counts simultaneous first-tick hits to two members before starting the group mark", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    const mobs = [0, 1].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    const inj = injector(world);
+    inj.hit("s", mobs[0]!);
+    inj.hit("s", mobs[1]!);
+    const log = tick(world);
+    expect(SIG(world, "s").markHits).toBe(2);
+    expect(log.landed.filter((h) => h.sig === "mark" && h.by === "s")).toHaveLength(2);
+  });
+
+  it("promotes the camp once from all hits in the tick before emitting any group's pulses", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    world.map.camps = [{ id: "test", zone: "fire", x: 400, y: 300, r: 100, spots: [], eliteSpot: -1, chest: { x: 400, y: 300 }, area: 1, radius: 100 }];
+    world.map.camps[0]!.spots = [0, 1, 2, 3].map((i) => ({ x: 340 + i * 20, y: 300 }));
+    const mobs = [0, 1, 2, 3].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    const inj = injector(world);
+    landHits(world, inj, 7, "s", mobs[0]!);
+    // The 8th and 9th hits both land in one tick. The whole group pulse batch uses tier 4's amplifier.
+    inj.hit("s", mobs[0]!);
+    inj.hit("s", mobs[1]!);
+    const log = tick(world);
+    expect(SIG(world, "s").tier).toBe(4);
+    const pulses = log.landed.filter((h) => h.sig === "mark" && h.by === "s");
+    expect(pulses).toHaveLength(4);
+    expect(pulses.map((h) => h.amount)).toEqual(mobs.map(() => expect.closeTo(markPct(SENTENCED, 0) * FACTIONS.fire.hp * markWeight(SENTENCED, "sword") * AMP / 2, 5)));
+  });
+
   it("a target is not a mark: nothing is marked before the first landed hit", () => {
     const world = pair();
     const logs = run(world, 5);
@@ -352,11 +451,46 @@ describe("the tiers (R3)", () => {
     expect([SIG(world, "s").tier, SIG(world, "s").target]).toEqual([0, null]);
   });
 
+  it("removes a Sentenced owner's live mark sources in the same damage pass", () => {
+    const world = makeWorld([
+      { id: "s", faction: "sentenced", at: [300, 300], hp: 100 },
+      { id: "b", faction: "plague", at: [340, 300] },
+      { id: "c", faction: "holy", at: [400, 300] },
+    ]);
+    P(world, "s").maxHp = 100;
+    noteContact(world, "s", "b");
+    const inj = injector(world);
+    landHits(world, inj, 6);
+    expect(P(world, "b").markTier).toBe(3);
+    expect(P(world, "b").markTax).toBeGreaterThan(0);
+    inj.hit("c", "s", { raw: 1000 });
+    tick(world);
+    expect(P(world, "s").status).toBe("dead");
+    expect([P(world, "b").markTier, P(world, "b").markBy, P(world, "b").markTax, P(world, "b").asMult]).toEqual([0, "", 0, 1000]);
+    expect(P(world, "b").sig & (SIG_TAXED | SIG_SUPPRESSED | SIG_EXEC_BLOCKED)).toBe(0);
+  });
+
+  it("keeps a camp group's mark visuals when its focused member dies in the ledger pass", () => {
+    const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
+    world.map.camps = [{ id: "test", zone: "fire", x: 400, y: 300, r: 100, spots: [], eliteSpot: -1, chest: { x: 400, y: 300 }, area: 1, radius: 100 }];
+    world.map.camps[0]!.spots = [0, 1, 2].map((i) => ({ x: 340 + i * 20, y: 300 }));
+    const mobs = [0, 1, 2].map((i) => placeMob(world, { region: "fire", elite: false, at: { x: 340 + i * 20, y: 300 }, camp: 0 }));
+    const inj = injector(world);
+    landHits(world, inj, 4, "s", mobs[0]!);
+    expect(C(world, mobs[0]!).s.markTier).toBe(2);
+    inj.hit("s", mobs[0]!, { raw: 100_000 });
+    tick(world);
+    expect(C(world, mobs[0]!).s.status).toBe("dead");
+    expect(SIG(world, "s").target).toBe(mobs[1]);
+    expect([C(world, mobs[1]!).s.markTier, C(world, mobs[1]!).s.markBy]).toEqual([2, "s"]);
+    expect([C(world, mobs[2]!).s.markTier, C(world, mobs[2]!).s.markBy]).toEqual([2, "s"]);
+  });
+
   it("the teleport ends every mark and gives the taxed their speed back", () => {
     const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }, { id: "b", faction: "plague", at: [340, 300] }]);
     noteContact(world, "s", "b");
     landHits(world, injector(world), 3);
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
     world.hooks.teleported!(world);
     expect([SIG(world, "s")?.tier ?? 0, P(world, "b").markTier, P(world, "b").markTax, P(world, "b").asMult, P(world, "b").sig & SIG_TAXED]).toEqual([0, 0, 0, 1000, 0]);
   });
@@ -511,16 +645,15 @@ describe("the attack-speed tax (R5)", () => {
     return { world, inj };
   }
 
-  it("starts at tier 2: Plague's 1.85 a second becomes 1.425, shown as 23% on the mirror, the bit and the synced percent", () => {
+  it("starts at tier 2 and writes the configured tax to the mirror, the bit and the synced percent", () => {
     const { world, inj } = taxed("plague", 2);
     expect(P(world, "b").markTier).toBe(1);
     expect([decodeMult(P(world, "b").asMult), P(world, "b").markTax, P(world, "b").sig & SIG_TAXED]).toEqual([1, 0, 0]);
     landHits(world, inj, 1); // the 3rd hit: Charged
     expect(P(world, "b").markTier).toBe(2);
     const factor = taxedRate(PLAGUE.rate, SENTENCED.params.tax_keep!, SENTENCED.params.tax_cap!) / PLAGUE.rate;
-    expect(PLAGUE.rate * factor).toBeCloseTo(1.425, 12);
     expect(decodeMult(P(world, "b").asMult)).toBeCloseTo(factor, 3);
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
     expect(P(world, "b").sig & SIG_TAXED).toBe(SIG_TAXED);
     // The tax is the mirror's: the weapon reads the same number.
     expect(asMultOf(P(world, "b"))).toBeCloseTo(factor, 3);
@@ -547,31 +680,31 @@ describe("the attack-speed tax (R5)", () => {
     expect(P(world, "b").markTax).toBe(42);
   });
 
-  it("a milder haste is taxed by the same rule: 1.85 x 1.2 = 2.22 a second becomes 1.6 (the ceiling), not 1.61", () => {
+  it("taxes card haste by the configured rate rule before folding the mirror", () => {
     const world = pair({ faction: "plague", hp: FACTIONS.plague.hp });
     grantCard(world, CP(world, "b"), "haste3");
     grantCard(world, CP(world, "b"), "haste1");
     const cards = decodeMult(P(world, "b").asMult);
     expect(cards).toBeGreaterThan(1.2);
     landHits(world, injector(world), 3);
-    expect(PLAGUE.rate * decodeMult(P(world, "b").asMult)).toBeCloseTo(taxedRate(PLAGUE.rate * cards, 0.5, 1.6), 2);
+    expect(PLAGUE.rate * decodeMult(P(world, "b").asMult)).toBeCloseTo(taxedRate(PLAGUE.rate * cards, SENTENCED.params.tax_keep!, SENTENCED.params.tax_cap!), 2);
     expect(PLAGUE.rate * decodeMult(P(world, "b").asMult)).toBeLessThanOrEqual(1.6 + 0.005);
   });
 
   it("lifts beyond 300 u and returns inside it, and inside a Trial ring it never lifts", () => {
     const { world, inj } = taxed("plague", 3);
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
     place(world, "b", 300 + MARK_NEAR_RANGE + 40, 300);
     run(world, 2);
     expect([P(world, "b").asMult, P(world, "b").markTax, P(world, "b").sig & SIG_TAXED]).toEqual([1000, 0, 0]);
     place(world, "b", 340, 300);
     run(world, 2);
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
     // In a ring, far away.
     place(world, "b", 300 + MARK_NEAR_RANGE + 40, 300);
     addStatus(world, C(world, "b"), { kind: "zoned", source: { id: "s", name: "S" }, ms: 5000, value: 0.8, data: { dealtMult: 0.8, takenFromSourceMult: 1.2 } });
     run(world, 2);
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
     void inj;
   });
 
@@ -582,7 +715,7 @@ describe("the attack-speed tax (R5)", () => {
     noteContact(world, "s", "b");
     const inj = injector(world);
     landHits(world, inj, 3);
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
     landHits(world, inj, 1, "s", "c");
     run(world, 1);
     expect([P(world, "b").asMult, P(world, "b").markTax, P(world, "b").sig & SIG_TAXED]).toEqual([1000, 0, 0]);
@@ -598,8 +731,8 @@ describe("the attack-speed tax (R5)", () => {
     const inj = injector(world);
     landHits(world, inj, 3, "s", id);
     expect(mob.s.markTier).toBe(2);
-    expect(asMultOf(mob.s)).toBeCloseTo(1.425 / 1.85, 3);
-    expect(mob.s.markTax).toBe(23);
+    expect(asMultOf(mob.s)).toBeCloseTo(PLAGUE_TAX_FACTOR, 3);
+    expect(mob.s.markTax).toBe(PLAGUE_TAX_PERCENT);
   });
 });
 
@@ -619,14 +752,14 @@ describe("output suppression (R6)", () => {
     return { dealt: before - P(world, "s").hp, landed };
   }
 
-  it("a fighter under a tier 3 mark deals 80% of its damage; tier 2 and under cut nothing", () => {
+  it("a fighter under a tier 3 mark has its output suppressed; tier 2 and under cut nothing", () => {
     const none = damageOf(5);
     const convicted = damageOf(6);
     expect(none.dealt).toBeGreaterThan(0);
     expect(convicted.dealt / none.dealt).toBeCloseTo(SENTENCED.params.suppress!, 9);
-    expect(convicted.landed.cut).toBeCloseTo(0.8, 12);
+    expect(convicted.landed.cut).toBeCloseTo(SENTENCED.params.suppress!, 12);
     expect(none.landed.cut).toBeUndefined();
-    expect(damageOf(10).dealt / none.dealt).toBeCloseTo(0.8, 9); // tier 4 the same: not deeper
+    expect(damageOf(10).dealt / none.dealt).toBeCloseTo(SENTENCED.params.suppress!, 9); // tier 4 the same: not deeper
   });
 
   it("gives way to Trial's own cut: a fighter already inside the ring at x0.8 is not cut to x0.64", () => {
@@ -768,12 +901,12 @@ describe("execute denial (R7)", () => {
       P(world, "s").hp = 100;
       expect(grantCard(world, CP(world, "p"), "coupDeGrace")).toBe(1);
       // 96 once the armor and the sentence's cut are in: not lethal alone; with the card's +30% below 30% hp it is (124.8).
-      inj.hit("p", "s", { raw: 300, weapon: "bow" });
+      inj.hit("p", "s", { raw: 96 * (1 + SENTENCED.armor / 100) / SENTENCED.params.suppress!, weapon: "bow" });
       tick(world);
       return world;
     };
     const tier3 = lethalWithCard(6);
-    expect(SIG(tier3, "s").tier).toBe(3);
+    expect(SIG(tier3, "s").tier).toBe(0); // The owner died: its mark ends after the pass.
     expect(P(tier3, "s").status).toBe("dead");
     const tier4 = lethalWithCard(9);
     expect(SIG(tier4, "s").tier).toBe(4);
@@ -903,6 +1036,6 @@ describe("what the client reads (section 10)", () => {
     landHits(world, inj, 3, "t", "b"); // tier 2 from t too: the lower id holds the tie
     expect([P(world, "b").markTier, P(world, "b").markBy]).toEqual([2, "s"]);
     // Several marks tax once.
-    expect(P(world, "b").markTax).toBe(23);
+    expect(P(world, "b").markTax).toBe(PLAGUE_TAX_PERCENT);
   });
 });

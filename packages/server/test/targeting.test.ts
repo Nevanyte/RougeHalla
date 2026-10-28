@@ -934,7 +934,7 @@ describe("when damage lands", () => {
     tick(world);
     const start = T(world);
     expect(P(world).drawStartedAt).toBe(start);
-    runTo(world, start + 500); // the draw is 0.92 x 0.57 s = 524 ms: the arrow leaves in the tick at 550
+    runTo(world, start + Math.floor((tm.windup * 1000) / TICK_MS) * TICK_MS); // stop on the last tick before the draw ends
     expect(world.projectiles.size).toBe(0);
     tick(world);
     expect(world.projectiles.size).toBe(1);
@@ -1024,7 +1024,8 @@ describe("a locked attack is aimed again as it lands", () => {
     target(world, d);
     tick(world);
     place(world, d, { x: 470, y: 420 });
-    runTo(world, T(world) + 550);
+    const tm = timings("sentenced", "bow");
+    runTo(world, T(world) + Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS);
     const arrow = [...world.projectiles.values()][0] ?? null;
     expect(arrow).not.toBeNull();
     const a = Math.atan2(arrow!.launch.vy, arrow!.launch.vx);

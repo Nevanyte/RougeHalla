@@ -1051,8 +1051,10 @@ describe("damage through the faction formula", () => {
     const world = arena([fighter("frost", "shield", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 3);
-    expect(hpLost(world, 1)).toBeCloseTo(164.0625 * (0.9 + 0.1 / 3.5), 9);
-    expect(hpLost(world, 1)).toBeCloseTo(152.3438, 3);
+    const frost = pacedFaction(FACTIONS.frost);
+    const holy = pacedFaction(FACTIONS.holy);
+    const expected = mitigateShares(damagePerHit(frost, "shield"), damageShares(frost), holy);
+    expect(hpLost(world, 1)).toBeCloseTo(expected, 9);
   });
 
   it("a sword into a raised shield: the holder takes the part the shield lets through, the swordsman RIPOSTE_SHARE of the part it stops, through his own defense", () => {

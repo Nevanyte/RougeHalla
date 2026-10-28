@@ -138,9 +138,9 @@ describe("fullDrawSeconds", () => {
   const SERVER_FULL_DRAW: Record<string, readonly (readonly number[])[]> = {
     fire: [[0.6, 0.6, 0.6, 0.6], [0.6, 0.6, 0.6, 0.6], [0.72, 0.72, 0.683760684, 0.6]],
     sentenced: [
-      [0.524216524, 0.524216524, 0.524216524, 0.524216524],
-      [0.524216524, 0.524216524, 0.524216524, 0.524216524],
-      [0.56980057, 0.542667209, 0.524216524, 0.524216524],
+      [0.585027537, 0.585027537, 0.585027537, 0.585027537],
+      [0.585027537, 0.585027537, 0.585027537, 0.585027537],
+      [0.635899496, 0.605618568, 0.585027537, 0.585027537],
     ],
     plague: [[0.255024255, 0.255024255, 0.255024255, 0.255024255], [0.255024255, 0.255024255, 0.255024255, 0.255024255], [0.277200277, 0.264000264, 0.255024255, 0.255024255]],
     frost: [[0.6, 0.6, 0.6, 0.6], [0.6, 0.6, 0.6, 0.6], [0.72, 0.72, 0.72, 0.712250712]],
@@ -177,7 +177,7 @@ describe("fullDrawSeconds", () => {
     for (const f of ["fire", "frost", "sentenced", "plague", "holy"]) {
       for (const as of [1.05, 1.25, 1.6, 20]) expect(fullDrawSeconds(f, wire(as)), `${f} x${as}`).toBe(fullDrawSeconds(f));
     }
-    // A Sentenced bow's windup is a share of its interval: at attack speed x0.8 it would be 0.655 s, so the cap holds it at BOW_WINDUP.
+    // A Sentenced bow's share at attack speed x0.8 exceeds the 0.6 s cap, so the cap holds it at BOW_WINDUP.
     expect(fullDrawSeconds("sentenced", wire(0.9))).toBeGreaterThan(fullDrawSeconds("sentenced"));
     expect(fullDrawSeconds("sentenced", wire(0.8))).toBe(BOW_WINDUP);
   });
@@ -205,9 +205,7 @@ describe("fullDrawSeconds", () => {
   });
 
   it("is what the gauge uses: a faster rate no longer fills the pull early (G9), a longer windup fills it later", () => {
-    // 0.45 s into a Sentenced bow's draw: 86% of the 0.524 s base pull. Attack speed x1.25 once made it full (0.419 s) and the gauge
-    // glowed; since G9 the pull stays 0.524 s, as the server holds it, so it does not. A windup x0.85 does not shorten it (a windup
-    // mod never shortens a ranged windup), and 0.45 s of a windup x1.2 draw (0.570 s) is not full.
+    // 0.45 s is 77% of Sentenced's 0.585 s base pull. Attack speed does not shorten it; a x1.2 windup takes 0.636 s at base speed.
     const glowingAt = (elapsed: number, fields: Partial<FighterFields>) => {
       const { art, calls } = setup();
       art.update({ ...bowman(1000), faction: "sentenced", ...fields }, 1000 + elapsed, 1000 + elapsed);
@@ -219,12 +217,16 @@ describe("fullDrawSeconds", () => {
     expect(glowingAt(450, { windupMult: wire(0.85) })).toBe(false);
     expect(glowingAt(450, { windupMult: wire(1.2) })).toBe(false);
     expect(glowingAt(450, { asMult: wire(1.25), windupMult: wire(1.2) })).toBe(false);
-    // Past the base pull (0.524 s) the faster bow is full, as the server looses it; a longer windup alone is not yet (0.570 s), and a
-    // faster rate takes that back (the windup cannot pass the interval, mirrorTimings: 0.524 s in the table above).
-    expect(glowingAt(530, { asMult: wire(1.25) })).toBe(true);
-    expect(glowingAt(530, { asMult: wire(1.6) })).toBe(true);
-    expect(glowingAt(530, { windupMult: wire(1.2) })).toBe(false);
-    expect(glowingAt(530, { asMult: wire(1.25), windupMult: wire(1.2) })).toBe(true);
+    // Read the threshold from the server-derived table. Integer render times use the first millisecond at or past each duration.
+    const baseDrawMs = Math.ceil(SERVER_FULL_DRAW.sentenced![0]![0]! * 1000);
+    const longDrawMs = Math.ceil(SERVER_FULL_DRAW.sentenced![2]![0]! * 1000);
+    expect(glowingAt(baseDrawMs - 1, { asMult: wire(1.25) })).toBe(false);
+    expect(glowingAt(baseDrawMs, { asMult: wire(1.25) })).toBe(true);
+    expect(glowingAt(baseDrawMs, { asMult: wire(1.6) })).toBe(true);
+    expect(glowingAt(longDrawMs - 1, { windupMult: wire(1.2) })).toBe(false);
+    expect(glowingAt(longDrawMs, { windupMult: wire(1.2) })).toBe(true);
+    expect(glowingAt(baseDrawMs - 1, { asMult: wire(1.25), windupMult: wire(1.2) })).toBe(false);
+    expect(glowingAt(baseDrawMs, { asMult: wire(1.25), windupMult: wire(1.2) })).toBe(true);
   });
 
   it("the gauge's full draw is never early for a windup mirror below 1: a Fire bow is not full at 0.56 s, whatever the mirror, and is at 0.6 s", () => {

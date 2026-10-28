@@ -50,8 +50,8 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 1050, rate: 0.9, hit: 20, phys: 0.9, trueShare: 0.0, armor: 150, shield: 240,
-    mechanic: "marked", params: { mark_pct: 0.019, mark_kill: 0.00475, mark_amp: 1.5, tier_hits: 3, tax_keep: 0.5, tax_cap: 1.6, suppress: 0.8 },
+    hp: 880, rate: 0.806449, hit: 41.041892, phys: 0.35, trueShare: 0.0, armor: 135, shield: 120,
+    mechanic: "marked", params: { mark_pct: 0.028, mark_kill: 0.007, mark_amp: 1.5, tier_hits: 3, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
@@ -60,7 +60,7 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   frost: {
     id: "frost", name: "Frost", displayName: "Frost", role: "Control bruiser", theme: "Living wall of ice", color: 0x4fc3f7,
-    hp: 1200, rate: 0.45, hit: 175, phys: 0.9, trueShare: 0.0, armor: 20, shield: 190,
+    hp: 1200, rate: 0.45, hit: 170, phys: 0.9, trueShare: 0.0, armor: 20, shield: 190,
     mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.52 },
   },
   holy: {

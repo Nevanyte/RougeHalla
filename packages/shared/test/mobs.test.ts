@@ -125,8 +125,8 @@ describe("mobFaction", () => {
     expect(mobFaction("fire", false).hit).toBeCloseTo(22, 9);
     expect(mobFaction("fire", false).params.burn).toBeCloseTo(18 * 0.22, 9);
     expect(mobFaction("plague", true).hp).toBeCloseTo(1375 * 0.65, 9);
-    expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(0.019 * MOB_K, 9);
-    expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(0.00475 * MOB_K, 9);
+    expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(FACTIONS.sentenced.params.mark_pct! * MOB_K, 9);
+    expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(FACTIONS.sentenced.params.mark_kill! * MOB_K, 9);
   });
 
   it("makes every mob weaker than the player's faction and every elite strictly stronger than the normal mob", () => {

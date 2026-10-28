@@ -9,26 +9,26 @@ import {
  * change (testing/matchup_band.py --reference prints these rows).
  */
 const REFERENCE: Array<[FactionId, FactionId, 0 | 1 | null, number, number, number]> = [
-  ["fire", "sentenced", 0, 15.802, 292.369, 0.0],
+  ["fire", "sentenced", 0, 11.05, 334.735, 0.0],
   ["fire", "plague", 0, 8.066, 282.735, 0.0],
-  ["fire", "frost", 1, 10.944, 0.0, 428.306],
+  ["fire", "frost", 1, 11.266, 0.0, 405.601],
   ["fire", "holy", 1, 9.156, 0.0, 301.104],
-  ["sentenced", "fire", 1, 15.802, 0.0, 292.369],
-  ["sentenced", "plague", 0, 34.994, 250.437, 0.0],
-  ["sentenced", "frost", 0, 34.684, 158.203, 0.0],
-  ["sentenced", "holy", 1, 34.312, 0.0, 264.675],
+  ["sentenced", "fire", 1, 11.05, 0.0, 334.735],
+  ["sentenced", "plague", 0, 21.482, 161.967, 0.0],
+  ["sentenced", "frost", 0, 27.668, 105.759, 0.0],
+  ["sentenced", "holy", 1, 26.484, 0.0, 284.076],
   ["plague", "fire", 1, 8.066, 0.0, 282.735],
-  ["plague", "sentenced", 1, 34.994, 0.0, 250.437],
-  ["plague", "frost", 0, 32.174, 335.308, 0.0],
+  ["plague", "sentenced", 1, 21.482, 0.0, 161.967],
+  ["plague", "frost", 0, 32.174, 365.014, 0.0],
   ["plague", "holy", 0, 34.972, 275.191, 0.0],
-  ["frost", "fire", 0, 10.944, 428.306, 0.0],
-  ["frost", "sentenced", 1, 34.684, 0.0, 158.203],
-  ["frost", "plague", 1, 32.174, 0.0, 335.308],
-  ["frost", "holy", 0, 25.764, 260.129, 0.0],
+  ["frost", "fire", 0, 11.266, 405.601, 0.0],
+  ["frost", "sentenced", 1, 27.668, 0.0, 105.759],
+  ["frost", "plague", 1, 32.174, 0.0, 365.014],
+  ["frost", "holy", 0, 26.814, 221.825, 0.0],
   ["holy", "fire", 0, 9.156, 301.104, 0.0],
-  ["holy", "sentenced", 0, 34.312, 264.675, 0.0],
+  ["holy", "sentenced", 0, 26.484, 284.076, 0.0],
   ["holy", "plague", 1, 34.972, 0.0, 275.191],
-  ["holy", "frost", 1, 25.764, 0.0, 260.129],
+  ["holy", "frost", 1, 26.814, 0.0, 221.825],
 ];
 
 describe("faction duel parity with the Python design engine", () => {
@@ -61,11 +61,11 @@ describe("faction duel parity with the Python design engine", () => {
 
   it("reproduces the design sheet's damage multiplier matrix (section 5)", () => {
     const sheet: Record<FactionId, Record<FactionId, number>> = {
-      fire: { fire: 0, sentenced: 0.29, plague: 1.0, frost: 0.34, holy: 0.29 },
-      sentenced: { fire: 0.97, sentenced: 0, plague: 0.41, frost: 0.78, holy: 0.93 },
-      plague: { fire: 0.94, sentenced: 0.38, plague: 0, frost: 0.74, holy: 0.86 },
-      frost: { fire: 0.97, sentenced: 0.39, plague: 0.41, frost: 0, holy: 0.93 },
-      holy: { fire: 1.0, sentenced: 0.4, plague: 0.34, frost: 0.83, holy: 0 },
+      fire: { fire: 0, sentenced: 0.45, plague: 1.0, frost: 0.34, holy: 0.29 },
+      sentenced: { fire: 0.80, sentenced: 0, plague: 0.77, frost: 0.52, holy: 0.54 },
+      plague: { fire: 0.94, sentenced: 0.43, plague: 0, frost: 0.74, holy: 0.86 },
+      frost: { fire: 0.97, sentenced: 0.43, plague: 0.41, frost: 0, holy: 0.93 },
+      holy: { fire: 1.0, sentenced: 0.43, plague: 0.34, frost: 0.83, holy: 0 },
     };
     for (const a of FACTION_IDS) for (const b of FACTION_IDS) {
       if (a === b) continue;
@@ -76,11 +76,11 @@ describe("faction duel parity with the Python design engine", () => {
   it("matches the design sheet's matchup results (section 6)", () => {
     // [winner, loser, fight seconds, winner HP left in %]
     const sheet: Array<[FactionId, FactionId, number, number]> = [
-      ["fire", "sentenced", 15.8, 35], ["fire", "plague", 8.1, 34],
-      ["sentenced", "plague", 35.0, 24], ["sentenced", "frost", 34.7, 15],
-      ["plague", "frost", 32.2, 24], ["plague", "holy", 35.0, 20],
-      ["frost", "holy", 25.8, 22], ["frost", "fire", 10.9, 36],
-      ["holy", "fire", 9.2, 22], ["holy", "sentenced", 34.3, 19],
+      ["fire", "sentenced", 11.05, 40], ["fire", "plague", 8.066, 34],
+      ["sentenced", "plague", 21.482, 18], ["sentenced", "frost", 27.668, 12],
+      ["plague", "frost", 32.174, 27], ["plague", "holy", 34.972, 20],
+      ["frost", "holy", 26.814, 18], ["frost", "fire", 11.266, 34],
+      ["holy", "fire", 9.156, 22], ["holy", "sentenced", 26.484, 20],
     ];
     expect(sheet.map(([w, l]) => [w, l])).toEqual(BEATS.map(([w, l]) => [w, l]));
     for (const [w, l, seconds, leftPct] of sheet) {
@@ -122,29 +122,29 @@ describe("identity test: removing a signature changes the matchups", () => {
   }
 
   const VARIANTS: Variant[] = [
-    { owner: "fire", label: "remove burn and backlash", kind: "main",
-      flips: ["fire>sentenced", "fire>plague"], sheetShift: 101.4, params: { burn: 0, backlash: 0 } },
+      { owner: "fire", label: "remove burn and backlash", kind: "main",
+      flips: ["fire>sentenced", "fire>plague"], sheetShift: 92.9, params: { burn: 0, backlash: 0 } },
     { owner: "fire", label: "remove backlash only", kind: "sub",
-      flips: ["fire>sentenced", "fire>plague"], sheetShift: 91.3, params: { backlash: 0 } },
+      flips: ["fire>sentenced", "fire>plague"], sheetShift: 77.7, params: { backlash: 0 } },
     { owner: "sentenced", label: "remove the mark", kind: "main",
-      flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 102.6, params: { mark_pct: 0, mark_kill: 0 } },
+      flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 90.3, params: { mark_pct: 0, mark_kill: 0 } },
     // A tier clock this slow never reaches tier 2: no tax, no suppression, no amplifier, no denial.
     { owner: "sentenced", label: "the mark never climbs a tier", kind: "sub",
-      flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 56.6, params: { tier_hits: 1e9 } },
+      flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 42.5, params: { tier_hits: 1e9 } },
     { owner: "sentenced", label: "remove the output suppression only", kind: "sub",
-      flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 30.0, params: { suppress: 1 } },
+      flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 25.0, params: { suppress: 1 } },
     { owner: "sentenced", label: "remove the attack-speed tax only", kind: "sub",
-      flips: [], sheetShift: 19.0, params: { tax_keep: 1, tax_cap: 1e9 } },
+      flips: ["sentenced>plague"], sheetShift: 19.7, params: { tax_keep: 1, tax_cap: 1e9 } },
     { owner: "plague", label: "remove the execute", kind: "main",
-      flips: ["plague>frost", "plague>holy"], sheetShift: 31, params: { execute: 0 } },
+      flips: ["plague>holy"], sheetShift: 31.3, params: { execute: 0 } },
     { owner: "plague", label: "remove the flat disease", kind: "sub",
       flips: ["plague>frost", "plague>holy"], sheetShift: 78, params: { plague: 0 } },
     { owner: "frost", label: "remove the slow", kind: "main",
       flips: ["frost>holy"], sheetShift: 68, params: { slow: 0 } },
     { owner: "holy", label: "remove lifesteal", kind: "main",
-      flips: ["holy>fire", "holy>sentenced"], sheetShift: 34.0, params: { ls0: 0, ls1: 0 } },
+      flips: ["holy>fire", "holy>sentenced"], sheetShift: 28.9, params: { ls0: 0, ls1: 0 } },
     { owner: "holy", label: "flat lifesteal (no missing-health scaling)", kind: "sub",
-      flips: ["holy>sentenced"], sheetShift: 28.0, params: { ls1: 0 } },
+      flips: ["holy>sentenced"], sheetShift: 23.5, params: { ls1: 0 } },
   ];
 
   const DT = 0.002;
