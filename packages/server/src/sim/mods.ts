@@ -46,7 +46,7 @@
 // A leaf module: it must not import weapons.ts, arena.ts, ledger.ts, combatant.ts, buffs.ts (the barrier and max hp), a status
 // runtime or anything else that imports it. Type-only imports are fine.
 import {
-  assertNever, capAsMult, CARDS, cardLive, cardRows, countIn, critChanceFrom, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, FACTIONS,
+  assertNever, CARDS, cardLive, cardRows, countIn, critChanceFrom, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, FACTIONS,
   FIGHT_GAP_SECONDS, FISTS, foldRows, isDot, isFactionId, MAX_HP_FLOOR_SHARE, mirrorsFromFold, OUTGOING_ROW_CAP, ownsBase, requirementsMet,
   type BaseStatId, type Effect, type EffectFlag, type EffectOf, type Folded, type MultKey, type ScalingStats, type StatMirrors,
   type StatSums,
@@ -522,11 +522,13 @@ export function markRateOf(s: FighterState): number {
 }
 
 /**
- * The attack-speed multiplier the fighter's own rows give, capped like the mirror's (AS_MULT_CAP), before any source (a slow, the
- * mark's tax) and before `asPost`: what the tax reads as the fighter's card haste (1 for a mob and for a fighter with no haste row).
+ * The attack-speed multiplier the fighter's own rows give, NOT capped (AS_MULT_CAP caps the product with every source in the mirror),
+ * before any source (a slow, the mark's tax) and before `asPost`: what the tax reads as the fighter's card haste (1 for a mob and for a
+ * fighter with no haste row). Uncapped so that the tax's ceiling holds: the tax factor and this multiplier multiply into the mirror, and
+ * taxed(rate x this) / (rate x this) is exactly what brings the product to the taxed rate even when the haste alone passed the cap.
  */
 export function cardAsMultOf(s: FighterState): number {
-  return capAsMult(1 + statSumsOf(s).attackSpeed);
+  return Math.max(0, 1 + statSumsOf(s).attackSpeed);
 }
 
 /** The hp share below which a Plague fighter's execute runs: EXECUTE_BAND (0.5) + its executeBand rows, within 0..1. */

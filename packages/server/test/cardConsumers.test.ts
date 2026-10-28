@@ -9,10 +9,11 @@
 import { describe, expect, it } from "vitest";
 import {
   AP_DOT_RATIO, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, chillMultiplier, diseaseDps, ENGAGE_LINGER_SECONDS,
-  EXECUTE_BAND, FACTIONS, lifestealFraction, lifestealTotal, markDps, mitigateShares, pacedFaction, resistSlow, SIGNATURE_WEAPONS, TICK_MS,
+  EXECUTE_BAND, FACTIONS, lifestealFraction, lifestealTotal, mitigateShares, pacedFaction, resistSlow, SIGNATURE_WEAPONS, TICK_MS,
   type DamageShares, type Effect, type FactionId, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
+import { recordHit } from "../src/sim/ledger";
 import { heal, noteContact, signatureState } from "../src/sim/factions";
 import { asMultOf, recomputeMods, setExtraRows } from "../src/sim/mods";
 import { addStatus, attackSlowFactor, statusMoveMultiplier } from "../src/sim/status";
@@ -78,17 +79,18 @@ describe("AP on damage over time (BALANCE_CONTRACT 3.3)", () => {
     }
   });
 
-  it("Sentenced: the mark is the true damage, the AP part still magic; neither runs on the tick the mark has not started", () => {
+  it("Sentenced: the mark is a pulse per landed hit and no damage over time, so AP adds nothing to it", () => {
     const { w, seen } = engagedPair("sentenced", [ap(AP)]);
     tick(w);
-    expect(drain(seen, "mark"), "the ramp has not begun: no mark, so no AP on it").toHaveLength(0);
+    expect(drain(seen, "mark"), "no hit has landed: no mark").toHaveLength(0);
+    // One landed weapon hit: one pulse of true damage, and no magic entry of AP beside it (the AP rider is for burn and disease).
+    w.afterWeapons.unshift(() => {
+      recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw: 1, phys: 1, magic: 0, true: 0 }, weapon: "bow", stagger: false });
+    });
     tick(w);
     const mark = drain(seen, "mark");
-    expect(mark).toHaveLength(2);
-    expect(mark[0]!.packet.raw).toBeCloseTo(markDps(spec("sentenced"), DT) * bonusMultiplier("bow") * DT, 9);
+    expect(mark).toHaveLength(1);
     expect(mark[0]!.packet).toMatchObject({ phys: 0, magic: 0, true: 1 });
-    expect(mark[1]!.packet.raw).toBeCloseTo(apTick, 9);
-    expect(mark[1]!.packet).toMatchObject(MAGIC_SHARES);
   });
 
   it("Frost and Holy have no damage-over-time signature: their AP adds nothing", () => {
@@ -198,13 +200,13 @@ describe("Slow Burn: a damage-over-time signature lingers longer after the fight
 
 describe("lifesteal under the card readers (G5)", () => {
   /** hp "a" regains from `hits` landing in one tick (hp 50%: nothing is capped by max hp). */
-  function healed(faction: FactionId, list: Effect[], hits: Array<{ raw: number; dot?: "mark" | "ability" }>, weapon: WeaponId | "" = ""): number {
+  function healed(faction: FactionId, list: Effect[], hits: Array<{ raw: number; dot?: "burn" | "ability" }>, weapon: WeaponId | "" = ""): number {
     const w = pvpArena([{ id: "a", faction, hpFrac: 0.5, weapon }, { id: "v", faction: "holy" }], { pvpRules: false, signatures: true });
     rows(w, "a", list);
     const before = P(w, "a").hp;
     inStep(w, () => {
       for (const h of hits) {
-        if (h.dot === "mark") hit(w, "v", "a", h.raw, { sig: "mark", shares: TRUE });
+        if (h.dot === "burn") hit(w, "v", "a", h.raw, { sig: "burn", shares: TRUE });
         else if (h.dot === "ability") hit(w, "v", "a", h.raw, { ability: "blaze", weapon: null, dot: true, shares: TRUE });
         else hit(w, "v", "a", h.raw);
       }
@@ -228,17 +230,17 @@ describe("lifesteal under the card readers (G5)", () => {
 
   it("Siphon heals a share of the damage over time it deals and nothing of a plain hit", () => {
     const siphon = [stat("lifestealDot", 0.2)];
-    expect(healed("fire", siphon, [{ raw: 100, dot: "mark" }])).toBeCloseTo(20, 6);
+    expect(healed("fire", siphon, [{ raw: 100, dot: "burn" }])).toBeCloseTo(20, 6);
     expect(healed("fire", siphon, [{ raw: 100 }])).toBeCloseTo(0, 6);
-    expect(healed("fire", siphon, [{ raw: 100, dot: "mark" }, { raw: 100 }])).toBeCloseTo(20, 6);
+    expect(healed("fire", siphon, [{ raw: 100, dot: "burn" }, { raw: 100 }])).toBeCloseTo(20, 6);
     expect(healed("fire", siphon, [{ raw: 100, dot: "ability" }]), "a Wish's damage over time is damage over time too").toBeCloseTo(20, 6);
   });
 
   it("Siphon stacks on the rows (doubled by Bloodthirst) for damage over time only", () => {
     const both = [stat("lifesteal", 0.2), stat("lifestealMult", 1), stat("lifestealDot", 0.2)];
     expect(healed("fire", both, [{ raw: 100 }])).toBeCloseTo(40, 6);
-    expect(healed("fire", both, [{ raw: 100, dot: "mark" }])).toBeCloseTo(60, 6);
-    expect(healed("fire", both, [{ raw: 100 }, { raw: 100, dot: "mark" }])).toBeCloseTo(100, 6);
+    expect(healed("fire", both, [{ raw: 100, dot: "burn" }])).toBeCloseTo(60, 6);
+    expect(healed("fire", both, [{ raw: 100 }, { raw: 100, dot: "burn" }])).toBeCloseTo(100, 6);
     expect(lifestealTotal(0, 0.2, 2, 0.2)).toBeCloseTo(0.6, 12);
   });
 

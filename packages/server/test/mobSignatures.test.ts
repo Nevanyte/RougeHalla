@@ -6,7 +6,8 @@
 import { describe, expect, it } from "vitest";
 import {
   backlashPerSwing, bonusMultiplier, burnDps, cardRows, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
-  damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markDps,
+  damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markPct, markWeight,
+  MARK_TIER_HITS,
   ELITE_K, MOB_K, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, mitigateShares, mobFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type DamageShares, type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
@@ -138,7 +139,10 @@ interface SigSnap {
   target: string | null;
   engaged: boolean;
   inReach: boolean;
-  markElapsed: number;
+  /** The mark this fighter holds on its target: its tier, the hits it has landed and the swaps it has seen. */
+  tier: number;
+  markHits: number;
+  markSwaps: number;
   combatAt: number;
   contactAt: number;
   chill: number;
@@ -160,7 +164,7 @@ function snap(world: World, id: string): SigSnap {
   const sig = signatureState(world, id);
   return {
     target: sig?.target ?? null, engaged: sig?.engaged ?? false, inReach: sig?.inReach ?? false,
-    markElapsed: sig?.markElapsed ?? 0, combatAt: sig?.combatAt ?? -Infinity, contactAt: sig?.contactAt ?? -Infinity,
+    tier: sig?.tier ?? 0, markHits: sig?.markHits ?? 0, markSwaps: sig?.markSwaps ?? 0, combatAt: sig?.combatAt ?? -Infinity, contactAt: sig?.contactAt ?? -Infinity,
     chill: sig?.chill ?? 1,
   };
 }
@@ -340,11 +344,12 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       const hurt = fight(0.1);
       const perTick = (f: ReturnType<typeof fight>): number[] =>
         f.logs.flatMap((l, i) => (l.mob.engaged ? [sum(mobBurn(l, f.rig, "disease").map((h) => h.amount)) / diseasePerTick(f.fracs[i]!)] : []));
-      // Every engaged tick of the hurt player matches the formula at its hp share (exactly one disease hit per tick).
+      // Every engaged tick of the hurt player matches the formula at its hp share (the disease and the execute are two entries of a tick
+      // under half hp, one above it: a tick's total is the formula).
       for (const ratio of perTick(hurt)) expect(ratio).toBeCloseTo(1, 9);
       const mean = (f: ReturnType<typeof fight>): number => {
-        const hits = sigLanded(f.rig.landed, "disease");
-        return sum(hits.map((h) => h.amount)) / hits.length;
+        const totals = f.logs.filter((l) => l.mob.engaged).map((l) => sum(mobBurn(l, f.rig, "disease").map((h) => h.amount)));
+        return sum(totals) / totals.length;
       };
       const expectedRise = diseaseDps(MOB_SPEC.plague, 0.1) / diseaseDps(MOB_SPEC.plague, 1);
       expect(expectedRise).toBeGreaterThan(1.5);
@@ -362,49 +367,45 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       wake(rig);
       return rig;
     };
-    const markPerTick = (elapsed: number): number =>
-      onPlayer("sentenced", "plague", markDps(MOB_SPEC.sentenced, elapsed) * bonusMultiplier("sword") * DT);
+    /** One pulse of the mob's mark on the player (a true-damage share of its max hp), after `hits` landed hits: the amplifier is on from the 9th. */
+    const pulse = (hits: number): number =>
+      markPct(MOB_SPEC.sentenced, 0) * BIG_HP * markWeight(MOB_SPEC.sentenced, "sword") * (hits >= 3 * MARK_TIER_HITS ? MOB_SPEC.sentenced.params.mark_amp! : 1);
 
-    it("marks the player it fights: the mark ramps with the time engaged in reach, markDps of the scaled paced faction", () => {
+    it("marks the player it fights: a pulse of true damage for every landed hit, a share of the player's max hp at mob strength (no stacks)", () => {
       const rig = fight();
-      const elapsed: number[] = [];
-      const logs = run(rig, 80, () => { elapsed.push(signatureState(rig.world, rig.mob.id)?.markElapsed ?? 0); });
-      const marks = logs.map((l) => mobBurn(l, rig, "mark"));
-      let ramped = 0;
-      marks.forEach((hits, i) => {
-        const want = markPerTick(elapsed[i]!);
-        if (want <= 0) {
-          expect(hits, `tick ${logs[i]!.now}`).toHaveLength(0);
-          return;
-        }
-        ramped++;
-        expect(hits, `tick ${logs[i]!.now}`).toHaveLength(1);
-        expect(hits[0]).toMatchObject({ victim: "p", by: rig.mob.id, weapon: "sword", sig: "mark" });
-        expect(hits[0]!.amount).toBeCloseTo(want, 9);
+      const logs = run(rig, 140);
+      const pulses = logs.flatMap((l) => mobBurn(l, rig, "mark"));
+      const swings = logs.flatMap((l) => l.landed.filter((h) => h.by === rig.mob.id && h.victim === "p" && h.sig === undefined && h.weapon === "sword"));
+      expect(pulses.length).toBeGreaterThan(8);
+      expect(pulses).toHaveLength(swings.length);
+      pulses.forEach((h, i) => {
+        expect(h, `pulse ${i + 1}`).toMatchObject({ victim: "p", by: rig.mob.id, weapon: "sword", sig: "mark" });
+        expect(h.amount, `pulse ${i + 1}`).toBeCloseTo(onPlayer("sentenced", "plague", pulse(i + 1)), 6);
       });
-      expect(ramped).toBeGreaterThan(50);
-      // It does ramp: the last tick's mark is several times the first's, and the brand is on the player.
-      const amounts = marks.flat().map((h) => h.amount);
-      expect(amounts.at(-1)! / amounts[0]!).toBeGreaterThan(5);
-      expect(rig.p.brand).toBeGreaterThan(0);
-      // Mob strength: the ramp is MOB_K of the player-strength Sentenced's (both paced alike).
-      expect(MOB_SPEC.sentenced.params.mark_ramp! / PLAYER_SPEC.sentenced.params.mark_ramp!).toBeCloseTo(MOB_K, 12);
+      // The tiers climb with the hits, and the mark is on the player, who shows it.
+      const tier = Math.min(4, 1 + Math.floor(pulses.length / MARK_TIER_HITS));
+      expect(signatureState(rig.world, rig.mob.id)!.tier).toBe(tier);
+      expect([rig.p.markTier, rig.p.markBy, rig.p.brand]).toEqual([tier, rig.mob.id, tier * 25]);
+      // Mob strength: the share is MOB_K of the player-strength Sentenced's (both paced alike), and a mob earns no kill-stacks.
+      expect(MOB_SPEC.sentenced.params.mark_pct! / PLAYER_SPEC.sentenced.params.mark_pct!).toBeCloseTo(MOB_K, 12);
+      expect(MOB_SPEC.sentenced.params.mark_kill! / PLAYER_SPEC.sentenced.params.mark_kill!).toBeCloseTo(MOB_K, 12);
+      expect(rig.p.sentence).toBe(0);
     });
 
-    it("starts the mark over when the player swaps weapons", () => {
+    it("climbs a tier when the player swaps weapons: the swap promotes the mark and no longer starts it over", () => {
       const rig = fight();
-      run(rig, 50);
-      const before = signatureState(rig.world, rig.mob.id)!.markElapsed;
-      expect(before).toBeGreaterThan(1);
-      const loud = markPerTick(before);
+      let tickN = 0;
+      while ((signatureState(rig.world, rig.mob.id)?.markHits ?? 0) < 1 && tickN++ < 200) tick(rig);
+      const at = signatureState(rig.world, rig.mob.id)!;
+      expect([at.markHits, at.tier, at.markSwaps]).toEqual([1, 1, 0]);
       send(rig, "swap", { slot: 1 });
       const [swap, next] = run(rig, 2);
       expect(rig.p.slot).toBe(1);
-      // The swap tick marks nothing (the clock is at 0 when the damage is worked out) and the clock restarts from there.
-      expect(mobBurn(swap!, rig, "mark")).toHaveLength(0);
-      expect(swap!.mob.markElapsed).toBeCloseTo(DT, 9);
-      expect(mobBurn(next!, rig, "mark")[0]!.amount).toBeCloseTo(markPerTick(DT), 9);
-      expect(markPerTick(DT)).toBeLessThan(loud / 10);
+      expect(swap!.mob.markSwaps).toBe(1);
+      // The swap is counted by the hook and promotes at the next mark step; whatever the mob's swings did meanwhile, the mark only grew.
+      expect(next!.mob.tier).toBeGreaterThanOrEqual(2);
+      expect(next!.mob.markHits).toBeGreaterThanOrEqual(1);
+      expect(rig.p.markTier).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -524,38 +525,36 @@ describe("a player's signature works on a mob like on a player", () => {
         return;
       }
       engaged++;
-      expect(diseases, `tick ${log.now}`).toHaveLength(1);
-      expect(diseases[0]).toMatchObject({ by: "p", weapon: "axe", sig: "disease" });
-      expect(diseases[0]!.amount).toBeCloseTo(onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, fracs[i]!) * bonusMultiplier("axe") * DT), 9);
+      // Below half hp a tick has two disease entries (the flat disease and the execute: a tier-4 mark can deny the second), above it one.
+      expect(diseases, `tick ${log.now}`).toHaveLength(2);
+      for (const d of diseases) expect(d).toMatchObject({ by: "p", weapon: "axe", sig: "disease" });
+      expect(sum(diseases.map((d) => d.amount))).toBeCloseTo(onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, fracs[i]!) * bonusMultiplier("axe") * DT), 9);
     });
     expect(engaged).toBeGreaterThan(50);
     // The execute part is in: well above what the plain disease would be at full hp (the compressed sheet's execute roughly doubles it at 40%).
-    const first = rig.landed.find((h) => h.sig === "disease")!;
-    expect(first.amount).toBeGreaterThan(1.5 * onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, 1) * bonusMultiplier("axe") * DT));
+    const firstTick = rig.landed.filter((h) => h.sig === "disease").slice(0, 2);
+    expect(sum(firstTick.map((h) => h.amount))).toBeGreaterThan(1.5 * onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, 1) * bonusMultiplier("axe") * DT));
     expect(rig.mob.s.sig & SIG_DISEASED).toBeTruthy();
     expect(rig.mob.s.sig & SIG_EXECUTE).toBeTruthy();
   });
 
-  it("a Sentenced player marks a mob: the mark ramps with the time in reach and the brand is on the mob", () => {
+  it("a Sentenced player marks a mob: a pulse for every landed hit, a share of the mob's zone pool, and the brand is on the mob", () => {
     const rig = makeRig({ player: "sentenced", weapon: "sword", mob: "fire" });
     hold(rig);
-    const elapsed: number[] = [];
-    const logs = run(rig, 80, () => { elapsed.push(signatureState(rig.world, "p")?.markElapsed ?? 0); });
-    let marked = 0;
-    logs.forEach((log, i) => {
-      const marks = log.landed.filter((h) => h.victim === rig.mob.id && h.sig === "mark");
-      const want = onMob("sentenced", "fire", markDps(PLAYER_SPEC.sentenced, elapsed[i]!) * bonusMultiplier("sword") * DT);
-      if (!(want > 0)) {
-        expect(marks, `tick ${log.now}`).toHaveLength(0);
-        return;
-      }
-      marked++;
-      expect(marks, `tick ${log.now}`).toHaveLength(1);
-      expect(marks[0]).toMatchObject({ by: "p", weapon: "sword", sig: "mark" });
-      expect(marks[0]!.amount).toBeCloseTo(want, 9);
+    const logs = run(rig, 80);
+    const pulses = logs.flatMap((l) => l.landed.filter((h) => h.victim === rig.mob.id && h.sig === "mark"));
+    const swings = logs.flatMap((l) => l.landed.filter((h) => h.victim === rig.mob.id && h.by === "p" && h.sig === undefined && h.weapon === "sword"));
+    expect(pulses.length).toBeGreaterThan(5);
+    expect(pulses).toHaveLength(swings.length);
+    // The mob is built small (MOB_K), so the share reads the hp of a player-sized Fire (the sheet's): the amplifier is on from the 9th hit.
+    pulses.forEach((h, i) => {
+      const raw = markPct(PLAYER_SPEC.sentenced, 0) * FACTIONS.fire.hp * markWeight(PLAYER_SPEC.sentenced, "sword")
+        * (i + 1 >= 3 * MARK_TIER_HITS ? PLAYER_SPEC.sentenced.params.mark_amp! : 1);
+      expect(h, `pulse ${i + 1}`).toMatchObject({ by: "p", weapon: "sword", sig: "mark" });
+      expect(h.amount, `pulse ${i + 1}`).toBeCloseTo(onMob("sentenced", "fire", raw), 6);
     });
-    expect(marked).toBeGreaterThan(50);
     expect(rig.mob.s.brand).toBeGreaterThan(0);
+    expect([rig.mob.s.markTier, rig.mob.s.markBy]).toEqual([Math.min(4, 1 + Math.floor(pulses.length / MARK_TIER_HITS)), "p"]);
     expect(rig.p.brand).toBe(0);
   });
 });
@@ -1111,7 +1110,7 @@ describe("fixed gaps in the seams (regressions: each of these failed before src 
     const rig = makeRig({ player: "sentenced", weapon: "wand", mob: "fire" });
     hold(rig);
     run(rig, 60);
-    expect(signatureState(rig.world, "p")!.markElapsed).toBeGreaterThan(1);
+    expect(signatureState(rig.world, "p")!.markHits).toBeGreaterThan(1);
     const offset = { x: rig.p.x - rig.mob.s.x, y: rig.p.y - rig.mob.s.y };
     // Dragged beyond the leash once; the player lets go of the trigger and the mob walks home by itself.
     send(rig, "release", { a: 0 });

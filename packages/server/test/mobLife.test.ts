@@ -158,7 +158,7 @@ describe("a mob type's weapon and role (shared mobs.ts MOB_TYPES)", () => {
       const grunt = factionOf(spawn(w, t.zone, t.elite, { x: 220, y: 200 }).s)!;
       expect(spec.hit, t.id).toBeCloseTo(grunt.hit * t.dmgMult, 9);
       for (const key of Object.keys(grunt.params)) {
-        const damage = ["burn", "backlash", "plague", "execute", "mark_ramp", "mark_cap"].includes(key);
+        const damage = ["burn", "backlash", "plague", "execute", "mark_pct", "mark_kill"].includes(key);
         expect(spec.params[key], `${t.id} ${key}`).toBeCloseTo(damage ? grunt.params[key]! * t.dmgMult : grunt.params[key]!, 9);
       }
       expect([spec.armor, spec.shield, spec.rate], t.id).toEqual([grunt.armor, grunt.shield, grunt.rate]);

@@ -30,7 +30,7 @@ import { quoted } from "./support/quoted";
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 
-// The default faction of the n-th joiner: p0 Fire (835 hp), p1 Sentenced (800), p2 Plague (1375), p3 Frost (1200), p4 Holy (1400), then
+// The default faction of the n-th joiner: p0 Fire (835 hp), p1 Sentenced (1050), p2 Plague (1375), p3 Frost (1200), p4 Holy (1400), then
 // round again.
 const NAMES = ["alice", "bob", "carol", "dave", "erin", "frank", "gina", "hank"];
 const idOf = (i: number): string => `p${i}`;
@@ -157,7 +157,7 @@ describe("syncMaxHp", () => {
   it("max hp is the faction's hp times the maxHp rows, and a full bar stays full", () => {
     const w = startRun(5);
     for (let i = 0; i < 5; i++) {
-      const base = [835, 800, 1375, 1200, 1400][i]!;
+      const base = [835, 1050, 1375, 1200, 1400][i]!;
       const p = P(w, i);
       expect(baseMaxHp(p), `p${i}`).toBe(base);
       setCards(w, i, { vitality2: 1 });
@@ -322,7 +322,7 @@ describe("the barrier", () => {
     P(w, 1).barrier = 100;
     w.events = [];
     expect(applyDamage(w, P(w, 1), RT(w, 1), 40, attacker(w, 0))).toBe(0);
-    expect(P(w, 1).hp).toBe(800);
+    expect(P(w, 1).hp).toBe(1050);
     expect(P(w, 1).barrier).toBe(60);
     expect(P(w, 1).status).toBe("alive");
     expect(w.events).toEqual([]);
@@ -336,7 +336,7 @@ describe("the barrier", () => {
     const w = startRun(3);
     P(w, 1).barrier = 30;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 100, attacker(w, 0))).toBe(70);
-    expect(P(w, 1).hp).toBe(730);
+    expect(P(w, 1).hp).toBe(980);
     expect(P(w, 1).barrier).toBe(0);
   });
 
@@ -344,7 +344,7 @@ describe("the barrier", () => {
     const w = startRun(3);
     P(w, 1).barrier = 80;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 80, attacker(w, 0))).toBe(0);
-    expect(P(w, 1).hp).toBe(800);
+    expect(P(w, 1).hp).toBe(1050);
     expect(P(w, 1).barrier).toBe(0);
   });
 
@@ -371,7 +371,7 @@ describe("the barrier", () => {
     const w = startRun(3);
     P(w, 1).barrier = 100;
     w.events = [];
-    applyDamage(w, P(w, 1), RT(w, 1), 100 + 800 + 1, attacker(w, 0));
+    applyDamage(w, P(w, 1), RT(w, 1), 100 + 1050 + 1, attacker(w, 0));
     expect(P(w, 1).status).toBe("dead");
     expect(P(w, 0).kills).toBe(1);
     expect(RT(w, 0).gv.kills).toBe(GV_KILL);
@@ -447,7 +447,7 @@ describe("the barrier", () => {
     const burn = 0.02 * (TICK_MS / 1000) * 835; // SUDDEN_DEATH_START_FRACTION x dt x max hp
     expect(P(w, 0).barrier).toBeCloseTo(10 - burn, 9);
     expect(P(w, 0).hp).toBe(835);
-    expect(P(w, 1).hp).toBeCloseTo(800 - 0.02 * (TICK_MS / 1000) * 800, 9); // the unshielded one loses hp
+    expect(P(w, 1).hp).toBeCloseTo(1050 - 0.02 * (TICK_MS / 1000) * 1050, 9); // the unshielded one loses hp
     expect(P(w, 0).status).toBe("alive");
     expect(RT(w, 0).killedBy).toBeNull();
   });

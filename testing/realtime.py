@@ -168,9 +168,10 @@ def quant(x):
 
 def tax_factor(spec, side: Side, marker):
     """The attack-speed factor the marker's tier-2 tax puts on `side`: taxed(r) / r with r the faction's rate times its card haste
-    (never above the attack-speed cap), as the mirror carries it (quantized, capped). 1.0 when it would cut nothing."""
+    (NOT capped: the cap is applied to the product with the tax, so the 1.6 ceiling holds for a Haste-stacked fighter too), as the
+    mirror carries it (quantized, capped). 1.0 when it would cut nothing."""
     p = marker.spec.params
-    r = spec.rate * min(AS_CAP, side.as_mult)
+    r = spec.rate * side.as_mult
     taxed = r if r <= 1.0 else min(p["tax_cap"], 1.0 + (r - 1.0) * p["tax_keep"])
     return taxed / r if taxed < r else 1.0
 

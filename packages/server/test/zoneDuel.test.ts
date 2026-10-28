@@ -20,7 +20,7 @@ import { fingerprints } from "./support/duelFingerprint";
 
 // Taken from duel.ts BEFORE it learned `map`, `starts` and the rows arenas (see support/duelFingerprint.ts), and taken again when
 // the balance pass changed combat on purpose (the merge checked that duel.ts with the zone duels gives exactly the balance
-// branch's own hashes for these specs).
+// branch's own hashes for these specs), and the Sentenced redesign changed the one spec that holds a Sentenced (fire/sentenced).
 const PINNED: ReadonlyArray<readonly [string, string]> = [
   ["holy wand>bow open", "ae297e421041137e"],
   ["fire bow>wand open", "70e0bbaa8a28bac6"],
@@ -28,7 +28,7 @@ const PINNED: ReadonlyArray<readonly [string, string]> = [
   ["frost shield mirror capped", "50c295994ca5a9ea"],
   ["fire sword mirror pillars", "45ace09b5d79c6fc"],
   ["plague bow mirror pillars", "2c6458db6d969601"],
-  ["fire/sentenced locks signatures", "c6767a17742ed0f9"],
+  ["fire/sentenced locks signatures", "43e7131260071771"],
   ["fire bow mirror start offset", "4bb0b25600e476bb"],
   ["holy bow>sword stale", "69f13a80effc123f"],
   ["holy bow>sword present", "2f1c3eb1ac10b282"],

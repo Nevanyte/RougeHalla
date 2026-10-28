@@ -559,14 +559,18 @@ const PHASE_B: readonly CardId[] = [
   "festeringArcana", "rhythm", "overkill", "tankEngine", "pocketSand", "gambler", "adrenaline", "cruelWounds", "thirdTimesTheCharm",
   "eyeForAnEye", "bestOffense", "tunnelVision", "firstImpressions", "plantYourFeet", "wishfulThinking", "hemorrhage", "spikedShell",
 ];
-const LIVE: CardId[] = CARDS.filter((c) => cardLive(c) && !PHASE_B.includes(c.id)).map((c) => c.id);
+/** The mark's five cards (Heavier Sentence, Swift Judgment, Gallows' Patience, No Commutation, Final Verdict): their rigs are in sentencedMark.test.ts. */
+const MARK_CARDS: readonly CardId[] = ["heavierSentence", "swiftJudgment", "gallowsPatience", "noCommutation", "finalVerdict"];
+/** Every card whose rig is in another file. */
+const ELSEWHERE: readonly CardId[] = [...PHASE_B, ...MARK_CARDS];
+const LIVE: CardId[] = CARDS.filter((c) => cardLive(c) && !ELSEWHERE.includes(c.id)).map((c) => c.id);
 
 describe("every live card does what its text says", () => {
-  it("has a rig for every phase-A card (the phase-B cards' rigs are cardHooks.test.ts's), and every card is live", () => {
+  it("has a rig for every phase-A card (the phase-B cards' rigs are cardHooks.test.ts's, the mark's sentencedMark.test.ts's), and every card is live", () => {
     expect(Object.keys(RIGS).sort()).toEqual([...LIVE].sort());
     expect(LIVE).toHaveLength(58);
-    expect(CARDS.filter((c) => cardLive(c))).toHaveLength(75);
-    for (const id of PHASE_B) expect(cardLive(id), id).toBe(true);
+    expect(CARDS.filter((c) => cardLive(c))).toHaveLength(80);
+    for (const id of ELSEWHERE) expect(cardLive(id), id).toBe(true);
   });
   for (const id of LIVE) it(`${id}: ${cardText(id)}`, () => RIGS[id]!());
 });
@@ -574,7 +578,7 @@ describe("every live card does what its text says", () => {
 describe("no card waits for a hook any more", () => {
   it("every card in the catalog is live, so a chest may roll any of them and the sim folds their rows", () => {
     expect(CARDS.filter((c) => !cardLive(c))).toEqual([]);
-    for (const id of PHASE_B) {
+    for (const id of ELSEWHERE) {
       const w = startRun(["frost", "fire"]);
       hold(w, 0, id);
       expect(P(w, 0).build.get(id), id).toBe(1);

@@ -59,10 +59,11 @@
 // ... → beforeDamage (contacts from this tick's hits and blocks, reach, signature damage into the ledger) → ledger →
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
-  AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
+  AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, capAsMult, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   CRIT_MULT, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, executeDps, FACTIONS, FESTERING_AP_SHARE,
   FESTERING_TICK_MS, FESTERING_TICKS,
-  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, lifestealFraction,
+  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
+  lifestealFraction,
   lifestealTotal, markPct, markTierOf, markWeight, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
   plagueDps, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
   staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
@@ -186,7 +187,21 @@ function resetAll(world: World, keepCombat: boolean): void {
   rt.attacks = [];
   rt.dot.clear();
   rt.dotSince = world.state.serverTime;
+  // The marks end with the targets: whoever was taxed gets its attack speed back now, and nobody shows a mark for the tick it takes the visuals to follow.
+  const taxed = world.combat.marks ? [...world.combat.marks.taxed.keys()] : [];
   world.combat.marks = undefined;
+  for (const id of taxed) {
+    const c = combatant(world, id);
+    if (c) recomputeMods(world, c);
+  }
+  for (const c of allCombatants(world)) {
+    if (c.s.markTier !== 0) c.s.markTier = 0;
+    if (c.s.markBy !== "") c.s.markBy = "";
+    if (c.s.markTax !== 0) c.s.markTax = 0;
+    if (c.s.brand !== 0) c.s.brand = 0;
+    const clean = c.s.sig & ~(SIG_TAXED | SIG_SUPPRESSED | SIG_EXEC_BLOCKED);
+    if (c.s.sig !== clean) c.s.sig = clean;
+  }
 }
 
 /** The mark starts over (its tier, hits, swaps and denial latch, and the distance clock); the amplifier's linger runs on. */
@@ -531,7 +546,16 @@ function promote(world: World, c: Combatant, f: SigFighter, t: Combatant): numbe
 }
 
 /**
- * The pulse for one landed hit: a share of the target's max hp as true damage, in this tick's ledger. The share is the faction's `mark_pct`
+ * The pool a mark's share reads: the target's max hp, except for a regional mob, whose hp is built small (MOB_K, ELITE_K) so a share of it
+ * would be nothing: it reads the hp of a player-sized fighter of the mob's zone (the sheet's), as every other flat number a player deals does.
+ */
+function markPool(t: Combatant): number {
+  const f = isFactionId(t.s.faction) ? FACTIONS[t.s.faction] : null;
+  return t.kind === "mob" && isRegionalKind(t.s.kind) && f ? f.hp : t.s.maxHp;
+}
+
+/**
+ * The pulse for one landed hit: a share of the target's max hp (`markPool`) as true damage, in this tick's ledger. The share is the faction's `mark_pct`
  * (kill-stacks and Heavier Sentence on it), times the hit's weight (its share of the faction's base hit, paid back for Frost's chill: a chilled
  * fighter lands fewer hits and each pays out the time it took), times the amplifier at tier 4 (or while a denied execute's linger runs), halved
  * beyond MARK_NEAR_RANGE unless the target stands in the owner's Trial ring. The ledger multiplies it like any hit (damage rows, the PvP factor,
@@ -544,7 +568,7 @@ function recordPulse(world: World, c: Combatant, spec: FactionSpec, f: SigFighte
   const heavier = hasFlag(c.s, "heavierSentence") && spec.hp > 0 ? 1 + HEAVIER_SENTENCE_PER_BONUS * (bonusMaxHpOf(c.s) / spec.hp) : 1;
   const weight = markWeight(spec, weapon, attackSpeedMult(c.s)) / Math.max(f.chill, 0.05);
   const amp = tier >= MARK_TOP_TIER || now < f.ampUntil ? spec.params.mark_amp! : 1;
-  const raw = markPct(spec, stacks, heavier) * t.s.maxHp * weight * amp * (near ? 1 : MARK_FAR_SHARE);
+  const raw = markPct(spec, stacks, heavier) * markPool(t) * weight * amp * (near ? 1 : MARK_FAR_SHARE);
   if (!(raw > 0)) return;
   recordHit(world, {
     victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...SIGNATURE_SHARES.mark }, weapon, stagger: false, sig: "mark",
@@ -632,6 +656,18 @@ function taxFactor(world: World, c: Combatant, byId: string): number {
   if (!(r > 0)) return 1;
   const taxed = taxedRate(r, m.params.tax_keep!, m.params.tax_cap!);
   return taxed < r ? taxed / r : 1;
+}
+
+/**
+ * The share of its attack speed the tax is taking from `c` under the Sentenced `byId`, 0..1: the mirror without the tax against the mirror with
+ * it (both through AS_MULT_CAP, so a Haste-stacked fighter's cut is the real one: the cap alone would have cost it part of that haste anyway).
+ */
+function taxCut(world: World, c: Combatant, byId: string): number {
+  const factor = taxFactor(world, c, byId);
+  if (!(factor < 1)) return 0;
+  const cards = cardAsMultOf(c.s);
+  const before = capAsMult(cards);
+  return before > 0 ? Math.max(0, 1 - capAsMult(cards * factor) / before) : 0;
 }
 
 /** world.modSources entry: the mark's tax, an attack-speed factor like any slow (the mirrors fold and cap it). */
@@ -855,7 +891,6 @@ function syncVisuals(world: World, byId: Map<string, Combatant>): void {
   }
   if (idx) {
     for (const id of idx.suppressed.keys()) if (byId.has(id)) bits.set(id, (bits.get(id) ?? 0) | SIG_SUPPRESSED);
-    for (const id of idx.taxed.keys()) if (byId.has(id)) bits.set(id, (bits.get(id) ?? 0) | SIG_TAXED);
     for (const foes of idx.denies.values()) for (const id of foes) if (byId.has(id)) bits.set(id, (bits.get(id) ?? 0) | SIG_EXEC_BLOCKED);
   }
   for (const c of allCombatants(world)) {
@@ -865,8 +900,9 @@ function syncVisuals(world: World, byId: Map<string, Combatant>): void {
     const tier = m?.tier ?? 0;
     const by = m?.by ?? "";
     const taxer = on ? idx?.taxed.get(c.id) : undefined;
-    const tax = taxer !== undefined ? Math.round((1 - taxFactor(world, c, taxer)) * 100) : 0;
-    if (c.s.sig !== b) c.s.sig = b;
+    const tax = taxer !== undefined ? Math.round(taxCut(world, c, taxer) * 100) : 0;
+    const bitsOut = tax > 0 ? b | SIG_TAXED : b;
+    if (c.s.sig !== bitsOut) c.s.sig = bitsOut;
     if (c.s.brand !== tier * 25) c.s.brand = tier * 25;
     if (c.s.markTier !== tier) c.s.markTier = tier;
     if (c.s.markBy !== by) c.s.markBy = by;
