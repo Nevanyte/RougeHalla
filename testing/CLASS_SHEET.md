@@ -24,7 +24,7 @@ A signature mechanic is a function of *(own parameters, universal state)* and no
 | Power | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield |
 |---|---|---|---|---|---|---|---|---|
 | Fire | Glass-cannon duelist | 835 (Mid) | 0.6/s (Low) | 100 | 60 (High) | 0% / 100% / 0% | 0 | 45 |
-| Sentenced | Patient executioner | 880 | 0.806449/s | 41.041892 | 33.1 | 35% / 65% / 0% | 135 | 120 |
+| Sentenced | Patient executioner | 880 | 0.95/s | 34.840203 | 33.1 | 40% / 60% / 0% | 135 | 120 |
 | Plague | Attrition swarm | 1375 (High) | 1.85/s (Very high) | 20 | 37 (Low) | 80% / 20% / 0% | 190 | 0 |
 | Frost | Control bruiser | 1200 (Mid) | 0.45/s (Very low) | 170 | 76.5 | 90% / 10% / 0% | 20 | 190 |
 | Holy | Sustain juggernaut | 1400 (High) | 0.95/s (High) | 96 | 91 (Very high) | 100% / 0% / 0% | 0 | 250 |
@@ -86,7 +86,7 @@ Each card says what the class does, how it feels in a fight, and the **identity 
 ### Holy: Sustain juggernaut  
 *Light that burns brighter near death*
 
-- **Signature (Radiant):** heals a fraction of damage dealt equal to `0.10 + 0.80 x missing health`, capped at 75%. At full health it heals 10% of what it deals; at 81% missing it reaches the cap.
+- **Signature (Radiant):** heals a fraction of damage dealt equal to `0.11 + 0.85 x missing health`, capped at 75%. At full health it heals 11% of what it deals; at about 75% missing it reaches the cap.
 - **Identity:** 1,400 HP behind a 250 shield with no armor, steady attacks (0.95/s at 96 damage), 100% physical damage.
 - **Feel:** hard to finish. Magic barely scratches it (Fire's hits and burn and Sentenced's weapon hits land at 29%), but Fire's backlash is physical and Sentenced's mark is true. It beats Fire in 9.2s with 22% left, the edge lifesteal decides, and Sentenced in 19.7s with 27% left.
 - **Loses to** damage that finds its weak side and to slows. Plague's damage lands at 86% against its zero armor, and Frost's slow cuts Holy's swings, and with them its healing, from 0.95 to 0.46 per second.

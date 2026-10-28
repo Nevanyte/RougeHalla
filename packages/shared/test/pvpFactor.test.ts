@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { HP_RACE_CAP, hpRaceMult, PVP_F0, PVP_FMAX, PVP_P0, pvpFactor, SIGNATURE_SHARES } from "../src/index";
 
 describe("pvpFactor", () => {
-  it("is the contract's curve: 0.75 + 2.25 (1 - exp(-P / 6))", () => {
-    expect([PVP_F0, PVP_FMAX, PVP_P0]).toEqual([0.75, 3.0, 6]);
-    const want: Array<[number, number]> = [[0, 0.75], [1, 1.10], [2, 1.39], [3, 1.64], [5, 2.02], [6, 2.17], [10, 2.58], [15, 2.82]];
+  it("is the contract's curve: 0.77 + 2.23 (1 - exp(-P / 6))", () => {
+    expect([PVP_F0, PVP_FMAX, PVP_P0]).toEqual([0.77, 3.0, 6]);
+    const want: Array<[number, number]> = [[0, 0.77], [1, 1.11], [2, 1.40], [3, 1.65], [5, 2.03], [6, 2.18], [10, 2.58], [15, 2.82]];
     for (const [p, f] of want) expect(pvpFactor(p), `P ${p}`).toBeCloseTo(f, 2);
   });
 

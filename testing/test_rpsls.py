@@ -124,17 +124,17 @@ def edge_names(es):
 # load-bearing. Removing Holy's lifesteal flips Holy>Fire and now Holy>Sentenced as well.
 IDENTITY = [
     ("Fire", "remove burn and backlash", False, lambda p: with_params(p, burn=0, backlash=0),
-     {("Fire", "Sentenced"), ("Fire", "Plague")}, 92.9),
+     {("Fire", "Sentenced"), ("Fire", "Plague")}, 95.8),
     ("Fire", "remove backlash only", True, lambda p: with_params(p, backlash=0),
-     {("Fire", "Sentenced"), ("Fire", "Plague")}, 77.7),
+     {("Fire", "Sentenced"), ("Fire", "Plague")}, 82.1),
     ("Sentenced", "remove the mark", False, lambda p: with_params(p, mark_pct=0, mark_kill=0),
-     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 90.3),
+     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 88.9),
     ("Sentenced", "the mark never climbs a tier (no tax, suppression, amplifier or denial)", True, lambda p: with_params(p, tier_hits=1e9),
-     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 42.5),
+     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 38.9),
     ("Sentenced", "remove the output suppression only", True, lambda p: with_params(p, suppress=1.0),
-     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 25.0),
+     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 26.1),
     ("Sentenced", "remove the attack-speed tax only", True, lambda p: with_params(p, tax_keep=1.0, tax_cap=1e9),
-     {("Sentenced", "Plague")}, 19.7),
+     {("Sentenced", "Plague")}, 20.3),
     ("Plague", "remove the execute", False, lambda p: with_params(p, execute=0),
      {("Plague", "Holy")}, 31.3),
     ("Plague", "remove the flat disease", True, lambda p: with_params(p, plague=0),
@@ -142,9 +142,9 @@ IDENTITY = [
     ("Frost", "remove the slow", False, lambda p: with_params(p, slow=0),
      {("Frost", "Holy")}, 68),
     ("Holy", "remove lifesteal", False, lambda p: with_params(p, ls0=0, ls1=0),
-     {("Holy", "Fire"), ("Holy", "Sentenced")}, 28.9),
+     {("Holy", "Fire"), ("Holy", "Sentenced")}, 32.1),
     ("Holy", "flat lifesteal, no missing-health scaling", True, lambda p: with_params(p, ls1=0),
-     {("Holy", "Sentenced")}, 23.5),
+     {("Holy", "Sentenced")}, 25.7),
 ]
 
 base_margin = {e: margin_pts(BY, *e)[0] for e in BEATS}

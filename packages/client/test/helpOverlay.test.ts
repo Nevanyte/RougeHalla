@@ -234,7 +234,7 @@ describe("the Mechanics page (data)", () => {
     expect(pvp).toContain(`x${pvpFactor(0).toFixed(2)} at power 0`);
     expect(pvp).toContain(`x${pvpFactor(6).toFixed(2)} at power 6`);
     expect(pvp).toContain(`tops out at x${PVP_FMAX.toFixed(2)}`);
-    expect(pvp).toContain("x0.75 at power 0");
+    expect(pvp).toContain("x0.77 at power 0");
     expect(power[0]!.text).toMatch(/sum of the tiers/);
   });
 

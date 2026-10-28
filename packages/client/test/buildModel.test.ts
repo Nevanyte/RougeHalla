@@ -26,11 +26,11 @@ describe("the strip's cells", () => {
     expect(list.map((s) => s.label)).toEqual(["AD", "AP", "Armor", "MR", "Atk speed", "Move", "Leech", "Power", "PvP"]);
   });
 
-  it("starts a fresh player at power 0 and PvP x0.75, with the contract's tooltip, and every cell dim", () => {
+  it("starts a fresh player at power 0 and PvP x0.77, with the contract's tooltip, and every cell dim", () => {
     const { by, list } = stats({});
     expect(by("power").value).toBe("0");
-    expect(by("pvp").value).toBe("x0.75");
-    expect(statLine(by("pvp"))).toBe("PvP x0.75");
+    expect(by("pvp").value).toBe("x0.77");
+    expect(statLine(by("pvp"))).toBe("PvP x0.77");
     expect(by("pvp").tip).toBe("Your damage to players. Each card you take adds its tier to your power.");
     expect(list.every((s) => s.dim)).toBe(true);
     expect(by("ad").value).toBe("+0");
@@ -45,8 +45,8 @@ describe("the strip's cells", () => {
       expect(by("pvp").value).toBe(factorText(pvpFactor(p)));
       expect(by("pvp").dim).toBe(false);
     }
-    // The contract's table: f(1) 1.10, f(2) 1.39, f(3) 1.64, f(5) 2.02, f(6) 2.17.
-    expect([1, 2, 3, 5, 6].map((p) => factorText(pvpFactor(p)))).toEqual(["x1.10", "x1.39", "x1.64", "x2.02", "x2.17"]);
+    // The contract's table: f(1) 1.11, f(2) 1.40, f(3) 1.65, f(5) 2.03, f(6) 2.18.
+    expect([1, 2, 3, 5, 6].map((p) => factorText(pvpFactor(p)))).toEqual(["x1.11", "x1.40", "x1.65", "x2.03", "x2.18"]);
   });
 
   it("shows AD and AP from the synced mirrors (tenths of a point), not from the cards", () => {

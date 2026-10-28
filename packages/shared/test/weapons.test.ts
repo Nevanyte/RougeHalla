@@ -18,12 +18,12 @@ const REFERENCE: Array<[FactionId, WeaponId, number, number]> = [
   ["fire", "wand", 1.010101010101, 48.484848484848],
   ["fire", "shield", 1.041666666667, 46.875000000000],
   ["fire", "fists", 0.666666666667, 24.000000000000],
-  ["sentenced", "sword", 0.576746054704, 14.316939069767],
-  ["sentenced", "axe", 0.885717155438, 22.573040600000],
-  ["sentenced", "bow", 0.635899496212, 16.837699282051],
-  ["sentenced", "wand", 0.751517586432, 19.899099151515],
-  ["sentenced", "shield", 0.775002511008, 19.238386875000],
-  ["sentenced", "fists", 0.496001607045, 9.850054080000],
+  ["sentenced", "sword", 0.489596083231, 12.153559186047],
+  ["sentenced", "axe", 0.751879699248, 19.162111650000],
+  ["sentenced", "bow", 0.539811066127, 14.293416615385],
+  ["sentenced", "wand", 0.637958532695, 16.892219636364],
+  ["sentenced", "shield", 0.657894736842, 16.331345156250],
+  ["sentenced", "fists", 0.421052631579, 8.361648720000],
   ["plague", "sword", 0.251414204903, 6.976744186047],
   ["plague", "axe", 0.386100386100, 11.000000000000],
   ["plague", "bow", 0.277200277200, 8.205128205128],
@@ -108,7 +108,7 @@ describe("duel pace", () => {
   it("scales the damage params by k, the mark's share of the target's hp with them, and the reference duel's tier clock by 1/k", () => {
     expect(pacedFaction(FACTIONS.fire).params).toEqual({ burn: 36, backlash: 290 });
     expect(pacedFaction(FACTIONS.sentenced).params).toEqual({
-      mark_pct: 0.056, mark_kill: 0.014, mark_amp: 1.5, tier_hits: 1.5, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8,
+      mark_pct: 0.054, mark_kill: 0.0135, mark_amp: 1.17, tier_hits: 1.5, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8,
     });
     expect(pacedFaction(FACTIONS.plague).params).toEqual({ plague: 86, execute: 830 });
     expect(pacedFaction(FACTIONS.frost).params).toEqual({ slow: 0.52 });

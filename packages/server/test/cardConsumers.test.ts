@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AP_DOT_RATIO, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, chillMultiplier, diseaseDps, ENGAGE_LINGER_SECONDS,
-  EXECUTE_BAND, FACTIONS, lifestealFraction, lifestealTotal, mitigateShares, pacedFaction, resistSlow, SIGNATURE_WEAPONS, TICK_MS,
+  EXECUTE_BAND, FACTIONS, lifestealFraction, lifestealTotal, LIFESTEAL_MAX, mitigateShares, pacedFaction, resistSlow, SIGNATURE_WEAPONS, TICK_MS,
   type DamageShares, type Effect, type FactionId, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
@@ -220,11 +220,12 @@ describe("lifesteal under the card readers (G5)", () => {
   });
 
   it("never doubles Holy's own share, and the total stops at LIFESTEAL_MAX", () => {
-    // Holy at 50% hp: its own 10% + 80% of what is missing = 50% of the damage it lands.
+    // Derive Holy's own share from the tuned signature parameters at half health.
     const own = lifestealFraction(FACTIONS.holy, 0.5);
-    expect(own).toBeCloseTo(0.5, 12);
+    const { ls0, ls1, ls_cap } = FACTIONS.holy.params;
+    expect(own).toBeCloseTo(Math.min(ls_cap!, ls0! + ls1! * 0.5), 12);
     expect(healed("holy", [stat("lifesteal", 0.1), stat("lifestealMult", 1)], [{ raw: 100 }], "wand")).toBeCloseTo(100 * lifestealTotal(own, 0.1, 2), 6);
-    expect(lifestealTotal(own, 0.1, 2)).toBeCloseTo(0.7, 12);
+    expect(lifestealTotal(own, 0.1, 2)).toBeCloseTo(Math.min(LIFESTEAL_MAX, own + 0.1 * 2), 12);
     expect(healed("holy", [stat("lifesteal", 0.25), stat("lifestealMult", 1)], [{ raw: 100 }], "wand")).toBeCloseTo(85, 6);
   });
 
@@ -246,7 +247,7 @@ describe("lifesteal under the card readers (G5)", () => {
 
   it("a fighter with no lifesteal rows heals nothing (and Holy's own is untouched by an empty Siphon)", () => {
     expect(healed("fire", [], [{ raw: 100 }])).toBe(0);
-    expect(healed("holy", [], [{ raw: 100 }], "wand")).toBeCloseTo(50, 6);
+    expect(healed("holy", [], [{ raw: 100 }], "wand")).toBeCloseTo(100 * lifestealFraction(FACTIONS.holy, 0.5), 6);
   });
 });
 
@@ -276,7 +277,7 @@ describe("healTaken (Wellspring, Vampiric Pact)", () => {
     rows(w, "h", [stat("healTaken", -1)]);
     const before = P(w, "h").hp;
     inStep(w, () => { hit(w, "v", "h", 100); });
-    expect(P(w, "h").hp - before).toBeCloseTo(50, 6);
+    expect(P(w, "h").hp - before).toBeCloseTo(100 * lifestealFraction(FACTIONS.holy, 0.5), 6);
   });
 
   it("also scales what the camp heal, a heal over time and Last Stand pay (all go through heal())", () => {

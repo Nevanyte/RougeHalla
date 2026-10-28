@@ -50,8 +50,8 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 880, rate: 0.806449, hit: 41.041892, phys: 0.35, trueShare: 0.0, armor: 135, shield: 120,
-    mechanic: "marked", params: { mark_pct: 0.028, mark_kill: 0.007, mark_amp: 1.5, tier_hits: 3, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8 },
+    hp: 880, rate: 0.95, hit: 34.840203, phys: 0.4, trueShare: 0.0, armor: 135, shield: 120,
+    mechanic: "marked", params: { mark_pct: 0.027, mark_kill: 0.00675, mark_amp: 1.17, tier_hits: 3, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
@@ -66,7 +66,7 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   holy: {
     id: "holy", name: "Holy", displayName: "Demon Blood", role: "Sustain juggernaut", theme: "Light that burns brighter near death", color: 0xfff176,
     hp: 1400, rate: 0.95, hit: 96, phys: 1.0, trueShare: 0.0, armor: 0, shield: 250,
-    mechanic: "plain", sustain: "radiant", params: { ls0: 0.1, ls1: 0.8, ls_cap: 0.75 },
+    mechanic: "plain", sustain: "radiant", params: { ls0: 0.11, ls1: 0.85, ls_cap: 0.75 },
   },
 };
 

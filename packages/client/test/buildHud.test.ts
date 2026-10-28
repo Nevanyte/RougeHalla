@@ -46,12 +46,12 @@ describe("BuildHud", () => {
     expect(cells()).toHaveLength(9);
   });
 
-  it("shows the nine cells for a fresh player: PvP x0.75 at power 0", () => {
+  it("shows the nine cells for a fresh player: PvP x0.77 at power 0", () => {
     const { strip, root, values, cells, part } = setup();
     strip.update(me(), true);
     expect(root.hidden).toBe(false);
     expect(strip.shown).toBe(true);
-    expect(values()).toEqual({ ad: "+0", ap: "+0", armor: "190", mr: "0", as: "0%", move: "0%", leech: "0%", power: "0", pvp: "x0.75" });
+    expect(values()).toEqual({ ad: "+0", ap: "+0", armor: "190", mr: "0", as: "0%", move: "0%", leech: "0%", power: "0", pvp: "x0.77" });
     expect(cells().map((c) => part(c, 0))).toEqual(["AD", "AP", "Armor", "MR", "Atk speed", "Move", "Leech", "Power", "PvP"]);
     expect(part(cells()[8]!, 2)).toBe("Your damage to players. Each card you take adds its tier to your power.");
     expect(cells().every((c) => c.classes.has("dim"))).toBe(true);
@@ -70,7 +70,7 @@ describe("BuildHud", () => {
   it("follows the build and the mirrors", () => {
     const { strip, values, cells } = setup();
     strip.update(me({ build: { ad2: 1, haste1: 1 }, m: { adBonus: 21, asMult: 1.09, speedMult: 1.06 } }), true);
-    expect(values()).toMatchObject({ ad: "+21", as: "+9%", move: "+6%", power: "3", pvp: "x1.64" });
+    expect(values()).toMatchObject({ ad: "+21", as: "+9%", move: "+6%", power: "3", pvp: "x1.65" });
     expect(cells()[0]!.classes.has("dim")).toBe(false);
     expect(cells()[1]!.classes.has("dim")).toBe(true);
     strip.update(me({ build: { ad2: 1, haste1: 1, armor1: 1 }, m: { adBonus: 21, armorBonus: 15 } }), true);
@@ -204,7 +204,7 @@ describe("in the Hud", () => {
     expect(strip.hidden).toBe(true);
     hud.update(run(), player(), 0);
     expect(strip.hidden).toBe(false);
-    expect(pvpValue(strip)).toBe("x1.39");
+    expect(pvpValue(strip)).toBe("x1.40");
     hud.update(run(), player({ status: "dead" }), 0);
     expect(strip.hidden).toBe(true);
   });

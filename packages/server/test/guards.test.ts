@@ -233,7 +233,7 @@ describe("G4: A Race to 0", () => {
   });
 
   it("feeds no lifesteal with its extra damage: a Holy holder heals from the hit it would have dealt without the Race", () => {
-    // Holy at 50% hp heals 10% + 80% x missing = 50% of the damage it lands.
+    // Race does not amplify Holy's own lifesteal, whose base share comes from its tuned parameters.
     const heal = (race: boolean): number => {
       const w = pvpArena([{ id: "h", faction: "holy", hpFrac: 0.5, weapon: "wand" }, { id: "v", faction: "fire" }], { pvpRules: false, signatures: true });
       if (race) w.combat.hpRace = new Map([["h", HP_RACE_CAP]]);
@@ -243,7 +243,7 @@ describe("G4: A Race to 0", () => {
     };
     const plain = heal(false);
     const raced = heal(true);
-    expect(plain).toBeCloseTo(100 * 0.5, 6);
+    expect(plain).toBeCloseTo(100 * lifestealFraction(FACTIONS.holy, 0.5), 6);
     expect(raced).toBeCloseTo(plain, 6); // x2 on the damage, divided back out for the heal
   });
 });
@@ -702,13 +702,13 @@ describe("G4 from a card: the `hpRace` mult row is the source, not only the test
       return { healed: P(w, "h").hp - before, dealt: foe - P(w, "v").hp };
     };
     const plain = run([]);
-    expect(plain.healed).toBeCloseTo(50, 6);
+    expect(plain.healed).toBeCloseTo(100 * lifestealFraction(FACTIONS.holy, 0.5), 6);
     expect(plain.dealt).toBeCloseTo(100, 6);
     const raced = run([race(HP_RACE_CAP)]);
     expect(raced.dealt, "the Race really doubled the hit").toBeCloseTo(200, 6);
     expect(raced.healed).toBeCloseTo(plain.healed, 6);
     // Race + a lifesteal row: the heal is still the share of the unraced damage
-    expect(run([race(HP_RACE_CAP), { k: "stat", stat: "lifesteal", v: 0.1 }]).healed).toBeCloseTo(100 * lifestealShare(0.5, 0.1), 6);
+    expect(run([race(HP_RACE_CAP), { k: "stat", stat: "lifesteal", v: 0.1 }]).healed).toBeCloseTo(100 * lifestealShare(lifestealFraction(FACTIONS.holy, 0.5), 0.1), 6);
   });
 
   it("feeds no lifesteal with the extra damage it TAKES either: a Holy attacker heals on the hit it would have dealt, not on the holder's x2.5", () => {
@@ -721,7 +721,7 @@ describe("G4 from a card: the `hpRace` mult row is the source, not only the test
       return { healed: P(w, "h").hp - before, dealt: foe - P(w, "v").hp };
     };
     const plain = run([]);
-    expect(plain.healed).toBeCloseTo(50, 6);
+    expect(plain.healed).toBeCloseTo(100 * lifestealFraction(FACTIONS.holy, 0.5), 6);
     const raced = run([race(HP_RACE_CAP)]);
     expect(raced.dealt / plain.dealt, "the holder really took x2.5").toBeCloseTo(2.5, 6);
     expect(raced.healed).toBeCloseTo(plain.healed, 6);
