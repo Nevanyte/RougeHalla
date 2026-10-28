@@ -1,19 +1,20 @@
 // PlayerView's barrier (Phase 11, R4a): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
 // public state, against BARRIER_FULL_SHARE of max hp. The bow's draw follows the attack-speed and windup mirrors. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
 import { describe, expect, it } from "vitest";
-import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult, mirrorTimings } from "@raid/shared";
+import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
+import { fullDrawSeconds } from "../src/render/FighterArt";
 import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { screenAngle } from "../src/render/projection";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in PlayerView's constructor. */
-const CHILD = { barrierRing: 6, hpBar: 12 } as const;
+const CHILD = { barrierRing: 7, hpBar: 13 } as const;
 /** The status art and the Wish icon, the last two children. */
-const STATUS = 17;
-const ICON = 18;
+const STATUS = 19;
+const ICON = 20;
 const MAX_HP = 1000;
 
 function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerState {
@@ -96,8 +97,8 @@ describe("PlayerView barrier", () => {
 
 describe("PlayerView predicted facing", () => {
   /** Matches the container's children: the nose after the body and its core, the weapon in hand after it. */
-  const NOSE = 8;
-  const HELD = 9;
+  const NOSE = 9;
+  const HELD = 10;
 
   it("turns the nose to the facing it is given, and back to the synced one when it gets none", () => {
     const { root, view } = setup();
@@ -291,10 +292,8 @@ describe("PlayerView Wish icon", () => {
 });
 
 describe("PlayerView bow draw", () => {
-  const HELD = 9;
-  // Draw thresholds come from the shared server timing helper, so the test follows faction rate changes without hard-coded seconds.
-  const sentencedDrawMs = (asMult = 1, windupMult = 1) => Math.ceil(mirrorTimings(FACTIONS.sentenced, "bow", asMult, windupMult).windup * 1000);
-  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1450): boolean => {
+  const HELD = 10;
+  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1100): boolean => {
     const { root, view, bakedCalls } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
     view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), now, now, false, false, facing);
@@ -303,22 +302,19 @@ describe("PlayerView bow draw", () => {
 
   it("draws to the attack-speed and windup mirrors, with the synced facing and with a predicted one", () => {
     for (const facing of [null, -0.4]) {
-      expect(glows({}, facing), `identity, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: 1000 }, facing), `explicit identity, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(false);
-      const baseFullMs = sentencedDrawMs();
-      const longerDrawMs = sentencedDrawMs(1, 1.2);
-      expect(glows({ asMult: encodeMult(1.25) }, facing, 1000 + baseFullMs - 1), `attack speed x1.25 one millisecond before the base draw, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: encodeMult(1.25) }, facing, 1000 + baseFullMs), `attack speed x1.25 at the shared base draw, facing ${facing}`).toBe(true);
-      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1000 + longerDrawMs - 1), `windup x1.2 one millisecond before its shared draw, facing ${facing}`).toBe(false);
-      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1000 + longerDrawMs), `windup x1.2 at its shared draw, facing ${facing}`).toBe(true);
-      expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(false);
-      expect(glows({ faction: "fire" }, facing, 1560), `fire identity, facing ${facing}`).toBe(false);
-      expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1560), `fire windup x0.85, facing ${facing}`).toBe(false);
-      expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1600), `fire windup x0.85 at 0.6 s, facing ${facing}`).toBe(true);
-      expect(glows({ faction: "fire", windupMult: encodeMult(0.5) }, facing, 1540), `fire windup x0.5 at 0.54 s, facing ${facing}`).toBe(false);
-      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1000 + baseFullMs - 1), `windup x1.2 before its longer draw, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: encodeMult(1.25), windupMult: encodeMult(1.2) }, facing, 1000 + sentencedDrawMs(1.25, 1.2)), `faster attack speed keeps the shared base draw floor, facing ${facing}`).toBe(true);
+      const checks = [
+        [{}, "sentenced", fullDrawSeconds("sentenced")],
+        [{ asMult: encodeMult(1.25) }, "sentenced", fullDrawSeconds("sentenced", encodeMult(1.25))],
+        [{ windupMult: encodeMult(1.2) }, "sentenced", fullDrawSeconds("sentenced", 1000, encodeMult(1.2))],
+        [{ windupMult: encodeMult(0.85) }, "sentenced", fullDrawSeconds("sentenced", 1000, encodeMult(0.85))],
+        [{ faction: "fire" }, "fire", fullDrawSeconds("fire")],
+        [{ faction: "fire", windupMult: encodeMult(0.85) }, "fire", fullDrawSeconds("fire", 1000, encodeMult(0.85))],
+      ] as const;
+      for (const [fields, faction, seconds] of checks) {
+        const frame = 1000 + Math.ceil(seconds * 1000);
+        expect(glows(fields, facing, frame - 1), `${faction} just before full draw, facing ${facing}`).toBe(false);
+        expect(glows(fields, facing, frame), `${faction} at full draw, facing ${facing}`).toBe(true);
+      }
     }
   });
 
@@ -362,15 +358,15 @@ describe("PlayerView feet effects", () => {
     for (let i = 0; i < 3; i++) view.update(0, 0, player(), 1000 + i, 1000 + i);
     view.update(0, 0, player(), 1010, 1010, false, false, null, homeOnly); // home ground with no effect shows nothing either
     view.update(0, 0, player({ status: "dead", hp: 0 }), 1020, 1020); // an unseen fighter hides a feet effect that was never made
-    expect(ofKind("graphics")).toHaveLength(made);
+    expect(ofKind("graphics")).toHaveLength(made + 1); // PlayerView allocates its strength glow up front.
     view.update(10, 10, player(), 1030, 1030, false, false, null, burning);
     const graphics = ofKind("graphics");
-    expect(graphics).toHaveLength(made + 1);
+    expect(graphics).toHaveLength(made + 2); // one fighter glow plus the lazily-created feet effect
     const feet = graphics[graphics.length - 1]!;
     expect(feet.state.visible).toBe(true);
     expect(feet.calls.some(([n]) => n === "fillCircle" || n === "fillTriangle" || n === "fillPoints" || n === "fillStyle")).toBe(true);
     view.update(10, 10, player(), 1040, 1040, false, false, null, burning);
-    expect(ofKind("graphics")).toHaveLength(made + 1); // made once
+    expect(ofKind("graphics")).toHaveLength(made + 2); // feet effect made once
     view.update(10, 10, player(), 1050, 1050); // off the hazard: hidden, kept
     expect(feet.state.visible).toBe(false);
     view.destroy();

@@ -115,6 +115,8 @@ export interface WeaponRuntime {
   lockGoal: Vec2 | null;
   /** When a `target` order last cost a path search (-Infinity: never): at most one per TARGET_REPATH_MS (sim/targeting.ts). */
   lockSearchAt: number;
+  /** Destination of the player's current attack-move order, if any. */
+  attackMoveGoal: Vec2 | null;
   /** Server ms the fighter's last bow arrow or wand ball left it (-Infinity: none yet). Swift Boots' `notShooting` pause counts from it (sim/mods.ts). */
   lastShotAt: number;
 }
@@ -450,6 +452,8 @@ export interface SpawnRequest {
   origin?: Vec2;
   /** Plant Your Feet: the shot flies this many times as far. */
   rangeMult?: number;
+  /** Unit-targeted basic attack; the projectile steers toward this fighter after launch. */
+  targetId?: string;
 }
 
 /**
@@ -459,6 +463,7 @@ export interface SpawnRequest {
 export interface ProjectileRuntime {
   id: string;
   launch: ProjectileLaunch;
+  targetId?: string;
   kind: ProjectileKind;
   /** What its hits count as: the bow or wand that loosed it, or the shield that reflected it. */
   weapon: WeaponId;
@@ -468,6 +473,9 @@ export interface ProjectileRuntime {
   /** Where it was at `simT` (server ms) and how far it has come. */
   x: number;
   y: number;
+  /** Current flight heading (can turn while following targetId). */
+  vx: number;
+  vy: number;
   simT: number;
   traveled: number;
   /** Where it was when this tick's sweep began: a swing landing this tick meets the ball anywhere on that stretch. */
@@ -1031,6 +1039,6 @@ export function nextId(world: World, prefix: string): string {
 export function newWeaponRuntime(): WeaponRuntime {
   return {
     action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, lastShotAt: -Infinity,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, attackMoveGoal: null, lastShotAt: -Infinity,
   };
 }

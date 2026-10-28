@@ -1,7 +1,7 @@
 // Arrows and wand balls. The server announces each one once, when it is loosed (in the `fxs` batch of that step; the
-// state has none), and never updates it: every client flies it in a straight line,
-// position(T) = (x, y) + (vx, vy) * (T - t) / 1000, with T the render time. A client that joins or reconnects while some
-// fly is sent them as a batch of their own, with the same tuples. When it stops a `projEnd` fx says where and why. That fx is played at render time, so the projectile is kept
+// state has none), and never updates it. Directional shots fly straight from the launch; target-locked shots follow the
+// target samples available to that client. A client that joins or reconnects while some fly is sent them as a batch of
+// their own. When a shot stops a `projEnd` fx says where and why. That fx is played at render time, so it is kept
 // (flying, then pinned at its stop point) until FxView reports the fx due, and only then removed. One that was
 // reflected, deleted or destroyed does not stay pinned: something else carries on from there (see VANISHES).
 import Phaser from "phaser";
@@ -35,10 +35,21 @@ interface Tracked {
   vy: number;
   t: number;
   range: number;
+  targetId?: string;
+  /** Cached homing replay state. It is reset if render time moves backwards. */
+  simT: number;
+  flightX: number;
+  flightY: number;
+  flightVx: number;
+  flightVy: number;
+  traveled: number;
   /** Where, when (server time) and why the stop was reported; set when its projEnd arrives, before it is due. */
   end: { x: number; y: number; t: number; reason: ProjectileEnd } | null;
   g: Phaser.GameObjects.Graphics | null;
 }
+
+/** Resolve a visible target at the client's delayed render time; false means no safe sample is available. */
+export type ProjectileTargetAt = (targetId: string, renderT: number, out: { x: number; y: number }) => boolean;
 
 function shapeOf(kind: ProjectileKind): { speed: number; range: number } {
   const shape = WEAPONS[kind === "ball" ? "wand" : "bow"].shape;
@@ -58,7 +69,9 @@ export class ProjectileView {
   /** A `fxs` batch announced a projectile (just loosed, or already flying when this client joined). A known or finished id is skipped. */
   noteLaunch(l: ProjectileLaunch): void {
     if (this.tracked.has(l.id) || this.done.has(l.id)) return;
-    this.tracked.set(l.id, { ...l, end: null, g: null });
+    this.tracked.set(l.id, {
+      ...l, simT: l.t, flightX: l.x, flightY: l.y, flightVx: l.vx, flightVy: l.vy, traveled: 0, end: null, g: null,
+    });
   }
 
   /**
@@ -75,7 +88,8 @@ export class ProjectileView {
       const { speed, range } = shapeOf(fx.proj);
       tr = {
         id: fx.id, kind: fx.proj, x: fx.x0, y: fx.y0, vx: ((fx.x - fx.x0) / len) * speed, vy: ((fx.y - fx.y0) / len) * speed,
-        t: fx.t0, range, end: null, g: null,
+        t: fx.t0, range, simT: fx.t0, flightX: fx.x0, flightY: fx.y0,
+        flightVx: ((fx.x - fx.x0) / len) * speed, flightVy: ((fx.y - fx.y0) / len) * speed, traveled: 0, end: null, g: null,
       };
       this.tracked.set(fx.id, tr);
     }
@@ -92,9 +106,13 @@ export class ProjectileView {
     this.tracked.delete(id);
   }
 
-  update(renderT: number): void {
+  update(renderT: number, targetAt?: ProjectileTargetAt): void {
     for (const tr of this.tracked.values()) {
       const speed = Math.hypot(tr.vx, tr.vy);
+      if (tr.targetId) {
+        this.updateHoming(tr, renderT, speed, targetAt);
+        continue;
+      }
       const travelled = speed * ((renderT - tr.t) / 1000);
       if (tr.end ? renderT > tr.end.t + END_GRACE_MS : travelled > tr.range + RANGE_SLACK) {
         this.finish(tr.id);
@@ -123,6 +141,55 @@ export class ProjectileView {
     for (const tr of this.tracked.values()) tr.g?.destroy();
     this.tracked.clear();
     this.done.clear();
+  }
+
+  private updateHoming(tr: Tracked, renderT: number, speed: number, targetAt?: ProjectileTargetAt): void {
+    if (speed === 0) { tr.g?.setVisible(false); return; }
+    if (renderT < tr.simT) {
+      tr.simT = tr.t;
+      tr.flightX = tr.x;
+      tr.flightY = tr.y;
+      tr.flightVx = tr.vx;
+      tr.flightVy = tr.vy;
+      tr.traveled = 0;
+    }
+    const timeLimit = (tr.range + RANGE_SLACK) / speed * 1000;
+    if (tr.end ? renderT > tr.end.t + END_GRACE_MS : renderT - tr.t > timeLimit) {
+      this.finish(tr.id);
+      return;
+    }
+    // A known stop caps simulation while its fx waits for render time. Otherwise replay at the same 10 ms cadence as the server.
+    const stopAt = tr.end ? Math.min(renderT, tr.end.t) : renderT;
+    const aim = { x: 0, y: 0 };
+    while (tr.simT < stopAt) {
+      const nextT = Math.min(stopAt, tr.simT + 10);
+      if (tr.targetId && targetAt?.(tr.targetId, nextT, aim)) {
+        const dx = aim.x - tr.flightX;
+        const dy = aim.y - tr.flightY;
+        const d = Math.hypot(dx, dy);
+        if (d > 1e-6) { tr.flightVx = (dx / d) * speed; tr.flightVy = (dy / d) * speed; }
+      }
+      const dt = (nextT - tr.simT) / 1000;
+      const len = Math.min(speed * dt, Math.max(0, tr.range - tr.traveled));
+      const scale = len / speed;
+      tr.flightX += tr.flightVx * scale;
+      tr.flightY += tr.flightVy * scale;
+      tr.traveled += len;
+      tr.simT = nextT;
+      if (tr.traveled >= tr.range) break;
+    }
+    if (tr.end && renderT >= tr.end.t) {
+      if (VANISHES.has(tr.end.reason)) { this.finish(tr.id); return; }
+      tr.flightX = tr.end.x;
+      tr.flightY = tr.end.y;
+    } else if (!tr.end && renderT >= tr.t + tr.range / speed * 1000) {
+      this.finish(tr.id);
+      return;
+    }
+    const g = tr.g ?? this.create(tr);
+    g.setVisible(true).setPosition(projX(tr.flightX), projY(tr.flightY, BODY_LIFT)).setDepth(depthFor(tr.flightY));
+    if (tr.kind === "arrow") g.setRotation(screenAngle(Math.atan2(tr.flightVy, tr.flightVx)));
+    else g.setScale(1 + 0.1 * Math.sin(renderT / 60));
   }
 
   private create(tr: Tracked): Phaser.GameObjects.Graphics {

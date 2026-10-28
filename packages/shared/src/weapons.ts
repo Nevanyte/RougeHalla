@@ -212,21 +212,27 @@ export function backlashPerSwing(backlash: number, foe: Pick<FactionSpec, "rate"
 // Attack windups (GAME_DESIGN 9.1, 10.3, the controls rework): every attack roots its fighter from its start until it lands
 // (melee) or its projectile leaves (bow, wand). Then the fighter walks freely until the next attack, LoL-style. Each windup
 // is its design seconds or the given share of the interval, whichever is shorter, so it scales with the attack speed. The
-// ranged windups are the anti-kiting lever (testing/TUNING_CONTROLS.md): the chaser only closes the gap while the shooter
-// winds up, so a shooter that walks away between shots gets about interval / windup times the free fire of one that stands.
+// ranged windups are short so ranged attacks support League-like stutter-stepping; their stronger orb-walking is a known
+// tradeoff measured by the kiting and duel harnesses.
 const SWORD_WINDUP = 0.1;
 const BASH_WINDUP = 0.1;
 /** The punch: as short as a sword's (a missing case would be a windup of 0). */
 export const FISTS_WINDUP = 0.1;
 const AXE_WINDUP = 0.25;
 const AXE_WINDUP_SHARE = 0.25;
-const AXE_ROOT = 0.5;
-const AXE_ROOT_SHARE = 0.5;
+// The axe is mobile as soon as its swing lands; there is no post-launch recovery root.
+const AXE_ROOT = 0;
+const AXE_ROOT_SHARE = 0;
 /** The bow's fixed full draw (it always looses at full draw, for full damage). */
-export const BOW_WINDUP = 0.6;
-export const BOW_WINDUP_SHARE = 0.92;
-export const WAND_WINDUP = 0.4;
-export const WAND_WINDUP_SHARE = 0.8;
+export const BOW_WINDUP = 0.3;
+export const BOW_WINDUP_SHARE = 0.3;
+export const WAND_WINDUP = 0.3;
+export const WAND_WINDUP_SHARE = 0.3;
+/** Legacy ranged windups retained for PvE mobs so the player-combat timing update does not raise camp pressure. */
+export const NPC_BOW_WINDUP = 0.6;
+export const NPC_BOW_WINDUP_SHARE = 0.92;
+export const NPC_WAND_WINDUP = 0.4;
+export const NPC_WAND_WINDUP_SHARE = 0.8;
 // A windup mod (a `windupMult` below 1: Quickdraw, owner ruling "Melee windups only", testing/TUNING_ROGUE.md section 7) shortens
 // the sword's, the shield bash's and the axe's windups and NEVER a ranged one: the bow's and the wand's windups are the anti-kiting
 // lever, so scaleWindup (shared/mods.ts) leaves them alone whatever the mult. A mult above 1 (a future slow) lengthens every weapon.
@@ -241,13 +247,13 @@ export interface WeaponTimings {
    * fighter is rooted for all of it. A stagger (not on the bow) or a swap before then cancels the attack.
    */
   windup: number;
-  /** Rooted for this long from the attack starting, past the windup (the axe); 0 for the other weapons. */
+  /** Optional extra root after the attack's windup; 0 for the current weapon set. */
   root: number;
   /** A projectile weapon (bow, wand). */
   ranged: boolean;
 }
 
-export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
+export function weaponTimings(w: WeaponId, interval: number, profile: "player" | "npc" = "player"): WeaponTimings {
   const t: WeaponTimings = { interval, windup: 0, root: 0, ranged: isRanged(w) };
   switch (w) {
     case "sword": t.windup = Math.min(SWORD_WINDUP, interval); break;
@@ -258,10 +264,10 @@ export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
       t.root = Math.min(AXE_ROOT, AXE_ROOT_SHARE * interval);
       break;
     case "wand":
-      t.windup = Math.min(WAND_WINDUP, WAND_WINDUP_SHARE * interval);
+      t.windup = Math.min(profile === "npc" ? NPC_WAND_WINDUP : WAND_WINDUP, (profile === "npc" ? NPC_WAND_WINDUP_SHARE : WAND_WINDUP_SHARE) * interval);
       break;
     case "bow":
-      t.windup = Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * interval);
+      t.windup = Math.min(profile === "npc" ? NPC_BOW_WINDUP : BOW_WINDUP, (profile === "npc" ? NPC_BOW_WINDUP_SHARE : BOW_WINDUP_SHARE) * interval);
       break;
   }
   return t;

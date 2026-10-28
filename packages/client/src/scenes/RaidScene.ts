@@ -39,6 +39,8 @@ import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
+import { OpponentInspector } from "../ui/opponentInspector";
+import { wishCooldownMultiplier } from "../ui/combatTip";
 import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap } from "../ui/minimap";
@@ -99,6 +101,9 @@ export class RaidScene extends Phaser.Scene {
   private room!: RaidRoom;
   private interp!: EntityInterpolator;
   private views = new Map<string, PlayerView>();
+  private opponentInspector!: OpponentInspector;
+  private attackMoveArmed = false;
+  private rightAttackHeld = false;
   private mobViews = new Map<string, MobView>();
   private containerViews = new Map<string, ContainerView>();
   private questView!: QuestView;
@@ -266,11 +271,14 @@ export class RaidScene extends Phaser.Scene {
     this.latency.length = 0;
     this.clickAt = 0;
     this.hoverId = "";
+    this.attackMoveArmed = false;
+    this.rightAttackHeld = false;
     this.lockId = "";
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
     this.lastArenaPatchT = 0;
     this.hud = new Hud();
+    this.opponentInspector = new OpponentInspector();
     this.questLog = new QuestLog();
     this.questPreviews.clear();
     this.weaponBar = new WeaponBar();
@@ -376,8 +384,20 @@ export class RaidScene extends Phaser.Scene {
       if (!this.pointerStartedOnCanvas(pointer)) return;
       // The button that went down, not the buttons held: a second press while one is held must not read as the first.
       // macOS reports ctrl+click (a context click) as button 0 with only the right button in `buttons`: not a lock.
-      if (pointer.button === 2) this.sendMove(pointer, true);
-      else if (pointer.button === 0 && pointer.leftButtonDown()) this.sendTarget(pointer);
+      if (pointer.button === 2) {
+        this.attackMoveArmed = false;
+        this.input.setDefaultCursor("default");
+        this.rightAttackHeld = pickTarget(this.cursorGround(pointer), this.targetCandidates()) !== null;
+        if (this.rightAttackHeld) this.sendTarget(pointer);
+        else this.sendMove(pointer, true);
+      } else if (pointer.button === 0 && pointer.leftButtonDown()) {
+        if (this.attackMoveArmed) {
+          pointer.updateWorldPoint(this.cameras.main);
+          this.orderMove("attackMove", unproject(pointer.worldX, pointer.worldY));
+          this.attackMoveArmed = false;
+          this.input.setDefaultCursor("default");
+        } else this.sendTarget(pointer);
+      }
     });
     this.input.on("pointermove", () => { this.aimKnown = true; });
     window.addEventListener("keydown", this.onKeyDown);
@@ -429,7 +449,8 @@ export class RaidScene extends Phaser.Scene {
     for (const [id, d] of this.deaths) if (renderT >= d.t) this.deaths.delete(id);
 
     const pointer = this.input.activePointer;
-    if (pointer.rightButtonDown() && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
+    if (!pointer.rightButtonDown()) this.rightAttackHeld = false;
+    if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
       this.sendMove(pointer, false);
     }
     // After this frame's orders, before anything reads the local fighter's position.
@@ -483,7 +504,15 @@ export class RaidScene extends Phaser.Scene {
     for (const [id, view] of this.mobViews) {
       if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id); }
     }
-    this.projectiles.update(renderT);
+    this.projectiles.update(renderT, (id, t, out) => {
+      const fighter = state.players.get(id) ?? state.mobs.get(id);
+      if (!fighter || fighter.status !== "alive" || !targetable(fighter.effects) || !this.visiblePosition(id)) return false;
+      if (this.interp.sample(id, t, out)) return true;
+      const at = this.rendered.get(id);
+      if (!at) return false;
+      out.x = at.x; out.y = at.y;
+      return true;
+    });
     this.fieldView.update(state.fields, renderT, now, (id) => this.rendered.get(id), this.room.sessionId);
 
     // Interaction range is checked against the latest synced position (what the server uses), not the
@@ -518,6 +547,9 @@ export class RaidScene extends Phaser.Scene {
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
     this.updateTargets(me, now);
+    const inspected = this.hoverId || this.lockId;
+    this.opponentInspector.update(state.phase === "active" && inspected && this.visiblePosition(inspected)
+      ? state.players.get(inspected) : undefined, serverNow, state.training);
     this.streamAim(me, now);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
@@ -711,16 +743,17 @@ export class RaidScene extends Phaser.Scene {
    * with the same order number (it echoes it back when it applies it), and the telegraph of an attack the lock was winding up
    * goes now, as the server cancels the attack.
    */
-  private orderMove(kind: "move" | "stop", point?: { x: number; y: number }): void {
+  private orderMove(kind: "move" | "attackMove" | "stop", point?: { x: number; y: number }): void {
     const now = performance.now();
     const c = this.localClock(now);
     const seq = this.predict.nextSeq();
     const map = this.planMap();
     // Clamped to the world as the server clamps it, so both plan to the same place from an edge click.
     const to = point ? clampToWorld(point) : undefined;
-    if (map) this.predict.motion.order(kind, seq, c, to, map);
-    if (kind === "move" && to) sendInput(this.room, "move", { x: to.x, y: to.y, seq });
+    if (map) this.predict.motion.order(kind === "attackMove" ? "move" : kind, seq, c, to, map);
+    if ((kind === "move" || kind === "attackMove") && to) sendInput(this.room, kind, { x: to.x, y: to.y, seq });
     else sendInput(this.room, "stop", { seq });
+    this.lockDisplay.note("", now);
     this.fx.dropWindups(this.room.sessionId, c, now);
   }
 
@@ -999,7 +1032,8 @@ export class RaidScene extends Phaser.Scene {
     const entry = abilityInSlot(me, slot);
     const readyAt = slotReadyAt(me, slot);
     return {
-      phase: state.phase, alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt,
+      phase: state.phase, training: state.training, wishCooldownMult: wishCooldownMultiplier(me.build, me.faction),
+      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt,
       cooldownLen: this.slotCooldown(slot).observe(readyAt, state.serverTime), effects: me.effects, blockedBy: entry?.def.blockedBy ?? [],
       castUntil: this.predict.castEndsAt(serverNow),
     };
@@ -1206,6 +1240,7 @@ export class RaidScene extends Phaser.Scene {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
     // Esc has no other use in a run; leaving a practice room costs nothing, so one press is enough.
     if (e.code === "Escape") {
+      if (this.attackMoveArmed) { this.attackMoveArmed = false; this.input.setDefaultCursor("default"); return; }
       this.trainingBar?.leave();
       return;
     }
@@ -1213,11 +1248,19 @@ export class RaidScene extends Phaser.Scene {
     if (this.frozenWorld) return;
     // Physical keys (e.code), not the produced character, so shortcuts keep working on non-Latin layouts.
     if (e.code === "KeyS") {
+      this.attackMoveArmed = false;
+      this.input.setDefaultCursor("default");
       this.orderMove("stop");
       this.lockDisplay.note("", performance.now());
       return;
     }
     if (!this.localAlive()) return;
+    if (e.code === "KeyA") {
+      e.preventDefault();
+      this.attackMoveArmed = true;
+      this.input.setDefaultCursor("crosshair");
+      return;
+    }
     if (e.code === "KeyD") {
       this.castSlot("wish");
       return;
@@ -1289,6 +1332,8 @@ export class RaidScene extends Phaser.Scene {
   }
 
   private teardown(): void {
+    this.input.setDefaultCursor("default");
+    this.opponentInspector.destroy();
     window.removeEventListener("keydown", this.onKeyDown);
     this.room.onStateChange.remove(this.onState);
     this.unbindFx?.();

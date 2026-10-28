@@ -19,7 +19,7 @@ const input = (over: Partial<AbilitySlotInput> = {}): AbilitySlotInput => ({
   phase: "active", alive: true, ability: BLAZE, readyAt: 0, cooldownLen: 300_000, effects: 0, blockedBy: BLAZE.blockedBy, castUntil: 0, ...over,
 });
 const model = (over: Partial<AbilitySlotModel> = {}): AbilitySlotModel => ({
-  state: "ready", name: "Blaze Step", icon: "flame", color: 0xff7043, secondsLeft: 0, sweep: 0, blocked: null, cast: 0, ...over,
+  state: "ready", name: "Blaze Step", tip: "Blaze Step", icon: "flame", color: 0xff7043, secondsLeft: 0, sweep: 0, blocked: null, cast: 0, ...over,
 });
 
 describe("abilitySlotModel", () => {

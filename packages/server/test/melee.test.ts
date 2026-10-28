@@ -666,10 +666,13 @@ describe("sword stagger, through real windups", () => {
     expect(world.projectiles.size).toBe(0);
   });
 
-  it("the same cast, left alone, does loose its ball at 500 ms", () => {
+  it("the same cast, left alone, looses its ball at its scheduled short windup boundary", () => {
     const world = arena([fighter("holy", "wand", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
-    run(world, 8);
+    run(world, 1); // process the trigger and start the cast
+    const landsAt = world.players.get("p0")!.weapon.action!.landsAt;
+    const launchAt = Math.ceil(landsAt / TICK_MS - 1e-9) * TICK_MS;
+    while (world.state.serverTime < launchAt - TICK_MS) run(world, 1);
     expect(world.projectiles.size).toBe(0);
     run(world, 1);
     expect(world.projectiles.size).toBe(1);
@@ -980,20 +983,20 @@ describe("balls in real fights", () => {
 
   it("a sword that lands before the ball does halves its damage", () => {
     const full = hpLost(fight("plague", "sword", null).world, 1);
-    const { world } = fight("plague", "sword", 9);
+    const { world } = fight("plague", "sword", 3);
     expect(hpLost(world, 1)).toBeCloseTo(full * SWORD_BALL_SCALE, 9);
   });
 
   it("an axe that lands before the ball does destroys it", () => {
     expect(hpLost(fight("fire", "axe", null).world, 1)).toBeGreaterThan(0);
-    const { world, events } = fight("fire", "axe", 6);
+    const { world, events } = fight("fire", "axe", 2);
     expect(hpLost(world, 1)).toBe(0);
     expect(world.projectiles.size).toBe(0);
     expect(fxOf(events, "projEnd").map((f) => f.reason)).toEqual(["destroyed"]);
   });
 
   it("an axe that lands in the very step the ball hits cancels that hit", () => {
-    const { world, events } = fight("fire", "axe", 7);
+    const { world, events } = fight("fire", "axe", 3);
     expect(hpLost(world, 1)).toBe(0);
     expect(hpLost(world, 0)).toBeGreaterThan(0); // the axe still reached the caster
     expect(fxOf(events, "projEnd").map((f) => f.reason)).toEqual(["hit"]);

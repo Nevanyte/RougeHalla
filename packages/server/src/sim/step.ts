@@ -204,8 +204,10 @@ function applyInputs(world: World, c: Combatant): void {
     cancelLockedWindup(world, c);
     dropLock(c);
     // An unreachable click is ignored rather than treated as "stop".
-    const path = move.kind === "move" ? planPath(world, c.s, move) : [];
+    const path = move.kind === "stop" ? [] : planPath(world, c.s, move);
     if (move.kind === "stop" || path.length > 0) c.rt.path = path;
+    c.rt.weapon.attackMoveGoal = move.kind === "attackMove" && (path.length > 0
+      || Math.hypot(move.x - c.s.x, move.y - c.s.y) <= 10) ? { x: move.x, y: move.y } : null;
     if (c.kind === "player" && move.seq !== undefined) c.s.moveSeq = move.seq;
   };
   // The cursor's aim is ignored while a lock aims the fighter (sim/targeting.ts); the next aim after the lock ends counts.

@@ -1,10 +1,10 @@
 # Sentenced redesign balance evidence
 
-Saved 2026-10-28 for the frozen MR120 candidate. This record separates strict tuning targets from established acceptance tolerances. Primary Sentenced edges use matched fists at kit 0, lock style, both seats, sigma 0.45. The design targets are favourite share 60–76% and winner HP 10–35%; the published A6 lower-bound tolerance is 56% for favourite share.
+Saved 2026-10-28 for the final sheet, integrated with latest main `ebd3514` (combat controls/readability). This record separates strict tuning targets from established acceptance tolerances. Primary Sentenced edges use matched fists at kit 0, lock style, both seats, sigma 0.45. The design targets are favourite share 60–76% and winner HP 10–35%; the published A6 lower-bound tolerance is 56% for favourite share.
 
 ## Frozen sheet
 
-`packages/shared/src/factions.ts` and `testing/classes.py` match field for field. Frost's universal hit value is 170 (previously 175); this was the final permitted broad numeric lever used to recover the faction cycle and robustness after Sentenced-only candidates failed identity or edge constraints.
+`packages/shared/src/factions.ts` and `testing/classes.py` match field for field. Frost's universal hit value is 170 (previously 175); this was the selected broad numeric change used to recover the faction cycle and robustness after Sentenced-only candidates failed identity or edge constraints.
 
 | Faction | HP | Rate | Hit | Physical | Armor | Shield | mark_pct | mark_kill | amp | tier_hits | tax_keep | tax_cap | suppress |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -15,8 +15,9 @@ Saved 2026-10-28 for the frozen MR120 candidate. This record separates strict tu
 - `python3 testing/test_rpsls.py`: PASS. The 10-edge graph holds at dt 0.01/0.005/0.002/0.001; every faction has two wins; global scaling, relabeling, purity, and mechanic-isolation checks pass. Jitter passes 30/30 at ±3% and 29/30 at ±5% (threshold 28/30); ±10% is informational at 13/30. Sentenced identity shifts are 90.3 points for removing the mark, 42.5 for preventing tier growth, 25.0 for removing suppression (two flips), and 19.7 for removing the attack-speed tax (Sentenced>Plague flips). Snapshot values and flips are recorded in the test.
 - `python3 testing/weapon_reference.py` generated the current 30 faction/weapon rows and Fire backlash values copied into `packages/shared/test/weapons.test.ts` and `packages/server/src/harness/parity.ts`.
 - `npm run harness:factions -- --python`: PASS in trades mode. Exact winner and HP-fraction parity on 70/70 cells and 8,411 duels; maximum HP-fraction difference 0.00.
-- `python3 testing/test_kite.py`: PASS, including paced mark identity. Named Holy>Fire wand exception remains at r_kite 0.64 / 76% shooter wins, above its accepted floor of 0.62; other cells meet the 65% bound.
-- `npx vitest run packages/shared/test/factions.test.ts packages/shared/test/weapons.test.ts packages/shared/test/mobs.test.ts`: PASS, 167/167 tests.
+- `python3 testing/test_kite.py`: FAIL, 8 cells after the integrated player windup update; no thresholds or exceptions were changed. Failures are Fire>Plague bow/wand, Sentenced>Frost bow/wand, Plague>Frost bow/wand, and Holy>Fire bow/wand. The two Frost-shooter pairs have infinite free-fire time in this continuous orb-walk model because the slowed chaser cannot close during the shorter ranged windup. The historical Holy>Fire wand exception also fails at the new timing. Main’s combat upgrade already documented ten failures in this legacy model before the Sentenced merge; this integrated sheet has eight. The shorter controls are preserved.
+- `packages/server/test/fixtures/realtime-paced.json` was regenerated with `python3 testing/realtime_paced.py --k 2 --nmax 5 --sub 1 --pairs` and validated as JSON (122,490 bytes).
+- Before the integrated combat timing merge, the targeted factions/weapons/mobs tests passed 167/167. The full integrated workspace suite is running in the root task; use its result for the post-merge test status.
 
 ## Real-sim primary edges
 
@@ -29,23 +30,23 @@ Command: `npx tsx packages/server/bench/sentencedEdges.ts --setups 18 --draws 4 
 | Sentenced > Frost | 67% | 24% (min 21%) | Within target |
 | Holy > Sentenced | 57% | 12% (min 10%) | Share is 3 points under ideal 60%; within published 56–76% tolerance |
 
-All four intended winners remain, and the two near misses are recorded rather than presented as strict passes. Increasing Sentenced shield from 110 to 120 fixed the single ±3% Python jitter failure (30/30), while moving Plague winner HP from 34% to 38%; a trial lowering Sentenced physical share to 0.30 worsened Plague HP to 41%, so it was reverted.
+All four intended winners remain, and the two misses are recorded rather than presented as strict passes. The owner authorized changes to all factions as long as the two-wins/two-losses cycle remained. Trials with Plague disease 44–46, Holy hit 98–100, Frost armor 22 and Sentenced kill-stack pulse 0.008–0.011 improved some real-sim margins, but failed the unchanged jitter gate. They were rejected. No faction names or pair-specific bonuses were added to combat math. Increasing Sentenced shield from 110 to 120 fixed the single ±3% Python jitter failure (30/30), while moving Plague winner HP from 34% to 38%; a trial lowering Sentenced physical share to 0.30 worsened Plague HP to 41%, so it was reverted.
 
 ## Pace
 
-The exact frozen candidate's final TTK curve is awaiting the root task's run. Earlier results are not substituted here: baseline minute-0 median/mean was 19.8/20.6 s; the initial redesign WIP regressed to 32.2/26.4 s. Candidate-specific pace should be added only from the final-sheet run.
+The integrated TTK run (`/tmp/rougehalla-sentenced-integrated-ttk.log`) measured minute-0 median/mean 24.9/23.0 s and minute-5 6.1/6.6 s. The curve is monotone and the minute-0/minute-5 ratio is 4.12x. A1 minute-0 median is WARN (target 17–23 s, tolerance 15–26); minute-0 mean and minute-5 median/mean pass. The shortest minute-0 pair is also WARN at 0.36x median. The slowest mirror at minute 5 is Frost at 2.62x, WARN against the 2.30x target (within the 3.00x tolerance). Baseline minute-0 median/mean was 19.8/20.6 s; the initial redesign WIP regressed to 32.2/26.4 s.
 
 ## Additional validation and remaining evidence
 
-The client/core reports recorded during the shared run include an all-weapon A8 direction check and camp validation. They were measured on nearby candidate snapshots; rerun or confirm them against the frozen MR120 sheet before treating them as final release evidence. D9 tournament share remains unmeasured because the available tournament report mixes farming and free-for-all outcomes.
+The integrated all-weapons lock check (`/tmp/rougehalla-sentenced-final-all-directions-integrated.log`) reports all ten favourite directions at 100% for fists, sword, axe, bow, wand, and shield (A8 pass on all six). A6 HP residuals remain: across fists, the maximum winner HP is 38% (Sentenced>Plague; outside the 35% tolerance ceiling), and the minimum is 12% (within tolerance but below the ideal 15% target). Other weapons have their own high residuals: the maximum is 41% on wand. Camp validation (`/tmp/rougehalla-sentenced-final-camps-integrated.log`) passed the normal-type gate (all 20 normal types cleared all three runs per faction on fists) and the elite gate (at least one faction cleared each elite on its zone weapon); this does not mean every faction cleared every elite. D9 tournament share remains unmeasured because the available tournament report mixes farming and free-for-all outcomes.
 
 Commands run on the frozen sheet:
 
     python3 testing/test_rpsls.py
     python3 testing/weapon_reference.py
+    python3 testing/realtime_paced.py --k 2 --nmax 5 --sub 1 --pairs > packages/server/test/fixtures/realtime-paced.json
     npm run harness:factions -- --python
     python3 testing/test_kite.py
-    npx vitest run packages/shared/test/factions.test.ts packages/shared/test/weapons.test.ts packages/shared/test/mobs.test.ts
     npx tsx packages/server/bench/sentencedEdges.ts --setups 18 --draws 4 --weapons fists
 
 ## Rejected real-sim candidates

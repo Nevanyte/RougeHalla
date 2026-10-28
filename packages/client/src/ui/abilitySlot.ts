@@ -9,6 +9,8 @@ import {
 import "./abilitySlot.css";
 import { cssColor, el } from "./dom";
 import { keycap } from "./keycap";
+import { abilityTip } from "./combatTip";
+import { RectTips } from "./rectTips";
 
 type Blocker = "stun" | "silence" | "root";
 
@@ -31,6 +33,10 @@ export interface AbilitySlotInput {
   blockedBy: readonly Blocker[];
   /** Server time the local fighter's cast ends (its root, as the prediction knows it); 0 or past: none. */
   castUntil: number;
+  /** Training Wishes use their shorter server cooldown. */
+  training?: boolean;
+  /** The Wish cooldown multiplier (Arcane Overload); defaults to 1. */
+  wishCooldownMult?: number;
 }
 
 export type AbilitySlotState = "hidden" | "empty" | "ready" | "cooldown" | "casting" | "blocked";
@@ -38,6 +44,7 @@ export type AbilitySlotState = "hidden" | "empty" | "ready" | "cooldown" | "cast
 export interface AbilitySlotModel {
   state: AbilitySlotState;
   name: string;
+  tip: string;
   icon: AbilityIcon | null;
   /** 0xRRGGBB, the ability's colour (0 with no ability). */
   color: number;
@@ -63,7 +70,10 @@ const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 export function abilitySlotModel(i: AbilitySlotInput, serverNow: number): AbilitySlotModel {
   const def = i.ability;
   const model: AbilitySlotModel = {
-    state: "hidden", name: def?.name ?? "", icon: def?.icon ?? null, color: def?.color ?? 0,
+    state: "hidden", name: def?.name ?? "", tip: def ? abilityTip(def, i.rank ?? 1, undefined, {
+      training: i.training, wishCooldownMult: i.wishCooldownMult,
+    }) : "",
+    icon: def?.icon ?? null, color: def?.color ?? 0,
     secondsLeft: 0, sweep: 0, blocked: null, cast: 0,
   };
   if (!i.alive || i.phase !== "active") return model;
@@ -187,6 +197,10 @@ export class AbilitySlotView {
   private readonly castBar = el("span", "as-cast");
   private readonly castFill = el("span", "as-cast-fill");
   private readonly denyLine = el("div", "as-deny");
+  private readonly tip = el("div", "as-tip");
+  private readonly tips: RectTips;
+  private currentTip = "";
+  private shownTip = "";
   private denyUntil = 0;
   private state: AbilitySlotState | null = null;
   private blocked: Blocker | null | undefined;
@@ -204,12 +218,22 @@ export class AbilitySlotView {
     this.box.append(keycap(opts.key, "wb-key"), this.icon, this.name, this.secs, this.sweep, this.castBar);
     this.denyLine.hidden = true;
     this.element.hidden = true;
-    this.element.append(this.denyLine, this.box);
+    this.tip.hidden = true;
+    this.element.append(this.tip, this.denyLine, this.box);
+    this.tips = new RectTips({
+      container: () => this.element,
+      items: () => [this.box],
+      active: () => !this.element.hidden,
+      onChange: (i) => this.showTip(i === 0 ? this.currentTip : ""),
+    });
   }
 
   update(model: AbilitySlotModel, now: number): void {
     const hidden = model.state === "hidden";
     if (this.element.hidden !== hidden) this.element.hidden = hidden;
+    this.currentTip = model.tip;
+    if (hidden) this.tips.hide();
+    else if (this.tips.index === 0) this.showTip(model.tip);
     if (!this.denyLine.hidden && now >= this.denyUntil) this.denyLine.hidden = true;
     if (hidden) return;
 
@@ -223,8 +247,8 @@ export class AbilitySlotView {
     if (model.name !== this.shownName) {
       this.shownName = model.name;
       this.name.textContent = model.name;
-      this.element.title = model.name;
     }
+    if (model.tip !== this.element.title) this.element.title = model.tip || model.name;
     if (model.color !== this.shownColor) {
       this.shownColor = model.color;
       this.box.style.setProperty("--as-color", cssColor(model.color));
@@ -254,6 +278,14 @@ export class AbilitySlotView {
     }
   }
 
+  private showTip(text: string): void {
+    if (text !== this.shownTip) {
+      this.shownTip = text;
+      this.tip.textContent = text;
+    }
+    this.tip.hidden = text === "";
+  }
+
   /** A short line above the slot ("Out of range"), for DENY_MS. Said again, it starts over. */
   deny(text: string, now: number): void {
     if (this.denyLine.textContent !== text) this.denyLine.textContent = text;
@@ -262,6 +294,7 @@ export class AbilitySlotView {
   }
 
   destroy(): void {
+    this.tips.destroy();
     this.element.remove();
   }
 }

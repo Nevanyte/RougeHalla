@@ -1,5 +1,9 @@
 # Saved work and deferred items
 
+## Current work (2026-10-28)
+
+The redesign is complete in code, including camp-wide marks with reduced per-member pulse damage, tier/status nameplates, Sentence stacks and the Trial ring. The branch integrates the latest `main` combat upgrade (`ebd3514`), rather than the unrelated Kimi checkout. Final integrated validation and release status are recorded below after the release checks.
+
 ## Original handoff (saved 2026-10-28)
 
 The snapshot below records the stop point. The redesign has since been resumed with `gpt-6-luna` agents at low reasoning effort and the owner added camp-wide mob marking. Current rules are in `docs/SENTENCED_REDESIGN.md`; validation and balance evidence are in `testing/TUNING_SENTENCED.md`. `sentenced-workflow.js` and the optimization scripts are historical tools; their Sonnet-only prompts and paths describe the old run.

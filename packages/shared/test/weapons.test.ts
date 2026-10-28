@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_WEAPON_IDS, attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS,
   FISTS, FISTS_WINDUP, isLoopWeapon, isRanged, isWeaponId, pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH,
-  RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS, WAND_WINDUP, WAND_WINDUP_SHARE, weaponEdge, weaponTimings,
+  RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS, WAND_WINDUP, WAND_WINDUP_SHARE, mirrorTimings, weaponEdge, weaponTimings,
   AXE_SHRED_ARMOR, AXE_SHRED_CAP, AXE_SHRED_MS, FISTS_ON_HIT_POWER, STATUS_RULES, SWORD_ON_HIT_POWER, WAND_SPLASH_RADIUS, WAND_SPLASH_SHARE,
   WEAPON_TAGS, type FactionId, type WeaponId,
 } from "../src/index";
@@ -250,27 +250,43 @@ describe("the weapon specials (BALANCE_CONTRACT 3.3) and their tags", () => {
 });
 
 describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
-  it("caps the axe root at 0.5 s or half the interval, and its windup at 0.25 s or a quarter", () => {
-    expect(weaponTimings("axe", 1.19)).toMatchObject({ windup: 0.25, root: 0.5, interval: 1.19 });
+  it("has no axe recovery root and keeps the windup proportional to the interval", () => {
+    expect(weaponTimings("axe", 1.19)).toMatchObject({ windup: 0.25, root: 0, interval: 1.19 });
     const fast = weaponTimings("axe", 0.386);
     expect(fast.windup).toBeCloseTo(0.0965, 12);
-    expect(fast.root).toBeCloseTo(0.193, 12);
+    expect(fast.root).toBe(0);
   });
 
-  it("caps the wand cast at 0.4 s or 80% of the interval, with no slow after it", () => {
-    expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.4, 0.8]);
-    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.4, root: 0, ranged: true });
+  it("caps the wand cast at 0.3 s or 30% of the interval, with no slow after it", () => {
+    expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.3, 0.3]);
+    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.3, root: 0, ranged: true });
     const fast = weaponTimings("wand", 0.3276);
-    expect(fast.windup).toBeCloseTo(0.26208, 12);
+    expect(fast.windup).toBeCloseTo(0.09828, 12);
     expect(fast).not.toHaveProperty("castSlow");
   });
 
-  it("makes the bow's draw a fixed windup inside its interval: min(0.6 s, 92%), the same every shot", () => {
-    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.6, 0.92]);
-    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.6, root: 0, ranged: true });
-    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.255024, 12);
+  it("makes the bow's draw a short windup inside its interval: min(0.3 s, 30%)", () => {
+    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.3, 0.3]);
+    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.3, root: 0, ranged: true });
+    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.08316, 12);
     // No partial draws, no cooldown after the loose: the whole interval is the cycle.
     for (const key of ["fullDraw", "minDraw", "cooldown", "castSlow"]) expect(weaponTimings("bow", 1.14)).not.toHaveProperty(key);
+  });
+
+  it("keeps the legacy bow and wand windups for PvE actors without changing player timing", () => {
+    const bowInterval = attackInterval(FACTIONS.frost, "bow");
+    const wandInterval = attackInterval(FACTIONS.frost, "wand");
+    expect(weaponTimings("bow", bowInterval).windup).toBe(0.3);
+    expect(weaponTimings("bow", bowInterval, "npc").windup).toBe(Math.min(0.6, 0.92 * bowInterval));
+    expect(weaponTimings("wand", wandInterval).windup).toBe(0.3);
+    expect(weaponTimings("wand", wandInterval, "npc").windup).toBe(Math.min(0.4, 0.8 * wandInterval));
+  });
+
+  it("keeps the NPC base-speed ranged floor while player attack speed still shortens windup", () => {
+    const f = FACTIONS.sentenced;
+    const npcBase = mirrorTimings(f, "bow", 1, 1, "npc").windup;
+    expect(mirrorTimings(f, "bow", 1.5, 1, "npc").windup).toBe(npcBase);
+    expect(mirrorTimings(f, "bow", 1.5, 1, "player").windup).toBeLessThan(mirrorTimings(f, "bow", 1, 1, "player").windup);
   });
 
   it("carries no per-weapon floor: a windup mod shortens melee only, by scaleWindup's own rule (owner ruling \"Melee windups only\")", () => {

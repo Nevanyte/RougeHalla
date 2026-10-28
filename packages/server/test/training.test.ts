@@ -368,7 +368,8 @@ describe("the training world (headless)", () => {
       const a = Math.atan2(m.y - me(world).y, m.x - me(world).x);
       const events: SimEvent[] = [];
       send(world, "attack", { a });
-      events.push(...run(world, 15));
+      // Observe from the first draw tick: a short windup may reflect and revive before the old 750 ms wait ends.
+      events.push(...tick(world));
       send(world, "release", { a });
       let downTick: SimEvent[] | null = null;
       for (let i = 0; i < 40 && !downTick; i++) {

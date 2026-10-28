@@ -43,6 +43,8 @@ export interface ClientMessages {
    * tick the order is applied; nothing else reads it.
    */
   move: Vec2 & { seq?: number };
+  /** Attack-move toward a point: attack the nearest visible enemy entering weapon range, then resume this route. */
+  attackMove: Vec2 & { seq?: number };
   /** Stand still: drops the path, the attack target and the held trigger, and cancels an attack the lock was winding up. `seq` as for `move`. */
   stop: { seq?: number };
   /**
@@ -122,7 +124,7 @@ export type TrainMessage =
 
 export type ClientMessageType = keyof ClientMessages;
 export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
-  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept",
+  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove",
 ];
 
 /** Why a projectile stopped (a `projEnd` fx). */
@@ -277,6 +279,8 @@ export interface FxBatch {
    * (`FxChannel.inFlight`, `l` empty).
    */
   p?: FxTuple[];
+  /** Target-lock metadata keyed by projectile id; absent on older batches and for directional shots. */
+  h?: Array<[projectileId: string, targetId: string]>;
 }
 
 /**
@@ -292,6 +296,8 @@ export interface ProjectileLaunch {
   vy: number;
   t: number;
   range: number;
+  /** Present only for a unit-targeted auto-attack; the client may home while it can safely sample this fighter. */
+  targetId?: string;
 }
 
 /**

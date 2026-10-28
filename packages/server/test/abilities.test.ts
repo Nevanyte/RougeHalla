@@ -515,13 +515,14 @@ describe("Freeze (Frost)", () => {
   it("cancels the target's windup, the bow's draw included: no arrow leaves, the cooldown stays spent", () => {
     const world = arena([{ faction: "frost", at: ME }, { faction: "plague", weapons: ["bow"], at: near(500) }]);
     expect(P(world, 1).weapon0).toBe("bow");
+    // Begin the stun first: the new basic draw can finish before Freeze's 250 ms cast if started in advance.
+    cast(world, 0, { target: 1 });
+    tick(world);
+    runTo(world, RT(world).cast!.landsAt - 2 * TICK_MS);
     lockOn(world, 1, 0);
     tick(world);
     expect(W(world, 1).action?.kind).toBe("draw");
     expect(P(world, 1).drawStartedAt).toBeGreaterThan(0);
-    cast(world, 0, { target: 1 });
-    tick(world);
-    runTo(world, RT(world).cast!.landsAt - TICK_MS);
     const ready = P(world, 1).readyAt;
     tick(world);
     expect(isStunned(world, C(world, 1))).toBe(true);

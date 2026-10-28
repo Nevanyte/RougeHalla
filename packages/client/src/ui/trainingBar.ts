@@ -8,9 +8,9 @@ import { TrainingConsole, type SendTrain } from "./trainingConsole";
 
 /** What a first-time player needs in the practice room; kept to a few lines. */
 export const TRAINING_HINTS: readonly string[] = [
-  "Right-click moves. Left-click an enemy to lock it and attack.",
-  "Walk to the weapon rack and press F to take a weapon.",
-  "Q or 1 / 2 swaps weapons.",
+  "Right-click ground to move, or an enemy to attack. S stops.",
+  "A then left-click: attack-move toward that point.",
+  "F takes a weapon at the rack; Q or 1 / 2 swaps weapons.",
   "D casts your faction's Wish (5 s cooldown here).",
   "Hit the dummies. The shield dummy blocks and reflects.",
 ];

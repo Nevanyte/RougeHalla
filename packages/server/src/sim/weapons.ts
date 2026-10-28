@@ -13,7 +13,7 @@
 // The cooldown carries its remainder: an attack from a trigger already down when the cooldown ended counts from that
 // moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
-  ATTACK_BUFFER_MS, attackInterval, CRIT_MULT, damagePerHit, damageShares, leadAim, MAX_REWIND_MS, moveMultiplier, PLANT_FEET_BONUS,
+  ATTACK_BUFFER_MS, attackInterval, CRIT_MULT, damagePerHit, damageShares, MAX_REWIND_MS, moveMultiplier, PLANT_FEET_BONUS,
   scalingDamage, staggerImmuneUntil, swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
@@ -23,7 +23,7 @@ import {
   type Combatant,
 } from "./combatant";
 import { hasFlag, hitMultOf, scalingStatsOf } from "./mods";
-import { positionAt, velocityOf } from "./movement";
+import { positionAt } from "./movement";
 import { actionBlocked, isStunned, isUntargetable } from "./status";
 import {
   chainHook, emit, newWeaponRuntime, type ActionHandler, type DamagePacket, type PendingAction, type World,
@@ -48,6 +48,7 @@ export function install(world: World): void {
  */
 export function releaseTrigger(world: World, c: Combatant): void {
   dropLock(c);
+  c.rt.weapon.attackMoveGoal = null;
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
   cancelAction(world, c);
@@ -133,6 +134,7 @@ export const handlePress: ActionHandler = (world, c, cmd) => {
   const w = c.rt.weapon;
   const now = world.state.serverTime;
   dropLock(c); // an attack order replaces the lock: this swing goes where the press aims
+  w.attackMoveGoal = null;
   if (!isStunned(world, c)) setAim(world, c, cmd.a); // a stunned fighter's facing is frozen (D5)
   noteLag(world, c, cmd.t);
   if (!w.held) w.pressedAt = now;
@@ -307,14 +309,16 @@ function land(world: World, c: Combatant, planned: PendingAction): void {
   const shape = WEAPONS[act.weapon].shape;
   if (shape.kind !== "projectile") return;
   w.lastShotAt = now;
-  // The shot leaves from its drawn origin: a locked one led at where the target is now and where it is heading. Otherwise
+  // The shot leaves from its drawn origin. Unit-targeted basic attacks follow the target after launch, so they aim at its
+  // current position here rather than predicting its future position. Otherwise
   // an arrow goes along the aim held when the draw ends (a bow is aimed while drawn, as it was when it loosed on release)
   // and a ball where its cast was aimed (as it always was): the 9.1 edges were tuned with both.
   // A locked shot whose target fell keeps the aim it started with (at that target), not a cursor aim that came after.
-  const a = foe ? leadAim(act.origin, foe.s, velocityOf(foe.rt, foe.s, now), shape.speed)
+  const a = foe ? Math.atan2(foe.s.y - act.origin.y, foe.s.x - act.origin.x)
     : act.kind === "draw" && act.target === undefined ? w.aim : act.a;
   world.combat.spawns.push({
     owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin,
+    ...(foe ? { targetId: foe.id } : {}),
     ...(act.rangeMult !== undefined ? { rangeMult: act.rangeMult } : {}),
   });
   if (act.kind === "draw") c.s.drawStartedAt = 0;

@@ -2,8 +2,8 @@
 // PlayerView and MobView, which pass the synced fields and read nothing else; everything here is cosmetic.
 import Phaser from "phaser";
 import {
-  FACTIONS, FISTS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, decodeMult, hpBarFractions,
-  isFactionId, isWeaponId, mirrorTimings, type WeaponId,
+  FACTIONS, FISTS, GOLD_COLOR, mobTypeFaction, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, decodeMult, hpBarFractions,
+  isFactionId, isRegionalKind, isWeaponId, mirrorTimings, type WeaponId,
 } from "@raid/shared";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { bakeScale, around, bakedImage, ensureBake, pixelImage, placeBake, swapBake, type Region } from "./bake";
@@ -22,6 +22,10 @@ export function factionColor(faction: string): number {
 
 /** The synced fields a fighter's look reads; PlayerState and MobState both have them. */
 export interface FighterFields {
+  /** MobState.kind is mob/elite; PlayerState has no kind field. */
+  kind?: string;
+  /** MobState.type selects its role; current roles change hit damage/HP but not attack rate. */
+  type?: string;
   facing: number;
   faction: string;
   weapon0: string;
@@ -153,13 +157,15 @@ const DRAW_PUSH_SLACK_MS = 100;
  * lever: a bow that is faster than base keeps its pull, so a share-limited bow draws as long as the server holds it), and the windup
  * mirror `windupMult` then scales it through scaleWindup), or 0 without a faction. Both mirrors are the wire form (thousandths), as the state carries them; an absent one is the
  * identity. The draw is fixed now, so full pull is the whole windup. A mob's faction is scaled down in hp and damage only,
- * so its rate, and with it the draw, is the plain faction's, with no mirrors.
+ * so its rate, and with it the draw, is the plain faction's, with no mirrors. Regional mobs keep the legacy PvE bow profile.
  */
 export function fullDrawSeconds(
   faction: string, asMult: number = WIRE_IDENTITY_MIRRORS.asMult, windupMult: number = WIRE_IDENTITY_MIRRORS.windupMult,
+  profile: "player" | "npc" = "player", rate?: number,
 ): number {
   if (!isFactionId(faction)) return 0;
-  return mirrorTimings(FACTIONS[faction], "bow", decodeMult(asMult), decodeMult(windupMult)).windup;
+  const spec = rate === undefined ? FACTIONS[faction] : { rate };
+  return mirrorTimings(spec, "bow", decodeMult(asMult), decodeMult(windupMult), profile).windup;
 }
 
 /** One start of a draw as the server had it, and the server time of the patch that first showed it. */
@@ -305,7 +311,11 @@ export class FighterArt {
     // Tracked every frame, not only with a bow in hand, so a draw that a swap cancelled can't linger.
     const drawing = this.draw.track(f.drawStartedAt, renderT, patchT);
     // Only while a bow is being drawn: the time to full draw follows the attack-speed and windup mirrors, which change with a drop.
-    const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.asMult, f.windupMult) : 0;
+    const profile = f.kind !== undefined && isRegionalKind(f.kind) ? "npc" : "player";
+    const npcRate = profile === "npc" && isFactionId(f.faction)
+      ? mobTypeFaction(f.faction, f.kind === "elite", f.type).rate
+      : undefined;
+    const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.asMult, f.windupMult, profile, npcRate) : 0;
     // Clamped at both ends: a chill can leave the start a few ms ahead of render time while the draw is on screen.
     const pull = full > 0 ? Math.max(0, Math.min(1, (renderT - this.draw.start) / 1000 / full)) : -1;
     this.pull = pull;

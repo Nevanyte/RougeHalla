@@ -1579,4 +1579,38 @@ describe("swing interceptions", () => {
     expect(last.map((b) => b.id)).toEqual([ball.id]);
     expect(ballsThisTick(stopper, "mage")).toEqual([]);
   });
+
+  it("homes a target-locked arrow long enough to catch a fleeing target beyond catalog range", () => {
+    const w = arena([archer(), target({ x: 430, y: 320 }), idle()]);
+    w.combat.spawns.push({
+      owner: "archer", kind: "arrow", weapon: "bow", a: 0,
+      packet: { raw: 10, phys: 1, magic: 0, true: 0 }, origin: { x: 200, y: 320 }, targetId: "target",
+    });
+    spawnProjectiles(w);
+    const arrow = lastProjectile(w);
+    expect(arrow.launch.targetId).toBe("target");
+    expect(arrow.launch.range).toBe(ARROW.speed * 5);
+    let end: Fx<"projEnd"> | undefined;
+    for (let i = 0; i < 30 && !end; i++) {
+      P(w, "target").x += 8.5; // flee at 170 units/s, faster than the arrow's spare range permits if flight were range-clamped
+      const evs = flyTick(w);
+      end = fxOf(evs, "projEnd")[0];
+    }
+    expect(end?.reason).toBe("hit");
+    expect(arrow.traveled).toBeGreaterThan(CATALOG_RANGES.bow);
+  });
+
+  it("dissipates a guided shot when its target dies", () => {
+    const w = arena([archer(), target({ x: 430, y: 320 }), idle()]);
+    w.combat.spawns.push({
+      owner: "archer", kind: "arrow", weapon: "bow", a: 0,
+      packet: { raw: 10, phys: 1, magic: 0, true: 0 }, origin: { x: 200, y: 320 }, targetId: "target",
+    });
+    spawnProjectiles(w);
+    const arrow = lastProjectile(w);
+    P(w, "target").status = "dead";
+    const end = fxOf(flyTick(w), "projEnd")[0];
+    expect(end).toMatchObject({ id: arrow.id, reason: "destroyed" });
+    expect(w.projectiles.has(arrow.id)).toBe(false);
+  });
 });

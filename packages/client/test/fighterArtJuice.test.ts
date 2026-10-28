@@ -5,10 +5,10 @@ import { FACTIONS, mirrorTimings } from "@raid/shared";
 import { FighterArt, type FighterFields } from "../src/render/FighterArt";
 import { argsOf, fakeScene } from "./fakes";
 
-const SENTENCED_DRAW_SECONDS = mirrorTimings(FACTIONS.sentenced, "bow", 1, 1).windup;
-const SENTENCED_DRAW_MS = Math.ceil(SENTENCED_DRAW_SECONDS * 1000);
-const HALF_DRAW_MS = Math.round(SENTENCED_DRAW_SECONDS * 500);
-const TENSION_DRAW_MS = Math.ceil(SENTENCED_DRAW_MS * 0.75);
+const FIRE_DRAW_SECONDS = mirrorTimings(FACTIONS.fire, "bow", 1, 1).windup;
+const FIRE_DRAW_MS = Math.ceil(FIRE_DRAW_SECONDS * 1000);
+const HALF_DRAW_MS = Math.round(FIRE_DRAW_SECONDS * 500);
+const TENSION_DRAW_MS = Math.ceil(FIRE_DRAW_MS * 0.75);
 
 const fighter = (over: Partial<FighterFields> = {}): FighterFields => ({
   facing: 0, faction: "sentenced", weapon0: "wand", weapon1: "", slot: 0, drawStartedAt: 0, ...over,
@@ -89,8 +89,8 @@ describe("the wand's charge", () => {
 });
 
 describe("the bow's tension", () => {
-  const bow = (drawStartedAt: number) => fighter({ weapon0: "bow", drawStartedAt });
-  // Sentenced's draw duration comes from the same shared mirrorTimings helper as the server.
+  const bow = (drawStartedAt: number) => fighter({ faction: "fire", weapon0: "bow", drawStartedAt });
+  // Fire's pull is 30% of its base bow interval (about 0.256 s).
 
   it("tells the figure how far the string is back", () => {
     const { art } = setup();
@@ -110,17 +110,17 @@ describe("the bow's tension", () => {
     art.update(bow(1000), 1000 + TENSION_DRAW_MS, 1000 + TENSION_DRAW_MS); // 75%: tension glow, no ready ring
     expect(argsOf(drawn(), "fillCircle").length).toBe(early + 1);
     expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
-    art.update(bow(1000), 1000 + SENTENCED_DRAW_MS, 1000 + SENTENCED_DRAW_MS); // first millisecond at or past the shared full-draw duration
+    art.update(bow(1000), 1000 + FIRE_DRAW_MS, 1000 + FIRE_DRAW_MS); // full
     expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
   });
 
   it("shows the ready ring only at a full draw, not from rounding 99% up to the last step", () => {
     const { art, drawn } = setup();
-    art.update(bow(1000), 1000 + SENTENCED_DRAW_MS - 1, 1000 + SENTENCED_DRAW_MS - 1); // one millisecond before the server's full draw
+    art.update(bow(1000), 1000 + FIRE_DRAW_MS - 1, 1000 + FIRE_DRAW_MS - 1); // one millisecond before the server's full draw
     expect(art.pull).toBeGreaterThan(0.99);
     expect(art.pull).toBeLessThan(1);
     expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
-    art.update(bow(1000), 1000 + SENTENCED_DRAW_MS, 1000 + SENTENCED_DRAW_MS);
+    art.update(bow(1000), 1000 + FIRE_DRAW_MS, 1000 + FIRE_DRAW_MS);
     expect(art.pull).toBe(1);
     expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
   });

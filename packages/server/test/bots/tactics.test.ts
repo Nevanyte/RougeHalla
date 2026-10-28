@@ -3,7 +3,7 @@
 // rules; and the dispatch of the world goals. Everything runs on plain-data contexts from fixtures.ts, seeded, with no clock.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, FACTIONS, hasLineOfSight, lockSpacing, mapFromTiles, mirrorTimings, mulberry32, pacedFaction, TARGET_RANGE, TILE,
+  attackInterval, BOW_WINDUP, FACTIONS, hasLineOfSight, lockSpacing, mapFromTiles, mirrorTimings, mulberry32, pacedFaction, TARGET_RANGE, TILE,
   type GameMap, type Rng, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { createTactics, channelOf } from "../../src/bots/brain/tactics";
@@ -515,8 +515,8 @@ describe("the orb-walk", () => {
     weapons: [weapon, null], faction: "frost", attackTarget, readyAt, ...over,
   });
 
-  function shotTimes(weapon: WeaponId, startedAt: number, faction: SelfView["faction"] = "frost") {
-    const t = ownTimings(selfView({ faction }), weapon)!;
+  function shotTimes(weapon: WeaponId, startedAt: number, faction: SelfView["faction"] = "frost", asMult = 1) {
+    const t = ownTimings(selfView({ faction, asMult }), weapon)!;
     return { ...t, startedAt, readyAt: startedAt + t.intervalMs, leftAt: startedAt + t.windupMs + 20 };
   }
 
@@ -582,12 +582,13 @@ describe("the orb-walk", () => {
   });
 
   it("stands and shoots when too little of the cooldown is left to walk in, as the fast bows do", () => {
-    // A Sentenced bow leaves 524 ms into a 570 ms cooldown; a Fire bow 600 into 855 (255 ms: less than the step, the walk and the re-lock need).
+    // Near the interval floor, the 30%-interval draw leaves too little time to walk in, reacquire, and start another attack.
     for (const faction of ["sentenced", "fire"] as const) {
       const t = createTactics(fakeWorld());
       const rng = kiter();
-      const shot = shotTimes("bow", NOW + 100, faction);
-      const self = (readyAt: number): Partial<SelfView> => mine("bow", "foe", readyAt, { faction });
+      const asMult = 3.5;
+      const shot = shotTimes("bow", NOW + 100, faction, asMult);
+      const self = (readyAt: number): Partial<SelfView> => mine("bow", "foe", readyAt, { faction, asMult });
       think(t, hunt, { rng, foes: [chaser()], self: self(NOW - 500) });
       const out = think(t, hunt, { rng, now: shot.leftAt, foes: [chaser()], self: self(shot.readyAt) });
       expect(out.intents, faction).toEqual([]);
@@ -814,7 +815,7 @@ describe("dodging a visible ball", () => {
 
 describe("juking a draw", () => {
   const drawing = (over: Partial<FighterView> = {}) => foe(200, 0, { inHand: "bow", drawStartedAt: NOW - 200, facing: Math.PI, faction: null, ...over });
-  const release = NOW - 200 + 600;
+  const release = NOW - 200 + BOW_WINDUP * 1000; // factionless visible fighters use the capped baseline bow windup
 
   it("times a direction change to just after the arrow leaves", () => {
     const t = createTactics(fakeWorld());
@@ -1065,15 +1066,15 @@ describe("the numbers under the cycle", () => {
     expect(bow.windupMs).toBeGreaterThan(0);
   });
 
-  // The bots' timings are shared mirrorTimings, the function the server's timingsOf and the client's bow pull read: a ranged windup
-  // is the anti-kiting lever and never goes below its value at base speed, however fast the fighter is (G9).
-  it("a faster bot's ranged windup stays at its base-speed value, and the cooldown still shrinks", () => {
+  // The bots' timings are shared mirrorTimings, the function the server's timingsOf and the client's bow pull read.
+  it("a faster bot's ranged windup follows its interval share, and the cooldown still shrinks", () => {
     for (const faction of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
       for (const weapon of ["bow", "wand"] as const) {
         const base = ownTimings(selfView({ faction, asMult: 1 }), weapon)!;
         for (const asMult of [1.05, 1.25, 1.6]) {
           const fast = ownTimings(selfView({ faction, asMult }), weapon)!;
-          expect(fast.windupMs, `${faction} ${weapon} x${asMult}`).toBeCloseTo(base.windupMs, 9);
+          const expected = mirrorTimings(pacedFaction(FACTIONS[faction]), weapon, asMult, 1).windup * 1000;
+          expect(fast.windupMs, `${faction} ${weapon} x${asMult}`).toBeCloseTo(expected, 9);
           expect(fast.intervalMs, `${faction} ${weapon} x${asMult}`).toBeLessThan(base.intervalMs);
         }
       }

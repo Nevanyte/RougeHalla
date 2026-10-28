@@ -385,15 +385,15 @@ describe("mitigation", () => {
   it("cuts the physical share by armor, the magic share by shield, and true damage by neither, for every faction", () => {
     for (const victim of Object.keys(FACTIONS) as FactionId[]) {
       const defense = pacedFaction(FACTIONS[victim]);
-      expect(lost(victim, PHYSICAL), `${victim} physical`).toBeCloseTo(mitigateShares(100, PHYSICAL, defense), 9);
-      expect(lost(victim, MAGIC), `${victim} magic`).toBeCloseTo(mitigateShares(100, MAGIC, defense), 9);
+      expect(lost(victim, PHYSICAL), `${victim} physical`).toBeCloseTo(100 / (1 + defense.armor / 100), 9);
+      expect(lost(victim, MAGIC), `${victim} magic`).toBeCloseTo(100 / (1 + defense.shield / 100), 9);
       expect(lost(victim, TRUE), `${victim} true`).toBeCloseTo(100, 9);
     }
   });
 
   it("splits a mixed packet by its shares", () => {
     const shares: DamageShares = { phys: 0.5, magic: 0.25, true: 0.25 };
-    expect(lost("sentenced", shares)).toBeCloseTo(mitigateShares(100, shares, pacedFaction(FACTIONS.sentenced)), 9);
+    expect(lost("sentenced", shares)).toBeCloseTo(100 * (0.5 / (1 + FACTIONS.sentenced.armor / 100) + 0.25 / (1 + FACTIONS.sentenced.shield / 100) + 0.25), 9);
   });
 
   it("agrees with the faction damage law for a real faction's packet", () => {
@@ -409,7 +409,7 @@ describe("mitigation", () => {
       hit(w, "v", "y", 100, { shares: MAGIC });
       hit(w, "v", "x", 100, { shares: TRUE });
     });
-    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(mitigateShares(100, PHYSICAL, pacedFaction(FACTIONS.sentenced)) + mitigateShares(100, MAGIC, pacedFaction(FACTIONS.sentenced)) + 100, 9);
+    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(100 / (1 + FACTIONS.sentenced.armor / 100) + 100 / (1 + FACTIONS.sentenced.shield / 100) + 100, 9);
   });
 });
 
@@ -417,7 +417,7 @@ describe("scale", () => {
   it("multiplies the raw damage before the damage law", () => {
     const w = arena([fighter("v", "sentenced"), fighter("x")]);
     inStep(w, () => hit(w, "v", "x", 100, { scale: 0.5 }));
-    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(mitigateShares(50, PHYSICAL, pacedFaction(FACTIONS.sentenced)), 9); // raw scale applies before current defense
+    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(50 / (1 + FACTIONS.sentenced.armor / 100), 9); // raw scale applies before current defense
   });
 
   it("makes a scale-0 entry deal nothing: no hp, no hit fx, no credit, no lastHit", () => {
@@ -449,8 +449,8 @@ describe("the hit fx", () => {
       hit(w, "v", "x", 50, { shares: TRUE, weapon: "bow" });
     });
     expect(fxOf(events, "hit")).toEqual([
-      { kind: "hit", id: "v", by: "x", amount: expect.closeTo(mitigateShares(100, PHYSICAL, pacedFaction(FACTIONS.sentenced)), 9), weapon: "sword" },
-      { kind: "hit", id: "v", by: "y", amount: expect.closeTo(mitigateShares(100, MAGIC, pacedFaction(FACTIONS.sentenced)), 9), weapon: "wand" },
+      { kind: "hit", id: "v", by: "x", amount: expect.closeTo(100 / (1 + FACTIONS.sentenced.armor / 100), 9), weapon: "sword" },
+      { kind: "hit", id: "v", by: "y", amount: expect.closeTo(100 / (1 + FACTIONS.sentenced.shield / 100), 9), weapon: "wand" },
       { kind: "hit", id: "v", by: "x", amount: expect.closeTo(50, 9), weapon: "bow" },
     ]);
   });

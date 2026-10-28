@@ -58,55 +58,53 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
     expect(IDENTITY_MIRRORS).toEqual({ asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 });
   });
 
-  it("scaleWindup stretches the windup (never past the interval) and the axe's root with it", () => {
+  it("scaleWindup stretches the windup (never past the interval) without rooting the axe", () => {
     const axe = weaponTimings("axe", 1);
     expect(scaleWindup(axe, 1)).toBe(axe);
     const slow = scaleWindup(axe, 1.2);
     expect(slow.windup).toBeCloseTo(axe.windup * 1.2, 12);
-    expect(slow.root).toBeCloseTo(axe.root * 1.2, 12);
+    expect(slow.root).toBe(0);
     expect(slow.interval).toBe(axe.interval);
     const sword = weaponTimings("sword", 1);
     expect(scaleWindup(sword, 50).windup).toBe(1);
     expect(scaleWindup(sword, 0.5).windup).toBeCloseTo(sword.windup / 2, 12);
     expect(scaleWindup(sword, 0.5).root).toBe(0);
-    // A short axe windup keeps its root no shorter than the windup.
     const a = scaleWindup(weaponTimings("axe", 1), 3);
-    expect(a.root).toBeGreaterThanOrEqual(a.windup);
+    expect(a.root).toBe(0);
   });
 
   it("scaleWindup never shortens a ranged windup (owner ruling \"Melee windups only\"): the same timings back, whatever the mult below 1", () => {
-    const bow = weaponTimings("bow", 1.14); // cap-bound: 0.6 s
-    const wand = weaponTimings("wand", 1.01); // cap-bound: 0.4 s
-    const plague = weaponTimings("bow", 0.2772); // share-bound: 0.255 s
-    const fastWand = weaponTimings("wand", 0.45); // 0.36 s
+    const bow = weaponTimings("bow", 1.14); // cap-bound: 0.3 s
+    const wand = weaponTimings("wand", 1.01); // cap-bound: 0.3 s
+    const plague = weaponTimings("bow", 0.2772); // share-bound: 0.08316 s
+    const fastWand = weaponTimings("wand", 0.45); // 0.135 s
     for (const t of [bow, wand, plague, fastWand]) {
       for (const m of [0.999, 0.92, 0.88, 0.6, 0.5, 0.4, 0.05]) expect(scaleWindup(t, m), `${t.windup} x${m}`).toBe(t);
     }
     // A mult of 1 or more lengthens every weapon, never past the interval (no source lengthens windups today).
-    expect(scaleWindup(bow, 1.2).windup).toBeCloseTo(0.72, 12);
-    expect(scaleWindup(wand, 1.5).windup).toBeCloseTo(0.6, 12);
+    expect(scaleWindup(bow, 1.2).windup).toBeCloseTo(0.36, 12);
+    expect(scaleWindup(wand, 1.5).windup).toBeCloseTo(0.45, 12);
     expect(scaleWindup(plague, 1.05).windup).toBeCloseTo(plague.windup * 1.05, 12);
-    expect(scaleWindup(plague, 2).windup).toBe(plague.interval);
-    expect(scaleWindup(weaponTimings("bow", 0.55), 1.5).windup).toBe(0.55);
+    expect(scaleWindup(plague, 2).windup).toBeCloseTo(plague.windup * 2, 12);
+    expect(scaleWindup(weaponTimings("bow", 0.55), 1.5).windup).toBeCloseTo(0.2475, 12);
     expect(scaleWindup(bow, 1.2)).toMatchObject({ interval: bow.interval, root: 0, ranged: true });
   });
 
-  it("scaleWindup shortens the melee windups (the sword's, the bash's, the axe's and its root) by the mult, down to nothing", () => {
+  it("scaleWindup shortens the melee windups by the mult without adding axe recovery", () => {
     const sword = weaponTimings("sword", 1);
     expect(scaleWindup(sword, 0.88).windup).toBeCloseTo(0.088, 12);
     expect(scaleWindup(sword, 0.5).windup).toBeCloseTo(0.05, 12);
     expect(scaleWindup(sword, 0.4).windup).toBeCloseTo(0.04, 12);
     const bash = weaponTimings("shield", 1);
     expect(scaleWindup(bash, 0.5).windup).toBeCloseTo(0.05, 12);
-    const axe = weaponTimings("axe", 1.19); // 0.25 s windup, 0.5 s root
+    const axe = weaponTimings("axe", 1.19); // 0.25 s windup, no recovery root
     const quick = scaleWindup(axe, 0.88);
     expect(quick.windup).toBeCloseTo(0.22, 12);
-    expect(quick.root).toBeCloseTo(0.44, 12);
+    expect(quick.root).toBe(0);
     const half = scaleWindup(axe, 0.5);
     expect(half.windup).toBeCloseTo(0.125, 12);
-    expect(half.root).toBeCloseTo(0.25, 12);
+    expect(half.root).toBe(0);
     expect(half.interval).toBe(axe.interval);
-    // The root never ends before the windup does.
-    for (const m of [0.05, 0.4, 0.6, 0.8]) expect(scaleWindup(axe, m).root).toBeGreaterThanOrEqual(scaleWindup(axe, m).windup);
+    for (const m of [0.05, 0.4, 0.6, 0.8]) expect(scaleWindup(axe, m).root).toBe(0);
   });
 });

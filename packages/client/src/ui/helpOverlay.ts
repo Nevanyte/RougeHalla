@@ -34,7 +34,8 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     id: "run",
     title: "In a run and in practice",
     bindings: [
-      { keys: ["Right-click"], action: "Move (hold to keep steering)" },
+      { keys: ["Right-click"], action: "Move on ground; attack an enemy (hold ground to steer)" },
+      { keys: ["A", "Left-click"], join: "", action: "Attack-move: walk and acquire enemies in weapon range" },
       { keys: ["Left-click"], action: "Lock the nearest enemy and attack" },
       { keys: ["S"], action: "Stop" },
       { keys: ["1", "2"], action: "Select weapon slot" },
