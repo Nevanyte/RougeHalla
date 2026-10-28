@@ -1,12 +1,12 @@
 // The "typical power" kits of the balance pass (BALANCE_CONTRACT 1.3): what a player holds after about one camp a minute, one
 // card a camp. The benches (ttkCurve, matchups, farmVsFight) give both fighters of an even duel the same kit.
 //
-//   minute 0   fists                          no cards         P 0   f(P) 0.75
-//   minute 1   the faction's reference weapon O1               P 1   f(P) 1.10
-//   minute 2   same                           O1, vitality1    P 2   f(P) 1.39
-//   minute 3   same                           + haste1         P 3   f(P) 1.64
-//   minute 4   same                           + O2             P 5   f(P) 2.02
-//   minute 5   same                           + armor1         P 6   f(P) 2.17
+//   minute 0   fists                          no cards         P 0   f(P) 0.77
+//   minute 1   the faction's reference weapon O1               P 1   f(P) 1.11
+//   minute 2   same                           O1, vitality1    P 2   f(P) 1.40
+//   minute 3   same                           + haste1         P 3   f(P) 1.65
+//   minute 4   same                           + O2             P 5   f(P) 2.03
+//   minute 5   same                           + armor1         P 6   f(P) 2.18
 //
 // `O` is the offense base that fits the weapon: `ap` on a wand, `armor` on a shield, else `ad`. The minute-0 kit is complete
 // today. Minutes 1-5 are cards, granted through the chest's own `grantCard` when it exists (DuelSpec.cards); until the card

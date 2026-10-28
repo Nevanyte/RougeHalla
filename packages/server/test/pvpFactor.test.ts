@@ -2,7 +2,7 @@
 // its attacker), and so is the mark's pulse (a share of the target's max hp paid with each landed hit). It is read from the state as the pass began, so no
 // order decides it, and it never touches mobs, dummies, Wishes or the arena. The harness's duelScale seam multiplies next to it.
 import { describe, expect, it } from "vitest";
-import { cardPower, FACTIONS, markPct, markWeight, pacedFaction, pvpFactor } from "@raid/shared";
+import { cardPower, FACTIONS, markPct, markWeight, pacedFaction, pvpFactor, PVP_F0, PVP_FMAX, PVP_P0 } from "@raid/shared";
 import { applyLedger } from "../src/sim/ledger";
 import { noteContact } from "../src/sim/factions";
 import { addMob } from "../src/sim/mobs";
@@ -11,12 +11,12 @@ import { hit, inStep, MAGIC, pvpArena, P, RT, tick, TRUE } from "./support/pvpRi
 const F0 = pvpFactor(0);
 
 describe("the PvP factor on a player-to-player hit", () => {
-  it("multiplies a weapon hit by f(0) = 0.75 when neither holds a card", () => {
+  it("multiplies a weapon hit by f(0) when neither holds a card", () => {
     const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }]);
     hit(w, "v", "a", 100);
     applyLedger(w);
     expect(P(w, "v").hp).toBeCloseTo(FACTIONS.holy.hp - 100 * F0, 9);
-    expect(F0).toBe(0.75);
+    expect(F0).toBe(PVP_F0);
   });
 
   it("follows the attacker's card power: P = the sum of tier x count over its cards", () => {
@@ -27,7 +27,7 @@ describe("the PvP factor on a player-to-player hit", () => {
     hit(w, "v", "a", 100);
     applyLedger(w);
     expect(P(w, "v").hp).toBeCloseTo(FACTIONS.holy.hp - 100 * pvpFactor(5), 9);
-    expect(pvpFactor(5)).toBeCloseTo(2.02, 2);
+    expect(pvpFactor(5)).toBeCloseTo(PVP_F0 + (PVP_FMAX - PVP_F0) * (1 - Math.exp(-5 / PVP_P0)), 12);
   });
 
   it("reads the attacker's power, not the victim's", () => {

@@ -54,9 +54,9 @@ export function campHealAmount(hp: number, maxHp: number): number {
 // ---- The PvP factor (balance pass, BALANCE_CONTRACT 3.4 / 4.6 G4). Card power itself is cards.ts cardPower (the catalog's tiers). ----
 
 /**
- * The PvP factor: the multiplier on every player-to-player damage entry of an attacker with card power `power`, and on the
- * clock of the mark it runs against a player: PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). 0.75 for a fresh
- * fighter, 1.39 at P 2, 2.17 at P 6, towards 3.0.
+ * The PvP factor: the multiplier on every player-to-player damage entry of an attacker with card power `power`, including its
+ * mark pulses: PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). 0.77 for a fresh
+ * fighter, 1.40 at P 2, 2.18 at P 6, towards 3.0.
  */
 export function pvpFactor(power: number): number {
   const p = power > 0 ? power : 0; // NaN and negatives are no power; Infinity saturates

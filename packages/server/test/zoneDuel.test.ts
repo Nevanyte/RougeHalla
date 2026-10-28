@@ -20,20 +20,20 @@ import { fingerprints } from "./support/duelFingerprint";
 
 // Pinned outputs from the current runDuel simulation, not legacy combat metrics. The control port intentionally changed ranged
 // timing to the current 0.3-interval share and removed the axe's post-launch root; the Sentenced redesign intentionally changes faction damage and defenses too. Refresh affected trajectories after these rule changes.
-// These fingerprints still guard determinism across open/pillar arenas, locks, signatures, perceptions, offsets, and cards.
+// The base PvP factor change intentionally shifts duel damage; refreshed fingerprints guard determinism across open/pillar arenas, locks, signatures, perceptions, offsets, and cards.
 
 const PINNED: ReadonlyArray<readonly [string, string]> = [
-  ["holy wand>bow open", "432a8291b792e35e"],
-  ["fire bow>wand open", "633525f0d3fdfa01"],
-  ["fire sword>axe open", "87eaacf215f78424"],
-  ["frost shield mirror capped", "b20c9b0f9fe1989c"],
-  ["fire sword mirror pillars", "45ace09b5d79c6fc"],
-  ["plague bow mirror pillars", "eed627984c84bf82"],
-  ["fire/sentenced locks signatures", "97cfde16e887bfa9"],
-  ["fire bow mirror start offset", "2be1876e363079da"],
-  ["holy bow>sword stale", "fca780935134c6f1"],
-  ["holy bow>sword present", "97011841cb7c8557"],
-  ["fire wand>shield carded", "da7b311b8b54de2d"],
+  ["holy wand>bow open", "81402c2442d56537"],
+  ["fire bow>wand open", "c60d351661ac8484"],
+  ["fire sword>axe open", "bd544da76a803826"],
+  ["frost shield mirror capped", "5506a244f2cdaa82"],
+  ["fire sword mirror pillars", "eeace8e9d80f6a0f"],
+  ["plague bow mirror pillars", "bdde8fdf8f3f57b6"],
+  ["fire/sentenced locks signatures", "f1fecbbd4ed753b9"],
+  ["fire bow mirror start offset", "31bf7ac54e0240d0"],
+  ["holy bow>sword stale", "39c335fbb7feb032"],
+  ["holy bow>sword present", "66f07b9b8a9724f1"],
+  ["fire wand>shield carded", "6c1259189ca66709"],
 ];
 
 describe("the default duel path", () => {

@@ -1,59 +1,63 @@
 # Sentenced redesign balance evidence
 
-Saved 2026-10-28 for the final sheet, integrated with latest main `ebd3514` (combat controls/readability). This record separates strict tuning targets from established acceptance tolerances. Primary Sentenced edges use matched fists at kit 0, lock style, both seats, sigma 0.45. The design targets are favourite share 60–76% and winner HP 10–35%; the published A6 lower-bound tolerance is 56% for favourite share.
+Final follow-up to release `6f06d9d`, measured 2026-10-28 on latest main with its combat controls/readability upgrade preserved. The primary contract is matched-fists Sentenced duels at kit 0, lock style, 18 setups, both seats and four noise draws (sigma 0.45): favourite share 60–76%, winner health 10–35%. Every faction must retain two intended wins and two losses. Primary percentages below use the exact unrounded fractions.
 
-## Frozen sheet
+## Final numbers
 
-`packages/shared/src/factions.ts` and `testing/classes.py` match field for field. Frost's universal hit value is 170 (previously 175); this was the selected broad numeric change used to recover the faction cycle and robustness after Sentenced-only candidates failed identity or edge constraints.
+| Setting | Initial release | Balanced follow-up |
+|---|---:|---:|
+| Sentenced HP | 880 | 880 |
+| Sentenced rate | 0.806449 | 0.95 |
+| Sentenced hit | 41.041892 | 34.840203 |
+| Sentenced physical / magic | 35% / 65% | 40% / 60% |
+| Sentenced armor / shield | 135 / 120 | 135 / 120 |
+| Base mark share | 0.028 | 0.027 |
+| Mark share per Sentence stack | 0.007 | 0.00675 |
+| Tier-four pulse amplifier | 1.50 | 1.17 |
+| Excess-speed keep / cap | 0.38 / 1.6 | 0.38 / 1.6 |
+| Output multiplier at tier three | 0.8 | 0.8 |
+| Hits per tier | 3 | 3 |
+| Holy lifesteal base / missing-health factor | 0.10 / 0.80 | 0.11 / 0.85 |
+| Holy lifesteal cap | 0.75 | 0.75 |
+| Fresh PvP factor | 0.75 | 0.77 |
 
-| Faction | HP | Rate | Hit | Physical | Armor | Shield | mark_pct | mark_kill | amp | tier_hits | tax_keep | tax_cap | suppress |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Sentenced | 880 | 0.806449 | 41.041892 | 0.35 | 135 | 120 | 0.028 | 0.007 | 1.5 | 3 | 0.38 | 1.6 | 0.8 |
+Frost hit stays 170, the initial redesign's reduction from 175. Other faction stats are unchanged. The PvP ceiling stays 3.0 and its power scale stays 6; the fresh-factor adjustment adds 2.67% damage across all factions in starter PvP fights and does not affect player-to-mob or NPC damage.
 
-## Python oracle, identity, and reference parity
+The pulse power moves toward earlier hits and away from the late amplifier. This closes the primary margins while retaining all mark effects and their identity thresholds. The weaponless engine advances tiers at base faction cadence; actual weapons land hits faster, so it is a direction/robustness oracle, not a substitute for weapon-aware and real-sim measurements. No pair-specific bonuses or faction-name checks were added. Camp marking still uses one pulse batch per tick and a fixed `1 / sqrt(N)` per-member share captured at mark start.
 
-- `python3 testing/test_rpsls.py`: PASS. The 10-edge graph holds at dt 0.01/0.005/0.002/0.001; every faction has two wins; global scaling, relabeling, purity, and mechanic-isolation checks pass. Jitter passes 30/30 at ±3% and 29/30 at ±5% (threshold 28/30); ±10% is informational at 13/30. Sentenced identity shifts are 90.3 points for removing the mark, 42.5 for preventing tier growth, 25.0 for removing suppression (two flips), and 19.7 for removing the attack-speed tax (Sentenced>Plague flips). Snapshot values and flips are recorded in the test.
-- `python3 testing/weapon_reference.py` generated the current 30 faction/weapon rows and Fire backlash values copied into `packages/shared/test/weapons.test.ts` and `packages/server/src/harness/parity.ts`.
-- `npm run harness:factions -- --python`: PASS in trades mode. Exact winner and HP-fraction parity on 70/70 cells and 8,411 duels; maximum HP-fraction difference 0.00.
-- `python3 testing/test_kite.py`: FAIL, 8 cells after the integrated player windup update; no thresholds or exceptions were changed. Failures are Fire>Plague bow/wand, Sentenced>Frost bow/wand, Plague>Frost bow/wand, and Holy>Fire bow/wand. The two Frost-shooter pairs have infinite free-fire time in this continuous orb-walk model because the slowed chaser cannot close during the shorter ranged windup. The historical Holy>Fire wand exception also fails at the new timing. Main’s combat upgrade already documented ten failures in this legacy model before the Sentenced merge; this integrated sheet has eight. The shorter controls are preserved.
-- `packages/server/test/fixtures/realtime-paced.json` was regenerated with `python3 testing/realtime_paced.py --k 2 --nmax 5 --sub 1 --pairs` and validated as JSON (122,490 bytes).
-- The full integrated workspace suites pass: client 2,139 tests / 107 files; server 5,506 / 125; shared 1,726 / 62. Workspace typechecking and the production build pass. Browser smoke testing verified camp mark/status cues and the Sentence HUD with no browser errors. These workspace passes do not override the separately documented legacy kiting failures.
-
-## Real-sim primary edges
-
-Command: `npx tsx packages/server/bench/sentencedEdges.ts --setups 18 --draws 4 --weapons fists` (kit 0; lock; sigma 0.45; both seats).
+## Primary real-sim results
 
 | Edge | Favourite share | Winner HP left | Result |
 |---|---:|---:|---|
-| Fire > Sentenced | 67% | 22% (min 22%) | Within target |
-| Sentenced > Plague | 66% | 38% (min 38%) | Winner HP exceeds 35% ceiling by 3 points |
-| Sentenced > Frost | 67% | 24% (min 21%) | Within target |
-| Holy > Sentenced | 57% | 12% (min 10%) | Share is 3 points under ideal 60%; within published 56–76% tolerance |
+| Fire > Sentenced | 75.00% | 31.10% | PASS |
+| Sentenced > Plague | 63.19% | 32.28% | PASS |
+| Sentenced > Frost | 64.58% | 17.41% (minimum 14.96%) | PASS |
+| Holy > Sentenced | 61.81% | 17.22% | PASS |
 
-All four intended winners remain, and the two misses are recorded rather than presented as strict passes. The owner authorized changes to all factions as long as the two-wins/two-losses cycle remained. Trials with Plague disease 44–46, Holy hit 98–100, Frost armor 22 and Sentenced kill-stack pulse 0.008–0.011 improved some real-sim margins, but failed the unchanged jitter gate. They were rejected. No faction names or pair-specific bonuses were added to combat math. Increasing Sentenced shield from 110 to 120 fixed the single ±3% Python jitter failure (30/30), while moving Plague winner HP from 34% to 38%; a trial lowering Sentenced physical share to 0.30 worsened Plague HP to 41%, so it was reverted.
+All four exact shares are inside 60–76%, all four median health fractions inside 10–35%, and every underdog retains at least 24% share. The initial release's Sentenced>Plague 38% HP and Holy>Sentenced 57% share misses are resolved. Rounding a candidate's 35.46% health to 35% was not accepted as a pass.
 
-## Pace
+Reproduction: `npx tsx packages/server/bench/sentencedEdges.ts --setups 18 --draws 4 --weapons fists`. Its normal report rounds percentages; the exact table above is calculated with the same `playDuel`, `fullSetups` and `edgeStats` helpers before formatting.
 
-The integrated TTK run (`/tmp/rougehalla-sentenced-integrated-ttk.log`) measured minute-0 median/mean 24.9/23.0 s and minute-5 6.1/6.6 s. The curve is monotone and the minute-0/minute-5 ratio is 4.12x. A1 minute-0 median is WARN (target 17–23 s, tolerance 15–26); minute-0 mean and minute-5 median/mean pass. The shortest minute-0 pair is also WARN at 0.36x median. The slowest mirror at minute 5 is Frost at 2.62x, WARN against the 2.30x target (within the 3.00x tolerance). Baseline minute-0 median/mean was 19.8/20.6 s; the initial redesign WIP regressed to 32.2/26.4 s.
+## Counter graph, references and identities
 
-## Additional validation and remaining evidence
+- `python3 testing/test_rpsls.py`: PASS at all four timesteps, global scales and relabelings; each faction has exactly two wins. Robustness is 30/30 at ±3% and 28/30 at ±5%, meeting the unchanged floors.
+- All existing mechanic-isolation requirements remain: main effects need a flip and at least a 20-point shift; sub-effects need a flip or at least 15 points. Measured Sentenced shifts are 88.9 for removing the mark, 38.9 for preventing tier growth, 26.1 for removing suppression (two flips), and 20.3 for removing the tax (Plague flips). Numerical snapshot values were regenerated; thresholds were not relaxed.
+- TypeScript and Python faction fields/parameters match. Weapon, matchup and identity tables were regenerated from the Python references. `realtime-paced.json` was regenerated at game pace.
+- `npm run harness:factions -- --python`: PASS, exact winners and health fractions in 70/70 cells and 8,270 duels, maximum HP difference 0.00.
+- All ten faction directions hold across all six weapons in the clean lock check (A8 passes on all 60 cells; minimum favourite win share is 92% for sword, 100% in the other columns). This does not imply equal health margins for different weapons. Some secondary weapon-specific A6 health bands still fail: sword has a near-zero-health edge, axe/wand reach about 39%, and shield about 36%. Those are retained as separate playtesting concerns, not counted as primary matched-fists passes.
 
-The integrated all-weapons lock check (`/tmp/rougehalla-sentenced-final-all-directions-integrated.log`) reports all ten favourite directions at 100% for fists, sword, axe, bow, wand, and shield (A8 pass on all six). A6 HP residuals remain: across fists, the maximum winner HP is 38% (Sentenced>Plague; outside the 35% tolerance ceiling), and the minimum is 12% (within tolerance but below the ideal 15% target). Other weapons have their own high residuals: the maximum is 41% on wand. Camp validation (`/tmp/rougehalla-sentenced-final-camps-integrated.log`) passed the normal-type gate (all 20 normal types cleared all three runs per faction on fists) and the elite gate (at least one faction cleared each elite on its zone weapon); this does not mean every faction cleared every elite. D9 tournament share remains unmeasured because the available tournament report mixes farming and free-for-all outcomes.
+## Pace and farming
 
-Commands run on the frozen sheet:
+`ttkCurve --minutes 0,1,2,3,4,5 --setups 18` runs 450 duels per minute with no caps. Median TTK is 25.7, 12.8, 10.5, 8.4, 6.1 and 6.1 seconds; minute-0 mean is 22.7 s, minute-5 mean 6.6 s. The curve is monotone and its end-to-end ratio is 4.20x. Minute-0 median remains WARN against the ideal 17–23 s but is inside the unchanged 15–26 s tolerance. The shortest minute-0 pair is WARN at 0.34x median, and the slowest minute-5 mirror (Frost) is WARN at 2.59x (inside the 3x tolerance). No TTK acceptance line is FAIL.
 
-    python3 testing/test_rpsls.py
-    python3 testing/weapon_reference.py
-    python3 testing/realtime_paced.py --k 2 --nmax 5 --sub 1 --pairs > packages/server/test/fixtures/realtime-paced.json
-    npm run harness:factions -- --python
-    python3 testing/test_kite.py
-    npx tsx packages/server/bench/sentencedEdges.ts --setups 18 --draws 4 --weapons fists
+Before the baseline PvP adjustment the new faction sheet's median was 26.4 s, outside tolerance; it was corrected rather than waived. Historical comparison: main before redesign measured 19.8/20.6 s median/mean, and the saved WIP regressed to 32.2/26.4 s.
 
-## Rejected real-sim candidates
+The final faction sheet passes `campDuel --types --seeds 3 --weapon fists --pulls camp --cap 90`: all 20 normal types clear every run for each faction, and each elite type has at least one faction that clears it on its zone weapon. This does not mean every starter clears every elite. The subsequent PvP-only factor change does not affect these fights.
 
-| Candidate | Fire > Sentenced | Sentenced > Plague | Sentenced > Frost | Holy > Sentenced | Outcome |
-|---|---:|---:|---:|---:|---|
-| A: HP880, rate0.806449, hit41.041892, phys0.517476, armor130, shield150, mark_pct0.028434 | 64% / 16% HP | 68% / 40% HP | 68% / 24% HP | 53% / 6% HP | Plague HP too high; Holy share/HP too low |
-| B: HP905.673, rate0.80655, hit37.148079, phys0.516167, armor132.473, shield150, mark_pct0.029015 | 64% / 16% HP | 69% / 41% HP | 69% / 27% HP | 53% / 6% HP | Same misses |
+## Regression validation and remaining evidence
 
-Both were rejected on the real-sim bench. The Python model is useful for direction and regression checks; the real sim remains the primary edge measurement.
+Regression coverage: client 2,139/2,139 tests across 107 files and shared 1,726/1,726 across 62 files pass in the final workspace run. Server covered 5,506 tests across 125 files: 5,500 passed, and six stale Holy-lifesteal expectations were corrected; both affected files were rerun completely and passed 94/94. No production code changed during that repair. Workspace typechecking and the production build pass. A shared pathfinding performance check failed during an earlier parallel run, passed in isolation, and the final full shared run passes; no threshold was changed.
+
+`python3 testing/test_kite.py` still has eight failures under latest main's shorter ranged windups: Fire>Plague bow/wand, Sentenced>Frost bow/wand, Plague>Frost bow/wand and Holy>Fire bow/wand. Main's combat upgrade already documented ten failures in this legacy model before the redesign. Its assertions and historical exception remain unchanged. The two Frost-shooter groups have infinite free-fire time in that continuous orb-walk model. These controls tradeoffs and the secondary weapon health margins still need human playtesting.
+
+D9 tournament share is unmeasured because the available tournament report mixes farming and free-for-all outcomes rather than isolated faction duel shares. The unrelated deferred bot and quest tasks remain in `Unfinished code/README.md`.

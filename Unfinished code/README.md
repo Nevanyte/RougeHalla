@@ -2,11 +2,13 @@
 
 ## Current work (2026-10-28)
 
-The redesign is complete in code, including camp-wide marks with reduced per-member pulse damage, tier/status nameplates, Sentence stacks and the Trial ring. The branch integrates the latest `main` combat upgrade (`ebd3514`), rather than the unrelated Kimi checkout. Validation passes: 2,139 client tests, 5,506 server tests and 1,726 shared tests; workspace typechecking; production build; all ten faction directions across six weapons; normal and elite camp gates; exact TypeScript/Python parity on 8,411 duels.
+The redesign is implemented and was released in `6f06d9d`. The balance follow-up on `codex/sentenced-balance` starts from that latest main, including the combat controls/readability upgrade; the unrelated Kimi checkout is not used.
 
-The owner authorized merge to main and live deployment. The final merge/deployment verification is recorded in the task chat. There is no unfinished Sentenced implementation left here. Balance remains provisional: two ideal primary-edge margins miss by three percentage points, several weapon HP margins need human playtesting, and the legacy kiting oracle has eight failures under the latest main’s shorter ranged windups. Full evidence: `testing/TUNING_SENTENCED.md`.
+Camp-wide marks retain reduced per-member pulse damage, tier/status nameplates, Sentence stacks and the Trial ring. The follow-up resolves both initial primary matchup misses: all four exact favourite shares are now 61.81–75.00%, with 17.22–32.28% median winner health. Every faction keeps its two intended wins and two losses across the six-weapon counter checks. Starter duel median is 25.7 s (within the existing 26 s tolerance), falling to 6.1 s at minute five.
 
-The original workflow and tuning scripts below are archived history. The unrelated deferred tasks in section 2 remain deferred.
+Regression coverage totals 9,371 tests. Client/shared full suites pass; server’s six stale lifesteal expectations were corrected and their complete two-file rerun passes 94/94, with the other 5,500 server tests passing the full run. Typecheck, build, camp gates, unchanged identity/robustness gates, and exact 70-cell Python/TypeScript parity pass. The owner authorized merge and live deployment; final commit and deployment verification are in the task chat.
+
+There is no unfinished Sentenced implementation here. Secondary weapon-health margins and the latest controls’ eight legacy kiting-model failures remain playtesting concerns, documented in `testing/TUNING_SENTENCED.md`. The unrelated tasks in section 2 remain deferred. The old Sonnet workflow and tuning scripts below are archived history.
 
 ## Original handoff (saved 2026-10-28)
 

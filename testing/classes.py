@@ -18,9 +18,9 @@ FIRE = PowerSpec(
     sig_types=dict(burn=(0.0, 0.0), backlash=(1.0, 0.0)),
 )
 SENTENCED = PowerSpec(
-    name="Sentenced", hp=880, rate=0.806449, hit=41.041892,
-    phys=0.35, true=0.0, armor=135, shield=120,
-    mechanic="marked", params=dict(mark_pct=0.028, mark_kill=0.007, mark_amp=1.5, tier_hits=3.0, tax_keep=0.38, tax_cap=1.6, suppress=0.8),
+    name="Sentenced", hp=880, rate=0.95, hit=34.840203,
+    phys=0.40, true=0.0, armor=135, shield=120,
+    mechanic="marked", params=dict(mark_pct=0.027, mark_kill=0.00675, mark_amp=1.17, tier_hits=3.0, tax_keep=0.38, tax_cap=1.6, suppress=0.8),
     sig_types=dict(mark=(0.0, 1.0)),
 )
 PLAGUE = PowerSpec(
@@ -37,7 +37,7 @@ FROST = PowerSpec(
 HOLY = PowerSpec(
     name="Holy", hp=1400, rate=0.95, hit=96,
     phys=1.0, true=0.0, armor=0, shield=250,
-    sustain="radiant", params=dict(ls0=0.10, ls1=0.80, ls_cap=0.75),
+    sustain="radiant", params=dict(ls0=0.11, ls1=0.85, ls_cap=0.75),
 )
 
 POWERS = [FIRE, SENTENCED, PLAGUE, FROST, HOLY]

@@ -904,9 +904,10 @@ describe("lifesteal on mobs", () => {
     expect(landed[0]!.amount).toBeCloseTo(5, 9);
     expect(rig.mob.s.status).toBe("dead");
     expect(fxOf(log.events, "death").map((d) => [d.id, d.by])).toEqual([[id, "p"]]);
-    // ...so the heal is that, at half hp (lifestealFraction 0.1 + 0.8 x 0.5 = 0.5), and a small part of what the whole swing would feed.
+    // ...so the heal is that, at half hp (using Holy's current lifesteal rows and cap), and a small part of what the whole swing would feed.
+    const holy = PLAYER_SPEC.holy.params;
     const fraction = lifestealFraction(PLAYER_SPEC.holy, 0.5);
-    expect(fraction).toBeCloseTo(0.5, 12);
+    expect(fraction).toBeCloseTo(Math.min(holy.ls_cap!, holy.ls0! + holy.ls1! * 0.5), 12);
     expect(healed(log, "p")).toBeCloseTo(5 * fraction, 9);
     expect(healed(log, "p")).toBeLessThan(0.2 * SWING * fraction);
   });

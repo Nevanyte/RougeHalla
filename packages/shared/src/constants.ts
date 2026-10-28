@@ -124,10 +124,10 @@ export const BOUNTY_EXPONENT = 1.5;
 
 // Power and the PvP factor (balance pass, BALANCE_CONTRACT 3.4 / 4.6). Every player-to-player ledger entry (a weapon hit, a
 // signature's damage; not a Wish, not the arena, never a mob) is multiplied by pvpFactor(P), P the attacker's card power
-// (cards.ts cardPower): f(P) = PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). Equal-power fights keep their outcome
-// (the mark's clock runs at the same factor, so it is a PvP-only DUEL_PACE); a fed player kills a fresh one many times sooner.
-// f(0) 0.75, f(1) 1.10, f(2) 1.39, f(3) 1.64, f(5) 2.02, f(6) 2.17, f(10) 2.58, f(15) 2.82.
-export const PVP_F0 = 0.75;
+// (cards.ts cardPower): f(P) = PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). Mark pulses use the same factor;
+// the real-sim benches check equal-power outcomes and pace. A fed player kills a fresh one many times sooner.
+// f(0) 0.77, f(1) 1.11, f(2) 1.40, f(3) 1.65, f(5) 2.03, f(6) 2.18, f(10) 2.58, f(15) 2.82.
+export const PVP_F0 = 0.77;
 export const PVP_FMAX = 3.0;
 export const PVP_P0 = 6;
 /** G2: no single player-to-player hit (not a damage-over-time tick) takes more than this share of the victim's max hp. */
