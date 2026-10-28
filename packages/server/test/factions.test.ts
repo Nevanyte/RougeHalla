@@ -2077,7 +2077,7 @@ describe("a stagger pauses damage over time", () => {
     sword: (i) => Math.min(0.1, i),
     shield: (i) => Math.min(0.1, i),
     axe: (i) => Math.min(0.25, 0.25 * i),
-    wand: (i) => Math.min(0.4, 0.8 * i),
+    wand: (i) => Math.min(0.3, 0.3 * i),
     bow: () => 0,
     fists: (i) => Math.min(0.1, i),
   };

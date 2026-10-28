@@ -48,7 +48,7 @@ describe("weapon bar cooldown length", () => {
 
 describe("the weapon bar's scaling line and tooltip", () => {
   const me = (w0: string, w1: string, slot = 0): PlayerState =>
-    ({ status: "alive", weapon0: w0, weapon1: w1, slot, readyAt: 0 }) as unknown as PlayerState;
+    ({ status: "alive", faction: "holy", weapon0: w0, weapon1: w1, slot, readyAt: 0 }) as unknown as PlayerState;
 
   function setup() {
     const dom = installFakeDom();
@@ -84,17 +84,18 @@ describe("the weapon bar's scaling line and tooltip", () => {
     const move = (x: number, y: number): void => { dom.win.dispatchEvent(fakeEvent("pointermove", { clientX: x, clientY: y, target: canvas })); };
     move(420, 600);
     expect(tip.hidden).toBe(false);
-    expect(tip.textContent).toBe(weaponTipText("wand"));
+    expect(tip.textContent).toContain(weaponTipText("wand"));
     expect(tip.textContent.split("\n")[1]).toBe("Scales with AP 1.0 + AD 0.3");
+    expect(tip.textContent).toContain("Current hit type: 100% physical");
     move(560, 600);
-    expect(tip.textContent).toBe(weaponTipText("shield"));
+    expect(tip.textContent).toContain(weaponTipText("shield"));
     move(520, 600); // between the slots
     expect(tip.hidden).toBe(true);
     move(420, 600);
     bar.update(me("bow", "shield"), 0, 0, null); // the weapon changed: the old tooltip goes
     expect(tip.hidden).toBe(true);
     move(420, 600);
-    expect(tip.textContent).toBe(weaponTipText("bow"));
+    expect(tip.textContent).toContain(weaponTipText("bow"));
   });
 
   it("gives an empty slot the tooltip of Fists", () => {

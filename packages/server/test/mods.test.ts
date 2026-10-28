@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  ALL_WEAPON_IDS, AS_MULT_CAP, attackInterval, BOW_WINDUP, damagePerHit, damageShares, decodeFlat, decodeMirrors,
+  ALL_WEAPON_IDS, AS_MULT_CAP, attackInterval, BOW_WINDUP, WAND_WINDUP, damagePerHit, damageShares, decodeFlat, decodeMirrors,
   decodeMult, encodeFlat, encodeMult, IDENTITY_MIRRORS, mapFromTiles, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS,
   PLAYER_SPEED, SIG_CHILLED, slotReadyAt, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, WIRE_IDENTITY_MIRRORS, WISH_COOLDOWN_SECONDS,
   type Effect, type FactionId, type GameMap, type WeaponId,
@@ -364,6 +364,22 @@ describe("mod sources (world.modSources)", () => {
     expect(attackSpeedMult(m)).toBe(1);
     expect(timingsOf(m, "axe")).toEqual(before);
   });
+
+  it("uses League-like ranged windups for players and the live PvE profile for mobs", () => {
+    const w = startRun(2);
+    const player = P(w, 0);
+    player.faction = "frost";
+    player.weapon0 = "bow";
+    const id = addMob(w, {
+      kind: "mob", name: "sentry", faction: "frost", type: "frostbowSentry",
+      at: { x: tileCentre(20), y: tileCentre(5) }, weapon: "bow",
+    });
+    const mob = w.state.mobs.get(id)!;
+    const mobBow = timingsOf(mob, "bow")!;
+    expect(timingsOf(player, "bow")!.windup).toBe(0.3);
+    expect(mobBow.windup).toBeCloseTo(Math.min(0.6, 0.92 * mobBow.interval), 12);
+    expect(mobBow.interval).toBe(attackInterval(factionOf(mob)!, "bow", attackSpeedMult(mob)));
+  });
 });
 
 describe("world.rewardRandom", () => {
@@ -690,7 +706,7 @@ describe("the attack-speed mirror, the caps and the ranged windups in the sim (G
     expect(p.asMult).toBe(1000);
   });
 
-  it("a ranged windup never shortens below its base-speed value under attack speed, and a longer interval never lengthens it past its cap", () => {
+  it("a ranged windup follows its interval share under attack speed, bounded by its weapon cap", () => {
     const w = startRun(5);
     const plague = P(w, 2);
     const f = paced("plague");
@@ -698,17 +714,16 @@ describe("the attack-speed mirror, the caps and the ranged windups in the sim (G
     expect(weaponTimings("bow", attackInterval(f, "bow", 1.5)).windup).toBeLessThan(base); // the old formula cut it
     rowsFor(w, 2, [stat("attackSpeed", 0.5)]);
     expect(plague.asMult).toBe(1500);
-    expect(timingsOf(plague, "bow")!.windup).toBe(base);
+    expect(timingsOf(plague, "bow")!.windup).toBe(weaponTimings("bow", attackInterval(f, "bow", 1.5)).windup);
     expect(timingsOf(plague, "bow")!.interval).toBe(attackInterval(f, "bow", 1.5));
     rowsFor(w, 2, [stat("attackSpeed", 0.8), mult("asPost", 2)]);
-    expect(timingsOf(plague, "bow")!.windup).toBe(base);
+    expect(timingsOf(plague, "bow")!.windup).toBe(weaponTimings("bow", timingsOf(plague, "bow")!.interval).windup);
     for (let i = 0; i < 5; i++) {
       rowsFor(w, i, [mult("asPost", 0.5)]); // Boom: the interval doubles...
       for (const weapon of ["bow", "wand"] as const) {
         const t = timingsOf(P(w, i), weapon)!;
-        const unbuffed = weaponTimings(weapon, attackInterval(paced(P(w, i).faction as FactionId), weapon, 1));
-        expect(t.windup, `p${i} ${weapon}`).toBeGreaterThanOrEqual(unbuffed.windup); // ...the windup grows with it...
-        expect(t.windup, `p${i} ${weapon}`).toBeLessThanOrEqual(weapon === "bow" ? BOW_WINDUP : 0.4); // ...up to its cap, no further
+        expect(t.windup, `p${i} ${weapon}`).toBe(weaponTimings(weapon, t.interval).windup); // ...the windup grows with it...
+        expect(t.windup, `p${i} ${weapon}`).toBeLessThanOrEqual(weapon === "bow" ? BOW_WINDUP : WAND_WINDUP); // ...up to its cap, no further
       }
     }
   });

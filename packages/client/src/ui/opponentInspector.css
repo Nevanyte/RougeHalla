@@ -1,0 +1,10 @@
+.opponent-inspector { position:absolute; top:88px; right:18px; width:min(315px,38vw); padding:14px 16px; background:rgba(13,20,30,.94); border:1px solid #607d8b; border-radius:9px; color:#eceff1; font:12px/1.5 system-ui,sans-serif; pointer-events:none; box-shadow:0 6px 24px #0007; z-index:15; }
+.opponent-inspector[hidden] { display:none; }
+.opponent-inspector strong { display:block; font-size:16px; }
+.opponent-investments { color:#ffe082; margin:6px 0; }
+.opponent-damage { display:flex; gap:6px; flex-wrap:wrap; margin:7px 0; }
+.opponent-damage span { border:1px solid currentColor; border-radius:4px; padding:2px 5px; font-weight:600; }
+.opponent-damage .physical { color:#ffb074; } .opponent-damage .magic { color:#bcacff; } .opponent-damage .true { color:#f5f5f5; }
+.opponent-wish { white-space:pre-line; border-top:1px solid #455a64; margin-top:8px; padding-top:8px; }
+.opponent-inspector small { display:block; margin-top:8px; color:#b0bec5; font-size:10px; }
+@media (max-width:650px) { .opponent-inspector { top:80px; right:8px; width:230px; font-size:11px; } }

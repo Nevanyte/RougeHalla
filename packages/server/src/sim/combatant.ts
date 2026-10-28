@@ -108,10 +108,11 @@ export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void 
   else s.weapon1 = item;
 }
 
-/** Rhythm of `w` in this fighter's hands (the asMult and windupMult mirrors applied; a ranged windup never under its base-speed value, G9), or null without a faction. */
+/** Rhythm of `w` in this fighter's hands (mirrors applied); regional PvE mobs retain their live ranged-windup profile. */
 export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
   const f = factionOf(s);
-  return f ? mirrorTimings(f, w, attackSpeedMult(s), windupMultOf(s)) : null;
+  const profile = "kind" in s && isRegionalKind(s.kind) ? "npc" : "player";
+  return f ? mirrorTimings(f, w, attackSpeedMult(s), windupMultOf(s), profile) : null;
 }
 
 /**

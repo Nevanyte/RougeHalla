@@ -417,6 +417,21 @@ describe("enqueueClientMessage", () => {
     });
   });
 
+  describe("attackMove", () => {
+    it("queues a validated, clamped attack-move point and carries its sequence", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "attackMove", { x: -10, y: WORLD_H + 10, seq: 42 })).toBe(true);
+      expect(q.move).toEqual({ kind: "attackMove", x: 0, y: WORLD_H, seq: 42 });
+    });
+
+    it("rejects malformed points without touching the queued movement", () => {
+      const q = fresh();
+      q.pushMove({ kind: "move", x: 1, y: 2 });
+      expect(enqueueClientMessage(q, "attackMove", { x: Number.NaN, y: 0 })).toBe(false);
+      expect(q.move).toEqual({ kind: "move", x: 1, y: 2 });
+    });
+  });
+
   describe("stop", () => {
     it("queues a stop regardless of payload", () => {
       for (const payload of [{}, null, undefined, 5, "junk"]) {
@@ -903,6 +918,7 @@ describe("enqueueClientMessage", () => {
     // Typed over every client message: adding a message type breaks this until it has a valid example.
     const VALID: Record<ClientMessageType, unknown> = {
       move: { x: 10, y: 20 },
+      attackMove: { x: 10, y: 20, seq: 1 },
       stop: {},
       target: { id: "mob1" },
       aim: { a: 0.5 },

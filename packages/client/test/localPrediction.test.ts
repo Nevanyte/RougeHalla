@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
   EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, MOVE_MULT_FLOOR,
-  PLAYER_SPEED, scaleWindup, SIG_CHILLED, cardRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
+  PLAYER_SPEED, SIG_CHILLED, cardRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
   WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
@@ -125,108 +125,19 @@ describe("no kill bursts: a kill does not move the walk", () => {
 });
 
 describe("the axe's root", () => {
-  const me = fighter({ faction: "fire" });
-  const windupMs = weaponTimings("axe", attackInterval(FACTIONS.fire, "axe")).windup * 1000;
-  const input = (p: LocalPrediction, t: number) => p.frameInput(t - p.motion.delay, true, me, [], false);
-
-  it("holds the fighter from the swing's landing for as long again as the windup, in the model's time", () => {
-    const p = new LocalPrediction();
-    p.noteFx(windup(10_000, windupMs), ME, me); // starts this tick: lands windupMs later
-    expect(input(p, 10_000).rooted).toBe(false); // winding up: the order that follows cancels it, so the model walks
-    expect(input(p, 10_000 + windupMs - 1).rooted).toBe(false);
-    expect(input(p, 10_000 + windupMs).rooted).toBe(true);
-    expect(input(p, 10_000 + 2 * windupMs - 1).rooted).toBe(true);
-    expect(input(p, 10_000 + 2 * windupMs).rooted).toBe(false);
-  });
-
-  describe("its length follows the attack-speed and windup mirrors", () => {
-    // The server's timingsOf: the interval shrinks with the attack-speed mirror, the windup is a share of it up to a cap, the
-    // windup mirror scales it (scaleWindup), and the root counts from the attack's start. Sentenced's axe windup shortens with
-    // attack speed (0.198 s plain); Fire's is at its 0.25 s cap until the interval is short enough.
-    const timings = (faction: "sentenced" | "fire", as: number, wu: number) =>
-      scaleWindup(weaponTimings("axe", attackInterval(FACTIONS[faction], "axe", decodeMult(encodeMult(as)))), decodeMult(encodeMult(wu)));
-    /** Probes the model's time: the first integer ms the fighter is rooted, and the first after that it no longer is. */
-    const rootSpan = (who: LocalFighter, start: number, windupMs: number): { from: number; to: number } => {
-      const p = new LocalPrediction();
-      p.noteFx(windup(start, windupMs), ME, who);
-      const rooted = (t: number) => p.frameInput(t - p.motion.delay, true, who, [], false).rooted;
-      let t = start;
-      while (!rooted(t) && t < start + 2000) t++;
-      const from = t;
-      while (rooted(t) && t < start + 2000) t++;
-      return { from: from - start, to: t - start };
-    };
-    const span = (faction: "sentenced" | "fire", as: number, wu: number) => {
-      const t = timings(faction, as, wu);
-      return rootSpan(mirrored({ as, windup: wu }, { faction }), 10_000, t.windup * 1000);
-    };
-
-    it("is the root at the mirrors' timings: it starts as the swing lands and ends `root` after the attack began", () => {
-      for (const [as, wu] of [[1, 1], [1.25, 1], [1, 0.8], [1, 1.3], [1.25, 0.8]] as const) {
-        const t = timings("sentenced", as, wu);
-        expect(span("sentenced", as, wu), `as x${as} windup x${wu}`).toEqual({ from: Math.ceil(t.windup * 1000), to: Math.ceil(t.root * 1000) });
+  it("does not root after launch when recovery root is zero", () => {
+    for (const faction of Object.keys(FACTIONS) as Array<keyof typeof FACTIONS>) {
+      for (const as of [1, 1.25, 1.6]) {
+        const who = mirrored({ as }, { faction });
+        const timing = weaponTimings("axe", attackInterval(FACTIONS[faction], "axe", decodeMult(encodeMult(as))));
+        expect(timing.root, `${faction} as=${as}`).toBe(0);
+        const p = new LocalPrediction();
+        p.noteFx(windup(10_000, timing.windup * 1000), ME, who);
+        for (const elapsed of [0, timing.windup * 1000 - 1, timing.windup * 1000, timing.windup * 1000 + 500]) {
+          expect(p.frameInput(10_000 + elapsed - p.motion.delay, true, who, [], false).rooted, `${faction} as=${as} at ${elapsed}ms`).toBe(false);
+        }
       }
-    });
-
-    it("a faster attack speed shortens the root, a longer windup mirror lengthens it", () => {
-      const plain = span("sentenced", 1, 1);
-      expect(timings("sentenced", 1.25, 1).windup).toBeLessThan(timings("sentenced", 1, 1).windup - 0.02);
-      expect(span("sentenced", 1.25, 1).to).toBeLessThan(plain.to - 20);
-      expect(span("sentenced", 1, 1.3).to).toBeGreaterThan(plain.to + 20);
-      expect(span("sentenced", 1, 0.8).to).toBeLessThan(plain.to - 20);
-    });
-
-    it("mirrors of exactly 1000 thousandths are the unbuffed root, for every faction", () => {
-      for (const faction of Object.keys(FACTIONS)) {
-        const f = FACTIONS[faction as keyof typeof FACTIONS];
-        const plain = weaponTimings("axe", attackInterval(f, "axe"));
-        const who = fighter({ faction });
-        expect(who.asMult).toBe(1000);
-        expect(rootSpan(who, 10_000, plain.windup * 1000), faction).toEqual({ from: Math.ceil(plain.windup * 1000), to: Math.ceil(plain.root * 1000) });
-      }
-    });
-
-    it("reads the mirrors, not the cards held", () => {
-      const held = { ...fighter({ faction: "sentenced" }), build: new Map([["haste3", 7]]) } as LocalFighter;
-      const plain = timings("sentenced", 1, 1);
-      expect(rootSpan(held, 10_000, plain.windup * 1000).to).toBe(Math.ceil(plain.root * 1000));
-    });
-  });
-
-  it("uses the model's time: the delay ahead of the client clock", () => {
-    const p = new LocalPrediction();
-    p.noteFx(windup(10_000, windupMs), ME, me);
-    const d = p.motion.delay;
-    expect(p.frameInput(10_000 + windupMs - d, true, me, [], false).rooted).toBe(true);
-    expect(p.frameInput(10_000 + windupMs - d - 1, true, me, [], false).rooted).toBe(false);
-  });
-
-  it("goes with a cancel, a stagger or a swap before it landed; stays after", () => {
-    for (const how of ["cancel", "stagger", "swap"] as const) {
-      const p = new LocalPrediction();
-      p.noteFx(windup(10_000, windupMs), ME, me);
-      if (how === "swap") p.noteWeaponChange(10_000 + windupMs - 10);
-      else p.noteFx({ kind: how, id: ME, t: 10_000 + windupMs - 10 }, ME, me);
-      expect(input(p, 10_000 + windupMs + 10).rooted, how).toBe(false);
-      const q = new LocalPrediction();
-      q.noteFx(windup(10_000, windupMs), ME, me);
-      if (how === "swap") q.noteWeaponChange(10_000 + windupMs + 10);
-      else q.noteFx({ kind: how, id: ME, t: 10_000 + windupMs + 10 }, ME, me);
-      expect(input(q, 10_000 + windupMs + 20).rooted, `${how} after`).toBe(true);
     }
-  });
-
-  it("ignores other weapons and other fighters, and a death or a teleport clears it", () => {
-    const p = new LocalPrediction();
-    p.noteFx(windup(10_000, windupMs, "sword"), ME, me);
-    p.noteFx(windup(10_000, windupMs, "axe", "someone"), ME, me);
-    expect(input(p, 10_000 + windupMs + 10).rooted).toBe(false);
-    p.noteFx(windup(10_000, windupMs), ME, me);
-    p.noteFx({ kind: "teleport", t: 10_050 }, ME, me);
-    expect(input(p, 10_000 + windupMs + 10).rooted).toBe(false);
-    p.noteFx(windup(20_000, windupMs), ME, me);
-    p.noteFx({ kind: "death", id: ME, x: 0, y: 0, by: null, t: 20_010 }, ME, me);
-    expect(input(p, 20_000 + windupMs + 10).rooted).toBe(false);
   });
 });
 

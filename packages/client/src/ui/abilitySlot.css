@@ -3,6 +3,27 @@
    follow --ui-w through html[data-ui-narrow] (the overlay has no size @media), like the weapon slots. --as-color is the
    ability's colour, set from script. */
 .as-wrap { position: relative; flex: none; pointer-events: none; user-select: none; }
+.as-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(340px, calc(var(--ui-w, 800px) * 0.55));
+  padding: 7px 9px;
+  transform: translateX(-50%);
+  color: #e6e9ed;
+  background: rgba(20, 24, 30, 0.97);
+  border: 1px solid #596675;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: pre-line;
+  text-align: left;
+}
+.as-tip[hidden] { display: none; }
 .as-slot {
   --as-color: #9aa5b1;
   position: relative;

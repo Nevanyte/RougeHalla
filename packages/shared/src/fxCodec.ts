@@ -132,6 +132,8 @@ export function packFx(fxs: readonly FxEvent[], t: number, opts: PackOptions = {
   const batch: FxBatch = { t, l };
   if (opts.roster) refer(l, opts.roster);
   if (opts.launches && opts.launches.length > 0) batch.p = opts.launches.map((p) => packLaunch(p, t));
+  const homing = opts.launches?.filter((p): p is ProjectileLaunch & { targetId: string } => typeof p.targetId === "string");
+  if (homing?.length) batch.h = homing.map((p) => [p.id, p.targetId]);
   return batch;
 }
 
@@ -256,6 +258,10 @@ export function unpackLaunches(batch: FxBatch): ProjectileLaunch[] {
   const out: ProjectileLaunch[] = [];
   const t = batch?.t;
   if (typeof t !== "number" || !Number.isFinite(t) || !Array.isArray(batch.p)) return out;
+  const targets = new Map<string, string>();
+  if (Array.isArray(batch.h)) for (const pair of batch.h) {
+    if (Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "string") targets.set(pair[0], pair[1]);
+  }
   for (const tuple of batch.p) {
     if (!Array.isArray(tuple) || (tuple.length !== 6 && tuple.length !== 8)) continue;
     const id = typeof tuple[0] === "string" ? tuple[0] : undefined;
@@ -266,7 +272,8 @@ export function unpackLaunches(batch: FxBatch): ProjectileLaunch[] {
       id === undefined || kind === undefined || x === undefined || y === undefined || vx === undefined || vy === undefined
       || back === undefined || range === undefined
     ) continue;
-    out.push({ id, kind, x, y, vx, vy, t: t - back, range });
+    const targetId = targets.get(id);
+    out.push({ id, kind, x, y, vx, vy, t: t - back, range, ...(targetId ? { targetId } : {}) });
   }
   return out;
 }

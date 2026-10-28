@@ -93,4 +93,28 @@ describe("ProjectileView launches", () => {
     view.update(1300);
     expect(made).toHaveLength(0);
   });
+
+  it("turns a target-locked arrow toward each safe target sample", () => {
+    const { view, made } = setup();
+    view.noteLaunch({ ...arrow, targetId: "target", range: 4500 });
+    view.update(1000, () => false);
+    const start = made[0]!.state.pos!;
+    view.update(1200, (id, t, out) => {
+      expect(id).toBe("target");
+      out.x = 400;
+      out.y = 200 + (t - 1000) * 0.4;
+      return true;
+    });
+    const turned = made[0]!.state.pos!;
+    expect(turned[0]).toBeGreaterThan(start[0]);
+    expect(turned[1]).not.toBe(start[1]);
+  });
+
+  it("cleans up a guided shot at its finite lifetime when its end message is lost", () => {
+    const { view, made } = setup();
+    view.noteLaunch({ ...arrow, targetId: "target", range: 4500 });
+    view.update(1000, () => false);
+    view.update(6000, () => false);
+    expect(made[0]!.state.destroyed).toBe(true);
+  });
 });

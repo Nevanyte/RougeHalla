@@ -205,7 +205,7 @@ describe("setup", () => {
   it("a fresh weapon runtime is idle: nothing held, never aimed", () => {
     expect(newWeaponRuntime()).toEqual({
       action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-      lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, lastShotAt: -Infinity,
+      lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, attackMoveGoal: null, lastShotAt: -Infinity,
     });
   });
 });
@@ -405,20 +405,23 @@ describe("windups and landing", () => {
 });
 
 describe("the wand", () => {
-  it("casts for 400 ms (Holy's wand), and the ball leaves from where the caster stands then", () => {
+  it("casts for its short windup, and the ball leaves from where the caster stands then", () => {
     const world = startRun();
     arm(world, 0, "holy", "wand");
     tap(world, 0, -0.4);
     tick(world);
     const S = T(world);
-    expect(fxOf("windup")).toMatchObject([{ by: "p0", weapon: "wand", a: -0.4, ms: 400 }]);
-    runTo(world, S + 350);
+    const tm = timings("holy", "wand");
+    const end = ceilTick(S + tm.windup * 1000);
+    expect(fxOf("windup")).toMatchObject([{ by: "p0", weapon: "wand", a: -0.4 }]);
+    expect(fxOf("windup")[0]!.ms).toBeCloseTo(tm.windup * 1000, 9);
+    runTo(world, end - TICK_MS);
     expect(world.projectiles.size).toBe(0);
     tick(world);
     expect(shots).toHaveLength(1);
     expect(world.projectiles.size).toBe(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: S + 400, kind: "ball", owner: "p0", weapon: "wand", t: S + 400, range: 220 });
+    expect(shot).toMatchObject({ at: end, kind: "ball", owner: "p0", weapon: "wand", t: end, range: 220 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.y).toBe(P(world).y);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.4) * 380, 9);
@@ -431,22 +434,23 @@ describe("the wand", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const tm = timings("fire", "wand");
-    expect(tm.windup).toBeCloseTo(0.4, 12);
+    expect(tm.windup).toBeCloseTo(0.3, 12);
     expect(intervalMs("fire", "wand")).toBeCloseTo(1010.1, 1);
-    // Cast at tick 2 (S): rooted on S .. S+350 (8 ticks); the ball leaves at S+400, and the walk is at full speed from then on.
+    // Cast at tick 2 (S): root only for the calculated short windup, then walk at full speed.
     const d = walk(world, 0, 28, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 8), ...repeat(STEP, 18)]);
+    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 28 - 2 - rooted)]);
     expect(shots).toHaveLength(1);
   });
 
-  it("a short interval shortens the root with it (the cast is at most 80% of the interval)", () => {
+  it("a short interval shortens the cast to 30% of the interval", () => {
     const world = startRun();
     arm(world, 0, "plague", "wand");
     const tm = timings("plague", "wand");
-    expect(tm.windup).toBeCloseTo(0.8 * tm.interval, 12);
+    expect(tm.windup).toBeCloseTo(0.3 * tm.interval, 12);
     const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
     const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
-    expect(rooted).toBe(6);
+    expect(rooted).toBe(Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6));
     expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
   });
 
@@ -466,15 +470,17 @@ describe("the wand", () => {
   });
 });
 
-describe("the axe root", () => {
-  it("roots the swinger for 500 ms from the swing's start, then the walk resumes along the same path", () => {
+describe("the axe windup", () => {
+  it("keeps the swinger rooted only until the swing lands, then the walk resumes", () => {
     const world = startRun();
     arm(world, 0, "fire", "axe");
-    expect(timings("fire", "axe").root).toBe(0.5);
+    const tm = timings("fire", "axe");
+    expect(tm.root).toBe(0);
     const t0 = T(world);
     const d = walk(world, 0, 18, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 10), ...repeat(STEP, 6)]);
-    expect(RT(world).weapon.rootUntil).toBe(t0 + 3 * TICK_MS + 500); // the swing started in tick 2, which runs at t0 + 3 ticks
+    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 18 - 2 - rooted)]);
+    expect(RT(world).weapon.rootUntil).toBe(0);
   });
 
   it("keeps the path while rooted", () => {
@@ -482,16 +488,19 @@ describe("the axe root", () => {
     arm(world, 0, "fire", "axe");
     walk(world, 0, 4, (k) => { if (k === 1) tap(world); });
     expect(RT(world).path.length).toBeGreaterThan(0);
-    expect(RT(world).weapon.rootUntil).toBeGreaterThan(T(world));
+    expect(RT(world).weapon.action).not.toBeNull();
+    expect(RT(world).weapon.rootUntil).toBe(0);
   });
 
-  it("is a share of the interval for a fast axe: 50% of Plague's 386 ms, 193 ms", () => {
+  it("uses 25% of the interval for a fast axe windup", () => {
     const world = startRun();
     arm(world, 0, "plague", "axe");
-    expect(timings("plague", "axe").root).toBeCloseTo(0.5 * 0.3861, 3);
-    // Rooted on S, S+50, S+100, S+150 (now < S+193); free from S+200.
+    const tm = timings("plague", "axe");
+    expect(tm.root).toBe(0);
+    expect(tm.windup).toBeCloseTo(0.25 * tm.interval, 12);
     const d = walk(world, 0, 10, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 4), ...repeat(STEP, 4)]);
+    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 10 - 2 - rooted)]);
   });
 
   it("a sword swing roots only for its 100 ms windup: the walk resumes when it lands", () => {
@@ -522,7 +531,7 @@ describe("the bow", () => {
 
   it("has the timings these tests rely on", () => {
     const tm = timings("frost", "bow");
-    expect(tm.windup).toBeCloseTo(0.6, 12);
+    expect(tm.windup).toBeCloseTo(0.3, 12);
     expect(tm.interval * 1000).toBeCloseTo(FROST_I, 6);
     expect(tm).not.toHaveProperty("minDraw");
   });
@@ -535,9 +544,10 @@ describe("the bow", () => {
     tick(world);
     const S = T(world);
     expect(P(world).drawStartedAt).toBe(S);
-    expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: S, landsAt: S + 600 });
+    const landsAt = ceilTick(S + timings("frost", "bow").windup * 1000);
+    expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: S, landsAt });
     expect(P(world).readyAt).toBeCloseTo(S + FROST_I, 6); // set at the start, as for every weapon
-    runTo(world, S + 550);
+    runTo(world, landsAt - TICK_MS);
     expect(P(world).drawStartedAt).toBe(S);
     expect(shots).toHaveLength(0);
     expect(fxOf("windup")).toHaveLength(0);
@@ -549,12 +559,13 @@ describe("the bow", () => {
     tap(world, 0, -0.7);
     tick(world);
     const S = T(world);
-    runTo(world, S + 600 - TICK_MS);
+    const landsAt = ceilTick(S + timings("frost", "bow").windup * 1000);
+    runTo(world, landsAt - TICK_MS);
     expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: S + 600, kind: "arrow", owner: "p0", weapon: "bow", t: S + 600, range: 240 });
+    expect(shot).toMatchObject({ at: landsAt, kind: "arrow", owner: "p0", weapon: "bow", t: landsAt, range: 240 });
     expect(shot.x).toBe(HOME[0]!.x);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.7) * 900, 9);
     expect(shot.vy).toBeCloseTo(Math.sin(-0.7) * 900, 9);
@@ -573,24 +584,26 @@ describe("the bow", () => {
     press(world);
     tick(world);
     const S = T(world);
-    runTo(world, S + 200);
+    runTo(world, S + 100);
     release(world);
-    runTo(world, S + 600);
+    const landsAt = ceilTick(S + timings("frost", "bow").windup * 1000);
+    runTo(world, landsAt);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(S + 600);
+    expect(shots[0]!.at).toBe(landsAt);
     expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
     run(world, 40);
     expect(shots).toHaveLength(1); // and the release stopped the repeating
   });
 
-  it("a held trigger draws again the moment the cooldown ends: one arrow per interval, each a 600 ms draw", () => {
+  it("a held trigger draws again the moment the cooldown ends", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     press(world);
     tick(world);
     const S = T(world);
-    runTo(world, ceilTick(S + FROST_I + 600));
-    expect(shots.map((x) => x.at)).toEqual([S + 600, ceilTick(S + FROST_I + 600)]);
+    const windup = timings("frost", "bow").windup * 1000;
+    runTo(world, ceilTick(S + FROST_I + windup));
+    expect(shots.map((x) => x.at)).toEqual([ceilTick(S + windup), ceilTick(S + FROST_I + windup)]);
     expect(shots.every((x) => Math.abs(x.raw - fullHit("frost", "bow")) < 1e-9)).toBe(true);
     // The second draw began from the instant the cooldown ended, between ticks.
     expect(RT(world).weapon.action).toBeNull();
@@ -600,9 +613,10 @@ describe("the bow", () => {
   it("walks freely after the shot: rooted exactly for the draw, with no slow before the next one", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
-    // Drawing from tick 2 (S): rooted on S .. S+550 (12 ticks); the arrow leaves at S+600 and the walk is at full speed.
+    const tm = timings("frost", "bow");
+    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
     const d = walk(world, 0, 30, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 12), ...repeat(STEP, 16)]);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 30 - 2 - rooted)]);
     expect(shots).toHaveLength(1);
   });
 
@@ -613,28 +627,29 @@ describe("the bow", () => {
     tick(world);
     const x0 = P(world).x;
     send(world, 0, "move", { x: 36 * TILE, y: P(world).y });
-    run(world, 10);
+    run(world, 5);
     expect(P(world).x).toBe(x0);
     expect(shots).toHaveLength(0);
-    run(world, 4);
+    run(world, 5);
     expect(shots).toHaveLength(1);
     expect(P(world).x).toBeGreaterThan(x0 + STEP);
   });
 
-  it("a short interval shortens the draw (Sentenced: 524.2 ms, 0.92 of its interval), and the cooldown is the interval from the start", () => {
+  it("a short interval shortens the draw to 30% and the cooldown is the interval from the start", () => {
     const world = startRun();
     arm(world, 0, "sentenced", "bow");
     const tm = timings("sentenced", "bow");
-    expect(tm.windup * 1000).toBeCloseTo(524.22, 2);
+    expect(tm.windup).toBeCloseTo(0.3 * tm.interval, 12);
     tap(world);
     tick(world);
     const S = T(world);
     expect(P(world).readyAt).toBeCloseTo(S + intervalMs("sentenced", "bow"), 6);
-    runTo(world, S + 500);
+    const end = ceilTick(S + tm.windup * 1000);
+    runTo(world, end - TICK_MS);
     expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(S + 550);
+    expect(shots[0]!.at).toBe(end);
   });
 
   it("a release with no draw and no recent press does nothing, and does not pre-load the next draw", () => {
@@ -674,9 +689,10 @@ describe("the bow", () => {
     tap(world);
     runTo(world, ceilTick(ready));
     expect(P(world).drawStartedAt).toBeCloseTo(ready, 6);
-    runTo(world, ceilTick(ready + 600));
+    const windup = timings("frost", "bow").windup * 1000;
+    runTo(world, ceilTick(ready + windup));
     expect(shots).toHaveLength(2);
-    expect(shots[1]!.at).toBe(ceilTick(ready + 600));
+    expect(shots[1]!.at).toBe(ceilTick(ready + windup));
     expect(shots[1]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
   });
 });
@@ -796,31 +812,34 @@ describe("swapping", () => {
     expectCloseAll(d, [STEP, 0, 0, 0, STEP, STEP, STEP, STEP]);
   });
 
-  it("keeps what is left of an axe root once the swing has landed; only a pending swing takes its root with it", () => {
+  it("axe swings have no post-launch root, and a swap cancels only a pending swing", () => {
     const world = start();
     arm(world, 0, "fire", "axe", "sword");
-    // Pressed in tick 1: the swing lands 250 ms later (tick 6) and the root runs 500 ms (ticks 1..10). A swap at tick 7 is
-    // after the landing, so the walk resumes only when the root ends.
+    const tm = timings("fire", "axe");
+    expect(tm.root).toBe(0);
+    const rooted = Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6);
     const d = walk(world, 0, 14, (k) => {
       if (k === 1) tap(world);
       if (k === 7) swap(world);
     });
     expect(landed).toHaveLength(1);
     expect(P(world).slot).toBe(1);
-    expectCloseAll(d, [STEP, ...repeat(0, 10), STEP, STEP, STEP]);
+    expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 14 - 1 - rooted)]);
   });
 
   it("a swap after the ball has gone changes nothing: the caster was free the tick it left", () => {
     const world = start();
     arm(world, 0, "fire", "wand", "sword");
-    expect(timings("fire", "wand").windup).toBeCloseTo(0.4, 12);
-    // Cast in tick 1, ball at tick 9 (rooted on ticks 1..8); the swap at tick 10 is after it.
+    const tm = timings("fire", "wand");
+    expect(tm.windup).toBeCloseTo(0.3, 12);
+    const rooted = Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6);
+    // Swap after the ball has left; only the short cast windup holds movement.
     const d = walk(world, 0, 16, (k) => {
       if (k === 1) tap(world);
-      if (k === 10) swap(world);
+      if (k === rooted + 2) swap(world);
     });
     expect(shots).toHaveLength(1);
-    expectCloseAll(d, [STEP, ...repeat(0, 8), ...repeat(STEP, 7)]);
+    expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 16 - 1 - rooted)]);
   });
 
   it("cancels a wand cast: no ball, and the root ends with it", () => {
@@ -908,7 +927,7 @@ describe("aim and facing", () => {
     press(world, 0, 0.5);
     tick(world);
     send(world, 0, "aim", { a: 1.1 });
-    run(world, 6);
+    run(world, 1);
     release(world, 0, -0.3);
     run(world, 8);
     expect(shots).toHaveLength(1);
@@ -1135,7 +1154,7 @@ describe("teleport, death and fighters that can't fight", () => {
     press(world);
     tick(world);
     expect(RT(world).weapon.action).not.toBeNull();
-    expect(RT(world).weapon.rootUntil).toBeGreaterThan(T(world));
+    expect(RT(world).weapon.rootUntil).toBe(0);
     world.hooks.teleported!(world);
     const w = RT(world).weapon;
     expect(w.action).toBeNull();
@@ -1346,18 +1365,19 @@ describe("stagger", () => {
     press(world);
     tick(world);
     const drawStart = T(world);
-    runTo(world, drawStart + 300);
+    runTo(world, drawStart + 200);
     const hurtAt = T(world);
     expect(stagger(world, C(world))).toBe(true);
     expect(P(world).drawStartedAt).toBe(drawStart);
     expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: drawStart });
     expect(RT(world).weapon.staggerImmuneUntil).toBe(hurtAt + STAGGER_IMMUNITY_SECONDS * 1000);
     // Nothing was lost: the arrow leaves on time, for full damage, with no second draw.
-    runTo(world, drawStart + 600 - TICK_MS);
+    const landsAt = ceilTick(drawStart + timings("frost", "bow").windup * 1000);
+    runTo(world, landsAt - TICK_MS);
     expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(drawStart + 600);
+    expect(shots[0]!.at).toBe(landsAt);
     expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
   });
 
