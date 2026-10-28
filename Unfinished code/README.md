@@ -2,7 +2,11 @@
 
 ## Current work (2026-10-28)
 
-The redesign is complete in code, including camp-wide marks with reduced per-member pulse damage, tier/status nameplates, Sentence stacks and the Trial ring. The branch integrates the latest `main` combat upgrade (`ebd3514`), rather than the unrelated Kimi checkout. Final integrated validation and release status are recorded below after the release checks.
+The redesign is complete in code, including camp-wide marks with reduced per-member pulse damage, tier/status nameplates, Sentence stacks and the Trial ring. The branch integrates the latest `main` combat upgrade (`ebd3514`), rather than the unrelated Kimi checkout. Validation passes: 2,139 client tests, 5,506 server tests and 1,726 shared tests; workspace typechecking; production build; all ten faction directions across six weapons; normal and elite camp gates; exact TypeScript/Python parity on 8,411 duels.
+
+The owner authorized merge to main and live deployment. The final merge/deployment verification is recorded in the task chat. There is no unfinished Sentenced implementation left here. Balance remains provisional: two ideal primary-edge margins miss by three percentage points, several weapon HP margins need human playtesting, and the legacy kiting oracle has eight failures under the latest main’s shorter ranged windups. Full evidence: `testing/TUNING_SENTENCED.md`.
+
+The original workflow and tuning scripts below are archived history. The unrelated deferred tasks in section 2 remain deferred.
 
 ## Original handoff (saved 2026-10-28)
 

@@ -17,7 +17,7 @@ Saved 2026-10-28 for the final sheet, integrated with latest main `ebd3514` (com
 - `npm run harness:factions -- --python`: PASS in trades mode. Exact winner and HP-fraction parity on 70/70 cells and 8,411 duels; maximum HP-fraction difference 0.00.
 - `python3 testing/test_kite.py`: FAIL, 8 cells after the integrated player windup update; no thresholds or exceptions were changed. Failures are Fire>Plague bow/wand, Sentenced>Frost bow/wand, Plague>Frost bow/wand, and Holy>Fire bow/wand. The two Frost-shooter pairs have infinite free-fire time in this continuous orb-walk model because the slowed chaser cannot close during the shorter ranged windup. The historical Holy>Fire wand exception also fails at the new timing. Main’s combat upgrade already documented ten failures in this legacy model before the Sentenced merge; this integrated sheet has eight. The shorter controls are preserved.
 - `packages/server/test/fixtures/realtime-paced.json` was regenerated with `python3 testing/realtime_paced.py --k 2 --nmax 5 --sub 1 --pairs` and validated as JSON (122,490 bytes).
-- Before the integrated combat timing merge, the targeted factions/weapons/mobs tests passed 167/167. The full integrated workspace suite is running in the root task; use its result for the post-merge test status.
+- The full integrated workspace suites pass: client 2,139 tests / 107 files; server 5,506 / 125; shared 1,726 / 62. Workspace typechecking and the production build pass. Browser smoke testing verified camp mark/status cues and the Sentence HUD with no browser errors. These workspace passes do not override the separately documented legacy kiting failures.
 
 ## Real-sim primary edges
 
