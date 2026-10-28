@@ -10,7 +10,7 @@ import {
  * `seq`: the client's order number (an integer 0..255), echoed in `PlayerState.moveSeq` on the tick the order is applied, so a
  * client can tell when it took effect. Nothing else reads it; a mob's orders carry none.
  */
-export type MoveCommand = { kind: "move"; x: number; y: number; seq?: number } | { kind: "stop"; seq?: number };
+export type MoveCommand = { kind: "move" | "attackMove"; x: number; y: number; seq?: number } | { kind: "stop"; seq?: number };
 
 export type ActionCommand =
   /** Trigger pressed toward `a`. `t` is the server time the client was rendering; melee rewinds to it (clamped). */
@@ -223,6 +223,13 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown, 
       if (!p) return false;
       const seq = parseSeq(msg);
       q.pushMove(seq === undefined ? { kind: "move", x: p.x, y: p.y } : { kind: "move", x: p.x, y: p.y, seq });
+      return true;
+    }
+    case "attackMove": {
+      const p = parsePoint(msg);
+      if (!p) return false;
+      const seq = parseSeq(msg);
+      q.pushMove(seq === undefined ? { kind: "attackMove", x: p.x, y: p.y } : { kind: "attackMove", x: p.x, y: p.y, seq });
       return true;
     }
     case "stop": {

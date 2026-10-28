@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ABILITIES, abilityCooldownMs, addToSums, AP_DOT_RATIO, AS_MULT_CAP, AS_POST_MAX, AS_POST_MIN, attackInterval, barrierCap,
-  BARRIER_DECAY_SHARE_PER_SECOND, BARRIER_MAX_SHARE, BONUS_DEFENSE_CAP, BOW_WINDUP, clampBarrier, CONVERT_AD_AP_CAP,
+  BARRIER_DECAY_SHARE_PER_SECOND, BARRIER_MAX_SHARE, BONUS_DEFENSE_CAP, BOW_WINDUP, WAND_WINDUP, clampBarrier, CONVERT_AD_AP_CAP,
   CRIT_CHANCE_MAX, CRIT_MULT, critChanceFrom, decayBarrier, effectText, encodeFlat, encodeMirrors, FACTIONS, foldedMaxHp, foldRows,
   FLAT_WIRE_PER_POINT, HP_RACE_CAP, identityMults, LIFESTEAL_MAX, lifestealTotal, LS_CAP, MAX_HP_FLOOR_SHARE, mirrorsFromFold,
   mirrorTimings, MOVE_BONUS_CAP, MULT_KEYS, OUTGOING_ROW_CAP, pacedFaction, scaleEffect, scaleWindup, scalingDamage, TRAINING_WISH_COOLDOWN_SECONDS,
@@ -232,24 +232,26 @@ describe("the attack-speed mirror (G9)", () => {
   });
 });
 
-describe("mirrorTimings: ranged windups never shorten below their unbuffed value (G9)", () => {
+describe("mirrorTimings: ranged windups follow attack speed (updated G9 timing rule)", () => {
   const rangedOf = (w: WeaponId) => (id: keyof typeof FACTIONS): WeaponTimings => weaponTimings(w, attackInterval(pacedFaction(FACTIONS[id]), w, 1));
 
-  it("keeps the base-speed windup under any attack speed, for every faction and both ranged weapons", () => {
+  it("shortens windup with faster attack speed and lengthens it with slower attack speed", () => {
     for (const id of Object.keys(FACTIONS) as Array<keyof typeof FACTIONS>) {
       const f = pacedFaction(FACTIONS[id]);
       for (const w of ["bow", "wand"] as const) {
         const base = rangedOf(w)(id).windup;
         for (const as of [1, 1.2, 1.5, 2, 3]) {
           const t = mirrorTimings(f, w, as, 1);
-          expect(t.windup, `${id} ${w} x${as}`).toBeGreaterThanOrEqual(base - 1e-12);
+          expect(t.windup, `${id} ${w} x${as}`).toBe(weaponTimings(w, t.interval).windup);
+          if (as > 1) expect(t.windup, `${id} ${w} x${as}`).toBeLessThanOrEqual(base + 1e-12);
           expect(t.interval, `${id} ${w} x${as}`).toBe(attackInterval(f, w, as));
         }
         // Slower than base: the windup grows with the interval up to its cap, never past it
         for (const as of [0.5, 0.75]) {
           const t = mirrorTimings(f, w, as, 1);
+          expect(t.windup, `${id} ${w} x${as}`).toBe(weaponTimings(w, t.interval).windup);
           expect(t.windup, `${id} ${w} x${as}`).toBeGreaterThanOrEqual(base - 1e-12);
-          expect(t.windup, `${id} ${w} x${as}`).toBeLessThanOrEqual(w === "bow" ? BOW_WINDUP : 0.4 + 1e-12);
+          expect(t.windup, `${id} ${w} x${as}`).toBeLessThanOrEqual(w === "bow" ? BOW_WINDUP : WAND_WINDUP + 1e-12);
         }
       }
     }
@@ -265,12 +267,12 @@ describe("mirrorTimings: ranged windups never shorten below their unbuffed value
     }
   });
 
-  it("a Plague bow at x1.5 keeps its x1 windup (the share-limited case), where the old formula cut it", () => {
+  it("attack speed shortens the bow windup with its interval", () => {
     const f = pacedFaction(FACTIONS.plague);
     const base = weaponTimings("bow", attackInterval(f, "bow", 1)).windup;
     const old = weaponTimings("bow", attackInterval(f, "bow", 1.5)).windup;
-    expect(old).toBeLessThan(base); // what G9 forbids
-    expect(mirrorTimings(f, "bow", 1.5, 1).windup).toBe(base);
+    expect(old).toBeLessThan(base);
+    expect(mirrorTimings(f, "bow", 1.5, 1).windup).toBe(old);
   });
 
   it("scaleWindup never cuts a ranged windup, even one raised above its interval, whatever the mult", () => {

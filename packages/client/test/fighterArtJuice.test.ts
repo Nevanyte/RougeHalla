@@ -83,14 +83,14 @@ describe("the wand's charge", () => {
 });
 
 describe("the bow's tension", () => {
-  const bow = (drawStartedAt: number) => fighter({ weapon0: "bow", drawStartedAt });
-  // Sentenced's draw takes 0.524 s: draw started at 1000 is 38% at 1200, 76% at 1400, 100% from 1524.
+  const bow = (drawStartedAt: number) => fighter({ faction: "fire", weapon0: "bow", drawStartedAt });
+  // Fire's pull is 30% of its base bow interval (about 0.256 s).
 
   it("tells the figure how far the string is back", () => {
     const { art } = setup();
     art.update(bow(0), 1000, 1000);
     expect(art.pull).toBe(-1);
-    art.update(bow(1000), 1262, 1262);
+    art.update(bow(1000), 1128, 1128);
     expect(art.pull).toBeCloseTo(0.5, 2);
     art.update(bow(1000), 1600, 1600);
     expect(art.pull).toBe(1);
@@ -98,23 +98,23 @@ describe("the bow's tension", () => {
 
   it("warms the arrowhead on the way to a full draw with a glow and no ring (the ring is the ready cue)", () => {
     const { art, drawn } = setup();
-    art.update(bow(1000), 1200, 1200); // 38%: nothing yet
+    art.update(bow(1000), 1100, 1100); // under 60%: nothing yet
     const early = argsOf(drawn(), "fillCircle").length;
     expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
-    art.update(bow(1000), 1450, 1450); // 86%
+    art.update(bow(1000), 1200, 1200); // about 78%: arrowhead warms
     expect(argsOf(drawn(), "fillCircle").length).toBe(early + 1);
     expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
-    art.update(bow(1000), 1600, 1600); // full
+    art.update(bow(1000), 1257, 1257); // full
     expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
   });
 
   it("shows the ready ring only at a full draw, not from rounding 99% up to the last step", () => {
     const { art, drawn } = setup();
-    art.update(bow(1000), 1519, 1519); // 99.1% of the 0.524 s draw
+    art.update(bow(1000), 1256, 1256); // just under the 0.257 s draw
     expect(art.pull).toBeGreaterThan(0.99);
     expect(art.pull).toBeLessThan(1);
     expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
-    art.update(bow(1000), 1524.3, 1524.3);
+    art.update(bow(1000), 1257, 1257);
     expect(art.pull).toBe(1);
     expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
   });

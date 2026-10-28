@@ -178,7 +178,7 @@ export class Menu {
     this.board.append(el("div", "hub-board-title", "Top this month"), this.boardList);
 
     const rules = el("div", "menu-rules", `Last one standing wins. Pick a faction before each run; you start on your fists. Weapons come from chests, the ground and the mobs you kill (a kill with an empty hand arms you at once). GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
-    const controls = el("div", "menu-rules", "Right-click: move. Left-click an enemy: lock it and auto-attack (your fighter walks into range and stands still while each attack winds up). S: stop. Q or 1/2: swap weapons (an empty slot is your fists). F: take a weapon. H: every control, and what each card term means.");
+    const controls = el("div", "menu-rules", "Right-click ground to move or an enemy to attack. A then left-click: attack-move. Move before launch to cancel; move after launch to kite. S: stop. Q or 1/2: swap weapons (an empty slot is your fists). F: take a weapon. Hover weapons, abilities and opponents for details. H: controls and card terms.");
     const hubControls = el("div", "menu-rules", "In the hub: right-click or WASD to walk, E (or a click) at a station to use it. The pedestals by the south wall pick your faction.");
     this.body.append(this.who, gv, stats, shop, this.board, this.picker.element, rules, hubControls, controls);
 

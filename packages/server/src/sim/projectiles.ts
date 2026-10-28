@@ -19,7 +19,7 @@ import {
   RANGED_HIT_REACH, raycast, reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { activeWeapon, combatant, isEvading, isQuestGiver, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { returnedMultOf } from "./mods";
 import { positionAt } from "./movement";
@@ -41,6 +41,7 @@ interface Launch {
   vy: number;
   t: number;
   range: number;
+  targetId?: string;
   packet: DamagePacket;
   reflections?: number;
 }
@@ -48,9 +49,10 @@ interface Launch {
 function launch(world: World, l: Launch): ProjectileRuntime {
   const id = nextId(world, "p");
   const pr: ProjectileRuntime = {
-    id, launch: { id, kind: l.kind, x: l.x, y: l.y, vx: l.vx, vy: l.vy, t: l.t, range: l.range },
+    id, launch: { id, kind: l.kind, x: l.x, y: l.y, vx: l.vx, vy: l.vy, t: l.t, range: l.range, ...(l.targetId ? { targetId: l.targetId } : {}) },
+    ...(l.targetId ? { targetId: l.targetId } : {}),
     kind: l.kind, weapon: l.weapon, owner: l.owner, ownerName: l.ownerName,
-    x: l.x, y: l.y, simT: l.t, traveled: 0, tickX: l.x, tickY: l.y, packet: l.packet, halved: false, ended: false,
+    x: l.x, y: l.y, vx: l.vx, vy: l.vy, simT: l.t, traveled: 0, tickX: l.x, tickY: l.y, packet: l.packet, halved: false, ended: false,
     reflections: l.reflections ?? 0,
   };
   world.projectiles.set(id, pr);
@@ -89,6 +91,7 @@ export function spawnProjectiles(world: World): void {
   const spawns = world.combat.spawns;
   world.combat.spawns = [];
   const now = world.state.serverTime;
+  const guidedTtlMs = 5000;
   for (const req of spawns) {
     const owner = combatant(world, req.owner);
     const shape = WEAPONS[req.weapon].shape;
@@ -96,7 +99,11 @@ export function spawnProjectiles(world: World): void {
     const from = req.origin ?? owner.s;
     launch(world, {
       kind: req.kind, weapon: req.weapon, owner: owner.id, ownerName: owner.s.name, x: from.x, y: from.y,
-      vx: Math.cos(req.a) * shape.speed, vy: Math.sin(req.a) * shape.speed, t: now, range: shape.range * (req.rangeMult ?? 1), packet: req.packet,
+      vx: Math.cos(req.a) * shape.speed, vy: Math.sin(req.a) * shape.speed, t: now,
+      // Target-lock range is an attack-launch check. Once launched, allow enough flight time to catch a fleeing target,
+      // with a finite five-second lifetime to bound stale shots. Directional shots retain their weapon range.
+      range: req.targetId ? shape.speed * guidedTtlMs / 1000 : shape.range * (req.rangeMult ?? 1),
+      ...(req.targetId ? { targetId: req.targetId } : {}), packet: req.packet,
     });
   }
 }
@@ -184,14 +191,36 @@ export function sweepProjectiles(world: World, dtMs: number): void {
     for (const pr of active) {
       // A reflection made in this substep starts moving in the next one.
       if (pr.ended || pr.simT >= t) continue;
-      const st = pr.launch;
       const dt = (t - pr.simT) / 1000;
-      let bx = pr.x + st.vx * dt;
-      let by = pr.y + st.vy * dt;
+      let vx = pr.vx;
+      let vy = pr.vy;
+      if (pr.targetId) {
+        const target = combatant(world, pr.targetId);
+        if (!target || !standing(target)) {
+          endProjectile(world, pr, pr.x, pr.y, "destroyed");
+          continue;
+        }
+        const at = positionAt(target.rt, target.s, t);
+        const dx = at.x - pr.x;
+        const dy = at.y - pr.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 1e-6) { vx = (dx / d) * Math.hypot(pr.launch.vx, pr.launch.vy); vy = (dy / d) * Math.hypot(pr.launch.vx, pr.launch.vy); }
+        pr.vx = vx;
+        pr.vy = vy;
+      }
+      let bx = pr.x + vx * dt;
+      let by = pr.y + vy * dt;
       let len = Math.hypot(bx - pr.x, by - pr.y);
       let stop: ProjectileEnd | null = null;
+      const st = pr.launch;
       const left = st.range - pr.traveled;
-      if (len >= left) {
+      if (pr.targetId && t - st.t >= 5000) {
+        const f = len > 0 ? Math.min(1, Math.max(0, left / len)) : 0;
+        bx = pr.x + (bx - pr.x) * f;
+        by = pr.y + (by - pr.y) * f;
+        len *= f;
+        stop = "range";
+      } else if (len >= left) {
         const f = len > 0 ? left / len : 0;
         bx = pr.x + (bx - pr.x) * f;
         by = pr.y + (by - pr.y) * f;
@@ -234,7 +263,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         continue;
       }
       const st = pr.launch;
-      if (pr.kind === "arrow" && activeWeapon(hit.c.s) === "shield" && projectileOnShieldFront(hit.c.s.facing, st.vx, st.vy)) {
+      if (pr.kind === "arrow" && activeWeapon(hit.c.s) === "shield" && projectileOnShieldFront(hit.c.s.facing, pr.vx, pr.vy)) {
         const block = { kind: "block" as const, id: hit.c.id, by: pr.owner, weapon: pr.weapon };
         emit(world, { type: "fx", fx: pr.weapon === "shield" ? { ...block, passive: true } : block });
         if (pr.reflections >= MAX_ARROW_REFLECTIONS) {
@@ -252,7 +281,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
           victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: returnedPacket(world, pr, pr.packet.raw * (1 - ARROW_REFLECT_SHARE)),
           weapon: pr.weapon, projectile: pr.id, stagger: false, ...returnedFlag(pr),
         });
-        const v = reflectVelocity(st.vx, st.vy, hit.c.s.facing);
+        const v = reflectVelocity(pr.vx, pr.vy, hit.c.s.facing);
         const bow = WEAPONS.bow.shape;
         // A first reflection flies the full bow range; an arrow already reflected keeps only what it has left, so two
         // shields facing each other can't bounce one forever.

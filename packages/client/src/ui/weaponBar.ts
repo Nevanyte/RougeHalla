@@ -8,6 +8,7 @@ import { FISTS, WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import "./weaponBar.css";
 import { weaponScalingText, weaponTipText } from "./buildModel";
+import { weaponDamageTypeText } from "./combatTip";
 import { cssColor, el, uiRoot } from "./dom";
 import { keycap } from "./keycap";
 import { RectTips } from "./rectTips";
@@ -52,6 +53,7 @@ export class WeaponBar {
   private readonly slots: Slot[] = [];
   /** Starts as a value no real signature can equal so the first update always renders. */
   private signature: string | null = null;
+  private tipSignature = "";
   /** The hint line now shown (without its F keycap). */
   private hintText = "";
   /** The ready time last seen, and the length of the cooldown it started (the sweep shows the share still left). */
@@ -132,11 +134,20 @@ export class WeaponBar {
         slot.swatch.style.background = w ? cssColor(WEAPONS[w].color) : "";
         slot.name.textContent = WEAPONS[w ?? FISTS].name;
         slot.scale.textContent = weaponScalingText(w ?? FISTS);
-        this.tipTexts[i] = weaponTipText(w ?? FISTS);
       });
       // The tooltip on show belongs to the weapon that was in the slot: the next pointer move shows the new one.
       this.tips.reset();
       this.showTip(-1);
+    }
+
+    const tipSignature = `${me.weapon0}|${me.weapon1}|${me.faction}|${me.asMult}|${me.adBonus}|${me.apBonus}|${me.armorBonus}|${me.shieldBonus}|${me.maxHp}`;
+    if (tipSignature !== this.tipSignature) {
+      this.tipSignature = tipSignature;
+      [me.weapon0, me.weapon1].forEach((id, i) => {
+        const w = weaponOf(id) ?? FISTS;
+        this.tipTexts[i] = `${weaponTipText(w)}\n${weaponDamageTypeText(me, w)}`;
+      });
+      if (this.tips.index >= 0) this.showTip(this.tips.index);
     }
 
     const hand = weaponOf(me.slot === 1 ? me.weapon1 : me.weapon0);

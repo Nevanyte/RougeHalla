@@ -88,15 +88,14 @@ export function decodeMult(wire: number): number {
 }
 
 /**
- * A weapon's timings with the windup scaled by `windupMult` (the decoded mirror), never past the interval. The axe's root,
- * which counts from the attack's start, stretches with it and never ends before the windup does. A mult below 1 shortens
+ * A weapon's timings with the windup scaled by `windupMult` (the decoded mirror), never past the interval. Any optional extra
+ * root still scales with its windup. A mult below 1 shortens
  * MELEE windups only (the sword's, the bash's, the axe's): the ranged windups are the anti-kiting lever and nothing shortens
  * them (owner ruling "Melee windups only", testing/TUNING_ROGUE.md section 7), so a ranged attack's timings come back as they
  * were (the same object). A mult of 1 or more lengthens every weapon. The server's timingsOf and a client's draw and root
  * read the same function. (No source lengthens windups today. If one does, the mirror is one product: a Quickdraw rank
  * under a slow would still lengthen the ranged windup by the slow times Quickdraw's share, so a ranged slow wants its own mirror.)
- * A ranged windup is never cut by this function, whatever the mult (G9: it may sit above its interval when mirrorTimings raised
- * it to its unbuffed value, and clamping it to the interval would shorten it).
+ * A ranged windup is never cut by this function, whatever the mult (NPC mirrorTimings restores its legacy base-speed floor first).
  */
 export function scaleWindup(t: WeaponTimings, windupMult: number): WeaponTimings {
   if (windupMult === 1 || !Number.isFinite(windupMult)) return t;
@@ -108,14 +107,15 @@ export function scaleWindup(t: WeaponTimings, windupMult: number): WeaponTimings
 
 /**
  * The timings of one attack by a fighter whose mirrors are `asMult` and `windupMult` (the server's timingsOf; a client's draw of a
- * bow's pull reads the same). G9: attack speed shortens the interval, and a windup that is a share of it (min(cap, share x interval),
- * weapons.ts weaponTimings) shortened with it; a RANGED windup is the anti-kiting lever, so it never goes below the value the
- * weapon has at base speed. A slower fighter's windup grows with its interval up to the cap, as before.
+ * bow's pull reads the same). Player attack speed shortens the interval and share-based windups together; NPC ranged windups retain
+ * their legacy base-speed floor. A slower fighter's windup grows with its interval up to the cap.
  */
-export function mirrorTimings(f: Pick<FactionSpec, "rate">, w: WeaponId, asMult: number, windupMult: number): WeaponTimings {
-  const t = weaponTimings(w, attackInterval(f, w, asMult));
-  if (t.ranged && asMult > 1) {
-    const base = weaponTimings(w, attackInterval(f, w, 1)).windup;
+export function mirrorTimings(
+  f: Pick<FactionSpec, "rate">, w: WeaponId, asMult: number, windupMult: number, profile: "player" | "npc" = "player",
+): WeaponTimings {
+  const t = weaponTimings(w, attackInterval(f, w, asMult), profile);
+  if (profile === "npc" && t.ranged && asMult > 1) {
+    const base = weaponTimings(w, attackInterval(f, w, 1), profile).windup;
     if (t.windup < base) t.windup = base;
   }
   return scaleWindup(t, windupMult);

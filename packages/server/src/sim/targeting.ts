@@ -36,7 +36,7 @@ import {
   TARGET_REPATH_MS, TICK_MS, worldToTile, wrapAngle, type Vec2,
 } from "@raid/shared";
 import {
-  activeWeapon, combatant, hostile, isEvading, standing, timingsOf, type Combatant,
+  activeWeapon, allCombatants, combatant, hostile, isEvading, standing, timingsOf, type Combatant,
 } from "./combatant";
 import { planPath, velocityOf } from "./movement";
 import { isStunned, isUntargetable } from "./status";
@@ -63,7 +63,10 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
   const w = c.rt.weapon;
   // Clicking the fighter already locked changes nothing: players re-click their target all the time, and starting over
   // would forget that it was seen and let go of the trigger (losing the cooldown's carried remainder).
-  if (w.lock === t.id) return;
+  if (w.lock === t.id) {
+    w.attackMoveGoal = null;
+    return;
+  }
   // An order may cost one path search right away, at most one per TARGET_REPATH_MS per player: a modified client could
   // otherwise buy one per message (MAX_ACTIONS_PER_TICK a tick). The chase's own re-plans have their own throttle.
   const now = world.state.serverTime;
@@ -80,6 +83,7 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
   // Another fighter: what the old lock was winding up goes with it (the same player's order cancels it, as a move does). An attack
   // already aimed at this very fighter stays (the lock dropped, by the line of sight or an `attack`, and the player clicks it again).
   if (w.action?.target !== t.id) cancelLockedWindup(world, c);
+  w.attackMoveGoal = null;
   setLock(c, t.id);
   // The lock walks and holds the trigger from here; an earlier walk and trigger are let go. The search out of sight was
   // the chase's first plan; in sight, the chase plans at once if the order's budget allows, else when its throttle does.
@@ -98,10 +102,73 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
 /** Every locked player follows its target for this tick: the drop rules, then the chase, the trigger and the aim. */
 export function updateTargets(world: World): void {
   for (const rt of world.players.values()) {
-    if (rt.weapon.lock === null) continue;
     const s = world.state.players.get(rt.id);
-    if (s) follow(world, { kind: "player", id: rt.id, s, rt });
+    if (!s) continue;
+    const c: Combatant = { kind: "player", id: rt.id, s, rt };
+    if (rt.weapon.lock === null && rt.weapon.attackMoveGoal !== null) acquireAttackMoveTarget(world, c);
+    if (rt.weapon.lock !== null) follow(world, c);
+    else {
+      continueAttackMove(world, c);
+      finishAttackMoveIfArrived(c);
+    }
   }
+}
+
+/** Attack-move chooses the nearest visible hostile entering current weapon range; the order point breaks ties. */
+function acquireAttackMoveTarget(world: World, c: Combatant): void {
+  const goal = c.rt.weapon.attackMoveGoal;
+  const weapon = activeWeapon(c.s);
+  if (!goal || !weapon || !standing(c) || isStunned(world, c)) return;
+  const range = lockSpacing(weapon).attackRange;
+  let best: Combatant | null = null;
+  let bestDistance = Infinity;
+  let bestCursorDistance = Infinity;
+  const map = collisionMap(world);
+  for (const candidate of allCombatants(world)) {
+    const distance = Math.hypot(candidate.s.x - c.s.x, candidate.s.y - c.s.y);
+    if (distance > range) continue;
+    if (!lockable(world, c, candidate) || !hasLineOfSight(map, c.s, candidate.s)) continue;
+    const cursorDistance = Math.hypot(candidate.s.x - goal.x, candidate.s.y - goal.y);
+    if (distance < bestDistance || (distance === bestDistance && cursorDistance < bestCursorDistance)
+      || (distance === bestDistance && cursorDistance === bestCursorDistance && candidate.id < (best?.id ?? "~"))) {
+      best = candidate;
+      bestDistance = distance;
+      bestCursorDistance = cursorDistance;
+    }
+  }
+  if (!best) return;
+  cancelLockedWindup(world, c);
+  const w = c.rt.weapon;
+  setLock(c, best.id);
+  w.lockPlanAt = -Infinity;
+  w.lockGoal = null;
+  w.held = false;
+  w.bufferedUntil = 0;
+}
+
+function finishAttackMoveIfArrived(c: Combatant): void {
+  const goal = c.rt.weapon.attackMoveGoal;
+  if (goal && c.rt.path.length === 0 && Math.hypot(goal.x - c.s.x, goal.y - c.s.y) <= 10) {
+    c.rt.weapon.attackMoveGoal = null;
+  }
+}
+
+function continueAttackMove(world: World, c: Combatant): void {
+  const goal = c.rt.weapon.attackMoveGoal;
+  if (!goal || c.rt.path.length > 0 || Math.hypot(goal.x - c.s.x, goal.y - c.s.y) <= 10) return;
+  const path = planPath(world, c.s, goal);
+  if (path.length > 0) c.rt.path = path;
+  else c.rt.weapon.attackMoveGoal = null;
+}
+
+/** Once a target is lost, preserve the player's point order and return to its route. */
+function resumeAttackMove(world: World, c: Combatant): void {
+  const goal = c.rt.weapon.attackMoveGoal;
+  dropLock(c);
+  if (!goal) return;
+  const path = planPath(world, c.s, goal);
+  if (path.length > 0 || Math.hypot(goal.x - c.s.x, goal.y - c.s.y) <= 10) c.rt.path = path;
+  else c.rt.weapon.attackMoveGoal = null;
 }
 
 function follow(world: World, c: Combatant): void {
@@ -111,7 +178,7 @@ function follow(world: World, c: Combatant): void {
   const weapon = activeWeapon(c.s);
   const tm = weapon ? timingsOf(c.s, weapon) : null;
   if (!standing(c) || !t || !weapon || !tm || !lockable(world, c, t)) {
-    dropLock(c);
+    resumeAttackMove(world, c);
     return;
   }
   // Stunned: the lock stays but does not chase, aim or hold the trigger until it ends (D5).
@@ -131,7 +198,7 @@ function follow(world: World, c: Combatant): void {
     // Locked behind a wall: chase until it is first seen (the leash still bounds it).
   } else if (w.lockLosLostAt === 0) w.lockLosLostAt = now;
   else if (now - w.lockLosLostAt >= TARGET_LOS_GRACE_MS) {
-    dropLock(c);
+    resumeAttackMove(world, c);
     return;
   }
 
@@ -190,7 +257,7 @@ function chase(world: World, c: Combatant, goal: Vec2, now: number, seen: boolea
   const path = planPath(world, c.s, goal);
   if (path.length > 0) c.rt.path = path;
   else if (!seen || sealedOff(world, c.s, goal)) {
-    dropLock(c);
+    resumeAttackMove(world, c);
     return false;
   }
   return true;

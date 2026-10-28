@@ -468,6 +468,14 @@ describe("fx codec: projectile launches", () => {
     expect(unpackLaunches(earlier)[0]).toMatchObject({ t: T - 50, range: arrowRange });
   });
 
+  it("carries target-lock metadata as an additive side table and still reads older batches", () => {
+    const locked = { ...arrow, id: "guided", targetId: "fighter-b" };
+    const batch = packFx([], T, { launches: [locked] });
+    expect(batch.h).toEqual([["guided", "fighter-b"]]);
+    expect(unpackLaunches(batch)[0]).toMatchObject({ id: "guided", targetId: "fighter-b" });
+    expect(unpackLaunches({ t: T, l: [], p: batch.p }).map((p) => p.targetId)).toEqual([undefined]);
+  });
+
   it("is plain integers apart from the id, and absent when nothing left", () => {
     const batch = packFx([], T, { launches: [arrow, ball, { ...arrow, range: 12.6, t: T - 100 }] });
     for (const tuple of batch.p!) for (const v of tuple.slice(1)) expect(Number.isSafeInteger(v), JSON.stringify(tuple)).toBe(true);

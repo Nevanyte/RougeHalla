@@ -150,6 +150,16 @@ describe("FxChannel: the projectiles a joining client is sent", () => {
   it("is an empty batch when nothing flies", () => {
     expect(new FxChannel().inFlight(new Map(), T)).toEqual({ t: T, l: [] });
   });
+
+  it("sends a joining client the current guided position, heading and remaining lifetime", () => {
+    const launch: ProjectileLaunch = { id: "guided", kind: "arrow", x: 100, y: 200, vx: 900, vy: 0, t: T - 200, range: 4500, targetId: "target" };
+    const batch = new FxChannel().inFlight(new Map([[
+      "guided", { launch, x: 260, y: 230, vx: 800, vy: 412, traveled: 170 },
+    ]]), T);
+    expect(unpackLaunches(batch)[0]).toMatchObject({
+      id: "guided", targetId: "target", x: 260, y: 230, vx: 800, vy: 412, t: T, range: 4330,
+    });
+  });
 });
 
 describe("FxChannel: the roster", () => {

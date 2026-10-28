@@ -6,8 +6,12 @@
 // measure and check is what the Room sends.
 import { packFx, type FxBatch, type FxEvent, type ProjectileLaunch } from "@raid/shared";
 
-/** The projectiles in flight, as `world.projectiles` holds them: all that is read from each is how it left. */
-export type FlyingProjectiles = ReadonlyMap<string, { readonly launch: ProjectileLaunch }>;
+/** Launches plus optional current guided-flight samples, used to initialize a joining client. */
+export type FlyingProjectiles = ReadonlyMap<string, {
+  readonly launch: ProjectileLaunch;
+  readonly x?: number; readonly y?: number; readonly vx?: number; readonly vy?: number;
+  readonly simT?: number; readonly traveled?: number;
+}>;
 
 /** The parts of the state the roster is built from. */
 interface RosterState {
@@ -72,9 +76,20 @@ export class FxChannel {
    * sent (the synced state has none), to be read like any other batch. Sent while the client is still joining, core queues
    * it behind the full state and ahead of every later batch, so the launches and ends that follow it are consistent with
    * it; a launch that comes twice (the client's first batch also carried it) is harmless. It does not touch what the
-   * channel has announced to everyone else. `back` is how long each has flown: at most a ball's whole flight, under 600 ms.
+   * channel has announced to everyone else. Ballistic launches retain their elapsed flight; guided shots restart visually
+   * from their current sample with only their remaining travel budget.
    */
   inFlight(projectiles: FlyingProjectiles, t: number): FxBatch {
-    return packFx([], t, { launches: [...projectiles.values()].map((p) => p.launch) });
+    const launches = [...projectiles.values()].map((p) => {
+      const l = p.launch;
+      // A joining client has no earlier homing path to replay. Start it from the server's latest sample and velocity,
+      // preserving only the bounded lifetime left; directional and reflected flights retain their original endpoint.
+      if (!l.targetId || p.x === undefined || p.y === undefined || p.vx === undefined || p.vy === undefined) return l;
+      return {
+        ...l, x: p.x, y: p.y, vx: p.vx, vy: p.vy, t,
+        range: Math.max(0, l.range - (p.traveled ?? 0)),
+      };
+    });
+    return packFx([], t, { launches });
   }
 }

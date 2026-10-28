@@ -588,24 +588,22 @@ describe("attack speed through the real formulas", () => {
     expect(timingsOf(p, "sword")!.interval).toBeGreaterThanOrEqual(WEAPONS.sword.floor);
   });
 
-  it("the bow's interval shrinks with the cards; the draw is the 0.6 s cap until 92% of the interval is shorter, and never goes under its base-speed value (G9)", () => {
+  it("the bow's interval and share-based draw shrink together with attack-speed cards (G9)", () => {
     const w = startRun(4);
     const fire = P(w, 0);
     fire.weapon0 = "bow";
     const before = timingsOf(fire, "bow")!;
     expect(before.interval).toBeCloseTo(1 / (0.6 * 1.95), 9); // Fire's rate 0.6, the bow's boost 0.95
-    expect(before.windup).toBe(BOW_WINDUP); // 0.92 x 0.855 s is past the 0.6 s cap: the draw is the cap
+    expect(before.windup).toBeCloseTo(Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * before.interval), 9);
     grant(w, 0, "haste3");
     const m = decodeMult(fire.asMult);
     expect(m).toBe(sim(1 + HASTE[3]!));
     const after = timingsOf(fire, "bow")!;
     expect(after.interval).toBeCloseTo(before.interval / m, 9);
-    expect(after.windup).toBe(BOW_WINDUP); // 0.92 x 0.68 s is still past it
-    // Plague's bow starts 0.277 s: the draw is 92% of the interval at base speed. A small card leaves the interval above the
+    expect(after.windup).toBeCloseTo(Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * after.interval), 9);
+    // Plague's bow starts 0.277 s: the draw is 30% of the interval at base speed. A small card leaves the interval above the
     // 0.25 s floor, where it follows the multiplier; Haste III takes it to the floor, where the interval holds and the rest of
-    // the speed is damage per hit (as the sword's test above). The DRAW does not follow: a ranged windup is the anti-kiting
-    // lever, so since the balance pass (G9, shared mirrorTimings) attack speed never cuts it below its base-speed value
-    // (before it was 92% of the shrinking interval).
+    // the speed is damage per hit (as the sword's test above). The draw follows its interval share with attack speed.
     const plague = P(w, 2);
     plague.weapon0 = "bow";
     const plagueBefore = timingsOf(plague, "bow")!;
@@ -622,8 +620,8 @@ describe("attack speed through the real formulas", () => {
       const mv = decodeMult(pv.asMult);
       expect(t.interval, id).toBeCloseTo(Math.max(WEAPONS.bow.floor, plagueBefore.interval / mv), 9);
       expect(t.interval, id).toBeGreaterThanOrEqual(WEAPONS.bow.floor);
-      expect(BOW_WINDUP_SHARE * t.interval, id).toBeLessThan(plagueBefore.windup); // what the old share-of-interval draw would be
-      expect(t.windup, id).toBe(plagueBefore.windup);
+      expect(t.windup, id).toBeCloseTo(Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * t.interval), 9);
+      expect(t.windup, id).toBeLessThan(plagueBefore.windup);
     }
   });
 

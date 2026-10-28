@@ -1,14 +1,14 @@
 // Quickdraw, owner ruling "Melee windups only" (testing/TUNING_ROGUE.md section 7): it shortens the sword's, the shield bash's
-// and the axe's windups (and the axe's root with its windup) and NEVER a ranged one. The ranged windups are the anti-kiting
-// lever, so a bow or wand attack with Quickdraw is the same attack without it. Windups are tick-quantized (an attack lands on the
+// and the axe's windups and NEVER a ranged one. The ranged windups are the anti-kiting
+// lever, so a bow or wand attack with Quickdraw is the same attack without it. The axe has no post-launch recovery root. Windups are tick-quantized (an attack lands on the
 // first 50 ms tick at or after start + windup, never in the tick it started in), so the numbers are sized to remove whole ticks:
-// the sword and the bash 2 -> 1 at both ranks, the Fire/Frost axe 5 -> 3 -> 2 and its root 10 -> 5 -> 3. Since the balance pass Quickdraw is
+// the sword and the bash 2 -> 1 at both ranks, the Fire/Frost axe 5 -> 3 -> 2. Since the balance pass Quickdraw is
 // a card (one copy, -50% windup, the old rank 1); "rank 2" below is that card plus a second halving from a mod source (what a future relic
 // could add), so the tick arithmetic of the deeper cut stays pinned.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, BOW_WINDUP, cardRows, decodeMult, encodeMult, FACTION_IDS, FACTIONS, mapFromTiles, mulberry32, pacedFaction,
-  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WAND_WINDUP, weaponTimings, type FactionId, type GameMap, type WeaponId,
+  attackInterval, cardRows, decodeMult, encodeMult, FACTION_IDS, FACTIONS, mapFromTiles, mulberry32, pacedFaction,
+  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, weaponTimings, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { grantCard } from "../src/sim/chests";
@@ -108,24 +108,28 @@ describe("a bow or wand with Quickdraw is the same attack as without it", () => 
     }
   });
 
-  it("the cap-bound draws keep their whole 0.6 s and 0.4 s, and the synced pull starts where the attack began", () => {
+  it("the cap-bound draws stay unchanged under Quickdraw, and the synced pull starts where the attack began", () => {
     const w = startRun("frost");
     quickdraw(w, 2);
     expect(P(w).windupMult).toBe(encodeMult(0.25));
-    expect(timingsOf(P(w), "bow")!.windup).toBe(BOW_WINDUP);
-    expect(timingsOf(P(w), "wand")!.windup).toBe(WAND_WINDUP);
-    expect(attackOf(w, "bow").windupMs).toBeCloseTo(BOW_WINDUP * 1000, 6);
+    const spec = pacedFaction(FACTIONS.frost);
+    const bowWindup = weaponTimings("bow", attackInterval(spec, "bow")).windup;
+    const wandWindup = weaponTimings("wand", attackInterval(spec, "wand")).windup;
+    expect(timingsOf(P(w), "bow")!.windup).toBeCloseTo(bowWindup, 9);
+    expect(timingsOf(P(w), "wand")!.windup).toBeCloseTo(wandWindup, 9);
+    expect(attackOf(w, "bow").windupMs).toBeCloseTo(bowWindup * 1000, 6);
     expect(P(w).drawStartedAt).toBe(0); // the bow has landed and cleared its pull
   });
 
-  it("at the 1.5 attack-speed cap the Frost bow still draws its full 0.6 s", () => {
+  it("at the attack-speed cap, the Frost bow follows its shortened interval share", () => {
     const w = startRun("frost");
     quickdraw(w, 2);
     w.modSources.push(() => ({ asMult: 1.5 }));
     recomputeMods(w, C(w));
     expect(decodeMult(P(w).asMult)).toBe(1.5);
     const t = timingsOf(P(w), "bow")!;
-    expect(t.windup).toBe(BOW_WINDUP);
+    const spec = pacedFaction(FACTIONS.frost);
+    expect(t.windup).toBeCloseTo(weaponTimings("bow", attackInterval(spec, "bow", 1.5)).windup, 9);
     expect(t.windup).toBeLessThan(t.interval);
   });
 
@@ -133,9 +137,12 @@ describe("a bow or wand with Quickdraw is the same attack as without it", () => 
     const w = startRun("frost");
     w.modSources.push(() => ({ windupMult: 1.5 }));
     recomputeMods(w, C(w));
-    expect(timingsOf(P(w), "bow")!.windup).toBeCloseTo(0.9, 9);
-    expect(timingsOf(P(w), "wand")!.windup).toBeCloseTo(0.6, 9);
-    expect(timingsOf(P(w), "bow")!.windup).toBeLessThanOrEqual(timingsOf(P(w), "bow")!.interval);
+    const bow = timingsOf(P(w), "bow")!;
+    const wand = timingsOf(P(w), "wand")!;
+    const base = startRun("frost");
+    expect(bow.windup).toBeCloseTo(Math.min(bow.interval, timingsOf(P(base), "bow")!.windup * 1.5), 9);
+    expect(wand.windup).toBeCloseTo(Math.min(wand.interval, timingsOf(P(base), "wand")!.windup * 1.5), 9);
+    expect(bow.windup).toBeLessThanOrEqual(bow.interval);
   });
 });
 
@@ -158,18 +165,18 @@ describe("the melee windups, in ticks (an attack starting on the tick grid)", ()
     }
   });
 
-  it("the Fire and Frost axe (0.25 s windup, 0.5 s root) lands in 3 then 2 ticks instead of 5, and walks again in 5 then 3 instead of 10", () => {
+  it("the Fire and Frost axe lands faster with Quickdraw and has no post-launch recovery root", () => {
     for (const faction of ["fire", "frost"] as const) {
       const plain = attackOf(startRun(faction), "axe");
-      expect([plain.windupMs, plain.landTicks, plain.freeTicks], `${faction} plain`).toEqual([250, 5, 10]);
+      expect([plain.windupMs, plain.landTicks, plain.freeTicks], `${faction} plain`).toEqual([250, 5, 5]);
       const r1 = startRun(faction);
       quickdraw(r1, 1);
       const a1 = attackOf(r1, "axe");
-      expect([a1.windupMs, a1.landTicks, a1.freeTicks], `${faction} rank 1`).toEqual([125, 3, 5]);
+      expect([a1.windupMs, a1.landTicks, a1.freeTicks], `${faction} rank 1`).toEqual([125, 3, 3]);
       const r2 = startRun(faction);
       quickdraw(r2, 2);
       const a2 = attackOf(r2, "axe");
-      expect([a2.windupMs, a2.landTicks, a2.freeTicks], `${faction} rank 2`).toEqual([62.5, 2, 3]);
+      expect([a2.windupMs, a2.landTicks, a2.freeTicks], `${faction} rank 2`).toEqual([62.5, 2, 2]);
     }
   });
 
@@ -188,7 +195,7 @@ describe("the melee windups, in ticks (an attack starting on the tick grid)", ()
       expect(a1.landTicks, `${faction} rank 1`).toBeLessThan(plain.landTicks);
       expect(a2.landTicks, `${faction} rank 2`).toBeLessThanOrEqual(a1.landTicks);
       expect(a1.freeTicks, `${faction} rank 1`).toBeLessThan(plain.freeTicks);
-      expect(a2.freeTicks, `${faction} rank 2`).toBeLessThan(a1.freeTicks);
+      expect(a2.freeTicks, `${faction} rank 2`).toBe(a2.landTicks); // recovery root is zero; tick rounding may tie ranks
       expect(a2.freeTicks, `${faction} rank 2`).toBeGreaterThanOrEqual(a2.landTicks);
     }
   });
@@ -220,14 +227,13 @@ describe("the melee windups, in ticks (an attack starting on the tick grid)", ()
     expect(new Set(quick)).toEqual(new Set([1]));
   });
 
-  it("the axe's root never ends before its windup and never outlasts the interval", () => {
+  it("the axe has no post-launch recovery root at either Quickdraw rank", () => {
     for (const faction of FACTION_IDS) {
       for (const rank of [1, 2] as const) {
         const w = startRun(faction);
         quickdraw(w, rank);
         const t = timingsOf(P(w), "axe")!;
-        expect(t.root, `${faction} rank ${rank}`).toBeGreaterThanOrEqual(t.windup);
-        expect(t.root, `${faction} rank ${rank}`).toBeLessThanOrEqual(t.interval);
+        expect(t.root, `${faction} rank ${rank}`).toBe(0);
       }
     }
   });
@@ -247,7 +253,8 @@ describe("the harness's Quickdraw options", () => {
         expect(chaser.windupMult).toBe(encodeMult(0.25));
         expect(shooter.windupMult).toBe(encodeMult(0.5));
         expect(timingsOf(chaser, "sword")!.windup).toBeCloseTo(0.025, 12);
-        expect(timingsOf(shooter, "bow")!.windup).toBe(BOW_WINDUP);
+        const bowWindup = weaponTimings("bow", attackInterval(pacedFaction(FACTIONS.fire), "bow")).windup;
+        expect(timingsOf(shooter, "bow")!.windup).toBeCloseTo(bowWindup, 9);
         seen = true;
       },
     });
