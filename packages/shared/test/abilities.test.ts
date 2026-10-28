@@ -4,7 +4,7 @@ import {
   BLAZE_TRAIL_HALF_WIDTH, BLAZE_TRAIL_MS, BLINK_STEP, CAST_RANGE_SLACK, effectSide, FACTION_IDS, FIELD_KINDS, fieldKindOf, FREEZE_CAST_MS,
   FREEZE_RANGE, FREEZE_STUN_MS, hasteMultiplier, isAbilityDot, isAbilityId, isAbilitySlot, LAST_STAND_FLOOR_HP, LAST_STAND_HEAL_SHARE,
   LAST_STAND_MS, LAST_STAND_SPEED_BONUS, rankOf, setSlotReadyAt, slotReadyAt, STATUS_KINDS, SWARM_CAST_MS, SWARM_CLOUD_RADIUS, SWARM_MS,
-  TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
+  TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_CONVICTED_RADIUS, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
   TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_COOLDOWN_SECONDS, WISH_LOCK_SECONDS, wishOf, WISHES, type AbilityDef, type AbilityEffect,
   type AbilityId,
 } from "../src/index";
@@ -118,7 +118,8 @@ describe("the Wish catalog", () => {
     expect(r.castMs).toBe(350);
     expect(r.targeting).toEqual({ kind: "unit", range: 400, los: true, snapRadius: TARGET_SNAP_RADIUS, who: "enemy" });
     expect(r.shape).toEqual({ kind: "circle", radius: 300 });
-    expect(r.effects).toEqual([{ do: "zone", ms: 5000, radius: 300, dealtMult: 0.8, takenFromCasterMult: 1.2, exitStunMs: 1000 }]);
+    expect(r.effects).toEqual([{ do: "zone", ms: 5000, radius: 300, dealtMult: 0.8, takenFromCasterMult: 1.2, exitStunMs: 1000, convictedRadius: 200 }]);
+    expect(TRIAL_CONVICTED_RADIUS).toBe(200);
   });
 
   it("Blaze Step: an own order that blinks 64..300 u at once and leaves a burning trail, a dot ability", () => {

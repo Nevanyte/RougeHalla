@@ -46,6 +46,7 @@ EPS = 1e-9
 CHILL_TIERS = True
 SUPPRESS_FEEDS_LIFESTEAL = True
 AS_CAP = 1.5   # shared/constants.ts AS_MULT_CAP: the attack-speed multiplier of the rows and sources together
+MARK_TIER_HITS = 3.0   # shared/constants.ts MARK_TIER_HITS: weapon hits landed per tier (the weaponless engine's `tier_hits` is its proxy)
 V = 170.0      # move speed (u/s)
 REACH = 60.0   # melee reach
 CHILL_MOVE_RADIUS = 100.0  # shared/signatures.ts: Frost's move slow reaches only fighters it chills within this distance...
@@ -262,7 +263,7 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
         for i in (0, 1):
             if marked[i]:
                 hits[i] = hits[i] + swing[i] / (chill_prev[i] if CHILL_TIERS else 1.0)
-                tier.append(np.where(hits[i] > 0, np.minimum(4, 1 + np.floor(hits[i] / engine.TIER_HITS + 1e-9)), 0).astype(int))
+                tier.append(np.where(hits[i] > 0, np.minimum(4, 1 + np.floor(hits[i] / MARK_TIER_HITS + 1e-9)), 0).astype(int))
                 tick2[i] = np.where((tier[-1] >= 2) & (tick2[i] > 10 ** 8), k, tick2[i])
             else:
                 tier.append(np.zeros(P, int))

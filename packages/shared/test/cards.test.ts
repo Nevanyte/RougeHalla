@@ -13,26 +13,26 @@ import {
 const title = (id: string): string => cardTitle(id);
 
 describe("the catalog", () => {
-  it("has 75 cards with unique ids: 24 base, 11 conditional, 40 augments", () => {
-    expect(CARDS).toHaveLength(75);
-    expect(new Set(CARD_IDS).size).toBe(75);
+  it("has 80 cards with unique ids: 24 base, 13 conditional, 43 augments", () => {
+    expect(CARDS).toHaveLength(80);
+    expect(new Set(CARD_IDS).size).toBe(80);
     expect(cardsOfKind("base")).toHaveLength(24);
-    expect(cardsOfKind("conditional")).toHaveLength(11);
-    expect(cardsOfKind("augment")).toHaveLength(40);
-    expect(CONDITIONAL_IDS).toHaveLength(11);
-    expect(AUGMENT_IDS).toHaveLength(40);
+    expect(cardsOfKind("conditional")).toHaveLength(13);
+    expect(cardsOfKind("augment")).toHaveLength(43);
+    expect(CONDITIONAL_IDS).toHaveLength(13);
+    expect(AUGMENT_IDS).toHaveLength(43);
     for (const c of CARDS) expect(isCardId(c.id) && cardDef(c.id) === c, c.id).toBe(true);
     expect(isCardId("whetstone")).toBe(false);
     expect(isCardId(7)).toBe(false);
   });
 
-  it("has all 75 cards live: the phase-B hooks landed, so no card is held back as catalog data", () => {
+  it("has all 80 cards live: the phase-B hooks landed, so no card is held back as catalog data", () => {
     const live = CARDS.filter((c) => cardLive(c));
     expect(LIVE_CARD_READY).toEqual(["a"]);
-    expect(live).toHaveLength(75);
+    expect(live).toHaveLength(80);
     expect(cardsOfKind("base", { liveOnly: true })).toHaveLength(24);
-    expect(cardsOfKind("conditional", { liveOnly: true })).toHaveLength(11);
-    expect(cardsOfKind("augment", { liveOnly: true })).toHaveLength(40);
+    expect(cardsOfKind("conditional", { liveOnly: true })).toHaveLength(13);
+    expect(cardsOfKind("augment", { liveOnly: true })).toHaveLength(43);
     expect(CARDS.filter((c) => c.ready === "b").map((c) => c.id)).toEqual([]);
   });
 
@@ -52,7 +52,7 @@ describe("the catalog", () => {
 
   it("has unique titles, none the name of a mob, a quest, a Wish, a faction, a weapon or a passive that left the chest", () => {
     const titles = CARDS.map((c) => c.title.toLowerCase());
-    expect(new Set(titles).size).toBe(75);
+    expect(new Set(titles).size).toBe(80);
     // The twelve declared-only passives and the three neutrals that base cards replaced (the other six passives live on as augments).
     const retired = [
       "Firebrand", "Searing Riposte", "Ashwalk", "Double Sentence", "Sentence Served", "Bite Twice", "Shatter", "Frozen Path",
@@ -149,7 +149,8 @@ describe("the catalog", () => {
       fistsOfFury: 2, overkill: 2, tankEngine: 2, pocketSand: 1, gambler: 1, slowStarter: 2, coupDeGrace: 2, bigGameHunter: 2, packLeader: 2,
       adrenaline: 2, raceToZero: 3, cruelWounds: 2, thirdTimesTheCharm: 2, eyeForAnEye: 2, bestOffense: 1, sittingDucks: 2, tunnelVision: 2,
       firstImpressions: 1, plantYourFeet: 2, wishfulThinking: 2, hemorrhage: 1, ironWill: 1, spikedShell: 2, gatheringStorm: 2, wellspring: 1,
-      siphon: 2, quickdraw: 1, bountyHunter: 1, secondWind: 2, witness: 1, pestilence: 2, lastRites: 1,
+      siphon: 2, quickdraw: 1, bountyHunter: 1, secondWind: 2, witness: 1, pestilence: 2, lastRites: 1, gallowsPatience: 2,
+      noCommutation: 2, finalVerdict: 3,
     };
     expect(Object.keys(tiers).sort()).toEqual([...AUGMENT_IDS].sort());
     for (const [id, tier] of Object.entries(tiers)) expect(cardTierOf(id), id).toBe(tier);
@@ -234,6 +235,55 @@ describe("why a card is offered, and who cannot take it", () => {
   });
 });
 
+describe("the mark's five cards (docs/SENTENCED_REDESIGN.md section 4)", () => {
+  const row = (id: string, flag: string): void => {
+    expect(cardDef(id as CardId)!.effects, id).toEqual([{ k: "flag", flag }]);
+  };
+
+  it("are flag rows with the contract's kind, tier and requirement", () => {
+    const heavier = cardDef("heavierSentence")!;
+    expect([heavier.kind, heavier.tier, heavier.requires]).toEqual(["conditional", 2, "vitality"]);
+    const swift = cardDef("swiftJudgment")!;
+    expect([swift.kind, swift.tier, swift.requires]).toEqual(["conditional", 2, "haste"]);
+    expect([cardDef("gallowsPatience")!.kind, cardDef("gallowsPatience")!.tier]).toEqual(["augment", 2]);
+    expect([cardDef("noCommutation")!.kind, cardDef("noCommutation")!.tier]).toEqual(["augment", 2]);
+    expect([cardDef("finalVerdict")!.kind, cardDef("finalVerdict")!.tier]).toEqual(["augment", 3]);
+    row("heavierSentence", "heavierSentence");
+    row("swiftJudgment", "swiftJudgment");
+    row("gallowsPatience", "gallowsPatience");
+    row("noCommutation", "noCommutation");
+    row("finalVerdict", "finalVerdict");
+  });
+
+  it("have the titles the spec names, and texts in mechanic terms", () => {
+    expect(["heavierSentence", "swiftJudgment", "gallowsPatience", "noCommutation", "finalVerdict"].map(title)).toEqual([
+      "Heavier Sentence", "Swift Judgment", "Gallows' Patience", "No Commutation", "Final Verdict",
+    ]);
+    for (const id of ["heavierSentence", "swiftJudgment", "gallowsPatience", "noCommutation", "finalVerdict"]) {
+      const text = cardDef(id as CardId)!.text.toLowerCase();
+      for (const banned of ["sentenced", "plague", "frost", "fire", "holy", "demon", "bow", "sword", "axe", "wand", "shield", "trial", "mark:"]) {
+        expect(text.includes(banned), `${id}: ${banned}`).toBe(false);
+      }
+    }
+    expect(cardText("gallowsPatience")).toContain("2 s longer");
+    expect(cardText("gallowsPatience")).toContain("1.5 s");
+    expect(cardText("noCommutation")).toContain("two tiers");
+    expect(cardText("gatheringStorm")).toBe("Your marks climb their tiers 50% faster.");
+  });
+
+  it("the two conditionals are offered only to a picker holding their base (Vitality, Haste)", () => {
+    const vit: CardCounts = { vitality1: 1 };
+    const haste: CardCounts = { haste1: 1 };
+    const ids = (c: CardCounts): string[] => conditionalPool([c]).map((x) => x.id);
+    expect(ids({ ad1: 1 })).not.toContain("heavierSentence");
+    expect(ids({ ad1: 1 })).not.toContain("swiftJudgment");
+    expect(ids(vit)).toContain("heavierSentence");
+    expect(ids(vit)).not.toContain("swiftJudgment");
+    expect(ids(haste)).toContain("swiftJudgment");
+    expect(ids(haste)).not.toContain("heavierSentence");
+  });
+});
+
 describe("the glossary", () => {
   it("explains every mechanic tag, and lists the stats before them", () => {
     for (const t of MECHANIC_TAGS) expect(TAG_GLOSSARY[t].text.length, t).toBeGreaterThan(0);
@@ -245,7 +295,7 @@ describe("the glossary", () => {
     const sig = Object.fromEntries(SIGNATURE_TAGS.map((s) => [`${s.faction}:${s.signature}`, s.tags]));
     expect(sig["fire:Burn"]).toEqual(["magic", "dot"]);
     expect(sig["fire:Backlash"]).toEqual(["physical", "returned"]);
-    expect(sig["sentenced:Mark"]).toEqual(["true", "ramping", "dot"]);
+    expect(sig["sentenced:Mark"]).toEqual(["true", "ramping"]);
     expect(sig["plague:Disease and execute"]).toEqual(["magic", "dot", "execute"]);
     expect(sig["frost:Chill"]).toEqual(["slow"]);
     expect(sig["holy:Lifesteal"]).toEqual(["heal"]);
@@ -312,10 +362,10 @@ describe("the chest roll (4.8)", () => {
     expect(conditionalPool([a, { ad1: 1 }]).map((c) => c.id).sort()).toEqual(["bloodthirst", "juggernaut", "secondSkin", "spellsword"]);
     expect(conditionalPool([]).map((c) => c.id)).toEqual([]);
     for (const o of rolls({ pickers: [a, b] })) expect(o).not.toContain("bloodthirst");
-    // All eleven conditionals are live now (Festering Arcana and Rhythm landed with the phase-B hooks).
+    // All thirteen conditionals are live now (Festering Arcana and Rhythm landed with the phase-B hooks, Heavier Sentence and Swift Judgment with the mark).
     const everything: CardCounts = Object.fromEntries(BASE_STAT_IDS.map((s) => [`${s}1`, 1]));
     const all = conditionalPool([everything]).map((c) => c.id);
-    expect(all).toHaveLength(11);
+    expect(all).toHaveLength(13);
     expect(all).toContain("festeringArcana");
     expect(all).toContain("rhythm");
   });

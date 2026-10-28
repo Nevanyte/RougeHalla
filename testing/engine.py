@@ -50,23 +50,25 @@ def rat_king(p: dict, s: State) -> dict:
     return {"disease": p["plague"], "execute": p["execute"] * max(0.0, 0.5 - s.foe_hp_frac)}
 
 
-# The mark climbs by attacks landed, not by time: tier 1 at the first hit, one more every TIER_HITS hits, tier MARK_TOP at most.
-TIER_HITS = 3.0
+# The mark climbs by attacks landed, not by time: tier 1 at the first hit, one more every `tier_hits` hits, tier MARK_TOP at most.
+# The game counts weapon hits (3 a tier, shared MARK_TIER_HITS), a weapon attacking 40-150% faster than the faction's base rate; this
+# weaponless engine counts the base rate, so its `tier_hits` is that proxy: 3 on the design sheet and, like every fight, 1/k of it at
+# duel pace (pacedFaction), which keeps the counter graph the same at every pace.
 MARK_TOP = 4
 
 
-def mark_tier(own_hits: float) -> int:
-    """Tier of the mark after `own_hits` hits on the same target: 0 before the first, then 1 + a tier per TIER_HITS hits, at most 4."""
+def mark_tier(p: dict, own_hits: float) -> int:
+    """Tier of the mark after `own_hits` hits on the same target: 0 before the first, then 1 + a tier per p["tier_hits"] hits, at most 4."""
     if own_hits <= 0.0:
         return 0
-    return min(MARK_TOP, 1 + int(own_hits / TIER_HITS + 1e-9))
+    return min(MARK_TOP, 1 + int(own_hits / p["tier_hits"] + 1e-9))
 
 
 def marked(p: dict, s: State) -> dict:
     """The mark: every hit on the target adds a share of ITS MAX HP as true damage (a per-second rate here: the attack rate the fighter
     would have with no slow on it x the share: a slowed fighter lands fewer hits, each paying out the time it took, so a slow on
     the cadence never cuts the mark), the share growing with the tier (x amp at the top) and with the stacks earned."""
-    tier = mark_tier(s.own_hits)
+    tier = mark_tier(p, s.own_hits)
     if tier == 0:
         return {}
     pct = p["mark_pct"] + p["mark_kill"] * s.own_stacks
@@ -92,7 +94,7 @@ def no_pressure(p: dict, s: State) -> dict:
 def marked_pressure(p: dict, s: State) -> dict:
     """Tier 2: the opponent's attack rate above 1.0 is cut (it keeps tax_keep of the excess, never above tax_cap). Tier 3: it deals
     `suppress` of its damage. Tier 4: its execute cannot take me below 1 hp."""
-    tier = mark_tier(s.own_hits)
+    tier = mark_tier(p, s.own_hits)
     rate = s.foe_rate
     if tier >= 2 and rate > 1.0:
         rate = min(p["tax_cap"], 1.0 + (rate - 1.0) * p["tax_keep"])

@@ -50,8 +50,8 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 850, rate: 0.9, hit: 30, phys: 0.7, trueShare: 0.0, armor: 125, shield: 210,
-    mechanic: "marked", params: { mark_pct: 0.039, mark_kill: 0.00975, mark_amp: 1.5, tax_keep: 0.5, tax_cap: 1.6, suppress: 0.8 },
+    hp: 1050, rate: 0.9, hit: 20, phys: 0.9, trueShare: 0.0, armor: 150, shield: 240,
+    mechanic: "marked", params: { mark_pct: 0.019, mark_kill: 0.00475, mark_amp: 1.5, tier_hits: 3, tax_keep: 0.5, tax_cap: 1.6, suppress: 0.8 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
@@ -129,7 +129,7 @@ export function bonusParts(spec: FactionSpec, s: CombatState): ReadonlyArray<Bon
     case "dragonslayer": return [["burn", p.burn!], ["backlash", p.backlash! * s.foeRate]];
     case "rat_king": return [["disease", p.plague!], ["disease", p.execute! * Math.max(0, 0.5 - s.foeHpFrac), true]];
     case "marked": {
-      const tier = markTierOf(s.ownHits);
+      const tier = markTierOf(s.ownHits, 0, p.tier_hits!);
       if (tier === 0) return [];
       const pct = p.mark_pct! + p.mark_kill! * s.ownStacks;
       return [["mark", s.ownBaseRate * pct * s.foeMaxHp * (tier >= MARK_TOP_TIER ? p.mark_amp! : 1)]];
@@ -151,7 +151,7 @@ export interface Pressure { foeRate: number; foeOut: number; denyExecute: boolea
 export function pressureOf(spec: FactionSpec, s: CombatState): Pressure {
   if (spec.mechanic !== "marked") return { foeRate: s.foeRate, foeOut: 1, denyExecute: false };
   const p = spec.params;
-  const tier = markTierOf(s.ownHits);
+  const tier = markTierOf(s.ownHits, 0, p.tier_hits!);
   return {
     foeRate: tier >= 2 ? taxedRate(s.foeRate, p.tax_keep!, p.tax_cap!) : s.foeRate,
     foeOut: tier >= 3 ? p.suppress! : 1,
@@ -202,12 +202,13 @@ export function scaledFaction(spec: FactionSpec, k: number): FactionSpec {
 
 /**
  * The faction as fought in the arena (DUEL_PACE, GAME_DESIGN 10.2): the hit and every damage param times k (the mark's share of the
- * target's hp too), with hp unchanged. Every fight runs k times shorter and the counter graph holds. k = 1 is the design sheet
+ * target's hp too), with hp unchanged. Every fight runs k times shorter and the counter graph holds, so the reference duel's mark
+ * climbs a tier in 1/k of the hits (`tier_hits`; the sim itself counts MARK_TIER_HITS weapon hits). k = 1 is the design sheet
  * (the parity tests).
  */
 export function pacedFaction(spec: FactionSpec, k: number = DUEL_PACE): FactionSpec {
   const params: Record<string, number> = {};
-  for (const [key, v] of Object.entries(spec.params)) params[key] = DAMAGE_PARAMS.has(key) ? v * k : v;
+  for (const [key, v] of Object.entries(spec.params)) params[key] = DAMAGE_PARAMS.has(key) ? v * k : key === "tier_hits" ? v / k : v;
   return { ...spec, hit: spec.hit * k, params };
 }
 

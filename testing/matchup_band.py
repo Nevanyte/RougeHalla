@@ -38,7 +38,7 @@ def phi(x):
 def paced(p, k):
     """The faction as the game fights it at duel pace k: damage numbers x k, the mark ramp x k^2, hp unchanged."""
     damage = ("burn", "backlash", "plague", "execute", "mark_pct", "mark_kill")
-    params = {key: (v * k if key in damage else v) for key, v in p.params.items()}
+    params = {key: (v * k if key in damage else v / k if key == "tier_hits" else v) for key, v in p.params.items()}
     return replace(p, hit=p.hit * k, params=params)
 
 

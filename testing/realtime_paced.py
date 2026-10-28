@@ -21,7 +21,7 @@ ID = {"Fire": "fire", "Sentenced": "sentenced", "Plague": "plague", "Frost": "fr
 
 
 def paced(p, k):
-    params = {key: (v * k if key in DAMAGE else v) for key, v in p.params.items()}
+    params = {key: (v * k if key in DAMAGE else v / k if key == "tier_hits" else v) for key, v in p.params.items()}
     return replace(p, hit=p.hit * k, params=params)
 
 

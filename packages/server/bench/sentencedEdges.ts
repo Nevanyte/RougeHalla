@@ -5,6 +5,7 @@
 //
 //   npx tsx packages/server/bench/sentencedEdges.ts [--weapons fists,sword,axe,bow,wand,shield,sig] [--kit 0..5] [--noise 0.45 --draws 4]
 //                                                     [--setups 18] [--flip] [--style lock|policy] [--cap 300] [--edges fire>sentenced,...]
+//                                                     [--sentenced-weapon <id|sig>]   (Sentenced holds this in every column; the other fighter holds the column's)
 //
 // Per edge and weapon: the favourite's Monte-Carlo win % / the underdog's / the favourite's median hp left % noise-free (and, with --flip,
 // the median flip multiplier r and P(favourite) = Phi(ln r / (sigma sqrt 2))). Targets (the balance pass's A6): favourite 60-76%, underdog at
@@ -24,10 +25,12 @@ const cap = Number(opt(args, "cap", kit === 0 ? "300" : "200"));
 const doFlip = flag(args, "flip");
 const weaponsArg = opt(args, "weapons", "fists,sword,axe,bow,wand,shield,sig").split(",");
 const edgesArg = opt(args, "edges", "");
+const sentencedWeapon = opt(args, "sentenced-weapon", "");
 const edges = (edgesArg ? edgesArg.split(",").map((e) => e.split(">") as [FactionId, FactionId]) : BEATS.filter(([w, l]) => w === "sentenced" || l === "sentenced"));
 const setups = fullSetups().filter((_, i) => i % Math.ceil(18 / nSetups) === 0);
 
 function weaponOf(f: FactionId, w: string): WeaponId {
+  if (f === "sentenced" && sentencedWeapon !== "") return sentencedWeapon === "sig" ? SIGNATURE_WEAPONS.sentenced : (sentencedWeapon as WeaponId);
   return w === "sig" ? SIGNATURE_WEAPONS[f] : w === "auto" ? kitWeapon(f, kit) : (w as WeaponId);
 }
 

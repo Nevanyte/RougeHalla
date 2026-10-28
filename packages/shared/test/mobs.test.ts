@@ -10,7 +10,8 @@ import * as shared from "../src/index";
 const REGIONS = FACTION_IDS;
 
 /** Every param the faction scaling treats as a point-damage number (factions.ts keeps the same list private). */
-const DAMAGE_PARAMS = ["burn", "backlash", "plague", "execute", "mark_ramp", "mark_cap"];
+/** The point-damage params a mob type multiplies by dmgMult; mark_pct and mark_kill are shares of the player's hp, scaled by k in mobFaction and by dmgMult here. */
+const DAMAGE_PARAMS = ["burn", "backlash", "plague", "execute", "mark_pct", "mark_kill"];
 
 describe("the tunables the mob catalog reads", () => {
   it("are the contract's numbers", () => {
@@ -41,18 +42,26 @@ describe("isRegionalKind", () => {
 describe("mobFaction", () => {
   const damageKeys = (spec: FactionSpec) => Object.keys(spec.params).filter((k) => DAMAGE_PARAMS.includes(k));
 
-  /** scaledFaction by k, with a signature's execute scaled by k once more: k squared overall (balance contract 6.1). */
+  /**
+   * scaledFaction by k, with a signature's execute scaled by k once more (k squared overall, balance contract 6.1) and the mark's shares of
+   * the player's max hp by k once (scaledFaction leaves them alone: a share of a pool already scales with the pool; the mob's target is a
+   * full-scale player).
+   */
   const scaledWithExecute = (region: FactionId, k: number): FactionSpec => {
     const spec = scaledFaction(FACTIONS[region], k);
-    return spec.params.execute === undefined ? spec : { ...spec, params: { ...spec.params, execute: spec.params.execute * k } };
+    const params = { ...spec.params };
+    if (params.execute !== undefined) params.execute *= k;
+    if (params.mark_pct !== undefined) params.mark_pct *= k;
+    if (params.mark_kill !== undefined) params.mark_kill *= k;
+    return { ...spec, params };
   };
 
   it("is the region's faction scaled by MOB_K, an elite's by ELITE_K (an execute by k squared)", () => {
     for (const region of REGIONS) {
       expect(mobFaction(region, false)).toEqual(scaledWithExecute(region, MOB_K));
       expect(mobFaction(region, true)).toEqual(scaledWithExecute(region, ELITE_K));
-      // A faction with no execute is exactly scaledFaction.
-      if (FACTIONS[region].params.execute === undefined) {
+      // A faction with no execute and no mark is exactly scaledFaction.
+      if (FACTIONS[region].params.execute === undefined && FACTIONS[region].params.mark_pct === undefined) {
         expect(mobFaction(region, false)).toEqual(scaledFaction(FACTIONS[region], MOB_K));
         expect(mobFaction(region, true)).toEqual(scaledFaction(FACTIONS[region], ELITE_K));
       }
@@ -116,7 +125,8 @@ describe("mobFaction", () => {
     expect(mobFaction("fire", false).hit).toBeCloseTo(22, 9);
     expect(mobFaction("fire", false).params.burn).toBeCloseTo(18 * 0.22, 9);
     expect(mobFaction("plague", true).hp).toBeCloseTo(1375 * 0.65, 9);
-    expect(mobFaction("sentenced", false).params.mark_cap).toBeCloseTo(72 * MOB_K, 9);
+    expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(0.019 * MOB_K, 9);
+    expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(0.00475 * MOB_K, 9);
   });
 
   it("makes every mob weaker than the player's faction and every elite strictly stronger than the normal mob", () => {
