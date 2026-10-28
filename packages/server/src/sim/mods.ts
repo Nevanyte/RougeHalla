@@ -516,9 +516,19 @@ export function hpRaceCapOf(s: FighterState): number {
   return v > 1 ? v : 0;
 }
 
-/** How much faster a Sentenced fighter's mark ramps: 1 + the markRate sum (never below 0). */
+/** How fast a Sentenced fighter's marks climb their tiers: 1 + the markRate sum (never below 0), the credit each landed hit gives toward the next tier. */
 export function markRateOf(s: FighterState): number {
   return Math.max(0, 1 + statSumsOf(s).markRate);
+}
+
+/**
+ * The attack-speed multiplier the fighter's own rows give, NOT capped (AS_MULT_CAP caps the product with every source in the mirror),
+ * before any source (a slow, the mark's tax) and before `asPost`: what the tax reads as the fighter's card haste (1 for a mob and for a
+ * fighter with no haste row). Uncapped so that the tax's ceiling holds: the tax factor and this multiplier multiply into the mirror, and
+ * taxed(rate x this) / (rate x this) is exactly what brings the product to the taxed rate even when the haste alone passed the cap.
+ */
+export function cardAsMultOf(s: FighterState): number {
+  return Math.max(0, 1 + statSumsOf(s).attackSpeed);
 }
 
 /** The hp share below which a Plague fighter's execute runs: EXECUTE_BAND (0.5) + its executeBand rows, within 0..1. */
@@ -619,6 +629,26 @@ export function outgoingKindOf(e: Pick<LedgerEntry, "sig" | "dot" | "passive" | 
  * Your Feet's 1.25): it shares G1's cap with them, so the rows give way to it instead of going past x2.5.
  */
 export function outgoingMult(attacker: FighterState, victimFrac: number, probe?: VsProbe, kind: OutgoingKind = "other", baked = 1): number {
+  return outgoingMultCore(attacker, victimFrac, probe, kind, baked, false);
+}
+
+/**
+ * The share (0..1) of an entry's outgoing multiplier that its attacker's execute rows contribute: the `vs hpBelow` rows (Coup de Grace, Pestilence
+ * outside Plague), which add damage as the victim falls. A tier-4 mark denies exactly that much of a hit (sim/ledger.ts, docs/SENTENCED_REDESIGN.md R7):
+ * `1 - (the multiplier without those rows) / (the multiplier with them)`, so it is 0 for a fighter without them and never more than the rows give.
+ */
+export function outgoingExecuteShare(attacker: FighterState, victimFrac: number, probe?: VsProbe, kind: OutgoingKind = "other", baked = 1): number {
+  const b = caches.get(attacker)?.build;
+  if (!b || !b.vs.some((e) => e.test === "hpBelow")) return 0;
+  const full = outgoingMultCore(attacker, victimFrac, probe, kind, baked, false);
+  if (!(full > 0)) return 0;
+  const without = outgoingMultCore(attacker, victimFrac, probe, kind, baked, true);
+  return Math.max(0, Math.min(1, 1 - without / full));
+}
+
+function outgoingMultCore(
+  attacker: FighterState, victimFrac: number, probe: VsProbe | undefined, kind: OutgoingKind, baked: number, skipExecute: boolean,
+): number {
   const b = caches.get(attacker)?.build;
   if (!b) return 1;
   const m = b.folded.mults;
@@ -629,7 +659,7 @@ export function outgoingMult(attacker: FighterState, victimFrac: number, probe?:
   if (!hasDamageRows(b)) return Math.min(1, ceiling);
   let sum = b.sums.damage;
   const streak = kind === "hit" ? probe?.streak : undefined;
-  for (const e of b.vs) if (vsHolds(e, victimFrac, probe, streak)) sum += e.v;
+  for (const e of b.vs) if (!(skipExecute && e.test === "hpBelow") && vsHolds(e, victimFrac, probe, streak)) sum += e.v;
   for (const e of b.scales) {
     if (!(e.step > 0)) continue;
     let bonus = 0;

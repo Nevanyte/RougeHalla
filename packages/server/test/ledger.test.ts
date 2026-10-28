@@ -221,9 +221,9 @@ describe("all the hits of a tick land at once", () => {
   });
 
   it("compares hp fractions, not hp: the smaller pool at a higher fraction wins", () => {
-    const { results } = mutual(720, 700); // Fire 720 of 835 against Sentenced 700 of 800: more hp, lower fraction
-    expect(results.b).toMatchObject({ outcome: "won" });
-    expect(results.a).toMatchObject({ outcome: "died" });
+    const { results } = mutual(FACTIONS.fire.hp * 0.8, FACTIONS.sentenced.hp * 0.7); // fewer raw hp, but a higher fraction
+    expect(results.a).toMatchObject({ outcome: "won" });
+    expect(results.b).toMatchObject({ outcome: "died" });
   });
 
   it("calls an exact tie a draw: both share place 1, nobody is the winner", () => {
@@ -383,23 +383,17 @@ describe("mitigation", () => {
 
   // Armor cuts the physical share, shield the magic share, true none: each as 1 / (1 + stat / 100).
   it("cuts the physical share by armor, the magic share by shield, and true damage by neither, for every faction", () => {
-    const expected: Record<FactionId, { physical: number; magic: number }> = {
-      fire: { physical: 100, magic: 100 / 1.45 }, // armor 0, shield 45
-      sentenced: { physical: 100 / 2.25, magic: 100 / 3.1 }, // armor 125, shield 210
-      plague: { physical: 100 / 2.9, magic: 100 }, // armor 190, shield 0
-      frost: { physical: 100 / 1.2, magic: 100 / 2.9 }, // armor 20, shield 190
-      holy: { physical: 100, magic: 100 / 3.5 }, // armor 0, shield 250
-    };
-    for (const [victim, want] of Object.entries(expected) as Array<[FactionId, { physical: number; magic: number }]>) {
-      expect(lost(victim, PHYSICAL), `${victim} physical`).toBeCloseTo(want.physical, 9);
-      expect(lost(victim, MAGIC), `${victim} magic`).toBeCloseTo(want.magic, 9);
+    for (const victim of Object.keys(FACTIONS) as FactionId[]) {
+      const defense = pacedFaction(FACTIONS[victim]);
+      expect(lost(victim, PHYSICAL), `${victim} physical`).toBeCloseTo(100 / (1 + defense.armor / 100), 9);
+      expect(lost(victim, MAGIC), `${victim} magic`).toBeCloseTo(100 / (1 + defense.shield / 100), 9);
       expect(lost(victim, TRUE), `${victim} true`).toBeCloseTo(100, 9);
     }
   });
 
   it("splits a mixed packet by its shares", () => {
     const shares: DamageShares = { phys: 0.5, magic: 0.25, true: 0.25 };
-    expect(lost("sentenced", shares)).toBeCloseTo(100 * (0.5 / 2.25 + 0.25 / 3.1 + 0.25), 9);
+    expect(lost("sentenced", shares)).toBeCloseTo(100 * (0.5 / (1 + FACTIONS.sentenced.armor / 100) + 0.25 / (1 + FACTIONS.sentenced.shield / 100) + 0.25), 9);
   });
 
   it("agrees with the faction damage law for a real faction's packet", () => {
@@ -415,7 +409,7 @@ describe("mitigation", () => {
       hit(w, "v", "y", 100, { shares: MAGIC });
       hit(w, "v", "x", 100, { shares: TRUE });
     });
-    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(100 / 2.25 + 100 / 3.1 + 100, 9);
+    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(100 / (1 + FACTIONS.sentenced.armor / 100) + 100 / (1 + FACTIONS.sentenced.shield / 100) + 100, 9);
   });
 });
 
@@ -423,7 +417,7 @@ describe("scale", () => {
   it("multiplies the raw damage before the damage law", () => {
     const w = arena([fighter("v", "sentenced"), fighter("x")]);
     inStep(w, () => hit(w, "v", "x", 100, { scale: 0.5 }));
-    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(50 / 2.25, 9); // 100 x 0.5, then Sentenced's armor 125
+    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(50 / (1 + FACTIONS.sentenced.armor / 100), 9); // raw scale applies before current defense
   });
 
   it("makes a scale-0 entry deal nothing: no hp, no hit fx, no credit, no lastHit", () => {
@@ -455,8 +449,8 @@ describe("the hit fx", () => {
       hit(w, "v", "x", 50, { shares: TRUE, weapon: "bow" });
     });
     expect(fxOf(events, "hit")).toEqual([
-      { kind: "hit", id: "v", by: "x", amount: expect.closeTo(100 / 2.25, 9), weapon: "sword" },
-      { kind: "hit", id: "v", by: "y", amount: expect.closeTo(100 / 3.1, 9), weapon: "wand" },
+      { kind: "hit", id: "v", by: "x", amount: expect.closeTo(100 / (1 + FACTIONS.sentenced.armor / 100), 9), weapon: "sword" },
+      { kind: "hit", id: "v", by: "y", amount: expect.closeTo(100 / (1 + FACTIONS.sentenced.shield / 100), 9), weapon: "wand" },
       { kind: "hit", id: "v", by: "x", amount: expect.closeTo(50, 9), weapon: "bow" },
     ]);
   });
@@ -754,12 +748,17 @@ describe("hits from projectiles", () => {
   });
 
   it("pays the kill of two arrows to the larger one, and both shooters have damaged the victim", () => {
-    const w = crossfire(12); // Plague's arrow is far the larger and kills alone; Sentenced's adds a little
+    const w = crossfire(12); // both arrows kill alone; the larger one takes the kill (the other adds to the damage it did)
+    const fromSent = hitAmount("sentenced", "bow", "fire");
+    const fromPlague = hitAmount("plague", "bow", "fire");
+    expect(Math.min(fromSent, fromPlague)).toBeGreaterThan(12);
+    expect(Math.abs(fromSent - fromPlague)).toBeGreaterThan(0.1);
+    const larger = fromSent > fromPlague ? "sent" : "plague";
     loose(w, [{ id: "sent", a: aim({ x: 300, y: 270 }, { x: 500, y: 320 }) }, { id: "plague", a: aim({ x: 300, y: 370 }, { x: 500, y: 320 }) }]);
     const events = untilEvent(w, "death");
-    expect(fxOf(events, "death")).toEqual([expect.objectContaining({ id: "target", by: "plague" })]);
-    expect(resultsOf(events).target).toMatchObject({ killedBy: "Plague" });
-    expect([P(w, "sent").kills, P(w, "plague").kills]).toEqual([0, 1]);
+    expect(fxOf(events, "death")).toEqual([expect.objectContaining({ id: "target", by: larger })]);
+    expect(resultsOf(events).target).toMatchObject({ killedBy: larger === "sent" ? "Sent" : "Plague" });
+    expect([P(w, "sent").kills, P(w, "plague").kills]).toEqual(larger === "sent" ? [1, 0] : [0, 1]);
     expect([...RT(w, "sent").damaged]).toEqual(["target"]);
     expect([...RT(w, "plague").damaged]).toEqual(["target"]);
   });

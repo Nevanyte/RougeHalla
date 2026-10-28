@@ -2,9 +2,10 @@
 // the harness and the client all read. The per-pair state machine (targets, engagement, the mark, the chill) lives in
 // the server; everything here is a function of plain numbers, so it can be tested on its own.
 //
-// Every signature bonus is raw damage per second (backlash: per enemy swing), multiplied by the attacker's weapon
+// Burn, disease and backlash are raw damage per second (backlash: per enemy swing), multiplied by the attacker's weapon
 // dpsMult (bonusMultiplier) and then mitigated by the signature's own damage type (SIGNATURE_SHARES: burn and disease
-// magic, backlash physical, the mark true). Pass a paced faction (pacedFaction) for in-game numbers.
+// magic, backlash physical). The mark is a pulse of true damage on every landed hit (mark.ts, docs/SENTENCED_REDESIGN.md).
+// Pass a paced faction (pacedFaction) for in-game numbers.
 import { PLAYER_RADIUS, RANGED_HIT_REACH } from "./constants";
 import { BEATS, type FactionId, type FactionSpec } from "./factions";
 import { WEAPONS, weaponEdge, type WeaponId } from "./weapons";
@@ -36,9 +37,9 @@ export const DOT_FX_MS = 500;
 export type SignatureKind = "burn" | "backlash" | "disease" | "mark";
 /** The damage type (shares of the packet) each signature deals, whatever the faction's own shares are. */
 export { SIGNATURE_SHARES } from "./signatureShares";
-/** Damage over time: applied every tick, reported in DOT_FX_MS chunks, and never a reason for a damage flash. */
+/** Damage over time: applied every tick, reported in DOT_FX_MS chunks, and never a reason for a damage flash. The mark is a pulse per hit, not a DoT. */
 export function isDot(sig: SignatureKind | undefined): boolean {
-  return sig === "burn" || sig === "disease" || sig === "mark";
+  return sig === "burn" || sig === "disease";
 }
 
 /** Bits of a fighter's synced `sig` field: the signatures acting on them right now (client visuals). */
@@ -48,6 +49,12 @@ export const SIG_BURNING = 2;
 export const SIG_DISEASED = 4;
 /** Engaged by a Plague while under half hp: the execute is running. */
 export const SIG_EXECUTE = 8;
+/** Under a Sentenced's mark at tier 2 or more, within its reach: the attack-speed tax is cutting this fighter's rate (`markTax` says by how much). */
+export const SIG_TAXED = 16;
+/** Under a mark at tier 3 or more: this fighter deals 20% less. */
+export const SIG_SUPPRESSED = 32;
+/** Under a mark at tier 4: this fighter's execute cannot take the marker below 1 hp. */
+export const SIG_EXEC_BLOCKED = 64;
 
 /**
  * How far a fighter's signature reaches with `w` in hand: what the weapon can hit, centre to centre. A swing reaches
@@ -73,25 +80,28 @@ export function burnDps(f: FactionSpec): number {
 export const EXECUTE_BAND = 0.5;
 
 /**
- * Plague's disease plus its execute, which grows as the target falls from `band` (EXECUTE_BAND, half hp) to 0 (raw per
- * second). The execute's slope is the same whatever the band, so a wider band starts it sooner and adds more at every hp.
+ * Plague's flat disease, raw per second before the weapon multiplier (the execute is `executeDps`, its own ledger entry, so a tier-4
+ * mark can deny it).
  */
-export function diseaseDps(f: FactionSpec, foeHpFrac: number, band: number = EXECUTE_BAND): number {
+export function plagueDps(f: FactionSpec): number {
+  return f.mechanic === "rat_king" ? f.params.plague! : 0;
+}
+
+/**
+ * Plague's execute, which grows as the target falls from `band` (EXECUTE_BAND, half hp) to 0 (raw per second). Its slope is the
+ * same whatever the band, so a wider band starts it sooner and adds more at every hp.
+ */
+export function executeDps(f: FactionSpec, foeHpFrac: number, band: number = EXECUTE_BAND): number {
   if (f.mechanic !== "rat_king") return 0;
-  return f.params.plague! + f.params.execute! * Math.max(0, band - foeHpFrac);
+  return f.params.execute! * Math.max(0, band - foeHpFrac);
 }
 
-/** Sentenced's mark after `elapsed` seconds in reach of the same target (raw per second). */
-export function markDps(f: FactionSpec, elapsed: number): number {
-  if (f.mechanic !== "marked") return 0;
-  return Math.min(f.params.mark_cap!, f.params.mark_ramp! * Math.max(0, elapsed));
+/** Plague's disease plus its execute together (the sheet's single figure; the sim records the two as separate entries). */
+export function diseaseDps(f: FactionSpec, foeHpFrac: number, band: number = EXECUTE_BAND): number {
+  return plagueDps(f) + executeDps(f, foeHpFrac, band);
 }
 
-/** How far along the mark is, 0..1 (the brand the client draws on the marked target). */
-export function markShare(f: FactionSpec, elapsed: number): number {
-  if (f.mechanic !== "marked" || !(f.params.mark_cap! > 0)) return 0;
-  return markDps(f, elapsed) / f.params.mark_cap!;
-}
+export { markPct, markTierOf, markWeight, taxedRate } from "./mark";
 
 /** Cooldown-progress multiplier this faction's chill puts on everyone engaged with it (1 = none). */
 export function chillMultiplier(f: FactionSpec): number {

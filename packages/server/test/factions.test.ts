@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
-  damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, engageRange, FACTION_IDS, FACTIONS,
+  damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, EXECUTE_BAND, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, engageRange, FACTION_IDS, FACTIONS,
   HEAL_LOCKOUT_SECONDS, isRanged,
-  lifestealFraction, mapFromTiles, markDps, markShare, mitigateShares, mulberry32, pacedFaction, PLAYER_SPEED,
+  lifestealFraction, mapFromTiles, mitigateShares, mulberry32, pacedFaction, PLAYER_SPEED,
   SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, TARGET_FORGET_SECONDS,
   TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, WEAPON_IDS, WEAPONS,
@@ -610,26 +610,6 @@ describe("engagement needs trading", () => {
     for (const log of run(world, 200)) expect(burning(log)).toBe(true);
   });
 
-  it("the mark's clock only runs while the pair is in reach and engaged", () => {
-    const world = makeWorld([
-      { id: "s", faction: "sentenced", at: [300, 300] },
-      { id: "b", faction: "holy", at: [340, 300], weapon: null },
-    ]);
-    const inj = injector(world);
-    noteContact(world, "s", "b");
-    run(world, TRADE_TICKS);
-    const stopped = signatureState(world, "s")!.markElapsed;
-    expect(stopped).toBeCloseTo(TRADE_TICKS * DT, 9);
-    runChecked(world, 20, (log) => {
-      expect(sigTotal(log, "mark")).toBe(0);
-      expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(stopped, 12);
-      expect(signatureState(world, "s")!.inReach).toBe(true);
-    });
-    inj.hit("s", "b");
-    tick(world);
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(stopped + DT, 12);
-  });
-
   describe("the window follows the pair's cadence", () => {
     /** Every swing that lands hits the other fighter in the same tick (the harness's "trades" mode). */
     const autoTrade = (world: World, ids: readonly [string, string]): void => {
@@ -938,9 +918,10 @@ describe("Plague (rat king)", () => {
     (frac) => {
       const world = duel(frac);
       const hits = sigHits(tick(world), "disease");
-      expect(hits).toHaveLength(1);
-      expect(hits[0]).toMatchObject({ victim: "t", by: "p", weapon: "bow" });
-      expect(hits[0]!.amount).toBeCloseTo(expectedDisease(frac), 9);
+      // The flat disease and, below half hp, the execute: two entries of one type (a tier-4 mark denies the second).
+      expect(hits).toHaveLength(frac < EXECUTE_BAND ? 2 : 1);
+      for (const h of hits) expect(h).toMatchObject({ victim: "t", by: "p", weapon: "bow" });
+      expect(sum(hits.map((h) => h.amount))).toBeCloseTo(expectedDisease(frac), 9);
     },
   );
 
@@ -962,184 +943,7 @@ describe("Plague (rat king)", () => {
   });
 });
 
-// ---- Sentenced ----
-
-describe("Sentenced (marked)", () => {
-  /** A wall column at tile x = 9 (x 288..320) between the Sentenced and the far spot. */
-  const WALL = column(9, 6, 13);
-  const NEAR: readonly [number, number] = [240, 300];
-  const HIDDEN: readonly [number, number] = [330, 300];
-
-  const duel = (extra: Fighter[] = [], b: Partial<Fighter> = {}, walls: ReadonlyArray<readonly [number, number]> = []): World => {
-    const world = makeWorld([
-      { id: "s", faction: "sentenced", at: [200, 300] },
-      { id: "b", faction: "holy", at: NEAR, weapon: null, ...b },
-      ...extra,
-    ], walls);
-    noteContact(world, "s", "b");
-    return world;
-  };
-  const expectedMark = (elapsed: number, weapon: WeaponId = "bow"): number =>
-    mitigated("sentenced", "holy", markDps(SPEC.sentenced, elapsed) * bonusMultiplier(weapon) * DT);
-
-  it("the mark per tick is markDps(paced, seconds in reach) x dpsMult x dt: nothing at first, a ramp, then the cap", () => {
-    const world = duel();
-    injector(world).trade("s", "b"); // keeps the pair engaged for the whole ramp
-    run(world, 100).forEach((log, i) => {
-      const elapsed = i * DT; // time in reach before this tick
-      expect(sigTotal(log, "mark"), `tick ${i + 1}`).toBeCloseTo(expectedMark(elapsed), 9);
-      for (const h of sigHits(log, "mark")) expect(h).toMatchObject({ victim: "b", by: "s", weapon: "bow" });
-    });
-    // By now the ramp has reached the cap: the damage no longer grows.
-    expect(SPEC.sentenced.params.mark_ramp! * 99 * DT).toBeGreaterThan(SPEC.sentenced.params.mark_cap!);
-    const [x, y] = [tick(world), tick(world)];
-    expect(sigTotal(x, "mark")).toBeCloseTo(sigTotal(y, "mark"), 12);
-    expect(sigTotal(y, "mark")).toBeCloseTo(
-      mitigated("sentenced", "holy", SPEC.sentenced.params.mark_cap! * bonusMultiplier("bow") * DT), 9,
-    );
-  });
-
-  it("freezes while the target is out of reach and resumes from where it stopped", () => {
-    const world = duel([], {}, WALL);
-    run(world, 20);
-    const frozen = signatureState(world, "s")!.markElapsed;
-    expect(frozen).toBeCloseTo(20 * DT, 9);
-
-    place(world, "b", ...HIDDEN);
-    for (let i = 1; i <= 30; i++) {
-      const log = tick(world);
-      const st = signatureState(world, "s")!;
-      expect(st.inReach, `hidden tick ${i}`).toBe(false);
-      expect(st.markElapsed, `hidden tick ${i}`).toBeCloseTo(frozen, 12);
-      // The linger keeps the mark running, at the value it froze at.
-      expect(sigTotal(log, "mark"), `hidden tick ${i}`).toBeCloseTo(i <= LINGER_TICKS ? expectedMark(frozen) : 0, 9);
-    }
-
-    place(world, "b", ...NEAR);
-    const back = tick(world);
-    expect(sigTotal(back, "mark")).toBeCloseTo(expectedMark(frozen), 9);
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(frozen + DT, 12);
-  });
-
-  it("restarts at 0 when the target swaps its weapon", () => {
-    const world = duel([], { weapon: "sword", weapon1: "axe" });
-    run(world, 20);
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(1, 9);
-    RT(world, "b").inputs.pushAction({ kind: "swap" });
-    const swapTick = tick(world);
-    expect(P(world, "b").weapon0).toBe("sword");
-    expect(P(world, "b").slot).toBe(1);
-    expect(sigTotal(swapTick, "mark")).toBe(0);
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(DT, 12);
-    expect(sigTotal(tick(world), "mark")).toBeCloseTo(expectedMark(DT), 9);
-  });
-
-  it("restarts at 0 when the weaponSwapped hook fires for the target", () => {
-    const world = duel();
-    run(world, 20);
-    world.hooks.weaponSwapped!(world, C(world, "b"));
-    expect(signatureState(world, "s")!.markElapsed).toBe(0);
-    expect(targetOf(world, "s")).toBe("b");
-  });
-
-  it("keeps running when someone other than the target swaps", () => {
-    const world = duel([{ id: "c", faction: "plague", at: [600, 600], weapon: "sword", weapon1: "axe" }]);
-    run(world, 20);
-    RT(world, "c").inputs.pushAction({ kind: "swap" });
-    tick(world);
-    expect(P(world, "c").slot).toBe(1);
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(21 * DT, 9);
-  });
-
-  it("keeps ramping when it hits the same target again", () => {
-    const world = duel();
-    const inj = injector(world);
-    run(world, 20);
-    inj.hit("s", "b");
-    tick(world);
-    expect(targetOf(world, "s")).toBe("b");
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(21 * DT, 9);
-  });
-
-  it("restarts at 0 on a target switch, and does not resume if it goes back", () => {
-    const world = duel([{ id: "c", faction: "plague", at: [700, 300], weapon: null }]);
-    const inj = injector(world);
-    run(world, 20);
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(1, 9);
-
-    inj.hit("s", "c"); // 500 away: beyond the bow
-    tick(world);
-    expect(targetOf(world, "s")).toBe("c");
-    expect(signatureState(world, "s")!.markElapsed).toBe(0);
-
-    inj.hit("s", "b");
-    const back = tick(world);
-    expect(targetOf(world, "s")).toBe("b");
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(DT, 12);
-    expect(sigTotal(back, "mark")).toBe(0);
-  });
-
-  it("restarts at 0 after TARGET_FORGET_SECONDS without a hit or block", () => {
-    const world = duel([], {}, WALL);
-    const inj = injector(world);
-    inj.trade("s", "b");
-    run(world, 20); // the last hit is the 20th tick's
-    inj.stopTrading();
-    place(world, "b", ...HIDDEN);
-    run(world, FORGET_TICKS - 1);
-    expect(targetOf(world, "s")).toBe("b");
-    expect(signatureState(world, "s")!.markElapsed).toBeCloseTo(1, 9);
-
-    run(world, 1);
-    expect(targetOf(world, "s")).toBeNull();
-    expect(signatureState(world, "s")?.markElapsed ?? 0).toBe(0);
-
-    place(world, "b", ...NEAR);
-    for (const log of run(world, 5)) expect(sigHits(log, "mark")).toHaveLength(0);
-
-    inj.hit("s", "b");
-    expect(sigTotal(tick(world), "mark")).toBe(0);
-    expect(sigTotal(tick(world), "mark")).toBeCloseTo(expectedMark(DT), 9);
-  });
-
-  // The mark fills in 144 / 70 = 2.06 s paced (the compressed sheet), so 10, 21 and 31 ticks are a quarter, a half and three quarters.
-  it.each([[10, 25], [21, 50], [31, 75], [100, 100]])(
-    "the target's brand after %d ticks in reach is %d percent: round(markShare x 20) x 5",
-    (ticks, percent) => {
-      const world = duel();
-      injector(world).trade("s", "b");
-      run(world, ticks);
-      expect(Math.round(markShare(SPEC.sentenced, ticks * DT) * 20) * 5).toBe(percent);
-      expect(P(world, "b").brand).toBe(percent);
-      expect(P(world, "s").brand).toBe(0);
-    },
-  );
-
-  it("the brand stays while the target hides and goes with the target", () => {
-    const world = duel([], {}, WALL);
-    const inj = injector(world);
-    inj.trade("s", "b");
-    run(world, 21);
-    expect(P(world, "b").brand).toBe(50);
-    inj.stopTrading();
-    place(world, "b", ...HIDDEN);
-    run(world, FORGET_TICKS - 1);
-    expect(P(world, "b").brand).toBe(50);
-    run(world, 1);
-    expect(P(world, "b").brand).toBe(0);
-  });
-
-  it("only a Sentenced brands: the same fight with a Fire leaves no brand", () => {
-    const world = makeWorld([
-      { id: "a", faction: "fire", at: [200, 300] },
-      { id: "b", faction: "holy", at: NEAR, weapon: null },
-    ]);
-    noteContact(world, "a", "b");
-    run(world, 40);
-    expect(P(world, "b").brand).toBe(0);
-  });
-});
-
+// ---- Sentenced ---- the mark's rules are in sentencedMark.test.ts (docs/SENTENCED_REDESIGN.md)
 // ---- Frost ----
 
 describe("Frost (wall of ice)", () => {
@@ -1716,14 +1520,6 @@ describe("damage over time", () => {
       noteContact(world, "a", "b");
       return world;
     }, "disease"],
-    ["mark", () => {
-      const world = makeWorld([
-        { id: "a", faction: "sentenced", at: [300, 300] },
-        { id: "b", faction: "holy", at: [340, 300], weapon: null },
-      ]);
-      noteContact(world, "a", "b");
-      return world;
-    }, "mark"],
   ])("%s emits no hit fx of its own in the ticks between reports", (_name, build, sig) => {
     const world = build();
     const every = DOT_FX_MS / TICK_MS;
@@ -1847,6 +1643,7 @@ describe("synced sig bits", () => {
     ]);
     noteContact(world, "a", "b");
     noteContact(world, "s", "b");
+    injector(world).hit("s", "b"); // the mark exists from the first landed hit
     run(world, 40);
     expect(sigOfFighter(world, "b") & SIG_BURNING).toBe(SIG_BURNING);
     expect(P(world, "b").brand).toBeGreaterThan(0);
@@ -1869,16 +1666,18 @@ describe("the coliseum teleport", () => {
       { id: "b", faction: "holy", at: [340, 300], weapon: null },
     ]);
     noteContact(world, "a", "b");
+    injector(world).hit("a", "b"); // the mark exists from the first landed hit
     run(world, 20);
     expect(targetOf(world, "a")).toBe("b");
-    expect(signatureState(world, "a")!.markElapsed).toBeGreaterThan(0);
+    expect(signatureState(world, "a")!.tier).toBeGreaterThan(0);
     expect(P(world, "b").brand).toBeGreaterThan(0);
     return world;
   };
   const cleared = (world: World): void => {
     for (const id of ["a", "b"]) {
       expect(targetOf(world, id), id).toBeNull();
-      expect(signatureState(world, id)?.markElapsed ?? 0, id).toBe(0);
+      expect(signatureState(world, id)?.tier ?? 0, id).toBe(0);
+      expect(P(world, id).markTier, id).toBe(0);
     }
   };
 
@@ -2093,9 +1892,9 @@ describe("a stagger pauses damage over time", () => {
     return world;
   };
 
-  /** Raw damage of `sig` for one full tick of `owner` holding `weapon` against a target at full hp (the mark: after `elapsed` s). */
-  const perTick = (owner: FactionId, weapon: WeaponId, elapsed = 0): number => mitigated(owner, "holy", (
-    owner === "fire" ? burnDps(SPEC.fire) : owner === "plague" ? diseaseDps(SPEC.plague, 1) : markDps(SPEC.sentenced, elapsed)
+  /** Raw damage of `sig` for one full tick of `owner` holding `weapon` against a target at full hp (the mark is no damage over time: not here). */
+  const perTick = (owner: FactionId, weapon: WeaponId): number => mitigated(owner, "holy", (
+    owner === "fire" ? burnDps(SPEC.fire) : diseaseDps(SPEC.plague, 1)
   ) * bonusMultiplier(weapon) * DT);
 
   /** Staggers `id` with a hit from `by` and runs that tick; fails unless the stagger landed (its immunity started now). */
@@ -2149,27 +1948,22 @@ describe("a stagger pauses damage over time", () => {
     expect(sigHits(log, "disease").map((h) => h.by)).toEqual(["q"]);
   });
 
-  it("a staggered Sentenced pauses its mark while the mark's clock keeps running", () => {
+  it("a staggered Sentenced pays no pulse for the swing its stagger cancelled: the mark is paid per landed hit, so there is nothing to pause", () => {
     const world = duel("sentenced", "sword");
     const inj = injector(world);
-    run(world, 10); // 0.5 s in reach: the mark has started to ramp
-    const at = staggerTick(world, inj).now;
-    const atStagger = signatureState(world, "p")!.markElapsed;
-    expect(atStagger).toBeCloseTo(11 * DT, 9);
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
-
-    let landed = 0;
-    for (let i = 1; i <= 6; i++) {
-      const elapsed = signatureState(world, "p")!.markElapsed;
-      const log = tick(world);
-      const share = pausedShare(log.now, at, 100);
-      expect(sigTotal(log, "mark"), `${i} ticks after the stagger`).toBeCloseTo(perTick("sentenced", "sword", elapsed) * (1 - share), 9);
-      if (share < 1) landed++;
-      // The clock counts the paused tick too, and the mark that follows is the one the clock has reached.
-      expect(signatureState(world, "p")!.markElapsed).toBeCloseTo(elapsed + DT, 9);
-    }
-    expect(landed).toBe(4);
-    expect(signatureState(world, "p")!.markElapsed).toBeCloseTo(atStagger + 6 * DT, 9);
+    inj.hit("p", "t"); // the mark exists from the first landed hit
+    run(world, 2);
+    expect(signatureState(world, "p")!.tier).toBe(1);
+    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // away from the target: a swing that will not land on it
+    RT(world, "p").inputs.pushAction({ kind: "release", a: Math.PI });
+    tick(world);
+    expect(C(world, "p").rt.weapon.action?.kind, "a swing is winding up").toBe("swing");
+    inj.hit("t", "p", { stagger: true });
+    const log = tick(world);
+    expect(fxOf(log.events, "stagger")).toEqual([{ kind: "stagger", id: "p" }]);
+    expect(C(world, "p").rt.weapon.action).toBeNull();
+    for (const l of run(world, 4)) expect(sigTotal(l, "mark")).toBe(0);
+    expect(signatureState(world, "p")!.markHits).toBe(1);
   });
 
   it("a stagger that cancels a windup pauses the same", () => {
@@ -2382,8 +2176,9 @@ describe("a stagger pauses damage over time", () => {
 // ---- the weapon multiplier ----
 
 describe("bonusMultiplier: every signature bonus follows the weapon in hand", () => {
-  const OWNERS = ["fire", "plague", "sentenced"] as const;
-  const SIG: Record<(typeof OWNERS)[number], SignatureKind> = { fire: "burn", plague: "disease", sentenced: "mark" };
+  // The mark is not here: it follows the weapon through the hit's weight, not through a rate (sentencedMark.test.ts).
+  const OWNERS = ["fire", "plague"] as const;
+  const SIG: Record<(typeof OWNERS)[number], SignatureKind> = { fire: "burn", plague: "disease" };
   const TICKS = 30;
 
   /** The signature damage of tick `TICKS` for `owner` holding `weapon`, 40 from a Holy at full hp. */
@@ -2396,7 +2191,7 @@ describe("bonusMultiplier: every signature bonus follows the weapon in hand", ()
     return sigTotal(run(world, TICKS).at(-1)!, SIG[owner]);
   }
   const rawPerSecond = (owner: (typeof OWNERS)[number]): number =>
-    owner === "fire" ? burnDps(SPEC.fire) : owner === "plague" ? diseaseDps(SPEC.plague, 1) : markDps(SPEC.sentenced, (TICKS - 1) * DT);
+    owner === "fire" ? burnDps(SPEC.fire) : diseaseDps(SPEC.plague, 1);
 
   it.each(OWNERS.flatMap((o) => WEAPON_IDS.map((w) => [o, w] as const)))("%s holding a %s", (owner, weapon) => {
     expect(amountAt(owner, weapon)).toBeCloseTo(mitigated(owner, "holy", rawPerSecond(owner) * WEAPONS[weapon].dpsMult * DT), 9);
@@ -2467,16 +2262,17 @@ describe("chainHook", () => {
     { id: "b", faction: "holy", at: [340, 300], weapon: null },
   ]);
 
-  it("weaponSwapped: a hook chained on runs after the factions' own, which still restarts the mark", () => {
+  it("weaponSwapped: a hook chained on runs after the factions' own, which still counts the swap for the mark", () => {
     const world = pair();
     noteContact(world, "a", "b");
-    run(world, 10);
+    injector(world).hit("a", "b");
+    run(world, 2); // one landed hit: the mark is at tier 1
     const calls: string[] = [];
     chainHook(world, "weaponSwapped", (_w, c) => { calls.push(`first ${c.id}`); });
     chainHook(world, "weaponSwapped", (_w, c) => { calls.push(`second ${c.id}`); });
     world.hooks.weaponSwapped!(world, C(world, "b"));
     expect(calls).toEqual(["first b", "second b"]);
-    expect(signatureState(world, "a")!.markElapsed).toBe(0);
+    expect(signatureState(world, "a")!.markSwaps).toBe(1);
   });
 
   it("bountyClaimed: chained hooks all run, in order, with the claim", () => {

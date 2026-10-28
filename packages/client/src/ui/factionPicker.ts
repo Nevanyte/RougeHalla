@@ -12,7 +12,7 @@ const NO_PICK_HINT = "No pick yet: the server will assign one";
 /** Player-facing signature summaries (GAME_DESIGN 8.3). A Record, so a sixth faction cannot be added without one. */
 const SIGNATURES: Readonly<Record<FactionId, { name: string; text: string }>> = {
   fire: { name: "Dragonslayer", text: "Burns its target and hits back hard on every swing the target makes. Punishes fast attackers." },
-  sentenced: { name: "Marked", text: "Bonus damage ramps up every second of a fight. A target that swaps weapons resets it." },
+  sentenced: { name: "Mark", text: "Each landed hit deals a share of the target's max health. Hits and weapon swaps raise four tiers: attack-speed tax, damage suppression, then execute protection. Hitting one camp member marks its whole group. Sentenced mobs mark players too." },
   plague: { name: "Rat King", text: "Steady disease damage that turns into an execute once the target is under half health." },
   frost: { name: "Wall of Ice", text: "Anyone fighting it attacks slower, and moves slower up close." },
   holy: { name: "Radiant", text: "Heals from the damage it deals, more the lower its own health." },

@@ -6,7 +6,7 @@ import {
   AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, damagePerHit, damageShares, FACTIONS,
   mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH,
   SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
-  weaponTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
+  weaponTimings, mirrorTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { applyDamage, downPlayer } from "../src/sim/arena";
 import { activeWeapon, combatant } from "../src/sim/combatant";
@@ -635,10 +635,11 @@ describe("the bow", () => {
     expect(P(world).x).toBeGreaterThan(x0 + STEP);
   });
 
-  it("a short interval shortens the draw to 30% and the cooldown is the interval from the start", () => {
+  it("a short interval uses the shared timing mirror and player draw ratio, and the cooldown is the interval from the start", () => {
     const world = startRun();
     arm(world, 0, "sentenced", "bow");
     const tm = timings("sentenced", "bow");
+    expect(tm).toEqual(mirrorTimings(FACTIONS.sentenced, "bow", 1, 1));
     expect(tm.windup).toBeCloseTo(0.3 * tm.interval, 12);
     tap(world);
     tick(world);

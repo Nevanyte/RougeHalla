@@ -1026,7 +1026,8 @@ describe("a locked attack is aimed again as it lands", () => {
     target(world, d);
     tick(world);
     place(world, d, { x: 470, y: 420 });
-    const launchDelay = Math.ceil((timings("sentenced", "bow").windup * 1000) / TICK_MS) * TICK_MS;
+    const tm = timings("sentenced", "bow");
+    const launchDelay = Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS;
     runTo(world, T(world) + launchDelay);
     const arrow = [...world.projectiles.values()][0] ?? null;
     expect(arrow).not.toBeNull();

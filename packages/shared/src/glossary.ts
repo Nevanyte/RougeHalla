@@ -30,7 +30,7 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
   },
   dot: {
     term: "Damage over time",
-    text: "Damage that ticks while you stay engaged (burn, disease, the mark, bleeds). AP adds to every one you run.",
+    text: "Damage that ticks while you stay engaged (burn, disease, bleeds). AP adds to every one you run.",
   },
   onHit: {
     term: "On-hit",
@@ -54,7 +54,7 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
   },
   ramping: {
     term: "Ramping",
-    text: "Grows the longer the fight lasts.",
+    text: "Grows the longer the fight lasts, or the more you land.",
   },
   execute: {
     term: "Execute",
@@ -116,7 +116,7 @@ export interface SignatureTagRow {
 export const SIGNATURE_TAGS: readonly SignatureTagRow[] = [
   { faction: "fire", signature: "Burn", kind: "burn", tags: ["magic", "dot"] },
   { faction: "fire", signature: "Backlash", kind: "backlash", tags: ["physical", "returned"] },
-  { faction: "sentenced", signature: "Mark", kind: "mark", tags: ["true", "ramping", "dot"] },
+  { faction: "sentenced", signature: "Mark", kind: "mark", tags: ["true", "ramping"] },
   { faction: "plague", signature: "Disease and execute", kind: "disease", tags: ["magic", "dot", "execute"] },
   { faction: "frost", signature: "Chill", kind: null, tags: ["slow"] },
   { faction: "holy", signature: "Lifesteal", kind: null, tags: ["heal"] },

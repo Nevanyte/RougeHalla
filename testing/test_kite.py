@@ -114,8 +114,9 @@ def main(argv=None):
         failed += 0 if ok else 1
 
     load_k2()
-    # The what-if really is the paced game: the sheet's Fire hits for 100 x 2, Sentenced's mark ramps at 17.5 x 4, hp is the sheet's.
-    check(W.BY["Fire"].hit == 200 and W.BY["Sentenced"].params["mark_ramp"] == 70 and W.BY["Fire"].hp == 835, "k = 2 numbers loaded")
+    # The what-if uses game pace: Fire's hit and Sentenced's per-hit percentages scale by 2; HP stays the sheet's.
+    sent_base = next(p for p in W.V2_POWERS if p.name == "Sentenced").params
+    check(W.BY["Fire"].hit == 200 and W.BY["Sentenced"].params["mark_pct"] == 2 * sent_base["mark_pct"] and W.BY["Sentenced"].params["mark_kill"] == 2 * sent_base["mark_kill"] and W.BY["Fire"].hp == 835, "k = 2 numbers loaded")
     check(abs(underdog_share(MIN_R_KITE) - MAX_UNDERDOG_SHARE) < 0.005, f"r_kite {MIN_R_KITE} is a {MAX_UNDERDOG_SHARE:.0%} underdog under sigma {SIGMA}")
 
     buffed = args.shooter_as != 1.0 or args.shooter_dmg != 1.0

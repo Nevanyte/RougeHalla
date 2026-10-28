@@ -17,7 +17,8 @@
 //   flag        a yes/no rule (the second weapon slot is locked; a fighter's hits never critically strike) and, since the balance
 //               pass's phase B, the rules that need machinery rather than a number: sim/cardHooks.ts, sim/onHit.ts and the weapon,
 //               melee and ledger code read them (`dotCrit`, `gambler`, `thirdCharm`, `eyeForAnEye`, `twiceUnarmed`, `blockHits`,
-//               `plantFeet`, `festering`).
+//               `plantFeet`, `festering`, and the mark's five: `heavierSentence`, `swiftJudgment`, `gallowsPatience`, `noCommutation`,
+//               `finalVerdict`).
 // Every row may carry `requires`: it is active only while the fighter owns every one of those ids (a synergy).
 // Numbers: `v` on a stat row is a fraction (0.1 = +10%, -0.08 = -8%); on a flat row and on a `while` row whose stat is
 // armor or shield it is points of that stat. Durations end in `ms`.
@@ -148,11 +149,18 @@ export const MULT_KEYS: readonly MultKey[] = ["asPost", "hit", "dot", "returned"
  *   blockHits      its blocks count as hits (Best Offense)
  *   plantFeet      after standing still PLANT_FEET_MS its next attack has more range and damage (Plant Your Feet)
  *   festering      its magic damage over time keeps ticking after it ends (Festering Arcana)
+ *   heavierSentence  its marks' pulse grows with its bonus max hp (Heavier Sentence)
+ *   swiftJudgment    every 2nd hit on a marked enemy counts as a weapon swap for its marks' tiers (Swift Judgment)
+ *   gallowsPatience  its zone Wish lasts longer and its escape stun is longer (Gallows' Patience)
+ *   noCommutation    a weapon swap by a marked enemy promotes its mark two tiers (No Commutation)
+ *   finalVerdict     an execute its mark blocks is paid back to the attacker as true damage (Final Verdict)
  */
 export type EffectFlag =
-  | "lockSecondSlot" | "noCrit" | "dotCrit" | "gambler" | "thirdCharm" | "eyeForAnEye" | "twiceUnarmed" | "blockHits" | "plantFeet" | "festering";
+  | "lockSecondSlot" | "noCrit" | "dotCrit" | "gambler" | "thirdCharm" | "eyeForAnEye" | "twiceUnarmed" | "blockHits" | "plantFeet" | "festering"
+  | "heavierSentence" | "swiftJudgment" | "gallowsPatience" | "noCommutation" | "finalVerdict";
 export const EFFECT_FLAGS: readonly EffectFlag[] = [
   "lockSecondSlot", "noCrit", "dotCrit", "gambler", "thirdCharm", "eyeForAnEye", "twiceUnarmed", "blockHits", "plantFeet", "festering",
+  "heavierSentence", "swiftJudgment", "gallowsPatience", "noCommutation", "finalVerdict",
 ];
 
 /** Fields every row may carry. */

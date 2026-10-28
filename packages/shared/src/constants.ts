@@ -213,8 +213,29 @@ export const FISTS_ON_HIT_POWER = 1.2;
 
 // Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons
 // (blocks, reflections, interceptions, stagger) in interactions.ts.
-/** Duel pace k: every faction damage number is multiplied by k (Sentenced's mark ramp by k squared), hp is not. */
+/** Duel pace k: every faction damage number is multiplied by k (Sentenced's mark share included), hp is not. */
 export const DUEL_PACE = 2;
+
+// The mark (docs/SENTENCED_REDESIGN.md). Sentenced marks the enemy it hits: every landed hit adds a share of that enemy's max hp as
+// true damage, and the mark climbs four tiers by hits landed (or by the target's weapon swaps). The faction's own numbers (the share,
+// the tax, the suppression) are `FactionSpec.params`; these are the rules around them.
+/** Hits landed on the marked target per tier: tier 2 at this many, tier 3 at twice, tier 4 at three times (1 + floor(hits / this)). */
+export const MARK_TIER_HITS = 3;
+export const MARK_TOP_TIER = 4;
+/** Beyond this (centre to centre) the pulse halves and the attack-speed tax lifts; inside the owner's Trial ring they never do. */
+export const MARK_NEAR_RANGE = 300;
+export const MARK_FAR_SHARE = 0.5;
+/** The tax only touches an attack rate above this (attacks a second); the taxed rate is never above `tax_cap`. */
+export const MARK_TAX_THRESHOLD = 1.0;
+/** Kill-stacks: most a run's Sentenced can hold. */
+export const MARK_KILL_STACK_CAP = 5;
+/** A denied execute makes the tier-4 amplifier last this long after the mark ends. */
+export const MARK_DENIAL_LINGER_MS = 2000;
+/** Heavier Sentence: the pulse's share grows by this x the fighter's bonus max hp over its faction's (bonus hp / base hp). */
+export const HEAVIER_SENTENCE_PER_BONUS = 1.5;
+/** Gallows' Patience: the zone Wish lasts this much longer, and its escape stun is this long. */
+export const GALLOWS_PATIENCE_EXTRA_MS = 2000;
+export const GALLOWS_PATIENCE_STUN_MS = 1500;
 /** Projectiles fly in present server time and are swept in steps this long, so a fast arrow can't skip a body. */
 export const PROJECTILE_SUBSTEP_MS = 10;
 /** A wand ball deletes an enemy arrow whose centre comes within this of the ball's. */

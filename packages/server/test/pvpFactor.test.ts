@@ -1,10 +1,10 @@
 // The PvP factor (BALANCE_CONTRACT 3.4, decision D7): every player-to-player ledger entry is multiplied by pvpFactor(card power of
-// its attacker), and the mark's clock against a player runs at the same factor. It is read from the state as the pass began, so no
+// its attacker), and so is the mark's pulse (a share of the target's max hp paid with each landed hit). It is read from the state as the pass began, so no
 // order decides it, and it never touches mobs, dummies, Wishes or the arena. The harness's duelScale seam multiplies next to it.
 import { describe, expect, it } from "vitest";
-import { cardPower, FACTIONS, pvpFactor, TICK_MS } from "@raid/shared";
+import { cardPower, FACTIONS, markPct, markWeight, pacedFaction, pvpFactor } from "@raid/shared";
 import { applyLedger } from "../src/sim/ledger";
-import { noteContact, signatureState } from "../src/sim/factions";
+import { noteContact } from "../src/sim/factions";
 import { addMob } from "../src/sim/mobs";
 import { hit, inStep, MAGIC, pvpArena, P, RT, tick, TRUE } from "./support/pvpRig";
 
@@ -136,9 +136,10 @@ describe("the duelScale seam", () => {
   });
 });
 
-describe("the mark's clock", () => {
-  /** A Sentenced on a bow next to a target, in contact, for `ticks` ticks: its mark clock in seconds. */
-  const clockAfter = (ticks: number, build: Record<string, number>, against: "player" | "mob", rules = true): number => {
+describe("the mark's pulse", () => {
+  const SENTENCED = pacedFaction(FACTIONS.sentenced);
+  /** A Sentenced on a bow lands one hit on a player (or a mob) 40 u away: the damage its first pulse did, and the victim's max hp. */
+  const pulse = (build: Record<string, number>, against: "player" | "mob", rules = true): { amount: number; maxHp: number } => {
     const w = pvpArena([
       { id: "s", faction: "sentenced", at: { x: 300, y: 320 }, weapon: "bow", build },
       { id: "v", faction: "holy", at: { x: 340, y: 320 }, weapon: "" },
@@ -151,19 +152,27 @@ describe("the mark's clock", () => {
       P(w, "v").y = 320;
     }
     noteContact(w, "s", victim);
-    for (let i = 0; i < ticks; i++) tick(w);
-    return signatureState(w, "s")!.markElapsed;
+    inStep(w, () => hit(w, victim, "s", 1, { weapon: "bow" }));
+    const pulses = w.combat.landed.filter((h) => h.by === "s" && h.sig === "mark");
+    expect(pulses).toHaveLength(1);
+    const maxHp = against === "mob" ? w.state.mobs.get(victim)!.maxHp : P(w, victim).maxHp;
+    return { amount: pulses[0]!.amount, maxHp };
   };
+  /** The pulse before the PvP factor: the share of the target's max hp for a bow hit with no kill-stacks. */
+  const base = (maxHp: number): number => markPct(SENTENCED, 0) * maxHp * markWeight(SENTENCED, "bow");
 
-  it("runs at f(0) against a player with no cards, and at f(P) with them", () => {
-    const dt = TICK_MS / 1000;
-    expect(clockAfter(20, {}, "player")).toBeCloseTo(20 * dt * pvpFactor(0), 6);
-    expect(clockAfter(20, { ad3: 2 }, "player")).toBeCloseTo(20 * dt * pvpFactor(6), 6);
+  it("is paid at f(0) against a player with no cards, and at f(P) with them", () => {
+    const none = pulse({}, "player");
+    expect(none.amount).toBeCloseTo(base(none.maxHp) * pvpFactor(0), 6);
+    const carded = pulse({ ad3: 2 }, "player");
+    expect(carded.amount).toBeCloseTo(base(carded.maxHp) * pvpFactor(6), 6);
+    expect(carded.amount).toBeGreaterThan(none.amount * 2);
   });
 
-  it("runs at 1 against a mob, and at 1 with the rules off", () => {
-    const dt = TICK_MS / 1000;
-    expect(clockAfter(20, { ad3: 2 }, "mob")).toBeCloseTo(20 * dt, 6);
-    expect(clockAfter(20, { ad3: 2 }, "player", false)).toBeCloseTo(20 * dt, 6);
+  it("is paid whole against a mob, and with the rules off", () => {
+    const mob = pulse({ ad3: 2 }, "mob");
+    expect(mob.amount).toBeCloseTo(base(mob.maxHp), 6);
+    const off = pulse({ ad3: 2 }, "player", false);
+    expect(off.amount).toBeCloseTo(base(off.maxHp), 6);
   });
 });

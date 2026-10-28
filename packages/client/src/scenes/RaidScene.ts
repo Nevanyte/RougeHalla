@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS,
+  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
   countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
@@ -23,6 +23,7 @@ import { containerWeapon, pickInteraction, type Interaction } from "../render/in
 import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
+import { markDimmed } from "../render/markPresentation";
 import { ProjectileView } from "../render/ProjectileView";
 import { QuestView } from "../render/QuestView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
@@ -481,7 +482,8 @@ export class RaidScene extends Phaser.Scene {
       }
       const ground = this.ground.statesOf(id, this.tmp.x, this.tmp.y, p.faction, serverNow, p.hp, p.maxHp, true, p.status === "alive");
       if (local) this.localGround = signatures && p.status === "alive" ? ground : NO_STATES;
-      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground);
+      const markDim = this.markIsDim(id, p.markBy, this.tmp.x, this.tmp.y, state);
+      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground, markDim);
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.peek?.x ?? this.tmp.x), projY(this.peek?.y ?? this.tmp.y));
     });
     for (const [id, view] of this.views) {
@@ -496,7 +498,8 @@ export class RaidScene extends Phaser.Scene {
       this.sampleDrawn(id, renderT, m);
       const ground = m.kind === "mob" || m.kind === "elite"
         ? this.ground.statesOf(id, this.tmp.x, this.tmp.y, m.faction, serverNow, m.hp, m.maxHp, false, m.status === "alive") : NO_STATES;
-      view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures, ground);
+      const markDim = this.markIsDim(id, m.markBy, this.tmp.x, this.tmp.y, state);
+      view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures, ground, markDim);
     });
     for (const [id, view] of this.mobViews) {
       if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id); }
@@ -644,6 +647,31 @@ export class RaidScene extends Phaser.Scene {
     if (!drawn) { drawn = { x: 0, y: 0 }; this.rendered.set(id, drawn); }
     drawn.x = at.x;
     drawn.y = at.y;
+  }
+
+  /** A mark's pips dim outside 300 u unless this marker's Trial contains the marked fighter. */
+  private markIsDim(targetId: string, markerId: string, x: number, y: number, state: RaidState): boolean {
+    if (!markerId) return false;
+    const marker = this.rendered.get(markerId);
+    let mx = marker?.x;
+    let my = marker?.y;
+    if (mx === undefined || my === undefined) {
+      const player = state.players.get(markerId);
+      const mob = state.mobs.get(markerId);
+      mx = player?.x ?? mob?.x;
+      my = player?.y ?? mob?.y;
+    }
+    if (mx === undefined || my === undefined) return true;
+    const dx = x - mx, dy = y - my;
+    let inTrial = false;
+    state.fields.forEach((f) => {
+      if (inTrial || fieldKindOf(f.kind) !== "zone" || f.owner !== markerId || f.subject !== targetId) return;
+      const dt = Math.max(0, this.renderT - f.startedAt) / 1000;
+      const fx = f.x + f.vx * dt, fy = f.y + f.vy * dt;
+      const tx = x - fx, ty = y - fy;
+      inTrial = tx * tx + ty * ty <= f.r * f.r;
+    });
+    return markDimmed(dx * dx + dy * dy, inTrial, MARK_NEAR_RANGE);
   }
 
   /** Where the local fighter is drawn from this frame: its prediction, where it was last drawn (death or teleport pending), or the snapshots. */

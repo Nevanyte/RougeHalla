@@ -19,16 +19,17 @@ import { fingerprints } from "./support/duelFingerprint";
 // ---------------------------------------------------------------------------------------------------------------- the default path
 
 // Pinned outputs from the current runDuel simulation, not legacy combat metrics. The control port intentionally changed ranged
-// timing to the current 0.3-interval share and removed the axe's post-launch root; refresh only the affected trajectories here.
+// timing to the current 0.3-interval share and removed the axe's post-launch root; the Sentenced redesign intentionally changes faction damage and defenses too. Refresh affected trajectories after these rule changes.
 // These fingerprints still guard determinism across open/pillar arenas, locks, signatures, perceptions, offsets, and cards.
+
 const PINNED: ReadonlyArray<readonly [string, string]> = [
   ["holy wand>bow open", "432a8291b792e35e"],
   ["fire bow>wand open", "633525f0d3fdfa01"],
   ["fire sword>axe open", "87eaacf215f78424"],
-  ["frost shield mirror capped", "50c295994ca5a9ea"],
+  ["frost shield mirror capped", "b20c9b0f9fe1989c"],
   ["fire sword mirror pillars", "45ace09b5d79c6fc"],
   ["plague bow mirror pillars", "eed627984c84bf82"],
-  ["fire/sentenced locks signatures", "31efba0c28c80b5c"],
+  ["fire/sentenced locks signatures", "97cfde16e887bfa9"],
   ["fire bow mirror start offset", "2be1876e363079da"],
   ["holy bow>sword stale", "fca780935134c6f1"],
   ["holy bow>sword present", "97011841cb7c8557"],

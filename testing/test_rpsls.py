@@ -118,27 +118,33 @@ def edge_names(es):
 
 
 # (owner, what is removed, is_sub, variant of the owner, flipped edges per the sheet, largest shift per the sheet).
-# Removing Holy's lifesteal flips Holy>Fire on the compressed sheet (it was Holy>Sentenced), and removing Plague's execute
-# flips Plague>Holy as well as Plague>Frost.
+# The Sentenced redesign (docs/SENTENCED_REDESIGN.md) re-recorded the Sentenced rows and moved the others: the mark is a share of
+# the target's max hp per hit, climbing four tiers, so removing it flips Sentenced>Plague and Sentenced>Frost, never climbing a tier
+# loses the tax, the suppression, the amplifier and the denial together (the same two flips), and the suppression alone is as
+# load-bearing. Removing Holy's lifesteal flips Holy>Fire and now Holy>Sentenced as well.
 IDENTITY = [
     ("Fire", "remove burn and backlash", False, lambda p: with_params(p, burn=0, backlash=0),
-     {("Fire", "Sentenced"), ("Fire", "Plague")}, 97),
+     {("Fire", "Sentenced"), ("Fire", "Plague")}, 92.9),
     ("Fire", "remove backlash only", True, lambda p: with_params(p, backlash=0),
-     {("Fire", "Sentenced"), ("Fire", "Plague")}, 88),
-    ("Sentenced", "remove the mark", False, lambda p: with_params(p, mark_ramp=0, mark_cap=0),
-     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 119),
-    ("Sentenced", "mark at full strength from t=0", True, lambda p: with_params(p, mark_ramp=1e9),
-     set(), 17.7),
+     {("Fire", "Sentenced"), ("Fire", "Plague")}, 77.7),
+    ("Sentenced", "remove the mark", False, lambda p: with_params(p, mark_pct=0, mark_kill=0),
+     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 90.3),
+    ("Sentenced", "the mark never climbs a tier (no tax, suppression, amplifier or denial)", True, lambda p: with_params(p, tier_hits=1e9),
+     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 42.5),
+    ("Sentenced", "remove the output suppression only", True, lambda p: with_params(p, suppress=1.0),
+     {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 25.0),
+    ("Sentenced", "remove the attack-speed tax only", True, lambda p: with_params(p, tax_keep=1.0, tax_cap=1e9),
+     {("Sentenced", "Plague")}, 19.7),
     ("Plague", "remove the execute", False, lambda p: with_params(p, execute=0),
-     {("Plague", "Frost"), ("Plague", "Holy")}, 31),
+     {("Plague", "Holy")}, 31.3),
     ("Plague", "remove the flat disease", True, lambda p: with_params(p, plague=0),
      {("Plague", "Frost"), ("Plague", "Holy")}, 78),
     ("Frost", "remove the slow", False, lambda p: with_params(p, slow=0),
      {("Frost", "Holy")}, 68),
     ("Holy", "remove lifesteal", False, lambda p: with_params(p, ls0=0, ls1=0),
-     {("Holy", "Fire")}, 26),
+     {("Holy", "Fire"), ("Holy", "Sentenced")}, 28.9),
     ("Holy", "flat lifesteal, no missing-health scaling", True, lambda p: with_params(p, ls1=0),
-     set(), 20.2),
+     {("Holy", "Sentenced")}, 23.5),
 ]
 
 base_margin = {e: margin_pts(BY, *e)[0] for e in BEATS}

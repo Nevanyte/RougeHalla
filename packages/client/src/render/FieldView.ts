@@ -8,6 +8,7 @@ import { ABILITIES, ABILITY_IDS, Y_SCALE, fieldKindOf, type Vec2 } from "@raid/s
 import { juiceScale } from "./juice";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 import { life, pulse } from "./signatureLook";
+import { trialFieldRadius } from "./markPresentation";
 
 /** A field fades out over its last this-many ms (render time). */
 export const FIELD_FADE_MS = 300;
@@ -181,7 +182,7 @@ export class FieldView {
     const color = abilityColor(f.ability, ZONE_FALLBACK);
     const c = fieldCentre(f, renderT);
     g.setPosition(projX(c.x), projY(c.y)).setAlpha(alpha);
-    const r = f.r;
+    const r = mo > 0 ? trialFieldRadius(f.r, renderT - f.startedAt) : f.r;
     g.fillStyle(color, 0.1).fillEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
     g.lineStyle(2, color, 0.5).strokeEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
     // Dashes: one every ~40 px of rim (at least 16), turning with motion.

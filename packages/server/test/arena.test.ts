@@ -3223,7 +3223,7 @@ describe("feed and bounty", () => {
     it("a killing blow is recorded as the last hit too", () => {
       const w = startRun(3, LONG);
       hit(w, 0, 1);
-      hit(w, 2, 1, 1000); // kills
+      hit(w, 2, 1, 1100); // kills (Sentenced's 1050 hp)
       expect(RT(w, 1).killedBy).toBe("carol");
       expect(RT(w, 1).lastHit).toEqual({ by: idOf(2), at: TICK_MS });
     });
@@ -3517,7 +3517,7 @@ describe("feed and bounty", () => {
         const w = startRun(4, LONG);
         hit(w, 0, 1);
         w.events = [];
-        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }, { amount: 1, source: attacker(w, 2) }]);
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1100, source: "Warden" }, { amount: 1, source: attacker(w, 2) }]);
         expect(P(w, 2).kills).toBe(1);
         expect(P(w, 0).kills).toBe(0);
         expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(2) }]);
@@ -3550,7 +3550,7 @@ describe("feed and bounty", () => {
       expect(RT(w, 1).lastHit).toBeNull();
       P(w, 1).bounty = 28;
       w.events = [];
-      hit(w, 1, 1, 1000);
+      hit(w, 1, 1, 1100);
       expect(P(w, 1).status).toBe("dead");
       expect(P(w, 1).kills).toBe(0);
       expect(RT(w, 1).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
@@ -3564,10 +3564,10 @@ describe("feed and bounty", () => {
       let calls = 0;
       w.hooks.bountyClaimed = (world) => {
         calls++;
-        expect(applyDamage(world, P(world, 1), RT(world, 1), 1000, attacker(world, 0))).toBe(0);
+        expect(applyDamage(world, P(world, 1), RT(world, 1), 1100, attacker(world, 0))).toBe(0);
       };
       w.events = [];
-      hit(w, 0, 1, 1000);
+      hit(w, 0, 1, 1100);
       expect(calls).toBe(1);
       expect(P(w, 0).kills).toBe(1);
       expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80, quest: 0 });

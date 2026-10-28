@@ -1,7 +1,7 @@
 // PlayerView's barrier (Phase 11, R4a): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
 // public state, against BARRIER_FULL_SHARE of max hp. The bow's draw follows the attack-speed and windup mirrors. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
 import { describe, expect, it } from "vitest";
-import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
+import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
 import { fullDrawSeconds } from "../src/render/FighterArt";

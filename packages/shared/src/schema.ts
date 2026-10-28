@@ -49,7 +49,7 @@ export const PlayerState = schema({
   immuneUntil: t.uint32().default(0),
   /** Signatures acting on this fighter (SIG_* bits: chilled, burning, diseased, execute), for visuals. */
   sig: t.uint8().default(0),
-  /** How far the strongest Sentenced mark on this fighter has grown, in percent (steps of 5); 0 = not marked. */
+  /** How far the strongest Sentenced mark on this fighter has grown, in percent (markTier x 25); 0 = not marked. */
   brand: t.uint8().default(0),
   /** Mobs killed this run (feed = kills + FEED_MOB_KILL_WEIGHT x this; it sets the mob reward curve; the bounty ignores mobs). */
   mobKills: t.uint16().default(0),
@@ -94,6 +94,13 @@ export const PlayerState = schema({
   eReadyAt: t.uint32().default(0),
   /** +1 (wrapping) for every forced or ability displacement (a blink, a pull): a changed value is a cut for the interpolation, not a slide. */
   displaceSeq: t.uint8().default(0),
+  // --- The mark (docs/SENTENCED_REDESIGN.md; appended after the Wishes' fields) ---
+  /** The strongest Sentenced mark on this fighter: its tier 0..4 (0 = none), who holds it ("" = none), and the attack-speed cut the tax is making, in percent. */
+  markTier: t.uint8().default(0),
+  markBy: t.string().default(""),
+  markTax: t.uint8().default(0),
+  /** A Sentenced's kill-stacks this run, 0..MARK_KILL_STACK_CAP: each player kill, and a denied execute once per mark. */
+  sentence: t.uint8().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -128,6 +135,10 @@ export const MobState = schema({
   /** EFFECT_* bits, as on PlayerState. */
   effects: t.uint16().default(0),
   displaceSeq: t.uint8().default(0),
+  /** The strongest Sentenced mark on this fighter, as on PlayerState. */
+  markTier: t.uint8().default(0),
+  markBy: t.string().default(""),
+  markTax: t.uint8().default(0),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 

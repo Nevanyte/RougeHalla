@@ -7,7 +7,8 @@
 // the attacker, or, for a signature part, of the signature: SIGNATURE_SHARES); armor cuts the physical share, shield
 // the magic share, true ignores both, each as 1 / (1 + stat/100). Signature mechanics read only the attacker's own
 // params and universal state, never the opponent's identity, so counters emerge from the numbers alone.
-import { DUEL_PACE } from "./constants";
+import { DUEL_PACE, MARK_TOP_TIER } from "./constants";
+import { markTierOf, taxedRate } from "./mark";
 import { SIGNATURE_SHARES } from "./signatureShares";
 import type { SignatureKind } from "./signatures";
 
@@ -49,8 +50,8 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 800, rate: 0.9, hit: 10, phys: 0.0, trueShare: 0.0, armor: 125, shield: 210,
-    mechanic: "marked", params: { mark_ramp: 17.5, mark_cap: 72 },
+    hp: 880, rate: 0.806449, hit: 41.041892, phys: 0.35, trueShare: 0.0, armor: 135, shield: 120,
+    mechanic: "marked", params: { mark_pct: 0.028, mark_kill: 0.007, mark_amp: 1.5, tier_hits: 3, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
@@ -59,7 +60,7 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   frost: {
     id: "frost", name: "Frost", displayName: "Frost", role: "Control bruiser", theme: "Living wall of ice", color: 0x4fc3f7,
-    hp: 1200, rate: 0.45, hit: 175, phys: 0.9, trueShare: 0.0, armor: 20, shield: 190,
+    hp: 1200, rate: 0.45, hit: 170, phys: 0.9, trueShare: 0.0, armor: 20, shield: 190,
     mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.52 },
   },
   holy: {
@@ -104,18 +105,35 @@ export interface CombatState {
   foeRate: number;
   ownHpFrac: number;
   foeHpFrac: number;
+  /** The target's max hp (the mark is a share of it). */
+  foeMaxHp: number;
+  /** Attacks landed so far (the integral of the attack rate): the mark climbs by them. */
+  ownHits: number;
+  /** Stacks earned (a denied execute is worth one, once). */
+  ownStacks: number;
+  /** The fighter's attack rate before any aura: what a hit's weight is paid back to. */
+  ownBaseRate: number;
 }
+
+/** One signature part: its kind, its raw damage per second, and whether it is an execute (a tier-4 mark can deny it). */
+export type BonusPart = readonly [SignatureKind, number, boolean?];
 
 /**
  * Bonus raw damage per second added on top of rate × hit, split into its signature parts (each is mitigated as its own
- * damage type: SIGNATURE_SHARES). Listed in the order the Python engine adds them.
+ * damage type: SIGNATURE_SHARES). Listed in the order the Python engine adds them; the execute is a part of its own (the
+ * third element) so the mark's denial can find it.
  */
-export function bonusParts(spec: FactionSpec, s: CombatState): ReadonlyArray<readonly [SignatureKind, number]> {
+export function bonusParts(spec: FactionSpec, s: CombatState): ReadonlyArray<BonusPart> {
   const p = spec.params;
   switch (spec.mechanic) {
     case "dragonslayer": return [["burn", p.burn!], ["backlash", p.backlash! * s.foeRate]];
-    case "rat_king": return [["disease", p.plague! + p.execute! * Math.max(0, 0.5 - s.foeHpFrac)]];
-    case "marked": return [["mark", Math.min(p.mark_cap!, p.mark_ramp! * s.t)]];
+    case "rat_king": return [["disease", p.plague!], ["disease", p.execute! * Math.max(0, 0.5 - s.foeHpFrac), true]];
+    case "marked": {
+      const tier = markTierOf(s.ownHits, 0, p.tier_hits!);
+      if (tier === 0) return [];
+      const pct = p.mark_pct! + p.mark_kill! * s.ownStacks;
+      return [["mark", s.ownBaseRate * pct * s.foeMaxHp * (tier >= MARK_TOP_TIER ? p.mark_amp! : 1)]];
+    }
     default: return [];
   }
 }
@@ -125,6 +143,20 @@ export function bonusDps(spec: FactionSpec, s: CombatState): number {
   let sum = 0;
   for (const [, v] of bonusParts(spec, s)) sum += v;
   return sum;
+}
+
+/** What a mechanic does to its opponent beyond damage (engine.py PRESSURE): the tax on its attack rate, the cut to its output, a denied execute. */
+export interface Pressure { foeRate: number; foeOut: number; denyExecute: boolean }
+
+export function pressureOf(spec: FactionSpec, s: CombatState): Pressure {
+  if (spec.mechanic !== "marked") return { foeRate: s.foeRate, foeOut: 1, denyExecute: false };
+  const p = spec.params;
+  const tier = markTierOf(s.ownHits, 0, p.tier_hits!);
+  return {
+    foeRate: tier >= 2 ? taxedRate(s.foeRate, p.tax_keep!, p.tax_cap!) : s.foeRate,
+    foeOut: tier >= 3 ? p.suppress! : 1,
+    denyExecute: tier >= MARK_TOP_TIER,
+  };
 }
 
 /** Multiplier this faction's aura applies to its opponent's attack rate (1 = none). */
@@ -156,25 +188,27 @@ export function mitigateShares(raw: number, shares: DamageShares, dfn: { armor: 
   return raw * (shares.phys / (1 + dfn.armor / 100) + shares.magic / (1 + dfn.shield / 100) + shares.true);
 }
 
-const DAMAGE_PARAMS = new Set(["burn", "backlash", "plague", "execute", "mark_ramp", "mark_cap"]);
+/** Point-damage params: x k with the hit at duel pace (`pacedFaction`). `mark_pct` and `mark_kill` are shares of the target's hp, so they are paced but never power-scaled. */
+const DAMAGE_PARAMS = new Set(["burn", "backlash", "plague", "execute", "mark_pct", "mark_kill"]);
+/** The params the power-level knob scales (a share of the target's hp already scales with the hp it is a share of). */
+const POWER_SCALED = new Set(["burn", "backlash", "plague", "execute"]);
 
-/** Power-level knob: multiplies hp and every point-damage number by k (ratios untouched). */
+/** Power-level knob: multiplies hp and every point-damage number by k (ratios, and the mark's shares of the target's hp, untouched). */
 export function scaledFaction(spec: FactionSpec, k: number): FactionSpec {
   const params: Record<string, number> = {};
-  for (const [key, v] of Object.entries(spec.params)) params[key] = DAMAGE_PARAMS.has(key) ? v * k : v;
+  for (const [key, v] of Object.entries(spec.params)) params[key] = POWER_SCALED.has(key) ? v * k : v;
   return { ...spec, hp: spec.hp * k, hit: spec.hit * k, params };
 }
 
 /**
- * The faction as fought in the arena (DUEL_PACE, GAME_DESIGN 10.2): the hit and every damage param times k, and the
- * mark ramp times k squared (so the mark is full in 1/k of the time), with hp unchanged. Every fight runs k times
- * shorter and the counter graph holds. k = 1 is the design sheet (the parity tests).
+ * The faction as fought in the arena (DUEL_PACE, GAME_DESIGN 10.2): the hit and every damage param times k (the mark's share of the
+ * target's hp too), with hp unchanged. Every fight runs k times shorter and the counter graph holds, so the reference duel's mark
+ * climbs a tier in 1/k of the hits (`tier_hits`; the sim itself counts MARK_TIER_HITS weapon hits). k = 1 is the design sheet
+ * (the parity tests).
  */
 export function pacedFaction(spec: FactionSpec, k: number = DUEL_PACE): FactionSpec {
   const params: Record<string, number> = {};
-  for (const [key, v] of Object.entries(spec.params)) {
-    params[key] = key === "mark_ramp" ? v * k * k : DAMAGE_PARAMS.has(key) ? v * k : v;
-  }
+  for (const [key, v] of Object.entries(spec.params)) params[key] = DAMAGE_PARAMS.has(key) ? v * k : key === "tier_hits" ? v / k : v;
   return { ...spec, hit: spec.hit * k, params };
 }
 
@@ -184,25 +218,53 @@ export interface DuelResult { winner: 0 | 1 | null; t: number; hpA: number; hpB:
 export function duel(a: FactionSpec, b: FactionSpec, dt = 0.002, tMax = 120): DuelResult {
   const f = [a, b] as const;
   const hp = [a.hp, b.hp];
+  const hits = [0, 0];
+  const stacks = [0, 0];
   let t = 0;
   while (t < tMax) {
     const rate = [f[0].rate, f[1].rate];
     for (const i of [0, 1] as const) rate[1 - i]! *= auraRateMultiplier(f[i]);
-    const out = [0, 0];
-    const heal = [0, 0];
-    for (const i of [0, 1] as const) {
+    const stateOf = (i: 0 | 1): CombatState => {
       const o = 1 - i;
-      const st: CombatState = {
+      return {
         t, ownRate: rate[i]!, foeRate: rate[o]!,
         ownHpFrac: Math.max(hp[i]!, 0) / f[i].hp, foeHpFrac: Math.max(hp[o]!, 0) / f[o]!.hp,
+        foeMaxHp: f[o]!.hp, ownHits: hits[i]!, ownStacks: stacks[i]!, ownBaseRate: f[i].rate,
       };
-      let dealt = mitigate(rate[i]! * f[i].hit * dt, f[i], f[o]!);
-      for (const [sig, v] of bonusParts(f[i], st)) dealt += mitigateShares(v * dt, SIGNATURE_SHARES[sig], f[o]!);
+    };
+    const press = [pressureOf(f[0], stateOf(0)), pressureOf(f[1], stateOf(1))] as const;
+    // Pressure changes the opponent's rate (a tax).
+    for (const i of [0, 1] as const) rate[1 - i] = press[i].foeRate;
+    const out = [0, 0];
+    const heal = [0, 0];
+    const denied = [false, false];
+    for (const i of [0, 1] as const) {
+      const o = 1 - i;
+      const st = stateOf(i);
+      const cut = press[o]!.foeOut;
+      let plain = mitigate(rate[i]! * f[i].hit * dt, f[i], f[o]!) * cut;
+      let exe = 0;
+      for (const [sig, v, isExecute] of bonusParts(f[i], st)) {
+        const d = mitigateShares(v * dt, SIGNATURE_SHARES[sig], f[o]!) * cut;
+        if (isExecute) exe += d;
+        else plain += d;
+      }
+      if (exe > 0 && press[o]!.denyExecute) {
+        const allowed = Math.max(0, Math.min(exe, hp[o]! - 1 - plain));
+        denied[o] = exe - allowed > 1e-12;
+        exe = allowed;
+      }
+      const dealt = plain + exe;
       out[i] = dealt;
-      heal[i] = dealt * lifestealFraction(f[i], st.ownHpFrac);
+      // The sentence cuts what a fighter deals, never what it heals from it (docs/SENTENCED_REDESIGN.md R6).
+      heal[i] = (dealt / cut) * lifestealFraction(f[i], st.ownHpFrac);
     }
     hp[0] = Math.min(f[0].hp, hp[0]! - out[1]! + heal[0]!);
     hp[1] = Math.min(f[1].hp, hp[1]! - out[0]! + heal[1]!);
+    for (const i of [0, 1] as const) {
+      hits[i]! += f[i].rate * dt; // the tiers climb at the unslowed pace: a slow on the cadence never delays them
+      if (denied[i] && stacks[i]! < 1) stacks[i] = 1;
+    }
     t += dt;
     if (hp[0]! <= 0 || hp[1]! <= 0) {
       if (hp[0]! <= 0 && hp[1]! <= 0) return { winner: null, t, hpA: 0, hpB: 0 };

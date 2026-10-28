@@ -24,7 +24,7 @@ const IDENTITY: StatMirrors = { asMult: 1, windupMult: 1, speedMult: 1, armorBon
 const me = (over: Partial<Omit<BuildSource, "build">> & { build?: Record<string, number>; m?: Partial<StatMirrors> } = {}): BuildSource => {
   const { m, ...rest } = over;
   return {
-    faction: "plague", build: {}, weapon0: "sword", weapon1: "", slot: 0, hp: 100, maxHp: 100, ...encodeMirrors({ ...IDENTITY, ...m }), ...rest,
+    faction: "plague", build: {}, weapon0: "sword", weapon1: "", slot: 0, hp: 100, maxHp: 100, sentence: 0, ...encodeMirrors({ ...IDENTITY, ...m }), ...rest,
   } as unknown as BuildSource;
 };
 
@@ -55,6 +55,16 @@ describe("BuildHud", () => {
     expect(cells().map((c) => part(c, 0))).toEqual(["AD", "AP", "Armor", "MR", "Atk speed", "Move", "Leech", "Power", "PvP"]);
     expect(part(cells()[8]!, 2)).toBe("Your damage to players. Each card you take adds its tier to your power.");
     expect(cells().every((c) => c.classes.has("dim"))).toBe(true);
+  });
+
+  it("shows Sentence stacks only for the Sentenced build and refreshes them when they change", () => {
+    const { strip, label } = setup();
+    strip.update(me({ faction: "sentenced", sentence: 2 }), true);
+    expect(label.textContent).toBe("Build · Sentence: 2/5");
+    strip.update(me({ faction: "sentenced", sentence: 3 }), true);
+    expect(label.textContent).toBe("Build · Sentence: 3/5");
+    strip.update(me({ faction: "fire", sentence: 3 }), true);
+    expect(label.textContent).toBe(BUILD_LABEL);
   });
 
   it("follows the build and the mirrors", () => {

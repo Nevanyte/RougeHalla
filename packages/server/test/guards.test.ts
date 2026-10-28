@@ -90,8 +90,8 @@ describe("G2: the PvP per-hit cap", () => {
     applyLedger(w);
     expect(P(w, "v").hp).toBeCloseTo(HOLY_HP * 0.65, 9);
     // The same for G3: a gone shooter's damage over time shares the 15%-a-second budget as it did before it left.
-    const w2 = pvpArena([{ id: "a", faction: "sentenced" }, { id: "b", faction: "fire" }, { id: "v", faction: "holy" }]);
-    hit(w2, "v", "a", 500, { sig: "mark", shares: TRUE });
+    const w2 = pvpArena([{ id: "a", faction: "plague" }, { id: "b", faction: "fire" }, { id: "v", faction: "holy" }]);
+    hit(w2, "v", "a", 500, { sig: "disease", shares: TRUE });
     removePlayer(w2, "a");
     applyLedger(w2);
     expect(HOLY_HP - P(w2, "v").hp).toBeCloseTo(PVP_DOT_CAP_SHARE * HOLY_HP * DT, 9);
@@ -124,8 +124,8 @@ describe("G3: the PvP damage-over-time cap", () => {
 
   it("limits one source's damage over time on one victim to 15% of its max hp a second (a tick's share of that)", () => {
     expect(PVP_DOT_CAP_SHARE).toBe(0.15);
-    const w = pvpArena([{ id: "a", faction: "sentenced", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
-    hit(w, "v", "a", 500, { sig: "mark", shares: TRUE });
+    const w = pvpArena([{ id: "a", faction: "plague", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
+    hit(w, "v", "a", 500, { sig: "disease", shares: TRUE });
     applyLedger(w);
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(budget, 9);
     expect(budget).toBeCloseTo(10.5, 9);
@@ -133,7 +133,7 @@ describe("G3: the PvP damage-over-time cap", () => {
 
   it("shares the budget between that source's entries in proportion, whichever signature they are", () => {
     const w = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
-    hit(w, "v", "a", 300, { sig: "mark", shares: TRUE });
+    hit(w, "v", "a", 300, { sig: "disease", shares: TRUE });
     hit(w, "v", "a", 100, { sig: "burn", shares: TRUE });
     applyLedger(w);
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(budget, 9);
@@ -141,29 +141,29 @@ describe("G3: the PvP damage-over-time cap", () => {
 
   it("gives each source its own budget on a victim", () => {
     const w = pvpArena([
-      { id: "a", faction: "sentenced", build: { ad3: 5 } }, { id: "b", faction: "plague", build: { ad3: 5 } }, { id: "v", faction: "holy" },
+      { id: "a", faction: "fire", build: { ad3: 5 } }, { id: "b", faction: "plague", build: { ad3: 5 } }, { id: "v", faction: "holy" },
     ]);
-    hit(w, "v", "a", 500, { sig: "mark", shares: TRUE });
+    hit(w, "v", "a", 500, { sig: "burn", shares: TRUE });
     hit(w, "v", "b", 500, { sig: "disease", shares: TRUE });
     applyLedger(w);
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(2 * budget, 9);
   });
 
   it("is a rate: tick after tick the loss stays at 15% of max hp a second", () => {
-    const w = pvpArena([{ id: "a", faction: "sentenced", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
-    for (let i = 0; i < 20; i++) inStep(w, () => hit(w, "v", "a", 500, { sig: "mark", shares: TRUE }));
+    const w = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
+    for (let i = 0; i < 20; i++) inStep(w, () => hit(w, "v", "a", 500, { sig: "burn", shares: TRUE }));
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(PVP_DOT_CAP_SHARE * HOLY_HP, 6);
   });
 
   it("leaves a source under its budget alone, a hit beside it unaffected, and a mob victim uncapped", () => {
-    const w = pvpArena([{ id: "a", faction: "sentenced", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
-    hit(w, "v", "a", 3, { sig: "mark", shares: TRUE });
+    const w = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
+    hit(w, "v", "a", 3, { sig: "burn", shares: TRUE });
     hit(w, "v", "a", 100); // a hit is G2's business, not G3's
     applyLedger(w);
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(3 * pvpFactor(15) + 100 * pvpFactor(15), 9);
-    const m = pvpArena([{ id: "a", faction: "sentenced", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
+    const m = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
     const mob = addMob(m, { kind: "dummy", name: "Warden", at: { x: 900, y: 320 }, hp: 100_000 });
-    hit(m, mob, "a", 500, { sig: "mark", shares: TRUE });
+    hit(m, mob, "a", 500, { sig: "burn", shares: TRUE });
     applyLedger(m);
     expect(100_000 - m.state.mobs.get(mob)!.hp).toBeCloseTo(500, 9); // no PvP factor on a mob either
   });
@@ -308,7 +308,7 @@ describe("G1: the row multiplier", () => {
     expect(outgoingKindOf({ weapon: "bow", sig: undefined })).toBe("hit");
     expect(outgoingKindOf({ weapon: "axe", sig: "burn" })).toBe("dot");
     expect(outgoingKindOf({ weapon: "axe", sig: "disease" })).toBe("dot");
-    expect(outgoingKindOf({ weapon: "bow", sig: "mark" })).toBe("dot");
+    expect(outgoingKindOf({ weapon: "bow", sig: "mark" })).toBe("other"); // a pulse of the mark is no damage over time, and no hit: no mult of its own
     expect(outgoingKindOf({ weapon: null, ability: "blaze", dot: true })).toBe("dot");
     expect(outgoingKindOf({ weapon: "axe", sig: "backlash" })).toBe("returned");
     expect(outgoingKindOf({ weapon: "shield", passive: true })).toBe("returned");
@@ -543,8 +543,10 @@ describe("G1 in the ledger: an entry's own mult shares the cap, by the kind of e
   });
 
   it("damage over time with the `dot` mult x1.25 leaves room for x2.0", () => {
-    expect(lost([dmg(1.2), mult("dot", 1.25)], { sig: "mark", shares: TRUE })).toBeCloseTo(200, 9);
+    expect(lost([dmg(1.2), mult("dot", 1.25)], { sig: "disease", shares: TRUE })).toBeCloseTo(200, 9);
     expect(lost([dmg(1.2), mult("dot", 1.25)], { sig: "burn", shares: TRUE })).toBeCloseTo(200, 9);
+    // A pulse of the mark is another kind: the dot mult takes no room from it.
+    expect(lost([dmg(1.2), mult("dot", 1.25)], { sig: "mark", shares: TRUE })).toBeCloseTo(220, 9);
     expect(lost([dmg(1.2), mult("dot", 1.25)], { ability: "blaze", weapon: null, dot: true, shares: TRUE }), "a Wish is flat: no rows at all").toBeCloseTo(100, 9);
   });
 
@@ -555,7 +557,7 @@ describe("G1 in the ledger: an entry's own mult shares the cap, by the kind of e
 
   it("a mult of another kind takes no room from this one", () => {
     expect(lost([dmg(1.2), mult("dot", 1.25), mult("returned", 1.25)])).toBeCloseTo(220, 9); // a plain hit
-    expect(lost([dmg(1.2), mult("hit", 2.5), mult("returned", 1.25)], { sig: "mark", shares: TRUE })).toBeCloseTo(220, 9); // a tick of the mark
+    expect(lost([dmg(1.2), mult("hit", 2.5), mult("returned", 1.25)], { sig: "mark", shares: TRUE })).toBeCloseTo(220, 9); // a pulse of the mark
   });
 });
 

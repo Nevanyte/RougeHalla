@@ -774,7 +774,7 @@ describe("the console never makes the training room record anything", () => {
 describe("the console's contract", () => {
   it("every mob type and every card is reachable by id, and the catalogs' sizes are what the client's pickers show", () => {
     expect(MOB_TYPES).toHaveLength(30);
-    expect(CARD_IDS).toHaveLength(75);
+    expect(CARD_IDS).toHaveLength(80);
     expect(mobTypeById("wyrmling" satisfies MobTypeId)?.elite).toBe(true);
   });
 });

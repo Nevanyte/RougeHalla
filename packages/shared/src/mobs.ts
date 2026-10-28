@@ -23,12 +23,17 @@ export function isRegionalKind(kind: string): kind is "mob" | "elite" {
  * of the target's missing hp reads the PLAYER's hp fraction, and a player's pool is full-scale, so scaling it by k alone
  * (as every point-damage number is, because the mob's own hp and hit shrank with it) left it 4-5x too strong: a Plague
  * mob killed a 25%-hp player in 0.9-3.6 s, where any other zone took 5-120 s (bench/mobExecute.ts, acceptance A13).
+ * Sentenced's mark is the same case: a pulse is a share of the PLAYER's max hp (a full-scale pool), so `mark_pct` and `mark_kill`, which
+ * `scaledFaction` leaves alone (they scale with the hp they are a share of), are scaled by k here.
  * At k = 1 (a player-sized faction, the parity tests) nothing changes.
  */
 export function mobFaction(region: FactionId, elite: boolean, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
   const scaled = scaledFaction(FACTIONS[region], k);
-  const execute = scaled.params.execute;
-  return execute === undefined ? scaled : { ...scaled, params: { ...scaled.params, execute: execute * k } };
+  const params: Record<string, number> = { ...scaled.params };
+  if (params.execute !== undefined) params.execute *= k;
+  if (params.mark_pct !== undefined) params.mark_pct *= k;
+  if (params.mark_kill !== undefined) params.mark_kill *= k;
+  return { ...scaled, params };
 }
 
 /** The weapon a mob of the region carries when it has no type of its own (REGION_WEAPONS): the default every type's weapon falls back to. */
@@ -190,7 +195,11 @@ export function mobTypeFaction(region: FactionId, elite: boolean, type?: string,
   const base = mobFaction(region, elite, k);
   const t = mobTypeIn(region, type);
   if (t === undefined || (t.hpMult === 1 && t.dmgMult === 1)) return base;
-  return { ...scaledFaction(base, t.dmgMult), hp: base.hp * t.hpMult };
+  const typed = scaledFaction(base, t.dmgMult);
+  const params: Record<string, number> = { ...typed.params };
+  if (params.mark_pct !== undefined) params.mark_pct *= t.dmgMult;
+  if (params.mark_kill !== undefined) params.mark_kill *= t.dmgMult;
+  return { ...typed, params, hp: base.hp * t.hpMult };
 }
 
 /** The weapon a mob of `type` carries: the type's own, or the region's default for a mob without one. */

@@ -66,7 +66,7 @@ export const STATUS_RULES: Readonly<Record<StatusKind, StatusRule>> = {
   invulnerable: { maxMs: 3000,  combine: "any",     cleanse: "never", bit: 0, playersOnly: true },
   untargetable: { maxMs: 10000, combine: "any",     cleanse: "never", bit: EFFECT_UNTARGETABLE },
   hidden:       { maxMs: 10000, combine: "any",     cleanse: "never", bit: EFFECT_HIDDEN, playersOnly: true },
-  zoned:        { maxMs: 6000,  combine: "product", cleanse: "never", bit: EFFECT_ZONED },
+  zoned:        { maxMs: 8000,  combine: "product", cleanse: "never", bit: EFFECT_ZONED },
   deathFloor:   { maxMs: 6000,  combine: "any",     cleanse: "never", bit: EFFECT_LAST_STAND, playersOnly: true },
   haste:        { maxMs: 8000,  combine: "max", cap: 0.5, cleanse: "never", bit: EFFECT_HASTE },
   // No effect bit: the armor mirror carries it to the client (a negative bonus), nothing else needs to draw it.

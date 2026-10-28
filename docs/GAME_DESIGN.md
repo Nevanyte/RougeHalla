@@ -203,6 +203,8 @@ There is **no shrinking zone**. Pressure comes from the Arena's host losing pati
 
 ## 8. Factions
 
+**Sentenced redesign (2026-10-28):** [SENTENCED_REDESIGN.md](SENTENCED_REDESIGN.md) is the current contract for the tiered, per-hit mark, camp-wide marking, execute denial, Trial and five added cards (80 total). The older matchup measurements below describe the pre-redesign sheet; current evidence is in [../testing/TUNING_SENTENCED.md](../testing/TUNING_SENTENCED.md).
+
 Five factions form a closed loop: **each beats exactly two and loses to exactly two.** The numbers come from the owner's design engine (`testing/engine.py`, `testing/classes.py`). The game's TypeScript copy is tested against it so they can't drift apart.
 
 **The sheet was compressed by the balance pass.** The first sheet was a clean five-cycle in which the favourite won every duel with 27-77% of its hp left: a favourite that always wins is not a matchup, it is a wall. The numbers were moved, by a search over the whole sheet checked in the real sim, so that every edge leaves its winner **10-35% hp** and wins **60-70% of even duels once two players' execution noise is in** (each fighter's damage times `exp(0.45 Z)`; the favourite wins `Phi(ln r / 0.636)` of the time, r being the multiplier the underdog would need). A counter is now a strong tilt that play can overturn, not a wall. The laws (8.1) do not change; the signature damage types do (8.3). Method, tables and residuals: `testing/TUNING_BALANCE.md`.
@@ -213,7 +215,7 @@ Five factions form a closed loop: **each beats exactly two and loses to exactly 
 3. **Defense.** Armor cuts the physical share and shield (magic resist) cuts the magic share; true damage ignores both. Reduction is `1 / (1 + stat/100)`: 100 means half damage, 300 means a quarter.
 4. **Rate effects.** One aura exists (Frost's slow). It multiplies an opponent's attack rate. It slows `rate × hit` only, not flat bonuses.
 5. **Health effects.** Mechanics may read health fractions (the target's for execute, your own for lifesteal), never an opponent's identity.
-6. **Time effects.** A mechanic may read time spent in the fight (the mark ramp).
+6. **Progress effects.** A mechanic may read landed hits, weapon swaps and time in the fight.
 
 No rule mentions a faction by name. Every counter falls out of the numbers.
 
@@ -222,9 +224,9 @@ No rule mentions a faction by name. Every counter falls out of the numbers.
 | Faction | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield (magic resist) |
 |---|---|---|---|---|---|---|---|---|
 | Fire | Glass-cannon duelist | 835 | 0.60/s | 100 | 60 | 0 / 100 / 0 | 0 | 45 |
-| Sentenced | Patient executioner | 800 | 0.90/s | 10 | 9 | 0 / 100 / 0 | 125 | 210 |
+| Sentenced | Patient executioner | 880 | 0.806449/s | 41.041892 | 33.1 | 35 / 65 / 0 | 135 | 120 |
 | Plague | Attrition swarm | 1375 | 1.85/s | 20 | 37 | 80 / 20 / 0 | 190 | 0 |
-| Frost | Control bruiser | 1200 | 0.45/s | 175 | 79 | 90 / 10 / 0 | 20 | 190 |
+| Frost | Control bruiser | 1200 | 0.45/s | 170 | 76.5 | 90 / 10 / 0 | 20 | 190 |
 | Holy (Demon Blood) | Sustain juggernaut | 1400 | 0.95/s | 96 | 91 | 100 / 0 / 0 | 0 | 250 |
 
 Attack rate is the faction's base. Each weapon boosts it by a percentage (section 10.2). What moved from the first sheet (hp, hit, armor, shield, signature numbers; rates and damage shares did not): Fire 500 hp / 150 hit / 125 shield to 835 / 100 / 45; Sentenced 700 / 5 / 100 armor / 50 shield to 800 / 10 / 125 / 210; Plague 1000 hp / 200 armor to 1375 / 190; Frost 1750 hp / 90 hit / 100 armor / 100 shield to 1200 / 175 / 20 / 190; Holy 1450 hp / 65 hit to 1400 / 96. Fire is no longer the lowest-hp faction by a wide margin and its damage leans on burn and backlash; Frost is a hard-hitting bruiser with the chill (owner ruling: accepted).
@@ -234,12 +236,12 @@ Attack rate is the faction's base. Each weapon boosts it by a percentage (sectio
 | Faction | Signature | What it does | Damage type | How it feels |
 |---|---|---|---|---|
 | Fire | **Dragonslayer** | 18 burn per second, plus **145 backlash for each attack the engaged enemy makes at its base rate** (per real swing 58 to 104 depending on its weapon, section 10.3) | Burn: magic, over time. Backlash: physical, returned | Punishes fast attackers. Against Plague's flurry it is over in seconds. |
-| Sentenced | **Marked** | Bonus damage ramping +17.5/s for every second in the fight, capped at 72/s (4.1 s to full; 2.1 s at duel pace). The mark is tied to the **weapon the target is holding**; swapping weapons resets it. | True, ramping, over time: nothing cuts it | Gets worse for the opponent every second. Its own hits barely matter (10 damage). |
+| Sentenced | **Marked** | Landed hits pulse a share of max HP as true damage and promote four tiers: pulse, attack-speed tax, output suppression, then pulse amplification and execute denial. Weapon swaps promote the mark. Camps share a mark; see the redesign contract for group scaling. | True, per hit; no AP-on-DoT rider | Pressure grows as hits land; switching between camp members preserves progress. |
 | Plague | **Rat King** | 43 disease per second, plus an execute adding up to 207 per second as the target falls from 50% to 0 HP (415 per unit of hp below half) | Magic, over time, with the execute | A slow squeeze that collapses into a kill |
 | Frost | **Living Wall of Ice** | Anyone engaged with Frost has their **attack rate cut to 48%** (slow 0.52) and their **movement slowed** (×0.7 within 100 u) | The slow | The fight slows down and Frost sets the pace |
 | Holy | **Radiant** | Heals a share of damage dealt equal to `10% + 80% × missing HP`, capped at 75% (reached at 81% missing HP) | Heal | Hardest to finish when nearly dead |
 
-The first sheet's signatures were all magic (the mark, the burn, the backlash) or an 80/20 mix (the disease); the owner asked for the types in the table, which is what the sim deals (`SIGNATURE_SHARES`): the mark now ignores Holy's shield, Fire's backlash is cut by armor and not by shield, and Plague's disease is all magic. Cards add to them: Ability Power adds `0.6 × AP` magic damage per second to every running burn, disease and mark (10.2).
+The first sheet's signatures were all magic (the mark, the burn, the backlash) or an 80/20 mix (the disease); the owner asked for the types in the table, which is what the sim deals (`SIGNATURE_SHARES`): the mark now ignores Holy's shield, Fire's backlash is cut by armor and not by shield, and Plague's disease is all magic. Cards add to them: Ability Power adds `0.6 × AP` magic damage per second to every running burn and disease (10.2).
 
 ### 8.4 Who beats whom, and why
 
@@ -440,7 +442,7 @@ Every edge was checked in the real sim (sections 9.4 and 9.6): the designed winn
 - **Fists.** Both slots start empty, and an empty slot fights with fists (9.6). Swapping to an empty slot is allowed.
 - **Pick up** a weapon from a chest or the ground by pressing F near it. It goes into the hand's slot when that is empty (the hand arms at once), else into the other slot when that is free (the hand stays), else it replaces the weapon in hand, which is dropped.
 - **Mob drops.** A mob drops the weapon it carried, unless the killer already holds that weapon type. A killer whose hand is empty is armed with it at once instead ("Armed: Bow"), with nothing on the ground.
-- **Swapping is skill expression.** Changing to the counter weapon mid-fight is the big play. Swapping also **resets a Sentenced mark** on you, so it's the counterplay to Sentenced.
+- **Swapping is skill expression.** Changing to the counter weapon mid-fight is the big play. Swapping while marked **promotes the mark**, so disengaging is safer than repeated weapon swaps.
 
 ### 9.4 As built (Phase 9): rules the design left open
 Decisions taken while building the weapons. The sections above are unchanged; where they are silent, this is how the game plays.
@@ -606,9 +608,9 @@ The target is 55-75% pooled and none under 50%: minute 0 reads 51-71 (Axe over W
   - Boosts: sword +115%, bow +95%, wand +65%, shield +60%, axe +40%, fists +150%.
   - Floors (the shortest interval): sword 0.25 s, bow 0.25 s, wand 0.3 s, shield 0.3 s, axe 0.35 s, fists 0.2 s. At base speed none of them binds. They only bind under attack-speed cards (section 12.7).
 - **Damage per hit** = `faction rate × faction hit × weapon damage multiplier × attack speed × interval`. With no cards that is `faction hit × damage multiplier ÷ (1 + boost)`. Every faction keeps its own damage per second, times the weapon's damage multiplier, on every weapon: faster weapons hit proportionally lighter. Weapons change the rhythm and shape, not the class's power.
-- **Cards add through the weapon's scaling (AD and AP).** A hit also carries `(scaling.ad × AD + scaling.hp × bonus max hp + scaling.def × (bonus armor + bonus magic resist))` physical damage and `scaling.ap × AP` magic damage, in points of damage per second at base attack speed, times attack speed and the interval: a faster weapon's hit carries less of it, an interval at its floor turns surplus speed into bigger hits, and the faction's own rate does not matter (a Plague and a Frost gain the same dps from a point). The scaling is in the table of 9.1 (sword, axe, bow 1.0 AD; wand 1.0 AP and 0.3 AD; shield 0.4 defense and 0.3 AP; fists 0.6 AD and 0.6 AP). AD, bonus-hp and defense parts are physical, the AP part magic. AP also adds `0.6 × AP` magic damage per second to every running burn, disease and mark (a second entry under the same signature). Wishes never read AD or AP.
+- **Cards add through the weapon's scaling (AD and AP).** A hit also carries `(scaling.ad × AD + scaling.hp × bonus max hp + scaling.def × (bonus armor + bonus magic resist))` physical damage and `scaling.ap × AP` magic damage, in points of damage per second at base attack speed, times attack speed and the interval: a faster weapon's hit carries less of it, an interval at its floor turns surplus speed into bigger hits, and the faction's own rate does not matter (a Plague and a Frost gain the same dps from a point). The scaling is in the table of 9.1 (sword, axe, bow 1.0 AD; wand 1.0 AP and 0.3 AD; shield 0.4 defense and 0.3 AP; fists 0.6 AD and 0.6 AP). AD, bonus-hp and defense parts are physical, the AP part magic. AP also adds `0.6 × AP` magic damage per second to every running burn and disease (a second entry under the same signature). Wishes never read AD or AP.
 - **Signature bonuses scale with the weapon multiplier too** (burn, backlash, disease, execute, mark). Otherwise a weapon's damage discount would hit some factions much harder than others.
-- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 25.8 s to about 13 s, and Fire over Plague from 8.1 s to about 4 s (the engine: `python3 testing/matchup_band.py`).
+- **Duel pace (k = 2).** All faction damage is doubled, HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 25.8 s to about 13 s, and Fire over Plague from 8.1 s to about 4 s (the engine: `python3 testing/matchup_band.py`).
 
 Interval and damage per hit with no cards, before duel pace (double the hits for in-game values):
 
@@ -626,7 +628,7 @@ Reading the table:
 - Frost with an axe is the slowest combo in the game, one swing every 1.6 s. In the 20 Hz duels the longest stretch with no swing from either fighter is also 1.6 s.
 - Plague's sword (0.251 s) sits just above its 0.25 s floor, so any attack-speed card on it turns into damage per hit at once.
 - Windups are part of each interval (Controls rework, section 9.5): a bow cycle is rooted for 0.92 of it up to 0.6 s, a wand cycle for 0.8 up to 0.4 s. So Plague's bow (0.28 s) is rooted for 0.255 s of every cycle and Frost's bow (1.14 s) for 0.6 s of it. An attack-speed card shortens the interval and a melee windup together, but never a ranged windup below its base-speed value (G9, 12.7). The kite check's model assumes no attack-speed cards.
-- Sentenced's weapon hits are near zero on purpose; the mark is its damage.
+- Sentenced's weapon hits trigger its mark; the pulse is a separate true-damage entry, not damage over time.
 
 ### 10.3 Signatures in real time
 The design engine assumes two fighters standing in range forever. The game has movement, walls and up to 8 players, so the signatures follow these rules:

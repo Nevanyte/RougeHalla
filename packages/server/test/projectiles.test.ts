@@ -1069,7 +1069,8 @@ describe("shield reflection", () => {
     const expected = mitigateShares(packet.raw * ARROW_REFLECT_SHARE, packet, FACTIONS.sentenced);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "archer", by: "holder", amount: expect.closeTo(expected, 9), weapon: "shield" }]);
     expect(FACTIONS.sentenced.hp - P(w, "archer").hp).toBeCloseTo(expected, 9);
-    expect(expected).toBeCloseTo((4.1026 * DUEL_PACE * ARROW_REFLECT_SHARE) / (1 + 210 / 100), 3); // sentenced arrows are all magic: only its shield counts
+    // Reflection preserves the launched packet; only the archer's current defenses mitigate the reflected share.
+    expect(expected).toBeCloseTo(hitAmount("sentenced", "bow", "sentenced", ARROW_REFLECT_SHARE), 9);
   });
 
   it("a reflected arrow is returned damage: passive, so a Spiked Shell on the archer does not answer its own arrow (the final review's m1)", () => {
@@ -1442,14 +1443,16 @@ describe("a projectile outlives its owner", () => {
 });
 
 describe("damage numbers", () => {
-  it("cuts a Sentenced arrow on Fire by Fire's shield only (all magic): 4.1026 x DUEL_PACE / (1 + 45 / 100)", () => {
+  it("cuts a Sentenced arrow on Fire using the faction packet and current defenses", () => {
     const w = arena([archer(), target({ x: 400, y: 320 }), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);
     const packet = lastProjectile(w).packet;
-    expect(packet.raw).toBeCloseTo(4.1026 * DUEL_PACE, 3);
-    expect(packet).toMatchObject({ phys: 0, magic: 1, true: 0 });
+    const sentenced = pacedFaction(FACTIONS.sentenced);
+    expect(packet.raw).toBeCloseTo(damagePerHit(sentenced, "bow"), 9);
+    expect(packet).toMatchObject({ phys: sentenced.phys, true: sentenced.trueShare });
+    expect(packet.magic).toBeCloseTo(1 - sentenced.phys - sentenced.trueShare, 12);
     flyUntilEnd(w);
-    expect(FACTIONS.fire.hp - P(w, "target").hp).toBeCloseTo((4.1026 * DUEL_PACE) / (1 + 45 / 100), 3);
+    expect(FACTIONS.fire.hp - P(w, "target").hp).toBeCloseTo(hitAmount("sentenced", "bow", "fire"), 9);
   });
 
   it("cuts a Holy ball on Frost by Frost's armor (it is all physical)", () => {

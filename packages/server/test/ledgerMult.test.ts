@@ -342,7 +342,7 @@ describe("a Wish's ability damage is flat power: the damage rows never multiply 
 
 // ------------------------------------------------------------------------------------------------ signature damage
 
-/** A Sentenced (bow) p0 engaged with a Frost p1 for `ticks` steps, with a damage row of `v` (none for 0): the mark damage it landed. */
+/** A Sentenced (bow) p0 landing one weapon hit a tick on a Frost p1 for `ticks` steps, with a damage row of `v` (none for 0): the mark damage it paid. */
 function markDamage(v: number, ticks: number): number {
   const w = startRun(["sentenced", "frost"], true);
   for (const id of ["p0", "p1"]) {
@@ -356,6 +356,10 @@ function markDamage(v: number, ticks: number): number {
   for (const id of ["p0", "p1"]) w.players.get(id)!.history = [{ t: w.state.serverTime, x: P(w, id).x, y: P(w, id).y }];
   if (v > 0) own(w, "p0", { k: "stat", stat: "damage", v });
   noteContact(w, "p0", "p1");
+  // The mark pays a pulse for each landed weapon hit: land one every tick.
+  w.afterWeapons.unshift(() => {
+    recordHit(w, { victim: "p1", by: { id: "p0", name: "p0" }, packet: { raw: 1, phys: 1, magic: 0, true: 0 }, weapon: "bow", stagger: false });
+  });
   let mark = 0;
   for (let i = 0; i < ticks; i++) {
     step(w, TICK_MS);

@@ -10,6 +10,7 @@ import Phaser from "phaser";
 import { ABILITIES, PLAYER_RADIUS, Y_SCALE, type AbilityDef, type TelegraphArt, type TimedFx, type Vec2 } from "@raid/shared";
 import { easeOutCubic, juiceScale } from "./juice";
 import { BODY_LIFT, projX, projY } from "./projection";
+import { trialTelegraphRadius } from "./markPresentation";
 
 /** What WishFx needs from the scene. */
 export interface WishFxHost {
@@ -281,7 +282,9 @@ export class WishFx {
   private drawRing(g: Phaser.GameObjects.Graphics, e: Active, p: number, moves: boolean): boolean {
     if (e.target && this.hiddenRemote(e.target)) return false;
     const at = (e.target ? this.host.position(e.target) : undefined) ?? { x: e.x, y: e.y };
-    const r = e.radius * (moves ? easeOutCubic(p) : 1);
+    const r = e.telegraph
+      ? trialTelegraphRadius(p, e.radius, moves)
+      : e.radius * (moves ? easeOutCubic(p) : 1);
     g.setPosition(projX(at.x), projY(at.y));
     g.fillStyle(e.color, 0.04 + 0.08 * p).fillEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
     g.lineStyle(3, e.color, 0.35 + 0.6 * p).strokeEllipse(0, 0, r * 2, r * 2 * Y_SCALE);

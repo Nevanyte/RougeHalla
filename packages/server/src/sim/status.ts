@@ -266,6 +266,16 @@ export function damageFactor(world: World, attackerId: string, victimId: string)
   return f;
 }
 
+/** What a fighter's outgoing damage is multiplied by in the zones it is the subject of (Trial: x0.8): 1 outside any. The mark's suppression gives way to it. */
+export function dealtFactor(world: World, attackerId: string): number {
+  const a = statusesById(world, attackerId);
+  if (a.length === 0) return 1;
+  const now = world.state.serverTime;
+  let f = 1;
+  for (const st of a) if (st.kind === "zoned" && st.until > now) f *= st.dealtMult ?? 1;
+  return f;
+}
+
 /**
  * applyHits' hp after `total` lands at `before`: held at min(floorHp, before) by a deathFloor, which adds `total` to `taken`
  * whether or not the floor had to hold (D3: the overkill it prevented counts).

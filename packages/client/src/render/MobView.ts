@@ -8,6 +8,7 @@ import { FigureJuice, type DustSink } from "./FigureJuice";
 import { roleMarkOf, type RoleGlyph, type RoleMark } from "./mobRole";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
+import { MarkPlate } from "./MarkPlate";
 import { StatusArt } from "./StatusArt";
 import { FeetFx, NO_STATES, showsFeet, type TerrainStates } from "./zoneArt/terrainFeedback";
 
@@ -52,6 +53,7 @@ export class MobView {
   private roleType = "";
   private readonly hpBar: HpBar;
   private readonly label: Phaser.GameObjects.Text;
+  private readonly markPlate: MarkPlate;
   private readonly eliteRing: Phaser.GameObjects.Image;
   private readonly eliteStar: Phaser.GameObjects.Image;
   private readonly art: FighterArt;
@@ -91,6 +93,7 @@ export class MobView {
     this.label = scene.add.text(0, LABEL_Y, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: LABEL_COLOR, stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
+    this.markPlate = new MarkPlate(scene, LABEL_Y);
     this.eliteStar = bakedImage(scene, "star:elite", STAR_REGION, (g) => {
       g.fillStyle(ELITE_COLOR, 1).lineStyle(1.5, 0x5d4037, 1);
       traceStar(g, 0, 0, 7, 3);
@@ -98,7 +101,7 @@ export class MobView {
     }).setVisible(false);
     this.root = scene.add.container(0, 0, [
       shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body.image, this.roleGlyph, this.nose, this.art.held, this.signatures.aura,
-      this.hpBar.root, this.label, this.eliteStar, this.status.g,
+      this.hpBar.root, this.label, this.eliteStar, this.status.g, this.markPlate.pips, this.markPlate.cues,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.roleGlyph), y0: -BODY_LIFT, scaled: true },
@@ -113,7 +116,7 @@ export class MobView {
   }
 
   /** `signatures`: draw the faction signature marks (only while a run is active, see PlayerView.update). `ground`: what the tile under it does to it. */
-  update(x: number, y: number, m: MobState, renderT: number, patchT: number, signatures = false, ground: TerrainStates = NO_STATES): void {
+  update(x: number, y: number, m: MobState, renderT: number, patchT: number, signatures = false, ground: TerrainStates = NO_STATES, markDim = false): void {
     this.flashing.tick();
     const fade = this.deathFade(m, renderT, patchT);
     this.root.setVisible(fade > 0);
@@ -155,6 +158,7 @@ export class MobView {
       this.labelText = m.name;
       this.label.setText(m.name);
     }
+    this.markPlate.update(signatures ? m.markTier : 0, signatures ? m.markTax : 0, signatures ? m.sig : 0, markDim, this.label.width);
     const alpha = calm && !this.elite && !dying ? IDLE_LABEL_ALPHA : 1;
     if (alpha !== this.labelAlpha) {
       this.labelAlpha = alpha;

@@ -141,7 +141,9 @@ export function mechanicsSections(): MechanicsSection[] {
       title: "Faction signatures",
       entries: SIGNATURE_TAGS.map((row) => ({
         term: `${FACTIONS[row.faction].displayName}: ${row.signature}`,
-        text: row.tags.map(tagLabel).join(", "),
+        text: row.faction === "sentenced"
+          ? `Each landed weapon hit deals a share of the target's max health as true damage. Hits and weapon swaps raise the mark's tiers; later tiers tax attack speed, suppress damage and block executes. ${row.tags.map(tagLabel).join(", ")}.`
+          : row.tags.map(tagLabel).join(", "),
       })),
     },
     {

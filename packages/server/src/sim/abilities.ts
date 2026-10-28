@@ -15,7 +15,7 @@
 // Everything here tolerates `world.abilities === null` (nothing has used it yet) and fighters with no statuses.
 import {
   ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
-  hasLineOfSight,
+  GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, hasLineOfSight,
   HIDDEN_REVEAL_MS, MAX_REWIND_MS, rankOf, setSlotReadyAt, slotReadyAt, TICK_MS, WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
   type Vec2,
@@ -23,10 +23,10 @@ import {
 import { cardsOf, rollDotCrit } from "./cardState";
 import { combatant, hostile, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
 import { displace } from "./displace";
-import { heal } from "./factions";
+import { heal, markTierOn } from "./factions";
 import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWhere } from "./fields";
 import { recordHit } from "./ledger";
-import { dotMultOf, recomputeMods, wishCooldownMultOf } from "./mods";
+import { dotMultOf, hasFlag, recomputeMods, wishCooldownMultOf } from "./mods";
 import {
   addStatus, attackSlowFactor, castBlocked, cleanse, isUntargetable, refreshEffects, removeStatuses, reveal,
   statusesOf, statusMoveMultiplier,
@@ -429,13 +429,17 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
     case "zone": {
       const t = l.t;
       if (!t) return;
+      // Trial on a target the caster's mark has taken to tier 3 (Convicted) lands tighter; Gallows' Patience keeps the ring longer and stuns longer.
+      const radius = e.convictedRadius !== undefined && markTierOn(world, c.id, t.id) >= 3 ? e.convictedRadius : e.radius;
+      const patient = hasFlag(c.s, "gallowsPatience");
+      const ms = e.ms + (patient ? GALLOWS_PATIENCE_EXTRA_MS : 0);
       const f = addField(world, {
-        kind: "zone", ability: def.id, owner: source, subject: t.id, x: t.s.x, y: t.s.y, x2: 0, y2: 0, r: e.radius, vx: 0, vy: 0,
-        startedAt: now, endsAt: now + e.ms,
+        kind: "zone", ability: def.id, owner: source, subject: t.id, x: t.s.x, y: t.s.y, x2: 0, y2: 0, r: radius, vx: 0, vy: 0,
+        startedAt: now, endsAt: now + ms, exitStunMs: patient ? GALLOWS_PATIENCE_STUN_MS : e.exitStunMs,
       });
       const st = addStatus(world, t, {
         // `value` is its outgoing multiplier: zoned combines by product, so statusValue(zoned) is what the subject deals now.
-        kind: "zoned", source, ability: def.id, ms: e.ms, value: e.dealtMult,
+        kind: "zoned", source, ability: def.id, ms, value: e.dealtMult,
         data: { fieldId: f.id, dealtMult: e.dealtMult, takenFromSourceMult: e.takenFromCasterMult },
       });
       if (!st) removeField(world, f.id);
@@ -484,8 +488,8 @@ function endZones(world: World): void {
     }
     if (Math.hypot(subject.s.x - f.x, subject.s.y - f.y) <= f.r) continue;
     endFields(world, (g) => g.id === f.id);
-    const exit = effectOf(f.ability, "zone");
-    if (exit) addStatus(world, subject, { kind: "stun", source: f.owner, ability: f.ability, ms: exit.exitStunMs });
+    const stunMs = f.exitStunMs ?? effectOf(f.ability, "zone")?.exitStunMs;
+    if (stunMs !== undefined) addStatus(world, subject, { kind: "stun", source: f.owner, ability: f.ability, ms: stunMs });
   }
 }
 

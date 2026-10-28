@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BEATS, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damageFlash,
   DAMAGE_FLASH_FULL_SHARE, DAMAGE_FLASH_MIN_SHARE, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS,
-  engageRange, FACTION_IDS, FACTIONS, factionEdge, HEAL_LOCKOUT_SECONDS, isDot, markDps, markShare, MATCHUP_FULL_RANGE,
-  MATCHUP_RANGE, matchupScore, matchupTint, pacedFaction, TARGET_FORGET_SECONDS, WEAPON_IDS, WEAPONS,
+  engageRange, FACTION_IDS, FACTIONS, factionEdge, executeDps, HEAL_LOCKOUT_SECONDS, isDot, markPct, markTierOf, markWeight, MATCHUP_FULL_RANGE,
+  MATCHUP_RANGE, MARK_TIER_HITS, matchupScore, matchupTint, pacedFaction, plagueDps, taxedRate, TARGET_FORGET_SECONDS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type SignatureKind, type WeaponId,
 } from "../src/index";
 
@@ -109,48 +109,123 @@ describe("diseaseDps", () => {
   });
 });
 
-describe("markDps and markShare", () => {
-  it("ramps linearly from 0 with the seconds in reach, then holds at the cap (sheet: 17.5 per s, cap 72)", () => {
-    const s = SHEET.sentenced;
-    expect(markDps(s, 0)).toBe(0);
-    expect(markDps(s, 1)).toBe(17.5);
-    expect(markDps(s, 2)).toBe(35);
-    expect(markDps(s, 72 / 17.5)).toBeCloseTo(72, 9);
-    expect(markDps(s, 5)).toBe(72);
-    expect(markDps(s, 100)).toBe(72);
+describe("plagueDps and executeDps", () => {
+  it("are Plague's flat disease and the execute that grows below half hp (sheet: 43 and 415)", () => {
+    const p = SHEET.plague;
+    expect(plagueDps(p)).toBe(43);
+    expect(executeDps(p, 1.0)).toBe(0);
+    expect(executeDps(p, 0.5)).toBe(0);
+    expect(executeDps(p, 0.25)).toBeCloseTo(415 * 0.25, 9);
+    expect(executeDps(p, 0)).toBeCloseTo(415 * 0.5, 9);
+    expect(plagueDps(p) + executeDps(p, 0.25)).toBeCloseTo(diseaseDps(p, 0.25), 12);
   });
 
-  it("treats a negative elapsed time as none", () => {
-    expect(markDps(SHEET.sentenced, -3)).toBe(0);
-    expect(markShare(SHEET.sentenced, -3)).toBe(0);
+  it("an execute band widens the execute and never below zero", () => {
+    expect(executeDps(SHEET.plague, 0.5, 0.6)).toBeCloseTo(41.5, 9);
+    expect(executeDps(SHEET.plague, 3)).toBe(0);
   });
 
-  it("paced: the ramp is k squared and the cap k, so the mark fills in half the time", () => {
-    const s = PACED.sentenced;
-    expect(markDps(s, 1)).toBe(70);
-    expect(markDps(s, 2)).toBe(140);
-    expect(markDps(s, 144 / 70)).toBeCloseTo(144, 9);
-    expect(markDps(s, 10)).toBe(144);
+  it.each(FACTION_IDS.filter((f) => f !== "plague"))("are 0 for %s", (f) => {
+    expect(plagueDps(SHEET[f])).toBe(0);
+    expect(executeDps(SHEET[f], 0.1)).toBe(0);
+  });
+});
+
+describe("markTierOf (the mark's tiers, docs/SENTENCED_REDESIGN.md R3)", () => {
+  it("is 0 before the first hit, 1 at it, and one more every MARK_TIER_HITS hits up to 4", () => {
+    expect(MARK_TIER_HITS).toBe(3);
+    const at = (hits: number): number => markTierOf(hits);
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 40].map(at)).toEqual([0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]);
   });
 
-  it("markShare is the mark's progress to its cap, 0..1", () => {
-    expect(markShare(SHEET.sentenced, 0)).toBe(0);
-    expect(markShare(SHEET.sentenced, 1)).toBeCloseTo(17.5 / 72, 12);
-    expect(markShare(SHEET.sentenced, 50)).toBe(1);
-    expect(markShare(PACED.sentenced, 1)).toBeCloseTo(70 / 144, 12);
-    expect(markShare(PACED.sentenced, 4)).toBe(1);
+  it("credits a fraction of a hit (Gathering Storm's 1.5 a hit) and never goes past tier 4", () => {
+    expect(markTierOf(1.5 * 2)).toBe(2);
+    expect(markTierOf(1.5 * 4)).toBe(3);
+    expect(markTierOf(1.5 * 6)).toBe(4);
+    expect(markTierOf(1e9)).toBe(4);
   });
 
-  it("markShare is 0 without a positive cap", () => {
-    const capless: FactionSpec = { ...SHEET.sentenced, params: { mark_ramp: 35, mark_cap: 0 } };
-    expect(markShare(capless, 5)).toBe(0);
+  it("a weapon swap promotes without a hit, and either path alone reaches a tier (the higher wins, they do not add)", () => {
+    expect(markTierOf(0, 1)).toBe(2);
+    expect(markTierOf(0, 3)).toBe(4);
+    expect(markTierOf(0, 9)).toBe(4);
+    expect(markTierOf(7, 1)).toBe(3);
+    expect(markTierOf(1, 2)).toBe(3);
+    expect(markTierOf(3, 1)).toBe(2);
   });
 
-  it.each(FACTION_IDS.filter((f) => f !== "sentenced"))("are 0 for %s", (f) => {
-    expect(markDps(SHEET[f], 5)).toBe(0);
-    expect(markDps(PACED[f], 5)).toBe(0);
-    expect(markShare(SHEET[f], 5)).toBe(0);
-    expect(markShare(PACED[f], 5)).toBe(0);
+  it("reads another tier length (the reference duel's tier_hits) and 0 for nothing", () => {
+    expect(markTierOf(3, 0, 1.5)).toBe(3);
+    expect(markTierOf(0, 0)).toBe(0);
+    expect(markTierOf(-4, 0)).toBe(0);
+  });
+});
+
+describe("taxedRate (the tier-2 attack-speed tax, R5)", () => {
+  const keep = SHEET.sentenced.params.tax_keep!;
+  const cap = SHEET.sentenced.params.tax_cap!;
+
+  it("leaves a rate at or under 1.0 alone", () => {
+    for (const r of [0.45, 0.6, 0.9, 0.95, 1.0]) expect(taxedRate(r, keep, cap)).toBe(r);
+  });
+
+  it("keeps the configured 38% of excess speed: Plague’s 1.85 becomes 1.323", () => {
+    expect(keep).toBe(0.38);
+    expect(taxedRate(1.85, keep, cap)).toBeCloseTo(1.323, 12);
+    expect(taxedRate(1.2, keep, cap)).toBeCloseTo(1.076, 12);
+    expect(taxedRate(1.85, 0.5, cap)).toBeCloseTo(1.425, 12);
+  });
+
+  it("is held to the 1.6 ceiling however fast the fighter is", () => {
+    expect(taxedRate(2.2, keep, cap)).toBeCloseTo(1.456, 12);
+    expect(taxedRate(3.0, keep, cap)).toBe(1.6);
+    expect(taxedRate(10, keep, cap)).toBe(1.6);
+  });
+
+  it("never raises a rate", () => {
+    for (const r of [0.2, 1, 1.05, 1.6, 1.85, 2.5, 4]) expect(taxedRate(r, keep, cap)).toBeLessThanOrEqual(r);
+  });
+});
+
+describe("markWeight and markPct (the pulse's share, R4)", () => {
+  it("a hit's weight is its share of the faction's base hit, so a pulse follows the weapon's dpsMult over 1 + boost", () => {
+    for (const w of WEAPON_IDS) {
+      const f = SHEET.sentenced;
+      const unfloored = WEAPONS[w].dpsMult / (1 + WEAPONS[w].boost);
+      if (1 / (f.rate * (1 + WEAPONS[w].boost)) >= WEAPONS[w].floor) expect(markWeight(f, w)).toBeCloseTo(unfloored, 12);
+    }
+  });
+
+  it("attack speed changes nothing until the interval floor binds, then makes bigger hits and so bigger pulses", () => {
+    const f = SHEET.sentenced;
+    expect(markWeight(f, "sword", 1.5)).toBeCloseTo(markWeight(f, "sword", 1), 12);
+    expect(markWeight(f, "sword", 3)).toBeGreaterThan(markWeight(f, "sword", 1));
+  });
+
+  it("markPct is the share plus a kill-stack's share each, times the Heavier Sentence scale", () => {
+    const f = SHEET.sentenced;
+    const base = f.params.mark_pct!;
+    const kill = f.params.mark_kill!;
+    expect(markPct(f, 0)).toBeCloseTo(base, 12);
+    expect(markPct(f, 3)).toBeCloseTo(base + 3 * kill, 12);
+    expect(markPct(f, 5, 1.2)).toBeCloseTo((base + 5 * kill) * 1.2, 12);
+    expect(markPct(f, -2)).toBeCloseTo(base, 12);
+  });
+
+  it("five kill-stacks make the share x2.25 (the spec's 0.6% to 1.35%)", () => {
+    const f = SHEET.sentenced;
+    expect(markPct(f, 5) / markPct(f, 0)).toBeCloseTo(2.25, 12);
+  });
+
+  it("is paced with the hit: the share doubles at k = 2 and the tier clock halves", () => {
+    expect(PACED.sentenced.params.mark_pct).toBeCloseTo(SHEET.sentenced.params.mark_pct! * 2, 12);
+    expect(PACED.sentenced.params.mark_kill).toBeCloseTo(SHEET.sentenced.params.mark_kill! * 2, 12);
+    expect(PACED.sentenced.params.tier_hits).toBeCloseTo(SHEET.sentenced.params.tier_hits! / 2, 12);
+    expect(PACED.sentenced.params.suppress).toBe(SHEET.sentenced.params.suppress);
+  });
+
+  it.each(FACTION_IDS.filter((f) => f !== "sentenced"))("%s has no mark", (f) => {
+    expect(markPct(SHEET[f], 5)).toBe(0);
   });
 });
 
@@ -326,7 +401,7 @@ describe("damageFlash", () => {
     expect(damageFlash(100, -10)).toBe(0);
   });
 
-  it.each<SignatureKind>(["burn", "disease", "mark"])("never flashes for damage over time (%s)", (sig) => {
+  it.each<SignatureKind>(["burn", "disease"])("never flashes for damage over time (%s)", (sig) => {
     expect(damageFlash(MAX, MAX, sig)).toBe(0);
     expect(damageFlash(0.3 * MAX, MAX, sig)).toBe(0);
   });
@@ -338,10 +413,10 @@ describe("damageFlash", () => {
 });
 
 describe("isDot", () => {
-  it("is true for burn, disease and mark", () => {
+  it("is true for burn and disease, and false for the mark: a pulse per hit is no damage over time", () => {
     expect(isDot("burn")).toBe(true);
     expect(isDot("disease")).toBe(true);
-    expect(isDot("mark")).toBe(true);
+    expect(isDot("mark")).toBe(false);
   });
 
   it("is false for backlash and for no signature", () => {
