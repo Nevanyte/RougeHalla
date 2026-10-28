@@ -37,11 +37,15 @@ from typing import Optional
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import engine  # noqa: E402
 from engine import mitigate  # noqa: E402
 from classes import POWERS as V2_POWERS, BEATS  # noqa: E402
 
 DT = 0.05
 EPS = 1e-9
+CHILL_TIERS = True
+SUPPRESS_FEEDS_LIFESTEAL = True
+AS_CAP = 1.5   # shared/constants.ts AS_MULT_CAP: the attack-speed multiplier of the rows and sources together
 V = 170.0      # move speed (u/s)
 REACH = 60.0   # melee reach
 CHILL_MOVE_RADIUS = 100.0  # shared/signatures.ts: Frost's move slow reaches only fighters it chills within this distance...
@@ -156,6 +160,29 @@ def phases(side: Side, opp: Side, sub=1, nmax=None):
     return offs, m
 
 
+def quant(x):
+    """A multiplier as the stat mirror carries it on the wire: thousandths (shared/mods.ts encodeMult)."""
+    return np.floor(np.asarray(x, dtype=float) * 1000.0 + 0.5) / 1000.0
+
+
+def tax_factor(spec, side: Side, marker):
+    """The attack-speed factor the marker's tier-2 tax puts on `side`: taxed(r) / r with r the faction's rate times its card haste
+    (never above the attack-speed cap), as the mirror carries it (quantized, capped). 1.0 when it would cut nothing."""
+    p = marker.spec.params
+    r = spec.rate * min(AS_CAP, side.as_mult)
+    taxed = r if r <= 1.0 else min(p["tax_cap"], 1.0 + (r - 1.0) * p["tax_keep"])
+    return taxed / r if taxed < r else 1.0
+
+
+def taxed_side(side: Side, marker: Side):
+    """The Side as it fights once the tax is on it: its interval and hit follow the taxed attack-speed multiplier."""
+    f = tax_factor(side.spec, side, marker)
+    if f >= 1.0:
+        return None
+    as_eff = float(quant(min(AS_CAP, side.as_mult * f)))
+    return replace(side, as_mult=as_eff)
+
+
 def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
     sides = [a, b]
     (oa, ma), (ob, mb) = phases(a, b, sub, nmax), phases(b, a, sub, nmax)
@@ -169,10 +196,33 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
     mx = [s.maxhp for s in sides]
     mit = [mitigate(1.0, a.spec, b.spec), mitigate(1.0, b.spec, a.spec)]
     # Signature parts carry their own damage type (D6: burn and disease magic, backlash physical, the mark true): each part
-    # is mitigated on its own, as sim/factions.ts records it with SIGNATURE_SHARES.
-    pmit = [{part: mitigate(1.0, s.spec, o.spec, s.spec.sig_types.get(part)) for part in ("burn", "backlash", "disease", "mark")}
+    # is mitigated on its own, as sim/factions.ts records it with SIGNATURE_SHARES. Plague's execute is a part of its own (a
+    # tier-4 mark denies it), typed like the disease.
+    pmit = [{part: mitigate(1.0, s.spec, o.spec, s.spec.sig_types.get(part)) for part in ("burn", "backlash", "disease", "execute", "mark")}
             for s, o in ((a, b), (b, a))]
     hitraw = [s.hit_raw for s in sides]
+    # The mark (docs/SENTENCED_REDESIGN.md): per side, the hits landed on the foe, the stacks earned, the tick its tier reached 2 (the foe's
+    # tax starts from the next weapon phase: an attack that STARTS after it runs at the taxed rate), and the taxed side the foe becomes.
+    marked = [s.spec.mechanic == "marked" for s in sides]
+    hits = [np.zeros(P) for _ in sides]
+    stacks = [np.zeros(P) for _ in sides]
+    tick2 = [np.full(P, 10 ** 9, dtype=np.int64) for _ in sides]
+    tsides = [taxed_side(sides[1 - i], sides[i]) if marked[i] else None for i in (0, 1)]  # what side 1-i becomes under i's tax
+    # A side a mark can tax (and that no chill stretches) is scheduled the way the sim's weapon state machine does it: an attack STARTS when its
+    # cooldown ends (its interval and windup fixed by the tax as it stands that tick), lands a windup later, and the next one starts an interval
+    # after the start. Every other side keeps the cooldown-progress model (which carries the chill).
+    ev = [tsides[1 - i] is not None and chill_of(sides[1 - i]) == 1.0 for i in (0, 1)]
+    ivb = [s.cd for s in sides]
+    ivt = [tsides[1 - i].cd if tsides[1 - i] is not None else s.cd for i, s in enumerate(sides)]
+    wub = [windup(s.spec, s.weapon, s.as_mult) for s in sides]
+    wut = [windup(tsides[1 - i].spec, tsides[1 - i].weapon, tsides[1 - i].as_mult) if tsides[1 - i] is not None else wub[i] for i in (0, 1)]
+    hrt = [tsides[1 - i].hit_raw if tsides[1 - i] is not None else hitraw[i] for i in (0, 1)]
+    lead = [off[i] - wub[i] for i in (0, 1)]   # real seconds before the first attack starts (< 0: already under way, as the harness primes it)
+    landsAt = [np.where(lead[i] >= 0, np.inf, off[i]) for i in (0, 1)]
+    readyAt = [np.where(lead[i] >= 0, lead[i], lead[i] + ivb[i]) for i in (0, 1)]
+    curhit = [np.full(P, hitraw[i]) for i in (0, 1)]
+    cdc = [np.full(P, cd[i]) for i in (0, 1)]
+    chill_prev = [1.0, 1.0]
     alive = np.ones(P, bool)
     win = np.full(P, -1, int)
     tend = np.full(P, t_max)
@@ -182,20 +232,46 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
     for k in range(int(round(t_max / DT))):
         t = k * DT
         swing = []
+        hitnow = [hitraw[0], hitraw[1]]
         for i in (0, 1):
             s, o = sides[i], sides[1 - i]
             if t + EPS < s.act_start:
                 swing.append(np.zeros(P, bool))
                 continue
-            sw = (prog[i] >= cd[i] - EPS) & alive
-            prog[i] = np.where(sw, prog[i] - cd[i], prog[i])
+            if ev[i]:
+                sw = (landsAt[i] <= t + EPS) & alive
+                landsAt[i] = np.where(sw, np.inf, landsAt[i])
+                # The weapon phase after the landing: the next attack starts when the cooldown is over, from the tax as it stands this tick.
+                st = np.isinf(landsAt[i]) & (readyAt[i] <= t + EPS) & alive
+                start = np.maximum(readyAt[i], t - DT)
+                tx = tick2[1 - i] < k
+                iv = np.where(tx, ivt[i], ivb[i])
+                landsAt[i] = np.where(st, start + np.where(tx, wut[i], wub[i]), landsAt[i])
+                readyAt[i] = np.where(st, start + iv, readyAt[i])
+                hitnow[i] = curhit[i]
+                curhit[i] = np.where(st, np.where(tx, hrt[i], hitraw[i]), curhit[i])
+                swing.append(sw)
+                continue
+            sw = (prog[i] >= cdc[i] - EPS) & alive
+            prog[i] = np.where(sw, prog[i] - cdc[i], prog[i])
             mult = chill_of(o) if t + EPS >= o.fx_start else 1.0
             prog[i] = prog[i] + DT * mult
             swing.append(sw)
-        dealt, heal = [], []
+        # Mark: this tick's hits climb the tiers (the tier read after them is the tier of this tick's pulses and of the tax and the suppression).
+        tier = []
+        for i in (0, 1):
+            if marked[i]:
+                hits[i] = hits[i] + swing[i] / (chill_prev[i] if CHILL_TIERS else 1.0)
+                tier.append(np.where(hits[i] > 0, np.minimum(4, 1 + np.floor(hits[i] / engine.TIER_HITS + 1e-9)), 0).astype(int))
+                tick2[i] = np.where((tier[-1] >= 2) & (tick2[i] > 10 ** 8), k, tick2[i])
+            else:
+                tier.append(np.zeros(P, int))
+        cut = [np.where(tier[1 - i] >= 3, sides[1 - i].spec.params["suppress"], 1.0) if marked[1 - i] else np.ones(P) for i in (0, 1)]
+        plain, exe = [], []
         for i in (0, 1):
             s, o = sides[i], sides[1 - i]
-            d = swing[i] * hitraw[i] * mit[i]
+            d = swing[i] * hitnow[i] * mit[i]
+            e = np.zeros(P)
             if t + EPS >= s.fx_start:
                 p = s.spec.params
                 mech = s.spec.mechanic
@@ -205,14 +281,37 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
                     d = d + bm * (p["burn"] * DT * pmit[i]["burn"] + per * swing[1 - i] * pmit[i]["backlash"])
                 elif mech == "rat_king":
                     foe = np.maximum(hp[1 - i], 0) / mx[1 - i]
-                    d = d + bm * (p["plague"] + p["execute"] * np.maximum(0.0, 0.5 - foe)) * DT * pmit[i]["disease"]
+                    d = d + bm * p["plague"] * DT * pmit[i]["disease"]
+                    e = bm * p["execute"] * np.maximum(0.0, 0.5 - foe) * DT * pmit[i]["execute"]
                 elif mech == "marked":
-                    d = d + bm * min(p["mark_cap"], p["mark_ramp"] * (t - s.fx_start)) * DT * pmit[i]["mark"]
+                    st = stacks[i]
+                    pct = p["mark_pct"] + p["mark_kill"] * st
+                    amp = np.where(tier[i] >= 4, p["mark_amp"], 1.0)
+                    weight = s.spec.rate * bm * s.as_mult * interval(s.spec, s.weapon, s.as_mult) / chill_prev[i]
+                    d = d + swing[i] * pct * mx[1 - i] * weight * amp * pmit[i]["mark"]
+            plain.append(d * cut[i])
+            exe.append(e * cut[i])
+        # A tier-4 mark denies the foe's execute (it cannot take the marker below 1 hp): decided from the hp as the tick began.
+        denied = []
+        for i in (0, 1):
+            o = 1 - i
+            if marked[i]:
+                allowed = np.clip(np.minimum(exe[o], hp[i] - 1.0 - plain[o]), 0.0, None)
+                deny = tier[i] >= 4
+                new = np.where(deny, np.minimum(exe[o], allowed), exe[o])
+                denied.append(deny & (exe[o] - new > 1e-9))
+                exe[o] = new
+            else:
+                denied.append(np.zeros(P, bool))
+        dealt, heal = [], []
+        for i in (0, 1):
+            s = sides[i]
+            d = plain[i] + exe[i]
             dealt.append(d)
             if s.spec.sustain == "radiant" and s.lifesteal:
                 p = s.spec.params
                 own = np.maximum(hp[i], 0) / mx[i]
-                heal.append(d * np.minimum(p["ls_cap"], p["ls0"] + p["ls1"] * (1.0 - own)))
+                heal.append((d / cut[i] if SUPPRESS_FEEDS_LIFESTEAL else d) * np.minimum(p["ls_cap"], p["ls0"] + p["ls1"] * (1.0 - own)))
             else:
                 heal.append(0.0)
         if track_gap:
@@ -229,6 +328,11 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
         n1 = np.where(pre1 <= 0, pre1, np.minimum(mx[1], pre1 + heal[1]))
         hp[0] = np.where(alive, n0, hp[0])
         hp[1] = np.where(alive, n1, hp[1])
+        # A denied execute pays one stack, once per mark: from the next tick (the sim pays it after the pass).
+        for i in (0, 1):
+            if marked[i]:
+                stacks[i] = np.where(denied[i] & alive, 1.0, stacks[i])
+        chill_prev = [chill_of(sides[1 - i]) if t + EPS >= sides[1 - i].fx_start else 1.0 for i in (0, 1)]
         d0, d1 = hp[0] <= 0, hp[1] <= 0
         fin = alive & (d0 | d1)
         if fin.any():

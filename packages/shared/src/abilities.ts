@@ -41,8 +41,11 @@ export type AbilityEffect =
   | { do: "cleanse"; to: "self" | "target"; classes: readonly CleanseClass[] }
   /** Self: the hp floor holds for `ms`; `healBack` of the hp loss it held up is paid back at the end. */
   | { do: "deathFloor"; ms: number; floorHp: number; healBack: number }
-  /** Target: an area around the target; it deals `dealtMult` and takes `takenFromCasterMult` from the caster; leaving it stuns. */
-  | { do: "zone"; ms: number; radius: number; dealtMult: number; takenFromCasterMult: number; exitStunMs: number }
+  /**
+   * Target: an area around the target; it deals `dealtMult` and takes `takenFromCasterMult` from the caster; leaving it stuns.
+   * `convictedRadius`: the radius instead when the target carries a mark of the caster at tier 3 or more as the area lands.
+   */
+  | { do: "zone"; ms: number; radius: number; dealtMult: number; takenFromCasterMult: number; exitStunMs: number; convictedRadius?: number }
   /** Self: an area that follows the caster. */
   | { do: "cloud"; ms: number; radius: number }
   /** Self: a jump toward the cursor, through walls (blink.ts). */
@@ -136,6 +139,8 @@ export const SWARM_CAST_MS = 250;
 export const SWARM_CLOUD_RADIUS = 72;
 export const TRIAL_RANGE = 400;
 export const TRIAL_RADIUS = 300;
+/** The ring's radius when it lands on a target the caster's mark has taken to tier 3 (Convicted) or more. */
+export const TRIAL_CONVICTED_RADIUS = 200;
 export const TRIAL_MS = 5000;
 export const TRIAL_DEALT_MULT = 0.8;
 export const TRIAL_TAKEN_MULT = 1.2;
@@ -185,7 +190,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     }],
   },
   trial: {
-    id: "trial", name: "Trial", blurb: "Judge an enemy: inside the ring it deals less and takes more from you, and leaving it stuns.",
+    id: "trial", name: "Trial", blurb: "Judge an enemy: inside the ring it deals less and takes more from you, your mark on it is at full strength, and leaving it stuns. A ring on a convicted enemy is tighter.",
     kind: "wish", faction: "sentenced", flat: true, ownOrder: false, dropsLock: false,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["engage", "control"],
     telegraph: "ring", icon: "scales", color: 0xb39ddb,
@@ -193,7 +198,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
       cooldownMs: WISH_COOLDOWN_MS, castMs: TRIAL_CAST_MS, targeting: unitTarget(TRIAL_RANGE), shape: { kind: "circle", radius: TRIAL_RADIUS },
       effects: [{
         do: "zone", ms: TRIAL_MS, radius: TRIAL_RADIUS, dealtMult: TRIAL_DEALT_MULT, takenFromCasterMult: TRIAL_TAKEN_MULT,
-        exitStunMs: TRIAL_EXIT_STUN_MS,
+        exitStunMs: TRIAL_EXIT_STUN_MS, convictedRadius: TRIAL_CONVICTED_RADIUS,
       }],
     }],
   },

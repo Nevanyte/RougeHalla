@@ -22,7 +22,7 @@ function statWord(stat: StatKey): string {
     case "damage": return "damage";
     case "windup": return "melee windup time";
     case "lifesteal": return "lifesteal";
-    case "markRate": return "mark ramp speed (Sentenced only)";
+    case "markRate": return "mark tier climb speed (Sentenced only)";
     case "healTaken": return "healing taken";
     case "damageTaken": return "damage taken";
     case "cooldown": return "cooldown time";
@@ -82,6 +82,11 @@ function flagWords(flag: EffectOf<"flag">["flag"]): string {
     case "blockHits": return "Your blocks count as hits";
     case "plantFeet": return "After standing still, your next attack has more range and damage";
     case "festering": return "Your magic damage over time keeps ticking after it ends";
+    case "heavierSentence": return "Your marks deal more the more bonus max health you have";
+    case "swiftJudgment": return "Every 2nd hit on a marked enemy counts as a weapon swap for your marks' tiers";
+    case "gallowsPatience": return "Your zone Wish lasts longer and its escape stun is longer";
+    case "noCommutation": return "A weapon swap by a marked enemy promotes your mark two tiers";
+    case "finalVerdict": return "An execute your mark blocks is paid back to its attacker as true damage";
   }
 }
 

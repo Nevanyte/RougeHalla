@@ -40,15 +40,15 @@
 import { cardPower, hpRaceMult, isDot, mitigateShares, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor, TICK_MS } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { gamblerFactor } from "./cardState";
-import { combatant, defenseOf, standing } from "./combatant";
+import { combatant, defenseOf, standing, type Combatant } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
-import { hasFlag, hpRaceCapOf as hpRaceCapFromRows, outgoingKindOf, outgoingMult, type VsProbe } from "./mods";
-import { damageFactor } from "./status";
+import { hasFlag, hpRaceCapOf as hpRaceCapFromRows, outgoingExecuteShare, outgoingKindOf, outgoingMult, type VsProbe } from "./mods";
+import { damageFactor, dealtFactor } from "./status";
 import { stagger } from "./weapons";
 import { feedOfPlayer, lobbyMedianFeed } from "./feed";
 import { vsExtras } from "./vsProbe";
-import { emit, type DamageSource, type LandedHit, type LedgerEntry, type OverkillHit, type World } from "./world";
+import { emit, payLater, type DamageSource, type LandedHit, type LedgerEntry, type OverkillHit, type World } from "./world";
 
 /**
  * Records a hit landing this tick. Returns the entry, so the melee phase can still scale a projectile's hit. Mobs never
@@ -191,12 +191,16 @@ interface Outgoing {
   mult: ReadonlyMap<LedgerEntry, number>;
   /** The Race to 0 multipliers inside `mult`, the dealer's and its victim's together (only entries where they are above 1). */
   race: ReadonlyMap<LedgerEntry, number>;
+  /** The share of an entry's damage that is execute damage a tier-4 mark denies (only entries of a foe its victim's mark denies; 1 for Plague's execute entry). */
+  exec: ReadonlyMap<LedgerEntry, number>;
 }
 
 /** Each entry's outgoing multiplier (1 for most, and for every ability entry), from the state before the pass; only entries that differ are listed. */
 function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
   const mult = new Map<LedgerEntry, number>();
   const race = new Map<LedgerEntry, number>();
+  const exec = new Map<LedgerEntry, number>();
+  const denies = world.combat.marks?.denies;
   /** How many entries of each attacker on each victim came before this one: Gambler's roll is keyed by it, never by the ledger's own order. */
   const placeOf = new Map<string, number>();
   for (const e of ledger) {
@@ -224,8 +228,13 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
     }
     if (dealt * taken !== 1) race.set(e, dealt * taken);
     if (m !== 1) mult.set(e, m);
+    // A tier-4 mark's denial (R7): the part of this entry that is an execute (Plague's own entry, or what the attacker's `vs hpBelow` rows add).
+    if (denies?.get(e.victim)?.has(e.by.id)) {
+      const share = e.execute === true ? 1 : outgoingExecuteShare(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim), kind, e.packet.mult);
+      if (share > 0) exec.set(e, share);
+    }
   }
-  return { mult, race };
+  return { mult, race, exec };
 }
 
 /**
@@ -261,6 +270,40 @@ function capPvp(world: World, maxHp: number, entries: readonly LedgerEntry[], am
   });
 }
 
+/**
+ * Execute denial (docs/SENTENCED_REDESIGN.md R7): `c` is a Sentenced holding a tier-4 mark on each of `foes`, and their execute damage
+ * (`exec` says how much of each entry is one) cannot take it below 1 hp. From the pass's own amounts (after mitigation and the PvP caps),
+ * so no order decides it: the execute total X is allowed only up to `pool - 1 - N`, N being everything else landing on `c` in the pass and
+ * pool its hp and barrier as the pass began. What is held back is reported after the pass (the `executeDenied` hook).
+ */
+function denyExecutes(
+  world: World, c: Combatant, entries: readonly LedgerEntry[], amounts: number[], foes: ReadonlySet<string>, exec: ReadonlyMap<LedgerEntry, number>,
+): void {
+  const part: number[] = [];
+  let x = 0;
+  let total = 0;
+  entries.forEach((e, i) => {
+    const share = foes.has(e.by.id) ? exec.get(e) ?? 0 : 0;
+    const p = amounts[i]! * share;
+    part.push(p);
+    x += p;
+    total += amounts[i]!;
+  });
+  if (!(x > 0)) return;
+  const pool = c.s.hp + (c.kind === "player" ? c.s.barrier : 0);
+  const allowed = Math.max(0, Math.min(x, pool - 1 - (total - x)));
+  if (x - allowed <= 1e-9) return;
+  const keep = allowed / x;
+  const denied = new Map<string, number>();
+  entries.forEach((e, i) => {
+    if (!(part[i]! > 0)) return;
+    const held = part[i]! * (1 - keep);
+    amounts[i] = amounts[i]! - held;
+    denied.set(e.by.id, (denied.get(e.by.id) ?? 0) + held);
+  });
+  payLater(world, () => world.hooks.executeDenied?.(world, c, denied));
+}
+
 function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outgoing): void {
   const c = combatant(world, id);
   if (!c || !standing(c)) return;
@@ -268,13 +311,21 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
   // Before mitigation: the attacker's outgoing rows (`out`, read as the pass began), then damageFactor (Trial's zone), the one
   // place a status changes the damage of every source. The arena's own burn is no one's hit.
   const raws: number[] = [];
+  const cuts = new Map<LedgerEntry, number>();
+  const suppressed = world.combat.marks?.suppressed;
   const amounts = entries.map((e) => {
     if (!(e.scale > 0)) { raws.push(0); return 0; }
-    const raw = e.packet.raw * e.scale * (out.mult.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id));
+    // A fighter under a tier-3 mark deals less (R6): from the pass-start index, and it gives way to Trial's own cut (one relative number, never both).
+    const mark = suppressed?.get(e.by.id);
+    const cut = mark === undefined ? 1 : Math.min(1, mark / dealtFactor(world, e.by.id));
+    const raw = e.packet.raw * e.scale * (out.mult.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id) * cut);
     raws.push(raw);
+    if (cut < 1 && !e.arena) cuts.set(e, cut);
     return mitigateShares(raw, e.packet, def);
   });
   if (c.kind === "player") capPvp(world, c.s.maxHp, entries, amounts);
+  const foes = world.combat.marks?.denies.get(id);
+  if (foes) denyExecutes(world, c, entries, amounts, foes, out.exec);
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
@@ -313,6 +364,8 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
     if (e.derived) landed.derived = true;
     const race = out.race.get(e);
     if (race !== undefined) landed.race = race;
+    const cut = cuts.get(e);
+    if (cut !== undefined) landed.cut = cut;
     world.combat.landed.push(landed);
     // Damage over time is reported in chunks (sim/factions.ts, sim/abilities.ts, sim/cardHooks.ts).
     if (!(isDot(e.sig) || e.dot)) {

@@ -198,6 +198,8 @@ export interface FieldRuntime {
   vy: number;
   startedAt: number;
   endsAt: number;
+  /** A zone's escape stun (ms), fixed when it was cast (Gallows' Patience lengthens it) so it survives a caster that left. */
+  exitStunMs?: number;
 }
 
 /** Server-only ability data, created on first use (sim/fields.ts `abilitiesRt`); `World.abilities` is null until then. */
@@ -390,6 +392,8 @@ export interface LedgerEntry {
   derived?: boolean;
   /** Its packet already carries every outgoing multiplier (the attacker's rows, the PvP factor, a Race to 0): the ledger only mitigates it. */
   final?: boolean;
+  /** Plague's execute (a `disease` entry of its own): a tier-4 mark denies it (docs/SENTENCED_REDESIGN.md R7). */
+  execute?: true;
 }
 
 /** A ledger entry that took hp off its victim this tick (applyLedger), for systems that react to damage. */
@@ -407,6 +411,11 @@ export interface LandedHit {
    * feeds no lifesteal, whoever holds the card, so lifesteal reads amount / race.
    */
   race?: number;
+  /**
+   * The share of its damage a tier-3 mark's suppression left the attacker (absent = 1): lifesteal reads the damage without the cut, so the
+   * sentence never cuts a Holy's sustain (docs/SENTENCED_REDESIGN.md R6).
+   */
+  cut?: number;
   /** A critical strike (the entry's packet was one). */
   crit?: boolean;
   /** The entry was passive (damage returned to an attacker: a riposte, a reflected arrow, Spiked Shell) or a follow-on (`derived`). */
@@ -473,8 +482,23 @@ export interface ProjectileRuntime {
   ended: boolean;
 }
 
+/**
+ * What the marks of the tick (sim/factions.ts) tell the ledger and the stat sources, rebuilt in `beforeDamage` after the tick's promotions
+ * and so the same for every entry of the pass (tiers change only there and in payLater closures). Ids are fighter ids.
+ */
+export interface MarkIndex {
+  /** Fighters carrying a tier 3 or 4 mark -> the share of its damage each deals (the marker's `suppress`; the lowest of several marks): ledger applyVictim. */
+  suppressed: Map<string, number>;
+  /** A Sentenced victim -> the fighters whose execute effects its tier-4 mark denies. */
+  denies: Map<string, Set<string>>;
+  /** A fighter under the attack-speed tax -> the Sentenced that taxes it (the one whose numbers apply). */
+  taxed: Map<string, string>;
+}
+
 /** Per-tick combat scratch: filled and drained within one step (step.ts). */
 export interface CombatScratch {
+  /** The marks' pass-start index (sim/factions.ts); absent until a mark exists. */
+  marks?: MarkIndex;
   ledger: LedgerEntry[];
   melee: MeleeRequest[];
   spawns: SpawnRequest[];
@@ -633,8 +657,13 @@ export interface WorldHooks {
   playerKilled?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void;
   /** A regional mob's spoils were just paid; quest objectives chain here. `camp` is its map index, or -1 when camp-less. */
   mobKilled?(world: World, killer: PlayerRuntime, mob: { type: MobTypeId; zone: FactionId; camp: number; elite: boolean }): void;
-  /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
+  /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it): a Sentenced's mark on it climbs. */
   weaponSwapped?(world: World, c: Combatant): void;
+  /**
+   * A tier-4 mark just blocked execute damage on `victim` (the Sentenced): `denied` maps each foe whose execute was cut to the damage
+   * (after mitigation) that was held back. Called after the ledger pass (payLater), once per victim per pass.
+   */
+  executeDenied?(world: World, victim: Combatant, denied: ReadonlyMap<string, number>): void;
   /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
   fighterOut?(world: World, id: string, cause: "down" | "removed"): void;
   /**
@@ -963,7 +992,7 @@ export function emit(world: World, ev: SimEvent): void {
 type ChainableHook =
   | "teleported" | "lobbyClosing" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
   | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled"
-  | "blocked" | "overkilled";
+  | "blocked" | "overkilled" | "executeDenied";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

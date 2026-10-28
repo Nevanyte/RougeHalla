@@ -2,7 +2,7 @@
 
     python3 realtime_paced.py [--k 2] [--sub 1] [--nmax 12] [--cells mirror,sig] [--pairs] > out.json
 
-DUEL_PACE k (GAME_DESIGN 10.2): every faction hit and damage param x k, Sentenced's mark ramp x k^2, hp unchanged.
+DUEL_PACE k (GAME_DESIGN 10.2): every faction hit and damage param x k (the mark's share of the target's hp too), hp unchanged.
 Cells: "mirror" is every designed edge (winner first) with the same weapon on both sides (the five loop weapons and fists,
 in realtime.py's WEAPONS order); "sig" is every edge with both on their signature weapons. Each cell is realtime.duel on its phase grid; --pairs adds every phase pair's
 result (a-major, as the harness runs them).
@@ -16,12 +16,12 @@ from dataclasses import replace
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import realtime as W  # noqa: E402
 
-DAMAGE = ("burn", "backlash", "plague", "execute", "mark_cap")
+DAMAGE = ("burn", "backlash", "plague", "execute", "mark_pct", "mark_kill")
 ID = {"Fire": "fire", "Sentenced": "sentenced", "Plague": "plague", "Frost": "frost", "Holy": "holy"}
 
 
 def paced(p, k):
-    params = {key: (v * k * k if key == "mark_ramp" else v * k if key in DAMAGE else v) for key, v in p.params.items()}
+    params = {key: (v * k if key in DAMAGE else v) for key, v in p.params.items()}
     return replace(p, hit=p.hit * k, params=params)
 
 

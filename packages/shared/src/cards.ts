@@ -1,23 +1,25 @@
 // The card catalog (balance pass, BALANCE_CONTRACT 4): everything a camp's chest can give, and the only source of stat power
-// besides the weapon in hand (a mob kill pays GV, the feed and a weapon, never a stat). 75 cards, three kinds:
+// besides the weapon in hand (a mob kill pays GV, the feed and a weapon, never a stat). 80 cards, three kinds:
 //   base         24 cards: eight stats (Attack Damage, Ability Power, Haste, Vitality, Armor, Magic Resist, Leech, Fleet) at three
 //                tiers each, as separate ids (`ad1`, `ad2`, `ad3`). They STACK: a player may hold `ad2` twice (the synced build maps id -> count).
-//   conditional  11 cards, all tier 2, each tied to a base (`requires`): offered only when a player who earns the chest owns that
+//   conditional  13 cards, all tier 2, each tied to a base (`requires`): offered only when a player who earns the chest owns that
 //                base at any tier, and pickable only by an owner. One per player.
-//   augment      40 titled cards with trade-offs and rules (Here Comes the Boom, A Race to 0...), tiers 1-3, unconditional, one per player.
+//   augment      43 titled cards with trade-offs and rules (Here Comes the Boom, A Race to 0...), tiers 1-3, unconditional, one per player.
 // A card is data: its `effects` are rows of the closed Effect union (effects.ts), folded by sim/mods.ts through shared/mods.ts, so a
 // new card is a row unless it needs a new kind. A card's `text` states GENERAL MECHANICS ONLY: never a faction, weapon, mob or Wish
 // name (cards.test.ts enforces it), so the same line reads right for every build; the glossary (glossary.ts) explains the tags.
 //
 // `ready` says when a card's machinery exists. Only the LIVE ones (LIVE_CARD_READY: "a") are rolled into chests and applied by the
-// sim; all 75 are live now. The phase-B cards (crit, streaks, the on-hit pipeline, blocks, returned damage, the DoT extension...) are
+// sim; all 80 are live now. The phase-B cards (crit, streaks, the on-hit pipeline, blocks, returned damage, the DoT extension...) are
 // rows like the rest: a stat, a flag or a trigger the hooks of sim/cardHooks.ts, sim/onHit.ts and the combat files read (the `hook`
 // field survives only as a note for a card whose machinery is not data). Some cards also read a number whose consumer lives in the
 // combat files (heal(), the ledger's DoT and returned damage, lifesteal totals): the sim reads them through sim/mods.ts;
 // GAME_DESIGN 12 lists which.
 //
 // Power: `cardPower(build)` = the sum over owned cards of tier x count; the PvP factor (rules.ts pvpFactor) reads it.
-import { OVERKILL_RADIUS, SWIFT_BOOTS_PAUSE_MS, TANK_ENGINE_CAP } from "./constants";
+import {
+  GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, HEAVIER_SENTENCE_PER_BONUS, OVERKILL_RADIUS, SWIFT_BOOTS_PAUSE_MS, TANK_ENGINE_CAP,
+} from "./constants";
 import type { Effect } from "./effects";
 import type { FactionId } from "./factions";
 
@@ -44,7 +46,7 @@ export type BaseCardId = `${BaseStatId}${1 | 2 | 3}`;
 
 export const CONDITIONAL_IDS = [
   "bloodthirst", "secondSkin", "juggernaut", "spellsword", "bigBrain", "arcaneTempo", "momentum", "stoneSkin", "hearty",
-  "festeringArcana", "rhythm",
+  "festeringArcana", "rhythm", "heavierSentence", "swiftJudgment",
 ] as const;
 export type ConditionalCardId = (typeof CONDITIONAL_IDS)[number];
 
@@ -53,7 +55,7 @@ export const AUGMENT_IDS = [
   "overkill", "tankEngine", "pocketSand", "gambler", "slowStarter", "coupDeGrace", "bigGameHunter", "packLeader", "adrenaline",
   "raceToZero", "cruelWounds", "thirdTimesTheCharm", "eyeForAnEye", "bestOffense", "sittingDucks", "tunnelVision", "firstImpressions",
   "plantYourFeet", "wishfulThinking", "hemorrhage", "ironWill", "spikedShell", "gatheringStorm", "wellspring", "siphon", "quickdraw",
-  "bountyHunter", "secondWind", "witness", "pestilence", "lastRites",
+  "bountyHunter", "secondWind", "witness", "pestilence", "lastRites", "gallowsPatience", "noCommutation", "finalVerdict",
 ] as const;
 export type AugmentCardId = (typeof AUGMENT_IDS)[number];
 
@@ -224,6 +226,17 @@ const CONDITIONALS: readonly CardDef[] = [
     text: "Every 3rd attack is a critical strike.",
     // A third of a crit per attack on the deterministic accumulator (sim/cardState.ts): the 3rd attack reaches 1 and crits.
     effects: [{ k: "stat", stat: "critChance", v: 1 / 3 }],
+  }),
+  conditional({
+    id: "heavierSentence", title: "Heavier Sentence", requires: "vitality", tags: ["true", "ramping"], ready: "a",
+    text: `Your marks deal +${Math.round(HEAVIER_SENTENCE_PER_BONUS * 10)}% more for every 10% bonus max health you have.`,
+    // sim/factions.ts reads the flag: the mark's share of the target's max health is multiplied by 1 + HEAVIER_SENTENCE_PER_BONUS x (bonus hp / base hp).
+    effects: [{ k: "flag", flag: "heavierSentence" }],
+  }),
+  conditional({
+    id: "swiftJudgment", title: "Swift Judgment", requires: "haste", tags: ["ramping"], ready: "a",
+    text: "Every 2nd hit on a marked enemy counts as a weapon swap for your marks' tiers.",
+    effects: [{ k: "flag", flag: "swiftJudgment" }],
   }),
 ];
 
@@ -402,7 +415,7 @@ const AUGMENTS: readonly CardDef[] = [
   }),
   augment({
     id: "gatheringStorm", title: "Gathering Storm", tier: 2, tags: ["ramping"], ready: "a",
-    text: "Your ramping damage ramps 50% faster.",
+    text: "Your marks climb their tiers 50% faster.",
     effects: [{ k: "stat", stat: "markRate", v: 0.5 }],
   }),
   augment({
@@ -446,11 +459,26 @@ const AUGMENTS: readonly CardDef[] = [
     text: "+25% attack speed while below 30% health.",
     effects: [{ k: "while", cond: "hpBelow", arg: 0.3, stat: "attackSpeed", v: 0.25 }],
   }),
+  augment({
+    id: "gallowsPatience", title: "Gallows' Patience", tier: 2, tags: ["wish"], ready: "a",
+    text: `Your zone Wish lasts ${GALLOWS_PATIENCE_EXTRA_MS / 1000} s longer, and an enemy that leaves it is stunned for ${GALLOWS_PATIENCE_STUN_MS / 1000} s.`,
+    effects: [{ k: "flag", flag: "gallowsPatience" }],
+  }),
+  augment({
+    id: "noCommutation", title: "No Commutation", tier: 2, tags: ["ramping"], ready: "a",
+    text: "When a marked enemy swaps weapons, your mark climbs two tiers instead of one.",
+    effects: [{ k: "flag", flag: "noCommutation" }],
+  }),
+  augment({
+    id: "finalVerdict", title: "Final Verdict", tier: 3, tags: ["true", "execute", "returned"], ready: "a",
+    text: "When your mark blocks an enemy's execute, the blocked damage is dealt back to it as true damage.",
+    effects: [{ k: "flag", flag: "finalVerdict" }],
+  }),
 ];
 
 // -------------------------------------------------------------------------------------------------------------- the catalog
 
-/** Every card: the 24 base cards (by stat, then tier), the 11 conditionals, the 40 augments, each in the contract's order. */
+/** Every card: the 24 base cards (by stat, then tier), the 13 conditionals, the 43 augments, each in the contract's order. */
 export const CARDS: readonly CardDef[] = [...baseCards(), ...CONDITIONALS, ...AUGMENTS];
 
 export const CARD_IDS: readonly CardId[] = CARDS.map((c) => c.id);

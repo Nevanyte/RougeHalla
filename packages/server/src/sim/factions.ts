@@ -14,15 +14,16 @@
 // pair): signatures need an ongoing trade, so one tag can't keep them running from range. While engaged, a fighter's signature acts on its target:
 //   Fire       burn every tick, and backlash on each attack the target performs (backlashPerSwing of that weapon)
 //   Plague     disease and execute every tick (the execute reads the target's hp fraction at the start of the tick)
-//   Sentenced  the mark every tick at markDps(elapsed): `elapsed` counts the engaged time in reach, so it freezes
-//              while the target hides; a new target or a weapon swap by the target restarts it
+//   Sentenced  the mark (docs/SENTENCED_REDESIGN.md): on every landed hit on its target a pulse of true damage, a share of the
+//              target's max hp; the mark climbs four tiers by hits landed (or the target's weapon swaps) and from tier 2 taxes the
+//              target's attack rate, from tier 3 cuts its output, at tier 4 denies its execute (ledger.ts reads `world.combat.marks`)
 //   Frost      chills everyone engaged with it either way: its own target, and whoever has it as an engaged target
 //   Holy       heals lifestealFraction(own hp fraction at the start of the tick) of all the damage it lands, on
 //              anyone, with no lockout (it needs no engagement)
 // Buffs (roguelike R4a; their rows fold in sim/mods.ts) act here too:
 //   lifesteal  any faction: `lifesteal` rows (capped at LS_CAP) heal that share of the damage landed, like Holy's and on
 //              top of it (the total never above LIFESTEAL_MAX), exempt from the lockout
-//   markRate   a Sentenced fighter's engaged time on its mark grows (1 + markRate) x as fast: the same cap, sooner
+//   markRate   a Sentenced fighter's landed hits credit (1 + markRate) toward its marks' tiers: Gathering Storm
 //   triggers   Blood Saint: the first time a ledger pass leaves the owner standing below the row's hp share, it heals the
 //              row's share of max hp, ignoring the lockout, once per run (the `hurt` hook; paid after the pass)
 // Passives (roguelike R5, PlayerState.build; their rows fold in sim/mods.ts like the buffs') act here too:
@@ -31,9 +32,9 @@
 //              re-arms at every coliseum teleport (`rearm: "teleport"`: the once-key is forgotten in the teleport hook).
 //   Pestilence (a Plague owner) the execute runs below executeBandOf (0.5 + its executeBand rows) instead of half hp.
 // Cards (balance pass, BALANCE_CONTRACT 3.3 and 4.6; the rows fold in sim/mods.ts) act here as well:
-//   dot, returned   `bonus` multiplies each damage-over-time tick (burn, disease, the mark) by dotMultOf and Fire's backlash by returnedMultOf
+//   dot, returned   `bonus` multiplies each damage-over-time tick (burn, disease) by dotMultOf and Fire's backlash by returnedMultOf
 //                   (Boom x1.25 both, Slow Burn x0.7 the first).
-//   AP              every running damage-over-time signature adds AP_DOT_RATIO x the owner's AP as magic damage per second while engaged: a
+//   AP              every running burn or disease adds AP_DOT_RATIO x the owner's AP as magic damage per second while engaged: a
 //                   second ledger entry with the same `sig`, so the DoT caps, the fx chunks and lifesteal see it as the same damage.
 //   linger          Slow Burn: a DoT signature stays engaged lingerMultOf times ENGAGE_LINGER_SECONDS after the target leaves reach (still
 //                   bounded by the trade window, ENGAGE_TRADE_SECONDS since the last hit or block).
@@ -59,24 +60,29 @@
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
   AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
-  CRIT_MULT, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, FESTERING_AP_SHARE,
+  CRIT_MULT, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, executeDps, FACTIONS, FESTERING_AP_SHARE,
   FESTERING_TICK_MS, FESTERING_TICKS,
-  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, isDot, lifestealFraction, lifestealTotal,
-  markDps, markShare, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS,
+  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, lifestealFraction,
+  lifestealTotal, markPct, markTierOf, markWeight, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
+  plagueDps, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
+  staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
   type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
-import { grantBarrier, grantHealBarrier } from "./buffs";
+import { attackSpeedMult, grantBarrier, grantHealBarrier } from "./buffs";
 import { rollDotCrit } from "./cardState";
 import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
-import { pvpScale, recordHit } from "./ledger";
+import { deferHit, recordHit } from "./ledger";
 import {
-  apOf, dotMultOf, executeBandOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf, lifestealRowsOf, lingerMultOf, markRateOf,
-  returnedMultOf, slowResistOf, triggersOf,
+  apOf, bonusMaxHpOf, cardAsMultOf, dotMultOf, executeBandOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
+  lifestealRowsOf, lingerMultOf, markRateOf, recomputeMods, returnedMultOf, slowResistOf, triggersOf,
 } from "./mods";
-import { addStatus, healFactor } from "./status";
-import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
+import { addStatus, healFactor, statusesOf } from "./status";
+import {
+  chainHook, collisionMap, emit, payLater, tieRank, type LedgerEntry, type MarkIndex, type ModContribution, type PendingAction, type PlayerRuntime,
+  type World,
+} from "./world";
 
 /** One fighter's signature state. Times are server ms. */
 export interface SigFighter {
@@ -89,8 +95,20 @@ export interface SigFighter {
   reachAt: number;
   /** Last hit or block between the fighter and its target, either way (or when it became the target). */
   contactAt: number;
-  /** Seconds the target has spent engaged in reach since the mark (re)started. */
-  markElapsed: number;
+  /**
+   * The mark on `target` (a Sentenced only; docs/SENTENCED_REDESIGN.md): its tier (0 = no landed hit yet), the hits landed on this target,
+   * those hits' credit toward the tiers (Gathering Storm credits more than 1 each), the target's weapon swaps while marked, whether this mark
+   * has already been paid for a denied execute, and since when the target has been beyond TARGET_RANGE (-Infinity: it has not). A new target
+   * or a lost one starts all of it over.
+   */
+  tier: number;
+  markHits: number;
+  markProgress: number;
+  markSwaps: number;
+  markDenied: boolean;
+  farSince: number;
+  /** Server ms the x1.5 amplifier lasts to after a denied execute: it outlives the mark by MARK_DENIAL_LINGER_MS. */
+  ampUntil: number;
   /** hp / maxHp when this tick's damage phase began. */
   hpFrac: number;
   /** Last time this fighter dealt or took damage (the heal lockout). */
@@ -122,13 +140,18 @@ export function install(world: World): void {
   world.systems.push(afterDamage);
   world.systems.push(healOverTime);
   world.moveModifiers.push(chillMoveMultiplier);
+  // The mark's attack-speed tax is a stat source: the mirrors stay the one truth for attack speed, and AS_MULT_CAP applies to it.
+  world.modSources.push(markTaxSource);
   chainHook(world, "weaponSwapped", onWeaponSwapped);
   chainHook(world, "hurt", onHurt);
+  chainHook(world, "playerKilled", onPlayerKilled);
+  chainHook(world, "executeDenied", onExecuteDenied);
   // A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport (the heal lockout
   // keeps running). Triggers that re-arm at a teleport (Second Wind rank 2) may fire again, and a heal still being paid out
   // is dropped first, so the old one and the new one can never both run.
   chainHook(world, "teleported", (w) => { resetAll(w, true); dropHealsOverTime(w); rearmTriggers(w); });
-  chainHook(world, "raidStarted", (w) => resetAll(w, false));
+  // A run's kill-stacks start from nothing (they are never banked).
+  chainHook(world, "raidStarted", (w) => { resetAll(w, false); for (const p of w.state.players.values()) if (p.sentence !== 0) p.sentence = 0; });
   chainHook(world, "runEnded", flushDotFx);
 }
 
@@ -138,7 +161,8 @@ function newRuntime(): FactionsRuntime {
 
 function newFighter(): SigFighter {
   return {
-    target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, markElapsed: 0, hpFrac: 1,
+    target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markHits: 0, markProgress: 0, markSwaps: 0,
+    markDenied: false, farSince: -Infinity, ampUntil: 0, hpFrac: 1,
     combatAt: -Infinity, chill: 1, chillers: [], seenAction: null, dotPausedUntil: 0, engagedOn: null,
   };
 }
@@ -162,6 +186,17 @@ function resetAll(world: World, keepCombat: boolean): void {
   rt.attacks = [];
   rt.dot.clear();
   rt.dotSince = world.state.serverTime;
+  world.combat.marks = undefined;
+}
+
+/** The mark starts over (its tier, hits, swaps and denial latch, and the distance clock); the amplifier's linger runs on. */
+function resetMark(f: SigFighter): void {
+  f.tier = 0;
+  f.markHits = 0;
+  f.markProgress = 0;
+  f.markSwaps = 0;
+  f.markDenied = false;
+  f.farSince = -Infinity;
 }
 
 /** `f` now has `id` as its target: everything about the previous one (reach, linger, the mark) starts over. */
@@ -171,7 +206,7 @@ function setTarget(f: SigFighter, id: string, now: number): void {
   f.engaged = false;
   f.reachAt = -Infinity;
   f.contactAt = now;
-  f.markElapsed = 0;
+  resetMark(f);
 }
 
 function clearTarget(f: SigFighter): void {
@@ -179,7 +214,7 @@ function clearTarget(f: SigFighter): void {
   f.inReach = false;
   f.engaged = false;
   f.reachAt = -Infinity;
-  f.markElapsed = 0;
+  resetMark(f);
 }
 
 /**
@@ -286,7 +321,6 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
 function signatureDamage(world: World, dtMs: number): void {
   const rt = rtOf(world);
   const now = world.state.serverTime;
-  const dt = dtMs / 1000;
   const fighters = standingCombatants(world);
   const byId = new Map(fighters.map((c) => [c.id, c]));
   for (const id of [...rt.fighters.keys()]) if (!byId.has(id)) rt.fighters.delete(id);
@@ -330,6 +364,9 @@ function signatureDamage(world: World, dtMs: number): void {
       && now - f.contactAt <= tradeWindowMs(world, c, t) + 1e-6;
   }
 
+  // The marks: this tick's landed hits climb them and pay their pulses (into this tick's ledger), then the pass-start index is rebuilt.
+  markStep(world, fighters, byId, now);
+
   for (const c of fighters) {
     const f = sigOf(world, c.id);
     const spec = factionOf(c.s);
@@ -349,8 +386,9 @@ function signatureDamage(world: World, dtMs: number): void {
       // AP is flat power in points a second: no weapon multiplier, but the stagger pause takes out its share of the tick too.
       const apDot = AP_DOT_RATIO * apOf(c.s) * secs;
       dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, apDot);
-      dotBonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac, executeBandOf(c.s)) * dot, apDot);
-      dotBonus(world, c, spec, weapon, t, "mark", markDps(spec, f.markElapsed) * dot, apDot);
+      // The disease and its execute are two entries of one type: a tier-4 mark denies the second (docs/SENTENCED_REDESIGN.md R7). The AP rider rides the first.
+      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot, apDot);
+      dotBonus(world, c, spec, weapon, t, "disease", executeDps(spec, foeFrac, executeBandOf(c.s)) * dot, 0, true);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
         for (const a of rt.attacks) {
@@ -358,10 +396,6 @@ function signatureDamage(world: World, dtMs: number): void {
         }
       }
     }
-    // A markRate buff ramps the mark faster toward the same cap (1 for everyone else: only Sentenced reads markElapsed). Against a
-    // player the clock also runs at the PvP factor of its owner (the harness's duelScale included), so the factor is a PvP-only
-    // DUEL_PACE: damage times f and the ramp times f squared leave an equal-power fight's outcome alone.
-    if (f.inReach && f.engaged) f.markElapsed += dt * markRateOf(c.s) * (f.target !== null ? pvpScale(world, c.id, f.target) : 1);
   }
 }
 
@@ -399,29 +433,30 @@ function lingerMs(c: Combatant): number {
   return ENGAGE_LINGER_SECONDS * 1000 * (dealsDot(factionOf(c.s)) ? lingerMultOf(c.s) : 1);
 }
 
-/** The faction's signature deals damage over time (Fire's burn, Plague's disease, Sentenced's mark): Slow Burn's linger means nothing to a Frost or a Holy. */
+/** The faction's signature deals damage over time (Fire's burn, Plague's disease): Slow Burn's linger means nothing to a Frost, a Holy or a Sentenced (its mark pays per hit). */
 function dealsDot(spec: FactionSpec | null | undefined): boolean {
-  return !!spec && (spec.mechanic === "dragonslayer" || spec.mechanic === "rat_king" || spec.mechanic === "marked");
+  return !!spec && (spec.mechanic === "dragonslayer" || spec.mechanic === "rat_king");
 }
 
 /** The magic damage of AP on a damage-over-time signature (BALANCE_CONTRACT 3.3), whatever type the signature itself deals. */
 const AP_DOT_SHARES: DamageShares = { phys: 0, magic: 1, true: 0 };
 
 /**
- * One damage-over-time signature's tick: its own amount `raw`, and while it runs (`raw` above 0: the mark only after its ramp
- * began) the owner's AP as magic damage `apRaw` under the same `sig`.
+ * One damage-over-time signature's tick: its own amount `raw`, and while it runs (`raw` above 0) the owner's AP as magic damage
+ * `apRaw` under the same `sig`. `execute` flags Plague's execute entry (a tier-4 mark denies it).
  */
 function dotBonus(
   world: World, c: Combatant, spec: FactionSpec, weapon: WeaponId, t: Combatant, sig: SignatureKind, raw: number, apRaw: number,
+  execute = false,
 ): void {
   if (!(raw > 0)) return;
-  bonus(world, c, spec, weapon, t, sig, raw);
+  bonus(world, c, spec, weapon, t, sig, raw, SIGNATURE_SHARES[sig], execute);
   if (apRaw > 0) bonus(world, c, spec, weapon, t, sig, apRaw, AP_DOT_SHARES);
 }
 
 function bonus(
   world: World, c: Combatant, spec: FactionSpec, weapon: WeaponId, t: Combatant, sig: SignatureKind, raw: number,
-  shares: DamageShares = SIGNATURE_SHARES[sig],
+  shares: DamageShares = SIGNATURE_SHARES[sig], execute = false,
 ): void {
   // The owner's cards: damage over time (Boom, Slow Burn) and Fire's backlash (Boom) are products on the signature's amount.
   raw *= sig === "backlash" ? returnedMultOf(c.s) : dotMultOf(c.s);
@@ -432,7 +467,213 @@ function bonus(
   recordHit(world, {
     victim: t.id, by: { id: c.id, name: c.s.name },
     packet: crit ? { raw: raw * CRIT_MULT, ...shares, crit: true, mult: CRIT_MULT } : { raw, ...shares }, weapon, stagger: false, sig,
+    ...(execute ? { execute: true as const } : {}),
   });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The mark (docs/SENTENCED_REDESIGN.md)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** The tier of the mark `ownerId` holds on `targetId` right now (0 for none): Trial reads it as the ring lands. */
+export function markTierOn(world: World, ownerId: string, targetId: string): number {
+  const f = world.factions?.fighters.get(ownerId);
+  return f && f.target === targetId ? f.tier : 0;
+}
+
+/** Is `t` inside a Trial ring cast by `ownerId`? The owner's mark on it is then at full strength whatever the distance. */
+function inRing(world: World, ownerId: string, t: Combatant): boolean {
+  const now = world.state.serverTime;
+  for (const st of statusesOf(t)) if (st.kind === "zoned" && st.source.id === ownerId && st.until > now) return true;
+  return false;
+}
+
+/** The mark is at full strength: the target is within MARK_NEAR_RANGE of its owner, or inside the owner's Trial ring. */
+function markNear(world: World, c: Combatant, t: Combatant): boolean {
+  return Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) <= MARK_NEAR_RANGE || inRing(world, c.id, t);
+}
+
+/** Does the entry count as a landed hit for a mark (R2): a weapon hit, not a signature, an ability, a damage over time, a riposte, a splash or returned damage? */
+function countsForMark(e: LedgerEntry): boolean {
+  return e.weapon !== null && e.sig === undefined && e.ability === undefined && e.dot !== true && e.passive !== true && e.derived !== true
+    && e.final !== true && e.arena !== true && e.scale > 0 && e.packet.raw > 0;
+}
+
+/** This tick's hits that count for a mark, by their Sentenced attacker (the contacts' filter: nobody immune, nobody walking home, no mob on a mob). */
+function markHitsOf(world: World, byId: ReadonlyMap<string, Combatant>): Map<string, LedgerEntry[]> {
+  const out = new Map<string, LedgerEntry[]>();
+  for (const e of world.combat.ledger) {
+    if (!countsForMark(e)) continue;
+    const a = byId.get(e.by.id);
+    const v = byId.get(e.victim);
+    if (!a || !v || immune(world, v) || evading(v) || evading(a) || (a.kind === "mob" && v.kind === "mob")) continue;
+    if (factionOf(a.s)?.mechanic !== "marked") continue;
+    const list = out.get(e.by.id);
+    if (list) list.push(e);
+    else out.set(e.by.id, [e]);
+  }
+  return out;
+}
+
+/** The tiers the target's weapon swaps (each one tier, two with No Commutation) and Swift Judgment's every second hit have earned. */
+function swapSteps(f: SigFighter, s: Combatant["s"]): number {
+  return f.markSwaps * (hasFlag(s, "noCommutation") ? 2 : 1) + (hasFlag(s, "swiftJudgment") ? Math.floor(f.markHits / 2) : 0);
+}
+
+/** Raises the mark's tier to what its hits and swaps have earned; the first tier on a player is announced to it. */
+function promote(world: World, c: Combatant, f: SigFighter, t: Combatant): number {
+  const tier = Math.min(MARK_TOP_TIER, markTierOf(f.markProgress, swapSteps(f, c.s)));
+  if (tier > f.tier) {
+    if (f.tier === 0 && t.kind === "player") emit(world, { type: "toast", to: t.id, text: "Sentenced marked you." });
+    f.tier = tier;
+  }
+  return f.tier;
+}
+
+/**
+ * The pulse for one landed hit: a share of the target's max hp as true damage, in this tick's ledger. The share is the faction's `mark_pct`
+ * (kill-stacks and Heavier Sentence on it), times the hit's weight (its share of the faction's base hit, paid back for Frost's chill: a chilled
+ * fighter lands fewer hits and each pays out the time it took), times the amplifier at tier 4 (or while a denied execute's linger runs), halved
+ * beyond MARK_NEAR_RANGE unless the target stands in the owner's Trial ring. The ledger multiplies it like any hit (damage rows, the PvP factor,
+ * Trial's x1.2) and nothing mitigates it.
+ */
+function recordPulse(world: World, c: Combatant, spec: FactionSpec, f: SigFighter, t: Combatant, hit: LedgerEntry, tier: number, near: boolean): void {
+  const now = world.state.serverTime;
+  const weapon = hit.weapon!;
+  const stacks = c.kind === "player" ? c.s.sentence : 0;
+  const heavier = hasFlag(c.s, "heavierSentence") && spec.hp > 0 ? 1 + HEAVIER_SENTENCE_PER_BONUS * (bonusMaxHpOf(c.s) / spec.hp) : 1;
+  const weight = markWeight(spec, weapon, attackSpeedMult(c.s)) / Math.max(f.chill, 0.05);
+  const amp = tier >= MARK_TOP_TIER || now < f.ampUntil ? spec.params.mark_amp! : 1;
+  const raw = markPct(spec, stacks, heavier) * t.s.maxHp * weight * amp * (near ? 1 : MARK_FAR_SHARE);
+  if (!(raw > 0)) return;
+  recordHit(world, {
+    victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...SIGNATURE_SHARES.mark }, weapon, stagger: false, sig: "mark",
+  });
+}
+
+/**
+ * beforeDamage, after targets and reach are settled: every Sentenced fighter's mark. The target out of TARGET_RANGE for TARGET_LOS_GRACE_MS
+ * breaks it (and drops the target); each landed hit on the target counts, climbs the tiers and pays its pulse; the weapon swaps counted since
+ * the last tick promote too. Then the pass-start index (`world.combat.marks`) is rebuilt for the ledger and the tax.
+ */
+function markStep(world: World, fighters: readonly Combatant[], byId: ReadonlyMap<string, Combatant>, now: number): void {
+  const hitsBy = markHitsOf(world, byId);
+  let any = false;
+  for (const c of fighters) {
+    const spec = factionOf(c.s);
+    if (!spec || spec.mechanic !== "marked") continue;
+    any = true;
+    const f = sigOf(world, c.id);
+    const t = f.target !== null ? byId.get(f.target) : undefined;
+    if (!t) continue;
+    if (Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) > TARGET_RANGE) {
+      if (f.farSince === -Infinity) f.farSince = now;
+      else if (now - f.farSince >= TARGET_LOS_GRACE_MS) {
+        clearTarget(f);
+        continue;
+      }
+    } else {
+      f.farSince = -Infinity;
+    }
+    const near = markNear(world, c, t);
+    for (const hit of hitsBy.get(c.id) ?? []) {
+      if (hit.victim !== t.id) continue;
+      f.markHits += 1;
+      // A chilled fighter lands fewer hits, and each is paid back for the time it took: the tiers climb at the unchilled pace (R3).
+      f.markProgress += markRateOf(c.s) / Math.max(f.chill, 0.05);
+      recordPulse(world, c, spec, f, t, hit, Math.max(1, promote(world, c, f, t)), near);
+    }
+    if (f.tier > 0) promote(world, c, f, t);
+  }
+  if (any || world.combat.marks) rebuildMarkIndex(world, fighters, byId);
+}
+
+/**
+ * The marks as the ledger pass and the stat sources read them: who is suppressed, whose execute a Sentenced denies, who is taxed (and by
+ * which Sentenced). A fighter whose tax appeared or went (a tier-2 promotion, a proximity flip, the mark ending) has its mirrors re-folded now.
+ */
+function rebuildMarkIndex(world: World, fighters: readonly Combatant[], byId: ReadonlyMap<string, Combatant>): void {
+  const next: MarkIndex = { suppressed: new Map(), denies: new Map(), taxed: new Map() };
+  const taxTier = new Map<string, number>();
+  for (const c of fighters) {
+    const spec = factionOf(c.s);
+    if (!spec || spec.mechanic !== "marked") continue;
+    const f = sigOf(world, c.id);
+    const t = f.tier > 0 && f.target !== null ? byId.get(f.target) : undefined;
+    if (!t) continue;
+    if (f.tier >= 3) next.suppressed.set(t.id, Math.min(next.suppressed.get(t.id) ?? 1, spec.params.suppress ?? 1));
+    if (f.tier >= MARK_TOP_TIER) next.denies.set(c.id, new Set([t.id]));
+    if (f.tier >= 2 && markNear(world, c, t)) {
+      const best = next.taxed.get(t.id);
+      if (best === undefined || f.tier > taxTier.get(t.id)! || (f.tier === taxTier.get(t.id) && c.id < best)) {
+        next.taxed.set(t.id, c.id);
+        taxTier.set(t.id, f.tier);
+      }
+    }
+  }
+  const prev = world.combat.marks?.taxed;
+  world.combat.marks = next;
+  const changed = new Set<string>();
+  if (prev) for (const id of prev.keys()) if (!next.taxed.has(id)) changed.add(id);
+  for (const id of next.taxed.keys()) if (!prev?.has(id)) changed.add(id);
+  for (const id of changed) {
+    const c = combatant(world, id);
+    if (c) recomputeMods(world, c);
+  }
+}
+
+/** The factor the tax puts on `c`'s card attack speed under the Sentenced `byId`: taxedRate(r) / r with r the faction's rate times its card haste; 1 when it would cut nothing. */
+function taxFactor(world: World, c: Combatant, byId: string): number {
+  const spec = factionOf(c.s);
+  const marker = combatant(world, byId);
+  const m = marker ? factionOf(marker.s) : null;
+  if (!spec || !m || m.mechanic !== "marked") return 1;
+  const r = spec.rate * cardAsMultOf(c.s);
+  if (!(r > 0)) return 1;
+  const taxed = taxedRate(r, m.params.tax_keep!, m.params.tax_cap!);
+  return taxed < r ? taxed / r : 1;
+}
+
+/** world.modSources entry: the mark's tax, an attack-speed factor like any slow (the mirrors fold and cap it). */
+function markTaxSource(world: World, c: Combatant): ModContribution | null {
+  const by = world.combat.marks?.taxed.get(c.id);
+  if (by === undefined) return null;
+  const factor = taxFactor(world, c, by);
+  return factor < 1 ? { asMult: factor } : null;
+}
+
+/** A kill-stack for a Sentenced's player kill, and the line for finishing its marked target. */
+function onPlayerKilled(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void {
+  if (outcome !== "died") return;
+  const p = world.state.players.get(killer.id);
+  if (!p || factionOf(p)?.mechanic !== "marked") return;
+  const f = world.factions?.fighters.get(killer.id);
+  if (f && f.target === victim.id && f.tier > 0) emit(world, { type: "toast", to: killer.id, text: "Your sentence has been carried out." });
+  if (p.sentence < MARK_KILL_STACK_CAP) p.sentence += 1;
+}
+
+/**
+ * The ledger denied execute damage (R7), after the pass: the Sentenced's x1.5 amplifier outlives its mark by MARK_DENIAL_LINGER_MS, the mark
+ * pays one kill-stack (once per mark), each denied foe is told, and with Final Verdict the denied damage goes back to it as true damage
+ * (queued for the next tick's ledger).
+ */
+function onExecuteDenied(world: World, victim: Combatant, denied: ReadonlyMap<string, number>): void {
+  const f = world.factions?.fighters.get(victim.id);
+  if (!f || factionOf(victim.s)?.mechanic !== "marked") return;
+  f.ampUntil = Math.max(f.ampUntil, world.state.serverTime + MARK_DENIAL_LINGER_MS);
+  if (!f.markDenied) {
+    f.markDenied = true;
+    if (victim.kind === "player" && victim.s.sentence < MARK_KILL_STACK_CAP) victim.s.sentence += 1;
+  }
+  for (const [foeId, amount] of denied) {
+    if (world.players.has(foeId)) emit(world, { type: "toast", to: foeId, text: "Execute blocked - already sentenced." });
+    if (hasFlag(victim.s, "finalVerdict") && amount > 0) {
+      deferHit(world, {
+        victim: foeId, by: { id: victim.id, name: victim.s.name }, packet: { raw: amount, ...SIGNATURE_SHARES.mark },
+        weapon: activeWeapon(victim.s), stagger: false, passive: true, final: true,
+      });
+    }
+  }
 }
 
 /** systems: lifesteal, the combat clock, the chill for the coming tick, visuals and damage-over-time fx. */
@@ -448,8 +689,9 @@ function afterDamage(world: World, dtMs: number): void {
   for (const h of world.combat.landed) {
     if (byId.has(h.victim)) sigOf(world, h.victim).combatAt = now;
     if (byId.has(h.by)) sigOf(world, h.by).combatAt = now;
-    // A Race to 0 holder's extra damage feeds no lifesteal (G4): it reads the amount without the multiplier.
-    const fed = h.amount / (h.race ?? 1);
+    // A Race to 0 holder's extra damage feeds no lifesteal (G4): it reads the amount without the multiplier. A tier-3 mark's suppression is no cut
+    // to the sustain either: the sentence never out-cuts a lifesteal (docs/SENTENCED_REDESIGN.md R6).
+    const fed = h.amount / (h.race ?? 1) / (h.cut ?? 1);
     dealt.set(h.by, (dealt.get(h.by) ?? 0) + fed);
     if (isDot(h.sig) || h.dot === true) dealtDot.set(h.by, (dealtDot.get(h.by) ?? 0) + fed);
     if (isDot(h.sig)) {
@@ -586,19 +828,21 @@ function chillMoveMultiplier(world: World, c: Combatant): number {
   return 1;
 }
 
-/** The synced `sig` bits and `brand` of every fighter; zero for anyone no longer standing. */
+/** The synced `sig` bits, `brand` and mark fields of every fighter; zero for anyone no longer standing. */
 function syncVisuals(world: World, byId: Map<string, Combatant>): void {
   const bits = new Map<string, number>();
-  const brand = new Map<string, number>();
+  /** The strongest mark on each fighter: its tier and its owner (the lower id on a tie). */
+  const mark = new Map<string, { tier: number; by: string }>();
+  const idx = world.combat.marks;
   for (const c of byId.values()) {
     const f = sigOf(world, c.id);
     if (f.chill < 1) bits.set(c.id, (bits.get(c.id) ?? 0) | SIG_CHILLED);
     const spec = factionOf(c.s);
     const t = f.target !== null ? byId.get(f.target) : undefined;
     if (!spec || !t) continue;
-    if (spec.mechanic === "marked") {
-      const pct = Math.round(markShare(spec, f.markElapsed) * 20) * 5;
-      if (pct > (brand.get(t.id) ?? 0)) brand.set(t.id, pct);
+    if (spec.mechanic === "marked" && f.tier > 0) {
+      const best = mark.get(t.id);
+      if (!best || f.tier > best.tier || (f.tier === best.tier && c.id < best.by)) mark.set(t.id, { tier: f.tier, by: c.id });
     }
     if (!f.engaged) continue;
     let b = bits.get(t.id) ?? 0;
@@ -609,18 +853,30 @@ function syncVisuals(world: World, byId: Map<string, Combatant>): void {
     }
     bits.set(t.id, b);
   }
+  if (idx) {
+    for (const id of idx.suppressed.keys()) if (byId.has(id)) bits.set(id, (bits.get(id) ?? 0) | SIG_SUPPRESSED);
+    for (const id of idx.taxed.keys()) if (byId.has(id)) bits.set(id, (bits.get(id) ?? 0) | SIG_TAXED);
+    for (const foes of idx.denies.values()) for (const id of foes) if (byId.has(id)) bits.set(id, (bits.get(id) ?? 0) | SIG_EXEC_BLOCKED);
+  }
   for (const c of allCombatants(world)) {
     const on = byId.has(c.id);
     const b = on ? bits.get(c.id) ?? 0 : 0;
-    const m = on ? brand.get(c.id) ?? 0 : 0;
+    const m = on ? mark.get(c.id) : undefined;
+    const tier = m?.tier ?? 0;
+    const by = m?.by ?? "";
+    const taxer = on ? idx?.taxed.get(c.id) : undefined;
+    const tax = taxer !== undefined ? Math.round((1 - taxFactor(world, c, taxer)) * 100) : 0;
     if (c.s.sig !== b) c.s.sig = b;
-    if (c.s.brand !== m) c.s.brand = m;
+    if (c.s.brand !== tier * 25) c.s.brand = tier * 25;
+    if (c.s.markTier !== tier) c.s.markTier = tier;
+    if (c.s.markBy !== by) c.s.markBy = by;
+    if (c.s.markTax !== tax) c.s.markTax = tax;
   }
 }
 
-/** The target swapped the weapon in hand: every mark on it starts over. */
+/** The target swapped the weapon in hand: every mark on it counts a swap (it promotes at the next tick's mark step). */
 function onWeaponSwapped(world: World, c: Combatant): void {
-  for (const f of rtOf(world).fighters.values()) if (f.target === c.id) f.markElapsed = 0;
+  for (const f of rtOf(world).fighters.values()) if (f.target === c.id && f.tier > 0) f.markSwaps += 1;
 }
 
 /**
