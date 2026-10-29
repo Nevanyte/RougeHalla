@@ -460,7 +460,7 @@ describe("bog slow", () => {
     expect(world.hazards.stats.seconds.bog).toBeCloseTo(2, 9);
   });
 
-  it("chilled by a Frost within 100 u it walks at 0.7 x 0.7 = 0.49", () => {
+  it("the Frost movement mirror compounds with bog slow", () => {
     const world = bogWorld([{ faction: "fire", at: at(3, 10) }, { faction: "frost", at: at(3, 10) }, { faction: "fire", at: at(3, 24) }]);
     const walker = P(world, "p0");
     run(world, 1); // the faction layer keeps a record per fighter once the run is ticking
@@ -469,7 +469,10 @@ describe("bog slow", () => {
     for (let i = 0; i < 20; i++) {
       // A Frost that is chilling it, kept beside it (the chill is recomputed from engagements at the end of every tick).
       put(world, "p1", { x: walker.x + 40, y: walker.y });
-      signatureState(world, "p0")!.chillers.push("p1");
+      const frost = signatureState(world, "p0")!;
+      frost.chillers.push("p1");
+      // Supply the current mirror at its initial, full-strength value. Thaw timing is covered by factions.test.ts.
+      Object.assign(frost, { frostMoveMult: 0.7 });
       step(world, TICK_MS);
     }
     expect(walker.x - x0).toBeCloseTo(PLAYER_SPEED * 0.49, 6);

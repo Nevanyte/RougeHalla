@@ -17,6 +17,7 @@ import { signatureState } from "../src/sim/factions";
 import { deferHit } from "../src/sim/ledger";
 import { placeMob } from "../src/sim/mobLife";
 import { addStatus, findStatus, statusValue, statusesOf } from "../src/sim/status";
+import { dotMultOf } from "../src/sim/mods";
 import type { LandedHit, LedgerEntry, SimEvent, World } from "../src/sim/world";
 import { chainHook } from "../src/sim/world";
 import { hit, inStep, P, pvpArena, RT, tick, type RigFighter } from "./support/pvpRig";
@@ -153,6 +154,24 @@ describe("Cruel Wounds: damage over time can crit (G12)", () => {
     const seen = run(w, 60);
     expect(seen.entries.filter((e) => e.sig === "burn" && e.packet.crit)).toEqual([]);
     expect(seen.entries.filter((e) => e.sig === undefined && e.packet.crit).length).toBeGreaterThan(0);
+  });
+
+  it("Plague's disease, execute and bleed cannot crit below half health, but its auto attacks still can", () => {
+    const w = arena([
+      { id: "a", faction: "plague", weapon: "sword", at: near(200) },
+      { id: "v", faction: "holy", weapon: "", at: near(230) },
+    ], { signatures: true });
+    give(w, "a", "haste1", "rhythm", "cruelWounds", "hemorrhage");
+    P(w, "v").hp = P(w, "v").maxHp * 0.4;
+    lock(w, "a", "v");
+    expect(dotMultOf(C(w, "a").s)).toBeCloseTo(1.25, 12); // Rhythm + Cruel Wounds: 50% crit chance becomes an equivalent 25% steady DoT bonus.
+
+    const seen = run(w, 180);
+    const plagueDots = seen.entries.filter((e) => e.by.id === "a" && (e.sig === "disease" || e.dot === true));
+    expect(plagueDots.some((e) => e.sig === "disease" && e.execute)).toBe(true);
+    expect(plagueDots.length).toBeGreaterThan(0);
+    expect(plagueDots.some((e) => e.packet.crit)).toBe(false);
+    expect(hitsOf(seen, "a", "v").some((h) => h.crit)).toBe(true);
   });
 });
 

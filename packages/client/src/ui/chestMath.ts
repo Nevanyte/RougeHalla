@@ -183,6 +183,7 @@ export interface OptionCard {
 export interface CardContext {
   myId: string;
   build: CardCounts | null | undefined;
+  faction?: string;
   /** Nothing is offered: every option is greyed (about to vanish) or this player already picked. */
   closed: boolean;
 }
@@ -191,7 +192,7 @@ export interface CardContext {
 export function optionCards(reward: Reward, ctx: CardContext): OptionCard[] {
   return reward.options.map((id, index) => {
     const by = reward.takenBy[index] ?? "";
-    const view = cardOptionView(id, ctx.build);
+    const view = cardOptionView(id, ctx.build, ctx.faction);
     const state: OptionState = view === null ? { kind: "unknown" }
       : by === ctx.myId ? { kind: "mine" }
       : by !== "" ? { kind: "taken", by }

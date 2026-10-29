@@ -103,6 +103,8 @@ export const PlayerState = schema({
   sentence: t.uint8().default(0),
   /** Per normal mob type, reward stacks this run (0..10; kills and quests share the cap); map keys are MobTypeId strings. */
   mobStats: t.map("uint8"),
+  /** Frost's current movement slow multiplier (thousandths); sent separately so local prediction follows its thaw. */
+  frostMoveMult: t.uint16().default(1000),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

@@ -3,7 +3,7 @@
 // "x2". Pointing at a chip shows what the card does and the glossary line of each of its tags. The row never takes the pointer (a
 // right-click move and a left-click lock under it must reach the canvas, and the aim keeps streaming), so the tooltip is found by
 // hit-testing the pointer against the chips' rectangles, not by :hover. Hidden while nothing is held.
-import { STAT_GLOSSARY, TAG_GLOSSARY, cardLive, ownedCards, tagLabel, tierRoman, type CardCounts, type CardDef } from "@raid/shared";
+import { STAT_GLOSSARY, TAG_GLOSSARY, cardLive, cardText, ownedCards, tagLabel, tierRoman, type CardCounts, type CardDef } from "@raid/shared";
 import { baseSummary } from "./buildModel";
 import { cardKindLabel } from "./chestMath";
 import "./cardsRow.css";
@@ -27,10 +27,10 @@ export function countTag(count: number): string {
  *   Damage over time: Damage that ticks ...               one line per tag
  *   Not live yet: it does nothing.                        only for a card whose machinery is not in
  */
-export function cardTip(def: CardDef, count: number, build?: CardCounts | null): string {
+export function cardTip(def: CardDef, count: number, build?: CardCounts | null, faction?: string): string {
   const lines = [
     `${def.title} (${cardKindLabel(def.kind)}, tier ${tierRoman(def.tier)}${count > 1 ? `, ${countTag(count)}` : ""})`,
-    def.text,
+    cardText(def.id, faction),
   ];
   if (def.base !== undefined) {
     const summary = baseSummary(build, def.base);
@@ -102,14 +102,15 @@ export class CardsRow {
    * Call every frame. `build` is the player's PlayerState.build; `visible` false (dead, in the lobby) hides the row. The DOM is
    * touched only when a card, a count or the visibility changed.
    */
-  update(build: CardCounts | null | undefined, visible: boolean): void {
+  update(build: CardCounts | null | undefined, visible: boolean, faction?: string): void {
     const owned = visible ? ownedCards(build) : [];
     let sig = "";
+    sig = `${faction ?? ""}|`;
     for (const o of owned) sig += `${o.def.id}:${o.count},`;
     if (sig === this.sig) return;
     this.sig = sig;
     this.held = owned.length;
-    this.shownChips = owned.map((o) => this.paint(o.def, o.count, build));
+    this.shownChips = owned.map((o) => this.paint(o.def, o.count, build, faction));
     this.list.replaceChildren(...this.shownChips.map((c) => c.root));
     this.root.hidden = owned.length === 0;
     this.rectsDirty = true;
@@ -129,7 +130,7 @@ export class CardsRow {
   }
 
   /** The chip of a card, made on first use; its count and tooltip are rewritten when either changed (a base's summary reads its other tiers). */
-  private paint(def: CardDef, count: number, build: CardCounts | null | undefined): Chip {
+  private paint(def: CardDef, count: number, build: CardCounts | null | undefined, faction?: string): Chip {
     let chip = this.made.get(def.id);
     if (!chip) {
       const root = el("div", `cards-chip ${def.kind}`);
@@ -143,7 +144,7 @@ export class CardsRow {
       chip.shown = count;
       chip.count.textContent = count > 1 ? countTag(count) : "";
     }
-    const tip = cardTip(def, count, build);
+    const tip = cardTip(def, count, build, faction);
     if (tip !== chip.shownTip) {
       chip.shownTip = tip;
       chip.tip.textContent = tip;

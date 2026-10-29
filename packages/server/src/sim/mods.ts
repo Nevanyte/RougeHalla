@@ -46,7 +46,7 @@
 // A leaf module: it must not import weapons.ts, arena.ts, ledger.ts, combatant.ts, buffs.ts (the barrier and max hp), a status
 // runtime or anything else that imports it. Type-only imports are fine.
 import {
-  assertNever, CARDS, cardLive, cardRows, countIn, critChanceFrom, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, FACTIONS,
+  assertNever, CARDS, cardLive, cardRows, countIn, critChanceFrom, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, FACTIONS, CRIT_MULT,
   FIGHT_GAP_SECONDS, FISTS, foldRows, isDot, isFactionId, MAX_HP_FLOOR_SHARE, mirrorsFromFold, OUTGOING_ROW_CAP, ownsBase, requirementsMet,
   type BaseStatId, type Effect, type EffectFlag, type EffectOf, type Folded, type MultKey, type ScalingStats, type StatMirrors,
   type StatSums,
@@ -491,7 +491,11 @@ export function hitMultOf(s: FighterState): number {
  * card's (a bleed, Festering Arcana's tail: sim/abilities.ts `statusDamage`); a Wish's burn is flat and never reads it.
  */
 export function dotMultOf(s: FighterState): number {
-  return foldedOf(s).mults.dot;
+  const f = foldedOf(s);
+  const plagueCritConversion = isPlayerState(s) && s.faction === "plague" && f.flags.has("plagueDotCritConversion")
+    ? 1 + critChanceOf(s) * (CRIT_MULT - 1)
+    : 1;
+  return f.mults.dot * plagueCritConversion;
 }
 
 /**

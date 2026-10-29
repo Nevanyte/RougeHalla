@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
+  attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, CHILL_MOVE_RESET_MS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, EXECUTE_BAND, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, engageRange, FACTION_IDS, FACTIONS,
   HEAL_LOCKOUT_SECONDS, isRanged,
   lifestealFraction, mapFromTiles, mitigateShares, mulberry32, pacedFaction, PLAYER_SPEED,
@@ -1199,6 +1199,46 @@ describe("Frost (wall of ice)", () => {
       expect(CHILL_MOVE_MULT).toBe(0.7);
       expect(walkAt(60)).toBeCloseTo(PLAYER_SPEED * DT * CHILL_MOVE_MULT, 9);
       expect(walkAt(CHILL_MOVE_RADIUS)).toBeCloseTo(PLAYER_SPEED * DT * CHILL_MOVE_MULT, 9);
+    });
+
+    it("holds the first movement slow, thaws under repeated contact, and leaves the attack slow alone", () => {
+      const world = pair();
+      tick(world);
+      const start = signatureState(world, "b")!.chillExposureStartedAt;
+      const advanceWithContact = (to: number): void => {
+        while (world.state.serverTime < to) {
+          noteContact(world, "f", "b");
+          tick(world);
+        }
+      };
+
+      advanceWithContact(start + 1_000);
+      expect(P(world, "b").frostMoveMult).toBe(700);
+      advanceWithContact(start + 2_500);
+      expect(P(world, "b").frostMoveMult).toBe(850);
+      advanceWithContact(start + 4_000);
+      expect(P(world, "b").frostMoveMult).toBe(1_000);
+      expect(chillOf(world, "b")).toBeCloseTo(CHILL, 12);
+      expect(chilled(world, "b")).toBe(true);
+    });
+
+    it("restores the full movement slow after four seconds clear of Frost", () => {
+      const world = pair();
+      tick(world);
+      const start = signatureState(world, "b")!.chillExposureStartedAt;
+      const advanceWithContact = (to: number): void => {
+        while (world.state.serverTime < to) {
+          noteContact(world, "f", "b");
+          tick(world);
+        }
+      };
+
+      place(world, "b", 500, 300); // outside the 100-unit movement chill
+      advanceWithContact(start + CHILL_MOVE_RESET_MS + 50);
+      place(world, "b", 340, 300);
+      noteContact(world, "f", "b");
+      tick(world);
+      expect(P(world, "b").frostMoveMult).toBe(700);
     });
 
     it("beyond CHILL_MOVE_RADIUS it walks at full speed (it is still chilled)", () => {

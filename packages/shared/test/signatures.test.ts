@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BEATS, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damageFlash,
+  BEATS, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, CHILL_MOVE_HOLD_MS, CHILL_MOVE_THAW_MS, CHILL_MOVE_RESET_MS,
+  chillMultiplier, frostMoveMultiplier, damageFlash,
   DAMAGE_FLASH_FULL_SHARE, DAMAGE_FLASH_MIN_SHARE, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS,
   engageRange, FACTION_IDS, FACTIONS, factionEdge, executeDps, HEAL_LOCKOUT_SECONDS, isDot, markPct, markTierOf, markWeight, MATCHUP_FULL_RANGE,
   MATCHUP_RANGE, MARK_TIER_HITS, matchupScore, matchupTint, pacedFaction, plagueDps, taxedRate, TARGET_FORGET_SECONDS, WEAPON_IDS, WEAPONS,
@@ -24,6 +25,9 @@ describe("timing constants", () => {
     expect(DOT_FX_MS).toBe(500);
     expect(CHILL_MOVE_RADIUS).toBe(100);
     expect(CHILL_MOVE_MULT).toBe(0.7);
+    expect(CHILL_MOVE_HOLD_MS).toBe(1_000);
+    expect(CHILL_MOVE_THAW_MS).toBe(3_000);
+    expect(CHILL_MOVE_RESET_MS).toBe(4_000);
   });
 
   it("nest: the linger is shorter than the trade window, which is shorter than the forget time", () => {
@@ -34,6 +38,16 @@ describe("timing constants", () => {
   it("the chill's walking slow is milder than Frost's 0.4 cooldown slow (owner decision)", () => {
     expect(CHILL_MOVE_MULT).toBeGreaterThan(chillMultiplier(FACTIONS.frost));
     expect(CHILL_MOVE_MULT).toBeLessThan(1);
+  });
+});
+
+describe("Frost movement thaw", () => {
+  it("holds the first 30% slow for one second, then fades it to zero over three seconds", () => {
+    expect(frostMoveMultiplier(0)).toBe(0.7);
+    expect(frostMoveMultiplier(1_000)).toBe(0.7);
+    expect(frostMoveMultiplier(2_500)).toBeCloseTo(0.85, 12);
+    expect(frostMoveMultiplier(4_000)).toBe(1);
+    expect(frostMoveMultiplier(9_000)).toBe(1);
   });
 });
 

@@ -27,6 +27,16 @@ describe("champion guide matches the combat catalog", () => {
     expect(signatureGuide("plague").scaling).toContain(`${plagueDps(pacedFaction(FACTIONS.plague))} × weapon multiplier`);
     expect(signatureGuide("fire").scaling).toContain(`${AP_DOT_RATIO} × AP`);
     expect(signatureGuide("plague").details.join(" ")).toContain("no second AP rider");
+    expect(signatureGuide("plague").details.join(" ")).toContain("damage-over-time ticks cannot critically strike; auto attacks can");
+    expect(signatureGuide("plague").details.join(" ")).toContain("converts half its current crit chance into steady DoT damage");
+  });
+
+  it("explains Frost's movement slow and its thaw without implying the attack slow thaws", () => {
+    const guide = signatureGuide("frost");
+    expect(guide.scaling).toContain("for 1 s, fading over the next 3 s");
+    expect(guide.details.join(" ")).toContain("Repeated hits and switching between Frost fighters do not refresh it");
+    expect(guide.details.join(" ")).toContain("4 s clear of every Frost movement chill");
+    expect(guide.details.join(" ")).toContain("attack cooldown progresses at 48%");
   });
 
   it("explains the mark as weighted target-health damage, not an AD/AP spell or an unweighted hit", () => {

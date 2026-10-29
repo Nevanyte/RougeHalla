@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ABILITIES, AUGMENT_IDS, BASE_STAT_IDS, BASE_TITLES, baseCardId, baseCount, CARD_IDS, CARD_TIERS, cardBlock, cardDef, cardLive,
   cardOptionView, cardPower, CARDS, cardsOfKind, cardText, cardTierOf, cardTitle, CHEST_CONDITIONAL_CHANCE, CHEST_REFUSAL,
-  CHEST_REFUSALS, CHEST_TIER_ODDS, conditionalPool, CONDITIONAL_IDS, countIn, FACTIONS, FACTION_IDS, GLOSSARY, isCardId, isChestRefusal,
+  CHEST_REFUSALS, CHEST_TIER_ODDS, conditionalPool, CONDITIONAL_IDS, countIn, FACTIONS, FACTION_IDS, GLOSSARY, isCardId, isChestRefusal, cardRows,
   LIVE_CARD_READY, MECHANIC_TAGS, MOB_TYPES, mulberry32, needsRefusal, ownedCards, ownsBase, QUEST_DEFS, rollChestOptions,
   SIGNATURE_TAGS, tierRoman, TAG_GLOSSARY, WEAPON_TAGS, WEAPONS, whyOffered, isInteractiveAugment, rewardAugmentPool, ZONE_AUGMENT_THEMES,
   type CardCounts, type CardDef, type CardId, type CardTier,
@@ -163,6 +163,13 @@ describe("the catalog", () => {
     expect(cardText("bloodthirst")).toBe("While below 50% health, your lifesteal is doubled.");
     expect(cardTitle("nope")).toBe("");
     expect(cardText("nope")).toBe("");
+    expect(cardText("cruelWounds", "plague")).toContain("bonus damage equal to half your current critical strike chance");
+    expect(cardText("cruelWounds", "fire")).toBe(cardText("cruelWounds"));
+    expect(cardOptionView("cruelWounds", {}, "plague")?.text).toBe(cardText("cruelWounds", "plague"));
+    expect(cardRows("cruelWounds", "plague")).toEqual([
+      { k: "stat", stat: "critChance", v: 0.2 }, { k: "flag", flag: "plagueDotCritConversion" },
+    ]);
+    expect(cardRows("cruelWounds", "plague").some((row) => row.k === "flag" && row.flag === "dotCrit")).toBe(false);
   });
 });
 

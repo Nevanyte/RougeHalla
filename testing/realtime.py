@@ -51,6 +51,9 @@ V = 170.0      # move speed (u/s)
 REACH = 60.0   # melee reach
 CHILL_MOVE_RADIUS = 100.0  # shared/signatures.ts: Frost's move slow reaches only fighters it chills within this distance...
 CHILL_MOVE_MULT = 0.7      # ...and multiplies their move speed by this
+CHILL_MOVE_HOLD = 1.0      # ...for one second before it starts to thaw
+CHILL_MOVE_THAW = 3.0      # ...then fades linearly to full speed over three seconds
+CHILL_MOVE_RESET = CHILL_MOVE_HOLD + CHILL_MOVE_THAW  # ...after four seconds clear of all Frost movement chills
 
 # speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs);
 # windup/wshare: the attacker is rooted for min(windup, wshare x interval) seconds from the attack starting (the TS
@@ -366,11 +369,9 @@ def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=6
     windup at once and is rooted until the shot leaves; then it walks straight away at V until its cooldown (the interval,
     counted from the windup's start, which is where the TS sim sets readyAt) ends, and winds up again. Moving speed is the
     same on both sides, so the chaser closes only while the shooter is rooted. A Frost shooter chills the chaser once it has
-    engaged it (from the first shot leaving; arrow flight ignored, the conservative way): the chaser then walks at
-    CHILL_MOVE_MULT x V while within CHILL_MOVE_RADIUS of the shooter, so the gap regrows to the radius after every shot
-    and the chaser must cover the last (radius - REACH) / (CHILL_MOVE_MULT x V) = 0.336 s worth inside ONE windup: a Frost
-    shooter whose windup is shorter than that (and under 0.3 x its interval) keeps it out of reach for good (inf). The
-    cooldown chill on a chaser does not matter here.
+    engaged it (from the first shot leaving; arrow flight ignored, the conservative way): the chaser then walks more slowly
+    within CHILL_MOVE_RADIUS for one second before the slow thaws over three seconds. Repeated attacks do not refresh it,
+    so continuous contact cannot keep the chaser permanently outside reach. The cooldown chill on a chaser does not matter here.
 
     A Frost CHASER's chill on the shooter is NOT applied (`winner_name` is accepted so a caller can name the pair, and is
     unused on purpose): `kite_tolerance` starts the winner's fx clock at its arrival, so the chill is not yet running during
@@ -387,12 +388,27 @@ def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=6
     wu = min(windup(spec, ranged, as_mult, windup_mult), iv)
     frost = spec.aura == "wall_of_ice"
     gap = rng
+    chill_started = None
+    chill_last_near = float("-inf")
     for k in range(int(round(t_max / DT))):
         t = k * DT
         phase = t - math.floor((t + EPS) / iv) * iv
         rooted = phase < wu - EPS
         engaged = t + EPS >= wu
-        vc = V * CHILL_MOVE_MULT if frost and engaged and gap <= CHILL_MOVE_RADIUS else V
+        chilled_nearby = frost and engaged and gap <= CHILL_MOVE_RADIUS
+        if chilled_nearby:
+            if chill_started is None or t - chill_last_near >= CHILL_MOVE_RESET:
+                chill_started = t
+            chill_last_near = t
+            exposure = t - chill_started
+            thaw = min(1.0, max(0.0, (exposure - CHILL_MOVE_HOLD) / CHILL_MOVE_THAW))
+            chill_mult = CHILL_MOVE_MULT + (1.0 - CHILL_MOVE_MULT) * thaw
+        else:
+            if t - chill_last_near >= CHILL_MOVE_RESET:
+                chill_started = None
+                chill_last_near = float("-inf")
+            chill_mult = 1.0
+        vc = V * chill_mult
         vs = 0.0 if rooted or stand else V
         nxt = gap - (vc - vs) * DT
         if nxt <= REACH:

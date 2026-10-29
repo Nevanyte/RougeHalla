@@ -66,17 +66,19 @@ export function signatureGuide(id: FactionId): GuideAbility {
         `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × AP, per second.`,
         `Extra execute damage/s = ${guideNumber(p.execute!)} × max(0, ${guideNumber(EXECUTE_BAND)} − enemy current-health fraction) × your weapon's damage multiplier. At ${pct(EXECUTE_BAND / 2)} enemy health, this adds ${guideNumber(p.execute! * EXECUTE_BAND / 2)} × weapon multiplier per second.`,
         "Disease and execute deal magic damage. AP is added once to the disease; the execute has no second AP rider. AD does not directly increase the signature.",
+        "Plague's disease and execute damage-over-time ticks cannot critically strike; auto attacks can. With Cruel Wounds, Plague gets +20% auto-attack crit chance and converts half its current crit chance into steady DoT damage instead of DoT crits.",
         `The signature requires an active trade in weapon reach and line of sight, with ${guideNumber(ENGAGE_LINGER_SECONDS)} s of base reach linger. Sentenced's final mark tier can deny the execute part.`,
       ],
     };
     case "frost": return {
       ...base, name: "Wall of Ice",
-      summary: "Slow the attacks of enemies trading with you. Enemies close enough are also slowed when moving.",
-      scaling: `${pct(p.slow!)} attack slow; ${pct(1 - CHILL_MOVE_MULT)} movement slow within ${CHILL_MOVE_RADIUS} units. Control strength is fixed rather than scaling with AD or AP.`,
+      summary: "Slow the attacks of enemies trading with you. Nearby enemies are slowed briefly, then thaw and regain their movement.",
+      scaling: `${pct(p.slow!)} attack slow; up to ${pct(1 - CHILL_MOVE_MULT)} movement slow within ${CHILL_MOVE_RADIUS} units for 1 s, fading over the next 3 s. Control strength is fixed rather than scaling with AD or AP.`,
       tags: [{ kind: "fixed", label: "Fixed control" }, { kind: "defense", label: "Durability · stay in reach" }],
       details: [
         `An engaged enemy's attack cooldown progresses at ${pct(1 - p.slow!)} of its usual pace.`,
-        `Movement speed is multiplied by ${guideNumber(CHILL_MOVE_MULT)} within ${CHILL_MOVE_RADIUS} units of the Frost fighter chilling it.`,
+        `Within ${CHILL_MOVE_RADIUS} units, movement is slowed by up to ${pct(1 - CHILL_MOVE_MULT)} for 1 s, then the slow fades linearly to zero over 3 s even if the enemy stays nearby.`,
+        "Leaving the chill radius removes the movement slow while away. Repeated hits and switching between Frost fighters do not refresh it; 4 s clear of every Frost movement chill restores its full strength.",
         `Engagement uses the held weapon's reach and line of sight, with ${guideNumber(ENGAGE_LINGER_SECONDS)} s of base reach linger. One distant tag does not keep the aura running forever.`,
         "Health, armor and magic resist let you hold your ground longer; they do not increase the base slow. Your weapon still has its own damage scaling.",
       ],

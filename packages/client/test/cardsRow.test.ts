@@ -129,6 +129,13 @@ describe("cardTip", () => {
     expect(cardTip(cardDef("haste2")!, 2).split("\n")[0]).toBe("Haste II (Base, tier II, x2)");
   });
 
+  it("shows the faction-specific Plague Cruel Wounds rule in the owned-card tooltip", () => {
+    const tip = cardTip(cardDef("cruelWounds")!, 1, undefined, "plague");
+    expect(tip).toContain("+20% critical strike chance");
+    expect(tip).toContain("bonus damage equal to half your current critical strike chance");
+    expect(tip).toContain("cannot crit");
+  });
+
   it("says when a card's machinery is not in yet (a phase b card), and says nothing for a live one", () => {
     const waiting = { ...cardDef("rhythm")!, ready: "b" as const };
     expect(cardTip(waiting, 1).split("\n").at(-1)).toBe("Not live yet: it does nothing.");

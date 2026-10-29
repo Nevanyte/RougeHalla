@@ -17,7 +17,7 @@
 //   flag        a yes/no rule (the second weapon slot is locked; a fighter's hits never critically strike) and, since the balance
 //               pass's phase B, the rules that need machinery rather than a number: sim/cardHooks.ts, sim/onHit.ts and the weapon,
 //               melee and ledger code read them (`dotCrit`, `gambler`, `thirdCharm`, `eyeForAnEye`, `twiceUnarmed`, `blockHits`,
-//               `plantFeet`, `festering`, and the mark's five: `heavierSentence`, `swiftJudgment`, `gallowsPatience`, `noCommutation`,
+//               `plantFeet`, `festering`, Plague's `plagueDotCritConversion`, and the mark's five: `heavierSentence`, `swiftJudgment`, `gallowsPatience`, `noCommutation`,
 //               `finalVerdict`).
 // Every row may carry `requires`: it is active only while the fighter owns every one of those ids (a synergy).
 // Numbers: `v` on a stat row is a fraction (0.1 = +10%, -0.08 = -8%); on a flat row and on a `while` row whose stat is
@@ -142,6 +142,7 @@ export const MULT_KEYS: readonly MultKey[] = ["asPost", "hit", "dot", "returned"
  * The yes/no rules a `flag` row sets.
  *   lockSecondSlot, noCrit   the second weapon slot is locked (Committed); the fighter's hits never critically strike (Thick Skull)
  *   dotCrit        its damage over time can critically strike (Cruel Wounds; the chance is the fighter's `critChance`)
+ *   plagueDotCritConversion  Plague turns Cruel Wounds' expected DoT crit bonus into steady damage instead of DoT crits
  *   gambler        each of its hits rolls double or half damage (Gambler)
  *   thirdCharm     every 3rd hit in a row on one target applies its on-hit effects once more (Third Time's the Charm)
  *   eyeForAnEye    the damage it returns to attackers applies its on-hit effects (Eye for an Eye)
@@ -156,10 +157,10 @@ export const MULT_KEYS: readonly MultKey[] = ["asPost", "hit", "dot", "returned"
  *   finalVerdict     an execute its mark blocks is paid back to the attacker as true damage (Final Verdict)
  */
 export type EffectFlag =
-  | "lockSecondSlot" | "noCrit" | "dotCrit" | "gambler" | "thirdCharm" | "eyeForAnEye" | "twiceUnarmed" | "blockHits" | "plantFeet" | "festering"
+  | "lockSecondSlot" | "noCrit" | "dotCrit" | "plagueDotCritConversion" | "gambler" | "thirdCharm" | "eyeForAnEye" | "twiceUnarmed" | "blockHits" | "plantFeet" | "festering"
   | "heavierSentence" | "swiftJudgment" | "gallowsPatience" | "noCommutation" | "finalVerdict";
 export const EFFECT_FLAGS: readonly EffectFlag[] = [
-  "lockSecondSlot", "noCrit", "dotCrit", "gambler", "thirdCharm", "eyeForAnEye", "twiceUnarmed", "blockHits", "plantFeet", "festering",
+  "lockSecondSlot", "noCrit", "dotCrit", "plagueDotCritConversion", "gambler", "thirdCharm", "eyeForAnEye", "twiceUnarmed", "blockHits", "plantFeet", "festering",
   "heavierSentence", "swiftJudgment", "gallowsPatience", "noCommutation", "finalVerdict",
 ];
 

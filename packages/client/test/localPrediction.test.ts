@@ -80,6 +80,13 @@ describe("walk speed", () => {
     expect(p.speedMult(0, chilled, [])).toBe(1);
   });
 
+  it("uses the synced thaw multiplier as the source of truth for prediction", () => {
+    const wire = encodeMult(0.85);
+    expect(p.speedMult(0, fighter({ frostMoveMult: wire }), [])).toBe(decodeMult(wire));
+    expect(p.speedMult(0, fighter({ sig: SIG_CHILLED, frostMoveMult: 1000 }), [other()])).toBe(1);
+    expect(p.speedMult(0, fighter({ frostMoveMult: wire }), [other({ faction: "fire" })])).toBe(decodeMult(wire));
+  });
+
   it("Fleet: the walk is the mirror through the pause after a shot, which the server writes as 1.06 -> 1 -> 1.06 (Fleet I)", () => {
     // Owner ruling "No boost while shooting": the server turns the bonus off while a bow or wand attack winds up and for
     // SWIFT_BOOTS_PAUSE_MS after the shot, by patching `speedMult` (sim/mods.ts `notShooting`). The client knows no rule of its own:

@@ -3,7 +3,7 @@
 // client reads the same helpers to word the cards. Tier odds remain normal 50/45/5 and elite 10/60/30.
 import { CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
 import {
-  BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, cardBlock, cardDef, cardLive, cardsOfKind, countIn, ownsBase, whyOffered, isInteractiveAugment,
+  BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, cardBlock, cardDef, cardLive, cardText, cardsOfKind, countIn, ownsBase, whyOffered, isInteractiveAugment,
   type BaseStatId, type CardCounts, type CardDef, type CardId, type CardKind, type CardTier, type MechanicTag, type WhyOffered,
 } from "./cards";
 import type { Rng } from "./rng";
@@ -145,11 +145,11 @@ export interface CardOptionView {
 }
 
 /** A synced option id seen by a picker with this build; null for an id the catalog does not know. */
-export function cardOptionView(id: string, build: CardCounts | null | undefined): CardOptionView | null {
+export function cardOptionView(id: string, build: CardCounts | null | undefined, faction?: string): CardOptionView | null {
   const def = cardDef(id);
   if (!def) return null;
   const view: CardOptionView = {
-    id: def.id, title: def.title, tier: def.tier, kind: def.kind, text: def.text, tags: def.tags,
+    id: def.id, title: def.title, tier: def.tier, kind: def.kind, text: cardText(id, faction), tags: def.tags,
     why: whyOffered(id, build)!, blocked: cardBlock(id, build), held: countIn(build, id),
   };
   if (def.base) view.base = def.base;
