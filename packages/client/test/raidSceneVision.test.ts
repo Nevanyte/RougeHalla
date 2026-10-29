@@ -27,7 +27,7 @@ function rig() {
   Object.assign(scene, {
     room:{state,sessionId:"me"},mapView:{map,setGatesLocked:noop},
     vision:new RaidVision(),fog:{update:noop},campWards:view,edgeThreats:view,campTimers:view,
-    minimap:{setGatesLocked:noop,setMobs:vi.fn(),setChests:noop,setQuests:noop,setCampStates:noop,update:noop},
+    minimap:{setGatesLocked:noop,setMobs:vi.fn(),setEnemies:vi.fn(),setVision:vi.fn(),setCampTimers:vi.fn(),setChests:noop,setQuests:noop,setCampStates:noop,update:noop},
     input:{activePointer:{rightButtonDown:()=>false}},
     interp:{renderTime:()=>now,clock:{synced:true,now:()=>now}},juice:{worldTime:(t:number)=>t},
     stepLocal:noop,localSource:()=>"snapshot",
@@ -46,6 +46,8 @@ describe("RaidScene vision integration", () => {
     const {scene,me,frame} = rig(); frame(1000);
     const enemyView = scene.views.get("foe"), mobView = scene.mobViews.get("mob");
     expect(enemyView).toBeDefined(); expect(mobView).toBeDefined();
+    expect(scene.minimap.setEnemies).toHaveBeenLastCalledWith([{ x: 1100, y: 400 }]);
+    expect(scene.minimap.setVision).toHaveBeenLastCalledWith(scene.vision.canSee);
     me.x=3700; frame(1100);
     expect(scene.views.get("foe")).toBe(enemyView);
     frame(120999); expect(scene.rendered.has("foe")).toBe(true);
@@ -53,6 +55,7 @@ describe("RaidScene vision integration", () => {
     expect(enemyView.destroy).toHaveBeenCalledOnce(); expect(mobView.destroy).toHaveBeenCalledOnce();
     expect(scene.rendered.has("foe")).toBe(false); expect(scene.rendered.has("mob")).toBe(false);
     expect(scene.visiblePosition("foe")).toBeUndefined(); expect(scene.targetCandidates()).toEqual([]);
+    expect(scene.minimap.setEnemies).toHaveBeenLastCalledWith([]);
     const mobs = scene.minimap.setMobs.mock.lastCall[0], ids: string[] = [];
     mobs.forEach((_mob:any,id:string)=>ids.push(id)); expect(ids).toEqual([]);
     expect(scene.rendered.has("me")).toBe(true);
@@ -63,12 +66,15 @@ describe("RaidScene vision integration", () => {
     foe.effects=EFFECT_HIDDEN; frame(1100);
     expect(old.destroy).toHaveBeenCalledOnce(); expect(scene.views.has("foe")).toBe(false);
     expect(scene.visiblePosition("foe")).toBeUndefined();
+    expect(scene.minimap.setEnemies).toHaveBeenLastCalledWith([]);
     foe.effects=0; frame(1200);
     expect(scene.views.get("foe")).toBeDefined(); expect(scene.views.get("foe")).not.toBe(old);
+    expect(scene.minimap.setEnemies).toHaveBeenLastCalledWith([{ x: 1100, y: 400 }]);
   });
   it("keeps lobby and training actors available while raid fog is disabled", () => {
     const {scene,state,foe,frame} = rig(); foe.x=4000;state.phase="lobby";frame(1000);
     expect(scene.views.has("foe")).toBe(true);
+    expect(scene.minimap.setVision).toHaveBeenLastCalledWith(null);
     state.phase="active";state.training=true;frame(1100);
     expect(scene.views.has("foe")).toBe(true);
     state.training=false;frame(1200); expect(scene.views.has("foe")).toBe(false);

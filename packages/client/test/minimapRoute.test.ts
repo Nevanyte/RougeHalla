@@ -83,7 +83,7 @@ describe("the route", () => {
     paint();
     expect(argsOf(ctx, "setLineDash").some(([d]) => (d as number[]).length === 2)).toBe(true);
     // The recorder's own seed (1), then the faint route's opacity, then back.
-    expect(argsOf(ctx, "globalAlpha=").map(([a]) => a)).toEqual([1, 0.6, 1]);
+    expect(argsOf(ctx, "globalAlpha=").map(([a]) => a)).toEqual([1, 0.85, 1]);
     const arcs = argsOf(ctx, "arc");
     expect(arcs).toHaveLength(2);
     expect(arcs[0]![2] as number).toBeGreaterThan(arcs[1]![2] as number);

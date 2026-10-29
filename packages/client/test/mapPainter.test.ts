@@ -215,6 +215,34 @@ function trackCanvases(): FakeEl[] {
   return made;
 }
 
+describe("quiet tactical terrain", () => {
+  it("keeps wall geometry while lowering terrain and region opacity", () => {
+    const standard = rec(), tactical = rec();
+    paintMapBase(ctxOf(standard), handMap(), BACKING, BACKING, K);
+    paintMapBase(ctxOf(tactical), handMap(), BACKING, BACKING, K, { subdued: true });
+    expect(argsOf(tactical, "fillRect")).toEqual(argsOf(standard, "fillRect"));
+    expect(argsOf(tactical, "fillStyle=").map(([c]) => c)).toContain("#111a22");
+    const regions = argsOf(tactical, "fillStyle=").map(([c]) => String(c)).filter((c) => c.startsWith("rgba("));
+    expect(regions.length).toBeGreaterThan(0);
+    expect(regions.every((c) => c.endsWith("0.075)"))).toBe(true);
+    expect(argsOf(tactical, "globalAlpha=").map(([v]) => v)).toContain(0.3);
+    expect(names(tactical).at(-1)).toBe("restore");
+  });
+
+  it("retains zone patterns with thinner, much fainter strokes", () => {
+    installFakeDom();
+    const made = trackCanvases();
+    const g = rec();
+    makePatternTile("fire", 8, ctxOf(g));
+    makePatternTile("fire", 8, ctxOf(g), true);
+    const standard = made[0]!.getContext() as FakeObject;
+    const tactical = made[1]!.getContext() as FakeObject;
+    expect(argsOf(tactical, "lineWidth=")[0]![0]).toBeLessThan(argsOf(standard, "lineWidth=")[0]![0] as number);
+    expect(String(argsOf(tactical, "strokeStyle=")[0]![0])).toContain("0.12)");
+    expect(argsOf(tactical, "moveTo")).toEqual(argsOf(standard, "moveTo"));
+  });
+});
+
 describe("zone identity without hue", () => {
   it("gives each of the five zones its own pattern and its own shape", () => {
     expect(new Set(FACTION_IDS.map((z) => ZONE_PATTERN[z])).size).toBe(5);
