@@ -56,8 +56,9 @@ export class CampBuffs {
       badge.root.setVisible(true);
       const center = live.reduce((sum, mob) => ({ x: sum.x + mob.x / live.length, y: sum.y + mob.y / live.length }), { x: 0, y: 0 });
       const highestY = Math.min(...live.map(mob => mob.y));
-      // Keep the icon close to the group's center instead of floating far above its highest member.
-      badge.root.setPosition(projX(center.x), projY(center.y) - 40);
+      // Clear the group's highest name (or elite star), rather than letting the badge fall between its members.
+      const badgeY = Math.min(...live.map(mob => projY(mob.y) - (mob.kind === "elite" ? 90 : 72)));
+      badge.root.setPosition(projX(center.x), badgeY);
       badge.root.setDepth(highestY - 1);
       badge.root.setName(wording.replaceAll("\n", "; "));
     }
