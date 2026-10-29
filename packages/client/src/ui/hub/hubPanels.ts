@@ -6,22 +6,26 @@ import { ShopRequestError, equipCosmetic, fetchProfile, formatNumber, purchaseCo
 import { el, uiRoot } from "../dom";
 import { AchievementsPanel } from "./achievementsPanel";
 import { CounterWheel } from "./counterWheel";
+import { ChampionsPanel } from "./championsPanel";
 import { LeaderboardPanel } from "./leaderboardPanel";
 import { ShopPanel } from "./shopPanel";
 import { TitlesPanel } from "./titlesPanel";
 import { WardrobePanel } from "./wardrobePanel";
 
-export type HubTabId = "shop" | "wardrobe" | "titles" | "achievements" | "leaderboard" | "counters";
+export type HubTabId = "champions" | "shop" | "wardrobe" | "titles" | "achievements" | "leaderboard" | "counters";
+export interface HubPanelContext { shiftKey?: boolean }
 
 /** One tab's contents. Panels build their DOM once and `render` only updates it, so focus and scroll survive a purchase. */
 export interface HubPanel {
   /** The tab label. */
   readonly title: string;
   readonly root: HTMLElement;
+  /** Public reference panels can be read before a callsign is loaded. */
+  readonly requiresProfile?: boolean;
   /** Called with the latest profile whenever the hub is opened or the profile changes while it is open. */
   render(profile: ProfileDTO): void;
   /** The tab became visible / hidden (switching tabs, closing the hub). */
-  onShow?(): void;
+  onShow?(context?: HubPanelContext): void;
   onHide?(): void;
 }
 
@@ -39,6 +43,7 @@ export interface HubActions {
 export interface HubHandlers {
   /** The server sent back a newer profile (after a purchase or equip); the menu refreshes its balance from it. */
   onProfile(profile: ProfileDTO): void;
+  onFactionPick?(id: FactionId): void;
 }
 
 interface Tab {
@@ -60,6 +65,7 @@ export class HubPanels {
   private readonly body = el("div", "hub-body");
   private readonly tabs: Tab[] = [];
   private readonly wheel = new CounterWheel();
+  private readonly champions: ChampionsPanel;
   /** The faction the menu has picked; the Counters tab shows it whenever it is opened. */
   private pick: { faction: FactionId | null } = { faction: null };
   private active: Tab | null = null;
@@ -74,6 +80,7 @@ export class HubPanels {
   private shown = 0;
 
   constructor(private readonly handlers: HubHandlers) {
+    this.champions = new ChampionsPanel({ onPick: id => handlers.onFactionPick?.(id) });
     const actions: HubActions = {
       purchase: (id) => this.act((name) => purchaseCosmetic(name, id)),
       equip: (slot, id) => this.act((name) => equipCosmetic(name, slot, id)),
@@ -93,12 +100,13 @@ export class HubPanels {
     this.tabBar.addEventListener("keydown", (e) => this.onTabKey(e));
     this.root.setAttribute("role", "dialog");
     this.root.setAttribute("aria-modal", "true");
-    this.root.setAttribute("aria-label", "Cosmetics and achievements");
+    this.root.setAttribute("aria-label", "Champions and player hub");
     this.root.append(head, this.tabBar, this.body);
     this.backdrop.append(this.root);
     // mousedown, not click: dragging a text selection out of the panel would otherwise end in a click on the backdrop.
     this.backdrop.addEventListener("mousedown", (e) => { if (e.target === this.backdrop) this.close(); });
 
+    this.register("champions", this.champions);
     this.register("shop", new ShopPanel(actions));
     this.register("wardrobe", new WardrobePanel(actions));
     this.register("titles", new TitlesPanel(actions));
@@ -116,17 +124,20 @@ export class HubPanels {
   setPick(pick: { faction: FactionId | null }): void {
     this.pick = { faction: pick.faction };
     this.wheel.setPick(this.pick);
+    this.champions.setPick(this.pick);
   }
 
   /** Adds a tab (the built-in ones are added by the constructor); works before and while the hub is open. */
   register(id: string, panel: HubPanel): void {
     const button = el("button", "hub-tab-btn", panel.title);
+    button.type = "button";
+    button.disabled = !this.profile && panel.requiresProfile !== false;
     button.id = `hub-tab-${id}`;
     button.setAttribute("role", "tab");
     button.setAttribute("aria-selected", "false");
     button.setAttribute("aria-controls", `hub-pane-${id}`);
     button.tabIndex = -1;
-    button.addEventListener("click", () => this.show(id));
+    button.addEventListener("click", event => this.show(id, false, { shiftKey: event.shiftKey }));
 
     const pane = el("div", "hub-pane");
     pane.id = `hub-pane-${id}`;
@@ -141,21 +152,24 @@ export class HubPanels {
     if (this.opened && this.profile) this.renderPanel(this.tabs[this.tabs.length - 1]!, this.profile);
   }
 
-  /** The loaded profile, or null when none is (the hub then closes and refuses to open). */
+  /** The loaded profile. Account tabs require one; the champion reference remains available without it. */
   setProfile(profile: ProfileDTO | null): void {
     if (!profile) {
       this.generation++;
       this.profile = null;
+      this.syncAvailability();
       this.close();
       return;
     }
     if (this.profile && this.profile.name !== profile.name) this.generation++;
     this.profile = profile;
+    this.syncAvailability();
     if (this.opened) this.renderAll();
   }
 
-  open(tab: HubTabId = "shop"): void {
-    if (!this.profile) return;
+  open(tab: HubTabId = "champions", context?: HubPanelContext): void {
+    const target = this.tabs.find(t => t.id === tab);
+    if (!target || !this.profile && target.panel.requiresProfile !== false) return;
     if (!this.opened) {
       this.opened = true;
       this.returnFocus = document.activeElement;
@@ -163,7 +177,7 @@ export class HubPanels {
       document.addEventListener("keydown", this.onKeyDown, true);
       this.renderAll();
     }
-    this.show(tab, true);
+    this.show(tab, true, context);
   }
 
   close(): void {
@@ -221,9 +235,11 @@ export class HubPanels {
 
   private renderAll(): void {
     const profile = this.profile;
+    this.syncAvailability();
+    this.whoName.textContent = profile?.name ?? "Champion guide";
+    this.balance.hidden = !profile;
+    this.balance.textContent = profile ? `${formatNumber(profile.gv)} GV` : "";
     if (!profile) return;
-    this.whoName.textContent = profile.name;
-    this.balance.textContent = `${formatNumber(profile.gv)} GV`;
     for (const t of this.tabs) this.renderPanel(t, profile);
   }
 
@@ -236,8 +252,12 @@ export class HubPanels {
     }
   }
 
-  private show(id: string, focus = false): void {
-    const next = this.tabs.find((t) => t.id === id) ?? this.tabs[0];
+  private syncAvailability(): void {
+    for (const tab of this.tabs) tab.button.disabled = !this.profile && tab.panel.requiresProfile !== false;
+  }
+
+  private show(id: string, focus = false, context?: HubPanelContext): void {
+    const next = this.tabs.find((t) => t.id === id && !t.button.disabled);
     if (!next) return;
     if (this.active !== next) {
       const prev = this.active;
@@ -252,22 +272,23 @@ export class HubPanels {
       next.button.setAttribute("aria-selected", "true");
       next.button.tabIndex = 0;
       this.body.scrollTop = 0;
-      next.panel.onShow?.();
+      next.panel.onShow?.(context);
     }
     if (focus) next.button.focus({ preventScroll: true });
   }
 
   private onTabKey(e: KeyboardEvent): void {
-    const at = this.tabs.findIndex((t) => t === this.active);
+    const tabs = this.tabs.filter(t => !t.button.disabled);
+    const at = tabs.findIndex((t) => t === this.active);
     if (at < 0) return;
     let to = at;
-    if (e.key === "ArrowRight") to = (at + 1) % this.tabs.length;
-    else if (e.key === "ArrowLeft") to = (at - 1 + this.tabs.length) % this.tabs.length;
+    if (e.key === "ArrowRight") to = (at + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") to = (at - 1 + tabs.length) % tabs.length;
     else if (e.key === "Home") to = 0;
-    else if (e.key === "End") to = this.tabs.length - 1;
+    else if (e.key === "End") to = tabs.length - 1;
     else return;
     e.preventDefault();
-    this.show(this.tabs[to]!.id, true);
+    this.show(tabs[to]!.id, true, { shiftKey: e.shiftKey });
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {

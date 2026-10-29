@@ -3,20 +3,12 @@
 // to ask for. A faction is asked for only after a deliberate pick, which is remembered on this device; until then
 // `selected` is null and the join carries none (the server hands out its own default, and the run counts for no
 // faction's titles).
-import { BEATS, FACTIONS, FACTION_IDS, isFactionId, wishOf, type FactionId } from "@raid/shared";
+import { BEATS, FACTIONS, FACTION_IDS, isFactionId, type FactionId } from "@raid/shared";
 import { cssColor, el } from "./dom";
+import { championGuide } from "./hub/championGuide";
 
 const PICK_KEY = "raid.faction";
 const NO_PICK_HINT = "No pick yet: the server will assign one";
-
-/** Player-facing signature summaries (GAME_DESIGN 8.3). A Record, so a sixth faction cannot be added without one. */
-const SIGNATURES: Readonly<Record<FactionId, { name: string; text: string }>> = {
-  fire: { name: "Dragonslayer", text: "Burns its target and hits back hard on every swing the target makes. Punishes fast attackers." },
-  sentenced: { name: "Mark", text: "Each landed hit deals a share of the target's max health. Hits and weapon swaps raise four tiers: attack-speed tax, damage suppression, then execute protection. Hitting one camp member marks its whole group. Sentenced mobs mark players too." },
-  plague: { name: "Rat King", text: "Steady disease damage that turns into an execute once the target is under half health." },
-  frost: { name: "Wall of Ice", text: "Anyone fighting it attacks slower, and moves slower up close." },
-  holy: { name: "Radiant", text: "Heals from the damage it deals, more the lower its own health." },
-};
 
 function relatedTo(id: FactionId, side: 0 | 1): FactionId[] {
   return BEATS.filter((pair) => pair[side] === id).map((pair) => pair[1 - side]!);
@@ -86,7 +78,7 @@ export class FactionPicker {
     const title = el("div", "faction-title");
     const titleText = el("span", undefined, "Faction");
     titleText.id = `${this.ids}-title`;
-    const note = el("span", "faction-title-note", "Your starting weapon follows your pick");
+    const note = el("span", "faction-title-note", "A passive signature + an active Wish");
     note.id = this.noteId;
     title.append(titleText, note);
     this.hint.id = this.hintId;
@@ -116,7 +108,8 @@ export class FactionPicker {
 
   private buildCard(id: FactionId): HTMLButtonElement {
     const spec = FACTIONS[id];
-    const sig = SIGNATURES[id];
+    const guide = championGuide(id);
+    const sig = guide.passive;
     const card = el("button", "faction-card");
     card.type = "button";
     card.setAttribute("role", "radio");
@@ -135,11 +128,12 @@ export class FactionPicker {
     head.append(nameEl, roleEl);
 
     const signature = part(el("span", "faction-sig"), "sig");
-    signature.append(el("b", undefined, `${sig.name}. `), sig.text);
+    signature.append(el("b", undefined, `${sig.name}. `), sig.summary);
     // The faction's Wish (key D in a run): styled like the signature line above it.
-    const wishDef = wishOf(id);
+    const wishDef = guide.wish.def;
     const wish = part(el("span", "faction-sig"), "wish");
-    if (wishDef) wish.append(el("b", undefined, `Wish: ${wishDef.name}`), ` — ${wishDef.blurb}`);
+    wish.append(el("b", undefined, `Wish: ${wishDef.name}`), ` — ${guide.wish.summary}`);
+    const scaling = part(el("span", "faction-scaling", `Scaling: ${sig.tags.map(tag => tag.label).join(" · ")}. Wish base values are fixed.`), "scaling");
 
     const beats = part(el("span"), "beats");
     beats.append(el("span", "faction-beats", "Beats"), ` ${names(relatedTo(id, 0))}`);
@@ -153,10 +147,11 @@ export class FactionPicker {
     const detail = el("span", "faction-detail");
     detail.append(signature);
     if (wishDef) detail.append(wish);
+    detail.append(scaling);
     detail.append(edge);
     card.append(head, detail);
     card.setAttribute("aria-labelledby", nameEl.id);
-    card.setAttribute("aria-describedby", [roleEl, signature, ...(wishDef ? [wish] : []), beats, loses].map((n) => n.id).join(" "));
+    card.setAttribute("aria-describedby", [roleEl, signature, wish, scaling, beats, loses].map((n) => n.id).join(" "));
     card.addEventListener("click", () => this.select(id));
     return card;
   }
