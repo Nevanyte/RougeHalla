@@ -1,7 +1,7 @@
 // Feeds the unchanged MobHunter (../mobHunt) from a percept and the memory, as docs/BOTS.md 3.6 says. One adapter per bot: it
 // holds the hunter (its engagement, bans and retreat timers) and its per-bot MobHuntConfig. The strategy turns the answer into
 // a candidate goal: `mob` is a farm, `retreat` a flee, `player` no mob candidate this think.
-import { isRegionalKind, MOB_TYPES, mobFaction, mobTypeFaction, type FactionId, type Vec2 } from "@raid/shared";
+import { isRegionalKind, MOB_TYPES, mobFaction, mobTypeById, mobTypeFaction, type FactionId, type Vec2 } from "@raid/shared";
 import {
   MOB_HUNT, MobHunter, type HuntDecision, type HuntInput, type MobHuntConfig, type MobHuntStats, type MobLike,
 } from "../mobHunt";
@@ -69,7 +69,7 @@ export function mobLikeOf(m: Readonly<MobMemory>): MobLike | null {
   if (!isRegionalKind(m.kind)) return null;
   const maxHp = mobMaxHp(m.faction, m.kind === "elite", m.name);
   return {
-    kind: m.kind, status: m.alive ? "alive" : "dead", x: m.pos.x, y: m.pos.y, hp: m.hpFrac * maxHp, maxHp,
+    kind: m.kind, type: m.type ? mobTypeById(m.type)?.id : undefined, status: m.alive ? "alive" : "dead", x: m.pos.x, y: m.pos.y, hp: m.hpFrac * maxHp, maxHp,
     faction: m.faction ?? "", weapon0: m.inHand ?? "",
   };
 }
@@ -131,7 +131,7 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
       now: p.now,
       self: {
         faction: me.faction, x: me.x, y: me.y, hp: me.hp, maxHp: me.maxHp, weapons: me.weapons,
-        power: me.power, mobKills: me.mobKills,
+        power: me.power, mobKills: me.mobKills, mobStats: me.mobStats,
       },
       playerDistance: nearest,
       players,

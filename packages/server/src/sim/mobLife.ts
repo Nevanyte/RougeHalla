@@ -16,7 +16,7 @@
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
 //     below 0), stamps lastHitAt, tells the AI who hit it (aggro) and, when the hp is gone, kills it. Returns the hp removed.
 //   - Camps (sim/camps.ts): the first damage to a member engages its camp (CampState.state 1), and the death of its last
-//     member clears it (2) and, after the pass, drops its shared chest (sim/chests.ts). Its full roster returns after 3 min.
+//     member clears it (2) and pays the camp heal after the pass. Elite deaths alone drop chests. Its full roster returns after 3 min.
 //   - killMob: status "dead", brain.diedAt = now, input queue and path cleared, a `death` fx (by = the killer's id). The
 //     killer is the player who did it the most damage over the whole fight (brain.threat: what each did since it last
 //     rested, plus this pass's hits; an exact tie goes to the lower tick rank) among players still in the run with no
@@ -30,7 +30,7 @@
 //          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing. The weapons of every mob a
 //          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
 //       3. the chainable mobKilled hook (quest objectives).
-//     A kill gives no stat (the per-kill buffs went with the balance pass): power comes from the camps' chests and quests only.
+//     A credited normal kill grants one fixed, capped mob-type stat stack; elites grant no stat and drop an augment chest.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
@@ -44,7 +44,9 @@ import { noteCampContributors } from "./campHeal";
 import { combatant, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
+import { grantMobStat } from "./mobStats";
 import { dropWeapon } from "./loot";
+import { snapshotElitePickers } from "./chests";
 import { aggro, newBrain, resetMob, wakeMatesOnKill } from "./mobAI";
 import { addMob } from "./mobs";
 import { cancelAction, weaponChanged } from "./weapons";
@@ -188,6 +190,8 @@ export function killMob(
   const m = kp && krt ? mobRewardFor(world, kp, krt) : 1;
 
   c.s.status = "dead";
+  const { elite: killedElite } = brain;
+  if (killedElite) snapshotElitePickers(world, c.s.camp - 1);
   campMobDied(world, c.s.camp, killer);
   c.s.hp = 0;
   brain.diedAt = world.state.serverTime;
@@ -248,8 +252,9 @@ function payMobKill(
     return;
   }
   creditMobKill(world, p, rt, elite, m);
+  if (!elite) grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, type);
   settleWeapons(world, killerId);
-  world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite });
+  world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite, at });
 }
 
 /** A weapon a killed mob carried, waiting for its killer's pay-out. */

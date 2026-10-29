@@ -209,7 +209,7 @@ describe("quest lifecycle", () => {
 
     slay(world, id);
 
-    expect(payload).toEqual({ type, zone: "fire", camp: 0, elite: false });
+    expect(payload).toEqual({ type, zone: "fire", camp: 0, elite: false, at: { x: 18 * TILE, y: 18 * TILE } });
     expect(qt.s.progress.get("p0")).toBe(1);
   });
 });
@@ -229,7 +229,7 @@ describe("the mobKilled payload", () => {
 
     slay(world, placeMob(world, { region: "frost", elite: true, type, camp: 7, at: AT }));
 
-    expect(seen).toEqual([{ type, zone: "frost", camp: 7, elite: true }]);
+    expect(seen).toEqual([{ type, zone: "frost", camp: 7, elite: true, at: AT }]);
   });
 
   it("reports camp -1 for a mob placed with no camp, and the zone's default type for a mob with no type", () => {
@@ -238,7 +238,7 @@ describe("the mobKilled payload", () => {
 
     slay(world, placeMob(world, { region: "plague", elite: false, at: AT }));
 
-    expect(seen).toEqual([{ type: normalTypesOf("plague")[0]!.id, zone: "plague", camp: -1, elite: false }]);
+    expect(seen).toEqual([{ type: normalTypesOf("plague")[0]!.id, zone: "plague", camp: -1, elite: false, at: AT }]);
   });
 
   it("does not fire for a practice mob in a training room: it pays nothing", () => {

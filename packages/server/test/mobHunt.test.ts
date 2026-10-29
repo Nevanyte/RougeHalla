@@ -244,6 +244,34 @@ describe("who to farm", () => {
     expect(plague.step()).toMatchObject({ kind: "mob", id: "axe" });
   });
 
+  it("prefers an uncapped normal mob type over a closer capped type when both are viable", () => {
+    const s = new Scene().add("capped", mob("fire", 100, 0, { type: "emberImp" })).add("uncapped", mob("fire", 250, 0, { type: "cinderHound" }));
+    s.self = { ...ME, mobKills: 1, mobStats: { emberImp: 10 } };
+    expect(s.step()).toMatchObject({ kind: "mob", id: "uncapped" });
+  });
+
+  it("counts normal mob stat stacks toward elite access and sure-match thresholds", () => {
+    const elite = mob("frost", 200, 0, { kind: "elite" });
+    const withoutProgress = new Scene().add("e", elite);
+    withoutProgress.self = { ...ME, weapons: ["axe", null], hp: 700, mobKills: 4 };
+    expect(withoutProgress.step()).toMatchObject({ kind: "player" });
+    const farmed = new Scene().add("e", elite);
+    farmed.self = { ...ME, weapons: ["axe", null], hp: 700, mobKills: 4, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10 } };
+    expect(farmed.step()).toMatchObject({ kind: "mob", id: "e" });
+
+    const combined = new Scene().add("e", elite);
+    combined.self = { ...ME, weapons: ["axe", null], hp: 700, power: 3, mobStats: { emberImp: 10 } };
+    expect(combined.step()).toMatchObject({ kind: "mob", id: "e" }); // 3 card power + 1 progression point unlocks at 4
+
+    const sureCfg = { eliteMinShare: 0.8, eliteSureShare: 0.65 };
+    const notSure = new Scene(sureCfg).add("e", mob("frost", 200, 0, { kind: "elite" }));
+    notSure.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700, mobKills: 4, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10 } };
+    expect(notSure.step()).toMatchObject({ kind: "player" }); // four progress points unlock elites, not the sure-match threshold
+    const sure = new Scene(sureCfg).add("e", mob("frost", 200, 0, { kind: "elite" }));
+    sure.self = { ...notSure.self, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10, bailiff: 10, chainWarden: 10 } };
+    expect(sure.step()).toMatchObject({ kind: "mob", id: "e" }); // six normalized progression points use the sure-match share
+  });
+
   it("leaves elites to bots with card power or full hp, and to those who can afford the duel", () => {
     const elite = (region: FactionId) => mob(region, 200, 0, { kind: "elite", maxHp: 600 });
     // Full hp, but Frost keeps only 23% against the Sentenced elite: too narrow.

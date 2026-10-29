@@ -78,11 +78,11 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
 export const STAT_GLOSSARY: Readonly<Record<"ad" | "ap", GlossaryEntry>> = {
   ad: {
     term: "AD",
-    text: "Attack damage: adds physical damage to your weapon hits.",
+    text: "Attack damage: adds physical damage to your weapon hits. Some normal mob kills and quest rewards raise it.",
   },
   ap: {
     term: "AP",
-    text: "Ability power: adds magic damage to your hits (most on a wand) and to every damage over time you run.",
+    text: "Ability power: adds magic damage to your hits (most on a wand) and to every damage over time you run. Some normal mob kills and quest rewards raise it.",
   },
 };
 

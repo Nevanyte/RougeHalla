@@ -51,6 +51,7 @@ import {
   type BaseStatId, type Effect, type EffectFlag, type EffectOf, type Folded, type MultKey, type ScalingStats, type StatMirrors,
   type StatSums,
 } from "@raid/shared";
+import { mobStatRows } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import type { Combatant, FighterState } from "./combatant";
 import type { LedgerEntry, ModContribution, World } from "./world";
@@ -166,6 +167,7 @@ function buildOf(p: PlayerState): Build {
       }
     }
   }
+  mobStatRows(p.mobStats).forEach((e, i) => addRow(b, e, `mobStat:${i}`));
   extraRows.get(p)?.forEach((e, i) => {
     if (e.needs === "status" || !requirementsMet(e, owns)) return;
     addRow(b, e, `extra:${i}`);

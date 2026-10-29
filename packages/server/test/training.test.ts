@@ -1268,26 +1268,29 @@ describe("the training room (live)", () => {
       const p = await startTraining(who);
       const myState = () => p.room.state.players.get(sessionOf(p))!;
 
-      p.room.send("train", { cmd: "card", id: "haste2", count: 3 });
-      await until(() => myState().build.get("haste2") === 3, "the cards in the client's state");
-      await until(() => p.toasts.some((t) => /^Haste II x3: /.test(t)), "the reply toast");
-      expect(myState().asMult).toBe(worldOf(p).state.players.get(sessionOf(p))!.asMult);
-      expect(myState().asMult).toBeGreaterThan(1000); // the mirror the client reads is folded
+      p.room.send("train", { cmd: "stat", id: "emberImp", count: 5 });
+      await until(() => myState().mobStats.get("emberImp") === 5, "the mob stat stacks in the client's state");
+      await until(() => p.toasts.some((t) => t.includes("Ember Imp:") && t.includes("5/10")), "the stat progress toast");
 
-      p.room.send("train", { cmd: "card", id: "armor2" });
-      await until(() => myState().build.get("armor2") === 1, "the second card in the client's state");
+      p.room.send("train", { cmd: "card", id: "slowBurn" });
+      await until(() => myState().build.get("slowBurn") === 1, "the interactive augment in the client's state");
+      await until(() => p.toasts.some((t) => /^Slow Burn: /.test(t)), "the reply toast");
+      p.room.send("train", { cmd: "card", id: "haste2", count: 3 });
+      await sleep(100);
+      expect(myState().build.has("haste2")).toBe(false); // card inputs accept interactive augments only
 
       p.room.send("train", { cmd: "camp", id: "bailiff" });
       await until(() => [...p.room.state.mobs.values()].filter((m) => m.type === "bailiff").length === 3, "a camp of three Bailiffs");
 
-      p.room.send("train", { cmd: "chest", options: ["haste1", "witness"] });
+      p.room.send("train", { cmd: "chest", options: ["slowBurn", "secondWind"] });
       await until(() => [...p.room.state.containers.values()].some((c) => c.kind === "reward"), "the chest in the client's state");
       const chest = [...p.room.state.containers.values()].find((c) => c.kind === "reward")!;
-      expect([...chest.options]).toEqual(["haste1", "witness"]);
+      expect([...chest.options]).toEqual(["slowBurn", "secondWind"]);
       expect(chest.expiresAt).toBeGreaterThan(p.room.state.serverTime);
 
       p.room.send("train", { cmd: "clear" });
       await until(() => myState().build.size === 0, "the build to be cleared");
+      await until(() => myState().mobStats.size === 0, "the mob stat stacks to be cleared");
       await until(() => [...p.room.state.mobs.values()].every((m) => m.kind === "dummy"), "the practice mobs to be gone");
       await until(() => ![...p.room.state.containers.values()].some((c) => c.kind === "reward"), "the chest to be gone");
 
@@ -1320,7 +1323,7 @@ describe("the training room (live)", () => {
       worldOf(p).actions.train = handler;
       const mobs = worldOf(p).state.mobs.size; // an arena run has its camps' mobs
       const containers = worldOf(p).state.containers.size;
-      for (const msg of [{ cmd: "card", id: "armor2", count: 9 }, { cmd: "camp", id: "emberImp" }, { cmd: "chest" }, { cmd: "clear" }]) {
+      for (const msg of [{ cmd: "card", id: "armor2", count: 9 }, { cmd: "stat", id: "emberImp", count: 10 }, { cmd: "camp", id: "emberImp" }, { cmd: "chest" }, { cmd: "clear" }]) {
         p.room.send("train", msg);
       }
       await sleep(500);

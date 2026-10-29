@@ -94,7 +94,7 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     "- Marginal: the same ratio with the farm time measured from the moment each farm run reached the power the player already",
     "  had before the quest (a quest done late in a build gains its Δ where the S-curve and the camps are different); farm runs",
     "  that never got that far are left out and it needs 3 of them. The two agree for a quest done from nothing.",
-    "- Power is live card power: shared cardPower (the sum of tier x count) over the live cards only, so a card that waits for its hook",
+    "- Power is live card power plus mob stat progress (one point per ten stacks): shared cardPower (the sum of tier x count) over the live cards only, so a card that waits for its hook",
     "  counts for nothing in any figure, the policies' valuations included. GV is not power. Quest Δ is the total live power added",
     "  on the completion tick (median before → after): card tier × copies, one tier lower per copy for a fed player.",
     "- Quest selection shows completions by the chooser / accepted players / first selections (one per player and quest).",
@@ -223,7 +223,7 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     ];
   })));
 
-  lines.push("", "## Policy live card power", "");
+  lines.push("", "## Policy live card power plus mob stat progress (one point per ten stacks)", "");
   lines.push("Mean (median; runs still going / runs). A run that ended earlier is absent from later columns, never carried flat.", "");
   lines.push(...table(["policy", "1 min", "2 min", "3 min", "5 min"], QUEST_POLICY_IDS.map((policy) => {
     const cells = [60, 120, 180, 300].map((seconds) => {

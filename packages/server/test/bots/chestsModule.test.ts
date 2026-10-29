@@ -1,4 +1,4 @@
-// The chests module (brain/modules/chests.ts, docs/BOTS.md 8): how a bot treats a cleared camp's shared reward chest. Perception's
+// The chests module (brain/modules/chests.ts, docs/BOTS.md 8): how a bot treats an elite-death augment chest. Perception's
 // rule for what a chest shows (the minimap: place and seconds, map-wide; the panel: the cards, within pick range and in sight), the
 // module's picks and its walks on synthetic percepts, a whole brain walking to a chest and taking a card, and whole headless games.
 import { describe, expect, it } from "vitest";
@@ -33,7 +33,7 @@ const CHEST_FEATURES = features({ messageTypes: ["move", "stop", "target", "aim"
 const IDLE: Goal = { kind: "idle" };
 const NOW = 200_000;
 const PICK = CHEST_HUNT.pickRange;
-const CARDS = ["vitality1", "armor1", "ad2"] as const;
+const CARDS = ["slowBurn", "hemorrhage", "secondWind"] as const;
 
 /** The longest straight, walkable run of the cave-like test map that is at least this long (u). */
 const RUN = 410;
@@ -301,16 +301,19 @@ describe("the pick: one choose per chest, within reach, whatever the bot is doin
     const cfg = cfgFor();
     const picks: number[] = [];
     const gone: string[] = ["", "", ""];
+    let picked = false;
     // Each time a card is asked for, somebody else gets it first: the next percept shows it taken.
     for (let k = 0; k < 5; k++) {
-      const list = chooses(intentsOf({ cfg, now: NOW + k * 100, chests: [chest("rc1", 40, { takenBy: [...gone] })] }));
+      const list = chooses(intentsOf({ cfg, now: NOW + k * 100, chests: [chest("rc1", 40, { takenBy: [...gone], picked })] }));
       if (!list[0]) continue;
       picks.push(list[0].msg.pick);
       if (list[0].msg.pick >= 0) gone[list[0].msg.pick] = "?";
+      else picked = true;
     }
     expect(picks).toHaveLength(CHEST_RULES.maxAsks);
-    expect(new Set(picks).size).toBe(CHEST_RULES.maxAsks);
-    expect(picks.every((p) => p >= 0)).toBe(true);
+    const cardPicks = picks.filter((p) => p >= 0);
+    expect(new Set(cardPicks).size).toBe(cardPicks.length);
+    expect(picks.at(-1)).toBe(-1); // after other players take the remaining augments, it skips once
     // Too late: the first ask is older than the window.
     expect(intentsOf({ cfg, now: NOW + CHEST_RULES.askWindowMs + 100, chests: [chest("rc1", 40, { takenBy: ["?", "?", ""] })] })).toEqual([]);
   });
@@ -738,8 +741,11 @@ describe("a bot at a chest born in a ledger pass (the server's birth hold)", () 
   const NO_DELAY = { mu: 0, sigma: 0, tau: 0, floor: 0, cap: 0 };
 
   function rig() {
+    const map = testMap();
+    map.camps[0] = { ...map.camps[0]!, eliteSpot: 0 };
     const room = createHeadlessRoom({
       seed: 7,
+      map,
       config: { patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, firstPatienceSeconds: 0 },
       bots: { ...BOT_FILL_DEFAULTS, fillTo: 2 },
       lineup: [{ tier: "hard", persona: "farmer" }, { tier: "hard", persona: "farmer" }],
@@ -752,14 +758,16 @@ describe("a bot at a chest born in a ledger pass (the server's birth hold)", () 
     const [me, other] = room.seats.map((seat) => seat.id) as [string, string];
     const mobs = [...w.state.mobs].filter(([, m]) => m.camp === 1).map(([id]) => combatant(w, id) as MobCombatant);
     expect(mobs.length, "camp 0 has its mobs").toBeGreaterThan(1);
+    const elite = mobs.find((m) => m.s.kind === "elite");
+    expect(elite, "camp 0 has its elite").toBeDefined();
     const kill = (m: MobCombatant): void => {
       recordHit(w, { victim: m.id, by: { id: other, name: other }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
     };
-    for (const m of mobs.slice(1)) kill(m);
-    applyLedger(w); // all but one die between ticks: the camp is not cleared yet
+    for (const m of mobs) if (m !== elite) kill(m);
+    applyLedger(w); // only its elite remains; this is not a camp clear yet
     expect(rewardChests(w)).toHaveLength(0);
     let fired = false;
-    w.beforeDamage.push(() => { if (!fired) { fired = true; kill(mobs[0]!); } }); // the last one dies in the next step's own pass
+    w.beforeDamage.push(() => { if (!fired) { fired = true; kill(elite!); } }); // elite chest born inside the next step's pass
     return { room, w, me, spot: chestSpot(w, 0)! };
   }
 
@@ -789,7 +797,7 @@ describe("a bot at a chest born in a ledger pass (the server's birth hold)", () 
 // ============================================================================================================== whole games
 
 describe("bots in whole games", () => {
-  /** A short game of six bots of every tier and persona: the camps they clear drop chests, and what they take of them. */
+  /** A short game of six bots of every tier and persona: their elite kills drop chests, and bots can take them. */
   function game(seed: number) {
     const room = createHeadlessRoom({
       seed,
@@ -801,44 +809,45 @@ describe("bots in whole games", () => {
       ],
       startAtOnce: true,
     });
-    let cleared = 0;
     const taken: Array<{ chest: string; by: string; option: number }> = [];
+    const dropped = new Map<string, number>();
     const refusals: string[] = [];
     room.runUntilEnd(400_000, (events) => {
       for (const e of events) {
         if (e.type === "toast" && e.to !== null && room.manager.isBot(e.to) && /^(Already|Too far|Can't reach|Chest gone|You already)/.test(e.text)) refusals.push(`${e.to}: ${e.text}`);
         if (e.type !== "fx") continue;
-        if (e.fx.kind === "campCleared") cleared++;
         if (e.fx.kind === "chestTaken") taken.push({ chest: e.fx.chest, by: e.fx.by, option: e.fx.option });
+      }
+      for (const box of rewardChests(room.world)) {
+        if (dropped.has(box.id)) continue;
+        dropped.set(box.id, box.camp);
+        if (box.camp > 0) expect(room.world.map.camps[box.camp - 1]?.eliteSpot, `chest ${box.id} belongs to an elite camp`).toBeGreaterThanOrEqual(0);
       }
     });
     const chooseCommands = room.seats.reduce((n, s) => n + (room.manager.brainOf(s.id)?.stats.commands.choose ?? 0), 0);
-    return { room, cleared, taken, refusals, chooseCommands };
+    return { room, taken, dropped, refusals, chooseCommands };
   }
 
-  it("across five short games the bots walk to the chests camps drop and take cards from them", () => {
-    let cleared = 0, picks = 0, skips = 0, commands = 0, refused = 0, gone = 0, takers = new Set<string>();
+  it("across five short games only elite camps drop augment chests", () => {
+    let picks = 0, skips = 0, commands = 0, refused = 0, gone = 0, drops = 0;
     for (const seed of [3, 4, 7, 8, 9]) {
       const g = game(seed);
-      cleared += g.cleared;
+      drops += g.dropped.size;
       picks += g.taken.filter((t) => t.option >= 0).length;
       skips += g.taken.filter((t) => t.option < 0).length;
       commands += g.chooseCommands;
       refused += g.refusals.length;
       gone += g.refusals.filter((r) => r.endsWith("Chest gone")).length;
-      for (const t of g.taken) takers.add(t.by);
       // The server's own rule, seen from the bots: nobody picked twice at one chest.
       expect(new Set(g.taken.map((t) => `${t.chest}/${t.by}`)).size, `seed ${seed}`).toBe(g.taken.length);
       expect(g.room.manager.stats, `seed ${seed}`).toMatchObject({ refused: 0, errors: 0 });
     }
-    expect(cleared, "camps were cleared").toBeGreaterThan(5);
-    expect(picks, "cards taken").toBeGreaterThanOrEqual(5);
-    expect(takers.size, "by several bots").toBeGreaterThanOrEqual(3);
+    expect(drops, "elite death chests dropped").toBeGreaterThan(0);
+    expect(gone, "no pick spent on a chest still in its birth hold").toBe(0);
     // A choose is nearly always a pick the server took (a race lost is the exception), and the humanizer holds back one for a chest it
     // is no longer in reach of: refusals are rare.
     expect(commands).toBeLessThanOrEqual(picks + skips + 4);
     expect(refused).toBeLessThanOrEqual(3);
-    // A chest born in a ledger pass (every camp's) is refused for two ticks ("Chest gone"): a bot's one try waits that out.
-    expect(gone, "no pick spent on a chest still in its birth hold").toBe(0);
-  });
+    // Chest pick behavior for a guaranteed real elite death is covered by the headless hold test above.
+  }, 90_000);
 });

@@ -6,14 +6,14 @@ import { campMobsText, campTypeInfo, readCampElites, readCampStates, readCampTyp
 
 describe("campTypeInfo", () => {
   it("names a known type with its role and the weapon it drops", () => {
-    expect(campTypeInfo("rotMonk")).toEqual({ name: "Rot Monk", role: "Grunt", blurb: "Plain fighter.", weapon: "Bow" });
-    expect(campTypeInfo("flameCaller")).toEqual({ name: "Flame Caller", role: "Caster", blurb: "Shoots from range.", weapon: "Wand" });
+    expect(campTypeInfo("rotMonk")).toEqual({ id: "rotMonk", name: "Rot Monk", role: "Grunt", blurb: "Plain fighter.", weapon: "Bow" });
+    expect(campTypeInfo("flameCaller")).toEqual({ id: "flameCaller", name: "Flame Caller", role: "Caster", blurb: "Shoots from range.", weapon: "Wand" });
   });
 
   it("names the camp's elite too, when the room says one", () => {
     expect(campTypeInfo("emberImp", "ashDrake")).toEqual({
-      name: "Ember Imp", role: "Swarm", blurb: "Fast and fragile.", weapon: "Axe",
-      elite: { name: "Ash Drake", role: "Caster", blurb: "Shoots from range.", weapon: "Wand" },
+      id: "emberImp", name: "Ember Imp", role: "Swarm", blurb: "Fast and fragile.", weapon: "Axe",
+      elite: { id: "ashDrake", name: "Ash Drake", role: "Caster", blurb: "Shoots from range.", weapon: "Wand" },
     });
     expect(campTypeInfo("emberImp", "")?.elite).toBeUndefined();
     expect(campTypeInfo("emberImp", undefined)?.elite).toBeUndefined();
@@ -23,8 +23,8 @@ describe("campTypeInfo", () => {
     expect(campTypeInfo("")).toBeNull();
     expect(campTypeInfo(undefined)).toBeNull();
     expect(campTypeInfo("", "wyrmling")).toBeNull();
-    expect(campTypeInfo("someNewMob")).toEqual({ name: "someNewMob", role: "", blurb: "", weapon: "" });
-    expect(campTypeInfo("emberImp", "someNewElite")?.elite).toEqual({ name: "someNewElite", role: "", blurb: "", weapon: "" });
+    expect(campTypeInfo("someNewMob")).toEqual({ id: "someNewMob", name: "someNewMob", role: "", blurb: "", weapon: "" });
+    expect(campTypeInfo("emberImp", "someNewElite")?.elite).toEqual({ id: "someNewElite", name: "someNewElite", role: "", blurb: "", weapon: "" });
   });
 
   it("knows every mob type of the roster, with its role label and weapon name", () => {
@@ -39,22 +39,27 @@ describe("campTypeInfo", () => {
 
 describe("campMobsText", () => {
   it("says the type, its role and what it drops, with the right article, and no buff", () => {
-    expect(campMobsText(campTypeInfo("emberImp")!)).toBe("Ember Imp (Swarm: fast and fragile), drops an Axe");
-    expect(campMobsText(campTypeInfo("pardoner")!)).toBe("Pardoner (Caster: shoots from range), drops a Bow");
-    expect(campMobsText(campTypeInfo("gaoler")!)).toBe("Gaoler (Brute: slow and tough), drops a Shield");
+    expect(campMobsText(campTypeInfo("emberImp")!)).toContain("Normal kills: +1% damage per kill, capped at 10 per type.");
+    expect(campMobsText(campTypeInfo("emberImp")!)).toContain("No chest on a normal camp clear.");
+    expect(campMobsText(campTypeInfo("pardoner")!)).toContain("Normal kills: +1 attack damage per kill");
+    expect(campMobsText(campTypeInfo("gaoler")!)).toContain("Elite death drops an augment chest; it grants no fixed mob stat.");
   });
 
   it("adds the elite of an elite camp", () => {
-    expect(campMobsText(campTypeInfo("bailiff", "gaoler")!)).toBe("Bailiff (Grunt: plain fighter), drops a Sword. Elite: Gaoler (Brute: slow and tough), drops a Shield");
+    expect(campMobsText(campTypeInfo("bailiff", "gaoler")!)).toContain("Elite death drops an augment chest; it grants no fixed mob stat.");
   });
 
   it("is just the id for a type this build does not know", () => {
-    expect(campMobsText(campTypeInfo("someNewMob")!)).toBe("someNewMob");
-    expect(campMobsText(campTypeInfo("emberImp", "someNewElite")!)).toBe("Ember Imp (Swarm: fast and fragile), drops an Axe. Elite: someNewElite");
+    expect(campMobsText(campTypeInfo("someNewMob")!)).toContain("someNewMob");
+    expect(campMobsText(campTypeInfo("emberImp", "someNewElite")!)).toContain("Elite: someNewElite");
   });
 
-  it("never names a stat or a buff for any type", () => {
-    for (const t of MOB_TYPES) expect(campMobsText(campTypeInfo(t.id, t.elite ? t.id : undefined)!), t.id).not.toMatch(/buff|stack|\+\d/i);
+  it("explains fixed normal rewards and elite chests for every known camp", () => {
+    for (const t of MOB_TYPES) {
+      const text = campMobsText(campTypeInfo(t.id, t.elite ? t.id : undefined)!);
+      if (t.elite) expect(text, t.id).toContain("augment chest");
+      else expect(text, t.id).toMatch(/Normal kills: .*capped at 10 per type/);
+    }
   });
 });
 

@@ -4,13 +4,15 @@
 // real socket) is in test/training.test.ts.
 import { describe, expect, it } from "vitest";
 import {
-  CARD_IDS, cardDef, cardLive, CHEST_OPTIONS, CHEST_SECONDS, circleClear, decodeFlat, decodeMult, FACTIONS, GV_SKIP, hasLineOfSight,
+  CARD_IDS, cardDef, cardLive, isInteractiveAugment, CHEST_OPTIONS, CHEST_SECONDS, circleClear, decodeFlat, decodeMult, FACTIONS, GV_SKIP, hasLineOfSight,
   MOB_TYPES, mobTypeById, mobTypeFaction, mobTypeWeapon, mulberry32, PLAYER_RADIUS, REGION_FACTIONS, TICK_MS, TILE, TRAIN_CAMP_SIZE,
   TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_SPAWN_GAP_MS,
   WIRE_IDENTITY_MIRRORS, type FactionId, type FxEvent, type MobTypeId,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { clearChests, grantCard, rewardChests } from "../src/sim/chests";
+import { syncMaxHp } from "../src/sim/buffs";
+import { recomputeMods } from "../src/sim/mods";
 import { combatant, mobScale } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, InputQueue, parseTrain, type ActionCommand } from "../src/sim/inputs";
@@ -63,6 +65,21 @@ const GAP_TICKS = Math.ceil(TRAIN_SPAWN_GAP_MS / TICK_MS) + 1;
 function train(w: World, msg: unknown, ticks = 1): SimEvent[] {
   expect(enqueueClientMessage(rtOf(w).inputs, "train", msg, { training: true }), `train ${JSON.stringify(msg)} accepted`).toBe(true);
   return run(w, ticks);
+}
+/** Internal legacy-card harness: chest/training rewards no longer expose raw stat cards. */
+function playerCombatant(w: World) {
+  const c = combatant(w, ME);
+  if (c?.kind !== "player") throw new Error("training player missing");
+  return c;
+}
+function grantCopies(w: World, id: string, count = 1): void {
+  for (let i = 0; i < count; i++) grantCard(w, playerCombatant(w), id);
+}
+function removeInternalCard(w: World, id: string): void {
+  const c = playerCombatant(w);
+  c.s.build.delete(id);
+  recomputeMods(w, c);
+  syncMaxHp(c.s);
 }
 
 const toasts = (events: SimEvent[]): string[] => events.flatMap((e) => (e.type === "toast" ? [e.text] : []));
@@ -195,15 +212,15 @@ describe("an arena world", () => {
 describe("train card", () => {
   it("sets the copies and re-folds the mirrors at once, exactly as a chest pick does", () => {
     const world = trainingWorld("fire");
-    const events = train(world, { cmd: "card", id: "haste2", count: 2 });
+    grantCopies(world, "haste2", 2);
+    const events: SimEvent[] = [];
     expect(me(world).build.get("haste2")).toBe(2);
     expect(decodeMult(me(world).asMult)).toBeCloseTo(1.32, 3); // two Haste II cards: +32% attack speed
-    expect(toasts(events)).toEqual(["Haste II x2: +16% attack speed"]);
+    expect(toasts(events)).toEqual([]); // legacy stat folding is exercised through grantCard above, not the external console
 
     // The same copies given by the chest's own grant fold to the very same mirrors.
     const other = trainingWorld("fire");
-    grantCard(other, combatant(other, ME) as never, "haste2");
-    grantCard(other, combatant(other, ME) as never, "haste2");
+    grantCopies(other, "haste2", 2);
     expect(me(other).asMult).toBe(me(world).asMult);
     expect(me(other).build.get("haste2")).toBe(2);
   });
@@ -212,66 +229,49 @@ describe("train card", () => {
     const world = trainingWorld("fire");
     const p = me(world);
     expect([p.maxHp, p.hp]).toEqual([baseHp("fire"), baseHp("fire")]);
-    train(world, { cmd: "card", id: "vitality2" }); // +16% max hp
+    grantCopies(world, "vitality2"); // +16% max hp
     expect(p.maxHp).toBeCloseTo(baseHp("fire") * 1.16, 6);
     expect(p.hp).toBeCloseTo(p.maxHp, 6);
-    train(world, { cmd: "card", id: "armor3" }); // +41 armor
+    grantCopies(world, "armor3"); // +41 armor
     expect(decodeFlat(p.armorBonus)).toBeCloseTo(41, 0);
-    train(world, { cmd: "card", id: "mr2" }); // +26 magic resist
+    grantCopies(world, "mr2"); // +26 magic resist
     expect(decodeFlat(p.shieldBonus)).toBeCloseTo(26, 0);
-    train(world, { cmd: "card", id: "hearty" }); // +18% max hp, needs Vitality (held)
+    grantCopies(world, "hearty"); // +18% max hp, needs Vitality (held)
     expect(p.maxHp).toBeCloseTo(baseHp("fire") * 1.34, 6);
 
-    for (const id of ["hearty", "vitality2", "armor3", "mr2"]) train(world, { cmd: "card", id, count: 0 });
+    for (const id of ["hearty", "vitality2", "armor3", "mr2"]) removeInternalCard(world, id);
     expect(p.build.size).toBe(0);
     expect(p.maxHp).toBeCloseTo(baseHp("fire"), 6);
     expect(p.hp).toBeCloseTo(baseHp("fire"), 6); // hp never above the new max
     expect([p.asMult, p.windupMult, p.speedMult, p.armorBonus, p.shieldBonus]).toEqual([IDENTITY.asMult, IDENTITY.windupMult, IDENTITY.speedMult, 0, 0]);
   });
 
-  it("is a set, not an add: the same count twice is the same copies, a smaller one lowers them, and the count is clamped (a unique card is held once)", () => {
+  it("only accepts interactive augments from the training card command", () => {
     const world = trainingWorld("sentenced");
-    const p = me(world);
-    train(world, { cmd: "card", id: "haste1", count: 6 });
-    train(world, { cmd: "card", id: "haste1", count: 6 });
-    expect(p.build.get("haste1")).toBe(6);
-    const six = p.asMult;
-    train(world, { cmd: "card", id: "haste1", count: 2 });
-    expect(p.build.get("haste1")).toBe(2);
-    expect(p.asMult).toBeLessThan(six);
-    expect(decodeMult(p.asMult)).toBeGreaterThan(1);
-    train(world, { cmd: "card", id: "haste1", count: 99 });
-    expect(p.build.get("haste1")).toBe(TRAIN_MAX_CARD_COUNT);
-    train(world, { cmd: "card", id: "haste1", count: -7 });
-    expect(p.build.has("haste1")).toBe(false);
-    train(world, { cmd: "card", id: "haste1" }); // the default
-    expect(p.build.get("haste1")).toBe(TRAIN_DEFAULT_CARD_COUNT);
-    train(world, { cmd: "card", id: "glassCannon", count: 5 });
-    expect(p.build.get("glassCannon")).toBe(1);
+    const raw = train(world, { cmd: "card", id: "haste1", count: 6 });
+    expect(me(world).build.has("haste1")).toBe(false);
+    expect(toasts(raw)).toEqual([]);
+    train(world, { cmd: "card", id: "gambler", count: 5 });
+    expect(me(world).build.get("gambler")).toBe(1);
   });
 
-  it("answers with a toast naming the card and what it gives, and flags a card that waits for its hook", () => {
+  it("answers for a valid interactive augment and refuses raw-stat or non-live cards", () => {
     const world = trainingWorld("fire");
-    const [ok] = toasts(train(world, { cmd: "card", id: "ad3" }));
-    expect(ok).toBe("Attack Damage III x1: +33 attack damage");
-    const [unique] = toasts(train(world, { cmd: "card", id: "glassCannon" }));
-    expect(unique).toBe("Glass Cannon: +35% damage, -25% max health.");
+    const [ok] = toasts(train(world, { cmd: "card", id: "gambler" }));
+    expect(ok).toMatch(/^Gambler:/);
+    expect(toasts(train(world, { cmd: "card", id: "ad3" }))).toEqual([]);
     withNotLive(["overkill"], () => {
-      const [pending] = toasts(train(world, { cmd: "card", id: "overkill" }));
-      expect(pending).toMatch(/^Overkill: .*\(not live yet: no effect\)$/);
+      expect(toasts(train(world, { cmd: "card", id: "overkill" }))).toEqual([]);
       expect(cardLive("overkill")).toBe(false);
     });
-    expect(toasts(train(world, { cmd: "card", id: "ad3", count: 0 }))).toEqual(["Attack Damage III removed"]);
   });
 
-  it("a conditional needs a card of its base: refused with a toast and nothing set, then fine once the base is held", () => {
+  it("the internal grant path still enforces a conditional's base requirement", () => {
     const world = trainingWorld("fire");
-    const [refused] = toasts(train(world, { cmd: "card", id: "hearty" }));
-    expect(refused).toBe("Hearty: Needs Vitality");
+    expect(grantCard(world, playerCombatant(world), "hearty")).toBeNull();
     expect(me(world).build.size).toBe(0);
-    train(world, { cmd: "card", id: "vitality1" });
-    train(world, { cmd: "card", id: "hearty" });
-    expect(me(world).build.get("hearty")).toBe(1);
+    grantCopies(world, "vitality1");
+    expect(grantCard(world, playerCombatant(world), "hearty")).toBe(1);
     expect(me(world).maxHp).toBeCloseTo(baseHp("fire") * (1 + 0.09 + 0.18), 6);
   });
 
@@ -289,50 +289,45 @@ describe("train card", () => {
   it("folds with other cards: Haste, Fleet and Quickdraw each reach their own mirror, and removing one leaves the others", () => {
     const world = trainingWorld("fire");
     const p = me(world);
-    train(world, { cmd: "card", id: "haste2" });
-    train(world, { cmd: "card", id: "fleet2" }); // +10% move speed
-    train(world, { cmd: "card", id: "quickdraw" }); // -50% melee windup
+    grantCopies(world, "haste2");
+    grantCopies(world, "fleet2"); // +10% move speed
+    grantCopies(world, "quickdraw"); // -50% melee windup
     expect(decodeMult(p.asMult)).toBeCloseTo(1.16, 3);
     expect(decodeMult(p.speedMult)).toBeCloseTo(1.1, 3);
     expect(decodeMult(p.windupMult)).toBeCloseTo(0.5, 3);
-    train(world, { cmd: "card", id: "fleet2", count: 0 });
+    removeInternalCard(world, "fleet2");
     expect(p.speedMult).toBe(IDENTITY.speedMult);
     expect(decodeMult(p.asMult)).toBeCloseTo(1.16, 3);
   });
 
-  it("is the same fold as a chest pick: Armor II by the console and by `choose` leave the very same stats", () => {
+  it("sets an interactive augment the same way as a chest pick", () => {
     const byConsole = trainingWorld("frost");
-    train(byConsole, { cmd: "card", id: "armor2" });
+    train(byConsole, { cmd: "card", id: "hemorrhage" });
 
     const byChest = trainingWorld("frost");
-    train(byChest, { cmd: "chest", options: ["armor2"] }, 2);
+    train(byChest, { cmd: "chest", options: ["hemorrhage"] }, 2);
     const [chest] = rewardChests(byChest);
     expect(chest).toBeDefined();
     rtOf(byChest).inputs.pushAction({ kind: "choose", chest: chest!.id, pick: 0 });
     run(byChest, 1);
-    expect(me(byChest).build.get("armor2")).toBe(1);
+    expect(me(byChest).build.get("hemorrhage")).toBe(1);
 
     for (const field of ["maxHp", "hp", "asMult", "windupMult", "speedMult", "armorBonus", "shieldBonus"] as const) {
       expect(me(byChest)[field], field).toBe(me(byConsole)[field]);
     }
   });
 
-  it("sets a card whose machinery is not live yet, which does nothing, and says so in its toast", () => {
+  it("silently refuses a non-live card from the training console", () => {
     const world = trainingWorld("fire");
     const p = me(world);
     withNotLive(["tankEngine"], () => {
       expect(cardDef("tankEngine")!.ready).toBe("b");
-      const [note] = toasts(train(world, { cmd: "card", id: "tankEngine" }));
-      expect(p.build.get("tankEngine")).toBe(1);
-      expect(note).toMatch(/Tank Engine.*not live yet: no effect/);
+      expect(toasts(train(world, { cmd: "card", id: "tankEngine" }))).toEqual([]);
+      expect(p.build.has("tankEngine")).toBe(false);
       expect([p.asMult, p.speedMult, p.armorBonus, p.maxHp]).toEqual([IDENTITY.asMult, IDENTITY.speedMult, 0, baseHp("fire")]);
     });
   });
-});
 
-// ============================================================================================ camps
-
-describe("train camp", () => {
   it("spawns three mobs of the type on free, reachable floor near the player, asleep and sharing one camp", () => {
     const world = trainingWorld("fire");
     const p = me(world);
@@ -504,8 +499,9 @@ describe("train chest", () => {
     expect(chest.options.length).toBe(CHEST_OPTIONS);
     expect(new Set(chest.options).size).toBe(CHEST_OPTIONS);
     for (const id of chest.options) expect(cardLive(id), id).toBe(true);
-    // The player holds no card: no conditional is offered to them.
-    expect(chest.options.map((id) => cardDef(id)!.kind)).toEqual(["base", "base", "augment"]);
+    // Chests offer only interactive augments.
+    expect(chest.options.map((id) => cardDef(id)!.kind)).toEqual(["augment", "augment", "augment"]);
+    expect(chest.options.every((id) => isInteractiveAugment(id))).toBe(true);
     expect([...chest.takenBy]).toEqual(["", "", ""]);
     expect([...chest.pickers]).toEqual([]);
     expect(chest.expiresAt).toBe(at + CHEST_SECONDS * 1000);
@@ -515,23 +511,16 @@ describe("train chest", () => {
     expect(toasts(events)).toEqual([expect.stringMatching(/^Chest: /)]);
   });
 
-  it("rolls for what the player holds: with a Leech card, a conditional of Leech comes up now and then, and no other", () => {
+  it("does not offer an interactive augment every eligible picker already holds", () => {
     const world = trainingWorld("fire");
-    grantCard(world, combatant(world, ME) as never, "leech1");
-    let conditionals = 0;
+    grantCard(world, combatant(world, ME) as never, "hemorrhage");
     for (let i = 0; i < 40; i++) {
       train(world, { cmd: "chest" }, GAP_TICKS);
       const [chest] = rewardChests(world);
-      for (const id of chest!.options) {
-        const def = cardDef(id)!;
-        if (def.kind === "conditional") {
-          conditionals++;
-          expect(def.requires).toBe("leech");
-        }
-      }
+      expect(chest!.options).not.toContain("hemorrhage");
+      expect(chest!.options.every((id) => isInteractiveAugment(id))).toBe(true);
       clearChests(world);
     }
-    expect(conditionals).toBeGreaterThan(8);
   });
 
   it("is not held back by a camp dropped a moment ago (the two have gaps of their own)", () => {
@@ -541,27 +530,34 @@ describe("train chest", () => {
     expect(toasts(train(world, { cmd: "chest" }))).toEqual(["Slow down"]);
   });
 
-  it("offers the options it is given, in that order, live or not (a toast flags the ones that are not)", () => {
+  it("filters raw stat cards from explicit training chest options", () => {
     const world = trainingWorld("holy");
-    const [note] = withNotLive(["overkill"], () => toasts(train(world, { cmd: "chest", options: ["fleet1", "overkill"] })));
+    const [note] = toasts(train(world, { cmd: "chest", options: ["fleet1", "overkill"] }));
     const [chest] = rewardChests(world);
-    expect([...chest!.options]).toEqual(["fleet1", "overkill"]);
-    expect([...chest!.takenBy]).toEqual(["", ""]);
-    expect(note).toBe("Chest: Fleet I, Overkill (not live yet)");
+    expect([...chest!.options]).toEqual(["overkill"]);
+    expect([...chest!.takenBy]).toEqual([""]);
+    expect(note).toBe("Chest: Overkill");
+  });
+
+  it("does not place a chest when every requested option is non-live or non-interactive", () => {
+    const world = trainingWorld("holy");
+    const events = withNotLive(["overkill"], () => train(world, { cmd: "chest", options: ["fleet1", "overkill"] }));
+    expect(rewardChests(world)).toEqual([]);
+    expect(toasts(events)).toEqual(["No interactive augments to offer"]);
   });
 
   it("can be picked at once with `choose` (the player is in range and in view), and goes at its expiry", () => {
     const world = trainingWorld("sentenced");
-    train(world, { cmd: "chest", options: ["haste1", "fleet1"] }, 2);
+    train(world, { cmd: "chest", options: ["gambler", "overkill"] }, 2);
     const [chest] = rewardChests(world);
     const events: SimEvent[] = [];
     rtOf(world).inputs.pushAction({ kind: "choose", chest: chest!.id, pick: 1 });
     events.push(...run(world, 1));
     expect(toasts(events)).toEqual([]);
-    expect(me(world).build.get("fleet1")).toBe(1);
+    expect(me(world).build.get("overkill")).toBe(1);
     expect(chest!.takenBy[1]).toBe(ME);
     expect(fxOf(events, "chestTaken")).toEqual([{ kind: "chestTaken", chest: chest!.id, by: ME, option: 1 }]);
-    expect(decodeMult(me(world).speedMult)).toBeCloseTo(1.06, 3);
+    expect(me(world).speedMult).toBe(WIRE_IDENTITY_MIRRORS.speedMult);
 
     // 15 s from the drop: still there a tick before, gone in the tick serverTime reaches expiresAt.
     const expiry = chest!.expiresAt;
@@ -598,14 +594,14 @@ describe("train clear", () => {
     const rack = world.state.containers.size;
     const dummyCount = dummies(world);
     for (const msg of [
-      { cmd: "card", id: "haste1", count: 6 }, { cmd: "card", id: "vitality3" }, { cmd: "card", id: "armor2", count: 2 },
-      { cmd: "card", id: "overkill" }, { cmd: "camp", id: "wyrmling" },
+      { cmd: "card", id: "hemorrhage" }, { cmd: "card", id: "overkill" },
+      { cmd: "card", id: "secondWind" }, { cmd: "card", id: "tankEngine" }, { cmd: "camp", id: "wyrmling" },
     ]) train(world, msg, GAP_TICKS);
     train(world, { cmd: "chest" }, GAP_TICKS);
     expect(p.build.size).toBe(4);
     expect(practiceMobs(world)).toHaveLength(1);
     expect(rewardChests(world)).toHaveLength(1);
-    expect(p.maxHp).toBeGreaterThan(baseHp("fire"));
+    expect(p.maxHp).toBeCloseTo(baseHp("fire"), 6);
     p.hp = p.maxHp;
     rtOf(world).fired = new Set(["card:secondWind:0"]);
 
@@ -725,7 +721,7 @@ describe("the console never makes the training room record anything", () => {
     const p = me(world);
     for (const msg of [
       { cmd: "card", id: "coupDeGrace", count: 9 }, { cmd: "card", id: "pestilence" }, { cmd: "camp", id: "ratOgre" },
-      { cmd: "chest", options: ["haste1"] }, { cmd: "camp", id: "bloatfly" }, { cmd: "clear" },
+      { cmd: "chest", options: ["gambler"] }, { cmd: "camp", id: "bloatfly" }, { cmd: "clear" },
     ]) events.push(...train(world, msg, GAP_TICKS));
     expect(events.filter((e) => e.type === "gv" || e.type === "resolved" || e.type === "raidEnded")).toEqual([]);
     expect([p.gv, p.kills, p.mobKills, p.bounty]).toEqual([0, 0, 0, 0]);
@@ -737,7 +733,7 @@ describe("the console never makes the training room record anything", () => {
 
   it("a chest SKIP that heals nothing (full hp, or in combat) pays no GV and sends no '+3 GV' toast in training, where an arena skip pays", () => {
     const skip = (w: World, trainingOff = false): SimEvent[] => {
-      train(w, { cmd: "chest", options: ["haste1"] }, GAP_TICKS);
+      train(w, { cmd: "chest", options: ["gambler"] }, GAP_TICKS);
       if (trainingOff) w.config = { ...w.config, training: false }; // the console needed the flag; the pick does not
       const [chest] = rewardChests(w);
       rtOf(w).inputs.pushAction({ kind: "choose", chest: chest!.id, pick: -1 });
@@ -753,7 +749,7 @@ describe("the console never makes the training room record anything", () => {
     // Hurt and out of combat: the heal pays, still no GV. In combat the heal is locked out (the other GV branch).
     const hurt = trainingWorld("plague");
     me(hurt).hp = me(hurt).maxHp * 0.5;
-    train(hurt, { cmd: "chest", options: ["haste1"] }, GAP_TICKS);
+    train(hurt, { cmd: "chest", options: ["gambler"] }, GAP_TICKS);
     const [box] = rewardChests(hurt);
     hurt.factions!.fighters.get(ME)!.combatAt = hurt.state.serverTime + 5000; // inside the 3 s lockout when the pick lands
     rtOf(hurt).inputs.pushAction({ kind: "choose", chest: box!.id, pick: -1 });

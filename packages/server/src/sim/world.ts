@@ -664,7 +664,7 @@ export interface WorldHooks {
   /** A player just killed another player (kill GV and bounty paid); quest objectives chain here. */
   playerKilled?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void;
   /** A regional mob's spoils were just paid; quest objectives chain here. `camp` is its map index, or -1 when camp-less. */
-  mobKilled?(world: World, killer: PlayerRuntime, mob: { type: MobTypeId; zone: FactionId; camp: number; elite: boolean }): void;
+  mobKilled?(world: World, killer: PlayerRuntime, mob: { type: MobTypeId; zone: FactionId; camp: number; elite: boolean; at: Vec2 }): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it): a Sentenced's mark on it climbs. */
   weaponSwapped?(world: World, c: Combatant): void;
   /**
@@ -722,7 +722,7 @@ export interface WorldHooks {
   hurt?(world: World, c: Combatant, applied: number, hpBefore: number): void;
   /**
    * Camp `camp` (its index in map.camps) just lost its last mob (sim/camps.ts). Called after the ledger pass that killed it
-   * (payLater), right after the `campCleared` fx; sim/chests.ts drops the camp's shared chest here.
+   * (payLater), right after the `campCleared` fx; campHeal and quests process the clear here. Elite chests use mobKilled.
    */
   campCleared?(world: World, camp: number): void;
 }

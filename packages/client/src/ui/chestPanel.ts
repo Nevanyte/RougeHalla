@@ -122,7 +122,7 @@ export class ChestPanel {
   private readonly box = el("div", "cp-box");
   private readonly head = el("div", "cp-head");
   private readonly headGlyph = el("span", "cp-glyph");
-  private readonly title = el("span", "cp-title", "Camp chest");
+  private readonly title = el("span", "cp-title", "Augment chest");
   private readonly timer = el("span", "cp-timer");
   private readonly bar = el("div", "cp-bar");
   private readonly list = el("div", "cp-cards");
@@ -396,7 +396,7 @@ export class ChestPanel {
 
     // The header: the camp's zone and name.
     const camp: CampDef | undefined = this.map?.camps[reward.camp - 1];
-    const title = camp ? campTitle(camp) : "Camp chest";
+    const title = camp ? `${campTitle(camp)} · Augment chest` : "Augment chest";
     const headKey = `${title}|${camp?.zone ?? ""}`;
     if (headKey !== this.keyTitle) {
       this.keyTitle = headKey;

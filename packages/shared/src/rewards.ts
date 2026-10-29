@@ -1,30 +1,21 @@
-// A camp's shared chest (BALANCE_CONTRACT 4.8): what it offers and what a skip gives. Pure: the sim rolls the options with
-// `world.rewardRandom` (never `world.random`, never the public seed: D16) and puts them in the synced reward container (D17); the
-// client reads the same helpers to word the cards.
-//
-// The roll: three distinct cards (CHEST_OPTIONS), in this order, one `rng()` per decision:
-//   1. a BASE card: its tier (the camp's odds, CHEST_TIER_ODDS), then which of that tier's eight;
-//   2. a CONDITIONAL (probability CHEST_CONDITIONAL_CHANCE, a coin first), picked from the live conditionals whose base at least one
-//      ELIGIBLE picker owns and that not every eligible picker already holds; when the coin says no, or none qualifies, a second BASE
-//      card of a different stat (tier, then which);
-//   3. an AUGMENT: its tier, then which of that tier's live augments that not every eligible picker holds (none left in the tier: the
-//      nearest tier that has one, lower first; no augment at all: a third base card).
-// "Eligible pickers" are the players who may take from this chest: those who damaged the camp and stand near it at the clear
-// (sim/campHeal.ts). With none, no conditional is offered. A chest always has at least one unconditional card (1 is a base card).
-// Tier odds: a normal camp's base card 70/25/5 and its augment 50/45/5; an elite camp's both 10/60/30. A conditional is tier 2.
-// The SHARED chest is rolled once for everyone; each picker's own build decides what a pick refuses (needs a base; already yours).
-import { CHEST_CONDITIONAL_CHANCE, CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
+// A camp's shared chest: three distinct, eligible interactive augments when available. Normal mob kills grant their own fixed,
+// capped stat progression (mobStats.ts). Pure: the sim rolls options with `world.rewardRandom` and puts them in synced state; the
+// client reads the same helpers to word the cards. Tier odds remain normal 50/45/5 and elite 10/60/30.
+import { CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
 import {
-  BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, baseCardId, cardBlock, cardDef, cardLive, cardsOfKind, countIn, ownsBase, whyOffered,
+  BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, cardBlock, cardDef, cardLive, cardsOfKind, countIn, ownsBase, whyOffered, isInteractiveAugment,
   type BaseStatId, type CardCounts, type CardDef, type CardId, type CardKind, type CardTier, type MechanicTag, type WhyOffered,
 } from "./cards";
 import type { Rng } from "./rng";
+import type { FactionId } from "./factions";
 
 export interface ChestRollOptions {
   /** An elite camp's chest (tier odds 10/60/30); default a normal camp's. */
   elite?: boolean;
-  /** The builds of the eligible pickers (conditional and augment offers read them). Omit or empty: no conditional, every augment. */
+  /** Eligible pickers' builds; options already held by every picker are excluded. */
   pickers?: readonly CardCounts[];
+  /** Optional regional theme; neutral augments remain eligible as fallback. */
+  zone?: FactionId;
   /** Only live cards (LIVE_CARD_READY). Default true; false is for catalog tests. */
   readyOnly?: boolean;
 }
@@ -47,12 +38,6 @@ function tierOrder(tier: CardTier): CardTier[] {
 
 const heldByAll = (pickers: readonly CardCounts[], id: string): boolean => pickers.length > 0 && pickers.every((b) => countIn(b, id) > 0);
 
-/** A base card of `tier` whose stat is not in `except`. */
-function baseCard(rng: Rng, tier: CardTier, except: readonly BaseStatId[]): CardId {
-  const pool = BASE_STAT_IDS.filter((b) => !except.includes(b));
-  return baseCardId(pickIn(rng, pool), tier);
-}
-
 /** The conditionals a chest may offer these pickers: live, a picker owns the base, and not every picker holds it. Catalog order. */
 export function conditionalPool(pickers: readonly CardCounts[], readyOnly = true): CardDef[] {
   return cardsOfKind("conditional", { liveOnly: readyOnly }).filter(
@@ -60,35 +45,47 @@ export function conditionalPool(pickers: readonly CardCounts[], readyOnly = true
   );
 }
 
-/** The augments of `tier` a chest may offer these pickers: live and not held by every picker. Catalog order. */
-export function augmentPool(tier: CardTier, pickers: readonly CardCounts[], readyOnly = true): CardDef[] {
-  return cardsOfKind("augment", { liveOnly: readyOnly }).filter((c) => c.tier === tier && !heldByAll(pickers, c.id));
+/** Interactive augments eligible for a chest, excluding cards already held by every picker. */
+export function rewardAugmentPool(pickers: readonly CardCounts[], readyOnly = true): CardDef[] {
+  return cardsOfKind("augment", { liveOnly: readyOnly }).filter((c) => isInteractiveAugment(c) && !heldByAll(pickers, c.id));
 }
 
-/** A chest's options (card ids, no duplicates): a base card, a conditional or a second base card, an augment. */
-export function rollChestOptions(rng: Rng, opts: ChestRollOptions = {}): CardId[] {
-  const odds = opts.elite ? CHEST_TIER_ODDS.elite : CHEST_TIER_ODDS.normal;
-  const pickers = opts.pickers ?? [];
-  const readyOnly = opts.readyOnly !== false;
-  const out: CardId[] = [];
-  const used: BaseStatId[] = [];
-  const takeBase = (): void => {
-    const id = baseCard(rng, tierFor(rng, odds.base), used);
-    used.push(cardDef(id)!.base!);
-    out.push(id);
-  };
-  takeBase();
-  const pool = conditionalPool(pickers, readyOnly);
-  if (rng() < CHEST_CONDITIONAL_CHANCE && pool.length > 0) out.push(pickIn(rng, pool).id);
-  else takeBase();
-  const want = tierFor(rng, odds.augment);
-  let pick: CardDef | null = null;
-  for (const t of tierOrder(want)) {
-    const augments = augmentPool(t, pickers, readyOnly);
-    if (augments.length > 0) { pick = pickIn(rng, augments); break; }
+/** First-slot themes use general mechanics available to every faction. Mark-exclusive Sentenced cards stay out of the shared pool. */
+export const ZONE_AUGMENT_THEMES: Readonly<Record<FactionId, readonly CardId[]>> = {
+  fire: ["slowBurn", "hemorrhage", "overkill"],
+  sentenced: ["plantYourFeet", "wishfulThinking", "overkill"],
+  plague: ["hemorrhage", "siphon", "thirdTimesTheCharm"],
+  frost: ["pocketSand", "bestOffense", "tankEngine"],
+  holy: ["secondWind", "siphon", "eyeForAnEye", "spikedShell"],
+};
+
+/** Tier-weighted choice from a candidate pool, falling back to nearest available tier. */
+function pickTiered(rng: Rng, pool: readonly CardDef[], odds: Odds): CardDef | undefined {
+  if (pool.length === 0) return undefined;
+  const want = tierFor(rng, odds);
+  for (const tier of tierOrder(want)) {
+    const matching = pool.filter((c) => c.tier === tier);
+    if (matching.length) return pickIn(rng, matching);
   }
-  if (pick) out.push(pick.id);
-  else takeBase();
+  return undefined;
+}
+
+/** Interactive augment offers (up to three), tier-weighted, distinct, with one optional zone-themed first slot. */
+export function rollChestOptions(rng: Rng, opts: ChestRollOptions = {}): CardId[] {
+  const odds = opts.elite ? CHEST_TIER_ODDS.elite.augment : CHEST_TIER_ODDS.normal.augment;
+  const pickers = opts.pickers ?? [];
+  const pool = rewardAugmentPool(pickers, opts.readyOnly !== false);
+  const out: CardId[] = [];
+  const themeIds = opts.zone ? ZONE_AUGMENT_THEMES[opts.zone] : [];
+  const theme = themeIds.map((id) => cardDef(id)).filter((c): c is CardDef => !!c && pool.some((eligible) => eligible.id === c.id));
+  const first = theme.length ? pickTiered(rng, theme, odds) : pickTiered(rng, pool, odds);
+  if (first) out.push(first.id);
+  while (out.length < 3 && pool.length > 0) {
+    const available = pool.filter((c) => !out.includes(c.id));
+    const pick = pickTiered(rng, available, odds);
+    if (!pick) break;
+    out.push(pick.id);
+  }
   return out;
 }
 

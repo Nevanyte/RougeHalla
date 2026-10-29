@@ -347,6 +347,8 @@ export interface SelfView {
   readonly power: number;
   /** The cards it holds, id -> count: what its own cards row shows (a quest's card included). Absent in a scene that does not set it. */
   readonly build?: Readonly<Record<string, number>>;
+  /** This bot's per-type normal mob progression only. */
+  readonly mobStats?: Readonly<Record<string, number>>;
   /** Decoded stat mirrors (shared mods.ts decodeMult): the HUD's attack and move speed. */
   readonly asMult: number;
   /** The windup mirror, decoded (what shared mirrorTimings reads; absent: 1). */
@@ -421,6 +423,8 @@ export interface FighterView extends FighterSeen {
 
 export interface MobSeen {
   readonly id: FighterId;
+  /** MobTypeId learned only when the mob is visible on screen, not from a minimap dot. */
+  readonly type?: string;
   /** MobKind: "mob" | "elite" | "dummy" | "quest". */
   readonly kind: string;
   readonly name: string;
@@ -736,6 +740,7 @@ export interface FighterMemory {
 
 export interface MobMemory {
   readonly id: FighterId;
+  type?: string;
   kind: string;
   faction: FactionId | null;
   /** Its display name as last seen on screen: its type's ("Ember Imp"), so the hunt knows the hp its role gives it. Absent for a mob only ever dotted on the minimap. */

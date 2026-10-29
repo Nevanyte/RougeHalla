@@ -34,7 +34,7 @@ const MODULES: Array<(world: World) => void> = [
   installFeed,
   // Before mobLife: the rosters are published (from rewardRandom) at build, so the lobby and planning can read them.
   installCamps,
-  // The camps' shared chests (R5): the `choose` action, expiry, and the drop on the campCleared hook.
+  // Elite augment chests: the `choose` action, expiry, and the drop on the elite mobKilled hook.
   installChests,
   installMobLife,
   installMobAI,

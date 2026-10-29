@@ -10,7 +10,7 @@
 // dropRewardChest), and none of it is paid or recorded: a practice mob has no camp in the map, so no chest drops for its death
 // (its clear still heals), and its kill pays no GV, feed or drop (mobLife.payMobKill returns in a training world).
 import {
-  cardBlock, cardDef, cardLive, circleClear, countIn, hasLineOfSight, isRegionalKind, mobTypeById, PLAYER_RADIUS, rollChestOptions,
+  cardBlock, cardDef, cardLive, circleClear, countIn, hasLineOfSight, isInteractiveAugment, isRegionalKind, mobStatCount, mobStatReward, mobStatText, MOB_STAT_CAP, mobTypeById, PLAYER_RADIUS, rollChestOptions,
   TILE, tileToWorldCenter, TRAIN_CAMP_SIZE, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_SPAWN_GAP_MS, worldToTile,
   type CardId, type Vec2,
 } from "@raid/shared";
@@ -116,11 +116,27 @@ export const handleTrain: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "train" || c.kind !== "player" || !world.config.training || !standing(c)) return;
   switch (cmd.cmd) {
     case "card": trainCard(world, c, cmd.id, cmd.count); return;
+    case "stat": trainStat(world, c, cmd.id, cmd.count); return;
     case "camp": trainCamp(world, c, cmd.id); return;
     case "chest": trainChest(world, c, cmd.options); return;
     case "clear": trainClear(world, c); return;
   }
 };
+
+/** Sets a normal mob type's fixed-stat stacks for console inspection. */
+function trainStat(world: World, c: PlayerCombatant, id: string, count = 1): void {
+  const reward = mobStatReward(id);
+  if (!reward || !Number.isFinite(count) || count < 0) return;
+  const want = Math.min(MOB_STAT_CAP, Math.floor(count));
+  const have = mobStatCount(c.s.mobStats, id);
+  if (want !== have) {
+    if (want) c.s.mobStats.set(id, want); else c.s.mobStats.delete(id);
+    recomputeMods(world, c);
+    syncMaxHp(c.s);
+  }
+  const actual = mobStatCount(c.s.mobStats, id);
+  toast(world, c.id, `${reward.name}: ${mobStatText(id, actual)} (${actual}/${MOB_STAT_CAP})${actual === MOB_STAT_CAP ? " — MAX" : ""}`);
+}
 
 /** Re-arms the once-per-run triggers whose key starts with `prefix` (a removed card fires again when given back). */
 function rearm(rt: PlayerRuntime, prefix: string): void {
@@ -135,7 +151,8 @@ function rearm(rt: PlayerRuntime, prefix: string): void {
  */
 function trainCard(world: World, c: PlayerCombatant, id: CardId, count: number): void {
   const p = c.s;
-  const def = cardDef(id)!;
+  const def = cardDef(id);
+  if (!def || !cardLive(def) || !isInteractiveAugment(def)) return;
   const want = def.unique ? Math.min(1, count) : count;
   if (want > 0 && def.kind === "conditional" && countIn(p.build, id) === 0) {
     const block = cardBlock(id, p.build);
@@ -293,7 +310,10 @@ function trainChest(world: World, c: PlayerCombatant, options: readonly CardId[]
     toast(world, c.id, "No free floor in view for a chest");
     return;
   }
-  const ids: readonly CardId[] = options.length > 0 ? options : rollChestOptions(world.rewardRandom, { pickers: [c.s.build] });
+  const ids: readonly CardId[] = options.length > 0
+    ? options.filter((id) => cardLive(id) && isInteractiveAugment(id))
+    : rollChestOptions(world.rewardRandom, { pickers: [c.s.build] });
+  if (ids.length === 0) { toast(world, c.id, "No interactive augments to offer"); return; }
   dropRewardChest(world, at, ids);
   run.lastChestAt = world.state.serverTime;
   const names = ids.map((id) => `${cardDef(id)?.title ?? id}${cardLive(id) ? "" : " (not live yet)"}`);
@@ -314,6 +334,7 @@ function dropTankHp(c: PlayerCombatant): void {
 function trainClear(world: World, c: PlayerCombatant): void {
   const p = c.s;
   p.build.clear();
+  p.mobStats.clear();
   c.rt.fired?.clear();
   c.rt.hots = undefined;
   c.rt.cards = undefined;

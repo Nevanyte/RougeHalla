@@ -3,7 +3,7 @@
 // anything about how a mob fights, only about what happens to it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles,
+  elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, mobStatCount, mobStatReward, mobStatRows,
   MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeWeapon,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
@@ -18,8 +18,10 @@ import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { aggro, resetMob } from "../src/sim/mobAI";
 import {
-  hurtMob, install, killMob, mobRoleMove, placeMob, reapMobs, spawnRegionalMobs, type MobCombatant,
+  hurtMob, install, killMob, mobRoleMove, placeMob, reapMobs, respawnCamps, spawnRegionalMobs, type MobCombatant,
 } from "../src/sim/mobLife";
+import { grantMobStat } from "../src/sim/mobStats";
+import { CAMP_CLEARED } from "../src/sim/camps";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
 import { mobRewardFor } from "../src/sim/feed";
@@ -197,8 +199,11 @@ describe("a mob type's weapon and role (shared mobs.ts MOB_TYPES)", () => {
       const before = new Set(w.state.containers.keys());
       hurt(w, m, ["p0", m.s.hp]);
       const created = [...w.state.containers.keys()].filter((id) => !before.has(id));
-      expect(created, t.id).toHaveLength(1);
-      expect(w.state.containers.get(created[0]!)!.items.map((it) => it.def), t.id).toEqual([t.weapon]);
+      const boxes = created.map((id) => w.state.containers.get(id)!);
+      const ground = boxes.filter((box) => box.kind === "ground");
+      expect(ground, t.id).toHaveLength(1);
+      expect(ground[0]!.items.map((it) => it.def), t.id).toEqual([t.weapon]);
+      expect(boxes.filter((box) => box.kind === "reward"), t.id).toHaveLength(t.elite ? 1 : 0);
     }
   });
 
@@ -210,7 +215,7 @@ describe("a mob type's weapon and role (shared mobs.ts MOB_TYPES)", () => {
       const m = spawn(w, t.zone, t.elite, { x: P(w, 0).x + 8, y: P(w, 0).y }, t.id);
       hurt(w, m, ["p0", m.s.hp]);
       expect([P(w, 0).weapon0, P(w, 0).weapon1], id).toEqual([t.weapon, ""]);
-      expect(w.events.filter((e) => e.type === "toast"), id).toEqual([{ type: "toast", to: "p0", text: `Armed: ${WEAPONS[t.weapon].name}` }]);
+      expect(w.events.filter((e) => e.type === "toast" && e.text.startsWith("Armed:")), id).toEqual([{ type: "toast", to: "p0", text: `Armed: ${WEAPONS[t.weapon].name}` }]);
     }
   });
 
@@ -944,27 +949,25 @@ describe("killMob: rewards", () => {
     expect(w.state.containers.size).toBe(containers + 1);
   });
 
-  describe("a kill gives no stat", () => {
+  describe("a kill gives fixed per-type stat progress", () => {
     it.each(MOB_TYPES.map((t) => [t.id, t] as const))(
-      "%s: pays GV and the feed, gives no card and no mirror, and draws nothing from the world's random", (id, t) => {
+      "%s: pays GV and the feed, grants one fixed normal-type stack only, and draws nothing from the world's random", (id, t) => {
         const w = makeBare();
         const random = vi.fn(() => 0.1);
         w.random = random;
         const m = spawn(w, t.zone, t.elite, undefined, id); // the type the mob carries
         expect(m.s.type).toBe(id);
-        const hp = P(w, 0).hp;
-        const max = P(w, 0).maxHp;
         hurt(w, m, ["p0", m.s.hp]);
         expect(RT(w, 0).mobKills).toBe(1);
         expect(RT(w, 0).gv.mobs).toBeGreaterThan(0);
         expect(held(P(w, 0))).toEqual({});
-        expect([P(w, 0).asMult, P(w, 0).speedMult, P(w, 0).windupMult, P(w, 0).armorBonus, P(w, 0).shieldBonus]).toEqual([1000, 1000, 1000, 0, 0]);
-        expect([P(w, 0).hp, P(w, 0).maxHp]).toEqual([hp, max]);
+        expect(mobStatCount(P(w, 0).mobStats, id)).toBe(t.elite ? 0 : 1);
+        expect(mobStatRows(P(w, 0).mobStats).length).toBe(t.elite ? 0 : 1);
         expect(random).not.toHaveBeenCalled();
         expect(held(P(w, 1))).toEqual({});
       });
 
-    it("a mob placed without a type pays the same: GV, no card", () => {
+    it("a mob placed without a type pays GV but gives no type stat", () => {
       for (const region of FACTION_IDS) {
         for (const elite of [false, true]) {
           const w = makeBare();
@@ -977,7 +980,7 @@ describe("killMob: rewards", () => {
       }
     });
 
-    it("every mob of a camp is paid at the reward of the feed it finds", () => {
+    it("every mob of a camp is paid at the reward of the feed it finds and grants only normal-type stacks", () => {
       for (const seed of [1, 100]) {
         const w = makeRun({ seed });
         credit.mockClear();
@@ -991,7 +994,10 @@ describe("killMob: rewards", () => {
           feed += 0.25;
         }
         expect(RT(w, 0).mobKills).toBe(w.map.camps.reduce((n, c) => n + c.spots.length, 0));
-        expect(held(P(w, 0))).toEqual({});
+        for (const t of MOB_TYPES.filter((x) => !x.elite)) {
+          const count = allMobs(w).filter((m) => m.s.type === t.id && m.s.kind !== "elite").length;
+          expect(mobStatCount(P(w, 0).mobStats, t.id)).toBe(count);
+        }
       }
     });
 
@@ -1004,6 +1010,31 @@ describe("killMob: rewards", () => {
       expect(paidAt()[1]).toBe(paidAt()[0]);
       expect(mobRewardFor(a, P(a, 0), RT(a, 0))).toBeGreaterThan(0);
     });
+
+    it("the same credited normal kill grants the same stat at different feeds", () => {
+      const low = makeBare();
+      const high = makeBare();
+      setFeed(low, 0, 0, 0);
+      setFeed(high, 0, 99, 999);
+      hurt(low, spawn(low, "fire", false, undefined, "emberImp"), ["p0", 1e6]);
+      hurt(high, spawn(high, "fire", false, undefined, "emberImp"), ["p0", 1e6]);
+      expect(mobStatCount(P(low, 0).mobStats, "emberImp")).toBe(1);
+      expect(mobStatCount(P(high, 0).mobStats, "emberImp")).toBe(1);
+      expect(mobStatRows(P(low, 0).mobStats)).toEqual(mobStatRows(P(high, 0).mobStats));
+    });
+  });
+
+  it("keeps personal mob stat progress when camps respawn", () => {
+    const w = makeRun();
+    const p = combatant(w, "p0") as Extract<ReturnType<typeof combatant>, { kind: "player" }>;
+    expect(grantMobStat(w, p, "emberImp", 4)).toBe(4);
+    const camp = w.state.camps[0]!;
+    camp.state = CAMP_CLEARED;
+    camp.alive = 0;
+    camp.respawnAt = w.state.serverTime + 1;
+    w.state.serverTime += 1;
+    respawnCamps(w);
+    expect(mobStatCount(P(w, 0).mobStats, "emberImp")).toBe(4);
   });
 
   describe("the weapon drop", () => {
@@ -1039,7 +1070,7 @@ describe("killMob: rewards", () => {
         const { w, created } = killWith(region, ["", ""]);
         expect(created, region).toEqual([]);
         expect([P(w, 0).weapon0, P(w, 0).weapon1, P(w, 0).slot], region).toEqual([weapon, "", 0]);
-        expect(w.events.filter((e) => e.type === "toast"), region).toEqual([{ type: "toast", to: "p0", text: `Armed: ${WEAPONS[weapon].name}` }]);
+        expect(w.events.filter((e) => e.type === "toast" && e.text.startsWith("Armed:")), region).toEqual([{ type: "toast", to: "p0", text: `Armed: ${WEAPONS[weapon].name}` }]);
       }
     });
 
@@ -1067,7 +1098,7 @@ describe("killMob: rewards", () => {
       const { w, created } = killWith("plague", ["sword", ""]);
       expect(created).toHaveLength(1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["sword", ""]);
-      expect(w.events.filter((e) => e.type === "toast")).toEqual([]);
+      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1% attack speed (1/10)"]);
     });
 
     it("leaves it on the ground for an empty-handed killer who went down in the same pass (a body cannot wield it)", () => {
@@ -1081,7 +1112,7 @@ describe("killMob: rewards", () => {
       for (const pay of w.combat.payouts) pay();
       expect(w.state.containers.size).toBe(n + 1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["", ""]);
-      expect(w.events.filter((e) => e.type === "toast")).toEqual([]);
+      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1% attack speed (1/10)"]);
     });
 
     it("is not dropped when the killer already holds that weapon type, in either slot", () => {
@@ -1172,7 +1203,7 @@ describe("killMob: rewards", () => {
     const m = spawn(w, "plague"); // a bow: p0's axe is not a bow, so it is dropped
     const containers = w.state.containers.size;
     hurt(w, m, ["p0", m.s.hp]);
-    expect(kindsOf(w.events)).toEqual(["fx:death", "gv"]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast"]);
     expect(w.state.containers.size).toBe(containers + 1);
   });
 
@@ -1181,7 +1212,7 @@ describe("killMob: rewards", () => {
     const m = spawn(w, "plague"); // a bow
     const containers = w.state.containers.size;
     hurt(w, m, ["p0", m.s.hp]);
-    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast"]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast", "toast"]);
     expect(w.events.at(-1)).toEqual({ type: "toast", to: "p0", text: "Armed: Bow" });
     expect(w.state.containers.size).toBe(containers);
     expect([P(w, 0).weapon0, P(w, 0).weapon1, P(w, 0).slot]).toEqual(["bow", "", 0]);
@@ -1383,7 +1414,7 @@ describe("rewards are paid after the whole ledger pass", () => {
       expect(kinds.filter((k) => k === "fx:hit")).toHaveLength(2);
       expect(kinds.lastIndexOf("fx:hit")).toBeLessThan(firstSpoil);
       expect(kinds.indexOf("fx:death")).toBeLessThan(firstSpoil);
-      expect(kinds.slice(firstSpoil)).toEqual(["gv"]);
+      expect(kinds.slice(firstSpoil)).toEqual(["gv", "toast"]);
       expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: m.id, x: m.s.x, y: m.s.y, by: "p0" }]);
       expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
       expect(held(P(w, 0))).toEqual({});
@@ -1515,12 +1546,12 @@ describe("rewards are paid after the whole ledger pass", () => {
     expect(w.combat.collecting).toBe(false);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
-    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast"]); // the empty-handed killer is armed with the axe
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast", "toast"]); // fixed stat progress, then armed with the axe
     const n = spawn(w, "fire");
     w.events = [];
     killMob(w, n, [entry(n.id, "p1", 4)], [4]);
     expect(RT(w, 1).gv.mobs).toBe(GV_MOB);
-    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast"]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "toast", "toast"]);
   });
 
   describe("a killer who dies in the same pass", () => {

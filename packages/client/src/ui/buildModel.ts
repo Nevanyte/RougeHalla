@@ -5,7 +5,7 @@
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
   AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, LIFESTEAL_MAX, LS_CAP, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
-  cardPower, cardRows, countIn, decodeMirrors, isFactionId, ownedCards, pvpFactor, tagLabel, tierRoman,
+  cardPower, cardRows, countIn, decodeMirrors, isFactionId, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
   type BaseStatId, type CardCounts, type StatMirrors, type WeaponId, type WireMirrors,
 } from "@raid/shared";
 
@@ -37,6 +37,7 @@ export interface BuildInput {
   weapon: WeaponId;
   /** hp over max hp: Bloodthirst doubles lifesteal below half. Unknown: counted as full. */
   hpFrac?: number;
+  mobStats?: Readonly<Record<string, number>> | Map<string, number>;
 }
 
 /** A number with at most one decimal and no trailing zero: 24 "24", 12.5 "12.5". */
@@ -62,11 +63,12 @@ export function cutPercent(stat: number): number {
 }
 
 /** What the strip's lifesteal cell says: the card rows' lifesteal (held to LS_CAP, doubled by Bloodthirst below half hp). */
-export function cardLifesteal(build: CardCounts | null | undefined, faction: string, hpFrac = 1): { share: number; doubled: boolean; hasDoubler: boolean } {
+export function cardLifesteal(build: CardCounts | null | undefined, faction: string, hpFrac = 1, mobStats?: BuildInput["mobStats"]): { share: number; doubled: boolean; hasDoubler: boolean } {
   let rows = 0;
   for (const { def, count } of ownedCards(build)) {
     for (const e of cardRows(def.id, faction)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v * count;
   }
+  for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v;
   const hasDoubler = countIn(build, "bloodthirst") > 0;
   const doubled = hasDoubler && hpFrac < 0.5;
   const capped = rows > 0 ? Math.min(LS_CAP, rows) : 0;
@@ -89,7 +91,7 @@ export function buildStats(input: BuildInput): BuildStat[] {
   const w = WEAPONS[weapon];
   const power = cardPower(input.build);
   const factor = pvpFactor(power);
-  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1);
+  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1, input.mobStats);
 
   const adPer = perPoint(weapon, "ad");
   const apPer = perPoint(weapon, "ap");
@@ -124,16 +126,16 @@ export function buildStats(input: BuildInput): BuildStat[] {
     },
     {
       id: "leech", label: "Leech", value: `${Math.round(ls.share * 100)}%`, dim: ls.share === 0,
-      tip: `The share of the damage you deal that you heal, from your cards. Your faction's own lifesteal, if it has one, comes on top (the total stops at ${Math.round(LIFESTEAL_MAX * 100)}%).`
+      tip: `The share of the damage you deal that you heal, from your cards and normal-mob kills. Your faction's own lifesteal, if it has one, comes on top (the total stops at ${Math.round(LIFESTEAL_MAX * 100)}%).`
         + (ls.hasDoubler ? ` Doubled while you are below half health${ls.doubled ? " (now)" : ""}.` : ""),
     },
     {
       id: "power", label: "Power", value: String(power), dim: power === 0,
-      tip: "Card power P: the sum of the tiers of your cards, once per copy. It is the only thing that raises your damage to players.",
+      tip: "Card power P: the sum of the tiers of the cards you hold, once per copy. It sets your PvP damage factor; stat bonuses still raise your damage.",
     },
     {
       id: "pvp", label: "PvP", value: factorText(factor), dim: power === 0,
-      tip: "Your damage to players. Each card you take adds its tier to your power.",
+      tip: "Your damage to players. Your card power sets this factor; it scales hits against players only.",
     },
   ];
   return stats;

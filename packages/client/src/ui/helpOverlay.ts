@@ -128,15 +128,23 @@ export function mechanicsSections(): MechanicsSection[] {
       entries: [
         {
           term: "Card power",
-          text: "Every card has a tier, I to III. Your card power P is the sum of the tiers of the cards you hold, once per copy. It is the only thing that grows your damage to other players.",
+          text: "Your card power P is the sum of the tiers of the cards you hold, once per copy; live chest rewards are interactive augments. Mob stat stacks and quest rewards do not add power. P sets your PvP damage factor.",
         },
         {
           term: "PvP factor",
           text: `Your damage to other players is multiplied by ${power(0)}, ${power(2)}, ${power(6)}, ${power(10)}, and tops out at ${factorText(PVP_FMAX)}. Mobs, Wishes and the arena's burn are not scaled.`,
         },
         {
+          term: "Normal mob rewards",
+          text: "Each normal mob kill grants its type's fixed stat reward, up to 10 stacks per type. Normal camp clears give no chest. The HUD's Normal mob progress catalog lists every reward and your current total.",
+        },
+        {
+          term: "Quest rewards",
+          text: "Quests grant fixed mob stat stacks matching their reward and zone, up to the same 10-stack cap, plus their GV. The preview shows the stacks that still fit under your cap.",
+        },
+        {
           term: "Chests",
-          text: "A cleared camp's chest offers three cards, one pick each, first come first served. A base card deepens a stat, a conditional card needs a base you hold, an augment has a rule and often a cost.",
+          text: "An elite death drops an augment chest with three interactive augments, one pick each, first come first served. Each augment has a rule and may have a cost.",
         },
       ],
     },

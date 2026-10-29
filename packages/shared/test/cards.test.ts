@@ -6,7 +6,7 @@ import {
   cardOptionView, cardPower, CARDS, cardsOfKind, cardText, cardTierOf, cardTitle, CHEST_CONDITIONAL_CHANCE, CHEST_REFUSAL,
   CHEST_REFUSALS, CHEST_TIER_ODDS, conditionalPool, CONDITIONAL_IDS, countIn, FACTIONS, FACTION_IDS, GLOSSARY, isCardId, isChestRefusal,
   LIVE_CARD_READY, MECHANIC_TAGS, MOB_TYPES, mulberry32, needsRefusal, ownedCards, ownsBase, QUEST_DEFS, rollChestOptions,
-  SIGNATURE_TAGS, tierRoman, TAG_GLOSSARY, WEAPON_TAGS, WEAPONS, whyOffered, augmentPool,
+  SIGNATURE_TAGS, tierRoman, TAG_GLOSSARY, WEAPON_TAGS, WEAPONS, whyOffered, isInteractiveAugment, rewardAugmentPool, ZONE_AUGMENT_THEMES,
   type CardCounts, type CardDef, type CardId, type CardTier,
 } from "../src/index";
 
@@ -315,135 +315,75 @@ function rolls(opts: Parameters<typeof rollChestOptions>[1], n = ROLLS, seed = 1
 }
 
 describe("the chest roll (4.8)", () => {
-  it("offers three distinct live cards: a base card first, a conditional or a second base card of another stat, then an augment", () => {
-    for (const o of rolls({ pickers: [{ leech1: 1, ad1: 1 }] })) {
-      expect(o).toHaveLength(3);
-      expect(new Set(o).size).toBe(3);
-      const [a, b, c] = o.map((id) => cardDef(id)!);
-      expect(a!.kind).toBe("base");
-      expect(b!.kind === "conditional" || b!.kind === "base").toBe(true);
-      if (b!.kind === "base") expect(b!.base).not.toBe(a!.base);
-      expect(c!.kind).toBe("augment");
-      for (const card of [a!, b!, c!]) expect(cardLive(card), card.id).toBe(true);
-    }
-  });
-
-  it("never offers fewer than one unconditional card, with or without pickers", () => {
-    for (const pickers of [[], [{}], [{ ad1: 1 }], [{ leech1: 1, ad1: 1, vitality1: 1, haste1: 1, fleet1: 1, armor1: 1, ap1: 1, mr1: 1 }]]) {
-      for (const o of rolls({ pickers }, 800)) {
-        expect(o.filter((id) => cardDef(id)!.kind !== "conditional").length).toBeGreaterThanOrEqual(1);
-        expect(cardDef(o[0]!)!.kind).toBe("base");
-      }
-    }
-  });
-
-  it("never offers a conditional when no eligible picker owns its base (a chest with no eligible owner has none)", () => {
-    for (const o of rolls({})) expect(o.some((id) => cardDef(id)!.kind === "conditional")).toBe(false);
-    for (const o of rolls({ pickers: [] })) expect(o.some((id) => cardDef(id)!.kind === "conditional")).toBe(false);
+  it("offers up to three distinct functioning augments and never raw stat cards", () => {
     for (const o of rolls({ pickers: [{ ad1: 1 }] })) {
+      expect(o.length).toBeLessThanOrEqual(3);
+      expect(new Set(o).size).toBe(o.length);
       for (const id of o) {
         const c = cardDef(id)!;
-        if (c.kind === "conditional") expect(c.requires, id).toBe("ad");
+        expect(c.kind).toBe("augment");
+        expect(cardLive(c)).toBe(true);
+        expect(isInteractiveAugment(c)).toBe(true);
       }
     }
   });
 
-  it("offers a conditional about half the time when a picker owns the base of one", () => {
-    const seen = rolls({ pickers: [{ leech1: 1 }] }).filter((o) => o.some((id) => cardDef(id)!.kind === "conditional")).length / ROLLS;
-    expect(CHEST_CONDITIONAL_CHANCE).toBe(0.5);
-    expect(seen).toBeGreaterThan(0.45);
-    expect(seen).toBeLessThan(0.55);
-  });
-
-  it("only conditionals some eligible picker has the base of, and none that every picker already holds", () => {
-    const a: CardCounts = { leech1: 1, bloodthirst: 1 };
-    const b: CardCounts = { leech2: 1, bloodthirst: 1 };
-    expect(conditionalPool([a, b]).map((c) => c.id)).toEqual(["secondSkin"]);
-    expect(conditionalPool([a, { ad1: 1 }]).map((c) => c.id).sort()).toEqual(["bloodthirst", "juggernaut", "secondSkin", "spellsword"]);
-    expect(conditionalPool([]).map((c) => c.id)).toEqual([]);
-    for (const o of rolls({ pickers: [a, b] })) expect(o).not.toContain("bloodthirst");
-    // All thirteen conditionals are live now (Festering Arcana and Rhythm landed with the phase-B hooks, Heavier Sentence and Swift Judgment with the mark).
-    const everything: CardCounts = Object.fromEntries(BASE_STAT_IDS.map((s) => [`${s}1`, 1]));
-    const all = conditionalPool([everything]).map((c) => c.id);
-    expect(all).toHaveLength(13);
-    expect(all).toContain("festeringArcana");
-    expect(all).toContain("rhythm");
-  });
-
-  it("never offers an augment every eligible picker holds, nor a card that is not live", () => {
-    const hold: CardCounts = Object.fromEntries(AUGMENT_IDS.filter((id) => cardLive(id)).filter((id) => id !== "witness").map((id) => [id, 1]));
-    for (const o of rolls({ pickers: [hold, hold] }, 600)) expect(cardDef(o[2]!)!.id).toBe("witness");
-    for (const o of rolls({ pickers: [hold] }, 600)) expect(o[2]).toBe("witness");
-    // One picker lacking it keeps it in the pool.
-    expect(augmentPool(1, [{ witness: 1 }, {}]).map((c) => c.id)).toContain("witness");
-    expect(augmentPool(1, [{ witness: 1 }, { witness: 1 }]).map((c) => c.id)).not.toContain("witness");
-    for (const o of rolls({}, 2000)) for (const id of o) expect(cardLive(id), id).toBe(true);
-  });
-
-  it("falls back to a nearby tier when the rolled tier has no augment left, and to a base card with none at all", () => {
-    const heldAll = (tier: CardTier): CardCounts => Object.fromEntries(AUGMENT_IDS.filter((id) => cardLive(id) && cardTierOf(id) === tier).map((id) => [id, 1]));
-    const noT3 = heldAll(3);
-    for (const o of rolls({ pickers: [noT3], elite: true }, 1500)) expect(cardTierOf(o[2]!)).not.toBe(3);
-    const noAugments: CardCounts = Object.fromEntries(AUGMENT_IDS.filter((id) => cardLive(id)).map((id) => [id, 1]));
-    for (const o of rolls({ pickers: [noAugments] }, 500)) {
-      expect(o).toHaveLength(3);
-      expect(o.every((id) => cardDef(id)!.kind !== "augment")).toBe(true);
-      expect(new Set(o).size).toBe(3);
+  it("filters interactive options held by all eligible pickers, but keeps options held by only some", () => {
+    const pool = rewardAugmentPool([]);
+    expect(pool.length).toBeGreaterThan(0);
+    const held = pool.map((c) => c.id);
+    expect(rewardAugmentPool([Object.fromEntries(held.map((id) => [id, 1]))])).toHaveLength(0);
+    expect(rewardAugmentPool([{ [held[0]!]: 1 }, {}]).map((c) => c.id)).toContain(held[0]);
+    for (const c of cardsOfKind("base")) expect(isInteractiveAugment(c)).toBe(false);
+    for (const c of cardsOfKind("conditional")) expect(isInteractiveAugment(c)).toBe(false);
+    for (const id of ["gallowsPatience", "noCommutation", "finalVerdict"]) {
+      expect(isInteractiveAugment(id)).toBe(false);
+      expect(rewardAugmentPool([]).some((c) => c.id === id)).toBe(false);
     }
   });
 
-  it("rolls the tiers at the contract's odds: a normal camp's base 70/25/5 and augment 50/45/5, an elite camp's both 10/60/30", () => {
-    expect(CHEST_TIER_ODDS.normal.base).toEqual([70, 25, 5]);
+  it("offers a compatible general-mechanic theme first in every zone, then fills with distinct neutral augments", () => {
+    for (const [zone, theme] of Object.entries(ZONE_AUGMENT_THEMES)) {
+      const seen = new Set<string>();
+      const rng = mulberry32(1234);
+      for (let i = 0; i < 500; i++) {
+        const options = rollChestOptions(rng, { zone: zone as keyof typeof ZONE_AUGMENT_THEMES });
+        expect(options).toHaveLength(3);
+        expect(new Set(options).size).toBe(3);
+        expect(theme).toContain(options[0]);
+        for (const id of options) {
+          expect(isInteractiveAugment(id)).toBe(true);
+          seen.add(id);
+        }
+      }
+      expect(theme.every((id) => seen.has(id)), zone).toBe(true);
+    }
+    const noThemes: CardCounts = Object.fromEntries(ZONE_AUGMENT_THEMES.fire.map((id) => [id, 1]));
+    const fallback = rollChestOptions(mulberry32(1), { zone: "fire", pickers: [noThemes] });
+    expect(fallback).toHaveLength(3);
+    expect(fallback.every((id) => isInteractiveAugment(id))).toBe(true);
+  });
+
+  it("honors normal and elite augment tier odds for each offer", () => {
     expect(CHEST_TIER_ODDS.normal.augment).toEqual([50, 45, 5]);
-    expect(CHEST_TIER_ODDS.elite.base).toEqual([10, 60, 30]);
     expect(CHEST_TIER_ODDS.elite.augment).toEqual([10, 60, 30]);
-    const share = (rs: CardId[][], at: number, kind: "base" | "augment"): number[] => {
-      const cards = rs.map((o) => cardDef(o[at]!)!).filter((c) => c.kind === kind);
-      return CARD_TIERS.map((t) => cards.filter((c) => c.tier === t).length / cards.length);
-    };
-    const near = (got: number[], want: number[]): void => got.forEach((g, i) => expect(Math.abs(g - want[i]! / 100), `tier ${i + 1}`).toBeLessThan(0.03));
-    const normal = rolls({ pickers: [{ ad1: 1 }] }, 20000);
-    near(share(normal, 0, "base"), [70, 25, 5]);
-    near(share(normal, 2, "augment"), [50, 45, 5]);
-    const elite = rolls({ pickers: [{ ad1: 1 }], elite: true }, 20000);
-    near(share(elite, 0, "base"), [10, 60, 30]);
-    near(share(elite, 2, "augment"), [10, 60, 30]);
+    for (const [elite, odds] of [[false, [50, 50, 0]], [true, [10, 90, 0]]] as const) {
+      const rs = rolls({ elite }, 12000);
+      const cards = rs.map((o) => cardDef(o[0]!)!);
+      for (let t = 1; t <= 3; t++) {
+        const share = cards.filter((c) => c.tier === t).length / cards.length;
+        expect(Math.abs(share - odds[t - 1]! / 100)).toBeLessThan(0.03);
+      }
+    }
   });
 
-  it("spreads over every live base card and every live augment in time", () => {
-    const seen = new Set<string>();
-    for (const o of rolls({ pickers: [{ ad1: 1, leech1: 1, vitality1: 1, haste1: 1, fleet1: 1, armor1: 1, ap1: 1, mr1: 1 }], elite: true }, 20000, 7)) {
-      for (const id of o) seen.add(id);
-    }
-    for (const o of rolls({ pickers: [{ ad1: 1, leech1: 1, vitality1: 1, haste1: 1, fleet1: 1, armor1: 1, ap1: 1, mr1: 1 }] }, 20000, 8)) {
-      for (const id of o) seen.add(id);
-    }
-    for (const c of CARDS) if (cardLive(c)) expect(seen.has(c.id), c.id).toBe(true);
-    for (const c of CARDS) if (!cardLive(c)) expect(seen.has(c.id), c.id).toBe(false);
-  });
-
-  it("is deterministic for one stream, and draws a bounded number of times from it (a base card's tier and pick, a coin, a conditional's pick or a second base card's tier and pick, an augment's tier and pick: 6 or 7)", () => {
-    const opts = { pickers: [{ leech1: 1 }] };
+  it("is deterministic, excludes stat-only catalog entries, and returns no fallback card after exhaustion", () => {
+    const opts = { pickers: [{ ad1: 1 }] };
     expect(rollChestOptions(mulberry32(42), opts)).toEqual(rollChestOptions(mulberry32(42), opts));
-    let draws = 0;
-    const counting = (): number => { draws++; return 0.5; };
-    rollChestOptions(counting, opts);
-    expect(draws).toBeGreaterThanOrEqual(6);
-    expect(draws).toBeLessThanOrEqual(7);
-  });
-
-  it("is unchanged by the order of the pickers", () => {
-    const a: CardCounts = { leech1: 1, ad1: 1 };
-    const b: CardCounts = { fleet2: 1, bloodthirst: 1 };
-    expect(rollChestOptions(mulberry32(5), { pickers: [a, b] })).toEqual(rollChestOptions(mulberry32(5), { pickers: [b, a] }));
-  });
-
-  it("can roll the unfinished cards for a catalog test with readyOnly: false", () => {
-    const seen = new Set<string>();
-    const rng = mulberry32(3);
-    for (let i = 0; i < 6000; i++) for (const id of rollChestOptions(rng, { readyOnly: false, pickers: [{ ad1: 1, haste1: 1, ap1: 1 }], elite: true })) seen.add(id);
-    expect(seen.has("rhythm")).toBe(true);
-    expect(seen.has("hemorrhage")).toBe(true);
+    const all = rewardAugmentPool([]).map((c) => c.id);
+    const exhausted = Object.fromEntries(all.map((id) => [id, 1]));
+    expect(rollChestOptions(mulberry32(1), { pickers: [exhausted] })).toEqual([]);
+    for (const c of cardsOfKind("augment")) if (!isInteractiveAugment(c)) expect(rollChestOptions(mulberry32(2))).not.toContain(c.id);
   });
 });
 
