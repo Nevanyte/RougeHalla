@@ -217,6 +217,7 @@ export class LocalPrediction {
    */
   frameInput(
     c: number, active: boolean, me: LocalFighter | undefined, others: Iterable<OtherFighter>, aiming: boolean, map: GameMap | null = null,
+    huntTarget?: Vec2,
   ): FrameInput {
     const t = c + this.motion.delay;
     const input: FrameInput = {
@@ -225,6 +226,7 @@ export class LocalPrediction {
       rooted: (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
       aiming,
     };
+    if (huntTarget) input.huntTarget = huntTarget;
     const slipAt = me && map ? this.slipAtFor(map, me.faction) : undefined;
     if (slipAt && map) {
       input.slipAt = slipAt;

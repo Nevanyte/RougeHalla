@@ -141,15 +141,16 @@ describe("the multipliers", () => {
 
   it("moveSpeedMult is the Fleet cards' rows (off while the player shoots), and no other base card moves it", () => {
     const w = startRun(2);
-    for (const other of ["haste3", "vitality3", "armor3", "ad3"]) grant(w, 0, other, 2);
-    expect(moveSpeedMult(w, cOf(w, 0))).toBe(1);
-    grant(w, 0, "fleet2");
-    expect(moveSpeedMult(w, cOf(w, 0))).toBe(sim(1 + FLEET[2]!));
+    // p1 is Sentenced; Fire's independent roam-speed source is intentionally outside the card-only assertion here.
+    for (const other of ["haste3", "vitality3", "armor3", "ad3"]) grant(w, 1, other, 2);
+    expect(moveSpeedMult(w, cOf(w, 1))).toBe(1);
+    grant(w, 1, "fleet2");
+    expect(moveSpeedMult(w, cOf(w, 1))).toBe(sim(1 + FLEET[2]!));
     // Fleet's rule (Swift Boots'): it is off from a shot's start until its pause after the shot. The condition is read once a tick
     // (the step loop's updateMods), so a shot just taken shows by the end of its tick.
-    RT(w, 0).weapon.lastShotAt = w.state.serverTime;
+    RT(w, 1).weapon.lastShotAt = w.state.serverTime;
     tick(w);
-    expect(moveSpeedMult(w, cOf(w, 0))).toBe(1);
+    expect(moveSpeedMult(w, cOf(w, 1))).toBe(1);
   });
 });
 
@@ -658,7 +659,7 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     // Distance walked in the 4th tick of a chase of a target 14 tiles away.
     const run = (fleet: boolean): number => {
       const world = createGameWorld({ config: makeConfig(2), random: mulberry32(8), map });
-      addPlayer(world, "p0", "alice");
+      addPlayer(world, "p0", "alice", { faction: "sentenced" });
       addPlayer(world, "p1", "bob");
       step(world, TICK_MS);
       if (fleet) grant(world, 0, "fleet2");
@@ -688,11 +689,11 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
 
   it("includes the Fleet bonus while the player is not shooting, and not for a shooter (a bow or wand shot pauses it)", () => {
     const w = startRun(2);
-    grant(w, 0, "fleet3");
-    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(1 + FLEET[3]!));
-    RT(w, 0).weapon.lastShotAt = w.state.serverTime;
+    grant(w, 1, "fleet3");
+    expect(effectiveMove(w, cOf(w, 1))).toBe(sim(1 + FLEET[3]!));
+    RT(w, 1).weapon.lastShotAt = w.state.serverTime;
     tick(w);
-    expect(effectiveMove(w, cOf(w, 0))).toBe(1);
+    expect(effectiveMove(w, cOf(w, 1))).toBe(1);
   });
 
   it("is 0 while rooted whatever the cards say", () => {

@@ -90,10 +90,10 @@ describe("quest rewards", () => {
     P(world).mobStats.set("emberImp", 9);
     const qt = ready(world, "cull-fire");
     complete(world, qt);
-    expect(P(world).mobStats.get("emberImp")).toBe(11);
+    expect(P(world).mobStats.get("emberImp")).toBe(9 + questRewardStats(qt.def).stacks);
     const second = ready(world, "cull-fire");
     complete(world, second);
-    expect(P(world).mobStats.get("emberImp")).toBe(13);
+    expect(P(world).mobStats.get("emberImp")).toBe(9 + questRewardStats(qt.def).stacks * 2);
     expect(P(world).build.size).toBe(0);
     expect(RT(world).gv.quest).toBe(qt.def.reward.gv * 2);
   });

@@ -69,6 +69,10 @@ export interface ClientMessages {
   swap: { slot?: number };
   /** Take a weapon from a chest, the ground or a body in reach (F). With both slots full, the one in hand is dropped. */
   pickup: { containerId: string };
+  /** Consume a nearby Plague corpse (the server checks faction, life state, range, and expiry). */
+  consumeCorpse: { corpseId: string };
+  /** Select one living rival as a Sentenced hunt target; the server validates faction and only permits selection while unlocked. */
+  huntTarget: { id: string };
   /**
    * The planning screen (phase "planning" only; dropped in any other phase). `spawn` and `boon` are indexes into the two
    * options of the player's own private `plan` message (0 or 1, nothing else); at least one field must be there. The
@@ -123,7 +127,7 @@ export type TrainMessage =
 
 export type ClientMessageType = keyof ClientMessages;
 export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
-  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove",
+  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget",
 ];
 
 /** Why a projectile stopped (a `projEnd` fx). */

@@ -802,6 +802,26 @@ describe("staying honest when the server does something the client did not order
   });
 });
 
+describe("Sentenced hunt movement prediction", () => {
+  it("boosts only a nonzero route leg whose direction is clearly toward the hunted rival", () => {
+    const map = arena();
+    const start = centre(10, 10), goal = centre(30, 10);
+    const distance = (huntTarget: Vec2 | undefined, order = true): number => {
+      const m = new LocalMotion();
+      m.observe({ x: start.x, y: start.y, t: 0, moveSeq: 0 }, 0);
+      m.frame(0, FRAME_MS, ALIVE);
+      if (order) m.order("move", 1, 0, goal, map);
+      m.frame(100, 100, { ...ALIVE, huntTarget });
+      return m.predicted.x - start.x;
+    };
+    const base = distance(undefined);
+    expect(distance({ x: goal.x + 500, y: goal.y })).toBeCloseTo(base * 1.05, 6);
+    expect(distance({ x: start.x - 500, y: start.y })).toBeCloseTo(base, 6);
+    expect(distance({ x: start.x, y: start.y - 500 })).toBeCloseTo(base, 6);
+    expect(distance({ x: goal.x + 500, y: goal.y }, false)).toBe(0);
+  });
+});
+
 describe("the click is clamped to the world, as the server's parsePoint clamps it", () => {
   /** A full-size open arena: the world's rectangle, walled on its border. */
   function worldArena(): GameMap {

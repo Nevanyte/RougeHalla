@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ABILITIES, WISH_COOLDOWN_SECONDS } from "@raid/shared";
+import { ABILITIES, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WISH_COOLDOWN_SECONDS } from "@raid/shared";
 import { abilityTip, wishCooldownMultiplier } from "../src/ui/combatTip";
 
 describe("ability hover details", () => {
@@ -8,7 +8,8 @@ describe("ability hover details", () => {
     expect(tip).toContain("5 s");
     expect(tip).toContain("80% damage");
     expect(tip).toContain("120% from you");
-    expect(tip).toContain("1 s");
+    expect(tip).toContain(`${TRIAL_MOVE_MULT * 100}% speed`);
+    expect(tip).toContain(`${TRIAL_EXIT_STUN_MS / 1000} s`);
     expect(tip).not.toContain("undefined");
   });
 

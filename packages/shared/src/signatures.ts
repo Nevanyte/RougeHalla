@@ -114,7 +114,7 @@ export function diseaseDps(f: FactionSpec, foeHpFrac: number, band: number = EXE
   return plagueDps(f) + executeDps(f, foeHpFrac, band);
 }
 
-export { markPct, markTierOf, markWeight, taxedRate } from "./mark";
+export { markPct, markTierOf, markWeight, taxedRate, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY } from "./mark";
 
 /** Cooldown-progress multiplier this faction's chill puts on everyone engaged with it (1 = none). */
 export function chillMultiplier(f: FactionSpec): number {

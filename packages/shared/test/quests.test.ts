@@ -1,7 +1,7 @@
 // The quest catalog, reward maths and contract-driven placement. Dense seeds 7829/10760 pin the placement fallbacks.
 import { beforeAll, describe, expect, it } from "vitest";
 import { cardDef } from "../src/cards";
-import { mobStatReward, mobStatText, MOB_STAT_CAP } from "../src/mobStats";
+import { mobStatReward, mobStatText } from "../src/mobStats";
 import { rewardCurve } from "../src/rules";
 import {
   QUEST_ACCEPT_RANGE, QUEST_COUNT, QUEST_FETCH_MIN_TILES, QUEST_GV_CAP, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES,
@@ -85,15 +85,16 @@ describe("the catalog", () => {
       const mob = mobStatReward(reward.id)!;
       expect(mob.zone).toBe(def.farZone);
       expect(Number.isInteger(reward.stacks)).toBe(true);
-      expect(reward.stacks).toBeGreaterThan(0);
-      expect(reward.stacks).toBeGreaterThan(0);
+      expect(reward.stacks).toBeGreaterThanOrEqual(8);
+      expect(reward.stacks).toBeLessThanOrEqual(16);
+      expect(reward.stacks).toBe(Math.max(8, Math.min(16, Math.ceil((def.objSec + def.travelSec * 0.4) / 12 * 2))));
       expect(questRewardText(def)).toContain(mob.name);
       expect(questRewardText(def)).toContain(mobStatText(reward.id, reward.stacks));
       expect(questRewardText(def)).toContain(`${def.reward.gv} GV`);
       expect(questRewardText(def)).not.toContain("cap");
     }
-    expect(questRewardStats(questDefById("cull-fire")!)).toEqual({ id: "emberImp", stacks: 2 });
-    expect(questRewardStats(questDefById("cull-plague")!)).toEqual({ id: "plagueRat", stacks: 4 });
+    expect(questRewardStats(questDefById("cull-fire")!)).toEqual({ id: "emberImp", stacks: 10 });
+    expect(questRewardStats(questDefById("cull-plague")!)).toEqual({ id: "plagueRat", stacks: 10 });
   });
 
   it("retains the historical card-tier tuning helper for benchmark compatibility", () => {

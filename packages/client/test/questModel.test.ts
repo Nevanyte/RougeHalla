@@ -24,7 +24,7 @@ describe("the reward a quest row shows", () => {
   const def = questDefById("cull-fire")!; // Attack Damage II and 10 GV
 
   it("shows the fixed mob stat stack reward regardless of feed", () => {
-    expect(questReward(def)).toBe("2 Ember Imp stacks (+2% damage) and 10 GV");
+    expect(questReward(def)).toBe("10 Ember Imp stacks (+10% damage) and 10 GV");
     expect(questReward(def, 999)).toBe(questReward(def));
     const row = (feed?: number) => questRows({ forEach: (cb) => cb(quest(), "q1") }, "me", 5_000, "", false, feed)[0]!;
     expect(row().reward).toBe(questReward(def));
@@ -32,8 +32,8 @@ describe("the reward a quest row shows", () => {
   });
 
   it("shows the full quest reward and the uncapped resulting total", () => {
-    expect(questReward(def, undefined, new Map([["emberImp", 9]]))).toBe("2 Ember Imp stacks (+2% damage; 11 total after this quest) and 10 GV");
-    expect(questReward(def, undefined, new Map([["emberImp", 100]]))).toBe("2 Ember Imp stacks (+2% damage; 102 total after this quest) and 10 GV");
+    expect(questReward(def, undefined, new Map([["emberImp", 9]]))).toBe("10 Ember Imp stacks (+10% damage; 19 total after this quest) and 10 GV");
+    expect(questReward(def, undefined, new Map([["emberImp", 100]]))).toBe("10 Ember Imp stacks (+10% damage; 110 total after this quest) and 10 GV");
   });
 });
 
@@ -43,7 +43,7 @@ describe("quest presentation model", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       objective: "Kill 3 mobs in Fire", progress: "1 / 3", time: "1:00", status: "Open",
-      reward: "2 Ember Imp stacks (+2% damage) and 10 GV",
+      reward: "10 Ember Imp stacks (+10% damage) and 10 GV",
     });
   });
 
@@ -144,7 +144,7 @@ describe("quest presentation model", () => {
 
   it("words the fixed stat reward and GV for every quest kind", () => {
     expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("Cinder Hound stacks");
-    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("4 Cinder Hound stacks (+2% move speed)");
+    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("8 Cinder Hound stacks (+4% move speed)");
   });
 });
 
@@ -159,8 +159,10 @@ describe("quest minimap model", () => {
       boxes([container({ x: 500, y: 400 }), container({ id: "c2", x: 280, y: 400 })]),
       "me", { x: 300, y: 400 }, new Map(), null,
     );
-    expect(data.map((b) => b.role)).toEqual(["giver", "objective"]);
+    expect(data.map((b) => b.role)).toEqual(["giver", "objective", "objective"]);
     expect(data[1]).toMatchObject({ x: 280, y: 400, kind: "fetch" });
+    expect(data[1]!.privateObjective).toBe(true);
+    expect(data[2]!.privateObjective).toBe(true);
   });
 
   it("keeps an exact carrier blip independent of fighter visibility", () => {
@@ -178,8 +180,9 @@ describe("quest minimap model", () => {
       container({ id: "other", x: 200, y: 200, items: [{ def: "quest:q2" }] }),
     ];
     const data = questMinimapBlips(quests([first, second]), boxes(items), "me", { x: 100, y: 100 }, new Map(), null);
-    expect(data.map((b) => b.role)).toEqual(["giver", "giver", "objective"]);
+    expect(data.map((b) => b.role)).toEqual(["giver", "giver", "objective", "objective", "objective"]);
     expect(data[2]).toMatchObject({ x: 110, y: 100, kind: "collect" });
+    expect(data.filter((b) => b.privateObjective).map((b) => b.x)).toEqual([110, 800, 200]);
   });
 
   it("uses a ready local objective's giver as the turn-in blip", () => {

@@ -7,7 +7,7 @@ import { questKindCss, type QuestMapBlip } from "./questModel";
 
 export const COLOR_ENEMY = "#ff8c91";
 export const COLOR_RESPAWN = "#b4c9dc";
-type Kind = "player" | "enemy" | "mob" | "chest" | "respawn" | "camp" | "quest" | "stop";
+type Kind = "player" | "enemy" | "mob" | "corpse" | "chest" | "respawn" | "camp" | "quest" | "stop";
 export interface TacticalMark extends MapMark {
   kind: Kind;
   color: string;
@@ -19,6 +19,7 @@ export interface TacticalMark extends MapMark {
   next?: boolean;
 }
 export interface RespawnBlip extends Vec2 { left: number }
+export interface CorpseBlip extends Vec2 { id: string }
 export interface MarkerInputs {
   player?: Vec2;
   alive: boolean;
@@ -26,6 +27,7 @@ export interface MarkerInputs {
   enemies: readonly Vec2[];
   chests: readonly ChestBlip[];
   respawns: readonly RespawnBlip[];
+  corpses?: readonly CorpseBlip[];
   camps: GameMap["camps"];
   campStates: readonly number[];
   quests: readonly QuestMapBlip[];
@@ -43,6 +45,7 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
   };
   if (input.player) add("player", "self", input.player, 8, 8, 100, input.alive ? COLOR_PLAYER : COLOR_PLAYER_DOWN, { essential: true, pinned: true });
   input.enemies.forEach((p, i) => add("enemy", String(i), p, 9, 9, 95, COLOR_ENEMY, { essential: true, pinned: true }));
+  (input.corpses ?? []).forEach((p) => add("corpse", p.id, p, 10, 10, 98, "#8bff61", { essential: true, pinned: true }));
 
   input.quests.forEach((q, i) => add("quest", String(i), q, q.tracked ? 16 : 8, q.tracked ? 11 : 8,
     q.tracked ? 90 : 55, questKindCss(q.kind), { quest: q, text: q.tracked ? "GO" : undefined, essential: q.tracked }));
@@ -88,6 +91,16 @@ export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly
     ctx.fillStyle = m.color;
     if (m.kind === "camp" && m.camp) {
       paintCamps(ctx, [{ ...m.camp, x: x, y: y }], 1, px * 0.8, [m.state ?? 0]);
+    } else if (m.kind === "corpse") {
+      ctx.fillStyle = "#10230e";
+      ctx.beginPath(); ctx.arc(x, y, 4.5 * px, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#d8ffb7";
+      ctx.lineWidth = 1.4 * px;
+      ctx.beginPath(); ctx.moveTo(x - 2 * px, y - 2 * px); ctx.lineTo(x + 2 * px, y + 2 * px);
+      ctx.moveTo(x + 2 * px, y - 2 * px); ctx.lineTo(x - 2 * px, y + 2 * px); ctx.stroke();
+      ctx.strokeStyle = "#8bff61";
+      ctx.lineWidth = px;
+      ctx.beginPath(); ctx.arc(x, y, 4.5 * px, 0, TAU); ctx.stroke();
     } else if (m.kind === "chest" || m.kind === "respawn") {
       const ix = x - 7 * px;
       ctx.fillStyle = m.color;

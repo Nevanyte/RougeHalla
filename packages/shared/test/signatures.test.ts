@@ -3,7 +3,7 @@ import {
   BEATS, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, CHILL_MOVE_HOLD_MS, CHILL_MOVE_THAW_MS, CHILL_MOVE_RESET_MS,
   chillMultiplier, frostMoveMultiplier, damageFlash,
   DAMAGE_FLASH_FULL_SHARE, DAMAGE_FLASH_MIN_SHARE, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS,
-  engageRange, FACTION_IDS, FACTIONS, factionEdge, executeDps, HEAL_LOCKOUT_SECONDS, isDot, markPct, markTierOf, markWeight, MATCHUP_FULL_RANGE,
+  engageRange, FACTION_IDS, FACTIONS, factionEdge, executeDps, HEAL_LOCKOUT_SECONDS, isDot, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, MATCHUP_FULL_RANGE,
   MATCHUP_RANGE, MARK_TIER_HITS, matchupScore, matchupTint, pacedFaction, plagueDps, taxedRate, TARGET_FORGET_SECONDS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type SignatureKind, type WeaponId,
 } from "../src/index";
@@ -216,6 +216,14 @@ describe("markWeight and markPct (the pulse's share, R4)", () => {
     expect(markWeight(f, "sword", 3)).toBeGreaterThan(markWeight(f, "sword", 1));
   });
 
+  it("keeps full AS for autos but uses a sublinear AS contribution for mark DPS", () => {
+    const f = SHEET.sentenced;
+    const as = 1.4;
+    const markDpsScale = as * markWeight(f, "sword", as, MARK_AS_EXPONENT) / markWeight(f, "sword", 1, MARK_AS_EXPONENT);
+    expect(markDpsScale).toBeCloseTo(as ** MARK_AS_EXPONENT, 12);
+    expect(as).toBeGreaterThan(markDpsScale);
+  });
+
   it("markPct is the share plus a kill-stack's share each, times the Heavier Sentence scale", () => {
     const f = SHEET.sentenced;
     const base = f.params.mark_pct!;
@@ -224,6 +232,28 @@ describe("markWeight and markPct (the pulse's share, R4)", () => {
     expect(markPct(f, 3)).toBeCloseTo(base + 3 * kill, 12);
     expect(markPct(f, 5, 1.2)).toBeCloseTo((base + 5 * kill) * 1.2, 12);
     expect(markPct(f, -2)).toBeCloseTo(base, 12);
+  });
+
+  it("bonus bruiser stats grow the mark linearly without changing fresh baseline", () => {
+    const f = SHEET.sentenced;
+    const base = markPct(f, 0);
+    const asPoint = (1 + 0.01 * MARK_FARM_AS_EFFICIENCY) ** MARK_AS_EXPONENT;
+    expect(markPct(f, 0, 1, { ad: 0, ap: 0, armor: 0, magicResist: 0 })).toBe(base);
+    for (const stat of ["ad", "ap", "armor", "magicResist"] as const) {
+      const weight = stat === "ap" ? MARK_BONUS_AP_WEIGHT : 1;
+      expect(markPct(f, 0, 1, { [stat]: 1 })).toBeCloseTo(base * (1 + MARK_BONUS_STAT_PER_POINT * weight), 12);
+      expect(markPct(f, 0, 1, { [stat]: 1 })).toBeGreaterThan(base * asPoint);
+      expect(markPct(f, 0, 1, { [stat]: 100 })).toBeCloseTo(base * (1 + 100 * MARK_BONUS_STAT_PER_POINT * weight), 12);
+    }
+    expect(markPct(f, 0, 1, { ad: 10_000 })).toBeCloseTo(base * (1 + 10_000 * MARK_BONUS_STAT_PER_POINT), 12);
+    expect(markPct(f, 0, 1, { ad: Number.POSITIVE_INFINITY })).toBe(base);
+    for (const farmed of [40, 120]) {
+      const farmedBase = markPct(f, 0, 1, { ad: farmed });
+      const flatPoint = markPct(f, 0, 1, { ad: farmed + 1 }) / farmedBase - 1;
+      const onePercentAs = (1 + 0.01 * MARK_FARM_AS_EFFICIENCY) ** MARK_AS_EXPONENT - 1;
+      expect(flatPoint).toBeCloseTo(MARK_BONUS_STAT_PER_POINT / (1 + MARK_BONUS_STAT_PER_POINT * farmed), 12);
+      expect(flatPoint).toBeGreaterThan(onePercentAs);
+    }
   });
 
   it("five kill-stacks make the share x2.25 (the spec's 0.6% to 1.35%)", () => {

@@ -1,6 +1,6 @@
 // PlayerView's barrier (Phase 11, R4a): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
 // public state, against BARRIER_FULL_SHARE of max hp. The bow's draw follows the attack-speed and windup mirrors. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
@@ -8,6 +8,7 @@ import { fullDrawSeconds } from "../src/render/FighterArt";
 import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { screenAngle } from "../src/render/projection";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
+import { getSettings, updateSettings } from "../src/settings";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in PlayerView's constructor. */
@@ -235,6 +236,41 @@ describe("PlayerView status marks", () => {
     expect(status.calls.length).toBeGreaterThan(0);
     view.update(0, 0, player({ effects: 0 }), 1000, 1000);
     expect(status.calls).toEqual([]);
+  });
+});
+
+describe("PlayerView Fire roaming glow", () => {
+  it("only shows the full-charge ring and holds it still under reduced motion", () => {
+    const { scene } = fakeScene();
+    const view = new PlayerView(scene, false);
+    const glow = (view as unknown as { fireRoamGlow: FakeObject }).fireRoamGlow;
+    let now = 10000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const previous = getSettings();
+    try {
+      updateSettings({ juice: 1, reducedMotion: true });
+      view.update(0, 0, player({ roamReady: false }), 1000, 1000);
+      expect(argsOf(glow, "strokeCircle")).toHaveLength(0);
+
+      const ready = player({ roamReady: true });
+      view.update(0, 0, ready, 1000, 1000);
+      const still = argsOf(glow, "strokeCircle");
+      expect(still).toHaveLength(2);
+      now += 100;
+      view.update(0, 0, ready, 1016, 1000);
+      expect(argsOf(glow, "strokeCircle")).toEqual(still);
+
+      updateSettings({ reducedMotion: false });
+      now += 100;
+      view.update(0, 0, ready, 1032, 1000);
+      const moving = argsOf(glow, "strokeCircle");
+      now += 100;
+      view.update(0, 0, ready, 1048, 1000);
+      expect(argsOf(glow, "strokeCircle")).not.toEqual(moving);
+    } finally {
+      updateSettings({ juice: previous.juice, reducedMotion: previous.reducedMotion });
+      clock.mockRestore();
+    }
   });
 });
 

@@ -1,7 +1,7 @@
 import type { GameMap, Vec2 } from "@raid/shared";
 import { el } from "./dom";
 import { mapSpan } from "./minimapMath";
-import { formatQuestTime, questKindCss, questRows, type QuestCollection } from "./questModel";
+import { formatQuestTime, questKindCss, questRows, type QuestCollection, type QuestObjectiveMarker } from "./questModel";
 import "./questPlanning.css";
 
 export interface PlanningQuestFrame {
@@ -10,6 +10,8 @@ export interface PlanningQuestFrame {
   localId: string;
   quests?: QuestCollection;
   hiddenQuests?: number;
+  /** Private to localId: accepted fetch/collect objective points, not filtered by fog. */
+  objectives?: readonly QuestObjectiveMarker[];
 }
 
 export class PlanningQuests {
@@ -38,10 +40,16 @@ export class PlanningQuests {
     const planning = frame.mode === "planning";
     this.element.hidden = !planning;
     this.markers.hidden = !planning && !interactiveMap;
-    if (!planning && !interactiveMap) return;
+    if (!planning && !interactiveMap) {
+      if (this.markers.children.length) this.markers.replaceChildren();
+      this.signature = "";
+      return;
+    }
     const rows = this.quests ? questRows(this.quests, frame.localId, frame.serverNow).filter((row) => row.quest.status === "open" && !row.expired) : [];
     const hidden = Math.max(0, Math.floor(frame.hiddenQuests ?? 0));
-    const signature = rows.map((r) => `${r.id}|${r.def.expiresAtSec}|${r.status}`).join("|") + `|${hidden}|${this.map?.seed ?? ""}`;
+    const objectives = interactiveMap ? frame.objectives ?? [] : [];
+    const signature = rows.map((r) => `${r.id}|${r.def.expiresAtSec}|${r.status}`).join("|")
+      + `|${hidden}|${this.map?.seed ?? ""}|${objectives.map((o) => `${o.questId}:${o.itemId}:${o.action}:${o.x},${o.y}`).join(";")}`;
     if (signature === this.signature) return;
     this.signature = signature;
     this.element.replaceChildren(el("h3", "pl-h", "Known quests"));
@@ -57,10 +65,17 @@ export class PlanningQuests {
       this.element.append(card);
     }
     if (hidden > 0) this.element.append(el("p", "pl-small pl-quest-hidden", `+${hidden} rumoured — reveal them by exploring`));
-    this.paintMarkers(rows.map((r) => ({ x: r.quest.x, y: r.quest.y, name: r.def.name, kind: r.def.kind })));
+    const returnIds = new Set(objectives.filter((o) => o.action === "return").map((o) => o.questId));
+    const giverMarks = rows
+      .filter((r) => !interactiveMap || !returnIds.has(r.id))
+      .map((r) => ({ id: r.id, x: r.quest.x, y: r.quest.y, name: r.def.name, kind: r.def.kind }));
+    this.paintMarkers(giverMarks, objectives);
   }
 
-  private paintMarkers(quests: Array<Vec2 & { name: string; kind: "kill" | "collect" | "fetch" }>): void {
+  private paintMarkers(
+    quests: Array<Vec2 & { id: string; name: string; kind: "kill" | "collect" | "fetch" }>,
+    objectives: readonly QuestObjectiveMarker[],
+  ): void {
     this.markers.replaceChildren();
     const span = mapSpan();
     for (const quest of quests) {
@@ -76,6 +91,26 @@ export class PlanningQuests {
       mark.style.setProperty("left", `${(quest.x / span) * 100}%`);
       mark.style.setProperty("top", `${(quest.y / span) * 100}%`);
       mark.style.setProperty("--quest-color", questKindCss(quest.kind));
+      this.markers.append(mark);
+    }
+    for (const objective of objectives) {
+      const action = objective.action === "return" ? "RETURN" : objective.marker === "parcel" ? "FETCH" : "TOKEN";
+      const mark = el("button", `pl-questmark objective-item kind-${objective.kind} action-${objective.action}`, action);
+      mark.type = "button";
+      const intent = objective.action === "return"
+        ? `return to the giver for ${objective.name}`
+        : objective.marker === "parcel" ? `fetch the parcel for ${objective.name}` : `collect a token for ${objective.name}`;
+      const label = `Add route stop to ${intent}`;
+      mark.setAttribute("aria-label", label);
+      mark.title = label;
+      mark.addEventListener("click", (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.mode === "planning" || this.mode === "map") this.onSelect(objective);
+      });
+      mark.style.setProperty("left", `${(objective.x / span) * 100}%`);
+      mark.style.setProperty("top", `${(objective.y / span) * 100}%`);
+      mark.style.setProperty("--quest-color", questKindCss(objective.kind));
       this.markers.append(mark);
     }
   }

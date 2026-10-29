@@ -76,6 +76,16 @@ describe("session vision", () => {
     visibleCollection(source, v.canSee).forEach((_point, id) => seen.push(id));
     expect(seen).toEqual(["visible"]);
   });
+  it("reveals the hunted actor location without revealing terrain or other actors nearby", () => {
+    const m = map(), v = new RaidVision(); frame(v, m);
+    const far = { x: 70 * TILE, y: 50 * TILE };
+    v.setTrackedTarget("rival");
+    expect(v.canSee(far)).toBe(false);
+    expect(v.canSeeActor("rival", far)).toBe(true);
+    expect(v.canSeeActor("other", far)).toBe(false);
+    v.setTrackedTarget("");
+    expect(v.canSeeActor("rival", far)).toBe(false);
+  });
 });
 
 describe("directional edge hue", () => {

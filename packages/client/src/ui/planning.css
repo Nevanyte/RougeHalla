@@ -134,6 +134,12 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
 .pl-actor-enemy { z-index: 1; }
 .pl-actor-enemy .pl-actor-shape { transform: rotate(45deg); border-color: #fff0f0; border-radius: 1px; background: #f04452; box-shadow: 0 0 0 2px #3b090d, 0 1px 5px #000; }
 .pl-actor-enemy .pl-actor-label { color: #ffc3c7; border-color: #ff5360; }
+.pl-actor-corpse { z-index: 0; width: 16px; height: 16px; }
+.pl-actor-corpse .pl-actor-shape { border: 2px solid #e8ffd0; border-radius: 45% 45% 35% 35%; background: #62b84e; box-shadow: 0 0 0 2px #10230e, 0 0 10px rgba(133, 255, 96, .9); }
+.pl-actor-corpse .pl-actor-shape::before, .pl-actor-corpse .pl-actor-shape::after { position: absolute; content: ""; background: #d8ffb7; }
+.pl-actor-corpse .pl-actor-shape::before { width: 3px; height: 11px; left: 4px; top: 1px; transform: rotate(45deg); }
+.pl-actor-corpse .pl-actor-shape::after { width: 3px; height: 11px; right: 4px; top: 1px; transform: rotate(-45deg); }
+.pl-actor-corpse .pl-actor-label { color: #e4ffd1; border-color: #a7f17b; }
 
 .pl-zone {
   position: absolute;

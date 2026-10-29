@@ -1,22 +1,13 @@
-// The quest catalog and its placement (GAME_DESIGN 2.2; sim/quests.ts runs these in a raid). Quests are standing
-// offers to the whole lobby: five public offers support spawn planning, while five private offers stay out of synced
-// state until scouted. Every objective pulls players away from their spawn and pays a card and some GV.
-//
-// The real-sim questBench showed that one card per quest badly underpays: farming earns 1–2 live power in 11.5–15 s while most
-// quest completions cost 38–71 s. Keep the card identity and tier from the objective worksheet, then use reward.copies (calibrated
-// per offer from the 10-seed, 4-seat questBench) to pay the observed opportunity cost. A player farming flat out clears a
-// camp (CAMP_SECONDS, four mobs of FARM_SECONDS_PER_MOB each) in the time a quest asks, and a normal camp's chest gives CARD_TIER_RATE
-// tier points on average. A quest costs objSec at the objective plus travelSec of pure walking; walking only earns TRAVEL_RATE_SHARE of
-// the farm rate (camps met on the way). Its card's tier is those camps' worth of points, rounded into 1-3 (questTier), and pays a
-// little OVER parity, STACK_PREMIUM, because the walker is exposed (a gank target carrying a parcel) in a way a camper is not. The
-// base stat comes from the zone it visits (the old buff's stat); the player-kill quest (no mob parity) is capped at tier 1. A fed
-// player (the mob reward curve below QUEST_FEED_BRAKE) gets one tier less (questRewardCard). The catalog test holds every card to
-// the tier rule and measured copy counts, and every GV amount inside a band around its parity, so those contracts cannot drift.
+// The quest catalog and placement (GAME_DESIGN 2.2; sim/quests.ts runs them in a raid). Five offers are public for planning;
+// five stay server-side until scouted. Quests award a zone-matched normal-mob stat stack and GV when completed. Stack quantity is
+// based on objective effort: count objective seconds fully, travel at the existing 40% incidental-farming rate, double the
+// resulting normal-kill equivalent for a meaningful route premium, then keep each offer between 8 and 16 stacks. It is independent
+// of feed; the old card identity/copy/tier fields remain tuning metadata only.
 import {
   PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE,
 } from "./constants";
 import { cardDef, type CardId, type CardTier } from "./cards";
-import { MOB_STAT_REWARDS, mobStatText, normalizeMobStatCount } from "./mobStats";
+import { MOB_STAT_REWARDS, mobStatText } from "./mobStats";
 import type { MobTypeId } from "./mobs";
 import type { FactionId } from "./factions";
 import { circleClear } from "./geometry";
@@ -58,7 +49,7 @@ export interface QuestDef {
   objSec: number;
   /** Expected seconds of pure travel the offer asks for; feeds the parity maths above. */
   travelSec: number;
-  /** The base card and stack count it pays (the feed brake lowers tier, not count), plus the GV it adds. */
+  /** Historical reward-card tuning metadata plus the GV it adds. Current mob-stat stacks derive from objective/travel effort. */
   reward: { card: CardId; copies: number; gv: number };
   /** The offer lapses this many seconds into the run (no farming first, turning in at leisure). */
   expiresAtSec: number;
@@ -234,14 +225,26 @@ export function questRewardCopies(def: Pick<QuestDef, "reward">): number {
   return def.reward.copies;
 }
 
-/** A fixed, whole number of the zone's normal-mob stat stacks. The nominal card remains historical tuning metadata. */
-export function questRewardStats(def: Pick<QuestDef, "reward" | "farZone">): { id: MobTypeId; stacks: number } {
+/** Quest stat awards count toward substantial farming progress, based on objective and travel effort. */
+export const QUEST_MIN_STAT_STACKS = 8;
+export const QUEST_MAX_STAT_STACKS = 16;
+export const QUEST_STAT_STACKS_PER_FARM_EQUIVALENT = 2;
+
+/**
+ * The zone's normal-mob stat and a time-based stack payout. A stack is one ordinary mob kill's fixed reward; objective time counts
+ * fully, travel counts at the existing 40% parity rate (camps can be met on the way), and a 2x route premium makes questing a
+ * worthwhile alternative to farming. Every offer lands between 8 and 16 stacks, independent of feed/card rewards.
+ */
+export function questRewardStats(def: Pick<QuestDef, "reward" | "farZone" | "objSec" | "travelSec">): { id: MobTypeId; stacks: number } {
   const desired = { ad: "damage", ap: "ap", haste: "attackSpeed", vitality: "maxHp", armor: "armor", mr: "shield", leech: "lifesteal", fleet: "moveSpeed" };
   const base = cardDef(def.reward.card)?.base;
   const zone = MOB_STAT_REWARDS.filter((reward) => reward.zone === def.farZone);
   const reward = zone.find((row) => row.effect.stat === (base ? desired[base] : "")) ?? zone[0]!;
-  const copies = normalizeMobStatCount(def.reward.copies);
-  return { id: reward.id, stacks: copies };
+  const farmEquivalentStacks = (def.objSec + def.travelSec * TRAVEL_RATE_SHARE) / FARM_SECONDS_PER_MOB;
+  const stacks = Math.max(QUEST_MIN_STAT_STACKS, Math.min(
+    QUEST_MAX_STAT_STACKS, Math.ceil(farmEquivalentStacks * QUEST_STAT_STACKS_PER_FARM_EQUIVALENT),
+  ));
+  return { id: reward.id, stacks };
 }
 
 /** Fixed reward wording for the quest log and planning screen; all advertised stacks are granted. */

@@ -12,7 +12,7 @@
 // way the bots do, from the weapon matrix's 18 starting setups (distance, start offset, direction).
 import {
   attackInterval, chillMultiplier, FACTIONS, mapFromTiles, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
-  TILE_WALL, WEAPONS, weaponTimings, type FactionId, type GameMap, type WeaponId, type WeaponTimings,
+  TILE_WALL, WEAPONS, weaponTimings, type FactionId, type GameMap, type MobTypeId, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { combatant, type Combatant } from "../sim/combatant";
 import { noteContact } from "../sim/factions";
@@ -22,6 +22,8 @@ import { addPlayer, step } from "../sim/step";
 import { runDuel as policyDuel } from "./duel";
 import { fullSetups } from "./matrix";
 import { packetFor } from "../sim/weapons";
+import { grantMobStat } from "../sim/mobStats";
+import { asMultOf } from "../sim/mods";
 import type { World } from "../sim/world";
 
 /** realtime.py's DT and EPS. */
@@ -42,6 +44,14 @@ export interface DuelResult {
   frac1: number;
   /** Seconds from the first tick to the end of the tick it ended in (realtime.py's `t`). */
   t: number;
+  /** Actual mark damage landed by each side, in the same order as the fighters (diagnostic only). */
+  markDamage?: readonly [number, number];
+  /** Count of actual mark pulse entries, same side order. */
+  markHits?: readonly [number, number];
+  /** Actual post-mitigation damage taken by each side (diagnostic only). */
+  damageTaken?: readonly [number, number];
+  /** Actual post-mitigation damage dealt by each side (diagnostic only). */
+  damageDealt?: readonly [number, number];
 }
 
 export interface CellStats {
@@ -112,6 +122,10 @@ export interface DuelOpts {
   mode?: DuelMode;
   /** Seconds before the duel counts as a draw (realtime.py: 400). */
   tMax?: number;
+  /** Optional actual mob-kill reward stacks for each side, keyed by normal mob type. Diagnostic/balance harness only. */
+  farmStats?: readonly [Readonly<Partial<Record<MobTypeId, number>>>?, Readonly<Partial<Record<MobTypeId, number>>>?];
+  /** Starting pool for controlled damage-rate samples; omitted to retain faction defaults. */
+  startHp?: number;
 }
 
 /**
@@ -157,6 +171,11 @@ export function runDuel(a: Fighter, b: Fighter, offA: number, offB: number, opts
     c.s.y = spot.y;
     c.rt.path = [];
     c.rt.history = [{ t: world.state.serverTime, x: c.s.x, y: c.s.y }];
+    const farm = opts.farmStats?.[i];
+    if (farm) for (const [mobType, count] of Object.entries(farm)) {
+      if (count && Number.isSafeInteger(count) && count > 0) grantMobStat(world, c, mobType as MobTypeId, count);
+    }
+    if (opts.startHp && Number.isFinite(opts.startHp) && opts.startHp > 0) c.s.maxHp = c.s.hp = opts.startHp;
     primeAttack(c, side.weapon, offs[i]!, ms[i]!, t1, i === 0 ? 0 : Math.PI);
     c.rt.inputs.pushAction({ kind: "attack", a: i === 0 ? 0 : Math.PI });
   });
@@ -164,8 +183,19 @@ export function runDuel(a: Fighter, b: Fighter, offA: number, offB: number, opts
 
   const ticks = Math.round(tMax / DT);
   const active = (): boolean => world.state.phase === "active";
+  const markDamage: [number, number] = [0, 0];
+  const markHits: [number, number] = [0, 0];
+  const damageTaken: [number, number] = [0, 0];
+  const damageDealt: [number, number] = [0, 0];
   for (let k = 0; k < ticks && active(); k++) {
     step(world, TICK_MS);
+    for (const hit of world.combat.landed) {
+      const dealer = hit.by === IDS[0] ? 0 : 1;
+      const victim = hit.victim === IDS[0] ? 0 : 1;
+      damageTaken[victim] += hit.amount;
+      damageDealt[dealer] += hit.amount;
+      if (hit.sig === "mark") { markDamage[dealer] += hit.amount; markHits[dealer]++; }
+    }
   }
   const p0 = world.state.players.get(IDS[0])!;
   const p1 = world.state.players.get(IDS[1])!;
@@ -178,11 +208,15 @@ export function runDuel(a: Fighter, b: Fighter, offA: number, offB: number, opts
     frac0: Math.max(0, p0.hp) / p0.maxHp,
     frac1: Math.max(0, p1.hp) / p1.maxHp,
     t: ended ? (world.state.serverTime - t1) / 1000 + DT : tMax,
+    markDamage,
+    markHits,
+    damageTaken,
+    damageDealt,
   };
 }
 
 function timingsFor(c: Combatant, w: WeaponId): WeaponTimings {
-  return weaponTimings(w, attackInterval(pacedFaction(FACTIONS[c.s.faction as FactionId]), w));
+  return weaponTimings(w, attackInterval(pacedFaction(FACTIONS[c.s.faction as FactionId]), w, asMultOf(c.s)));
 }
 
 /**

@@ -317,9 +317,13 @@ export function mirrorsFromSums(s: StatSums): StatMirrors {
  * held to AS_MULT_CAP, THEN times the `asPost` product (G9), so the effective attack speed ends between 0.5 and 3.0; the bonus
  * armor and magic resist (rows and sources together) held to BONUS_DEFENSE_CAP (G7); the walk, the windup, AD and AP as folded.
  */
-export function mirrorsFromFold(f: Folded, src: Readonly<SourceMods> = NO_SOURCE_MODS): StatMirrors {
+export function mirrorsFromFold(f: Folded, src: Readonly<SourceMods> = NO_SOURCE_MODS, farmAsEfficiency = 1): StatMirrors {
   const m = mirrorsFromSums(f.sums);
-  m.asMult = (capAsMult(m.asMult * src.asMult) + f.farmSums.attackSpeed * src.asMult) * f.mults.asPost;
+  const efficiency = Number.isFinite(farmAsEfficiency) ? Math.max(0, farmAsEfficiency) : 1;
+  const rowAs = f.sums.attackSpeed;
+  const adjustedRowAs = rowAs > 0 ? rowAs * efficiency : rowAs;
+  const adjustedFarmAs = f.farmSums.attackSpeed > 0 ? f.farmSums.attackSpeed * efficiency : f.farmSums.attackSpeed;
+  m.asMult = (capAsMult((1 + adjustedRowAs) * src.asMult) + adjustedFarmAs * src.asMult) * f.mults.asPost;
   m.speedMult = (m.speedMult + f.farmSums.moveSpeed) * src.speedMult;
   m.windupMult *= src.windupMult;
   m.armorBonus = Math.min(BONUS_DEFENSE_CAP, m.armorBonus + src.armor) + f.farmSums.armor;

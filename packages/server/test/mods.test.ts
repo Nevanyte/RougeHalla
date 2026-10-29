@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
   ALL_WEAPON_IDS, AS_MULT_CAP, attackInterval, BOW_WINDUP, WAND_WINDUP, damagePerHit, damageShares, decodeFlat, decodeMirrors,
-  decodeMult, encodeFlat, encodeMult, IDENTITY_MIRRORS, mapFromTiles, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS,
+  decodeMult, encodeFlat, encodeMult, IDENTITY_MIRRORS, mapFromTiles, MARK_FARM_AS_EFFICIENCY, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS,
   PLAYER_SPEED, SIG_CHILLED, slotReadyAt, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, WIRE_IDENTITY_MIRRORS, WISH_COOLDOWN_SECONDS,
   type Effect, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
@@ -22,8 +22,9 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
+import { grantMobStat } from "../src/sim/mobStats";
 import {
-  adOf, apOf, bonusMaxHpOf, critChanceOf, dotMultOf, hasFlag, healTakenMultOf, hitMultOf, hpRaceCapOf, lifestealDotOf, lifestealMultOf,
+  adOf, apOf, bonusMaxHpOf, cardAsMultOf, critChanceOf, dotMultOf, hasFlag, healTakenMultOf, hitMultOf, hpRaceCapOf, lifestealDotOf, lifestealMultOf,
   lingerMultOf, modsOf, multOf, outgoingMult, recomputeMods, returnedMultOf, scalingStatsOf, setExtraRows, slowResistOf, statSumsOf,
   updateMods, wishCooldownMultOf,
 } from "../src/sim/mods";
@@ -704,6 +705,32 @@ describe("the attack-speed mirror, the caps and the ranged windups in the sim (G
     w.modSources.length = 0;
     rowsFor(w, 0, []);
     expect(p.asMult).toBe(1000);
+  });
+
+  it("Sentenced compresses positive card/farm AS before sources and asPost, retaining base attack rate", () => {
+    const w = startRun(2);
+    const p = P(w, 0);
+    p.faction = "sentenced";
+    recomputeMods(w, C(w, 0));
+    rowsFor(w, 0, [stat("attackSpeed", 0.5), mult("asPost", 2)]);
+    expect(grantMobStat(w, C(w, 0) as Extract<Combatant, { kind: "player" }>, "plagueRat", 10)).toBe(10);
+    expect(cardAsMultOf(p)).toBeCloseTo(1 + 0.5 * MARK_FARM_AS_EFFICIENCY + 0.1 * MARK_FARM_AS_EFFICIENCY, 12);
+    expect(attackSpeedMult(p)).toBeCloseTo((1 + 0.5 * MARK_FARM_AS_EFFICIENCY + 0.1 * MARK_FARM_AS_EFFICIENCY) * 2, 12);
+    w.modSources.push((_w, c) => c.id === "p0" ? { asMult: 0.5 } : null);
+    recomputeMods(w, C(w, 0));
+    expect(attackSpeedMult(p)).toBeCloseTo((1 + 0.5 * MARK_FARM_AS_EFFICIENCY + 0.1 * MARK_FARM_AS_EFFICIENCY) * 0.5 * 2, 12);
+  });
+
+  it("encodes each Sentenced AS reward with its reduced positive-bonus efficiency", () => {
+    const w = startRun(2);
+    const p = P(w, 0);
+    p.faction = "sentenced";
+    recomputeMods(w, C(w, 0));
+    const c = C(w, 0) as Extract<Combatant, { kind: "player" }>;
+    expect(grantMobStat(w, c, "plagueRat", 1)).toBe(1);
+    expect(p.asMult).toBe(1001);
+    expect(grantMobStat(w, c, "plagueRat", 1)).toBe(1);
+    expect(p.asMult).toBe(1002);
   });
 
   it("a ranged windup follows its interval share under attack speed, bounded by its weapon cap", () => {

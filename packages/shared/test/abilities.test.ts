@@ -110,15 +110,15 @@ describe("the Wish catalog", () => {
     expect(ABILITIES.swarm.ownOrder).toBe(false);
   });
 
-  it("Trial: a zone of 300 u on a unit within 400 u, dealt x0.8, taken from the caster x1.2, a 1 s stun on leaving", () => {
+  it("Trial: a zone slows by 30%, dealt x0.8, taken from the caster x1.2, and stuns for 1.5 s on leaving", () => {
     const r = ABILITIES.trial.ranks[0]!;
     expect([TRIAL_RANGE, TRIAL_RADIUS, TRIAL_MS, TRIAL_DEALT_MULT, TRIAL_TAKEN_MULT, TRIAL_EXIT_STUN_MS, TRIAL_CAST_MS]).toEqual([
-      400, 300, 5000, 0.8, 1.2, 1000, 350,
+      400, 300, 5000, 0.8, 1.2, 1500, 350,
     ]);
     expect(r.castMs).toBe(350);
     expect(r.targeting).toEqual({ kind: "unit", range: 400, los: true, snapRadius: TARGET_SNAP_RADIUS, who: "enemy" });
     expect(r.shape).toEqual({ kind: "circle", radius: 300 });
-    expect(r.effects).toEqual([{ do: "zone", ms: 5000, radius: 300, dealtMult: 0.8, takenFromCasterMult: 1.2, exitStunMs: 1000, convictedRadius: 200 }]);
+    expect(r.effects).toEqual([{ do: "zone", ms: 5000, radius: 300, dealtMult: 0.8, takenFromCasterMult: 1.2, moveMult: 0.7, exitStunMs: 1500, convictedRadius: 200 }]);
     expect(TRIAL_CONVICTED_RADIUS).toBe(200);
   });
 
@@ -172,7 +172,7 @@ describe("effectSide", () => {
     [{ do: "cleanse", to: "self", classes: ["soft"] }, "self"],
     [{ do: "cleanse", to: "target", classes: ["soft", "hard"] }, "target"],
     [{ do: "deathFloor", ms: 1, floorHp: 1, healBack: 0.3 }, "self"],
-    [{ do: "zone", ms: 1, radius: 1, dealtMult: 1, takenFromCasterMult: 1, exitStunMs: 0 }, "target"],
+    [{ do: "zone", ms: 1, radius: 1, dealtMult: 1, takenFromCasterMult: 1, moveMult: 1, exitStunMs: 0 }, "target"],
     [{ do: "cloud", ms: 1, radius: 1 }, "self"],
     [{ do: "blink", maxDist: 1, minDist: 0 }, "self"],
     [{ do: "trail", ms: 1, halfWidth: 1, dps: 1, dotMs: 1 }, "self"],

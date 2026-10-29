@@ -273,7 +273,7 @@ describe("the mark's five cards (docs/SENTENCED_REDESIGN.md section 4)", () => {
       }
     }
     expect(cardText("gallowsPatience")).toContain("2 s longer");
-    expect(cardText("gallowsPatience")).toContain("1.5 s");
+    expect(cardText("gallowsPatience")).toContain("2.25 s");
     expect(cardText("noCommutation")).toContain("two tiers");
     expect(cardText("gatheringStorm")).toBe("Your marks climb their tiers 50% faster.");
   });

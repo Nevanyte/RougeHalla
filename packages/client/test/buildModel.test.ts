@@ -14,6 +14,11 @@ const IDENTITY: StatMirrors = { asMult: 1, windupMult: 1, speedMult: 1, armorBon
 const wire = (over: Partial<StatMirrors>): StatMirrors => encodeMirrors({ ...IDENTITY, ...over });
 
 describe("gained-stat strip", () => {
+  it("includes earned Demon Blood camp leech without including base faction leech", () => {
+    const input = { faction: "holy", build: {}, weapon: "fists" as const, campClears: 8 };
+    expect(buildGains(input).find(s => s.id === "leech")?.value).toBe("+2%");
+    expect(buildGains({ ...input, faction: "fire" }).find(s => s.id === "leech")?.value).toBe("0%");
+  });
   it("excludes faction totals and preserves fractional gains from the first mob kill", () => {
     const gains = buildGains({
       faction: "holy", build: {}, weapon: "fists", maxHp: FACTIONS.holy.hp + 50,

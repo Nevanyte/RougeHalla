@@ -48,6 +48,7 @@
 import {
   assertNever, CARDS, cardLive, cardRows, countIn, critChanceFrom, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, FACTIONS, CRIT_MULT,
   FIGHT_GAP_SECONDS, FISTS, foldRows, isDot, isFactionId, MAX_HP_FLOOR_SHARE, mirrorsFromFold, OUTGOING_ROW_CAP, ownsBase, requirementsMet,
+  MARK_FARM_AS_EFFICIENCY, PLAGUE_CORPSE_HP_SHARE,
   type BaseStatId, type Effect, type EffectFlag, type EffectOf, type Folded, type MultKey, type ScalingStats, type StatMirrors,
   type StatSums,
 } from "@raid/shared";
@@ -170,6 +171,10 @@ function buildOf(p: PlayerState): Build {
     }
   }
   b.farmRows = mobStatRows(p.mobStats);
+  // Corpse growth is earned permanent health, alongside farming and outside card ceilings.
+  if (p.faction === "plague" && p.corpseStacks > 0) {
+    b.farmRows.push({ k: "stat", stat: "maxHp", v: p.corpseStacks * PLAGUE_CORPSE_HP_SHARE });
+  }
   extraRows.get(p)?.forEach((e, i) => {
     if (e.needs === "status" || !requirementsMet(e, owns)) return;
     addRow(b, e, `extra:${i}`);
@@ -260,8 +265,8 @@ function sameContribution(a: Readonly<Contribution>, b: Readonly<Contribution>):
 }
 
 /** The mirrors (wire form) a fold and the sources' combined answer give: attack speed capped on the rows and the sources, then times asPost. */
-function mirrorsOf(folded: Readonly<Folded>, src: Readonly<Contribution>): StatMirrors {
-  return encodeMirrors(mirrorsFromFold(folded, src));
+function mirrorsOf(folded: Readonly<Folded>, src: Readonly<Contribution>, farmAsEfficiency = 1): StatMirrors {
+  return encodeMirrors(mirrorsFromFold(folded, src, farmAsEfficiency));
 }
 
 /** Writes the mirrors a player holds, each only when its wire value changed, so a mirror that did not move does not patch. */
@@ -289,7 +294,8 @@ function track<T>(map: WeakMap<World, Map<string, T>>, world: World, id: string,
 function store(world: World, c: Combatant, cache: ModCache): void {
   const s = c.s;
   if (isPlayerState(s)) {
-    writeMirrors(s, mirrorsOf(cache.build ? cache.build.folded : EMPTY_FOLDED, cache.src));
+    const farmAsEfficiency = s.faction === "sentenced" ? MARK_FARM_AS_EFFICIENCY : 1;
+    writeMirrors(s, mirrorsOf(cache.build ? cache.build.folded : EMPTY_FOLDED, cache.src, farmAsEfficiency));
     const b = cache.build;
     track(conditional, world, c.id, b && b.whiles.length > 0 ? s : null);
     track(campUsers, world, c.id, b && b.usesCamps ? s : null);
@@ -547,7 +553,10 @@ export function markRateOf(s: FighterState): number {
  * taxed(rate x this) / (rate x this) is exactly what brings the product to the taxed rate even when the haste alone passed the cap.
  */
 export function cardAsMultOf(s: FighterState): number {
-  return Math.max(0, 1 + statSumsOf(s).attackSpeed + farmStatSumsOf(s).attackSpeed);
+  const efficiency = isPlayerState(s) && s.faction === "sentenced" ? MARK_FARM_AS_EFFICIENCY : 1;
+  const rows = statSumsOf(s).attackSpeed;
+  const farm = farmStatSumsOf(s).attackSpeed;
+  return Math.max(0, 1 + (rows > 0 ? rows * efficiency : rows) + (farm > 0 ? farm * efficiency : farm));
 }
 
 /** The hp share below which a Plague fighter's execute runs: EXECUTE_BAND (0.5) + its executeBand rows, within 0..1. */

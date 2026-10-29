@@ -19,6 +19,7 @@ import { StatusArt } from "./StatusArt";
 import { TrailView } from "./TrailView";
 import { FeetFx, NO_STATES, showsFeet, type TerrainStates } from "./zoneArt/terrainFeedback";
 import { drawAbilityIcon } from "./wishArt";
+import { juiceScale } from "./juice";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
@@ -93,6 +94,7 @@ export class PlayerView {
   private readonly crown: Phaser.GameObjects.Graphics;
   private readonly crownLabel: Phaser.GameObjects.Text;
   private readonly goldHalo: Phaser.GameObjects.Graphics;
+  private readonly fireRoamGlow: Phaser.GameObjects.Graphics;
   private readonly strengthGlow: Phaser.GameObjects.Graphics;
   private readonly buildMarks: Phaser.GameObjects.Container;
   private readonly title: Phaser.GameObjects.Text;
@@ -146,6 +148,7 @@ export class PlayerView {
     placeBake(this.wishIcon, WISH_ICON_REGION);
     this.strengthGlow = scene.add.graphics();
     this.goldHalo = scene.add.graphics().setVisible(false);
+    this.fireRoamGlow = scene.add.graphics();
     this.buildMarks = scene.add.container(0, 0);
     this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
     this.body.image.setPosition(0, -BODY_LIFT);
@@ -180,7 +183,7 @@ export class PlayerView {
     this.root = scene.add.container(0, 0, [
       shadow, mark, this.signatures.ground, this.strengthGlow, this.goldHalo, this.art.ground, this.body.image, this.barrierRing, this.core.image, this.nose,
       this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.crown, this.crownLabel, this.title,
-      this.status.g, this.wishIcon, this.buildMarks, this.markPlate.pips, this.markPlate.cues,
+      this.status.g, this.wishIcon, this.buildMarks, this.markPlate.pips, this.markPlate.cues, this.fireRoamGlow,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.core.image), y0: -BODY_LIFT, scaled: true },
@@ -276,6 +279,7 @@ export class PlayerView {
       this.shieldRing.lineStyle(3, SHIELD_COLOR, 0.35 + 0.65 * (left / TELEPORT_IMMUNITY_MS));
       this.shieldRing.strokeCircle(0, -BODY_LIFT, PLAYER_RADIUS + 6);
     }
+    this.drawFireRoamGlow(p, now);
 
     // Only a drawn player is marked: the early return above hides the whole container (crown included) for the dead.
     this.setCrown(p.bounty > 0 ? Math.floor(p.bounty) : 0);
@@ -284,6 +288,19 @@ export class PlayerView {
     this.trail?.update(x, y, now);
     if (this.feet === null && showsFeet(ground)) this.feet = new FeetFx(this.scene);
     this.feet?.update(ground, x, y, now);
+  }
+
+  /** A quiet ring winds up at full charge, then holds a bright ready glow around Fire's body. */
+  private drawFireRoamGlow(p: PlayerState, now: number): void {
+    this.fireRoamGlow.clear();
+    if (p.faction !== "fire" || !p.roamReady) return;
+    const motion = juiceScale("motion");
+    const pulse = motion > 0 ? 0.5 + 0.5 * Math.sin(now / 180) : 0.5;
+    const radius = PLAYER_RADIUS + 5 + pulse * 3;
+    this.fireRoamGlow.lineStyle(2 + pulse, 0xff8a3d, 0.45 + pulse * 0.45);
+    this.fireRoamGlow.strokeCircle(0, -BODY_LIFT, radius);
+    this.fireRoamGlow.lineStyle(1, 0xffd166, 0.25 + pulse * 0.35);
+    this.fireRoamGlow.strokeCircle(0, -BODY_LIFT, radius + 3);
   }
 
   /** The art's view of `p` with `facing` in place of the synced one. */
@@ -395,7 +412,7 @@ export class PlayerView {
     p.build?.forEach((count, id) => { buildKey += `${id}:${count},`; });
     let mobKey = "";
     p.mobStats?.forEach((count, id) => { mobKey += `${id}:${count},`; });
-    const key = `${p.faction}|${p.maxHp}|${p.asMult}|${p.adBonus}|${p.apBonus}|${p.armorBonus}|${p.shieldBonus}|${p.speedMult}|${buildKey}|${mobKey}`;
+    const key = `${p.faction}|${p.maxHp}|${p.asMult}|${p.adBonus}|${p.apBonus}|${p.armorBonus}|${p.shieldBonus}|${p.speedMult}|${p.campClears}|${buildKey}|${mobKey}`;
     if (key !== this.combatReadabilityKey || this.cachedReadability === null) {
       this.combatReadabilityKey = key;
       this.cachedReadability = combatReadability(p);

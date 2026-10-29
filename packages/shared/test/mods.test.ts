@@ -262,6 +262,13 @@ describe("the attack-speed mirror (G9)", () => {
     expect(mirrorsFromFold(fold([speed(0.5), post(0.5)]), { ...SRC, asMult: 0.8 }).asMult).toBeCloseTo(0.6, 12);
   });
 
+  it("can compress positive card and farm attack speed before sources and asPost", () => {
+    const f = fold([speed(0.5), post(2)], { farmRows: [speed(0.1)] });
+    expect(mirrorsFromFold(f, SRC, 0.1).asMult).toBeCloseTo((1 + 0.05 + 0.01) * 2, 12);
+    expect(mirrorsFromFold(f, { ...SRC, asMult: 0.5 }, 0.1).asMult).toBeCloseTo((0.525 + 0.005) * 2, 12);
+    expect(mirrorsFromFold(f).asMult).toBeCloseTo((1 + 0.5 + 0.1) * 2, 12);
+  });
+
   it("is the plain 1 + sum without any extra row, bit for bit as before the engine", () => {
     for (const v of [0, 0.037, 0.08 * 1.234567, 0.4999]) {
       expect(mirrorsFromFold(fold([speed(v)])).asMult).toBe(1 + v);

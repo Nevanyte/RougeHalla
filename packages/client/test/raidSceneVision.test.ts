@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EFFECT_HIDDEN, mapFromTiles } from "@raid/shared";
+import { EFFECT_HIDDEN, QUEST_ITEM_PREFIX, mapFromTiles } from "@raid/shared";
 import { RaidScene } from "../src/scenes/RaidScene";
 import { RaidVision } from "../src/render/RaidVision";
 
@@ -14,11 +14,11 @@ afterEach(() => vi.restoreAllMocks());
 
 function rig() {
   const map = mapFromTiles(150, 100, new Uint8Array(150 * 100), 17);
-  const me = {x:400,y:400,status:"alive",effects:0};
-  const foe = {x:1100,y:400,status:"alive",effects:0};
+  const me = {x:400,y:400,status:"alive",effects:0,faction:"fire",huntTarget:""};
+  const foe = {x:1100,y:400,status:"alive",effects:0,faction:"frost"};
   const mob = {x:1100,y:430,status:"alive",effects:0,kind:"mob"};
   const state: any = {seed:17,gatesLocked:false,training:false,phase:"active",serverTime:1000,
-    players:new Map([["me",me],["foe",foe]]),mobs:new Map([["mob",mob]]),containers:new Map(),quests:new Map(),fields:new Map(),camps:[]};
+    players:new Map([["me",me],["foe",foe]]),mobs:new Map([["mob",mob]]),containers:new Map(),quests:new Map(),plagueCorpses:new Map(),fields:new Map(),camps:[]};
   const noop = () => {};
   const view = {update:noop};
   const scene: any = new RaidScene();
@@ -26,8 +26,9 @@ function rig() {
   vi.spyOn(performance, "now").mockImplementation(() => now);
   Object.assign(scene, {
     room:{state,sessionId:"me"},mapView:{map,setGatesLocked:noop},
+    plagueCorpseView:{update:vi.fn(),destroy:noop},
     vision:new RaidVision(),fog:{update:noop},campWards:view,campBuffs:view,edgeThreats:view,
-    minimap:{setGatesLocked:noop,setMobs:vi.fn(),setEnemies:vi.fn(),setVision:vi.fn(),setCampTimers:vi.fn(),setChests:noop,setQuests:noop,setCampStates:noop,update:noop},
+    minimap:{setGatesLocked:noop,setMobs:vi.fn(),setEnemies:vi.fn(),setCorpses:vi.fn(),setVision:vi.fn(),setCampTimers:vi.fn(),setChests:noop,setQuests:vi.fn(),setCampStates:noop,update:noop},
     input:{activePointer:{rightButtonDown:()=>false}},
     interp:{renderTime:()=>now,clock:{synced:true,now:()=>now}},juice:{worldTime:(t:number)=>t},
     stepLocal:noop,localSource:()=>"snapshot",
@@ -42,6 +43,25 @@ function rig() {
 }
 
 describe("RaidScene vision integration", () => {
+  it("keeps an accepted fetch destination on both maps outside fog, without exposing another player's objective", () => {
+    const {scene,state,frame} = rig();
+    scene.planning = {update:vi.fn(),hide:vi.fn()};
+    scene.mapHold = {held:true};
+    scene.updatePlanning = (RaidScene.prototype as any).updatePlanning.bind(scene);
+    const accepted = new Map([["me",true]]);
+    state.quests.set("fetch",{id:"fetch",def:"long-haul",x:3000,y:2000,known:true,status:"open",doneBy:"",expiresAt:999999,carrier:"",accepted,progress:new Map()});
+    state.containers.set("parcel",{id:"parcel",kind:"quest",x:4000,y:2000,label:"Parcel",items:{length:1,at:()=>({def:QUEST_ITEM_PREFIX+"fetch"})}});
+    frame(1000);
+    expect(scene.vision.canSee({x:4000,y:2000})).toBe(false);
+    expect(scene.minimap.setQuests.mock.lastCall[0]).toContainEqual(expect.objectContaining({privateObjective:true,x:4000,y:2000}));
+    expect(scene.planning.update.mock.lastCall[0].questObjectives).toContainEqual(expect.objectContaining({questId:"fetch",action:"pickup",x:4000,y:2000}));
+    accepted.delete("me");
+    accepted.set("foe",true);
+    frame(1100);
+    expect(scene.minimap.setQuests.mock.lastCall[0].some((b:any)=>b.privateObjective)).toBe(false);
+    expect(scene.planning.update.mock.lastCall[0].questObjectives).toEqual([]);
+  });
+
   it("passes the local position and only currently visible living enemies to the held full map", () => {
     const {scene,foe,frame} = rig();
     scene.planning = { update: vi.fn(), hide: vi.fn() };
@@ -62,6 +82,41 @@ describe("RaidScene vision integration", () => {
     scene.mapHold.held = false;
     frame(1300);
     expect(scene.planning.hide).toHaveBeenCalled();
+  });
+
+  it("shows corpse coordinates to living Plague on both maps outside fog only", () => {
+    const {scene,state,me,frame} = rig();
+    scene.planning = { update: vi.fn(), hide: vi.fn() };
+    scene.mapHold = { held: true };
+    scene.updatePlanning = (RaidScene.prototype as any).updatePlanning.bind(scene);
+    me.faction = "plague";
+    state.plagueCorpses.set("pc1", { id: "pc1", playerId: "foe", playerName: "Foe", x: 3000, y: 2500, expiresAt: 9000 });
+    frame(1000);
+    expect(scene.vision.canSee({ x: 3000, y: 2500 })).toBe(false);
+    expect(scene.minimap.setCorpses.mock.lastCall[0]).toEqual([expect.objectContaining({ id: "pc1", x: 3000, y: 2500 })]);
+    expect(scene.planning.update.mock.lastCall[0].corpses).toEqual([expect.objectContaining({ id: "pc1", x: 3000, y: 2500 })]);
+
+    me.faction = "fire"; frame(1100);
+    expect(scene.minimap.setCorpses).toHaveBeenLastCalledWith([]);
+    expect(scene.planning.update.mock.lastCall[0].corpses).toEqual([]);
+    me.faction = "plague"; me.status = "dead"; frame(1200);
+    expect(scene.minimap.setCorpses).toHaveBeenLastCalledWith([]);
+    expect(scene.planning.update.mock.lastCall[0].corpses).toEqual([]);
+  });
+
+  it("shows the Sentenced hunt target on both maps through fog without rendering a hidden Swarm actor", () => {
+    const {scene,state,me,foe,frame} = rig();
+    scene.planning = { update: vi.fn(), hide: vi.fn() };
+    scene.mapHold = { held: true };
+    scene.updatePlanning = (RaidScene.prototype as any).updatePlanning.bind(scene);
+    me.faction = "sentenced"; me.huntTarget = "foe";
+    foe.faction = "plague"; foe.effects = EFFECT_HIDDEN; foe.x = 2500;
+    frame(1000);
+    expect(scene.vision.canSee({ x: foe.x, y: foe.y })).toBe(false);
+    expect(scene.views.has("foe")).toBe(false);
+    expect(scene.rendered.has("foe")).toBe(false);
+    expect(scene.minimap.setEnemies).toHaveBeenLastCalledWith([{ id: "foe", tracked: true, x: foe.x, y: foe.y }]);
+    expect(scene.planning.update.mock.lastCall[0].enemies).toContainEqual({ id: "foe", x: foe.x, y: foe.y, tracked: true });
   });
 
   it("feeds minimap mobs their interpolated on-screen positions rather than raw network positions", () => {

@@ -244,10 +244,11 @@ describe("who to farm", () => {
     expect(plague.step()).toMatchObject({ kind: "mob", id: "axe" });
   });
 
-  it("prefers an uncapped normal mob type over a closer capped type when both are viable", () => {
-    const s = new Scene().add("capped", mob("fire", 100, 0, { type: "emberImp" })).add("uncapped", mob("fire", 250, 0, { type: "cinderHound" }));
-    s.self = { ...ME, mobKills: 1, mobStats: { emberImp: 10 } };
-    expect(s.step()).toMatchObject({ kind: "mob", id: "uncapped" });
+  it("keeps a normal mob type farmable after more than the legacy ten-stack benchmark scale", () => {
+    const s = new Scene().add("ember", mob("fire", 100, 0, { type: "emberImp" })).add("cinder", mob("fire", 250, 0, { type: "cinderHound" }));
+    s.self = { ...ME, mobKills: 1, mobStats: { emberImp: 40 } };
+    // Stat stacks have no per-type cap; the bot still considers the closer Ember Imp a valid farm target after 40 rewards.
+    expect(s.step()).toMatchObject({ kind: "mob", id: "ember" });
   });
 
   it("counts normal mob stat stacks toward elite access and sure-match thresholds", () => {

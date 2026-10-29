@@ -740,6 +740,17 @@ describe("enqueueClientMessage", () => {
     });
   });
 
+  describe("consumeCorpse", () => {
+    it("queues only a valid corpse id", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "consumeCorpse", { corpseId: "pc1", extra: true })).toBe(true);
+      expect(q.actions).toEqual([{ kind: "consumeCorpse", corpseId: "pc1" }]);
+      for (const msg of [{}, { corpseId: "" }, { corpseId: 3 }, { corpseId: "x".repeat(65) }, null]) {
+        expect(enqueueClientMessage(fresh(), "consumeCorpse", msg)).toBe(false);
+      }
+    });
+  });
+
   describe("plan", () => {
     it.each([
       [{ spawn: 0 }, { kind: "plan", spawn: 0 }],
@@ -926,6 +937,8 @@ describe("enqueueClientMessage", () => {
       release: { a: 0.5, t: 100 },
       swap: { slot: 1 },
       pickup: { containerId: "c1" },
+      consumeCorpse: { corpseId: "pc1" },
+      huntTarget: { id: "p1" },
       plan: { spawn: 1, ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
       choose: { chest: "c1", pick: -1 },

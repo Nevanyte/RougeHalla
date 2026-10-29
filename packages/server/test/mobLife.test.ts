@@ -1098,7 +1098,7 @@ describe("killMob: rewards", () => {
       const { w, created } = killWith("plague", ["sword", ""]);
       expect(created).toHaveLength(1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["sword", ""]);
-      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1% attack speed (1/10)"]);
+      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1 kill stack · +1% attack speed total"]);
     });
 
     it("leaves it on the ground for an empty-handed killer who went down in the same pass (a body cannot wield it)", () => {
@@ -1112,7 +1112,7 @@ describe("killMob: rewards", () => {
       for (const pay of w.combat.payouts) pay();
       expect(w.state.containers.size).toBe(n + 1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["", ""]);
-      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1% attack speed (1/10)"]);
+      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1 kill stack · +1% attack speed total"]);
     });
 
     it("is not dropped when the killer already holds that weapon type, in either slot", () => {

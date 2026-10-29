@@ -34,7 +34,7 @@ export interface StatusApply {
    * `per` once (so a first on-hit stack is already `per`).
    */
   add?: { per: number; cap: number };
-  data?: Pick<StatusInstance, "revealUntil" | "fieldId" | "dealtMult" | "takenFromSourceMult" | "floorHp" | "healShare" | "shares">;
+  data?: Pick<StatusInstance, "revealUntil" | "fieldId" | "dealtMult" | "takenFromSourceMult" | "moveMult" | "floorHp" | "healShare" | "shares">;
 }
 
 const NONE: readonly StatusInstance[] = [];
@@ -319,9 +319,11 @@ export function statusMoveMultiplier(world: World, c: Combatant): number {
   if (cannotMove(world, c)) return 0;
   const slow = valueOf(world, list ?? NONE, "slowMove");
   const haste = valueOf(world, list ?? NONE, "haste");
-  if (slow === 0 && haste === 0) return 1;
-  // Iron Will (slowResist) cuts the slow's strength, not the haste.
-  return resistSlow(1 - slow, slowResistOf(c.s)) * (haste > 0 ? hasteMultiplier(moveSpeedMult(world, c), haste) : 1);
+  const now = world.state.serverTime;
+  const zoneMove = (list ?? NONE).reduce((factor, st) => st.kind === "zoned" && st.until > now ? factor * (st.moveMult ?? 1) : factor, 1);
+  if (slow === 0 && haste === 0) return resistSlow(zoneMove, slowResistOf(c.s));
+  // Iron Will cuts the combined slow strength, not haste; Trial is a movement slow too.
+  return resistSlow((1 - slow) * zoneMove, slowResistOf(c.s)) * (haste > 0 ? hasteMultiplier(moveSpeedMult(world, c), haste) : 1);
 }
 
 /**

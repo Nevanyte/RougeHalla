@@ -372,7 +372,7 @@ describe("both drivers perceive the same", () => {
       // (relics) exist; the Q/E fields are in the schema but no ability fills them; the zone map carries floor hazards.
       // (Detected, not yet used: no module acts on them.)
       expect(f).toEqual(featureSet({
-        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove"],
+        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget"],
         wishes: true, statusEffects: true, fields: true, skills: false, planning: true, chests: true, camps: true, relics: true,
         hazards: true,
       }));

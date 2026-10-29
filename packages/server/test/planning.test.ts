@@ -825,7 +825,7 @@ describe("the bots' planning", () => {
 describe("loadConfig planning settings", () => {
   it("defaults to the live design: PLAN_SECONDS of planning and a flat FIRST_PATIENCE_SECONDS first timer", () => {
     expect(loadConfig({})).toMatchObject({ planSeconds: PLAN_SECONDS, firstPatienceSeconds: FIRST_PATIENCE_SECONDS });
-    expect([PLAN_SECONDS, FIRST_PATIENCE_SECONDS]).toEqual([12, 300]);
+    expect([PLAN_SECONDS, FIRST_PATIENCE_SECONDS]).toEqual([45, 300]);
   });
 
   it("PATIENCE_SECONDS alone also sets the flat first timer (a dev shortening a run); FIRST_PATIENCE_SECONDS wins when both are set", () => {

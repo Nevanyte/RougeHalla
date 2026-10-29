@@ -16,7 +16,7 @@ import {
 import "./minimap.css";
 import { osPrefersReducedMotion, reducedMotionActive } from "./settingsPanel";
 import { questKindCss, type QuestMapBlip } from "./questModel";
-import { minimapMarks, paintMinimapMarks, type RespawnBlip } from "./minimapMarkers";
+import { minimapMarks, paintMinimapMarks, type CorpseBlip, type RespawnBlip } from "./minimapMarkers";
 import type { MapContact } from "./minimapLayout";
 
 export interface PublicCamp { state: number; alive: number; respawnAt: number; wardOwner: string; wardExpiresAt: number }
@@ -36,7 +36,7 @@ const COLOR_VIEW = "rgba(208, 226, 235, 0.42)";
 /** More than this many mob dots are not drawn (a 40-camp map has up to 200 mobs: 3-5 spots a camp, 160 on average). */
 const MAX_DOTS = 224;
 /** Player, gates, mobs, camera, route, chests, camp states, quests, enemy players, respawns and live vision. */
-const INPUTS = 14;
+const INPUTS = 15;
 /** The chest blip's ring breathes through these steps (0 = at rest, 1 = widest); 0 throughout under reduced motion. */
 const PULSE_STEPS: readonly number[] = [0, 0.33, 0.66, 1, 0.66, 0.33];
 /** ms per pulse step. */
@@ -141,6 +141,8 @@ export class Minimap {
   private enemiesHash = 0;
   private respawns: RespawnBlip[] = [];
   private respawnsHash = 0;
+  private corpses: CorpseBlip[] = [];
+  private corpsesHash = 0;
   private canSee: ((point: Vec2) => boolean) | null = null;
   /** Visible horizontal tile runs, sampled only at the map's repaint cadence. */
   private visionRuns: number[] = [];
@@ -228,6 +230,17 @@ export class Minimap {
     this.enemiesHash = this.enemies.length ? hash : 0;
   }
 
+  /** Living Plague's public corpse coordinates; the scene filters this to that faction and life state. */
+  setCorpses(corpses: readonly CorpseBlip[]): void {
+    this.corpses = corpses.filter((p) => Number.isFinite(p.x + p.y)).slice(0, 64).map((p) => ({ id: p.id, x: p.x, y: p.y }));
+    let hash = 43;
+    for (const p of this.corpses) {
+      hash = (Math.imul(hash, 31) + p.id.length) | 0;
+      hash = hashFloat(hash, p.x); hash = hashFloat(hash, p.y);
+    }
+    this.corpsesHash = this.corpses.length ? hash : 0;
+  }
+
   /** Null in lobby/practice; live personal trail and wards otherwise. Never infers sight from camera position. */
   setVision(canSee: ((point: Vec2) => boolean) | null): void {
     if (canSee !== this.canSee) this.visionAt = -Infinity;
@@ -297,6 +310,10 @@ export class Minimap {
       hash = (Math.imul(hash, 31) + Math.round(b.x * this.k)) | 0;
       hash = (Math.imul(hash, 31) + Math.round(b.y * this.k)) | 0;
       hash = (Math.imul(hash, 31) + b.role.length + b.kind.length + (b.accepted === false ? 7 : 0) + (b.tracked ? 13 : 0)) | 0;
+      if (b.privateObjective && b.objective) {
+        hash = (Math.imul(hash, 31) + b.objective.itemId.length + (b.objective.action === "return" ? 17 : 5)) | 0;
+        hash = (Math.imul(hash, 31) + b.objective.step + b.objective.total) | 0;
+      }
       if (b.route) for (const p of b.route) {
         hash = (Math.imul(hash, 31) + Math.round(p.x * this.k)) | 0;
         hash = (Math.imul(hash, 31) + Math.round(p.y * this.k)) | 0;
@@ -352,7 +369,7 @@ export class Minimap {
    * what the camera shows, in projected (drawn) coordinates; given, a thin rectangle marks the view.
    */
   update(now: number, player: MinimapPlayer | undefined, alive: boolean, camera?: Point): void {
-    const hasLiveActors = player !== undefined || this.dotCount > 0 || this.enemies.length > 0;
+    const hasLiveActors = player !== undefined || this.dotCount > 0 || this.enemies.length > 0 || this.corpses.length > 0;
     const gap = this.peeking || this.steering || hasLiveActors ? REPAINT_MOVING_MS : REPAINT_MS;
     if (!this.hasMap || !this.ctx || now - this.lastPaint < gap) return;
     const k = this.k;
@@ -373,6 +390,7 @@ export class Minimap {
     cur[11] = this.enemiesHash;
     cur[12] = this.respawnsHash;
     cur[13] = this.sampleVision(now);
+    cur[14] = this.corpsesHash;
     this.lastPaint = now;
     if (this.sameAsLast()) return;
     this.last.set(cur);
@@ -485,7 +503,7 @@ export class Minimap {
       y: this.dots[i * 3 + 1]! * k / px,
       code: this.dots[i * 3 + 2]!,
     });
-    const marks = minimapMarks({ player, alive, mobs, enemies: this.enemies, chests: this.chests, respawns: this.respawns,
+    const marks = minimapMarks({ player, alive, mobs, enemies: this.enemies, chests: this.chests, respawns: this.respawns, corpses: this.corpses,
       camps: this.map?.camps ?? [], campStates: this.campStates, quests: this.quests,
       stops: this.showRoute ? this.route?.stops ?? [] : [], next: this.route?.next ?? -1 });
 

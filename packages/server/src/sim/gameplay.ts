@@ -2,19 +2,23 @@
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
 import { install as installAbilities } from "./abilities";
 import { install as installBuffs } from "./buffs";
+import { install as installBruiserPassives } from "./bruiserPassives";
 import { install as installCampHeal } from "./campHeal";
 import { install as installCardHooks } from "./cardHooks";
 import { install as installCamps } from "./camps";
 import { install as installChests } from "./chests";
 import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
+import { install as installFireRoam } from "./fireRoam";
 import { install as installLoot } from "./loot";
 import { install as installMobAI } from "./mobAI";
 import { install as installMobLife } from "./mobLife";
 import { install as installMobs } from "./mobs";
 import { install as installMods } from "./mods";
 import { install as installProjectiles } from "./projectiles";
+import { install as installPlagueCorpses } from "./plagueCorpses";
 import { install as installQuests } from "./quests";
+import { install as installSentencedHunt } from "./sentencedHunt";
 import { install as installTargeting } from "./targeting";
 import { install as installTerrain } from "./terrainEffects";
 import { install as installWeapons } from "./weapons";
@@ -49,6 +53,10 @@ const MODULES: Array<(world: World) => void> = [
   // The phase-B cards' hooks (hitLanded, blocked, overkilled, a system after the damage, a mod source): after the modules whose
   // hooks they chain onto (abilities' statuses, the faction layer's heal), before the mirrors are folded.
   installCardHooks,
+  installPlagueCorpses,
+  installFireRoam,
+  installBruiserPassives,
+  installSentencedHunt,
   // Last: its system folds the stat mirrors once every other system of the tick has run.
   installMods,
 ];
@@ -60,7 +68,10 @@ const MODULES: Array<(world: World) => void> = [
 export function createGameWorld(opts: CreateOpts, modules: { signatures?: boolean } = {}): World {
   const world = createWorld(opts);
   for (const install of MODULES) {
-    if (install === installFactions && modules.signatures === false) continue;
+    // `signatures: false` is the weapon-only test world. Keep faction passives, including Fire's roaming charge,
+    // out together so those tests retain a faction-neutral movement baseline.
+    if ((install === installFactions || install === installFireRoam || install === installBruiserPassives
+      || install === installPlagueCorpses || install === installSentencedHunt) && modules.signatures === false) continue;
     install(world);
   }
   return world;

@@ -7,7 +7,7 @@ import {
   CARD_IDS, cardDef, cardLive, isInteractiveAugment, CHEST_OPTIONS, CHEST_SECONDS, circleClear, decodeFlat, decodeMult, FACTIONS, GV_SKIP, hasLineOfSight,
   MOB_TYPES, mobTypeById, mobTypeFaction, mobTypeWeapon, mulberry32, PLAYER_RADIUS, REGION_FACTIONS, TICK_MS, TILE, TRAIN_CAMP_SIZE,
   TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_SPAWN_GAP_MS,
-  WIRE_IDENTITY_MIRRORS, type FactionId, type FxEvent, type MobTypeId,
+  WIRE_IDENTITY_MIRRORS, fireRoamSpeedMult, type FactionId, type FxEvent, type MobTypeId,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { clearChests, grantCard, rewardChests } from "../src/sim/chests";
@@ -324,7 +324,8 @@ describe("train card", () => {
       expect(cardDef("tankEngine")!.ready).toBe("b");
       expect(toasts(train(world, { cmd: "card", id: "tankEngine" }))).toEqual([]);
       expect(p.build.has("tankEngine")).toBe(false);
-      expect([p.asMult, p.speedMult, p.armorBonus, p.maxHp]).toEqual([IDENTITY.asMult, IDENTITY.speedMult, 0, baseHp("fire")]);
+      expect([p.asMult, p.armorBonus, p.maxHp]).toEqual([IDENTITY.asMult, 0, baseHp("fire")]);
+      expect(decodeMult(p.speedMult)).toBeCloseTo(fireRoamSpeedMult(p.roamCharge), 3);
     });
   });
 
@@ -612,7 +613,8 @@ describe("train clear", () => {
     expect(dummies(world)).toBe(dummyCount);
     expect(world.state.containers.size).toBe(rack);
     expect([p.maxHp, p.hp]).toEqual([baseHp("fire"), baseHp("fire")]);
-    expect([p.asMult, p.windupMult, p.speedMult, p.armorBonus, p.shieldBonus]).toEqual([IDENTITY.asMult, IDENTITY.windupMult, IDENTITY.speedMult, 0, 0]);
+    expect([p.asMult, p.windupMult, p.armorBonus, p.shieldBonus]).toEqual([IDENTITY.asMult, IDENTITY.windupMult, 0, 0]);
+    expect(decodeMult(p.speedMult)).toBeCloseTo(fireRoamSpeedMult(p.roamCharge), 3);
     expect(rtOf(world).fired?.size ?? 0).toBe(0);
   });
 

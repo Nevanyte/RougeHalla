@@ -24,7 +24,7 @@ interface Cell {
 
 /** The part of a player the strip reads: the synced PlayerState, or a test's plain object. */
 export type BuildSource = Pick<PlayerState, "faction" | "build" | "asMult" | "windupMult" | "speedMult" | "armorBonus" | "shieldBonus" | "adBonus" | "apBonus"
-  | "weapon0" | "weapon1" | "slot" | "hp" | "maxHp" | "sentence" | "mobStats">;
+  | "weapon0" | "weapon1" | "slot" | "hp" | "maxHp" | "sentence" | "mobStats"> & { campClears?: number };
 
 /** The weapon in hand by id: "fists" for an empty slot or an id from newer server content. */
 export function heldWeapon(me: Pick<BuildSource, "weapon0" | "weapon1" | "slot">): WeaponId {
@@ -46,13 +46,13 @@ export function inputKey(me: BuildSource): string {
   const entries = (me.mobStats as { entries?: () => IterableIterator<[string, number]> } | undefined)?.entries;
   if (typeof entries === "function") for (const [id, count] of entries.call(me.mobStats)) mobStats += `${id}:${count},`;
   else if (me.mobStats) for (const [id, count] of Object.entries(me.mobStats as unknown as Record<string, number>)) mobStats += `${id}:${count},`;
-  return `${me.faction}|${me.maxHp}|${me.sentence}|${heldWeapon(me)}|${me.asMult}|${me.windupMult}|${me.speedMult}|${me.armorBonus}|${me.shieldBonus}|${me.adBonus}|${me.apBonus}|${low ? "L" : ""}|${cards}|${mobStats}`;
+  return `${me.faction}|${me.maxHp}|${me.sentence}|${heldWeapon(me)}|${me.asMult}|${me.windupMult}|${me.speedMult}|${me.armorBonus}|${me.shieldBonus}|${me.adBonus}|${me.apBonus}|${me.campClears ?? 0}|${low ? "L" : ""}|${cards}|${mobStats}`;
 }
 
 /** The strip's cells for a player. */
 export function statsOf(me: BuildSource): BuildStat[] {
   return buildGains({
-    faction: me.faction, build: me.build, wire: me, weapon: heldWeapon(me), hpFrac: me.maxHp > 0 ? me.hp / me.maxHp : 1, mobStats: me.mobStats, maxHp: me.maxHp,
+    faction: me.faction, build: me.build, wire: me, weapon: heldWeapon(me), hpFrac: me.maxHp > 0 ? me.hp / me.maxHp : 1, mobStats: me.mobStats, maxHp: me.maxHp, campClears: me.campClears,
   });
 }
 

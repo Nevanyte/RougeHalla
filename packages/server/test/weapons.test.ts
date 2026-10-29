@@ -3,7 +3,7 @@
 // from sim/melee.ts can interfere. Everything is read back from the synced state, the runtime and the emitted fx.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, damagePerHit, damageShares, FACTIONS,
+  AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, damagePerHit, damageShares, decodeMult, FACTIONS,
   mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH,
   SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   weaponTimings, mirrorTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
@@ -47,6 +47,7 @@ const idOf = (i: number): string => `p${i}`;
 /** Far apart, so no arrow or ball in these tests ever reaches another player. */
 const HOME: Vec2[] = [{ x: 144, y: 336 }, { x: 1136, y: 112 }, { x: 640, y: 80 }];
 const STEP = (PLAYER_SPEED * TICK_MS) / 1000;
+const walkSpeedByDistance = new WeakMap<number[], number[]>();
 
 /** A walled 40 x 20 tile room, all open floor inside. */
 function arenaMap(): GameMap {
@@ -165,20 +166,29 @@ function walk(world: World, i: number, ticks: number, before: (k: number) => voi
   const p = P(world, i);
   send(world, i, "move", { x: 36 * TILE, y: p.y });
   const out: number[] = [];
+  const expectedWalkSpeeds: number[] = [];
   for (let k = 0; k < ticks; k++) {
     before(k);
+    // Fire's out-of-combat movement mirror can change each tick; capture the exact speed this step starts with.
+    expectedWalkSpeeds.push(STEP * decodeMult(p.speedMult));
     const x0 = p.x;
     const y0 = p.y;
     tick(world);
     out.push(Math.hypot(p.x - x0, p.y - y0));
   }
+  walkSpeedByDistance.set(out, expectedWalkSpeeds);
   return out;
 }
 
 const repeat = (value: number, n: number): number[] => Array.from({ length: n }, () => value);
+const expectedWalkStep = (distances: number[], index: number): number => walkSpeedByDistance.get(distances)?.[index] ?? STEP;
 const expectCloseAll = (actual: number[], expected: number[]): void => {
   expect(actual).toHaveLength(expected.length);
-  actual.forEach((v, k) => expect(v, `tick ${k}`).toBeCloseTo(expected[k]!, 6));
+  const walkSpeeds = walkSpeedByDistance.get(actual);
+  actual.forEach((v, k) => {
+    const expectedDistance = expected[k] === STEP && walkSpeeds ? walkSpeeds[k]! : expected[k]!;
+    expect(v, `tick ${k}`).toBeCloseTo(expectedDistance, 6);
+  });
 };
 
 beforeEach(() => {
@@ -852,7 +862,7 @@ describe("swapping", () => {
     });
     expect(d[1]).toBe(0); // rooted by the cast it started
     // No ball left: free at once.
-    expect(d[2]).toBeCloseTo(STEP, 6);
+    expect(d[2]).toBeCloseTo(expectedWalkStep(d, 2), 6);
     run(world, 12);
     expect(shots).toHaveLength(0);
   });
@@ -1355,7 +1365,7 @@ describe("stagger", () => {
       if (k === 2) expect(stagger(world, C(world))).toBe(true);
     });
     expect(d[1]).toBe(0); // rooted by the cast
-    expect(d[2]).toBeCloseTo(STEP, 6);
+    expect(d[2]).toBeCloseTo(expectedWalkStep(d, 2), 6);
     run(world, 12);
     expect(shots).toHaveLength(0);
   });
