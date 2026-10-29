@@ -3,7 +3,7 @@
 // The numbers are read from the catalog, not repeated here, so a retune of the role table does not break them.
 import { describe, expect, it } from "vitest";
 import {
-  mapFromTiles, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES, mulberry32, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  mapFromTiles, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES, mulberry32, POLICIES, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type FxEvent, type GameMap, type MobRole, type MobTypeDef, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
@@ -119,6 +119,6 @@ describe("a caster stays out of reach, a brute closes in (the weapon's policy, n
     const caster = standOff("flameCaller"); // wand
     const brute = standOff("magmaBrute"); // axe
     expect(caster).toBeGreaterThan(brute + 1);
-    expect(brute).toBeLessThan(2.5);
+    expect(brute).toBeLessThan(POLICIES.axe.attackRange / TILE);
   });
 });

@@ -305,6 +305,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   ids.forEach((id, i) => {
     const camp = camps[benchCampIndex(i, ids.length, camps.length)]!.camp;
     const p = world.state.players.get(id)!;
+    if (opts.stress) p.weapon0 = "wand"; // the only player weapon that supports the repeated unit-target orders below
     p.x = camp.x - 70;
     p.y = camp.y;
     world.players.get(id)!.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];

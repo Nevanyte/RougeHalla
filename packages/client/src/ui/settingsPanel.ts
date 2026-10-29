@@ -3,7 +3,7 @@
 // The switches are buttons (role="switch") rather than checkboxes on purpose: the scenes ignore game keys while an <input>
 // has focus, and a checkbox left focused after a click would silently eat S, Q, F and 1/2.
 import { documentFullscreen, type FullscreenApi } from "../fullscreen";
-import { TEXT_SCALES, type Settings, type SettingsStore } from "../settings";
+import { MINIMAP_SCALES, TEXT_SCALES, type Settings, type SettingsStore } from "../settings";
 import { el } from "./dom";
 
 export function juiceToPercent(juice: number): number {
@@ -80,6 +80,7 @@ export class SettingsPanel {
   private readonly sliderValue = el("span", "sp-value");
   private readonly motionNote = el("div", "sp-note");
   private readonly status = el("div", "sp-status");
+  private readonly minimapSizes = new Map<number, HTMLButtonElement>();
   private readonly sizes = new Map<number, HTMLButtonElement>();
   private readonly unsubscribe: () => void;
 
@@ -106,7 +107,7 @@ export class SettingsPanel {
       section("Display", this.fullscreenRow(), this.switchRow(HI_DPI)),
       section("Effects", this.sliderRow(), this.switchRow(REDUCED_MOTION)),
       section("Readout", this.switchRow(SHOW_FPS), this.switchRow(SHOW_PING)),
-      section("Map", this.switchRow(SHOW_ROUTE), this.textSizeRow()),
+      section("Map", this.switchRow(SHOW_ROUTE), this.minimapSizeRow(), this.textSizeRow()),
     );
 
     const foot = el("div", "sp-foot");
@@ -157,6 +158,7 @@ export class SettingsPanel {
     this.fsButton.setAttribute("aria-checked", String(supported && this.fullscreen.active()));
     this.fsNote.textContent = supported ? "Alt+Enter does the same." : "Not available in this browser.";
 
+    for (const [scale, button] of this.minimapSizes) button.setAttribute("aria-pressed", String(scale === s.minimapScale));
     for (const [scale, button] of this.sizes) button.setAttribute("aria-pressed", String(scale === s.textScale));
 
     this.motionNote.textContent = this.osReducedMotion()
@@ -226,6 +228,22 @@ export class SettingsPanel {
       group.append(button);
     }
     row.append(label, group, el("div", "sp-note", "Makes the planning and Tab maps' text bigger."));
+    return row;
+  }
+
+  private minimapSizeRow(): HTMLElement {
+    const row = el("div", "sp-row");
+    const group = el("div", "sp-seg");
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Minimap size");
+    for (const scale of MINIMAP_SCALES) {
+      const button = el("button", "sp-seg-btn", formatTextScale(scale));
+      button.type = "button";
+      button.addEventListener("click", () => this.store.update({ minimapScale: scale }));
+      this.minimapSizes.set(scale, button);
+      group.append(button);
+    }
+    row.append(el("div", "sp-label", "Minimap size"), group);
     return row;
   }
 

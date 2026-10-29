@@ -15,9 +15,13 @@ export interface Settings {
   showRoute: boolean;
   /** Text size of the map and planning screens, one of TEXT_SCALES (1 = as designed). */
   textScale: number;
+  /** Size of the bottom-corner minimap relative to its default. */
+  minimapScale: number;
 }
 
 /** The text sizes the settings card offers: 100%, 125% and 150%. */
+export const MINIMAP_SCALES: readonly number[] = [0.75, 1, 1.25, 1.5, 2];
+
 export const TEXT_SCALES: readonly number[] = [1, 1.25, 1.5];
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -28,6 +32,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   hiDpi: true,
   showRoute: true,
   textScale: 1,
+  minimapScale: 1,
 });
 
 export const SETTINGS_KEY = "raidbr.settings.v1";
@@ -61,6 +66,9 @@ export function sanitizeSettings(raw: unknown, base: Readonly<Settings> = DEFAUL
     hiDpi: bool(o.hiDpi, base.hiDpi),
     showRoute: bool(o.showRoute, base.showRoute),
     textScale: nearestScale(o.textScale, base.textScale),
+    minimapScale: typeof o.minimapScale === "number" && Number.isFinite(o.minimapScale)
+      ? MINIMAP_SCALES.reduce((a, b) => Math.abs(b - Number(o.minimapScale)) < Math.abs(a - Number(o.minimapScale)) ? b : a)
+      : base.minimapScale,
   };
 }
 

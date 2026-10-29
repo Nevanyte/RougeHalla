@@ -1,5 +1,23 @@
 # RougeHalla: Game Design Document
 
+## Live playtest update (2026-10-29)
+
+These rules supersede older controls, range, healing, vision, and quest descriptions below. This release builds on current main's zone maps, uncapped normal-mob stat growth, champion progression passives, and elite augment chests.
+
+- WASD / arrow keys move. Left-click attacks toward the cursor (hold to repeat); only wand clicks lock onto enemies and home. Right-click ground still walks. Ranged windups pause movement and cannot be cancelled by walking.
+- Reach in world units: fists 72, sword 112, shield 96, axe 112, bow 520, wand 640. Arrows have a larger 7-unit collision radius. Bow pauses up to 0.5s / 55% of its attack interval, wand up to 0.45s / 50%.
+- Q or 1/2 swaps weapons, E casts Wish, R drinks a potion, F picks up items or enters a cannon. Empty slots remain fists. Existing Plague corpse and Sentenced hunt interactions remain.
+- Physical stats read Offense and Defense. Magic stats read Soul Offence (SO) and Soul Defense (SD). The faction display name is Holy.
+- Camp clears drop a healing potion instead of immediately healing contributors. Contributor credit and champion camp-clear progression remain. Large potions heal 40% max HP over 5s; small potions found in weapon chests heal 25% over 5s. Carry up to 5 of each; large is used first and potion healing cannot overlap.
+- One-use wind emblems appear at random clear-floor locations at random 8–15s intervals, capped at 12 on the ground. Walk over one for +50% movement for 5s; it disappears, with no inventory or activation key.
+- Travel cannons connect distant regions. F enters and blasts to the linked destination; each cannon reloads for 75s. Cannons are sealed while coliseum gates are locked.
+- Holy area's Light terrain now heals 3% max HP/s, five times its former rate. Holy receives 6%/s through its existing home bonus. The combat healing lockout remains.
+- Vision trails last 30s. Camp wards last 120s; camp respawns remain 180s. Minimap size is saved in Settings (75%–200%).
+- Camp previews show rewards and elite warnings, with no simulated win/remaining-HP percentages. Weapon chests conceal their contents until opened.
+- There are 20 quests per run: 10 known and 10 rumoured. Current acceptance and private objective-route rules remain.
+- One Wandering Villager trades weapons and potions. One Soul Broker offers 3 persistent random stat exchanges based on current stats; choose 1 once per run (12% cost for 18% gain). Both wander and stop for nearby visitors. Trades preserve uncapped farming, augments, and champion progression.
+
+
 > Current progression: see [Mob progression](MOB_PROGRESSION.md). Regular kills grant one fixed stat stack (ten per type); only elite deaths drop interactive augment chests. Historical card tables below remain reference data, not the live reward pool.
 
 *Working title. Version 1 of this document, written from the owner's design board, the class sheet in `testing/`, and the approved build plan.*

@@ -110,9 +110,9 @@ export class WeaponsPanel implements HubPanel {
     for (const text of [
       "S = attack-speed multiplier (1 at base speed). Interval = max(weapon minimum interval, 1 ÷ [champion base attacks/s × (1 + weapon speed bonus) × S]).",
       `Base DPS = arena-paced champion attack rate × hit damage × weapon damage multiplier (${guideNumber(WEAPONS[id].dpsMult)} for ${model.name}). Bonus DPS = ${model.scaling}.`,
-      "Raw damage per hit = (base DPS + bonus DPS) × S × interval. The base keeps the champion's type mix; bonus AD/health/defense damage is physical and bonus AP damage is magic.",
+      "Raw damage per hit = (base DPS + bonus DPS) × S × interval. The base keeps the champion's type mix; bonus Offense/health/defense damage is physical and bonus SO damage is magic.",
       "Attack speed raises weapon DPS. At the minimum interval, extra speed becomes more damage per hit. It does not directly multiply Fire's burn or Plague's disease.",
-      "After the packet is built: crits, augments, PvP scaling and other effects may modify it. Each physical part is multiplied by 100/(100 + armor); each magic part by 100/(100 + MR). At 100 resistance, that type takes half damage. True damage ignores those resistances.",
+      "After the packet is built: crits, augments, PvP scaling and other effects may modify it. Each physical part is multiplied by 100/(100 + Defense); each magic part by 100/(100 + SD). At 100 resistance, that type takes half damage. True damage ignores those resistances.",
     ]) details.append(el("p", undefined, text));
     this.content.replaceChildren(header, grid, mechanics, example, details);
   }
@@ -137,7 +137,7 @@ export class WeaponsPanel implements HubPanel {
     this.example.replaceChildren(
       el("p", undefined, `${FACTIONS[this.faction].displayName} + ${w.name} · base attack speed · no other bonuses`),
       el("p", "weapon-guide-before", `Base hit: ${mix(before)} = ${damageNumber(before.total)} raw damage.`),
-      el("p", "weapon-guide-after", `With +${value} ${primary === "def" ? "combined bonus armor/MR" : primary.toUpperCase()}: ${mix(after)} = ${damageNumber(after.total)} raw damage.`),
+      el("p", "weapon-guide-after", `With +${value} ${primary === "def" ? "combined bonus Defense/SD" : primary.toUpperCase()}: ${mix(after)} = ${damageNumber(after.total)} raw damage.`),
       el("p", undefined, `${Number(after.attacksPerSecond.toFixed(2))} attacks/s · ${Number(after.interval.toFixed(2))} s between attacks. Passive signature and Wish damage are separate.`),
       el("p", "weapon-guide-note", "Illustration before enemy defenses, crits, augments and PvP multipliers; not a final damage or kill-time prediction."),
     );

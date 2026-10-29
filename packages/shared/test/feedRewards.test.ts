@@ -95,9 +95,9 @@ describe("effectText", () => {
   });
 
   it("writes a flat row in points, a minus for a loss", () => {
-    expect(effectText({ k: "flat", stat: "armor", v: -4 })).toBe("-4 armor");
-    expect(effectText({ k: "flat", stat: "shield", v: 7.5 })).toBe("+7.5 magic resist");
-    expect(effectText({ k: "flat", stat: "shield", v: 10.84 })).toBe("+10.8 magic resist");
+    expect(effectText({ k: "flat", stat: "armor", v: -4 })).toBe("-4 Defense");
+    expect(effectText({ k: "flat", stat: "shield", v: 7.5 })).toBe("+7.5 Soul Defense");
+    expect(effectText({ k: "flat", stat: "shield", v: 10.84 })).toBe("+10.8 Soul Defense");
   });
 
   it("writes every vs test", () => {
@@ -112,11 +112,11 @@ describe("effectText", () => {
     expect(effectText(vs("higherFeed"))).toBe("+10% damage to targets with a higher feed");
   });
 
-  it("writes every while condition, points for armor and shield", () => {
+  it("writes every while condition, points for Defense and shield", () => {
     expect(effectText({ k: "while", cond: "chasingLock", arg: 0, stat: "moveSpeed", v: 0.05 })).toBe("+5% move speed while chasing your target");
     expect(effectText({ k: "while", cond: "hpBelow", arg: 0.3, stat: "attackSpeed", v: 0.25 })).toBe("+25% attack speed while below 30% HP");
-    expect(effectText({ k: "while", cond: "afterCast", arg: 0, stat: "armor", v: 4, ms: 2500 })).toBe("+4 armor for 2.5 s after a cast");
-    expect(effectText({ k: "while", cond: "hpBelow", arg: 0.5, stat: "shield", v: -2 })).toBe("-2 magic resist while below 50% HP");
+    expect(effectText({ k: "while", cond: "afterCast", arg: 0, stat: "armor", v: 4, ms: 2500 })).toBe("+4 Defense for 2.5 s after a cast");
+    expect(effectText({ k: "while", cond: "hpBelow", arg: 0.5, stat: "shield", v: -2 })).toBe("-2 Soul Defense while below 50% HP");
     expect(effectText({ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.06, ms: 2500 }))
       .toBe("+6% move speed, but not while you shoot or for 2.5 s after a bow or wand shot");
   });
@@ -132,7 +132,7 @@ describe("effectText", () => {
 
   it("joins a card's rows with 'and'", () => {
     const rows: Effect[] = [{ k: "stat", stat: "maxHp", v: 0.03 }, { k: "flat", stat: "shield", v: 10 }];
-    expect(effectsText(rows)).toBe("+3% max HP and +10 magic resist");
+    expect(effectsText(rows)).toBe("+3% max HP and +10 Soul Defense");
     expect(effectsText([])).toBe("");
   });
 });

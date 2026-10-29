@@ -46,3 +46,6 @@ export * from "./championPassives";
 export * from "./mobStats";
 export * from "./plagueCorpses";
 export * from "./sentencedHunt";
+export * from "./traders";
+
+export * from "./consumables";

@@ -58,7 +58,7 @@ describe("what the console offers", () => {
     expect(mobTypeLabel(type("gaoler"))).toBe("Gaoler (elite, brute, shield)");
     expect(mobTypeHint(type("emberImp"))).toContain("Each kill grants +1% damage per kill.");
     expect(mobTypeHint(type("bailiff"))).toContain("Carries a sword, which a kill can drop.");
-    expect(mobTypeHint(type("archon"))).toContain("an elite of the Demon Blood zone");
+    expect(mobTypeHint(type("archon"))).toContain("an elite of the Holy zone");
     for (const t of MOB_TYPES) {
       expect(mobTypeLabel(t), t.id).toContain(t.name);
       expect(mobTypeHint(t), t.id).toContain(t.name);

@@ -46,7 +46,7 @@ const FACTION_TITLE: Record<GoldFaction, [id: string, name: string, title: strin
   holy: ["win_holy", "Blood Rite", "title-demon-blood"],
 };
 const FACTION_NAME: Record<GoldFaction, string> = {
-  fire: "Fire", sentenced: "Sentenced", plague: "Plague", frost: "Frost", holy: "Demon Blood",
+  fire: "Fire", sentenced: "Sentenced", plague: "Plague", frost: "Frost", holy: "Holy",
 };
 const WEAPON_NAME: Record<GoldWeapon, string> = { sword: "sword", axe: "axe", bow: "bow", wand: "wand", shield: "shield" };
 

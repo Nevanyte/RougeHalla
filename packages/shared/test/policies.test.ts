@@ -57,11 +57,12 @@ describe("decide, seeing the world late", () => {
 
   it("swings only when the target will be in reach", () => {
     // 90 u away and walking off at 170 u/s: out of a sword's reach by the time the swing is judged.
-    const walkingOff = decide(input({ weapon: "sword", target: { x: 62, y: 0 }, targetVel: { x: 170, y: 0 }, viewLag: 0.1, inputDelay: 0.05 }));
+    const edge = POLICIES.sword.attackRange - 10;
+    const walkingOff = decide(input({ weapon: "sword", target: { x: edge, y: 0 }, targetVel: { x: 170, y: 0 }, viewLag: 0.1, inputDelay: 0.05 }));
     expect(walkingOff.hold).toBe(false);
-    expect(decide(input({ weapon: "sword", target: { x: 62, y: 0 } })).hold).toBe(true);
+    expect(decide(input({ weapon: "sword", target: { x: edge, y: 0 } })).hold).toBe(true);
     // Walking in from 90 u: in reach by then.
-    expect(decide(input({ weapon: "sword", target: { x: 90, y: 0 }, targetVel: { x: -170, y: 0 }, viewLag: 0.1, inputDelay: 0.05 })).hold).toBe(true);
+    expect(decide(input({ weapon: "sword", target: { x: POLICIES.sword.attackRange + 20, y: 0 }, targetVel: { x: -170, y: 0 }, viewLag: 0.1, inputDelay: 0.05 })).hold).toBe(true);
   });
 
   it("holds the trigger for a bow inside its range and not outside it, whatever it was doing (no release to time)", () => {
@@ -146,13 +147,13 @@ describe("decide, strafing and spacing overrides", () => {
   it("plays a weapon with the spacing it is given", () => {
     const keepAway = { ...POLICIES.wand, retreatBelow: 400 };
     expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 }, spacing: keepAway })).move).not.toBe("stop");
-    expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 } })).move).toEqual({ x: 300, y: 0 });
+    expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 } })).move).toBe("stop");
   });
 });
 
 describe("decide, weaving melee approach", () => {
   const ANGLE = (55 * Math.PI) / 180;
-  const weaving = { ...POLICIES.sword, weave: { angle: ANGLE, period: 0.4, within: 90 } };
+  const weaving = { ...POLICIES.sword, weave: { angle: ANGLE, period: 0.4, within: POLICIES.sword.far + 40 } };
   const at = (time: number, over: Partial<PolicyInput> = {}) =>
     decide(input({ weapon: "sword", target: { x: 400, y: 0 }, spacing: weaving, time, ...over }));
   const heading = (m: unknown): number => Math.atan2((m as Vec2).y, (m as Vec2).x);
@@ -171,7 +172,8 @@ describe("decide, weaving melee approach", () => {
   });
 
   it("charges straight inside `within`, without a clock, and without line of sight", () => {
-    expect(at(0.1, { target: { x: 80, y: 0 } }).move).toEqual({ x: 80, y: 0 });
+    const inside = POLICIES.sword.far + 10;
+    expect(at(0.1, { target: { x: inside, y: 0 } }).move).toEqual({ x: inside, y: 0 });
     expect(at(0.1, { time: undefined }).move).toEqual({ x: 400, y: 0 });
     expect(at(0.1, { los: false }).move).toEqual({ x: 400, y: 0 });
   });
@@ -194,7 +196,9 @@ describe("lockSpacing, how the target lock plays a weapon", () => {
     for (const w of WEAPON_IDS) {
       const lock = lockSpacing(w);
       const base = POLICIES[w];
-      expect(lock).toEqual({ far: base.far, attackRange: base.attackRange, retreatBelow: 0, leadSpeed: base.leadSpeed });
+      const range = 640;
+      expect(lock).toEqual({ far: w === "wand" ? range * .88 : base.far,
+        attackRange: w === "wand" ? range * .96 : base.attackRange, retreatBelow: 0, leadSpeed: base.leadSpeed });
       expect(lock.strafe).toBeUndefined();
       expect(lock.weave).toBeUndefined();
     }

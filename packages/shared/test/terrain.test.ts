@@ -86,7 +86,7 @@ describe("the terrain catalog", () => {
     expect(ember).toMatchObject({ burnShare: 0.02, homeRule: "exempt", speedMult: 1, slipMs: 0, healShare: 0 });
     expect(bog).toMatchObject({ speedMult: 0.7, homeRule: "exempt", burnShare: 0, slipMs: 0, healShare: 0 });
     expect(ice).toMatchObject({ slipMs: 400, homeRule: "exempt", burnShare: 0, speedMult: 1, healShare: 0 });
-    expect(light).toMatchObject({ healShare: 0.006, homeRule: "boost", homeMult: 2, burnShare: 0, speedMult: 1, slipMs: 0 });
+    expect(light).toMatchObject({ healShare: 0.03, homeRule: "boost", homeMult: 2, burnShare: 0, speedMult: 1, slipMs: 0 });
   });
 
   it("owns the real prop table: the stylers' own array, ids append only", () => {
@@ -678,9 +678,9 @@ describe("surface effects (part B)", () => {
     expect(slipAccel(0)).toBe(0);
   });
 
-  it("light heals 0.6% of max hp per second, and holy twice that", () => {
-    for (const f of FACTION_IDS) expect(surfaceEffect(TERRAIN_LIGHT, f).healShare).toBeCloseTo(f === "holy" ? 0.012 : 0.006, 12);
-    expect(surfaceEffect(TERRAIN_LIGHT, "").healShare).toBe(0.006);
+  it("light heals 3% of max hp per second, and holy twice that", () => {
+    for (const f of FACTION_IDS) expect(surfaceEffect(TERRAIN_LIGHT, f).healShare).toBeCloseTo(f === "holy" ? 0.06 : 0.03, 12);
+    expect(surfaceEffect(TERRAIN_LIGHT, "").healShare).toBe(0.03);
   });
 
   it("an empty or unknown faction gets the base effect, and every other kind is neutral for everyone", () => {

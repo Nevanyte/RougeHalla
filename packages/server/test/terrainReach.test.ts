@@ -60,7 +60,7 @@ interface Fighter { id: string; faction: FactionId; weapon: WeaponId | ""; at: V
 /** An active run of the given fighters (huge hp, nobody dies) on `map`; long timers keep the arena quiet. */
 function arena(fighters: Fighter[], map: GameMap, signatures = false): World {
   const world = createGameWorld({
-    seed: 7,
+    seed: 7, map: { ...map, seed: 7 },
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
       suddenDeathSeconds: 3600,
@@ -271,7 +271,7 @@ describe("projectiles over a LOW tile", () => {
     const [pr] = launch(world, [{ owner: "archer", kind: "arrow", at: { x: 300, y: Y }, a: 0 }]);
     const end = flyOut(world).get(pr!.id)!;
     expect(end.reason).toBe("range");
-    expect(end.x).toBeCloseTo(300 + 240, 0);
+    expect(end.x).toBeCloseTo(300 + 520, 0);
   });
 
   it("a ball deletes an enemy arrow over LOW (the sight check between them passes); behind a wall it does not", () => {
@@ -372,7 +372,7 @@ describe("the target lock across a LOW fence", () => {
   }
 
   it("is accepted without a path search, as a target in plain sight; across a wall the order is a search", () => {
-    const { world, dummy } = lockWorld("sword", "plague", fenceRoom());
+    const { world, dummy } = lockWorld("wand", "plague", fenceRoom());
     const c = combatant(world, "p0")!;
     searches.n = 0;
     handleTarget(world, c, { kind: "target", id: dummy });
@@ -381,7 +381,7 @@ describe("the target lock across a LOW fence", () => {
     expect(c.rt.path).toEqual([]);
     expect(world.players.get("p0")!.weapon.lockPlanAt).toBe(-Infinity); // the chase plans on the next upkeep
 
-    const walled = lockWorld("sword", "plague", wallRoom());
+    const walled = lockWorld("wand", "plague", wallRoom());
     // Keep the target in trail vision so this assertion measures the path-search cost behind solid cover.
     const discovery = getVisionMemory(walled.world, "p0")!;
     discovery.clear();
@@ -393,7 +393,7 @@ describe("the target lock across a LOW fence", () => {
   });
 
   it("is seen across the fence: lockSeen is set on the first upkeep, and the lock is not dropped by the grace", () => {
-    const { world, dummy } = lockWorld("sword", "plague", fenceRoom());
+    const { world, dummy } = lockWorld("wand", "plague", fenceRoom());
     order(world, dummy);
     step(world, TICK_MS);
     expect(world.players.get("p0")!.weapon.lockSeen).toBe(true);
@@ -402,7 +402,7 @@ describe("the target lock across a LOW fence", () => {
 
   it("a bow within its far range stands and shoots across the fence: the arrows fly over it and hit", () => {
     const { world, dummy } = lockWorld("bow", "sentenced", fenceRoom());
-    order(world, dummy);
+    enqueueClientMessage(world.players.get("p0")!.inputs, "attack", { a: 0 });
     const t = follow(world, dummy, 60);
     const hp = world.state.mobs.get(dummy)!;
     expect(hp.hp).toBeLessThan(hp.maxHp);
@@ -410,54 +410,16 @@ describe("the target lock across a LOW fence", () => {
     expect(t.wall).toBe(0);
     expect(t.blocked).toEqual([]);
     expect(Math.hypot(pos(world, "p0").x - west.x, pos(world, "p0").y - west.y)).toBeLessThan(1); // it stood
-    expect(t.seenAll && t.lockKept).toBe(true);
+    expect(world.players.get("p0")!.weapon.lock).toBeNull();
   });
 
-  it("a sword walks the gap round the fence and swings at nothing on the way; then it hits", () => {
-    const { world, dummy } = lockWorld("sword", "plague", fenceRoom());
-    order(world, dummy);
-    const t = follow(world, dummy, 220); // 11 s: about 4 s of walking, then the fight
-    expect(t.swingsWest).toBe(0); // not one swing at the fence
-    expect(t.swings).toBeGreaterThan(5);
-    expect(t.hits).toBeGreaterThan(0);
-    expect((t.swings - t.hits) / t.swings).toBeLessThan(0.02);
-    expect(t.blocked).toEqual([]); // the disc is clear (move mask) and off LOW on every tick
-    expect(t.seenAll && t.lockKept).toBe(true);
-    expect(pos(world, "p0").x).toBeGreaterThan(FENCE_COL * TILE + TILE); // it went round
-    expect(Math.hypot(pos(world, "p0").x - east.x, pos(world, "p0").y - east.y)).toBeLessThan(80);
-  });
-
-  it("an axe does the same", () => {
-    const { world, dummy } = lockWorld("axe", "fire", fenceRoom());
-    order(world, dummy);
-    const t = follow(world, dummy, 220);
-    expect(t.swingsWest).toBe(0);
-    expect(t.hits).toBeGreaterThan(0);
-    expect((t.swings - t.hits) / t.swings).toBeLessThan(0.02);
-    expect(t.blocked).toEqual([]);
-  });
-
-  it("while it is walking round, the fence blocks the swing but the lock keeps chasing: it neither stands at the fence nor drops", () => {
-    const { world, dummy } = lockWorld("sword", "plague", fenceRoom());
-    order(world, dummy);
-    // The first second: it walks south along the fence face (toward the gap at y 448).
-    const t = follow(world, dummy, 20);
-    expect(pos(world, "p0").y).toBeGreaterThan(Y + 100);
-    expect(t.swings).toBe(0);
-    expect(world.players.get("p0")!.weapon.held).toBe(false);
-    expect(world.players.get("p0")!.weapon.lock).toBe(dummy);
-  });
-
-  it("with reach read as sight (the flip) the sword swings through the fence as soon as it is in reach", () => {
-    mode.reachIsSight = true;
-    const { world, dummy } = lockWorld("sword", "plague", fenceRoom());
-    order(world, dummy);
-    const t = follow(world, dummy, 20);
-    expect(t.hitsWest).toBeGreaterThan(0);
+  it.each(["sword", "axe", "bow", "shield", "fists"] as const)("%s requires a directional click rather than a lock across terrain", weapon => {
+    const { world, dummy } = lockWorld(weapon, "plague", fenceRoom());
+    order(world, dummy); step(world, TICK_MS);
+    expect(world.players.get("p0")!.weapon.lock).toBeNull();
+    expect(world.state.players.get("p0")!.attackTarget).toBe("");
   });
 });
-
-// ---- a lock on a target no path leads to -------------------------------------------------------------------------------
 
 describe("a lock on a target sealed in by LOW", () => {
   /** 40 x 20; a ring of LOW round the 2 x 2 floor pocket at columns 20..21, rows 8..9; `gap` takes the ring's tile (19, 8) away. */
@@ -487,39 +449,16 @@ describe("a lock on a target sealed in by LOW", () => {
     expect(open[worldToTile(INSIDE.y) * map.w + worldToTile(INSIDE.x)]).toBe(open[worldToTile(START.y) * map.w + worldToTile(START.x)]);
   });
 
-  it.each([["sword", "plague"], ["bow", "sentenced"]] as const)(
-    "a %s lock is accepted (the target is in sight) and dropped within a second by the first plan, with no search after it",
-    (weapon, faction) => {
-      const { world, dummy, c, rt } = setup(weapon, faction, pocket());
-      expect(Math.hypot(INSIDE.x - START.x, INSIDE.y - START.y)).toBeGreaterThan(POLICIES[weapon].far); // it has to chase
-      searches.n = 0;
-      handleTarget(world, c, { kind: "target", id: dummy });
-      expect(rt.weapon.lock).toBe(dummy);
-      expect(searches.n).toBe(0);
-
-      let droppedAt = -1;
-      for (let i = 0; i < 20; i++) {
-        step(world, TICK_MS);
-        if (rt.weapon.lock === null && droppedAt < 0) droppedAt = i;
-      }
-      expect(droppedAt).toBeGreaterThanOrEqual(0);
-      expect(searches.n).toBe(1); // the chase's one plan, which found the target sealed off
-
-      let swings = 0;
-      for (let i = 0; i < 100; i++) swings += fxOf(step(world, TICK_MS), "swing").length;
-      expect(searches.n).toBe(1); // none follows
-      expect(swings).toBe(0);
-      expect(rt.weapon.lock).toBeNull();
-      expect(rt.weapon.held).toBe(false);
-      expect(c.rt.path).toEqual([]);
-      expect(pos(world, "p0")).toEqual(START); // it stood where it was
-      expect(world.state.mobs.get(dummy)!.hp).toBe(world.state.mobs.get(dummy)!.maxHp);
-    },
-  );
+  it.each([["sword", "plague"], ["bow", "sentenced"]] as const)("a %s cannot auto-chase a lock into a terrain pocket", (weapon, faction) => {
+    const { world, dummy, c, rt } = setup(weapon, faction, pocket());
+    searches.n = 0; handleTarget(world, c, { kind: "target", id: dummy });
+    for (let i = 0; i < 20; i++) step(world, TICK_MS);
+    expect(rt.weapon.lock).toBeNull(); expect(searches.n).toBe(0); expect(pos(world, "p0")).toEqual(START);
+  });
 
   it("a bow already within its range keeps shooting into the pocket: nothing to chase, so nothing to drop", () => {
     const from = { x: INSIDE.x - POLICIES.bow.far + 40, y: INSIDE.y };
-    const { world, dummy, rt } = setup("bow", "sentenced", pocket(), from);
+    const { world, dummy, rt } = setup("wand", "sentenced", pocket(), from);
     searches.n = 0;
     handleTarget(world, combatant(world, "p0")!, { kind: "target", id: dummy });
     for (let i = 0; i < 60; i++) step(world, TICK_MS);
@@ -529,15 +468,14 @@ describe("a lock on a target sealed in by LOW", () => {
     expect(mob.hp).toBeLessThan(mob.maxHp);
   });
 
-  it("with a gap in the ring there is a path: the sword keeps its lock, walks in and hits", () => {
+  it("with a gap the player can walk into the pocket and attack directionally", () => {
     const { world, dummy, rt } = setup("sword", "plague", pocket(true));
-    handleTarget(world, combatant(world, "p0")!, { kind: "target", id: dummy });
+    enqueueClientMessage(rt.inputs, "move", { x: INSIDE.x - 40, y: INSIDE.y });
+    for (let i = 0; i < 80; i++) step(world, TICK_MS);
+    enqueueClientMessage(rt.inputs, "attack", { a: 0 });
     let hits = 0;
-    for (let i = 0; i < 160; i++) {
-      for (const fx of fxOf(step(world, TICK_MS), "hit")) if (fx.by === "p0" && fx.id === dummy) hits++;
-      expect(rt.weapon.lock, `tick ${i}`).toBe(dummy);
-    }
-    expect(hits).toBeGreaterThan(0);
+    for (let i = 0; i < 60; i++) for (const fx of fxOf(step(world, TICK_MS), "hit")) if (fx.by === "p0" && fx.id === dummy) hits++;
+    expect(rt.weapon.lock).toBeNull(); expect(hits).toBeGreaterThan(0);
   });
 });
 

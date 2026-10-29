@@ -82,11 +82,11 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
       for (const m of [0.999, 0.92, 0.88, 0.6, 0.5, 0.4, 0.05]) expect(scaleWindup(t, m), `${t.windup} x${m}`).toBe(t);
     }
     // A mult of 1 or more lengthens every weapon, never past the interval (no source lengthens windups today).
-    expect(scaleWindup(bow, 1.2).windup).toBeCloseTo(0.36, 12);
-    expect(scaleWindup(wand, 1.5).windup).toBeCloseTo(0.45, 12);
+    expect(scaleWindup(bow, 1.2).windup).toBeCloseTo(0.6, 12);
+    expect(scaleWindup(wand, 1.5).windup).toBeCloseTo(0.675, 12);
     expect(scaleWindup(plague, 1.05).windup).toBeCloseTo(plague.windup * 1.05, 12);
-    expect(scaleWindup(plague, 2).windup).toBeCloseTo(plague.windup * 2, 12);
-    expect(scaleWindup(weaponTimings("bow", 0.55), 1.5).windup).toBeCloseTo(0.2475, 12);
+    expect(scaleWindup(plague, 2).windup).toBeCloseTo(Math.min(plague.interval, plague.windup * 2), 12);
+    expect(scaleWindup(weaponTimings("bow", 0.55), 1.5).windup).toBeCloseTo(0.45375, 12);
     expect(scaleWindup(bow, 1.2)).toMatchObject({ interval: bow.interval, root: 0, ranged: true });
   });
 

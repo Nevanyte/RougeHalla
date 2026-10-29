@@ -64,7 +64,7 @@ describe("championCombatModel", () => {
       expect(auto.damage!.magic).toBeCloseTo(base * shares.magic + extra.magic, 8);
       expect(auto.damage!.true).toBeCloseTo(base * shares.true, 8);
       expect(auto.scaling).toBe(Object.entries(WEAPONS[weaponId].scaling).map(([key, value]) => {
-        const label = key === "def" ? "bonus defense" : key === "hp" ? "bonus HP" : key.toUpperCase();
+        const label = key === "def" ? "bonus defense" : key === "hp" ? "bonus HP" : key === "ad" ? "Offense" : key === "ap" ? "SO" : key.toUpperCase();
         return `${value}× ${label}`;
       }).join(" + "));
       expect(model.rows).toHaveLength(3);
@@ -87,7 +87,7 @@ describe("championCombatModel", () => {
     expect(foldRows(ownedCards(input.build).flatMap(({ def, count }) => Array.from({ length: count }, () => def.effects).flat())).mults.hit).toBe(2.5);
   });
 
-  it("keeps Fire auto magic and its fixed true-damage trail Wish distinct from AD/AP scaling", () => {
+  it("keeps Fire auto magic and its fixed true-damage trail Wish distinct from Offense/SO scaling", () => {
     const input = player({ faction: "fire", weapon0: "sword", apBonus: encodeFlat(10) });
     const [auto, passive, wish] = championCombatModel(input).rows;
     expect(auto.damage?.magic).toBeGreaterThan(auto.damage?.physical ?? 0);
@@ -96,16 +96,16 @@ describe("championCombatModel", () => {
     expect(wish.icon).toBe(ABILITIES.blaze.icon);
     expect(wish.value).toContain(`${BLAZE_BURN_DPS} true DPS`);
     expect(wish.value).toContain(`${BLAZE_BURN_MS / 1000}s trail`);
-    expect(wish.tooltip).toContain("does not scale with AD, AP, weapon, or card damage multipliers");
+    expect(wish.tooltip).toContain("does not scale with Offense, SO, weapon, or card damage multipliers");
   });
 
-  it("tracks Fire Roam charge and armed magic burst with its current AP", () => {
+  it("tracks Fire Roam charge and armed magic burst with its current SO", () => {
     const ap = 32;
     const charge = 600;
     const active = championCombatModel(player({ faction: "fire", apBonus: encodeFlat(ap), roamCharge: charge })).rows[0]!;
     expect(active.tooltip).toContain(`${charge}/1000 charged`);
     expect(active.tooltip).toContain(`${round((fireRoamSpeedMult(charge) - 1) * 100)}% move speed`);
-    expect(active.tooltip).toContain(`${round(fireRoamBurstDamage(ap))} magic (${FIRE_ROAM_BURST_BASE} + ${FIRE_ROAM_BURST_AP_SHARE}× AP)`);
+    expect(active.tooltip).toContain(`${round(fireRoamBurstDamage(ap))} magic (${FIRE_ROAM_BURST_BASE} + ${FIRE_ROAM_BURST_AP_SHARE}× SO)`);
     expect(active.tooltip).toContain(`${FIRE_ROAM_RAMP_MS / 1000} s out of combat`);
     expect(active.tooltip).toContain("Incoming damage resets partial charge but does not cancel an already armed burst");
     const ready = championCombatModel(player({ faction: "fire", roamCharge: 1000, roamReady: true })).rows[0]!;
@@ -133,7 +133,7 @@ describe("championCombatModel", () => {
     expect(championCombatModel(player({ faction: "sentenced", weapon0: "axe" })).rows[1]!.value).toContain("target HP / hit");
   });
 
-  it("matches Sentenced's real mark pulse from decoded AD, AP, armor, MR, AS, and equipped weapon", () => {
+  it("matches Sentenced's real mark pulse from decoded Offense, SO, armor, SD, AS, and equipped weapon", () => {
     const input = player({
       faction: "sentenced", weapon0: "wand", sentence: 4, asMult: encodeMult(1.7),
       adBonus: encodeFlat(31), apBonus: encodeFlat(22), armorBonus: encodeFlat(45), shieldBonus: encodeFlat(18),
@@ -149,13 +149,13 @@ describe("championCombatModel", () => {
     const rawPoints = decoded.adBonus + decoded.apBonus + decoded.armorBonus + decoded.shieldBonus;
     const weightedPoints = decoded.adBonus + MARK_BONUS_AP_WEIGHT * decoded.apBonus + decoded.armorBonus + decoded.shieldBonus;
     expect(row.tooltip).toContain(`${round(rawPoints)} raw bonus-stat points (${round(weightedPoints)} weighted for the mark)`);
-    expect(row.tooltip).toContain(`AP has ${MARK_BONUS_AP_WEIGHT}× weight and adds ${MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100}% per point`);
+    expect(row.tooltip).toContain(`SO has ${MARK_BONUS_AP_WEIGHT}× weight and adds ${MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100}% per point`);
     expect(row.tooltip).toContain(`Attack-speed bonuses from cards and farming are ${MARK_FARM_AS_EFFICIENCY * 100}% effective`);
     expect(row.scaling).toContain(`${round(weightedPoints)} weighted bonus stats`);
     expect(row.value).not.toBe(championCombatModel(player({ faction: "sentenced", weapon0: "wand", sentence: 4 })).rows[1]!.value);
   });
 
-  it("makes a flat AP reward stronger than an equal earned AS reward against a normal-health target", () => {
+  it("makes a flat SO reward stronger than an equal earned AS reward against a normal-health target", () => {
     const faction = pacedFaction(FACTIONS.sentenced);
     const weapon = "bow" as const;
     for (const stacks of [0, 10, 30]) {
@@ -174,7 +174,7 @@ describe("championCombatModel", () => {
       const asWeaponScaling = scalingDamage(weapon, { ad: 0, ap: stacks, bonusMaxHp: 0, bonusDefense: 0 }, asMult, asInterval);
       const asAutoDps = (damagePerHit(faction, weapon, asMult) + asWeaponScaling.phys + asWeaponScaling.magic) / asInterval;
       const baseAutoDps = (baseHit + baseWeaponScaling.phys + baseWeaponScaling.magic) / interval;
-      expect((apMarkDps + apAutoDps) - (baseMarkDps + baseAutoDps), `AP vs AS at ${stacks} prior rewards`).toBeGreaterThan((asMarkDps + asAutoDps) - (baseMarkDps + baseAutoDps));
+      expect((apMarkDps + apAutoDps) - (baseMarkDps + baseAutoDps), `SO vs AS at ${stacks} prior rewards`).toBeGreaterThan((asMarkDps + asAutoDps) - (baseMarkDps + baseAutoDps));
     }
   });
 
@@ -187,7 +187,7 @@ describe("championCombatModel", () => {
     const frostRow = championCombatModel(player({ faction: "frost" })).rows[1]!;
     expect(frostRow.value).toContain(`${FACTIONS.frost.params.slow! * 100}% AS`);
     expect(frostRow.value).toContain(`${round((1 - CHILL_MOVE_MULT) * 100)}% MS slow`);
-    expect(frostRow.tooltip).toContain("does not scale with AD or AP");
+    expect(frostRow.tooltip).toContain("does not scale with Offense or SO");
   });
 
   it("shows concise utility Wish values for all factions", () => {

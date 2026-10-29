@@ -110,14 +110,14 @@ export const COSMETICS: readonly Cosmetic[] = [
   title(22, "the-judge", "The Judge", 0x9575cd),
   title(23, "rat-king", "Rat King", 0x9ccc65),
   title(24, "ice-wall", "Ice Wall", 0x4fc3f7),
-  title(25, "demon-blood", "Demon Blood", 0xfff176),
+  title(25, "demon-blood", "Holy", 0xfff176),
 
   // Golden variants. They are sold dear and also awarded by achievements.
   gilded(1, "fire", "Gilded Fire", 400),
   gilded(2, "sentenced", "Gilded Sentenced", 400),
   gilded(3, "plague", "Gilded Plague", 400),
   gilded(4, "frost", "Gilded Frost", 400),
-  gilded(5, "holy", "Gilded Demon Blood", 400),
+  gilded(5, "holy", "Gilded Holy", 400),
   gilded(6, "sword", "Golden Sword", 300),
   gilded(7, "axe", "Golden Axe", 300),
   gilded(8, "bow", "Golden Bow", 300),

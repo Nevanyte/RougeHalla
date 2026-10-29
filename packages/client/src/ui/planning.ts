@@ -8,7 +8,7 @@
 // placed by percent over the painted map (canvas), so the keyboard and screen readers reach them. Orders go out as `plan`
 // inputs only; the deal and the route stay on this client (the route is never sent).
 import {
-  FACTIONS, TILE, campMatchup, isEliteCamp, isFactionId, mobStatReward, nearestCamps, regionAt, spawnWalks, walkSeconds,
+  FACTIONS, TILE, isEliteCamp, isFactionId, mobStatReward, nearestCamps, regionAt, spawnWalks, walkSeconds,
   type InvestedStatKey,
   type CampDef, type ClientMessages, type FactionId, type GameMap, type PlanMessage, type Vec2,
 } from "@raid/shared";
@@ -24,7 +24,7 @@ import {
 } from "./mapPainter";
 import { mapSpan, minimapBacking, minimapToWorld } from "./minimapMath";
 import {
-  MAX_WAYPOINTS, ROUTE_REACH, campBoxes, crowdedChips, cycleIndex, describeMatchup, formatClock, formatEta, fullMapSize, glyphScale,
+  MAX_WAYPOINTS, ROUTE_REACH, campBoxes, crowdedChips, cycleIndex, formatClock, formatEta, fullMapSize, glyphScale,
   labelSizePx, placeLabels, planningMapSize, previewMapSize, routeAhead, zoneJump, type CampSpot, type PxBox, type RoutePlan,
 } from "./planningMath";
 import type { RouteState } from "./route";
@@ -633,14 +633,14 @@ export class PlanningView {
     if (key === this.keyCamps) return;
     this.keyCamps = key;
     this.camps.forEach(({ camp, button, chip, rewards }, i) => {
-      const m = me ? describeMatchup(campMatchup(me, camp)) : null;
+      const elite = isEliteCamp(camp);
       const state = states?.[i] ?? 0;
       button.classList.toggle("cleared", state === 2);
       button.classList.toggle("disturbed", state === 1);
-      chip.textContent = m?.chip ?? "";
-      chip.className = `pl-chip${m ? ` tone-${m.tone}` : ""}`;
+      chip.textContent = elite ? "Elite" : "";
+      chip.className = "pl-chip tone-risk";
       // A cleared camp has nothing left to weigh up: no matchup chip.
-      chip.hidden = m === null || state === 2;
+      chip.hidden = !elite || state === 2;
       rewards.replaceChildren();
       const normalReward = mobStatReward(frame.campTypes[i] ?? "");
       if (normalReward) rewards.append(campRewardBadge(normalReward));
@@ -705,7 +705,7 @@ export class PlanningView {
     const state = frame?.campStates?.[i] ?? 0;
     if (state === 2) parts.push("Cleared");
     else if (state === 1) parts.push("Someone has fought here"); // history: the state is sticky, not a live fight
-    if (me && state !== 2) parts.push(`For ${zoneName(me)}: ${describeMatchup(campMatchup(me, camp)).words}`);
+    if (isEliteCamp(camp) && state !== 2) parts.push("Elite camp: dangerous");
     return parts.join(". ");
   }
 
@@ -718,7 +718,7 @@ export class PlanningView {
 
   private defaultInfo(): string {
     if (this.shownMode === "map") return "Click camps or quests to edit route · release Tab to return";
-    if (this.shownMode === "planning") return "Hover or focus a camp to read it. Its chip is your matchup: the share of your hp left after a straight fight.";
+    if (this.shownMode === "planning") return "Hover or focus a camp to read its reward. Crowns mark dangerous elite camps.";
     return "Hover or focus a camp to read it. Planning starts when the lobby fills.";
   }
 
@@ -847,10 +847,7 @@ export class PlanningView {
           item.style.setProperty("--zone", zoneColor(camp.zone));
           item.append(glyph(camp.zone));
           if (isEliteCamp(camp)) item.append(crown());
-          if (me) {
-            const m = describeMatchup(campMatchup(me, camp));
-            item.append(el("span", `pl-chip tone-${m.tone}`, m.chip));
-          }
+
           near.append(item);
         }
         card.append(near);

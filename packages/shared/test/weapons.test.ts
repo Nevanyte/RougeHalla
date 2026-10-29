@@ -55,8 +55,8 @@ const BACKLASH: Record<WeaponId, number> = {
  */
 const MODEL_WEAPONS: Record<WeaponId, { dps: number; range: number | null }> = {
   sword: { dps: 0.75, range: null },
-  bow: { dps: 0.8, range: 240 },
-  wand: { dps: 0.8, range: 220 },
+  bow: { dps: 0.8, range: 520 },
+  wand: { dps: 0.8, range: 640 },
   shield: { dps: 0.75, range: null },
   axe: { dps: 0.77, range: null },
   fists: { dps: 0.6, range: null },
@@ -123,14 +123,14 @@ describe("the weapon table (GAME_DESIGN 9.1)", () => {
       ["sword", 1.15, 0.25, 0.75], ["bow", 0.95, 0.25, 0.8], ["wand", 0.65, 0.3, 0.8],
       ["shield", 0.6, 0.3, 0.75], ["axe", 0.4, 0.35, 0.77],
     ]);
-    expect(WEAPONS.sword.shape).toEqual({ kind: "arc", reach: 64, halfArc: Math.PI / 4 });
-    expect(WEAPONS.axe.shape).toEqual({ kind: "arc", reach: 60, halfArc: Math.PI / 2 });
-    expect(WEAPONS.shield.shape).toEqual({ kind: "arc", reach: 44, halfArc: Math.PI / 3 });
-    expect(WEAPONS.bow.shape).toEqual({ kind: "projectile", projectile: "arrow", speed: 900, range: 240 });
-    expect(WEAPONS.wand.shape).toEqual({ kind: "projectile", projectile: "ball", speed: 380, range: 220 });
+    expect(WEAPONS.sword.shape).toEqual({ kind: "arc", reach: 112, halfArc: Math.PI / 4 });
+    expect(WEAPONS.axe.shape).toEqual({ kind: "arc", reach: 112, halfArc: Math.PI / 2 });
+    expect(WEAPONS.shield.shape).toEqual({ kind: "arc", reach: 96, halfArc: Math.PI / 3 });
+    expect(WEAPONS.bow.shape).toEqual({ kind: "projectile", projectile: "arrow", speed: 900, range: 520 });
+    expect(WEAPONS.wand.shape).toEqual({ kind: "projectile", projectile: "ball", speed: 380, range: 640 });
   });
 
-  it("keeps the ranged weapons short and light enough for a melee winner to survive the approach (9.1 tuning)", () => {
+  it("keeps the damage multipliers while extending ranged reach, with the wand furthest", () => {
     // testing/TUNING_9_1.md: ranged dpsMult is no higher than the melee weapons it must beat in a close trade (the bow
     // wins the sword and the axe on the lead its range gives it), and the ranges bound the free fire on a charge.
     const bow = WEAPONS.bow;
@@ -145,8 +145,8 @@ describe("the weapon table (GAME_DESIGN 9.1)", () => {
     expect(wand.dpsMult).toBeGreaterThanOrEqual(WEAPONS.shield.dpsMult);
     if (bow.shape.kind !== "projectile" || wand.shape.kind !== "projectile") throw new Error("projectile");
     // The ranges are the anti-kiting lever the maps no longer cap (the 480 u sight cap is gone): the bow's stays 7.5 tiles.
-    expect(bow.shape.range).toBe(240);
-    expect(wand.shape.range).toBeLessThan(bow.shape.range);
+    expect(bow.shape.range).toBe(520);
+    expect(wand.shape.range).toBeGreaterThan(bow.shape.range);
     // Projectile bodies are RANGED_HIT_REACH wide.
     expect(PLAYER_RADIUS + RANGED_SLACK).toBe(RANGED_HIT_REACH);
   });
@@ -182,10 +182,10 @@ describe("fists (what an empty hand fights with)", () => {
     for (const w of ALL_WEAPON_IDS) expect(weaponEdge("fists", w), w).toBe(0);
   });
 
-  it("have the designed numbers: reach 40, a 120 degree arc, +150% speed, floor 0.2 s, 0.60 of a faction's damage", () => {
+  it("have the designed numbers: reach 72, a 120 degree arc, +150% speed, floor 0.2 s, 0.60 of a faction's damage", () => {
     const f = WEAPONS.fists;
     expect([f.id, f.name, f.color, f.boost, f.floor, f.dpsMult]).toEqual(["fists", "Fists", 0xffcc80, 1.5, 0.2, 0.6]);
-    expect(f.shape).toEqual({ kind: "arc", reach: 40, halfArc: Math.PI / 3 });
+    expect(f.shape).toEqual({ kind: "arc", reach: 72, halfArc: Math.PI / 3 });
     expect(isRanged("fists")).toBe(false);
     // The shortest reach of any melee weapon, and the fastest cadence on every faction.
     for (const w of ["sword", "axe", "shield"] as const) {
@@ -237,7 +237,7 @@ describe("the weapon specials (BALANCE_CONTRACT 3.3) and their tags", () => {
 
   it("the glossary's weapon tags carry the specials, from the same numbers", () => {
     const note = (w: WeaponId): string => WEAPON_TAGS.find((r) => r.weapon === w)!.note;
-    expect(note("axe")).toContain(`${AXE_SHRED_ARMOR} armor for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}`);
+    expect(note("axe")).toContain(`${AXE_SHRED_ARMOR} Defense for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}`);
     expect(note("wand")).toContain("30%");
     expect(note("wand")).toContain(`${WAND_SPLASH_RADIUS} u`);
     expect(note("sword")).toContain("1.5x");
@@ -257,18 +257,18 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
     expect(fast.root).toBe(0);
   });
 
-  it("caps the wand cast at 0.3 s or 30% of the interval, with no slow after it", () => {
-    expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.3, 0.3]);
-    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.3, root: 0, ranged: true });
+  it("pauses movement for the wand cast at 0.45 s or 50% of the interval", () => {
+    expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.45, 0.5]);
+    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.45, root: 0, ranged: true });
     const fast = weaponTimings("wand", 0.3276);
-    expect(fast.windup).toBeCloseTo(0.09828, 12);
+    expect(fast.windup).toBeCloseTo(0.1638, 12);
     expect(fast).not.toHaveProperty("castSlow");
   });
 
-  it("makes the bow's draw a short windup inside its interval: min(0.3 s, 30%)", () => {
-    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.3, 0.3]);
-    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.3, root: 0, ranged: true });
-    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.08316, 12);
+  it("pauses movement for the bow draw: min(0.5 s, 55%)", () => {
+    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.5, 0.55]);
+    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.5, root: 0, ranged: true });
+    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.15246, 12);
     // No partial draws, no cooldown after the loose: the whole interval is the cycle.
     for (const key of ["fullDraw", "minDraw", "cooldown", "castSlow"]) expect(weaponTimings("bow", 1.14)).not.toHaveProperty(key);
   });
@@ -276,9 +276,9 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
   it("keeps the legacy bow and wand windups for PvE actors without changing player timing", () => {
     const bowInterval = attackInterval(FACTIONS.frost, "bow");
     const wandInterval = attackInterval(FACTIONS.frost, "wand");
-    expect(weaponTimings("bow", bowInterval).windup).toBe(0.3);
+    expect(weaponTimings("bow", bowInterval).windup).toBe(0.5);
     expect(weaponTimings("bow", bowInterval, "npc").windup).toBe(Math.min(0.6, 0.92 * bowInterval));
-    expect(weaponTimings("wand", wandInterval).windup).toBe(0.3);
+    expect(weaponTimings("wand", wandInterval).windup).toBe(0.45);
     expect(weaponTimings("wand", wandInterval, "npc").windup).toBe(Math.min(0.4, 0.8 * wandInterval));
   });
 

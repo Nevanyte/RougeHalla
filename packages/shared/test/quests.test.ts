@@ -127,13 +127,14 @@ describe("the catalog", () => {
 });
 
 describe("the roster", () => {
-  it("offers QUEST_COUNT quests, five known and five unknown, at least two of each kind, no repeats", () => {
+  it("offers twenty quests, ten known and ten unknown, at least two of each kind, no repeats", () => {
     const roster = selectQuests(mulberry32(7));
     expect(roster.length).toBe(QUEST_COUNT);
     expect(roster.filter((q) => q.known).length).toBe(QUEST_KNOWN_COUNT);
     expect(roster.filter((q) => !q.known).length).toBe(QUEST_UNKNOWN_COUNT);
-    expect(QUEST_KNOWN_COUNT).toBe(5);
-    expect(QUEST_UNKNOWN_COUNT).toBe(5);
+    expect(QUEST_COUNT).toBe(20);
+    expect(QUEST_KNOWN_COUNT).toBe(10);
+    expect(QUEST_UNKNOWN_COUNT).toBe(10);
     expect(new Set(roster.map((q) => q.def.id)).size).toBe(roster.length);
     for (const kind of ["kill", "collect", "fetch"] as const) {
       expect(roster.filter((q) => q.def.kind === kind).length).toBeGreaterThanOrEqual(2);
@@ -151,7 +152,7 @@ describe("hidden and reward wire contracts", () => {
   it("syncs only a numeric unknown count, with no hidden quest entries or known flag", () => {
     const state = new RaidState();
     state.unknownQuests = QUEST_UNKNOWN_COUNT;
-    expect(state.unknownQuests).toBe(5);
+    expect(state.unknownQuests).toBe(10);
     expect(state.quests.size).toBe(0);
     expect("known" in new QuestState()).toBe(false);
   });
@@ -305,7 +306,8 @@ describe("placement", () => {
     };
     map.camps.push(camp);
     const def = questDefById("headhunter")!;
-    const roster: RosterEntry[] = Array.from({ length: QUEST_COUNT }, (_, i) => ({ def, known: i < QUEST_KNOWN_COUNT }));
+    // A compact ten-offer security fixture makes repeated public layouts likely enough to compare hidden layouts.
+    const roster: RosterEntry[] = Array.from({ length: 10 }, (_, i) => ({ def, known: i < 5 }));
     const positionSet = (placements: QuestPlacement[]): string => placements
       .map((p) => `${worldToTile(p.at.x)},${worldToTile(p.at.y)}`).sort().join(";");
     const seen = new Map<string, { hidden: string; stream: number }>();

@@ -6,18 +6,18 @@ import {
 import { guideNumber, weaponScalingGuide } from "./championGuide";
 
 export const COMBAT_GUIDE_RULES = [
-  "Champion = passive + Wish + base attack damage. Weapon = reach + attack rhythm + stat scaling + counter mechanics.",
-  "AD and AP are scaling stats, not damage types. Your champion sets the base attack's type; AD adds physical damage and AP adds magic damage only where a coefficient exists.",
-  "Armor reduces physical damage. Magic resist reduces magic damage. True damage ignores both. A counter is an advantage, not a guaranteed win or a hidden damage bonus.",
+  "Champion = passive + Wish + base Offense. Weapon = reach + attack rhythm + stat scaling + counter mechanics.",
+  "Offense and SO are scaling stats, not damage types. Your champion sets the base attack's type; Offense adds physical damage and SO adds magic damage only where a coefficient exists.",
+  "Defense reduces physical damage. Magic resist reduces magic damage. True damage ignores both. A counter is an advantage, not a guaranteed win or a hidden damage bonus.",
 ];
 
 const ROLES: Record<WeaponId, { role: string; build: string; play: string }> = {
-  sword: { role: "Fast melee · interrupts", build: "AD + on-hit effects", play: "Stay close and time your swings to interrupt slower attacks. Approach archers through cover; avoid a shield's front." },
-  bow: { role: "Long range · kiting", build: "AD + attack speed", play: "Attack, move after the arrow leaves, then attack again. Keep melee fighters at range; watch for wand balls and shields." },
-  wand: { role: "Ranged splash · anti-arrow", build: "AP first · AD secondary", play: "Send balls through incoming arrows and clustered enemies. A shield does not stop balls; sword and axe swings can intercept them." },
-  shield: { role: "Frontal defense · retaliation", build: "Armor/MR first · AP secondary", play: "Aim toward incoming sword hits and arrows. Your front matters: axe, fists and wand bypass the weapon's block mechanics." },
-  axe: { role: "Heavy melee · armor shred", build: "AD first · bonus health secondary", play: "Close the gap, cut through shield blocking and intercept wand balls. Armor shred helps physical damage; archers can keep you at range." },
-  fists: { role: "Empty hand · fast, short reach", build: "AD or AP · find a weapon", play: "Fists bypass shield blocking and carry strong on-hit effects, but have the shortest reach and reduced base damage. They sit outside the counter wheel." },
+  sword: { role: "Fast melee · interrupts", build: "Offense + on-hit effects", play: "Stay close and time your swings to interrupt slower attacks. Approach archers through cover; avoid a shield's front." },
+  bow: { role: "Long range · kiting", build: "Offense + attack speed", play: "Attack, move after the arrow leaves, then attack again. Keep melee fighters at range; watch for wand balls and shields." },
+  wand: { role: "Ranged splash · anti-arrow", build: "SO first · Offense secondary", play: "Send balls through incoming arrows and clustered enemies. A shield does not stop balls; sword and axe swings can intercept them." },
+  shield: { role: "Frontal defense · retaliation", build: "Defense/SD first · SO secondary", play: "Aim toward incoming sword hits and arrows. Your front matters: axe, fists and wand bypass the weapon's block mechanics." },
+  axe: { role: "Heavy melee · armor shred", build: "Offense first · bonus health secondary", play: "Close the gap, cut through shield blocking and intercept wand balls. Defense shred helps physical damage; archers can keep you at range." },
+  fists: { role: "Empty hand · fast, short reach", build: "Offense or SO · find a weapon", play: "Fists bypass shield blocking and carry strong on-hit effects, but have the shortest reach and reduced base damage. They sit outside the counter wheel." },
 };
 
 export function weaponMechanics(id: WeaponId): string[] {
@@ -36,11 +36,11 @@ export function weaponMechanics(id: WeaponId): string[] {
     case "shield": return [
       `From the front, prevent ${guideNumber(SHIELD_BLOCK_SHARE * 100)}% of sword/bash damage. A blocked sword hit cannot stagger; return ${guideNumber(SHIELD_BLOCK_SHARE * RIPOSTE_SHARE * 100)}% of its original damage before modifiers.`,
       `A frontal arrow reflects ${guideNumber(ARROW_REFLECT_SHARE * 100)}% of its damage; you still take the other ${guideNumber((1 - ARROW_REFLECT_SHARE) * 100)}%.`,
-      "Axe, fists and wand bypass blocking, not your armor or magic resist. The shield is not invulnerability.",
+      "Axe, fists and wand bypass blocking, not your armor or Soul Defense. The shield is not invulnerability.",
     ];
     case "axe": {
       const s = w.special!;
-      return ["Swings destroy wand balls they meet and bypass shield blocking.", ...(s.kind === "shred" ? [`Each hit removes ${s.armor} armor for ${s.ms / 1000} seconds, up to ${s.cap} total. Shred improves physical damage, not magic damage.`] : []), "You can move as soon as the swing lands; there is no extra recovery root."];
+      return ["Swings destroy wand balls they meet and bypass shield blocking.", ...(s.kind === "shred" ? [`Each hit removes ${s.armor} Defense for ${s.ms / 1000} seconds, up to ${s.cap} total. Shred improves physical damage, not magic damage.`] : []), "You can move as soon as the swing lands; there is no extra recovery root."];
     }
     case "fists": return [`No item equipped. On-hit effects have ${guideNumber(w.onHitPower)}× strength.`, "Bypass shield blocking; no stagger, ball interception or counter-wheel advantage."];
   }
@@ -48,7 +48,7 @@ export function weaponMechanics(id: WeaponId): string[] {
 
 export function weaponGuide(id: WeaponId) {
   const w = WEAPONS[id];
-  const labels = { ad: "AD", ap: "AP", hp: "bonus max HP", def: "combined bonus armor + MR" };
+  const labels = { ad: "Offense", ap: "SO", hp: "bonus max HP", def: "combined bonus Defense + SD" };
   const gains = (Object.entries(w.scaling) as Array<[keyof typeof labels, number]>).sort((a, b) => b[1] - a[1]).map(([stat, coefficient]) => {
     const amount = stat === "hp" ? 100 : 10;
     return `+${amount} ${labels[stat]} → +${guideNumber(amount * coefficient)} ${stat === "ap" ? "magic" : "physical"} damage/s`;
@@ -76,23 +76,23 @@ export function weaponAttackExample(faction: FactionId, weapon: WeaponId, stats:
 export interface ChampionBuildExample { weapon: WeaponId; name: string; stats: string; why: string; caution: string }
 export const CHAMPION_BUILDS: Record<FactionId, readonly [ChampionBuildExample, ChampionBuildExample]> = {
   fire: [
-    { weapon: "wand", name: "Burn caster", stats: "AP + health", why: "AP grows both wand hits and your burn. Ranged trades let you apply burn without standing in melee.", caution: "AP does not scale physical retaliation or Blaze's fixed true damage." },
-    { weapon: "axe", name: "Durable duelist", stats: "AD + bonus health", why: "AD and bonus health grow axe hits. Armor shred can also help your physical retaliation; extra durability keeps you trading.", caution: "The burn remains magic damage; armor shred does not strengthen it." },
+    { weapon: "wand", name: "Burn caster", stats: "SO + health", why: "SO grows both wand hits and your burn. Ranged trades let you apply burn without standing in melee.", caution: "SO does not scale physical retaliation or Blaze's fixed true damage." },
+    { weapon: "axe", name: "Durable duelist", stats: "Offense + bonus health", why: "Offense and bonus health grow axe hits. Defense shred can also help your physical retaliation; extra durability keeps you trading.", caution: "The burn remains magic damage; Defense shred does not strengthen it." },
   ],
   sentenced: [
-    { weapon: "sword", name: "Close-range judge", stats: "Attack speed + AD + durability", why: "Fast landed hits advance mark tiers sooner. Stay close for full mark strength; AD grows the weapon hit.", caution: "AD does not grow the true-damage mark, and its pulse is weighted per weapon hit." },
-    { weapon: "bow", name: "Patient pursuer", stats: "AD + attack speed", why: "Range helps keep hits landing and build mark tiers while repositioning. Trial can hold an enemy for a sustained trade.", caution: "At long range the mark is weaker unless the enemy is inside your Trial ring. AP does not scale the mark." },
+    { weapon: "sword", name: "Close-range judge", stats: "Attack speed + Offense + durability", why: "Fast landed hits advance mark tiers sooner. Stay close for full mark strength; Offense grows the weapon hit.", caution: "Offense does not grow the true-damage mark, and its pulse is weighted per weapon hit." },
+    { weapon: "bow", name: "Patient pursuer", stats: "Offense + attack speed", why: "Range helps keep hits landing and build mark tiers while repositioning. Trial can hold an enemy for a sustained trade.", caution: "At long range the mark is weaker unless the enemy is inside your Trial ring. SO does not scale the mark." },
   ],
   plague: [
-    { weapon: "wand", name: "Disease caster", stats: "AP + health", why: "AP grows wand hits and adds to disease. Splash helps when enemies group together.", caution: "The execute grows as the enemy falls below half health; it has no second AP rider." },
-    { weapon: "bow", name: "Attrition archer", stats: "AD + mobility + durability", why: "AD grows arrows. Range helps maintain the ongoing trade needed for disease and execute.", caution: "AD does not directly grow disease; leaving reach or losing contact ends the passive trade." },
+    { weapon: "wand", name: "Disease caster", stats: "SO + health", why: "SO grows wand hits and adds to disease. Splash helps when enemies group together.", caution: "The execute grows as the enemy falls below half health; it has no second SO rider." },
+    { weapon: "bow", name: "Attrition archer", stats: "Offense + mobility + durability", why: "Offense grows arrows. Range helps maintain the ongoing trade needed for disease and execute.", caution: "Offense does not directly grow disease; leaving reach or losing contact ends the passive trade." },
   ],
   frost: [
-    { weapon: "shield", name: "Control wall", stats: "Armor + MR + health", why: "Bonus armor and MR grow bash damage while durability helps you keep enemies in your control range.", caution: "The slow is fixed; defense and AP do not increase it. Face incoming hits to block." },
-    { weapon: "axe", name: "Chasing bruiser", stats: "AD + bonus health", why: "Both stats grow axe hits. Close-range movement slow helps you stay beside an enemy while you shred armor.", caution: "You still need to close the gap; the movement slow has a much shorter radius than ranged attacks." },
+    { weapon: "shield", name: "Control wall", stats: "Defense + SD + health", why: "Bonus Defense and SD grow bash damage while durability helps you keep enemies in your control range.", caution: "The slow is fixed; defense and SO do not increase it. Face incoming hits to block." },
+    { weapon: "axe", name: "Chasing bruiser", stats: "Offense + bonus health", why: "Both stats grow axe hits. Close-range movement slow helps you stay beside an enemy while you shred Defense.", caution: "You still need to close the gap; the movement slow has a much shorter radius than ranged attacks." },
   ],
   holy: [
-    { weapon: "sword", name: "Sustain duelist", stats: "AD + attack speed + health", why: "Weapon damage feeds Radiant's healing. Fast attacks and strong on-hit effects suit continuous close trades.", caution: "Damage stats improve healing through eligible damage dealt, not by increasing the lifesteal percentage." },
-    { weapon: "wand", name: "Ranged sustain", stats: "AP + health", why: "AP grows wand damage, which can feed your lifesteal. Splash offers value against grouped enemies.", caution: "AP does not scale the lifesteal percentage or Last Stand's base effects. Enemy MR and anti-heal reduce the payoff." },
+    { weapon: "sword", name: "Sustain duelist", stats: "Offense + attack speed + health", why: "Weapon damage feeds Radiant's healing. Fast attacks and strong on-hit effects suit continuous close trades.", caution: "Damage stats improve healing through eligible damage dealt, not by increasing the lifesteal percentage." },
+    { weapon: "wand", name: "Ranged sustain", stats: "SO + health", why: "SO grows wand damage, which can feed your lifesteal. Splash offers value against grouped enemies.", caution: "SO does not scale the lifesteal percentage or Last Stand's base effects. Enemy SD and anti-heal reduce the payoff." },
   ],
 };

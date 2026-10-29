@@ -69,7 +69,7 @@ export interface CardDef {
   id: CardId;
   kind: CardKind;
   tier: CardTier;
-  /** "Attack Damage II", "Here Comes the Boom". */
+  /** "Offense II", "Here Comes the Boom". */
   title: string;
   /** One or two sentences of general mechanics, numbers included: never a faction, weapon, mob or Wish name. */
   text: string;
@@ -94,7 +94,7 @@ export interface CardDef {
 // ------------------------------------------------------------------------------------------------------------ base cards
 
 export const BASE_TITLES: Readonly<Record<BaseStatId, string>> = {
-  ad: "Attack Damage", ap: "Ability Power", haste: "Haste", vitality: "Vitality", armor: "Armor", mr: "Magic Resist", leech: "Leech", fleet: "Fleet",
+  ad: "Offense", ap: "Soul Offence", haste: "Haste", vitality: "Vitality", armor: "Defense", mr: "Soul Defense", leech: "Leech", fleet: "Fleet",
 };
 
 /** T1, T2, T3 of each base (T2 = 1.75 x T1 and T3 = 2.75 x T1 within rounding: the catalog test holds the ratios). */
@@ -131,12 +131,12 @@ function baseEffects(base: BaseStatId, v: number): readonly Effect[] {
 
 function baseText(base: BaseStatId, v: number): string {
   switch (base) {
-    case "ad": return `+${v} attack damage`;
-    case "ap": return `+${v} ability power`;
+    case "ad": return `+${v} Offense`;
+    case "ap": return `+${v} Soul Offence`;
     case "haste": return `+${pct(v)} attack speed`;
     case "vitality": return `+${pct(v)} max health`;
-    case "armor": return `+${v} armor`;
-    case "mr": return `+${v} magic resist`;
+    case "armor": return `+${v} Defense`;
+    case "mr": return `+${v} Soul Defense`;
     case "leech": return `+${pct(v)} lifesteal`;
     case "fleet": return `+${pct(v)} move speed (off while shooting)`;
   }
@@ -184,22 +184,22 @@ const CONDITIONALS: readonly CardDef[] = [
   }),
   conditional({
     id: "juggernaut", title: "Juggernaut", requires: "ad", tags: ["physical", "magic"], ready: "a",
-    text: "Gain 1 armor and 1 magic resist per 4 AD.",
+    text: "Gain 1 Defense and 1 Soul Defense per 4 Offense.",
     effects: [{ k: "convert", from: "ad", to: "armor", per: 0.25 }, { k: "convert", from: "ad", to: "shield", per: 0.25 }],
   }),
   conditional({
     id: "spellsword", title: "Spellsword", requires: "ad", tags: ["magic"], ready: "a",
-    text: "Your AD also counts as AP at half value.",
+    text: "Your Offense also counts as SO at half value.",
     effects: [{ k: "convert", from: "ad", to: "ap", per: 0.5 }],
   }),
   conditional({
     id: "bigBrain", title: "Big Brain", requires: "vitality", tags: ["magic"], ready: "a",
-    text: "Gain AP equal to 2% of your max health.",
+    text: "Gain SO equal to 2% of your max health.",
     effects: [{ k: "convert", from: "maxHp", to: "ap", per: 0.02 }],
   }),
   conditional({
     id: "arcaneTempo", title: "Arcane Tempo", requires: "haste", tags: ["magic"], ready: "a",
-    text: "Every 1% attack speed above base also grants 1 AP.",
+    text: "Every 1% attack speed above base also grants 1 SO.",
     effects: [{ k: "convert", from: "bonusAttackSpeed", to: "ap", per: 100 }],
   }),
   conditional({
@@ -209,7 +209,7 @@ const CONDITIONALS: readonly CardDef[] = [
   }),
   conditional({
     id: "stoneSkin", title: "Stone Skin", requires: "armor", tags: ["physical", "magic"], ready: "a",
-    text: "Gain 2 armor and 2 magic resist per 100 max health.",
+    text: "Gain 2 Defense and 2 Soul Defense per 100 max health.",
     effects: [{ k: "convert", from: "maxHp", to: "armor", per: 0.02 }, { k: "convert", from: "maxHp", to: "shield", per: 0.02 }],
   }),
   conditional({
@@ -219,8 +219,8 @@ const CONDITIONALS: readonly CardDef[] = [
   }),
   conditional({
     id: "festeringArcana", title: "Festering Arcana", requires: "ap", tags: ["magic", "dot"], ready: "a",
-    text: "Your magic damage over time keeps ticking 4 more times after it ends, each tick 1/8 of your AP.",
-    // sim/factions.ts starts a `dot` status (FESTERING_TICKS ticks of FESTERING_AP_SHARE x AP, a tick a second) when a damage-over-time signature disengages.
+    text: "Your magic damage over time keeps ticking 4 more times after it ends, each tick 1/8 of your SO.",
+    // sim/factions.ts starts a `dot` status (FESTERING_TICKS ticks of FESTERING_AP_SHARE x SO, a tick a second) when a damage-over-time signature disengages.
     effects: [{ k: "flag", flag: "festering" }],
   }),
   conditional({
@@ -251,7 +251,7 @@ function augment(r: Row): CardDef {
 const AUGMENTS: readonly CardDef[] = [
   augment({
     id: "hereComesTheBoom", title: "Here Comes the Boom", tier: 3, tags: ["dot", "returned"], ready: "a",
-    text: "Your attack speed is halved, but your hits deal 2.5x damage, AD and AP alike. Your damage over time and returned damage deal 1.25x.",
+    text: "Your attack speed is halved, but your hits deal 2.5x damage, Offense and SO alike. Your damage over time and returned damage deal 1.25x.",
     effects: [
       { k: "mult", key: "asPost", v: 0.5 }, { k: "mult", key: "hit", v: 2.5 }, { k: "mult", key: "dot", v: 1.25 },
       { k: "mult", key: "returned", v: 1.25 },
@@ -280,7 +280,7 @@ const AUGMENTS: readonly CardDef[] = [
   }),
   augment({
     id: "arcaneOverload", title: "Arcane Overload", tier: 2, tags: ["magic", "wish"], ready: "a",
-    text: "Your AP is multiplied by 1.5, but your Wish's cooldown is doubled.",
+    text: "Your SO is multiplied by 1.5, but your Wish's cooldown is doubled.",
     effects: [{ k: "mult", key: "ap", v: 1.5 }, { k: "mult", key: "wishCooldown", v: 2 }],
   }),
   augment({
@@ -571,7 +571,7 @@ export function ownsBase(build: CardCounts | null | undefined, base: BaseStatId)
   return false;
 }
 
-/** The base cards of `base` held, summed over tiers (Attack Damage I twice and II once is 3). */
+/** The base cards of `base` held, summed over tiers (Offense I twice and II once is 3). */
 export function baseCount(build: CardCounts | null | undefined, base: BaseStatId): number {
   let n = 0;
   for (const tier of CARD_TIERS) n += countIn(build, baseCardId(base, tier));
@@ -587,7 +587,7 @@ export function cardTierOf(id: string): CardTier {
 }
 
 /**
- * A fighter's card power P: the sum over its cards of tier x count (a base card stacks, so Attack Damage II twice is 4). The PvP
+ * A fighter's card power P: the sum over its cards of tier x count (a base card stacks, so Offense II twice is 4). The PvP
  * factor (rules.ts pvpFactor) reads it. Pure; an empty or missing build is 0.
  */
 export function cardPower(build: CardCounts | null | undefined): number {

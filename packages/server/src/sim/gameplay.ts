@@ -7,6 +7,8 @@ import { install as installCampHeal } from "./campHeal";
 import { install as installCardHooks } from "./cardHooks";
 import { install as installCamps } from "./camps";
 import { install as installChests } from "./chests";
+import { install as installConsumables } from "./consumables";
+import { install as installTraders } from "./traders";
 import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
 import { install as installFireRoam } from "./fireRoam";
@@ -48,8 +50,10 @@ const MODULES: Array<(world: World) => void> = [
   installAbilities,
   installQuests,
   installVision,
-  // After chests (and quests): the campCleared hook chain reads the camp's contributors first, this link heals them and forgets them.
+  // After chests (and quests): the campCleared hook chain reads the camp's contributors first, this link drops a potion, credits the clear and forgets contributors.
   installCampHeal,
+  installConsumables,
+  installTraders,
   // The phase-B cards' hooks (hitLanded, blocked, overkilled, a system after the damage, a mod source): after the modules whose
   // hooks they chain onto (abilities' statuses, the faction layer's heal), before the mirrors are folded.
   installCardHooks,

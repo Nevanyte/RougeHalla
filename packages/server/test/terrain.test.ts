@@ -786,13 +786,15 @@ describe("ice", () => {
 
     it("a lock's windup that starts on ice plants the slide too", () => {
       const world = iceWorld(
-        [{ faction: "fire", weapon: "sword", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }], {}, undefined, false,
+        [{ faction: "fire", weapon: "wand", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }], {}, undefined, false,
       );
       const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: at(14, 8) });
-      order(world, "p0", "target", { id: dummy });
       const p = P(world, "p0");
+      order(world, "p0", "move", { x: 60 * TILE, y: p.y });
+      run(world, 8); // already sliding when the long-range wand lock begins its shot
+      order(world, "p0", "target", { id: dummy });
       let planted = false;
-      let fastest = 0;
+      let fastest = Math.hypot(RT(world, "p0").slip!.vx, RT(world, "p0").slip!.vy);
       for (let i = 0; i < 120 && !planted; i++) {
         const x = p.x;
         step(world, TICK_MS);
@@ -807,14 +809,14 @@ describe("ice", () => {
       expect(fastest).toBeGreaterThan(50);
     });
 
-    it("a sword lock on a dummy across ice reaches it and lands a hit within 3 s", () => {
+    it("a wand lock on a dummy across ice reaches it and lands a hit within 3 s", () => {
       const world = iceWorld(
-        [{ faction: "fire", weapon: "sword", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }], {}, undefined, false,
+        [{ faction: "fire", weapon: "wand", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }], {}, undefined, false,
       );
       const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: at(16, 10) });
       order(world, "p0", "target", { id: dummy });
       const events = run(world, 60);
-      expect(fxOf(events, "hit").some((h) => h.id === dummy && h.by === "p0" && h.weapon === "sword")).toBe(true);
+      expect(fxOf(events, "hit").some((h) => h.id === dummy && h.by === "p0" && h.weapon === "wand")).toBe(true);
     });
 
     it("a mob walks home across ice and stops on its spot", () => {
@@ -915,10 +917,10 @@ describe("ice", () => {
       expect(RT(world, "p0").slip!.gripUntil! - world.state.serverTime).toBeLessThanOrEqual(SLIP_GRIP_MS);
     });
 
-    it("a sword lock on a dummy at the end of the side corridor lands hits (it landed none in 60 s)", () => {
+    it("a wand lock on a dummy at the end of the side corridor lands hits (it landed none in 60 s)", () => {
       const world = makeRig({
         map: tJunction(), signatures: false,
-        players: [{ faction: "fire", weapon: "sword", at: at(3, 5) }, { faction: "plague", at: at(20, 5) }],
+        players: [{ faction: "fire", weapon: "wand", at: at(3, 5) }, { faction: "plague", at: at(20, 5) }],
       });
       const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: at(10, 12) });
       // Seed prior discovery so this fixture isolates chase movement around the icy corner.
@@ -927,7 +929,7 @@ describe("ice", () => {
       vision.update(world.map, at(10, 12), world.state.serverTime, VISION_TRAIL_MS, VISION_RADIUS);
       order(world, "p0", "target", { id: dummy });
       const events = run(world, 400);
-      const hits = fxOf(events, "hit").filter((h) => h.id === dummy && h.by === "p0" && h.weapon === "sword");
+      const hits = fxOf(events, "hit").filter((h) => h.id === dummy && h.by === "p0" && h.weapon === "wand");
       expect(hits.length).toBeGreaterThan(3);
     });
   });
@@ -1075,16 +1077,16 @@ describe("light heal", () => {
   const lightWorld = (players: PlayerSpec[], config?: Partial<SimConfig>): World =>
     makeRig({ map: terrainMap({ kind: everywhere(TERRAIN_LIGHT) }), players, config });
 
-  it("heals 0.6% of max hp per second out of combat, and Holy twice that", () => {
+  it("heals 3% of max hp per second out of combat, and Holy twice that", () => {
     const world = lightWorld([{ faction: "sentenced", at: at(8, 8) }, { faction: "holy", at: at(20, 12) }, { faction: "plague", at: at(30, 20) }]);
     for (const id of ["p0", "p1"]) P(world, id).hp = P(world, id).maxHp / 2;
     const h0 = P(world, "p0").hp;
     const h1 = P(world, "p1").hp;
     run(world, 20);
-    expect(P(world, "p0").hp - h0).toBeCloseTo(0.006 * P(world, "p0").maxHp, 6);
-    expect(P(world, "p1").hp - h1).toBeCloseTo(0.012 * P(world, "p1").maxHp, 6);
+    expect(P(world, "p0").hp - h0).toBeCloseTo(0.03 * P(world, "p0").maxHp, 6);
+    expect(P(world, "p1").hp - h1).toBeCloseTo(0.06 * P(world, "p1").maxHp, 6);
     expect(P(world, "p2").hp).toBe(P(world, "p2").maxHp);
-    expect(world.hazards.stats.heal.get("p0")).toBeCloseTo(0.006 * P(world, "p0").maxHp, 6);
+    expect(world.hazards.stats.heal.get("p0")).toBeCloseTo(0.03 * P(world, "p0").maxHp, 6);
   });
 
   it("a player who dealt or took damage within 3 s gains nothing until the lockout ends", () => {
@@ -1099,7 +1101,7 @@ describe("light heal", () => {
     expect(P(world, "p0").hp).toBe(hurt);
     run(world, 2);
     expect(P(world, "p0").hp).toBeGreaterThan(hurt);
-    expect(P(world, "p0").hp - hurt).toBeLessThan(0.006 * P(world, "p0").maxHp);
+    expect(P(world, "p0").hp - hurt).toBeLessThan(0.03 * P(world, "p0").maxHp);
   });
 
   it("sends exactly one heal fx per player per second, with that second's gain as the amount", () => {
@@ -1107,7 +1109,7 @@ describe("light heal", () => {
     for (const id of ["p0", "p1"]) P(world, id).hp = P(world, id).maxHp / 2;
     const events = run(world, 100);
     const heals = fxOf(events, "heal");
-    for (const [id, share] of [["p0", 0.006], ["p1", 0.012]] as const) {
+    for (const [id, share] of [["p0", 0.03], ["p1", 0.06]] as const) {
       const mine = heals.filter((h) => h.id === id);
       expect(mine, id).toHaveLength(5);
       for (const h of mine) expect(Math.abs(h.amount - share * P(world, id).maxHp)).toBeLessThan(0.1);
@@ -1147,7 +1149,7 @@ describe("light heal", () => {
     expect(heals).toHaveLength(1);
     const gained = p.hp - hp0;
     expect(gained).toBeGreaterThan(0.5);
-    expect(gained).toBeLessThan(0.012 * p.maxHp * 0.5); // well short of a second in the light
+    expect(gained).toBeLessThan(0.06 * p.maxHp * 0.5); // well short of a second in the light
     expect(heals[0]!.amount).toBeCloseTo(gained, 6);
   });
 
@@ -1201,7 +1203,7 @@ describe("light heal", () => {
     const all = lightWorld([{ faction: "holy" }, { faction: "fire", at: at(30, 20) }], { hazards: "all" });
     P(all, "p0").hp = 100;
     run(all, 20);
-    expect(P(all, "p0").hp - 100).toBeCloseTo(0.006 * P(all, "p0").maxHp, 6);
+    expect(P(all, "p0").hp - 100).toBeCloseTo(0.03 * P(all, "p0").maxHp, 6);
   });
 });
 
@@ -1266,6 +1268,7 @@ describe("with nothing on the ground, generated maps behave as before", () => {
     for (let i = 0; i < 4; i++) {
       const p = world.state.players.get(`p${i}`)!;
       p.hp = p.maxHp = 1e6;
+      p.weapon0 = "wand"; // exercise valid unit-target orders in the terrain equivalence replay
     }
     for (let tick = 0; tick < seconds * 20; tick++) {
       for (let i = 0; i < 4; i++) {

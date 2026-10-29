@@ -997,8 +997,8 @@ export interface TacticsLayer {
 
 // ================================================================================================================ commands
 
-export type CoreCommandType = "move" | "stop" | "target" | "swap" | "pickup";
-/** Exactly the game client's messages. Never aim, attack or release: the game client sends none of those for a fight either. */
+export type CoreCommandType = "move" | "stop" | "target" | "attack" | "release" | "swap" | "pickup";
+/** The game client's movement, wand lock and directional button-down/button-up messages. */
 export type CoreCommand = { [K in CoreCommandType]: { readonly type: K; readonly msg: ClientMessages[K] } }[CoreCommandType];
 
 /** Messages that exist on other branches (Wishes `cast`, R3 `plan`, R5 `choose`), mirrored from their contracts. */

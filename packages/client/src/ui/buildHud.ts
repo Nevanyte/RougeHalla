@@ -152,6 +152,6 @@ const BUILD_ICONS: Partial<Record<BuildStatId, InvestedStatKey>> = {
   ad: "ad", ap: "ap", damage: "damage", armor: "armor", mr: "mr", as: "attackSpeed", move: "speed", leech: "leech", health: "health",
 };
 const FULL_BUILD_LABELS: Partial<Record<BuildStatId, string>> = {
-  ad: "Attack damage", ap: "Ability power", damage: "Damage gained", armor: "Armor gained", mr: "Magic resistance gained",
+  ad: "Offense", ap: "Soul Offence", damage: "Damage gained", armor: "Defense gained", mr: "Soul Defense gained",
   as: "Attack speed", move: "Move speed", leech: "Life steal", health: "Health gained",
 };

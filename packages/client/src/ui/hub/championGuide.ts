@@ -29,7 +29,7 @@ export function guideNumber(n: number): string { return String(Number(n.toFixed(
 const pct = (n: number): string => `${guideNumber(n * 100)}%`;
 const seconds = (ms: number): string => `${guideNumber(ms / 1000)} s`;
 
-/** The base passive, with explicit boundaries between AP, damage type, and target-dependent scaling. */
+/** The base passive, with explicit boundaries between SO, damage type, and target-dependent scaling. */
 export function signatureGuide(id: FactionId): GuideAbility {
   const f = pacedFaction(FACTIONS[id]);
   const p = f.params;
@@ -38,26 +38,26 @@ export function signatureGuide(id: FactionId): GuideAbility {
     case "fire": return {
       ...base, name: "Dragonslayer",
       summary: "Burn and retaliate during a trade; roam between fights to charge a faster move and a magic hit burst.",
-      scaling: `Burn: ${guideNumber(burnDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × AP magic damage/s. Roaming reaches ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× move speed and charges a ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × AP magic burst over ${seconds(FIRE_ROAM_RAMP_MS)}.`,
-      tags: [{ kind: "ap", label: "AP · burn & roam burst" }, { kind: "target", label: "Enemy attacks · retaliation" }],
+      scaling: `Burn: ${guideNumber(burnDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × SO magic damage/s. Roaming reaches ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× move speed and charges a ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO magic burst over ${seconds(FIRE_ROAM_RAMP_MS)}.`,
+      tags: [{ kind: "ap", label: "SO · burn & roam burst" }, { kind: "target", label: "Enemy attacks · retaliation" }],
       details: [
-        `Burn = ${guideNumber(burnDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × AP, per second. The AP part is added after the weapon multiplier.`,
+        `Burn = ${guideNumber(burnDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO, per second. The SO part is added after the weapon multiplier.`,
         `Retaliation per enemy attack = ${guideNumber(p.backlash!)} × enemy base attack rate × enemy unbuffed weapon interval × your weapon's damage multiplier. Enemy attack-speed bonuses create more triggers without shrinking each trigger.`,
-        `Outside combat, movement speed ramps to ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× over ${seconds(FIRE_ROAM_RAMP_MS)}. Combat resets partial charge; taking damage does not cancel a burst already armed for an attack. The next landed basic attack consumes it for ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × AP magic damage, reduced by magic resistance.`,
-        "Burn deals magic damage; retaliation deals physical damage. AD does not directly increase either signature value.",
+        `Outside combat, movement speed ramps to ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× over ${seconds(FIRE_ROAM_RAMP_MS)}. Combat resets partial charge; taking damage does not cancel a burst already armed for an attack. The next landed basic attack consumes it for ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO magic damage, reduced by Soul Defense.`,
+        "Burn deals magic damage; retaliation deals physical damage. Offense does not directly increase either signature value.",
         `The passive needs an active trade in weapon reach and line of sight. Base reach linger is ${guideNumber(ENGAGE_LINGER_SECONDS)} s; the target is forgotten after ${guideNumber(TARGET_FORGET_SECONDS)} s without contact.`,
       ],
     };
     case "sentenced": return {
       ...base, name: "Mark",
       summary: "Choose a rival to hunt, then grow stronger when they fall. Landed hits build a true-damage mark that taxes and suppresses the enemy.",
-      scaling: `Scales with target max HP, Sentence stacks, weapon hit weight, and bonus stats (AP ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point; other flats ${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}%/point).`,
-      tags: [{ kind: "target", label: "Enemy max health" }, { kind: "ad", label: "Bonus AD/AP" }, { kind: "defense", label: "Bonus armor/MR" }],
+      scaling: `Scales with target max HP, Sentence stacks, weapon hit weight, and bonus stats (SO ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point; other flats ${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}%/point).`,
+      tags: [{ kind: "target", label: "Enemy max health" }, { kind: "ad", label: "Bonus Offense/SO" }, { kind: "defense", label: "Bonus Defense/SD" }],
       details: [
         `True-damage pulse = ${pct(markPct(f, 0))} base share (plus ${pct(p.mark_kill!)} × Sentence stacks), multiplied by target max health, hit weight, tier, distance, Heavier Sentence, and bonus-stat growth.`,
         `Hunt: choose one living rival from the target panel. Track their location for the rest of their life and gain ${pct(SENTENCED_HUNT_MOVE_BONUS)} movement speed while moving toward them. When they die, gain ${pct(SENTENCED_HUNT_MARK_PER_STACK)} permanent mark strength and choose again. Leaving clears the target without a reward; dying ends your hunt. Tracking does not remove Swarm's untargetable status.`,
         `Hit weight = faction base attack rate × weapon damage multiplier × attack-speed multiplier^${guideNumber(MARK_AS_EXPONENT)} × attack interval in seconds. These percentages are per unit of hit weight, not a flat percentage on every hit.`,
-        `Bonus-stat growth uses bonus AD + ${MARK_BONUS_AP_WEIGHT}× AP + armor + MR. AD, armor, and MR each add ${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}% to mark strength per point; AP adds ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point. AD/AP also scale qualifying weapon damage.`,
+        `Bonus-stat growth uses bonus Offense + ${MARK_BONUS_AP_WEIGHT}× SO + armor + SD. Offense, Defense, and SD each add ${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}% to mark strength per point; SO adds ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point. Offense/SO also scale qualifying weapon damage.`,
         `Attack-speed bonuses from cards and farming are ${pct(MARK_FARM_AS_EFFICIENCY)} effective. Your base attack speed is unchanged; bruiser stats give stronger mark growth.`,
         `Tier 1 starts on the first hit. Tiers 2, 3 and ${MARK_TOP_TIER} arrive at ${MARK_TIER_HITS}, ${MARK_TIER_HITS * 2} and ${MARK_TIER_HITS * 3} hit-progress respectively; the marked target's weapon swaps also promote it.`,
         `Tier 2 taxes attack rate above ${guideNumber(MARK_TAX_THRESHOLD)}/s: keep ${pct(p.tax_keep!)} of the excess, capped at ${guideNumber(p.tax_cap!)}/s. Tier 3 reduces outgoing damage by ${pct(1 - p.suppress!)}. Tier ${MARK_TOP_TIER} multiplies pulses by ${guideNumber(p.mark_amp!)} and denies the marked enemy's execute.`,
@@ -68,13 +68,13 @@ export function signatureGuide(id: FactionId): GuideAbility {
     case "plague": return {
       ...base, name: "Rat King",
       summary: "Harvest player corpses for permanent health and disease growth. Wear opponents down with disease, then execute them below half health.",
-      scaling: `Disease: ${guideNumber(plagueDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × AP magic damage/s. The execute grows with the enemy's missing health below ${pct(EXECUTE_BAND)}.`,
-      tags: [{ kind: "ap", label: "AP · disease" }, { kind: "target", label: "Enemy low health · execute" }],
+      scaling: `Disease: ${guideNumber(plagueDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × SO magic damage/s. The execute grows with the enemy's missing health below ${pct(EXECUTE_BAND)}.`,
+      tags: [{ kind: "ap", label: "SO · disease" }, { kind: "target", label: "Enemy low health · execute" }],
       details: [
-        `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × AP, per second.`,
-        `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Approach and press F to consume one before another Plague does. Each grants ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and one permanent stack adding ${pct(PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK)} disease damage, including its AP scaling. The execute is unchanged.`,
+        `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO, per second.`,
+        `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Approach and press F to consume one before another Plague does. Each grants ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and one permanent stack adding ${pct(PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK)} disease damage, including its SO scaling. The execute is unchanged.`,
         `Extra execute damage/s = ${guideNumber(p.execute!)} × max(0, ${guideNumber(EXECUTE_BAND)} − enemy current-health fraction) × your weapon's damage multiplier. At ${pct(EXECUTE_BAND / 2)} enemy health, this adds ${guideNumber(p.execute! * EXECUTE_BAND / 2)} × weapon multiplier per second.`,
-        "Disease and execute deal magic damage. AP is added once to the disease; the execute has no second AP rider. AD does not directly increase the signature.",
+        "Disease and execute deal magic damage. SO is added once to the disease; the execute has no second SO rider. Offense does not directly increase the signature.",
         "Plague's disease and execute damage-over-time ticks cannot critically strike; auto attacks can. With Cruel Wounds, Plague gets +20% auto-attack crit chance and converts half its current crit chance into steady DoT damage instead of DoT crits.",
         `The signature requires an active trade in weapon reach and line of sight, with ${guideNumber(ENGAGE_LINGER_SECONDS)} s of base reach linger. Sentenced's final mark tier can deny the execute part.`,
       ],
@@ -82,15 +82,15 @@ export function signatureGuide(id: FactionId): GuideAbility {
     case "frost": return {
       ...base, name: "Wall of Ice",
       summary: "Frozen Justice grants defenses in elite fights. Slow enemy attacks and briefly chill nearby enemies before they thaw.",
-      scaling: `${pct(p.slow!)} attack slow; up to ${pct(1 - CHILL_MOVE_MULT)} movement slow within ${CHILL_MOVE_RADIUS} units for 1 s, fading over the next 3 s. Control strength is fixed rather than scaling with AD or AP.`,
+      scaling: `${pct(p.slow!)} attack slow; up to ${pct(1 - CHILL_MOVE_MULT)} movement slow within ${CHILL_MOVE_RADIUS} units for 1 s, fading over the next 3 s. Control strength is fixed rather than scaling with Offense or SO.`,
       tags: [{ kind: "fixed", label: "Fixed control" }, { kind: "defense", label: "Durability · stay in reach" }],
       details: [
         `An engaged enemy's attack cooldown progresses at ${pct(1 - p.slow!)} of its usual pace.`,
-        `Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} armor and +${FROST_ELITE_GUARD_BONUS} magic resistance while fighting elites, lingering ${seconds(FROST_ELITE_GUARD_LINGER_MS)} after contact. Normal mobs and players do not activate it.`,
+        `Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} armor and +${FROST_ELITE_GUARD_BONUS} Soul Defense while fighting elites, lingering ${seconds(FROST_ELITE_GUARD_LINGER_MS)} after contact. Normal mobs and players do not activate it.`,
         `Within ${CHILL_MOVE_RADIUS} units, movement is slowed by up to ${pct(1 - CHILL_MOVE_MULT)} for 1 s, then the slow fades linearly to zero over 3 s even if the enemy stays nearby.`,
         "Leaving the chill radius removes the movement slow while away. Repeated hits and switching between Frost fighters do not refresh it; 4 s clear of every Frost movement chill restores its full strength.",
         `Engagement uses the held weapon's reach and line of sight, with ${guideNumber(ENGAGE_LINGER_SECONDS)} s of base reach linger. One distant tag does not keep the aura running forever.`,
-        "Health, armor and magic resist let you hold your ground longer; they do not increase the base slow. Your weapon still has its own damage scaling.",
+        "Health, Defense and Soul Defense let you hold your ground longer; they do not increase the base slow. Your weapon still has its own damage scaling.",
       ],
     };
     case "holy": return {
@@ -100,8 +100,8 @@ export function signatureGuide(id: FactionId): GuideAbility {
       tags: [{ kind: "health", label: "Missing health %" }, { kind: "target", label: "Damage dealt · healing" }],
       details: [
         `Faction lifesteal = min(${pct(p.ls_cap!)}, ${pct(p.ls0!)} + ${pct(p.ls1!)} × missing-health fraction). At half health, the faction grants ${pct(Math.min(p.ls_cap!, p.ls0! + p.ls1! * .5))} lifesteal.`,
-        `Demon Blood earns +${pct(HOLY_CAMP_LIFESTEAL_PER_CLEAR)} permanent lifesteal per eligible camp clear, shared with other living camp contributors. Mob and camp leech grow without a farming cap and receive Bloodthirst's multiplier. The faction and card portion retains its ${pct(LIFESTEAL_MAX)} limit; anti-heal reduces healing received.`,
-        "AD and AP help only through damage sources that use them. They do not directly change the lifesteal percentage. Missing health is a fraction of maximum health, not an absolute HP amount.",
+        `Holy earns +${pct(HOLY_CAMP_LIFESTEAL_PER_CLEAR)} permanent lifesteal per eligible camp clear, shared with other living camp contributors. Mob and camp leech grow without a farming cap and receive Bloodthirst's multiplier. The faction and card portion retains its ${pct(LIFESTEAL_MAX)} limit; anti-heal reduces healing received.`,
+        "Offense and SO help only through damage sources that use them. They do not directly change the lifesteal percentage. Missing health is a fraction of maximum health, not an absolute HP amount.",
       ],
     };
   }
@@ -120,12 +120,12 @@ export function wishGuide(id: FactionId): GuideAbility & { def: AbilityDef; cool
   const zone = effects.find(e => e.do === "zone");
   const trail = effects.find(e => e.do === "trail");
   const floor = effects.find(e => e.do === "deathFloor");
-  const scaling = id === "frost" && status?.do === "status" ? `Fixed ${seconds(status.ms)} stun · no AD/AP scaling.`
-    : id === "plague" && status?.do === "status" ? `Fixed ${seconds(status.ms)} concealment · no AD/AP scaling.`
+  const scaling = id === "frost" && status?.do === "status" ? `Fixed ${seconds(status.ms)} stun · no Offense/SO scaling.`
+    : id === "plague" && status?.do === "status" ? `Fixed ${seconds(status.ms)} concealment · no Offense/SO scaling.`
     : id === "sentenced" && zone?.do === "zone" ? `Fixed ${seconds(zone.ms)} ring: enemy deals ${pct(1 - zone.dealtMult)} less, moves ${pct(1 - zone.moveMult)} slower, takes ${pct(zone.takenFromCasterMult - 1)} more damage from you, and is stunned for ${seconds(zone.exitStunMs)} on exit.`
-    : id === "fire" && trail?.do === "trail" ? `Fixed ${guideNumber(trail.dps)} true damage/s on the trail · no AD/AP scaling.`
+    : id === "fire" && trail?.do === "trail" ? `Fixed ${guideNumber(trail.dps)} true damage/s on the trail · no Offense/SO scaling.`
     : floor?.do === "deathFloor" ? `Fixed ${seconds(floor.ms)} death floor; heals back ${pct(floor.healBack)} of damage held.`
-    : "Fixed base effect values · no AD/AP scaling.";
+    : "Fixed base effect values · no Offense/SO scaling.";
   const summaries: Record<FactionId, string> = {
     fire: "Blink toward your cursor through walls and leave a burning trail behind you.",
     sentenced: "Trap an enemy in a judgment ring: weaken their damage, strengthen yours, and stun them if they leave.",
@@ -143,7 +143,7 @@ export function wishGuide(id: FactionId): GuideAbility & { def: AbilityDef; cool
       ...(id === "plague" ? [`Your own attack or cast temporarily reveals you until it lands, plus ${seconds(HIDDEN_REVEAL_MS)}. Concealment is not invulnerability.`] : []),
       ...(def.ownOrder ? ["Casting replaces your current attack and movement order."] : []),
       `Available after the run's initial ${WISH_LOCK_SECONDS} s lock. Training cooldown: ${TRAINING_WISH_COOLDOWN_SECONDS} s.`,
-      "AD and AP do not increase this Wish's base effect values. Augments can alter cooldowns or add effects; the numbers here describe the unmodified kit.",
+      "Offense and SO do not increase this Wish's base effect values. Augments can alter cooldowns or add effects; the numbers here describe the unmodified kit.",
       ...(rank.castMs > 0 ? [`Cast interruption: ${def.cancelledBy.join(", ")}.`] : []),
       `Cannot cast while affected by ${def.blockedBy.join(" or ")}.`,
     ],
@@ -160,13 +160,13 @@ export function championGuide(id: FactionId) {
 
 export function weaponScalingGuide(id: WeaponId): { name: string; scaling: string; detail: string } {
   const weapon = WEAPONS[id];
-  const labels = { ad: "AD", ap: "AP", hp: "bonus max HP", def: "(bonus armor + bonus MR)" };
+  const labels = { ad: "Offense", ap: "SO", hp: "bonus max HP", def: "(bonus Defense + bonus SD)" };
   const scaling = (Object.entries(weapon.scaling) as Array<[keyof typeof labels, number]>)
     .sort((a, b) => b[1] - a[1])
     .map(([stat, ratio]) => `${guideNumber(ratio)} × ${labels[stat]}`).join(" + ");
   return {
     name: weapon.name, scaling,
-    detail: `Bonus damage per hit = (${scaling}) × attack-speed multiplier × attack interval in seconds. AD, bonus HP and defense scaling deal physical damage; AP scaling deals magic damage.`,
+    detail: `Bonus damage per hit = (${scaling}) × attack-speed multiplier × attack interval in seconds. Offense, bonus HP and defense scaling deal physical damage; SO scaling deals magic damage.`,
   };
 }
 export const GUIDE_WEAPON_IDS = ALL_WEAPON_IDS;

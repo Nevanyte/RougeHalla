@@ -259,10 +259,10 @@ describe("the territory leash on generated maps", () => {
       const p = world.state.players.get("p0")!;
       p.weapon0 = "";
       p.hp = p.maxHp = 1e9;
-      // The player stands on the nearest other camp's centre at least 21 tiles away: a reachable floor tile outside this territory,
-      // beyond what a bow mob standing at its leash (12 tiles) can shoot (7.5 tiles). With eight camps a zone (136x136) the nearest
+      // The player stands on the nearest other camp's centre at least 34 tiles away: a reachable floor tile outside this territory,
+      // beyond even a wand mob at its leash (12 tiles) plus its 20-tile range. With eight camps a zone (136x136) the nearest
       // camp can be 12 tiles away, close enough for a ranged mob to keep hitting from inside its territory and never give up.
-      const far = map.camps.filter((c, i) => i !== ci && dist(c, camp) >= 21 * 32);
+      const far = map.camps.filter((c, i) => i !== ci && dist(c, camp) >= 34 * TILE);
       const other = far.reduce((a, b) => (dist(a, camp) < dist(b, camp) ? a : b));
       p.x = other.x;
       p.y = other.y;

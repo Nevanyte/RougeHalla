@@ -70,7 +70,7 @@ export class ProjectileView {
   noteLaunch(l: ProjectileLaunch): void {
     if (this.tracked.has(l.id) || this.done.has(l.id)) return;
     this.tracked.set(l.id, {
-      ...l, simT: l.t, flightX: l.x, flightY: l.y, flightVx: l.vx, flightVy: l.vy, traveled: 0, end: null, g: null,
+      ...l, targetId: l.kind === "ball" ? l.targetId : undefined, simT: l.t, flightX: l.x, flightY: l.y, flightVx: l.vx, flightVy: l.vy, traveled: 0, end: null, g: null,
     });
   }
 
@@ -199,9 +199,9 @@ export class ProjectileView {
     if (tr.kind === "arrow") {
       // Along +x, rotated to the velocity as drawn on the squashed ground.
       g.lineStyle(3, 0xffffff, 0.14).lineBetween(-28, 0, -10, 0);
-      g.lineStyle(2, ARROW_COLOR, 1).lineBetween(-10, 0, 8, 0);
+      g.lineStyle(5, ARROW_COLOR, 1).lineBetween(-16, 0, 12, 0);
       g.lineStyle(1.5, 0xa1887f, 1).lineBetween(-10, 0, -14, -3).lineBetween(-10, 0, -14, 3);
-      g.fillStyle(ARROW_COLOR, 1).fillTriangle(8, -3, 8, 3, 14, 0);
+      g.fillStyle(ARROW_COLOR, 1).fillTriangle(10, -7, 10, 7, 22, 0);
       g.setRotation(screenAngle(Math.atan2(tr.vy, tr.vx)));
     } else {
       g.fillStyle(BALL_COLOR, 0.18).fillCircle(0, 0, 12);

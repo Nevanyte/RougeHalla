@@ -1,0 +1,9 @@
+.trader-panel { position: absolute; left: 16px; bottom: 116px; width: min(360px, calc(var(--ui-w) - 32px)); padding: 16px; color: #ece8dc; background: #161b21f5; border: 1px solid #c8ac69; border-radius: 10px; z-index: 8; pointer-events: auto; box-shadow: 0 8px 32px #0008; }
+.trader-panel[hidden] { display: none; }
+.trader-panel h3 { margin: 0 24px 8px 0; font-size: 17px; color: #ead18e; }
+.trader-panel p { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: #b8c0ca; }
+.trader-choices { display: grid; gap: 8px; }
+.trader-choice { border: 1px solid #6f644b; border-radius: 6px; background: #242a31; color: #f4ecd8; padding: 10px; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+.trader-choice:hover:enabled, .trader-choice:focus-visible { background: #3a382c; border-color: #ead18e; }
+.trader-choice:disabled { opacity: .45; cursor: default; }
+.trader-close { position: absolute; right: 10px; top: 8px; background: none; border: 0; color: #b8c0ca; font-size: 22px; cursor: pointer; }

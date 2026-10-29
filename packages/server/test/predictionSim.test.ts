@@ -62,7 +62,7 @@ class SimRig {
   clientGatesLocked: boolean;
 
   constructor(
-    readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword",
+    readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "wand",
     opts: { map?: GameMap; start?: Vec2; gatesLocked?: boolean; clientGatesLocked?: boolean; usePredict?: boolean; terrainBlind?: boolean } = {},
   ) {
     this.usePredict = opts.usePredict ?? false;
@@ -322,7 +322,7 @@ describe("prediction against the real sim", () => {
     expect(r.motion.drawn.x).toBeLessThanOrEqual(me.x + 1e-6);
     expect(me.x - r.motion.drawn.x).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS) / 1000) + 8);
     r.run(3000);
-    expect(r.server.x).toBeGreaterThan(centre(24, 10).x); // it walked up to the dummy and is hitting it
+    expect(r.server.x).toBeGreaterThan(centre(12, 10).x); // the wand walks into its longer firing range
     expect(combatant(r.world, "me")!.rt.weapon.lock).toBe(dummy);
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS) / 1000) + 8);
     // Walking away again: predicted at once, and the lock is gone.
@@ -734,7 +734,7 @@ describe("Swarm: an escape Wish that drops only the lock, so the walk in hand go
   it("while locked on a dummy (the model follows the chase): the sim drops the lock and stands, the model leaves follow and stands with it", () => {
     for (const [up, down] of [[30, 30], [60, 60], [100, 100]] as const) {
       const tag = `${up}/${down}`;
-      const r = new SimRig(up, down, 0, "plague", "sword", { usePredict: true });
+      const r = new SimRig(up, down, 0, "plague", "wand", { usePredict: true });
       const dummy = addMob(r.world, { kind: "dummy", name: "d", at: centre(25, 10) }); // within TARGET_RANGE, 14 tiles of chase
       r.run(300);
       r.target(dummy);
@@ -920,12 +920,13 @@ describe("ice against the real sim", () => {
   it("a lock on a dummy across ice hands over to the server's chase and back to a walk without a snap", () => {
     for (const [up, down, jitter] of [[40, 40, 0], [60, 60, 20], [15, 15, 0]] as const) {
       const tag = `${up}/${down}/${jitter}`;
-      const r = new SimRig(up, down, jitter, "plague", "sword", { map: allIce(), usePredict: true });
+      const r = new SimRig(up, down, jitter, "plague", "wand", { map: allIce(), usePredict: true });
       const w = watch(r.motion);
       const dummy = addMob(r.world, { kind: "dummy", name: "dummy", at: centre(30, 10) });
       r.run(300);
       r.move(centre(14, 10)); // walking (and sliding) when the click comes
       r.run(250);
+      r.server.readyAt = r.world.state.serverTime + 100_000; // isolate ice chase handoff from the new ranged shooting pause
       r.target(dummy);
       const lockFrom = r.offsets.length;
       r.run(400);
@@ -935,7 +936,7 @@ describe("ice against the real sim", () => {
       expect(r.motion.drawn.x, tag).toBeLessThanOrEqual(r.server.x + 1e-6);
       expect(r.server.x - r.motion.drawn.x, tag).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS) / 1000) + 8);
       r.run(3000);
-      expect(r.server.x, tag).toBeGreaterThan(centre(26, 10).x); // the chase slid it up to the dummy
+      expect(r.server.x, tag).toBeGreaterThan(centre(12, 10).x); // the chase slid it up to the dummy
       expect(combatant(r.world, "me")!.rt.weapon.lock, tag).toBe(dummy);
       expect(Math.max(...r.offsets.slice(lockFrom)), tag).toBeLessThan(15);
       // Walking away again: predicted at once, the lock is gone. The server may have been accelerating or planted for a windup when

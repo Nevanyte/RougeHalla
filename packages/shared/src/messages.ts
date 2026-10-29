@@ -24,7 +24,7 @@ export type PlayerStatus = "lobby" | "alive" | "dead" | "mia";
  * container's `options`/`takenBy`/`pickers`, taken with `choose` (never `pickup`), gone at `expiresAt`. A "quest"
  * container holds a quest token or parcel (shared/quests.ts): picking it up never changes the weapon slots.
  */
-export type ContainerKind = "chest" | "ground" | "body" | "reward" | "quest";
+export type ContainerKind = "chest" | "ground" | "body" | "reward" | "quest" | "consumable" | "cannon";
 
 /**
  * Client -> server. Keys are the Colyseus message types. Angles are radians on the ground plane, measured from where
@@ -69,6 +69,8 @@ export interface ClientMessages {
   swap: { slot?: number };
   /** Take a weapon from a chest, the ground or a body in reach (F). With both slots full, the one in hand is dropped. */
   pickup: { containerId: string };
+  useConsumable: { kind: "heal" };
+  trade: { trader: string; pick: number };
   /** Consume a nearby Plague corpse (the server checks faction, life state, range, and expiry). */
   consumeCorpse: { corpseId: string };
   /** Select one living rival as a Sentenced hunt target; the server validates faction and only permits selection while unlocked. */
@@ -127,7 +129,7 @@ export type TrainMessage =
 
 export type ClientMessageType = keyof ClientMessages;
 export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
-  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget",
+  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget", "useConsumable", "trade",
 ];
 
 /** Why a projectile stopped (a `projEnd` fx). */

@@ -22,6 +22,8 @@ export type ActionCommand =
   /** To `slot`, or to the other slot when omitted. */
   | { kind: "swap"; slot?: 0 | 1 }
   | { kind: "pickup"; containerId: string }
+  | { kind: "useConsumable"; consumable: "heal" }
+  | { kind: "trade"; trader: string; pick: number }
   | { kind: "consumeCorpse"; corpseId: string }
   | { kind: "huntTarget"; id: string }
   /**
@@ -276,6 +278,18 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown, 
       if (slot === undefined) { q.pushAction({ kind: "swap" }); return true; }
       if (slot !== 0 && slot !== 1) return false;
       q.pushAction({ kind: "swap", slot });
+      return true;
+    }
+    case "useConsumable": {
+      if (!isRecord(msg) || msg.kind !== "heal") return false;
+      q.pushAction({ kind: "useConsumable", consumable: "heal" });
+      return true;
+    }
+    case "trade": {
+      const trader = isRecord(msg) ? parseId(msg.trader) : null;
+      const pick = isRecord(msg) ? msg.pick : undefined;
+      if (!trader || typeof pick !== "number" || !Number.isInteger(pick) || pick < 0 || pick > 2) return false;
+      q.pushAction({ kind: "trade", trader, pick });
       return true;
     }
     case "pickup": {

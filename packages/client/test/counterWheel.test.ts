@@ -70,8 +70,8 @@ describe("wheelHighlight", () => {
 
 describe("the weapon ring's caption", () => {
   it("says a run starts on fists, which are not on the ring, and names the faction", () => {
-    const [first, second] = startingKitText("Demon Blood");
-    expect(first).toBe("Demon Blood starts on fists: the fastest hands, the shortest reach, and a swing no shield stops.");
+    const [first, second] = startingKitText("Holy");
+    expect(first).toBe("Holy starts on fists: the fastest hands, the shortest reach, and a swing no shield stops.");
     expect(second).toContain("outside this ring");
     // The ring is the five loop weapons; fists are not a node of it.
     expect(WEAPON_WHEEL.nodes.map((n) => n.id)).not.toContain("fists");
@@ -87,8 +87,8 @@ describe("wording", () => {
   });
 
   it("states a matchup", () => {
-    expect(matchupText("Fire", ["Sentenced", "Plague"], ["Frost", "Demon Blood"]))
-      .toBe("Fire beats Sentenced and Plague, and loses to Frost and Demon Blood.");
+    expect(matchupText("Fire", ["Sentenced", "Plague"], ["Frost", "Holy"]))
+      .toBe("Fire beats Sentenced and Plague, and loses to Frost and Holy.");
   });
 
   it("describes every node of a wheel for a screen reader, with the displayed names", () => {

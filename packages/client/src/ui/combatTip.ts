@@ -90,7 +90,7 @@ function shareParts(shares: DamageShares): string[] {
   ].filter(Boolean);
 }
 
-/** Effective current type mix from public AD/AP and other weapon-scaling mirrors. */
+/** Effective current type mix from public Offense/SO and other weapon-scaling mirrors. */
 export function weaponDamageTypeText(fighter: ReadableFighter, weapon: WeaponId): string {
   if (!isFactionId(fighter.faction)) return "Damage type unknown";
   return `Current hit type: ${shareParts(weaponDamageShares(fighter, weapon)).join(" · ")}`;

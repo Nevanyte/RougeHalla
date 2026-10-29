@@ -57,7 +57,9 @@ export const POLICIES: Readonly<Record<WeaponId, SpacingPolicy>> = {
  */
 export function lockSpacing(w: WeaponId): SpacingPolicy {
   const p = POLICIES[w];
-  return { far: p.far, attackRange: p.attackRange, retreatBelow: 0, leadSpeed: p.leadSpeed };
+  const shape = WEAPONS[w].shape;
+  const wandRange = w === "wand" && shape.kind === "projectile" ? shape.range : 0;
+  return { far: wandRange ? wandRange * 0.88 : p.far, attackRange: wandRange ? wandRange * 0.96 : p.attackRange, retreatBelow: 0, leadSpeed: p.leadSpeed };
 }
 
 /** What the fighter sees this moment. Positions are world units; times seconds. */

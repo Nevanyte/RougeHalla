@@ -163,7 +163,7 @@ describe("when the panel is open", () => {
     expect(r.cards().every((c) => c.hidden || cardName(c) === "")).toBe(true);
     r.me.x = 540;
     r.frame();
-    expect(r.cards().map(cardName)).toEqual(["Haste II", "Wellspring", "Armor I"]);
+    expect(r.cards().map(cardName)).toEqual(["Haste II", "Wellspring", "Defense I"]);
   });
 
   it("closes when the chest expires, and when the player is down, or the run is not on", () => {
@@ -244,7 +244,7 @@ describe("what it shows", () => {
     r.me.build = { ad1: 1 };
     r.frame();
     const cards = r.cards();
-    expect(cards.map(cardName)).toEqual(["Haste II", "Wellspring", "Armor I"]);
+    expect(cards.map(cardName)).toEqual(["Haste II", "Wellspring", "Defense I"]);
     expect(cards.map(cardTier)).toEqual(["II", "I", "I"]);
     expect(cards.map(cardKind)).toEqual(["Base · New", "Augment", "Base · New"]);
     expect(cardText(cards[0]!)).toBe("+16% attack speed");

@@ -22,7 +22,7 @@ describe("champion ability reference", () => {
     expect(root.byClass("champion-option")).toHaveLength(FACTION_IDS.length);
     expect(root.byClass("champion-ability")).toHaveLength(2);
     expect(root.one("champion-name").textContent).toBe("Fire");
-    expect(root.byClass("champion-scaling")[0]!.textContent).toContain("AP");
+    expect(root.byClass("champion-scaling")[0]!.textContent).toContain("SO");
     expect(collapsed()).toBe(true);
     expect(root.one("champion-details-toggle").attrs.get("aria-expanded")).toBe("false");
     expect(root.byClass("champion-weapon-row")).toHaveLength(6);

@@ -105,33 +105,17 @@ const frac = (w: World, i: number): number => P(w, i).hp / P(w, i).maxHp;
 // ---------------------------------------------------------------------------------------------------------------- who is healed
 
 describe("camp-clear heal: who is paid", () => {
-  it("heals each player who damaged the camp by the curve, tells them (fx and toast) and leaves a bystander alone", () => {
+  it("drops one physical potion, counts eligible contributors and heals nobody immediately", () => {
     const w = run();
-    hpTo(w, 0, 0.4);
-    hpTo(w, 1, 0.95);
-    hpTo(w, 2, 0.5);
-    const [a, b] = campMobs(w, 0);
-    wound(w, a!, "p1"); // p1 only scratched one mob; p2 only watched
+    hpTo(w, 0, 0.4); hpTo(w, 1, 0.95); hpTo(w, 2, 0.5);
+    wound(w, campMobs(w, 0)[0]!, "p1");
     const before = [P(w, 0).hp, P(w, 1).hp, P(w, 2).hp];
     const ev = killCamp(w, 0, "p0");
-    expect(P(w, 0).hp).toBeCloseTo(before[0]! + campHealAmount(before[0]!, P(w, 0).maxHp), 6);
-    expect(frac(w, 0)).toBeCloseTo(0.4 + 0.52, 2);
-    expect(P(w, 1).hp).toBeCloseTo(before[1]! + campHealAmount(before[1]!, P(w, 1).maxHp), 6);
-    expect(frac(w, 1)).toBeCloseTo(0.95 + 0.0135, 3);
-    expect(P(w, 2).hp).toBe(before[2]); // a player who only watched gets nothing
-    expect(b!.s.status).toBe("dead");
-
-    const heals = fxOf(ev, "campHeal");
-    expect(heals.map((h) => h.id).sort()).toEqual(["p0", "p1"]);
-    for (const h of heals) {
-      expect(h.camp).toBe(0);
-      const i = h.id === "p0" ? 0 : 1;
-      expect(h.amount).toBeCloseTo(P(w, i).hp - before[i]!, 6);
-    }
-    expect(toasts(ev, "p0")).toEqual([`Camp cleared: +${Math.round(P(w, 0).hp - before[0]!)} health`]);
-    expect(toasts(ev, "p2")).toEqual([]);
-    // The heal is quiet: the campHeal fx carries the number, so the client draws it once.
-    expect(fxOf(ev, "heal")).toEqual([]);
+    expect([P(w, 0).hp, P(w, 1).hp, P(w, 2).hp]).toEqual(before);
+    expect(RT(w, 0).campsCleared).toBe(1); expect(RT(w, 1).campsCleared).toBe(1);
+    expect(RT(w, 2).campsCleared).toBeUndefined();
+    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
+    expect(fxOf(ev, "campHeal")).toEqual([]); expect(fxOf(ev, "heal")).toEqual([]);
     expect(fxOf(ev, "campCleared")).toEqual([{ kind: "campCleared", camp: 0 }]);
   });
 
@@ -145,7 +129,8 @@ describe("camp-clear heal: who is paid", () => {
     recordHit(w, { victim: last.id, by: { id: "p1", name: "p1" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
     applyLedger(w);
     for (const m of mobs.slice(0, 2)) killMob(w, m, [], []);
-    expect(frac(w, 1)).toBeGreaterThan(0.9); // 30% + 64%
+    expect(frac(w, 1)).toBe(0.3);
+    expect(RT(w, 1).campsCleared).toBe(1);
   });
 
   it("counts the damage dealt since the camp was engaged, not only in the clearing tick", () => {
@@ -157,7 +142,8 @@ describe("camp-clear heal: who is paid", () => {
     step(w, TICK_MS);
     expect(campContribOf(w, 0)).toEqual(new Set(["p1"]));
     killCamp(w, 0, "p0");
-    expect(frac(w, 1)).toBeGreaterThan(0.85);
+    expect(frac(w, 1)).toBe(0.5);
+    expect(RT(w, 1).campsCleared).toBe(1);
   });
 
   it("does not count damage that did nothing (fully absorbed, amount 0) or a hit on another camp", () => {
@@ -183,8 +169,10 @@ describe("camp-clear heal: who is paid", () => {
     removePlayer(w, "p3");
     const hpDead = P(w, 1).hp;
     killCamp(w, 0, "p0");
-    expect(frac(w, 0)).toBeGreaterThan(0.85);
-    expect(frac(w, 2)).toBeGreaterThan(0.85);
+    expect(frac(w, 0)).toBe(0.5);
+    expect(RT(w, 0).campsCleared).toBe(1);
+    expect(frac(w, 2)).toBe(0.5);
+    expect(RT(w, 2).campsCleared).toBe(1);
     expect(P(w, 1).hp).toBe(hpDead);
     expect(w.players.has("p3")).toBe(false);
   });
@@ -200,9 +188,11 @@ describe("camp-clear heal: who is paid", () => {
     place(w, 2, c, 0, 8 * TILE); // inside
     for (const [i, m] of campMobs(w, 0).entries()) wound(w, m, `p${i}`); // all three fought the camp
     killCamp(w, 0, "p0");
-    expect(frac(w, 0)).toBeGreaterThan(0.85);
+    expect(frac(w, 0)).toBe(0.5);
+    expect(RT(w, 0).campsCleared).toBe(1);
     expect(frac(w, 1)).toBe(0.5);
-    expect(frac(w, 2)).toBeGreaterThan(0.85);
+    expect(frac(w, 2)).toBe(0.5);
+    expect(RT(w, 2).campsCleared).toBe(1);
   });
 
   it("pays a player inside the camp's territory even past 12 tiles of its centre", () => {
@@ -218,7 +208,8 @@ describe("camp-clear heal: who is paid", () => {
     expect(Math.hypot(P(w, 0).x - w.map.camps[0]!.x, P(w, 0).y - w.map.camps[0]!.y)).toBeGreaterThan(CAMP_HEAL_RANGE);
     for (const m of campMobs(w, 0)) { wound(w, m, "p0"); wound(w, m, "p1"); }
     killCamp(w, 0, "p0");
-    expect(frac(w, 0)).toBeGreaterThan(0.85);
+    expect(frac(w, 0)).toBe(0.5);
+    expect(RT(w, 0).campsCleared).toBe(1);
     expect(frac(w, 1)).toBe(0.5);
   });
 
@@ -254,70 +245,22 @@ describe("camp-clear heal: who is paid", () => {
 
 // ---------------------------------------------------------------------------------------------------------------- what the heal is
 
-describe("camp-clear heal: what it is", () => {
-  it("skips the 3 s out-of-combat lockout (a camp is cleared in combat), which a plain heal respects", () => {
-    const w = run({ signatures: true });
-    hpTo(w, 0, 0.4);
-    noteContact(w, "p0", "p1");
-    w.factions!.fighters.get("p0")!.combatAt = w.state.serverTime;
-    expect(heal(w, combatant(w, "p0")!, 10)).toBe(0); // the lockout holds for an ordinary heal
-    killCamp(w, 0, "p0");
-    expect(frac(w, 0)).toBeGreaterThan(0.9);
-  });
-
-  it("is cut by anti-heal like any heal", () => {
-    const plain = run();
-    const cut = run();
-    for (const w of [plain, cut]) hpTo(w, 0, 0.4);
-    addStatus(cut, combatant(cut, "p0")!, { kind: "antiHeal", source: { id: "p1", name: "p1" }, ms: 5000, value: 0.5 });
-    const hp0 = P(plain, 0).hp;
-    killCamp(plain, 0, "p0");
-    killCamp(cut, 0, "p0");
-    expect(P(plain, 0).hp - hp0).toBeGreaterThan(0);
-    expect(P(cut, 0).hp - hp0).toBeCloseTo((P(plain, 0).hp - hp0) * 0.5, 6);
-  });
-
-  it("is not lifesteal and never a landed hit: nothing a lifesteal or combat-clock system reads changes", () => {
+describe("camp-clear recovery drop", () => {
+  it("does not touch lifesteal, combat clocks or landed damage", () => {
     const w = run({ signatures: true, faction: "holy" });
-    hpTo(w, 0, 0.4);
-    wound(w, campMobs(w, 0)[0]!, "p0");
+    hpTo(w, 0, 0.4); wound(w, campMobs(w, 0)[0]!, "p0");
     noteContact(w, "p0", "p1");
-    const landed = w.combat.landed.length;
-    const combatAt = w.factions!.fighters.get("p0")!.combatAt;
+    const landed = w.combat.landed.length, combatAt = w.factions!.fighters.get("p0")!.combatAt;
     payCampHeal(w, 0);
     expect(w.combat.landed.length).toBe(landed);
     expect(w.factions!.fighters.get("p0")!.combatAt).toBe(combatAt);
-    expect(frac(w, 0)).toBeGreaterThan(0.9);
-    const ev = w.events.splice(0);
-    expect(fxOf(ev, "heal")).toEqual([]);
-    expect(fxOf(ev, "campHeal")).toHaveLength(1);
+    expect(frac(w, 0)).toBe(0.4);
+    expect(fxOf(w.events, "heal")).toEqual([]); expect(fxOf(w.events, "campHeal")).toEqual([]);
   });
-
-  it("runs after the pass: it heals from the hp the same pass left, and the fx names that camp", () => {
-    const w = run({ signatures: true });
-    hpTo(w, 0, 0.8);
-    wound(w, campMobs(w, 0)[0]!, "p0");
-    const start = P(w, 0).hp;
-    // p1 hits p0 for a good share of its hp in the very pass that clears the camp.
-    recordHit(w, { victim: "p0", by: { id: "p1", name: "p1" }, packet: { raw: 0.2 * P(w, 0).maxHp, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false });
-    for (const m of campMobs(w, 0)) recordHit(w, { victim: m.id, by: { id: "p0", name: "p0" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
-    applyLedger(w);
-    const ev = w.events.splice(0);
-    const after = P(w, 0).hp;
-    const h = fxOf(ev, "campHeal")[0]!;
-    expect(h).toMatchObject({ id: "p0", camp: 0 });
-    const hpBeforeHeal = after - h.amount;
-    expect(hpBeforeHeal).toBeLessThan(start); // the pass took hp first...
-    expect(h.amount).toBeCloseTo(campHealAmount(hpBeforeHeal, P(w, 0).maxHp), 6); // ...and the heal answers what was left
-  });
-
-  it("never heals past max hp, and a full-hp player gets no heal, fx or toast", () => {
-    const w = run();
-    wound(w, campMobs(w, 0)[0]!, "p0");
-    const ev = killCamp(w, 0, "p0");
+  it("drops a stored-use potion even for a full-health contributor", () => {
+    const w = run(); wound(w, campMobs(w, 0)[0]!, "p0"); killCamp(w, 0, "p0");
     expect(P(w, 0).hp).toBe(P(w, 0).maxHp);
-    expect(fxOf(ev, "campHeal")).toEqual([]);
-    expect(toasts(ev, "p0")).toEqual([]);
+    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
   });
 });
 
@@ -390,7 +333,7 @@ describe("camp-clear heal: training rooms", () => {
     expect(enqueueClientMessage(w.players.get("p0")!.inputs, "train", msg, { training: true })).toBe(true);
   };
 
-  it("a practice camp (no map camp, no published state) heals the player who cleared it, with the fx and toast", () => {
+  it("a practice camp drops one potion instead of immediate healing", () => {
     const w = training();
     enqueue(w, { cmd: "camp", id: "emberImp" });
     for (let i = 0; i < 3; i++) step(w, TICK_MS);
@@ -405,12 +348,9 @@ describe("camp-clear heal: training rooms", () => {
       applyLedger(w);
       events.push(...w.events.splice(0));
     }
-    expect(p.hp / p.maxHp).toBeGreaterThan(0.9);
-    const heals = fxOf(events, "campHeal");
-    expect(heals).toHaveLength(1);
-    expect(heals[0]).toMatchObject({ id: "p0" });
-    expect(heals[0]!.camp).toBeGreaterThanOrEqual(100);
-    expect(toasts(events, "p0")).toEqual([`Camp cleared: +${Math.round(heals[0]!.amount)} health`]);
+    expect(p.hp / p.maxHp).toBe(0.4);
+    expect(fxOf(events, "campHeal")).toEqual([]);
+    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
     expect(fxOf(events, "campCleared")).toEqual([]); // no map camp to name
   });
 

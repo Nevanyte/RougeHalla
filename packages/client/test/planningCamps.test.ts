@@ -104,7 +104,7 @@ describe("camp states on the map screens", () => {
     const engaged = camps()[1]!.getAttribute("aria-label")!;
     expect(engaged).toContain("Someone has fought here");
     expect(engaged, "the state is sticky history, never a live fight").not.toMatch(/is on|under way|in progress|fighting/i);
-    expect(engaged).toContain("For ");
+    expect(engaged).toContain("Elite camp: dangerous");
     expect(camps()[1]!.byClass("pl-chip")[0]!.hidden).toBe(false);
   });
 

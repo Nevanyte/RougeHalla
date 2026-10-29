@@ -1,5 +1,5 @@
 // Fists in the sim (shared/weapons.ts, sim/combatant.ts, sim/weapons.ts): an empty slot fights with fists, so a player is never
-// weaponless, a run starts on fists, and fists lock, swing, pierce a shield and never stagger. How a weapon is taken up (a pickup
+// weaponless, a run starts on fists, and fists swing, pierce a shield and never stagger. How a weapon is taken up (a pickup
 // into the empty hand, a mob's drop arming a killer) is in loot.test.ts and mobLife.test.ts; the bots' side in bots/tactics.test.ts.
 import { describe, expect, it } from "vitest";
 import {
@@ -130,11 +130,13 @@ describe("an empty slot is fists", () => {
 });
 
 describe("fighting with fists", () => {
-  it("an empty-handed player locks a dummy, walks into fists' reach and punches: a 0.1 s windup, fists' damage, fists' cadence", () => {
+  it("an empty-handed player walks into fists' reach and clicks to punch: a 0.1 s windup, fists' damage, fists' cadence", () => {
     const rig = arena([{ faction: "holy", at: ME }]);
     const { world, log } = rig;
     const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: { x: ME.x + 220, y: ME.y }, hp: 1e9 });
-    send(world, "p0", "target", { id: dummy });
+    send(world, "p0", "move", { x: ME.x + 160, y: ME.y });
+    run(rig, 30);
+    send(world, "p0", "attack", { a: 0 });
     run(rig, 80);
     const windups = fxOf(log, "windup");
     const hits = fxOf(log, "hit");
@@ -160,7 +162,7 @@ describe("fighting with fists", () => {
       { faction: "holy", at: { x: ME.x + 30, y: ME.y }, weapons: ["sword"], facing: Math.PI },
     ]);
     const { world, log } = rig;
-    send(world, "p0", "target", { id: "p1" });
+    send(world, "p0", "attack", { a: 0 });
     run(rig, 40);
     expect(fxOf(log, "hit").filter((h) => h.id === "p1" && h.weapon === "fists").length).toBeGreaterThanOrEqual(2);
     expect(fxOf(log, "stagger")).toEqual([]);
@@ -174,7 +176,7 @@ describe("fighting with fists", () => {
     ]);
     const { world, log } = rig;
     const before = P(world, 1).hp;
-    send(world, "p0", "target", { id: "p1" });
+    send(world, "p0", "attack", { a: 0 });
     run(rig, 40);
     const hits = fxOf(log, "hit").filter((h) => h.id === "p1" && h.weapon === "fists");
     expect(hits.length).toBeGreaterThanOrEqual(2);
@@ -184,16 +186,15 @@ describe("fighting with fists", () => {
     expect(Math.abs(Math.abs(P(world, 1).facing) - Math.PI)).toBeLessThan(0.2);
   });
 
-  it("a player who loses the weapon in hand keeps its lock and fights on, with fists' spacing", () => {
-    const rig = arena([{ faction: "holy", at: ME, weapons: ["bow"] }]);
+  it("a player who loses the wand drops its lock and can punch with the empty hand", () => {
+    const rig = arena([{ faction: "holy", at: ME, weapons: ["wand"] }]);
     const { world, log } = rig;
-    const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: { x: ME.x + 200, y: ME.y }, hp: 1e9 });
-    send(world, "p0", "target", { id: dummy });
-    run(rig, 3);
+    const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: { x: ME.x + 60, y: ME.y }, hp: 1e9 });
+    send(world, "p0", "target", { id: dummy }); run(rig, 3);
     expect(world.players.get("p0")!.weapon.lock).toBe(dummy);
-    P(world, 0).weapon0 = ""; // dropped, or gone with the body: the lock does not care
-    run(rig, 80);
-    expect(world.players.get("p0")!.weapon.lock).toBe(dummy);
+    P(world, 0).weapon0 = ""; run(rig, 1);
+    expect(world.players.get("p0")!.weapon.lock).toBeNull();
+    send(world, "p0", "attack", { a: 0 }); run(rig, 80);
     expect(fxOf(log, "swing").some((s) => s.weapon === "fists")).toBe(true);
   });
 });

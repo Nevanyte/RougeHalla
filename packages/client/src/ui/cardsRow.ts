@@ -23,7 +23,7 @@ export function countTag(count: number): string {
  *   Haste II (Base, tier II, x2)
  *   +16% attack speed
  *   All your Haste cards: +41% attack speed (I, II x2)   a base card, once the player holds two or more cards of its base
- *   AD: Attack damage: adds ...                           the stat the Attack Damage and Ability Power cards add
+ *   Offense: Offense: adds ...                           the stat the Offense and Soul Offence cards add
  *   Damage over time: Damage that ticks ...               one line per tag
  *   Not live yet: it does nothing.                        only for a card whose machinery is not in
  */

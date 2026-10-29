@@ -79,7 +79,7 @@ function makeCtx(s: Scene = {}): BrainContext {
   });
   const p = percept({
     now,
-    self: selfView({ id: "me", x: ME.x, y: ME.y, faction: "fire", weapons: ["axe", null], ...s.self }),
+    self: selfView({ id: "me", x: ME.x, y: ME.y, faction: "fire", weapons: ["wand", null], ...s.self }),
     hud: hudView(s.hud),
     fighters: s.foes ?? [],
     mobs: s.mobs ?? [],
@@ -278,11 +278,11 @@ describe("approach and lock", () => {
 
   it("is attacking only while locked, in the weapon's reach and in sight", () => {
     const t = createTactics(fakeWorld());
-    const bow: Partial<SelfView> = { weapons: ["bow", null], attackTarget: "foe" };
-    const reach = lockSpacing("bow").attackRange + 24;
+    const bow: Partial<SelfView> = { weapons: ["wand", null], attackTarget: "foe" };
+    const reach = lockSpacing("wand").attackRange + 24;
     expect(think(t, hunt, { self: bow, foes: [foe(reach - 5, 0)] }).attacking).toBe(true);
     expect(think(t, hunt, { self: bow, foes: [foe(reach + 5, 0)] }).attacking, "past the weapon's range").toBe(false);
-    expect(think(t, hunt, { self: { weapons: ["bow", null] }, foes: [foe(100, 0)] }).attacking, "not locked").toBe(false);
+    expect(think(t, hunt, { self: { weapons: ["wand", null] }, foes: [foe(100, 0)] }).attacking, "not locked").toBe(false);
     const walled = arena(64, 48, [[32, 3, 32, 44]]);
     const blind = foe(100, 0, { los: false });
     expect(think(t, hunt, { map: walled, self: bow, foes: [blind] }).attacking, "no line of sight").toBe(false);
@@ -324,8 +324,8 @@ describe("a camp fights as one: the lock on a mate is kept", () => {
     id, kind: "mob", faction: "fire", home: at(0, 0), campId: null, pos: at(100, 0), dotAt: NOW, seenAt: NOW, hpFrac: 1, inHand: "axe",
     awake: true, returning: false, alive: true, ...over,
   });
-  const goal = mob(70, 0, { id: "mob1" });
-  const mate = (over: Partial<MobView> = {}) => mob(60, 30, { id: "mob2", ...over });
+  const goal = mob(70, 0, { id: "mob1", inHand: "shield" });
+  const mate = (over: Partial<MobView> = {}) => mob(60, 30, { id: "mob2", inHand: "shield", ...over });
   const locked = (id: string): Partial<SelfView> => ({ attackTarget: id });
 
   it("sends no click while the lock is on a mate in reach, and counts as attacking", () => {
@@ -357,7 +357,7 @@ describe("a camp fights as one: the lock on a mate is kept", () => {
   });
 
   it("keeps the lock on a mob of the same camp however far apart they stand, but re-clicks one of another camp", () => {
-    const far = mob(60, 300, { id: "mob2" });
+    const far = mob(60, 300, { id: "mob2", inHand: "shield" });
     const one = memMob("mob1", { campId: "c1" });
     const same = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, far], memMobs: [one, memMob("mob2", { campId: "c1" })] });
     expect(same.intents).toEqual([]);
@@ -377,7 +377,7 @@ describe("a camp fights as one: the lock on a mate is kept", () => {
     expect(only(shooter, "lock"), "mobHunt leaves shooters alone: they back off to their leash").toMatchObject({ target: "mob1" });
     const elite = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, mate({ kind: "elite" })] });
     expect(only(elite, "lock"), "the hunt did not choose the elite").toMatchObject({ target: "mob1" });
-    const bothElite = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [mob(70, 0, { id: "mob1", kind: "elite" }), mate({ kind: "elite" })] });
+    const bothElite = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [mob(70, 0, { id: "mob1", kind: "elite", inHand: "shield" }), mate({ kind: "elite" })] });
     expect(bothElite.intents).toEqual([]);
   });
 
@@ -398,7 +398,7 @@ describe("swaps", () => {
     const t = createTactics(fakeWorld());
     const out = think(t, hunt, swapScene());
     expect(only(out, "swap")).toMatchObject({ slot: 1, priority: PRIORITY.combat });
-    expect(kinds(out).sort(), "the lock goes out beside it, on its own channel").toEqual(["lock", "swap"]);
+    expect(kinds(out).sort(), "the approach goes out beside the swap on its own channel").toEqual(["move", "swap"]);
     const keep = createTactics(fakeWorld());
     expect(kinds(think(keep, hunt, { self: { weapons: ["wand", "sword"], slot: 0 }, foes: [foe(300, 0, { inHand: "bow" })] }))).toEqual(["lock"]);
   });
@@ -406,7 +406,7 @@ describe("swaps", () => {
   it("swaps while locked too, and against a mob by what works on it", () => {
     const t = createTactics(fakeWorld());
     const out = think(t, hunt, swapScene({ self: { weapons: ["sword", "wand"], slot: 0, attackTarget: "foe" } }));
-    expect(kinds(out)).toEqual(["swap"]);
+    expect(kinds(out)).toEqual(["move", "swap"]);
     const m = createTactics(fakeWorld());
     const vsMob = think(m, farm, { self: { weapons: ["sword", "wand"], slot: 0 }, mobs: [mob(200, 0, { inHand: "shield" })] });
     expect(only(vsMob, "swap")).toMatchObject({ slot: 1 });
@@ -454,7 +454,7 @@ describe("swaps", () => {
   it("does not swap on an edge the bot does not know", () => {
     const ignorant: Knowledge = { ...fullKnowledge(), weaponEdge: () => 0 };
     const t = createTactics(fakeWorld());
-    expect(kinds(think(t, hunt, swapScene({ know: ignorant })))).toEqual(["lock"]);
+    expect(kinds(think(t, hunt, swapScene({ know: ignorant })))).toEqual(["move"]);
   });
 });
 
@@ -465,20 +465,20 @@ describe("an empty hand (a run starts on fists)", () => {
 
   it("fights on fists: with both slots empty it locks the foe it hunts, as an armed bot does, instead of failing", () => {
     const t = createTactics(fakeWorld());
-    const out = think(t, hunt, { self: bare, foes: [foe(300, 0)] });
+    const out = think(t, hunt, { self: bare, foes: [foe(50, 0)] });
     expect(only(out, "lock")).toMatchObject({ target: "foe", priority: PRIORITY.combat });
     expect(out.status.state).toBe("running");
-    expect(kinds(think(createTactics(fakeWorld()), farm, { self: bare, mobs: [mob(200, 0)] }))).toEqual(["lock"]);
+    expect(kinds(think(createTactics(fakeWorld()), farm, { self: bare, mobs: [mob(50, 0)] }))).toEqual(["lock"]);
   });
 
   it("counts as attacking once locked and inside fists' attack range, not at the sword's: fists reach 40 u", () => {
     const t = createTactics(fakeWorld());
     const spacing = lockSpacing("fists");
-    const close = think(t, hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(spacing.attackRange - 4, 0)] });
+    const close = think(t, hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(spacing.far - 4, 0)] });
     expect(close.attacking).toBe(true);
     // 10 u past fists' range plus the 24 u slack: inside a sword's, outside fists'.
-    const between = spacing.attackRange + 24 + 10;
-    expect(lockSpacing("sword").attackRange + 24).toBeGreaterThan(between);
+    const between = (spacing.attackRange + lockSpacing("sword").far) / 2;
+    expect(lockSpacing("sword").far).toBeGreaterThan(between);
     const mid = think(createTactics(fakeWorld()), hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(between, 0)] });
     expect(mid.attacking, "inside a sword's range, outside fists'").toBe(false);
     const sword = think(createTactics(fakeWorld()), hunt, { self: { weapons: ["sword", null], slot: 0, attackTarget: "foe" }, foes: [foe(between, 0)] });
@@ -520,17 +520,17 @@ describe("the orb-walk", () => {
     return { ...t, startedAt, readyAt: startedAt + t.intervalMs, leftAt: startedAt + t.windupMs + 20 };
   }
 
-  it("walks away after each bow shot has LEFT, re-locks timed to the cooldown, and does it again", () => {
+  it("walks away after each wand shot has LEFT, re-locks timed to the cooldown, and does it again", () => {
     const t = createTactics(fakeWorld());
     const rng = kiter();
-    const bow = shotTimes("bow", NOW + 100);
+    const bow = shotTimes("wand", NOW + 100);
     const base = { rng, foes: [chaser()] };
-    expect(think(t, hunt, { ...base, self: mine("bow", "foe", NOW - 500) }).intents).toEqual([]);
+    expect(think(t, hunt, { ...base, self: mine("wand", "foe", NOW - 500) }).intents).toEqual([]);
 
-    const drawing = think(t, hunt, { ...base, now: bow.startedAt + 200, self: mine("bow", "foe", bow.readyAt, { drawStartedAt: bow.startedAt }) });
+    const drawing = think(t, hunt, { ...base, now: bow.startedAt + 200, self: mine("wand", "foe", bow.readyAt, { drawStartedAt: bow.startedAt }) });
     expect(drawing.intents, "a move now would cancel the shot").toEqual([]);
 
-    const step = think(t, hunt, { ...base, now: bow.leftAt, self: mine("bow", "foe", bow.readyAt) });
+    const step = think(t, hunt, { ...base, now: bow.leftAt, self: mine("wand", "foe", bow.readyAt) });
     const move = only(step, "move");
     expect(move).toMatchObject({ priority: PRIORITY.combat, timing: { kind: "step" } });
     const to = moveTo(move);
@@ -538,34 +538,34 @@ describe("the orb-walk", () => {
     expect(to.y).toBeCloseTo(ME.y, 3);
     expect(t.stats().kiteCycles).toBe(1);
 
-    const waiting = think(t, hunt, { ...base, now: bow.leftAt + 30, self: mine("bow", "foe", bow.readyAt) });
+    const waiting = think(t, hunt, { ...base, now: bow.leftAt + 30, self: mine("wand", "foe", bow.readyAt) });
     expect(waiting.intents, "the walk has not taken yet: the lock is still on").toEqual([]);
 
-    const relock = think(t, hunt, { ...base, now: bow.leftAt + 60, self: mine("bow", null, bow.readyAt) });
+    const relock = think(t, hunt, { ...base, now: bow.leftAt + 60, self: mine("wand", null, bow.readyAt) });
     expect(only(relock, "lock")).toMatchObject({ target: "foe", timing: { kind: "timed", due: bow.readyAt - 100 } });
-    const late = think(t, hunt, { ...base, now: bow.readyAt + 50, self: mine("bow", null, bow.readyAt) });
+    const late = think(t, hunt, { ...base, now: bow.readyAt + 50, self: mine("wand", null, bow.readyAt) });
     expect(only(late, "lock"), "overdue: as soon as it can").toMatchObject({ timing: { kind: "timed", due: bow.readyAt + 50 } });
 
-    const back = think(t, hunt, { ...base, now: bow.readyAt + 100, self: mine("bow", "foe", bow.readyAt) });
+    const back = think(t, hunt, { ...base, now: bow.readyAt + 100, self: mine("wand", "foe", bow.readyAt) });
     expect(back.intents).toEqual([]);
 
-    const next = shotTimes("bow", bow.readyAt);
-    think(t, hunt, { ...base, now: next.leftAt, self: mine("bow", "foe", next.readyAt) });
+    const next = shotTimes("wand", bow.readyAt);
+    think(t, hunt, { ...base, now: next.leftAt, self: mine("wand", "foe", next.readyAt) });
     expect(t.stats().kiteCycles).toBe(2);
   });
 
   it("gives up on a walk the server never took, and kites the next shot", () => {
     const t = createTactics(fakeWorld());
     const rng = kiter();
-    const bow = shotTimes("bow", NOW + 100);
+    const bow = shotTimes("wand", NOW + 100);
     const base = { rng, foes: [chaser()] };
-    think(t, hunt, { ...base, self: mine("bow", "foe", NOW - 500) });
-    expect(kinds(think(t, hunt, { ...base, now: bow.leftAt, self: mine("bow", "foe", bow.readyAt) }))).toEqual(["move"]);
-    expect(think(t, hunt, { ...base, now: bow.leftAt + 500, self: mine("bow", "foe", bow.readyAt) }).intents, "still waiting").toEqual([]);
+    think(t, hunt, { ...base, self: mine("wand", "foe", NOW - 500) });
+    expect(kinds(think(t, hunt, { ...base, now: bow.leftAt, self: mine("wand", "foe", bow.readyAt) }))).toEqual(["move"]);
+    expect(think(t, hunt, { ...base, now: bow.leftAt + 500, self: mine("wand", "foe", bow.readyAt) }).intents, "still waiting").toEqual([]);
     // 900 ms on, the lock is still on: the walk was lost. The shot after is a cycle again.
-    const next = shotTimes("bow", bow.readyAt);
-    think(t, hunt, { ...base, now: bow.leftAt + 1000, self: mine("bow", "foe", bow.readyAt) });
-    expect(kinds(think(t, hunt, { ...base, now: next.leftAt, self: mine("bow", "foe", next.readyAt) }))).toEqual(["move"]);
+    const next = shotTimes("wand", bow.readyAt);
+    think(t, hunt, { ...base, now: bow.leftAt + 1000, self: mine("wand", "foe", bow.readyAt) });
+    expect(kinds(think(t, hunt, { ...base, now: next.leftAt, self: mine("wand", "foe", next.readyAt) }))).toEqual(["move"]);
     expect(t.stats().kiteCycles).toBe(2);
   });
 
@@ -581,14 +581,14 @@ describe("the orb-walk", () => {
     expect(kinds(late)).toEqual(["move"]);
   });
 
-  it("stands and shoots when too little of the cooldown is left to walk in, as the fast bows do", () => {
+  it("stands and shoots when too little of the cooldown is left to walk in, as the fast wands do", () => {
     // Near the interval floor, the 30%-interval draw leaves too little time to walk in, reacquire, and start another attack.
     for (const faction of ["sentenced", "fire"] as const) {
       const t = createTactics(fakeWorld());
       const rng = kiter();
       const asMult = 3.5;
-      const shot = shotTimes("bow", NOW + 100, faction, asMult);
-      const self = (readyAt: number): Partial<SelfView> => mine("bow", "foe", readyAt, { faction, asMult });
+      const shot = shotTimes("wand", NOW + 100, faction, asMult);
+      const self = (readyAt: number): Partial<SelfView> => mine("wand", "foe", readyAt, { faction, asMult });
       think(t, hunt, { rng, foes: [chaser()], self: self(NOW - 500) });
       const out = think(t, hunt, { rng, now: shot.leftAt, foes: [chaser()], self: self(shot.readyAt) });
       expect(out.intents, faction).toEqual([]);
@@ -600,9 +600,9 @@ describe("the orb-walk", () => {
     const t = createTactics(fakeWorld());
     const rng = kiter();
     const base = { rng, foes: [chaser()] };
-    think(t, hunt, { ...base, self: mine("bow", "foe", NOW + 600) });
+    think(t, hunt, { ...base, self: mine("wand", "foe", NOW + 600) });
     // 250 ms more on the cooldown (SWAP_SECONDS): without the guard this reads as a shot that left 10 ms ago with 530 ms to walk in.
-    const out = think(t, hunt, { ...base, now: NOW + 320, self: mine("bow", "foe", NOW + 850) });
+    const out = think(t, hunt, { ...base, now: NOW + 320, self: mine("wand", "foe", NOW + 850) });
     expect(out.intents).toEqual([]);
     expect(t.stats().kiteCycles).toBe(0);
   });
@@ -612,10 +612,10 @@ describe("the orb-walk", () => {
     for (const draw of [0, 0.25, 0.75, 0.999]) {
       const t = createTactics(fakeWorld());
       const rng = scripted(0.5, 0.1, draw);
-      const bow = shotTimes("bow", NOW + 100);
+      const bow = shotTimes("wand", NOW + 100);
       const base = { rng, foes: [chaser()] };
-      think(t, hunt, { ...base, self: mine("bow", "foe", NOW - 500) });
-      const out = think(t, hunt, { ...base, now: bow.leftAt, self: mine("bow", "foe", bow.readyAt) });
+      think(t, hunt, { ...base, self: mine("wand", "foe", NOW - 500) });
+      const out = think(t, hunt, { ...base, now: bow.leftAt, self: mine("wand", "foe", bow.readyAt) });
       const to = moveTo(only(out, "move"));
       expect(angleGap(Math.atan2(to.y - ME.y, to.x - ME.x), Math.PI)).toBeLessThanOrEqual(o.angleJitter + 1e-9);
       expect(dist(to, ME)).toBeCloseTo(o.stepU, 3);
@@ -624,7 +624,7 @@ describe("the orb-walk", () => {
 
   /** One full shot against `f`, returning whether the bot stepped away. */
   function steps(f: FighterView, over: { weapon?: WeaponId; dice?: number; tier?: TierId; persona?: PersonaId; map?: GameMap } = {}): boolean {
-    const weapon = over.weapon ?? "bow";
+    const weapon = over.weapon ?? "wand";
     const t = createTactics(fakeWorld());
     const rng = scripted(0.5, over.dice ?? 0.1, 0.5);
     const shot = shotTimes(weapon, NOW + 100);
@@ -636,7 +636,7 @@ describe("the orb-walk", () => {
 
   it("is used only by a ranged bot, against a melee chaser, when the dice for the engagement say so", () => {
     expect(steps(chaser())).toBe(true);
-    expect(steps(chaser({ inHand: "bow" })), "against a shooter: stand and trade").toBe(false);
+    expect(steps(chaser({ inHand: "wand" })), "against a shooter: stand and trade").toBe(false);
     expect(steps(chaser({ inHand: "wand" })), "against a shooter: stand and trade").toBe(false);
     expect(steps(chaser(), { weapon: "sword" }), "melee never kites").toBe(false);
     expect(steps(chaser(), { weapon: "axe" })).toBe(false);
@@ -658,13 +658,13 @@ describe("the orb-walk", () => {
     const t = createTactics(fakeWorld());
     const rng = scripted(0.5, 0.1);
     const base = { rng, foes: [chaser()] };
-    think(t, hunt, { ...base, self: mine("bow", "foe", NOW - 500) });
+    think(t, hunt, { ...base, self: mine("wand", "foe", NOW - 500) });
     let ready = NOW + 100;
     for (let i = 0; i < 3; i++) {
-      const shot = shotTimes("bow", ready);
-      think(t, hunt, { ...base, now: shot.leftAt, self: mine("bow", "foe", shot.readyAt) });
-      think(t, hunt, { ...base, now: shot.leftAt + 100, self: mine("bow", null, shot.readyAt) });
-      think(t, hunt, { ...base, now: shot.readyAt, self: mine("bow", "foe", shot.readyAt) });
+      const shot = shotTimes("wand", ready);
+      think(t, hunt, { ...base, now: shot.leftAt, self: mine("wand", "foe", shot.readyAt) });
+      think(t, hunt, { ...base, now: shot.leftAt + 100, self: mine("wand", null, shot.readyAt) });
+      think(t, hunt, { ...base, now: shot.readyAt, self: mine("wand", "foe", shot.readyAt) });
       ready = shot.readyAt;
     }
     expect(t.stats().kiteCycles).toBe(3);
@@ -676,10 +676,10 @@ describe("the orb-walk", () => {
     const f = chaser();
     expect(steps(f, { map: wall })).toBe(true);
     const t = createTactics(fakeWorld());
-    const bow = shotTimes("bow", NOW + 100);
+    const bow = shotTimes("wand", NOW + 100);
     const base = { rng: kiter(), foes: [f], map: wall };
-    think(t, hunt, { ...base, self: mine("bow", "foe", NOW - 500) });
-    const out = think(t, hunt, { ...base, now: bow.leftAt, self: mine("bow", "foe", bow.readyAt) });
+    think(t, hunt, { ...base, self: mine("wand", "foe", NOW - 500) });
+    const out = think(t, hunt, { ...base, now: bow.leftAt, self: mine("wand", "foe", bow.readyAt) });
     const to = moveTo(only(out, "move"));
     expect(services(wall).paths.clear(ME, to)).toBe(true);
     expect(dist(to, at(150, 0)), "still away from the chaser").toBeGreaterThan(150);

@@ -194,9 +194,9 @@ describe("SettingsPanel controls", () => {
 
   it("the map text size is three buttons in a group, one pressed, and a click sets it live and saves it", () => {
     const { root, store, data } = setup();
-    const group = root.find((e) => e.getAttribute("role") === "group")[0]!;
+    const group = root.find((e) => e.getAttribute("aria-labelledby") === "ts-label")[0]!;
     expect(group.getAttribute("aria-labelledby")).toBe("ts-label");
-    const buttons = root.byClass("sp-seg-btn");
+    const buttons = group.byClass("sp-seg-btn");
     expect(buttons.map((b) => b.textContent)).toEqual(["100%", "125%", "150%"]);
     for (const b of buttons) { expect(b.tagName).toBe("BUTTON"); expect(b.type).toBe("button"); }
     expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
@@ -206,6 +206,16 @@ describe("SettingsPanel controls", () => {
     expect(data.size).toBe(1);
     store.update({ textScale: 1.25 });
     expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
+  });
+
+  it("changes the minimap size live", () => {
+    const { root, store } = setup();
+    const group = root.find(e => e.getAttribute("aria-label") === "Minimap size")[0]!;
+    const buttons = group.byClass("sp-seg-btn");
+    expect(buttons.map(b => b.textContent)).toEqual(["75%", "100%", "125%", "150%", "200%"]);
+    buttons[3]!.click();
+    expect(store.get().minimapScale).toBe(1.5);
+    expect(buttons[3]!.getAttribute("aria-pressed")).toBe("true");
   });
 
   it("follows changes made elsewhere", () => {

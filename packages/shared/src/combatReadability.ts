@@ -38,13 +38,13 @@ export type ReadableFighter = WireMirrors & {
 };
 
 const STAT_META: Record<InvestedStatKey, Pick<InvestedStat, "label" | "short">> = {
-  ad: { label: "Attack Damage", short: "AD" },
-  ap: { label: "Ability Power", short: "AP" },
+  ad: { label: "Offense", short: "Offense" },
+  ap: { label: "Soul Offence", short: "SO" },
   damage: { label: "Damage", short: "DMG" },
   health: { label: "Health", short: "HP" },
   attackSpeed: { label: "Attack Speed", short: "AS" },
-  armor: { label: "Armor", short: "ARM" },
-  mr: { label: "Magic Resist", short: "MR" },
+  armor: { label: "Defense", short: "DEF" },
+  mr: { label: "Soul Defense", short: "SD" },
   speed: { label: "Move Speed", short: "SPD" },
   leech: { label: "Leech", short: "LEECH" },
 };
@@ -59,7 +59,7 @@ export function combatDamageShares(p: ReadableFighter): DamageShares {
 export function weaponDamageShares(p: ReadableFighter, weaponId: string): DamageShares {
   if (!isFactionId(p.faction)) return { phys: 1, magic: 0, true: 0 };
   // Player packets use the arena-paced faction: DUEL_PACE scales its hit, but leaves weapon stat-scaling additions alone.
-  // Using the design-sheet hit here would therefore overstate the share contributed by AD/AP/HP/defense.
+  // Using the design-sheet hit here would therefore overstate the share contributed by Offense/SO/HP/defense.
   const faction = pacedFaction(FACTIONS[p.faction]);
   const wire = decodeMirrors(p);
   const weapon: WeaponId = isWeaponId(weaponId) ? weaponId : "fists";

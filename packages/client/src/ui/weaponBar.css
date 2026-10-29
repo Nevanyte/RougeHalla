@@ -128,3 +128,11 @@
 }
 
 html[data-ui-narrow] .wb-slot { width: 88px; }
+
+.wb-consumables { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.wb-consumable { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid #46505b; border-radius: 5px; background: var(--hud-surface); font-size: 11px; }
+.wb-consumable.empty { opacity: .55; }
+.wb-healing strong { color: #72e5a2; }
+.wb-speed strong { color: #80d6ff; }
+.wb-consumable-status { color: #ffe082; }
+.wb-controls { color: #bbc8d5; font-size: 11px; padding: 2px 8px; background: #11171de6; border-radius: 3px; }

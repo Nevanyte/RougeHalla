@@ -429,7 +429,8 @@ describe("train card", () => {
     expect(rtOf(world).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(rtOf(world).mobKills).toBe(0);
     expect(p.build.size).toBe(0);
-    expect(world.state.containers.size).toBe(containers); // no weapon dropped, no chest
+    expect(world.state.containers.size).toBe(containers + 1); // one physical camp recovery potion, no weapon or augment chest
+    expect([...world.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
     expect(rewardChests(world)).toEqual([]);
     expect(world.state.camps.length).toBe(0);
     expect(world.state.phase).toBe("active");
@@ -703,6 +704,7 @@ describe("train clear", () => {
     const world = trainingWorld("fire");
     train(world, { cmd: "camp", id: "emberImp" });
     const [id, m] = practiceMobs(world)[0]!;
+    me(world).weapon0 = "wand";
     me(world).x = m.x - 40;
     me(world).y = m.y;
     rtOf(world).inputs.pushAction({ kind: "target", id });

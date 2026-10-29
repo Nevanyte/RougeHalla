@@ -1,5 +1,5 @@
 // The client's copy of the server's pickup rule, so the highlight, the F key and the weapon bar's hint agree with it.
-import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, questDefById, type GameMap, type QuestDef, type Vec2, type WeaponId } from "@raid/shared";
+import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, isConsumableId, questDefById, type GameMap, type QuestDef, type Vec2, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { canTalk } from "../ui/questDialogMath";
 import { questAccepted, questItemQuestId, visibleQuest, type QuestCollection, type QuestStateLike } from "../ui/questModel";
@@ -18,7 +18,7 @@ export function canInteract(map: GameMap, from: Vec2, to: Vec2): boolean {
  * shared reward chest, which is taken with `choose` from the chest panel and never with F (it holds no items).
  */
 export function containerWeapon(c: ContainerState): WeaponId | null {
-  if (c.kind === "reward" || c.items.length === 0) return null;
+  if (c.kind === "reward" || c.kind === "chest" || c.items.length === 0) return null;
   const def = c.items.at(0).def;
   return isWeaponId(def) ? def : null;
 }
@@ -86,7 +86,8 @@ export function nearestContainer(
     // Cheapest first: nearer than the best so far and within reach (canInteract is the exact test), the shape of the container,
     // then the pickup rule, then the line.
     if (sq >= bestSq || sq > (INTERACT_RANGE + 1) ** 2) return;
-    if (c.kind === "quest" ? c.items.length === 0 || !questItemEligible(c, questContext) : containerWeapon(c) === null) return;
+    if (c.kind === "quest") { if (c.items.length === 0 || !questItemEligible(c, questContext)) return; }
+    else if (c.kind !== "cannon" && !(c.items.length > 0 && (c.kind === "chest" || containerWeapon(c) !== null || isConsumableId(c.items.at(0)?.def)))) return;
     if (!canInteract(map, from, c)) return;
     best = c;
     bestSq = sq;

@@ -52,7 +52,7 @@ describe("training tips", () => {
     expect(text).toMatch(/\bQ\b/);
     expect(text).toMatch(/1 \/ 2/);
     expect(text).toMatch(/shield dummy blocks and reflects/i);
-    expect(text).toMatch(/\bD casts your faction's Wish\b/);
+    expect(text).toMatch(/\bE casts your faction's Wish\b/);
     expect(text).toMatch(/5 s cooldown/);
     for (const line of TRAINING_HINTS) expect(line.length).toBeLessThanOrEqual(70);
   });

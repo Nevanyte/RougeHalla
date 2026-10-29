@@ -93,7 +93,7 @@ describe("faction duel parity with the Python design engine", () => {
 
   it("keeps display names: only holy is renamed", () => {
     for (const id of FACTION_IDS) {
-      expect(FACTIONS[id].displayName).toBe(id === "holy" ? "Demon Blood" : FACTIONS[id].name);
+      expect(FACTIONS[id].displayName).toBe(id === "holy" ? "Holy" : FACTIONS[id].name);
     }
     expect(FACTIONS.holy.name).toBe("Holy");
   });

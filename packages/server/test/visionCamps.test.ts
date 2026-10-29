@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
-import { CAMP_RESPAWN_MS, elitesOf, mapFromTiles, mulberry32, TILE, VISION_TRAIL_MS } from "@raid/shared";
+import { CAMP_RESPAWN_MS, CAMP_WARD_MS, elitesOf, mapFromTiles, mulberry32, TILE, VISION_TRAIL_MS } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { CAMP_CLEARED, CAMP_IDLE, install as installCamps } from "../src/sim/camps";
 import { combatant } from "../src/sim/combatant";
@@ -56,7 +56,7 @@ describe("camp clear clocks and wards", () => {
     expect(camp.clearedAt).toBe(4000);
     expect(camp.respawnAt).toBe(4000 + CAMP_RESPAWN_MS);
     expect(camp.wardOwner).toBe("p0");
-    expect(camp.wardExpiresAt).toBe(camp.respawnAt);
+    expect(camp.wardExpiresAt).toBe(camp.clearedAt + CAMP_WARD_MS);
     expect(w.state.camps[1]!.state).toBe(CAMP_IDLE);
     // Corpses and repeated kills do not reset the timer or hand off ownership.
     w.state.serverTime += 1000;
@@ -79,7 +79,7 @@ describe("camp clear clocks and wards", () => {
   it("gives only the clearing player live ward vision and ends it exactly at the deadline, without residual trail", () => {
     const w = make(), site = w.map.camps[0]!;
     clear(w);
-    const deadline = w.state.camps[0]!.respawnAt;
+    const deadline = w.state.camps[0]!.wardExpiresAt;
     expect(canPlayerSee(w, "p0", site)).toBe(true);
     expect(canPlayerSee(w, "p1", site)).toBe(false);
     expect(getVisionMemory(w, "p0")!.canSee(site, w.state.serverTime)).toBe(false);
@@ -111,7 +111,7 @@ describe("camp clear clocks and wards", () => {
     expect(camp.alive).toBe(0);
     expect(camp.clearedAt).toBe(1000);
     expect(camp.respawnAt).toBe(181000);
-    expect(camp.wardExpiresAt).toBe(181000);
+    expect(camp.wardExpiresAt).toBe(121000);
     expect(camp.wardOwner).toBe("p0");
     w.state.serverTime = camp.respawnAt; respawnCamps(w);
     decoder.decode(encoder.encode()); encoder.discardChanges();

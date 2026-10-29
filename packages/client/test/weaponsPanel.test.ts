@@ -39,11 +39,11 @@ describe("weapon guide", () => {
     const picker = root.one("weapon-guide-champion");
     expect(picker.children).toHaveLength(FACTION_IDS.length);
     picker.value = "holy"; picker.dispatch("change");
-    expect(root.one("weapon-guide-example").textContent).toContain("Demon Blood + Sword");
+    expect(root.one("weapon-guide-example").textContent).toContain("Holy + Sword");
     expect(root.one("weapon-guide-after").textContent).not.toContain("magic");
     root.byClass("weapon-guide-option")[3]!.click();
     expect(root.one("weapon-guide-champion").value).toBe("holy");
-    expect(root.one("weapon-guide-after").textContent).toContain("combined bonus armor/MR");
+    expect(root.one("weapon-guide-after").textContent).toContain("combined bonus Defense/SD");
   });
 
   it("shows each champion's top two recommendations prominently and keeps the next-run pick unchanged", () => {

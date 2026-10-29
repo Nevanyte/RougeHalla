@@ -35,15 +35,15 @@ describe("the controls table", () => {
 
   it("lists the run controls the owner named", () => {
     expect(find("run", "Right-click", /^Move/)).toBeDefined();
-    expect(find("run", "Left-click", /lock the nearest enemy and attack/i)).toBeDefined();
-    expect(find("run", "S", /stop/i)).toBeDefined();
+    expect(find("run", "Left-click", /wand locks an enemy/i)).toBeDefined();
+    expect(find("run", "W", /move/i)?.keys).toEqual(["W", "A", "S", "D"]);
     const slots = find("run", "1");
     expect(slots?.keys).toEqual(["1", "2"]);
     expect(slots?.action).toMatch(/weapon slot/i);
     expect(find("run", "Q", /swap/i)).toBeDefined();
     expect(find("run", "F", /pick up/i)).toBeDefined();
     // The practice room gives a Wish a 5 s cooldown (TRAINING_WISH_COOLDOWN_SECONDS), and the card is the same there.
-    expect(find("run", "D", /wish/i)?.action).toMatch(/5 min cooldown, 5 s in training/);
+    expect(find("run", "E", /wish/i)?.action).toMatch(/5 min cooldown, 5 s in training/);
     expect(find("run", "J", /quest log/i)).toBeDefined();
     expect(find("run", "Right-click", /minimap/i)?.action).toMatch(/move/i);
     expect(find("run", "Hold left-click", /minimap/i)?.action).toMatch(/peek/i);
@@ -81,7 +81,7 @@ describe("the controls table", () => {
     const raid = read("../src/scenes/RaidScene.ts");
     const hub = read("../src/scenes/HubScene.ts");
     const chrome = read("../src/ui/chrome.ts");
-    for (const code of ['"KeyS"', '"KeyQ"', '"KeyF"', '"KeyD"', '"Escape"', "(?:Digit|Numpad)([12])"]) expect(raid).toContain(code);
+    for (const code of ['"KeyQ"', '"KeyF"', '"KeyE"', '"KeyR"', '"Escape"', "(?:Digit|Numpad)([12])"]) expect(raid).toContain(code);
     expect(read("../src/ui/questLog.ts")).toContain('"KeyJ"');
     expect(read("../src/ui/mapHold.ts")).toContain('"Tab"');
     const planning = read("../src/ui/planning.ts");
@@ -215,15 +215,15 @@ describe("the Mechanics page (data)", () => {
     }
   });
 
-  it("lists AD and AP and every tag of the glossary, worded as the cards' chips word them, with the damage-type line first", () => {
+  it("lists Offense and SO and every tag of the glossary, worded as the cards' chips word them, with the damage-type line first", () => {
     const terms = by("terms");
     expect(terms.intro).toBe(DAMAGE_TYPE_LINE);
     expect(terms.entries).toEqual(GLOSSARY.map((g) => ({ term: g.term, text: g.text })));
     const names = terms.entries.map((e) => e.term);
-    for (const needed of ["AD", "AP", "Physical", "Magic", "True", "Damage over time", "On-hit", "Returned", "Block", "Slow", "Heal", "Ramping", "Execute", "Critical strike", "Area"]) {
+    for (const needed of ["Offense", "SO", "Physical", "Magic", "True", "Damage over time", "On-hit", "Returned", "Block", "Slow", "Heal", "Ramping", "Execute", "Critical strike", "Area"]) {
       expect(names, needed).toContain(needed);
     }
-    expect(terms.entries.find((e) => e.term === "AD")!.text).toBe(STAT_GLOSSARY.ad.text);
+    expect(terms.entries.find((e) => e.term === "Offense")!.text).toBe(STAT_GLOSSARY.ad.text);
     for (const tag of MECHANIC_TAGS) expect(terms.entries.find((e) => e.term === TAG_GLOSSARY[tag].term)?.text, tag).toBe(TAG_GLOSSARY[tag].text);
   });
 
@@ -255,16 +255,16 @@ describe("the Mechanics page (data)", () => {
     expect(text(`${FACTIONS.plague.displayName}: Disease and execute`)).toBe("Magic, Damage over time, Execute");
     expect(text(`${FACTIONS.frost.displayName}: Chill`)).toBe("Slow");
     expect(text(`${FACTIONS.holy.displayName}: Lifesteal`)).toBe("Heal");
-    // The Holy faction is shown to players as Demon Blood.
-    expect(sig.some((e) => e.term.startsWith("Demon Blood:"))).toBe(true);
+    // The Holy faction is shown to players as Holy.
+    expect(sig.some((e) => e.term.startsWith("Holy:"))).toBe(true);
   });
 
   it("lists each weapon with what it scales with and what it does, from the weapon table", () => {
     const rows = by("weapons").entries;
     expect(rows.map((e) => e.term)).toEqual(WEAPON_TAGS.map((r) => WEAPONS[r.weapon].name));
-    expect(rows.find((e) => e.term === "Wand")!.text).toContain("Scales with AP 1.0 + AD 0.3");
-    expect(rows.find((e) => e.term === "Sword")!.text).toContain("Scales with AD 1.0");
-    expect(rows.find((e) => e.term === "Fists")!.text).toContain("Scales with AD 0.6 + AP 0.6");
+    expect(rows.find((e) => e.term === "Wand")!.text).toContain("Scales with SO 1.0 + Offense 0.3");
+    expect(rows.find((e) => e.term === "Sword")!.text).toContain("Scales with Offense 1.0");
+    expect(rows.find((e) => e.term === "Fists")!.text).toContain("Scales with Offense 0.6 + SO 0.6");
     for (const row of WEAPON_TAGS) expect(rows.find((e) => e.term === WEAPONS[row.weapon].name)!.text).toContain(row.note);
   });
 });

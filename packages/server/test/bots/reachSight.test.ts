@@ -101,8 +101,9 @@ describe("attacking is the weapon's reach, as the server's lock decides it", () 
     expect(think(WALL, weapon, dx)).toBe(false);
   });
 
-  it("is still attacking only while locked and in range", () => {
-    expect(think(OPEN, "sword", 64, false), "not locked").toBe(false);
+  it("requires a lock for the wand, while a directional sword attacks in reach", () => {
+    expect(think(OPEN, "wand", 64, false), "wand not locked").toBe(false);
+    expect(think(OPEN, "sword", 64, false), "directional attack needs no lock").toBe(true);
     expect(think(OPEN, "sword", lockSpacing("sword").attackRange + 60), "out of range").toBe(false);
   });
 

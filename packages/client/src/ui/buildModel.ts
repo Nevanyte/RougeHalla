@@ -1,5 +1,5 @@
-// The gained-stat strip's numbers and words, pure so they are tested without a DOM (ui/buildHud.ts draws them): AD, AP, generic damage,
-// armor, magic resistance, attack speed, move speed, lifesteal, and health above faction baseline. Stat mirrors are decoded from the
+// The gained-stat strip's numbers and words, pure so they are tested without a DOM (ui/buildHud.ts draws them): Offense, SO, generic damage,
+// armor, Soul Defense, attack speed, move speed, lifesteal, and health above faction baseline. Stat mirrors are decoded from the
 // authoritative synced fields; card and mob rewards are folded with the same shared helpers the sim uses.
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
@@ -15,7 +15,7 @@ export const HUD_GAIN_IDS = ["ad", "ap", "damage", "as", "leech", "health", "arm
 
 export interface BuildStat {
   id: BuildStatId;
-  /** The cell's label: "AD", "Armor", "PvP". */
+  /** The cell's label: "Offense", "Defense", "PvP". */
   label: string;
   /** The number or short phrase: "+24", "215", "x1.39". */
   value: string;
@@ -79,7 +79,7 @@ export function cardLifesteal(build: CardCounts | null | undefined, faction: str
   return { share: lifestealTotal(0, rows, mult, 0, farm), doubled, hasDoubler };
 }
 
-/** The scaling of the weapon in hand per point, in words, for the AD and AP tooltips ("Your Wand turns each point into 1.2 damage a second"). */
+/** The scaling of the weapon in hand per point, in words, for the Offense and SO tooltips ("Your Wand turns each point into 1.2 damage a second"). */
 function perPoint(weapon: WeaponId, key: "ad" | "ap"): number {
   return WEAPONS[weapon].scaling[key] ?? 0;
 }
@@ -104,7 +104,7 @@ export function buildStats(input: BuildInput): BuildStat[] {
     + (apPer > 0 ? `Your ${w.name} turns each point into ${num(apPer)} magic damage a second at base attack speed.` : `Your ${w.name} gets nothing from it directly.`)
     + (spec?.mechanic === "dragonslayer" || spec?.mechanic === "rat_king"
       ? ` Your engaged burn or disease also gains ${num(AP_DOT_RATIO)} magic damage a second per point.`
-      : " Your base passive and Wish have no direct AP scaling; augments may add their own effects.");
+      : " Your base passive and Wish have no direct SO scaling; augments may add their own effects.");
 
   const armorBase = spec?.armor ?? 0;
   const mrBase = spec?.shield ?? 0;
@@ -112,14 +112,14 @@ export function buildStats(input: BuildInput): BuildStat[] {
   const mr = mrBase + m.shieldBonus;
 
   const stats: BuildStat[] = [
-    { id: "ad", label: "AD", value: `+${num(m.adBonus)}`, tip: ad, dim: m.adBonus === 0 },
-    { id: "ap", label: "AP", value: `+${num(m.apBonus)}`, tip: ap, dim: m.apBonus === 0 },
+    { id: "ad", label: "Offense", value: `+${num(m.adBonus)}`, tip: ad, dim: m.adBonus === 0 },
+    { id: "ap", label: "SO", value: `+${num(m.apBonus)}`, tip: ap, dim: m.apBonus === 0 },
     {
-      id: "armor", label: "Armor", value: num(armor), dim: m.armorBonus === 0,
+      id: "armor", label: "Defense", value: num(armor), dim: m.armorBonus === 0,
       tip: `Physical damage you take is cut by ${cutPercent(armor)}%. ${num(armorBase)} from your base and ${num(m.armorBonus)} from your cards.`,
     },
     {
-      id: "mr", label: "MR", value: num(mr), dim: m.shieldBonus === 0,
+      id: "mr", label: "SD", value: num(mr), dim: m.shieldBonus === 0,
       tip: `Magic damage you take is cut by ${cutPercent(mr)}%. ${num(mrBase)} from your base and ${num(m.shieldBonus)} from your cards. True damage ignores both.`,
     },
     {
@@ -165,14 +165,14 @@ export function buildGains(input: BuildInput): BuildStat[] {
     }
   }
   const gains: Record<typeof HUD_GAIN_IDS[number], BuildStat> = {
-    ad: { id: "ad", label: "AD", value: signed(num(m.adBonus)), tip: `Attack damage gained from cards and normal-mob kills: ${signed(num(m.adBonus))} points.`, dim: m.adBonus === 0 },
-    ap: { id: "ap", label: "AP", value: signed(num(m.apBonus)), tip: `Ability power gained from cards and normal-mob kills: ${signed(num(m.apBonus))} points.`, dim: m.apBonus === 0 },
-    damage: { id: "damage", label: "Damage gained", value: percentPoints(damageBonus), tip: `Unconditional generic damage bonus from normal-mob kills and unconditional card effects: ${percentPoints(damageBonus)}. This is separate from attack damage and ability power.`, dim: damageBonus === 0 },
+    ad: { id: "ad", label: "Offense", value: signed(num(m.adBonus)), tip: `Offense gained from cards and normal-mob kills: ${signed(num(m.adBonus))} points.`, dim: m.adBonus === 0 },
+    ap: { id: "ap", label: "SO", value: signed(num(m.apBonus)), tip: `Soul Offence gained from cards and normal-mob kills: ${signed(num(m.apBonus))} points.`, dim: m.apBonus === 0 },
+    damage: { id: "damage", label: "Damage gained", value: percentPoints(damageBonus), tip: `Unconditional generic damage bonus from normal-mob kills and unconditional card effects: ${percentPoints(damageBonus)}. This is separate from Offense and Soul Offence.`, dim: damageBonus === 0 },
     as: { id: "as", label: "Attack speed", value: speedGain(m.asMult), tip: `Attack-speed change from your cards and effects, relative to the base pace: ${speedGain(m.asMult)}.`, dim: m.asMult === 1 },
     leech: { id: "leech", label: "Life steal", value: percentPoints(ls), tip: `Life steal gained from your cards and normal-mob kills: ${percentPoints(ls)} of damage dealt. Faction life steal is not included.`, dim: ls === 0 },
     health: { id: "health", label: "Health gained", value: `+${num(hpGain)}`, tip: `Maximum health gained above your faction baseline: +${num(hpGain)} HP.`, dim: hpGain === 0 },
-    armor: { id: "armor", label: "Armor", value: signed(num(m.armorBonus)), tip: `Armor gained from cards and normal-mob kills: ${signed(num(m.armorBonus))} points.`, dim: m.armorBonus === 0 },
-    mr: { id: "mr", label: "Magic resistance", value: signed(num(m.shieldBonus)), tip: `Magic resistance gained from cards and normal-mob kills: ${signed(num(m.shieldBonus))} points.`, dim: m.shieldBonus === 0 },
+    armor: { id: "armor", label: "Defense", value: signed(num(m.armorBonus)), tip: `Defense gained from cards and normal-mob kills: ${signed(num(m.armorBonus))} points.`, dim: m.armorBonus === 0 },
+    mr: { id: "mr", label: "Soul Defense", value: signed(num(m.shieldBonus)), tip: `Soul Defense gained from cards and normal-mob kills: ${signed(num(m.shieldBonus))} points.`, dim: m.shieldBonus === 0 },
     move: { id: "move", label: "Move speed", value: speedGain(m.speedMult), tip: `Movement-speed change from cards and effects, relative to base pace: ${speedGain(m.speedMult)}.`, dim: m.speedMult === 1 },
   };
   return HUD_GAIN_IDS.map(id => gains[id]);
@@ -180,14 +180,14 @@ export function buildGains(input: BuildInput): BuildStat[] {
 
 function signed(value: string): string { return value.startsWith("-") ? value : `+${value}`; }
 
-/** One cell as a line of text ("AD +24"), for tests and the aria label. */
+/** One cell as a line of text ("Offense +24"), for tests and the aria label. */
 export function statLine(s: BuildStat): string {
   return `${s.label} ${s.value}`;
 }
 
 // -------------------------------------------------------------------------------------------------------- weapon scaling
 
-const SCALING_LABEL: Readonly<Record<string, string>> = { ad: "AD", ap: "AP", hp: "bonus HP", def: "bonus armor/MR" };
+const SCALING_LABEL: Readonly<Record<string, string>> = { ad: "Offense", ap: "SO", hp: "bonus HP", def: "bonus Defense/SD" };
 
 /** A scaling number: one decimal, two when the second matters (0.02). */
 function scale(v: number): string {
@@ -195,7 +195,7 @@ function scale(v: number): string {
 }
 
 /**
- * What a weapon's hits scale with, biggest term first ("AD 1.0", "AP 1.2 + AD 0.3", "AD 1.2 + bonus HP 0.02"): the points of raw damage
+ * What a weapon's hits scale with, biggest term first ("Offense 1.0", "SO 1.2 + Offense 0.3", "Offense 1.2 + bonus HP 0.02"): the points of raw damage
  * per second at base attack speed that each point of the stat adds.
  */
 export function weaponScalingText(weapon: WeaponId): string {
@@ -224,14 +224,14 @@ export function weaponTipText(weapon: WeaponId): string {
 
 // ------------------------------------------------------------------------------------------------------------- base summaries
 
-/** The wording of a base stat's total ("+45 attack damage", "+25% attack speed"). */
+/** The wording of a base stat's total ("+45 Offense", "+25% attack speed"). */
 export function baseTotalText(base: BaseStatId, total: number): string {
   const pct = `${Math.round(total * 100)}%`;
   switch (base) {
-    case "ad": return `+${num(total)} attack damage`;
-    case "ap": return `+${num(total)} ability power`;
-    case "armor": return `+${num(total)} armor`;
-    case "mr": return `+${num(total)} magic resist`;
+    case "ad": return `+${num(total)} Offense`;
+    case "ap": return `+${num(total)} Soul Offence`;
+    case "armor": return `+${num(total)} Defense`;
+    case "mr": return `+${num(total)} Soul Defense`;
     case "haste": return `+${pct} attack speed`;
     case "vitality": return `+${pct} max health`;
     case "leech": return `+${pct} lifesteal`;
@@ -240,7 +240,7 @@ export function baseTotalText(base: BaseStatId, total: number): string {
 }
 
 /**
- * What all the cards of one base add up to, for the tooltip of any of them: "All your Attack Damage cards: +45 attack damage (I, II x2)".
+ * What all the cards of one base add up to, for the tooltip of any of them: "All your Offense cards: +45 Offense (I, II x2)".
  * "" when the player holds one card of the base (its own text already says it) or none.
  */
 export function baseSummary(build: CardCounts | null | undefined, base: BaseStatId): string {

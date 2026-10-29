@@ -377,7 +377,7 @@ describe("mod sources (world.modSources)", () => {
     });
     const mob = w.state.mobs.get(id)!;
     const mobBow = timingsOf(mob, "bow")!;
-    expect(timingsOf(player, "bow")!.windup).toBe(0.3);
+    expect(timingsOf(player, "bow")!.windup).toBe(Math.min(0.5, 0.55 * timingsOf(player, "bow")!.interval));
     expect(mobBow.windup).toBeCloseTo(Math.min(0.6, 0.92 * mobBow.interval), 12);
     expect(mobBow.interval).toBe(attackInterval(factionOf(mob)!, "bow", attackSpeedMult(mob)));
   });
@@ -480,6 +480,7 @@ describe("the hitLanded hook", () => {
         const p = P(w, i);
         p.x = pos.x;
         p.y = pos.y;
+        p.weapon0 = "wand";
         RT(w, i).history = [{ t: w.state.serverTime, x: pos.x, y: pos.y }];
       });
       let calls = 0;

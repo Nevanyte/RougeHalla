@@ -2,7 +2,7 @@
 // clocks and paths. Overlays repaint at a low rate, only when something changes. Right-click (or right-drag) sends the character
 // there, and holding the left button peeks the camera at that spot until it is released.
 import { FACTION_IDS, TILE, Y_SCALE, isFactionId, type GameMap, type Vec2 } from "@raid/shared";
-import { getSettings } from "../settings";
+import { getSettings, onSettingsChange } from "../settings";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
 import { el, uiRoot } from "./dom";
@@ -97,6 +97,7 @@ export class Minimap {
   /** Region tints and walls. A separate canvas so a repaint is one drawImage instead of a few thousand fillRects. */
   private readonly layer = document.createElement("canvas");
   private readonly handlers: Partial<MinimapHandlers>;
+  private readonly unsubSettings: () => void;
   private readonly unsubView: () => void;
   /** The canvas backing store's side (device pixels); 0 until the first layout. */
   private backing = 0;
@@ -168,6 +169,7 @@ export class Minimap {
     this.reducedMotion = options.reducedMotion ?? (() => reducedMotionActive(getSettings(), osPrefersReducedMotion()));
     this.applyView(currentView());
     this.unsubView = onViewChange((layout) => this.applyView(layout));
+    this.unsubSettings = onSettingsChange((_s, changed) => { if (changed.includes("minimapScale")) this.applyView(currentView()); });
 
     const c = this.canvas;
     c.setAttribute("aria-label", "Minimap: visible enemies, camps, timers and route");
@@ -399,6 +401,7 @@ export class Minimap {
 
   destroy(): void {
     this.unsubView();
+    this.unsubSettings();
     const c = this.canvas;
     c.removeEventListener("pointerdown", this.onPointerDown);
     c.removeEventListener("mousedown", this.stop);
@@ -422,7 +425,7 @@ export class Minimap {
 
   /** Sizes the element and both canvases for a layout, and repaints from the remembered map and mobs. */
   private applyView(layout: ViewLayout): void {
-    const size = minimapSize(layout.uiW, layout.uiH);
+    const size = Math.round(Math.min(minimapSize(layout.uiW, layout.uiH) * getSettings().minimapScale, layout.uiW * 0.42, layout.uiH * 0.6));
     const backing = minimapBacking(size, layout.uiScale, layout.dpr);
     this.viewW = layout.worldW;
     this.viewH = layout.worldH;

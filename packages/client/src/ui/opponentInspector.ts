@@ -80,12 +80,12 @@ export class OpponentInspector {
     }));
 
     this.offense.replaceChildren(
-      this.statChip("ad", "Attack damage", `+${Math.round(decodeFlat(p.adBonus))}`),
-      this.statChip("ap", "Ability power", `+${Math.round(decodeFlat(p.apBonus))}`),
+      this.statChip("ad", "Offense", `+${Math.round(decodeFlat(p.adBonus))}`),
+      this.statChip("ap", "Soul Offence", `+${Math.round(decodeFlat(p.apBonus))}`),
     );
     this.defenses.replaceChildren(
-      this.statChip("armor", "Armor", String(Math.round(f.armor + decodeFlat(p.armorBonus)))),
-      this.statChip("mr", "Magic resistance", String(Math.round(f.shield + decodeFlat(p.shieldBonus)))),
+      this.statChip("armor", "Defense", String(Math.round(f.armor + decodeFlat(p.armorBonus)))),
+      this.statChip("mr", "Soul Defense", String(Math.round(f.shield + decodeFlat(p.shieldBonus)))),
     );
     this.tipItems.push(...Array.from(this.offense.children) as HTMLElement[], ...Array.from(this.defenses.children) as HTMLElement[]);
     const ability = abilityInSlot(p, "wish");

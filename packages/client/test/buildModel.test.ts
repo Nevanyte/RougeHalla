@@ -1,4 +1,4 @@
-// The build strip's numbers and words (ui/buildModel.ts), pure: AD, AP, armor, magic resist, attack and move speed, lifesteal, card
+// The build strip's numbers and words (ui/buildModel.ts), pure: Offense, SO, armor, Soul Defense, attack and move speed, lifesteal, card
 // power and the PvP factor, each with a tooltip; and the weapon bar's scaling line and special text.
 import { describe, expect, it } from "vitest";
 import {
@@ -14,7 +14,7 @@ const IDENTITY: StatMirrors = { asMult: 1, windupMult: 1, speedMult: 1, armorBon
 const wire = (over: Partial<StatMirrors>): StatMirrors => encodeMirrors({ ...IDENTITY, ...over });
 
 describe("gained-stat strip", () => {
-  it("includes earned Demon Blood camp leech without including base faction leech", () => {
+  it("includes earned Holy camp leech without including base faction leech", () => {
     const input = { faction: "holy", build: {}, weapon: "fists" as const, campClears: 8 };
     expect(buildGains(input).find(s => s.id === "leech")?.value).toBe("+2%");
     expect(buildGains({ ...input, faction: "fire" }).find(s => s.id === "leech")?.value).toBe("0%");
@@ -45,10 +45,10 @@ function stats(build: Record<string, number>, over: Partial<StatMirrors> = {}, f
 }
 
 describe("the strip's cells", () => {
-  it("has the nine cells in order: AD, AP, armor, MR, attack speed, move, leech, power, PvP", () => {
+  it("has the nine cells in order: Offense, SO, armor, SD, attack speed, move, leech, power, PvP", () => {
     const { list } = stats({});
     expect(list.map((s) => s.id)).toEqual([...BUILD_STAT_IDS]);
-    expect(list.map((s) => s.label)).toEqual(["AD", "AP", "Armor", "MR", "Atk speed", "Move", "Leech", "Power", "PvP"]);
+    expect(list.map((s) => s.label)).toEqual(["Offense", "SO", "Defense", "SD", "Atk speed", "Move", "Leech", "Power", "PvP"]);
   });
 
   it("starts a fresh player at power 0 and PvP x0.77, with the contract's tooltip, and every cell dim", () => {
@@ -74,7 +74,7 @@ describe("the strip's cells", () => {
     expect([1, 2, 3, 5, 6].map((p) => factorText(pvpFactor(p)))).toEqual(["x1.11", "x1.40", "x1.65", "x2.03", "x2.18"]);
   });
 
-  it("shows AD and AP from the synced mirrors (tenths of a point), not from the cards", () => {
+  it("shows Offense and SO from the synced mirrors (tenths of a point), not from the cards", () => {
     const { by } = stats({ ad1: 1 }, { adBonus: 24.5, apBonus: 12 });
     expect(by("ad").value).toBe("+24.5");
     expect(by("ap").value).toBe("+12");
@@ -82,19 +82,19 @@ describe("the strip's cells", () => {
     expect(by("ad").tip).toContain("+24.5 from your cards");
   });
 
-  it("explains weapon scaling and limits the base-passive AP rider to burn and disease", () => {
+  it("explains weapon scaling and limits the base-passive SO rider to burn and disease", () => {
     expect(stats({}, {}, "plague", "sword").by("ad").tip).toContain("Your Sword turns each point into 1 damage a second");
     expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1 magic damage a second at base attack speed");
     expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("burn or disease also gains 0.6 magic damage a second per point");
     expect(stats({}, {}, "plague", "sword").by("ap").tip).toContain("gets nothing from it directly");
     expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("burn or disease also gains");
     for (const faction of ["sentenced", "frost", "holy"]) {
-      expect(stats({}, {}, faction, "wand").by("ap").tip).toContain("base passive and Wish have no direct AP scaling");
+      expect(stats({}, {}, faction, "wand").by("ap").tip).toContain("base passive and Wish have no direct SO scaling");
       expect(stats({}, {}, faction, "wand").by("ap").tip).not.toContain("also gains 0.6");
     }
   });
 
-  it("shows armor and magic resist as totals with the base and the cards apart, and what they cut", () => {
+  it("shows armor and Soul Defense as totals with the base and the cards apart, and what they cut", () => {
     const { by } = stats({ armor1: 1 }, { armorBonus: 15, shieldBonus: 26 }, "plague");
     expect(FACTIONS.plague.armor).toBe(190);
     expect(by("armor").value).toBe(String(190 + 15));
@@ -161,20 +161,20 @@ describe("the strip's cells", () => {
 
 describe("a weapon's scaling and special", () => {
   it("words the scaling biggest term first, with one decimal", () => {
-    expect(weaponScalingText("sword")).toBe("AD 1.0");
-    expect(weaponScalingText("bow")).toBe("AD 1.0");
-    expect(weaponScalingText("wand")).toBe("AP 1.0 + AD 0.3");
-    expect(weaponScalingText("axe")).toBe("AD 1.0 + bonus HP 0.02");
-    expect(weaponScalingText("shield")).toBe("bonus armor/MR 0.4 + AP 0.3");
-    expect(weaponScalingText("fists")).toBe("AD 0.6 + AP 0.6");
+    expect(weaponScalingText("sword")).toBe("Offense 1.0");
+    expect(weaponScalingText("bow")).toBe("Offense 1.0");
+    expect(weaponScalingText("wand")).toBe("SO 1.0 + Offense 0.3");
+    expect(weaponScalingText("axe")).toBe("Offense 1.0 + bonus HP 0.02");
+    expect(weaponScalingText("shield")).toBe("bonus Defense/SD 0.4 + SO 0.3");
+    expect(weaponScalingText("fists")).toBe("Offense 0.6 + SO 0.6");
   });
 
   it("has a scaling line for every weapon, matching WeaponSpec.scaling", () => {
     for (const id of ALL_WEAPON_IDS) {
       const text = weaponScalingText(id);
       const sc = WEAPONS[id].scaling;
-      if (sc.ad) expect(text, id).toContain(`AD ${sc.ad.toFixed(1)}`);
-      if (sc.ap) expect(text, id).toContain(`AP ${sc.ap.toFixed(1)}`);
+      if (sc.ad) expect(text, id).toContain(`Offense ${sc.ad.toFixed(1)}`);
+      if (sc.ap) expect(text, id).toContain(`SO ${sc.ap.toFixed(1)}`);
     }
   });
 
@@ -187,7 +187,7 @@ describe("a weapon's scaling and special", () => {
   it("makes the tooltip: name, scaling, special", () => {
     const lines = weaponTipText("wand").split("\n");
     expect(lines[0]).toBe("Wand");
-    expect(lines[1]).toBe("Scales with AP 1.0 + AD 0.3");
+    expect(lines[1]).toBe("Scales with SO 1.0 + Offense 0.3");
     expect(lines[2]).toBe(weaponSpecialText("wand"));
     for (const id of ALL_WEAPON_IDS) expect(weaponTipText(id).split("\n")[0]).toBe(WEAPONS[id].name);
   });

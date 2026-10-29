@@ -56,7 +56,7 @@ describe("the catalog", () => {
     // The twelve declared-only passives and the three neutrals that base cards replaced (the other six passives live on as augments).
     const retired = [
       "Firebrand", "Searing Riposte", "Ashwalk", "Double Sentence", "Sentence Served", "Bite Twice", "Shatter", "Frozen Path",
-      "Hoarfrost Armor", "Radiance", "Quartermaster", "Scout", "Whetstone", "Swift Boots", "Thick Hide",
+      "Hoarfrost Defense", "Radiance", "Quartermaster", "Scout", "Whetstone", "Swift Boots", "Thick Hide",
     ];
     const reserved = new Set<string>([
       ...MOB_TYPES.map((m) => m.name), ...QUEST_DEFS.map((q) => q.name), ...Object.values(ABILITIES).map((a) => a.name),
@@ -71,7 +71,7 @@ describe("the catalog", () => {
     for (const w of Object.values(WEAPONS)) { words.add(w.id); words.add(w.name); }
     for (const m of MOB_TYPES) { words.add(m.id); words.add(m.name); }
     for (const a of Object.values(ABILITIES)) { words.add(a.id); words.add(a.name); }
-    // The single words of the multi-word names too ("Blaze Step" names "blaze", "Demon Blood" names "demon").
+    // The single words of the multi-word names too ("Blaze Step" names "blaze", "Holy" names "demon").
     for (const w of [...words]) for (const part of w.split(/\s+/)) if (part.length >= 4) words.add(part);
     words.delete("wish"); // "your Wish" is the generic word; no Wish has that id
     const re = [...words].map((w) => ({ w, re: new RegExp(`(^|[^a-z])${w.toLowerCase().replace(/[^a-z ]/g, "")}([^a-z]|$)`, "i") }));
@@ -132,15 +132,15 @@ describe("the catalog", () => {
 
   it("writes the base cards' numbers exactly as the contract's table (4.2)", () => {
     const text = (id: string): string => cardText(id);
-    expect([text("ad1"), text("ad2"), text("ad3")]).toEqual(["+12 attack damage", "+21 attack damage", "+33 attack damage"]);
-    expect([text("ap1"), text("ap2"), text("ap3")]).toEqual(["+12 ability power", "+21 ability power", "+33 ability power"]);
+    expect([text("ad1"), text("ad2"), text("ad3")]).toEqual(["+12 Offense", "+21 Offense", "+33 Offense"]);
+    expect([text("ap1"), text("ap2"), text("ap3")]).toEqual(["+12 Soul Offence", "+21 Soul Offence", "+33 Soul Offence"]);
     expect([text("haste1"), text("haste2"), text("haste3")]).toEqual(["+9% attack speed", "+16% attack speed", "+25% attack speed"]);
     expect([text("vitality1"), text("vitality2"), text("vitality3")]).toEqual(["+9% max health", "+16% max health", "+25% max health"]);
-    expect([text("armor1"), text("armor2"), text("armor3")]).toEqual(["+15 armor", "+26 armor", "+41 armor"]);
-    expect([text("mr1"), text("mr2"), text("mr3")]).toEqual(["+15 magic resist", "+26 magic resist", "+41 magic resist"]);
+    expect([text("armor1"), text("armor2"), text("armor3")]).toEqual(["+15 Defense", "+26 Defense", "+41 Defense"]);
+    expect([text("mr1"), text("mr2"), text("mr3")]).toEqual(["+15 Soul Defense", "+26 Soul Defense", "+41 Soul Defense"]);
     expect([text("leech1"), text("leech2"), text("leech3")]).toEqual(["+5% lifesteal", "+9% lifesteal", "+14% lifesteal"]);
     expect(text("fleet1")).toBe("+6% move speed (off while shooting)");
-    expect([title("haste2"), title("mr3"), title("ad1")]).toEqual(["Haste II", "Magic Resist III", "Attack Damage I"]);
+    expect([title("haste2"), title("mr3"), title("ad1")]).toEqual(["Haste II", "Soul Defense III", "Offense I"]);
   });
 
   it("gives the augments the contract's tiers (4.4)", () => {
@@ -208,10 +208,10 @@ describe("card power", () => {
 describe("why a card is offered, and who cannot take it", () => {
   it("says deepens for an owned base, new for one that is not, and names the base a conditional needs", () => {
     const build = { ad1: 1, leech1: 1 };
-    expect(whyOffered("ad3", build)).toEqual({ code: "deepens", base: "ad", text: "Deepens your Attack Damage" });
+    expect(whyOffered("ad3", build)).toEqual({ code: "deepens", base: "ad", text: "Deepens your Offense" });
     expect(whyOffered("armor2", build)).toEqual({ code: "new", base: "armor", text: "New" });
     expect(whyOffered("bloodthirst", build)).toEqual({ code: "synergy", base: "leech", has: true, text: "You have Leech" });
-    expect(whyOffered("juggernaut", {})).toEqual({ code: "synergy", base: "ad", has: false, text: "Needs Attack Damage" });
+    expect(whyOffered("juggernaut", {})).toEqual({ code: "synergy", base: "ad", has: false, text: "Needs Offense" });
     expect(whyOffered("glassCannon", build)).toEqual({ code: "augment", text: "" });
     expect(whyOffered("nope", build)).toBeNull();
   });
@@ -294,7 +294,7 @@ describe("the mark's five cards (docs/SENTENCED_REDESIGN.md section 4)", () => {
 describe("the glossary", () => {
   it("explains every mechanic tag, and lists the stats before them", () => {
     for (const t of MECHANIC_TAGS) expect(TAG_GLOSSARY[t].text.length, t).toBeGreaterThan(0);
-    expect(GLOSSARY.map((g) => g.term).slice(0, 2)).toEqual(["AD", "AP"]);
+    expect(GLOSSARY.map((g) => g.term).slice(0, 2)).toEqual(["Offense", "SO"]);
     expect(GLOSSARY).toHaveLength(16);
   });
 

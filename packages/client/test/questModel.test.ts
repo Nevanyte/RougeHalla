@@ -21,7 +21,7 @@ function container(over: Partial<QuestContainerLike> = {}): QuestContainerLike {
 }
 
 describe("the reward a quest row shows", () => {
-  const def = questDefById("cull-fire")!; // Attack Damage II and 10 GV
+  const def = questDefById("cull-fire")!; // Offense II and 10 GV
 
   it("shows the fixed mob stat stack reward regardless of feed", () => {
     expect(questReward(def)).toBe("10 Ember Imp stacks (+10% damage) and 10 GV");

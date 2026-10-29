@@ -9,6 +9,7 @@ import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema
 import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import type { PlanInbox } from "../net/planInbox";
+import { keyboardMoveGoal, MOVEMENT_KEYS } from "../net/keyboardMovement";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import {
@@ -24,6 +25,8 @@ import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
 import { markDimmed } from "../render/markPresentation";
+import { TraderPanel } from "../ui/traderPanel";
+import { TraderView } from "../render/TraderView";
 import { ProjectileView } from "../render/ProjectileView";
 import { QuestView } from "../render/QuestView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
@@ -121,6 +124,13 @@ export class RaidScene extends Phaser.Scene {
   private opponentInspector!: OpponentInspector;
   private attackMoveArmed = false;
   private rightAttackHeld = false;
+  private directionalAttackHeld = false;
+  private readonly movementKeys = new Set<string>();
+  private keyboardWasMoving = false;
+  private keyboardChanged = false;
+  private lastKeyboardMoveAt = -Infinity;
+  private traderPanel!: TraderPanel;
+  private traderView!: TraderView;
   private mobViews = new Map<string, MobView>();
   private containerViews = new Map<string, ContainerView>();
   private questView!: QuestView;
@@ -258,7 +268,13 @@ export class RaidScene extends Phaser.Scene {
     this.observeLocal(state);
   };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
+  private readonly onKeyUp = (e: KeyboardEvent) => {
+    if (this.movementKeys.delete(e.code)) { e.preventDefault(); this.keyboardChanged = true; }
+  };
   private readonly onWindowBlur = () => {
+    this.movementKeys.clear(); this.keyboardChanged = true;
+    if (this.keyboardWasMoving && this.localAlive() && !this.frozenWorld) { this.orderMove("stop"); this.keyboardWasMoving = false; }
+    this.releaseAttack();
     if (this.attackMoveArmed) {
       this.attackMoveArmed = false;
       this.input.setDefaultCursor("default");
@@ -271,6 +287,8 @@ export class RaidScene extends Phaser.Scene {
 
   create(data: RaidSceneData): void {
     this.room = data.room;
+    this.traderPanel = new TraderPanel((trader, pick) => sendInput(this.room, "trade", { trader, pick }));
+    this.traderView = new TraderView(this);
     this.vision.reset();
     this.fog = new VisionFog(this);
     this.campWards = new CampWards(this);
@@ -318,7 +336,7 @@ export class RaidScene extends Phaser.Scene {
     this.questLog = new QuestLog({ onTalk: (id) => { this.questDialog?.open(id); } });
     this.questPreviews.clear();
     this.weaponBar = new WeaponBar();
-    this.wishSlot = new AbilitySlotView({ key: "D" });
+    this.wishSlot = new AbilitySlotView({ key: "E" });
     this.weaponBar.dock(this.wishSlot.element);
     this.wishCooldown.reset();
     this.pendingCast = null;
@@ -435,20 +453,13 @@ export class RaidScene extends Phaser.Scene {
           } else this.sendMove(pointer, true);
           return;
         }
-        this.rightAttackHeld = pickTarget(at, this.targetCandidates()) !== null;
-        if (this.rightAttackHeld) this.sendTarget(pointer);
-        else this.sendMove(pointer, true);
-      } else if (pointer.button === 0 && pointer.leftButtonDown()) {
-        if (this.attackMoveArmed) {
-          pointer.updateWorldPoint(this.cameras.main);
-          this.orderMove("attackMove", unproject(pointer.worldX, pointer.worldY));
-          this.attackMoveArmed = false;
-          this.input.setDefaultCursor("default");
-        } else this.sendTarget(pointer);
-      }
+        this.sendMove(pointer, true);
+      } else if (pointer.button === 0 && pointer.leftButtonDown()) this.clickAttack(pointer);
     });
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => { if (pointer.button === 0) this.releaseAttack(); });
     this.input.on("pointermove", () => { this.aimKnown = true; });
     window.addEventListener("keydown", this.onKeyDown);
+    window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("blur", this.onWindowBlur);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
@@ -502,6 +513,8 @@ export class RaidScene extends Phaser.Scene {
     if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
       this.sendMove(pointer, false);
     }
+    this.steerKeyboard(time);
+    if (this.directionalAttackHeld && !pointer.leftButtonDown()) this.releaseAttack();
     // After this frame's orders, before anything reads the local fighter's position.
     this.stepLocal(now, state);
 
@@ -640,6 +653,8 @@ export class RaidScene extends Phaser.Scene {
     const inspected = this.hoverId || this.lockId;
     this.opponentInspector.update(state.phase === "active" && inspected && this.visiblePosition(inspected)
       ? state.players.get(inspected) : undefined, serverNow, state.training);
+    this.traderPanel.update({ traders: state.traders, me: state.phase === "active" ? me : undefined, map: this.planMap()!, serverNow, canSee: this.vision.canSee });
+    this.traderView.update({ traders: state.traders, me: state.phase === "active" ? me : undefined, canSee: this.vision.canSee });
     this.streamAim(me, now);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
@@ -700,7 +715,7 @@ export class RaidScene extends Phaser.Scene {
     const talk = this.interaction?.kind === "talk" ? this.interaction : null;
     const blocked = this.interaction?.kind === "blocked" ? this.interaction : null;
     this.weaponBar.update(
-      me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "quest" ? this.nearest.label : "",
+      me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "cannon" ? "Enter cannon" : this.nearest?.kind === "chest" ? "Open chest" : this.nearest?.kind === "quest" || this.nearest?.kind === "consumable" ? this.nearest.label : "",
       talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`)
         : blocked ? questAcceptFirstText(blocked.def) : this.interaction?.kind === "corpse" ? "consume corpse" : "",
     );
@@ -902,7 +917,7 @@ export class RaidScene extends Phaser.Scene {
     if ((kind === "move" || kind === "attackMove") && to) sendInput(this.room, kind, { x: to.x, y: to.y, seq });
     else sendInput(this.room, "stop", { seq });
     this.lockDisplay.note("", now);
-    this.fx.dropWindups(this.room.sessionId, c, now);
+
   }
 
   /**
@@ -930,7 +945,7 @@ export class RaidScene extends Phaser.Scene {
       seen.add(id);
       let view = this.containerViews.get(id);
       if (!view) { view = new ContainerView(this); this.containerViews.set(id, view); }
-      view.update(c);
+      view.update(c, chestNow);
       view.setHidden(this.bodyPending(c));
       if (c.kind === "reward") {
         this.chestMemory.note(id, c.options, now);
@@ -1168,10 +1183,41 @@ export class RaidScene extends Phaser.Scene {
   }
 
   /** A left click: lock the fighter nearest the cursor (within TARGET_SNAP_RADIUS). A click on empty ground does nothing. */
+  private steerKeyboard(time: number): void {
+    if (this.beforeTeleport() || this.frozenWorld || !this.localAlive() || !this.mapView) return;
+    if (!this.keyboardChanged && time - this.lastKeyboardMoveAt < MOVE_REPEAT_MS) return;
+    const origin = this.predict.motion.ready ? this.predict.motion.drawn
+      : this.rendered.get(this.room.sessionId) ?? this.room.state.players.get(this.room.sessionId);
+    const map = this.planMap();
+    if (!origin || !map) return;
+    const goal = keyboardMoveGoal(map, origin, this.movementKeys);
+    if (goal) { this.moveTo(goal, false); this.keyboardWasMoving = true; }
+    else if (this.keyboardWasMoving) { this.orderMove("stop"); this.keyboardWasMoving = false; }
+    this.keyboardChanged = false; this.lastKeyboardMoveAt = time;
+  }
+
+  private clickAttack(pointer: Phaser.Input.Pointer): void {
+    if (this.beforeTeleport() || this.frozenWorld || !this.localAlive()) return;
+    const me = this.room.state.players.get(this.room.sessionId)!;
+    const weapon = me.slot === 0 ? me.weapon0 : me.weapon1;
+    if (weapon === "wand") { this.sendTarget(pointer); return; }
+    const a = this.cursorAngle(pointer);
+    if (a === null) return;
+    sendInput(this.room, "attack", { a, t: this.renderT });
+    this.directionalAttackHeld = true; this.lockDisplay.note("", performance.now());
+  }
+
+  private releaseAttack(): void {
+    if (!this.directionalAttackHeld) return;
+    const a = this.cursorAngle(this.input.activePointer) ?? this.lastAimSent ?? 0;
+    sendInput(this.room, "release", { a }); this.directionalAttackHeld = false;
+  }
+
   private sendTarget(pointer: Phaser.Input.Pointer): void {
     if (this.beforeTeleport() || this.frozenWorld || !this.localAlive()) return;
     const id = pickTarget(this.cursorGround(pointer), this.targetCandidates());
-    if (id === null) return;
+    const me = this.room.state.players.get(this.room.sessionId);
+    if (id === null || !me || (me.slot === 0 ? me.weapon0 : me.weapon1) !== "wand") return;
     sendInput(this.room, "target", { id });
     this.orderTarget(id);
     this.lockDisplay.note(id, performance.now());
@@ -1313,7 +1359,7 @@ export class RaidScene extends Phaser.Scene {
     this.hoverId = alive && this.aimKnown && this.input.isOver && !this.peek
       ? pickTarget(this.cursorGround(this.input.activePointer), this.targetCandidates()) ?? ""
       : "";
-    this.lockId = alive ? this.liveFighter(this.lockDisplay.shown(me.attackTarget, now)) : "";
+    this.lockId = alive && (me.slot === 0 ? me.weapon0 : me.weapon1) === "wand" ? this.liveFighter(this.lockDisplay.shown(me.attackTarget, now)) : "";
     // The lock ring already marks the hovered fighter.
     this.rings.update(
       this.hoverId && this.hoverId !== this.lockId ? this.rendered.get(this.hoverId) ?? null : null,
@@ -1396,25 +1442,12 @@ export class RaidScene extends Phaser.Scene {
     }
     // Planning freezes the world: no stop, swap or pickup is ordered (the keys belong to the planning screen).
     if (this.frozenWorld) return;
-    // Physical keys (e.code), not the produced character, so shortcuts keep working on non-Latin layouts.
-    if (e.code === "KeyS") {
-      this.attackMoveArmed = false;
-      this.input.setDefaultCursor("default");
-      this.orderMove("stop");
-      this.lockDisplay.note("", performance.now());
-      return;
-    }
     if (!this.localAlive()) return;
-    if (e.code === "KeyA") {
-      e.preventDefault();
-      this.attackMoveArmed = true;
-      this.input.setDefaultCursor("crosshair");
-      return;
+    if (MOVEMENT_KEYS.has(e.code)) {
+      e.preventDefault(); this.movementKeys.add(e.code); this.keyboardChanged = true; return;
     }
-    if (e.code === "KeyD") {
-      this.castSlot("wish");
-      return;
-    }
+    if (e.code === "KeyE") { this.castSlot("wish"); return; }
+    if (e.code === "KeyR") { sendInput(this.room, "useConsumable", { kind: "heal" }); return; }
     if (e.code === "KeyQ") sendInput(this.room, "swap", {});
     else if (e.code === "KeyF") this.interact();
     else {
@@ -1498,6 +1531,9 @@ export class RaidScene extends Phaser.Scene {
     this.input.setDefaultCursor("default");
     this.opponentInspector.destroy();
     window.removeEventListener("keydown", this.onKeyDown);
+    window.removeEventListener("keyup", this.onKeyUp);
+    this.movementKeys.clear();
+    this.traderPanel.destroy(); this.traderView.destroy();
     window.removeEventListener("blur", this.onWindowBlur);
     this.room.onStateChange.remove(this.onState);
     this.unbindFx?.();

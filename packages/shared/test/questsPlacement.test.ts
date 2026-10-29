@@ -20,7 +20,7 @@ vi.mock("../src/pathfind", async (importOriginal) => {
 
 import { findPath } from "../src/pathfind";
 import {
-  npcCandidates, placeQuests, questDefById, questHomeComponent, QUEST_HIDDEN_START_CLEARANCES, selectQuests, spreadSpots,
+  npcCandidates, placeQuests, questDefById, questHomeComponent, QUEST_DEFS, QUEST_HIDDEN_START_CLEARANCES, selectQuests, spreadSpots,
   type QuestPlacement, type RosterEntry,
 } from "../src/quests";
 
@@ -37,7 +37,8 @@ const ROSTER_IDS = [
   "headhunter", "ashcap-fire", "banner-frost", "cache", "elite-hunt",
   "tithe-rim", "bloom-plague", "banner-fire", "grand-tour", "long-haul",
 ];
-const roster = (): RosterEntry[] => ROSTER_IDS.map((id, i) => ({ def: questDefById(id)!, known: i < QUEST_KNOWN_COUNT }));
+const roster = (): RosterEntry[] => [...ROSTER_IDS, ...QUEST_DEFS.map(def => def.id).filter(id => !ROSTER_IDS.includes(id))]
+  .slice(0, QUEST_COUNT).map((id, i) => ({ def: questDefById(id)!, known: i < QUEST_KNOWN_COUNT }));
 
 interface ArenaOpts {
   w?: number;
@@ -353,14 +354,16 @@ describe("hidden givers keep out of the reveal radius of every start", () => {
 
   it("relaxes the clearance on a cramped map instead of dropping a hidden offer, and keeps the stricter one where there is room", () => {
     const roomy = arena();
-    const cramped = arena({ w: 40, h: 16, camps: [campAt("fire", 1, 10, 5, 2 * TILE), campAt("frost", 1, 30, 10, 2 * TILE)] });
+    const cramped = arena({ w: 40, h: 20, camps: [campAt("fire", 1, 10, 5, 2 * TILE), campAt("frost", 1, 30, 10, 2 * TILE)] });
+    // This fixture checks giver clearance; multi-zone objective placement has separate map requirements.
+    const giverOffers = roster().map(offer => ({ ...offer, def: questDefById("headhunter")! }));
     // Control: the cramped map really has no ground beyond the strict clearance for the hidden offers.
     const beyond = npcCandidates(cramped).filter((c) => nearestStart(cramped, c) >= clear);
     expect(beyond.length).toBeLessThan(QUEST_UNKNOWN * 2);
     let relaxedPlaced = 0;
     for (const random of streams(10)) {
       for (const [map, strict] of [[roomy, true], [cramped, false]] as const) {
-        const placed = placeQuests(map, roster(), random);
+        const placed = placeQuests(map, giverOffers, random);
         const hidden = placed.filter((p) => !p.known);
         if (strict) {
           expect(hidden.length).toBe(QUEST_UNKNOWN);

@@ -53,11 +53,11 @@ describe("Frost movement thaw", () => {
 
 describe("engageRange", () => {
   it.each<[WeaponId | null, number]>([
-    ["sword", 64 + 12],
-    ["axe", 60 + 12],
-    ["shield", 44 + 12],
-    ["bow", 240 + 14],
-    ["wand", 220 + 14],
+    ["sword", 112 + 12],
+    ["axe", 112 + 12],
+    ["shield", 96 + 12],
+    ["bow", 520 + 14],
+    ["wand", 640 + 14],
     [null, 0],
   ])("%s reaches %d centre to centre", (weapon, range) => {
     expect(engageRange(weapon)).toBe(range);

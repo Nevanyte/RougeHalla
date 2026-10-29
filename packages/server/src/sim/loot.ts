@@ -1,7 +1,7 @@
 // Loot gameplay module: chests and loose weapons, the pickup action (F) and the body-drop hook. A camp's shared skill chest
 // (kind "reward", roguelike R5) is a container too, but sim/chests.ts owns it: `pickup` refuses it.
 // step.ts only runs actions for alive players in an active raid, so handlers don't re-check that.
-//   - A chest holds one weapon and stays (opened, empty) once taken. A loose weapon vanishes when taken. A body holds
+//   - A chest holds one weapon and a small potion and stays (opened, empty) once both are taken. A loose weapon vanishes when taken. A body holds
 //     what the player carried when they went down.
 //   - Pickup takes the container's first weapon into a free slot: the hand's own slot if it is empty (an unarmed hand arms
 //     at once, which counts as a swap), else the other slot if that is empty (the weapon in hand doesn't change). With both
@@ -12,6 +12,7 @@ import {
   FISTS, hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
+import { pickConsumable, useCannon } from "./consumables";
 import { setSlot, slotItem } from "./combatant";
 import { hasFlag } from "./mods";
 import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
@@ -100,7 +101,7 @@ export function dropWeapon(world: World, at: Vec2, def: string): ContainerState 
 /** One chest (one weapon) per chest spot, and a loose weapon on some of the ground spots. */
 export function spawnLoot(world: World): void {
   for (const spot of world.map.crateSpots) {
-    addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: rollChestWeapon(world.random) }]);
+    addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: rollChestWeapon(world.random) }, { uid: world.newItemUid(), def: "potionSmall" }]);
   }
   for (const spot of world.map.groundSpots) {
     const def = rollGroundWeapon(world.random);
@@ -119,6 +120,9 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   if (Math.hypot(p.x - box.x, p.y - box.y) > INTERACT_RANGE) { toast(world, c.id, "Too far away"); return; }
   // Movement reach, not sight: a hand does not go through a fence (centres 56 u apart across one tile, INTERACT_RANGE 56).
   if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
+  if (box.kind === "cannon") { useCannon(world, c, box); return; }
+  if (box.kind === "chest") box.opened = true;
+  if (pickConsumable(world, c, box)) return;
   const item = box.items.length > 0 ? box.items.at(0) : undefined;
   if (!item) { toast(world, c.id, "Nothing to take"); return; }
   if (item.def.startsWith(QUEST_ITEM_PREFIX)) {
@@ -150,6 +154,10 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
 /** Leaves a body where the player went down, holding the weapons they carried (fists were never carried). */
 export function dropBody(world: World, p: PlayerState): void {
   const items = [p.weapon0, p.weapon1].filter((w) => w !== "" && w !== FISTS).map((def) => ({ uid: world.newItemUid(), def }));
+  for (const id of ["potionLarge", "potionSmall"] as const) {
+    for (let i = 0; i < p[id]; i++) items.push({ uid: world.newItemUid(), def: id });
+    p[id] = 0;
+  }
   addContainer(world, "body", p, p.name, items);
   p.weapon0 = "";
   p.weapon1 = "";

@@ -12,6 +12,7 @@ import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
 import type { QuestsRuntime } from "./quests";
+import type { TradersRuntime } from "./traders";
 import type { TerrainRuntime } from "./terrainEffects";
 
 export interface SimConfig {
@@ -802,6 +803,7 @@ export interface World {
   abilities: AbilitiesRuntime | null;
   /** Quest offers and their server-only hidden state (sim/quests.ts); null when disabled or training. */
   quests: QuestsRuntime | null;
+  traders?: TradersRuntime;
   /**
    * Who has damaged a camp since it was engaged: camp index (in map.camps; a training practice camp's is its MobState.camp - 1,
    * which is 100 or more) -> the players who did damage above 0 to any of its mobs, a lethal hit included (mobLife.hurtMob).

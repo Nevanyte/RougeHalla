@@ -179,8 +179,8 @@ describe("the Ground legend", () => {
     expect(byKey("ember").effect).toBe(`Burns ${TERRAINS[TERRAIN_EMBER]!.burnShare * 100}% of max hp per second; Fire is immune`);
     expect(byKey("bog").effect).toBe(`Slows you to ${TERRAINS[TERRAIN_BOG]!.speedMult * 100}%; Plague is immune`);
     expect(byKey("ice").effect).toMatch(/slide.*Frost keeps full grip/);
-    // Holy is shown to players as Demon Blood.
-    expect(byKey("light").effect).toBe(`Heals ${TERRAINS[TERRAIN_LIGHT]!.healShare * 100}% of max hp per second out of combat; Demon Blood heals double`);
+    // Holy is shown to players as Holy.
+    expect(byKey("light").effect).toBe(`Heals ${TERRAINS[TERRAIN_LIGHT]!.healShare * 100}% of max hp per second out of combat; Holy heals double`);
     expect(byKey("lava").effect).toMatch(/Blocks walking and melee swings; shots, sight and spells pass over/);
     expect(byKey("fence").effect).toBe(byKey("lava").effect);
     expect(byKey("crevasse").effect).toBe(byKey("lava").effect);

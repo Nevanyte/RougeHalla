@@ -319,7 +319,7 @@ describe("the feed lines", () => {
   it("names a cleared camp by its zone, an elite camp as such, and says nothing for a camp the map lacks", () => {
     expect(campLabel({ zone: "plague", eliteSpot: -1 })).toBe("Plague camp");
     expect(campLabel({ zone: "frost", eliteSpot: 0 })).toBe("Frost elite camp");
-    expect(campLabel({ zone: "holy", eliteSpot: -1 })).toBe("Demon Blood camp");
+    expect(campLabel({ zone: "holy", eliteSpot: -1 })).toBe("Holy camp");
     expect(campLabel(undefined)).toBeUndefined();
   });
 

@@ -894,7 +894,9 @@ export function clickViolations(p: Percept, sent: readonly TimedCommand[]): stri
   for (const tc of sent) {
     const c = tc.cmd;
     if (tc.at > p.now) bad.push(`${c.type} clicked at ${tc.at}, after the percept's now ${p.now}`);
-    if (c.type === "target") {
+    if (c.type === "attack" || c.type === "release") {
+      if (!Number.isFinite(c.msg.a)) bad.push(`${c.type}: non-finite directional aim`);
+    } else if (c.type === "target") {
       const f = p.fighters.find((x) => x.id === c.msg.id);
       const m = p.mobs.find((x) => x.id === c.msg.id);
       if (f) {

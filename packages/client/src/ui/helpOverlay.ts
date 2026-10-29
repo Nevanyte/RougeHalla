@@ -1,5 +1,5 @@
 // The H help card: two pages. "Controls" is every control in one table (HELP_SECTIONS), drawn as keycaps; "Mechanics" is the glossary
-// behind the cards' tags and the numbers (damage types, damage over time, on-hit, AD and AP, card power and the PvP factor, what each
+// behind the cards' tags and the numbers (damage types, damage over time, on-hit, Offense and SO, card power and the PvP factor, what each
 // faction's signature and each weapon is), read from shared/glossary.ts so a chip on a card and this page word a term the same way.
 // It is a real overlay, but the game keeps running behind it, so it closes with H, Esc, its button or a click outside the card. The
 // keys themselves are Chrome's, and so is the stylesheet (chrome.css).
@@ -34,14 +34,15 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     id: "run",
     title: "In a run and in practice",
     bindings: [
-      { keys: ["Right-click"], action: "Move on ground; attack an enemy (hold ground to steer)" },
-      { keys: ["A", "Left-click"], join: "", action: "Attack-move: walk and acquire enemies in weapon range" },
-      { keys: ["Left-click"], action: "Lock the nearest enemy and attack" },
-      { keys: ["S"], action: "Stop" },
+      { keys: ["W", "A", "S", "D"], action: "Move (arrow keys also work)" },
+      { keys: ["Left-click"], action: "Attack cursor; hold to repeat. Wand locks an enemy." },
+      { keys: ["Right-click"], action: "Move to a point on the ground" },
       { keys: ["1", "2"], action: "Select weapon slot" },
       { keys: ["Q"], action: "Swap weapon" },
+      { keys: ["R"], action: "Drink potion: 40% HP over 5 s (small: 25%)" },
+      { keys: ["Wind emblem"], action: "Walk over for 5 seconds of extra speed" },
       { keys: ["F"], action: "Pick up the weapon in reach, or talk to a giver" },
-      { keys: ["D"], action: "Cast your faction's Wish (5 min cooldown, 5 s in training)" },
+      { keys: ["E"], action: "Cast your faction's Wish (5 min cooldown, 5 s in training)" },
       { keys: ["J"], action: "Show or hide the quest log" },
       { keys: ["Enter"], action: "Accept the quest offer open from F" },
       { keys: ["C"], action: "Chest panel: take the keyboard, or give it back" },
@@ -54,12 +55,12 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["Map clocks"], action: "Gold: chest seconds; blue: respawn seconds after loot" },
       { keys: ["Edge lights"], action: "Visible players: green far → yellow → red close" },
       { keys: ["Camp timers"], action: "Respawn and ward countdowns appear at cleared camps" },
-      { keys: ["Camp clear"], action: "Full clear: personal ward until the 3 min respawn" },
-      { keys: ["Vision"], action: "Walls block sight; your trail sees live enemies for 2 min" },
+      { keys: ["Camp clear"], action: "Full clear: personal ward for 2 min; respawn at 3 min" },
+      { keys: ["Vision"], action: "Walls block sight; your trail sees live enemies for 30 s" },
       { keys: ["Colosseum"], action: "Full arena vision while fighting inside the colosseum" },
       { keys: ["Stat icons"], action: "Green plus: health; blood drop: life steal" },
-      { keys: ["Stat icons"], action: "Sword: attack damage; sparkle: ability power; bow: speed" },
-      { keys: ["Stat icons"], action: "Shield: armour; bubble shield: magic resist; boot: movement" },
+      { keys: ["Stat icons"], action: "Sword: Offense; sparkle: Soul Offence; bow: speed" },
+      { keys: ["Stat icons"], action: "Shield: armour; bubble shield: Soul Defense; boot: movement" },
       { keys: ["Esc"], action: "Leave practice (training only)" },
     ],
   },
@@ -117,7 +118,7 @@ export interface MechanicsSection {
 }
 
 /**
- * The Mechanics page as data: the glossary terms (AD, AP and every tag), what card power and the PvP factor are, what each faction's
+ * The Mechanics page as data: the glossary terms (Offense, SO and every tag), what card power and the PvP factor are, what each faction's
  * signature is made of (SIGNATURE_TAGS) and what each weapon scales with and does (WEAPON_TAGS). Pure; the page draws it.
  */
 export function mechanicsSections(): MechanicsSection[] {

@@ -9,12 +9,13 @@ import {
 } from "../../src/bots/brain/types";
 import { InputQueue, enqueueClientMessage } from "../../src/sim/inputs";
 import {
-  brainConfig, container, ctx as makeCtx, features, fighter, mobView, percept, rngs, selfView, testMap,
+  brainConfig, container, ctx as makeCtx, features, fighter, mobView, percept as fixturePercept, rngs, selfView, testMap,
 } from "./fixtures";
 
 const T0 = 100_000;
 const NO_HESITATION = { p: 0, minMs: 0, maxMs: 0 };
-const me = selfView();
+const me = selfView({ weapons: ["wand", null] });
+const percept = (over: Partial<Percept> = {}): Percept => fixturePercept({ self: me, ...over });
 const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
 const sd = (xs: number[]): number => Math.sqrt(mean(xs.map((x) => (x - mean(xs)) ** 2)));
 
@@ -496,6 +497,24 @@ describe("priority replacement", () => {
   });
 });
 
+describe("directional clicks through the humanizer", () => {
+  it.each(["bow", "sword", "fists"] as const)("turns a %s click into an aimed press and release, with no target lock", weapon => {
+    const self = selfView({ weapons: weapon === "fists" ? [null, null] : [weapon, null] });
+    const foe = fighter({ id: "foe", x: self.x + 80, y: self.y + 20 });
+    const r = rig({ ...TIERS.hard, hesitation: NO_HESITATION, lapseP: 0,
+      targetScatter: { sigma: 0, lagS: 0, slipP: 0, slipMult: 1 } }, { scene: { self, fighters: [foe] } });
+    const commands = once(r, [lock("foe", STEP, PRIORITY.combat, foe)], T0);
+    expect(commands.map(c => c.cmd.type)).toEqual(["attack", "release"]);
+    for (const c of commands) expect(enqueueClientMessage(new InputQueue(), c.cmd.type, c.cmd.msg)).toBe(true);
+    const attack = commands[0]!.cmd;
+    if (attack.type !== "attack") throw new Error("expected a directional attack");
+    expect(Number.isFinite(attack.msg.a)).toBe(true);
+    expect(attack.msg.a).toBeCloseTo(Math.atan2(20, 80), 1);
+    expect(r.h.stats.commands.attack).toBe(1);
+    expect(r.h.stats.commands.target).toBe(0);
+  });
+});
+
 describe("lock clicks through the humanizer", () => {
   const DOC = { easy: 0.074, normal: 0.012, hard: 0.002 };
   const analytic = (tier: TierParams): number => {
@@ -639,7 +658,7 @@ describe("the lock's re-send rule", () => {
 
   it("sends none once the server shows the lock", () => {
     const r = rig(tier, { scene: { fighters: [foe] } });
-    const locked = { self: selfView({ attackTarget: "foe" }) };
+    const locked = { self: selfView({ weapons: ["wand", null], attackTarget: "foe" }) };
     r.h.submit([lock("foe", STEP)], r.at(T0, locked));
     expect(r.h.release(r.at(T0 + 3000, locked))).toEqual([]);
     // Pending when the lock appears: dropped at the click.
@@ -650,7 +669,7 @@ describe("the lock's re-send rule", () => {
 
   it("locks another fighter even while one is locked", () => {
     const r = rig(tier, { scene: { fighters: [foe, fighter({ id: "other", x: me.x + 300, y: me.y + 100 })] } });
-    const locked = { self: selfView({ attackTarget: "foe" }) };
+    const locked = { self: selfView({ weapons: ["wand", null], attackTarget: "foe" }) };
     r.h.submit([lock("other", STEP, PRIORITY.combat, { x: me.x + 300, y: me.y + 100 })], r.at(T0, locked));
     const out = r.h.release(r.at(T0 + 3000, locked));
     expect(out).toHaveLength(1);
@@ -659,7 +678,7 @@ describe("the lock's re-send rule", () => {
 
   it("does not trust the HUD for a moment after its own order: a lock that a move has since dropped is sent", () => {
     const r = rig(tier, { scene: { fighters: [foe] } });
-    const locked = { self: selfView({ attackTarget: "foe" }) };
+    const locked = { self: selfView({ weapons: ["wand", null], attackTarget: "foe" }) };
     const m = once(r, [move(ahead(-100), STEP, PRIORITY.reflex)], T0, 2000);
     expect(m).toHaveLength(1);
     const t = m[0]!.at;

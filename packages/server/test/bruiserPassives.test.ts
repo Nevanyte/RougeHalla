@@ -149,17 +149,19 @@ describe("Holy Demon Blood", () => {
 });
 
 describe("Frost Frozen Justice", () => {
-  it("requires elite engagement range for a target lock and mirrors both defenses while active", () => {
+  it("refuses a remote lock and mirrors both defenses for a nearby wand lock", () => {
     const world = makeWorld();
     const frost = world.state.players.get("p0")!;
     const p = world.players.get("p0")!;
-    const eliteId = addMob(world, { kind: "elite", name: "Training elite", faction: "fire", at: { x: frost.x + 100, y: frost.y }, hp: 10_000, weapon: "sword" });
+    frost.weapon0 = "wand";
+    const eliteId = addMob(world, { kind: "elite", name: "Training elite", faction: "fire", at: { x: frost.x + 700, y: frost.y }, hp: 10_000, weapon: "sword" });
     p.weapon.lock = eliteId;
     step(world, TICK_MS);
     expect(frost.frostEliteGuard).toBe(false); // A remote lock cannot grant a PvP defense bonus.
 
     const elite = world.state.mobs.get(eliteId)!;
     elite.x = frost.x + 20;
+    p.weapon.lock = eliteId;
     step(world, TICK_MS);
     expect(frost.frostEliteGuard).toBe(true);
     const base = factionOf(combatant(world, "p0")!.s)!;
@@ -171,6 +173,7 @@ describe("Frost Frozen Justice", () => {
   it("keeps the standard defense cap while showing the active elite guard", () => {
     const world = makeWorld();
     const frost = world.state.players.get("p0")!;
+    frost.weapon0 = "wand";
     const fighter = combatant(world, "p0")!;
     setExtraRows(world, fighter, [
       { k: "flat", stat: "armor", v: 200 },

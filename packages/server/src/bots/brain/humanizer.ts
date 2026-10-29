@@ -66,7 +66,7 @@ const CHANNEL: Readonly<Record<IntentKind, IntentChannel>> = {
 const COMMAND_TYPE: Readonly<Record<IntentKind, CommandType>> = {
   lock: "target", move: "move", stop: "stop", swap: "swap", pickup: "pickup", cast: "cast", plan: "plan", choose: "choose",
 };
-const COMMAND_TYPES: readonly CommandType[] = ["move", "stop", "target", "swap", "pickup", "cast", "plan", "choose"];
+const COMMAND_TYPES: readonly CommandType[] = ["move", "stop", "target", "attack", "release", "swap", "pickup", "cast", "plan", "choose"];
 const CHANNEL_ORDER: readonly IntentChannel[] = ["order", "swap", "pickup", "cast", "menu"];
 const READING: ReadonlySet<StimulusKind> = new Set<StimulusKind>(["announcement", "chestUp", "planOffer"]);
 
@@ -267,11 +267,17 @@ export function createHumanizer(cfg: HumanizerConfig): HumanizerImpl {
     const i = q.intent;
     switch (i.kind) {
       case "lock": {
-        if (alreadyLocked(i.target, p, t)) return NOT_SENT;
+        const weapon = p.self.weapons[p.self.slot] ?? "fists";
+        if (weapon === "wand" && alreadyLocked(i.target, p, t)) return NOT_SENT;
+        if (weapon !== "wand" && p.now < p.self.readyAt) return NOT_SENT;
         const click = lockClick(ctx.rng.motor, ctx.rng.lapse, tier, p, { id: i.target, at: i.at });
         stats.targetClicks++;
         if (click.slipped) stats.lapses++;
         lastLock = { target: i.target, at: t };
+        if (weapon !== "wand") {
+          const a = Math.atan2(click.cursor.y - p.self.y, click.cursor.x - p.self.x);
+          return { cmd: { type: "attack", msg: { a } }, spent: true };
+        }
         if (click.picked === null) {
           stats.clickMissed++;
           misses.push({ target: i.target, at: t });
@@ -390,6 +396,11 @@ export function createHumanizer(cfg: HumanizerConfig): HumanizerImpl {
       if (res.cmd) {
         note(res.cmd, t);
         out.push({ at: t, cmd: res.cmd, intent: best.intent.kind, priority: best.priority, stimulus: stim });
+        // Button-up belongs to the same physical click and does not spend another action budget token.
+        if (res.cmd.type === "attack") {
+          stats.commands.release++;
+          out.push({ at: t, cmd: { type: "release", msg: { a: res.cmd.msg.a } }, intent: best.intent.kind, priority: best.priority, stimulus: stim });
+        }
       }
     }
     for (const [ch, q] of pending) {

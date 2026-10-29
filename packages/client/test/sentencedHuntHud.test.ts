@@ -38,7 +38,7 @@ describe("Sentenced hunt HUD", () => {
     const list = find(root, "sentenced-hunt-list")!;
     expect(root.hidden).toBe(false);
     expect(list.children).toHaveLength(2);
-    expect(list.children.map((el) => (el as FakeEl).textContent)).toEqual(["Alpha · Fire", "Beta · Demon Blood"]);
+    expect(list.children.map((el) => (el as FakeEl).textContent)).toEqual(["Alpha · Fire", "Beta · Holy"]);
     const first = list.children[0] as FakeEl;
     first.listeners.get("click")?.forEach((fn) => fn({}));
     expect(sent).toEqual([{ id: "r1" }]);

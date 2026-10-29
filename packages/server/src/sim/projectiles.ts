@@ -15,6 +15,7 @@
 // Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from where the owner's client drew it and
 // first move in the next tick's sweep.
 import {
+  ARROW_RADIUS, PLAYER_RADIUS,
   ARROW_REFLECT_SHARE, ballDeletesArrow, BALL_AFTER_ARROW, MAX_ARROW_REFLECTIONS, PROJECTILE_SUBSTEP_MS, projectileOnShieldFront,
   RANGED_HIT_REACH, raycast, reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
@@ -91,7 +92,6 @@ export function spawnProjectiles(world: World): void {
   const spawns = world.combat.spawns;
   world.combat.spawns = [];
   const now = world.state.serverTime;
-  const guidedTtlMs = 5000;
   for (const req of spawns) {
     const owner = combatant(world, req.owner);
     const shape = WEAPONS[req.weapon].shape;
@@ -100,10 +100,9 @@ export function spawnProjectiles(world: World): void {
     launch(world, {
       kind: req.kind, weapon: req.weapon, owner: owner.id, ownerName: owner.s.name, x: from.x, y: from.y,
       vx: Math.cos(req.a) * shape.speed, vy: Math.sin(req.a) * shape.speed, t: now,
-      // Target-lock range is an attack-launch check. Once launched, allow enough flight time to catch a fleeing target,
-      // with a finite five-second lifetime to bound stale shots. Directional shots retain their weapon range.
-      range: req.targetId ? shape.speed * guidedTtlMs / 1000 : shape.range * (req.rangeMult ?? 1),
-      ...(req.targetId ? { targetId: req.targetId } : {}), packet: req.packet,
+      // Homing balls consume their catalog flight range too; only explicit range augments extend it.
+      range: shape.range * (req.rangeMult ?? 1),
+      ...(req.kind === "ball" && req.targetId ? { targetId: req.targetId } : {}), packet: req.packet,
     });
   }
 }
@@ -131,7 +130,8 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
   const dy = s.by - s.ay;
   const fx = s.ax - p.x;
   const fy = s.ay - p.y;
-  const c = fx * fx + fy * fy - RANGED_HIT_REACH * RANGED_HIT_REACH;
+  const reach = s.pr.kind === "arrow" ? PLAYER_RADIUS + ARROW_RADIUS : RANGED_HIT_REACH;
+  const c = fx * fx + fy * fy - reach * reach;
   // Starting inside the reach counts only when heading into the body: an arrow loosed past someone overlapping the
   // shooter from behind doesn't hit them at the muzzle.
   if (c <= 0) return fx * dx + fy * dy <= 0 ? 0 : null;

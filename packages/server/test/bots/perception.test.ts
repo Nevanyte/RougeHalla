@@ -318,7 +318,9 @@ describe("both drivers perceive the same", () => {
       random: mulberry32(6),
       newItemUid: () => `L${++uid}`,
     });
-    for (const [i, id] of ["me", "b", "c", "d"].entries()) addPlayer(w, id, `n${i}`);
+    for (const [i, id] of ["me", "b", "c", "d"].entries()) {
+      const p = addPlayer(w, id, `n${i}`); p.weapon0 = "wand";
+    }
     const map = generateMap(w.state.seed);
     const encoder = new Encoder(w.state);
     const decoder = Reflection.decode(Reflection.encode(encoder)) as Decoder<RaidState>;
@@ -372,7 +374,7 @@ describe("both drivers perceive the same", () => {
       // (relics) exist; the Q/E fields are in the schema but no ability fills them; the zone map carries floor hazards.
       // (Detected, not yet used: no module acts on them.)
       expect(f).toEqual(featureSet({
-        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget"],
+        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget", "useConsumable", "trade"],
         wishes: true, statusEffects: true, fields: true, skills: false, planning: true, chests: true, camps: true, relics: true,
         hazards: true,
       }));

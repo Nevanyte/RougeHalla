@@ -201,7 +201,7 @@ function applyInputs(world: World, c: Combatant): void {
   if (c.kind === "mob" && isStunned(world, c)) return;
   const applyMove = (): void => {
     if (move === null) return;
-    cancelLockedWindup(world, c);
+    cancelLockedWindup(world, c, true);
     dropLock(c);
     // An unreachable click is ignored rather than treated as "stop".
     const path = move.kind === "stop" ? [] : planPath(world, c.s, move);

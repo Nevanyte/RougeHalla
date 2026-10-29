@@ -18,7 +18,7 @@ function openMap(): GameMap {
   for (let tx = 0; tx < W_TILES; tx++) { tiles[tx] = TILE_WALL; tiles[(H_TILES - 1) * W_TILES + tx] = TILE_WALL; }
   for (let ty = 0; ty < H_TILES; ty++) { tiles[ty * W_TILES] = TILE_WALL; tiles[ty * W_TILES + W_TILES - 1] = TILE_WALL; }
   const spawns = Array.from({ length: 8 }, (_, i) => ({ x: (3 + i) * TILE + TILE / 2, y: 3 * TILE + TILE / 2 }));
-  return { ...mapFromTiles(W_TILES, H_TILES, tiles), spawns };
+  return { ...mapFromTiles(W_TILES, H_TILES, tiles, 11), spawns };
 }
 
 export interface RigFighter {
@@ -53,6 +53,7 @@ export function pvpArena(
 ): World {
   const world = createGameWorld({
     seed: 11,
+    map: openMap(),
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
       suddenDeathSeconds: 3600, ...(opts.pvpRules === false ? { pvpRules: false } : {}),
@@ -70,7 +71,7 @@ export function pvpArena(
   }
   step(world, TICK_MS);
   fighters.forEach((f, i) => {
-    const at = f.at ?? { x: 200 + 60 * i, y: 320 };
+    const at = f.at ?? { x: 200 + 160 * i, y: 320 };
     const p = P(world, f.id);
     p.x = at.x;
     p.y = at.y;

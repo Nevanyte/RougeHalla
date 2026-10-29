@@ -4,7 +4,7 @@
 // the seconds left as text while the player is close, and a short cue when it drops (the ring and timer are the scene's, via
 // setTimer); those ground marks stay a Graphics, redrawn only when the ring steps.
 import Phaser from "phaser";
-import { CHEST_RANGE, CHEST_SECONDS, PLAYER_RADIUS, WEAPONS, Y_SCALE, type WeaponId } from "@raid/shared";
+import { CHEST_RANGE, CHEST_SECONDS, CONSUMABLES, isConsumableId, WIND_EMBLEM_DEF, PLAYER_RADIUS, WEAPONS, Y_SCALE, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { bakeScale, bakedImage, placeBake, swapBake, type Region } from "./bake";
 import { WEAPON_REGION, weaponCenterX, weaponTexture } from "./FighterArt";
@@ -89,7 +89,7 @@ export class ContainerView {
   }
 
   /** Position and depth are only touched when the synced position or kind changes (`this.kind` lags until the redraw below). */
-  update(c: ContainerState): void {
+  update(c: ContainerState, serverNow = 0): void {
     if (c.x !== this.x || c.y !== this.y || c.kind !== this.kind) {
       this.x = c.x;
       this.y = c.y;
@@ -101,13 +101,16 @@ export class ContainerView {
 
     // A chest is shut while it still holds its weapon and stays open once that is taken.
     const weapon = containerWeapon(c);
-    const sig = `${c.kind}|${weapon ?? ""}`;
+    const def = c.items.at(0)?.def ?? "";
+    const sig = `${c.kind}|${weapon ?? ""}|${def}|${c.opened}|${c.items.length}`;
     if (sig !== this.shapeSig) {
       this.shapeSig = sig;
       this.kind = c.kind;
-      this.redraw(c.kind, weapon);
+      this.redraw(c.kind, weapon, def, c.opened || c.items.length === 0);
     }
-    this.label.setText(c.label || DEFAULT_LABEL[c.kind] || "");
+    this.label.setText(c.kind === "chest" ? "Chest" : c.kind === "cannon" ?
+      (c.readyAt > serverNow ? `Cannon · reloading ${Math.ceil((c.readyAt - serverNow) / 1000)}s` : "Travel cannon · F to blast") :
+      c.label || DEFAULT_LABEL[c.kind] || "");
     this.syncLabel();
   }
 
@@ -201,7 +204,7 @@ export class ContainerView {
     placeBake(this.shape, region);
   }
 
-  private redraw(kind: string, weapon: WeaponId | null): void {
+  private redraw(kind: string, weapon: WeaponId | null, def: string, empty: boolean): void {
     this.icon.setVisible(false);
     if (kind === "body") {
       this.show("body", BODY_REGION, drawBody);
@@ -212,8 +215,15 @@ export class ContainerView {
       this.show("chest:reward", REWARD_REGION, drawRewardChest);
       this.rewardLabelY = -(REWARD_HEIGHT + REWARD_HALF * Y_SCALE + 4);
       this.label.setY(this.rewardLabelY);
+    } else if (kind === "consumable") {
+      const region = { x0: -24, y0: -32, x1: 24, y1: 8 };
+      this.show(`consumable:${def}`, region, (g) => drawConsumable(g, def));
+      this.label.setY(-34);
+    } else if (kind === "cannon") {
+      this.show("travel:cannon", { x0: -28, y0: -48, x1: 28, y1: 12 }, drawCannon);
+      this.label.setY(-50);
     } else {
-      const open = weapon === null;
+      const open = empty;
       this.show(`chest:${open ? "open" : "closed"}`, CHEST_REGION, (g) => drawChest(g, open));
       const hd = CHEST_HALF * Y_SCALE;
       this.label.setY(-(CHEST_HEIGHT + hd + 4 + (open ? LID_HEIGHT : 0)));
@@ -287,4 +297,26 @@ function drawBody(g: Phaser.GameObjects.Graphics): void {
   g.lineStyle(2, 0xc0583f, 1);
   g.lineBetween(-7, -6, 7, 2);
   g.lineBetween(-7, 2, 7, -6);
+}
+
+function drawConsumable(g: Phaser.GameObjects.Graphics, def: string): void {
+  if (def === WIND_EMBLEM_DEF) {
+    g.fillStyle(0x65e4b6, 0.15).fillEllipse(0, -10, 38, 28);
+    g.lineStyle(3, 0xb2fff0, 1).beginPath().moveTo(-13, -18).lineTo(7, -18).lineTo(12, -22).lineTo(7, -26).strokePath();
+    g.beginPath().moveTo(-17, -10).lineTo(14, -10).lineTo(19, -14).strokePath();
+    g.beginPath().moveTo(-10, -2).lineTo(6, -2).lineTo(10, 2).strokePath();
+    return;
+  }
+  const color = isConsumableId(def) ? CONSUMABLES[def].color : 0xf45b78;
+  g.fillStyle(0x000000, 0.3).fillEllipse(0, 1, 22, 9);
+  g.lineStyle(2, 0xffffff, 0.8).fillStyle(color, 0.9).fillRoundedRect(-7, -18, 14, 17, 4).strokeRoundedRect(-7, -18, 14, 17, 4);
+  g.fillStyle(0xdac7a5, 1).fillRect(-4, -23, 8, 6);
+  g.lineStyle(2, 0xffffff, 1).lineBetween(-3, -10, 3, -10).lineBetween(0, -13, 0, -7);
+}
+
+function drawCannon(g: Phaser.GameObjects.Graphics): void {
+  g.fillStyle(0x000000, 0.4).fillEllipse(0, 2, 48, 22);
+  g.fillStyle(0x263746, 1).fillCircle(-12, -3, 9).fillCircle(12, -3, 9);
+  g.lineStyle(3, 0xffd54f, 1).fillStyle(0x607d8b, 1).fillRoundedRect(-10, -40, 20, 35, 5).strokeRoundedRect(-10, -40, 20, 35, 5);
+  g.fillStyle(0x101a23, 1).fillEllipse(0, -39, 17, 9);
 }

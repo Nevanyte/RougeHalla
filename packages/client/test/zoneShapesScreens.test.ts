@@ -319,7 +319,7 @@ describe("the planning view with 40 camps", () => {
     expect(camps.filter((c) => c.classList.contains("elite"))).toHaveLength(10);
     // Every camp is reachable by name: its label says its zone, its number and whether it is an elite.
     const labels = camps.map((c) => c.getAttribute("aria-label") ?? "");
-    for (const zone of ["Fire", "Sentenced", "Plague", "Frost", "Demon Blood"]) expect(labels.filter((l) => l.startsWith(`${zone} camp`))).toHaveLength(8);
+    for (const zone of ["Fire", "Sentenced", "Plague", "Frost", "Holy"]) expect(labels.filter((l) => l.startsWith(`${zone} camp`))).toHaveLength(8);
     expect(labels.filter((l) => l.includes("(elite)"))).toHaveLength(10);
   });
 });

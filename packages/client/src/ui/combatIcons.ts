@@ -25,8 +25,8 @@ export const STAT_ICON_COLORS: Record<InvestedStatKey, number> = {
   armor: 0xd5e0e8, mr: 0x75cfff, speed: 0x80d6ff, leech: 0xf05260,
 };
 export const STAT_LABELS: Record<InvestedStatKey, string> = {
-  ad: "Attack damage", ap: "Ability power", damage: "Damage", health: "Health", attackSpeed: "Attack speed",
-  armor: "Armor", mr: "Magic resistance", speed: "Move speed", leech: "Life steal",
+  ad: "Offense", ap: "Soul Offence", damage: "Damage", health: "Health", attackSpeed: "Attack speed",
+  armor: "Defense", mr: "Soul Defense", speed: "Move speed", leech: "Life steal",
 };
 const DAMAGE_LABELS = { physical: "Physical damage", magic: "Magic damage", true: "True damage" } as const;
 

@@ -13,7 +13,7 @@
 // state (a cheat), for comparison.
 import {
   circleClear, FACTIONS, gallowsGateOpen, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
-  segmentClear, TERRAIN_FENCE, TICK_MS, TILE, TILE_LOW, TILE_WALL, decide,
+  lockSpacing, segmentClear, TERRAIN_FENCE, TICK_MS, TILE, TILE_LOW, TILE_WALL, decide,
   type FactionId, type GameMap, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { grantCard } from "../sim/chests";
@@ -289,7 +289,7 @@ class Client {
     const weapon = activeWeapon(me.s);
     const tm = weapon ? timingsOf(me.s, weapon) : null;
     if (!weapon || !tm) return;
-    if (this.locks) {
+    if (this.locks && weapon === "wand") {
       // The click: once taken, the server does the rest. A refused order (the foe out of reach or sight) is sent again next tick.
       if (me.kind === "player" && me.s.attackTarget !== this.foeId) enqueueClientMessage(me.rt.inputs, "target", { id: this.foeId });
       return;
@@ -309,7 +309,7 @@ class Client {
       weapon,
       ready: now >= me.s.readyAt,
       walkable: (a, b) => segmentClear(map, a, b, PLAYER_RADIUS),
-      spacing: this.spacing,
+      spacing: this.locks ? lockSpacing(weapon) : this.spacing,
       time: now / 1000,
     };
     // A swing is judged as the attacker saw the world (the server rewinds it), so a melee client just acts on its view.
@@ -358,12 +358,11 @@ export function runDuel(spec: DuelSpec): DuelResult {
   const starts: readonly [Vec2, Vec2] = spec.starts ?? startPoints(spec.distance, spec.angle ?? 0);
   const delays = spec.delayTicks ?? [0, 0];
   const arena = spec.arena ?? "open";
-  // A map the caller made (a generated zone) or a fence-row arena is handed to the world ready; the weapon harness's own arenas are
-  // swapped in after it is built, as they always were.
-  const ready: GameMap | undefined = spec.map ?? (isRowsArena(arena) ? { ...buildArena(arena, starts, seed), spawns: [starts[0], starts[1]] } : undefined);
+  // Supply the actual duel arena up front so combat reports never generate an unused full world.
+  const ready: GameMap = spec.map ?? { ...buildArena(arena, starts, seed), seed, spawns: [starts[0], starts[1]] };
 
   const world = createGameWorld({
-    ...(ready ? { map: ready, seed: ready.seed } : { seed }),
+    map: ready, seed: ready.seed,
     random: mulberry32(seed + 1),
     config: {
       minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,
@@ -371,8 +370,6 @@ export function runDuel(spec: DuelSpec): DuelResult {
       ...(spec.weaponSpecials === false ? { weaponSpecials: false } : {}),
     },
   }, { signatures: spec.signatures ?? false });
-  // The world builds a map from its seed (about 15 ms, unused here); the duel's hand-built arena replaces it.
-  if (!ready) world.map = { ...buildArena(arena, starts, seed), spawns: [starts[0], starts[1]] };
   for (let i = 0; i < 2; i++) {
     const p = addPlayer(world, IDS[i]!, IDS[i]!);
     const faction = spec.factions?.[i] ?? spec.faction;

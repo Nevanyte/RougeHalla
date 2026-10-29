@@ -141,7 +141,7 @@ describe("the axe's root", () => {
         const p = new LocalPrediction();
         p.noteFx(windup(10_000, timing.windup * 1000), ME, who);
         for (const elapsed of [0, timing.windup * 1000 - 1, timing.windup * 1000, timing.windup * 1000 + 500]) {
-          expect(p.frameInput(10_000 + elapsed - p.motion.delay, true, who, [], false).rooted, `${faction} as=${as} at ${elapsed}ms`).toBe(false);
+          expect(p.frameInput(10_000 + elapsed - p.motion.delay, true, who, [], false).rooted, `${faction} as=${as} at ${elapsed}ms`).toBe(elapsed < timing.windup * 1000);
         }
       }
     }

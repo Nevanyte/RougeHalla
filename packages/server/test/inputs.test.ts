@@ -939,6 +939,7 @@ describe("enqueueClientMessage", () => {
       pickup: { containerId: "c1" },
       consumeCorpse: { corpseId: "pc1" },
       huntTarget: { id: "p1" },
+      useConsumable: { kind: "heal" }, trade: { trader: "barter", pick: 0 },
       plan: { spawn: 1, ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
       choose: { chest: "c1", pick: -1 },

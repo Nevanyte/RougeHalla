@@ -52,7 +52,7 @@ import {
   type BaseStatId, type Effect, type EffectFlag, type EffectOf, type Folded, type MultKey, type ScalingStats, type StatMirrors,
   type StatSums,
 } from "@raid/shared";
-import { mobStatRows } from "@raid/shared";
+import { mobStatRows, tradeEffects } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import type { Combatant, FighterState } from "./combatant";
 import type { LedgerEntry, ModContribution, World } from "./world";
@@ -170,7 +170,7 @@ function buildOf(p: PlayerState): Build {
       }
     }
   }
-  b.farmRows = mobStatRows(p.mobStats);
+  b.farmRows = [...mobStatRows(p.mobStats), ...tradeEffects(p.tradeStats)];
   // Corpse growth is earned permanent health, alongside farming and outside card ceilings.
   if (p.faction === "plague" && p.corpseStacks > 0) {
     b.farmRows.push({ k: "stat", stat: "maxHp", v: p.corpseStacks * PLAGUE_CORPSE_HP_SHARE });

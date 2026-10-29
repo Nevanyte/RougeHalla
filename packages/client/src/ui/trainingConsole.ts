@@ -22,7 +22,7 @@ export type SendTrain = (msg: TrainMessage) => void;
 
 export interface ConsoleGroup<T> { label: string; items: T[] }
 
-/** A zone as the picker words it: "Demon Blood zone". */
+/** A zone as the picker words it: "Holy zone". */
 export function zoneLabel(zone: string): string {
   return `${isFactionId(zone) ? FACTIONS[zone].displayName : zone} zone`;
 }

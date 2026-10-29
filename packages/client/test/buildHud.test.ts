@@ -71,11 +71,11 @@ describe("BuildHud", () => {
     expect(values().leech).toBe("+250.25%");
   });
 
-  it("shows generic normal-mob damage separately from AD and AP", () => {
+  it("shows generic normal-mob damage separately from Offense and SO", () => {
     const { strip, values, cells, part } = setup();
     strip.update(me({ mobStats: new Map([["emberImp", 1]]) as never }), true);
     expect(values().damage).toBe("+1%");
-    expect(part(cells()[2]!, 2)).toContain("separate from attack damage and ability power");
+    expect(part(cells()[2]!, 2)).toContain("separate from Offense and Soul Offence");
   });
 
   it("shows Sentence stacks only for the Sentenced build and refreshes them when they change", () => {
@@ -98,12 +98,12 @@ describe("BuildHud", () => {
     expect(values()).toMatchObject({ armor: "+15" });
   });
 
-  it("reads the held weapon: the tooltips of AD and AP change with the slot in hand", () => {
+  it("reads the held weapon: the tooltips of Offense and SO change with the slot in hand", () => {
     const { strip, cells, part } = setup();
     strip.update(me({ weapon0: "sword", weapon1: "wand", slot: 0 }), true);
-    expect(part(cells()[1]!, 2)).toContain("Ability power gained");
+    expect(part(cells()[1]!, 2)).toContain("Soul Offence gained");
     strip.update(me({ weapon0: "sword", weapon1: "wand", slot: 1 }), true);
-    expect(part(cells()[1]!, 2)).toContain("Ability power gained");
+    expect(part(cells()[1]!, 2)).toContain("Soul Offence gained");
     strip.update(me({ weapon0: "", weapon1: "", slot: 0 }), true);
     expect(heldWeapon({ weapon0: "", weapon1: "bow", slot: 0 })).toBe("fists");
     expect(heldWeapon({ weapon0: "fromTheFuture", weapon1: "", slot: 0 })).toBe("fists");
@@ -150,7 +150,7 @@ describe("BuildHud", () => {
   it("gives each cell an accessible label with the number and the tooltip", () => {
     const { strip, cells } = setup();
     strip.update(me({ build: { ad1: 1 }, m: { adBonus: 12 } }), true);
-    expect(cells()[0]!.getAttribute("aria-label")).toMatch(/^Attack damage \+12\. /);
+    expect(cells()[0]!.getAttribute("aria-label")).toMatch(/^Offense \+12\. /);
   });
 });
 

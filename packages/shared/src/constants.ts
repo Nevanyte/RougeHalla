@@ -51,10 +51,12 @@ export const RANGED_HIT_REACH = PLAYER_RADIUS + RANGED_SLACK;
 export const PLAYER_SPEED = 170;
 /** Player and owned camp ward sight, in ground-plane world units. */
 export const VISION_RADIUS = 900;
-/** A tile seen by a player continues to reveal live activity for two minutes after its last refresh. */
-export const VISION_TRAIL_MS = 120_000;
-/** Full camps return three minutes after their last member dies. The clearing player's ward ends at this deadline. */
+/** A tile seen by a player continues to reveal live activity for thirty seconds after its last refresh. */
+export const VISION_TRAIL_MS = 30_000;
+/** Full camps return three minutes after their last member dies; personal wards have their own shorter lifetime. */
 export const CAMP_RESPAWN_MS = 180_000;
+/** Personal camp ward ends one minute before respawn. */
+export const CAMP_WARD_MS = 120_000;
 /** Holy's Demon Blood: permanent lifesteal earned per eligible camp clear (not per mob). */
 export const HOLY_CAMP_LIFESTEAL_PER_CLEAR = 0.0025;
 /** Frost's Frozen Justice defenses while fighting a true elite, and after contact ends. */
@@ -475,9 +477,9 @@ export const Y_SCALE = 0.8;
 
 // Quests (GAME_DESIGN 2.2, shared/quests.ts): optional NPC quests that pull a player across the map.
 /** Quests offered per run. */
-export const QUEST_COUNT = 10;
+export const QUEST_COUNT = 20;
 /** Of those, this many (and their giver's position) are public from the start, so a run can be planned around them. */
-export const QUEST_KNOWN_COUNT = 5;
+export const QUEST_KNOWN_COUNT = 10;
 /** The rest stay server-only until scouted; only this numeric count is public. */
 export const QUEST_UNKNOWN_COUNT = QUEST_COUNT - QUEST_KNOWN_COUNT;
 /** A standing player this close to an unknown quest's giver discovers it. */
@@ -500,3 +502,12 @@ export const QUEST_ITEM_PREFIX = "quest:";
 export const QUEST_MAX_CARRIED = 1;
 /** Separate from mob and bounty GV; supports roughly four or five completions instead of exhausting after two or three. */
 export const QUEST_GV_CAP = 40;
+
+// Stored potions and map escape tools.
+export const CONSUMABLE_CAP = 5;
+export const POTION_HEAL_MS = 5000;
+export const POTION_LARGE_SHARE = 0.4;
+export const POTION_SMALL_SHARE = 0.25;
+export const SPEED_BOOST_MS = 5000;
+export const SPEED_BOOST_MULT = 1.5;
+export const CANNON_COOLDOWN_MS = 75_000;

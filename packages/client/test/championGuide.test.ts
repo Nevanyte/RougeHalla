@@ -18,16 +18,16 @@ describe("champion guide matches the combat catalog", () => {
     expect(guide.wish.def).toBe(wish);
     expect(guide.wish.key).toBe("D");
     expect(guide.wish.cooldown).toContain(String(abilityCooldownMs(wish, 1, {}) / 60000));
-    expect(guide.wish.details.join(" ")).toContain("AD and AP do not increase");
+    expect(guide.wish.details.join(" ")).toContain("Offense and SO do not increase");
     expect(guide.wish.details.join(" ")).toContain("Training cooldown: 5 s");
     expect(guide.wish.details.join(" ")).toContain("45 s lock");
   });
 
-  it("uses the arena's paced burn and disease, with a single AP rider rather than design-sheet damage", () => {
+  it("uses the arena's paced burn and disease, with a single SO rider rather than design-sheet damage", () => {
     expect(signatureGuide("fire").scaling).toContain(`${burnDps(pacedFaction(FACTIONS.fire))} × weapon multiplier`);
     expect(signatureGuide("plague").scaling).toContain(`${plagueDps(pacedFaction(FACTIONS.plague))} × weapon multiplier`);
-    expect(signatureGuide("fire").scaling).toContain(`${AP_DOT_RATIO} × AP`);
-    expect(signatureGuide("plague").details.join(" ")).toContain("no second AP rider");
+    expect(signatureGuide("fire").scaling).toContain(`${AP_DOT_RATIO} × SO`);
+    expect(signatureGuide("plague").details.join(" ")).toContain("no second SO rider");
     expect(signatureGuide("plague").details.join(" ")).toContain("damage-over-time ticks cannot critically strike; auto attacks can");
     expect(signatureGuide("plague").details.join(" ")).toContain("converts half its current crit chance into steady DoT damage");
   });
@@ -40,7 +40,7 @@ describe("champion guide matches the combat catalog", () => {
     expect(guide.details.join(" ")).toContain("attack cooldown progresses at 48%");
   });
 
-  it("explains the mark as weighted target-health damage, not an AD/AP spell or an unweighted hit", () => {
+  it("explains the mark as weighted target-health damage, not an Offense/SO spell or an unweighted hit", () => {
     const f = pacedFaction(FACTIONS.sentenced);
     const text = signatureGuide("sentenced").details.join(" ");
     expect(text).toContain(`${guideNumber(markPct(f, 0) * 100)}%`);
@@ -48,19 +48,19 @@ describe("champion guide matches the combat catalog", () => {
     expect(text).toContain("hit weight");
     expect(text).toContain(`${guideNumber(MARK_AS_EXPONENT)}`);
     expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}%`);
-    expect(text).toContain(`${MARK_BONUS_AP_WEIGHT}× AP`);
+    expect(text).toContain(`${MARK_BONUS_AP_WEIGHT}× SO`);
     expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point`);
     expect(text).toContain(`${guideNumber(MARK_FARM_AS_EFFICIENCY * 100)}% effective`);
     expect(text).toContain(`${MARK_TIER_HITS}, ${MARK_TIER_HITS * 2} and ${MARK_TIER_HITS * 3}`);
     expect(text).toContain("1/√(original camp size)");
     expect(signatureGuide("sentenced").scaling).toContain("bonus stats");
-    expect(signatureGuide("sentenced").scaling).toContain(`AP ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point`);
+    expect(signatureGuide("sentenced").scaling).toContain(`SO ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point`);
   });
 
   it("describes Fire roam from shared tuning and the Trial movement/exit effects", () => {
     const fire = signatureGuide("fire");
     expect(fire.scaling).toContain(`${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}×`);
-    expect(fire.scaling).toContain(`${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × AP`);
+    expect(fire.scaling).toContain(`${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO`);
     expect(fire.scaling).toContain(`${guideNumber(FIRE_ROAM_RAMP_MS / 1000)} s`);
     expect(fire.details.join(" ")).toContain("does not cancel a burst already armed");
     expect(championGuide("sentenced").wish.scaling).toContain(`${guideNumber((1 - TRIAL_MOVE_MULT) * 100)}% slower`);
@@ -80,6 +80,6 @@ describe("champion guide matches the combat catalog", () => {
     expect(guide.name).toBe(WEAPONS[id].name);
     expect(guide.scaling).not.toBe("");
     expect(guide.detail).toContain("attack interval in seconds");
-    expect(guide.detail).toContain("AP scaling deals magic damage");
+    expect(guide.detail).toContain("SO scaling deals magic damage");
   });
 });

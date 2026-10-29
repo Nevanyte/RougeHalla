@@ -1,36 +1,5 @@
-// The target lock (the LoL-style controls). A `target {id}` order locks an enemy; from then on the server plays the
-// player's weapon against it as a mob would: it walks into range, attacks whenever the cooldown allows, faces it (the
-// shield's block cone follows) and aims every attack at it, until the lock ends. It is a player's input made server side
-// (sim/mobAI.ts is the same idea for mobs), so it never touches state a client could not: it sets the path, the trigger
-// and the aim, and the weapon state machine does the rest (sim/weapons.ts).
-//
-// Accepting (handleTarget). The target must be another combatant that is standing, not evading, hostile (not the fighter
-// itself, and a mob never locks a mob: only players lock at all) and within TARGET_RANGE centre to centre, and the player
-// must hold a weapon. Anything else is ignored without changing a thing. Line of sight is not needed: an enemy seen behind
-// a pillar is locked and the chase walks around it, as in LoL (nothing is attacked without a clear line). A target across
-// a fence (LOW) is in sight, so it is locked with no search and the chase finds the way. Accepting locks it and lets go
-// of the trigger (the upkeep below holds it from then on).
-//
-// Orders replace each other in arrival order within a tick (step.ts applies a move where it arrived among the actions):
-// `move` and `stop` end the lock (dropLock, weapons.ts), as does `attack`; a `target` ends whatever came before it. A
-// move to an unreachable point still ends the lock: the order was given. A `move`, a `stop` or a `target` that is accepted
-// also cancels an attack the lock was winding up (cancelLockedWindup: no swing or shot, the cooldown refunded, a `cancel`
-// fx); an `attack` (the low-level trigger) does not, and neither does a refused order, or a `target` on the fighter the
-// attack is already aimed at (the lock had dropped and the player clicks it again).
-//
-// Upkeep (updateTargets, once per tick right after the inputs, before the weapons). For every locked player: the lock ends
-// when the target is no longer standing, is evading, is farther than TARGET_RANGE, has been out of line of sight for
-// TARGET_LOS_GRACE_MS after having been in it (until then the chase paths around the wall; a target locked behind a wall
-// is chased until it is first seen), or the player holds no weapon. A melee lock across a fence is seen but not "clear"
-// (reachMask: LOW stops a swing, not a shot), so it walks round and holds no trigger. Ending it clears the
-// trigger and the chase path: the player stops where it stands. Otherwise policies.ts `decide` plays the weapon with
-// lockSpacing (close in until within the weapon's `far`, then stand and attack, never back off) against the target's
-// present position and its velocity:
-//   walk    toward the target, re-planned at most every TARGET_REPATH_MS, and only when the goal moved or the path ran out
-//   trigger held while the target is in range with a clear line, so the next attack starts the moment the cooldown allows
-//   aim     every attack goes where `decide` aims (the cursor's `aim` input is ignored while locked); the synced facing is
-//           written only past MOB_AIM_DEADBAND, as a mob's is
-// An attack the lock starts remembers its target and is aimed again at it as it lands or leaves (weapons.ts `land`).
+// Wands alone accept unit locks and let the server chase and aim. Other weapons use directional
+// attack inputs. Movement drops a wand lock while its committed cast finishes before walking.
 import {
   decide, hasLineOfSight, lockSpacing, MASK_SIGHT, MOB_AIM_DEADBAND, moveComponents, reachMask, TARGET_LOS_GRACE_MS, TARGET_RANGE,
   TARGET_REPATH_MS, TICK_MS, worldToTile, wrapAngle, type Vec2,
@@ -61,7 +30,7 @@ function lockable(world: World, c: Combatant, t: Combatant): boolean {
 export const handleTarget: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "target" || c.kind !== "player") return;
   const t = combatant(world, cmd.id);
-  if (!t || !lockable(world, c, t) || activeWeapon(c.s) === null) return;
+  if (!t || !lockable(world, c, t) || activeWeapon(c.s) !== "wand") return;
   const w = c.rt.weapon;
   // Clicking the fighter already locked changes nothing: players re-click their target all the time, and starting over
   // would forget that it was seen and let go of the trigger (losing the cooldown's carried remainder).
@@ -120,7 +89,7 @@ export function updateTargets(world: World): void {
 function acquireAttackMoveTarget(world: World, c: Combatant): void {
   const goal = c.rt.weapon.attackMoveGoal;
   const weapon = activeWeapon(c.s);
-  if (!goal || !weapon || !standing(c) || isStunned(world, c)) return;
+  if (!goal || weapon !== "wand" || !standing(c) || isStunned(world, c)) return;
   const range = lockSpacing(weapon).attackRange;
   let best: Combatant | null = null;
   let bestDistance = Infinity;
@@ -179,7 +148,7 @@ function follow(world: World, c: Combatant): void {
   const t = w.lock === null ? null : combatant(world, w.lock);
   const weapon = activeWeapon(c.s);
   const tm = weapon ? timingsOf(c.s, weapon) : null;
-  if (!standing(c) || !t || !weapon || !tm || !lockable(world, c, t)) {
+  if (!standing(c) || !t || weapon !== "wand" || !tm || !lockable(world, c, t)) {
     resumeAttackMove(world, c);
     return;
   }

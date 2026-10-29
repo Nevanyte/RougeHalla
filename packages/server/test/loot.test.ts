@@ -275,7 +275,7 @@ describe("spawnLoot / install", () => {
     expect(bare.state.containers.size).toBeGreaterThan(0);
   });
 
-  it("puts one chest holding one weapon on every chest spot, in spot order, and loose weapons on some ground spots", () => {
+  it("puts one weapon and a small potion in each chest, plus loose weapons and travel cannons", () => {
     const world = makeWorld();
     const { crateSpots, groundSpots } = world.map;
     expect(crateSpots.length).toBeGreaterThan(0);
@@ -286,11 +286,12 @@ describe("spawnLoot / install", () => {
 
     const chests = all.filter((c) => c.kind === "chest");
     const ground = all.filter((c) => c.kind === "ground");
-    expect(chests.length + ground.length).toBe(all.length);
+    expect(chests.length + ground.length + all.filter(c => c.kind === "cannon").length).toBe(all.length);
     expect(chests.map((c) => ({ x: c.x, y: c.y }))).toEqual(crateSpots);
     for (const c of chests) {
       expect(c.label).toBe("Chest");
-      expect(c.items).toHaveLength(1);
+      expect(c.items).toHaveLength(2);
+      expect(c.items.at(1)!.def).toBe("potionSmall");
       expect(WEAPON_IDS).toContain(c.items.at(0)!.def);
     }
     // Loose weapons sit on a subset of the ground spots, in order, one on each, named after what they are.
@@ -324,8 +325,8 @@ describe("spawnLoot / install", () => {
     expect(s.calls).toBe(10);
     const boxes = [...world.state.containers.values()];
     expect(boxes.map((c) => [c.kind, c.x, c.y, defsOf(c)])).toEqual([
-      ["chest", SPOTS[0]!.x, SPOTS[0]!.y, [first]],
-      ["chest", SPOTS[1]!.x, SPOTS[1]!.y, [last]],
+      ["chest", SPOTS[0]!.x, SPOTS[0]!.y, [first, "potionSmall"]],
+      ["chest", SPOTS[1]!.x, SPOTS[1]!.y, [last, "potionSmall"]],
       ["ground", SPOTS[0]!.x, SPOTS[0]!.y, [first]],
       ["ground", SPOTS[1]!.x, SPOTS[1]!.y, [last]],
     ]);
@@ -850,7 +851,7 @@ describe("pickup of containers created this tick", () => {
 
     handlePickup(world, combatant(world, "a")!, { kind: "pickup", containerId: chest.id });
     expect(world.events).toEqual([]);
-    expect(chest.items).toHaveLength(0);
+    expect(defsOf(chest)).toEqual(["potionSmall"]);
     expect(P(world, "a").weapon1).not.toBe("");
   });
 
@@ -1034,7 +1035,7 @@ describe("loot flow through the sim", () => {
     const census = (): string[] => {
       const out: string[] = [];
       for (const p of world.state.players.values()) for (const w of [p.weapon0, p.weapon1]) if (w) out.push(w);
-      for (const c of world.state.containers.values()) out.push(...defsOf(c));
+      for (const c of world.state.containers.values()) out.push(...defsOf(c).filter(def => (WEAPON_IDS as readonly string[]).includes(def)));
       return out.sort();
     };
     const expected = census();
@@ -1064,6 +1065,6 @@ describe("loot flow through the sim", () => {
     pickup(world, "a", chest.id);
     expect(toastsOf(tick(world))).toEqual([]);
     expect(slotsOf(world, "a")).toEqual(["sword", weapon]);
-    expect(chest.items).toHaveLength(0);
+    expect(defsOf(chest)).toEqual(["potionSmall"]);
   });
 });

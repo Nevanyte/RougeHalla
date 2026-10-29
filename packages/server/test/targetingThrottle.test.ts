@@ -51,7 +51,7 @@ function world3(): World {
   for (let i = 0; i < 3; i++) {
     const p = addPlayer(world, `p${i}`, `player${i}`);
     p.faction = "plague";
-    p.weapon0 = "sword";
+    p.weapon0 = "wand";
   }
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");

@@ -105,11 +105,11 @@ export function championCombatModel(input: ChampionCombatInput): ChampionCombatM
   const total = physical + magic + trueDamage;
   const fireRoamText = factionId === "fire"
     ? ` Fire Roam is ${input.roamReady ? "armed" : `${fmt(Math.min(FIRE_ROAM_CHARGE_MAX, Math.max(0, safe(input.roamCharge, 0))))}/${FIRE_ROAM_CHARGE_MAX} charged`}`
-      + ` (${fmt((fireRoamSpeedMult(safe(input.roamCharge, 0)) - 1) * 100)}% move speed); after ${fmt(FIRE_ROAM_RAMP_MS / 1000)} s out of combat, the next landed basic attack adds ${fmt(fireRoamBurstDamage(mirrors.apBonus))} magic (${FIRE_ROAM_BURST_BASE} + ${fmt(FIRE_ROAM_BURST_AP_SHARE)}× AP). Incoming damage resets partial charge but does not cancel an already armed burst; magic resistance mitigates the burst.`
+      + ` (${fmt((fireRoamSpeedMult(safe(input.roamCharge, 0)) - 1) * 100)}% move speed); after ${fmt(FIRE_ROAM_RAMP_MS / 1000)} s out of combat, the next landed basic attack adds ${fmt(fireRoamBurstDamage(mirrors.apBonus))} magic (${FIRE_ROAM_BURST_BASE} + ${fmt(FIRE_ROAM_BURST_AP_SHARE)}× SO). Incoming damage resets partial charge but does not cancel an already armed burst; Soul Defense mitigates the burst.`
     : "";
   const weapon = WEAPONS[weaponId];
   const scaleParts: Array<[number | undefined, string]> = [
-    [weapon.scaling.ad, "AD"], [weapon.scaling.ap, "AP"], [weapon.scaling.hp, "bonus HP"], [weapon.scaling.def, "bonus defense"],
+    [weapon.scaling.ad, "Offense"], [weapon.scaling.ap, "SO"], [weapon.scaling.hp, "bonus HP"], [weapon.scaling.def, "bonus defense"],
   ];
   const scaleTerms = scaleParts.filter(([coefficient]) => (coefficient ?? 0) !== 0).map(([coefficient, label]) => `${fmt(coefficient ?? 0)}× ${label}`).join(" + ") || "none";
   const auto: ChampionCombatRow = {
@@ -139,8 +139,8 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       const burn = (burnBase + burnAp) * dotMult;
       return {
         id: "passive", icon: "magic", name: "Dragonslayer", value: `${fmt(burn)} magic/s`,
-        scaling: `AP adds ${fmt(AP_DOT_RATIO)} magic DPS/point · DoT ×${fmt(dotMult)}`,
-        tooltip: `While trading, burn deals ${fmt(burn)} magic DPS: ${fmt(burnBase)} from your faction plus ${fmt(burnAp)} from AP (${fmt(AP_DOT_RATIO)} per AP), including the ${fmt(dotMult)}× DoT multiplier. `
+        scaling: `SO adds ${fmt(AP_DOT_RATIO)} magic DPS/point · DoT ×${fmt(dotMult)}`,
+        tooltip: `While trading, burn deals ${fmt(burn)} magic DPS: ${fmt(burnBase)} from your faction plus ${fmt(burnAp)} from SO (${fmt(AP_DOT_RATIO)} per SO), including the ${fmt(dotMult)}× DoT multiplier. `
           + `Engaged enemies also take physical backlash per swing: ${fmt(faction.params.backlash! * bm * returnedMult)} × their base attack rate × their unbuffed weapon interval.`,
       };
     }
@@ -161,8 +161,8 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
         scaling: `+${fmt((faction.params.mark_kill ?? 0) * 100)}%/kill stack · ${fmt(weightedBonusTotal)} weighted bonus stats · ×${fmt(faction.params.mark_amp ?? 1)} at tier ${MARK_TOP_TIER}`,
         tooltip: `A tier-1 mark pulse is ${fmt(pulse * 100)}% of target max HP per hit using ${WEAPONS[weapon].name}'s actual hit weight. `
           + `A mark starts at tier 1, advances every ${MARK_TIER_HITS} hits, and reaches ×${fmt(faction.params.mark_amp ?? 1)} at tier ${MARK_TOP_TIER}. `
-          + `Your ${stacks} Sentence kill stacks add ${fmt((faction.params.mark_kill ?? 0) * 100)}% target max HP each. Bonus AD ${fmt(bonusStats.ad)}, AP ${fmt(bonusStats.ap)}, armor ${fmt(bonusStats.armor)}, and MR ${fmt(bonusStats.magicResist)} add ${fmt(bonusTotal)} raw bonus-stat points (${fmt(weightedBonusTotal)} weighted for the mark).${heavierSentence ? ` Heavier Sentence adds ${fmt(HEAVIER_SENTENCE_PER_BONUS * (bonusHp / faction.hp) * 100)}% from bonus HP.` : ""} `
-          + `AD, armor, and MR add ${fmt(MARK_BONUS_STAT_PER_POINT * 100)}% mark strength per point; AP has ${MARK_BONUS_AP_WEIGHT}× weight and adds ${fmt(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point. Attack-speed bonuses from cards and farming are ${fmt(MARK_FARM_AS_EFFICIENCY * 100)}% effective; your base attack speed is unchanged. `
+          + `Your ${stacks} Sentence kill stacks add ${fmt((faction.params.mark_kill ?? 0) * 100)}% target max HP each. Bonus Offense ${fmt(bonusStats.ad)}, SO ${fmt(bonusStats.ap)}, Defense ${fmt(bonusStats.armor)}, and SD ${fmt(bonusStats.magicResist)} add ${fmt(bonusTotal)} raw bonus-stat points (${fmt(weightedBonusTotal)} weighted for the mark).${heavierSentence ? ` Heavier Sentence adds ${fmt(HEAVIER_SENTENCE_PER_BONUS * (bonusHp / faction.hp) * 100)}% from bonus HP.` : ""} `
+          + `Offense, Defense, and SD add ${fmt(MARK_BONUS_STAT_PER_POINT * 100)}% mark strength per point; SO has ${MARK_BONUS_AP_WEIGHT}× weight and adds ${fmt(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point. Attack-speed bonuses from cards and farming are ${fmt(MARK_FARM_AS_EFFICIENCY * 100)}% effective; your base attack speed is unchanged. `
           + `Completed hunts add ${fmt((sentencedHuntMarkMultiplier(safe(input.huntStacks, 0)) - 1) * 100)}% permanent mark strength. `
           + "Distance, camp sharing, Trial, and the current mark progress change the exact pulse.",
       };
@@ -174,17 +174,17 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       const disease = (faction.params.plague! * bm + AP_DOT_RATIO * mirrors.apBonus) * dotMult * growth;
       return {
         id: "passive", icon: "magic", name: "Rat King disease", value: `${fmt(disease)} magic/s`,
-        scaling: `AP +${fmt(AP_DOT_RATIO * growth)} DPS/point · ${fmt(stacks)} corpses · +${fmt(stacks * PLAGUE_CORPSE_HP_SHARE * 100)}% HP`,
-        tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with AP adding ${fmt(AP_DOT_RATIO * growth * dotMult)} magic DPS per point. `
-          + `Corpse harvest multiplies disease (including its AP damage) by ${fmt(growth)}; each corpse grants ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and ${fmt(PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK * 100)}% disease strength. `
+        scaling: `SO +${fmt(AP_DOT_RATIO * growth)} DPS/point · ${fmt(stacks)} corpses · +${fmt(stacks * PLAGUE_CORPSE_HP_SHARE * 100)}% HP`,
+        tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(AP_DOT_RATIO * growth * dotMult)} magic DPS per point. `
+          + `Corpse harvest multiplies disease (including its SO damage) by ${fmt(growth)}; each corpse grants ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and ${fmt(PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK * 100)}% disease strength. `
           + `Below ${fmt(band * 100)}% target HP, execute adds ${fmt(faction.params.execute! * bm * dotMult)} × (${fmt(band)} − target HP fraction) magic DPS. Both include the ${fmt(dotMult)}× DoT multiplier; corpse stacks do not amplify the execute.`,
       };
     }
     case "frost":
       return {
         id: "passive", icon: "attackSpeed", name: "Ice wall", value: `${fmt(faction.params.slow! * 100)}% AS · ${fmt((1 - CHILL_MOVE_MULT) * 100)}% MS slow`,
-        scaling: `Frozen Justice: +${FROST_ELITE_GUARD_BONUS} armor/MR · ${input.frostEliteGuard ? "ACTIVE" : "elite fights"}`,
-        tooltip: `While engaged, Frost slows enemy attack-cooldown progress by ${fmt(faction.params.slow! * 100)}%. Nearby enemies also move at ${fmt(CHILL_MOVE_MULT * 100)}% speed briefly, then thaw over 3 seconds. Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} armor and magic resistance while fighting elites, lingering for 2 seconds after contact. This passive deals no damage and does not scale with AD or AP.`,
+        scaling: `Frozen Justice: +${FROST_ELITE_GUARD_BONUS} Defense/SD · ${input.frostEliteGuard ? "ACTIVE" : "elite fights"}`,
+        tooltip: `While engaged, Frost slows enemy attack-cooldown progress by ${fmt(faction.params.slow! * 100)}%. Nearby enemies also move at ${fmt(CHILL_MOVE_MULT * 100)}% speed briefly, then thaw over 3 seconds. Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} Defense and Soul Defense while fighting elites, lingering for 2 seconds after contact. This passive deals no damage and does not scale with Offense or SO.`,
       };
     case "holy": {
       const hpFrac = input.maxHp && input.maxHp > 0 ? Math.max(0, Math.min(1, safe(input.hp, input.maxHp) / input.maxHp)) : 1;
@@ -206,7 +206,7 @@ function wishRow(faction: FactionId): ChampionCombatRow {
     case "freeze": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(FREEZE_STUN_MS / 1000)}s stun · ${fmt(FREEZE_RANGE)} range`, scaling: "No damage scaling", tooltip: `${def.blurb} Fixed ${fmt(FREEZE_STUN_MS / 1000)} second stun within ${FREEZE_RANGE} range; no damage.` };
     case "swarm": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(SWARM_MS / 1000)}s hidden · ${SWARM_CLOUD_RADIUS} radius`, scaling: "No damage scaling", tooltip: `${def.blurb} Hidden for ${fmt(SWARM_MS / 1000)} seconds; the cloud radius is ${SWARM_CLOUD_RADIUS}. No damage.` };
     case "trial": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(TRIAL_MS / 1000)}s zone · ${fmt((1 - TRIAL_DEALT_MULT) * 100)}% less dealt`, scaling: `${fmt((1 - TRIAL_MOVE_MULT) * 100)}% slower · +${fmt((TRIAL_TAKEN_MULT - 1) * 100)}% taken · ${fmt(TRIAL_EXIT_STUN_MS / 1000)}s exit stun`, tooltip: `${def.blurb} The ring lasts ${fmt(TRIAL_MS / 1000)} seconds, radius ${TRIAL_RADIUS} (or ${TRIAL_CONVICTED_RADIUS} on a convicted mark); its target deals ${fmt(TRIAL_DEALT_MULT * 100)}% damage, moves at ${fmt(TRIAL_MOVE_MULT * 100)}% speed, takes ${fmt(TRIAL_TAKEN_MULT * 100)}%, and is stunned ${fmt(TRIAL_EXIT_STUN_MS / 1000)} seconds on exit. No damage scaling.` };
-    case "blaze": return { id: "wish", icon: def.icon, name: def.name, value: `${BLAZE_BURN_DPS} true DPS · ${fmt(BLAZE_BURN_MS / 1000)}s trail`, scaling: `${BLAZE_MIN_DIST}–${BLAZE_RANGE} blink · fixed damage`, tooltip: `${def.blurb} Blink ${BLAZE_MIN_DIST}–${BLAZE_RANGE} units and leave a ${fmt(BLAZE_BURN_MS / 1000)} second trail dealing fixed ${BLAZE_BURN_DPS} true damage per second. Wish damage does not scale with AD, AP, weapon, or card damage multipliers.` };
+    case "blaze": return { id: "wish", icon: def.icon, name: def.name, value: `${BLAZE_BURN_DPS} true DPS · ${fmt(BLAZE_BURN_MS / 1000)}s trail`, scaling: `${BLAZE_MIN_DIST}–${BLAZE_RANGE} blink · fixed damage`, tooltip: `${def.blurb} Blink ${BLAZE_MIN_DIST}–${BLAZE_RANGE} units and leave a ${fmt(BLAZE_BURN_MS / 1000)} second trail dealing fixed ${BLAZE_BURN_DPS} true damage per second. Wish damage does not scale with Offense, SO, weapon, or card damage multipliers.` };
     case "lastStand": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(LAST_STAND_MS / 1000)}s floor at 1 HP · +${fmt(LAST_STAND_SPEED_BONUS * 100)}% move`, scaling: `${fmt(LAST_STAND_HEAL_SHARE * 100)}% of held damage healed back`, tooltip: `${def.blurb} For ${fmt(LAST_STAND_MS / 1000)} seconds, health cannot fall below 1, movement speed rises ${fmt(LAST_STAND_SPEED_BONUS * 100)}%, and ${fmt(LAST_STAND_HEAL_SHARE * 100)}% of damage held back is healed after the effect. No damage scaling.` };
   }
 }

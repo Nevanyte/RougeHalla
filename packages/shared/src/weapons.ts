@@ -25,6 +25,8 @@ export const ALL_WEAPON_IDS: readonly WeaponId[] = [...WEAPON_IDS, "fists"];
 export const FISTS = "fists" as const satisfies WeaponId;
 
 export type ProjectileKind = "arrow" | "ball";
+/** Broad arrow skillshots; wand balls keep their current collision radius. */
+export const ARROW_RADIUS = 7;
 
 /** A swing: everything within `reach` of the attacker's centre (plus the target's body) and `halfArc` of the aim. */
 export interface ArcShape { kind: "arc"; reach: number; halfArc: number }
@@ -87,35 +89,35 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
   sword: {
     id: "sword", name: "Sword", color: 0xcfd8dc, boost: 1.15, floor: 0.25, dpsMult: 0.75, scaling: { ad: 1.0 },
     onHitPower: SWORD_ON_HIT_POWER,
-    shape: { kind: "arc", reach: 64, halfArc: Math.PI / 4 },
+    shape: { kind: "arc", reach: 112, halfArc: Math.PI / 4 },
   },
   bow: {
     id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8, scaling: { ad: 1.0 },
     onHitPower: 1,
-    shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 240 },
+    shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 520 },
   },
   wand: {
     id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8, scaling: { ad: 0.3, ap: 1.0 },
     onHitPower: 1, special: { kind: "splash", share: WAND_SPLASH_SHARE, radius: WAND_SPLASH_RADIUS },
-    shape: { kind: "projectile", projectile: "ball", speed: 380, range: 220 },
+    shape: { kind: "projectile", projectile: "ball", speed: 380, range: 640 },
   },
   // The bash; the block cone (SHIELD_HALF_ARC) is always up while the shield is in hand.
   shield: {
     id: "shield", name: "Shield", color: 0x90a4ae, boost: 0.6, floor: 0.3, dpsMult: 0.75, scaling: { ap: 0.3, def: 0.4 },
     onHitPower: 1,
-    shape: { kind: "arc", reach: 44, halfArc: Math.PI / 3 },
+    shape: { kind: "arc", reach: 96, halfArc: Math.PI / 3 },
   },
   axe: {
     id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77, scaling: { ad: 1.0, hp: 0.02 },
     onHitPower: 1, special: { kind: "shred", armor: AXE_SHRED_ARMOR, ms: AXE_SHRED_MS, cap: AXE_SHRED_CAP },
-    shape: { kind: "arc", reach: 60, halfArc: Math.PI / 2 },
+    shape: { kind: "arc", reach: 112, halfArc: Math.PI / 2 },
   },
   // What an empty hand fights with: the shortest melee reach and the fastest cadence, at 0.60 of a faction's weapon dps
   // (arming is worth x1.25-1.33). It pierces shields, never staggers and has no tie to the loop (WEAPON_BEATS).
   fists: {
     id: "fists", name: "Fists", color: 0xffcc80, boost: 1.5, floor: 0.2, dpsMult: 0.6, scaling: { ad: 0.6, ap: 0.6 },
     onHitPower: FISTS_ON_HIT_POWER,
-    shape: { kind: "arc", reach: 40, halfArc: Math.PI / 3 },
+    shape: { kind: "arc", reach: 72, halfArc: Math.PI / 3 },
   },
 };
 
@@ -209,11 +211,8 @@ export function backlashPerSwing(backlash: number, foe: Pick<FactionSpec, "rate"
   return backlash * foe.rate * attackInterval(foe, foeWeapon);
 }
 
-// Attack windups (GAME_DESIGN 9.1, 10.3, the controls rework): every attack roots its fighter from its start until it lands
-// (melee) or its projectile leaves (bow, wand). Then the fighter walks freely until the next attack, LoL-style. Each windup
-// is its design seconds or the given share of the interval, whichever is shorter, so it scales with the attack speed. The
-// ranged windups are short so ranged attacks support League-like stutter-stepping; their stronger orb-walking is a known
-// tradeoff measured by the kiting and duel harnesses.
+// Attacks pause walking through their windup. Longer player ranged pauses preserve room for a
+// chaser after the range increase. PvE mobs retain their separate windup profile below.
 const SWORD_WINDUP = 0.1;
 const BASH_WINDUP = 0.1;
 /** The punch: as short as a sword's (a missing case would be a windup of 0). */
@@ -224,10 +223,10 @@ const AXE_WINDUP_SHARE = 0.25;
 const AXE_ROOT = 0;
 const AXE_ROOT_SHARE = 0;
 /** The bow's fixed full draw (it always looses at full draw, for full damage). */
-export const BOW_WINDUP = 0.3;
-export const BOW_WINDUP_SHARE = 0.3;
-export const WAND_WINDUP = 0.3;
-export const WAND_WINDUP_SHARE = 0.3;
+export const BOW_WINDUP = 0.5;
+export const BOW_WINDUP_SHARE = 0.55;
+export const WAND_WINDUP = 0.45;
+export const WAND_WINDUP_SHARE = 0.5;
 /** Legacy ranged windups retained for PvE mobs so the player-combat timing update does not raise camp pressure. */
 export const NPC_BOW_WINDUP = 0.6;
 export const NPC_BOW_WINDUP_SHARE = 0.92;

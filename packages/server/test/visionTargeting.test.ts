@@ -43,7 +43,7 @@ function world(options: { ward?: boolean; training?: boolean } = {}): World {
   }, { signatures: false });
   (["plague", "frost", "holy"] as FactionId[]).forEach((faction, i) => {
     const player = addPlayer(w, `p${i}`, `player${i}`, { faction });
-    player.weapon0 = "sword";
+    player.weapon0 = "wand";
   });
   step(w, TICK_MS);
   expect(w.state.phase).toBe("active");

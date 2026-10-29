@@ -4,7 +4,7 @@ import { schema, t, type SchemaType } from "@colyseus/schema";
 
 export const ItemState = schema({
   uid: t.string().default(""),
-  /** A WeaponId. */
+  /** A weapon, quest-item or consumable definition id. */
   def: t.string().default(""),
 }, "ItemState");
 export type ItemState = SchemaType<typeof ItemState>;
@@ -120,6 +120,13 @@ export const PlayerState = schema({
   frostEliteGuard: t.boolean().default(false),
   /** Player corpses consumed by Plague this run. */
   corpseStacks: t.float64().default(0),
+  potionLarge: t.uint8().default(0),
+  potionSmall: t.uint8().default(0),
+  healingUntil: t.uint32().default(0),
+  speedBoostUntil: t.uint32().default(0),
+  tradeUsed: t.boolean().default(false),
+  tradeOffers: t.array("string"),
+  tradeStats: t.map("float64"),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -238,6 +245,11 @@ export const ContainerState = schema({
   takenBy: t.array("string"),
   /** Every player who has made their one pick here, an option or a skip, in the order they made it. */
   pickers: t.array("string"),
+  /** Travel cannon cooldown and destination; zero on ordinary containers. */
+  readyAt: t.uint32().default(0),
+  targetX: t.float32().default(0),
+  targetY: t.float32().default(0),
+  opened: t.boolean().default(false),
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 
@@ -280,6 +292,15 @@ export const PlagueCorpseState = schema({
   expiresAt: t.number().default(0),
 }, "PlagueCorpseState");
 export type PlagueCorpseState = SchemaType<typeof PlagueCorpseState>;
+
+export const TraderState = schema({
+  id: t.string().default(""),
+  kind: t.string().default("barter"),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
+  name: t.string().default(""),
+}, "TraderState");
+export type TraderState = SchemaType<typeof TraderState>;
 
 export const RaidState = schema({
   /** RaidPhase */
@@ -336,5 +357,6 @@ export const RaidState = schema({
   mapHash: t.uint32().default(0),
   /** Consumable player bodies; only Plague clients display their locations. */
   plagueCorpses: t.map(PlagueCorpseState),
+  traders: t.map(TraderState),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;

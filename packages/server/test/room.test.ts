@@ -14,7 +14,7 @@ import { Client, type Room } from "@colyseus/sdk";
 import {
   damageShares, defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
   raycast, ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, unpackLaunches, type FactionId, type FxBatch, type JoinOptions, type ProfileStats,
-  type ProjectileLaunch, type RunResult, type TimedFx, type Vec2, type VisionSnapshotMessage, CAMP_RESPAWN_MS, TICK_MS, TILE, VISION_RADIUS, VISION_TRAIL_MS,
+  type ProjectileLaunch, type RunResult, type TimedFx, type Vec2, type VisionSnapshotMessage, CAMP_RESPAWN_MS, CAMP_WARD_MS, TICK_MS, TILE, VISION_RADIUS, VISION_TRAIL_MS,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -789,7 +789,10 @@ describe("a run", () => {
     a!.room.send("pickup", { containerId: chest.id });
     await until(() => syncedLoadout(a!).weapon0 === weapon, "the chest's weapon in the hand, on the client");
     expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon0: weapon }); // the hand was empty (fists): it takes the weapon up
-    expect(chest.items.length).toBe(0); // the chest stays, opened
+    expect(chest.items.map(i => i.def)).toEqual(["potionSmall"]);
+    a!.room.send("pickup", { containerId: chest.id });
+    await until(() => a!.room.state.players.get(sessionOf(a!))!.potionSmall === 1, "potion inventory to sync");
+    expect(chest.items.length).toBe(0);
 
     a!.room.send("swap", {});
     await until(() => syncedLoadout(a!).slot === 1, "the swap to reach the client");
@@ -807,6 +810,8 @@ describe("a run", () => {
     const [a, b, c] = await startRun([A, B, C]);
     const world = worldOf(a!);
     const at = duelSpot(world, [sessionOf(a!), sessionOf(b!)]);
+    serverPlayer(a!).weapon0 = "wand";
+    serverPlayer(a!).slot = 0;
     placeOnServer(b!, at.x + 30, at.y);
     placeOnServer(a!, at.x, at.y);
     await sleep(120);
@@ -1339,7 +1344,7 @@ describe("vision over real multiplayer sockets", () => {
     };
     await until(() => [a!, b!].every((p) => p.room.state.camps[0]?.respawnAt === deadline), "both clients to receive the public deadline");
     expect(publicCamp(a!)).toEqual(publicCamp(b!));
-    expect(publicCamp(b!)).toMatchObject({ state: 2, alive: 0, wardOwner: sessionOf(a!), wardExpiresAt: deadline });
+    expect(publicCamp(b!)).toMatchObject({ state: 2, alive: 0, wardOwner: sessionOf(a!), wardExpiresAt: world.state.camps[0]!.clearedAt + CAMP_WARD_MS });
     // Advance the game's clock instead of waiting three real minutes; the room still performs and patches the due tick.
     world.state.patienceEndsAt = deadline + 60_000;
     world.state.serverTime = deadline - TICK_MS;

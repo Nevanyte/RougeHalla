@@ -9,7 +9,7 @@ function fighter(faction: (typeof FACTION_IDS)[number]) {
 }
 
 describe("combat readability", () => {
-  it("shows earned Demon Blood camp lifesteal as a build investment", () => {
+  it("shows earned Holy camp lifesteal as a build investment", () => {
     const holy = combatReadability({ ...fighter("holy"), campClears: 20 });
     expect(holy.investedStats.find(s => s.key === "leech")?.score).toBeCloseTo(1, 12);
     expect(combatReadability({ ...fighter("fire"), campClears: 20 }).investedStats).toEqual([]);
@@ -31,7 +31,7 @@ describe("combat readability", () => {
     const view = combatReadability(p);
     expect(view.powerRatio).toBeGreaterThan(1);
     expect(view.topStats.map((s) => s.key)).toEqual(["ap", "ad"]);
-    expect(view.topStats[0]?.short).toBe("AP");
+    expect(view.topStats[0]?.short).toBe("SO");
   });
 
   it("blends weapon scaling into the actual physical and magic damage shares", () => {

@@ -31,11 +31,11 @@ describe("session vision", () => {
     expect(v.canSee({ x: 70.5 * TILE, y: 25.5 * TILE })).toBe(false);
     expect(shouldRenderActor(false, EFFECT_HIDDEN, hiddenEnemy, v.canSee)).toBe(false);
   });
-  it("expires live trail after two minutes and does not refresh it while dead", () => {
+  it("expires live trail after thirty seconds and does not refresh it while dead", () => {
     const v = new RaidVision(), m = map(); frame(v, m);
     expect(v.canSee(origin)).toBe(true);
-    frame(v, m, 120999, undefined, false); expect(v.canSee(origin)).toBe(true);
-    frame(v, m, 121000, undefined, false); expect(v.canSee(origin)).toBe(false);
+    frame(v, m, 30999, undefined, false); expect(v.canSee(origin)).toBe(true);
+    frame(v, m, 31000, undefined, false); expect(v.canSee(origin)).toBe(false);
   });
   it("retains a cleared camp only for its owner and drops ward vision at the exact deadline without trail", () => {
     const v = new RaidVision(), m = map(), ward = m.camps[0]!;

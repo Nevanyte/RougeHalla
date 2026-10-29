@@ -126,7 +126,7 @@ describe("the lobby preview", () => {
     expect(root.getAttribute("data-mode")).toBe("preview");
     expect(all("pl-camp")).toHaveLength(MAP.camps.length);
     expect(all("pl-camp").filter((c) => c.byClass("pl-crown").length > 0)).toHaveLength(MAP.camps.filter(isEliteCamp).length);
-    for (const c of all("pl-camp")) expect(c.one("pl-chip").textContent).toMatch(/^(\+|~|!)\d+%$|^lose$/);
+    for (const c of all("pl-camp")) expect(c.one("pl-chip").textContent).not.toContain("%");
     expect(q("pl-title").textContent).toBe("Map preview");
     expect(q("pl-people").hidden).toBe(false);
     expect(all("pl-person")).toHaveLength(3);
@@ -149,7 +149,7 @@ describe("the lobby preview", () => {
     camp(i).dispatch("mouseenter");
     expect(q("pl-info").textContent).toContain(campTitle(MAP.camps[i]!));
     expect(q("pl-info").textContent).toContain("elite");
-    expect(q("pl-info").textContent).toContain("For Plague:");
+    expect(q("pl-info").textContent).toContain("Elite camp: dangerous");
     camp(i).dispatch("mouseleave");
     expect(q("pl-info").textContent).toMatch(/Planning starts when the lobby fills/);
     // A camp whose type the room names shows the type, its role and the weapon it drops; an elite camp names its elite too. A kill
@@ -198,7 +198,7 @@ describe("the planning screen: the deal", () => {
       expect(text).toContain(`${formatEta(walks[idx]! / PLAYER_SPEED)} walk to the coliseum`);
       expect(text).toContain("Nearest camps");
       expect(cards[i]!.byClass("pl-near-item")).toHaveLength(2);
-      for (const chip of cards[i]!.byClass("pl-chip")) expect(chip.textContent).toMatch(/^(\+|~|!)\d+%$|^lose$/);
+      for (const chip of cards[i]!.byClass("pl-chip")) expect(chip.textContent).not.toContain("%");
       expect(cards[i]!.getAttribute("aria-label")).toContain(`Spawn ${i + 1}: ${FACTIONS[spawn.zone].displayName}`);
     });
     // The same two spawns are on the map, as numbered markers placed by percent of the map square.
@@ -366,7 +366,7 @@ describe("who is here, and what counters them", () => {
     open();
     const people = q("pl-people");
     expect(people.textContent).toContain("Plague (you)");
-    expect(people.textContent).toContain("Demon Blood");
+    expect(people.textContent).toContain("Holy");
     expect(people.textContent).toContain("Fire");
     const items = people.byClass("pl-person");
     expect(items.map((i) => i.classList.contains("ready"))).toEqual([false, false, true]);
@@ -379,7 +379,7 @@ describe("zone identity without hue", () => {
     const { open, q } = setup();
     open();
     const items = q("pl-legend").byClass("pl-legend-item");
-    expect(items.map((i) => i.one("pl-legend-name").textContent)).toEqual(["Fire", "Sentenced", "Plague", "Frost", "Demon Blood"]);
+    expect(items.map((i) => i.one("pl-legend-name").textContent)).toEqual(["Fire", "Sentenced", "Plague", "Frost", "Holy"]);
     expect(new Set(items.map((i) => i.one("pl-glyph").style.props["clip-path"])).size).toBe(5);
     const patterns = items.map((i) => i.className.split(" ").find((c) => c.startsWith("pattern-")));
     expect(new Set(patterns).size).toBe(5);
@@ -407,7 +407,7 @@ describe("zone identity without hue", () => {
     all("pl-camp").forEach((c, i) => {
       const label = c.getAttribute("aria-label")!;
       expect(label).toContain(campTitle(MAP.camps[i]!));
-      expect(label).toContain(describeMatchup(campMatchup("plague", MAP.camps[i]!)).words);
+      expect(label).not.toMatch(/%|hp left/);
     });
   });
 
@@ -863,7 +863,7 @@ describe("a 136 x 136 map on small screens", () => {
     expect(onPreview).toBeGreaterThan(0);
     expect(onPreview).toBeGreaterThan(onPlanning);
     // Every chip is still in the page (its text reads on hover or focus); a crowded one is only hidden by its class.
-    for (const c of preview.all("pl-camp")) expect(c.one("pl-chip").textContent).toMatch(/^(\+|~|!)\d+%$|^lose$/);
+    for (const c of preview.all("pl-camp")) expect(c.one("pl-chip").textContent).not.toContain("%");
   });
 
   it("lays out again when the window changes, and keeps the chip classes through a faction change", () => {

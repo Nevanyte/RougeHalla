@@ -28,7 +28,7 @@ describe("loading", () => {
   });
 
   it("the defaults are what the owner asked for: effects fully on, the readout shown, sharp rendering on, the route shown, normal text", () => {
-    expect(DEFAULT_SETTINGS).toEqual({ juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1 });
+    expect(DEFAULT_SETTINGS).toEqual({ juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1, minimapScale: 1 });
   });
 
   it("returns a copy, so changing a loaded value never edits the defaults", () => {
@@ -62,7 +62,7 @@ describe("loading", () => {
 
   it("drops unknown keys", () => {
     const out = sanitizeSettings({ juice: 0.5, hax: true, __proto__: { polluted: 1 }, constructor: 5 });
-    expect(Object.keys(out).sort()).toEqual(["hiDpi", "juice", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
+    expect(Object.keys(out).sort()).toEqual(["hiDpi", "juice", "minimapScale", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
     expect(out.juice).toBe(0.5);
   });
 
@@ -79,6 +79,16 @@ describe("loading", () => {
     // An older file with neither key loads with the defaults for them.
     const old = loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ juice: 0.5, showFps: false }) }));
     expect(old).toEqual({ ...DEFAULT_SETTINGS, juice: 0.5, showFps: false });
+  });
+
+  it("saves minimap size and clamps invalid values to the offered sizes", () => {
+    const storage = memoryStorage();
+    const store = new SettingsStore(storage);
+    store.update({ minimapScale: 1.5 });
+    expect(new SettingsStore(storage).get().minimapScale).toBe(1.5);
+    expect(sanitizeSettings({ minimapScale: 100 }).minimapScale).toBe(2);
+    expect(sanitizeSettings({ minimapScale: -1 }).minimapScale).toBe(.75);
+    expect(sanitizeSettings({ minimapScale: NaN }).minimapScale).toBe(1);
   });
 
   it("treats a storage that throws or is missing as empty", () => {

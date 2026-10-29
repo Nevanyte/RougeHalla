@@ -170,6 +170,7 @@ export const handleSwap: ActionHandler = (world, c, cmd) => {
 export function weaponChanged(world: World, c: Combatant): void {
   cancelAction(world, c);
   c.s.readyAt = swapReadyAt(c.s.readyAt, world.state.serverTime);
+  if (activeWeapon(c.s) !== "wand") dropLock(c);
   world.hooks.weaponSwapped?.(world, c);
 }
 
@@ -192,9 +193,9 @@ export function cancelAction(world: World, c: Combatant): void {
  * committed, as does one that has landed (the axe's root after it stays). Emits `cancel` so clients drop the telegraph.
  * Returns whether it cancelled one.
  */
-export function cancelLockedWindup(world: World, c: Combatant): boolean {
+export function cancelLockedWindup(world: World, c: Combatant, preserveRanged = false): boolean {
   const act = c.rt.weapon.action;
-  if (!act || act.target === undefined) return false;
+  if (!act || act.target === undefined || (preserveRanged && (act.weapon === "wand" || act.weapon === "bow"))) return false;
   c.s.readyAt = act.startedAt;
   cancelAction(world, c);
   emit(world, { type: "fx", fx: { kind: "cancel", id: c.id } });
@@ -318,7 +319,7 @@ function land(world: World, c: Combatant, planned: PendingAction): void {
     : act.kind === "draw" && act.target === undefined ? w.aim : act.a;
   world.combat.spawns.push({
     owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin,
-    ...(foe ? { targetId: foe.id } : {}),
+    ...(foe && act.weapon === "wand" ? { targetId: foe.id } : {}),
     ...(act.rangeMult !== undefined ? { rangeMult: act.rangeMult } : {}),
   });
   if (act.kind === "draw") c.s.drawStartedAt = 0;
@@ -340,7 +341,7 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
     rangeMult = bonus;
     spendPlant(world, c);
   }
-  const target = w.lock ?? undefined;
+  const target = weapon === "wand" ? w.lock ?? undefined : undefined;
   const act: PendingAction = WEAPONS[weapon].shape.kind === "arc"
     ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet, target, ...(rangeMult !== undefined ? { rangeMult } : {}) }
     : {

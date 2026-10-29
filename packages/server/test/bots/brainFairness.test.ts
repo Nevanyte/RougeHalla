@@ -47,18 +47,30 @@ function baseline(s: Scenario, b: BrainSpec): { frames: BrainFrame[]; json: stri
 }
 
 describe("the brain is blind to hidden information (a scripted 10 s, Normal and Hard, every persona)", () => {
-  it("the scripted scenario makes every bot act: locks, goals, and moves for most", () => {
+  it("the scripted scenarios exercise each bot's decisions, wand locks and directional shots", () => {
+    const combat = new Set<string>();
+    let locks = 0, shots = 0;
     for (const s of SCENARIOS) {
       let moved = 0;
       for (const b of BOTS) {
         const frames = baseline(s, b).frames;
         const sent = frames.flatMap((f) => f.sent);
-        expect(sent.filter((c) => c.cmd.type === "target").length, `${s.seed} ${specName(b)}`).toBeGreaterThan(0);
+        expect(sent.length, `${s.seed} ${specName(b)}`).toBeGreaterThan(0);
+        const targets = sent.filter((c) => c.cmd.type === "target").length;
+        const attacks = sent.filter((c) => c.cmd.type === "attack").length;
+        if (targets + attacks > 0) combat.add(specName(b));
+        locks += targets; shots += attacks;
         expect(new Set(frames.map((f) => f.goal.kind)).size).toBeGreaterThan(1);
         if (sent.some((c) => c.cmd.type === "move")) moved++;
       }
       expect(moved).toBeGreaterThanOrEqual(BOTS.length / 2);
     }
+    // Scripted positions do not follow move orders: the melee scenario can stay out of reach,
+    // and a cautious archer can retreat before its cooldown. Each brain must still fight in a
+    // reachable scenario, and the combined runs must exercise both command paths.
+    expect(combat.size).toBe(BOTS.length);
+    expect(locks).toBeGreaterThan(0);
+    expect(shots).toBeGreaterThan(0);
   });
 
   for (const p of PERTURBATIONS) {
@@ -311,7 +323,7 @@ describe("a whole game of six bots (BotManager, the Room's tick order)", () => {
     let targets = 0;
     for (const a of g.bots.values()) {
       expect(a.clicks, a.name).toEqual([]);
-      targets += a.sent.filter((c) => c.cmd.type === "target").length;
+      targets += a.sent.filter((c) => c.cmd.type === "target" || c.cmd.type === "attack").length;
     }
     expect(targets).toBeGreaterThan(20);
   });

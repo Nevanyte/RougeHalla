@@ -67,7 +67,7 @@ function median(xs: number[]): number {
 export function kitingReport(factions: readonly FactionId[] = FACTION_IDS, shooter?: ShooterBuff, chaser?: ShooterBuff): KitingReport {
   const cells: KiteCell[] = [];
   const bound: Record<string, number> = {};
-  for (const r of RANGED_WEAPONS) bound[r] = (rangeOf(r) - 60) / PLAYER_SPEED;
+  for (const r of RANGED_WEAPONS) bound[r] = (rangeOf(r) - Math.max(...MELEE_WEAPONS.map(reachOf)) - PLAYER_RADIUS) / PLAYER_SPEED;
   for (const m of MELEE_WEAPONS) {
     for (const r of RANGED_WEAPONS) {
       for (const style of KITE_STYLES) {
@@ -109,7 +109,7 @@ export function kitingReport(factions: readonly FactionId[] = FACTION_IDS, shoot
   }
   const text: string[] = [];
   if (shooter || chaser) text.push(`shooter holds: ${shooterBuffText(shooter)}; chaser holds: ${shooterBuffText(chaser)}`);
-  text.push(`standing-shooter bound (range - 60 u) / ${PLAYER_SPEED} u/s: bow ${bound.bow!.toFixed(2)} s, wand ${bound.wand!.toFixed(2)} s`);
+  text.push(`standing-shooter bound (range - longest melee reach and body radius) / ${PLAYER_SPEED} u/s: bow ${bound.bow!.toFixed(2)} s, wand ${bound.wand!.toFixed(2)} s`);
   text.push(`${"".padEnd(16)}${KITE_STYLES.map((s) => s.padStart(14)).join("")}   seconds until in reach / the shooter's hits before then, % of hp  (+ = never within ${CAP_SECONDS} s)`);
   for (const r of RANGED_WEAPONS) {
     for (const m of MELEE_WEAPONS) {

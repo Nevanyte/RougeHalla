@@ -286,7 +286,7 @@ describe("statistics", () => {
 
 // ================================================================================================================== the report
 
-const ZERO_COMMANDS: Record<CommandType, number> = { move: 0, stop: 0, target: 0, swap: 0, pickup: 0, cast: 0, plan: 0, choose: 0 };
+const ZERO_COMMANDS: Record<CommandType, number> = { move: 0, stop: 0, target: 0, attack: 0, release: 0, swap: 0, pickup: 0, cast: 0, plan: 0, choose: 0 };
 
 function behaviour(over: Partial<BotBehaviour> = {}): BotBehaviour {
   return {

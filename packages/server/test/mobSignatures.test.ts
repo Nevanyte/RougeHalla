@@ -952,9 +952,9 @@ describe("a move-speed card meets Frost's chill", () => {
       for (let i = 0; i < 40 && !((signatureState(rig.world, "p")?.chill ?? 1) < 1); i++) tick(rig);
       expect(signatureState(rig.world, "p")!.chill).toBeLessThan(1);
     }
-    send(rig, "target", { id: decoy.id });
-    tick(rig); // the lock starts
-    expect(rig.p.attackTarget).toBe(decoy.id);
+    send(rig, "move", DECOY_AT);
+    tick(rig); // the walk starts
+    expect(rig.p.attackTarget).toBe("");
     const steps: number[] = [];
     let worstGap = 0;
     // 8 ticks: the player starts about 37 u from the mob and walks away at the card x the chill (about 7 u a tick), so it is about
@@ -965,7 +965,7 @@ describe("a move-speed card meets Frost's chill", () => {
       tick(rig);
       steps.push(Math.hypot(rig.p.x - from.x, rig.p.y - from.y));
     }
-    expect(rig.p.attackTarget).toBe(decoy.id); // still chasing, never in reach of the decoy: no swing rooted it
+    expect(rig.p.attackTarget).toBe(""); // manual walking is independent of attacks
     return { steps, worstGap, rig };
   };
   const BASE = PLAYER_SPEED * DT;

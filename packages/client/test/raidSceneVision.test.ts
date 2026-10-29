@@ -35,7 +35,7 @@ function rig() {
     sampleDrawn(this:any,id:string,_time:number,p:any) { this.tmp.x=p.x;this.tmp.y=p.y;this.rendered.set(id,{x:p.x,y:p.y}); },
     cameras:{main:{centerOn:noop,scrollX:0,scrollY:0,width:1600,height:900}},
     trainingBar:view,deathPending:()=>false,markIsDim:()=>false,ground:{statesOf:()=>({}),forget:noop},projectiles:view,fieldView:view,syncContainers:noop,updateChestPanel:noop,updateQuestDialog:noop,
-    questView:view,questLog:{trackedId:null,update:noop,setDestination:noop},updateTargets:noop,opponentInspector:view,
+    questView:view,questLog:{trackedId:null,update:noop,setDestination:noop},updateTargets:noop,opponentInspector:view,traderPanel:view,traderView:view,
     streamAim:noop,fx:view,wishFx:view,trackArenaDamage:noop,feedback:view,hud:{...view,setTerrain:noop},weaponBar:view,
     updateWishSlot:noop,updatePlanning:noop,trackRoute:noop,
   });
@@ -144,8 +144,8 @@ describe("RaidScene vision integration", () => {
     expect(scene.minimap.setVision).toHaveBeenLastCalledWith(scene.vision.canSee);
     me.x=3700; frame(1100);
     expect(scene.views.get("foe")).toBe(enemyView);
-    frame(120999); expect(scene.rendered.has("foe")).toBe(true);
-    frame(121000);
+    frame(30999); expect(scene.rendered.has("foe")).toBe(true);
+    frame(31000);
     expect(enemyView.destroy).toHaveBeenCalledOnce(); expect(mobView.destroy).toHaveBeenCalledOnce();
     expect(scene.rendered.has("foe")).toBe(false); expect(scene.rendered.has("mob")).toBe(false);
     expect(scene.visiblePosition("foe")).toBeUndefined(); expect(scene.targetCandidates()).toEqual([]);

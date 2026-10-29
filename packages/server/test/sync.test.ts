@@ -630,6 +630,9 @@ describe("schema round trip", () => {
     expect(launches).toBe(3200);
     expect(ends, "they all ended").toBe(launches);
     expect(world.projectiles.size).toBe(0);
+    // Timed wind spawns are live map objects, separate from projectile encoder retention.
+    for (const [id, box] of world.state.containers) if (box.items[0]?.def === "windEmblem") world.state.containers.delete(id);
+    send();
     expect(wire.trees - base, `trees ${base} -> ${wire.trees}`).toBeLessThanOrEqual(5);
     expect(wire.trees).toBeLessThan(500);
   });
@@ -822,6 +825,7 @@ describe("schema round trip", () => {
     const inputs = world.players.get("a")!.inputs;
     const valid: Record<(typeof CLIENT_MESSAGE_TYPES)[number], unknown> = {
       move: { x: 100, y: 100 }, attackMove: { x: 100, y: 100, seq: 1 }, stop: {}, target: { id: "p1" }, aim: { a: 1 }, attack: { a: 1 }, release: { a: 1 }, swap: {}, pickup: { containerId: "c1" }, consumeCorpse: { corpseId: "pc1" }, huntTarget: { id: "p1" },
+      useConsumable: { kind: "heal" }, trade: { trader: "barter", pick: 0 },
       plan: { ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
       choose: { chest: "c1", pick: 0 }, questAccept: { quest: "q1" }, train: { cmd: "clear" },

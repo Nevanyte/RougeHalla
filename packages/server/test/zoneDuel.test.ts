@@ -20,24 +20,24 @@ import { fingerprints } from "./support/duelFingerprint";
 
 // Pinned outputs from the current runDuel simulation, not legacy combat metrics. The control port intentionally changed ranged
 // timing to the current 0.3-interval share and removed the axe's post-launch root; the Sentenced redesign intentionally changes faction damage and defenses too. Refresh affected trajectories after these rule changes.
-// The base PvP factor change intentionally shifts duel damage; refreshed fingerprints guard determinism across open/pillar arenas, locks, signatures, perceptions, offsets, and cards.
+// The live playtest controls increase ranges, lengthen ranged pauses, and keep unit locks for wands only. These refreshed hashes pin that current simulation.
 
 const PINNED: ReadonlyArray<readonly [string, string]> = [
-  ["holy wand>bow open", "81402c2442d56537"],
-  ["fire bow>wand open", "c60d351661ac8484"],
-  ["fire sword>axe open", "bd544da76a803826"],
-  ["frost shield mirror capped", "5506a244f2cdaa82"],
-  ["fire sword mirror pillars", "eeace8e9d80f6a0f"],
-  ["plague bow mirror pillars", "bdde8fdf8f3f57b6"],
-  ["fire/sentenced locks signatures", "f1fecbbd4ed753b9"],
-  ["fire bow mirror start offset", "31bf7ac54e0240d0"],
-  ["holy bow>sword stale", "39c335fbb7feb032"],
-  ["holy bow>sword present", "66f07b9b8a9724f1"],
-  ["fire wand>shield carded", "6c1259189ca66709"],
+  ["holy wand>bow open", "bc0f2bc0778f1170"],
+  ["fire bow>wand open", "c92f46de5fdf97ea"],
+  ["fire sword>axe open", "73720f22e6c70bdd"],
+  ["frost shield mirror capped", "35b4338aaa46bb59"],
+  ["fire sword mirror pillars", "9bde7293e0b8437f"],
+  ["plague bow mirror pillars", "cf08bbe9dfb7bd41"],
+  ["fire/sentenced locks signatures", "4c78ed59c862a971"],
+  ["fire bow mirror start offset", "ce322ff7b17ae23a"],
+  ["holy bow>sword stale", "a80d25917722492f"],
+  ["holy bow>sword present", "471789b5ccf74dcf"],
+  ["fire wand>shield carded", "3484df70fd94f554"],
 ];
 
 describe("the default duel path", () => {
-  it("gives the same result, to the last number, as before the zone duels (open and pillar arenas, locks, signatures, perceptions, offsets, cards)", () => {
+  it("repeats the current combat fingerprints exactly across arenas, input styles, signatures, perceptions, offsets and cards", () => {
     expect(fingerprints()).toEqual(PINNED.map(([n, h]) => [n, h]));
   });
 

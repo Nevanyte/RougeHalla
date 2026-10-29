@@ -48,7 +48,7 @@ describe("CardsRow", () => {
     expect(row.count).toBe(3);
     expect(row.shown).toBe(true);
     expect(names()).toEqual(CARDS.filter((c) => ["ad1", "haste2", "wellspring"].includes(c.id)).map((c) => c.title));
-    expect(names()).toEqual(["Attack Damage I", "Haste II", "Wellspring"]);
+    expect(names()).toEqual(["Offense I", "Haste II", "Wellspring"]);
   });
 
   it("marks a base card held more than once with its count, and no other", () => {
@@ -143,14 +143,14 @@ describe("cardTip", () => {
     expect(cardTip(cardDef("haste2")!, 1)).not.toContain("Not live yet");
   });
 
-  it("sums a base's cards in the tooltip of any of them, once two or more are held, and names AD and AP for their cards", () => {
+  it("sums a base's cards in the tooltip of any of them, once two or more are held, and names Offense and SO for their cards", () => {
     const build = { ad1: 2, ad2: 1, ad3: 1, haste1: 1 };
     const lines = cardTip(cardDef("ad2")!, 1, build).split("\n");
-    expect(lines).toContain("All your Attack Damage cards: +78 attack damage (I x2, II, III)");
-    expect(lines).toContain("AD: " + STAT_GLOSSARY.ad.text);
+    expect(lines).toContain("All your Offense cards: +78 Offense (I x2, II, III)");
+    expect(lines).toContain("Offense: " + STAT_GLOSSARY.ad.text);
     expect(cardTip(cardDef("haste1")!, 1, build)).not.toContain("All your");
     expect(cardTip(cardDef("haste1")!, 1, { haste1: 1, haste3: 1 })).toContain("All your Haste cards: +34% attack speed (I, III)");
-    expect(cardTip(cardDef("ap1")!, 1, { ap1: 1 }).split("\n")).toContain("AP: " + STAT_GLOSSARY.ap.text);
+    expect(cardTip(cardDef("ap1")!, 1, { ap1: 1 }).split("\n")).toContain("SO: " + STAT_GLOSSARY.ap.text);
     // An augment has no base to sum.
     expect(cardTip(cardDef("wellspring")!, 1, build)).not.toContain("All your");
   });
@@ -160,7 +160,7 @@ describe("cardTip", () => {
     row.update({ ad1: 1 }, true);
     expect(tip(chips()[0]!)).not.toContain("All your");
     row.update({ ad1: 1, ad2: 1 }, true);
-    expect(tip(chips()[0]!)).toContain("All your Attack Damage cards: +33 attack damage (I, II)");
+    expect(tip(chips()[0]!)).toContain("All your Offense cards: +33 Offense (I, II)");
   });
 });
 

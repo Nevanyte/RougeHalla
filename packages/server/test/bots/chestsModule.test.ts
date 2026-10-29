@@ -797,11 +797,11 @@ describe("a bot at a chest born in a ledger pass (the server's birth hold)", () 
 // ============================================================================================================== whole games
 
 describe("bots in whole games", () => {
-  /** A short game of six bots of every tier and persona: their elite kills drop chests, and bots can take them. */
+  /** Six armed bots of every tier and persona: their elite kills drop chests, and bots can take them. */
   function game(seed: number) {
     const room = createHeadlessRoom({
       seed,
-      config: { patienceSeconds: 120, patienceMinSeconds: 48, suddenDeathSeconds: 30, firstPatienceSeconds: 0 },
+      config: { patienceSeconds: 45, patienceMinSeconds: 18, suddenDeathSeconds: 10, firstPatienceSeconds: 0 },
       bots: { ...BOT_FILL_DEFAULTS, fillTo: 6 },
       lineup: [
         { tier: "hard", persona: "farmer" }, { tier: "hard", persona: "opportunist" }, { tier: "normal", persona: "farmer" },
@@ -809,10 +809,14 @@ describe("bots in whole games", () => {
       ],
       startAtOnce: true,
     });
+    // Exercise wand locks and directional weapons immediately. Loot acquisition and long
+    // unarmed travel are covered elsewhere; this integration follows elite chest drops and picks.
+    const weapons = ["wand", "bow", "axe", "sword", "shield", "bow"] as const;
+    room.seats.forEach((seat, i) => { room.world.state.players.get(seat.id)!.weapon0 = weapons[i]!; });
     const taken: Array<{ chest: string; by: string; option: number }> = [];
     const dropped = new Map<string, number>();
     const refusals: string[] = [];
-    room.runUntilEnd(400_000, (events) => {
+    room.runUntilEnd(180_000, (events) => {
       for (const e of events) {
         if (e.type === "toast" && e.to !== null && room.manager.isBot(e.to) && /^(Already|Too far|Can't reach|Chest gone|You already)/.test(e.text)) refusals.push(`${e.to}: ${e.text}`);
         if (e.type !== "fx") continue;

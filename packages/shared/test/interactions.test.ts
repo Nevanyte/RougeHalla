@@ -267,8 +267,9 @@ describe("inArc", () => {
     expect(inArc(origin, 0, axe.reach, axe.halfArc, at(origin, deg(100), 50), 0)).toBe(false);
     expect(inArc(origin, 0, axe.reach, axe.halfArc, at(origin, deg(100), 50), R)).toBe(true);
     expect(inArc(origin, 0, bash.reach, bash.halfArc, { x: 50, y: 0 }, R)).toBe(true);
-    expect(inArc(origin, 0, bash.reach, bash.halfArc, { x: 60, y: 0 }, R)).toBe(false);
-    expect(inArc(origin, 0, sword.reach, sword.halfArc, { x: 60, y: 0 }, R)).toBe(true);
+    const between = bash.reach + R + 1;
+    expect(inArc(origin, 0, bash.reach, bash.halfArc, { x: between, y: 0 }, R)).toBe(false);
+    expect(inArc(origin, 0, sword.reach, sword.halfArc, { x: between, y: 0 }, R)).toBe(true);
   });
 
   it("is translation invariant", () => {
@@ -407,8 +408,7 @@ describe("POLICIES", () => {
     expect(POLICIES.wand.far).toBeLessThan(POLICIES.wand.attackRange);
     expect(POLICIES.bow.retreatBelow).toBeLessThan(POLICIES.bow.far);
     expect(POLICIES.wand.retreatBelow).toBeLessThan(POLICIES.wand.far);
-    // The bow outranges the wand, and the wand fights the closer.
-    expect(POLICIES.bow.attackRange).toBeGreaterThan(POLICIES.wand.attackRange);
+    expect(POLICIES.wand.attackRange).toBeGreaterThan(POLICIES.bow.attackRange);
   });
 });
 
@@ -441,10 +441,11 @@ describe("decide", () => {
     });
 
     it("starts swinging at attackRange but keeps closing in until far", () => {
-      const out = decide(input({ weapon: "sword", target: { x: 60, y: 0 } })); // far 54.4 < 60 <= attackRange 70
-      expect(out.move).toEqual({ x: 60, y: 0 });
+      const x = (POLICIES.sword.far + POLICIES.sword.attackRange) / 2;
+      const out = decide(input({ weapon: "sword", target: { x, y: 0 } }));
+      expect(out.move).toEqual({ x, y: 0 });
       expect(out.hold).toBe(true);
-      expect(decide(input({ weapon: "sword", target: { x: 71, y: 0 } })).hold).toBe(false);
+      expect(decide(input({ weapon: "sword", target: { x: POLICIES.sword.attackRange + 1, y: 0 } })).hold).toBe(false);
     });
 
     it("never backs off, however close the target", () => {
@@ -514,7 +515,7 @@ describe("decide", () => {
   describe("wand", () => {
     const wand = POLICIES.wand;
 
-    it("fights closer than the bow: stands between its back-off and closing-in distances, closes in past far", () => {
+    it("uses the directional policy's closer spacing and backs away up close", () => {
       expect(wand.far).toBeLessThan(POLICIES.bow.far);
       expect(decide(input({ weapon: "wand", target: { x: (wand.retreatBelow + wand.far) / 2, y: 0 } })).move).toBe("stop");
       const back = decide(input({ weapon: "wand", target: { x: wand.retreatBelow - 30, y: 0 } })).move as Vec2;

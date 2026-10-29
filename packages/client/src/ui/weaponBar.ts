@@ -1,7 +1,7 @@
 // Bottom-center weapon bar: the two slots (weapon, key, which one is in hand), the shared attack cooldown sweeping over
 // them, and a hint line when a weapon is within reach. The keys are drawn as keycaps (1, 2, Q, F). It only reflects the
 // synced state; the keys themselves are the scene's. Other HUD modules dock into its slot row (`dock`): the Wish slot.
-// Each slot names what its weapon scales with ("AD 1.0", "AP 1.2 + AD 0.3": WeaponSpec.scaling) under its name, and pointing at a
+// Each slot names what its weapon scales with ("Offense 1.0", "SO 1.2 + Offense 0.3": WeaponSpec.scaling) under its name, and pointing at a
 // slot shows the weapon's tooltip (its scaling, tags and what it does beyond them: ui/buildModel.ts weaponTipText). The bar never
 // takes the pointer, so the slot under it is found by its rectangle (rectTips.ts).
 import { FISTS, WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
@@ -44,6 +44,11 @@ export function nextCooldown(prevReadyAt: number, prevCooldown: number, readyAt:
 export class WeaponBar {
   private readonly root = el("div", "weapon-bar");
   private readonly row = el("div", "wb-row");
+  private readonly consumables = el("div", "wb-consumables");
+  private readonly healCount = el("span", "wb-consumable-count");
+  private readonly speedCount = el("span", "wb-consumable-count");
+  private readonly healStatus = el("span", "wb-consumable-status");
+  private readonly speedStatus = el("span", "wb-consumable-status");
   private readonly hint = el("div", "wb-hint");
   /** The tooltip of the slot under the pointer, above the bar. */
   private readonly tip = el("div", "wb-tip");
@@ -84,7 +89,15 @@ export class WeaponBar {
     this.hint.append(keycap("F"), this.hintLabel);
     this.hint.hidden = true;
     this.tip.hidden = true;
-    this.root.append(this.tip, this.hint, row);
+    const healing = el("div", "wb-consumable wb-healing");
+    healing.append(keycap("R"), el("strong", undefined, "Heal"), this.healCount, this.healStatus);
+    healing.title = "Large potion: 40% max HP over 5 s. Small potion: 25% over 5 s. Large potions are used first. Healing potions do not stack.";
+    const speed = el("div", "wb-consumable wb-speed");
+    speed.append(el("strong", undefined, "Wind"), this.speedCount, this.speedStatus);
+    speed.title = "Walk over a wind emblem for +50% movement speed for 5 seconds. Emblems disappear when collected.";
+    this.consumables.append(healing, speed);
+    const controls = el("div", "wb-controls", "WASD move · Click attack · E Wish");
+    this.root.append(this.tip, this.hint, row, this.consumables, controls);
     this.root.hidden = true;
     uiRoot().append(this.root);
     this.tips = new RectTips({
@@ -119,6 +132,12 @@ export class WeaponBar {
     if (this.root.hidden === show) this.root.hidden = !show;
     if (!me || !show) return;
     this.render(me, patchT, serverNow, pickup, questLabel, talkHint);
+    this.healCount.textContent = `${me.potionLarge ?? 0} large · ${me.potionSmall ?? 0} small`;
+    this.speedCount.textContent = me.speedBoostUntil > serverNow ? "+50% speed" : "Walk over emblems";
+    this.healStatus.textContent = me.healingUntil > serverNow ? `Healing ${Math.ceil((me.healingUntil - serverNow) / 1000)}s` : "";
+    this.speedStatus.textContent = me.speedBoostUntil > serverNow ? `Active ${Math.ceil((me.speedBoostUntil - serverNow) / 1000)}s` : "";
+    this.consumables.children[0]?.classList.toggle("empty", !(me.potionLarge || me.potionSmall));
+    this.consumables.children[1]?.classList.toggle("empty", !(me.speedBoostUntil > serverNow));
   }
 
   private render(me: PlayerState, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel: string, talkHint: string): void {

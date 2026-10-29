@@ -681,7 +681,7 @@ class Stand {
     this.events = [];
     return percept({
       now: this.now, hud: hudView({ phase: "active" }), features: WISH_FEATURES, events,
-      self: selfView({ x: ME.x, y: ME.y, faction: this.faction, hp: this.hp, maxHp: 100, attackTarget: this.lock }),
+      self: selfView({ x: ME.x, y: ME.y, faction: this.faction, weapons: ["wand", null], hp: this.hp, maxHp: 100, attackTarget: this.lock }),
       fighters: [fighter({ id: "foe", x: ME.x + 130, y: ME.y, dist: 130, faction: "fire", inHand: "sword", tint: 1 })],
       extras: { wish: wishView(this.faction, { readyAt: this.readyAt, casting: this.now < this.castUntil }), effects: { [ME.id]: bits } },
     });

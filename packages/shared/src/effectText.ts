@@ -32,10 +32,10 @@ function statWord(stat: StatKey): string {
     case "lifestealDot": return "lifesteal on damage over time";
     case "critChance": return "critical strike chance";
     case "healBarrier": return "of healing received as a barrier";
-    case "armor": return "armor";
-    case "shield": return "magic resist";
-    case "ad": return "attack damage";
-    case "ap": return "ability power";
+    case "armor": return "Defense";
+    case "shield": return "Soul Defense";
+    case "ad": return "Offense";
+    case "ap": return "Soul Offence";
   }
 }
 
@@ -46,19 +46,19 @@ function multWord(key: MultKey): string {
     case "hit": return "damage per hit";
     case "dot": return "damage over time";
     case "returned": return "returned damage";
-    case "ap": return "ability power";
+    case "ap": return "Soul Offence";
     case "wishCooldown": return "Wish cooldown";
     case "hpRace": return "damage dealt and taken, up to";
     case "linger": return "damage-over-time linger";
   }
 }
 
-/** A `convert` row's source, in words, with the unit `per` is quoted against ("per 4 attack damage"). */
+/** A `convert` row's source, in words, with the unit `per` is quoted against ("per 4 Offense"). */
 function convertWords(r: EffectOf<"convert">): string {
   const to = statWord(r.to);
   const pctTo = !isFlatStat(r.to); // a fraction stat is quoted in percent
   switch (r.from) {
-    case "ad": return r.per >= 1 ? `+${pts(r.per)} ${to} per attack damage` : `+1 ${to} per ${pts(1 / r.per)} attack damage`;
+    case "ad": return r.per >= 1 ? `+${pts(r.per)} ${to} per Offense` : `+1 ${to} per ${pts(1 / r.per)} Offense`;
     case "maxHp": return `+${pts(r.per * 100)} ${to} per 100 max HP`;
     case "bonusAttackSpeed": return `+${pts(pctTo ? r.per : r.per / 100)}${pctTo ? "%" : ""} ${to} per 1% bonus attack speed`;
     case "bonusMoveSpeed": return `+${pts(pctTo ? r.per : r.per / 100)}${pctTo ? "%" : ""} ${to} per 1% bonus move speed`;
@@ -171,7 +171,7 @@ export function effectText(e: Effect): string {
   });
 }
 
-/** Rows in words, joined: "+3% max HP and +10 magic resist". */
+/** Rows in words, joined: "+3% max HP and +10 Soul Defense". */
 export function effectsText(effects: readonly Effect[]): string {
   return effects.map(effectText).join(" and ");
 }

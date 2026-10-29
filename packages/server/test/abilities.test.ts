@@ -92,7 +92,7 @@ function arena(fighters: Fighter[], opts: RigOpts = {}): World {
   log.length = 0;
   const patience = opts.patience ?? 3600;
   const world = createGameWorld({
-    seed: 7,
+    seed: 7, map: { ...(opts.map ?? arenaMap()), seed: 7 },
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: patience, patienceMinSeconds: patience,
       suddenDeathSeconds: opts.suddenDeath ?? 3600, pvpRules: false, ...(opts.lock === "default" ? {} : { wishLockSeconds: opts.lock ?? 0 }),
@@ -166,7 +166,10 @@ function cast(world: World, i: number, at: { target?: number | string; x?: numbe
     ...(at.seq !== undefined ? { seq: at.seq } : {}),
   });
 }
-const lockOn = (world: World, i: number, who: number | string): void => send(world, i, "target", { id: typeof who === "number" ? id(who) : who });
+const lockOn = (world: World, i: number, who: number | string): void => {
+  const p = P(world, i); if (p.slot === 0) p.weapon0 = "wand"; else p.weapon1 = "wand";
+  send(world, i, "target", { id: typeof who === "number" ? id(who) : who });
+};
 const walkTo = (world: World, i: number, x: number, y: number): void => send(world, i, "move", { x, y });
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -529,7 +532,7 @@ describe("Freeze (Frost)", () => {
     cast(world, 0, { target: 1 });
     tick(world);
     runTo(world, RT(world).cast!.landsAt - 2 * TICK_MS);
-    lockOn(world, 1, 0);
+    send(world, 1, "attack", { a: Math.PI });
     tick(world);
     expect(W(world, 1).action?.kind).toBe("draw");
     expect(P(world, 1).drawStartedAt).toBeGreaterThan(0);
@@ -686,7 +689,7 @@ describe("starting a cast and the weapon in hand", () => {
     lockOn(world, 0, 1);
     tick(world);
     const act = W(world).action!;
-    expect(act.kind).toBe("draw");
+    expect(act.kind).toBe("cast");
     cast(world, 0, { target: 1 });
     tick(world);
     expect(fxOf("cancel")).toEqual([{ at: T(world), kind: "cancel", id: "p0" }]);
@@ -936,7 +939,7 @@ describe("Swarm (Plague)", () => {
     expect(isHidden(world, C(world))).toBe(false);
     expect(W(world, 1).lock).toBe("p0");
     tick(world);
-    expect(T(world)).toBe(act!.landsAt + HIDDEN_REVEAL_MS);
+    expect(T(world)).toBe(Math.ceil((act!.landsAt + HIDDEN_REVEAL_MS) / TICK_MS) * TICK_MS);
     expect(isHidden(world, C(world))).toBe(true);
     expect(P(world).effects & EFFECT_HIDDEN).toBe(EFFECT_HIDDEN);
     expect(W(world, 1).lock).toBeNull(); // untargetable again: the lock drops in the same tick
@@ -947,7 +950,7 @@ describe("Swarm (Plague)", () => {
     expect(P(world).weapon0).toBe("bow");
     cast(world, 0);
     runFor(world, SWARM_CAST_MS + TICK_MS);
-    lockOn(world, 0, 1);
+    send(world, 0, "attack", { a: 0 });
     let act = W(world).action;
     for (let i = 0; i < 40 && !act; i++) { tick(world); act = W(world).action; }
     expect(act?.kind).toBe("draw");
@@ -1189,7 +1192,7 @@ describe("Blaze Step (Fire)", () => {
     lockOn(world, 0, 1);
     tick(world);
     const act = W(world).action!;
-    expect(act.kind).toBe("draw");
+    expect(act.kind).toBe("cast");
     blaze(world, near(100));
     tick(world);
     expect(fxOf("cancel")).toEqual([{ at: T(world), kind: "cancel", id: "p0" }]);
@@ -2070,7 +2073,7 @@ describe("Swarm drops its caster's lock, and only the lock (M2)", () => {
     lockOn(world, 0, 1);
     tick(world);
     const act = W(world).action!;
-    expect(act.kind).toBe("draw");
+    expect(act.kind).toBe("cast");
     cast(world, 0);
     tick(world);
     expect(fxOf("cancel")).toEqual([{ at: T(world), kind: "cancel", id: "p0" }]);
@@ -2280,7 +2283,7 @@ describe("statusValue(zoned) is the multiplier the subject deals", () => {
 describe("a reveal does not depend on join order", () => {
   /** An archer's locked arrow, drawn on a hidden Plague that is revealed for a moment and then starts an attack in the very tick the draw lands. */
   function arrowAngle(archerFirst: boolean): number {
-    const archer: Fighter = { faction: "holy", weapons: ["bow"], at: near(400) };
+    const archer: Fighter = { faction: "holy", weapons: ["wand"], at: near(400) };
     const plague: Fighter = { faction: "plague", weapons: ["sword"], at: near(600) };
     const world = arena(archerFirst ? [archer, plague] : [plague, archer]);
     const a = archerFirst ? 0 : 1;
@@ -2290,7 +2293,7 @@ describe("a reveal does not depend on join order", () => {
     lockOn(world, a, pl); // locked while revealed; the reveal runs out and the lock drops, the draw it started goes on
     tick(world);
     const act = W(world, a).action;
-    expect(act?.kind).toBe("draw");
+    expect(act?.kind).toBe("cast");
     expect(act!.target).toBe(id(pl));
     while (T(world) + TICK_MS < act!.landsAt) {
       tick(world);

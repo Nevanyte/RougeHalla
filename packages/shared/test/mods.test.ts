@@ -164,7 +164,7 @@ describe("the conversions (convert rows)", () => {
 });
 
 describe("the sheet stats' caps (G7, G8, G10)", () => {
-  it("hold bonus armor and magic resist at +200 each, conversions included", () => {
+  it("hold bonus Defense and Soul Defense at +200 each, conversions included", () => {
     expect(BONUS_DEFENSE_CAP).toBe(200);
     const f = fold([
       { k: "flat", stat: "armor", v: 150 }, ad(300), { k: "convert", from: "ad", to: "armor", per: 1, cap: 80 },
@@ -448,8 +448,8 @@ describe("a Wish's cooldown (G13)", () => {
 
 describe("text and scaling for the new kinds", () => {
   it("effectText words every new row", () => {
-    expect(effectText({ k: "flat", stat: "ad", v: 12 })).toBe("+12 attack damage");
-    expect(effectText({ k: "flat", stat: "ap", v: 21 })).toBe("+21 ability power");
+    expect(effectText({ k: "flat", stat: "ad", v: 12 })).toBe("+12 Offense");
+    expect(effectText({ k: "flat", stat: "ap", v: 21 })).toBe("+21 Soul Offence");
     expect(effectText({ k: "stat", stat: "slowResist", v: 0.4 })).toBe("+40% slow resistance");
     expect(effectText({ k: "stat", stat: "critChance", v: 0.2 })).toBe("+20% critical strike chance");
     expect(effectText({ k: "stat", stat: "lifestealMult", v: 1 })).toBe("x2 lifesteal from your lifesteal effects");
@@ -459,9 +459,9 @@ describe("text and scaling for the new kinds", () => {
     expect(effectText({ k: "scale", src: "campsCleared", per: 0.03, step: 1, cap: 0.24 })).toBe("+3% damage for every camp you helped clear (up to +24%)");
     expect(effectText({ k: "while", cond: "unarmed", arg: 0, stat: "attackSpeed", v: 0.4 })).toBe("+40% attack speed while unarmed");
     expect(effectText({ k: "while", cond: "fightTime", arg: 3, stat: "damage", v: 0.65 })).toBe("+65% damage once a fight has lasted 3 s");
-    expect(effectText({ k: "convert", from: "ad", to: "armor", per: 0.25 })).toBe("+1 armor per 4 attack damage");
-    expect(effectText({ k: "convert", from: "maxHp", to: "ap", per: 0.02 })).toBe("+2 ability power per 100 max HP");
-    expect(effectText({ k: "convert", from: "bonusAttackSpeed", to: "ap", per: 100 })).toBe("+1 ability power per 1% bonus attack speed");
+    expect(effectText({ k: "convert", from: "ad", to: "armor", per: 0.25 })).toBe("+1 Defense per 4 Offense");
+    expect(effectText({ k: "convert", from: "maxHp", to: "ap", per: 0.02 })).toBe("+2 Soul Offence per 100 max HP");
+    expect(effectText({ k: "convert", from: "bonusAttackSpeed", to: "ap", per: 100 })).toBe("+1 Soul Offence per 1% bonus attack speed");
     expect(effectText({ k: "convert", from: "bonusMoveSpeed", to: "damage", per: 1, cap: 0.3 })).toBe("+1% damage per 1% bonus move speed (up to 30%)");
     expect(effectText({ k: "mult", key: "asPost", v: 0.5 })).toBe("attack speed x0.5");
     expect(effectText({ k: "mult", key: "hit", v: 2.5 })).toBe("damage per hit x2.5");
@@ -482,7 +482,7 @@ describe("text and scaling for the new kinds", () => {
 });
 
 describe("the wire form of the AD and AP mirrors", () => {
-  it("is float64 tenths like the armor mirrors: whole tenths, half up, uncapped", () => {
+  it("is float64 tenths like the Defense mirrors: whole tenths, half up, uncapped", () => {
     expect(encodeFlat(33)).toBe(330);
     expect(encodeFlat(0.04)).toBe(0);
     expect(encodeFlat(12.34)).toBe(123);

@@ -1,7 +1,5 @@
-// Playing one fight (farm, hunt, fight goals) the way a person with the LoL-style controls does (docs/BOTS.md 4, CLAUDE.md
-// "Target lock"): walk until the foe is inside the server's reach, click it ONCE, and leave the chase, the swings and the aim to
-// the server. What stays here is what only the player decides: whom to click, which weapon to hold, when to walk away
-// (kite.ts) and when not to start. The bot never sends aim, attack or release.
+// Choose the opponent, weapon and movement for one fight. Wands use the server lock; other
+// weapons approach their own reach and ask the humanizer for aimed clicks with its usual scatter.
 import {
   bestSlot, FISTS, hasLineOfSight, isRanged, isRegionalKind, lockSpacing, MASK_SIGHT, reachMask, TARGET_RANGE,
   type FactionId, type Vec2, type WeaponId,
@@ -316,7 +314,7 @@ export function createFight(deps: FightDeps): Fight {
     const on = mate ?? foe;
     const locked = self.attackTarget === foe.id || mate !== null;
     const spacing = lockSpacing(weapon);
-    const attacking = locked && on.seen && inReach(ctx, on, weapon) && on.dist <= spacing.attackRange + ATTACK_SLACK;
+    const attacking = (locked || weapon !== "wand") && on.seen && inReach(ctx, on, weapon) && on.dist <= spacing.attackRange + ATTACK_SLACK;
     const mine = self.maxHp > 0 ? self.hp / self.maxHp : 1;
     const swap = swapFor(ctx, on, weapon);
     /** Out of the ordinary: the watch for a fight going nowhere starts again from here. */
@@ -387,11 +385,11 @@ export function createFight(deps: FightDeps): Fight {
       if (k) { ordered(); return finish(k, running("orb-walk"), false); }
     }
 
-    if (locked) return finish(null, running("locked: the server is fighting"), attacking);
+    if (locked && weapon === "wand") return finish(null, running("locked: the server is fighting"), attacking);
 
     // Not locked yet: walk until the server will take the click, then click once (and again only while it has not taken it).
-    const reach = TARGET_RANGE - LOCK_MARGIN;
-    const toward = !foe.seen || foe.dist > reach;
+    const reach = weapon === "wand" ? TARGET_RANGE - LOCK_MARGIN : spacing.far;
+    const toward = !foe.seen || foe.dist > reach || (weapon !== "wand" && !inReach(ctx, foe, weapon));
     if (!toward && !foe.targetable) return finish(null, running("target cannot be clicked now"), false);
     let to: Vec2 = { x: foe.x, y: foe.y };
     if (!foe.los) {
@@ -404,7 +402,7 @@ export function createFight(deps: FightDeps): Fight {
     }
     if (toward) return finish(walk(ctx, to, foe, foe.seen ? "approach" : "go to where it was last seen"), running("approaching"), false);
     ordered();
-    return finish(lockIntent(ctx, foe, "lock the foe"), running("locking"), false);
+    return finish(lockIntent(ctx, foe, weapon === "wand" ? "lock the foe" : "click an aimed attack"), running(weapon === "wand" ? "locking" : "attacking"), weapon !== "wand" && attacking);
   }
 
   return fight;

@@ -5,10 +5,10 @@
 import { describe, expect, it } from "vitest";
 import {
   damagePerHit, damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, RIPOSTE_SHARE,
-  SHIELD_BLOCK_SHARE, STAGGER_IMMUNITY_SECONDS, SWORD_BALL_SCALE, TICK_MS, TILE_FLOOR, TILE_WALL, WEAPONS,
+  RANGED_HIT_REACH, SHIELD_BLOCK_SHARE, STAGGER_IMMUNITY_SECONDS, SWORD_BALL_SCALE, TICK_MS, TILE_FLOOR, TILE_WALL, WEAPONS,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { combatant, standingCombatants } from "../src/sim/combatant";
+import { combatant, standingCombatants, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger } from "../src/sim/ledger";
@@ -83,7 +83,7 @@ function arena(specs: Spec[], map: GameMap = openMap()): World {
     minPlayers: specs.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 300, patienceMinSeconds: 300,
     suddenDeathSeconds: 60, pvpRules: false,
   };
-  const world = createGameWorld({ seed: 1234, config, random: mulberry32(5) }, { signatures: false });
+  const world = createGameWorld({ seed: 1234, config, random: mulberry32(5), map: { ...map, seed: 1234 } }, { signatures: false });
   specs.forEach((_, i) => addPlayer(world, idOf(i), NAMES[i]!));
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
@@ -217,19 +217,19 @@ describe("hit regions", () => {
     weapon: WeaponId; reach: number; halfArcDeg: number; hit: Array<[number, number]>; miss: Array<[number, number]>;
   }> = [
     {
-      weapon: "sword", reach: 64, halfArcDeg: 45,
-      hit: [[50, 0], [50, 58], [50, -58], [76, 0], [30, 44], [30, 68]],
-      miss: [[50, 60], [50, -60], [76.5, 0], [30, 70], [30, 90], [30, 180]],
+      weapon: "sword", reach: 112, halfArcDeg: 45,
+      hit: [[50, 0], [50, 58], [50, -58], [124, 0], [30, 44], [30, 68]],
+      miss: [[50, 60], [50, -60], [124.5, 0], [30, 70], [30, 90], [30, 180]],
     },
     {
-      weapon: "axe", reach: 60, halfArcDeg: 90,
-      hit: [[40, 0], [40, 90], [40, -90], [40, 105], [30, 90], [72, 0]],
-      miss: [[40, 110], [40, -110], [40, 160], [30, 180], [72.5, 0]],
+      weapon: "axe", reach: 112, halfArcDeg: 90,
+      hit: [[40, 0], [40, 90], [40, -90], [40, 105], [30, 90], [124, 0]],
+      miss: [[40, 110], [40, -110], [40, 160], [30, 180], [124.5, 0]],
     },
     {
-      weapon: "shield", reach: 44, halfArcDeg: 60,
-      hit: [[40, 0], [40, 75], [40, -75], [30, 50], [56, 0]],
-      miss: [[40, 80], [40, -80], [30, 90], [30, 180], [56.5, 0]],
+      weapon: "shield", reach: 96, halfArcDeg: 60,
+      hit: [[40, 0], [40, 75], [40, -75], [30, 50], [108, 0]],
+      miss: [[40, 80], [40, -80], [30, 90], [30, 180], [108.5, 0]],
     },
   ];
 
@@ -276,7 +276,7 @@ describe("who a swing reaches", () => {
     const b = dummy(world, polar(ORIGIN, 40, 80));
     const c = dummy(world, polar(ORIGIN, 40, -80));
     const behind = dummy(world, polar(ORIGIN, 40, 180));
-    const tooFar = dummy(world, polar(ORIGIN, 100, 0));
+    const tooFar = dummy(world, polar(ORIGIN, 140, 0));
     const hit = victimsOf(swing(world, "p0", "axe", 0));
     expect(hit).toEqual([a, b, c].sort());
     expect(hit).not.toContain(behind);
@@ -798,7 +798,7 @@ describe("balls", () => {
 
   it("the halved ball then deals half damage when it lands", () => {
     const world = ballWorld();
-    const target = dummy(world, { x: 420, y: 256 });
+    const target = dummy(world, { x: 450, y: 256 }); // outside the sword's body-hit reach
     launchBall(world, "p1", { x: 330, y: 256 }, 0);
     tick(world, [SWORD]);
     for (let i = 0; i < 8 && mob(world, target).hp === DUMMY_HP; i++) tick(world);
@@ -819,7 +819,7 @@ describe("balls", () => {
 
   it("an axe swing destroys a ball: it stops, says why, and hurts nobody", () => {
     const world = ballWorld();
-    const target = dummy(world, { x: 420, y: 256 });
+    const target = dummy(world, { x: 450, y: 256 }); // outside the axe's body-hit reach
     const ball = launchBall(world, "p1", { x: 330, y: 256 }, 0);
     const events = tick(world, [{ ...SWORD, weapon: "axe" }]);
     expect(ball.ended).toBe(true);
@@ -849,8 +849,8 @@ describe("balls", () => {
     expect(fxOf(events, "projEnd")).toEqual([]);
   });
 
-  it("meets the arc out to its reach plus the ball's own radius (66 u for the sword)", () => {
-    for (const [x, met] of [[366, true], [366.5, false], [330, true], [250, false]] as const) {
+  it("meets the arc out to its reach plus the ball's own radius (114 u for the sword)", () => {
+    for (const [x, met] of [[414, true], [414.5, false], [330, true], [250, false]] as const) {
       const world = ballWorld();
       const ball = launchBall(world, "p1", { x, y: 256 }, 0);
       landSwings(world, [SWORD]); // loosed this tick: a point
@@ -874,7 +874,7 @@ describe("balls", () => {
   });
 
   it("meets a ball that crosses the arc during the tick, even if both ends of its path are outside it", () => {
-    // The ball flies 19 u down the line x = 365.5, which clips the rim of the sword's reach for under 17 u in the middle.
+    // The ball flies 19 u down x = 413.75: both ends are beyond 114 u, but the middle clips the arc's rim.
     const crossing = (x: number): ProjectileRuntime => {
       const world = ballWorld();
       const ball = launchBall(world, "p1", { x, y: 246.5 }, Math.PI / 2);
@@ -883,8 +883,8 @@ describe("balls", () => {
       expect(ball.y).toBeCloseTo(265.5, 6);
       return ball;
     };
-    expect(crossing(365.5).halved).toBe(true);
-    expect(crossing(367).halved).toBe(false);
+    expect(crossing(413.75).halved).toBe(true);
+    expect(crossing(415).halved).toBe(false);
   });
 
   it("meets a ball only with a clear line from the attacker: a one-tile wall hides a ball in the arc from a sword or an axe", () => {
@@ -958,17 +958,20 @@ describe("balls", () => {
 });
 
 describe("balls in real fights", () => {
-  // p0 (Holy, wand) at 300 casts east at 100 ms; its ball leaves at 500 ms (the wand's 0.4 s windup) and reaches p1, 60 u
-  // away, in the step at 650 ms, where it would hit. p1 swings back west: a sword pressed at 500 ms lands at 600 ms (windup
-  // 0.1 s), Fire's axe pressed at 350 ms lands at 600 ms and one pressed at 400 ms lands at 650 ms (windup 0.25 s; Plague's
-  // axe is quicker, a quarter of its short interval, so it would land before the ball exists).
+  // Schedule the real trigger from the current windups and flight time. A parry must land after the cast completes:
+  // hitting the nearby caster during its longer committed windup would stagger it before any ball exists.
   const SWINGER: Vec2 = { x: 360, y: 256 };
-  /** The step (1 = 100 ms) at whose start p1 presses, or null for never. */
-  function fight(faction: FactionId, weapon: WeaponId, pressAtStep: number | null): { world: World; events: SimEvent[] } {
+  function fight(faction: FactionId, weapon: WeaponId, parry: "before" | "impact" | null): { world: World; events: SimEvent[] } {
     const world = arena([fighter("holy", "wand", ORIGIN), fighter(faction, weapon, SWINGER)]);
+    const ball = WEAPONS.wand.shape;
+    if (ball.kind !== "projectile") throw new Error("wand must launch a projectile");
+    const launchStep = 1 + Math.ceil(timingsOf(P(world, 0), "wand")!.windup * 1000 / TICK_MS);
+    const impactStep = launchStep + Math.ceil((SWINGER.x - ORIGIN.x - RANGED_HIT_REACH) / (ball.speed * TICK_MS / 1000));
+    const windupTicks = Math.ceil(timingsOf(P(world, 1), weapon)!.windup * 1000 / TICK_MS);
+    const pressAtStep = parry === null ? null : impactStep - windupTicks - (parry === "before" ? 1 : 0);
     const events: SimEvent[] = [];
     tap(world, 0, 0);
-    for (let n = 1; n <= 13; n++) {
+    for (let n = 1; n <= impactStep + 2; n++) {
       if (n === pressAtStep) tap(world, 1, Math.PI);
       events.push(...run(world, 1));
     }
@@ -983,20 +986,20 @@ describe("balls in real fights", () => {
 
   it("a sword that lands before the ball does halves its damage", () => {
     const full = hpLost(fight("plague", "sword", null).world, 1);
-    const { world } = fight("plague", "sword", 3);
+    const { world } = fight("plague", "sword", "before");
     expect(hpLost(world, 1)).toBeCloseTo(full * SWORD_BALL_SCALE, 9);
   });
 
   it("an axe that lands before the ball does destroys it", () => {
     expect(hpLost(fight("fire", "axe", null).world, 1)).toBeGreaterThan(0);
-    const { world, events } = fight("fire", "axe", 2);
+    const { world, events } = fight("fire", "axe", "before");
     expect(hpLost(world, 1)).toBe(0);
     expect(world.projectiles.size).toBe(0);
     expect(fxOf(events, "projEnd").map((f) => f.reason)).toEqual(["destroyed"]);
   });
 
   it("an axe that lands in the very step the ball hits cancels that hit", () => {
-    const { world, events } = fight("fire", "axe", 3);
+    const { world, events } = fight("fire", "axe", "impact");
     expect(hpLost(world, 1)).toBe(0);
     expect(hpLost(world, 0)).toBeGreaterThan(0); // the axe still reached the caster
     expect(fxOf(events, "projEnd").map((f) => f.reason)).toEqual(["hit"]);

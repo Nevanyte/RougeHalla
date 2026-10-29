@@ -14,12 +14,13 @@ import type {
   PersonaId, Stimulus, TierId, TierParams, TimedCommand,
 } from "../../src/bots/brain/types";
 import { InputQueue, enqueueClientMessage } from "../../src/sim/inputs";
-import { brainConfig, container, CORE_MESSAGES, features, fighter, hudView, mobView, percept, selfView, testMap } from "./fixtures";
+import { brainConfig, container, CORE_MESSAGES, features, fighter, hudView, mobView, percept as fixturePercept, selfView, testMap } from "./fixtures";
 
 const T0 = 100_000;
 const FRAME_MS = 50;
-const CORE_TYPES = new Set(["move", "stop", "target", "swap", "pickup"]);
-const me = selfView();
+const CORE_TYPES = new Set(["move", "stop", "target", "attack", "release", "swap", "pickup"]);
+const me = selfView({ weapons: ["wand", null] });
+const percept = (over: Partial<Percept> = {}): Percept => fixturePercept({ self: me, ...over });
 
 interface Rig {
   readonly brain: Brain;
@@ -63,14 +64,14 @@ const foeScene = () => ({ fighters: [prey({ hpFrac: 0.5 })] });
 /** Asserts what a driver relies on: only core client messages, each accepted by the server's own validation. */
 function assertSendable(cmds: readonly Released[]): void {
   for (const { tc } of cmds) {
-    expect(["aim", "attack", "release"]).not.toContain(tc.cmd.type);
+    expect(tc.cmd.type).not.toBe("aim");
     if (CORE_TYPES.has(tc.cmd.type)) expect(enqueueClientMessage(new InputQueue(), tc.cmd.type, tc.cmd.msg)).toBe(true);
   }
 }
 
 /** The most commands in any 60 s window, and the shortest gap between two. */
 function rate(cmds: readonly Released[]): { peak: number; minGap: number } {
-  const ats = cmds.map((c) => c.tc.at).sort((a, b) => a - b);
+  const ats = cmds.filter(c => c.tc.cmd.type !== "release").map((c) => c.tc.at).sort((a, b) => a - b);
   let peak = 0;
   let lo = 0;
   let minGap = Infinity;
@@ -495,7 +496,7 @@ describe("end", () => {
 
   it("hands out a copy of the choices, not the live list", () => {
     const r = rig("normal", "farmer");
-    drive(r, 10, () => ({ mobs: [mobView({ faction: "plague", kind: "mob" })] }));
+    drive(r, 10, () => ({ mobs: [mobView({ faction: "plague", kind: "mob" })], self: selfView() }));
     const summary = r.brain.end(null);
     expect(summary.choices).toEqual(["opener|fire|plague"]);
     expect(Object.isFrozen(summary.choices)).toBe(false);
@@ -513,10 +514,10 @@ describe("stats", () => {
     const cmds = play(r, stage, 2400);
     const s = r.brain.stats;
     const byType = (t: string): number => cmds.filter((c) => c.tc.cmd.type === t).length;
-    for (const t of ["move", "stop", "target", "swap", "pickup", "cast", "plan", "choose"] as const) expect(s.commands[t]).toBe(byType(t));
+    for (const t of ["move", "stop", "target", "attack", "release", "swap", "pickup", "cast", "plan", "choose"] as const) expect(s.commands[t]).toBe(byType(t));
     expect(s.commands.move + s.commands.stop + s.commands.target).toBeGreaterThan(5);
     expect(s.targetClicks).toBeGreaterThanOrEqual(s.commands.target);
-    expect(s.targetClicks).toBe(s.commands.target + s.clickMissed);
+    expect(s.targetClicks).toBe(s.commands.target + s.commands.attack + s.clickMissed);
     expect(s.apmPeak).toBeLessThanOrEqual(TIERS.normal.apm + TIERS.normal.burst);
     const goals = Object.values(s.goals).reduce((a, b) => a + (b ?? 0), 0);
     const adopted = r.logs.filter((l) => /^Me: (idle|farm|hunt|fight|loot|flee|roam|hold|module)\b/.test(l)).length;
@@ -531,7 +532,7 @@ describe("stats", () => {
 
   it("counts the mob hunt's targets the way the old bot did", () => {
     const r = rig("normal", "farmer");
-    drive(r, 40, () => ({ mobs: [mobView({ faction: "plague", kind: "mob" })] }));
+    drive(r, 40, () => ({ mobs: [mobView({ faction: "plague", kind: "mob" })], self: selfView() }));
     expect(r.brain.stats.mobTargets).toBeGreaterThanOrEqual(1);
     expect(r.brain.stats.goals.farm).toBe(1);
   });

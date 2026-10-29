@@ -10,7 +10,7 @@
 // back to idle until the full roster respawns three minutes after a clear. The coliseum teleport puts LIVING mobs back on
 // their spots; camp respawn clocks continue while gates are locked. The clear is paid after the ledger pass (payLater): the
 // `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
-import { CAMP_RESPAWN_MS, rollCampElites, rollCampTypes } from "@raid/shared";
+import { CAMP_RESPAWN_MS, CAMP_WARD_MS, rollCampElites, rollCampTypes } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { payCampHeal } from "./campHeal";
 import { emit, payLater, type World } from "./world";
@@ -81,7 +81,7 @@ export function campMobDied(world: World, campRef: number, killerId: string | nu
   s.respawnAt = s.clearedAt + CAMP_RESPAWN_MS;
   // The final mob's whole-fight damage attribution owns the ward; environmental clears grant no ward.
   s.wardOwner = killerId ?? "";
-  s.wardExpiresAt = killerId !== null ? s.respawnAt : 0;
+  s.wardExpiresAt = killerId !== null ? s.clearedAt + CAMP_WARD_MS : 0;
   const camp = campRef - 1;
   payLater(world, () => {
     emit(world, { type: "fx", fx: { kind: "campCleared", camp } });

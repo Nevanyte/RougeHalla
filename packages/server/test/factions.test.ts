@@ -26,7 +26,7 @@ type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 const DT = TICK_MS / 1000;
 /** Fighters get this much hp unless a test says otherwise, so a scenario never ends in a death by accident. */
 const BIG_HP = 1e6;
-const SIDE = 24;
+const SIDE = 32;
 const CONFIG: SimConfig = {
   minPlayers: 2, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9, pvpRules: false,
 };
@@ -513,7 +513,7 @@ describe("reach and engagement", () => {
 
   it("a fighter with an empty hand reaches as far as fists do: engageRange(fists), the shortest of any weapon", () => {
     const range = engageRange("fists");
-    expect(range).toBe(52);
+    expect(range).toBe(84);
     for (const w of WEAPON_IDS.filter((x) => !isRanged(x))) expect(range, w).toBeLessThan(engageRange(w));
     for (const [gap, reached] of [[range - 1, true], [range, true], [range + 1, false]] as const) {
       const world = pair(null, gap);
@@ -978,7 +978,7 @@ describe("Frost (wall of ice)", () => {
   });
 
   it("chills nobody when neither is engaged with the Frost", () => {
-    const world = pair({ at: [700, 700] });
+    const world = pair({ at: [900, 900] });
     tick(world);
     expect(chillOf(world, "b")).toBe(1);
     expect(chilled(world, "b")).toBe(false);
@@ -1000,7 +1000,7 @@ describe("Frost (wall of ice)", () => {
   it("lasts through the engagement linger and ends after it", () => {
     const world = pair();
     tick(world);
-    place(world, "b", 700, 700); // 565 away: out of both reaches
+    place(world, "b", 900, 900); // beyond both increased reaches
     for (let i = 1; i <= LINGER_TICKS; i++) {
       tick(world);
       expect(chillOf(world, "b"), `tick ${i}`).toBeCloseTo(CHILL, 12);
@@ -1027,7 +1027,7 @@ describe("Frost (wall of ice)", () => {
   });
 
   it("leaves an unchilled cooldown alone", () => {
-    const world = pair({ at: [700, 700] });
+    const world = pair({ at: [900, 900] });
     const next = world.state.serverTime + TICK_MS;
     P(world, "b").readyAt = next + 10_000;
     run(world, 3);
@@ -1916,7 +1916,7 @@ describe("a stagger pauses damage over time", () => {
     sword: (i) => Math.min(0.1, i),
     shield: (i) => Math.min(0.1, i),
     axe: (i) => Math.min(0.25, 0.25 * i),
-    wand: (i) => Math.min(0.3, 0.3 * i),
+    wand: (i) => Math.min(0.45, 0.5 * i),
     bow: () => 0,
     fists: (i) => Math.min(0.1, i),
   };

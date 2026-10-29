@@ -96,7 +96,7 @@ describe("ProjectileView launches", () => {
 
   it("turns a target-locked arrow toward each safe target sample", () => {
     const { view, made } = setup();
-    view.noteLaunch({ ...arrow, targetId: "target", range: 4500 });
+    view.noteLaunch({ ...arrow, kind: "ball", targetId: "target", range: 4500 });
     view.update(1000, () => false);
     const start = made[0]!.state.pos!;
     view.update(1200, (id, t, out) => {
@@ -112,7 +112,7 @@ describe("ProjectileView launches", () => {
 
   it("cleans up a guided shot at its finite lifetime when its end message is lost", () => {
     const { view, made } = setup();
-    view.noteLaunch({ ...arrow, targetId: "target", range: 4500 });
+    view.noteLaunch({ ...arrow, kind: "ball", targetId: "target", range: 4500 });
     view.update(1000, () => false);
     view.update(6000, () => false);
     expect(made[0]!.state.destroyed).toBe(true);

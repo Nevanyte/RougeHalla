@@ -67,7 +67,7 @@ export const TERRAINS: readonly TerrainSpec[] = [
   { key: "ember", name: "Embers", tile: TILE_FLOOR, home: "fire", ...NEUTRAL, burnShare: 0.02, homeRule: "exempt", color: 0xff7a2a },
   { key: "bog", name: "Bog", tile: TILE_FLOOR, home: "plague", ...NEUTRAL, speedMult: 0.7, homeRule: "exempt", color: 0x4f6b2f },
   { key: "ice", name: "Ice", tile: TILE_FLOOR, home: "frost", ...NEUTRAL, slipMs: 400, homeRule: "exempt", color: 0xa9d6f0 },
-  { key: "light", name: "Light", tile: TILE_FLOOR, home: "holy", ...NEUTRAL, healShare: 0.006, homeRule: "boost", homeMult: 2, color: 0xfff1b0 },
+  { key: "light", name: "Light", tile: TILE_FLOOR, home: "holy", ...NEUTRAL, healShare: 0.03, homeRule: "boost", homeMult: 2, color: 0xfff1b0 },
 ];
 
 /** The kind on a tile; out of bounds is NONE. */

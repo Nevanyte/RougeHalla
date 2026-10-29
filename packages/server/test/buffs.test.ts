@@ -648,7 +648,7 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
   });
 
   it("a player with a Fleet card really walks farther per tick (the step loop applies the modifier)", () => {
-    // An open floor, so the chase is a straight line, with the target far enough to be walked towards for several ticks.
+    // An open floor and a direct move order, far enough away to keep walking for several ticks.
     const W = 40;
     const H = 20;
     const tiles = new Uint8Array(W * H).fill(TILE_FLOOR);
@@ -656,7 +656,7 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     for (let ty = 0; ty < H; ty++) { tiles[ty * W] = TILE_WALL; tiles[ty * W + W - 1] = TILE_WALL; }
     const spawns = Array.from({ length: 8 }, (_, i) => ({ x: TILE * (3 + 3 * i) + TILE / 2, y: TILE * 10 + TILE / 2 }));
     const map: GameMap = { ...mapFromTiles(W, H, tiles), spawns };
-    // Distance walked in the 4th tick of a chase of a target 14 tiles away.
+    // Distance walked in the 4th tick of a move to a point 14 tiles away.
     const run = (fleet: boolean): number => {
       const world = createGameWorld({ config: makeConfig(2), random: mulberry32(8), map });
       addPlayer(world, "p0", "alice", { faction: "sentenced" });
@@ -668,11 +668,11 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
       a.x = TILE * 3 + TILE / 2; a.y = TILE * 10 + TILE / 2;
       b.x = a.x + 14 * TILE; b.y = a.y;
       for (const [i, pos] of [a, b].entries()) RT(world, i).history = [{ t: world.state.serverTime, x: pos.x, y: pos.y }];
-      expect(enqueueClientMessage(RT(world, 0).inputs, "target", { id: "p1" })).toBe(true);
+      expect(enqueueClientMessage(RT(world, 0).inputs, "move", { x: b.x, y: b.y })).toBe(true);
       tick(world);
       tick(world);
       tick(world);
-      expect(RT(world, 0).weapon.lock).toBe("p1");
+      expect(RT(world, 0).path.length).toBeGreaterThan(0);
       const x0 = a.x;
       tick(world);
       return a.x - x0;

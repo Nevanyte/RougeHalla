@@ -10,7 +10,7 @@
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
   EFFECT_STUNNED, FACTIONS, hasteMultiplier, hazardsOf, isFactionId, LAST_STAND_SPEED_BONUS, MOVE_MULT_FLOOR, scaleWindup, SIG_CHILLED,
-  surfaceAt, weaponTimings,
+  surfaceAt, weaponTimings, mirrorTimings,
   type FactionSpec, type GameMap, type TimedFx, type Vec2, type WeaponTimings,
 } from "@raid/shared";
 import { LocalMotion, ORDER_EXPIRE_MS, seqAcked, type AuthSample, type FrameInput } from "./localMotion";
@@ -20,6 +20,10 @@ export interface LocalFighter {
   x: number;
   y: number;
   faction: string;
+  drawStartedAt?: number;
+  weapon0?: string;
+  weapon1?: string;
+  slot?: number;
   sig: number;
   /** `PlayerState.effects` (EFFECT_* bits): the fallback for a stun, root, cast or haste no fx told of (a join mid-effect). */
   effects: number;
@@ -90,6 +94,7 @@ export class LocalPrediction {
   readonly motion = new LocalMotion();
   private seq = 0;
   /** The axe's root after its swing has landed, in server time: [from, until). */
+  private weaponRoot: { from: number; until: number } | null = null;
   private axeRoot: { from: number; until: number } | null = null;
   /** Server-time spans of stuns, roots and casts, and of haste (Last Stand), as the fx told them (or the cast predicted them). */
   private roots: Root[] = [];
@@ -107,6 +112,7 @@ export class LocalPrediction {
     this.motion.reset();
     this.seq = 0;
     this.axeRoot = null;
+    this.weaponRoot = null;
     this.roots = [];
     this.hastes = [];
     this.slipFn = null;
@@ -154,7 +160,9 @@ export class LocalPrediction {
   noteFx(fx: TimedFx, localId: string, me: LocalFighter | undefined): void {
     switch (fx.kind) {
       case "windup": {
-        if (fx.by !== localId || fx.weapon !== "axe") break;
+        if (fx.by !== localId) break;
+        this.weaponRoot = { from: fx.t, until: fx.t + fx.ms };
+        if (fx.weapon !== "axe") break;
         // The axe roots from its start for `root` seconds (weapons.ts; the server's rootUntil), and the swing lands `fx.ms` in:
         // what follows the landing is the root this knows. The mirrors (attack speed, windup) shape both, as the server's timingsOf.
         const f = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
@@ -187,6 +195,7 @@ export class LocalPrediction {
       case "death":
         if (fx.id === localId) {
           this.axeRoot = null;
+          this.weaponRoot = null;
           this.roots = [];
           this.hastes = [];
           // A training room puts the fighter back on its feet in place, with no walk left: the sample that follows snaps.
@@ -196,6 +205,7 @@ export class LocalPrediction {
       case "teleport":
         // Everyone is moved and every walk cancelled: the sample from this tick on is a cut, however short the jump. Statuses end.
         this.axeRoot = null;
+        this.weaponRoot = null;
         this.roots = [];
         this.hastes = [];
         this.motion.cut(fx.t);
@@ -223,7 +233,7 @@ export class LocalPrediction {
     const input: FrameInput = {
       alive: active,
       speedMult: me ? this.speedMult(t, me, others, map) : 1,
-      rooted: (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
+      rooted: this.weaponRootedAt(t, me) || (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
       aiming,
     };
     if (huntTarget) input.huntTarget = huntTarget;
@@ -296,7 +306,16 @@ export class LocalPrediction {
     return m > 0 && m < MOVE_MULT_FLOOR ? MOVE_MULT_FLOOR : m;
   }
 
+  private weaponRootedAt(t: number, me: LocalFighter | undefined): boolean {
+    if (this.weaponRoot && t >= this.weaponRoot.from && t < this.weaponRoot.until) return true;
+    if (!me?.drawStartedAt || !isFactionId(me.faction)) return false;
+    if ((me.slot === 1 ? me.weapon1 : me.weapon0) !== "bow") return false;
+    const timing = mirrorTimings(FACTIONS[me.faction], "bow", decodeMult(me.asMult), decodeMult(me.windupMult));
+    return t >= me.drawStartedAt && t < me.drawStartedAt + timing.windup * 1000;
+  }
+
   private dropRootBefore(t: number): void {
+    if (this.weaponRoot && t < this.weaponRoot.until) this.weaponRoot = null;
     if (this.axeRoot && t < this.axeRoot.from) this.axeRoot = null;
   }
 }

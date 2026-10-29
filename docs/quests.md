@@ -6,13 +6,13 @@
 
 ## 1. What quests add
 
-A generated-map raid offers ten optional, standing quests: five known during planning and five rumoured until scouted. A giver and its objective are deliberately far apart, so an offer is a route and exposure decision rather than another camp beside the spawn. There is no personal instance: everyone races for the same offer, and the first eligible turn-in closes it for the lobby. A player has to **accept** an offer at its giver (F next to the giver, then Accept) before anything counts for them: kills, tokens, the parcel and the turn-in are all ignored until then, and nothing already done counts afterwards.
+A generated-map raid offers twenty optional, standing quests: ten known during planning and ten rumoured until scouted. A giver and its objective are deliberately far apart, so an offer is a route and exposure decision rather than another camp beside the spawn. There is no personal instance: everyone races for the same offer, and the first eligible turn-in closes it for the lobby. A player has to **accept** an offer at its giver (F next to the giver, then Accept) before anything counts for them: kills, tokens, the parcel and the turn-in are all ignored until then, and nothing already done counts afterwards.
 
 The K1 rules are deliberately small:
 
 | Rule | Current behavior |
 | --- | --- |
-| Roster | `QUEST_COUNT = 10`, with at least two kill, two collect and two fetch offers; `QUEST_KNOWN_COUNT = 5`. |
+| Roster | `QUEST_COUNT = 20`, with at least two kill, two collect and two fetch offers; `QUEST_KNOWN_COUNT = 10`. |
 | Timing | Each def has its own fixed `expiresAtSec`, from 150 to 300 seconds of active play. Planning does not advance it. |
 | Rewards | 8–16 zone-matched mob-stat stacks, based on objective/travel effort and independent of feed; fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 40`. Historical card identity/copy metadata does not affect the current payout. |
 | Accepting | Required (owner ruling). `questAccept { quest }` at the giver, within `QUEST_ACCEPT_RANGE` (the turn-in's 64 u) with a clear line, records the player in the public `QuestState.accepted` set. Progress counts only from then on, never backwards. A fill bot's accept is ignored. |

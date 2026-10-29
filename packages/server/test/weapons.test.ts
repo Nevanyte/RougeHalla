@@ -62,7 +62,7 @@ function arenaMap(): GameMap {
 function makeWorld(n: number, cfg: { patienceSeconds?: number } = {}): World {
   const patienceSeconds = cfg.patienceSeconds ?? 3600;
   const world = createGameWorld({
-    seed: 7,
+    seed: 7, map: { ...arenaMap(), seed: 7 },
     config: {
       minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds, patienceMinSeconds: patienceSeconds,
       suddenDeathSeconds: 60, pvpRules: false,
@@ -431,7 +431,7 @@ describe("the wand", () => {
     expect(shots).toHaveLength(1);
     expect(world.projectiles.size).toBe(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: end, kind: "ball", owner: "p0", weapon: "wand", t: end, range: 220 });
+    expect(shot).toMatchObject({ at: end, kind: "ball", owner: "p0", weapon: "wand", t: end, range: 640 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.y).toBe(P(world).y);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.4) * 380, 9);
@@ -444,7 +444,7 @@ describe("the wand", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const tm = timings("fire", "wand");
-    expect(tm.windup).toBeCloseTo(0.3, 12);
+    expect(tm.windup).toBeCloseTo(0.45, 12);
     expect(intervalMs("fire", "wand")).toBeCloseTo(1010.1, 1);
     // Cast at tick 2 (S): root only for the calculated short windup, then walk at full speed.
     const d = walk(world, 0, 28, (k) => { if (k === 2) tap(world); });
@@ -457,7 +457,7 @@ describe("the wand", () => {
     const world = startRun();
     arm(world, 0, "plague", "wand");
     const tm = timings("plague", "wand");
-    expect(tm.windup).toBeCloseTo(0.3 * tm.interval, 12);
+    expect(tm.windup).toBeCloseTo(0.5 * tm.interval, 12);
     const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
     const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
     expect(rooted).toBe(Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6));
@@ -476,7 +476,7 @@ describe("the wand", () => {
     expect(RT(world).path.length).toBeGreaterThan(0);
     run(world, 7); // the cast is 400 ms: the ball leaves in the ninth tick, and the walk goes on from it
     expect(shots).toHaveLength(1);
-    expect(P(world).x).toBeGreaterThan(x0 + STEP); // walking again
+    expect(P(world).x).toBeGreaterThanOrEqual(x0 + STEP); // walking again
   });
 });
 
@@ -541,7 +541,7 @@ describe("the bow", () => {
 
   it("has the timings these tests rely on", () => {
     const tm = timings("frost", "bow");
-    expect(tm.windup).toBeCloseTo(0.3, 12);
+    expect(tm.windup).toBeCloseTo(0.5, 12);
     expect(tm.interval * 1000).toBeCloseTo(FROST_I, 6);
     expect(tm).not.toHaveProperty("minDraw");
   });
@@ -575,7 +575,7 @@ describe("the bow", () => {
     tick(world);
     expect(shots).toHaveLength(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: landsAt, kind: "arrow", owner: "p0", weapon: "bow", t: landsAt, range: 240 });
+    expect(shot).toMatchObject({ at: landsAt, kind: "arrow", owner: "p0", weapon: "bow", t: landsAt, range: 520 });
     expect(shot.x).toBe(HOME[0]!.x);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.7) * 900, 9);
     expect(shot.vy).toBeCloseTo(Math.sin(-0.7) * 900, 9);
@@ -642,7 +642,7 @@ describe("the bow", () => {
     expect(shots).toHaveLength(0);
     run(world, 5);
     expect(shots).toHaveLength(1);
-    expect(P(world).x).toBeGreaterThan(x0 + STEP);
+    expect(P(world).x).toBeGreaterThanOrEqual(x0 + STEP);
   });
 
   it("a short interval uses the shared timing mirror and player draw ratio, and the cooldown is the interval from the start", () => {
@@ -650,7 +650,7 @@ describe("the bow", () => {
     arm(world, 0, "sentenced", "bow");
     const tm = timings("sentenced", "bow");
     expect(tm).toEqual(mirrorTimings(FACTIONS.sentenced, "bow", 1, 1));
-    expect(tm.windup).toBeCloseTo(0.3 * tm.interval, 12);
+    expect(tm.windup).toBeCloseTo(0.55 * tm.interval, 12);
     tap(world);
     tick(world);
     const S = T(world);
@@ -842,7 +842,7 @@ describe("swapping", () => {
     const world = start();
     arm(world, 0, "fire", "wand", "sword");
     const tm = timings("fire", "wand");
-    expect(tm.windup).toBeCloseTo(0.3, 12);
+    expect(tm.windup).toBeCloseTo(0.45, 12);
     const rooted = Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6);
     // Swap after the ball has left; only the short cast windup holds movement.
     const d = walk(world, 0, 16, (k) => {
@@ -940,7 +940,7 @@ describe("aim and facing", () => {
     send(world, 0, "aim", { a: 1.1 });
     run(world, 1);
     release(world, 0, -0.3);
-    run(world, 8);
+    run(world, 9);
     expect(shots).toHaveLength(1);
     expect(Math.atan2(shots[0]!.vy, shots[0]!.vx)).toBeCloseTo(-0.3, 12);
     expect(P(world).facing).toBeCloseTo(-0.3, 12);

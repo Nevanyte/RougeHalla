@@ -59,7 +59,7 @@ interface Fighter { id: string; faction?: FactionId; at?: { x: number; y: number
 function arena(fighters: Array<string | Fighter> = ["a", "b", "c"], opts: { signatures?: boolean; map?: GameMap } = {}): World {
   const list = fighters.map((f): Fighter => (typeof f === "string" ? { id: f } : f));
   const world = createGameWorld({
-    seed: 11,
+    seed: 11, map: { ...(opts.map ?? openMap()), seed: 11 },
     config: {
       minPlayers: list.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, pvpRules: false,
     },
@@ -1007,16 +1007,19 @@ describe("the target lock and untargetability (D1)", () => {
   it("a `target` on a hidden or untargetable fighter is refused; a revealed one is lockable again", () => {
     const w = near();
     apply(w, "b", "b", "hidden", 8000);
+    P(w, "a").weapon0 = "wand";
     enqueueClientMessage(C(w, "a").rt.inputs, "target", { id: "b" });
     tick(w);
     expect(C(w, "a").rt.weapon.lock).toBeNull();
     expect(P(w, "a").attackTarget).toBe("");
     reveal(w, C(w, "b"), now(w) + 500);
+    P(w, "a").weapon0 = "wand";
     enqueueClientMessage(C(w, "a").rt.inputs, "target", { id: "b" });
     tick(w);
     expect(C(w, "a").rt.weapon.lock).toBe("b");
     const w2 = near();
     apply(w2, "b", "c", "untargetable", 3000);
+    P(w2, "a").weapon0 = "wand";
     enqueueClientMessage(C(w2, "a").rt.inputs, "target", { id: "b" });
     tick(w2);
     expect(C(w2, "a").rt.weapon.lock).toBeNull();
@@ -1024,6 +1027,7 @@ describe("the target lock and untargetability (D1)", () => {
 
   it("an existing lock on a fighter that turns untargetable is dropped in the next tick, and the chaser stops", () => {
     const w = near();
+    P(w, "a").weapon0 = "wand";
     enqueueClientMessage(C(w, "a").rt.inputs, "target", { id: "b" });
     tick(w);
     expect(C(w, "a").rt.weapon.lock).toBe("b");
@@ -1036,7 +1040,8 @@ describe("the target lock and untargetability (D1)", () => {
   });
 
   it("a stunned locker keeps its lock and its path but neither chases, aims nor attacks until the stun ends", () => {
-    const w = arena([{ id: "a", at: { x: 200, y: 320 } }, { id: "b", at: { x: 520, y: 320 } }, { id: "c", at: { x: 900, y: 600 } }]);
+    const w = arena([{ id: "a", at: { x: 200, y: 320 } }, { id: "b", at: { x: 830, y: 320 } }, { id: "c", at: { x: 900, y: 600 } }]);
+    P(w, "a").weapon0 = "wand";
     enqueueClientMessage(C(w, "a").rt.inputs, "target", { id: "b" });
     tick(w);
     expect(C(w, "a").rt.weapon.lock).toBe("b");
@@ -1057,6 +1062,7 @@ describe("a locked attack is not re-aimed at a fighter that turned untargetable 
   /** `a` (an axe) locks `b`, whose swing's start aim is east; then `b` steps to the south, hidden or not; returns the angle the swing lands along. */
   const swingAngle = (hide: boolean): number => {
     const w = arena([{ id: "a", at: { x: 300, y: 320 } }, { id: "b", at: { x: 340, y: 320 } }, { id: "c", at: { x: 1100, y: 600 } }]);
+    P(w, "a").weapon0 = "wand";
     enqueueClientMessage(C(w, "a").rt.inputs, "target", { id: "b" });
     const events: SimEvent[] = [];
     for (let i = 0; i < 40 && C(w, "a").rt.weapon.action === null; i++) events.push(...tick(w));
@@ -1066,10 +1072,10 @@ describe("a locked attack is not re-aimed at a fighter that turned untargetable 
     expect(action!.a).toBeCloseTo(0, 6);
     put(w, "b", 300, 380);
     if (hide) apply(w, "b", "b", "hidden", 8000);
-    for (let i = 0; i < 20 && fxOf(events, "swing").length === 0; i++) events.push(...tick(w));
-    const swing = fxOf(events, "swing").find((f) => f.by === "a");
-    expect(swing, "a's swing landed").toBeDefined();
-    return swing!.a;
+    for (let i = 0; i < 20 && ![...w.projectiles.values()].some(p => p.owner === "a"); i++) events.push(...tick(w));
+    const ball = [...w.projectiles.values()].find(p => p.owner === "a");
+    expect(ball, "a's ball launched").toBeDefined();
+    return Math.atan2(ball!.launch.vy, ball!.launch.vx);
   };
 
   it("lands along the aim it started with once its target is hidden, and still follows a target that is not", () => {

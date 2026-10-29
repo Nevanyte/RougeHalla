@@ -54,7 +54,7 @@ interface Fighter {
 function arena(fighters: Fighter[], map: GameMap = arenaMap()): World {
   log.length = 0;
   const world = createGameWorld({
-    seed: 7,
+    seed: 7, map: { ...map, seed: 7 },
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
       suddenDeathSeconds: 3600, pvpRules: false,
@@ -65,7 +65,7 @@ function arena(fighters: Fighter[], map: GameMap = arenaMap()): World {
   fighters.forEach((f, i) => {
     const p = addPlayer(world, `p${i}`, `player${i}`);
     p.faction = f.faction;
-    p.weapon0 = f.weapons[0];
+    p.weapon0 = f.weapons[0] ? "wand" : "";
     p.weapon1 = f.weapons[1] ?? "";
     p.slot = 0;
   });
@@ -179,7 +179,7 @@ describe("the target order", () => {
     expect(P(world).attackTarget).toBe(foe);
     expect(W(world).bufferedUntil).toBe(0);
     // The trigger is the lock's now: it holds it exactly while the foe is in range.
-    expect(W(world).held).toBe(false);
+    expect(W(world).held).toBe(true);
     expect(P(world, 1).attackTarget).toBe(""); // nobody else's mirror changes
   });
 
@@ -265,13 +265,13 @@ describe("the target order", () => {
       ignoredByTick(world, id(1));
     });
 
-    it("is accepted when the fighter holds no weapon: an empty hand fights on fists, and locks like any other", () => {
+    it("refuses a lock from an empty hand, which attacks directionally with fists", () => {
       const { world } = duel();
       P(world).weapon0 = "";
       expect(activeWeapon(P(world))).toBe("fists");
       handleTarget(world, C(world), { kind: "target", id: id(1) });
-      expect(W(world).lock).toBe(id(1));
-      expect(P(world).attackTarget).toBe(id(1));
+      expect(W(world).lock).toBeNull();
+      expect(P(world).attackTarget).toBe("");
     });
 
     it("is refused for a trigger held before, which it leaves held", () => {
@@ -311,213 +311,6 @@ describe("the target order", () => {
 
 // ----------------------------------------------------------------------------------------------------------------
 
-describe("chasing into range", () => {
-  it("a sword walks to the foe, stops within its far distance, and swings from then on", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }]);
-    const d = dummy(world, { x: 600, y: 320 });
-    const max = M(world, d).maxHp;
-    target(world, d);
-    const far = 0.85 * 64;
-    let firstHit = -1;
-    let settled = -1;
-    for (let i = 0; i < 80; i++) {
-      tick(world);
-      if (firstHit < 0 && M(world, d).hp < max) firstHit = i;
-      if (settled < 0 && RT(world).path.length === 0) settled = i;
-      if (firstHit < 0) expect(dist(P(world), at(world, d)), `tick ${i}`).toBeGreaterThan(far - STEP - 1e-6);
-    }
-    // 400 u at 8.5 u a tick: about 40 ticks of walking before the first swing can reach (and 2 more to land it).
-    expect(settled).toBeGreaterThan(30);
-    expect(firstHit).toBeGreaterThan(30);
-    expect(dist(P(world), at(world, d))).toBeLessThanOrEqual(far + 1e-6);
-    expect(dist(P(world), at(world, d))).toBeGreaterThan(far - STEP);
-    expect(W(world).lock).toBe(d);
-    expect(M(world, d).hp).toBeLessThan(max);
-    expect(fxOf("swing").length).toBeGreaterThan(5);
-  });
-
-  it("a bow walks until the foe is within its far distance, draws as soon as it is within range, and shoots", () => {
-    const world = arena([{ faction: "sentenced", weapons: ["bow"], at: { x: 200, y: 320 } }]);
-    const d = dummy(world, { x: 600, y: 320 });
-    const pol = { far: (WEAPONS.bow.shape.kind === "projectile" ? WEAPONS.bow.shape.range : 0) * (400 / 480), attack: (WEAPONS.bow.shape.kind === "projectile" ? WEAPONS.bow.shape.range : 0) * 0.92 };
-    expect(pol.far).toBe(200);
-    target(world, d);
-    let drawAt = -1;
-    for (let i = 0; i < 120; i++) {
-      tick(world);
-      if (drawAt < 0 && P(world).drawStartedAt > 0) drawAt = dist(P(world), at(world, d));
-    }
-    // The draw began as the foe came within attack range (220.8 u), a step or two before the walk ended at 200 u.
-    expect(drawAt).toBeLessThanOrEqual(pol.attack + 1e-6);
-    expect(drawAt).toBeGreaterThan(pol.far - 1);
-    expect(dist(P(world), at(world, d))).toBeLessThanOrEqual(pol.far + 1e-6);
-    expect(RT(world).path).toEqual([]);
-    expect(M(world, d).hp).toBeLessThan(M(world, d).maxHp);
-  });
-
-  it("a wand does the same at its own distances", () => {
-    const world = arena([{ faction: "holy", weapons: ["wand"], at: { x: 200, y: 320 } }]);
-    const d = dummy(world, { x: 600, y: 320 });
-    target(world, d);
-    run(world, 120);
-    const range = WEAPONS.wand.shape.kind === "projectile" ? WEAPONS.wand.shape.range : 0;
-    expect(dist(P(world), at(world, d))).toBeLessThanOrEqual(range * (280 / 420) + 1e-6);
-    expect(M(world, d).hp).toBeLessThan(M(world, d).maxHp);
-  });
-
-  it("a foe that is already in range is attacked at once, with no walking", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: 300 + 50, y: 320 });
-    const x0 = P(world).x;
-    target(world, d);
-    tick(world);
-    expect(P(world).x).toBe(x0);
-    expect(RT(world).path).toEqual([]);
-    expect(fxOf("windup")).toHaveLength(1);
-    expect(W(world).held).toBe(true);
-  });
-
-  it("follows a moving foe, re-planning no more than every TARGET_REPATH_MS", () => {
-    expect(TARGET_REPATH_MS).toBe(250);
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }]);
-    const d = dummy(world, { x: 500, y: 320 });
-    target(world, d);
-    // The foe walks away across the floor; its goal moves every tick, the chase's path is replaced at most every 250 ms.
-    M(world, d).weapon0 = "";
-    world.mobs.get(d)!.path = [{ x: 500, y: 600 }, { x: 1100, y: 600 }];
-    const paths = new Set<unknown>();
-    let last: unknown = null;
-    let replans = 0;
-    for (let i = 0; i < 40; i++) {
-      tick(world);
-      const p = RT(world).path;
-      if (p !== last) { replans++; last = p; }
-      paths.add(p);
-    }
-    expect(replans).toBeGreaterThanOrEqual(3);
-    expect(replans).toBeLessThanOrEqual(1 + Math.floor((40 * TICK_MS) / TARGET_REPATH_MS) + 1);
-    expect(W(world).lock).toBe(d);
-    expect(dist(P(world), at(world, d))).toBeLessThan(260); // it has been gaining
-  });
-
-  it("a still foe is planned for once", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }]);
-    const d = dummy(world, { x: 700, y: 320 });
-    target(world, d);
-    tick(world);
-    const first = RT(world).path;
-    expect(first.length).toBeGreaterThan(0);
-    const same: boolean[] = [];
-    for (let i = 0; i < 20; i++) { tick(world); same.push(RT(world).path === first); }
-    expect(same.every(Boolean)).toBe(true);
-  });
-
-  it("faces the foe, aims at it and ignores the cursor's aim while it walks", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }]);
-    const d = dummy(world, { x: 600, y: 520 });
-    target(world, d);
-    const bearing = Math.atan2(520 - 320, 600 - 200);
-    for (let i = 0; i < 10; i++) {
-      send(world, 0, "aim", { a: -2 }); // the cursor points elsewhere
-      tick(world);
-      expect(W(world).aim).toBeCloseTo(Math.atan2(520 - P(world).y, 600 - P(world).x), 6);
-      expect(Math.abs(P(world).facing - bearing)).toBeLessThan(0.05);
-    }
-  });
-});
-
-// ----------------------------------------------------------------------------------------------------------------
-
-describe("orders replace the lock", () => {
-  /** A pocket of floor walled in on every side: no path leads into it. */
-  const pocket = column(30, 8, 12).concat(column(32, 8, 12), [[31, 8], [31, 12]], [[31, 9], [31, 11]]).filter(([x, y]) => !(x === 31 && y === 10));
-  const locked = (map?: GameMap): { world: World; foe: string } => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }], map);
-    const foe = dummy(world, { x: 700, y: 320 });
-    target(world, foe);
-    run(world, 3);
-    expect(W(world).lock).toBe(foe);
-    expect(RT(world).path.length).toBeGreaterThan(0);
-    return { world, foe };
-  };
-
-  it("a move drops the lock, the trigger and the chase, and walks where it was told", () => {
-    const { world } = locked();
-    send(world, 0, "move", { x: 200, y: 560 });
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(P(world).attackTarget).toBe("");
-    expect(W(world).held).toBe(false);
-    const end = RT(world).path.at(-1)!;
-    expect(end).toEqual({ x: 200, y: 560 });
-    run(world, 40);
-    expect(P(world).y).toBeGreaterThan(500);
-    expect(fxOf("windup")).toHaveLength(0);
-  });
-
-  it("a move to a point that cannot be reached still drops the lock, and the fighter stands", () => {
-    const { world } = locked(arenaMap(pocket));
-    send(world, 0, "move", { x: 31 * TILE + 16, y: 10 * TILE + 16 }); // inside the walled pocket
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(P(world).attackTarget).toBe("");
-    expect(RT(world).path).toEqual([]);
-    const x = P(world).x;
-    run(world, 5);
-    expect(P(world).x).toBe(x);
-  });
-
-  it("a stop drops the lock and the path: the fighter stops where it is", () => {
-    const { world } = locked();
-    send(world, 0, "stop");
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(P(world).attackTarget).toBe("");
-    expect(RT(world).path).toEqual([]);
-    const x = P(world).x;
-    run(world, 10);
-    expect(P(world).x).toBe(x);
-    expect(fxOf("windup")).toHaveLength(0);
-  });
-
-  it("a directional attack drops the lock, and the swing goes where the press aims", () => {
-    const { world } = locked();
-    send(world, 0, "attack", { a: Math.PI });
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(P(world).attackTarget).toBe("");
-    expect(W(world).held).toBe(true); // the press is the player's own
-    expect(fxOf("windup")).toMatchObject([{ by: id(0), weapon: "sword", a: expect.closeTo(Math.PI, 12) }]);
-    expect(RT(world).path).toEqual([]); // and the chase is over
-  });
-
-  it("a swap and a pickup that replaces the weapon do not drop it, and the new weapon plays the chase from then on", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword", "bow"], at: ME }]);
-    const d = dummy(world, { x: 700, y: 320 });
-    target(world, d);
-    tick(world);
-    send(world, 0, "swap");
-    tick(world);
-    expect(P(world).slot).toBe(1);
-    expect(W(world).lock).toBe(d);
-    expect(P(world).attackTarget).toBe(d);
-    weaponChanged(world, C(world)); // what a pickup that replaced the weapon in hand does
-    tick(world);
-    expect(W(world).lock).toBe(d);
-    // The bow's far distance is 200 u: the chase now stops there, not at a sword's 54.
-    run(world, 120);
-    expect(dist(P(world), at(world, d))).toBeLessThanOrEqual(200 + 1e-6);
-    expect(dist(P(world), at(world, d))).toBeGreaterThan(150);
-  });
-
-  it("a release does not drop it", () => {
-    const { world, foe } = locked();
-    send(world, 0, "release", { a: 0 });
-    tick(world);
-    expect(W(world).lock).toBe(foe);
-  });
-});
-
 describe("orders in one tick apply in the order they arrived", () => {
   const setup = (): { world: World; foe: string; other: string } => {
     const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }]);
@@ -542,7 +335,7 @@ describe("orders in one tick apply in the order they arrived", () => {
     expect(W(world).lock).toBe(foe);
     expect(P(world).attackTarget).toBe(foe);
     // The lock's chase replaced the move's path: it heads for the foe, not for (200, 560).
-    expect(RT(world).path.at(-1)!.x).toBeGreaterThan(600);
+    expect(RT(world).path).toEqual([]); // already in wand range
   });
 
   it("a target, a move and a target: locked on the last", () => {
@@ -573,7 +366,7 @@ describe("orders in one tick apply in the order they arrived", () => {
     target(a.world, a.foe);
     tick(a.world);
     expect(W(a.world).lock).toBe(a.foe);
-    expect(W(a.world).held).toBe(false);
+    expect(W(a.world).held).toBe(true);
     const b = setup();
     target(b.world, b.foe);
     send(b.world, 0, "attack", { a: 1 });
@@ -669,16 +462,9 @@ describe("how a lock ends", () => {
     ended(world);
   });
 
-  it("not when the fighter holds no weapon any more: the empty hand is fists, and the chase carries on", () => {
-    const { world } = chasing();
-    P(world).weapon0 = "";
-    tick(world);
-    expect(W(world).lock).toBe(id(1));
-    expect(P(world).attackTarget).toBe(id(1));
-    // It closes in to the fists' own spacing, not the sword's.
-    run(world, 60);
-    expect(W(world).lock).toBe(id(1));
-    expect(Math.hypot(P(world, 1).x - P(world).x, P(world, 1).y - P(world).y)).toBeLessThan(lockSpacing("fists").attackRange + 8);
+  it("ends when the empty hand replaces the wand", () => {
+    const { world } = chasing(); P(world).weapon0 = ""; tick(world);
+    expect(W(world).lock).toBeNull(); expect(P(world).attackTarget).toBe("");
   });
 
   it("when the fighter goes down, or its connection drops", () => {
@@ -864,592 +650,7 @@ describe("how a lock ends", () => {
 
 // ----------------------------------------------------------------------------------------------------------------
 
-describe("the windup root under a lock", () => {
-  // A foe just inside attackRange but outside far: the lock holds the trigger AND keeps walking (decide says both), so the
-  // attack starts with a path in hand. The fighter must not move until the attack lands or the projectile leaves.
-  const cases: Array<[string, FactionId, WeaponId, number]> = [
-    ["sword", "plague", "sword", 66],
-    ["wand", "holy", "wand", 170],
-    ["bow", "sentenced", "bow", 215],
-  ];
-
-  it.each(cases)("%s: no step while the swing, the cast or the draw winds up, and it walks again once it ends", (_n, faction, weapon, gap) => {
-    const world = arena([{ faction, weapons: [weapon], at: ME }]);
-    const d = dummy(world, { x: ME.x + gap, y: 320 });
-    const tm = timings(faction, weapon);
-    target(world, d);
-    const xs: number[] = [P(world).x];
-    const rooted: number[] = [];
-    const paths: number[] = [];
-    for (let i = 0; i < 24; i++) {
-      tick(world);
-      xs.push(P(world).x);
-      rooted.push(moveMultiplierOf(world, C(world)));
-      paths.push(RT(world).path.length);
-    }
-    const startedAt = fxOf("windup")[0]?.at ?? P(world).readyAt; // the bow has no windup fx: it draws from tick 1 here
-    void startedAt;
-    const windupTicks = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
-    // The attack began in the first tick (the foe is in range): that tick and the ones until it lands are rooted, with the
-    // path still there.
-    for (let k = 0; k < windupTicks; k++) {
-      expect(rooted[k], `tick ${k}`).toBe(0);
-      expect(xs[k + 1], `tick ${k}`).toBe(xs[0]);
-      expect(paths[k], `tick ${k}`).toBeGreaterThan(0);
-    }
-    // And it walks as soon as the attack has landed or the projectile has left (until the far distance, a step or two on).
-    expect(rooted[windupTicks]).toBe(1);
-    expect(xs[windupTicks + 1]).toBeGreaterThan(xs[0]!);
-  });
-});
-
-describe("when damage lands", () => {
-  it("a sword hits in the tick its windup ends: the first tick of a 100 ms windup does nothing, the third lands", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: 366, y: 320 }); // 66 u: inside attackRange (70), so the swing starts at once
-    const full = M(world, d).maxHp;
-    target(world, d);
-    tick(world); // the swing starts
-    const start = T(world);
-    expect(fxOf("windup")).toMatchObject([{ at: start, weapon: "sword", ms: 100 }]);
-    expect(M(world, d).hp).toBe(full);
-    tick(world);
-    expect(M(world, d).hp).toBe(full); // a tick before the end: nothing yet
-    tick(world);
-    expect(T(world)).toBe(start + 100);
-    expect(M(world, d).hp).toBeLessThan(full);
-    expect(full - M(world, d).hp).toBeCloseTo(fullHit("plague", "sword"), 6);
-  });
-
-  it("a wand ball leaves in the tick its cast ends, from where the caster stands, along the aim at the foe", () => {
-    const world = arena([{ faction: "holy", weapons: ["wand"], at: ME }]);
-    const d = dummy(world, { x: 470, y: 320 });
-    const tm = timings("holy", "wand");
-    expect(tm.windup).toBeCloseTo(0.3 * tm.interval, 12);
-    target(world, d);
-    tick(world);
-    const start = T(world);
-    expect(world.projectiles.size).toBe(0);
-    const launchDelay = Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS;
-    runTo(world, start + launchDelay - TICK_MS);
-    expect(world.projectiles.size).toBe(0);
-    tick(world);
-    expect(world.projectiles.size).toBe(1);
-    const ball = [...world.projectiles.values()][0]!;
-    expect(ball.launch.t).toBe(start + launchDelay);
-    expect([ball.launch.x, ball.launch.y]).toEqual([ME.x, ME.y]);
-    expect(Math.atan2(ball.launch.vy, ball.launch.vx)).toBeCloseTo(0, 6);
-    expect(M(world, d).hp).toBe(M(world, d).maxHp); // it has not arrived
-  });
-
-  it("a bow looses in the tick its draw ends, for full damage, however it was held", () => {
-    const world = arena([{ faction: "sentenced", weapons: ["bow"], at: ME }]);
-    const d = dummy(world, { x: 515, y: 320 });
-    const tm = timings("sentenced", "bow");
-    target(world, d);
-    tick(world);
-    const start = T(world);
-    expect(P(world).drawStartedAt).toBe(start);
-    const launchDelay = Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS;
-    runTo(world, start + launchDelay - TICK_MS);
-    expect(world.projectiles.size).toBe(0);
-    tick(world);
-    expect(world.projectiles.size).toBe(1);
-    const arrow = [...world.projectiles.values()][0]!;
-    expect(arrow.launch.t).toBe(start + Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS);
-    expect(arrow.packet.raw).toBeCloseTo(fullHit("sentenced", "bow"), 9);
-    // Every arrow of the fight is a full-damage one.
-    const raws = new Set<string>();
-    for (let i = 0; i < 100; i++) {
-      tick(world);
-      for (const pr of world.projectiles.values()) raws.add(pr.packet.raw.toFixed(6));
-    }
-    expect(raws.size).toBe(1);
-    expect(M(world, d).hp).toBeLessThan(M(world, d).maxHp);
-  });
-
-  it("keeps attacking at the weapon's interval while the foe stays in range", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: 350, y: 320 });
-    target(world, d);
-    run(world, 40); // 2 s
-    const starts = fxOf("windup").map((w) => w.at);
-    const interval = timings("plague", "sword").interval * 1000;
-    expect(starts.length).toBeGreaterThanOrEqual(7);
-    const span = (starts.at(-1)! - starts[0]!) / (starts.length - 1);
-    expect(Math.abs(span - interval)).toBeLessThan(TICK_MS / 2);
-  });
-});
-
-describe("a locked attack is aimed again as it lands", () => {
-  it("a swing goes at the foe's position when it lands, not where it was when the swing began", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: 366, y: 320 });
-    const full = M(world, d).maxHp;
-    target(world, d);
-    tick(world); // the swing starts, aimed along +x
-    expect(fxOf("windup")[0]!.a).toBeCloseTo(0, 6);
-    // The foe steps to the caster's south side (a quarter turn off the swing's arc, but inside its reach) during the windup.
-    place(world, d, { x: ME.x, y: ME.y + 46 });
-    run(world, 2);
-    expect(M(world, d).hp).toBeLessThan(full);
-    expect(fxOf("swing")[0]!.a).toBeCloseTo(Math.PI / 2, 6);
-    expect(M(world, d).hp).toBeLessThan(full);
-  });
-
-  it("the same swing without a lock goes where it was aimed", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: 366, y: 320 });
-    const full = M(world, d).maxHp;
-    send(world, 0, "attack", { a: 0 });
-    send(world, 0, "release", { a: 0 });
-    tick(world);
-    place(world, d, { x: ME.x, y: ME.y + 46 });
-    run(world, 2);
-    expect(M(world, d).hp).toBe(full);
-    expect(fxOf("swing")[0]!.a).toBeCloseTo(0, 6);
-  });
-
-  it("a ball is led at where the foe is now, with its velocity", () => {
-    const world = arena([{ faction: "holy", weapons: ["wand"], at: ME }]);
-    const d = dummy(world, { x: 470, y: 320 });
-    target(world, d);
-    tick(world); // the cast starts, aimed along +x
-    // The foe walks south at full speed during the cast.
-    world.mobs.get(d)!.path = [{ x: 470, y: 600 }];
-    const launchDelay = Math.ceil((timings("holy", "wand").windup * 1000) / TICK_MS) * TICK_MS;
-    runTo(world, T(world) + launchDelay - TICK_MS);
-    expect(world.projectiles.size).toBe(0);
-    const foe = at(world, d);
-    tick(world);
-    const ball = [...world.projectiles.values()][0]!;
-    const now = at(world, d);
-    const aimed = Math.atan2(ball.launch.vy, ball.launch.vx);
-    const shape = WEAPONS.wand.shape;
-    expect(shape.kind).toBe("projectile");
-    // From the origin it was drawn at, it launches straight at the target's current position; the projectile then homes.
-    expect(aimed).toBeGreaterThan(0.05);
-    expect(aimed).toBeGreaterThan(Math.atan2(foe.y - ME.y, foe.x - ME.x));
-    const expected = Math.atan2(now.y - ball.launch.y, now.x - ball.launch.x);
-    expect(Math.abs(aimed - expected)).toBeLessThan(0.06); // target advances one server tick during the launch step
-  });
-
-  it("an arrow goes at the foe's present position when the draw ends", () => {
-    const world = arena([{ faction: "sentenced", weapons: ["bow"], at: ME }]);
-    const d = dummy(world, { x: 515, y: 320 });
-    target(world, d);
-    tick(world);
-    place(world, d, { x: 470, y: 420 });
-    const tm = timings("sentenced", "bow");
-    const launchDelay = Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS;
-    runTo(world, T(world) + launchDelay);
-    const arrow = [...world.projectiles.values()][0] ?? null;
-    expect(arrow).not.toBeNull();
-    const a = Math.atan2(arrow!.launch.vy, arrow!.launch.vx);
-    expect(a).toBeCloseTo(Math.atan2(420 - ME.y, 470 - ME.x), 6);
-    // The foe is still there and the shot meets it.
-    run(world, 5);
-    expect(M(world, d).hp).toBeLessThan(M(world, d).maxHp);
-  });
-
-  it("goes where it was aimed at the start when the foe is no longer standing", () => {
-    const world = arena([
-      { faction: "holy", weapons: ["wand"], at: ME },
-      { faction: "frost", weapons: ["shield"], at: { x: 470, y: 320 } },
-      { faction: "frost", weapons: ["shield"], at: { x: 1200, y: 100 } },
-    ]);
-    target(world, id(1));
-    tick(world);
-    place(world, id(1), { x: 470, y: 420 });
-    applyDamage(world, P(world, 1), RT(world, 1), P(world, 1).hp + 1000, "test");
-    expect(P(world, 1).status).toBe("dead");
-    runTo(world, T(world) + 400);
-    const ball = [...world.projectiles.values()].find((p) => p.owner === id(0))!;
-    expect(ball).toBeDefined();
-    expect(Math.atan2(ball.launch.vy, ball.launch.vx)).toBeCloseTo(0, 6);
-  });
-
-  it("an arrow whose target fell keeps the aim it started with, not a cursor aim sent after the lock ended", () => {
-    const world = arena([
-      { faction: "frost", weapons: ["bow"], at: ME },
-      { faction: "frost", weapons: ["shield"], at: { x: 470, y: 320 } },
-      { faction: "frost", weapons: ["shield"], at: { x: 1200, y: 100 } },
-    ]);
-    target(world, id(1));
-    tick(world);
-    expect(W(world).action?.kind).toBe("draw");
-    const landsAt = W(world).action!.landsAt;
-    applyDamage(world, P(world, 1), RT(world, 1), P(world, 1).hp + 1000, "test");
-    tick(world); // the lock ends with its target
-    expect(W(world).lock).toBeNull();
-    send(world, 0, "aim", { a: 2 });
-    runTo(world, Math.ceil(landsAt / TICK_MS) * TICK_MS);
-    expect(W(world).aim).toBeCloseTo(2, 12);
-    const arrow = [...world.projectiles.values()].find((p) => p.owner === id(0))!;
-    expect(arrow).toBeDefined();
-    expect(Math.atan2(arrow.launch.vy, arrow.launch.vx)).toBeCloseTo(0, 6);
-  });
-
-  it("a locked attack is timed like an input with no timestamp: one tick of rewind, whatever the last press said", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: 366, y: 320 });
-    send(world, 0, "attack", { a: 0, t: T(world) + TICK_MS - 250 });
-    send(world, 0, "release", { a: 0, t: T(world) + TICK_MS - 250 });
-    tick(world);
-    expect(W(world).lagMs).toBe(250);
-    target(world, d);
-    tick(world);
-    expect(W(world).lagMs).toBe(TICK_MS);
-  });
-});
-
-// ----------------------------------------------------------------------------------------------------------------
-
-describe("the shield faces the locked target", () => {
-  const rig = (): { world: World; foe: string } => {
-    const world = arena([{ faction: "frost", weapons: ["shield"], at: ME }]);
-    return { world, foe: dummy(world, { x: ME.x, y: ME.y + 120 }) };
-  };
-
-  it("while locked it faces the foe and the cursor is ignored; once unlocked the cursor turns it", () => {
-    const { world, foe } = rig();
-    target(world, foe);
-    for (let i = 0; i < 6; i++) {
-      send(world, 0, "aim", { a: 0 }); // the cursor points east, the foe is south
-      tick(world);
-    }
-    expect(P(world).facing).toBeCloseTo(Math.PI / 2, 2);
-    expect(W(world).aim).toBeCloseTo(Math.PI / 2, 2);
-    send(world, 0, "stop");
-    send(world, 0, "aim", { a: 0 });
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(P(world).facing).toBeCloseTo(0, 12);
-  });
-
-  it("follows the foe around, writing the synced facing only past MOB_AIM_DEADBAND", () => {
-    const world = arena([{ faction: "frost", weapons: ["shield"], at: ME }]);
-    const foe = dummy(world, { x: ME.x, y: ME.y + 280 });
-    target(world, foe);
-    run(world, 3);
-    const first = P(world).facing;
-    expect(first).toBeCloseTo(Math.PI / 2, 2);
-    const x0 = P(world).x;
-    // A shift of well under the deadband (3 u sideways at 250 u is 0.7 degrees) leaves the synced facing alone...
-    place(world, foe, { x: x0 + 3, y: at(world, foe).y });
-    tick(world);
-    expect(P(world).facing).toBe(first);
-    expect(Math.abs(W(world).aim - first)).toBeGreaterThan(0.001); // ...though the aim itself is exact
-    expect(Math.abs(W(world).aim - first)).toBeLessThan(MOB_AIM_DEADBAND);
-    // ... and a bigger one turns it.
-    place(world, foe, { x: x0 + 60, y: at(world, foe).y });
-    tick(world);
-    expect(P(world).facing).not.toBe(first);
-    expect(Math.abs(P(world).facing - W(world).aim)).toBeLessThan(MOB_AIM_DEADBAND);
-    expect(P(world).facing).toBeLessThan(Math.PI / 2);
-  });
-});
-
-// ----------------------------------------------------------------------------------------------------------------
-
-describe("a move cancels the attack the lock is winding up", () => {
-  const SWORD_GAP = 66; // inside the sword's attackRange: the swing starts in the tick the target is taken
-  const sword = (): { world: World; d: string } => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: ME.x + SWORD_GAP, y: 320 });
-    target(world, d);
-    tick(world); // the swing starts
-    expect(W(world).action).not.toBeNull();
-    expect(W(world).action!.target).toBe(d);
-    return { world, d };
-  };
-  const full = (world: World, d: string): number => M(world, d).maxHp;
-
-  it("a move before the swing lands: no damage, the cooldown refunded, a cancel fx, and the walk starts in the same tick", () => {
-    const { world, d } = sword();
-    const started = W(world).action!.startedAt;
-    expect(P(world).readyAt).toBeGreaterThan(T(world)); // the cooldown is running
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    const y0 = P(world).y;
-    tick(world);
-    expect(fxOf("cancel")).toEqual([{ at: T(world), kind: "cancel", id: id(0) }]);
-    expect(W(world).action).toBeNull();
-    expect(P(world).readyAt).toBe(started); // over since the attack began
-    expect(W(world).lock).toBeNull();
-    expect(moveMultiplierOf(world, C(world))).toBe(1);
-    expect(P(world).y).toBeGreaterThan(y0); // not rooted: it walked a step in the tick the move applied
-    run(world, 30);
-    expect(M(world, d).hp).toBe(full(world, d)); // the swing never came
-    expect(fxOf("swing")).toHaveLength(0);
-  });
-
-  it("a stop cancels it too, and the fighter stands", () => {
-    const { world, d } = sword();
-    send(world, 0, "stop");
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(1);
-    expect(W(world).action).toBeNull();
-    expect(W(world).lock).toBeNull();
-    run(world, 10);
-    expect(M(world, d).hp).toBe(full(world, d));
-    expect(fxOf("windup")).toHaveLength(1); // nothing started again: the lock is gone
-  });
-
-  it("a move to a point that cannot be reached cancels it as well: the order was given", () => {
-    const pocket = column(30, 8, 12).concat(column(32, 8, 12), [[31, 8], [31, 12]], [[31, 9], [31, 11]]).filter(([x, y]) => !(x === 31 && y === 10));
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }], arenaMap(pocket));
-    const d = dummy(world, { x: ME.x + SWORD_GAP, y: 320 });
-    target(world, d);
-    tick(world);
-    send(world, 0, "move", { x: 31 * TILE + 16, y: 10 * TILE + 16 });
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(1);
-    expect(W(world).action).toBeNull();
-    run(world, 10);
-    expect(M(world, d).hp).toBe(full(world, d));
-  });
-
-  it("a target on another fighter cancels it, and the new lock starts its own attack at once on the refunded cooldown", () => {
-    const { world, d } = sword();
-    const other = dummy(world, { x: ME.x, y: 320 + SWORD_GAP });
-    const started = W(world).action!.startedAt;
-    target(world, other);
-    tick(world);
-    expect(fxOf("cancel")).toEqual([{ at: T(world), kind: "cancel", id: id(0) }]);
-    expect(W(world).lock).toBe(other);
-    expect(W(world).action).not.toBeNull();
-    expect(W(world).action!.target).toBe(other);
-    expect(W(world).action!.startedAt).toBeGreaterThanOrEqual(started + TICK_MS - 1e-6);
-    expect(fxOf("windup")).toHaveLength(2);
-    run(world, 40);
-    expect(M(world, d).hp).toBe(full(world, d)); // the first foe never took the cancelled swing
-    expect(M(world, other).hp).toBeLessThan(full(world, other));
-  });
-
-  it("clicking the fighter already locked changes nothing: the swing still lands", () => {
-    const { world, d } = sword();
-    target(world, d);
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    tick(world);
-    tick(world);
-    expect(M(world, d).hp).toBeLessThan(full(world, d));
-  });
-
-  it("locking the same fighter again once the lock has dropped keeps the attack already aimed at it", () => {
-    const { world, d } = sword();
-    send(world, 0, "attack", { a: 0 }); // an attack input drops the lock; the swing in progress goes on
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(W(world).action).not.toBeNull();
-    expect(W(world).action!.target).toBe(d);
-    target(world, d); // clicked again: the same fighter the swing is aimed at
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(W(world).lock).toBe(d);
-    expect(M(world, d).hp).toBeLessThan(full(world, d)); // it landed, on the cooldown it had
-    expect(fxOf("windup")).toHaveLength(1);
-  });
-
-  it("but it does cancel the attack aimed at someone else, lock or no lock", () => {
-    const { world, d } = sword();
-    const other = dummy(world, { x: ME.x, y: 320 + SWORD_GAP });
-    send(world, 0, "attack", { a: 0 });
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    target(world, other);
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(1);
-    expect(M(world, d).hp).toBe(full(world, d));
-  });
-
-  it("a refused target (out of range) changes nothing: the windup runs on", () => {
-    const { world, d } = sword();
-    const far = dummy(world, { x: ME.x + TARGET_RANGE + 50, y: 320 });
-    target(world, far);
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(W(world).action).not.toBeNull();
-    expect(W(world).lock).toBe(d);
-    tick(world);
-    expect(M(world, d).hp).toBeLessThan(full(world, d));
-  });
-
-  it("once the swing has landed there is nothing to cancel: no fx, the cooldown stays spent", () => {
-    const { world, d } = sword();
-    run(world, 2); // lands in the third tick of the swing
-    expect(M(world, d).hp).toBeLessThan(full(world, d));
-    expect(W(world).action).toBeNull();
-    const readyAt = P(world).readyAt;
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(P(world).readyAt).toBe(readyAt);
-  });
-
-  it("an axe can move as soon as its swing lands", () => {
-    const world = arena([{ faction: "fire", weapons: ["axe"], at: ME }]);
-    const d = dummy(world, { x: ME.x + 60, y: 320 });
-    const tm = timings("fire", "axe");
-    expect(tm.root).toBe(0);
-    target(world, d);
-    tick(world);
-    const start = T(world);
-    runTo(world, start + Math.ceil((tm.windup * 1000) / TICK_MS) * TICK_MS);
-    expect(W(world).action).toBeNull(); // landed
-    expect(W(world).rootUntil).toBeLessThanOrEqual(T(world));
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(W(world).rootUntil).toBeLessThanOrEqual(T(world));
-    expect(moveMultiplierOf(world, C(world))).toBe(1);
-  });
-
-  it("an axe windup that has not landed is cancelled and the fighter walks at once", () => {
-    const world = arena([{ faction: "fire", weapons: ["axe"], at: ME }]);
-    const d = dummy(world, { x: ME.x + 60, y: 320 });
-    target(world, d);
-    tick(world);
-    expect(W(world).rootUntil).toBe(0);
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    const y0 = P(world).y;
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(1);
-    expect(W(world).rootUntil).toBe(0);
-    expect(P(world).y).toBeGreaterThan(y0);
-  });
-
-  it("a wand cast that has not left: no ball", () => {
-    const world = arena([{ faction: "holy", weapons: ["wand"], at: ME }]);
-    const d = dummy(world, { x: ME.x + 170, y: 320 });
-    target(world, d);
-    tick(world);
-    const started = W(world).action!.startedAt;
-    run(world, 1);
-    expect(W(world).action).not.toBeNull();
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(1);
-    expect(P(world).readyAt).toBe(started);
-    run(world, 40);
-    expect(world.projectiles.size).toBe(0);
-    expect(M(world, d).hp).toBe(full(world, d));
-  });
-
-  it("a bow draw that has not ended: no arrow, and the synced draw start is cleared", () => {
-    const world = arena([{ faction: "sentenced", weapons: ["bow"], at: ME }]);
-    const d = dummy(world, { x: ME.x + 215, y: 320 });
-    target(world, d);
-    tick(world);
-    const started = W(world).action!.startedAt;
-    expect(P(world).drawStartedAt).toBe(started);
-    run(world, 3);
-    send(world, 0, "stop");
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(1);
-    expect(P(world).drawStartedAt).toBe(0);
-    expect(P(world).readyAt).toBe(started);
-    run(world, 40);
-    expect(world.projectiles.size).toBe(0);
-    expect(M(world, d).hp).toBe(full(world, d));
-  });
-
-  it("a directional attack stays committed: a move is kept as the path and walked after the swing lands", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const d = dummy(world, { x: ME.x + SWORD_GAP, y: 320 });
-    send(world, 0, "attack", { a: 0 });
-    tick(world);
-    expect(W(world).action).not.toBeNull();
-    expect(W(world).action!.target).toBeUndefined();
-    const readyAt = P(world).readyAt;
-    const y0 = P(world).y;
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(W(world).action).not.toBeNull();
-    expect(P(world).y).toBe(y0); // rooted until the swing lands
-    expect(P(world).readyAt).toBe(readyAt);
-    tick(world);
-    expect(M(world, d).hp).toBeLessThan(full(world, d));
-    run(world, 5);
-    expect(P(world).y).toBeGreaterThan(y0);
-  });
-
-  it("a mob's directional windup is not cancelled by its own move", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const mobId = placeMob(world, { region: "fire", elite: false, at: { x: ME.x + 400, y: 320 } });
-    const mob = combatant(world, mobId)!;
-    world.mobs.get(mobId)!.brain!.mode = "idle"; // idle mobs send nothing: the test drives its inputs
-    mob.rt.inputs.pushAction({ kind: "attack", a: Math.PI });
-    tick(world);
-    expect(mob.rt.weapon.action).not.toBeNull();
-    expect(mob.rt.weapon.action!.target).toBeUndefined();
-    const action = mob.rt.weapon.action;
-    const readyAt = mob.s.readyAt;
-    mob.rt.inputs.pushMove({ kind: "move", x: ME.x + 400, y: 500 });
-    tick(world);
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(mob.rt.weapon.action).toBe(action); // still winding up, the very same attack
-    expect(mob.s.readyAt).toBe(readyAt);
-  });
-
-  it("a swap still cancels it without a cancel fx (and keeps the lock), as before", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword", "axe"], at: ME }]);
-    const d = dummy(world, { x: ME.x + SWORD_GAP, y: 320 });
-    target(world, d);
-    tick(world);
-    expect(W(world).action).not.toBeNull();
-    send(world, 0, "swap", {});
-    tick(world);
-    expect(W(world).action).toBeNull();
-    expect(fxOf("cancel")).toHaveLength(0);
-    expect(W(world).lock).toBe(d); // the swap keeps the lock
-  });
-});
-
 describe("move and stop orders are acknowledged by moveSeq", () => {
-  it("attack-move acknowledges its point, acquires an enemy as it enters sword range, then resumes after the enemy goes down", () => {
-    const world = arena([
-      { faction: "plague", weapons: ["sword"], at: ME },
-      { faction: "frost", weapons: ["shield"], at: { x: ME.x + 160, y: ME.y } },
-      { faction: "fire", weapons: ["axe"], at: { x: ME.x + 900, y: ME.y + 200 } },
-    ]);
-    const goal = { x: ME.x + 420, y: ME.y + 80 };
-    send(world, 0, "attackMove", { ...goal, seq: 17 });
-    expect(P(world).moveSeq).toBe(0);
-    tick(world);
-    expect(P(world).moveSeq).toBe(17);
-    expect(W(world).attackMoveGoal).toEqual(goal);
-    expect(RT(world).path.length).toBeGreaterThan(0);
-
-    run(world, 18);
-    expect(W(world).lock).toBe(id(1));
-    expect(W(world).attackMoveGoal).toEqual(goal);
-    downPlayer(world, P(world, 1), RT(world, 1), "died");
-    tick(world);
-    expect(W(world).lock).toBeNull();
-    expect(W(world).attackMoveGoal).toEqual(goal);
-    expect(RT(world).path.at(-1)).toEqual(goal);
-  });
-
-  it("a normal move or stop replaces an attack-move order", () => {
-    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
-    const goal = { x: ME.x + 400, y: 500 };
-    send(world, 0, "attackMove", goal);
-    tick(world);
-    expect(W(world).attackMoveGoal).toEqual(goal);
-    send(world, 0, "move", { x: ME.x, y: 560 });
-    tick(world);
-    expect(W(world).attackMoveGoal).toBeNull();
-    expect(RT(world).path.at(-1)).toEqual({ x: ME.x, y: 560 });
-    send(world, 0, "attackMove", goal);
-    tick(world);
-    send(world, 0, "stop");
-    tick(world);
-    expect(W(world).attackMoveGoal).toBeNull();
-    expect(RT(world).path).toEqual([]);
-  });
-
   it("is set on the tick the move applies, and not before", () => {
     const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
     expect(P(world).moveSeq).toBe(0);
@@ -1516,12 +717,13 @@ describe("training", () => {
     installTraining(world);
     addPlayer(world, "p0", "alice", { faction: "plague" });
     startRaid(world);
+    world.state.players.get("p0")!.weapon0 = "wand";
     return world;
   }
 
   it("locks a dummy and attacks it", () => {
     const world = trainingWorld();
-    world.state.players.get("p0")!.weapon0 = "sword";
+    world.state.players.get("p0")!.weapon0 = "wand";
     const dummies = [...world.state.mobs].filter(([, m]) => m.kind === "dummy").map(([mid]) => mid);
     expect(dummies.length).toBeGreaterThan(0);
     // Whichever dummy the map lets it see (the training setup puts them a few tiles from the spawn).

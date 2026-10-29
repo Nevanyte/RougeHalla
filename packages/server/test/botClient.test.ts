@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  generateMap, hasLineOfSight, mapHashU32, packFx, PLAYER_RADIUS, segmentClear, type GameMap, type RunResult, type Vec2,
+  generateMap, hasLineOfSight, mapHashU32, packFx, PLAYER_RADIUS, segmentClear, type GameMap, type RunResult, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { BotClient, type BotOptions } from "../src/bots/BotClient";
@@ -51,12 +51,12 @@ function openingFor(map: GameMap, d: number): { home: Vec2; foe: Vec2 } {
   throw new Error(`no spawn with a clear line ${d} u long`);
 }
 
-function rig(opts: BotOptions = {}): Rig {
+function rig(opts: BotOptions = {}, weapon: WeaponId = "sword"): Rig {
   const map = generateMap(SEED);
   const { home, foe } = openingFor(map, FOE_DISTANCE);
   // The map as a room publishes it (R2): the seed, its certified attempt and the hash the bot checks its own build against.
   const state = plainState({ seed: SEED, attempt: map.attempt, mapHash: mapHashU32(map), serverTime: 100_000, raidStartedAt: 60_000 });
-  state.players.set("me", plainPlayer({ name: "me", x: home.x, y: home.y, weapon0: "sword" }));
+  state.players.set("me", plainPlayer({ name: "me", x: home.x, y: home.y, weapon0: weapon }));
   // Hurt (40%): an even fight is one a Hard hunter weighs and turns down (BOTS_TUNING.md), so the foe has to look worth taking.
   state.players.set("foe", plainPlayer({ name: "foe", x: foe.x, y: foe.y, weapon0: "sword", hp: 200 }));
   const sent: Rig["sent"] = [];
@@ -100,8 +100,8 @@ function result(over: Partial<RunResult> = {}): RunResult {
 }
 
 describe("BotClient over a fake room", () => {
-  it("plays a frame per patch: locks the foe once it is in reach and never sends aim, attack or release", () => {
-    const r = rig({ tier: "hard", persona: "hunter", seed: 3 });
+  it("plays a frame per patch: a wand locks the foe once it is in reach", () => {
+    const r = rig({ tier: "hard", persona: "hunter", seed: 3 }, "wand");
     for (let i = 0; i < 100; i++) {
       r.patch();
       // The server takes a lock the moment it hears one.
@@ -115,6 +115,25 @@ describe("BotClient over a fake room", () => {
     expect(r.bot.sent.target).toBe(targets.length);
     expect(r.bot.sent.aim + r.bot.sent.attack + r.bot.sent.release).toBe(0);
     expect(r.bot.sent.move + r.bot.sent.stop + r.bot.sent.target + r.bot.sent.swap + r.bot.sent.pickup).toBe(r.sent.length);
+  });
+
+  it("sends aimed bow presses and releases through the adapter, without a target lock", () => {
+    const r = rig({ tier: "hard", persona: "hunter", seed: 3 }, "bow");
+    for (let i = 0; i < 100; i++) r.patch();
+    const attacks = r.sent.filter((m) => m.type === "attack");
+    const releases = r.sent.filter((m) => m.type === "release");
+    const me = r.state.players.get("me")!, foe = r.state.players.get("foe")!;
+    const aim = Math.atan2(foe.y - me.y, foe.x - me.x);
+    expect(attacks.length).toBeGreaterThan(0);
+    expect(releases.map((m) => m.msg)).toEqual(attacks.map((m) => m.msg));
+    for (const attack of attacks) {
+      const angle = attack.msg.a as number;
+      expect(Number.isFinite(angle)).toBe(true);
+      expect(Math.abs(Math.atan2(Math.sin(angle - aim), Math.cos(angle - aim)))).toBeLessThan(.3);
+    }
+    expect(r.sent.filter((m) => m.type === "target" || m.type === "aim")).toEqual([]);
+    expect(r.bot.sent.attack).toBe(attacks.length);
+    expect(r.bot.sent.release).toBe(releases.length);
   });
 
   it("sends nothing in a lobby and starts to act only once the run is active", () => {

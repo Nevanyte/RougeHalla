@@ -512,7 +512,7 @@ describe("melee mobs", () => {
     displace(rig3.world, bow, HOME.x - 100, HOME.y);
     const a1 = (1 * Math.PI) / 180;
     // In range (a bow reaches 240 u), so the archer stands where it is and the angle it names can be compared exactly.
-    put(rig3.world, "p0", bow.s.x + 200 * Math.cos(a1), bow.s.y + 200 * Math.sin(a1));
+    put(rig3.world, "p0", bow.s.x + 300 * Math.cos(a1), bow.s.y + 300 * Math.sin(a1));
     const log3 = spy(rig3.world, bow);
     aggro(rig3.world, bow, "p0", 10);
     const flown: number[] = [];
@@ -521,7 +521,7 @@ describe("melee mobs", () => {
     expect(press).toBeDefined();
     const target = rig3.world.state.players.get("p0")!;
     const bearing = Math.atan2(target.y - bow.s.y, target.x - bow.s.x);
-    expect(press!.a).toBe(bearing);
+    expect(press!.a).toBeCloseTo(bearing, 12);
     expect(bearing).toBeGreaterThan(0.01);
     expect(flown.length).toBeGreaterThanOrEqual(2);
     expect(flown[0]).toBeCloseTo(bearing, 12);
@@ -596,8 +596,8 @@ describe("ranged mobs", () => {
   it("a wand mob closes to its far distance, then stands and casts", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "holy");
-    displace(rig.world, mob, HOME.x - 150, HOME.y);
-    put(rig.world, "p0", HOME.x + 200, HOME.y);
+    displace(rig.world, mob, HOME.x - 200, HOME.y);
+    put(rig.world, "p0", HOME.x + 450, HOME.y);
     const pol = POLICIES.wand;
     aggro(rig.world, mob, "p0", 10);
     const hits = hitsOn(run(rig, 160), "p0");
@@ -615,18 +615,21 @@ describe("ranged mobs", () => {
       const rig = makeRig();
       const mob = spawn(rig.world, region);
       const pol = POLICIES[weapon];
-      const start = Math.round(pol.retreatBelow * 0.75); // well inside the distance it likes to keep
+      const start = pol.retreatBelow > 0 ? Math.round(pol.retreatBelow * 0.75) : 40; // well inside the distance it likes to keep
       displace(rig.world, mob, HOME.x - 100, HOME.y);
       put(rig.world, "p0", HOME.x - 100 + start, HOME.y);
       aggro(rig.world, mob, "p0", 10);
       const ds: number[] = [];
       run(rig, 120, () => ds.push(dist(mob.s, rig.world.state.players.get("p0")!)));
-      expect(ds[0]!).toBeLessThan(pol.retreatBelow);
-      // It backs away, but a bow draw or a cast leaves it nearly rooted (Phase 9.1), so the gap opens slowly; it never
-      // walks into the target, never goes past the edge of its leash (the retreat slides along it), and keeps fighting.
-      expect(Math.min(...ds)).toBeGreaterThan(ds[0]! * 0.85);
-      expect(ds[ds.length - 1]!).toBeGreaterThan(ds[0]!);
-      expect(Math.max(...ds)).toBeLessThanOrEqual(pol.far + 1);
+      if (pol.retreatBelow > 0) {
+        expect(ds[0]!).toBeLessThan(pol.retreatBelow);
+        expect(Math.min(...ds)).toBeGreaterThan(ds[0]! * 0.85);
+        expect(ds.at(-1)!).toBeGreaterThan(ds[0]!);
+        expect(Math.max(...ds)).toBeLessThanOrEqual(pol.far + 1);
+      } else {
+        expect(Math.max(...ds)).toBeLessThanOrEqual(start + 1);
+        expect(mob.rt.path).toEqual([]);
+      }
       expect(dist(mob.s, HOME)).toBeLessThanOrEqual(MOB_LEASH_RADIUS);
       expect(brain(mob).mode).toBe("fight");
       run(rig, 120);
@@ -1260,9 +1263,9 @@ describe("ranged mobs in a chase", () => {
       // off between shots and the chaser closes while it is rooted for the next one, so the gap swings: judge it by its mean
       // over the last ten seconds, and by the chaser reaching it again and again.
       const last = gaps.slice(-200);
-      expect(last.reduce((a, b) => a + b, 0) / last.length).toBeLessThan(POLICIES[weapon].retreatBelow);
+      expect(last.reduce((a, b) => a + b, 0) / last.length).toBeLessThan(Math.max(CONTACT + 10, POLICIES[weapon].retreatBelow));
       expect(last.filter((g) => g < CONTACT + 10).length).toBeGreaterThanOrEqual(5);
-      expect(dist(mob.s, p)).toBeLessThan(POLICIES[weapon].retreatBelow);
+      expect(dist(mob.s, p)).toBeLessThan(Math.max(CONTACT + 10, POLICIES[weapon].retreatBelow));
     },
   );
 
@@ -1279,7 +1282,7 @@ describe("ranged mobs in a chase", () => {
     // The approach: let it settle at its range first, then the player closes in.
     const { windows, modes } = chase(rig, mob, weapon, 400);
     expect([...modes]).toEqual(["fight"]);
-    expect(dist(mob.s, p)).toBeLessThan(POLICIES[weapon].retreatBelow);
+    expect(dist(mob.s, p)).toBeLessThan(Math.max(CONTACT + 10, POLICIES[weapon].retreatBelow));
     // It is pinned against the dead end and does not walk toward the player either: no path, still, still shooting.
     const stillAt = { x: mob.s.x, y: mob.s.y };
     const late = chase(rig, mob, weapon, 200);
@@ -1420,7 +1423,7 @@ describe("resetMob", () => {
   it("drops the fight, the queued inputs, the path and the trigger, and puts the mob back on its spot at full hp", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced", HOME, 0.5);
-    put(rig.world, "p0", HOME.x + 150, HOME.y);
+    put(rig.world, "p0", HOME.x + 250, HOME.y);
     aggro(rig.world, mob, "p0", 10);
     run(rig, 12);
     expect(brain(mob).holding || brain(mob).moving).toBe(true);

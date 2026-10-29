@@ -27,9 +27,9 @@ afterEach(() => vi.unstubAllGlobals());
 describe("quest toasts", () => {
   it("shows the completer ONE completion line: the private line naming the card paid, then not the public line naming the offer", () => {
     const a = harness();
-    a.toasts.push("Quest complete: Attack Damage II");
+    a.toasts.push("Quest complete: Offense II");
     a.toasts.push("Me completed quest: Cinder Cull");
-    expect(a.shown).toEqual(["Quest complete: Attack Damage II"]);
+    expect(a.shown).toEqual(["Quest complete: Offense II"]);
     // An older server that names the offer in the private line is folded the same way.
     const old = harness();
     old.toasts.push("Quest complete: Cinder Cull");
@@ -38,8 +38,8 @@ describe("quest toasts", () => {
     // The card news is never the one dropped: a public line that came first leaves the private one to show.
     const b = harness();
     b.toasts.push("Me completed quest: Cinder Cull");
-    b.toasts.push("Quest complete: Attack Damage II");
-    expect(b.shown).toEqual(["Me completed quest: Cinder Cull", "Quest complete: Attack Damage II"]);
+    b.toasts.push("Quest complete: Offense II");
+    expect(b.shown).toEqual(["Me completed quest: Cinder Cull", "Quest complete: Offense II"]);
   });
 
   it("does not fold a public line for another offer once the duplicate window is over, nor a rival's line at any time", () => {
@@ -102,8 +102,8 @@ describe("quest toasts", () => {
     const dom = installPlanningDom();
     const stack = new Toasts();
     const quest = new QuestToasts((text) => stack.show(text), () => "Me");
-    for (const text of ["Quest complete: Attack Damage II", "Me completed quest: Cinder Cull", "+10 GV (quest)", "Emberling +1"]) quest.push(text);
-    expect(dom.ui.byClass("toast").map((t) => t.textContent)).toEqual(["Quest complete: Attack Damage II", "+10 GV (quest)", "Emberling +1"]);
+    for (const text of ["Quest complete: Offense II", "Me completed quest: Cinder Cull", "+10 GV (quest)", "Emberling +1"]) quest.push(text);
+    expect(dom.ui.byClass("toast").map((t) => t.textContent)).toEqual(["Quest complete: Offense II", "+10 GV (quest)", "Emberling +1"]);
     stack.destroy();
   });
 });

@@ -214,7 +214,7 @@ export function cardKindLabel(kind: CardKind): string {
   return KIND_LABEL[kind];
 }
 
-/** The line under a card's name: its kind and why it is on the panel for this picker ("Base · Deepens your Attack Damage", "Augment"). */
+/** The line under a card's name: its kind and why it is on the panel for this picker ("Base · Deepens your Offense", "Augment"). */
 export function kindLine(view: CardOptionView | null): string {
   if (view === null) return "";
   return view.why.text === "" ? cardKindLabel(view.kind) : `${cardKindLabel(view.kind)} · ${view.why.text}`;
