@@ -609,6 +609,14 @@ export class RaidScene extends Phaser.Scene {
 
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.setMobs(visibleCollection(state.mobs, this.vision.canSee));
+    const threats: Vec2[] = [];
+    if (state.phase === "active") state.players.forEach((p, id) => {
+      const at = id !== this.room.sessionId && p.status === "alive" ? this.visiblePosition(id) : undefined;
+      if (at) threats.push(at);
+    });
+    this.minimap.setEnemies(threats);
+    this.minimap.setVision(this.vision.enabled ? this.vision.canSee : null);
+    this.minimap.setCampTimers(state.camps, serverNow, state.phase === "active" && !state.training);
     this.minimap.setChests(this.blips);
     const questBlips = questMinimapBlips(
       questData.quests, questData.containers, this.room.sessionId, this.rendered.get(this.room.sessionId),
@@ -630,12 +638,7 @@ export class RaidScene extends Phaser.Scene {
 
     this.campWards.update(this.mapView!.map, state.camps, serverNow, this.room.sessionId, state.phase === "active" && !state.training);
     this.fog.update(this.vision, this.mapView!.map, now, this.cameras.main);
-    const threats: Vec2[] = [];
-    if (this.vision.enabled && me?.status === "alive") state.players.forEach((p, id) => {
-      const at = id !== this.room.sessionId && p.status === "alive" ? this.visiblePosition(id) : undefined;
-      if (at) threats.push(at);
-    });
-    this.edgeThreats.update(threats.length ? this.rendered.get(this.room.sessionId) : undefined, threats);
+    this.edgeThreats.update(this.vision.enabled && me?.status === "alive" && threats.length ? this.rendered.get(this.room.sessionId) : undefined, threats);
     this.campTimers.update(map, state.camps, serverNow, state.phase === "active" && !state.training, (id) => state.players.get(id)?.name ?? "player");
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.setTerrain(this.localGround);

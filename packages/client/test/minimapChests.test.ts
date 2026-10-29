@@ -50,8 +50,9 @@ describe("chest blips", () => {
     paint();
     const text = argsOf(ctx, "fillText");
     expect(text.map(([t]) => t)).toEqual(["10", "15"]);
-    expect(text[0]![1]).toBeCloseTo(800 * k());
-    expect(text[1]![1]).toBeCloseTo(1500 * k());
+    const px = k() * SPAN / 150;
+    expect(text[0]![1]).toBeCloseTo(800 * k() + 2.5 * px);
+    expect(text[1]![1]).toBeCloseTo(1500 * k() + 2.5 * px);
   });
 
   it("repaints once a second while a chest drains, not every update", () => {
@@ -76,13 +77,13 @@ describe("chest blips", () => {
     paint(1);
     // The update came 1 ms later: inside the throttle, so it does not even look.
     expect(paints()).toBe(first);
-    const rings = new Set<number>();
+    const opacity = new Set<number>();
     for (let i = 0; i < 12; i++) {
       paint(160);
-      rings.add(argsOf(ctx, "arc").at(-2)![2] as number);
+      opacity.add(argsOf(ctx, "globalAlpha=").at(-2)![0] as number);
     }
     expect(paints()).toBeGreaterThan(first + 4);
-    expect(rings.size).toBeGreaterThan(2);
+    expect(opacity.size).toBeGreaterThan(2);
   });
 
   it("holds still under reduced motion: the pulse never repaints it, and the ring stays one size", () => {

@@ -1,14 +1,13 @@
-// Bottom-right minimap: a plain top-down view of the whole map. The region tints and walls are painted once per map onto an
-// offscreen canvas; the closed gates, the living regional mobs, the camera's view and the local player are repainted on top
-// at a low rate, and only when one of them changed. It is also a control: right-click (or right-drag) sends the character
+// Bottom-right tactical minimap. A quiet, cached terrain layer sits beneath live vision and collision-aware contacts,
+// clocks and paths. Overlays repaint at a low rate, only when something changes. Right-click (or right-drag) sends the character
 // there, and holding the left button peeks the camera at that spot until it is released.
-import { FACTION_IDS, Y_SCALE, isFactionId, type GameMap, type Vec2 } from "@raid/shared";
+import { FACTION_IDS, TILE, Y_SCALE, isFactionId, type GameMap, type Vec2 } from "@raid/shared";
 import { getSettings } from "../settings";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
 import { el, uiRoot } from "./dom";
 import {
-  COLOR_PLAYER, COLOR_PLAYER_DOWN, COLOR_WALL, FACTION_CSS, gateRects, paintCamps, paintChests, paintMapBase, paintRoute,
+  gateRects, paintMapBase, paintRoute,
   type ChestBlip,
 } from "./mapPainter";
 import {
@@ -16,8 +15,10 @@ import {
 } from "./minimapMath";
 import "./minimap.css";
 import { osPrefersReducedMotion, reducedMotionActive } from "./settingsPanel";
-import { paintQuestBlips } from "./questMap";
-import type { QuestMapBlip } from "./questModel";
+import { questKindCss, type QuestMapBlip } from "./questModel";
+import { minimapMarks, paintMinimapMarks, type RespawnBlip } from "./minimapMarkers";
+import type { MapContact } from "./minimapLayout";
+import type { PublicCamp } from "./campTimers";
 
 /** Overlay pixels the dot radii and line widths were drawn for; they scale with the minimap's size. */
 const REF_SIZE = 150;
@@ -29,14 +30,13 @@ const REPAINT_ACTIVE_MS = 33;
 export const MOVE_REPEAT_MS = 100;
 
 /** Closed gates only; open ones are just a gap in the coliseum ring. */
-const COLOR_GATE = "#f44336";
-const COLOR_ELITE_RIM = "#ffd54f";
+const COLOR_GATE = "#9e6967";
 /** What the camera sees. */
-const COLOR_VIEW = "rgba(255, 255, 255, 0.85)";
+const COLOR_VIEW = "rgba(208, 226, 235, 0.42)";
 /** More than this many mob dots are not drawn (a 40-camp map has up to 200 mobs: 3-5 spots a camp, 160 on average). */
 const MAX_DOTS = 224;
-/** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route, chest blips (and their pulse), camp states, quests. */
-const INPUTS = 11;
+/** Player, gates, mobs, camera, route, chests, camp states, quests, enemy players, respawns and live vision. */
+const INPUTS = 14;
 /** The chest blip's ring breathes through these steps (0 = at rest, 1 = widest); 0 throughout under reduced motion. */
 const PULSE_STEPS: readonly number[] = [0, 0.33, 0.66, 1, 0.66, 0.33];
 /** ms per pulse step. */
@@ -44,9 +44,7 @@ const PULSE_STEP_MS = 160;
 /** More than this many chest blips are not drawn (a chest per cleared camp, each up 15 s: a map has 40 camps). */
 const MAX_CHESTS = 48;
 /** The route is drawn faint: the minimap is for steering, the route is a reminder. */
-const ROUTE_ALPHA = 0.6;
-
-const TAU = Math.PI * 2;
+const ROUTE_ALPHA = 0.85;
 
 /** MouseEvent.buttons bits: left, right. */
 const BUTTON_LEFT = 1;
@@ -128,11 +126,19 @@ export class Minimap {
   /** Each camp's state (RaidState.camps[i].state): a cleared camp is crossed out, a disturbed one (fought at once) wears a muted ring. */
   private campStates: number[] = [];
   private campStatesHash = 0;
-  private campsMarked = false;
   private questSource: readonly QuestMapBlip[] = [];
   private quests: QuestMapBlip[] = [];
   private questsHash = 0;
   private readonly reducedMotion: () => boolean;
+  private enemies: Vec2[] = [];
+  private enemiesHash = 0;
+  private respawns: RespawnBlip[] = [];
+  private respawnsHash = 0;
+  private canSee: ((point: Vec2) => boolean) | null = null;
+  /** Visible horizontal tile runs, sampled only at the map's repaint cadence. */
+  private visionRuns: number[] = [];
+  private visionAt = -Infinity;
+  private visionHash = 0;
 
   // Pointer state. A press is only ever started by a pointerdown on the canvas; the rest is followed on the window.
   private peeking = false;
@@ -155,6 +161,8 @@ export class Minimap {
     this.unsubView = onViewChange((layout) => this.applyView(layout));
 
     const c = this.canvas;
+    c.setAttribute("aria-label", "Minimap: visible enemies, camps, timers and route");
+    c.title = "Coral diamonds: visible enemy players · Counted dots: visible mobs · Gold: chest seconds · Blue clock: respawn seconds · Brighter ground: vision · Right-click to move; hold left-click to peek";
     c.addEventListener("pointerdown", this.onPointerDown);
     // Phaser listens for mousedown / touchstart on the window; stopping them here keeps a minimap press out of the world.
     // mouseup / pointerup are deliberately not stopped: a press that began on the canvas and ends here must reach Phaser.
@@ -203,6 +211,38 @@ export class Minimap {
     this.dotsHash = (Math.imul(hash, 31) + n) | 0;
   }
 
+  /** Only actors already admitted by the scene's visibility and stealth checks. */
+  setEnemies(enemies: readonly Vec2[]): void {
+    this.enemies = enemies.filter((p) => Number.isFinite(p.x + p.y)).slice(0, 32).map((p) => ({ x: p.x, y: p.y }));
+    let hash = 37;
+    for (const p of this.enemies) {
+      hash = (Math.imul(hash, 31) + Math.round(p.x * this.k)) | 0;
+      hash = (Math.imul(hash, 31) + Math.round(p.y * this.k)) | 0;
+    }
+    this.enemiesHash = this.enemies.length ? hash : 0;
+  }
+
+  /** Null in lobby/practice; live personal trail and wards otherwise. Never infers sight from camera position. */
+  setVision(canSee: ((point: Vec2) => boolean) | null): void {
+    if (canSee !== this.canSee) this.visionAt = -Infinity;
+    this.canSee = canSee;
+  }
+
+  /** Respawn clocks are public information, including outside personal vision. */
+  setCampTimers(camps: ArrayLike<PublicCamp>, serverNow: number, active: boolean): void {
+    this.respawns = [];
+    let hash = 41;
+    if (active && this.map) this.map.camps.forEach((def, i) => {
+      const camp = camps[i];
+      if (!camp || camp.state !== 2 || camp.respawnAt <= 0) return;
+      const left = Math.max(0, Math.ceil((camp.respawnAt - serverNow) / 1000));
+      this.respawns.push({ x: def.x, y: def.y, left });
+      hash = (Math.imul(hash, 31) + i) | 0;
+      hash = (Math.imul(hash, 31) + left) | 0;
+    });
+    this.respawnsHash = this.respawns.length ? hash : 0;
+  }
+
   /**
    * The chests that are up, each with the seconds it has left: a pulsing gold blip with that number, drawn over the camps.
    * Takes effect at the next update(). Cheap to call every frame: it hashes the quantised positions and the whole seconds, so
@@ -240,7 +280,6 @@ export class Minimap {
       if (v !== 0) any = true;
       hash = (Math.imul(hash, 31) + v) | 0;
     }
-    this.campsMarked = any;
     this.campStatesHash = any ? hash : 0;
   }
 
@@ -263,9 +302,10 @@ export class Minimap {
   /** Repaints the static layer for a (new) map; the next update() paints it regardless of the throttle. */
   setMap(map: GameMap): void {
     this.map = map;
+    this.visionAt = -Infinity;
     const g = this.layer.getContext("2d");
     if (!g) return;
-    paintMapBase(g, map, this.layer.width, this.layer.height, this.k, { patterns: true });
+    paintMapBase(g, map, this.layer.width, this.layer.height, this.k, { patterns: true, subdued: true });
     this.gateRects = gateRects(map, this.k);
 
     this.hasMap = true;
@@ -287,6 +327,10 @@ export class Minimap {
         hash = (Math.imul(hash, 31) + Math.round(p.y)) | 0;
       }
       hash = (Math.imul(hash, 31) + this.route.stops.length) | 0;
+      for (const p of this.route.stops) {
+        hash = (Math.imul(hash, 31) + Math.round(p.x)) | 0;
+        hash = (Math.imul(hash, 31) + Math.round(p.y)) | 0;
+      }
     }
     this.routeHash = hash;
   }
@@ -319,6 +363,9 @@ export class Minimap {
     cur[8] = this.chestsHash === 0 ? 0 : (Math.imul(this.chestsHash, 8) + pulse) | 0;
     cur[9] = this.campStatesHash;
     cur[10] = this.questsHash;
+    cur[11] = this.enemiesHash;
+    cur[12] = this.respawnsHash;
+    cur[13] = this.sampleVision(now);
     this.lastPaint = now;
     if (this.sameAsLast()) return;
     this.last.set(cur);
@@ -383,6 +430,32 @@ export class Minimap {
     return true;
   }
 
+  private sampleVision(now: number): number {
+    if (now - this.visionAt < REPAINT_MS) return this.visionHash;
+    this.visionAt = now;
+    this.visionRuns.length = 0;
+    if (!this.canSee || !this.map) return this.visionHash = 0;
+    const map = this.map;
+    let hash = 43;
+    const point = { x: 0, y: 0 };
+    for (let y = 0; y < map.h; y++) {
+      point.y = (y + 0.5) * TILE;
+      let start = -1;
+      for (let x = 0; x <= map.w; x++) {
+        point.x = (x + 0.5) * TILE;
+        if (x < map.w && this.canSee(point)) { if (start < 0) start = x; }
+        else if (start >= 0) {
+          this.visionRuns.push(start, y, x - start);
+          hash = (Math.imul(hash, 31) + start) | 0;
+          hash = (Math.imul(hash, 31) + y) | 0;
+          hash = (Math.imul(hash, 31) + x) | 0;
+          start = -1;
+        }
+      }
+    }
+    return this.visionHash = hash;
+  }
+
   private paint(player: MinimapPlayer | undefined, alive: boolean, camera: Point | undefined, pulseStep = 0): void {
     const c = this.ctx;
     if (!c) return;
@@ -391,6 +464,27 @@ export class Minimap {
     const { k, px } = this;
     c.clearRect(0, 0, w, h);
     c.drawImage(this.layer, 0, 0);
+    c.fillStyle = "rgba(177, 213, 221, 0.13)";
+    const tile = TILE * k;
+    for (let i = 0; i < this.visionRuns.length; i += 3) {
+      const left = Math.round(this.visionRuns[i]! * tile), top = Math.round(this.visionRuns[i + 1]! * tile);
+      c.fillRect(left, top, Math.round((this.visionRuns[i]! + this.visionRuns[i + 2]!) * tile) - left,
+        Math.round((this.visionRuns[i + 1]! + 1) * tile) - top);
+    }
+
+    const mobs: MapContact[] = [];
+    for (let i = 0; i < this.dotCount; i++) mobs.push({ x: this.dots[i * 3]! / px, y: this.dots[i * 3 + 1]! / px, code: this.dots[i * 3 + 2]! });
+    const marks = minimapMarks({ player, alive, mobs, enemies: this.enemies, chests: this.chests, respawns: this.respawns,
+      camps: this.map?.camps ?? [], campStates: this.campStates, quests: this.quests,
+      stops: this.showRoute ? this.route?.stops ?? [] : [], next: this.route?.next ?? -1 });
+
+    // Cut the ENTIRE badge bounds out of every path, connector and camera outline. Foreground never fights these lines.
+    c.save();
+    c.beginPath();
+    c.rect(0, 0, w, h);
+    for (const p of marks) c.rect((p.x - p.mark.w / 2 - 0.4) * px, (p.y - p.mark.h / 2 - 0.4) * px,
+      (p.mark.w + 0.8) * px, (p.mark.h + 0.8) * px);
+    c.clip("evenodd");
 
     if (this.gatesLocked) {
       c.fillStyle = COLOR_GATE;
@@ -398,11 +492,22 @@ export class Minimap {
       for (let i = 0; i < r.length; i += 4) c.fillRect(r[i], r[i + 1], r[i + 2], r[i + 3]);
     }
 
-    // Under the mob dots and the player: a camp is a place, the dots are who is there.
-    if (this.map && this.map.camps.length > 0) paintCamps(c, this.map.camps, k, px, this.campsMarked ? this.campStates : undefined);
-    if (this.route && this.showRoute) paintRoute(c, this.route.points, this.route.stops, k, px, { alpha: ROUTE_ALPHA, next: this.route.next });
-    if (this.chests.length > 0) paintChests(c, this.chests, k, px, PULSE_STEPS[pulseStep] ?? 0);
-    if (this.quests.length > 0) paintQuestBlips(c, this.quests, k, px);
+    if (this.route && this.showRoute) paintRoute(c, this.route.points, [], k, px, { alpha: ROUTE_ALPHA, next: -1, width: 2 });
+    const tracked = this.quests.find((q) => q.tracked && q.route && q.route.length > 1);
+    if (tracked?.route) {
+      c.strokeStyle = questKindCss(tracked.kind);
+      c.lineWidth = 2 * px;
+      c.setLineDash([4 * px, 3 * px]);
+      c.beginPath();
+      tracked.route.forEach((p, i) => i ? c.lineTo(p.x * k, p.y * k) : c.moveTo(p.x * k, p.y * k));
+      c.stroke(); c.setLineDash([]);
+    }
+    // A displaced badge keeps a fine tether to its true map position.
+    c.strokeStyle = "rgba(185, 205, 215, 0.35)";
+    c.lineWidth = 0.6 * px;
+    for (const p of marks) if (Math.hypot(p.x - p.mark.x, p.y - p.mark.y) > 3) {
+      c.beginPath(); c.moveTo(p.mark.x * px, p.mark.y * px); c.lineTo(p.x * px, p.y * px); c.stroke();
+    }
 
     if (camera && this.viewW > 0) {
       // Clipped to the map: near an edge the camera sees past it, and the rectangle shows what of the map is in view.
@@ -419,30 +524,8 @@ export class Minimap {
       }
     }
 
-    const dots = this.dots;
-    c.lineWidth = px;
-    for (let i = 0; i < this.dotCount; i++) {
-      const code = dots[i * 3 + 2]!;
-      const elite = code % 2 === 1;
-      c.fillStyle = FACTION_CSS[(code >> 1) - 1] ?? COLOR_WALL;
-      c.beginPath();
-      c.arc(dots[i * 3]!, dots[i * 3 + 1]!, (elite ? 2.4 : 1.4) * px, 0, TAU);
-      c.fill();
-      if (elite) {
-        c.strokeStyle = COLOR_ELITE_RIM;
-        c.stroke();
-      }
-    }
-
-    if (player) {
-      c.fillStyle = alive ? COLOR_PLAYER : COLOR_PLAYER_DOWN;
-      c.strokeStyle = "#0b0e11";
-      c.lineWidth = px;
-      c.beginPath();
-      c.arc(player.x * k, player.y * k, 2.6 * px, 0, TAU);
-      c.fill();
-      c.stroke();
-    }
+    c.restore();
+    paintMinimapMarks(c, marks, px, PULSE_STEPS[pulseStep] ?? 0);
   }
 
   // ---------------------------------------------------------------------------------------------------------- pointer

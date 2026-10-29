@@ -317,6 +317,8 @@ function paintLow(g: PaintCtx, map: GameMap, tile: number, px: number): void {
 }
 
 export interface BaseOptions {
+  /** Quiet tactical backdrop: thinner, faint patterns and subdued terrain, with bright actors drawn separately. */
+  subdued?: boolean;
   /** Hatch each zone with its own pattern (ZONE_PATTERN) on top of the tint. Off keeps the minimap's original look. */
   patterns?: boolean;
   /** The context's pixels per reference overlay pixel (the crevasse's edge width); the minimap's 150 px reference when absent. */
@@ -338,16 +340,16 @@ function zoneAlpha(zone: FactionId, alpha: number): string {
  * One repeat of a zone's pattern, drawn so that tiles meet without a seam (marks that cross an edge are drawn again on the
  * opposite one). Null when the platform cannot make a canvas or a pattern.
  */
-export function makePatternTile(zone: FactionId, period: number, g: PaintCtx): CanvasPattern | null {
+export function makePatternTile(zone: FactionId, period: number, g: PaintCtx, subdued = false): CanvasPattern | null {
   if (typeof document === "undefined") return null;
   const tile = document.createElement("canvas");
   tile.width = period;
   tile.height = period;
   const t = tile.getContext("2d");
   if (!t) return null;
-  const line = Math.max(1, period / 8);
-  t.strokeStyle = zoneAlpha(zone, 0.45);
-  t.fillStyle = zoneAlpha(zone, 0.45);
+  const line = subdued ? Math.max(0.5, period / 16) : Math.max(1, period / 8);
+  t.strokeStyle = zoneAlpha(zone, subdued ? 0.12 : 0.45);
+  t.fillStyle = zoneAlpha(zone, subdued ? 0.12 : 0.45);
   t.lineWidth = line;
   t.beginPath();
   switch (ZONE_PATTERN[zone]) {
@@ -383,22 +385,25 @@ export function makePatternTile(zone: FactionId, period: number, g: PaintCtx): C
  */
 export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k: number, opts: BaseOptions = {}): void {
   const tile = TILE * k;
+  if (opts.subdued) g.save();
   g.clearRect(0, 0, w, h);
-  g.fillStyle = COLOR_BG;
+  g.fillStyle = opts.subdued ? "#111a22" : COLOR_BG;
   g.fillRect(0, 0, w, h);
 
   // Region tints first, so the walls stay readable on top.
   forEachRegionRun(map, tile, (left, top, width, height, code) => {
     const color = COLOR_REGION[REGION_IDS[code] ?? "none"];
     if (!color) return;
-    g.fillStyle = color;
+    g.fillStyle = opts.subdued ? color.replace(/0\.\d+\)/, "0.075)") : color;
     g.fillRect(left, top, width, height);
   });
 
   // The ground: floor hazards (ember, bog, ice, light) as faint tints over the zone colour, so the zone's hatch stays readable on
   // them; LOW tiles (lava, fence, crevasse) below, after the hatch. A barrier that is not drawn is an invisible wall to the player.
+  if (opts.subdued) g.globalAlpha = 0.24;
   paintHazards(g, map, tile);
   paintFeatureFloors(g, map, tile);
+  if (opts.subdued) g.globalAlpha = 1;
 
   if (opts.patterns) {
     // The pattern tile is anchored to the context's origin, so a hatch line continues across runs and rows.
@@ -409,7 +414,7 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
       if (!id || id === "none" || id === "coliseum") return;
       let pattern = tiles.get(code);
       if (pattern === undefined) {
-        pattern = makePatternTile(id, period, g);
+        pattern = makePatternTile(id, period, g, opts.subdued);
         tiles.set(code, pattern);
       }
       if (!pattern) return;
@@ -418,12 +423,14 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
     });
   }
 
+  if (opts.subdued) g.globalAlpha = 0.3;
   paintLow(g, map, tile, opts.px ?? Math.max(1, w / REF_BASE_SIZE));
 
   // Horizontal runs of wall tiles per row; edges are rounded outward so neighbouring rows leave no hairline gaps.
   g.fillStyle = COLOR_WALL;
   if (map.features.length > 0) {
     paintFeatureWalls(g, map, tile);
+    if (opts.subdued) g.restore();
     return;
   }
   for (let ty = 0; ty < map.h; ty++) {
@@ -440,6 +447,7 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
       }
     }
   }
+  if (opts.subdued) g.restore();
 }
 
 /**
@@ -633,6 +641,8 @@ export function paintCrates(g: PaintCtx, spots: readonly Vec2[], k: number, px: 
 }
 
 export interface RouteStyle {
+  /** Reference-pixel line width; the tactical minimap uses a slightly wider path. */
+  width?: number;
   /** 0..1 multiplier on the line's opacity (the in-run route is faint). */
   alpha: number;
   /** Index into `waypoints` that is the next stop (drawn as a ring), or -1. */
@@ -648,13 +658,13 @@ export function paintRoute(g: PaintCtx, points: readonly Vec2[], stops: readonly
   g.lineCap = "round";
   if (points.length > 1) {
     g.strokeStyle = COLOR_OUTLINE;
-    g.lineWidth = 2.6 * px;
+    g.lineWidth = (style.width ? style.width + 1.1 : 2.6) * px;
     g.setLineDash([]);
     g.beginPath();
     points.forEach((p, i) => (i === 0 ? g.moveTo(p.x * k, p.y * k) : g.lineTo(p.x * k, p.y * k)));
     g.stroke();
     g.strokeStyle = COLOR_ROUTE;
-    g.lineWidth = 1.5 * px;
+    g.lineWidth = (style.width ?? 1.5) * px;
     g.setLineDash([4 * px, 3 * px]);
     g.beginPath();
     points.forEach((p, i) => (i === 0 ? g.moveTo(p.x * k, p.y * k) : g.lineTo(p.x * k, p.y * k)));

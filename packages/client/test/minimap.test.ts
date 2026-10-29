@@ -47,11 +47,15 @@ describe("Minimap.setMobs", () => {
   it("draws a dot per living regional mob and skips dummies, the dead and unknown kinds", () => {
     const { map, paint, arcs, k } = setup();
     map.setMobs([
-      mob({ x: 100, y: 200 }), mob({ kind: "elite", x: 300, y: 400 }),
+      mob({ x: 1000, y: 1200 }), mob({ kind: "elite", x: 3000, y: 3200 }),
       mob({ kind: "dummy" }), mob({ status: "dead" }), mob({ kind: "elite", status: "dead" }), mob({ kind: "crate" }),
     ]);
     paint();
-    expect(arcs().map(([x, y]) => [x, y])).toEqual([[Math.round(100 * k()), Math.round(200 * k())], [Math.round(300 * k()), Math.round(400 * k())]]);
+    expect(arcs()).toHaveLength(2);
+    for (const [i, x, y] of [[0, 1000, 1200], [1, 3000, 3200]]) {
+      expect(arcs()[i]![0]).toBeCloseTo(Math.round(x * k()));
+      expect(arcs()[i]![1]).toBeCloseTo(Math.round(y * k()));
+    }
   });
 
   it("colours a dot by its faction and gives an elite a bigger one with a gold rim", () => {
@@ -61,28 +65,33 @@ describe("Minimap.setMobs", () => {
     const [small, big] = arcs();
     expect(big![2]).toBeGreaterThan(small![2] as number);
     const fills = ctx.calls.filter(([n]) => n === "fillStyle=").map(([, a]) => a[0]);
-    expect(fills).toEqual([cssColor(FACTIONS.frost.color as number), cssColor(FACTIONS.holy.color as number)]);
-    // Only the elite is outlined (in gold), and a mob of an unknown faction still gets a (neutral) dot.
+    expect(fills).toContain(cssColor(FACTIONS.frost.color as number));
+    expect(fills).toContain(cssColor(FACTIONS.holy.color as number));
+    // Both dots have a dark separator; the elite gets a gold rim.
     const strokes = ctx.calls.filter(([n]) => n === "strokeStyle=").map(([, a]) => a[0]);
-    expect(strokes).toEqual(["#ffd54f"]);
+    expect(strokes).toContain("#ffd54f");
     map.setMobs([mob({ faction: "from-newer-content" as FactionId })]);
     paint();
     expect(arcs()).toHaveLength(3);
   });
 
-  it("draws every mob of a 40-camp map (up to 200 dots) and caps the dots at 224", () => {
+  it("preserves all visible contact counts in groups and caps the source at 224", () => {
+    const represented = (ctx: FakeObject): number => {
+      const counts = argsOf(ctx, "fillText").map(([text]) => Number(text));
+      return counts.reduce((a, b) => a + b, 0) + argsOf(ctx, "arc").length - counts.length;
+    };
     const all = setup();
     all.map.setMobs(Array.from({ length: 200 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
     all.paint();
-    expect(all.arcs()).toHaveLength(200);
-    const { map, paint, arcs } = setup();
+    expect(represented(all.ctx)).toBe(200);
+    const { map, paint, ctx } = setup();
     map.setMobs(Array.from({ length: 300 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
     paint();
-    expect(arcs()).toHaveLength(224);
+    expect(represented(ctx)).toBe(224);
     // The cap counts dots, not mobs offered: skipped ones do not use it up.
     map.setMobs([...Array.from({ length: 100 }, () => mob({ status: "dead" })), ...Array.from({ length: 224 }, () => mob())]);
     paint();
-    expect(arcs().length).toBe(224 + 224);
+    expect(represented(ctx)).toBe(224 + 224);
   });
 
   it("repaints only when a dot appears, moves a pixel or goes, and not within the throttle", () => {
@@ -191,7 +200,7 @@ describe("Minimap sizing", () => {
 describe("Minimap view rectangle", () => {
   const centre = { x: WORLD_W / 2, y: (WORLD_H / 2) * Y_SCALE };
 
-  it("draws a thin white rectangle where the camera looks", () => {
+  it("draws a subdued outline where the camera looks", () => {
     const { paint, ctx, canvas } = setup();
     const layout = baseLayout();
     paint(centre);
@@ -201,7 +210,7 @@ describe("Minimap view rectangle", () => {
     expect(y).toBeCloseTo(r.y * canvas.width, 6);
     expect(w).toBeCloseTo(r.w * canvas.width, 6);
     expect(h).toBeCloseTo(r.h * canvas.width, 6);
-    expect(ctx.calls.filter(([n]) => n === "strokeStyle=").map(([, a]) => a[0])).toEqual(["rgba(255, 255, 255, 0.85)"]);
+    expect(ctx.calls.filter(([n]) => n === "strokeStyle=").map(([, a]) => a[0])).toContain("rgba(208, 226, 235, 0.42)");
   });
 
   it("is absent without a camera and clipped to the map near its edge", () => {

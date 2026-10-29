@@ -50,6 +50,8 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["Hold Tab"], action: "Show the whole map and your route" },
       { keys: ["Right-click"], action: "On the minimap: move there" },
       { keys: ["Hold left-click"], action: "On the minimap: peek there, release to snap back" },
+      { keys: ["Minimap"], action: "Coral: enemy players; dots/counts: mobs; bright: vision" },
+      { keys: ["Map clocks"], action: "Gold: chest seconds; blue: respawn seconds after loot" },
       { keys: ["Edge lights"], action: "Visible players: green far → yellow → red close" },
       { keys: ["Camps & wards"], action: "Public camp states, respawn countdowns, ward owners" },
       { keys: ["Camp clear"], action: "Full clear: personal ward until the 3 min respawn" },
