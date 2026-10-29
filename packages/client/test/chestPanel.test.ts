@@ -427,13 +427,21 @@ describe("tags, rarity and the glossary", () => {
     expect(r.state()).toBe("Sending your pick...");
   });
 
-  it("the card's own hover text names the card, why it is offered, its text and each tag's glossary line", () => {
+  it("keeps augment details accessible without a browser-native hover bubble", () => {
     const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
     r.frame();
-    const lines = r.cards()[0]!.title.split("\n");
+    const card = r.cards()[0]!;
+    expect(card.title).toBe("");
+    const lines = card.getAttribute("aria-description")!.split("\n");
     expect(lines[0]).toBe("Here Comes the Boom (tier III)");
     expect(lines[1]).toBe("Augment");
     expect(lines).toContain(`Returned: ${TAG_GLOSSARY.returned.text}`);
+    expect(card.getAttribute("aria-label")).toContain("Here Comes the Boom");
+
+    const base = setup({ chests: [["c1", chest({ options: ["haste2"] })]] });
+    base.frame();
+    expect(base.cards()[0]!.title).toContain("Haste II (tier II)");
+    expect(base.cards()[0]!.getAttribute("aria-description")).toContain("+16% attack speed");
   });
 
   it("repainting a card (a pick elsewhere) drops the glossary line a hover had put up", () => {

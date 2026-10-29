@@ -164,12 +164,14 @@ export class TrainingConsole {
     this.opts.onToggle?.(open);
   }
 
-  /** Words the hint line (and the selects' tooltips) for what is picked now. Runs on every change of a select. */
+  /** Words the visible hint and accessible descriptions for what is picked now. Runs on every change of a select. */
   refresh(): void {
     const hint = cardHint(this.cardSelect.value, this.count());
     this.cardHintLine.textContent = hint;
-    this.cardSelect.title = hint;
-    this.countSelect.title = hint;
+    this.cardSelect.title = "";
+    this.countSelect.title = "";
+    this.cardSelect.setAttribute("aria-description", hint);
+    this.countSelect.setAttribute("aria-description", hint);
   }
 
   spawnCamp(): void {
@@ -250,7 +252,11 @@ export class TrainingConsole {
     for (const g of cardGroups()) {
       const group = el("optgroup");
       group.label = g.label;
-      for (const c of g.items) group.append(this.option(c.id, cardLabel(c), cardHint(c.id, 1)));
+      for (const c of g.items) {
+        const option = this.option(c.id, cardLabel(c), "");
+        option.setAttribute("aria-description", cardHint(c.id, 1));
+        group.append(option);
+      }
       this.cardSelect.append(group);
     }
     // The first live card (the ones after it in the list may be catalog data the sim does not apply yet).

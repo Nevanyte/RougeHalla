@@ -245,8 +245,8 @@ export function tagChips(view: Pick<CardOptionView, "tags"> | null): TagChip[] {
 }
 
 /**
- * The hover text of a whole card on the panel: its name and tier, why it is offered, what it does, and the glossary line of each tag.
- * One string with a line per part (the card's `title` attribute; the panel's own gloss strip shows the line of one chip).
+ * The full supplemental description of a card: its name and tier, why it is offered, what it does, and each tag glossary line.
+ * The chest panel keeps this for accessibility; augment details are already visible in the card and avoid native title bubbles.
  */
 export function cardTitleAttr(view: CardOptionView | null, stateLine: string): string {
   if (view === null) return stateLine;
