@@ -1,7 +1,6 @@
-// The build strip's numbers and words, pure so they are tested without a DOM (ui/buildHud.ts draws them; BALANCE_CONTRACT 3.3, 3.4, 9):
-// what the cards and the weapon in hand add up to: AD, AP, armor, magic resist, attack speed, move speed, lifesteal, card power P and
-// the PvP factor it earns. The stat mirrors are read through their decoders (shared/mods.ts decodeMirrors), never from the cards; the
-// two numbers the server does not sync (lifesteal, power) are folded from the synced build with the same shared helpers the sim uses.
+// The gained-stat strip's numbers and words, pure so they are tested without a DOM (ui/buildHud.ts draws them): AD, AP, generic damage,
+// armor, magic resistance, attack speed, move speed, lifesteal, and health above faction baseline. Stat mirrors are decoded from the
+// authoritative synced fields; card and mob rewards are folded with the same shared helpers the sim uses.
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
   AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, LIFESTEAL_MAX, LS_CAP, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
@@ -10,8 +9,9 @@ import {
 } from "@raid/shared";
 
 /** The strip's cells, left to right and top to bottom. */
-export type BuildStatId = "ad" | "ap" | "armor" | "mr" | "as" | "move" | "leech" | "power" | "pvp";
+export type BuildStatId = "ad" | "ap" | "damage" | "armor" | "mr" | "as" | "move" | "leech" | "health" | "power" | "pvp";
 export const BUILD_STAT_IDS: readonly BuildStatId[] = ["ad", "ap", "armor", "mr", "as", "move", "leech", "power", "pvp"];
+export const HUD_GAIN_IDS = ["ad", "ap", "damage", "as", "leech", "health", "armor", "mr", "move"] as const satisfies readonly BuildStatId[];
 
 export interface BuildStat {
   id: BuildStatId;
@@ -38,6 +38,8 @@ export interface BuildInput {
   /** hp over max hp: Bloodthirst doubles lifesteal below half. Unknown: counted as full. */
   hpFrac?: number;
   mobStats?: Readonly<Record<string, number>> | Map<string, number>;
+  /** Current max HP, required to display the gain above the faction's health baseline. */
+  maxHp?: number;
 }
 
 /** A number with at most one decimal and no trailing zero: 24 "24", 12.5 "12.5". */
@@ -81,8 +83,7 @@ function perPoint(weapon: WeaponId, key: "ad" | "ap"): number {
 }
 
 /**
- * The nine cells of the build strip for a player. Pure. `P` is the sum of the tiers of the cards held; the PvP factor is the
- * multiplier on every hit that lands on another player (rules.ts pvpFactor).
+ * Legacy aggregate cells for callers that need full totals. `P` is the sum of card tiers; the PvP factor applies to hits on players.
  */
 export function buildStats(input: BuildInput): BuildStat[] {
   const m = input.mirrors ?? decodeMirrors(input.wire ?? WIRE_IDENTITY_MIRRORS);
@@ -143,6 +144,39 @@ export function buildStats(input: BuildInput): BuildStat[] {
   ];
   return stats;
 }
+
+/** Compact gained-stat values for the HUD; never includes faction baseline totals or card power/PvP factor. */
+export function buildGains(input: BuildInput): BuildStat[] {
+  const m = input.mirrors ?? decodeMirrors(input.wire ?? WIRE_IDENTITY_MIRRORS);
+  const faction = isFactionId(input.faction) ? FACTIONS[input.faction] : null;
+  const hpGain = faction && Number.isFinite(input.maxHp) ? Math.max(0, input.maxHp! - faction.hp) : 0;
+  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1, input.mobStats).share;
+  const percentPoints = (value: number): string => `${value > 0 ? "+" : ""}${(Math.round(value * 10_000) / 100).toString()}%`;
+  const speedGain = (multiplier: number): string => {
+    const gain = multiplier - 1;
+    return `${gain > 0 ? "+" : ""}${(Math.round(gain * 10_000) / 100).toString()}%`;
+  };
+  let damageBonus = mobStatRows(input.mobStats).reduce((sum, e) => e.k === "stat" && e.stat === "damage" ? sum + e.v : sum, 0);
+  for (const { def, count } of ownedCards(input.build)) {
+    for (const e of cardRows(def.id, input.faction)) {
+      if (e.k === "stat" && e.stat === "damage" && !e.requires && !e.needs) damageBonus += e.v * count;
+    }
+  }
+  const gains: Record<typeof HUD_GAIN_IDS[number], BuildStat> = {
+    ad: { id: "ad", label: "AD", value: signed(num(m.adBonus)), tip: `Attack damage gained from cards and normal-mob kills: ${signed(num(m.adBonus))} points.`, dim: m.adBonus === 0 },
+    ap: { id: "ap", label: "AP", value: signed(num(m.apBonus)), tip: `Ability power gained from cards and normal-mob kills: ${signed(num(m.apBonus))} points.`, dim: m.apBonus === 0 },
+    damage: { id: "damage", label: "Damage gained", value: percentPoints(damageBonus), tip: `Unconditional generic damage bonus from normal-mob kills and unconditional card effects: ${percentPoints(damageBonus)}. This is separate from attack damage and ability power.`, dim: damageBonus === 0 },
+    as: { id: "as", label: "Attack speed", value: speedGain(m.asMult), tip: `Attack-speed change from your cards and effects, relative to the base pace: ${speedGain(m.asMult)}.`, dim: m.asMult === 1 },
+    leech: { id: "leech", label: "Life steal", value: percentPoints(ls), tip: `Life steal gained from your cards and normal-mob kills: ${percentPoints(ls)} of damage dealt. Faction life steal is not included.`, dim: ls === 0 },
+    health: { id: "health", label: "Health gained", value: `+${num(hpGain)}`, tip: `Maximum health gained above your faction baseline: +${num(hpGain)} HP.`, dim: hpGain === 0 },
+    armor: { id: "armor", label: "Armor", value: signed(num(m.armorBonus)), tip: `Armor gained from cards and normal-mob kills: ${signed(num(m.armorBonus))} points.`, dim: m.armorBonus === 0 },
+    mr: { id: "mr", label: "Magic resistance", value: signed(num(m.shieldBonus)), tip: `Magic resistance gained from cards and normal-mob kills: ${signed(num(m.shieldBonus))} points.`, dim: m.shieldBonus === 0 },
+    move: { id: "move", label: "Move speed", value: speedGain(m.speedMult), tip: `Movement-speed change from cards and effects, relative to base pace: ${speedGain(m.speedMult)}.`, dim: m.speedMult === 1 },
+  };
+  return HUD_GAIN_IDS.map(id => gains[id]);
+}
+
+function signed(value: string): string { return value.startsWith("-") ? value : `+${value}`; }
 
 /** One cell as a line of text ("AD +24"), for tests and the aria label. */
 export function statLine(s: BuildStat): string {

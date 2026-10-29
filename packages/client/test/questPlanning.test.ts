@@ -51,6 +51,23 @@ describe("PlanningQuests", () => {
     expect(view.markers.hidden).toBe(true);
   });
 
+  it("exposes public quest route targets on the map and ignores stale clicks in preview", () => {
+    installPlanningDom();
+    const selected: Array<{ x: number; y: number }> = [];
+    const view = new PlanningQuests((at) => selected.push(at));
+    view.setMap(mapFromTiles(8, 8, new Uint8Array(64).fill(TILE_FLOOR)));
+    view.update({ mode: "map", serverNow: 5_000, localId: "me", quests });
+    const mark = asEl(view.markers).byClass("pl-questmark")[0]!;
+    expect(mark.tagName).toBe("BUTTON");
+    expect(view.element.hidden).toBe(true);
+    expect(view.markers.hidden).toBe(false);
+    mark.click();
+    expect(selected).toMatchObject([{ x: state.x, y: state.y }]);
+    view.update({ mode: "preview", serverNow: 5_000, localId: "me", quests });
+    mark.click();
+    expect(selected).toHaveLength(1);
+  });
+
   it("does not list or mark closed quests as live planning offers", () => {
     for (const status of ["expired", "done"]) {
       const dom = installPlanningDom();

@@ -18,7 +18,8 @@ import { osPrefersReducedMotion, reducedMotionActive } from "./settingsPanel";
 import { questKindCss, type QuestMapBlip } from "./questModel";
 import { minimapMarks, paintMinimapMarks, type RespawnBlip } from "./minimapMarkers";
 import type { MapContact } from "./minimapLayout";
-import type { PublicCamp } from "./campTimers";
+
+export interface PublicCamp { state: number; alive: number; respawnAt: number; wardOwner: string; wardExpiresAt: number }
 
 /** Overlay pixels the dot radii and line widths were drawn for; they scale with the minimap's size. */
 const REF_SIZE = 150;

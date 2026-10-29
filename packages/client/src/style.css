@@ -291,8 +291,9 @@ html[data-ui-short] .faction-card:not(.selected):not(:focus-visible) .faction-de
   left: 12px;
   top: 10px;
   box-sizing: border-box;
-  max-width: calc(var(--ui-w, 100vw) * 0.46);
-  padding: 6px 10px 7px;
+  width: min(240px, calc(var(--ui-w, 100vw) * 0.74));
+  max-width: min(240px, calc(var(--ui-w, 100vw) * 0.74));
+  padding: 5px 7px 6px;
   background: var(--plate);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius);
@@ -305,24 +306,38 @@ html[data-ui-short] .faction-card:not(.selected):not(:focus-visible) .faction-de
 .hud-bounty { color: var(--gold); }
 .hud-vitals { color: var(--text-soft); margin-top: 2px; }
 .hud-faction { font-weight: 600; }
-.hud-arena { margin-top: 2px; font-weight: 600; color: var(--warn); }
-.hud-arena.locked { color: #ff8a80; }
-.hud-hint { font-size: 12px; color: var(--muted); }
+.hud-health { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0 0 3px; color: var(--text); font-variant-numeric: tabular-nums; }
+.hud-health-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.hud-health-meter { position: relative; flex: 1 1 76px; min-width: 40px; max-width: 108px; height: 8px; overflow: hidden; border-radius: 5px; background: rgba(0, 0, 0, .55); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.hud-health-fill, .hud-health-barrier { position: absolute; top: 0; bottom: 0; transition: width 100ms linear; }
+.hud-health-fill { left: 0; background: #66bb6a; }
+.hud-health-barrier { background: #4fc3f7; }
+.hud-health.low .hud-health-fill { background: #ffca28; }
+.hud-health.critical .hud-health-fill { background: #ef5350; }
+.hud-health-value { min-width: max-content; color: var(--text-soft); font-size: 11px; font-weight: 600; }
+.hud-health .hud-bounty { min-width: max-content; font-size: 10px; }
+.hud-arena { font-size: 13px; font-weight: 700; color: var(--warn); }
+.hud-arena.sudden { color: #ff8a80; }
+.hud-extras { margin-top: 2px; }
+.hud-extras > summary { width: fit-content; color: var(--dim); font-size: 10px; line-height: 14px; cursor: pointer; pointer-events: auto; }
+.hud:not(.hud-active) .hud-extras, .hud-active .hud-terrain { display: none; }
 
 /* The cards row (cardsRow.ts) is styled in cardsRow.css. */
 
-/* Under the connection banner (top 12px); stacks the sudden-death warning and the teleport-shield hint. */
+/* Compact countdown above the playfield; warnings remain visible below it when sudden death begins. */
 .hud-center {
   position: absolute;
   left: 50%;
-  top: 64px;
+  top: 12px;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   max-width: calc(var(--ui-w, 100vw) * 0.92);
 }
+.hud-center .hud-arena { padding: 3px 8px; border-radius: 6px; background: var(--plate); text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.hud-center .hud-arena.sudden { color: #ff8a80; }
 .sudden-death {
   padding: 6px 18px;
   border-radius: var(--radius);

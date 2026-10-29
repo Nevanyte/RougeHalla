@@ -18,8 +18,9 @@ export class PlanningQuests {
   private map: GameMap | null = null;
   private quests: QuestCollection | null = null;
   private signature = "";
+  private mode = "hidden";
 
-  constructor() {
+  constructor(private readonly onSelect: (at: Vec2) => void = () => {}) {
     this.element.setAttribute("aria-label", "Known quests");
     this.element.hidden = true;
   }
@@ -32,10 +33,12 @@ export class PlanningQuests {
 
   update(frame: PlanningQuestFrame): void {
     this.quests = frame.quests ?? null;
+    this.mode = frame.mode;
+    const interactiveMap = frame.mode === "map";
     const planning = frame.mode === "planning";
     this.element.hidden = !planning;
-    this.markers.hidden = !planning;
-    if (!planning) return;
+    this.markers.hidden = !planning && !interactiveMap;
+    if (!planning && !interactiveMap) return;
     const rows = this.quests ? questRows(this.quests, frame.localId, frame.serverNow).filter((row) => row.quest.status === "open" && !row.expired) : [];
     const hidden = Math.max(0, Math.floor(frame.hiddenQuests ?? 0));
     const signature = rows.map((r) => `${r.id}|${r.def.expiresAtSec}|${r.status}`).join("|") + `|${hidden}|${this.map?.seed ?? ""}`;
@@ -61,7 +64,15 @@ export class PlanningQuests {
     this.markers.replaceChildren();
     const span = mapSpan();
     for (const quest of quests) {
-      const mark = el("span", `pl-questmark kind-${quest.kind}`, "!");
+      const mark = el("button", `pl-questmark kind-${quest.kind}`, "!");
+      mark.type = "button";
+      mark.setAttribute("aria-label", `Add route stop for quest: ${quest.name}`);
+      mark.title = `Add route stop: ${quest.name}`;
+      mark.addEventListener("click", (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.mode === "planning" || this.mode === "map") this.onSelect(quest);
+      });
       mark.style.setProperty("left", `${(quest.x / span) * 100}%`);
       mark.style.setProperty("top", `${(quest.y / span) * 100}%`);
       mark.style.setProperty("--quest-color", questKindCss(quest.kind));

@@ -1,7 +1,5 @@
-// In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
-// teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
-// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The cards row
-// (a chip per card held) is cardsRow.ts, placed under the vitals, and the build strip (what the cards add up to) buildHud.ts under it.
+// In-run DOM overlay: a compact health and gained-stat plate while fighting, lobby/planning/training context when idle,
+// the Coliseum countdown, and the death/results cues. Cards, gained stats and the mob-stat catalog stay in their own rows.
 import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { winnerLabel } from "../render/displayName";
@@ -87,30 +85,37 @@ export class Hud {
   private readonly root = el("div", "hud");
   private readonly status = el("div", "hud-status");
   private readonly statusText = el("span");
-  /** Your own bounty, next to the run GV: what whoever kills you is paid. */
+  /** Your own bounty: what whoever kills you is paid. */
   private readonly bountyTag = el("span", "hud-bounty");
   /** Name, faction (in its colour) and hp of the local player. */
   private readonly vitals = el("div", "hud-vitals");
   private readonly vitalsName = el("span");
   private readonly vitalsFaction = el("span", "hud-faction");
   private readonly vitalsHp = el("span");
+  /** Compact active-run health graphic; the longer name/status line stays for lobby, planning and training. */
+  private readonly health = el("div", "hud-health");
+  private readonly healthLabel = el("span", "hud-health-label", "HP");
+  private readonly healthMeter = el("div", "hud-health-meter");
+  private readonly healthFill = el("div", "hud-health-fill");
+  private readonly healthBarrier = el("div", "hud-health-barrier");
+  private readonly healthValue = el("span", "hud-health-value");
   private readonly cards = new CardsRow();
-  /** AD, AP, armor, MR, attack and move speed, leech, card power and the PvP factor (BALANCE_CONTRACT 9), under the cards. */
+  /** Compact gained-stat strip below health. */
   private readonly build = new BuildHud();
   private readonly mobStats = new MobStatsHud();
+  private readonly extras = el("details", "hud-extras");
+  private readonly extrasSummary = el("summary", "", "Cards & mob bonuses");
   /** The ground under the local fighter: BURNING, SLOWED, ICE, RESTING and the home-ground note. */
   private readonly terrain = new TerrainChips();
   private readonly arenaLine = el("div", "hud-arena");
-  private readonly arenaHint = el("div", "hud-hint");
   /** Top-center notices; a sibling of the HUD block so they can sit mid-width. */
   private readonly center = el("div", "hud-center");
-  private readonly suddenDeath = el("div", "sudden-death", "SUDDEN DEATH");
-  private readonly immuneLine = el("div", "immune-line", "Teleport shield — you can't be hurt yet");
   /** Centered over the world; a sibling of the HUD block (not a child) so it can sit mid-screen. */
   private readonly deathLine = el("div", "death-line", "YOU DIED");
   private lastStatus = "";
   private lastBounty = 0;
   private lastVitals = "";
+  private lastHealth = "";
   private lastArena = "";
   /** Set by showDeath(): the server's `result`/death fx arrive before the dead-status patch, so status alone is too late. */
   private deathRequested = false;
@@ -123,18 +128,23 @@ export class Hud {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
     this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
-    this.root.append(this.status, this.vitals, this.cards.root, this.build.root, this.mobStats.root, this.terrain.root, this.arenaLine, this.arenaHint);
-    this.center.append(this.suddenDeath, this.immuneLine);
+    this.healthMeter.append(this.healthFill, this.healthBarrier);
+    this.health.append(this.healthLabel, this.healthMeter, this.healthValue, this.bountyTag);
+    this.extras.append(this.extrasSummary, this.cards.root, this.mobStats.root);
+    this.root.append(this.status, this.vitals, this.health, this.build.root, this.extras, this.terrain.root);
+    this.center.append(this.arenaLine);
     this.arenaLine.hidden = true;
-    this.arenaHint.hidden = true;
-    this.suddenDeath.hidden = true;
-    this.immuneLine.hidden = true;
+    this.health.hidden = true;
+    this.healthMeter.setAttribute("role", "meter");
+    this.healthMeter.setAttribute("aria-label", "Health");
+    this.healthMeter.setAttribute("aria-valuemin", "0");
+    this.healthMeter.setAttribute("aria-valuemax", "100");
     this.deathLine.hidden = true;
     uiRoot().append(this.root, this.center, this.deathLine);
   }
 
   /**
-   * The HUD plate's box (status, vitals, cards row, arena lines) in the unscaled #ui coordinate system, for overlays
+   * The HUD plate's box (context or compact health/build rows) in the unscaled #ui coordinate system, for overlays
    * docked beside or beneath it (the J quest log). Reads layout: call it only when something needs it.
    */
   get plate(): { left: number; top: number; right: number; bottom: number } {
@@ -180,6 +190,12 @@ export class Hud {
       lobbyEndsAt: state.lobbyEndsAt, alive, startedWith: state.startedWith, winner: winnerLabel(state.winner, state.players), gv: me ? me.gv : null,
       planEndsAt: state.planEndsAt,
     }, serverNow);
+    const active = state.phase === "active" && !training;
+    this.root.classList.toggle("hud-active", active);
+    this.status.hidden = active;
+    this.vitals.hidden = active;
+    this.health.hidden = !active || !me || me.status !== "alive";
+    this.extras.hidden = !active || !me || me.status !== "alive";
     if (status !== this.lastStatus) { this.statusText.textContent = status; this.lastStatus = status; }
 
     // A dead player's bounty can't be claimed any more, so it is only shown while they stand.
@@ -206,22 +222,36 @@ export class Hud {
       this.vitalsHp.textContent = vitalsHpText(me, training, barrier);
     }
 
+    const hp = me ? Math.max(0, Math.min(me.maxHp, me.hp)) : 0;
+    const maxHp = me ? Math.max(1, me.maxHp) : 1;
+    const healthKey = `${Math.ceil(hp)}|${Math.ceil(maxHp)}|${barrier}|${me?.status ?? "missing"}`;
+    if (healthKey !== this.lastHealth) {
+      this.lastHealth = healthKey;
+      const ratio = Math.max(0, Math.min(1, hp / maxHp));
+      const barrierRatio = Math.max(0, Math.min(1 - ratio, barrier / maxHp));
+      this.healthFill.style.width = `${ratio * 100}%`;
+      this.healthBarrier.style.left = `${ratio * 100}%`;
+      this.healthBarrier.style.width = `${barrierRatio * 100}%`;
+      this.healthValue.textContent = me ? `${Math.ceil(hp)}/${Math.round(maxHp)}${barrier ? ` +${barrier}` : ""}` : "";
+      this.healthMeter.setAttribute("aria-valuemax", String(Math.round(maxHp)));
+      this.healthMeter.setAttribute("aria-valuenow", String(Math.ceil(hp)));
+      this.healthMeter.setAttribute("aria-valuetext", hpText(hp, maxHp, barrier));
+      this.health.classList.toggle("low", ratio <= 0.35);
+      this.health.classList.toggle("critical", ratio <= 0.18);
+    }
+
     this.cards.update(me?.build, me?.status === "alive", me?.faction);
     this.build.update(me, me?.status === "alive");
     this.mobStats.update(me, me?.status === "alive");
     this.updateArena(state, serverNow);
-    const immune = !training && me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
-    if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
     this.setDeathShown(!training && (this.deathRequested || me?.status === "dead") && !this.resultShown);
   }
 
   /**
-   * The patience timer, the locked gates and sudden death, from the deadlines the server publishes. The hint line is
-   * the rule for the phase the player is looking at (a death resets everything), which is what the timers hang on.
+   * The single Coliseum countdown and sudden-death warning, from the deadlines the server publishes.
    */
   private updateArena(state: RaidState, serverNow: number): void {
     let line = "";
-    let hint = "";
     let locked = false;
     let sudden = false;
     // Training has no patience timer, gates or sudden death (the server never arms them; this is the second lock).
@@ -229,30 +259,23 @@ export class Hud {
       if (state.gatesLocked && state.suddenDeathAt > 0) {
         if (serverNow >= state.suddenDeathAt) {
           sudden = true;
-          hint = "Everyone is losing hp, faster every second — a death ends it";
+          line = "Coliseum · sudden death";
         } else {
           locked = true;
-          line = `Gates locked — sudden death in ${fmtSeconds(state.suddenDeathAt - serverNow)}`;
-          hint = "The gates open when someone dies";
+        line = `Coliseum ${fmtSeconds(state.suddenDeathAt - serverNow)}`;
         }
       } else if (state.patienceEndsAt > 0) {
-        // Gates that opened after a death in the coliseum close again when the timer runs out.
-        line = `${state.inColiseum ? "Gates lock again" : "Coliseum"} in ${fmtSeconds(state.patienceEndsAt - serverNow)}`;
-        // The length follows the players standing (5:00 at 8, 2:00 at 3 or fewer), so say which way it moves.
-        hint = "Any death resets the timer — fewer players left, shorter timer";
+        line = `Coliseum ${fmtSeconds(state.patienceEndsAt - serverNow)}`;
       }
     }
 
     // The tone is part of the key so a change of tone with the same text still repaints.
-    const key = `${locked ? "L" : ""}${sudden ? "S" : ""}|${line}|${hint}`;
+    const key = `${locked ? "L" : ""}${sudden ? "S" : ""}|${line}`;
     if (key !== this.lastArena) {
       this.lastArena = key;
       this.arenaLine.textContent = line;
       this.arenaLine.hidden = line === "";
-      this.arenaLine.classList.toggle("locked", locked);
-      this.arenaHint.textContent = hint;
-      this.arenaHint.hidden = hint === "";
-      this.suddenDeath.hidden = !sudden;
+      this.arenaLine.classList.toggle("sudden", sudden);
     }
   }
 

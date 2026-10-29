@@ -1,11 +1,12 @@
 import Phaser from "phaser";
 import {
   EFFECT_HIDDEN, GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, WIRE_IDENTITY_MIRRORS, Y_SCALE, activeGold, barrierStrength,
-  combatDamageShares, combatReadability, isFactionId, type CombatReadability,
+  combatReadability, isFactionId, type CombatReadability,
   cssColor, unpackLook, wishOf, type Look,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
+import { drawCombatIcon, STAT_ICON_COLORS } from "../ui/combatIcons";
 import { around, bakedImage, ensureBake, pixelImage, placeBake, scaledPart, type Region } from "./bake";
 import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, shadowImage, type FighterFields } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
@@ -94,8 +95,6 @@ export class PlayerView {
   private readonly goldHalo: Phaser.GameObjects.Graphics;
   private readonly strengthGlow: Phaser.GameObjects.Graphics;
   private readonly buildMarks: Phaser.GameObjects.Container;
-  private readonly damageMix: Phaser.GameObjects.Container;
-  private readonly damageMixBg: Phaser.GameObjects.Graphics;
   private readonly title: Phaser.GameObjects.Text;
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
@@ -116,10 +115,8 @@ export class PlayerView {
   private barrierStep = 0;
   private glowStep = -1;
   private buildMarksKey = "";
-  private damageMixKey = "";
   private combatReadabilityKey = "";
   private cachedReadability: CombatReadability | null = null;
-  private damageMixLabels: Phaser.GameObjects.Text[] = [];
   /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
   private lookWord = -1;
   private look: Look | null = null;
@@ -150,8 +147,6 @@ export class PlayerView {
     this.strengthGlow = scene.add.graphics();
     this.goldHalo = scene.add.graphics().setVisible(false);
     this.buildMarks = scene.add.container(0, 0);
-    this.damageMixBg = scene.add.graphics();
-    this.damageMix = scene.add.container(0, 0, [this.damageMixBg]);
     this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
     this.body.image.setPosition(0, -BODY_LIFT);
     this.core = new BodyDisc(scene, SKIN_CORE_RADIUS, 0xffffff);
@@ -184,7 +179,7 @@ export class PlayerView {
     this.setStroke(null, false);
     this.root = scene.add.container(0, 0, [
       shadow, mark, this.signatures.ground, this.strengthGlow, this.goldHalo, this.art.ground, this.body.image, this.barrierRing, this.core.image, this.nose,
-      this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.damageMix, this.crown, this.crownLabel, this.title,
+      this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.crown, this.crownLabel, this.title,
       this.status.g, this.wishIcon, this.buildMarks, this.markPlate.pips, this.markPlate.cues,
     ]);
     this.fig = new FigureJuice([
@@ -260,8 +255,7 @@ export class PlayerView {
     this.setWishIcon(p, renderT);
     const readability = this.readabilityFor(p);
     this.drawStrength(readability);
-    this.drawBuildMarks(readability);
-    this.drawDamageMix(p);
+    this.drawBuildMarks(readability, p);
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);
@@ -399,7 +393,9 @@ export class PlayerView {
   private readabilityFor(p: PlayerState): CombatReadability {
     let buildKey = "";
     p.build?.forEach((count, id) => { buildKey += `${id}:${count},`; });
-    const key = `${p.faction}|${p.maxHp}|${p.asMult}|${p.adBonus}|${p.apBonus}|${p.armorBonus}|${p.shieldBonus}|${p.speedMult}|${buildKey}`;
+    let mobKey = "";
+    p.mobStats?.forEach((count, id) => { mobKey += `${id}:${count},`; });
+    const key = `${p.faction}|${p.maxHp}|${p.asMult}|${p.adBonus}|${p.apBonus}|${p.armorBonus}|${p.shieldBonus}|${p.speedMult}|${buildKey}|${mobKey}`;
     if (key !== this.combatReadabilityKey || this.cachedReadability === null) {
       this.combatReadabilityKey = key;
       this.cachedReadability = combatReadability(p);
@@ -421,67 +417,25 @@ export class PlayerView {
       .strokeCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4 + strength * 2);
   }
 
-  /** Two compact text badges show the strongest invested card stats; a fresh fighter has no invented rankings. */
-  private drawBuildMarks(readability: CombatReadability): void {
-    const stats = readability.topStats;
+  /** Three icons summarize the strongest stat investments; a fresh fighter has no invented rankings. */
+  private drawBuildMarks(readability: CombatReadability, p: PlayerState): void {
+    const stats = readability.investedStats.slice(0, 3);
+    const crownScale = 1 + CROWN_GROWTH * Math.min(1, Math.max(0, p.bounty) / CROWN_FULL_BOUNTY);
+    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 12 : LABEL_Y - 25);
     const key = stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|");
     if (key === this.buildMarksKey) return;
     this.buildMarksKey = key;
     this.buildMarks.removeAll(true);
     if (stats.length === 0) return;
-    const y = -BODY_LIFT - PLAYER_RADIUS - 25;
-    const centers = stats.length === 1 ? [30] : [-30, 30];
-    const fills: Record<string, number> = { ad: 0xe07b45, ap: 0x9671dc, health: 0x62a875, attackSpeed: 0xd0a344, armor: 0x6f9eb5, mr: 0x9671dc, speed: 0x5daaa1, leech: 0xc86b80 };
     stats.forEach((stat, i) => {
-      const x = centers[i]!;
-      const fill = fills[stat.key] ?? 0x455a64;
-      const bg = this.scene.add.graphics();
-      bg.fillStyle(0x101820, 0.9).fillRoundedRect(x - 15, y - 6, 30, 13, 3);
-      bg.lineStyle(1, fill, 0.95).strokeRoundedRect(x - 15, y - 6, 30, 13, 3);
-      const text = this.scene.add.text(x, y + 0.5, stat.short, {
-        fontFamily: "system-ui, sans-serif", fontSize: "8px", fontStyle: "bold", color: "#ffffff",
-        stroke: "#000000", strokeThickness: 1,
-      }).setOrigin(0.5, 0.5);
-      this.buildMarks.add([bg, text]);
-    });
-  }
-
-  /** Damage shares ride beside the name. Explicit P/M/T text keeps the mix readable without relying on colour. */
-  private drawDamageMix(p: PlayerState): void {
-    if (!isFactionId(p.faction)) {
-      this.damageMix.setVisible(false);
-      return;
-    }
-    this.damageMix.setVisible(true);
-    const shares = combatDamageShares(p);
-    const parts = ([
-      ["P", shares.phys, "#ffb16d"],
-      ["M", shares.magic, "#c3a4ff"],
-      ["T", shares.true, "#ffffff"],
-    ] as const).filter(([, value]) => value > 0.005).map(([label, value, color]) => ({
-      label, color, percent: Math.round(value * 100),
-    }));
-    const key = parts.map((part) => `${part.label}${part.percent}`).join("|");
-    const nameWidth = typeof this.label.width === "number" && this.label.width > 0 ? this.label.width : p.name.length * 6;
-    this.damageMix.setPosition(nameWidth / 2 + 5, LABEL_Y - 5.5);
-    if (key === this.damageMixKey) return;
-    this.damageMixKey = key;
-    this.damageMixBg.clear();
-    this.damageMixLabels.forEach((label) => label.destroy());
-    this.damageMixLabels = [];
-    if (parts.length === 0) return;
-    const widths = parts.map((part) => 7 + `${part.label}${part.percent}`.length * 4.5);
-    const totalWidth = widths.reduce((sum, width) => sum + width, 0) + 4;
-    this.damageMixBg.fillStyle(0x101820, 0.86).fillRoundedRect(-3, -7, totalWidth, 13, 3);
-    let x = 0;
-    parts.forEach((part, index) => {
-      const text = this.scene.add.text(x, 0, `${part.label}${part.percent}`, {
-        fontFamily: "system-ui, sans-serif", fontSize: "8px", fontStyle: "bold", color: part.color,
-        stroke: "#000000", strokeThickness: 1,
-      }).setOrigin(0, 0.5);
-      this.damageMix.add(text);
-      this.damageMixLabels.push(text);
-      x += widths[index]!;
+      const x = (i - (stats.length - 1) / 2) * 14;
+      const color = STAT_ICON_COLORS[stat.key];
+      const mark = this.scene.add.graphics();
+      mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - 7, -7, 14, 14, 4);
+      mark.lineStyle(1, color, 0.95).strokeRoundedRect(x - 7, -7, 14, 14, 4);
+      drawCombatIcon(mark, stat.key, x, 0, 10, color);
+      mark.setName(`${stat.label}: ${stat.score.toFixed(2)}`);
+      this.buildMarks.add(mark);
     });
   }
 

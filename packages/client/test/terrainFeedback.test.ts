@@ -384,13 +384,15 @@ describe("TerrainChips and the Hud", () => {
     expect((chips.root as unknown as FakeEl).removed).toBe(true);
   });
 
-  it("sits in the Hud under the cards row and the build strip, fed by setTerrain, and goes with the Hud", () => {
+  it("sits after the compact HUD rows, fed by setTerrain, and goes with the Hud", () => {
     const hud = new Hud();
     const root = (hud as unknown as { root: FakeEl }).root;
     const classes = (root.children as FakeEl[]).map((c) => c.className);
-    expect(classes.indexOf("hud-build")).toBe(classes.indexOf("hud-cards") + 1);
-    expect(classes.indexOf("hud-mob-stats")).toBe(classes.indexOf("hud-build") + 1);
-    expect(classes.indexOf("hud-terrain")).toBe(classes.indexOf("hud-mob-stats") + 1);
+    const extras = (root.children as FakeEl[])[classes.indexOf("hud-extras")]!;
+    const extraClasses = (extras.children as FakeEl[]).map((c) => c.className);
+    expect(classes.indexOf("hud-build")).toBeLessThan(classes.indexOf("hud-extras"));
+    expect(extraClasses.indexOf("hud-cards")).toBeLessThan(extraClasses.indexOf("hud-mob-stats"));
+    expect(classes.indexOf("hud-extras")).toBe(classes.indexOf("hud-terrain") - 1);
     const terrain = (root.children as FakeEl[])[classes.indexOf("hud-terrain")]!;
     expect(terrain.hidden).toBe(true);
     hud.setTerrain(states(map, TERRAIN_ICE, "fire"));

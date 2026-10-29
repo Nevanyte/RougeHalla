@@ -596,7 +596,7 @@ export function paintChests(g: PaintCtx, chests: readonly ChestBlip[], k: number
   g.lineJoin = "round";
   g.textAlign = "center";
   g.textBaseline = "top";
-  g.font = `700 ${Math.max(8, Math.round(7.5 * px))}px system-ui, sans-serif`;
+  g.font = `700 ${Math.max(8, Math.round(7.5 * px))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   for (const chest of chests) {
     const cx = chest.x * k;
     const cy = chest.y * k;

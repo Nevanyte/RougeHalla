@@ -277,13 +277,17 @@ describe("in the Hud", () => {
     ({ status, name: "Me", faction: "plague", hp: 100, maxHp: 100, bounty: 0, barrier: 0, kills: 0, mobKills: 0, gv: 0, build, immuneUntil: 0 }) as unknown as PlayerState;
   const run = (): RaidState =>
     ({ phase: "active", mobs: new Map(), players: new Map(), minPlayers: 2, startedWith: 2, lobbyEndsAt: 0, planEndsAt: 0, winner: "", patienceEndsAt: 0, suddenDeathAt: 0 }) as unknown as RaidState;
-  const cardsOf = (hud: Hud): FakeEl => ((hud as unknown as { root: FakeEl }).root.children as FakeEl[]).find((c) => c.className === "hud-cards")!;
+  const cardsOf = (hud: Hud): FakeEl => {
+    const root = (hud as unknown as { root: FakeEl }).root;
+    const extras = root.children.find((c) => c instanceof FakeEl && c.className === "hud-extras") as FakeEl;
+    return extras.children.find((c) => c instanceof FakeEl && c.className === "hud-cards") as FakeEl;
+  };
 
-  it("sits under the vitals, shows with the player's cards, and goes when they do or when the player is down", () => {
+  it("sits under the compact health row during a run, shows with the player's cards, and goes when they do or when the player is down", () => {
     const hud = new Hud();
     const cards = cardsOf(hud);
     const classes = ((hud as unknown as { root: FakeEl }).root.children as FakeEl[]).map((c) => c.className);
-    expect(classes.indexOf("hud-cards")).toBe(classes.indexOf("hud-vitals") + 1);
+    expect(classes.indexOf("hud-extras")).toBe(classes.indexOf("hud-build") + 1);
     expect(cards.hidden).toBe(true);
     hud.update(run(), me({ haste2: 1 }), 0);
     expect(cards.hidden).toBe(false);
@@ -291,6 +295,28 @@ describe("in the Hud", () => {
     expect(cards.hidden).toBe(true);
     hud.update(run(), me({ haste2: 1 }, "dead"), 0);
     expect(cards.hidden).toBe(true);
+  });
+
+  it("uses the compact health graphic during active play and keeps the Coliseum timer by itself at top center", () => {
+    const hud = new Hud();
+    const { root, center } = hud as unknown as { root: FakeEl; center: FakeEl };
+    const child = (name: string): FakeEl => root.children.find((c) => c instanceof FakeEl && c.className === name) as FakeEl;
+    const health = child("hud-health");
+    const status = child("hud-status");
+    const vitals = child("hud-vitals");
+    const active = run();
+    active.patienceEndsAt = 65_000;
+    const player = { ...me({}), maxHp: 250, hp: 125, barrier: 20 } as unknown as PlayerState;
+    hud.update(active, player, 5_000);
+    expect(status.hidden).toBe(true);
+    expect(vitals.hidden).toBe(true);
+    expect(health.hidden).toBe(false);
+    expect((health.children[2] as FakeEl).textContent).toBe("125/250 +20");
+    expect((health.children[1] as FakeEl).getAttribute("aria-valuetext")).toBe("HP 125/250 +20 barrier");
+    expect(center.children.map((n) => (n as FakeEl).className)).toEqual(["hud-arena"]);
+    expect((center.children[0] as FakeEl).textContent).toBe("Coliseum 1:00");
+    expect((center.children[0] as FakeEl).hidden).toBe(false);
+    hud.destroy();
   });
 
   it("takes its listeners with it when the HUD is destroyed (the cards row's and the build strip's)", () => {

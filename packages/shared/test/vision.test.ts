@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS } from "../src/constants";
 import { hasLineOfSight } from "../src/geometry";
-import { mapFromTiles, withGates, type GameMap } from "../src/map";
+import { mapFromTiles, REGION_COLISEUM, withGates, type GameMap } from "../src/map";
 import { mulberry32 } from "../src/rng";
 import { hasVisionLineOfSight, isInVision, VisionMemory } from "../src/vision";
 
@@ -64,6 +64,20 @@ describe("circular, occluded sight", () => {
 });
 
 describe("private live trail memory", () => {
+  it("reveals the whole large coliseum plus ordinary sight while inside, and no arena shortcut from outside", () => {
+    const map = mapFromTiles(80, 60, new Uint8Array(80 * 60));
+    map.coliseum.rect = { x: 10, y: 10, w: 45, h: 35 };
+    for (let y = 10; y < 45; y++) for (let x = 10; x < 55; x++) map.regionGrid[y * map.w + x] = REGION_COLISEUM;
+    for (let y = 10; y < 45; y++) map.tiles[y * map.w + 32] = 1;
+    const memory = new VisionMemory(map.w, map.h), origin = at(20, 25);
+    memory.update(map, origin, 100);
+    expect(memory.canSee(at(50, 25), 100)).toBe(true); // across a wall and beyond 900 units
+    expect(memory.canSee(at(20, 26), 100)).toBe(true); // normal circular vision still applies
+    expect(memory.canSee(at(65, 25), 100)).toBe(false); // outside the footprint and circle
+    memory.clear();
+    memory.update(map, at(2, 25), 200);
+    expect(memory.canSee(at(50, 25), 200)).toBe(false);
+  });
   it("retains seen tiles for exactly 120000ms, refreshes them on revisit, and keeps other players private", () => {
     const map = mapFromTiles(100, 10, new Uint8Array(1000));
     const a = new VisionMemory(map.w, map.h), b = new VisionMemory(map.w, map.h);
