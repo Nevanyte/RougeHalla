@@ -216,7 +216,7 @@ describe("what it shows", () => {
   it("names the camp and counts down the 15 seconds, with a bar that drains", () => {
     const r = setup();
     r.frame(1000);
-    expect(r.text("cp-title")).toBe(campTitle(MAP.camps[1]!));
+    expect(r.text("cp-title")).toBe(`${campTitle(MAP.camps[1]!)} · Augment chest`);
     // 15 000 - (1000 + 50): the estimate runs RTT/2 behind the server.
     expect(r.text("cp-timer")).toBe("0:14");
     r.frame(8_000);
@@ -233,10 +233,10 @@ describe("what it shows", () => {
   it("has a header without a camp for a chest the map does not know (camp 0, or no map)", () => {
     const r = setup({ chests: [["c1", chest({ camp: 0 })]] });
     r.frame();
-    expect(r.text("cp-title")).toBe("Camp chest");
+    expect(r.text("cp-title")).toBe("Augment chest");
     const noMap = setup({ map: null });
     noMap.frame();
-    expect(noMap.text("cp-title")).toBe("Camp chest");
+    expect(noMap.text("cp-title")).toBe("Augment chest");
   });
 
   it("shows each option's name, its tier as a roman badge, its kind and why it is offered, and its text", () => {

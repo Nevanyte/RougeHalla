@@ -582,7 +582,7 @@ export class RaidScene extends Phaser.Scene {
     });
     this.questLog.update({
       phase: state.phase, training: state.training === true, quests: questData.quests, hidden: questData.hidden,
-      localId: this.room.sessionId, localName: me?.name, serverNow, feed: me ? feedScore(me.kills, me.mobKills) : undefined,
+      localId: this.room.sessionId, localName: me?.name, serverNow, feed: me ? feedScore(me.kills, me.mobKills) : undefined, mobStats: me?.mobStats,
       ui: { w: currentView().uiW, h: currentView().uiH }, plate: () => this.hud.plate,
       local: me, alive: me?.status === "alive", sight: pickupMap ?? null,
     });
@@ -912,6 +912,7 @@ export class RaidScene extends Phaser.Scene {
     frame.quests = state.quests;
     frame.sight = sight;
     frame.feed = me ? feedScore(me.kills, me.mobKills) : undefined;
+    frame.mobStats = me?.mobStats;
     frame.localName = me?.name;
     dialog.update(frame);
   }

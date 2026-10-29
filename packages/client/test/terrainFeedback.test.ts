@@ -389,7 +389,8 @@ describe("TerrainChips and the Hud", () => {
     const root = (hud as unknown as { root: FakeEl }).root;
     const classes = (root.children as FakeEl[]).map((c) => c.className);
     expect(classes.indexOf("hud-build")).toBe(classes.indexOf("hud-cards") + 1);
-    expect(classes.indexOf("hud-terrain")).toBe(classes.indexOf("hud-build") + 1);
+    expect(classes.indexOf("hud-mob-stats")).toBe(classes.indexOf("hud-build") + 1);
+    expect(classes.indexOf("hud-terrain")).toBe(classes.indexOf("hud-mob-stats") + 1);
     const terrain = (root.children as FakeEl[])[classes.indexOf("hud-terrain")]!;
     expect(terrain.hidden).toBe(true);
     hud.setTerrain(states(map, TERRAIN_ICE, "fire"));

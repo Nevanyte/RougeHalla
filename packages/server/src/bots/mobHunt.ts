@@ -12,12 +12,12 @@
 //      focusBudgetMs of the bot's time. The target is the best of the alive mobs within reach of a path it can walk: one the
 //      bot's faction beats in a duel (matchupShare), that a carried weapon works on (not useless) and that does not fight
 //      from range (those back off out of their leash), nearest first, favouring a weapon edge, a weapon type we lack, and a
-//      mob no other player is nearer to; elites wait for card power or full hp.
+//      mob no other player is nearer to; elites wait for card power, normal-mob stat progression, or full hp.
 //   5. A target is dropped (and left alone for a while) when it never gets hurt: it went home (a mob walking home is
 //      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
   campMatchup, isFactionId, isRanged, isRegionalKind, isWeaponId, matchupShare, nearestCamps, REGION_WEAPONS,
-  TILE, weaponEdge, FISTS, type FactionId, type GameMap, type PlanMessage, type Vec2, type WeaponId,
+  TILE, weaponEdge, FISTS, MOB_STAT_CAP, MOB_STAT_REWARDS, mobStatCount, type FactionId, type GameMap, type PlanMessage, type Vec2, type WeaponId, type MobStatCounts, type MobTypeId,
 } from "@raid/shared";
 
 // It moved to shared (planning.ts) for the planning screen; re-exported so the bots' callers keep their import.
@@ -33,6 +33,8 @@ export interface MobLike {
   maxHp: number;
   faction: string;
   weapon0: string;
+  /** MobTypeId, only when learned from a visible mob. */
+  type?: MobTypeId;
 }
 
 /** `[id, mob]` pairs: a Colyseus MapSchema and a Map both iterate like this. */
@@ -55,12 +57,12 @@ export interface MobHuntConfig {
   maxCandidates: number;
   /** No new mob fight below this hp share. */
   startMinHp: number;
-  /** Elites need this much card power (shared cardPower: the sum of tier x count) or this hp share. */
+  /** Elites need this much card power or per-type normal mob kills, unless at this hp share. */
   eliteMinPower: number;
   eliteFullHp: number;
   /**
    * The share of its hp the bot's faction keeps in a straight duel with the mob (matchupShare) must reach this to take the mob
-   * on: mobMinShare for a normal mob, eliteMinShare for an elite (eliteSureShare when the bot holds eliteSurePower card power).
+   * on: mobMinShare for a normal mob, eliteMinShare for an elite (eliteSureShare when card power or normal-mob kill stacks reach eliteSurePower).
    */
   mobMinShare: number;
   eliteMinShare: number;
@@ -214,6 +216,8 @@ export interface HuntSelf {
   power: number;
   /** The server's count of mobs this bot killed. */
   mobKills: number;
+  /** Per-type stat progression, read from this bot only. */
+  mobStats?: MobStatCounts;
 }
 
 export interface HuntInput {
@@ -260,6 +264,11 @@ export interface MobHuntStats {
   retreats: number;
   /** Time spent with a mob focus (ms). */
   focusMs: number;
+}
+
+function mobTypeProgress(stacks: MobStatCounts): number {
+  const totalKills = MOB_STAT_REWARDS.reduce((total, reward) => total + mobStatCount(stacks, reward.id), 0);
+  return totalKills / MOB_STAT_CAP;
 }
 
 export class MobHunter {
@@ -406,21 +415,22 @@ export class MobHunter {
     return false;
   }
 
-  /** The best mob to start on, or null. */
+/** The best mob to start on, or null. */
   private pick(inp: HuntInput, hpFrac: number): string | null {
     const c = this.cfg;
     const { now, self } = inp;
     if (hpFrac < c.startMinHp) return null;
     const carried = self.weapons.filter((w) => w !== null);
     const reach = self.mobKills === 0 ? c.firstReach : c.reach;
+    const progressionPower = self.power + mobTypeProgress(self.mobStats);
     const near: { id: string; m: MobLike; d: number; theirs: WeaponId | null; edge: number; share: number }[] = [];
     for (const [id, m] of inp.mobs) {
       if (!isRegionalKind(m.kind) || m.status !== "alive") continue;
       const d = dist(m, self);
       if (d > reach || this.isBanned(id, now) || this.tracker.returning(id, now)) continue;
-      if (m.kind === "elite" && !(self.power >= c.eliteMinPower || hpFrac >= c.eliteFullHp)) continue;
+      if (m.kind === "elite" && !(progressionPower >= c.eliteMinPower || hpFrac >= c.eliteFullHp)) continue;
       const share = self.faction !== null && isFactionId(m.faction) ? matchupShare(self.faction, m.faction, m.kind === "elite") : 0.7;
-      const need = m.kind !== "elite" ? c.mobMinShare : self.power >= c.eliteSurePower ? c.eliteSureShare : c.eliteMinShare;
+      const need = m.kind !== "elite" ? c.mobMinShare : progressionPower >= c.eliteSurePower ? c.eliteSureShare : c.eliteMinShare;
       if (share < need) continue; // this faction loses to it, or wins too narrowly (Fire against Holy mobs, anyone against the wrong elite)
       const theirs = mobWeapon(m);
       const edge = theirs === null ? 0 : bestEdge(self.weapons, theirs);
@@ -438,6 +448,7 @@ export class MobHunter {
       const walk = inp.walk(m);
       if (walk === null || walk > reach * c.walkSlack) continue;
       let score = walk - share * SHARE_BONUS + m.maxHp * HP_WEIGHT;
+      if (m.type && mobStatCount(self.mobStats, m.type) >= MOB_STAT_CAP) score += 10_000;
       if (edge > 0) score -= EDGE_BONUS;
       else if (edge < 0) score += EDGE_PENALTY;
       if (theirs !== null) {

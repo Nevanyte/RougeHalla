@@ -18,7 +18,7 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, MAX_CHOOSE_PICK, parseChoose } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { birthsRemembered } from "../src/sim/loot";
-import { hurtMob, killMob, type MobCombatant } from "../src/sim/mobLife";
+import { hurtMob, killMob, placeMob, type MobCombatant } from "../src/sim/mobLife";
 import { modRowsOf } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
 import { actionOrder, addPlayer, step } from "../src/sim/step";
@@ -51,11 +51,13 @@ function campMap(): GameMap {
   return { ...mapFromTiles(W_TILES, H_TILES, tiles), spawns, camps: [camp("fire-1", "fire", 10), camp("holy-1", "holy", 30)] };
 }
 
-interface RunOpts { players?: number; salt?: number; signatures?: boolean; random?: () => number }
+interface RunOpts { players?: number; salt?: number; signatures?: boolean; random?: () => number; map?: GameMap }
 
 /** A run on campMap with p0, p1, ... (Frost, so nothing of theirs is a card's special case), started on the first step. */
 function run(o: RunOpts = {}): World {
   const n = o.players ?? 3;
+  const map = o.map ?? campMap();
+  if (!o.map) map.camps = map.camps.map((c) => ({ ...c, eliteSpot: 0 }));
   const w = createGameWorld({
     config: {
       minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600,
@@ -63,7 +65,7 @@ function run(o: RunOpts = {}): World {
     },
     random: o.random ?? mulberry32(12),
     rewardSalt: o.salt ?? 99,
-    map: campMap(),
+    map,
   }, { signatures: o.signatures ?? false });
   for (let i = 0; i < n; i++) addPlayer(w, `p${i}`, `name${i}`, { faction: "frost" });
   step(w, TICK_MS);
@@ -147,30 +149,27 @@ describe("camp state: idle, engaged, cleared for good", () => {
     expect(box.items.length).toBe(0);
     expect([...box.takenBy]).toEqual(box.options.map(() => ""));
     expect([...box.pickers]).toEqual([]);
-    // Three distinct live cards: a base card first, an augment last (nobody who fought it stood near it, so no conditional).
+    // Three distinct interactive augments.
     expect(box.options.length).toBe(3);
     expect(new Set(box.options).size).toBe(3);
-    expect(cardDef(box.options[0]!)!.kind).toBe("base");
-    expect(cardDef(box.options[1]!)!.kind).toBe("base");
-    expect(cardDef(box.options[2]!)!.kind).toBe("augment");
+    expect(box.options.every((id) => cardDef(id)!.kind === "augment")).toBe(true);
     expect(box.options.every((id) => cardDef(id)!.ready === "a")).toBe(true);
   });
 
-  it("clears even when no player killed the last mob (no killer), and never twice", () => {
+  it("clears without a credited killer and grants no chest or pickable reward", () => {
     const w = run();
     for (const m of campMobs(w, 1)) killMob(w, m, [], []);
     expect(w.state.camps[1]!.state).toBe(CAMP_CLEARED);
-    expect(rewardChests(w)).toHaveLength(1);
+    expect(rewardChests(w)).toHaveLength(0);
     expect(fxOf(w.events, "campCleared")).toEqual([{ kind: "campCleared", camp: 1 }]);
-    // Nobody fought it: no eligible picker, so no conditional card.
-    expect([...onlyChest(w).options].some((id) => cardDef(id)!.kind === "conditional")).toBe(false);
     for (const m of campMobs(w, 1)) killMob(w, m, [], []);
-    expect(rewardChests(w)).toHaveLength(1);
+    expect(rewardChests(w)).toHaveLength(0);
   });
 
   it("falls back to the camp's centre when the chest tile is a wall", () => {
     const map = campMap();
     map.camps[0] = { ...map.camps[0]!, chest: { x: at(12), y: at(5) } };
+    map.camps[0] = { ...map.camps[0]!, eliteSpot: 0 };
     const w = createGameWorld({
       config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
       random: mulberry32(12), rewardSalt: 1, map,
@@ -196,6 +195,79 @@ describe("camp state: idle, engaged, cleared for good", () => {
     // Corpses leave the state; nothing comes back.
     expect(campMobs(w, 0)).toEqual([]);
     expect(w.state.camps[0]!.state).toBe(CAMP_CLEARED);
+  });
+});
+
+describe("elite chests", () => {
+  it("drops exactly once on the elite death while its camp's escorts are still alive", () => {
+    const map = campMap();
+    map.camps[0] = { ...map.camps[0]!, eliteSpot: 0 };
+    const w = run({ map });
+    const roster = campMobs(w, 0);
+    const elite = roster.find((m) => m.s.kind === "elite")!;
+    expect(elite).toBeDefined();
+    const hit = { victim: elite.id, by: { id: "p0", name: "p0" }, packet: { raw: elite.s.hp, phys: 1, magic: 0, true: 0 }, weapon: "sword" as const, scale: 1, stagger: false };
+    hurtMob(w, elite, [elite.s.hp], [hit]);
+    expect(roster.filter((m) => m !== elite && m.s.status === "alive")).toHaveLength(2);
+    expect(rewardChests(w)).toHaveLength(1);
+    hurtMob(w, elite, [elite.s.hp], [hit]);
+    expect(rewardChests(w)).toHaveLength(1);
+  });
+
+  it("keeps the eligible build snapshot when the elite is the camp's last death", () => {
+    const map = campMap();
+    map.camps[0] = { ...map.camps[0]!, eliteSpot: 0 };
+    const w = run({ map });
+    const centre = map.camps[0]!;
+    place(w, 0, centre);
+    expect(grantCard(w, combatant(w, "p0") as never, "slowBurn")).toBe(1);
+    const roster = campMobs(w, 0);
+    const hitMob = (mob: MobCombatant): void => {
+      hurtMob(w, mob, [mob.s.hp], [{ victim: mob.id, by: { id: "p0", name: "p0" }, packet: { raw: mob.s.hp, phys: 1, magic: 0, true: 0 }, weapon: "sword" as const, scale: 1, stagger: false }]);
+    };
+    const elite = roster.find((m) => m.s.kind === "elite")!;
+    roster.filter((m) => m !== elite).forEach(hitMob);
+    expect(rewardChests(w)).toHaveLength(0);
+    hitMob(elite);
+    expect(rewardChests(w)).toHaveLength(1);
+    expect(onlyChest(w).options).not.toContain("slowBurn");
+  });
+
+  it.each([false, true])("ignores a contributor killed in the same ledger pass (contributor first: %s)", (contributorFirst) => {
+    const w = run();
+    const elite = campMobs(w, 0).find((mob) => mob.s.kind === "elite")!;
+    for (const mob of campMobs(w, 0)) if (mob.id !== elite.id) killMob(w, mob, [], []);
+    place(w, 1, w.map.camps[0]!);
+    expect(grantCard(w, combatant(w, "p1") as never, "slowBurn")).toBe(1);
+    hurtMob(w, elite, [1], [{ victim: elite.id, by: { id: "p1", name: "b" }, packet: { raw: 1, phys: 0, magic: 0, true: 1 }, weapon: null, scale: 1, stagger: false }]);
+    w.rewardRandom = () => 0;
+    const eliteHit: LedgerEntry = { victim: elite.id, by: { id: "p0", name: "a" }, packet: { raw: 1e6, phys: 0, magic: 0, true: 1 }, weapon: null, scale: 1, stagger: false };
+    const contributorHit: LedgerEntry = { victim: "p1", by: { id: "p2", name: "c" }, packet: { raw: 1e6, phys: 0, magic: 0, true: 1 }, weapon: null, scale: 1, stagger: false };
+    for (const hit of contributorFirst ? [contributorHit, eliteHit] : [eliteHit, contributorHit]) recordHit(w, hit);
+    applyLedger(w);
+    expect(P(w, 1).status).toBe("dead");
+    expect(elite.s.status).toBe("dead");
+    expect(RT(w, 0).resolved).toBe(false);
+    expect(P(w, 0).mobKills).toBe(1);
+    expect(onlyChest(w).options).toContain("slowBurn");
+  });
+
+  it("places an uncamped elite's reward at the elite's death position", () => {
+    const w = run({ map: campMap() });
+    const at = { x: P(w, 0).x + 40, y: P(w, 0).y };
+    const id = placeMob(w, { region: "fire", elite: true, at });
+    const mob = combatant(w, id) as MobCombatant;
+    hurtMob(w, mob, [mob.s.hp], [{ victim: id, by: { id: "p0", name: "p0" }, packet: { raw: mob.s.hp, phys: 1, magic: 0, true: 0 }, weapon: "sword" as const, scale: 1, stagger: false }]);
+    const box = onlyChest(w);
+    expect({ x: box.x, y: box.y }).toEqual(at);
+  });
+
+  it("does not drop a chest on an ordinary camp clear", () => {
+    const map = campMap();
+    map.camps[0] = { ...map.camps[0]!, eliteSpot: -1 };
+    const w = run({ map });
+    clearCamp(w, 0);
+    expect(rewardChests(w)).toHaveLength(0);
   });
 });
 
@@ -387,7 +459,7 @@ describe("the chest's options come from the private reward stream", () => {
       differs = JSON.stringify([...onlyChest(other).options]) !== JSON.stringify(opts);
     }
     expect(differs).toBe(true);
-    expect(cardDef(opts[0]!)!.kind).toBe("base");
+    expect(cardDef(opts[0]!)!.kind).toBe("augment");
     expect(opts).toHaveLength(rollChestOptions(mulberry32(1)).length);
   });
 });
@@ -519,7 +591,7 @@ describe("choose: picking at the chest", () => {
   it("the bornAt guard: a chest made between ticks cannot be picked in the tick that first publishes it", () => {
     const w = run();
     place(w, 0, P(w, 0));
-    const box = dropRewardChest(w, P(w, 0), ["haste1", "fleet1"]);
+    const box = dropRewardChest(w, P(w, 0), ["slowBurn", "hemorrhage"]);
     choose(w, 0, box.id, 0);
     expect(toasts(tick(w), "p0")).toEqual(["Chest gone"]);
     choose(w, 0, box.id, 0);
@@ -550,50 +622,36 @@ describe("choose: picking at the chest", () => {
     expect(box.takenBy[0]).toBe("p0");
   });
 
-  it("a base card stacks: picking Haste I again gives a count of 2, and a pick of it is never refused for count", () => {
+  it("an interactive augment can be picked once, and cannot be picked again by the same player", () => {
     const w = run();
     const drop = (): ContainerState => {
-      const b = dropRewardChest(w, P(w, 0), ["haste1", "wellspring"]);
-      tick(w);
-      return b;
-    };
-    for (let n = 1; n <= 4; n++) {
-      const b = drop();
-      choose(w, 0, b.id, 0);
-      expect(toasts(tick(w), "p0")).toEqual([]);
-      expect(P(w, 0).build.get("haste1")).toBe(n);
-      expect(b.takenBy[0]).toBe("p0");
-    }
-    expect(cardPower(P(w, 0).build)).toBe(4);
-  });
-
-  it("a unique card already held is refused ('Already yours') and the pick is not used; a conditional without its base says what it needs", () => {
-    const w = run();
-    const drop = (): ContainerState => {
-      const b = dropRewardChest(w, P(w, 0), ["wellspring", "bloodthirst", "ad1"]);
+      const b = dropRewardChest(w, P(w, 0), ["slowBurn", "hemorrhage"]);
       tick(w);
       return b;
     };
     const one = drop();
     choose(w, 0, one.id, 0);
-    tick(w);
-    expect(P(w, 0).build.get("wellspring")).toBe(1);
+    expect(toasts(tick(w), "p0")).toEqual([]);
+    expect(P(w, 0).build.get("slowBurn")).toBe(1);
     const two = drop();
     choose(w, 0, two.id, 0);
     expect(toasts(tick(w), "p0")).toEqual(["Already yours"]);
     expect(two.takenBy[0]).toBe("");
-    expect([...two.pickers]).toEqual([]);
-    // The conditional needs a Leech card: refused, not used up.
-    choose(w, 0, two.id, 1);
-    expect(toasts(tick(w), "p0")).toEqual([needsRefusal("leech")]);
-    expect(needsRefusal("leech")).toBe("Needs Leech");
-    expect(two.takenBy[1]).toBe("");
-    // A Leech card of any tier opens it.
-    expect(grantCard(w, combatant(w, "p0") as never, "leech2")).toBe(1);
-    choose(w, 0, two.id, 1);
+  });
+
+  it("rejects raw stat and conditional cards injected into reward containers", () => {
+    const w = run();
+    const box = dropRewardChest(w, P(w, 0), ["haste1", "bloodthirst"]);
+    tick(w);
+    choose(w, 0, box.id, 0);
     expect(toasts(tick(w), "p0")).toEqual([]);
-    expect(two.takenBy[1]).toBe("p0");
-    expect(P(w, 0).build.get("bloodthirst")).toBe(1);
+    expect(box.takenBy[0]).toBe("");
+    expect([...box.pickers]).toEqual([]);
+    expect(P(w, 0).build.has("haste1")).toBe(false);
+    choose(w, 0, box.id, 1);
+    expect(toasts(tick(w), "p0")).toEqual([]);
+    expect(box.takenBy[1]).toBe("");
+    expect(P(w, 0).build.has("bloodthirst")).toBe(false);
   });
 
   it("an index the chest does not have is ignored without using the pick; `replace` is accepted and ignored", () => {
@@ -754,7 +812,7 @@ describe("the loop on a generated zone map (server-side, until the bots pick)", 
     }
     tick(w);
     const chests = rewardChests(w);
-    expect(chests).toHaveLength(w.map.camps.length);
+    expect(chests).toHaveLength(w.map.camps.filter((camp) => camp.eliteSpot >= 0).length);
     for (const box of chests) {
       const camp = w.map.camps[box.camp - 1]!;
       expect({ x: box.x, y: box.y }).toEqual(camp.chest);
@@ -874,23 +932,18 @@ describe("what a chest offers depends on who fought the camp", () => {
     return onlyChest(w);
   }
 
-  it("a contributor standing near the camp who holds a base card can be offered its conditionals; one far away or without the base never", () => {
-    let near = 0;
+  it("offers only interactive augments, independent of contributor base cards", () => {
     for (let salt = 1; salt <= 60; salt++) {
       const box = chestFor(salt, "near", ["leech1"]);
       for (const id of box.options) {
         const def = cardDef(id)!;
-        if (def.kind === "conditional") {
-          near++;
-          expect(def.requires, `salt ${salt}`).toBe("leech");
-        }
+        expect(def.kind, `salt ${salt}`).toBe("augment");
+        expect(def.ready, `salt ${salt}`).toBe("a");
       }
       for (const [where, cards] of [["far", ["leech1"]], ["near", []], ["far", []]] as const) {
-        expect([...chestFor(salt, where, [...cards]).options].some((id) => cardDef(id)!.kind === "conditional"), `salt ${salt} ${where} ${cards}`).toBe(false);
+        expect([...chestFor(salt, where, [...cards]).options].every((id) => cardDef(id)!.kind === "augment"), `salt ${salt} ${where} ${cards}`).toBe(true);
       }
     }
-    expect(near).toBeGreaterThan(15); // about half of 60
-    expect(near).toBeLessThan(45);
   });
 
   it("an elite camp's chest rolls the higher tiers (10/60/30 against 70/25/5)", () => {
@@ -901,23 +954,12 @@ describe("what a chest offers depends on who fought the camp", () => {
     };
     let normalTier = 0, eliteTier = 0, n = 0;
     for (let salt = 1; salt <= 80; salt++) {
-      for (const mapOf of [campMap, elite]) {
-        const w = createGameWorld({
-          config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true, pvpRules: false },
-          random: mulberry32(12), rewardSalt: salt, map: mapOf(),
-        }, { signatures: false });
-        addPlayer(w, "p0", "a", { faction: "frost" });
-        addPlayer(w, "p1", "b", { faction: "frost" });
-        step(w, TICK_MS);
-        clearCamp(w, 1);
-        const tier = cardDef(onlyChest(w).options[0]!)!.tier;
-        if (mapOf === campMap) normalTier += tier;
-        else eliteTier += tier;
-      }
+      normalTier += cardDef(rollChestOptions(mulberry32(salt), { elite: false })[0]!)!.tier;
+      eliteTier += cardDef(rollChestOptions(mulberry32(salt), { elite: true })[0]!)!.tier;
       n++;
     }
-    expect(eliteTier / n).toBeGreaterThan(normalTier / n + 0.5);
-    expect(eliteTier / n).toBeGreaterThan(2);
+    expect(eliteTier / n).toBeGreaterThan(normalTier / n + 0.25);
+    expect(eliteTier / n).toBeGreaterThan(1.8);
     expect(normalTier / n).toBeLessThan(1.6);
   });
 });

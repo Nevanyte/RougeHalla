@@ -1,7 +1,7 @@
-// The card catalog (balance pass, BALANCE_CONTRACT 4): everything a camp's chest can give, and the only source of stat power
-// besides the weapon in hand (a mob kill pays GV, the feed and a weapon, never a stat). 80 cards, three kinds:
-//   base         24 cards: eight stats (Attack Damage, Ability Power, Haste, Vitality, Armor, Magic Resist, Leech, Fleet) at three
-//                tiers each, as separate ids (`ad1`, `ad2`, `ad3`). They STACK: a player may hold `ad2` twice (the synced build maps id -> count).
+// The card catalog (BALANCE_CONTRACT 4): legacy stat cards remain available to builds and compatibility helpers, while chests and
+// elite deaths now reward functioning interactive augments. Normal mob kills grant fixed, capped stat progression (mobStats.ts). The
+// catalog holds 80 cards: 24 base stats, 13 conditionals and 43 augments. A card is data: its `effects` are rows of the closed Effect
+// union (effects.ts), folded by sim/mods.ts through shared/mods.ts.
 //   conditional  13 cards, all tier 2, each tied to a base (`requires`): offered only when a player who earns the chest owns that
 //                base at any tier, and pickable only by an owner. One per player.
 //   augment      43 titled cards with trade-offs and rules (Here Comes the Boom, A Race to 0...), tiers 1-3, unconditional, one per player.
@@ -633,4 +633,14 @@ export function cardBlock(id: string, build: CardCounts | null | undefined): { r
   }
   if (def.unique && countIn(build, def.id) > 0) return { reason: "owned", text: "Already yours" };
   return null;
+}
+
+/** True when a card grants a rule or trigger, rather than a direct or conditional stat bonus. */
+const INTERACTIVE_AUGMENT_IDS = new Set<string>([
+  "slowBurn", "overkill", "tankEngine", "pocketSand", "gambler", "thirdTimesTheCharm", "eyeForAnEye", "bestOffense",
+  "plantYourFeet", "wishfulThinking", "hemorrhage", "spikedShell", "siphon", "secondWind",
+]);
+export function isInteractiveAugment(card: CardDef | string): boolean {
+  const def = typeof card === "string" ? cardDef(card) : card;
+  return !!def && def.kind === "augment" && INTERACTIVE_AUGMENT_IDS.has(def.id);
 }

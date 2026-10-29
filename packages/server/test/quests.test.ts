@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  INTERACT_RANGE, mapFromTiles, mulberry32, QUEST_COUNT, QUEST_ITEM_PREFIX, QUEST_KNOWN_COUNT, questDefById,
+  INTERACT_RANGE, mapFromTiles, mulberry32, QUEST_COUNT, QUEST_ITEM_PREFIX, QUEST_KNOWN_COUNT, questDefById, questRewardStats,
   QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, QUEST_UNKNOWN_COUNT, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type Vec2,
 } from "@raid/shared";
@@ -206,7 +206,7 @@ describe("kill quests", () => {
 });
 
 describe("turn-in", () => {
-  it("completes once: quest GV, the quest's card, a toast, and one winner", () => {
+  it("completes once: quest GV, capped stat progress, a toast, and one winner", () => {
     const w = makeRun();
     const qt = offer(w, "cull-fire");
     for (let i = 0; i < 3; i++) killMobOf(w, "fire", "p0");
@@ -221,15 +221,15 @@ describe("turn-in", () => {
     const winner = qt.s.doneBy === "alice" ? 0 : 1;
     expect(RT(w, winner).gv.quest).toBe(qt.def.reward.gv);
     expect(RT(w, winner).gv.quest + RT(w, 1 - winner).gv.quest).toBe(qt.def.reward.gv);
-    // A feed of 0.75 is nowhere near the brake: every nominal copy goes to the winner alone.
-    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies);
+    // Only the winner receives the fixed whole stat stacks.
+    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + qt.def.reward.copies);
     expect(P(w, 1 - winner).build.size).toBe(0);
-    expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === `Quest complete: ${qt.def.reward.copies} × Attack Damage II`)).toBe(true);
+    expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === `Quest complete: ${qt.def.name}`)).toBe(true);
     expect(ev.some((e) => e.type === "gv" && e.reason === "quest" && e.amount === qt.def.reward.gv)).toBe(true);
     expect(ev.some((e) => e.type === "toast" && e.to === null && e.text.includes(qt.s.doneBy) && e.text.includes(qt.def.name))).toBe(true);
     step(w, TICK_MS);
     expect(P(w, 1 - winner).build.size).toBe(0);
-    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies); // paid once
+    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + qt.def.reward.copies); // paid once
   });
 
   it.each([["p0", "p1"], ["p1", "p0"]])(
@@ -359,7 +359,7 @@ describe("collect quests", () => {
     P(w, 0).y = GIVER.y;
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
-    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies);
+    expect(P(w, 0).mobStats.get(questRewardStats(qt.def).id)).toBe(qt.def.reward.copies);
   });
 });
 
@@ -384,7 +384,7 @@ describe("fetch quests", () => {
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
     expect(w.quests!.carried.has("p0")).toBe(false);
-    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(qt.def.reward.copies);
+    expect(P(w, 0).mobStats.get(questRewardStats(qt.def).id)).toBe(qt.def.reward.copies);
   });
 
   it("a carrier who goes down drops the parcel where they fell, and anyone may reclaim it", () => {

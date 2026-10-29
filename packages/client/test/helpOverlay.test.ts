@@ -229,13 +229,19 @@ describe("the Mechanics page (data)", () => {
 
   it("states card power and the PvP factor with the real numbers", () => {
     const power = by("power").entries;
-    expect(power.map((e) => e.term)).toEqual(["Card power", "PvP factor", "Chests"]);
+    expect(power.map((e) => e.term)).toEqual(["Card power", "PvP factor", "Normal mob rewards", "Quest rewards", "Chests"]);
     const pvp = power[1]!.text;
     expect(pvp).toContain(`x${pvpFactor(0).toFixed(2)} at power 0`);
     expect(pvp).toContain(`x${pvpFactor(6).toFixed(2)} at power 6`);
     expect(pvp).toContain(`tops out at x${PVP_FMAX.toFixed(2)}`);
     expect(pvp).toContain("x0.77 at power 0");
-    expect(power[0]!.text).toMatch(/sum of the tiers/);
+    expect(power[0]!.text).toMatch(/sum of the tiers of the cards you hold/);
+    expect(power[0]!.text).toContain("live chest rewards are interactive augments");
+    expect(power[0]!.text).toContain("Mob stat stacks and quest rewards do not add power");
+    expect(power[2]!.text).toContain("up to 10 stacks per type");
+    expect(power[2]!.text).toContain("Normal mob progress catalog");
+    expect(power[3]!.text).toContain("same 10-stack cap");
+    expect(power[4]!.text).toContain("elite death drops an augment chest");
   });
 
   it("lists each signature with its tags (the owner's table: burn magic over time, backlash physical returned, the mark true ramping...)", () => {

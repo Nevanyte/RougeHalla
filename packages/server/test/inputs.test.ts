@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CLIENT_MESSAGE_TYPES, WORLD_H, WORLD_W, type ClientMessageType } from "@raid/shared";
 import {
-  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePlan, parsePoint, parseQuestAccept, parseSeq,
+  InputQueue, parseTrain, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePlan, parsePoint, parseQuestAccept, parseSeq,
   type ActionCommand,
 } from "../src/sim/inputs";
 
@@ -1009,5 +1009,23 @@ describe("enqueueClientMessage", () => {
       const kinds = q.drain().actions.map((a: ActionCommand) => a.kind);
       expect(kinds).toEqual(["swap", "attack", "release", "pickup"]);
     });
+  });
+});
+
+
+describe("fixed stat training input", () => {
+  it("accepts normal types and clamps whole progress to ten", () => {
+    expect(parseTrain({ cmd: "stat", id: "emberImp" })).toEqual({ kind: "train", cmd: "stat", id: "emberImp", count: 1 });
+    expect(parseTrain({ cmd: "stat", id: "emberImp", count: 42 })).toEqual({ kind: "train", cmd: "stat", id: "emberImp", count: 10 });
+    expect(parseTrain({ cmd: "stat", id: "rotMonk", count: 6.8 })).toEqual({ kind: "train", cmd: "stat", id: "rotMonk", count: 6 });
+    expect(parseTrain({ cmd: "stat", id: "rotMonk", count: -3 })).toEqual({ kind: "train", cmd: "stat", id: "rotMonk", count: 0 });
+  });
+
+  it("rejects elite/unknown rewards and nonfinite counts", () => {
+    for (const id of ["wyrmling", "ashDrake", "not-a-mob"]) expect(parseTrain({ cmd: "stat", id })).toBeNull();
+    for (const count of [NaN, Infinity, "10"]) expect(parseTrain({ cmd: "stat", id: "emberImp", count })).toBeNull();
+    const q = new InputQueue();
+    expect(enqueueClientMessage(q, "train", { cmd: "stat", id: "emberImp", count: 10 })).toBe(false);
+    expect(q.actions).toHaveLength(0);
   });
 });

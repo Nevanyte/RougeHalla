@@ -79,8 +79,8 @@ function nearCamp(world: World, camp: number, centre: Vec2 | null, at: Vec2): bo
  * chest offers conditional cards and augments by what they own (sim/chests.ts). Valid inside the `campCleared` chain up to this
  * module's link; empty for a camp nobody damaged.
  */
-export function eligibleContributors(world: World, camp: number): Array<Extract<Combatant, { kind: "player" }>> {
-  const contrib = world.campContrib?.get(camp);
+export function eligibleContributors(world: World, camp: number, contributors?: ReadonlySet<string>): Array<Extract<Combatant, { kind: "player" }>> {
+  const contrib = contributors ?? world.campContrib?.get(camp);
   if (!contrib) return [];
   const centre = campCentre(world, camp);
   const out: Array<Extract<Combatant, { kind: "player" }>> = [];

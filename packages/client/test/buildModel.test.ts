@@ -31,7 +31,7 @@ describe("the strip's cells", () => {
     expect(by("power").value).toBe("0");
     expect(by("pvp").value).toBe("x0.77");
     expect(statLine(by("pvp"))).toBe("PvP x0.77");
-    expect(by("pvp").tip).toBe("Your damage to players. Each card you take adds its tier to your power.");
+    expect(by("pvp").tip).toBe("Your damage to players. Your card power sets this factor; it scales hits against players only.");
     expect(list.every((s) => s.dim)).toBe(true);
     expect(by("ad").value).toBe("+0");
     expect(by("as").value).toBe("0%");

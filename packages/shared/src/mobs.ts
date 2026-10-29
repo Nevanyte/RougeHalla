@@ -57,7 +57,7 @@ export function mobName(region: FactionId, elite: boolean): string {
 // Six types per zone: four normals and two elites. A type fights as its zone's faction scaled by MOB_K / ELITE_K like any
 // regional mob, then by its ROLE (grunt, swarm, brute, skirmisher, caster: hp, damage and move-speed multipliers), and carries
 // its own weapon (casters shoot, so mobAI plays them as ranged fighters through the weapon's policy, and the weapon is what
-// a kill drops or arms). A kill pays GV and that weapon, never a stat. Camps are mono-type (shared/rosters.ts, server
+// a kill drops or arms). A normal kill pays GV, that weapon, and one capped stat stack (mobStats.ts); elites drop augments. Camps are mono-type (shared/rosters.ts, server
 // sim/camps.ts); a mob's name comes from here, `mobName` above is the fallback for a mob placed without a type.
 
 export type MobTypeId =

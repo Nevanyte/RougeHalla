@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  cardPower, mapFromTiles, mulberry32, questDefById, QUEST_FEED_BRAKE, QUEST_GV_CAP, rewardCurve, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  mapFromTiles, mulberry32, questDefById, questRewardStats, QUEST_GV_CAP, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -60,59 +60,42 @@ function complete(world: World, qt: QuestRuntime): SimEvent[] {
 }
 
 describe("quest rewards", () => {
-  it("pays the quest's card (a base card of its tier) and a toast, and the GV beside it", () => {
+  it("pays fixed normal-mob stat stacks, a completion toast, and the separate GV reward", () => {
     const world = makeRun();
     const qt = ready(world, "cull-fire");
-    const reward = qt.def.reward;
-    expect(reward.card).toBe("ad2");
-    expect(P(world).build.get(reward.card) ?? 0).toBe(0);
-
+    const reward = questRewardStats(qt.def);
     const events = complete(world, qt);
-
-    expect(P(world).build.get(reward.card)).toBe(reward.copies);
-    expect(P(world).build.size).toBe(1);
-    expect(events.filter((e) => e.type === "toast" && e.to === "p0").map((e) => (e as { text: string }).text)).toContain(`Quest complete: ${reward.copies} × Attack Damage II`);
-    expect(RT(world).gv.quest).toBe(reward.gv);
-    // The card folds at once: Attack Damage II is 21 AD on the mirror.
-    expect(P(world).adBonus).toBe(210 * reward.copies);
+    expect(P(world).mobStats.get(reward.id)).toBe(reward.stacks);
+    expect(P(world).build.size).toBe(0);
+    expect(events.some((e) => e.type === "toast" && e.to === "p0" && e.text === `Quest complete: ${qt.def.name}`)).toBe(true);
+    expect(RT(world).gv.quest).toBe(qt.def.reward.gv);
+    step(world, TICK_MS);
+    expect(P(world).mobStats.get(reward.id)).toBe(reward.stacks);
   });
 
-  it("drops a fed player's card one tier once the mob reward curve is under the brake, and never below tier 1", () => {
-    const hungry = makeRun(0);
-    const fed = makeRun(20);
-    const hungryQuest = ready(hungry, "cull-fire");
-    const fedQuest = ready(fed, "cull-fire");
-
-    complete(hungry, hungryQuest);
-    complete(fed, fedQuest);
-
-    expect(rewardCurve(0)).toBeGreaterThanOrEqual(QUEST_FEED_BRAKE);
-    expect(rewardCurve(20)).toBeLessThan(QUEST_FEED_BRAKE);
-    expect(P(hungry).build.get("ad2")).toBe(hungryQuest.def.reward.copies);
-    expect(P(fed).build.get("ad1")).toBe(fedQuest.def.reward.copies);
-    expect(P(fed).build.get("ad2") ?? 0).toBe(0);
-    // A tier-1 quest card has nowhere to fall.
-    const fedHunter = ready(fed, "headhunter");
-    complete(fed, fedHunter);
-    expect(P(fed).build.get("ad1")).toBe(fedQuest.def.reward.copies + fedHunter.def.reward.copies);
+  it("pays identical whole stacks regardless of feed or the lobby's catch-up gap", () => {
+    for (const feed of [0, 5, 20]) {
+      const world = makeRun(feed);
+      world.state.players.get("p1")!.kills = 40;
+      const qt = ready(world, "cull-fire");
+      complete(world, qt);
+      const reward = questRewardStats(qt.def);
+      expect(P(world).mobStats.get(reward.id)).toBe(reward.stacks);
+      expect(P(world).build.size).toBe(0);
+    }
   });
 
-  it("does not use the catch-up: the brake reads the feed curve alone, and a trailing player's tier is the nominal one", () => {
+  it("shares the mob's ten-stack cap and still awards GV when that stat is maxed", () => {
     const world = makeRun();
-    world.state.players.get("p1")!.kills = 20;
+    P(world).mobStats.set("emberImp", 9);
     const qt = ready(world, "cull-fire");
-
     complete(world, qt);
-
-    expect(P(world).build.get("ad2")).toBe(qt.def.reward.copies);
-  });
-
-  it("pays the same card to the same quest whoever else is in the lobby, and a base card stacks across quests", () => {
-    const world = makeRun();
-    complete(world, ready(world, "cull-fire")); // ad2
-    complete(world, ready(world, "cull-sentenced")); // ad2 again
-    expect(P(world).build.get("ad2")).toBe(questDefById("cull-fire")!.reward.copies + questDefById("cull-sentenced")!.reward.copies);
-    expect(cardPower(P(world).build)).toBe(2 * P(world).build.get("ad2")!);
+    expect(P(world).mobStats.get("emberImp")).toBe(10);
+    const second = ready(world, "cull-fire");
+    complete(world, second);
+    expect(P(world).mobStats.get("emberImp")).toBe(10);
+    expect(P(world).build.size).toBe(0);
+    expect(RT(world).gv.quest).toBe(qt.def.reward.gv * 2);
   });
 
   it("caps only the separate per-run quest GV pot at QUEST_GV_CAP", () => {

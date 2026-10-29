@@ -53,8 +53,15 @@ describe("BuildHud", () => {
     expect(strip.shown).toBe(true);
     expect(values()).toEqual({ ad: "+0", ap: "+0", armor: "190", mr: "0", as: "0%", move: "0%", leech: "0%", power: "0", pvp: "x0.77" });
     expect(cells().map((c) => part(c, 0))).toEqual(["AD", "AP", "Armor", "MR", "Atk speed", "Move", "Leech", "Power", "PvP"]);
-    expect(part(cells()[8]!, 2)).toBe("Your damage to players. Each card you take adds its tier to your power.");
+    expect(part(cells()[8]!, 2)).toBe("Your damage to players. Your card power sets this factor; it scales hits against players only.");
     expect(cells().every((c) => c.classes.has("dim"))).toBe(true);
+  });
+
+  it("includes fractional lifesteal from fixed normal-mob stacks in build totals", () => {
+    const { strip, values, cells, part } = setup();
+    strip.update(me({ mobStats: new Map([["rotMonk", 6]]) as never }), true);
+    expect(values().leech).toBe("2%");
+    expect(part(cells()[6]!, 2)).toContain("normal-mob kills");
   });
 
   it("shows Sentence stacks only for the Sentenced build and refreshes them when they change", () => {

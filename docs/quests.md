@@ -1,5 +1,7 @@
 # Quests
 
+> Reward update: quests now grant fixed, whole normal-mob stat stacks from their destination zone, under the same ten-stack cap as mob kills, plus existing GV. Feed does not reduce those stacks. Quests grant no cards or augments. See [Mob progression](MOB_PROGRESSION.md); card-tier and parity tables below describe historical tuning only.
+
 *K1 quest play on the current roguelike architecture. The shared catalog and placement live in `packages/shared/src/quests.ts`, the authoritative runtime in `packages/server/src/sim/quests.ts`, and the bot-facing contract in [quests-bot-hook.md](quests-bot-hook.md).*
 
 ## 1. What quests add

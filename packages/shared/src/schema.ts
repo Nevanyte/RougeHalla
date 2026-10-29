@@ -101,6 +101,8 @@ export const PlayerState = schema({
   markTax: t.uint8().default(0),
   /** A Sentenced's kill-stacks this run, 0..MARK_KILL_STACK_CAP: each player kill, and a denied execute once per mark. */
   sentence: t.uint8().default(0),
+  /** Per normal mob type, reward stacks this run (0..10; kills and quests share the cap); map keys are MobTypeId strings. */
+  mobStats: t.map("uint8"),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

@@ -1,7 +1,6 @@
 import {
-  FACTIONS, MASK_MOVE, PLAYER_RADIUS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, TILE, cardText, cardTitle, circleClear, findPath, pathLength, segmentClear,
-  questDefById, questRewardCard, questRewardCopies, questRewardText, rewardCurve, moveComponents, worldToTile,
-  QUEST_FEED_BRAKE,
+  FACTIONS, MASK_MOVE, MOB_STAT_CAP, PLAYER_RADIUS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, TILE, circleClear, findPath, mobStatCount, mobStatReward, mobStatText, pathLength, segmentClear,
+  questDefById, questRewardStats, questRewardText, moveComponents, worldToTile,
   type GameMap, type QuestDef, type QuestKind, type QuestRevealMessage,
 } from "@raid/shared";
 
@@ -180,32 +179,16 @@ function numberText(value: number): string {
 }
 
 /**
- * What a quest pays, in words. With the player's feed (shared feedScore of their kills) the card is the one the server will actually
- * grant (questRewardCard: a tier lower once the mob reward curve at their feed has fallen under QUEST_FEED_BRAKE), and a lowered one
- * says so; without it (the planning screen: nobody has fed yet) the nominal card. The copy count stays the same after the brake.
+ * What the quest pays, in words: a fixed stack reward with its shared cap plus GV. Feed does not change this reward.
  */
-export function questReward(def: QuestDef, feed?: number): string {
-  const nominal = questRewardText(def);
-  if (feed === undefined || !Number.isFinite(feed)) return nominal;
-  const card = questRewardCard(def, feed);
-  if (card === def.reward.card) return nominal;
-  const title = cardTitle(card);
-  if (title === "") return nominal;
-  const copies = questRewardCopies(def);
-  const quantity = copies > 1 ? `${copies} × ` : "";
-  const each = copies > 1 ? " each" : "";
-  return `${quantity}${title} (${cardText(card)}${each}) and ${def.reward.gv} GV. A tier lower, as you are far ahead`;
-}
-
-/** The feed above which a quest's card is paid a tier lower (the mob reward curve falls under QUEST_FEED_BRAKE there). */
-export function questBrakeFeed(): number {
-  let lo = 0;
-  let hi = 100;
-  for (let i = 0; i < 40; i++) {
-    const mid = (lo + hi) / 2;
-    if (rewardCurve(mid) < QUEST_FEED_BRAKE) hi = mid; else lo = mid;
-  }
-  return hi;
+export function questReward(def: QuestDef, _feed?: number, mobStats?: Readonly<Record<string, number>> | Map<string, number>): string {
+  if (!mobStats) return questRewardText(def);
+  const reward = questRewardStats(def);
+  const current = mobStatCount(mobStats, reward.id);
+  const gained = Math.min(reward.stacks, MOB_STAT_CAP - current);
+  const name = mobStatReward(reward.id)?.name ?? reward.id;
+  const award = gained > 0 ? `${gained} ${name} stacks (${mobStatText(reward.id, gained)}; ${current + gained}/${MOB_STAT_CAP} total)` : `${name} at cap (${current}/${MOB_STAT_CAP})`;
+  return `${award} and ${def.reward.gv} GV`;
 }
 
 export function questObjective(def: QuestDef): string {
@@ -225,7 +208,7 @@ export function questReady(quest: QuestStateLike, def: QuestDef, localId: string
 }
 
 export function questRows(
-  quests: QuestCollection, localId: string, serverNow: number, localName = "", planning = false, feed?: number,
+  quests: QuestCollection, localId: string, serverNow: number, localName = "", planning = false, feed?: number, mobStats?: Readonly<Record<string, number>> | Map<string, number>,
 ): QuestRow[] {
   const rows: QuestRow[] = [];
   quests.forEach((quest) => {
@@ -248,7 +231,7 @@ export function questRows(
       id: quest.id, def, quest, objective: questObjective(def), progress,
       time: closed ? "" : formatQuestTime(planning ? def.expiresAtSec * 1000 : quest.expiresAt - serverNow),
       // Closed history describes the award at completion, not what this viewer's later feed would pay now.
-      reward: questReward(def, closed ? undefined : feed), status, ready, accepted, acceptance, expired, closed,
+      reward: closed ? questReward(def) : questReward(def, feed, mobStats), status, ready, accepted, acceptance, expired, closed,
     });
   });
   const group = (row: QuestRow): number => !row.closed ? 0 : row.quest.status === "done" ? 1 : 2;

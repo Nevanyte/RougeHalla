@@ -14,6 +14,7 @@ export interface QuestLogFrame {
   localId: string;
   localName?: string;
   feed?: number;
+  mobStats?: Readonly<Record<string, number>> | Map<string, number>;
   serverNow: number;
   ui?: UiSize;
   plate?: () => PlateBox | null;
@@ -160,7 +161,7 @@ export class QuestLog {
 
   private rows(): QuestRow[] {
     const f = this.frame;
-    return f ? questRows(f.quests, f.localId, f.serverNow, f.localName, f.phase === "planning", f.feed) : [];
+    return f ? questRows(f.quests, f.localId, f.serverNow, f.localName, f.phase === "planning", f.feed, f.mobStats) : [];
   }
 
   private createRow(row: QuestRow): RowView {
