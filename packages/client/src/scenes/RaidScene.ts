@@ -49,8 +49,8 @@ import { OpponentInspector } from "../ui/opponentInspector";
 import { wishCooldownMultiplier } from "../ui/combatTip";
 import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
-import { Minimap } from "../ui/minimap";
-import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
+import { Minimap, type MinimapMob } from "../ui/minimap";
+import { PlanningView, planningModeFor, type PlanningEnemy, type PlanningPlayer } from "../ui/planning";
 import { QuestDialog, type QuestDialogFrame, type QuestDialogMe } from "../ui/questDialog";
 import { QuestLog } from "../ui/questLog";
 import { expireQuestPreviews, questAccepted, questItemQuestId, questCollections, questFromReveal, questMinimapBlips, type QuestMobTarget, type QuestStateLike } from "../ui/questModel";
@@ -617,7 +617,15 @@ export class RaidScene extends Phaser.Scene {
     this.feedback.update(now, this.sampleMatchup);
 
     // Redraws only when the player's dot (or the gates) actually changed.
-    this.minimap.setMobs(visibleCollection(state.mobs, this.vision.canSee));
+    this.minimap.setMobs({
+      forEach: (cb: (mob: MinimapMob, id: string) => void): void => {
+        state.mobs.forEach((mob, id) => {
+          const at = this.rendered.get(id);
+          if (!at || !this.vision.canSee(at)) return;
+          cb({ x: at.x, y: at.y, kind: mob.kind, status: mob.status, faction: mob.faction }, id);
+        });
+      },
+    });
     const threats: Vec2[] = [];
     if (state.phase === "active") state.players.forEach((p, id) => {
       const at = id !== this.room.sessionId && p.status === "alive" ? this.visiblePosition(id) : undefined;
@@ -672,7 +680,13 @@ export class RaidScene extends Phaser.Scene {
       return;
     }
     const players: PlanningPlayer[] = [];
-    state.players.forEach((p, id) => { players.push({ faction: p.faction, ready: p.planReady, me: id === this.room.sessionId }); });
+    const enemies: PlanningEnemy[] = [];
+    state.players.forEach((p, id) => {
+      const local = id === this.room.sessionId;
+      players.push({ faction: p.faction, ready: p.planReady, me: local });
+      const at = mode === "map" && !local && p.status === "alive" ? this.visiblePosition(id) : undefined;
+      if (at) enemies.push({ id, x: at.x, y: at.y });
+    });
     const at = this.rendered.get(this.room.sessionId);
     const questData = questCollections(state, this.questPreviews.values(), serverNow);
     view.update({
@@ -681,6 +695,7 @@ export class RaidScene extends Phaser.Scene {
       campElites: readCampElites(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
+      enemies,
       quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,
       visionEnabled: this.vision.enabled, canSee: this.vision.canSee,
     });

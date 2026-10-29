@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { MOB_STAT_CAP, MOB_STAT_REWARDS, decodeMirrors, FACTIONS, mobStatCount, mobStatRows, mobStatReward, mulberry32, TICK_MS } from "@raid/shared";
+import { MOB_STAT_REWARDS, decodeMirrors, FACTIONS, mobStatCount, mobStatRows, mobStatReward, mulberry32, TICK_MS } from "@raid/shared";
 import { createGameWorld } from "../src/sim/gameplay";
 import { combatant } from "../src/sim/combatant";
 import { addPlayer, step } from "../src/sim/step";
 import { grantMobStat } from "../src/sim/mobStats";
-import { lifestealRowsOf, outgoingMult } from "../src/sim/mods";
+import { farmLifestealRowsOf, lifestealRowsOf, outgoingMult } from "../src/sim/mods";
 
 function fixture() {
   const world = createGameWorld({ seed: 122, random: mulberry32(122), config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60, mobs: false, pvpRules: false } });
@@ -14,7 +14,7 @@ function fixture() {
 }
 
 describe("fixed mob stat progression", () => {
-  it("applies each grant at a fixed per-stack value and clamps at ten", () => {
+  it("applies fixed per-stack grants without a per-type ceiling", () => {
     const { world, player } = fixture();
     const reward = mobStatReward("emberImp")!;
     expect(grantMobStat(world, player, "emberImp")).toBe(1);
@@ -23,8 +23,8 @@ describe("fixed mob stat progression", () => {
     const tenth = mobStatRows(player.s.mobStats)[0]!;
     expect(tenth.k).toBe(first.k);
     expect((tenth as { v: number }).v).toBeCloseTo((first as { v: number }).v * 10);
-    expect(grantMobStat(world, player, "emberImp", 99)).toBe(0);
-    expect(mobStatCount(player.s.mobStats, "emberImp")).toBe(MOB_STAT_CAP);
+    expect(grantMobStat(world, player, "emberImp", 999)).toBe(999);
+    expect(mobStatCount(player.s.mobStats, "emberImp")).toBe(1009);
     expect(reward).toBeDefined();
   });
 
@@ -43,18 +43,19 @@ describe("fixed mob stat progression", () => {
 });
 
 
-it("keeps a completely maxed normal-mob build additive and within the intended totals", () => {
+it("keeps all normal-mob farm stats effective well beyond the former ten-stack ceiling", () => {
   const { world, player } = fixture();
-  for (const reward of MOB_STAT_REWARDS) grantMobStat(world, player, reward.id, 10);
+  for (const reward of MOB_STAT_REWARDS) grantMobStat(world, player, reward.id, 1000);
   const mirrors = decodeMirrors(player.s);
-  expect(mirrors.asMult).toBeCloseTo(1.2);
-  expect(mirrors.speedMult).toBeCloseTo(1.1);
-  expect(mirrors.armorBonus).toBe(30);
-  expect(mirrors.shieldBonus).toBe(30);
-  expect(mirrors.adBonus).toBe(10);
-  expect(mirrors.apBonus).toBe(20);
-  expect(player.s.maxHp).toBeCloseTo(FACTIONS[player.s.faction as keyof typeof FACTIONS].hp * 1.3);
-  expect(lifestealRowsOf(player.s)).toBeCloseTo(0.05);
-  expect(outgoingMult(player.s, 1)).toBeCloseTo(1.2);
+  expect(mirrors.asMult).toBeCloseTo(21);
+  expect(mirrors.speedMult).toBeCloseTo(11);
+  expect(mirrors.armorBonus).toBe(3000);
+  expect(mirrors.shieldBonus).toBe(3000);
+  expect(mirrors.adBonus).toBe(1000);
+  expect(mirrors.apBonus).toBe(2000);
+  expect(player.s.maxHp).toBeCloseTo(FACTIONS[player.s.faction as keyof typeof FACTIONS].hp * 31);
+  expect(lifestealRowsOf(player.s)).toBe(0); // ordinary card rows remain separately capped
+  expect(farmLifestealRowsOf(player.s)).toBeCloseTo(5);
+  expect(outgoingMult(player.s, 1)).toBeCloseTo(21);
   expect(player.s.build.size).toBe(0);
 });

@@ -11,7 +11,8 @@ export type ItemState = SchemaType<typeof ItemState>;
 
 // Players and mobs share these fighter fields (the sim's Combatant reads and writes both the same way).
 // float32 and uint32 here are wire widths only: the server's own values keep full double precision, and a client reads
-// them rounded to float32 (positions, angles, hp) or truncated to whole ms (the timers). Timers must stay in 0..2^32.
+// positions, angles and mob hp rounded to float32, or timers truncated to whole ms. Player hp and stat growth use float64.
+// Timers must stay in 0..2^32.
 export const PlayerState = schema({
   name: t.string().default(""),
   /** Equipped cosmetics as a packed word (see packLook in cosmetics.ts). Set when the player joins, never changed after. */
@@ -22,8 +23,8 @@ export const PlayerState = schema({
   y: t.float32().default(0),
   /** Radians, ground plane: where the fighter aims (the shield faces it), or the way it walks when it doesn't aim. */
   facing: t.float32().default(0),
-  hp: t.float32().default(0),
-  maxHp: t.float32().default(0),
+  hp: t.float64().default(0),
+  maxHp: t.float64().default(0),
   /** PlayerStatus */
   status: t.string().default("lobby"),
   /** FactionId: picked in the hub (JoinOptions.faction), else a server default. */
@@ -52,22 +53,22 @@ export const PlayerState = schema({
   /** How far the strongest Sentenced mark on this fighter has grown, in percent (markTier x 25); 0 = not marked. */
   brand: t.uint8().default(0),
   /** Mobs killed this run (feed = kills + FEED_MOB_KILL_WEIGHT x this; it sets the mob reward curve; the bounty ignores mobs). */
-  mobKills: t.uint16().default(0),
+  mobKills: t.float64().default(0),
   // --- Stat mirrors (roguelike R4a; shared/mods.ts, sim/mods.ts) ---
   /**
    * In wire form: the server's sim/mods.ts folds them and simulates with exactly these values (D22). Read them through
-   * decodeMirrors (or decodeMult / decodeFlat) in shared/mods.ts, never raw. The multipliers are uint16 thousandths
-   * (1000 = x1); the flat bonuses int16 tenths of a point. The defaults are the identity, and a mirror patches only when its
+   * decodeMirrors (or decodeMult / decodeFlat) in shared/mods.ts, never raw. The multipliers are float64 thousandths
+   * (1000 = x1); the flat bonuses float64 tenths of a point. The defaults are the identity, and a mirror patches only when its
    * quantized value changes, so a fighter nothing modifies never patches them.
    */
-  asMult: t.uint16().default(1000),
-  windupMult: t.uint16().default(1000),
-  speedMult: t.uint16().default(1000),
-  armorBonus: t.int16().default(0),
-  shieldBonus: t.int16().default(0),
-  /** Attack damage and ability power (balance pass, BALANCE_CONTRACT 3.3): int16 tenths of a point like the two above, written only by recomputeMods. */
-  adBonus: t.int16().default(0),
-  apBonus: t.int16().default(0),
+  asMult: t.float64().default(1000),
+  windupMult: t.float64().default(1000),
+  speedMult: t.float64().default(1000),
+  armorBonus: t.float64().default(0),
+  shieldBonus: t.float64().default(0),
+  /** Attack damage and ability power (balance pass, BALANCE_CONTRACT 3.3): float64 tenths of a point, written by recomputeMods. */
+  adBonus: t.float64().default(0),
+  apBonus: t.float64().default(0),
   // --- end of the stat mirrors ---
 
   /**
@@ -101,8 +102,8 @@ export const PlayerState = schema({
   markTax: t.uint8().default(0),
   /** A Sentenced's kill-stacks this run, 0..MARK_KILL_STACK_CAP: each player kill, and a denied execute once per mark. */
   sentence: t.uint8().default(0),
-  /** Per normal mob type, reward stacks this run (0..10; kills and quests share the cap); map keys are MobTypeId strings. */
-  mobStats: t.map("uint8"),
+  /** Per normal mob type, uncapped whole reward count this run; map keys are MobTypeId strings. */
+  mobStats: t.map("float64"),
   /** Frost's current movement slow multiplier (thousandths); sent separately so local prediction follows its thaw. */
   frostMoveMult: t.uint16().default(1000),
 }, "PlayerState");

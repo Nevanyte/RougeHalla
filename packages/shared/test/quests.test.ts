@@ -79,18 +79,18 @@ describe("the catalog", () => {
     }
   });
 
-  it("describes fixed whole stat stacks from the quest's zone, under the shared cap", () => {
+  it("describes the full fixed stat stacks from the quest's zone with no progression ceiling", () => {
     for (const def of QUEST_DEFS) {
       const reward = questRewardStats(def);
       const mob = mobStatReward(reward.id)!;
       expect(mob.zone).toBe(def.farZone);
       expect(Number.isInteger(reward.stacks)).toBe(true);
       expect(reward.stacks).toBeGreaterThan(0);
-      expect(reward.stacks).toBeLessThanOrEqual(MOB_STAT_CAP);
+      expect(reward.stacks).toBeGreaterThan(0);
       expect(questRewardText(def)).toContain(mob.name);
       expect(questRewardText(def)).toContain(mobStatText(reward.id, reward.stacks));
       expect(questRewardText(def)).toContain(`${def.reward.gv} GV`);
-      expect(questRewardText(def)).toContain("shared 10-stack cap");
+      expect(questRewardText(def)).not.toContain("cap");
     }
     expect(questRewardStats(questDefById("cull-fire")!)).toEqual({ id: "emberImp", stacks: 2 });
     expect(questRewardStats(questDefById("cull-plague")!)).toEqual({ id: "plagueRat", stacks: 4 });

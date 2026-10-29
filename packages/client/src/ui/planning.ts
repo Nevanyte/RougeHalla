@@ -50,6 +50,13 @@ export interface PlanningPlayer {
   me: boolean;
 }
 
+/** A remote fighter already filtered by the scene's personal-vision visibility check. */
+export interface PlanningEnemy {
+  id: string;
+  x: number;
+  y: number;
+}
+
 /** What the scene hands the view each frame (only while the mode is not hidden). */
 export interface PlanningFrame {
   mode: PlanningMode;
@@ -76,6 +83,8 @@ export interface PlanningFrame {
   canSee?: (point: Vec2) => boolean;
   /** Whether personal vision is active (false in preview/planning or training). */
   visionEnabled?: boolean;
+  /** Remote actors whose positions are currently visible to this player. The map rechecks canSee defensively. */
+  enemies?: readonly PlanningEnemy[];
   /** Public quest offers and the number still hidden server-side. */
   quests?: QuestCollection;
   hiddenQuests?: number;
@@ -214,6 +223,7 @@ export class PlanningView {
   private readonly dyn = el("canvas", "pl-route");
   private readonly zones = el("div", "pl-zones");
   private readonly markers = el("div", "pl-markers");
+  private readonly actors = el("div", "pl-actors");
   private readonly mapWrap = el("div", "pl-mapwrap");
 
   // Sections, shown per mode.
@@ -281,6 +291,7 @@ export class PlanningView {
   private keyCamps = "";
   private keyPlan = "";
   private keyRoute = "";
+  private keyActors = "";
   private backing = 0;
   private layout: ViewLayout;
   private textScale = 1;
@@ -345,8 +356,9 @@ export class PlanningView {
     this.zones.setAttribute("aria-hidden", "true");
     this.markers.setAttribute("role", "group");
     this.markers.setAttribute("aria-label", "Map markers. Arrow keys move between them; Page Up and Page Down jump between zones.");
-    this.mapWrap.append(this.base, this.fog, this.dyn, this.zones, this.markers, this.quests.markers);
+    this.mapWrap.append(this.base, this.fog, this.dyn, this.zones, this.markers, this.quests.markers, this.actors);
     this.fog.setAttribute("aria-hidden", "true");
+    this.actors.setAttribute("aria-hidden", "true");
     this.dyn.addEventListener("click", this.onMapClick);
     for (const type of ["pointerdown", "mousedown", "touchstart", "click", "contextmenu"])
       this.mapWrap.addEventListener(type, this.stopMapInput);
@@ -503,6 +515,7 @@ export class PlanningView {
     this.renderCamps(frame);
     this.renderPlan(frame);
     this.renderRoute(frame);
+    this.renderActors(frame);
     this.quests.update({ mode: frame.mode, serverNow: frame.serverNow, localId: frame.localId ?? "", quests: frame.quests, hiddenQuests: frame.hiddenQuests });
   }
 
@@ -523,6 +536,8 @@ export class PlanningView {
     this.side.hidden = mode === "map";
     // The camps stay on the held map (read-only); the dealt spawns and the route's stop buttons are for planning.
     this.markers.hidden = mode === "hidden";
+    this.actors.hidden = mode !== "map";
+    if (mode !== "map") this.clearActors();
     for (const o of this.spawnOptions) if (o.marker) o.marker.hidden = !planning;
     for (const camp of this.camps) camp.rewards.hidden = mode !== "map" || camp.rewards.children.length === 0;
     this.playerBox.hidden = mode === "map";
@@ -991,6 +1006,47 @@ export class PlanningView {
     } else {
       this.clearStops();
     }
+  }
+
+  /** Persistent, click-through actor labels sit above every map layer. Remote coordinates are rechecked against personal vision. */
+  private renderActors(frame: PlanningFrame): void {
+    if (this.shownMode !== "map") {
+      this.clearActors();
+      return;
+    }
+    const span = mapSpan();
+    const visibleEnemies = frame.visionEnabled && frame.canSee
+      ? (frame.enemies ?? []).filter((enemy) => Number.isFinite(enemy.x) && Number.isFinite(enemy.y)
+          && enemy.x >= 0 && enemy.y >= 0 && enemy.x <= span && enemy.y <= span
+          && frame.canSee!({ x: enemy.x, y: enemy.y }))
+      : [];
+    const local = frame.local && Number.isFinite(frame.local.x) && Number.isFinite(frame.local.y)
+      && frame.local.x >= 0 && frame.local.y >= 0 && frame.local.x <= span && frame.local.y <= span
+      ? frame.local : null;
+    const key = `${local ? `${local.x},${local.y},${local.alive}` : ""}|${visibleEnemies.map((e) => `${e.id}:${e.x},${e.y}`).join(";")}`;
+    if (key === this.keyActors) return;
+    this.keyActors = key;
+    const marks: HTMLElement[] = [];
+    if (local) {
+      const you = el("span", `pl-actor pl-actor-you${local.alive ? "" : " down"}`);
+      you.style.setProperty("left", pct(local.x, span));
+      you.style.setProperty("top", pct(local.y, span));
+      you.append(el("span", "pl-actor-shape"), el("span", "pl-actor-label", "YOU"));
+      marks.push(you);
+    }
+    for (const enemy of visibleEnemies) {
+      const mark = el("span", "pl-actor pl-actor-enemy");
+      mark.style.setProperty("left", pct(enemy.x, span));
+      mark.style.setProperty("top", pct(enemy.y, span));
+      mark.append(el("span", "pl-actor-shape"), el("span", "pl-actor-label", "ENEMY"));
+      marks.push(mark);
+    }
+    this.actors.replaceChildren(...marks);
+  }
+
+  private clearActors(): void {
+    this.keyActors = "";
+    if (this.actors.children.length) this.actors.replaceChildren();
   }
 
   private clearStops(): void {

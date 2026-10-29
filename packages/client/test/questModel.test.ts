@@ -23,17 +23,17 @@ function container(over: Partial<QuestContainerLike> = {}): QuestContainerLike {
 describe("the reward a quest row shows", () => {
   const def = questDefById("cull-fire")!; // Attack Damage II and 10 GV
 
-  it("shows the fixed mob stat stack reward and cap regardless of feed", () => {
-    expect(questReward(def)).toBe("Up to 2 Ember Imp stacks (+2% damage; shared 10-stack cap) and 10 GV");
+  it("shows the fixed mob stat stack reward regardless of feed", () => {
+    expect(questReward(def)).toBe("2 Ember Imp stacks (+2% damage) and 10 GV");
     expect(questReward(def, 999)).toBe(questReward(def));
     const row = (feed?: number) => questRows({ forEach: (cb) => cb(quest(), "q1") }, "me", 5_000, "", false, feed)[0]!;
     expect(row().reward).toBe(questReward(def));
     expect(row(999).reward).toBe(questReward(def));
   });
 
-  it("shows only the stacks remaining under the player's per-type cap", () => {
-    expect(questReward(def, undefined, new Map([["emberImp", 9]]))).toBe("1 Ember Imp stacks (+1% damage; 10/10 total) and 10 GV");
-    expect(questReward(def, undefined, new Map([["emberImp", 10]]))).toBe("Ember Imp at cap (10/10) and 10 GV");
+  it("shows the full quest reward and the uncapped resulting total", () => {
+    expect(questReward(def, undefined, new Map([["emberImp", 9]]))).toBe("2 Ember Imp stacks (+2% damage; 11 total after this quest) and 10 GV");
+    expect(questReward(def, undefined, new Map([["emberImp", 100]]))).toBe("2 Ember Imp stacks (+2% damage; 102 total after this quest) and 10 GV");
   });
 });
 
@@ -43,7 +43,7 @@ describe("quest presentation model", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       objective: "Kill 3 mobs in Fire", progress: "1 / 3", time: "1:00", status: "Open",
-      reward: "Up to 2 Ember Imp stacks (+2% damage; shared 10-stack cap) and 10 GV",
+      reward: "2 Ember Imp stacks (+2% damage) and 10 GV",
     });
   });
 
@@ -144,7 +144,7 @@ describe("quest presentation model", () => {
 
   it("words the fixed stat reward and GV for every quest kind", () => {
     expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("Cinder Hound stacks");
-    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("shared 10-stack cap");
+    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("4 Cinder Hound stacks (+2% move speed)");
   });
 });
 

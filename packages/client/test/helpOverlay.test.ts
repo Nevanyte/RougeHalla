@@ -238,9 +238,9 @@ describe("the Mechanics page (data)", () => {
     expect(power[0]!.text).toMatch(/sum of the tiers of the cards you hold/);
     expect(power[0]!.text).toContain("live chest rewards are interactive augments");
     expect(power[0]!.text).toContain("Mob stat stacks and quest rewards do not add power");
-    expect(power[2]!.text).toContain("up to 10 stacks per type");
+    expect(power[2]!.text).toContain("no maximum");
     expect(power[2]!.text).toContain("Normal mob progress catalog");
-    expect(power[3]!.text).toContain("same 10-stack cap");
+    expect(power[3]!.text).toContain("keep accumulating");
     expect(power[4]!.text).toContain("elite death drops an augment chest");
   });
 

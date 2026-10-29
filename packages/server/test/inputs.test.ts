@@ -1014,11 +1014,13 @@ describe("enqueueClientMessage", () => {
 
 
 describe("fixed stat training input", () => {
-  it("accepts normal types and clamps whole progress to ten", () => {
+  it("accepts normal types and uncapped whole progress", () => {
     expect(parseTrain({ cmd: "stat", id: "emberImp" })).toEqual({ kind: "train", cmd: "stat", id: "emberImp", count: 1 });
-    expect(parseTrain({ cmd: "stat", id: "emberImp", count: 42 })).toEqual({ kind: "train", cmd: "stat", id: "emberImp", count: 10 });
+    expect(parseTrain({ cmd: "stat", id: "emberImp", count: 42 })).toEqual({ kind: "train", cmd: "stat", id: "emberImp", count: 42 });
     expect(parseTrain({ cmd: "stat", id: "rotMonk", count: 6.8 })).toEqual({ kind: "train", cmd: "stat", id: "rotMonk", count: 6 });
     expect(parseTrain({ cmd: "stat", id: "rotMonk", count: -3 })).toEqual({ kind: "train", cmd: "stat", id: "rotMonk", count: 0 });
+    expect(parseTrain({ cmd: "stat", id: "rotMonk", count: Number.MAX_SAFE_INTEGER })).toMatchObject({ count: Number.MAX_SAFE_INTEGER });
+    expect(parseTrain({ cmd: "stat", id: "rotMonk", count: Number.MAX_SAFE_INTEGER + 1 })).toBeNull();
   });
 
   it("rejects elite/unknown rewards and nonfinite counts", () => {

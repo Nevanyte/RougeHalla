@@ -1,7 +1,7 @@
 // The quantized stat mirrors (shared/mods.ts) and lifesteal's caps. (Moved here from the per-kill buff tests, which went with the buffs.)
 import { describe, expect, it } from "vitest";
 import {
-  AS_MULT_CAP, capAsMult, decodeMult, encodeMult, IDENTITY_MIRRORS, LIFESTEAL_MAX, lifestealShare, LS_CAP, MOD_MULT_MAX,
+  AS_MULT_CAP, capAsMult, decodeMult, encodeMult, IDENTITY_MIRRORS, LIFESTEAL_MAX, lifestealShare, LS_CAP,
   MOD_MULT_MIN, MULT_WIRE_PER_UNIT, scaleWindup, WAND_WINDUP, weaponTimings, WIRE_IDENTITY_MIRRORS,
 } from "../src/index";
 
@@ -30,11 +30,11 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
     expect(decodeMult(undefined as unknown as number)).toBe(1);
   });
 
-  it("clamps to MOD_MULT_MIN..MOD_MULT_MAX (a uint16 holds it) and reads a bad value as the identity", () => {
+  it("clamps the low end but keeps large finite multipliers and reads a bad value as identity", () => {
     expect(encodeMult(0)).toBe(MOD_MULT_MIN * 1000);
     expect(encodeMult(-3)).toBe(50);
-    expect(encodeMult(1e9)).toBe(MOD_MULT_MAX * 1000);
-    expect(encodeMult(MOD_MULT_MAX * 1000)).toBeLessThan(65536);
+    expect(encodeMult(1e9)).toBe(1e12);
+    expect(decodeMult(encodeMult(1e9))).toBe(1e9);
     expect(encodeMult(Number.NaN)).toBe(1000);
     expect(encodeMult(Number.POSITIVE_INFINITY)).toBe(1000);
   });

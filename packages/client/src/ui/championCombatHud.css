@@ -70,3 +70,5 @@ html[data-ui-narrow] #ui > .champion-combat-hud.training-room, html[data-ui-shor
 #ui:has(.training-bar .training-tips:not([hidden])) > .champion-combat-hud.training-room { bottom: 340px; }
 html[data-ui-narrow] #ui:has(.training-bar .training-tips:not([hidden])) > .champion-combat-hud.training-room,
 html[data-ui-short] #ui:has(.training-bar .training-tips:not([hidden])) > .champion-combat-hud.training-room { bottom: 340px; }
+/* Give the practice controls their full space while editing a build; current gains remain visible at top left. */
+#ui:has(.training-bar .train-panel:not([hidden])) > .champion-combat-hud.training-room { visibility: hidden; }

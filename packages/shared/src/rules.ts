@@ -73,7 +73,7 @@ export function hpRaceMult(hpFrac: number, cap: number = HP_RACE_CAP): number {
   return Math.min(Math.max(1 / hpFrac, 1), Math.max(1, ceiling));
 }
 
-// ---- The feed's rewards: the mob reward curve and the catch-up (they scale mob GV and quest cards; no stat comes from a kill) ----
+// ---- The feed's rewards: the mob reward curve and catch-up scale mob GV and quest cards, not fixed mob-stat progression ----
 
 /** The mob reward curve: near 1 while hungry, falling sharply around a feed of REWARD_MID, never below REWARD_FLOOR. */
 export function rewardCurve(feed: number): number {

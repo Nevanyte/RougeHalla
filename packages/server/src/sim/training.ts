@@ -10,7 +10,7 @@
 // dropRewardChest), and none of it is paid or recorded: a practice mob has no camp in the map, so no chest drops for its death
 // (its clear still heals), and its kill pays no GV, feed or drop (mobLife.payMobKill returns in a training world).
 import {
-  cardBlock, cardDef, cardLive, circleClear, countIn, hasLineOfSight, isInteractiveAugment, isRegionalKind, mobStatCount, mobStatReward, mobStatText, MOB_STAT_CAP, mobTypeById, PLAYER_RADIUS, rollChestOptions,
+  cardBlock, cardDef, cardLive, circleClear, countIn, hasLineOfSight, isInteractiveAugment, isRegionalKind, mobStatCount, mobStatReward, mobStatText, normalizeMobStatCount, mobTypeById, PLAYER_RADIUS, rollChestOptions,
   TILE, tileToWorldCenter, TRAIN_CAMP_SIZE, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_SPAWN_GAP_MS, worldToTile,
   type CardId, type Vec2,
 } from "@raid/shared";
@@ -127,7 +127,8 @@ export const handleTrain: ActionHandler = (world, c, cmd) => {
 function trainStat(world: World, c: PlayerCombatant, id: string, count = 1): void {
   const reward = mobStatReward(id);
   if (!reward || !Number.isFinite(count) || count < 0) return;
-  const want = Math.min(MOB_STAT_CAP, Math.floor(count));
+  const want = normalizeMobStatCount(count);
+  if (count > 0 && want === 0) return;
   const have = mobStatCount(c.s.mobStats, id);
   if (want !== have) {
     if (want) c.s.mobStats.set(id, want); else c.s.mobStats.delete(id);
@@ -135,7 +136,7 @@ function trainStat(world: World, c: PlayerCombatant, id: string, count = 1): voi
     syncMaxHp(c.s);
   }
   const actual = mobStatCount(c.s.mobStats, id);
-  toast(world, c.id, `${reward.name}: ${mobStatText(id, actual)} (${actual}/${MOB_STAT_CAP})${actual === MOB_STAT_CAP ? " — MAX" : ""}`);
+  toast(world, c.id, `${reward.name}: ${mobStatText(id, actual)} total`);
 }
 
 /** Re-arms the once-per-run triggers whose key starts with `prefix` (a removed card fires again when given back). */

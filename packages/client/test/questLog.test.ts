@@ -59,7 +59,7 @@ describe("QuestLog", () => {
     expect(dom.ui.byClass("quest-log-objective")[0]?.textContent).toBe("Kill 3 mobs in Fire");
     expect(dom.ui.byClass("quest-log-progress")[0]?.textContent).toContain("Your progress 2 / 3");
     expect(dom.ui.byClass("quest-log-time")[0]?.textContent).toBe("1:00");
-    expect(dom.ui.byClass("quest-log-reward")[0]?.textContent).toContain("Up to 2 Ember Imp stacks (+2% damage; shared 10-stack cap) and 10 GV");
+    expect(dom.ui.byClass("quest-log-reward")[0]?.textContent).toContain("2 Ember Imp stacks (+2% damage) and 10 GV");
     expect(dom.ui.byClass("quest-log-status")[0]?.textContent).toBe("Open");
     expect(dom.ui.byClass("quest-log-rumoured")[0]?.textContent).toContain("+5 rumoured");
     dom.press("KeyJ");

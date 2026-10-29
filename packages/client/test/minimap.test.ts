@@ -53,8 +53,8 @@ describe("Minimap.setMobs", () => {
     paint();
     expect(arcs()).toHaveLength(2);
     for (const [i, x, y] of [[0, 1000, 1200], [1, 3000, 3200]]) {
-      expect(arcs()[i]![0]).toBeCloseTo(Math.round(x * k()));
-      expect(arcs()[i]![1]).toBeCloseTo(Math.round(y * k()));
+      expect(arcs()[i]![0]).toBeCloseTo(x * k(), 9);
+      expect(arcs()[i]![1]).toBeCloseTo(y * k(), 9);
     }
   });
 
@@ -111,7 +111,7 @@ describe("Minimap.setMobs", () => {
     expect(paints()).toBe(3);
     expect(argsOf(ctx, "arc")).toHaveLength(2);
     map.setMobs([mob({ x: 5 })]);
-    map.update(now() + 50, undefined, true); // 50 ms after the last update: held back
+    map.update(now() + 20, undefined, true); // Less than the 33 ms live-actor cadence: held back.
     expect(paints()).toBe(3);
   });
 
@@ -163,11 +163,13 @@ describe("Minimap sizing", () => {
     const { map, paint, arcs, k } = setup();
     map.setMobs([mob({ x: 1000, y: 600 })]);
     paint();
-    expect(arcs()[0]!.slice(0, 2)).toEqual([Math.round(1000 * k()), Math.round(600 * k())]);
+    expect(arcs()[0]![0]).toBeCloseTo(1000 * k(), 10);
+    expect(arcs()[0]![1]).toBeCloseTo(600 * k(), 10);
     setView(computeLayout({ cssW: 2560, cssH: 1440, dpr: 2, hiDpi: true }));
     // No setMobs in between: the minimap kept the mobs it was given.
     paint();
-    expect(arcs()[1]!.slice(0, 2)).toEqual([Math.round(1000 * k()), Math.round(600 * k())]);
+    expect(arcs()[1]![0]).toBeCloseTo(1000 * k(), 10);
+    expect(arcs()[1]![1]).toBeCloseTo(600 * k(), 10);
   });
 
   it("scales its dots with its size", () => {
@@ -541,11 +543,11 @@ describe("Minimap pointer controls", () => {
   it("repaints faster while a button is held, so the view rectangle keeps up with the cursor", () => {
     const { map, canvas, paint, paints, now } = place();
     paint();
-    map.setMobs([mob({ x: 10 })]);
-    map.update(now() + 40, undefined, true);
+    const camera = { x: WORLD_W / 2 + 200, y: (WORLD_H / 2) * Y_SCALE };
+    map.update(now() + 40, undefined, true, camera);
     expect(paints()).toBe(1); // idle: held to ~10 Hz
     canvas.dispatchEvent(down(0, 0.5, 0.5));
-    map.update(now() + 40, undefined, true);
+    map.update(now() + 40, undefined, true, camera);
     expect(paints()).toBe(2);
   });
 

@@ -23,10 +23,9 @@ export interface PublicCamp { state: number; alive: number; respawnAt: number; w
 
 /** Overlay pixels the dot radii and line widths were drawn for; they scale with the minimap's size. */
 const REF_SIZE = 150;
-/** Repaint cadence ceiling (ms): ~10 Hz is plenty for a map nobody drives. */
+/** Static overlays may repaint at 10 Hz; live actors get a smoother 30 Hz cadence. */
 const REPAINT_MS = 100;
-/** While the player is peeking or steering the view rectangle should follow the cursor, so it repaints faster. */
-const REPAINT_ACTIVE_MS = 33;
+const REPAINT_MOVING_MS = 33;
 /** A right-button hold re-sends its target at most this often (RaidScene's MOVE_REPEAT_MS). */
 export const MOVE_REPEAT_MS = 100;
 
@@ -46,6 +45,13 @@ const PULSE_STEP_MS = 160;
 const MAX_CHESTS = 48;
 /** The route is drawn faint: the minimap is for steering, the route is a reminder. */
 const ROUTE_ALPHA = 0.85;
+const HASH_BYTES = new DataView(new ArrayBuffer(8));
+
+function hashFloat(hash: number, value: number): number {
+  HASH_BYTES.setFloat64(0, value);
+  hash = (Math.imul(hash, 31) + HASH_BYTES.getUint32(0)) | 0;
+  return (Math.imul(hash, 31) + HASH_BYTES.getUint32(4)) | 0;
+}
 
 /** MouseEvent.buttons bits: left, right. */
 const BUTTON_LEFT = 1;
@@ -107,8 +113,8 @@ export class Minimap {
    */
   private readonly last = new Float64Array(INPUTS).fill(NaN);
   private readonly now = new Float64Array(INPUTS);
-  /** Living regional mobs as x, y (backing pixels) and a code: (faction index + 1) * 2, plus 1 for an elite. */
-  private readonly dots = new Float32Array(MAX_DOTS * 3);
+  /** Living regional mobs as world x, y and a code: (faction index + 1) * 2, plus 1 for an elite. */
+  private readonly dots = new Float64Array(MAX_DOTS * 3);
   private dotCount = 0;
   private dotsHash = 0;
   private hasMap = false;
@@ -186,25 +192,24 @@ export class Minimap {
 
   /**
    * Takes the living regional mobs (training dummies and the dead are left off) as small dots in their faction's colour,
-   * an elite a bigger one with a gold rim; takes effect at the next update(). Cheap to call every frame: it only hashes
-   * the quantised positions, and the repaint waits for a change.
+   * an elite a bigger one with a gold rim; takes effect at the next update(). Actor positions stay unquantised so the dots
+   * track their world coordinates between minimap pixels.
    */
   setMobs(mobs: { forEach(cb: (m: MinimapMob) => void): void }): void {
     this.mobsSrc = mobs;
-    const k = this.k;
     const dots = this.dots;
     let n = 0;
     let hash = 17;
     mobs.forEach((m) => {
-      if (n >= MAX_DOTS || m.status !== "alive" || (m.kind !== "mob" && m.kind !== "elite")) return;
-      const px = Math.round(m.x * k);
-      const py = Math.round(m.y * k);
+      if (n >= MAX_DOTS || !Number.isFinite(m.x + m.y) || m.status !== "alive" || (m.kind !== "mob" && m.kind !== "elite")) return;
+      const px = m.x;
+      const py = m.y;
       const code = (isFactionId(m.faction) ? FACTION_IDS.indexOf(m.faction) + 1 : 0) * 2 + (m.kind === "elite" ? 1 : 0);
       dots[n * 3] = px;
       dots[n * 3 + 1] = py;
       dots[n * 3 + 2] = code;
-      hash = (Math.imul(hash, 31) + px) | 0;
-      hash = (Math.imul(hash, 31) + py) | 0;
+      hash = hashFloat(hash, px);
+      hash = hashFloat(hash, py);
       hash = (Math.imul(hash, 31) + code) | 0;
       n++;
     });
@@ -217,8 +222,8 @@ export class Minimap {
     this.enemies = enemies.filter((p) => Number.isFinite(p.x + p.y)).slice(0, 32).map((p) => ({ x: p.x, y: p.y }));
     let hash = 37;
     for (const p of this.enemies) {
-      hash = (Math.imul(hash, 31) + Math.round(p.x * this.k)) | 0;
-      hash = (Math.imul(hash, 31) + Math.round(p.y * this.k)) | 0;
+      hash = hashFloat(hash, p.x);
+      hash = hashFloat(hash, p.y);
     }
     this.enemiesHash = this.enemies.length ? hash : 0;
   }
@@ -342,18 +347,19 @@ export class Minimap {
   }
 
   /**
-   * Call every frame; it paints at most every REPAINT_MS and only if something it shows moved.
+   * Call every frame; live actor movement paints at up to 30 Hz, otherwise it uses the slower static-overlay cadence.
    * `alive` only picks the dot's colour (a downed player's last position stays on the map). `camera` is the centre of
    * what the camera shows, in projected (drawn) coordinates; given, a thin rectangle marks the view.
    */
   update(now: number, player: MinimapPlayer | undefined, alive: boolean, camera?: Point): void {
-    const gap = this.peeking || this.steering ? REPAINT_ACTIVE_MS : REPAINT_MS;
+    const hasLiveActors = player !== undefined || this.dotCount > 0 || this.enemies.length > 0;
+    const gap = this.peeking || this.steering || hasLiveActors ? REPAINT_MOVING_MS : REPAINT_MS;
     if (!this.hasMap || !this.ctx || now - this.lastPaint < gap) return;
     const k = this.k;
     const cur = this.now;
-    // Quantised to backing pixels: a sub-pixel step would repaint an identical image.
-    cur[0] = player ? Math.round(player.x * k) : NaN;
-    cur[1] = player ? Math.round(player.y * k) : NaN;
+    // Preserve sub-pixel movement in the signature; Canvas handles rasterization at the backing-store scale.
+    cur[0] = player ? player.x * k : NaN;
+    cur[1] = player ? player.y * k : NaN;
     cur[2] = alive ? 1 : 0;
     cur[3] = this.gatesLocked ? 1 : 0;
     cur[4] = this.dotsHash;
@@ -474,7 +480,11 @@ export class Minimap {
     }
 
     const mobs: MapContact[] = [];
-    for (let i = 0; i < this.dotCount; i++) mobs.push({ x: this.dots[i * 3]! / px, y: this.dots[i * 3 + 1]! / px, code: this.dots[i * 3 + 2]! });
+    for (let i = 0; i < this.dotCount; i++) mobs.push({
+      x: this.dots[i * 3]! * k / px,
+      y: this.dots[i * 3 + 1]! * k / px,
+      code: this.dots[i * 3 + 2]!,
+    });
     const marks = minimapMarks({ player, alive, mobs, enemies: this.enemies, chests: this.chests, respawns: this.respawns,
       camps: this.map?.camps ?? [], campStates: this.campStates, quests: this.quests,
       stops: this.showRoute ? this.route?.stops ?? [] : [], next: this.route?.next ?? -1 });

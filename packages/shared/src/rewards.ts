@@ -1,5 +1,5 @@
 // A camp's shared chest: three distinct, eligible interactive augments when available. Normal mob kills grant their own fixed,
-// capped stat progression (mobStats.ts). Pure: the sim rolls options with `world.rewardRandom` and puts them in synced state; the
+// uncapped stat progression (mobStats.ts). Pure: the sim rolls options with `world.rewardRandom` and puts them in synced state; the
 // client reads the same helpers to word the cards. Tier odds remain normal 50/45/5 and elite 10/60/30.
 import { CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
 import {

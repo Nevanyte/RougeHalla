@@ -42,6 +42,45 @@ function rig() {
 }
 
 describe("RaidScene vision integration", () => {
+  it("passes the local position and only currently visible living enemies to the held full map", () => {
+    const {scene,foe,frame} = rig();
+    scene.planning = { update: vi.fn(), hide: vi.fn() };
+    scene.mapHold = { held: true };
+    scene.updatePlanning = (RaidScene.prototype as any).updatePlanning.bind(scene);
+    frame(1000);
+    expect(scene.planning.update.mock.lastCall[0]).toMatchObject({
+      mode: "map", local: { x: 400, y: 400, alive: true },
+      enemies: [{ id: "foe", x: 1100, y: 400 }],
+    });
+    foe.effects = EFFECT_HIDDEN;
+    frame(1100);
+    expect(scene.planning.update.mock.lastCall[0].enemies).toEqual([]);
+    foe.effects = 0;
+    foe.status = "dead";
+    frame(1200);
+    expect(scene.planning.update.mock.lastCall[0].enemies).toEqual([]);
+    scene.mapHold.held = false;
+    frame(1300);
+    expect(scene.planning.hide).toHaveBeenCalled();
+  });
+
+  it("feeds minimap mobs their interpolated on-screen positions rather than raw network positions", () => {
+    const {scene,mob,frame} = rig();
+    const original = scene.sampleDrawn;
+    scene.sampleDrawn = function(id:string,time:number,p:any) {
+      original.call(this,id,time,p);
+      if (id === "mob") {
+        this.tmp.x = p.x - 37.25;
+        this.tmp.y = p.y + 4.5;
+        this.rendered.set(id,{x:this.tmp.x,y:this.tmp.y});
+      }
+    };
+    frame(1000);
+    const marks: any[] = [];
+    scene.minimap.setMobs.mock.lastCall[0].forEach((m:any,id:string)=>marks.push({id,...m}));
+    expect(marks).toContainEqual(expect.objectContaining({id:"mob",x:mob.x-37.25,y:mob.y+4.5}));
+  });
+
   it("keeps live enemies during the trail and destroys views, hover positions, and minimap dots when it expires", () => {
     const {scene,me,frame} = rig(); frame(1000);
     const enemyView = scene.views.get("foe"), mobView = scene.mobViews.get("mob");

@@ -63,6 +63,14 @@ describe("BuildHud", () => {
     expect(part(cells()[4]!, 2)).toContain("normal-mob kills");
   });
 
+  it("keeps displaying earned lifesteal beyond the old stack and lifesteal limits", () => {
+    const { strip, values } = setup();
+    strip.update(me({ mobStats: new Map([["rotMonk", 1000]]) as never }), true);
+    expect(values().leech).toBe("+250%");
+    strip.update(me({ mobStats: new Map([["rotMonk", 1001]]) as never }), true);
+    expect(values().leech).toBe("+250.25%");
+  });
+
   it("shows generic normal-mob damage separately from AD and AP", () => {
     const { strip, values, cells, part } = setup();
     strip.update(me({ mobStats: new Map([["emberImp", 1]]) as never }), true);

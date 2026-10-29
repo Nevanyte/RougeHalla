@@ -30,7 +30,7 @@
 //          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing. The weapons of every mob a
 //          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
 //       3. the chainable mobKilled hook (quest objectives).
-//     A credited normal kill grants one fixed, capped mob-type stat stack; elites grant no stat and drop an augment chest.
+//     A credited normal kill grants one fixed, uncapped mob-type stat stack; elites grant no stat and drop an augment chest.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.

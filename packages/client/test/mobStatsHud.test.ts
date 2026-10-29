@@ -17,23 +17,23 @@ describe("MobStatsHud", () => {
     expect(rows.children.filter((n) => n instanceof FakeEl && n.className === "mob-stat-row")).toHaveLength(MOB_STAT_REWARDS.length);
   });
 
-  it("renders 0, 6, and capped 10 accurately, including fractional accumulated totals", () => {
+  it("renders actual uncapped counts and accumulated totals", () => {
     const hud = new MobStatsHud();
     hud.update({ mobStats: new Map([["rotMonk", 0], ["emberImp", 6]]) } as never, true);
     const list = (hud.root.children[1] as unknown as FakeEl).children[1] as unknown as FakeEl;
     const ember = list.children.find((n) => n instanceof FakeEl && n.getAttribute("data-mob-id") === "emberImp") as unknown as FakeEl;
-    expect(ember.getAttribute("aria-label")).toContain("6 of 10 stacks");
-    expect((ember.children[0] as FakeEl).textContent).toBe("Ember Imp 6/10");
+    expect(ember.getAttribute("aria-label")).toContain("6 stacks");
+    expect(ember.getAttribute("aria-label")).not.toMatch(/maximum|cap/i);
+    expect((ember.children[0] as FakeEl).textContent).toBe("Ember Imp ×6");
     expect((ember.children[1] as FakeEl).textContent).toBe("+1% damage per kill");
     expect((ember.children[2] as FakeEl).textContent).toBe("+6% damage");
-    expect((ember.children[3] as FakeEl).children.filter((s) => (s as FakeEl).classes.has("filled"))).toHaveLength(6);
-    hud.update({ mobStats: new Map([["rotMonk", 10], ["emberImp", 10]]) } as never, true);
-    expect(ember.classes.has("capped")).toBe(true);
-    expect((ember.children[0] as FakeEl).textContent).toBe("Ember Imp 10/10 MAX");
-    expect((ember.children[2] as FakeEl).textContent).toBe("+10% damage");
-    expect(((hud.root.children[0] as unknown as FakeEl).children[0] as FakeEl).textContent).toContain("MAX");
+    hud.update({ mobStats: new Map([["rotMonk", 100], ["emberImp", 100]]) } as never, true);
+    expect((ember.children[0] as FakeEl).textContent).toBe("Ember Imp ×100");
+    expect((ember.children[2] as FakeEl).textContent).toBe("+100% damage");
+    expect(((hud.root.children[0] as unknown as FakeEl).children[0] as FakeEl).textContent).toContain("×100");
+    expect(((hud.root.children[0] as unknown as FakeEl).children[0] as FakeEl).textContent).not.toMatch(/MAX|\/10/);
     const rot = list.children.find((n) => n instanceof FakeEl && n.getAttribute("data-mob-id") === "rotMonk") as unknown as FakeEl;
-    expect((rot.children[2] as FakeEl).textContent).toBe("+2.5% lifesteal");
+    expect((rot.children[2] as FakeEl).textContent).toBe("+25% lifesteal");
   });
 
   it("hides progress for a dead or missing player", () => {

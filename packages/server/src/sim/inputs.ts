@@ -1,7 +1,7 @@
 // Validated, per-player input buffering. Message handlers only call `parse*` + `push*`;
 // the sim drains the queue at the start of each fixed step.
 import {
-  isAbilitySlot, isCardId, mobTypeById, mobStatReward, MOB_STAT_CAP, TRAIN_CMDS, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHEST_OPTIONS,
+  isAbilitySlot, isCardId, mobTypeById, mobStatReward, normalizeMobStatCount, TRAIN_CMDS, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHEST_OPTIONS,
   WORLD_H, WORLD_W, wrapAngle, type AbilitySlot, type CardId, type MobTypeId,
   type TrainCmd, type Vec2,
 } from "@raid/shared";
@@ -186,7 +186,8 @@ export function parseTrain(msg: unknown): TrainCommand | null {
       if (!reward) return null;
       const raw = msg.count;
       if (raw !== undefined && (typeof raw !== "number" || !Number.isFinite(raw))) return null;
-      const count = raw === undefined ? 1 : Math.min(MOB_STAT_CAP, Math.max(0, Math.floor(raw)));
+      const count = raw === undefined ? 1 : normalizeMobStatCount(raw);
+      if (raw !== undefined && raw >= 0 && count === 0) return null;
       return { kind: "train", cmd: "stat", id: reward.id, count: count + 0 };
     }
     case "card": {

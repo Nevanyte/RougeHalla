@@ -16,7 +16,7 @@ import {
   PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE,
 } from "./constants";
 import { cardDef, type CardId, type CardTier } from "./cards";
-import { MOB_STAT_CAP, MOB_STAT_REWARDS, mobStatText } from "./mobStats";
+import { MOB_STAT_REWARDS, mobStatText, normalizeMobStatCount } from "./mobStats";
 import type { MobTypeId } from "./mobs";
 import type { FactionId } from "./factions";
 import { circleClear } from "./geometry";
@@ -240,15 +240,15 @@ export function questRewardStats(def: Pick<QuestDef, "reward" | "farZone">): { i
   const base = cardDef(def.reward.card)?.base;
   const zone = MOB_STAT_REWARDS.filter((reward) => reward.zone === def.farZone);
   const reward = zone.find((row) => row.effect.stat === (base ? desired[base] : "")) ?? zone[0]!;
-  const copies = Number.isFinite(def.reward.copies) ? Math.floor(def.reward.copies) : 0;
-  return { id: reward.id, stacks: Math.max(0, Math.min(MOB_STAT_CAP, copies)) };
+  const copies = normalizeMobStatCount(def.reward.copies);
+  return { id: reward.id, stacks: copies };
 }
 
-/** Fixed reward wording for the quest log and planning screen. Actual progress stops at the shared ten-stack cap. */
+/** Fixed reward wording for the quest log and planning screen; all advertised stacks are granted. */
 export function questRewardText(def: QuestDef): string {
   const reward = questRewardStats(def);
   const name = MOB_STAT_REWARDS.find((row) => row.id === reward.id)!.name;
-  return `Up to ${reward.stacks} ${name} stacks (${mobStatText(reward.id, reward.stacks)}; shared 10-stack cap) and ${def.reward.gv} GV`;
+  return `${reward.stacks} ${name} stacks (${mobStatText(reward.id, reward.stacks)}) and ${def.reward.gv} GV`;
 }
 
 /**

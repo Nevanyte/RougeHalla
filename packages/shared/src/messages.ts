@@ -109,7 +109,7 @@ export interface ClientMessages {
 }
 
 /**
- * Practice commands: `stat` sets a normal type's progress to a whole count in 0..10 (default 1); `card` sets an
+ * Practice commands: `stat` sets a normal type's progress to a non-negative safe-integer count (default 1); `card` sets an
  * interactive augment to owned or removed, with unique cards held once. `camp` spawns practice mobs; those kills pay
  * no progression. `chest` offers chosen live interactive augments or rolls up to three when options are absent.
  * `clear` removes cards, mob stat stacks, practice mobs and reward chests. All commands are training-only.

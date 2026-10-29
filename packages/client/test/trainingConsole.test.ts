@@ -3,11 +3,11 @@
 // test/uiDom.ts: a button is clicked with `fire`, a select is "chosen" by assigning its value and firing its change.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CARDS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MOB_STAT_CHOICES, cardLive, isInteractiveAugment, type TrainMessage,
+  CARDS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, cardLive, isInteractiveAugment, type TrainMessage,
 } from "@raid/shared";
 import { TrainingBar } from "../src/ui/trainingBar";
 import {
-  cardGroups, cardHint, cardLabel, mobTypeGroups, mobTypeHint, mobTypeLabel, TrainingConsole, trainMessages, zoneLabel,
+  cardGroups, cardHint, cardLabel, mobTypeGroups, mobTypeHint, mobTypeLabel, trainMobStatCount, TrainingConsole, trainMessages, zoneLabel,
 } from "../src/ui/trainingConsole";
 import { installUiDom, type UiEl } from "./uiDom";
 
@@ -56,7 +56,7 @@ describe("what the console offers", () => {
     expect(mobTypeLabel(type("wyrmling"))).toBe("Wyrmling (elite, grunt, axe)");
     expect(mobTypeLabel(type("flameCaller"))).toBe("Flame Caller (caster, wand)");
     expect(mobTypeLabel(type("gaoler"))).toBe("Gaoler (elite, brute, shield)");
-    expect(mobTypeHint(type("emberImp"))).toContain("Each kill grants +1% damage per kill; capped at 10 per type.");
+    expect(mobTypeHint(type("emberImp"))).toContain("Each kill grants +1% damage per kill.");
     expect(mobTypeHint(type("bailiff"))).toContain("Carries a sword, which a kill can drop.");
     expect(mobTypeHint(type("archon"))).toContain("an elite of the Demon Blood zone");
     for (const t of MOB_TYPES) {
@@ -100,9 +100,20 @@ describe("what the console offers", () => {
     expect(Math.max(...TRAIN_CARD_COUNT_CHOICES)).toBe(TRAIN_MAX_CARD_COUNT);
   });
 
-  it("offers 1, 5, 10, or remove for fixed mob stat stacks", () => {
+  it("offers a free nonnegative whole-number mob stat count", () => {
     const { root } = mount();
-    expect([...root.byClass("train-stat-count")!.walk()].filter((n) => n.tag === "option").map(valueOf)).toEqual([...TRAIN_MOB_STAT_CHOICES.map(String), "0"]);
+    const input = root.byClass("train-stat-count")! as unknown as { tag: string; type: string; min: string; max?: string; step: string };
+    expect(input.tag).toBe("input");
+    expect(input.type).toBe("number");
+    expect(input.min).toBe("0");
+    expect(input.step).toBe("1");
+    expect(input.max).toBeUndefined();
+  });
+
+  it("accepts unbounded safe integer stack counts and ignores invalid numbers", () => {
+    expect(trainMobStatCount("1000000")).toBe(1_000_000);
+    expect(trainMobStatCount("0")).toBe(0);
+    for (const value of ["", "-1", "1.5", "Infinity", "9007199254740992"]) expect(trainMobStatCount(value)).toBeNull();
   });
 });
 
@@ -199,14 +210,16 @@ describe("the messages the buttons send", () => {
     expect(sent).toEqual([{ cmd: "camp", id: "rotMonk" }, { cmd: "camp", id: "wyrmling" }]);
   });
 
-  it("sets the selected normal type's fixed mob stat count", () => {
+  it("sets the selected normal type's mob stat count without a display cap", () => {
     const { root, sent } = mount();
     choose(root.byClass("train-mob")!, "rotMonk");
     choose(root.byClass("train-stat-count")!, "5");
     mouseClick(btn(root, "stat"));
+    choose(root.byClass("train-stat-count")!, "1000000");
+    mouseClick(btn(root, "stat"));
     choose(root.byClass("train-stat-count")!, "0");
     mouseClick(btn(root, "stat"));
-    expect(sent).toEqual([{ cmd: "stat", id: "rotMonk", count: 5 }, { cmd: "stat", id: "rotMonk", count: 0 }]);
+    expect(sent).toEqual([{ cmd: "stat", id: "rotMonk", count: 5 }, { cmd: "stat", id: "rotMonk", count: 1_000_000 }, { cmd: "stat", id: "rotMonk", count: 0 }]);
   });
 
   it("the chest buttons send the picked card as the only option, or nothing for the server's rolled three; Clear all sends clear", () => {
@@ -233,20 +246,20 @@ describe("the messages the buttons send", () => {
     }
     for (const id of MOB_TYPES.filter((t) => !t.elite).map((t) => t.id)) {
       choose(root.byClass("train-mob")!, id);
-      for (const n of [...TRAIN_MOB_STAT_CHOICES, 0]) { choose(root.byClass("train-stat-count")!, String(n)); mouseClick(btn(root, "stat")); }
+      for (const n of [1, 5, 10, 100, 1000, 0]) { choose(root.byClass("train-stat-count")!, String(n)); mouseClick(btn(root, "stat")); }
     }
     const mobs = new Set(MOB_TYPES.map((t) => t.id));
     const known = new Map(CARDS.map((c) => [c.id as string, c]));
     for (const m of sent) {
       if (m.cmd === "camp") expect(mobs.has(m.id as never)).toBe(true);
-      else if (m.cmd === "stat") { expect(MOB_TYPES.find((t) => t.id === m.id)?.elite).toBe(false); expect(m.count).toBeGreaterThanOrEqual(0); expect(m.count).toBeLessThanOrEqual(10); }
+      else if (m.cmd === "stat") { expect(MOB_TYPES.find((t) => t.id === m.id)?.elite).toBe(false); expect(m.count).toBeGreaterThanOrEqual(0); expect(Number.isSafeInteger(m.count)).toBe(true); }
       else if (m.cmd === "card") {
         expect(known.has(m.id) && isInteractiveAugment(m.id)).toBe(true);
         expect(m.count).toBeGreaterThanOrEqual(0);
         expect(m.count).toBeLessThanOrEqual(known.get(m.id)!.unique ? 1 : TRAIN_MAX_CARD_COUNT);
       } else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(isInteractiveAugment(m.options![0]!)).toBe(true); }
     }
-    expect(sent.length).toBe(MOB_TYPES.length + MOB_TYPES.filter((t) => !t.elite).length * (TRAIN_MOB_STAT_CHOICES.length + 1) + cards.length * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
+    expect(sent.length).toBe(MOB_TYPES.length + MOB_TYPES.filter((t) => !t.elite).length * 6 + cards.length * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
   });
 
   it("the message builders are the one place that makes the shapes", () => {
