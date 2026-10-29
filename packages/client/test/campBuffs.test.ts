@@ -13,22 +13,23 @@ const MOBS = [
 ];
 
 describe("CampBuffs", () => {
-  it("shows one cached group marker with actual normal and living-elite rewards", () => {
+  it("shows one cached icon-only group marker with actual normal and living-elite rewards", () => {
     const { scene, ofKind } = fakeScene();
     const view = new CampBuffs(scene);
     view.update(ONE_CAMP, RUNTIME, true, () => true, MOBS as never);
     const root = ofKind("container")[0]!;
     expect(ofKind("container")).toHaveLength(1);
     expect(ofKind("graphics")).toHaveLength(1);
-    expect(ofKind("text")).toHaveLength(1);
-    expect(ofKind("text")[0]!.args[2]).toContain("Ember Imp: +1% damage per kill");
-    expect(ofKind("text")[0]!.args[2]).toContain("Wyrmling: drops an Augment chest");
-    expect(root.calls.filter(([name]) => name === "setPosition")[0]?.[1]).toEqual([120, 120 * Y_SCALE - 47 - 44]);
+    expect(ofKind("text")).toHaveLength(0);
+    expect(root.state.name).toContain("Ember Imp: +1% damage per kill");
+    expect(root.state.name).toContain("Wyrmling: drops an Augment chest");
+    expect(root.calls.filter(([name]) => name === "setPosition")[0]?.[1]).toEqual([120, 140 * Y_SCALE - 40]);
     const count = [ofKind("container").length, ofKind("graphics").length, ofKind("text").length];
     view.update(ONE_CAMP, RUNTIME, true, () => true, MOBS as never);
     expect([ofKind("container").length, ofKind("graphics").length, ofKind("text").length]).toEqual(count);
     view.update(ONE_CAMP, RUNTIME, true, () => true, [MOBS[0]!, { ...MOBS[1]!, status: "dead" }] as never);
-    expect(ofKind("text").at(-1)!.args[2]).not.toContain("Wyrmling");
+    expect(root.state.name).not.toContain("Wyrmling");
+    expect(ofKind("text")).toHaveLength(0);
     view.destroy();
   });
 

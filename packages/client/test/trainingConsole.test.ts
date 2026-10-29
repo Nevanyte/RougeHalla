@@ -130,7 +130,8 @@ describe("the pickers", () => {
     const options = [...select.walk()].filter((n) => n.tag === "option");
     expect(options.map(valueOf)).toEqual(CARDS.filter(isInteractiveAugment).map((c) => c.id));
     expect(options.every((o) => o.text.length > 0)).toBe(true);
-    expect((options[0] as unknown as { title: string }).title).toBe(cardHint(valueOf(options[0]!), 1));
+    expect((options[0] as unknown as { title: string }).title).toBe("");
+    expect(options[0]!.getAttribute("aria-description")).toBe(cardHint(valueOf(options[0]!), 1));
     expect(valueOf(select)).toBe(CARDS.find(isInteractiveAugment)!.id);
     expect(select.getAttribute("aria-label")).toBe("Interactive augment");
   });
@@ -274,9 +275,11 @@ describe("the hint line", () => {
     // The selected augment's hint follows the count and selection.
     choose(root.byClass("train-card")!, "bloodthirst");
     expect(line.text).toBe(cardHint("bloodthirst", 1));
-    // The selects repeat the line as their tooltip.
-    expect((root.byClass("train-card") as unknown as { title: string }).title).toBe(line.text);
-    expect((root.byClass("train-count") as unknown as { title: string }).title).toBe(line.text);
+    // The line stays visible and is available as an accessible description without browser-native title bubbles.
+    expect((root.byClass("train-card") as unknown as { title: string }).title).toBe("");
+    expect((root.byClass("train-count") as unknown as { title: string }).title).toBe("");
+    expect(root.byClass("train-card")!.getAttribute("aria-description")).toBe(line.text);
+    expect(root.byClass("train-count")!.getAttribute("aria-description")).toBe(line.text);
   });
 });
 

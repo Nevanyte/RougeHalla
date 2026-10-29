@@ -485,7 +485,10 @@ export class ChestPanel {
     card.root.setAttribute("aria-disabled", String(!data.pickable));
     const label = [`${index + 1}. ${name}`, badge && `Tier ${badge}`, kind, view?.text, stateLine].filter(Boolean).join(". ");
     card.root.setAttribute("aria-label", label);
-    card.root.title = cardTitleAttr(view, stateLine);
+    const description = cardTitleAttr(view, stateLine);
+    card.root.setAttribute("aria-description", description);
+    // Augment details are already shown in the card and tag gloss strip. Avoid a second browser-native title bubble on hover.
+    card.root.title = view?.kind === "augment" ? "" : description;
   }
 
   /**

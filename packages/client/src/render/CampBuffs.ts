@@ -8,8 +8,6 @@ import { projX, projY } from "./projection";
 type CampRuntime = { type?: string; elite?: string; state?: number };
 type MobPosition = Pick<MobState, "camp" | "kind" | "status" | "type" | "x" | "y">;
 interface Badge { root: Phaser.GameObjects.Container; signature: string }
-const LABEL_WIDTH = 164;
-
 /** One cached marker per living, visible camp group; normal mob stats and elite augment drops are shown together. */
 export class CampBuffs {
   private readonly badges = new Map<number, Badge>();
@@ -58,8 +56,8 @@ export class CampBuffs {
       badge.root.setVisible(true);
       const center = live.reduce((sum, mob) => ({ x: sum.x + mob.x / live.length, y: sum.y + mob.y / live.length }), { x: 0, y: 0 });
       const highestY = Math.min(...live.map(mob => mob.y));
-      // Leave the mob label line clear: the full reward text sits above the highest visible live mob.
-      badge.root.setPosition(projX(center.x), projY(highestY) - 47 - 44);
+      // Keep the icon close to the group's center instead of floating far above its highest member.
+      badge.root.setPosition(projX(center.x), projY(center.y) - 40);
       badge.root.setDepth(highestY - 1);
       badge.root.setName(wording.replaceAll("\n", "; "));
     }
@@ -81,12 +79,9 @@ export class CampBuffs {
       drawCombatIcon(back, icon, (i - (rows.length - 1) / 2) * 22, 0, 18, color);
     });
     back.setName(rows.map(r => r.text).join("; "));
-    const label = this.scene.add.text(0, -15, rows.map(r => r.text).join("\n"), {
-      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: "#f5f7fa", align: "center",
-      wordWrap: { width: LABEL_WIDTH, useAdvancedWrap: true }, backgroundColor: "#101820eF", padding: { x: 5, y: 3 },
-    }).setOrigin(0.5, 1);
-    label.setName(rows.map(r => r.text).join("; "));
-    root.add([back, label]);
+    // Text remains available as the marker's descriptive name, but the in-world badge itself is icon-only.
+    root.setName(rows.map(r => r.text).join("; "));
+    root.add(back);
     badge.signature = signature;
   }
 }
