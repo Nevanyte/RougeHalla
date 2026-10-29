@@ -1,0 +1,33 @@
+.weapons-panel { --weapon-color: var(--accent); color: var(--text); font-size: 12px; line-height: 1.55; }
+.weapon-guide-intro h2 { margin: 0 0 10px; font-size: 23px; line-height: 1.2; }
+.weapon-guide-intro p { margin: 7px 0; color: var(--text-soft); }
+.weapon-guide-navigation { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 18px 0; }
+.weapon-guide-option { font: inherit; text-align: left; min-height: 58px; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--weapon-color); border-radius: 4px; background: var(--card); color: var(--text-soft); cursor: pointer; }
+.weapon-guide-option strong, .weapon-guide-option small { display: block; }
+.weapon-guide-option strong { color: var(--weapon-color); font-size: 14px; }
+.weapon-guide-option small { font-size: 10px; }
+.weapon-guide-option:hover, .weapon-guide-option[aria-selected="true"] { background: var(--field); border-color: var(--weapon-color); color: var(--text); }
+.weapon-guide-header h3 { color: var(--weapon-color); font-size: 25px; margin: 0; }
+.weapon-guide-header p { margin: 2px 0 12px; color: var(--muted); }
+.weapon-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.weapon-guide-card { padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 5px; }
+.weapons-panel h4 { font-size: 12px; margin: 0 0 7px; }
+.weapon-guide-build { color: var(--weapon-color); }
+.weapons-panel p { overflow-wrap: anywhere; }
+.weapon-guide-gain { margin: 7px 0; }
+.weapon-guide-note { color: var(--muted); font-size: 11px; }
+.weapon-guide-favored { color: var(--ok-text); }
+.weapon-guide-unfavored { color: #f0b99d; }
+.weapon-guide-mechanics { margin: 16px 0; }
+.weapon-guide-mechanics p { margin: 6px 0; }
+.weapon-guide-mechanics ul { padding-left: 18px; color: var(--text-soft); }
+.weapon-guide-mechanics li + li { margin-top: 6px; }
+.weapon-guide-sample { padding: 12px; background: var(--sunken); border: 1px solid var(--line); border-radius: 5px; }
+.weapon-guide-sample label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 600; }
+.weapon-guide-champion { font: inherit; background: var(--card); color: var(--text); border: 1px solid var(--line-hi); border-radius: 4px; padding: 4px 7px; min-height: 32px; }
+.weapon-guide-example p { margin: 7px 0; }
+.weapon-guide-after { color: var(--weapon-color); }
+.weapon-guide-formula { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; color: var(--text-soft); }
+.weapon-guide-formula summary { cursor: pointer; color: var(--accent); padding: 4px 0; }
+html[data-ui-narrow] .weapon-guide-navigation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-ui-narrow] .weapon-guide-grid { grid-template-columns: minmax(0, 1fr); }

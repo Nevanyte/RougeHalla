@@ -30,7 +30,7 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
   },
   dot: {
     term: "Damage over time",
-    text: "Damage that ticks while you stay engaged (burn, disease, bleeds). AP adds to every one you run.",
+    text: "Damage applied over time (burn, disease, bleeds). Each source has its own scaling; AP does not automatically increase every damage-over-time effect.",
   },
   onHit: {
     term: "On-hit",
@@ -78,11 +78,11 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
 export const STAT_GLOSSARY: Readonly<Record<"ad" | "ap", GlossaryEntry>> = {
   ad: {
     term: "AD",
-    text: "Attack damage: adds physical damage to your weapon hits. Some normal mob kills and quest rewards raise it.",
+    text: "Attack damage: adds physical damage to weapon hits that list AD scaling. It does not set the base attack's damage type or automatically increase champion abilities. Some normal mob kills and quest rewards raise it.",
   },
   ap: {
     term: "AP",
-    text: "Ability power: adds magic damage to your hits (most on a wand) and to every damage over time you run. Some normal mob kills and quest rewards raise it.",
+    text: "Ability power: adds magic damage where AP scaling is listed, including wand, shield and fists hits, burn and disease. It does not automatically scale Wishes, slows or true-damage marks. Some normal mob kills and quest rewards raise it.",
   },
 };
 
@@ -130,15 +130,15 @@ export interface WeaponTagRow {
 }
 
 export const WEAPON_TAGS: readonly WeaponTagRow[] = [
-  { weapon: "sword", tags: ["physical", "onHit"], note: `Staggers its target. Its on-hit effects land ${WEAPONS.sword.onHitPower}x as hard.` },
+  { weapon: "sword", tags: ["physical", "onHit"], note: `Unblocked hits stagger windups and casts; bow draws resist stagger. Its on-hit effects land ${WEAPONS.sword.onHitPower}x as hard. The champion sets the base attack's damage type; AD adds physical damage.` },
   {
     weapon: "axe", tags: ["physical", "onHit"],
-    note: `Heavy swings that root their wielder for a moment. Each hit shreds ${AXE_SHRED_ARMOR} armor for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}.`,
+    note: `Move freely after the swing lands. Each hit shreds ${AXE_SHRED_ARMOR} armor for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}. AD and bonus HP add physical damage; base damage type comes from the champion.`,
   },
-  { weapon: "bow", tags: ["physical"], note: "Arrows fly straight and can be dodged. Its draw never shortens with attack speed, so speed buys it little." },
+  { weapon: "bow", tags: ["physical"], note: "Unit-targeted arrows follow their target; directional shots fly straight. Player draw time shortens with attack speed; move freely after launch. AD adds physical damage; base damage type comes from the champion." },
   {
     weapon: "wand", tags: ["magic", "area"],
-    note: `Balls can delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% of their damage onto other enemies within ${WAND_SPLASH_RADIUS} u; most of its damage scales with AP. Its windup never shortens with attack speed.`,
+    note: `Balls delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% damage onto other enemies within ${WAND_SPLASH_RADIUS} u. AP adds magic damage and AD adds a smaller physical part; base damage type comes from the champion. Player windup shortens with attack speed.`,
   },
   { weapon: "shield", tags: ["block", "returned"], note: "Bashes, blocks in front, ripostes and reflects arrows." },
   { weapon: "fists", tags: ["onHit"], note: `The fastest hands; an empty weapon slot fights with them. Their on-hit effects land ${WEAPONS.fists.onHitPower}x as hard.` },

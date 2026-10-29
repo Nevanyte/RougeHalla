@@ -57,12 +57,16 @@ describe("the strip's cells", () => {
     expect(by("ad").tip).toContain("+24.5 from your cards");
   });
 
-  it("explains how the held weapon uses AD and AP, and that AP also feeds every damage over time", () => {
+  it("explains weapon scaling and limits the base-passive AP rider to burn and disease", () => {
     expect(stats({}, {}, "plague", "sword").by("ad").tip).toContain("Your Sword turns each point into 1 damage a second");
-    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1 damage a second");
-    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("damage over time gains 0.6 a second per point");
+    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1 magic damage a second at base attack speed");
+    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("burn or disease also gains 0.6 magic damage a second per point");
     expect(stats({}, {}, "plague", "sword").by("ap").tip).toContain("gets nothing from it directly");
-    expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("damage over time");
+    expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("burn or disease also gains");
+    for (const faction of ["sentenced", "frost", "holy"]) {
+      expect(stats({}, {}, faction, "wand").by("ap").tip).toContain("base passive and Wish have no direct AP scaling");
+      expect(stats({}, {}, faction, "wand").by("ap").tip).not.toContain("also gains 0.6");
+    }
   });
 
   it("shows armor and magic resist as totals with the base and the cards apart, and what they cut", () => {

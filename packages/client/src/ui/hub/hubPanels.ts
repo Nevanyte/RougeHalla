@@ -11,8 +11,9 @@ import { LeaderboardPanel } from "./leaderboardPanel";
 import { ShopPanel } from "./shopPanel";
 import { TitlesPanel } from "./titlesPanel";
 import { WardrobePanel } from "./wardrobePanel";
+import { WeaponsPanel } from "./weaponsPanel";
 
-export type HubTabId = "champions" | "shop" | "wardrobe" | "titles" | "achievements" | "leaderboard" | "counters";
+export type HubTabId = "champions" | "weapons" | "shop" | "wardrobe" | "titles" | "achievements" | "leaderboard" | "counters";
 export interface HubPanelContext { shiftKey?: boolean }
 
 /** One tab's contents. Panels build their DOM once and `render` only updates it, so focus and scroll survive a purchase. */
@@ -80,7 +81,7 @@ export class HubPanels {
   private shown = 0;
 
   constructor(private readonly handlers: HubHandlers) {
-    this.champions = new ChampionsPanel({ onPick: id => handlers.onFactionPick?.(id) });
+    this.champions = new ChampionsPanel({ onPick: id => handlers.onFactionPick?.(id), onWeapons: () => this.show("weapons", true) });
     const actions: HubActions = {
       purchase: (id) => this.act((name) => purchaseCosmetic(name, id)),
       equip: (slot, id) => this.act((name) => equipCosmetic(name, slot, id)),
@@ -107,6 +108,7 @@ export class HubPanels {
     this.backdrop.addEventListener("mousedown", (e) => { if (e.target === this.backdrop) this.close(); });
 
     this.register("champions", this.champions);
+    this.register("weapons", new WeaponsPanel());
     this.register("shop", new ShopPanel(actions));
     this.register("wardrobe", new WardrobePanel(actions));
     this.register("titles", new TitlesPanel(actions));

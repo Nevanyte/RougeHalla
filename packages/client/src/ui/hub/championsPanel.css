@@ -53,9 +53,21 @@
 .champion-weapon-heading > span { color: var(--text-soft); }
 .champion-weapon-row .champion-advanced { margin: 7px 0 0; border: 0; padding-top: 0; }
 .champion-base-note { margin: 13px 0 0; }
+.champion-rules { padding: 10px 12px; margin-bottom: 12px; background: var(--sunken); border: 1px solid var(--line); border-radius: 5px; font-size: 11px; line-height: 1.55; }
+.champion-rules p { margin: 5px 0 0; color: var(--text-soft); }
+.champion-builds { margin: 14px 0 18px; }
+.champion-builds h3 { font-size: 14px; margin: 0 0 5px; }
+.champion-build-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.champion-build-example { padding: 11px; border: 1px solid var(--line); background: var(--card); border-radius: 5px; font-size: 12px; line-height: 1.55; }
+.champion-build-example h4 { margin: 0 0 6px; color: var(--champion-color); font-size: 13px; }
+.champion-build-example p { margin: 7px 0 0; }
+.champion-build-stats { font-size: 11px; }
+.champion-build-caution { color: var(--muted); font-size: 11px; }
+.champion-open-weapons { margin-bottom: 10px; }
 .menu-champion-guide { display: block; width: 100%; text-align: left; color: var(--accent); border-color: var(--accent-line); padding: 9px 11px; margin-bottom: 9px; }
 .faction-scaling { display: block; color: var(--accent); font-size: 11px; line-height: 1.5; margin-top: 4px; }
 html[data-ui-narrow] .champion-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+html[data-ui-narrow] .champion-build-grid { grid-template-columns: minmax(0, 1fr); }
 html[data-ui-narrow] .champion-navigation { position: static; flex-direction: row; flex-wrap: wrap; }
 html[data-ui-narrow] .champion-option { width: calc(50% - 3px); }
 html[data-ui-narrow] .champion-guide-intro { flex-direction: column; gap: 8px; }

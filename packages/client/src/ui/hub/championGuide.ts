@@ -150,6 +150,7 @@ export function weaponScalingGuide(id: WeaponId): { name: string; scaling: strin
   const weapon = WEAPONS[id];
   const labels = { ad: "AD", ap: "AP", hp: "bonus max HP", def: "(bonus armor + bonus MR)" };
   const scaling = (Object.entries(weapon.scaling) as Array<[keyof typeof labels, number]>)
+    .sort((a, b) => b[1] - a[1])
     .map(([stat, ratio]) => `${guideNumber(ratio)} × ${labels[stat]}`).join(" + ");
   return {
     name: weapon.name, scaling,

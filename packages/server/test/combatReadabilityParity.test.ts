@@ -8,6 +8,7 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { addPlayer, step } from "../src/sim/step";
 import { packetFor } from "../src/sim/weapons";
 import type { GameMap } from "@raid/shared";
+import { weaponAttackExample } from "../../client/src/ui/hub/weaponGuide";
 
 function arena(): GameMap {
   const w = 20;
@@ -51,6 +52,10 @@ describe("readable weapon damage shares match server packets", () => {
         expect(actual.magic, `${faction}/${weapon} magic`).toBeCloseTo(expected.magic, 12);
         expect(actual.true, `${faction}/${weapon} true`).toBeCloseTo(expected.true, 12);
         expect(actual.phys + actual.magic + actual.true, `${faction}/${weapon} normalized`).toBeCloseTo(1, 12);
+        const guide = weaponAttackExample(faction, weapon, { ad: 80, ap: 105, bonusMaxHp: 180, bonusDefense: 80 }, 1.25);
+        expect(guide.total, `${faction}/${weapon} guide raw hit`).toBeCloseTo(expected.raw, 10);
+        expect(guide.phys, `${faction}/${weapon} guide physical`).toBeCloseTo(expected.raw * expected.phys, 10);
+        expect(guide.magic, `${faction}/${weapon} guide magic`).toBeCloseTo(expected.raw * expected.magic, 10);
       }
     }
   });

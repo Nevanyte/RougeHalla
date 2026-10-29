@@ -100,7 +100,7 @@ export class Menu {
     onProfile: profile => this.showProfile(profile),
     onFactionPick: id => this.picker.select(id),
   });
-  private readonly championGuide = el("button", "btn menu-champion-guide", "Champions · abilities & scaling");
+  private readonly championGuide = el("button", "btn menu-champion-guide", "Champions & weapons · guide");
   private readonly board = el("div", "hub-board");
   private readonly boardList = el("ol", "hub-board-list");
   private readonly picker = new FactionPicker();

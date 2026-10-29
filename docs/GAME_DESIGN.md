@@ -554,6 +554,14 @@ The target is 55-75% pooled and none under 50%: minute 0 reads 51-71 (Axe over W
 
 ---
 
+### 9.7 Player-facing champion and weapon reference
+
+The main menu's **Champions & weapons · guide** opens two public tabs, available without a loaded profile. Champions shows each kit's passive/Wish, scaling boundaries, and two suggested weapon/build pairings with tradeoffs. These are kit-synergy examples, not measured build rankings. The Weapon guide describes all six weapons, derives the intended wins/losses from `WEAPON_BEATS`, and explains the mechanics behind those edges. Fists have no wheel edge. These labels are design intentions, not win-rate promises; the guide adds no combat bonus.
+
+The guide separates **scaling stat** from **damage type**: the base hit uses the champion's physical/magic/true shares, while AD/bonus HP/bonus defense additions are physical and AP additions are magic. Its scaling examples are raw damage **per second at base attack speed**. A champion-selectable worked example uses `pacedFaction`, `attackInterval`, `damagePerHit`, `damageShares` and `scalingDamage`, the same functions as the server packet. It excludes passives, Wishes, crits, augments, defenses and PvP multipliers. Server packet parity tests cover all five champions × six weapons with every scaling input and an attack-speed bonus.
+
+This is a clarity pass: weapon coefficients, champion values and counter mechanics are unchanged. A possible later numerical simplification is to give sword/bow/axe AD scaling, wand AP scaling and shield defense scaling, removing secondary coefficients only after checking progression value and counter matchups. That proposal is not implemented. Keeping mechanical counters (stagger/interception, range, shield facing/reflection, armor shred and splash) would retain weapon identities without a hidden counter multiplier. Making all weapon base damage follow weapon type would be a separate, larger rebalance because current champion defenses are tuned against champion-based damage shares.
+
 ## 10. How factions and weapons combine (class scaling)
 
 ### 10.1 The two loops together
