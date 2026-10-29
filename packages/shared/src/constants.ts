@@ -343,8 +343,8 @@ export const CAST_TELEPORT_GRACE_MS = 300;
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
 
-// The feed curve (GAME_DESIGN 12): the mob reward curve and the catch-up scale a mob's GV and a quest's card tier. A kill gives no stat
-// since the balance pass (BALANCE_CONTRACT 3.6): every point of stat power is a card from a camp's chest or a quest (shared/cards.ts).
+// The feed curve (GAME_DESIGN 12): the mob reward curve and catch-up scale a mob's GV and a quest's card tier. Fixed mob-stat
+// progression is handled independently in mobStats.ts and never scales with feed.
 /**
  * The most lifesteal `lifesteal` effect rows give a fighter, summed over every row (Leech cards, later relics), any
  * faction. Holy's own lifesteal comes on top, and the total never exceeds LIFESTEAL_MAX.

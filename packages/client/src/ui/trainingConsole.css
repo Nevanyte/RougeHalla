@@ -8,7 +8,7 @@
   align-items: flex-start;
   gap: 6px;
 }
-.training-bar select { pointer-events: auto; }
+.training-bar select, .training-bar input { pointer-events: auto; }
 
 .train-panel {
   box-sizing: border-box;

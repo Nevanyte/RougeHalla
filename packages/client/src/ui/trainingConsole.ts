@@ -4,12 +4,12 @@
 // nothing here decides an outcome. DOM only. The TrainingBar builds it for a training room alone, so an arena run never has one.
 //
 // It takes no key of the game's: nothing here listens for a game key, and Escape is the one key it handles (it hands the focus
-// back to the game; the next Escape leaves training as ever). A select the mouse has just changed gives up its focus at once,
+// back to the game; the next Escape leaves training as ever). A control the mouse has just changed gives up its focus at once,
 // because a focused select blocks the game's keys (RaidScene.isTyping) and Phaser's canvas never takes the focus back by itself.
 // The panel is click-through like the rest of the bar: only the buttons and the selects take the pointer.
 import {
   BASE_TITLES, CARDS, FACTIONS, MOB_ROLE_DEFS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT,
-  TRAIN_MAX_CARD_COUNT, TRAIN_MOB_STAT_CHOICES, WEAPONS, cardDef, cardLive, isFactionId, isInteractiveAugment, mobStatReward, tagLabel, tierRoman,
+  TRAIN_MAX_CARD_COUNT, WEAPONS, cardDef, cardLive, isFactionId, isInteractiveAugment, mobStatReward, tagLabel, tierRoman,
   type CardDef, type CardKind, type MobTypeDef, type TrainMessage,
 } from "@raid/shared";
 import { cardKindLabel } from "./chestMath";
@@ -51,7 +51,14 @@ export function mobTypeLabel(t: MobTypeDef): string {
 export function mobTypeHint(t: MobTypeDef): string {
   const weapon = WEAPONS[t.weapon].name.toLowerCase();
   const reward = mobStatReward(t.id);
-  return `${t.name}, ${t.elite ? "an elite of the " : "a mob of the "}${zoneLabel(t.zone)}. ${MOB_ROLE_DEFS[t.role].blurb} Carries ${/^[aeiou]/.test(weapon) ? "an" : "a"} ${weapon}, which a kill can drop.${reward ? ` Each kill grants ${reward.text}; capped at 10 per type.` : " Elite death drops an augment chest and grants no fixed mob stat."}`;
+  return `${t.name}, ${t.elite ? "an elite of the " : "a mob of the "}${zoneLabel(t.zone)}. ${MOB_ROLE_DEFS[t.role].blurb} Carries ${/^[aeiou]/.test(weapon) ? "an" : "a"} ${weapon}, which a kill can drop.${reward ? ` Each kill grants ${reward.text}.` : " Elite death drops an augment chest and grants no fixed mob stat."}`;
+}
+
+/** A training mob-stat count can be set directly to any nonnegative safe integer. */
+export function trainMobStatCount(value: string): number | null {
+  if (!value.trim()) return null;
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
 }
 
 /** A card's option text: its title, "(not live yet)" while the server does not apply it. */
@@ -102,11 +109,11 @@ export class TrainingConsole {
   private readonly mobSelect = el("select", "train-select train-mob");
   private readonly cardSelect = el("select", "train-select train-card");
   private readonly countSelect = el("select", "train-select train-count");
-  private readonly statCountSelect = el("select", "train-select train-stat-count");
+  private readonly statCountInput = el("input", "train-select train-stat-count");
   private readonly cardHintLine = el("div", "train-hint train-hint-card");
   private opened = false;
   /** The selects the pointer went down on since their last change: that change is a mouse choice, and gives the focus back to the game. */
-  private readonly pointerOn = new Set<HTMLSelectElement>();
+  private readonly pointerOn = new Set<HTMLElement>();
 
   constructor(private readonly send: SendTrain, private readonly opts: ConsoleOptions = {}) {
     const panelId = "train-panel";
@@ -125,15 +132,16 @@ export class TrainingConsole {
     this.fillMobTypes();
     this.fillCards();
     this.fillCounts();
-    for (const n of TRAIN_MOB_STAT_CHOICES) this.statCountSelect.append(this.option(String(n), `${n} ${n === 1 ? "kill" : "kills"}`, `Set this mob type to ${n} kill stacks`));
-    this.statCountSelect.append(this.option("0", "Remove", "Remove this mob type's training stacks"));
-    this.statCountSelect.value = "1";
-    this.statCountSelect.setAttribute("aria-label", "Mob stat kill stacks");
+    this.statCountInput.type = "number";
+    this.statCountInput.min = "0";
+    this.statCountInput.step = "1";
+    this.statCountInput.value = "1";
+    this.statCountInput.setAttribute("aria-label", "Mob stat kill stacks; any nonnegative whole number");
 
     this.panel.append(
       this.title("Camps"),
       this.row("Mob type", this.mobSelect, this.button("train-btn-camp", "Spawn camp", "A practice camp: normal kills grant fixed stats; an elite death drops an augment chest. Camp clears do not drop chests", () => this.spawnCamp())),
-      this.row("Kill stacks", this.statCountSelect, this.button("train-btn-stat", "Set stacks", "Set the selected normal mob's fixed stat stacks (0 to 10)", () => this.setStat())),
+      this.row("Kill stacks", this.statCountInput, this.button("train-btn-stat", "Set stacks", "Set any nonnegative whole number of fixed stat stacks for the selected normal mob", () => this.setStat())),
       this.title("Cards and chests"),
       this.row("Card", this.cardSelect),
       this.row("Copies", this.countSelect, this.button("train-btn-card", "Set card", "Set how many copies of this card you hold", () => this.setCard())),
@@ -146,7 +154,10 @@ export class TrainingConsole {
       this.row("", this.button("train-btn-clear", "Clear all", "Remove every card, practice mob and chest", () => this.clear())),
     );
 
-    for (const select of [this.mobSelect, this.cardSelect, this.countSelect, this.statCountSelect]) this.wireSelect(select);
+    for (const select of [this.mobSelect, this.cardSelect, this.countSelect]) this.wireSelect(select);
+    this.statCountInput.addEventListener("pointerdown", () => { this.pointerOn.add(this.statCountInput); });
+    this.statCountInput.addEventListener("keydown", () => { this.pointerOn.delete(this.statCountInput); });
+    this.statCountInput.addEventListener("change", () => { if (this.pointerOn.delete(this.statCountInput)) this.statCountInput.blur?.(); });
     this.panel.addEventListener("keydown", (ev) => this.onKeyDown(ev as KeyboardEvent));
     this.root.append(this.toggle, this.panel);
     this.refresh();
@@ -182,7 +193,10 @@ export class TrainingConsole {
     this.send(trainMessages.card(this.cardSelect.value, this.count()));
   }
 
-  setStat(): void { this.send(trainMessages.stat(this.mobSelect.value, Number(this.statCountSelect.value))); }
+  setStat(): void {
+    const count = trainMobStatCount(this.statCountInput.value);
+    if (count !== null) this.send(trainMessages.stat(this.mobSelect.value, count));
+  }
 
   /** `withCard`: offer only the picked card; else the server rolls three. */
   dropChest(withCard: boolean): void {

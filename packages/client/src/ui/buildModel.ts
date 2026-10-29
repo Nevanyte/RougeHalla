@@ -3,8 +3,8 @@
 // authoritative synced fields; card and mob rewards are folded with the same shared helpers the sim uses.
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
-  AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, LIFESTEAL_MAX, LS_CAP, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
-  cardPower, cardRows, countIn, decodeMirrors, isFactionId, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
+  AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
+  cardPower, cardRows, countIn, decodeMirrors, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
   type BaseStatId, type CardCounts, type StatMirrors, type WeaponId, type WireMirrors,
 } from "@raid/shared";
 
@@ -64,17 +64,18 @@ export function cutPercent(stat: number): number {
   return Math.round((1 - 1 / (1 + Math.max(0, stat) / 100)) * 100);
 }
 
-/** What the strip's lifesteal cell says: the card rows' lifesteal (held to LS_CAP, doubled by Bloodthirst below half hp). */
+/** Card lifesteal keeps its own limits; earned mob lifesteal continues growing alongside it. */
 export function cardLifesteal(build: CardCounts | null | undefined, faction: string, hpFrac = 1, mobStats?: BuildInput["mobStats"]): { share: number; doubled: boolean; hasDoubler: boolean } {
   let rows = 0;
   for (const { def, count } of ownedCards(build)) {
     for (const e of cardRows(def.id, faction)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v * count;
   }
-  for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v;
+  let farm = 0;
+  for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
   const hasDoubler = countIn(build, "bloodthirst") > 0;
   const doubled = hasDoubler && hpFrac < 0.5;
-  const capped = rows > 0 ? Math.min(LS_CAP, rows) : 0;
-  return { share: Math.min(LIFESTEAL_MAX, capped * (doubled ? 2 : 1)), doubled, hasDoubler };
+  const mult = doubled ? 2 : 1;
+  return { share: lifestealTotal(0, rows, mult, 0, farm), doubled, hasDoubler };
 }
 
 /** The scaling of the weapon in hand per point, in words, for the AD and AP tooltips ("Your Wand turns each point into 1.2 damage a second"). */
@@ -122,15 +123,15 @@ export function buildStats(input: BuildInput): BuildStat[] {
     },
     {
       id: "as", label: "Atk speed", value: percentOver(m.asMult), dim: m.asMult === 1,
-      tip: `How fast you attack, against your weapon's base pace. Cards, slows and some augments move it (bonuses stop at +50%).`,
+      tip: "How fast you attack, against your weapon's base pace. Mob rewards keep increasing this stat; cards, slows and augments also affect it.",
     },
     {
       id: "move", label: "Move", value: percentOver(m.speedMult), dim: m.speedMult === 1,
-      tip: "How fast you walk, against the base pace. Card bonuses stop at +30%, and some are off while you shoot.",
+      tip: "How fast you walk, against the base pace. Mob rewards keep increasing this stat; card bonuses and effects also affect it.",
     },
     {
       id: "leech", label: "Leech", value: `${Math.round(ls.share * 100)}%`, dim: ls.share === 0,
-      tip: `The share of the damage you deal that you heal, from your cards and normal-mob kills. Your faction's own lifesteal, if it has one, comes on top (the total stops at ${Math.round(LIFESTEAL_MAX * 100)}%).`
+      tip: "The share of the damage you deal that you heal, from your cards and normal-mob kills. Earned mob lifesteal has no farming limit; your faction may also grant its own lifesteal."
         + (ls.hasDoubler ? ` Doubled while you are below half health${ls.doubled ? " (now)" : ""}.` : ""),
     },
     {

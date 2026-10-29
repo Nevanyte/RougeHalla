@@ -85,15 +85,15 @@ describe("quest rewards", () => {
     }
   });
 
-  it("shares the mob's ten-stack cap and still awards GV when that stat is maxed", () => {
+  it("adds the full quest stat reward on each completion and still awards GV", () => {
     const world = makeRun();
     P(world).mobStats.set("emberImp", 9);
     const qt = ready(world, "cull-fire");
     complete(world, qt);
-    expect(P(world).mobStats.get("emberImp")).toBe(10);
+    expect(P(world).mobStats.get("emberImp")).toBe(11);
     const second = ready(world, "cull-fire");
     complete(world, second);
-    expect(P(world).mobStats.get("emberImp")).toBe(10);
+    expect(P(world).mobStats.get("emberImp")).toBe(13);
     expect(P(world).build.size).toBe(0);
     expect(RT(world).gv.quest).toBe(qt.def.reward.gv * 2);
   });

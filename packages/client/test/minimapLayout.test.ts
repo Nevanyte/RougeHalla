@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { generateMap, WORLD_W, type Vec2 } from "@raid/shared";
-import { clusterMapContacts, layoutMinimapMarks, marksOverlap, type PlacedMark } from "../src/ui/minimapLayout";
+import { clusterMapContacts, layoutMinimapMarks, marksOverlap, type MapContact, type PlacedMark } from "../src/ui/minimapLayout";
 import { minimapMarks, type MarkerInputs } from "../src/ui/minimapMarkers";
+import { mapSpan } from "../src/ui/minimapMath";
 
 function separated(marks: readonly PlacedMark[]): void {
   for (let i = 0; i < marks.length; i++) {
@@ -35,7 +36,7 @@ describe("minimap collision layout", () => {
     expect(clusterMapContacts([...contacts].reverse(), 4.8)).toEqual(groups);
   });
 
-  it("handles a full map of camps, clocks, visible mobs, enemy players and route stops without overlap", () => {
+  it("keeps static map decorations separated around the full mix of camps, clocks and routes", () => {
     for (let seed = 1; seed <= 12; seed++) {
       const map = generateMap(seed);
       const player = map.camps[0]!;
@@ -52,7 +53,7 @@ describe("minimap collision layout", () => {
       expect(marks.filter((p) => p.mark.kind === "chest")).toHaveLength(4);
       expect(marks.filter((p) => p.mark.kind === "respawn")).toHaveLength(map.camps.length - 4);
       expect(marks.filter((p) => p.mark.kind === "enemy").length).toBeGreaterThan(0);
-      separated(marks);
+      separated(marks.filter((p) => !p.mark.pinned));
     }
   });
 
@@ -64,15 +65,39 @@ describe("minimap collision layout", () => {
     expect(afterLoot.map((p) => [p.mark.kind, p.mark.text])).toEqual([["respawn", "165"]]);
   });
 
-  it("keeps clock label anchors fixed when a moving player crosses the timer", () => {
+  it("keeps actor marks pinned to their coordinates and timer anchors fixed as actors cross them", () => {
     const camp = generateMap(3).camps[0]!;
-    const clockAt = (player?: Vec2) => minimapMarks({ ...empty(), camps: [camp],
-      respawns: [{ ...camp, left: 180 }], ...(player ? { player } : {}),
-    }).find((p) => p.mark.kind === "respawn")!;
-    const before = clockAt();
-    const after = clockAt(camp);
-    expect(after.x).toBe(before.x);
-    expect(after.y).toBe(before.y);
-    expect(after.mark.w).toBe(before.mark.w);
+    const k = 150 / mapSpan();
+    const timerAt = (player: Vec2, enemy: Vec2, mob: MapContact) => {
+      const marks = minimapMarks({ ...empty(), camps: [camp], respawns: [{ ...camp, left: 180 }],
+        player, enemies: [enemy], mobs: [mob],
+      });
+      return {
+        timer: marks.find((p) => p.mark.kind === "respawn")!,
+        player: marks.find((p) => p.mark.kind === "player")!,
+        enemy: marks.find((p) => p.mark.kind === "enemy")!,
+        mob: marks.find((p) => p.mark.kind === "mob")!,
+      };
+    };
+    const frames = [0, 0.1, 0.2, 0.3].map((n) => timerAt(
+      { x: camp.x + n, y: camp.y - n },
+      { x: camp.x - n, y: camp.y + n },
+      { x: (camp.x + n) * k, y: (camp.y - n) * k, code: 2 },
+    ));
+    const first = frames[0]!;
+    for (const [i, frame] of frames.entries()) {
+      expect(frame.timer.x).toBe(first.timer.x);
+      expect(frame.timer.y).toBe(first.timer.y);
+      expect(frame.timer.mark.w).toBe(first.timer.mark.w);
+      expect(frame.player.x).toBeCloseTo((camp.x + i * 0.1) * k);
+      expect(frame.player.y).toBeCloseTo((camp.y - i * 0.1) * k);
+      expect(frame.enemy.x).toBeCloseTo((camp.x - i * 0.1) * k);
+      expect(frame.enemy.y).toBeCloseTo((camp.y + i * 0.1) * k);
+      expect(frame.mob.x).toBeCloseTo((camp.x + i * 0.1) * k);
+      expect(frame.mob.y).toBeCloseTo((camp.y - i * 0.1) * k);
+      expect(frame.player.mark.pinned).toBe(true);
+      expect(frame.enemy.mark.pinned).toBe(true);
+      expect(frame.mob.mark.pinned).toBe(true);
+    }
   });
 });

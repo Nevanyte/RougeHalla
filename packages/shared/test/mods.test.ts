@@ -37,6 +37,43 @@ describe("the AD and AP stats", () => {
   });
 });
 
+describe("earned farm rows", () => {
+  it("keep growing outside ordinary sheet ceilings while sources and AP multipliers still apply", () => {
+    const rows: Effect[] = [
+      { k: "stat", stat: "attackSpeed", v: 1 },
+      { k: "stat", stat: "moveSpeed", v: 0.5 },
+      { k: "flat", stat: "armor", v: 300 },
+      { k: "flat", stat: "shield", v: 300 },
+      { k: "flat", stat: "ad", v: 5 },
+      { k: "flat", stat: "ap", v: 10 },
+      { k: "stat", stat: "maxHp", v: 0.1 },
+      { k: "mult", key: "ap", v: 2 },
+      { k: "convert", from: "ad", to: "ap", per: 1, cap: 60 },
+    ];
+    const farmRows: Effect[] = [
+      { k: "stat", stat: "attackSpeed", v: 2 },
+      { k: "stat", stat: "moveSpeed", v: 1 },
+      { k: "flat", stat: "armor", v: 1000 },
+      { k: "flat", stat: "shield", v: 1200 },
+      { k: "flat", stat: "ad", v: 100 },
+      { k: "flat", stat: "ap", v: 100 },
+      { k: "stat", stat: "maxHp", v: 0.5 },
+      { k: "stat", stat: "damage", v: 20 },
+    ];
+    const f = fold(rows, { baseMaxHp: 1000, farmRows });
+    const m = mirrorsFromFold(f, { asMult: 0.5, speedMult: 0.5, windupMult: 1, armor: 40, shield: 40 });
+    expect([f.sums.armor, f.sums.shield, f.sums.moveSpeed]).toEqual([BONUS_DEFENSE_CAP, BONUS_DEFENSE_CAP, MOVE_BONUS_CAP]);
+    expect(f.farmSums.damage).toBe(20);
+    expect(f.maxHp).toBe(1600);
+    expect(m.asMult).toBeCloseTo(2); // capped ordinary AS and uncapped farm AS both receive the source slow
+    expect(m.speedMult).toBeCloseTo(1.15);
+    expect(m.armorBonus).toBe(1200);
+    expect(m.shieldBonus).toBe(1400);
+    expect(m.adBonus).toBe(105);
+    expect(m.apBonus).toBe(340); // card conversion keeps its 60-point cap; farm AP then receives the same AP mult
+  });
+});
+
 describe("a product stat (lifestealMult)", () => {
   it("multiplies as 1 + v, starting from 1, whichever kind of row it comes in", () => {
     expect(zeroSums().lifestealMult).toBe(1);
@@ -359,6 +396,7 @@ describe("the guards' helpers", () => {
     expect(lifestealTotal(0, -3)).toBe(0);
     expect(lifestealTotal(0, 0.1, 1, 0.2)).toBeCloseTo(0.3, 12); // Siphon: a damage-over-time tick heals more
     expect(lifestealTotal(0, 0, 1, 5)).toBe(LIFESTEAL_MAX);
+    expect(lifestealTotal(0.75, 0.9, 2, 0.2, 0.1)).toBeCloseTo(LIFESTEAL_MAX + 0.2, 12);
   });
 
   it("G6: a barrier holds at most 25% of max hp and loses 5% of it a second", () => {
@@ -437,13 +475,13 @@ describe("text and scaling for the new kinds", () => {
 });
 
 describe("the wire form of the AD and AP mirrors", () => {
-  it("is int16 tenths like the armor mirrors: whole tenths, half up, clamped", () => {
+  it("is float64 tenths like the armor mirrors: whole tenths, half up, uncapped", () => {
     expect(encodeFlat(33)).toBe(330);
     expect(encodeFlat(0.04)).toBe(0);
     expect(encodeFlat(12.34)).toBe(123);
-    // 3,276.7 points at most: an AP of 108 (a hundred-odd points) is far inside it
+    // An AP of 108 (a hundred-odd points) is represented at the same tenths precision.
     expect(encodeFlat(108)).toBe(1080);
-    expect(encodeFlat(1e9)).toBe(32767);
+    expect(encodeFlat(1e9)).toBe(1e10);
     expect(WEAPON_IDS).toHaveLength(5);
   });
 });

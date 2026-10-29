@@ -65,8 +65,10 @@ export interface OwnedTrigger { key: string; row: EffectOf<"trigger"> }
 
 /** A player's rows, sorted by what reads them. Rebuilt from the cards only when they change. */
 interface Build {
-  /** Every applied row (the cards' rows, once per copy, and the extra ones), for display, tests and the fold. */
+  /** Card and extra rows, once per copy, which remain subject to existing card/source ceilings. */
   rows: Effect[];
+  /** Earned mob-stat rows, folded separately so those permanent bonuses can grow beyond card ceilings. */
+  farmRows: Effect[];
   /** while rows: folded while their condition holds (bit i of `holds` for whiles[i]; `holding` is the same as a set). */
   whiles: EffectOf<"while">[];
   holds: number;
@@ -150,7 +152,7 @@ function baseHpOf(p: PlayerState): number {
  */
 function buildOf(p: PlayerState): Build {
   const b: Build = {
-    rows: [], whiles: [], holds: 0, holding: NO_HOLDS, vs: [], scales: [], triggers: [], onHits: [], usesFight: false, usesCamps: false, camps: 0,
+    rows: [], farmRows: [], whiles: [], holds: 0, holding: NO_HOLDS, vs: [], scales: [], triggers: [], onHits: [], usesFight: false, usesCamps: false, camps: 0,
     folded: EMPTY_FOLDED, sums: EMPTY_SUMS,
   };
   const owns = (id: string): boolean => countIn(p.build, id) > 0 || ownsBase(p.build, id as BaseStatId);
@@ -167,7 +169,7 @@ function buildOf(p: PlayerState): Build {
       }
     }
   }
-  mobStatRows(p.mobStats).forEach((e, i) => addRow(b, e, `mobStat:${i}`));
+  b.farmRows = mobStatRows(p.mobStats);
   extraRows.get(p)?.forEach((e, i) => {
     if (e.needs === "status" || !requirementsMet(e, owns)) return;
     addRow(b, e, `extra:${i}`);
@@ -177,7 +179,8 @@ function buildOf(p: PlayerState): Build {
 
 /** The rows a player's stats fold from (its cards' rows, once per copy, then the extra ones). */
 export function modRowsOf(p: PlayerState): Effect[] {
-  return buildOf(p).rows;
+  const b = buildOf(p);
+  return [...b.rows, ...b.farmRows];
 }
 
 /** The hand holds no weapon: fists. */
@@ -229,7 +232,7 @@ function applyHolds(b: Build, bits: number): void {
 /** Folds the build's rows (shared foldRows: plain sums, conversions, caps, mults, flags) and keeps the result on it. */
 function refold(p: PlayerState, b: Build): void {
   // The rows were filtered by `requires` when the build was made, so every row left is on.
-  b.folded = foldRows(b.rows, { owns: () => true, holds: (e) => b.holding.has(e), baseMaxHp: baseHpOf(p) });
+  b.folded = foldRows(b.rows, { owns: () => true, holds: (e) => b.holding.has(e), baseMaxHp: baseHpOf(p), farmRows: b.farmRows });
   b.sums = b.folded.sums;
 }
 
@@ -327,7 +330,7 @@ export function recomputeMods(world: World, c: Combatant): void {
     if (b.usesCamps && c.kind === "player") b.camps = c.rt.campsCleared ?? 0;
     applyHolds(b, holdsOf(world, c, b));
     refold(c.s, b);
-    cache.build = b.rows.length > 0 ? b : null;
+    cache.build = b.rows.length > 0 || b.farmRows.length > 0 ? b : null;
   }
   store(world, c, cache);
   noteSources(world, c.s, src);
@@ -416,6 +419,11 @@ export function statSumsOf(s: FighterState): Readonly<StatSums> {
   return caches.get(s)?.build?.sums ?? EMPTY_SUMS;
 }
 
+/** Earned mob-stat sums kept outside ordinary row ceilings. */
+export function farmStatSumsOf(s: FighterState): Readonly<StatSums> {
+  return foldedOf(s).farmSums;
+}
+
 /** Max health a card has earned outright, on top of the rows (Tank Engine: sim/cardHooks.ts), by player. */
 const flatMaxHp = new WeakMap<FighterState, number>();
 
@@ -432,12 +440,17 @@ export function flatMaxHpOf(s: FighterState): number {
 
 /** Its max hp multiplier from the rows: 1 + the maxHp sum, never below MAX_HP_FLOOR_SHARE (G8: half the faction's). */
 export function maxHpMultOf(s: FighterState): number {
-  return Math.max(MAX_HP_FLOOR_SHARE, 1 + statSumsOf(s).maxHp);
+  return Math.max(MAX_HP_FLOOR_SHARE, 1 + statSumsOf(s).maxHp + foldedOf(s).farmSums.maxHp);
 }
 
 /** The lifesteal its rows add up to (any faction), before the cap: shared lifestealTotal caps it (LS_CAP), multiplies it and adds Holy's own. */
 export function lifestealRowsOf(s: FighterState): number {
   return statSumsOf(s).lifesteal;
+}
+
+/** Earned mob-stat lifesteal rows, added after the ordinary row and faction total caps. */
+export function farmLifestealRowsOf(s: FighterState): number {
+  return Math.max(0, foldedOf(s).farmSums.lifesteal);
 }
 
 /** The product of the fighter's `lifestealMult` rows (Bloodthirst x2 while it holds; 1 for none): it multiplies the capped rows, not Holy's own. */
@@ -534,7 +547,7 @@ export function markRateOf(s: FighterState): number {
  * taxed(rate x this) / (rate x this) is exactly what brings the product to the taxed rate even when the haste alone passed the cap.
  */
 export function cardAsMultOf(s: FighterState): number {
-  return Math.max(0, 1 + statSumsOf(s).attackSpeed);
+  return Math.max(0, 1 + statSumsOf(s).attackSpeed + farmStatSumsOf(s).attackSpeed);
 }
 
 /** The hp share below which a Plague fighter's execute runs: EXECUTE_BAND (0.5) + its executeBand rows, within 0..1. */
@@ -657,12 +670,13 @@ function outgoingMultCore(
 ): number {
   const b = caches.get(attacker)?.build;
   if (!b) return 1;
+  const farmDamage = b.folded.farmSums.damage;
   const m = b.folded.mults;
   const own = (kind === "hit" ? m.hit : kind === "dot" ? m.dot : kind === "returned" ? m.returned : 1) * (baked > 0 ? baked : 1);
   const ceiling = own > 1 ? OUTGOING_ROW_CAP / own : OUTGOING_ROW_CAP;
   // No damage row: nothing to add, but Boom's x2.5 with a crit's x1.5 (or Plant Your Feet's x1.25) already passes the cap on its own,
   // and a fighter without rows must not hit harder than the same one with a damage card (the cap cuts the packet back to x2.5).
-  if (!hasDamageRows(b)) return Math.min(1, ceiling);
+  if (!hasDamageRows(b)) return Math.max(0, Math.min(1, ceiling) + farmDamage);
   let sum = b.sums.damage;
   const streak = kind === "hit" ? probe?.streak : undefined;
   for (const e of b.vs) if (!(skipExecute && e.test === "hpBelow") && vsHolds(e, victimFrac, probe, streak)) sum += e.v;
@@ -680,7 +694,7 @@ function outgoingMultCore(
     }
     sum += e.cap !== undefined && bonus > e.cap ? e.cap : bonus;
   }
-  return Math.max(0, Math.min(1 + sum, ceiling));
+  return Math.max(0, Math.min(1 + sum, ceiling) + farmDamage);
 }
 
 /** The tick's landed hits start and extend the fight clock of every player that has a `fightTime` row (a fight ends FIGHT_GAP_SECONDS after its last hit). */

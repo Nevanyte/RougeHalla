@@ -1,7 +1,7 @@
 // What the planning screen says of a camp's mobs. This is the only client module that reads the mob roster for the planning screen,
 // and it reads it defensively: a type id the catalog does not know (newer server content) is shown as its raw id, never an error.
 // A camp tooltip explains the weapon drop, each normal mob's fixed stat reward and the elite augment chest.
-import { MOB_ROLE_DEFS, MOB_STAT_CAP, WEAPONS, mobStatReward, mobTypeById, type MobTypeDef } from "@raid/shared";
+import { MOB_ROLE_DEFS, WEAPONS, mobStatReward, mobTypeById, type MobTypeDef } from "@raid/shared";
 
 /** One mob type as the planning screen reads it. */
 export interface MobTypeInfo {
@@ -44,7 +44,7 @@ export function campMobsText(info: CampTypeInfo): string {
     return `${t.name} (${t.role}: ${blurb}), drops ${/^[aeiou]/i.test(t.weapon) ? "an" : "a"} ${t.weapon}`;
   };
   const normalReward = mobStatReward(info.id);
-  const line = normalReward ? `Normal kills: ${normalReward.text}, capped at ${MOB_STAT_CAP} per type.` : "This elite gives no fixed per-kill stat.";
+  const line = normalReward ? `Each normal kill grants ${normalReward.text}.` : "This elite gives no fixed per-kill stat.";
   const isEliteCamp = mobTypeById(info.id)?.elite === true;
   return info.elite
     ? `${one(info)}. ${line} Elite: ${one(info.elite)}. Elite death drops an augment chest; it grants no fixed mob stat.`

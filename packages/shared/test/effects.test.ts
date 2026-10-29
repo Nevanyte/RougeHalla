@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertNever, cardRows, decodeFlat, decodeMirrors, decodeMult, EFFECT_KINDS, EFFECT_KINDS_COMPLETE,
   EFFECT_STATS, encodeFlat, encodeMirrors, encodeMult, FLAT_STATS, FLAT_WIRE_PER_POINT, foldStatRows, IDENTITY_MIRRORS,
-  isFlatStat, MIRROR_FIELDS, MOD_MULT_MAX, MOD_MULT_MIN, mirrorsFromSums, MULT_WIRE_PER_UNIT, requirementsMet, visitEffect,
+  isFlatStat, MIRROR_FIELDS, MOD_MULT_MIN, mirrorsFromSums, MULT_WIRE_PER_UNIT, requirementsMet, visitEffect,
   WIRE_IDENTITY_MIRRORS, zeroSums,
   type Effect, type EffectKind, type EffectVisitor, type OnHitStatus, type StatKey, type StatusKind, type TriggerAction,
 } from "../src/index";
@@ -185,7 +185,7 @@ describe("the mirror codec", () => {
   it("the identity: defaults on PlayerState, an empty fold, and decoding them", () => {
     expect(MIRROR_FIELDS).toEqual(["asMult", "windupMult", "speedMult", "armorBonus", "shieldBonus", "adBonus", "apBonus"]);
     expect(IDENTITY_MIRRORS).toEqual({ asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 });
-    // The multipliers are uint16 thousandths on the state: a default PlayerState holds 1000, which decodes to 1.
+    // The multipliers are float64 thousandths on the state: a default PlayerState holds 1000, which decodes to 1.
     expect(WIRE_IDENTITY_MIRRORS).toEqual({ asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 });
     const p = new PlayerState();
     expect(MIRROR_FIELDS.map((f) => p[f])).toEqual(MIRROR_FIELDS.map((f) => WIRE_IDENTITY_MIRRORS[f]));
@@ -193,7 +193,7 @@ describe("the mirror codec", () => {
     expect(encodeMirrors(mirrorsFromSums(zeroSums()))).toEqual(WIRE_IDENTITY_MIRRORS);
   });
 
-  it("multipliers: whole thousandths, clamped to [MOD_MULT_MIN, MOD_MULT_MAX] on the wire, non-finite as 1", () => {
+  it("multipliers: whole thousandths, clamped only at the low end, non-finite as 1", () => {
     expect(MULT_WIRE_PER_UNIT).toBe(1000);
     for (const x of [1, 0.8, 1.235, 1.04656]) {
       const wire = encodeMult(x);
@@ -205,7 +205,7 @@ describe("the mirror codec", () => {
     expect(decodeMult(encodeMult(1.2345678901234567))).toBe(1.235);
     expect(encodeMult(0)).toBe(MOD_MULT_MIN * 1000);
     expect(encodeMult(-3)).toBe(MOD_MULT_MIN * 1000);
-    expect(encodeMult(1e9)).toBe(MOD_MULT_MAX * 1000);
+    expect(encodeMult(1e9)).toBe(1e12);
     expect(encodeMult(Number.NaN)).toBe(1000);
     expect(encodeMult(Number.POSITIVE_INFINITY)).toBe(1000);
     // A server build without the mirror fields leaves them undefined on the client: no modifier, never NaN.
@@ -213,14 +213,14 @@ describe("the mirror codec", () => {
     expect(decodeMult(Number.NaN)).toBe(1);
   });
 
-  it("flat bonuses: whole tenths of a point (half up), int16 on the wire, and decode is idempotent", () => {
+  it("flat bonuses: whole tenths of a point (half up), float64 on the wire, and decode is idempotent", () => {
     expect(FLAT_WIRE_PER_POINT).toBe(10);
     const cases: Array<[number, number]> = [[0, 0], [10, 100], [0.04, 0], [0.05, 1], [7.86, 79], [-7.86, -79], [-0.06, -1], [12.34, 123]];
     for (const [x, wire] of cases) expect(encodeFlat(x), `${x}`).toBe(wire);
     expect(decodeFlat(79)).toBe(7.9);
     expect(decodeFlat(3)).toBe(0.3);
-    expect(encodeFlat(1e6)).toBe(32767);
-    expect(encodeFlat(-1e6)).toBe(-32768);
+    expect(encodeFlat(1e6)).toBe(1e7);
+    expect(encodeFlat(-1e6)).toBe(-1e7);
     expect(encodeFlat(Number.NaN)).toBe(0);
     for (let wire = -2000; wire <= 2000; wire += 7) expect(encodeFlat(decodeFlat(wire))).toBe(wire);
   });

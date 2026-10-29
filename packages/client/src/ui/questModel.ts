@@ -1,5 +1,5 @@
 import {
-  FACTIONS, MASK_MOVE, MOB_STAT_CAP, PLAYER_RADIUS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, TILE, circleClear, findPath, mobStatCount, mobStatReward, mobStatText, pathLength, segmentClear,
+  FACTIONS, MASK_MOVE, PLAYER_RADIUS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, TILE, circleClear, findPath, mobStatCount, mobStatReward, mobStatText, pathLength, segmentClear,
   questDefById, questRewardStats, questRewardText, moveComponents, worldToTile,
   type GameMap, type QuestDef, type QuestKind, type QuestRevealMessage,
 } from "@raid/shared";
@@ -179,15 +179,15 @@ function numberText(value: number): string {
 }
 
 /**
- * What the quest pays, in words: a fixed stack reward with its shared cap plus GV. Feed does not change this reward.
+ * What the quest pays, in words: a fixed stack reward plus GV. Feed does not change this reward.
  */
 export function questReward(def: QuestDef, _feed?: number, mobStats?: Readonly<Record<string, number>> | Map<string, number>): string {
   if (!mobStats) return questRewardText(def);
   const reward = questRewardStats(def);
   const current = mobStatCount(mobStats, reward.id);
-  const gained = Math.min(reward.stacks, MOB_STAT_CAP - current);
+  const gained = reward.stacks;
   const name = mobStatReward(reward.id)?.name ?? reward.id;
-  const award = gained > 0 ? `${gained} ${name} stacks (${mobStatText(reward.id, gained)}; ${current + gained}/${MOB_STAT_CAP} total)` : `${name} at cap (${current}/${MOB_STAT_CAP})`;
+  const award = `${gained} ${name} stacks (${mobStatText(reward.id, gained)}; ${current + gained} total after this quest)`;
   return `${award} and ${def.reward.gv} GV`;
 }
 

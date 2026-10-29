@@ -11,13 +11,16 @@ describe("normal mob kill progression", () => {
       if (reward) expect(["flat", "stat"]).toContain(reward.effect.k);
     }
   });
-  it("sanitizes per-type stacks, caps at ten, and folds same stats additively", () => {
-    expect(mobStatCount({ emberImp: 999 }, "emberImp")).toBe(MOB_STAT_CAP);
+  it("sanitizes uncapped safe-integer counts and folds same stats additively", () => {
+    expect(MOB_STAT_CAP).toBe(10); // benchmark reference only, not a progression ceiling
+    expect(mobStatCount({ emberImp: 999 }, "emberImp")).toBe(999);
     expect(mobStatCount({ emberImp: -2 }, "emberImp")).toBe(0);
     expect(mobStatCount({ emberImp: 2.8 }, "emberImp")).toBe(2);
+    expect(mobStatCount({ emberImp: Number.POSITIVE_INFINITY }, "emberImp")).toBe(0);
+    expect(mobStatCount({ emberImp: Number.MAX_SAFE_INTEGER + 1 }, "emberImp")).toBe(0);
     expect(mobStatCount({}, "wyrmling")).toBe(0);
-    expect(mobStatRows({ emberImp: 10, inquisitor: 10 })).toEqual([{ k: "stat", stat: "damage", v: 0.2 }]);
-    expect(mobStatText("emberImp", 10)).toBe("+10% damage");
+    expect(mobStatRows({ emberImp: 1000, inquisitor: 1000 })).toEqual([{ k: "stat", stat: "damage", v: 20 }]);
+    expect(mobStatText("emberImp", 1000)).toBe("+1,000% damage");
     expect(mobStatText("wyrmling")).toBe("");
   });
   it("adds mobStats at the end of PlayerState's wire schema", () => {

@@ -78,8 +78,8 @@ import {
 } from "./combatant";
 import { deferHit, recordHit } from "./ledger";
 import {
-  apOf, bonusMaxHpOf, cardAsMultOf, dotMultOf, executeBandOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
-  lifestealRowsOf, lingerMultOf, markRateOf, recomputeMods, returnedMultOf, slowResistOf, triggersOf,
+  apOf, bonusMaxHpOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, farmStatSumsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
+  lifestealRowsOf, lingerMultOf, markRateOf, recomputeMods, returnedMultOf, slowResistOf, statSumsOf, triggersOf,
 } from "./mods";
 import { addStatus, healFactor, statusesOf } from "./status";
 import {
@@ -755,9 +755,11 @@ function taxFactor(world: World, c: Combatant, byId: string): number {
 function taxCut(world: World, c: Combatant, byId: string): number {
   const factor = taxFactor(world, c, byId);
   if (!(factor < 1)) return 0;
-  const cards = cardAsMultOf(c.s);
-  const before = capAsMult(cards);
-  return before > 0 ? Math.max(0, 1 - capAsMult(cards * factor) / before) : 0;
+  const regular = Math.max(0, 1 + statSumsOf(c.s).attackSpeed);
+  const farm = farmStatSumsOf(c.s).attackSpeed;
+  const before = capAsMult(regular) + farm;
+  const after = capAsMult(regular * factor) + farm * factor;
+  return before > 0 ? Math.max(0, 1 - after / before) : 0;
 }
 
 /** world.modSources entry: the mark's tax, an attack-speed factor like any slow (the mirrors fold and cap it). */
@@ -834,11 +836,12 @@ function afterDamage(world: World, dtMs: number): void {
     const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) : 0;
     // Holy's own share and the rows' (Bloodthirst doubling them), and for damage over time Siphon's share on top (G5).
     const rows = lifestealRowsOf(c.s);
+    const farmRows = farmLifestealRowsOf(c.s);
     const mult = lifestealMultOf(c.s);
-    const share = lifestealTotal(own, rows, mult, 0);
+    const share = lifestealTotal(own, rows, mult, 0, farmRows);
     const onDot = lifestealDotOf(c.s);
     const dot = onDot > 0 ? dealtDot.get(id) ?? 0 : 0;
-    const gain = (amount - dot) * share + dot * lifestealTotal(own, rows, mult, onDot);
+    const gain = (amount - dot) * share + dot * lifestealTotal(own, rows, mult, onDot, farmRows);
     if (gain > 0) heal(world, c, gain, { lifesteal: true });
   }
 

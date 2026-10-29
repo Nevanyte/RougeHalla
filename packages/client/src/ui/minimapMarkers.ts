@@ -1,7 +1,7 @@
 import type { GameMap, Vec2 } from "@raid/shared";
 import { COLOR_CHEST, COLOR_OUTLINE, COLOR_PLAYER, COLOR_PLAYER_DOWN, COLOR_ROUTE,
   FACTION_CSS, paintCamps, type ChestBlip } from "./mapPainter";
-import { clusterMapContacts, layoutMinimapMarks, type MapContact, type MapMark, type PlacedMark } from "./minimapLayout";
+import { layoutMinimapMarks, type MapContact, type MapMark, type PlacedMark } from "./minimapLayout";
 import { mapSpan } from "./minimapMath";
 import { questKindCss, type QuestMapBlip } from "./questModel";
 
@@ -41,11 +41,8 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
     extra: Partial<TacticalMark> = {}): void => {
     marks.push({ kind, key: `${kind}:${key}`, x: at.x * k, y: at.y * k, w, h, priority, color, ...extra });
   };
-  if (input.player) add("player", "self", input.player, 8, 8, 100, input.alive ? COLOR_PLAYER : COLOR_PLAYER_DOWN, { essential: true });
-  const enemies = clusterMapContacts(input.enemies.map((p) => ({ x: p.x * k, y: p.y * k, code: 0 })), 6);
-  enemies.forEach((p, i) => marks.push({ kind: "enemy", key: `enemy:${i}`, ...p,
-    w: p.count > 1 ? 8 + String(p.count).length * 5 : 9, h: 9, priority: 95, color: COLOR_ENEMY, essential: true,
-    text: p.count > 1 ? String(p.count) : undefined }));
+  if (input.player) add("player", "self", input.player, 8, 8, 100, input.alive ? COLOR_PLAYER : COLOR_PLAYER_DOWN, { essential: true, pinned: true });
+  input.enemies.forEach((p, i) => add("enemy", String(i), p, 9, 9, 95, COLOR_ENEMY, { essential: true, pinned: true }));
 
   input.quests.forEach((q, i) => add("quest", String(i), q, q.tracked ? 16 : 8, q.tracked ? 11 : 8,
     q.tracked ? 90 : 55, questKindCss(q.kind), { quest: q, text: q.tracked ? "GO" : undefined, essential: q.tracked }));
@@ -62,17 +59,14 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
   const respawns = input.respawns.filter((r) => !input.chests.some((c) => Math.hypot(c.x - r.x, c.y - r.y) < 1));
   clocks("respawn", respawns, 110, COLOR_RESPAWN);
 
-  const mobs = clusterMapContacts(input.mobs, 4.8);
-  mobs.forEach((p, i) => marks.push({ kind: "mob", key: `mob:${i}`, ...p,
-    w: p.count > 1 ? 8 + String(p.count).length * 4.5 : p.code % 2 ? 7 : 5.5,
-    h: p.count > 1 || p.code % 2 ? 7 : 5.5, priority: 65, essential: true,
-    color: FACTION_CSS[(p.code >> 1) - 1] ?? "#b1bfc5", elite: p.code % 2 === 1,
-    text: p.count > 1 ? String(p.count) : undefined }));
+  input.mobs.forEach((p, i) => marks.push({ kind: "mob", key: `mob:${i}`, x: p.x, y: p.y,
+    w: p.code % 2 ? 7 : 5.5, h: p.code % 2 ? 7 : 5.5, priority: 65, essential: true, pinned: true,
+    color: FACTION_CSS[(p.code >> 1) - 1] ?? "#b1bfc5", elite: p.code % 2 === 1 }));
   input.stops.forEach((p, i) => add("stop", String(i), p, i === input.next ? 10 : 7, i === input.next ? 10 : 7,
     40, COLOR_ROUTE, { next: i === input.next }));
   input.camps.forEach((camp, i) => {
     // Contacts and clocks replace the background camp symbol at that spot.
-    if (marks.some((m) => m.kind !== "stop" && Math.hypot(m.x - camp.x * k, m.y - camp.y * k) < 8)) return;
+    if (marks.some((m) => !m.pinned && m.kind !== "stop" && Math.hypot(m.x - camp.x * k, m.y - camp.y * k) < 8)) return;
     add("camp", String(i), camp, 11, 17, 10, "", { camp, state: input.campStates[i] ?? 0 });
   });
   return layoutMinimapMarks(marks);
@@ -81,7 +75,11 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
 const TAU = Math.PI * 2;
 /** The dynamic layer shares the exact bounds used by the collision solver and the route's cutout mask. */
 export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly PlacedMark<TacticalMark>[], px: number, pulse: number): void {
-  for (const p of [...marks].sort((a, b) => a.mark.priority - b.mark.priority)) {
+  for (const p of [...marks].sort((a, b) => {
+    // Timer labels and other static markers keep their anchors; draw pinned actors last so overlap never conceals their locations.
+    if (a.mark.pinned !== b.mark.pinned) return a.mark.pinned ? 1 : -1;
+    return a.mark.priority - b.mark.priority;
+  })) {
     const m = p.mark, x = p.x * px, y = p.y * px;
     ctx.save();
     ctx.lineJoin = "round";

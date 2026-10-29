@@ -143,11 +143,11 @@ export function mechanicsSections(): MechanicsSection[] {
         },
         {
           term: "Normal mob rewards",
-          text: "Each normal mob kill grants its type's fixed stat reward, up to 10 stacks per type. Normal camp clears give no chest. The HUD's Normal mob progress catalog lists every reward and your current total.",
+          text: "Each normal mob kill grants its type's fixed stat reward. Farmed stat stacks have no maximum. Normal camp clears give no chest. The HUD's Normal mob progress catalog lists every reward and your current total.",
         },
         {
           term: "Quest rewards",
-          text: "Quests grant fixed mob stat stacks matching their reward and zone, up to the same 10-stack cap, plus their GV. The preview shows the stacks that still fit under your cap.",
+          text: "Quests grant fixed mob stat stacks matching their reward and zone, plus their GV. Farmed stacks keep accumulating with every kill and quest.",
         },
         {
           term: "Chests",

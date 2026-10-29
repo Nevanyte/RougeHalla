@@ -1,5 +1,5 @@
-// Fixed normal-mob progression: owned types stay compact; the expandable catalog exposes every reward and all ten steps.
-import { MOB_STAT_CAP, MOB_STAT_REWARDS, mobStatCount, mobStatText, REGION_FACTIONS, FACTIONS } from "@raid/shared";
+// Uncapped normal-mob progression: owned types stay compact; the expandable catalog shows each type's current count and cumulative reward.
+import { MOB_STAT_REWARDS, mobStatCount, mobStatText, REGION_FACTIONS, FACTIONS } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { el } from "./dom";
 import "./mobStatsHud.css";
@@ -32,8 +32,8 @@ export class MobStatsHud {
     const owned = MOB_STAT_REWARDS.filter((r) => mobStatCount(me.mobStats, r.id) > 0);
     this.summary.replaceChildren(...(owned.length ? owned.map((r) => {
       const count = mobStatCount(me.mobStats, r.id);
-      const chip = el("span", `mob-stat-chip${count >= MOB_STAT_CAP ? " capped" : ""}`, `${r.name} ${count}/${MOB_STAT_CAP}${count >= MOB_STAT_CAP ? " MAX" : ""}`);
-      chip.title = `${r.text}. Total: ${mobStatText(r.id, count)}${count >= MOB_STAT_CAP ? ". Maximum reached." : ""}`;
+      const chip = el("span", "mob-stat-chip", `${r.name} ×${count}`);
+      chip.title = `${r.text}. Total earned: ${mobStatText(r.id, count)}.`;
       chip.setAttribute("aria-label", chip.title);
       return chip;
     }) : [el("span", "mob-stats-empty", "No normal-mob bonuses yet") ]));
@@ -43,13 +43,10 @@ export class MobStatsHud {
       const reward = MOB_STAT_REWARDS.find((r) => r.id === id)!;
       const count = mobStatCount(me.mobStats, id);
       const label = row.children[0] as HTMLElement;
-      const meter = row.children[3] as HTMLElement;
       const total = row.children[2] as HTMLElement;
-      label.textContent = `${reward.name} ${count}/${MOB_STAT_CAP}${count >= MOB_STAT_CAP ? " MAX" : ""}`;
+      label.textContent = `${reward.name} ×${count}`;
       total.textContent = count ? mobStatText(id, count) : "0 earned";
-      row.classList.toggle("capped", count >= MOB_STAT_CAP);
-      row.setAttribute("aria-label", `${reward.name}: ${count} of ${MOB_STAT_CAP} stacks, ${reward.text}, total ${count ? mobStatText(id, count) : "none"}${count >= MOB_STAT_CAP ? ", maximum reached" : ""}`);
-      Array.from(meter.children).forEach((segment, i) => segment.classList.toggle("filled", i < count));
+      row.setAttribute("aria-label", `${reward.name}: ${count} stacks, ${reward.text}, total earned ${count ? mobStatText(id, count) : "none"}`);
     }
   }
 
@@ -59,14 +56,11 @@ export class MobStatsHud {
     const row = el("div", "mob-stat-row");
     row.setAttribute("data-mob-id", id);
     row.setAttribute("role", "group");
-    const label = el("span", "mob-stat-name", `${name} 0/${MOB_STAT_CAP}`);
+    const label = el("span", "mob-stat-name", `${name} ×0`);
     const perKill = el("span", "mob-stat-per-kill", rewardText);
-    const meter = el("span", "mob-stat-meter");
-    meter.setAttribute("aria-hidden", "true");
-    for (let i = 0; i < MOB_STAT_CAP; i++) meter.append(el("i", "mob-stat-segment"));
     const total = el("span", "mob-stat-total", "0 earned");
-    row.append(label, perKill, total, meter);
-    row.title = `${rewardText}. Progress is fixed per type, capped at ${MOB_STAT_CAP}.`;
+    row.append(label, perKill, total);
+    row.title = `${rewardText}. Each kill adds another stack; totals can keep growing.`;
     return row;
   }
 }

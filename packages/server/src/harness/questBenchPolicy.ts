@@ -421,10 +421,10 @@ function questTarget(
   return questItem(world, p, mem, q);
 }
 
-/** Remaining whole stat progress the quest can add, using the same cap as actual payout. */
+/** Whole stat progress the quest can add; progression has no per-type ceiling. */
 export function questRewardPower(p: PlayerState, q: QuestDecisionView): number {
   const reward = questRewardStats(q.def);
-  return Math.min(reward.stacks, MOB_STAT_CAP - mobStatCount(p.mobStats, reward.id)) / MOB_STAT_CAP;
+  return reward.stacks / MOB_STAT_CAP;
 }
 
 function nearestQuest(world: World, p: PlayerState, mem: PolicyMemory, playerId: string): QuestDecisionView | null {

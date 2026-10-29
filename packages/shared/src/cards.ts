@@ -1,5 +1,5 @@
 // The card catalog (BALANCE_CONTRACT 4): legacy stat cards remain available to builds and compatibility helpers, while chests and
-// elite deaths now reward functioning interactive augments. Normal mob kills grant fixed, capped stat progression (mobStats.ts). The
+// elite deaths now reward functioning interactive augments. Normal mob kills grant fixed, uncapped stat progression (mobStats.ts). The
 // catalog holds 80 cards: 24 base stats, 13 conditionals and 43 augments. A card is data: its `effects` are rows of the closed Effect
 // union (effects.ts), folded by sim/mods.ts through shared/mods.ts.
 //   conditional  13 cards, all tier 2, each tied to a base (`requires`): offered only when a player who earns the chest owns that

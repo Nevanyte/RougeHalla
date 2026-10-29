@@ -122,6 +122,18 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
 .pl-route { cursor: crosshair; touch-action: manipulation; }
 .pl-zones, .pl-markers { position: absolute; inset: 0; pointer-events: none; }
 .pl-markers > * { pointer-events: auto; position: absolute; transform: translate(-50%, -50%); }
+.pl-actors { position: absolute; z-index: 8; inset: 0; pointer-events: none; overflow: hidden; }
+.pl-actor { position: absolute; display: block; width: 12px; height: 12px; transform: translate(-50%, -50%); pointer-events: none; }
+.pl-actor-shape { position: absolute; inset: 0; display: block; box-sizing: border-box; border: 2px solid #f4fbff; box-shadow: 0 0 0 2px #07121b, 0 1px 5px #000; }
+.pl-actor-label { position: absolute; left: 50%; top: -5px; transform: translate(-50%, -100%); padding: 1px 4px; border: 1px solid #ecf8ff; border-radius: 3px; background: rgba(5, 14, 22, .96); color: #fff; font-size: 9px; font-weight: 900; letter-spacing: .06em; line-height: 12px; white-space: nowrap; text-shadow: 0 1px 2px #000; box-shadow: 0 1px 4px #000; }
+.pl-actor-you { z-index: 2; }
+.pl-actor-you .pl-actor-shape { border-radius: 50%; background: #38d9ff; }
+.pl-actor-you .pl-actor-label { color: #b9f3ff; border-color: #47ddff; }
+.pl-actor-you.down { opacity: .7; }
+.pl-actor-you.down .pl-actor-shape { background: #a6bac2; }
+.pl-actor-enemy { z-index: 1; }
+.pl-actor-enemy .pl-actor-shape { transform: rotate(45deg); border-color: #fff0f0; border-radius: 1px; background: #f04452; box-shadow: 0 0 0 2px #3b090d, 0 1px 5px #000; }
+.pl-actor-enemy .pl-actor-label { color: #ffc3c7; border-color: #ff5360; }
 
 .pl-zone {
   position: absolute;

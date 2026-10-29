@@ -2,8 +2,18 @@ import type { Effect } from "./effects";
 import type { FactionId } from "./factions";
 import { MOB_TYPES, type MobTypeId } from "./mobs";
 
-/** A normal mob type grants at most this many stat increases per player during one run. */
+/** Legacy benchmark scale. This is not an acquisition or reward cap. */
 export const MOB_STAT_CAP = 10;
+
+/** Counts use JS numbers on the wire; safe integers preserve exact per-kill progression. */
+export const MOB_STAT_COUNT_MAX = Number.MAX_SAFE_INTEGER;
+
+/** Non-negative whole reward count, rejecting values that cannot be represented exactly. */
+export function normalizeMobStatCount(value: number): number {
+  if (!Number.isFinite(value) || value < 0) return 0;
+  const count = Math.floor(value);
+  return Number.isSafeInteger(count) ? count : 0;
+}
 
 type StatEffect = Extract<Effect, { k: "stat" }>;
 type FlatEffect = Extract<Effect, { k: "flat" }>;
@@ -71,16 +81,16 @@ export function mobStatReward(id: string): MobStatReward | undefined {
   return rewardsById.get(id as MobTypeId);
 }
 
-/** Read and clamp a type's stack count to the supported 0..10 range. */
+/** Read a type's non-negative safe-integer count. Invalid wire values are ignored. */
 export function mobStatCount(stacks: MobStatCounts, id: string): number {
   const hasGet = stacks && typeof (stacks as { get?: unknown }).get === "function";
   const count = hasGet
     ? (stacks as { get(key: string): number | undefined }).get(id)
     : (stacks as Readonly<Record<string, number>> | undefined)?.[id];
-  return Number.isFinite(count) ? Math.max(0, Math.min(MOB_STAT_CAP, Math.floor(count!))) : 0;
+  return typeof count === "number" ? normalizeMobStatCount(count) : 0;
 }
 
-/** Sum each normal type's per-kill row times its clamped count, folding identical stat keys. */
+/** Sum each normal type's per-kill row times its normalized count, folding identical stat keys. */
 export function mobStatRows(stacks: MobStatCounts): RewardEffect[] {
   const sums = new Map<string, RewardEffect>();
   for (const reward of MOB_STAT_REWARDS) {
@@ -98,7 +108,7 @@ export function mobStatRows(stacks: MobStatCounts): RewardEffect[] {
 export function mobStatText(id: string, count = 1): string {
   const reward = mobStatReward(id);
   if (!reward) return "";
-  const stacks = Math.max(0, Math.min(MOB_STAT_CAP, Math.floor(Number.isFinite(count) ? count : 0)));
+  const stacks = normalizeMobStatCount(count);
   const effect = reward.effect;
   const amount = effect.k === "stat"
     ? `${(effect.v * stacks * 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`

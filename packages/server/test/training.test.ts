@@ -1270,7 +1270,7 @@ describe("the training room (live)", () => {
 
       p.room.send("train", { cmd: "stat", id: "emberImp", count: 5 });
       await until(() => myState().mobStats.get("emberImp") === 5, "the mob stat stacks in the client's state");
-      await until(() => p.toasts.some((t) => t.includes("Ember Imp:") && t.includes("5/10")), "the stat progress toast");
+      await until(() => p.toasts.some((t) => t.includes("Ember Imp:") && t.includes("+5% damage total")), "the uncapped stat progress toast");
 
       p.room.send("train", { cmd: "card", id: "slowBurn" });
       await until(() => myState().build.get("slowBurn") === 1, "the interactive augment in the client's state");

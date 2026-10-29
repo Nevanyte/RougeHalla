@@ -5,9 +5,9 @@
 // double, so the local prediction and the fighter art decode exactly the value the server simulated with.
 //
 // Wire forms (D22: the quantized value is authoritative; the sim simulates with exactly what a client decodes):
-//   multipliers (asMult, windupMult, speedMult): uint16 thousandths (MULT_WIRE_PER_UNIT), rounded half up to the 0.001
-//     step and clamped to MOD_MULT_MIN..MOD_MULT_MAX (50..20000 on the wire). decodeMult is exactly wire / 1000.
-//   flat bonuses (armorBonus, shieldBonus, adBonus, apBonus): int16 in tenths of a point (FLAT_WIRE_PER_POINT), -3276.8..3276.7.
+//   multipliers (asMult, windupMult, speedMult): float64 thousandths (MULT_WIRE_PER_UNIT), rounded half up to the 0.001
+//     step and clamped only to MOD_MULT_MIN at the low end. decodeMult is exactly wire / 1000.
+//   flat bonuses (armorBonus, shieldBonus, adBonus, apBonus): float64 in tenths of a point (FLAT_WIRE_PER_POINT).
 // asMult: the rows (and the sources, slows included) are capped at AS_MULT_CAP (capAsMult) and the `asPost` mults (Boom,
 // Machine Gun) multiply AFTER the cap: the server folds, caps, multiplies, then encodes, so that is the value on the wire.
 //
@@ -55,30 +55,29 @@ export const IDENTITY_MIRRORS: Readonly<StatMirrors> = {
   asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0,
 };
 
-/** A multiplier never goes below or above these, whatever its rows add up to (a -100% windup would be no windup at all). */
+/** A multiplier never goes below this, whatever its rows add up to (a -100% windup would be no windup at all). */
 export const MOD_MULT_MIN = 0.05;
+/** Legacy uint16 mirror ceiling, retained for older presentation/benchmark callers; encoders no longer apply it. */
 export const MOD_MULT_MAX = 20;
 /** The attack-speed multiplier from every source together, capped (AS_MULT_CAP); a slow below the cap is untouched. */
 export function capAsMult(x: number): number {
   return x > AS_MULT_CAP ? AS_MULT_CAP : x;
 }
-/** Wire units per unit of a multiplier: the wire carries thousandths (uint16). */
+/** Wire units per unit of a multiplier: the wire carries thousandths (float64). */
 export const MULT_WIRE_PER_UNIT = 1000;
-/** Wire units per point of a flat bonus: the wire carries tenths. */
+/** Wire units per point of a flat bonus: the wire carries tenths (float64). */
 export const FLAT_WIRE_PER_POINT = 10;
-const INT16_MIN = -32768;
-const INT16_MAX = 32767;
 const MULT_WIRE_MIN = Math.round(MOD_MULT_MIN * MULT_WIRE_PER_UNIT);
-const MULT_WIRE_MAX = Math.round(MOD_MULT_MAX * MULT_WIRE_PER_UNIT);
 
 /**
- * The wire value of a multiplier (what the sim stores on the state): whole thousandths, rounded half up, clamped to
- * MOD_MULT_MIN..MOD_MULT_MAX. Non-finite becomes the identity (1000).
+ * The wire value of a multiplier (what the sim stores on the state): whole thousandths, rounded half up, clamped only to
+ * MOD_MULT_MIN. Non-finite becomes the identity (1000).
  */
 export function encodeMult(x: number): number {
   if (!Number.isFinite(x)) return MULT_WIRE_PER_UNIT;
+  if (x > Number.MAX_VALUE / MULT_WIRE_PER_UNIT) return Number.MAX_VALUE;
   const n = Math.floor(x * MULT_WIRE_PER_UNIT + 0.5);
-  return n < MULT_WIRE_MIN ? MULT_WIRE_MIN : n > MULT_WIRE_MAX ? MULT_WIRE_MAX : n;
+  return n < MULT_WIRE_MIN ? MULT_WIRE_MIN : n;
 }
 
 /** The multiplier a wire value stands for: exactly wire / 1000 (the double nearest it), on the server and every client. */
@@ -121,11 +120,13 @@ export function mirrorTimings(
   return scaleWindup(t, windupMult);
 }
 
-/** The wire value of a flat bonus: whole tenths of a point, rounded half up, clamped to int16. Non-finite becomes 0. */
+/** The wire value of a flat bonus: whole tenths of a point, rounded half up, with no stat ceiling. Non-finite becomes 0. */
 export function encodeFlat(x: number): number {
   if (!Number.isFinite(x)) return 0;
+  if (x > Number.MAX_VALUE / FLAT_WIRE_PER_POINT) return Number.MAX_VALUE;
+  if (x < -Number.MAX_VALUE / FLAT_WIRE_PER_POINT) return -Number.MAX_VALUE;
   const n = Math.floor(x * FLAT_WIRE_PER_POINT + 0.5);
-  return n < INT16_MIN ? INT16_MIN : n > INT16_MAX ? INT16_MAX : n;
+  return n;
 }
 
 /** The flat bonus a wire value stands for (a division, so 3 decodes to exactly 0.3, the double nearest it). */
@@ -178,6 +179,8 @@ export interface FoldContext {
   holds?: (e: EffectOf<"while">) => boolean;
   /** The faction's hp, the base the max hp rows scale (a `convert` from maxHp reads the folded max hp; omitted = 0). */
   baseMaxHp?: number;
+  /** Earned mob-stat rewards, kept separate so their permanent growth can continue past card/source ceilings. */
+  farmRows?: readonly Effect[];
 }
 
 /**
@@ -215,6 +218,8 @@ export interface Folded {
    * resist G7, move speed G10, a conversion's AD and AP G11) and `ap` already multiplied by its `ap` mult.
    */
   sums: StatSums;
+  /** Earned mob-stat rows, applied after card/source ceilings by the combat rules and mirror encoder. */
+  farmSums: StatSums;
   /** The `mult` rows' products, clamped (hit to OUTGOING_ROW_CAP, asPost to AS_POST_MIN..AS_POST_MAX, wishCooldown above WISH_COOLDOWN_MULT_MIN, hpRace to HP_RACE_CAP). */
   mults: MultSums;
   /** The `flag` rows that are on. */
@@ -229,12 +234,12 @@ export function foldedMaxHp(baseMaxHp: number, maxHpSum: number): number {
 }
 
 /** The input of a `convert` row from the plain sums (bonuses are fractions, never negative, and already inside their caps). */
-function convertInput(from: ConvertFrom, plain: Readonly<StatSums>, maxHp: number): number {
+function convertInput(from: ConvertFrom, plain: Readonly<StatSums>, farm: Readonly<StatSums>, maxHp: number): number {
   switch (from) {
-    case "ad": return plain.ad;
+    case "ad": return plain.ad + farm.ad;
     case "maxHp": return maxHp;
-    case "bonusAttackSpeed": return Math.max(0, Math.min(plain.attackSpeed, AS_MULT_CAP - 1));
-    case "bonusMoveSpeed": return Math.max(0, Math.min(plain.moveSpeed, MOVE_BONUS_CAP));
+    case "bonusAttackSpeed": return Math.max(0, Math.min(plain.attackSpeed + farm.attackSpeed, AS_MULT_CAP - 1));
+    case "bonusMoveSpeed": return Math.max(0, Math.min(plain.moveSpeed + farm.moveSpeed, MOVE_BONUS_CAP));
   }
 }
 
@@ -245,7 +250,8 @@ function convertInput(from: ConvertFrom, plain: Readonly<StatSums>, maxHp: numbe
  */
 export function foldRows(effects: readonly Effect[], ctx: FoldContext = {}): Folded {
   const plain = foldStatRows(effects, ctx);
-  const maxHp = foldedMaxHp(ctx.baseMaxHp ?? 0, plain.maxHp);
+  const farmSums = foldStatRows(ctx.farmRows ?? [], ctx);
+  const maxHp = foldedMaxHp(ctx.baseMaxHp ?? 0, plain.maxHp + farmSums.maxHp);
   const mults = identityMults();
   const flags = new Set<EffectFlag>();
   const conv = zeroSums();
@@ -257,7 +263,7 @@ export function foldRows(effects: readonly Effect[], ctx: FoldContext = {}): Fol
     } else if (e.k === "flag") {
       flags.add(e.flag);
     } else if (!isProductStat(e.to) && (e.to as StatKey) !== "maxHp") {
-      let out = e.per * convertInput(e.from, plain, maxHp);
+      let out = e.per * convertInput(e.from, plain, farmSums, maxHp);
       if (e.cap !== undefined && out > e.cap) out = e.cap;
       conv[e.to] += out;
     }
@@ -279,7 +285,8 @@ export function foldRows(effects: readonly Effect[], ctx: FoldContext = {}): Fol
   if (mults.hpRace > HP_RACE_CAP) mults.hpRace = HP_RACE_CAP; // G4
   for (const k of MULT_KEYS) if (!(mults[k] >= 0)) mults[k] = 0;
   sums.ap *= mults.ap; // Arcane Overload: after the conversions and their cap
-  return { plain, sums, mults, flags, maxHp };
+  farmSums.ap *= mults.ap; // Earned AP follows the same AP multiplier, but stays outside its conversion ceiling.
+  return { plain, sums, farmSums, mults, flags, maxHp };
 }
 
 /** What the registered mod sources (world.modSources) add on top of the rows: multipliers multiply, flat bonuses add. */
@@ -312,11 +319,13 @@ export function mirrorsFromSums(s: StatSums): StatMirrors {
  */
 export function mirrorsFromFold(f: Folded, src: Readonly<SourceMods> = NO_SOURCE_MODS): StatMirrors {
   const m = mirrorsFromSums(f.sums);
-  m.asMult = capAsMult(m.asMult * src.asMult) * f.mults.asPost;
-  m.speedMult *= src.speedMult;
+  m.asMult = (capAsMult(m.asMult * src.asMult) + f.farmSums.attackSpeed * src.asMult) * f.mults.asPost;
+  m.speedMult = (m.speedMult + f.farmSums.moveSpeed) * src.speedMult;
   m.windupMult *= src.windupMult;
-  m.armorBonus = Math.min(BONUS_DEFENSE_CAP, m.armorBonus + src.armor);
-  m.shieldBonus = Math.min(BONUS_DEFENSE_CAP, m.shieldBonus + src.shield);
+  m.armorBonus = Math.min(BONUS_DEFENSE_CAP, m.armorBonus + src.armor) + f.farmSums.armor;
+  m.shieldBonus = Math.min(BONUS_DEFENSE_CAP, m.shieldBonus + src.shield) + f.farmSums.shield;
+  m.adBonus += f.farmSums.ad;
+  m.apBonus += f.farmSums.ap;
   return m;
 }
 
@@ -341,11 +350,12 @@ export function decayBarrier(barrier: number, maxHp: number, dtSeconds: number):
 /**
  * G5: the share of the damage it lands that a fighter heals. `own` is its faction's (Holy's); `rows` the sum of its `lifesteal`
  * rows, held to LS_CAP BEFORE `mult` (Bloodthirst's lifestealMult, a product: 2 doubles them, so the rows reach 0.5); `onDot` is
- * `lifestealDot` (Siphon), counted for a damage-over-time tick only. Never more than LIFESTEAL_MAX in all.
+ * `lifestealDot` (Siphon), counted for a damage-over-time tick only. These sources share LIFESTEAL_MAX;
+ * earned `farmRows` are added afterwards without a farming ceiling and still receive `mult`.
  */
-export function lifestealTotal(own: number, rows: number, mult = 1, onDot = 0): number {
+export function lifestealTotal(own: number, rows: number, mult = 1, onDot = 0, farmRows = 0): number {
   const fromRows = rows > 0 ? Math.min(LS_CAP, rows) * Math.max(0, mult) : 0;
-  return Math.min(LIFESTEAL_MAX, (own > 0 ? own : 0) + fromRows + (onDot > 0 ? onDot : 0));
+  return Math.min(LIFESTEAL_MAX, (own > 0 ? own : 0) + fromRows + (onDot > 0 ? onDot : 0)) + Math.max(0, farmRows) * Math.max(0, mult);
 }
 
 /**

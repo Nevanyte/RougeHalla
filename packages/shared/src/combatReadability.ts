@@ -119,6 +119,7 @@ function cardLeech(build: CardCounts | null | undefined, faction: string, mobSta
       if (e.k === "stat" && e.stat === "lifesteal") rows += e.v * count;
     }
   }
-  for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v;
-  return Math.max(0, Math.min(0.25, rows));
+  let farm = 0;
+  for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
+  return Math.max(0, Math.min(0.25, rows)) + Math.max(0, farm);
 }

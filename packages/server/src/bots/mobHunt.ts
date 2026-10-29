@@ -448,7 +448,6 @@ export class MobHunter {
       const walk = inp.walk(m);
       if (walk === null || walk > reach * c.walkSlack) continue;
       let score = walk - share * SHARE_BONUS + m.maxHp * HP_WEIGHT;
-      if (m.type && mobStatCount(self.mobStats, m.type) >= MOB_STAT_CAP) score += 10_000;
       if (edge > 0) score -= EDGE_BONUS;
       else if (edge < 0) score += EDGE_PENALTY;
       if (theirs !== null) {

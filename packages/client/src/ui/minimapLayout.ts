@@ -10,6 +10,8 @@ export interface MapMark {
   essential?: boolean;
   /** Countdowns can share aligned rows if ordinary nearby placement becomes fragmented. */
   clock?: boolean;
+  /** Live actors must remain at their map coordinates and must not influence static marker placement. */
+  pinned?: boolean;
 }
 export interface PlacedMark<T extends MapMark = MapMark> {
   mark: T;
@@ -35,13 +37,21 @@ export function marksOverlap(a: PlacedMark, b: PlacedMark, gap = MARK_GAP): bool
     && Math.abs(a.y - b.y) < (a.mark.h + b.mark.h) / 2 + gap;
 }
 
-/** Closest vacant slot, in a deterministic order. Never paint two symbols/labels on top of one another. */
+/** Place static labels deterministically; pinned live actors retain exact coordinates and may visually overlap. */
 export function layoutMinimapMarks<T extends MapMark>(marks: readonly T[]): PlacedMark<T>[] {
-  const clocks = marks.filter((m) => m.clock);
-  if (clocks.length > 20) return placeMarks(marks, true);
-  const nearby = placeMarks(marks, false);
-  if (nearby.filter((p) => p.mark.clock).length === clocks.length) return nearby;
-  return placeMarks(marks, true);
+  const pinned = marks.filter((m) => m.pinned && [m.x, m.y, m.w, m.h].every(Number.isFinite) && m.w > 0 && m.h > 0).map(pinMark);
+  const staticMarks = marks.filter((m) => !m.pinned);
+  const clocks = staticMarks.filter((m) => m.clock);
+  if (clocks.length > 20) return [...placeMarks(staticMarks, true), ...pinned];
+  const nearby = placeMarks(staticMarks, false);
+  if (nearby.filter((p) => p.mark.clock).length === clocks.length) return [...nearby, ...pinned];
+  return [...placeMarks(staticMarks, true), ...pinned];
+}
+
+function pinMark<T extends MapMark>(mark: T): PlacedMark<T> {
+  const minX = EDGE + mark.w / 2, maxX = SIZE - EDGE - mark.w / 2;
+  const minY = EDGE + mark.h / 2, maxY = SIZE - EDGE - mark.h / 2;
+  return { mark, x: Math.max(minX, Math.min(maxX, mark.x)), y: Math.max(minY, Math.min(maxY, mark.y)) };
 }
 
 function placeMarks<T extends MapMark>(marks: readonly T[], alignClocks: boolean): PlacedMark<T>[] {
