@@ -28,6 +28,19 @@ export const CHILL_MOVE_RADIUS = 100;
  * still disengage with effort).
  */
 export const CHILL_MOVE_MULT = 0.7;
+/** The first auto attack holds Frost's full movement slow for this long. */
+export const CHILL_MOVE_HOLD_MS = 1_000;
+/** The movement slow fades linearly to full speed over this duration after its hold. */
+export const CHILL_MOVE_THAW_MS = 3_000;
+/** Time outside every active Frost movement chill before its strength fully recovers. */
+export const CHILL_MOVE_RESET_MS = CHILL_MOVE_HOLD_MS + CHILL_MOVE_THAW_MS;
+
+/** Frost's movement slow after `exposureMs` in one chill episode: full strength, then thawing, then none. */
+export function frostMoveMultiplier(exposureMs: number): number {
+  if (!(exposureMs > CHILL_MOVE_HOLD_MS)) return CHILL_MOVE_MULT;
+  const thaw = Math.min(1, (exposureMs - CHILL_MOVE_HOLD_MS) / CHILL_MOVE_THAW_MS);
+  return CHILL_MOVE_MULT + (1 - CHILL_MOVE_MULT) * thaw;
+}
 /** Heals (other than Holy's lifesteal) wait until the fighter has been out of combat this long. */
 export const HEAL_LOCKOUT_SECONDS = 3;
 /** Signature damage over time is reported as one `hit` fx per attacker and victim this often, not every tick. */

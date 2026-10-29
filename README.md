@@ -82,8 +82,8 @@ Each faction beats exactly two others and loses to exactly two. Each weapon does
 | --- | --- | --- | --- | --- | --- |
 | Fire | 835 | 0.60/s × 100 | 0 / 45 | Dragonslayer: 18 burn a second (magic, over time), and a hit back on every swing the target makes (physical, 58 to 104 a swing by the target's weapon). | Sentenced, Plague |
 | Sentenced | 880 | 0.95/s × 34.840203 | 135 / 120 | Marked: landed hits pulse true damage and climb four tiers, taxing attack speed, suppressing damage and blocking lethal execute bonuses. Enemy weapon swaps promote the mark. Hitting a camp member marks its whole group. | Plague, Frost |
-| Plague | 1375 | 1.85/s × 20 | 190 / 0 | Rat King: 43 disease a second (magic) and an execute that adds up to 207 a second once the target is under half hp. Its hits are 80% physical. | Frost, Demon Blood |
-| Frost | 1200 | 0.45/s × 170 | 20 / 190 | Living Wall of Ice: everyone engaged with it attacks at 48% speed, and moves at 70% within 100 u. Its hits are 90% physical. | Demon Blood, Fire |
+| Plague | 1375 | 1.85/s × 20 | 190 / 0 | Rat King: 43 disease a second (magic) and an execute that adds up to 207 a second once the target is under half hp. Its DoTs cannot crit; auto attacks can. | Frost, Demon Blood |
+| Frost | 1200 | 0.45/s × 170 | 20 / 190 | Living Wall of Ice: everyone engaged with it attacks at 48% speed; within 100 u, movement starts 30% slower, holds for 1 s and thaws over 3 s. Its hits are 90% physical. | Demon Blood, Fire |
 | Demon Blood | 1400 | 0.95/s × 96 | 0 / 250 | Radiant: heals a share of damage dealt equal to 11% plus 85% of its missing-health fraction, at most 75%. | Fire, Sentenced |
 
 Armor cuts physical damage and the shield (magic resist) cuts magic damage, each by 1 / (1 + stat / 100); true damage ignores both. Game pace doubles every faction's damage numbers and leaves hp alone. The balance target is for a favourite to finish with 10-35% of its hp left; the current Sentenced measurements are in [testing/TUNING_SENTENCED.md](testing/TUNING_SENTENCED.md).

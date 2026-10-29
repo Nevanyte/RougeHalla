@@ -206,7 +206,7 @@ export class Hud {
       this.vitalsHp.textContent = vitalsHpText(me, training, barrier);
     }
 
-    this.cards.update(me?.build, me?.status === "alive");
+    this.cards.update(me?.build, me?.status === "alive", me?.faction);
     this.build.update(me, me?.status === "alive");
     this.mobStats.update(me, me?.status === "alive");
     this.updateArena(state, serverNow);

@@ -140,7 +140,7 @@ export class RaidScene extends Phaser.Scene {
   private chestMemory = new ChestMemory();
   private unbindToast: (() => void) | null = null;
   /** Scratch for the chest panel's frame and the minimap's chest blips and camp states (refilled every frame). */
-  private readonly chestMe: ChestPanelMe = { id: "", x: 0, y: 0, alive: false, build: null };
+  private readonly chestMe: ChestPanelMe = { id: "", faction: "", x: 0, y: 0, alive: false, build: null };
   private readonly blips: ChestBlip[] = [];
   private readonly campStates: number[] = [];
   private readonly mapHold = new MapHold(
@@ -890,6 +890,7 @@ export class RaidScene extends Phaser.Scene {
     if (me) {
       local = this.chestMe;
       local.id = this.room.sessionId;
+      local.faction = me.faction;
       local.x = me.x;
       local.y = me.y;
       local.alive = me.status === "alive";

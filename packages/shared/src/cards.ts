@@ -84,6 +84,8 @@ export interface CardDef {
   effects: readonly Effect[];
   /** Rows that REPLACE `effects` for a fighter of that faction (Pestilence: an execute faction widens its execute instead). */
   byFaction?: Partial<Record<FactionId, readonly Effect[]>>;
+  /** Player-facing card text that replaces `text` for a faction-specific row set. */
+  byFactionText?: Partial<Record<FactionId, string>>;
   ready: CardReady;
   /** A phase "b" card: the machinery it waits for (documentation; nothing reads it). */
   hook?: string;
@@ -355,6 +357,8 @@ const AUGMENTS: readonly CardDef[] = [
     id: "cruelWounds", title: "Cruel Wounds", tier: 2, tags: ["crit", "dot"], ready: "a",
     text: "Your damage over time can critically strike (+20% critical strike chance).",
     effects: [{ k: "stat", stat: "critChance", v: 0.2 }, { k: "flag", flag: "dotCrit" }],
+    byFaction: { plague: [{ k: "stat", stat: "critChance", v: 0.2 }, { k: "flag", flag: "plagueDotCritConversion" }] },
+    byFactionText: { plague: "Your attacks gain +20% critical strike chance. Plague's damage-over-time ticks cannot crit; instead they deal bonus damage equal to half your current critical strike chance." },
   }),
   augment({
     id: "thirdTimesTheCharm", title: "Third Time's the Charm", tier: 2, tags: ["onHit"], ready: "a",
@@ -500,8 +504,11 @@ export function cardTitle(id: string): string {
 }
 
 /** The card's one-line mechanics ("+16% attack speed"); "" for an unknown id. */
-export function cardText(id: string): string {
-  return CARD_BY_ID.get(id)?.text ?? "";
+export function cardText(id: string, faction?: string): string {
+  const def = CARD_BY_ID.get(id);
+  if (!def) return "";
+  const custom = faction !== undefined ? def.byFactionText?.[faction as FactionId] : undefined;
+  return custom ?? def.text;
 }
 
 /** The base card of `base` at `tier`: "ad" and 2 give "ad2". */

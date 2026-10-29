@@ -75,6 +75,7 @@ function flagWords(flag: EffectOf<"flag">["flag"]): string {
     case "lockSecondSlot": return "Your second weapon slot is locked";
     case "noCrit": return "Your hits can never critically strike";
     case "dotCrit": return "Your damage over time can critically strike";
+    case "plagueDotCritConversion": return "Your DoT critical chance becomes steady DoT damage";
     case "gambler": return "Each hit has a chance to deal double damage and the same chance to deal half";
     case "thirdCharm": return "Every 3rd hit on the same target applies its on-hit effects once more";
     case "eyeForAnEye": return "Damage you return to attackers applies your on-hit effects";

@@ -27,6 +27,8 @@ export interface LocalFighter {
   asMult: number;
   windupMult: number;
   speedMult: number;
+  /** Frost's independent movement slow mirror (wire form, thousandths); optional for older in-memory fixtures. */
+  frostMoveMult?: number;
 }
 
 /** Another player, as far as the chill needs to know. */
@@ -274,8 +276,10 @@ export class LocalPrediction {
     let m = decodeMult(me.speedMult);
     const haste = this.hasteAt(t, me);
     if (haste > 0) m *= hasteMultiplier(m, haste);
-    // The server slows a fighter it is chilling when the Frost doing it is within CHILL_MOVE_RADIUS; here: any Frost that close.
-    if ((me.sig & SIG_CHILLED) !== 0) {
+    if (me.frostMoveMult !== undefined) {
+      m *= decodeMult(me.frostMoveMult);
+    } else if ((me.sig & SIG_CHILLED) !== 0) {
+      // Compatibility for older local prediction callers without the appended wire mirror.
       for (const o of others) {
         if (o.faction === "frost" && o.status === "alive" && Math.hypot(o.x - me.x, o.y - me.y) <= CHILL_MOVE_RADIUS) {
           m *= CHILL_MOVE_MULT;

@@ -65,6 +65,7 @@ export function chestKeyAction(code: string, s: { focused: boolean; foreign: boo
 /** The local player, as the panel reads them. `x`, `y`: the latest SERVER position. */
 export interface ChestPanelMe {
   id: string;
+  faction?: string;
   x: number;
   y: number;
   alive: boolean;
@@ -389,7 +390,7 @@ export class ChestPanel {
     this.shownId = reward.id;
 
     const closed = picked || this.greyed || this.pending !== null;
-    const cards = optionCards(reward, { myId: me.id, build: me.build, closed });
+    const cards = optionCards(reward, { myId: me.id, build: me.build, faction: me.faction, closed });
     this.currentCards = cards;
     while (this.cards.length < cards.length) this.addCard();
     this.cards.forEach((card, i) => this.paintCard(card, cards[i] ?? null, frame, i));
@@ -460,7 +461,7 @@ export class ChestPanel {
     const { view, state } = data;
     const taker = state.kind === "taken" ? frame.nameOf(state.by) ?? "" : "";
     const sending = this.pending?.pick === index;
-    const sig = `${data.id}|${view?.why.text ?? ""}|${view?.blocked?.text ?? ""}|${state.kind}|${taker}|${data.pickable}|${this.greyed}|${sending}`;
+    const sig = `${data.id}|${view?.text ?? ""}|${view?.why.text ?? ""}|${view?.blocked?.text ?? ""}|${state.kind}|${taker}|${data.pickable}|${this.greyed}|${sending}`;
     if (sig === card.sig) return;
     card.sig = sig;
     card.root.hidden = false;

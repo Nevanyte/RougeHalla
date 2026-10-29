@@ -53,13 +53,15 @@
 // windups (a swing, a cast) are not stretched: only the cycle is, so a chilled melee fighter still lands its swing on
 // time. An attack started this tick from a carried remainder counted that remainder at full speed and is corrected for
 // the chill of the tick that just ended. Within CHILL_MOVE_RADIUS of a Frost that chills it, a fighter also moves at
-// CHILL_MOVE_MULT. Several Frosts don't stack.
+// CHILL_MOVE_MULT for one second, then thaws to full speed over three seconds. Repeated attacks and switching between
+// Frosts do not refresh it; four seconds beyond every active Frost movement chill resets the slow. Several Frosts don't stack.
 //
 // In the tick: afterWeapons (note this tick's attacks, correct new ones for the chill) → movement (the chill's slow) →
 // ... → beforeDamage (contacts from this tick's hits and blocks, reach, signature damage into the ledger) → ledger →
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
-  AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, capAsMult, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
+  AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, capAsMult, CHILL_MOVE_RADIUS,
+  CHILL_MOVE_RESET_MS, chillMultiplier, decodeMult, encodeMult, frostMoveMultiplier,
   CRIT_MULT, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, executeDps, FACTIONS, FESTERING_AP_SHARE,
   FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
@@ -121,6 +123,11 @@ export interface SigFighter {
   /** Cooldown-progress multiplier for the coming tick (1: not chilled), and the Frosts behind it. */
   chill: number;
   chillers: string[];
+  /** Exposure episode for Frost's thawing movement slow; brief gaps and switching Frosts preserve the episode. */
+  chillExposureStartedAt: number;
+  chillLastNearAt: number;
+  /** Quantized movement multiplier synced to the local client for prediction. */
+  frostMoveMult: number;
   /** The weapon action seen last tick after the weapon phase, to spot one started this tick. */
   seenAction: PendingAction | null;
   /** A stagger pauses this fighter's damage over time until then (see staggerPause). */
@@ -144,7 +151,7 @@ export function install(world: World): void {
   world.beforeDamage.push(signatureDamage);
   world.systems.push(afterDamage);
   world.systems.push(healOverTime);
-  world.moveModifiers.push(chillMoveMultiplier);
+  world.moveModifiers.push(frostMovementModifier);
   // The mark's attack-speed tax is a stat source: the mirrors stay the one truth for attack speed, and AS_MULT_CAP applies to it.
   world.modSources.push(markTaxSource);
   chainHook(world, "weaponSwapped", onWeaponSwapped);
@@ -168,7 +175,8 @@ function newFighter(): SigFighter {
   return {
     target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markGroup: null, markGroupSize: 1, markHits: 0, markProgress: 0, markSwaps: 0,
     markDenied: false, farSince: -Infinity, ampUntil: 0, hpFrac: 1,
-    combatAt: -Infinity, chill: 1, chillers: [], seenAction: null, dotPausedUntil: 0, engagedOn: null,
+    combatAt: -Infinity, chill: 1, chillers: [], chillExposureStartedAt: -Infinity, chillLastNearAt: -Infinity, frostMoveMult: 1,
+    seenAction: null, dotPausedUntil: 0, engagedOn: null,
   };
 }
 
@@ -199,6 +207,7 @@ function resetAll(world: World, keepCombat: boolean): void {
     if (c) recomputeMods(world, c);
   }
   for (const c of allCombatants(world)) {
+    if ("frostMoveMult" in c.s && c.s.frostMoveMult !== 1000) c.s.frostMoveMult = 1000;
     if (c.s.markTier !== 0) c.s.markTier = 0;
     if (c.s.markBy !== "") c.s.markBy = "";
     if (c.s.markTax !== 0) c.s.markTax = 0;
@@ -943,6 +952,27 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
     m = resistSlow(m, slowResistOf(c.s));
     f.chill = m;
     f.chillers = from ? [...from] : [];
+    let nearFrost = false;
+    if (from) for (const id of from) {
+      const frost = byId.get(id);
+      if (frost && standing(frost) && Math.hypot(frost.s.x - c.s.x, frost.s.y - c.s.y) <= CHILL_MOVE_RADIUS) {
+        nearFrost = true;
+        break;
+      }
+    }
+    if (nearFrost) {
+      if (!Number.isFinite(f.chillExposureStartedAt) || now - f.chillLastNearAt >= CHILL_MOVE_RESET_MS) f.chillExposureStartedAt = now;
+      f.chillLastNearAt = now;
+    } else if (Number.isFinite(f.chillLastNearAt) && now - f.chillLastNearAt >= CHILL_MOVE_RESET_MS) {
+      f.chillExposureStartedAt = -Infinity;
+      f.chillLastNearAt = -Infinity;
+    }
+    const moveMult = nearFrost && Number.isFinite(f.chillExposureStartedAt)
+      ? resistSlow(frostMoveMultiplier(now - f.chillExposureStartedAt), slowResistOf(c.s))
+      : 1;
+    const moveWire = encodeMult(moveMult);
+    f.frostMoveMult = decodeMult(moveWire);
+    if ("frostMoveMult" in c.s && c.s.frostMoveMult !== moveWire) c.s.frostMoveMult = moveWire;
     if (m < 1) {
       c.s.readyAt = stretchUntil(c.s.readyAt, now, dtMs, m);
       w.bufferedUntil = stretchUntil(w.bufferedUntil, now, dtMs, m);
@@ -957,14 +987,14 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
   }
 }
 
-/** moveModifiers: inside CHILL_MOVE_RADIUS of a Frost that chills it, a fighter walks at CHILL_MOVE_MULT. */
-function chillMoveMultiplier(world: World, c: Combatant): number {
+/** Applies the current thaw multiplier while a living Frost that chills this fighter is in range. */
+function frostMovementModifier(world: World, c: Combatant): number {
   const f = world.factions?.fighters.get(c.id);
-  if (!f || f.chillers.length === 0) return 1;
+  if (!f || f.chillers.length === 0 || f.frostMoveMult >= 1) return 1;
   for (const id of f.chillers) {
     const frost = combatant(world, id);
     if (frost && standing(frost) && Math.hypot(frost.s.x - c.s.x, frost.s.y - c.s.y) <= CHILL_MOVE_RADIUS) {
-      return resistSlow(CHILL_MOVE_MULT, slowResistOf(c.s));
+      return f.frostMoveMult;
     }
   }
   return 1;
