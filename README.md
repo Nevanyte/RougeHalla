@@ -333,6 +333,45 @@ or put `PLAYTEST_TUNNEL=roguehalla` and `PLAYTEST_HOSTNAME=play.roguehalla.com` 
 - **One machine at a time.** Run a given named tunnel from one place only; two connectors split the traffic between them.
 - It was tested here only against a stand-in `cloudflared` that prints what a named tunnel prints, never against a real account, so the first real run is the real test.
 
+### Automatic live updates
+
+`play.roguehalla.com` can update automatically from GitHub's `main` branch. The hosting Mac checks every 60 seconds. Each new commit is extracted into a separate release, installs locked dependencies, passes all workspace type checks, builds the client, and passes a production smoke test covering HTTP, assets, two WebSocket players and public camp clocks. The current game keeps running during those checks. These are quick deployment gates; run the broader gameplay tests before merging changes.
+
+After checks pass, the server shuts down gracefully to save player progress, then starts the checked release on port 2600. This briefly interrupts active matches. The existing named Cloudflare tunnel stays running. Local health, the profile lock and the public `/build-info.json` commit must agree. A failed startup or public verification restarts the previous release using the current profile file. A failed commit is held until `main` changes or you explicitly retry it.
+
+The host uses a private config at `~/.rougehalla/deploy-config.json` (mode `0600`), for example:
+
+```json
+{
+  "repository": "https://github.com/Nevanyte/RougeHalla.git",
+  "branch": "main",
+  "stateDir": "/Users/YOUR_USER/.rougehalla",
+  "stashFile": "/Users/YOUR_USER/.rougehalla/playtest-profiles.json",
+  "port": 2600,
+  "publicUrl": "https://play.roguehalla.com",
+  "nodeBinary": "/opt/homebrew/bin/node"
+}
+```
+
+Use absolute paths. Profiles, environment overrides, deployment records, backups and logs remain outside Git. The first deployment captures the recognized server settings from a verified existing process into private `server-environment.json`; edit that file to change hosting settings. Adopting a manually launched server also requires its exact `pid`, `port`, `releaseDir`, `launcher`, `cwd`, `command` and `commit` in `deployment.json`, with `legacyRoot` in the config. An occupied port or profile lock without matching ownership is refused. A fresh host needs the named tunnel configured separately.
+
+```bash
+npm run deploy:auto             # enable/reinstall the 60-second main check on this Mac
+npm run deploy:auto:status      # confirm schedule and log location
+npm run deploy:status           # deployed commit, local/public health, any rejected commit
+npm run deploy                  # check main immediately
+npm run deploy -- --retry       # explicitly retry a rejected main commit
+npm run deploy:rollback         # previous code, current profiles; hold the rolled-back commit
+npm run deploy:auto:stop        # disable automatic changes; live server keeps running
+npm run deploy:check            # local typecheck + build + isolated multiplayer smoke test
+```
+
+`npm run deploy -- --ref <branch-or-SHA>` deploys an explicitly chosen remote revision. Automatic updates only move forward from the deployed commit; a force-pushed history requires an explicit revision after review. To return to a commit held by rollback, use `--retry`.
+
+The schedule is a macOS LaunchAgent (`com.rougehalla.autodeploy`) and uses a standalone copy of the deployer in `~/.rougehalla/deployer`, so deleting a development worktree cannot stop it. Rerun `npm run deploy:auto` after changing the deployment scripts. The Mac must remain powered, online and logged in; each deployed server starts a `caffeinate` helper. The deployer leaves the tunnel process alone and does not install a tunnel or game-server boot service.
+
+Logs: `~/.rougehalla/deploy-auto.log`, `live-server.log`, `deploy-diagnostics.log`, and each release's `deploy-checks.log`. Releases live under `~/.rougehalla/releases`; the current, previous and recent releases are retained (default four). Profile backups are saved after graceful shutdown under `~/.rougehalla/deployments`; rollback never copies a backup over newer player progress. Concurrent deployments are locked, and an interrupted cutover with `deploy-pending.json` stops further automatic changes until inspected.
+
 ## Testing
 
 ```bash
