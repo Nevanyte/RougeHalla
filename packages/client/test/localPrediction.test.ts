@@ -1,14 +1,15 @@
 // What the client knows about its own fighter's speed and roots (net/localPrediction.ts): the synced stat mirrors in wire form
-// (thousandths), the chill, and the axe's root. Nothing here reads the cards held or any kill: what a card does reaches the
+// (thousandths), the chill, instant melee and ranged attack pauses. Nothing here reads the cards held or any kill: what a card does reaches the
 // client only through the mirrors the server folds it into.
 import { describe, expect, it } from "vitest";
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
   EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, MOVE_MULT_FLOOR,
   PLAYER_SPEED, SIG_CHILLED, cardRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
-  WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
+  WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx, type WeaponId,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
+import { keyboardMoveGoal } from "../src/net/keyboardMovement";
 import { LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
 
 const ME = "me";
@@ -22,7 +23,7 @@ const mirrored = (m: { speed?: number; as?: number; windup?: number }, o: Partia
     speedMult: encodeMult(m.speed ?? 1), asMult: encodeMult(m.as ?? 1), windupMult: encodeMult(m.windup ?? 1), ...o,
   });
 const other = (o: Partial<OtherFighter> = {}): OtherFighter => ({ x: 150, y: 100, faction: "frost", status: "alive", ...o });
-const windup = (t: number, ms: number, weapon: "axe" | "sword" = "axe", by = ME): TimedFx => ({ kind: "windup", by, weapon, a: 0, ms, t });
+const windup = (t: number, ms: number, weapon: WeaponId, by = ME): TimedFx => ({ kind: "windup", by, weapon, a: 0, ms, t });
 
 describe("order numbers", () => {
   it("count 1..255 and round again, never 0 (the state's default 'no order yet')", () => {
@@ -131,19 +132,53 @@ describe("no kill bursts: a kill does not move the walk", () => {
   });
 });
 
-describe("the axe's root", () => {
-  it("does not root after launch when recovery root is zero", () => {
+describe("instant player melee and retained ranged pauses", () => {
+  it.each(["sword", "shield", "axe", "fists"] as const)("%s never roots the local player before, during or after its immediate swing", weapon => {
     for (const faction of Object.keys(FACTIONS) as Array<keyof typeof FACTIONS>) {
       for (const as of [1, 1.25, 1.6]) {
-        const who = mirrored({ as }, { faction });
-        const timing = weaponTimings("axe", attackInterval(FACTIONS[faction], "axe", decodeMult(encodeMult(as))));
+        const who = mirrored({ as }, { faction, weapon0: weapon, weapon1: "", slot: 0 });
+        const timing = weaponTimings(weapon, attackInterval(FACTIONS[faction], weapon, decodeMult(encodeMult(as))));
+        expect(timing.windup, `${faction} as=${as}`).toBe(0);
         expect(timing.root, `${faction} as=${as}`).toBe(0);
+        expect(timing.interval).toBeGreaterThan(0);
         const p = new LocalPrediction();
-        p.noteFx(windup(10_000, timing.windup * 1000), ME, who);
-        for (const elapsed of [0, timing.windup * 1000 - 1, timing.windup * 1000, timing.windup * 1000 + 500]) {
-          expect(p.frameInput(10_000 + elapsed - p.motion.delay, true, who, [], false).rooted, `${faction} as=${as} at ${elapsed}ms`).toBe(elapsed < timing.windup * 1000);
+        p.noteFx(windup(10_000, 0, weapon), ME, who);
+        for (const elapsed of [-1, 0, 1, 50, 500]) {
+          expect(p.frameInput(10_000 + elapsed - p.motion.delay, true, who, [], false).rooted, `${faction} as=${as} at ${elapsed}ms`).toBe(false);
         }
       }
+    }
+  });
+
+  it.each(["sword", "shield", "axe", "fists"] as const)("keeps a WASD move advancing through a %s attack without a movement pause", weapon => {
+    const p = new LocalPrediction(), map = mapFromTiles(60, 20, new Uint8Array(60 * 20).fill(TILE_FLOOR));
+    const who = fighter({ x: 300, y: 300, weapon0: weapon, weapon1: "", slot: 0 });
+    p.motion.observe({ x: 300, y: 300, t: 0, moveSeq: 0 }, 0);
+    p.motion.frame(0, 16, p.frameInput(0, true, who, [], true));
+    const goal = keyboardMoveGoal(map, who, new Set(["KeyD"])); expect(goal).not.toBeNull();
+    p.motion.order("move", p.nextSeq(), 0, goal!, map);
+    let c = 0;
+    for (; c < 100; ) { c += 10; p.motion.frame(c, 10, p.frameInput(c, true, who, [], true)); }
+    const before = p.motion.predicted.x;
+    expect(before).toBeGreaterThan(who.x);
+    p.noteFx(windup(c + p.motion.delay, 0, weapon), ME, who);
+    for (let i = 0; i < 3; i++) {
+      c += 10;
+      const input = p.frameInput(c, true, who, [], true);
+      expect(input.rooted).toBe(false); p.motion.frame(c, 10, input);
+    }
+    expect(p.motion.predicted.x - before).toBeCloseTo(PLAYER_SPEED * .03);
+    expect(p.motion.predicted.y).toBe(300);
+  });
+
+  it.each(["bow", "wand"] as const)("keeps the %s's existing draw/cast pause and releases movement exactly at launch", weapon => {
+    const timing = weaponTimings(weapon, attackInterval(FACTIONS.fire, weapon));
+    const start = 10_000, duration = timing.windup * 1000;
+    expect(duration).toBeGreaterThan(0);
+    const p = new LocalPrediction(), who = fighter({ weapon0: weapon, weapon1: "", slot: 0, ...(weapon === "bow" ? { drawStartedAt: start } : {}) });
+    if (weapon === "wand") p.noteFx(windup(start, duration, weapon), ME, who);
+    for (const [elapsed, rooted] of [[-1, false], [0, true], [duration - 1, true], [duration, false]] as const) {
+      expect(p.frameInput(start + elapsed - p.motion.delay, true, who, [], false).rooted).toBe(rooted);
     }
   });
 });

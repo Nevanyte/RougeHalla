@@ -59,7 +59,7 @@ describe("Tab roster model", () => {
 });
 
 describe("Tab roster DOM and lifecycle", () => {
-  it("renders live sorted rows, two weapons and three stat icons, retaining unchanged DOM", () => {
+  it("renders live sorted rows, two weapon icons and three stat icons, retaining unchanged DOM", () => {
     const dom = installPlanningDom(), roster = new MapRoster(); dom.ui.append(asEl(roster.element));
     const strong = player("Strong", { weapon0: "sword", weapon1: "wand", adBonus: 480, apBonus: 360, asMult: 1180 });
     const weak = player("Weak");
@@ -67,7 +67,14 @@ describe("Tab roster DOM and lifecycle", () => {
     roster.update(players, "strong", true);
     const first = dom.ui.byClass("map-roster-player")[0]!;
     expect(first.getAttribute("data-player-id")).toBe("strong"); expect(first.classList.contains("local")).toBe(true);
-    expect(first.byClass("map-roster-weapon").map(w => w.textContent)).toEqual(["1 Sword", "2 Wand"]);
+    const weaponSlots = first.byClass("map-roster-weapon");
+    expect(weaponSlots.map(w => w.getAttribute("aria-label"))).toEqual(["Slot 1: Sword · Equipped", "Slot 2: Wand"]);
+    expect(weaponSlots.map(w => w.title)).toEqual(["Slot 1: Sword · Equipped", "Slot 2: Wand"]);
+    expect(weaponSlots.every(w => w.getAttribute("role") === "img")).toBe(true);
+    expect(weaponSlots.map(w => w.classList.contains("active"))).toEqual([true, false]);
+    expect(first.byClass("weapon-icon").map(w => w.getAttribute("data-weapon"))).toEqual(["sword", "wand"]);
+    expect(first.byClass("map-roster-weapon-equipped")).toHaveLength(1);
+    expect(weaponSlots.every(w => !/Sword|Wand/.test(w.textContent))).toBe(true);
     expect(first.byClass("map-roster-stat")).toHaveLength(3);
     expect(first.byClass("combat-icon")).toHaveLength(3);
     roster.update(players, "strong", true);
@@ -76,9 +83,24 @@ describe("Tab roster DOM and lifecycle", () => {
     roster.update(players, "strong", true);
     expect(dom.ui.byClass("map-roster-player")[0]!.getAttribute("data-player-id")).toBe("weak");
     expect(dom.ui.byClass("map-roster-player")[0]!.allText).toContain("Out");
-    expect(dom.ui.byClass("map-roster-player")[0]!.allText).toContain("2 Bow");
+    expect(dom.ui.byClass("map-roster-player")[0]!.byClass("map-roster-weapon")[1]!.getAttribute("aria-label")).toBe("Slot 2: Bow");
+    strong.slot = 1;
+    roster.update(players, "strong", true);
+    const switched = dom.ui.byClass("map-roster-player").find(row => row.getAttribute("data-player-id") === "strong")!;
+    expect(switched.byClass("map-roster-weapon").map(w => w.classList.contains("active"))).toEqual([false, true]);
+    expect(switched.byClass("map-roster-weapon").map(w => w.getAttribute("aria-label"))).toEqual(["Slot 1: Sword", "Slot 2: Wand · Equipped"]);
+    expect(switched.byClass("map-roster-weapon-equipped")[0]!.parent).toBe(switched.byClass("map-roster-weapon")[1]);
     roster.update(players, "strong", false); expect(asEl(roster.element).hidden).toBe(true);
     roster.destroy(); expect(dom.ui.byClass("map-roster")).toHaveLength(0);
+  });
+
+  it("keeps two accessible Fists icons for empty or unknown slots, with only the equipped slot marked", () => {
+    const dom = installPlanningDom(), roster = new MapRoster(); dom.ui.append(asEl(roster.element));
+    roster.update([{ id: "me", player: player("You", { weapon0: "future-weapon", weapon1: "", slot: 1 }) }], "me", true);
+    expect(dom.ui.byClass("weapon-icon").map(w => w.getAttribute("data-weapon"))).toEqual(["fists", "fists"]);
+    expect(dom.ui.byClass("map-roster-weapon").map(w => w.getAttribute("aria-label"))).toEqual(["Slot 1: Fists", "Slot 2: Fists · Equipped"]);
+    expect(dom.ui.byClass("map-roster-weapon-equipped")).toHaveLength(1);
+    roster.destroy();
   });
 
   it("mounts left of the held map and hides immediately on release, lobby and planning", () => {

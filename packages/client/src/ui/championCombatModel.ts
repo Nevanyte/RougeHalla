@@ -8,7 +8,8 @@ import {
   damageShares, decodeMirrors, foldRows, isFactionId, isWeaponId, lifestealFraction,
   fireRoamBurstDamage, fireRoamSpeedMult, markPct, markWeight, ownedCards, pacedFaction, scalingDamage, WIRE_IDENTITY_MIRRORS,
   WEAPONS, wishOf, holyCampLifestealOf, HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS,
-  PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK, PLAGUE_CORPSE_HP_SHARE, sentencedHuntMarkMultiplier,
+  PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_GROWTH_PER_BODY,
+  PLAGUE_ZOMBIE_INTERVAL_MS, plagueZombieStats, sentencedHuntMarkMultiplier,
 } from "@raid/shared";
 import type { AbilityIcon, CardCounts, FactionId, WeaponId } from "@raid/shared";
 
@@ -53,6 +54,9 @@ export interface ChampionCombatInput {
   campClears?: number;
   frostEliteGuard?: boolean;
   corpseStacks?: number;
+  zombieAlive?: boolean;
+  zombieHp?: number;
+  zombieMaxHp?: number;
   huntStacks?: number;
   build?: CardCounts | null;
 }
@@ -170,14 +174,18 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
     case "plague": {
       const band = Math.min(1, Math.max(0, EXECUTE_BAND + executeBandBonus));
       const stacks = Math.max(0, safe(input.corpseStacks, 0));
-      const growth = 1 + stacks * PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK;
-      const disease = (faction.params.plague! * bm + AP_DOT_RATIO * mirrors.apBonus) * dotMult * growth;
+      const disease = (faction.params.plague! * bm + AP_DOT_RATIO * mirrors.apBonus) * dotMult;
+      const zombie = plagueZombieStats(safe(input.maxHp, faction.hp), stacks);
+      const zombieStatus = stacks === 0 ? "Walk over a body: raise zombie"
+        : input.zombieAlive === false ? "Zombie fallen · walk over a body to revive"
+        : `Zombie ${fmt(safe(input.zombieHp, zombie.maxHp))}/${fmt(safe(input.zombieMaxHp, zombie.maxHp))} HP · ${fmt(stacks)} ${stacks === 1 ? "body" : "bodies"}`;
       return {
-        id: "passive", icon: "magic", name: "Rat King disease", value: `${fmt(disease)} magic/s`,
-        scaling: `SO +${fmt(AP_DOT_RATIO * growth)} DPS/point · ${fmt(stacks)} corpses · +${fmt(stacks * PLAGUE_CORPSE_HP_SHARE * 100)}% HP`,
-        tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(AP_DOT_RATIO * growth * dotMult)} magic DPS per point. `
-          + `Corpse harvest multiplies disease (including its SO damage) by ${fmt(growth)}; each corpse grants ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and ${fmt(PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK * 100)}% disease strength. `
-          + `Below ${fmt(band * 100)}% target HP, execute adds ${fmt(faction.params.execute! * bm * dotMult)} × (${fmt(band)} − target HP fraction) magic DPS. Both include the ${fmt(dotMult)}× DoT multiplier; corpse stacks do not amplify the execute.`,
+        id: "passive", icon: "magic", name: "Rat King", value: `${fmt(disease)} magic/s`,
+        scaling: zombieStatus,
+        tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(AP_DOT_RATIO * dotMult)} magic DPS per point. `
+          + `Walk over a dead player's body to raise one zombie. It assists your current enemy and follows you otherwise. Each body grants you ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and increases the zombie's max HP. `
+          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first. At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. Another body revives a fallen zombie with its accumulated growth. `
+          + `Below ${fmt(band * 100)}% target HP, execute adds ${fmt(faction.params.execute! * bm * dotMult)} × (${fmt(band)} − target HP fraction) magic DPS. Disease and execute include the ${fmt(dotMult)}× DoT multiplier; corpse growth strengthens the zombie rather than these effects.`,
       };
     }
     case "frost":

@@ -27,6 +27,6 @@ export function hpBarFractions(hp: number, maxHp: number, barrier: number): { hp
 
 /** The HUD's hp readout: "HP 400/500", and "HP 400/500 +75 barrier" while a barrier holds. */
 export function hpText(hp: number, maxHp: number, barrier: number): string {
-  const base = `HP ${Math.ceil(hp)}/${Math.round(maxHp)}`;
+  const base = `HP ${Math.ceil(hp)}/${Math.ceil(maxHp)}`;
   return barrier > 0 && Math.ceil(barrier) > 0 ? `${base} +${Math.ceil(barrier)} barrier` : base;
 }

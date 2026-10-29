@@ -4,7 +4,8 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { addPlayer, step } from "../src/sim/step";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { weaponChanged } from "../src/sim/weapons";
-import { combatant } from "../src/sim/combatant";
+import { combatant, timingsOf } from "../src/sim/combatant";
+import { addMob } from "../src/sim/mobs";
 
 function arena(weapon: WeaponId = "wand") {
   const w = createGameWorld({ seed: 7, random: mulberry32(8), config: {
@@ -26,6 +27,31 @@ function arena(weapon: WeaponId = "wand") {
 }
 
 describe("playtest click combat", () => {
+  it.each(["sword", "axe", "shield", "fists"] as const)("player %s hits immediately while a move is applied, with one attack for a tap", weapon => {
+    const a = arena(weapon); a.foe.x = 260;
+    a.w.players.get("p1")!.history = [{ t: a.w.state.serverTime, x: 260, y: 320 }];
+    a.send("move", { x: 200, y: 500 }); a.send("attack", { a: 0 }); a.send("release", { a: 0 });
+    const events = a.tick();
+    expect(a.me.y).toBeCloseTo(328.5); expect(a.foe.hp).toBeLessThan(a.foe.maxHp);
+    expect(a.rt.weapon.action).toBeNull(); expect(a.rt.weapon.rootUntil).toBe(0);
+    expect(events.filter(e => e.type === "fx" && e.fx.kind === "swing")).toHaveLength(1);
+    const hp = a.foe.hp, readyAt = a.me.readyAt;
+    a.run(20); expect(a.foe.hp).toBe(hp); expect(a.me.readyAt).toBe(readyAt);
+    expect(a.me.y).toBeCloseTo(498.5);
+  });
+  it.each(["sword", "axe", "shield", "fists"] as const)("holding player %s never pauses walking on any attack tick", weapon => {
+    const a = arena(weapon); a.send("move", { x: 200, y: 600 }); a.send("attack", { a: 0 });
+    for (let n = 1; n <= 30; n++) { a.tick(); expect(a.me.y).toBeCloseTo(320 + n * 8.5); }
+    expect(a.rt.weapon.action).toBeNull();
+  });
+  it.each(["sword", "axe", "shield", "fists"] as const)("regional NPC %s retains its telegraph and movement pause", weapon => {
+    const a = arena();
+    const id = addMob(a.w, { kind: "mob", faction: "fire", name: "NPC", weapon, at: { x: 600, y: 400 } });
+    const npc = combatant(a.w, id)!;
+    expect(timingsOf(npc.s, weapon)!.windup).toBeGreaterThan(0);
+    npc.rt.inputs.pushMove({ kind: "move", x: 600, y: 600 }); npc.rt.inputs.pushAction({ kind: "attack", a: 0 });
+    a.tick(); expect(npc.s.y).toBe(400); expect(npc.rt.weapon.action).not.toBeNull();
+  });
   it.each(["sword", "bow", "shield", "axe", "fists"] as const)("a %s click cannot create a target lock", weapon => {
     const a = arena(weapon); a.send("target", { id: "p1" }); a.tick();
     expect(a.me.attackTarget).toBe(""); expect(a.rt.weapon.lock).toBeNull();

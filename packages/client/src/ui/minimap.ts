@@ -16,7 +16,7 @@ import {
 import "./minimap.css";
 import { osPrefersReducedMotion, reducedMotionActive } from "./settingsPanel";
 import { questKindCss, type QuestMapBlip } from "./questModel";
-import { minimapMarks, paintMinimapMarks, type CorpseBlip, type RespawnBlip } from "./minimapMarkers";
+import { minimapMarks, paintMinimapMarks, ZOMBIE_CONTACT, type CorpseBlip, type RespawnBlip } from "./minimapMarkers";
 import type { MapContact } from "./minimapLayout";
 
 export interface PublicCamp { state: number; alive: number; respawnAt: number; wardOwner: string; wardExpiresAt: number }
@@ -61,7 +61,7 @@ const BUTTON_RIGHT = 2;
 export interface MinimapPlayer { x: number; y: number }
 
 /** The fields of a synced mob the minimap reads. */
-export interface MinimapMob { x: number; y: number; kind: string; status: string; faction: string }
+export interface MinimapMob { x: number; y: number; kind: string; status: string; faction: string; owned?: boolean }
 
 /** The planned route as the minimap draws it, in world units. */
 export interface MinimapRoute {
@@ -205,10 +205,11 @@ export class Minimap {
     let n = 0;
     let hash = 17;
     mobs.forEach((m) => {
-      if (n >= MAX_DOTS || !Number.isFinite(m.x + m.y) || m.status !== "alive" || (m.kind !== "mob" && m.kind !== "elite")) return;
+      if (n >= MAX_DOTS || !Number.isFinite(m.x + m.y) || m.status !== "alive" || (m.kind !== "mob" && m.kind !== "elite" && m.kind !== "zombie")) return;
       const px = m.x;
       const py = m.y;
-      const code = (isFactionId(m.faction) ? FACTION_IDS.indexOf(m.faction) + 1 : 0) * 2 + (m.kind === "elite" ? 1 : 0);
+      const code = m.kind === "zombie" ? ZOMBIE_CONTACT + (m.owned ? 0 : 1) :
+        (isFactionId(m.faction) ? FACTION_IDS.indexOf(m.faction) + 1 : 0) * 2 + (m.kind === "elite" ? 1 : 0);
       dots[n * 3] = px;
       dots[n * 3 + 1] = py;
       dots[n * 3 + 2] = code;

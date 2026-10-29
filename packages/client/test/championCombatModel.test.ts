@@ -23,9 +23,9 @@ describe("championCombatModel", () => {
     const plague = player({ faction: "plague", weapon0: "bow", apBonus: encodeFlat(10) });
     const baseDisease = Number.parseFloat(championCombatModel(plague).rows[1].value);
     const harvested = championCombatModel({ ...plague, corpseStacks: 5 }).rows[1];
-    expect(Number.parseFloat(harvested.value)).toBeCloseTo(baseDisease * 1.1, 1);
-    expect(harvested.scaling).toContain("5 corpses");
-    expect(harvested.scaling).toContain("+15% HP");
+    expect(Number.parseFloat(harvested.value)).toBeCloseTo(baseDisease, 1);
+    expect(harvested.scaling).toContain("5 bodies");
+    expect(harvested.tooltip).toContain("corpse growth strengthens the zombie");
 
     const holy = player({ faction: "holy", hp: FACTIONS.holy.hp, maxHp: FACTIONS.holy.hp });
     const baseLeech = Number.parseFloat(championCombatModel(holy).rows[1].value);
@@ -40,6 +40,17 @@ describe("championCombatModel", () => {
     const hunted = championCombatModel({ ...sentenced, huntStacks: 5 }).rows[1];
     expect(Number.parseFloat(hunted.value)).toBeCloseTo(baseMark * 1.1, 1);
     expect(hunted.tooltip).toContain("Completed hunts add 10%");
+  });
+
+  it("describes raising, growing and reviving a zombie from the owner's actual max health", () => {
+    const p = player({ faction: "plague", maxHp: 2000 });
+    expect(championCombatModel(p).rows[1].scaling).toContain("Walk over a body: raise zombie");
+    const grown = championCombatModel({ ...p, corpseStacks: 3, zombieAlive: true, zombieHp: 420, zombieMaxHp: 840 }).rows[1];
+    expect(grown.scaling).toContain("420/840 HP · 3 bodies");
+    expect(grown.tooltip).toContain("840 max HP and 72 raw physical damage");
+    expect(grown.tooltip).toContain("assists your current enemy and follows you otherwise");
+    expect(championCombatModel({ ...p, maxHp: 4000, corpseStacks: 3 }).rows[1].tooltip).toContain("1680 max HP and 144 raw physical damage");
+    expect(championCombatModel({ ...p, corpseStacks: 3, zombieAlive: false }).rows[1].scaling).toContain("walk over a body to revive");
   });
   it("matches shared current per-hit formula and damage types for every faction and weapon", () => {
     for (const factionId of factions) for (const weaponId of weapons) for (const as of [1, 1.14, 2.5]) {

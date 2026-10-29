@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FACTIONS, FACTION_IDS, encodeFlat, wishOf } from "@raid/shared";
-import { PlayerState, RaidState } from "@raid/shared/schema";
+import { MobState, PlayerState, RaidState } from "@raid/shared/schema";
 import { ChampionCombatHud } from "../src/ui/championCombatHud";
 import { Hud } from "../src/ui/hud";
 import { FakeEl, fakeEvent, installFakeDom } from "./fakes";
@@ -45,6 +45,25 @@ function setup() {
 }
 
 describe("compact champion combat HUD", () => {
+  it("refreshes zombie health and death without any change to Plague's stats", () => {
+    const { hud, root } = setup();
+    const state = run(), p = player("plague");
+    p.corpseStacks = 1; p.plagueZombieId = "zombie";
+    const zombie = new MobState();
+    zombie.kind = "zombie"; zombie.ownerId = "plague";
+    zombie.status = "alive"; zombie.hp = zombie.maxHp = 500;
+    state.mobs.set("zombie", zombie);
+    hud.update(state, p, 0);
+    expect(text(root)).toContain("Zombie 500/500 HP");
+    zombie.hp = 200;
+    hud.update(state, p, 50);
+    expect(text(root)).toContain("Zombie 200/500 HP");
+    zombie.status = "dead"; zombie.hp = 0;
+    hud.update(state, p, 100);
+    expect(text(root)).toContain("Zombie fallen");
+    expect(text(root)).toContain("walk over a body to revive");
+  });
+
   it("shows the selected champion's kit during combat and training, and hides outside play", () => {
     const { hud, root } = setup();
     expect(root.hidden).toBe(true);

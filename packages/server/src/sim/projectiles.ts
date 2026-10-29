@@ -20,7 +20,7 @@ import {
   RANGED_HIT_REACH, raycast, reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { activeWeapon, combatant, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, hostile, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { returnedMultOf } from "./mods";
 import { positionAt } from "./movement";
@@ -155,8 +155,9 @@ function firstBody(
 ): { c: Combatant; x: number; y: number } | null {
   let best: { c: Combatant; u: number; d: number; r: number } | null = null;
   const mobShot = world.mobs.has(s.pr.owner);
+  const owner = combatant(world, s.pr.owner);
   for (const c of bodies) {
-    if (c.id === s.pr.owner || (mobShot && c.kind === "mob") || isEvading(c) || isQuestGiver(c)) continue;
+    if (c.id === s.pr.owner || (owner ? !hostile(owner, c) : mobShot && c.kind === "mob") || isEvading(c) || isQuestGiver(c)) continue;
     const at = positionAt(c.rt, c.s, t);
     const u = contactShare(s, at);
     if (u === null) continue;
@@ -330,8 +331,9 @@ function splashFrom(
   if (!special || special.kind !== "splash" || pr.kind !== "ball" || world.config.weaponSpecials === false) return;
   const centre = positionAt(primary.rt, primary.s, t);
   const mobShot = world.mobs.has(pr.owner);
+  const owner = combatant(world, pr.owner);
   for (const c of bodies) {
-    if (c.id === pr.owner || c.id === primary.id || isEvading(c) || isQuestGiver(c) || (mobShot && c.kind === "mob")) continue;
+    if (c.id === pr.owner || c.id === primary.id || isEvading(c) || isQuestGiver(c) || (owner ? !hostile(owner, c) : mobShot && c.kind === "mob")) continue;
     const at = positionAt(c.rt, c.s, t);
     if (Math.hypot(at.x - centre.x, at.y - centre.y) > special.radius) continue;
     if (raycast(map, centre.x, centre.y, at.x, at.y).hit) continue;

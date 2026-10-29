@@ -40,9 +40,10 @@
 import { cardPower, hpRaceMult, isDot, mitigateShares, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor, TICK_MS } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { gamblerFactor } from "./cardState";
-import { combatant, defenseOf, standing, type Combatant } from "./combatant";
+import { combatant, creditedPlayerId, defenseOf, hostile, standing, type Combatant } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
+import { hurtZombie } from "./plagueZombies";
 import { hasFlag, hpRaceCapOf as hpRaceCapFromRows, outgoingExecuteShare, outgoingKindOf, outgoingMult, type VsProbe } from "./mods";
 import { damageFactor, dealtFactor } from "./status";
 import { stagger } from "./weapons";
@@ -56,8 +57,7 @@ import { emit, payLater, type DamageSource, type LandedHit, type LedgerEntry, ty
  * skips, so a swing or an arrow still meets the body but does nothing to it.
  */
 export function recordHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?: number }): LedgerEntry {
-  const mobOnMob = world.mobs.has(e.by.id) && world.mobs.has(e.victim);
-  const entry: LedgerEntry = { ...e, scale: mobOnMob ? 0 : e.scale ?? 1 };
+  const entry: LedgerEntry = { ...e, by: snapshotSource(world, e.by), scale: friendlyHit(world, e.by.id, e.victim) ? 0 : e.scale ?? 1 };
   world.combat.ledger.push(entry);
   // A mob that lands a hit on a player has not tired of the fight (its give-up timer counts what it deals, not what it takes).
   const brain = world.mobs.get(e.by.id)?.brain;
@@ -70,10 +70,21 @@ export function recordHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?
  * returned damage, Overkill's splash) cannot join the pass it answers, whose victims and multipliers were fixed when it began.
  */
 export function deferHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?: number }): LedgerEntry {
-  const mobOnMob = world.mobs.has(e.by.id) && world.mobs.has(e.victim);
-  const entry: LedgerEntry = { ...e, scale: mobOnMob ? 0 : e.scale ?? 1 };
+  const entry: LedgerEntry = { ...e, by: snapshotSource(world, e.by), scale: friendlyHit(world, e.by.id, e.victim) ? 0 : e.scale ?? 1 };
   world.combat.deferred.push(entry);
   return entry;
+}
+
+function friendlyHit(world: World, by: string, victim: string): boolean {
+  const a = combatant(world, by), b = combatant(world, victim);
+  // Preserve self-damage and the world's hits; companions and ordinary mob allies obey ownership in every damage path.
+  if (a && b && (a.kind === "mob" || b.kind === "mob")) return !hostile(a, b);
+  return false;
+}
+
+function snapshotSource(world: World, by: DamageSource): DamageSource {
+  const ownerId = creditedPlayerId(world, by.id);
+  return ownerId !== by.id ? { ...by, ownerId } : by;
 }
 
 /**
@@ -81,9 +92,10 @@ export function deferHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?:
  * out) by name only, so a living player's hit in the same tick takes the kill instead of a dead shooter's arrow.
  */
 function sourceOf(world: World, by: DamageSource): Attacker | string {
-  const p = world.state.players.get(by.id);
-  const rt = world.players.get(by.id);
-  return p && rt && !rt.resolved ? { id: by.id, p, rt } : by.name;
+  const id = by.ownerId ?? creditedPlayerId(world, by.id);
+  const p = world.state.players.get(id);
+  const rt = world.players.get(id);
+  return p && rt && !rt.resolved ? { id, p, rt } : by.name;
 }
 
 export function applyLedger(world: World): void {
@@ -162,6 +174,7 @@ function vsProbe(world: World, by: string, victim: string): VsProbe {
  * both are players of the run (a mob, a dummy and a fighter that already left are never scaled). The mark's clock reads it too.
  */
 export function pvpScale(world: World, by: string, victim: string): number {
+  by = creditedPlayerId(world, by);
   const a = world.state.players.get(by);
   if (!a || !world.state.players.has(victim)) return 1;
   const f = world.config.pvpRules === false ? 1 : pvpFactor(cardPower(a.build));
@@ -243,7 +256,7 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
  * (A departed player's build left with it, so pvpScale and outgoingMults have nothing to read of it: its arrow lands at the plain sheet.)
  */
 function byPlayer(world: World, e: LedgerEntry): boolean {
-  return !e.arena && !world.mobs.has(e.by.id);
+  return !e.arena && (!world.mobs.has(e.by.id) || world.state.mobs.get(e.by.id)?.kind === "zombie");
 }
 
 /**
@@ -328,13 +341,15 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
   if (foes) denyExecutes(world, c, entries, amounts, foes, out.exec);
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
-  const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
+  const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.ownerId ?? creditedPlayerId(world, entries[i]!.by.id)) ?? Infinity;
   const order = entries.map((_, i) => i).sort((a, b) => rank(a) - rank(b));
   const barrierBefore = c.kind === "player" ? c.s.barrier : 0;
   const hpBefore = c.s.hp;
   const applied = c.kind === "player"
     ? applyHits(world, c.s, c.rt, order.map((i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, entries[i]!.by) })))
-    : c.s.kind === "dummy"
+    : c.s.kind === "zombie"
+      ? hurtZombie(world, c, amounts)
+      : c.s.kind === "dummy"
       ? damageMob(world, c, amounts)
       : hurtMob(world, c, order.map((i) => amounts[i]!), order.map((i) => entries[i]!));
   // Nothing got through (teleport immunity, a mob walking home): no numbers, no stagger.

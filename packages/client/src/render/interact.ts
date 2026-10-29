@@ -143,7 +143,6 @@ export function nearestGiver(quests: QuestCollection, map: GameMap, from: Vec2):
  * reach, try a quest item of an offer not accepted yet (`blocked`: F sends the `pickup` and the server's refusal says to accept at the giver).
  */
 export type Interaction =
-  | { kind: "corpse"; corpse: { id: string; playerName?: string; x: number; y: number } }
   | { kind: "pickup"; container: ContainerState }
   | { kind: "talk"; quest: QuestStateLike; def: QuestDef }
   | { kind: "blocked"; container: ContainerState; quest: QuestStateLike; def: QuestDef };
@@ -160,7 +159,6 @@ export function pickInteraction(
   map: GameMap,
   from: Vec2,
   questContext: QuestPickupContext = NO_QUESTS,
-  corpses: readonly { id: string; x: number; y: number; playerName?: string }[] = [],
 ): Interaction | null {
   const container = nearestContainer(containers, map, from, questContext);
   const giver = nearestGiver(publicQuests, map, from);
@@ -170,10 +168,6 @@ export function pickInteraction(
   if (container) {
     const distance = Math.hypot(container.x - from.x, container.y - from.y);
     if (distance <= bestDistance) { best = { kind: "pickup", container }; bestDistance = distance; }
-  }
-  for (const corpse of corpses) {
-    const distance = Math.hypot(corpse.x - from.x, corpse.y - from.y);
-    if (distance <= 70 && distance < bestDistance) { best = { kind: "corpse", corpse }; bestDistance = distance; }
   }
   if (best) return best;
   const blocked = nearestBlockedItem(containers, map, from, questContext);

@@ -3,7 +3,7 @@
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
   ELITE_K, FACTIONS, FISTS, isFactionId, isRegionalKind, isWeaponId, mirrorTimings, MOB_K, MOB_TYPES, mobFaction, mobTypeFaction, pacedFaction,
-  type FactionId, type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
+  PLAGUE_ZOMBIE_INTERVAL_MS, PLAGUE_ZOMBIE_WINDUP_MS, type FactionId, type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { attackSpeedMult } from "./buffs";
@@ -54,6 +54,7 @@ export function setMobScalesForHarness(k: number = MOB_K, eliteK: number = ELITE
 
 /** The faction as fought (DUEL_PACE applied, a regional mob scaled down and by its role), or null for a fighter without one (a training dummy). */
 export function factionOf(s: FighterState): FactionSpec | null {
+  if ("kind" in s && s.kind === "zombie") return null; // companions do not inherit Rat King's disease/execute
   if (!isFactionId(s.faction)) return null;
   if ("kind" in s && isRegionalKind(s.kind)) {
     const table = PACED_MOBS[s.kind];
@@ -110,6 +111,7 @@ export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void 
 
 /** Rhythm of `w` in this fighter's hands (mirrors applied); regional PvE mobs retain their live ranged-windup profile. */
 export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
+  if ("kind" in s && s.kind === "zombie") return { interval: PLAGUE_ZOMBIE_INTERVAL_MS / 1000, windup: PLAGUE_ZOMBIE_WINDUP_MS / 1000, root: 0, ranged: false };
   const f = factionOf(s);
   const profile = "kind" in s && isRegionalKind(s.kind) ? "npc" : "player";
   return f ? mirrorTimings(f, w, attackSpeedMult(s), windupMultOf(s), profile) : null;
@@ -139,7 +141,17 @@ export function isQuestGiver(c: Combatant): boolean {
 }
 
 export function hostile(a: Combatant, b: Combatant): boolean {
-  return a.id !== b.id && !isQuestGiver(a) && !isQuestGiver(b) && !(a.kind === "mob" && b.kind === "mob");
+  if (a.id === b.id || isQuestGiver(a) || isQuestGiver(b)) return false;
+  const za = a.kind === "mob" && a.s.kind === "zombie";
+  const zb = b.kind === "mob" && b.s.kind === "zombie";
+  if (za || zb) return (za ? a.s.ownerId : a.id) !== (zb ? b.s.ownerId : b.id);
+  return !(a.kind === "mob" && b.kind === "mob");
+}
+
+/** Rewards and PvP growth belong to a pet's owner; its combat entries retain the pet id for trigger isolation. */
+export function creditedPlayerId(world: World, id: string): string {
+  const m = world.state.mobs.get(id);
+  return m?.kind === "zombie" ? m.ownerId : id;
 }
 
 export function combatant(world: World, id: string): Combatant | null {

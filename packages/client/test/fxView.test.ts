@@ -131,6 +131,13 @@ describe("FxView regional mob deaths", () => {
     expect(lines).toEqual(["Warden was slain", "Warden was slain"]);
   });
 
+  it("treats a zombie death as a quiet fighter burst rather than a player kill announcement", () => {
+    const { lines, play, made } = setup({ z: "Morrow's zombie", foe: "Foe" }, { z: "zombie" });
+    play(death("z", "foe"));
+    expect(lines).toEqual([]);
+    expect(made.length).toBe(1);
+  });
+
   it("says nothing for an elite whose name is unknown, and still calls a player's death a kill", () => {
     const { lines, play } = setup({ foe: "Foe" }, { elite1: "elite" });
     play(death("elite1", "foe"));

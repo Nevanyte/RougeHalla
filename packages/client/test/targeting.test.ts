@@ -6,10 +6,22 @@ import {
   EFFECT_STUNNED, EFFECT_UNTARGETABLE, EFFECT_ZONED, PLAYER_RADIUS, TARGET_SNAP_RADIUS, Y_SCALE,
 } from "@raid/shared";
 import { TargetRings } from "../src/render/TargetRings";
-import { LockDisplay, OPTIMISTIC_LOCK_MS, pickTarget, targetable, unitCastDenial } from "../src/render/targeting";
+import { LockDisplay, OPTIMISTIC_LOCK_MS, pickTarget, targetable, targetableMob, unitCastDenial } from "../src/render/targeting";
 import { fakeScene, type FakeObject } from "./fakes";
 
 const at = (id: string, x: number, y: number) => ({ id, x, y });
+
+describe("companion targets", () => {
+  it("never selects the local owner's zombie, while enemy zombies stay targetable inside the arena", () => {
+    for (const locked of [false, true]) {
+      expect(targetableMob({ kind: "zombie", ownerId: "me" }, "me", locked)).toBe(false);
+      expect(targetableMob({ kind: "zombie", ownerId: "foe" }, "me", locked)).toBe(true);
+      expect(targetableMob({ kind: "quest" }, "me", locked)).toBe(false);
+    }
+    expect(targetableMob({ kind: "mob", ownerId: "" }, "me", false)).toBe(true);
+    expect(targetableMob({ kind: "mob", ownerId: "" }, "me", true)).toBe(false);
+  });
+});
 
 describe("pickTarget", () => {
   it("takes the fighter nearest the cursor, not the first in the list", () => {

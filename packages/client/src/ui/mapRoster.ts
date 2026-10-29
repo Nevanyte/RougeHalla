@@ -1,17 +1,18 @@
-import { combatReadability, FACTIONS, FISTS, isFactionId, isWeaponId, WEAPONS, type InvestedStatKey } from "@raid/shared";
+import { combatReadability, FACTIONS, FISTS, isFactionId, isWeaponId, WEAPONS, type InvestedStatKey, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { heldWeapon, inputKey } from "./buildHud";
 import { buildGains, num, type BuildStatId } from "./buildModel";
 import { combatIcon, STAT_ICON_COLORS } from "./combatIcons";
 import { cssColor, el } from "./dom";
 import { fullMapSize } from "./planningMath";
+import { weaponIcon } from "./weaponIcon";
 import "./mapRoster.css";
 
 export interface MapRosterPlayer { id: string; player: PlayerState }
 export interface MapRosterStat { key: InvestedStatKey; label: string; short: string; value: string }
 export interface MapRosterRow {
   id: string; name: string; champion: string; alive: boolean; local: boolean; strength: number;
-  weapons: readonly { name: string; color: number; active: boolean }[];
+  weapons: readonly { id: WeaponId; name: string; color: number; active: boolean }[];
   stats: MapRosterStat[];
 }
 
@@ -32,8 +33,8 @@ export function mapRosterRows(players: readonly MapRosterPlayer[], localId = "")
       id, name: p.name, champion: isFactionId(p.faction) ? FACTIONS[p.faction].displayName : p.faction,
       alive: p.status === "alive", local: id === localId, strength,
       weapons: [p.weapon0, p.weapon1].map((id, index) => {
-        const weapon = WEAPONS[isWeaponId(id) ? id : FISTS];
-        return { name: weapon.name, color: weapon.color, active: p.slot === index };
+        const weaponId = isWeaponId(id) ? id : FISTS, weapon = WEAPONS[weaponId];
+        return { id: weaponId, name: weapon.name, color: weapon.color, active: p.slot === index };
       }),
       stats: read.investedStats.slice(0, 3).map(stat => ({ key: stat.key, label: stat.label, short: stat.short, value: byId.get(GAIN_ID[stat.key])!.value })),
     };
@@ -84,10 +85,16 @@ export class MapRoster {
     const head = el("div", "map-roster-player-head"); head.append(el("span", "map-roster-rank", String(index + 1)), identity, strength);
     const weapons = el("div", "map-roster-weapons");
     row.weapons.forEach((weapon, slot) => {
-      const chip = el("span", "map-roster-weapon", `${slot + 1} ${weapon.name}`);
+      const chip = el("span", "map-roster-weapon");
       chip.style.setProperty("--roster-weapon", cssColor(weapon.color));
       chip.classList.toggle("active", weapon.active);
-      chip.title = `Slot ${slot + 1}: ${weapon.name}${weapon.active ? " (in hand)" : ""}`;
+      chip.title = `Slot ${slot + 1}: ${weapon.name}${weapon.active ? " · Equipped" : ""}`;
+      chip.setAttribute("role", "img"); chip.setAttribute("aria-label", chip.title);
+      const number = el("span", "map-roster-weapon-slot", String(slot + 1)); number.setAttribute("aria-hidden", "true");
+      chip.append(weaponIcon(weapon.id), number);
+      if (weapon.active) {
+        const equipped = el("span", "map-roster-weapon-equipped", "✓"); equipped.setAttribute("aria-hidden", "true"); chip.append(equipped);
+      }
       weapons.append(chip);
     });
     const stats = el("div", "map-roster-stats");

@@ -17,9 +17,11 @@
 .map-roster-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-roster-champion { color: #a8bac8; font-size: .78em; }
 .map-roster-strength { color: #eac986; font-size: .9em; font-weight: 700; font-variant-numeric: tabular-nums; }
-.map-roster-weapons { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 7px 0 6px; }
-.map-roster-weapon { color: var(--roster-weapon, #bcc8d2); font-size: .83em; border-bottom: 1px solid transparent; }
-.map-roster-weapon.active { border-bottom-color: currentColor; }
+.map-roster-weapons { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.map-roster-weapon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 36px; box-sizing: border-box; color: #c1ccd5; background: #18232e; border: 2px solid #526170; border-radius: 6px; opacity: .76; }
+.map-roster-weapon.active { color: #fff2b8; opacity: 1; border-color: #ffe18b; background: #3b321d; box-shadow: 0 0 0 1px #ffe18b40, inset 0 0 9px #ffe18b14; }
+.map-roster-weapon-slot { position: absolute; left: 3px; bottom: 1px; font-size: 9px; line-height: 10px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.map-roster-weapon-equipped { position: absolute; right: -5px; top: -5px; display: grid; place-items: center; width: 13px; height: 13px; border: 1px solid #fff2b8; border-radius: 50%; color: #251d07; background: #ffe18b; font-size: 10px; line-height: 1; font-weight: 900; }
 .map-roster-stats { display: flex; flex-wrap: wrap; gap: 4px 9px; font-size: .77em; }
 .map-roster-stat { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .map-roster-stat .combat-icon { width: 12px; height: 12px; }

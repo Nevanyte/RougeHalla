@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { RaidState } from "@raid/shared/schema";
 import { EntityInterpolator } from "../src/net/interpolation";
 
-interface Ent { x: number; y: number; displaceSeq?: number }
+interface Ent { x: number; y: number; displaceSeq?: number; kind?: string; ownerId?: string }
 
 function patch(t: number, players: Record<string, Ent>, mobs: Record<string, Ent> = {}): RaidState {
   return { serverTime: t, players: new Map(Object.entries(players)), mobs: new Map(Object.entries(mobs)) } as unknown as RaidState;
@@ -33,6 +33,18 @@ describe("a changed displaceSeq", () => {
     i.onPatch(patch(1050, {}, { m: { x: 60, y: 0, displaceSeq: 4 } }), 50);
     expect(at(i, "m", 1025)).toEqual({ x: 0, y: 0 });
     expect(at(i, "m", 1050)).toEqual({ x: 60, y: 0 });
+  });
+
+  it("cuts an owned zombie on a short companion teleport, then forgets it when the owner removes it", () => {
+    const i = new EntityInterpolator();
+    i.onPatch(patch(1000, { p: { x: 0, y: 0 } }, { z: { kind: "zombie", ownerId: "p", x: 0, y: 20, displaceSeq: 0 } }), 0);
+    i.onPatch(patch(1050, { p: { x: 60, y: 0, displaceSeq: 1 } }, { z: { kind: "zombie", ownerId: "p", x: 60, y: 20, displaceSeq: 1 } }), 50);
+    expect(at(i, "z", 1025)).toEqual({ x: 0, y: 20 });
+    expect(at(i, "z", 1050)).toEqual({ x: 60, y: 20 });
+    i.onPatch(patch(1100, { p: { x: 60, y: 0, displaceSeq: 1 } }), 100);
+    expect(at(i, "z", 1100)).toBeNull();
+    i.onPatch(patch(1150, { p: { x: 60, y: 0 } }, { z: { kind: "zombie", ownerId: "p", x: 80, y: 20, displaceSeq: 2 } }), 150);
+    expect(at(i, "z", 1150)).toEqual({ x: 80, y: 20 });
   });
 
   it("an unchanged counter is a walk: interpolated", () => {

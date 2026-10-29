@@ -24,6 +24,7 @@ export function weaponMechanics(id: WeaponId): string[] {
   const w = WEAPONS[id];
   switch (id) {
     case "sword": return [
+      "Player swings land immediately while moving; attack speed still controls the time between swings.",
       "Unblocked hits stagger: cancel a windup or cast, with a short immunity between staggers. Bow draws resist stagger.",
       `A swing that meets a wand ball cuts its damage to ${guideNumber(SWORD_BALL_SCALE * 100)}%, once per ball.`,
       `On-hit effects have ${guideNumber(w.onHitPower)}× strength.`,
@@ -34,15 +35,16 @@ export function weaponMechanics(id: WeaponId): string[] {
       return ["Longest weapon range. The wand is the only weapon with lock-on; locked balls follow their target within their travel range. Movement pauses during the cast.", `Balls delete enemy arrows they meet, keeping ${guideNumber(BALL_AFTER_ARROW * 100)}% of their current damage after each interception. Balls pass through shield blocking.`, ...(s.kind === "splash" ? [`Impact splashes ${guideNumber(s.share * 100)}% damage to other enemies within ${s.radius} units.`] : [])];
     }
     case "shield": return [
+      "Player bashes land immediately without pausing movement.",
       `From the front, prevent ${guideNumber(SHIELD_BLOCK_SHARE * 100)}% of sword/bash damage. A blocked sword hit cannot stagger; return ${guideNumber(SHIELD_BLOCK_SHARE * RIPOSTE_SHARE * 100)}% of its original damage before modifiers.`,
       `A frontal arrow reflects ${guideNumber(ARROW_REFLECT_SHARE * 100)}% of its damage; you still take the other ${guideNumber((1 - ARROW_REFLECT_SHARE) * 100)}%.`,
       "Axe, fists and wand bypass blocking, not your Defense or Soul Defense. The shield is not invulnerability.",
     ];
     case "axe": {
       const s = w.special!;
-      return ["Swings destroy wand balls they meet and bypass shield blocking.", ...(s.kind === "shred" ? [`Each hit removes ${s.armor} Defense for ${s.ms / 1000} seconds, up to ${s.cap} total. Shred improves physical damage, not magic damage.`] : []), "You can move as soon as the swing lands; there is no extra recovery root."];
+      return ["Swings destroy wand balls they meet and bypass shield blocking.", ...(s.kind === "shred" ? [`Each hit removes ${s.armor} Defense for ${s.ms / 1000} seconds, up to ${s.cap} total. Shred improves physical damage, not magic damage.`] : []), "Player swings land immediately while moving; there is no windup or recovery root."];
     }
-    case "fists": return [`No item equipped. On-hit effects have ${guideNumber(w.onHitPower)}× strength.`, "Bypass shield blocking; no stagger, ball interception or counter-wheel advantage."];
+    case "fists": return [`No item equipped. On-hit effects have ${guideNumber(w.onHitPower)}× strength.`, "Player punches land immediately while moving.", "Bypass shield blocking; no stagger, ball interception or counter-wheel advantage."];
   }
 }
 

@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, PLAGUE_CORPSE_INTERACT_RANGE, fieldKindOf,
+  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
   countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
@@ -23,6 +23,7 @@ import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, pickInteraction, type Interaction } from "../render/interact";
 import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
+import { ZombieView } from "../render/ZombieView";
 import { PlayerView } from "../render/PlayerView";
 import { markDimmed } from "../render/markPresentation";
 import { TraderPanel } from "../ui/traderPanel";
@@ -32,6 +33,7 @@ import { QuestView } from "../render/QuestView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
+import { WeaponRangeView } from "../render/WeaponRangeView";
 import { isHiddenRemote, shouldRenderActor, visiblePosition } from "../render/visibility";
 import { CampWards } from "../render/CampWards";
 import { CampBuffs } from "../render/CampBuffs";
@@ -42,7 +44,7 @@ import { CameraFollow } from "../render/CameraFollow";
 import type { VisionInbox } from "../net/visionInbox";
 import { WishFx } from "../render/WishFx";
 import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
-import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
+import { LockDisplay, pickTarget, targetable, targetableMob, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
 import { readCampElites, readCampStates, readCampTypes } from "../ui/campInfo";
 import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow } from "../ui/chestMath";
@@ -133,6 +135,7 @@ export class RaidScene extends Phaser.Scene {
   private traderPanel!: TraderPanel;
   private traderView!: TraderView;
   private mobViews = new Map<string, MobView>();
+  private zombieViews = new Map<string, ZombieView>();
   private containerViews = new Map<string, ContainerView>();
   private questView!: QuestView;
   private questLog!: QuestLog;
@@ -145,6 +148,7 @@ export class RaidScene extends Phaser.Scene {
   private localGround: TerrainStates = NO_STATES;
   private highlight!: ContainerHighlight;
   private rings!: TargetRings;
+  private weaponRange: WeaponRangeView | null = null;
   private minimap!: Minimap;
   /** The lobby preview, the planning screen and the hold-Tab map (ui/planning.ts); built with the map, null before. */
   private planning: PlanningView | null = null;
@@ -308,6 +312,7 @@ export class RaidScene extends Phaser.Scene {
     this.interp = new EntityInterpolator();
     this.views = new Map();
     this.mobViews = new Map();
+    this.zombieViews = new Map();
     this.containerViews = new Map();
     this.rendered.clear();
     this.nearest = null;
@@ -383,11 +388,13 @@ export class RaidScene extends Phaser.Scene {
     this.unbindMapHold = this.mapHold.bind();
     this.highlight = new ContainerHighlight(this);
     this.rings = new TargetRings(this);
+    this.weaponRange?.destroy();
+    this.weaponRange = new WeaponRangeView(this);
     this.projectiles = new ProjectileView(this);
     this.juice = new ScreenJuice(this.cameras.main);
     this.fx = new FxView(this, {
       localId: this.room.sessionId,
-      view: (id) => this.views.get(id) ?? this.mobViews.get(id),
+      view: (id) => this.views.get(id) ?? this.mobViews.get(id) ?? this.zombieViews.get(id),
       // Never where a hidden (Swarm) remote fighter is: no number, burst or mark may be drawn on it, nor keep following it.
       position: (id) => this.visiblePosition(id),
       canSee: this.vision.canSee,
@@ -445,15 +452,6 @@ export class RaidScene extends Phaser.Scene {
       if (pointer.button === 2) {
         this.attackMoveArmed = false;
         this.input.setDefaultCursor("default");
-        const at = this.cursorGround(pointer);
-        const corpse = this.plagueCorpses.find((c) => Math.hypot(c.x - at.x, c.y - at.y) <= 38);
-        if (corpse) {
-          const me = this.room.state.players.get(this.room.sessionId);
-          if (me?.status === "alive" && Math.hypot(corpse.x - me.x, corpse.y - me.y) <= PLAGUE_CORPSE_INTERACT_RANGE) {
-            sendInput(this.room, "consumeCorpse", { corpseId: corpse.id });
-          } else this.sendMove(pointer, true);
-          return;
-        }
         this.sendMove(pointer, true);
       } else if (pointer.button === 0 && pointer.leftButtonDown()) this.clickAttack(pointer);
     });
@@ -567,11 +565,23 @@ export class RaidScene extends Phaser.Scene {
       if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); this.ground.forget(id); }
     }
     const seenMobs = new Set<string>();
+    const seenZombies = new Set<string>();
     const campMobs: Array<{ camp: number; kind: string; status: string; type: string; x: number; y: number }> = [];
     state.mobs.forEach((m, id) => {
       if (m.kind === "quest") return;
       this.sampleDrawn(id, renderT, m);
-      if (!this.vision.canSee(this.tmp)) { this.rendered.delete(id); return; }
+      if (!shouldRenderActor(false, m.effects, this.tmp, this.vision.canSee)) { this.rendered.delete(id); return; }
+      if (m.kind === "zombie") {
+        const owner = state.players.get(m.ownerId);
+        if (!owner || owner.status !== "alive") { this.rendered.delete(id); return; }
+        seenZombies.add(id);
+        let view = this.zombieViews.get(id);
+        if (!view) { view = new ZombieView(this); this.zombieViews.set(id, view); }
+        view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, {
+          name: displayName(owner), corpses: owner.corpseStacks, local: m.ownerId === this.room.sessionId,
+        });
+        return;
+      }
       seenMobs.add(id);
       let view = this.mobViews.get(id);
       if (!view) { view = new MobView(this, this.fx); this.mobViews.set(id, view); }
@@ -583,6 +593,9 @@ export class RaidScene extends Phaser.Scene {
     });
     for (const [id, view] of this.mobViews) {
       if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id); }
+    }
+    for (const [id, view] of this.zombieViews) {
+      if (!seenZombies.has(id)) { view.destroy(); this.zombieViews.delete(id); this.rendered.delete(id); }
     }
     this.campBuffs.update(this.mapView!.map, state.camps, state.phase === "active" && !state.training, this.vision.canSee, campMobs);
     this.projectiles.update(renderT, (id, t, out) => {
@@ -629,7 +642,7 @@ export class RaidScene extends Phaser.Scene {
     };
     this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(visibleContainers, visibleCollection(state.quests, this.vision.canSee), pickupMap, me, {
       quests: questData.quests, localId: this.room.sessionId,
-    }, this.plagueCorpses.filter((c) => Math.hypot(c.x - me.x, c.y - me.y) <= PLAGUE_CORPSE_INTERACT_RANGE)) : null;
+    }) : null;
     this.nearest = this.interaction?.kind === "pickup" ? this.interaction.container : null;
     this.blockedItem = this.interaction?.kind === "blocked" ? this.interaction.container : null;
     const questFocus = this.nearest ?? this.blockedItem;
@@ -651,6 +664,7 @@ export class RaidScene extends Phaser.Scene {
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
     this.updateTargets(me, now);
+    this.updateWeaponRange(me, state);
     const inspected = this.hoverId || this.lockId;
     this.opponentInspector.update(state.phase === "active" && inspected && this.visiblePosition(inspected)
       ? state.players.get(inspected) : undefined, serverNow, state.training);
@@ -670,7 +684,7 @@ export class RaidScene extends Phaser.Scene {
         state.mobs.forEach((mob, id) => {
           const at = this.rendered.get(id);
           if (!at || !this.vision.canSee(at)) return;
-          cb({ x: at.x, y: at.y, kind: mob.kind, status: mob.status, faction: mob.faction }, id);
+          cb({ x: at.x, y: at.y, kind: mob.kind, status: mob.status, faction: mob.faction, owned: mob.ownerId === this.room.sessionId }, id);
         });
       },
     });
@@ -718,7 +732,7 @@ export class RaidScene extends Phaser.Scene {
     this.weaponBar.update(
       me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "cannon" ? "Enter cannon" : this.nearest?.kind === "chest" ? "Open chest" : this.nearest?.kind === "quest" || this.nearest?.kind === "consumable" ? this.nearest.label : "",
       talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`)
-        : blocked ? questAcceptFirstText(blocked.def) : this.interaction?.kind === "corpse" ? "consume corpse" : "",
+        : blocked ? questAcceptFirstText(blocked.def) : "",
     );
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
@@ -1180,8 +1194,8 @@ export class RaidScene extends Phaser.Scene {
     };
     const selfId = this.room.sessionId;
     this.room.state.players.forEach((p, id) => { if (id !== selfId) add(id, p.status, p.effects); });
-    // Behind the locked coliseum gates every mob is out of reach (the server refuses them), so a click can't snap to one.
-    if (!this.room.state.gatesLocked) this.room.state.mobs.forEach((m, id) => { if (m.kind !== "quest") add(id, m.status, m.effects); });
+    // Regional mobs remain behind the gates; enemy companions enter with their owner.
+    this.room.state.mobs.forEach((m, id) => { if (targetableMob(m, selfId, this.room.state.gatesLocked)) add(id, m.status, m.effects); });
     return list;
   }
 
@@ -1355,6 +1369,18 @@ export class RaidScene extends Phaser.Scene {
     if (def.ownOrder || def.dropsLock) this.lockDisplay.note("", now);
   }
 
+  /** Only the local kit and drawn position feed the range guide; no remote position can reveal a hidden fighter. */
+  private updateWeaponRange(me: PlayerState | undefined, state: RaidState): void {
+    if (!this.weaponRange) return;
+    const aim = this.aimKnown && this.input.isOver && !this.peek
+      ? this.cursorAngle(this.input.activePointer)
+      : me && this.localSource(me, state) === "predicted" ? this.predict.motion.facing() : me?.facing;
+    this.weaponRange.update({
+      phase: state.phase, me, at: this.rendered.get(this.room.sessionId), aim,
+      hidden: this.mapHold.held || this.peek !== null || this.beforeTeleport() || this.deathPending(this.room.sessionId) || this.resultsVisible?.() === true,
+    });
+  }
+
   /** Once per frame: which fighter is hovered and which locked, and where their rings are drawn. */
   private updateTargets(me: PlayerState | undefined, now: number): void {
     const alive = me?.status === "alive";
@@ -1471,7 +1497,6 @@ export class RaidScene extends Phaser.Scene {
     }
     const it = this.interaction;
     if (!it) return;
-    if (it.kind === "corpse") { sendInput(this.room, "consumeCorpse", { corpseId: it.corpse.id }); return; }
     if (it.kind === "pickup" || it.kind === "blocked") sendInput(this.room, "pickup", { containerId: it.container.id });
     else this.questDialog?.open(it.quest.id);
   }
@@ -1558,12 +1583,15 @@ export class RaidScene extends Phaser.Scene {
     this.views.clear();
     for (const v of this.mobViews.values()) v.destroy();
     this.mobViews.clear();
+    for (const v of this.zombieViews.values()) v.destroy();
+    this.zombieViews.clear();
     for (const v of this.containerViews.values()) v.destroy();
     this.containerViews.clear();
     this.mapView?.destroy();
     this.mapView = null;
     this.highlight.destroy();
     this.rings.destroy();
+    this.weaponRange?.destroy(); this.weaponRange = null;
     this.minimap.destroy();
     this.unbindPlan?.();
     this.unbindPlan = null;

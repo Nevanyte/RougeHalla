@@ -7,6 +7,17 @@ import {
 import { championGuide, guideNumber, signatureGuide, weaponScalingGuide } from "../src/ui/hub/championGuide";
 
 describe("champion guide matches the combat catalog", () => {
+  it("explains Plague's one growing zombie, max-health scaling and body-based revival", () => {
+    const guide = signatureGuide("plague"), details = guide.details.join(" ");
+    expect(guide.summary).toContain("raise a Plague zombie");
+    expect(guide.scaling).toContain("your max health and harvested bodies");
+    expect(details).toContain("first raises one zombie");
+    expect(details).toContain("35% of your current max HP");
+    expect(details).toContain("each physical hit is 3% of your current max HP");
+    expect(details).toContain("consume another player body to revive it");
+    expect(details).toContain("no longer multiplies disease or execute damage");
+  });
+
   it.each(FACTION_IDS)("explains %s's passive and actual active Wish", id => {
     const guide = championGuide(id);
     const wish = wishOf(id)!;

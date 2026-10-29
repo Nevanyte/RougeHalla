@@ -315,6 +315,8 @@ export interface MobRuntime extends CombatRuntime {
   lastHitAt: number;
   /** A regional mob's mind and camp (sim/mobLife.ts, sim/mobAI.ts). Absent on a training dummy. */
   brain?: MobBrain;
+  /** A Plague companion has no regional mob brain, leash, respawn or reward path. */
+  zombie?: { damage: number; target: string | null; assistUntil: number; lastMoveAt: number; ownerDisplaceSeq: number };
 }
 
 /** "idle" at its camp and neutral; "fight" chasing and attacking its target; "return" walking home to heal (it ignores everyone). */
@@ -356,7 +358,11 @@ export interface MobBrain {
 export interface DamagePacket extends DamageShares { raw: number; crit?: boolean; mult?: number }
 
 /** Who dealt a ledger entry: a combatant id, and the name to credit if they are gone by the time it lands. */
-export interface DamageSource { id: string; name: string }
+export interface DamageSource {
+  id: string; name: string;
+  /** Snapshotted pet credit survives an owner's removal of the pet during the same simultaneous ledger pass. */
+  ownerId?: string;
+}
 
 /**
  * One hit landing this tick (sim/ledger.ts). Every damage source writes here and applyLedger() applies them all at

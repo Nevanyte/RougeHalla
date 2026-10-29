@@ -89,6 +89,7 @@ export class ChampionCombatHud {
       this.weaponName.textContent = WEAPONS[weaponId].name;
     }
 
+    const zombie = me.plagueZombieId ? state.mobs?.get(me.plagueZombieId) : undefined;
     const input: ChampionCombatInput = {
       faction: me.faction, weapon0: me.weapon0, weapon1: me.weapon1, slot: me.slot,
       asMult: me.asMult, windupMult: me.windupMult, speedMult: me.speedMult,
@@ -96,11 +97,13 @@ export class ChampionCombatHud {
       maxHp: me.maxHp, hp: me.hp, sentence: me.sentence, build: me.build,
       roamCharge: me.roamCharge, roamReady: me.roamReady,
       campClears: me.campClears, frostEliteGuard: me.frostEliteGuard, corpseStacks: me.corpseStacks, huntStacks: me.huntStacks,
+      zombieAlive: zombie?.status === "alive", zombieHp: zombie?.hp, zombieMaxHp: zombie?.maxHp,
     };
     const inputSignature = [
       me.faction, me.weapon0, me.weapon1, me.slot, me.asMult, me.windupMult, me.speedMult,
       me.armorBonus, me.shieldBonus, me.adBonus, me.apBonus, me.maxHp, me.hp, me.sentence, me.roamCharge, me.roamReady,
       me.campClears, me.frostEliteGuard, me.corpseStacks, me.huntStacks, cardKey(me.build),
+      me.plagueZombieId, zombie?.status, zombie?.hp, zombie?.maxHp,
     ].join("|");
     if (inputSignature === this.inputSignature) return;
     this.inputSignature = inputSignature;

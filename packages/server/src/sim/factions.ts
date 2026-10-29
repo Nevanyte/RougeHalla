@@ -67,14 +67,14 @@ import {
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
   lifestealFraction,
   lifestealTotal, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
-  plagueDps, PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK, sentencedHuntMarkMultiplier, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
+  plagueDps, sentencedHuntMarkMultiplier, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
   staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
   type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
 import { attackSpeedMult, grantBarrier, grantHealBarrier } from "./buffs";
 import { rollDotCrit } from "./cardState";
 import {
-  activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
+  activeWeapon, allCombatants, combatant, factionOf, hostile, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { deferHit, recordHit } from "./ledger";
 import {
@@ -148,6 +148,14 @@ export interface FactionsRuntime {
 export function install(world: World): void {
   world.factions = newRuntime();
   world.afterWeapons.push(afterWeapons);
+  // Instant player swings have landed before afterWeapons can inspect their action. Preserve the same correction
+  // for the carried part of their cooldown under Frost's chill; NPC/ranged actions keep the existing path below.
+  chainHook(world, "attackStarted", (w, c) => {
+    const act = c.rt.weapon.action;
+    if (c.kind !== "player" || act?.kind !== "swing" || act.landsAt > w.state.serverTime) return;
+    const chill = sigOf(w, c.id).chill;
+    if (chill < 1) c.s.readyAt += (1 - chill) * Math.max(0, w.state.serverTime - act.startedAt);
+  });
   world.beforeDamage.push(signatureDamage);
   world.systems.push(afterDamage);
   world.systems.push(healOverTime);
@@ -330,7 +338,7 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
     const v = byId.get(victim);
     if (!a || !v || immune(world, v) || evading(v) || evading(a)) return;
     // Mobs never hurt each other: a bash that a camp-mate's shield blocks is no contact between them.
-    if (a.kind === "mob" && v.kind === "mob") return;
+    if (!hostile(a, v)) return;
     push(out, attacker, { other: victim, amount, passive });
     push(inc, victim, { other: attacker, amount, passive });
   };
@@ -444,9 +452,7 @@ function signatureDamage(world: World, dtMs: number): void {
       const apDot = AP_DOT_RATIO * apOf(c.s) * secs;
       dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, apDot);
       // The disease and its execute are two entries of one type: a tier-4 mark denies the second (docs/SENTENCED_REDESIGN.md R7). The AP rider rides the first.
-      const corpseGrowth = c.kind === "player" && c.s.faction === "plague"
-        ? 1 + Math.max(0, c.s.corpseStacks) * PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK : 1;
-      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot * corpseGrowth, apDot * corpseGrowth);
+      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot, apDot);
       dotBonus(world, c, spec, weapon, t, "disease", executeDps(spec, foeFrac, executeBandOf(c.s)) * dot, 0, true);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {

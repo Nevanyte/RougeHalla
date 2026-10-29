@@ -19,6 +19,7 @@ import { install as installMobs } from "./mobs";
 import { install as installMods } from "./mods";
 import { install as installProjectiles } from "./projectiles";
 import { install as installPlagueCorpses } from "./plagueCorpses";
+import { install as installPlagueZombies } from "./plagueZombies";
 import { install as installQuests } from "./quests";
 import { install as installSentencedHunt } from "./sentencedHunt";
 import { install as installTargeting } from "./targeting";
@@ -63,6 +64,8 @@ const MODULES: Array<(world: World) => void> = [
   installSentencedHunt,
   // Last: its system folds the stat mirrors once every other system of the tick has run.
   installMods,
+  // Companions read the final owner max-health fold when following and growing.
+  installPlagueZombies,
 ];
 
 /**
@@ -75,7 +78,7 @@ export function createGameWorld(opts: CreateOpts, modules: { signatures?: boolea
     // `signatures: false` is the weapon-only test world. Keep faction passives, including Fire's roaming charge,
     // out together so those tests retain a faction-neutral movement baseline.
     if ((install === installFactions || install === installFireRoam || install === installBruiserPassives
-      || install === installPlagueCorpses || install === installSentencedHunt) && modules.signatures === false) continue;
+      || install === installPlagueCorpses || install === installPlagueZombies || install === installSentencedHunt) && modules.signatures === false) continue;
     install(world);
   }
   return world;

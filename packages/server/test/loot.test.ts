@@ -817,7 +817,7 @@ describe("pickup of containers created this tick", () => {
 
     send(world, "b", "attack", { a: 0 });
     pickup(world, "a", guess);
-    expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing there" }]);
+    expect(toastsOf(tick(world)).filter(t => t.to === "a")).toEqual([{ to: "a", text: "Nothing there" }]);
     expect(P(world, "b").status).toBe("dead");
     expect(slotsOf(world, "a")).toEqual(["", ""]);
     expect(world.state.containers.get(guess)).toMatchObject({ kind: "body" });

@@ -1,7 +1,4 @@
-// The camp-clear heal (balance contract 7; sim/campHeal.ts): when a camp's last mob dies, every player who damaged the camp and
-// stands near it is healed `missing x f(m)` through heal() with the lockout skipped, told by a `campHeal` fx and a toast, and
-// counted for the camp. Who counts, who does not, and what the heal is not (lifesteal, a landed hit). The curve itself is pinned
-// in shared/test/campHeal.test.ts.
+// Camp-clear recovery: the final mob stores a potion for each eligible contributor, without healing or a ground pickup.
 import { describe, expect, it } from "vitest";
 import {
   CAMP_HEAL_RANGE, campHealAmount, mapFromTiles, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type FxEvent,
@@ -105,7 +102,7 @@ const frac = (w: World, i: number): number => P(w, i).hp / P(w, i).maxHp;
 // ---------------------------------------------------------------------------------------------------------------- who is healed
 
 describe("camp-clear heal: who is paid", () => {
-  it("drops one physical potion, counts eligible contributors and heals nobody immediately", () => {
+  it("stores a potion for eligible contributors, excludes observers and heals nobody immediately", () => {
     const w = run();
     hpTo(w, 0, 0.4); hpTo(w, 1, 0.95); hpTo(w, 2, 0.5);
     wound(w, campMobs(w, 0)[0]!, "p1");
@@ -114,7 +111,8 @@ describe("camp-clear heal: who is paid", () => {
     expect([P(w, 0).hp, P(w, 1).hp, P(w, 2).hp]).toEqual(before);
     expect(RT(w, 0).campsCleared).toBe(1); expect(RT(w, 1).campsCleared).toBe(1);
     expect(RT(w, 2).campsCleared).toBeUndefined();
-    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
+    expect([P(w, 0).potionLarge, P(w, 1).potionLarge, P(w, 2).potionLarge]).toEqual([1, 1, 0]);
+    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(0);
     expect(fxOf(ev, "campHeal")).toEqual([]); expect(fxOf(ev, "heal")).toEqual([]);
     expect(fxOf(ev, "campCleared")).toEqual([{ kind: "campCleared", camp: 0 }]);
   });
@@ -174,6 +172,7 @@ describe("camp-clear heal: who is paid", () => {
     expect(frac(w, 2)).toBe(0.5);
     expect(RT(w, 2).campsCleared).toBe(1);
     expect(P(w, 1).hp).toBe(hpDead);
+    expect([P(w, 0).potionLarge, P(w, 1).potionLarge, P(w, 2).potionLarge]).toEqual([1, 0, 1]);
     expect(w.players.has("p3")).toBe(false);
   });
 
@@ -193,6 +192,7 @@ describe("camp-clear heal: who is paid", () => {
     expect(frac(w, 1)).toBe(0.5);
     expect(frac(w, 2)).toBe(0.5);
     expect(RT(w, 2).campsCleared).toBe(1);
+    expect([P(w, 0).potionLarge, P(w, 1).potionLarge, P(w, 2).potionLarge]).toEqual([1, 0, 1]);
   });
 
   it("pays a player inside the camp's territory even past 12 tiles of its centre", () => {
@@ -245,7 +245,7 @@ describe("camp-clear heal: who is paid", () => {
 
 // ---------------------------------------------------------------------------------------------------------------- what the heal is
 
-describe("camp-clear recovery drop", () => {
+describe("camp-clear stored recovery", () => {
   it("does not touch lifesteal, combat clocks or landed damage", () => {
     const w = run({ signatures: true, faction: "holy" });
     hpTo(w, 0, 0.4); wound(w, campMobs(w, 0)[0]!, "p0");
@@ -257,10 +257,38 @@ describe("camp-clear recovery drop", () => {
     expect(frac(w, 0)).toBe(0.4);
     expect(fxOf(w.events, "heal")).toEqual([]); expect(fxOf(w.events, "campHeal")).toEqual([]);
   });
-  it("drops a stored-use potion even for a full-health contributor", () => {
+  it("stores a potion even for a full-health contributor", () => {
     const w = run(); wound(w, campMobs(w, 0)[0]!, "p0"); killCamp(w, 0, "p0");
     expect(P(w, 0).hp).toBe(P(w, 0).maxHp);
-    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
+    expect(P(w, 0).potionLarge).toBe(1);
+    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(0);
+  });
+
+  it("awards nothing for a partial camp, then stores one potion on the final member only", () => {
+    const w = run(), mobs = campMobs(w, 0);
+    hpTo(w, 0, 0.4);
+    for (const mob of mobs.slice(0, -1)) {
+      recordHit(w, { victim: mob.id, by: { id: "p0", name: "alice" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+      applyLedger(w);
+      expect(P(w, 0).potionLarge).toBe(0);
+    }
+    killCamp(w, 0);
+    expect(P(w, 0).potionLarge).toBe(1);
+    expect(frac(w, 0)).toBe(0.4);
+    payCampHeal(w, 0); // the consumed contributor record cannot award the same clear twice
+    expect(P(w, 0).potionLarge).toBe(1);
+  });
+
+  it("keeps the bag capped and reports a full bag while preserving the clear credit", () => {
+    const w = run();
+    P(w, 0).potionLarge = 5;
+    hpTo(w, 0, 0.4);
+    const events = killCamp(w, 0);
+    expect(P(w, 0).potionLarge).toBe(5);
+    expect(frac(w, 0)).toBe(0.4);
+    expect(RT(w, 0).campsCleared).toBe(1);
+    expect(toasts(events, "p0")).toEqual(["Camp cleared · camp potion bag full (5)"]);
+    expect([...w.state.containers.values()].some(c => c.items[0]?.def === "potionLarge")).toBe(false);
   });
 });
 
@@ -333,7 +361,7 @@ describe("camp-clear heal: training rooms", () => {
     expect(enqueueClientMessage(w.players.get("p0")!.inputs, "train", msg, { training: true })).toBe(true);
   };
 
-  it("a practice camp drops one potion instead of immediate healing", () => {
+  it("a practice camp stores one potion instead of immediate healing", () => {
     const w = training();
     enqueue(w, { cmd: "camp", id: "emberImp" });
     for (let i = 0; i < 3; i++) step(w, TICK_MS);
@@ -350,7 +378,8 @@ describe("camp-clear heal: training rooms", () => {
     }
     expect(p.hp / p.maxHp).toBe(0.4);
     expect(fxOf(events, "campHeal")).toEqual([]);
-    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
+    expect(p.potionLarge).toBe(1);
+    expect([...w.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(0);
     expect(fxOf(events, "campCleared")).toEqual([]); // no map camp to name
   });
 

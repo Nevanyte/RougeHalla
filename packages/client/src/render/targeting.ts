@@ -4,6 +4,11 @@ import { EFFECT_HIDDEN, EFFECT_UNTARGETABLE, TARGET_SNAP_RADIUS } from "@raid/sh
 export interface TargetPoint { x: number; y: number }
 export interface TargetCandidate extends TargetPoint { id: string }
 
+/** Companions remain in the arena with their owner; a player's own companion is always friendly. */
+export function targetableMob(mob: { kind: string; ownerId?: string }, localId: string, gatesLocked: boolean): boolean {
+  return mob.kind !== "quest" && mob.ownerId !== localId && (!gatesLocked || mob.kind === "zombie");
+}
+
 /**
  * The candidate drawn nearest the cursor's ground point, within `radius` (a click that misses by less still locks), or
  * null. A tie goes to the lower id so the pick never depends on iteration order. The server re-checks everything

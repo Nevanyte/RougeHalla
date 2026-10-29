@@ -133,7 +133,7 @@ export const WEAPON_TAGS: readonly WeaponTagRow[] = [
   { weapon: "sword", tags: ["physical", "onHit"], note: `Unblocked hits stagger windups and casts; bow draws resist stagger. Its on-hit effects land ${WEAPONS.sword.onHitPower}x as hard. The champion sets the base attack's damage type; Offense adds physical damage.` },
   {
     weapon: "axe", tags: ["physical", "onHit"],
-    note: `Move freely after the swing lands. Each hit shreds ${AXE_SHRED_ARMOR} Defense for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}. Offense and bonus HP add physical damage; base damage type comes from the champion.`,
+    note: `Player swings land immediately while moving. Each hit shreds ${AXE_SHRED_ARMOR} Defense for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}. Offense and bonus HP add physical damage; base damage type comes from the champion.`,
   },
   { weapon: "bow", tags: ["physical"], note: "Arrows are directional skillshots that fly straight. Movement pauses during the draw; move freely after launch. Player draw time shortens with attack speed. Offense adds physical damage; base damage type comes from the champion." },
   {

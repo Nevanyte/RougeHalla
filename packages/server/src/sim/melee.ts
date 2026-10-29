@@ -29,7 +29,7 @@ import {
   inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, reachMask, riposteShare, SHIELD_BLOCK_SHARE, shieldOutcome, staggers,
   swingVsBall, WEAPONS, type ArcShape, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { activeWeapon, combatant, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, hostile, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { returnedMultOf } from "./mods";
 import { positionAt } from "./movement";
@@ -55,6 +55,10 @@ export function resolveMelee(world: World): void {
     const reach = reachMask(req.weapon);
     for (const target of bodies) {
       if (target.id === attacker.id) continue;
+      // Ordinary camp-mates still physically block/riposte each other's swings (their ledger damage is zero).
+      // An owner's companion is transparent to allied swings, so its arrival cannot obstruct the owner.
+      if (!hostile(attacker, target) && ((attacker.kind === "mob" && attacker.s.kind === "zombie")
+        || (target.kind === "mob" && target.s.kind === "zombie"))) continue;
       const at = positionAt(target.rt, target.s, req.rewindT);
       // Plant Your Feet: an armed swing reaches rangeMult times as far.
       if (!inArc(origin, req.a, shape.reach * (req.rangeMult ?? 1), shape.halfArc, at, PLAYER_RADIUS)) continue;

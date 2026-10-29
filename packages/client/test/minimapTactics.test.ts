@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMap, mapFromTiles, TILE, TILE_FLOOR } from "@raid/shared";
 import { Minimap } from "../src/ui/minimap";
-import { COLOR_ENEMY } from "../src/ui/minimapMarkers";
+import { COLOR_ENEMY, COLOR_ZOMBIE_FRIEND, COLOR_ZOMBIE_ENEMY } from "../src/ui/minimapMarkers";
 import { mapSpan } from "../src/ui/minimapMath";
 import { setView } from "../src/view/viewState";
 import { computeLayout } from "../src/view/viewport";
@@ -70,6 +70,24 @@ describe("tactical minimap integration", () => {
     const before = r.paints();
     r.minimap.setCorpses([]); r.paint();
     expect(r.paints()).toBeGreaterThan(before);
+    r.minimap.destroy();
+  });
+
+  it("shows companion skull contacts with a friendly owner color and removes dead companions", () => {
+    const r = rig();
+    const own = { x: 1600, y: 1700, kind: "zombie", status: "alive", faction: "plague", owned: true };
+    const other = { ...own, x: 2200, owned: false };
+    r.minimap.setMobs({ forEach: cb => { cb(own); cb(other); } });
+    r.paint();
+    const colors = argsOf(r.ctx, "fillStyle=").map(([c]) => c);
+    expect(colors).toContain(COLOR_ZOMBIE_FRIEND);
+    expect(colors).toContain(COLOR_ZOMBIE_ENEMY);
+    r.ctx.calls.length = 0;
+    own.status = "dead"; other.status = "dead";
+    r.minimap.setMobs({ forEach: cb => { cb(own); cb(other); } });
+    r.paint();
+    expect(argsOf(r.ctx, "fillStyle=").map(([c]) => c)).not.toContain(COLOR_ZOMBIE_FRIEND);
+    expect(argsOf(r.ctx, "fillStyle=").map(([c]) => c)).not.toContain(COLOR_ZOMBIE_ENEMY);
     r.minimap.destroy();
   });
 

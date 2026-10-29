@@ -9,7 +9,7 @@ import type { Vec2 } from "./messages";
 import type { WeaponId } from "./weapons";
 
 /** What state.mobs[id].kind says. "dummy" is Phase 9's training dummy; the other two are regional mobs. */
-export type MobKind = "dummy" | "mob" | "elite";
+export type MobKind = "dummy" | "mob" | "elite" | "zombie";
 
 export function isRegionalKind(kind: string): kind is "mob" | "elite" {
   return kind === "mob" || kind === "elite";

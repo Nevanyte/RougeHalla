@@ -130,20 +130,6 @@ describe("F: a weapon or quest item against a quest giver", () => {
   });
 });
 
-describe("Plague corpse interaction", () => {
-  const from = { x: 32, y: 32 };
-  const giverAt = (x: number): QuestStateLike => quest({ def: "cull-fire", x, y: 32, accepted: new Map() });
-  const quests = (...rows: QuestStateLike[]) => ({ forEach(cb: (q: QuestStateLike, id: string) => void) { for (const q of rows) cb(q, q.id); } });
-  it("selects a nearby corpse for F, with closer loot or givers still winning", () => {
-    const corpse = { id: "pc1", x: 40, y: 32, playerName: "Fallen" };
-    expect(pickInteraction(boxes([]), quests(), map, from, context(), [corpse])).toMatchObject({ kind: "corpse", corpse });
-    expect(pickInteraction(boxes([box("w", "ground", "sword", 34)]), quests(), map, from, context(), [corpse]))
-      .toMatchObject({ kind: "pickup", container: { id: "w" } });
-    expect(pickInteraction(boxes([]), quests(giverAt(34)), map, from, context(), [corpse])).toMatchObject({ kind: "talk" });
-    expect(pickInteraction(boxes([]), quests(), map, from, context(), [{ ...corpse, x: 103 }])).toBeNull();
-  });
-});
-
 describe("F at a quest item of an offer not accepted yet", () => {
   const from = { x: 32, y: 32 };
   const none = quest({ accepted: new Map() });

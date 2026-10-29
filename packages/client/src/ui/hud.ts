@@ -214,7 +214,7 @@ export class Hud {
     const barrier = me && me.status === "alive" && me.barrier > 0 ? Math.ceil(me.barrier) : 0;
     let key = "";
     if (me) {
-      key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${barrier}|${me.status}`;
+      key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.ceil(me.maxHp)}|${barrier}|${me.status}`;
       if (training) key += `|T|${me.slot}|${me.weapon0}|${me.weapon1}`;
     }
     if (key !== this.lastVitals) {
@@ -236,8 +236,8 @@ export class Hud {
       this.healthFill.style.width = `${ratio * 100}%`;
       this.healthBarrier.style.left = `${ratio * 100}%`;
       this.healthBarrier.style.width = `${barrierRatio * 100}%`;
-      this.healthValue.textContent = me ? `${Math.ceil(hp)}/${Math.round(maxHp)}${barrier ? ` +${barrier}` : ""}` : "";
-      this.healthMeter.setAttribute("aria-valuemax", String(Math.round(maxHp)));
+      this.healthValue.textContent = me ? `${Math.ceil(hp)}/${Math.ceil(maxHp)}${barrier ? ` +${barrier}` : ""}` : "";
+      this.healthMeter.setAttribute("aria-valuemax", String(Math.ceil(maxHp)));
       this.healthMeter.setAttribute("aria-valuenow", String(Math.ceil(hp)));
       this.healthMeter.setAttribute("aria-valuetext", hpText(hp, maxHp, barrier));
       this.health.classList.toggle("low", ratio <= 0.35);

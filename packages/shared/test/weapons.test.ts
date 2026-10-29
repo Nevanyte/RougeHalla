@@ -196,12 +196,13 @@ describe("fists (what an empty hand fights with)", () => {
     }
   });
 
-  it("windup 0.1 s (or the whole interval when shorter), no root, so a swing lands two ticks in", () => {
-    expect(FISTS_WINDUP).toBe(0.1);
-    expect(weaponTimings("fists", 0.67)).toEqual({ interval: 0.67, windup: 0.1, root: 0, ranged: false });
-    expect(weaponTimings("fists", 0.05)).toMatchObject({ windup: 0.05, root: 0 });
-    // A missing case in the switch would give a windup of 0 without any error.
-    for (const id of FACTION_IDS) expect(weaponTimings("fists", attackInterval(FACTIONS[id], "fists")).windup, id).toBeGreaterThan(0);
+  it("players punch immediately while NPC fists retain their 0.1 s telegraph", () => {
+    expect(FISTS_WINDUP).toBe(0);
+    expect(weaponTimings("fists", 0.67)).toEqual({ interval: 0.67, windup: 0, root: 0, ranged: false });
+    expect(weaponTimings("fists", 0.67, "npc").windup).toBe(0.1);
+    expect(weaponTimings("fists", 0.05, "npc")).toMatchObject({ windup: 0.05, root: 0 });
+    // Player timing remains immediate on every faction and cadence.
+    for (const id of FACTION_IDS) expect(weaponTimings("fists", attackInterval(FACTIONS[id], "fists")).windup, id).toBe(0);
   });
 
   it("hit for the faction's rate x hit x 0.60 per second at the cadence the formula gives", () => {
@@ -254,9 +255,10 @@ describe("the weapon specials (BALANCE_CONTRACT 3.3) and their tags", () => {
 });
 
 describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
-  it("has no axe recovery root and keeps the windup proportional to the interval", () => {
-    expect(weaponTimings("axe", 1.19)).toMatchObject({ windup: 0.25, root: 0, interval: 1.19 });
-    const fast = weaponTimings("axe", 0.386);
+  it("player axes have no windup or recovery root; NPC axe telegraphs stay proportional to the interval", () => {
+    expect(weaponTimings("axe", 1.19)).toMatchObject({ windup: 0, root: 0, interval: 1.19 });
+    expect(weaponTimings("axe", 1.19, "npc").windup).toBe(0.25);
+    const fast = weaponTimings("axe", 0.386, "npc");
     expect(fast.windup).toBeCloseTo(0.0965, 12);
     expect(fast.root).toBe(0);
   });
@@ -300,9 +302,11 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
     for (const w of ["sword", "shield", "axe"] as const) expect(weaponTimings(w, 1).ranged).toBe(false);
   });
 
-  it("lands sword and bash hits 0.1 s in", () => {
-    expect(weaponTimings("sword", 0.78)).toEqual({ interval: 0.78, windup: 0.1, root: 0, ranged: false });
-    expect(weaponTimings("shield", 1.04)).toMatchObject({ windup: 0.1, ranged: false });
+  it("lands player sword and bash hits immediately while preserving NPC telegraphs", () => {
+    expect(weaponTimings("sword", 0.78)).toEqual({ interval: 0.78, windup: 0, root: 0, ranged: false });
+    expect(weaponTimings("sword", 0.78, "npc").windup).toBe(0.1);
+    expect(weaponTimings("shield", 1.04)).toMatchObject({ windup: 0, ranged: false });
+    expect(weaponTimings("shield", 1.04, "npc").windup).toBe(0.1);
     expect(weaponTimings("bow", 0.85).ranged).toBe(true);
     expect(weaponTimings("wand", 1.0).ranged).toBe(true);
   });

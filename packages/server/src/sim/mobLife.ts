@@ -41,7 +41,7 @@ import {
 import { creditMobKill } from "./arena";
 import { CAMP_CLEARED, CAMP_IDLE, campEngaged, campMobDied, ensureRosters } from "./camps";
 import { noteCampContributors } from "./campHeal";
-import { combatant, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
+import { combatant, creditedPlayerId, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { grantMobStat } from "./mobStats";
@@ -144,7 +144,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
     killMob(world, c, entries, amounts, before);
   } else {
     for (let i = 0; i < entries.length; i++) {
-      const by = entries[i]!.by.id;
+      const by = entries[i]!.by.ownerId ?? creditedPlayerId(world, entries[i]!.by.id);
       if (amounts[i]! > 0 && world.state.players.has(by)) aggro(world, c, by, amounts[i]!);
     }
   }
@@ -173,7 +173,7 @@ export function killMob(
   const removedShare = passTotal > hpBefore ? hpBefore / passTotal : 1;
   for (let i = 0; i < entries.length; i++) {
     const a = amounts[i]!;
-    const id = entries[i]!.by.id;
+    const id = entries[i]!.by.ownerId ?? creditedPlayerId(world, entries[i]!.by.id);
     if (a > 0 && inRun(id)) dealt.set(id, (dealt.get(id) ?? 0) + a * removedShare);
   }
   let killer: string | null = null;

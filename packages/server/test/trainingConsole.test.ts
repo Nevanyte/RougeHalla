@@ -429,8 +429,8 @@ describe("train card", () => {
     expect(rtOf(world).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(rtOf(world).mobKills).toBe(0);
     expect(p.build.size).toBe(0);
-    expect(world.state.containers.size).toBe(containers + 1); // one physical camp recovery potion, no weapon or augment chest
-    expect([...world.state.containers.values()].filter(c => c.items[0]?.def === "potionLarge")).toHaveLength(1);
+    expect(world.state.containers.size).toBe(containers); // camp recovery is stored, with no ground weapon or augment chest
+    expect(p.potionLarge).toBe(1);
     expect(rewardChests(world)).toEqual([]);
     expect(world.state.camps.length).toBe(0);
     expect(world.state.phase).toBe("active");

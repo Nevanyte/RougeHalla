@@ -127,12 +127,14 @@ export const PlayerState = schema({
   tradeUsed: t.boolean().default(false),
   tradeOffers: t.array("string"),
   tradeStats: t.map("float64"),
+  /** The one Plague companion, kept while dead so a later corpse revives its accumulated growth. */
+  plagueZombieId: t.string().default(""),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
 /**
- * A neutral fighter: a training dummy ("dummy": no AI, no faction) or a regional mob ("mob" or "elite": its region's
- * faction scaled down, its region's weapon, an AI; see shared/mobs.ts). A dead mob stays "dead" for MOB_CORPSE_MS, then goes.
+ * A training dummy, regional mob, quest giver, or owned Plague zombie. Regional mobs use their scaled faction and weapon;
+ * zombies have their own damage/lifecycle and ownerId. A dead regional mob stays for MOB_CORPSE_MS, then goes.
  */
 export const MobState = schema({
   /** MobKind */
@@ -165,6 +167,8 @@ export const MobState = schema({
   markTier: t.uint8().default(0),
   markBy: t.string().default(""),
   markTax: t.uint8().default(0),
+  /** Player owner for kind "zombie"; empty for ordinary mobs, dummies and quest givers. */
+  ownerId: t.string().default(""),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 

@@ -7,7 +7,8 @@ import {
   MARK_TOP_TIER, TARGET_FORGET_SECONDS, TRAINING_WISH_COOLDOWN_SECONDS, WEAPONS, WISH_LOCK_SECONDS,
   abilityCooldownMs, burnDps, magicShare, markPct, pacedFaction, plagueDps, rankOf, wishOf,
   HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS,
-  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK, PLAGUE_CORPSE_LIFETIME_MS,
+  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_LIFETIME_MS, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE,
+  PLAGUE_ZOMBIE_GROWTH_PER_BODY, PLAGUE_ZOMBIE_INTERVAL_MS,
   SENTENCED_HUNT_MOVE_BONUS, SENTENCED_HUNT_MARK_PER_STACK,
   type AbilityDef, type FactionId, type WeaponId,
 } from "@raid/shared";
@@ -67,12 +68,14 @@ export function signatureGuide(id: FactionId): GuideAbility {
     };
     case "plague": return {
       ...base, name: "Rat King",
-      summary: "Harvest player corpses for permanent health and disease growth. Wear opponents down with disease, then execute them below half health.",
-      scaling: `Disease: ${guideNumber(plagueDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × SO magic damage/s. The execute grows with the enemy's missing health below ${pct(EXECUTE_BAND)}.`,
-      tags: [{ kind: "ap", label: "SO · disease" }, { kind: "target", label: "Enemy low health · execute" }],
+      summary: "Consume a player body to raise a Plague zombie that assists you. More bodies strengthen it and grant you both max health. Disease wears down foes; execute finishes them.",
+      scaling: `Disease: ${guideNumber(plagueDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × SO magic damage/s. Zombie health and attacks scale with your max health and harvested bodies. The execute grows with the enemy's missing health below ${pct(EXECUTE_BAND)}.`,
+      tags: [{ kind: "health", label: "Max health · zombie" }, { kind: "ap", label: "SO · disease" }, { kind: "target", label: "Enemy low health · execute" }],
       details: [
         `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO, per second.`,
-        `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Approach and press F to consume one before another Plague does. Each grants ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and one permanent stack adding ${pct(PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK)} disease damage, including its SO scaling. The execute is unchanged.`,
+        `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Walk over one to consume it automatically before another Plague does. The first raises one zombie; each body grants you ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and grows the zombie.`,
+        `The zombie follows you and assists the enemy you attack. Its max HP is ${pct(PLAGUE_ZOMBIE_HP_SHARE)} of your current max HP, and each physical hit is ${pct(PLAGUE_ZOMBIE_HIT_SHARE)} of your current max HP before defenses and PvP scaling. It attacks every ${seconds(PLAGUE_ZOMBIE_INTERVAL_MS)}. Each body after the first adds another ${pct(PLAGUE_ZOMBIE_GROWTH_PER_BODY)} of the zombie's base health and damage. Health from farming, cards and trades also strengthens it.`,
+        "If the zombie dies, consume another player body to revive it with all accumulated growth. It disappears when you die or the run ends. Corpse growth no longer multiplies disease or execute damage.",
         `Extra execute damage/s = ${guideNumber(p.execute!)} × max(0, ${guideNumber(EXECUTE_BAND)} − enemy current-health fraction) × your weapon's damage multiplier. At ${pct(EXECUTE_BAND / 2)} enemy health, this adds ${guideNumber(p.execute! * EXECUTE_BAND / 2)} × weapon multiplier per second.`,
         "Disease and execute deal magic damage. SO is added once to the disease; the execute has no second SO rider. Offense does not directly increase the signature.",
         "Plague's disease and execute damage-over-time ticks cannot critically strike; auto attacks can. With Cruel Wounds, Plague gets +20% auto-attack crit chance and converts half its current crit chance into steady DoT damage instead of DoT crits.",

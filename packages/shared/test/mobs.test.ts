@@ -34,7 +34,7 @@ describe("isRegionalKind", () => {
   });
 
   it("picks the regional kinds out of every MobKind", () => {
-    const kinds: MobKind[] = ["dummy", "mob", "elite"];
+    const kinds: MobKind[] = ["dummy", "mob", "elite", "zombie"];
     expect(kinds.filter(isRegionalKind)).toEqual(["mob", "elite"]);
   });
 });

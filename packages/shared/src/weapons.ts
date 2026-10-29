@@ -211,12 +211,13 @@ export function backlashPerSwing(backlash: number, foe: Pick<FactionSpec, "rate"
   return backlash * foe.rate * attackInterval(foe, foeWeapon);
 }
 
-// Attacks pause walking through their windup. Longer player ranged pauses preserve room for a
-// chaser after the range increase. PvE mobs retain their separate windup profile below.
+// Player melee lands immediately while walking. Only ranged player attacks pause movement; regional mobs retain
+// their melee telegraphs and separate ranged windup profile. The zombie companion has its own fixed timings.
 const SWORD_WINDUP = 0.1;
 const BASH_WINDUP = 0.1;
-/** The punch: as short as a sword's (a missing case would be a windup of 0). */
-export const FISTS_WINDUP = 0.1;
+/** An unarmed player punches immediately; NPC fists retain their readable telegraph. */
+export const FISTS_WINDUP = 0;
+export const NPC_FISTS_WINDUP = 0.1;
 const AXE_WINDUP = 0.25;
 const AXE_WINDUP_SHARE = 0.25;
 // The axe is mobile as soon as its swing lands; there is no post-launch recovery root.
@@ -254,10 +255,11 @@ export interface WeaponTimings {
 
 export function weaponTimings(w: WeaponId, interval: number, profile: "player" | "npc" = "player"): WeaponTimings {
   const t: WeaponTimings = { interval, windup: 0, root: 0, ranged: isRanged(w) };
+  if (profile === "player" && !t.ranged) return t;
   switch (w) {
     case "sword": t.windup = Math.min(SWORD_WINDUP, interval); break;
     case "shield": t.windup = Math.min(BASH_WINDUP, interval); break;
-    case "fists": t.windup = Math.min(FISTS_WINDUP, interval); break;
+    case "fists": t.windup = Math.min(NPC_FISTS_WINDUP, interval); break;
     case "axe":
       t.windup = Math.min(AXE_WINDUP, AXE_WINDUP_SHARE * interval);
       t.root = Math.min(AXE_ROOT, AXE_ROOT_SHARE * interval);

@@ -97,6 +97,7 @@ export function dropLock(c: Combatant): boolean {
  * defense and no `hit` mult gets exactly the faction's packet.
  */
 export function packetFor(c: Combatant, weapon: WeaponId): DamagePacket {
+  if (c.kind === "mob" && c.s.kind === "zombie") return { raw: c.rt.zombie?.damage ?? 0, phys: 1, magic: 0, true: 0 };
   const f = factionOf(c.s);
   if (!f) return { raw: 0, phys: 1, magic: 0, true: 0 };
   const as = attackSpeedMult(c.s);
@@ -271,7 +272,12 @@ function stepWeapon(world: World, c: Combatant): void {
   }
   if (w.action && now + TIE_EPS_MS >= w.action.landsAt) land(world, c, w.action);
   const wants = w.held || now <= w.bufferedUntil;
-  if (!w.action && wants && now + TIE_EPS_MS >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
+  if (!w.action && wants && now + TIE_EPS_MS >= c.s.readyAt && !actionBlocked(world, c)) {
+    startAttack(world, c, weapon, tm);
+    // Zero-windup player melee must land in this very step, before movement reads the action's root.
+    // A tap (press + release in one input batch) still spends one cooldown and makes exactly one swing.
+    if (c.kind === "player" && tm.windup === 0 && w.action) land(world, c, w.action);
+  }
 }
 
 /**
@@ -353,6 +359,6 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
   if (tm.root > 0) w.rootUntil = start + tm.root * 1000;
   // Clients draw the bow's pull from its synced start; every other windup is announced once.
   if (weapon === "bow") c.s.drawStartedAt = start;
-  else emit(world, { type: "fx", fx: { kind: "windup", by: c.id, weapon, a: w.aim, ms: landsAt - now } });
+  else emit(world, { type: "fx", fx: { kind: "windup", by: c.id, weapon, a: w.aim, ms: Math.max(0, landsAt - now) } });
   world.hooks.attackStarted?.(world, c);
 }

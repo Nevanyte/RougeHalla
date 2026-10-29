@@ -24,7 +24,7 @@ function rig() {
 }
 
 describe("stored potions", () => {
-  it("stores camp drops without healing, then pays 40% in ten steps across five seconds", () => {
+  it("stores a picked-up large potion without healing, then pays 40% in ten steps across five seconds", () => {
     const { w, c } = rig();
     const box = dropConsumable(w, c.s, "potionLarge");
     handlePickup(w, c, { kind: "pickup", containerId: box.id });
@@ -55,12 +55,13 @@ describe("stored potions", () => {
     expect(chest.items.map(i => i.def)).toContain("potionSmall");
   });
 
-  it("camp clears drop a large potion without changing HP", () => {
+  it("camp clears store a large potion automatically without a ground drop or changing HP", () => {
     const { w, c } = rig();
     w.map.camps = [{ id: "c", zone: "holy", x: 100, y: 100, r: 96, spots: [], eliteSpot: -1, chest: { x: 100, y: 100 }, area: 0, radius: 96 }];
     w.campContrib = new Map([[0, new Set([c.id])]]);
     payCampHeal(w, 0);
-    expect([...w.state.containers.values()].some(c => c.items[0]?.def === "potionLarge")).toBe(true);
+    expect(c.s.potionLarge).toBe(1);
+    expect([...w.state.containers.values()].some(c => c.items[0]?.def === "potionLarge")).toBe(false);
     expect(c.s.hp).toBe(100);
   });
 });

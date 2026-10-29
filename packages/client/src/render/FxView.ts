@@ -375,7 +375,7 @@ export class FxView {
       case "death": {
         this.cancelWindup(fx.id, now);
         const mob = this.host.mobKind?.(fx.id);
-        if (mob === "mob" || mob === "elite") {
+        if (mob === "mob" || mob === "elite" || mob === "zombie") {
           this.mobDeath(fx, mob === "elite", now);
           break;
         }

@@ -7,7 +7,11 @@ import { questKindCss, type QuestMapBlip } from "./questModel";
 
 export const COLOR_ENEMY = "#ff8c91";
 export const COLOR_RESPAWN = "#b4c9dc";
-type Kind = "player" | "enemy" | "mob" | "corpse" | "chest" | "respawn" | "camp" | "quest" | "stop";
+/** Contact codes outside the faction/elite pairs; the following code is another player's companion. */
+export const ZOMBIE_CONTACT = 100;
+export const COLOR_ZOMBIE_FRIEND = "#c8ff9f";
+export const COLOR_ZOMBIE_ENEMY = "#9caf75";
+type Kind = "player" | "enemy" | "mob" | "zombie" | "corpse" | "chest" | "respawn" | "camp" | "quest" | "stop";
 export interface TacticalMark extends MapMark {
   kind: Kind;
   color: string;
@@ -17,6 +21,7 @@ export interface TacticalMark extends MapMark {
   state?: number;
   quest?: QuestMapBlip;
   next?: boolean;
+  owned?: boolean;
 }
 export interface RespawnBlip extends Vec2 { left: number }
 export interface CorpseBlip extends Vec2 { id: string }
@@ -62,9 +67,16 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
   const respawns = input.respawns.filter((r) => !input.chests.some((c) => Math.hypot(c.x - r.x, c.y - r.y) < 1));
   clocks("respawn", respawns, 110, COLOR_RESPAWN);
 
-  input.mobs.forEach((p, i) => marks.push({ kind: "mob", key: `mob:${i}`, x: p.x, y: p.y,
+  input.mobs.forEach((p, i) => {
+    if (p.code >= ZOMBIE_CONTACT) {
+      marks.push({ kind: "zombie", key: `zombie:${i}`, x: p.x, y: p.y, w: 7, h: 7, priority: 85, essential: true, pinned: true,
+        color: p.code === ZOMBIE_CONTACT ? COLOR_ZOMBIE_FRIEND : COLOR_ZOMBIE_ENEMY, owned: p.code === ZOMBIE_CONTACT });
+      return;
+    }
+    marks.push({ kind: "mob", key: `mob:${i}`, x: p.x, y: p.y,
     w: p.code % 2 ? 7 : 5.5, h: p.code % 2 ? 7 : 5.5, priority: 65, essential: true, pinned: true,
-    color: FACTION_CSS[(p.code >> 1) - 1] ?? "#b1bfc5", elite: p.code % 2 === 1 }));
+    color: FACTION_CSS[(p.code >> 1) - 1] ?? "#b1bfc5", elite: p.code % 2 === 1 });
+  });
   input.stops.forEach((p, i) => add("stop", String(i), p, i === input.next ? 10 : 7, i === input.next ? 10 : 7,
     40, COLOR_ROUTE, { next: i === input.next }));
   input.camps.forEach((camp, i) => {
@@ -91,6 +103,14 @@ export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly
     ctx.fillStyle = m.color;
     if (m.kind === "camp" && m.camp) {
       paintCamps(ctx, [{ ...m.camp, x: x, y: y }], 1, px * 0.8, [m.state ?? 0]);
+    } else if (m.kind === "zombie") {
+      // A little square skull distinguishes the follower from camp mobs and green corpse crosses.
+      ctx.fillRect(x - 2.7 * px, y - 2.7 * px, 5.4 * px, 5.4 * px);
+      ctx.strokeStyle = m.owned ? "#edffde" : COLOR_OUTLINE;
+      ctx.strokeRect(x - 2.7 * px, y - 2.7 * px, 5.4 * px, 5.4 * px);
+      ctx.fillStyle = "#152210";
+      ctx.fillRect(x - 1.7 * px, y - 0.9 * px, 1.2 * px, 1.2 * px);
+      ctx.fillRect(x + 0.5 * px, y - 0.9 * px, 1.2 * px, 1.2 * px);
     } else if (m.kind === "corpse") {
       ctx.fillStyle = "#10230e";
       ctx.beginPath(); ctx.arc(x, y, 4.5 * px, 0, TAU); ctx.fill();

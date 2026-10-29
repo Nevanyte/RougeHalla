@@ -1,9 +1,9 @@
-// Camp-clear recovery is a physical potion, consumed later for 40% HP over 5s. Contributor eligibility and clear counts
+// Camp-clear recovery goes directly into potion inventory, consumed later for 40% HP over 5s. Contributor eligibility and clear counts
 // remain shared with elite augment offers and champion passives. The historical payCampHeal name is kept for callers.
-import { CAMP_HEAL_RANGE, territoryAt, type Vec2 } from "@raid/shared";
-import { combatant, standing, type Combatant } from "./combatant";
-import { dropConsumable } from "./consumables";
-import { chainHook, type LedgerEntry, type World } from "./world";
+import { CAMP_HEAL_RANGE, CONSUMABLE_CAP, territoryAt, type Vec2 } from "@raid/shared";
+import { combatant, creditedPlayerId, standing, type Combatant } from "./combatant";
+import { grantConsumable } from "./consumables";
+import { chainHook, emit, type LedgerEntry, type World } from "./world";
 
 /**
  * A hit on a mob of camp `campRef` (MobState.camp: the camp's index + 1, 0 = none) landed: every player behind an entry that took
@@ -15,7 +15,7 @@ export function noteCampContributors(world: World, campRef: number, entries: rea
   let set: Set<string> | undefined;
   for (let i = 0; i < entries.length; i++) {
     if (!(amounts[i]! > 0)) continue;
-    const by = entries[i]!.by.id;
+    const by = entries[i]!.by.ownerId ?? creditedPlayerId(world, entries[i]!.by.id);
     if (!world.state.players.has(by)) continue;
     if (!set) {
       const all = (world.campContrib ??= new Map());
@@ -77,7 +77,7 @@ export function eligibleContributors(world: World, camp: number, contributors?: 
 }
 
 /**
- * Pays the clear of camp `camp`: drops one potion and counts the camp for every eligible contributor (PlayerRuntime.campsCleared,
+ * Pays the clear of camp `camp`: stores one potion and counts the camp for every eligible contributor (PlayerRuntime.campsCleared,
  * even for a player already at full hp), and forgets the camp's contributors. A no-op for a camp nobody damaged.
  */
 export function payCampHeal(world: World, camp: number): void {
@@ -85,9 +85,10 @@ export function payCampHeal(world: World, camp: number): void {
   if (!contrib) return;
   for (const c of eligibleContributors(world, camp)) {
     c.rt.campsCleared = (c.rt.campsCleared ?? 0) + 1;
+    if (!grantConsumable(world, c, "potionLarge")) {
+      emit(world, { type: "toast", to: c.id, text: `Camp cleared · camp potion bag full (${CONSUMABLE_CAP})` });
+    }
   }
-  const centre = campCentre(world, camp);
-  if (centre) dropConsumable(world, centre, "potionLarge");
   world.campContrib!.delete(camp);
 }
 

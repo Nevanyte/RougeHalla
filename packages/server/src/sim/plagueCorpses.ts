@@ -1,18 +1,20 @@
-// Plague's public, consumable player-death remains. This is separate from weapon bodies/loot so F can choose the
-// corpse explicitly and a failed/empty weapon pickup can never consume it by accident.
+// Plague automatically harvests public player-death remains by walking over them. Ordinary loot/body containers
+// are separate: a weapon pickup can never grant a corpse stack or raise a zombie.
 import {
-  FACTIONS, hasLineOfSight, MASK_MOVE, PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK, PLAGUE_CORPSE_HEAL_SHARE,
+  FACTIONS, hasLineOfSight, MASK_MOVE, PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HEAL_SHARE,
   PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_INTERACT_RANGE, PLAGUE_CORPSE_LIFETIME_MS,
 } from "@raid/shared";
 import { PlagueCorpseState } from "@raid/shared/schema";
+import { combatant } from "./combatant";
 import type { ActionHandler, World } from "./world";
-import { chainHook, collisionMap, emit } from "./world";
+import { chainHook, collisionMap, emit, tieRank } from "./world";
 import { recomputeMods } from "./mods";
 import { syncMaxHp } from "./buffs";
 import { heal } from "./factions";
 import { actionBlocked } from "./status";
+import { raiseOrGrowZombie } from "./plagueZombies";
 
-export { PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK, PLAGUE_CORPSE_HEAL_SHARE, PLAGUE_CORPSE_HP_SHARE,
+export { PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HEAL_SHARE, PLAGUE_CORPSE_HP_SHARE,
   PLAGUE_CORPSE_INTERACT_RANGE, PLAGUE_CORPSE_LIFETIME_MS };
 
 function toast(world: World, id: string, text: string): void {
@@ -67,7 +69,8 @@ export const handleConsumeCorpse: ActionHandler = (world, c, cmd) => {
   // that goes through the ordinary heal rules, so undo that implicit carry and apply the single explicit heal instead.
   p.hp = Math.min(hpBefore, p.maxHp);
   heal(world, c, FACTIONS.plague.hp * PLAGUE_CORPSE_HEAL_SHARE);
-  toast(world, c.id, `Consumed ${corpse.playerName}'s corpse: +3% max health, +1 disease stack`);
+  raiseOrGrowZombie(world, c);
+  toast(world, c.id, `Consumed ${corpse.playerName}'s corpse: +3% max health, zombie raised or strengthened`);
 };
 
 /** Gameplay assembly may call this after installing mods and faction signatures. */
@@ -77,6 +80,21 @@ export function install(world: World): void {
   world.systems.push((w) => {
     for (const [id, corpse] of w.state.plagueCorpses) {
       if (w.state.serverTime >= corpse.expiresAt) w.state.plagueCorpses.delete(id);
+    }
+    if (w.state.phase !== "active" || w.config.training || w.state.plagueCorpses.size === 0) return;
+    // Movement and damage have finished. The same shuffled tick order settles overlapping contenders, independently
+    // of join order; removing each corpse inside the shared handler makes it available to exactly one player.
+    const order = [...w.state.players.keys()].sort((a, b) =>
+      (w.combat.rank.get(a) ?? Infinity) - (w.combat.rank.get(b) ?? Infinity) || tieRank(w, a) - tieRank(w, b));
+    for (const id of order) {
+      const c = combatant(w, id);
+      if (!c || c.kind !== "player" || c.s.status !== "alive" || c.rt.down || c.rt.resolved
+        || c.s.faction !== "plague" || actionBlocked(w, c)) continue;
+      for (const corpse of w.state.plagueCorpses.values()) {
+        if (Math.hypot(c.s.x - corpse.x, c.s.y - corpse.y) > PLAGUE_CORPSE_AUTO_RANGE
+          || !hasLineOfSight(collisionMap(w), c.s, corpse, MASK_MOVE)) continue;
+        handleConsumeCorpse(w, c, { kind: "consumeCorpse", corpseId: corpse.id });
+      }
     }
   });
   chainHook(world, "runEnded", (w) => { w.state.plagueCorpses.clear(); });

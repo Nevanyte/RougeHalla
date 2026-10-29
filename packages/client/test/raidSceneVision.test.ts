@@ -43,6 +43,27 @@ function rig() {
 }
 
 describe("RaidScene vision integration", () => {
+  it("feeds the local weapon guide current drawn position/aim and hides it for the map, peeking or results", () => {
+    const {scene,state,me,frame} = rig();
+    Object.assign(me, { weapon0: "bow", weapon1: "wand", slot: 0, facing: 0 });
+    scene.weaponRange = { update: vi.fn() };
+    scene.hud.noteResultShown = vi.fn();
+    scene.aimKnown = true; scene.input.isOver = true; scene.cursorAngle = () => .4;
+    scene.beforeTeleport = () => false;
+    frame(1000);
+    expect(scene.weaponRange.update).toHaveBeenLastCalledWith({ phase: "active", me, at: { x: 400, y: 400 }, aim: .4, hidden: false });
+    scene.mapHold = { held: true }; frame(1100);
+    expect(scene.weaponRange.update.mock.lastCall[0].hidden).toBe(true);
+    scene.mapHold.held = false; scene.peek = { x: 3000, y: 2500 }; frame(1200);
+    expect(scene.weaponRange.update.mock.lastCall[0].hidden).toBe(true);
+    scene.peek = null; scene.resultsVisible = () => true; frame(1300);
+    expect(scene.weaponRange.update.mock.lastCall[0].hidden).toBe(true);
+    scene.resultsVisible = () => false; scene.input.isOver = false;
+    scene.localSource = () => "predicted"; scene.predict = { motion: { facing: () => 1.2 } };
+    scene.updateWeaponRange(me, state);
+    expect(scene.weaponRange.update.mock.lastCall[0].aim).toBe(1.2);
+  });
+
   it("keeps an accepted fetch destination on both maps outside fog, without exposing another player's objective", () => {
     const {scene,state,frame} = rig();
     scene.planning = {update:vi.fn(),hide:vi.fn()};
@@ -114,6 +135,27 @@ describe("RaidScene vision integration", () => {
     me.faction = "plague"; me.status = "dead"; frame(1200);
     expect(scene.minimap.setCorpses).toHaveBeenLastCalledWith([]);
     expect(scene.planning.update.mock.lastCall[0].corpses).toEqual([]);
+  });
+
+  it("keeps nearby corpse markers while F only takes ordinary body loot", () => {
+    const {scene,state,me,frame} = rig();
+    me.faction = "plague";
+    scene.room.send = vi.fn();
+    scene.weaponBar.update = vi.fn();
+    state.plagueCorpses.set("pc1", { id: "pc1", playerId: "foe", playerName: "Foe", x: 400, y: 400, expiresAt: 9000 });
+    state.containers.set("body", { id: "body", kind: "body", x: 400, y: 400, label: "Foe", items: [{ uid: "w", def: "sword" }] });
+    frame(1000);
+    expect(scene.minimap.setCorpses.mock.lastCall[0]).toHaveLength(1);
+    expect(scene.interaction).toMatchObject({ kind: "pickup", container: { id: "body" } });
+    scene.interact();
+    expect(scene.room.send).toHaveBeenCalledExactlyOnceWith("pickup", { containerId: "body" });
+    state.containers.clear();
+    frame(1100);
+    expect(scene.interaction).toBeNull();
+    scene.interact();
+    expect(scene.room.send).toHaveBeenCalledTimes(1);
+    expect(scene.weaponBar.update.mock.lastCall.at(-1)).toBe("");
+    expect(scene.minimap.setCorpses.mock.lastCall[0]).toHaveLength(1);
   });
 
   it("shows the Sentenced hunt target on both maps through fog without rendering a hidden Swarm actor", () => {
