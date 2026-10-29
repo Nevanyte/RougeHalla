@@ -74,7 +74,7 @@ export function weaponAttackExample(faction: FactionId, weapon: WeaponId, stats:
 }
 
 export interface ChampionBuildExample { weapon: WeaponId; name: string; stats: string; why: string; caution: string }
-export const CHAMPION_BUILDS: Record<FactionId, readonly ChampionBuildExample[]> = {
+export const CHAMPION_BUILDS: Record<FactionId, readonly [ChampionBuildExample, ChampionBuildExample]> = {
   fire: [
     { weapon: "wand", name: "Burn caster", stats: "AP + health", why: "AP grows both wand hits and your burn. Ranged trades let you apply burn without standing in melee.", caution: "AP does not scale physical retaliation or Blaze's fixed true damage." },
     { weapon: "axe", name: "Durable duelist", stats: "AD + bonus health", why: "AD and bonus health grow axe hits. Armor shred can also help your physical retaliation; extra durability keeps you trading.", caution: "The burn remains magic damage; armor shred does not strengthen it." },

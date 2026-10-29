@@ -18,6 +18,7 @@ export class ChampionsPanel implements HubPanel {
   private readonly content = el("div", "champion-content");
   private readonly name = el("h2", "champion-name");
   private readonly role = el("p", "champion-role");
+  private readonly recommendation = el("p", "champion-recommendation");
   private readonly crest = el("span", "champion-crest");
   private readonly baseStats = el("div", "champion-base-stats");
   private readonly abilities = el("div", "champion-abilities");
@@ -74,7 +75,7 @@ export class ChampionsPanel implements HubPanel {
 
     const header = el("header", "champion-header");
     const identity = el("div", "champion-identity");
-    identity.append(this.name, this.role);
+    identity.append(this.name, this.role, this.recommendation);
     this.crest.setAttribute("aria-hidden", "true");
     this.selectButton.type = "button";
     this.selectButton.hidden = !options.onPick;
@@ -146,6 +147,7 @@ export class ChampionsPanel implements HubPanel {
     this.content.setAttribute("aria-labelledby", `${this.id}-${this.viewed}`);
     this.name.textContent = guide.faction.displayName;
     this.role.textContent = guide.faction.role;
+    this.recommendation.textContent = `Generally pairs best with: ${CHAMPION_BUILDS[this.viewed].map(build => weaponScalingGuide(build.weapon).name).join(" or ")}`;
     this.crest.style.setProperty("clip-path", iconClipPath(guide.wish.def.icon));
     for (const [id, button] of this.buttons) {
       button.setAttribute("aria-selected", String(id === this.viewed));
@@ -159,12 +161,12 @@ export class ChampionsPanel implements HubPanel {
       return cell;
     }), el("span", "champion-base-mix", `Base attacks · ${guide.baseDamage}`));
     this.detailNodes.length = 0;
-    this.builds.replaceChildren(el("h3", undefined, "Try these pairings"), el("p", "champion-weapon-caption", "Starting ideas based on kit synergy, not a ranking. Choose your second weapon for the enemy's weapon and your current stats."));
+    this.builds.replaceChildren(el("h3", undefined, "Top 2 recommended weapons"), el("p", "champion-weapon-caption", "General recommendations based on champion synergy and scaling. Your current stats and the enemy's counter weapon can change the best choice."));
     const examples = el("div", "champion-build-grid");
-    for (const build of CHAMPION_BUILDS[this.viewed]) {
+    for (const [index, build] of CHAMPION_BUILDS[this.viewed].entries()) {
       const card = el("article", "champion-build-example");
       card.append(
-        el("h4", undefined, `${build.name} · ${weaponScalingGuide(build.weapon).name}`),
+        el("h4", "champion-build-weapon", `${index + 1}. ${weaponScalingGuide(build.weapon).name} · ${build.name}`),
         el("strong", "champion-build-stats", build.stats),
         el("p", undefined, build.why), el("p", "champion-build-caution", build.caution),
       );

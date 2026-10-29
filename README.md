@@ -25,7 +25,7 @@ Open http://localhost:5173. Vite runs with `strictPort`, so it fails instead of 
 
 ### Champion and weapon guides
 
-Open **Champions & weapons · guide** from the main menu, even before loading a callsign. **Champions** explains each passive and Wish, with two example weapon/build pairings and their limits. Hold Shift or select More details for exact ability rules. **Weapon guide** explains every weapon's scaling, mechanics and intended counter matchups. Switch the example champion to see the physical/magic split of an actual unmodified hit; expand Exact attack formula for the math.
+Open **Champions & weapons · guide** from the main menu, even before loading a callsign. **Champions** explains each passive and Wish, highlights the two generally recommended weapons beside the champion's name, and gives build examples and their limits. Hold Shift or select More details for exact ability rules. **Weapon guide** explains every weapon's scaling, mechanics and intended counter matchups. Switch the example champion to see the physical/magic split of an actual unmodified hit; expand Exact attack formula for the math.
 
 The champion sets the base attack's damage type. The weapon adds damage from its listed stats: AD/bonus HP/defense contribute physical damage; AP contributes magic damage. Scaling coefficients are damage per second at base attack speed, not flat damage per hit. A weapon counter comes from its mechanics and positioning, with no automatic matchup damage bonus.
 

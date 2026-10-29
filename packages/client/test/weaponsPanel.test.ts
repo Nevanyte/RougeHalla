@@ -46,11 +46,18 @@ describe("weapon guide", () => {
     expect(root.one("weapon-guide-after").textContent).toContain("combined bonus armor/MR");
   });
 
-  it("offers two distinct, explained pairings for each champion without picking one", () => {
+  it("shows each champion's top two recommendations prominently and keeps the next-run pick unchanged", () => {
     const pick = vi.fn(); const panel = new ChampionsPanel({ onPick: pick });
     const root = asEl(panel.root); dom.ui.append(root);
-    for (const button of root.byClass("champion-option")) {
+    const recommendations = ["Wand or Axe", "Sword or Bow", "Wand or Bow", "Shield or Axe", "Sword or Wand"];
+    for (const [index, button] of root.byClass("champion-option").entries()) {
       button.click();
+      expect(root.one("champion-recommendation").textContent).toBe(`Generally pairs best with: ${recommendations[index]}`);
+      expect(root.one("champion-builds").textContent).toContain("Top 2 recommended weapons");
+      const weapons = recommendations[index]!.split(" or ");
+      expect(root.byClass("champion-build-weapon").map(node => node.textContent)).toEqual([
+        expect.stringMatching(new RegExp(`^1\\. ${weapons[0]} · `)), expect.stringMatching(new RegExp(`^2\\. ${weapons[1]} · `)),
+      ]);
       expect(root.byClass("champion-build-example")).toHaveLength(2);
       expect(root.byClass("champion-build-stats")).toHaveLength(2);
       expect(root.byClass("champion-build-caution").every(node => node.textContent.length > 25)).toBe(true);
