@@ -1081,10 +1081,10 @@ describe("the numbers under the cycle", () => {
     }
   });
 
-  it("is mirrorTimings for every faction, weapon and mirror, and a melee windup follows the windup mirror", () => {
+  it("uses mirrorTimings for every player kit and keeps instant melee at zero under windup modifiers", () => {
     for (const faction of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
       const spec = pacedFaction(FACTIONS[faction]);
-      for (const weapon of ["sword", "axe", "bow", "wand", "shield"] as const) {
+      for (const weapon of ["sword", "axe", "bow", "wand", "shield", "fists"] as const) {
         for (const [asMult, windupMult] of [[1, 1], [1.4, 1], [0.8, 1], [1.2, 0.5], [1, 1.2]] as const) {
           const t = mirrorTimings(spec, weapon, asMult, windupMult);
           const own = ownTimings(selfView({ faction, asMult, windupMult }), weapon)!;
@@ -1093,10 +1093,20 @@ describe("the numbers under the cycle", () => {
         }
       }
     }
-    // Quickdraw halves a sword's windup and leaves a bow's alone
-    expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), "sword")!.windupMs)
-      .toBeLessThan(ownTimings(selfView({ faction: "fire" }), "sword")!.windupMs);
-    expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), "bow")!.windupMs)
-      .toBe(ownTimings(selfView({ faction: "fire" }), "bow")!.windupMs);
+    // Bot self timings describe players: neither Quickdraw nor a slow adds a melee windup or changes its cooldown.
+    for (const weapon of ["sword", "axe", "shield", "fists"] as const) {
+      const base = ownTimings(selfView({ faction: "fire" }), weapon)!;
+      for (const windupMult of [0.5, 1, 1.2]) {
+        const modified = ownTimings(selfView({ faction: "fire", windupMult }), weapon)!;
+        expect(modified.windupMs, `${weapon} x${windupMult}`).toBe(0);
+        expect(modified.intervalMs, `${weapon} x${windupMult}`).toBe(base.intervalMs);
+      }
+    }
+    // Ranged draws retain their anti-kiting pause under Quickdraw.
+    for (const weapon of ["bow", "wand"] as const) {
+      const base = ownTimings(selfView({ faction: "fire" }), weapon)!.windupMs;
+      expect(base, weapon).toBeGreaterThan(0);
+      expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), weapon)!.windupMs).toBe(base);
+    }
   });
 });
