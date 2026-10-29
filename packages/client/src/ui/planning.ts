@@ -8,7 +8,8 @@
 // placed by percent over the painted map (canvas), so the keyboard and screen readers reach them. Orders go out as `plan`
 // inputs only; the deal and the route stay on this client (the route is never sent).
 import {
-  FACTIONS, TILE, campMatchup, isEliteCamp, isFactionId, nearestCamps, regionAt, spawnWalks, walkSeconds,
+  FACTIONS, TILE, campMatchup, isEliteCamp, isFactionId, mobStatReward, nearestCamps, regionAt, spawnWalks, walkSeconds,
+  type InvestedStatKey,
   type CampDef, type ClientMessages, type FactionId, type GameMap, type PlanMessage, type Vec2,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
@@ -16,6 +17,7 @@ import { settings as appSettings, type Settings, type SettingsStore } from "../s
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
 import { campMobsText, campTypeInfo } from "./campInfo";
+import { combatIcon, STAT_ICON_COLORS, type CombatIconKey } from "./combatIcons";
 import { el, uiRoot } from "./dom";
 import {
   CROWN_CLIP_PATH, ZONE_PATTERN, paintCrates, paintMapBase, paintPlayer, paintRoute, zoneClipPath, zoneColor,
@@ -129,6 +131,43 @@ interface CampMarker {
   camp: CampDef;
   button: HTMLButtonElement;
   chip: HTMLElement;
+  rewards: HTMLElement;
+}
+
+/** The regular mob's reward stat -> the matching shared combat icon. Elite mobs have no stat icon. */
+function rewardIconFor(stat: string): CombatIconKey {
+  switch (stat) {
+    case "ad": return "ad";
+    case "ap": return "ap";
+    case "damage": return "damage";
+    case "maxHp": return "health";
+    case "attackSpeed": return "attackSpeed";
+    case "armor": return "armor";
+    case "shield": return "mr";
+    case "moveSpeed": return "speed";
+    case "lifesteal": return "leech";
+    default: return "damage";
+  }
+}
+
+function campRewardBadge(reward: NonNullable<ReturnType<typeof mobStatReward>>): HTMLElement {
+  const iconKey = rewardIconFor(reward.effect.stat);
+  const badge = el("span", "pl-camp-reward");
+  badge.title = `${reward.name}: ${reward.text}`;
+  badge.setAttribute("aria-label", `${reward.name}: ${reward.text}`);
+  const icon = combatIcon(iconKey);
+  icon.style.color = `#${STAT_ICON_COLORS[iconKey as InvestedStatKey].toString(16).padStart(6, "0")}`;
+  const amount = /^\+([^ ]+)/.exec(reward.text)?.[0] ?? "";
+  badge.append(icon, el("span", "pl-camp-reward-amount", amount));
+  return badge;
+}
+
+function eliteChestBadge(): HTMLElement {
+  const badge = el("span", "pl-camp-reward pl-camp-chest");
+  badge.title = "Elite mob: drops an augment chest; grants no fixed stat";
+  badge.setAttribute("aria-label", badge.title);
+  badge.append(el("span", "pl-chest-icon"), el("span", "pl-camp-reward-amount", "Aug"));
+  return badge;
 }
 
 /** One dealt spawn: its card in the side column and its marker on the map. */
@@ -388,12 +427,15 @@ export class PlanningView {
       if (isEliteCamp(camp)) button.append(crown());
       const chip = el("span", "pl-chip");
       chip.setAttribute("aria-hidden", "true");
-      button.append(glyph(camp.zone), chip);
+      const rewards = el("span", "pl-camp-rewards");
+      rewards.setAttribute("aria-hidden", "true");
+      rewards.hidden = true;
+      button.append(glyph(camp.zone), chip, rewards);
       button.addEventListener("click", (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); this.onCampClick(i); });
       for (const type of ["mouseenter", "focus"]) button.addEventListener(type, () => { this.setRover(button); this.showInfo(i); });
       for (const type of ["mouseleave", "blur"]) button.addEventListener(type, () => this.showInfo(-1));
       this.markers.append(button);
-      this.camps.push({ camp, button, chip });
+      this.camps.push({ camp, button, chip, rewards });
     });
     this.rover = null;
     this.keyCamps = "";
@@ -482,6 +524,7 @@ export class PlanningView {
     // The camps stay on the held map (read-only); the dealt spawns and the route's stop buttons are for planning.
     this.markers.hidden = mode === "hidden";
     for (const o of this.spawnOptions) if (o.marker) o.marker.hidden = !planning;
+    for (const camp of this.camps) camp.rewards.hidden = mode !== "map" || camp.rewards.children.length === 0;
     this.playerBox.hidden = mode === "map";
     for (const b of [this.spawnBox, this.readyRow, this.routeBox]) b.hidden = !planning;
     this.syncBoonBox();
@@ -562,10 +605,10 @@ export class PlanningView {
   private renderCamps(frame: PlanningFrame): void {
     const me = this.myFaction(frame);
     const states = frame.campStates;
-    const key = `${me ?? ""}|${frame.campTypes.join(",")}|${states ? states.join("") : ""}`;
+    const key = `${me ?? ""}|${frame.campTypes.join(",")}|${frame.campElites?.join(",") ?? ""}|${states ? states.join("") : ""}`;
     if (key === this.keyCamps) return;
     this.keyCamps = key;
-    this.camps.forEach(({ camp, button, chip }, i) => {
+    this.camps.forEach(({ camp, button, chip, rewards }, i) => {
       const m = me ? describeMatchup(campMatchup(me, camp)) : null;
       const state = states?.[i] ?? 0;
       button.classList.toggle("cleared", state === 2);
@@ -574,6 +617,11 @@ export class PlanningView {
       chip.className = `pl-chip${m ? ` tone-${m.tone}` : ""}`;
       // A cleared camp has nothing left to weigh up: no matchup chip.
       chip.hidden = m === null || state === 2;
+      rewards.replaceChildren();
+      const normalReward = mobStatReward(frame.campTypes[i] ?? "");
+      if (normalReward) rewards.append(campRewardBadge(normalReward));
+      if (isEliteCamp(camp)) rewards.append(eliteChestBadge());
+      rewards.hidden = this.shownMode !== "map" || rewards.children.length === 0;
       const label = this.campLine(i, frame);
       button.setAttribute("aria-label", label);
       button.title = label;

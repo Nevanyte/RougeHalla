@@ -1,0 +1,72 @@
+/* Small live combat reference, above the Quests launcher and clear of the centered weapon bar on narrow views. */
+#ui > .champion-combat-hud {
+  position: absolute;
+  z-index: 6;
+  left: 12px;
+  bottom: 48px;
+  box-sizing: border-box;
+  width: min(250px, calc(var(--ui-w, 100vw) * 0.42));
+  max-height: min(150px, calc(var(--ui-h, 720px) * 0.3));
+  overflow: visible;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(12, 17, 23, 0.9);
+  color: var(--text, #e6e9ed);
+  font: 11px/1.25 system-ui, sans-serif;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+  user-select: none;
+}
+.champion-combat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 4px;
+}
+.champion-combat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
+.champion-combat-weapon { flex: none; color: var(--gold, #ffe082); font-size: 10px; }
+.champion-combat-rows { display: grid; gap: 2px; }
+.champion-combat-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: baseline;
+  gap: 1px 6px;
+  min-width: 0;
+  padding: 2px 3px;
+  border-left: 2px solid rgba(255, 224, 130, 0.45);
+  background: rgba(255, 255, 255, 0.035);
+}
+.champion-combat-name-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted, #aeb7c2); font-size: 10px; font-weight: 600; }
+.champion-combat-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+.champion-combat-scaling { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim, #8d99a6); font-size: 9px; }
+.champion-combat-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  z-index: 2;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(280px, calc(var(--ui-w, 100vw) * 0.6));
+  padding: 6px 8px;
+  border: 1px solid var(--line-hi, #4a5563);
+  border-radius: 5px;
+  background: rgba(15, 20, 27, 0.98);
+  color: var(--text, #e6e9ed);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: normal;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.champion-combat-row.tip-on .champion-combat-tip { display: block; }
+#ui > .champion-combat-hud.training-room { bottom: 190px; }
+html[data-ui-narrow] #ui > .champion-combat-hud { bottom: 118px; width: min(250px, calc(var(--ui-w, 100vw) * 0.62)); }
+html[data-ui-short] #ui > .champion-combat-hud { max-height: min(150px, calc(var(--ui-h, 600px) * 0.34)); }
+html[data-ui-narrow] #ui > .champion-combat-hud.training-room, html[data-ui-short] #ui > .champion-combat-hud.training-room { bottom: 190px; }
+#ui:has(.training-bar .training-tips:not([hidden])) > .champion-combat-hud.training-room { bottom: 340px; }
+html[data-ui-narrow] #ui:has(.training-bar .training-tips:not([hidden])) > .champion-combat-hud.training-room,
+html[data-ui-short] #ui:has(.training-bar .training-tips:not([hidden])) > .champion-combat-hud.training-room { bottom: 340px; }

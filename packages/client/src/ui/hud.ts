@@ -1,5 +1,5 @@
 // In-run DOM overlay: a compact health and gained-stat plate while fighting, lobby/planning/training context when idle,
-// the Coliseum countdown, and the death/results cues. Cards, gained stats and the mob-stat catalog stay in their own rows.
+// the Coliseum countdown, a compact champion combat readout, and the death/results cues.
 import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { winnerLabel } from "../render/displayName";
@@ -9,6 +9,7 @@ import { CardsRow } from "./cardsRow";
 import { cssColor, el, uiRoot } from "./dom";
 import { TerrainChips } from "./terrainChips";
 import { MobStatsHud } from "./mobStatsHud";
+import { ChampionCombatHud } from "./championCombatHud";
 
 function fmtSeconds(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -82,6 +83,7 @@ export function vitalsHpText(me: VitalsInput | undefined, training: boolean, bar
 }
 
 export class Hud {
+  private readonly champion = new ChampionCombatHud(uiRoot());
   private readonly root = el("div", "hud");
   private readonly status = el("div", "hud-status");
   private readonly statusText = el("span");
@@ -243,6 +245,7 @@ export class Hud {
     this.cards.update(me?.build, me?.status === "alive", me?.faction);
     this.build.update(me, me?.status === "alive");
     this.mobStats.update(me, me?.status === "alive");
+    this.champion.update(state, this.deathRequested || this.resultShown ? undefined : me, serverNow);
     this.updateArena(state, serverNow);
     this.setDeathShown(!training && (this.deathRequested || me?.status === "dead") && !this.resultShown);
   }
@@ -262,7 +265,7 @@ export class Hud {
           line = "Coliseum · sudden death";
         } else {
           locked = true;
-        line = `Coliseum ${fmtSeconds(state.suddenDeathAt - serverNow)}`;
+          line = `Coliseum ${fmtSeconds(state.suddenDeathAt - serverNow)}`;
         }
       } else if (state.patienceEndsAt > 0) {
         line = `Coliseum ${fmtSeconds(state.patienceEndsAt - serverNow)}`;
@@ -286,6 +289,7 @@ export class Hud {
   }
 
   destroy(): void {
+    this.champion.destroy();
     this.cards.destroy();
     this.build.destroy();
     this.mobStats.destroy();

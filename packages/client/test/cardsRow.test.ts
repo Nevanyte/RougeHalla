@@ -319,10 +319,10 @@ describe("in the Hud", () => {
     hud.destroy();
   });
 
-  it("takes its listeners with it when the HUD is destroyed (the cards row's and the build strip's)", () => {
+  it("removes the card, build and champion hover listeners when the HUD is destroyed", () => {
     const dom = installFakeDom();
     const hud = new Hud();
-    expect(dom.win.listenerCount("pointermove")).toBe(2);
+    expect(dom.win.listenerCount("pointermove")).toBe(3);
     hud.destroy();
     expect(dom.win.listenerCount("pointermove")).toBe(0);
   });

@@ -160,6 +160,50 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
 }
 .pl-camp.elite { width: calc(30px * var(--pl-glyph, 1)); height: calc(30px * var(--pl-glyph, 1)); min-width: 16px; min-height: 16px; }
 .pl-camp .pl-glyph { width: 100%; height: 100%; }
+.pl-camp-rewards {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pl-camp-rewards[hidden] { display: none; }
+.pl-camp-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 14px;
+  box-sizing: border-box;
+  padding: 1px 3px;
+  border: 1px solid rgba(210, 224, 235, 0.8);
+  border-radius: 4px;
+  color: #f5f7fa;
+  background: rgba(10, 15, 21, 0.96);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 11px;
+  text-shadow: 0 1px 2px #000;
+}
+.pl-camp-reward .combat-icon { width: 12px; height: 12px; }
+.pl-camp-reward-amount { font-variant-numeric: tabular-nums; }
+.pl-camp-chest { border-color: #ffd54f; color: #ffe082; }
+.pl-chest-icon {
+  position: relative;
+  display: inline-block;
+  width: 11px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, #ffd54f 0 42%, #9a6b20 43% 100%);
+}
+.pl-chest-icon::before { content: ""; position: absolute; left: -1px; right: -1px; top: -3px; height: 2px; border: 1px solid currentColor; border-radius: 2px 2px 0 0; background: #ffe082; }
 .pl-camp:hover, .pl-camp:focus-visible { filter: drop-shadow(0 0 3px #fff); }
 .pl-camp:focus-visible { outline: 2px solid var(--focus, #ffe082); outline-offset: 3px; border-radius: 4px; }
 /* A camp that was cleared (RaidState.camps[i].state 2): dimmed and crossed out, so everyone reads what was taken. One that is
