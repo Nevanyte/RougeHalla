@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FEED_MOB_KILL_WEIGHT, QUEST_FEED_BRAKE, feedScore, questDefById, rewardCurve } from "@raid/shared";
-import { expireQuestPreviews, questBrakeFeed, questCollections, questFromReveal, questMinimapBlips, questReady, questReward, questRows, questTurnIn, type QuestContainerLike, type QuestStateLike } from "../src/ui/questModel";
+import { questDefById } from "@raid/shared";
+import { expireQuestPreviews, questCollections, questFromReveal, questMinimapBlips, questReady, questReward, questRows, questTurnIn, type QuestContainerLike, type QuestStateLike } from "../src/ui/questModel";
 
 function quest(over: Partial<QuestStateLike> = {}): QuestStateLike {
   const progress = new Map<string, number>([["me", 1]]);
@@ -23,34 +23,17 @@ function container(over: Partial<QuestContainerLike> = {}): QuestContainerLike {
 describe("the reward a quest row shows", () => {
   const def = questDefById("cull-fire")!; // Attack Damage II and 10 GV
 
-  it("is the nominal card for a player who has fed little, and for the planning screen (no feed given)", () => {
-    expect(questReward(def)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
-    expect(questReward(def, 0)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
-    expect(questReward(def, feedScore(1, 4))).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
-  });
-
-  it("is the card the server will actually grant once the player's feed has braked the reward curve: a tier lower, and it says so", () => {
-    const fed = questBrakeFeed() + 0.5;
-    expect(rewardCurve(fed)).toBeLessThan(QUEST_FEED_BRAKE);
-    expect(questReward(def, fed)).toBe("2 × Attack Damage I (+12 attack damage each) and 10 GV. A tier lower, as you are far ahead");
-    // Just under the brake: still nominal.
-    expect(questReward(def, questBrakeFeed() - 0.5)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
-    // A tier-1 card cannot go lower.
-    const t1 = questDefById("headhunter")!;
-    expect(questReward(t1, fed)).toBe(questReward(t1));
-  });
-
-  it("is carried by the rows when a feed is given, and the feed is kills plus a quarter per mob kill", () => {
+  it("shows the fixed mob stat stack reward and cap regardless of feed", () => {
+    expect(questReward(def)).toBe("Up to 2 Ember Imp stacks (+2% damage; shared 10-stack cap) and 10 GV");
+    expect(questReward(def, 999)).toBe(questReward(def));
     const row = (feed?: number) => questRows({ forEach: (cb) => cb(quest(), "q1") }, "me", 5_000, "", false, feed)[0]!;
-    expect(row().reward).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
-    expect(row(questBrakeFeed() + 1).reward).toMatch(/^2 × Attack Damage I \(.*A tier lower/);
-    expect(feedScore(2, 8)).toBe(2 + 8 * FEED_MOB_KILL_WEIGHT);
+    expect(row().reward).toBe(questReward(def));
+    expect(row(999).reward).toBe(questReward(def));
   });
 
-  it("finds the brake where the reward curve crosses QUEST_FEED_BRAKE (about a feed of 5)", () => {
-    expect(rewardCurve(questBrakeFeed())).toBeCloseTo(QUEST_FEED_BRAKE, 3);
-    expect(questBrakeFeed()).toBeGreaterThan(4);
-    expect(questBrakeFeed()).toBeLessThan(6);
+  it("shows only the stacks remaining under the player's per-type cap", () => {
+    expect(questReward(def, undefined, new Map([["emberImp", 9]]))).toBe("1 Ember Imp stacks (+1% damage; 10/10 total) and 10 GV");
+    expect(questReward(def, undefined, new Map([["emberImp", 10]]))).toBe("Ember Imp at cap (10/10) and 10 GV");
   });
 });
 
@@ -60,7 +43,7 @@ describe("quest presentation model", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       objective: "Kill 3 mobs in Fire", progress: "1 / 3", time: "1:00", status: "Open",
-      reward: "2 × Attack Damage II (+21 attack damage each) and 10 GV",
+      reward: "Up to 2 Ember Imp stacks (+2% damage; shared 10-stack cap) and 10 GV",
     });
   });
 
@@ -107,7 +90,7 @@ describe("quest presentation model", () => {
 
   it("keeps the nominal reward in closed history regardless of the viewer's current feed", () => {
     const def = questDefById("cull-fire")!;
-    const fed = questBrakeFeed() + 10;
+    const fed = 999;
     const completed = [
       quest({ status: "done", doneBy: "Bravo" }),
       quest({ status: "expired" }),
@@ -159,8 +142,9 @@ describe("quest presentation model", () => {
     expect([...store.keys()]).toEqual(["q2"]);
   });
 
-  it("words the reward as its card (title and text) and the GV, whatever the quest kind", () => {
-    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toBe("4 × Fleet II (+10% move speed (off while shooting) each) and 8 GV");
+  it("words the fixed stat reward and GV for every quest kind", () => {
+    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("Cinder Hound stacks");
+    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toContain("shared 10-stack cap");
   });
 });
 

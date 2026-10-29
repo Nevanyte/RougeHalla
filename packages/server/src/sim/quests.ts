@@ -1,13 +1,12 @@
 import {
-  cardTitle, hasLineOfSight, placeQuests, QUEST_ACCEPT_RANGE, QUEST_ITEM_PREFIX, QUEST_REFUSAL, QUEST_REVEAL_HEAD_START_MS,
-  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, questAcceptedText, questAcceptFirstText, questRewardCard, questRewardCopies, selectQuests,
+  hasLineOfSight, placeQuests, QUEST_ACCEPT_RANGE, QUEST_ITEM_PREFIX, QUEST_REFUSAL, QUEST_REVEAL_HEAD_START_MS,
+  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, questAcceptedText, questAcceptFirstText, questRewardStats, selectQuests,
   type MobTypeId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import { QuestState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import { awardQuestGv } from "./arena";
-import { grantCard } from "./chests";
+import { grantMobStat } from "./mobStats";
 import { combatant, standing as fighterStanding, type Combatant } from "./combatant";
-import { feedOfPlayer } from "./feed";
 import { addContainer, forgetBirth } from "./loot";
 import { addMob } from "./mobs";
 import { actionBlocked } from "./status";
@@ -309,19 +308,10 @@ function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
   qt.s.doneBy = p.name;
   retire(world, qt);
   awardQuestGv(world, p, rt, qt.def.reward.gv);
-  // The stack: each base card is a copy of the nominal card, a tier lower once the finisher's feed has braked the mob reward curve.
-  const card = questRewardCard(qt.def, feedOfPlayer(p, rt));
+  const reward = questRewardStats(qt.def);
   const c = combatant(world, playerId);
-  if (c?.kind === "player") {
-    let granted = 0;
-    for (let i = 0; i < questRewardCopies(qt.def); i++) {
-      if (grantCard(world, c, card) !== null) granted++;
-    }
-    if (granted > 0) {
-      const copies = granted > 1 ? `${granted} × ` : "";
-      emit(world, { type: "toast", to: playerId, text: `Quest complete: ${copies}${cardTitle(card)}` });
-    }
-  }
+  if (c?.kind === "player") grantMobStat(world, c, reward.id, reward.stacks);
+  emit(world, { type: "toast", to: playerId, text: `Quest complete: ${qt.def.name}` });
   announce(world, `${p.name} completed quest: ${qt.def.name}`);
 }
 

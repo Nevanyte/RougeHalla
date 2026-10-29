@@ -15,7 +15,7 @@
 //     longest stand-still in 15 solo runs was 8 s. A farmer that makes no kill for 75 s is flagged `stalledAt`, which the bench reports as a censored
 //     end of the baseline, and the farmer carries on.
 import {
-  CARD_TIER_RATE, cardDef, cardLive, cardPower, findPath, hasLineOfSight, INTERACT_RANGE, isEliteCamp, isFactionId,
+  CARD_TIER_RATE, MOB_STAT_REWARDS, MOB_STAT_CAP, mobStatCount, questRewardStats, cardDef, cardLive, cardPower, findPath, hasLineOfSight, INTERACT_RANGE, isEliteCamp, isFactionId,
   isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, QUEST_ACCEPT_RANGE, questDefById, segmentClear, TARGET_RANGE, TILE,
   type CampDef, type CardCounts, type FactionId, type QuestDef, type Vec2,
 } from "@raid/shared";
@@ -36,6 +36,11 @@ export function liveCardPower(build: CardCounts | null | undefined): number {
   if (typeof forEach === "function") (build as { forEach(cb: (count: number, id: string) => void): void }).forEach(add);
   else if (build) for (const [id, count] of Object.entries(build as Record<string, number>)) add(count, id);
   return cardPower(live);
+}
+
+/** Benchmark-only progression units: live card tier points plus one point per ten normal-mob stat stacks. */
+export function liveProgressPower(p: Pick<PlayerState, "build" | "mobStats">): number {
+  return liveCardPower(p.build) + MOB_STAT_REWARDS.reduce((sum, row) => sum + mobStatCount(p.mobStats, row.id) / MOB_STAT_CAP, 0);
 }
 
 /** Tier points of an elite camp's chest on average (BALANCE_CONTRACT 8.3): the 10/60/30 odds on one base card and one augment. */
@@ -251,7 +256,7 @@ function campViews(world: World, p: PlayerState): CampView[] {
     else groups.set(m.camp, [m]);
   }
   const faction = isFactionId(p.faction) ? p.faction : null;
-  const power = liveCardPower(p.build);
+  const power = liveProgressPower(p);
   const out: CampView[] = [];
   for (const [camp, mobs] of groups) {
     const def = world.map.camps[camp - 1];
@@ -416,10 +421,10 @@ function questTarget(
   return questItem(world, p, mem, q);
 }
 
-/** Live power the nominal reward adds to this player: card tier × copies (the server's feed brake is not priced in). */
-export function questRewardPower(_p: PlayerState, q: QuestDecisionView): number {
-  const def = cardDef(q.def.reward.card);
-  return def && cardLive(def) ? def.tier * q.def.reward.copies : 0;
+/** Remaining whole stat progress the quest can add, using the same cap as actual payout. */
+export function questRewardPower(p: PlayerState, q: QuestDecisionView): number {
+  const reward = questRewardStats(q.def);
+  return Math.min(reward.stacks, MOB_STAT_CAP - mobStatCount(p.mobStats, reward.id)) / MOB_STAT_CAP;
 }
 
 function nearestQuest(world: World, p: PlayerState, mem: PolicyMemory, playerId: string): QuestDecisionView | null {

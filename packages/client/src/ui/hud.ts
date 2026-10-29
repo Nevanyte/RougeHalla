@@ -10,6 +10,7 @@ import { BuildHud } from "./buildHud";
 import { CardsRow } from "./cardsRow";
 import { cssColor, el, uiRoot } from "./dom";
 import { TerrainChips } from "./terrainChips";
+import { MobStatsHud } from "./mobStatsHud";
 
 function fmtSeconds(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -96,6 +97,7 @@ export class Hud {
   private readonly cards = new CardsRow();
   /** AD, AP, armor, MR, attack and move speed, leech, card power and the PvP factor (BALANCE_CONTRACT 9), under the cards. */
   private readonly build = new BuildHud();
+  private readonly mobStats = new MobStatsHud();
   /** The ground under the local fighter: BURNING, SLOWED, ICE, RESTING and the home-ground note. */
   private readonly terrain = new TerrainChips();
   private readonly arenaLine = el("div", "hud-arena");
@@ -121,7 +123,7 @@ export class Hud {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
     this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
-    this.root.append(this.status, this.vitals, this.cards.root, this.build.root, this.terrain.root, this.arenaLine, this.arenaHint);
+    this.root.append(this.status, this.vitals, this.cards.root, this.build.root, this.mobStats.root, this.terrain.root, this.arenaLine, this.arenaHint);
     this.center.append(this.suddenDeath, this.immuneLine);
     this.arenaLine.hidden = true;
     this.arenaHint.hidden = true;
@@ -206,6 +208,7 @@ export class Hud {
 
     this.cards.update(me?.build, me?.status === "alive");
     this.build.update(me, me?.status === "alive");
+    this.mobStats.update(me, me?.status === "alive");
     this.updateArena(state, serverNow);
     const immune = !training && me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
     if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
@@ -262,6 +265,7 @@ export class Hud {
   destroy(): void {
     this.cards.destroy();
     this.build.destroy();
+    this.mobStats.destroy();
     this.terrain.destroy();
     this.root.remove();
     this.center.remove();

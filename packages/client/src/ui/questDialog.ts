@@ -49,8 +49,9 @@ export interface QuestDialogFrame {
   quests: QuestCollection;
   /** The walls the server checks an accept's line of sight against (gates included); null to skip the check. */
   sight: GameMap | null;
-  /** The local player's feed, for the reward line (a quest's card is paid a tier lower once it is high). */
+  /** Optional current stacks let the reward preview show how much remains before the fixed per-type cap. */
   feed?: number;
+  mobStats?: Readonly<Record<string, number>> | Map<string, number>;
   /** The local player's callsign (a finished row names its finisher). */
   localName?: string;
 }
@@ -309,7 +310,7 @@ export class QuestDialog {
   private rowOf(quest: QuestStateLike, frame: QuestDialogFrame): QuestRow | undefined {
     const me = frame.me;
     if (!me) return undefined;
-    return questRows({ forEach: (cb) => cb(quest, quest.id) }, me.id, frame.serverNow, frame.localName ?? "", false, frame.feed)[0];
+    return questRows({ forEach: (cb) => cb(quest, quest.id) }, me.id, frame.serverNow, frame.localName ?? "", false, frame.feed, frame.mobStats)[0];
   }
 
   private render(row: QuestRow): void {

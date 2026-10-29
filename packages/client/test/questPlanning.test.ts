@@ -26,7 +26,7 @@ describe("PlanningQuests", () => {
     expect(dom.ui.byClass("pl-quest-time")[0]?.textContent).toBe("3:20");
     view.update({ mode: "planning", serverNow: 30_000, localId: "me", quests, hiddenQuests: 5 });
     expect(dom.ui.byClass("pl-quest-time")[0]?.textContent).toBe("3:20");
-    expect(dom.ui.byClass("pl-quest-reward")[0]?.textContent).toContain("Fleet II");
+    expect(dom.ui.byClass("pl-quest-reward")[0]?.textContent).toContain("Up to 4 Cinder Hound stacks (+2% move speed; shared 10-stack cap) and 8 GV");
     expect(dom.ui.byClass("pl-quest-hidden")[0]?.textContent).toContain("+5 rumoured");
     expect(dom.ui.byClass("pl-questmark")).toHaveLength(1);
   });

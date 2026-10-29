@@ -10,7 +10,7 @@ import {
 } from "@raid/shared";
 import type { ContainerState, PlayerState } from "@raid/shared/schema";
 import { downPlayer, teleportToColiseum } from "../src/sim/arena";
-import { rewardChests } from "../src/sim/chests";
+import { dropRewardChest, rewardChests } from "../src/sim/chests";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -81,17 +81,12 @@ function place(w: World, i: number, p: Vec2, dx = 0, dy = 0): void {
   RT(w, i).history = [{ t: w.state.serverTime, x: P(w, i).x, y: P(w, i).y }];
 }
 
-/** Kills every living mob of `camp` in one pass outside a step (spoils at once); the next tick publishes its chest. */
+/** A visible interactive chest fixture for the lifecycle and pick-action tests below. */
 function clearCamp(w: World, camp: number): ContainerState {
-  for (const m of campMobs(w, camp)) {
-    if (m.s.status !== "alive") continue;
-    recordHit(w, { victim: m.id, by: { id: "p0", name: "p0" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
-  }
-  applyLedger(w);
-  tick(w);
-  const all = rewardChests(w);
-  expect(all).toHaveLength(1);
-  return all[0]!;
+  const def = w.map.camps[camp]!;
+  const box = dropRewardChest(w, def.chest, ["hemorrhage", "overkill", "secondWind"], camp);
+  tick(w); // publish the box and clear its one-tick birth hold
+  return box;
 }
 
 const send = (w: World, i: number, type: string, msg: unknown): void => {

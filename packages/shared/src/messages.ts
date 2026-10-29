@@ -109,15 +109,14 @@ export interface ClientMessages {
 }
 
 /**
- * One practice-console command. `card`: set how many of that card the player holds to `count` (default TRAIN_DEFAULT_CARD_COUNT,
- * clamped to 0..TRAIN_MAX_CARD_COUNT; 0 removes it; a unique card is held once at most; a conditional needs its base card, else
- * the reply toast says so; a card whose machinery is not live yet is set but does nothing, and the toast says so). `camp`: spawn
- * a practice camp of that mob type near the player (3 mobs of a normal type, one elite for an elite type). `chest`: drop a reward
- * chest about two tiles away with these card ids as its options (1 to CHEST_OPTIONS, no duplicates), or three rolled ones for a
- * normal camp when `options` is empty or absent. `clear`: remove every card, practice mob and reward chest.
+ * Practice commands: `stat` sets a normal type's progress to a whole count in 0..10 (default 1); `card` sets an
+ * interactive augment to owned or removed, with unique cards held once. `camp` spawns practice mobs; those kills pay
+ * no progression. `chest` offers chosen live interactive augments or rolls up to three when options are absent.
+ * `clear` removes cards, mob stat stacks, practice mobs and reward chests. All commands are training-only.
  */
 export type TrainMessage =
   | { cmd: "card"; id: string; count?: number }
+  | { cmd: "stat"; id: string; count?: number }
   | { cmd: "camp"; id: string }
   | { cmd: "chest"; options?: string[] }
   | { cmd: "clear" };

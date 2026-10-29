@@ -1,6 +1,7 @@
 // The quest catalog, reward maths and contract-driven placement. Dense seeds 7829/10760 pin the placement fallbacks.
 import { beforeAll, describe, expect, it } from "vitest";
-import { cardDef, cardText, cardTitle } from "../src/cards";
+import { cardDef } from "../src/cards";
+import { mobStatReward, mobStatText, MOB_STAT_CAP } from "../src/mobStats";
 import { rewardCurve } from "../src/rules";
 import {
   QUEST_ACCEPT_RANGE, QUEST_COUNT, QUEST_FETCH_MIN_TILES, QUEST_GV_CAP, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES,
@@ -18,7 +19,7 @@ import { TERRAIN_NONE, terrainAt } from "../src/terrain";
 import {
   CAMP_SECONDS, CARD_TIER_RATE, npcCandidates, parityGv, placeQuests, QUEST_DEFS, QUEST_FEED_BRAKE, QUEST_REFUSAL, QUEST_REFUSALS,
   questAcceptedText, questAcceptFirstText, questBase, questDefById,
-  questRewardCard, questRewardCopies, questRewardText, questTier, questTierPoints, selectQuests, spreadSpots, STACK_PREMIUM, type QuestPlacement,
+  questRewardCard, questRewardCopies, questRewardStats, questRewardText, questTier, questTierPoints, selectQuests, spreadSpots, STACK_PREMIUM, type QuestPlacement,
   type RosterEntry,
 } from "../src/quests";
 
@@ -78,18 +79,24 @@ describe("the catalog", () => {
     }
   });
 
-  it("makes nominal reward text useful to both the planning screen and quest log", () => {
-    for (const d of QUEST_DEFS) {
-      const text = questRewardText(d);
-      expect(text, d.id).toContain(cardTitle(d.reward.card));
-      expect(text, d.id).toContain(cardText(d.reward.card));
-      expect(text, d.id).toContain(`${d.reward.gv} GV`);
+  it("describes fixed whole stat stacks from the quest's zone, under the shared cap", () => {
+    for (const def of QUEST_DEFS) {
+      const reward = questRewardStats(def);
+      const mob = mobStatReward(reward.id)!;
+      expect(mob.zone).toBe(def.farZone);
+      expect(Number.isInteger(reward.stacks)).toBe(true);
+      expect(reward.stacks).toBeGreaterThan(0);
+      expect(reward.stacks).toBeLessThanOrEqual(MOB_STAT_CAP);
+      expect(questRewardText(def)).toContain(mob.name);
+      expect(questRewardText(def)).toContain(mobStatText(reward.id, reward.stacks));
+      expect(questRewardText(def)).toContain(`${def.reward.gv} GV`);
+      expect(questRewardText(def)).toContain("shared 10-stack cap");
     }
-    expect(questRewardText(questDefById("cull-fire")!)).toBe("2 × Attack Damage II (+21 attack damage each) and 10 GV");
-    expect(questRewardText(questDefById("bloom-plague")!)).toBe("6 × Haste I (+9% attack speed each) and 8 GV");
+    expect(questRewardStats(questDefById("cull-fire")!)).toEqual({ id: "emberImp", stacks: 2 });
+    expect(questRewardStats(questDefById("cull-plague")!)).toEqual({ id: "plagueRat", stacks: 4 });
   });
 
-  it("drops a fed player's card one tier (never below tier 1) once the mob reward curve is under the brake", () => {
+  it("retains the historical card-tier tuning helper for benchmark compatibility", () => {
     for (const d of QUEST_DEFS) {
       expect(questRewardCard(d, 0), d.id).toBe(d.reward.card);
       const tier = cardDef(d.reward.card)!.tier;

@@ -1,10 +1,7 @@
-// A cleared camp's shared chest (roguelike R5, ROGUELIKE_PLAN 3.3, D1-D3, D12, D16, D17; the cards, BALANCE_CONTRACT 4.8).
+// Elite death augments (mob progression, ROGUELIKE_PLAN 3.3, D1-D3, D12, D16, D17).
 //
-//   - The drop: when a camp is cleared (sim/camps.ts, after the ledger pass), a container of kind "reward" appears on the
-//     camp's chest tile (CampDef.chest; the camp's centre if that tile is a wall). Its three options are cards (shared/cards.ts),
-//     rolled from world.rewardRandom only (shared/rewards.ts rollChestOptions): an elite camp's chest by the elite tier odds, and
-//     the conditional card and the augment by what the camp's ELIGIBLE pickers own (sim/campHeal.ts eligibleContributors: the
-//     players who fought the camp and stand near it at the clear). It holds them in synced state with `takenBy` and `pickers`
+//   - The drop: a credited elite death creates a reward chest on the camp's chest tile (CampDef.chest; centre if blocked).
+//     The options are interactive augments rolled from world.rewardRandom; eligible pickers' builds determine which are available.
 //     (public by design, D17). It expires CHEST_SECONDS after the drop (`expiresAt`), never extended.
 //   - `choose` (an action, so within a tick picks resolve in the shuffled actionOrder; step.ts runs actions only for alive
 //     players in an active run). Checked in this order, each refusal a private toast that uses up nothing:
@@ -27,13 +24,13 @@
 //     inputs, which already refuse it); the coliseum teleport and the end of the run remove every chest.
 // Reward containers are never weapon containers: `pickup` refuses them (loot.ts), and they hold no items.
 import {
-  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, cardBlock, cardDef, countIn, hasLineOfSight, isEliteCamp, isSolidAt, rollChestOptions,
-  SKIP_HEAL_SHARE, type Vec2,
+  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, cardBlock, cardDef, cardLive, countIn, hasLineOfSight, isEliteCamp, isInteractiveAugment, isSolidAt, rollChestOptions,
+  SKIP_HEAL_SHARE, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { awardSkipGv } from "./arena";
 import { syncMaxHp } from "./buffs";
-import { eligibleContributors } from "./campHeal";
+import { campContribOf, eligibleContributors } from "./campHeal";
 import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { addContainer, bornThisTick, forgetBirth, holdBirth } from "./loot";
@@ -41,7 +38,17 @@ import { recomputeMods } from "./mods";
 import { actionBlocked } from "./status";
 import { chainHook, collisionMap, emit, type ActionHandler, type World } from "./world";
 
-export const REWARD_LABEL = "Card Chest";
+export const REWARD_LABEL = "Augment Chest";
+
+const elitePickers = new WeakMap<World, Map<number, ReadonlySet<string>>>();
+
+/** Preserve contributor IDs before a clear forgets them. Eligibility is checked after the full damage pass. */
+export function snapshotElitePickers(world: World, camp: number): void {
+  if (camp < 0) return;
+  let byCamp = elitePickers.get(world);
+  if (!byCamp) elitePickers.set(world, byCamp = new Map());
+  byCamp.set(camp, campContribOf(world, camp));
+}
 
 function toast(world: World, to: string, text: string): void {
   emit(world, { type: "toast", to, text });
@@ -74,12 +81,14 @@ export function chestSpot(world: World, camp: number): Vec2 | null {
  * Rolls camp `camp`'s chest (world.rewardRandom only) and drops it. An elite camp rolls the elite tier odds; the conditional card
  * and the augment read the builds of the camp's eligible contributors (none: no conditional). Null for a camp the map does not have.
  */
-export function rollChest(world: World, camp: number): ContainerState | null {
+export function rollChest(world: World, camp: number, elite = false, zone?: FactionId): ContainerState | null {
   const def = world.map.camps[camp];
   const at = chestSpot(world, camp);
   if (!def || !at) return null;
-  const pickers = eligibleContributors(world, camp).map((c) => c.s.build);
-  return dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { elite: isEliteCamp(def), pickers }), camp);
+  const contributors = elite ? elitePickers.get(world)?.get(camp) : undefined;
+  const pickers = eligibleContributors(world, camp, contributors).map((c) => c.s.build);
+  elitePickers.get(world)?.delete(camp);
+  return dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { elite: elite || isEliteCamp(def), pickers, ...(zone ? { zone } : {}) }), camp);
 }
 
 /** Every reward container now in the state. */
@@ -110,7 +119,7 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (!(i >= 0 && i < box.options.length)) return;
   if (box.takenBy[i] !== "") { toast(world, c.id, CHEST_REFUSAL.taken); return; }
   const id = box.options[i]!;
-  if (!cardDef(id)) return; // an option this server does not know: never rolled, so a broken container
+  if (!cardDef(id) || !cardLive(id) || !isInteractiveAugment(id)) return; // only live interactive augments are pickable
   const block = cardBlock(id, p.build);
   if (block) { toast(world, c.id, block.text); return; } // "Needs <Base>" or CHEST_REFUSAL.owned
   box.takenBy[i] = c.id;
@@ -156,7 +165,11 @@ export function clearChests(world: World): void {
 export function install(world: World): void {
   world.actions.choose = handleChoose;
   world.systems.push(expireChests);
-  chainHook(world, "campCleared", (w, camp) => { rollChest(w, camp); });
+  chainHook(world, "mobKilled", (w, _killer, mob) => {
+    if (!mob.elite) return;
+    if (mob.camp >= 0) rollChest(w, mob.camp, true, mob.zone);
+    else dropRewardChest(w, mob.at, rollChestOptions(w.rewardRandom, { elite: true, zone: mob.zone }));
+  });
   chainHook(world, "teleported", clearChests);
   chainHook(world, "runEnded", clearChests);
 }

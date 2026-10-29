@@ -599,6 +599,7 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
       m.kind = v.kind;
       if (v.faction !== null) m.faction = v.faction;
       m.name = v.name;
+      if (v.type) m.type = v.type;
       m.pos = { x: v.x, y: v.y };
       m.inHand = v.inHand;
       if (v.status !== "alive") {

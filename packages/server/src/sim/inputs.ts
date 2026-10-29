@@ -1,7 +1,7 @@
 // Validated, per-player input buffering. Message handlers only call `parse*` + `push*`;
 // the sim drains the queue at the start of each fixed step.
 import {
-  isAbilitySlot, isCardId, mobTypeById, TRAIN_CMDS, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHEST_OPTIONS,
+  isAbilitySlot, isCardId, mobTypeById, mobStatReward, MOB_STAT_CAP, TRAIN_CMDS, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHEST_OPTIONS,
   WORLD_H, WORLD_W, wrapAngle, type AbilitySlot, type CardId, type MobTypeId,
   type TrainCmd, type Vec2,
 } from "@raid/shared";
@@ -41,6 +41,7 @@ export type ActionCommand =
  * `chest`: the card ids to offer, empty for a rolled one.
  */
 export type TrainCommand =
+  | { kind: "train"; cmd: "stat"; id: MobTypeId; count: number }
   | { kind: "train"; cmd: "card"; id: CardId; count: number }
   | { kind: "train"; cmd: "camp"; id: MobTypeId }
   | { kind: "train"; cmd: "chest"; options: CardId[] }
@@ -179,6 +180,15 @@ export function parseTrain(msg: unknown): TrainCommand | null {
   const cmd = msg.cmd;
   if (typeof cmd !== "string" || !(TRAIN_CMDS as readonly string[]).includes(cmd)) return null;
   switch (cmd as TrainCmd) {
+    case "stat": {
+      if (typeof msg.id !== "string") return null;
+      const reward = mobStatReward(msg.id);
+      if (!reward) return null;
+      const raw = msg.count;
+      if (raw !== undefined && (typeof raw !== "number" || !Number.isFinite(raw))) return null;
+      const count = raw === undefined ? 1 : Math.min(MOB_STAT_CAP, Math.max(0, Math.floor(raw)));
+      return { kind: "train", cmd: "stat", id: reward.id, count: count + 0 };
+    }
     case "card": {
       const id = msg.id;
       if (!isCardId(id)) return null;

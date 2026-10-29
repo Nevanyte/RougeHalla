@@ -3,7 +3,7 @@
 // test/uiDom.ts: a button is clicked with `fire`, a select is "chosen" by assigning its value and firing its change.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CARDS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, cardLive, type TrainMessage,
+  CARDS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MOB_STAT_CHOICES, cardLive, isInteractiveAugment, type TrainMessage,
 } from "@raid/shared";
 import { TrainingBar } from "../src/ui/trainingBar";
 import {
@@ -56,7 +56,7 @@ describe("what the console offers", () => {
     expect(mobTypeLabel(type("wyrmling"))).toBe("Wyrmling (elite, grunt, axe)");
     expect(mobTypeLabel(type("flameCaller"))).toBe("Flame Caller (caster, wand)");
     expect(mobTypeLabel(type("gaoler"))).toBe("Gaoler (elite, brute, shield)");
-    expect(mobTypeHint(type("emberImp"))).toBe("Ember Imp, a mob of the Fire zone. Fast and fragile. Carries an axe, which a kill can drop.");
+    expect(mobTypeHint(type("emberImp"))).toContain("Each kill grants +1% damage per kill; capped at 10 per type.");
     expect(mobTypeHint(type("bailiff"))).toContain("Carries a sword, which a kill can drop.");
     expect(mobTypeHint(type("archon"))).toContain("an elite of the Demon Blood zone");
     for (const t of MOB_TYPES) {
@@ -65,15 +65,12 @@ describe("what the console offers", () => {
     }
   });
 
-  it("lists the 80 cards by kind: the 24 base cards, the 13 conditionals, the 43 augments, each once, in catalog order", () => {
+  it("lists only interactive augments for the training chest picker", () => {
     const groups = cardGroups();
-    expect(groups.map((g) => g.label)).toEqual(["Base cards", "Conditional cards", "Augments"]);
-    expect(groups.map((g) => g.items.length)).toEqual([24, 13, 43]);
+    expect(groups.map((g) => g.label)).toEqual(["Interactive augments"]);
     const ids = groups.flatMap((g) => g.items.map((c) => c.id));
-    expect(ids).toHaveLength(80);
-    expect(new Set(ids).size).toBe(80);
-    expect(ids).toEqual(CARDS.map((c) => c.id));
-    expect(groups.map((g) => g.items.every((c) => c.kind === (g.label === "Base cards" ? "base" : g.label === "Augments" ? "augment" : "conditional")))).toEqual([true, true, true]);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(CARDS.filter(isInteractiveAugment).map((c) => c.id));
   });
 
   it("marks a card the server does not apply yet, and no other", () => {
@@ -102,6 +99,11 @@ describe("what the console offers", () => {
     expect(values).toEqual([...TRAIN_CARD_COUNT_CHOICES.map(String), "0"]);
     expect(Math.max(...TRAIN_CARD_COUNT_CHOICES)).toBe(TRAIN_MAX_CARD_COUNT);
   });
+
+  it("offers 1, 5, 10, or remove for fixed mob stat stacks", () => {
+    const { root } = mount();
+    expect([...root.byClass("train-stat-count")!.walk()].filter((n) => n.tag === "option").map(valueOf)).toEqual([...TRAIN_MOB_STAT_CHOICES.map(String), "0"]);
+  });
 });
 
 describe("the pickers", () => {
@@ -120,25 +122,22 @@ describe("the pickers", () => {
     expect(select.getAttribute("aria-label")).toBe("Mob type");
   });
 
-  it("the card picker holds the 80 cards in three kind groups, with the card's words for a tooltip and the not live ones marked", () => {
+  it("the card picker holds interactive augments only", () => {
     const { root } = mount();
     const select = root.byClass("train-card")!;
     const groups = select.children.filter((c): c is UiEl => typeof c !== "string");
-    expect(groups.map((g) => (g as unknown as { label: string }).label)).toEqual(["Base cards", "Conditional cards", "Augments"]);
+    expect(groups.map((g) => (g as unknown as { label: string }).label)).toEqual(["Interactive augments"]);
     const options = [...select.walk()].filter((n) => n.tag === "option");
-    expect(options).toHaveLength(80);
-    expect(options.map(valueOf)).toEqual(CARDS.map((c) => c.id));
-    expect(options.map((o) => o.text)).toEqual(CARDS.map(cardLabel));
-    const hereComesTheBoom = options.find((o) => valueOf(o) === "hereComesTheBoom")!;
-    expect((hereComesTheBoom as unknown as { title: string }).title).toBe(cardHint("hereComesTheBoom", 1));
-    expect(options.filter((o) => o.text.endsWith("(not live yet)")).map(valueOf).sort()).toEqual(CARDS.filter((c) => !cardLive(c)).map((c) => c.id).sort());
-    expect(valueOf(select)).toBe("ad1"); // the first live card
-    expect(select.getAttribute("aria-label")).toBe("Card");
+    expect(options.map(valueOf)).toEqual(CARDS.filter(isInteractiveAugment).map((c) => c.id));
+    expect(options.every((o) => o.text.length > 0)).toBe(true);
+    expect((options[0] as unknown as { title: string }).title).toBe(cardHint(valueOf(options[0]!), 1));
+    expect(valueOf(select)).toBe(CARDS.find(isInteractiveAugment)!.id);
+    expect(select.getAttribute("aria-label")).toBe("Interactive augment");
   });
 
   it("every control has a name for a screen reader, and the panel and its toggle are tied together", () => {
     const { root } = mount();
-    for (const cls of ["train-mob", "train-card", "train-count"]) expect(root.byClass(cls)!.getAttribute("aria-label"), cls).toBeTruthy();
+    for (const cls of ["train-mob", "train-card", "train-count", "train-stat-count"]) expect(root.byClass(cls)!.getAttribute("aria-label"), cls).toBeTruthy();
     const toggle = root.byClass("train-toggle")!;
     const panel = root.byClass("train-panel")!;
     expect(toggle.getAttribute("aria-controls")).toBe(panel.id);
@@ -169,24 +168,25 @@ describe("opening and closing", () => {
 describe("the messages the buttons send", () => {
   it("Set card sends the picked card and copy count, 0 for Remove", () => {
     const { root, sent } = mount();
+    const firstAugment = CARDS.find(isInteractiveAugment)!;
     mouseClick(btn(root, "card"));
-    expect(sent).toEqual([{ cmd: "card", id: "ad1", count: TRAIN_DEFAULT_CARD_COUNT }]); // what the pickers say before anyone touches them
-    choose(root.byClass("train-card")!, "haste2");
+    expect(sent).toEqual([{ cmd: "card", id: firstAugment.id, count: TRAIN_DEFAULT_CARD_COUNT }]); // what the pickers say before anyone touches them
+    choose(root.byClass("train-card")!, "slowBurn");
     choose(root.byClass("train-count")!, "3");
     mouseClick(btn(root, "card"));
     choose(root.byClass("train-count")!, "0");
     mouseClick(btn(root, "card"));
-    expect(sent.slice(1)).toEqual([{ cmd: "card", id: "haste2", count: 3 }, { cmd: "card", id: "haste2", count: 0 }]);
+    expect(sent.slice(1)).toEqual([{ cmd: "card", id: "slowBurn", count: 1 }, { cmd: "card", id: "slowBurn", count: 0 }]);
   });
 
   it("a card that is held once is never sent with more than one copy (the server caps it the same way), but can still be removed", () => {
     const { root, sent } = mount();
-    choose(root.byClass("train-card")!, "wellspring");
+    choose(root.byClass("train-card")!, "bloodthirst");
     choose(root.byClass("train-count")!, String(TRAIN_MAX_CARD_COUNT));
     mouseClick(btn(root, "card"));
     choose(root.byClass("train-count")!, "0");
     mouseClick(btn(root, "card"));
-    expect(sent).toEqual([{ cmd: "card", id: "wellspring", count: 1 }, { cmd: "card", id: "wellspring", count: 0 }]);
+    expect(sent).toEqual([{ cmd: "card", id: "bloodthirst", count: 1 }, { cmd: "card", id: "bloodthirst", count: 0 }]);
   });
 
   it("Spawn camp sends the picked mob type, an elite's too", () => {
@@ -198,13 +198,23 @@ describe("the messages the buttons send", () => {
     expect(sent).toEqual([{ cmd: "camp", id: "rotMonk" }, { cmd: "camp", id: "wyrmling" }]);
   });
 
+  it("sets the selected normal type's fixed mob stat count", () => {
+    const { root, sent } = mount();
+    choose(root.byClass("train-mob")!, "rotMonk");
+    choose(root.byClass("train-stat-count")!, "5");
+    mouseClick(btn(root, "stat"));
+    choose(root.byClass("train-stat-count")!, "0");
+    mouseClick(btn(root, "stat"));
+    expect(sent).toEqual([{ cmd: "stat", id: "rotMonk", count: 5 }, { cmd: "stat", id: "rotMonk", count: 0 }]);
+  });
+
   it("the chest buttons send the picked card as the only option, or nothing for the server's rolled three; Clear all sends clear", () => {
     const { root, sent } = mount();
-    choose(root.byClass("train-card")!, "leech1");
+    choose(root.byClass("train-card")!, "bloodthirst");
     mouseClick(btn(root, "chest-pick"));
     mouseClick(btn(root, "chest-random"));
     mouseClick(btn(root, "clear"));
-    expect(sent).toEqual([{ cmd: "chest", options: ["leech1"] }, { cmd: "chest" }, { cmd: "clear" }]);
+    expect(sent).toEqual([{ cmd: "chest", options: ["bloodthirst"] }, { cmd: "chest" }, { cmd: "clear" }]);
     expect("options" in sent[1]!).toBe(false);
   });
 
@@ -220,21 +230,27 @@ describe("the messages the buttons send", () => {
       for (const n of [...TRAIN_CARD_COUNT_CHOICES, 0]) { choose(root.byClass("train-count")!, String(n)); mouseClick(btn(root, "card")); }
       mouseClick(btn(root, "chest-pick"));
     }
+    for (const id of MOB_TYPES.filter((t) => !t.elite).map((t) => t.id)) {
+      choose(root.byClass("train-mob")!, id);
+      for (const n of [...TRAIN_MOB_STAT_CHOICES, 0]) { choose(root.byClass("train-stat-count")!, String(n)); mouseClick(btn(root, "stat")); }
+    }
     const mobs = new Set(MOB_TYPES.map((t) => t.id));
     const known = new Map(CARDS.map((c) => [c.id as string, c]));
     for (const m of sent) {
       if (m.cmd === "camp") expect(mobs.has(m.id as never)).toBe(true);
+      else if (m.cmd === "stat") { expect(MOB_TYPES.find((t) => t.id === m.id)?.elite).toBe(false); expect(m.count).toBeGreaterThanOrEqual(0); expect(m.count).toBeLessThanOrEqual(10); }
       else if (m.cmd === "card") {
-        expect(known.has(m.id)).toBe(true);
+        expect(known.has(m.id) && isInteractiveAugment(m.id)).toBe(true);
         expect(m.count).toBeGreaterThanOrEqual(0);
         expect(m.count).toBeLessThanOrEqual(known.get(m.id)!.unique ? 1 : TRAIN_MAX_CARD_COUNT);
-      } else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(known.has(m.options![0]!)).toBe(true); }
+      } else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(isInteractiveAugment(m.options![0]!)).toBe(true); }
     }
-    expect(sent.length).toBe(MOB_TYPES.length + 80 * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
+    expect(sent.length).toBe(MOB_TYPES.length + MOB_TYPES.filter((t) => !t.elite).length * (TRAIN_MOB_STAT_CHOICES.length + 1) + cards.length * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
   });
 
   it("the message builders are the one place that makes the shapes", () => {
     expect(trainMessages.card("haste2", 2)).toEqual({ cmd: "card", id: "haste2", count: 2 });
+    expect(trainMessages.stat("rotMonk", 5)).toEqual({ cmd: "stat", id: "rotMonk", count: 5 });
     expect(trainMessages.camp("wyrmling")).toEqual({ cmd: "camp", id: "wyrmling" });
     expect(trainMessages.chest()).toEqual({ cmd: "chest" });
     expect(trainMessages.chest([])).toEqual({ cmd: "chest" });
@@ -247,17 +263,17 @@ describe("the hint line", () => {
   it("says what is picked now, and follows every change of a select", () => {
     const { root } = mount();
     const line = root.byClass("train-hint-card")!;
-    expect(line.text).toBe(cardHint("ad1", TRAIN_DEFAULT_CARD_COUNT));
+    const first = CARDS.find(isInteractiveAugment)!;
+    expect(line.text).toBe(cardHint(first.id, TRAIN_DEFAULT_CARD_COUNT));
     choose(root.byClass("train-card")!, "bloodthirst");
     expect(line.text).toBe(cardHint("bloodthirst", 1));
     expect(line.text).toContain("Needs a Leech card first.");
-    choose(root.byClass("train-card")!, "haste3");
+    choose(root.byClass("train-card")!, "slowBurn");
     choose(root.byClass("train-count")!, "9");
-    expect(line.text).toBe(cardHint("haste3", 9));
-    expect(line.text).toContain("Held x9.");
-    // A card held once reads the same at any count the picker shows: the line says what will be sent.
-    choose(root.byClass("train-card")!, "wellspring");
-    expect(line.text).toBe(cardHint("wellspring", 1));
+    expect(line.text).toBe(cardHint("slowBurn", 1)); // augment is unique; the shown line matches the count sent
+    // The selected augment's hint follows the count and selection.
+    choose(root.byClass("train-card")!, "bloodthirst");
+    expect(line.text).toBe(cardHint("bloodthirst", 1));
     // The selects repeat the line as their tooltip.
     expect((root.byClass("train-card") as unknown as { title: string }).title).toBe(line.text);
     expect((root.byClass("train-count") as unknown as { title: string }).title).toBe(line.text);

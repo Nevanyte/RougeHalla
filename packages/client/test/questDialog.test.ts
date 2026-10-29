@@ -143,7 +143,7 @@ describe("opening", () => {
     expect(r.text("qd-giver")).toBe(def.giver);
     expect(r.text("qd-kind")).toBe("kill");
     expect(r.text("qd-objective")).toBe("Kill 3 mobs in Fire");
-    expect(r.text("qd-reward")).toBe("Reward: 2 × Attack Damage II (+21 attack damage each) and 10 GV");
+    expect(r.text("qd-reward")).toBe("Reward: Up to 2 Ember Imp stacks (+2% damage; shared 10-stack cap) and 10 GV");
     expect(r.text("qd-timer")).toBe("1:00");
     expect(r.text("qd-progress")).toMatch(/Not accepted yet/);
     expect(r.accept().hidden).toBe(false);

@@ -1,11 +1,11 @@
 // What the planning screen says of a camp's mobs. This is the only client module that reads the mob roster for the planning screen,
 // and it reads it defensively: a type id the catalog does not know (newer server content) is shown as its raw id, never an error.
-// A camp is its type (a role and a weapon: what its kills drop, or arm an empty hand with) and, for an elite camp, its elite. A kill
-// gives no stat, so there is no buff text here.
-import { MOB_ROLE_DEFS, WEAPONS, mobTypeById, type MobTypeDef } from "@raid/shared";
+// A camp tooltip explains the weapon drop, each normal mob's fixed stat reward and the elite augment chest.
+import { MOB_ROLE_DEFS, MOB_STAT_CAP, WEAPONS, mobStatReward, mobTypeById, type MobTypeDef } from "@raid/shared";
 
 /** One mob type as the planning screen reads it. */
 export interface MobTypeInfo {
+  id: string;
   /** The display name ("Ember Imp"), or the raw id for one this build does not know. */
   name: string;
   /** The role's label ("Swarm"), "" for a type this build does not know. */
@@ -22,9 +22,9 @@ export interface CampTypeInfo extends MobTypeInfo {
 }
 
 function typeInfo(id: string, def: MobTypeDef | undefined = mobTypeById(id)): MobTypeInfo {
-  if (!def) return { name: id, role: "", blurb: "", weapon: "" };
+  if (!def) return { id, name: id, role: "", blurb: "", weapon: "" };
   const role = MOB_ROLE_DEFS[def.role];
-  return { name: def.name, role: role.label, blurb: role.blurb, weapon: WEAPONS[def.weapon].name };
+  return { id, name: def.name, role: role.label, blurb: role.blurb, weapon: WEAPONS[def.weapon].name };
 }
 
 /** The camp's mob type (RaidState.camps[i].type) and its elite (.elite, "" for none): null while the room does not say (empty or not synced yet). */
@@ -43,7 +43,14 @@ export function campMobsText(info: CampTypeInfo): string {
     const blurb = t.blurb.replace(/\.$/, "").toLowerCase();
     return `${t.name} (${t.role}: ${blurb}), drops ${/^[aeiou]/i.test(t.weapon) ? "an" : "a"} ${t.weapon}`;
   };
-  return info.elite ? `${one(info)}. Elite: ${one(info.elite)}` : one(info);
+  const normalReward = mobStatReward(info.id);
+  const line = normalReward ? `Normal kills: ${normalReward.text}, capped at ${MOB_STAT_CAP} per type.` : "This elite gives no fixed per-kill stat.";
+  const isEliteCamp = mobTypeById(info.id)?.elite === true;
+  return info.elite
+    ? `${one(info)}. ${line} Elite: ${one(info.elite)}. Elite death drops an augment chest; it grants no fixed mob stat.`
+    : isEliteCamp
+      ? `${one(info)}. Elite death drops an augment chest; it grants no fixed mob stat.`
+      : `${one(info)}. ${line} No chest on a normal camp clear.`;
 }
 
 /** `RaidState.camps[i].type` for each of `count` camps, "" where the state has no camps (a server before them) or no type yet. */

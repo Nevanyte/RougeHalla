@@ -1,5 +1,5 @@
-// The practice console of the training room (roguelike R4a/R5): a collapsed "Console" button in the training bar that opens a small
-// panel to set how many copies of a card the player holds, spawn a practice camp, drop a card chest and clear it all. It only sends
+// The practice console of the training room: a collapsed "Console" button that opens a small panel to set mob-stat stacks and
+// interactive augments, spawn a practice camp, drop an augment chest and clear it all. It only sends
 // `train` messages (shared/messages.ts TrainMessage); the server applies them in a training room and drops them anywhere else, so
 // nothing here decides an outcome. DOM only. The TrainingBar builds it for a training room alone, so an arena run never has one.
 //
@@ -9,7 +9,7 @@
 // The panel is click-through like the rest of the bar: only the buttons and the selects take the pointer.
 import {
   BASE_TITLES, CARDS, FACTIONS, MOB_ROLE_DEFS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT,
-  TRAIN_MAX_CARD_COUNT, WEAPONS, cardDef, cardLive, isFactionId, tagLabel, tierRoman,
+  TRAIN_MAX_CARD_COUNT, TRAIN_MOB_STAT_CHOICES, WEAPONS, cardDef, cardLive, isFactionId, isInteractiveAugment, mobStatReward, tagLabel, tierRoman,
   type CardDef, type CardKind, type MobTypeDef, type TrainMessage,
 } from "@raid/shared";
 import { cardKindLabel } from "./chestMath";
@@ -33,12 +33,12 @@ export function mobTypeGroups(): Array<ConsoleGroup<MobTypeDef>> {
 }
 
 const CARD_GROUPS: ReadonlyArray<{ kind: CardKind; label: string }> = [
-  { kind: "base", label: "Base cards" }, { kind: "conditional", label: "Conditional cards" }, { kind: "augment", label: "Augments" },
+  { kind: "augment", label: "Interactive augments" },
 ];
 
-/** The 75 cards grouped by kind (base, conditional, augment), each in catalog order. */
+/** The interactive augments offered by training chests, in catalog order. */
 export function cardGroups(): Array<ConsoleGroup<CardDef>> {
-  return CARD_GROUPS.map(({ kind, label }) => ({ label, items: CARDS.filter((c) => c.kind === kind) }));
+  return CARD_GROUPS.map(({ kind, label }) => ({ label, items: CARDS.filter((c) => c.kind === kind && isInteractiveAugment(c)) }));
 }
 
 /** A mob type's option text: its name, "elite" for a zone's elite, its role and the weapon it carries ("Ember Imp (swarm, axe)"). */
@@ -50,7 +50,8 @@ export function mobTypeLabel(t: MobTypeDef): string {
 /** What a mob type is, for its option's tooltip: the zone, the role's line and the weapon a kill drops. */
 export function mobTypeHint(t: MobTypeDef): string {
   const weapon = WEAPONS[t.weapon].name.toLowerCase();
-  return `${t.name}, ${t.elite ? "an elite of the " : "a mob of the "}${zoneLabel(t.zone)}. ${MOB_ROLE_DEFS[t.role].blurb} Carries ${/^[aeiou]/.test(weapon) ? "an" : "a"} ${weapon}, which a kill can drop.`;
+  const reward = mobStatReward(t.id);
+  return `${t.name}, ${t.elite ? "an elite of the " : "a mob of the "}${zoneLabel(t.zone)}. ${MOB_ROLE_DEFS[t.role].blurb} Carries ${/^[aeiou]/.test(weapon) ? "an" : "a"} ${weapon}, which a kill can drop.${reward ? ` Each kill grants ${reward.text}; capped at 10 per type.` : " Elite death drops an augment chest and grants no fixed mob stat."}`;
 }
 
 /** A card's option text: its title, "(not live yet)" while the server does not apply it. */
@@ -75,6 +76,7 @@ export function cardHint(id: string, count: number): string {
 /** The messages the buttons send, one function each so the shapes are in one place. */
 export const trainMessages = {
   card: (id: string, count: number): TrainMessage => ({ cmd: "card", id, count }),
+  stat: (id: string, count: number): TrainMessage => ({ cmd: "stat", id, count }),
   camp: (id: string): TrainMessage => ({ cmd: "camp", id }),
   chest: (options?: readonly string[]): TrainMessage => (options && options.length > 0 ? { cmd: "chest", options: [...options] } : { cmd: "chest" }),
   clear: (): TrainMessage => ({ cmd: "clear" }),
@@ -100,6 +102,7 @@ export class TrainingConsole {
   private readonly mobSelect = el("select", "train-select train-mob");
   private readonly cardSelect = el("select", "train-select train-card");
   private readonly countSelect = el("select", "train-select train-count");
+  private readonly statCountSelect = el("select", "train-select train-stat-count");
   private readonly cardHintLine = el("div", "train-hint train-hint-card");
   private opened = false;
   /** The selects the pointer went down on since their last change: that change is a mouse choice, and gives the focus back to the game. */
@@ -114,7 +117,7 @@ export class TrainingConsole {
 
     this.toggle.type = "button";
     this.toggle.textContent = "Console";
-    this.toggle.title = "Practice console: set cards, spawn a camp (its clear heals you), drop a card chest";
+    this.toggle.title = "Practice console: set mob-stat stacks and augments, spawn a camp, drop an augment chest";
     this.toggle.setAttribute("aria-expanded", "false");
     this.toggle.setAttribute("aria-controls", panelId);
     this.toggle.addEventListener("click", (ev) => { this.setOpen(!this.opened); this.releaseFocus(ev, this.toggle); });
@@ -122,23 +125,28 @@ export class TrainingConsole {
     this.fillMobTypes();
     this.fillCards();
     this.fillCounts();
+    for (const n of TRAIN_MOB_STAT_CHOICES) this.statCountSelect.append(this.option(String(n), `${n} ${n === 1 ? "kill" : "kills"}`, `Set this mob type to ${n} kill stacks`));
+    this.statCountSelect.append(this.option("0", "Remove", "Remove this mob type's training stacks"));
+    this.statCountSelect.value = "1";
+    this.statCountSelect.setAttribute("aria-label", "Mob stat kill stacks");
 
     this.panel.append(
       this.title("Camps"),
-      this.row("Mob type", this.mobSelect, this.button("train-btn-camp", "Spawn camp", "A practice camp of this mob type near you: no GV and no drops, but clearing it gives the camp-clear heal", () => this.spawnCamp())),
+      this.row("Mob type", this.mobSelect, this.button("train-btn-camp", "Spawn camp", "A practice camp: normal kills grant fixed stats; an elite death drops an augment chest. Camp clears do not drop chests", () => this.spawnCamp())),
+      this.row("Kill stacks", this.statCountSelect, this.button("train-btn-stat", "Set stacks", "Set the selected normal mob's fixed stat stacks (0 to 10)", () => this.setStat())),
       this.title("Cards and chests"),
       this.row("Card", this.cardSelect),
       this.row("Copies", this.countSelect, this.button("train-btn-card", "Set card", "Set how many copies of this card you hold", () => this.setCard())),
       this.cardHintLine,
       this.row(
         "Chest",
-        this.button("train-btn-chest-pick", "With card", "Drop a card chest offering only the card picked above", () => this.dropChest(true)),
-        this.button("train-btn-chest-random", "Random", "Drop a card chest with three rolled options", () => this.dropChest(false)),
+        this.button("train-btn-chest-pick", "With augment", "Drop an augment chest offering only the augment picked above", () => this.dropChest(true)),
+        this.button("train-btn-chest-random", "Random", "Drop an augment chest with three rolled options", () => this.dropChest(false)),
       ),
       this.row("", this.button("train-btn-clear", "Clear all", "Remove every card, practice mob and chest", () => this.clear())),
     );
 
-    for (const select of [this.mobSelect, this.cardSelect, this.countSelect]) this.wireSelect(select);
+    for (const select of [this.mobSelect, this.cardSelect, this.countSelect, this.statCountSelect]) this.wireSelect(select);
     this.panel.addEventListener("keydown", (ev) => this.onKeyDown(ev as KeyboardEvent));
     this.root.append(this.toggle, this.panel);
     this.refresh();
@@ -171,6 +179,8 @@ export class TrainingConsole {
   setCard(): void {
     this.send(trainMessages.card(this.cardSelect.value, this.count()));
   }
+
+  setStat(): void { this.send(trainMessages.stat(this.mobSelect.value, Number(this.statCountSelect.value))); }
 
   /** `withCard`: offer only the picked card; else the server rolls three. */
   dropChest(withCard: boolean): void {
@@ -244,8 +254,8 @@ export class TrainingConsole {
       this.cardSelect.append(group);
     }
     // The first live card (the ones after it in the list may be catalog data the sim does not apply yet).
-    this.cardSelect.value = (CARDS.find(cardLive) ?? CARDS[0]!).id;
-    this.cardSelect.setAttribute("aria-label", "Card");
+    this.cardSelect.value = cardGroups()[0]!.items[0]?.id ?? "";
+    this.cardSelect.setAttribute("aria-label", "Interactive augment");
   }
 
   private fillCounts(): void {

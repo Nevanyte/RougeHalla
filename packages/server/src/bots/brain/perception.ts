@@ -76,11 +76,14 @@ export interface PlayerLike extends FighterLike {
   readonly speedMult: number;
   /** The Wish's ready time (server ms, 0 = ready): the weapon bar's cooldown widget shows it. Read for the bot itself only. */
   readonly wishReadyAt?: number;
+  /** Normal mob stat stacks; read for the bot itself only. */
+  readonly mobStats?: { forEach(cb: (count: number, id: string) => void): void };
 }
 
 export interface MobLike extends FighterLike {
   readonly kind: string;
   readonly name: string;
+  readonly type?: string;
 }
 
 export interface ItemLike {
@@ -311,6 +314,12 @@ function buildRecord(build: PlayerLike["build"]): Record<string, number> {
   return out;
 }
 
+function mobStatsRecord(map: PlayerLike["mobStats"]): Readonly<Record<string, number>> {
+  const out: Record<string, number> = {};
+  map?.forEach((count, id) => { if (count > 0) out[id] = count; });
+  return out;
+}
+
 function selfView(id: FighterId, p: PlayerLike): SelfView {
   return {
     id,
@@ -333,6 +342,7 @@ function selfView(id: FighterId, p: PlayerLike): SelfView {
     brand: p.brand,
     power: cardPower(p.build),
     build: buildRecord(p.build),
+    mobStats: mobStatsRecord(p.mobStats),
     asMult: decodeMult(p.asMult),
     windupMult: p.windupMult === undefined ? 1 : decodeMult(p.windupMult),
     speedMult: decodeMult(p.speedMult),
@@ -349,7 +359,7 @@ function absentSelf(id: FighterId): SelfView {
   return {
     id, name: "", x: 0, y: 0, facing: 0, status: "mia", hp: 0, maxHp: 0, barrier: 0, faction: null, weapons: [null, null], slot: 0,
     attackTarget: null, drawStartedAt: 0, readyAt: 0, immuneUntil: 0, sig: 0, brand: 0,
-    power: 0, asMult: 1, speedMult: 1, kills: 0, mobKills: 0, gv: 0, bounty: 0, moveSeq: 0,
+    power: 0, asMult: 1, speedMult: 1, kills: 0, mobKills: 0, mobStats: {}, gv: 0, bounty: 0, moveSeq: 0,
   };
 }
 
@@ -387,6 +397,7 @@ function mobSeen(id: FighterId, m: MobLike, x: number, y: number, status: string
     id,
     kind,
     name: m.name,
+    type: typeof m.type === "string" && m.type.length > 0 ? m.type : undefined,
     faction: factionOf(faction),
     x,
     y,

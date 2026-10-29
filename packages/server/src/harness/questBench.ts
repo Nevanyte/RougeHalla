@@ -4,7 +4,7 @@ import { createGameWorld } from "../sim/gameplay";
 import { addPlayer, step } from "../sim/step";
 import type { SimConfig, World } from "../sim/world";
 import {
-  driveQuestPolicy, liveCardPower, newPolicyMemory, QUEST_SITE_RADIUS, QUEST_POLICY_IDS,
+  driveQuestPolicy, liveProgressPower, newPolicyMemory, QUEST_SITE_RADIUS, QUEST_POLICY_IDS,
   type PolicyMemory, type QuestPolicyId,
 } from "./questBenchPolicy";
 
@@ -183,8 +183,8 @@ export function runQuestLobby(
   const startedAt = world.state.raidStartedAt;
   for (const [id, p] of world.state.players) {
     memories.set(id, newPolicyMemory(p, world.state.serverTime));
-    timelines.set(id, { seconds: [0], power: [liveCardPower(p.build)] });
-    previousPower.set(id, liveCardPower(p.build));
+    timelines.set(id, { seconds: [0], power: [liveProgressPower(p)] });
+    previousPower.set(id, liveProgressPower(p));
     previousStatus.set(id, p.status);
     previousTargets.set(id, p.attackTarget);
     selectedQuests.set(id, null);
@@ -212,7 +212,7 @@ export function runQuestLobby(
       const p = world.state.players.get(id)!;
       previousTargets.set(id, p.attackTarget);
       previousStatus.set(id, p.status);
-      previousPower.set(id, liveCardPower(p.build));
+      previousPower.set(id, liveProgressPower(p));
     }
     for (const [id, rt] of world.mobs) previousMobModes.set(id, rt.brain?.mode ?? "");
 
@@ -237,7 +237,7 @@ export function runQuestLobby(
       if (offer.counted || q.s.status !== "done") continue;
       offer.counted = true;
       const player = [...world.state.players.entries()].find(([, p]) => p.name === q.s.doneBy);
-      const after = player ? liveCardPower(player[1].build) : 0;
+      const after = player ? liveProgressPower(player[1]) : 0;
       const before = player ? previousPower.get(player[0]) ?? after : after;
       const startedQuestAt = player ? attemptedAt.get(`${player[0]}:${q.def.id}`) : undefined;
       observation.completions.push({
@@ -263,7 +263,7 @@ export function runQuestLobby(
       let sample = Math.floor(timeline.seconds[timeline.seconds.length - 1]!) + 1;
       while (elapsed >= sample) {
         timeline.seconds.push(sample);
-        timeline.power.push(liveCardPower(p.build));
+        timeline.power.push(liveProgressPower(p));
         sample++;
       }
     }
@@ -298,7 +298,7 @@ export function runQuestLobby(
     const timeline = timelines.get(id)!;
     if (timeline.seconds[timeline.seconds.length - 1] !== finalSeconds) {
       timeline.seconds.push(finalSeconds);
-      timeline.power.push(liveCardPower(p.build));
+      timeline.power.push(liveProgressPower(p));
     }
     const died = diedAt.get(id);
     const stalledMs = memories.get(id)!.stalledAt;
