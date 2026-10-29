@@ -56,6 +56,7 @@ import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap, type MinimapMob } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningCorpse, type PlanningEnemy, type PlanningPlayer } from "../ui/planning";
+import type { MapRosterPlayer } from "../ui/mapRoster";
 import { QuestDialog, type QuestDialogFrame, type QuestDialogMe } from "../ui/questDialog";
 import { QuestLog } from "../ui/questLog";
 import { expireQuestPreviews, questAccepted, questItemQuestId, questCollections, questFromReveal, questMinimapBlips, questObjectiveMarkers, type QuestMobTarget, type QuestStateLike } from "../ui/questModel";
@@ -734,10 +735,12 @@ export class RaidScene extends Phaser.Scene {
       return;
     }
     const players: PlanningPlayer[] = [];
+    const roster: MapRosterPlayer[] = [];
     const enemies: PlanningEnemy[] = [];
     state.players.forEach((p, id) => {
       const local = id === this.room.sessionId;
       players.push({ faction: p.faction, ready: p.planReady, me: local });
+      if (mode === "map") roster.push({ id, player: p });
       const tracked = this.huntMarker?.id === id;
       const at = mode === "map" && !local && p.status === "alive"
         ? tracked ? this.huntMarker : this.visiblePosition(id) : undefined;
@@ -746,7 +749,7 @@ export class RaidScene extends Phaser.Scene {
     const at = this.rendered.get(this.room.sessionId);
     const questData = questCollections(state, this.questPreviews.values(), serverNow);
     view.update({
-      mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players,
+      mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players, roster,
       campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
       campElites: readCampElites(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,

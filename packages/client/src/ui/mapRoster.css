@@ -1,0 +1,26 @@
+#ui > .planning[data-mode="map"] .pl-body { flex-wrap: nowrap; gap: 16px; }
+.map-roster { display: flex; flex: 0 0 var(--pl-roster-size, 320px); flex-direction: column; width: var(--pl-roster-size, 320px); max-height: min(calc(var(--pl-size, 560px) + 76px), calc(var(--ui-h, 800px) - 112px)); box-sizing: border-box; border: 1px solid #526170; border-radius: 8px; background: #101820f2; box-shadow: 0 8px 28px #0008; overflow: hidden; }
+.map-roster[hidden] { display: none; }
+#ui > .planning[data-mode="map"] .map-roster,
+#ui > .planning[data-mode="map"] .map-roster * { pointer-events: auto; }
+.map-roster-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 12px; border-bottom: 1px solid #35424e; }
+.map-roster-title { margin: 0; font-size: 1.1em; }
+.map-roster-order { color: #a8bac8; font-size: .76em; }
+.map-roster-list { min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.map-roster-player { padding: 10px 12px; border-bottom: 1px solid #293642; }
+.map-roster-player:last-child { border-bottom: 0; }
+.map-roster-player.local { background: #2eaccb15; box-shadow: inset 3px 0 #4ed6f5; }
+.map-roster-player.out { opacity: .55; }
+.map-roster-player-head { display: flex; align-items: center; gap: 8px; }
+.map-roster-rank { min-width: 1.1em; color: #8197a8; font-size: .85em; font-variant-numeric: tabular-nums; }
+.map-roster-identity { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.map-roster-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-roster-champion { color: #a8bac8; font-size: .78em; }
+.map-roster-strength { color: #eac986; font-size: .9em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.map-roster-weapons { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 7px 0 6px; }
+.map-roster-weapon { color: var(--roster-weapon, #bcc8d2); font-size: .83em; border-bottom: 1px solid transparent; }
+.map-roster-weapon.active { border-bottom-color: currentColor; }
+.map-roster-stats { display: flex; flex-wrap: wrap; gap: 4px 9px; font-size: .77em; }
+.map-roster-stat { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.map-roster-stat .combat-icon { width: 12px; height: 12px; }
+.map-roster-fresh { color: #8d9da9; font-size: .95em; }

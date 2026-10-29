@@ -19,12 +19,13 @@ import type { ViewLayout } from "../view/viewport";
 import { campMobsText, campTypeInfo } from "./campInfo";
 import { combatIcon, STAT_ICON_COLORS, type CombatIconKey } from "./combatIcons";
 import { el, uiRoot } from "./dom";
+import { MapRoster, mapRosterLayout, type MapRosterPlayer } from "./mapRoster";
 import {
   CROWN_CLIP_PATH, ZONE_PATTERN, paintCrates, paintMapBase, paintPlayer, paintRoute, zoneClipPath, zoneColor,
 } from "./mapPainter";
 import { mapSpan, minimapBacking, minimapToWorld } from "./minimapMath";
 import {
-  MAX_WAYPOINTS, ROUTE_REACH, campBoxes, crowdedChips, cycleIndex, formatClock, formatEta, fullMapSize, glyphScale,
+  MAX_WAYPOINTS, ROUTE_REACH, campBoxes, crowdedChips, cycleIndex, formatClock, formatEta, glyphScale,
   labelSizePx, placeLabels, planningMapSize, previewMapSize, routeAhead, zoneJump, type CampSpot, type PxBox, type RoutePlan,
 } from "./planningMath";
 import type { RouteState } from "./route";
@@ -72,6 +73,8 @@ export interface PlanningFrame {
   /** The local player has pressed Ready (PlayerState.planReady). */
   meReady: boolean;
   players: readonly PlanningPlayer[];
+  /** Current public kits and build stats; only rendered in the held-Tab map. Positions are handled separately below. */
+  roster?: readonly MapRosterPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
   /** RaidState.camps[i].elite for every camp: the elite type of an elite camp, "" for any other (or where unknown). Absent: none. */
@@ -241,6 +244,7 @@ export class PlanningView {
   private readonly timer = el("div", "pl-timer");
   private readonly bar = el("div", "pl-bar");
   private readonly mapCol = el("div", "pl-mapcol");
+  private readonly roster = new MapRoster();
   private readonly legend = el("ul", "pl-legend");
   private readonly side = el("div", "pl-side");
   private readonly spawnBox = el("section", "pl-box pl-spawns");
@@ -400,7 +404,7 @@ export class PlanningView {
     this.status.setAttribute("aria-live", "polite");
     this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.routeBox, this.status);
     const body = el("div", "pl-body");
-    body.append(this.mapCol, this.side);
+    body.append(this.roster.element, this.mapCol, this.side);
     this.element.append(body);
   }
 
@@ -485,7 +489,9 @@ export class PlanningView {
   private applyView(): void {
     if (this.shownMode === "hidden") return;
     const { uiW, uiH, uiScale, dpr } = this.layout;
-    const size = this.shownMode === "map" ? fullMapSize(uiW, uiH)
+    const rosterLayout = mapRosterLayout(uiW, uiH, this.textScale);
+    this.element.style.setProperty("--pl-roster-size", `${rosterLayout.roster}px`);
+    const size = this.shownMode === "map" ? rosterLayout.map
       : this.shownMode === "preview" ? previewMapSize(uiW, uiH) : planningMapSize(uiW, uiH, this.textScale);
     this.element.style.setProperty("--pl-size", `${size}px`);
     this.sizePx = size;
@@ -517,6 +523,7 @@ export class PlanningView {
   update(frame: PlanningFrame): void {
     this.frame = frame;
     this.applyMode(frame.mode);
+    this.roster.update(frame.roster ?? [], frame.localId ?? "", frame.mode === "map");
     if (frame.mode !== "hidden") this.updateVisionFog(frame);
     if (frame.mode === "hidden") return;
     this.renderTimer(frame);
@@ -532,6 +539,7 @@ export class PlanningView {
     if (mode === this.shownMode) return;
     const wasPlanning = this.shownMode === "planning";
     this.shownMode = mode;
+    if (mode !== "map") this.roster.update([], "", false);
     this.element.setAttribute("data-mode", mode);
     this.element.hidden = mode === "hidden";
     const planning = mode === "planning";
@@ -1273,6 +1281,7 @@ export class PlanningView {
     window.removeEventListener("keydown", this.onWindowKey);
     for (const off of this.unsubscribers.splice(0)) off();
     this.releaseFocus();
+    this.roster.destroy();
     this.element.remove();
     for (const c of [this.base, this.fog, this.dyn]) { c.width = 0; c.height = 0; }
   }

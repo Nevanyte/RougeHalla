@@ -1,14 +1,14 @@
 import Phaser from "phaser";
 import {
   EFFECT_HIDDEN, GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, WIRE_IDENTITY_MIRRORS, Y_SCALE, activeGold, barrierStrength,
-  combatReadability, isFactionId, type CombatReadability,
+  combatReadability, isFactionId, WEAPONS, FISTS, type CombatReadability,
   cssColor, unpackLook, wishOf, type Look,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { drawCombatIcon, STAT_ICON_COLORS } from "../ui/combatIcons";
 import { around, bakedImage, ensureBake, pixelImage, placeBake, scaledPart, type Region } from "./bake";
-import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, shadowImage, type FighterFields } from "./FighterArt";
+import { BodyDisc, BodyFlash, FighterArt, HpBar, drawWeapon, factionColor, heldWeapon, shadowImage, weaponCenterX, type FighterFields } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { displayName } from "./displayName";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
@@ -434,18 +434,26 @@ export class PlayerView {
       .strokeCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4 + strength * 2);
   }
 
-  /** Three icons summarize the strongest stat investments; a fresh fighter has no invented rankings. */
+  /** Three fixed spots: the secondary weapon on the left, followed by the two strongest stat investments. */
   private drawBuildMarks(readability: CombatReadability, p: PlayerState): void {
-    const stats = readability.investedStats.slice(0, 3);
+    const stats = readability.investedStats.slice(0, 2);
+    const secondary = heldWeapon({ weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot === 1 ? 0 : 1, faction: p.faction }) ?? FISTS;
     const crownScale = 1 + CROWN_GROWTH * Math.min(1, Math.max(0, p.bounty) / CROWN_FULL_BOUNTY);
     this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 12 : LABEL_Y - 25);
-    const key = stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|");
+    const key = `${secondary}|${stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|")}`;
     if (key === this.buildMarksKey) return;
     this.buildMarksKey = key;
     this.buildMarks.removeAll(true);
-    if (stats.length === 0) return;
+    const weaponMark = this.scene.add.graphics();
+    const weaponColor = WEAPONS[secondary].color;
+    weaponMark.fillStyle(0x101820, 0.95).fillRoundedRect(-21, -7, 14, 14, 4);
+    weaponMark.lineStyle(1, weaponColor, 0.95).strokeRoundedRect(-21, -7, 14, 14, 4);
+    weaponMark.save().translateCanvas(-14 - weaponCenterX(secondary) * 0.26, 0).scaleCanvas(0.26, 0.26);
+    drawWeapon(weaponMark, secondary);
+    weaponMark.restore().setName(`Secondary weapon: ${WEAPONS[secondary].name}`);
+    this.buildMarks.add(weaponMark);
     stats.forEach((stat, i) => {
-      const x = (i - (stats.length - 1) / 2) * 14;
+      const x = i * 14;
       const color = STAT_ICON_COLORS[stat.key];
       const mark = this.scene.add.graphics();
       mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - 7, -7, 14, 14, 4);

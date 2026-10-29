@@ -84,6 +84,18 @@ describe("RaidScene vision integration", () => {
     expect(scene.planning.hide).toHaveBeenCalled();
   });
 
+  it("publishes current roster kits through fog without exposing hidden actor positions", () => {
+    const {scene,state,foe,frame} = rig();
+    Object.assign(foe, { name: "Hidden foe", weapon0: "bow", weapon1: "wand", adBonus: 480, effects: EFFECT_HIDDEN, x: 3000 });
+    scene.planning = { update: vi.fn(), hide: vi.fn() };
+    scene.mapHold = { held: true };
+    scene.updatePlanning = (RaidScene.prototype as any).updatePlanning.bind(scene);
+    frame(1000);
+    expect(scene.planning.update.mock.lastCall[0].roster).toEqual([...state.players].map(([id, player]: any) => ({ id, player })));
+    expect(scene.planning.update.mock.lastCall[0].roster[1].player).toMatchObject({ weapon0: "bow", weapon1: "wand", adBonus: 480 });
+    expect(scene.planning.update.mock.lastCall[0].enemies).toEqual([]);
+  });
+
   it("shows corpse coordinates to living Plague on both maps outside fog only", () => {
     const {scene,state,me,frame} = rig();
     scene.planning = { update: vi.fn(), hide: vi.fn() };

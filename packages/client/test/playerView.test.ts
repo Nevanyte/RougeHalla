@@ -40,18 +40,38 @@ function setup() {
 const outline = (ring: FakeObject) => argsOf(ring, "lineStyle")[0]!;
 
 describe("PlayerView build icons", () => {
-  it("shows at most three icons and no overhead damage numbers", () => {
+  it("shows the secondary weapon on the left followed by the top two stats, without damage numbers", () => {
     const { scene, ofKind } = fakeScene();
     const view = new PlayerView(scene, false);
     const textCount = ofKind("text").length;
     const marks = (view as unknown as { buildMarks: FakeObject }).buildMarks;
     view.update(0, 0, player({
-      adBonus: 300, apBonus: 400, armorBonus: 500, shieldBonus: 600, asMult: 1250, speedMult: 1100,
+      weapon1: "bow", adBonus: 300, apBonus: 400, armorBonus: 500, shieldBonus: 600, asMult: 1250, speedMult: 1100,
       mobStats: new Map([["rotMonk", 4], ["emberImp", 4]]),
     }), 1000, 1000);
     expect(argsOf(marks, "add")).toHaveLength(3);
     expect(argsOf(marks, "add").every(([mark]) => (mark as FakeObject).kind === "graphics")).toBe(true);
+    const icons = argsOf(marks, "add").map(([mark]) => mark as FakeObject);
+    expect(icons[0]!.state.name).toBe("Secondary weapon: Bow");
+    expect(argsOf(icons[0]!, "fillRoundedRect")[0]![0]).toBe(-21);
+    expect(icons.slice(1).every(icon => !String(icon.state.name).startsWith("Secondary"))).toBe(true);
     expect(ofKind("text")).toHaveLength(textCount);
+  });
+
+  it("refreshes the secondary icon on swaps and represents an empty slot with fists", () => {
+    const { scene } = fakeScene();
+    const view = new PlayerView(scene, false);
+    const marks = (view as unknown as { buildMarks: FakeObject }).buildMarks;
+    const p = player({ weapon0: "sword", weapon1: "bow", slot: 0, maxHp: FACTIONS.fire.hp });
+    const lastWeapon = () => (argsOf(marks, "add").at(-1)![0] as FakeObject).state.name;
+    view.update(0, 0, p, 1000, 1000);
+    expect(lastWeapon()).toBe("Secondary weapon: Bow");
+    p.slot = 1;
+    view.update(0, 0, p, 1016, 1000);
+    expect(lastWeapon()).toBe("Secondary weapon: Sword");
+    p.weapon0 = "";
+    view.update(0, 0, p, 1032, 1000);
+    expect(lastWeapon()).toBe("Secondary weapon: Fists");
   });
 
   it("refreshes icons when mob rewards change without changing any stat mirror", () => {
@@ -61,10 +81,10 @@ describe("PlayerView build icons", () => {
     const mobStats = new Map<string, number>();
     const p = player({ maxHp: FACTIONS.fire.hp, hp: FACTIONS.fire.hp, mobStats });
     view.update(0, 0, p, 1000, 1000);
-    expect(argsOf(marks, "add")).toHaveLength(0);
+    expect(argsOf(marks, "add")).toHaveLength(1);
     mobStats.set("rotMonk", 1);
     view.update(0, 0, p, 1016, 1000);
-    expect(argsOf(marks, "add")).toHaveLength(1);
+    expect(argsOf(marks, "add")).toHaveLength(3);
     const redraws = argsOf(marks, "removeAll").length;
     view.update(0, 0, p, 1032, 1000);
     expect(argsOf(marks, "removeAll")).toHaveLength(redraws);
@@ -429,15 +449,15 @@ describe("PlayerView feet effects", () => {
     for (let i = 0; i < 3; i++) view.update(0, 0, player(), 1000 + i, 1000 + i);
     view.update(0, 0, player(), 1010, 1010, false, false, null, homeOnly); // home ground with no effect shows nothing either
     view.update(0, 0, player({ status: "dead", hp: 0 }), 1020, 1020); // an unseen fighter hides a feet effect that was never made
-    expect(ofKind("graphics")).toHaveLength(made + 1); // the first Wish bake is cached as a Graphics texture.
+    expect(ofKind("graphics")).toHaveLength(made + 2); // the first Wish bake and secondary weapon icon.
     view.update(10, 10, player(), 1030, 1030, false, false, null, burning);
     const graphics = ofKind("graphics");
-    expect(graphics).toHaveLength(made + 2); // the Wish bake and lazily-created feet effect
+    expect(graphics).toHaveLength(made + 3); // the Wish bake, secondary icon and lazily-created feet effect
     const feet = graphics[graphics.length - 1]!;
     expect(feet.state.visible).toBe(true);
     expect(feet.calls.some(([n]) => n === "fillCircle" || n === "fillTriangle" || n === "fillPoints" || n === "fillStyle")).toBe(true);
     view.update(10, 10, player(), 1040, 1040, false, false, null, burning);
-    expect(ofKind("graphics")).toHaveLength(made + 2); // feet effect made once
+    expect(ofKind("graphics")).toHaveLength(made + 3); // feet effect made once
     view.update(10, 10, player(), 1050, 1050); // off the hazard: hidden, kept
     expect(feet.state.visible).toBe(false);
     view.destroy();

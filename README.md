@@ -14,6 +14,7 @@ These rules supersede older controls, range, healing, vision, and quest descript
 - Holy area's Light terrain now heals 3% max HP/s, five times its former rate. Holy receives 6%/s through its existing home bonus. The combat healing lockout remains.
 - Vision trails last 30s. Camp wards last 120s; camp respawns remain 180s. Minimap size is saved in Settings (75%–200%).
 - Camp previews show rewards and elite warnings, with no simulated win/remaining-HP percentages. Weapon chests conceal their contents until opened.
+- Above players, the left build icon shows their secondary weapon; the next two show their strongest stat investments. Hold Tab for a roster left of the map with both weapons and the top three stat gains, ranked by combined stat growth and PvP power (strongest first).
 - There are 20 quests per run: 10 known and 10 rumoured. Current acceptance and private objective-route rules remain.
 - One Wandering Villager trades weapons and potions. One Soul Broker offers 3 persistent random stat exchanges based on current stats; choose 1 once per run (12% cost for 18% gain). Both wander and stop for nearby visitors. Trades preserve uncapped farming, augments, and champion progression.
 
@@ -149,7 +150,7 @@ WASD or arrow keys move. Left-click attacks toward the cursor; hold to repeat. O
 | `F` | Pick up a highlighted weapon, potion or accepted quest item; talk to a quest giver; enter a ready travel cannon. |
 | `C` | Focus an elite chest's choices. Then `1` / `2` / `3` pick, `0` skips and `C` / `Esc` returns control. |
 | `J` | Toggle the quest log. |
-| Hold `Tab` | Show the whole map and planned route. |
+| Hold `Tab` | Show the whole map, planned route and player roster (both weapons and top three stats, strongest first). |
 | `Esc` | Close focused panels or leave training. |
 
 Walk over wind emblems to consume them automatically for a five-second speed boost. Nearby wandering traders open their exchange panel; select one offer to trade.
