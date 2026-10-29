@@ -5,6 +5,10 @@
 import { EFFECT_HIDDEN, type Vec2 } from "@raid/shared";
 
 /** The part of a player state this reads. */
+export function shouldRenderActor(local: boolean, effects: number, at: Vec2, canSee: (point: Vec2) => boolean): boolean {
+  return local || (((effects | 0) & EFFECT_HIDDEN) === 0 && canSee(at));
+}
+
 export interface HasEffects {
   effects: number;
 }

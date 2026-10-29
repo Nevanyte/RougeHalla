@@ -19,6 +19,7 @@ export interface QuestViewFrame {
   highlightId?: string;
   trackedId?: string;
   serverNow?: number;
+  canSee?: (point: QuestPosition) => boolean;
 }
 
 interface GiverView {
@@ -51,6 +52,7 @@ export class QuestView {
       if (!visibleQuest(quest) || quest.status !== "open" || (frame.serverNow !== undefined && frame.serverNow >= quest.expiresAt)) return;
       const def = questDefById(quest.def);
       if (!def) return;
+      if (frame.canSee && !frame.canSee(quest)) return;
       seenGivers.add(quest.id);
       const giver = this.givers.get(quest.id) ?? this.makeGiver(quest, def.giver, def.kind);
       this.givers.set(quest.id, giver);
@@ -64,7 +66,7 @@ export class QuestView {
       giver.hint.setVisible(frame.me?.status === "alive" && questTurnIn(quest, def, frame.localId, frame.me));
       giver.trackedLabel.setVisible(frame.trackedId === quest.id);
       if (quest.carrier) {
-        const at = frame.positions.get(quest.carrier) ?? frame.players.get(quest.carrier);
+        const at = frame.positions.get(quest.carrier) ?? (!frame.canSee ? frame.players.get(quest.carrier) : undefined);
         if (at) {
           carrierIds.add(quest.id);
           const marker = this.carriers.get(quest.id) ?? this.makeCarrier(def.kind);
@@ -89,6 +91,7 @@ export class QuestView {
         || (frame.serverNow !== undefined && frame.serverNow >= quest.expiresAt)) return;
       const def = questDefById(quest.def);
       if (!def) return;
+      if (frame.canSee && !frame.canSee(container)) return;
       seenItems.add(container.id);
       const item = this.items.get(container.id) ?? this.makeItem(container.x, container.y, container.label, def.kind);
       this.items.set(container.id, item);

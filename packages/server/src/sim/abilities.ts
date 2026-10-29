@@ -32,6 +32,7 @@ import {
   statusesOf, statusMoveMultiplier,
 } from "./status";
 import { cancelAction, cancelLockedWindup, dropLock } from "./weapons";
+import { canPlayerSee } from "./vision";
 import {
   chainHook, collisionMap, emit, payLater, type ActionHandler, type CastRuntime, type DamageSource, type FieldRuntime,
   type ModContribution, type StatusInstance, type World,
@@ -113,6 +114,7 @@ export function armWishes(world: World): void {
  */
 export function validUnitTarget(world: World, c: Combatant, t: Combatant, maxRange: number, los: boolean): boolean {
   if (t.id === c.id || !standing(t) || !hostile(c, t) || isEvading(t) || isUntargetable(world, t)) return false;
+  if (c.kind === "player" && !canPlayerSee(world, c.id, t.s)) return false;
   if (t.kind === "player" && world.state.serverTime < t.s.immuneUntil) return false;
   const dx = t.s.x - c.s.x;
   const dy = t.s.y - c.s.y;

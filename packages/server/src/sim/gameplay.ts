@@ -18,6 +18,7 @@ import { install as installQuests } from "./quests";
 import { install as installTargeting } from "./targeting";
 import { install as installTerrain } from "./terrainEffects";
 import { install as installWeapons } from "./weapons";
+import { install as installVision } from "./vision";
 import { createWorld, type World } from "./world";
 
 type CreateOpts = Parameters<typeof createWorld>[0];
@@ -42,6 +43,7 @@ const MODULES: Array<(world: World) => void> = [
   installTerrain,
   installAbilities,
   installQuests,
+  installVision,
   // After chests (and quests): the campCleared hook chain reads the camp's contributors first, this link heals them and forgets them.
   installCampHeal,
   // The phase-B cards' hooks (hitLanded, blocked, overkilled, a system after the damage, a mod source): after the modules whose

@@ -14,13 +14,16 @@ import { Client, type Room } from "@colyseus/sdk";
 import {
   damageShares, defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
   raycast, ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, unpackLaunches, type FactionId, type FxBatch, type JoinOptions, type ProfileStats,
-  type ProjectileLaunch, type RunResult, type TimedFx, type Vec2,
+  type ProjectileLaunch, type RunResult, type TimedFx, type Vec2, type VisionSnapshotMessage, CAMP_RESPAWN_MS, TICK_MS, TILE, VISION_RADIUS, VISION_TRAIL_MS,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import { ActiveProfiles } from "../src/rooms/RaidRoom";
 import * as gameplay from "../src/sim/gameplay";
+import { combatant } from "../src/sim/combatant";
+import { hurtMob, type MobCombatant } from "../src/sim/mobLife";
+import { getVisionMemory } from "../src/sim/vision";
 import { spawnProjectiles } from "../src/sim/projectiles";
 import type { SimConfig, World } from "../src/sim/world";
 
@@ -1308,6 +1311,71 @@ describe("a run", () => {
       });
       expectBanked(B, 0, { runs: 1, wins: 1 });
     });
+  });
+});
+
+describe("vision over real multiplayer sockets", () => {
+  it("publishes identical ward and respawn clocks to both players and resets both on the due tick", async () => {
+    const [a, b] = await startRun([await claim(), await claim()]);
+    const world = worldOf(a!);
+    const members = [...world.state.mobs.keys()]
+      .map((id) => combatant(world, id) as MobCombatant)
+      .filter((mob) => mob.s.camp === 1);
+    expect(members.length).toBeGreaterThan(0);
+    const before = new Set(members.map((mob) => mob.id));
+    for (const mob of members) {
+      const hp = mob.s.hp;
+      hurtMob(world, mob, [hp], [{
+        victim: mob.id, by: { id: sessionOf(a!), name: a!.who.name },
+        packet: { raw: hp, phys: 1, magic: 0, true: 0 }, weapon: "sword", scale: 1, stagger: false,
+      }]);
+    }
+    const deadline = world.state.camps[0]!.respawnAt;
+    expect(deadline - world.state.camps[0]!.clearedAt).toBe(CAMP_RESPAWN_MS);
+    const publicCamp = (p: Player) => {
+      const c = p.room.state.camps[0]!;
+      return { state: c.state, alive: c.alive, clearedAt: c.clearedAt, respawnAt: c.respawnAt,
+        wardOwner: c.wardOwner, wardExpiresAt: c.wardExpiresAt };
+    };
+    await until(() => [a!, b!].every((p) => p.room.state.camps[0]?.respawnAt === deadline), "both clients to receive the public deadline");
+    expect(publicCamp(a!)).toEqual(publicCamp(b!));
+    expect(publicCamp(b!)).toMatchObject({ state: 2, alive: 0, wardOwner: sessionOf(a!), wardExpiresAt: deadline });
+    // Advance the game's clock instead of waiting three real minutes; the room still performs and patches the due tick.
+    world.state.patienceEndsAt = deadline + 60_000;
+    world.state.serverTime = deadline - TICK_MS;
+    await until(() => [a!, b!].every((p) => p.room.state.camps[0]?.state === 0), "both clients to receive the respawn");
+    expect(publicCamp(a!)).toEqual(publicCamp(b!));
+    expect(publicCamp(b!)).toMatchObject({ alive: members.length, respawnAt: 0, wardOwner: "", wardExpiresAt: 0 });
+    const fresh = [...world.state.mobs.entries()].filter(([, mob]) => mob.camp === 1);
+    expect(fresh).toHaveLength(members.length);
+    expect(fresh.every(([id, mob]) => !before.has(id) && mob.status === "alive" && mob.hp === mob.maxHp)).toBe(true);
+  });
+
+  it("restores an unexpired trail only to the reconnecting player", async () => {
+    const [a, b] = await startRun([await claim(), await claim()]);
+    const world = worldOf(a!);
+    const own: VisionSnapshotMessage[] = [], other: VisionSnapshotMessage[] = [];
+    a!.room.onMessage("vision", (message: VisionSnapshotMessage) => own.push(message));
+    b!.room.onMessage("vision", (message: VisionSnapshotMessage) => other.push(message));
+    const me = serverPlayer(a!);
+    const distance = (point: Vec2) => Math.hypot(point.x - me.x, point.y - me.y);
+    const trailSpot = world.map.spawns.reduce((best, point) => distance(point) > distance(best) ? point : best);
+    expect(distance(trailSpot)).toBeGreaterThan(VISION_RADIUS);
+    const memory = getVisionMemory(world, sessionOf(a!))!;
+    memory.clear();
+    memory.update(world.map, trailSpot, world.state.serverTime);
+    const marker = Math.floor(trailSpot.y / TILE) * world.map.w + Math.floor(trailSpot.x / TILE);
+    const back = reconnectAfter(a!, 250);
+    await dropConnection(a!);
+    await until(back.reconnected, "the player to reconnect", 8000);
+    await until(() => own.length === 1, "the reconnect trail snapshot to arrive");
+    const snapshot = own[0]!;
+    expect(snapshot).toMatchObject({ seed: world.map.seed, w: world.map.w, h: world.map.h });
+    expect(snapshot.cells.some(([index, expiry]) => index === marker && expiry > snapshot.at)).toBe(true);
+    expect(snapshot.cells.every(([, expiry]) => expiry > snapshot.at && expiry <= snapshot.at + VISION_TRAIL_MS)).toBe(true);
+    await sleep(100);
+    expect(other).toEqual([]);
+    expect(b!.room.state.toJSON()).not.toHaveProperty("vision");
   });
 });
 

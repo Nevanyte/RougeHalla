@@ -16,6 +16,7 @@ import { trialTelegraphRadius } from "./markPresentation";
 export interface WishFxHost {
   /** The local player's id. */
   readonly localId: string;
+  canSee?(point: { x: number; y: number }): boolean;
   /** Where a fighter is drawn right now (ground coordinates; the local fighter's is its predicted one). */
   position(id: string): Vec2 | undefined;
   /** Optional: true for a fighter that is hidden from the viewer (a remote one with the hidden bit); its telegraphs are not drawn. */
@@ -88,6 +89,7 @@ export class WishFx {
   /** Called when render time reaches a `cast`, `castLand`, `castEnd` or `status` event (anything else is ignored). */
   play(fx: TimedFx, now: number): void {
     if (this.destroyed) return;
+    if (this.host.canSee && "x" in fx && "y" in fx && !this.host.canSee(fx)) return;
     switch (fx.kind) {
       case "cast":
         this.cast(fx, now);
@@ -113,7 +115,8 @@ export class WishFx {
     for (let i = a.length - 1; i >= 0; i--) {
       const e = a[i]!;
       const p = (now - e.start) / e.duration;
-      if (p >= 1) {
+      const anchor = e.id ? this.host.position(e.id) : e;
+      if (p >= 1 || (this.host.canSee && (!anchor || !this.host.canSee(anchor) || !this.host.canSee({ x: e.x2, y: e.y2 })))) {
         this.release(e);
         a[i] = a[a.length - 1]!;
         a.pop();

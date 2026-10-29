@@ -16,7 +16,7 @@
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
 //     below 0), stamps lastHitAt, tells the AI who hit it (aggro) and, when the hp is gone, kills it. Returns the hp removed.
 //   - Camps (sim/camps.ts): the first damage to a member engages its camp (CampState.state 1), and the death of its last
-//     member clears it (2) and, after the pass, drops its shared chest (sim/chests.ts), whoever killed it. Never respawned.
+//     member clears it (2) and, after the pass, drops its shared chest (sim/chests.ts). Its full roster returns after 3 min.
 //   - killMob: status "dead", brain.diedAt = now, input queue and path cleared, a `death` fx (by = the killer's id). The
 //     killer is the player who did it the most damage over the whole fight (brain.threat: what each did since it last
 //     rested, plus this pass's hits; an exact tie goes to the lower tick rank) among players still in the run with no
@@ -39,7 +39,7 @@ import {
   mobTypeWeapon, normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
-import { campEngaged, campMobDied, ensureRosters } from "./camps";
+import { CAMP_CLEARED, CAMP_IDLE, campEngaged, campMobDied, ensureRosters } from "./camps";
 import { noteCampContributors } from "./campHeal";
 import { combatant, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
@@ -83,19 +83,43 @@ export function spawnRegionalMobs(world: World): void {
   if (world.config.training) return;
   // Worlds assembled without gameplay.ts (tests) have no roster yet: roll it now, from the same private stream.
   ensureRosters(world);
-  world.map.camps.forEach((camp, ci) => {
-    const published = world.state.camps[ci]!;
-    const campType = mobTypeIn(camp.zone, published.type)?.id ?? normalTypesOf(camp.zone)[0]!.id;
-    const eliteType = mobTypeIn(camp.zone, published.elite)?.id;
-    const roster = campMobs(camp, campType, eliteType);
-    camp.spots.forEach((spot, i) => {
-      placeMob(world, {
-        region: camp.zone, elite: roster[i]!.elite, type: roster[i]!.type, camp: ci, at: spot,
-        facing: Math.atan2(camp.y - spot.y, camp.x - spot.x),
-      });
+  world.map.camps.forEach((_camp, ci) => spawnCamp(world, ci));
+}
+
+/** Spawn the published roster without consuming either random stream. */
+function spawnCamp(world: World, ci: number): void {
+  const camp = world.map.camps[ci]!;
+  const published = world.state.camps[ci]!;
+  const campType = mobTypeIn(camp.zone, published.type)?.id ?? normalTypesOf(camp.zone)[0]!.id;
+  const eliteType = mobTypeIn(camp.zone, published.elite)?.id;
+  const roster = campMobs(camp, campType, eliteType);
+  camp.spots.forEach((spot, i) => {
+    placeMob(world, {
+      region: camp.zone, elite: roster[i]!.elite, type: roster[i]!.type, camp: ci, at: spot,
+      facing: Math.atan2(camp.y - spot.y, camp.x - spot.x),
     });
-    published.alive = camp.spots.length;
   });
+  published.alive = camp.spots.length;
+  published.state = CAMP_IDLE;
+  published.clearedAt = published.respawnAt = published.wardExpiresAt = 0;
+  published.wardOwner = "";
+}
+
+/** Due camps return together at a tick boundary, including while the coliseum gates are locked. */
+export function respawnCamps(world: World): void {
+  if (!world.config.mobs || world.config.training || world.state.phase !== "active") return;
+  const now = world.state.serverTime;
+  for (let ci = 0; ci < world.state.camps.length; ci++) {
+    const camp = world.state.camps[ci]!;
+    if (camp.state !== CAMP_CLEARED || camp.alive !== 0 || camp.respawnAt <= 0 || now < camp.respawnAt || !world.map.camps[ci]) continue;
+    // A large test step or stalled room may still have its old corpses. Never overlap cycles or recycle fighter ids.
+    for (const [id, mob] of world.state.mobs) {
+      if (mob.camp !== ci + 1) continue;
+      world.state.mobs.delete(id);
+      world.mobs.delete(id);
+    }
+    spawnCamp(world, ci);
+  }
 }
 
 /**
@@ -164,7 +188,7 @@ export function killMob(
   const m = kp && krt ? mobRewardFor(world, kp, krt) : 1;
 
   c.s.status = "dead";
-  campMobDied(world, c.s.camp);
+  campMobDied(world, c.s.camp, killer);
   c.s.hp = 0;
   brain.diedAt = world.state.serverTime;
   brain.mode = "idle";
@@ -337,6 +361,7 @@ export function mobRoleMove(_world: World, c: Combatant): number {
 
 export function install(world: World): void {
   world.systems.push(reapMobs);
+  world.systems.push(respawnCamps);
   world.moveModifiers.push(mobRoleMove);
   if (world.config.mobs) chainHook(world, "raidStarted", spawnRegionalMobs);
   chainHook(world, "teleported", resetAllMobs);

@@ -157,12 +157,17 @@ export const CampState = schema({
   /** Mobs of the camp still alive. */
   alive: t.uint8().default(0),
   /**
-   * 0 idle (nobody has hurt a member yet), 1 engaged (a member has taken damage: it never goes back to 0, so R7's "?" reveal
-   * can read it), 2 cleared (every member died: the camp never respawns, and stays cleared through the coliseum teleport).
+   * 0 idle, 1 engaged, 2 cleared awaiting a full roster respawn. A respawn starts a new idle cycle.
    */
   state: t.uint8().default(0),
   /** MobTypeId of the camp's elite (the one standing at its `eliteSpot`), "" for a camp without an elite (balance contract 6.4). */
   elite: t.string().default(""),
+  /** Public clear and full-roster respawn clocks; zero before a clear and after respawn. */
+  clearedAt: t.number().default(0),
+  respawnAt: t.number().default(0),
+  /** Only this player receives the camp ward's vision, until its public expiry. */
+  wardOwner: t.string().default(""),
+  wardExpiresAt: t.number().default(0),
 }, "CampState");
 export type CampState = SchemaType<typeof CampState>;
 

@@ -1,3 +1,5 @@
+import { VISION_RADIUS, VISION_TRAIL_MS } from "@raid/shared";
+import { getVisionMemory } from "../src/sim/vision";
 // The target lock's path searches are throttled per player (sim/targeting.ts handleTarget): a `target` order may cost one
 // search at most every TARGET_REPATH_MS, so a modified client spamming orders (up to MAX_ACTIONS_PER_TICK a tick) can't buy
 // one per message, and the chase's own re-plan throttle survives a lock being set or dropped. Every search is counted
@@ -62,6 +64,10 @@ function world3(): World {
     rt.path = [];
     rt.history = [{ t: world.state.serverTime, x: at.x, y: at.y }];
   });
+  // Visibility admits these previously discovered targets before the path-search throttle is exercised.
+  const memory = getVisionMemory(world, "p0")!;
+  memory.clear();
+  memory.update(world.map, AT[1]!, world.state.serverTime, VISION_TRAIL_MS, VISION_RADIUS);
   return world;
 }
 

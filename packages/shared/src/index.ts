@@ -39,3 +39,4 @@ export * from "./rewards";
 export * from "./training";
 export * from "./quests";
 export * from "./combatReadability";
+export * from "./vision";

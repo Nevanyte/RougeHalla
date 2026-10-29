@@ -29,7 +29,12 @@ import { QuestView } from "../render/QuestView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
-import { isHiddenRemote, visiblePosition } from "../render/visibility";
+import { isHiddenRemote, shouldRenderActor, visiblePosition } from "../render/visibility";
+import { CampWards } from "../render/CampWards";
+import { RaidVision, VisionFog, visibleCollection } from "../render/RaidVision";
+import { EdgeThreatView } from "../ui/edgeThreat";
+import { CampTimers } from "../ui/campTimers";
+import type { VisionInbox } from "../net/visionInbox";
 import { WishFx } from "../render/WishFx";
 import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
@@ -59,6 +64,7 @@ import { currentView } from "../view/viewState";
 
 export interface RaidSceneData {
   room: RaidRoom;
+  vision?: VisionInbox;
   /**
    * The room's map: `generateMap(state.seed, state.attempt)`, built by the map worker and checked against `state.mapHash`
    * before the scene starts (main.ts, net/roomMap.ts). Never rebuilt here: a room's map does not change.
@@ -99,6 +105,12 @@ function isTyping(target: EventTarget | null): boolean {
 
 export class RaidScene extends Phaser.Scene {
   private room!: RaidRoom;
+  private readonly vision = new RaidVision();
+  private fog!: VisionFog;
+  private campWards!: CampWards;
+  private edgeThreats!: EdgeThreatView;
+  private campTimers!: CampTimers;
+  private unbindVision: (() => void) | null = null;
   private interp!: EntityInterpolator;
   private views = new Map<string, PlayerView>();
   private opponentInspector!: OpponentInspector;
@@ -228,7 +240,7 @@ export class RaidScene extends Phaser.Scene {
   private readonly inHand = new Map<string, string>();
   private resultsVisible: (() => boolean) | undefined;
   private readonly tmp = { x: 0, y: 0 };
-  private readonly sampleMatchup = () => matchupTarget(this.room.state, this.room.sessionId, this.rendered, this.mapView?.map);
+  private readonly sampleMatchup = () => this.vision.enabled ? 0 : matchupTarget(this.room.state, this.room.sessionId, this.rendered, this.mapView?.map);
   /** Last rendered ground position per fighter (players and mobs); read by dev tooling (window.__raid). */
   readonly rendered = new Map<string, { x: number; y: number }>();
   private readonly onState = (state: RaidState) => {
@@ -244,6 +256,11 @@ export class RaidScene extends Phaser.Scene {
 
   create(data: RaidSceneData): void {
     this.room = data.room;
+    this.vision.reset();
+    this.fog = new VisionFog(this);
+    this.campWards = new CampWards(this);
+    this.edgeThreats = new EdgeThreatView();
+    this.campTimers = new CampTimers();
     this.resultsVisible = data.resultsVisible;
     this.leaveTraining = data.leaveTraining;
     this.announce = data.toast;
@@ -323,6 +340,7 @@ export class RaidScene extends Phaser.Scene {
       this.questDialog?.noteToast(t.text);
     });
     this.buildMap(data.map);
+    this.unbindVision = data.vision?.attach((snapshot) => this.vision.applySnapshot(snapshot)) ?? null;
     this.unbindPlan = data.plan?.attach((m) => this.planning?.setPlan(m)) ?? null;
     this.unbindMapHold = this.mapHold.bind();
     this.highlight = new ContainerHighlight(this);
@@ -334,6 +352,7 @@ export class RaidScene extends Phaser.Scene {
       view: (id) => this.views.get(id) ?? this.mobViews.get(id),
       // Never where a hidden (Swarm) remote fighter is: no number, burst or mark may be drawn on it, nor keep following it.
       position: (id) => this.visiblePosition(id),
+      canSee: this.vision.canSee,
       localLanded: () => this.juice.landed(performance.now()),
       localHurt: (fx) => this.juice.hurt(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0),
       nearestFighter: (x, y, within) => this.nearestFighter(x, y, within),
@@ -361,8 +380,9 @@ export class RaidScene extends Phaser.Scene {
     this.wishFx = new WishFx(this, {
       localId: this.room.sessionId,
       position: (id) => this.visiblePosition(id),
+      canSee: this.vision.canSee,
       // A remote fighter that is hidden (Swarm) shows no telegraph: nothing may point at where it is.
-      hidden: (id) => isHiddenRemote(this.room.state.players, this.room.sessionId, id),
+      hidden: (id) => !this.visiblePosition(id),
     });
     // One message per server step; unpackFx stamps each event with the step's time and skips what it can't read. The state
     // has no projectiles: the batch of the step that loosed one announces it, and a client that joined or reconnected while
@@ -456,14 +476,16 @@ export class RaidScene extends Phaser.Scene {
     // After this frame's orders, before anything reads the local fighter's position.
     this.stepLocal(now, state);
 
+    const visionMe = state.players.get(this.room.sessionId);
+    const origin = visionMe && this.localSource(visionMe, state) === "predicted" ? this.predict.motion.drawn : visionMe;
+    this.vision.update(this.mapView!.map, gatesLocked, origin, visionMe?.status === "alive", state.phase === "active", state.training,
+      this.room.sessionId, state.camps, serverNow);
+
     const patchT = state.serverTime;
     // The sim freezes `sig` and `brand` when a run ends, so the signature marks are only drawn while it is active.
     const signatures = state.phase === "active";
     const seen = new Set<string>();
     state.players.forEach((p, id) => {
-      seen.add(id);
-      let view = this.views.get(id);
-      if (!view) { view = new PlayerView(this, id === this.room.sessionId, this.fx); this.views.set(id, view); }
       const drawT = id === this.room.sessionId ? trueT : renderT; // juice: the local fighter is not held by a hit-stop
       // The local fighter is drawn from its prediction while it fights on its feet; everyone else, and it when it does not, from the snapshots.
       const local = id === this.room.sessionId;
@@ -480,6 +502,10 @@ export class RaidScene extends Phaser.Scene {
         if (local) this.hasFrozen = false;
         this.sampleDrawn(id, drawT, p);
       }
+      if (!shouldRenderActor(local, p.effects, this.tmp, this.vision.canSee)) { this.rendered.delete(id); return; }
+      seen.add(id);
+      let view = this.views.get(id);
+      if (!view) { view = new PlayerView(this, local, this.fx); this.views.set(id, view); }
       const ground = this.ground.statesOf(id, this.tmp.x, this.tmp.y, p.faction, serverNow, p.hp, p.maxHp, true, p.status === "alive");
       if (local) this.localGround = signatures && p.status === "alive" ? ground : NO_STATES;
       const markDim = this.markIsDim(id, p.markBy, this.tmp.x, this.tmp.y, state);
@@ -492,10 +518,11 @@ export class RaidScene extends Phaser.Scene {
     const seenMobs = new Set<string>();
     state.mobs.forEach((m, id) => {
       if (m.kind === "quest") return;
+      this.sampleDrawn(id, renderT, m);
+      if (!this.vision.canSee(this.tmp)) { this.rendered.delete(id); return; }
       seenMobs.add(id);
       let view = this.mobViews.get(id);
       if (!view) { view = new MobView(this, this.fx); this.mobViews.set(id, view); }
-      this.sampleDrawn(id, renderT, m);
       const ground = m.kind === "mob" || m.kind === "elite"
         ? this.ground.statesOf(id, this.tmp.x, this.tmp.y, m.faction, serverNow, m.hp, m.maxHp, false, m.status === "alive") : NO_STATES;
       const markDim = this.markIsDim(id, m.markBy, this.tmp.x, this.tmp.y, state);
@@ -512,8 +539,8 @@ export class RaidScene extends Phaser.Scene {
       if (!at) return false;
       out.x = at.x; out.y = at.y;
       return true;
-    });
-    this.fieldView.update(state.fields, renderT, now, (id) => this.rendered.get(id), this.room.sessionId);
+    }, this.vision.canSee);
+    this.fieldView.update(state.fields, renderT, now, (id) => this.visiblePosition(id), this.room.sessionId, this.vision.canSee);
 
     // Interaction range is checked against the latest synced position (what the server uses), not the
     // interpolated one the player is drawn at, which trails it by the render delay.
@@ -528,6 +555,7 @@ export class RaidScene extends Phaser.Scene {
     const visibleContainers = {
       forEach: (cb: (container: ContainerState, id: string) => void): void => {
         state.containers.forEach((container, id) => {
+          if (!this.vision.canSee(container)) return;
           const questId = questItemQuestId(container);
           if (questId) {
             const quest = state.quests.get(questId);
@@ -537,7 +565,7 @@ export class RaidScene extends Phaser.Scene {
         });
       },
     };
-    this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(visibleContainers, state.quests, pickupMap, me, {
+    this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(visibleContainers, visibleCollection(state.quests, this.vision.canSee), pickupMap, me, {
       quests: questData.quests, localId: this.room.sessionId,
     }) : null;
     this.nearest = this.interaction?.kind === "pickup" ? this.interaction.container : null;
@@ -549,6 +577,7 @@ export class RaidScene extends Phaser.Scene {
     this.updateQuestDialog(state, me, pickupMap ?? null, serverNow);
     this.questView.update({
       quests: questData.quests, containers: questData.containers, players: state.players, positions: this.rendered,
+      canSee: this.vision.canSee,
       localId: this.room.sessionId, me, trackedId: this.questLog.trackedId ?? undefined, serverNow, highlightId: questFocus?.kind === "quest" ? questFocus.id : undefined,
     });
     this.questLog.update({
@@ -572,7 +601,7 @@ export class RaidScene extends Phaser.Scene {
     this.feedback.update(now, this.sampleMatchup);
 
     // Redraws only when the player's dot (or the gates) actually changed.
-    this.minimap.setMobs(state.mobs);
+    this.minimap.setMobs(visibleCollection(state.mobs, this.vision.canSee));
     this.minimap.setChests(this.blips);
     const questBlips = questMinimapBlips(
       questData.quests, questData.containers, this.room.sessionId, this.rendered.get(this.room.sessionId),
@@ -581,8 +610,9 @@ export class RaidScene extends Phaser.Scene {
         mobs: this.questMobs(),
       },
     );
-    this.minimap.setQuests(questBlips);
-    this.questLog.setDestination(questBlips.find((blip) => blip.role === "objective" && blip.tracked) ?? null);
+    const visibleQuestBlips = questBlips.filter(this.vision.canSee);
+    this.minimap.setQuests(visibleQuestBlips);
+    this.questLog.setDestination(visibleQuestBlips.find((blip) => blip.role === "objective" && blip.tracked) ?? null);
     this.fillCampStates(state, map?.camps.length ?? 0);
     this.minimap.setCampStates(this.campStates);
     const cam = this.cameras.main;
@@ -591,6 +621,15 @@ export class RaidScene extends Phaser.Scene {
       y: cam.scrollY + cam.height / 2,
     });
 
+    this.campWards.update(this.mapView!.map, state.camps, serverNow, this.room.sessionId, state.phase === "active" && !state.training);
+    this.fog.update(this.vision, this.mapView!.map, now, this.cameras.main);
+    const threats: Vec2[] = [];
+    if (this.vision.enabled && me?.status === "alive") state.players.forEach((p, id) => {
+      const at = id !== this.room.sessionId && p.status === "alive" ? this.visiblePosition(id) : undefined;
+      if (at) threats.push(at);
+    });
+    this.edgeThreats.update(threats.length ? this.rendered.get(this.room.sessionId) : undefined, threats);
+    this.campTimers.update(map, state.camps, serverNow, state.phase === "active" && !state.training, (id) => state.players.get(id)?.name ?? "player");
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.setTerrain(this.localGround);
     this.hud.update(state, me, serverNow);
@@ -631,6 +670,7 @@ export class RaidScene extends Phaser.Scene {
   /** Mob details are only read when guidance needs a kill target, rather than allocated on every frame. */
   private *questMobs(): Generator<QuestMobTarget> {
     for (const [id, mob] of this.room.state.mobs) {
+      if (!this.vision.canSee(mob)) continue;
       yield { id, x: mob.x, y: mob.y, kind: mob.kind, status: mob.status, faction: mob.faction };
     }
   }
@@ -806,7 +846,7 @@ export class RaidScene extends Phaser.Scene {
     this.blips.length = 0;
     const me = this.rendered.get(this.room.sessionId);
     state.containers.forEach((c, id) => {
-      if (c.kind === "quest") return;
+      if (c.kind === "quest" || !this.vision.canSee(c)) return;
       seen.add(id);
       let view = this.containerViews.get(id);
       if (!view) { view = new ContainerView(this); this.containerViews.set(id, view); }
@@ -1321,6 +1361,9 @@ export class RaidScene extends Phaser.Scene {
   private buildMap(map: GameMap): void {
     this.mapView?.destroy();
     this.mapView = new MapView(this, map);
+    this.vision.reset(map);
+    this.fog.reset();
+    this.campWards.reset();
     this.ground.setMap(map);
     this.localGround = NO_STATES;
     this.minimap.setMap(map);
@@ -1360,6 +1403,12 @@ export class RaidScene extends Phaser.Scene {
   }
 
   private teardown(): void {
+    this.unbindVision?.(); this.unbindVision = null;
+    this.vision.reset();
+    this.fog.destroy();
+    this.campWards.destroy();
+    this.edgeThreats.destroy();
+    this.campTimers.destroy();
     this.input.setDefaultCursor("default");
     this.opponentInspector.destroy();
     window.removeEventListener("keydown", this.onKeyDown);

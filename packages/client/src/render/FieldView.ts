@@ -136,7 +136,7 @@ export class FieldView {
    */
   update(
     fields: { forEach(cb: (f: FieldStateLike, id: string) => void): void }, renderT: number, now: number,
-    at: (id: string) => Vec2 | undefined, localId: string,
+    at: (id: string) => Vec2 | undefined, localId: string, canSee?: (point: Vec2) => boolean,
   ): void {
     if (this.destroyed) return;
     for (const e of this.entries.values()) e.seen = false;
@@ -144,6 +144,8 @@ export class FieldView {
       let e = this.entries.get(id);
       const kind = fieldKindOf(f.kind);
       if (kind === undefined) return;
+      const centre = kind === "cloud" && f.owner ? at(f.owner) : fieldCentre(f, renderT);
+      if (canSee && (!centre || !canSee(centre) || (kind === "trail" && !canSee({ x: f.x2, y: f.y2 })))) return;
       const alpha = fieldAlpha(f.startedAt, f.endsAt, renderT);
       if (!e) {
         // Not yet due on the render clock: it appears when the bodies it concerns do.

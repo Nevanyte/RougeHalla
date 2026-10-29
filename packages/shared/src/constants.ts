@@ -49,6 +49,14 @@ export const RANGED_SLACK = 2;
 /** A projectile hits a player whose centre comes within this of its path. Arrows and balls both use exactly this. */
 export const RANGED_HIT_REACH = PLAYER_RADIUS + RANGED_SLACK;
 export const PLAYER_SPEED = 170;
+/** Player and owned camp ward sight, in ground-plane world units. */
+export const VISION_RADIUS = 900;
+/** A tile seen by a player continues to reveal live activity for two minutes after its last refresh. */
+export const VISION_TRAIL_MS = 120_000;
+/** Full camps return three minutes after their last member dies. The clearing player's ward ends at this deadline. */
+export const CAMP_RESPAWN_MS = 180_000;
+/** Tile sight scans are bounded to ten per second per source; exact current sight remains available between scans. */
+export const VISION_UPDATE_MS = 100;
 /** Picking up a weapon (F) reaches containers whose centre is this close, with line of sight. */
 export const INTERACT_RANGE = 56;
 export const WEAPON_SLOTS = 2;

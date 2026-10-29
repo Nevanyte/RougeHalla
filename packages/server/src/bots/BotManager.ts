@@ -302,6 +302,7 @@ export class BotManager {
       modules: enabledModules(this.features),
     });
     const runner = createBotRunner({
+      vision: true,
       brain,
       adapter,
       cfg: { selfDelayMs: this.cfg.latencyMs, worldDelayMs: INTERP_DELAY_MS + this.cfg.latencyMs },
