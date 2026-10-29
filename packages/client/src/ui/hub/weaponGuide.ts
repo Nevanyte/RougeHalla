@@ -8,15 +8,15 @@ import { guideNumber, weaponScalingGuide } from "./championGuide";
 export const COMBAT_GUIDE_RULES = [
   "Champion = passive + Wish + base Offense. Weapon = reach + attack rhythm + stat scaling + counter mechanics.",
   "Offense and SO are scaling stats, not damage types. Your champion sets the base attack's type; Offense adds physical damage and SO adds magic damage only where a coefficient exists.",
-  "Defense reduces physical damage. Magic resist reduces magic damage. True damage ignores both. A counter is an advantage, not a guaranteed win or a hidden damage bonus.",
+  "Defense reduces physical damage. Soul Defense reduces magic damage. True damage ignores both. A counter is an advantage, not a guaranteed win or a hidden damage bonus.",
 ];
 
 const ROLES: Record<WeaponId, { role: string; build: string; play: string }> = {
   sword: { role: "Fast melee · interrupts", build: "Offense + on-hit effects", play: "Stay close and time your swings to interrupt slower attacks. Approach archers through cover; avoid a shield's front." },
-  bow: { role: "Long range · kiting", build: "Offense + attack speed", play: "Attack, move after the arrow leaves, then attack again. Keep melee fighters at range; watch for wand balls and shields." },
-  wand: { role: "Ranged splash · anti-arrow", build: "SO first · Offense secondary", play: "Send balls through incoming arrows and clustered enemies. A shield does not stop balls; sword and axe swings can intercept them." },
+  bow: { role: "Long range · skillshots", build: "Offense + attack speed", play: "Aim straight-flying arrows, pause to draw, then move after launch. Keep melee fighters at range; watch for wand balls and shields." },
+  wand: { role: "Longest range · lock-on splash", build: "SO first · Offense secondary", play: "Click an enemy to lock on, pause to cast, then move after launch. Send balls through incoming arrows and clustered enemies; sword and axe swings can intercept them." },
   shield: { role: "Frontal defense · retaliation", build: "Defense/SD first · SO secondary", play: "Aim toward incoming sword hits and arrows. Your front matters: axe, fists and wand bypass the weapon's block mechanics." },
-  axe: { role: "Heavy melee · armor shred", build: "Offense first · bonus health secondary", play: "Close the gap, cut through shield blocking and intercept wand balls. Defense shred helps physical damage; archers can keep you at range." },
+  axe: { role: "Heavy melee · Defense shred", build: "Offense first · bonus health secondary", play: "Close the gap, cut through shield blocking and intercept wand balls. Defense shred helps physical damage; archers can keep you at range." },
   fists: { role: "Empty hand · fast, short reach", build: "Offense or SO · find a weapon", play: "Fists bypass shield blocking and carry strong on-hit effects, but have the shortest reach and reduced base damage. They sit outside the counter wheel." },
 };
 
@@ -28,15 +28,15 @@ export function weaponMechanics(id: WeaponId): string[] {
       `A swing that meets a wand ball cuts its damage to ${guideNumber(SWORD_BALL_SCALE * 100)}%, once per ball.`,
       `On-hit effects have ${guideNumber(w.onHitPower)}× strength.`,
     ];
-    case "bow": return ["Longest weapon attack range. Unit-targeted arrows follow their target after launch; directional shots fly straight.", "Move freely after launch. Moving before launch cancels a unit-targeted windup."];
+    case "bow": return ["Arrows are directional skillshots that fly straight. Aim where the enemy will be when the arrow arrives.", "Movement pauses during the draw. Move freely after launch; the wand has the furthest weapon range."];
     case "wand": {
       const s = w.special!;
-      return [`Balls delete enemy arrows they meet, keeping ${guideNumber(BALL_AFTER_ARROW * 100)}% of their current damage after each interception. Balls pass through shield blocking.`, ...(s.kind === "splash" ? [`Impact splashes ${guideNumber(s.share * 100)}% damage to other enemies within ${s.radius} units.`] : [])];
+      return ["Longest weapon range. The wand is the only weapon with lock-on; locked balls follow their target within their travel range. Movement pauses during the cast.", `Balls delete enemy arrows they meet, keeping ${guideNumber(BALL_AFTER_ARROW * 100)}% of their current damage after each interception. Balls pass through shield blocking.`, ...(s.kind === "splash" ? [`Impact splashes ${guideNumber(s.share * 100)}% damage to other enemies within ${s.radius} units.`] : [])];
     }
     case "shield": return [
       `From the front, prevent ${guideNumber(SHIELD_BLOCK_SHARE * 100)}% of sword/bash damage. A blocked sword hit cannot stagger; return ${guideNumber(SHIELD_BLOCK_SHARE * RIPOSTE_SHARE * 100)}% of its original damage before modifiers.`,
       `A frontal arrow reflects ${guideNumber(ARROW_REFLECT_SHARE * 100)}% of its damage; you still take the other ${guideNumber((1 - ARROW_REFLECT_SHARE) * 100)}%.`,
-      "Axe, fists and wand bypass blocking, not your armor or Soul Defense. The shield is not invulnerability.",
+      "Axe, fists and wand bypass blocking, not your Defense or Soul Defense. The shield is not invulnerability.",
     ];
     case "axe": {
       const s = w.special!;

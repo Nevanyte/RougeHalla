@@ -52,6 +52,7 @@ describe("the controls table", () => {
 
   it("lists the map and planning controls: hold Tab for the map, the spawn keys, the route and the keyboard path", () => {
     expect(find("run", "Hold Tab", /map/i)?.action).toMatch(/route/i);
+    expect(find("run", "Hold Tab")?.action).toContain("ranked roster");
     expect(find("planning", "1")?.keys).toEqual(["1", "2"]);
     expect(find("planning", "1")?.action).toMatch(/spawn/i);
     expect(find("planning", "Click", /route stop/i)).toBeDefined();
@@ -59,6 +60,12 @@ describe("the controls table", () => {
     expect(find("planning", "Arrow keys")).toBeDefined();
     expect(find("planning", "Enter", /Ready/)).toBeDefined();
     expect(find("planning", "Delete", /stop/i)).toBeDefined();
+  });
+
+  it("uses Offense, Soul Offence, Defense and Soul Defense in the stat icon legend", () => {
+    const text = bindings.filter(b => b.keys.includes("Stat icons")).map(b => b.action).join(" ");
+    for (const label of ["Offense", "Soul Offence", "Defense", "Soul Defense", "attack speed"]) expect(text).toContain(label);
+    expect(text).not.toMatch(/\b(?:AD|AP|MR|armor|armour)\b|Magic resist/);
   });
 
   it("lists the hub controls: walking and the station key", () => {

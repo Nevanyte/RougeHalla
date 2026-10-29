@@ -154,7 +154,7 @@ export class ChampionsPanel implements HubPanel {
       button.tabIndex = id === this.viewed ? 0 : -1;
     }
     this.baseStats.replaceChildren(...[
-      ["Health", guide.faction.hp], ["Defense", guide.faction.armor], ["Magic resist", guide.faction.shield],
+      ["Health", guide.faction.hp], ["Defense", guide.faction.armor], ["Soul Defense", guide.faction.shield],
     ].map(([label, value]) => {
       const cell = el("span");
       cell.append(el("small", undefined, String(label)), el("strong", undefined, String(value)));

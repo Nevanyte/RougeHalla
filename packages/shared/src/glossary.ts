@@ -135,10 +135,10 @@ export const WEAPON_TAGS: readonly WeaponTagRow[] = [
     weapon: "axe", tags: ["physical", "onHit"],
     note: `Move freely after the swing lands. Each hit shreds ${AXE_SHRED_ARMOR} Defense for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}. Offense and bonus HP add physical damage; base damage type comes from the champion.`,
   },
-  { weapon: "bow", tags: ["physical"], note: "Unit-targeted arrows follow their target; directional shots fly straight. Player draw time shortens with attack speed; move freely after launch. Offense adds physical damage; base damage type comes from the champion." },
+  { weapon: "bow", tags: ["physical"], note: "Arrows are directional skillshots that fly straight. Movement pauses during the draw; move freely after launch. Player draw time shortens with attack speed. Offense adds physical damage; base damage type comes from the champion." },
   {
     weapon: "wand", tags: ["magic", "area"],
-    note: `Balls delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% damage onto other enemies within ${WAND_SPLASH_RADIUS} u. SO adds magic damage and Offense adds a smaller physical part; base damage type comes from the champion. Player windup shortens with attack speed.`,
+    note: `The wand has the furthest weapon range and is the only weapon with lock-on; locked balls follow targets within their travel range. Movement pauses during the cast. Balls delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% damage onto other enemies within ${WAND_SPLASH_RADIUS} u. SO adds magic damage and Offense adds a smaller physical part; base damage type comes from the champion. Player windup shortens with attack speed.`,
   },
   { weapon: "shield", tags: ["block", "returned"], note: "Bashes, blocks in front, ripostes and reflects arrows." },
   { weapon: "fists", tags: ["onHit"], note: `The fastest hands; an empty weapon slot fights with them. Their on-hit effects land ${WEAPONS.fists.onHitPower}x as hard.` },

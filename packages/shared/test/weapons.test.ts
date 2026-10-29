@@ -242,6 +242,10 @@ describe("the weapon specials (BALANCE_CONTRACT 3.3) and their tags", () => {
     expect(note("wand")).toContain(`${WAND_SPLASH_RADIUS} u`);
     expect(note("sword")).toContain("1.5x");
     expect(note("fists")).toContain("1.2x");
+    expect(note("bow")).toContain("directional skillshots that fly straight");
+    expect(note("bow")).not.toMatch(/follow their target|Unit-targeted/);
+    expect(note("wand")).toContain("furthest weapon range");
+    expect(note("wand")).toContain("only weapon with lock-on");
     expect(WEAPON_TAGS.find((r) => r.weapon === "sword")!.tags).toContain("onHit");
     expect(WEAPON_TAGS.find((r) => r.weapon === "axe")!.tags).toContain("onHit");
     expect(WEAPON_TAGS.find((r) => r.weapon === "wand")!.tags).toContain("area");

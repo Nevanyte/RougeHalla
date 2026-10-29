@@ -26,6 +26,8 @@ describe("champion ability reference", () => {
     expect(collapsed()).toBe(true);
     expect(root.one("champion-details-toggle").attrs.get("aria-expanded")).toBe("false");
     expect(root.byClass("champion-weapon-row")).toHaveLength(6);
+    expect(root.one("champion-base-stats").textContent).toContain("Soul Defense");
+    expect(root.one("champion-base-stats").textContent).not.toMatch(/Magic resist|\bMR\b/);
   });
 
   it("expands while either Shift is held, without consuming browser or navigation input", () => {

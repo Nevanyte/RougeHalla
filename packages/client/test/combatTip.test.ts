@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ABILITIES, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WISH_COOLDOWN_SECONDS } from "@raid/shared";
-import { abilityTip, wishCooldownMultiplier } from "../src/ui/combatTip";
+import { ABILITIES, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS, WISH_COOLDOWN_SECONDS } from "@raid/shared";
+import { abilityTip, weaponTip, wishCooldownMultiplier } from "../src/ui/combatTip";
 
 describe("ability hover details", () => {
   it("shows actual area, duration, damage modifiers and exit stun", () => {
@@ -26,5 +26,21 @@ describe("ability hover details", () => {
     expect(mult).toBe(2);
     expect(abilityTip(ABILITIES.blaze, 1, undefined, { wishCooldownMult: mult })).toContain(`Cooldown: ${WISH_COOLDOWN_SECONDS * 2 / 60} min`);
     expect(abilityTip(ABILITIES.blaze, 1, undefined, { wishCooldownMult: mult, training: true })).toContain("Cooldown: 5 s");
+  });
+});
+
+describe("player projectile hover details", () => {
+  it("describes straight arrow skillshots and the wand's finite lock-on range from the live catalog", () => {
+    const bow = weaponTip("bow", "fire"), wand = weaponTip("wand", "fire");
+    for (const [id, text] of [["bow", bow], ["wand", wand]] as const) {
+      const shape = WEAPONS[id].shape;
+      if (shape.kind !== "projectile") throw new Error("expected a projectile weapon");
+      expect(text).toContain(`${shape.range} attack range`);
+      expect(text).toContain(`${shape.speed} speed`);
+      expect(text).not.toMatch(/5 s|5s/);
+    }
+    expect(bow).toContain("directional skillshot, flies straight");
+    expect(bow).not.toMatch(/lock|home/i);
+    expect(wand).toContain("wand lock-on follows targets within the ball's travel range");
   });
 });

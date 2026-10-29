@@ -21,6 +21,8 @@ describe("champion guide matches the combat catalog", () => {
     expect(guide.wish.details.join(" ")).toContain("Offense and SO do not increase");
     expect(guide.wish.details.join(" ")).toContain("Training cooldown: 5 s");
     expect(guide.wish.details.join(" ")).toContain("45 s lock");
+    const visible = [guide.passive.summary, guide.passive.scaling, ...guide.passive.details, guide.wish.scaling, ...guide.wish.details].join(" ");
+    expect(visible).not.toMatch(/\b(?:armor|armour|AD|AP|MR)\b|Magic resist/);
   });
 
   it("uses the arena's paced burn and disease, with a single SO rider rather than design-sheet damage", () => {

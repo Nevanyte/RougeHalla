@@ -100,7 +100,7 @@ export function weaponTip(weapon: WeaponId, fighterOrFaction: ReadableFighter | 
   const w = WEAPONS[weapon];
   const shape = w.shape.kind === "arc"
     ? `Melee arc: ${w.shape.reach} u`
-    : `${w.shape.projectile === "arrow" ? "Arrow" : "Ball"}: ${w.shape.range} attack range · ${w.shape.speed} speed; locked shots home for up to 5 s`;
+    : `${w.shape.projectile === "arrow" ? "Arrow" : "Ball"}: ${w.shape.range} attack range · ${w.shape.speed} speed; ${weapon === "wand" ? "wand lock-on follows targets within the ball's travel range" : "directional skillshot, flies straight"}`;
   const damage = typeof fighterOrFaction === "string"
     ? damageProfileText(fighterOrFaction)
     : weaponDamageTypeText(fighterOrFaction, weapon);

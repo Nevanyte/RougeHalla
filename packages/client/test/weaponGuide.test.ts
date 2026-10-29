@@ -27,4 +27,18 @@ describe("weapon scaling illustrations", () => {
       expect(builds.every(b => ALL_WEAPON_IDS.includes(b.weapon) && b.caution.length > 20)).toBe(true);
     }
   });
+
+  it("teaches bow skillshots, wand-only lock-on and the wand's furthest range", () => {
+    const bow = weaponGuide("bow"), wand = weaponGuide("wand");
+    expect(bow.mechanics.join(" ")).toContain("directional skillshots that fly straight");
+    expect(bow.mechanics.join(" ")).not.toMatch(/follow their target|unit-targeted|Longest weapon attack range/);
+    expect(bow.mechanics.join(" ")).toContain("Movement pauses during the draw");
+    expect(wand.mechanics.join(" ")).toContain("only weapon with lock-on");
+    expect(wand.mechanics.join(" ")).toContain("within their travel range");
+    expect(wand.mechanics.join(" ")).toContain("Longest weapon range");
+    expect(wand.mechanics.join(" ")).toContain("Movement pauses during the cast");
+    const bowShape = WEAPONS.bow.shape, wandShape = WEAPONS.wand.shape;
+    if (bowShape.kind !== "projectile" || wandShape.kind !== "projectile") throw new Error("expected ranged weapons");
+    expect(wandShape.range).toBeGreaterThan(bowShape.range);
+  });
 });
