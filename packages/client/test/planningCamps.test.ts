@@ -4,7 +4,7 @@
 // words, and a cleared camp has no matchup chip left. With no states the markers are what they were.
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateMap, type GameMap } from "@raid/shared";
+import { elitesOf, generateMap, isEliteCamp, mobStatReward, normalTypesOf, type GameMap } from "@raid/shared";
 import { SettingsStore } from "../src/settings";
 import { PlanningView, campTitle, type PlanningFrame } from "../src/ui/planning";
 import { readCampStates } from "../src/ui/campInfo";
@@ -36,6 +36,31 @@ function setup() {
 }
 
 describe("camp states on the map screens", () => {
+  it("shows each camp's public normal-mob stat reward and an elite chest badge only on the held full map", () => {
+    const { view, camps } = setup();
+    const normalTypes = MAP.camps.map((camp) => normalTypesOf(camp.zone)[0]!.id);
+    const eliteTypes = MAP.camps.map((camp) => isEliteCamp(camp) ? elitesOf(camp.zone)[0]!.id : "");
+    view.update(frame({ mode: "map", campTypes: normalTypes, campElites: eliteTypes }));
+    camps().forEach((camp, i) => {
+      const rewards = camp.byClass("pl-camp-reward");
+      const stat = rewards.find((badge) => !badge.classList.contains("pl-camp-chest"));
+      const chest = rewards.find((badge) => badge.classList.contains("pl-camp-chest"));
+      const reward = mobStatReward(normalTypes[i]!);
+      expect(stat, `camp ${i} normal reward`).toBeDefined();
+      expect(stat!.byClass("combat-icon")).toHaveLength(1);
+      expect(stat!.textContent).toContain(reward!.text.match(/^\+([^ ]+)/)?.[0]);
+      expect(stat!.title).toContain(reward!.name);
+      expect(Boolean(chest)).toBe(isEliteCamp(MAP.camps[i]!));
+      if (chest) {
+        expect(chest.textContent).toContain("Aug");
+        expect(chest.title).toMatch(/augment chest.*no fixed stat/i);
+      }
+    });
+    view.update(frame({ mode: "preview", campTypes: normalTypes, campElites: eliteTypes }));
+    expect(camps().every((camp) => camp.one("pl-camp-rewards").hidden)).toBe(true);
+    view.destroy();
+  });
+
   it("marks a cleared camp and a disturbed one, and leaves the rest alone", () => {
     const { view, states } = setup();
     const n = MAP.camps.length;
