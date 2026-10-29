@@ -12,8 +12,9 @@ Everything else is the v2 rule package from the counter review: normalized backl
 bonus/chill clocks from first contact, float HP, cooldown remainders carry. Each signature part is mitigated with its own
 damage type (engine.PowerSpec.sig_types: burn and disease magic, backlash physical, the mark true).
 
-Not modelled by `duel`: geometry beyond a fixed approach time, projectile flight, stagger, windups, roots and buffs other
-than HP, attack speed and an outgoing damage multiplier (Side.dps scales the weapon hit and the signature bonus alike).
+Not modelled by `duel`: geometry beyond a fixed approach time, projectile flight, stagger, roots and buffs other than HP,
+attack speed and an outgoing damage multiplier (Side.dps scales the weapon hit and the signature bonus alike). Windups
+enter the attack-start/landing scheduler when Sentenced's tax changes an enemy's interval; other sides use cooldown progress.
 engine.duel is the design source of truth; this checks that its cycle survives discrete swings. Every first-swing phase
 pair is swept (numpy arrays of shape (P,)).
 
@@ -48,7 +49,7 @@ SUPPRESS_FEEDS_LIFESTEAL = True
 AS_CAP = 1.5   # shared/constants.ts AS_MULT_CAP: the attack-speed multiplier of the rows and sources together
 MARK_TIER_HITS = 3.0   # shared/constants.ts MARK_TIER_HITS: weapon hits landed per tier (the weaponless engine's `tier_hits` is its proxy)
 V = 170.0      # move speed (u/s)
-REACH = 60.0   # melee reach
+REACH = 124.0  # longest armed melee reach (112 u) plus the target's 12 u body, as harness/kiting.ts
 CHILL_MOVE_RADIUS = 100.0  # shared/signatures.ts: Frost's move slow reaches only fighters it chills within this distance...
 CHILL_MOVE_MULT = 0.7      # ...and multiplies their move speed by this
 CHILL_MOVE_HOLD = 1.0      # ...for one second before it starts to thaw
@@ -61,14 +62,14 @@ CHILL_MOVE_RESET = CHILL_MOVE_HOLD + CHILL_MOVE_THAW  # ...after four seconds cl
 # A windup mod (a windup multiplier below 1, Quickdraw; owner ruling "Melee windups only") never shortens a ranged windup:
 # windup() applies it to the melee weapons only (shared/mods.ts scaleWindup), so there are no ranged floors to carry.
 WEAPONS = {
-    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True,  windup=0.10, wshare=1.00),
-    "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=60,  melee=True,  windup=0.25, wshare=0.25),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.30, wshare=0.30),
-    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.30, wshare=0.30),
-    "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
+    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=112, melee=True,  windup=0.10, wshare=1.00),
+    "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=112, melee=True,  windup=0.25, wshare=0.25),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=520, melee=False, windup=0.50, wshare=0.55),
+    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=640, melee=False, windup=0.45, wshare=0.50),
+    "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=96,  melee=True,  windup=0.10, wshare=1.00),
     # The empty hand (balance pass D3): the fastest melee, a weak hit. Not one of the five loop weapons (MELEE / RANGED / SIG
     # below leave it out: nobody picks it, a run starts on it), but every pairing is still modelled.
-    "fists":  dict(speed=1.50, dps=0.60, floor=0.20, rng=40,  melee=True,  windup=0.10, wshare=1.00),
+    "fists":  dict(speed=1.50, dps=0.60, floor=0.20, rng=72,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
 MELEE = ["sword", "axe", "shield"]

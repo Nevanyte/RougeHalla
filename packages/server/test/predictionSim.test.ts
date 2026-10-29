@@ -876,7 +876,8 @@ describe("ice against the real sim", () => {
     r.stop();
     // The position the tick before the one that applies the stop left the fighter at, still at full speed.
     let from = r.server.x;
-    while (r.server.moveSeq !== 2) { from = r.server.x; r.run(1); }
+    for (let waited = 0; r.server.moveSeq !== 2 && waited < 500; waited++) { from = r.server.x; r.run(1); }
+    expect(r.server.moveSeq, `stop acknowledgement in phase ${r.world.state.phase}`).toBe(2);
     r.run(1500);
     expect(r.server.x - from).toBeCloseTo(34, 1);
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);

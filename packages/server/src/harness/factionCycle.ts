@@ -29,7 +29,7 @@ import type { World } from "../sim/world";
 /** realtime.py's DT and EPS. */
 const DT = TICK_MS / 1000;
 const EPS = 1e-9;
-/** Centre-to-centre distance of the two fighters: inside every weapon's reach (the shield's 44 + 12 is the shortest). */
+/** Centre-to-centre distance of the two fighters: inside every weapon's reach, including the empty hand. */
 const DUEL_GAP = 40;
 const MAP_TILES = 24;
 

@@ -1577,29 +1577,30 @@ describe("swing interceptions", () => {
     castBall(stopper, "mage", 0);
     const ball = lastProjectile(stopper);
     let last: ProjectileRuntime[] = [];
-    while (!ball.ended) { tick(stopper); last = ballsThisTick(stopper, "someone"); }
+    for (let n = 0; !ball.ended && n < 40; n++) { tick(stopper); last = ballsThisTick(stopper, "someone"); }
+    expect(ball.ended, `ball should end within its range in phase ${stopper.state.phase}`).toBe(true);
     expect(last.map((b) => b.id)).toEqual([ball.id]);
     expect(ballsThisTick(stopper, "mage")).toEqual([]);
   });
 
-  it("homes a target-locked arrow long enough to catch a fleeing target beyond catalog range", () => {
+  it("homes a wand ball toward a fleeing target within catalog range", () => {
     const w = arena([mage(), target({ x: 430, y: 320 }), idle()]);
     w.combat.spawns.push({
       owner: "mage", kind: "ball", weapon: "wand", a: 0,
       packet: { raw: 10, phys: 1, magic: 0, true: 0 }, origin: { x: 200, y: 320 }, targetId: "target",
     });
     spawnProjectiles(w);
-    const arrow = lastProjectile(w);
-    expect(arrow.launch.targetId).toBe("target");
-    expect(arrow.launch.range).toBe(BALL.range);
+    const ball = lastProjectile(w);
+    expect(ball.launch.targetId).toBe("target");
+    expect(ball.launch.range).toBe(BALL.range);
     let end: Fx<"projEnd"> | undefined;
     for (let i = 0; i < 30 && !end; i++) {
-      P(w, "target").x += 8.5; // flee at 170 units/s, faster than the arrow's spare range permits if flight were range-clamped
+      P(w, "target").x += 8.5; // flee at 170 units/s while the ball follows its moving target
       const evs = flyTick(w);
       end = fxOf(evs, "projEnd")[0];
     }
     expect(end?.reason).toBe("hit");
-    expect(arrow.traveled).toBeLessThanOrEqual(BALL.range);
+    expect(ball.traveled).toBeLessThanOrEqual(BALL.range);
   });
 
   it("dissipates a guided shot when its target dies", () => {

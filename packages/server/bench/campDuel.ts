@@ -3,8 +3,8 @@
 // one of the zone's four normal types, 4 by default: the generator's camps hold 3 to 5, about 4) or an elite camp (one of the
 // zone's two elites and `--size` - 1 normals, so the same number of mobs). Unless a type is named (`--types` sweeps them), seed s
 // takes the zone's normal type (s - 1) mod 4 and its elite (s - 1) mod 2, so any 4 consecutive seeds cover every type and a
-// cell pools them. It fights through the target
-// lock, the game client's way: it clicks the nearest standing mob, and when that one dies, the next. Three pulls:
+// cell pools them. It walks into reach of the nearest standing mob and holds a directional attack, switching to the next
+// when that one dies. A wand alone uses the game's target lock. Three pulls:
 //   camp    the camp as shipped since R5: the mobs are placed WITH their camp (MobState.camp, and a published CampState), all
 //           idle on their spots; the player walks up and its first landed hit wakes every member at once through
 //           mobAI.aggro (camp-wide aggro, D24, CAMP_WIDE_AGGRO). The primary measurement ("full camp under D24");
@@ -35,14 +35,14 @@
 //            --sweep takes --ks a,b,c (0.45,0.40,..)  --eks a,b (the elite scale, 0.65)  --sizes a,b,c (--size)
 import { writeFileSync } from "node:fs";
 import {
-  circleClear, elitesOf, ELITE_K, FACTION_IDS, findPath, generateMap, MOB_K, MOB_TYPES, mulberry32, normalTypesOf, PLAYER_RADIUS,
+  circleClear, elitesOf, ELITE_K, FACTION_IDS, findPath, generateMap, hasLineOfSight, lockSpacing, MOB_K, MOB_TYPES, mulberry32, normalTypesOf, PLAYER_RADIUS, reachMask,
   REGION_WEAPONS, SIGNATURE_WEAPONS, TICK_MS, TILE, ALL_WEAPON_IDS, FISTS, isWeaponId, type CampDef,
   type FactionId, type GameMap, type MobTypeDef, type MobTypeId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { buildArena } from "../src/harness/duel";
 import { ensureRosters } from "../src/sim/camps";
-import { combatant, setMobScalesForHarness } from "../src/sim/combatant";
+import { activeWeapon, combatant, setMobScalesForHarness } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { aggro } from "../src/sim/mobAI";
@@ -240,7 +240,24 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
         const d = Math.hypot(m.x - p.x, m.y - p.y);
         if (!best || d < best.d) best = { id, d };
       }
-      if (best) enqueueClientMessage(prt.inputs, "target", { id: best.id });
+      if (best) {
+        const inHand = activeWeapon(p)!;
+        if (inHand === "wand") enqueueClientMessage(prt.inputs, "target", { id: best.id });
+        else {
+          const target = world.state.mobs.get(best.id)!;
+          const a = Math.atan2(target.y - p.y, target.x - p.x);
+          const spacing = lockSpacing(inHand);
+          const canHit = hasLineOfSight(map, p, target, reachMask(inHand));
+          enqueueClientMessage(prt.inputs, "aim", { a });
+          if (best.d > spacing.far || !canHit) {
+            enqueueClientMessage(prt.inputs, "release", { a });
+            if (tick % 2 === 0 || prt.path.length === 0) enqueueClientMessage(prt.inputs, "move", { x: target.x, y: target.y });
+          } else {
+            if (prt.path.length > 0) enqueueClientMessage(prt.inputs, "stop", {});
+            enqueueClientMessage(prt.inputs, "attack", { a });
+          }
+        }
+      }
     }
     const before = ids.filter(alive).length;
     step(world, TICK_MS);

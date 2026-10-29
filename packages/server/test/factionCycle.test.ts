@@ -3,7 +3,7 @@
 // same hp fractions as the Python reference at the game's duel pace (the PvP factor off: the cycle at the design pace).
 //
 // fixtures/realtime-paced.json is that reference's output. Regenerate it from the repo root after changing realtime.py,
-// the faction numbers or DUEL_PACE (needs python3 with numpy):
+// the faction numbers, weapon timings or DUEL_PACE (needs python3 with numpy):
 //   python3 testing/realtime_paced.py --k 2 --nmax 5 --sub 1 --pairs > packages/server/test/fixtures/realtime-paced.json
 // `npm run harness:factions -- --python` prints the same comparison for any grid, with the full tables.
 import fs from "node:fs";

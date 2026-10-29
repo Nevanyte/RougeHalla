@@ -12,7 +12,7 @@ import {
 } from "@raid/shared";
 import { teleportToColiseum } from "../src/sim/arena";
 import { grantCard } from "../src/sim/chests";
-import { combatant, defenseOf, type Combatant } from "../src/sim/combatant";
+import { activeWeapon, combatant, defenseOf, type Combatant } from "../src/sim/combatant";
 import { signatureState } from "../src/sim/factions";
 import { deferHit } from "../src/sim/ledger";
 import { placeMob } from "../src/sim/mobLife";
@@ -40,7 +40,20 @@ function give(w: World, id: string, ...cards: string[]): void {
   for (const card of cards) expect(grantCard(w, C(w, id), card), `${id} takes ${card}`).not.toBeNull();
 }
 
-const lock = (w: World, by: string, victim: string): void => RT(w, by).inputs.pushAction({ kind: "target", id: victim });
+/** Hold a directional attack toward the bag; only a wand uses the game's target lock. */
+function engage(w: World, by: string, victim: string): void {
+  const a = P(w, by);
+  const b = P(w, victim);
+  RT(w, by).inputs.pushAction(activeWeapon(a) === "wand"
+    ? { kind: "target", id: victim }
+    : { kind: "attack", a: Math.atan2(b.y - a.y, b.x - a.x) });
+}
+
+/** Release a held attack and cancel a wand lock, then stop walking. */
+function cease(w: World, by: string): void {
+  RT(w, by).inputs.pushAction({ kind: "release", a: P(w, by).facing });
+  RT(w, by).inputs.pushMove({ kind: "stop" });
+}
 
 interface Seen { landed: LandedHit[][]; events: SimEvent[]; entries: LedgerEntry[] }
 
@@ -64,14 +77,14 @@ function hitsOf(seen: Seen, by: string, victim: string): LandedHit[] {
 const hp = (w: World, id: string): number => P(w, id).hp;
 const near = (x: number, y = 320) => ({ x, y });
 
-/** Two armor-free Holy fighters 30 u apart: `a` holds `weapon` and locks `v` (a punching bag with a million hp). */
+/** Two armor-free Holy fighters 30 u apart: `a` holds `weapon` and attacks `v` (a punching bag with a million hp). */
 function bag(weapon: WeaponId | "", cards: readonly string[] = [], victim: Partial<RigFighter> = {}): World {
   const w = arena([
     { id: "a", faction: "holy", weapon, at: near(200) },
     { id: "v", faction: "holy", weapon: "", at: near(230), ...victim },
   ]);
   give(w, "a", ...cards);
-  lock(w, "a", "v");
+  engage(w, "a", "v");
   return w;
 }
 
@@ -97,7 +110,7 @@ describe("Rhythm and the crit accumulator (G12)", () => {
       { id: "u", faction: "holy", weapon: "", at: near(230, 345) },
     ]);
     give(w, "a", "haste1", "rhythm");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const seen = run(w, 120);
     const v = hitsOf(seen, "a", "v");
     const u = hitsOf(seen, "a", "u");
@@ -129,7 +142,7 @@ describe("Cruel Wounds: damage over time can crit (G12)", () => {
       { id: "v", faction: "holy", weapon: "", at: near(230) },
     ], { signatures: true });
     give(w, "a", "cruelWounds", "ap1");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const seen = run(w, 60);
     const burn = seen.entries.filter((e) => e.sig === "burn");
     expect(burn.length).toBeGreaterThan(10);
@@ -150,7 +163,7 @@ describe("Cruel Wounds: damage over time can crit (G12)", () => {
       { id: "v", faction: "holy", weapon: "", at: near(230) },
     ], { signatures: true });
     give(w, "a", "haste1", "rhythm");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const seen = run(w, 60);
     expect(seen.entries.filter((e) => e.sig === "burn" && e.packet.crit)).toEqual([]);
     expect(seen.entries.filter((e) => e.sig === undefined && e.packet.crit).length).toBeGreaterThan(0);
@@ -163,7 +176,7 @@ describe("Cruel Wounds: damage over time can crit (G12)", () => {
     ], { signatures: true });
     give(w, "a", "haste1", "rhythm", "cruelWounds", "hemorrhage");
     P(w, "v").hp = P(w, "v").maxHp * 0.4;
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     expect(dotMultOf(C(w, "a").s)).toBeCloseTo(1.25, 12); // Rhythm + Cruel Wounds: 50% crit chance becomes an equivalent 25% steady DoT bonus.
 
     const seen = run(w, 180);
@@ -185,7 +198,7 @@ describe("streaks", () => {
       { id: "u", faction: "holy", weapon: "", at: near(300, 360) },
     ]);
     give(w, "a", "tunnelVision");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const seen = run(w, 340);
     const hits = hitsOf(seen, "a", "v");
     expect(hits.length).toBeGreaterThanOrEqual(12);
@@ -194,7 +207,7 @@ describe("streaks", () => {
     hits.slice(0, 12).forEach((h, i) => expect(h.amount, `hit ${i + 1}`).toBeCloseTo(expected(i), 6));
     expect(hits[11]!.amount).toBeCloseTo(base * 1.4, 6);
     // Switch: the first hit on the other target is back to the base, then it climbs again.
-    lock(w, "a", "u");
+    engage(w, "a", "u");
     const more = run(w, 140);
     const onU = hitsOf(more, "a", "u");
     expect(onU.length).toBeGreaterThanOrEqual(3);
@@ -208,12 +221,12 @@ describe("streaks", () => {
       { id: "u", faction: "holy", weapon: "", at: near(300, 360) },
     ]);
     give(w, "a", "firstImpressions");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const hits = hitsOf(run(w, 160), "a", "v");
     expect(hits.length).toBeGreaterThanOrEqual(3);
     expect(hits[0]!.amount).toBeCloseTo(hits[1]!.amount * 1.4, 6);
     expect(hits[2]!.amount).toBeCloseTo(hits[1]!.amount, 6);
-    lock(w, "a", "u");
+    engage(w, "a", "u");
     const onU = hitsOf(run(w, 160), "a", "u");
     expect(onU[0]!.amount).toBeCloseTo(hits[1]!.amount * 1.4, 6);
     expect(onU[1]!.amount).toBeCloseTo(hits[1]!.amount, 6);
@@ -226,10 +239,10 @@ describe("streaks", () => {
       { id: "u", faction: "holy", weapon: "", at: near(200, 250) },
     ]);
     give(w, "a", "hemorrhage", "firstImpressions");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     run(w, 12); // the first sword hit on v: +40%, and a bleed that lasts 2 s
     expect(bleeds(w, "v").length).toBeGreaterThan(0);
-    lock(w, "a", "u");
+    engage(w, "a", "u");
     let ticks = 0;
     while (RT(w, "a").cards?.streak?.target !== "u" && ticks++ < 60) tick(w);
     expect(RT(w, "a").cards?.streak?.target, "the streak moved to u").toBe("u");
@@ -250,13 +263,13 @@ describe("streaks", () => {
       { id: "v", faction: "holy", weapon: "", at: near(230) },
     ]);
     give(w, "a", "firstImpressions");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const first = hitsOf(run(w, 30), "a", "v");
     expect(first[0]!.amount).toBeCloseTo(first[1]!.amount * 1.4, 6);
     // Let go (a stop), wait out the gap, lock again: it is a new target once more.
-    RT(w, "a").inputs.pushMove({ kind: "stop" });
+    cease(w, "a");
     run(w, 70);
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const later = hitsOf(run(w, 12), "a", "v");
     expect(later[0]!.amount).toBeCloseTo(first[0]!.amount, 6);
   });
@@ -307,10 +320,13 @@ describe("the on-hit pipeline", () => {
       { id: "v", faction: "holy", weapon: "", at: near(300) },
     ], { signatures: true });
     give(w, "a", "hemorrhage");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
+    tick(w); // start a single committed draw, then release before another draw can begin
+    RT(w, "a").inputs.pushAction({ kind: "release", a: 0 });
     let hits = 0;
-    while (hits === 0) { tick(w); hits += w.combat.landed.filter((h) => h.by === "a" && h.victim === "v" && !h.dot && h.sig === undefined).length; }
-    RT(w, "a").inputs.pushMove({ kind: "stop" });
+    for (let n = 0; hits === 0 && n < 100; n++) { tick(w); hits += w.combat.landed.filter((h) => h.by === "a" && h.victim === "v" && !h.dot && h.sig === undefined).length; }
+    expect(hits, "a real bow hit before checking the contact expiry").toBeGreaterThan(0);
+    cease(w, "a");
     tick(w);
     const contactAt = signatureState(w, "a")!.contactAt;
     const bleedBefore = bleeds(w, "v").length;
@@ -326,7 +342,7 @@ describe("the on-hit pipeline", () => {
       { id: "v", faction: "holy", weapon: "", at: near(230) },
     ]);
     give(w, "a", "hemorrhage");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     run(w, 30);
     expect(bleeds(w, "v")).toEqual([]);
   });
@@ -395,9 +411,9 @@ describe("the on-hit pipeline", () => {
       { id: "u", faction: "holy", weapon: "", at: near(200, 345) },
     ]);
     give(w, "a", "hemorrhage", "thirdTimesTheCharm");
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     run(w, 28); // two hits on v
-    lock(w, "a", "u");
+    engage(w, "a", "u");
     run(w, 40);
     // Never a third hit on one target in a row yet if the switch happened after two: no doubled bleed on either.
     const all = [...bleeds(w, "v"), ...bleeds(w, "u")];
@@ -412,14 +428,14 @@ describe("the axe's shred (a weapon special)", () => {
       { id: "a", faction: "holy", weapon: "axe", at: near(200) },
       { id: "v", faction: "plague", weapon: "", at: near(230) },
     ]);
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     expect(hitsOf(run(w, 100), "a", "v").length).toBeGreaterThanOrEqual(4);
     expect(statusValue(w, C(w, "v"), "shred")).toBe(AXE_SHRED_CAP);
     expect(P(w, "v").armorBonus).toBe(-AXE_SHRED_CAP * 10); // int16 tenths: the mirror carries it to the client as a negative bonus
     expect(defenseOf(P(w, "v")).armor).toBeCloseTo(FACTIONS.plague.armor - AXE_SHRED_CAP, 6);
     // An armor-free fighter loses nothing more: the total stops at 0.
     const bare = arena([{ id: "a", faction: "holy", weapon: "axe", at: near(200) }, { id: "v", faction: "holy", weapon: "", at: near(230) }]);
-    lock(bare, "a", "v");
+    engage(bare, "a", "v");
     run(bare, 100);
     expect(statusValue(bare, C(bare, "v"), "shred")).toBe(AXE_SHRED_CAP);
     expect(defenseOf(P(bare, "v")).armor).toBe(0);
@@ -430,14 +446,14 @@ describe("the axe's shred (a weapon special)", () => {
       { id: "a", faction: "holy", weapon: "axe", at: near(200) },
       { id: "v", faction: "frost", weapon: "", at: near(230) },
     ]);
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const values: number[] = [];
     run(w, 70, () => values.push(statusValue(w, C(w, "v"), "shred")));
     const distinct = [...new Set(values)];
     expect(distinct.slice(0, 3)).toEqual([0, AXE_SHRED_ARMOR, AXE_SHRED_CAP]);
     expect(AXE_SHRED_CAP).toBe(2 * AXE_SHRED_ARMOR);
     // Let go of the lock: it fades 3 s after the last axe hit.
-    RT(w, "a").inputs.pushMove({ kind: "stop" });
+    cease(w, "a");
     run(w, 2);
     expect(statusValue(w, C(w, "v"), "shred")).toBe(AXE_SHRED_CAP);
     run(w, 62);
@@ -450,7 +466,7 @@ describe("the axe's shred (a weapon special)", () => {
       { id: "a", faction: "holy", weapon: "axe", at: near(200) },
       { id: "v", faction: "plague", weapon: "", at: near(230) },
     ]);
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const hits = hitsOf(run(w, 100), "a", "v");
     expect(hits[0]!.amount).toBeLessThan(hits[4]!.amount);
     const spec = FACTIONS.plague;
@@ -466,7 +482,7 @@ describe("SimConfig.weaponSpecials (the parity runs against realtime.py turn the
     for (const on of [true, false]) {
       const axe = arena([{ id: "a", faction: "holy", weapon: "axe", at: near(200) }, { id: "v", faction: "plague", weapon: "", at: near(230) }]);
       axe.config.weaponSpecials = on;
-      lock(axe, "a", "v");
+      engage(axe, "a", "v");
       run(axe, 40);
       expect(statusValue(axe, C(axe, "v"), "shred") > 0, `axe, specials ${on}`).toBe(on);
       const wand = arena([
@@ -474,7 +490,7 @@ describe("SimConfig.weaponSpecials (the parity runs against realtime.py turn the
         { id: "n", faction: "frost", weapon: "", at: near(380, 360) },
       ]);
       wand.config.weaponSpecials = on;
-      lock(wand, "a", "v");
+      engage(wand, "a", "v");
       const seen = run(wand, 60);
       expect(seen.landed.flat().some((h) => h.victim === "n" && h.by === "a"), `wand, specials ${on}`).toBe(on);
     }
@@ -490,7 +506,7 @@ describe("the wand's splash (a weapon special)", () => {
       { id: "v", faction: "frost", weapon: "", at: near(380) },
       ...extra,
     ]);
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     return w;
   };
 
@@ -522,7 +538,7 @@ describe("the wand's splash (a weapon special)", () => {
       { id: "a", faction: "holy", weapon: "wand", at: near(200) },
       { id: "v", faction: "frost", weapon: "", at: near(380) },
     ]);
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     const seen = run(w, 30);
     expect(seen.landed.flat().filter((h) => h.derived).length).toBe(0); // alone: nothing to splash
   });
@@ -538,7 +554,7 @@ function blockArena(cards: readonly string[], attackerWeapon: WeaponId = "sword"
   ]);
   P(w, "h").facing = Math.PI; // toward the swordsman
   give(w, "h", ...cards);
-  lock(w, "a", "h");
+  engage(w, "a", "h");
   return w;
 }
 
@@ -629,7 +645,7 @@ describe("blocks", () => {
     const oneTick = arena([{ id: "a", faction: "holy", weapon: "sword", at: near(200) }, { id: "h", faction: "holy", weapon: "shield", at: near(230), hpFrac: 1 }]);
     P(oneTick, "h").facing = Math.PI;
     give(oneTick, "h", "hemorrhage", "eyeForAnEye");
-    lock(oneTick, "a", "h");
+    engage(oneTick, "a", "h");
     const s1 = run(oneTick, 30);
     const rip = s1.entries.find((e) => e.passive)!;
     const first = statusesOf(C(oneTick, "a")).find((s) => s.kind === "dot" && s.tag?.startsWith("bleed:"))!;
@@ -665,7 +681,7 @@ describe("Spiked Shell", () => {
       { id: "h", faction: "holy", weapon: "", at: near(230) },
     ]);
     give(w, "h", "spikedShell");
-    lock(w, "a", "h");
+    engage(w, "a", "h");
     const seen = run(w, 40);
     const dealt = hitsOf(seen, "a", "h");
     const back = seen.landed.flat().filter((l) => l.by === "h" && l.victim === "a");
@@ -686,7 +702,7 @@ describe("Spiked Shell", () => {
       { id: "h", faction: "holy", weapon: "", at: near(300) },
     ]);
     give(w, "h", "spikedShell");
-    lock(w, "a", "h");
+    engage(w, "a", "h");
     const seen = run(w, 80);
     expect(hitsOf(seen, "a", "h").length).toBeGreaterThan(0);
     expect(seen.landed.flat().filter((l) => l.by === "h")).toEqual([]);
@@ -699,7 +715,7 @@ describe("Spiked Shell", () => {
     ]);
     give(w, "a", "spikedShell");
     give(w, "h", "spikedShell");
-    lock(w, "a", "h");
+    engage(w, "a", "h");
     const seen = run(w, 40);
     const returned = seen.landed.flat().filter((l) => l.passive);
     const hits = seen.landed.flat().filter((l) => !l.passive && l.weapon !== null && !l.dot);
@@ -752,7 +768,7 @@ describe("the `dot` mult reaches a card's damage over time (the final review's m
         { id: "v", faction: "holy", weapon: "", at: near(230) },
       ], { signatures: true });
       give(w, "a", "ap3", "festeringArcana", ...cards);
-      lock(w, "a", "v");
+      engage(w, "a", "v");
       run(w, 30);
       RT(w, "a").inputs.pushMove({ kind: "move", x: 200, y: 600 });
       P(w, "v").x = 900;
@@ -805,7 +821,7 @@ describe("entries queued for the next tick do not survive the teleport or the ru
   it("an ordinary tick still lands what the last one queued (a Spiked Shell's return)", () => {
     const w = arena([{ id: "a", faction: "holy", weapon: "sword", at: near(200) }, { id: "h", faction: "holy", weapon: "", at: near(230) }]);
     give(w, "h", "spikedShell");
-    lock(w, "a", "h");
+    engage(w, "a", "h");
     const seen = run(w, 40);
     expect(seen.landed.flat().filter((l) => l.by === "h" && l.victim === "a" && l.passive).length).toBeGreaterThan(0);
   });
@@ -1016,7 +1032,7 @@ describe("Plant Your Feet", () => {
   it("after standing still for 1 s the next attack has +25% damage and +25% range, then it has to be earned again", () => {
     const w = arena([
       { id: "a", faction: "holy", weapon: "sword", at: near(200) },
-      { id: "v", faction: "holy", weapon: "", at: near(285) }, // 85 u: past the sword's 64 + 12, inside 80 + 12
+      { id: "v", faction: "holy", weapon: "", at: near(340) }, // 140 u: past the sword's 112 + 12, inside its armed 140 + 12
     ]);
     give(w, "a", "plantYourFeet");
     // Stand for a second, then swing at the cursor (no lock: a lock would walk into range).
@@ -1024,7 +1040,7 @@ describe("Plant Your Feet", () => {
     const seenEarly = run(w, 1, () => RT(w, "a").inputs.pushAction({ kind: "attack", a: 0 }));
     const seen = run(w, 20); // the first second: swings at 0, 0.5 s and 1 s after it started
     const all = [...seenEarly.landed, ...seen.landed].flat().filter((h) => h.by === "a" && h.victim === "v");
-    expect(all.length, "only the armed swing reaches 85 u").toBe(1);
+    expect(all.length, "only the armed swing reaches 140 u").toBe(1);
     // It carried the bonus: an in-reach swing of the same sword hits 25% softer.
     // The axe swings every 0.75 s: standing still from the start, the first swing is armed, the second (0.75 s on) is not, the third (1.5 s on) is again.
     const near2 = arena([
@@ -1033,16 +1049,16 @@ describe("Plant Your Feet", () => {
     ]);
     give(near2, "a", "plantYourFeet");
     for (let i = 0; i < 22; i++) tick(near2); // stood still for a second
-    lock(near2, "a", "v");
+    engage(near2, "a", "v");
     const hits = hitsOf(run(near2, 80), "a", "v");
     expect(hits.length).toBeGreaterThanOrEqual(4);
     expect(hits[0]!.amount).toBeCloseTo(hits[1]!.amount * (1 + PLANT_FEET_BONUS), 6);
     expect(hits[2]!.amount).toBeCloseTo(hits[0]!.amount, 6);
     expect(hits[3]!.amount).toBeCloseTo(hits[1]!.amount, 6);
-    // The armed sword swing that reached 85 u carried the same 25% (a sword hit in the first second, not yet armed, is the reference).
+    // The armed sword swing that reached 140 u carried the same 25% (a sword hit in the first second, not yet armed, is the reference).
     const ref = arena([{ id: "a", faction: "holy", weapon: "sword", at: near(200) }, { id: "v", faction: "holy", weapon: "", at: near(230) }]);
     give(ref, "a", "plantYourFeet");
-    lock(ref, "a", "v");
+    engage(ref, "a", "v");
     expect(all[0]!.amount).toBeCloseTo(hitsOf(run(ref, 5), "a", "v")[0]!.amount * (1 + PLANT_FEET_BONUS), 6);
   });
 
@@ -1056,8 +1072,8 @@ describe("Plant Your Feet", () => {
     // Walk for a moment, then fight: not armed.
     RT(w, "a").inputs.pushMove({ kind: "move", x: 200, y: 360 });
     run(w, 6);
-    RT(w, "a").inputs.pushMove({ kind: "stop" });
-    lock(w, "a", "v");
+    cease(w, "a");
+    engage(w, "a", "v");
     const hits = hitsOf(run(w, 20), "a", "v");
     expect(hits.length).toBeGreaterThanOrEqual(1);
     const plain = hitsOf(run(w, 40), "a", "v");
@@ -1075,7 +1091,7 @@ describe("Festering Arcana", () => {
     ], { signatures: true });
     give(w, "a", "ap3", "festeringArcana");
     const ap = 33;
-    lock(w, "a", "v");
+    engage(w, "a", "v");
     run(w, 30);
     expect(findStatus(C(w, "v"), "dot", "a")).toBeUndefined();
     // Let go and walk away: the engagement lapses, and the tail starts.
@@ -1100,9 +1116,9 @@ describe("Festering Arcana", () => {
         { id: "v", faction: "holy", weapon: "", at: near(230) },
       ], { signatures: true });
       give(w, "a", ...cards);
-      lock(w, "a", "v");
+      engage(w, "a", "v");
       run(w, 30);
-      RT(w, "a").inputs.pushMove({ kind: "stop" });
+      cease(w, "a");
       P(w, "v").x = 900;
       P(w, "v").y = 100;
       RT(w, "v").history = [{ t: w.state.serverTime, x: 900, y: 100 }];
@@ -1201,7 +1217,7 @@ describe("no processing order changes an outcome", () => {
       const f = sheet[id]!;
       give(w, id, ...f.cards);
       P(w, id).hp = P(w, id).maxHp;
-      lock(w, id, f.target);
+      engage(w, id, f.target);
     }
     P(w, "b").facing = Math.PI;
     return w;
@@ -1247,7 +1263,7 @@ describe("no processing order changes an outcome", () => {
       ], { pvpRules: false, rewardSalt: salt });
       P(w, "v").maxHp = P(w, "v").hp = 1_000_000;
       give(w, "a", "gambler");
-      lock(w, "a", "v");
+      engage(w, "a", "v");
       for (let i = 0; i < 400; i++) tick(w);
       return P(w, "v").hp;
     };

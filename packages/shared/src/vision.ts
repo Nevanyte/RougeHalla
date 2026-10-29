@@ -1,5 +1,5 @@
 import { TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS } from "./constants";
-import { inColiseum, isWallTile, type GameMap } from "./map";
+import { inColiseum, isWallTile, MASK_SIGHT, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
 /** First wall faces are visible, but walls and closed gates occlude everything behind them. No ray objects allocated. */
@@ -9,29 +9,37 @@ export function hasVisionLineOfSight(map: GameMap, from: Vec2, to: Vec2): boolea
 
 function sightLine(map: GameMap, x: number, y: number, endX: number, endY: number): boolean {
   if (!Number.isFinite(x + y + endX + endY)) return false;
-  let tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
-  const ex = Math.floor(endX / TILE), ey = Math.floor(endY / TILE);
+  const tileSize = TILE, sightMask = MASK_SIGHT;
+  let tx = Math.floor(x / tileSize), ty = Math.floor(y / tileSize);
+  const ex = Math.floor(endX / tileSize), ey = Math.floor(endY / tileSize);
   if (ex < 0 || ey < 0 || ex >= map.w || ey >= map.h || isWallTile(map, tx, ty)) return false;
+  // Both ends are in bounds, so every crossed tile (and the two corner neighbors) is too.
+  // Avoid repeating four bounds checks at every step of every field-of-view ray.
+  const tiles = map.tiles, width = map.w;
+  let index = ty * width + tx;
   const dx = endX - x, dy = endY - y;
   const sx = Math.sign(dx), sy = Math.sign(dy);
-  let crossX = dx === 0 ? Infinity : ((tx + (sx > 0 ? 1 : 0)) * TILE - x) / dx;
-  let crossY = dy === 0 ? Infinity : ((ty + (sy > 0 ? 1 : 0)) * TILE - y) / dy;
+  let crossX = dx === 0 ? Infinity : ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
+  let crossY = dy === 0 ? Infinity : ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
   while (tx !== ex || ty !== ey) {
     // Crossing exactly through a wall corner cannot reveal the diagonal floor beyond it.
     if (crossX === crossY) {
-      if (isWallTile(map, tx + sx, ty) || isWallTile(map, tx, ty + sy)) return false;
+      if ((tiles[index + sx]! & sightMask) !== 0 || (tiles[index + sy * width]! & sightMask) !== 0) return false;
       tx += sx; ty += sy;
-      crossX = dx === 0 ? Infinity : ((tx + (sx > 0 ? 1 : 0)) * TILE - x) / dx;
-      crossY = dy === 0 ? Infinity : ((ty + (sy > 0 ? 1 : 0)) * TILE - y) / dy;
+      index += sx + sy * width;
+      crossX = dx === 0 ? Infinity : ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
+      crossY = dy === 0 ? Infinity : ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
     } else if (crossX < crossY) {
       tx += sx;
-      crossX = ((tx + (sx > 0 ? 1 : 0)) * TILE - x) / dx;
+      index += sx;
+      crossX = ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
     } else {
       ty += sy;
-      crossY = ((ty + (sy > 0 ? 1 : 0)) * TILE - y) / dy;
+      index += sy * width;
+      crossY = ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
     }
     if (tx === ex && ty === ey) return true;
-    if (isWallTile(map, tx, ty)) return false;
+    if ((tiles[index]! & sightMask) !== 0) return false;
   }
   return true;
 }
@@ -49,10 +57,15 @@ export class VisionMemory {
   private lastUpdate = -Infinity;
   private lastRadius = -1;
   private lastTtl = -1;
+  private lastX = NaN;
+  private lastY = NaN;
+  private readonly visible: Uint32Array;
+  private visibleCount = 0;
 
   constructor(readonly width: number, readonly height: number) {
     if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) throw new RangeError("Invalid vision grid");
     this.expiresAt = new Float64Array(width * height);
+    this.visible = new Uint32Array(width * height + 1);
   }
 
   clear(): void {
@@ -66,10 +79,16 @@ export class VisionMemory {
     if (!Number.isFinite(now + ttl + radius + origin.x + origin.y) || ttl <= 0 || radius < 0) return;
     if (map === this.lastMap && now >= this.lastUpdate && now - this.lastUpdate < VISION_UPDATE_MS
       && radius === this.lastRadius && ttl === this.lastTtl) return;
+    // Maps (including their gate-closed variant) are immutable. A stationary source sees the same
+    // cells, so refresh their deadlines without casting the same thousand rays again. Exact world
+    // coordinates matter: moving within a tile can reveal a different side of a wall corner.
+    const reuse = map === this.lastMap && radius === this.lastRadius && origin.x === this.lastX && origin.y === this.lastY;
     this.lastMap = map; this.lastUpdate = now; this.lastRadius = radius; this.lastTtl = ttl;
+    this.lastX = origin.x; this.lastY = origin.y;
     const until = now + ttl;
-    if (inColiseum(map, origin.x, origin.y)) {
-      const { x, y, w, h } = map.coliseum.rect;
+    const arena = inColiseum(map, origin.x, origin.y) ? map.coliseum.rect : null;
+    if (arena) {
+      const { x, y, w, h } = arena;
       for (let ty = Math.max(0, y); ty < Math.min(map.h, y + h); ty++) {
         for (let tx = Math.max(0, x); tx < Math.min(map.w, x + w); tx++) {
           const i = ty * this.width + tx;
@@ -77,24 +96,37 @@ export class VisionMemory {
         }
       }
     }
-    const minX = Math.max(0, Math.floor((origin.x - radius) / TILE));
-    const maxX = Math.min(map.w - 1, Math.floor((origin.x + radius) / TILE));
-    const minY = Math.max(0, Math.floor((origin.y - radius) / TILE));
-    const maxY = Math.min(map.h - 1, Math.floor((origin.y + radius) / TILE));
+    if (reuse) {
+      for (let i = 0; i < this.visibleCount; i++) {
+        const index = this.visible[i]!;
+        if (until > this.expiresAt[index]!) this.expiresAt[index] = until;
+      }
+      return;
+    }
+    this.visibleCount = 0;
+    const tileSize = TILE;
+    const minX = Math.max(0, Math.floor((origin.x - radius) / tileSize));
+    const maxX = Math.min(map.w - 1, Math.floor((origin.x + radius) / tileSize));
+    const minY = Math.max(0, Math.floor((origin.y - radius) / tileSize));
+    const maxY = Math.min(map.h - 1, Math.floor((origin.y + radius) / tileSize));
     const r2 = radius * radius;
     for (let ty = minY; ty <= maxY; ty++) {
-      const y = (ty + 0.5) * TILE, dy = y - origin.y;
+      const y = (ty + 0.5) * tileSize, dy = y - origin.y;
       for (let tx = minX; tx <= maxX; tx++) {
-        const x = (tx + 0.5) * TILE, dx = x - origin.x;
+        // The full arena was already revealed above, regardless of its walls or the sight circle.
+        if (arena && tx >= arena.x && tx < arena.x + arena.w && ty >= arena.y && ty < arena.y + arena.h) continue;
+        const x = (tx + 0.5) * tileSize, dx = x - origin.x;
         if (dx * dx + dy * dy > r2 || !sightLine(map, origin.x, origin.y, x, y)) continue;
         const i = ty * this.width + tx;
+        this.visible[this.visibleCount++] = i;
         if (until > this.expiresAt[i]!) this.expiresAt[i] = until;
       }
     }
     // The standing tile is always retained, including when the player is just inside a radius boundary.
-    const tx = Math.floor(origin.x / TILE), ty = Math.floor(origin.y / TILE);
+    const tx = Math.floor(origin.x / tileSize), ty = Math.floor(origin.y / tileSize);
     if (tx >= 0 && ty >= 0 && tx < this.width && ty < this.height && !isWallTile(map, tx, ty)) {
       const i = ty * this.width + tx;
+      this.visible[this.visibleCount++] = i;
       this.expiresAt[i] = Math.max(this.expiresAt[i]!, until);
     }
   }

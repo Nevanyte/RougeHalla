@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TILE, VISION_UPDATE_MS } from "../src/constants";
-import { mapFromTiles } from "../src/map";
+import { mapFromTiles, withGates } from "../src/map";
 import { hasVisionLineOfSight, VisionMemory } from "../src/vision";
 
 const at = (x: number, y: number) => ({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE });
@@ -39,6 +39,33 @@ describe("vision regression edge cases", () => {
     memory.update(map, origin, now + VISION_UPDATE_MS, ttl, 0);
     expect(memory.canSee(origin, now + VISION_UPDATE_MS + ttl - 1)).toBe(true);
     expect(memory.canSee(origin, now + VISION_UPDATE_MS + ttl)).toBe(false);
+  });
+
+  it("refreshes stationary cells exactly and invalidates them for position, radius, map and reset changes", () => {
+    const tiles = new Uint8Array(12 * 10);
+    for (let y = 0; y < 8; y++) tiles[y * 12 + 5] = 1;
+    const map = mapFromTiles(12, 10, tiles);
+    map.coliseum.gates = [{ side: "e", x: 5 * TILE, y: 8 * TILE, tiles: [{ x: 5, y: 8 }] }];
+    const closed = withGates(map), memory = new VisionMemory(12, 10);
+    const expected = new Float64Array(120);
+    const check = (sight: typeof map, origin: { x: number; y: number }, now: number, radius: number, ttl = 500) => {
+      const fresh = new VisionMemory(12, 10);
+      fresh.update(sight, origin, now, ttl, radius);
+      for (let i = 0; i < expected.length; i++) expected[i] = Math.max(expected[i]!, fresh.expiresAt[i]!);
+      memory.update(sight, origin, now, ttl, radius);
+      expect(memory.expiresAt).toEqual(expected);
+    };
+    const origin = at(4, 7);
+    check(map, origin, 1000, 8 * TILE);
+    check(map, origin, 1100, 8 * TILE); // identical rays, later deadlines
+    check(map, origin, 1200, 8 * TILE, 900); // the geometry survives a TTL change
+    check(map, { x: origin.x + 7, y: origin.y - 7 }, 1300, 8 * TILE); // same tile, different rays
+    check(map, origin, 1400, TILE);
+    check(closed, origin, 1401, TILE); // gate change bypasses the scan throttle
+    check(closed, at(8, 8), 1501, 8 * TILE); // teleport
+    check(closed, at(8, 8), 1400, 8 * TILE); // a backward clock never shortens existing deadlines
+    memory.clear(); expected.fill(0);
+    check(closed, at(8, 8), 1401, 8 * TILE); // reset must rebuild even at the same position
   });
 
   it("keeps line of sight symmetric on translated floor and wall layouts", () => {
