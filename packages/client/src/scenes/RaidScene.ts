@@ -249,6 +249,12 @@ export class RaidScene extends Phaser.Scene {
     this.observeLocal(state);
   };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
+  private readonly onWindowBlur = () => {
+    if (this.attackMoveArmed) {
+      this.attackMoveArmed = false;
+      this.input.setDefaultCursor("default");
+    }
+  };
 
   constructor() {
     super("raid");
@@ -421,6 +427,7 @@ export class RaidScene extends Phaser.Scene {
     });
     this.input.on("pointermove", () => { this.aimKnown = true; });
     window.addEventListener("keydown", this.onKeyDown);
+    window.addEventListener("blur", this.onWindowBlur);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
     if (import.meta.env.DEV) {
@@ -1413,6 +1420,7 @@ export class RaidScene extends Phaser.Scene {
     this.input.setDefaultCursor("default");
     this.opponentInspector.destroy();
     window.removeEventListener("keydown", this.onKeyDown);
+    window.removeEventListener("blur", this.onWindowBlur);
     this.room.onStateChange.remove(this.onState);
     this.unbindFx?.();
     this.unbindFx = null;
