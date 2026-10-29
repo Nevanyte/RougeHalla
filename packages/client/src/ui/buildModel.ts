@@ -98,7 +98,10 @@ export function buildStats(input: BuildInput): BuildStat[] {
   const ad = `${STAT_GLOSSARY.ad.text} +${num(m.adBonus)} from your cards. `
     + (adPer > 0 ? `Your ${w.name} turns each point into ${num(adPer)} damage a second.` : `Your ${w.name} gets nothing from it.`);
   const ap = `${STAT_GLOSSARY.ap.text} +${num(m.apBonus)} from your cards. `
-    + (apPer > 0 ? `Your ${w.name} turns each point into ${num(apPer)} damage a second, and each running damage over time gains ${num(AP_DOT_RATIO)} a second per point.` : `Your ${w.name} gets nothing from it directly, but each running damage over time gains ${num(AP_DOT_RATIO)} a second per point.`);
+    + (apPer > 0 ? `Your ${w.name} turns each point into ${num(apPer)} magic damage a second at base attack speed.` : `Your ${w.name} gets nothing from it directly.`)
+    + (spec?.mechanic === "dragonslayer" || spec?.mechanic === "rat_king"
+      ? ` Your engaged burn or disease also gains ${num(AP_DOT_RATIO)} magic damage a second per point.`
+      : " Your base passive and Wish have no direct AP scaling; augments may add their own effects.");
 
   const armorBase = spec?.armor ?? 0;
   const mrBase = spec?.shield ?? 0;

@@ -89,7 +89,7 @@ describe("BuildHud", () => {
     strip.update(me({ weapon0: "sword", weapon1: "wand", slot: 0 }), true);
     expect(part(cells()[1]!, 2)).toContain("Your Sword");
     strip.update(me({ weapon0: "sword", weapon1: "wand", slot: 1 }), true);
-    expect(part(cells()[1]!, 2)).toContain("Your Wand turns each point into 1 damage a second");
+    expect(part(cells()[1]!, 2)).toContain("Your Wand turns each point into 1 magic damage a second at base attack speed");
     strip.update(me({ weapon0: "", weapon1: "", slot: 0 }), true);
     expect(part(cells()[0]!, 2)).toContain("Your Fists turns each point into 0.6");
     expect(heldWeapon({ weapon0: "", weapon1: "bow", slot: 0 })).toBe("fists");

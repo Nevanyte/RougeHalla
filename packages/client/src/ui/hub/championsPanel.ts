@@ -3,6 +3,7 @@ import { iconClipPath } from "../abilitySlot";
 import { cssColor, el } from "../dom";
 import { championGuide, GUIDE_WEAPON_IDS, weaponScalingGuide, type GuideAbility } from "./championGuide";
 import type { HubPanel, HubPanelContext } from "./hubPanels";
+import { CHAMPION_BUILDS, COMBAT_GUIDE_RULES } from "./weaponGuide";
 import "./championsPanel.css";
 
 let guides = 0;
@@ -17,9 +18,11 @@ export class ChampionsPanel implements HubPanel {
   private readonly content = el("div", "champion-content");
   private readonly name = el("h2", "champion-name");
   private readonly role = el("p", "champion-role");
+  private readonly recommendation = el("p", "champion-recommendation");
   private readonly crest = el("span", "champion-crest");
   private readonly baseStats = el("div", "champion-base-stats");
   private readonly abilities = el("div", "champion-abilities");
+  private readonly builds = el("section", "champion-builds");
   private readonly weaponRows = el("div", "champion-weapon-rows");
   private readonly selectButton = el("button", "btn champion-select");
   private readonly detailsButton = el("button", "btn small champion-details-toggle");
@@ -32,7 +35,7 @@ export class ChampionsPanel implements HubPanel {
   private viewed: FactionId = "fire";
   private readonly id = `champion-guide-${guides++}`;
 
-  constructor(private readonly options: { onPick?: (id: FactionId) => void } = {}) {
+  constructor(private readonly options: { onPick?: (id: FactionId) => void; onWeapons?: () => void } = {}) {
     this.root.setAttribute("aria-label", "Champions, abilities and scaling");
     const intro = el("div", "champion-guide-intro");
     const introCopy = el("div");
@@ -72,7 +75,7 @@ export class ChampionsPanel implements HubPanel {
 
     const header = el("header", "champion-header");
     const identity = el("div", "champion-identity");
-    identity.append(this.name, this.role);
+    identity.append(this.name, this.role, this.recommendation);
     this.crest.setAttribute("aria-hidden", "true");
     this.selectButton.type = "button";
     this.selectButton.hidden = !options.onPick;
@@ -83,7 +86,16 @@ export class ChampionsPanel implements HubPanel {
     this.content.tabIndex = 0;
     const weapons = el("section", "champion-weapons");
     weapons.append(el("h3", undefined, "Your weapon adds its own scaling"), el("p", "champion-weapon-caption", "Bonus damage per second at base attack speed. Every champion can use every weapon; a run starts on fists."), this.weaponRows);
-    this.content.append(header, this.baseStats, this.abilities, weapons, el("p", "champion-base-note", "Base kit values. Enemy defenses, augments and PvP bonuses can change final damage. Browsing does not change your faction until you choose it."));
+    if (options.onWeapons) {
+      const link = el("button", "btn small champion-open-weapons", "Weapon guide · examples & counters →");
+      link.type = "button";
+      link.addEventListener("click", () => options.onWeapons?.());
+      weapons.prepend(link);
+    }
+    const rules = el("div", "champion-rules");
+    rules.append(el("strong", undefined, "How champion × weapon works"));
+    for (const rule of COMBAT_GUIDE_RULES.slice(0, 2)) rules.append(el("p", undefined, rule));
+    this.content.append(header, rules, this.baseStats, this.builds, this.abilities, weapons, el("p", "champion-base-note", "Base kit values. Enemy defenses, augments and PvP bonuses can change final damage. Browsing does not change your faction until you choose it."));
     const layout = el("div", "champion-layout");
     layout.append(this.navigation, this.content);
     this.root.append(intro, layout);
@@ -135,6 +147,7 @@ export class ChampionsPanel implements HubPanel {
     this.content.setAttribute("aria-labelledby", `${this.id}-${this.viewed}`);
     this.name.textContent = guide.faction.displayName;
     this.role.textContent = guide.faction.role;
+    this.recommendation.textContent = `Generally pairs best with: ${CHAMPION_BUILDS[this.viewed].map(build => weaponScalingGuide(build.weapon).name).join(" or ")}`;
     this.crest.style.setProperty("clip-path", iconClipPath(guide.wish.def.icon));
     for (const [id, button] of this.buttons) {
       button.setAttribute("aria-selected", String(id === this.viewed));
@@ -148,6 +161,18 @@ export class ChampionsPanel implements HubPanel {
       return cell;
     }), el("span", "champion-base-mix", `Base attacks · ${guide.baseDamage}`));
     this.detailNodes.length = 0;
+    this.builds.replaceChildren(el("h3", undefined, "Top 2 recommended weapons"), el("p", "champion-weapon-caption", "General recommendations based on champion synergy and scaling. Your current stats and the enemy's counter weapon can change the best choice."));
+    const examples = el("div", "champion-build-grid");
+    for (const [index, build] of CHAMPION_BUILDS[this.viewed].entries()) {
+      const card = el("article", "champion-build-example");
+      card.append(
+        el("h4", "champion-build-weapon", `${index + 1}. ${weaponScalingGuide(build.weapon).name} · ${build.name}`),
+        el("strong", "champion-build-stats", build.stats),
+        el("p", undefined, build.why), el("p", "champion-build-caution", build.caution),
+      );
+      examples.append(card);
+    }
+    this.builds.append(examples);
     this.abilities.replaceChildren(this.abilityCard(guide.passive), this.abilityCard(guide.wish, [guide.wish.cooldown, guide.wish.targeting]));
     this.weaponRows.replaceChildren(...GUIDE_WEAPON_IDS.map(id => {
       const model = weaponScalingGuide(id);

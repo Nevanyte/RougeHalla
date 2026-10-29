@@ -33,7 +33,7 @@ describe("champion guide in the hub", () => {
     expect(hub.isOpen).toBe(false);
     hub.open("shop"); expect(hub.isOpen).toBe(false);
     hub.open("champions"); expect(hub.isOpen).toBe(true);
-    expect(dom.ui.byClass("hub-tab-btn").slice(1).every(tab => tab.disabled)).toBe(true);
+    expect(dom.ui.byClass("hub-tab-btn").slice(2).every(tab => tab.disabled)).toBe(true);
     hub.close();
   });
   it("opens without a profile, keeps account-only tabs disabled, and clears held Shift on close", () => {
@@ -44,13 +44,26 @@ describe("champion guide in the hub", () => {
     expect(dom.ui.one("champions-panel").attrs.get("data-detail")).toBe("true");
     const tabs = dom.ui.byClass("hub-tab-btn");
     expect(tabs[0]!.textContent).toBe("Champions");
-    expect(tabs.slice(1).every(tab => tab.disabled)).toBe(true);
+    expect(tabs[1]!.textContent).toBe("Weapon guide");
+    expect(tabs[1]!.disabled).toBe(false);
+    expect(tabs.slice(2).every(tab => tab.disabled)).toBe(true);
     tabs[0]!.key("ArrowRight");
-    expect(tabs[0]!.attrs.get("aria-selected")).toBe("true");
+    expect(tabs[1]!.attrs.get("aria-selected")).toBe("true");
+    expect(dom.ui.one("champions-panel").attrs.get("data-detail")).toBe("false");
+    expect(dom.ui.one("weapon-guide-name").textContent).toBe("Sword");
     hub.close(); expect(hub.isOpen).toBe(false);
     expect(dom.win.count()).toBe(0);
     hub.open("champions");
     expect(dom.ui.one("champions-panel").attrs.get("data-detail")).toBe("false");
+    hub.close();
+  });
+
+  it("links from champion pairings into the public weapon guide without loading a profile", () => {
+    const hub = new HubPanels({ onProfile: vi.fn() });
+    hub.open("champions");
+    dom.ui.one("champion-open-weapons").click();
+    expect(dom.ui.byClass("hub-tab-btn")[1]!.attrs.get("aria-selected")).toBe("true");
+    expect(dom.ui.one("weapon-guide-name").textContent).toBe("Sword");
     hub.close();
   });
 
