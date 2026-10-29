@@ -20,20 +20,20 @@ import { fingerprints } from "./support/duelFingerprint";
 
 // Pinned outputs from the current runDuel simulation, not legacy combat metrics. The control port intentionally changed ranged
 // timing to the current 0.3-interval share and removed the axe's post-launch root; the Sentenced redesign intentionally changes faction damage and defenses too. Refresh affected trajectories after these rule changes.
-// The live playtest controls increase ranges, lengthen ranged pauses, and keep unit locks for wands only. These refreshed hashes pin that current simulation.
+// Live playtest controls increased ranges, kept unit locks for wands only, and now let player melee land immediately while moving. NPC telegraphs and ranged pauses remain unchanged. These hashes pin that simulation.
 
 const PINNED: ReadonlyArray<readonly [string, string]> = [
   ["holy wand>bow open", "bc0f2bc0778f1170"],
   ["fire bow>wand open", "c92f46de5fdf97ea"],
-  ["fire sword>axe open", "73720f22e6c70bdd"],
-  ["frost shield mirror capped", "35b4338aaa46bb59"],
-  ["fire sword mirror pillars", "9bde7293e0b8437f"],
+  ["fire sword>axe open", "f5d3fad19ead4887"],
+  ["frost shield mirror capped", "51baf2929f07f85b"],
+  ["fire sword mirror pillars", "1f93357b67587066"],
   ["plague bow mirror pillars", "cf08bbe9dfb7bd41"],
-  ["fire/sentenced locks signatures", "4c78ed59c862a971"],
+  ["fire/sentenced locks signatures", "8c2764f16cb3cc7c"],
   ["fire bow mirror start offset", "ce322ff7b17ae23a"],
-  ["holy bow>sword stale", "a80d25917722492f"],
-  ["holy bow>sword present", "471789b5ccf74dcf"],
-  ["fire wand>shield carded", "3484df70fd94f554"],
+  ["holy bow>sword stale", "e472c6ec3b2c9d6e"],
+  ["holy bow>sword present", "2ee559c4ba6171fe"],
+  ["fire wand>shield carded", "3a143245aee857c8"],
 ];
 
 describe("the default duel path", () => {

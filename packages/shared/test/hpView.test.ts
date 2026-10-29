@@ -37,6 +37,8 @@ describe("the barrier", () => {
   it("writes the hp readout with the barrier when there is one", () => {
     expect(hpText(400, 500, 0)).toBe("HP 400/500");
     expect(hpText(1416.25, 1416.25, 0)).toBe("HP 1417/1417");
+    expect(hpText(1540, 1540.0000000000002, 0)).toBe("HP 1540/1540");
+    expect(hpText(Number.EPSILON, 500, 0)).toBe("HP 1/500");
     expect(hpText(399.2, 500, 74.3)).toBe("HP 400/500 +75 barrier");
     expect(hpText(400, 500, 0.0001)).toBe("HP 400/500 +1 barrier");
     expect(hpText(400, 500, -3)).toBe("HP 400/500");

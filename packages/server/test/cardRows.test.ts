@@ -434,7 +434,8 @@ const RIGS: Record<string, Rig> = {
     hold(w, 0, "quickdraw");
     expect(P(w, 0).windupMult).toBe(500);
     expect(timingsOf(P(w, 0), "axe")!.windup).toBeCloseTo(axe.windup * 0.5, 9);
-    expect(timingsOf(P(w, 0), "sword")!.windup).toBeCloseTo(0.05, 9);
+    expect(timingsOf(P(w, 0), "sword")!.windup).toBe(0); // instant player melee stays instant
+    expect(timingsOf(P(w, 0), "axe")!.interval).toBe(axe.interval);
     expect(timingsOf(P(w, 0), "bow")).toEqual(bow); // melee windups only
   },
   bountyHunter: () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RANGED_HIT_REACH, WEAPONS, Y_SCALE } from "@raid/shared";
+import { ARROW_RADIUS, PLAYER_RADIUS, WEAPONS, Y_SCALE } from "@raid/shared";
 import { WeaponRangeView, weaponRangeGeometry, WEAPON_RANGE_DEPTH, type WeaponRangeFrame } from "../src/render/WeaponRangeView";
 import { argsOf, fakeScene } from "./fakes";
 
@@ -26,7 +26,8 @@ describe("local weapon range geometry", () => {
     if (shape.kind !== "projectile") throw new Error("expected bow");
     const east = weaponRangeGeometry("bow", 0), south = weaponRangeGeometry("bow", Math.PI / 2);
     expect(east.kind).toBe("lane"); expect(east.range).toBe(shape.range);
-    expect(east.points).toEqual([{ x: 0, y: -RANGED_HIT_REACH }, { x: shape.range, y: -RANGED_HIT_REACH }, { x: shape.range, y: RANGED_HIT_REACH }, { x: 0, y: RANGED_HIT_REACH }]);
+    const hitReach = PLAYER_RADIUS + ARROW_RADIUS;
+    expect(east.points).toEqual([{ x: 0, y: -hitReach }, { x: shape.range, y: -hitReach }, { x: shape.range, y: hitReach }, { x: 0, y: hitReach }]);
     east.points.forEach((p, i) => { expect(south.points[i]!.x).toBeCloseTo(-p.y); expect(south.points[i]!.y).toBeCloseTo(p.x); });
   });
 

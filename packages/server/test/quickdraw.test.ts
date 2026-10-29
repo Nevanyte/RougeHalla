@@ -1,10 +1,5 @@
-// Quickdraw, owner ruling "Melee windups only" (testing/TUNING_ROGUE.md section 7): it shortens the sword's, the shield bash's
-// and the axe's windups and NEVER a ranged one. The ranged windups are the anti-kiting
-// lever, so a bow or wand attack with Quickdraw is the same attack without it. The axe has no post-launch recovery root. Windups are tick-quantized (an attack lands on the
-// first 50 ms tick at or after start + windup, never in the tick it started in), so the numbers are sized to remove whole ticks:
-// the sword and the bash 2 -> 1 at both ranks, the Fire/Frost axe 5 -> 3 -> 2. Since the balance pass Quickdraw is
-// a card (one copy, -50% windup, the old rank 1); "rank 2" below is that card plus a second halving from a mod source (what a future relic
-// could add), so the tick arithmetic of the deeper cut stays pinned.
+// Player melee lands immediately while moving. Legacy Quickdraw modifiers cannot shorten a zero windup;
+// ranged attack pauses remain the anti-kiting lever, so Quickdraw never shortens bow or wand draws.
 import { describe, expect, it } from "vitest";
 import {
   attackInterval, cardRows, decodeMult, encodeMult, FACTION_IDS, FACTIONS, mapFromTiles, mulberry32, pacedFaction,
@@ -67,10 +62,14 @@ function attackOf(w: World, weapon: WeaponId): { windupMs: number; landTicks: nu
   p.slot = 0;
   expect(enqueueClientMessage(w.players.get("p0")!.inputs, "attack", { a: 0 })).toBe(true);
   expect(enqueueClientMessage(w.players.get("p0")!.inputs, "release", { a: 0 })).toBe(true);
-  step(w, TICK_MS); // the attack starts in this tick
+  const events = step(w, TICK_MS); // an instant melee swing also lands in this tick
   const rt = w.players.get("p0")!.weapon;
   const act = rt.action;
-  expect(act, `${weapon} started an attack`).not.toBeNull();
+  if (act === null) {
+    expect(events.filter((fx) => fx.type === "fx" && fx.fx.kind === "swing" && fx.fx.by === "p0"), `${weapon} landed immediately`).toHaveLength(1);
+    expect(moveMultiplierOf(w, C(w))).toBe(1);
+    return { windupMs: 0, landTicks: 0, freeTicks: 0 };
+  }
   const windupMs = act!.landsAt - act!.startedAt;
   let landTicks = -1;
   let freeTicks = -1;
@@ -81,8 +80,6 @@ function attackOf(w: World, weapon: WeaponId): { windupMs: number; landTicks: nu
   }
   return { windupMs, landTicks, freeTicks };
 }
-
-const ticksOf = (cut: number | undefined): number | undefined => (cut === undefined ? undefined : Math.ceil(cut - 1e-9));
 
 describe("Quickdraw's rows", () => {
   it("are -50% windup, on the melee weapons (the card's text says melee windups)", () => {
@@ -146,85 +143,63 @@ describe("a bow or wand with Quickdraw is the same attack as without it", () => 
   });
 });
 
-describe("the melee windups, in ticks (an attack starting on the tick grid)", () => {
-  it("the sword and the shield bash land one tick after starting instead of two, at both ranks", () => {
-    for (const weapon of ["sword", "shield"] as const) {
-      const plain = attackOf(startRun("fire"), weapon);
-      expect(plain.windupMs, weapon).toBeCloseTo(100, 6);
-      expect(plain.landTicks, weapon).toBe(2);
-      const r1 = startRun("fire");
-      quickdraw(r1, 1);
-      const a1 = attackOf(r1, weapon);
-      expect(a1.windupMs, `${weapon} rank 1`).toBeCloseTo(50, 6);
-      expect(a1.landTicks, `${weapon} rank 1`).toBe(1);
-      const r2 = startRun("fire");
-      quickdraw(r2, 2);
-      const a2 = attackOf(r2, weapon);
-      expect(a2.windupMs, `${weapon} rank 2`).toBeCloseTo(25, 6);
-      expect(a2.landTicks, `${weapon} rank 2`).toBe(1); // a tick is the floor
+describe("instant player melee with legacy Quickdraw modifiers", () => {
+  it("sword, shield and fists land immediately at both ranks, with no movement pause", () => {
+    for (const weapon of ["sword", "shield", "fists"] as const) {
+      for (const rank of [0, 1, 2] as const) {
+        const w = startRun("fire");
+        const interval = timingsOf(P(w), weapon)!.interval;
+        quickdraw(w, rank);
+        expect(attackOf(w, weapon), `${weapon} rank ${rank}`).toEqual({ windupMs: 0, landTicks: 0, freeTicks: 0 });
+        expect(timingsOf(P(w), weapon)!.interval).toBe(interval);
+      }
     }
   });
 
-  it("the Fire and Frost axe lands faster with Quickdraw and has no post-launch recovery root", () => {
+  it("Fire and Frost axes stay instant at both ranks with their cooldown unchanged", () => {
     for (const faction of ["fire", "frost"] as const) {
-      const plain = attackOf(startRun(faction), "axe");
-      expect([plain.windupMs, plain.landTicks, plain.freeTicks], `${faction} plain`).toEqual([250, 5, 5]);
-      const r1 = startRun(faction);
-      quickdraw(r1, 1);
-      const a1 = attackOf(r1, "axe");
-      expect([a1.windupMs, a1.landTicks, a1.freeTicks], `${faction} rank 1`).toEqual([125, 3, 3]);
-      const r2 = startRun(faction);
-      quickdraw(r2, 2);
-      const a2 = attackOf(r2, "axe");
-      expect([a2.windupMs, a2.landTicks, a2.freeTicks], `${faction} rank 2`).toEqual([62.5, 2, 2]);
+      for (const rank of [0, 1, 2] as const) {
+        const w = startRun(faction);
+        const interval = timingsOf(P(w), "axe")!.interval;
+        quickdraw(w, rank);
+        expect(attackOf(w, "axe"), `${faction} rank ${rank}`).toEqual({ windupMs: 0, landTicks: 0, freeTicks: 0 });
+        expect(timingsOf(P(w), "axe")!.interval).toBe(interval);
+      }
     }
   });
 
-  it("the share-bound axes (Sentenced, Holy, Plague) gain ticks too, and rank 2 removes more than rank 1", () => {
+  it("Sentenced, Holy and Plague axes stay instant at both ranks", () => {
     for (const faction of ["sentenced", "holy", "plague"] as const) {
-      const iv = attackInterval(pacedFaction(FACTIONS[faction]), "axe");
-      const t = weaponTimings("axe", iv);
-      const plain = attackOf(startRun(faction), "axe");
-      expect(plain.landTicks, faction).toBe(Math.max(1, ticksOf((t.windup * 1000) / TICK_MS)!));
-      const r1 = startRun(faction);
-      quickdraw(r1, 1);
-      const a1 = attackOf(r1, "axe");
-      const r2 = startRun(faction);
-      quickdraw(r2, 2);
-      const a2 = attackOf(r2, "axe");
-      expect(a1.landTicks, `${faction} rank 1`).toBeLessThan(plain.landTicks);
-      expect(a2.landTicks, `${faction} rank 2`).toBeLessThanOrEqual(a1.landTicks);
-      expect(a1.freeTicks, `${faction} rank 1`).toBeLessThan(plain.freeTicks);
-      expect(a2.freeTicks, `${faction} rank 2`).toBe(a2.landTicks); // recovery root is zero; tick rounding may tie ranks
-      expect(a2.freeTicks, `${faction} rank 2`).toBeGreaterThanOrEqual(a2.landTicks);
+      for (const rank of [0, 1, 2] as const) {
+        const w = startRun(faction);
+        quickdraw(w, rank);
+        expect(attackOf(w, "axe"), `${faction} rank ${rank}`).toEqual({ windupMs: 0, landTicks: 0, freeTicks: 0 });
+      }
     }
   });
 
-  it("a held trigger, whose swings start between ticks, still lands the sword in one tick instead of two, every swing", () => {
+  it("a held trigger keeps the same carried cooldown and swing cadence with Quickdraw", () => {
     const run = (rank: 0 | 1): number[] => {
-      const w = startRun("fire"); // the sword's 0.775 s interval is 15.5 ticks: the starts drift off the grid
+      const w = startRun("fire"); // the sword's 0.775 s interval drifts across the tick grid
       quickdraw(w, rank);
       P(w).weapon0 = "sword";
       P(w).weapon1 = "";
       P(w).slot = 0;
-      const rt = w.players.get("p0")!.weapon;
       enqueueClientMessage(w.players.get("p0")!.inputs, "attack", { a: 0 });
       const landed: number[] = [];
-      let startedTick = -1;
       for (let i = 0; i < 160; i++) {
-        const before = rt.action;
-        step(w, TICK_MS);
-        if (rt.action !== null && before === null) startedTick = i;
-        if (rt.action === null && before !== null && startedTick >= 0) landed.push(i - startedTick);
+        const events = step(w, TICK_MS);
+        if (events.some((fx) => fx.type === "fx" && fx.fx.kind === "swing" && fx.fx.by === "p0")) landed.push(w.state.serverTime);
+        expect(w.players.get("p0")!.weapon.action).toBeNull();
+        expect(moveMultiplierOf(w, C(w))).toBe(1);
       }
       return landed;
     };
     const plain = run(0);
     const quick = run(1);
     expect(plain.length).toBeGreaterThanOrEqual(8);
-    expect(quick.length).toBeGreaterThanOrEqual(8);
-    expect(new Set(plain)).toEqual(new Set([2]));
-    expect(new Set(quick)).toEqual(new Set([1]));
+    expect(quick).toEqual(plain);
+    expect(new Set(plain.slice(1).map((at, i) => at - plain[i]!))).toEqual(new Set([750, 800]));
   });
 
   it("the axe has no post-launch recovery root at either Quickdraw rank", () => {
@@ -252,7 +227,7 @@ describe("the harness's Quickdraw options", () => {
         expect(shooter.build.get("quickdraw")).toBe(1);
         expect(chaser.windupMult).toBe(encodeMult(0.25));
         expect(shooter.windupMult).toBe(encodeMult(0.5));
-        expect(timingsOf(chaser, "sword")!.windup).toBeCloseTo(0.025, 12);
+        expect(timingsOf(chaser, "sword")!.windup).toBe(0);
         const bowWindup = weaponTimings("bow", attackInterval(pacedFaction(FACTIONS.fire), "bow")).windup;
         expect(timingsOf(shooter, "bow")!.windup).toBeCloseTo(bowWindup, 9);
         seen = true;

@@ -18,8 +18,8 @@ enter the attack-start/landing scheduler when Sentenced's tax changes an enemy's
 engine.duel is the design source of truth; this checks that its cycle survives discrete swings. Every first-swing phase
 pair is swept (numpy arrays of shape (P,)).
 
-The kite check is the exception: it needs geometry. Every attack roots its fighter for a windup (the controls rework: the
-old ranged move slows are gone) and a fighter walks at full speed between attacks, so a shooter can orb-walk away from a
+The kite check is the exception: it needs geometry. Bow and wand attacks root their fighter for a windup; player melee
+lands immediately while moving. A fighter walks at full speed between ranged attacks, so a shooter can orb-walk away from a
 melee chaser, who only closes the gap while the shooter is rooted. `orbwalk_free_fire` is a small kinematic model of that,
 `kite_tolerance` the duel model's side of it (how late the melee winner may arrive), `kite_rows` both. The balance pass judges
 the check differently (test_kite.py): a perfect orb-walking underdog must win at most 65% under the noise model, i.e.
@@ -58,18 +58,18 @@ CHILL_MOVE_RESET = CHILL_MOVE_HOLD + CHILL_MOVE_THAW  # ...after four seconds cl
 
 # speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs);
 # windup/wshare: the attacker is rooted for min(windup, wshare x interval) seconds from the attack starting (the TS
-# BOW_WINDUP / BOW_WINDUP_SHARE etc. in shared/weapons.ts; the axe's extra root is not modelled). Used by the kite model only.
+# BOW_WINDUP / BOW_WINDUP_SHARE etc. in shared/weapons.ts; player melee has zero windup and root).
 # A windup mod (a windup multiplier below 1, Quickdraw; owner ruling "Melee windups only") never shortens a ranged windup:
 # windup() applies it to the melee weapons only (shared/mods.ts scaleWindup), so there are no ranged floors to carry.
 WEAPONS = {
-    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=112, melee=True,  windup=0.10, wshare=1.00),
-    "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=112, melee=True,  windup=0.25, wshare=0.25),
+    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=112, melee=True,  windup=0.00, wshare=0.00),
+    "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=112, melee=True,  windup=0.00, wshare=0.00),
     "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=520, melee=False, windup=0.50, wshare=0.55),
     "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=640, melee=False, windup=0.45, wshare=0.50),
-    "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=96,  melee=True,  windup=0.10, wshare=1.00),
+    "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=96,  melee=True,  windup=0.00, wshare=0.00),
     # The empty hand (balance pass D3): the fastest melee, a weak hit. Not one of the five loop weapons (MELEE / RANGED / SIG
     # below leave it out: nobody picks it, a run starts on it), but every pairing is still modelled.
-    "fists":  dict(speed=1.50, dps=0.60, floor=0.20, rng=72,  melee=True,  windup=0.10, wshare=1.00),
+    "fists":  dict(speed=1.50, dps=0.60, floor=0.20, rng=72,  melee=True,  windup=0.00, wshare=0.00),
 }
 WNAMES = list(WEAPONS)
 MELEE = ["sword", "axe", "shield"]
@@ -109,7 +109,7 @@ def windup(spec, wname, as_mult=1.0, windup_mult=1.0):
     cap or its share of the interval, whichever is shorter (shared/weapons.ts weaponTimings). `windup_mult` is a windup mod
     (Quickdraw) as shared/mods.ts scaleWindup applies it: a mult below 1 shortens MELEE windups only and leaves a ranged
     windup exactly as it was (the anti-kiting lever is never shortened); a mult of 1 or more scales any weapon (never past
-    the interval). Continuous time: the sim lands an attack on the first 50 ms tick at or after its windup, which this does not."""
+    the interval). Player melee stays at zero. Continuous time: the sim quantizes ranged landings to 50 ms ticks, which this does not."""
     w = WEAPONS[wname]
     base = min(w["windup"], w["wshare"] * interval(spec, wname, as_mult))
     if windup_mult == 1.0 or (windup_mult < 1.0 and not w["melee"]):
@@ -256,6 +256,11 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
                 readyAt[i] = np.where(st, start + iv, readyAt[i])
                 hitnow[i] = curhit[i]
                 curhit[i] = np.where(st, np.where(tx, hrt[i], hitraw[i]), curhit[i])
+                # Player melee has no windup: a newly started attack lands in this same weapon phase, as in the sim.
+                instant = st & (landsAt[i] <= t + EPS)
+                hitnow[i] = np.where(instant, curhit[i], hitnow[i])
+                landsAt[i] = np.where(instant, np.inf, landsAt[i])
+                sw = sw | instant
                 swing.append(sw)
                 continue
             sw = (prog[i] >= cdc[i] - EPS) & alive

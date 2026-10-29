@@ -229,9 +229,10 @@ describe("the trigger and the shared cooldown", () => {
     expect(P(world).readyAt).toBe(0);
     press(world, 0, 1);
     tick(world);
-    expect(fxOf("windup")).toEqual([{ at: T(world), kind: "windup", by: "p0", weapon: "axe", a: 1, ms: 250 }]);
+    expect(fxOf("windup")).toEqual([{ at: T(world), kind: "windup", by: "p0", weapon: "axe", a: 1, ms: 0 }]);
     expect(P(world).readyAt).toBeCloseTo(T(world) + intervalMs("fire", "axe"), 6);
-    expect(RT(world).weapon.action).toMatchObject({ kind: "swing", weapon: "axe", startedAt: T(world) });
+    expect(RT(world).weapon.action).toBeNull();
+    expect(landed).toHaveLength(1);
   });
 
   it("a held trigger repeats exactly at the interval, with the remainder carried (Plague's sword, 251.4 ms)", () => {
@@ -252,7 +253,7 @@ describe("the trigger and the shared cooldown", () => {
     expect(P(world).readyAt).toBeCloseTo(S + 40 * I, 6);
   });
 
-  it("a repeat is timed from when the cooldown ended, so its windup is shorter by the part of the tick already gone", () => {
+  it("instant repeat swings retain the cooldown remainder without a negative visual duration", () => {
     const world = startRun();
     arm(world, 0, "plague", "sword");
     const I = intervalMs("plague", "sword");
@@ -262,8 +263,8 @@ describe("the trigger and the shared cooldown", () => {
     runTo(world, ceilTick(S + 5 * I));
     const windups = fxOf("windup");
     expect(windups.length).toBeGreaterThanOrEqual(5);
-    windups.forEach((w, k) => expect(w.at + w.ms, `attack ${k}`).toBeCloseTo(S + k * I + 100, 6));
-    expect(windups[1]!.ms).toBeLessThan(100);
+    windups.forEach((w, k) => { expect(w.at, `attack ${k}`).toBe(ceilTick(S + k * I)); expect(w.ms).toBe(0); });
+    expect(landed.map(l => l.at)).toEqual(windups.map(w => w.at));
   });
 
   it("a press that lands within ATTACK_BUFFER_MS of the cooldown ending attacks the moment it ends, even if released at once", () => {
@@ -340,7 +341,7 @@ describe("the trigger and the shared cooldown", () => {
     expect(landed).toHaveLength(1);
   });
 
-  it("a fighter with an empty hand attacks with fists: a 0.1 s windup that lands as a swing, then the fists' cadence", () => {
+  it("a fighter with an empty hand punches immediately, then keeps the fists' cadence", () => {
     const world = startRun();
     arm(world, 0, "fire", "");
     press(world);
@@ -348,8 +349,8 @@ describe("the trigger and the shared cooldown", () => {
     const windups = fxOf("windup");
     expect(windups.length).toBeGreaterThan(1);
     expect(windups.every((w) => w.weapon === "fists")).toBe(true);
-    // Fire's fists: interval 1 / (rate x 2.5) at duel pace, the swing lands weaponTimings' 0.1 s after each start.
-    expect(landed[0]!.at - windups[0]!.at).toBe(ceilTick(timings("fire", "fists").windup * 1000));
+    // Fire's fists keep interval 1 / (rate x 2.5) at duel pace and land in each start's tick.
+    expect(landed[0]!.at - windups[0]!.at).toBe(0);
     expect(landed[0]!.req.weapon).toBe("fists");
     expect(windups[1]!.at - windups[0]!.at).toBe(ceilTick(intervalMs("fire", "fists")));
   });
@@ -357,13 +358,13 @@ describe("the trigger and the shared cooldown", () => {
 
 describe("windups and landing", () => {
   const cases: Array<[string, FactionId, WeaponId, number, number]> = [
-    ["sword", "plague", "sword", 100, 100],
-    ["shield bash", "frost", "shield", 100, 100],
-    ["Fire's slow axe", "fire", "axe", 250, 250],
-    ["Plague's fast axe (25% of its interval)", "plague", "axe", 0.25 * intervalMs("plague", "axe"), 100],
+    ["sword", "plague", "sword", 0, 0],
+    ["shield bash", "frost", "shield", 0, 0],
+    ["Fire's axe", "fire", "axe", 0, 0],
+    ["Plague's fast axe", "plague", "axe", 0, 0],
   ];
 
-  it.each(cases)("%s: a windup fx, then one melee request when it ends", (_name, faction, weapon, windupMs, landMs) => {
+  it.each(cases)("%s: one immediate melee request with the full damage packet", (_name, faction, weapon, windupMs, landMs) => {
     const world = startRun();
     arm(world, 0, faction, weapon);
     tap(world, 0, 0.3);
@@ -372,10 +373,6 @@ describe("windups and landing", () => {
     const [wu] = fxOf("windup");
     expect(wu).toMatchObject({ by: "p0", weapon, a: 0.3 });
     expect(wu!.ms).toBeCloseTo(windupMs, 6);
-    expect(landed).toHaveLength(0);
-    runTo(world, S + landMs - TICK_MS);
-    expect(landed).toHaveLength(0);
-    tick(world);
     expect(landed).toHaveLength(1);
     const { at, req } = landed[0]!;
     expect(at).toBe(S + landMs);
@@ -480,8 +477,8 @@ describe("the wand", () => {
   });
 });
 
-describe("the axe windup", () => {
-  it("keeps the swinger rooted only until the swing lands, then the walk resumes", () => {
+describe("instant axe swings while moving", () => {
+  it("never roots the swinger during its attack or cooldown", () => {
     const world = startRun();
     arm(world, 0, "fire", "axe");
     const tm = timings("fire", "axe");
@@ -493,32 +490,32 @@ describe("the axe windup", () => {
     expect(RT(world).weapon.rootUntil).toBe(0);
   });
 
-  it("keeps the path while rooted", () => {
+  it("keeps the path while the immediate axe swing lands", () => {
     const world = startRun();
     arm(world, 0, "fire", "axe");
     walk(world, 0, 4, (k) => { if (k === 1) tap(world); });
     expect(RT(world).path.length).toBeGreaterThan(0);
-    expect(RT(world).weapon.action).not.toBeNull();
+    expect(RT(world).weapon.action).toBeNull();
     expect(RT(world).weapon.rootUntil).toBe(0);
   });
 
-  it("uses 25% of the interval for a fast axe windup", () => {
+  it("a fast player axe has zero windup and keeps walking", () => {
     const world = startRun();
     arm(world, 0, "plague", "axe");
     const tm = timings("plague", "axe");
     expect(tm.root).toBe(0);
-    expect(tm.windup).toBeCloseTo(0.25 * tm.interval, 12);
+    expect(tm.windup).toBe(0);
     const d = walk(world, 0, 10, (k) => { if (k === 2) tap(world); });
     const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
     expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 10 - 2 - rooted)]);
   });
 
-  it("a sword swing roots only for its 100 ms windup: the walk resumes when it lands", () => {
+  it("a sword swing never pauses the walk", () => {
     const world = startRun();
     arm(world, 0, "plague", "sword");
-    // Swing at tick 2 (S): rooted on S and S+50, landing at S+100.
+    // Swing at tick 2 lands immediately while the walk continues.
     const d = walk(world, 0, 8, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), 0, 0, ...repeat(STEP, 4)]);
+    expectCloseAll(d, repeat(STEP, 8));
     expect(landed).toHaveLength(1);
   });
 
@@ -800,8 +797,9 @@ describe("swapping", () => {
     expect(swapped).toEqual([{ id: "p0", slot: 1 }]);
   });
 
-  it("cancels a windup: the swing never lands, the cooldown stays spent (and grows)", () => {
+  it("cancels a pending ranged windup, keeping the spent cooldown and swap cost", () => {
     const world = start();
+    arm(world, 0, "frost", "wand", "axe");
     tap(world);
     tick(world);
     const ready = P(world).readyAt;
@@ -809,18 +807,18 @@ describe("swapping", () => {
     tick(world);
     expect(RT(world).weapon.action).toBeNull();
     run(world, 10);
-    expect(landed).toHaveLength(0);
+    expect(shots).toHaveLength(0);
     expect(P(world).readyAt).toBeCloseTo(ready + 250, 6);
   });
 
-  it("cancels an axe root at once", () => {
+  it("swapping after an instant axe never pauses walking", () => {
     const world = start();
     arm(world, 0, "fire", "axe", "sword");
     const d = walk(world, 0, 8, (k) => {
       if (k === 1) tap(world);
       if (k === 4) swap(world);
     });
-    expectCloseAll(d, [STEP, 0, 0, 0, STEP, STEP, STEP, STEP]);
+    expectCloseAll(d, repeat(STEP, 8));
   });
 
   it("axe swings have no post-launch root, and a swap cancels only a pending swing", () => {
@@ -1060,15 +1058,16 @@ describe("lag compensation", () => {
     expect(rewindFor(null)).toBe(-TICK_MS);
   });
 
-  it("the latest attack or release before the landing sets the lag", () => {
+  it("the latest timestamp in the instant attack batch sets lag; a later release cannot change that landed swing", () => {
     const world = startRun();
     arm(world, 0, "frost", "sword");
     const S = T(world) + TICK_MS;
     press(world, 0, 0, S - 200);
+    release(world, 0, 0, S - 80);
     tick(world);
-    release(world, 0, 0, T(world) + TICK_MS - 80);
+    release(world, 0, 0, T(world) + TICK_MS - 120);
     runTo(world, S + 100);
-    expect(landed[0]!.req.rewindT).toBe(S + 100 - 80);
+    expect(landed[0]!.req.rewindT).toBe(S - 80);
   });
 
   it("rewindTime is the landing time less the lag, clamped to [TICK_MS, MAX_REWIND_MS]", () => {
@@ -1161,7 +1160,7 @@ describe("where projectiles leave from", () => {
 describe("teleport, death and fighters that can't fight", () => {
   it("the teleported hook cancels the action and the root, and releases the trigger", () => {
     const world = startRun();
-    arm(world, 0, "fire", "axe");
+    arm(world, 0, "fire", "wand");
     press(world);
     tick(world);
     expect(RT(world).weapon.action).not.toBeNull();
@@ -1173,7 +1172,7 @@ describe("teleport, death and fighters that can't fight", () => {
     expect(w.bufferedUntil).toBe(0);
     expect(w.rootUntil).toBeLessThanOrEqual(T(world));
     run(world, 40); // past the swing's landing and the cooldown: nothing lands, the held trigger does not restart
-    expect(landed).toHaveLength(0);
+    expect(shots).toHaveLength(0);
     expect(fxOf("windup")).toHaveLength(1);
     press(world);
     tick(world);
@@ -1195,9 +1194,9 @@ describe("teleport, death and fighters that can't fight", () => {
     expect(shots).toHaveLength(0);
   });
 
-  it("a real teleport into the coliseum cancels the swing it interrupts", () => {
+  it("a real teleport into the coliseum cancels the pending cast", () => {
     const world = startRun(1, { patienceSeconds: 1 }); // the patience timer ends at serverTime 1050
-    arm(world, 0, "plague", "sword");
+    arm(world, 0, "plague", "wand");
     runTo(world, 950);
     press(world);
     tick(world);
@@ -1208,19 +1207,19 @@ describe("teleport, death and fighters that can't fight", () => {
     expect(world.state.gatesLocked).toBe(true);
     expect(Math.hypot(P(world).x - before.x, P(world).y - before.y)).toBeGreaterThan(100);
     run(world, 40);
-    expect(landed).toHaveLength(0);
+    expect(shots).toHaveLength(0);
     expect(fxOf("windup")).toHaveLength(1);
   });
 
-  it("a player killed during a windup never lands the swing", () => {
+  it("a player killed during a cast never launches its ball", () => {
     const world = startRun(3);
-    arm(world, 0, "fire", "axe");
+    arm(world, 0, "fire", "wand");
     tap(world, 0);
     run(world, 2);
     applyDamage(world, P(world, 0), RT(world, 0), P(world, 0).hp + 1000, "test");
     expect(P(world, 0).status).toBe("dead");
     run(world, 10);
-    expect(landed).toHaveLength(0);
+    expect(shots).toHaveLength(0);
   });
 
   it("a player killed mid-draw or mid-cast looses nothing", () => {
@@ -1255,19 +1254,19 @@ describe("teleport, death and fighters that can't fight", () => {
     expect(P(world, 0).drawStartedAt).toBe(0);
   });
 
-  it("a player who goes down mid-swing, or leaves, lets go of the trigger and the swing too", () => {
+  it("a player who goes down mid-cast, or leaves, releases the trigger and pending cast", () => {
     for (const outcome of ["died", "mia"] as const) {
       const world = startRun(3);
-      arm(world, 0, "fire", "axe");
+      arm(world, 0, "fire", "wand");
       press(world, 0);
       tick(world);
-      expect(RT(world, 0).weapon.action).toMatchObject({ kind: "swing" });
+      expect(RT(world, 0).weapon.action).toMatchObject({ kind: "cast" });
       expect(RT(world, 0).weapon.held).toBe(true);
       downPlayer(world, P(world, 0), RT(world, 0), outcome);
       const w = RT(world, 0).weapon;
       expect([w.held, w.action, w.bufferedUntil], outcome).toEqual([false, null, 0]);
       run(world, 40);
-      expect(landed, outcome).toHaveLength(0);
+      expect(shots, outcome).toHaveLength(0);
       expect(fxOf("windup"), outcome).toHaveLength(1);
     }
   });
@@ -1326,7 +1325,7 @@ describe("teleport, death and fighters that can't fight", () => {
 describe("stagger", () => {
   it("cancels a windup but leaves the cooldown spent, and grants immunity", () => {
     const world = startRun();
-    arm(world, 0, "frost", "sword");
+    arm(world, 0, "frost", "wand");
     tap(world);
     tick(world);
     const ready = P(world).readyAt;
@@ -1336,10 +1335,10 @@ describe("stagger", () => {
     expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + STAGGER_IMMUNITY_SECONDS * 1000);
     expect(world.events.some((e) => e.type === "fx" && e.fx.kind === "stagger" && e.fx.id === "p0")).toBe(true);
     run(world, 10);
-    expect(landed).toHaveLength(0);
+    expect(shots).toHaveLength(0);
   });
 
-  it("cancels a wand cast and an axe root", () => {
+  it("cancels a wand cast and leaves an instant axe unrooted", () => {
     const wand = startRun();
     arm(wand, 0, "fire", "wand");
     tap(wand);
@@ -1396,7 +1395,7 @@ describe("stagger", () => {
     expect(STAGGER_IMMUNITY_SECONDS).toBe(1.1);
     const imm = STAGGER_IMMUNITY_SECONDS * 1000;
     const world = startRun();
-    arm(world, 0, "frost", "sword");
+    arm(world, 0, "frost", "wand");
     expect(stagger(world, C(world))).toBe(true);
     const first = T(world);
     tap(world);
@@ -1438,9 +1437,9 @@ describe("stagger", () => {
       tap(busy);
       tick(busy);
       expect(RT(busy).weapon.action?.kind, weapon).not.toBe("draw");
-      expect(RT(busy).weapon.action, weapon).not.toBeNull();
+      expect(RT(busy).weapon.action === null, weapon).toBe(weapon !== "wand");
       expect(stagger(busy, C(busy)), weapon).toBe(true);
-      expect(marks(busy), weapon).toBe(1);
+      expect(marks(busy), weapon).toBe(weapon === "wand" ? 1 : 0);
     }
   });
 });

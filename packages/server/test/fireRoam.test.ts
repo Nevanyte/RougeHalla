@@ -116,9 +116,11 @@ describe("authoritative Fire roaming charge", () => {
 
     expect(enqueueClientMessage(world.players.get("fire")!.inputs, "attack", { a: 0 })).toBe(true);
     expect(enqueueClientMessage(world.players.get("fire")!.inputs, "release", { a: 0 })).toBe(true);
-    step(world, TICK_MS);
-    expect(world.players.get("fire")!.weapon.action?.kind).toBe("swing");
-    for (let i = 0; i < 10 && fire.roamReady; i++) step(world, TICK_MS);
+    const events = step(world, TICK_MS);
+    expect(world.players.get("fire")!.weapon.action).toBeNull();
+    expect(events.filter(e => e.type === "fx" && e.fx.kind === "swing" && e.fx.by === "fire")).toHaveLength(1);
+    const direct = world.combat.landed.filter(hit => hit.by === "fire" && hit.weapon === "sword" && !hit.sig && !hit.derived);
+    expect(direct.map(hit => hit.victim).sort()).toEqual(["foe-a", "foe-b"]);
 
     expect(fire.roamReady).toBe(false);
     expect(world.combat.deferred).toHaveLength(1);

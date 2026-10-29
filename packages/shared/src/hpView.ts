@@ -25,8 +25,16 @@ export function hpBarFractions(hp: number, maxHp: number, barrier: number): { hp
   return { hp: h / total, barrier: b / total };
 }
 
+/** Round health upward without turning floating-point noise into an extra point. Living fractions still read at least 1. */
+export function hpDisplayValue(value: number): number {
+  if (!Number.isFinite(value)) return Math.ceil(value);
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(value)) * 8;
+  const whole = Math.ceil(value - tolerance);
+  return value > 0 ? Math.max(1, whole) : whole;
+}
+
 /** The HUD's hp readout: "HP 400/500", and "HP 400/500 +75 barrier" while a barrier holds. */
 export function hpText(hp: number, maxHp: number, barrier: number): string {
-  const base = `HP ${Math.ceil(hp)}/${Math.ceil(maxHp)}`;
-  return barrier > 0 && Math.ceil(barrier) > 0 ? `${base} +${Math.ceil(barrier)} barrier` : base;
+  const base = `HP ${hpDisplayValue(hp)}/${hpDisplayValue(maxHp)}`;
+  return barrier > 0 ? `${base} +${hpDisplayValue(barrier)} barrier` : base;
 }

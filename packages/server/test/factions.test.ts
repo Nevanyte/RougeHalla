@@ -1911,14 +1911,14 @@ describe("fairness", () => {
 
 describe("a stagger pauses damage over time", () => {
   const IMMUNITY_MS = STAGGER_IMMUNITY_SECONDS * 1000;
-  /** Windup seconds per weapon, from the rule's wording (not from weaponTimings): bow has none, so its stagger pauses nothing. */
+  /** Player melee is instant; only the wand has a pauseable signature windup (the bow was already excluded). */
   const WINDUP: Record<WeaponId, (interval: number) => number> = {
-    sword: (i) => Math.min(0.1, i),
-    shield: (i) => Math.min(0.1, i),
-    axe: (i) => Math.min(0.25, 0.25 * i),
+    sword: () => 0,
+    shield: () => 0,
+    axe: () => 0,
     wand: (i) => Math.min(0.45, 0.5 * i),
     bow: () => 0,
-    fists: (i) => Math.min(0.1, i),
+    fists: () => 0,
   };
   const windupMs = (owner: FactionId, weapon: WeaponId): number => WINDUP[weapon](attackInterval(SPEC[owner], weapon)) * 1000;
 
@@ -1953,31 +1953,31 @@ describe("a stagger pauses damage over time", () => {
   const pausedShare = (now: number, at: number, pauseMs: number): number =>
     now <= at ? 0 : Math.min(TICK_MS, Math.max(0, at + pauseMs - (now - TICK_MS))) / TICK_MS;
 
-  it("a sword's stagger stops a Plague's disease for the windup (0.1 s) and then it resumes at the same rate", () => {
-    const world = duel("plague", "sword");
+  it("a wand's stagger pauses Plague disease for its windup, including a fractional tick, then resumes", () => {
+    const world = duel("plague", "wand");
     const inj = injector(world);
-    const full = perTick("plague", "sword");
+    const full = perTick("plague", "wand");
+    const pauseMs = windupMs("plague", "wand");
     expect(full).toBeGreaterThan(0);
+    expect(pauseMs % TICK_MS).toBeGreaterThan(0);
     for (const log of run(world, 4)) expect(sigTotal(log, "disease")).toBeCloseTo(full, 9);
 
     const hit = staggerTick(world, inj);
     const at = hit.now;
     expect(sigTotal(hit, "disease")).toBeCloseTo(full, 9);
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
-
-    const seen = run(world, 6).map((log) => ({ after: log.now - at, disease: sigTotal(log, "disease"), hits: sigHits(log, "disease").length }));
-    expect(seen.filter((s) => s.hits === 0).map((s) => s.after)).toEqual([TICK_MS, 2 * TICK_MS]);
-    for (const s of seen.filter((x) => x.hits > 0)) {
-      expect(s.hits).toBe(1);
-      expect(s.disease).toBeCloseTo(full, 9);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + pauseMs, 9);
+    for (const log of run(world, 8)) {
+      const share = pausedShare(log.now, at, pauseMs);
+      expect(sigHits(log, "disease")).toHaveLength(share === 1 ? 0 : 1);
+      expect(sigTotal(log, "disease")).toBeCloseTo(full * (1 - share), 9);
     }
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100); // nothing re-armed it
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + pauseMs, 9);
   });
 
   it("the pause holds back only the staggered fighter's damage: its target's signature keeps landing", () => {
     const world = makeWorld([
-      { id: "p", faction: "plague", at: [300, 300], weapon: "sword" },
-      { id: "q", faction: "plague", at: [340, 300], weapon: "sword" },
+      { id: "p", faction: "plague", at: [300, 300], weapon: "wand" },
+      { id: "q", faction: "plague", at: [340, 300], weapon: "wand" },
     ]);
     noteContact(world, "p", "q");
     const inj = injector(world);
@@ -1988,16 +1988,16 @@ describe("a stagger pauses damage over time", () => {
     expect(sigHits(log, "disease").map((h) => h.by)).toEqual(["q"]);
   });
 
-  it("a staggered Sentenced pays no pulse for the swing its stagger cancelled: the mark is paid per landed hit, so there is nothing to pause", () => {
-    const world = duel("sentenced", "sword");
+  it("a staggered Sentenced pays no pulse for the cast its stagger cancelled: the mark is paid per landed hit, so there is nothing to pause", () => {
+    const world = duel("sentenced", "wand");
     const inj = injector(world);
     inj.hit("p", "t"); // the mark exists from the first landed hit
     run(world, 2);
     expect(signatureState(world, "p")!.tier).toBe(1);
-    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // away from the target: a swing that will not land on it
+    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // away from the target: a cast that will not land on it
     RT(world, "p").inputs.pushAction({ kind: "release", a: Math.PI });
     tick(world);
-    expect(C(world, "p").rt.weapon.action?.kind, "a swing is winding up").toBe("swing");
+    expect(C(world, "p").rt.weapon.action?.kind, "a cast is winding up").toBe("cast");
     inj.hit("t", "p", { stagger: true });
     const log = tick(world);
     expect(fxOf(log.events, "stagger")).toEqual([{ kind: "stagger", id: "p" }]);
@@ -2007,42 +2007,47 @@ describe("a stagger pauses damage over time", () => {
   });
 
   it("a stagger that cancels a windup pauses the same", () => {
-    const world = duel("plague", "sword");
+    const world = duel("plague", "wand");
     const inj = injector(world);
     RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // away from the target
     RT(world, "p").inputs.pushAction({ kind: "release", a: Math.PI });
     tick(world);
-    expect(C(world, "p").rt.weapon.action?.kind, "a swing is winding up").toBe("swing");
+    expect(C(world, "p").rt.weapon.action?.kind, "a cast is winding up").toBe("cast");
     inj.hit("t", "p", { stagger: true });
     const log = tick(world);
     expect(fxOf(log.events, "stagger")).toEqual([{ kind: "stagger", id: "p" }]);
     expect(C(world, "p").rt.weapon.action).toBeNull();
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + 100);
-    const seen = run(world, 3).map((l) => sigHits(l, "disease").length);
-    expect(seen).toEqual([0, 0, 1]);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + windupMs("plague", "wand"));
+    for (const l of run(world, 6)) {
+      const share = pausedShare(l.now, log.now, windupMs("plague", "wand"));
+      expect(sigTotal(l, "disease")).toBeCloseTo(perTick("plague", "wand") * (1 - share), 9);
+    }
   });
 
   it("a stagger that cancels nothing (in cooldown, no windup pending, no stagger fx) pauses all the same", () => {
-    const world = duel("plague", "sword");
+    const world = duel("plague", "wand");
     const inj = injector(world);
-    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // swings at nothing
+    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // casts at nothing
     RT(world, "p").inputs.pushAction({ kind: "release", a: Math.PI });
     for (let i = 0; i < 6 && (i === 0 || C(world, "p").rt.weapon.action); i++) tick(world);
-    expect(C(world, "p").rt.weapon.action, "the swing has landed").toBeNull();
+    expect(C(world, "p").rt.weapon.action, "the cast has landed").toBeNull();
     expect(P(world, "p").readyAt, "and the weapon is in cooldown").toBeGreaterThan(world.state.serverTime);
 
     const log = staggerTick(world, inj);
     expect(fxOf(log.events, "stagger")).toHaveLength(0);
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + 100);
-    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 0, 1]);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + windupMs("plague", "wand"));
+    for (const l of run(world, 6)) {
+      const share = pausedShare(l.now, log.now, windupMs("plague", "wand"));
+      expect(sigTotal(l, "disease")).toBeCloseTo(perTick("plague", "wand") * (1 - share), 9);
+    }
   });
 
   it("no second stagger inside the immunity extends the pause, and one after it pauses again", () => {
-    const world = duel("plague", "sword");
+    const world = duel("plague", "wand");
     const inj = injector(world);
     run(world, 2);
     const at = staggerTick(world, inj).now;
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + windupMs("plague", "wand"));
 
     // A second hit while the first pause is still running: immune, so it lands no stagger and extends nothing.
     inj.hit("t", "p", { stagger: true });
@@ -2050,29 +2055,34 @@ describe("a stagger pauses damage over time", () => {
     expect(second.now).toBe(at + TICK_MS);
     expect(second.landed.some((h) => h.victim === "p" && h.sig === undefined), "the hit itself lands").toBe(true);
     expect(C(world, "p").rt.weapon.staggerImmuneUntil).toBe(at + IMMUNITY_MS);
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
-    expect(sigHits(second, "disease")).toHaveLength(0); // the first of the two paused ticks
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + windupMs("plague", "wand"));
+    expect(sigHits(second, "disease")).toHaveLength(0); // the first fully paused tick
 
     // More staggers right up to the last tick of the immunity: the disease is back from the end of the first pause.
-    const inside: number[] = [];
+    const inside: TickLog[] = [];
     while (world.state.serverTime < at + IMMUNITY_MS - TICK_MS) {
       inj.hit("t", "p", { stagger: true });
       const log = tick(world);
-      inside.push(sigHits(log, "disease").length);
-      expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+      inside.push(log);
+      expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + windupMs("plague", "wand"));
     }
     expect(inside.length).toBeGreaterThan(5);
-    expect(inside[0]).toBe(0); // the second paused tick: the pause runs to `at` + 100
-    expect(inside.slice(1).every((n) => n === 1)).toBe(true);
+    for (const l of inside) {
+      const share = pausedShare(l.now, at, windupMs("plague", "wand"));
+      expect(sigTotal(l, "disease")).toBeCloseTo(perTick("plague", "wand") * (1 - share), 9);
+    }
 
-    // The immunity ends at `at` + 0.5 s: a stagger on that very tick lands and pauses again.
+    // The immunity ends at `at` + IMMUNITY_MS: a stagger on that very tick lands and pauses again.
     const again = staggerTick(world, inj);
     expect(again.now).toBe(at + IMMUNITY_MS);
-    expect(signatureState(world, "p")!.dotPausedUntil).toBe(again.now + 100);
-    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 0, 1]);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(again.now + windupMs("plague", "wand"));
+    for (const l of run(world, 6)) {
+      const share = pausedShare(l.now, again.now, windupMs("plague", "wand"));
+      expect(sigTotal(l, "disease")).toBeCloseTo(perTick("plague", "wand") * (1 - share), 9);
+    }
   });
 
-  it("a bow's stagger pauses nothing: the bow has no windup", () => {
+  it("stagger leaves bow signature damage unpaused", () => {
     const world = duel("plague", "bow");
     const inj = injector(world);
     run(world, 2);
@@ -2084,7 +2094,7 @@ describe("a stagger pauses damage over time", () => {
 
   it.each(WEAPON_IDS)("holding a %s the pause lasts that weapon's windup", (weapon) => {
     const ms = windupMs("plague", weapon);
-    expect(ms > 0, weapon).toBe(weapon !== "bow");
+    expect(ms > 0, weapon).toBe(weapon === "wand");
     const world = duel("plague", weapon);
     const inj = injector(world);
     run(world, 2);
@@ -2103,7 +2113,7 @@ describe("a stagger pauses damage over time", () => {
 
   it("the pause is from the weapon in hand when the stagger lands", () => {
     const world = makeWorld([
-      { id: "p", faction: "plague", at: [300, 300], weapon: "sword", weapon1: "axe" },
+      { id: "p", faction: "plague", at: [300, 300], weapon: "sword", weapon1: "wand" },
       { id: "t", faction: "holy", at: [340, 300], weapon: null },
     ]);
     noteContact(world, "p", "t");
@@ -2111,39 +2121,39 @@ describe("a stagger pauses damage over time", () => {
     P(world, "p").slot = 1;
     run(world, 2);
     const at = staggerTick(world, inj).now;
-    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + windupMs("plague", "axe"), 9);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + windupMs("plague", "wand"), 9);
   });
 
   it("a longer pause is never cut short by a later stagger with a shorter windup", () => {
     // Not reachable by play (a second stagger needs the immunity to have run out, long after any windup), so the
-    // immunity is cleared by hand to let it land while the axe's pause is still running.
+    // immunity is cleared by hand to let it land while the wand's pause is still running.
     const world = makeWorld([
-      { id: "p", faction: "fire", at: [300, 300], weapon: "axe", weapon1: "sword" },
+      { id: "p", faction: "fire", at: [300, 300], weapon: "wand", weapon1: "sword" },
       { id: "t", faction: "holy", at: [340, 300], weapon: null },
     ]);
     noteContact(world, "p", "t");
     const inj = injector(world);
     const at = staggerTick(world, inj).now;
-    const axe = at + windupMs("fire", "axe");
-    expect(axe).toBeGreaterThan(at + TICK_MS + 100);
+    const wand = at + windupMs("fire", "wand");
+    expect(wand).toBeGreaterThan(at + TICK_MS + 100);
     P(world, "p").slot = 1;
     C(world, "p").rt.weapon.staggerImmuneUntil = 0;
     const second = staggerTick(world, inj);
     expect(second.now).toBe(at + TICK_MS);
-    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(axe, 9);
-    // The pause that runs is the axe's: the sword's would have ended a tick or more earlier.
-    const burning = run(world, 6).map((log) => [log.now - at, sigHits(log, "burn").length]);
-    expect(burning.filter(([, n]) => n === 0).map(([ms]) => ms)).toEqual([100, 150, 200, 250]);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(wand, 9);
+    // The wand's longer pause survives switching to an instant sword.
+    const burning = run(world, 12).map((log) => [log.now - at, sigHits(log, "burn").length]);
+    expect(burning.filter(([, n]) => n === 0).map(([ms]) => ms)).toEqual(Array.from({ length: 8 }, (_, i) => 100 + i * TICK_MS));
   });
 
   describe("Fire", () => {
     it("keeps the backlash on the target's swings during the pause, while its burn is paused", () => {
-      const world = duel("fire", "axe");
+      const world = duel("fire", "wand");
       const inj = injector(world);
-      const pauseMs = windupMs("fire", "axe");
+      const pauseMs = windupMs("fire", "wand");
       expect(pauseMs).toBeGreaterThanOrEqual(3 * TICK_MS); // room for paused ticks to show the difference
-      const burn = perTick("fire", "axe");
-      const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("axe"), "backlash");
+      const burn = perTick("fire", "wand");
+      const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("wand"), "backlash");
       run(world, 3);
       const at = staggerTick(world, inj).now;
 
@@ -2195,15 +2205,15 @@ describe("a stagger pauses damage over time", () => {
       expect(signatureState(world, "x")!.dotPausedUntil).toBe(0);
     });
 
-    it("an empty hand is fists: staggered, it pauses for the fists' windup like any melee weapon, and a weapon picked up after that deals full damage", () => {
+    it("an empty hand is instant fists: stagger pauses nothing and a weapon picked up after it deals full disease damage", () => {
       const world = duel("plague", null);
       const inj = injector(world);
       run(world, 2);
       const at = staggerTick(world, inj).now;
-      expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + windupMs("plague", "fists"), 9);
+      expect(signatureState(world, "p")!.dotPausedUntil).toBe(0);
       P(world, "p").weapon0 = "sword";
       const full = perTick("plague", "sword");
-      // The pause runs its windup out (two ticks); after that the sword's disease lands in full.
+      // Neither the empty hand nor the newly equipped sword introduces a signature pause.
       runUntil(world, at + windupMs("plague", "fists"));
       run(world, 3).forEach((log) => {
         expect(log.now).toBeGreaterThan(at);

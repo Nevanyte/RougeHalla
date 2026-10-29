@@ -1,6 +1,6 @@
 // The local weapon's maximum reach, drawn on the ground. Reads no enemy or fog data.
 import type Phaser from "phaser";
-import { FISTS, isWeaponId, RANGED_HIT_REACH, WEAPONS, Y_SCALE, type Vec2, type WeaponId } from "@raid/shared";
+import { ARROW_RADIUS, FISTS, isWeaponId, PLAYER_RADIUS, WEAPONS, Y_SCALE, type Vec2, type WeaponId } from "@raid/shared";
 import { projX, projY } from "./projection";
 
 /** Above ground fields, below every y-sorted actor, wall and the vision fog. */
@@ -35,9 +35,10 @@ export function weaponRangeGeometry(weapon: WeaponId, aim = 0): WeaponRangeGeome
     })) };
   }
   const cos = Math.cos(a), sin = Math.sin(a);
+  const hitReach = PLAYER_RADIUS + ARROW_RADIUS;
   return { kind: "lane", range: shape.range, points: [
-    { x: 0, y: -RANGED_HIT_REACH }, { x: shape.range, y: -RANGED_HIT_REACH },
-    { x: shape.range, y: RANGED_HIT_REACH }, { x: 0, y: RANGED_HIT_REACH },
+    { x: 0, y: -hitReach }, { x: shape.range, y: -hitReach },
+    { x: shape.range, y: hitReach }, { x: 0, y: hitReach },
   ].map(p => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos })) };
 }
 

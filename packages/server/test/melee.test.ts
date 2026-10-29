@@ -14,6 +14,7 @@ import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger } from "../src/sim/ledger";
 import { resolveMelee } from "../src/sim/melee";
 import { addMob, type MobSpec } from "../src/sim/mobs";
+import { newBrain } from "../src/sim/mobAI";
 import { recordHistory } from "../src/sim/movement";
 import { spawnProjectiles, sweepProjectiles } from "../src/sim/projectiles";
 import { addPlayer, step } from "../src/sim/step";
@@ -479,15 +480,14 @@ describe("lag compensation", () => {
     expect(victimsOf(behind)).toEqual([holder]);
   });
 
-  it("an attack's own timestamp sets the rewind (real input, real windup)", () => {
+  it("an instant attack's own timestamp sets the rewind", () => {
     const run1 = (withT: boolean): { world: World; d: string } => {
       const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", FAR)]);
       const d = dummy(world, { x: 340, y: 256 });
-      // The press lands in the step at 100 ms; the swing lands at 200 ms and is drawn where the client saw it at 100 ms.
+      // The hit lands in the press's step at 100 ms: the lagged client saw the target at 0, while the unstamped one saw 50 ms.
+      trail(world, d, [[50, 340, 256], [0, 340, 400]]);
       tap(world, 0, 0, withT ? 0 : undefined);
       run(world, 1);
-      mob(world, d).y = 400;
-      run(world, 2);
       return { world, d };
     };
     const seen = run1(true);
@@ -618,29 +618,34 @@ describe("shield", () => {
 // ---- stagger ------------------------------------------------------------------------------------------------------
 
 describe("sword stagger, through real windups", () => {
-  // Both press in the first step (100 ms). The sword lands at 200 ms (windup 0.1 s), the axe at 350 ms (0.25 s), the
-  // wand's ball leaves at 500 ms (Holy's wand: 0.4 s).
+  // Player swords land in the press step; NPC axes and player ranged weapons still have interruptible telegraphs.
   const FACING_WEST = Math.PI;
 
-  it("an axe windup left alone lands at 250 ms (the baseline the next test cancels)", () => {
+  it("an NPC axe retains its 250 ms windup (the baseline the next test cancels)", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
-    tap(world, 0, 0);
+    put(world, "p0", FAR);
+    const axe = addMob(world, { kind: "mob", faction: "fire", weapon: "axe", name: "NPC axe", at: ORIGIN });
+    const rt = world.mobs.get(axe)!; rt.brain = newBrain("fire", false, ORIGIN, 0, 0);
+    rt.inputs.pushAction({ kind: "attack", a: 0 }); rt.inputs.pushAction({ kind: "release", a: 0 });
     run(world, 5);
     expect(hpLost(world, 1)).toBe(0);
     run(world, 1);
     expect(hpLost(world, 1)).toBeGreaterThan(0);
   });
 
-  it("cancels an axe windup: the axe never lands", () => {
+  it("an instant player sword cancels an NPC axe windup before it lands", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
-    tap(world, 0, 0);
+    put(world, "p0", FAR);
+    const axe = addMob(world, { kind: "mob", faction: "fire", weapon: "axe", name: "NPC axe", at: ORIGIN });
+    const rt = world.mobs.get(axe)!; rt.brain = newBrain("fire", false, ORIGIN, 0, 0);
+    rt.inputs.pushAction({ kind: "attack", a: 0 }); rt.inputs.pushAction({ kind: "release", a: 0 });
     tap(world, 1, FACING_WEST);
     const events = run(world, 8);
-    expect(hpLost(world, 0)).toBeGreaterThan(0);
+    expect(mob(world, axe).hp).toBeLessThan(mob(world, axe).maxHp);
     expect(hpLost(world, 1)).toBe(0);
-    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "p0" }]);
+    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: axe }]);
     expect(fxOf(events, "swing").map((f) => f.weapon)).toEqual(["sword"]);
-    expect(RT(world, 0).weapon.action).toBeNull();
+    expect(rt.weapon.action).toBeNull();
   });
 
   it("does not interrupt a bow draw: it carries on from where it was, with no stagger mark, and the hit still starts the immunity", () => {
@@ -648,11 +653,11 @@ describe("sword stagger, through real windups", () => {
     hold(world, 0, 0);
     run(world, 1);
     expect(P(world, 0).drawStartedAt).toBe(100);
-    tap(world, 1, FACING_WEST); // pressed at 150 ms, lands at 250 ms
+    tap(world, 1, FACING_WEST); // pressed and landed at 150 ms
     const events = run(world, 3);
     expect(world.state.serverTime).toBe(250);
     expect(fxOf(events, "stagger")).toEqual([]); // nothing was cancelled, so nothing is marked
-    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(250 + IMMUNITY_MS);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(150 + IMMUNITY_MS);
     expect(P(world, 0).drawStartedAt).toBe(100);
     expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 100 });
     expect(hpLost(world, 0)).toBeGreaterThan(0);
@@ -1135,8 +1140,8 @@ describe("simultaneous swings", () => {
     expect(hpLost(world, 1)).toBeCloseTo(each, 9);
     // Each swing had already landed when the other's hit came in, so neither had a windup to cancel: no marks, but both are immune.
     expect(fxOf(events, "stagger")).toEqual([]);
-    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(world.state.serverTime + IMMUNITY_MS);
-    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + IMMUNITY_MS);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(100 + IMMUNITY_MS);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(100 + IMMUNITY_MS);
   });
 
   it("a fighter that another swing staggers in the same tick still lands its own axe", () => {

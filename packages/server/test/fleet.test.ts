@@ -151,9 +151,8 @@ describe("the Fleet bonus around a bow or wand shot", () => {
       enqueueClientMessage(RT(w).inputs, "attack", { a: 0 });
       let swings = 0;
       for (let i = 0; i < 60; i++) {
-        const before = RT(w).weapon.action;
-        step(w, TICK_MS);
-        if (before === null && RT(w).weapon.action !== null) swings++;
+        const events = step(w, TICK_MS);
+        swings += events.filter(e => e.type === "fx" && e.fx.kind === "swing" && e.fx.by === "p0").length;
         expect(P(w).speedMult, `${weapon} tick ${i}`).toBe(ON(2));
       }
       expect(swings, weapon).toBeGreaterThan(2);

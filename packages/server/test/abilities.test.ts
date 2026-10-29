@@ -701,7 +701,7 @@ describe("starting a cast and the weapon in hand", () => {
   });
 
   it("a directional windup (an attack input) is cancelled too, with its cooldown spent", () => {
-    const world = arena([{ faction: "frost", weapons: ["axe"], at: ME }, { faction: "fire", at: FOE }]);
+    const world = arena([{ faction: "frost", weapons: ["wand"], at: ME }, { faction: "fire", at: FOE }]);
     send(world, 0, "attack", { a: 0 });
     tick(world);
     const act = W(world).action!;
@@ -730,7 +730,7 @@ describe("starting a cast and the weapon in hand", () => {
   });
 
   it("a cast with no telegraph and no own order (Last Stand) leaves a windup alone", () => {
-    const world = arena([{ faction: "holy", weapons: ["axe"], at: ME }, { faction: "fire", at: FOE }]);
+    const world = arena([{ faction: "holy", weapons: ["wand"], at: ME }, { faction: "fire", at: FOE }]);
     send(world, 0, "attack", { a: 0 });
     tick(world);
     const act = W(world).action;
@@ -2220,7 +2220,7 @@ describe("two small things the review found", () => {
 describe("a hit on a fighter held at the Last Stand floor still lands", () => {
   it("staggers it, shows a number, records the hit and calls hitLanded, though hp stays at 1, and `taken` counts it as before", () => {
     const world = arena([
-      { faction: "holy", weapons: ["axe"], at: ME, hp: 100, maxHp: 400 }, { faction: "fire", weapons: ["sword"], at: near(330), hp: 1000 },
+      { faction: "holy", weapons: ["wand"], at: ME, hp: 100, maxHp: 400 }, { faction: "fire", weapons: ["sword"], at: near(330), hp: 1000 },
       { faction: "frost", at: near(1000, 500), hp: 1000 },
     ]);
     const calls: number[] = [];

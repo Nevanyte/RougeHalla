@@ -990,14 +990,20 @@ describe("stun in the weapon, swap, pickup and aim paths (D5)", () => {
   });
 
   it("a silenced or rooted fighter still aims and attacks", () => {
-    const w = arena();
-    apply(w, "a", "b", "silence", 5000);
-    apply(w, "a", "b", "root", 5000);
-    enqueueClientMessage(C(w, "a").rt.inputs, "aim", { a: 1.5 });
-    enqueueClientMessage(C(w, "a").rt.inputs, "attack", { a: 1.5 });
-    tick(w);
-    expect(P(w, "a").facing).toBe(1.5);
-    expect(C(w, "a").rt.weapon.action).not.toBeNull();
+    for (const weapon of ["sword", "wand"] as const) {
+      const w = arena();
+      P(w, "a").weapon0 = weapon;
+      apply(w, "a", "b", "silence", 5000);
+      apply(w, "a", "b", "root", 5000);
+      enqueueClientMessage(C(w, "a").rt.inputs, "aim", { a: 1.5 });
+      enqueueClientMessage(C(w, "a").rt.inputs, "attack", { a: 1.5 });
+      const events = tick(w);
+      expect(P(w, "a").facing).toBe(1.5);
+      if (weapon === "sword") {
+        expect(fxOf(events, "swing")).toMatchObject([{ by: "a", weapon }]);
+        expect(C(w, "a").rt.weapon.action).toBeNull();
+      } else expect(C(w, "a").rt.weapon.action?.kind).toBe("cast");
+    }
   });
 });
 

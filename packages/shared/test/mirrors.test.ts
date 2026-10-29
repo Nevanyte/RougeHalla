@@ -58,18 +58,26 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
     expect(IDENTITY_MIRRORS).toEqual({ asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 });
   });
 
-  it("scaleWindup stretches the windup (never past the interval) without rooting the axe", () => {
-    const axe = weaponTimings("axe", 1);
+  it("windup modifiers leave all player melee instant and free to move", () => {
+    for (const weapon of ["sword", "shield", "axe", "fists"] as const) {
+      for (const multiplier of [0.05, 0.5, 1, 1.2, 50]) {
+        expect(scaleWindup(weaponTimings(weapon, 1), multiplier)).toMatchObject({ interval: 1, windup: 0, root: 0 });
+      }
+    }
+  });
+
+  it("scaleWindup stretches an NPC windup (never past the interval) without rooting the axe", () => {
+    const axe = weaponTimings("axe", 1, "npc");
     expect(scaleWindup(axe, 1)).toBe(axe);
     const slow = scaleWindup(axe, 1.2);
     expect(slow.windup).toBeCloseTo(axe.windup * 1.2, 12);
     expect(slow.root).toBe(0);
     expect(slow.interval).toBe(axe.interval);
-    const sword = weaponTimings("sword", 1);
+    const sword = weaponTimings("sword", 1, "npc");
     expect(scaleWindup(sword, 50).windup).toBe(1);
     expect(scaleWindup(sword, 0.5).windup).toBeCloseTo(sword.windup / 2, 12);
     expect(scaleWindup(sword, 0.5).root).toBe(0);
-    const a = scaleWindup(weaponTimings("axe", 1), 3);
+    const a = scaleWindup(weaponTimings("axe", 1, "npc"), 3);
     expect(a.root).toBe(0);
   });
 
@@ -90,14 +98,14 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
     expect(scaleWindup(bow, 1.2)).toMatchObject({ interval: bow.interval, root: 0, ranged: true });
   });
 
-  it("scaleWindup shortens the melee windups by the mult without adding axe recovery", () => {
-    const sword = weaponTimings("sword", 1);
+  it("scaleWindup shortens NPC melee windups by the mult without adding axe recovery", () => {
+    const sword = weaponTimings("sword", 1, "npc");
     expect(scaleWindup(sword, 0.88).windup).toBeCloseTo(0.088, 12);
     expect(scaleWindup(sword, 0.5).windup).toBeCloseTo(0.05, 12);
     expect(scaleWindup(sword, 0.4).windup).toBeCloseTo(0.04, 12);
-    const bash = weaponTimings("shield", 1);
+    const bash = weaponTimings("shield", 1, "npc");
     expect(scaleWindup(bash, 0.5).windup).toBeCloseTo(0.05, 12);
-    const axe = weaponTimings("axe", 1.19); // 0.25 s windup, no recovery root
+    const axe = weaponTimings("axe", 1.19, "npc"); // 0.25 s windup, no recovery root
     const quick = scaleWindup(axe, 0.88);
     expect(quick.windup).toBeCloseTo(0.22, 12);
     expect(quick.root).toBe(0);

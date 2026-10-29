@@ -1,6 +1,6 @@
 // In-run DOM overlay: a compact health and gained-stat plate while fighting, lobby/planning/training context when idle,
 // the Coliseum countdown, a compact champion combat readout, and the death/results cues.
-import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
+import { FACTIONS, WEAPONS, hpDisplayValue, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { winnerLabel } from "../render/displayName";
 import type { TerrainStates } from "../render/zoneArt/terrainFeedback";
@@ -211,10 +211,10 @@ export class Hud {
     }
 
     // The barrier (hp it absorbs) reads after the hp: "HP 400/500 +75 barrier".
-    const barrier = me && me.status === "alive" && me.barrier > 0 ? Math.ceil(me.barrier) : 0;
+    const barrier = me && me.status === "alive" && me.barrier > 0 ? hpDisplayValue(me.barrier) : 0;
     let key = "";
     if (me) {
-      key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.ceil(me.maxHp)}|${barrier}|${me.status}`;
+      key = `${me.name}|${me.faction}|${hpDisplayValue(me.hp)}|${hpDisplayValue(me.maxHp)}|${barrier}|${me.status}`;
       if (training) key += `|T|${me.slot}|${me.weapon0}|${me.weapon1}`;
     }
     if (key !== this.lastVitals) {
@@ -228,7 +228,7 @@ export class Hud {
 
     const hp = me ? Math.max(0, Math.min(me.maxHp, me.hp)) : 0;
     const maxHp = me ? Math.max(1, me.maxHp) : 1;
-    const healthKey = `${Math.ceil(hp)}|${Math.ceil(maxHp)}|${barrier}|${me?.status ?? "missing"}`;
+    const healthKey = `${hpDisplayValue(hp)}|${hpDisplayValue(maxHp)}|${barrier}|${me?.status ?? "missing"}`;
     if (healthKey !== this.lastHealth) {
       this.lastHealth = healthKey;
       const ratio = Math.max(0, Math.min(1, hp / maxHp));
@@ -236,9 +236,9 @@ export class Hud {
       this.healthFill.style.width = `${ratio * 100}%`;
       this.healthBarrier.style.left = `${ratio * 100}%`;
       this.healthBarrier.style.width = `${barrierRatio * 100}%`;
-      this.healthValue.textContent = me ? `${Math.ceil(hp)}/${Math.ceil(maxHp)}${barrier ? ` +${barrier}` : ""}` : "";
-      this.healthMeter.setAttribute("aria-valuemax", String(Math.ceil(maxHp)));
-      this.healthMeter.setAttribute("aria-valuenow", String(Math.ceil(hp)));
+      this.healthValue.textContent = me ? `${hpDisplayValue(hp)}/${hpDisplayValue(maxHp)}${barrier ? ` +${barrier}` : ""}` : "";
+      this.healthMeter.setAttribute("aria-valuemax", String(hpDisplayValue(maxHp)));
+      this.healthMeter.setAttribute("aria-valuenow", String(hpDisplayValue(hp)));
       this.healthMeter.setAttribute("aria-valuetext", hpText(hp, maxHp, barrier));
       this.health.classList.toggle("low", ratio <= 0.35);
       this.health.classList.toggle("critical", ratio <= 0.18);

@@ -521,9 +521,9 @@ describe("bog slow", () => {
     world.moveModifiers.push((_w, c) => (c.id === "p2" ? 3 : 1));
     const moved = walkOneSecond(world, "p0");
     expect(moved).toBeCloseTo(PLAYER_SPEED * 0.35, 6);
-    // A windup roots the fighter whatever the floor.
+    // A ranged windup roots the fighter whatever the floor.
     const p1 = P(world, "p1");
-    p1.weapon0 = "sword";
+    p1.weapon0 = "wand";
     const x1 = p1.x;
     order(world, "p1", "move", { x: 60 * TILE, y: p1.y });
     order(world, "p1", "attack", { a: 0 });
@@ -771,7 +771,7 @@ describe("ice", () => {
     });
 
     it("a windup plants the slide in that tick: nothing moves, the velocity is zero", () => {
-      const world = iceWorld([{ faction: "fire", weapon: "sword", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }]);
+      const world = iceWorld([{ faction: "fire", weapon: "wand", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }]);
       const p = P(world, "p0");
       order(world, "p0", "move", { x: 60 * TILE, y: p.y });
       run(world, 8);
