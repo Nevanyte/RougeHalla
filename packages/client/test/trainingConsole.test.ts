@@ -352,7 +352,7 @@ describe("in the training bar", () => {
     bar({ send: (m) => sent.push(m) });
     const root = ui.byClass("training-bar")!;
     const parts = root.children.filter((c): c is UiEl => typeof c !== "string").map((c) => c.className);
-    expect(parts).toEqual(["training-tips", "train-console", "btn training-leave"]);
+    expect(parts).toEqual(["training-tips", "btn small training-tips-toggle", "train-console", "btn training-leave"]);
     mouseClick(btn(ui, "clear"));
     expect(sent).toEqual([{ cmd: "clear" }]);
   });
