@@ -96,7 +96,11 @@ export class Menu {
   private readonly who = el("div", "hub-who");
   private readonly cosmetics = el("span", "hub-cosmetics-count");
   private readonly hubButtons: HTMLButtonElement[] = [];
-  private readonly hub = new HubPanels({ onProfile: (profile) => this.showProfile(profile) });
+  private readonly hub = new HubPanels({
+    onProfile: profile => this.showProfile(profile),
+    onFactionPick: id => this.picker.select(id),
+  });
+  private readonly championGuide = el("button", "btn menu-champion-guide", "Champions · abilities & scaling");
   private readonly board = el("div", "hub-board");
   private readonly boardList = el("ol", "hub-board-list");
   private readonly picker = new FactionPicker();
@@ -193,7 +197,10 @@ export class Menu {
     actions.append(this.startBtn, this.trainBtn);
     this.trainBtn.title = "A private room with practice dummies and every weapon. Nothing is recorded.";
 
-    this.root.append(head, row, this.placeholder, this.body, actions, this.status, this.hint);
+    this.championGuide.type = "button";
+    this.championGuide.title = "Browse every passive, Wish and weapon scaling. Hold Shift inside the guide for exact rules.";
+    this.championGuide.addEventListener("click", event => this.hub.open("champions", { shiftKey: event.shiftKey }));
+    this.root.append(head, row, this.placeholder, this.championGuide, this.body, actions, this.status, this.hint);
 
     this.loadBtn.addEventListener("click", () => void this.load());
     this.startBtn.addEventListener("click", () => this.startRun());
@@ -500,6 +507,7 @@ export class Menu {
     this.root.classList.toggle("loading", this.loading);
     this.input.disabled = this.busy;
     this.picker.setDisabled(this.busy);
+    this.championGuide.disabled = this.busy;
     this.loadBtn.disabled = this.busy || this.loading;
     this.startBtn.disabled = this.busy || this.loading || !loaded;
     this.trainBtn.disabled = this.busy || this.loading || !loaded;

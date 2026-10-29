@@ -74,6 +74,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
     id: "hub",
     title: "In the hub",
     bindings: [
+      { keys: ["Hold Shift"], action: "Champions guide: show detailed abilities and scaling" },
       { keys: ["WASD", "Arrow keys"], action: "Walk" },
       { keys: ["Right-click"], action: "Walk to the spot (hold to keep steering)" },
       { keys: ["E"], action: "Use the station you stand at" },

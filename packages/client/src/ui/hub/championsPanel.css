@@ -1,0 +1,63 @@
+.champions-panel { --champion-color: var(--accent); color: var(--text); }
+.champion-guide-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.champion-eyebrow { color: var(--accent); font-size: 10px; letter-spacing: .16em; font-weight: 650; }
+.champion-guide-intro p { color: var(--muted); font-size: 12px; margin: 5px 0 0; }
+.champion-detail-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px 10px; max-width: 250px; }
+.champion-shift-hint { color: var(--text-soft); font-size: 11px; white-space: nowrap; }
+.champion-shift-hint kbd { border: 1px solid var(--line-hi); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; font: 11px var(--font); color: var(--accent); background: var(--sunken); }
+.champion-details-toggle { min-height: 30px; }
+.champion-mode { width: 100%; color: var(--muted); font-size: 10px; text-align: right; }
+[data-detail="true"] .champion-mode { color: var(--accent); }
+.champion-layout { display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 18px; align-items: start; }
+.champion-navigation { display: flex; flex-direction: column; gap: 6px; position: sticky; top: 0; }
+.champion-option { display: flex; align-items: center; gap: 8px; padding: 10px 8px; width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-left: 3px solid transparent; border-radius: 4px; background: var(--card); color: var(--text-soft); cursor: pointer; font: inherit; text-align: left; }
+.champion-option:hover { border-color: var(--line-hi); background: var(--card-hover); }
+.champion-option[aria-selected="true"] { border-color: var(--line-hi); border-left-color: var(--champion-color); background: var(--field); color: var(--text); }
+.champion-option strong { display: block; font-size: 12px; line-height: 17px; }
+.champion-option small { display: block; color: var(--muted); font-size: 10px; line-height: 14px; }
+.champion-option-glyph { display: block; flex: none; width: 19px; height: 22px; background: var(--champion-color); }
+.champion-content { min-width: 0; }
+.champion-header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.champion-crest { display: block; width: 33px; height: 40px; flex: none; background: var(--champion-color); }
+.champion-identity { flex: 1; min-width: 100px; }
+.champion-name { margin: 0; color: var(--text); font-size: 26px; line-height: 32px; letter-spacing: -.03em; }
+.champion-role { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+.champion-select { border-color: var(--accent-line); color: var(--accent); font-size: 11px; padding: 6px 9px; min-height: 32px; }
+.champion-select:disabled { color: var(--ok-text); border-color: var(--line); opacity: 1; }
+.champion-base-stats { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 9px 0 12px; border-top: 1px solid var(--line); margin-bottom: 2px; }
+.champion-base-stats small { display: block; color: var(--muted); font-size: 10px; }
+.champion-base-stats strong { display: block; font-size: 15px; }
+.champion-base-mix { flex: 1 1 100%; color: var(--text-soft); font-size: 11px; }
+.champion-abilities { display: flex; flex-direction: column; gap: 12px; }
+.champion-ability { border: 1px solid var(--line-strong); border-radius: 6px; padding: 13px 14px; background: linear-gradient(135deg, #20262d, #13181d); }
+.champion-ability-head { display: flex; align-items: center; gap: 10px; }
+.champion-ability-key { display: flex; width: 32px; height: 36px; align-items: center; justify-content: center; flex: none; border: 1px solid var(--champion-color); color: var(--champion-color); border-radius: 5px; background: #0b1116; font-size: 17px; font-weight: 700; }
+.champion-ability-kind { display: block; font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.champion-ability h3 { margin: 1px 0 0; font-size: 17px; line-height: 22px; }
+.champion-ability-summary { margin: 10px 0; font-size: 13px; line-height: 1.55; color: var(--text); }
+.champion-ability-metrics { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.champion-scaling-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.champion-scaling-tag { display: inline-block; border: 1px solid currentColor; border-radius: 3px; padding: 2px 6px; font-size: 10px; line-height: 14px; color: #c3d0da; }
+.scaling-ad { color: #ffb580; } .scaling-ap { color: #c8b8ff; } .scaling-health { color: #b5deaf; } .scaling-defense { color: #a6d8ef; } .scaling-target { color: #f0ce8d; }
+.champion-scaling { margin: 7px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.55; }
+.champion-advanced { border-top: 1px solid var(--line-strong); padding-top: 9px; margin-top: 11px; color: var(--text-soft); font-size: 12px; line-height: 1.6; }
+.champion-advanced h4 { margin: 0 0 5px; color: var(--accent); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.champion-advanced ul { margin: 0; padding-left: 17px; }
+.champion-advanced li + li { margin-top: 7px; }
+.champion-weapons { margin-top: 20px; }
+.champion-weapons > h3 { font-size: 14px; margin: 0 0 5px; }
+.champion-weapon-caption, .champion-base-note { color: var(--muted); font-size: 11px; line-height: 1.55; }
+.champion-weapon-caption { margin: 0 0 9px; }
+.champion-weapon-row { padding: 8px 0; border-top: 1px solid var(--line); }
+.champion-weapon-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 11px; line-height: 16px; }
+.champion-weapon-heading > span { color: var(--text-soft); }
+.champion-weapon-row .champion-advanced { margin: 7px 0 0; border: 0; padding-top: 0; }
+.champion-base-note { margin: 13px 0 0; }
+.menu-champion-guide { display: block; width: 100%; text-align: left; color: var(--accent); border-color: var(--accent-line); padding: 9px 11px; margin-bottom: 9px; }
+.faction-scaling { display: block; color: var(--accent); font-size: 11px; line-height: 1.5; margin-top: 4px; }
+html[data-ui-narrow] .champion-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+html[data-ui-narrow] .champion-navigation { position: static; flex-direction: row; flex-wrap: wrap; }
+html[data-ui-narrow] .champion-option { width: calc(50% - 3px); }
+html[data-ui-narrow] .champion-guide-intro { flex-direction: column; gap: 8px; }
+html[data-ui-narrow] .champion-detail-controls { justify-content: flex-start; max-width: none; }
+html[data-ui-narrow] .champion-mode { width: auto; text-align: left; }
