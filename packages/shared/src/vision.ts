@@ -1,5 +1,5 @@
 import { TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS } from "./constants";
-import { isWallTile, type GameMap } from "./map";
+import { inColiseum, isWallTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
 /** First wall faces are visible, but walls and closed gates occlude everything behind them. No ray objects allocated. */
@@ -67,11 +67,21 @@ export class VisionMemory {
     if (map === this.lastMap && now >= this.lastUpdate && now - this.lastUpdate < VISION_UPDATE_MS
       && radius === this.lastRadius && ttl === this.lastTtl) return;
     this.lastMap = map; this.lastUpdate = now; this.lastRadius = radius; this.lastTtl = ttl;
+    const until = now + ttl;
+    if (inColiseum(map, origin.x, origin.y)) {
+      const { x, y, w, h } = map.coliseum.rect;
+      for (let ty = Math.max(0, y); ty < Math.min(map.h, y + h); ty++) {
+        for (let tx = Math.max(0, x); tx < Math.min(map.w, x + w); tx++) {
+          const i = ty * this.width + tx;
+          this.expiresAt[i] = Math.max(this.expiresAt[i]!, until);
+        }
+      }
+    }
     const minX = Math.max(0, Math.floor((origin.x - radius) / TILE));
     const maxX = Math.min(map.w - 1, Math.floor((origin.x + radius) / TILE));
     const minY = Math.max(0, Math.floor((origin.y - radius) / TILE));
     const maxY = Math.min(map.h - 1, Math.floor((origin.y + radius) / TILE));
-    const r2 = radius * radius, until = now + ttl;
+    const r2 = radius * radius;
     for (let ty = minY; ty <= maxY; ty++) {
       const y = (ty + 0.5) * TILE, dy = y - origin.y;
       for (let tx = minX; tx <= maxX; tx++) {

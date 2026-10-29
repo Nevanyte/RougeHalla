@@ -8,7 +8,7 @@
 // placed by percent over the painted map (canvas), so the keyboard and screen readers reach them. Orders go out as `plan`
 // inputs only; the deal and the route stay on this client (the route is never sent).
 import {
-  FACTIONS, campMatchup, isEliteCamp, isFactionId, nearestCamps, regionAt, spawnWalks, walkSeconds,
+  FACTIONS, TILE, campMatchup, isEliteCamp, isFactionId, nearestCamps, regionAt, spawnWalks, walkSeconds,
   type CampDef, type ClientMessages, type FactionId, type GameMap, type PlanMessage, type Vec2,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
@@ -70,6 +70,10 @@ export interface PlanningFrame {
   campStates?: readonly number[];
   /** The local fighter's ground position, for the in-run map. */
   local: { x: number; y: number; alive: boolean } | null;
+  /** Personal vision predicate from RaidVision. */
+  canSee?: (point: Vec2) => boolean;
+  /** Whether personal vision is active (false in preview/planning or training). */
+  visionEnabled?: boolean;
   /** Public quest offers and the number still hidden server-side. */
   quests?: QuestCollection;
   hiddenQuests?: number;
@@ -167,6 +171,7 @@ export class PlanningView {
 
   // The map, layered: the painted base, the route and you, the labels, the markers.
   private readonly base = el("canvas", "pl-base");
+  private readonly fog = el("canvas", "pl-fog");
   private readonly dyn = el("canvas", "pl-route");
   private readonly zones = el("div", "pl-zones");
   private readonly markers = el("div", "pl-markers");
@@ -193,7 +198,9 @@ export class PlanningView {
   private readonly clearButton = el("button", "pl-clear", "Clear route");
   private readonly info = el("div", "pl-info");
   private readonly status = el("div", "pl-status");
-  private readonly quests = new PlanningQuests();
+  private readonly quests = new PlanningQuests((at) => {
+    if (this.shownMode === "planning" || this.shownMode === "map") this.addRoutePoint(at);
+  });
 
   private readonly camps: CampMarker[] = [];
   /** The zone names on the map, in `map.regions` order; `relayout` moves them off the camps. */
@@ -204,6 +211,11 @@ export class PlanningView {
   private spawnOptions: SpawnOption[] = [];
   private boonCards: HTMLButtonElement[] = [];
   private stopMarkers: HTMLButtonElement[] = [];
+  private stopRenderKey = "";
+  private visionSampleAt = -Infinity;
+  private visionBits = "";
+  private visionFogActive = false;
+  private visionFogDirty = true;
   /** What the spawn and boon buttons were built for: they are built again only when that changes, so a focused button stays. */
   private spawnStruct = "";
   private boonStruct = "";
@@ -294,10 +306,11 @@ export class PlanningView {
     this.zones.setAttribute("aria-hidden", "true");
     this.markers.setAttribute("role", "group");
     this.markers.setAttribute("aria-label", "Map markers. Arrow keys move between them; Page Up and Page Down jump between zones.");
-    this.zones.append(this.quests.markers);
-    this.mapWrap.append(this.base, this.dyn, this.zones, this.markers);
+    this.mapWrap.append(this.base, this.fog, this.dyn, this.zones, this.markers, this.quests.markers);
+    this.fog.setAttribute("aria-hidden", "true");
     this.dyn.addEventListener("click", this.onMapClick);
-    this.dyn.addEventListener("contextmenu", (e: Event) => { if (this.shownMode === "planning") e.preventDefault(); });
+    for (const type of ["pointerdown", "mousedown", "touchstart", "click", "contextmenu"])
+      this.mapWrap.addEventListener(type, this.stopMapInput);
     this.markers.addEventListener("keydown", this.onMarkerKey);
 
     this.legend.setAttribute("aria-label", "Zones");
@@ -348,7 +361,7 @@ export class PlanningView {
     this.map = map;
     this.camps.length = 0;
     this.markers.replaceChildren();
-    this.zones.replaceChildren(this.quests.markers);
+    this.zones.replaceChildren();
     this.zoneLabels = [];
     this.quests.setMap(map);
     this.spawnOptions = [];
@@ -376,7 +389,7 @@ export class PlanningView {
       const chip = el("span", "pl-chip");
       chip.setAttribute("aria-hidden", "true");
       button.append(glyph(camp.zone), chip);
-      button.addEventListener("click", () => this.onCampClick(i));
+      button.addEventListener("click", (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); this.onCampClick(i); });
       for (const type of ["mouseenter", "focus"]) button.addEventListener(type, () => { this.setRover(button); this.showInfo(i); });
       for (const type of ["mouseleave", "blur"]) button.addEventListener(type, () => this.showInfo(-1));
       this.markers.append(button);
@@ -387,6 +400,7 @@ export class PlanningView {
     this.keyPlan = "";
     this.keyRoute = "";
     this.routeDirty = true;
+    this.visionFogDirty = true;
     this.backing = 0;
     this.applyView();
     this.relayout();
@@ -418,7 +432,7 @@ export class PlanningView {
     const backing = minimapBacking(size, uiScale, dpr);
     if (backing === this.backing) return;
     this.backing = backing;
-    for (const c of [this.base, this.dyn]) { c.width = backing; c.height = backing; }
+    for (const c of [this.base, this.fog, this.dyn]) { c.width = backing; c.height = backing; }
     const g = this.base.getContext("2d");
     if (g) {
       const k = backing / mapSpan();
@@ -426,6 +440,7 @@ export class PlanningView {
       paintCrates(g, this.map.crateSpots, k, Math.max(1, backing / REF_PX));
     }
     this.routeDirty = true;
+    this.visionFogDirty = true;
   }
 
   // -------------------------------------------------------------------------------------------------------- frames
@@ -439,6 +454,7 @@ export class PlanningView {
   update(frame: PlanningFrame): void {
     this.frame = frame;
     this.applyMode(frame.mode);
+    if (frame.mode !== "hidden") this.updateVisionFog(frame);
     if (frame.mode === "hidden") return;
     this.renderTimer(frame);
     this.renderPeople(frame);
@@ -455,12 +471,13 @@ export class PlanningView {
     this.element.setAttribute("data-mode", mode);
     this.element.hidden = mode === "hidden";
     const planning = mode === "planning";
+    if (mode === "map") { this.visionSampleAt = -Infinity; this.visionFogDirty = true; }
     this.head.hidden = mode === "map";
     this.bar.hidden = !planning;
     this.timer.hidden = !planning;
     this.title.textContent = planning ? "Planning" : "Map preview";
     this.legend.hidden = mode === "hidden";
-    this.info.hidden = mode === "map";
+    this.info.hidden = false;
     this.side.hidden = mode === "map";
     // The camps stay on the held map (read-only); the dealt spawns and the route's stop buttons are for planning.
     this.markers.hidden = mode === "hidden";
@@ -628,6 +645,7 @@ export class PlanningView {
   }
 
   private defaultInfo(): string {
+    if (this.shownMode === "map") return "Click camps or quests to edit route · release Tab to return";
     if (this.shownMode === "planning") return "Hover or focus a camp to read it. Its chip is your matchup: the share of your hp left after a straight fight.";
     return "Hover or focus a camp to read it. Planning starts when the lobby fills.";
   }
@@ -919,35 +937,85 @@ export class PlanningView {
       if (this.shownMode === "map" && local) paintPlayer(g, local, local.alive, k, px);
     }
 
-    if (planning) {
+    if (planning || this.shownMode === "map") {
       this.renderStops();
-      this.renderRouteText(plan);
+      if (planning) this.renderRouteText(plan);
     } else {
       this.clearStops();
     }
   }
 
   private clearStops(): void {
+    this.stopRenderKey = "";
     if (this.stopMarkers.length === 0) return;
     for (const m of this.stopMarkers) m.remove();
     this.stopMarkers = [];
     this.refreshRover();
   }
 
+  /** Samples visible ground at the minimap cadence, painting only terrain so public markers stay readable above it. */
+  private updateVisionFog(frame: PlanningFrame): void {
+    const active = frame.mode === "map" && !!frame.visionEnabled && !!frame.canSee;
+    if (!active) {
+      if (this.visionFogActive || this.visionFogDirty) this.fog.getContext("2d")?.clearRect(0, 0, this.fog.width, this.fog.height);
+      this.visionFogActive = false;
+      this.visionBits = "";
+      this.visionSampleAt = -Infinity;
+      this.visionFogDirty = false;
+      return;
+    }
+    this.visionFogActive = true;
+    const now = frame.serverNow;
+    if (!this.visionFogDirty && now - this.visionSampleAt < 100) return;
+    const canSee = frame.canSee!;
+    let bits = "";
+    const point = { x: 0, y: 0 };
+    for (let y = 0; y < this.map.h; y++) {
+      point.y = (y + 0.5) * TILE;
+      for (let x = 0; x < this.map.w; x++) {
+        point.x = (x + 0.5) * TILE;
+        bits += canSee(point) ? "1" : "0";
+      }
+    }
+    this.visionSampleAt = now;
+    if (bits === this.visionBits && !this.visionFogDirty) return;
+    this.visionBits = bits;
+    this.visionFogDirty = false;
+    const g = this.fog.getContext("2d");
+    if (!g) return;
+    const k = this.backing / mapSpan();
+    g.clearRect(0, 0, this.fog.width, this.fog.height);
+    // Same blue-grey tint as the minimap's live-vision highlight, over a subdued unknown-terrain bed.
+    g.fillStyle = "rgba(7, 13, 24, 0.72)";
+    for (let y = 0; y < this.map.h; y++) for (let x = 0; x < this.map.w; x++) {
+      if (bits[y * this.map.w + x] === "0") g.fillRect(x * TILE * k, y * TILE * k, TILE * k + 0.2, TILE * k + 0.2);
+    }
+    g.fillStyle = "rgba(177, 213, 221, 0.13)";
+    for (let y = 0; y < this.map.h; y++) for (let x = 0; x < this.map.w; x++) {
+      if (bits[y * this.map.w + x] === "1") g.fillRect(x * TILE * k, y * TILE * k, TILE * k + 0.2, TILE * k + 0.2);
+    }
+  }
+
   /** One numbered button per stop: clicking it (or Enter, or Delete, on it) takes the stop out. */
   private renderStops(): void {
+    const offset = this.shownMode === "map" ? this.route.next : 0;
+    const waypoints = this.route.waypoints.slice(offset);
+    const signature = `${this.shownMode}|${offset}|${waypoints.map((wp) => `${wp.x},${wp.y}`).join(";")}`;
+    if (signature === this.stopRenderKey) return;
+    this.stopRenderKey = signature;
     for (const m of this.stopMarkers) m.remove();
     this.stopMarkers = [];
     const span = mapSpan();
-    this.route.waypoints.forEach((wp, i) => {
-      const b = el("button", "pl-stop", String(i + 1));
+    waypoints.forEach((wp, i) => {
+      const routeIndex = offset + i;
+      const b = el("button", "pl-stop", String(routeIndex + 1));
       b.type = "button";
       b.style.setProperty("left", pct(wp.x, span));
       b.style.setProperty("top", pct(wp.y, span));
-      const label = `Route stop ${i + 1}. Press Enter or Delete to take it out.`;
+      const label = `Route stop ${routeIndex + 1}. Press Enter or Delete to take it out.`;
       b.setAttribute("aria-label", label);
       b.title = label;
-      b.addEventListener("click", () => this.removeStop(i));
+      b.addEventListener("click", (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); this.removeStop(routeIndex); });
       b.addEventListener("focus", () => this.setRover(b));
       this.markers.append(b);
       this.stopMarkers.push(b);
@@ -957,10 +1025,10 @@ export class PlanningView {
 
   /** Takes stop `i` out, and hands the keyboard to the stop that takes its place (or to the first camp) when it had it. */
   private removeStop(i: number): void {
-    const hadFocus = this.stopMarkers[i] !== undefined && document.activeElement === this.stopMarkers[i];
+    const hadFocus = this.stopMarkers.includes(document.activeElement as HTMLButtonElement);
     this.route.removeAt(i);
     if (!hadFocus) return;
-    const next = this.stopMarkers[Math.min(i, this.stopMarkers.length - 1)] ?? this.camps[0]?.button;
+    const next = this.stopMarkers[Math.min(Math.max(0, i - (this.shownMode === "map" ? this.route.next : 0)), this.stopMarkers.length - 1)] ?? this.camps[0]?.button;
     if (next) { this.setRover(next); next.focus(); }
   }
 
@@ -984,18 +1052,35 @@ export class PlanningView {
 
   /** A click on the map while planning: a stop where the pointer is. */
   private readonly onMapClick = (e: MouseEvent): void => {
-    if (this.shownMode !== "planning") return;
+    if (this.shownMode !== "planning" && this.shownMode !== "map") return;
+    e.preventDefault();
+    e.stopPropagation();
     const at = minimapToWorld(e.clientX, e.clientY, this.dyn.getBoundingClientRect());
     if (!this.route.add(at)) this.say(`A route holds ${MAX_WAYPOINTS} stops.`);
   };
 
+  /** Keep an in-run map edit from reaching Phaser's window-level world input handlers. */
+  private readonly stopMapInput = (e: Event): void => {
+    if (this.shownMode !== "map") return;
+    e.stopPropagation();
+    if (e.type === "contextmenu") e.preventDefault();
+  };
+
+  private addRoutePoint(at: Vec2): void {
+    const offset = this.shownMode === "map" ? this.route.next : 0;
+    const nearby = this.route.waypoints.slice(offset).findIndex((w) => Math.hypot(w.x - at.x, w.y - at.y) <= STOP_MERGE);
+    if (nearby >= 0) { this.route.removeAt(offset + nearby); return; }
+    if (!this.route.add(at)) this.say(`A route holds ${MAX_WAYPOINTS} stops.`);
+  }
+
   /** A click on a camp's marker: while planning, a stop at the camp (or the stop already there, taken out). */
   private onCampClick(i: number): void {
-    if (this.shownMode !== "planning") return;
+    if (this.shownMode !== "planning" && this.shownMode !== "map") return;
     const camp = this.camps[i]?.camp;
     if (!camp) return;
-    const at = this.route.waypoints.findIndex((w) => Math.hypot(w.x - camp.x, w.y - camp.y) <= STOP_MERGE);
-    if (at >= 0) { this.route.removeAt(at); return; }
+    const offset = this.shownMode === "map" ? this.route.next : 0;
+    const at = this.route.waypoints.slice(offset).findIndex((w) => Math.hypot(w.x - camp.x, w.y - camp.y) <= STOP_MERGE);
+    if (at >= 0) { this.route.removeAt(offset + at); return; }
     if (!this.route.add({ x: camp.x, y: camp.y })) this.say(`A route holds ${MAX_WAYPOINTS} stops.`);
   }
 
@@ -1042,7 +1127,7 @@ export class PlanningView {
       const stop = this.stopMarkers.indexOf(list[at]!);
       if (stop < 0) return;
       e.preventDefault();
-      this.removeStop(stop);
+      this.removeStop((this.shownMode === "map" ? this.route.next : 0) + stop);
       return;
     }
     if (to < 0) return;
@@ -1065,7 +1150,6 @@ export class PlanningView {
     for (const off of this.unsubscribers.splice(0)) off();
     this.releaseFocus();
     this.element.remove();
-    this.base.width = 0;
-    this.base.height = 0;
+    for (const c of [this.base, this.fog, this.dyn]) { c.width = 0; c.height = 0; }
   }
 }

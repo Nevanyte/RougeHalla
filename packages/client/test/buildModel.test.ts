@@ -6,12 +6,32 @@ import {
   type StatMirrors,
 } from "@raid/shared";
 import {
-  BUILD_STAT_IDS, buildStats, cardLifesteal, cutPercent, factorText, num, percentOver, statLine, weaponScalingText, weaponSpecialText,
+  BUILD_STAT_IDS, buildGains, buildStats, cardLifesteal, cutPercent, factorText, num, percentOver, statLine, weaponScalingText, weaponSpecialText,
   weaponTipText, type BuildStat, type BuildStatId,
 } from "../src/ui/buildModel";
 
 const IDENTITY: StatMirrors = { asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 };
 const wire = (over: Partial<StatMirrors>): StatMirrors => encodeMirrors({ ...IDENTITY, ...over });
+
+describe("gained-stat strip", () => {
+  it("excludes faction totals and preserves fractional gains from the first mob kill", () => {
+    const gains = buildGains({
+      faction: "holy", build: {}, weapon: "fists", maxHp: FACTIONS.holy.hp + 50,
+      mirrors: { ...IDENTITY, adBonus: 12, apBonus: 15, armorBonus: 7, shieldBonus: 9, asMult: 1.025, speedMult: 1.005 },
+      mobStats: { rotMonk: 1, emberImp: 1 },
+    });
+    expect(Object.fromEntries(gains.map(s => [s.id, s.value]))).toEqual({
+      ad: "+12", ap: "+15", damage: "+1%", as: "+2.5%", leech: "+0.25%",
+      health: "+50", armor: "+7", mr: "+9", move: "+0.5%",
+    });
+  });
+
+  it("shows a signed net penalty for stat tradeoffs", () => {
+    const gains = buildGains({ faction: "fire", build: {}, weapon: "fists", mirrors: { ...IDENTITY, adBonus: -12, apBonus: -3 } });
+    expect(gains.find(s => s.id === "ad")?.value).toBe("-12");
+    expect(gains.find(s => s.id === "ap")?.value).toBe("-3");
+  });
+});
 
 function stats(build: Record<string, number>, over: Partial<StatMirrors> = {}, faction = "plague", weapon: Parameters<typeof buildStats>[0]["weapon"] = "sword", hpFrac = 1) {
   const list = buildStats({ faction, build, wire: wire(over), weapon, hpFrac });

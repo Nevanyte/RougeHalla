@@ -13,8 +13,8 @@ import { argsOf, fakeScene, type FakeObject } from "./fakes";
 /** Matches `scene.add.container(0, 0, [...])` in PlayerView's constructor. */
 const CHILD = { barrierRing: 7, hpBar: 13 } as const;
 /** The status art and the Wish icon, the last two children. */
-const STATUS = 19;
-const ICON = 20;
+const STATUS = 18;
+const ICON = 19;
 const MAX_HP = 1000;
 
 function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerState {
@@ -37,6 +37,41 @@ function setup() {
 
 /** The line width and alpha of the bubble's outline: both grow with the barrier. */
 const outline = (ring: FakeObject) => argsOf(ring, "lineStyle")[0]!;
+
+describe("PlayerView build icons", () => {
+  it("shows at most three icons and no overhead damage numbers", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new PlayerView(scene, false);
+    const textCount = ofKind("text").length;
+    const marks = (view as unknown as { buildMarks: FakeObject }).buildMarks;
+    view.update(0, 0, player({
+      adBonus: 300, apBonus: 400, armorBonus: 500, shieldBonus: 600, asMult: 1250, speedMult: 1100,
+      mobStats: new Map([["rotMonk", 4], ["emberImp", 4]]),
+    }), 1000, 1000);
+    expect(argsOf(marks, "add")).toHaveLength(3);
+    expect(argsOf(marks, "add").every(([mark]) => (mark as FakeObject).kind === "graphics")).toBe(true);
+    expect(ofKind("text")).toHaveLength(textCount);
+  });
+
+  it("refreshes icons when mob rewards change without changing any stat mirror", () => {
+    const { scene } = fakeScene();
+    const view = new PlayerView(scene, false);
+    const marks = (view as unknown as { buildMarks: FakeObject }).buildMarks;
+    const mobStats = new Map<string, number>();
+    const p = player({ maxHp: FACTIONS.fire.hp, hp: FACTIONS.fire.hp, mobStats });
+    view.update(0, 0, p, 1000, 1000);
+    expect(argsOf(marks, "add")).toHaveLength(0);
+    mobStats.set("rotMonk", 1);
+    view.update(0, 0, p, 1016, 1000);
+    expect(argsOf(marks, "add")).toHaveLength(1);
+    const redraws = argsOf(marks, "removeAll").length;
+    view.update(0, 0, p, 1032, 1000);
+    expect(argsOf(marks, "removeAll")).toHaveLength(redraws);
+    mobStats.set("emberImp", 1);
+    view.update(0, 0, p, 1048, 1000);
+    expect(argsOf(marks, "removeAll")).toHaveLength(redraws + 1);
+  });
+});
 
 describe("PlayerView barrier", () => {
   it("draws nothing without a barrier", () => {
@@ -358,10 +393,10 @@ describe("PlayerView feet effects", () => {
     for (let i = 0; i < 3; i++) view.update(0, 0, player(), 1000 + i, 1000 + i);
     view.update(0, 0, player(), 1010, 1010, false, false, null, homeOnly); // home ground with no effect shows nothing either
     view.update(0, 0, player({ status: "dead", hp: 0 }), 1020, 1020); // an unseen fighter hides a feet effect that was never made
-    expect(ofKind("graphics")).toHaveLength(made + 1); // PlayerView allocates its strength glow up front.
+    expect(ofKind("graphics")).toHaveLength(made + 1); // the first Wish bake is cached as a Graphics texture.
     view.update(10, 10, player(), 1030, 1030, false, false, null, burning);
     const graphics = ofKind("graphics");
-    expect(graphics).toHaveLength(made + 2); // one fighter glow plus the lazily-created feet effect
+    expect(graphics).toHaveLength(made + 2); // the Wish bake and lazily-created feet effect
     const feet = graphics[graphics.length - 1]!;
     expect(feet.state.visible).toBe(true);
     expect(feet.calls.some(([n]) => n === "fillCircle" || n === "fillTriangle" || n === "fillPoints" || n === "fillStyle")).toBe(true);

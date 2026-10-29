@@ -1,18 +1,19 @@
-// The build strip (BALANCE_CONTRACT 9): under the cards row in the HUD plate, nine small cells that say what the cards and the weapon in
-// hand add up to: AD, AP, armor, magic resist, attack speed, move, leech, card power P and the PvP factor it earns ("PvP x1.39"). The
-// numbers come from the synced stat mirrors and the build (ui/buildModel.ts, pure); this only lays them out. Like the cards row it is
+// The gained-stat strip: nine compact cells showing bonuses from the synced stat mirrors, mob rewards, and build (ui/buildModel.ts, pure).
+// It excludes faction baselines and power/PvP totals. Like the cards row it is
 // click-through all the way down (a right-click move and a left-click lock under it must reach the canvas), so its tooltips are found
 // by hit-testing the pointer against the cells' rectangles (rectTips.ts), not by :hover. Hidden while the player does not stand.
 import { isWeaponId, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { BUILD_STAT_IDS, buildStats, statLine, type BuildStat, type BuildStatId } from "./buildModel";
+import { HUD_GAIN_IDS, buildGains, statLine, type BuildStat, type BuildStatId } from "./buildModel";
 import "./buildHud.css";
 import { el } from "./dom";
 import { RectTips } from "./rectTips";
+import { combatIcon, STAT_ICON_COLORS } from "./combatIcons";
+import type { InvestedStatKey } from "@raid/shared";
 
 /** The class that shows a cell's tooltip while the pointer is over it. */
 export const BUILD_TIP_ON = "tip-on";
-export const BUILD_LABEL = "Build";
+export const BUILD_LABEL = "Gained";
 
 interface Cell {
   root: HTMLElement;
@@ -45,13 +46,13 @@ export function inputKey(me: BuildSource): string {
   const entries = (me.mobStats as { entries?: () => IterableIterator<[string, number]> } | undefined)?.entries;
   if (typeof entries === "function") for (const [id, count] of entries.call(me.mobStats)) mobStats += `${id}:${count},`;
   else if (me.mobStats) for (const [id, count] of Object.entries(me.mobStats as unknown as Record<string, number>)) mobStats += `${id}:${count},`;
-  return `${me.faction}|${me.sentence}|${heldWeapon(me)}|${me.asMult}|${me.windupMult}|${me.speedMult}|${me.armorBonus}|${me.shieldBonus}|${me.adBonus}|${me.apBonus}|${low ? "L" : ""}|${cards}|${mobStats}`;
+  return `${me.faction}|${me.maxHp}|${me.sentence}|${heldWeapon(me)}|${me.asMult}|${me.windupMult}|${me.speedMult}|${me.armorBonus}|${me.shieldBonus}|${me.adBonus}|${me.apBonus}|${low ? "L" : ""}|${cards}|${mobStats}`;
 }
 
 /** The strip's cells for a player. */
 export function statsOf(me: BuildSource): BuildStat[] {
-  return buildStats({
-    faction: me.faction, build: me.build, wire: me, weapon: heldWeapon(me), hpFrac: me.maxHp > 0 ? me.hp / me.maxHp : 1, mobStats: me.mobStats,
+  return buildGains({
+    faction: me.faction, build: me.build, wire: me, weapon: heldWeapon(me), hpFrac: me.maxHp > 0 ? me.hp / me.maxHp : 1, mobStats: me.mobStats, maxHp: me.maxHp,
   });
 }
 
@@ -67,8 +68,13 @@ export class BuildHud {
   private readonly tips: RectTips;
 
   constructor() {
-    for (const id of BUILD_STAT_IDS) {
+    for (const id of HUD_GAIN_IDS) {
       const label = el("span", "build-name");
+      const iconKey = BUILD_ICONS[id];
+      if (iconKey) {
+        label.style.color = `#${STAT_ICON_COLORS[iconKey].toString(16).padStart(6, "0")}`;
+        label.append(combatIcon(iconKey));
+      }
       const value = el("span", "build-value");
       const tip = el("div", "build-tip");
       const root = el("div", `build-cell build-${id}`);
@@ -116,11 +122,16 @@ export class BuildHud {
     this.sig = sig;
     for (const s of stats) {
       const cell = this.cells.get(s.id)!;
-      cell.label.textContent = s.label;
+      const iconKey = BUILD_ICONS[s.id];
+      if (iconKey) {
+        const label = FULL_BUILD_LABELS[s.id];
+        cell.label.setAttribute("aria-hidden", "true");
+        cell.root.setAttribute("aria-label", `${label} ${s.value}. ${s.tip}`);
+      } else cell.label.textContent = s.label;
       cell.value.textContent = s.value;
-      cell.tip.textContent = s.tip;
+      cell.tip.textContent = iconKey ? `${FULL_BUILD_LABELS[s.id]}. ${s.tip}` : s.tip;
       cell.root.classList.toggle("dim", s.dim);
-      cell.root.setAttribute("aria-label", `${statLine(s)}. ${s.tip}`);
+      if (!iconKey) cell.root.setAttribute("aria-label", `${statLine(s)}. ${s.tip}`);
     }
     // Tips are rewritten, so the one on show (if any) is shown again by the next pointer move.
     this.tips.reset();
@@ -136,3 +147,11 @@ export class BuildHud {
     this.order.forEach((c, k) => c.root.classList.toggle(BUILD_TIP_ON, k === i));
   }
 }
+
+const BUILD_ICONS: Partial<Record<BuildStatId, InvestedStatKey>> = {
+  ad: "ad", ap: "ap", damage: "damage", armor: "armor", mr: "mr", as: "attackSpeed", move: "speed", leech: "leech", health: "health",
+};
+const FULL_BUILD_LABELS: Partial<Record<BuildStatId, string>> = {
+  ad: "Attack damage", ap: "Ability power", damage: "Damage gained", armor: "Armor gained", mr: "Magic resistance gained",
+  as: "Attack speed", move: "Move speed", leech: "Life steal", health: "Health gained",
+};

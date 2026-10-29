@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  mapFromTiles, mulberry32, TARGET_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, VISION_RADIUS, VISION_TRAIL_MS,
+  mapFromTiles, mulberry32, REGION_COLISEUM, TARGET_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, VISION_RADIUS, VISION_TRAIL_MS,
   type CampDef, type FactionId, type GameMap, type Vec2,
 } from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
@@ -12,8 +12,8 @@ import { canPlayerSee, getVisionMemory } from "../src/sim/vision";
 import type { World } from "../src/sim/world";
 import { CampState } from "@raid/shared/schema";
 
-const W = 40;
-const H = 20;
+const W = 80;
+const H = 60;
 const at = (x: number, y: number): Vec2 => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
 const LEFT: Vec2 = { x: 18 * TILE + 16, y: 3 * TILE + 16 };
 const RIGHT: Vec2 = { x: 23 * TILE + 16, y: 3 * TILE + 16 };
@@ -75,6 +75,24 @@ function target(w: World, id = "p1"): void {
 }
 
 describe("server visibility for target validation", () => {
+  it("reveals the whole large coliseum across walls but not the outer world", () => {
+    const w = world();
+    w.map.coliseum.rect = { x: 10, y: 10, w: 50, h: 35 };
+    for (let y = 10; y < 45; y++) {
+      for (let x = 10; x < 60; x++) w.map.regionGrid[y * w.map.w + x] = REGION_COLISEUM;
+      w.map.tiles[y * w.map.w + 32] = TILE_WALL;
+    }
+    place(w, 0, at(20, 25));
+    place(w, 1, at(50, 25));
+    place(w, 2, at(65, 25));
+    for (const id of ["p0", "p1", "p2"]) getVisionMemory(w, id)?.clear();
+    expect(canPlayerSee(w, "p0", at(50, 25))).toBe(true); // 960 units, across the arena wall
+    expect(canPlayerSee(w, "p0", at(65, 25))).toBe(false);
+    place(w, 0, at(2, 25));
+    getVisionMemory(w, "p0")?.clear();
+    expect(canPlayerSee(w, "p0", at(50, 25))).toBe(false);
+  });
+
   it("refuses an unseen player through a wall, while a fresh private trail admits the lock without permitting a wall hit", () => {
     const w = world();
     const self = combatant(w, "p0")!;

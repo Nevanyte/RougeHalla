@@ -53,13 +53,14 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
     blips.forEach((b, i) => {
       const seconds = Math.max(0, Math.ceil(b.left));
       const text = String(seconds);
-      add(kind, String(i), b, 8 + text.length * 5, 12, priority, color, { text, essential: true, clock: true });
+      // Reserve the same collision box as the countdown changes, so digits never move its anchor.
+      add(kind, String(i), b, 24, 12, priority, color, { text, essential: true, clock: true });
     });
   };
-  clocks("chest", input.chests, 85, COLOR_CHEST);
+  clocks("chest", input.chests, 110, COLOR_CHEST);
   // A camp has one badge: loot lifetime while the chest is up, then its public respawn clock.
   const respawns = input.respawns.filter((r) => !input.chests.some((c) => Math.hypot(c.x - r.x, c.y - r.y) < 1));
-  clocks("respawn", respawns, 80, COLOR_RESPAWN);
+  clocks("respawn", respawns, 110, COLOR_RESPAWN);
 
   const mobs = clusterMapContacts(input.mobs, 4.8);
   mobs.forEach((p, i) => marks.push({ kind: "mob", key: `mob:${i}`, ...p,
@@ -89,26 +90,40 @@ export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly
     ctx.fillStyle = m.color;
     if (m.kind === "camp" && m.camp) {
       paintCamps(ctx, [{ ...m.camp, x: x, y: y }], 1, px * 0.8, [m.state ?? 0]);
-    } else if (m.kind === "chest" || m.kind === "respawn" || m.text) {
+    } else if (m.kind === "chest" || m.kind === "respawn") {
+      const ix = x - 7 * px;
+      ctx.fillStyle = m.color;
+      if (m.kind === "chest") {
+        ctx.globalAlpha = 0.45 + 0.45 * (1 - pulse);
+        ctx.beginPath(); ctx.arc(ix, y, (3.4 + 1.2 * pulse) * px, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(ix, y, 2 * px, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(ix - 1.5 * px, y - 0.6 * px); ctx.lineTo(ix + 1.5 * px, y - 0.6 * px); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(ix, y, 2 * px, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ix, y - 1.3 * px); ctx.lineTo(ix, y); ctx.lineTo(ix + px, y); ctx.stroke();
+      }
+      ctx.font = `700 ${8 * px}px ui-monospace, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 2.5 * px;
+      ctx.strokeStyle = COLOR_OUTLINE;
+      ctx.strokeText(m.text ?? "", x + 2.5 * px, y);
+      ctx.fillStyle = m.color;
+      ctx.fillText(m.text ?? "", x + 2.5 * px, y);
+    } else if (m.text) {
       const w = (m.w - 1.5) * px, h = (m.h - 1.5) * px;
       ctx.fillStyle = "#0b141cef";
       ctx.fillRect(x - w / 2, y - h / 2, w, h);
       ctx.strokeStyle = m.color;
-      ctx.globalAlpha = m.kind === "chest" ? 0.7 + pulse * 0.25 : 0.85;
+      ctx.globalAlpha = 0.85;
       ctx.strokeRect(x - w / 2, y - h / 2, w, h);
       ctx.globalAlpha = 1;
       ctx.fillStyle = m.color;
       const textOnly = m.kind === "quest";
       if (!textOnly) {
         const ix = x - w / 2 + 3 * px;
-        if (m.kind === "chest") {
-          ctx.fillRect(ix - 1.6 * px, y - 1.8 * px, 3.2 * px, 3.6 * px);
-          ctx.fillStyle = COLOR_OUTLINE;
-          ctx.fillRect(ix - 1.6 * px, y - 0.4 * px, 3.2 * px, 0.7 * px);
-        } else if (m.kind === "respawn") {
-          ctx.beginPath(); ctx.arc(ix, y, 2 * px, 0, TAU); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(ix, y - 1.3 * px); ctx.lineTo(ix, y); ctx.lineTo(ix + px, y); ctx.stroke();
-        } else if (m.kind === "enemy") {
+        if (m.kind === "enemy") {
           ctx.beginPath(); ctx.moveTo(ix, y - 2 * px); ctx.lineTo(ix + 1.6 * px, y);
           ctx.lineTo(ix, y + 2 * px); ctx.lineTo(ix - 1.6 * px, y); ctx.closePath(); ctx.fill();
         } else {
@@ -118,7 +133,7 @@ export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly
       ctx.font = `700 ${8 * px}px ui-monospace, monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = m.kind === "chest" ? "#fff0c2" : m.color;
+      ctx.fillStyle = m.color;
       ctx.fillText(m.text ?? "", x + (textOnly ? 0 : 2.5 * px), y + 0.3 * px);
     } else if (m.kind === "enemy" || m.kind === "quest") {
       const r = (m.kind === "enemy" ? 3.7 : 2.8) * px;

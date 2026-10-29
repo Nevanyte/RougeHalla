@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeMirrors, type StatMirrors } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { BUILD_LABEL, BUILD_TIP_ON, BuildHud, heldWeapon, inputKey, statsOf, type BuildSource } from "../src/ui/buildHud";
-import { BUILD_STAT_IDS } from "../src/ui/buildModel";
+import { HUD_GAIN_IDS } from "../src/ui/buildModel";
 import { Hud } from "../src/ui/hud";
 import { FakeEl, fakeEvent, installFakeDom } from "./fakes";
 
@@ -34,7 +34,7 @@ function setup() {
   const [label, grid] = root.children as FakeEl[];
   const cells = (): FakeEl[] => grid!.children as FakeEl[];
   const part = (cell: FakeEl, i: number): string => (cell.children[i] as FakeEl).textContent;
-  const values = (): Record<string, string> => Object.fromEntries(cells().map((c, i) => [BUILD_STAT_IDS[i], part(c, 1)]));
+  const values = (): Record<string, string> => Object.fromEntries(cells().map((c, i) => [HUD_GAIN_IDS[i], part(c, 1)]));
   return { strip, root, label: label!, grid: grid!, cells, part, values };
 }
 
@@ -46,30 +46,36 @@ describe("BuildHud", () => {
     expect(cells()).toHaveLength(9);
   });
 
-  it("shows the nine cells for a fresh player: PvP x0.77 at power 0", () => {
+  it("shows only gained stats for a fresh player, without faction totals or power cells", () => {
     const { strip, root, values, cells, part } = setup();
     strip.update(me(), true);
     expect(root.hidden).toBe(false);
     expect(strip.shown).toBe(true);
-    expect(values()).toEqual({ ad: "+0", ap: "+0", armor: "190", mr: "0", as: "0%", move: "0%", leech: "0%", power: "0", pvp: "x0.77" });
-    expect(cells().map((c) => part(c, 0))).toEqual(["AD", "AP", "Armor", "MR", "Atk speed", "Move", "Leech", "Power", "PvP"]);
-    expect(part(cells()[8]!, 2)).toBe("Your damage to players. Your card power sets this factor; it scales hits against players only.");
+    expect(values()).toEqual({ ad: "+0", ap: "+0", damage: "0%", as: "0%", leech: "0%", health: "+0", armor: "+0", mr: "+0", move: "0%" });
+    expect(cells().length).toBe(9);
     expect(cells().every((c) => c.classes.has("dim"))).toBe(true);
   });
 
   it("includes fractional lifesteal from fixed normal-mob stacks in build totals", () => {
     const { strip, values, cells, part } = setup();
     strip.update(me({ mobStats: new Map([["rotMonk", 6]]) as never }), true);
-    expect(values().leech).toBe("2%");
-    expect(part(cells()[6]!, 2)).toContain("normal-mob kills");
+    expect(values().leech).toBe("+1.5%");
+    expect(part(cells()[4]!, 2)).toContain("normal-mob kills");
+  });
+
+  it("shows generic normal-mob damage separately from AD and AP", () => {
+    const { strip, values, cells, part } = setup();
+    strip.update(me({ mobStats: new Map([["emberImp", 1]]) as never }), true);
+    expect(values().damage).toBe("+1%");
+    expect(part(cells()[2]!, 2)).toContain("separate from attack damage and ability power");
   });
 
   it("shows Sentence stacks only for the Sentenced build and refreshes them when they change", () => {
     const { strip, label } = setup();
     strip.update(me({ faction: "sentenced", sentence: 2 }), true);
-    expect(label.textContent).toBe("Build · Sentence: 2/5");
+    expect(label.textContent).toBe("Gained · Sentence: 2/5");
     strip.update(me({ faction: "sentenced", sentence: 3 }), true);
-    expect(label.textContent).toBe("Build · Sentence: 3/5");
+    expect(label.textContent).toBe("Gained · Sentence: 3/5");
     strip.update(me({ faction: "fire", sentence: 3 }), true);
     expect(label.textContent).toBe(BUILD_LABEL);
   });
@@ -77,21 +83,20 @@ describe("BuildHud", () => {
   it("follows the build and the mirrors", () => {
     const { strip, values, cells } = setup();
     strip.update(me({ build: { ad2: 1, haste1: 1 }, m: { adBonus: 21, asMult: 1.09, speedMult: 1.06 } }), true);
-    expect(values()).toMatchObject({ ad: "+21", as: "+9%", move: "+6%", power: "3", pvp: "x1.65" });
+    expect(values()).toMatchObject({ ad: "+21", as: "+9%", move: "+6%" });
     expect(cells()[0]!.classes.has("dim")).toBe(false);
     expect(cells()[1]!.classes.has("dim")).toBe(true);
     strip.update(me({ build: { ad2: 1, haste1: 1, armor1: 1 }, m: { adBonus: 21, armorBonus: 15 } }), true);
-    expect(values()).toMatchObject({ armor: "205", power: "4" });
+    expect(values()).toMatchObject({ armor: "+15" });
   });
 
   it("reads the held weapon: the tooltips of AD and AP change with the slot in hand", () => {
     const { strip, cells, part } = setup();
     strip.update(me({ weapon0: "sword", weapon1: "wand", slot: 0 }), true);
-    expect(part(cells()[1]!, 2)).toContain("Your Sword");
+    expect(part(cells()[1]!, 2)).toContain("Ability power gained");
     strip.update(me({ weapon0: "sword", weapon1: "wand", slot: 1 }), true);
-    expect(part(cells()[1]!, 2)).toContain("Your Wand turns each point into 1 magic damage a second at base attack speed");
+    expect(part(cells()[1]!, 2)).toContain("Ability power gained");
     strip.update(me({ weapon0: "", weapon1: "", slot: 0 }), true);
-    expect(part(cells()[0]!, 2)).toContain("Your Fists turns each point into 0.6");
     expect(heldWeapon({ weapon0: "", weapon1: "bow", slot: 0 })).toBe("fists");
     expect(heldWeapon({ weapon0: "fromTheFuture", weapon1: "", slot: 0 })).toBe("fists");
     expect(statsOf(me()).length).toBe(9);
@@ -110,12 +115,12 @@ describe("BuildHud", () => {
   it("touches the DOM only when something changed", () => {
     const { strip, cells, part } = setup();
     strip.update(me({ build: { ad1: 1 } }), true);
-    const value = cells()[7]!.children[1] as FakeEl;
+    const value = cells()[0]!.children[1] as FakeEl;
     value.textContent = "poked";
     for (let i = 0; i < 5; i++) strip.update(me({ build: { ad1: 1 } }), true);
-    expect(part(cells()[7]!, 1)).toBe("poked");
-    strip.update(me({ build: { ad1: 2 } }), true);
-    expect(part(cells()[7]!, 1)).toBe("2");
+    expect(part(cells()[0]!, 1)).toBe("poked");
+    strip.update(me({ build: { ad1: 2 }, m: { adBonus: 24 } }), true);
+    expect(part(cells()[0]!, 1)).toBe("+24");
   });
 
   it("computes nothing for a frame whose inputs did not change (the build map, the mirrors, the weapon, the half-hp mark)", () => {
@@ -137,7 +142,7 @@ describe("BuildHud", () => {
   it("gives each cell an accessible label with the number and the tooltip", () => {
     const { strip, cells } = setup();
     strip.update(me({ build: { ad1: 1 }, m: { adBonus: 12 } }), true);
-    expect(cells()[0]!.getAttribute("aria-label")).toMatch(/^AD \+12\. /);
+    expect(cells()[0]!.getAttribute("aria-label")).toMatch(/^Attack damage \+12\. /);
   });
 });
 
@@ -201,17 +206,17 @@ describe("in the Hud", () => {
   const run = (): RaidState =>
     ({ phase: "active", mobs: new Map(), players: new Map(), minPlayers: 2, startedWith: 2, lobbyEndsAt: 0, planEndsAt: 0, winner: "", patienceEndsAt: 0, suddenDeathAt: 0 }) as unknown as RaidState;
   const stripOf = (hud: Hud): FakeEl => ((hud as unknown as { root: FakeEl }).root.children as FakeEl[]).find((c) => c.className === "hud-build")!;
-  const pvpValue = (strip: FakeEl): string => (((strip.children[1] as FakeEl).children[8] as FakeEl).children[1] as FakeEl).textContent;
+  const adValue = (strip: FakeEl): string => ((((strip.children[1] as FakeEl).children[0] as FakeEl).children[1] as FakeEl).textContent);
 
   it("sits right under the cards row, shows for a standing player and goes when they are down", () => {
     const hud = new Hud();
     const classes = ((hud as unknown as { root: FakeEl }).root.children as FakeEl[]).map((c) => c.className);
-    expect(classes.indexOf("hud-build")).toBe(classes.indexOf("hud-cards") + 1);
+    expect(classes.indexOf("hud-build")).toBeLessThan(classes.indexOf("hud-extras"));
     const strip = stripOf(hud);
     expect(strip.hidden).toBe(true);
     hud.update(run(), player(), 0);
     expect(strip.hidden).toBe(false);
-    expect(pvpValue(strip)).toBe("x1.40");
+    expect(adValue(strip)).toBe("+21");
     hud.update(run(), player({ status: "dead" }), 0);
     expect(strip.hidden).toBe(true);
   });

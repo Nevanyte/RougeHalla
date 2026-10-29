@@ -63,4 +63,16 @@ describe("minimap collision layout", () => {
     const afterLoot = minimapMarks({ ...empty(), camps: [camp], respawns: [{ ...camp, left: 165 }] });
     expect(afterLoot.map((p) => [p.mark.kind, p.mark.text])).toEqual([["respawn", "165"]]);
   });
+
+  it("keeps clock label anchors fixed when a moving player crosses the timer", () => {
+    const camp = generateMap(3).camps[0]!;
+    const clockAt = (player?: Vec2) => minimapMarks({ ...empty(), camps: [camp],
+      respawns: [{ ...camp, left: 180 }], ...(player ? { player } : {}),
+    }).find((p) => p.mark.kind === "respawn")!;
+    const before = clockAt();
+    const after = clockAt(camp);
+    expect(after.x).toBe(before.x);
+    expect(after.y).toBe(before.y);
+    expect(after.mark.w).toBe(before.mark.w);
+  });
 });

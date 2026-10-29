@@ -31,9 +31,10 @@ import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { isHiddenRemote, shouldRenderActor, visiblePosition } from "../render/visibility";
 import { CampWards } from "../render/CampWards";
+import { CampBuffs } from "../render/CampBuffs";
 import { RaidVision, VisionFog, visibleCollection } from "../render/RaidVision";
 import { EdgeThreatView } from "../ui/edgeThreat";
-import { CampTimers } from "../ui/campTimers";
+import { CameraFollow } from "../render/CameraFollow";
 import type { VisionInbox } from "../net/visionInbox";
 import { WishFx } from "../render/WishFx";
 import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
@@ -108,8 +109,9 @@ export class RaidScene extends Phaser.Scene {
   private readonly vision = new RaidVision();
   private fog!: VisionFog;
   private campWards!: CampWards;
+  private campBuffs!: CampBuffs;
   private edgeThreats!: EdgeThreatView;
-  private campTimers!: CampTimers;
+  private readonly cameraFollow = new CameraFollow();
   private unbindVision: (() => void) | null = null;
   private interp!: EntityInterpolator;
   private views = new Map<string, PlayerView>();
@@ -265,8 +267,9 @@ export class RaidScene extends Phaser.Scene {
     this.vision.reset();
     this.fog = new VisionFog(this);
     this.campWards = new CampWards(this);
+    this.campBuffs = new CampBuffs(this);
     this.edgeThreats = new EdgeThreatView();
-    this.campTimers = new CampTimers();
+    this.cameraFollow.reset();
     this.resultsVisible = data.resultsVisible;
     this.leaveTraining = data.leaveTraining;
     this.announce = data.toast;
@@ -517,12 +520,16 @@ export class RaidScene extends Phaser.Scene {
       if (local) this.localGround = signatures && p.status === "alive" ? ground : NO_STATES;
       const markDim = this.markIsDim(id, p.markBy, this.tmp.x, this.tmp.y, state);
       view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground, markDim);
-      if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.peek?.x ?? this.tmp.x), projY(this.peek?.y ?? this.tmp.y));
+      if (local) {
+        const cameraAt = this.cameraFollow.update(this.peek ?? this.tmp, now, this.peek !== null);
+        this.cameras.main.centerOn(projX(cameraAt.x), projY(cameraAt.y));
+      }
     });
     for (const [id, view] of this.views) {
       if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); this.ground.forget(id); }
     }
     const seenMobs = new Set<string>();
+    const campMobs: Array<{ camp: number; kind: string; status: string; type: string; x: number; y: number }> = [];
     state.mobs.forEach((m, id) => {
       if (m.kind === "quest") return;
       this.sampleDrawn(id, renderT, m);
@@ -534,10 +541,12 @@ export class RaidScene extends Phaser.Scene {
         ? this.ground.statesOf(id, this.tmp.x, this.tmp.y, m.faction, serverNow, m.hp, m.maxHp, false, m.status === "alive") : NO_STATES;
       const markDim = this.markIsDim(id, m.markBy, this.tmp.x, this.tmp.y, state);
       view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures, ground, markDim);
+      campMobs.push({ camp: m.camp, kind: m.kind, status: m.status, type: m.type, x: this.tmp.x, y: this.tmp.y });
     });
     for (const [id, view] of this.mobViews) {
       if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id); }
     }
+    this.campBuffs.update(this.mapView!.map, state.camps, state.phase === "active" && !state.training, this.vision.canSee, campMobs);
     this.projectiles.update(renderT, (id, t, out) => {
       const fighter = state.players.get(id) ?? state.mobs.get(id);
       if (!fighter || fighter.status !== "alive" || !targetable(fighter.effects) || !this.visiblePosition(id)) return false;
@@ -639,7 +648,6 @@ export class RaidScene extends Phaser.Scene {
     this.campWards.update(this.mapView!.map, state.camps, serverNow, this.room.sessionId, state.phase === "active" && !state.training);
     this.fog.update(this.vision, this.mapView!.map, now, this.cameras.main);
     this.edgeThreats.update(this.vision.enabled && me?.status === "alive" && threats.length ? this.rendered.get(this.room.sessionId) : undefined, threats);
-    this.campTimers.update(map, state.camps, serverNow, state.phase === "active" && !state.training, (id) => state.players.get(id)?.name ?? "player");
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.setTerrain(this.localGround);
     this.hud.update(state, me, serverNow);
@@ -674,6 +682,7 @@ export class RaidScene extends Phaser.Scene {
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
       quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,
+      visionEnabled: this.vision.enabled, canSee: this.vision.canSee,
     });
   }
 
@@ -1372,10 +1381,12 @@ export class RaidScene extends Phaser.Scene {
   /** The map is never synced: main.ts hands the scene the one it built from (seed, attempt) and checked. */
   private buildMap(map: GameMap): void {
     this.mapView?.destroy();
+    this.cameraFollow.reset();
     this.mapView = new MapView(this, map);
     this.vision.reset(map);
     this.fog.reset();
     this.campWards.reset();
+    this.campBuffs.reset();
     this.ground.setMap(map);
     this.localGround = NO_STATES;
     this.minimap.setMap(map);
@@ -1419,8 +1430,8 @@ export class RaidScene extends Phaser.Scene {
     this.vision.reset();
     this.fog.destroy();
     this.campWards.destroy();
+    this.campBuffs.destroy();
     this.edgeThreats.destroy();
-    this.campTimers.destroy();
     this.input.setDefaultCursor("default");
     this.opponentInspector.destroy();
     window.removeEventListener("keydown", this.onKeyDown);

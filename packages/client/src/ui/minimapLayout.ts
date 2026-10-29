@@ -62,14 +62,13 @@ function placeMarks<T extends MapMark>(marks: readonly T[], alignClocks: boolean
     };
     let slot: PlacedMark<T> | null = null;
     if (alignClocks && mark.clock) {
-      const cells: { x: number; y: number; d: number }[] = [];
       for (let cy = EDGE + clockH / 2; cy <= SIZE - EDGE - clockH / 2; cy += clockH + MARK_GAP + 0.05) {
         for (let cx = EDGE + clockW / 2; cx <= SIZE - EDGE - clockW / 2; cx += clockW + MARK_GAP + 0.05) {
-          cells.push({ x: cx, y: cy, d: (cx - x) ** 2 + (cy - y) ** 2 });
+          if (slot && (cx - x) ** 2 + (cy - y) ** 2 >= (slot.x - x) ** 2 + (slot.y - y) ** 2) continue;
+          const candidate = available(cx, cy);
+          if (candidate) slot = candidate;
         }
       }
-      cells.sort((a, b) => a.d - b.d);
-      for (const cell of cells) { slot = available(cell.x, cell.y); if (slot) break; }
     } else slot = available(x, y);
     // Search near the source first. Essential badges can use the whole map if a crowded edge needs it.
     const limit = mark.essential ? SIZE : 12;

@@ -1,10 +1,11 @@
 import { cardPower, cardRows, ownedCards, type CardCounts } from "./cards";
+import { mobStatRows, type MobStatCounts } from "./mobStats";
 import { FACTIONS, damageShares, isFactionId, pacedFaction, type DamageShares } from "./factions";
 import { decodeMirrors, type WireMirrors } from "./mods";
 import { pvpFactor } from "./rules";
 import { attackInterval, damagePerHit, isWeaponId, scalingDamage, type WeaponId } from "./weapons";
 
-export type InvestedStatKey = "ad" | "ap" | "health" | "attackSpeed" | "armor" | "mr" | "speed" | "leech";
+export type InvestedStatKey = "ad" | "ap" | "damage" | "health" | "attackSpeed" | "armor" | "mr" | "speed" | "leech";
 export interface InvestedStat {
   key: InvestedStatKey;
   label: string;
@@ -17,8 +18,10 @@ export interface CombatReadability {
   powerRatio: number;
   /** Normalized PvP-factor growth from 0 (fresh) to 1 (the factor's asymptote). */
   power: number;
-  /** Up to two most invested card stats, based on the current synced mirrors. */
+  /** Legacy top-two summary retained for existing consumers. New UI should use investedStats. */
   topStats: InvestedStat[];
+  /** Every positive build investment, in descending score order. */
+  investedStats: InvestedStat[];
 }
 
 export type ReadableFighter = WireMirrors & {
@@ -29,11 +32,13 @@ export type ReadableFighter = WireMirrors & {
   hp: number;
   maxHp: number;
   build?: CardCounts | null;
+  mobStats?: MobStatCounts;
 };
 
 const STAT_META: Record<InvestedStatKey, Pick<InvestedStat, "label" | "short">> = {
   ad: { label: "Attack Damage", short: "AD" },
   ap: { label: "Ability Power", short: "AP" },
+  damage: { label: "Damage", short: "DMG" },
   health: { label: "Health", short: "HP" },
   attackSpeed: { label: "Attack Speed", short: "AS" },
   armor: { label: "Armor", short: "ARM" },
@@ -84,10 +89,15 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
   const power = ceiling > baseline ? Math.max(0, Math.min(1, (factor - baseline) / (ceiling - baseline))) : 0;
   const m = decodeMirrors(p);
   const baseHp = isFactionId(p.faction) ? FACTIONS[p.faction].hp : Math.max(0, p.maxHp);
-  const bonusLeech = cardLeech(p.build, p.faction);
+  const bonusLeech = cardLeech(p.build, p.faction, p.mobStats);
+  let genericDamage = mobStatRows(p.mobStats).reduce((sum, e) => e.k === "stat" && e.stat === "damage" ? sum + e.v : sum, 0);
+  for (const { def, count } of ownedCards(p.build)) {
+    for (const e of cardRows(def.id, p.faction)) if (e.k === "stat" && e.stat === "damage" && !e.requires && !e.needs) genericDamage += e.v * count;
+  }
   const scores: Record<InvestedStatKey, number> = {
     ad: m.adBonus / 12,
     ap: m.apBonus / 12,
+    damage: genericDamage / 0.01,
     health: baseHp > 0 ? Math.max(0, p.maxHp / baseHp - 1) / 0.09 : 0,
     attackSpeed: Math.max(0, m.asMult - 1) / 0.09,
     armor: Math.max(0, m.armorBonus) / 15,
@@ -95,20 +105,20 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
     speed: Math.max(0, m.speedMult - 1) / 0.06,
     leech: bonusLeech / 0.05,
   };
-  const topStats = (Object.entries(scores) as Array<[InvestedStatKey, number]>)
+  const investedStats = (Object.entries(scores) as Array<[InvestedStatKey, number]>)
     .filter(([, score]) => score > 0.01)
     .map(([key, score]) => ({ key, ...STAT_META[key], score }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 2);
-  return { powerRatio, power, topStats };
+    .sort((a, b) => b.score - a.score);
+  return { powerRatio, power, topStats: investedStats.slice(0, 2), investedStats };
 }
 
-function cardLeech(build: CardCounts | null | undefined, faction: string): number {
+function cardLeech(build: CardCounts | null | undefined, faction: string, mobStats?: MobStatCounts): number {
   let rows = 0;
   for (const { def, count } of ownedCards(build)) {
     for (const e of cardRows(def.id, faction)) {
       if (e.k === "stat" && e.stat === "lifesteal") rows += e.v * count;
     }
   }
+  for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v;
   return Math.max(0, Math.min(0.25, rows));
 }

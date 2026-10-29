@@ -722,11 +722,13 @@ describe("the map held in a run", () => {
     expect(root.getAttribute("data-mode")).toBe("map");
     expect(q("pl-side").hidden).toBe(true);
     expect(q("pl-head").hidden).toBe(true);
-    // The camps stay (read-only, click-through); the dealt spawns and the stop buttons are for planning only.
+    expect(q("pl-quest-marks").parent).toBe(q("pl-mapwrap"));
+    expect(q("pl-quest-marks").parent).not.toBe(q("pl-zones"));
+    // Camps and the route stay actionable; dealt spawns remain planning-only.
     expect(q("pl-markers").hidden).toBe(false);
     expect(all("pl-camp")).toHaveLength(MAP.camps.length);
     expect(all("pl-spawnmark").every((m) => m.hidden)).toBe(true);
-    expect(all("pl-stop")).toHaveLength(0);
+    expect(all("pl-stop")).toHaveLength(1);
     const g = q("pl-route").getContext();
     expect(argsOf(g, "setLineDash").some(([d]) => (d as number[]).length === 2)).toBe(true);
     // Rings for the stops, plus the player's dot.
@@ -750,9 +752,45 @@ describe("the map held in a run", () => {
     expect(argsOf(g, "arc").length - before).toBe(1);
   });
 
-  it("is click-through (planning.css), and its buttons cannot be reached", () => {
+  it("edits upcoming route stops from map and camp clicks without sending world commands", () => {
+    const { view, route, clickWorld, camp, all, sent } = setup();
+    route.add({ x: MAP.camps[0]!.x, y: MAP.camps[0]!.y });
+    route.add({ x: MAP.camps[1]!.x, y: MAP.camps[1]!.y });
+    route.add({ x: MAP.camps[2]!.x, y: MAP.camps[2]!.y });
+    route.advance({ x: MAP.camps[0]!.x + TILE, y: MAP.camps[0]!.y });
+    view.update(frame({ mode: "map" }));
+    expect(all("pl-stop").map((mark) => mark.textContent)).toEqual(["2", "3"]);
+    all("pl-stop")[0]!.click();
+    expect(route.next).toBe(1);
+    expect(route.waypoints).toHaveLength(2);
+    expect(route.waypoints[1]).toEqual({ x: MAP.camps[2]!.x, y: MAP.camps[2]!.y });
+    camp(3).click();
+    expect(route.waypoints).toHaveLength(3);
+    clickWorld(800, 900);
+    expect(route.waypoints).toHaveLength(4);
+    expect(sent).toEqual([]);
+    const down = asEl(view.element).one("pl-mapwrap").dispatch("pointerdown");
+    expect(down.propagationStopped).toBe(true);
+  });
+
+  it("samples vision at most every 100 ms and shows the route hint", () => {
+    const { view, q } = setup();
+    let calls = 0;
+    const canSee = (): boolean => { calls++; return true; };
+    view.update(frame({ mode: "map", serverNow: 1_000, visionEnabled: true, canSee }));
+    const first = calls;
+    expect(first).toBe(MAP.w * MAP.h);
+    view.update(frame({ mode: "map", serverNow: 1_050, visionEnabled: true, canSee }));
+    expect(calls).toBe(first);
+    view.update(frame({ mode: "map", serverNow: 1_100, visionEnabled: true, canSee }));
+    expect(calls).toBe(first * 2);
+    expect(q("pl-info").textContent).toContain("Click camps or quests to edit route");
+  });
+
+  it("captures route-control clicks while the rest of the map overlay stays click-through", () => {
     const css = readFileSync(new URL("../src/ui/planning.css", import.meta.url), "utf8");
     expect(css).toContain('#ui > .planning[data-mode="map"] * { pointer-events: none; }');
+    expect(css).toMatch(/#ui > \.planning\[data-mode="map"\] \.pl-route,\s*#ui > \.planning\[data-mode="map"\] \.pl-camp,\s*#ui > \.planning\[data-mode="map"\] \.pl-stop,\s*#ui > \.planning\[data-mode="map"\] \.pl-questmark \{ pointer-events: auto; \}/);
   });
 
   it("hides the route when Show route is off, but not while it is being drawn on the planning screen", () => {

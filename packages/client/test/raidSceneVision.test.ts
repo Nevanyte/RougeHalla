@@ -26,7 +26,7 @@ function rig() {
   vi.spyOn(performance, "now").mockImplementation(() => now);
   Object.assign(scene, {
     room:{state,sessionId:"me"},mapView:{map,setGatesLocked:noop},
-    vision:new RaidVision(),fog:{update:noop},campWards:view,edgeThreats:view,campTimers:view,
+    vision:new RaidVision(),fog:{update:noop},campWards:view,campBuffs:view,edgeThreats:view,
     minimap:{setGatesLocked:noop,setMobs:vi.fn(),setEnemies:vi.fn(),setVision:vi.fn(),setCampTimers:vi.fn(),setChests:noop,setQuests:noop,setCampStates:noop,update:noop},
     input:{activePointer:{rightButtonDown:()=>false}},
     interp:{renderTime:()=>now,clock:{synced:true,now:()=>now}},juice:{worldTime:(t:number)=>t},

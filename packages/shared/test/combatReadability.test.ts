@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combatDamageShares, combatReadability, damageShares, FACTIONS, FACTION_IDS, weaponDamageShares, WIRE_IDENTITY_MIRRORS } from "../src/index";
+import { combatDamageShares, combatReadability, damageShares, encodeMult, FACTIONS, FACTION_IDS, weaponDamageShares, WIRE_IDENTITY_MIRRORS } from "../src/index";
 
 function fighter(faction: (typeof FACTION_IDS)[number]) {
   return {
@@ -66,5 +66,16 @@ describe("combat readability", () => {
     const baseline = combatReadability(p);
     const runtime = { ...p, hp: 1, bounty: 500, effects: 1 << 9 };
     expect(combatReadability(runtime)).toEqual(baseline);
+  });
+
+  it("keeps legacy top-two categories and exposes every invested stat, including normal-mob damage and leech", () => {
+    const p = fighter("plague");
+    p.build = { ad1: 1, ap1: 1, haste1: 1, vitality1: 1, armor1: 1, mr1: 1, leech1: 1, fleet1: 1 };
+    p.adBonus = 120; p.apBonus = 120; p.asMult = encodeMult(1.09); p.armorBonus = 15; p.shieldBonus = 15; p.speedMult = encodeMult(1.06);
+    const view = combatReadability({ ...p, maxHp: p.maxHp * 1.09, mobStats: { emberImp: 3, rotMonk: 1 } });
+    expect(view.topStats).toHaveLength(2);
+    expect(view.investedStats.map(s => s.key)).toEqual(expect.arrayContaining(["ad", "ap", "damage", "health", "attackSpeed", "armor", "mr", "speed", "leech"]));
+    expect(view.investedStats.find(s => s.key === "damage")?.score).toBeCloseTo(3);
+    expect(view.investedStats.find(s => s.key === "leech")?.score).toBeGreaterThan(0);
   });
 });

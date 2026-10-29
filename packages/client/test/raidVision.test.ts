@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EFFECT_HIDDEN, TILE, VISION_RADIUS, Y_SCALE, mapFromTiles, type GameMap } from "@raid/shared";
+import { EFFECT_HIDDEN, REGION_COLISEUM, TILE, VISION_RADIUS, Y_SCALE, mapFromTiles, type GameMap } from "@raid/shared";
 import { RaidVision, VisionFog, visibleCollection } from "../src/render/RaidVision";
 import { shouldRenderActor } from "../src/render/visibility";
 import { edgeThreat, EdgeThreatView } from "../src/ui/edgeThreat";
-import { CampTimers, campTimerLine } from "../src/ui/campTimers";
+import { CampWards } from "../src/render/CampWards";
 import { argsOf, fakeScene, installFakeDom } from "./fakes";
 
 function map(): GameMap {
@@ -18,6 +18,19 @@ function frame(vision: RaidVision, world: GameMap, now = 1000, camps = [{ wardOw
 afterEach(() => vi.unstubAllGlobals());
 
 describe("session vision", () => {
+  it("reveals a large coliseum across walls but retains circular sight and hidden actor rules", () => {
+    const m = map();
+    m.coliseum.rect = { x: 10, y: 10, w: 50, h: 35 };
+    for (let y = 10; y < 45; y++) for (let x = 10; x < 60; x++) m.regionGrid[y * m.w + x] = REGION_COLISEUM;
+    for (let y = 10; y < 45; y++) m.tiles[y * m.w + 32] = 1;
+    const v = new RaidVision();
+    v.update(m, false, { x: 20.5 * TILE, y: 25.5 * TILE }, true, true, false, "me", [], 1000);
+    const hiddenEnemy = { x: 50.5 * TILE, y: 25.5 * TILE };
+    expect(v.canSee(hiddenEnemy)).toBe(true);
+    expect(v.canSee({ x: 20.5 * TILE, y: 26.5 * TILE })).toBe(true);
+    expect(v.canSee({ x: 70.5 * TILE, y: 25.5 * TILE })).toBe(false);
+    expect(shouldRenderActor(false, EFFECT_HIDDEN, hiddenEnemy, v.canSee)).toBe(false);
+  });
   it("expires live trail after two minutes and does not refresh it while dead", () => {
     const v = new RaidVision(), m = map(); frame(v, m);
     expect(v.canSee(origin)).toBe(true);
@@ -105,30 +118,19 @@ describe("fog lifecycle and public timers", () => {
     expect(argsOf(g, "fillRect")).toHaveLength(0);
     fog.destroy(); expect(argsOf(g, "destroy")).toHaveLength(1);
   });
-  it("keeps public timers available for every camp beyond sight and removes them on teardown", () => {
-    const {ui} = installFakeDom();
-    const create = document.createElement.bind(document);
-    vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
-      const node = create(tag) as any;
-      node.replaceChildren = (...children: unknown[]) => { node.children = children; };
-      return node;
-    }) as typeof document.createElement);
-    const view = new CampTimers(), m = map();
-    view.update(m, [{state:2,alive:0,respawnAt:181000,wardOwner:"other",wardExpiresAt:181000}], 1000, true, () => "Other fighter");
-    const root = ui.children[0] as any;
-    expect(root.hidden).toBe(false);
-    expect(root.children[1].children[0].textContent).toContain("Respawn 180s · Ward Other fighter 180s");
-    view.update(m, [{state:2,alive:0,respawnAt:181000,wardOwner:"other",wardExpiresAt:181000}], 181000, true, () => "Other fighter");
-    expect(root.children[1].children[0].textContent).toContain("Respawn ready");
-    view.destroy(); expect(root.removed).toBe(true);
-  });
-  it("shows every camp state and exact public respawn and ward seconds", () => {
-    expect(campTimerLine({state:0,alive:4,respawnAt:0,wardOwner:"",wardExpiresAt:0},1000,"",4)).toBe("Alive 4/4");
-    expect(campTimerLine({state:1,alive:2,respawnAt:0,wardOwner:"",wardExpiresAt:0},1000,"",4)).toBe("Engaged 2/4");
-    expect(campTimerLine({state:2,alive:0,respawnAt:0,wardOwner:"",wardExpiresAt:0},1000,"",4)).toBe("Cleared 0/4");
-    expect(campTimerLine({state:0,alive:4,respawnAt:0,wardOwner:"",wardExpiresAt:0},1000, "")).toBe("Alive");
-    expect(campTimerLine({state:1,alive:2,respawnAt:0,wardOwner:"",wardExpiresAt:0},1000, "")).toBe("Engaged");
-    expect(campTimerLine({state:2,alive:0,respawnAt:181000,wardOwner:"me",wardExpiresAt:181000},1000, "Fighter")).toBe("Cleared · Respawn 180s · Ward Fighter 180s");
-    expect(campTimerLine({state:2,alive:0,respawnAt:181000,wardOwner:"me",wardExpiresAt:181000},181000, "Fighter")).toBe("Cleared · Respawn ready");
+  it("shows fixed-width public respawn and ward countdowns only during active play", () => {
+    const {scene, ofKind} = fakeScene(), view = new CampWards(scene), m = map();
+    const camps = [{state: 2, respawnAt: 181000, wardOwner: "me", wardExpiresAt: 181000}];
+    view.update(m, camps, 1000, "me", true);
+    const texts = ofKind("text"), timer = texts.find((o) => String(o.args[2]).startsWith(""))!;
+    expect(texts).toHaveLength(2);
+    expect(texts[0]!.args[3]).toMatchObject({fixedWidth: 128, align: "center"});
+    expect((texts[0]!.args[3] as {fontFamily: string}).fontFamily).toContain("monospace");
+    expect(texts.map((o) => o.state.text)).toContain("RESPAWN 180s");
+    expect(texts.map((o) => o.state.text)).toContain("YOUR WARD 180s");
+    view.update(m, camps, 2000, "me", false);
+    expect(argsOf(texts[0]!, "destroy")).toHaveLength(1);
+    view.destroy();
+    expect(argsOf(timer!, "destroy")).toHaveLength(1);
   });
 });
