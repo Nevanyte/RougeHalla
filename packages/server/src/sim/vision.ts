@@ -47,6 +47,16 @@ export function canPlayerSee(world: World, id: string, point: Vec2): boolean {
   return false;
 }
 
+/** Actor-specific exception: a Sentenced hunter may see only the living player it selected, not nearby terrain or actors. */
+export function canPlayerSeeActor(world: World, viewerId: string, actorId: string, point: Vec2): boolean {
+  const viewer = world.state.players.get(viewerId);
+  const target = world.state.players.get(actorId);
+  if (world.state.phase === "active" && !world.config.training
+    && viewer?.status === "alive" && viewer.faction === "sentenced"
+    && viewer.huntTarget === actorId && target?.status === "alive") return true;
+  return canPlayerSee(world, viewerId, point);
+}
+
 export function install(world: World): void {
   memories.set(world, { map: world.map, players: new Map() });
   world.systems.push(refreshVision);

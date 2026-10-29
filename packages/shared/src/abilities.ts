@@ -45,7 +45,7 @@ export type AbilityEffect =
    * Target: an area around the target; it deals `dealtMult` and takes `takenFromCasterMult` from the caster; leaving it stuns.
    * `convictedRadius`: the radius instead when the target carries a mark of the caster at tier 3 or more as the area lands.
    */
-  | { do: "zone"; ms: number; radius: number; dealtMult: number; takenFromCasterMult: number; exitStunMs: number; convictedRadius?: number }
+  | { do: "zone"; ms: number; radius: number; dealtMult: number; takenFromCasterMult: number; moveMult: number; exitStunMs: number; convictedRadius?: number }
   /** Self: an area that follows the caster. */
   | { do: "cloud"; ms: number; radius: number }
   /** Self: a jump toward the cursor, through walls (blink.ts). */
@@ -144,7 +144,8 @@ export const TRIAL_CONVICTED_RADIUS = 200;
 export const TRIAL_MS = 5000;
 export const TRIAL_DEALT_MULT = 0.8;
 export const TRIAL_TAKEN_MULT = 1.2;
-export const TRIAL_EXIT_STUN_MS = 1000;
+export const TRIAL_MOVE_MULT = 0.7;
+export const TRIAL_EXIT_STUN_MS = 1500;
 export const TRIAL_CAST_MS = 350;
 export const BLAZE_RANGE = 300;
 export const BLAZE_MIN_DIST = 64;
@@ -190,7 +191,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     }],
   },
   trial: {
-    id: "trial", name: "Trial", blurb: "Judge an enemy: inside the ring it deals less and takes more from you, your mark on it is at full strength, and leaving it stuns. A ring on a convicted enemy is tighter.",
+    id: "trial", name: "Trial", blurb: "Judge an enemy: inside the ring it deals less, moves 30% slower, and takes more from you; leaving it stuns. Your mark on it is at full strength. A ring on a convicted enemy is tighter.",
     kind: "wish", faction: "sentenced", flat: true, ownOrder: false, dropsLock: false,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["engage", "control"],
     telegraph: "ring", icon: "scales", color: 0xb39ddb,
@@ -198,7 +199,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
       cooldownMs: WISH_COOLDOWN_MS, castMs: TRIAL_CAST_MS, targeting: unitTarget(TRIAL_RANGE), shape: { kind: "circle", radius: TRIAL_RADIUS },
       effects: [{
         do: "zone", ms: TRIAL_MS, radius: TRIAL_RADIUS, dealtMult: TRIAL_DEALT_MULT, takenFromCasterMult: TRIAL_TAKEN_MULT,
-        exitStunMs: TRIAL_EXIT_STUN_MS, convictedRadius: TRIAL_CONVICTED_RADIUS,
+        moveMult: TRIAL_MOVE_MULT, exitStunMs: TRIAL_EXIT_STUN_MS, convictedRadius: TRIAL_CONVICTED_RADIUS,
       }],
     }],
   },

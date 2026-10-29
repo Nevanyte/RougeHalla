@@ -29,7 +29,7 @@ import {
 } from "./planningMath";
 import type { RouteState } from "./route";
 import { PlanningQuests } from "./questPlanning";
-import type { QuestCollection } from "./questModel";
+import type { QuestCollection, QuestObjectiveMarker } from "./questModel";
 import "./planning.css";
 
 export type PlanningMode = "hidden" | "preview" | "planning" | "map";
@@ -55,7 +55,12 @@ export interface PlanningEnemy {
   id: string;
   x: number;
   y: number;
+  /** A Sentenced hunt explicitly reveals this actor's location without revealing surrounding terrain. */
+  tracked?: boolean;
 }
+
+/** Public corpse coordinates, supplied only to a living Plague player. */
+export interface PlanningCorpse { id: string; x: number; y: number; expiresAt: number; playerName?: string }
 
 /** What the scene hands the view each frame (only while the mode is not hidden). */
 export interface PlanningFrame {
@@ -85,8 +90,12 @@ export interface PlanningFrame {
   visionEnabled?: boolean;
   /** Remote actors whose positions are currently visible to this player. The map rechecks canSee defensively. */
   enemies?: readonly PlanningEnemy[];
+  corpses?: readonly PlanningCorpse[];
+  localFaction?: string;
   /** Public quest offers and the number still hidden server-side. */
   quests?: QuestCollection;
+  /** Private to the accepting local player: known fetch/collect pickup and return objectives. */
+  questObjectives?: readonly QuestObjectiveMarker[];
   hiddenQuests?: number;
   localId?: string;
 }
@@ -516,7 +525,7 @@ export class PlanningView {
     this.renderPlan(frame);
     this.renderRoute(frame);
     this.renderActors(frame);
-    this.quests.update({ mode: frame.mode, serverNow: frame.serverNow, localId: frame.localId ?? "", quests: frame.quests, hiddenQuests: frame.hiddenQuests });
+    this.quests.update({ mode: frame.mode, serverNow: frame.serverNow, localId: frame.localId ?? "", quests: frame.quests, hiddenQuests: frame.hiddenQuests, objectives: frame.questObjectives });
   }
 
   private applyMode(mode: PlanningMode): void {
@@ -1018,15 +1027,29 @@ export class PlanningView {
     const visibleEnemies = frame.visionEnabled && frame.canSee
       ? (frame.enemies ?? []).filter((enemy) => Number.isFinite(enemy.x) && Number.isFinite(enemy.y)
           && enemy.x >= 0 && enemy.y >= 0 && enemy.x <= span && enemy.y <= span
-          && frame.canSee!({ x: enemy.x, y: enemy.y }))
+          && ((enemy.tracked && frame.localFaction === "sentenced" && frame.local?.alive)
+            || frame.canSee!({ x: enemy.x, y: enemy.y })))
       : [];
     const local = frame.local && Number.isFinite(frame.local.x) && Number.isFinite(frame.local.y)
       && frame.local.x >= 0 && frame.local.y >= 0 && frame.local.x <= span && frame.local.y <= span
       ? frame.local : null;
-    const key = `${local ? `${local.x},${local.y},${local.alive}` : ""}|${visibleEnemies.map((e) => `${e.id}:${e.x},${e.y}`).join(";")}`;
+    const visibleCorpses = frame.local?.alive && frame.localFaction === "plague"
+      ? (frame.corpses ?? []).filter((c) => Number.isFinite(c.x + c.y) && c.x >= 0 && c.y >= 0 && c.x <= span && c.y <= span
+          && c.expiresAt > frame.serverNow)
+      : [];
+    const key = `${local ? `${local.x},${local.y},${local.alive}` : ""}|${visibleEnemies.map((e) => `${e.id}:${e.x},${e.y},${!!e.tracked}`).join(";")}|${visibleCorpses.map((c) => `${c.id}:${c.x},${c.y},${c.expiresAt}`).join(";")}`;
     if (key === this.keyActors) return;
     this.keyActors = key;
     const marks: HTMLElement[] = [];
+    for (const corpse of visibleCorpses) {
+      const mark = el("span", "pl-actor pl-actor-corpse");
+      mark.style.setProperty("left", pct(corpse.x, span));
+      mark.style.setProperty("top", pct(corpse.y, span));
+      mark.setAttribute("aria-label", `Plague corpse${corpse.playerName ? ` of ${corpse.playerName}` : ""}`);
+      mark.title = `Plague corpse${corpse.playerName ? ` of ${corpse.playerName}` : ""}`;
+      mark.append(el("span", "pl-actor-shape"), el("span", "pl-actor-label", "CORPSE"));
+      marks.push(mark);
+    }
     if (local) {
       const you = el("span", `pl-actor pl-actor-you${local.alive ? "" : " down"}`);
       you.style.setProperty("left", pct(local.x, span));
@@ -1038,7 +1061,7 @@ export class PlanningView {
       const mark = el("span", "pl-actor pl-actor-enemy");
       mark.style.setProperty("left", pct(enemy.x, span));
       mark.style.setProperty("top", pct(enemy.y, span));
-      mark.append(el("span", "pl-actor-shape"), el("span", "pl-actor-label", "ENEMY"));
+      mark.append(el("span", "pl-actor-shape"), el("span", "pl-actor-label", enemy.tracked ? "HUNT" : "ENEMY"));
       marks.push(mark);
     }
     this.actors.replaceChildren(...marks);

@@ -3,15 +3,13 @@
 // the room never waits out the planning timer for bots, a human who never presses Ready is waited for alone, and the humans-only
 // win-bonus gate holds across planning leavers.
 import { describe, expect, it } from "vitest";
-import { mulberry32, TICK_MS } from "@raid/shared";
+import { mulberry32, PLAN_SECONDS, TICK_MS } from "@raid/shared";
 import { PLAN_RULES } from "../src/bots/brain/modules/planning";
 import { BOT_FILL_DEFAULTS } from "../src/bots/brain/types";
 import { createHeadlessRoom } from "../src/bots/tournament/headlessRoom";
 import { createGameWorld } from "../src/sim/gameplay";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import type { SimConfig } from "../src/sim/world";
-
-const PLAN_SECONDS = 12;
 
 function planningRoom(fillTo: number, lineup: number, seed = 5) {
   return createHeadlessRoom({

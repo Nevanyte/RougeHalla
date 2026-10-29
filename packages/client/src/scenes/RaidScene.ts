@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
+  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, PLAGUE_CORPSE_INTERACT_RANGE, fieldKindOf,
   countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
@@ -32,6 +32,7 @@ import { TargetRings } from "../render/TargetRings";
 import { isHiddenRemote, shouldRenderActor, visiblePosition } from "../render/visibility";
 import { CampWards } from "../render/CampWards";
 import { CampBuffs } from "../render/CampBuffs";
+import { PlagueCorpseView } from "../render/PlagueCorpseView";
 import { RaidVision, VisionFog, visibleCollection } from "../render/RaidVision";
 import { EdgeThreatView } from "../ui/edgeThreat";
 import { CameraFollow } from "../render/CameraFollow";
@@ -45,15 +46,16 @@ import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
+import { SentencedHuntHud } from "../ui/sentencedHuntHud";
 import { OpponentInspector } from "../ui/opponentInspector";
 import { wishCooldownMultiplier } from "../ui/combatTip";
 import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap, type MinimapMob } from "../ui/minimap";
-import { PlanningView, planningModeFor, type PlanningEnemy, type PlanningPlayer } from "../ui/planning";
+import { PlanningView, planningModeFor, type PlanningCorpse, type PlanningEnemy, type PlanningPlayer } from "../ui/planning";
 import { QuestDialog, type QuestDialogFrame, type QuestDialogMe } from "../ui/questDialog";
 import { QuestLog } from "../ui/questLog";
-import { expireQuestPreviews, questAccepted, questItemQuestId, questCollections, questFromReveal, questMinimapBlips, type QuestMobTarget, type QuestStateLike } from "../ui/questModel";
+import { expireQuestPreviews, questAccepted, questItemQuestId, questCollections, questFromReveal, questMinimapBlips, questObjectiveMarkers, type QuestMobTarget, type QuestStateLike } from "../ui/questModel";
 import { RouteState } from "../ui/route";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
@@ -110,6 +112,7 @@ export class RaidScene extends Phaser.Scene {
   private fog!: VisionFog;
   private campWards!: CampWards;
   private campBuffs!: CampBuffs;
+  private plagueCorpseView!: PlagueCorpseView;
   private edgeThreats!: EdgeThreatView;
   private readonly cameraFollow = new CameraFollow();
   private unbindVision: (() => void) | null = null;
@@ -156,6 +159,8 @@ export class RaidScene extends Phaser.Scene {
   private lastRouteVersion = -1;
   private runStarted = false;
   private hud!: Hud;
+  private huntHud!: SentencedHuntHud;
+  private huntMarker: PlanningEnemy | null = null;
   private weaponBar!: WeaponBar;
   /** The Wish slot (key D), docked in the weapon bar, and what gives its cooldown a length: the server syncs only when it ends. */
   private wishSlot!: AbilitySlotView;
@@ -177,6 +182,8 @@ export class RaidScene extends Phaser.Scene {
   private blockedItem: ContainerState | null = null;
   /** What F does now: the nearest of that pickup and a quest giver in talking reach (render/interact.ts pickInteraction). */
   private interaction: Interaction | null = null;
+  /** Public corpses are supplied only to a living Plague player and are also used for the map overlays. */
+  private plagueCorpses: PlanningCorpse[] = [];
   /** A quest giver's offer, opened by F next to the giver (ui/questDialog.ts); Accept sends `questAccept`. */
   private questDialog: QuestDialog | null = null;
   private readonly dialogMe: QuestDialogMe = { id: "", x: 0, y: 0, alive: false };
@@ -268,6 +275,8 @@ export class RaidScene extends Phaser.Scene {
     this.fog = new VisionFog(this);
     this.campWards = new CampWards(this);
     this.campBuffs = new CampBuffs(this);
+    this.plagueCorpseView?.destroy();
+    this.plagueCorpseView = new PlagueCorpseView(this);
     this.edgeThreats = new EdgeThreatView();
     this.cameraFollow.reset();
     this.resultsVisible = data.resultsVisible;
@@ -304,6 +313,7 @@ export class RaidScene extends Phaser.Scene {
     this.lastAimSentAt = 0;
     this.lastArenaPatchT = 0;
     this.hud = new Hud();
+    this.huntHud = new SentencedHuntHud();
     this.opponentInspector = new OpponentInspector();
     this.questLog = new QuestLog({ onTalk: (id) => { this.questDialog?.open(id); } });
     this.questPreviews.clear();
@@ -416,7 +426,16 @@ export class RaidScene extends Phaser.Scene {
       if (pointer.button === 2) {
         this.attackMoveArmed = false;
         this.input.setDefaultCursor("default");
-        this.rightAttackHeld = pickTarget(this.cursorGround(pointer), this.targetCandidates()) !== null;
+        const at = this.cursorGround(pointer);
+        const corpse = this.plagueCorpses.find((c) => Math.hypot(c.x - at.x, c.y - at.y) <= 38);
+        if (corpse) {
+          const me = this.room.state.players.get(this.room.sessionId);
+          if (me?.status === "alive" && Math.hypot(corpse.x - me.x, corpse.y - me.y) <= PLAGUE_CORPSE_INTERACT_RANGE) {
+            sendInput(this.room, "consumeCorpse", { corpseId: corpse.id });
+          } else this.sendMove(pointer, true);
+          return;
+        }
+        this.rightAttackHeld = pickTarget(at, this.targetCandidates()) !== null;
         if (this.rightAttackHeld) this.sendTarget(pointer);
         else this.sendMove(pointer, true);
       } else if (pointer.button === 0 && pointer.leftButtonDown()) {
@@ -490,6 +509,10 @@ export class RaidScene extends Phaser.Scene {
     const origin = visionMe && this.localSource(visionMe, state) === "predicted" ? this.predict.motion.drawn : visionMe;
     this.vision.update(this.mapView!.map, gatesLocked, origin, visionMe?.status === "alive", state.phase === "active", state.training,
       this.room.sessionId, state.camps, serverNow);
+    const huntTarget = visionMe?.status === "alive" && visionMe.faction === "sentenced"
+      && state.players.get(visionMe.huntTarget)?.status === "alive" ? visionMe.huntTarget : "";
+    this.vision.setTrackedTarget(huntTarget);
+    this.huntMarker = null;
 
     const patchT = state.serverTime;
     // The sim freezes `sig` and `brand` when a run ends, so the signature marks are only drawn while it is active.
@@ -512,7 +535,8 @@ export class RaidScene extends Phaser.Scene {
         if (local) this.hasFrozen = false;
         this.sampleDrawn(id, drawT, p);
       }
-      if (!shouldRenderActor(local, p.effects, this.tmp, this.vision.canSee)) { this.rendered.delete(id); return; }
+      if (id === huntTarget) this.huntMarker = { id, x: this.tmp.x, y: this.tmp.y, tracked: true };
+      if (!shouldRenderActor(local, p.effects, this.tmp, point => this.vision.canSeeActor(id, point))) { this.rendered.delete(id); return; }
       seen.add(id);
       let view = this.views.get(id);
       if (!view) { view = new PlayerView(this, local, this.fx); this.views.set(id, view); }
@@ -561,6 +585,14 @@ export class RaidScene extends Phaser.Scene {
     // Interaction range is checked against the latest synced position (what the server uses), not the
     // interpolated one the player is drawn at, which trails it by the render delay.
     const me = state.players.get(this.room.sessionId);
+    this.plagueCorpses = [];
+    if (state.phase === "active" && state.training !== true && me?.status === "alive" && me.faction === "plague") {
+      state.plagueCorpses.forEach((corpse) => {
+        if (corpse.expiresAt > serverNow && Number.isFinite(corpse.x + corpse.y)) {
+          this.plagueCorpses.push({ id: corpse.id, playerName: corpse.playerName, x: corpse.x, y: corpse.y, expiresAt: corpse.expiresAt });
+        }
+      });
+    }
     const map = this.mapView?.map;
     // Pickup reach uses the move mask (a fence stops a hand), on the server's map: closed gates included. mapView.map stays the open map.
     const pickupMap = gatesLocked && map ? withGates(map) : map;
@@ -583,7 +615,7 @@ export class RaidScene extends Phaser.Scene {
     };
     this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(visibleContainers, visibleCollection(state.quests, this.vision.canSee), pickupMap, me, {
       quests: questData.quests, localId: this.room.sessionId,
-    }) : null;
+    }, this.plagueCorpses.filter((c) => Math.hypot(c.x - me.x, c.y - me.y) <= PLAGUE_CORPSE_INTERACT_RANGE)) : null;
     this.nearest = this.interaction?.kind === "pickup" ? this.interaction.container : null;
     this.blockedItem = this.interaction?.kind === "blocked" ? this.interaction.container : null;
     const questFocus = this.nearest ?? this.blockedItem;
@@ -628,10 +660,15 @@ export class RaidScene extends Phaser.Scene {
     });
     const threats: Vec2[] = [];
     if (state.phase === "active") state.players.forEach((p, id) => {
-      const at = id !== this.room.sessionId && p.status === "alive" ? this.visiblePosition(id) : undefined;
+      const at = id !== this.room.sessionId && p.status === "alive"
+        ? this.huntMarker?.id === id ? this.huntMarker : this.visiblePosition(id) : undefined;
       if (at) threats.push(at);
     });
     this.minimap.setEnemies(threats);
+    this.minimap.setCorpses(this.plagueCorpses);
+    this.plagueCorpseView.update(state.plagueCorpses, serverNow,
+      state.phase === "active" && state.training !== true && me?.status === "alive" && me.faction === "plague",
+      this.vision.canSee);
     this.minimap.setVision(this.vision.enabled ? this.vision.canSee : null);
     this.minimap.setCampTimers(state.camps, serverNow, state.phase === "active" && !state.training);
     this.minimap.setChests(this.blips);
@@ -642,7 +679,7 @@ export class RaidScene extends Phaser.Scene {
         mobs: this.questMobs(),
       },
     );
-    const visibleQuestBlips = questBlips.filter(this.vision.canSee);
+    const visibleQuestBlips = questBlips.filter(blip => blip.privateObjective || this.vision.canSee(blip));
     this.minimap.setQuests(visibleQuestBlips);
     this.questLog.setDestination(visibleQuestBlips.find((blip) => blip.role === "objective" && blip.tracked) ?? null);
     this.fillCampStates(state, map?.camps.length ?? 0);
@@ -659,11 +696,13 @@ export class RaidScene extends Phaser.Scene {
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.setTerrain(this.localGround);
     this.hud.update(state, me, serverNow);
+    this.huntHud?.update(state, this.room.sessionId, message => sendInput(this.room, "huntTarget", message));
     const talk = this.interaction?.kind === "talk" ? this.interaction : null;
     const blocked = this.interaction?.kind === "blocked" ? this.interaction : null;
     this.weaponBar.update(
       me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "quest" ? this.nearest.label : "",
-      talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`) : blocked ? questAcceptFirstText(blocked.def) : "",
+      talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`)
+        : blocked ? questAcceptFirstText(blocked.def) : this.interaction?.kind === "corpse" ? "consume corpse" : "",
     );
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
@@ -684,8 +723,10 @@ export class RaidScene extends Phaser.Scene {
     state.players.forEach((p, id) => {
       const local = id === this.room.sessionId;
       players.push({ faction: p.faction, ready: p.planReady, me: local });
-      const at = mode === "map" && !local && p.status === "alive" ? this.visiblePosition(id) : undefined;
-      if (at) enemies.push({ id, x: at.x, y: at.y });
+      const tracked = this.huntMarker?.id === id;
+      const at = mode === "map" && !local && p.status === "alive"
+        ? tracked ? this.huntMarker : this.visiblePosition(id) : undefined;
+      if (at) enemies.push({ id, x: at.x, y: at.y, ...(tracked ? { tracked: true } : {}) });
     });
     const at = this.rendered.get(this.room.sessionId);
     const questData = questCollections(state, this.questPreviews.values(), serverNow);
@@ -695,8 +736,11 @@ export class RaidScene extends Phaser.Scene {
       campElites: readCampElites(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
+      localFaction: me?.faction,
       enemies,
+      corpses: mode === "map" ? this.plagueCorpses : [],
       quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,
+      questObjectives: mode === "map" ? questObjectiveMarkers(state.quests, questData.containers, this.room.sessionId, serverNow) : [],
       visionEnabled: this.vision.enabled, canSee: this.vision.canSee,
     });
   }
@@ -833,7 +877,9 @@ export class RaidScene extends Phaser.Scene {
     const active = me.status === "alive" && state.phase === "active";
     const motion = this.predict.motion;
     // The planning map carries the terrain: the bog slows the model where it will be, and the ice lets it slide.
-    motion.frame(c, dt, this.predict.frameInput(c, active, me, others, this.aimStreaming(now), this.planMap()));
+    const hunted = active && me.faction === "sentenced" ? state.players.get(me.huntTarget) : undefined;
+    motion.frame(c, dt, this.predict.frameInput(c, active, me, others, this.aimStreaming(now), this.planMap(),
+      hunted?.status === "alive" ? hunted : undefined));
     if (import.meta.env.DEV && this.clickAt > 0 && Math.hypot(motion.drawn.x - this.clickFrom.x, motion.drawn.y - this.clickFrom.y) > 0.05) {
       this.latency.push(Math.round(now - this.clickAt));
       this.clickAt = 0;
@@ -1389,6 +1435,7 @@ export class RaidScene extends Phaser.Scene {
     }
     const it = this.interaction;
     if (!it) return;
+    if (it.kind === "corpse") { sendInput(this.room, "consumeCorpse", { corpseId: it.corpse.id }); return; }
     if (it.kind === "pickup" || it.kind === "blocked") sendInput(this.room, "pickup", { containerId: it.container.id });
     else this.questDialog?.open(it.quest.id);
   }
@@ -1443,6 +1490,7 @@ export class RaidScene extends Phaser.Scene {
   private teardown(): void {
     this.unbindVision?.(); this.unbindVision = null;
     this.vision.reset();
+    this.plagueCorpseView?.destroy();
     this.fog.destroy();
     this.campWards.destroy();
     this.campBuffs.destroy();
@@ -1497,6 +1545,7 @@ export class RaidScene extends Phaser.Scene {
     this.deaths.clear();
     this.inHand.clear();
     this.hud.destroy();
+    this.huntHud?.destroy();
     this.questLog.destroy();
     this.trainingBar?.destroy();
     this.trainingBar = null;

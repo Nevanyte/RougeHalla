@@ -222,14 +222,14 @@ describe("turn-in", () => {
     expect(RT(w, winner).gv.quest).toBe(qt.def.reward.gv);
     expect(RT(w, winner).gv.quest + RT(w, 1 - winner).gv.quest).toBe(qt.def.reward.gv);
     // Only the winner receives the fixed whole stat stacks.
-    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + qt.def.reward.copies);
+    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + questRewardStats(qt.def).stacks);
     expect(P(w, 1 - winner).build.size).toBe(0);
     expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === `Quest complete: ${qt.def.name}`)).toBe(true);
     expect(ev.some((e) => e.type === "gv" && e.reason === "quest" && e.amount === qt.def.reward.gv)).toBe(true);
     expect(ev.some((e) => e.type === "toast" && e.to === null && e.text.includes(qt.s.doneBy) && e.text.includes(qt.def.name))).toBe(true);
     step(w, TICK_MS);
     expect(P(w, 1 - winner).build.size).toBe(0);
-    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + qt.def.reward.copies); // paid once
+    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + questRewardStats(qt.def).stacks); // paid once
   });
 
   it.each([["p0", "p1"], ["p1", "p0"]])(
@@ -359,7 +359,7 @@ describe("collect quests", () => {
     P(w, 0).y = GIVER.y;
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
-    expect(P(w, 0).mobStats.get(questRewardStats(qt.def).id)).toBe(qt.def.reward.copies);
+    expect(P(w, 0).mobStats.get(questRewardStats(qt.def).id)).toBe(questRewardStats(qt.def).stacks);
   });
 });
 
@@ -384,7 +384,7 @@ describe("fetch quests", () => {
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
     expect(w.quests!.carried.has("p0")).toBe(false);
-    expect(P(w, 0).mobStats.get(questRewardStats(qt.def).id)).toBe(qt.def.reward.copies);
+    expect(P(w, 0).mobStats.get(questRewardStats(qt.def).id)).toBe(questRewardStats(qt.def).stacks);
   });
 
   it("a carrier who goes down drops the parcel where they fell, and anyone may reclaim it", () => {

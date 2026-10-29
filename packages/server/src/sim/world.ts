@@ -159,6 +159,8 @@ export interface StatusInstance {
   fieldId?: string;
   dealtMult?: number;
   takenFromSourceMult?: number;
+  /** zoned: movement multiplier applied while the fighter remains in the field. */
+  moveMult?: number;
   /** deathFloor: the hp it holds the fighter at, the hp loss it has held up so far and the share paid back as a heal at its end. */
   floorHp?: number;
   taken?: number;

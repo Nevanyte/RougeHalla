@@ -54,7 +54,7 @@
 // runs and the walk is exactly what it was.
 import {
   findPath, newSlip, PLAYER_RADIUS, PLAYER_SPEED, regrip, segmentClear, SLIP_REPLAN_MS, slipWalk, TELEPORT_DISTANCE, TICK_MS, WORLD_H, WORLD_W,
-  type GameMap, type SlipState, type Vec2,
+  isMovingTowardHuntTarget, SENTENCED_HUNT_MOVE_BONUS, type GameMap, type SlipState, type Vec2,
 } from "@raid/shared";
 
 export type MotionMode = "predict" | "follow";
@@ -84,6 +84,8 @@ export interface FrameInput {
   rooted: boolean;
   /** The cursor's aim is streaming, so the server's facing follows the cursor, not the walk. */
   aiming: boolean;
+  /** Current hunted rival position; the movement bonus only follows the actual next route leg toward this point. */
+  huntTarget?: Vec2;
   /** The slide traction (u/s^2) under a point for this fighter: 0 off ice and for a faction that grips it (Frost). Absent: no ice. */
   slipAt?: (x: number, y: number) => number;
   /** The walls the server collides with now (the gated copy while the gates are locked), for the slide; absent: the map of the last order. */
@@ -578,7 +580,11 @@ export class LocalMotion {
     }
     const x0 = this.sim.x, y0 = this.sim.y;
     if (this._mode === "predict") {
-      this.speed = PLAYER_SPEED * Math.max(0, input.speedMult) * (input.rooted ? 0 : 1);
+      const next = this.path[0];
+      const toward = next && input.huntTarget
+        && isMovingTowardHuntTarget({ x: next.x - this.sim.x, y: next.y - this.sim.y }, { x: input.huntTarget.x - this.sim.x, y: input.huntTarget.y - this.sim.y });
+      const huntBonus = toward ? 1 + SENTENCED_HUNT_MOVE_BONUS : 1;
+      this.speed = PLAYER_SPEED * Math.max(0, input.speedMult) * huntBonus * (input.rooted ? 0 : 1);
       this.moved = false;
       const slipAt = this.slipAt;
       const map = this.frameMap ?? this.goalMap;

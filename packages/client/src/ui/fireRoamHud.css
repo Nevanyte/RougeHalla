@@ -1,0 +1,25 @@
+/* Fire's small charge strip shares the champion panel's layout and never covers world or practice controls. */
+.fire-roam-hud {
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 173, 90, .25);
+  color: #ffd39b;
+  font: 10px/1.25 system-ui, sans-serif;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+  user-select: none;
+}
+#ui > .champion-combat-hud:has(> .fire-roam-hud:not([hidden])) { max-height: none; }
+.fire-roam-hud[hidden] { display: none; }
+.fire-roam-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fire-roam-label { color: #ffd39b; font-weight: 600; }
+.fire-roam-value { width: 4ch; text-align: right; font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.fire-roam-track { display: block; height: 3px; margin-top: 3px; overflow: hidden; background: rgba(255, 138, 61, 0.22); }
+.fire-roam-fill { display: block; width: 100%; height: 100%; transform: scaleX(0); transform-origin: left center; background: #ff8a3d; }
+.fire-roam-ready { display: block; margin-top: 3px; color: #ffe083; font-weight: 700; text-shadow: 0 0 6px rgba(255, 138, 61, 0.9), 0 1px 2px #000; }
+.fire-roam-ready[hidden] { display: none; }
+.fire-roam-hud.ready .fire-roam-fill { background: #ffd166; }
+.fire-roam-hud.ready .fire-roam-ready { animation: fire-roam-ready-pulse 800ms ease-in-out infinite alternate; }
+@keyframes fire-roam-ready-pulse { from { opacity: 0.72; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .fire-roam-hud.ready .fire-roam-ready { animation: none; } }
+html[data-reduced-motion] .fire-roam-hud.ready .fire-roam-ready { animation: none; }

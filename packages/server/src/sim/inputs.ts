@@ -22,6 +22,8 @@ export type ActionCommand =
   /** To `slot`, or to the other slot when omitted. */
   | { kind: "swap"; slot?: 0 | 1 }
   | { kind: "pickup"; containerId: string }
+  | { kind: "consumeCorpse"; corpseId: string }
+  | { kind: "huntTarget"; id: string }
   /**
    * Cast the ability in `slot` (sim/abilities.ts validates it). (x, y): the cursor's ground point, clamped like a `move`'s.
    * `id`: a unit target. `t`: the render time the client was drawing (clamped later). `seq`: echoed in moveSeq, accepted or refused.
@@ -280,6 +282,18 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown, 
       const containerId = isRecord(msg) ? parseId(msg.containerId) : null;
       if (!containerId) return false;
       q.pushAction({ kind: "pickup", containerId });
+      return true;
+    }
+    case "consumeCorpse": {
+      const corpseId = isRecord(msg) ? parseId(msg.corpseId) : null;
+      if (!corpseId) return false;
+      q.pushAction({ kind: "consumeCorpse", corpseId });
+      return true;
+    }
+    case "huntTarget": {
+      const id = isRecord(msg) ? parseId(msg.id) : null;
+      if (!id) return false;
+      q.pushAction({ kind: "huntTarget", id });
       return true;
     }
     case "cast": {

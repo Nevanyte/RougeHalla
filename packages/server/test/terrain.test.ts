@@ -447,7 +447,7 @@ describe("bog slow", () => {
   };
 
   it("a 1 s walk on bog covers 119 u for Frost and 170 u for Plague (its home)", () => {
-    const world = bogWorld([{ faction: "frost", at: at(3, 5) }, { faction: "plague", at: at(3, 12) }, { faction: "fire", at: at(3, 20) }]);
+    const world = bogWorld([{ faction: "frost", at: at(3, 5) }, { faction: "plague", at: at(3, 12) }, { faction: "holy", at: at(3, 20) }]);
     const moved = [0, 1, 2].map((i) => {
       const p = P(world, `p${i}`);
       order(world, `p${i}`, "move", { x: 60 * TILE, y: p.y });
@@ -461,7 +461,7 @@ describe("bog slow", () => {
   });
 
   it("the Frost movement mirror compounds with bog slow", () => {
-    const world = bogWorld([{ faction: "fire", at: at(3, 10) }, { faction: "frost", at: at(3, 10) }, { faction: "fire", at: at(3, 24) }]);
+    const world = bogWorld([{ faction: "sentenced", at: at(3, 10) }, { faction: "frost", at: at(3, 10) }, { faction: "fire", at: at(3, 24) }]);
     const walker = P(world, "p0");
     run(world, 1); // the faction layer keeps a record per fighter once the run is ticking
     const x0 = walker.x;
@@ -479,7 +479,7 @@ describe("bog slow", () => {
   });
 
   it("a faster walk from the speed mirror multiplies in as well", () => {
-    const world = bogWorld([{ faction: "fire", at: at(3, 10) }, { faction: "sentenced", at: at(3, 24) }]);
+    const world = bogWorld([{ faction: "sentenced", at: at(3, 10) }, { faction: "sentenced", at: at(3, 24) }]);
     // Whatever feeds the mirror (a buff's stats, a status, a skill): a mod source here.
     world.modSources.push((_w, c) => (c.id === "p0" ? { speedMult: 1.2 } : null));
     recomputeMods(world, combatant(world, "p0")!);
@@ -490,7 +490,7 @@ describe("bog slow", () => {
   });
 
   it("Iron Will (slowResist) makes the bog a weaker slow: 40% resist walks at 0.82 instead of 0.7", () => {
-    const world = bogWorld([{ faction: "fire", at: at(3, 10) }, { faction: "fire", at: at(3, 24) }]);
+    const world = bogWorld([{ faction: "holy", at: at(3, 10) }, { faction: "fire", at: at(3, 24) }]);
     setExtraRows(world, combatant(world, "p0")!, [{ k: "stat", stat: "slowResist", v: 0.4 }]);
     const moved = walkOneSecond(world, "p0");
     expect(moved).toBeCloseTo(PLAYER_SPEED * 0.82, 6);
@@ -502,7 +502,7 @@ describe("bog slow", () => {
   it("a centre on plain ground beside bog walks at full speed, and slows the tick it is on bog", () => {
     const world = makeRig({
       map: terrainMap({ w: 64, kind: (tx) => (tx >= 20 ? TERRAIN_BOG : 0) }),
-      players: [{ faction: "fire", at: { x: 20 * TILE - 1, y: tc(8) } }, { faction: "sentenced", at: at(3, 24) }],
+      players: [{ faction: "holy", at: { x: 20 * TILE - 1, y: tc(8) } }, { faction: "sentenced", at: at(3, 24) }],
     });
     const p = P(world, "p0");
     order(world, "p0", "move", { x: 60 * TILE, y: p.y });
@@ -694,7 +694,7 @@ describe("ice", () => {
     });
 
     it("a chill or a buff scales the top speed, not the traction", () => {
-      const world = iceWorld([{ faction: "fire", at: at(4, 8) }, { faction: "fire", at: at(40, 24) }]);
+      const world = iceWorld([{ faction: "plague", at: at(4, 8) }, { faction: "fire", at: at(40, 24) }]);
       world.moveModifiers.push((_w, c) => (c.id === "p0" ? 0.5 : 1));
       order(world, "p0", "move", { x: 60 * TILE, y: P(world, "p0").y });
       run(world, 30);

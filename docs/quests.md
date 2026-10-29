@@ -1,6 +1,6 @@
 # Quests
 
-> Reward update: quests now grant fixed, whole normal-mob stat stacks from their destination zone, under the same ten-stack cap as mob kills, plus existing GV. Feed does not reduce those stacks. Quests grant no cards or augments. See [Mob progression](MOB_PROGRESSION.md); card-tier and parity tables below describe historical tuning only.
+> Reward update: a quest grants 8–16 whole normal-mob stat stacks from its destination zone, plus GV from the existing per-run pot. Quantity is derived from objective and travel estimates, independent of feed; earned stacks remain uncapped. Accepted collect/fetch objectives are shown to their accepter on the held map and minimap, even outside current vision. The card-tier/copy tables below are historical tuning metadata.
 
 *K1 quest play on the current roguelike architecture. The shared catalog and placement live in `packages/shared/src/quests.ts`, the authoritative runtime in `packages/server/src/sim/quests.ts`, and the bot-facing contract in [quests-bot-hook.md](quests-bot-hook.md).*
 
@@ -14,11 +14,11 @@ The K1 rules are deliberately small:
 | --- | --- |
 | Roster | `QUEST_COUNT = 10`, with at least two kill, two collect and two fetch offers; `QUEST_KNOWN_COUNT = 5`. |
 | Timing | Each def has its own fixed `expiresAtSec`, from 150 to 300 seconds of active play. Planning does not advance it. |
-| Rewards | A stack of base cards (`QuestDef.reward.card` and `copies`), one tier lower per copy for a fed player, granted through the chest's own `grantCard`; fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 40`. |
+| Rewards | 8–16 zone-matched mob-stat stacks, based on objective/travel effort and independent of feed; fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 40`. Historical card identity/copy metadata does not affect the current payout. |
 | Accepting | Required (owner ruling). `questAccept { quest }` at the giver, within `QUEST_ACCEPT_RANGE` (the turn-in's 64 u) with a clear line, records the player in the public `QuestState.accepted` set. Progress counts only from then on, never backwards. A fill bot's accept is ignored. |
 | Competition | Per-player progress (an accepting player's), one global winner per offer, automatic turn-in at the giver. There is no per-player completion cap. |
 | Hidden offers | Unknown offers stay server-side. The finder gets a private reveal four seconds before the offer enters synced state for everyone. |
-| Items | Collect tokens advance progress on pickup. A fetch parcel has one public carrier at a time, and a player can carry only one parcel. |
+| Items | Collect tokens advance progress on pickup. After acceptance, every remaining token or parcel and the return point are marked on that player's Tab map/minimap outside fog. Unaccepted, hidden, stale, completed and removed item markers are absent; a fetch parcel has one public carrier and a player can carry only one. |
 | Fill bots | Server-filled bots (`bot === true`, docs/BOTS.md) take no part in quests at all: no progress of any kind, no pickup, turn-in, win or reveal. Killing one advances nothing and pays nothing (a bot's death pays no kill GV), and a bot's kill of a human advances nothing. One guard, `takesPart` (inside `standing`, `sim/quests.ts`), is asked by every entry point. |
 | Training | No quests in training rooms. `QUESTS=0` (or `false`) disables them in arena rooms. |
 
@@ -103,13 +103,25 @@ The quest system is a `world.systems` entry after mob AI and before the final st
 
 ### Rewards
 
-Every def has an explicit `farZone` (it places the far end of the route) and `QuestDef.reward = { card, copies, gv }`: `copies` stackable copies of one **base card** (`ad2`, `haste1`, `vitality2`... `shared/src/cards.ts`, GAME_DESIGN 12) and fixed GV. The old per-kill buffs are gone, and so is the stack arithmetic that paid them.
+Every def has an explicit `farZone` (the zone whose normal-mob type supplies the reward) and historical card metadata. The live stack payout is based on the estimated work: `ceil((objSec + 0.4 × travelSec) / 12 × 2)`, kept within 8–16 for each offer. Objective time counts fully; travel counts at 40% because the route can incidentally farm and loot; the 2× premium gives a player a strong reason to take the detour. `questRewardStats` maps the metadata's base-stat category to a normal mob in `farZone`. Feed never reduces the stack payout. Completion pays the full stat reward plus GV through the separate quest pot; aggregate farm stats have no ceiling.
 
-The card's tier remains the quest's estimated time in camps. `questTierPoints(objSec, travelSec) = (objSec + TRAVEL_RATE_SHARE x travelSec) / CAMP_SECONDS x CARD_TIER_RATE x STACK_PREMIUM`: travel is counted at 40% because a route can incidentally farm, and a normal camp chest averages 1.35 tier points. The nominal tier is that value rounded into I-III (`questTier`), and **a player-kill quest (`players`) stays capped at tier I** because its objective already pays a kill, a bounty and a rival's removal.
+### Farm-time comparison
 
-The copy count starts at the nearest whole number to the corrected real-sim opportunity-cost ratio (seconds questing / farm-only seconds to gain the same live card power). The 10-seed, 4-seat baseline found ratios from 2.83 to 6.17, setting an initial three-to-six copies. A matched after run found four well-sampled offers slightly faster than farming, so their quantities were reduced by one; the final 10×4 run put 16 of 20 ratios in the 1.0–1.35 band with no under-one ratios. See the [2026-10-28 playtest report](quest-playtest-2026-10-28.md) for counts, limits and intermediate data. Completion pays the GV (`awardQuestGv`), then each card through `grantCard(world, combatant, questRewardCard(def, feed))`, then one toast with the number of cards. `questRewardCard` is the **feed brake**: a player whose mob reward curve at their feed (`rewardCurve(feedOfPlayer)`) is below `QUEST_FEED_BRAKE` (0.65, the curve at a feed of 5) gets each copy one tier lower, never below tier I. The catch-up needs no rule of its own: a player behind the lobby median is not braked. Base cards stack. The planning screen and quest log show card quantity and per-copy text (`questRewardText`); a fed player sees the tier reduction called out in the log. There are no quest heals.
+One normal-mob stack is the same fixed stat reward as one credited kill, with an all-in farm estimate of 12 seconds. The table shows the actual formula inputs and resulting equivalent farm time beside the full objective-plus-walk estimate. `Effective seconds` is the parity model's cost after crediting 40% of walking time for camps/loot met along the route.
 
-Quest GV is fixed by the def and paid through `awardQuestGv`. It has a separate per-run pot capped at **40 GV** (`QUEST_GV_CAP`), independent of `GV_MOB_CAP`; typical 8–13 GV awards would fill the old 24 GV pot after two or three completions. The higher cap leaves room for about four or five. Completions after the pot is exhausted still pay their cards. Results show the `quest` breakdown row separately from kills, mobs, bounty and the win bonus.
+| Quest | Objective + walk | Effective seconds | Stack reward | Equivalent farm time |
+| --- | ---: | ---: | ---: | ---: |
+| Cinder Cull | 96 s | 60 s | 10 | 120 s |
+| Blight Blooms | 90 s | 45 s | 8 | 96 s |
+| Worth the Walk | 80 s | 44 s | 8 | 96 s |
+| The Grand Tour | 136 s | 76 s | 13 | 156 s |
+| The Long Haul | 158 s | 68 s | 12 | 144 s |
+
+Thus a typical quest grants roughly twice the normal-kill stat value of its discounted farm-time cost, while a player still pays the route, combat, and contest risk. The floor protects short/high-risk objectives; the per-offer ceiling bounds individual awards, not a player's accumulated stacks.
+
+GV remains fixed in each def and is paid through `awardQuestGv`. It has a separate per-run pot capped at **40 GV** (`QUEST_GV_CAP`), independent of `GV_MOB_CAP`. Completion after the GV pot is exhausted still pays the full stat reward. The quest breakdown remains separate from kills, mobs, bounty and the win bonus.
+
+The earlier quest model used a 24 GV pot; the current pot is 40 GV. Results show quest GV separately from kills, mobs, bounty and the win bonus.
 
 ### Placement
 
@@ -136,16 +148,16 @@ Placement reads only the map contract: `camps` (zone, centre, clearing radius, m
 ### Browser UI
 
 - **Quests · J** opens the scrolling quest log in planning and in the active raid. **J**, **Close**, or **Escape** closes it; typing and help/settings dialogs keep their own keys. Practice explains that it has no quests. The log stays below the measured HUD plate and above the weapon-bar reserve, including when the build strip grows.
-- Every open row has **Track/Untrack**, an objective progress bar, acceptance state, countdown and the actual feed-adjusted card/GV reward. Tracking an unaccepted offer guides the player to its giver; acceptance still requires talking at that giver. A nearby published giver offers **Talk & accept** in the log, which opens the existing quest dialog. The row DOM and focused buttons survive countdown/progress updates.
+- Every open row has **Track/Untrack**, an objective progress bar, acceptance state, countdown and the full stat/GV reward. Tracking an unaccepted offer guides the player to its giver; acceptance still requires talking at that giver. A nearby published giver offers **Talk & accept** in the log, which opens the existing quest dialog. The row DOM and focused buttons survive countdown/progress updates.
 - **F** selects the nearest eligible pickup or a public giver in talking reach; a pickup wins a tie. The quest dialog still validates range/line of sight, supports Enter/1 to accept and Esc/F to close, reports server refusal or reconnect timeout, and closes when the player walks away or the offer ends. Unaccepted quest items are hidden from the local world view and from scene pickup/highlight/hint selection. The server still refuses forged pickups without acceptance.
 - A compact tracked-quest HUD remains after closing the log. It names the current step and measures distance along the same navigable route shown on the minimap. Newly accepted quests are tracked automatically when no other quest is tracked; manual untracking persists.
-- Minimap guidance follows the explicit selection: giver before acceptance, the required living regional mob/elite or unvisited tour region, a quest token/parcel, the public parcel carrier, or the giver for a ready turn-in. Routes use the server's radius and movement mask, including closed gates. Unreachable destinations produce no invented straight line. Headhunter does not point at ordinary mobs. Without explicit tracking the minimap retains its nearest eligible objective/giver hint.
+- Minimap guidance follows the explicit selection: giver before acceptance, the required living regional mob/elite or unvisited tour region, a quest token/parcel, the public parcel carrier, or the giver for a ready turn-in. Once accepted, every remaining token/parcel and the owned return point are also marked on the Tab map and minimap, even outside fog; no unaccepted or hidden offer item is exposed. Routes use the server's radius and movement mask, including closed gates. Unreachable destinations produce no invented straight line. Headhunter does not point at ordinary mobs. Without explicit tracking the minimap retains its nearest eligible objective/giver hint.
 - Route and target caches are bounded. Reused routes validate their current connectors and discard consumed waypoints; death, quest progress, new destinations and changed gate maps invalidate the relevant guidance. Tracked givers and quest items have world highlights; expired givers and items disappear. Exact carrier markers remain public, including during Swarm.
 - Lifecycle toasts name reveals and completions, batch same-tick expiries, and report parcel drops/theft. The planning screen, private reveal previews and active views keep the existing scouting boundary; they never reconstruct unpublished offers.
 
-## 5. Balance worksheet
+## 5. Historical card-reward worksheet
 
-These are design calculations, **not measured completion times or a questBench result** (the questBench section below has measurements; the objective and travel seconds here were estimated before the larger R2 maps and have not been re-fitted to them). The original per-quest `objSec` and `travelSec` estimates are retained as explicit assumptions so they can be replaced by harness measurements later.
+The following card-tier/copy calculations and questBench report describe the retired card reward model. They do not define or measure the current normal-mob stat payouts; the live formula and its farm-time comparison are in section 4. The per-quest `objSec` and `travelSec` fields remain the current assumptions for the stat stack reward.
 
 Assumptions:
 
@@ -195,7 +207,7 @@ The twenty offers (`packages/shared/src/quests.ts`; the last two columns are car
 
 Headhunter (A Head for a Head) keeps its deliberate per-copy discount: its objective already has a player-kill payout, so it pays tier I and 5 GV against a parity of 9. Its three copies are calibrated against the observed quest/farm ratio. The Ember Banner family of eight-second fetches round up to tier II on their long walk; their GV sits at parity.
 
-The final questBench pass put 16 of 20 quest ratios in the 1.0–1.35 band, with none below 1. The five-minute mean power was 34.4 for quest-greedy, 34.0 for mixed and 42.0 for farm-only. The sample does not establish real-run win balance: only 13–14 mixed-lobby seats per policy were observed, and the benchmark runs past the normal coliseum endgame. Travel danger, contested pickups, stat caps, faction fit and build state still affect the value of a stack.
+The final questBench pass put 16 of 20 quest ratios in the 1.0–1.35 band, with none below 1. The five-minute mean power was 34.4 for quest-greedy, 34.0 for mixed and 42.0 for farm-only. The sample does not establish real-run win balance: only 13–14 mixed-lobby seats per policy were observed, and the benchmark runs past the normal coliseum endgame. Travel danger, contested pickups, the stat caps present in those sampled runs, faction fit and build state affected the value of a stack.
 
 ### questBench: usage and report
 
@@ -241,7 +253,7 @@ Per quest the report includes done/attempts, the seeds covered, completion-only 
 
 The Quartermaster's Cache gains almost nothing (a power delta of 0.05) and shows "no Δ" instead of a ratio. Read against the 1.0-1.35 band: the Long Haul is below 1 (faster than farming); Ember Banner, Ashcaps, Loose Links, Frozen Standard, Shards of the Watch and the Reliquary sit inside it; the Grand Tour, The Tithe, Blight Blooms, Break the Chains, A Head for a Head and Thaw the Watch sit above it. These are one small run, so none of it is a finding yet.
 
-**Reward balance was not retuned in this round, and the measurements above predate the cards.** They were taken against the per-kill buffs that the balance pass removed (their ratios were in buff power, with nominal stacks of 6.5 to 8.5 per offer). Quests now pay a card whose tier is the time-parity formula in section 5, so those ratios must be measured again with `questBench` before any is quoted. The numbers above are history, kept for the shape of the table, not for the values.
+**The measurements above predate the current stat-stack rewards.** They were taken against the per-kill buffs that the balance pass removed (their ratios were in buff power, with nominal stacks of 6.5 to 8.5 per offer). The current 8–16 stack rewards use the effort formula in section 4; the old ratios do not measure those payouts. The numbers above are history, kept for the shape of the table, not as current balance evidence.
 
 ## 6. Browser verification
 

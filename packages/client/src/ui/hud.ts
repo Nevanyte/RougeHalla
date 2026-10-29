@@ -10,6 +10,7 @@ import { cssColor, el, uiRoot } from "./dom";
 import { TerrainChips } from "./terrainChips";
 import { MobStatsHud } from "./mobStatsHud";
 import { ChampionCombatHud } from "./championCombatHud";
+import { FireRoamHud } from "./fireRoamHud";
 
 function fmtSeconds(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -84,6 +85,7 @@ export function vitalsHpText(me: VitalsInput | undefined, training: boolean, bar
 
 export class Hud {
   private readonly champion = new ChampionCombatHud(uiRoot());
+  private readonly fireRoam = new FireRoamHud(this.champion.root);
   private readonly root = el("div", "hud");
   private readonly status = el("div", "hud-status");
   private readonly statusText = el("span");
@@ -246,6 +248,7 @@ export class Hud {
     this.build.update(me, me?.status === "alive");
     this.mobStats.update(me, me?.status === "alive");
     this.champion.update(state, this.deathRequested || this.resultShown ? undefined : me, serverNow);
+    this.fireRoam.update(this.deathRequested || this.resultShown ? undefined : me, state.phase, training);
     this.updateArena(state, serverNow);
     this.setDeathShown(!training && (this.deathRequested || me?.status === "dead") && !this.resultShown);
   }
@@ -289,6 +292,7 @@ export class Hud {
   }
 
   destroy(): void {
+    this.fireRoam.destroy();
     this.champion.destroy();
     this.cards.destroy();
     this.build.destroy();

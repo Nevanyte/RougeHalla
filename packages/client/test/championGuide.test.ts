@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, MARK_TIER_HITS, WEAPONS,
+  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
+  MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, MARK_TIER_HITS, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS,
   abilityCooldownMs, burnDps, markPct, pacedFaction, plagueDps, wishOf,
 } from "@raid/shared";
 import { championGuide, guideNumber, signatureGuide, weaponScalingGuide } from "../src/ui/hub/championGuide";
@@ -45,9 +46,25 @@ describe("champion guide matches the combat catalog", () => {
     expect(text).toContain(`${guideNumber(markPct(f, 0) * 100)}%`);
     expect(text).toContain(`${guideNumber(f.params.mark_kill! * 100)}% × Sentence stacks`);
     expect(text).toContain("hit weight");
+    expect(text).toContain(`${guideNumber(MARK_AS_EXPONENT)}`);
+    expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}%`);
+    expect(text).toContain(`${MARK_BONUS_AP_WEIGHT}× AP`);
+    expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point`);
+    expect(text).toContain(`${guideNumber(MARK_FARM_AS_EFFICIENCY * 100)}% effective`);
     expect(text).toContain(`${MARK_TIER_HITS}, ${MARK_TIER_HITS * 2} and ${MARK_TIER_HITS * 3}`);
     expect(text).toContain("1/√(original camp size)");
-    expect(signatureGuide("sentenced").scaling).toContain("AD and AP do not directly scale");
+    expect(signatureGuide("sentenced").scaling).toContain("bonus stats");
+    expect(signatureGuide("sentenced").scaling).toContain(`AP ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point`);
+  });
+
+  it("describes Fire roam from shared tuning and the Trial movement/exit effects", () => {
+    const fire = signatureGuide("fire");
+    expect(fire.scaling).toContain(`${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}×`);
+    expect(fire.scaling).toContain(`${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × AP`);
+    expect(fire.scaling).toContain(`${guideNumber(FIRE_ROAM_RAMP_MS / 1000)} s`);
+    expect(fire.details.join(" ")).toContain("does not cancel a burst already armed");
+    expect(championGuide("sentenced").wish.scaling).toContain(`${guideNumber((1 - TRIAL_MOVE_MULT) * 100)}% slower`);
+    expect(championGuide("sentenced").wish.scaling).toContain(`${guideNumber(TRIAL_EXIT_STUN_MS / 1000)} s`);
   });
 
   it("keeps fixed Wish values separate from passive and weapon scaling", () => {

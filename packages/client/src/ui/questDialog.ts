@@ -49,7 +49,7 @@ export interface QuestDialogFrame {
   quests: QuestCollection;
   /** The walls the server checks an accept's line of sight against (gates included); null to skip the check. */
   sight: GameMap | null;
-  /** Optional current stacks let the reward preview show how much remains before the fixed per-type cap. */
+  /** Optional current stacks let the reward preview show the uncapped total after this quest. */
   feed?: number;
   mobStats?: Readonly<Record<string, number>> | Map<string, number>;
   /** The local player's callsign (a finished row names its finisher). */

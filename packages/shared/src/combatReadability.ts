@@ -3,6 +3,7 @@ import { mobStatRows, type MobStatCounts } from "./mobStats";
 import { FACTIONS, damageShares, isFactionId, pacedFaction, type DamageShares } from "./factions";
 import { decodeMirrors, type WireMirrors } from "./mods";
 import { pvpFactor } from "./rules";
+import { holyCampLifestealOf } from "./championPassives";
 import { attackInterval, damagePerHit, isWeaponId, scalingDamage, type WeaponId } from "./weapons";
 
 export type InvestedStatKey = "ad" | "ap" | "damage" | "health" | "attackSpeed" | "armor" | "mr" | "speed" | "leech";
@@ -33,6 +34,7 @@ export type ReadableFighter = WireMirrors & {
   maxHp: number;
   build?: CardCounts | null;
   mobStats?: MobStatCounts;
+  campClears?: number;
 };
 
 const STAT_META: Record<InvestedStatKey, Pick<InvestedStat, "label" | "short">> = {
@@ -89,7 +91,7 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
   const power = ceiling > baseline ? Math.max(0, Math.min(1, (factor - baseline) / (ceiling - baseline))) : 0;
   const m = decodeMirrors(p);
   const baseHp = isFactionId(p.faction) ? FACTIONS[p.faction].hp : Math.max(0, p.maxHp);
-  const bonusLeech = cardLeech(p.build, p.faction, p.mobStats);
+  const bonusLeech = cardLeech(p.build, p.faction, p.mobStats, p.campClears);
   let genericDamage = mobStatRows(p.mobStats).reduce((sum, e) => e.k === "stat" && e.stat === "damage" ? sum + e.v : sum, 0);
   for (const { def, count } of ownedCards(p.build)) {
     for (const e of cardRows(def.id, p.faction)) if (e.k === "stat" && e.stat === "damage" && !e.requires && !e.needs) genericDamage += e.v * count;
@@ -112,14 +114,14 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
   return { powerRatio, power, topStats: investedStats.slice(0, 2), investedStats };
 }
 
-function cardLeech(build: CardCounts | null | undefined, faction: string, mobStats?: MobStatCounts): number {
+function cardLeech(build: CardCounts | null | undefined, faction: string, mobStats?: MobStatCounts, campClears = 0): number {
   let rows = 0;
   for (const { def, count } of ownedCards(build)) {
     for (const e of cardRows(def.id, faction)) {
       if (e.k === "stat" && e.stat === "lifesteal") rows += e.v * count;
     }
   }
-  let farm = 0;
+  let farm = faction === "holy" ? holyCampLifestealOf(campClears) : 0;
   for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
   return Math.max(0, Math.min(0.25, rows)) + Math.max(0, farm);
 }

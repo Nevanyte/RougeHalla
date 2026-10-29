@@ -106,6 +106,20 @@ export const PlayerState = schema({
   mobStats: t.map("float64"),
   /** Frost's current movement slow multiplier (thousandths); sent separately so local prediction follows its thaw. */
   frostMoveMult: t.uint16().default(1000),
+  /** Fire's out-of-combat roaming charge, 0..1000. Appended for wire compatibility. */
+  roamCharge: t.uint16().default(0),
+  /** Fire's armed next-auto magic burst; survives combat until an eligible auto lands. */
+  roamReady: t.boolean().default(false),
+  /** Chosen living rival for Sentenced's hunt, empty while choosing. */
+  huntTarget: t.string().default(""),
+  /** Completed hunts; each grants a small permanent mark-strength bonus. */
+  huntStacks: t.float64().default(0),
+  /** Eligible camp clears this run, mirrored for champion passives. */
+  campClears: t.float64().default(0),
+  /** Frost is currently receiving Frozen Justice's elite-fight defenses. */
+  frostEliteGuard: t.boolean().default(false),
+  /** Player corpses consumed by Plague this run. */
+  corpseStacks: t.float64().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -256,6 +270,17 @@ export const QuestState = schema({
 }, "QuestState");
 export type QuestState = SchemaType<typeof QuestState>;
 
+/** A player body that a living Plague champion can consume once. Separate from ordinary weapon loot. */
+export const PlagueCorpseState = schema({
+  id: t.string().default(""),
+  playerId: t.string().default(""),
+  playerName: t.string().default(""),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
+  expiresAt: t.number().default(0),
+}, "PlagueCorpseState");
+export type PlagueCorpseState = SchemaType<typeof PlagueCorpseState>;
+
 export const RaidState = schema({
   /** RaidPhase */
   phase: t.string().default("lobby"),
@@ -309,5 +334,7 @@ export const RaidState = schema({
   attempt: t.uint8().default(0),
   /** `mapHashU32` of the server's map. A client whose own map hashes to anything else has desynced, and leaves. */
   mapHash: t.uint32().default(0),
+  /** Consumable player bodies; only Plague clients display their locations. */
+  plagueCorpses: t.map(PlagueCorpseState),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;

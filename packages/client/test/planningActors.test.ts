@@ -48,4 +48,36 @@ describe("held map actor markers", () => {
     expect(css).toMatch(/\.pl-actor-you \.pl-actor-shape[^}]*background:\s*#38d9ff/s);
     expect(css).toMatch(/\.pl-actor-enemy \.pl-actor-shape[^}]*background:\s*#f04452/s);
   });
+
+  it("shows Plague corpses independently of fog only for a living Plague local player", () => {
+    installPlanningDom();
+    const view = new PlanningView({ map: MAP, route: new RouteState(null, null), send: () => {}, settings: new SettingsStore({ getItem: () => null, setItem: () => {} }) });
+    view.update(frame({
+      local: { x: 1200, y: 900, alive: true }, localFaction: "plague", canSee: () => false,
+      corpses: [{ id: "pc1", x: 1500, y: 1100, expiresAt: 5000, playerName: "Fallen" }],
+    }));
+    const root = asEl(view.element);
+    expect(root.byClass("pl-actor-corpse")).toHaveLength(1);
+    expect(root.byClass("pl-actor-corpse")[0]?.getAttribute("aria-label")).toContain("Fallen");
+    view.update(frame({ local: { x: 1200, y: 900, alive: false }, localFaction: "plague", corpses: [{ id: "pc1", x: 1500, y: 1100, expiresAt: 5000 }] }));
+    expect(root.byClass("pl-actor-corpse")).toHaveLength(0);
+    view.update(frame({ local: { x: 1200, y: 900, alive: true }, localFaction: "fire", corpses: [{ id: "pc1", x: 1500, y: 1100, expiresAt: 5000 }] }));
+    expect(root.byClass("pl-actor-corpse")).toHaveLength(0);
+    view.destroy();
+  });
+
+  it("lets a living Sentenced map marker follow its hunted player through fog, but not for other factions or downed players", () => {
+    installPlanningDom();
+    const view = new PlanningView({ map: MAP, route: new RouteState(null, null), send: () => {}, settings: new SettingsStore({ getItem: () => null, setItem: () => {} }) });
+    const target = { id: "tracked", x: 1500, y: 1100, tracked: true };
+    const root = asEl(view.element);
+    view.update(frame({ local: { x: 1200, y: 900, alive: true }, localFaction: "sentenced", canSee: () => false, enemies: [target] }));
+    expect(root.byClass("pl-actor-enemy")).toHaveLength(1);
+    expect(root.byClass("pl-actor-enemy")[0]?.textContent).toBe("HUNT");
+    view.update(frame({ local: { x: 1200, y: 900, alive: true }, localFaction: "plague", canSee: () => false, enemies: [target] }));
+    expect(root.byClass("pl-actor-enemy")).toHaveLength(0);
+    view.update(frame({ local: { x: 1200, y: 900, alive: false }, localFaction: "sentenced", canSee: () => false, enemies: [target] }));
+    expect(root.byClass("pl-actor-enemy")).toHaveLength(0);
+    view.destroy();
+  });
 });

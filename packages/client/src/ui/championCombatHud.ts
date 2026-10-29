@@ -94,10 +94,13 @@ export class ChampionCombatHud {
       asMult: me.asMult, windupMult: me.windupMult, speedMult: me.speedMult,
       armorBonus: me.armorBonus, shieldBonus: me.shieldBonus, adBonus: me.adBonus, apBonus: me.apBonus,
       maxHp: me.maxHp, hp: me.hp, sentence: me.sentence, build: me.build,
+      roamCharge: me.roamCharge, roamReady: me.roamReady,
+      campClears: me.campClears, frostEliteGuard: me.frostEliteGuard, corpseStacks: me.corpseStacks, huntStacks: me.huntStacks,
     };
     const inputSignature = [
       me.faction, me.weapon0, me.weapon1, me.slot, me.asMult, me.windupMult, me.speedMult,
-      me.armorBonus, me.shieldBonus, me.adBonus, me.apBonus, me.maxHp, me.hp, me.sentence, cardKey(me.build),
+      me.armorBonus, me.shieldBonus, me.adBonus, me.apBonus, me.maxHp, me.hp, me.sentence, me.roamCharge, me.roamReady,
+      me.campClears, me.frostEliteGuard, me.corpseStacks, me.huntStacks, cardKey(me.build),
     ].join("|");
     if (inputSignature === this.inputSignature) return;
     this.inputSignature = inputSignature;

@@ -9,6 +9,7 @@ export class RaidVision {
   private memory: VisionMemory | null = null;
   private wards = new Map<number, { memory: VisionMemory; end: number; map: GameMap }>();
   private now = 0;
+  private trackedTargetId = "";
   enabled = false;
 
   reset(map: GameMap | null = null): void {
@@ -17,6 +18,7 @@ export class RaidVision {
     this.memory = map ? new VisionMemory(map.w, map.h) : null;
     this.wards.clear();
     this.enabled = false;
+    this.trackedTargetId = "";
   }
 
   applySnapshot(snapshot: VisionSnapshotMessage): void {
@@ -57,6 +59,16 @@ export class RaidVision {
     for (const ward of this.wards.values()) if (this.now < ward.end && ward.memory.canSee(point, this.now)) return true;
     return false;
   };
+
+  /** Set the server-authorized hunted player. The exception is actor-only, never an area around that player. */
+  setTrackedTarget(id: string): void {
+    this.trackedTargetId = typeof id === "string" ? id : "";
+  }
+
+  /** Actor visibility includes the hunted rival while generic terrain and point queries retain normal fog rules. */
+  canSeeActor(id: string, point: Vec2): boolean {
+    return (this.enabled && id === this.trackedTargetId) || this.canSee(point);
+  }
 }
 
 /** Common collection adapter prevents hidden actors leaking through a map or objective UI. */

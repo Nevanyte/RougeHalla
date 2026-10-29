@@ -149,7 +149,7 @@ export class BotClient {
   teleports = 0;
   /** Inputs sent so far, by message type. */
   readonly sent: Record<ClientMessageType, number> = {
-    move: 0, attackMove: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0, cast: 0, choose: 0, train: 0, questAccept: 0,
+    move: 0, attackMove: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, consumeCorpse: 0, huntTarget: 0, plan: 0, cast: 0, choose: 0, train: 0, questAccept: 0,
   };
   /** Private `plan` deals received (the server deals every player in the planning phase; the tests read it). */
   plansSeen = 0;

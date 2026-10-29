@@ -62,6 +62,17 @@ describe("tactical minimap integration", () => {
     r.minimap.destroy();
   });
 
+  it("draws public corpses in green and clears them when the Plague player loses eligibility", () => {
+    const r = rig();
+    r.minimap.setCorpses([{ id: "pc1", x: 2000, y: 2100 }]);
+    r.paint();
+    expect(argsOf(r.ctx, "strokeStyle=").map(([c]) => c)).toContain("#8bff61");
+    const before = r.paints();
+    r.minimap.setCorpses([]); r.paint();
+    expect(r.paints()).toBeGreaterThan(before);
+    r.minimap.destroy();
+  });
+
   it("shows public respawn seconds, updates only on a whole-second change and removes clocks outside active play", () => {
     const r = rig();
     r.map.camps = generateMap(1).camps.slice(0, 1);

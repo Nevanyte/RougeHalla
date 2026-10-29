@@ -51,7 +51,7 @@ The reward whitelist contains observable interactions such as bleeding, splash a
 
 ## Quests, practice, and bots
 
-Quests grant their full fixed whole number of normal-mob stat stacks from their destination zone, added to any previous progress, plus their existing GV. The old card-copy count supplies the stack count; the old tier metadata is retained for historical tuning helpers. Feed never reduces quest stat rewards, and quests never grant augments. Bounties pay GV without transferring stats or augments. The quest benchmark counts live augment tier points plus one comparison point per ten mob-stat stacks; this is a benchmark unit, independent of the combat PvP factor.
+Quests grant 8–16 whole normal-mob stat stacks from their destination zone, added to any previous progress, plus their existing GV. Their per-offer quantity is `clamp(ceil((objSec + 0.4 × travelSec) / 12 × 2), 8, 16)`: it counts objective time fully, discounts travel for incidental farming, and adds a strong route premium. This bounds one award; accumulated earned stacks still have no ceiling. Feed never reduces quest rewards, and quests never grant augments. Bounties pay GV without transferring stats or augments. Historical card tiers/copies and their questBench comparison remain available for tuning reference, not as current quest payout or balance evidence.
 
 Training can set a normal type's progress to any non-negative safe integer, practice interactive augments, and clear both. Practice kills do not alter a configured build. Bots read their own stack totals and consider farmed stats when deciding whether to challenge elites. They learn a mob's type from on-screen observations, not hidden state.
 

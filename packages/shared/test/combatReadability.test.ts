@@ -9,6 +9,11 @@ function fighter(faction: (typeof FACTION_IDS)[number]) {
 }
 
 describe("combat readability", () => {
+  it("shows earned Demon Blood camp lifesteal as a build investment", () => {
+    const holy = combatReadability({ ...fighter("holy"), campClears: 20 });
+    expect(holy.investedStats.find(s => s.key === "leech")?.score).toBeCloseTo(1, 12);
+    expect(combatReadability({ ...fighter("fire"), campClears: 20 }).investedStats).toEqual([]);
+  });
   it.each(FACTION_IDS)("uses a fresh %s as the growth baseline", (faction) => {
     const p = fighter(faction);
     const view = combatReadability(p);

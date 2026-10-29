@@ -17,7 +17,7 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { moveSpeedMult } from "../src/sim/buffs";
-import { recomputeMods } from "../src/sim/mods";
+import { recomputeMods, setExtraRows, slowResistOf } from "../src/sim/mods";
 import { placeMob } from "../src/sim/mobLife";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../src/sim/step";
 import {
@@ -702,6 +702,24 @@ describe("movement: statusMoveMultiplier", () => {
     expect(statusMoveMultiplier(w, C(w, "a"))).toBeCloseTo(1 - STATUS_RULES.slowMove.cap!, 12);
   });
 
+  it("multiplies the Trial zone's movement slow with ordinary movement modifiers", () => {
+    const w = arena();
+    const c = C(w, "a");
+    apply(w, "a", "b", "zoned", 2000, { data: { moveMult: 0.7 } });
+    expect(statusMoveMultiplier(w, c)).toBeCloseTo(0.7, 12);
+    apply(w, "a", "c", "slowMove", 2000, { value: 0.2 });
+    expect(statusMoveMultiplier(w, c)).toBeCloseTo(0.56, 12);
+  });
+
+  it("lets slow resistance weaken Trial's movement slow", () => {
+    const w = arena();
+    const c = C(w, "a");
+    apply(w, "a", "b", "zoned", 2000, { data: { moveMult: 0.7 } });
+    setExtraRows(w, c, [{ k: "stat", stat: "slowResist", v: 0.5 }]);
+    expect(slowResistOf(c.s)).toBe(0.5);
+    expect(statusMoveMultiplier(w, c)).toBeCloseTo(0.85, 12);
+  });
+
   it("haste ADDS value x PLAYER_SPEED to whatever the speed mirror gives (D12), rather than multiplying it", () => {
     const w = arena();
     const a = C(w, "a");
@@ -730,7 +748,7 @@ describe("movement: statusMoveMultiplier", () => {
   });
 
   it("a hasted player walks faster by value x PLAYER_SPEED", () => {
-    const w = arena();
+    const w = arena([{ id: "a", faction: "holy" }, "b", "c"]);
     enqueueClientMessage(w.players.get("a")!.inputs, "move", { x: 600, y: 320 });
     apply(w, "a", "a", "haste", 5000, { value: 0.3 });
     put(w, "a", 200, 320);

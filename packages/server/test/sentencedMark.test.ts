@@ -21,7 +21,7 @@ import { recordHit } from "../src/sim/ledger";
 import { placeMob } from "../src/sim/mobLife";
 import { asMultOf } from "../src/sim/mods";
 import { addPlayer, step } from "../src/sim/step";
-import { addStatus, findStatus } from "../src/sim/status";
+import { addStatus, findStatus, statusMoveMultiplier } from "../src/sim/status";
 import type { LandedHit, PlayerRuntime, SimConfig, SimEvent, World } from "../src/sim/world";
 
 const DT = TICK_MS / 1000;
@@ -172,6 +172,16 @@ const pair = (b: Partial<Fighter> = {}, s: Partial<Fighter> = {}): World => {
 // ---- tiers ----
 
 describe("the tiers (R3)", () => {
+  it("applies each completed hunt as a 2% relative mark-strength bonus in the real ledger", () => {
+    const pulseAt = (huntStacks: number): number => {
+      const world = pair();
+      P(world, "s").huntStacks = huntStacks;
+      const logs = landHits(world, injector(world), 1);
+      return pulses(logs)[0]!.amount;
+    };
+    expect(pulseAt(1) / pulseAt(0)).toBeCloseTo(1.02, 10);
+  });
+
   it("marks every living member of a camp; a hit on another member advances the same mark and pulses the whole group", () => {
     const world = makeWorld([{ id: "s", faction: "sentenced", at: [300, 300] }]);
     world.map.camps = [{ id: "test", zone: "fire", x: 400, y: 300, r: 100, spots: [], eliteSpot: -1, chest: { x: 400, y: 300 }, area: 1, radius: 100 }];
@@ -995,14 +1005,17 @@ describe("Trial retuned (section 3)", () => {
     expect(ring(world).r).toBe(TRIAL_RADIUS);
   });
 
-  it("walking out stuns for 1 s; with Gallows' Patience the ring lasts 2 s longer and the stun is 1.5 s", () => {
+  it("slows while inside; walking out stuns for 1.5 s, or 2.25 s with Gallows' Patience", () => {
     for (const patient of [false, true]) {
       const { world } = rig();
       if (patient) expect(grantCard(world, CP(world, "s"), "gallowsPatience")).toBe(1);
       castTrial(world);
       const f = ring(world);
       expect(f.endsAt - f.startedAt).toBe(TRIAL_MS + (patient ? GALLOWS_PATIENCE_EXTRA_MS : 0));
-      expect(findStatus(C(world, "b"), "zoned", "s")!.until - f.startedAt).toBe(TRIAL_MS + (patient ? GALLOWS_PATIENCE_EXTRA_MS : 0));
+      const zoned = findStatus(C(world, "b"), "zoned", "s")!;
+      expect(zoned.until - f.startedAt).toBe(TRIAL_MS + (patient ? GALLOWS_PATIENCE_EXTRA_MS : 0));
+      expect(zoned.moveMult).toBe(0.7);
+      expect(statusMoveMultiplier(world, C(world, "b"))).toBeCloseTo(0.7, 12);
       place(world, "b", f.x + TRIAL_RADIUS + 60, f.y);
       tick(world);
       const stun = findStatus(C(world, "b"), "stun", "s");

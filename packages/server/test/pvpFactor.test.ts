@@ -2,7 +2,9 @@
 // its attacker), and so is the mark's pulse (a share of the target's max hp paid with each landed hit). It is read from the state as the pass began, so no
 // order decides it, and it never touches mobs, dummies, Wishes or the arena. The harness's duelScale seam multiplies next to it.
 import { describe, expect, it } from "vitest";
-import { cardPower, FACTIONS, markPct, markWeight, pacedFaction, pvpFactor, PVP_F0, PVP_FMAX, PVP_P0 } from "@raid/shared";
+import { cardPower, FACTIONS, MARK_AS_EXPONENT, markPct, markWeight, pacedFaction, pvpFactor, PVP_F0, PVP_FMAX, PVP_P0 } from "@raid/shared";
+import { attackSpeedMult } from "../src/sim/buffs";
+import { modsOf } from "../src/sim/mods";
 import { applyLedger } from "../src/sim/ledger";
 import { noteContact } from "../src/sim/factions";
 import { addMob } from "../src/sim/mobs";
@@ -139,7 +141,7 @@ describe("the duelScale seam", () => {
 describe("the mark's pulse", () => {
   const SENTENCED = pacedFaction(FACTIONS.sentenced);
   /** A Sentenced on a bow lands one hit on a player (or a mob) 40 u away: the damage its first pulse did, and the victim's max hp. */
-  const pulse = (build: Record<string, number>, against: "player" | "mob", rules = true): { amount: number; maxHp: number } => {
+  const pulse = (build: Record<string, number>, against: "player" | "mob", rules = true): { amount: number; maxHp: number; expectedRaw: number } => {
     const w = pvpArena([
       { id: "s", faction: "sentenced", at: { x: 300, y: 320 }, weapon: "bow", build },
       { id: "v", faction: "holy", at: { x: 340, y: 320 }, weapon: "" },
@@ -156,23 +158,25 @@ describe("the mark's pulse", () => {
     const pulses = w.combat.landed.filter((h) => h.by === "s" && h.sig === "mark");
     expect(pulses).toHaveLength(1);
     const maxHp = against === "mob" ? w.state.mobs.get(victim)!.maxHp : P(w, victim).maxHp;
-    return { amount: pulses[0]!.amount, maxHp };
+    const mirrors = modsOf(P(w, "s"));
+    const expectedRaw = markPct(SENTENCED, 0, 1, {
+      ad: mirrors.adBonus, ap: mirrors.apBonus, armor: mirrors.armorBonus, magicResist: mirrors.shieldBonus,
+    }) * maxHp * markWeight(SENTENCED, "bow", attackSpeedMult(P(w, "s")), MARK_AS_EXPONENT);
+    return { amount: pulses[0]!.amount, maxHp, expectedRaw };
   };
-  /** The pulse before the PvP factor: the share of the target's max hp for a bow hit with no kill-stacks. */
-  const base = (maxHp: number): number => markPct(SENTENCED, 0) * maxHp * markWeight(SENTENCED, "bow");
 
   it("is paid at f(0) against a player with no cards, and at f(P) with them", () => {
     const none = pulse({}, "player");
-    expect(none.amount).toBeCloseTo(base(none.maxHp) * pvpFactor(0), 6);
+    expect(none.amount).toBeCloseTo(none.expectedRaw * pvpFactor(0), 6);
     const carded = pulse({ ad3: 2 }, "player");
-    expect(carded.amount).toBeCloseTo(base(carded.maxHp) * pvpFactor(6), 6);
+    expect(carded.amount).toBeCloseTo(carded.expectedRaw * pvpFactor(6), 6);
     expect(carded.amount).toBeGreaterThan(none.amount * 2);
   });
 
   it("is paid whole against a mob, and with the rules off", () => {
     const mob = pulse({ ad3: 2 }, "mob");
-    expect(mob.amount).toBeCloseTo(base(mob.maxHp), 6);
+    expect(mob.amount).toBeCloseTo(mob.expectedRaw, 6);
     const off = pulse({ ad3: 2 }, "player", false);
-    expect(off.amount).toBeCloseTo(base(off.maxHp), 6);
+    expect(off.amount).toBeCloseTo(off.expectedRaw, 6);
   });
 });

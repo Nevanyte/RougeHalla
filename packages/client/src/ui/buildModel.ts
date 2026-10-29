@@ -4,7 +4,7 @@
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
   AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
-  cardPower, cardRows, countIn, decodeMirrors, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
+  cardPower, cardRows, countIn, decodeMirrors, holyCampLifestealOf, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
   type BaseStatId, type CardCounts, type StatMirrors, type WeaponId, type WireMirrors,
 } from "@raid/shared";
 
@@ -40,6 +40,7 @@ export interface BuildInput {
   mobStats?: Readonly<Record<string, number>> | Map<string, number>;
   /** Current max HP, required to display the gain above the faction's health baseline. */
   maxHp?: number;
+  campClears?: number;
 }
 
 /** A number with at most one decimal and no trailing zero: 24 "24", 12.5 "12.5". */
@@ -65,12 +66,12 @@ export function cutPercent(stat: number): number {
 }
 
 /** Card lifesteal keeps its own limits; earned mob lifesteal continues growing alongside it. */
-export function cardLifesteal(build: CardCounts | null | undefined, faction: string, hpFrac = 1, mobStats?: BuildInput["mobStats"]): { share: number; doubled: boolean; hasDoubler: boolean } {
+export function cardLifesteal(build: CardCounts | null | undefined, faction: string, hpFrac = 1, mobStats?: BuildInput["mobStats"], campClears = 0): { share: number; doubled: boolean; hasDoubler: boolean } {
   let rows = 0;
   for (const { def, count } of ownedCards(build)) {
     for (const e of cardRows(def.id, faction)) if (e.k === "stat" && e.stat === "lifesteal") rows += e.v * count;
   }
-  let farm = 0;
+  let farm = faction === "holy" ? holyCampLifestealOf(campClears) : 0;
   for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
   const hasDoubler = countIn(build, "bloodthirst") > 0;
   const doubled = hasDoubler && hpFrac < 0.5;
@@ -93,7 +94,7 @@ export function buildStats(input: BuildInput): BuildStat[] {
   const w = WEAPONS[weapon];
   const power = cardPower(input.build);
   const factor = pvpFactor(power);
-  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1, input.mobStats);
+  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1, input.mobStats, input.campClears);
 
   const adPer = perPoint(weapon, "ad");
   const apPer = perPoint(weapon, "ap");
@@ -151,7 +152,7 @@ export function buildGains(input: BuildInput): BuildStat[] {
   const m = input.mirrors ?? decodeMirrors(input.wire ?? WIRE_IDENTITY_MIRRORS);
   const faction = isFactionId(input.faction) ? FACTIONS[input.faction] : null;
   const hpGain = faction && Number.isFinite(input.maxHp) ? Math.max(0, input.maxHp! - faction.hp) : 0;
-  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1, input.mobStats).share;
+  const ls = cardLifesteal(input.build, input.faction, input.hpFrac ?? 1, input.mobStats, input.campClears).share;
   const percentPoints = (value: number): string => `${value > 0 ? "+" : ""}${(Math.round(value * 10_000) / 100).toString()}%`;
   const speedGain = (multiplier: number): string => {
     const gain = multiplier - 1;

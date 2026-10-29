@@ -32,7 +32,7 @@ import {
   statusesOf, statusMoveMultiplier,
 } from "./status";
 import { cancelAction, cancelLockedWindup, dropLock } from "./weapons";
-import { canPlayerSee } from "./vision";
+import { canPlayerSeeActor } from "./vision";
 import {
   chainHook, collisionMap, emit, payLater, type ActionHandler, type CastRuntime, type DamageSource, type FieldRuntime,
   type ModContribution, type StatusInstance, type World,
@@ -114,7 +114,7 @@ export function armWishes(world: World): void {
  */
 export function validUnitTarget(world: World, c: Combatant, t: Combatant, maxRange: number, los: boolean): boolean {
   if (t.id === c.id || !standing(t) || !hostile(c, t) || isEvading(t) || isUntargetable(world, t)) return false;
-  if (c.kind === "player" && !canPlayerSee(world, c.id, t.s)) return false;
+  if (c.kind === "player" && !canPlayerSeeActor(world, c.id, t.id, t.s)) return false;
   if (t.kind === "player" && world.state.serverTime < t.s.immuneUntil) return false;
   const dx = t.s.x - c.s.x;
   const dy = t.s.y - c.s.y;
@@ -442,7 +442,7 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
       const st = addStatus(world, t, {
         // `value` is its outgoing multiplier: zoned combines by product, so statusValue(zoned) is what the subject deals now.
         kind: "zoned", source, ability: def.id, ms, value: e.dealtMult,
-        data: { fieldId: f.id, dealtMult: e.dealtMult, takenFromSourceMult: e.takenFromCasterMult },
+        data: { fieldId: f.id, dealtMult: e.dealtMult, takenFromSourceMult: e.takenFromCasterMult, moveMult: e.moveMult },
       });
       if (!st) removeField(world, f.id);
       return;

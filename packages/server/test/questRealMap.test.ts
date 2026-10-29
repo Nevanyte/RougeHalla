@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateMap, mulberry32, questRewardStats, QUEST_ITEM_PREFIX, TICK_MS, type QuestKind } from "@raid/shared";
+import { generateMap, mulberry32, questRewardStats, QUEST_ITEM_PREFIX, TICK_MS, TILE, type QuestKind } from "@raid/shared";
 import { downPlayer, teleportToColiseum } from "../src/sim/arena";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -102,6 +102,40 @@ describe("a quest through its whole life on a generated map", () => {
     run(world, 400);
     expect(world.state.quests.size).toBe(0);
     expect(world.quests!.quests.size).toBe(0);
+  });
+
+  it("accepts a far fetch, keeps its parcel available only to the accepter, then returns and pays uncapped stacks", () => {
+    const { world, qt } = worldWith("fetch");
+    const parcelId = qt.containers[0]!;
+    const parcel = world.state.containers.get(parcelId)!;
+    const reward = questRewardStats(qt.def);
+    expect(Math.hypot(parcel.x - qt.s.x, parcel.y - qt.s.y)).toBeGreaterThan(40 * TILE);
+
+    // Public quest-object containers can be approached, but only an accepter may claim them.
+    world.state.players.get("p1")!.x = parcel.x;
+    world.state.players.get("p1")!.y = parcel.y;
+    const stranger = combatant(world, "p1");
+    if (!stranger || stranger.kind !== "player") throw new Error("stranger missing");
+    handlePickup(world, stranger, { kind: "pickup", containerId: parcelId });
+    expect(qt.s.carrier).toBe("");
+    expect(world.state.containers.has(parcelId)).toBe(true);
+    expect(qt.s.accepted.get("p1")).toBeUndefined();
+
+    expect(acceptAtGiver(world, qt, "p0")).toBe(true);
+    expect(qt.s.accepted.get("p0")).toBe(true);
+    expect(qt.s.accepted.get("p1")).toBeUndefined();
+    take(world, parcelId);
+    expect(qt.s.carrier).toBe("p0");
+    expect(world.state.containers.has(parcelId)).toBe(false);
+
+    P(world).x = qt.s.x;
+    P(world).y = qt.s.y;
+    step(world, TICK_MS);
+    expect(qt.s.status).toBe("done");
+    expect(qt.s.doneBy).toBe("alice");
+    expect(P(world).mobStats.get(reward.id)).toBe(reward.stacks);
+    expect(world.players.get("p0")!.gv.quest).toBe(qt.def.reward.gv);
+    expect(qt.containers).toEqual([]);
   });
 
   it("closes everything when the patience timer teleports the lobby, and no scouting follows", () => {

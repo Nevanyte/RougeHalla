@@ -26,7 +26,7 @@ function effectTip(effect: AbilityEffect): string[] {
     case "deathFloor": return [`Death floor: ${effect.floorHp} HP for ${seconds(effect.ms)}`, `Heal back ${pct(effect.healBack)} of damage held`];
     case "zone": return [
       `Zone lasts ${seconds(effect.ms)} · radius ${effect.radius} u`,
-      `Target deals ${pct(effect.dealtMult)} damage and takes ${pct(effect.takenFromCasterMult)} from you`,
+      `Target deals ${pct(effect.dealtMult)} damage, moves at ${pct(effect.moveMult)} speed, and takes ${pct(effect.takenFromCasterMult)} from you`,
       `Leaving stuns for ${seconds(effect.exitStunMs)}`,
     ];
     case "cloud": return [`Cloud lasts ${seconds(effect.ms)} · radius ${effect.radius} u`];

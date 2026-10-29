@@ -40,5 +40,9 @@ export * from "./training";
 export * from "./quests";
 export * from "./combatReadability";
 export * from "./vision";
+export * from "./fireRoam";
+export * from "./championPassives";
 
 export * from "./mobStats";
+export * from "./plagueCorpses";
+export * from "./sentencedHunt";

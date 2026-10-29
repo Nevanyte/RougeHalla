@@ -55,6 +55,11 @@ export const VISION_RADIUS = 900;
 export const VISION_TRAIL_MS = 120_000;
 /** Full camps return three minutes after their last member dies. The clearing player's ward ends at this deadline. */
 export const CAMP_RESPAWN_MS = 180_000;
+/** Holy's Demon Blood: permanent lifesteal earned per eligible camp clear (not per mob). */
+export const HOLY_CAMP_LIFESTEAL_PER_CLEAR = 0.0025;
+/** Frost's Frozen Justice defenses while fighting a true elite, and after contact ends. */
+export const FROST_ELITE_GUARD_BONUS = 15;
+export const FROST_ELITE_GUARD_LINGER_MS = 2_000;
 /** Tile sight scans are bounded to ten per second per source; exact current sight remains available between scans. */
 export const VISION_UPDATE_MS = 100;
 /** Picking up a weapon (F) reaches containers whose centre is this close, with line of sight. */
@@ -75,7 +80,7 @@ export const ENDED_LINGER_SECONDS = 5;
  * Planning (roguelike R3): the live server's planning phase between the lobby and the run (env PLAN_SECONDS; the sim's
  * own default, SimConfig.planSeconds unset, is 0: no planning). It ends sooner once every connected player is ready.
  */
-export const PLAN_SECONDS = 12;
+export const PLAN_SECONDS = 45;
 /**
  * The two spawns dealt to a player lie in one walking-distance tier: both within this fraction either side of one shared
  * contour value (walking distance to the coliseum centre, gates open), i.e. the longer walk is at most
@@ -243,7 +248,7 @@ export const MARK_DENIAL_LINGER_MS = 2000;
 export const HEAVIER_SENTENCE_PER_BONUS = 1.5;
 /** Gallows' Patience: the zone Wish lasts this much longer, and its escape stun is this long. */
 export const GALLOWS_PATIENCE_EXTRA_MS = 2000;
-export const GALLOWS_PATIENCE_STUN_MS = 1500;
+export const GALLOWS_PATIENCE_STUN_MS = 2250;
 /** Projectiles fly in present server time and are swept in steps this long, so a fast arrow can't skip a body. */
 export const PROJECTILE_SUBSTEP_MS = 10;
 /** A wand ball deletes an enemy arrow whose centre comes within this of the ball's. */

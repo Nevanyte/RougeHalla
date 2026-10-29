@@ -54,6 +54,18 @@ export interface QuestContainerCollection {
 
 export interface QuestPosition { x: number; y: number }
 
+/** A visible ground objective belonging to a live quest this player accepted. */
+export interface QuestObjectiveMarker extends QuestPosition {
+  questId: string;
+  itemId: string;
+  name: string;
+  kind: "collect" | "fetch";
+  action: "pickup" | "return";
+  marker: "token" | "parcel" | "giver";
+  step: number;
+  total: number;
+}
+
 export interface QuestRow {
   id: string;
   def: QuestDef;
@@ -86,6 +98,9 @@ export interface QuestMapBlip extends QuestPosition {
   waypoint?: { label: string; step: number; total: number };
   /** Stable target identity used internally to retain navigation across render frames. */
   targetId?: string;
+  /** An objective coordinate learned only by this accepting player; callers may draw it outside terrain vision. */
+  privateObjective?: boolean;
+  objective?: QuestObjectiveMarker;
 }
 
 /** The synced fields needed to pick a living target for an accepted kill quest. */
@@ -245,6 +260,49 @@ export function questItemQuestId(container: QuestContainerLike): string | null {
   return def.startsWith(QUEST_ITEM_PREFIX) ? def.slice(QUEST_ITEM_PREFIX.length) : null;
 }
 
+/**
+ * All remaining ground tokens/parcels for the local player's accepted, live public quests. These coordinates are intentionally
+ * not vision-filtered: accepting the quest grants the player knowledge of its objective site. The caller must keep this feed
+ * private to `localId`; callers must never build it from hidden offer previews.
+ */
+export function questObjectiveMarkers(
+  quests: QuestCollection, containers: QuestContainerCollection, localId: string, serverNow: number,
+): QuestObjectiveMarker[] {
+  const ground = new Map<string, QuestContainerLike[]>();
+  containers.forEach((container) => {
+    const questId = questItemQuestId(container);
+    if (!questId) return;
+    const list = ground.get(questId) ?? [];
+    list.push(container);
+    ground.set(questId, list);
+  });
+  const markers: QuestObjectiveMarker[] = [];
+  quests.forEach((quest) => {
+    if (!visibleQuest(quest) || quest.status !== "open" || serverNow >= quest.expiresAt || !questAccepted(quest, localId)) return;
+    const def = questDefById(quest.def);
+    if (!def || (def.kind !== "collect" && def.kind !== "fetch")) return;
+    const progress = quest.progress.get(localId) ?? 0;
+    const returnReady = def.kind === "fetch" ? quest.carrier === localId : progress >= def.count;
+    if (quest.carrier !== "" && def.kind === "fetch" && quest.carrier !== localId) return;
+    if (returnReady) {
+      markers.push({
+        questId: quest.id, itemId: "", name: def.name, kind: def.kind,
+        action: "return", marker: "giver", x: quest.x, y: quest.y,
+        step: 1, total: 1,
+      });
+      return;
+    }
+    for (const item of ground.get(quest.id) ?? []) {
+      markers.push({
+        questId: quest.id, itemId: item.id, name: def.name, kind: def.kind,
+        action: "pickup", marker: def.kind === "fetch" ? "parcel" : "token", x: item.x, y: item.y,
+        step: def.kind === "fetch" ? 1 : Math.min(def.count, progress + 1), total: def.kind === "fetch" ? 1 : def.count,
+      });
+    }
+  });
+  return markers;
+}
+
 export function questTurnIn(quest: QuestStateLike, def: QuestDef, localId: string, me: QuestPosition | undefined): boolean {
   return me !== undefined && questReady(quest, def, localId) && Math.hypot(me.x - quest.x, me.y - quest.y) <= QUEST_TURN_IN_RANGE;
 }
@@ -346,6 +404,18 @@ export function questMinimapBlips(
         selected.blip.route = [{ x: local.x, y: local.y }, ...selected.path!.map((p) => ({ x: p.x, y: p.y }))];
       }
       out.push(selected.blip);
+    }
+  }
+  // Every active pickup/return point for an accepted collect/fetch is known to that accepter, even beyond current terrain vision.
+  // Merge the selected waypoint when it is one of these points so its route/tracked state is retained without a duplicate marker.
+  for (const objective of questObjectiveMarkers(quests, containers, localId, options.serverNow ?? -Infinity)) {
+    const targetId = objective.action === "pickup" ? `item:${objective.itemId}` : `giver:${objective.questId}`;
+    const selected = out.find((blip) => blip.role === "objective" && blip.targetId === targetId);
+    if (selected) {
+      selected.privateObjective = true;
+      selected.objective = objective;
+    } else {
+      out.push({ role: "objective", kind: objective.kind, x: objective.x, y: objective.y, targetId, privateObjective: true, objective });
     }
   }
   return out;

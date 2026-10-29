@@ -66,8 +66,8 @@ import {
   FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
   lifestealFraction,
-  lifestealTotal, markPct, markTierOf, markWeight, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
-  plagueDps, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
+  lifestealTotal, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
+  plagueDps, PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK, sentencedHuntMarkMultiplier, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
   staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
   type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
@@ -78,8 +78,8 @@ import {
 } from "./combatant";
 import { deferHit, recordHit } from "./ledger";
 import {
-  apOf, bonusMaxHpOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, farmStatSumsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
-  lifestealRowsOf, lingerMultOf, markRateOf, recomputeMods, returnedMultOf, slowResistOf, statSumsOf, triggersOf,
+  apOf, bonusMaxHpOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
+  lifestealRowsOf, lingerMultOf, markRateOf, farmStatSumsOf, modsOf, recomputeMods, returnedMultOf, slowResistOf, statSumsOf, triggersOf,
 } from "./mods";
 import { addStatus, healFactor, statusesOf } from "./status";
 import {
@@ -444,7 +444,9 @@ function signatureDamage(world: World, dtMs: number): void {
       const apDot = AP_DOT_RATIO * apOf(c.s) * secs;
       dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, apDot);
       // The disease and its execute are two entries of one type: a tier-4 mark denies the second (docs/SENTENCED_REDESIGN.md R7). The AP rider rides the first.
-      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot, apDot);
+      const corpseGrowth = c.kind === "player" && c.s.faction === "plague"
+        ? 1 + Math.max(0, c.s.corpseStacks) * PLAGUE_CORPSE_DISEASE_BONUS_PER_STACK : 1;
+      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot * corpseGrowth, apDot * corpseGrowth);
       dotBonus(world, c, spec, weapon, t, "disease", executeDps(spec, foeFrac, executeBandOf(c.s)) * dot, 0, true);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
@@ -630,9 +632,13 @@ function recordPulse(world: World, c: Combatant, spec: FactionSpec, f: SigFighte
   const weapon = hit.weapon!;
   const stacks = c.kind === "player" ? c.s.sentence : 0;
   const heavier = hasFlag(c.s, "heavierSentence") && spec.hp > 0 ? 1 + HEAVIER_SENTENCE_PER_BONUS * (bonusMaxHpOf(c.s) / spec.hp) : 1;
-  const weight = markWeight(spec, weapon, attackSpeedMult(c.s)) / Math.max(f.chill, 0.05);
+  const weight = markWeight(spec, weapon, attackSpeedMult(c.s), MARK_AS_EXPONENT) / Math.max(f.chill, 0.05);
   const amp = tier >= MARK_TOP_TIER || now < f.ampUntil ? spec.params.mark_amp! : 1;
-  const raw = markPct(spec, stacks, heavier) * markPool(t) * weight * amp * (near ? 1 : MARK_FAR_SHARE) * memberShare;
+  const mirror = c.kind === "player" ? modsOf(c.s) : undefined;
+  const raw = markPct(spec, stacks, heavier, mirror ? {
+    ad: mirror.adBonus, ap: mirror.apBonus, armor: mirror.armorBonus, magicResist: mirror.shieldBonus,
+  } : undefined) * markPool(t) * weight * amp * (near ? 1 : MARK_FAR_SHARE) * memberShare
+    * (c.kind === "player" ? sentencedHuntMarkMultiplier(c.s.huntStacks) : 1);
   if (!(raw > 0)) return;
   recordHit(world, {
     victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...SIGNATURE_SHARES.mark }, weapon, stagger: false, sig: "mark",
@@ -755,8 +761,11 @@ function taxFactor(world: World, c: Combatant, byId: string): number {
 function taxCut(world: World, c: Combatant, byId: string): number {
   const factor = taxFactor(world, c, byId);
   if (!(factor < 1)) return 0;
-  const regular = Math.max(0, 1 + statSumsOf(c.s).attackSpeed);
-  const farm = farmStatSumsOf(c.s).attackSpeed;
+  const efficiency = c.kind === "player" && c.s.faction === "sentenced" ? MARK_FARM_AS_EFFICIENCY : 1;
+  const rows = statSumsOf(c.s).attackSpeed;
+  const farmRows = farmStatSumsOf(c.s).attackSpeed;
+  const regular = Math.max(0, 1 + (rows > 0 ? rows * efficiency : rows));
+  const farm = farmRows > 0 ? farmRows * efficiency : farmRows;
   const before = capAsMult(regular) + farm;
   const after = capAsMult(regular * factor) + farm * factor;
   return before > 0 ? Math.max(0, 1 - after / before) : 0;
@@ -836,7 +845,8 @@ function afterDamage(world: World, dtMs: number): void {
     const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) : 0;
     // Holy's own share and the rows' (Bloodthirst doubling them), and for damage over time Siphon's share on top (G5).
     const rows = lifestealRowsOf(c.s);
-    const farmRows = farmLifestealRowsOf(c.s);
+    const farmRows = farmLifestealRowsOf(c.s)
+      + (c.kind === "player" && c.s.faction === "holy" ? holyCampLifestealOf(c.s.campClears) : 0);
     const mult = lifestealMultOf(c.s);
     const share = lifestealTotal(own, rows, mult, 0, farmRows);
     const onDot = lifestealDotOf(c.s);
