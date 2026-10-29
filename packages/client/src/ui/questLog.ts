@@ -56,6 +56,7 @@ export class QuestLog {
   readonly launcher = el("button", "quest-log-launcher", "Quests · J");
   readonly tracker = el("section", "quest-tracker");
   private readonly closeButton = el("button", "quest-log-close", "Close");
+  private readonly untrackButton = el("button", "quest-tracker-untrack", "Untrack");
   private readonly trackerText = el("span", "quest-tracker-text");
   private readonly list = el("div", "quest-log-list");
   private readonly rumoured = el("div", "quest-log-rumoured");
@@ -88,10 +89,9 @@ export class QuestLog {
     this.launcher.addEventListener("click", () => this.toggle());
     this.tracker.hidden = true;
     this.tracker.setAttribute("aria-label", "Tracked quest");
-    const untrack = el("button", "quest-tracker-untrack", "Untrack");
-    untrack.type = "button";
-    untrack.addEventListener("click", () => this.track(null));
-    this.tracker.append(this.trackerText, untrack);
+    this.untrackButton.type = "button";
+    this.untrackButton.addEventListener("click", () => this.track(null));
+    this.tracker.append(this.trackerText, this.untrackButton);
     uiRoot().append(this.launcher, this.element, this.tracker);
     for (const node of [this.element, this.launcher, this.tracker]) {
       for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) node.addEventListener(type, this.stopPointer, { passive: true });
@@ -124,7 +124,13 @@ export class QuestLog {
   update(frame: QuestLogFrame): void {
     this.frame = frame;
     this.enabled = questLogAvailable(frame.phase);
-    if (!this.enabled) this.open = false;
+    if (!this.enabled) {
+      const active = document.activeElement;
+      if (this.element.contains(active) || active === this.launcher) {
+        (active as HTMLElement | null)?.blur?.();
+      }
+      this.open = false;
+    }
     this.element.hidden = !this.visible;
     this.launcher.hidden = !this.enabled;
     this.launcher.setAttribute("aria-expanded", String(this.visible));
@@ -134,6 +140,7 @@ export class QuestLog {
     if (this.tracked && !rows.some((row) => row.id === this.tracked && !row.closed)) this.tracked = null;
     if (newlyAccepted && this.tracked === null) this.tracked = newlyAccepted.id;
     this.updateTracker(rows);
+    this.restoreFocusFromHiddenControl();
     if (!this.visible) return;
     this.place(frame);
     if (frame.training) {
@@ -142,6 +149,7 @@ export class QuestLog {
         this.list.replaceChildren(el("p", "quest-log-empty", "No quests in practice"));
       }
       this.rumoured.hidden = true;
+      this.restoreFocusFromHiddenControl();
       return;
     }
     const order = rows.map((row) => row.id).join("|");
@@ -157,6 +165,7 @@ export class QuestLog {
     for (const [id] of this.views) if (!rows.some((row) => row.id === id)) this.views.delete(id);
     this.rumoured.textContent = frame.hidden > 0 ? `+${frame.hidden} rumoured quest${frame.hidden === 1 ? "" : "s"} — explore to reveal them` : "";
     this.rumoured.hidden = frame.hidden === 0;
+    this.restoreFocusFromHiddenControl();
   }
 
   private rows(): QuestRow[] {
@@ -239,6 +248,29 @@ export class QuestLog {
     const distance = destination && route ? ` · ${Math.ceil(length / TILE)} tiles along route` : "";
     this.trackerText.textContent = `${row.def.name} · ${step} · ${row.progress}${distance}`;
     this.trackerText.title = this.trackerText.textContent;
+  }
+
+  /** Keep keyboard focus out of controls that a live frame has just hidden. */
+  private restoreFocusFromHiddenControl(): void {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return;
+    if (active === this.untrackButton) {
+      if (!this.tracker.hidden) return;
+      if (this.visible) this.closeButton.focus();
+      else if (this.enabled) this.launcher.focus();
+      else active.blur?.();
+      return;
+    }
+    if (!this.visible || !this.element.contains(active)) return;
+    const row = [...this.views.values()].find((view) => view.track === active || view.talk === active);
+    if (!row || !active.hidden) return;
+    const other = row.track === active ? row.talk : row.track;
+    if (!other.hidden) {
+      other.focus();
+      return;
+    }
+    const next = [...this.views.values()].flatMap((view) => [view.track, view.talk]).find((button) => !button.hidden);
+    (next ?? this.closeButton).focus();
   }
 
   private setOpen(open: boolean): void {

@@ -107,6 +107,24 @@ describe("QuestLog", () => {
     log.destroy();
   });
 
+  it("clears focus from hidden quest controls when the log becomes unavailable", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    log.update(frame());
+    log.toggle();
+    log.update(frame());
+    const close = dom.ui.byClass("quest-log-close")[0]!;
+    close.focus();
+
+    log.update(frame({ phase: "ended" }));
+
+    expect(log.element.hidden).toBe(true);
+    expect(log.launcher.hidden).toBe(true);
+    expect(log.launcher.getAttribute("aria-expanded")).toBe("false");
+    expect(dom.doc.activeElement).toBe(dom.doc.body);
+    log.destroy();
+  });
+
   it("opens with J during planning above the planning overlay", () => {
     const dom = installPlanningDom();
     const log = new QuestLog();
@@ -316,6 +334,46 @@ describe("quest tracking controls", () => {
     const preview = { ...q, accepted: undefined };
     log.update({ ...f, quests: { forEach: (cb) => cb(preview, preview.id) } });
     expect(talk.hidden).toBe(true);
+    log.destroy();
+  });
+
+  it("moves focus away from a Talk action when it becomes unavailable, while preserving it during ordinary updates", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog({ onTalk: vi.fn() });
+    const q = { ...state, accepted: new Map<string, boolean>() };
+    const publicQuests = { forEach(cb: (quest: QuestStateLike, id: string) => void) { cb(q, q.id); } };
+    const near = frame({ quests: publicQuests, alive: true, local: { x: q.x, y: q.y } });
+    log.update(near);
+    log.toggle();
+    log.update(near);
+    const talk = dom.ui.byClass("quest-log-talk")[0]!;
+    talk.focus();
+    log.update({ ...near, serverNow: 1000 });
+    expect(dom.doc.activeElement).toBe(talk);
+
+    log.update({ ...near, local: { x: 1000, y: 1000 } });
+
+    expect(talk.hidden).toBe(true);
+    expect(dom.doc.activeElement).toBe(dom.ui.byClass("quest-log-track")[0]);
+    log.destroy();
+  });
+
+  it("returns focus to the launcher when the tracked quest closes under the focused Untrack control", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    const q = { ...state, accepted: new Map([["me", true]]) };
+    const publicQuests = { forEach(cb: (quest: QuestStateLike, id: string) => void) { cb(q, q.id); } };
+    const f = frame({ quests: publicQuests, alive: true, local: { x: 600, y: 600 } });
+    log.update(f);
+    const untrack = dom.ui.byClass("quest-tracker-untrack")[0]!;
+    untrack.focus();
+
+    q.status = "done";
+    q.doneBy = "Me";
+    log.update(f);
+
+    expect(log.tracker.hidden).toBe(true);
+    expect(dom.doc.activeElement).toBe(asEl(log.launcher));
     log.destroy();
   });
 });

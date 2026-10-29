@@ -32,20 +32,7 @@
 }
 .training-tips.fading { opacity: 0; }
 .training-tips ul { margin: 0; padding-left: 16px; }
-.training-tips-close {
-  position: absolute;
-  top: 2px;
-  right: 4px;
-  font: inherit;
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 6px;
-  border: 0;
-  background: none;
-  color: var(--dim);
-  cursor: pointer;
-}
-.training-tips-close:hover { color: var(--text); }
+.training-tips-toggle { min-height: 28px; }
 
 .training-leave { display: inline-flex; align-items: center; gap: 8px; }
 .training-key {

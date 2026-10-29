@@ -21,7 +21,7 @@ export const HINT_FADE_MS = 1_500;
 
 export type HintPhase = "show" | "fade" | "gone";
 
-/** Where the tips are `elapsedMs` after the bar appeared. Dismissing them skips the fade. */
+/** Where the tips are `elapsedMs` after they were shown. Dismissing them skips the fade. */
 export function hintPhase(elapsedMs: number, dismissed: boolean): HintPhase {
   if (dismissed || elapsedMs >= HINT_HOLD_MS + HINT_FADE_MS) return "gone";
   return elapsedMs >= HINT_HOLD_MS ? "fade" : "show";
@@ -55,12 +55,14 @@ export interface TrainingBarOptions {
 export class TrainingBar {
   private readonly root = el("div", "training-bar");
   private readonly tips = el("div", "training-tips");
+  private readonly tipsToggle = el("button", "btn small training-tips-toggle", "Hide controls");
   private readonly leaveButton = el("button", "btn training-leave");
   private readonly leaveLabel = el("span", undefined, "Leave training");
   private readonly leaveKey = el("span", "training-key", "Esc");
   private readonly latch: LeaveLatch;
   /** The clock reading of the first update(); the tips' timer runs from there, so it needs no timer of its own. */
   private startedAt: number | null = null;
+  private now: number | null = null;
   private elapsedMs = 0;
   private dismissed = false;
   private phase: HintPhase = "show";
@@ -72,12 +74,24 @@ export class TrainingBar {
 
     const list = el("ul");
     for (const hint of TRAINING_HINTS) list.append(el("li", undefined, hint));
-    const close = el("button", "training-tips-close", "×");
-    close.type = "button";
-    close.title = "Hide tips";
-    close.setAttribute("aria-label", "Hide tips");
-    close.addEventListener("click", () => { this.dismissed = true; this.applyPhase(); });
-    this.tips.append(list, close);
+    this.tips.append(list);
+
+    this.tipsToggle.type = "button";
+    this.tipsToggle.setAttribute("aria-controls", "training-controls");
+    this.tipsToggle.setAttribute("aria-expanded", "true");
+    this.tips.id = "training-controls";
+    this.tipsToggle.addEventListener("click", () => {
+      const visible = !this.tips.hidden;
+      this.dismissed = visible;
+      if (!visible) {
+        // Reopening starts a fresh full hint interval, even after the automatic fade.
+        this.startedAt = this.now;
+        this.elapsedMs = 0;
+        // The console hides this panel; close it so Show controls always fulfills its label.
+        if (this.practice?.isOpen) this.practice.setOpen(false);
+      }
+      this.applyPhase(true);
+    });
 
     this.leaveButton.type = "button";
     this.leaveButton.append(this.leaveLabel, this.leaveKey);
@@ -87,7 +101,7 @@ export class TrainingBar {
     this.practice = opts.send
       ? new TrainingConsole(opts.send, { onToggle: () => this.applyPhase(true) })
       : null;
-    this.root.append(this.tips);
+    this.root.append(this.tips, this.tipsToggle);
     if (this.practice) this.root.append(this.practice.root);
     this.root.append(this.leaveButton);
     uiRoot().append(this.root);
@@ -104,6 +118,7 @@ export class TrainingBar {
 
   /** Once per frame, with the same clock every time (the scene passes performance.now()). */
   update(now: number): void {
+    this.now = now;
     this.startedAt ??= now;
     this.elapsedMs = now - this.startedAt;
     this.applyPhase();
@@ -120,6 +135,9 @@ export class TrainingBar {
     if (phase === this.phase && !force) return;
     this.phase = phase;
     this.tips.classList.toggle("fading", phase === "fade");
-    this.tips.hidden = phase === "gone" || (this.practice?.isOpen ?? false);
+    const visible = phase !== "gone" && !(this.practice?.isOpen ?? false);
+    this.tips.hidden = !visible;
+    this.tipsToggle.textContent = visible ? "Hide controls" : "Show controls";
+    this.tipsToggle.setAttribute("aria-expanded", String(visible));
   }
 }

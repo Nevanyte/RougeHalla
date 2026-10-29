@@ -1,7 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   HINT_FADE_MS, HINT_HOLD_MS, LeaveLatch, TRAINING_HINTS, hintPhase,
+  TrainingBar,
 } from "../src/ui/trainingBar";
+import { installUiDom, type UiEl } from "./uiDom";
+
+type Handler = (event: object) => void;
+function fire(node: UiEl, type: string, event: object = {}): void {
+  const handlers = (node as unknown as { handlers: Map<string, Handler[]> }).handlers.get(type) ?? [];
+  for (const handler of handlers) handler({ type, ...event });
+}
+
+let ui: UiEl;
+beforeEach(() => { ({ ui } = installUiDom()); });
+afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("leave training", () => {
   it("calls the hub hand-off exactly once however often it is activated", () => {
@@ -57,5 +69,71 @@ describe("training tips", () => {
   it("dismissing them hides them at once, whatever the clock says", () => {
     expect(hintPhase(0, true)).toBe("gone");
     expect(hintPhase(HINT_HOLD_MS, true)).toBe("gone");
+  });
+
+  it("reopens automatically hidden tips with a fresh timer and an accessible toggle", () => {
+    const bar = new TrainingBar();
+    const root = ui.children[0] as UiEl;
+    const tips = root.byClass("training-tips")!;
+    const toggle = root.byClass("training-tips-toggle")!;
+    bar.update(1_000);
+    bar.update(1_000 + HINT_HOLD_MS + HINT_FADE_MS);
+    expect(tips.hidden).toBe(true);
+    expect(toggle.text).toBe("Show controls");
+    expect(toggle.getAttribute("aria-controls")).toBe(tips.id);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    fire(toggle, "click");
+    expect(tips.hidden).toBe(false);
+    expect(toggle.text).toBe("Hide controls");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    bar.update(1_000 + HINT_HOLD_MS + HINT_FADE_MS + HINT_HOLD_MS - 1);
+    expect(tips.hidden).toBe(false);
+    bar.update(1_000 + HINT_HOLD_MS + HINT_FADE_MS + HINT_HOLD_MS);
+    expect(toggle.text).toBe("Hide controls");
+    expect(tips.classList.contains("fading")).toBe(true);
+
+    fire(toggle, "click");
+    expect(tips.hidden).toBe(true);
+    expect(toggle.text).toBe("Show controls");
+    bar.destroy();
+  });
+
+  it("lets players dismiss and reopen tips before the initial timer expires", () => {
+    const bar = new TrainingBar();
+    const root = ui.children[0] as UiEl;
+    const tips = root.byClass("training-tips")!;
+    const toggle = root.byClass("training-tips-toggle")!;
+    bar.update(10_000);
+    fire(toggle, "click");
+    expect(tips.hidden).toBe(true);
+    fire(toggle, "click");
+    expect(tips.hidden).toBe(false);
+    bar.update(10_000 + HINT_HOLD_MS - 1);
+    expect(tips.hidden).toBe(false);
+    bar.update(10_000 + HINT_HOLD_MS);
+    expect(tips.classList.contains("fading")).toBe(true);
+    bar.destroy();
+  });
+
+  it("closes the practice console when Show controls is used", () => {
+    const bar = new TrainingBar(undefined, { send: () => {} });
+    const root = ui.children[0] as UiEl;
+    const tips = root.byClass("training-tips")!;
+    const tipsToggle = root.byClass("training-tips-toggle")!;
+    const consoleToggle = root.byClass("train-toggle")!;
+    const panel = root.byClass("train-panel")!;
+
+    fire(consoleToggle, "click");
+    expect(panel.hidden).toBe(false);
+    expect(tips.hidden).toBe(true);
+    expect(tipsToggle.text).toBe("Show controls");
+
+    fire(tipsToggle, "click");
+    expect(panel.hidden).toBe(true);
+    expect(consoleToggle.getAttribute("aria-expanded")).toBe("false");
+    expect(tips.hidden).toBe(false);
+    expect(tipsToggle.getAttribute("aria-expanded")).toBe("true");
+    bar.destroy();
   });
 });
