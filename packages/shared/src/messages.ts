@@ -337,6 +337,16 @@ export interface QuestRevealMessage {
   expiresAt: number;
 }
 
+/** Private reconnect snapshot of the recipient's live vision trail. Ward vision is derived from public camp state. */
+export interface VisionSnapshotMessage {
+  seed: number;
+  w: number;
+  h: number;
+  at: number;
+  /** Only unexpired trail cells: row-major tile index and its absolute server-time expiry. */
+  cells: Array<[index: number, expiresAt: number]>;
+}
+
 /** Server → client. */
 export interface ServerMessages {
   fxs: FxBatch;
@@ -346,6 +356,8 @@ export interface ServerMessages {
   plan: PlanMessage;
   /** Private: only the finder receives the head-start reveal. */
   questReveal: QuestRevealMessage;
+  /** Private reconnect snapshot of the recipient's trail. */
+  vision: VisionSnapshotMessage;
 }
 
 /**

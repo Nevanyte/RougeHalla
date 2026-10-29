@@ -26,6 +26,7 @@ import { spawnProjectiles, sweepProjectiles } from "../src/sim/projectiles";
 import { noteContact, signatureState } from "../src/sim/factions";
 import { addPlayer, step } from "../src/sim/step";
 import { handleTarget } from "../src/sim/targeting";
+import { getVisionMemory } from "../src/sim/vision";
 import type { MeleeRequest, ProjectileRuntime, SimEvent, World } from "../src/sim/world";
 import { eastOf, roomMap, tileCentre, tileClassAt, vertical, westOf, type TilePt } from "./terrainWorld";
 
@@ -381,6 +382,10 @@ describe("the target lock across a LOW fence", () => {
     expect(world.players.get("p0")!.weapon.lockPlanAt).toBe(-Infinity); // the chase plans on the next upkeep
 
     const walled = lockWorld("sword", "plague", wallRoom());
+    // Keep the target in trail vision so this assertion measures the path-search cost behind solid cover.
+    const discovery = getVisionMemory(walled.world, "p0")!;
+    discovery.clear();
+    discovery.update(walled.world.map, walled.world.state.mobs.get(walled.dummy)!, walled.world.state.serverTime);
     searches.n = 0;
     handleTarget(walled.world, combatant(walled.world, "p0")!, { kind: "target", id: walled.dummy });
     expect(searches.n).toBe(1);

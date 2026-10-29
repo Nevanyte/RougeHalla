@@ -7,6 +7,7 @@ import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, MAP_MISMATCH_MESSAGE, friendlyC
 import { FxInbox } from "./net/fxInbox";
 import { mapLoader, warmWhenIdle } from "./net/mapWorker";
 import { PlanInbox } from "./net/planInbox";
+import { VisionInbox } from "./net/visionInbox";
 import { checkedMap, type CheckedMap } from "./net/roomMap";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
 import { applyPhaserFixes, wantsMsaa } from "./render/phaserFixes";
@@ -156,6 +157,8 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   // The private planning deal is held the same way: the newest message replaces the older ones, and the scene reads it when it starts.
   const plan = new PlanInbox();
   joined.onMessage("plan", (m: ServerMessages["plan"]) => plan.push(m));
+  const vision = new VisionInbox();
+  joined.onMessage("vision", (m: ServerMessages["vision"]) => vision.push(m));
   if (!(await firstState(joined))) {
     // The room closed before its first patch, so the leave handler below was never registered.
     if (room === joined) room = null;
@@ -229,6 +232,7 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     map: built.map,
     fxs,
     plan,
+    vision,
     toast: (text: string, tone?: ToastTone) => toasts.show(text, tone),
     resultsVisible: () => results.visible,
     ...(training ? { leaveTraining: () => backToMenu() } : {}),

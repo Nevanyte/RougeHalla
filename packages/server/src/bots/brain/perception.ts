@@ -102,6 +102,10 @@ export interface ContainerLike {
 
 /** A RaidState.camps entry (R5). */
 export interface CampLike {
+  readonly clearedAt?: number;
+  readonly respawnAt?: number;
+  readonly wardOwner?: string;
+  readonly wardExpiresAt?: number;
   readonly type: string;
   readonly reward: string;
   readonly alive: number;
@@ -409,6 +413,7 @@ interface Seen {
   readonly state: StateLike;
   readonly shown: ReadonlyMap<FighterId, Vec2>;
   readonly near: (x: number, y: number) => boolean;
+  readonly canSee?: (point: Vec2) => boolean;
 }
 
 const KNOWN_FX: ReadonlySet<string> = new Set([
@@ -567,7 +572,8 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   const me = players.get(selfId);
   const self = me ? selfView(selfId, me) : absentSelf(selfId);
   const sx = self.x, sy = self.y;
-  const near = (x: number, y: number): boolean => inView(sx, sy, x, y, FRAME_MARGIN);
+  const canSee = ctx.canSee ?? (() => true);
+  const near = (x: number, y: number): boolean => inView(sx, sy, x, y, FRAME_MARGIN) && canSee({ x, y });
   const effects: Record<FighterId, number> | null = statusBits ? {} : null;
   if (effects && me) effects[selfId] = me.effects ?? 0;
 
@@ -595,6 +601,7 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   const mobList: MobSeen[] = [];
   for (const [id, m] of mobs) {
     const x = f32(m.x), y = f32(m.y);
+    if (!canSee({ x, y })) continue;
     const inBox = near(x, y);
     if (!repaint && !inBox) continue;
     const status = m.status, kind = m.kind, faction = m.faction;
@@ -608,7 +615,7 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   }
   mobList.sort(byId);
   dots.sort(byId);
-  const minimap: MinimapView = last !== null && !repaint ? last : { t, mobs: dots, gatesLocked };
+  const minimap: MinimapView = last !== null && !repaint ? (ctx.canSee ? { ...last, mobs: last.mobs.filter(canSee) } : last) : { t, mobs: dots, gatesLocked };
 
   const containers = seeContainers(state, ctx.map, self, near);
 
@@ -628,7 +635,7 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
     winner: state.winner,
   };
 
-  const seen: Seen = { selfId, self: { x: sx, y: sy }, state, shown, near };
+  const seen: Seen = { selfId, self: { x: sx, y: sy }, state, shown, near, canSee: ctx.canSee };
   const events: ObservedEvent[] = [];
   const projectiles: ProjectileView[] = [];
   for (const batch of input.fxs ?? []) {
@@ -651,6 +658,7 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   for (const text of input.toasts ?? []) immediate.push({ kind: "toast", t, at: null, text });
   if (input.result) immediate.push({ kind: "result", t, at: null, result: plainCopy(input.result) as RunResult });
   for (const pm of input.privates ?? []) {
+    if (ctx.canSee && pm.type === "vision") continue;
     const msg = plainCopy(pm.msg);
     immediate.push({
       kind: "private", t, at: null, type: pm.type,
@@ -663,8 +671,8 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   const wish = ctx.features.wishes && me ? wishView(me) : null;
   if (wish) extras.wish = wish;
   if (ctx.features.fields && state.fields) extras.fields = seeFields(state.fields, seen, sx, sy);
-  if (ctx.features.chests) extras.chests = seeChests(state, ctx.map, self, selfId);
-  if (ctx.features.camps && state.camps) extras.camps = seeCamps(state.camps, ctx.map);
+  if (ctx.features.chests) extras.chests = seeChests(state, ctx.map, self, selfId, canSee);
+  if (ctx.features.camps && state.camps) extras.camps = seeCamps(state.camps, ctx.map, ctx.canSee !== undefined, selfId);
 
   return { t, self, hud, fighters, mobs: mobList, containers, projectiles, minimap, events, immediate, extras };
 };
@@ -749,12 +757,13 @@ function listHas(list: ListLike<string> | undefined, v: string): boolean {
  * show only while the panel is open: within CHEST_RANGE less CHEST_PANEL_SLACK of the bot's latest server position and in sight
  * (ui/chestMath.ts `pickReward`). Another player's pick is "?" here, whoever made it: the bot needs only to know it is gone.
  */
-function seeChests(state: StateLike, map: GameMap, self: SelfView, selfId: FighterId): RewardChestView[] {
+function seeChests(state: StateLike, map: GameMap, self: SelfView, selfId: FighterId, canSee: (point: Vec2) => boolean): RewardChestView[] {
   const sight = state.gatesLocked ? withGates(map) : map;
   const out: RewardChestView[] = [];
   for (const [id, c] of state.containers) {
     if (c.kind !== "reward") continue;
     const x = f32(c.x), y = f32(c.y);
+    if (!canSee({ x, y })) continue;
     const open = self.status === "alive" && Math.hypot(self.x - x, self.y - y) <= CHEST_RANGE - CHEST_PANEL_SLACK && hasLineOfSight(sight, self, { x, y });
     const options: string[] | null = open ? Array.from({ length: c.options?.length ?? 0 }, (_, i) => c.options!.at(i) ?? "") : null;
     const takenBy = options === null ? [] : options.map((_, i) => { const by = c.takenBy?.at(i) ?? ""; return by === "" || by === selfId ? by : "?"; });
@@ -765,11 +774,13 @@ function seeChests(state: StateLike, map: GameMap, self: SelfView, selfId: Fight
 }
 
 /** RaidState.camps as the minimap and the planning screen mark them: what each camp is, how many of it live, and its state. */
-function seeCamps(camps: ArrayLike<CampLike>, map: GameMap): CampView[] {
+function seeCamps(camps: ArrayLike<CampLike>, map: GameMap, vision: boolean, selfId: string): CampView[] {
   const out: CampView[] = [];
   for (let i = 0; i < camps.length; i++) {
     const c = camps[i];
-    if (c) out.push({ index: i, id: map.camps[i]?.id ?? `camp${i}`, type: c.type, reward: c.reward, alive: c.alive, state: c.state === 1 || c.state === 2 ? c.state : 0 });
+    if (c) out.push({
+      ...(!vision || c.clearedAt === undefined ? {} : { clearedAt: c.clearedAt, respawnAt: c.respawnAt, wardOwner: c.wardOwner === selfId ? selfId : c.wardOwner ? "?" : "", wardExpiresAt: c.wardExpiresAt }),
+      index: i, id: map.camps[i]?.id ?? `camp${i}`, type: c.type, reward: c.reward, alive: c.alive, state: c.state === 1 || c.state === 2 ? c.state : 0 });
   }
   return out;
 }
@@ -778,6 +789,7 @@ function seeCamps(camps: ArrayLike<CampLike>, map: GameMap): CampView[] {
 function seeFields(fields: KeyedLike<FieldLike>, s: Seen, sx: number, sy: number): FieldView[] {
   const out: FieldView[] = [];
   for (const [id, f] of fields) {
+    if (s.canSee && (!s.canSee(f) || (fieldName("FIELD_KINDS", f.kind) === "trail" && !s.canSee({ x: f.x2, y: f.y2 })))) continue;
     const view: FieldView = {
       id, kind: fieldName("FIELD_KINDS", f.kind), ability: fieldName("ABILITY_IDS", f.ability), x: f32(f.x), y: f32(f.y),
       x2: f32(f.x2), y2: f32(f.y2), r: f32(f.r), owner: f.owner === "" ? null : visibleId(s, f.owner), endsAt: u32(f.endsAt),

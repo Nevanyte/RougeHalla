@@ -7,10 +7,10 @@
 //
 // The camp runtime (roguelike R5, ROGUELIKE_PLAN 3.3): a camp's `state` goes 0 (idle) -> 1 (engaged: the first damage to any
 // member, sim/mobLife.ts hurtMob) -> 2 (cleared: its last member died, whoever or whatever killed it). Engaged never goes
-// back to idle, and cleared is for good: camps never respawn, and the coliseum teleport (which puts LIVING mobs back on their
-// spots) leaves a cleared camp cleared. The clear is paid after the ledger pass that killed the last member (payLater): the
+// back to idle until the full roster respawns three minutes after a clear. The coliseum teleport puts LIVING mobs back on
+// their spots; camp respawn clocks continue while gates are locked. The clear is paid after the ledger pass (payLater): the
 // `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
-import { rollCampElites, rollCampTypes } from "@raid/shared";
+import { CAMP_RESPAWN_MS, rollCampElites, rollCampTypes } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { payCampHeal } from "./campHeal";
 import { emit, payLater, type World } from "./world";
@@ -67,7 +67,7 @@ export function campEngaged(world: World, campRef: number): void {
  * chest). A reference to no published camp is ignored (a mob placed by a test without one). Returns true when this death
  * cleared the camp.
  */
-export function campMobDied(world: World, campRef: number): boolean {
+export function campMobDied(world: World, campRef: number, killerId: string | null = null): boolean {
   if (!(campRef >= 1)) return false;
   const s = world.state.camps[campRef - 1];
   if (!s) {
@@ -77,6 +77,11 @@ export function campMobDied(world: World, campRef: number): boolean {
   if (s.alive > 0) s.alive--;
   if (s.alive > 0 || s.state === CAMP_CLEARED) return false;
   s.state = CAMP_CLEARED;
+  s.clearedAt = world.state.serverTime;
+  s.respawnAt = s.clearedAt + CAMP_RESPAWN_MS;
+  // The final mob's whole-fight damage attribution owns the ward; environmental clears grant no ward.
+  s.wardOwner = killerId ?? "";
+  s.wardExpiresAt = killerId !== null ? s.respawnAt : 0;
   const camp = campRef - 1;
   payLater(world, () => {
     emit(world, { type: "fx", fx: { kind: "campCleared", camp } });

@@ -120,6 +120,7 @@ const MIN_HEAL_SHOWN = 1;
 export interface FxHost {
   /** The local player's id: damage to it is red, its hits on others gold. */
   readonly localId: string;
+  canSee?(point: { x: number; y: number }): boolean;
   /** The drawn fighter (player or mob), for hit flashes and the juice cues of its figure. */
   view(id: string): { flash(): void; cues?: FigureCues } | undefined;
   /** What a mob id is ("dummy" | "mob" | "elite"), or undefined for a player or an unknown id: mob deaths are quieter than players'. */
@@ -378,7 +379,7 @@ export class FxView {
           this.mobDeath(fx, mob === "elite", now);
           break;
         }
-        this.decal(fx.x, fx.y, now);
+        if (!this.host.canSee || this.host.position(fx.id)) this.decal(fx.x, fx.y, now);
         const name = this.host.name(fx.id);
         if (name) this.host.announce?.(`${name} was killed`);
         break;
@@ -465,6 +466,7 @@ export class FxView {
     this.cancelWindup(fx.by, now);
     const shape = WEAPONS[fx.weapon]?.shape;
     if (shape?.kind !== "arc" || !Number.isFinite(fx.x) || !Number.isFinite(fx.y) || !Number.isFinite(fx.a)) return;
+    if (this.host.canSee && (!this.host.position(fx.by) || !this.host.canSee(fx))) return;
     // After the cancel above, which lets the wound-up pose go: the swing carries on from where it was.
     this.host.view(fx.by)?.cues?.swing(fx.a, now);
     const color = WEAPONS[fx.weapon].color;
@@ -477,7 +479,7 @@ export class FxView {
     g.lineStyle(3, SWING_RIM, 0.9);
     traceRim(g, 0, 0, reach, fx.a, shape.halfArc);
     g.strokePath();
-    this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: "", x: 0, y: 0, a: 0 });
+    this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: "", x: fx.x, y: fx.y, a: 0 });
   }
 
   private hit(fx: FxOf<"hit">, now: number): void {
@@ -594,6 +596,7 @@ export class FxView {
 
   /** A small burst at a ground point, drawn at body height (projectiles fly there). */
   private burst(x: number, y: number, style: BurstStyle, now: number): void {
+    if (this.host.canSee && !this.host.canSee({ x, y })) return;
     const g = this.acquireGraphics(DEPTH_FX);
     g.setPosition(projX(x), projY(y, BODY_LIFT));
     const r = style.radius;
@@ -628,12 +631,13 @@ export class FxView {
    * over it; the 0.1 keeps it just above the body lying there.
    */
   private decal(x: number, y: number, now: number): void {
+    if (this.host.canSee && !this.host.canSee({ x, y })) return;
     const g = this.acquireGraphics(depthFor(y, -PLAYER_RADIUS + 0.1));
     g.setPosition(projX(x), projY(y));
     g.lineStyle(3, DECAL_COLOR, 1);
     g.lineBetween(-DECAL_HALF_W, -DECAL_HALF_H, DECAL_HALF_W, DECAL_HALF_H);
     g.lineBetween(-DECAL_HALF_W, DECAL_HALF_H, DECAL_HALF_W, -DECAL_HALF_H);
-    this.active.push({ kind: "decal", g, text: null, start: now, duration: DECAL_MS, id: "", x: 0, y: 0, a: 0 });
+    this.active.push({ kind: "decal", g, text: null, start: now, duration: DECAL_MS, id: "", x, y, a: 0 });
   }
 
   /**
@@ -733,7 +737,8 @@ export class FxView {
     for (let i = a.length - 1; i >= 0; i--) {
       const e = a[i]!;
       const p = (now - e.start) / e.duration;
-      if (p >= 1) {
+      const anchor = e.id ? this.host.position(e.id) : e;
+      if (p >= 1 || (this.host.canSee && (!anchor || !this.host.canSee(anchor)))) {
         this.release(e);
         a[i] = a[a.length - 1]!;
         a.pop();

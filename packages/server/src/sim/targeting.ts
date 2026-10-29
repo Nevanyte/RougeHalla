@@ -41,6 +41,7 @@ import {
 import { planPath, velocityOf } from "./movement";
 import { isStunned, isUntargetable } from "./status";
 import { cancelLockedWindup, dropLock, setLock } from "./weapons";
+import { canPlayerSee } from "./vision";
 import { collisionMap, type ActionHandler, type World } from "./world";
 
 /** The chase re-plans only when the point it walks to moved this far (world units). */
@@ -53,6 +54,7 @@ export function install(world: World): void {
 /** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not walking home, hidden or untargetable? */
 function lockable(world: World, c: Combatant, t: Combatant): boolean {
   return standing(t) && !isEvading(t) && !isUntargetable(world, t) && hostile(c, t)
+    && (c.kind !== "player" || canPlayerSee(world, c.id, t.s))
     && Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) <= TARGET_RANGE;
 }
 

@@ -553,6 +553,11 @@ export type SkillSlotView = WishView;
 
 /** RaidState.camps[i] as the map and minimap mark it (R5): never more than the UI draws ("?" stays "?"). */
 export interface CampView {
+  readonly clearedAt?: number;
+  readonly respawnAt?: number;
+  /** Own id, "?" for another owner, or empty; ownership never introduces an unseen fighter id. */
+  readonly wardOwner?: string;
+  readonly wardExpiresAt?: number;
   readonly index: number;
   readonly id: string;
   readonly type: string;
@@ -659,6 +664,8 @@ export interface PerceiveContext {
   readonly features: Features;
   /** The previous frame's minimap, reused until MINIMAP_REFRESH_MS has passed. */
   readonly lastMinimap: MinimapView | null;
+  /** Optional client-equivalent raid sight; supplied by both live bot drivers through the runner. */
+  readonly canSee?: (point: Vec2) => boolean;
 }
 export type Perceive<I> = (input: I, ctx: PerceiveContext) => Frame;
 

@@ -314,7 +314,7 @@ export class BotClient {
     this.brain = brain;
     this.tierPlayed = tier.id;
     this.personaPlayed = persona.id;
-    this.runner = createBotRunner({ brain, adapter, cfg: { selfDelayMs: 0, worldDelayMs: INTERP_DELAY_MS }, map, features, tier });
+    this.runner = createBotRunner({ brain, adapter, vision: true, cfg: { selfDelayMs: 0, worldDelayMs: INTERP_DELAY_MS }, map, features, tier });
     this.log(`joined ${room.roomId} (${gv} GV) as ${tier.id} ${persona.id}, seed ${seed}`);
   }
 

@@ -5,7 +5,7 @@
 // (flying, then pinned at its stop point) until FxView reports the fx due, and only then removed. One that was
 // reflected, deleted or destroyed does not stay pinned: something else carries on from there (see VANISHES).
 import Phaser from "phaser";
-import { WEAPONS, type ProjectileEnd, type ProjectileKind, type ProjectileLaunch, type TimedFx } from "@raid/shared";
+import { WEAPONS, type ProjectileEnd, type ProjectileKind, type ProjectileLaunch, type TimedFx, type Vec2 } from "@raid/shared";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 
 export type ProjEndFx = Extract<TimedFx, { kind: "projEnd" }>;
@@ -106,11 +106,11 @@ export class ProjectileView {
     this.tracked.delete(id);
   }
 
-  update(renderT: number, targetAt?: ProjectileTargetAt): void {
+  update(renderT: number, targetAt?: ProjectileTargetAt, canSee: (point: Vec2) => boolean = () => true): void {
     for (const tr of this.tracked.values()) {
       const speed = Math.hypot(tr.vx, tr.vy);
       if (tr.targetId) {
-        this.updateHoming(tr, renderT, speed, targetAt);
+        this.updateHoming(tr, renderT, speed, targetAt, canSee);
         continue;
       }
       const travelled = speed * ((renderT - tr.t) / 1000);
@@ -131,6 +131,7 @@ export class ProjectileView {
       const d = Math.min(travelled, limit) / speed;
       const x = tr.x + tr.vx * d;
       const y = tr.y + tr.vy * d;
+      if (!canSee({ x, y })) { tr.g?.setVisible(false); continue; }
       const g = tr.g ?? this.create(tr);
       g.setVisible(true).setPosition(projX(x), projY(y, BODY_LIFT)).setDepth(depthFor(y));
       if (tr.kind === "ball") g.setScale(1 + 0.1 * Math.sin(renderT / 60));
@@ -143,7 +144,7 @@ export class ProjectileView {
     this.done.clear();
   }
 
-  private updateHoming(tr: Tracked, renderT: number, speed: number, targetAt?: ProjectileTargetAt): void {
+  private updateHoming(tr: Tracked, renderT: number, speed: number, targetAt: ProjectileTargetAt | undefined, canSee: (point: Vec2) => boolean): void {
     if (speed === 0) { tr.g?.setVisible(false); return; }
     if (renderT < tr.simT) {
       tr.simT = tr.t;
@@ -186,6 +187,7 @@ export class ProjectileView {
       this.finish(tr.id);
       return;
     }
+    if (!canSee({ x: tr.flightX, y: tr.flightY })) { tr.g?.setVisible(false); return; }
     const g = tr.g ?? this.create(tr);
     g.setVisible(true).setPosition(projX(tr.flightX), projY(tr.flightY, BODY_LIFT)).setDepth(depthFor(tr.flightY));
     if (tr.kind === "arrow") g.setRotation(screenAngle(Math.atan2(tr.flightVy, tr.flightVx)));

@@ -34,6 +34,7 @@ import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/
 import { installTraining } from "../sim/training";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
+import { visionSnapshot } from "./visionSync";
 
 /** Fixed steps run per simulation callback at most; older backlog is dropped. */
 const MAX_CATCHUP_STEPS = 3;
@@ -389,6 +390,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const result = this.pendingResults.get(client.sessionId);
     if (result) client.send("result", result);
     this.sendPlan(client);
+    const vision = visionSnapshot(this.world, client.sessionId);
+    if (vision) client.send("vision", vision satisfies ServerMessages["vision"]);
     this.sendInFlight(client);
   }
 

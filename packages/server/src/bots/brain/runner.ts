@@ -3,6 +3,7 @@
 // whichever way it is seated. It sends only through the adapter, which is where the transport's rules (latency, the
 // message guard, what the server supports) live.
 import type { GameMap } from "@raid/shared";
+import { BotVision } from "./vision";
 import { createFrameRing } from "./frames";
 import { perceive, type PerceptionInput } from "./perception";
 import type {
@@ -20,12 +21,15 @@ export interface BotRunnerOptions {
   readonly tier: Pick<TierParams, "attention">;
   /** Test seam: a ring of one's own. */
   readonly ring?: FrameRingApi;
+  /** Enabled by live drivers; legacy perception-only fixtures can omit raid sight. */
+  readonly vision?: boolean;
 }
 
 export function createBotRunner(opts: BotRunnerOptions): BotRunnerApi<PerceptionInput> {
   const { brain, adapter, cfg, map, features } = opts;
   const ring = opts.ring ?? createFrameRing();
   const compose = { selfDelayMs: cfg.selfDelayMs, worldDelayMs: cfg.worldDelayMs, map, features, attentionCentral: opts.tier.attention.central };
+  const vision = opts.vision ? new BotVision(map) : null;
   let lastMinimap: MinimapView | null = null;
   let ended = false;
 
@@ -33,10 +37,12 @@ export function createBotRunner(opts: BotRunnerOptions): BotRunnerApi<Perception
     brain,
     frame(input: PerceptionInput): readonly TimedCommand[] {
       if (ended) return [];
-      const frame = perceive(input, { selfId: adapter.selfId, map, features, lastMinimap });
+      vision?.update(input, adapter.selfId);
+      const frame = perceive(input, { selfId: adapter.selfId, map, features, lastMinimap, canSee: vision?.canSee });
       lastMinimap = frame.minimap;
       ring.push(frame);
-      const percept = ring.compose(compose);
+      const composed = ring.compose(compose);
+      const percept = composed && vision ? vision.filter(composed) : composed;
       if (!percept) return [];
       const sent: TimedCommand[] = [];
       for (const tc of brain.tick(percept)) {

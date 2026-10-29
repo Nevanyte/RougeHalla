@@ -1,3 +1,5 @@
+import { VISION_RADIUS, VISION_TRAIL_MS } from "@raid/shared";
+import { getVisionMemory } from "../src/sim/vision";
 // The cast pipeline and the five Wishes (sim/abilities.ts), driven through the real step(): `cast` messages queued, then ticks.
 // Worlds are a hand-built open arena (1280 x 640 u) with the real melee, projectile, ledger and status phases and, unless a test
 // asks for them, no faction signatures, so what a test sees is the cast, the status it leaves and the damage it deals. Players
@@ -171,6 +173,13 @@ const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 const at = (world: World, who: string): Vec2 => { const c = combatant(world, who)!; return { x: c.s.x, y: c.s.y }; };
 const src = (who: string) => ({ id: who, name: who });
 const near = (x: number, y = 320): Vec2 => ({ x, y });
+
+/** Seed discovery so these fixtures isolate direct LOS and lock chasing from visibility rejection. */
+function primeTrail(world: World, observer: number, point: Vec2): void {
+  const memory = getVisionMemory(world, id(observer))!;
+  memory.clear();
+  memory.update(world.map, point, T(world), VISION_TRAIL_MS, VISION_RADIUS);
+}
 
 /** Applies a status as another fighter's, outside the ledger pass. */
 function afflict(world: World, who: string, kind: Parameters<typeof addStatus>[2]["kind"], ms: number, extra: Partial<Parameters<typeof addStatus>[2]> = {}): void {
@@ -469,6 +478,7 @@ describe("the cast input: refusals change nothing", () => {
     const world = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }], { map: arenaMap(column(20, 1, 18)) });
     const dummy = combatant(world, addMob(world, { kind: "dummy", name: "dummy", at: near(340) }))!;
     const far = combatant(world, addMob(world, { kind: "dummy", name: "dummy", at: near(900) }))!;
+    primeTrail(world, 0, far.s);
     expect(validUnitTarget(world, C(world), C(world, 1), 200, true)).toBe(true);
     expect(validUnitTarget(world, C(world), C(world, 1), 99, true)).toBe(false);
     expect(validUnitTarget(world, C(world), C(world), 500, true)).toBe(false);
@@ -2072,6 +2082,7 @@ describe("a forced displacement does not lose the chasers (m1)", () => {
     // A wall at column 20, rows 1..16: the only way round is rows 17..18 at the bottom.
     const map = arenaMap(column(20, 1, 16));
     const world = arena([{ faction: "fire", weapons: ["sword"], at: near(600, 160) }, { faction: "frost", weapons: ["sword"], at: near(540, 160) }], { map });
+    primeTrail(world, 1, near(900, 160));
     lockOn(world, 1, 0);
     run(world, 2);
     expect(W(world, 1).lock).toBe("p0");

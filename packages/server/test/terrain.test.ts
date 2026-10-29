@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   circleClear, generateMap, GV_KILL, hazardsOf, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, SLIP_GRIP_MS,
   TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, worldToTile,
-  type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
+  VISION_RADIUS, VISION_TRAIL_MS, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { downPlayer } from "../src/sim/arena";
 import { combatant } from "../src/sim/combatant";
@@ -22,6 +22,7 @@ import { recomputeMods, setExtraRows, speedMultOf } from "../src/sim/mods";
 import { addPlayer, startRaid, step } from "../src/sim/step";
 import { applyBog, LIGHT_FX_MS, slipAccelOf, surfaceOf, TERRAIN_SOURCE } from "../src/sim/terrainEffects";
 import { installTraining } from "../src/sim/training";
+import { getVisionMemory } from "../src/sim/vision";
 import type { PlayerRuntime, SimConfig, SimEvent, World } from "../src/sim/world";
 import { PlayerState } from "@raid/shared/schema";
 
@@ -917,6 +918,10 @@ describe("ice", () => {
         players: [{ faction: "fire", weapon: "sword", at: at(3, 5) }, { faction: "plague", at: at(20, 5) }],
       });
       const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: at(10, 12) });
+      // Seed prior discovery so this fixture isolates chase movement around the icy corner.
+      const vision = getVisionMemory(world, "p0")!;
+      vision.clear();
+      vision.update(world.map, at(10, 12), world.state.serverTime, VISION_TRAIL_MS, VISION_RADIUS);
       order(world, "p0", "target", { id: dummy });
       const events = run(world, 400);
       const hits = fxOf(events, "hit").filter((h) => h.id === dummy && h.by === "p0" && h.weapon === "sword");

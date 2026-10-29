@@ -1,0 +1,6 @@
+#ui > .edge-threats { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.edge-threat { position: absolute; width: 180px; height: 180px; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(closest-side, var(--threat-color) 0%, transparent 100%); filter: blur(8px); opacity: .55; pointer-events: none; }
+#ui > .camp-timers { position: absolute; right: 12px; top: 108px; max-width: min(430px, 55%); color: #e2e8f0; background: #0c1422e8; border: 1px solid #46536a; border-radius: 5px; font: 11px/1.5 system-ui, sans-serif; z-index: 3; pointer-events: auto; }
+.camp-timers summary { cursor: pointer; padding: 5px 9px; }
+.camp-timer-list { max-height: min(50vh, 450px); overflow-y: auto; padding: 2px 9px 8px; }
+.camp-timer { padding: 3px 0; border-top: 1px solid #ffffff12; }

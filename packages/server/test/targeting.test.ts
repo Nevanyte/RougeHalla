@@ -1,3 +1,5 @@
+import { VISION_RADIUS, VISION_TRAIL_MS } from "@raid/shared";
+import { getVisionMemory } from "../src/sim/vision";
 // The target lock (sim/targeting.ts): the `target` order, the chase into range, the auto-attack, the aim, and every way a
 // lock ends. Worlds are a hand-built open arena (1280 x 640 u) with the real melee, projectile and ledger phases and no
 // faction signatures, so what a test sees is the lock and the weapon state machine it drives. Fighters:
@@ -91,6 +93,13 @@ function place(world: World, who: string, at: Vec2): void {
   c.s.y = at.y;
   c.rt.path = [];
   c.rt.history = [{ t: T(world), x: at.x, y: at.y }];
+}
+
+/** Seed p0's private trail so LOS/path fixtures can test a previously discovered destination. */
+function primeTrail(world: World, point: Vec2): void {
+  const memory = getVisionMemory(world, id(0))!;
+  memory.clear();
+  memory.update(world.map, point, T(world), VISION_TRAIL_MS, VISION_RADIUS);
 }
 
 /** A training dummy (no faction, 5000 hp). */
@@ -731,6 +740,7 @@ describe("how a lock ends", () => {
         [{ faction: "plague", weapons: ["sword"], at: { x: 560, y: 100 } }, { faction: "frost", weapons: ["shield"], at: { x: 620, y: 100 } }],
         arenaMap(column(20, 1, 16)),
       );
+      primeTrail(world, behindWall);
       target(world, id(1));
       tick(world);
       expect(W(world).lock).toBe(id(1));
@@ -760,11 +770,12 @@ describe("how a lock ends", () => {
       expect(RT(world).path).toEqual([]);
     });
 
-    it("is not needed to lock: a target behind a wall is locked and chased around it, and nothing is attacked before it is in sight", () => {
+    it("locks a trail-seen target behind a wall and chases around it, but waits for direct sight to attack", () => {
       const world = arena(
         [{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "frost", weapons: ["shield"], at: { x: 500, y: 320 } }],
         arenaMap(column(12, 8, 11)), // x 384..416, rows 8..11: between the two
       );
+      primeTrail(world, { x: 500, y: 320 });
       target(world, id(1));
       tick(world);
       expect(W(world).lock).toBe(id(1));
@@ -783,11 +794,12 @@ describe("how a lock ends", () => {
       expect(W(world).lockSeen).toBe(true);
     });
 
-    it("is not timed while a target locked behind a wall has never been seen: the chase goes on past the grace", () => {
+    it("is not timed while a target is trail-seen but has never been in direct sight: the chase goes on past the grace", () => {
       const world = arena(
         [{ faction: "plague", weapons: ["sword"], at: { x: 560, y: 100 } }, { faction: "frost", weapons: ["shield"], at: behindWall }],
         arenaMap(column(20, 1, 16)),
       );
+      primeTrail(world, behindWall);
       target(world, id(1));
       tick(world);
       expect(W(world).lock).toBe(id(1));
@@ -812,6 +824,7 @@ describe("how a lock ends", () => {
         [{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "frost", weapons: ["shield"], at: inBox }],
         arenaMap(boxed()),
       );
+      primeTrail(world, inBox);
       expect(dist(ME, inBox)).toBeLessThan(TARGET_RANGE);
       target(world, id(1));
       tick(world);
@@ -828,6 +841,7 @@ describe("how a lock ends", () => {
       tick(world);
       expect(W(world).lock).toBe(id(1));
       place(world, id(1), inBox);
+      primeTrail(world, inBox);
       runTo(world, T(world) + TARGET_REPATH_MS + 2 * TICK_MS);
       expect(W(world).lock).toBeNull();
       expect(RT(world).path).toEqual([]);
