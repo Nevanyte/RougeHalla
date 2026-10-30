@@ -1,13 +1,17 @@
 import { DurableObject } from "cloudflare:workers";
 import { serverBuild } from "../build-meta.json";
 import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
-import { handleProfileSnapshot } from "./profileSnapshots";
+import { handleBotSnapshot, handleProfileSnapshot } from "./profileSnapshots";
 
-const ROOM_NAME = "rougehalla-public-v1";
+const ROOM_NAME = "rougehalla-controller-v2";
+const CONTROLLER_VERSION = "8";
 const PORT = 2567;
-const CONTAINER_INSTANCE = "basic";
-const STARTUP_TIMEOUT_MS = 30_000;
+const CONTAINER_INSTANCE = "standard-1";
+const ARENA_LIMIT = "1";
+const TRAINING_LIMIT = "2";
+const STARTUP_TIMEOUT_MS = 75_000;
 const INACTIVITY_TIMEOUT_MS = 10 * 60_000;
+const RELEASE_HEADER = "X-Rougehalla-Controller-Release";
 let lastContainerErrorLogAt = 0;
 
 interface Env {
@@ -17,6 +21,11 @@ interface Env {
   MATCHMAKE_LIMITER: RateLimit;
   PROFILE_SNAPSHOT_TOKEN?: string;
   PROFILE_EPOCH?: string;
+  GAME_MAINTENANCE?: string;
+}
+
+function controllerRelease(env: Env): Promise<string> {
+  return containerReleaseLabel(serverBuild, `${CONTROLLER_VERSION}:${CONTAINER_INSTANCE}:${ARENA_LIMIT}:${TRAINING_LIMIT}:${env.PROFILE_EPOCH ?? ""}:${env.GAME_MAINTENANCE ?? "0"}`);
 }
 
 function noStore(response: Response): Response {
@@ -68,13 +77,14 @@ export class GameContainer extends DurableObject<Env> {
   private exitMonitor: Promise<void> | undefined;
   private stopRequested = false;
   private startupPhase = "idle";
+  private retired = false;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     const container = this.ctx.container;
     if (container?.running) {
-      // Reapply the inactivity policy after DO eviction without keeping the coordinator pinned.
       void this.ctx.blockConcurrencyWhile(() => container.setInactivityTimeout(INACTIVITY_TIMEOUT_MS));
+      this.watchContainerExit(container);
     }
   }
 
@@ -86,10 +96,25 @@ export class GameContainer extends DurableObject<Env> {
         .then(() => undefined, () => undefined)
         .finally(() => { if (this.exitMonitor === monitored) this.exitMonitor = undefined; });
       this.exitMonitor = monitored;
-      // The request awaiting graceful replacement owns this monitor. An idle coordinator must
-      // remain evictable so a deployment can refresh its code and image bindings.
+      this.ctx.waitUntil(monitored);
     }
     return this.exitMonitor;
+  }
+
+  private async retireController(): Promise<void> {
+    this.retired = true;
+    const container = this.ctx.container;
+    if (container?.running) {
+      const exit = this.watchContainerExit(container);
+      try { this.requestContainerStop(container); } catch { /* already exiting */ }
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([exit, new Promise<void>((resolve) => { timer = setTimeout(resolve, 15_000); })]);
+      } finally { clearTimeout(timer); }
+      if (container.running) return;
+    }
+    // Release a pinned old coordinator only after Node has flushed its snapshots and exited.
+    this.ctx.abort("Game controller release changed");
   }
 
   private requestContainerStop(container: Container): void {
@@ -109,7 +134,7 @@ export class GameContainer extends DurableObject<Env> {
     if (!snapshotToken || snapshotToken.length < 32) throw new Error("Profile snapshot token is missing or too short");
     const image = container.images.base;
     this.startupPhase = "image-binding";
-    const release = await containerReleaseLabel(serverBuild, `${CONTAINER_INSTANCE}:${this.env.PROFILE_EPOCH ?? ""}`);
+    const release = await controllerRelease(this.env);
     if (!image) throw new Error("Container image is unavailable");
     this.startupPhase = "image-reconcile";
     if (!container.running || this.currentImage !== image || this.currentBuild !== release) {
@@ -129,13 +154,14 @@ export class GameContainer extends DurableObject<Env> {
             CLIENT_DIST: "/app/packages/client/dist",
             CLIENT_DIR: "/app/packages/client/dist",
             PROFILE_SNAPSHOT_URL: snapshotUrl,
+            BOT_STATS_SNAPSHOT_URL: new URL("/_internal/bot-learning", request.url).href,
             PROFILE_SNAPSHOT_TOKEN: snapshotToken,
             TRUST_PROXY: "1",
-            MAX_ROOMS: "4",
-            MAX_ARENA_ROOMS: "2",
-            MAX_TRAINING_ROOMS: "2",
+            MAX_ARENA_ROOMS: ARENA_LIMIT,
+            MAX_TRAINING_ROOMS: TRAINING_LIMIT,
             MAP_POOL: "2",
             MAP_WORKER_HANG_MS: "30000",
+            CLOUD_GAME_WARMUP: "1",
             GAME_BUILD_ID: serverBuild,
           },
         });
@@ -143,6 +169,7 @@ export class GameContainer extends DurableObject<Env> {
       this.currentImage = image;
       this.currentBuild = release;
     }
+    this.watchContainerExit(container);
     await container.setInactivityTimeout(INACTIVITY_TIMEOUT_MS);
     const port = container.getTcpPort(PORT);
     this.startupPhase = "readiness";
@@ -163,10 +190,18 @@ export class GameContainer extends DurableObject<Env> {
       }
       await new Promise<void>((resolve) => setTimeout(resolve, 200));
     }
-    throw new Error("Game container did not become ready within 30 seconds", { cause: lastError });
+    throw new Error("Game container did not become ready within 75 seconds", { cause: lastError });
   }
 
   async fetch(request: Request): Promise<Response> {
+    if (this.retired || request.headers.get(RELEASE_HEADER) !== await controllerRelease(this.env)) {
+      await this.retireController();
+      return new Response("game release changing", { status: 503, headers: { "Retry-After": "2", "Cache-Control": "no-store" } });
+    }
+    if (this.env.GAME_MAINTENANCE === "1") {
+      if (this.ctx.container?.running) await this.retireController();
+      return new Response("game maintenance", { status: 503, headers: { "Retry-After": "30", "Cache-Control": "no-store" } });
+    }
     // Concurrent cold-start requests share one readiness loop.
     this.starting ??= this.startAndWaitForReady(request).finally(() => { this.starting = undefined; });
     try {
@@ -186,7 +221,7 @@ export class GameContainer extends DurableObject<Env> {
     url.hostname = "container";
     url.port = String(PORT);
     const forwarded = proxyRequest(request, url);
-    // Do not wrap this response: Cloudflare uses it to relay a WebSocket 101 upgrade.
+    // Preserve the native upgrade stream, including binary frames and control frames.
     return this.ctx.container!.getTcpPort(PORT).fetch(forwarded);
   }
 }
@@ -208,6 +243,9 @@ export default {
     if (url.pathname === "/_internal/profiles") {
       return noStore(await handleProfileSnapshot(request, env.PROFILES, env.PROFILE_SNAPSHOT_TOKEN));
     }
+    if (url.pathname === "/_internal/bot-learning") {
+      return noStore(await handleBotSnapshot(request, env.PROFILES, env.PROFILE_SNAPSHOT_TOKEN));
+    }
     if (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/build-info.json" || url.pathname.startsWith("/assets/")) {
       if (request.method === "GET" || request.method === "HEAD") return staticAsset(request, env);
       if (url.pathname.startsWith("/assets/")) return new Response("method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
@@ -223,16 +261,19 @@ export default {
     const id = env.GAME_CONTAINER.idFromName(ROOM_NAME);
     try {
       const game = env.GAME_CONTAINER.get(id, { locationHint: "wnam" });
+      const release = await controllerRelease(env);
       // Existing coordinators can briefly retain their previous code during a deployment. Check
       // the executable from the current public Worker before allowing HTTP or a WebSocket join.
-      const ready = await game.fetch(new Request(new URL("/readyz", request.url)));
+      const ready = await game.fetch(new Request(new URL("/readyz", request.url), { headers: { [RELEASE_HEADER]: release } }));
       if (!isReadyServerBuild(ready, serverBuild)) {
         await ready.body?.cancel();
         throw new Error("Game executable does not match the public Worker release");
       }
       if (url.pathname === "/readyz") return ready;
       await ready.body?.cancel();
-      return await game.fetch(request);
+      const forwarded = new Request(request);
+      forwarded.headers.set(RELEASE_HEADER, release);
+      return await game.fetch(forwarded);
     } catch {
       // Avoid logging request details or error objects: they can contain credentials. Keep noisy upstream
       // failures bounded when a container is down or restarting.

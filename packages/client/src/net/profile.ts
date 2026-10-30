@@ -19,7 +19,7 @@ const TOKEN_KEY_PREFIX = "raid.token.";
 const LINK_KEY_PREFIX = "raid.link.";
 /** Set when the server refused the stored token itself: the one case where a link's key may be tried in its place. */
 const REJECTED_KEY_PREFIX = "raid.rejected.";
-const REQUEST_TIMEOUT_MS = 40000;
+const REQUEST_TIMEOUT_MS = 100000;
 /** The leaderboard is a garnish on the hub: give up on it sooner than on the profile. */
 const LEADERBOARD_TIMEOUT_MS = 4000;
 

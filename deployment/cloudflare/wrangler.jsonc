@@ -3,7 +3,9 @@
   "name": "rougehalla",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-28",
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true
+  },
   "assets": {
     "directory": "../../packages/client/dist",
     "binding": "ASSETS",
@@ -13,7 +15,9 @@
     {
       "class_name": "PublicGameContainer",
       "scheduling_policy": "durable_object",
-      "observability": { "enabled": true },
+      "observability": {
+        "enabled": true
+      },
       "images": {
         "base": {
           "dockerfile": "../../Dockerfile",
@@ -23,18 +27,48 @@
     }
   ],
   "durable_objects": {
-    "bindings": [{ "name": "GAME_CONTAINER", "class_name": "PublicGameContainer" }]
+    "bindings": [
+      {
+        "name": "GAME_CONTAINER",
+        "class_name": "PublicGameContainer"
+      }
+    ]
   },
   "exports": {
-    "GameContainer": { "type": "durable-object", "storage": "sqlite" },
-    "PublicGameContainer": { "type": "durable-object", "storage": "sqlite" }
+    "GameContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "PublicGameContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
   },
-  "r2_buckets": [{ "binding": "PROFILES", "bucket_name": "rougehalla-profiles" }],
+  "r2_buckets": [
+    {
+      "binding": "PROFILES",
+      "bucket_name": "rougehalla-profiles"
+    }
+  ],
   "ratelimits": [
     {
       "name": "MATCHMAKE_LIMITER",
       "namespace_id": "256701",
-      "simple": { "limit": 30, "period": 10 }
+      "simple": {
+        "limit": 30,
+        "period": 10
+      }
     }
-  ]
+  ],
+  "vars": {
+    "PROFILE_EPOCH": "main-migration-router-20261030T2312"
+  },
+  "routes": [
+    {
+      "pattern": "play.roguehalla.com",
+      "custom_domain": true,
+      "zone_id": "4ed3a2ba1779fef6e81f230db1b5f66e"
+    }
+  ],
+  "workers_dev": true
 }

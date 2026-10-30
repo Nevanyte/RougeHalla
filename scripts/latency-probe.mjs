@@ -55,6 +55,10 @@ if (!ready.ok) throw new Error(`/readyz returned HTTP ${ready.status}`);
 
 const name = `qa_ping_${Math.random().toString(36).slice(2, 9)}`;
 let room;
+let leaveCode = null;
+let errorCode = null;
+let socketError = null;
+let closeDetail = null;
 const pings = [];
 const patches = [];
 let lastPatch = null;
@@ -69,7 +73,14 @@ try {
   // create() always asks the server for a fresh private training instance. Never join public matchmaking.
   room = await client.create("training", { profile: name, token, faction: "fire", mode: "training" });
   room.reconnection.enabled = false;
+  room.onLeave((code) => { leaveCode = typeof code === "number" ? code : null; });
+  room.onError((code) => { errorCode = typeof code === "number" ? code : null; });
   room.reconnection.maxRetries = 0;
+  const socket = room.connection.transport.ws;
+  socket?.addEventListener("error", (event) => {
+    socketError = { code: event.error?.code ?? null, message: String(event.message ?? event.error?.message ?? "WebSocket error").replace(/\b(?:https?|wss?):\/\/\S+/g, "[redacted URL]").slice(0, 200) };
+  });
+  socket?.addEventListener("close", (event) => { closeDetail = { code: event.code, wasClean: event.wasClean }; });
   room.onMessage("*", () => {});
   room.onStateChange(() => {
     const now = performance.now();
@@ -99,6 +110,9 @@ try {
     ping: stats(pings),
     statePatches: { count: patchCount, interval: stats(patches) },
   }, null, 2));
+} catch (error) {
+  console.error(JSON.stringify({ error: error.message, pingSamples: pings.length, leaveCode, errorCode, socketError, closeDetail, socketOpen: room?.connection?.isOpen, patchAgeMs: lastPatch === null ? null : Math.round(performance.now() - lastPatch) }));
+  process.exitCode = 1;
 } finally {
   if (room) {
     // A stalled socket must not make a diagnostic's cleanup wait forever or reconnect in the background.

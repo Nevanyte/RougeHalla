@@ -82,14 +82,16 @@ function putCondition(request: Request): Headers | null {
   return null;
 }
 
-export async function handleProfileSnapshot(
+async function handleSnapshot(
   request: Request,
   bucket: Pick<R2Bucket, "get" | "put">,
   token: string | undefined,
+  key: string,
+  validate: (value: unknown) => boolean,
 ): Promise<Response> {
   if (!authorized(request, token)) return response(401, "unauthorized");
   if (request.method === "GET") {
-    const object = await bucket.get(PROFILE_KEY);
+    const object = await bucket.get(key);
     if (!object) return response(404, "snapshot not found");
     return new Response(object.body, {
       status: 200,
@@ -114,9 +116,9 @@ export async function handleProfileSnapshot(
   } catch {
     return response(400, "invalid JSON");
   }
-  if (!validSnapshot(parsed)) return response(400, "invalid profile snapshot");
+  if (!validate(parsed)) return response(400, "invalid snapshot");
 
-  const stored = await bucket.put(PROFILE_KEY, body, {
+  const stored = await bucket.put(key, body, {
     onlyIf: condition,
     httpMetadata: { contentType: "application/json; charset=utf-8" },
   });
@@ -128,4 +130,28 @@ export async function handleProfileSnapshot(
       "X-Profile-Snapshot-Etag": stored.httpEtag,
     },
   });
+}
+
+export function handleProfileSnapshot(request: Request, bucket: Pick<R2Bucket, "get" | "put">, token: string | undefined): Promise<Response> {
+  return handleSnapshot(request, bucket, token, PROFILE_KEY, validSnapshot);
+}
+
+function validBotSnapshot(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  if (v.version !== 1) return false;
+  for (const key of ["baseline", "entries"]) {
+    const cells = v[key];
+    if (!cells || typeof cells !== "object" || Array.isArray(cells)) return false;
+    for (const cell of Object.values(cells)) {
+      if (!cell || typeof cell !== "object" || Array.isArray(cell)) return false;
+      const { n, s } = cell as Record<string, unknown>;
+      if (typeof n !== "number" || typeof s !== "number" || !Number.isFinite(n + s) || n < 0 || s < 0) return false;
+    }
+  }
+  return true;
+}
+
+export function handleBotSnapshot(request: Request, bucket: Pick<R2Bucket, "get" | "put">, token: string | undefined): Promise<Response> {
+  return handleSnapshot(request, bucket, token, "bots/current.json", validBotSnapshot);
 }

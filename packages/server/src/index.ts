@@ -29,6 +29,9 @@ import {
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
+import { warmCloudSimulation } from "./cloudWarmup";
+import { mirrorSnapshotFile } from "./persistence/FileSnapshotMirror";
+import { CloudflareTransport } from "./CloudflareTransport";
 
 const SERVER_BUILD_ID = computeServerBuildId();
 
@@ -272,9 +275,9 @@ function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): ((
   return installNetSim(sim);
 }
 
-export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void> } = {}) {
+export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void>; closeBotSnapshot?: () => Promise<void> } = {}) {
   let storageHealthy = true;
-  const readiness = { ready: false };
+  const readiness = { ready: false, simulationWarmup: null as Awaited<ReturnType<typeof warmCloudSimulation>> | null };
   const loopDelay = opts.onSnapshot ? monitorEventLoopDelay({ resolution: 20 }) : null;
   loopDelay?.enable();
   const onSnapshot = opts.onSnapshot && (async (json: string) => {
@@ -296,8 +299,9 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   // what WebSocketTransport would have made.
   const httpServer = http.createServer();
   stampClientAddress(httpServer, process.env.TRUST_PROXY === "1");
+  const transport = opts.onSnapshot ? new CloudflareTransport({ server: httpServer }) : new WebSocketTransport({ server: httpServer });
   const server = defineServer({
-    transport: new WebSocketTransport({ server: httpServer }),
+    transport,
     greet: false,
     // The handler's options win over the client's (Colyseus merges them that way), so the mode is the server's choice:
     // the arena handler can't be talked into creating a training room, and the training one can't create an arena.
@@ -319,6 +323,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
             mapStats: maps.stats,
             uptimeSeconds: Math.round(process.uptime()),
             cpuSeconds: Math.round((process.cpuUsage().user + process.cpuUsage().system) / 1e6),
+            simulationWarmup: readiness.simulationWarmup,
+            sockets: transport instanceof CloudflareTransport ? transport.diagnostics : undefined,
           },
         });
       });
@@ -456,6 +462,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
     botStats?.close();
+    try { await opts.closeBotSnapshot?.(); }
+    catch { console.error("[bot-stats] could not flush remote learning snapshot on shutdown"); }
     await maps.stop();
   });
   // Our own model (net/netSim.ts) replaces Colyseus's fixed delay. Core also reads COLYSEUS_LATENCY itself when the server
@@ -477,6 +485,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
       try {
         await store.close();
         botStats?.close();
+        try { await opts.closeBotSnapshot?.(); }
+        catch { console.error("[bot-stats] could not flush remote learning snapshot on shutdown"); }
       } finally {
         await maps.stop();
       }
@@ -489,7 +499,12 @@ export type RaidServer = ReturnType<typeof createServer>;
 
 export async function startServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
   const remote = await initializeRemoteSnapshot(config.stashFile);
-  const server = createServer(config, { ...opts, onSnapshot: remote?.save });
+  const botFile = config.bots.statsFile ?? path.join(path.dirname(config.stashFile), "bot-stats.json");
+  const botRemote = remote && botFile && process.env.BOT_STATS_SNAPSHOT_URL
+    ? await initializeRemoteSnapshot(botFile, { PROFILE_SNAPSHOT_URL: process.env.BOT_STATS_SNAPSHOT_URL, PROFILE_SNAPSHOT_TOKEN: process.env.PROFILE_SNAPSHOT_TOKEN })
+    : null;
+  const botMirror = botRemote ? mirrorSnapshotFile(botFile, botRemote) : null;
+  const server = createServer(config, { ...opts, onSnapshot: remote?.save, closeBotSnapshot: botMirror?.close });
   try { await server.listen(config.port); }
   catch (error) { await server.stop(); throw error; }
   if (remote && server.maps.target > 0) {
@@ -499,6 +514,9 @@ export async function startServer(config: ServerConfig = loadConfig(), opts: { m
     try {
       await Promise.race([server.maps.whenFilled(), new Promise<void>((resolve) => { timer = setTimeout(resolve, 5000); })]);
     } finally { clearTimeout(timer); }
+  }
+  if (remote && process.env.CLOUD_GAME_WARMUP === "1") {
+    server.readiness.simulationWarmup = await warmCloudSimulation();
   }
   server.readiness.ready = true;
   return server;

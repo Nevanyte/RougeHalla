@@ -3,7 +3,7 @@ import { convertV4MiniflareOptions, Miniflare } from "miniflare";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { handleProfileSnapshot, PROFILE_SNAPSHOT_MAX_BYTES } from "../src/profileSnapshots";
+import { handleBotSnapshot, handleProfileSnapshot, PROFILE_SNAPSHOT_MAX_BYTES } from "../src/profileSnapshots";
 
 const TOKEN = "profile-snapshot-test-secret-value-32bytes";
 const goodSnapshot = JSON.stringify({ version: 2, profiles: { player1: { name: "player1", token: "owner-token" } } });
@@ -60,6 +60,23 @@ function req(method: string, headers: Record<string, string> = {}, body?: BodyIn
 
 const auth = { Authorization: `Bearer ${TOKEN}` };
 const bucketView = (bucket: FakeBucket) => bucket as unknown as Pick<R2Bucket, "get" | "put">;
+
+it("keeps authenticated learning snapshots in their own conditional R2 object", async () => {
+  const bucket = new FakeBucket();
+  const keys: string[] = [];
+  const view = {
+    get: async (key: string) => { keys.push(key); return bucket.get(key); },
+    put: async (...args: Parameters<FakeBucket["put"]>) => { keys.push(args[0]); return bucket.put(...args); },
+  } as unknown as Pick<R2Bucket, "get" | "put">;
+  const learning = JSON.stringify({ version: 1, updatedAt: 1, baseline: { normal: { n: 1, s: .5 } }, entries: {} });
+  expect((await handleBotSnapshot(req("GET"), view, TOKEN)).status).toBe(401);
+  expect((await handleBotSnapshot(req("PUT", { ...auth, "If-None-Match": "*" }, goodSnapshot), view, TOKEN)).status).toBe(400);
+  expect((await handleBotSnapshot(req("PUT", { ...auth, "If-None-Match": "*" }, learning), view, TOKEN)).status).toBe(204);
+  expect((await handleBotSnapshot(req("PUT", { ...auth, "If-Match": '"stale"' }, learning), view, TOKEN)).status).toBe(412);
+  const read = await handleBotSnapshot(req("GET", auth), view, TOKEN);
+  expect(await read.text()).toBe(learning);
+  expect(keys.every((key) => key === "bots/current.json")).toBe(true);
+});
 
 describe("internal R2 profile snapshot endpoint", () => {
   it("requires a configured long secret and an exact bearer token without touching R2", async () => {
