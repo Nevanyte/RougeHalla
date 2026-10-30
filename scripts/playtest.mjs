@@ -28,6 +28,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { linkFilePath, markLinkDown, removeLinkFile, stashFileFrom, writeLinkFile } from "./playtestLink.mjs";
 import { reapStaleTunnel, tunnelPidFilePath } from "./tunnelPids.mjs";
+import { assertLocalHostingUrl } from "./deploy-lib.mjs";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptsDir, "..");
@@ -54,10 +55,10 @@ const USAGE = `usage: npm run playtest -- [--no-tunnel] [--port <n>] [--no-build
   --no-build         skip the client build and serve the one in packages/client/dist
   --named <tunnel>   use your own named Cloudflare tunnel (a stable address) instead of a quick one;
                      also $PLAYTEST_TUNNEL. Set up once, see the README ("A stable link")
-  --hostname <host>  the address that tunnel serves, e.g. play.roguehalla.com; also $PLAYTEST_HOSTNAME
+  --hostname <host>  the address that tunnel serves, e.g. playtest.example.com; also $PLAYTEST_HOSTNAME
   --quick            a quick tunnel (a new address at every start) even if those variables are set
   -h, --help         this text
-Stable link, after the one-time setup:  npm run playtest -- --named roguehalla --hostname play.roguehalla.com
+Stable link, after the one-time setup:  npm run playtest -- --named roguehalla --hostname playtest.example.com
 The flags need npm's own "--" in front of them. Set PLAYTEST_PASSCODE to ask players for a passcode.`;
 
 /** What cloudflared accepts as a tunnel name (or UUID); it also becomes a command-line argument, so it can never start with "-". */
@@ -120,12 +121,14 @@ function parseArgs(argv, env = process.env) {
   if (args.tunnel && !quick) {
     const named = namedFlag ?? (env.PLAYTEST_TUNNEL || null);
     const hostname = hostnameFlag ?? (env.PLAYTEST_HOSTNAME || null);
-    if (named && !hostname) fail(`a named tunnel needs the address it serves: --hostname <host> (or $PLAYTEST_HOSTNAME), e.g. --hostname play.roguehalla.com\n${USAGE}`, 2);
+    if (named && !hostname) fail(`a named tunnel needs the address it serves: --hostname <host> (or $PLAYTEST_HOSTNAME), e.g. --hostname playtest.example.com\n${USAGE}`, 2);
     if (hostname && !named) fail(`--hostname (or $PLAYTEST_HOSTNAME) needs the tunnel's name: --named <tunnel> (or $PLAYTEST_TUNNEL). For a quick tunnel, add --quick.\n${USAGE}`, 2);
     if (named) {
       if (!TUNNEL_NAME_RE.test(named)) fail(`"${named}" is not a tunnel name: letters, digits, "." "_" "-", not starting with "-"\n${USAGE}`, 2);
       const host = cleanHostname(hostname);
-      if (!host) fail(`"${hostname}" is not a hostname: give the plain address of the tunnel, like play.roguehalla.com\n${USAGE}`, 2);
+      if (!host) fail(`"${hostname}" is not a hostname: give the plain address of the tunnel, like playtest.example.com\n${USAGE}`, 2);
+      try { assertLocalHostingUrl(`https://${host}`); }
+      catch (error) { fail(error.message, 2); }
       args.named = named;
       args.hostname = host;
     }

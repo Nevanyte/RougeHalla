@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { validateConfig } from "./deploy-lib.mjs";
+import { assertLocalHostingUrl, validateConfig } from "./deploy-lib.mjs";
 
 export const LABEL = "com.rougehalla.autodeploy";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -80,6 +80,7 @@ export async function runWatch(args) {
     return 0;
   }
   const config = settings(args.config);
+  if (args.command === "install" || args.command === "once") assertLocalHostingUrl(config.publicUrl);
   if (args.command === "once") {
     return await new Promise((resolve) => {
       const child = spawn(config.nodeBinary || process.execPath, [path.join(HERE, "deploy.mjs"), "deploy", "--config", args.config], {

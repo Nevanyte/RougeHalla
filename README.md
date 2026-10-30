@@ -1,5 +1,7 @@
 # RougeHalla
 
+Public hosting: [Cloudflare deployment and profile migration](docs/CLOUDFLARE_PUBLIC.md). The public game uses a Cloudflare Worker, cloud game container and private R2 profiles. The laptop playtest launcher and its tunnel are an optional local development path.
+
 ## Live playtest update (2026-10-29)
 
 These rules supersede older controls, range, healing, vision, and quest descriptions below. This release builds on current main's zone maps, uncapped normal-mob stat growth, champion progression passives, and elite augment chests.
@@ -325,7 +327,7 @@ npm run playtest -- --no-tunnel               # this Mac and the same Wi-Fi only
 npm run playtest -- --port 2600               # another port (default 2567, or RAID_PORT)
 npm run playtest -- --no-build                # reuse the build in packages/client/dist
 PLAYTEST_PASSCODE=pick-something npm run playtest   # ask players for a passcode
-npm run playtest -- --named roguehalla --hostname play.roguehalla.com   # your own named tunnel: the same address every time (A stable link, below)
+npm run playtest -- --named roguehalla-test --hostname playtest.example.com   # your own named tunnel: the same address every time (A stable link, below)
 ```
 
 - **Stopping.** Press Ctrl+C once. The server saves the profiles first (a few seconds); pressing it again only prints a note. If the launcher itself dies (kill -9, a crash), the server notices its pipe close and shuts down the same way (profiles saved, lock freed), and the tunnel goes too: cloudflared runs under `scripts/tunnelGuard.mjs`, which ends it within a few seconds of the launcher's death, so the old public address cannot keep pointing at the port for whatever you run there next. Only if the guard is killed as well can a cloudflared stay up; the launcher records its pid next to the profile file and the next `npm run playtest` stops it. If the tunnel dies by itself the banner says so, and `playtest:signin` says the address is dead instead of printing links to it.
@@ -342,64 +344,57 @@ npm run playtest -- --named roguehalla --hostname play.roguehalla.com   # your o
 
 A quick tunnel has a new address at every start, which is why returning friends need sign-in links. A **named tunnel** on a domain you own has one address for good: friends' browsers keep their callsigns between sessions, so nobody needs a link (only a callsign on a new browser or device, or after clearing site data, does: `npm run playtest:signin -- <callsign>` still works and prints your stable address). It is opt-in and the quick tunnel stays the default. It costs nothing beyond the domain: a Cloudflare account is free.
 
-Setup, once. Nothing here is automated, because every step is your login or your domain. The tunnel name and the address are yours to choose; the examples use `roguehalla` and `play.roguehalla.com`.
+Setup, once. Nothing here is automated, because every step is your login or your domain. The tunnel name and the address are yours to choose; the examples use `roguehalla-test` and `playtest.example.com`.
 
 1. Create a free account at cloudflare.com and add your domain to it ("Add a site"). Cloudflare shows two nameservers: set them at the registrar where you bought the domain, and wait until Cloudflare says the site is active (minutes to a day).
 2. `cloudflared tunnel login`. It opens a browser: log in, pick the domain, authorize. It saves `~/.cloudflared/cert.pem`.
-3. `cloudflared tunnel create roguehalla`. It makes the tunnel and saves its credentials file, `~/.cloudflared/<tunnel id>.json`.
-4. `cloudflared tunnel route dns roguehalla play.roguehalla.com`. It makes `play.roguehalla.com` point at the tunnel.
+3. `cloudflared tunnel create roguehalla-test`. It makes the tunnel and saves its credentials file, `~/.cloudflared/<tunnel id>.json`.
+4. `cloudflared tunnel route dns roguehalla-test playtest.example.com`. It makes `playtest.example.com` point at the tunnel.
 
 Then, for every playtest:
 
 ```bash
-npm run playtest -- --named roguehalla --hostname play.roguehalla.com
+npm run playtest -- --named roguehalla-test --hostname playtest.example.com
 ```
 
-or put `PLAYTEST_TUNNEL=roguehalla` and `PLAYTEST_HOSTNAME=play.roguehalla.com` in your shell profile and run plain `npm run playtest` (`--quick` makes one run use a quick tunnel instead). The banner prints `https://play.roguehalla.com/` to share. Everything else is as above: the same guards, the passcode, the profile file, the stop and clean-up behaviour (the tunnel ends with the launcher, however it ends).
+or put `PLAYTEST_TUNNEL=roguehalla-test` and `PLAYTEST_HOSTNAME=playtest.example.com` in your shell profile and run plain `npm run playtest` (`--quick` makes one run use a quick tunnel instead). The banner prints `https://playtest.example.com/` to share. Everything else is as above: the same guards, the passcode, the profile file, the stop and clean-up behaviour (the tunnel ends with the launcher, however it ends).
 
 - **Keep `~/.cloudflared/` private.** `cert.pem` can manage your DNS and the `<id>.json` file lets anyone run your tunnel. Never commit, share or paste them. This project's launcher never reads or prints their contents.
 - **If something is missing**, the launcher says so in plain words, shows cloudflared's own error line (nothing secret-looking) and tells you what to run; it keeps serving on this Mac and the local network meanwhile.
 - **One machine at a time.** Run a given named tunnel from one place only; two connectors split the traffic between them.
 - It was tested here only against a stand-in `cloudflared` that prints what a named tunnel prints, never against a real account, so the first real run is the real test.
 
-### Automatic live updates
+### Public Cloudflare updates
 
-`play.roguehalla.com` can update automatically from GitHub's `main` branch. The hosting Mac checks every 60 seconds. Each new commit is extracted into a separate release, installs locked dependencies, passes all workspace type checks, builds the client, and passes a production smoke test covering HTTP, assets, two WebSocket players and public camp clocks. The current game keeps running during those checks. These are quick deployment gates; run the broader gameplay tests before merging changes.
+The public game at `play.roguehalla.com` runs in Cloudflare. `npm run deploy` builds the current checkout and publishes the Worker, browser assets and cloud game container. It uses the committed custom domain, half-CPU allocation, room limits and private R2 storage; the Mac game server and its old automatic watcher stay disabled.
 
-After checks pass, the server shuts down gracefully to save player progress, then starts the checked release on port 2600. This briefly interrupts active matches. The existing named Cloudflare tunnel stays running. Local health, the profile lock and the public `/build-info.json` commit must agree. A failed startup or public verification restarts the previous release using the current profile file. A failed commit is held until `main` changes or you explicitly retry it.
-
-The host uses a private config at `~/.rougehalla/deploy-config.json` (mode `0600`), for example:
-
-```json
-{
-  "repository": "https://github.com/Nevanyte/RougeHalla.git",
-  "branch": "main",
-  "stateDir": "/Users/YOUR_USER/.rougehalla",
-  "stashFile": "/Users/YOUR_USER/.rougehalla/playtest-profiles.json",
-  "port": 2600,
-  "publicUrl": "https://play.roguehalla.com",
-  "nodeBinary": "/opt/homebrew/bin/node"
-}
-```
-
-Use absolute paths. Profiles, environment overrides, deployment records, backups and logs remain outside Git. The first deployment captures the recognized server settings from a verified existing process into private `server-environment.json`; edit that file to change hosting settings. Adopting a manually launched server also requires its exact `pid`, `port`, `releaseDir`, `launcher`, `cwd`, `command` and `commit` in `deployment.json`, with `legacyRoot` in the config. An occupied port or profile lock without matching ownership is refused. A fresh host needs the named tunnel configured separately.
+Publish a checked main revision with Node 24, Docker and the existing Wrangler login:
 
 ```bash
-npm run deploy:auto             # enable/reinstall the 60-second main check on this Mac
-npm run deploy:auto:status      # confirm schedule and log location
-npm run deploy:status           # deployed commit, local/public health, any rejected commit
-npm run deploy                  # check main immediately
-npm run deploy -- --retry       # explicitly retry a rejected main commit
-npm run deploy:rollback         # previous code, current profiles; hold the rolled-back commit
-npm run deploy:auto:stop        # disable automatic changes; live server keeps running
-npm run deploy:check            # local typecheck + build + isolated multiplayer smoke test
+git pull --ff-only
+npm ci
+npm run deploy:check
+npm run cf:typecheck
+npm run cf:test
+npm run deploy
+npm run deploy:status
 ```
 
-`npm run deploy -- --ref <branch-or-SHA>` deploys an explicitly chosen remote revision. Automatic updates only move forward from the deployed commit; a force-pushed history requires an explicit revision after review. To return to a commit held by rollback, use `--retry`.
+See [Cloudflare deployment and recovery](docs/CLOUDFLARE_PUBLIC.md) for profile persistence, startup and capacity limits. Merging or pushing code does not itself publish a new cloud release; run the deployment command from the revision you intend to publish.
 
-The schedule is a macOS LaunchAgent (`com.rougehalla.autodeploy`) and uses a standalone copy of the deployer in `~/.rougehalla/deployer`, so deleting a development worktree cannot stop it. Rerun `npm run deploy:auto` after changing the deployment scripts. The Mac must remain powered, online and logged in; each deployed server starts a `caffeinate` helper. The deployer leaves the tunnel process alone and does not install a tunnel or game-server boot service.
+### Optional local release manager
 
-Logs: `~/.rougehalla/deploy-auto.log`, `live-server.log`, `deploy-diagnostics.log`, and each release's `deploy-checks.log`. Releases live under `~/.rougehalla/releases`; the current, previous and recent releases are retained (default four). Profile backups are saved after graceful shutdown under `~/.rougehalla/deployments`; rollback never copies a backup over newer player progress. Concurrent deployments are locked, and an interrupted cutover with `deploy-pending.json` stops further automatic changes until inspected.
+The previous Mac release manager remains available under explicit `deploy:local` commands for separate local playtests. Its `publicUrl` defaults to the configured loopback port. Public Cloudflare hostnames are refused by the local deployer, its watcher and named playtest launcher before starting a local server. Use a separate profile file and a separate hostname for local testing.
+
+```bash
+npm run deploy:local -- --config /absolute/path/local-deploy.json
+npm run deploy:local:status -- --config /absolute/path/local-deploy.json
+npm run deploy:local:rollback -- --config /absolute/path/local-deploy.json
+npm run deploy:local:auto -- --config /absolute/path/local-deploy.json
+npm run deploy:local:auto:stop -- --config /absolute/path/local-deploy.json
+```
+
+The private config must have mode `0600`, a `repository`, and absolute paths for `stateDir` and `stashFile`. Local automatic updates use the macOS LaunchAgent `com.rougehalla.autodeploy`; keep this disabled for the public game. The old `deploy:auto:status` and `deploy:auto:stop` aliases remain available to inspect or disable existing installations.
 
 ## Testing
 

@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
-import { acquireLock, alive, parseArgs, productionEnvironment, readJson, sleep, validateConfig, writeJson } from "./deploy-lib.mjs";
+import { acquireLock, alive, assertLocalHostingUrl, parseArgs, productionEnvironment, readJson, sleep, validateConfig, writeJson } from "./deploy-lib.mjs";
 
 const execute = promisify(execFile);
 const spawnedServers = new Map();
@@ -334,6 +334,7 @@ export async function run(options, operations = {}) {
   const stat = await fs.stat(options.config);
   if (stat.mode & 0o077) throw new Error("Deployment config must have mode 0600");
   if (options.command === "status") return status(config);
+  assertLocalHostingUrl(config.publicUrl);
   const unlock = await acquireLock(config.stateDir);
   const report = (message) => process.stderr.write(`[deploy] ${message}\n`);
   let commit;

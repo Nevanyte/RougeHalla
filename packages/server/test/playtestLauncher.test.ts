@@ -287,13 +287,13 @@ describe("a named tunnel", () => {
   }, 120_000);
 
   it("missing credentials read plainly: what to run, cloudflared's own error, no secret from it; the server goes on locally", async () => {
-    const l = launch(["--named", "roguehalla", "--hostname", "play.roguehalla.com"], { FAKE_CF_MODE: "nocreds" });
+    const l = launch(["--named", "roguehalla", "--hostname", "playtest.example.com"], { FAKE_CF_MODE: "nocreds" });
     await waitForOutput(l, /is running/);
     const text = l.output();
     expect(text).toMatch(/could not run the tunnel "roguehalla": its credentials .* were not found/);
     expect(text).toContain("cloudflared tunnel login");
     expect(text).toContain("cloudflared tunnel create roguehalla");
-    expect(text).toContain("cloudflared tunnel route dns roguehalla play.roguehalla.com");
+    expect(text).toContain("cloudflared tunnel route dns roguehalla playtest.example.com");
     expect(text).toMatch(/credentials file .* doesn't exist/); // cloudflared's own words are shown...
     expect(text).not.toContain("SUPERSECRETVALUE9876"); // ...but nothing that looks like a secret in them
     expect(text).not.toContain("acct123");
@@ -310,11 +310,13 @@ describe("the launcher's arguments", () => {
   it("--help shows the stable-link example", () => {
     const r = run(["--help"]);
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("--named roguehalla --hostname play.roguehalla.com");
+    expect(r.stdout).toContain("--named roguehalla --hostname playtest.example.com");
   });
 
   it("refuses a tunnel name without its address, an address without its tunnel, and names that are not names", () => {
     const cases: Array<[string[], Record<string, string>, RegExp]> = [
+      [["--named", "x", "--hostname", "play.roguehalla.com"], {}, /hosted by Cloudflare/],
+      [[], { PLAYTEST_TUNNEL: "x", PLAYTEST_HOSTNAME: "rougehalla.mckinnonnevin.workers.dev" }, /hosted by Cloudflare/],
       [["--named", "x"], {}, /needs the address it serves/],
       [["--hostname", "play.example.com"], {}, /needs the tunnel's name.*--quick/],
       [["--named", "x", "--hostname", "not a host"], {}, /is not a hostname/],

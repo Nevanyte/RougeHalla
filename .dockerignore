@@ -1,9 +1,12 @@
 .git
 .claude
+.wrangler
+deployment
 .gitignore
 node_modules
 **/node_modules
 packages/client/dist
+packages/server/dist
 packages/server/data
 packages/server/scratch
 packages/server/.vitest
