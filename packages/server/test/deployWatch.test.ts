@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { launchAgentPlist, parseWatchArgs, LABEL } from "../../../scripts/deploy-watch.mjs";
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { launchAgentPlist, parseWatchArgs, runWatch, LABEL } from "../../../scripts/deploy-watch.mjs";
 
 describe("automatic main deployment schedule", () => {
+  it.each(["install", "once"])("refuses to %s the Mac watcher for a Cloudflare hostname before creating runtime state", async (command) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "rougehalla-watch-cloud-"));
+    try {
+      const config = path.join(root, "config.json");
+      const stateDir = path.join(root, "state");
+      await fs.writeFile(config, JSON.stringify({ repository: "file:///unused.git", stateDir,
+        publicUrl: "https://rougehalla.mckinnonnevin.workers.dev" }), { mode: 0o600 });
+      await expect(runWatch({ command, config, interval: 60 })).rejects.toThrow(/hosted by Cloudflare/);
+      await expect(fs.access(stateDir)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally { await fs.rm(root, { recursive: true, force: true }); }
+  });
+
   it("checks once per minute and uses the same explicit private config for every run", () => {
     const plist = launchAgentPlist({ node: "/opt/homebrew/bin/node", runtime: "/Users/test/.rougehalla/deployer",
       config: "/Users/test/.rougehalla/deploy-config.json", stateDir: "/Users/test/.rougehalla", interval: 60 });

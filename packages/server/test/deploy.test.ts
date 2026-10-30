@@ -97,6 +97,21 @@ describe("deployment lock", () => {
 });
 
 describe("deployment orchestration", () => {
+  it.each(["deploy", "rollback"] as const)("refuses a public cloud target before %s can touch local releases or profiles", async (command) => {
+    const fixture = await deployFixture(command);
+    const saved = JSON.parse(await fs.readFile(fixture.configFile, "utf8"));
+    saved.publicUrl = "https://PLAY.roguehalla.com./";
+    await fs.writeFile(fixture.configFile, JSON.stringify(saved), { mode: 0o600 });
+    let operations = 0;
+    await expect(run(fixture.options, {
+      prepareRelease: async () => { operations++; throw new Error("must not prepare"); },
+      switchRelease: async () => { operations++; throw new Error("must not switch"); },
+    })).rejects.toThrow(/hosted by Cloudflare/);
+    expect(operations).toBe(0);
+    expect(await fs.readFile(fixture.stashFile, "utf8")).toBe(fixture.stashBytes);
+    await expect(fs.access(path.join(fixture.stateDir, "deploy.lock"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("leaves live release and exact profile bytes untouched when preflight build fails", async () => {
     const fixture = await deployFixture();
     const live = { commit: "a".repeat(40), releaseDir: path.join(fixture.releasesDir, "live"), pid: 1234 };

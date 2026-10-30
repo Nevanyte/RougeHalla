@@ -18,7 +18,7 @@ npm run cf:typecheck
 npm run cf:test
 npm run build
 node --import tsx scripts/deploy-smoke.mjs --compiled
-npm run cf:deploy
+npm run deploy
 npm run latency -- --url https://play.roguehalla.com
 ```
 
@@ -42,7 +42,7 @@ Player profiles use `rougehalla-profiles/profiles/current.json`. Bot learning us
 
 After deliberately importing a new authoritative snapshot, change the `PROFILE_EPOCH` Worker variable and deploy. This makes the coordinator gracefully restart the same container image so it hydrates the imported data. It does not replace the independently checked executable digest. Ordinary code deployments use a changed source digest and do not need an epoch change.
 
-The old `npm run deploy` and `deploy:auto` commands deploy a server on the Mac; they are local playtest tools and must not be used as the public cloud release pipeline. Publish public updates with `cf:deploy` from a revision containing these cloud changes.
+`npm run deploy` publishes the public Cloudflare game; `cf:deploy` remains an alias for the same pipeline. `deploy:status` reads the current cloud deployment. The old Mac release manager is available only under explicit `deploy:local` commands, defaults to a loopback URL, and refuses the public domain or Workers hostname. The local watcher and named playtest launcher refuse those cloud hostnames as well. Existing watcher status/stop aliases remain available so an old installation can be disabled.
 
 ## Recovery
 

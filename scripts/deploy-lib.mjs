@@ -33,7 +33,7 @@ export function parseArgs(argv) {
 export function validateConfig(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Configuration must be an object");
   const stateDir = raw.stateDir ?? path.join(os.homedir(), ".rougehalla");
-  const config = { branch: "main", port: 2600, publicUrl: "https://play.roguehalla.com", keepReleases: 4,
+  const config = { branch: "main", port: 2600, publicUrl: `http://127.0.0.1:${raw.port ?? 2600}`, keepReleases: 4,
     stateDir, stashFile: path.join(stateDir, "playtest-profiles.json"),
     repositoryDir: path.join(stateDir, "deploy-repo.git"), releasesDir: path.join(stateDir, "releases"),
     nodeBinary: process.execPath, ...raw };
@@ -58,6 +58,12 @@ export function validateConfig(raw) {
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") throw new Error("publicUrl must be an HTTP(S) origin");
   config.publicUrl = url.origin;
   return config;
+}
+export function assertLocalHostingUrl(value) {
+  const hostname = new URL(value).hostname.replace(/\.$/, "");
+  if (["play.roguehalla.com", "rougehalla.mckinnonnevin.workers.dev"].includes(hostname)) {
+    throw new Error(`${hostname} is hosted by Cloudflare. Use npm run deploy for the public game; choose a different hostname for a local playtest.`);
+  }
 }
 export function productionEnvironment(base, overrides, config, releaseDir) {
   const env = { ...base, ...overrides, NODE_ENV: "production", CLIENT_DIR: path.join(releaseDir, "packages/client/dist"),

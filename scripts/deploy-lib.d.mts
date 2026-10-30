@@ -28,6 +28,7 @@ export function sleep(ms: number): Promise<void>;
 export function safeRef(value: unknown): boolean;
 export function parseArgs(argv: string[]): DeployOptions;
 export function validateConfig(raw: unknown): DeployConfig;
+export function assertLocalHostingUrl(value: string): void;
 export function productionEnvironment(base: Record<string, string>, overrides: Record<string, string>, config: DeployConfig, releaseDir: string): Record<string, string>;
 export function readJson(file: string, fallback?: unknown): Promise<any>;
 export function writeJson(file: string, data: unknown): Promise<void>;
