@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "rougehalla",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-28",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "../../packages/client/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "containers": [
+    {
+      "class_name": "PublicGameContainer",
+      "scheduling_policy": "durable_object",
+      "observability": { "enabled": true },
+      "images": {
+        "base": {
+          "dockerfile": "../../Dockerfile",
+          "build_context": "../.."
+        }
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "GAME_CONTAINER", "class_name": "PublicGameContainer" }]
+  },
+  "exports": {
+    "GameContainer": { "type": "durable-object", "storage": "sqlite" },
+    "PublicGameContainer": { "type": "durable-object", "storage": "sqlite" }
+  },
+  "r2_buckets": [{ "binding": "PROFILES", "bucket_name": "rougehalla-profiles" }],
+  "ratelimits": [
+    {
+      "name": "MATCHMAKE_LIMITER",
+      "namespace_id": "256701",
+      "simple": { "limit": 30, "period": 10 }
+    }
+  ]
+}

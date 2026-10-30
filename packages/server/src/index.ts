@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
@@ -14,7 +15,8 @@ import {
 import type { BotStatsStoreApi } from "./bots/brain/types";
 import { createBotStatsStore } from "./bots/learning/BotStatsStore";
 import { loadConfig, type ServerConfig } from "./config";
-import { clientAddress, stampClientAddress } from "./guards/clientIp";
+import { computeServerBuildId } from "./buildId";
+import { CLIENT_ADDRESS_HEADER, clientAddress, stampClientAddress } from "./guards/clientIp";
 import { corsOrigin } from "./guards/cors";
 import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, PasscodeGate } from "./guards/passcode";
 import { RoomCounter } from "./guards/roomCounter";
@@ -26,6 +28,9 @@ import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
+import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
+
+const SERVER_BUILD_ID = computeServerBuildId();
 
 /**
  * The schema encoder's buffer, per room (Colyseus' default is 16 KB). A 136x136 run's state is larger: the camps, the roster and
@@ -78,7 +83,7 @@ function configureCors(config: ServerConfig): void {
 }
 
 /** Who is asking, for the per-address caps: see guards/clientIp.ts (the socket's peer; Cloudflare's header only from a loopback peer). */
-const clientIp = (req: Request): string => clientAddress(req.socket.remoteAddress, req.get("cf-connecting-ip"));
+const clientIp = (req: Request): string => req.get(CLIENT_ADDRESS_HEADER) ?? clientAddress(req.socket.remoteAddress, req.get("cf-connecting-ip"));
 
 /** Serves the built client (index.html, hashed assets) from the same origin as the API and the websocket. */
 function serveClient(app: express.Application, dir: string): void {
@@ -171,7 +176,7 @@ function shopRoute(
   store: ProfileStore,
   run: (name: string, token: string, body: Record<string, unknown>) => ShopOutcome,
 ): RequestHandler {
-  return (req: Request, res: Response) => {
+  return async (req: Request, res: Response) => {
     res.set("Cache-Control", "no-store");
     const name = req.params.name;
     const body: unknown = req.body;
@@ -190,6 +195,7 @@ function shopRoute(
         return;
       }
       const reply: ShopResponse = { profile: toProfileDTO(outcome.record) };
+      await store.flush();
       res.json(reply);
     } catch (err) {
       console.error("[server] shop request failed:", err);
@@ -266,11 +272,19 @@ function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): ((
   return installNetSim(sim);
 }
 
-export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
-  const store: ProfileStore = new JsonProfileStore(config.stashFile);
+export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void> } = {}) {
+  let storageHealthy = true;
+  const readiness = { ready: false };
+  const loopDelay = opts.onSnapshot ? monitorEventLoopDelay({ resolution: 20 }) : null;
+  loopDelay?.enable();
+  const onSnapshot = opts.onSnapshot && (async (json: string) => {
+    try { await opts.onSnapshot!(json); storageHealthy = true; }
+    catch (error) { storageHealthy = false; throw error; }
+  });
+  const store: ProfileStore = new JsonProfileStore(config.stashFile, { onSnapshot });
   const profiles = new ActiveProfiles();
   // Warmed here, before the first room can ask: the main thread's mapgen tables (the fixed layout and the zone layout, for a fallback) and the worker's queue.
-  const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET })).start();
+  const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET, hangMs: config.mapWorkerHangMs })).start();
   const botStats = createBotStats(config);
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
   const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
@@ -281,7 +295,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   // Our own http server only to stamp each request with the address the guards count it under (guards/clientIp.ts); it is
   // what WebSocketTransport would have made.
   const httpServer = http.createServer();
-  stampClientAddress(httpServer);
+  stampClientAddress(httpServer, process.env.TRUST_PROXY === "1");
   const server = defineServer({
     transport: new WebSocketTransport({ server: httpServer }),
     greet: false,
@@ -293,6 +307,21 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
     },
     express: (app) => {
       app.disable("x-powered-by");
+      app.get("/readyz", (_req, res) => {
+        res.set({ "Cache-Control": "no-store", "X-Rougehalla-Server-Build": SERVER_BUILD_ID });
+        res.status(readiness.ready && storageHealthy ? 200 : 503).json({
+          ok: readiness.ready && storageHealthy,
+          runtime: {
+            location: process.env.CLOUDFLARE_LOCATION ?? null,
+            rssMiB: Math.round(process.memoryUsage().rss / 1048576),
+            eventLoopP95Ms: loopDelay ? Math.round(loopDelay.percentile(95) / 1e6) : null,
+            mapsReady: maps.size,
+            mapStats: maps.stats,
+            uptimeSeconds: Math.round(process.uptime()),
+            cpuSeconds: Math.round((process.cpuUsage().user + process.cpuUsage().system) / 1e6),
+          },
+        });
+      });
       // Colyseus has already set its own CORS headers on the response (see configureCors); /api is credential-free, so
       // a wildcard origin is the accurate statement in dev. Hosting for a public link (sameOriginOnly) keeps what
       // Colyseus set: no origin header at all, except for an origin on the allowlist.
@@ -326,7 +355,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
 
       // Claims a free name (no token header) or returns the profile for its owner. The response
       // carries this profile's token only, never anyone else's.
-      app.get("/api/profile/:name", (req, res) => {
+      app.get("/api/profile/:name", async (req, res) => {
         res.set("Cache-Control", "no-store");
         const name = req.params.name;
         if (typeof name !== "string" || !PROFILE_RE.test(name)) {
@@ -358,6 +387,12 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
           }
           const { record, token, created } = store.claim(name, req.get(PROFILE_TOKEN_HEADER));
           if (created) newProfiles.record(ip, Date.now());
+          try { await store.flush(); }
+          catch {
+            // Keep ownership recoverable even if a newly claimed profile cannot yet be persisted.
+            res.status(503).json({ error: "profile storage unavailable; retry shortly", token });
+            return;
+          }
           const body: ProfileResponse = { profile: toProfileDTO(record), token, created };
           res.json(body);
         } catch (err) {
@@ -413,6 +448,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   // The profiles go first: the pool's stop() is bounded, but nothing about a worker thread should ever sit in front of
   // the final flush.
   server.onShutdown(async () => {
+    readiness.ready = false;
+    loopDelay?.disable();
     try {
       await store.close();
     } catch (err) {
@@ -431,6 +468,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
 
   /** Shuts the server down without exiting the process and resolves once the profiles are on disk. */
   async function stop(): Promise<void> {
+    readiness.ready = false;
+    loopDelay?.disable();
     try {
       await server.gracefullyShutdown(false);
     } finally {
@@ -443,14 +482,25 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
       }
     }
   }
-  return Object.assign(server, { store, profiles, rooms, maps, botStats, stop });
+  return Object.assign(server, { store, profiles, rooms, maps, botStats, stop, readiness });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;
 
 export async function startServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
-  const server = createServer(config, opts);
-  await server.listen(config.port);
+  const remote = await initializeRemoteSnapshot(config.stashFile);
+  const server = createServer(config, { ...opts, onSnapshot: remote?.save });
+  try { await server.listen(config.port); }
+  catch (error) { await server.stop(); throw error; }
+  if (remote && server.maps.target > 0) {
+    // Finish the small cloud map pool before admitting the first player. Certification shares the
+    // container CPU quota with simulation and must not monopolize its first connected room.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([server.maps.whenFilled(), new Promise<void>((resolve) => { timer = setTimeout(resolve, 5000); })]);
+    } finally { clearTimeout(timer); }
+  }
+  server.readiness.ready = true;
   return server;
 }
 

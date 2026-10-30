@@ -19,7 +19,7 @@ const TOKEN_KEY_PREFIX = "raid.token.";
 const LINK_KEY_PREFIX = "raid.link.";
 /** Set when the server refused the stored token itself: the one case where a link's key may be tried in its place. */
 const REJECTED_KEY_PREFIX = "raid.rejected.";
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 40000;
 /** The leaderboard is a garnish on the hub: give up on it sooner than on the profile. */
 const LEADERBOARD_TIMEOUT_MS = 4000;
 
@@ -182,7 +182,14 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
     throw new ProfileError("unavailable", wrongPasscodes ? PASSCODE_THROTTLED_MESSAGE : NEW_CALLSIGNS_MESSAGE);
   }
   // Vite's dev proxy (or any gateway) answers these when the game server behind it is down.
-  if (res.status >= 502 && res.status <= 504) throw new ProfileError("unavailable", UNREACHABLE_MESSAGE);
+  if (res.status >= 502 && res.status <= 504) {
+    // A failed durable first claim can still return its ownership key. Keep it pending for retry.
+    if (res.status === 503 && stored === null && pending === null) {
+      const failure: unknown = await res.json().catch(() => null);
+      if (isObject(failure) && typeof failure.token === "string" && /^[\x21-\x7e]{1,128}$/.test(failure.token)) writeLinkKey(name, failure.token);
+    }
+    throw new ProfileError("unavailable", UNREACHABLE_MESSAGE);
+  }
   if (!res.ok) throw new ProfileError("unavailable", SERVER_PROBLEM_MESSAGE);
 
   let body: unknown;

@@ -7,7 +7,7 @@ import {
 import {
   BOT_FILL_DEFAULTS, PERSONA_IDS, TIER_IDS, type BotFillConfig,
 } from "./bots/brain/types";
-import { MAP_POOL_TARGET } from "./mapPool";
+import { MAP_POOL_TARGET, MAP_WORKER_HANG_MS } from "./mapPool";
 import type { SimConfig } from "./sim/world";
 
 export interface ServerConfig extends SimConfig {
@@ -58,6 +58,8 @@ export interface ServerConfig extends SimConfig {
    * room certifies its map on the main thread. Optional so a hand-written config keeps the default.
    */
   mapPoolSize?: number;
+  /** Map worker silence deadline; small CPU quotas need longer for a cold TypeScript loader. */
+  mapWorkerHangMs?: number;
   /** Fill bots for arena lobbies (BOTS_* env, docs/BOTS.md 7.3); `fillTo` 0 turns them off. */
   bots: BotFillConfig;
 }
@@ -189,6 +191,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     shopBurst: limit(env.SHOP_BURST, whenHosting(DEFAULT_SHOP_BURST)),
     shopPerSecond: limit(env.SHOP_PER_SECOND, whenHosting(DEFAULT_SHOP_PER_SECOND)),
     mapPoolSize: Math.max(0, Math.floor(num(env.MAP_POOL, MAP_POOL_TARGET))),
+    mapWorkerHangMs: Math.max(1000, Math.floor(num(env.MAP_WORKER_HANG_MS, MAP_WORKER_HANG_MS))),
     minPlayers: num(env.MIN_PLAYERS, MIN_PLAYERS_TO_START),
     lobbySeconds: num(env.LOBBY_SECONDS, LOBBY_SECONDS),
     fillSeconds: num(env.FILL_SECONDS, LOBBY_FILL_SECONDS),

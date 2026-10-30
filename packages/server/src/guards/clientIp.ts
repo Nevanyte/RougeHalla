@@ -14,8 +14,8 @@ export function isLoopback(address: string | undefined): boolean {
 }
 
 /** The address a request counts under. `forwarded` is the raw CF-Connecting-IP header value (a repeated header counts as absent). */
-export function clientAddress(peer: string | undefined, forwarded: string | string[] | undefined): string {
-  if (isLoopback(peer) && typeof forwarded === "string") {
+export function clientAddress(peer: string | undefined, forwarded: string | string[] | undefined, trustProxy = false): string {
+  if ((isLoopback(peer) || trustProxy) && typeof forwarded === "string") {
     const claimed = forwarded.trim();
     if (claimed.length <= 45 && isIP(claimed) !== 0) return claimed.toLowerCase();
   }
@@ -30,12 +30,12 @@ export function clientAddress(peer: string | undefined, forwarded: string | stri
 export const CLIENT_ADDRESS_HEADER = "x-raid-client-address";
 
 /** Stamps every HTTP request the server receives (`emit` runs before any listener, Colyseus's own router included). */
-export function stampClientAddress(server: Server): void {
+export function stampClientAddress(server: Server, trustProxy = false): void {
   const emit = server.emit.bind(server) as (event: string | symbol, ...args: unknown[]) => boolean;
   (server as { emit: unknown }).emit = (event: string | symbol, ...args: unknown[]): boolean => {
     if (event === "request") {
       const req = args[0] as { headers: Record<string, string | string[] | undefined>; socket?: { remoteAddress?: string } };
-      req.headers[CLIENT_ADDRESS_HEADER] = clientAddress(req.socket?.remoteAddress, req.headers["cf-connecting-ip"]);
+      req.headers[CLIENT_ADDRESS_HEADER] = clientAddress(req.socket?.remoteAddress, req.headers["cf-connecting-ip"], trustProxy);
     }
     return emit(event, ...args);
   };

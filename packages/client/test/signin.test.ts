@@ -263,6 +263,19 @@ describe("on a page", () => {
     expect(address.hash).toBe("");
   });
 
+  it("retains a first claim's key after a durable storage failure so retry proves the same owner", async () => {
+    stubPage("https://play.roguehalla.com/?profile=amy");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ token: UUID }), { status: 503 })));
+    const { fetchProfile } = await import("../src/net/profile");
+    await expect(fetchProfile("amy")).rejects.toMatchObject({ kind: "unavailable" });
+    expect(storage.get("raid.link.amy")).toBe(UUID);
+    expect(storage.get("raid.token.amy")).toBeUndefined();
+    const seen = stubServer(UUID);
+    await fetchProfile("amy");
+    expect(seen).toEqual([UUID]);
+    expect(storage.get("raid.token.amy")).toBe(UUID);
+  });
+
   it("with storage blocked the page still loads", async () => {
     storageBroken = true;
     stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${UUID}`);

@@ -15,8 +15,7 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 COPY packages/client/package.json packages/client/
-# All dependencies, dev ones too: the server runs its TypeScript source through tsx (a devDependency), and so does the
-# shared package. No build step for them.
+# Build tools are installed here; the server and map worker are compiled before this image starts.
 RUN npm ci
 
 COPY . .
@@ -37,4 +36,4 @@ USER node
 # The profile file's single-writer lock holds a process id, and in a container that is always 1: after a hard kill the
 # next start would read its own id as a live holder and refuse. One container owns the volume, so a leftover lock is
 # stale; `exec` keeps node as PID 1, so docker's SIGTERM reaches the server's own shutdown handler.
-CMD ["sh", "-c", "rm -f \"$STASH_FILE.lock\" && exec node --import tsx packages/server/src/index.ts"]
+CMD ["sh", "-c", "rm -f \"$STASH_FILE.lock\" && exec node packages/server/dist/index.mjs"]

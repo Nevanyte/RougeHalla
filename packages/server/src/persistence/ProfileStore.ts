@@ -463,11 +463,13 @@ export class JsonProfileStore implements ProfileStore {
   private retryDelayMs = RETRY_MIN_MS;
   private closed = false;
   private readonly lockFile: string;
+  private readonly onSnapshot?: (json: string) => Promise<void>;
 
-  constructor(file: string, opts: { clock?: Clock } = {}) {
+  constructor(file: string, opts: { clock?: Clock; onSnapshot?: (json: string) => Promise<void> } = {}) {
     this.file = path.resolve(file);
     this.lockFile = `${this.file}.lock`;
     this.clock = opts.clock ?? systemClock;
+    this.onSnapshot = opts.onSnapshot;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     this.acquireLock();
     try {
@@ -910,6 +912,8 @@ export class JsonProfileStore implements ProfileStore {
     const profiles: Record<string, ProfileRecord> = Object.fromEntries(this.profiles);
     const data: ProfileFile = { version: FILE_VERSION, profiles };
     const json = JSON.stringify(data);
+    // The cloud snapshot is authoritative; a failed remote write remains dirty and is retried.
+    await this.onSnapshot?.(json);
     // Per process, so a writer that should not exist (a lock gone wrong) still cannot interleave bytes with another's.
     const tmp = `${this.file}.tmp-${process.pid}`;
     const fh = await fs.promises.open(tmp, "w");

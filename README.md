@@ -1,5 +1,7 @@
 # RougeHalla
 
+Public hosting: [Cloudflare deployment and profile migration](docs/CLOUDFLARE_PUBLIC.md). The public game uses a Cloudflare Worker, cloud game container and private R2 profiles. The laptop playtest launcher and its tunnel are an optional local development path.
+
 ## Live playtest update (2026-10-29)
 
 These rules supersede older controls, range, healing, vision, and quest descriptions below. This release builds on current main's zone maps, uncapped normal-mob stat growth, champion progression passives, and elite augment chests.

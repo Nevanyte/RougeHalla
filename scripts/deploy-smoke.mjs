@@ -8,7 +8,8 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { startServer } = await import(pathToFileURL(path.join(root, "packages/server/src/index.ts")));
+const compiled = process.argv.includes("--compiled");
+const { startServer } = await import(pathToFileURL(path.join(root, compiled ? "packages/server/dist/index.mjs" : "packages/server/src/index.ts")));
 const { loadConfig } = await import(pathToFileURL(path.join(root, "packages/server/src/config.ts")));
 const { Client } = await import(pathToFileURL(path.join(root, "node_modules/@colyseus/sdk/build/index.mjs")));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rougehalla-deploy-smoke-"));
@@ -36,6 +37,10 @@ async function until(fn, label) {
 }
 try {
   server = await startServer(config);
+  if (compiled) {
+    await until(() => server.maps.size > 0, "compiled map worker");
+    assert.equal(server.maps.stats.crashes, 0, "compiled worker starts without the TypeScript loader");
+  }
   const origin = `http://127.0.0.1:${port}`;
   const health = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(5000) });
   assert.equal(health.status, 200, "health endpoint");

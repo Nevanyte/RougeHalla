@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 packages/server/.vitest/
 packages/client/.vitest/
+.wrangler/
+deployment/cloudflare/build-meta.json
