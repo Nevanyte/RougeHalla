@@ -63,6 +63,10 @@ const WISH_ICON_GAP = 3;
 /** The icon's drawing is baked around its own centre, once per Wish and ready state. */
 const WISH_ICON_REGION: Region = around(WISH_ICON_SIZE / 2 + 2);
 const LABEL_Y = -BODY_LIFT - FIGURE_RADIUS - 18;
+/** Secondary weapon and build badges above each fighter. */
+const BUILD_MARK_SIZE = 18;
+const BUILD_MARK_HALF = BUILD_MARK_SIZE / 2;
+const BUILD_MARK_WEAPON_SCALE = 0.33;
 
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
 const TITLE_Y = Math.ceil(PLAYER_RADIUS * 0.55) + 2;
@@ -441,26 +445,26 @@ export class PlayerView {
     const stats = readability.investedStats.slice(0, 2);
     const secondary = heldWeapon({ weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot === 1 ? 0 : 1, faction: p.faction }) ?? FISTS;
     const crownScale = 1 + CROWN_GROWTH * Math.min(1, Math.max(0, p.bounty) / CROWN_FULL_BOUNTY);
-    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 12 : LABEL_Y - 25);
+    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 14 : LABEL_Y - 27);
     const key = `${secondary}|${stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|")}`;
     if (key === this.buildMarksKey) return;
     this.buildMarksKey = key;
     this.buildMarks.removeAll(true);
     const weaponMark = this.scene.add.graphics();
     const weaponColor = WEAPONS[secondary].color;
-    weaponMark.fillStyle(0x101820, 0.95).fillRoundedRect(-21, -7, 14, 14, 4);
-    weaponMark.lineStyle(1, weaponColor, 0.95).strokeRoundedRect(-21, -7, 14, 14, 4);
-    weaponMark.save().translateCanvas(-14 - weaponCenterX(secondary) * 0.26, 0).scaleCanvas(0.26, 0.26);
+    weaponMark.fillStyle(0x101820, 0.95).fillRoundedRect(-BUILD_MARK_SIZE - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+    weaponMark.lineStyle(1, weaponColor, 0.95).strokeRoundedRect(-BUILD_MARK_SIZE - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+    weaponMark.save().translateCanvas(-BUILD_MARK_SIZE - weaponCenterX(secondary) * BUILD_MARK_WEAPON_SCALE, 0).scaleCanvas(BUILD_MARK_WEAPON_SCALE, BUILD_MARK_WEAPON_SCALE);
     drawWeapon(weaponMark, secondary);
     weaponMark.restore().setName(`Secondary weapon: ${WEAPONS[secondary].name}`);
     this.buildMarks.add(weaponMark);
     stats.forEach((stat, i) => {
-      const x = i * 14;
+      const x = i * BUILD_MARK_SIZE;
       const color = STAT_ICON_COLORS[stat.key];
       const mark = this.scene.add.graphics();
-      mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - 7, -7, 14, 14, 4);
-      mark.lineStyle(1, color, 0.95).strokeRoundedRect(x - 7, -7, 14, 14, 4);
-      drawCombatIcon(mark, stat.key, x, 0, 10, color);
+      mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+      mark.lineStyle(1, color, 0.95).strokeRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+      drawCombatIcon(mark, stat.key, x, 0, 13, color);
       mark.setName(`${stat.label}: ${stat.score.toFixed(2)}`);
       this.buildMarks.add(mark);
     });
