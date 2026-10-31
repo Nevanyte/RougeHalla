@@ -32,11 +32,11 @@ describe("weapon scaling illustrations", () => {
     const bow = weaponGuide("bow"), wand = weaponGuide("wand");
     expect(bow.mechanics.join(" ")).toContain("directional skillshots that fly straight");
     expect(bow.mechanics.join(" ")).not.toMatch(/follow their target|unit-targeted|Longest weapon attack range/);
-    expect(bow.mechanics.join(" ")).toContain("Movement pauses during the draw");
+    expect(bow.mechanics.join(" ")).toContain("movement pauses for the final 0.2 s before release");
     expect(wand.mechanics.join(" ")).toContain("only weapon with lock-on");
     expect(wand.mechanics.join(" ")).toContain("within their travel range");
     expect(wand.mechanics.join(" ")).toContain("Longest weapon range");
-    expect(wand.mechanics.join(" ")).toContain("Movement pauses during the cast");
+    expect(wand.mechanics.join(" ")).toContain("movement pauses for the final 0.2 s before release");
     const bowShape = WEAPONS.bow.shape, wandShape = WEAPONS.wand.shape;
     if (bowShape.kind !== "projectile" || wandShape.kind !== "projectile") throw new Error("expected ranged weapons");
     expect(wandShape.range).toBeGreaterThan(bowShape.range);
