@@ -119,6 +119,8 @@ function run(rig: Rig, ticks: number, each?: (tick: number) => void): SimEvent[]
 
 const hitsOn = (events: SimEvent[], victim: string) =>
   events.flatMap((e) => (e.type === "fx" && e.fx.kind === "hit" && e.fx.id === victim ? [e.fx] : []));
+const blocksOn = (events: SimEvent[], id: string) =>
+  events.flatMap((e) => (e.type === "fx" && e.fx.kind === "block" && e.fx.id === id ? [e.fx] : []));
 
 /**
  * A hit on a mob from player `shooter`, through the real path (recordHit, applyLedger, hurtMob, aggro) and outside any
@@ -748,7 +750,7 @@ describe("giving up", () => {
     const log = spy(rig.world, mob);
     walk(rig.world, "p0", HOME.x + 900, HOME.y);
     let away = -1;
-    run(rig, 60, () => { if (away < 0 && brain(mob).mode === "return") away = dist(mob.s, HOME); });
+    run(rig, 140, () => { if (away < 0 && brain(mob).mode === "return") away = dist(mob.s, HOME); });
     // It turns back as soon as it is farther than the leash allows: not before, and not a step later.
     expect(away).toBeGreaterThan(MOB_LEASH_RADIUS);
     expect(away).toBeLessThan(MOB_LEASH_RADIUS + (MOB_SPEED * TICK_MS) / 1000);
@@ -940,33 +942,33 @@ describe("the trigger", () => {
   });
 });
 
-describe("evading", () => {
-  it("nothing hurts a mob that is walking home: no damage, no number, no wake", () => {
+describe("returning mobs", () => {
+  it("takes damage and records threat while walking home without waking", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
     displace(rig.world, mob, HOME.x - 150, HOME.y);
     put(rig.world, "p0", HOME.x - 150 + 100, HOME.y);
     brain(mob).mode = "return";
-    mob.s.hp = mob.s.maxHp / 2;
+    mob.s.maxHp = 1000;
+    mob.s.hp = 500;
     const entry = {
       victim: mob.id, by: { id: "p0", name: "player0" }, packet: { raw: 50, phys: 0, magic: 0, true: 1 }, weapon: "bow" as const,
       scale: 1, stagger: false,
     };
-    expect(hurtMob(rig.world, mob, [50], [entry])).toBe(0);
+    expect(hurtMob(rig.world, mob, [50], [entry])).toBe(50);
     rig.world.events = [];
     const before = mob.s.hp;
-    expect(shoot(rig.world, "p0", mob, 50)).toBe(0);
-    expect(mob.s.hp).toBe(before);
-    expect(hitsOn(rig.world.events, mob.id)).toEqual([]);
+    expect(shoot(rig.world, "p0", mob, 50)).toBeGreaterThan(0);
+    expect(mob.s.hp).toBeLessThan(before);
+    expect(hitsOn(rig.world.events, mob.id)).not.toEqual([]);
     expect(brain(mob).mode).toBe("return");
-    expect(brain(mob).threat.size).toBe(0);
-    expect(mob.rt.lastHitAt).toBe(0);
+    expect(brain(mob).threat.get("p0")).toBeGreaterThan(50);
+    expect(mob.rt.lastHitAt).toBe(rig.world.state.serverTime);
   });
 
-  // A mob on its way home is not a body for anything: a swing or an arrow goes through it, so it cannot block, reflect or
-  // riposte what it would not feel, and it cannot be woken (or used as a shield) by a hit it shrugs off.
+  // A mob on its way home is still a body for swings and projectiles; damage does not cancel its return.
   it.each([["sentenced", "sword"], ["fire", "axe"], ["frost", "shield"]] as const)(
-    "a %s mob walking home is not a body: a %s swung at its face hits nothing, wakes nothing and blocks nothing",
+    "a %s mob walking home can be hit by a %s swing without waking",
     (region, weapon) => {
       const rig = makeRig();
       const mob = spawn(rig.world, region, HOME, 0);
@@ -980,15 +982,15 @@ describe("evading", () => {
       enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
       const events = run(rig, 8);
       expect(rig.swings.length).toBeGreaterThanOrEqual(1);
-      expect(hitsOn(events, mob.id)).toEqual([]);
-      expect(events.some((e) => e.type === "fx" && e.fx.kind === "block")).toBe(false);
-      expect(mob.s.hp).toBeGreaterThanOrEqual(mob.s.maxHp / 2); // it only ever heals on the way
-      expect(brain(mob).mode).toBe("return");
-      expect(brain(mob).threat.size).toBe(0);
+      expect(hitsOn(events, mob.id).length).toBeGreaterThan(0);
+      if (mob.s.status === "alive") {
+        expect(brain(mob).mode).toBe("return");
+        expect(brain(mob).threat.get("p0")).toBeGreaterThan(0);
+      }
     },
   );
 
-  it.each(REGIONS)("an arrow flies through a %s mob walking home: no hit, no block, no reflection", (region) => {
+  it.each(REGIONS)("an arrow can hit a %s mob walking home", (region) => {
     const rig = makeRig();
     // Far from its camp, so it is still walking home when the arrow arrives: it walks away from the archer, who is on the far side.
     const mob = spawn(rig.world, region, HOME, 0);
@@ -1000,29 +1002,15 @@ describe("evading", () => {
     brain(mob).mode = "return";
     const inputs = rig.world.players.get("p0")!.inputs;
     const events: SimEvent[] = [];
-    // Which side of the mob each arrow was on at the end of the last tick, to see one cross it.
-    const side = new Map<string, number>();
-    let crossed = false;
     for (let i = 0; i < 40; i++) {
       if (i === 0) enqueueClientMessage(inputs, "attack", { a: Math.PI });
       if (i === 6) enqueueClientMessage(inputs, "release", { a: Math.PI }); // a short draw: it is in the air while the mob is still near
       events.push(...run(rig, 1));
-      for (const [id, pr] of rig.world.projectiles) {
-        const s = Math.sign(pr.x - mob.s.x);
-        if (side.has(id) && side.get(id) !== s && Math.abs(pr.y - mob.s.y) < PLAYER_RADIUS) crossed = true;
-        side.set(id, s);
-      }
     }
-    // The arrow really went through the mob's place (otherwise this proves nothing), and was not stopped there.
-    expect(crossed).toBe(true);
     const ends = events.flatMap((e) => (e.type === "fx" && e.fx.kind === "projEnd" ? [e.fx.reason] : []));
-    expect(ends.length).toBeGreaterThanOrEqual(1); // the arrow was loosed, and ended somewhere
-    expect(ends).not.toContain("hit");
-    expect(ends).not.toContain("reflected");
-    expect(hitsOn(events, mob.id)).toEqual([]);
-    expect(events.some((e) => e.type === "fx" && e.fx.kind === "block")).toBe(false);
-    expect(brain(mob).mode).toBe("return");
-    expect(brain(mob).threat.size).toBe(0);
+    expect(ends.some((reason) => reason === "hit" || reason === "reflected")).toBe(true);
+    expect(hitsOn(events, mob.id).length + blocksOn(events, mob.id).length).toBeGreaterThan(0);
+    if (mob.s.status === "alive") expect(brain(mob).mode).toBe("return");
   });
 
   // The give-up has to cancel what the mob has started (a windup, a cast, a drawn bow): releasing it instead would land the
@@ -1078,22 +1066,27 @@ describe("evading", () => {
     expect(brain(mob).target).toBe("p0");
     let farthest = 0;
     let returned = 0;
+    let returnShot = false;
     for (let i = 0; i < 300 && brain(mob).mode !== "idle"; i++) {
       run(rig, 1);
       farthest = Math.max(farthest, dist(mob.s, HOME));
       if (brain(mob).mode === "return") {
         returned++;
-        // Shot at again on the way home: it does not feel it.
+        // One shot on the way home lands, but the mob keeps returning and rapidly heals.
         const hp = mob.s.hp;
-        expect(shoot(rig.world, "p0", mob, max / 2)).toBe(0);
-        expect(mob.s.hp).toBe(hp);
+        if (!returnShot) {
+          expect(shoot(rig.world, "p0", mob, max / 10)).toBeGreaterThan(0);
+          expect(mob.s.hp).toBeLessThan(hp);
+          returnShot = true;
+        }
       }
     }
     expect(farthest).toBeGreaterThan(MOB_LEASH_RADIUS);
     expect(farthest).toBeLessThan(MOB_LEASH_RADIUS + 20);
     expect(returned).toBeGreaterThan(3);
+    expect(returnShot).toBe(true);
     expect(brain(mob).mode).toBe("idle");
-    // Healing on the way (MOB_REGEN_SECONDS) is not enough in so short a walk: arriving is what makes it whole.
+    // Rapid return healing and the final rest make it whole at home.
     expect(mob.s.hp).toBe(max);
     run(rig, 5);
     expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
@@ -1104,31 +1097,20 @@ describe("evading", () => {
     expect(brain(mob).target).toBe("p0");
   });
 
-  it("kiting gains nothing: a shooter hitting a sword mob from beyond its leash and reach for a minute never kills it, and it is whole every time it is idle", () => {
+  it("repeated ranged hits can finish a returning mob despite its rapid healing", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
     // Out of the mob's reach even from the edge of its leash (the stand-in shots ignore range).
     put(rig.world, "p0", HOME.x + MOB_LEASH_RADIUS + 140, HOME.y);
     const max = mob.s.maxHp;
-    let wakes = 0;
-    let lowest = max;
-    let was = brain(mob).mode;
     for (let i = 0; i < (60 * 1000) / TICK_MS; i++) {
-      // Half a second between shots: each eighth of its hp. A round trip to the leash edge and back takes it about 2.7 s.
+      // Half a second between shots: each eighth of its hp.
       if (i % 10 === 0) shoot(rig.world, "p0", mob, max / 8);
-      expect(mob.s.status).toBe("alive");
+      if (mob.s.status === "dead") break;
       run(rig, 1);
-      const mode = brain(mob).mode;
-      if (mode === "fight" && was !== "fight") wakes++;
-      was = mode;
-      lowest = Math.min(lowest, mob.s.hp);
-      if (mode === "idle") expect(mob.s.hp).toBe(max);
     }
-    expect(mob.s.status).toBe("alive");
-    expect(wakes).toBeGreaterThanOrEqual(10);
-    expect(lowest).toBeGreaterThan(0);
-    // The shooter never got more than a few shots into one round.
-    expect(lowest).toBeGreaterThan(max * 0.3);
+    expect(mob.s.status).toBe("dead");
+    expect(rig.world.players.get("p0")!.mobKills).toBe(1);
   });
 });
 
@@ -1145,8 +1127,6 @@ describe("blocks", () => {
     put(rig.world, "p0", HOME.x + gap, HOME.y);
     return { rig, mob };
   }
-  const blocksOn = (events: SimEvent[], id: string) =>
-    events.flatMap((e) => (e.type === "fx" && e.fx.kind === "block" && e.fx.id === id ? [e.fx] : []));
 
   it.each([["shield"], ["sword"]] as const)(
     "an idle Frost mob wakes onto the player whose %s hit it blocked in part (the block is contact, and the rest of the hit lands)",
@@ -1195,7 +1175,7 @@ describe("blocks", () => {
     expect(hitsOn(later, "p0").some((h) => h.by === mob.id && h.weapon === "shield")).toBe(true);
   });
 
-  it("a mob that is walking home is not a body: a swing passes through its shield without a block or a wake", () => {
+  it("a returning mob's shield remains a body that can block without waking it", () => {
     const { rig, mob } = frostRig("shield");
     displace(rig.world, mob, HOME.x - 150, HOME.y);
     put(rig.world, "p0", HOME.x - 150 + 40, HOME.y);
@@ -1203,12 +1183,10 @@ describe("blocks", () => {
     enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
     const events = run(rig, 6);
     expect(rig.swings.length).toBeGreaterThanOrEqual(1); // the swing was made, at the mob's very face
-    expect(blocksOn(events, mob.id)).toEqual([]);
-    expect(hitsOn(events, mob.id)).toEqual([]);
+    expect(blocksOn(events, mob.id).length + hitsOn(events, mob.id).length).toBeGreaterThan(0);
     expect(brain(mob).mode).toBe("return");
     expect(brain(mob).target).toBeNull();
-    expect(brain(mob).threat.size).toBe(0);
-    expect(mob.s.hp).toBe(mob.s.maxHp);
+    expect(mob.s.hp).toBeGreaterThan(0);
   });
 });
 

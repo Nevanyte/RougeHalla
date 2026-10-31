@@ -2,16 +2,16 @@
 
 Public hosting: [Cloudflare deployment and profile migration](docs/CLOUDFLARE_PUBLIC.md). The public game uses a Cloudflare Worker, cloud game container and private R2 profiles. The laptop playtest launcher and its tunnel are an optional local development path.
 
-## Live playtest update (2026-10-29)
+## Live playtest rules
 
 These rules supersede older controls, range, healing, vision, and quest descriptions below. This release builds on current main's zone maps, uncapped normal-mob stat growth, champion progression passives, and elite augment chests.
 
-- WASD / arrow keys move. Left-click attacks toward the cursor (hold to repeat); only wand clicks lock onto enemies and home. Right-click ground still walks. Player melee hits immediately while moving, with no attack windup or root. Bow and wand windups still pause movement and cannot be cancelled by walking. Enemy mobs and the zombie keep their telegraphs.
+- WASD / arrow keys move. Left-click attacks toward the cursor (hold to repeat); only wand clicks lock onto enemies and home. Right-click ground still walks. Player melee hits immediately while moving, with no attack windup or root. Bow and wand pause movement for the final 0.2 s before release. Enemy mobs and the zombie keep their telegraphs.
 - A soft ground outline and faint fill show the equipped weapon's range: an aimed melee arc, a bow firing lane, or a wand circle. It follows your movement and aim and hides while viewing the Tab map.
-- Reach in world units: fists 72, sword 112, shield 96, axe 112, bow 520, wand 640. Arrows have a larger 7-unit collision radius. Bow pauses up to 0.5s / 55% of its attack interval, wand up to 0.45s / 50%.
-- Q or 1/2 swaps weapons, E casts Wish, R drinks a potion, F picks up items or enters a cannon. Empty slots remain fists. Plague consumes bodies automatically on walk-over; Sentenced hunt controls remain.
+- Reach in world units: fists 72, sword 112, shield 96, axe 112, bow 520, wand 640. Arrows have a larger 7-unit collision radius. Bow draws for up to 0.5 s / 55% of its attack interval, wand casts for up to 0.45 s / 50%; each pauses movement for at most the final 0.2 s.
+- Q or 1/2 swaps weapons, R casts Wish, E drinks a potion, F picks up items or enters a cannon. Empty slots remain fists. Plague consumes bodies automatically on walk-over; Sentenced hunt controls remain.
 - Physical stats read Offense and Defense. Magic stats read Soul Offence (SO) and Soul Defense (SD). The faction display name is Holy.
-- Camp clears automatically store a healing potion for eligible contributors instead of immediately healing them. Contributor credit and champion camp-clear progression remain. Large potions heal 40% max HP over 5s; small potions found in weapon chests heal 25% over 5s. Carry up to 5 of each; large is used first and potion healing cannot overlap.
+- Camp clears automatically store a healing potion for standing damage contributors, including ranged attackers outside the camp. Nearby contributors still receive camp-clear progression. Large potions heal 40% max HP over 5s; small potions found in weapon chests heal 25% over 5s. Carry up to 5 of each; large is used first and potion healing cannot overlap.
 - One-use wind emblems appear at random clear-floor locations at random 8–15s intervals, capped at 12 on the ground. Walk over one for +50% movement for 5s; it disappears, with no inventory or activation key.
 - Travel cannons connect distant regions. F enters and blasts to the linked destination; each cannon reloads for 75s. Cannons are sealed while coliseum gates are locked.
 - Holy area's Light terrain now heals 3% max HP/s, five times its former rate. Holy receives 6%/s through its existing home bonus. The combat healing lockout remains.
@@ -122,11 +122,11 @@ Armor cuts physical damage and the shield (magic resist) cuts magic damage, each
 
 "Speed" is the boost on the faction's attack rate, "damage" the weapon's multiplier on its dps, and "scales with" what a point of a card's stat adds per second (Offense and SO come from cards and mob rewards; see step 5 of [A run](#a-run) below).
 
-Units are world units: a tile is 32. Player sword, axe, shield and fists attacks land immediately without pausing movement; their cooldown still controls attack cadence. Bow uses up to 0.5 s / 55% of its interval to draw; wand uses up to 0.45 s / 50% to cast. NPC melee telegraphs and the zombie's 0.2 s windup remain. Attack speed shortens the interval and windup together. A ranged windup finishes before a movement order takes effect. See [combat rules](docs/GAME_DESIGN.md#95-as-built-mouse-orders-and-basic-attacks-october-28-combat-port). You start with empty hands and carry up to two weapons, and swapping shares one attack cooldown. A weapon comes from a chest, the ground, a body or a mob: a mob that dies to you while your hand is empty puts its weapon straight into it. Weapons and cards add to a hit through your stats: Offense and Soul Offence (SO) are scaled by each weapon differently (the weapon bar shows how). The faction pick alone rarely decides a fight: the weapon you hold against the one your enemy holds, and the cards you have farmed, do. Full rules, timings and the reasons are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8 to 10.
+Units are world units: a tile is 32. Player sword, axe, shield and fists attacks land immediately without pausing movement; their cooldown still controls attack cadence. Bow uses up to 0.5 s / 55% of its interval to draw; wand uses up to 0.45 s / 50% to cast. NPC melee telegraphs and the zombie's 0.2 s windup remain. Attack speed shortens the interval and windup together. A ranged shot pauses movement for the final 0.2 s before release. See [combat rules](docs/GAME_DESIGN.md#95-as-built-mouse-orders-and-basic-attacks-october-28-combat-port). You start with empty hands and carry up to two weapons, and swapping shares one attack cooldown. A weapon comes from a chest, the ground, a body or a mob: a mob that dies to you while your hand is empty puts its weapon straight into it. Weapons and cards add to a hit through your stats: Offense and Soul Offence (SO) are scaled by each weapon differently (the weapon bar shows how). The faction pick alone rarely decides a fight: the weapon you hold against the one your enemy holds, and the cards you have farmed, do. Full rules, timings and the reasons are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8 to 10.
 
 #### Wishes
 
-Each faction has one **Wish**, an ability on `E` for the moment the weapons do not cover. It is locked for the first 45 s of a run and then has a 300 s cooldown that nothing shortens, so a run sees it once, maybe twice. The server refuses a cast it cannot take (cooling down, stunned or silenced, no valid target) at no cost. Once a cast begins its cooldown is spent, even if it then fizzles or is interrupted (only a stun or a silence interrupts one). Every fighter's name carries a small icon of its Wish, grey while it is locked or cooling down, and your own slot sits at the right end of the weapon bar. In the training room a Wish is ready at once and cools down in 5 s.
+Each faction has one **Wish**, an ability on `R` for the moment the weapons do not cover. It is locked for the first 45 s of a run and then has a 300 s cooldown that nothing shortens, so a run sees it once, maybe twice. The server refuses a cast it cannot take (cooling down, stunned or silenced, no valid target) at no cost. Once a cast begins its cooldown is spent, even if it then fizzles or is interrupted (only a stun or a silence interrupts one). Every fighter's name carries a small icon of its Wish, grey while it is locked or cooling down, and your own slot sits at the right end of the weapon bar. In the training room a Wish is ready at once and cools down in 5 s.
 
 | Faction | Wish | What it does | What beats it |
 | --- | --- | --- | --- |
@@ -144,13 +144,13 @@ WASD or arrow keys move. Left-click attacks toward the cursor; hold to repeat. O
 
 | Input | In a run |
 | --- | --- |
-| `WASD` / arrow keys | Move; release to stop. Movement drops a wand lock, and a committed ranged shot finishes before walking. |
+| `WASD` / arrow keys | Move; release to stop. Movement drops a wand lock. A ranged shot pauses walking only for its final 0.2 s before release. |
 | Left-click / hold | Swing or shoot toward the cursor. With a wand, click an enemy to lock it, chase into range and repeat homing shots. |
 | Right-click ground | Walk to that point using pathfinding. |
 | Mouse position | Aim attacks and face the shield. |
 | `Q` / `1` / `2` | Swap weapons or select a slot. |
-| `E` | Cast your faction's Wish. |
-| `R` | Use a stored healing potion (large first). |
+| `R` | Cast your faction's Wish. |
+| `E` | Use a stored healing potion (large first). |
 | `F` | Pick up a highlighted weapon, potion or accepted quest item; talk to a quest giver; enter a ready travel cannon. |
 | `C` | Focus an elite chest's choices. Then `1` / `2` / `3` pick, `0` skips and `C` / `Esc` returns control. |
 | `J` | Toggle the quest log. |

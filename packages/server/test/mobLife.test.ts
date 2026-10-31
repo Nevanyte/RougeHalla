@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, mobStatCount, mobStatReward, mobStatRows,
-  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeWeapon,
+  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeWeapon,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
 } from "@raid/shared";
@@ -418,37 +418,47 @@ describe("hurtMob", () => {
     expect(m.s.status).toBe("dead");
   });
 
-  it("a mob walking home is evading: nothing hurts it, nothing is recorded, nobody is woken", () => {
+  it("a mob walking home remains damageable and records threat without waking", () => {
     const w = makeBare();
     const m = spawn(w, "plague");
     m.rt.brain!.mode = "return";
     m.s.hp = 100;
     m.rt.lastHitAt = 77;
-    expect(hurt(w, m, ["p0", 40], ["p1", 5])).toBe(0);
-    expect(hurt(w, m, ["p0", 1e9])).toBe(0); // not even a lethal hit
-    expect(m.s.hp).toBe(100);
-    expect(m.s.status).toBe("alive");
-    expect(m.rt.lastHitAt).toBe(77);
+    expect(hurt(w, m, ["p0", 40], ["p1", 5])).toBe(45);
+    expect(m.s.hp).toBe(55);
+    expect(m.rt.brain!.threat.get("p0")).toBe(40);
+    expect(m.rt.brain!.threat.get("p1")).toBe(5);
+    expect(m.rt.lastHitAt).toBe(w.state.serverTime);
     expect(aggro).not.toHaveBeenCalled();
-    expect(w.events).toEqual([]);
+    expect(m.rt.brain!.mode).toBe("return");
     expect(RT(w, 0).mobKills).toBe(0);
   });
 
-  it("through the ledger an evading mob shows no hit number, no stagger and no death", () => {
+  it("through the ledger a returning mob can take a lethal hit and credit its attacker", () => {
     const w = makeBare();
     const m = spawn(w, "frost");
     m.rt.brain!.mode = "return";
     strike(w, m.id, "p0", 1e6, true);
     applyLedger(w);
-    expect(m.s.hp).toBe(m.s.maxHp);
-    expect(m.s.status).toBe("alive");
-    expect(w.events).toEqual([]);
+    expect(m.s.hp).toBe(0);
+    expect(m.s.status).toBe("dead");
+    expect(fxOf(w.events, "death")).toHaveLength(1);
     expect(aggro).not.toHaveBeenCalled();
-    m.rt.brain!.mode = "idle"; // once it is home and idle again it can be hurt as before
-    strike(w, m.id, "p0", 10);
-    applyLedger(w);
-    expect(m.s.hp).toBeLessThan(m.s.maxHp);
-    expect(fxOf(w.events, "hit")).toHaveLength(1);
+    expect(RT(w, 0).mobKills).toBe(1);
+  });
+
+  it("credits repeated return hits toward the final kill", () => {
+    const w = makeBare();
+    const m = spawn(w, "fire");
+    m.s.hp = 100;
+    m.rt.brain!.mode = "return";
+    hurt(w, m, ["p1", 60]);
+    hurt(w, m, ["p0", 10]);
+    hurt(w, m, ["p0", 30]);
+    expect(m.s.status).toBe("dead");
+    expect(RT(w, 1).mobKills).toBe(1);
+    expect(RT(w, 0).mobKills).toBe(0);
+    expect(aggro).not.toHaveBeenCalled();
   });
 
   it("the ledger path: mitigation uses the mob's own armor and shield, the hit fx names the attacker, the AI hears the mitigated amount", () => {
@@ -1272,7 +1282,8 @@ describe("reapMobs: corpses", () => {
 });
 
 describe("reapMobs: regeneration", () => {
-  const perTick = (m: MobCombatant): number => (m.s.maxHp * TICK_MS) / (MOB_REGEN_SECONDS * 1000);
+  const perTick = (m: MobCombatant, mode: "idle" | "return" = "return"): number =>
+    (m.s.maxHp * TICK_MS) / ((mode === "return" ? MOB_RETURN_REGEN_SECONDS : MOB_REGEN_SECONDS) * 1000);
 
   /** A mob at `hp` in `mode` (walking home unless said otherwise), long after it was last hit. */
   function mobAt(w: World, hp: number, mode: "idle" | "fight" | "return" = "return", region: FactionId = "fire"): MobCombatant {
@@ -1284,7 +1295,7 @@ describe("reapMobs: regeneration", () => {
     return m;
   }
 
-  it("a mob walking home heals maxHp x dt / MOB_REGEN_SECONDS per tick, capped at maxHp", () => {
+  it("a mob walking home heals maxHp x dt / MOB_RETURN_REGEN_SECONDS per tick, capped at maxHp", () => {
     const w = makeBare();
     const m = mobAt(w, 100);
     reapMobs(w, TICK_MS);
@@ -1296,10 +1307,10 @@ describe("reapMobs: regeneration", () => {
     expect(m.s.hp).toBe(m.s.maxHp);
   });
 
-  it("is full again after MOB_REGEN_SECONDS of walking home, not before", () => {
+  it("is full again after MOB_RETURN_REGEN_SECONDS of walking home, not before", () => {
     const w = makeBare();
     const m = mobAt(w, 0.001 * mobFaction("fire", false).hp);
-    const ticks = (MOB_REGEN_SECONDS * 1000) / TICK_MS;
+    const ticks = (MOB_RETURN_REGEN_SECONDS * 1000) / TICK_MS;
     for (let i = 0; i < ticks - 1; i++) reapMobs(w, TICK_MS);
     expect(m.s.hp).toBeLessThan(m.s.maxHp);
     reapMobs(w, TICK_MS);
@@ -1319,7 +1330,7 @@ describe("reapMobs: regeneration", () => {
       const m = mobAt(w, 1, "return", region);
       reapMobs(w, TICK_MS);
       expect(m.s.hp).toBeCloseTo(1 + perTick(m), 9);
-      expect(perTick(m)).toBeCloseTo(m.s.maxHp / 80, 9);
+      expect(perTick(m)).toBeCloseTo(m.s.maxHp / 40, 9);
     }
   });
 
@@ -1334,7 +1345,7 @@ describe("reapMobs: regeneration", () => {
     expect(m.s.hp).toBe(hurtHp);
     w.state.serverTime += 100;
     reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBeCloseTo(hurtHp + perTick(m), 9);
+    expect(m.s.hp).toBeCloseTo(hurtHp + perTick(m, "idle"), 9);
     for (let i = 0; i < 200; i++) reapMobs(w, TICK_MS);
     expect(m.s.hp).toBe(m.s.maxHp);
   });

@@ -2,7 +2,7 @@
 // in-process, BotClient over the network) build a PerceptionInput per frame and hand it here, so a bot plays the same
 // whichever way it is seated. It sends only through the adapter, which is where the transport's rules (latency, the
 // message guard, what the server supports) live.
-import type { GameMap } from "@raid/shared";
+import { EFFECT_CASTING, EFFECT_STUNNED, type GameMap } from "@raid/shared";
 import { BotVision } from "./vision";
 import { createFrameRing } from "./frames";
 import { perceive, type PerceptionInput } from "./perception";
@@ -25,6 +25,16 @@ export interface BotRunnerOptions {
   readonly vision?: boolean;
 }
 
+/** Potion use reads only the bot's own synced HUD state. The timer throttles retries over latency. */
+export function shouldUsePotion(
+  me: { status: string; hp: number; maxHp: number; potionLarge?: number; potionSmall?: number; healingUntil?: number; effects?: number },
+  now: number, lastTriedAt: number,
+): boolean {
+  return me.status === "alive" && me.maxHp > 0 && me.hp < me.maxHp * 0.65
+    && (me.potionLarge ?? 0) + (me.potionSmall ?? 0) > 0 && (me.healingUntil ?? 0) <= now
+    && ((me.effects ?? 0) & (EFFECT_STUNNED | EFFECT_CASTING)) === 0 && now - lastTriedAt >= 1000;
+}
+
 export function createBotRunner(opts: BotRunnerOptions): BotRunnerApi<PerceptionInput> {
   const { brain, adapter, cfg, map, features } = opts;
   const ring = opts.ring ?? createFrameRing();
@@ -32,6 +42,7 @@ export function createBotRunner(opts: BotRunnerOptions): BotRunnerApi<Perception
   const vision = opts.vision ? new BotVision(map) : null;
   let lastMinimap: MinimapView | null = null;
   let ended = false;
+  let lastHealAt = -Infinity;
 
   return {
     brain,
@@ -49,6 +60,11 @@ export function createBotRunner(opts: BotRunnerOptions): BotRunnerApi<Perception
         // A message this server does not take is never sent: the brain cannot know about every branch's message set.
         if (!adapter.supports(tc.cmd.type)) continue;
         if (adapter.send(tc.cmd, tc.at)) sent.push(tc);
+      }
+      const me = input.state.players.get(adapter.selfId);
+      if (me && adapter.supports("useConsumable") && shouldUsePotion(me, input.state.serverTime, lastHealAt)
+        && adapter.send({ type: "useConsumable", msg: { kind: "heal" } }, input.state.serverTime)) {
+        lastHealAt = input.state.serverTime;
       }
       return sent;
     },

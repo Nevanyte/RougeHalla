@@ -121,7 +121,7 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
     }
     const mobs: [string, MobLike][] = [];
     for (const [id, m] of mem.mobs) {
-      if (m.returning) continue; // walking home: untouchable and ignoring everyone, so nothing to hunt or fear
+      if (m.returning) continue; // walking home: rapid healing makes this a poor hunt target
       const like = mobLikeOf(m);
       if (!like) continue;
       mobs.push([id, like]);

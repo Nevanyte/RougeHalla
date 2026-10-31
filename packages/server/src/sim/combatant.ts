@@ -118,11 +118,12 @@ export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
 }
 
 /**
- * A regional mob walking home (sim/mobAI.ts "return") is evading: nothing hurts it, it starts nothing new (a shot already in the air still lands),
- * and it is not a body at all, so an arrow or a swing passes through it (no block, no reflect, no riposte) and it takes no signature contact.
+ * Historical evasion predicate retained for combat paths that consult it. Returning mobs now remain
+ * targetable, hittable bodies, so there is no evasion state.
  */
 export function isEvading(c: Combatant | undefined): boolean {
-  return c !== undefined && c.kind === "mob" && c.rt.brain?.mode === "return";
+  void c;
+  return false;
 }
 
 /** Still in the fight: a player alive and not yet down this tick, or a mob alive. */

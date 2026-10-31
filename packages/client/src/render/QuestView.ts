@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { PLAYER_RADIUS, Y_SCALE, questDefById, type QuestKind } from "@raid/shared";
-import { questAccepted, questItemQuestId, questKindColor, questTurnIn, visibleQuest, type QuestCollection, type QuestContainerCollection, type QuestPosition, type QuestStateLike } from "../ui/questModel";
+import { questAccepted, questExpired, questItemQuestId, questKindColor, questTurnIn, visibleQuest, type QuestCollection, type QuestContainerCollection, type QuestPosition, type QuestStateLike } from "../ui/questModel";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 
 interface QuestPlayer {
@@ -49,7 +49,7 @@ export class QuestView {
     const seenGivers = new Set<string>();
     const carrierIds = new Set<string>();
     frame.quests.forEach((quest) => {
-      if (!visibleQuest(quest) || quest.status !== "open" || (frame.serverNow !== undefined && frame.serverNow >= quest.expiresAt)) return;
+      if (!visibleQuest(quest) || quest.status !== "open" || (frame.serverNow !== undefined && questExpired(quest, frame.serverNow))) return;
       const def = questDefById(quest.def);
       if (!def) return;
       if (frame.canSee && !frame.canSee(quest)) return;
@@ -88,7 +88,7 @@ export class QuestView {
       if (!questId) return;
       const quest = this.questById(frame.quests, questId);
       if (!quest || !visibleQuest(quest) || quest.status !== "open" || !questAccepted(quest, frame.localId)
-        || (frame.serverNow !== undefined && frame.serverNow >= quest.expiresAt)) return;
+        || (frame.serverNow !== undefined && questExpired(quest, frame.serverNow))) return;
       const def = questDefById(quest.def);
       if (!def) return;
       if (frame.canSee && !frame.canSee(container)) return;

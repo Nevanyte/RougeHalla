@@ -6,18 +6,18 @@ import {
 // The pure side of the territory leash (ROGUELIKE_PLAN D15): the server's mobAI.ts asks `leashOk` every tick of a fight.
 
 describe("territoryLeash and leashOk on generated maps", () => {
-  it.each([1, 2, 3, 100])("seed %i: every camp's spots stand inside their own leash, with the cap at 12 tiles", (seed) => {
+  it.each([1, 2, 3, 100])("seed %i: every camp's spots stand inside their own leash, with the cap at 24 tiles", (seed) => {
     const map = generateMap(seed);
-    expect(MOB_LEASH_CAP).toBe(12 * TILE);
+    expect(MOB_LEASH_CAP).toBe(24 * TILE);
     map.camps.forEach((camp, ci) => {
-      // The generator certifies radius <= 30 tiles; it measures 10.8 and up (the cap binds on all but a few camps).
+      // The generator certifies radius <= 30 tiles; the leash is bounded by both that radius and the camp territory.
       expect(camp.radius, camp.id).toBeGreaterThan(10 * TILE);
       for (const spot of camp.spots) {
         expect(territoryAt(map, spot), camp.id).toBe(ci + 1);
         expect(territoryLeash(map, ci + 1, spot), camp.id).toBe(Math.min(camp.radius, MOB_LEASH_CAP));
         expect(leashOk(map, ci + 1, spot, spot), camp.id).toBe(true);
         expect(leashOk(map, ci + 1, spot, spot, 24), camp.id).toBe(true);
-        // Past the cap, a point 13 tiles away is out whatever cell it is on.
+        // Past the cap, a point 25 tiles away is out whatever cell it is on.
         expect(leashOk(map, ci + 1, spot, { x: spot.x + MOB_LEASH_CAP + TILE, y: spot.y }), camp.id).toBe(false);
       }
     });

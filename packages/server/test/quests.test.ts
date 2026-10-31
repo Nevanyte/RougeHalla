@@ -130,6 +130,39 @@ describe("the roster", () => {
     expect(training.quests).toBeNull();
     expect(training.state.quests.size).toBe(0);
   });
+
+  it("keeps known offers visible through a long planning and active interval, then reveals a hidden offer", () => {
+    const config: SimConfig = {
+      minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, planSeconds: 5,
+      patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60, mobs: false, quests: true,
+    };
+    const w = createGameWorld({ seed: 77, config, random: mulberry32(78) });
+    addPlayer(w, "p0", "alice");
+    addPlayer(w, "p1", "bob");
+    step(w, TICK_MS);
+    expect(w.state.phase).toBe("planning");
+    expect(w.state.quests.size).toBe(QUEST_KNOWN_COUNT);
+    expect([...w.state.quests.values()].every(q => q.expiresAt === 0 && q.status === "open")).toBe(true);
+    w.state.serverTime = w.state.planEndsAt - TICK_MS;
+    step(w, TICK_MS);
+    expect(w.state.phase).toBe("active");
+    const known = [...w.state.quests.keys()];
+    w.state.serverTime += 180_000; // older offers previously expired by now, even without acceptance
+    step(w, TICK_MS);
+    expect([...w.state.quests.keys()].sort()).toEqual(known.sort());
+    expect([...w.state.quests.values()].every(q => q.status === "open" && q.expiresAt === 0)).toBe(true);
+    const hidden = [...w.quests!.quests.values()].find(q => !q.published && q.def.kind !== "kill")!;
+    expect(hidden).toBeDefined();
+    P(w, 0).x = hidden.s.x;
+    P(w, 0).y = hidden.s.y;
+    const reveal = step(w, TICK_MS);
+    expect(reveal.some(e => e.type === "questReveal" && e.to === "p0" && e.quest.id === hidden.id)).toBe(true);
+    w.state.serverTime = hidden.publishAt - TICK_MS;
+    step(w, TICK_MS);
+    expect(w.state.quests.get(hidden.id)?.status).toBe("open");
+    expect(w.state.quests.get(hidden.id)?.expiresAt).toBe(0);
+    expect([...w.state.mobs.values()].some(m => m.kind === "quest" && m.x === hidden.s.x && m.y === hidden.s.y)).toBe(true);
+  });
 });
 
 describe("quest givers", () => {

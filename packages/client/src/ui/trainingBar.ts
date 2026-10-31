@@ -11,7 +11,7 @@ export const TRAINING_HINTS: readonly string[] = [
   "WASD moves. Left-click attacks; hold to repeat.",
   "Bow aims at the cursor; only the wand locks onto enemies.",
   "F takes a weapon at the rack; Q or 1 / 2 swaps weapons.",
-  "E casts your faction's Wish (5 s cooldown here).",
+  "R casts your faction's Wish (5 s cooldown here).",
   "Hit the dummies. The shield dummy blocks and reflects.",
 ];
 

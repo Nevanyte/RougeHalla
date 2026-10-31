@@ -251,12 +251,14 @@ describe("the target order", () => {
       ignored(down, corpse);
     });
 
-    it("is a mob walking home (evading)", () => {
+    it("can lock a mob walking home", () => {
       const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
       const mob = placeMob(world, { region: "fire", elite: false, at: NEAR });
       world.mobs.get(mob)!.brain!.mode = "return";
-      ignored(world, mob);
-      ignoredByTick(world, mob);
+      target(world, mob);
+      tick(world);
+      expect(W(world).lock).toBe(mob);
+      expect(P(world).attackTarget).toBe(mob);
     });
 
     it("is farther than TARGET_RANGE", () => {
@@ -439,7 +441,7 @@ describe("how a lock ends", () => {
     ended(world);
   });
 
-  it("when the target begins to evade", () => {
+  it("keeps the lock when a mob begins to return", () => {
     const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
     const mob = placeMob(world, { region: "fire", elite: false, at: { x: 700, y: 320 } });
     world.mobs.get(mob)!.weapon.held = false;
@@ -449,7 +451,8 @@ describe("how a lock ends", () => {
     expect(W(world).lock).toBe(mob);
     world.mobs.get(mob)!.brain!.mode = "return";
     tick(world);
-    ended(world);
+    expect(W(world).lock).toBe(mob);
+    expect(P(world).attackTarget).toBe(mob);
   });
 
   it("when the target gets farther than TARGET_RANGE, and not before", () => {

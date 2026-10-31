@@ -186,6 +186,8 @@ describe("the strip never takes the pointer", () => {
     expect(on()).toEqual([0]);
     move(100, 421);
     expect(on()).toEqual([4]);
+    strip.update(me({ m: { adBonus: 5 } }), true);
+    expect(on()).toEqual([4]); // a live stat update must not erase a hovered icon's tip
     move(100, 600);
     expect(on()).toEqual([]);
     move(20, 405, panel);

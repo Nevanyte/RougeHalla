@@ -20,7 +20,8 @@ import { fingerprints } from "./support/duelFingerprint";
 
 // Pinned outputs from the current runDuel simulation, not legacy combat metrics. The control port intentionally changed ranged
 // timing to the current 0.3-interval share and removed the axe's post-launch root; the Sentenced redesign intentionally changes faction damage and defenses too. Refresh affected trajectories after these rule changes.
-// Live playtest controls increased ranges, kept unit locks for wands only, and now let player melee land immediately while moving. NPC telegraphs and ranged pauses remain unchanged. These hashes pin that simulation.
+// Live playtest controls increased ranges, kept unit locks for wands only, and now let player melee land immediately while moving.
+// The three changed ranged trajectories below follow the new movement during draw and the synchronized projectile origin.
 
 const PINNED: ReadonlyArray<readonly [string, string]> = [
   ["holy wand>bow open", "bc0f2bc0778f1170"],
@@ -31,9 +32,9 @@ const PINNED: ReadonlyArray<readonly [string, string]> = [
   ["plague bow mirror pillars", "cf08bbe9dfb7bd41"],
   ["fire/sentenced locks signatures", "8c2764f16cb3cc7c"],
   ["fire bow mirror start offset", "ce322ff7b17ae23a"],
-  ["holy bow>sword stale", "e472c6ec3b2c9d6e"],
-  ["holy bow>sword present", "2ee559c4ba6171fe"],
-  ["fire wand>shield carded", "3a143245aee857c8"],
+  ["holy bow>sword stale", "8ec15c77659e5a4a"],
+  ["holy bow>sword present", "70a31a851f4c6eeb"],
+  ["fire wand>shield carded", "e64646e5ccb5caf4"],
 ];
 
 describe("the default duel path", () => {

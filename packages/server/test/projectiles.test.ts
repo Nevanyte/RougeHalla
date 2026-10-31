@@ -595,13 +595,11 @@ describe("flight in present time", () => {
 });
 
 describe("where a projectile leaves from", () => {
-  // The shooter's client draws it LAG ms behind the server and measures its aim from there, so the shot leaves from that
-  // rewound position (the `t` of the attack or release names it). From the present position the same aim would pass the
-  // target by the shooter's speed times the lag.
+  // Attack timestamps can lag the server, but projectile launch origin follows the shooter's release position.
   const LAG = 250;
   /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
   const stamp = (w: World, lag: number): number => w.state.serverTime + TICK_MS - lag;
-  it("an arrow leaves from the drawn position at the START of the draw, so an archer who walked, then drew, hits what it aimed at", () => {
+  it("an arrow leaves from the archer's position at release, after the draw movement", () => {
     const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
@@ -616,14 +614,11 @@ describe("where a projectile leaves from", () => {
     for (let i = 0; i < 40 && w.projectiles.size === 0; i++) tick(w);
     const arrow = lastProjectile(w);
     expect(arrow.kind).toBe("arrow");
-    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
-    expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH); // the present position is nowhere near it
-    const hp = P(w, "target").hp;
-    expect(flyUntilEnd(w).end.reason).toBe("hit");
-    expect(P(w, "target").hp).toBeLessThan(hp);
+    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(c.x, 9), expect.closeTo(c.y, 9)]);
+    expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH);
   });
 
-  it("without a timestamp an arrow leaves from where the shooter stood one tick back: the draw roots it there", () => {
+  it("without a timestamp the archer walks until its release pause and the arrow leaves from there", () => {
     const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
@@ -634,18 +629,13 @@ describe("where a projectile leaves from", () => {
     const a = Math.atan2(320 - before.y, 500 - before.x);
     q.pushAction({ kind: "attack", a });
     q.pushAction({ kind: "release", a });
-    for (let i = 0; i < 40 && w.projectiles.size === 0; i++) {
-      tick(w);
-      // The press is processed before the archer would have moved that tick, and the draw holds it still until the arrow goes.
-      if (w.projectiles.size === 0) expect([c.x, c.y]).toEqual([before.x, before.y]);
-    }
+    for (let i = 0; i < 40 && w.projectiles.size === 0; i++) tick(w);
     const arrow = lastProjectile(w);
-    expect(c.y).toBeGreaterThan(before.y + 3); // it walks on in the tick the arrow leaves
-    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(before.x, 9), expect.closeTo(before.y, 9)]);
-    expect(flyUntilEnd(w).end.reason).toBe("hit");
+    expect(c.y).toBeGreaterThan(before.y + 3);
+    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(c.x, 9), expect.closeTo(c.y, 9)]);
   });
 
-  it("a ball leaves from the drawn position at the START of the cast, so a strafing caster hits what it aimed at", () => {
+  it("a ball leaves from the strafing caster's release position", () => {
     const w = arena([mage({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "mage");
     const q = RT(w, "mage").inputs;
@@ -660,11 +650,8 @@ describe("where a projectile leaves from", () => {
     for (let i = 0; i < 30 && w.projectiles.size === 0; i++) tick(w);
     const ball = lastProjectile(w);
     expect(ball.kind).toBe("ball");
-    expect([ball.launch.x, ball.launch.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
-    expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on over the lag and the cast
-    const hp = P(w, "target").hp;
-    expect(flyUntilEnd(w).end.reason).toBe("hit");
-    expect(P(w, "target").hp).toBeLessThan(hp);
+    expect([ball.launch.x, ball.launch.y]).toEqual([expect.closeTo(c.x, 9), expect.closeTo(c.y, 9)]);
+    expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH);
   });
 });
 

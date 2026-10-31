@@ -19,6 +19,7 @@ import type { ViewLayout } from "../view/viewport";
 import { campMobsText, campTypeInfo } from "./campInfo";
 import { combatIcon, STAT_ICON_COLORS, type CombatIconKey } from "./combatIcons";
 import { el, uiRoot } from "./dom";
+import { CounterWheel } from "./hub/counterWheel";
 import { MapRoster, mapRosterLayout, type MapRosterPlayer } from "./mapRoster";
 import {
   CROWN_CLIP_PATH, ZONE_PATTERN, paintCrates, paintMapBase, paintPlayer, paintRoute, zoneClipPath, zoneColor,
@@ -245,6 +246,7 @@ export class PlanningView {
   private readonly bar = el("div", "pl-bar");
   private readonly mapCol = el("div", "pl-mapcol");
   private readonly roster = new MapRoster();
+  private readonly counters = new CounterWheel();
   private readonly legend = el("ul", "pl-legend");
   private readonly side = el("div", "pl-side");
   private readonly spawnBox = el("section", "pl-box pl-spawns");
@@ -405,7 +407,9 @@ export class PlanningView {
     this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.routeBox, this.status);
     const body = el("div", "pl-body");
     body.append(this.roster.element, this.mapCol, this.side);
-    this.element.append(body);
+    this.counters.root.classList.add("pl-counters");
+    this.counters.root.hidden = true;
+    this.element.append(body, this.counters.root);
   }
 
   private buildLegend(): void {
@@ -524,6 +528,10 @@ export class PlanningView {
     this.frame = frame;
     this.applyMode(frame.mode);
     this.roster.update(frame.roster ?? [], frame.localId ?? "", frame.mode === "map");
+    if (frame.mode === "map") {
+      const faction = this.myFaction(frame);
+      if (this.counters.pick !== faction) this.counters.setPick({ faction });
+    }
     if (frame.mode !== "hidden") this.updateVisionFog(frame);
     if (frame.mode === "hidden") return;
     this.renderTimer(frame);
@@ -551,6 +559,7 @@ export class PlanningView {
     this.legend.hidden = mode === "hidden";
     this.info.hidden = false;
     this.side.hidden = mode === "map";
+    this.counters.root.hidden = mode !== "map";
     // The camps stay on the held map (read-only); the dealt spawns and the route's stop buttons are for planning.
     this.markers.hidden = mode === "hidden";
     this.actors.hidden = mode !== "map";

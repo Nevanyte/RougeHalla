@@ -20,7 +20,7 @@ export function install(world: World): void {
   world.actions.target = handleTarget;
 }
 
-/** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not walking home, hidden or untargetable? */
+/** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not hidden or untargetable? */
 function lockable(world: World, c: Combatant, t: Combatant): boolean {
   return standing(t) && !isEvading(t) && !isUntargetable(world, t) && hostile(c, t)
     && (c.kind !== "player" || canPlayerSeeActor(world, c.id, t.id, t.s))

@@ -77,14 +77,19 @@ export function eligibleContributors(world: World, camp: number, contributors?: 
 }
 
 /**
- * Pays the clear of camp `camp`: stores one potion and counts the camp for every eligible contributor (PlayerRuntime.campsCleared,
- * even for a player already at full hp), and forgets the camp's contributors. A no-op for a camp nobody damaged.
+ * Pays the clear of camp `camp`: stores one potion for every standing contributor. Counts the camp for contributors
+ * still nearby (PlayerRuntime.campsCleared), and forgets the camp's contributors. A no-op for a camp nobody damaged.
  */
 export function payCampHeal(world: World, camp: number): void {
   const contrib = world.campContrib?.get(camp);
   if (!contrib) return;
-  for (const c of eligibleContributors(world, camp)) {
-    c.rt.campsCleared = (c.rt.campsCleared ?? 0) + 1;
+  const eligible = new Set(eligibleContributors(world, camp, contrib).map((c) => c.id));
+  // A bow or wand can finish a camp from outside the territory. Damage contribution earns the potion
+  // regardless of the final position; other camp rewards keep their existing proximity rule.
+  for (const id of contrib) {
+    const c = combatant(world, id);
+    if (!c || c.kind !== "player" || !standing(c)) continue;
+    if (eligible.has(c.id)) c.rt.campsCleared = (c.rt.campsCleared ?? 0) + 1;
     if (!grantConsumable(world, c, "potionLarge")) {
       emit(world, { type: "toast", to: c.id, text: `Camp cleared · camp potion bag full (${CONSUMABLE_CAP})` });
     }

@@ -85,8 +85,8 @@ export function clearProjectilesOf(world: World, owners: ReadonlySet<string>, re
 }
 
 /**
- * The spawn phase: this tick's arrows and balls leave from where their owner's client drew it (the request's origin,
- * the same rewound position melee swings from), at the present time.
+ * The spawn phase: this tick's arrows and balls leave from the owner's current position after movement for the tick.
+ * An explicit request origin remains available for scripted projectiles, but ordinary weapon releases omit it.
  */
 export function spawnProjectiles(world: World): void {
   const spawns = world.combat.spawns;

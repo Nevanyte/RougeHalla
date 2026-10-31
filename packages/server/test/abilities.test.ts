@@ -447,15 +447,10 @@ describe("the cast input: refusals change nothing", () => {
     refused(world, { target: 0 });
   });
 
-  it("the target is down, an enemy mob that is walking home, immune, or untargetable", () => {
+  it("the target is down, immune, or untargetable", () => {
     const down = duo();
     P(down, 1).status = "dead";
     refused(down);
-
-    const mobWorld = duo();
-    const mob = placeMob(mobWorld, { region: "fire", elite: false, at: near(500) });
-    mobWorld.mobs.get(mob)!.brain!.mode = "return";
-    refused(mobWorld, { target: mob });
 
     const immune = duo();
     P(immune, 1).immuneUntil = T(immune) + 5 * SEC;
@@ -468,6 +463,15 @@ describe("the cast input: refusals change nothing", () => {
     const untargetable = duo();
     afflict(untargetable, "p1", "untargetable", 5 * SEC);
     refused(untargetable);
+  });
+
+  it("can target a mob walking home", () => {
+    const world = duo();
+    const mob = placeMob(world, { region: "fire", elite: false, at: near(500) });
+    world.mobs.get(mob)!.brain!.mode = "return";
+    cast(world, 0, { target: mob });
+    tick(world);
+    expect(RT(world).cast?.target).toBe(mob);
   });
 
   it("a point cast with no landing (no direction, rock all along the blink) is refused for free", () => {
@@ -606,7 +610,7 @@ describe("a cast that fails at its landing keeps its cooldown spent and says so 
     expect(isStunned(world, C(world, 1))).toBe(false);
   });
 
-  it("a mob that started walking home", () => {
+  it("a mob that started walking home is still a valid target", () => {
     const world = duo();
     const mob = placeMob(world, { region: "fire", elite: false, at: near(500) });
     cast(world, 0, { target: mob });
@@ -614,8 +618,8 @@ describe("a cast that fails at its landing keeps its cooldown spent and says so 
     place(world, mob, near(560)); // away from its camp, so the walk home takes longer than the cast
     world.mobs.get(mob)!.brain!.mode = "return";
     runTo(world, RT(world).cast!.landsAt);
-    expect(fxOf("castEnd")).toMatchObject([{ reason: "fizzle" }]);
-    expect(isStunned(world, combatant(world, mob)!)).toBe(false);
+    expect(fxOf("castLand")).toMatchObject([{ ability: "freeze" }]);
+    expect(isStunned(world, combatant(world, mob)!)).toBe(true);
   });
 
   it("a caster that was stunned or silenced is interrupted instead (castEnd interrupted), never refunded", () => {
@@ -1072,7 +1076,7 @@ describe("Trial (Sentenced)", () => {
     expect(findStatus(C(world, 1), "stun", "p0")?.until).toBe(T(world) + TRIAL_EXIT_STUN_MS);
   });
 
-  it("ends silently when its subject is gone, dies or walks home: no stun for anyone", () => {
+  it("ends silently when its subject is gone or dies, but stays on a returning mob", () => {
     for (const how of ["leaves", "dies"] as const) {
       const { world } = judged();
       if (how === "leaves") removePlayer(world, "p1");
@@ -1090,8 +1094,8 @@ describe("Trial (Sentenced)", () => {
     place(world, mob, near(560));
     world.mobs.get(mob)!.brain!.mode = "return";
     tick(world);
-    expect(world.state.fields.size).toBe(0);
-    expect(findStatus(combatant(world, mob)!, "zoned")).toBeUndefined();
+    expect(world.state.fields.size).toBe(1);
+    expect(findStatus(combatant(world, mob)!, "zoned")).toBeDefined();
     expect(fxOf("status").filter((f) => f.status === "stun")).toEqual([]);
   });
 
@@ -1296,7 +1300,7 @@ describe("Blaze Step (Fire)", () => {
       expect(P(world, 1).hp).toBeCloseTo(1000 - ticks * burnTick, 6);
     });
 
-    it("the owner is never burned by its own trail, nor is anyone under teleport immunity or a mob walking home", () => {
+    it("the owner and teleport-immune players avoid the trail while returning mobs can burn", () => {
       const world = trio();
       const mob = placeMob(world, { region: "holy", elite: false, at: near(500, 500) });
       place(world, "p1", near(450, 320));
@@ -1307,7 +1311,8 @@ describe("Blaze Step (Fire)", () => {
       tick(world);
       place(world, "p0", near(450, 320)); // back onto its own trail
       run(world, 3);
-      for (const who of ["p0", "p1", mob]) expect(findStatus(combatant(world, who)!, "dot")).toBeUndefined();
+      for (const who of ["p0", "p1"]) expect(findStatus(combatant(world, who)!, "dot")).toBeUndefined();
+      expect(findStatus(combatant(world, mob)!, "dot")).toBeDefined();
       expect(P(world, 1).hp).toBe(1000);
     });
 

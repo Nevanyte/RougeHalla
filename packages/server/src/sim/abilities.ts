@@ -108,7 +108,7 @@ export function armWishes(world: World): void {
 // ---------------------------------------------------------------------------------------------------------------------
 
 /**
- * Can `c` cast a unit-targeted ability on `t` now: a standing enemy that is not walking home, not untargetable (a hidden
+ * Can `c` cast a unit-targeted ability on `t` now: a standing enemy that is not untargetable (a hidden
  * fighter counts, outside its reveal window) and not under teleport immunity, within `maxRange` centre to centre and, if
  * `los`, in line of sight on the collision map.
  */

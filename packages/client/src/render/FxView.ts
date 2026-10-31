@@ -62,7 +62,7 @@ const CAMP_RING_DEDUPE_MS = 250;
 const MAX_LAUNCH_CUES = 48;
 /** A juice cue (hit-stop, shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
 const FRESH_MS = 250;
-/** How far from a launch's origin the shooter may be drawn (the origin is its rewound position). */
+/** How far from a launch's origin the shooter may be drawn after interpolation. */
 const LAUNCH_NEAR = 56;
 
 /** Above every y-sorted entity (ground y is at most a few thousand) but below the click marker (1e6). */

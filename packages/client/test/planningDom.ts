@@ -184,6 +184,7 @@ export class PDocument extends Targets {
   win: PWindow | null = null;
   constructor() { super(); this.ui.id = "ui"; this.body.append(this.ui); }
   createElement(tag: string): PEl { return new PEl(tag.toUpperCase(), this); }
+  createElementNS(_namespace: string, tag: string): PEl { return this.createElement(tag); }
   getElementById(): PEl { return this.ui; }
   fire(e: PEvent): void { super.fire(e); }
 }
