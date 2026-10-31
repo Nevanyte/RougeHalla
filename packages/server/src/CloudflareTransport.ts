@@ -1,4 +1,8 @@
 import { WebSocketTransport } from "@colyseus/ws-transport";
+import type { IncomingMessage } from "node:http";
+import type { AuthContext } from "@colyseus/core";
+import type WebSocket from "ws";
+import { attachNetworkProbe, NETWORK_PROBE_PATH } from "./networkProbe";
 
 /** An intermediary may answer control pings itself; normal game traffic also proves liveness. */
 export class CloudflareTransport extends WebSocketTransport {
@@ -20,5 +24,13 @@ export class CloudflareTransport extends WebSocketTransport {
         if (this.diagnostics.closed.length > 10) this.diagnostics.closed.shift();
       });
     });
+  }
+
+  protected override async onConnection(raw: WebSocket & { pingCount: number }, req: IncomingMessage, upgrade?: { url: URL; context: AuthContext }): Promise<void> {
+    if (req.url?.split("?")[0] === NETWORK_PROBE_PATH) {
+      attachNetworkProbe(raw);
+      return;
+    }
+    return super.onConnection(raw, req, upgrade);
   }
 }

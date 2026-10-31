@@ -1,13 +1,48 @@
 import { describe, expect, it } from "vitest";
 import { TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS } from "../src/constants";
 import { hasLineOfSight } from "../src/geometry";
-import { mapFromTiles, REGION_COLISEUM, withGates, type GameMap } from "../src/map";
+import { isWallTile, mapFromTiles, MASK_SIGHT, REGION_COLISEUM, withGates, type GameMap } from "../src/map";
 import { mulberry32 } from "../src/rng";
 import { hasVisionLineOfSight, isInVision, VisionMemory } from "../src/vision";
 
 const at = (x: number, y: number) => ({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE });
 function ascii(rows: string[]): GameMap {
   return mapFromTiles(rows[0]!.length, rows.length, Uint8Array.from(rows.join(""), (c) => c === "#" ? 1 : 0));
+}
+
+/** Original division-based DDA, kept as an oracle while VisionMemory uses a validated-origin ray path. */
+function referenceSightLine(map: GameMap, x: number, y: number, endX: number, endY: number): boolean {
+  if (!Number.isFinite(x + y + endX + endY)) return false;
+  const tileSize = TILE;
+  let tx = Math.floor(x / tileSize), ty = Math.floor(y / tileSize);
+  const ex = Math.floor(endX / tileSize), ey = Math.floor(endY / tileSize);
+  if (ex < 0 || ey < 0 || ex >= map.w || ey >= map.h || isWallTile(map, tx, ty)) return false;
+  const tiles = map.tiles, width = map.w;
+  let index = ty * width + tx;
+  const dx = endX - x, dy = endY - y;
+  const sx = Math.sign(dx), sy = Math.sign(dy);
+  let crossX = dx === 0 ? Infinity : ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
+  let crossY = dy === 0 ? Infinity : ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
+  while (tx !== ex || ty !== ey) {
+    if (crossX === crossY) {
+      if ((tiles[index + sx]! & MASK_SIGHT) !== 0 || (tiles[index + sy * width]! & MASK_SIGHT) !== 0) return false;
+      tx += sx; ty += sy;
+      index += sx + sy * width;
+      crossX = dx === 0 ? Infinity : ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
+      crossY = dy === 0 ? Infinity : ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
+    } else if (crossX < crossY) {
+      tx += sx;
+      index += sx;
+      crossX = ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
+    } else {
+      ty += sy;
+      index += sy * width;
+      crossY = ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
+    }
+    if (tx === ex && ty === ey) return true;
+    if ((tiles[index]! & MASK_SIGHT) !== 0) return false;
+  }
+  return true;
 }
 
 describe("circular, occluded sight", () => {
@@ -36,6 +71,34 @@ describe("circular, occluded sight", () => {
     expect(hasVisionLineOfSight(map, at(1, 1), at(2, 2))).toBe(false);
     expect(hasVisionLineOfSight(map, at(2, 2), at(1, 1))).toBe(false);
     expect(hasVisionLineOfSight(map, at(1, 1), at(0, 0))).toBe(true);
+  });
+
+  it("matches the original ray traversal for randomized exact and fractional endpoints", () => {
+    const random = mulberry32(0x71e5), w = 80, h = 64, tiles = new Uint8Array(w * h);
+    for (let i = 0; i < tiles.length; i++) tiles[i] = random() < 0.22 ? 1 : 0;
+    const map = mapFromTiles(w, h, tiles);
+    for (let i = 0; i < 40_000; i++) {
+      // Exact tile centers stress corner ties; fractional coordinates cover moving origins and f32-like endpoints.
+      const point = (): { x: number; y: number } => random() < 0.5
+        ? at(Math.floor(random() * w), Math.floor(random() * h))
+        : { x: random() * w * TILE, y: random() * h * TILE };
+      const from = point(), to = point();
+      expect(hasVisionLineOfSight(map, from, to), `ray ${i}: ${JSON.stringify([from, to])}`)
+        .toBe(referenceSightLine(map, from.x, from.y, to.x, to.y));
+    }
+
+    // VisionMemory's batched ray path must expose the same cells as the standalone/original traversal.
+    for (const origin of [at(2, 2), { x: 18.23 * TILE, y: 21.71 * TILE }, { x: 77.5 * TILE, y: 62.5 * TILE }]) {
+      const radius = 17 * TILE, now = 500;
+      const memory = new VisionMemory(w, h);
+      memory.update(map, origin, now, 1000, radius);
+      for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
+        const x = (tx + 0.5) * TILE, y = (ty + 0.5) * TILE;
+        const dx = x - origin.x, dy = y - origin.y;
+        const expected = dx * dx + dy * dy <= radius * radius && referenceSightLine(map, origin.x, origin.y, x, y);
+        expect(memory.canSee({ x, y }, now), `memory tile ${tx},${ty} from ${JSON.stringify(origin)}`).toBe(expected);
+      }
+    }
   });
 
   it("respects a gate change immediately, even inside the scan throttle", () => {

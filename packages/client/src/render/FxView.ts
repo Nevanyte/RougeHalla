@@ -440,13 +440,18 @@ export class FxView {
    * grows and brightens until the swing lands, and a stagger (or the swing itself) clears it.
    */
   private windup(fx: FxOf<"windup">, now: number): void {
-    this.cancelWindup(fx.by, now);
     const pos = this.host.position(fx.by);
     const spec = WEAPONS[fx.weapon];
+    const cues = this.host.view(fx.by)?.cues;
+    const confirmLocal = fx.by === this.host.localId && cues?.windupConfirm !== undefined;
+    if (confirmLocal) this.removeWindupGraphics(fx.by);
+    else this.cancelWindup(fx.by, now);
     if (!pos || !spec || !Number.isFinite(fx.a) || !Number.isFinite(fx.ms)) return;
     const duration = Math.max(MIN_WINDUP_MS, Math.min(MAX_WINDUP_MS, fx.ms));
     // The attacker winds back over the same time as its telegraph, peaking as the swing lands.
-    this.host.view(fx.by)?.cues?.windupStart(fx.a, duration, now, spec.shape.kind === "arc" ? "melee" : "wand");
+    const style = spec.shape.kind === "arc" ? "melee" : "wand";
+    if (confirmLocal) cues?.windupConfirm?.(fx.a, duration, now, style);
+    else cues?.windupStart(fx.a, duration, now, style);
     const g = this.acquireGraphics(DEPTH_FX);
     if (spec.shape.kind === "arc") {
       g.fillStyle(spec.color, 0.2).lineStyle(1.5, spec.color, 0.85);
@@ -707,17 +712,25 @@ export class FxView {
    * when `by` is omitted. The fighter's wound-up pose (juice) lets go with it.
    */
   private cancelWindup(by: string | undefined, now: number): void {
+    const ids = by === undefined
+      ? new Set(this.active.filter((e) => e.kind === "windup" || e.kind === "cast").map((e) => e.id))
+      : null;
+    this.removeWindupGraphics(by);
+    // Also when the telegraph itself is already gone: the pose holds a little past its windup.
+    if (by !== undefined) this.host.view(by)?.cues?.windupEnd(now);
+    else for (const id of ids!) this.host.view(id)?.cues?.windupEnd(now);
+  }
+
+  /** Removes telegraph graphics without changing the pose; a local authoritative windup can take over in place. */
+  private removeWindupGraphics(by: string | undefined): void {
     const a = this.active;
     for (let i = a.length - 1; i >= 0; i--) {
       const e = a[i]!;
       if ((e.kind !== "windup" && e.kind !== "cast") || (by !== undefined && e.id !== by)) continue;
-      if (by === undefined) this.host.view(e.id)?.cues?.windupEnd(now);
       this.release(e);
       a[i] = a[a.length - 1]!;
       a.pop();
     }
-    // Also when the telegraph itself is already gone: the pose holds a little past its windup.
-    if (by !== undefined) this.host.view(by)?.cues?.windupEnd(now);
   }
 
   /** Re-reads the followed fighter's drawn position into `e` and moves its graphics there. */

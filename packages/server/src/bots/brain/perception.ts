@@ -613,7 +613,8 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   for (const [id, m] of mobs) {
     const x = f32(m.x), y = f32(m.y);
     if (!canSee({ x, y })) continue;
-    const inBox = near(x, y);
+    // Visibility was checked for the map-wide minimap dot above; only the box remains to check here.
+    const inBox = inView(sx, sy, x, y, FRAME_MARGIN);
     if (!repaint && !inBox) continue;
     const status = m.status, kind = m.kind, faction = m.faction;
     if (repaint && status === "alive" && (kind === "mob" || kind === "elite")) {

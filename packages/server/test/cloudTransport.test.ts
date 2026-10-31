@@ -33,3 +33,33 @@ it("keeps a proxy peer alive on application traffic but terminates it when all r
     await transport.shutdown();
   }
 });
+
+it("measures origin echo work without claiming a room and rejects malformed frames", async () => {
+  const server = http.createServer();
+  const transport = new CloudflareTransport({ server });
+  await new Promise<void>(resolve => server.listen(0,"127.0.0.1",resolve));
+  const client = new WebSocket(`ws://127.0.0.1:${(server.address() as AddressInfo).port}/_diagnostics/net/origin`);
+  try {
+    await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject)});
+    const request=Buffer.alloc(8);request.writeUInt32LE(0x52484c50,0);request.writeUInt32LE(7,4);
+    const received=new Promise<Buffer>(resolve=>client.once("message",data=>resolve(data as Buffer)));client.send(request);
+    const reply=await received;expect(reply.length).toBe(32);expect(reply.subarray(0,8)).toEqual(request);
+    expect(reply.readDoubleLE(8)).toBeGreaterThanOrEqual(0);expect(reply.readDoubleLE(16)).toBeGreaterThanOrEqual(0);expect(reply.readDoubleLE(24)).toBe(0);
+    const closed=new Promise<number>(resolve=>client.once("close",resolve));client.send("invalid");expect(await closed).toBe(1008);
+  } finally {client.terminate();await transport.shutdown()}
+});
+
+it("bounds simultaneous origin probes before allocating another timing histogram", async () => {
+  const server=http.createServer(),transport=new CloudflareTransport({server});
+  await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const url=`ws://127.0.0.1:${(server.address() as AddressInfo).port}/_diagnostics/net/origin`;
+  const clients: WebSocket[]=[];
+  try {
+    for(let i=0;i<4;i++){
+      const client=new WebSocket(url);clients.push(client);
+      await new Promise<void>((resolve,reject)=>{client.once("open",resolve);client.once("error",reject)});
+    }
+    const extra=new WebSocket(url);clients.push(extra);
+    expect(await new Promise<number>((resolve,reject)=>{extra.once("close",resolve);extra.once("error",reject)})).toBe(1013);
+  } finally {for(const client of clients)client.terminate();await transport.shutdown()}
+});

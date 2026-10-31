@@ -16,7 +16,9 @@ export class CameraFollow {
     this.peeking = peek;
     if (cut) this.at = { x: target.x, y: target.y };
     else {
-      const alpha = 1 - Math.exp(-dt / 55);
+      // The local fighter is already predicted, so the camera only needs to absorb tiny reconciliation noise. A shorter
+      // time constant cuts steady walking lag without letting alternating 2 u corrections visibly shake the camera.
+      const alpha = 1 - Math.exp(-dt / 35);
       this.at!.x += (target.x - this.at!.x) * alpha;
       this.at!.y += (target.y - this.at!.y) * alpha;
     }

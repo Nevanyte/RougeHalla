@@ -13,6 +13,18 @@ function sightLine(map: GameMap, x: number, y: number, endX: number, endY: numbe
   let tx = Math.floor(x / tileSize), ty = Math.floor(y / tileSize);
   const ex = Math.floor(endX / tileSize), ey = Math.floor(endY / tileSize);
   if (ex < 0 || ey < 0 || ex >= map.w || ey >= map.h || isWallTile(map, tx, ty)) return false;
+  return traceSightLine(map, x, y, endX, endY, tx, ty, ex, ey, sightMask, tileSize);
+}
+
+/** VisionMemory has already validated its origin and enumerates only in-bounds tile centers. */
+function sightLineToTile(map: GameMap, x: number, y: number, tx: number, ty: number, ex: number, ey: number): boolean {
+  return traceSightLine(map, x, y, (ex + 0.5) * TILE, (ey + 0.5) * TILE, tx, ty, ex, ey, MASK_SIGHT, TILE);
+}
+
+function traceSightLine(
+  map: GameMap, x: number, y: number, endX: number, endY: number, tx: number, ty: number, ex: number, ey: number,
+  sightMask: number, tileSize: number,
+): boolean {
   // Both ends are in bounds, so every crossed tile (and the two corner neighbors) is too.
   // Avoid repeating four bounds checks at every step of every field-of-view ray.
   const tiles = map.tiles, width = map.w;
@@ -110,22 +122,24 @@ export class VisionMemory {
     const minY = Math.max(0, Math.floor((origin.y - radius) / tileSize));
     const maxY = Math.min(map.h - 1, Math.floor((origin.y + radius) / tileSize));
     const r2 = radius * radius;
-    for (let ty = minY; ty <= maxY; ty++) {
+    const originTx = Math.floor(origin.x / tileSize), originTy = Math.floor(origin.y / tileSize);
+    const originCanSee = originTx >= 0 && originTy >= 0 && originTx < map.w && originTy < map.h
+      && !isWallTile(map, originTx, originTy);
+    if (originCanSee) for (let ty = minY; ty <= maxY; ty++) {
       const y = (ty + 0.5) * tileSize, dy = y - origin.y;
       for (let tx = minX; tx <= maxX; tx++) {
         // The full arena was already revealed above, regardless of its walls or the sight circle.
         if (arena && tx >= arena.x && tx < arena.x + arena.w && ty >= arena.y && ty < arena.y + arena.h) continue;
         const x = (tx + 0.5) * tileSize, dx = x - origin.x;
-        if (dx * dx + dy * dy > r2 || !sightLine(map, origin.x, origin.y, x, y)) continue;
+        if (dx * dx + dy * dy > r2 || !sightLineToTile(map, origin.x, origin.y, originTx, originTy, tx, ty)) continue;
         const i = ty * this.width + tx;
         this.visible[this.visibleCount++] = i;
         if (until > this.expiresAt[i]!) this.expiresAt[i] = until;
       }
     }
     // The standing tile is always retained, including when the player is just inside a radius boundary.
-    const tx = Math.floor(origin.x / tileSize), ty = Math.floor(origin.y / tileSize);
-    if (tx >= 0 && ty >= 0 && tx < this.width && ty < this.height && !isWallTile(map, tx, ty)) {
-      const i = ty * this.width + tx;
+    if (originCanSee) {
+      const i = originTy * this.width + originTx;
       this.visible[this.visibleCount++] = i;
       this.expiresAt[i] = Math.max(this.expiresAt[i]!, until);
     }
