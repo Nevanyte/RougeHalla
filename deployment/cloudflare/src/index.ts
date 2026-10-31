@@ -2,9 +2,10 @@ import { DurableObject } from "cloudflare:workers";
 import { serverBuild } from "../build-meta.json";
 import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
 import { handleBotSnapshot, handleProfileSnapshot } from "./profileSnapshots";
+import { networkProbeAuthorized, networkProbeEcho, networkProbeLayer } from "./networkProbe";
 
 const ROOM_NAME = "rougehalla-controller-v2";
-const CONTROLLER_VERSION = "8";
+const CONTROLLER_VERSION = "11";
 const PORT = 2567;
 const CONTAINER_INSTANCE = "standard-1";
 const ARENA_LIMIT = "1";
@@ -22,6 +23,7 @@ interface Env {
   PROFILE_SNAPSHOT_TOKEN?: string;
   PROFILE_EPOCH?: string;
   GAME_MAINTENANCE?: string;
+  NETWORK_PROBE_TOKEN?: string;
 }
 
 function controllerRelease(env: Env): Promise<string> {
@@ -202,6 +204,16 @@ export class GameContainer extends DurableObject<Env> {
       if (this.ctx.container?.running) await this.retireController();
       return new Response("game maintenance", { status: 503, headers: { "Retry-After": "30", "Cache-Control": "no-store" } });
     }
+    const probeLayer = networkProbeLayer(new URL(request.url).pathname);
+    if (probeLayer) {
+      if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426, headers: { "Cache-Control": "no-store" } });
+      if (probeLayer === "coordinator") return networkProbeEcho("coordinator");
+      if (probeLayer !== "origin" || !this.ctx.container?.running) return new Response("game is not running", { status: 503, headers: { "Cache-Control": "no-store" } });
+      const target = new URL(request.url);
+      target.protocol = "http:"; target.hostname = "container"; target.port = String(PORT);
+      // Probe the same established-socket route without including handshake readiness HTTP calls.
+      return this.ctx.container.getTcpPort(PORT).fetch(proxyRequest(request, target));
+    }
     // Concurrent cold-start requests share one readiness loop.
     this.starting ??= this.startAndWaitForReady(request).finally(() => { this.starting = undefined; });
     try {
@@ -233,6 +245,14 @@ export class PublicGameContainer extends GameContainer {}
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const probeLayer = networkProbeLayer(url.pathname);
+    if (probeLayer) {
+      if (!networkProbeAuthorized(request, env.NETWORK_PROBE_TOKEN)) return new Response("not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+      if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426, headers: { "Cache-Control": "no-store" } });
+      const { success } = await env.MATCHMAKE_LIMITER.limit({ key: `diagnostic:${probeLayer}:${request.headers.get("CF-Connecting-IP") ?? "unknown"}` });
+      if (!success) return new Response("probe rate limit exceeded", { status: 429, headers: { "Retry-After": "10", "Cache-Control": "no-store" } });
+      if (probeLayer === "edge") return networkProbeEcho("edge");
+    }
     if (url.pathname === "/_edge/health") {
       return request.method === "GET" || request.method === "HEAD"
         ? new Response(request.method === "HEAD" ? null : "ok", {
@@ -262,6 +282,11 @@ export default {
     try {
       const game = env.GAME_CONTAINER.get(id, { locationHint: "wnam" });
       const release = await controllerRelease(env);
+      if (probeLayer) {
+        const forwarded = new Request(request);
+        forwarded.headers.set(RELEASE_HEADER, release);
+        return await game.fetch(forwarded);
+      }
       // Existing coordinators can briefly retain their previous code during a deployment. Check
       // the executable from the current public Worker before allowing HTTP or a WebSocket join.
       const ready = await game.fetch(new Request(new URL("/readyz", request.url), { headers: { [RELEASE_HEADER]: release } }));

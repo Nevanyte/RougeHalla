@@ -32,7 +32,8 @@
     "cf:typecheck": "npm run build:cloud-meta && tsc --noEmit -p deployment/cloudflare/tsconfig.json",
     "cf:test": "vitest run deployment/cloudflare/test",
     "cf:deploy": "npm run build && wrangler deploy --config deployment/cloudflare/wrangler.jsonc",
-    "latency": "node scripts/latency-probe.mjs"
+    "latency": "node scripts/latency-probe.mjs",
+    "latency:layers": "node scripts/network-probe.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261028.1",

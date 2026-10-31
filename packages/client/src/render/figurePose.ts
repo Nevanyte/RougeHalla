@@ -21,7 +21,9 @@ export type WindStyle = "melee" | "wand";
 /** What FxView tells a fighter's figure. `a` is a ground angle. */
 export interface FigureCues {
   /** A swing or a cast began and lands `ms` later. */
-  windupStart(a: number, ms: number, now: number, style: WindStyle): void;
+  windupStart(a: number, ms: number, now: number, style: WindStyle, initialProgress?: number): void;
+  /** An authoritative local windup replaced a press anticipation; its own timestamp and duration now control the pose. */
+  windupConfirm?(a: number, ms: number, now: number, style: WindStyle): void;
   /** The windup was cancelled, staggered or ended with nothing to show. */
   windupEnd(now: number): void;
   /** The swing landed. */
@@ -110,6 +112,8 @@ export class FigurePose implements FigureCues {
   private windOn = false;
   private windStart = 0;
   private windMs = 1;
+  /** Visible windup level at the start of an authoritative handoff; the remaining pose rises to full over its real duration. */
+  private windStartLevel = 0;
   private windStyle: WindStyle = "melee";
   private windX = 0;
   private windY = 0;
@@ -144,10 +148,26 @@ export class FigurePose implements FigureCues {
 
   // ------------------------------------------------------------------------------------------------------- cues
 
-  windupStart(a: number, ms: number, now: number, style: WindStyle): void {
+  windupStart(a: number, ms: number, now: number, style: WindStyle, initialProgress = 0): void {
+    this.windOn = true;
+    this.windMs = Math.max(1, ms);
+    const progress = Math.max(0, Math.min(0.8, Number.isFinite(initialProgress) ? initialProgress : 0));
+    this.windStart = now - progress * this.windMs;
+    this.windStartLevel = 0;
+    this.windStyle = style;
+    this.windX = Math.cos(a);
+    this.windY = Math.sin(a) * Y_SCALE;
+    this.fadeFrom = 0;
+  }
+
+  windupConfirm(a: number, ms: number, now: number, style: WindStyle): void {
+    // Preserve the pose already on screen, but give it the server's full remaining duration to reach its landing.
+    // Mapping a completed guess's phase directly onto `ms` would make it release before the authoritative attack lands.
+    const level = this.level(now);
     this.windOn = true;
     this.windStart = now;
     this.windMs = Math.max(1, ms);
+    this.windStartLevel = level;
     this.windStyle = style;
     this.windX = Math.cos(a);
     this.windY = Math.sin(a) * Y_SCALE;
@@ -372,7 +392,8 @@ export class FigurePose implements FigureCues {
         this.fadeFrom = 1;
         this.fadeAt = end + WIND_GRACE_MS;
       } else {
-        return easeInOutSine((now - this.windStart) / this.windMs);
+        const progress = easeInOutSine((now - this.windStart) / this.windMs);
+        return this.windStartLevel + (1 - this.windStartLevel) * progress;
       }
     }
     if (this.fadeFrom > 0) {

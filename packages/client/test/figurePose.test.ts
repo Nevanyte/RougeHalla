@@ -91,6 +91,25 @@ describe("anticipation over a windup", () => {
     expect(f.sample(600, 1, -1, 0).ox).toBeCloseTo(0, 9);
     expect(f.sample(1100, 1, -1, 0).ox).toBeCloseTo(WIND_BACK_PX, 9); // swinging toward -x: back is +x
   });
+
+  it("keeps an active anticipated pose continuous and stretches its remaining rise across the server duration", () => {
+    const f = new FigurePose();
+    f.windupStart(0, 220, 0, "melee", 0.35);
+    const before = f.sample(50, 1, -1, 0).ox;
+    f.windupConfirm(0, 300, 50, "melee");
+    expect(f.sample(50, 1, -1, 0).ox).toBeCloseTo(before, 9);
+    expect(f.sample(200, 1, -1, 0).ox).toBeLessThan(before);
+    expect(f.sample(350, 1, -1, 0).ox).toBeCloseTo(-WIND_BACK_PX, 9);
+  });
+
+  it("starts a fresh authoritative pose after the short local cue has fully relaxed", () => {
+    const f = new FigurePose();
+    f.windupStart(0, 100, 0, "melee", 0.35);
+    f.sample(1000, 1, -1, 0); // finish and discard the old cue
+    f.windupConfirm(0, 300, 1000, "melee");
+    expect(f.sample(1000, 1, -1, 0).ox).toBeCloseTo(0, 3);
+    expect(f.sample(1150, 1, -1, 0).ox).toBeLessThan(0);
+  });
 });
 
 describe("the swing's lunge", () => {

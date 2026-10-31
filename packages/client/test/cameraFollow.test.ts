@@ -13,7 +13,8 @@ describe("camera follow", () => {
       expect(at.y).toBe(400);
     }
     expect(Math.max(...errors) - Math.min(...errors)).toBeLessThan(1);
-    expect(Math.max(...errors.map(Math.abs))).toBeLessThan(11);
+    expect(Math.max(...errors.map(Math.abs))).toBeLessThan(6);
+    expect(errors.at(-1)).toBeGreaterThan(-6); // steady camera lag falls from about 9.2 u to 5.6 u at 170 u/s
   });
 
   it("snaps on teleport, tab stall, minimap peek and release", () => {

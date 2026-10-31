@@ -2,7 +2,8 @@
 import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
-  countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
+  countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
+  WEAPONS, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -12,6 +13,9 @@ import type { PlanInbox } from "../net/planInbox";
 import { keyboardMoveGoal, MOVEMENT_KEYS } from "../net/keyboardMovement";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
+import {
+  AttackAnticipation, ATTACK_ANTICIPATION_INITIAL_PROGRESS, ATTACK_ANTICIPATION_MS, attackResponseWindowMs,
+} from "../net/attackAnticipation";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
 } from "../net/localPrediction";
@@ -128,6 +132,7 @@ export class RaidScene extends Phaser.Scene {
   private attackMoveArmed = false;
   private rightAttackHeld = false;
   private directionalAttackHeld = false;
+  private readonly attackAnticipation = new AttackAnticipation();
   private readonly movementKeys = new Set<string>();
   private keyboardWasMoving = false;
   private keyboardChanged = false;
@@ -253,6 +258,8 @@ export class RaidScene extends Phaser.Scene {
   /** Last aim angle streamed, and when. */
   private lastAimSent: number | null = null;
   private lastAimSentAt = 0;
+  /** The most recent synced bow draw start; bow draws have no windup FX, so their state patch is the authority handoff. */
+  private localDrawStartedAt = 0;
   /** Server time of the newest patch the sudden-death vignette has looked at: one pulse per patch, not per frame. */
   private lastArenaPatchT = 0;
   /**
@@ -332,9 +339,12 @@ export class RaidScene extends Phaser.Scene {
     this.hoverId = "";
     this.attackMoveArmed = false;
     this.rightAttackHeld = false;
+    this.directionalAttackHeld = false;
+    this.attackAnticipation.cancel();
     this.lockId = "";
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
+    this.localDrawStartedAt = 0;
     this.lastArenaPatchT = 0;
     this.hud = new Hud();
     this.huntHud = new SentencedHuntHud();
@@ -490,6 +500,7 @@ export class RaidScene extends Phaser.Scene {
     this.minimap.setGatesLocked(gatesLocked);
 
     const now = performance.now();
+    if (this.attackAnticipation.expire(now)) this.views.get(this.room.sessionId)?.cues.windupEnd(now);
     // Not read in create(): tolerate the flag arriving with a later patch.
     if (state.training && !this.trainingBar) {
       this.trainingBar = new TrainingBar(this.leaveTraining, { send: (msg) => sendInput(this.room, "train", msg) });
@@ -880,6 +891,13 @@ export class RaidScene extends Phaser.Scene {
   private observeLocal(state: RaidState): void {
     const me = state.players?.get(this.room.sessionId);
     if (me) {
+      const drawStartedAt = me.drawStartedAt ?? 0;
+      if (drawStartedAt !== this.localDrawStartedAt) {
+        this.localDrawStartedAt = drawStartedAt;
+        if (drawStartedAt > 0 && this.attackAnticipation.confirm(performance.now())) {
+          this.views.get(this.room.sessionId)?.cues.windupEnd(performance.now());
+        }
+      }
       this.predict.observe(
         { x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq, locked: me.attackTarget !== "", displaceSeq: me.displaceSeq },
         this.localClock(performance.now()),
@@ -927,6 +945,9 @@ export class RaidScene extends Phaser.Scene {
     const now = performance.now();
     const c = this.localClock(now);
     const seq = this.predict.nextSeq();
+    this.cancelAttackAnticipation(now);
+    // Remove a confirmed windup that is still queued behind the remote render clock; this order cancels it on the server too.
+    this.fx.dropWindups(this.room.sessionId, c, now);
     const map = this.planMap();
     // Clamped to the world as the server clamps it, so both plan to the same place from an edge click.
     const to = point ? clampToWorld(point) : undefined;
@@ -948,6 +969,7 @@ export class RaidScene extends Phaser.Scene {
     const at = this.rendered.get(id);
     if (id === this.lockId || !me || !at || Math.hypot(at.x - me.x, at.y - me.y) > TARGET_RANGE) return;
     const now = performance.now();
+    this.cancelAttackAnticipation(now);
     const c = this.localClock(now);
     this.predict.motion.expectLock(c);
     this.fx.dropWindups(this.room.sessionId, c, now);
@@ -1170,7 +1192,10 @@ export class RaidScene extends Phaser.Scene {
       this.inHand.set(id, hand);
       if (before !== undefined && before !== hand) {
         this.fx.cancelWindups(id, state.serverTime);
-        if (id === this.room.sessionId) this.predict.noteWeaponChange(state.serverTime);
+        if (id === this.room.sessionId) {
+          this.predict.noteWeaponChange(state.serverTime);
+          this.cancelAttackAnticipation(performance.now());
+        }
       }
     });
   }
@@ -1221,13 +1246,31 @@ export class RaidScene extends Phaser.Scene {
     const a = this.cursorAngle(pointer);
     if (a === null) return;
     sendInput(this.room, "attack", { a, t: this.renderT });
+    this.beginAttackAnticipation(a, performance.now(), weapon);
     this.directionalAttackHeld = true; this.lockDisplay.note("", performance.now());
   }
 
   private releaseAttack(): void {
+    const now = performance.now();
+    if (this.attackAnticipation.cancelIfUnconfirmed()) this.views.get(this.room.sessionId)?.cues.windupEnd(now);
     if (!this.directionalAttackHeld) return;
     const a = this.cursorAngle(this.input.activePointer) ?? this.lastAimSent ?? 0;
     sendInput(this.room, "release", { a }); this.directionalAttackHeld = false;
+  }
+
+  /** Show only the local fighter's windup pose while an attack press is in flight; the server still decides every outcome. */
+  private beginAttackAnticipation(a: number, now: number, weapon: string): void {
+    const spec = WEAPONS[weapon as keyof typeof WEAPONS];
+    const responseWindowMs = attackResponseWindowMs(this.predict.motion.delay);
+    const cues = this.views.get(this.room.sessionId)?.cues;
+    if (!spec || !cues) return;
+    // Give a fixed, brief input cue independent of RTT; the separately tracked response window only governs rejection cleanup.
+    this.attackAnticipation.begin(now, responseWindowMs,
+      () => cues.windupStart(a, ATTACK_ANTICIPATION_MS, now, spec.shape.kind === "arc" ? "melee" : "wand", ATTACK_ANTICIPATION_INITIAL_PROGRESS));
+  }
+
+  private cancelAttackAnticipation(now: number): void {
+    if (this.attackAnticipation.cancel()) this.views.get(this.room.sessionId)?.cues.windupEnd(now);
   }
 
   private sendTarget(pointer: Phaser.Input.Pointer): void {
@@ -1365,7 +1408,10 @@ export class RaidScene extends Phaser.Scene {
    * `LocalMotion.blink`): a lock-dropper's walk in hand goes on after the cast root, on the server and so in the prediction.
    */
   private afterCast(def: AbilityDef, castMs: number, c: number, now: number): void {
-    if (castMs > 0 || def.ownOrder) this.fx.dropWindups(this.room.sessionId, c, now);
+    if (castMs > 0 || def.ownOrder) {
+      this.cancelAttackAnticipation(now);
+      this.fx.dropWindups(this.room.sessionId, c, now);
+    }
     if (def.ownOrder || def.dropsLock) this.lockDisplay.note("", now);
   }
 
@@ -1534,6 +1580,8 @@ export class RaidScene extends Phaser.Scene {
     for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
       this.ground.combat.note(fx);
       this.predict.noteFx(fx, this.room.sessionId, this.room.state.players.get(this.room.sessionId));
+      if ((fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId) this.attackAnticipation.confirm(performance.now());
+      if ((fx.kind === "death" && fx.id === this.room.sessionId) || fx.kind === "teleport") this.cancelAttackAnticipation(performance.now());
       // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
       if (fx.kind === "death" && this.training && fx.id === this.room.sessionId) {
         this.fx.cancelWindups(fx.id, fx.t);
@@ -1574,6 +1622,8 @@ export class RaidScene extends Phaser.Scene {
     this.questView.destroy();
     this.unbindQuestReveal?.();
     this.unbindQuestReveal = null;
+    this.cancelAttackAnticipation(performance.now());
+    this.attackAnticipation.cancel();
     this.predict.reset();
     this.juice.reset();
     this.projectiles.destroy();
