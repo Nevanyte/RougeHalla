@@ -21,9 +21,9 @@ import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  abilityInSlot, blinkLanding, findPath, generateMap, mulberry32, PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt, TARGET_RANGE,
-  TELEPORT_DISTANCE, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
-  type FxBatch, type GameMap, type ProfileResponse, type Vec2,
+  abilityInSlot, blinkLanding, CAST_RANGE_SLACK, findPath, generateMap, hasLineOfSight, mulberry32, PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt,
+  TARGET_RANGE, TELEPORT_DISTANCE, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
+  type AbilityRank, type FxBatch, type GameMap, type ProfileResponse, type Vec2,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import type { RenderClockOptions } from "@raid/shared";
@@ -129,6 +129,22 @@ export interface ProbeReport {
     popBacks: number;
     divergenceDropsInWindows: number;
   };
+  /**
+   * The Wishes with a cast time (Freeze, Swarm, Trial: `--faction frost|plague|sentenced`), timed from the key press: when the own
+   * `cast` fx arrived, when render time reached it (where the telegraph started before it was drawn at the press), when the landing
+   * reached render time (how long the press-drawn telegraph holds at full: landing - press - castMs), and the ack. `refused` is a
+   * press the server answered with no cast fx: the telegraph drawn at the press was a false start for about the ack's time.
+   */
+  telegraph: {
+    casts: number;
+    confirmed: number;
+    refused: number;
+    unanswered: number;
+    fxArrivalMs: Dist;
+    renderStartMs: Dist;
+    holdAtFullMs: Dist;
+    ackMs: Dist;
+  };
   orders: {
     moves: number;
     acked: number;
@@ -220,9 +236,21 @@ class Metrics {
   castSnapsByWho: Record<string, number> = {};
   castPopBacks = 0;
   castDivDrops = 0;
+  cueCasts = 0;
+  cueConfirmed = 0;
+  cueRefused = 0;
+  cueUnanswered = 0;
+  cueFxArrival: number[] = [];
+  cueRenderStart: number[] = [];
+  cueHold: number[] = [];
+  cueAck: number[] = [];
 }
 
 interface CastRec { seq: number; sentAt: number; c: number; landing: Vec2; displace0: number; acked: boolean; accepted: boolean; ackedAt: number }
+/** A cast with a cast time: wall times (0 = not yet) of its press, own cast fx, render-time release, landing and ack. */
+interface CueRec {
+  seq: number; ability: string; castMs: number; pressAt: number; fxAt: number; fxT: number; releaseAt: number; landT: number; landAt: number; ackAt: number;
+}
 
 /** One run in one room: the scene's net half, driven by a script instead of a mouse. */
 class Session {
@@ -251,6 +279,7 @@ class Session {
   private pendingCast: SentCast | null = null;
   private lastCastTry = 0;
   private casts: CastRec[] = [];
+  private cues: CueRec[] = [];
   private snapLog: Array<{ at: number; who: string }> = [];
   private divLog: number[] = [];
   private pendingLocks: Array<{ id: string; sentAt: number; shown: boolean; done: boolean }> = [];
@@ -356,6 +385,8 @@ class Session {
           this.m.castLandingErr.push(Math.hypot(me.x - k.landing.x, me.y - k.landing.y));
         } else this.m.castsRefused++;
       }
+      // The fx of a tick come before its patch: a cue acked with no cast fx was refused.
+      for (const k of this.cues) if (k.ackAt === 0 && seqAcked(k.seq, me.moveSeq)) k.ackAt = now;
       if (me.moveSeq !== 0 && me.moveSeq !== this.lastSeqSeen) {
         // Every sent seq up to this one counts as applied.
         const sent = this.sendAt.get(me.moveSeq);
@@ -397,6 +428,13 @@ class Session {
     for (const fx of unpackFx(batch, this.room.state.roster)) {
       this.predict.noteFx(fx, this.sid, me);
       if (fx.kind === "teleport") { this.interp.markCut(fx.t); this.quietUntil = performance.now() + 3000; }
+      if (fx.kind === "cast" && fx.by === this.sid) {
+        const k = this.cues.find((q) => q.fxAt === 0 && q.ackAt === 0 && q.ability === fx.ability);
+        if (k) { k.fxAt = performance.now(); k.fxT = fx.t; }
+      } else if (fx.kind === "castLand" && fx.by === this.sid) {
+        const k = this.cues.find((q) => q.fxAt > 0 && q.landT === 0);
+        if (k) k.landT = fx.t;
+      }
     }
   }
 
@@ -415,6 +453,11 @@ class Session {
     const trueT = this.interp.renderTime(now);
     const synced = this.interp.clock.synced;
     const c = synced ? this.interp.clock.now(now) : state.serverTime;
+    // FxView releases an fx the frame render time reaches it (unsynced: at once).
+    for (const k of this.cues) {
+      if (k.fxT > 0 && k.releaseAt === 0 && (!synced || trueT >= k.fxT)) k.releaseAt = now;
+      if (k.landT > 0 && k.landAt === 0 && (!synced || trueT >= k.landT)) k.landAt = now;
+    }
     // Clock quality: render time against real time, whether anything moves or not.
     const offset = synced ? c - now : 0;
     if (this.lastOffset !== null && offset < this.lastOffset - 5) this.m.syncSnaps++;
@@ -560,6 +603,16 @@ class Session {
       }
       for (const d of this.divLog) if (d >= k.sentAt && d <= k.sentAt + 2000) this.m.castDivDrops++;
     }
+    for (const k of this.cues) {
+      this.m.cueCasts++;
+      if (k.ackAt === 0 && k.fxAt === 0) { this.m.cueUnanswered++; continue; }
+      if (k.fxAt === 0) { this.m.cueRefused++; this.m.cueAck.push(k.ackAt - k.pressAt); continue; }
+      this.m.cueConfirmed++;
+      this.m.cueFxArrival.push(k.fxAt - k.pressAt);
+      if (k.ackAt > 0) this.m.cueAck.push(k.ackAt - k.pressAt);
+      if (k.releaseAt > 0) this.m.cueRenderStart.push(k.releaseAt - k.pressAt);
+      if (k.landAt > 0) this.m.cueHold.push(k.landAt - k.pressAt - k.castMs);
+    }
     if (this.starveRun > 0) this.m.holds.push(this.prevNow - this.starveRunStart);
     if (this.followRunStart > 0) this.m.followWithoutLockRuns.push(this.prevNow - this.followRunStart);
   }
@@ -575,7 +628,10 @@ class Session {
     if (castUnanswered(this.pendingCast, "wish", now, readyAt, this.pendingCast !== null && motion.orderPending(this.pendingCast.seq))) return;
     const r = rankOf(entry.def, entry.rank);
     const blink = r.effects.find((e) => e.do === "blink");
-    if (!blink || blink.do !== "blink") return;
+    if (!blink || blink.do !== "blink") {
+      if (r.castMs > 0) this.tryCastTimeWish(now, c, me, state, entry.def.id, r, readyAt);
+      return;
+    }
     this.lastCastTry = now;
     const from = motion.ready ? { x: motion.predicted.x, y: motion.predicted.y } : { x: me.x, y: me.y };
     const a = this.rnd() * Math.PI * 2;
@@ -589,6 +645,38 @@ class Session {
     this.pendingCast = { slot: "wish", seq, readyAt, until: now + JUMP_ORDER_EXPIRE_MS };
     this.casts.push({ seq, sentAt: now, c, landing, displace0: me.displaceSeq, acked: false, accepted: false, ackedAt: 0 });
     this.lockOn = false;
+  }
+
+  /**
+   * A Wish with a cast time, sent as RaidScene.castSlot sends it: a self cast where the probe is drawn, a unit cast at the nearest
+   * drawn fighter in reach and sight (a training dummy, a bot). Timed as a CueRec.
+   */
+  private tryCastTimeWish(now: number, c: number, me: PlayerState, state: RaidState, ability: string, r: AbilityRank, readyAt: number): void {
+    const rule = r.targeting;
+    const motion = this.predict.motion;
+    const from = motion.ready ? { x: motion.drawn.x, y: motion.drawn.y } : { x: me.x, y: me.y };
+    let aim: Vec2 = from;
+    let id: string | undefined;
+    if (rule.kind === "unit") {
+      const reach = rule.range + CAST_RANGE_SLACK;
+      let best = Infinity;
+      for (const [tid, e] of this.track) {
+        const f = state.players.get(tid) ?? state.mobs.get(tid);
+        if (!e.drawn || f?.status !== "alive" || (state.mobs.get(tid)?.kind === "quest")) continue;
+        const d = Math.hypot(e.drawn.x - from.x, e.drawn.y - from.y);
+        if (d > reach || d >= best || (rule.los && !hasLineOfSight(this.planMap(state), from, e.drawn))) continue;
+        best = d;
+        id = tid;
+        aim = { x: e.drawn.x, y: e.drawn.y };
+      }
+      if (id === undefined) return;
+    } else if (rule.kind !== "self") return;
+    this.lastCastTry = now;
+    const seq = this.predict.nextSeq();
+    this.room.send("cast", { slot: "wish", x: aim.x, y: aim.y, ...(id !== undefined ? { id } : {}), seq });
+    this.predict.noteCast(c, { castMs: r.castMs, seq });
+    this.pendingCast = { slot: "wish", seq, readyAt, until: now + ORDER_EXPIRE_MS };
+    this.cues.push({ seq, ability, castMs: r.castMs, pressAt: now, fxAt: 0, fxT: 0, releaseAt: 0, landT: 0, landAt: 0, ackAt: 0 });
   }
 
   // ---------------------------------------------------------------------------------------------------------- the player
@@ -788,6 +876,10 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
       errMaxPerCast: dist(m.castErrMax), errP95PerCast: dist(m.castErrP95), snapsInWindows: m.castSnaps, snapsByWho: m.castSnapsByWho,
       popBacks: m.castPopBacks, divergenceDropsInWindows: m.castDivDrops,
     },
+    telegraph: {
+      casts: m.cueCasts, confirmed: m.cueConfirmed, refused: m.cueRefused, unanswered: m.cueUnanswered,
+      fxArrivalMs: dist(m.cueFxArrival), renderStartMs: dist(m.cueRenderStart), holdAtFullMs: dist(m.cueHold), ackMs: dist(m.cueAck),
+    },
     orders: {
       moves: m.moves, acked: m.ackWall.length, ackWallMs: dist(m.ackWall), locks: m.locks, locksShown: m.locksShown,
       locksRefused: m.locksRefused, lockShownMs: dist(m.lockShown), followWithoutLockFrames: m.followWithoutLockFrames,
@@ -818,6 +910,11 @@ export function formatReport(r: ProbeReport): string {
       `wish      casts ${r.wish.casts} (accepted ${r.wish.accepted}, refused ${r.wish.refused}, unanswered ${r.wish.unanswered})  ack wall ms ${d(r.wish.ackWallMs)}   ` +
       `landing err u ${d(r.wish.landingErr)}   per cast 2 s: err max u ${d(r.wish.errMaxPerCast)}  err p95 u ${d(r.wish.errP95PerCast)}  visual max u ${d(r.wish.visualMaxPerCast)}   ` +
       `snaps ${r.wish.snapsInWindows} ${JSON.stringify(r.wish.snapsByWho)}  div drops ${r.wish.divergenceDropsInWindows}  pop backs ${r.wish.popBacks}`,
+    ] : []),
+    ...(r.telegraph.casts > 0 ? [
+      `telegraph casts ${r.telegraph.casts} (confirmed ${r.telegraph.confirmed}, refused ${r.telegraph.refused}, unanswered ${r.telegraph.unanswered})  ` +
+      `from the press, ms: cast fx arrives ${d(r.telegraph.fxArrivalMs)}  render-time start ${d(r.telegraph.renderStartMs)} mean ${f1(r.telegraph.renderStartMs.mean)}  ` +
+      `held at full ${d(r.telegraph.holdAtFullMs)}  ack ${d(r.telegraph.ackMs)}`,
     ] : []),
     `orders    moves ${r.orders.moves} acked ${r.orders.acked}  ack wall ms ${d(r.orders.ackWallMs)}   locks ${r.orders.locks} shown ${r.orders.locksShown} refused ${r.orders.locksRefused}  ` +
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,
