@@ -160,7 +160,8 @@ const FREE_MESSAGE_TYPE = "aim";
  * Colyseus closes a client (4002, which the SDK does not reconnect from: the run is lost) past this many messages in a one-second
  * window opened by the first message after the last one ran out. The busiest honest mix is about 55 a second (aim 40, a held
  * move or WASD 10, 5 clicks: client/src/net/uplinkPace.ts), and a stalled TCP delivers everything it held at once, so the stall
- * that closes a client is about cap / rate - 1 s: 2.6 s at 200, 1.2 s at 100. What a message costs stays bounded
+ * that closes a client is about cap / rate - 1 s: 2.6 s at 200, 0.8 s at 100 (the stall model in test/uplinkBudget.test.ts closes
+ * one at about 1 s at 100 and 2.7 to 3 s at 200). What a message costs stays bounded
  * past the cap's size: an aim keeps only the latest of a tick and an order spends the budget below.
  */
 export const MAX_MESSAGES_PER_SECOND = 200;

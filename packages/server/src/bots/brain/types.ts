@@ -1198,7 +1198,7 @@ export interface BotAdapter {
   /**
    * Issues `cmd`, clicked at `at`. In-process: queued to arrive at max(previous arrival, at + latency + jitter) and handed to
    * enqueueClientMessage before the first step at or after that. Network: room.send now. False when refused locally (an
-   * unsupported type, the 100 msg/s guard).
+   * unsupported type, the bot's own send cap of 90 a second, under the room's 200 msg/s guard).
    */
   send(cmd: Command, at: ServerMs): boolean;
 }

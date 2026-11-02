@@ -110,7 +110,7 @@ export interface BotStats {
 
 const NO_STATS: BotStats = { mobTargets: 0, mobDrops: 0, retreats: 0, mobFocusMs: 0, grabs: 0, maxStallMs: 0 };
 
-/** The Colyseus guard is 100 messages a second per client (RaidRoom): the bot stays under it whatever the brain asks for. */
+/** The Colyseus guard is 200 messages a second per client (RaidRoom's MAX_MESSAGES_PER_SECOND): the bot stays far under it whatever the brain asks for. */
 const MAX_SENDS_PER_SECOND = 90;
 /** A stall this long (ms) longer than the last one logged is logged with --verbose. */
 const STALL_LOG_STEP_MS = 1500;

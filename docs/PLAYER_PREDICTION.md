@@ -49,14 +49,16 @@ Main today: the local fighter is predicted (`net/localMotion.ts`). Own attack an
 | Downlink | about 45 ms | one WebSocket frame per tick, not two: unconfirmed lead |
 | Remote interpolation delay | 70-150 ms, adaptive; 70 on a good link since the tick pacer shipped (see "Shipped in this pass") | bounded draw-ahead, Stage 2 |
 | Own attack animation | drawn at the click | done |
-| Own keyboard walk | sent from the key event since this pass | done |
+| Own keyboard walk | sent from the key event since this pass; the server applies it up to a frame sooner (−3.4 ms mean at 144 Hz, −7.4 at 60 Hz); the presser's own picture is unchanged | done |
 | Own weapon swap, Wish telegraph, own melee hit | shown at the key or with the state patch since this pass | done |
 
 The research tree's delay floor was 75 ms. Main's is 70 ms.
 
 Own-input delay hurts about twice as much as network delay. Liu et al. tested 68 CS:GO players. Cutting 100 ms of
 local latency added 6 accuracy points; the same cut in network latency added 2. Experienced players notice
-own-input delay from about 25-60 ms. Main already covers the largest own-input items.
+own-input delay from about 25-60 ms. Main already covers the largest own-input items: the walk is predicted at
+the click, attacks are drawn at the click, and since this pass the swap, the Wish telegraph and the potion key follow
+the press. The keyboard change moves the server's apply time, not the presser's picture.
 
 ## What is physically possible
 
@@ -185,7 +187,7 @@ moves the drawn fighter toward the truth and never past it. The rules:
 | Predicted positions in hit tests, rewind, homing or tie-breaks | **No.** That is a balance change. |
 | Draw remote fighters slightly ahead of the newest sample | **Yes, the main payoff.** Presentation only and bounded. The attack's `t` stays inside published history. |
 | A hazard model sets each remote fighter's draw-ahead | **Yes.** It moves only pixels, within a budget. |
-| My own windup or cast drawn at the click, keyed by `seq`, removed if refused | **Yes.** Unreal's prediction keys, Halo's muzzle flash first. Main does this for auto attacks. Never show immunity, Last Stand or Swarm, early. |
+| My own windup or cast drawn at the click, keyed by `seq`, removed if refused | **Yes.** Unreal's prediction keys, Halo's muzzle flash first. Main does this for auto attacks and, since this pass, for the Wish telegraph. Never show immunity, Last Stand or the hiding itself early. |
 | Date a windup's start to the order's arrival inside its tick | **The owner's call.** A bounded rule favouring the sender, like Outatime's time-shifting and Counter-Strike 2's sub-tick input. It saves 0-50 ms using only the server clock. |
 | Precompute paths for the likely next order | **No payoff.** Keyboard goals skip A*. |
 
@@ -248,8 +250,8 @@ Never update the shared weights online.
 | Change | Gain | Error cost | Confidence |
 |---|---|---|---|
 | Own attack drawn at the click | own-attack feedback from about 150-250 ms to one frame | a refused animation vanishes | shipped on main for auto attacks |
-| Keyboard order on keydown | key to send 2.5-3.0 ms to 0.2 ms at 144 Hz, 7.5-8.0 to 0.6 at 60 Hz | none | shipped, measured |
-| Steadier patch clock | remote render delay 78 to 70 ms at RTT 0, 87 to 77 at 30 ms, 105 to 96 at 60 ms (means); two-tick patches 1.4-2.6% to 0% | none | shipped, measured |
+| Keyboard order on keydown | key to send 2.5-3.0 ms to 0.2 ms at 144 Hz, 7.5-8.0 to 0.6 at 60 Hz | up to 8.5 u for one tick on a chord or turn; +0.1 / +0.6 orders a second | shipped, measured |
+| Steadier patch clock | remote render delay 79 to 70 ms at RTT 0, 87 to 77 at 30 ms, 106 to 96 at 60 ms (means); two-tick patches 1.4-2.6% to 0% | none | shipped, measured |
 | Sub-tick windup start | 25 ms on average, 50 ms at most | a rule change | the owner's call |
 | Stage 2 draw-ahead | remote fighters 50-75 ms fresher | toward 0.5 u mean, 5.1 u p95 with the hint; 1.3 u and 8.5 u without | bots only |
 | Stage 3 gate | target: 15% less error than Stage 2 at 100-200 ms | gated | unknown |
@@ -271,19 +273,21 @@ draw-ahead has been measured yet.
 
 ## Shipped in this pass
 
-Merged into main on 2026-11-02 from branch `claude/netcode-latency`. Every item is presentation or scheduling:
-no hit, root, kill or order is decided differently. Numbers are from `bench/netProbe.ts` and `netProbeMatrix.ts`
-runs on private ports, or from the real-sim harness where said; before and after are means unless marked p95.
+Merged into main from branch `claude/netcode-latency` on 2026-11-02. Every item is presentation or scheduling, except
+two changes that are not: the hit fx carries a new passive flag bit (wire, append-only) and the server's
+`MAX_MESSAGES_PER_SECOND` rose from 100 to 200. No hit, root, kill or order is decided differently. Numbers are from
+`bench/netProbe.ts` and `netProbeMatrix.ts` runs on private ports, or from the real-sim harness where said; before and
+after are means unless marked p95.
 
 | Change | Where | Measured |
 |---|---|---|
-| Grid-locked tick pacer replaces core's `setInterval` plus the integer accumulator | `rooms/tickPacer.ts`, `RaidRoom` | two-tick patches 1.4-2.6% to 0%; patch gap p50 51.1 to 50.0 ms; remote render delay 78 to 70 ms at RTT 0, 87 to 77 at 30 ms, 105 to 96 at 60 ms (p95 94 to 71, 106 to 85, 137 to 110); the wake histogram is on `/readyz` |
-| Trace harness for Stage 1 | `TRACE_INPUTS`, `sim/trace.ts`, `sim/predictBaselines.ts`, `bench/predictBench.ts` | refused while hosting, file capped; on main (3 runs, 21,490 rows) pathFollow 1.0 u mean / 8.5 p95 at 100 ms, constant velocity 1.8 / 14.4 |
-| WASD orders leave from the key event; `orderMove` sends before it plans the path | `RaidScene`, `net/keyboardMovement.ts` | key to send 2.5-3.0 to 0.2 ms at 144 Hz, 7.5-8.0 to 0.6 at 60 Hz |
-| Optimistic weapon swap, the swap rule shared with the server | `net/localHand.ts`, `shared/interactions.ts` | key to the new hand shown 29-342 ms (RTT 0-250) to 7 ms; clicks routed to the wrong weapon inside the round trip 39-83% to 0% |
+| Grid-locked tick pacer replaces core's `setInterval` plus the integer accumulator | `rooms/tickPacer.ts`, `RaidRoom` | two-tick patches 1.4-2.6% to 0%; patch gap p50 51.1 to 50.0 ms; remote render delay 79 to 70 ms at RTT 0, 87 to 77 at 30 ms, 106 to 96 at 60 ms (p95 95 to 71, 106 to 85, 137 to 110); the wake counters are on `/readyz` |
+| Trace harness for Stage 1 | `TRACE_INPUTS`, `sim/trace.ts`, `sim/predictBaselines.ts`, `bench/predictBench.ts` | refused while hosting, file capped; bot movement only (scripted A* paths, no WASD), on main, 3 runs, 21,490 rows: at 100 ms over all samples pathFollow 1.0 u mean / 8.5 p95 and constant velocity 1.8 / 14.4 (the bench's own report of that run, which is not in the repository; the tables above are an earlier set of runs), and over the moving samples, as `ce2abe1` records, mean error hold 16.8 u, constant velocity 2.2, pathFollow 1.2 |
+| WASD orders leave from the key event; `orderMove` sends before it plans the path | `RaidScene`, `net/keyboardMovement.ts` | key to send 2.5-3.0 to 0.2 ms at 144 Hz, 7.5-8.0 to 0.6 at 60 Hz; the server applies the order −3.4 ms (144 Hz) and −7.4 ms (60 Hz) sooner on average; the presser's own picture is unchanged |
+| Optimistic weapon swap, the swap rule shared with the server | `net/localHand.ts`, `shared/interactions.ts` | first patch showing the new hand p50 27-36 ms (ping 0-1) to 275-276 ms (ping 252) before; the predicted hand shows on the probe's next 144 Hz loop frame (7 ms, a property of the probe's model, not a scene frame); clicks inside the round trip routed by the wrong weapon 31-84% before, 0 by construction after |
 | The caster's own Wish telegraph at the key press; the potion key checked locally against the server's refusal list | `RaidScene`, `render/WishFx.ts` | Freeze, Trial and Swarm telegraphs 139-334 ms after the press (RTT 0-120) to the press frame; a refusal ends it at the `seq` echo |
-| Own melee hits and blocks presented with their state patch | `render/FxView.ts`, `RaidScene` | 90-139 ms mean wait to 3.5 ms; returned damage (a riposte, a reflected arrow) is flagged on the hit fx so it is never drawn as an own blow |
-| Tick-phase-aligned aim stream and held right button | `net/uplinkPace.ts` | real-sim harness mean aim age 72 to 54 ms with the pacer, 59 with the 25 ms floor alone; active only on a grid-waking server above about 67 fps, else the floor |
+| Own melee hits and blocks presented with their state patch | `render/FxView.ts`, `RaidScene` | 90-142 ms mean wait to 3.5 ms; returned damage (a riposte, a reflected arrow) is flagged on the hit fx so it is never drawn as an own blow |
+| Tick-phase-aligned aim stream and held right button | `net/uplinkPace.ts` | sim model (45 ms each way, 144 fps, grid tick): mean aim age 72 ms old gate, 59 floor, 53-57 aligned at ±0-6 ms, no gain at ±10 ms or at 60 fps; against a real server (before the pacer) the probe measured the floor only (mean 129 / 140 / 147 to 116-120 / 124-128 / 132-135 ms); the aligned gate is active only on a grid-waking server above about 67 fps, else the floor |
 
 Not done, by the owner's decision list below: the remote draw-ahead of Stage 2, the walk hint, sub-tick windup
 starts, and a fresher melee `t`.
