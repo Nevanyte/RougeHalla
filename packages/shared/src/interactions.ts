@@ -17,7 +17,7 @@ import {
 } from "./constants";
 import { MASK_MELEE, MASK_SIGHT } from "./map";
 import type { Vec2 } from "./messages";
-import { isRanged } from "./weapons";
+import { FISTS, isRanged, isWeaponId } from "./weapons";
 import type { ProjectileKind, WeaponId } from "./weapons";
 
 /** What reaches a body: a melee swing by a weapon, or a projectile. */
@@ -129,6 +129,39 @@ export function inArc(origin: Vec2, a: number, reach: number, halfArc: number, p
 /** The ready time after a swap at `now`: the shared cooldown still runs, plus SWAP_SECONDS. */
 export function swapReadyAt(readyAt: number, now: number): number {
   return Math.max(readyAt, now) + SWAP_SECONDS * 1000;
+}
+
+/** The fields of a fighter's hands that a swap reads; PlayerState and MobState both have them. */
+export interface HandSlots {
+  slot: number;
+  weapon0: string;
+  weapon1: string;
+}
+
+/** What `slot` fights with: its weapon, fists for an empty slot, null for an id the catalog lacks or a slot that is not 0 or 1. */
+function slotWeaponOf(hand: HandSlots, slot: number): WeaponId | null {
+  if (slot !== 0 && slot !== 1) return null;
+  const id = slot === 0 ? hand.weapon0 : hand.weapon1;
+  if (id === "") return FISTS;
+  return isWeaponId(id) ? id : null;
+}
+
+/** The weapon physically carried in `slot`: null for an empty slot (fists are what it fights with, never an item). */
+function slotItemOf(hand: HandSlots, slot: number): WeaponId | null {
+  const w = slotWeaponOf(hand, slot);
+  return w === null || w === FISTS ? null : w;
+}
+
+/**
+ * Whether a swap to `target` changes the hand, leaving out the fighter's statuses (a stun or a cast refuses it before this is
+ * asked). The one rule the server's `handleSwap` applies and the client predicts from: the slot must differ and be a real one
+ * (an empty slot is fists, so swapping to it is fine), the second slot may be locked (Committed), and two empty slots are the
+ * same hand.
+ */
+export function swapAllowed(hand: HandSlots, target: number, secondLocked: boolean): boolean {
+  if (target === hand.slot || slotWeaponOf(hand, target) === null) return false;
+  if (target === 1 && secondLocked) return false;
+  return !(slotItemOf(hand, target) === null && slotItemOf(hand, hand.slot) === null);
 }
 
 /** What holds a fighter in place right now, from its weapon state (times in server ms). */
