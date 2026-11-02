@@ -49,6 +49,8 @@ import { aggro } from "../src/sim/mobAI";
 import { placeMob } from "../src/sim/mobLife";
 import { addPlayer, step } from "../src/sim/step";
 import { variantOf } from "./mobDuel";
+import { grantKit, withKitMinute } from "./kitFlag";
+import type { Minute } from "./kits";
 
 export type Pull = "camp" | "single" | "group";
 const ALL_PULLS: readonly Pull[] = ["camp", "single", "group"];
@@ -181,6 +183,7 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
   p.weapon1 = "";
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("campDuel: the run did not start");
+  grantKit(world, PLAYER_ID, weapon);
 
   // The camp pull places the mobs WITH their camp and publishes its CampState (index 0), so the first damage to any member
   // engages it and wakes the rest through mobAI.aggro, as in a run (and leashes them to its territory, map camp 0).
@@ -364,7 +367,9 @@ export const GATE_NORMAL = 0.8;
  * its runs on the chosen weapon (fists by default), every elite type cleared by at least one faction on its zone's weapon.
  * The report never fails a process; test/campTypes.test.ts holds the gates.
  */
-export function typesReport(o: { seeds: number; size: number; cap: number; territory?: boolean; onMap?: boolean; weapon: TypesWeapon; log?: boolean; quiet?: boolean }): TypesVerdict {
+export function typesReport(o: { seeds: number; size: number; cap: number; territory?: boolean; onMap?: boolean; weapon: TypesWeapon; log?: boolean; quiet?: boolean;
+  /** The card kit (kits.ts minute) the separate elite pass on the zone's weapon is played with; `--minute` (default 0, no cards) when left out. */
+  eliteMinute?: Minute }): TypesVerdict {
   interface Row { t: MobTypeDef; cells: CampDuelResult[][]; cleared: number; runs: number }
   const play = (t: MobTypeDef, weapon: (t: MobTypeDef) => WeaponId): Row => {
     const cells = FACTION_IDS.map((player) => {
@@ -397,7 +402,7 @@ export function typesReport(o: { seeds: number; size: number; cap: number; terri
   const normalFails = rows.filter((r) => !r.t.elite && r.cleared < r.runs * GATE_NORMAL);
   say(`\nnormal-type gate (>= ${Math.round(GATE_NORMAL * 100)}% of runs cleared${o.weapon === "fists" ? " on fists" : ""}): ${normalFails.length === 0 ? "PASS" : `FAIL ${normalFails.map((r) => `${r.t.id} ${r.cleared}/${r.runs}`).join(", ")}`}`);
   // The elite gate always means the zone's weapon, whichever weapon the table was played with (a second pass when it is not).
-  const eliteRows = o.weapon === "zone" ? rows.filter((r) => r.t.elite) : MOB_TYPES.filter((t) => t.elite).map((t) => play(t, (x) => REGION_WEAPONS[x.zone]));
+  const eliteRows = o.weapon === "zone" ? rows.filter((r) => r.t.elite) : MOB_TYPES.filter((t) => t.elite).map((t) => (o.eliteMinute === undefined ? play : (...a: Parameters<typeof play>) => withKitMinute(o.eliteMinute!, () => play(...a)))(t, (x) => REGION_WEAPONS[x.zone]));
   if (o.weapon !== "zone") {
     say(`\n## elite camps on the zone's weapon (${FACTION_IDS.join(", ")} as the player); a faction clears when it wins at least half its runs`);
     say(`| elite type (zone weapon) | ${FACTION_IDS.join(" | ")} |`);

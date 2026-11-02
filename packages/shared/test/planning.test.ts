@@ -136,9 +136,10 @@ describe("matchupShare (moved here from the bots for the planning screen)", () =
     for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
       expect(matchupShare(me, region, true)).toBeLessThanOrEqual(matchupShare(me, region, false));
     }
-    // The faction rework (no counters) leaves no pair a loss against an elite, and no zone's elite much easier than another's.
+    // The faction rework (no counters) leaves no pair a loss against an elite, and no zone's elite much easier than another's
+    // (0.31-0.52 since the elite buff, ELITE_HP_MULT; 0.4-0.66 before).
     for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
-      expect(matchupShare(me, region, true)).toBeGreaterThan(0.4);
+      expect(matchupShare(me, region, true)).toBeGreaterThan(0.25);
       expect(matchupShare(me, region, true)).toBeLessThan(0.75);
     }
   });

@@ -105,9 +105,10 @@ export const MOB_HUNT: Readonly<MobHuntConfig> = {
   eliteMinPower: 4,
   eliteFullHp: 0.9,
   mobMinShare: 0.5,
-  // The faction rework compressed every elite matchup to 0.5-0.66 (no counters), so the bar sits under the old 0.6.
-  eliteMinShare: 0.55,
-  eliteSureShare: 0.4,
+  // The faction rework compressed every elite matchup to 0.5-0.66 (no counters); the elite buff (ELITE_HP_MULT) moved the straight-duel
+  // shares down to 0.31-0.52, so the bars sit under them (0.55 and 0.4 before) and a bot still takes the elite its faction can beat.
+  eliteMinShare: 0.3,
+  eliteSureShare: 0.2,
   eliteSurePower: 6,
   retreatHp: 0.35,
   retreatClear: 320,

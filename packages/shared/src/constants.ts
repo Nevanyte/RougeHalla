@@ -432,6 +432,14 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
 /**
+ * Elite buff (2026-11 playtest: elites died too fast). On top of ELITE_K an elite's hp is multiplied by ELITE_HP_MULT and every
+ * damage number it has (hit, point-damage signatures, mark, execute) by ELITE_DMG_MULT, so an elite takes longer to kill without
+ * hitting much harder. Applied in `mobFaction` (shared/mobs.ts), so the sim, the bots and the planning maths all see it.
+ * Measured with `--minute 5` (the balance pass's card kit) on bench/mobDuel.ts and campDuel.ts --types.
+ */
+export const ELITE_HP_MULT = 1.6;
+export const ELITE_DMG_MULT = 1;
+/**
  * The faction rework's camp correction: a zone's mobs deal this share of the damage their scaled faction sheet gives them (hits and
  * signature damage; hp untouched). The reworked sheet made the factions even at full size, which moved each zone's mobs; the
  * Plague zone's faster, harder hits left its elite camps uncleared on the zone's weapon (campDuel --types), and the Holy zone's Archon
