@@ -10,7 +10,7 @@ import {
 import { RaidState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
-import type { ActionCommand, InputQueue } from "./inputs";
+import type { ActionCommand, DrainedInputs, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
 import type { QuestsRuntime } from "./quests";
 import type { TradersRuntime } from "./traders";
@@ -704,6 +704,12 @@ export interface WorldHooks {
   runEnded?(world: World): void;
   /** `c` just started an attack (a swing, a cast or a draw): its `action` is set. */
   attackStarted?(world: World, c: Combatant): void;
+  /**
+   * `c`'s queue was just drained for this tick (sim/step.ts applyInputs), before any of its orders apply. Skipped for a stunned mob, whose
+   * inputs are lost. A measurement tap (sim/trace.ts): it must not change state or draw from a random stream. Unset by default, so it costs
+   * one property read per fighter per tick.
+   */
+  inputsApplied?(world: World, c: Combatant, drained: Readonly<DrainedInputs>): void;
   /** A status was applied to `c` (after its effect bits were refreshed); `fresh` is false for a refresh of an instance it already had. */
   statusApplied?(world: World, c: Combatant, st: StatusInstance, fresh: boolean): void;
   /** A stagger took on `c` (its immunity has started). */
@@ -1044,7 +1050,7 @@ export function emit(world: World, ev: SimEvent): void {
 
 type ChainableHook =
   | "teleported" | "lobbyClosing" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
-  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled"
+  | "fighterOut" | "runEnded" | "attackStarted" | "inputsApplied" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled"
   | "blocked" | "overkilled" | "executeDenied"
   | "healed" | "rewardOffered" | "rewardChosen" | "consumableUsed" | "consumableGranted" | "questAccepted" | "questCompleted"
   | "castAccepted" | "castEnded";

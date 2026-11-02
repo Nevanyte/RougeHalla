@@ -66,6 +66,15 @@ export type PlanCommand = { kind: "plan"; spawn?: 0 | 1; boon?: 0 | 1; ready?: b
 /** Actions beyond this per tick are dropped (spam guard, not a gameplay limit). */
 export const MAX_ACTIONS_PER_TICK = 6;
 
+/** What `InputQueue.drain` hands back: one tick's orders, with where the move and the aim arrived among the actions. */
+export interface DrainedInputs {
+  move: MoveCommand | null;
+  moveBefore: number;
+  aim: number | null;
+  aimBefore: number;
+  actions: ActionCommand[];
+}
+
 export class InputQueue {
   /** Latest movement intent wins within a tick. */
   move: MoveCommand | null = null;
@@ -93,7 +102,7 @@ export class InputQueue {
     this.actions.push(cmd);
   }
 
-  drain(): { move: MoveCommand | null; moveBefore: number; aim: number | null; aimBefore: number; actions: ActionCommand[] } {
+  drain(): DrainedInputs {
     const out = { move: this.move, moveBefore: this.moveBefore, aim: this.aim, aimBefore: this.aimBefore, actions: this.actions };
     this.move = null;
     this.moveBefore = 0;
