@@ -33,6 +33,7 @@ import { syncMaxHp } from "./buffs";
 import { campContribOf, eligibleContributors } from "./campHeal";
 import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
+import { pickKillAugment, trophyOwnerOk } from "./killAugments";
 import { addContainer, bornThisTick, forgetBirth, holdBirth } from "./loot";
 import { recomputeMods } from "./mods";
 import { actionBlocked } from "./status";
@@ -106,12 +107,13 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   const now = world.state.serverTime;
   const box = world.state.containers.get(cmd.chest);
   if (!box || box.kind !== "reward" || bornThisTick(world, box.id) || !(now < box.expiresAt)) { toast(world, c.id, CHEST_REFUSAL.gone); return; }
+  if (!trophyOwnerOk(world, c, box)) return; // a kill augment is private to its killer (sim/killAugments.ts)
   if (Math.hypot(p.x - box.x, p.y - box.y) > CHEST_RANGE) { toast(world, c.id, CHEST_REFUSAL.far); return; }
   if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, CHEST_REFUSAL.blocked); return; }
   if (box.pickers.includes(c.id)) { toast(world, c.id, CHEST_REFUSAL.picked); return; }
   if (cmd.pick === -1) {
     box.pickers.push(c.id);
-    paySkip(world, c);
+    if (box.owner === "") paySkip(world, c); // declining a trophy pays nothing (no GV from bot kills)
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: -1 } });
     return;
   }
@@ -119,6 +121,13 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (!(i >= 0 && i < box.options.length)) return;
   if (box.takenBy[i] !== "") { toast(world, c.id, CHEST_REFUSAL.taken); return; }
   const id = box.options[i]!;
+  if (box.owner !== "") { // kill augment: the victim's stat, not a card
+    if (!pickKillAugment(world, c, id)) return;
+    box.takenBy[i] = c.id;
+    box.pickers.push(c.id);
+    emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
+    return;
+  }
   if (!cardDef(id) || !cardLive(id) || !isInteractiveAugment(id)) return; // only live interactive augments are pickable
   const block = cardBlock(id, p.build);
   if (block) { toast(world, c.id, block.text); return; } // "Needs <Base>" or CHEST_REFUSAL.owned

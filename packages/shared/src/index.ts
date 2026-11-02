@@ -36,6 +36,7 @@ export * from "./gridTopology";
 export * from "./zoneStyle";
 export * from "./planning";
 export * from "./rewards";
+export * from "./killAugments";
 export * from "./training";
 export * from "./quests";
 export * from "./combatReadability";

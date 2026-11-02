@@ -1612,7 +1612,8 @@ describe("rewards are paid after the whole ledger pass", () => {
       // Dead at once; max hp and mirrors are what they were before the pass.
       expect(first.snap).toEqual({
         status: "dead", hp: 0, maxHp: first.maxHp, barrier: 0, vitality: first.held, asMult: 1000, mobGv: GV_MOB, mobKills: 1,
-        killerKills: 10, added: [`body:${first.carried}`, `ground:${mobWeapon("frost")}`].sort(),
+        // "reward:" is the killer p1's kill augment (Trophy) for p0's Vitality card.
+        killerKills: 10, added: [`body:${first.carried}`, `ground:${mobWeapon("frost")}`, "reward:"].sort(),
       });
     });
 

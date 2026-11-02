@@ -23,9 +23,12 @@
 //      it again a moment later) neither resets the count nor adds to it.
 //   4. A chest that has expired, or is gone from the state, is simply not in the input any more.
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, cardBlock, cardDef, ownsBase, PLAYER_SPEED, TICK_MS, TILE,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, cardBlock, cardDef, ownsBase, parseKillAugment, PLAYER_SPEED, TICK_MS, TILE,
   type CardCounts, type CardDef, type Vec2, type WeaponId,
 } from "@raid/shared";
+
+/** The base stat each kill augment resembles, for the bots' fit score. */
+const KILL_BASE: Record<string, string> = { ad: "ad", ap: "ap", damage: "ad", health: "vitality", attackSpeed: "haste", armor: "armor", mr: "mr", speed: "fleet", leech: "leech" };
 
 /** The part of a state.containers entry the hunt reads: a kind "reward" container (ContainerState). */
 export interface ChestLike {
@@ -210,6 +213,8 @@ function ruleFit(def: CardDef, weapon: WeaponId, faction: string, carried: numbe
  */
 export function cardScore(id: string, self: Pick<ChestSelf, "faction" | "weapons" | "build" | "slot" | "risk">): number {
   const def = cardDef(id);
+  const kill = parseKillAugment(id);
+  if (!def && kill) return 3 + baseFit(KILL_BASE[kill.key] ?? "ad", activeWeapon(self), self.faction); // a victim's stat beats a chest card
   if (!def) return 0;
   if (cardBlock(id, self.build)) return -Infinity;
   const weapon = activeWeapon(self);

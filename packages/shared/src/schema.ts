@@ -129,6 +129,8 @@ export const PlayerState = schema({
   tradeStats: t.map("float64"),
   /** The one Plague companion, kept while dead so a later corpse revives its accumulated growth. */
   plagueZombieId: t.string().default(""),
+  /** Stats taken from victims through kill augments (killAugments.ts), keyed by Effect stat; folded as farm rows. */
+  killStats: t.map("float64"),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -254,6 +256,8 @@ export const ContainerState = schema({
   targetX: t.float32().default(0),
   targetY: t.float32().default(0),
   opened: t.boolean().default(false),
+  /** A kill augment ("Trophy", sim/killAugments.ts): the only player who may pick it; "" on every other container. */
+  owner: t.string().default(""),
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 

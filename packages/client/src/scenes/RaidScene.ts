@@ -991,6 +991,7 @@ export class RaidScene extends Phaser.Scene {
     const me = this.rendered.get(this.room.sessionId);
     state.containers.forEach((c, id) => {
       if (c.kind === "quest" || !this.vision.canSee(c)) return;
+      if (c.kind === "reward" && c.owner && c.owner !== this.room.sessionId) return; // another player's kill augment
       seen.add(id);
       let view = this.containerViews.get(id);
       if (!view) { view = new ContainerView(this); this.containerViews.set(id, view); }

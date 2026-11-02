@@ -778,6 +778,8 @@ function seeChests(state: StateLike, map: GameMap, self: SelfView, selfId: Fight
   const out: RewardChestView[] = [];
   for (const [id, c] of state.containers) {
     if (c.kind !== "reward") continue;
+    const owner = (c as { owner?: string }).owner ?? "";
+    if (owner !== "" && owner !== selfId) continue; // another player's kill augment
     const x = f32(c.x), y = f32(c.y);
     if (!canSee({ x, y })) continue;
     const open = self.status === "alive" && Math.hypot(self.x - x, self.y - y) <= CHEST_RANGE - CHEST_PANEL_SLACK && hasLineOfSight(sight, self, { x, y });
