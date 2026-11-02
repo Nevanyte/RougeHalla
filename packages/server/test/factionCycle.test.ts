@@ -10,7 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DUEL_PACE, type FactionId, type WeaponId } from "@raid/shared";
+import { DUEL_PACE, FACTIONS, TICK_MS, type FactionId, type WeaponId } from "@raid/shared";
+const TICK_S = TICK_MS / 1000;
 import { cellStats, phaseGrid, runCell, type CellStats, type DuelResult, type Fighter } from "../src/harness/factionCycle";
 
 interface FixtureCell {
@@ -94,14 +95,16 @@ describe("phaseGrid", () => {
     expect(offs[1]).toBeCloseTo(interval / 48, 12);
   });
 
-  it("stretches the span to interval / 0.48 for a side under Frost's chill, at the same spacing", () => {
+  it("stretches the span to interval / chill for a side under Frost's chill, at the same spacing", () => {
     const { offs, m } = phaseGrid(fireAxe, frostShield);
-    const span = interval / 0.48;
-    expect(m).toBeCloseTo(0.48, 12);
-    // 2.480159 s is 49.6 ticks: 50 offsets, 0.049603 s apart, the last one a step short of the span.
-    expect(offs).toHaveLength(50);
-    expect(offs[1]).toBeCloseTo(interval / 24, 12);
-    expect(offs[49]! + offs[1]!).toBeCloseTo(span, 12);
+    const chill = 1 - FACTIONS.frost.params.slow!;
+    const span = interval / chill;
+    expect(m).toBeCloseTo(chill, 12);
+    // One offset per started tick of the span, the last one a step short of it.
+    const n = Math.ceil(span / TICK_S - 1e-9);
+    expect(offs).toHaveLength(n);
+    expect(offs[1]).toBeCloseTo(span / n, 12);
+    expect(offs[n - 1]! + offs[1]!).toBeCloseTo(span, 12);
   });
 
   it("thins to nmax offsets that include the first and the last", () => {

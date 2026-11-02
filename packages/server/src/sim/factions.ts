@@ -14,9 +14,9 @@
 // pair): signatures need an ongoing trade, so one tag can't keep them running from range. While engaged, a fighter's signature acts on its target:
 //   Fire       burn every tick, and backlash on each attack the target performs (backlashPerSwing of that weapon)
 //   Plague     disease and execute every tick (the execute reads the target's hp fraction at the start of the tick)
-//   Sentenced  the mark (docs/SENTENCED_REDESIGN.md): on every landed hit on its target a pulse of true damage, a share of the
-//              target's max hp; the mark climbs four tiers by hits landed (or the target's weapon swaps) and from tier 2 taxes the
-//              target's attack rate, from tier 3 cuts its output, at tier 4 denies its execute (ledger.ts reads `world.combat.marks`)
+//   Sentenced  the mark (docs/SENTENCED_REDESIGN.md): on every landed hit on its target a pulse of a share of the target's max hp
+//              (typed like its hits); the mark climbs four tiers by hits landed (or the target's weapon swaps) and at tier 4 denies
+//              the target's execute (the tax and suppression code stays, neutral on the reworked sheet; ledger.ts reads `world.combat.marks`)
 //   Frost      chills everyone engaged with it either way: its own target, and whoever has it as an engaged target
 //   Holy       heals lifestealFraction(own hp fraction at the start of the tick) of all the damage it lands, on
 //              anyone, with no lockout (it needs no engagement)
@@ -61,12 +61,12 @@
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
   AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, capAsMult, CHILL_MOVE_RADIUS,
-  CHILL_MOVE_RESET_MS, chillMultiplier, decodeMult, encodeMult, frostMoveMultiplier,
+  CHILL_MOVE_RESET_MS, chillMultiplier, FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, isRanged, decodeMult, encodeMult, frostMoveMultiplier,
   CRIT_MULT, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, executeDps, FACTIONS, FESTERING_AP_SHARE,
   FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
   lifestealFraction,
-  lifestealTotal, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
+  lifestealTotal, holyApLifestealOf, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
   plagueDps, sentencedHuntMarkMultiplier, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
   staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
   type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
@@ -78,7 +78,7 @@ import {
 } from "./combatant";
 import { deferHit, recordHit } from "./ledger";
 import {
-  apOf, bonusMaxHpOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
+  apOf, bonusMaxHpOf, scalingStatsOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
   lifestealRowsOf, lingerMultOf, markRateOf, farmStatSumsOf, modsOf, recomputeMods, returnedMultOf, slowResistOf, statSumsOf, triggersOf,
 } from "./mods";
 import { addStatus, healFactor, statusesOf } from "./status";
@@ -128,6 +128,8 @@ export interface SigFighter {
   chillLastNearAt: number;
   /** Quantized movement multiplier synced to the local client for prediction. */
   frostMoveMult: number;
+  /** A Frost's ranged weapon hit chills this fighter's walk until then, whatever the distance (FROST_RANGED_CHILL_MS). */
+  rangedChillUntil: number;
   /** The weapon action seen last tick after the weapon phase, to spot one started this tick. */
   seenAction: PendingAction | null;
   /** A stagger pauses this fighter's damage over time until then (see staggerPause). */
@@ -183,7 +185,7 @@ function newFighter(): SigFighter {
   return {
     target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markGroup: null, markGroupSize: 1, markHits: 0, markProgress: 0, markSwaps: 0,
     markDenied: false, farSince: -Infinity, ampUntil: 0, hpFrac: 1,
-    combatAt: -Infinity, chill: 1, chillers: [], chillExposureStartedAt: -Infinity, chillLastNearAt: -Infinity, frostMoveMult: 1,
+    combatAt: -Infinity, chill: 1, chillers: [], chillExposureStartedAt: -Infinity, chillLastNearAt: -Infinity, frostMoveMult: 1, rangedChillUntil: -Infinity,
     seenAction: null, dotPausedUntil: 0, engagedOn: null,
   };
 }
@@ -451,18 +453,22 @@ function signatureDamage(world: World, dtMs: number): void {
       // This tick's damage over time covers (now - dt, now]; a stagger pause takes out whatever share of it overlaps.
       const pausedMs = Math.min(dtMs, Math.max(0, f.dotPausedUntil - (now - dtMs)));
       const secs = (dtMs - pausedMs) / 1000;
-      const dot = bm * secs;
+      // The faction rework: a chilled fighter's signature runs at the chill like its weapon (one rule for every faction, so the
+      // chill favours no damage profile over another).
+      const dot = bm * secs * f.chill;
       const foeFrac = sigOf(world, t.id).hpFrac;
       // AP is flat power in points a second: no weapon multiplier, but the stagger pause takes out its share of the tick too.
-      const apDot = AP_DOT_RATIO * apOf(c.s) * secs;
+      const apDot = AP_DOT_RATIO * apOf(c.s) * secs * f.chill;
       dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, apDot);
       // The disease and its execute are two entries of one type: a tier-4 mark denies the second (docs/SENTENCED_REDESIGN.md R7). The AP rider rides the first.
       dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot, apDot);
       dotBonus(world, c, spec, weapon, t, "disease", executeDps(spec, foeFrac, executeBandOf(c.s)) * dot, 0, true);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
+        // The burn tank: bonus defenses return more of every swing (FIRE_BACKLASH_PER_DEFENSE).
+        const tank = 1 + FIRE_BACKLASH_PER_DEFENSE * (c.kind === "player" ? scalingStatsOf(c.s).bonusDefense : 0);
         for (const a of rt.attacks) {
-          if (a.by === t.id) bonus(world, c, spec, weapon, t, "backlash", backlashPerSwing(spec.params.backlash!, foe, a.weapon) * bm);
+          if (a.by === t.id) bonus(world, c, spec, weapon, t, "backlash", backlashPerSwing(spec.params.backlash!, foe, a.weapon) * bm * tank * f.chill);
         }
       }
     }
@@ -632,18 +638,19 @@ function markMemberShare(f: SigFighter): number {
 }
 
 /**
- * The pulse for one landed hit: a share of the target's max hp (`markPool`) as true damage, in this tick's ledger. The share is the faction's `mark_pct`
- * (kill-stacks and Heavier Sentence on it), times the hit's weight (its share of the faction's base hit, paid back for Frost's chill: a chilled
- * fighter lands fewer hits and each pays out the time it took), times the amplifier at tier 4 (or while a denied execute's linger runs), halved
+ * The pulse for one landed hit: a share of the target's max hp (`markPool`), typed as SIGNATURE_SHARES.mark (40% physical, 60% magic), in this tick's ledger. The share is the faction's `mark_pct`
+ * (kill-stacks and Heavier Sentence on it), times the hit's weight (its share of the faction's base hit; a chilled fighter lands fewer hits, so the
+ * chill cuts the mark like any damage since the faction rework), times the amplifier at tier 4 (or while a denied execute's linger runs), halved
  * beyond MARK_NEAR_RANGE unless the target stands in the owner's Trial ring. The ledger multiplies it like any hit (damage rows, the PvP factor,
- * Trial's x1.2) and nothing mitigates it.
+ * Trial's x1.2), and armor and magic resist mitigate it like a hit.
  */
 function recordPulse(world: World, c: Combatant, spec: FactionSpec, f: SigFighter, t: Combatant, hit: LedgerEntry, tier: number, near: boolean, memberShare = 1): void {
   const now = world.state.serverTime;
   const weapon = hit.weapon!;
   const stacks = c.kind === "player" ? c.s.sentence : 0;
   const heavier = hasFlag(c.s, "heavierSentence") && spec.hp > 0 ? 1 + HEAVIER_SENTENCE_PER_BONUS * (bonusMaxHpOf(c.s) / spec.hp) : 1;
-  const weight = markWeight(spec, weapon, attackSpeedMult(c.s), MARK_AS_EXPONENT) / Math.max(f.chill, 0.05);
+  // A chilled Sentenced lands fewer hits and each pays the same pulse (the faction rework: no payback for the time it took).
+  const weight = markWeight(spec, weapon, attackSpeedMult(c.s), MARK_AS_EXPONENT);
   const amp = tier >= MARK_TOP_TIER || now < f.ampUntil ? spec.params.mark_amp! : 1;
   const mirror = c.kind === "player" ? modsOf(c.s) : undefined;
   const raw = markPct(spec, stacks, heavier, mirror ? {
@@ -731,7 +738,8 @@ function rebuildMarkIndex(world: World, fighters: readonly Combatant[], byId: Re
       : [t];
     if (f.markGroup !== group) continue;
     for (const member of members) {
-      if (f.tier >= 3) next.suppressed.set(member.id, Math.min(next.suppressed.get(member.id) ?? 1, spec.params.suppress ?? 1));
+      // A suppress of 1 (the reworked sheet) cuts nothing: no entry, so no "suppressed" bit shows either.
+      if (f.tier >= 3 && (spec.params.suppress ?? 1) < 1) next.suppressed.set(member.id, Math.min(next.suppressed.get(member.id) ?? 1, spec.params.suppress!));
       if (f.tier >= MARK_TOP_TIER) next.denies.set(c.id, new Set([...(next.denies.get(c.id) ?? []), member.id]));
       if (f.tier >= 2 && markNear(world, c, member)) {
         const best = next.taxed.get(member.id);
@@ -817,7 +825,7 @@ function onExecuteDenied(world: World, victim: Combatant, denied: ReadonlyMap<st
     if (world.players.has(foeId)) emit(world, { type: "toast", to: foeId, text: "Execute blocked - already sentenced." });
     if (hasFlag(victim.s, "finalVerdict") && amount > 0) {
       deferHit(world, {
-        victim: foeId, by: { id: victim.id, name: victim.s.name }, packet: { raw: amount, ...SIGNATURE_SHARES.mark },
+        victim: foeId, by: { id: victim.id, name: victim.s.name }, packet: { raw: amount, phys: 0, magic: 0, true: 1 },
         weapon: activeWeapon(victim.s), stagger: false, passive: true, final: true,
       });
     }
@@ -836,6 +844,11 @@ function afterDamage(world: World, dtMs: number): void {
   const dealtDot = new Map<string, number>();
   for (const h of world.combat.landed) {
     if (byId.has(h.victim)) sigOf(world, h.victim).combatAt = now;
+    // The bow kiter: a Frost's own arrow or ball (a weapon hit, not a signature or card entry) chills the victim's walk at range.
+    if (h.weapon && isRanged(h.weapon) && h.sig === undefined && byId.has(h.victim) && byId.has(h.by)) {
+      const frost = byId.get(h.by)!;
+      if (frost.s.faction === "frost" && frost.kind === "player") sigOf(world, h.victim).rangedChillUntil = now + FROST_RANGED_CHILL_MS;
+    }
     if (byId.has(h.by)) sigOf(world, h.by).combatAt = now;
     // A Race to 0 holder's extra damage feeds no lifesteal (G4): it reads the amount without the multiplier. A tier-3 mark's suppression is no cut
     // to the sustain either: the sentence never out-cuts a lifesteal (docs/SENTENCED_REDESIGN.md R6).
@@ -853,7 +866,7 @@ function afterDamage(world: World, dtMs: number): void {
     const c = byId.get(id);
     if (!c) continue;
     const spec = factionOf(c.s);
-    const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) : 0;
+    const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) + (c.kind === "player" ? holyApLifestealOf(apOf(c.s)) : 0) : 0;
     // Holy's own share and the rows' (Bloodthirst doubling them), and for damage over time Siphon's share on top (G5).
     const rows = lifestealRowsOf(c.s);
     const farmRows = farmLifestealRowsOf(c.s)
@@ -991,9 +1004,10 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
       f.chillExposureStartedAt = -Infinity;
       f.chillLastNearAt = -Infinity;
     }
-    const moveMult = nearFrost && Number.isFinite(f.chillExposureStartedAt)
-      ? resistSlow(frostMoveMultiplier(now - f.chillExposureStartedAt), slowResistOf(c.s))
-      : 1;
+    const nearMult = nearFrost && Number.isFinite(f.chillExposureStartedAt) ? frostMoveMultiplier(now - f.chillExposureStartedAt) : 1;
+    const rangedMult = now < f.rangedChillUntil ? FROST_RANGED_CHILL_MULT : 1;
+    const raw = Math.min(nearMult, rangedMult);
+    const moveMult = raw < 1 ? resistSlow(raw, slowResistOf(c.s)) : 1;
     const moveWire = encodeMult(moveMult);
     f.frostMoveMult = decodeMult(moveWire);
     if ("frostMoveMult" in c.s && c.s.frostMoveMult !== moveWire) c.s.frostMoveMult = moveWire;
@@ -1014,7 +1028,9 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
 /** Applies the current thaw multiplier while a living Frost that chills this fighter is in range. */
 function frostMovementModifier(world: World, c: Combatant): number {
   const f = world.factions?.fighters.get(c.id);
-  if (!f || f.chillers.length === 0 || f.frostMoveMult >= 1) return 1;
+  if (!f || f.frostMoveMult >= 1) return 1;
+  if (world.state.serverTime < f.rangedChillUntil) return f.frostMoveMult;
+  if (f.chillers.length === 0) return 1;
   for (const id of f.chillers) {
     const frost = combatant(world, id);
     if (frost && standing(frost) && Math.hypot(frost.s.x - c.s.x, frost.s.y - c.s.y) <= CHILL_MOVE_RADIUS) {

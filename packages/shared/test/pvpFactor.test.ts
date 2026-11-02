@@ -38,11 +38,11 @@ describe("hpRaceMult", () => {
 });
 
 describe("SIGNATURE_SHARES (decision D6)", () => {
-  it("types each signature: burn and disease magic, backlash physical, the mark true", () => {
+  it("types each signature: burn and disease magic, backlash physical, the mark like Sentenced's hits (the faction rework)", () => {
     expect(SIGNATURE_SHARES.burn).toEqual({ phys: 0, magic: 1, true: 0 });
     expect(SIGNATURE_SHARES.disease).toEqual({ phys: 0, magic: 1, true: 0 });
     expect(SIGNATURE_SHARES.backlash).toEqual({ phys: 1, magic: 0, true: 0 });
-    expect(SIGNATURE_SHARES.mark).toEqual({ phys: 0, magic: 0, true: 1 });
+    expect(SIGNATURE_SHARES.mark).toEqual({ phys: 0.4, magic: 0.6, true: 0 });
   });
 
   it("every entry is a whole packet: the shares sum to 1", () => {

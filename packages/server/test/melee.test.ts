@@ -1015,10 +1015,11 @@ describe("balls in real fights", () => {
 // ---- exact numbers ------------------------------------------------------------------------------------------------
 
 describe("damage through the faction formula", () => {
-  // Fire's axe: rate 0.6 x hit 100 x DUEL_PACE 2 x dpsMult 0.77 x interval 1 / (0.6 x 1.4) = 55 x 2 = 110 raw, all
-  // magic. It lands 250 ms after the press: the sixth step.
-  const FIRE_AXE = 92.4 / 0.84;
-  const SWORD_PLAGUE = 30 / 2.15;
+  // Fire's axe: rate x hit x DUEL_PACE 2 x dpsMult 0.77 x interval, all magic (damagePerHit of the paced sheet). It lands 250 ms
+  // after the press: the sixth step. Plague's sword: 80% physical, 20% magic. Every faction has armor = shield since the rework.
+  const FIRE_AXE = damagePerHit(pacedFaction(FACTIONS.fire), "axe");
+  const SWORD_PLAGUE = damagePerHit(pacedFaction(FACTIONS.plague), "sword");
+  const FROST_CUT = 1 / (1 + FACTIONS.frost.armor / 100);
 
   it("Fire's axe on a dummy does 110 and moves nobody", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("holy", "wand", FAR)]);
@@ -1026,36 +1027,34 @@ describe("damage through the faction formula", () => {
     tap(world, 0, 0);
     const events = run(world, 6);
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(FIRE_AXE, 9);
-    expect(FIRE_AXE).toBeCloseTo(110, 3);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: d, by: "p0", amount: expect.closeTo(FIRE_AXE, 9), weapon: "axe" }]);
     run(world, 10);
     expect({ x: mob(world, d).x, y: mob(world, d).y }).toEqual(polar(ORIGIN, 40, 0));
     expect({ x: P(world, 0).x, y: P(world, 0).y }).toEqual(ORIGIN);
   });
 
-  it("Fire's axe on Frost is cut by Frost's shield (190): 110 / 2.9", () => {
+  it("Fire's axe on Frost is cut by Frost's shield", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(110 / 2.9, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(FIRE_AXE * FROST_CUT, 3);
   });
 
-  it("the axe pierces Frost's raised shield for the same 110 / 2.9", () => {
+  it("the axe pierces Frost's raised shield for the same damage", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(110 / 2.9, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(FIRE_AXE * FROST_CUT, 3);
     expect(fxOf(events, "block")).toEqual([]);
   });
 
-  it("Plague's sword (80% physical, 20% magic) on a dummy does 13.953, on Frost (armor 20, shield 190) 10.265", () => {
+  it("Plague's sword (80% physical, 20% magic) on a dummy does its whole hit, on Frost the share its defenses let through", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     const d = dummy(world, polar(ORIGIN, 40, 20));
     tap(world, 0, 0);
     run(world, 3); // lands at 200 ms
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(SWORD_PLAGUE, 9);
-    expect(hpLost(world, 1)).toBeCloseTo(SWORD_PLAGUE * (0.8 / 1.2 + 0.2 / 2.9), 9);
-    expect(SWORD_PLAGUE).toBeCloseTo(13.9535, 4);
+    expect(hpLost(world, 1)).toBeCloseTo(SWORD_PLAGUE * FROST_CUT, 9);
   });
 
   it("Frost's bash on Demon Blood (shield 250, armor 0): 90% physical, 10% magic", () => {
@@ -1072,9 +1071,9 @@ describe("damage through the faction formula", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 3);
-    // Plague: armor 190 on its 80% physical, no shield on its 20% magic; Frost: armor 20, shield 190.
-    const riposte = SWORD_PLAGUE * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE * (0.8 / 2.9 + 0.2);
-    const through = SWORD_PLAGUE * (1 - SHIELD_BLOCK_SHARE) * (0.8 / 1.2 + 0.2 / 2.9);
+    // The riposte goes back through Plague's own defenses, what gets through through Frost's (armor = shield on both).
+    const riposte = SWORD_PLAGUE * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE / (1 + FACTIONS.plague.armor / 100);
+    const through = SWORD_PLAGUE * (1 - SHIELD_BLOCK_SHARE) * FROST_CUT;
     expect(hpLost(world, 0)).toBeCloseTo(riposte, 9);
     expect(hpLost(world, 1)).toBeCloseTo(through, 9);
     const hits = fxOf(events, "hit");
@@ -1191,4 +1190,4 @@ describe("simultaneous swings", () => {
 });
 
 /** Plague's sword on a Plague body: 13.953 raw, 80% physical through armor 190, 20% magic through shield 0. */
-const SWORD_PLAGUE_VS_PLAGUE = (30 / 2.15) * (0.8 / 2.9 + 0.2);
+const SWORD_PLAGUE_VS_PLAGUE = damagePerHit(pacedFaction(FACTIONS.plague), "sword") / (1 + FACTIONS.plague.armor / 100);

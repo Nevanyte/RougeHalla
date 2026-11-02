@@ -101,10 +101,10 @@ export function inStep(world: World, fn: () => void): SimEvent[] {
 
 export interface HitOpts { shares?: DamageShares; weapon?: WeaponId | null; scale?: number; sig?: LedgerEntry["sig"]; dot?: boolean; ability?: LedgerEntry["ability"]; arena?: boolean; passive?: boolean }
 
-/** Records a hit of `raw` on `victim` by `by` (an armor-free victim, Fire / Holy / a dummy, takes a physical `raw` as it is). */
+/** Records a hit of `raw` on `victim` by `by`: true damage unless `shares` says otherwise, so any victim takes `raw` as it is (since the faction rework no faction is armor-free). */
 export function hit(world: World, victim: string, by: string, raw: number, o: HitOpts = {}): LedgerEntry {
   return recordHit(world, {
-    victim, by: { id: by, name: nameOf(by) }, packet: { raw, ...(o.shares ?? PHYSICAL) }, weapon: o.weapon === undefined ? "axe" : o.weapon,
+    victim, by: { id: by, name: nameOf(by) }, packet: { raw, ...(o.shares ?? TRUE) }, weapon: o.weapon === undefined ? "axe" : o.weapon,
     stagger: false, ...(o.scale === undefined ? {} : { scale: o.scale }), ...(o.sig === undefined ? {} : { sig: o.sig }),
     ...(o.dot ? { dot: true } : {}), ...(o.ability === undefined ? {} : { ability: o.ability }), ...(o.arena ? { arena: true } : {}),
     ...(o.passive ? { passive: true } : {}),

@@ -3,10 +3,12 @@
 import {
   ALL_WEAPON_IDS, AP_DOT_RATIO, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, ENGAGE_LINGER_SECONDS, EXECUTE_BAND, FACTIONS,
   FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
-  HIDDEN_REVEAL_MS, LIFESTEAL_MAX, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TAX_THRESHOLD, MARK_TIER_HITS,
+  HIDDEN_REVEAL_MS, LIFESTEAL_MAX, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TIER_HITS,
   MARK_TOP_TIER, TARGET_FORGET_SECONDS, TRAINING_WISH_COOLDOWN_SECONDS, WEAPONS, WISH_LOCK_SECONDS,
   abilityCooldownMs, burnDps, magicShare, markPct, pacedFaction, plagueDps, rankOf, wishOf,
   HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS,
+  FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP,
+  MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
   PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_LIFETIME_MS, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE,
   PLAGUE_ZOMBIE_GROWTH_PER_BODY, PLAGUE_ZOMBIE_INTERVAL_MS,
   SENTENCED_HUNT_MOVE_BONUS, SENTENCED_HUNT_MARK_PER_STACK,
@@ -43,26 +45,25 @@ export function signatureGuide(id: FactionId): GuideAbility {
       tags: [{ kind: "ap", label: "SO · burn & roam burst" }, { kind: "target", label: "Enemy attacks · retaliation" }],
       details: [
         `Burn = ${guideNumber(burnDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO, per second. The SO part is added after the weapon multiplier.`,
-        `Retaliation per enemy attack = ${guideNumber(p.backlash!)} × enemy base attack rate × enemy unbuffed weapon interval × your weapon's damage multiplier. Enemy attack-speed bonuses create more triggers without shrinking each trigger.`,
+        `Retaliation per enemy attack = ${guideNumber(p.backlash!)} × the enemy's unbuffed weapon interval × your weapon's damage multiplier: about ${guideNumber(p.backlash!)} × multiplier per second of enemy attacks, whatever its faction or weapon. Enemy attack-speed bonuses create more triggers without shrinking each trigger.`,
         `Outside combat, movement speed ramps to ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× over ${seconds(FIRE_ROAM_RAMP_MS)}. Combat resets partial charge; taking damage does not cancel a burst already armed for an attack. The next landed basic attack consumes it for ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO magic damage, reduced by Soul Defense.`,
         "Burn deals magic damage; retaliation deals physical damage. Offense does not directly increase either signature value.",
+        `Two builds: the Offense burst assassin (Offense on a sword, axe or bow, roaming in for the burst), or the SO burn tank (SO feeds the burn, and every point of bonus Defense + SD adds ${pct(FIRE_BACKLASH_PER_DEFENSE)} to retaliation).`,
         `The passive needs an active trade in weapon reach and line of sight. Base reach linger is ${guideNumber(ENGAGE_LINGER_SECONDS)} s; the target is forgotten after ${guideNumber(TARGET_FORGET_SECONDS)} s without contact.`,
       ],
     };
     case "sentenced": return {
       ...base, name: "Mark",
-      summary: "Choose a rival to hunt, then grow stronger when they fall. Landed hits build a true-damage mark that taxes and suppresses the enemy.",
-      scaling: `Scales with target max HP, Sentence stacks, weapon hit weight, and bonus stats (SO ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point; other flats ${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}%/point).`,
-      tags: [{ kind: "target", label: "Enemy max health" }, { kind: "ad", label: "Bonus Offense/SO" }, { kind: "defense", label: "Bonus Defense/SD" }],
+      summary: "Choose a rival to hunt, then grow stronger when they fall. Every landed hit deals a share of the target's max health (40% physical, 60% magic).",
+      scaling: `Scales with target max HP, attack speed (like any weapon), every bonus stat point (${pct(MARK_BONUS_STAT_PER_POINT)} of the pulse per Offense, SO, Defense or SD point), Sentence stacks and hunt stacks.`,
+      tags: [{ kind: "target", label: "Enemy max health" }, { kind: "ad", label: "Attack speed · bonus stats" }],
       details: [
-        `True-damage pulse = ${pct(markPct(f, 0))} base share (plus ${pct(p.mark_kill!)} × Sentence stacks), multiplied by target max health, hit weight, tier, distance, Heavier Sentence, and bonus-stat growth.`,
+        `True-damage pulse = ${pct(markPct(f, 0))} base share (plus ${pct(p.mark_kill!)} × Sentence stacks), multiplied by target max health, hit weight, distance and Heavier Sentence.`,
         `Hunt: choose one living rival from the target panel. Track their location for the rest of their life and gain ${pct(SENTENCED_HUNT_MOVE_BONUS)} movement speed while moving toward them. When they die, gain ${pct(SENTENCED_HUNT_MARK_PER_STACK)} permanent mark strength and choose again. Leaving clears the target without a reward; dying ends your hunt. Tracking does not remove Swarm's untargetable status.`,
-        `Hit weight = faction base attack rate × weapon damage multiplier × attack-speed multiplier^${guideNumber(MARK_AS_EXPONENT)} × attack interval in seconds. These percentages are per unit of hit weight, not a flat percentage on every hit.`,
-        `Bonus-stat growth uses bonus Offense + ${MARK_BONUS_AP_WEIGHT}× SO + Defense + SD. Offense, Defense, and SD each add ${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}% to mark strength per point; SO adds ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point. Offense/SO also scale qualifying weapon damage.`,
-        `Attack-speed bonuses from cards and farming are ${pct(MARK_FARM_AS_EFFICIENCY)} effective. Your base attack speed is unchanged; bruiser stats give stronger mark growth.`,
-        `Tier 1 starts on the first hit. Tiers 2, 3 and ${MARK_TOP_TIER} arrive at ${MARK_TIER_HITS}, ${MARK_TIER_HITS * 2} and ${MARK_TIER_HITS * 3} hit-progress respectively; the marked target's weapon swaps also promote it.`,
-        `Tier 2 taxes attack rate above ${guideNumber(MARK_TAX_THRESHOLD)}/s: keep ${pct(p.tax_keep!)} of the excess, capped at ${guideNumber(p.tax_cap!)}/s. Tier 3 reduces outgoing damage by ${pct(1 - p.suppress!)}. Tier ${MARK_TOP_TIER} multiplies pulses by ${guideNumber(p.mark_amp!)} and denies the marked enemy's execute.`,
-        `Beyond ${MARK_NEAR_RANGE} units, pulses use ${pct(MARK_FAR_SHARE)} strength and the attack-speed tax lifts. Your Trial ring restores full strength. Sentence stacks cap at ${MARK_KILL_STACK_CAP}.`,
+        `Hit weight = faction base attack rate × weapon damage multiplier × attack-speed multiplier × attack interval in seconds: the same share of max health per second of attacking, so attack speed raises the mark exactly as it raises weapon damage.`,
+        `Two builds: the stat bully bruiser (any mix of bonus Offense, SO, Defense and SD grows every pulse by ${pct(MARK_BONUS_STAT_PER_POINT)} per point) or the attack-speed punisher (more hits, more pulses of the target's max health).`,
+        `Tier 1 starts on the first hit. Tiers 2, 3 and ${MARK_TOP_TIER} arrive at ${MARK_TIER_HITS}, ${MARK_TIER_HITS * 2} and ${MARK_TIER_HITS * 3} hit-progress respectively; the marked target's weapon swaps also promote it. Tiers do not change the pulse; tier ${MARK_TOP_TIER} denies the marked enemy's execute.`,
+        `Beyond ${MARK_NEAR_RANGE} units, pulses use ${pct(MARK_FAR_SHARE)} strength. Your Trial ring restores full strength. Sentence stacks cap at ${MARK_KILL_STACK_CAP}.`,
         "A camp shares the mark. Each member's pulse is multiplied by 1/√(original camp size). Regional mobs use their faction's player-sized base HP as the pulse pool, rather than their smaller mob HP. Augments may add further scaling.",
       ],
     };
@@ -75,6 +76,7 @@ export function signatureGuide(id: FactionId): GuideAbility {
         `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO, per second.`,
         `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Walk over one to consume it automatically before another Plague does. The first raises one zombie; each body grants you ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and grows the zombie.`,
         `The zombie follows you and assists the enemy you attack. Its max HP is ${pct(PLAGUE_ZOMBIE_HP_SHARE)} of your current max HP, and each physical hit is ${pct(PLAGUE_ZOMBIE_HIT_SHARE)} of your current max HP before defenses and PvP scaling. It attacks every ${seconds(PLAGUE_ZOMBIE_INTERVAL_MS)}. Each body after the first adds another ${pct(PLAGUE_ZOMBIE_GROWTH_PER_BODY)} of the zombie's base health and damage. Health from farming, cards and trades also strengthens it.`,
+        `Second build, the zombie tank: the zombie's max HP also grows ${pct(PLAGUE_ZOMBIE_HP_PER_DEFENSE)} per point of your bonus Defense + SD, and each of its hits adds ${guideNumber(PLAGUE_ZOMBIE_AP_SHARE)} × your SO, so a tanky wand Plague fights with a second body. The first build stacks attack speed and SO into disease.`,
         "If the zombie dies, consume another player body to revive it with all accumulated growth. It disappears when you die or the run ends. Corpse growth no longer multiplies disease or execute damage.",
         `Extra execute damage/s = ${guideNumber(p.execute!)} × max(0, ${guideNumber(EXECUTE_BAND)} − enemy current-health fraction) × your weapon's damage multiplier. At ${pct(EXECUTE_BAND / 2)} enemy health, this adds ${guideNumber(p.execute! * EXECUTE_BAND / 2)} × weapon multiplier per second.`,
         "Disease and execute deal magic damage. SO is added once to the disease; the execute has no second SO rider. Offense does not directly increase the signature.",
@@ -88,7 +90,8 @@ export function signatureGuide(id: FactionId): GuideAbility {
       scaling: `${pct(p.slow!)} attack slow; up to ${pct(1 - CHILL_MOVE_MULT)} movement slow within ${CHILL_MOVE_RADIUS} units for 1 s, fading over the next 3 s. Control strength is fixed rather than scaling with Offense or SO.`,
       tags: [{ kind: "fixed", label: "Fixed control" }, { kind: "defense", label: "Durability · stay in reach" }],
       details: [
-        `An engaged enemy's attack cooldown progresses at ${pct(1 - p.slow!)} of its usual pace.`,
+        `An engaged enemy's attack cooldown and damage over time progress at ${pct(1 - p.slow!)} of their usual pace: the chill cuts everything it deals.`,
+        `Bow kiter build: your bow or wand hits chill the target's walk to ${pct(FROST_RANGED_CHILL_MULT)} for ${seconds(FROST_RANGED_CHILL_MS)} at any range. Tank build: the shield turns your bonus Defense + SD into damage.`,
         `Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} Defense and +${FROST_ELITE_GUARD_BONUS} Soul Defense while fighting elites, lingering ${seconds(FROST_ELITE_GUARD_LINGER_MS)} after contact. Normal mobs and players do not activate it.`,
         `Within ${CHILL_MOVE_RADIUS} units, movement is slowed by up to ${pct(1 - CHILL_MOVE_MULT)} for 1 s, then the slow fades linearly to zero over 3 s even if the enemy stays nearby.`,
         "Leaving the chill radius removes the movement slow while away. Repeated hits and switching between Frost fighters do not refresh it; 4 s clear of every Frost movement chill restores its full strength.",
@@ -104,7 +107,7 @@ export function signatureGuide(id: FactionId): GuideAbility {
       details: [
         `Faction lifesteal = min(${pct(p.ls_cap!)}, ${pct(p.ls0!)} + ${pct(p.ls1!)} × missing-health fraction). At half health, the faction grants ${pct(Math.min(p.ls_cap!, p.ls0! + p.ls1! * .5))} lifesteal.`,
         `Holy earns +${pct(HOLY_CAMP_LIFESTEAL_PER_CLEAR)} permanent lifesteal per eligible camp clear, shared with other living camp contributors. Mob and camp leech grow without a farming cap and receive Bloodthirst's multiplier. The faction and card portion retains its ${pct(LIFESTEAL_MAX)} limit; anti-heal reduces healing received.`,
-        "Offense and SO help only through damage sources that use them. They do not directly change the lifesteal percentage. Missing health is a fraction of maximum health, not an absolute HP amount.",
+        `SO adds ${pct(HOLY_LIFESTEAL_PER_AP)} faction lifesteal per point (at most +${pct(HOLY_AP_LIFESTEAL_CAP)}), so a Soul-damage Holy (wand, or a sword whose SO is its higher stat) sustains through its burst. Offense helps only through damage. Missing health is a fraction of maximum health, not an absolute HP amount.`,
       ],
     };
   }
@@ -166,7 +169,8 @@ export function weaponScalingGuide(id: WeaponId): { name: string; scaling: strin
   const labels = { ad: "Offense", ap: "SO", hp: "bonus max HP", def: "(bonus Defense + bonus SD)" };
   const scaling = (Object.entries(weapon.scaling) as Array<[keyof typeof labels, number]>)
     .sort((a, b) => b[1] - a[1])
-    .map(([stat, ratio]) => `${guideNumber(ratio)} × ${labels[stat]}`).join(" + ");
+    .map(([stat, ratio]) => `${guideNumber(ratio)} × ${labels[stat]}`).join(weapon.dominant ? " or " : " + ")
+    + (weapon.dominant ? " (whichever is higher)" : "");
   return {
     name: weapon.name, scaling,
     detail: `Bonus damage per hit = (${scaling}) × attack-speed multiplier × attack interval in seconds. Offense, bonus HP and defense scaling deal physical damage; SO scaling deals magic damage.`,

@@ -116,7 +116,7 @@ export interface SignatureTagRow {
 export const SIGNATURE_TAGS: readonly SignatureTagRow[] = [
   { faction: "fire", signature: "Burn", kind: "burn", tags: ["magic", "dot"] },
   { faction: "fire", signature: "Backlash", kind: "backlash", tags: ["physical", "returned"] },
-  { faction: "sentenced", signature: "Mark", kind: "mark", tags: ["true", "ramping"] },
+  { faction: "sentenced", signature: "Mark", kind: "mark", tags: ["physical", "magic"] },
   { faction: "plague", signature: "Disease and execute", kind: "disease", tags: ["magic", "dot", "execute"] },
   { faction: "frost", signature: "Chill", kind: null, tags: ["slow"] },
   { faction: "holy", signature: "Lifesteal", kind: null, tags: ["heal"] },
@@ -130,7 +130,7 @@ export interface WeaponTagRow {
 }
 
 export const WEAPON_TAGS: readonly WeaponTagRow[] = [
-  { weapon: "sword", tags: ["physical", "onHit"], note: `Unblocked hits stagger windups and casts; bow draws resist stagger. Its on-hit effects land ${WEAPONS.sword.onHitPower}x as hard. The champion sets the base attack's damage type; Offense adds physical damage.` },
+  { weapon: "sword", tags: ["physical", "onHit"], note: `Unblocked hits stagger windups and casts; bow draws resist stagger. Its on-hit effects land ${WEAPONS.sword.onHitPower}x as hard. The champion sets the base attack's damage type; its scaling follows your higher offensive stat: Offense adds physical damage, or SO adds magic damage when you hold more SO.` },
   {
     weapon: "axe", tags: ["physical", "onHit"],
     note: `Player swings land immediately while moving. Each hit shreds ${AXE_SHRED_ARMOR} Defense for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}. Offense and bonus HP add physical damage; base damage type comes from the champion.`,

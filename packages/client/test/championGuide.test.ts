@@ -50,7 +50,8 @@ describe("champion guide matches the combat catalog", () => {
     expect(guide.scaling).toContain("for 1 s, fading over the next 3 s");
     expect(guide.details.join(" ")).toContain("Repeated hits and switching between Frost fighters do not refresh it");
     expect(guide.details.join(" ")).toContain("4 s clear of every Frost movement chill");
-    expect(guide.details.join(" ")).toContain("attack cooldown progresses at 48%");
+    expect(guide.details.join(" ")).toContain(`attack cooldown and damage over time progress at ${guideNumber((1 - FACTIONS.frost.params.slow!) * 100)}%`);
+    expect(guide.details.join(" ")).toContain("Bow kiter build");
   });
 
   it("explains the mark as weighted target-health damage, not an Offense/SO spell or an unweighted hit", () => {
@@ -59,15 +60,15 @@ describe("champion guide matches the combat catalog", () => {
     expect(text).toContain(`${guideNumber(markPct(f, 0) * 100)}%`);
     expect(text).toContain(`${guideNumber(f.params.mark_kill! * 100)}% × Sentence stacks`);
     expect(text).toContain("hit weight");
-    expect(text).toContain(`${guideNumber(MARK_AS_EXPONENT)}`);
-    expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}%`);
-    expect(text).toContain(`${MARK_BONUS_AP_WEIGHT}× SO`);
-    expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point`);
-    expect(text).toContain(`${guideNumber(MARK_FARM_AS_EFFICIENCY * 100)}% effective`);
+    expect(MARK_AS_EXPONENT).toBe(1);
+    expect(MARK_BONUS_AP_WEIGHT).toBe(1);
+    expect(MARK_FARM_AS_EFFICIENCY).toBe(1);
+    expect(text).toContain("attack speed raises the mark exactly as it raises weapon damage");
+    expect(text).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}% per point`);
     expect(text).toContain(`${MARK_TIER_HITS}, ${MARK_TIER_HITS * 2} and ${MARK_TIER_HITS * 3}`);
     expect(text).toContain("1/√(original camp size)");
-    expect(signatureGuide("sentenced").scaling).toContain("bonus stats");
-    expect(signatureGuide("sentenced").scaling).toContain(`SO ${guideNumber(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}%/point`);
+    expect(signatureGuide("sentenced").scaling).toContain("bonus stat");
+    expect(signatureGuide("sentenced").scaling).toContain(`${guideNumber(MARK_BONUS_STAT_PER_POINT * 100)}% of the pulse`);
   });
 
   it("describes Fire roam from shared tuning and the Trial movement/exit effects", () => {
@@ -84,7 +85,7 @@ describe("champion guide matches the combat catalog", () => {
     expect(championGuide("fire").wish.scaling).toContain("30 true damage/s");
     expect(championGuide("frost").wish.scaling).toContain("1.25 s stun");
     expect(championGuide("plague").wish.scaling).toContain("8 s concealment");
-    expect(championGuide("holy").passive.scaling).toContain("11%–75%");
+    expect(championGuide("holy").passive.scaling).toContain(`${guideNumber(FACTIONS.holy.params.ls0! * 100)}%–${guideNumber(FACTIONS.holy.params.ls_cap! * 100)}%`);
     expect(championGuide("holy").wish.scaling).toContain("30% of damage held");
   });
 

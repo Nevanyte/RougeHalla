@@ -69,7 +69,7 @@ describe("the weapon bar's scaling line and tooltip", () => {
     expect(part(slots()[1]!, "wb-name").textContent).toBe("Fists");
     expect(part(slots()[1]!, "wb-scale").textContent).toBe(weaponScalingText("fists"));
     bar.update(me("sword", "axe"), 0, 0, null);
-    expect(part(slots()[0]!, "wb-scale").textContent).toBe("Offense 1.0");
+    expect(part(slots()[0]!, "wb-scale").textContent).toBe("Offense 1.0 or SO 1.0 (the higher)");
     expect(part(slots()[1]!, "wb-scale").textContent).toBe("Offense 1.0 + bonus HP 0.02");
   });
 

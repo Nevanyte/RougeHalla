@@ -535,6 +535,7 @@ describe("flight in present time", () => {
     const w = arena([archer(), target({ x: 300, y: 320 }), idle()]);
     for (let d = 60; d <= 470; d += 13) {
       place(w, "target", { x: 200 + d, y: 320 });
+      P(w, "target").hp = P(w, "target").maxHp; // a fresh body each shot: the sheet's hits would otherwise kill it partway
       const hp = P(w, "target").hp;
       loose(w, [{ id: "archer", a: 0 }]);
       expect(flyUntilEnd(w).end.reason, `d = ${d}`).toBe("hit");
@@ -1160,7 +1161,7 @@ describe("shield reflection", () => {
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ proj: "ball", reason: "hit" });
     expect(fxOf(events, "block")).toEqual([]);
-    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((96 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 20 / 100), 9);
+    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((FACTIONS.holy.hit * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + FACTIONS.frost.armor / 100), 9);
   });
 
   it("reflects off a shield held by a mob; a kill by that arrow is credited to its name only", () => {
@@ -1451,8 +1452,8 @@ describe("damage numbers", () => {
     const w = arena([mage(), { id: "frost", at: { x: 400, y: 320 }, faction: "frost", facing: 0 }, idle()]);
     castBall(w, "mage", 0);
     flyUntilEnd(w);
-    // hit x pace x wand multiplier / (1 + boost), then Frost's 20 armor.
-    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((96 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 20 / 100), 9);
+    // hit x pace x wand multiplier / (1 + boost), then Frost's armor.
+    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((FACTIONS.holy.hit * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + FACTIONS.frost.armor / 100), 9);
   });
 });
 

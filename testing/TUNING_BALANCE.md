@@ -450,3 +450,150 @@ npx tsx packages/server/bench/stepBench.ts; npx tsx packages/server/bench/bandwi
 ```
 
 Re-run the whole set after any change to a faction number (and regenerate the Python references first), a weapon number or lever (section 6), a card, `PVP_*`, a guard, `MOB_K`, `ELITE_K` or a role: the weapon edges and the minute-5 drift are the first things to move.
+
+## 13. The faction rework: no counters, two builds a faction
+
+Owner request: remove the faction counter cycle and get every faction pair as close to an even 1v1 as possible at equal kit, keep each
+identity in *how* a faction wins and scales (Fire glass-cannon duelist with burst and damage back, Sentenced patient bruiser
+executioner with a max-hp mark, Plague attrition swarm with DoT and attack speed, Frost control tank on Defense/SD and the slow, Holy
+sustain juggernaut on lifesteal), and give each faction two viable builds. Duels should then turn on Wishes, weapons and camp scaling.
+
+### 13.1 Structural changes (why numbers alone could not do it)
+
+A fit of the old mechanics left Fire-Sentenced at +10-15% whatever the bounds. The pairwise kill-time matrix (`T[x][y]`, x kills a
+passive y) must be close to rank one (`T[x][y] = a_x b_y`) for scalar power to balance all ten pairs; four mechanics broke that:
+
+1. **Fire's backlash grew with the foe's attack rate** (`backlash x foe.rate` a second): a counter to fast attackers. Now each foe swing
+   returns `backlash x` its own interval, so the backlash per second is foe-independent (`backlashPerSwing`, engine/realtime/TS duel).
+2. **Frost's chill cut only `rate x hit`**: it hurt hit-based factions (Fire, Holy) and not DoT ones, and the mark was paid back for the
+   chill. Now the chill multiplies everything the chilled fighter deals: weapon cadence, burn/disease/execute ticks, the AP rider, the
+   backlash, and the mark (no payback). The slow is a uniform output cut (sim `signatureDamage` reads `f.chill`).
+3. **Damage types against lopsided defenses** (Holy 0 armor / 250 SD against 100% magic Fire, Plague 0 SD): every faction now has
+   armor = shield, so no damage type counters a defense profile (`factions.test.ts` pins it).
+4. **The mark was true damage on a share of max hp**: it kills every target in the same time, so it cannot be even against a frail and a
+   tough foe at once (Fire's low EHP made Sentenced its victim). The mark is now typed like Sentenced's hits (`SIGNATURE_SHARES.mark` 40%
+   physical / 60% magic): the passive matrix's Sentenced row went from 1.76-2.17x Fire's to 2.14-2.25x (near proportional).
+
+Sentenced's "weird scaling" is gone: the tier-2 attack-speed tax, tier-3 output suppression and tier-4 x1.17 amplifier are neutral on
+the sheet (`tax_keep 1`, `suppress 1`, `mark_amp 1`; the code paths stay and `sentencedMark.test.ts` runs them at the old numbers through
+`setFactionForHarness`), `MARK_AS_EXPONENT` 0.1 -> 1 (a hit's pulse is the same at any attack speed, so mark dps grows linearly with it),
+`MARK_FARM_AS_EFFICIENCY` 0.1 -> 1, and the bonus-stat growth is one plain rate for every stat (`MARK_BONUS_STAT_PER_POINT` 0.002, AP
+weight 6 -> 1). The tier-4 execute denial, kill stacks, hunt stacks and camp-shared marks stay.
+
+### 13.2 The fit (`python3 testing/flatten_sheet.py`)
+
+Levenberg-Marquardt over hp, hit, defense (armor = shield) and the identity numbers, inside identity bounds (Fire the lowest hp and
+defense, Holy the biggest pool, Frost the most defense; narrow hp bounds because a share-of-max-hp mark needs similar pools); residuals
+are every pair's signed hp left in the engine (k = 2) and in realtime.py on fists, bow and sword, plus the median fists fight against
+19 s. Holy's lifesteal was trimmed by hand first (0.11 + 0.85 x missing, cap 0.75 -> 0.08 + 0.65 x missing, cap 0.60). The fitted sheet,
+rounded (classes.py == shared factions.ts):
+
+| | hp | rate | hit | armor = SD | signature |
+|---|---|---|---|---|---|
+| Fire | 950 | 0.60 | 85.2 | 20 | burn 28, backlash 128 |
+| Sentenced | 1085 | 0.95 | 72.1 | 94 | mark_pct 0.045 (kill 0.00675) |
+| Plague | 1020 | 1.85 | 28.7 | 77 | plague 52, execute 325 |
+| Frost | 985 | 0.45 | 168.2 | 116 | slow 0.32 |
+| Holy | 1145 | 0.95 | 92.2 | 78 | ls 0.08 + 0.65 x missing, cap 0.60 |
+
+Signed hp left of the first faction (positive: it wins), engine and realtime.py per weapon (both fighters on the same weapon):
+
+| pair | engine | fists | sword | axe | bow | wand | shield |
+|---|---|---|---|---|---|---|---|
+| Fire-Sentenced | +2.7 | +2.8 | +1.5 | +0.2 | +0.8 | +1.6 | +2.9 |
+| Fire-Plague | -0.1 | -0.0 | +0.7 | -0.2 | +1.6 | +1.9 | +1.6 |
+| Fire-Frost | -0.3 | +0.4 | -0.5 | +1.8 | +1.1 | -3.1 | +1.3 |
+| Fire-Holy | -1.9 | -0.6 | -0.3 | +1.4 | +0.4 | -0.7 | +1.1 |
+| Sentenced-Plague | -0.1 | +1.7 | +3.1 | +4.6 | +0.8 | +2.2 | -0.5 |
+| Sentenced-Frost | -1.7 | -0.5 | -3.9 | -0.3 | -0.9 | -3.2 | -0.5 |
+| Sentenced-Holy | -1.0 | -0.6 | -0.6 | -0.7 | -0.6 | -0.3 | -0.5 |
+| Plague-Frost | -0.2 | +0.1 | +0.1 | -4.2 | +0.3 | +0.3 | -0.1 |
+| Plague-Holy | +1.0 | +0.3 | +1.4 | -1.7 | -1.0 | +1.7 | -2.1 |
+| Frost-Holy | -2.7 | -2.3 | -2.4 | -4.2 | -0.4 | -2.8 | -3.8 |
+
+Worst |h| 4.6%, mean 1.4% (the old sheet: 10-47%, median 23%). `test_rpsls.py` now asserts every pair within 10% (mean 6%) at three
+timesteps, every faction's four margins summing within +-20 points, scale invariance, purity, mirrors ending, and each identity
+load-bearing (removing it moves a margin: Fire 78 pts, Sentenced 45, Plague 66, Frost 34, Holy 29). Mirrors on fists: Fire 4.5 s,
+Sentenced 15.4, Plague 11.6, Frost 34.4, Holy 34.2 (median fists fight 15.4 s; it was 18.8).
+
+### 13.3 Real sim (`bench/matchups.ts --layer faction --setups 6 --noise 0.45 --draws 4`)
+
+| pair | fists win% / h | sword | bow | wand |
+|---|---|---|---|---|
+| fire-sentenced | 52 / 0 | 52 / +2 | 60 / -1 | 60 / +2 |
+| fire-plague | 50 / 0 | 54 / +5 | 54 / +1 | 54 / +1 |
+| sentenced-plague | 50 / 0 | 50 / +2 | 40 / -1 | 40 / -1 |
+| sentenced-frost | 50 / -3 | 48 / -3 | 40 / -3 | 40 / -2 |
+| plague-frost | 48 / 0 | 50 / -9 | 50 / 0 | 50 / +3 |
+| plague-holy | 50 / 0 | 50 / +1 | 50 / 0 | 50 / +1 |
+| frost-holy | 50 / -2 | 50 / -3 | 50 / -5 | 48 / -5 |
+| frost-fire | 50 / -2 | 50 / 0 | 54 / +5 | 52 / -1 |
+| holy-fire | 50 / 0 | 50 / +3 | 52 / +6 | 52 / +7 |
+| holy-sentenced | 50 / -0 | 50 / -2 | 60 / +1 | 60 / +1 |
+
+(win% under the noise model, h = median signed hp left noise off, both in %.) On fists, the weapon a run starts on, every pair is
+48-52% with |h| <= 3%; on the loop weapons 40-60% (B1 PASS everywhere, |h| <= 9%). Ranged Sentenced sits a little low (40%).
+`npm run harness:factions -- --python` agrees with realtime.py on most cells; a handful of near-even Frost cells differ in which phase wins
+(a near-zero margin flips on a 50 ms phase), within the factionCycle test's tolerances (realtime.py now reads the chill one tick late, as the sim does).
+
+### 13.4 How each identity is preserved
+
+- **Fire**: the frailest (950 hp, 20 Defense/SD: an EHP well under everyone's) and the fastest kills (fists mirror 4.5 s, its fights
+  7-13 s against others' 13-30 s); burst = big slow hits, Fire Roam's burst and backlash (damage back, now foe-independent).
+- **Sentenced**: the patient bruiser executioner: hits for a share of the target's max hp every landed hit, kill stacks and hunts snowball
+  it, the tier-4 mark still denies an execute; mid-long fights (13-24 s).
+- **Plague**: attrition swarm: 1.85 attacks/s of small hits plus disease and an execute that grows below half hp; AS feeds both.
+- **Frost**: control tank: the most Defense/SD (116), the slowest heavy hits, and a 32% chill on everything the foe deals; the longest fights.
+- **Holy**: sustain juggernaut: the biggest pool (1145) and lifesteal that grows as it falls; long fights (17-30 s).
+
+### 13.5 Two builds a faction (mechanics added)
+
+- Fire: A) Offense burst assassin (sword/axe/bow, roam); B) SO burn tank: the burn's AP rider (0.6/SO) plus
+  `FIRE_BACKLASH_PER_DEFENSE` 0.004: backlash +0.4% per bonus Defense+SD.
+- Sentenced: A) stat bully bruiser: every bonus Offense/SO/Defense/SD point grows the pulse 0.2%; B) attack-speed max-hp punisher: full
+  attack speed now (exponent 1, farm efficiency 1).
+- Plague: A) attack-speed SO DoT stacker; B) wand zombie tank: `PLAGUE_ZOMBIE_HP_PER_DEFENSE` 0.004 (zombie max hp +0.4% per owner bonus
+  Defense+SD) and `PLAGUE_ZOMBIE_AP_SHARE` 0.5 (each zombie hit adds half the owner's SO).
+- Frost: A) Defense/SD shield tank (the shield's def scaling, Frozen Justice); B) bow kiter: a Frost's bow/wand hit chills the target's walk
+  to `FROST_RANGED_CHILL_MULT` 0.85 for `FROST_RANGED_CHILL_MS` 1.2 s at any range (the client does not predict it: a bounded slide).
+- Holy: A) lifesteal juggernaut; B) flexible/Soul damage: `HOLY_LIFESTEAL_PER_AP` 0.0015 per SO point, capped +0.15, inside LIFESTEAL_MAX.
+- The sword (all factions): `WeaponSpec.dominant`: it scales 1.0 x the higher of Offense and SO, in that stat's damage type (ties: Offense),
+  so an SO burst sword exists without a double dip. The weapon parity tables carry no scaling, so they moved only with the sheet.
+
+`npx tsx packages/server/bench/factionBuilds.ts` (each build at P 6 against every other faction's minute-5 kit on the same weapon; win%):
+
+| build | weapon | vs fire | vs sentenced | vs plague | vs frost | vs holy | mean |
+|---|---|---|---|---|---|---|---|
+| Fire A Offense burst | sword | - | 39 | 61 | 39 | 42 | 45 |
+| Fire B SO burn tank | shield | - | 53 | 75 | 67 | 61 | 64 |
+| Sentenced A stat bully | sword | 53 | - | 58 | 39 | 44 | 49 |
+| Sentenced B AS punisher | bow | 47 | - | 69 | 39 | 42 | 49 |
+| Plague A AS SO DoT | wand | 31 | 47 | - | 47 | 36 | 40 |
+| Plague B zombie tank (no corpse in a duel) | wand | 28 | 33 | - | 36 | 25 | 31 |
+| Frost A Defense/SD tank | shield | 28 | 36 | 53 | - | 39 | 39 |
+| Frost B bow kiter | bow | 53 | 47 | 42 | - | 39 | 45 |
+| Holy A lifesteal | axe | 42 | 39 | 56 | 33 | - | 42 |
+| Holy B SO wand | wand | 53 | 61 | 64 | 58 | - | 59 |
+| Holy B2 SO sword | sword | 56 | 50 | 67 | 44 | - | 54 |
+
+Every build is within 31-64% of a generic kit (the generic kit is a strong offense build, so tank builds read low in a duel, where
+their camp and long-fight value does not show). Holy's SO wand reads 59%: AP lifesteal is not runaway at P 6 (+~8% lifesteal);
+watch it with large SO stacks. Plague's zombie tank cannot be measured in a duel (no corpse); its zombie rules are unit-tested.
+
+### 13.6 Camps
+
+The sheet moves every zone's mobs (they scale off it). `mobDuel --style stand`: normal 0 pairings under 90% wins, mean hp left 95%;
+elite 25/25 pairings, mean hp left 45% (unchanged). `campDuel --types --seeds 3 --weapon fists --pulls camp --cap 90`: the normal-type
+gate PASSes; the elite gate failed on Pox Behemoth (nobody cleared it on the zone's bow: Plague's mobs hit harder on the new sheet), so
+`MOB_ZONE_DAMAGE` (constants.ts) trims the Plague zone's mob damage to 0.85; at the suite's 5 seeds (`campTypes.test.ts`) Archon
+(the Holy elite, sword) then failed too (cleared by nobody on the wand; Holy mobs lost their 0-armor weakness), so the Holy zone is
+trimmed to 0.92 (0.85 made both Holy elite camps 25/25 on fists, too easy). With both: normal gate PASS, elite gate PASS (5 seeds:
+Pox Behemoth 3-4/5 for four factions, Archon Fire 5/5 and Plague 4/5 on the wand), and fists starters still fail some elite camps.
+No elite was buffed. Sentenced on a zone weapon clears fewer elite camps now (its mark is mitigated).
+
+### 13.7 Open
+
+- `testing/test_kite.py` FAILs 21 cells: its guarantee was written for counter edges (a favoured melee faction against an orb-walking
+  underdog); with every faction pair even, a perfect orb-walker beats an equal melee chaser. Kiting protection now rests on the weapon
+  loop and the windups alone. Owner question: rewrite the check against weapon edges.
+- `bench/ttkCurve.ts` and the bots' tier tables were not re-tuned; the median fight on fists is 15 s against the old 19 s.

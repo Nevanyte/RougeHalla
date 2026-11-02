@@ -3,17 +3,17 @@
 // execute denial with its once-per-mark stack and its linger, kill-stacks, Trial's retune and the five cards, all through the real step().
 // Hits are delivered by hand at a chosen tick (an injector, as factions.test.ts does), so a scenario is exact: the sim's own melee phase is
 // never asked to land a swing.
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   attackInterval, bonusMultiplier, decodeMult, FACTIONS, GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, HEAVIER_SENTENCE_PER_BONUS, mapFromTiles,
-  MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TIER_HITS, markPct, markWeight, mulberry32, pacedFaction,
+  MARK_DENIAL_LINGER_MS, mitigateShares, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TIER_HITS, markPct, markWeight, mulberry32, pacedFaction,
   SIG_EXEC_BLOCKED, SIG_SUPPRESSED, SIG_TAXED, SIGNATURE_SHARES, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   TRIAL_CONVICTED_RADIUS, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS, WEAPON_IDS, WEAPONS,
   type DamageShares, type FactionId, type FactionSpec, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { grantCard } from "../src/sim/chests";
-import { combatant, type Combatant } from "../src/sim/combatant";
+import { combatant, setFactionForHarness, type Combatant } from "../src/sim/combatant";
 import { markTierOn, noteContact, signatureState } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -32,7 +32,16 @@ const CONFIG: SimConfig = {
   minPlayers: 2, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9, pvpRules: false,
   wishLockSeconds: 0,
 };
-const SENTENCED = pacedFaction(FACTIONS.sentenced);
+// The faction rework made the tax, the suppression and the tier-4 amplifier neutral on the sheet (keep 1, suppress 1, amp 1); the code
+// paths stay, so this file runs them at the pre-rework numbers through setFactionForHarness.
+const LEGACY: FactionSpec = {
+  ...FACTIONS.sentenced, params: { ...FACTIONS.sentenced.params, mark_amp: 1.17, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8 },
+};
+beforeAll(() => setFactionForHarness("sentenced", LEGACY));
+afterAll(() => setFactionForHarness("sentenced"));
+const SENTENCED = pacedFaction(LEGACY);
+/** The pulse is typed (SIGNATURE_SHARES.mark): what reaches a target with this faction's defenses of a raw 1. */
+const markCut = (f: FactionId = "holy"): number => mitigateShares(1, SIGNATURE_SHARES.mark, FACTIONS[f]);
 const PLAGUE = pacedFaction(FACTIONS.plague);
 const AMP = SENTENCED.params.mark_amp!;
 const PLAGUE_TAX_FACTOR = taxedRate(PLAGUE.rate, SENTENCED.params.tax_keep!, SENTENCED.params.tax_cap!) / PLAGUE.rate;
@@ -153,10 +162,10 @@ const toasts = (logs: readonly TickLog[], to: string): string[] =>
 const tierOf = (n: number): number => Math.min(4, 1 + Math.floor(n / MARK_TIER_HITS));
 
 /** The pulse of the `n`-th landed hit by a Sentenced with `stacks` kill-stacks on a target of `pool` max hp, at range, with the weapon it hit with. */
-function pulse(n: number, o: { stacks?: number; pool?: number; weapon?: WeaponId; far?: boolean; scale?: number; amp?: boolean } = {}): number {
+function pulse(n: number, o: { stacks?: number; pool?: number; weapon?: WeaponId; far?: boolean; scale?: number; amp?: boolean; target?: FactionId } = {}): number {
   const amp = o.amp ?? tierOf(n) >= 4;
   return markPct(SENTENCED, o.stacks ?? 0, o.scale ?? 1) * (o.pool ?? BIG_HP) * markWeight(SENTENCED, o.weapon ?? "sword") * (amp ? AMP : 1)
-    * (o.far ? MARK_FAR_SHARE : 1);
+    * (o.far ? MARK_FAR_SHARE : 1) * markCut(o.target);
 }
 
 /** s (a Sentenced in contact with b, 40 u away). */
@@ -198,7 +207,7 @@ describe("the tiers (R3)", () => {
     expect(mobs.map((id) => C(world, id).s.markTier)).toEqual([1, 1, 1, 1]);
     expect(second.landed.filter((h) => h.sig === "mark" && h.by === "s")).toHaveLength(4);
     // Both the same-tick four-member pulse and a later pulse keep the designed camp-size share.
-    const expected = markPct(SENTENCED, 0) * FACTIONS.fire.hp * markWeight(SENTENCED, "sword") / 2;
+    const expected = markPct(SENTENCED, 0) * FACTIONS.fire.hp * markWeight(SENTENCED, "sword") / 2 * markCut("fire");
     expect(first.landed.filter((h) => h.sig === "mark" && h.by === "s").map((h) => h.amount)).toEqual(mobs.map(() => expect.closeTo(expected, 5)));
     // Killing one member does not increase the share paid to the remaining members.
     C(world, mobs[0]!).s.status = "dead";
@@ -276,7 +285,7 @@ describe("the tiers (R3)", () => {
     expect(SIG(world, "s").tier).toBe(4);
     const pulses = log.landed.filter((h) => h.sig === "mark" && h.by === "s");
     expect(pulses).toHaveLength(4);
-    expect(pulses.map((h) => h.amount)).toEqual(mobs.map(() => expect.closeTo(markPct(SENTENCED, 0) * FACTIONS.fire.hp * markWeight(SENTENCED, "sword") * AMP / 2, 5)));
+    expect(pulses.map((h) => h.amount)).toEqual(mobs.map(() => expect.closeTo(markPct(SENTENCED, 0) * FACTIONS.fire.hp * markWeight(SENTENCED, "sword") * AMP / 2 * markCut("fire"), 5)));
   });
 
   it("a target is not a mark: nothing is marked before the first landed hit", () => {
@@ -537,14 +546,14 @@ describe("the tiers (R3)", () => {
 // ---- the pulse ----
 
 describe("the pulse (R4)", () => {
-  it("is a share of the target's max hp: mark_pct x max hp x the hit's weight, true damage whatever the target wears", () => {
+  it("is a share of the target's max hp: mark_pct x max hp x the hit's weight, mitigated like Sentenced's hits (the faction rework)", () => {
     for (const faction of ["holy", "plague", "frost", "fire"] as const) {
       const world = pair({ faction } as Partial<Fighter>);
       const inj = injector(world);
       const [p] = pulses(landHits(world, inj, 1));
-      expect(p!.amount, faction).toBeCloseTo(pulse(1), 6);
+      expect(p!.amount, faction).toBeCloseTo(pulse(1, { target: faction }), 6);
       expect(p!.weapon).toBe("sword");
-      expect(SIGNATURE_SHARES.mark).toEqual({ phys: 0, magic: 0, true: 1 });
+      expect(SIGNATURE_SHARES.mark).toEqual({ phys: 0.4, magic: 0.6, true: 0 });
     }
   });
 
@@ -580,16 +589,16 @@ describe("the pulse (R4)", () => {
     expect(all[10]!.amount).toBeCloseTo(all[8]!.amount, 9);
   });
 
-  it("kill-stacks add mark_kill to the share each: five stacks are x2.25 (the spec's 0.6% to 1.35%)", () => {
+  it("kill-stacks add mark_kill to the share each", () => {
     const world = pair();
     P(world, "s").sentence = 5;
     const inj = injector(world);
     const [p] = pulses(landHits(world, inj, 1));
     expect(p!.amount).toBeCloseTo(pulse(1, { stacks: 5 }), 6);
-    expect(p!.amount / pulse(1)).toBeCloseTo(2.25, 9);
+    expect(p!.amount / pulse(1)).toBeCloseTo(1 + (5 * LEGACY.params.mark_kill!) / LEGACY.params.mark_pct!, 9);
     const w2 = pair();
     P(w2, "s").sentence = 2;
-    expect(pulses(landHits(w2, injector(w2), 1))[0]!.amount / pulse(1)).toBeCloseTo(1.5, 9);
+    expect(pulses(landHits(w2, injector(w2), 1))[0]!.amount / pulse(1)).toBeCloseTo(1 + (2 * LEGACY.params.mark_kill!) / LEGACY.params.mark_pct!, 9);
   });
 
   it("Heavier Sentence: the share grows by 1.5 x the bonus max health over the faction's", () => {

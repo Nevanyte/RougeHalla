@@ -105,7 +105,8 @@ export const MOB_HUNT: Readonly<MobHuntConfig> = {
   eliteMinPower: 4,
   eliteFullHp: 0.9,
   mobMinShare: 0.5,
-  eliteMinShare: 0.6,
+  // The faction rework compressed every elite matchup to 0.5-0.66 (no counters), so the bar sits under the old 0.6.
+  eliteMinShare: 0.55,
   eliteSureShare: 0.4,
   eliteSurePower: 6,
   retreatHp: 0.35,

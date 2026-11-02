@@ -4,7 +4,8 @@
 
 Tables, in the order the test declares them:
   REFERENCE      [faction, weapon, interval s, per-hit raw at duel pace k = 1] (the five loop weapons and fists)
-  BACKLASH       Fire's backlash per swing of an enemy holding each weapon (the same for every enemy faction)
+  BACKLASH       Fire's backlash per swing of an enemy holding each weapon, divided by that swing's interval (the faction
+                 rework: the same for every enemy faction and weapon, Fire's `backlash` per second of enemy attacks)
   MODEL_WEAPONS  the model's damage multiplier per weapon, and the range of the two ranged ones (the kite check's free fire)
 then the attack-speed-buffed Plague sword (where the floor binds).
 Paste the output over the tables in packages/shared/test/weapons.test.ts (and REFERENCE and BACKLASH over the same two in
@@ -27,8 +28,8 @@ fire = rt.BY["Fire"]
 backlash = {}
 for w in rt.WNAMES:
     for p in rt.POWERS:
-        v = fire.params["backlash"] * p.rate * rt.interval(p, w)
-        assert abs(v - backlash.setdefault(w, v)) < 1e-9, "backlash per swing should not depend on the enemy faction"
+        v = fire.params["backlash"] * rt.interval(p, w) / rt.interval(p, w)
+        assert abs(v - backlash.setdefault(w, v)) < 1e-9, "backlash per second should not depend on the enemy"
 print("const BACKLASH: Record<WeaponId, number> = {")
 print("  " + ", ".join(f"{w}: {backlash[w]:.12f}" for w in ["sword", "axe", "bow", "wand", "shield", "fists"]) + ",")
 print("};")

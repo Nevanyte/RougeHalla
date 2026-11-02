@@ -4,10 +4,10 @@
 //
 // Burn, disease and backlash are raw damage per second (backlash: per enemy swing), multiplied by the attacker's weapon
 // dpsMult (bonusMultiplier) and then mitigated by the signature's own damage type (SIGNATURE_SHARES: burn and disease
-// magic, backlash physical). The mark is a pulse of true damage on every landed hit (mark.ts, docs/SENTENCED_REDESIGN.md).
+// magic, backlash physical). The mark is a pulse of a share of the target's max hp (40% physical, 60% magic) on every landed hit (mark.ts, docs/SENTENCED_REDESIGN.md).
 // Pass a paced faction (pacedFaction) for in-game numbers.
 import { PLAYER_RADIUS, RANGED_HIT_REACH } from "./constants";
-import { BEATS, type FactionId, type FactionSpec } from "./factions";
+import type { FactionId, FactionSpec } from "./factions";
 import { WEAPONS, weaponEdge, type WeaponId } from "./weapons";
 
 /** Bonus damage (and the chill) keep applying this long after the target leaves weapon range or line of sight. */
@@ -123,18 +123,17 @@ export function chillMultiplier(f: FactionSpec): number {
 
 // ---- Readability (GAME_DESIGN 15) ----
 
-/** +1 when faction `a` beats `b`, -1 when `b` beats `a`, 0 for a mirror. */
-export function factionEdge(a: FactionId, b: FactionId): -1 | 0 | 1 {
-  for (const [w, l] of BEATS) {
-    if (w === a && l === b) return 1;
-    if (w === b && l === a) return -1;
-  }
+/**
+ * The faction edge between `a` and `b`: always 0 since the faction rework removed the counter cycle (every faction pair is
+ * tuned to an even fight, testing/TUNING_BALANCE.md section 13). Kept so the matchup score keeps one shape.
+ */
+export function factionEdge(_a: FactionId, _b: FactionId): -1 | 0 | 1 {
   return 0;
 }
 
 export interface Loadout { faction: FactionId; weapon: WeaponId | null }
 
-/** Matchup score from `me`'s side, -2..+2: faction edge plus weapon edge (an empty hand has no weapon edge). */
+/** Matchup score from `me`'s side, -1..+1: the weapon edge (an empty hand has none; the faction edge is always 0 now). */
 export function matchupScore(me: Loadout, them: Loadout): number {
   const w = me.weapon && them.weapon ? weaponEdge(me.weapon, them.weapon) : 0;
   return factionEdge(me.faction, them.faction) + w;

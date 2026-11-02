@@ -2,7 +2,8 @@
 // its attacker), and so is the mark's pulse (a share of the target's max hp paid with each landed hit). It is read from the state as the pass began, so no
 // order decides it, and it never touches mobs, dummies, Wishes or the arena. The harness's duelScale seam multiplies next to it.
 import { describe, expect, it } from "vitest";
-import { cardPower, FACTIONS, MARK_AS_EXPONENT, markPct, markWeight, pacedFaction, pvpFactor, PVP_F0, PVP_FMAX, PVP_P0 } from "@raid/shared";
+import { cardPower, FACTIONS, MARK_AS_EXPONENT, markPct, markWeight, mitigateShares, pacedFaction, pvpFactor, PVP_F0, PVP_FMAX, PVP_P0, SIGNATURE_SHARES } from "@raid/shared";
+import { combatant, defenseOf } from "../src/sim/combatant";
 import { attackSpeedMult } from "../src/sim/buffs";
 import { modsOf } from "../src/sim/mods";
 import { applyLedger } from "../src/sim/ledger";
@@ -161,7 +162,8 @@ describe("the mark's pulse", () => {
     const mirrors = modsOf(P(w, "s"));
     const expectedRaw = markPct(SENTENCED, 0, 1, {
       ad: mirrors.adBonus, ap: mirrors.apBonus, armor: mirrors.armorBonus, magicResist: mirrors.shieldBonus,
-    }) * maxHp * markWeight(SENTENCED, "bow", attackSpeedMult(P(w, "s")), MARK_AS_EXPONENT);
+    }) * maxHp * markWeight(SENTENCED, "bow", attackSpeedMult(P(w, "s")), MARK_AS_EXPONENT)
+      * mitigateShares(1, SIGNATURE_SHARES.mark, defenseOf(combatant(w, victim)!.s)); // the pulse is typed like Sentenced's hits
     return { amount: pulses[0]!.amount, maxHp, expectedRaw };
   };
 

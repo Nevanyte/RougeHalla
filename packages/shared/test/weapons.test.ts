@@ -12,41 +12,41 @@ import {
  * k = 1]. Regenerate with `python3 testing/weapon_reference.py` if the design numbers change.
  */
 const REFERENCE: Array<[FactionId, WeaponId, number, number]> = [
-  ["fire", "sword", 0.775193798450, 34.883720930233],
-  ["fire", "axe", 1.190476190476, 55.000000000000],
-  ["fire", "bow", 0.854700854701, 41.025641025641],
-  ["fire", "wand", 1.010101010101, 48.484848484848],
-  ["fire", "shield", 1.041666666667, 46.875000000000],
-  ["fire", "fists", 0.666666666667, 24.000000000000],
-  ["sentenced", "sword", 0.489596083231, 12.153559186047],
-  ["sentenced", "axe", 0.751879699248, 19.162111650000],
-  ["sentenced", "bow", 0.539811066127, 14.293416615385],
-  ["sentenced", "wand", 0.637958532695, 16.892219636364],
-  ["sentenced", "shield", 0.657894736842, 16.331345156250],
-  ["sentenced", "fists", 0.421052631579, 8.361648720000],
-  ["plague", "sword", 0.251414204903, 6.976744186047],
-  ["plague", "axe", 0.386100386100, 11.000000000000],
-  ["plague", "bow", 0.277200277200, 8.205128205128],
-  ["plague", "wand", 0.327600327600, 9.696969696970],
-  ["plague", "shield", 0.337837837838, 9.375000000000],
-  ["plague", "fists", 0.216216216216, 4.800000000000],
-  ["frost", "sword", 1.033591731266, 59.302325581395],
-  ["frost", "axe", 1.587301587302, 93.500000000000],
-  ["frost", "bow", 1.139601139601, 69.743589743590],
-  ["frost", "wand", 1.346801346801, 82.424242424242],
-  ["frost", "shield", 1.388888888889, 79.687500000000],
-  ["frost", "fists", 0.888888888889, 40.800000000000],
-  ["holy", "sword", 0.489596083231, 33.488372093023],
-  ["holy", "axe", 0.751879699248, 52.800000000000],
-  ["holy", "bow", 0.539811066127, 39.384615384615],
-  ["holy", "wand", 0.637958532695, 46.545454545455],
-  ["holy", "shield", 0.657894736842, 45.000000000000],
-  ["holy", "fists", 0.421052631579, 23.040000000000],
+  ["fire", "sword", 0.775193798450, 29.720930232558],
+  ["fire", "axe", 1.190476190476, 46.860000000000],
+  ["fire", "bow", 0.854700854701, 34.953846153846],
+  ["fire", "wand", 1.010101010101, 41.309090909091],
+  ["fire", "shield", 1.041666666667, 39.937500000000],
+  ["fire", "fists", 0.666666666667, 20.448000000000],
+  ["sentenced", "sword", 0.489596083231, 25.151162790698],
+  ["sentenced", "axe", 0.751879699248, 39.655000000000],
+  ["sentenced", "bow", 0.539811066127, 29.579487179487],
+  ["sentenced", "wand", 0.637958532695, 34.957575757576],
+  ["sentenced", "shield", 0.657894736842, 33.796875000000],
+  ["sentenced", "fists", 0.421052631579, 17.304000000000],
+  ["plague", "sword", 0.251414204903, 10.011627906977],
+  ["plague", "axe", 0.386100386100, 15.785000000000],
+  ["plague", "bow", 0.277200277200, 11.774358974359],
+  ["plague", "wand", 0.327600327600, 13.915151515152],
+  ["plague", "shield", 0.337837837838, 13.453125000000],
+  ["plague", "fists", 0.216216216216, 6.888000000000],
+  ["frost", "sword", 1.033591731266, 58.674418604651],
+  ["frost", "axe", 1.587301587302, 92.510000000000],
+  ["frost", "bow", 1.139601139601, 69.005128205128],
+  ["frost", "wand", 1.346801346801, 81.551515151515],
+  ["frost", "shield", 1.388888888889, 78.843750000000],
+  ["frost", "fists", 0.888888888889, 40.368000000000],
+  ["holy", "sword", 0.489596083231, 32.162790697674],
+  ["holy", "axe", 0.751879699248, 50.710000000000],
+  ["holy", "bow", 0.539811066127, 37.825641025641],
+  ["holy", "wand", 0.637958532695, 44.703030303030],
+  ["holy", "shield", 0.657894736842, 43.218750000000],
+  ["holy", "fists", 0.421052631579, 22.128000000000],
 ];
 
-/** Fire's backlash per enemy swing: the same for every enemy faction, backlash / (1 + boost). */
+/** Fire's backlash per enemy swing over that swing's interval: the same for every enemy faction and weapon (the faction rework). */
 const BACKLASH: Record<WeaponId, number> = {
-  sword: 67.441860465116, axe: 103.571428571429, bow: 74.358974358974, wand: 87.878787878788, shield: 90.625000000000, fists: 58.000000000000,
+  sword: 128.000000000000, axe: 128.000000000000, bow: 128.000000000000, wand: 128.000000000000, shield: 128.000000000000, fists: 128.000000000000,
 };
 
 /**
@@ -76,13 +76,13 @@ describe("parity with testing/realtime.py", () => {
 
   it.each(FACTION_IDS)("Fire's backlash per swing of a %s enemy, on every weapon", (f) => {
     for (const w of ALL_WEAPON_IDS) {
-      expect(backlashPerSwing(FACTIONS.fire.params.backlash!, FACTIONS[f], w)).toBeCloseTo(BACKLASH[w], 9);
+      expect(backlashPerSwing(FACTIONS.fire.params.backlash!, FACTIONS[f], w) / attackInterval(FACTIONS[f], w)).toBeCloseTo(BACKLASH[w], 9);
     }
   });
 
   it("turns attack speed past the floor into damage per hit (Plague's sword at x1.3)", () => {
     expect(attackInterval(FACTIONS.plague, "sword", 1.3)).toBeCloseTo(0.25, 12);
-    expect(damagePerHit(FACTIONS.plague, "sword", 1.3)).toBeCloseTo(9.018750000000, 9);
+    expect(damagePerHit(FACTIONS.plague, "sword", 1.3)).toBeCloseTo(12.941906250000, 9);
   });
 
   it("keeps every faction's damage per second x dpsMult on every weapon", () => {
@@ -106,12 +106,12 @@ describe("duel pace", () => {
   });
 
   it("scales the damage params by k, the mark's share of the target's hp with them, and the reference duel's tier clock by 1/k", () => {
-    expect(pacedFaction(FACTIONS.fire).params).toEqual({ burn: 36, backlash: 290 });
+    expect(pacedFaction(FACTIONS.fire).params).toEqual({ burn: 56, backlash: 256 });
     expect(pacedFaction(FACTIONS.sentenced).params).toEqual({
-      mark_pct: 0.054, mark_kill: 0.0135, mark_amp: 1.17, tier_hits: 1.5, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8,
+      mark_pct: 0.09, mark_kill: 0.0135, mark_amp: 1, tier_hits: 1.5, tax_keep: 1, tax_cap: 99, suppress: 1,
     });
-    expect(pacedFaction(FACTIONS.plague).params).toEqual({ plague: 86, execute: 830 });
-    expect(pacedFaction(FACTIONS.frost).params).toEqual({ slow: 0.52 });
+    expect(pacedFaction(FACTIONS.plague).params).toEqual({ plague: 104, execute: 650 });
+    expect(pacedFaction(FACTIONS.frost).params).toEqual({ slow: 0.32 });
     expect(pacedFaction(FACTIONS.holy, 1)).toEqual(FACTIONS.holy);
   });
 });
@@ -211,7 +211,7 @@ describe("fists (what an empty hand fights with)", () => {
       const interval = Math.max(0.2, 1 / (faction.rate * 2.5));
       expect(attackInterval(faction, "fists"), id).toBeCloseTo(interval, 12);
       expect(damagePerHit(faction, "fists"), id).toBeCloseTo(faction.rate * faction.hit * 0.6 * interval, 9);
-      expect(backlashPerSwing(200, faction, "fists"), id).toBeCloseTo(80, 9);
+      expect(backlashPerSwing(200, faction, "fists"), id).toBeCloseTo(200 * interval, 9);
     }
   });
 });

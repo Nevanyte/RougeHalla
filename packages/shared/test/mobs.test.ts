@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, CARDS, duel, ELITE_K, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
+  ABILITIES, CARDS, duel, ELITE_K, MOB_ZONE_DAMAGE, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
   mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type MobKind, type MobRole, type MobTypeDef, type MobTypeId, type WeaponId,
@@ -120,11 +120,11 @@ describe("mobFaction", () => {
     expect(mobFaction("holy", true).params).toEqual(FACTIONS.holy.params);
   });
 
-  it("has concrete numbers: a Fire mob is 183.7 hp and a 22 hit, a Plague elite 893.75 hp (the balance sheet x MOB_K / ELITE_K)", () => {
-    expect(mobFaction("fire", false).hp).toBeCloseTo(835 * 0.22, 9);
-    expect(mobFaction("fire", false).hit).toBeCloseTo(22, 9);
-    expect(mobFaction("fire", false).params.burn).toBeCloseTo(18 * 0.22, 9);
-    expect(mobFaction("plague", true).hp).toBeCloseTo(1375 * 0.65, 9);
+  it("has concrete numbers: the faction sheet x MOB_K / ELITE_K", () => {
+    expect(mobFaction("fire", false).hp).toBeCloseTo(FACTIONS.fire.hp * MOB_K, 9);
+    expect(mobFaction("fire", false).hit).toBeCloseTo(FACTIONS.fire.hit * MOB_K, 9);
+    expect(mobFaction("fire", false).params.burn).toBeCloseTo(FACTIONS.fire.params.burn! * MOB_K, 9);
+    expect(mobFaction("plague", true).hp).toBeCloseTo(FACTIONS.plague.hp * ELITE_K, 9);
     expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(FACTIONS.sentenced.params.mark_pct! * MOB_K, 9);
     expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(FACTIONS.sentenced.params.mark_kill! * MOB_K, 9);
   });
@@ -155,7 +155,7 @@ describe("mobFaction", () => {
       (mob.params as Record<string, number>).burn = 12345;
     }
     expect(JSON.stringify(FACTIONS)).toBe(before);
-    expect(FACTIONS.fire.hp).toBe(835);
+    expect(FACTIONS.fire.hp).toBe(950);
   });
 
   it("composes with the arena pace like any faction: hit and damage params doubled, hp unchanged", () => {
@@ -441,16 +441,20 @@ describe("mob roles (balance contract 6.3)", () => {
 });
 
 describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)", () => {
-  it("is exactly mobFaction for a grunt, a missing type and a type of another zone", () => {
-    for (const zone of REGIONS) {
+  it("is exactly mobFaction for a grunt, a missing type and a type of another zone (in a zone with no camp correction)", () => {
+    for (const zone of REGIONS.filter((z) => (MOB_ZONE_DAMAGE[z] ?? 1) === 1)) {
       for (const elite of [false, true]) {
         expect(mobTypeFaction(zone, elite), zone).toEqual(mobFaction(zone, elite));
         expect(mobTypeFaction(zone, elite, "nope"), zone).toEqual(mobFaction(zone, elite));
         expect(mobTypeFaction(zone, elite, ""), zone).toEqual(mobFaction(zone, elite));
       }
     }
-    expect(mobTypeFaction("holy", false, "bailiff")).toEqual(mobFaction("holy", false)); // a grunt, and of another zone anyway
-    expect(mobTypeFaction("holy", false, "emberImp")).toEqual(mobFaction("holy", false)); // a swarm of another zone: ignored
+    expect(mobTypeFaction("frost", false, "bailiff")).toEqual(mobFaction("frost", false)); // a grunt, and of another zone anyway
+    expect(mobTypeFaction("frost", false, "emberImp")).toEqual(mobFaction("frost", false)); // a swarm of another zone: ignored
+    // A corrected zone (MOB_ZONE_DAMAGE) scales every damage number by its share and keeps the hp.
+    const z = MOB_ZONE_DAMAGE.plague!;
+    expect(mobTypeFaction("plague", false).hit).toBeCloseTo(mobFaction("plague", false).hit * z, 9);
+    expect(mobTypeFaction("plague", false).hp).toBe(mobFaction("plague", false).hp);
     expect(mobTypeFaction("fire", true, "wyrmling")).toEqual(mobFaction("fire", true));
   });
 
@@ -458,10 +462,11 @@ describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)",
     for (const t of MOB_TYPES) {
       const base = mobFaction(t.zone, t.elite);
       const spec = mobTypeFaction(t.zone, t.elite, t.id);
+      const dmg = t.dmgMult * (MOB_ZONE_DAMAGE[t.zone] ?? 1);
       expect(spec.hp, t.id).toBeCloseTo(base.hp * t.hpMult, 9);
-      expect(spec.hit, t.id).toBeCloseTo(base.hit * t.dmgMult, 9);
+      expect(spec.hit, t.id).toBeCloseTo(base.hit * dmg, 9);
       for (const key of Object.keys(base.params)) {
-        const want = DAMAGE_PARAMS.includes(key) ? base.params[key]! * t.dmgMult : base.params[key]!;
+        const want = DAMAGE_PARAMS.includes(key) ? base.params[key]! * dmg : base.params[key]!;
         expect(spec.params[key], `${t.id} ${key}`).toBeCloseTo(want, 9);
       }
       expect([spec.armor, spec.shield, spec.rate, spec.phys, spec.trueShare, spec.id], t.id).toEqual([base.armor, base.shield, base.rate, base.phys, base.trueShare, base.id]);
@@ -472,7 +477,7 @@ describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)",
     const before = JSON.stringify(FACTIONS);
     const spec = mobTypeFaction("plague", false, "miasmaWitch", 0.5);
     expect(spec.hp).toBeCloseTo(FACTIONS.plague.hp * 0.5 * 0.75, 9);
-    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * 1.2, 9);
+    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * 1.2 * MOB_ZONE_DAMAGE.plague!, 9);
     expect(JSON.stringify(FACTIONS)).toBe(before);
     expect(mobTypeFaction("plague", false, "miasmaWitch").params).not.toBe(mobFaction("plague", false).params);
   });

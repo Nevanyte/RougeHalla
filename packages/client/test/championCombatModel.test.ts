@@ -77,7 +77,7 @@ describe("championCombatModel", () => {
       expect(auto.scaling).toBe(Object.entries(WEAPONS[weaponId].scaling).map(([key, value]) => {
         const label = key === "def" ? "bonus defense" : key === "hp" ? "bonus HP" : key === "ad" ? "Offense" : key === "ap" ? "SO" : key.toUpperCase();
         return `${value}× ${label}`;
-      }).join(" + "));
+      }).join(WEAPONS[weaponId].dominant ? " or " : " + "));
       expect(model.rows).toHaveLength(3);
       expect(model.signature).toContain("auto|");
     }
@@ -156,36 +156,19 @@ describe("championCombatModel", () => {
     }) * markWeight(faction, "wand", decoded.asMult, MARK_AS_EXPONENT);
     const row = championCombatModel(input).rows[1]!;
     expect(row.value).toBe(`${Math.round(expected * 10000) / 100}% target HP / hit`);
-    expect(row.tooltip).toContain("bonus-stat points");
-    const rawPoints = decoded.adBonus + decoded.apBonus + decoded.armorBonus + decoded.shieldBonus;
-    const weightedPoints = decoded.adBonus + MARK_BONUS_AP_WEIGHT * decoded.apBonus + decoded.armorBonus + decoded.shieldBonus;
-    expect(row.tooltip).toContain(`${round(rawPoints)} raw bonus-stat points (${round(weightedPoints)} weighted for the mark)`);
-    expect(row.tooltip).toContain(`SO has ${MARK_BONUS_AP_WEIGHT}× weight and adds ${MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100}% per point`);
-    expect(row.tooltip).toContain(`Attack-speed bonuses from cards and farming are ${MARK_FARM_AS_EFFICIENCY * 100}% effective`);
-    expect(row.scaling).toContain(`${round(weightedPoints)} weighted bonus stats`);
+    // The Sentenced rework: every bonus stat point grows the pulse alike (the stat bully), so the bonus stats raise it here.
+    expect(row.tooltip).toContain("Attack speed lands more pulses");
     expect(row.value).not.toBe(championCombatModel(player({ faction: "sentenced", weapon0: "wand", sentence: 4 })).rows[1]!.value);
   });
 
-  it("makes a flat SO reward stronger than an equal earned AS reward against a normal-health target", () => {
+  it("scales mark damage per second linearly with an earned attack-speed reward (the Sentenced rework)", () => {
     const faction = pacedFaction(FACTIONS.sentenced);
     const weapon = "bow" as const;
-    for (const stacks of [0, 10, 30]) {
-      const baseAs = 1 + stacks * 0.01 * MARK_FARM_AS_EFFICIENCY;
-      const interval = attackInterval(faction, weapon, baseAs);
-      const baseHit = damagePerHit(faction, weapon, baseAs);
-      const bonusStats = { ap: stacks };
-      const baseMarkDps = markPct(faction, 0, 1, bonusStats) * 800 * markWeight(faction, weapon, baseAs, MARK_AS_EXPONENT) / interval;
-      const apMarkDps = markPct(faction, 0, 1, { ap: stacks + 1 }) * 800 * markWeight(faction, weapon, baseAs, MARK_AS_EXPONENT) / interval;
-      const baseWeaponScaling = scalingDamage(weapon, { ad: 0, ap: stacks, bonusMaxHp: 0, bonusDefense: 0 }, baseAs, interval);
-      const apWeaponScaling = scalingDamage(weapon, { ad: 0, ap: stacks + 1, bonusMaxHp: 0, bonusDefense: 0 }, baseAs, interval);
-      const apAutoDps = (baseHit + apWeaponScaling.phys + apWeaponScaling.magic) / interval;
-      const asMult = baseAs + 0.01 * MARK_FARM_AS_EFFICIENCY;
-      const asInterval = attackInterval(faction, weapon, asMult);
-      const asMarkDps = markPct(faction, 0, 1, bonusStats) * 800 * markWeight(faction, weapon, asMult, MARK_AS_EXPONENT) / asInterval;
-      const asWeaponScaling = scalingDamage(weapon, { ad: 0, ap: stacks, bonusMaxHp: 0, bonusDefense: 0 }, asMult, asInterval);
-      const asAutoDps = (damagePerHit(faction, weapon, asMult) + asWeaponScaling.phys + asWeaponScaling.magic) / asInterval;
-      const baseAutoDps = (baseHit + baseWeaponScaling.phys + baseWeaponScaling.magic) / interval;
-      expect((apMarkDps + apAutoDps) - (baseMarkDps + baseAutoDps), `SO vs AS at ${stacks} prior rewards`).toBeGreaterThan((asMarkDps + asAutoDps) - (baseMarkDps + baseAutoDps));
+    for (const as of [1, 1.1, 1.3]) {
+      const interval = attackInterval(faction, weapon, as);
+      const markDps = markPct(faction, 0) * 800 * markWeight(faction, weapon, as, MARK_AS_EXPONENT) / interval;
+      const base = markPct(faction, 0) * 800 * markWeight(faction, weapon, 1, MARK_AS_EXPONENT) / attackInterval(faction, weapon, 1);
+      expect(markDps / base, `x${as}`).toBeCloseTo(as, 9);
     }
   });
 

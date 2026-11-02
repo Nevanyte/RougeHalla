@@ -115,38 +115,37 @@ describe("nearestFoeTint", () => {
     expect(nearestFoeTint(fire(0, 0), [fire(50, 0)], always)).toBe(0);
   });
 
-  it("is green for a faction you beat and red for one that beats you, at half strength per point of score", () => {
-    expect(nearestFoeTint(fire(0, 0), [sentenced(100, 0)], always)).toBeCloseTo(0.5, 9);
-    expect(nearestFoeTint(sentenced(0, 0), [fire(100, 0)], always)).toBeCloseTo(-0.5, 9);
+  it("is green for a weapon you beat and red for one that beats you, at half strength per point of score (no faction edges since the faction rework)", () => {
+    expect(nearestFoeTint(fire(0, 0, "axe"), [sentenced(100, 0, "wand")], always)).toBeCloseTo(0.5, 9);
+    expect(nearestFoeTint(sentenced(0, 0, "wand"), [fire(100, 0, "axe")], always)).toBeCloseTo(-0.5, 9);
+    expect(nearestFoeTint(fire(0, 0), [sentenced(100, 0)], always)).toBe(0);
   });
 
   it("adds the weapon edge only when both hold a weapon", () => {
-    // Fire beats Sentenced (+1); an axe beats a wand (+1) but means nothing against an empty hand.
-    expect(nearestFoeTint(fire(0, 0, "axe"), [sentenced(100, 0, "wand")], always)).toBeCloseTo(1, 9);
-    expect(nearestFoeTint(fire(0, 0, "axe"), [sentenced(100, 0, null)], always)).toBeCloseTo(0.5, 9);
-    expect(nearestFoeTint(fire(0, 0, null), [sentenced(100, 0, "wand")], always)).toBeCloseTo(0.5, 9);
+    expect(nearestFoeTint(fire(0, 0, "axe"), [sentenced(100, 0, null)], always)).toBe(0);
+    expect(nearestFoeTint(fire(0, 0, null), [sentenced(100, 0, "wand")], always)).toBe(0);
   });
 
   it("uses the nearest foe that can be seen, not the nearest one", () => {
-    const near = sentenced(60, 0); // +1 for fire, but behind a wall
-    const far = plague(200, 0, null); // fire beats plague too: +1
+    const near = sentenced(60, 0, "bow"); // the axe loses to the bow (-1), but it is behind a wall
+    const far = plague(200, 0, "wand"); // the axe beats the wand: +1
     const sees = (_a: Matchup, b: Matchup) => b !== near;
-    expect(nearestFoeTint(fire(0, 0), [near, far], sees)).toBeCloseTo(matchupTint(1, 200), 9);
+    expect(nearestFoeTint(fire(0, 0, "axe"), [near, far], sees)).toBeCloseTo(matchupTint(1, 200), 9);
     // With both visible the nearer one wins.
-    expect(nearestFoeTint(fire(0, 0), [far, near], always)).toBeCloseTo(0.5, 9);
+    expect(nearestFoeTint(fire(0, 0, "axe"), [far, near], always)).toBeCloseTo(-0.5, 9);
   });
 
   it("fades with distance beyond MATCHUP_FULL_RANGE", () => {
-    const close = nearestFoeTint(fire(0, 0), [sentenced(MATCHUP_FULL_RANGE, 0)], always);
-    const mid = nearestFoeTint(fire(0, 0), [sentenced((MATCHUP_FULL_RANGE + MATCHUP_RANGE) / 2, 0)], always);
+    const close = nearestFoeTint(fire(0, 0, "axe"), [sentenced(MATCHUP_FULL_RANGE, 0, "wand")], always);
+    const mid = nearestFoeTint(fire(0, 0, "axe"), [sentenced((MATCHUP_FULL_RANGE + MATCHUP_RANGE) / 2, 0, "wand")], always);
     expect(close).toBeCloseTo(0.5, 9);
     expect(mid).toBeCloseTo(0.25, 9);
   });
 
   it("only ray-casts foes closer than the best one so far", () => {
     const asked: Matchup[] = [];
-    const foes = [sentenced(100, 0), sentenced(200, 0), sentenced(300, 0)];
-    nearestFoeTint(fire(0, 0), foes, (_a, b) => { asked.push(b); return true; });
+    const foes = [sentenced(100, 0, "wand"), sentenced(200, 0, "wand"), sentenced(300, 0, "wand")];
+    nearestFoeTint(fire(0, 0, "axe"), foes, (_a, b) => { asked.push(b); return true; });
     expect(asked).toEqual([foes[0]]);
   });
 });
@@ -175,7 +174,7 @@ describe("matchupTarget", () => {
   it("tints against the nearest enemy player in sight", () => {
     const w = world({ players: { me: fighter("fire", "axe"), foe: fighter("sentenced", "wand") } });
     const t = matchupTarget(w, "me", at({ me: [100, 100], foe: [180 - TILE * 2, 100] }), arena());
-    expect(t).toBeCloseTo(1, 9);
+    expect(t).toBeCloseTo(0.5, 9); // the axe beats the wand; no faction edge since the faction rework
   });
 
   it("is blocked by walls on the client's map", () => {
@@ -201,7 +200,7 @@ describe("matchupTarget", () => {
       players: { ...base, dead: fighter("sentenced", "wand", "dead") },
       mobs: { dummy: fighter("", "sword"), goblin: fighter("sentenced", "wand") },
     });
-    expect(matchupTarget(w, "me", pos, arena())).toBeCloseTo(1, 9);
+    expect(matchupTarget(w, "me", pos, arena())).toBeCloseTo(0.5, 9);
     expect(matchupTarget(world({ players: base, mobs: { dummy: fighter("", "sword") } }), "me", pos, arena())).toBe(0);
   });
 
@@ -219,6 +218,6 @@ describe("matchupTarget", () => {
     expect(matchupTarget(stunned, "me", pos, arena())).toBeGreaterThan(0);
     const two = world({ players: { me, hid: fighter("sentenced", "wand", "alive", EFFECT_HIDDEN), foe: fighter("sentenced", "wand") } });
     const both = at({ me: [100, 100], hid: [110, 100], foe: [180 - TILE * 2, 100] });
-    expect(matchupTarget(two, "me", both, arena())).toBeCloseTo(1, 9);
+    expect(matchupTarget(two, "me", both, arena())).toBeCloseTo(0.5, 9);
   });
 });

@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  ALL_WEAPON_IDS, AS_MULT_CAP, attackInterval, BOW_WINDUP, WAND_WINDUP, damagePerHit, damageShares, decodeFlat, decodeMirrors,
+  ALL_WEAPON_IDS, AS_MULT_CAP, scalingDamage, attackInterval, BOW_WINDUP, WAND_WINDUP, damagePerHit, damageShares, decodeFlat, decodeMirrors,
   decodeMult, encodeFlat, encodeMult, IDENTITY_MIRRORS, mapFromTiles, MARK_FARM_AS_EFFICIENCY, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS,
   PLAYER_SPEED, SIG_CHILLED, slotReadyAt, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, WIRE_IDENTITY_MIRRORS, WISH_COOLDOWN_SECONDS,
   type Effect, type FactionId, type GameMap, type WeaponId,
@@ -582,12 +582,19 @@ describe("AD and AP on the mirrors", () => {
 describe("packetFor: the weapons' AD and AP scaling", () => {
   // The contract's table (BALANCE_CONTRACT 3.3), typed out here so a change to WEAPONS.scaling has to change it too.
   const TABLE: Record<WeaponId, { ad?: number; ap?: number; hp?: number; def?: number }> = {
-    sword: { ad: 1.0 }, axe: { ad: 1.0, hp: 0.02 }, bow: { ad: 1.0 }, wand: { ad: 0.3, ap: 1.0 }, shield: { ap: 0.3, def: 0.4 },
+    sword: { ad: 1.0, ap: 1.0 }, axe: { ad: 1.0, hp: 0.02 }, bow: { ad: 1.0 }, wand: { ad: 0.3, ap: 1.0 }, shield: { ap: 0.3, def: 0.4 },
     fists: { ad: 0.6, ap: 0.6 },
   };
 
   it("matches the table in WEAPONS", () => {
     for (const id of ALL_WEAPON_IDS) expect(WEAPONS[id].scaling, id).toEqual(TABLE[id]);
+  });
+
+  it("scales a sword hit with the higher of AD and AP only, in that stat's damage type (the dominant trait)", () => {
+    const I = 0.5;
+    expect(scalingDamage("sword", { ad: 40, ap: 30, bonusMaxHp: 0, bonusDefense: 0 }, 1, I)).toEqual({ phys: 40 * I, magic: 0 });
+    expect(scalingDamage("sword", { ad: 20, ap: 50, bonusMaxHp: 0, bonusDefense: 0 }, 1, I)).toEqual({ phys: 0, magic: 50 * I });
+    expect(scalingDamage("sword", { ad: 30, ap: 30, bonusMaxHp: 0, bonusDefense: 0 }, 1, I)).toEqual({ phys: 30 * I, magic: 0 });
   });
 
   it("is exactly the faction's own packet for a fighter with no AD, AP, bonus max hp or defense", () => {
@@ -611,8 +618,10 @@ describe("packetFor: the weapons' AD and AP scaling", () => {
       for (const weapon of ALL_WEAPON_IDS) {
         const t = TABLE[weapon];
         const I = attackInterval(f, weapon, 1);
+        // The sword's scaling follows the higher of AD and AP (WeaponSpec.dominant): here AD 40 over AP 30, so only the AD part.
+        const dom = WEAPONS[weapon].dominant === true;
         const phys = ((t.ad ?? 0) * 40 + (t.hp ?? 0) * bonusHp + (t.def ?? 0) * 30) * I;
-        const magic = (t.ap ?? 0) * 30 * I;
+        const magic = (dom ? 0 : (t.ap ?? 0) * 30) * I;
         const base = damagePerHit(f, weapon, 1);
         const total = base + phys + magic;
         const pk = packetFor(C(w, i), weapon);
@@ -722,16 +731,16 @@ describe("the attack-speed mirror, the caps and the ranged windups in the sim (G
     expect(attackSpeedMult(p)).toBeCloseTo((1 + 0.5 * MARK_FARM_AS_EFFICIENCY + 0.1 * MARK_FARM_AS_EFFICIENCY) * 0.5 * 2, 12);
   });
 
-  it("encodes each Sentenced AS reward with its reduced positive-bonus efficiency", () => {
+  it("encodes each Sentenced AS reward at full value since the Sentenced rework", () => {
     const w = startRun(2);
     const p = P(w, 0);
     p.faction = "sentenced";
     recomputeMods(w, C(w, 0));
     const c = C(w, 0) as Extract<Combatant, { kind: "player" }>;
     expect(grantMobStat(w, c, "plagueRat", 1)).toBe(1);
-    expect(p.asMult).toBe(1001);
+    expect(p.asMult).toBe(1010);
     expect(grantMobStat(w, c, "plagueRat", 1)).toBe(1);
-    expect(p.asMult).toBe(1002);
+    expect(p.asMult).toBe(1020);
   });
 
   it("a ranged windup follows its interval share under attack speed, bounded by its weapon cap", () => {

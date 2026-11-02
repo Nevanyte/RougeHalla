@@ -12,44 +12,46 @@ Order matters only for the printed matrix: Fire, Sentenced, Plague, Frost, Holy.
 from engine import PowerSpec
 
 FIRE = PowerSpec(
-    name="Fire", hp=835, rate=0.60, hit=100,
-    phys=0.0, true=0.0, armor=0, shield=45,
-    mechanic="dragonslayer", params=dict(burn=18, backlash=145),
+    name="Fire", hp=950, rate=0.60, hit=85.2,
+    phys=0.0, true=0.0, armor=20, shield=20,
+    mechanic="dragonslayer", params=dict(burn=28, backlash=128),
     sig_types=dict(burn=(0.0, 0.0), backlash=(1.0, 0.0)),
 )
 SENTENCED = PowerSpec(
-    name="Sentenced", hp=880, rate=0.95, hit=34.840203,
-    phys=0.40, true=0.0, armor=135, shield=120,
-    mechanic="marked", params=dict(mark_pct=0.027, mark_kill=0.00675, mark_amp=1.17, tier_hits=3.0, tax_keep=0.38, tax_cap=1.6, suppress=0.8),
-    sig_types=dict(mark=(0.0, 1.0)),
+    name="Sentenced", hp=1085, rate=0.95, hit=72.1,
+    phys=0.40, true=0.0, armor=94, shield=94,
+    mechanic="marked", params=dict(mark_pct=0.045, mark_kill=0.00675, mark_amp=1, tier_hits=3, tax_keep=1, tax_cap=99, suppress=1),
+    sig_types=dict(mark=(0.4, 0.0)),
 )
 PLAGUE = PowerSpec(
-    name="Plague", hp=1375, rate=1.85, hit=20,
-    phys=0.8, true=0.0, armor=190, shield=0,
-    mechanic="rat_king", params=dict(plague=43, execute=415),
+    name="Plague", hp=1020, rate=1.85, hit=28.7,
+    phys=0.8, true=0.0, armor=77, shield=77,
+    mechanic="rat_king", params=dict(plague=52, execute=325),
     sig_types=dict(disease=(0.0, 0.0), execute=(0.0, 0.0)),
 )
 FROST = PowerSpec(
-    name="Frost", hp=1200, rate=0.45, hit=170,
-    phys=0.9, true=0.0, armor=20, shield=190,
-    aura="wall_of_ice", params=dict(slow=0.52),
+    name="Frost", hp=985, rate=0.45, hit=168.2,
+    phys=0.9, true=0.0, armor=116, shield=116,
+    aura="wall_of_ice", params=dict(slow=0.32),
 )
 HOLY = PowerSpec(
-    name="Holy", hp=1400, rate=0.95, hit=96,
-    phys=1.0, true=0.0, armor=0, shield=250,
-    sustain="radiant", params=dict(ls0=0.11, ls1=0.85, ls_cap=0.75),
+    name="Holy", hp=1145, rate=0.95, hit=92.2,
+    phys=1.0, true=0.0, armor=78, shield=78,
+    sustain="radiant", params=dict(ls0=0.08, ls1=0.65, ls_cap=0.6),
 )
 
 POWERS = [FIRE, SENTENCED, PLAGUE, FROST, HOLY]
 
-# Target graph C5^2: each power beats exactly two others. (winner, loser)
-BEATS = [
+# The ten unordered pairs (the faction rework removed the counter cycle: no pair favours its first power). Same order as the
+# old cycle, so tools and fixtures that iterated it keep their row order.
+PAIRS = [
     ("Fire", "Sentenced"), ("Fire", "Plague"),
     ("Sentenced", "Plague"), ("Sentenced", "Frost"),
     ("Plague", "Frost"), ("Plague", "Holy"),
     ("Frost", "Holy"), ("Frost", "Fire"),
     ("Holy", "Fire"), ("Holy", "Sentenced"),
 ]
+BEATS = PAIRS  # the old name; kept for the tools that still import it
 
 # Design intent (documentation only; nothing in the engine reads this).
 ROLES = {

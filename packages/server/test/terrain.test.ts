@@ -269,7 +269,7 @@ describe("ember burn", () => {
 
     it("a death to sudden death credits nobody, rival's hit within 5 s or not", () => {
       const world = locked(true);
-      P(world, "p0").hp = 1;
+      P(world, "p0").hp = 0.5; // under one tick of ember at any sheet hp
       RT(world, "p0").lastHit = { by: "p1", at: world.state.serverTime - 2000 };
       let terrainEntries = 0;
       world.beforeDamage.push((w) => { for (const e of w.combat.ledger) if (e.by.id.startsWith("terrain:")) terrainEntries++; });
@@ -312,7 +312,7 @@ describe("ember burn", () => {
         // The rival and the bystander are Fire, so the lava leaves them alone.
         players: [{ faction: "frost", at: at(8, 8) }, { faction: "fire", at: at(30, 20) }, { faction: "fire", at: at(20, 24) }],
       });
-      P(world, "p0").hp = 1;
+      P(world, "p0").hp = 0.5; // under one tick of ember at any sheet hp
       if (opts.bounty) P(world, "p0").bounty = opts.bounty;
       if (opts.sinceHit !== undefined) RT(world, "p0").lastHit = { by: "p1", at: world.state.serverTime - opts.sinceHit };
       if (opts.sameTickHit) {
@@ -417,7 +417,7 @@ describe("ember burn", () => {
     const p = P(world, "p0");
     run(world, 20);
     expect(p.maxHp - p.hp).toBeCloseTo(0.02 * p.maxHp, 6);
-    p.hp = 1;
+    p.hp = 0.5; // under one tick of ember at any sheet hp
     RT(world, "p0").slip = { vx: 5, vy: 0, ax: 0, ay: 0, path: null, replanAt: 0 };
     const events = run(world, 1);
     expect(events.filter((e) => e.type === "resolved")).toEqual([]);

@@ -8,6 +8,7 @@ import { MobState } from "@raid/shared/schema";
 import { combatant, hostile, isEvading, standing, type Combatant } from "./combatant";
 import { displace } from "./displace";
 import { InputQueue } from "./inputs";
+import { scalingStatsOf } from "./mods";
 import { isStunned, isUntargetable } from "./status";
 import { canPlayerSeeActor } from "./vision";
 import { cancelAction } from "./weapons";
@@ -36,8 +37,14 @@ function resetCombat(world: World, z: Zombie): void {
   if (z.rt.zombie) { z.rt.zombie.target = null; z.rt.zombie.assistUntil = 0; z.rt.zombie.lastMoveAt = 0; }
 }
 
+/** What the owner's build gives its zombie (shared plagueZombieStats): its bonus defenses and SO. */
+function ownerBonus(s: Owner["s"]): { bonusDefense: number; ap: number } {
+  const st = scalingStatsOf(s);
+  return { bonusDefense: st.bonusDefense, ap: st.ap };
+}
+
 function syncStats(owner: Owner, z: Zombie, revive = false): void {
-  const stats = plagueZombieStats(owner.s.maxHp, owner.s.corpseStacks);
+  const stats = plagueZombieStats(owner.s.maxHp, owner.s.corpseStacks, ownerBonus(owner.s));
   const gained = stats.maxHp - z.s.maxHp;
   z.s.maxHp = stats.maxHp;
   z.s.hp = revive ? stats.maxHp : Math.min(stats.maxHp, z.s.hp + Math.max(0, gained));
@@ -56,7 +63,7 @@ export function raiseOrGrowZombie(world: World, owner: Owner): void {
     world.state.mobs.set(id, m);
     world.mobs.set(id, {
       id, inputs: new InputQueue(), path: [], history: [], weapon: newWeaponRuntime(), lastHitAt: 0,
-      zombie: { get damage() { return plagueZombieStats(p.maxHp, p.corpseStacks).damage; }, target: null, assistUntil: 0,
+      zombie: { get damage() { return plagueZombieStats(p.maxHp, p.corpseStacks, ownerBonus(p)).damage; }, target: null, assistUntil: 0,
         lastMoveAt: 0, ownerDisplaceSeq: p.displaceSeq },
     });
     z = combatant(world, id);

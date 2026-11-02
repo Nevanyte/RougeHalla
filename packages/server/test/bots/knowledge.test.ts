@@ -31,16 +31,17 @@ function scripted(factionDraw: number, weaponDraw: number): () => number {
 }
 
 describe("the wheels a bot knows", () => {
-  it("knows about the tier's share of the 20 edges, drawn once per bot", () => {
+  it("knows about the tier's share of the 10 weapon edges, drawn once per bot (the faction edges are all 0 since the faction rework)", () => {
     const expected: Record<TierId, number> = { easy: 0.4, normal: 0.7, hard: 0.95 };
     for (const id of ["easy", "normal", "hard"] as const) {
       let known = 0;
       const bots = 300;
       for (let seed = 1; seed <= bots; seed++) {
         const k = knownEdges(createKnowledge(TIERS[id], mulberry32(seed)));
-        known += k.factions + k.weapons;
+        expect(k.factions).toBe(0);
+        known += k.weapons;
       }
-      expect(Math.abs(known / (bots * 20) - expected[id]), id).toBeLessThan(0.025);
+      expect(Math.abs(known / (bots * 10) - expected[id]), id).toBeLessThan(0.035);
     }
   });
 
@@ -173,7 +174,7 @@ describe("fight odds", () => {
   it("prefers what it knows to the tint", () => {
     const me = selfView({ faction: "fire", weapons: ["sword", null], hp: 100, maxHp: 100 });
     const odds = full.odds(me, them({ faction: "sentenced", inHand: "axe", tint: -1 }));
-    expect(odds.edge).toBe(2);
+    expect(odds.edge).toBe(1); // the sword beats the axe; no faction edge
     expect(odds.known).toBe(true);
   });
 
@@ -182,9 +183,9 @@ describe("fight odds", () => {
     const me = selfView({ faction: "fire", weapons: ["sword", null], hp: 100, maxHp: 100 });
     const quiet = factionsOnly.odds(me, them({ faction: "sentenced", inHand: "axe", tint: 0 }));
     expect(quiet.known).toBe(false);
-    expect(quiet.edge).toBe(1); // the faction edge alone
+    expect(quiet.edge).toBe(0); // the faction edge alone, which is 0 since the faction rework
     const shown = factionsOnly.odds(me, them({ faction: "sentenced", inHand: "axe", tint: 1 }));
-    expect(shown.edge).toBe(2); // the tint carries both
+    expect(shown.edge).toBe(2); // the tint carries it
     expect(shown.known).toBe(false);
   });
 

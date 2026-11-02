@@ -4,7 +4,7 @@
 // a PlayerState lookalike (hub/hubAvatar.ts), so the player's skin, outline, title, trail and faction show here too.
 import Phaser from "phaser";
 import {
-  FACTIONS, FACTION_WHEEL, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, WEAPON_WHEEL, Y_SCALE, cssColor,
+  FACTIONS, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, WEAPON_WHEEL, Y_SCALE, cssColor,
   type FactionId, type ProfileDTO,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -501,8 +501,8 @@ export class HubScene extends Phaser.Scene {
       });
       this.label(projX(cx), projY(decal.y + decal.h / 2) + 3, title, "#aeb7c2", 0.5, 0, 10, DEPTH_DECAL + 5);
     };
-    place(decal.x - WHEEL_OFFSET, FACTION_WHEEL.nodes, FACTION_WHEEL.nodes.map((n) => FACTIONS[n.id].displayName),
-      FACTION_WHEEL.nodes.map((n) => FACTIONS[n.id].color), "FACTIONS");
+    // No faction pentagram: the faction rework removed the counter cycle (every faction pair is an even fight).
+    this.label(projX(decal.x - WHEEL_OFFSET), projY(decal.y), "FACTIONS: NO COUNTERS", "#aeb7c2", 0.5, 0.5, 10, DEPTH_DECAL + 5);
     place(decal.x + WHEEL_OFFSET, WEAPON_WHEEL.nodes, WEAPON_WHEEL.nodes.map((n) => WEAPONS[n.id].name),
       WEAPON_WHEEL.nodes.map((n) => WEAPONS[n.id].color), "WEAPONS");
   }
@@ -512,7 +512,6 @@ export class HubScene extends Phaser.Scene {
     const decal = this.layout.stations.find((s) => s.kind === "decal");
     if (this.wheels && decal) {
       this.wheels.clear();
-      drawWheel(this.wheels, FACTION_WHEEL, decal.x - WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => FACTIONS[id].color, this.faction);
       // The weapon ring has no pick: a run starts on fists, which are not on it.
       drawWheel(this.wheels, WEAPON_WHEEL, decal.x + WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => WEAPONS[id].color, null);
     }

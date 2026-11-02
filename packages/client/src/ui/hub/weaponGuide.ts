@@ -55,6 +55,7 @@ export function weaponGuide(id: WeaponId) {
     const amount = stat === "hp" ? 100 : 10;
     return `+${amount} ${labels[stat]} → +${guideNumber(amount * coefficient)} ${stat === "ap" ? "magic" : "physical"} damage/s`;
   });
+  if (w.dominant) gains.push("Offense and SO do not add together: each hit scales with whichever of the two you have more of.");
   return {
     id, ...weaponScalingGuide(id), ...ROLES[id], gains, mechanics: weaponMechanics(id),
     range: w.shape.kind === "arc" ? `${w.shape.reach} units · melee reach (+ target body)` : `${w.shape.range} units · attack range`,
@@ -82,7 +83,7 @@ export const CHAMPION_BUILDS: Record<FactionId, readonly [ChampionBuildExample, 
     { weapon: "axe", name: "Durable duelist", stats: "Offense + bonus health", why: "Offense and bonus health grow axe hits. Defense shred can also help your physical retaliation; extra durability keeps you trading.", caution: "The burn remains magic damage; Defense shred does not strengthen it." },
   ],
   sentenced: [
-    { weapon: "sword", name: "Close-range judge", stats: "Attack speed + Offense + durability", why: "Fast landed hits advance mark tiers sooner. Stay close for full mark strength; Offense grows the weapon hit.", caution: "Offense does not grow the true-damage mark, and its pulse is weighted per weapon hit." },
+    { weapon: "sword", name: "Close-range judge", stats: "Attack speed + Offense + durability", why: "Fast landed hits advance mark tiers sooner. Stay close for full mark strength; Offense grows the weapon hit.", caution: "The mark grows with every bonus stat point and with attack speed; its pulse is weighted per weapon hit." },
     { weapon: "bow", name: "Patient pursuer", stats: "Offense + attack speed", why: "Range helps keep hits landing and build mark tiers while repositioning. Trial can hold an enemy for a sustained trade.", caution: "At long range the mark is weaker unless the enemy is inside your Trial ring. SO does not scale the mark." },
   ],
   plague: [

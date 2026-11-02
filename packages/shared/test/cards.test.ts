@@ -302,7 +302,7 @@ describe("the glossary", () => {
     const sig = Object.fromEntries(SIGNATURE_TAGS.map((s) => [`${s.faction}:${s.signature}`, s.tags]));
     expect(sig["fire:Burn"]).toEqual(["magic", "dot"]);
     expect(sig["fire:Backlash"]).toEqual(["physical", "returned"]);
-    expect(sig["sentenced:Mark"]).toEqual(["true", "ramping"]);
+    expect(sig["sentenced:Mark"]).toEqual(["physical", "magic"]);
     expect(sig["plague:Disease and execute"]).toEqual(["magic", "dot", "execute"]);
     expect(sig["frost:Chill"]).toEqual(["slow"]);
     expect(sig["holy:Lifesteal"]).toEqual(["heal"]);

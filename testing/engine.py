@@ -39,9 +39,10 @@ class State:
 # Keys are the mechanic ids stored on PowerSpec.mechanic.
 # ----------------------------------------------------------------------------
 def dragonslayer(p: dict, s: State) -> dict:
-    """Burn DoT plus backlash that grows with the TARGET's attack rate.
-    Rewards punishing fast attackers; fizzles against slow ones."""
-    return {"burn": p["burn"], "backlash": p["backlash"] * s.foe_rate}
+    """Burn DoT plus backlash: physical damage sent back on every attack the target makes. Each swing returns `backlash` x the
+    swing's own interval, so the backlash per second is the same whatever the target's attack rate (the faction rework: it no
+    longer punishes fast attackers more than slow ones, so it counters nobody)."""
+    return {"burn": p["burn"], "backlash": p["backlash"]}
 
 
 def rat_king(p: dict, s: State) -> dict:
@@ -65,9 +66,9 @@ def mark_tier(p: dict, own_hits: float) -> int:
 
 
 def marked(p: dict, s: State) -> dict:
-    """The mark: every hit on the target adds a share of ITS MAX HP as true damage (a per-second rate here: the attack rate the fighter
-    would have with no slow on it x the share: a slowed fighter lands fewer hits, each paying out the time it took, so a slow on
-    the cadence never cuts the mark), the share growing with the tier (x amp at the top) and with the stacks earned."""
+    """The mark: every hit on the target adds a share of ITS MAX HP as true damage (a per-second rate here: the fighter's base attack
+    rate x the share; a chill cuts it like every other part, duel() applies it), the share growing with the tier (x amp at the
+    top: 1 since the faction rework) and with the stacks earned."""
     tier = mark_tier(p, s.own_hits)
     if tier == 0:
         return {}
@@ -170,9 +171,11 @@ def duel(a: PowerSpec, b: PowerSpec, dt: float = 0.002, t_max: float = 120.0):
     t = 0.0
     while t < t_max:
         rate = [f[0].rate, f[1].rate]
+        chill = [1.0, 1.0]
         for i in (0, 1):                       # auras multiply the OTHER fighter's rate
             if f[i].aura:
-                rate[1 - i] *= AURA[f[i].aura](f[i].params)
+                chill[1 - i] = AURA[f[i].aura](f[i].params)
+                rate[1 - i] *= chill[1 - i]
         sts = [State(t, rate[i], rate[1 - i], max(hp[i], 0) / f[i].hp, max(hp[1 - i], 0) / f[1 - i].hp,
                      f[1 - i].hp, hits[i], stacks[i], f[i].rate) for i in (0, 1)]
         press = [PRESSURE.get(f[i].mechanic, no_pressure)(f[i].params, sts[i]) for i in (0, 1)]
@@ -188,7 +191,8 @@ def duel(a: PowerSpec, b: PowerSpec, dt: float = 0.002, t_max: float = 120.0):
             plain = mitigate(rate[i] * f[i].hit * dt, f[i], f[o]) * cut
             exe = 0.0
             for part, v in BONUS[f[i].mechanic](f[i].params, st).items():
-                d = mitigate(v * dt, f[i], f[o], f[i].sig_types.get(part)) * cut
+                # The faction rework: the chill slows everything a fighter deals, its signature as much as its hits.
+                d = mitigate(v * chill[i] * dt, f[i], f[o], f[i].sig_types.get(part)) * cut
                 if part == "execute":
                     exe += d
                 else:

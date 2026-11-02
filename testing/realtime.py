@@ -286,9 +286,12 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
             if t + EPS >= s.fx_start:
                 p = s.spec.params
                 mech = s.spec.mechanic
-                bm = s.bonus_mult
+                # The faction rework: a chill slows the signature as much as the hits (the burn and disease tick slower, the
+                # backlash returns less, a mark hit is not paid back for the time it took).
+                # The sim reads the chill the previous tick's systems set (sim/factions.ts updateChill), so this does too.
+                bm = s.bonus_mult * chill_prev[i]
                 if mech == "dragonslayer":
-                    per = p["backlash"] * o.spec.rate * interval(o.spec, o.weapon)
+                    per = p["backlash"] * interval(o.spec, o.weapon)
                     d = d + bm * (p["burn"] * DT * pmit[i]["burn"] + per * swing[1 - i] * pmit[i]["backlash"])
                 elif mech == "rat_king":
                     foe = np.maximum(hp[1 - i], 0) / mx[1 - i]
@@ -298,7 +301,7 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
                     st = stacks[i]
                     pct = p["mark_pct"] + p["mark_kill"] * st
                     amp = np.where(tier[i] >= 4, p["mark_amp"], 1.0)
-                    weight = s.spec.rate * bm * s.as_mult * interval(s.spec, s.weapon, s.as_mult) / chill_prev[i]
+                    weight = s.spec.rate * s.bonus_mult * s.as_mult * interval(s.spec, s.weapon, s.as_mult)
                     d = d + swing[i] * pct * mx[1 - i] * weight * amp * pmit[i]["mark"]
             plain.append(d * cut[i])
             exe.append(e * cut[i])

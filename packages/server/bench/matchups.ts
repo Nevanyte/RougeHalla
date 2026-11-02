@@ -6,8 +6,9 @@
 //   npx tsx packages/server/bench/matchups.ts --layer weapon  [--kit 0..5] [--cross] [--setups 6] [--noise S --draws K] [--edges sword>axe,...]
 //   npx tsx packages/server/bench/matchups.ts --layer fed     [--kit 5] [--setups 18] [--noise S --draws K]
 //
-// FACTION layer (A6, A8): for each of the ten BEATS edges the favourite's win % (noise-free, or the Monte-Carlo win % under the
-// noise model when --noise is given), the underdog's, h (the favourite's hp share at the end of its wins, noise off) and TTK. With
+// FACTION layer (the faction rework, testing/TUNING_BALANCE.md section 13; it replaced A6/A8): for each of the ten FACTION_PAIRS the
+// first faction's win % (noise-free, or Monte Carlo under --noise), the second's, the signed h (the first faction's hp share when it
+// wins, minus the second's when it does; median over the duels, noise off) and TTK. B1: win share 40-60% (tolerance 30-70); B2: |h| <= 10%. With
 // --flip it also bisects r for every duel (the damage multiplier the underdog needs to win; h = 1 - 1/r) and reports its median.
 // --weapon says what everyone fights with: auto (the kit's: fists at minute 0, the faction's reference weapon after), fists,
 // sig (SIGNATURE_WEAPONS), or one of the five.
@@ -19,10 +20,10 @@
 // FED layer (A9): a fighter with the minute-5 kit (its reference weapon and the cards) against a fresh one on fists, every ordered
 // faction pair (mirrors too) x the setups x both seats, noise off (or --noise S --draws K): the fed one wins >= 90% (tolerance 80).
 // Minute 1-5 kits hold cards and need `grantCard` (agent A3); the bench says so instead of running a wrong kit.
-import { BEATS, FACTION_IDS, SIGNATURE_WEAPONS, WEAPON_BEATS, type FactionId, type WeaponId } from "@raid/shared";
+import { FACTION_PAIRS, FACTION_IDS, SIGNATURE_WEAPONS, WEAPON_BEATS, type FactionId, type WeaponId } from "@raid/shared";
 import { fullSetups } from "../src/harness/matrix";
 import {
-  edgeStats, favouriteShare, flag, flipMultiplier, median, opt, pct, playDuel, sec, verdict, type DuelRecord,
+  edgeStats, flag, flipMultiplier, median, opt, pct, playDuel, sec, verdict, type DuelRecord,
 } from "./lib/balance";
 import { kitCards, kitsAvailable, kitWeapon, parseMinutes, type Minute } from "./kits";
 
@@ -61,7 +62,7 @@ function factionLayer(): void {
   const t0 = performance.now();
   for (const a of FACTION_IDS) for (const b of FACTION_IDS) {
     if (a === b) continue;
-    const edge = BEATS.find(([w, l]) => (w === a && l === b) || (w === b && l === a));
+    const edge = FACTION_PAIRS.find(([w, l]) => (w === a && l === b) || (w === b && l === a));
     const wa = weaponOf(a);
     const wb = weaponOf(b);
     setups.forEach((setup, i) => {
@@ -81,42 +82,36 @@ function factionLayer(): void {
   // The noise-free h needs a noise-free run: with --noise the table above is Monte Carlo, so run those once more.
   const clean: DuelRecord[] = sigma > 0 ? [] : records;
   if (sigma > 0) {
-    for (const [w, l] of BEATS) for (const [a, b] of [[w, l], [l, w]] as const) {
+    for (const [w, l] of FACTION_PAIRS) for (const [a, b] of [[w, l], [l, w]] as const) {
       setups.forEach((setup, i) => clean.push(playDuel({ a, b, weapons: [weaponOf(a), weaponOf(b)], setup, setupIndex: i, style, cap, cards: [kitCards(kit, weaponOf(a)), kitCards(kit, weaponOf(b))] })));
     }
   }
   console.log(`# faction layer, kit ${kit}, weapons ${weaponArg}, ${style}, ${sigma > 0 ? `noise ${sigma} x ${draws} draws` : "noise off"}: ${records.length} duels in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
-  console.log(`| edge | fav win% ${sigma > 0 ? "(MC)" : ""} | underdog win% | caps | h med % | h min % | TTK med s | TTK fav kills s |${doFlip ? " r med | P(fav) from r |" : ""}`);
-  console.log(`|---|---|---|---|---|---|---|---|${doFlip ? "---|---|" : ""}`);
-  const minFav: number[] = [];
-  const hs: number[] = [];
-  const mcs: number[] = [];
-  const unders: number[] = [];
-  for (const [w, l] of BEATS) {
+  // The faction rework removed the counter cycle: every pair is read from its first faction's seat and should be even.
+  console.log(`| pair | first win% ${sigma > 0 ? "(MC)" : ""} | second win% | caps | signed h med % | TTK med s |${doFlip ? " r med |" : ""}`);
+  console.log(`|---|---|---|---|---|---|${doFlip ? "---|" : ""}`);
+  const shares: number[] = [];
+  const signed: number[] = [];
+  for (const [w, l] of FACTION_PAIRS) {
     const mc = edgeStats(records, w, l);
-    const nf = edgeStats(clean, w, l);
-    minFav.push(nf.favWin);
-    hs.push(nf.h);
-    mcs.push(mc.favWin);
-    unders.push(mc.underWin);
+    const nf = clean.filter((r) => (r.a === w && r.b === l) || (r.a === l && r.b === w)).map((r) => {
+      const me: 0 | 1 = r.a === w ? 0 : 1;
+      return r.winner === me ? r.hp[me] : r.winner === 1 - me ? -r.hp[1 - me] : 0;
+    });
+    const h = median(nf);
+    shares.push(mc.favWin);
+    signed.push(Math.abs(h));
     const fl = flips.get(`${w}>${l}`);
     const r = fl ? median(fl) : NaN;
-    console.log(`| ${w}>${l} | ${pct(mc.favWin)} | ${pct(mc.underWin)} | ${mc.caps} | ${pct(nf.h)} | ${pct(nf.hMin)} | ${sec(mc.ttk)} | ${sec(mc.ttkFavKills)} |${doFlip ? ` ${Number.isFinite(r) ? r.toFixed(2) : "--"} | ${Number.isFinite(r) ? pct(favouriteShare(r)) : "--"} |` : ""}`);
+    console.log(`| ${w}-${l} | ${pct(mc.favWin)} | ${pct(mc.underWin)} | ${mc.caps} | ${pct(h)} | ${sec(mc.ttk)} |${doFlip ? ` ${Number.isFinite(r) ? r.toFixed(2) : "--"} |` : ""}`);
   }
   const mirrors = records.filter((r) => r.a === r.b);
   if (mirrors.length > 0) console.log("mirrors: " + FACTION_IDS.map((f) => `${f} ${sec(median(mirrors.filter((r) => r.a === f && r.end !== "cap").map((r) => r.ttk)))} s`).join(" | "));
-  console.log("\nacceptance:");
-  console.log(verdict("A6", "median h over the ten edges (noise off)", median(hs), [0.15, 0.30], [0.10, 0.35]));
-  console.log(verdict("A6", "highest edge h", Math.max(...hs), [0.15, 0.30], [0.10, 0.35]));
-  console.log(verdict("A6", "lowest edge h", Math.min(...hs), [0.15, 0.30], [0.10, 0.35]));
-  if (sigma > 0) {
-    console.log(verdict("A6", "Monte-Carlo favourite win, lowest edge", Math.min(...mcs), [0.60, 0.72], [0.56, 0.76]));
-    console.log(verdict("A6", "Monte-Carlo favourite win, highest edge", Math.max(...mcs), [0.60, 0.72], [0.56, 0.76]));
-    console.log(verdict("A6", "weakest underdog win share", Math.min(...unders), [0.24, 1], [0.24, 1]));
-  } else {
-    console.log("n/a  A6 Monte-Carlo win % and the underdog floor need --noise 0.45");
-  }
-  console.log(verdict("A8", "lowest noise-free favourite win", Math.min(...minFav), [0.5, 1], [0.5, 1]));
+  console.log("\nacceptance (faction rework: no counters):");
+  console.log(verdict("B1", "lowest first-faction win share", Math.min(...shares), [0.40, 0.60], [0.30, 0.70]));
+  console.log(verdict("B1", "highest first-faction win share", Math.max(...shares), [0.40, 0.60], [0.30, 0.70]));
+  console.log(verdict("B2", "largest |signed h| (noise off)", Math.max(...signed), [0, 0.10], [0, 0.15]));
+  console.log(verdict("B2", "median |signed h| (noise off)", median(signed), [0, 0.06], [0, 0.10]));
 }
 
 function weaponLayer(): void {

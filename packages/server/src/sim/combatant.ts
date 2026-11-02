@@ -2,7 +2,7 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  ELITE_K, FACTIONS, FISTS, isFactionId, isRegionalKind, isWeaponId, mirrorTimings, MOB_K, MOB_TYPES, mobFaction, mobTypeFaction, pacedFaction,
+  ELITE_K, FACTIONS, FISTS, isFactionId, isRegionalKind, isWeaponId, mirrorTimings, MOB_K, MOB_TYPES, mobTypeFaction, pacedFaction,
   PLAGUE_ZOMBIE_INTERVAL_MS, PLAGUE_ZOMBIE_WINDUP_MS, type FactionId, type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -18,9 +18,18 @@ export type Combatant =
 /** The synced fields every fighter has. */
 export type FighterState = PlayerState | MobState;
 
-const PACED: Readonly<Record<FactionId, FactionSpec>> = Object.fromEntries(
+const PACED: Record<FactionId, FactionSpec> = Object.fromEntries(
   Object.entries(FACTIONS).map(([id, spec]) => [id, pacedFaction(spec)]),
 ) as Record<FactionId, FactionSpec>;
+
+/**
+ * Tests and harnesses only: players of `id` fight with this design-sheet spec (paced here) from now on; with no spec, the sheet's
+ * own again. The faction rework left some mechanics (the mark's tax, suppression and amplifier) neutral on the sheet; their tests
+ * switch them back on through this. The game never calls it.
+ */
+export function setFactionForHarness(id: FactionId, spec?: FactionSpec): void {
+  PACED[id] = pacedFaction(spec ?? FACTIONS[id]);
+}
 
 /**
  * A regional mob fights as its region's faction scaled down (MOB_K, an elite ELITE_K), then by its type's role (hp, damage), paced
@@ -30,7 +39,7 @@ const PACED: Readonly<Record<FactionId, FactionSpec>> = Object.fromEntries(
 interface MobTable { zone: Record<FactionId, FactionSpec>; typed: ReadonlyMap<string, { zone: FactionId; spec: FactionSpec }> }
 function pacedMobs(k: number, eliteK: number): Record<"mob" | "elite", MobTable> {
   const table = (elite: boolean, scale: number): MobTable => ({
-    zone: Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, elite, scale))])) as Record<FactionId, FactionSpec>,
+    zone: Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobTypeFaction(id as FactionId, elite, undefined, scale))])) as Record<FactionId, FactionSpec>,
     typed: new Map(MOB_TYPES.filter((t) => t.elite === elite).map((t) => [t.id, { zone: t.zone, spec: pacedFaction(mobTypeFaction(t.zone, elite, t.id, scale)) }])),
   });
   return { mob: table(false, k), elite: table(true, eliteK) };

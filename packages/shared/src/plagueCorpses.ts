@@ -13,9 +13,25 @@ export const PLAGUE_ZOMBIE_WINDUP_MS = 200;
 export const PLAGUE_ZOMBIE_ASSIST_MS = 5000;
 export const PLAGUE_ZOMBIE_ASSIST_RANGE = 640;
 
-/** One companion grows from the owner's current max health and all corpses harvested this run. */
-export function plagueZombieStats(ownerMaxHp: number, corpseStacks: number): { maxHp: number; damage: number } {
+/**
+ * Plague's second build, the zombie tank (the faction rework): the companion's max hp grows by this share per point of the
+ * owner's bonus Defense + SD (100 bonus defense: x1.4), and each of its hits adds this share of the owner's SO (AP), so a
+ * tanky wand Plague's zombie is a real second body.
+ */
+export const PLAGUE_ZOMBIE_HP_PER_DEFENSE = 0.004;
+export const PLAGUE_ZOMBIE_AP_SHARE = 0.5;
+
+/** What the owner's build adds to its zombie (both 0 for a plain owner). */
+export interface PlagueZombieBonus { bonusDefense?: number; ap?: number }
+
+/** One companion grows from the owner's current max health, its defenses and SO, and all corpses harvested this run. */
+export function plagueZombieStats(ownerMaxHp: number, corpseStacks: number, bonus: PlagueZombieBonus = {}): { maxHp: number; damage: number } {
   const growth = 1 + Math.max(0, Math.floor(corpseStacks) - 1) * PLAGUE_ZOMBIE_GROWTH_PER_BODY;
   const hp = Math.max(0, ownerMaxHp);
-  return { maxHp: hp * PLAGUE_ZOMBIE_HP_SHARE * growth, damage: hp * PLAGUE_ZOMBIE_HIT_SHARE * growth };
+  const def = Number.isFinite(bonus.bonusDefense) ? Math.max(0, bonus.bonusDefense!) : 0;
+  const ap = Number.isFinite(bonus.ap) ? Math.max(0, bonus.ap!) : 0;
+  return {
+    maxHp: hp * PLAGUE_ZOMBIE_HP_SHARE * growth * (1 + PLAGUE_ZOMBIE_HP_PER_DEFENSE * def),
+    damage: hp * PLAGUE_ZOMBIE_HIT_SHARE * growth + PLAGUE_ZOMBIE_AP_SHARE * ap,
+  };
 }

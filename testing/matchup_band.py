@@ -1,4 +1,4 @@
-"""How close are the ten designed edges? (the balance pass, BALANCE_CONTRACT 1.2 A6 and 5.2)
+"""How even are the ten faction pairs? (the faction rework, testing/TUNING_BALANCE.md section 13; it was the balance pass's band check)
 
     python3 testing/matchup_band.py [--k 2] [--dt 0.002] [--reference]        (standard library only, about 3 s)
 
@@ -23,11 +23,11 @@ from dataclasses import replace
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from engine import duel, scaled  # noqa: E402
-from classes import POWERS, BEATS  # noqa: E402
+from classes import POWERS, PAIRS  # noqa: E402
 
 BY = {p.name: p for p in POWERS}
 IDS = {"Fire": "fire", "Sentenced": "sentenced", "Plague": "plague", "Frost": "frost", "Holy": "holy"}
-BAND = (0.10, 0.35)
+BAND = (0.10, 0.35)  # |h| up to BAND[0] reads "even"; over 15% "lopsided" (the faction rework)
 SIGMA = 0.45
 
 
@@ -59,30 +59,29 @@ def main(argv=None):
         return 0
 
     by = {p.name: paced(p, args.k) for p in POWERS}
-    print(f"engine duels, pace k = {args.k:g}, dt {args.dt}: favourite hp left, loser's TTK ratio r, P(favourite) under sigma {SIGMA}")
-    print(f"{'edge':22s} {'h':>6s} {'r':>6s} {'P(fav)':>7s} {'fight s':>8s}  band 10-35%")
+    print(f"engine duels, pace k = {args.k:g}, dt {args.dt}: the first power's signed hp left (the faction rework: every pair should be even)")
+    print(f"{'pair':22s} {'h':>7s} {'P(first)':>9s} {'fight s':>8s}")
     bad = 0
     hs = []
-    for w, l in BEATS:
+    for w, l in PAIRS:
         win, t, ha, hb = duel(by[w], by[l], args.dt)
-        h = ha / by[w].hp if win == 0 else 0.0
-        r = 1.0 / (1.0 - h) if h < 1.0 else math.inf
-        p_fav = phi(math.log(r) / (SIGMA * math.sqrt(2.0))) if win == 0 else 0.0
-        inside = BAND[0] <= h <= BAND[1]
-        near = BAND[0] - 0.02 <= h <= BAND[1] + 0.02
-        bad += 0 if win == 0 else 1
-        hs.append(h)
-        verdict = "flipped" if win != 0 else "ok" if inside else "edge of band" if near else "OUTSIDE"
-        print(f"{w + ' > ' + l:22s} {h * 100:5.1f}% {r:6.2f} {p_fav * 100:6.0f}% {t:8.1f}  {verdict}")
+        h = ha / by[w].hp if win == 0 else (-hb / by[l].hp if win == 1 else 0.0)
+        r = 1.0 / (1.0 - abs(h)) if abs(h) < 1.0 else math.inf
+        p_fav = phi(math.log(r) / (SIGMA * math.sqrt(2.0)))
+        p_first = p_fav if h >= 0 else 1.0 - p_fav
+        hs.append(abs(h))
+        verdict = "even" if abs(h) <= BAND[0] else "lopsided" if abs(h) > 0.15 else "near"
+        bad += 1 if abs(h) > 0.15 else 0
+        print(f"{w + ' - ' + l:22s} {h * 100:+6.1f}% {p_first * 100:8.0f}% {t:8.1f}  {verdict}")
     hs.sort()
-    print(f"median h {hs[len(hs) // 2] * 100:.1f}%  (min {hs[0] * 100:.1f}%, max {hs[-1] * 100:.1f}%)")
+    print(f"median |h| {hs[len(hs) // 2] * 100:.1f}%  (max {hs[-1] * 100:.1f}%)")
     print("mirrors (fight seconds; the engine's identical fighters die together):")
     for p in POWERS:
         win, t, ha, hb = duel(by[p.name], by[p.name], args.dt, t_max=600.0)
         done = win is not None or (ha <= 0 and hb <= 0)
         bad += 0 if done else 1
         print(f"  {p.name:10s} {t:7.1f} s  {'ends' if done else 'DOES NOT END'}")
-    print("EVERY EDGE HOLDS, EVERY MIRROR ENDS" if bad == 0 else f"{bad} PROBLEMS")
+    print("EVERY PAIR WITHIN 15%, EVERY MIRROR ENDS" if bad == 0 else f"{bad} PROBLEMS")
     return 1 if bad else 0
 
 

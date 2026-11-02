@@ -2044,8 +2044,8 @@ describe("Glorious Victory", () => {
     if (!melees.has(seed)) melees.set(seed, playMelee(seed));
     return melees.get(seed)!;
   };
-  // Seed 68 is a draw on the compressed faction sheet (the first 60 reach none now: a draw needs both falling in one tick on exactly equal hp fractions).
-  const SEEDS = [...Array.from({ length: 60 }, (_, i) => i + 1), 68];
+  // Seed 76 is a draw on the faction rework's sheet (the first 60 reach none now: a draw needs both falling in one tick on exactly equal hp fractions).
+  const SEEDS = [...Array.from({ length: 60 }, (_, i) => i + 1), 76];
   const hunts = new Map<number, Melee>();
   const huntFor = (seed: number): Melee => {
     if (!hunts.has(seed)) hunts.set(seed, playMelee(seed, true));

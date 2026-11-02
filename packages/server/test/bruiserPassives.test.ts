@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  holyApLifestealOf,
   BONUS_DEFENSE_CAP, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS, holyCampLifestealOf, lifestealFraction,
   mapFromTiles, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type GameMap,
 } from "@raid/shared";
@@ -8,7 +9,7 @@ import { CAMP_CLEARED, campMobDied } from "../src/sim/camps";
 import { combatant, defenseOf, factionOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
-import { recomputeMods, setExtraRows } from "../src/sim/mods";
+import { apOf, recomputeMods, setExtraRows } from "../src/sim/mods";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
 import { installTraining } from "../src/sim/training";
@@ -122,7 +123,9 @@ describe("Holy Demon Blood", () => {
     }
     expect(dealt).toBeGreaterThan(0);
     const ownShare = lifestealFraction(factionOf(combatant(world, "p0")!.s)!, 0.4);
-    expect(holy.hp - hpBefore).toBeCloseTo(dealt * (ownShare + 0.0025), 5);
+    // Holy's own share includes its SO lifesteal (HOLY_LIFESTEAL_PER_AP: a camp mob's reward may have given it SO).
+    const apShare = holyApLifestealOf(apOf(holy));
+    expect(holy.hp - hpBefore).toBeCloseTo(dealt * (ownShare + apShare + 0.0025), 5);
   });
 
   it("mirrors eligible training practice camps through the same per-run clear count", () => {

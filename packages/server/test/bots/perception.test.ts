@@ -778,12 +778,13 @@ describe("projectiles, tint, containers, minimap", () => {
 
   it("tints only the nearest foe in sight within MATCHUP_RANGE, and none when a mob is nearer", () => {
     const spot = openSpot();
-    // A faction the bot's (fire) has an edge over, so the hue is not 0.
-    const prey = FACTION_IDS.find((f) => factionEdge("fire", f) !== 0)!;
+    // No faction edges since the faction rework: the bot's axe beats the near foe's wand, so the hue is not 0.
+    const prey = FACTION_IDS.find((f) => f !== "fire")!;
+    expect(factionEdge("fire", prey)).toBe(0);
     const scene = (mob: boolean) => lastOf(run(8, () => {
       const s = world({
         players: {
-          near: { x: spot.x + 80, y: spot.y, faction: prey, weapon0: "axe" }, far: { x: spot.x + 140, y: spot.y, faction: prey, weapon0: "bow" },
+          near: { x: spot.x + 80, y: spot.y, faction: prey, weapon0: "wand" }, far: { x: spot.x + 140, y: spot.y, faction: prey, weapon0: "bow" },
         },
       });
       Object.assign(s.players.get("me")!, spot);
@@ -793,7 +794,7 @@ describe("projectiles, tint, containers, minimap", () => {
     const p = scene(false);
     const near = p.fighters.find((f) => f.id === "near")!, far = p.fighters.find((f) => f.id === "far")!;
     expect([near.los, far.los]).toEqual([true, true]);
-    expect(near.tint).toBe(matchupTint(matchupScore({ faction: "fire", weapon: "axe" }, { faction: prey, weapon: "axe" }), near.dist));
+    expect(near.tint).toBe(matchupTint(matchupScore({ faction: "fire", weapon: "axe" }, { faction: prey, weapon: "wand" }), near.dist));
     expect(near.tint).not.toBe(0);
     expect(far.tint).toBe(0);
     expect(scene(true).fighters.map((f) => f.tint)).toEqual([0, 0]);

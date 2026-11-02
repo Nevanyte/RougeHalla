@@ -79,6 +79,12 @@ export interface WeaponSpec {
   dpsMult: number;
   /** Per point of AD, AP, bonus max hp and bonus defense (BALANCE_CONTRACT 3.3): the cards' power reaches a hit through this. */
   scaling: Readonly<WeaponScaling>;
+  /**
+   * The faction rework's sword: its `ad` and `ap` coefficients are one choice, not a sum. A hit scales with whichever of AD and AP
+   * the fighter holds more of (`ad` x AD physical, or `ap` x AP magic, AD on a tie), so a sword fits an AD build and a Soul (AP)
+   * burst build alike and a mixed build gets no double dip.
+   */
+  dominant?: boolean;
   /** How hard the weapon makes the on-hit effects of its hits land (a card's bleed, slow or shred are this many times as strong): the sword 1.5, fists 1.2, the rest 1. */
   onHitPower: number;
   special?: WeaponSpecial;
@@ -87,7 +93,7 @@ export interface WeaponSpec {
 
 export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
   sword: {
-    id: "sword", name: "Sword", color: 0xcfd8dc, boost: 1.15, floor: 0.25, dpsMult: 0.75, scaling: { ad: 1.0 },
+    id: "sword", name: "Sword", color: 0xcfd8dc, boost: 1.15, floor: 0.25, dpsMult: 0.75, scaling: { ad: 1.0, ap: 1.0 }, dominant: true,
     onHitPower: SWORD_ON_HIT_POWER,
     shape: { kind: "arc", reach: 112, halfArc: Math.PI / 4 },
   },
@@ -195,8 +201,17 @@ export interface ScalingStats {
  * dps, and an interval at its floor turns the surplus into bigger hits, exactly as damagePerHit does for the faction's part.
  */
 export function scalingDamage(w: WeaponId, s: ScalingStats, asMult: number, interval: number): { phys: number; magic: number } {
-  const sc = WEAPONS[w].scaling;
+  const spec = WEAPONS[w];
+  const sc = spec.scaling;
   const per = asMult * interval;
+  if (spec.dominant) {
+    // The higher of the two offensive stats picks the hit's scaling (and so its damage type); the other adds nothing.
+    const apSide = s.ap * (sc.ap ?? 0) > s.ad * (sc.ad ?? 0);
+    return {
+      phys: ((apSide ? 0 : (sc.ad ?? 0) * s.ad) + (sc.hp ?? 0) * s.bonusMaxHp + (sc.def ?? 0) * s.bonusDefense) * per,
+      magic: (apSide ? (sc.ap ?? 0) * s.ap : 0) * per,
+    };
+  }
   return {
     phys: ((sc.ad ?? 0) * s.ad + (sc.hp ?? 0) * s.bonusMaxHp + (sc.def ?? 0) * s.bonusDefense) * per,
     magic: (sc.ap ?? 0) * s.ap * per,
@@ -204,11 +219,12 @@ export function scalingDamage(w: WeaponId, s: ScalingStats, asMult: number, inte
 }
 
 /**
- * Fire's backlash per swing of an engaged enemy (Phase 10): backlash x the enemy's base rate x its unbuffed interval,
- * which is backlash / (1 + the enemy weapon's boost) while no floor binds. Attack-speed buffs on the enemy don't shrink it.
+ * Fire's backlash per swing of an engaged enemy: backlash x the enemy's unbuffed interval, so the backlash per second is
+ * `backlash` whatever the enemy's faction rate or weapon (the faction rework: it used to grow with the enemy's base rate,
+ * which made Fire a counter to fast attackers). Attack-speed buffs on the enemy don't shrink it.
  */
 export function backlashPerSwing(backlash: number, foe: Pick<FactionSpec, "rate">, foeWeapon: WeaponId): number {
-  return backlash * foe.rate * attackInterval(foe, foeWeapon);
+  return backlash * attackInterval(foe, foeWeapon);
 }
 
 // Player melee lands immediately while walking. Only ranged player attacks pause movement; regional mobs retain

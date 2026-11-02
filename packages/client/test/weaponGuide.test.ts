@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { ALL_WEAPON_IDS, FACTION_IDS, WEAPON_BEATS, WEAPONS } from "@raid/shared";
+import { ALL_WEAPON_IDS, FACTION_IDS, FACTIONS, WEAPON_BEATS, WEAPONS } from "@raid/shared";
 import { CHAMPION_BUILDS, weaponAttackExample, weaponGuide } from "../src/ui/hub/weaponGuide";
 
 describe("weapon scaling illustrations", () => {
   it("makes the confusing magic-champion physical-weapon split explicit", () => {
     const example = weaponAttackExample("fire", "sword", { ad: 20, ap: 0, bonusMaxHp: 0, bonusDefense: 0 });
-    // Fire: 0.6 attacks/s × 200 arena hit × .75 = 90 base magic DPS, plus 20 physical DPS.
+    // Fire: 0.6 attacks/s × the arena hit (2 × the sheet's) × .75 base magic DPS, plus 20 physical DPS.
+    const magicDps = 0.6 * 2 * FACTIONS.fire.hit * 0.75;
     expect(example.attacksPerSecond).toBeCloseTo(1.29);
-    expect(example.magic).toBeCloseTo(90 / 1.29);
+    expect(example.magic).toBeCloseTo(magicDps / 1.29);
     expect(example.phys).toBeCloseTo(20 / 1.29);
-    expect(example.total).toBeCloseTo(110 / 1.29);
+    expect(example.total).toBeCloseTo((magicDps + 20) / 1.29);
   });
 
   it.each(ALL_WEAPON_IDS)("derives %s's two counter edges and scaling examples from the live catalog", id => {
     const model = weaponGuide(id);
     expect(model.beats).toEqual(WEAPON_BEATS.filter(([a]) => a === id).map(([, b]) => b));
     expect(model.losesTo).toEqual(WEAPON_BEATS.filter(([, b]) => b === id).map(([a]) => a));
-    expect(model.gains).toHaveLength(Object.keys(WEAPONS[id].scaling).length);
+    expect(model.gains).toHaveLength(Object.keys(WEAPONS[id].scaling).length + (WEAPONS[id].dominant ? 1 : 0));
     expect(model.mechanics.length).toBeGreaterThan(0);
   });
 

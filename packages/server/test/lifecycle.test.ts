@@ -696,7 +696,7 @@ describe("raid spawns", () => {
     expect(w.state.phase).toBe("active");
     expect(rtA.weapon).toEqual(newWeaponRuntime());
     expect([a.readyAt, a.drawStartedAt]).toEqual([0, 0]);
-    expect(a).toMatchObject({ faction: "fire", hp: 835, weapon0: "", weapon1: "", slot: 0 });
+    expect(a).toMatchObject({ faction: "fire", hp: FACTIONS.fire.hp, weapon0: "", weapon1: "", slot: 0 });
     expect(b).toMatchObject({ faction: "sentenced", hp: FACTIONS.sentenced.hp, weapon0: "", weapon1: "", slot: 0 });
   });
 

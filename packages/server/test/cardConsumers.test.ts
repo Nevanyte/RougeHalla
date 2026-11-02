@@ -83,14 +83,14 @@ describe("AP on damage over time (BALANCE_CONTRACT 3.3)", () => {
     const { w, seen } = engagedPair("sentenced", [ap(AP)]);
     tick(w);
     expect(drain(seen, "mark"), "no hit has landed: no mark").toHaveLength(0);
-    // One landed weapon hit: one pulse of true damage, and no magic entry of AP beside it (the AP rider is for burn and disease).
+    // One landed weapon hit: one pulse typed like Sentenced's hits, and no magic entry of AP beside it (the AP rider is for burn and disease).
     w.afterWeapons.unshift(() => {
       recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw: 1, phys: 1, magic: 0, true: 0 }, weapon: "bow", stagger: false });
     });
     tick(w);
     const mark = drain(seen, "mark");
     expect(mark).toHaveLength(1);
-    expect(mark[0]!.packet).toMatchObject({ phys: 0, magic: 0, true: 1 });
+    expect(mark[0]!.packet).toMatchObject({ phys: 0.4, magic: 0.6, true: 0 });
   });
 
   it("Frost and Holy have no damage-over-time signature: their AP adds nothing", () => {
@@ -378,6 +378,8 @@ describe("the AP entry is magic damage", () => {
     const main = burnDps(spec("fire")) * bonusMultiplier(SIGNATURE_WEAPONS.fire) * DT;
     const apPart = AP_DOT_RATIO * 100 * DT;
     expect(hp - v.hp).toBeCloseTo(mitigateShares(main, MAGIC_SHARES, def) + mitigateShares(apPart, MAGIC_SHARES, def), 9);
-    expect(mitigateShares(apPart, MAGIC_SHARES, def)).toBeLessThan(mitigateShares(apPart, { phys: 1, magic: 0, true: 0 }, def));
+    // The victim's magic resist cuts it, not its armor: the same entry against a victim with armor but no magic resist lands whole.
+    expect(mitigateShares(apPart, MAGIC_SHARES, { armor: def.armor, shield: 0 })).toBeCloseTo(apPart, 12);
+    expect(mitigateShares(apPart, MAGIC_SHARES, def)).toBeLessThan(apPart);
   });
 });

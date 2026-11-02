@@ -136,8 +136,10 @@ describe("matchupShare (moved here from the bots for the planning screen)", () =
     for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
       expect(matchupShare(me, region, true)).toBeLessThanOrEqual(matchupShare(me, region, false));
     }
-    // The compressed sheet (balance pass) leaves no pair a flat loss against an elite; the hardest is a Fire against a Frost elite.
-    expect(matchupShare("fire", "frost", true)).toBeLessThan(0.4);
-    expect(matchupShare("fire", "frost", true)).toBeGreaterThan(0);
+    // The faction rework (no counters) leaves no pair a loss against an elite, and no zone's elite much easier than another's.
+    for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
+      expect(matchupShare(me, region, true)).toBeGreaterThan(0.4);
+      expect(matchupShare(me, region, true)).toBeLessThan(0.75);
+    }
   });
 });

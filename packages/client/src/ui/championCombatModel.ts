@@ -4,10 +4,12 @@ import {
   FREEZE_RANGE, FREEZE_STUN_MS, HEAVIER_SENTENCE_PER_BONUS, LAST_STAND_HEAL_SHARE, LAST_STAND_MS,
   LAST_STAND_SPEED_BONUS, MARK_KILL_STACK_CAP, MARK_TIER_HITS, MARK_TOP_TIER, SWARM_CLOUD_RADIUS,
   SWARM_MS, TRIAL_CONVICTED_RADIUS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS,
-  TRIAL_MOVE_MULT, TRIAL_RADIUS, TRIAL_TAKEN_MULT, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, attackInterval, bonusMultiplier, cardRows, countIn, damagePerHit,
+  TRIAL_MOVE_MULT, TRIAL_RADIUS, TRIAL_TAKEN_MULT, MARK_AS_EXPONENT, attackInterval, bonusMultiplier, cardRows, countIn, damagePerHit,
   damageShares, decodeMirrors, foldRows, isFactionId, isWeaponId, lifestealFraction,
   fireRoamBurstDamage, fireRoamSpeedMult, markPct, markWeight, ownedCards, pacedFaction, scalingDamage, WIRE_IDENTITY_MIRRORS,
   WEAPONS, wishOf, holyCampLifestealOf, HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS,
+  FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP, holyApLifestealOf,
+  MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
   PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_GROWTH_PER_BODY,
   PLAGUE_ZOMBIE_INTERVAL_MS, plagueZombieStats, sentencedHuntMarkMultiplier,
 } from "@raid/shared";
@@ -115,7 +117,7 @@ export function championCombatModel(input: ChampionCombatInput): ChampionCombatM
   const scaleParts: Array<[number | undefined, string]> = [
     [weapon.scaling.ad, "Offense"], [weapon.scaling.ap, "SO"], [weapon.scaling.hp, "bonus HP"], [weapon.scaling.def, "bonus defense"],
   ];
-  const scaleTerms = scaleParts.filter(([coefficient]) => (coefficient ?? 0) !== 0).map(([coefficient, label]) => `${fmt(coefficient ?? 0)}× ${label}`).join(" + ") || "none";
+  const scaleTerms = scaleParts.filter(([coefficient]) => (coefficient ?? 0) !== 0).map(([coefficient, label]) => `${fmt(coefficient ?? 0)}× ${label}`).join(weapon.dominant ? " or " : " + ") || "none";
   const auto: ChampionCombatRow = {
     id: "auto", icon: weaponId, name: `${weapon.name} hit`, value: `${fmt(total)} / hit · ${fmt(attacksPerSecond)}/s`,
     scaling: scaleTerms,
@@ -141,11 +143,12 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       const burnBase = faction.params.burn! * bm;
       const burnAp = AP_DOT_RATIO * mirrors.apBonus;
       const burn = (burnBase + burnAp) * dotMult;
+      const backlashTank = 1 + FIRE_BACKLASH_PER_DEFENSE * (Math.max(0, mirrors.armorBonus) + mirrors.shieldBonus);
       return {
         id: "passive", icon: "magic", name: "Dragonslayer", value: `${fmt(burn)} magic/s`,
         scaling: `SO adds ${fmt(AP_DOT_RATIO)} magic DPS/point · DoT ×${fmt(dotMult)}`,
         tooltip: `While trading, burn deals ${fmt(burn)} magic DPS: ${fmt(burnBase)} from your faction plus ${fmt(burnAp)} from SO (${fmt(AP_DOT_RATIO)} per SO), including the ${fmt(dotMult)}× DoT multiplier. `
-          + `Engaged enemies also take physical backlash per swing: ${fmt(faction.params.backlash! * bm * returnedMult)} × their base attack rate × their unbuffed weapon interval.`,
+          + `Engaged enemies also take physical backlash per swing: ${fmt(faction.params.backlash! * bm * returnedMult * backlashTank)} × their unbuffed weapon interval (about that much per second of their attacks), +${fmt(FIRE_BACKLASH_PER_DEFENSE * 100)}% per point of bonus Defense + SD.`,
       };
     }
     case "sentenced": {
@@ -158,15 +161,12 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       const pulse = markPct(faction, stacks, heavierScale, bonusStats)
         * markWeight(faction, weapon, decodeMirrors({ ...WIRE_IDENTITY_MIRRORS, asMult: wireAs }).asMult, MARK_AS_EXPONENT)
         * sentencedHuntMarkMultiplier(safe(input.huntStacks, 0));
-      const bonusTotal = bonusStats.ad + bonusStats.ap + bonusStats.armor + bonusStats.magicResist;
-      const weightedBonusTotal = bonusStats.ad + MARK_BONUS_AP_WEIGHT * bonusStats.ap + bonusStats.armor + bonusStats.magicResist;
       return {
-        id: "passive", icon: "true", name: "Sentence", value: `${fmt(pulse * 100)}% target HP / hit`,
-        scaling: `+${fmt((faction.params.mark_kill ?? 0) * 100)}%/kill stack · ${fmt(weightedBonusTotal)} weighted bonus stats · ×${fmt(faction.params.mark_amp ?? 1)} at tier ${MARK_TOP_TIER}`,
+        id: "passive", icon: "magic", name: "Sentence", value: `${fmt(pulse * 100)}% target HP / hit`,
+        scaling: `+${fmt((faction.params.mark_kill ?? 0) * 100)}%/kill stack · attack speed`,
         tooltip: `A tier-1 mark pulse is ${fmt(pulse * 100)}% of target max HP per hit using ${WEAPONS[weapon].name}'s actual hit weight. `
-          + `A mark starts at tier 1, advances every ${MARK_TIER_HITS} hits, and reaches ×${fmt(faction.params.mark_amp ?? 1)} at tier ${MARK_TOP_TIER}. `
-          + `Your ${stacks} Sentence kill stacks add ${fmt((faction.params.mark_kill ?? 0) * 100)}% target max HP each. Bonus Offense ${fmt(bonusStats.ad)}, SO ${fmt(bonusStats.ap)}, Defense ${fmt(bonusStats.armor)}, and SD ${fmt(bonusStats.magicResist)} add ${fmt(bonusTotal)} raw bonus-stat points (${fmt(weightedBonusTotal)} weighted for the mark).${heavierSentence ? ` Heavier Sentence adds ${fmt(HEAVIER_SENTENCE_PER_BONUS * (bonusHp / faction.hp) * 100)}% from bonus HP.` : ""} `
-          + `Offense, Defense, and SD add ${fmt(MARK_BONUS_STAT_PER_POINT * 100)}% mark strength per point; SO has ${MARK_BONUS_AP_WEIGHT}× weight and adds ${fmt(MARK_BONUS_STAT_PER_POINT * MARK_BONUS_AP_WEIGHT * 100)}% per point. Attack-speed bonuses from cards and farming are ${fmt(MARK_FARM_AS_EFFICIENCY * 100)}% effective; your base attack speed is unchanged. `
+          + `A mark starts at tier 1 and advances every ${MARK_TIER_HITS} hits; at tier ${MARK_TOP_TIER} it denies the target's execute. Attack speed lands more pulses, and every bonus Offense, SO, Defense and SD point adds ${fmt(MARK_BONUS_STAT_PER_POINT * 100)}% to each pulse. `
+          + `Your ${stacks} Sentence kill stacks add ${fmt((faction.params.mark_kill ?? 0) * 100)}% target max HP each.${heavierSentence ? ` Heavier Sentence adds ${fmt(HEAVIER_SENTENCE_PER_BONUS * (bonusHp / faction.hp) * 100)}% from bonus HP.` : ""} `
           + `Completed hunts add ${fmt((sentencedHuntMarkMultiplier(safe(input.huntStacks, 0)) - 1) * 100)}% permanent mark strength. `
           + "Distance, camp sharing, Trial, and the current mark progress change the exact pulse.",
       };
@@ -175,7 +175,9 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       const band = Math.min(1, Math.max(0, EXECUTE_BAND + executeBandBonus));
       const stacks = Math.max(0, safe(input.corpseStacks, 0));
       const disease = (faction.params.plague! * bm + AP_DOT_RATIO * mirrors.apBonus) * dotMult;
-      const zombie = plagueZombieStats(safe(input.maxHp, faction.hp), stacks);
+      const zombie = plagueZombieStats(safe(input.maxHp, faction.hp), stacks, {
+        bonusDefense: Math.max(0, mirrors.armorBonus) + mirrors.shieldBonus, ap: mirrors.apBonus,
+      });
       const zombieStatus = stacks === 0 ? "Walk over a body: raise zombie"
         : input.zombieAlive === false ? "Zombie fallen · walk over a body to revive"
         : `Zombie ${fmt(safe(input.zombieHp, zombie.maxHp))}/${fmt(safe(input.zombieMaxHp, zombie.maxHp))} HP · ${fmt(stacks)} ${stacks === 1 ? "body" : "bodies"}`;
@@ -184,7 +186,7 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
         scaling: zombieStatus,
         tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(AP_DOT_RATIO * dotMult)} magic DPS per point. `
           + `Walk over a dead player's body to raise one zombie. It assists your current enemy and follows you otherwise. Each body grants you ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and increases the zombie's max HP. `
-          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first. At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. Another body revives a fallen zombie with its accumulated growth. `
+          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first; its health also grows ${fmt(PLAGUE_ZOMBIE_HP_PER_DEFENSE * 100)}% per point of your bonus Defense + SD, and each hit adds ${fmt(PLAGUE_ZOMBIE_AP_SHARE)}× your SO. At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. Another body revives a fallen zombie with its accumulated growth. `
           + `Below ${fmt(band * 100)}% target HP, execute adds ${fmt(faction.params.execute! * bm * dotMult)} × (${fmt(band)} − target HP fraction) magic DPS. Disease and execute include the ${fmt(dotMult)}× DoT multiplier; corpse growth strengthens the zombie rather than these effects.`,
       };
     }
@@ -192,17 +194,18 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       return {
         id: "passive", icon: "attackSpeed", name: "Ice wall", value: `${fmt(faction.params.slow! * 100)}% AS · ${fmt((1 - CHILL_MOVE_MULT) * 100)}% MS slow`,
         scaling: `Frozen Justice: +${FROST_ELITE_GUARD_BONUS} Defense/SD · ${input.frostEliteGuard ? "ACTIVE" : "elite fights"}`,
-        tooltip: `While engaged, Frost slows enemy attack-cooldown progress by ${fmt(faction.params.slow! * 100)}%. Nearby enemies also move at ${fmt(CHILL_MOVE_MULT * 100)}% speed briefly, then thaw over 3 seconds. Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} Defense and Soul Defense while fighting elites, lingering for 2 seconds after contact. This passive deals no damage and does not scale with Offense or SO.`,
+        tooltip: `While engaged, Frost slows everything an enemy deals by ${fmt(faction.params.slow! * 100)}%: its attack cooldowns and its damage over time. Nearby enemies also move at ${fmt(CHILL_MOVE_MULT * 100)}% speed briefly, then thaw over 3 seconds; your bow or wand hits slow a target's walk to ${fmt(FROST_RANGED_CHILL_MULT * 100)}% for ${fmt(FROST_RANGED_CHILL_MS / 1000)} s at any range. Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} Defense and Soul Defense while fighting elites, lingering for 2 seconds after contact. This passive deals no damage and does not scale with Offense or SO.`,
       };
     case "holy": {
       const hpFrac = input.maxHp && input.maxHp > 0 ? Math.max(0, Math.min(1, safe(input.hp, input.maxHp) / input.maxHp)) : 1;
-      const share = lifestealFraction(faction, hpFrac);
+      const apLeech = holyApLifestealOf(mirrors.apBonus);
+      const share = lifestealFraction(faction, hpFrac) + apLeech;
       const camps = Math.max(0, safe(input.campClears, 0));
       const campLeech = holyCampLifestealOf(camps) * (countIn(input.build, "bloodthirst") > 0 && hpFrac < 0.5 ? 2 : 1);
       return {
         id: "passive", icon: "leech", name: "Radiant", value: `${fmt((share + campLeech) * 100)}% life steal`,
         scaling: `${fmt(camps)} camps · +${fmt(campLeech * 100)}% earned leech`,
-        tooltip: `Heal for ${fmt((share + campLeech) * 100)}% of post-mitigation damage dealt at your current health (${fmt(hpFrac * 100)}% HP), before card and mob leech. The faction share is ${fmt(faction.params.ls0! * 100)}% plus ${fmt(faction.params.ls1! * 100)}% times missing health, capped at ${fmt(faction.params.ls_cap! * 100)}%. Each eligible camp clear adds ${fmt(HOLY_CAMP_LIFESTEAL_PER_CLEAR * 100)}% permanent lifesteal without a farming cap. Bloodthirst also doubles that earned bonus below half health.`,
+        tooltip: `Heal for ${fmt((share + campLeech) * 100)}% of post-mitigation damage dealt at your current health (${fmt(hpFrac * 100)}% HP), before card and mob leech. The faction share is ${fmt(faction.params.ls0! * 100)}% plus ${fmt(faction.params.ls1! * 100)}% times missing health, capped at ${fmt(faction.params.ls_cap! * 100)}%, plus ${fmt(HOLY_LIFESTEAL_PER_AP * 100)}% per SO point (now +${fmt(apLeech * 100)}%, at most +${fmt(HOLY_AP_LIFESTEAL_CAP * 100)}%). Each eligible camp clear adds ${fmt(HOLY_CAMP_LIFESTEAL_PER_CLEAR * 100)}% permanent lifesteal without a farming cap. Bloodthirst also doubles that earned bonus below half health.`,
       };
     }
   }

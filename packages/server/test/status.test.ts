@@ -214,7 +214,7 @@ describe("addStatus", () => {
     expect(P(w, "b").immuneUntil).toBe(now(w) + 1000);
     expect(P(w, "b").effects).toBe(0);
     const hp = P(w, "b").hp;
-    recordHit(w, { victim: "b", by: src("a"), packet: { raw: 50, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "b", by: src("a"), packet: { raw: 50, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     expect(P(w, "b").hp).toBe(hp);
   });
@@ -464,7 +464,7 @@ describe("the table is frozen while the ledger pass runs (D20)", () => {
       payLater(world, () => seen.push("paid"));
     });
     P(w, "a").hp = 5;
-    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 50, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 50, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     expect(P(w, "a").status).toBe("dead");
     expect(statusesOf(C(w, "a"))).toEqual([]);
@@ -480,7 +480,7 @@ describe("the table is frozen while the ledger pass runs (D20)", () => {
       addStatus(world, C(world, "b"), { kind: "zoned", source: src("a"), ms: 5000, ability: "trial", data: { fieldId: "f", dealtMult: 0.5, takenFromSourceMult: 1 } });
     });
     const hit = (victim: string, by: string, raw: number): void => {
-      recordHit(w, { victim, by: src(by), packet: { raw, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+      recordHit(w, { victim, by: src(by), packet: { raw, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     };
     const hp = P(w, "y").hp;
     // `x` is first in the ledger, so it is processed (and dies) before `y` takes b's hit.
@@ -557,7 +557,7 @@ describe("damageFactor (a zone's modifiers, D9)", () => {
     zone(w, "b", "a");
     const hp = { a: P(w, "a").hp, b: P(w, "b").hp, c: P(w, "c").hp };
     const hit = (victim: string, by: string, extra: Record<string, unknown> = {}): void => {
-      recordHit(w, { victim, by: src(by), packet: { raw: 100, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false, ...extra });
+      recordHit(w, { victim, by: src(by), packet: { raw: 100, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false, ...extra });
     };
     hit("c", "b");
     hit("b", "a");
@@ -608,15 +608,15 @@ describe("the death floor (floorHp, D3)", () => {
     const w = arena();
     const st = floor(w, "a");
     P(w, "a").barrier = 50;
-    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 100, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
-    recordHit(w, { victim: "a", by: src("c"), packet: { raw: 5000, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 100, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "a", by: src("c"), packet: { raw: 5000, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     expect(P(w, "a").hp).toBe(1);
     expect(P(w, "a").status).toBe("alive");
     expect(w.events.filter((e) => e.type === "fx" && e.fx.kind === "death")).toEqual([]);
     expect(st.taken).toBeCloseTo(5100 - 50, 6);
     w.state.serverTime += 6000;
-    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 10, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 10, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     expect(P(w, "a").status).toBe("dead");
   });
@@ -673,7 +673,7 @@ function blankSig() {
   return {
     target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, tier: 0, markGroup: null, markGroupSize: 1,
     markHits: 0, markProgress: 0, markSwaps: 0, markDenied: false, farSince: -Infinity, ampUntil: 0, hpFrac: 1,
-    combatAt: -Infinity, chill: 1, chillers: [] as string[], chillExposureStartedAt: -Infinity, chillLastNearAt: -Infinity, frostMoveMult: 1,
+    combatAt: -Infinity, chill: 1, chillers: [] as string[], chillExposureStartedAt: -Infinity, chillLastNearAt: -Infinity, frostMoveMult: 1, rangedChillUntil: -Infinity,
     seenAction: null, dotPausedUntil: 0,
   };
 }
@@ -1102,7 +1102,7 @@ describe("mobs and statuses (D13)", () => {
   /** Hits, one ledger pass each and in this order, so the first one named wakes the mob onto its target. */
   const aggro = (w: World, mob: Combatant, ...by: Array<[string, number]>): void => {
     for (const [id, amount] of by) {
-      recordHit(w, { victim: mob.id, by: src(id), packet: { raw: amount, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+      recordHit(w, { victim: mob.id, by: src(id), packet: { raw: amount, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
       applyLedger(w);
     }
   };
@@ -1149,12 +1149,12 @@ describe("hooks fire for the ends of a fighter's fight", () => {
     chainHook(w, "fighterOut", (_w, id, cause) => { log.push(`${id}:${cause}`); });
     chainHook(w, "runEnded", () => { log.push("end"); });
     P(w, "a").hp = 1;
-    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 50, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 50, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     expect(log).toEqual(["a:down"]);
     const mobId = placeMob(w, { region: "fire", elite: false, at: { x: 700, y: 320 } });
     w.mobs.get(mobId)!.brain!.threat.set("b", 1);
-    recordHit(w, { victim: mobId, by: src("b"), packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: mobId, by: src("b"), packet: { raw: 1e6, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     expect(log).toEqual(["a:down", `${mobId}:down`]);
     removePlayer(w, "c");
@@ -1169,7 +1169,7 @@ describe("hooks fire for the ends of a fighter's fight", () => {
     let ended = 0;
     chainHook(w, "runEnded", () => { ended++; });
     P(w, "a").hp = 1;
-    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 50, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "a", by: src("b"), packet: { raw: 50, phys: 0, magic: 0, true: 1 }, weapon: "axe", stagger: false });
     applyLedger(w);
     tick(w);
     expect(w.state.phase).toBe("ended");
@@ -1187,11 +1187,11 @@ describe("hooks fire for the ends of a fighter's fight", () => {
     enqueueClientMessage(C(w, "a").rt.inputs, "attack", { a: 0 });
     tick(w);
     expect(started).toEqual(["a"]);
-    recordHit(w, { victim: "b", by: src("a"), packet: { raw: 5, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: true });
+    recordHit(w, { victim: "b", by: src("a"), packet: { raw: 5, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: true });
     applyLedger(w);
     expect(staggered).toEqual(["b"]);
     // Immune for a while: the second stagger does not take, so the hook stays quiet.
-    recordHit(w, { victim: "b", by: src("a"), packet: { raw: 5, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: true });
+    recordHit(w, { victim: "b", by: src("a"), packet: { raw: 5, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: true });
     applyLedger(w);
     expect(staggered).toEqual(["b"]);
   });

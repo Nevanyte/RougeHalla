@@ -86,7 +86,7 @@ describe("the strip's cells", () => {
     expect(stats({}, {}, "plague", "sword").by("ad").tip).toContain("Your Sword turns each point into 1 damage a second");
     expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1 magic damage a second at base attack speed");
     expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("burn or disease also gains 0.6 magic damage a second per point");
-    expect(stats({}, {}, "plague", "sword").by("ap").tip).toContain("gets nothing from it directly");
+    expect(stats({}, {}, "plague", "axe").by("ap").tip).toContain("gets nothing from it directly");
     expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("burn or disease also gains");
     for (const faction of ["sentenced", "frost", "holy"]) {
       expect(stats({}, {}, faction, "wand").by("ap").tip).toContain("base passive and Wish have no direct SO scaling");
@@ -96,11 +96,12 @@ describe("the strip's cells", () => {
 
   it("shows armor and Soul Defense as totals with the base and the cards apart, and what they cut", () => {
     const { by } = stats({ armor1: 1 }, { armorBonus: 15, shieldBonus: 26 }, "plague");
-    expect(FACTIONS.plague.armor).toBe(190);
-    expect(by("armor").value).toBe(String(190 + 15));
-    expect(by("mr").value).toBe(String(0 + 26));
-    expect(by("armor").tip).toContain(`cut by ${cutPercent(205)}%`);
-    expect(by("armor").tip).toContain("190 from your base and 15 from your cards");
+    const base = FACTIONS.plague.armor;
+    expect(FACTIONS.plague.shield).toBe(base);
+    expect(by("armor").value).toBe(String(base + 15));
+    expect(by("mr").value).toBe(String(base + 26));
+    expect(by("armor").tip).toContain(`cut by ${cutPercent(base + 15)}%`);
+    expect(by("armor").tip).toContain(`${base} from your base and 15 from your cards`);
     expect(by("mr").tip).toContain("True damage ignores both");
     expect(cutPercent(100)).toBe(50);
     expect(cutPercent(0)).toBe(0);
@@ -161,7 +162,7 @@ describe("the strip's cells", () => {
 
 describe("a weapon's scaling and special", () => {
   it("words the scaling biggest term first, with one decimal", () => {
-    expect(weaponScalingText("sword")).toBe("Offense 1.0");
+    expect(weaponScalingText("sword")).toBe("Offense 1.0 or SO 1.0 (the higher)");
     expect(weaponScalingText("bow")).toBe("Offense 1.0");
     expect(weaponScalingText("wand")).toBe("SO 1.0 + Offense 0.3");
     expect(weaponScalingText("axe")).toBe("Offense 1.0 + bonus HP 0.02");

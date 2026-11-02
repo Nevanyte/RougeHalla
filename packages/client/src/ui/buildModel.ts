@@ -202,7 +202,9 @@ export function weaponScalingText(weapon: WeaponId): string {
   const sc = WEAPONS[weapon].scaling as Readonly<Record<string, number | undefined>>;
   const order = ["ad", "ap", "hp", "def"];
   const terms = order.filter((k) => (sc[k] ?? 0) > 0).sort((a, b) => sc[b]! - sc[a]! || order.indexOf(a) - order.indexOf(b));
-  return terms.length === 0 ? "No scaling" : terms.map((k) => `${SCALING_LABEL[k]} ${scale(sc[k]!)}`).join(" + ");
+  if (terms.length === 0) return "No scaling";
+  const text = terms.map((k) => `${SCALING_LABEL[k]} ${scale(sc[k]!)}`).join(WEAPONS[weapon].dominant ? " or " : " + ");
+  return WEAPONS[weapon].dominant ? `${text} (the higher)` : text;
 }
 
 /** What a weapon does beyond its numbers, from the glossary's weapon table ("Physical, On-hit. Staggers its target."). */

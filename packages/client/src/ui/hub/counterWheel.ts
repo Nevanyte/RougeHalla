@@ -1,14 +1,17 @@
-// Counters tab: the two stacked counter loops (factions and weapons) as pentagrams, with the picked faction highlighted
+// Counters tab: the weapon counter loop as a pentagram (the faction loop is gone: the faction rework made every faction pair even), with the picked faction highlighted
 // (a run starts on fists, which sit outside the weapon loop, so no weapon node is picked). The geometry and the matchups come from shared/wheel.ts, which reads them off BEATS /
 // WEAPON_BEATS, so a retuned loop redraws itself. Built as inline SVG (never innerHTML); the DOM is built once and a
 // new pick only changes classes and arrowheads.
 import {
-  FACTIONS, FACTION_WHEEL, WEAPONS, WEAPON_WHEEL, isFactionId, wheelMatchups,
+  FACTIONS, WEAPONS, WEAPON_WHEEL, isFactionId, wheelMatchups,
   type FactionId, type Wheel, type WeaponId,
 } from "@raid/shared";
 import { cssColor, el } from "../dom";
 import type { HubPanel } from "./hubPanels";
 import "./counterWheel.css";
+
+/** What the Counters tab says where the faction wheel used to be. */
+export const FACTION_NO_COUNTERS = "Every faction pair is tuned to an even fight: no faction beats or loses to another by design.";
 
 export type NodeRole = "pick" | "beats" | "losesTo" | "other";
 /** Seen from the pick: an edge it wins, an edge it loses, or one it is not part of. */
@@ -206,23 +209,23 @@ export class CounterWheel implements HubPanel {
   private readonly hint = el("p", "cw-hint", NO_PICK_HINT);
   private readonly factionCaption = el("div", "cw-caption");
   private readonly weaponCaption = el("div", "cw-caption");
-  private readonly factions: WheelSvg<FactionId>;
   private readonly weapons: WheelSvg<WeaponId>;
   private faction: FactionId | null = null;
 
   constructor() {
-    this.factions = buildWheelSvg(FACTION_WHEEL, (id) => FACTIONS[id].displayName, (id) => FACTIONS[id].color, wheelHighlight(FACTION_WHEEL, null), "Faction counter wheel");
     this.weapons = buildWheelSvg(WEAPON_WHEEL, (id) => WEAPONS[id].name, (id) => WEAPONS[id].color, wheelHighlight(WEAPON_WHEEL, null), "Weapon counter wheel");
 
     const wheels = el("div", "cw-wheels");
-    wheels.append(
-      this.section("Factions", this.factions.svg, this.factionCaption),
-      this.section("Weapons", this.weapons.svg, this.weaponCaption),
-    );
+    // The faction rework removed the faction counter cycle: no faction wheel, a note in its place.
+    const factionBox = el("div", "cw-wheel");
+    const factionHead = el("div", "cw-wheel-head");
+    factionHead.append(el("span", undefined, "Factions"), el("span", "cw-wheel-note", "No counters"));
+    factionBox.append(factionHead, el("p", "cw-sub", FACTION_NO_COUNTERS), this.factionCaption);
+    wheels.append(factionBox, this.section("Weapons", this.weapons.svg, this.weaponCaption));
 
     const legend = el("p", "cw-legend");
     legend.append(
-      "Arrows point from winner to loser: solid to the next node round the ring, dashed to the one after. Your pick glows gold; ",
+      "Weapons only: arrows point from winner to loser: solid to the next node round the ring, dashed to the one after. Your pick glows gold; ",
       el("span", "cw-win", "green"), " is what it beats, ", el("span", "cw-loss", "red"), " is what beats it.",
     );
     this.root.append(this.hint, wheels, legend);
@@ -236,7 +239,6 @@ export class CounterWheel implements HubPanel {
   setPick(pick: WheelPick): void {
     const faction = isFactionId(pick.faction) ? pick.faction : null;
     this.faction = faction;
-    this.factions.apply(wheelHighlight(FACTION_WHEEL, faction));
     this.weapons.apply(wheelHighlight(WEAPON_WHEEL, null));
 
     this.hint.hidden = faction !== null;
@@ -247,10 +249,7 @@ export class CounterWheel implements HubPanel {
       this.weaponCaption.replaceChildren();
       return;
     }
-    const f = wheelMatchups(FACTION_WHEEL, faction);
-    this.factionCaption.replaceChildren(
-      sentence(FACTIONS[faction].displayName, FACTIONS[faction].color, f.beats.map((id) => FACTIONS[id].displayName), f.losesTo.map((id) => FACTIONS[id].displayName)),
-    );
+    this.factionCaption.replaceChildren(el("p", "cw-sub", `${FACTIONS[faction].displayName} has no faction counters: its edge comes from play, weapons and power.`));
     this.weaponCaption.replaceChildren(...startingKitText(FACTIONS[faction].displayName).map((t) => el("p", "cw-sub", t)));
   }
 

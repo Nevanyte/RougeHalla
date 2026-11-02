@@ -26,7 +26,7 @@ import {
 } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
 import { removePlayer } from "../src/sim/step";
-import { hit, inStep, MAGIC, pvpArena, P, RT, tick, TRUE, type HitOpts } from "./support/pvpRig";
+import { hit, inStep, MAGIC, PHYSICAL, pvpArena, P, RT, tick, TRUE, type HitOpts } from "./support/pvpRig";
 
 const HOLY_HP = FACTIONS.holy.hp;
 const DT = TICK_MS / 1000;
@@ -49,11 +49,11 @@ describe("G2: the PvP per-hit cap", () => {
   });
 
   it("caps what reaches the hp, so armor and magic resist come first", () => {
-    // A magic hit of raw 600 x f(15) = 1,692 is 1,692 / 3.5 = 483 against Holy's 250 magic resist: under 490 = 35%, not capped.
+    // A magic hit of raw 250 x f(15) is cut by Holy's magic resist to under 35% of its hp: not capped.
     const w = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
-    hit(w, "v", "a", 600, { shares: MAGIC });
+    hit(w, "v", "a", 250, { shares: MAGIC });
     applyLedger(w);
-    expect(P(w, "v").hp).toBeCloseTo(HOLY_HP - (600 * pvpFactor(15)) / 3.5, 9);
+    expect(P(w, "v").hp).toBeCloseTo(HOLY_HP - (250 * pvpFactor(15)) / (1 + FACTIONS.holy.shield / 100), 9);
   });
 
   it("caps each hit of a pass on its own: two hits in one tick can still take 70%", () => {
@@ -128,7 +128,7 @@ describe("G3: the PvP damage-over-time cap", () => {
     hit(w, "v", "a", 500, { sig: "disease", shares: TRUE });
     applyLedger(w);
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(budget, 9);
-    expect(budget).toBeCloseTo(10.5, 9);
+    expect(budget).toBeCloseTo(0.15 * FACTIONS.holy.hp * DT, 9);
   });
 
   it("shares the budget between that source's entries in proportion, whichever signature they are", () => {
@@ -345,8 +345,8 @@ describe("G5: lifesteal", () => {
     const w = pvpArena([{ id: "h", faction: "holy", hpFrac: 0.1, weapon: "wand" }, { id: "v", faction: "fire" }], { pvpRules: false, signatures: true });
     rows(w, "h", [{ k: "stat", stat: "lifesteal", v: 0.25 }]);
     const own = lifestealFraction(FACTIONS.holy, 0.1);
-    expect(own).toBeCloseTo(0.75, 12); // 0.1 + 0.8 x 0.9 at 10% hp, held to Holy's own ls_cap 0.75: with the rows' 0.25 that is 1.0, over the cap
-    expect(own + 0.25).toBeGreaterThan(LIFESTEAL_MAX);
+    expect(own).toBeCloseTo(FACTIONS.holy.params.ls_cap!, 12); // held to Holy's own ls_cap at 10% hp: with the rows' 0.25 that reaches the cap
+    expect(own + 0.25).toBeGreaterThanOrEqual(LIFESTEAL_MAX - 1e-12);
     const before = P(w, "h").hp;
     inStep(w, () => { hit(w, "v", "h", 100); });
     expect(P(w, "h").hp - before).toBeCloseTo(100 * LIFESTEAL_MAX, 6);
@@ -452,7 +452,7 @@ describe("G7: bonus armor and magic resist", () => {
     const v = P(w, "v");
     const def = { armor: FACTIONS.fire.armor + 200, shield: FACTIONS.fire.shield + 200 };
     const hp0 = v.hp;
-    hit(w, "v", "a", 100);
+    hit(w, "v", "a", 100, { shares: PHYSICAL });
     hit(w, "v", "a", 100, { shares: MAGIC });
     applyLedger(w);
     expect(hp0 - v.hp).toBeCloseTo(mitigateShares(100, { phys: 1, magic: 0, true: 0 }, def) + mitigateShares(100, { phys: 0, magic: 1, true: 0 }, def), 9);
@@ -526,7 +526,7 @@ describe("G12: critical strikes", () => {
 // Race to 0 that a card carries. Each fails without sim/ledger.ts passing the entry's kind, vsExtras and the card source.
 
 describe("G1 in the ledger: an entry's own mult shares the cap, by the kind of entry", () => {
-  /** What a raw-100 hit of `o`'s kind takes off an armor-free Holy from an attacker with `list` for rows (PvP factor off). */
+  /** What a raw-100 hit of `o`'s kind takes off a Holy (true damage, unmitigated) from an attacker with `list` for rows (PvP factor off). */
   const lost = (list: Effect[], o: HitOpts = {}): number => {
     const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
     rows(w, "a", list);
@@ -743,12 +743,12 @@ describe("G4 from a card: the `hpRace` mult row is the source, not only the test
 // (G2, G3), and no hook moves a Wish's cooldown but Wishful Thinking (G13).
 
 describe("G1 with a critical strike or Plant Your Feet baked into the packet", () => {
-  /** What a hit of base raw 100, baked into `packet` by a crit (x1.5) or the like, takes off an armor-free Holy from an attacker with `list` for rows. */
+  /** What a hit of base raw 100, baked into `packet` by a crit (x1.5) or the like, takes off a Holy (true damage, unmitigated) from an attacker with `list` for rows. */
   const lostWith = (list: Effect[], baked: number, crit: boolean): number => {
     const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
     rows(w, "a", list);
     recordHit(w, {
-      victim: "v", by: { id: "a", name: "A" }, packet: { raw: 100 * baked, phys: 1, magic: 0, true: 0, mult: baked, ...(crit ? { crit: true } : {}) },
+      victim: "v", by: { id: "a", name: "A" }, packet: { raw: 100 * baked, phys: 0, magic: 0, true: 1, mult: baked, ...(crit ? { crit: true } : {}) },
       weapon: "axe", stagger: false,
     });
     applyLedger(w);
@@ -765,7 +765,7 @@ describe("G1 with a critical strike or Plant Your Feet baked into the packet", (
     // The packet Boom's holder records already carries its x2.5 (packetFor) and the crit its x1.5: 100 x 2.5 x 1.5 = 375 raw, 1.5 baked beyond `hit`.
     const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
     rows(w, "a", [dmg(0.5), mult("hit", 2.5)]);
-    recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw: 375, phys: 1, magic: 0, true: 0, mult: 1.5, crit: true }, weapon: "axe", stagger: false });
+    recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw: 375, phys: 0, magic: 0, true: 1, mult: 1.5, crit: true }, weapon: "axe", stagger: false });
     applyLedger(w);
     // x2.5 / (2.5 x 1.5) on the rows: 375 x 0.667 = 250, the cap's x2.5 of the plain 100 and not the 3.75 the product asks for.
     expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(250, 9);
@@ -781,7 +781,7 @@ describe("G1 with a critical strike or Plant Your Feet baked into the packet", (
     const lostRaw = (list: Effect[], raw: number, baked: number): number => {
       const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
       rows(w, "a", list);
-      recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw, phys: 1, magic: 0, true: 0, mult: baked, ...(baked > 1 ? { crit: true } : {}) }, weapon: "axe", stagger: false });
+      recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw, phys: 0, magic: 0, true: 1, mult: baked, ...(baked > 1 ? { crit: true } : {}) }, weapon: "axe", stagger: false });
       applyLedger(w);
       return HOLY_HP - P(w, "v").hp;
     };

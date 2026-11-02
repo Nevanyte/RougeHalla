@@ -3,18 +3,13 @@
 // to ask for. A faction is asked for only after a deliberate pick, which is remembered on this device; until then
 // `selected` is null and the join carries none (the server hands out its own default, and the run counts for no
 // faction's titles).
-import { BEATS, FACTIONS, FACTION_IDS, isFactionId, type FactionId } from "@raid/shared";
+import { FACTIONS, FACTION_IDS, isFactionId, type FactionId } from "@raid/shared";
 import { cssColor, el } from "./dom";
 import { championGuide } from "./hub/championGuide";
 
 const PICK_KEY = "raid.faction";
 const NO_PICK_HINT = "No pick yet: the server will assign one";
 
-function relatedTo(id: FactionId, side: 0 | 1): FactionId[] {
-  return BEATS.filter((pair) => pair[side] === id).map((pair) => pair[1 - side]!);
-}
-
-const names = (ids: readonly FactionId[]): string => ids.map((f) => FACTIONS[f].displayName).join(", ");
 
 // localStorage can throw (blocked site data); the pick then just isn't remembered.
 function savedFaction(): FactionId | null {
@@ -135,14 +130,8 @@ export class FactionPicker {
     wish.append(el("b", undefined, `Wish: ${wishDef.name}`), ` — ${guide.wish.summary}`);
     const scaling = part(el("span", "faction-scaling", `Scaling: ${sig.tags.map(tag => tag.label).join(" · ")}. Wish base values are fixed.`), "scaling");
 
-    const beats = part(el("span"), "beats");
-    beats.append(el("span", "faction-beats", "Beats"), ` ${names(relatedTo(id, 0))}`);
-    const loses = part(el("span"), "loses");
-    loses.append(el("span", "faction-loses", "Loses to"), ` ${names(relatedTo(id, 1))}`);
-    const sep = el("span", "faction-sep", "·");
-    sep.setAttribute("aria-hidden", "true");
-    const edge = el("span", "faction-edge");
-    edge.append(beats, sep, loses);
+    // The faction rework removed the counter cycle: no faction is designed to beat or lose to another.
+    const edge = part(el("span", "faction-edge", "No faction counters: every matchup is tuned to an even fight."), "edge");
 
     const detail = el("span", "faction-detail");
     detail.append(signature);
@@ -151,7 +140,7 @@ export class FactionPicker {
     detail.append(edge);
     card.append(head, detail);
     card.setAttribute("aria-labelledby", nameEl.id);
-    card.setAttribute("aria-describedby", [roleEl, signature, wish, scaling, beats, loses].map((n) => n.id).join(" "));
+    card.setAttribute("aria-describedby", [roleEl, signature, wish, scaling, edge].map((n) => n.id).join(" "));
     card.addEventListener("click", () => this.select(id));
     return card;
   }

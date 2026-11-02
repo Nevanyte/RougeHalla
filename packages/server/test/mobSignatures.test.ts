@@ -8,7 +8,7 @@ import {
   backlashPerSwing, bonusMultiplier, burnDps, cardRows, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
   damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markPct, markWeight,
   MARK_TIER_HITS,
-  ELITE_K, MOB_K, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
+  ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mobTypeFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type DamageShares, type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -53,15 +53,15 @@ function openMap(): GameMap {
   return map;
 }
 
-/** The factions as the sim fights them: players paced, regional mobs scaled by MOB_K and then paced. */
+/** The factions as the sim fights them: players paced, regional mobs scaled by MOB_K (and the zone's MOB_ZONE_DAMAGE) and then paced. */
 const PLAYER_SPEC = Object.fromEntries(
   Object.keys(FACTIONS).map((id) => [id, pacedFaction(FACTIONS[id as FactionId])]),
 ) as Record<FactionId, FactionSpec>;
 const MOB_SPEC = Object.fromEntries(
-  Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, false))]),
+  Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobTypeFaction(id as FactionId, false))]),
 ) as Record<FactionId, FactionSpec>;
 const ELITE_SPEC = Object.fromEntries(
-  Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, true))]),
+  Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobTypeFaction(id as FactionId, true))]),
 ) as Record<FactionId, FactionSpec>;
 
 /** The signature each damage-over-time faction runs (Fire's other one, the backlash, is named where it is meant). */
@@ -244,8 +244,8 @@ describe("a regional mob fights with its region's signature at mob strength", ()
 
       // Per second: the scaled paced burn times the weapon's multiplier, which is MOB_K of the full-strength Fire's.
       const perSecond = sum(rig.landed.filter((h) => h.sig === "burn").map((h) => h.amount)) / (engaged * DT);
-      expect(perSecond).toBeCloseTo(burnDps(MOB_SPEC.fire) * bonusMultiplier("axe"), 6);
-      expect(perSecond / (burnDps(PLAYER_SPEC.fire) * bonusMultiplier("axe"))).toBeCloseTo(MOB_K, 9);
+      expect(perSecond).toBeCloseTo(expected / DT, 6);
+      expect(perSecond / onPlayer("fire", "plague", burnDps(PLAYER_SPEC.fire) * bonusMultiplier("axe"))).toBeCloseTo(MOB_K, 9);
     });
 
     it("reports the burn as sig \"burn\" hit fx by the mob's id, in DOT_FX_MS chunks, and marks the player burning", () => {
@@ -329,7 +329,7 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       expect(engaged).toBeGreaterThan(50);
       expect(sigLanded(rig.landed, "disease").length).toBe(engaged);
       // At mob strength: the plague param is MOB_K of the player-strength Plague's.
-      expect(MOB_SPEC.plague.params.plague! / PLAYER_SPEC.plague.params.plague!).toBeCloseTo(MOB_K, 12);
+      expect(MOB_SPEC.plague.params.plague! / PLAYER_SPEC.plague.params.plague!).toBeCloseTo(MOB_K * MOB_ZONE_DAMAGE.plague!, 12);
       const fx = rig.events.flatMap((e) => (e.type === "fx" && e.fx.kind === "hit" && e.fx.sig === "disease" ? [e.fx] : []));
       expect(fx.length).toBeGreaterThanOrEqual(5);
       for (const h of fx) expect(h).toMatchObject({ id: "p", by: rig.mob.id, weapon: "bow", sig: "disease" });
@@ -428,22 +428,22 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       const free = fight(false);
       // The slow is not a damage number, so a mob's chill is the full-strength one.
       const slow = chillMultiplier(MOB_SPEC.frost);
-      expect(slow).toBeCloseTo(0.48, 12);
+      expect(slow).toBeCloseTo(1 - FACTIONS.frost.params.slow!, 12);
       expect(slow).toBe(chillMultiplier(PLAYER_SPEC.frost));
       const sig = signatureState(chilled.rig.world, "p")!;
       expect(sig.chill).toBeCloseTo(slow, 12);
       expect(sig.chillers).toEqual([chilled.rig.mob.id]);
       expect(chilled.rig.p.sig & SIG_CHILLED).toBeTruthy();
       expect(signatureState(free.rig.world, "p")?.chill ?? 1).toBe(1);
-      // Swings after the chill took hold: one every interval / 0.48 instead of every interval.
+      // Swings after the chill took hold: one every interval / chill instead of every interval.
       const late = (w: readonly number[]): number[] => w.filter((t) => t >= 1500);
       expect(late(chilled.windups).length).toBeGreaterThanOrEqual(6);
       const gapFree = meanGap(late(free.windups));
       const gapChilled = meanGap(late(chilled.windups));
       expect(gapFree).toBeGreaterThan(0.24);
       expect(gapFree).toBeLessThan(0.27);
-      expect(gapChilled / gapFree).toBeGreaterThan(1 / 0.48 - 0.15);
-      expect(gapChilled / gapFree).toBeLessThan(1 / 0.48 + 0.15);
+      expect(gapChilled / gapFree).toBeGreaterThan(1 / slow - 0.15);
+      expect(gapChilled / gapFree).toBeLessThan(1 / slow + 0.15);
     });
   });
 
@@ -473,20 +473,22 @@ describe("a regional mob fights with its region's signature at mob strength", ()
     });
 
     it("never heals past its max hp", () => {
-      const { rig, log } = fight(998);
+      const { rig, log } = fight(999.75);
       expect(rig.mob.s.hp).toBe(1000);
-      expect(fxOf(log.events, "heal")).toEqual([{ kind: "heal", id: rig.mob.id, amount: expect.closeTo(2, 9) }]);
+      expect(fxOf(log.events, "heal")).toEqual([{ kind: "heal", id: rig.mob.id, amount: expect.closeTo(0.25, 9) }]);
     });
   });
 });
 
 describe("a player's signature works on a mob like on a player", () => {
   it("a Fire player burns a mob in contact: its hp falls by the burn, and the landed entries and fx carry the sig", () => {
-    const rig = makeRig({ player: "fire", weapon: "axe", mob: "frost" });
+    // A Plague elite (a Frost mob would chill the player, and the chill now slows the burn too (the faction rework).
+    const rig = makeRig({ player: "fire", weapon: "axe", mob: "plague", elite: true });
     hold(rig);
     const hpBefore: number[] = [];
-    const logs = run(rig, 80, () => { hpBefore.push(rig.mob.s.hp); });
-    const burn = onMob("fire", "frost", burnDps(PLAYER_SPEC.fire) * bonusMultiplier("axe") * DT);
+    let sawBurning = false;
+    const logs = run(rig, 80, () => { hpBefore.push(rig.mob.s.hp); sawBurning ||= (rig.mob.s.sig & SIG_BURNING) !== 0; });
+    const burn = onMob("fire", "plague", burnDps(PLAYER_SPEC.fire) * bonusMultiplier("axe") * DT);
     expect(burn).toBeGreaterThan(0);
     let engaged = 0;
     logs.forEach((log, i) => {
@@ -508,7 +510,7 @@ describe("a player's signature works on a mob like on a player", () => {
     const fx = rig.events.flatMap((e) => (e.type === "fx" && e.fx.kind === "hit" && e.fx.sig === "burn" ? [e.fx] : []));
     expect(fx.length).toBeGreaterThanOrEqual(5);
     for (const h of fx) expect(h).toMatchObject({ id: rig.mob.id, by: "p", weapon: "axe", sig: "burn" });
-    expect(rig.mob.s.sig & SIG_BURNING).toBeTruthy();
+    expect(sawBurning).toBe(true);
   });
 
   it("a Plague player diseases a mob and executes it below half hp", () => {
@@ -917,8 +919,9 @@ describe("lifesteal on mobs", () => {
     }
     expect(swing).toBeDefined();
     expect(rig.mob.s.status).toBe("alive");
-    expect(swing!.landed.find((h) => h.victim === rig.mob.id)!.amount).toBeCloseTo(SWING, 9);
-    expect(healed(swing!, "p")).toBeCloseTo(SWING * lifestealFraction(PLAYER_SPEC.holy, 0.5), 9);
+    const cut = SWING / (1 + FACTIONS.fire.armor / 100); // a Fire mob's armor cuts the physical sword hit
+    expect(swing!.landed.find((h) => h.victim === rig.mob.id)!.amount).toBeCloseTo(cut, 9);
+    expect(healed(swing!, "p")).toBeCloseTo(cut * lifestealFraction(PLAYER_SPEC.holy, 0.5), 9);
   });
 });
 
@@ -1000,7 +1003,7 @@ describe("a player's Frost chill and damage over time on a mob", () => {
       left.push(rig.mob.s.readyAt - rig.world.state.serverTime);
     }
     const slow = chillMultiplier(PLAYER_SPEC.frost);
-    expect(slow).toBeCloseTo(0.48, 12);
+    expect(slow).toBeCloseTo(1 - FACTIONS.frost.params.slow!, 12);
     const started = logs.findIndex((l) => fxOf(l.events, "windup").some((w) => w.by === rig.mob.id));
     expect(started).toBeGreaterThanOrEqual(0);
     // A few ticks after the swing began (past the correction for a swing started this tick), over a stretch of 8 ticks.

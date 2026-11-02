@@ -30,7 +30,7 @@ import { quoted } from "./support/quoted";
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 
-// The default faction of the n-th joiner: p0 Fire (835 hp), p1 Sentenced (880), p2 Plague (1375), p3 Frost (1200), p4 Holy (1400), then
+// The default faction of the n-th joiner: p0 Fire, p1 Sentenced, p2 Plague, p3 Frost, p4 Holy (hp: FACTIONS), then
 // round again.
 const NAMES = ["alice", "bob", "carol", "dave", "erin", "frank", "gina", "hank"];
 const idOf = (i: number): string => `p${i}`;
@@ -165,24 +165,24 @@ describe("syncMaxHp", () => {
       expect(p.maxHp, `p${i}`).toBeCloseTo(base * (1 + VIT[2]!), 9);
       expect(p.hp, `p${i}`).toBeCloseTo(p.maxHp, 9);
     }
-    expect(Math.round((P(w, 0).maxHp / 835 - 1) * 100)).toBe(Math.round(VIT[2]! * 100)); // the card's percent
+    expect(Math.round((P(w, 0).maxHp / FACTIONS.fire.hp - 1) * 100)).toBe(Math.round(VIT[2]! * 100)); // the card's percent
   });
 
   it("maxHp rows of different cards add: Vitality III and Hearty are the sum of their percents", () => {
     const w = startRun(2);
     setCards(w, 0, { vitality3: 1, hearty: 1 });
-    expect(P(w, 0).maxHp).toBeCloseTo(835 * (1 + VIT[3]! + HEARTY), 9);
+    expect(P(w, 0).maxHp).toBeCloseTo(FACTIONS.fire.hp * (1 + VIT[3]! + HEARTY), 9);
     expect(P(w, 0).hp).toBeCloseTo(P(w, 0).maxHp, 9);
   });
 
   it("hp rises by the same delta, so the missing hp is kept", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    p.hp = 200; // 635 missing out of 835
+    p.hp = 200;
     setCards(w, 0, { vitality3: 1 });
-    expect(p.maxHp).toBeCloseTo(835 * (1 + VIT[3]!), 9);
-    expect(p.maxHp - p.hp).toBeCloseTo(635, 9);
-    expect(p.hp).toBeCloseTo(200 + (p.maxHp - 835), 9);
+    expect(p.maxHp).toBeCloseTo(FACTIONS.fire.hp * (1 + VIT[3]!), 9);
+    expect(p.maxHp - p.hp).toBeCloseTo(FACTIONS.fire.hp - 200, 9);
+    expect(p.hp).toBeCloseTo(200 + (p.maxHp - FACTIONS.fire.hp), 9);
   });
 
   it("a further card adds only the new delta", () => {
@@ -202,7 +202,7 @@ describe("syncMaxHp", () => {
     expect(P(w, 0).status).toBe("dead");
     setCards(w, 0, { vitality3: 1 });
     expect(P(w, 0).hp).toBe(0);
-    expect(P(w, 0).maxHp).toBeCloseTo(835 * (1 + VIT[3]!), 9);
+    expect(P(w, 0).maxHp).toBeCloseTo(FACTIONS.fire.hp * (1 + VIT[3]!), 9);
   });
 
   it("is idempotent", () => {
@@ -219,12 +219,12 @@ describe("syncMaxHp", () => {
     const w = startRun(2);
     const p = P(w, 0);
     setCards(w, 0, { vitality3: 1 });
-    expect(p.hp).toBeGreaterThan(835);
+    expect(p.hp).toBeGreaterThan(FACTIONS.fire.hp);
     p.build.delete("vitality3");
     recomputeMods(w, cOf(w, 0));
     syncMaxHp(p);
-    expect(p.maxHp).toBe(835);
-    expect(p.hp).toBe(835);
+    expect(p.maxHp).toBe(FACTIONS.fire.hp);
+    expect(p.hp).toBe(FACTIONS.fire.hp);
   });
 
   it("does nothing for no cards", () => {
@@ -232,7 +232,7 @@ describe("syncMaxHp", () => {
     const p = P(w, 0);
     p.hp = 123;
     syncMaxHp(p);
-    expect([p.maxHp, p.hp]).toEqual([835, 123]);
+    expect([p.maxHp, p.hp]).toEqual([FACTIONS.fire.hp, 123]);
   });
 
   it("a card with no maxHp row (Haste, Fleet, Armor) leaves max hp and hp as they were", () => {
@@ -241,7 +241,7 @@ describe("syncMaxHp", () => {
     grant(w, 0, "haste3", 2);
     grant(w, 0, "fleet3");
     grant(w, 0, "armor3");
-    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([835, 300]);
+    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([FACTIONS.fire.hp, 300]);
   });
 });
 
@@ -264,7 +264,7 @@ describe("a kill gives no stat", () => {
     killMobBy(w, "fire", false);
     killMobBy(w, "fire", true, elitesOf("fire")[0]!.id);
     expect(P(w, 0).build.size).toBe(0);
-    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([835, 835]);
+    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([FACTIONS.fire.hp, FACTIONS.fire.hp]);
     expect([P(w, 0).asMult, P(w, 0).speedMult, P(w, 0).windupMult, P(w, 0).armorBonus, P(w, 0).shieldBonus, P(w, 0).adBonus, P(w, 0).apBonus])
       .toEqual([1000, 1000, 1000, 0, 0, 0, 0]);
     expect(RT(w, 0).mobKills).toBe(2);
@@ -385,7 +385,7 @@ describe("the barrier", () => {
     w.events = [];
     const removed = applyHits(w, P(w, 2), RT(w, 2), [{ amount: 40, source: attacker(w, 0) }, { amount: 30, source: attacker(w, 1) }]);
     expect(removed).toBe(20);
-    expect(P(w, 2).hp).toBe(1355);
+    expect(P(w, 2).hp).toBe(FACTIONS.plague.hp - 20);
     expect(P(w, 2).barrier).toBe(0);
     expect([...RT(w, 0).damaged]).toEqual([idOf(2)]);
     expect([...RT(w, 1).damaged]).toEqual([idOf(2)]);
@@ -445,9 +445,9 @@ describe("the barrier", () => {
     s.suddenDeathAt = s.serverTime - TICK_MS; // the tick being simulated began exactly at suddenDeathAt
     suddenDeath(w, TICK_MS);
     applyLedger(w);
-    const burn = 0.02 * (TICK_MS / 1000) * 835; // SUDDEN_DEATH_START_FRACTION x dt x max hp
+    const burn = 0.02 * (TICK_MS / 1000) * FACTIONS.fire.hp; // SUDDEN_DEATH_START_FRACTION x dt x max hp
     expect(P(w, 0).barrier).toBeCloseTo(10 - burn, 9);
-    expect(P(w, 0).hp).toBe(835);
+    expect(P(w, 0).hp).toBe(FACTIONS.fire.hp);
     expect(P(w, 1).hp).toBeCloseTo(FACTIONS.sentenced.hp - 0.02 * (TICK_MS / 1000) * FACTIONS.sentenced.hp, 9); // the unshielded one loses hp
     expect(P(w, 0).status).toBe("alive");
     expect(RT(w, 0).killedBy).toBeNull();
@@ -469,7 +469,7 @@ describe("a player kill moves no stat", () => {
     expect(P(w, 0).bounty).toBe(10);
     kill(w, 0, attacker(w, 4));
     expect(P(w, 4).build.size).toBe(0);
-    expect(P(w, 4).maxHp).toBe(1400);
+    expect(P(w, 4).maxHp).toBe(FACTIONS.holy.hp);
     expect(P(w, 4).asMult).toBe(1000);
     expect(RT(w, 4).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 10, quest: 0 });
   });

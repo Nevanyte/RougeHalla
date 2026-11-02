@@ -258,7 +258,7 @@ describe("the Mechanics page (data)", () => {
     expect(text(`${FACTIONS.fire.displayName}: Burn`)).toBe("Magic, Damage over time");
     expect(text(`${FACTIONS.fire.displayName}: Backlash`)).toBe("Physical, Returned");
     expect(text(`${FACTIONS.sentenced.displayName}: Mark`)).toContain("Each landed weapon hit");
-    expect(text(`${FACTIONS.sentenced.displayName}: Mark`)).toContain("True, Ramping");
+    expect(text(`${FACTIONS.sentenced.displayName}: Mark`)).toContain("Physical, Magic");
     expect(text(`${FACTIONS.plague.displayName}: Disease and execute`)).toBe("Magic, Damage over time, Execute");
     expect(text(`${FACTIONS.frost.displayName}: Chill`)).toBe("Slow");
     expect(text(`${FACTIONS.holy.displayName}: Lifesteal`)).toBe("Heal");

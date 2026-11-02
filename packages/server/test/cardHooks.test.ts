@@ -254,7 +254,7 @@ describe("streaks", () => {
     const ticksOnV = seen.entries.filter((e) => e.dot === true && e.weapon === null && e.by.id === "a" && e.victim === "v");
     expect(ticksOnV.length).toBeGreaterThan(0);
     const dealt = seen.landed.flat().filter((l) => l.dot === true && l.by === "a" && l.victim === "v").reduce((n, l) => n + l.amount, 0);
-    expect(dealt).toBeCloseTo((perSecond * TICK_MS) / 1000, 6);
+    expect(dealt).toBeCloseTo((perSecond * TICK_MS) / 1000 / (1 + FACTIONS.holy.armor / 100), 6); // a bleed is physical: armor cuts it
   });
 
   it("the memory ends after STREAK_GAP_SECONDS without a hit: the same target is new again", () => {
@@ -433,12 +433,8 @@ describe("the axe's shred (a weapon special)", () => {
     expect(statusValue(w, C(w, "v"), "shred")).toBe(AXE_SHRED_CAP);
     expect(P(w, "v").armorBonus).toBe(-AXE_SHRED_CAP * 10); // int16 tenths: the mirror carries it to the client as a negative bonus
     expect(defenseOf(P(w, "v")).armor).toBeCloseTo(FACTIONS.plague.armor - AXE_SHRED_CAP, 6);
-    // An armor-free fighter loses nothing more: the total stops at 0.
-    const bare = arena([{ id: "a", faction: "holy", weapon: "axe", at: near(200) }, { id: "v", faction: "holy", weapon: "", at: near(230) }]);
-    engage(bare, "a", "v");
-    run(bare, 100);
-    expect(statusValue(bare, C(bare, "v"), "shred")).toBe(AXE_SHRED_CAP);
-    expect(defenseOf(P(bare, "v")).armor).toBe(0);
+    // The total never goes under 0 (no faction is armor-free since the faction rework: a shred bigger than the armor is the shared test's).
+    expect(defenseOf(P(w, "v")).armor).toBeGreaterThanOrEqual(0);
   });
 
   it("grows 3, 6 with the hits (AXE_SHRED_ARMOR, then the cap) and ends 3 s after the last one", () => {
@@ -689,7 +685,7 @@ describe("Spiked Shell", () => {
     expect(back.length).toBe(dealt.length);
     back.forEach((l, i) => {
       expect(l.passive).toBe(true);
-      expect(l.amount).toBeCloseTo(dealt[i]!.amount * 0.15, 9);
+      expect(l.amount).toBeCloseTo((dealt[i]!.amount * 0.15) / (1 + FACTIONS.holy.armor / 100), 9); // physical: the attacker's armor cuts it
     });
     // The tick a hit lands, nothing comes back; the tick after, it does.
     const tickOf = (xs: LandedHit[]): number => seen.landed.findIndex((l) => l.includes(xs[0]!));
@@ -1052,9 +1048,12 @@ describe("Plant Your Feet", () => {
     engage(near2, "a", "v");
     const hits = hitsOf(run(near2, 80), "a", "v");
     expect(hits.length).toBeGreaterThanOrEqual(4);
-    expect(hits[0]!.amount).toBeCloseTo(hits[1]!.amount * (1 + PLANT_FEET_BONUS), 6);
-    expect(hits[2]!.amount).toBeCloseTo(hits[0]!.amount, 6);
-    expect(hits[3]!.amount).toBeCloseTo(hits[1]!.amount, 6);
+    // The axe shreds the victim's armor hit by hit (AXE_SHRED_ARMOR, up to the cap), so each hit is read at the armor it met.
+    const cut = (n: number): number => 1 / (1 + (FACTIONS.holy.armor - Math.min(AXE_SHRED_CAP, n * AXE_SHRED_ARMOR)) / 100);
+    const raw = hits.slice(0, 4).map((h, i) => h.amount / cut(i));
+    expect(raw[0]!).toBeCloseTo(raw[1]! * (1 + PLANT_FEET_BONUS), 6);
+    expect(raw[2]!).toBeCloseTo(raw[0]!, 6);
+    expect(raw[3]!).toBeCloseTo(raw[1]!, 6);
     // The armed sword swing that reached 140 u carried the same 25% (a sword hit in the first second, not yet armed, is the reference).
     const ref = arena([{ id: "a", faction: "holy", weapon: "sword", at: near(200) }, { id: "v", faction: "holy", weapon: "", at: near(230) }]);
     give(ref, "a", "plantYourFeet");

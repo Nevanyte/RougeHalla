@@ -330,7 +330,8 @@ describe("mirrorTimings: ranged windups follow attack speed (updated G9 timing r
 
 describe("the weapons' AD and AP scaling (BALANCE_CONTRACT 3.3)", () => {
   it("is the contract's table, for the five weapons and fists", () => {
-    expect(WEAPONS.sword.scaling).toEqual({ ad: 1.0 });
+    expect(WEAPONS.sword.scaling).toEqual({ ad: 1.0, ap: 1.0 });
+    expect(WEAPONS.sword.dominant).toBe(true);
     // The acceptance pass moved the axe (1.2), the bow (0.9) and the wand's AP (1.2) to 1.0 so that a card is worth the same per
     // point of dpsMult on every weapon and the weapon loop holds at minute 5 as it does at minute 0 (weapons.ts WeaponScaling).
     expect(WEAPONS.axe.scaling).toEqual({ ad: 1.0, hp: 0.02 });

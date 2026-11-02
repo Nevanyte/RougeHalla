@@ -162,7 +162,7 @@ function baseRig(base: (typeof BASE_STAT_IDS)[number], tier: 1 | 2 | 3): () => v
       expect(defenseOf(P(w, 0)).armor).toBe(paced("fire").armor + wire(v()));
       // Holy's damage is all physical: the armor takes it down.
       setHpFrac(w, 0, 0.9);
-      expect(hitFor(w, 1, "p0", 100)).toBeCloseTo(100 / (1 + wire(v()) / 100), 9);
+      expect(hitFor(w, 1, "p0", 100)).toBeCloseTo(100 / (1 + (paced("fire").armor + wire(v())) / 100), 9);
     };
     case "mr": return () => {
       const w = startRun(["frost", "fire"]);

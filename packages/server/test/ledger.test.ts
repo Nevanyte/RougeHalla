@@ -135,9 +135,11 @@ const TRUE: DamageShares = { phys: 0, magic: 0, true: 1 };
 interface HitOpts { shares?: DamageShares; weapon?: WeaponId; scale?: number; stagger?: boolean; name?: string }
 
 /** Records a hit of `raw` on `victim` by `by`. Armor-free victims (Fire, Holy, a dummy) take a physical `raw` as it is. */
+/** True damage unless told otherwise: since the faction rework no faction is armor-free, so a raw hit lands as written only as true damage. */
+const TRUE_SHARES = { phys: 0, magic: 0, true: 1 } as const;
 function hit(world: World, victim: string, by: string, raw: number, o: HitOpts = {}): LedgerEntry {
   return recordHit(world, {
-    victim, by: { id: by, name: o.name ?? nameOf(by) }, packet: { raw, ...(o.shares ?? PHYSICAL) }, weapon: o.weapon ?? "axe",
+    victim, by: { id: by, name: o.name ?? nameOf(by) }, packet: { raw, ...(o.shares ?? TRUE_SHARES) }, weapon: o.weapon ?? "axe",
     stagger: o.stagger ?? false, scale: o.scale,
   });
 }
@@ -416,7 +418,7 @@ describe("mitigation", () => {
 describe("scale", () => {
   it("multiplies the raw damage before the damage law", () => {
     const w = arena([fighter("v", "sentenced"), fighter("x")]);
-    inStep(w, () => hit(w, "v", "x", 100, { scale: 0.5 }));
+    inStep(w, () => hit(w, "v", "x", 100, { scale: 0.5, shares: PHYSICAL }));
     expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(50 / (1 + FACTIONS.sentenced.armor / 100), 9); // raw scale applies before current defense
   });
 
@@ -444,7 +446,7 @@ describe("the hit fx", () => {
   it("emits one per entry, in entry order, with the mitigated amount and the weapon", () => {
     const w = arena([fighter("v", "sentenced"), fighter("x"), fighter("y")]);
     const events = inStep(w, () => {
-      hit(w, "v", "x", 100, { weapon: "sword" });
+      hit(w, "v", "x", 100, { weapon: "sword", shares: PHYSICAL });
       hit(w, "v", "y", 100, { shares: MAGIC, weapon: "wand" });
       hit(w, "v", "x", 50, { shares: TRUE, weapon: "bow" });
     });
@@ -485,7 +487,7 @@ describe("a zone's factor (D9) and named ability damage (D10)", () => {
     const hpV = P(w, "v").hp;
     const hpSubject = P(w, "subject").hp;
     inStep(w, () => {
-      hit(w, "v", "subject", 100);
+      hit(w, "v", "subject", 100, { shares: PHYSICAL });
       hit(w, "subject", "caster", 100);
       hit(w, "subject", "v", 100);
     });

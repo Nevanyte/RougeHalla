@@ -84,9 +84,10 @@ describe("bonusMultiplier", () => {
 });
 
 describe("burnDps", () => {
-  it("is Fire's burn: 18 on the sheet, 36 paced", () => {
-    expect(burnDps(SHEET.fire)).toBe(18);
-    expect(burnDps(PACED.fire)).toBe(36);
+  it("is Fire's burn on the sheet, doubled paced", () => {
+    const burn = SHEET.fire.params.burn!;
+    expect(burnDps(SHEET.fire)).toBe(burn);
+    expect(burnDps(PACED.fire)).toBe(2 * burn);
   });
 
   it.each(FACTION_IDS.filter((f) => f !== "fire"))("is 0 for %s", (f) => {
@@ -95,26 +96,29 @@ describe("burnDps", () => {
   });
 });
 
+const PLAGUE = SHEET.plague.params.plague!;
+const EXECUTE = SHEET.plague.params.execute!;
+
 describe("diseaseDps", () => {
-  it("is Plague's plague plus the execute that grows below half hp (sheet: 43 and 415)", () => {
+  it("is Plague's plague plus the execute that grows below half hp", () => {
     const p = SHEET.plague;
-    expect(diseaseDps(p, 1.0)).toBe(43);
-    expect(diseaseDps(p, 0.75)).toBe(43);
-    expect(diseaseDps(p, 0.5)).toBe(43);
-    expect(diseaseDps(p, 0.25)).toBeCloseTo(43 + 415 * 0.25, 9);
-    expect(diseaseDps(p, 0)).toBeCloseTo(43 + 415 * 0.5, 9);
+    expect(diseaseDps(p, 1.0)).toBe(PLAGUE);
+    expect(diseaseDps(p, 0.75)).toBe(PLAGUE);
+    expect(diseaseDps(p, 0.5)).toBe(PLAGUE);
+    expect(diseaseDps(p, 0.25)).toBeCloseTo(PLAGUE + EXECUTE * 0.25, 9);
+    expect(diseaseDps(p, 0)).toBeCloseTo(PLAGUE + EXECUTE * 0.5, 9);
   });
 
   it("paced: the plague and the execute are doubled", () => {
     const p = PACED.plague;
-    expect(diseaseDps(p, 1.0)).toBe(86);
-    expect(diseaseDps(p, 0.5)).toBe(86);
-    expect(diseaseDps(p, 0.25)).toBeCloseTo(86 + 830 * 0.25, 9);
-    expect(diseaseDps(p, 0)).toBeCloseTo(86 + 830 * 0.5, 9);
+    expect(diseaseDps(p, 1.0)).toBe(2 * PLAGUE);
+    expect(diseaseDps(p, 0.5)).toBe(2 * PLAGUE);
+    expect(diseaseDps(p, 0.25)).toBeCloseTo(2 * (PLAGUE + EXECUTE * 0.25), 9);
+    expect(diseaseDps(p, 0)).toBeCloseTo(2 * (PLAGUE + EXECUTE * 0.5), 9);
   });
 
   it("never goes below the plain disease for a foe above half hp", () => {
-    expect(diseaseDps(SHEET.plague, 3)).toBe(43);
+    expect(diseaseDps(SHEET.plague, 3)).toBe(PLAGUE);
   });
 
   it.each(FACTION_IDS.filter((f) => f !== "plague"))("is 0 for %s", (f) => {
@@ -124,26 +128,22 @@ describe("diseaseDps", () => {
 });
 
 describe("plagueDps and executeDps", () => {
-  it("are Plague's flat disease and the execute that grows below half hp (sheet: 43 and 415)", () => {
+  it("are Plague's flat disease and the execute that grows below half hp", () => {
     const p = SHEET.plague;
-    expect(plagueDps(p)).toBe(43);
+    expect(plagueDps(p)).toBe(PLAGUE);
     expect(executeDps(p, 1.0)).toBe(0);
     expect(executeDps(p, 0.5)).toBe(0);
-    expect(executeDps(p, 0.25)).toBeCloseTo(415 * 0.25, 9);
-    expect(executeDps(p, 0)).toBeCloseTo(415 * 0.5, 9);
+    expect(executeDps(p, 0.25)).toBeCloseTo(EXECUTE * 0.25, 9);
+    expect(executeDps(p, 0)).toBeCloseTo(EXECUTE * 0.5, 9);
     expect(plagueDps(p) + executeDps(p, 0.25)).toBeCloseTo(diseaseDps(p, 0.25), 12);
   });
 
   it("an execute band widens the execute and never below zero", () => {
-    expect(executeDps(SHEET.plague, 0.5, 0.6)).toBeCloseTo(41.5, 9);
+    expect(executeDps(SHEET.plague, 0.5, 0.6)).toBeCloseTo(EXECUTE * 0.1, 9);
     expect(executeDps(SHEET.plague, 3)).toBe(0);
   });
-
-  it.each(FACTION_IDS.filter((f) => f !== "plague"))("are 0 for %s", (f) => {
-    expect(plagueDps(SHEET[f])).toBe(0);
-    expect(executeDps(SHEET[f], 0.1)).toBe(0);
-  });
 });
+
 
 describe("markTierOf (the mark's tiers, docs/SENTENCED_REDESIGN.md R3)", () => {
   it("is 0 before the first hit, 1 at it, and one more every MARK_TIER_HITS hits up to 4", () => {
@@ -176,15 +176,22 @@ describe("markTierOf (the mark's tiers, docs/SENTENCED_REDESIGN.md R3)", () => {
 });
 
 describe("taxedRate (the tier-2 attack-speed tax, R5)", () => {
-  const keep = SHEET.sentenced.params.tax_keep!;
-  const cap = SHEET.sentenced.params.tax_cap!;
+  // The function at the old sheet's numbers (the reworked sheet's tax is neutral: keep 1, so it never cuts).
+  const keep = 0.38;
+  const cap = 1.6;
+
+  it("is neutral on the reworked sheet", () => {
+    const p = SHEET.sentenced.params;
+    for (const r of [0.5, 1.2, 1.85, 3]) expect(taxedRate(r, p.tax_keep!, p.tax_cap!)).toBeCloseTo(r, 12);
+    expect(p.suppress).toBe(1);
+    expect(p.mark_amp).toBe(1);
+  });
 
   it("leaves a rate at or under 1.0 alone", () => {
     for (const r of [0.45, 0.6, 0.9, 0.95, 1.0]) expect(taxedRate(r, keep, cap)).toBe(r);
   });
 
   it("keeps the configured 38% of excess speed: Plague’s 1.85 becomes 1.323", () => {
-    expect(keep).toBe(0.38);
     expect(taxedRate(1.85, keep, cap)).toBeCloseTo(1.323, 12);
     expect(taxedRate(1.2, keep, cap)).toBeCloseTo(1.076, 12);
     expect(taxedRate(1.85, 0.5, cap)).toBeCloseTo(1.425, 12);
@@ -216,12 +223,12 @@ describe("markWeight and markPct (the pulse's share, R4)", () => {
     expect(markWeight(f, "sword", 3)).toBeGreaterThan(markWeight(f, "sword", 1));
   });
 
-  it("keeps full AS for autos but uses a sublinear AS contribution for mark DPS", () => {
+  it("mark damage per second scales linearly with attack speed, like a weapon's (the Sentenced rework)", () => {
     const f = SHEET.sentenced;
-    const as = 1.4;
-    const markDpsScale = as * markWeight(f, "sword", as, MARK_AS_EXPONENT) / markWeight(f, "sword", 1, MARK_AS_EXPONENT);
-    expect(markDpsScale).toBeCloseTo(as ** MARK_AS_EXPONENT, 12);
-    expect(as).toBeGreaterThan(markDpsScale);
+    expect(MARK_AS_EXPONENT).toBe(1);
+    expect(MARK_FARM_AS_EFFICIENCY).toBe(1);
+    // Off the interval floor a hit's weight is unchanged by attack speed, so the mark per second grows with the hits per second.
+    expect(markWeight(f, "sword", 1.2, MARK_AS_EXPONENT)).toBeCloseTo(markWeight(f, "sword", 1, MARK_AS_EXPONENT), 12);
   });
 
   it("markPct is the share plus a kill-stack's share each, times the Heavier Sentence scale", () => {
@@ -234,31 +241,18 @@ describe("markWeight and markPct (the pulse's share, R4)", () => {
     expect(markPct(f, -2)).toBeCloseTo(base, 12);
   });
 
-  it("bonus bruiser stats grow the mark linearly without changing fresh baseline", () => {
+  it("every bonus stat point grows the mark alike (the stat bully build): 100 points of any stat make it x1.2", () => {
     const f = SHEET.sentenced;
     const base = markPct(f, 0);
-    const asPoint = (1 + 0.01 * MARK_FARM_AS_EFFICIENCY) ** MARK_AS_EXPONENT;
-    expect(markPct(f, 0, 1, { ad: 0, ap: 0, armor: 0, magicResist: 0 })).toBe(base);
-    for (const stat of ["ad", "ap", "armor", "magicResist"] as const) {
-      const weight = stat === "ap" ? MARK_BONUS_AP_WEIGHT : 1;
-      expect(markPct(f, 0, 1, { [stat]: 1 })).toBeCloseTo(base * (1 + MARK_BONUS_STAT_PER_POINT * weight), 12);
-      expect(markPct(f, 0, 1, { [stat]: 1 })).toBeGreaterThan(base * asPoint);
-      expect(markPct(f, 0, 1, { [stat]: 100 })).toBeCloseTo(base * (1 + 100 * MARK_BONUS_STAT_PER_POINT * weight), 12);
-    }
-    expect(markPct(f, 0, 1, { ad: 10_000 })).toBeCloseTo(base * (1 + 10_000 * MARK_BONUS_STAT_PER_POINT), 12);
-    expect(markPct(f, 0, 1, { ad: Number.POSITIVE_INFINITY })).toBe(base);
-    for (const farmed of [40, 120]) {
-      const farmedBase = markPct(f, 0, 1, { ad: farmed });
-      const flatPoint = markPct(f, 0, 1, { ad: farmed + 1 }) / farmedBase - 1;
-      const onePercentAs = (1 + 0.01 * MARK_FARM_AS_EFFICIENCY) ** MARK_AS_EXPONENT - 1;
-      expect(flatPoint).toBeCloseTo(MARK_BONUS_STAT_PER_POINT / (1 + MARK_BONUS_STAT_PER_POINT * farmed), 12);
-      expect(flatPoint).toBeGreaterThan(onePercentAs);
-    }
+    expect(MARK_BONUS_STAT_PER_POINT).toBe(0.002);
+    expect(MARK_BONUS_AP_WEIGHT).toBe(1);
+    for (const stat of ["ad", "ap", "armor", "magicResist"] as const) expect(markPct(f, 0, 1, { [stat]: 100 })).toBeCloseTo(base * 1.2, 12);
+    expect(markPct(f, 0, 1, { ad: 50, armor: 50 })).toBeCloseTo(base * 1.2, 12);
   });
 
-  it("five kill-stacks make the share x2.25 (the spec's 0.6% to 1.35%)", () => {
+  it("five kill-stacks add five kill shares", () => {
     const f = SHEET.sentenced;
-    expect(markPct(f, 5) / markPct(f, 0)).toBeCloseTo(2.25, 12);
+    expect(markPct(f, 5) / markPct(f, 0)).toBeCloseTo(1 + (5 * f.params.mark_kill!) / f.params.mark_pct!, 12);
   });
 
   it("is paced with the hit: the share doubles at k = 2 and the tier clock halves", () => {
@@ -274,9 +268,9 @@ describe("markWeight and markPct (the pulse's share, R4)", () => {
 });
 
 describe("chillMultiplier", () => {
-  it("is Frost's 1 - slow = 0.48, sheet and paced alike", () => {
-    expect(chillMultiplier(SHEET.frost)).toBeCloseTo(0.48, 12);
-    expect(chillMultiplier(PACED.frost)).toBeCloseTo(0.48, 12);
+  it("is Frost's 1 - slow, sheet and paced alike", () => {
+    expect(chillMultiplier(SHEET.frost)).toBeCloseTo(1 - SHEET.frost.params.slow!, 12);
+    expect(chillMultiplier(PACED.frost)).toBeCloseTo(1 - SHEET.frost.params.slow!, 12);
   });
 
   it.each(FACTION_IDS.filter((f) => f !== "frost"))("is 1 (no chill) for %s", (f) => {
@@ -286,60 +280,35 @@ describe("chillMultiplier", () => {
 });
 
 describe("factionEdge", () => {
-  it("is 0 for a mirror", () => {
-    for (const f of FACTION_IDS) expect(factionEdge(f, f)).toBe(0);
+  it("is 0 for every pair: the faction rework removed the counter cycle", () => {
+    for (const a of FACTION_IDS) for (const b of FACTION_IDS) expect(factionEdge(a, b)).toBe(0);
   });
 
-  it("is antisymmetric", () => {
-    for (const a of FACTION_IDS) for (const b of FACTION_IDS) expect(factionEdge(a, b)).toBe(-factionEdge(b, a) || 0);
-  });
-
-  it("gives every faction exactly two wins and two losses", () => {
-    for (const a of FACTION_IDS) {
-      const edges = FACTION_IDS.filter((b) => b !== a).map((b) => factionEdge(a, b));
-      expect(edges.filter((e) => e === 1), a).toHaveLength(2);
-      expect(edges.filter((e) => e === -1), a).toHaveLength(2);
-    }
-  });
-
-  it("is +1 for every (winner, loser) of BEATS and -1 the other way", () => {
+  it("BEATS is only the old name of the ten unordered pairs", () => {
     expect(BEATS).toHaveLength(10);
-    for (const [w, l] of BEATS) {
-      expect(factionEdge(w, l), `${w} over ${l}`).toBe(1);
-      expect(factionEdge(l, w), `${l} under ${w}`).toBe(-1);
-    }
+    const seen = new Set(BEATS.map(([x, y]) => [x, y].sort().join("|")));
+    expect(seen.size).toBe(10);
   });
 });
 
 describe("matchupScore", () => {
-  it("adds the faction edge and the weapon edge", () => {
-    // Fire beats Sentenced (+1) and a sword beats an axe (+1).
-    expect(matchupScore({ faction: "fire", weapon: "sword" }, { faction: "sentenced", weapon: "axe" })).toBe(2);
-    expect(matchupScore({ faction: "sentenced", weapon: "axe" }, { faction: "fire", weapon: "sword" })).toBe(-2);
-    // A mirror of factions leaves the weapon edge alone.
-    expect(matchupScore({ faction: "fire", weapon: "sword" }, { faction: "fire", weapon: "axe" })).toBe(1);
-    expect(matchupScore({ faction: "fire", weapon: "axe" }, { faction: "fire", weapon: "sword" })).toBe(-1);
-    // Mirror weapons leave the faction edge alone.
-    expect(matchupScore({ faction: "frost", weapon: "wand" }, { faction: "holy", weapon: "wand" })).toBe(1);
+  it("is the weapon edge alone", () => {
+    expect(matchupScore({ faction: "fire", weapon: "sword" }, { faction: "sentenced", weapon: "axe" })).toBe(1);
+    expect(matchupScore({ faction: "sentenced", weapon: "axe" }, { faction: "fire", weapon: "sword" })).toBe(-1);
+    expect(matchupScore({ faction: "frost", weapon: "wand" }, { faction: "holy", weapon: "wand" })).toBe(0);
   });
 
-  it("lets the two edges cancel: Fire's axe against Sentenced's bow is +1 - 1", () => {
-    expect(matchupScore({ faction: "fire", weapon: "axe" }, { faction: "sentenced", weapon: "bow" })).toBe(0);
+  it("has no edge when either hand is empty", () => {
+    expect(matchupScore({ faction: "fire", weapon: null }, { faction: "sentenced", weapon: "axe" })).toBe(0);
+    expect(matchupScore({ faction: "sentenced", weapon: null }, { faction: "fire", weapon: null })).toBe(0);
   });
 
-  it("has no weapon edge when either hand is empty", () => {
-    expect(matchupScore({ faction: "fire", weapon: null }, { faction: "sentenced", weapon: "axe" })).toBe(1);
-    expect(matchupScore({ faction: "fire", weapon: "sword" }, { faction: "sentenced", weapon: null })).toBe(1);
-    expect(matchupScore({ faction: "sentenced", weapon: null }, { faction: "fire", weapon: null })).toBe(-1);
-    expect(matchupScore({ faction: "plague", weapon: null }, { faction: "plague", weapon: null })).toBe(0);
-  });
-
-  it("stays within -2..+2 for every pairing and flips sign when the sides swap", () => {
+  it("stays within -1..+1 for every pairing and flips sign when the sides swap", () => {
     for (const fa of FACTION_IDS) for (const fb of FACTION_IDS) {
       for (const wa of [...WEAPON_IDS, null]) for (const wb of [...WEAPON_IDS, null]) {
         const s = matchupScore({ faction: fa, weapon: wa }, { faction: fb, weapon: wb });
         const back = matchupScore({ faction: fb, weapon: wb }, { faction: fa, weapon: wa });
-        expect(Math.abs(s)).toBeLessThanOrEqual(2);
+        expect(Math.abs(s)).toBeLessThanOrEqual(1);
         expect(s).toBe(-back || 0);
       }
     }

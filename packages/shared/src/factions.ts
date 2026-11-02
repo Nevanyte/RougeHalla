@@ -6,7 +6,8 @@
 // Rules of the law: every damage packet splits into physical / magic / true shares (a property of
 // the attacker, or, for a signature part, of the signature: SIGNATURE_SHARES); armor cuts the physical share, shield
 // the magic share, true ignores both, each as 1 / (1 + stat/100). Signature mechanics read only the attacker's own
-// params and universal state, never the opponent's identity, so counters emerge from the numbers alone.
+// params and universal state, never the opponent's identity. The faction rework (testing/TUNING_BALANCE.md section 13)
+// tuned the sheet so no faction counters another: every pair ends near an even fight.
 import { DUEL_PACE, MARK_TOP_TIER } from "./constants";
 import { markTierOf, taxedRate } from "./mark";
 import { SIGNATURE_SHARES } from "./signatureShares";
@@ -45,41 +46,48 @@ export interface FactionSpec {
 export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   fire: {
     id: "fire", name: "Fire", displayName: "Fire", role: "Glass-cannon duelist", theme: "Dragonslayer, living fire", color: 0xff7043,
-    hp: 835, rate: 0.6, hit: 100, phys: 0.0, trueShare: 0.0, armor: 0, shield: 45,
-    mechanic: "dragonslayer", params: { burn: 18, backlash: 145 },
+    hp: 950, rate: 0.6, hit: 85.2, phys: 0.0, trueShare: 0.0, armor: 20, shield: 20,
+    mechanic: "dragonslayer", params: { burn: 28, backlash: 128 },
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 880, rate: 0.95, hit: 34.840203, phys: 0.4, trueShare: 0.0, armor: 135, shield: 120,
-    mechanic: "marked", params: { mark_pct: 0.027, mark_kill: 0.00675, mark_amp: 1.17, tier_hits: 3, tax_keep: 0.38, tax_cap: 1.6, suppress: 0.8 },
+    hp: 1085, rate: 0.95, hit: 72.1, phys: 0.4, trueShare: 0.0, armor: 94, shield: 94,
+    mechanic: "marked", params: { mark_pct: 0.045, mark_kill: 0.00675, mark_amp: 1, tier_hits: 3, tax_keep: 1, tax_cap: 99, suppress: 1 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
-    hp: 1375, rate: 1.85, hit: 20, phys: 0.8, trueShare: 0.0, armor: 190, shield: 0,
-    mechanic: "rat_king", params: { plague: 43, execute: 415 },
+    hp: 1020, rate: 1.85, hit: 28.7, phys: 0.8, trueShare: 0.0, armor: 77, shield: 77,
+    mechanic: "rat_king", params: { plague: 52, execute: 325 },
   },
   frost: {
     id: "frost", name: "Frost", displayName: "Frost", role: "Control bruiser", theme: "Living wall of ice", color: 0x4fc3f7,
-    hp: 1200, rate: 0.45, hit: 170, phys: 0.9, trueShare: 0.0, armor: 20, shield: 190,
-    mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.52 },
+    hp: 985, rate: 0.45, hit: 168.2, phys: 0.9, trueShare: 0.0, armor: 116, shield: 116,
+    mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.32 },
   },
   holy: {
     id: "holy", name: "Holy", displayName: "Holy", role: "Sustain juggernaut", theme: "Light that burns brighter near death", color: 0xfff176,
-    hp: 1400, rate: 0.95, hit: 96, phys: 1.0, trueShare: 0.0, armor: 0, shield: 250,
-    mechanic: "plain", sustain: "radiant", params: { ls0: 0.11, ls1: 0.85, ls_cap: 0.75 },
+    hp: 1145, rate: 0.95, hit: 92.2, phys: 1.0, trueShare: 0.0, armor: 78, shield: 78,
+    mechanic: "plain", sustain: "radiant", params: { ls0: 0.08, ls1: 0.65, ls_cap: 0.6 },
   },
 };
 
 export const FACTION_IDS: readonly FactionId[] = ["fire", "sentenced", "plague", "frost", "holy"];
 
-/** The designed cycle: each faction beats exactly two others. (winner, loser) */
-export const BEATS: ReadonlyArray<readonly [FactionId, FactionId]> = [
+/**
+ * The ten unordered faction pairs, in a fixed order (the harnesses, benches and fixtures iterate it). The faction rework removed
+ * the counter cycle: no pair is designed to favour either side (testing/TUNING_BALANCE.md section 13), so the first faction of a
+ * pair is only the side a report reads from.
+ */
+export const FACTION_PAIRS: ReadonlyArray<readonly [FactionId, FactionId]> = [
   ["fire", "sentenced"], ["fire", "plague"],
   ["sentenced", "plague"], ["sentenced", "frost"],
   ["plague", "frost"], ["plague", "holy"],
   ["frost", "holy"], ["frost", "fire"],
   ["holy", "fire"], ["holy", "sentenced"],
 ];
+
+/** @deprecated The old name of FACTION_PAIRS, from when the pairs were a counter cycle; no pair favours its first faction now. */
+export const BEATS = FACTION_PAIRS;
 
 /**
  * The faction of a player who joined without picking one (bots, old clients): the n-th player to join a room gets the
@@ -126,7 +134,8 @@ export type BonusPart = readonly [SignatureKind, number, boolean?];
 export function bonusParts(spec: FactionSpec, s: CombatState): ReadonlyArray<BonusPart> {
   const p = spec.params;
   switch (spec.mechanic) {
-    case "dragonslayer": return [["burn", p.burn!], ["backlash", p.backlash! * s.foeRate]];
+    // Backlash per second does not depend on the foe's attack rate (each swing returns backlash x its own interval).
+    case "dragonslayer": return [["burn", p.burn!], ["backlash", p.backlash!]];
     case "rat_king": return [["disease", p.plague!], ["disease", p.execute! * Math.max(0, 0.5 - s.foeHpFrac), true]];
     case "marked": {
       const tier = markTierOf(s.ownHits, 0, p.tier_hits!);
@@ -223,7 +232,11 @@ export function duel(a: FactionSpec, b: FactionSpec, dt = 0.002, tMax = 120): Du
   let t = 0;
   while (t < tMax) {
     const rate = [f[0].rate, f[1].rate];
-    for (const i of [0, 1] as const) rate[1 - i]! *= auraRateMultiplier(f[i]);
+    const chill = [1, 1];
+    for (const i of [0, 1] as const) {
+      chill[1 - i] = auraRateMultiplier(f[i]);
+      rate[1 - i]! *= chill[1 - i]!;
+    }
     const stateOf = (i: 0 | 1): CombatState => {
       const o = 1 - i;
       return {
@@ -245,7 +258,8 @@ export function duel(a: FactionSpec, b: FactionSpec, dt = 0.002, tMax = 120): Du
       let plain = mitigate(rate[i]! * f[i].hit * dt, f[i], f[o]!) * cut;
       let exe = 0;
       for (const [sig, v, isExecute] of bonusParts(f[i], st)) {
-        const d = mitigateShares(v * dt, SIGNATURE_SHARES[sig], f[o]!) * cut;
+        // The faction rework: the chill slows everything a fighter deals, its signature as much as its hits.
+        const d = mitigateShares(v * chill[i]! * dt, SIGNATURE_SHARES[sig], f[o]!) * cut;
         if (isExecute) exe += d;
         else plain += d;
       }

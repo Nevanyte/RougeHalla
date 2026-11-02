@@ -2,7 +2,7 @@
 // (names, role marks, health bars) and the tests agree. A mob fights as its region's faction scaled down (scaledFaction), then by its
 // type's role (hp, damage, speed), with its type's weapon (the region's default for a mob without a type), through the same combat
 // code as a player; the sim paces it (DUEL_PACE) like any faction.
-import { ELITE_K, MOB_K, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
+import { ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
 import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
@@ -194,12 +194,14 @@ export function mobTypeIn(region: FactionId, id: string | undefined): MobTypeDef
 export function mobTypeFaction(region: FactionId, elite: boolean, type?: string, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
   const base = mobFaction(region, elite, k);
   const t = mobTypeIn(region, type);
-  if (t === undefined || (t.hpMult === 1 && t.dmgMult === 1)) return base;
-  const typed = scaledFaction(base, t.dmgMult);
+  // The role's damage and the zone's camp correction (MOB_ZONE_DAMAGE, the faction rework) both scale every damage number, never the hp.
+  const dmg = (t?.dmgMult ?? 1) * (MOB_ZONE_DAMAGE[region] ?? 1);
+  if (dmg === 1 && (t === undefined || t.hpMult === 1)) return base;
+  const typed = scaledFaction(base, dmg);
   const params: Record<string, number> = { ...typed.params };
-  if (params.mark_pct !== undefined) params.mark_pct *= t.dmgMult;
-  if (params.mark_kill !== undefined) params.mark_kill *= t.dmgMult;
-  return { ...typed, params, hp: base.hp * t.hpMult };
+  if (params.mark_pct !== undefined) params.mark_pct *= dmg;
+  if (params.mark_kill !== undefined) params.mark_kill *= dmg;
+  return { ...typed, params, hp: base.hp * (t?.hpMult ?? 1) };
 }
 
 /** The weapon a mob of `type` carries: the type's own, or the region's default for a mob without one. */

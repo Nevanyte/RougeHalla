@@ -5,14 +5,18 @@ import { MARK_TAX_THRESHOLD, MARK_TIER_HITS, MARK_TOP_TIER } from "./constants";
 import type { FactionSpec } from "./factions";
 import { attackInterval, WEAPONS, type WeaponId } from "./weapons";
 
-/** Farm-only balance: mark rate gets diminishing attack-speed scaling; ordinary auto attacks keep their full AS. */
-export const MARK_AS_EXPONENT = 0.1;
-/** Percent mark growth per decoded bonus point across AD, AP, armor and magic resistance. */
-export const MARK_BONUS_STAT_PER_POINT = 0.0005;
-/** Ability power receives six weight in the mark's bonus sum so AP rewards remain useful without weapon AP scaling. */
-export const MARK_BONUS_AP_WEIGHT = 6;
-/** Sentenced keeps base cadence but receives only this share of positive card and farm attack-speed bonuses. */
-export const MARK_FARM_AS_EFFICIENCY = 0.1;
+// The Sentenced rework (testing/TUNING_BALANCE.md section 13): the mark is a plain share of the target's max hp per landed hit.
+// Its two builds read two plain scalings: attack speed (more hits, more pulses: the attack-speed max-hp punisher) and every
+// bonus offensive and defensive stat point alike (the stat bully). The old bends (attack speed to the 0.1 power, card and farm
+// attack speed at 10%, AP counted six times) are gone; the names stay so the code paths and the wire stay as they were.
+/** Attack speed's exponent in a hit's mark weight: 1, so a hit's pulse is the same at any attack speed and mark dps grows with it. */
+export const MARK_AS_EXPONENT = 1;
+/** Mark growth per decoded bonus point of AD, AP, armor and magic resistance: 100 bonus points of any mix make the pulse x1.2. */
+export const MARK_BONUS_STAT_PER_POINT = 0.002;
+/** AP's weight in that sum: one, like every other stat. */
+export const MARK_BONUS_AP_WEIGHT = 1;
+/** The share of positive card and farm attack-speed bonuses a Sentenced gets: all of it, like every faction. */
+export const MARK_FARM_AS_EFFICIENCY = 1;
 
 /**
  * The tier of a mark that has landed `hits` hits (`progress`, in hits, already counting Gathering Storm's credit) on its target:

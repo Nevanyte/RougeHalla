@@ -50,7 +50,7 @@ function harvest(w: World, victim = "victim"): void {
 const pet = (w: World) => combatant(w, P(w).plagueZombieId)!;
 const run = (w: World, n: number) => { for (let i = 0; i < n; i++) step(w, TICK_MS); };
 function hit(w: World, by: string, victim: string, raw: number): void {
-  recordHit(w, { by: { id: by, name: by }, victim, packet: { raw, phys: 1, magic: 0, true: 0 }, weapon: "fists", stagger: false });
+  recordHit(w, { by: { id: by, name: by }, victim, packet: { raw, phys: 0, magic: 0, true: 1 }, weapon: "fists", stagger: false });
   applyLedger(w);
 }
 

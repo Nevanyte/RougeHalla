@@ -59,6 +59,26 @@ export const CAMP_RESPAWN_MS = 180_000;
 export const CAMP_WARD_MS = 120_000;
 /** Holy's Demon Blood: permanent lifesteal earned per eligible camp clear (not per mob). */
 export const HOLY_CAMP_LIFESTEAL_PER_CLEAR = 0.0025;
+/**
+ * Holy's second build (the faction rework): every point of SO (AP) adds this much to Holy's own lifesteal share, up to
+ * HOLY_AP_LIFESTEAL_CAP, so a Soul-damage Holy (wand, or the sword's dominant AP scaling) heals from its burst too. It sits
+ * inside LIFESTEAL_MAX with the rest (G5), so it cannot stack past the cap that keeps a Holy mirror finite.
+ */
+export const HOLY_LIFESTEAL_PER_AP = 0.0015;
+export const HOLY_AP_LIFESTEAL_CAP = 0.15;
+/**
+ * Fire's second build, the burn tank (the faction rework): its backlash grows by this share per point of bonus Defense + SD,
+ * so a Fire that stacks defenses returns more of every swing it eats (100 bonus defense: x1.4). The burn's AP rider
+ * (AP_DOT_RATIO) is the other half of that build.
+ */
+export const FIRE_BACKLASH_PER_DEFENSE = 0.004;
+/**
+ * Frost's second build, the bow kiter (the faction rework): a Frost's ranged weapon hit chills its victim's walk to this
+ * multiplier for FROST_RANGED_CHILL_MS whatever the distance (the melee-range chill of CHILL_MOVE_RADIUS still applies up
+ * close). Milder than the up-close 0.7 so the kiting guarantee holds (testing/TUNING_BALANCE.md section 13).
+ */
+export const FROST_RANGED_CHILL_MULT = 0.85;
+export const FROST_RANGED_CHILL_MS = 1_200;
 /** Frost's Frozen Justice defenses while fighting a true elite, and after contact ends. */
 export const FROST_ELITE_GUARD_BONUS = 15;
 export const FROST_ELITE_GUARD_LINGER_MS = 2_000;
@@ -392,6 +412,13 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 // by at least one starter: elites may stay harder (the owner's ruling).
 export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
+/**
+ * The faction rework's camp correction: a zone's mobs deal this share of the damage their scaled faction sheet gives them (hits and
+ * signature damage; hp untouched). The reworked sheet made the factions even at full size, which moved each zone's mobs; the
+ * Plague zone's faster, harder hits left its elite camps uncleared on the zone's weapon (campDuel --types), and the Holy zone's Archon
+ * (Holy mobs lost their 0-armor weakness) likewise, so both are trimmed (testing/TUNING_BALANCE.md section 13.6).
+ */
+export const MOB_ZONE_DAMAGE: Readonly<Record<string, number>> = { fire: 1, sentenced: 1, plague: 0.85, frost: 1, holy: 0.92 };
 /**
  * A mob gives up the chase when it leaves its leash, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight).
  * The leash of a mob of a generated camp is the camp's territory inside MOB_LEASH_CAP (mobs.ts `leashOk`, ROGUELIKE_PLAN D15);

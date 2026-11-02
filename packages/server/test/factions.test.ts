@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, CHILL_MOVE_RESET_MS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, EXECUTE_BAND, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, engageRange, FACTION_IDS, FACTIONS,
@@ -11,7 +11,7 @@ import {
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyHits, teleportToColiseum, type Attacker } from "../src/sim/arena";
-import { combatant, type Combatant } from "../src/sim/combatant";
+import { combatant, setFactionForHarness, type Combatant } from "../src/sim/combatant";
 import { heal, noteContact, signatureState, stretchUntil, targetOf } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { recordHit } from "../src/sim/ledger";
@@ -160,6 +160,8 @@ interface HitOpts {
   stagger?: boolean;
   passive?: boolean;
   projectile?: string;
+  /** True damage when set (no faction is armor-free since the faction rework). */
+  trueDamage?: boolean;
 }
 
 interface BlockOpts { weapon?: WeaponId; passive?: boolean }
@@ -178,7 +180,7 @@ function injector(world: World) {
     recordHit(world, {
       victim: h.victim,
       by: { id: h.by, name: h.by.toUpperCase() },
-      packet: { raw: h.raw ?? 1, phys: 1, magic: 0, true: 0 },
+      packet: { raw: h.raw ?? 1, ...(h.trueDamage ? { phys: 0, magic: 0, true: 1 } : { phys: 1, magic: 0, true: 0 }) },
       weapon: h.weapon ?? "sword",
       stagger: h.stagger ?? false,
       ...(h.scale === undefined ? {} : { scale: h.scale }),
@@ -611,6 +613,12 @@ describe("engagement needs trading", () => {
   });
 
   describe("the window follows the pair's cadence", () => {
+    // The pre-rework slow (0.52) stretches a Frost axe past the plain trade window; the reworked sheet's 0.32 no longer does, so the
+    // window's own rule is checked at the old number (setFactionForHarness).
+    const SLOW_FROST: FactionSpec = { ...FACTIONS.frost, params: { ...FACTIONS.frost.params, slow: 0.52 } };
+    beforeAll(() => setFactionForHarness("frost", SLOW_FROST));
+    afterAll(() => setFactionForHarness("frost"));
+    const CHILL = chillMultiplier(SLOW_FROST);
     /** Every swing that lands hits the other fighter in the same tick (the harness's "trades" mode). */
     const autoTrade = (world: World, ids: readonly [string, string]): void => {
       world.afterWeapons.push(() => {
@@ -627,7 +635,7 @@ describe("engagement needs trading", () => {
       { id: "f1", faction: "frost", at: [300, 300], weapon: "axe" },
       { id: "f2", faction: "frost", at: [340, 300], weapon: "axe" },
     ]);
-    const chilledInterval = attackInterval(SPEC.frost, "axe") / CHILL;
+    const chilledInterval = attackInterval(pacedFaction(SLOW_FROST), "axe") / CHILL;
 
     it("two Frost axes trading on auto-repeat stay engaged and chilled on every tick, cycle after cycle", () => {
       expect(chilledInterval).toBeGreaterThan(ENGAGE_TRADE_SECONDS); // the gap between their hits outlasts the plain window
@@ -817,14 +825,16 @@ describe("Fire (dragonslayer)", () => {
     (victim) => {
       const world = duel(victim);
       const before = hpOf(world, "b");
-      const expected = mitigated("fire", victim, burnDps(SPEC.fire) * bonusMultiplier("axe") * DT);
-      for (const log of run(world, 4)) {
+      // A Frost target chills its burner from the tick after contact, and the chill slows the burn too (the faction rework).
+      const plain = mitigated("fire", victim, burnDps(SPEC.fire) * bonusMultiplier("axe") * DT);
+      const expectedAt = (i: number): number => plain * (victim === "frost" && i > 0 ? CHILL : 1);
+      run(world, 4).forEach((log, i) => {
         const burns = sigHits(log, "burn");
         expect(burns).toHaveLength(1);
         expect(burns[0]).toMatchObject({ victim: "b", by: "a", weapon: "axe" });
-        expect(burns[0]!.amount).toBeCloseTo(expected, 9);
-      }
-      expect(before - hpOf(world, "b")).toBeCloseTo(4 * expected, 6);
+        expect(burns[0]!.amount).toBeCloseTo(expectedAt(i), 9);
+      });
+      expect(before - hpOf(world, "b")).toBeCloseTo([0, 1, 2, 3].reduce((n, i) => n + expectedAt(i), 0), 6);
     },
   );
 
@@ -929,7 +939,7 @@ describe("Plague (rat king)", () => {
     const above = sigTotal(tick(duel(0.5)), "disease");
     const below = sigTotal(tick(duel(0.25)), "disease");
     const near = sigTotal(tick(duel(0.05)), "disease");
-    expect(below).toBeGreaterThan(above * 3); // the compressed sheet's execute: 86 + 830 x 0.25 against 86 paced
+    expect(below).toBeGreaterThan(above * 2); // the execute: plague + execute x 0.25 against the plague alone
     expect(near).toBeGreaterThan(below);
   });
 
@@ -1369,7 +1379,7 @@ describe("Holy (radiant)", () => {
     const world = apart({ hpFrac: 0.8 });
     const inj = injector(world);
     inj.hit("h", "t", { raw: wandRaw(world), weapon: "wand" });
-    inj.hit("t", "h", { raw: BIG_HP / 2 }); // Holy has no armor: 0.8 -> 0.3 within the tick
+    inj.hit("t", "h", { raw: BIG_HP / 2, trueDamage: true }); // true damage: 0.8 -> 0.3 within the tick
     tick(world);
     const healed = dealtTo("plague", wandRaw(world)) * lifestealFraction(SPEC.holy, 0.8);
     expect(hpOf(world, "h")).toBeCloseTo(BIG_HP * 0.3 + healed, 6);
