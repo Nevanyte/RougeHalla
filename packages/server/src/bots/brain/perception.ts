@@ -74,6 +74,10 @@ export interface PlayerLike extends FighterLike {
   /** The windup mirror, wire form (thousandths). Optional: a server that predates it leaves it out. */
   readonly windupMult?: number;
   readonly speedMult: number;
+  /** The local HUD's potion inventory and healing timer. */
+  readonly potionLarge?: number;
+  readonly potionSmall?: number;
+  readonly healingUntil?: number;
   /** The Wish's ready time (server ms, 0 = ready): the weapon bar's cooldown widget shows it. Read for the bot itself only. */
   readonly wishReadyAt?: number;
   /** Normal mob stat stacks; read for the bot itself only. */

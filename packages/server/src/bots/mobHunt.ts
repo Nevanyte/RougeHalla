@@ -14,7 +14,7 @@
 //      from range (those back off out of their leash), nearest first, favouring a weapon edge, a weapon type we lack, and a
 //      mob no other player is nearer to; elites wait for card power, normal-mob stat progression, or full hp.
 //   5. A target is dropped (and left alone for a while) when it never gets hurt: it went home (a mob walking home is
-//      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
+//      rapidly healing and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
   campMatchup, isFactionId, isRanged, isRegionalKind, isWeaponId, matchupShare, nearestCamps, REGION_WEAPONS,
   TILE, weaponEdge, FISTS, MOB_STAT_CAP, MOB_STAT_REWARDS, mobStatCount, type FactionId, type GameMap, type PlanMessage, type Vec2, type WeaponId, type MobStatCounts, type MobTypeId,
@@ -179,7 +179,7 @@ export class MobTracker {
     return this.rec.get(id)?.home ?? null;
   }
 
-  /** Its hp was rising a moment ago: it is walking home (untouchable, ignoring everyone). */
+  /** Its hp was rising a moment ago: it is walking home and rapidly healing, so this bot pauses its hunt. */
   returning(id: string, now: number): boolean {
     const r = this.rec.get(id);
     return r !== undefined && now < r.risingUntil;
@@ -471,7 +471,7 @@ export function mobWeapon(m: Pick<MobLike, "weapon0" | "faction">): WeaponId | n
  * Does `mine` do nothing against a mob that carries `theirs`? Either the mob's guard stops it (a raised shield blocks swings
  * and bashes and reflects arrows; a wand ball deletes an arrow; an axe swing destroys a ball), or it stops the mob: a mob
  * whose blows all bounce off a shield deals no damage, and a mob that deals none gives up after MOB_GIVE_UP_SECONDS and walks
- * home, untouchable. The bots measured both: such fights run out the clock.
+ * home and rapidly healing. The bots measured both: such fights run out the clock.
  */
 export function useless(mine: WeaponId, theirs: WeaponId): boolean {
   if (theirs === "shield") return mine === "sword" || mine === "bow" || mine === "shield";

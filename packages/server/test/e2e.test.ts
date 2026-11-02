@@ -622,7 +622,8 @@ describe("headless bots hunt through a full run", () => {
 
   it("teleports everyone into the coliseum and the bots keep hunting there", async () => {
     // A patience this short expires before anyone can have died, so the arena always fires.
-    const { bots, players, fx, sessions } = await playRun("tpbot", CONTROL_LINEUP, { patienceSeconds: 1, suddenDeathSeconds: 2 });
+    // Keep the arena live long enough for the bots to acquire and attack after teleport immunity.
+    const { bots, players, fx, sessions } = await playRun("tpbot", CONTROL_LINEUP, { patienceSeconds: 1, suddenDeathSeconds: 10 });
     for (const i of players) expect(bots[i]!.teleports, `bot ${i} teleports`).toBeGreaterThanOrEqual(1);
 
     // And they fight there: shots that hit somebody after the teleport's immunity is over, so they can do damage.

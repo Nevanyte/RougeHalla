@@ -34,6 +34,7 @@ export interface PlainPlayer {
   shieldBonus: number; barrier: number;
   /** Wishes' EFFECT_* bits: only set when a test plays a branch with status effects. */
   effects?: number;
+  potionLarge?: number; potionSmall?: number; healingUntil?: number;
 }
 
 export interface PlainMob {

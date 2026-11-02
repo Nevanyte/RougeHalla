@@ -34,6 +34,11 @@ export function questAccepted(quest: QuestStateLike, localId: string): boolean {
   return quest.accepted?.get(localId) === true;
 }
 
+/** A zero deadline means the offer has not been accepted yet. */
+export function questExpired(quest: Pick<QuestStateLike, "expiresAt">, serverNow: number): boolean {
+  return quest.expiresAt > 0 && serverNow >= quest.expiresAt;
+}
+
 export interface QuestCollection {
   forEach(cb: (quest: QuestStateLike, id: string) => void): void;
 }
@@ -142,7 +147,7 @@ export function questFromReveal(message: QuestRevealMessage): QuestStateLike {
  */
 export function expireQuestPreviews(previews: Map<string, QuestStateLike>, serverNow: number, closed = false): void {
   if (closed) { previews.clear(); return; }
-  for (const [id, preview] of previews) if (serverNow >= preview.expiresAt) previews.delete(id);
+  for (const [id, preview] of previews) if (questExpired(preview, serverNow)) previews.delete(id);
 }
 
 export function questCollections(
@@ -153,7 +158,7 @@ export function questCollections(
   const s = state as { quests?: QuestCollection; containers?: QuestContainerCollection; unknownQuests?: number };
   const publicQuests = s.quests ?? EMPTY_QUESTS;
   const pending = new Map<string, QuestStateLike>();
-  const add = (quest: QuestStateLike): void => { if (quest.expiresAt > serverNow) pending.set(quest.id, quest); };
+  const add = (quest: QuestStateLike): void => { if (!questExpired(quest, serverNow)) pending.set(quest.id, quest); };
   if (preview && Symbol.iterator in Object(preview)) for (const quest of preview as Iterable<QuestStateLike>) add(quest);
   else if (preview) add(preview as QuestStateLike);
   publicQuests.forEach((quest, id) => {
@@ -232,8 +237,7 @@ export function questRows(
     if (!def) return;
     const ready = questReady(quest, def, localId);
     const accepted = questAccepted(quest, localId);
-    // In planning the clock is frozen and the server re-anchors `expiresAt` at raid start, so show the fixed duration instead.
-    const expired = quest.status === "expired" || (!planning && quest.status === "open" && serverNow >= quest.expiresAt);
+    const expired = quest.status === "expired" || (!planning && quest.status === "open" && questExpired(quest, serverNow));
     const closed = expired || quest.status === "done";
     const status = quest.status === "done" ? `Done by ${quest.doneBy || "someone"}` : expired ? "Expired" : ready ? "Return to the giver" : "Open";
     // The server clears a parcel's carrier at the turn-in, so the winner would read 0 / 1: the name on the row says who finished it.
@@ -244,7 +248,7 @@ export function questRows(
     const acceptance = closed ? "" : planning ? "Accept at the giver in the run" : accepted ? "Accepted" : `Not accepted: talk to ${def.giver}`;
     rows.push({
       id: quest.id, def, quest, objective: questObjective(def), progress,
-      time: closed ? "" : formatQuestTime(planning ? def.expiresAtSec * 1000 : quest.expiresAt - serverNow),
+      time: closed ? "" : quest.expiresAt === 0 ? "Starts on acceptance" : formatQuestTime(planning ? def.expiresAtSec * 1000 : quest.expiresAt - serverNow),
       // Closed history describes the award at completion, not what this viewer's later feed would pay now.
       reward: closed ? questReward(def) : questReward(def, feed, mobStats), status, ready, accepted, acceptance, expired, closed,
     });
@@ -278,7 +282,7 @@ export function questObjectiveMarkers(
   });
   const markers: QuestObjectiveMarker[] = [];
   quests.forEach((quest) => {
-    if (!visibleQuest(quest) || quest.status !== "open" || serverNow >= quest.expiresAt || !questAccepted(quest, localId)) return;
+    if (!visibleQuest(quest) || quest.status !== "open" || questExpired(quest, serverNow) || !questAccepted(quest, localId)) return;
     const def = questDefById(quest.def);
     if (!def || (def.kind !== "collect" && def.kind !== "fetch")) return;
     const progress = quest.progress.get(localId) ?? 0;
@@ -331,7 +335,7 @@ export function questMinimapBlips(
     ? (Array.isArray(options.mobs) ? options.mobs as QuestMobTarget[] : [...options.mobs])
     : [];
   quests.forEach((quest) => {
-    if (!visibleQuest(quest) || quest.status !== "open" || (options.serverNow !== undefined && options.serverNow >= quest.expiresAt)) return;
+    if (!visibleQuest(quest) || quest.status !== "open" || (options.serverNow !== undefined && questExpired(quest, options.serverNow))) return;
     const def = questDefById(quest.def);
     if (!def) return;
     const accepted = questAccepted(quest, localId);

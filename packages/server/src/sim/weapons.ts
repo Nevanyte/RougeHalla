@@ -4,8 +4,8 @@
 //   landing  an attack whose windup is over: a swing becomes a MeleeRequest (resolved in the melee phase, after the
 //            projectile sweep); a cast or a bow draw becomes a SpawnRequest (its ball or arrow is spawned after the sweep)
 //   start    a held (or just pressed) trigger starts the next attack as soon as the cooldown allows
-// Every attack is a windup (weaponTimings.windup): the fighter is rooted from its start until the swing lands or the
-// ball or arrow leaves, and walks freely again afterwards (the axe stays rooted a while longer). A directional windup (a
+// Every attack has a windup (weaponTimings.windup). Melee windups root the fighter; a ranged draw or cast permits
+// movement until its final 200 ms, then holds still through release. Movement resumes when the projectile leaves. A directional windup (a
 // mob's, the harness's, an `attack` input) is committed: a move order given during it is kept as the path and walked once
 // it ends; only a stagger (not on the bow) or a swap cancels it. One the target lock started (sim/targeting.ts) is the
 // player's own click, so the player's next order cancels it as in LoL (cancelLockedWindup): a move, a stop, or locking
@@ -13,8 +13,8 @@
 // The cooldown carries its remainder: an attack from a trigger already down when the cooldown ended counts from that
 // moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
-  ATTACK_BUFFER_MS, attackInterval, CRIT_MULT, damagePerHit, damageShares, MAX_REWIND_MS, moveMultiplier, PLANT_FEET_BONUS,
-  scalingDamage, staggerImmuneUntil, swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
+  ATTACK_BUFFER_MS, attackInterval, CRIT_MULT, damagePerHit, damageShares, MAX_REWIND_MS, moveMultiplier, PLANT_FEET_BONUS, RANGED_RELEASE_PAUSE_MS,
+  scalingDamage, staggerImmuneUntil, swapReadyAt, TICK_MS, WEAPONS, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
 import { plantArmed, rollAttackCrit, spendPlant } from "./cardState";
@@ -223,10 +223,11 @@ export function stagger(world: World, c: Combatant): boolean {
   return true;
 }
 
-/** Move speed multiplier from the fighter's weapon state: 0 while an attack winds up or the axe's root holds. Buffs and the chill are world.moveModifiers. */
+/** Move speed multiplier: melee windups and the final 200 ms of ranged actions hold still. Buffs and chill are world.moveModifiers. */
 export function moveMultiplierOf(world: World, c: Combatant): number {
   const w = c.rt.weapon;
-  return moveMultiplier({ now: world.state.serverTime, rootUntil: w.rootUntil, windingUp: w.action !== null });
+  return moveMultiplier({ now: world.state.serverTime, rootUntil: w.rootUntil,
+    windingUp: w.action !== null && (w.action.kind === "swing" || world.state.serverTime >= w.action.landsAt - RANGED_RELEASE_PAUSE_MS) });
 }
 
 /** A fresh state machine and cooldown (the run starts), and no lock. */
@@ -240,15 +241,6 @@ export function resetWeapons(c: Combatant): void {
 /** The server time the fighter's client was drawing at `now`, for melee rewind: never before the window, never unpublished. */
 export function rewindTime(now: number, lagMs: number): number {
   return now - Math.min(MAX_REWIND_MS, Math.max(TICK_MS, lagMs));
-}
-
-/**
- * Where the fighter's client draws it right now (its rewound position). Clients measure aim angles from there, so a
- * projectile leaves from there too; from the present position, a shooter strafing while it draws would miss what it
- * aimed at by its speed times the render lag.
- */
-function drawnOrigin(world: World, c: Combatant): Vec2 {
-  return positionAt(c.rt, c.s, rewindTime(world.state.serverTime, c.rt.weapon.lagMs));
 }
 
 export function updateWeapons(world: World): void {
@@ -316,15 +308,16 @@ function land(world: World, c: Combatant, planned: PendingAction): void {
   const shape = WEAPONS[act.weapon].shape;
   if (shape.kind !== "projectile") return;
   w.lastShotAt = now;
-  // The shot leaves from its drawn origin. Unit-targeted basic attacks follow the target after launch, so they aim at its
+  // The shot leaves from its release position. Unit-targeted basic attacks follow the target after launch, so they aim at its
   // current position here rather than predicting its future position. Otherwise
   // an arrow goes along the aim held when the draw ends (a bow is aimed while drawn, as it was when it loosed on release)
   // and a ball where its cast was aimed (as it always was): the 9.1 edges were tuned with both.
   // A locked shot whose target fell keeps the aim it started with (at that target), not a cursor aim that came after.
-  const a = foe ? Math.atan2(foe.s.y - act.origin.y, foe.s.x - act.origin.x)
+  const a = foe ? Math.atan2(foe.s.y - c.s.y, foe.s.x - c.s.x)
     : act.kind === "draw" && act.target === undefined ? w.aim : act.a;
   world.combat.spawns.push({
-    owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin,
+    // The projectile spawns after movement, from the same authoritative position that patch shows the shooter.
+    owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet,
     ...(foe && act.weapon === "wand" ? { targetId: foe.id } : {}),
     ...(act.rangeMult !== undefined ? { rangeMult: act.rangeMult } : {}),
   });
@@ -351,7 +344,7 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
   const act: PendingAction = WEAPONS[weapon].shape.kind === "arc"
     ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet, target, ...(rangeMult !== undefined ? { rangeMult } : {}) }
     : {
-      kind: weapon === "bow" ? "draw" : "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, origin: drawnOrigin(world, c), target,
+      kind: weapon === "bow" ? "draw" : "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, target,
       ...(rangeMult !== undefined ? { rangeMult } : {}),
     };
   w.action = act;

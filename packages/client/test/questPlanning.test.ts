@@ -38,6 +38,7 @@ describe("PlanningQuests", () => {
     view.setMap(mapFromTiles(8, 8, new Uint8Array(64).fill(TILE_FLOOR)));
     view.update({ mode: "planning", serverNow: 5_000, localId: "me", quests, hiddenQuests: 0 });
     expect(dom.ui.byClass("pl-quest-accept")[0]?.textContent).toMatch(/accept at the giver in the run/i);
+    expect(dom.ui.byClass("pl-quest-accept")[0]?.textContent).toMatch(/duration starts when the first player accepts/i);
     const none = { forEach: () => {} };
     view.update({ mode: "planning", serverNow: 5_000, localId: "me", quests: none, hiddenQuests: 0 });
     expect(dom.ui.byClass("pl-quest-accept")).toHaveLength(0);

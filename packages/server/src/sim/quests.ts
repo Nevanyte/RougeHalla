@@ -95,7 +95,8 @@ export function offerQuest(
   s.x = placement.at.x;
   s.y = placement.at.y;
   s.status = "open";
-  s.expiresAt = world.state.serverTime + def.expiresAtSec * 1000;
+  // An offer stays available until first acceptance; its quest timer starts then.
+  s.expiresAt = 0;
   const qt: QuestRuntime = {
     id, def, s, npcId: "", containers: [], tours: new Map(), placement, published: false, publishAt: 0, finder: "", lastCarrier: "", closedAt: 0,
   };
@@ -199,6 +200,7 @@ export const handleQuestAccept: ActionHandler = (world, c, cmd) => {
   if (Math.hypot(p.x - qt.s.x, p.y - qt.s.y) > QUEST_ACCEPT_RANGE) { toast(world, c.id, QUEST_REFUSAL.far); return; }
   if (!hasLineOfSight(collisionMap(world), p, qt.s)) { toast(world, c.id, QUEST_REFUSAL.blocked); return; }
   if (accepted(qt, c.id)) { toast(world, c.id, QUEST_REFUSAL.already); return; }
+  if (qt.s.expiresAt === 0) qt.s.expiresAt = world.state.serverTime + qt.def.expiresAtSec * 1000;
   qt.s.accepted.set(c.id, true);
   toast(world, c.id, questAcceptedText(qt.def));
 };
@@ -295,7 +297,7 @@ function retire(world: World, qt: QuestRuntime): void {
     qt.s.carrier = "";
   }
   qt.closedAt = world.state.serverTime;
-  qt.s.expiresAt = Math.min(qt.s.expiresAt, qt.closedAt);
+  qt.s.expiresAt = Math.min(qt.s.expiresAt || qt.closedAt, qt.closedAt);
   removeContainers(world, qt);
   removeGiver(world, qt);
 }
@@ -424,7 +426,7 @@ export function questSystem(world: World): void {
 
   for (const qt of [...q.quests.values()]) {
     if (qt.s.status !== "open") continue;
-    if (now >= qt.s.expiresAt) {
+    if (qt.s.expiresAt > 0 && now >= qt.s.expiresAt) {
       if (expireQuest(world, qt)) expired.push(qt);
       continue;
     }
@@ -475,7 +477,6 @@ export function questSystem(world: World): void {
 function raidStarted(world: World): void {
   spawnQuests(world);
   for (const qt of world.quests?.quests.values() ?? []) {
-    qt.s.expiresAt = world.state.raidStartedAt + qt.def.expiresAtSec * 1000;
     if (qt.published) placePublishedQuest(world, qt);
   }
 }

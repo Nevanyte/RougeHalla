@@ -155,6 +155,7 @@ describe("camp-clear heal: who is paid", () => {
     expect(campContribOf(w, 1)).toEqual(new Set(["p2"]));
     killCamp(w, 0, "p0");
     expect(frac(w, 1)).toBe(0.5);
+    expect(RT(w, 1).campsCleared ?? 0).toBe(0);
     expect(frac(w, 2)).toBe(0.5);
   });
 
@@ -176,7 +177,7 @@ describe("camp-clear heal: who is paid", () => {
     expect(w.players.has("p3")).toBe(false);
   });
 
-  it("pays inside CAMP_HEAL_RANGE of the camp's centre and not beyond it (no territory on this map)", () => {
+  it("limits camp heal and credit by range, but awards potions to ranged contributors beyond it", () => {
     const w = run();
     hpTo(w, 0, 0.5);
     hpTo(w, 1, 0.5);
@@ -192,7 +193,7 @@ describe("camp-clear heal: who is paid", () => {
     expect(frac(w, 1)).toBe(0.5);
     expect(frac(w, 2)).toBe(0.5);
     expect(RT(w, 2).campsCleared).toBe(1);
-    expect([P(w, 0).potionLarge, P(w, 1).potionLarge, P(w, 2).potionLarge]).toEqual([1, 0, 1]);
+    expect([P(w, 0).potionLarge, P(w, 1).potionLarge, P(w, 2).potionLarge]).toEqual([1, 1, 1]);
   });
 
   it("pays a player inside the camp's territory even past 12 tiles of its centre", () => {

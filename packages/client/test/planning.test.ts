@@ -91,6 +91,20 @@ describe("which screen shows when", () => {
     expect(m("planning", true)).toBe("planning");
     for (const phase of ["lobby", "planning", "active", "ended"]) expect(m(phase, true, true)).toBe("hidden");
   });
+
+  it("shows both counter pentagrams on the held map and highlights the local faction", () => {
+    const { view, q } = setup();
+    view.update(frame({ mode: "planning" }));
+    expect(q("pl-counters").hidden).toBe(true);
+    view.update(frame({ mode: "map" }));
+    const wheels = q("pl-counters");
+    expect(wheels.hidden).toBe(false);
+    expect(wheels.textContent).toContain("Factions");
+    expect(wheels.textContent).toContain("Weapons");
+    expect(wheels.textContent).toContain("Plague");
+    view.update(frame({ mode: "hidden" }));
+    expect(wheels.hidden).toBe(true);
+  });
 });
 
 describe("the overlay's shell", () => {

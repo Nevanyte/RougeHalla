@@ -8,7 +8,7 @@
 // the product is floored as the server floors it, and the ice's traction under any point is handed to the motion
 // (`FrameInput.slipAt`) so it can slide where the server slides.
 import {
-  attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
+  attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, RANGED_RELEASE_PAUSE_MS,
   EFFECT_STUNNED, FACTIONS, hasteMultiplier, hazardsOf, isFactionId, LAST_STAND_SPEED_BONUS, MOVE_MULT_FLOOR, scaleWindup, SIG_CHILLED,
   surfaceAt, weaponTimings, mirrorTimings,
   type FactionSpec, type GameMap, type TimedFx, type Vec2, type WeaponTimings,
@@ -161,7 +161,7 @@ export class LocalPrediction {
     switch (fx.kind) {
       case "windup": {
         if (fx.by !== localId) break;
-        this.weaponRoot = { from: fx.t, until: fx.t + fx.ms };
+        this.weaponRoot = { from: fx.weapon === "bow" || fx.weapon === "wand" ? Math.max(fx.t, fx.t + fx.ms - RANGED_RELEASE_PAUSE_MS) : fx.t, until: fx.t + fx.ms };
         if (fx.weapon !== "axe") break;
         // The axe roots from its start for `root` seconds (weapons.ts; the server's rootUntil), and the swing lands `fx.ms` in:
         // what follows the landing is the root this knows. The mirrors (attack speed, windup) shape both, as the server's timingsOf.
@@ -311,7 +311,8 @@ export class LocalPrediction {
     if (!me?.drawStartedAt || !isFactionId(me.faction)) return false;
     if ((me.slot === 1 ? me.weapon1 : me.weapon0) !== "bow") return false;
     const timing = mirrorTimings(FACTIONS[me.faction], "bow", decodeMult(me.asMult), decodeMult(me.windupMult));
-    return t >= me.drawStartedAt && t < me.drawStartedAt + timing.windup * 1000;
+    const until = me.drawStartedAt + timing.windup * 1000;
+    return t >= Math.max(me.drawStartedAt, until - RANGED_RELEASE_PAUSE_MS) && t < until;
   }
 
   private dropRootBefore(t: number): void {

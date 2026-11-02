@@ -50,7 +50,7 @@ export interface ClientMessages {
   /**
    * Lock an enemy (a player or a mob, by its state key) and auto-attack it: the server walks into the weapon's range,
    * attacks whenever the cooldown allows, faces it (the shield too) and aims every attack at it, until another order, the
-   * target going down or evading, leaving TARGET_RANGE, or staying out of line of sight for TARGET_LOS_GRACE_MS once it
+   * target going down, leaving TARGET_RANGE, or staying out of line of sight for TARGET_LOS_GRACE_MS once it
    * has been seen. Ignored unless the target is a standing enemy within TARGET_RANGE; one behind a wall is locked and
    * walked to (nothing is attacked without a clear line). Locking a different fighter cancels an attack the old lock was
    * winding up (clicking the one already locked changes nothing).
@@ -84,7 +84,7 @@ export interface ClientMessages {
    */
   plan: { spawn?: 0 | 1; boon?: 0 | 1; ready?: boolean };
   /**
-   * Cast the ability in `slot` ("wish" = the faction's Wish, key D; "q"/"e" arrive with skills). (x, y): the cursor's ground
+   * Cast the ability in `slot` ("wish" = the faction's Wish, key R; "q"/"e" arrive with skills). (x, y): the cursor's ground
    * point (clamped like `move`; the point or direction, ignored by self casts). `id`: a unit target. `t`: render time (clamped;
    * unused until skills rewind). `seq`: as for `move`, echoed in moveSeq (sent with a blink). Refused silently, at no cost,
    * unless ready, standing, not stunned/silenced (or rooted, for some), not already casting, and the target is valid.

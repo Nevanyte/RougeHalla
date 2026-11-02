@@ -73,16 +73,16 @@ export interface SimConfig {
 }
 
 /**
- * An attack winding up: a melee swing, a wand cast or a bow draw. The fighter is rooted from `startedAt` until `landsAt`
- * (the swing lands, the ball or arrow leaves). Times are server ms. `target`: the fighter the target lock started it on; it
+ * An attack winding up: a melee swing, a wand cast or a bow draw. Melee roots throughout; ranged roots only for its final 200 ms
+ * before the ball or arrow leaves. Times are server ms. `target`: the fighter the target lock started it on; it
  * is aimed again at that fighter, if still standing, when it lands or leaves (sim/weapons.ts).
  */
 export type PendingAction =
   | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; target?: string; rangeMult?: number }
-  /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
-  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string; rangeMult?: number }
+  /** The ball leaves from the caster's release position, along `a`. */
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin?: Vec2; target?: string; rangeMult?: number }
   /** The bow's fixed draw: the same as a cast, except that a stagger does not interrupt it (9.1) and `drawStartedAt` is synced. */
-  | { kind: "draw"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string; rangeMult?: number };
+  | { kind: "draw"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin?: Vec2; target?: string; rangeMult?: number };
 
 /**
  * A fighter's weapon state machine (sim/weapons.ts). The slots, the one in hand, the cooldown end (`readyAt`) and the
@@ -90,7 +90,7 @@ export type PendingAction =
  */
 export interface WeaponRuntime {
   action: PendingAction | null;
-  /** The axe's root, past its windup (an attack winding up roots on its own: `action`). */
+  /** Any extra root granted by a weapon beyond its windup (currently zero for player weapons). */
   rootUntil: number;
   staggerImmuneUntil: number;
   /** The trigger: held since `pressedAt`; a press is also remembered until `bufferedUntil` (quick clicks). */
@@ -454,10 +454,7 @@ export interface SpawnRequest {
   weapon: WeaponId;
   a: number;
   packet: DamagePacket;
-  /**
-   * Where it leaves from: the shooter where its client drew it (rewound like a melee origin), since that is where the
-   * client measured `a` from. Defaults to the shooter's present position.
-   */
+  /** Optional scripted launch origin; ordinary weapon releases omit it and spawn from the owner's current position. */
   origin?: Vec2;
   /** Plant Your Feet: the shot flies this many times as far. */
   rangeMult?: number;

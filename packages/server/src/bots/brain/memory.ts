@@ -138,7 +138,7 @@ interface MobAux {
   dotted: boolean;
   /** The lowest hp share of the rise it is on (see foldMobs). */
   low: number;
-  /** It was seen healing away from its spot: walking home, untouchable until it arrives. */
+  /** It was seen healing away from its spot: walking home and rapidly healing until it arrives. */
   returningUntil: ServerMs;
 }
 
@@ -608,7 +608,7 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
         continue;
       }
       // Healing while away from its spot is what a mob walking home does. `low` is where the rise began, so a slow climb counts
-      // as well as a jump; being hurt again means it is not untouchable after all.
+      // as well as a jump; being hurt again means it is still a viable target despite the healing.
       if (m.seenAt === null || v.hpFrac < m.hpFrac) {
         a.low = v.hpFrac;
         a.returningUntil = 0;

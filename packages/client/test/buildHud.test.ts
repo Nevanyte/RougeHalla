@@ -186,6 +186,8 @@ describe("the strip never takes the pointer", () => {
     expect(on()).toEqual([0]);
     move(100, 421);
     expect(on()).toEqual([4]);
+    strip.update(me({ m: { adBonus: 5 } }), true);
+    expect(on()).toEqual([4]); // a live stat update must not erase a hovered icon's tip
     move(100, 600);
     expect(on()).toEqual([]);
     move(20, 405, panel);
@@ -193,6 +195,27 @@ describe("the strip never takes the pointer", () => {
     move(20, 405);
     dom.win.dispatchEvent(fakeEvent("keydown", { code: "Escape", key: "Escape" }));
     expect(on()).toEqual([]);
+  });
+
+  it("keeps damage, health and move-speed tips open while their values update under a still pointer", () => {
+    const dom = installFakeDom();
+    const { strip, grid, cells, part } = setup();
+    const canvas = { tagName: "CANVAS" };
+    grid.rect = { left: 10, top: 400, width: 240, height: 48 };
+    cells().forEach((c, i) => { c.rect = { left: 10 + (i % 3) * 80, top: 400 + Math.floor(i / 3) * 16, width: 76, height: 15 }; });
+    const boosted = me({ maxHp: 2000, mobStats: new Map([["emberImp", 1]]) as never, m: { speedMult: 1.06 } });
+    for (const [index, expected] of [[2, "+1%"], [5, "HP"], [8, "+6%"]] as const) {
+      strip.update(me(), true);
+      dom.win.dispatchEvent(fakeEvent("pointermove", {
+        clientX: 20 + (index % 3) * 80, clientY: 405 + Math.floor(index / 3) * 16, target: canvas,
+      }));
+      const before = part(cells()[index]!, 2);
+      strip.update(boosted, true);
+      expect(cells()[index]!.classes.has(BUILD_TIP_ON), HUD_GAIN_IDS[index]).toBe(true);
+      expect(part(cells()[index]!, 2), HUD_GAIN_IDS[index]).toContain(expected);
+      expect(part(cells()[index]!, 2), HUD_GAIN_IDS[index]).not.toBe(before);
+    }
+    strip.destroy();
   });
 
   it("stops listening when destroyed", () => {

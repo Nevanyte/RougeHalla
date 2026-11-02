@@ -124,7 +124,7 @@ describe("quest lifecycle", () => {
     p.x = GIVER.x;
     p.y = GIVER.y;
     const lapsesAt = done.s.expiresAt;
-    expect(lapsesAt).toBeGreaterThan(world.state.serverTime + 100_000);
+    expect(lapsesAt).toBe(0); // an open offer has no deadline until accepted
 
     step(world, TICK_MS);
     expect(done.s.status).toBe("done");

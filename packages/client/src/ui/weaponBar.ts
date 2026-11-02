@@ -90,13 +90,13 @@ export class WeaponBar {
     this.hint.hidden = true;
     this.tip.hidden = true;
     const healing = el("div", "wb-consumable wb-healing");
-    healing.append(keycap("R"), el("strong", undefined, "Heal"), this.healCount, this.healStatus);
+    healing.append(keycap("E"), el("strong", undefined, "Heal"), this.healCount, this.healStatus);
     healing.title = "Large potion: 40% max HP over 5 s. Small potion: 25% over 5 s. Large potions are used first. Healing potions do not stack.";
     const speed = el("div", "wb-consumable wb-speed");
     speed.append(el("strong", undefined, "Wind"), this.speedCount, this.speedStatus);
     speed.title = "Walk over a wind emblem for +50% movement speed for 5 seconds. Emblems disappear when collected.";
     this.consumables.append(healing, speed);
-    const controls = el("div", "wb-controls", "WASD move · Click attack · E Wish");
+    const controls = el("div", "wb-controls", "WASD move · Click attack · R Wish");
     this.root.append(this.tip, this.hint, row, this.consumables, controls);
     this.root.hidden = true;
     uiRoot().append(this.root);

@@ -352,7 +352,7 @@ export class RaidScene extends Phaser.Scene {
     this.questLog = new QuestLog({ onTalk: (id) => { this.questDialog?.open(id); } });
     this.questPreviews.clear();
     this.weaponBar = new WeaponBar();
-    this.wishSlot = new AbilitySlotView({ key: "E" });
+    this.wishSlot = new AbilitySlotView({ key: "R" });
     this.weaponBar.dock(this.wishSlot.element);
     this.wishCooldown.reset();
     this.pendingCast = null;
@@ -1207,7 +1207,7 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * Every fighter a left click could lock: the other players and the mobs (training dummies are mobs) the state calls
-   * alive, at the ground position they are drawn at. The server decides the rest (range, line of sight, evading).
+   * alive, at the ground position they are drawn at. The server decides the rest (range and line of sight).
    */
   private targetCandidates(): TargetCandidate[] {
     const list = this.candidates;
@@ -1521,8 +1521,8 @@ export class RaidScene extends Phaser.Scene {
     if (MOVEMENT_KEYS.has(e.code)) {
       e.preventDefault(); this.movementKeys.add(e.code); this.keyboardChanged = true; return;
     }
-    if (e.code === "KeyE") { this.castSlot("wish"); return; }
-    if (e.code === "KeyR") { sendInput(this.room, "useConsumable", { kind: "heal" }); return; }
+    if (e.code === "KeyR") { this.castSlot("wish"); return; }
+    if (e.code === "KeyE") { sendInput(this.room, "useConsumable", { kind: "heal" }); return; }
     if (e.code === "KeyQ") sendInput(this.room, "swap", {});
     else if (e.code === "KeyF") this.interact();
     else {

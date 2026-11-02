@@ -36,7 +36,7 @@ vi.mock("../src/sim/melee", async (importOriginal) => {
 /** An arrow or ball as it left its owner (what clients are told), plus the damage packet the server keeps. */
 interface Shot {
   at: number; id: string; kind: string; owner: string; weapon: WeaponId;
-  x: number; y: number; vx: number; vy: number; t: number; range: number; raw: number;
+  x: number; y: number; ownerX: number; ownerY: number; vx: number; vy: number; t: number; range: number; raw: number;
 }
 const shots: Shot[] = [];
 const seenShots = new Set<string>();
@@ -119,8 +119,10 @@ function tick(world: World): SimEvent[] {
     if (seenShots.has(pr.id)) continue;
     seenShots.add(pr.id);
     const st = pr.launch;
+    const owner = combatant(world, pr.owner)!.s;
     shots.push({
-      at, id: pr.id, kind: pr.kind, owner: pr.owner, weapon: pr.weapon, x: st.x, y: st.y, vx: st.vx, vy: st.vy, t: st.t,
+      at, id: pr.id, kind: pr.kind, owner: pr.owner, weapon: pr.weapon, x: st.x, y: st.y, ownerX: owner.x, ownerY: owner.y,
+      vx: st.vx, vy: st.vy, t: st.t,
       range: st.range, raw: pr.packet.raw,
     });
   }
@@ -189,6 +191,13 @@ const expectCloseAll = (actual: number[], expected: number[]): void => {
     const expectedDistance = expected[k] === STEP && walkSpeeds ? walkSpeeds[k]! : expected[k]!;
     expect(v, `tick ${k}`).toBeCloseTo(expectedDistance, 6);
   });
+};
+
+/** A ranged action permits movement until the final 200 ms before release. */
+const expectRangedWalk = (actual: number[], startedAtTick: number, windupMs: number): void => {
+  const pauseFirst = startedAtTick + Math.max(0, Math.ceil((windupMs - 200) / TICK_MS - 1e-6));
+  const releaseTick = startedAtTick + Math.ceil(windupMs / TICK_MS - 1e-6);
+  expectCloseAll(actual, actual.map((_v, k) => k >= pauseFirst && k < releaseTick ? 0 : STEP));
 };
 
 beforeEach(() => {
@@ -437,16 +446,15 @@ describe("the wand", () => {
     expect(landed).toHaveLength(0); // a cast is not a swing
   });
 
-  it("roots the caster for the cast and frees it the tick the ball leaves: no slow after the shot", () => {
+  it("holds the caster only for the last 200 ms and frees it when the ball leaves", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const tm = timings("fire", "wand");
     expect(tm.windup).toBeCloseTo(0.45, 12);
     expect(intervalMs("fire", "wand")).toBeCloseTo(1010.1, 1);
-    // Cast at tick 2 (S): root only for the calculated short windup, then walk at full speed.
+    // Cast at tick 2 (S): walk through most of the windup, pause for release, then resume at full speed.
     const d = walk(world, 0, 28, (k) => { if (k === 2) tap(world); });
-    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 28 - 2 - rooted)]);
+    expectRangedWalk(d, 2, tm.windup * 1000);
     expect(shots).toHaveLength(1);
   });
 
@@ -456,9 +464,7 @@ describe("the wand", () => {
     const tm = timings("plague", "wand");
     expect(tm.windup).toBeCloseTo(0.5 * tm.interval, 12);
     const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
-    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
-    expect(rooted).toBe(Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6));
-    expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
+    expectRangedWalk(d, 1, tm.windup * 1000);
   });
 
   it("a move order given during the cast is kept and walked once the ball has left", () => {
@@ -469,7 +475,7 @@ describe("the wand", () => {
     const x0 = P(world).x;
     send(world, 0, "move", { x: 36 * TILE, y: P(world).y });
     run(world, 2);
-    expect(P(world).x).toBe(x0); // still casting: rooted
+    expect(P(world).x).toBeGreaterThan(x0); // still casting, but can walk until its final 200 ms
     expect(RT(world).path.length).toBeGreaterThan(0);
     run(world, 7); // the cast is 400 ms: the ball leaves in the ninth tick, and the walk goes on from it
     expect(shots).toHaveLength(1);
@@ -519,20 +525,21 @@ describe("instant axe swings while moving", () => {
     expect(landed).toHaveLength(1);
   });
 
-  it("every windup roots a fighter in place, whatever it is: the swing, the cast and the draw end it by landing", () => {
+  it("melee windups root throughout while ranged windups pause only at release", () => {
     for (const [faction, weapon] of [["plague", "sword"], ["frost", "shield"], ["fire", "wand"], ["frost", "bow"]] as const) {
       const world = startRun();
       arm(world, 0, faction, weapon);
       const tm = timings(faction, weapon);
       const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
       const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
-      expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
+      if (weapon === "wand" || weapon === "bow") expectRangedWalk(d, 1, tm.windup * 1000);
+      else expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
     }
   });
 });
 
 describe("the bow", () => {
-  // Frost's bow: interval 1139.6 ms, a fixed draw of 600 ms (the 0.6 s cap) in which the archer is rooted, then free until
+  // Frost's bow: interval 1139.6 ms, a fixed draw of 600 ms (the 0.6 s cap) with a final 200 ms pause, then free until
   // the next draw is allowed. Every arrow is a full-damage one.
   const FROST_I = intervalMs("frost", "bow");
 
@@ -617,13 +624,12 @@ describe("the bow", () => {
     expect(P(world).readyAt).toBeCloseTo(S + 2 * FROST_I, 6);
   });
 
-  it("walks freely after the shot: rooted exactly for the draw, with no slow before the next one", () => {
+  it("walks through most of the draw, pauses for release, then walks freely", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     const tm = timings("frost", "bow");
-    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
     const d = walk(world, 0, 30, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, rooted), ...repeat(STEP, 30 - 2 - rooted)]);
+    expectRangedWalk(d, 2, tm.windup * 1000);
     expect(shots).toHaveLength(1);
   });
 
@@ -635,7 +641,7 @@ describe("the bow", () => {
     const x0 = P(world).x;
     send(world, 0, "move", { x: 36 * TILE, y: P(world).y });
     run(world, 5);
-    expect(P(world).x).toBe(x0);
+    expect(P(world).x).toBeGreaterThan(x0);
     expect(shots).toHaveLength(0);
     run(world, 5);
     expect(shots).toHaveLength(1);
@@ -842,13 +848,13 @@ describe("swapping", () => {
     const tm = timings("fire", "wand");
     expect(tm.windup).toBeCloseTo(0.45, 12);
     const rooted = Math.ceil(tm.windup * 1000 / TICK_MS - 1e-6);
-    // Swap after the ball has left; only the short cast windup holds movement.
+    // Swap after the ball has left; only the final 200 ms of its cast held movement.
     const d = walk(world, 0, 16, (k) => {
       if (k === 1) tap(world);
       if (k === rooted + 2) swap(world);
     });
     expect(shots).toHaveLength(1);
-    expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 16 - 1 - rooted)]);
+    expectRangedWalk(d, 1, tm.windup * 1000);
   });
 
   it("cancels a wand cast: no ball, and the root ends with it", () => {
@@ -858,7 +864,7 @@ describe("swapping", () => {
       if (k === 1) tap(world);
       if (k === 2) swap(world);
     });
-    expect(d[1]).toBe(0); // rooted by the cast it started
+    expect(d[1]).toBeCloseTo(expectedWalkStep(d, 1), 6); // early cast movement is allowed
     // No ball left: free at once.
     expect(d[2]).toBeCloseTo(expectedWalkStep(d, 2), 6);
     run(world, 12);
@@ -871,7 +877,7 @@ describe("swapping", () => {
     press(world);
     run(world, 4);
     expect(P(world).drawStartedAt).toBeGreaterThan(0);
-    expect(moveMultiplierOf(world, C(world))).toBe(0);
+    expect(moveMultiplierOf(world, C(world))).toBe(1);
     swap(world);
     tick(world);
     expect(P(world).drawStartedAt).toBe(0);
@@ -1078,17 +1084,15 @@ describe("lag compensation", () => {
 });
 
 describe("where projectiles leave from", () => {
-  // A client draws its own player `lag` ms behind the server and measures its aim from there, so an arrow or a ball
-  // leaves from that rewound position (the same one a melee swing is sampled at), not from the present one. The shot
-  // leaves from where the archer was drawn when its draw (or cast) BEGAN: it is rooted from then on.
+  // A client can be behind the server when it presses attack. The launch uses the shooter's current release position,
+  // after this tick's movement, so the projectile starts where the fighter is actually drawn at release.
   const south = (world: World): void => send(world, 0, "move", { x: HOME[0]!.x, y: 17 * TILE });
   /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
   const stamp = (world: World, lag: number): number => T(world) + TICK_MS - lag;
   const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
   /**
-   * p0 (Frost, bow) strafes south, taps (stamped `lag` behind the server, or unstamped), and draws. `at(lag)` is where the
-   * shooter was `lag` ms before the draw began.
+   * p0 (Frost, bow) strafes south, taps (stamped `lag` behind the server, or unstamped), and draws.
    */
   function strafeAndDraw(lag: number | null) {
     const world = startRun();
@@ -1100,7 +1104,7 @@ describe("where projectiles leave from", () => {
     press(world, 0, 0, t);
     release(world, 0, 0, t);
     tick(world); // the draw begins
-    // Read before the history moves on; the archer stands where it is from here to the arrow leaving.
+    // Keep the old position so the test can prove the projectile does not launch from attack time.
     const history = RT(world).history.map((h) => ({ ...h }));
     const standing = { x: P(world).x, y: P(world).y };
     const at = (back: number): Vec2 => positionAt({ history }, standing, begun - back);
@@ -1109,34 +1113,27 @@ describe("where projectiles leave from", () => {
     return { shot: shots[0]!, at, standing };
   }
 
-  it.each([150, 200, MAX_REWIND_MS])("an arrow leaves from where a client %i ms behind drew the shooter when the draw began", (lag) => {
-    const { shot, at, standing } = strafeAndDraw(lag);
-    expect(shot.x).toBeCloseTo(at(lag).x, 9);
-    expect(shot.y).toBeCloseTo(at(lag).y, 9);
-    // The shooter walked on over the lag (less the tick the draw begins in, which it spends rooted) and then did not move:
-    // where it stands is where the aim would not start from.
-    expect(dist(shot, standing)).toBeCloseTo((PLAYER_SPEED * (lag - TICK_MS)) / 1000, 6);
-    expect(dist(shot, standing)).toBeGreaterThan(RANGED_HIT_REACH);
+  it.each([150, 200, MAX_REWIND_MS])("an arrow starts at the release position with a client %i ms behind", (lag) => {
+    const { shot, at } = strafeAndDraw(lag);
+    expect(shot.x).toBeCloseTo(shot.ownerX, 9);
+    expect(shot.y).toBeCloseTo(shot.ownerY, 9);
+    expect(dist(shot, at(lag))).toBeGreaterThan(RANGED_HIT_REACH);
   });
 
-  it("clamps a stale timestamp to MAX_REWIND_MS, and a fresher one than a tick (or one in the future) to one tick back", () => {
-    const stale = strafeAndDraw(1000);
-    expect(stale.shot.y).toBeCloseTo(stale.at(MAX_REWIND_MS).y, 9);
-    const future = strafeAndDraw(-400);
-    expect(future.shot.y).toBeCloseTo(future.at(TICK_MS).y, 9);
-    const fresh = strafeAndDraw(20);
-    expect(fresh.shot.y).toBeCloseTo(fresh.at(TICK_MS).y, 9);
+  it("ignores stale and future timestamps when choosing projectile origin", () => {
+    for (const lag of [1000, -400, 20]) {
+      const { shot } = strafeAndDraw(lag);
+      expect([shot.x, shot.y]).toEqual([shot.ownerX, shot.ownerY]);
+    }
   });
 
-  it("without a timestamp it leaves from the latest position: where the shooter stood one tick back, which is where the draw holds it", () => {
-    const { shot, at, standing } = strafeAndDraw(null);
-    expect(shot.x).toBeCloseTo(at(TICK_MS).x, 9);
-    expect(shot.y).toBeCloseTo(at(TICK_MS).y, 9);
-    // The draw begins before the archer would have moved that tick, and roots it there.
-    expect(dist(shot, standing)).toBeCloseTo(0, 9);
+  it("without a timestamp the arrow still leaves from the release position", () => {
+    const { shot, standing } = strafeAndDraw(null);
+    expect([shot.x, shot.y]).toEqual([shot.ownerX, shot.ownerY]);
+    expect(dist(shot, standing)).toBeGreaterThan(0);
   });
 
-  it.each([120, 250])("a ball leaves from where a client %i ms behind drew the caster when the cast began", (lag) => {
+  it.each([120, 250])("a ball starts at the caster's release position with a client %i ms behind", (lag) => {
     const world = startRun();
     arm(world, 0, "holy", "wand");
     south(world);
@@ -1147,13 +1144,13 @@ describe("where projectiles leave from", () => {
     release(world, 0, 0, t);
     tick(world);
     const drawn = positionAt(RT(world), P(world), begun - lag);
-    // A later input from a client at another lag moves the cast's lag, not where this ball leaves from.
+    // A later input from a client at another lag does not move this ball's origin.
     release(world, 0, 0, stamp(world, MAX_REWIND_MS));
     runTo(world, begun + 400);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.x).toBeCloseTo(drawn.x, 9);
-    expect(shots[0]!.y).toBeCloseTo(drawn.y, 9);
-    expect(dist(shots[0]!, P(world))).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on over the lag
+    expect(shots[0]!.x).toBeCloseTo(shots[0]!.ownerX, 9);
+    expect(shots[0]!.y).toBeCloseTo(shots[0]!.ownerY, 9);
+    expect(dist(shots[0]!, drawn)).toBeGreaterThan(RANGED_HIT_REACH);
   });
 });
 
@@ -1363,7 +1360,7 @@ describe("stagger", () => {
       if (k === 1) tap(world);
       if (k === 2) expect(stagger(world, C(world))).toBe(true);
     });
-    expect(d[1]).toBe(0); // rooted by the cast
+    expect(d[1]).toBeCloseTo(expectedWalkStep(d, 1), 6); // early cast movement is allowed
     expect(d[2]).toBeCloseTo(expectedWalkStep(d, 2), 6);
     run(world, 12);
     expect(shots).toHaveLength(0);
@@ -1488,7 +1485,10 @@ describe("helpers", () => {
       kind: "draw", weapon: "bow", startedAt: now, landsAt: now + 600, a: 0, packet: { raw: 1, phys: 1, magic: 0, true: 0 },
       origin: { x: 0, y: 0 },
     };
+    expect(moveMultiplierOf(world, C(world))).toBe(1);
+    world.state.serverTime = now + 400;
     expect(moveMultiplierOf(world, C(world))).toBe(0);
+    world.state.serverTime = now;
     RT(world).weapon.action = null;
     expect(moveMultiplierOf(world, C(world))).toBe(1);
     RT(world).weapon.rootUntil = now + 1;

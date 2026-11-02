@@ -397,14 +397,16 @@ export const ELITE_K = 0.65;
  * The leash of a mob of a generated camp is the camp's territory inside MOB_LEASH_CAP (mobs.ts `leashOk`, ROGUELIKE_PLAN D15);
  * this circle around its spot is the leash of a mob with no territory (a hand-built map, a test's mob).
  */
-export const MOB_LEASH_RADIUS = 9 * TILE;
-/** The most a territory leash reaches from the mob's spot: min(camp.radius, this). Generated camps measure a radius of 10.8 to 30 tiles (7 of 3000 under 12 over seeds 1-150), so the cap binds on almost all of them, unless the territory's edge comes first. */
-export const MOB_LEASH_CAP = 12 * TILE;
-export const MOB_GIVE_UP_SECONDS = 6;
+export const MOB_LEASH_RADIUS = 24 * TILE;
+/** The most a territory leash reaches from the mob's spot: min(camp.radius, this). The territory boundary can end a chase sooner. */
+export const MOB_LEASH_CAP = 24 * TILE;
+export const MOB_GIVE_UP_SECONDS = 20;
 /** Back within this of its camp spot, a returning mob is home again. */
 export const MOB_HOME_RADIUS = 10;
 /** The pace of a mob's regeneration, in seconds from empty to full. A mob walking home is whole on arrival (`rest`); an idle one that is hurt anyway heals at this pace once it has been left alone for 3 s. */
 export const MOB_REGEN_SECONDS = 4;
+/** Returning mobs restore half their maximum HP each second, including while under attack. */
+export const MOB_RETURN_REGEN_SECONDS = 2;
 /** A mob re-plans its walk at most this often (ms); each mob's schedule is offset so they don't all path on one tick. */
 export const MOB_REPATH_MS = 500;
 /** A fighting mob re-aims only when the aim moved more than this (2 degrees): its facing is synced, and a new angle every tick costs bandwidth. */

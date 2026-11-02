@@ -64,20 +64,20 @@ describe("playtest click combat", () => {
     const shape = WEAPONS.wand.shape;
     expect(shot.launch.range).toBe(shape.kind === "projectile" ? shape.range : 0);
   });
-  it("movement queues behind a wand shot while dropping its repeating lock", () => {
+  it("wand movement continues through early windup while dropping its repeating lock", () => {
     const a = arena(); a.send("target", { id: "p1" }); a.tick();
     const action = a.rt.weapon.action;
     a.send("move", { x: 200, y: 500, seq: 17 }); a.tick();
-    expect(a.me.attackTarget).toBe(""); expect(a.rt.weapon.action).toBe(action); expect(a.me.y).toBe(320);
+    expect(a.me.attackTarget).toBe(""); expect(a.rt.weapon.action).toBe(action); expect(a.me.y).toBeGreaterThan(320);
     expect(a.me.moveSeq).toBe(17); a.run(10); expect(a.me.y).toBeGreaterThan(320);
   });
   it("swapping away from wand drops its lock", () => {
     const a = arena(); a.send("target", { id: "p1" }); a.tick();
     a.me.slot = 1; weaponChanged(a.w, combatant(a.w, "p0")!); expect(a.me.attackTarget).toBe("");
   });
-  it("a bow fires along the cursor at launch and waits for its full draw before moving", () => {
+  it("a bow fires along the cursor at launch and moves during early draw", () => {
     const a = arena("bow"); a.send("attack", { a: 0 }); a.send("release", { a: 0 }); a.tick();
-    a.send("aim", { a: Math.PI / 2 }); a.send("move", { x: 200, y: 500 }); a.tick(); expect(a.me.y).toBe(320);
+    a.send("aim", { a: Math.PI / 2 }); a.send("move", { x: 200, y: 500 }); a.tick(); expect(a.me.y).toBeGreaterThan(320);
     a.run(8);
     const shot = [...a.w.projectiles.values()].find(p => p.owner === "p0")!;
     expect(shot.kind).toBe("arrow"); expect(shot.targetId).toBeUndefined();

@@ -58,7 +58,7 @@ function campMap(
   return map;
 }
 
-/** The small territory: 13 x 13 tiles around HOME, so its edge is 6.5 tiles (208 u) from HOME, inside the 9-tile circle. */
+/** The small territory: 13 x 13 tiles around HOME, so its edge is 6.5 tiles (208 u) from HOME. */
 const SMALL = { tx0: 26, tx1: 38, ty0: 26, ty1: 38 };
 const SMALL_EDGE = 6.5 * TILE;
 /** The whole arena floor. */
@@ -114,14 +114,14 @@ function chase(rig: Rig, at: Vec2, ticks: number): { farthest: number; trail: Ve
 describe("the territory leash", () => {
   it("a mob chased out of its territory gives up at the border (inside the old circle), then walks home whole", () => {
     const rig = makeRig(campMap(SMALL, 20), "sentenced");
-    // The player stands 10 tiles east: past the territory's edge (6.5 tiles) and past the 9-tile circle too.
+    // The player stands 10 tiles east: past the territory's edge (6.5 tiles).
     const { farthest, giveUpAt } = chase(rig, tile(42, 32), 80);
     expect(giveUpAt).not.toBeNull();
     // It turned back on the first tick it stood outside the territory: at most one step past the border.
     expect(farthest).toBeGreaterThan(SMALL_EDGE);
     expect(farthest).toBeLessThan(SMALL_EDGE + STEP + 1);
     expect(farthest).toBeLessThan(MOB_LEASH_RADIUS);
-    rig.mob.s.hp = 1; // evading: nothing hurts it on the way, and it is whole when it arrives
+    rig.mob.s.hp = 1; // rapid return healing makes it whole when it arrives
     for (let i = 0; i < 200; i++) step(rig.world, TICK_MS);
     expect(mode(rig)).toBe("idle");
     expect({ x: rig.mob.s.x, y: rig.mob.s.y }).toEqual(HOME);
@@ -158,10 +158,10 @@ describe("the territory leash", () => {
   });
 
   it("is capped at MOB_LEASH_CAP from the spot when the territory is bigger", () => {
-    const rig = makeRig(campMap(BIG, 25), "sentenced");
-    expect(MOB_LEASH_CAP).toBeGreaterThan(MOB_LEASH_RADIUS);
-    // 18 tiles east, inside the territory but past the 12-tile cap.
-    const { farthest, giveUpAt } = chase(rig, tile(50, 32), 120);
+    const rig = makeRig(campMap(BIG, 30), "sentenced");
+    expect(MOB_LEASH_CAP).toBeGreaterThanOrEqual(MOB_LEASH_RADIUS);
+    // 28 tiles east, inside the territory but past the larger 24-tile cap.
+    const { farthest, giveUpAt } = chase(rig, tile(60, 32), 150);
     expect(farthest).toBeGreaterThan(MOB_LEASH_CAP);
     expect(farthest).toBeLessThan(MOB_LEASH_CAP + STEP + 1);
     expect(giveUpAt).not.toBeNull();
@@ -175,11 +175,11 @@ describe("the territory leash", () => {
     expect(giveUpAt).not.toBeNull();
   });
 
-  it("keeps the 9-tile circle when the map has no territory at all (a hand-built map)", () => {
+  it("keeps the larger fallback circle when the map has no territory at all (a hand-built map)", () => {
     for (const map of [arena(), { ...arena(), camps: campMap(SMALL, 20).camps }]) {
       // Both have a territoryGrid of zeros: with or without a CampDef listed, the mob's camp holds no cells.
       const rig = makeRig(map, "sentenced");
-      const { farthest, giveUpAt } = chase(rig, tile(46, 32), 80);
+      const { farthest, giveUpAt } = chase(rig, tile(60, 32), 150);
       expect(farthest).toBeGreaterThan(MOB_LEASH_RADIUS);
       expect(farthest).toBeLessThan(MOB_LEASH_RADIUS + STEP + 1);
       expect(giveUpAt).not.toBeNull();
@@ -196,7 +196,7 @@ describe("the territory leash", () => {
     ];
     for (const [name, map, camp] of cases) {
       const rig = makeRig(map, "sentenced", camp);
-      const { farthest } = chase(rig, tile(46, 32), 80);
+      const { farthest } = chase(rig, tile(60, 32), 150);
       expect(farthest, name).toBeGreaterThan(MOB_LEASH_RADIUS);
       expect(farthest, name).toBeLessThan(MOB_LEASH_RADIUS + STEP + 1);
     }
@@ -260,9 +260,9 @@ describe("the territory leash on generated maps", () => {
       p.weapon0 = "";
       p.hp = p.maxHp = 1e9;
       // The player stands on the nearest other camp's centre at least 34 tiles away: a reachable floor tile outside this territory,
-      // beyond even a wand mob at its leash (12 tiles) plus its 20-tile range. With eight camps a zone (136x136) the nearest
+      // beyond even a wand mob at its leash (24 tiles) plus its 20-tile range. With eight camps a zone (136x136) the nearest
       // camp can be 12 tiles away, close enough for a ranged mob to keep hitting from inside its territory and never give up.
-      const far = map.camps.filter((c, i) => i !== ci && dist(c, camp) >= 34 * TILE);
+      const far = map.camps.filter((c, i) => i !== ci && dist(c, camp) >= 55 * TILE);
       const other = far.reduce((a, b) => (dist(a, camp) < dist(b, camp) ? a : b));
       p.x = other.x;
       p.y = other.y;

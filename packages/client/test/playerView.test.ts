@@ -53,7 +53,8 @@ describe("PlayerView build icons", () => {
     expect(argsOf(marks, "add").every(([mark]) => (mark as FakeObject).kind === "graphics")).toBe(true);
     const icons = argsOf(marks, "add").map(([mark]) => mark as FakeObject);
     expect(icons[0]!.state.name).toBe("Secondary weapon: Bow");
-    expect(argsOf(icons[0]!, "fillRoundedRect")[0]![0]).toBe(-21);
+    expect(argsOf(icons[0]!, "fillRoundedRect")[0]![0]).toBe(-27);
+    expect(argsOf(icons[0]!, "fillRoundedRect")[0]![2]).toBe(18);
     expect(icons.slice(1).every(icon => !String(icon.state.name).startsWith("Secondary"))).toBe(true);
     expect(ofKind("text")).toHaveLength(textCount);
   });

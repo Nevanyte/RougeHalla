@@ -521,14 +521,14 @@ describe("bog slow", () => {
     world.moveModifiers.push((_w, c) => (c.id === "p2" ? 3 : 1));
     const moved = walkOneSecond(world, "p0");
     expect(moved).toBeCloseTo(PLAYER_SPEED * 0.35, 6);
-    // A ranged windup roots the fighter whatever the floor.
+    // Early ranged windup allows movement even on the bog.
     const p1 = P(world, "p1");
     p1.weapon0 = "wand";
     const x1 = p1.x;
     order(world, "p1", "move", { x: 60 * TILE, y: p1.y });
     order(world, "p1", "attack", { a: 0 });
     run(world, 1);
-    expect(p1.x).toBe(x1);
+    expect(p1.x).toBeGreaterThan(x1);
     expect(RT(world, "p1").weapon.action).not.toBeNull();
     const p2 = P(world, "p2");
     const x2 = p2.x;
@@ -770,7 +770,7 @@ describe("ice", () => {
       expect(slipAccelOf(world, c)).toBe(0);
     });
 
-    it("a windup plants the slide in that tick: nothing moves, the velocity is zero", () => {
+    it("a ranged windup slides early, then plants the feet for its final release pause", () => {
       const world = iceWorld([{ faction: "fire", weapon: "wand", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }]);
       const p = P(world, "p0");
       order(world, "p0", "move", { x: 60 * TILE, y: p.y });
@@ -780,11 +780,17 @@ describe("ice", () => {
       order(world, "p0", "attack", { a: 0 });
       run(world, 1);
       expect(RT(world, "p0").weapon.action).not.toBeNull();
-      expect(p.x).toBe(x);
+      expect(p.x).toBeGreaterThan(x);
+      expect(RT(world, "p0").slip!.vx).toBeGreaterThan(0);
+      const landsAt = RT(world, "p0").weapon.action!.landsAt;
+      while (world.state.serverTime < landsAt - 200) run(world, 1);
+      const plantedAt = p.x;
+      run(world, 1);
+      expect(p.x).toBe(plantedAt);
       expect([RT(world, "p0").slip!.vx, RT(world, "p0").slip!.vy]).toEqual([0, 0]);
     });
 
-    it("a lock's windup that starts on ice plants the slide too", () => {
+    it("a lock's ranged windup slides early and plants only for final release", () => {
       const world = iceWorld(
         [{ faction: "fire", weapon: "wand", at: at(4, 8) }, { faction: "plague", at: at(40, 24) }], {}, undefined, false,
       );
@@ -801,7 +807,13 @@ describe("ice", () => {
         fastest = Math.max(fastest, RT(world, "p0").slip ? Math.hypot(RT(world, "p0").slip!.vx, RT(world, "p0").slip!.vy) : 0);
         if (RT(world, "p0").weapon.action !== null) {
           planted = true;
-          expect(p.x).toBe(x);
+          expect(p.x).toBeGreaterThan(x);
+          expect(RT(world, "p0").slip!.vx).toBeGreaterThan(0);
+          const landsAt = RT(world, "p0").weapon.action!.landsAt;
+          while (world.state.serverTime < landsAt - 200) run(world, 1);
+          const plantedAt = p.x;
+          run(world, 1);
+          expect(p.x).toBe(plantedAt);
           expect([RT(world, "p0").slip!.vx, RT(world, "p0").slip!.vy]).toEqual([0, 0]);
         }
       }

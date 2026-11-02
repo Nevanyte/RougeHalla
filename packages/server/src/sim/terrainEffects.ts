@@ -15,7 +15,7 @@
 import {
   HEAL_LOCKOUT_SECONDS, hazardsOf, resistSlow, surfaceAt, surfaceEffect, TERRAIN_NONE, TICK_MS, type MapHazards, type SurfaceEffect,
 } from "@raid/shared";
-import { combatant, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
+import { combatant, standing, standingCombatants, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { recordHit } from "./ledger";
 import { slowResistOf } from "./mods";
@@ -126,15 +126,15 @@ export function applyLight(world: World, c: PlayerCombatant, dtMs: number): numb
 
 /**
  * beforeDamage, after the signatures (which read the ledger for the tick's contacts), as sudden death's burn is: players and
- * regional mobs that are not at home. Not a training dummy, and not a mob walking home (evading: hurtMob refuses the hit anyway,
- * but skipping it here keeps its seconds out of the stats).
+ * regional mobs that are not at home. Not a training dummy or a mob walking home; a returning mob
+ * still takes player attacks, but it no longer remains engaged with the terrain.
  */
 function burnPass(world: World, dtMs: number): void {
   // The coliseum has no terrain (validateTerrain T8), so a locked arena burns nothing: a pass that holds sudden death's entry
   // never holds a terrain one, and a death in it credits nobody (arena.ts applyHits).
   if (!hazardsFor(world).burn || world.state.gatesLocked) return;
   for (const c of standingCombatants(world)) {
-    if (c.kind === "mob" && (c.s.kind === "dummy" || isEvading(c))) continue;
+    if (c.kind === "mob" && (c.s.kind === "dummy" || c.rt.brain?.mode === "return")) continue;
     applyBurn(world, c, dtMs);
   }
 }

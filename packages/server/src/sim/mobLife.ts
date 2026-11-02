@@ -31,11 +31,11 @@
 //          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
 //       3. the chainable mobKilled hook (quest objectives).
 //     A credited normal kill grants one fixed, uncapped mob-type stat stack; elites grant no stat and drop an augment chest.
-//   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
-//     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
+//   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs. Idle mobs heal after a 3 s
+//     out-of-combat lockout; returning mobs heal rapidly without that lockout and are whole when they arrive home.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
-  campMobs, elitesOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobName, mobTypeById, mobTypeFaction, mobTypeIn,
+  campMobs, elitesOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, mobName, mobTypeById, mobTypeFaction, mobTypeIn,
   mobTypeWeapon, normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
@@ -126,12 +126,12 @@ export function respawnCamps(world: World): void {
 
 /**
  * The ledger's way down for a regional mob; returns the hp removed. A mob without a brain is a training dummy, which the
- * ledger sends to damageMob instead, so it is left alone here. A mob walking home is evading: nothing hurts it (the
- * ledger then shows no number and no stagger), so a shooter out of its reach cannot whittle it down while it leaves.
+ * ledger sends to damageMob instead, so it is left alone here. A mob walking home stays damageable
+ * but does not re-aggro; its rapid regeneration protects its return.
  */
 export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[], entries: readonly LedgerEntry[]): number {
   const brain = c.rt.brain;
-  if (isQuestGiver(c) || !brain || brain.mode === "return" || c.s.status !== "alive") return 0;
+  if (isQuestGiver(c) || !brain || c.s.status !== "alive") return 0;
   let total = 0;
   for (const a of amounts) if (a > 0) total += a;
   if (!(total > 0)) return 0;
@@ -145,7 +145,10 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
   } else {
     for (let i = 0; i < entries.length; i++) {
       const by = entries[i]!.by.ownerId ?? creditedPlayerId(world, entries[i]!.by.id);
-      if (amounts[i]! > 0 && world.state.players.has(by)) aggro(world, c, by, amounts[i]!);
+      if (amounts[i]! > 0 && world.state.players.has(by)) {
+        if (brain.mode === "return") brain.threat.set(by, (brain.threat.get(by) ?? 0) + amounts[i]!);
+        else aggro(world, c, by, amounts[i]!);
+      }
     }
   }
   return before - c.s.hp;
@@ -317,8 +320,8 @@ function awardMobWeapon(world: World, killerId: string, weapon: string, at: Vec2
 const IDLE_REGEN_QUIET_MS = 3000;
 
 /**
- * System: corpses older than MOB_CORPSE_MS leave the state, and a mob walking home heals through heal() (it is untouchable
- * on the way; the walk is usually shorter than the 3 s lockout, so it is mostly made whole when it arrives). An idle mob that is hurt anyway (its attacker went down before it could
+ * System: corpses older than MOB_CORPSE_MS leave the state, and a mob walking home heals rapidly through heal()
+ * even while under attack. An idle mob that is hurt anyway (its attacker went down before it could
  * wake onto them) heals once it has been left alone for IDLE_REGEN_QUIET_MS. Walks the plain runtime map and allocates
  * nothing while there is nothing to do.
  */
@@ -334,8 +337,10 @@ export function reapMobs(world: World, dtMs: number): void {
     if (m.status === "dead") {
       if (now - brain.diedAt >= MOB_CORPSE_MS) (gone ??= []).push(rt.id);
     } else if (m.hp < m.maxHp && (brain.mode === "return" || (brain.mode === "idle" && now - rt.lastHitAt >= IDLE_REGEN_QUIET_MS))) {
-      // Through the faction layer's one way up (its 3 s out-of-combat lockout applies), without a heal number every tick.
-      heal(world, { kind: "mob", id: rt.id, s: m, rt }, m.maxHp * perTick, { quiet: true });
+      // Return healing bypasses the ordinary combat lockout; idle healing keeps it.
+      heal(world, { kind: "mob", id: rt.id, s: m, rt },
+        m.maxHp * (brain.mode === "return" ? dtMs / (MOB_RETURN_REGEN_SECONDS * 1000) : perTick),
+        { quiet: true, ignoreLockout: brain.mode === "return" });
     }
   }
   // Removed after the walk, so neither map is ever changed while it is being iterated.

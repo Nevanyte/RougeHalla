@@ -72,13 +72,13 @@ describe("quest planning", () => {
     expect(world.state.quests.size).toBe(QUEST_KNOWN_COUNT);
   });
 
-  it("anchors offer timers to the run start, not to the planning clock", () => {
+  it("keeps offers untimed across the planning-to-active transition until accepted", () => {
     const world = planningWorld(1);
     finishPlanning(world);
 
     expect(world.state.raidStartedAt).toBeGreaterThan(1000);
     for (const qt of world.quests!.quests.values()) {
-      expect(qt.s.expiresAt - world.state.raidStartedAt).toBe(qt.def.expiresAtSec * 1000);
+      expect(qt.s.expiresAt).toBe(0);
     }
     expect(world.state.quests.size).toBe(QUEST_KNOWN_COUNT);
   });

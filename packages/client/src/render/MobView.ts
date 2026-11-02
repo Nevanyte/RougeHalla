@@ -13,11 +13,12 @@ import { StatusArt } from "./StatusArt";
 import { FeetFx, NO_STATES, showsFeet, type TerrainStates } from "./zoneArt/terrainFeedback";
 
 const HIT_FLASH_MS = 120;
+const FIGURE_RADIUS = PLAYER_RADIUS * 1.1;
 /** A mob's hp is far larger than a player's, so its bar is wider to match its weight on screen; an elite's wider still. */
 const HP_BAR_W = 36;
 const ELITE_BAR_W = 48;
-const BAR_TOP = -BODY_LIFT - PLAYER_RADIUS - 8;
-const LABEL_Y = -BODY_LIFT - PLAYER_RADIUS - 18;
+const BAR_TOP = -BODY_LIFT - FIGURE_RADIUS - 8;
+const LABEL_Y = -BODY_LIFT - FIGURE_RADIUS - 18;
 /** A mob going down shrinks to this share of its size and fades out over this long (server time, so it follows render time). */
 const DEATH_MS = 450;
 const DEATH_SHRINK = 0.45;
@@ -34,7 +35,7 @@ const STAR_REGION: Region = around(10);
 const RIM_NORMAL = { width: 2, color: 0x111111, alpha: 0.8 } as const;
 const RIM_ELITE = { width: 3, color: ELITE_COLOR, alpha: 1 } as const;
 /** The role glyph's bake: on the disc, so it is as wide as the body. */
-const ROLE_REGION: Region = around(PLAYER_RADIUS + 1);
+const ROLE_REGION: Region = around(FIGURE_RADIUS + 1);
 
 /**
  * A neutral fighter drawn like a player without the player-only marks: the training dummy (grey, bar and name always on),
@@ -83,12 +84,12 @@ export class MobView {
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene, HP_BAR_W / 2);
     this.status = new StatusArt(scene, HP_BAR_W / 2);
-    this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), RIM_NORMAL);
+    this.body = new BodyDisc(scene, FIGURE_RADIUS, factionColor(""), RIM_NORMAL);
     this.body.image.setPosition(0, -BODY_LIFT);
     this.flashing = new BodyFlash(this.body, factionColor(""));
     this.roleGlyph = pixelImage(scene).setPosition(0, -BODY_LIFT).setVisible(false);
     placeBake(this.roleGlyph, ROLE_REGION);
-    this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(PLAYER_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
+    this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(FIGURE_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
     this.hpBar = new HpBar(scene);
     this.label = scene.add.text(0, LABEL_Y, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: LABEL_COLOR, stroke: "#000000", strokeThickness: 2,
@@ -221,8 +222,8 @@ function drawGlyph(g: Phaser.GameObjects.Graphics, glyph: Exclude<RoleGlyph, "no
       g.fillStyle(0xffffff, 0.95).fillCircle(x, y, 1.7);
     }
   } else if (glyph === "ring") {
-    stroke(3.2, 0x111111, 0.6).strokeCircle(0, 0, PLAYER_RADIUS * 0.55);
-    stroke(1.6, 0xffffff, 0.95).strokeCircle(0, 0, PLAYER_RADIUS * 0.55);
+    stroke(3.2, 0x111111, 0.6).strokeCircle(0, 0, FIGURE_RADIUS * 0.6);
+    stroke(1.6, 0xffffff, 0.95).strokeCircle(0, 0, FIGURE_RADIUS * 0.6);
   } else {
     // A chevron pointing along +x (rotated to the mob's facing each frame).
     g.beginPath().moveTo(-3.5, -5).lineTo(3, 0).lineTo(-3.5, 5);

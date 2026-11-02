@@ -4,7 +4,7 @@
 
 Keep `workers_dev: true` explicit when adding custom domains. Containers started through the staging hostname can still use that hostname for authenticated snapshot writes; Wrangler otherwise disables the Workers hostname when routes are configured. Both hostnames reach the same authoritative game process and private R2 objects.
 
-This migration preserves main's gameplay at `377bbfb530004dd005b22c763f45775dac5777f8`. The production server and map worker are compiled to JavaScript before deployment, so their TypeScript loader does not consume the container's startup CPU allowance. `/build-info.json` reports that gameplay base and a source, dependency and compiled executable digest. `/readyz` independently computes the digest inside Node; the Worker refuses to forward gameplay until it matches.
+The production server and map worker are compiled to JavaScript before deployment, so their TypeScript loader does not consume the container's startup CPU allowance. `/build-info.json` reports the Git source commit and a source, dependency and compiled executable digest. `/readyz` independently computes the digest inside Node; the Worker refuses to forward gameplay until it matches.
 
 ## Publish
 

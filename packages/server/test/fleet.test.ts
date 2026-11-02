@@ -5,7 +5,8 @@
 // multiplier the mirror carries.
 import { describe, expect, it } from "vitest";
 import {
-  cardRows, cardText, decodeMult, encodeMult, mapFromTiles, mulberry32, PLAYER_SPEED, SWIFT_BOOTS_PAUSE_MS, TICK_MS, TILE,
+  attackInterval, cardRows, cardText, decodeMult, encodeMult, FACTIONS, mapFromTiles, mulberry32, PLAYER_SPEED,
+  RANGED_RELEASE_PAUSE_MS, SWIFT_BOOTS_PAUSE_MS, TICK_MS, TILE, weaponTimings,
   TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -182,8 +183,9 @@ describe("the walk is the mirror, tick by tick", () => {
       }
       expect(seen.inside, "walked inside the pause").toBeGreaterThan(0);
       expect(seen.outside, "walked with the bonus after it").toBeGreaterThan(0);
-      // The pause is whole ticks of unboosted walking (the refold lags the condition by the one tick of updateMods).
-      expect(Math.abs(seen.inside * TICK_MS - SWIFT_BOOTS_PAUSE_MS)).toBeLessThanOrEqual(TICK_MS);
+      // Fleet is disabled throughout the bow draw, including its walking portion, then for the card's post-shot pause.
+      const drawWalkMs = weaponTimings("bow", attackInterval(FACTIONS.frost, "bow")).windup * 1000 - RANGED_RELEASE_PAUSE_MS;
+      expect(Math.abs(seen.inside * TICK_MS - (SWIFT_BOOTS_PAUSE_MS + drawWalkMs))).toBeLessThanOrEqual(TICK_MS);
     }
   });
 });

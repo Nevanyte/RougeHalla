@@ -244,7 +244,8 @@ export interface WeaponTimings {
   interval: number;
   /**
    * From the attack starting to its damage landing (sword, axe, shield bash) or its arrow or ball leaving (bow, wand). The
-   * fighter is rooted for all of it. A stagger (not on the bow) or a swap before then cancels the attack.
+   * melee fighter is rooted for all of it; bow and wand users pause only for the final RANGED_RELEASE_PAUSE_MS.
+   * A stagger (not on the bow) or a swap before landing cancels the attack.
    */
   windup: number;
   /** Optional extra root after the attack's windup; 0 for the current weapon set. */
@@ -273,3 +274,6 @@ export function weaponTimings(w: WeaponId, interval: number, profile: "player" |
   }
   return t;
 }
+
+/** Maximum movement hold at the end of a ranged draw/cast. */
+export const RANGED_RELEASE_PAUSE_MS = 200;

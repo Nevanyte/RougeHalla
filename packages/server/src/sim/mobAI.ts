@@ -11,8 +11,8 @@
 //     like). It gives up, and goes "return", when it leaves its leash (a mob of a camp with a territory: the camp's
 //     territory cells within min(camp.radius, MOB_LEASH_CAP) of home, ROGUELIKE_PLAN D15; any other mob: MOB_LEASH_RADIUS
 //     around home; shared `leashOk`), or MOB_GIVE_UP_SECONDS pass without it dealing damage (damage it TAKES does not extend the fight, so a shooter out of its reach cannot hold
-//     it), or no standing player is left to fight. "return" is an evade: it walks home ignoring everyone, nothing hurts it
-//     (mobLife.hurtMob), it is whole again the moment it is "idle" within MOB_HOME_RADIUS of home (the walk is shorter than heal()'s lockout),
+//     it), or no standing player is left to fight. "return" walks home ignoring everyone while healing rapidly
+//     (mobLife.hurtMob still takes damage), and it is whole again the moment it is "idle" within MOB_HOME_RADIUS of home,
 //     where it faces homeFacing again. So kiting a mob from outside its leash gains nothing: each round ends with the mob
 //     whole.
 //   - Inputs: aim every tick toward the (led) target while fighting; hold/release the trigger as `decide` says (an `attack`
@@ -283,7 +283,7 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
     // The mob's inputs take effect on the next tick, like a client's.
     inputDelay: TICK_MS / 1000,
     windup: tm?.windup ?? 0,
-    // A ranged mob backs off only inside its leash (past it the fight would end in an evade, and a melee player could
+    // A ranged mob backs off only inside its leash (past it the fight would end in a return, and a melee player could
     // never catch it), and only to points that open the gap; cornered, decide() stands it still to shoot.
     walkable: (from, to) => leashOk(world.map, campRef, home, to, LEASH_MARGIN)
       && Math.hypot(to.x - at.x, to.y - at.y) > Math.hypot(from.x - at.x, from.y - at.y)
@@ -349,7 +349,7 @@ function giveUp(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: num
 /**
  * Whatever the mob had started is dropped, not finished: a swing or a cast still winding up never lands, a drawn bow is
  * not loosed. It also stops aiming, so walking turns it away from the people it was fighting. A mob that is going home
- * is untouchable and must be harmless too.
+ * ignores combat and must be harmless too.
  */
 function disarm(world: World, s: MobState, rt: MobRuntime, b: MobBrain): void {
   cancelAction(world, { kind: "mob", id: rt.id, s, rt });
@@ -379,7 +379,7 @@ function rest(world: World, s: MobState, rt: MobRuntime, b: MobBrain): void {
   }
   q.pushAim(b.homeFacing);
   b.lastAim = b.homeFacing;
-  // Back at its camp it is whole again: it was untouchable on the way.
+  // Back at its camp it is whole again.
   s.hp = s.maxHp;
   b.mode = "idle";
   b.target = null;

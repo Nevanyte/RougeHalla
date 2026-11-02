@@ -171,13 +171,13 @@ describe("instant player melee and retained ranged pauses", () => {
     expect(p.motion.predicted.y).toBe(300);
   });
 
-  it.each(["bow", "wand"] as const)("keeps the %s's existing draw/cast pause and releases movement exactly at launch", weapon => {
+  it.each(["bow", "wand"] as const)("pauses the %s only for its final 200 ms before launch", weapon => {
     const timing = weaponTimings(weapon, attackInterval(FACTIONS.fire, weapon));
     const start = 10_000, duration = timing.windup * 1000;
     expect(duration).toBeGreaterThan(0);
     const p = new LocalPrediction(), who = fighter({ weapon0: weapon, weapon1: "", slot: 0, ...(weapon === "bow" ? { drawStartedAt: start } : {}) });
     if (weapon === "wand") p.noteFx(windup(start, duration, weapon), ME, who);
-    for (const [elapsed, rooted] of [[-1, false], [0, true], [duration - 1, true], [duration, false]] as const) {
+    for (const [elapsed, rooted] of [[-1, false], [0, false], [duration - 201, false], [duration - 200, true], [duration - 1, true], [duration, false]] as const) {
       expect(p.frameInput(start + elapsed - p.motion.delay, true, who, [], false).rooted).toBe(rooted);
     }
   });

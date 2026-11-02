@@ -60,8 +60,18 @@ describe("quest presentation model", () => {
     expect(questRows(quests([quest({ status: "done", doneBy: "Bravo" })]), "me", 5_000)[0]).toMatchObject({ status: "Done by Bravo", time: "" });
     expect(questRows(quests([quest()]), "me", 70_000)[0]).toMatchObject({ status: "Expired", time: "", expired: true });
     expect(questRows(quests([quest({ status: "expired" })]), "me", 5_000)[0]).toMatchObject({ status: "Expired", time: "", expired: true });
-    // Planning: the clock is frozen and expiresAt is re-anchored at raid start, so the row shows the offer's fixed duration.
+    // Planning previews an accepted quest's duration without running the server clock.
     expect(questRows(quests([quest()]), "me", 70_000, "", true)[0]).toMatchObject({ status: "Open", time: "2:30", expired: false });
+  });
+
+  it("shows an unaccepted offer and its map giver even after the raid clock passes the former deadline", () => {
+    const offer = quest({ expiresAt: 0, accepted: new Map() });
+    const now = 190_000;
+    expect(questRows(quests([offer]), "me", now)).toEqual([expect.objectContaining({ status: "Open", time: "Starts on acceptance", expired: false })]);
+    expect(questMinimapBlips(quests([offer]), { forEach() {} }, "me", { x: 100, y: 200 }, new Map(), null))
+      .toContainEqual(expect.objectContaining({ role: "giver", x: 100, y: 200 }));
+    const preview = questFromReveal({ id: "hidden", def: "cull-fire", x: 300, y: 400, expiresAt: 0 });
+    expect(questRows(questCollections({ quests: quests([offer]) }, preview, now).quests, "me", now)).toHaveLength(2);
   });
 
   it("keeps the fetch winner's progress complete and groups open rows before closed rows", () => {

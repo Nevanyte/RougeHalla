@@ -22,6 +22,8 @@ import { drawAbilityIcon } from "./wishArt";
 import { juiceScale } from "./juice";
 
 const HIT_FLASH_MS = 120;
+/** Slightly larger visual silhouette; collision and attack reach still use PLAYER_RADIUS. */
+const FIGURE_RADIUS = PLAYER_RADIUS * 1.1;
 const SHIELD_COLOR = 0x4fc3f7;
 /** The barrier's bubble, redrawn when it moves by one of this many steps of a full shield (BARRIER_FULL_SHARE of max hp). */
 const BARRIER_STEPS = 8;
@@ -34,7 +36,7 @@ const CROWN_EDGE = 0x5d4037;
 const CROWN_W = 22;
 const CROWN_H = 13;
 /** Clear of the name label (bottom at -BODY_LIFT - PLAYER_RADIUS - 18, 11px tall). */
-const CROWN_BASE_Y = -BODY_LIFT - PLAYER_RADIUS - 33;
+const CROWN_BASE_Y = -BODY_LIFT - FIGURE_RADIUS - 33;
 /** The crown grows from 1x to 1 + CROWN_GROWTH as the bounty approaches CROWN_FULL_BOUNTY (about a feed score of 8). */
 const CROWN_GROWTH = 0.5;
 const CROWN_FULL_BOUNTY = 150;
@@ -43,7 +45,7 @@ const CROWN_FULL_BOUNTY = 150;
  * A skin is the body's inner core, not its whole fill: the outer disc stays the faction colour, which players need to
  * read at a distance (see "Readability" in the design doc).
  */
-const SKIN_CORE_RADIUS = PLAYER_RADIUS * 0.55;
+const SKIN_CORE_RADIUS = FIGURE_RADIUS * 0.55;
 
 /** The local player's ring on the ground, as baked: its drawing's own coordinates around the feet. */
 const LOCAL_RING_W = PLAYER_RADIUS * 2.9;
@@ -56,17 +58,21 @@ const RIM_LOCAL = { width: 2, color: LOCAL_MARK, alpha: 0.95 } as const;
 const HIDDEN_LOCAL_ALPHA = 0.45;
 
 /** The Wish icon beside the name: its box, the gap to the name, and the name's own bottom edge (see the label below). */
-const WISH_ICON_SIZE = 10;
+const WISH_ICON_SIZE = 15;
 const WISH_ICON_GAP = 3;
 /** The icon's drawing is baked around its own centre, once per Wish and ready state. */
 const WISH_ICON_REGION: Region = around(WISH_ICON_SIZE / 2 + 2);
-const LABEL_Y = -BODY_LIFT - PLAYER_RADIUS - 18;
+const LABEL_Y = -BODY_LIFT - FIGURE_RADIUS - 18;
+/** Secondary weapon and build badges above each fighter. */
+const BUILD_MARK_SIZE = 18;
+const BUILD_MARK_HALF = BUILD_MARK_SIZE / 2;
+const BUILD_MARK_WEAPON_SCALE = 0.33;
 
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
 const TITLE_Y = Math.ceil(PLAYER_RADIUS * 0.55) + 2;
 
 /** Golden faction: a halo hugging the body that breathes between these alphas. */
-const GOLD_HALO_RADIUS = PLAYER_RADIUS + 3;
+const GOLD_HALO_RADIUS = FIGURE_RADIUS + 3;
 const GOLD_PULSE_MS = 350;
 const GOLD_PULSE_MIN = 0.7;
 /** How much of the equipped outline's colour turns gold under a golden faction. */
@@ -150,13 +156,13 @@ export class PlayerView {
     this.goldHalo = scene.add.graphics().setVisible(false);
     this.fireRoamGlow = scene.add.graphics();
     this.buildMarks = scene.add.container(0, 0);
-    this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
+    this.body = new BodyDisc(scene, FIGURE_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
     this.body.image.setPosition(0, -BODY_LIFT);
     this.core = new BodyDisc(scene, SKIN_CORE_RADIUS, 0xffffff);
     this.core.image.setPosition(0, -BODY_LIFT).setVisible(false);
     this.flashing = new BodyFlash(this.body, factionColor(""));
     // Shows the facing while nothing is in hand.
-    this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(PLAYER_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
+    this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(FIGURE_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
     this.hpBar = new HpBar(scene);
     this.barrierRing = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
@@ -266,7 +272,7 @@ export class PlayerView {
 
     // The barrier (public state) rides the bar as a pale blue segment and wraps the body as a bubble.
     const barrier = p.barrier > 0 ? p.barrier : 0;
-    this.hpBar.draw(p.hp, p.maxHp, barrier, -BODY_LIFT - PLAYER_RADIUS - 8);
+    this.hpBar.draw(p.hp, p.maxHp, barrier, -BODY_LIFT - FIGURE_RADIUS - 8);
     this.setBarrier(barrierStrength(barrier, p.maxHp));
 
     // Immunity runs from the teleport tick `t` to t + TELEPORT_IMMUNITY_MS. `p` is the latest patch, ahead of the delayed
@@ -439,26 +445,26 @@ export class PlayerView {
     const stats = readability.investedStats.slice(0, 2);
     const secondary = heldWeapon({ weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot === 1 ? 0 : 1, faction: p.faction }) ?? FISTS;
     const crownScale = 1 + CROWN_GROWTH * Math.min(1, Math.max(0, p.bounty) / CROWN_FULL_BOUNTY);
-    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 12 : LABEL_Y - 25);
+    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 14 : LABEL_Y - 27);
     const key = `${secondary}|${stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|")}`;
     if (key === this.buildMarksKey) return;
     this.buildMarksKey = key;
     this.buildMarks.removeAll(true);
     const weaponMark = this.scene.add.graphics();
     const weaponColor = WEAPONS[secondary].color;
-    weaponMark.fillStyle(0x101820, 0.95).fillRoundedRect(-21, -7, 14, 14, 4);
-    weaponMark.lineStyle(1, weaponColor, 0.95).strokeRoundedRect(-21, -7, 14, 14, 4);
-    weaponMark.save().translateCanvas(-14 - weaponCenterX(secondary) * 0.26, 0).scaleCanvas(0.26, 0.26);
+    weaponMark.fillStyle(0x101820, 0.95).fillRoundedRect(-BUILD_MARK_SIZE - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+    weaponMark.lineStyle(1, weaponColor, 0.95).strokeRoundedRect(-BUILD_MARK_SIZE - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+    weaponMark.save().translateCanvas(-BUILD_MARK_SIZE - weaponCenterX(secondary) * BUILD_MARK_WEAPON_SCALE, 0).scaleCanvas(BUILD_MARK_WEAPON_SCALE, BUILD_MARK_WEAPON_SCALE);
     drawWeapon(weaponMark, secondary);
     weaponMark.restore().setName(`Secondary weapon: ${WEAPONS[secondary].name}`);
     this.buildMarks.add(weaponMark);
     stats.forEach((stat, i) => {
-      const x = i * 14;
+      const x = i * BUILD_MARK_SIZE;
       const color = STAT_ICON_COLORS[stat.key];
       const mark = this.scene.add.graphics();
-      mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - 7, -7, 14, 14, 4);
-      mark.lineStyle(1, color, 0.95).strokeRoundedRect(x - 7, -7, 14, 14, 4);
-      drawCombatIcon(mark, stat.key, x, 0, 10, color);
+      mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+      mark.lineStyle(1, color, 0.95).strokeRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
+      drawCombatIcon(mark, stat.key, x, 0, 13, color);
       mark.setName(`${stat.label}: ${stat.score.toFixed(2)}`);
       this.buildMarks.add(mark);
     });

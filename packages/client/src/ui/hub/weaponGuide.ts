@@ -13,8 +13,8 @@ export const COMBAT_GUIDE_RULES = [
 
 const ROLES: Record<WeaponId, { role: string; build: string; play: string }> = {
   sword: { role: "Fast melee · interrupts", build: "Offense + on-hit effects", play: "Stay close and time your swings to interrupt slower attacks. Approach archers through cover; avoid a shield's front." },
-  bow: { role: "Long range · skillshots", build: "Offense + attack speed", play: "Aim straight-flying arrows, pause to draw, then move after launch. Keep melee fighters at range; watch for wand balls and shields." },
-  wand: { role: "Longest range · lock-on splash", build: "SO first · Offense secondary", play: "Click an enemy to lock on, pause to cast, then move after launch. Send balls through incoming arrows and clustered enemies; sword and axe swings can intercept them." },
+  bow: { role: "Long range · skillshots", build: "Offense + attack speed", play: "Aim straight-flying arrows while moving; you pause for the final 0.2 s before release. Keep melee fighters at range; watch for wand balls and shields." },
+  wand: { role: "Longest range · lock-on splash", build: "SO first · Offense secondary", play: "Click an enemy to lock on and keep moving during the cast; you pause for the final 0.2 s. Send balls through incoming arrows and clustered enemies; sword and axe swings can intercept them." },
   shield: { role: "Frontal defense · retaliation", build: "Defense/SD first · SO secondary", play: "Aim toward incoming sword hits and arrows. Your front matters: axe, fists and wand bypass the weapon's block mechanics." },
   axe: { role: "Heavy melee · Defense shred", build: "Offense first · bonus health secondary", play: "Close the gap, cut through shield blocking and intercept wand balls. Defense shred helps physical damage; archers can keep you at range." },
   fists: { role: "Empty hand · fast, short reach", build: "Offense or SO · find a weapon", play: "Fists bypass shield blocking and carry strong on-hit effects, but have the shortest reach and reduced base damage. They sit outside the counter wheel." },
@@ -29,10 +29,10 @@ export function weaponMechanics(id: WeaponId): string[] {
       `A swing that meets a wand ball cuts its damage to ${guideNumber(SWORD_BALL_SCALE * 100)}%, once per ball.`,
       `On-hit effects have ${guideNumber(w.onHitPower)}× strength.`,
     ];
-    case "bow": return ["Arrows are directional skillshots that fly straight. Aim where the enemy will be when the arrow arrives.", "Movement pauses during the draw. Move freely after launch; the wand has the furthest weapon range."];
+    case "bow": return ["Arrows are directional skillshots that fly straight. Aim where the enemy will be when the arrow arrives.", "Move during the draw; movement pauses for the final 0.2 s before release. The wand has the furthest weapon range."];
     case "wand": {
       const s = w.special!;
-      return ["Longest weapon range. The wand is the only weapon with lock-on; locked balls follow their target within their travel range. Movement pauses during the cast.", `Balls delete enemy arrows they meet, keeping ${guideNumber(BALL_AFTER_ARROW * 100)}% of their current damage after each interception. Balls pass through shield blocking.`, ...(s.kind === "splash" ? [`Impact splashes ${guideNumber(s.share * 100)}% damage to other enemies within ${s.radius} units.`] : [])];
+      return ["Longest weapon range. The wand is the only weapon with lock-on; locked balls follow their target within their travel range. Move during the cast; movement pauses for the final 0.2 s before release.", `Balls delete enemy arrows they meet, keeping ${guideNumber(BALL_AFTER_ARROW * 100)}% of their current damage after each interception. Balls pass through shield blocking.`, ...(s.kind === "splash" ? [`Impact splashes ${guideNumber(s.share * 100)}% damage to other enemies within ${s.radius} units.`] : [])];
     }
     case "shield": return [
       "Player bashes land immediately without pausing movement.",

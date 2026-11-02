@@ -352,7 +352,7 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
       : c.s.kind === "dummy"
       ? damageMob(world, c, amounts)
       : hurtMob(world, c, order.map((i) => amounts[i]!), order.map((i) => entries[i]!));
-  // Nothing got through (teleport immunity, a mob walking home): no numbers, no stagger.
+  // Nothing got through (for example teleport immunity): no numbers, no stagger.
   if (!(applied > 0)) return;
   // A survivor's own reactions to its hp (Blood Saint): they read only its own state and pay later.
   if (standing(c)) world.hooks.hurt?.(world, c, applied, hpBefore);

@@ -1,5 +1,5 @@
 // Regional mobs fight with their region's Phase 10 signature, at mob strength, and the Phase 11 seams into the signature
-// layer hold: the evade rule (a returning mob has no target and takes/deals no signature damage), the teleport reset,
+// layer hold: returning mobs lose their own target and signature output but still take player hits, the teleport reset,
 // regeneration through heal(), lifesteal on a mob that dies to a big hit, and the move-speed card next to Frost's slow.
 // Everything runs through the real step() loop and the real mob AI on a small open map; the only stand-ins are `aggro`
 // (to wake a mob without a hit) and a few fixtures noted where they are used.
@@ -8,7 +8,7 @@ import {
   backlashPerSwing, bonusMultiplier, burnDps, cardRows, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
   damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markPct, markWeight,
   MARK_TIER_HITS,
-  ELITE_K, MOB_K, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, mitigateShares, mobFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
+  ELITE_K, MOB_K, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type DamageShares, type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -28,10 +28,10 @@ import type { LandedHit, PlayerRuntime, SimConfig, SimEvent, World } from "../sr
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 
 const DT = TICK_MS / 1000;
-const SIDE = 32;
+const SIDE = 64;
 const tile = (tx: number, ty: number) => ({ x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 });
-/** The mob's camp spot, in the middle of an open 32 x 32 tile arena (leash 224 u, so it never meets a wall). */
-const HOME = tile(16, 16);
+/** The mob's camp spot, with room for the enlarged leash on either side. */
+const HOME = tile(32, 32);
 /** A place beyond the leash from HOME, where a mob that is dragged there gives up. */
 const FAR = { x: HOME.x + MOB_LEASH_RADIUS + 16, y: HOME.y };
 /** Hp that no scenario can exhaust. */
@@ -559,7 +559,7 @@ describe("a player's signature works on a mob like on a player", () => {
   });
 });
 
-describe("evade: a mob walking home has no signature target and trades no signature damage", () => {
+describe("return: a mob walking home loses its own signature target and damage", () => {
   /**
    * The mob fights the player for 2 s near its camp, then the pair is dragged FAR from the camp (the player the same
    * distance from the mob as before). A mob beyond MOB_LEASH_RADIUS gives up at its next think, lets go of the trigger and
@@ -594,13 +594,12 @@ describe("evade: a mob walking home has no signature target and trades no signat
         expect(log.mob.target, `tick ${log.now}`).toBeNull();
         expect(log.mob.engaged, `tick ${log.now}`).toBe(false);
         expect(log.landed.filter((h) => h.by === rig.mob.id && h.sig), `tick ${log.now}`).toHaveLength(0);
-        // Nothing lands on it either: not the player's swings, not the player's own signature.
-        expect(log.landed.filter((h) => h.victim === rig.mob.id), `tick ${log.now}`).toHaveLength(0);
-        expect(log.mobHp, `tick ${log.now}`).toBe(after[0]!.mobHp);
+        expect(log.landed.filter((h) => h.victim === rig.mob.id).every((h) => h.by === "p"), `tick ${log.now}`).toBe(true);
       }
       // The player stood in reach (the mob is 40 u away, the axe reaches 72) and kept swinging at it...
       expect(rest.every((l) => Math.hypot(rig.mob.s.x - rig.p.x, rig.mob.s.y - rig.p.y) <= 72)).toBe(true);
       expect(swingsOf(rest)).toBeGreaterThanOrEqual(3);
+      expect(rest.some((l) => l.landed.some((h) => h.victim === rig.mob.id && h.by === "p"))).toBe(true);
       // ...and once the mob's last swing is over, the player's hp stops falling for good.
       const settled = after.slice(10);
       expect(new Set(settled.map((l) => l.playerHp)).size).toBe(1);
@@ -635,11 +634,11 @@ describe("evade: a mob walking home has no signature target and trades no signat
         expect(log.mob.target, `tick ${log.now}`).toBeNull();
         expect(log.mob.engaged, `tick ${log.now}`).toBe(false);
         expect(log.landed.filter((h) => h.by === rig.mob.id && h.sig), `tick ${log.now}`).toHaveLength(0);
-        expect(log.landed.filter((h) => h.victim === rig.mob.id), `tick ${log.now}`).toHaveLength(0);
+        expect(log.landed.filter((h) => h.victim === rig.mob.id).every((h) => h.by === "p"), `tick ${log.now}`).toBe(true);
       }
-      // The player's balls kept flying at it (each one is a hit the evading mob shrugs off).
+      // The player's balls keep flying at it and can deal damage while it returns.
       expect(rest.filter((l) => fxOf(l.events, "windup").some((w) => w.by === "p")).length).toBeGreaterThanOrEqual(3);
-      expect(rig.mob.s.hp).toBe(after[0]!.mobHp);
+      expect(rest.some((l) => l.landed.some((h) => h.victim === rig.mob.id && h.by === "p"))).toBe(true);
       expect(rig.p.sig & SIG_DISEASED).toBeFalsy();
       expect(rig.p.sig & SIG_EXECUTE).toBeFalsy();
     });
@@ -776,70 +775,56 @@ describe("a mob's regeneration goes through heal()", () => {
     return null;
   };
 
-  it("a returning mob heals only HEAL_LOCKOUT_SECONDS after it last dealt or took damage, without heal fx, and is whole at home", () => {
+  it("a returning mob rapidly heals through heal() without heal fx and is whole at home", () => {
     const rig = makeRig({ player: "holy", weapon: null, mob: "fire", mobMaxHp: 1000, mobHp: 600 });
     hold(rig);
     wake(rig);
-    const fight = run(rig, 40);
+    run(rig, 40);
     const offset = { x: rig.p.x - rig.mob.s.x, y: rig.p.y - rig.mob.s.y };
     place(rig.world, "p", FAR.x + offset.x, FAR.y + offset.y);
-    // Pinned beyond the leash, the mob gives up and stays "return" for a long while; the player keeps swinging at it.
+    send(rig, "release", { a: 0 });
+    // Pinned beyond the leash, the mob gives up and stays "return" for a long while.
     const away = run(rig, 140, () => pin(rig, FAR));
     expect(away[0]!.mode).toBe("return");
     expect(away.every((l) => l.mode === "return")).toBe(true);
-    const all = [...fight, ...away];
-
-    // The clock starts at the last tick the mob dealt or took damage (it may finish a swing after giving up).
-    const lastCombat = Math.max(...all.filter((l) => l.landed.some((h) => h.by === rig.mob.id || h.victim === rig.mob.id)).map((l) => l.now));
-    // It dealt its last burn in the very tick it gave up.
-    expect(lastCombat).toBeGreaterThanOrEqual(away[0]!.now);
-    expect(away.at(-1)!.now).toBeGreaterThan(lastCombat + HEAL_LOCKOUT_SECONDS * 1000 + 1000);
     const hurt = away[0]!.mobHp;
     expect(hurt).toBeLessThan(1000);
     expect(hurt).toBeGreaterThan(0);
-
-    // Not a point of hp until the lockout is over, though it is untouchable and walking home, then exactly maxHp / MOB_REGEN_SECONDS a second.
-    const healsAt = lastCombat + HEAL_LOCKOUT_SECONDS * 1000;
-    for (const log of away.filter((l) => l.now < healsAt && l.now >= away[0]!.now)) expect(log.mobHp, `tick ${log.now}`).toBe(hurt);
     const first = regen(away, 0)!;
-    expect(first.at).toBe(healsAt);
-    expect(first.gain).toBeCloseTo((1000 * DT) / MOB_REGEN_SECONDS, 9);
-    const healing = away.filter((l) => l.now >= healsAt && l.mobHp < 1000);
-    expect(healing.length).toBeGreaterThan(10);
-    // The player's swings at the returning mob (which land nothing) did not restart the lockout.
-    expect(away.filter((l) => l.now > healsAt).every((l) => l.landed.every((h) => h.victim !== rig.mob.id))).toBe(true);
+    expect(first.at).toBe(away[1]!.now);
+    expect(first.gain).toBeCloseTo((1000 * DT) / MOB_RETURN_REGEN_SECONDS, 9);
+    expect(away.at(-1)!.mobHp).toBe(1000);
     // It heals quietly: not one heal fx for it, the whole way.
     expect(fxOf(rig.events, "heal").filter((h) => h.id === rig.mob.id)).toHaveLength(0);
-    expect(away.at(-1)!.mobHp).toBe(1000);
 
     // Let go of it: it walks the camp and arrives whole.
-    const walk = run(rig, 80);
+    const walk = run(rig, 180);
     expect(rig.mob.rt.brain!.mode).toBe("idle");
     expect({ x: rig.mob.s.x, y: rig.mob.s.y }).toEqual(HOME);
     expect(rig.mob.s.hp).toBe(1000);
     expect(walk.at(-1)!.mobHp).toBe(1000);
   });
 
-  it("a returning mob that reaches its camp inside the lockout is whole on arrival all the same", () => {
+  it("a returning mob is whole on arrival even before rapid regeneration finishes", () => {
     const rig = makeRig({ player: "holy", weapon: null, mob: "fire", mobMaxHp: 1000, mobHp: 600 });
     hold(rig);
     wake(rig);
-    const fight = run(rig, 40);
+    run(rig, 40);
     const offset = { x: rig.p.x - rig.mob.s.x, y: rig.p.y - rig.mob.s.y };
-    // Just past the leash, once: a walk home of a second and a half, with the player letting go.
+    // Just past the leash, once; then place it near home to isolate the arrival rule from travel time.
     const edge = { x: HOME.x + MOB_LEASH_RADIUS + 10, y: HOME.y };
     pin(rig, edge);
     place(rig.world, "p", edge.x + offset.x, edge.y + offset.y);
     send(rig, "release", { a: 0 });
-    const walk = run(rig, 100);
+    const first = run(rig, 1);
+    expect(first[0]!.mode).toBe("return");
+    pin(rig, { x: HOME.x + 90, y: HOME.y });
+    const walk = run(rig, 30);
     const home = walk.findIndex((l) => l.mode === "idle");
-    expect(home).toBeGreaterThan(20);
-    const lastCombat = Math.max(...[...fight, ...walk].filter((l) => l.landed.some((h) => h.by === rig.mob.id || h.victim === rig.mob.id)).map((l) => l.now));
-    // It arrived before the lockout was over, so it did not heal on the way: hurt all the way, then whole at the camp.
-    expect(walk[home]!.now - lastCombat).toBeLessThan(HEAL_LOCKOUT_SECONDS * 1000);
+    expect(home).toBeGreaterThan(0);
     const hurt = walk[0]!.mobHp;
     expect(hurt).toBeLessThan(1000);
-    for (const log of walk.slice(0, home)) expect(log.mobHp, `tick ${log.now}`).toBe(hurt);
+    expect(walk[home - 1]!.mobHp).toBeLessThan(1000);
     expect(walk[home]!.mobHp).toBe(1000);
     expect({ x: rig.mob.s.x, y: rig.mob.s.y }).toEqual(HOME);
   });

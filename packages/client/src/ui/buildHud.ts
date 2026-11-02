@@ -133,9 +133,9 @@ export class BuildHud {
       cell.root.classList.toggle("dim", s.dim);
       if (!iconKey) cell.root.setAttribute("aria-label", `${statLine(s)}. ${s.tip}`);
     }
-    // Tips are rewritten, so the one on show (if any) is shown again by the next pointer move.
-    this.tips.reset();
-    this.showTip(-1);
+    // Keep the hovered icon's updated tip visible while the pointer is still, including during stat gains.
+    this.tips.invalidate();
+    this.showTip(this.tips.index);
   }
 
   destroy(): void {

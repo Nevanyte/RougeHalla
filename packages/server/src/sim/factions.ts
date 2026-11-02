@@ -309,8 +309,10 @@ function immune(world: World, c: Combatant): boolean {
   return c.kind === "player" && world.state.serverTime < c.s.immuneUntil;
 }
 
-/** An evading mob (combatant.ts isEvading) takes no signature target and no contact, so it cannot keep burning, diseasing or chilling a player who follows it. */
+/** Compatibility hook for signature targeting; returning mobs now remain hittable. */
 const evading = isEvading;
+/** Returning mobs can take hits but no longer initiate or sustain a signature trade. */
+const returning = (c: Combatant | undefined): boolean => c?.kind === "mob" && c.rt.brain?.mode === "return";
 
 interface Contact { other: string; amount: number; passive: boolean }
 
@@ -336,11 +338,11 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
     if (attacker === victim) return;
     const a = byId.get(attacker);
     const v = byId.get(victim);
-    if (!a || !v || immune(world, v) || evading(v) || evading(a)) return;
+    if (!a || !v || immune(world, v) || evading(v) || evading(a) || returning(a)) return;
     // Mobs never hurt each other: a bash that a camp-mate's shield blocks is no contact between them.
     if (!hostile(a, v)) return;
     push(out, attacker, { other: victim, amount, passive });
-    push(inc, victim, { other: attacker, amount, passive });
+    if (!returning(v)) push(inc, victim, { other: attacker, amount, passive });
   };
   for (const e of world.combat.ledger) {
     const raw = e.packet.raw * e.scale;
@@ -365,7 +367,8 @@ function signatureDamage(world: World, dtMs: number): void {
   for (const c of fighters) {
     const f = sigOf(world, c.id);
     f.hpFrac = c.s.maxHp > 0 ? c.s.hp / c.s.maxHp : 0;
-    // A fighter loses its target when the target is gone or is walking home, and a mob walking home keeps none.
+    // A fighter loses its target when it disappears; returning mobs remain valid targets for other fighters.
+    if (returning(c)) { clearTarget(f); continue; }
     if (f.target !== null && (!byId.has(f.target) || evading(c) || evading(byId.get(f.target)))) {
       if (f.tier <= 0) { clearTarget(f); continue; }
       const oldGroup = f.markGroup;
@@ -385,6 +388,7 @@ function signatureDamage(world: World, dtMs: number): void {
   const { out, inc } = contactsOf(world, byId);
   for (const c of fighters) {
     const f = sigOf(world, c.id);
+    if (returning(c)) continue;
     const hit = out.get(c.id) ?? [];
     const taken = inc.get(c.id) ?? [];
     const sameMarkGroup = (id: string): boolean => {
@@ -414,6 +418,7 @@ function signatureDamage(world: World, dtMs: number): void {
   const map = collisionMap(world);
   for (const c of fighters) {
     const f = sigOf(world, c.id);
+    if (returning(c)) continue;
     const t = f.target !== null ? byId.get(f.target) : undefined;
     if (!t) continue;
     if (now - f.contactAt >= TARGET_FORGET_SECONDS * 1000) {
@@ -574,7 +579,7 @@ function countsForMark(e: LedgerEntry): boolean {
     && e.final !== true && e.arena !== true && e.scale > 0 && e.packet.raw > 0;
 }
 
-/** This tick's hits that count for a mark, by their Sentenced attacker (the contacts' filter: nobody immune, nobody walking home, no mob on a mob). */
+/** This tick's hits that count for a mark, by their Sentenced attacker (the contacts' filter: nobody immune, no mob on a mob). */
 function markHitsOf(world: World, byId: ReadonlyMap<string, Combatant>): Map<string, LedgerEntry[]> {
   const out = new Map<string, LedgerEntry[]>();
   for (const e of world.combat.ledger) {
@@ -871,7 +876,7 @@ function afterDamage(world: World, dtMs: number): void {
   for (const c of allCombatants(world)) {
     const f = rt.fighters.get(c.id);
     if (!f || factionOf(c.s)?.mechanic !== "marked") continue;
-    if (!standing(c) || evading(c)) { clearTarget(f); continue; }
+    if (!standing(c) || returning(c) || evading(c)) { clearTarget(f); continue; }
     if (f.target === null) continue;
     const target = afterById.get(f.target);
     if (target && !evading(target)) continue;
@@ -958,8 +963,8 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
     const f = sigOf(world, c.id);
     const t = f.engaged && f.target !== null ? byId.get(f.target) : undefined;
     if (!t) continue;
-    if (chillOf(c) < 1) add(t.id, c.id);
-    if (chillOf(t) < 1) add(c.id, t.id);
+    if (!returning(c) && chillOf(c) < 1) add(t.id, c.id);
+    if (!returning(t) && chillOf(t) < 1) add(c.id, t.id);
   }
   for (const c of fighters) {
     const f = sigOf(world, c.id);

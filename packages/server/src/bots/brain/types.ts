@@ -755,7 +755,7 @@ export interface MobMemory {
   hpFrac: number;
   inHand: WeaponId | null;
   awake: boolean;
-  /** Its hp rose while it was off its spot: walking home, untouchable (mobHunt's MobTracker rule). */
+  /** Its hp rose while it was off its spot: walking home and rapidly healing (mobHunt's MobTracker rule). */
   returning: boolean;
   alive: boolean;
 }
@@ -1008,7 +1008,8 @@ export interface ChooseMsg { readonly chest: string; readonly pick: number; read
 export type ExtCommand =
   | { readonly type: "cast"; readonly msg: CastMsg }
   | { readonly type: "plan"; readonly msg: PlanMsg }
-  | { readonly type: "choose"; readonly msg: ChooseMsg };
+  | { readonly type: "choose"; readonly msg: ChooseMsg }
+  | { readonly type: "useConsumable"; readonly msg: ClientMessages["useConsumable"] };
 
 export type Command = CoreCommand | ExtCommand;
 export type CommandType = Command["type"];
