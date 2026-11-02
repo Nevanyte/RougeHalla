@@ -11,7 +11,7 @@ export function dashboardHtml(): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<meta name="referrer" content="no-referrer">
+<meta name="referrer" content="same-origin">
 <title>RougeHalla balance</title>
 <link rel="stylesheet" href="/stats/app.css">
 <script src="/stats/app.js" defer></script>
@@ -33,6 +33,7 @@ export function dashboardHtml(): string {
     <p class="muted">Paste the dashboard token. The session cookie lasts 7 days.</p>
     <label for="token">Token</label>
     <input id="token" name="token" type="password" autocomplete="current-password" required minlength="32" spellcheck="false">
+    <input id="login-next" name="next" type="hidden" value="">
     <p id="login-error" class="error" hidden>That token was not accepted. Try again.</p>
     <button type="submit" class="btn primary">Sign in</button>
   </form>
@@ -173,7 +174,7 @@ button, input, select { font: inherit; color: inherit; }
 .mark { width: 14px; height: 14px; border-radius: 3px; background: var(--accent); transform: rotate(45deg); }
 .top h1 { font-size: 16px; }
 .top h1 span { color: var(--muted); font-weight: 500; }
-.status { margin: 0; color: var(--dim); font-size: 12px; flex: 1 1 200px; }
+.status { margin: 0; color: var(--dim); font-size: 12px; flex: 1 1 200px; overflow-wrap: anywhere; }
 .status.err { color: var(--danger-text); }
 .top-actions { display: flex; gap: 6px; align-items: center; }
 .top-actions form { margin: 0; }
@@ -467,7 +468,11 @@ function showLogin() {
   $("logout-form").hidden = true;
   $("pool-banner").hidden = true;
   setStatus("Sign in to see the dashboard.");
-  if (new URLSearchParams(location.search).get("login") === "failed") $("login-error").hidden = false;
+  var sp = new URLSearchParams(location.search);
+  if (sp.get("login") === "failed") $("login-error").hidden = false;
+  sp.delete("login");
+  // The filters in the address bar survive the sign-in's redirect.
+  $("login-next").value = sp.toString();
   var t = $("token");
   if (t) t.focus();
 }
@@ -553,7 +558,8 @@ function describeQuery() {
   var env = cache.overview;
   var q = env && env.query ? env.query : {};
   var parts = [];
-  parts.push("Build " + (q.build || state.build || "newest"));
+  var b = q.build || state.build || "newest";
+  parts.push("Build " + (b.length > 16 ? b.slice(0, 12) : b));
   parts.push(q.from || q.to ? (q.from || "start") + " to " + (q.to || "today") : "last 14 days");
   parts.push(q.pool === "all" ? "humans and bots mixed" : q.pool === "bots" ? "bots only" : "humans");
   parts.push("source " + (q.source || state.source));
@@ -581,7 +587,7 @@ function fillMeta(m) {
   var builds = (m && m.builds) || [];
   for (var i = 0; i < builds.length; i++) {
     var b = builds[i];
-    sel.appendChild(el("option", { value: b.build, text: b.build + (b.commit ? " (" + String(b.commit).slice(0, 7) + ")" : "") + " · " + b.runs + " runs · " + b.firstDay + " to " + b.lastDay }));
+    sel.appendChild(el("option", { value: b.build, text: (b.build.length > 16 ? b.build.slice(0, 12) : b.build) + (b.commit ? " (" + String(b.commit).slice(0, 7) + ")" : "") + " · " + b.runs + " runs · " + b.firstDay + " to " + b.lastDay }));
   }
   var fs = $("f-faction");
   if (fs.options.length === 1) for (var f = 0; f < FACTIONS.length; f++) fs.appendChild(el("option", { value: FACTIONS[f], text: fLabel(FACTIONS[f]) }));
@@ -1224,7 +1230,7 @@ function renderRuns(env) {
       el("td", { text: r.end }),
       el("td", null, r.winnerFaction ? [swatch(fClass(r.winnerFaction)), fLabel(r.winnerFaction)] : "–"),
       el("td", { cls: "hide-sm", text: r.source }),
-      el("td", { cls: "hide-sm ci", text: r.build }),
+      el("td", { cls: "hide-sm ci", text: r.build.length > 16 ? r.build.slice(0, 12) : r.build, "data-tip": r.build }),
       el("td", { cls: "hide-sm ci", text: r.runId.slice(0, 8) })
     ]);
     var open = function () { selectedRun = r.runId; safeRender(panelOf("heatmap")); $("v-heatmap").scrollIntoView({ behavior: "smooth", block: "start" }); };

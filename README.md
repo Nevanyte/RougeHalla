@@ -408,6 +408,10 @@ npm run deploy:local:auto:stop -- --config /absolute/path/local-deploy.json
 
 The private config must have mode `0600`, a `repository`, and absolute paths for `stateDir` and `stashFile`. Local automatic updates use the macOS LaunchAgent `com.rougehalla.autodeploy`; keep this disabled for the public game. The old `deploy:auto:status` and `deploy:auto:stop` aliases remain available to inspect or disable existing installations.
 
+## Balance telemetry
+
+Off unless configured. With `TELEMETRY_DIR=./.telemetry npm run dev` (or `npm run tournament -- --games 200 --telemetry ./.telemetry`) every arena run writes one run record (players, builds, farming, chest offers and picks, deaths by cause, duel segments, a 1 Hz position sample) as NDJSON; training rooms record nothing and bot games are tagged as bots. The recorder never draws randomness or changes an outcome, and costs about 1-3% of a tick (`npx tsx packages/server/bench/stepBench.ts --telemetry`). To see the dashboard over those records locally: `npx tsx deployment/cloudflare/scripts/dashboardLocal.ts ./.telemetry`, then open the printed address. On Cloudflare the container posts records to the Worker, which keeps them in R2 and a SQLite Durable Object and serves the dashboard at `/stats`; the secrets and steps are in [docs/CLOUDFLARE_PUBLIC.md](docs/CLOUDFLARE_PUBLIC.md) ("Telemetry and the balance dashboard"), the contract in [docs/TELEMETRY.md](docs/TELEMETRY.md), offline analysis in `testing/telemetry/`.
+
 ## Testing
 
 ```bash

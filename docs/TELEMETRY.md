@@ -1,10 +1,12 @@
 # Telemetry and the balance dashboard
 
-Status: **contract only.** This file, `packages/shared/src/telemetry.ts` (record types, constants, pure helpers) and
-`packages/shared/test/fixtures/telemetryRun.example.ts` (one complete example record) are committed. Nothing records
-yet. Section 11 splits the build between three implementers. The code is the source of truth for every number
-named here: `telemetry.ts` holds the constants, and this document names them rather than repeating their values
-where they may be tuned.
+Status: **built** (parts A, B and C of section 11 are merged). The recorder is `packages/server/src/sim/telemetry.ts`
+with the runtime and sinks in `packages/server/src/telemetry/`; the Worker side (ingest, R2 archive, the
+`TelemetryStore` Durable Object, the `/stats` routes) is `deployment/cloudflare/src/telemetry/` and the page
+`deployment/cloudflare/src/dashboard/page.ts`; offline analysis is `testing/telemetry/`. To view real local records
+through the Worker's own handlers: `npx tsx deployment/cloudflare/scripts/dashboardLocal.ts <dir|file.ndjson>`. The
+code is the source of truth for every number named here: `telemetry.ts` holds the constants, and this document names
+them rather than repeating their values where they may be tuned.
 
 ## 1. Goals and non-goals
 
@@ -688,10 +690,13 @@ Every dashboard response carries these headers:
 Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;
   connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'
 X-Content-Type-Options: nosniff
-Referrer-Policy: no-referrer
+Referrer-Policy: same-origin
 X-Frame-Options: DENY
 Cache-Control: no-store
 ```
+
+`same-origin`, not `no-referrer`: under `no-referrer` a browser sends `Origin: null` on the login form's POST, which the
+login's Origin check refuses, so nobody could sign in. `same-origin` still sends no referrer to any other site.
 
 Rules for the page:
 

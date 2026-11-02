@@ -65,6 +65,11 @@ function amounts(runId: string, slot: number, dir: string, m: Record<string, num
  * Flattens a validated record. `receivedAt` is the ingest's stamp (the record's own `receivedAt` when it carries one,
  * which an R2 reindex does). Unknown or missing optional fields become zeros, never a throw.
  */
+/** A Trophy option carries its gain (kill:ad:6.0); offers compare it by stat (kill:ad), as duel_cards and analyze.py do. */
+export function optionGroup(kind: string, option: string): string {
+  return kind === "trophy" && option.startsWith("kill:") ? option.split(":").slice(0, 2).join(":") : option;
+}
+
 export function toRows(record: RunRecord & { receivedAt?: number }, receivedAt = record.receivedAt ?? record.endedAtEpoch): IngestRows {
   const runId = record.runId;
   const day = telemetryDay(record.endedAtEpoch);
@@ -179,8 +184,9 @@ export function toRows(record: RunRecord & { receivedAt?: number }, receivedAt =
     for (const slot of slots) {
       if (!bySlot.has(slot)) continue;
       const c = choice.has(slot) ? choice.get(slot)! : -2;
+      const kind = str(o.kind, "augment");
       o.options.forEach((option, pos) => {
-        out.offer_options.push({ run_id: runId, i: o.i, slot, pos, kind: str(o.kind, "augment"), option: str(option), picked: b(c === pos), choice: c });
+        out.offer_options.push({ run_id: runId, i: o.i, slot, pos, kind, option: optionGroup(kind, str(option)), picked: b(c === pos), choice: c });
       });
     }
   }

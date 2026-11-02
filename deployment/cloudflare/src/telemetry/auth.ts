@@ -15,7 +15,7 @@ export function dashboardHeaders(contentType?: string): Headers {
   const h = new Headers({
     "Content-Security-Policy": DASHBOARD_CSP,
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    "Referrer-Policy": "same-origin",
     "X-Frame-Options": "DENY",
     "Cache-Control": "no-store",
   });
@@ -100,6 +100,14 @@ export interface LoginEnv {
   MATCHMAKE_LIMITER?: Pick<RateLimit, "limit">;
 }
 
+/** The filters the sign-in form carries back (the page's own query string): a plain query only, never a path or URL. */
+export function loginNext(v: unknown): string {
+  if (typeof v !== "string" || v.length > 512 || !/^[A-Za-z0-9_.,:%=&+-]*$/.test(v)) return "";
+  const sp = new URLSearchParams(v);
+  sp.delete("login");
+  return sp.toString();
+}
+
 export async function handleLogin(request: Request, env: LoginEnv, nowMs: number): Promise<Response> {
   if (request.method !== "POST") {
     const h = dashboardHeaders("text/plain; charset=utf-8");
@@ -116,18 +124,20 @@ export async function handleLogin(request: Request, env: LoginEnv, nowMs: number
     }
   }
   let token = "";
+  let next = "";
   try {
     const length = Number(request.headers.get("Content-Length") ?? "0");
     if (length > 4096) return redirect("/stats?login=failed");
     const form = await request.formData();
     const v = form.get("token");
     token = typeof v === "string" ? v.trim() : "";
+    next = loginNext(form.get("next"));
   } catch {
     return redirect("/stats?login=failed");
   }
-  if (!constantTimeEqual(token, env.DASHBOARD_TOKEN)) return redirect("/stats?login=failed");
+  if (!constantTimeEqual(token, env.DASHBOARD_TOKEN)) return redirect(`/stats?login=failed${next ? `&${next}` : ""}`);
   const value = await sessionValue(env.DASHBOARD_TOKEN, nowMs);
-  return redirect("/stats", `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`);
+  return redirect(next ? `/stats?${next}` : "/stats", `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`);
 }
 
 export function handleLogout(request: Request): Response {

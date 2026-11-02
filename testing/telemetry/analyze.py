@@ -332,7 +332,7 @@ class Stats:
             if not ps:
                 continue
             rows.append({"faction": f, "win": wilson95(sum(p["won"] for p in ps), len(ps)),
-                         "avgPlace": round(mean([p["place"] for p in ps]), 2), "avgKills": round(mean([p["kills"] for p in ps]), 2),
+                         "avgPlace": round(mean([p["place"] for p in ps]), 2), "avgKills": round(mean([p["kills"] + p["bot_kills"] for p in ps]), 2),
                          "avgMobKills": round(mean([p["mob_kills"] for p in ps]), 2),
                          "avgAliveS": round(mean([p["alive_ms"] / 1000 for p in ps]), 1)})
         return self.env(rows)

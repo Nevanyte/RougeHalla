@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { telemetryObjectKey } from "@raid/shared/telemetry";
-import { CHILD_TABLES, toRows } from "../src/telemetry/rows";
+import { CHILD_TABLES, optionGroup, toRows } from "../src/telemetry/rows";
 import { COLUMNS } from "../src/telemetry/store";
 import { EXAMPLE_RUN, miniSet } from "./telemetryHelpers";
 
@@ -38,6 +38,13 @@ describe("toRows", () => {
     expect(r.duel_cards).toEqual([{ run_id: EXAMPLE_RUN.runId, i: 0, side: 0, card: "quickdraw" }]);
     // "FB4VHhYe" = (20,30) (21,30) (22,30): one 4-tile cell, 3 s, human.
     expect(r.heat_cells).toEqual([{ build: "a1b2c3d4e5f60718", day: "2026-11-02", source: "test", bot: 0, cx: 5, cy: 7, secs: 3 }]);
+  });
+
+  it("groups a Trophy option by its stat, as duel_cards does, and leaves other options alone", () => {
+    expect(optionGroup("trophy", "kill:damage:0.0100")).toBe("kill:damage");
+    expect(optionGroup("trophy", "kill:ad")).toBe("kill:ad");
+    expect(optionGroup("stat", "boost:ap")).toBe("boost:ap");
+    expect(optionGroup("augment", "kill:x:y")).toBe("kill:x:y");
   });
 
   it("emits only known columns and every row names its run", () => {

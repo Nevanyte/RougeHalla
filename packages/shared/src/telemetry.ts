@@ -442,6 +442,7 @@ export interface FactionRow {
   faction: FactionId;
   win: RateCell;
   avgPlace: number;
+  /** Player kills per player, bot victims included (PlayerRecord.kills + botKills). */
   avgKills: number;
   avgMobKills: number;
   avgAliveS: number;

@@ -385,7 +385,7 @@ function factions(ctx: Ctx): FactionRow[] {
   const [rw, rb] = runWhere(ctx.q, false);
   const [pw, pb] = playerWhere(ctx.q);
   return all(ctx,
-    `SELECT p.faction AS f, COUNT(*) AS n, SUM(p.won) AS k, AVG(p.place) AS place, AVG(p.kills) AS kills,
+    `SELECT p.faction AS f, COUNT(*) AS n, SUM(p.won) AS k, AVG(p.place) AS place, AVG(p.kills + p.bot_kills) AS kills,
        AVG(p.mob_kills) AS mk, AVG(p.alive_ms) AS alive
      FROM players p JOIN runs r ON r.run_id = p.run_id WHERE ${rw} AND ${FINISHED}${pw} GROUP BY p.faction ORDER BY p.faction`,
     [...rb, ...pb],

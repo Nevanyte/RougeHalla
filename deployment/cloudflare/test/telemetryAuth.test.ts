@@ -44,7 +44,7 @@ function login(body: string, headers: Record<string, string> = { Origin: ORIGIN 
 function expectDashboardHeaders(r: Response) {
   expect(r.headers.get("Content-Security-Policy")).toBe(DASHBOARD_CSP);
   expect(r.headers.get("X-Content-Type-Options")).toBe("nosniff");
-  expect(r.headers.get("Referrer-Policy")).toBe("no-referrer");
+  expect(r.headers.get("Referrer-Policy")).toBe("same-origin");
   expect(r.headers.get("X-Frame-Options")).toBe("DENY");
   expect(r.headers.get("Cache-Control")).toBe("no-store");
 }
@@ -109,6 +109,19 @@ describe("dashboard routes and auth", () => {
     expect((await handleStats(login(`token=${DASH}`, {}), e, NOW))!.status).toBe(403);
     expect((await handleStats(req("/stats/login"), e, NOW))!.status).toBe(405);
     expect((await handleStats(login(`token=${DASH}`), env({}, false), NOW))!.status).toBe(429);
+  });
+
+  it("carries the page's filters back through the sign-in, and nothing but a plain query", async () => {
+    const e = env();
+    const next = encodeURIComponent("source=tournament&pool=bots&login=failed");
+    const ok = (await handleStats(login(`token=${DASH}&next=${next}`), e, NOW))!;
+    expect(ok.headers.get("Location")).toBe("/stats?source=tournament&pool=bots");
+    const wrong = (await handleStats(login(`token=nope&next=${encodeURIComponent("pool=bots")}`), e, NOW))!;
+    expect(wrong.headers.get("Location")).toBe("/stats?login=failed&pool=bots");
+    for (const bad of ["//evil.example", "https://evil.example/", "a=<b>", "x".repeat(600)]) {
+      const r = (await handleStats(login(`token=${DASH}&next=${encodeURIComponent(bad)}`), e, NOW))!;
+      expect(r.headers.get("Location")).toBe("/stats");
+    }
   });
 
   it("refuses an expired, forged or far-future cookie, and the old token's cookie after rotation", async () => {
