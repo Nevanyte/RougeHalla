@@ -25,6 +25,8 @@ export const PLAGUE_ZOMBIE_ASSIST_RANGE = 640;
  */
 export const PLAGUE_ZOMBIE_HP_PER_DEFENSE = 0.002;
 export const PLAGUE_ZOMBIE_AP_SHARE = 0.25;
+/** The most a zombie hit can reach with the SO rider: the pre-rework 3% of the owner's max hp (playtest rule: the zombie hits for less). */
+export const PLAGUE_ZOMBIE_HIT_CAP_SHARE = 0.03;
 
 /** What the owner's build adds to its zombie (both 0 for a plain owner). */
 export interface PlagueZombieBonus { bonusDefense?: number; ap?: number }
@@ -37,6 +39,6 @@ export function plagueZombieStats(ownerMaxHp: number, corpseStacks: number, bonu
   const ap = Number.isFinite(bonus.ap) ? Math.max(0, bonus.ap!) : 0;
   return {
     maxHp: hp * PLAGUE_ZOMBIE_HP_SHARE * growth * (1 + PLAGUE_ZOMBIE_HP_PER_DEFENSE * def),
-    damage: hp * PLAGUE_ZOMBIE_HIT_SHARE * growth + PLAGUE_ZOMBIE_AP_SHARE * ap,
+    damage: Math.min(hp * PLAGUE_ZOMBIE_HIT_SHARE * growth + PLAGUE_ZOMBIE_AP_SHARE * ap, hp * PLAGUE_ZOMBIE_HIT_CAP_SHARE * growth),
   };
 }
