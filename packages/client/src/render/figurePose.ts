@@ -3,7 +3,7 @@
 // tremble while a bow is drawn. Pure numbers (no Phaser): FigureJuice puts them on the display objects, FxView and the
 // views feed it cues. Everything is an offset from the rest pose and goes to nothing when its effect is over, so a fighter
 // at rest is posed exactly as before. All times are performance.now() milliseconds, except `track`'s `t`, the time the
-// positions are drawn at (render time), which a hit-stop holds: a frozen fighter has not stopped walking.
+// positions are drawn at (render time): two samples at the same time do not mean a walking fighter has stopped.
 import { Y_SCALE } from "@raid/shared";
 import { decay, easeInOutSine, easeOutCubic, lerp } from "./juice";
 
@@ -234,7 +234,7 @@ export class FigurePose implements FigureCues {
       return null;
     }
     const dt = t - this.lastT;
-    // Nothing to measure while the drawn time stands still (a hit-stop, or a second look within the same frame).
+    // Nothing to measure on a second look within the same rendered frame.
     if (dt <= 0) return null;
     const dx = x - this.lastX;
     const dy = y - this.lastY;

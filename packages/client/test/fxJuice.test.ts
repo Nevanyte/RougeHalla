@@ -35,6 +35,7 @@ function setup(over: Partial<FxHost> = {}) {
     localId: "me",
     view: (id) => (positions[id] ? { flash: () => {}, cues: cuesFor(id) } : undefined),
     position: (id) => positions[id],
+    canSee: () => true,
     name: () => undefined,
     projectileEnded: () => {},
     localLanded: (fx) => landed.push(fx.amount),
@@ -133,7 +134,7 @@ describe("local auto attack cues", () => {
     expect(hurt).toEqual([]);
   });
 
-  it("anchors the immediate local axe sweep to the moving local position, while remote swings use server coordinates", () => {
+  it("anchors local and remote axe sweeps to each fighter's displayed position and follows them through the fade", () => {
     const { fx, positions, ofKind } = setup();
     // The local input cue has no historical x/y; it starts at the latest local position.
     positions.me = { x: 12, y: 24 };
@@ -141,18 +142,22 @@ describe("local auto attack cues", () => {
     const local = ofKind("graphics")[0]!;
     expect(local.state.position).toEqual([12, 24 * Y_SCALE]);
 
-    // A remote swing is rendered from the server's stamped ground position, even if its current interpolated pose differs.
+    // The delayed hit-time sample may differ from the remote fighter's position as displayed on this client.
     positions.foe = { x: 40, y: 50 };
     fx.enqueue({ kind: "swing", by: "foe", weapon: "axe", a: 1.1, x: 300, y: 70, t: 1000 } as TimedFx);
     fx.update(1000, 6000, true);
     const [remote] = ofKind("graphics").slice(1);
-    expect(remote!.state.position).toEqual([300, 70 * Y_SCALE]);
+    expect(remote!.state.position).toEqual([40, 50 * Y_SCALE]);
 
     positions.me = { x: 36, y: 48 };
+    positions.foe = { x: 80, y: 90 };
     fx.update(1000, 6090, true);
     expect(local.state.position).toEqual([36, 48 * Y_SCALE]);
-    expect(remote!.state.position).toEqual([300, 70 * Y_SCALE]);
+    expect(remote!.state.position).toEqual([80, 90 * Y_SCALE]);
     expect(local.state.alpha as number).toBeCloseTo(0.5);
+    delete positions.foe; // the host's position callback hides a fighter concealed by fog
+    fx.update(1000, 6120, true);
+    expect(remote!.state.visible).toBe(false);
     fx.update(1000, 6180, true);
     expect(local.state.visible).toBe(false);
     expect(remote!.state.visible).toBe(false);

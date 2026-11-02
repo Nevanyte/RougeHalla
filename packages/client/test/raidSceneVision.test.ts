@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EFFECT_HIDDEN, QUEST_ITEM_PREFIX, mapFromTiles } from "@raid/shared";
+import { EFFECT_HIDDEN, QUEST_ITEM_PREFIX, mapFromTiles, packFx } from "@raid/shared";
 import { RaidScene } from "../src/scenes/RaidScene";
 import { RaidVision } from "../src/render/RaidVision";
 
@@ -14,10 +14,10 @@ afterEach(() => vi.restoreAllMocks());
 
 function rig() {
   const map = mapFromTiles(150, 100, new Uint8Array(150 * 100), 17);
-  const me = {x:400,y:400,status:"alive",effects:0,faction:"fire",huntTarget:""};
+  const me = {x:400,y:400,status:"alive",effects:0,faction:"fire",huntTarget:"",hp:500,maxHp:500,barrier:0};
   const foe = {x:1100,y:400,status:"alive",effects:0,faction:"frost"};
   const mob = {x:1100,y:430,status:"alive",effects:0,kind:"mob"};
-  const state: any = {seed:17,gatesLocked:false,training:false,phase:"active",serverTime:1000,
+  const state: any = {seed:17,gatesLocked:false,training:false,phase:"active",serverTime:1000,roster:["me","foe"],
     players:new Map([["me",me],["foe",foe]]),mobs:new Map([["mob",mob]]),containers:new Map(),quests:new Map(),plagueCorpses:new Map(),fields:new Map(),camps:[]};
   const noop = () => {};
   const view = {update:noop};
@@ -42,7 +42,85 @@ function rig() {
   return {scene,state,me,foe,mob,frame:(time:number)=>{now=time;state.serverTime=time;scene.update(time);}};
 }
 
+function damageHarness() {
+  const {scene,state,me,frame} = rig();
+  Object.assign(me, { hp: 100, maxHp: 100, barrier: 0 });
+  frame(1000);
+  const order: string[] = [];
+  const confirmed: Array<{ amount: number; hp: number; barrier: number }> = [];
+  const localView = scene.views.get("me");
+  localView.update.mockImplementation(() => order.push(`view:${me.hp}:${me.barrier}`));
+  order.length = 0;
+  const fx = {
+    enqueue: vi.fn(),
+    update: vi.fn(),
+    confirmedLocalHit: vi.fn((event: { amount: number }) => {
+      confirmed.push({ amount: event.amount, hp: me.hp, barrier: me.barrier });
+      order.push(`hit:${me.hp}:${me.barrier}`);
+    }),
+  };
+  scene.fx = fx;
+  scene.ground.combat = { note: vi.fn() };
+  return { scene, state, me, frame, order, confirmed, fx };
+}
+
+function hitBatch(id: string, amount: number, t: number, count = 1) {
+  return packFx(
+    Array.from({ length: count }, () => ({ kind: "hit" as const, id, by: "foe", amount, weapon: "sword" as const })),
+    t,
+    { roster: new Map([["me", 0], ["foe", 1]]) },
+  );
+}
+
 describe("RaidScene vision integration", () => {
+  it("waits for the local HP/barrier patch and presents after PlayerView updates in that frame", () => {
+    const {scene,me,frame,order,confirmed,fx} = damageHarness();
+    scene.onFxBatch(hitBatch("me", 30, 1100));
+    frame(1000);
+    expect(fx.confirmedLocalHit).not.toHaveBeenCalled();
+
+    Object.assign(me, { hp: 70, barrier: 5 });
+    frame(1100);
+    expect(confirmed).toEqual([{ amount: 30, hp: 70, barrier: 5 }]);
+    expect(order).toEqual(["view:100:0", "view:70:5", "hit:70:5"]);
+    frame(1116);
+    expect(fx.confirmedLocalHit).toHaveBeenCalledOnce();
+  });
+
+  it("presents a patch-before-event local hit on the next frame without waiting for interpolation", () => {
+    const {scene,me,frame,confirmed,fx} = damageHarness();
+    Object.assign(me, { hp: 80, barrier: 0 });
+    frame(1200);
+    scene.interp.renderTime = () => 900; // remote render remains behind the already-applied server patch
+    scene.onFxBatch(hitBatch("me", 20, 1150));
+    expect(fx.confirmedLocalHit).not.toHaveBeenCalled();
+    frame(1216);
+    expect(confirmed).toEqual([{ amount: 20, hp: 80, barrier: 0 }]);
+    expect(fx.update).toHaveBeenLastCalledWith(900, 1216, true);
+  });
+
+  it("keeps remote hits on FxView's delayed queue and preserves same-tick barrier-only multihits", () => {
+    const remote = damageHarness();
+    remote.scene.onFxBatch(hitBatch("foe", 12, 1100));
+    expect(remote.fx.enqueue).toHaveBeenCalledOnce();
+    expect(remote.fx.enqueue.mock.calls[0]![0]).toMatchObject({ kind: "hit", id: "foe", amount: 12, t: 1100 });
+    expect(remote.fx.confirmedLocalHit).not.toHaveBeenCalled();
+    remote.scene.interp.renderTime = () => 1000;
+    remote.frame(1100);
+    expect(remote.fx.update).toHaveBeenLastCalledWith(1000, 1100, true);
+
+    const local = damageHarness();
+    Object.assign(local.me, { barrier: 16 });
+    local.frame(1050);
+    local.scene.onFxBatch(hitBatch("me", 8, 1100, 2));
+    Object.assign(local.me, { hp: 100, barrier: 0 }); // both hits were absorbed by the old barrier; HP did not change
+    local.frame(1100);
+    expect(local.confirmed).toEqual([
+      { amount: 8, hp: 100, barrier: 0 }, { amount: 8, hp: 100, barrier: 0 },
+    ]);
+    expect(local.fx.confirmedLocalHit).toHaveBeenCalledTimes(2);
+  });
+
   it("feeds the local weapon guide current drawn position/aim and hides it for the map, peeking or results", () => {
     const {scene,state,me,frame} = rig();
     Object.assign(me, { weapon0: "bow", weapon1: "wand", slot: 0, facing: 0 });

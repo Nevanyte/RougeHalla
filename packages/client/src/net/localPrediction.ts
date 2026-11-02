@@ -14,6 +14,7 @@ import {
   type FactionSpec, type GameMap, type TimedFx, type Vec2, type WeaponTimings,
 } from "@raid/shared";
 import { LocalMotion, ORDER_EXPIRE_MS, seqAcked, type AuthSample, type FrameInput } from "./localMotion";
+import type { LocalRangedPause } from "./localAutos";
 
 /** The synced fields of the local player this reads. */
 export interface LocalFighter {
@@ -51,6 +52,11 @@ interface Root {
 interface Haste { from: number; until: number; bonus: number }
 /** How long (ms) after one ends a known root or haste still counts as "told by fx": the synced bit lags it, and must not extend it. */
 const FX_GRACE_MS = 2000;
+/** A confirmed server release timestamp and its bow draw mirror should differ only by clock rounding. */
+const RANGED_PAUSE_CONFIRM_TOLERANCE_MS = 10;
+/** The order-delay estimate can be off by a tick; cap bow draw matching below the fastest ranged shot cadence. */
+const BOW_DRAW_SCHEDULE_TOLERANCE_MS = 120;
+interface RangedPauseRecord extends LocalRangedPause { confirmedUntil?: number }
 
 /** Where the local fighter is drawn from this frame. */
 export type LocalDrawSource = "predicted" | "frozen" | "snapshot";
@@ -95,6 +101,9 @@ export class LocalPrediction {
   private seq = 0;
   /** The axe's root after its swing has landed, in server time: [from, until). */
   private weaponRoot: { from: number; until: number } | null = null;
+  private predictedRangedPause: LocalRangedPause | null = null;
+  /** Recent spans survive release/cancel so delayed FX and bow draw patches cannot replay their movement stop. */
+  private readonly rangedPauseHistory: RangedPauseRecord[] = [];
   private axeRoot: { from: number; until: number } | null = null;
   /** Server-time spans of stuns, roots and casts, and of haste (Last Stand), as the fx told them (or the cast predicted them). */
   private roots: Root[] = [];
@@ -113,6 +122,8 @@ export class LocalPrediction {
     this.seq = 0;
     this.axeRoot = null;
     this.weaponRoot = null;
+    this.predictedRangedPause = null;
+    this.rangedPauseHistory.length = 0;
     this.roots = [];
     this.hastes = [];
     this.slipFn = null;
@@ -134,6 +145,29 @@ export class LocalPrediction {
     }
     if (cast.blink) this.motion.blink(cast.seq, c, cast.blink.landing);
     else this.motion.noteOrder(cast.seq, c);
+  }
+
+  /** A LocalAutos pause translated into this prediction's model/server-time domain; null releases its local hold. */
+  setPredictedRangedPause(pause: LocalRangedPause | null): void {
+    this.predictedRangedPause = pause;
+    if (!pause) return;
+    const old = this.rangedPauseHistory.findIndex((p) => p.id === pause.id);
+    if (old >= 0) this.rangedPauseHistory[old] = { ...this.rangedPauseHistory[old]!, ...pause };
+    else this.rangedPauseHistory.push({ ...pause });
+    if (this.rangedPauseHistory.length > 16) this.rangedPauseHistory.splice(0, this.rangedPauseHistory.length - 16);
+  }
+
+  /** Confirms a matched local ranged attack; its server echo must not add another pause after local release. */
+  confirmPredictedRangedPause(id: string, authoritativeUntil: number): void {
+    const pause = this.rangedPauseHistory.find((p) => p.id === id);
+    if (!pause || !Number.isFinite(authoritativeUntil)) return;
+    pause.confirmedUntil = authoritativeUntil;
+    if (this.weaponRoot && Math.abs(this.weaponRoot.until - authoritativeUntil) <= RANGED_PAUSE_CONFIRM_TOLERANCE_MS) this.weaponRoot = null;
+  }
+
+  /** The nearest local bow control id for a server draw patch, or undefined when it is outside the bounded timing window. */
+  matchPredictedBowDraw(drawStartedAt: number, windupMs: number): string | undefined {
+    return this.nearestScheduledBowPause(drawStartedAt + windupMs)?.id;
   }
 
   /**
@@ -161,7 +195,11 @@ export class LocalPrediction {
     switch (fx.kind) {
       case "windup": {
         if (fx.by !== localId) break;
-        this.weaponRoot = { from: fx.weapon === "bow" || fx.weapon === "wand" ? Math.max(fx.t, fx.t + fx.ms - RANGED_RELEASE_PAUSE_MS) : fx.t, until: fx.t + fx.ms };
+        const ranged = fx.weapon === "bow" || fx.weapon === "wand";
+        const weaponRootSpan = { from: ranged ? Math.max(fx.t, fx.t + fx.ms - RANGED_RELEASE_PAUSE_MS) : fx.t, until: fx.t + fx.ms };
+        if (fx.weapon === "bow" || fx.weapon === "wand") {
+          if (!this.matchesConfirmedRangedPause(fx.weapon, fx.t + fx.ms)) this.weaponRoot = weaponRootSpan;
+        } else this.weaponRoot = weaponRootSpan;
         if (fx.weapon !== "axe") break;
         // The axe roots from its start for `root` seconds (weapons.ts; the server's rootUntil), and the swing lands `fx.ms` in:
         // what follows the landing is the root this knows. The mirrors (attack speed, windup) shape both, as the server's timingsOf.
@@ -174,11 +212,14 @@ export class LocalPrediction {
       case "cancel":
       case "stagger":
         // Before it landed, the attack's root goes with it; after, it stays.
-        if (fx.id === localId) this.dropRootBefore(fx.t);
+        if (fx.id === localId) { this.setPredictedRangedPause(null); this.dropRootBefore(fx.t); }
         break;
       case "status":
         if (fx.id !== localId) break;
-        if (fx.status === "stun" || fx.status === "root") this.roots.push({ kind: "status", from: fx.t, until: fx.t + fx.ms });
+        if (fx.status === "stun" || fx.status === "root") {
+          if (fx.status === "stun") this.setPredictedRangedPause(null);
+          this.roots.push({ kind: "status", from: fx.t, until: fx.t + fx.ms });
+        }
         else if (fx.status === "haste") this.hastes.push({ from: fx.t, until: fx.t + fx.ms, bonus: LAST_STAND_SPEED_BONUS });
         break;
       case "cast":
@@ -196,6 +237,7 @@ export class LocalPrediction {
         if (fx.id === localId) {
           this.axeRoot = null;
           this.weaponRoot = null;
+          this.setPredictedRangedPause(null);
           this.roots = [];
           this.hastes = [];
           // A training room puts the fighter back on its feet in place, with no walk left: the sample that follows snaps.
@@ -206,6 +248,7 @@ export class LocalPrediction {
         // Everyone is moved and every walk cancelled: the sample from this tick on is a cut, however short the jump. Statuses end.
         this.axeRoot = null;
         this.weaponRoot = null;
+        this.setPredictedRangedPause(null);
         this.roots = [];
         this.hastes = [];
         this.motion.cut(fx.t);
@@ -217,6 +260,7 @@ export class LocalPrediction {
 
   /** The weapon in hand changed at server time `t` (a swap cancels an attack still winding up, and its root). */
   noteWeaponChange(t: number): void {
+    this.setPredictedRangedPause(null);
     this.dropRootBefore(t);
   }
 
@@ -230,12 +274,16 @@ export class LocalPrediction {
     huntTarget?: Vec2,
   ): FrameInput {
     const t = c + this.motion.delay;
+    this.pruneRangedPauseHistory(t);
+    const predictedRangedPause = this.predictedRangedPause !== null
+      && t >= this.predictedRangedPause.from && t < this.predictedRangedPause.until;
     const input: FrameInput = {
       alive: active,
       speedMult: me ? this.speedMult(t, me, others, map) : 1,
-      rooted: this.weaponRootedAt(t, me) || (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
+      rooted: predictedRangedPause || this.weaponRootedAt(t, me) || (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
       aiming,
     };
+    if (predictedRangedPause) input.predictedRangedPause = true;
     if (huntTarget) input.huntTarget = huntTarget;
     const slipAt = me && map ? this.slipAtFor(map, me.faction) : undefined;
     if (slipAt && map) {
@@ -312,7 +360,27 @@ export class LocalPrediction {
     if ((me.slot === 1 ? me.weapon1 : me.weapon0) !== "bow") return false;
     const timing = mirrorTimings(FACTIONS[me.faction], "bow", decodeMult(me.asMult), decodeMult(me.windupMult));
     const until = me.drawStartedAt + timing.windup * 1000;
+    if (this.matchesConfirmedRangedPause("bow", until) || this.nearestScheduledBowPause(until) !== undefined) return false;
     return t >= Math.max(me.drawStartedAt, until - RANGED_RELEASE_PAUSE_MS) && t < until;
+  }
+
+  private matchesConfirmedRangedPause(weapon: "bow" | "wand", until: number): boolean {
+    return this.rangedPauseHistory.some((p) => p.weapon === weapon && p.confirmedUntil !== undefined
+      && Math.abs(p.confirmedUntil - until) <= RANGED_PAUSE_CONFIRM_TOLERANCE_MS);
+  }
+
+  private nearestScheduledBowPause(until: number): RangedPauseRecord | undefined {
+    let best: RangedPauseRecord | undefined;
+    let error = BOW_DRAW_SCHEDULE_TOLERANCE_MS + Number.EPSILON;
+    for (const pause of this.rangedPauseHistory) {
+      const candidateError = pause.weapon === "bow" ? Math.abs(pause.until - until) : Infinity;
+      if (candidateError < error) { error = candidateError; best = pause; }
+    }
+    return best;
+  }
+
+  private pruneRangedPauseHistory(t: number): void {
+    while (this.rangedPauseHistory.length > 0 && this.rangedPauseHistory[0]!.until + FX_GRACE_MS < t) this.rangedPauseHistory.shift();
   }
 
   private dropRootBefore(t: number): void {

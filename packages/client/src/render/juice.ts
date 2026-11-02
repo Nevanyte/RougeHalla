@@ -1,7 +1,7 @@
-// "Juice": cheap game-feel filler (anticipation, lunges, squash and stretch, dust, impact dots, a hit-stop and a tiny camera
+// "Juice": cheap game-feel filler (anticipation, lunges, squash and stretch, dust, impact dots, and a tiny camera
 // shake). Presentation only: nothing here is read by the sim or sent to the server. Two switches live here, and every juice
 // number is multiplied by `juiceScale(kind)`:
-//   "motion": things that move the picture (offsets, squash, shake, hit-stop, dust drift). Off under the OS's
+//   "motion": things that move the picture (offsets, squash, shake, dust drift). Off under the OS's
 //             prefers-reduced-motion setting.
 //   "flash":  things that only change colour or brightness. They stay under reduced motion.
 // Set JUICE_ENABLED to false to turn all of it off, or lower JUICE_INTENSITY to taste (1 = as designed).

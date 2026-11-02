@@ -31,7 +31,7 @@ function wiredScene() {
     localAutos: LocalAutos;
     room: { sessionId: string; state: { roster: string[]; players: Map<string, unknown> } };
     ground: { combat: { note: (event: unknown) => void } };
-    predict: { noteFx: (...args: unknown[]) => void };
+    predict: { noteFx: (...args: unknown[]) => void; confirmPredictedRangedPause: (...args: unknown[]) => void };
     visiblePosition: (id: string) => { x: number; y: number } | undefined;
     localClock: (now: number) => number;
     warnDropped: () => void;
@@ -43,7 +43,7 @@ function wiredScene() {
   raid.localAutos = localAutos;
   raid.room = { sessionId: "me", state: { roster: ["me", "foe"], players: new Map([["me", {}]]) } };
   raid.ground = { combat: { note: (event) => groundNotes.push(event) } };
-  raid.predict = { noteFx: (...args) => predictNotes.push(args) };
+  raid.predict = { noteFx: (...args) => predictNotes.push(args), confirmPredictedRangedPause: vi.fn() };
   raid.visiblePosition = (id) => positions[id];
   raid.localClock = (now) => now;
   raid.warnDropped = () => {};
@@ -51,6 +51,31 @@ function wiredScene() {
 }
 
 describe("local autos wired through RaidScene and FxView", () => {
+  it.each([150, 280])("maps a local ranged pause onto the movement model clock with %i ms order delay", delay => {
+    const raid = new RaidScene() as unknown as {
+      localAutos: LocalAutos;
+      predict: { motion: { delay: number }; setPredictedRangedPause: ReturnType<typeof vi.fn> };
+      localClock: (now: number) => number;
+      syncLocalRangedPause: (now: number) => void;
+    };
+    const setPause = vi.fn();
+    raid.predict = { motion: { delay }, setPredictedRangedPause: setPause };
+    raid.localClock = now => 1_000_000 + now - 500;
+    const bow = { key: "0:bow", weapon: "bow" as const, a: 0, held: true, enabled: true,
+      intervalMs: 900, windupMs: 500, readyInMs: 0 };
+    raid.localAutos.press(bow, 500, () => {});
+    raid.syncLocalRangedPause(500);
+    expect(setPause).toHaveBeenLastCalledWith({ id: "local-auto-1", weapon: "bow",
+      from: 1_000_300 + delay, until: 1_000_500 + delay });
+    // Clock mapping remains anchored to the same visual release across later frames.
+    raid.syncLocalRangedPause(700);
+    expect(setPause).toHaveBeenLastCalledWith({ id: "local-auto-1", weapon: "bow",
+      from: 1_000_300 + delay, until: 1_000_500 + delay });
+    raid.localAutos.frame({ ...bow, held: false }, 1000, () => {});
+    raid.syncLocalRangedPause(1000);
+    expect(setPause).toHaveBeenLastCalledWith(null);
+  });
+
   it("shows a melee cue immediately, predicts a bow launch at the current local origin, and never reports damage", () => {
     const { scene: phaserScene, ofKind } = fakeScene();
     const pose = new FigurePose();
@@ -145,10 +170,24 @@ describe("local autos wired through RaidScene and FxView", () => {
       x: 80, y: 40, reason: "range",
     }], 5_900, { launches: [launch], announced: new Set(["server-arrow"]) });
     raid.onFxBatch(batch);
+    expect(raid.predict.confirmPredictedRangedPause).toHaveBeenCalledExactlyOnceWith("local-auto-1", 5_900);
     expect(launchCue).toHaveBeenCalledTimes(1); // owned launch echo adds no recoil
     expect(localAutos.consume("launch", "bow", 6_000)).toBeUndefined();
     expect(projectiles.has("server-arrow")).toBe(true);
     expect(projectiles.has("local-auto-1")).toBe(false); // preview was claimed by the server id
+    fx.destroy();
+  });
+
+  it("correlates a wand windup before applying its authoritative movement root", () => {
+    vi.spyOn(performance, "now").mockReturnValue(1_100);
+    const { raid, localAutos, fx } = wiredScene();
+    const note = vi.spyOn(raid.predict, "noteFx");
+    const confirm = vi.mocked(raid.predict.confirmPredictedRangedPause);
+    localAutos.press({ key: "0:wand", weapon: "wand", a: 0, held: true, enabled: true,
+      intervalMs: 1000, windupMs: 450, readyInMs: 0, targetId: "foe" }, 1000, visual => raid.showLocalAuto(visual, 1000));
+    raid.onFxBatch(packFx([{ kind: "windup", by: "me", weapon: "wand", a: 0, ms: 450 }], 1100));
+    expect(confirm).toHaveBeenCalledExactlyOnceWith("local-auto-1", 1550);
+    expect(confirm.mock.invocationCallOrder[0]).toBeLessThan(note.mock.invocationCallOrder[0]!);
     fx.destroy();
   });
 

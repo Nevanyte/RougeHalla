@@ -18,7 +18,7 @@ function setup() {
   return { fx, localHits };
 }
 
-const hit = (id: string, amount: number, t: number): TimedFx => ({ kind: "hit", id, by: "foe", amount, weapon: "sword", t });
+const hit = (id: string, amount: number, t: number): Extract<TimedFx, { kind: "hit" }> => ({ kind: "hit", id, by: "foe", amount, weapon: "sword", t });
 
 describe("FxView local hits", () => {
   it("reports a hit on the local player when render time reaches it, not when it arrives", () => {
@@ -44,6 +44,41 @@ describe("FxView local hits", () => {
     fx.enqueue(hit("me", 30, 5000));
     fx.update(0, 0, false);
     expect(localHits).toEqual([30]);
+  });
+
+  it("plays a confirmed local hit immediately once without entering the delayed queue", () => {
+    const localHits: number[] = [];
+    const localHurt: number[] = [];
+    const flashes: string[] = [];
+    const { scene, made, ofKind } = fakeScene();
+    const fx = new FxView(scene, {
+      localId: "me",
+      view: (id) => ({ flash: () => flashes.push(id) }),
+      position: (id) => id === "me" ? { x: 10, y: 20 } : { x: 0, y: 0 },
+      name: () => undefined,
+      projectileEnded: () => {},
+      localHit: (event) => localHits.push(event.amount),
+      localHurt: (event) => localHurt.push(event.amount),
+    });
+    fx.update(5000, 0, true); // the authoritative FX is old in render time, but the matching state patch just arrived
+    fx.confirmedLocalHit(hit("me", 80, 1000), 6000);
+    expect(localHits).toEqual([80]);
+    expect(localHurt).toEqual([80]);
+    expect(flashes).toEqual(["me"]);
+    expect(ofKind("text").map((text) => text.state.text)).toContain("80");
+    expect(ofKind("graphics").length).toBeGreaterThan(0);
+
+    fx.update(5000, 6016, true);
+    expect(localHits).toEqual([80]);
+    expect(localHurt).toEqual([80]);
+    expect(flashes).toEqual(["me"]);
+    expect(made.some((object) => object.kind === "text" && object.state.text === "80")).toBe(true);
+  });
+
+  it("rejects a confirmed-local call for a remote victim", () => {
+    const { fx, localHits } = setup();
+    fx.confirmedLocalHit(hit("foe", 80, 1000), 6000);
+    expect(localHits).toEqual([]);
   });
 });
 

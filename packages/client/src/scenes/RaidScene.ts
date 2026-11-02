@@ -14,6 +14,7 @@ import { keyboardMoveGoal, MOVEMENT_KEYS } from "../net/keyboardMovement";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
+import { ConfirmedDamage } from "../net/confirmedDamage";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
 } from "../net/localPrediction";
@@ -135,6 +136,7 @@ export class RaidScene extends Phaser.Scene {
   private rightAttackHeld = false;
   private directionalAttackHeld = false;
   private readonly localAutos = new LocalAutos();
+  private readonly confirmedDamage = new ConfirmedDamage();
   private readonly movementKeys = new Set<string>();
   private keyboardWasMoving = false;
   private keyboardChanged = false;
@@ -245,7 +247,7 @@ export class RaidScene extends Phaser.Scene {
   /** The areas the state carries (a Trial's zone, a Swarm's cloud, Blaze Step's trail), and the casts' telegraphs and impacts. */
   private fieldView!: FieldView;
   private wishFx!: WishFx;
-  /** Juice (render/juice.ts): the hit-stop that holds the world's draw time and the camera shake. */
+  /** Cosmetic camera reactions; the interpolated world clock remains continuous. */
   private juice!: ScreenJuice;
   private unbindFx: (() => void) | null = null;
   private readonly warnDropped = dropWarner();
@@ -341,6 +343,7 @@ export class RaidScene extends Phaser.Scene {
     this.rightAttackHeld = false;
     this.directionalAttackHeld = false;
     this.localAutos.reset();
+    this.confirmedDamage.reset();
     this.lockId = "";
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
@@ -507,8 +510,7 @@ export class RaidScene extends Phaser.Scene {
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
     // (fx playback, input timestamps between frames) reuses these values.
     const trueT = this.interp.renderTime(now);
-    // Juice: the world (remote fighters, projectiles, fx) is drawn at renderT, which a hit-stop holds briefly behind trueT
-    // after the local player lands a hit. The local fighter is drawn from trueT, so its movement and turning never stall.
+    // Opponents, projectiles, and queued effects share a continuous interpolation timeline.
     const renderT = this.juice.worldTime(trueT, now);
     this.renderT = renderT;
     this.clockSynced = this.interp.clock.synced;
@@ -524,6 +526,7 @@ export class RaidScene extends Phaser.Scene {
     this.steerKeyboard(time);
     if (this.directionalAttackHeld && !pointer.leftButtonDown()) this.releaseAttack();
     // After this frame's orders, before anything reads the local fighter's position.
+    this.syncLocalRangedPause(now);
     this.stepLocal(now, state);
 
     const visionMe = state.players.get(this.room.sessionId);
@@ -540,7 +543,7 @@ export class RaidScene extends Phaser.Scene {
     const signatures = state.phase === "active";
     const seen = new Set<string>();
     state.players.forEach((p, id) => {
-      const drawT = id === this.room.sessionId ? trueT : renderT; // juice: the local fighter is not held by a hit-stop
+      const drawT = id === this.room.sessionId ? trueT : renderT;
       // The local fighter is drawn from its prediction while it fights on its feet; everyone else, and it when it does not, from the snapshots.
       const local = id === this.room.sessionId;
       const source = local ? this.localSource(p, state) : "snapshot";
@@ -611,6 +614,7 @@ export class RaidScene extends Phaser.Scene {
     this.campPatience?.update(state.camps, state.phase === "active" && !state.training);
     const auto = this.localAutoInput(now);
     if (auto) this.localAutos.frame(auto, now, visual => this.showLocalAuto(visual, now));
+    this.syncLocalRangedPause(now);
     this.projectiles.update(renderT, (id, t, out) => {
       const fighter = state.players.get(id) ?? state.mobs.get(id);
       if (!fighter || fighter.status !== "alive" || !targetable(fighter.effects) || !this.visiblePosition(id)) return false;
@@ -686,6 +690,7 @@ export class RaidScene extends Phaser.Scene {
     this.streamAim(me, now);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
+    this.flushConfirmedDamage(state, now);
     this.fx.update(renderT, now, this.clockSynced);
     this.wishFx.update(now);
     this.trackArenaDamage(me, state);
@@ -893,6 +898,13 @@ export class RaidScene extends Phaser.Scene {
   private observeLocal(state: RaidState): void {
     const me = state.players?.get(this.room.sessionId);
     if (me) {
+      // Bow draws have no windup FX. Correlate their state echo with the local schedule before root fallback reads it.
+      const held = me.slot === 1 ? me.weapon1 : me.weapon0;
+      if (held === "bow" && me.drawStartedAt > 0 && isFactionId(me.faction)) {
+        const windupMs = mirrorTimings(FACTIONS[me.faction], "bow", decodeMult(me.asMult), decodeMult(me.windupMult)).windup * 1000;
+        const predicted = this.predict.matchPredictedBowDraw(me.drawStartedAt, windupMs);
+        if (predicted) this.predict.confirmPredictedRangedPause(predicted, me.drawStartedAt + windupMs);
+      }
       this.predict.observe(
         { x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq, locked: me.attackTarget !== "", displaceSeq: me.displaceSeq },
         this.localClock(performance.now()),
@@ -1248,6 +1260,7 @@ export class RaidScene extends Phaser.Scene {
     const now = performance.now();
     const auto = this.localAutoInput(now);
     if (auto) this.localAutos.press({ ...auto, a }, now, visual => this.showLocalAuto(visual, now));
+    this.syncLocalRangedPause(now);
   }
 
   private releaseAttack(): void {
@@ -1294,8 +1307,16 @@ export class RaidScene extends Phaser.Scene {
 
   private cancelLocalAutos(now: number): void {
     this.localAutos.cancel();
+    this.syncLocalRangedPause(now);
     this.fx?.dropWindups(this.room.sessionId, this.localClock(now), now);
     this.views.get(this.room.sessionId)?.cues.windupEnd(now);
+  }
+
+  private syncLocalRangedPause(now: number): void {
+    const pause = this.localAutos.rangedPause();
+    // Auto visuals use performance time; LocalMotion evaluates roots at the estimated server clock plus order delay.
+    const offset = this.localClock(now) - now + this.predict.motion.delay;
+    this.predict.setPredictedRangedPause(pause ? { ...pause, from: pause.from + offset, until: pause.until + offset } : null);
   }
 
   private sendTarget(pointer: Phaser.Input.Pointer): void {
@@ -1611,6 +1632,7 @@ export class RaidScene extends Phaser.Scene {
         }
         const weapon = launch.kind === "arrow" ? "bow" : "wand";
         const predicted = this.localAutos.consume("launch", weapon, now);
+        if (predicted) this.predict.confirmPredictedRangedPause(predicted, launch.t);
         this.projectiles.noteLocalLaunch(launch, predicted);
         if (!predicted || !this.localAutos.wasReleased(predicted)) this.fx.localAuto("launch", weapon, Math.atan2(launch.vy, launch.vx), 0, now);
       } else {
@@ -1620,11 +1642,22 @@ export class RaidScene extends Phaser.Scene {
     }
     for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
       this.ground.combat.note(fx);
+      const autoEvent = (fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId ? fx : null;
+      const now = performance.now();
+      const freshAuto = autoEvent !== null && this.localClock(now) - autoEvent.t <= LOCAL_AUTO_STALE_MS;
+      const predictedAuto = freshAuto && autoEvent ? this.localAutos.consume(autoEvent.kind, autoEvent.weapon, now) : undefined;
+      if (predictedAuto && fx.kind === "windup" && (fx.weapon === "bow" || fx.weapon === "wand")) {
+        this.predict.confirmPredictedRangedPause(predictedAuto, fx.t + fx.ms);
+      }
       this.predict.noteFx(fx, this.room.sessionId, this.room.state.players.get(this.room.sessionId));
-      if ((fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId) {
-        const now = performance.now();
-        if (this.localClock(now) - fx.t <= LOCAL_AUTO_STALE_MS && !this.localAutos.consume(fx.kind, fx.weapon, now)) {
-          this.fx.localAuto(fx.kind, fx.weapon, fx.a, fx.kind === "windup" ? fx.ms : 0, now);
+      if (fx.kind === "hit" && fx.id === this.room.sessionId) {
+        // FX precede their state patch on the wire. Present the confirmed hit in the frame that has its HP/barrier values.
+        this.confirmedDamage.enqueue(fx, performance.now());
+        continue;
+      }
+      if (autoEvent) {
+        if (freshAuto && !predictedAuto) {
+          this.fx.localAuto(autoEvent.kind, autoEvent.weapon, autoEvent.a, autoEvent.kind === "windup" ? autoEvent.ms : 0, now);
         }
         continue;
       }
@@ -1652,6 +1685,7 @@ export class RaidScene extends Phaser.Scene {
           if (this.localClock(now) - fx.t <= LOCAL_AUTO_STALE_MS) {
             const predicted = this.projectiles.has(fx.id) ? undefined
               : this.localAutos.consume("launch", fx.proj === "arrow" ? "bow" : "wand", now);
+            if (predicted) this.predict.confirmPredictedRangedPause(predicted, fx.t0);
             if (!this.projectiles.has(fx.id) && (!predicted || !this.localAutos.wasReleased(predicted))) {
               this.fx.localAuto("launch", fx.proj === "arrow" ? "bow" : "wand", Math.atan2(fx.y - fx.y0, fx.x - fx.x0), 0, now);
             }
@@ -1662,6 +1696,11 @@ export class RaidScene extends Phaser.Scene {
       }
       this.fx.enqueue(fx);
     }
+  }
+
+  private flushConfirmedDamage(state: RaidState, now: number): void {
+    if (!state.players.has(this.room.sessionId)) { this.confirmedDamage.reset(); return; }
+    this.confirmedDamage.drain(state.serverTime, now, fx => this.fx.confirmedLocalHit(fx, now));
   }
 
   private teardown(): void {
@@ -1692,6 +1731,7 @@ export class RaidScene extends Phaser.Scene {
     this.unbindQuestReveal = null;
     this.cancelLocalAutos(performance.now());
     this.localAutos.reset();
+    this.confirmedDamage.reset();
     this.predict.reset();
     this.juice.reset();
     this.projectiles.destroy();

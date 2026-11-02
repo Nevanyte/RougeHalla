@@ -1,4 +1,4 @@
-import { ATTACK_BUFFER_MS, type WeaponId } from "@raid/shared";
+import { ATTACK_BUFFER_MS, RANGED_RELEASE_PAUSE_MS, type WeaponId } from "@raid/shared";
 
 export interface AutoInput {
   key: string;
@@ -19,6 +19,8 @@ export interface AutoVisual {
   ms: number;
   targetId?: string;
 }
+/** A pending ranged attack's pause, in the performance clock used by `press` and `frame`. */
+export interface LocalRangedPause { id: string; weapon: "bow" | "wand"; from: number; until: number }
 interface Prediction {
   id: string;
   weapon: WeaponId;
@@ -84,6 +86,16 @@ export class LocalAutos {
   }
 
   wasReleased(id: string): boolean { return this.predictions.some(p => p.id === id && p.released); }
+
+  /** The pending ranged shot's pause/release timeline, in local performance time; null at release/cancel. */
+  rangedPause(): LocalRangedPause | null {
+    const pending = this.pending;
+    const weapon = pending?.visual.weapon;
+    if (!pending || (weapon !== "bow" && weapon !== "wand")) return null;
+    const windupMs = pending.visual.ms;
+    return { id: pending.visual.id, weapon,
+      from: pending.at - Math.min(RANGED_RELEASE_PAUSE_MS, windupMs), until: pending.at };
+  }
 
   /** A locally controlled bow ignores delayed draw patches through the release/confirmation window. */
   bowPull(now: number): number | undefined {

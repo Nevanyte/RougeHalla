@@ -60,7 +60,7 @@ const CAMP_RING_WIDTH = 280;
 const CAMP_RING_DEDUPE_MS = 250;
 /** Launch cues wait in a queue of their own, so a stalled tab's flood of them can never push a real fx out of `pending`. */
 const MAX_LAUNCH_CUES = 48;
-/** A juice cue (hit-stop, shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
+/** A juice cue (figure reaction, camera shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
 const FRESH_MS = 250;
 /** How far from a launch's origin the shooter may be drawn after interpolation. */
 const LAUNCH_NEAR = 56;
@@ -132,7 +132,7 @@ export interface FxHost {
   projectileEnded(id: string): void;
   /** A hit on the local player is due (at render time, together with its flash and number): drives the screen vignette. */
   localHit?(fx: FxOf<"hit">): void;
-  /** The local player's blow on another fighter just landed on screen (juice: hit-stop and camera shake; not for damage over time). */
+  /** The local player's blow on another fighter just landed on screen (figure reaction and camera shake; not for damage over time). */
   localLanded?(fx: FxOf<"hit">): void;
   /** The local player just took a blow on screen (juice: camera shake; not for damage over time). */
   localHurt?(fx: FxOf<"hit">): void;
@@ -175,7 +175,7 @@ interface Active {
   /** performance.now() when it began (effects run on the local clock once they have been released from the queue). */
   start: number;
   duration: number;
-  /** The fighter it follows (everything but swing, burst and decal). */
+  /** The fighter it follows (swing, burst and decal may be unanchored). */
   id: string;
   /** Last ground position it was drawn at. */
   x: number;
@@ -234,6 +234,12 @@ export class FxView {
   enqueue(fx: TimedFx): void {
     if (this.destroyed || !fx || !Number.isFinite(fx.t)) return;
     this.push(fx);
+  }
+
+  /** Plays an authoritative hit on the local player immediately beside its confirmed state update; it is never queued. */
+  confirmedLocalHit(fx: FxOf<"hit">, now: number): void {
+    if (this.destroyed || fx.kind !== "hit" || fx.id !== this.host.localId || !Number.isFinite(now)) return;
+    this.hit(fx, now, true);
   }
 
   /** Own auto animations use the input clock; hits and damage numbers still arrive through enqueue. */
@@ -480,11 +486,10 @@ export class FxView {
   /** The landed swing: the swept sector, from where the attacker was drawn when it swung. */
   private swing(fx: FxOf<"swing">, now: number): void {
     this.cancelWindup(fx.by, now);
-    const local = fx.by === this.host.localId;
-    const pos = local ? this.host.position(fx.by) : fx;
+    const pos = this.host.position(fx.by);
     const shape = WEAPONS[fx.weapon]?.shape;
     if (!pos || shape?.kind !== "arc" || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(fx.a)) return;
-    if (this.host.canSee && (!this.host.position(fx.by) || !this.host.canSee(pos))) return;
+    if (this.host.canSee && !this.host.canSee(pos)) return;
     // After the cancel above, which lets the wound-up pose go: the swing carries on from where it was.
     this.host.view(fx.by)?.cues?.swing(fx.a, now);
     const color = WEAPONS[fx.weapon].color;
@@ -497,10 +502,10 @@ export class FxView {
     g.lineStyle(3, SWING_RIM, 0.9);
     traceRim(g, 0, 0, reach, fx.a, shape.halfArc);
     g.strokePath();
-    this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: local ? fx.by : "", x: pos.x, y: pos.y, a: 0 });
+    this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: fx.by, x: pos.x, y: pos.y, a: 0 });
   }
 
-  private hit(fx: FxOf<"hit">, now: number): void {
+  private hit(fx: FxOf<"hit">, now: number, confirmedLocalNow = false): void {
     if (fx.id === this.host.localId) this.host.localHit?.(fx);
     const dot = isDot(fx.sig) || isAbilityDot(fx.ability) || (fx.weapon === null && fx.sig === undefined && fx.ability === undefined);
     // Damage over time is a steady drip, not a blow: no body flash for it.
@@ -511,7 +516,7 @@ export class FxView {
     if (fx.by === null || !(fx.amount > 0)) return;
     const pos = this.host.position(fx.id);
     if (!pos) return;
-    if (!dot && fx.sig === undefined) this.blow(fx, pos, now);
+    if (!dot && fx.sig === undefined) this.blow(fx, pos, now, confirmedLocalNow);
     let amount = Math.max(1, Math.round(fx.amount));
     let color: string;
     let size: number;
@@ -537,9 +542,9 @@ export class FxView {
 
   /**
    * What a blow does to the one it lands on, beyond the flash and the number: the figure is shoved and pops, a bloom and a
-   * few dots fly off, and, for the local player's own blows (landed or taken), the screen reacts (hit-stop, shake).
+   * few dots fly off, and, for the local player's own blows (landed or taken), the figure and camera react.
    */
-  private blow(fx: FxOf<"hit">, pos: { x: number; y: number }, now: number): void {
+  private blow(fx: FxOf<"hit">, pos: { x: number; y: number }, now: number, confirmedLocalNow = false): void {
     const from = fx.by === null ? undefined : this.host.position(fx.by);
     const away = from && (from.x !== pos.x || from.y !== pos.y) ? Math.atan2(pos.y - from.y, pos.x - from.x) : null;
     this.host.view(fx.id)?.cues?.hit(away, now);
@@ -551,7 +556,7 @@ export class FxView {
       });
       this.impacts++;
     }
-    if (!this.fresh(fx.t)) return;
+    if (!confirmedLocalNow && !this.fresh(fx.t)) return;
     if (fx.id === this.host.localId) this.host.localHurt?.(fx);
     else if (fx.by === this.host.localId) this.host.localLanded?.(fx);
   }

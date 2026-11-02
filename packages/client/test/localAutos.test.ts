@@ -66,6 +66,18 @@ describe("LocalAutos timeline", () => {
     expect(visuals.at(-1)).toMatchObject({ kind: "launch", weapon: "bow", a: 1.2, ms: 300 });
   });
 
+  it.each([["bow", 400, 200], ["wand", 120, 120]] as const)("exposes the %s pause schedule only while the shot is pending", (weapon, windupMs, pauseMs) => {
+    const { autos, visuals, emit, input } = setup();
+    const ranged = input({ key: `0:${weapon}`, weapon, windupMs, intervalMs: 800 });
+    autos.press(ranged, 500, emit);
+    expect(autos.rangedPause()).toEqual({ id: "local-auto-1", weapon, from: 500 + windupMs - pauseMs, until: 500 + windupMs });
+    autos.frame({ ...ranged, held: false }, 550, emit);
+    expect(autos.rangedPause()).not.toBeNull();
+    autos.frame({ ...ranged, held: false }, 500 + windupMs, emit);
+    expect(visuals.at(-1)?.kind).toBe("launch");
+    expect(autos.rangedPause()).toBeNull();
+  });
+
   it.each([
     ["explicit cancel", (autos: LocalAutos, input: AutoInput, emit: (v: AutoVisual) => void) => autos.cancel()],
     ["stun/disabled state", (autos: LocalAutos, input: AutoInput, emit: (v: AutoVisual) => void) => autos.frame({ ...input, enabled: false }, 100, emit)],
@@ -74,7 +86,9 @@ describe("LocalAutos timeline", () => {
     const { autos, visuals, emit, input } = setup();
     const bow = input({ key: "0:bow", weapon: "bow", windupMs: 300 });
     autos.press(bow, 0, emit);
+    expect(autos.rangedPause()).not.toBeNull();
     stop(autos, bow, emit);
+    expect(autos.rangedPause()).toBeNull();
     autos.frame({ ...bow, held: false }, 400, emit);
     expect(visuals.filter((v) => v.kind === "launch")).toEqual([]);
   });

@@ -82,6 +82,8 @@ export interface FrameInput {
   speedMult: number;
   /** An attack's root the client knows of holds the fighter still (the axe's, after its swing). */
   rooted: boolean;
+  /** A local ranged auto pause; follow mode holds the drawn pose too, then resumes from the newest server sample. */
+  predictedRangedPause?: boolean;
   /** The cursor's aim is streaming, so the server's facing follows the cursor, not the walk. */
   aiming: boolean;
   /** Current hunted rival position; the movement bonus only follows the actual next route leg toward this point. */
@@ -227,6 +229,8 @@ export class LocalMotion {
   private vx = 0;
   private vy = 0;
   private _mode: MotionMode = "predict";
+  /** The locally held pose for a predicted ranged pause while following a wand chase. */
+  private followRangedHold: Vec2 | null = null;
   private readonly sim: Vec2 = { x: 0, y: 0 };
   private readonly visual: Vec2 = { x: 0, y: 0 };
   private path: Vec2[] = [];
@@ -293,6 +297,7 @@ export class LocalMotion {
     this.vx = 0;
     this.vy = 0;
     this._mode = "predict";
+    this.followRangedHold = null;
     this.visual.x = 0;
     this.visual.y = 0;
     this.path = [];
@@ -511,15 +516,17 @@ export class LocalMotion {
       return;
     }
     if (wasFollow) {
-      const p = this.followPos(c, this.scratch);
-      const jx = p.x - ox, jy = p.y - oy;
-      if (Math.hypot(jx, jy) > SNAP_DISTANCE) this.snapTo(s);
-      else {
-        // The sample replaces the extrapolation; what drawn would jump by goes into the smoothing offset instead.
-        this.sim.x = p.x;
-        this.sim.y = p.y;
-        this.visual.x -= jx;
-        this.visual.y -= jy;
+      if (!this.followRangedHold) {
+        const p = this.followPos(c, this.scratch);
+        const jx = p.x - ox, jy = p.y - oy;
+        if (Math.hypot(jx, jy) > SNAP_DISTANCE) this.snapTo(s);
+        else {
+          // The sample replaces the extrapolation; what drawn would jump by goes into the smoothing offset instead.
+          this.sim.x = p.x;
+          this.sim.y = p.y;
+          this.visual.x -= jx;
+          this.visual.y -= jy;
+        }
       }
       if (locked) {
         this.hope = 0;
@@ -608,8 +615,34 @@ export class LocalMotion {
         if (reached > 0) this.path.splice(0, reached);
       }
     } else {
-      this.followPos(c, this.sim);
-      this.moved = Math.hypot(this.vx, this.vy) > 5;
+      if (input.predictedRangedPause) {
+        if (!this.followRangedHold) {
+          // Capture the displayed pose, not only the model: otherwise its existing correction offset would decay during the hold.
+          this.followRangedHold = { x: this.sim.x + this.visual.x, y: this.sim.y + this.visual.y };
+          this.sim.x = this.followRangedHold.x;
+          this.sim.y = this.followRangedHold.y;
+          this.visual.x = 0;
+          this.visual.y = 0;
+        }
+        this.sim.x = this.followRangedHold.x;
+        this.sim.y = this.followRangedHold.y;
+        this.moved = false;
+      } else {
+        const held = this.followRangedHold;
+        this.followRangedHold = null;
+        this.followPos(c, this.sim);
+        if (held) {
+          // Resume from the latest authoritative chase position without a one-frame jump. This offset decays through the
+          // existing correction limits; large discontinuities still use the same visual snap bound as ordinary corrections.
+          this.visual.x += held.x - this.sim.x;
+          this.visual.y += held.y - this.sim.y;
+          if (this.visualOffset > VISUAL_SNAP_DISTANCE) {
+            this.snapTo(this.auth!, false, false);
+            if (this.auth?.locked === true) this._mode = "follow";
+          }
+        }
+        this.moved = Math.hypot(this.vx, this.vy) > 5;
+      }
     }
     // What the model carries onto ice, if the next frame finds it there.
     if (dt > 0) {
@@ -690,6 +723,7 @@ export class LocalMotion {
    */
   private leaveFollow(): void {
     this._mode = "predict";
+    this.followRangedHold = null;
     this.path = [];
     this.goal = null;
     this.moved = false;
@@ -720,6 +754,7 @@ export class LocalMotion {
    * destination again from there and carries on; the others (a death, a teleport, the lobby) stand.
    */
   private snapTo(at: { x: number; y: number }, replan = false, carry = true): void {
+    this.followRangedHold = null;
     const goal = replan && this.path.length > 0 ? this.goal : null;
     const map = this.goalMap;
     this.sim.x = at.x;

@@ -5,12 +5,13 @@ import { describe, expect, it } from "vitest";
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
   EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, MOVE_MULT_FLOOR,
-  PLAYER_SPEED, SIG_CHILLED, cardRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
+  PLAYER_SPEED, SIG_CHILLED, cardRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL, TICK_MS,
   WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx, type WeaponId,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
 import { keyboardMoveGoal } from "../src/net/keyboardMovement";
 import { LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
+import { LocalAutos } from "../src/net/localAutos";
 
 const ME = "me";
 /** A fighter as the state carries it: the mirrors in wire form, the identity (1000 thousandths) unless given. */
@@ -180,6 +181,117 @@ describe("instant player melee and retained ranged pauses", () => {
     for (const [elapsed, rooted] of [[-1, false], [0, false], [duration - 201, false], [duration - 200, true], [duration - 1, true], [duration, false]] as const) {
       expect(p.frameInput(start + elapsed - p.motion.delay, true, who, [], false).rooted).toBe(rooted);
     }
+  });
+});
+
+describe("local ranged pause mapped to the movement model", () => {
+  const base = 1_000_000;
+  const perfNow = 500;
+  const windupMs = 400;
+  const pauseMs = 200;
+  const map = mapFromTiles(60, 20, new Uint8Array(60 * 20).fill(TILE_FLOOR));
+
+  function withDelay(delay: number, locked: boolean): LocalPrediction {
+    const p = new LocalPrediction();
+    p.motion.observe({ x: 300, y: 300, t: base, moveSeq: 0, ...(locked ? { locked: true } : {}) }, base);
+    p.motion.noteOrder(1, base);
+    p.motion.ack(1, base + delay + TICK_MS);
+    expect(p.motion.delay).toBe(delay);
+    return p;
+  }
+
+  it.each(["bow", "wand"] as const)("moves, pauses, then resumes the %s at 150 and 280 ms despite a separate performance epoch", weapon => {
+    for (const delay of [150, 280]) {
+      const locked = weapon === "wand";
+      const p = withDelay(delay, locked);
+      const autos = new LocalAutos();
+      const auto = { key: `0:${weapon}`, weapon, a: 0, held: true, enabled: true, intervalMs: 900, windupMs, readyInMs: 0 } as const;
+      autos.press(auto, perfNow, () => {});
+      const local = autos.rangedPause()!;
+      // LocalAutos uses performance time; the prediction uses estimated server time + order delay.
+      const offset = base - perfNow + delay;
+      p.setPredictedRangedPause({ ...local, from: local.from + offset, until: local.until + offset });
+
+      if (weapon === "bow") {
+        p.motion.order("move", 2, base, { x: 900, y: 300 }, map);
+        p.motion.frame(base + 190, 10, p.frameInput(base + 190, true, fighter({ weapon0: "bow" }), [], false));
+        const before = p.motion.drawn.x;
+        expect(before).toBeGreaterThan(300);
+        for (const elapsed of [200, 210]) {
+          const c = base + elapsed;
+          const input = p.frameInput(c, true, fighter({ weapon0: "bow" }), [], false);
+          expect(input.rooted).toBe(true);
+          p.motion.frame(c, 10, input);
+        }
+        const held = p.motion.drawn.x;
+        expect(held).toBeCloseTo(before, 5);
+        p.setPredictedRangedPause(null);
+        const resume = p.frameInput(base + windupMs, true, fighter({ weapon0: "bow" }), [], false);
+        expect(resume.rooted).toBe(false);
+        p.motion.frame(base + windupMs, 10, resume);
+        expect(p.motion.drawn.x).toBeGreaterThan(held);
+      } else {
+        expect(p.motion.mode).toBe("follow");
+        for (let elapsed = 10; elapsed <= 190; elapsed += 10) {
+          const correction = elapsed === 190 ? 1 : 0;
+          p.motion.observe({ x: 300 + elapsed * PLAYER_SPEED / 1000 + correction, y: 300, t: base + elapsed, moveSeq: 1, locked: true }, base + elapsed);
+          p.motion.frame(base + elapsed, 10, p.frameInput(base + elapsed, true, fighter({ weapon0: "wand" }), [], false));
+        }
+        const before = p.motion.drawn.x;
+        expect(p.motion.visualOffset).toBeGreaterThan(0);
+        const atPause = p.frameInput(base + 200, true, fighter({ weapon0: "wand" }), [], false);
+        expect(atPause.rooted).toBe(true);
+        expect(atPause.predictedRangedPause).toBe(true);
+        p.motion.frame(base + 200, 10, atPause);
+        const held = p.motion.drawn.x;
+        expect(Math.abs(held - before)).toBeLessThan(PLAYER_SPEED * .02 + 1);
+        p.motion.frame(base + 210, 10, p.frameInput(base + 210, true, fighter({ weapon0: "wand" }), [], false));
+        expect(Math.abs(p.motion.drawn.x - held)).toBeLessThan(0.1);
+        expect(held).toBeGreaterThanOrEqual(before);
+        // Sparse late samples keep the wand model visually held during the pause, while auth tracks the chase underneath.
+        for (const elapsed of [260, 320, 360]) {
+          p.motion.observe({ x: 300 + elapsed * PLAYER_SPEED / 1000, y: 300, t: base + elapsed, moveSeq: 1, locked: true }, base + elapsed);
+          p.motion.frame(base + elapsed, 10, p.frameInput(base + elapsed, true, fighter({ weapon0: "wand" }), [], false));
+          expect(Math.abs(p.motion.drawn.x - held)).toBeLessThan(0.1);
+        }
+        p.setPredictedRangedPause(null);
+        const resume = p.frameInput(base + windupMs, true, fighter({ weapon0: "wand" }), [], false);
+        expect(resume.predictedRangedPause).toBeUndefined();
+        let previousDrawn = p.motion.drawn.x;
+        p.motion.frame(base + windupMs, 10, resume);
+        expect(p.motion.drawn.x).toBeGreaterThan(held);
+        expect(p.motion.drawn.x - held).toBeLessThanOrEqual(PLAYER_SPEED * .02 + 1);
+        expect(p.motion.drawn.x - previousDrawn).toBeLessThanOrEqual(PLAYER_SPEED * .02 + 1);
+        previousDrawn = p.motion.drawn.x;
+        for (const elapsed of [410, 420, 430, 440]) {
+          p.motion.frame(base + elapsed, 10, p.frameInput(base + elapsed, true, fighter({ weapon0: "wand" }), [], false));
+          expect(p.motion.drawn.x - previousDrawn).toBeLessThanOrEqual(PLAYER_SPEED * .02 + 1);
+          previousDrawn = p.motion.drawn.x;
+        }
+      }
+    }
+  });
+
+  it("confirms the closest bow draw by release time, suppresses a 100 ms echo tail, and leaves other shots alone", () => {
+    const p = withDelay(150, false);
+    const pause = (id: string, until: number) => ({ id, weapon: "bow" as const, from: until - 200, until });
+    const firstUntil = base + 400 + 150;
+    const secondUntil = firstUntil + 300;
+    p.setPredictedRangedPause(pause("local-auto-1", firstUntil));
+    p.setPredictedRangedPause(pause("local-auto-2", secondUntil));
+    expect(p.matchPredictedBowDraw(base + 400 + 150 + 100 - 400, 400)).toBe("local-auto-1");
+    p.confirmPredictedRangedPause("local-auto-1", firstUntil + 100);
+
+    const draw = (until: number) => fighter({ weapon0: "bow", drawStartedAt: until - weaponTimings("bow", attackInterval(FACTIONS.fire, "bow")).windup * 1000 });
+    const windupMsActual = weaponTimings("bow", attackInterval(FACTIONS.fire, "bow")).windup * 1000;
+    const echoedAt = firstUntil + 100 - windupMsActual;
+    expect(p.frameInput(echoedAt + windupMsActual - 50 - p.motion.delay, true, draw(firstUntil + 100), [], false).rooted).toBe(false);
+
+    // A distinct next shot outside the confirmed endpoint's window still uses authoritative draw state.
+    const unrelatedUntil = secondUntil + 200;
+    expect(p.matchPredictedBowDraw(unrelatedUntil - windupMsActual, windupMsActual)).toBeUndefined();
+    expect(p.frameInput(unrelatedUntil - windupMsActual + windupMsActual - 50 - p.motion.delay, true,
+      draw(unrelatedUntil), [], false).rooted).toBe(true);
   });
 });
 
