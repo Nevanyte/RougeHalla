@@ -1,13 +1,14 @@
-# Publishes play.roguehalla.com (Cloudflare Worker + game container) on every push to main, after the same gates
+# Publishes play.roguehalla.com (Cloudflare Worker + game container) when run by hand from the Actions tab ("Run workflow" on
+# main), after the same gates
 # docs/CLOUDFLARE_PUBLIC.md lists for a manual publish. Needs two repository secrets:
 #   CLOUDFLARE_API_TOKEN   a token with Workers Scripts, Containers, R2 and Workers Routes edit rights on the account
 #   CLOUDFLARE_ACCOUNT_ID  the account that owns Worker `rougehalla`
 # A deploy restarts the game container, so a run in progress ends; deploys never overlap and are never cancelled midway.
 name: Deploy
 
+# Manual only: releases are normally published from the owner's Mac with `npm run deploy` (faster). Add a `push: branches: [main]`
+# trigger here to publish every merge automatically.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_tests:
@@ -51,7 +52,7 @@ jobs:
       - run: npm run cf:test
 
       - name: Full test suite
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_tests) }}
+        if: ${{ !inputs.skip_tests }}
         run: npm test
 
       - run: npm run build
