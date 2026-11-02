@@ -1,6 +1,7 @@
 // App flow: walkable hub → run (or training) → results → hub. Phaser owns the world canvas; menus are DOM.
 import Phaser from "phaser";
-import type { FxBatch, JoinOptions, RoomMode, RunResult, ServerMessages } from "@raid/shared";
+import { TELEMETRY_PERF_MESSAGE, type FxBatch, type JoinOptions, type RoomMode, type RunResult, type ServerMessages } from "@raid/shared";
+import { runPerf } from "./net/perfSample";
 import "./style.css";
 import { detachRoom, isCallsignBusy, joinRaid, joinTraining, leaveRoom, type RaidRoom } from "./net/connection";
 import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, MAP_MISMATCH_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
@@ -187,8 +188,19 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   }
   // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
   if (!training) {
+    let perfSent = false;
     joined.onMessage("result", (r: RunResult) => {
       if (room !== joined) return;
+      // The run's one perf sample, before the death hold (docs/TELEMETRY.md 3.9); the server keeps the first.
+      if (!perfSent) {
+        perfSent = true;
+        const canvas = document.querySelector("canvas");
+        try {
+          joined.send(TELEMETRY_PERF_MESSAGE, runPerf.toSample({
+            dpr: window.devicePixelRatio, canvasW: canvas?.width, canvasH: canvas?.height, ua: navigator.userAgent,
+          }));
+        } catch { /* best effort */ }
+      }
       if (r.outcome !== "died") { results.show(r); return; }
       cancelPendingResult();
       pendingResult = { result: r, timer: setTimeout(flushPendingResult, DEATH_RESULTS_DELAY_MS) };

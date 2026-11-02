@@ -19,7 +19,7 @@ import {
 } from "@raid/shared";
 import type { ContainerState, PlayerState } from "@raid/shared/schema";
 import { activeWeapon, creditedPlayerId, type Combatant } from "./combatant";
-import { chainHook, type DamagePacket, type DamageSource as LedgerSource, type LedgerEntry, type OverkillHit, type PlayerRuntime, type SimEvent, type World } from "./world";
+import { chainHook, type StatusInstance, type DamagePacket, type DamageSource as LedgerSource, type LedgerEntry, type OverkillHit, type PlayerRuntime, type SimEvent, type World } from "./world";
 
 const N = MAX_PLAYERS;
 const NSRC = DAMAGE_SOURCES.length;
@@ -202,6 +202,12 @@ function standingSlot(rec: TelemetryRecorder, slot: number): boolean {
   return !!p && !!rt && p.status === "alive" && !rt.down && !rt.resolved;
 }
 
+/** A slot's hp fraction now (0 once it has left the state); no allocation. */
+function slotHpFrac(rec: TelemetryRecorder, slot: number): number {
+  const p = rec.world.state.players.get(rec.ids[slot]!);
+  return p ? hpFrac(p) : 0;
+}
+
 function hpFrac(p: PlayerState): number {
   return p.maxHp > 0 ? Math.max(0, (p.hp + p.barrier) / p.maxHp) : 0;
 }
@@ -371,7 +377,12 @@ function openPair(rec: TelemetryRecorder, k: number): void {
 function contact(rec: TelemetryRecorder, x: number, y: number, src: number, amount: number, weapon: WeaponId | null): void {
   const a = x < y ? x : y, b = x < y ? y : x;
   const k = pairIndex(a, b);
-  if (!rec.pOpen[k]) openPair(rec, k);
+  if (!rec.pOpen[k]) {
+    // A shot that outlived its shooter, or a hit on someone already gone, opens nothing. A side down THIS tick still counts:
+    // a one-shot kill opens and closes its segment in the same tick.
+    if ((rec.out[x] !== 0 && !(rec.downMask & (1 << x))) || (rec.out[y] !== 0 && !(rec.downMask & (1 << y)))) return;
+    openPair(rec, k);
+  }
   const side = x === a ? 0 : 1;
   rec.pLast[k] = rec.world.state.serverTime;
   if (amount > 0) rec.pDmg[(2 * k + side) * NSRC + src] += amount;
@@ -472,9 +483,8 @@ function duelTick(rec: TelemetryRecorder): void {
     const downA = (rec.downMask & (1 << a)) !== 0;
     const downB = (rec.downMask & (1 << b)) !== 0;
     if (downA || downB || rec.pLast[k] === now) {
-      const pa = playerOf(rec, a), pb = playerOf(rec, b);
-      rec.pHpEnd[2 * k] = pa ? hpFrac(pa.p) : 0;
-      rec.pHpEnd[2 * k + 1] = pb ? hpFrac(pb.p) : 0;
+      rec.pHpEnd[2 * k] = slotHpFrac(rec, a);
+      rec.pHpEnd[2 * k + 1] = slotHpFrac(rec, b);
     }
     if (downA || downB) {
       closePair(rec, k, {
@@ -780,8 +790,15 @@ function onCastEnded(rec: TelemetryRecorder, c: Combatant, reason: string): void
 export function installTelemetry(world: World, opts: { positions?: boolean } = {}): TelemetryRecorder {
   const rec = newRecorder(world, opts.positions !== false);
   chainHook(world, "raidStarted", () => begin(rec));
-  chainHook(world, "hitLanded", (_w, e, amount) => onHitLanded(rec, e, amount));
-  chainHook(world, "arenaHurt", (_w, victim, by, hp) => onArenaHurt(rec, victim, by, hp));
+  // The hot taps are linked with a fixed arity (chainHook's rest-parameter wrapper would allocate an argument array per call).
+  const hitPrev = world.hooks.hitLanded;
+  world.hooks.hitLanded = hitPrev
+    ? (w, e, amount) => { hitPrev(w, e, amount); onHitLanded(rec, e, amount); }
+    : (_w, e, amount) => { onHitLanded(rec, e, amount); };
+  const arenaPrev = world.hooks.arenaHurt;
+  world.hooks.arenaHurt = arenaPrev
+    ? (w, victim, by, hp) => { arenaPrev(w, victim, by, hp); onArenaHurt(rec, victim, by, hp); }
+    : (_w, victim, by, hp) => { onArenaHurt(rec, victim, by, hp); };
   chainHook(world, "overkilled", (_w, victim, hits, overkill, total) => onOverkilled(rec, victim, hits, overkill, total));
   chainHook(world, "blocked", (_w, holder, attacker, prevented) => onBlocked(rec, holder, attacker, prevented));
   chainHook(world, "fighterOut", (_w, id, why) => onFighterOut(rec, id, why));
@@ -805,10 +822,14 @@ export function installTelemetry(world: World, opts: { positions?: boolean } = {
     if (mob.elite) rec.eliteKills[s]++;
   });
   chainHook(world, "campCleared", (_w, camp) => onCampCleared(rec, camp));
-  chainHook(world, "healed", (_w, c, gained, source) => {
+  const onHealed = (c: Combatant, gained: number, source: HealSource): void => {
     const s = rec.slotOf.get(c.id);
     if (s !== undefined && rec.started) rec.healed[s * NHEAL + HEAL[source]] += gained;
-  });
+  };
+  const healPrev = world.hooks.healed;
+  world.hooks.healed = healPrev
+    ? (w, c, gained, source) => { healPrev(w, c, gained, source); onHealed(c, gained, source); }
+    : (_w, c, gained, source) => { onHealed(c, gained, source); };
   chainHook(world, "rewardOffered", (_w, box, kind, camp, eligible) => onOffered(rec, box, kind, camp, eligible));
   chainHook(world, "rewardChosen", (_w, c, box, option) => onChosen(rec, c, box, option));
   chainHook(world, "consumableUsed", (_w, c, id) => {
@@ -825,11 +846,15 @@ export function installTelemetry(world: World, opts: { positions?: boolean } = {
   chainHook(world, "questCompleted", (_w, c, def) => { const s = rec.slotOf.get(c.id); if (s !== undefined) rec.questsCompleted[s]!.push(def); });
   chainHook(world, "castAccepted", (_w, c) => onCast(rec, c));
   chainHook(world, "castEnded", (_w, c, _ability, reason) => onCastEnded(rec, c, reason));
-  chainHook(world, "statusApplied", (_w, c, st, fresh) => {
+  const onStatus = (c: Combatant, st: StatusInstance, fresh: boolean): void => {
     if (!fresh || st.ability === undefined || !rec.started || st.source.id === c.id) return;
     const s = rec.slotOf.get(creditedPlayerId(world, st.source.id));
     if (s !== undefined && rec.slotOf.get(c.id) !== s) rec.wishHits[s]++;
-  });
+  };
+  const statusPrev = world.hooks.statusApplied;
+  world.hooks.statusApplied = statusPrev
+    ? (w, c, st, fresh) => { statusPrev(w, c, st, fresh); onStatus(c, st, fresh); }
+    : (_w, c, st, fresh) => { onStatus(c, st, fresh); };
   world.systems.push(() => system(rec));
   return rec;
 }
