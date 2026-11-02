@@ -35,7 +35,7 @@ The HUD shows earned totals for owned types and exposes all twenty in an expanda
 
 ## Elite augments
 
-Each credited elite death drops one shared augment chest at its camp, even while escorts survive. Ordinary camp clears give no chest. Clearing an elite's escorts never duplicates its death reward. A respawned elite is a new life and may drop another chest.
+Each credited elite death drops one shared augment chest at its camp, even while escorts survive. Ordinary camp clears give no chest. Clearing an elite's escorts never duplicates its death reward. A respawned elite is a new life and may drop another chest. World stat chests are rare: only `STAT_CHEST_CRATES_PER_MAP` (3) crates per map hold one, chosen privately from the world salt at build time; no camp clear drops one.
 
 A chest offers up to three distinct, live, interactive augments and expires after fifteen seconds. One player may take each option; each player may pick once or skip. Already owned unique augments are refused. Tier odds are the existing elite weights with nearest-available-tier fallback. The first option follows the zone's theme when an eligible themed augment exists, and remaining options draw from the shared interactive pool.
 
