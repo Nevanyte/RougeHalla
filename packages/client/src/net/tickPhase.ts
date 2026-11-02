@@ -8,7 +8,7 @@
 //
 // It only means something when the server wakes on its grid. A tick that drifts against its own clock spreads d over more than a
 // tick; one that runs two steps at once (the setTimestep accumulator's catch-up, seen as a patch two ticks after the one before)
-// is off its grid by definition, and on today's server the samples between two catch-ups agreed often enough to mislead (a real
+// is off its grid by definition, and on that accumulator (before rooms/tickPacer.ts) the samples between two catch-ups agreed often enough to mislead (a real
 // server probe: ready in 18-62% of frames, the aligned aim a millisecond worse than the floor), so a catch-up quiets the learner
 // for PHASE_QUIET_MS; and orders sent at one phase only (a repeat that is a whole number of ticks) say nothing about the rest.
 // Any of these keeps it not ready, and the callers fall back to a plain rate gate.
