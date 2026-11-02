@@ -1108,7 +1108,7 @@ function onWeaponSwapped(world: World, c: Combatant): void {
  * every tick, which would be a heal number every tick). Returns the hp gained.
  */
 export function heal(
-  world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean; ignoreLockout?: boolean } = {},
+  world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean; ignoreLockout?: boolean; noBarrier?: boolean } = {},
 ): number {
   if (!(amount > 0) || !standing(c)) return 0;
   const now = world.state.serverTime;
@@ -1119,7 +1119,7 @@ export function heal(
   if (!opts.lifesteal) amount *= healTakenMultOf(c.s);
   if (!(amount > 0)) return 0;
   // Second Skin (G6): a share of the heal received, overheal included, also stands as a barrier (capped and decaying: sim/buffs.ts).
-  if (c.kind === "player") {
+  if (c.kind === "player" && !opts.noBarrier) {
     const share = healBarrierOf(c.s);
     if (share > 0) grantHealBarrier(c.s, c.rt, share * amount, now);
   }

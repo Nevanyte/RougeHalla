@@ -20,6 +20,7 @@ import { install as installMods } from "./mods";
 import { install as installProjectiles } from "./projectiles";
 import { install as installPlagueCorpses } from "./plagueCorpses";
 import { install as installPlagueZombies } from "./plagueZombies";
+import { install as installRegen } from "./regen";
 import { install as installQuests } from "./quests";
 import { install as installSentencedHunt } from "./sentencedHunt";
 import { install as installTargeting } from "./targeting";
@@ -48,6 +49,8 @@ const MODULES: Array<(world: World) => void> = [
   // Terrain hazards: after the signatures (burn joins the ledger behind their entries) and the faction layer's afterDamage
   // (light heals once this tick's combat clock is stamped), before the stat mirrors.
   installTerrain,
+  // Passive regen: after the faction layer and terrain, so this tick's hits have stamped the combat clock.
+  installRegen,
   installAbilities,
   installQuests,
   installVision,

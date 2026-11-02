@@ -210,6 +210,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     bots: parseBots(env),
     // The live server plans (roguelike R3); PLAN_SECONDS=0 starts runs straight from the lobby. Training rooms never plan.
     planSeconds: Math.max(0, num(env.PLAN_SECONDS, PLAN_SECONDS)),
+    // Slow passive player regeneration (sim/regen.ts); REGEN=0 turns it off.
+    regen: env.REGEN !== "0" && env.REGEN !== "false",
     // Decision 10: the first timer is flat. FIRST_PATIENCE_SECONDS=0 scales it with the players like every later one.
     // A dev who sets only PATIENCE_SECONDS (to shorten a run) gets that as the flat first timer too, not 300 s.
     firstPatienceSeconds: Math.max(

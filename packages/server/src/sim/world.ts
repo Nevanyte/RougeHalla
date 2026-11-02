@@ -70,6 +70,11 @@ export interface SimConfig {
    * models neither. A run never turns it off.
    */
   weaponSpecials?: boolean;
+  /**
+   * Passive player health regeneration (sim/regen.ts). Unset or false: none, so tests, benches and the parity harness keep hp
+   * exactly where fights leave it. The live server turns it on (config.ts).
+   */
+  regen?: boolean;
 }
 
 /**
