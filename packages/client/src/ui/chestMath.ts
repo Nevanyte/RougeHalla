@@ -4,7 +4,7 @@
 import {
   CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, TAG_GLOSSARY, TICK_MS, cardDef, cardOptionView, cardTitle,
   countIn, hasLineOfSight, isEliteCamp, tagLabel, tierRoman,
-  type CampDef, type CardCounts, type CardKind, type CardOptionView, type GameMap, type MechanicTag, type Vec2,
+  type CampDef, type CardCounts, type CardKind, type CardOptionView, type ChestBoostCounts, type GameMap, type MechanicTag, type Vec2,
 } from "@raid/shared";
 
 /** The panel's keys, as KeyboardEvent.code. Number-row and numpad digits do the same. */
@@ -35,6 +35,8 @@ export interface Reward {
   options: string[];
   takenBy: string[];
   pickers: string[];
+  /** A kill Trophy (it has an owner): a skip pays nothing there. Absent = a camp or crate chest. */
+  trophy?: boolean;
 }
 
 /** The chest as a `Reward`, or null when the container is not a reward chest. */
@@ -46,7 +48,7 @@ export function readReward(c: RewardSource, id: string, viewer?: string): Reward
   const takenBy = Array.from(c.takenBy);
   // `takenBy` is parallel to `options`; a short one (a patch half applied) reads as free.
   while (takenBy.length < options.length) takenBy.push("");
-  return { id, x: c.x, y: c.y, camp: c.camp, expiresAt: c.expiresAt, options, takenBy, pickers: Array.from(c.pickers) };
+  return { id, x: c.x, y: c.y, camp: c.camp, expiresAt: c.expiresAt, options, takenBy, pickers: Array.from(c.pickers), ...(c.owner ? { trophy: true } : {}) };
 }
 
 // --------------------------------------------------------------------------------------------------------------- time
@@ -188,6 +190,8 @@ export interface CardContext {
   myId: string;
   build: CardCounts | null | undefined;
   faction?: string;
+  /** The picker's stat-chest picks (PlayerState.extra.chestBoosts): a maxed stat's card is greyed. */
+  boosts?: ChestBoostCounts;
   /** Nothing is offered: every option is greyed (about to vanish) or this player already picked. */
   closed: boolean;
 }
@@ -196,7 +200,7 @@ export interface CardContext {
 export function optionCards(reward: Reward, ctx: CardContext): OptionCard[] {
   return reward.options.map((id, index) => {
     const by = reward.takenBy[index] ?? "";
-    const view = cardOptionView(id, ctx.build, ctx.faction);
+    const view = cardOptionView(id, ctx.build, ctx.faction, ctx.boosts);
     const state: OptionState = view === null ? { kind: "unknown" }
       : by === ctx.myId ? { kind: "mine" }
       : by !== "" ? { kind: "taken", by }

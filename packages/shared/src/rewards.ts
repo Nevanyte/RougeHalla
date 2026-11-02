@@ -2,7 +2,7 @@
 // uncapped stat progression (mobStats.ts). Pure: the sim rolls options with `world.rewardRandom` and puts them in synced state; the
 // client reads the same helpers to word the cards. Tier odds remain normal 50/45/5 and elite 10/60/30.
 import { CHEST_BOOST_MAX_PICKS, CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
-import { CHEST_BOOST_DEFS, chestBoostStat } from "./chestBoosts";
+import { CHEST_BOOST_DEFS, chestBoostPicks, chestBoostStat, type ChestBoostCounts } from "./chestBoosts";
 import {
   BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, cardBlock, cardDef, cardLive, cardText, cardsOfKind, countIn, ownsBase, whyOffered, isInteractiveAugment,
   type BaseStatId, type CardCounts, type CardDef, type CardId, type CardKind, type CardTier, type MechanicTag, type WhyOffered,
@@ -143,19 +143,23 @@ export interface CardOptionView {
   /** The picker's own reason this card is on the panel ("Deepens your Attack Damage", "You have Leech", "New"). */
   why: WhyOffered;
   /** Why this picker could not take it (the server refuses with the same words), or null when they can. */
-  blocked: { reason: "needs" | "owned"; text: string } | null;
+  blocked: { reason: "needs" | "owned" | "maxed"; text: string } | null;
   /** How many of this card the picker holds now. */
   held: number;
 }
 
 /** A synced option id seen by a picker with this build; null for an id the catalog does not know. */
-export function cardOptionView(id: string, build: CardCounts | null | undefined, faction?: string): CardOptionView | null {
+export function cardOptionView(
+  id: string, build: CardCounts | null | undefined, faction?: string, boosts?: ChestBoostCounts,
+): CardOptionView | null {
   const boost = chestBoostStat(id);
   if (boost) {
     const d = CHEST_BOOST_DEFS[boost];
+    // The server refuses a pick past CHEST_BOOST_MAX_PICKS of one stat with the same words.
+    const maxed = (chestBoostPicks(boosts)[boost] ?? 0) >= CHEST_BOOST_MAX_PICKS;
     return {
       id: id as CardId, title: `${d.title} x1.2`, tier: 1, kind: "base", text: `${d.text}. Up to ${CHEST_BOOST_MAX_PICKS} picks, each worth less. Not a card: no card power.`,
-      tags: [], why: { code: "augment", text: "Stat boost" }, blocked: null, held: 0,
+      tags: [], why: { code: "augment", text: "Stat boost" }, blocked: maxed ? { reason: "maxed", text: CHEST_REFUSAL.maxed } : null, held: 0,
     };
   }
   const def = cardDef(id);

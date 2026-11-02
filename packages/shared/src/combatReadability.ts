@@ -3,6 +3,7 @@ import { mobStatRows, type MobStatCounts } from "./mobStats";
 import { FACTIONS, damageShares, isFactionId, pacedFaction, type DamageShares } from "./factions";
 import { decodeMirrors, type WireMirrors } from "./mods";
 import { pvpFactor } from "./rules";
+import { AS_MULT_CAP, MOVE_BONUS_CAP } from "./constants";
 import { holyCampLifestealOf } from "./championPassives";
 import { attackInterval, damagePerHit, isWeaponId, scalingDamage, type WeaponId } from "./weapons";
 
@@ -103,10 +104,12 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
     ap: m.apBonus / 12,
     damage: genericDamage / 0.01,
     health: baseHp > 0 ? Math.max(0, p.maxHp / baseHp - 1) / 0.09 : 0,
-    attackSpeed: Math.max(0, m.asMult - 1) / 0.09,
+    // Attack and move speed from the permanent rows, not the mirrors: a mirror also carries a `while` row, a status or the gain
+    // half of a trade-off card, none of which a kill Trophy may hand on for the rest of the run. Each never past what the mirror shows.
+    attackSpeed: Math.min(Math.max(0, m.asMult - 1), permanentStat(p, "attackSpeed", AS_MULT_CAP - 1)) / 0.09,
     armor: Math.max(0, m.armorBonus) / 15,
     mr: Math.max(0, m.shieldBonus) / 15,
-    speed: Math.max(0, m.speedMult - 1) / 0.06,
+    speed: Math.min(Math.max(0, m.speedMult - 1), permanentStat(p, "moveSpeed", MOVE_BONUS_CAP)) / 0.06,
     leech: bonusLeech / 0.05,
   };
   const investedStats = (Object.entries(scores) as Array<[InvestedStatKey, number]>)
@@ -126,6 +129,22 @@ function cardLeech(build: CardCounts | null | undefined, faction: string, mobSta
   let farm = faction === "holy" ? holyCampLifestealOf(campClears) : 0;
   for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
   return Math.max(0, Math.min(0.25, rows)) + Math.max(0, farm);
+}
+
+/**
+ * A stat's lasting bonus: base stat cards (held to `cardCap`), earned mob stats and kill Trophies. Augments (rules, often bought with
+ * a cost) and conditional cards (true only sometimes) are left out.
+ */
+function permanentStat(p: ReadableFighter, stat: "attackSpeed" | "moveSpeed", cardCap: number): number {
+  let cards = 0;
+  for (const { def, count } of ownedCards(p.build)) {
+    if (def.kind !== "base") continue;
+    // Fleet's row is a `while notShooting` (a pause after a shot, not a state): a base card's rows are all lasting.
+    for (const e of cardRows(def.id, p.faction)) if ((e.k === "stat" || e.k === "while") && e.stat === stat) cards += e.v * count;
+  }
+  let earned = killStat(p.extra?.killStats, stat);
+  for (const e of mobStatRows(p.mobStats)) if (e.k === "stat" && e.stat === stat) earned += e.v;
+  return Math.max(0, Math.min(cardCap, cards)) + Math.max(0, earned);
 }
 
 function killStat(stats: MobStatCounts, key: string): number {

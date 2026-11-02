@@ -371,13 +371,16 @@ function wishfulThinking(world: World, by: string, p: PlayerState, rt: PlayerRun
   const cards = cardsOf(rt);
   const cast = cards.wishCast;
   const now = world.state.serverTime;
-  if (!cast || !(p.wishReadyAt > now)) return;
+  // The clock still running: the cooldown, or else a charged Wish's recharge while a charge is already in hand (wishFullAt).
+  const onCooldown = p.wishReadyAt > now;
+  const clockEnd = onCooldown ? p.wishReadyAt : p.extra.wishFullAt;
+  if (!cast || !(clockEnd > now)) return;
   cards.trims = cards.trims.filter((t) => now - t.at < WISHFUL_WINDOW_MS);
   const used = cards.trims.reduce((sum, t) => sum + t.ms, 0);
   const floorAt = Math.max(now, cast.at + WISHFUL_FLOOR_SHARE * cast.cooldownMs);
-  const cut = Math.min(n * ms, WISHFUL_BUDGET_MS - used, p.wishReadyAt - floorAt);
+  const cut = Math.min(n * ms, WISHFUL_BUDGET_MS - used, clockEnd - floorAt);
   if (!(cut > 0)) return;
-  p.wishReadyAt -= cut;
+  if (onCooldown) p.wishReadyAt -= cut;
   p.extra.wishFullAt = Math.max(0, p.extra.wishFullAt - cut); // the whole stock clock shifts with it (a charged Wish)
   cards.trims.push({ at: now, ms: cut });
 }

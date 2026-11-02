@@ -29,14 +29,23 @@ describe("stat chest boosts", () => {
       // A built-up stat: two tier-I cards and 20 mob stacks. One pick is still under one tier-I card.
       expect(chestBoostGain(stat, 1, 2 * tierI[stat]! + 20 * stack[stat]!)).toBeLessThan(tierI[stat]! * 1.2);
       expect(chestBoostGain(stat, 1, tierI[stat]!)).toBeLessThan(tierI[stat]!);
+      // However big the stat grows, a pick stays under a tier-I card, and so three picks under three cards.
+      expect(chestBoostGain(stat, 1, 1e6)).toBeLessThan(tierI[stat]!);
+      expect(chestBoostGain(stat, 3, 1e6)).toBeLessThan(3 * tierI[stat]!);
     }
+  });
+
+  it("multiplies attack speed and leech as their caps leave them, not the rows past the cap", () => {
+    const huge = foldRows([{ k: "stat", stat: "attackSpeed", v: 5 }, { k: "stat", stat: "lifesteal", v: 3 }], { owns: () => true, boosts: { attackSpeed: 1, lifesteal: 1 } });
+    expect(huge.farmSums.attackSpeed).toBeLessThanOrEqual(CHEST_BOOST_DEFS.attackSpeed.ceiling);
+    expect(huge.farmSums.lifesteal).toBeLessThanOrEqual(CHEST_BOOST_DEFS.lifesteal.ceiling);
   });
 
   it("folds into the earned sums: x1.2 of the bonus, the floor on an empty sheet", () => {
     const rows = [{ k: "flat", stat: "ap", v: 100 }] as const;
     const base = foldRows(rows, { owns: () => true });
     const boosted = foldRows(rows, { owns: () => true, boosts: { ap: 1, ad: 1 } });
-    expect(boosted.farmSums.ap).toBeCloseTo(20);
+    expect(boosted.farmSums.ap).toBeCloseTo(CHEST_BOOST_DEFS.ap.ceiling); // x1.2 of 100 is 20, held to the pick's ceiling
     expect(base.farmSums.ap).toBe(0);
     expect(boosted.farmSums.ad).toBeCloseTo(CHEST_BOOST_DEFS.ad.floor * 0.2);
     const hp = foldRows([], { baseMaxHp: 1000, boosts: { maxHp: 1 } });
@@ -47,5 +56,9 @@ describe("stat chest boosts", () => {
     const v = cardOptionView(chestBoostId("ap"), null);
     expect(v?.title).toBe("Soul Offence x1.2");
     expect(v?.blocked).toBeNull();
+    // A stat taken three times is greyed with the server's own refusal.
+    const maxed = cardOptionView(chestBoostId("ap"), null, undefined, new Map([["ap", 3]]));
+    expect(maxed?.blocked).toEqual({ reason: "maxed", text: "Stat maxed" });
+    expect(cardOptionView(chestBoostId("ad"), null, undefined, new Map([["ap", 3]]))?.blocked).toBeNull();
   });
 });

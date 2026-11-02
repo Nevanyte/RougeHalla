@@ -34,6 +34,12 @@ describe("which chest option a bot takes", () => {
     expect(chooseOption([], [], FIRE_SWORD), "an empty chest").toBe(-1);
   });
 
+  it("passes over a stat boost it has maxed (the server would refuse it and the one try would be spent)", () => {
+    const opts = ["boost:ad", "boost:armor"];
+    expect(chooseOption(opts, ["", ""], { ...FIRE_SWORD, build: { "boost:ad": 3 } as never })).toBe(1);
+    expect(chooseOption(["boost:ad"], [""], { ...FIRE_SWORD, build: { "boost:ad": 3 } as never })).toBe(-1);
+  });
+
   it("takes a base card it already holds again: it stacks, and a stat it holds counts for more than a new one", () => {
     expect(chooseOption(["ad1"], [""], { ...FIRE_SWORD, build: { ad1: 3 } }), "never maxed").toBe(0);
     expect(optionScore("ad1", { ...FIRE_SWORD, build: { ad2: 1 } })).toBeGreaterThan(optionScore("ad1", FIRE_SWORD));

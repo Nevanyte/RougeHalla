@@ -98,8 +98,15 @@ export function abilitySlotModel(i: AbilitySlotInput, serverNow: number): Abilit
     model.maxCharges = max;
     model.charges = chargesAt(fullAt, serverNow, max, recharge);
     const next = nextChargeAt(fullAt, serverNow, max, recharge) - serverNow;
-    model.secondsLeft = next > 0 ? Math.ceil(next / 1000) : 0;
-    model.sweep = next > 0 ? clamp01(next / Math.max(1, recharge)) : 0;
+    if (left > 0 && left > next + 1) {
+      // The run's Wish lock: no charge is usable before `readyAt`, whatever the charge clock says, so the slot times the lock.
+      model.charges = 0;
+      model.secondsLeft = Math.ceil(left / 1000);
+      model.sweep = clamp01(left / Math.max(1, i.cooldownLen));
+    } else {
+      model.secondsLeft = next > 0 ? Math.ceil(next / 1000) : 0;
+      model.sweep = next > 0 ? clamp01(next / Math.max(1, recharge)) : 0;
+    }
   }
   for (const b of i.blockedBy) {
     if ((i.effects & BLOCK_BIT[b]) !== 0) { model.blocked = b; break; }

@@ -220,16 +220,18 @@ export function killMob(
   const camp = c.s.camp - 1;
   const weapon = c.s.weapon0 === FISTS ? "" : c.s.weapon0; // fists are never an item
   const at = { x: c.s.x, y: c.s.y };
-  // One loose weapon per camp clear: only the camp's last mob leaves one on the ground (a campless mob always does). Any kill
-  // may still arm an empty hand, so a fists starter gets a weapon from its first kill.
-  const lastOfCamp = c.s.camp <= 0 || (world.state.camps[c.s.camp - 1]?.alive ?? 0) <= 0;
+  // One loose weapon per camp clear (a campless mob always leaves one). Any kill may still arm an empty hand, so a fists starter
+  // gets a weapon from its first kill. Which mob is the clear's is decided once the pass is over (campDropper), never by the order
+  // the pass applied its victims in.
+  noteCampDeath(world, c.s.camp, c.id);
+  const campNo = c.s.camp;
   if (killer === null) {
-    // Nobody to pay: the camp's last mob leaves its weapon where it fell.
-    if (weapon !== "" && lastOfCamp) payLater(world, () => dropWeapon(world, at, weapon));
+    // Nobody to pay: the clear's mob leaves its weapon where it fell.
+    if (weapon !== "") payLater(world, () => { if (campDropper(world, campNo, c.id)) dropWeapon(world, at, weapon); });
     return;
   }
-  if (weapon !== "" && !world.config.training) queueWeapon(world, killer, { mob: c.id, weapon, at, drop: lastOfCamp });
-  payLater(world, () => payMobKill(world, killer!, c.id, region, elite, type, camp, lastOfCamp ? weapon : "", at, m));
+  if (weapon !== "" && !world.config.training) queueWeapon(world, killer, { mob: c.id, weapon, at, camp: campNo });
+  payLater(world, () => payMobKill(world, killer!, c.id, region, elite, type, camp, campDropper(world, campNo, c.id) ? weapon : "", at, m));
 }
 
 /**
@@ -263,8 +265,31 @@ function payMobKill(
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite, at });
 }
 
-/** A weapon a killed mob carried, waiting for its killer's pay-out. */
-interface WeaponAward { mob: string; weapon: string; at: Vec2; drop: boolean }
+/** A weapon a killed mob carried, waiting for its killer's pay-out (`camp`: MobState.camp, 0 for none). */
+interface WeaponAward { mob: string; weapon: string; at: Vec2; camp: number }
+
+/** Per camp number, the latest deaths settled together: their ledger pass (its payout list; null outside one) and the earliest mob id. */
+const campDeaths = new WeakMap<World, Map<number, { pass: object | null; first: string }>>();
+
+function noteCampDeath(world: World, campNo: number, mobId: string): void {
+  if (campNo <= 0) return;
+  let by = campDeaths.get(world);
+  if (!by) campDeaths.set(world, by = new Map());
+  // Inside a ledger pass the camp's deaths of the pass are settled together; outside one each death is settled on its own.
+  const pass = world.combat.collecting ? world.combat.payouts : null, cur = by.get(campNo);
+  if (pass === null || !cur || cur.pass !== pass || earlierMob(mobId, cur.first)) by.set(campNo, { pass, first: mobId });
+}
+
+/**
+ * Does this mob leave the camp clear's loose weapon? Read after the pass: a campless mob always does; a camp's only when the camp is
+ * now empty and it is the earliest (mob id order) of the camp's mobs that died in that pass, whatever order the ledger took them in.
+ */
+function campDropper(world: World, campNo: number, mobId: string): boolean {
+  if (campNo <= 0) return true;
+  if ((world.state.camps[campNo - 1]?.alive ?? 0) > 0) return false;
+  const d = campDeaths.get(world)?.get(campNo);
+  return !d || d.first === mobId;
+}
 
 /**
  * The weapons of the mobs a player killed in one pass, by killer. The pay-outs run in the order the victims were applied, which follows
@@ -291,14 +316,16 @@ function unqueueWeapon(world: World, killerId: string, mobId: string): void {
 }
 
 /** Mob ids count up in base 36 (nextId), so the shorter one is the earlier. */
-const byMobId = (a: WeaponAward, b: WeaponAward): number => a.mob.length - b.mob.length || (a.mob < b.mob ? -1 : a.mob > b.mob ? 1 : 0);
+const mobIdOrder = (a: string, b: string): number => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
+const earlierMob = (a: string, b: string): boolean => mobIdOrder(a, b) < 0;
+const byMobId = (a: WeaponAward, b: WeaponAward): number => mobIdOrder(a.mob, b.mob);
 
 function settleWeapons(world: World, killerId: string): void {
   const by = weaponAwards.get(world);
   const list = by?.get(killerId);
   if (!by || !list) return;
   by.delete(killerId);
-  for (const a of list.sort(byMobId)) awardMobWeapon(world, killerId, a.weapon, a.at, a.drop);
+  for (const a of list.sort(byMobId)) awardMobWeapon(world, killerId, a.weapon, a.at, campDropper(world, a.camp, a.mob));
 }
 
 /**

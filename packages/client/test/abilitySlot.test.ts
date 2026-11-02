@@ -401,4 +401,11 @@ describe("a charged Wish (Blaze Step)", () => {
     const m = abilitySlotModel(charged({ readyAt: 130_000, fullAt: 160_000 }), 110_000);
     expect(m).toMatchObject({ state: "cooldown", charges: 0, secondsLeft: 20 });
   });
+  it("times the run's Wish lock, not the charge clock, while the lock holds both charges back", () => {
+    // armWishes: readyAt = fullAt = the lock's end, 45 s off; the charge clock alone would show a charge in 15 s.
+    const m = abilitySlotModel(charged({ readyAt: 145_000, fullAt: 145_000, cooldownLen: 45_000 }), 100_000);
+    expect(m).toMatchObject({ state: "cooldown", charges: 0, secondsLeft: 45 });
+    expect(m.sweep).toBeCloseTo(1, 5);
+    expect(abilitySlotModel(charged({ readyAt: 145_000, fullAt: 145_000, cooldownLen: 45_000 }), 145_000)).toMatchObject({ state: "ready", charges: 2 });
+  });
 });

@@ -1030,6 +1030,7 @@ export class RaidScene extends Phaser.Scene {
       local.y = me.y;
       local.alive = me.status === "alive";
       local.build = me.build;
+      local.boosts = me.extra?.chestBoosts;
     }
     this.chestFrame.active = state.phase === "active";
     this.chestFrame.serverNow = serverNow;
