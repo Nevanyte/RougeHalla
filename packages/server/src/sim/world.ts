@@ -49,6 +49,12 @@ export interface SimConfig {
    */
   firstPatienceSeconds?: number;
   /**
+   * The live coliseum schedule: teleports on the run clock (first, second, then every repeat), not after a quiet spell.
+   * Unset (every test's flow), or with firstPatienceSeconds 0, the patience timer applies. Deaths never move a slot;
+   * a death that opens the gates skips to the next slot at least minGapSeconds away.
+   */
+  coliseumSchedule?: { firstSeconds: number; secondSeconds: number; repeatSeconds: number; minGapSeconds: number };
+  /**
    * Terrain hazards (sim/terrainEffects.ts: ember burn, bog slow, the ice slide, light heal): true (the default) applies the
    * effects of whatever terrain the map holds, with each faction's home rule; false switches every effect off and leaves the
    * map as it is; "all" applies them to everyone, the home exemption (and the light boost) off. Measurement uses the last two.

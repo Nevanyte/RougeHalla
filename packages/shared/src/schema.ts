@@ -331,7 +331,7 @@ export const RaidState = schema({
   startedWith: t.uint8().default(0),
   /** Server time of the next teleport into the coliseum. 0 while the gates are locked, and outside an active run. */
   patienceEndsAt: t.number().default(0),
-  /** True from the first teleport to the end of the run. */
+  /** True from a teleport until a death reopens the gates (false again outside the coliseum), and false at the run end. */
   inColiseum: t.boolean().default(false),
   /** True from a teleport until the next death. Phase 8b derives the gate geometry from it with `withGates(map)`. */
   gatesLocked: t.boolean().default(false),

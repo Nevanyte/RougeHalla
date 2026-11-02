@@ -828,6 +828,14 @@ describe("loadConfig planning settings", () => {
     expect([PLAN_SECONDS, FIRST_PATIENCE_SECONDS]).toEqual([45, 300]);
   });
 
+  it("the live coliseum schedule is 10:00, 15:00, then every 2 minutes; dev patience env or COLISEUM_SCHEDULE=0 turns it off", () => {
+    expect(loadConfig({}).coliseumSchedule).toEqual({ firstSeconds: 600, secondSeconds: 900, repeatSeconds: 120, minGapSeconds: 30 });
+    expect(loadConfig({ COLISEUM_FIRST_SECONDS: "20" }).coliseumSchedule?.firstSeconds).toBe(20);
+    expect(loadConfig({ PATIENCE_SECONDS: "20" }).coliseumSchedule).toBeUndefined();
+    expect(loadConfig({ FIRST_PATIENCE_SECONDS: "20" }).coliseumSchedule).toBeUndefined();
+    expect(loadConfig({ COLISEUM_SCHEDULE: "0" }).coliseumSchedule).toBeUndefined();
+  });
+
   it("PATIENCE_SECONDS alone also sets the flat first timer (a dev shortening a run); FIRST_PATIENCE_SECONDS wins when both are set", () => {
     expect(loadConfig({ PATIENCE_SECONDS: "20" })).toMatchObject({ patienceSeconds: 20, firstPatienceSeconds: 20 });
     expect(loadConfig({ PATIENCE_SECONDS: "20", FIRST_PATIENCE_SECONDS: "45" })).toMatchObject({ patienceSeconds: 20, firstPatienceSeconds: 45 });

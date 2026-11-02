@@ -112,6 +112,14 @@ export const PLAN_WALK_TOLERANCE = 0.08;
 /** The live server's first patience timer, flat whatever the player count (env FIRST_PATIENCE_SECONDS; decision 10). Timers after a death keep the scaling. */
 export const FIRST_PATIENCE_SECONDS = 300;
 
+// Coliseum schedule (the live rule; sim `coliseumSchedule` unset = the patience timer below)
+/** Run-clock slots, seconds from the run's start (after planning): the first teleport, the second, then one every REPEAT. */
+export const COLISEUM_FIRST_SECONDS = 600;
+export const COLISEUM_SECOND_SECONDS = 900;
+export const COLISEUM_REPEAT_SECONDS = 120;
+/** After a death reopens the gates the next teleport is never sooner than this (a death at 16:59 must not teleport at 17:00). Sudden death plus its burn (about 70 s) must stay under REPEAT minus this, or the cadence slips a slot. */
+export const COLISEUM_MIN_GAP_SECONDS = 30;
+
 // Arena
 /**
  * With no death for this long, everyone alive is teleported into the coliseum and the gates lock. Any death restarts it.
