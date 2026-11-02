@@ -48,5 +48,3 @@
   pointer-events: none;
 }
 .build-cell.tip-on .build-tip { display: block; }
-/* The last column's tips would run off the plate to the right: open them leftwards. */
-.build-cell:nth-child(3n) .build-tip { left: auto; right: 0; }
