@@ -1,0 +1,77 @@
+# Publishes play.roguehalla.com (Cloudflare Worker + game container) on every push to main, after the same gates
+# docs/CLOUDFLARE_PUBLIC.md lists for a manual publish. Needs two repository secrets:
+#   CLOUDFLARE_API_TOKEN   a token with Workers Scripts, Containers, R2 and Workers Routes edit rights on the account
+#   CLOUDFLARE_ACCOUNT_ID  the account that owns Worker `rougehalla`
+# A deploy restarts the game container, so a run in progress ends; deploys never overlap and are never cancelled midway.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Skip the full npm test (emergency fix only; typecheck, build and the smoke test still run)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check the Cloudflare secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to deploy."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run cf:typecheck
+      - run: npm run cf:test
+
+      - name: Full test suite
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_tests) }}
+        run: npm test
+
+      - run: npm run build
+      - name: Smoke test the compiled release
+        run: node --import tsx scripts/deploy-smoke.mjs --compiled
+
+      - name: Deploy to Cloudflare
+        run: npx wrangler deploy --config deployment/cloudflare/wrangler.jsonc
+
+      - name: Confirm the live build is this commit
+        run: |
+          for i in $(seq 1 30); do
+            live=$(curl -fsS -m 10 "https://play.roguehalla.com/build-info.json?ts=$(date +%s)" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).sourceCommit||"")}catch{console.log("")}})' || true)
+            if [ "$live" = "$GITHUB_SHA" ]; then
+              echo "play.roguehalla.com serves $live"
+              curl -fsS -m 10 https://play.roguehalla.com/api/health && echo
+              exit 0
+            fi
+            echo "live build is '${live}', waiting for $GITHUB_SHA ($i/30)"
+            sleep 10
+          done
+          echo "::error::play.roguehalla.com did not report $GITHUB_SHA within 5 minutes"
+          exit 1

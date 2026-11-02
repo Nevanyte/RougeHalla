@@ -392,7 +392,7 @@ npm run deploy
 npm run deploy:status
 ```
 
-See [Cloudflare deployment and recovery](docs/CLOUDFLARE_PUBLIC.md) for profile persistence, startup and capacity limits. Merging or pushing code does not itself publish a new cloud release; run the deployment command from the revision you intend to publish.
+See [Cloudflare deployment and recovery](docs/CLOUDFLARE_PUBLIC.md) for profile persistence, startup and capacity limits. A push to `main` publishes automatically through `.github/workflows/deploy.yml`: it runs `npm ci`, the typecheck, the Cloudflare typecheck and tests, the full `npm test`, the build and the compiled smoke test, then `wrangler deploy`, and waits until `/build-info.json` reports the pushed commit. It needs the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; deploys never overlap, a deploy restarts the game container (a run in progress ends), and "Run workflow" on the Actions tab can redeploy, optionally skipping the full test suite for an emergency fix. Pushes to other branches publish nothing; `npm run deploy` from your own computer still works.
 
 ### Optional local release manager
 
