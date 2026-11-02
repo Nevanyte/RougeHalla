@@ -183,6 +183,26 @@ describe("bush concealment", () => {
     expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(true);
   });
 
+  it("League rules: a viewer inside a bush sees out, and sees its bush mates, but not into a different bush", () => {
+    const w = bushWorld();
+    const m = w.map;
+    // A second, distant bush: x 22..24 of rows 20..22 (the first is rows 2..4).
+    m.features = [...m.features, { kind: "bush", variant: "", zone: "fire", jobs: ["cover"], ax: 22, ay: 20, p: [0, 1], bbox: { x: 22, y: 20, w: 3, h: 3 }, tiles: 9 }];
+    for (let y = 20; y <= 22; y++) for (let x = 22; x <= 24; x++) m.featureGrid[y * m.w + x] = 2;
+    const mate = w.state.players.get("p1")!;      // in bush 1
+    const open = w.state.players.get("p2")!;      // in the open
+    place(w, 0, at(23, 21));                       // the viewer stands in bush 2
+    place(w, 2, at(23, 24));                       // an open-ground actor near the viewer
+    expect(canPlayerSeeActor(w, "p0", "p2", open)).toBe(true);   // sees out of its own bush
+    expect(canPlayerSeeActor(w, "p0", "p1", mate)).toBe(false);  // a different bush: no sight in
+    place(w, 0, at(23, 4));                                      // now in the same bush as p1
+    expect(canPlayerSeeActor(w, "p0", "p1", mate)).toBe(true);
+    place(w, 0, at(23, 12));
+    place(w, 2, at(23, 21));                                     // p2 hides in bush 2: unseen from open ground, p1 (bush 1) cannot see it either
+    expect(canPlayerSeeActor(w, "p0", "p2", open)).toBe(false);
+    expect(canPlayerSeeActor(w, "p1", "p2", open)).toBe(false);
+  });
+
   it("a cast exposes its bush caster at the next abilities phase, whatever the tick's order", () => {
     for (let rand = 1; rand <= 12; rand++) {
       const w = bushWorld(rand);

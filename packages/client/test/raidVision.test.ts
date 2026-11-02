@@ -31,6 +31,29 @@ describe("session vision", () => {
     expect(v.canSee({ x: 70.5 * TILE, y: 25.5 * TILE })).toBe(false);
     expect(shouldRenderActor(false, EFFECT_HIDDEN, hiddenEnemy, v.canSee)).toBe(false);
   });
+  it("bushes: the viewer sees out of its own bush and its mates, not into another bush from outside or from a different bush", () => {
+    const m = map();
+    const bush = (k: number, x0: number, y0: number): void => {
+      m.features.push({ kind: "bush", variant: "", zone: "fire", jobs: ["cover"], ax: x0, ay: y0, p: [0, k], bbox: { x: x0, y: y0, w: 2, h: 2 }, tiles: 4 });
+      for (let y = y0; y < y0 + 2; y++) for (let x = x0; x < x0 + 2; x++) m.featureGrid[y * m.w + x] = m.features.length;
+    };
+    bush(0, 12, 12); bush(1, 12, 20);
+    const at = (x: number, y: number) => ({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE });
+    const open = at(12, 4), mateB = at(13, 13), otherB = at(12, 20), me = at(12, 12);
+    const v = new RaidVision();
+    const seeAll = (from: { x: number; y: number }): void => {
+      v.update(m, false, from, true, true, false, "me", [], 1000);
+      for (const p of [open, mateB, otherB]) v.update(m, false, p, true, true, false, "me", [], 1000);
+      v.update(m, false, from, true, true, false, "me", [], 1000);
+    };
+    seeAll(me);
+    expect(v.canSeeActor("a", open)).toBe(true);        // out of its own bush
+    expect(v.canSeeActor("b", mateB)).toBe(true);       // same bush
+    expect(v.canSeeActor("c", otherB)).toBe(false);     // a different bush
+    expect(v.canSeeActor("c", otherB, 5000)).toBe(true); // exposed by an attack
+    seeAll(open);
+    expect(v.canSeeActor("b", mateB)).toBe(false);      // from open ground
+  });
   it("expires live trail after thirty seconds and does not refresh it while dead", () => {
     const v = new RaidVision(), m = map(); frame(v, m);
     expect(v.canSee(origin)).toBe(true);
