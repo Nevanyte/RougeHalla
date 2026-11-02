@@ -17,19 +17,23 @@
 //                fighter to the server's own path where the prediction aims it (S(c + delay)), and how far it leads the newest sample
 //   orders       wall-clock delay from sending a move to the first patch that shows its seq, the prediction's own delay estimate,
 //                and what became of each lock click (shown by the server, or refused)
+//   swap         with --swap (a training room): weapon swaps through the client's own LocalHand: when the new hand shows (the first
+//                patch, which is what the screen waited for before the prediction, and the next frame), how the predictions ended,
+//                and how many clicks made inside the round trip after a swap would go to the wrong input by each
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  abilityInSlot, blinkLanding, findPath, generateMap, mulberry32, PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt, TARGET_RANGE,
-  TELEPORT_DISTANCE, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
+  abilityInSlot, blinkLanding, countIn, EFFECT_CASTING, EFFECT_STUNNED, findPath, generateMap, mulberry32, PLAYER_RADIUS, rankOf, ROOM_NAME,
+  slotReadyAt, swapAllowed, TARGET_RANGE, TELEPORT_DISTANCE, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
   type FxBatch, type GameMap, type ProfileResponse, type Vec2,
 } from "@raid/shared";
-import type { PlayerState, RaidState } from "@raid/shared/schema";
+import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import type { RenderClockOptions } from "@raid/shared";
 import { EntityInterpolator } from "../../client/src/net/interpolation";
 import { JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS, seqAcked, type LocalMotion } from "../../client/src/net/localMotion";
 import { castUnanswered, LocalPrediction, type SentCast } from "../../client/src/net/localPrediction";
+import { LocalHand, weaponInSlot } from "../../client/src/net/localHand";
 
 export interface ProbeOptions {
   url: string;
@@ -54,6 +58,12 @@ export interface ProbeOptions {
   wish?: boolean;
   /** A training room instead of an arena run: nothing moves but the probe, a Wish is ready every 5 s, and `seconds` counts the time alive. */
   training?: boolean;
+  /**
+   * Swap weapons the way the scene does (the client's own LocalHand predicts it) and report how soon the new hand shows and how
+   * many clicks that follow a swap would be routed by the wrong weapon, before and after the prediction. Needs `training`: the
+   * rack there is where the probe gets a wand and a sword (an arena run starts with empty hands).
+   */
+  swap?: boolean;
 }
 
 export interface Dist { n: number; p50: number; p95: number; p99: number; max: number; min: number; mean: number }
@@ -128,6 +138,26 @@ export interface ProbeReport {
     /** Casts after which the drawn fighter made a second big step (more than 25 u) in the 2 s, beside the blink's own: a pop back. */
     popBacks: number;
     divergenceDropsInWindows: number;
+  };
+  /** With ProbeOptions.swap: the weapon swaps (wand and sword, alternating) and what the predicted hand changes about them. */
+  swap: {
+    sent: number;
+    /** Swaps the client expected the server to take, and so showed at once. */
+    predicted: number;
+    /** The server took it: a patch showed the new slot. */
+    accepted: number;
+    /** How the predictions ended (net/localHand.ts). */
+    confirmed: number;
+    refused: number;
+    expired: number;
+    /** Wall-clock ms from sending a swap to the first patch showing the new slot: when the hand changed on screen before the prediction. */
+    shownWallMs: Dist;
+    /** Wall-clock ms from sending a swap to the next frame, the first that draws the predicted hand. */
+    predictedFrameMs: Dist;
+    /** Clicks simulated at random moments in the round trip after a swap, and how many would go to the wrong input (a wand's `target` against an `attack`) by the patch's slot (before) and by LocalHand's (after). */
+    clicks: number;
+    wrongBefore: number;
+    wrongAfter: number;
   };
   orders: {
     moves: number;
@@ -220,7 +250,32 @@ class Metrics {
   castSnapsByWho: Record<string, number> = {};
   castPopBacks = 0;
   castDivDrops = 0;
+  swapsSent = 0;
+  swapsPredicted = 0;
+  swapsAccepted = 0;
+  swapConfirmed = 0;
+  swapRefused = 0;
+  swapExpired = 0;
+  swapShownWall: number[] = [];
+  swapPredictedFrame: number[] = [];
+  swapClicks = 0;
+  swapWrongBefore = 0;
+  swapWrongAfter = 0;
 }
+
+/** One swap the swap probe sent: when, to which slot, and the clicks simulated inside its round trip (judged once it has settled). */
+interface SwapRec {
+  sentAt: number;
+  target: number;
+  predicted: boolean;
+  shownAt: number;
+  frameAt: number;
+  clicks: Array<{ at: number; wandBefore: boolean; wandAfter: boolean; done: boolean }>;
+  settled: boolean;
+}
+
+/** How long after a swap the probe takes the patch's slot as the truth: well past any round trip it tests. */
+const SWAP_SETTLE_WALL_MS = 1500;
 
 interface CastRec { seq: number; sentAt: number; c: number; landing: Vec2; displace0: number; acked: boolean; accepted: boolean; ackedAt: number }
 
@@ -254,6 +309,13 @@ class Session {
   private snapLog: Array<{ at: number; who: string }> = [];
   private divLog: number[] = [];
   private pendingLocks: Array<{ id: string; sentAt: number; shown: boolean; done: boolean }> = [];
+  // The swap probe: the client's own LocalHand, the swaps sent and when the next gear-up, wander and swap are due.
+  private readonly hand = new LocalHand();
+  private readonly handNow = { slot: 0, weapon0: "", weapon1: "" };
+  private swaps: SwapRec[] = [];
+  private nextGearAt = 0;
+  private nextWanderAt = 0;
+  private nextSwapAt = 0;
   // The script.
   private nextActionAt = 0;
   private holdUntil = 0;
@@ -363,6 +425,7 @@ class Session {
         this.lastSeqSeen = me.moveSeq;
       }
       this.noteLock(me, now);
+      if (this.opts.swap) this.noteSwapPatch(me, t, now);
       if (me.status === "dead") this.dead = true;
     }
   }
@@ -449,7 +512,10 @@ class Session {
     this.onFrame?.(now, this.interp);
 
     // Orders, then the prediction, as the scene does it.
-    if (active) this.script(now, c, me, state);
+    if (active) {
+      if (this.opts.swap) this.swapScript(now, c, me, state);
+      else this.script(now, c, me, state);
+    }
     const dt = this.lastFrameAt > 0 ? now - this.lastFrameAt : 0;
     this.lastFrameAt = now;
     const others = this.others;
@@ -513,6 +579,9 @@ class Session {
 
   /** Called once at the end: the distance of each drawn position from the server's own path, which only exists afterwards. */
   finish(): void {
+    this.m.swapConfirmed += this.hand.counts.confirmed;
+    this.m.swapRefused += this.hand.counts.refused;
+    this.m.swapExpired += this.hand.counts.expired;
     const tr = this.patchTrace;
     const at = (T: number, out: Vec2): boolean => {
       if (tr.length < 2 || T < tr[0]!.t || T > tr[tr.length - 1]!.t) return false;
@@ -589,6 +658,99 @@ class Session {
     this.pendingCast = { slot: "wish", seq, readyAt, until: now + JUMP_ORDER_EXPIRE_MS };
     this.casts.push({ seq, sentAt: now, c, landing, displace0: me.displaceSeq, acked: false, accepted: false, ackedAt: 0 });
     this.lockOn = false;
+  }
+
+  // ---------------------------------------------------------------------------------------------------------- the swap probe
+
+  /** Every patch: the hand's prediction is settled or kept, and a swap's first patch showing its slot is timed. */
+  private noteSwapPatch(me: PlayerState, t: number, now: number): void {
+    this.hand.observe(me.slot, t, now);
+    for (const r of this.swaps) {
+      if (r.shownAt === 0 && !r.settled && me.slot === r.target && now - r.sentAt < SWAP_SETTLE_WALL_MS) r.shownAt = now;
+    }
+  }
+
+  /** A wand and a sword in the two slots (picked from the training rack), then a swap every 1.6 to 2.5 s while walking about. */
+  private swapScript(now: number, c: number, me: PlayerState, state: RaidState): void {
+    this.swapTick(now, me, state);
+    const at = this.predict.motion.drawn;
+    const pos = this.predict.motion.ready ? { x: at.x, y: at.y } : { x: me.x, y: me.y };
+    const have = (id: string) => me.weapon0 === id || me.weapon1 === id;
+    const want = !have("wand") ? "wand" : !have("sword") ? "sword" : "";
+    if (want) {
+      if (now < this.nextGearAt) return;
+      this.nextGearAt = now + 400;
+      let box: ContainerState | undefined;
+      let best = Infinity;
+      state.containers.forEach((b) => {
+        const d = Math.hypot(me.x - b.x, me.y - b.y);
+        if (b.items.length > 0 && b.items.at(0)?.def === want && d < best) { best = d; box = b; }
+      });
+      if (!box) return;
+      if (best > 40) this.sendMove(now, c, { x: box.x, y: box.y }, state);
+      else this.room.send("pickup", { containerId: box.id });
+      return;
+    }
+    // Walking keeps the order delay estimate measured, as it is for a player who moves between swaps.
+    if (now >= this.nextWanderAt) {
+      this.nextWanderAt = now + 600 + this.rnd() * 600;
+      const to = this.randomReachable(pos, state, 80, 260);
+      if (to) this.sendMove(now, c, to, state);
+    }
+    if (now >= this.nextSwapAt) {
+      this.nextSwapAt = now + 1600 + this.rnd() * 900;
+      this.sendSwap(now, c, me, state);
+    }
+  }
+
+  /** What the scene's swapHand does: the explicit slot is sent, and the hand is predicted when the server is expected to take it. */
+  private sendSwap(now: number, c: number, me: PlayerState, state: RaidState): void {
+    const cur = this.hand.slotOf(me.slot);
+    const target = cur === 0 ? 1 : 0;
+    this.room.send("swap", { slot: target });
+    this.m.swapsSent++;
+    const hand = this.handNow;
+    hand.slot = cur;
+    hand.weapon0 = me.weapon0;
+    hand.weapon1 = me.weapon1;
+    const predicted = state.phase === "active" && (me.effects & (EFFECT_STUNNED | EFFECT_CASTING)) === 0
+      && swapAllowed(hand, target, countIn(me.build, "committed") > 0);
+    if (predicted) {
+      this.hand.predict(target, me.slot, state.serverTime, now, c, this.predict.motion.delay);
+      this.m.swapsPredicted++;
+    }
+    // Clicks at random moments inside the round trip (the measured ping and a margin): where the wrong weapon would route them.
+    const span = (this.m.pings.length > 0 ? dist(this.m.pings).p50 : 100) + 80;
+    const clicks = Array.from({ length: 6 }, () => ({ at: this.rnd() * span, wandBefore: false, wandAfter: false, done: false }));
+    this.swaps.push({ sentAt: now, target, predicted, shownAt: 0, frameAt: 0, clicks, settled: false });
+  }
+
+  /** Every frame: the hand's hard expiry, the first frame after each swap, the simulated clicks, and the swaps that have settled. */
+  private swapTick(now: number, me: PlayerState, state: RaidState): void {
+    this.hand.observe(me.slot, state.serverTime, now);
+    for (const r of this.swaps) {
+      if (r.settled) continue;
+      if (r.frameAt === 0 && now > r.sentAt) r.frameAt = now;
+      for (const k of r.clicks) {
+        if (k.done || now < r.sentAt + k.at) continue;
+        k.done = true;
+        k.wandBefore = weaponInSlot(me, me.slot) === "wand";
+        k.wandAfter = weaponInSlot(me, this.hand.slotOf(me.slot)) === "wand";
+      }
+      if (now < r.sentAt + SWAP_SETTLE_WALL_MS) continue;
+      // Swaps are 1.6 s or more apart: the patch's slot now is this swap's result, and the click's right route is that hand's.
+      r.settled = true;
+      const truthWand = weaponInSlot(me, me.slot) === "wand";
+      if (me.slot === r.target) this.m.swapsAccepted++;
+      if (r.shownAt > 0) this.m.swapShownWall.push(r.shownAt - r.sentAt);
+      if (r.predicted && r.frameAt > 0) this.m.swapPredictedFrame.push(r.frameAt - r.sentAt);
+      for (const k of r.clicks) {
+        if (!k.done) continue;
+        this.m.swapClicks++;
+        if (k.wandBefore !== truthWand) this.m.swapWrongBefore++;
+        if (k.wandAfter !== truthWand) this.m.swapWrongAfter++;
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------------------------------------- the player
@@ -788,6 +950,11 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
       errMaxPerCast: dist(m.castErrMax), errP95PerCast: dist(m.castErrP95), snapsInWindows: m.castSnaps, snapsByWho: m.castSnapsByWho,
       popBacks: m.castPopBacks, divergenceDropsInWindows: m.castDivDrops,
     },
+    swap: {
+      sent: m.swapsSent, predicted: m.swapsPredicted, accepted: m.swapsAccepted, confirmed: m.swapConfirmed, refused: m.swapRefused,
+      expired: m.swapExpired, shownWallMs: dist(m.swapShownWall), predictedFrameMs: dist(m.swapPredictedFrame), clicks: m.swapClicks,
+      wrongBefore: m.swapWrongBefore, wrongAfter: m.swapWrongAfter,
+    },
     orders: {
       moves: m.moves, acked: m.ackWall.length, ackWallMs: dist(m.ackWall), locks: m.locks, locksShown: m.locksShown,
       locksRefused: m.locksRefused, lockShownMs: dist(m.lockShown), followWithoutLockFrames: m.followWithoutLockFrames,
@@ -819,6 +986,11 @@ export function formatReport(r: ProbeReport): string {
       `landing err u ${d(r.wish.landingErr)}   per cast 2 s: err max u ${d(r.wish.errMaxPerCast)}  err p95 u ${d(r.wish.errP95PerCast)}  visual max u ${d(r.wish.visualMaxPerCast)}   ` +
       `snaps ${r.wish.snapsInWindows} ${JSON.stringify(r.wish.snapsByWho)}  div drops ${r.wish.divergenceDropsInWindows}  pop backs ${r.wish.popBacks}`,
     ] : []),
+    ...(r.swap.sent > 0 ? [
+      `swap      sent ${r.swap.sent} (predicted ${r.swap.predicted}, accepted ${r.swap.accepted}; confirmed ${r.swap.confirmed} refused ${r.swap.refused} expired ${r.swap.expired})   ` +
+      `new hand shown, ms after the key: before (first patch) ${d(r.swap.shownWallMs)}   after (next frame) ${d(r.swap.predictedFrameMs)}   ` +
+      `clicks routed by the wrong weapon: before ${r.swap.wrongBefore}/${r.swap.clicks} (${f2(100 * r.swap.wrongBefore / Math.max(1, r.swap.clicks))}%)  after ${r.swap.wrongAfter}/${r.swap.clicks} (${f2(100 * r.swap.wrongAfter / Math.max(1, r.swap.clicks))}%)`,
+    ] : []),
     `orders    moves ${r.orders.moves} acked ${r.orders.acked}  ack wall ms ${d(r.orders.ackWallMs)}   locks ${r.orders.locks} shown ${r.orders.locksShown} refused ${r.orders.locksRefused}  ` +
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,
   ].join("\n");
@@ -840,6 +1012,7 @@ function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
     else if (a === "--legacy") o.legacy = true;
     else if (a === "--wish") o.wish = true;
     else if (a === "--training") o.training = true;
+    else if (a === "--swap") { o.swap = true; o.training = true; }
     else if (a === "--trace") o.trace = true;
     else if (a === "--render") o.render = JSON.parse(v()) as Partial<RenderClockOptions>;
     else throw new Error(`unknown argument ${a}`);

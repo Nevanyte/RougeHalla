@@ -72,6 +72,17 @@ describe("WeaponRangeView", () => {
     expect(argsOf(graphics, "lineTo")).toHaveLength(3);
   });
 
+  it("draws the reach of the slot the scene says is in hand (a swap the patch has not shown), and the synced one without it", () => {
+    const { view, graphics } = setup();
+    const f = frame(); // sword in slot 0, bow in slot 1, the patch showing slot 0
+    view.update(f); expect(graphics.clears).toBe(1);
+    view.update({ ...f, slot: 1 }); expect(graphics.clears).toBe(2);
+    expect(argsOf(graphics, "lineTo")).toHaveLength(3); // the bow's lane is a rectangle
+    view.update({ ...f, slot: 1 }); expect(graphics.clears).toBe(2);
+    view.update(f); expect(graphics.clears).toBe(3);
+    expect(argsOf(graphics, "lineTo").length).toBeGreaterThan(3); // the sword's arc
+  });
+
   it("keeps the wand circle cached while aiming and uses Fists for an empty hand", () => {
     const { view, graphics } = setup();
     const f = frame({ me: { ...frame().me!, weapon0: "wand" } });

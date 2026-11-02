@@ -125,13 +125,16 @@ export class WeaponBar {
    * server time, which the cooldown counts down against. `pickup`: the weapon F would take, if one is in reach.
    * `questLabel`: the quest token or parcel F would take instead. `talkHint`: what F does at a quest giver ("talk to Ashmother Vela"),
    * when that is the nearest thing to use, or the refusal a quest item of an unaccepted offer would get ("Accept ... at ... first").
+   * `slot`: the slot to show in hand when the scene predicts a swap the patch has not shown yet (net/localHand.ts); default the synced one.
    */
-  update(me: PlayerState | undefined, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel = "", talkHint = ""): void {
+  update(
+    me: PlayerState | undefined, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel = "", talkHint = "", slot?: number,
+  ): void {
     // The lobby hands out nothing yet: weapons arrive with the run.
     const show = me?.status === "alive";
     if (this.root.hidden === show) this.root.hidden = !show;
     if (!me || !show) return;
-    this.render(me, patchT, serverNow, pickup, questLabel, talkHint);
+    this.render(me, patchT, serverNow, pickup, questLabel, talkHint, slot ?? me.slot);
     this.healCount.textContent = `${me.potionLarge ?? 0} large · ${me.potionSmall ?? 0} small`;
     this.speedCount.textContent = me.speedBoostUntil > serverNow ? "+50% speed" : "Walk over emblems";
     this.healStatus.textContent = me.healingUntil > serverNow ? `Healing${(me.potionsHealing ?? 0) > 1 ? ` x${me.potionsHealing}` : ""} ${Math.ceil((me.healingUntil - serverNow) / 1000)}s` : "";
@@ -140,15 +143,17 @@ export class WeaponBar {
     this.consumables.children[1]?.classList.toggle("empty", !(me.speedBoostUntil > serverNow));
   }
 
-  private render(me: PlayerState, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel: string, talkHint: string): void {
-    const signature = `${me.weapon0}|${me.weapon1}|${me.slot}`;
+  private render(
+    me: PlayerState, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel: string, talkHint: string, handSlot: number,
+  ): void {
+    const signature = `${me.weapon0}|${me.weapon1}|${handSlot}`;
     if (signature !== this.signature) {
       this.signature = signature;
       [me.weapon0, me.weapon1].forEach((id, i) => {
         const slot = this.slots[i]!;
         const w = weaponOf(id);
         slot.root.classList.toggle("empty", w === null);
-        slot.root.classList.toggle("active", me.slot === i);
+        slot.root.classList.toggle("active", handSlot === i);
         // An empty slot is fists (what the hand fights with): dimmed, with a dashed swatch, but named.
         slot.swatch.style.background = w ? cssColor(WEAPONS[w].color) : "";
         slot.name.textContent = WEAPONS[w ?? FISTS].name;
@@ -169,7 +174,7 @@ export class WeaponBar {
       if (this.tips.index >= 0) this.showTip(this.tips.index);
     }
 
-    const hand = weaponOf(me.slot === 1 ? me.weapon1 : me.weapon0);
+    const hand = weaponOf(handSlot === 1 ? me.weapon1 : me.weapon0);
     let hint = "";
     if (pickup) {
       const take = WEAPONS[pickup].name;

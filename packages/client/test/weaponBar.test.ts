@@ -73,6 +73,30 @@ describe("the weapon bar's scaling line and tooltip", () => {
     expect(part(slots()[1]!, "wb-scale").textContent).toBe("Offense 1.0 + bonus HP 0.02");
   });
 
+  it("marks the slot the scene says is in hand (a swap the patch has not shown), and the synced one when none is given", () => {
+    const { bar, slots } = setup();
+    const active = () => slots().map((s) => s.classes.has("active"));
+    bar.update(me("wand", "sword"), 0, 0, null);
+    expect(active()).toEqual([true, false]);
+    bar.update(me("wand", "sword"), 0, 0, null, "", "", 1); // Q pressed: slot 1 predicted while the patch still shows slot 0
+    expect(active()).toEqual([false, true]);
+    bar.update(me("wand", "sword", 1), 0, 0, null, "", "", 1); // the patch arrives and agrees: nothing moves
+    expect(active()).toEqual([false, true]);
+    bar.update(me("wand", "sword", 1), 0, 0, null); // no slot given: the synced one
+    expect(active()).toEqual([false, true]);
+    bar.update(me("wand", "sword", 1), 0, 0, null, "", "", 0); // a refused swap snaps back
+    expect(active()).toEqual([true, false]);
+  });
+
+  it("words the pickup hint from the hand it shows", () => {
+    const { bar } = setup();
+    const label = (bar as unknown as { hintLabel: FakeEl }).hintLabel;
+    bar.update(me("wand", "sword"), 0, 0, "axe", "", "", 0);
+    expect(label.textContent).toBe("swap Wand for Axe");
+    bar.update(me("wand", "sword"), 0, 0, "axe", "", "", 1);
+    expect(label.textContent).toBe("swap Sword for Axe");
+  });
+
   it("shows the tooltip of the slot under the pointer (its scaling, tags and special) and hides it off the slots", () => {
     const { dom, bar, row, tip, slots } = setup();
     bar.update(me("wand", "shield"), 0, 0, null);

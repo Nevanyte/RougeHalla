@@ -229,10 +229,11 @@ export class PlayerView {
    * `signatures`: draw the faction signature marks (the synced values freeze when a run ends, so only while it is active).
    * `facing`: the local player's predicted facing (net/localMotion.ts), which replaces the synced one while it walks; null for the synced one.
    * `ground`: what the tile under its feet does to it (render/zoneArt/terrainFeedback.ts); the feet effects show it.
+   * `slot`: the weapon slot to draw in hand, for the local fighter's swap before the patch shows it (net/localHand.ts); default the synced one.
    */
   update(
     x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false,
-    facing: number | null = null, ground: TerrainStates = NO_STATES, markDim = false,
+    facing: number | null = null, ground: TerrainStates = NO_STATES, markDim = false, slot: number = p.slot,
   ): void {
     const now = performance.now();
     // The look is set once at join and never changes in a run, so this decodes once per player.
@@ -260,18 +261,19 @@ export class PlayerView {
     this.root.setPosition(projX(x), projY(y));
     this.root.setDepth(depthFor(y));
     // Before art.update(), so a golden weapon look is on the very frame the weapon is drawn.
-    const held = heldWeapon(p);
-    this.setUsing({ faction: p.faction || undefined, weapon: held ?? undefined });
     const face = facing ?? p.facing;
+    const seen = facing === null && slot === p.slot ? p : this.facedAs(p, face, slot);
+    const held = heldWeapon(seen);
+    this.setUsing({ faction: p.faction || undefined, weapon: held ?? undefined });
     this.fig.frame(x, y, face, renderT, now); // juice: before the art, which reads the weapon's turn
-    const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT, this.isLocal ? this.localBowPull : undefined);
+    const weapon = this.art.update(seen, renderT, patchT, this.isLocal ? this.localBowPull : undefined);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
     this.label.setText(displayName(p));
     this.markPlate.update(signatures ? p.markTier : 0, signatures ? p.markTax : 0, signatures ? p.sig : 0, markDim, this.label.width);
     this.setWishIcon(p, renderT);
     const readability = this.readabilityFor(p);
     this.drawStrength(readability);
-    this.drawBuildMarks(readability, p);
+    this.drawBuildMarks(readability, p, slot);
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);
@@ -316,14 +318,14 @@ export class PlayerView {
     this.fireRoamGlow.strokeCircle(0, -BODY_LIFT, radius + 3);
   }
 
-  /** The art's view of `p` with `facing` in place of the synced one. */
-  private facedAs(p: PlayerState, facing: number): FighterFields {
+  /** The art's view of `p` with `facing` in place of the synced one, and `slot` of the hand (the predicted one, for the local fighter). */
+  private facedAs(p: PlayerState, facing: number, slot: number = p.slot): FighterFields {
     const f = this.faced;
     f.facing = facing;
     f.faction = p.faction;
     f.weapon0 = p.weapon0;
     f.weapon1 = p.weapon1;
-    f.slot = p.slot;
+    f.slot = slot;
     f.drawStartedAt = p.drawStartedAt;
     f.asMult = p.asMult;
     f.windupMult = p.windupMult;
@@ -448,9 +450,9 @@ export class PlayerView {
   }
 
   /** Three fixed spots: the secondary weapon on the left, followed by the two strongest stat investments. */
-  private drawBuildMarks(readability: CombatReadability, p: PlayerState): void {
+  private drawBuildMarks(readability: CombatReadability, p: PlayerState, slot: number): void {
     const stats = readability.investedStats.slice(0, 2);
-    const secondary = heldWeapon({ weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot === 1 ? 0 : 1, faction: p.faction }) ?? FISTS;
+    const secondary = heldWeapon({ weapon0: p.weapon0, weapon1: p.weapon1, slot: slot === 1 ? 0 : 1, faction: p.faction }) ?? FISTS;
     const crownScale = 1 + CROWN_GROWTH * Math.min(1, Math.max(0, p.bounty) / CROWN_FULL_BOUNTY);
     this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 14 : LABEL_Y - 27);
     const key = `${secondary}|${stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|")}`;
