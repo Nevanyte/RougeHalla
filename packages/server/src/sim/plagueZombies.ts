@@ -1,8 +1,9 @@
 // One owned combatant per Plague. Its entries keep the zombie id (no borrowed on-hits or disease); reward and PvP readers
-// resolve ownership explicitly. It has no regional mob brain, reward path, corpse, regeneration or automatic resurrection.
+// resolve ownership explicitly. It has no regional mob brain, reward path, corpse or automatic resurrection.
 import {
-  circleClear, decodeMult, hasLineOfSight, MASK_MOVE, PLAGUE_ZOMBIE_ASSIST_MS, PLAGUE_ZOMBIE_ASSIST_RANGE, plagueZombieStats,
-  PLAYER_RADIUS, type Vec2,
+  circleClear, decodeMult, hasLineOfSight, MASK_MOVE, PLAGUE_ZOMBIE_ASSIST_MS, PLAGUE_ZOMBIE_ASSIST_RANGE, PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR,
+  PLAGUE_ZOMBIE_REGEN_QUIET_MS, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND, PLAGUE_ZOMBIE_REGEN_STEP_MS, plagueZombieStats,
+  PLAYER_RADIUS, TICK_MS, type Vec2,
 } from "@raid/shared";
 import { MobState } from "@raid/shared/schema";
 import { combatant, hostile, isEvading, standing, type Combatant } from "./combatant";
@@ -143,6 +144,20 @@ export function updateZombies(world: World): void {
   }
 }
 
+/** Passive regen in coarse steps (fewer patches); slower while the zombie was hit recently. Dead zombies stay dead. */
+export function regenZombies(world: World): void {
+  const now = world.state.serverTime;
+  if (now % PLAGUE_ZOMBIE_REGEN_STEP_MS >= TICK_MS) return;
+  for (const [id, rt] of world.mobs) {
+    if (!rt.zombie) continue;
+    const z = combatant(world, id);
+    if (!z || z.kind !== "mob" || !standing(z) || !(z.s.hp < z.s.maxHp)) continue;
+    const factor = now - rt.lastHitAt < PLAGUE_ZOMBIE_REGEN_QUIET_MS ? PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR : 1;
+    const gain = z.s.maxHp * PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND * factor * PLAGUE_ZOMBIE_REGEN_STEP_MS / 1000;
+    z.s.hp = Math.min(z.s.maxHp, z.s.hp + gain);
+  }
+}
+
 export function install(world: World): void {
   world.moveModifiers.push((w, c) => {
     if (c.kind !== "mob" || c.s.kind !== "zombie") return 1;
@@ -158,7 +173,7 @@ export function install(world: World): void {
       if (z?.kind === "mob" && standing(z) && owner?.kind === "player" && standing(owner)) syncStats(owner, z);
     }
   });
-  world.systems.push(updateZombies);
+  world.systems.push(updateZombies, regenZombies);
   chainHook(world, "hitLanded", (w, e, applied) => {
     if (!(applied > 0) || e.weapon === null || e.sig || e.dot || e.passive || e.derived || e.ability) return;
     const p = w.state.players.get(e.by.id);

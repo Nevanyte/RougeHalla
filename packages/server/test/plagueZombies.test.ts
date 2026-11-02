@@ -76,8 +76,8 @@ describe("Plague's single zombie", () => {
     const w = arena(); harvest(w); const z = pet(w);
     P(w).maxHp = 3000; updateZombies(w); z.s.hp = 20;
     P(w).maxHp = 1400; updateZombies(w);
-    expect(z.s.hp).toBe(20); expect(z.s.status).toBe("alive"); expect(z.s.maxHp).toBeCloseTo(490);
-    expect(packetFor(z, "fists").raw).toBeCloseTo(42);
+    expect(z.s.hp).toBe(20); expect(z.s.status).toBe("alive"); expect(z.s.maxHp).toBeCloseTo(770);
+    expect(packetFor(z, "fists").raw).toBeCloseTo(28);
   });
 
   it("follows instead of attacking nearby unengaged camps, and paths through the gap rather than through walls", () => {
@@ -232,5 +232,22 @@ describe("Plague's single zombie", () => {
       return w.combat.landed.filter(e => e.by === "owner" && e.sig === "disease").map(e => e.amount);
     };
     const base = sample(0); expect(base.length).toBeGreaterThan(0); expect(sample(4)).toEqual(base);
+  });
+  it("regenerates passively, slower right after a hit, and a dead zombie stays dead", () => {
+    const w = arena(); harvest(w); const z = pet(w);
+    if (z.kind !== "mob") throw new Error("mob expected");
+    z.s.hp = z.s.maxHp * 0.5; z.rt.lastHitAt = -1e9;
+    const calm = z.s.hp;
+    for (let i = 0; i < 20; i++) step(w, TICK_MS);
+    const calmGain = z.s.hp - calm;
+    expect(calmGain).toBeGreaterThan(z.s.maxHp * 0.015 * 0.8);
+    z.s.hp = z.s.maxHp * 0.5; const base = z.s.hp;
+    z.rt.lastHitAt = w.state.serverTime + 5000;
+    for (let i = 0; i < 20; i++) step(w, TICK_MS);
+    expect(z.s.hp - base).toBeLessThan(calmGain * 0.5);
+    expect(z.s.hp - base).toBeGreaterThan(0);
+    z.s.status = "dead"; z.s.hp = 0;
+    for (let i = 0; i < 20; i++) step(w, TICK_MS);
+    expect(z.s.hp).toBe(0);
   });
 });

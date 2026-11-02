@@ -5,8 +5,13 @@ export const PLAGUE_CORPSE_AUTO_RANGE = 24;
 export const PLAGUE_CORPSE_INTERACT_RANGE = PLAGUE_CORPSE_AUTO_RANGE;
 export const PLAGUE_CORPSE_HP_SHARE = 0.03;
 export const PLAGUE_CORPSE_HEAL_SHARE = 0.03;
-export const PLAGUE_ZOMBIE_HP_SHARE = 0.35;
-export const PLAGUE_ZOMBIE_HIT_SHARE = 0.03;
+export const PLAGUE_ZOMBIE_HP_SHARE = 0.55;
+export const PLAGUE_ZOMBIE_HIT_SHARE = 0.02;
+/** Passive regen of the zombie's max HP per second; it slows to the combat factor while it was hit within the quiet window. */
+export const PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND = 0.015;
+export const PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR = 0.25;
+export const PLAGUE_ZOMBIE_REGEN_QUIET_MS = 4000;
+export const PLAGUE_ZOMBIE_REGEN_STEP_MS = 500;
 export const PLAGUE_ZOMBIE_GROWTH_PER_BODY = 0.10;
 export const PLAGUE_ZOMBIE_INTERVAL_MS = 1000;
 export const PLAGUE_ZOMBIE_WINDUP_MS = 200;
