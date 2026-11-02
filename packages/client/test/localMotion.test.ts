@@ -92,6 +92,9 @@ class Rig {
   /** The client clock: what the patches stamped now arrived with. */
   get clock(): number { return this.now - this.down; }
 
+  /** Milliseconds since the last client frame: an order given when this is above 0 is stamped between frames, as a key event is. */
+  get sinceFrame(): number { return this.now - this.lastFrame; }
+
   private delay(base: number): number { return base + Math.floor(this.rnd() * (this.jitter + 1)); }
 
   /** The player right-clicks `to`. */
@@ -401,6 +404,55 @@ describe("acknowledging orders", () => {
     r.move(centre(40, 14));
     r.run(300);
     expect(r.motion.pendingOrders).toBe(0);
+  });
+});
+
+describe("an order stamped between two frames (a key event, not the frame)", () => {
+  /** A rig that has run on to `phase` ms into a frame; an order given there is stamped `phase` ms after that frame's. */
+  function atPhase(phase: number, o: Options = {}): Rig {
+    const r = new Rig(o);
+    r.run(300);
+    while (r.sinceFrame !== phase) r.run(1);
+    return r;
+  }
+
+  it.each([0, 4, 9, 15])("%i ms into the frame: the delay is measured from the order's own stamp", (phase) => {
+    const up = 40, down = 40;
+    const r = atPhase(phase, { up, down });
+    const c = r.clock;
+    r.move(centre(40, 10));
+    // The first tick at or after the order's arrival applies it and stamps its patch.
+    const tickAt = Math.ceil((r.now + up) / TICK_MS) * TICK_MS;
+    r.run(400);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(r.motion.delay).toBe(tickAt - TICK_MS - c);
+  });
+
+  it.each([0, 4, 9, 15])("%i ms into the frame: the first frame after the order walks a frame, no more, and the walk reconciles without a snap", (phase) => {
+    const r = atPhase(phase);
+    const before = { ...r.motion.drawn };
+    r.move(centre(40, 10));
+    const from = r.drawnLog.length;
+    r.run(FRAME_MS * 1.5);
+    const first = dist(r.drawnLog[from]!, before);
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThanOrEqual(PLAYER_SPEED * ((FRAME_MS + 1) / 1000));
+    r.run(2000);
+    expect(r.maxStep(from)).toBeLessThanOrEqual(PLAYER_SPEED * (FRAME_MS / 1000) + (CORRECT_SPEED_MOVING_MAX * FRAME_MS) / 1000 + 0.01);
+    expect(Math.max(...r.offsetLog.slice(from))).toBeLessThan(SNAP_DISTANCE);
+    r.stop();
+    r.run(1500);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(1);
+  });
+
+  it("a stop given mid-frame halts the model at once", () => {
+    const r = atPhase(7, { up: 60, down: 60 });
+    r.move(centre(40, 10));
+    r.run(300);
+    expect(r.motion.walking).toBe(true);
+    r.stop();
+    r.run(FRAME_MS + 1);
+    expect(r.motion.walking).toBe(false);
   });
 });
 

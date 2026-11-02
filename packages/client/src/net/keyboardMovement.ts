@@ -16,3 +16,18 @@ export function keyboardMoveGoal(map: GameMap, origin: Vec2, keys: ReadonlySet<s
   }
   return null;
 }
+
+/** A held direction is re-sent this often, so the 64 u lookahead goal keeps ahead of the walker and a lost order heals. */
+export const STEER_REPEAT_MS = 100;
+/** A key event within this long of the last steer waits for the frame instead: a rate cap, not a chord merge. */
+export const STEER_COALESCE_MS = 3;
+
+/**
+ * Whether the keyboard should send an order now. `changed`: a movement key went down or up since the last send. A key event
+ * sends at once (so the order is not quantised to the render frame) unless it follows the last send too closely; the frame
+ * picks that one up, since `changed` stays set. A negative gap (the clock stepped back) defers an event instead of sending it.
+ */
+export function steerDue(s: { changed: boolean; lastAt: number }, now: number, fromEvent: boolean): boolean {
+  const gap = now - s.lastAt;
+  return fromEvent ? s.changed && gap >= STEER_COALESCE_MS : s.changed || gap >= STEER_REPEAT_MS;
+}
