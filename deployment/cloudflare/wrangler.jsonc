@@ -31,6 +31,10 @@
       {
         "name": "GAME_CONTAINER",
         "class_name": "PublicGameContainer"
+      },
+      {
+        "name": "TELEMETRY",
+        "class_name": "TelemetryStore"
       }
     ]
   },
@@ -40,6 +44,10 @@
       "storage": "sqlite"
     },
     "PublicGameContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "TelemetryStore": {
       "type": "durable-object",
       "storage": "sqlite"
     }
