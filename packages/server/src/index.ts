@@ -32,8 +32,34 @@ import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
 import { warmCloudSimulation } from "./cloudWarmup";
 import { mirrorSnapshotFile } from "./persistence/FileSnapshotMirror";
 import { CloudflareTransport } from "./CloudflareTransport";
+import { telemetryConfigFromEnv, telemetryEnabled } from "./telemetry/config";
+import { readBuildInfo } from "./telemetry/identity";
+import { TelemetryRuntime } from "./telemetry/runtime";
+import { createFileSink, createHttpSink, multiSink, type TelemetrySink } from "./telemetry/sink";
 
-const SERVER_BUILD_ID = computeServerBuildId();
+/** The hash of the server's sources (buildId.ts): every telemetry record carries it (docs/TELEMETRY.md 3.1). */
+export const SERVER_BUILD_ID = computeServerBuildId();
+
+/** How long a shutdown waits for the telemetry sink to flush (inside the container's drain). */
+const TELEMETRY_CLOSE_MS = 3000;
+
+/** The telemetry runtime the environment asks for, or null when no sink is configured (then nothing records). */
+export function telemetryFromEnv(config: ServerConfig, env: Record<string, string | undefined> = process.env): TelemetryRuntime | null {
+  const t = telemetryConfigFromEnv(env);
+  if (!telemetryEnabled(t)) return null;
+  const sinks: TelemetrySink[] = [];
+  if (t.url && t.token) sinks.push(createHttpSink({ url: t.url, token: t.token }));
+  if (t.dir) sinks.push(createFileSink({ dir: t.dir }));
+  console.log(`[telemetry] recording ${t.source} runs to ${[t.url ? "the ingest endpoint" : "", t.dir ? t.dir : ""].filter(Boolean).join(" and ")}`);
+  return new TelemetryRuntime({
+    sink: sinks.length === 1 ? sinks[0]! : multiSink(sinks),
+    source: t.source,
+    build: { server: SERVER_BUILD_ID, commit: readBuildInfo(t.commit, config.clientDir) },
+    salt: t.salt,
+    positions: t.positions,
+    botsFillTo: config.bots.fillTo,
+  });
+}
 
 /**
  * The schema encoder's buffer, per room (Colyseus' default is 16 KB). A 136x136 run's state is larger: the camps, the roster and
@@ -275,7 +301,7 @@ function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): ((
   return installNetSim(sim);
 }
 
-export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void>; closeBotSnapshot?: () => Promise<void> } = {}) {
+export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void>; closeBotSnapshot?: () => Promise<void>; telemetry?: TelemetryRuntime | null } = {}) {
   let storageHealthy = true;
   const readiness = { ready: false, simulationWarmup: null as Awaited<ReturnType<typeof warmCloudSimulation>> | null };
   const loopDelay = opts.onSnapshot ? monitorEventLoopDelay({ resolution: 20 }) : null;
@@ -291,7 +317,9 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   const botStats = createBotStats(config);
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
   const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
-  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate, maps, botStats };
+  // Never touches storageHealthy, /readyz or the profile store: a failing endpoint costs records, nothing else.
+  const telemetry = opts.telemetry !== undefined ? opts.telemetry : telemetryFromEnv(config);
+  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate, maps, botStats, telemetry };
   configureCors(config);
   const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
   const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);
@@ -464,6 +492,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
     botStats?.close();
     try { await opts.closeBotSnapshot?.(); }
     catch { console.error("[bot-stats] could not flush remote learning snapshot on shutdown"); }
+    try { await telemetry?.close(TELEMETRY_CLOSE_MS); } catch { /* records are best effort */ }
     await maps.stop();
   });
   // Our own model (net/netSim.ts) replaces Colyseus's fixed delay. Core also reads COLYSEUS_LATENCY itself when the server
@@ -488,11 +517,12 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
         try { await opts.closeBotSnapshot?.(); }
         catch { console.error("[bot-stats] could not flush remote learning snapshot on shutdown"); }
       } finally {
+        try { await telemetry?.close(TELEMETRY_CLOSE_MS); } catch { /* records are best effort */ }
         await maps.stop();
       }
     }
   }
-  return Object.assign(server, { store, profiles, rooms, maps, botStats, stop, readiness });
+  return Object.assign(server, { store, profiles, rooms, maps, botStats, telemetry, stop, readiness });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;

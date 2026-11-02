@@ -116,7 +116,7 @@ export function applyLight(world: World, c: PlayerCombatant, dtMs: number): numb
   countHazardSeconds(world, "light", dtMs);
   const last = world.terrain?.combatAt.get(c.id);
   if (last !== undefined && world.state.serverTime - last < HEAL_LOCKOUT_SECONDS * 1000) return 0;
-  const gained = heal(world, c, e.healShare * c.s.maxHp * (dtMs / 1000), { quiet: true });
+  const gained = heal(world, c, e.healShare * c.s.maxHp * (dtMs / 1000), { quiet: true, source: "light" });
   if (gained > 0) {
     const m = world.hazards.stats.heal;
     m.set(c.id, (m.get(c.id) ?? 0) + gained);

@@ -89,9 +89,12 @@ export function rollChest(world: World, camp: number, elite = false, zone?: Fact
   const at = chestSpot(world, camp);
   if (!def || !at) return null;
   const contributors = elite ? elitePickers.get(world)?.get(camp) : undefined;
-  const pickers = eligibleContributors(world, camp, contributors).map((c) => c.s.build);
+  const eligible = eligibleContributors(world, camp, contributors);
+  const pickers = eligible.map((c) => c.s.build);
   elitePickers.get(world)?.delete(camp);
-  return dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { elite: elite || isEliteCamp(def), pickers, ...(zone ? { zone } : {}) }), camp);
+  const box = dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { elite: elite || isEliteCamp(def), pickers, ...(zone ? { zone } : {}) }), camp);
+  world.hooks.rewardOffered?.(world, box, "augment", camp, eligible.map((c) => c.id));
+  return box;
 }
 
 /**
@@ -99,7 +102,24 @@ export function rollChest(world: World, camp: number, elite = false, zone?: Fact
  * `choose` path as an augment chest. A normal camp's clear drops one on the camp's chest tile; an opened world crate drops one at the crate.
  */
 export function dropStatChest(world: World, at: Vec2, camp?: number): ContainerState {
-  return dropRewardChest(world, at, rollBoostOptions(world.rewardRandom), camp, STAT_CHEST_LABEL);
+  const box = dropRewardChest(world, at, rollBoostOptions(world.rewardRandom), camp, STAT_CHEST_LABEL);
+  if (world.hooks.rewardOffered) {
+    // A camp's stat chest is offered to its eligible contributors; a crate's has none, so every standing player in pick range.
+    const eligible = camp !== undefined && camp >= 0
+      ? eligibleContributors(world, camp).map((c) => c.id)
+      : nearbyPlayers(world, at);
+    world.hooks.rewardOffered(world, box, "stat", camp !== undefined && camp >= 0 ? camp : -1, eligible);
+  }
+  return box;
+}
+
+function nearbyPlayers(world: World, at: Vec2): string[] {
+  const out: string[] = [];
+  for (const [id, p] of world.state.players) {
+    const rt = world.players.get(id);
+    if (rt && standing({ kind: "player", id, s: p, rt }) && Math.hypot(p.x - at.x, p.y - at.y) <= CHEST_RANGE) out.push(id);
+  }
+  return out;
 }
 
 /** Every reward container now in the state. */
@@ -125,6 +145,7 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
     box.pickers.push(c.id);
     if (box.owner === "") paySkip(world, c); // declining a trophy pays nothing (no GV from bot kills)
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: -1 } });
+    world.hooks.rewardChosen?.(world, c, box, -1);
     return;
   }
   const i = cmd.pick;
@@ -142,6 +163,7 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
     syncMaxHp(p);
     toast(world, c.id, `${CHEST_BOOST_DEFS[boost].title} x1.2${have > 0 ? ` (${have + 1} of ${CHEST_BOOST_MAX_PICKS}, diminishing)` : ""}`);
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
+    world.hooks.rewardChosen?.(world, c, box, i);
     return;
   }
   if (box.owner !== "") { // kill augment: the victim's stat, not a card
@@ -149,6 +171,7 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
     box.takenBy[i] = c.id;
     box.pickers.push(c.id);
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
+    world.hooks.rewardChosen?.(world, c, box, i);
     return;
   }
   if (!cardDef(id) || !cardLive(id) || !isInteractiveAugment(id)) return; // only live interactive augments are pickable
@@ -158,6 +181,7 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   box.pickers.push(c.id);
   grantCard(world, c, id);
   emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
+  world.hooks.rewardChosen?.(world, c, box, i);
 };
 
 /**
@@ -177,7 +201,7 @@ export function grantCard(world: World, c: Extract<Combatant, { kind: "player" }
 
 /** D12: a skip heals SKIP_HEAL_SHARE of max hp when the heal lockout allows; healing nothing (lockout, full hp) pays GV_SKIP. */
 function paySkip(world: World, c: Extract<Combatant, { kind: "player" }>): void {
-  if (heal(world, c, SKIP_HEAL_SHARE * c.s.maxHp) > 0) return;
+  if (heal(world, c, SKIP_HEAL_SHARE * c.s.maxHp, { source: "chestSkip" }) > 0) return;
   awardSkipGv(world, c.s, c.rt);
 }
 
@@ -200,7 +224,10 @@ export function install(world: World): void {
   chainHook(world, "mobKilled", (w, _killer, mob) => {
     if (!mob.elite) return;
     if (mob.camp >= 0) rollChest(w, mob.camp, true, mob.zone);
-    else dropRewardChest(w, mob.at, rollChestOptions(w.rewardRandom, { elite: true, zone: mob.zone }));
+    else {
+      const box = dropRewardChest(w, mob.at, rollChestOptions(w.rewardRandom, { elite: true, zone: mob.zone }));
+      w.hooks.rewardOffered?.(w, box, "augment", -1, [_killer.id]);
+    }
   });
   // A normal camp's clear drops a stat chest (elite camps drop their augment chest from the elite's own death above).
   chainHook(world, "campCleared", (w, camp) => {

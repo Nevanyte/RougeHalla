@@ -31,7 +31,7 @@ function regenPass(world: World, dtMs: number): void {
     const last = clock.get(c.id);
     const quiet = last === undefined || now - last >= PLAYER_REGEN_QUIET_MS;
     const share = quiet ? PLAYER_REGEN_SHARE_OUT : PLAYER_REGEN_SHARE_IN;
-    heal(world, c, c.s.maxHp * share * (dtMs / 1000), { quiet: true, ignoreLockout: true, noBarrier: true });
+    heal(world, c, c.s.maxHp * share * (dtMs / 1000), { quiet: true, ignoreLockout: true, noBarrier: true, source: "regen" });
   }
 }
 

@@ -35,6 +35,8 @@ import { grantCard } from "../src/sim/chests";
 import { aggro } from "../src/sim/mobAI";
 import { combatant, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
+import { installTelemetry } from "../src/sim/telemetry";
+import { TelemetryRuntime } from "../src/telemetry/runtime";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { placeMob } from "../src/sim/mobLife";
 import { addPlayer, step } from "../src/sim/step";
@@ -75,6 +77,8 @@ export interface BenchOptions {
   quests?: boolean;
   /** The pathfinder's worst case: every camp woken every second, players re-locking every TARGET_REPATH_MS (see the header). `--stress` on the CLI. */
   stress?: boolean;
+  /** The telemetry recorder installed (docs/TELEMETRY.md 2: its overhead budget). `--telemetry` on the CLI runs it against the same run without. */
+  telemetry?: boolean;
   /**
    * "heavy": the generated map with a hazard on every fourth floor tile (ember, bog, ice and light in turn), camps and spawns
    * included: the terrain passes at their worst. `hazards: false` plays the same map with the effects off (the control).
@@ -278,6 +282,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   const world = createGameWorld({
     seed, config: cfg, random: mulberry32(seed + 1), ...(opts.terrain === "heavy" ? { map: heavyTerrainMap(seed) } : {}),
   });
+  if (opts.telemetry) installTelemetry(world);
   const burn = { ms: 0 };
   const light = { ms: 0 };
   if (opts.terrain === "heavy") {
@@ -418,6 +423,14 @@ const cpuNow = (): number => {
 };
 
 /** The bots run: a human-less lineup in a headless room, every tick timed in its three stretches. */
+/** A runtime whose sink drops everything: the bench measures the recorder, never I/O. */
+function benchTelemetry(): TelemetryRuntime {
+  return new TelemetryRuntime({
+    sink: { submit() {}, async close() {}, stats: () => ({ sent: 0, dropped: 0, failed: 0, queued: 0 }) },
+    source: "bench", build: { server: "bench", commit: null }, salt: null, positions: true, botsFillTo: 0,
+  });
+}
+
 function runBotsBench(opts: BenchOptions): BenchResult {
   const count = Math.min(8, Math.floor(opts.bots ?? 8));
   const seed = opts.seed ?? 1;
@@ -434,6 +447,7 @@ function runBotsBench(opts: BenchOptions): BenchResult {
     config: { ...HEADLESS_CONFIG, patienceSeconds: patience, patienceMinSeconds: patience, suddenDeathSeconds: 1e6, quests: opts.quests === true },
     bots: { ...BOT_FILL_DEFAULTS, fillTo: count },
     lineup: Array.from({ length: count }, () => (opts.botTier ? { tier: opts.botTier } : {})),
+    ...(opts.telemetry ? { telemetry: benchTelemetry() } : {}),
   });
   const { world, manager } = room;
   // The map's own mobs (one per camp spot), as the scripted run keeps them.
@@ -608,6 +622,25 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ...(args.clock === "cpu" || args.clock === "wall" ? { clock: args.clock } : {}),
   };
   const f = f3;
+  if (args.telemetry !== undefined) {
+    // The overhead budget (docs/TELEMETRY.md 2): off and on interleaved, best of N each, on the CPU clock where there is one.
+    const n = Math.max(1, Number(args.repeat ?? 5));
+    const best = { off: { avg: Infinity, p99: Infinity }, on: { avg: Infinity, p99: Infinity } };
+    for (let i = 0; i < n; i++) {
+      for (const on of [false, true]) {
+        const r = runStepBench({ ...opts, telemetry: on, ...(opts.bots ? { clock: "cpu" as const } : {}) });
+        const g = r.bots ? { avg: r.avgMs, p99: r.p99Ms } : gateMs(r);
+        const b = on ? best.on : best.off;
+        b.avg = Math.min(b.avg, g.avg);
+        b.p99 = Math.min(b.p99, g.p99);
+      }
+    }
+    const pct = (a: number, b: number): string => `${(((a - b) / b) * 100).toFixed(1)}%`;
+    console.log(`telemetry ${opts.bots ? `with ${opts.bots} bots ` : ""}(best of ${n}): off avg ${f(best.off.avg)} p99 ${f(best.off.p99)} ms; ` +
+      `on avg ${f(best.on.avg)} p99 ${f(best.on.p99)} ms; overhead avg ${pct(best.on.avg, best.off.avg)} (${f(best.on.avg - best.off.avg)} ms), ` +
+      `p99 ${pct(best.on.p99, best.off.p99)} (${f(best.on.p99 - best.off.p99)} ms) (budget: 3% + 0.02 ms)`);
+    process.exit(0);
+  }
   const show = (tag: string, r: BenchResult): void => console.log(
     `${tag}${r.ticks} ticks, ${r.mobs} mobs (${r.quests} quest offers), ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
     `step(): avg ${f(r.avgMs)} ms, p50 ${f(r.p50Ms)} ms, p99 ${f(r.p99Ms)} ms, max ${f(r.maxMs)} ms (gate: avg < ${AVG_BUDGET_MS}, p99 < ${P99_BUDGET_MS})\n` +

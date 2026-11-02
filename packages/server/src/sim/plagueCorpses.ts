@@ -68,7 +68,7 @@ export const handleConsumeCorpse: ActionHandler = (world, c, cmd) => {
   // syncMaxHp normally carries a max-health increase onto the current bar. For corpses the reward specifies a heal
   // that goes through the ordinary heal rules, so undo that implicit carry and apply the single explicit heal instead.
   p.hp = Math.min(hpBefore, p.maxHp);
-  heal(world, c, FACTIONS.plague.hp * PLAGUE_CORPSE_HEAL_SHARE);
+  heal(world, c, FACTIONS.plague.hp * PLAGUE_CORPSE_HEAL_SHARE, { source: "corpse" });
   raiseOrGrowZombie(world, c);
   toast(world, c.id, `Consumed ${corpse.playerName}'s corpse: +3% max health, zombie raised or strengthened`);
 };

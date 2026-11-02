@@ -14,6 +14,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
+  TELEMETRY_FINALIZE_GRACE_MS, TELEMETRY_PERF_MESSAGE,
   type FactionId, type FxBatch, type FxEvent, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -32,6 +33,7 @@ import { enqueueClientMessage } from "../sim/inputs";
 import { planFor } from "../sim/planning";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
 import { installTraining } from "../sim/training";
+import type { RunTelemetry, TelemetryRuntime } from "../telemetry/runtime";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
 import { visionSnapshot } from "./visionSync";
@@ -120,6 +122,8 @@ export interface RoomContext {
   maps: MapSource;
   /** What the fill bots learn across runs (docs/BOTS.md 6.2): process-wide, its own file, never the profile store. Null = learning off. */
   botStats: BotStatsStoreApi | null;
+  /** Run records (docs/TELEMETRY.md): null or absent = no sink, so no recorder is installed at all. */
+  telemetry?: TelemetryRuntime | null;
 }
 
 /** What onAuth hands to onJoin via `client.auth`. */
@@ -223,6 +227,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private bots: BotManager | undefined;
   /** The `fxs` batches broadcast since the bots' last frame: they see what the clients got. Only filled when there are bots. */
   private readonly botBatches: FxBatch[] = [];
+  /** This arena run's telemetry collector (never in training); null when telemetry is off. */
+  private run: RunTelemetry | null = null;
 
   private get world(): World {
     if (!this.built) throw new Error("the world is built when the first player joins");
@@ -262,9 +268,19 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         // sees it and, like junk, is not presence.
         if (type !== FREE_MESSAGE_TYPE && !this.orderAllowed(client.sessionId)) return;
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
+        if (enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) {
+          this.lastInputAt = Date.now();
+          this.run?.noteInput(client.sessionId);
+        }
       });
     }
+    // The client's one perf sample of a run (docs/TELEMETRY.md 3.9): never a sim input and not presence. It spends an order token,
+    // and the collector keeps one per session per run, sanitized; training records nothing.
+    this.onMessage(TELEMETRY_PERF_MESSAGE, (client: Client, msg: unknown) => {
+      if (this.training || !this.run || !this.built?.players.has(client.sessionId)) return;
+      if (!this.orderAllowed(client.sessionId)) return;
+      this.run.notePerf(client.sessionId, msg);
+    });
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);
     // Patches are sent from tick() right after each simulated step, so every patch carries
     // exactly the latest tick. Must come after setTimestep (otherwise core installs its own
@@ -300,6 +316,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         // A read of the profile registry and nothing else: a bot's callsign must not be a real player's.
         isNameTaken: (name) => store.get(name) !== undefined,
         seed: config.bots.seed ?? randomInt(0, 2 ** 32),
+      });
+    }
+    // Telemetry last, so its listeners run after every module's and the bots' (docs/TELEMETRY.md 2). Arena rooms only.
+    const telemetry = RaidRoom.ctx.telemetry;
+    if (!this.training && telemetry) {
+      this.run = telemetry.attach(world, (id) => {
+        const spec = this.bots?.specOf(id);
+        return spec ? { tier: spec.tier, persona: spec.persona } : undefined;
       });
     }
     this.built = world;
@@ -381,12 +405,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     if (!this.built || this.built.state.phase === "lobby" || this.training) return;
     // For kill credit, a player who never comes back left now, not when the grace runs out.
     markDropped(this.world, client.sessionId);
+    this.run?.noteDrop(client.sessionId);
     // Rejects when the client never finished joining or the room is disposing; onLeave still runs.
     this.allowReconnection(client, RECONNECT_SECONDS).catch(() => {});
   }
 
   onReconnect(client: Client) {
     markReconnected(this.world, client.sessionId);
+    this.run?.noteReconnect(client.sessionId);
     const result = this.pendingResults.get(client.sessionId);
     if (result) client.send("result", result);
     this.sendPlan(client);
@@ -439,7 +465,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     } else if (seat && this.shuttingDown && (this.world.state.players.get(sessionId)?.status === "alive" || this.world.state.phase === "planning")) {
       // A void run leaves no trace (no MIA result, no body, no recorded run), but what was earned is paid. A run still
       // in planning is one too: a restart must not cost every player a loss.
-      this.bankVoided(seat.profile, abandonPlayer(this.world, sessionId));
+      const gv = abandonPlayer(this.world, sessionId);
+      // The run dies with the process: its record goes now, as a void (only the first abandon sends it).
+      this.run?.finalize("void");
+      this.bankVoided(seat.profile, gv);
     } else {
       removePlayer(this.world, sessionId);
     }
@@ -454,6 +483,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
     const { profiles, rooms } = RaidRoom.ctx;
+    // The record of a run still waiting out its grace goes now; a run disposed mid-way is abandoned (a shutdown's, void).
+    if (this.run?.started && !this.run.done) this.run.finalize(this.run.ended ? undefined : this.shuttingDown ? "void" : "abandoned");
     this.bots?.dispose();
     // Whatever else happens below, the room's place under the cap is given back, once, and only if it was ever taken.
     if (this.counted) rooms.close(this.counted);
@@ -515,6 +546,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   private handleEvents(events: SimEvent[]) {
+    // Telemetry hears every event first, before settle's early return for bots (docs/TELEMETRY.md 5).
+    this.run?.onEvents(events);
     const fxs: FxEvent[] = [];
     for (const ev of events) {
       switch (ev.type) {
@@ -545,6 +578,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           break;
         case "raidEnded":
           this.clock.setTimeout(() => void this.disconnect(), ENDED_LINGER_SECONDS * 1000);
+          // The winner's client sends its perf sample at its result: the record waits that long for it, off the tick.
+          if (this.run) this.clock.setTimeout(() => { this.run?.finalize(); }, TELEMETRY_FINALIZE_GRACE_MS);
           break;
       }
     }

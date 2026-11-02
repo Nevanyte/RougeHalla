@@ -9,6 +9,9 @@ import { PERSONA_IDS, type PersonaId, type TierId } from "../brain/types";
 import { applyTune, type TuneSpec } from "./tune";
 import { MAX_GAME_MS, runGame, type GameSummary, type RunGameOptions, type SeatSpec } from "./game";
 import type { SimConfig } from "../../sim/world";
+import { computeServerBuildId } from "../../buildId";
+import { TelemetryRuntime } from "../../telemetry/runtime";
+import { createFileSink } from "../../telemetry/sink";
 
 /** Everything a tournament is, as plain data (it crosses to the workers). */
 export interface TournamentPlan {
@@ -28,6 +31,33 @@ export interface TournamentPlan {
   readonly jitterMs?: number;
   /** A tuning diagnostic: patches the tier and persona tables before the games (tune.ts). */
   readonly tune?: TuneSpec;
+  /** Write every game's telemetry record to this directory (NDJSON, source "tournament"). */
+  readonly telemetryDir?: string;
+}
+
+/** The runtimes runBatch opened in this thread, flushed by flushTelemetry before the batch reports done. */
+const openTelemetry: TelemetryRuntime[] = [];
+let buildId: string | null = null;
+
+function telemetryFor(plan: TournamentPlan): TelemetryRuntime | undefined {
+  if (!plan.telemetryDir) return undefined;
+  buildId ??= computeServerBuildId();
+  const t = new TelemetryRuntime({
+    sink: createFileSink({ dir: plan.telemetryDir }),
+    source: "tournament",
+    build: { server: buildId, commit: process.env.GAME_SOURCE_COMMIT?.trim() || null },
+    salt: null,
+    positions: process.env.TELEMETRY_POSITIONS?.trim() !== "0",
+    botsFillTo: 0,
+  });
+  openTelemetry.push(t);
+  return t;
+}
+
+/** Waits for every record this thread submitted to be written. */
+export async function flushTelemetry(): Promise<void> {
+  const all = openTelemetry.splice(0);
+  await Promise.all(all.map((t) => t.close(60_000)));
 }
 
 /** A 32-bit mix of a seed and a tag (a murmur finaliser), so the streams of one tournament do not march together. */
@@ -82,6 +112,7 @@ export interface GameResult {
 export function runBatch(plan: TournamentPlan, indices: readonly number[], onGame?: (r: GameResult) => void): GameResult[] {
   applyTune(plan.tune);
   const store = plan.learn ? createBotStatsStore(null) : null;
+  const telemetry = telemetryFor(plan);
   const out: GameResult[] = [];
   for (const index of indices) {
     const t0 = performance.now();
@@ -92,6 +123,7 @@ export function runBatch(plan: TournamentPlan, indices: readonly number[], onGam
       ...(plan.jitterMs !== undefined ? { jitterMs: plan.jitterMs } : {}),
       maxSimMs: plan.maxSimMs > 0 ? plan.maxSimMs : MAX_GAME_MS,
       store,
+      ...(telemetry ? { telemetry } : {}),
     });
     const result: GameResult = { index, summary, wallMs: performance.now() - t0 };
     out.push(result);
@@ -109,5 +141,5 @@ if (!isMainThread && parentPort && (workerData as { tournamentWorker?: boolean }
   const port = parentPort;
   const { plan, indices } = workerData as { plan: TournamentPlan; indices: number[] };
   runBatch(plan, indices, (r) => port.postMessage({ type: "game", ...r } satisfies WorkerMessage));
-  port.postMessage({ type: "done" } satisfies WorkerMessage);
+  void flushTelemetry().finally(() => port.postMessage({ type: "done" } satisfies WorkerMessage));
 }

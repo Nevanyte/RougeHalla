@@ -172,6 +172,7 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
     landing: null, prevReadyAt, prevFullAt, lagMs: Math.min(MAX_REWIND_MS, Math.max(TICK_MS, now - (cmd.t ?? now))),
   };
   c.rt.cast = cast;
+  world.hooks.castAccepted?.(world, c, def.id);
   const face = target ? target.s : rule.kind === "point" || rule.kind === "dir" ? point : null;
   if (face && Math.hypot(face.x - c.s.x, face.y - c.s.y) >= 1) c.s.facing = Math.atan2(face.y - c.s.y, face.x - c.s.x);
 
@@ -212,6 +213,7 @@ export function cancelCast(world: World, c: Combatant, reason: CastEndReason, re
   const cast = c.rt.cast;
   if (!cast) return;
   emit(world, { type: "fx", fx: { kind: "castEnd", by: c.id, ability: cast.ability, reason } });
+  world.hooks.castEnded?.(world, c, cast.ability, reason);
   if (refund && c.kind === "player") {
     setSlotReadyAt(c.s, cast.slot, cast.prevReadyAt);
     if (cast.slot === "wish" && cast.prevFullAt !== undefined) c.s.extra.wishFullAt = cast.prevFullAt;
@@ -269,7 +271,7 @@ function endFields(world: World, pred: (f: FieldRuntime) => boolean): void {
 /** Last Stand's heal: its share of the hp loss it held up, through the heal funnel without the lockout (anti-heal still cuts it). */
 function payDeathFloor(world: World, c: Combatant, st: StatusInstance): void {
   const amount = (st.taken ?? 0) * (st.healShare ?? 0);
-  if (amount > 0) heal(world, c, amount, { ignoreLockout: true });
+  if (amount > 0) heal(world, c, amount, { ignoreLockout: true, source: "lastStand" });
 }
 
 /**
@@ -426,6 +428,7 @@ function landCasts(world: World, active: readonly Combatant[], now: number): voi
         ...(l.to ? { x2: l.to.x, y2: l.to.y } : {}),
       },
     });
+    world.hooks.castEnded?.(world, l.c, l.def.id, "landed");
   }
 }
 
