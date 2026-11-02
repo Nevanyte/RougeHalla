@@ -19,7 +19,8 @@
 //   orders       wall-clock delay from sending a move to the first patch that shows its seq, the prediction's own delay estimate,
 //                and what became of each lock click (shown by the server, or refused)
 //   keys         with --steer: a WASD player (taps, holds, turns, chords) instead of the mouse script; the wall-clock delay from each key
-//                event to the first patch that shows the order carrying it, and from the event to the message leaving
+//                event to the first patch that shows the order carrying it, and from the event to the message leaving; per dispatch
+//                mode, the key events, the orders (the held key's repeat included) and the orders that carried an event
 //   swap         with --swap (a training room): weapon swaps through the client's own LocalHand: when the new hand shows (the first
 //                patch, which is what the screen waited for before the prediction, and the next frame), how the predictions ended,
 //                and how many clicks made inside the round trip after a swap would go to the wrong input by each
@@ -185,8 +186,11 @@ export interface ProbeReport {
     keyAckWallMs: Dist;
     /** Orders the server skipped over because a later one of the same tick covered them. */
     supersededInTick: number;
-    /** The same two distributions per dispatch mode (both are filled in a `mixed` run), with the raw samples for a paired test. */
-    byMode: Record<"frame" | "event", { keyToSendMs: Dist; keyAckWallMs: Dist; sendSamples: number[]; ackSamples: number[] }>;
+    /**
+     * The same counts and two distributions per dispatch mode (both are filled in a `mixed` run), with the raw samples for a paired
+     * test. Compare the modes' eventOrders / events inside one `mixed` run: order counts move with the world from run to run.
+     */
+    byMode: Record<"frame" | "event", { events: number; orders: number; eventOrders: number; keyToSendMs: Dist; keyAckWallMs: Dist; sendSamples: number[]; ackSamples: number[] }>;
   };
   /** With ProbeOptions.swap: the weapon swaps (wand and sword, alternating) and what the predicted hand changes about them. */
   swap: {
@@ -313,6 +317,10 @@ class Metrics {
   keyEvents = 0;
   keyOrders = 0;
   keyEventOrders = 0;
+  keyEventsBy: Record<"frame" | "event", number> = { frame: 0, event: 0 };
+  /** Every order, the held key's repeat included, by the mode of the latest key event. */
+  keyOrdersBy: Record<"frame" | "event", number> = { frame: 0, event: 0 };
+  keyEventOrdersBy: Record<"frame" | "event", number> = { frame: 0, event: 0 };
   keyToSend: Record<"frame" | "event", number[]> = { frame: [], event: [] };
   keyAckWall: Record<"frame" | "event", number[]> = { frame: [], event: [] };
   keySuperseded = 0;
@@ -1045,6 +1053,7 @@ class Session {
       this.curMode = e.mode;
       this.pendingKeyAts.push({ at: now, mode: e.mode });
       this.m.keyEvents++;
+      this.m.keyEventsBy[e.mode]++;
       if (e.mode === "event") this.steerKeys(now, true);
     }
   }
@@ -1099,7 +1108,9 @@ class Session {
     else if (this.keyWasMoving) { seq = this.sendStop(now, c, state); this.keyWasMoving = false; }
     if (seq !== 0) {
       this.m.keyOrders++;
-      if (this.pendingKeyAts.length > 0) this.m.keyEventOrders++;
+      this.m.keyOrdersBy[this.curMode]++;
+      // Gestures never overlap, so the events an order carries share one mode.
+      if (this.pendingKeyAts.length > 0) { this.m.keyEventOrders++; this.m.keyEventOrdersBy[this.pendingKeyAts[0]!.mode]++; }
       for (const k of this.pendingKeyAts) this.m.keyToSend[k.mode].push(now - k.at);
       this.keyOrders.push({ seq, keyAts: this.pendingKeyAts, sentAt: now });
     }
@@ -1312,8 +1323,8 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
       events: m.keyEvents, orders: m.keyOrders, eventOrders: m.keyEventOrders, supersededInTick: m.keySuperseded,
       keyToSendMs: dist([...m.keyToSend.frame, ...m.keyToSend.event]), keyAckWallMs: dist([...m.keyAckWall.frame, ...m.keyAckWall.event]),
       byMode: {
-        frame: { keyToSendMs: dist(m.keyToSend.frame), keyAckWallMs: dist(m.keyAckWall.frame), sendSamples: m.keyToSend.frame, ackSamples: m.keyAckWall.frame },
-        event: { keyToSendMs: dist(m.keyToSend.event), keyAckWallMs: dist(m.keyAckWall.event), sendSamples: m.keyToSend.event, ackSamples: m.keyAckWall.event },
+        frame: { events: m.keyEventsBy.frame, orders: m.keyOrdersBy.frame, eventOrders: m.keyEventOrdersBy.frame, keyToSendMs: dist(m.keyToSend.frame), keyAckWallMs: dist(m.keyAckWall.frame), sendSamples: m.keyToSend.frame, ackSamples: m.keyAckWall.frame },
+        event: { events: m.keyEventsBy.event, orders: m.keyOrdersBy.event, eventOrders: m.keyEventOrdersBy.event, keyToSendMs: dist(m.keyToSend.event), keyAckWallMs: dist(m.keyAckWall.event), sendSamples: m.keyToSend.event, ackSamples: m.keyAckWall.event },
       },
     },
     swap: {
@@ -1366,7 +1377,7 @@ export function formatReport(r: ProbeReport): string {
       ...(["frame", "event"] as const).filter((mode) => r.keys.byMode[mode].keyToSendMs.n > 0).map((mode) => {
         const b = r.keys.byMode[mode];
         const pm = r.prediction.byMode[mode];
-        return `  ${mode.padEnd(5)}  n ${b.keyToSendMs.n}  key->send ms mean ${f2(b.keyToSendMs.mean)} p95 ${f2(b.keyToSendMs.p95)}   key->ack ms mean ${f1(b.keyAckWallMs.mean)} p50 ${f1(b.keyAckWallMs.p50)} p95 ${f1(b.keyAckWallMs.p95)}` +
+        return `  ${mode.padEnd(5)}  events ${b.events} orders ${b.orders} (for events ${b.eventOrders}, ${f1(100 * b.eventOrders / Math.max(1, b.events))}% of the events)  n ${b.keyToSendMs.n}  key->send ms mean ${f2(b.keyToSendMs.mean)} p95 ${f2(b.keyToSendMs.p95)}   key->ack ms mean ${f1(b.keyAckWallMs.mean)} p50 ${f1(b.keyAckWallMs.p50)} p95 ${f1(b.keyAckWallMs.p95)}` +
           `   | predict: ${pm.frames} frames, div drops ${pm.divergenceDrops}, snaps ${pm.snaps}, visual p95 ${f2(pm.visualOffset.p95)}, err@delay p95 ${f1(pm.errAtDelay.p95)}`;
       }),
     ] : []),
