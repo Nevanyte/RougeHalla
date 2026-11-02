@@ -10,7 +10,7 @@ import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema
 import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import type { PlanInbox } from "../net/planInbox";
-import { keyboardMoveGoal, MOVEMENT_KEYS } from "../net/keyboardMovement";
+import { keyboardMoveGoal, MOVEMENT_KEYS, steerDue } from "../net/keyboardMovement";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
@@ -284,7 +284,10 @@ export class RaidScene extends Phaser.Scene {
   };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
   private readonly onKeyUp = (e: KeyboardEvent) => {
-    if (this.movementKeys.delete(e.code)) { e.preventDefault(); this.keyboardChanged = true; }
+    if (!this.movementKeys.delete(e.code)) return;
+    e.preventDefault();
+    this.keyboardChanged = true;
+    this.steerKeyboard(performance.now(), true);
   };
   private readonly onWindowBlur = () => {
     this.movementKeys.clear(); this.keyboardChanged = true;
@@ -526,7 +529,7 @@ export class RaidScene extends Phaser.Scene {
     if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
       this.sendMove(pointer, false);
     }
-    this.steerKeyboard(time);
+    this.steerKeyboard(now);
     if (this.directionalAttackHeld && !pointer.leftButtonDown()) this.releaseAttack();
     // After this frame's orders, before anything reads the local fighter's position.
     this.syncLocalRangedPause(now);
@@ -955,6 +958,11 @@ export class RaidScene extends Phaser.Scene {
     const now = performance.now();
     const c = this.localClock(now);
     const seq = this.predict.nextSeq();
+    // Clamped to the world as the server clamps it, so both plan to the same place from an edge click.
+    const to = point ? clampToWorld(point) : undefined;
+    // Bytes first: the path search is presentation, and the message does not depend on its result.
+    if ((kind === "move" || kind === "attackMove") && to) sendInput(this.room, kind, { x: to.x, y: to.y, seq });
+    else sendInput(this.room, "stop", { seq });
     // Walking cancels a locked wand cast. A directional draw remains committed even after button-up.
     const me = this.room.state.players.get(this.room.sessionId);
     if (this.lockDisplay.shown(me?.attackTarget ?? "", now)) {
@@ -962,13 +970,8 @@ export class RaidScene extends Phaser.Scene {
       this.fx.dropWindups(this.room.sessionId, c, now);
     }
     const map = this.planMap();
-    // Clamped to the world as the server clamps it, so both plan to the same place from an edge click.
-    const to = point ? clampToWorld(point) : undefined;
     if (map) this.predict.motion.order(kind === "attackMove" ? "move" : kind, seq, c, to, map);
-    if ((kind === "move" || kind === "attackMove") && to) sendInput(this.room, kind, { x: to.x, y: to.y, seq });
-    else sendInput(this.room, "stop", { seq });
     this.lockDisplay.note("", now);
-
   }
 
   /**
@@ -1240,10 +1243,15 @@ export class RaidScene extends Phaser.Scene {
     return list;
   }
 
-  /** A left click: lock the fighter nearest the cursor (within TARGET_SNAP_RADIUS). A click on empty ground does nothing. */
-  private steerKeyboard(time: number): void {
+  /**
+   * WASD: one order to a short straight goal in the held direction, or a stop. Called from the key events (`fromEvent`, so a press
+   * or release is sent in the event, not at the next frame) and from update() (the repeat that keeps the goal ahead, and the
+   * sender of an event the coalesce guard or a refused state deferred: `keyboardChanged` stays set until something is sent).
+   * `now` is always performance.now(), on both paths, since the gate compares it with the last send.
+   */
+  private steerKeyboard(now: number, fromEvent = false): void {
     if (this.beforeTeleport() || this.frozenWorld || !this.localAlive() || !this.mapView) return;
-    if (!this.keyboardChanged && time - this.lastKeyboardMoveAt < MOVE_REPEAT_MS) return;
+    if (!steerDue({ changed: this.keyboardChanged, lastAt: this.lastKeyboardMoveAt }, now, fromEvent)) return;
     const origin = this.predict.motion.ready ? this.predict.motion.drawn
       : this.rendered.get(this.room.sessionId) ?? this.room.state.players.get(this.room.sessionId);
     const map = this.planMap();
@@ -1251,7 +1259,7 @@ export class RaidScene extends Phaser.Scene {
     const goal = keyboardMoveGoal(map, origin, this.movementKeys);
     if (goal) { this.moveTo(goal, false); this.keyboardWasMoving = true; }
     else if (this.keyboardWasMoving) { this.orderMove("stop"); this.keyboardWasMoving = false; }
-    this.keyboardChanged = false; this.lastKeyboardMoveAt = time;
+    this.keyboardChanged = false; this.lastKeyboardMoveAt = now;
   }
 
   private clickAttack(pointer: Phaser.Input.Pointer): void {
@@ -1571,7 +1579,9 @@ export class RaidScene extends Phaser.Scene {
     if (this.frozenWorld) return;
     if (!this.localAlive()) return;
     if (MOVEMENT_KEYS.has(e.code)) {
-      e.preventDefault(); this.movementKeys.add(e.code); this.keyboardChanged = true; return;
+      e.preventDefault(); this.movementKeys.add(e.code); this.keyboardChanged = true;
+      this.steerKeyboard(performance.now(), true);
+      return;
     }
     if (e.code === "KeyR") { this.castSlot("wish"); return; }
     if (e.code === "KeyE") { sendInput(this.room, "useConsumable", { kind: "heal" }); return; }
