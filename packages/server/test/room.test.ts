@@ -170,7 +170,7 @@ function track(who: Account, room: ClientRoom): Player {
 const joinOptions = (who: Account): JoinOptions => ({ profile: who.name, token: who.token });
 
 /** The timers a test may change on its own room (the server's fixture values apply to everything else). */
-type Timers = Partial<Pick<SimConfig, "minPlayers" | "patienceSeconds" | "patienceMinSeconds" | "suddenDeathSeconds">>;
+type Timers = Partial<Pick<SimConfig, "minPlayers" | "patienceSeconds" | "patienceMinSeconds" | "suddenDeathSeconds" | "regen">>;
 
 /** Opens a brand new room (never someone else's lobby) with `who` in it. */
 async function createRoom(who: Account, timers?: Timers): Promise<Player> {
@@ -979,7 +979,7 @@ describe("a run", () => {
     // The kill restarts the patience timer, now short; the arena then teleports A and B, and sudden death burns
     // them both from the same low hp in the same tick. The factions have different max hp, and a draw needs the same
     // hp *fraction* at the start of the tick: 1/1024 of each (exact in binary, so the two fractions compare equal).
-    retime(a!, { patienceSeconds: 0.4, suddenDeathSeconds: 0.3 });
+    retime(a!, { patienceSeconds: 0.4, suddenDeathSeconds: 0.3, regen: false }); // regen would move the two exact fractions apart
     await kill(a!, c!);
     for (const p of [a!, b!]) serverPlayer(p).hp = serverPlayer(p).maxHp / 1024;
     await until(() => a!.results.length === 1 && b!.results.length === 1, "both results", 8000);
