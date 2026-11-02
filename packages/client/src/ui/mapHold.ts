@@ -16,11 +16,13 @@ export interface HoldKey {
   preventDefault(): void;
 }
 
-const PANEL_CLASSES = ["settings-panel", "help-scrim", "chest-panel"];
+const PANEL_CLASSES = [
+  "settings-panel", "help-scrim", "chest-panel", "quest-dialog", "quest-log", "quest-log-launcher", "quest-tracker",
+];
 
 /**
- * True when `node` is, or sits inside, the settings card, the help card or the camp chest panel (duck-typed, so it needs no
- * DOM globals). The chest panel's buttons take focus only after C (ui/chestPanel.ts), so a Tab from the canvas is still the map's.
+ * True when `node` is, or sits inside, a UI surface with its own focus navigation (duck-typed, so it needs no DOM globals).
+ * The chest panel's buttons take focus only after C (ui/chestPanel.ts), so a Tab from the canvas is still the map's.
  */
 export function insidePanel(node: unknown): boolean {
   for (let n = node as { classList?: { contains(c: string): boolean }; parentElement?: unknown } | null | undefined; n; n = n.parentElement as typeof n) {

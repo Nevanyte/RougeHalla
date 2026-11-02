@@ -77,7 +77,7 @@ describe("MapHold.keyDown", () => {
     expect(h.held).toBe(false);
   });
 
-  it("leaves Tab to a text field and to an open panel, which keep their focus navigation", () => {
+  it("leaves Tab to a text field and to focused panels, which keep their focus navigation", () => {
     installPlanningDom();
     const field = asEl(document.createElement("input"));
     const card = asEl(document.createElement("div"));
@@ -88,8 +88,24 @@ describe("MapHold.keyDown", () => {
     scrim.classList.add("help-scrim");
     const helpButton = asEl(document.createElement("button"));
     scrim.append(helpButton);
+    const quest = asEl(document.createElement("div"));
+    quest.classList.add("quest-dialog");
+    const accept = asEl(document.createElement("button"));
+    quest.append(accept);
+    const questLog = asEl(document.createElement("section"));
+    questLog.classList.add("quest-log");
+    const questLogClose = asEl(document.createElement("button"));
+    questLog.append(questLogClose);
+    const questLauncher = asEl(document.createElement("button"));
+    questLauncher.classList.add("quest-log-launcher");
+    const questTracker = asEl(document.createElement("section"));
+    questTracker.classList.add("quest-tracker");
+    const untrack = asEl(document.createElement("button"));
+    questTracker.append(untrack);
     const { h, state } = hold();
-    for (const node of [field, inner, helpButton]) {
+    // The quest offer is a non-modal region, but after F it takes keyboard focus and Tab
+    // must move between Accept and Close instead of opening the in-run map.
+    for (const node of [field, inner, helpButton, quest, accept, questLog, questLogClose, questLauncher, questTracker, untrack]) {
       for (const via of ["target", "focus"] as const) {
         state.focused = via === "focus" ? node : null;
         const e = key({ target: via === "target" ? node : null });
