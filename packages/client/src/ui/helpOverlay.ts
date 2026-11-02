@@ -45,7 +45,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["Wind emblem"], action: "Walk over for 5 seconds of extra speed" },
       { keys: ["Plague body"], action: "Walk over bodies to raise, grow or revive your zombie" },
       { keys: ["F"], action: "Pick up the weapon in reach, or talk to a giver" },
-      { keys: ["R"], action: "Cast your faction's Wish (5 min cooldown, 5 s in training)" },
+      { keys: ["R"], action: "Cast your faction's Wish (cooldown varies, 5 s in training)" },
       { keys: ["J"], action: "Show or hide the quest log" },
       { keys: ["Enter"], action: "Accept the quest offer open from F" },
       { keys: ["C"], action: "Chest panel: take the keyboard, or give it back" },

@@ -12,7 +12,7 @@ import {
   FIELD_KINDS, FREEZE_CAST_MS, FREEZE_RANGE, FREEZE_STUN_MS, GV_KILL, HIDDEN_REVEAL_MS, LAST_STAND_HEAL_SHARE, LAST_STAND_MS,
   LAST_STAND_SPEED_BONUS, mapFromTiles, mitigateShares, mulberry32, PLAYER_SPEED, SIG_CHILLED, STATUS_RULES, SWARM_CAST_MS, SWARM_CLOUD_RADIUS, SWARM_MS, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
-  TARGET_RANGE, TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_COOLDOWN_SECONDS, WISH_LOCK_SECONDS, wishOf,
+  TARGET_RANGE, TRIAL_RANGE, TRIAL_TAKEN_MULT, FREEZE_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, BLAZE_RECHARGE_SECONDS, WISH_LOCK_SECONDS, wishOf, abilityCooldownMs, maxCharges,
   ABILITY_IDS, type AbilityId, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
   STAGGER_IMMUNITY_SECONDS,
 } from "@raid/shared";
@@ -210,12 +210,12 @@ const castFx = (): Array<{ kind: string }> => log.filter((e) => (WISH_KINDS as r
 // ----------------------------------------------------------------------------------------------------------------
 
 describe("the cast input: acceptance", () => {
-  it("starts the cast, spends the 300 s cooldown at once, faces the target and tells everyone", () => {
+  it("starts the cast, spends the 45 s cooldown at once, faces the target and tells everyone", () => {
     const world = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }]);
     cast(world, 0, { target: 1 });
     tick(world);
     const p = P(world);
-    expect(p.wishReadyAt).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
+    expect(p.wishReadyAt).toBe(T(world) + FREEZE_COOLDOWN_SECONDS * SEC);
     const c = RT(world).cast!;
     expect(c).toMatchObject({ ability: "freeze", rank: 1, slot: "wish", target: "p1", startedAt: T(world), landsAt: T(world) + FREEZE_CAST_MS });
     expect(fxOf("cast")).toEqual([{ at: T(world), kind: "cast", by: "p0", ability: "freeze", ms: FREEZE_CAST_MS, target: "p1", x: 400, y: 320 }]);
@@ -257,14 +257,14 @@ describe("the cast input: acceptance", () => {
     cast(world, 0);
     tick(world);
     expect(p.readyAt).toBe(T(world) - TICK_MS + 777);
-    expect(p.wishReadyAt).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
+    expect(p.wishReadyAt).toBe(T(world) + LAST_STAND_COOLDOWN_SECONDS * SEC);
 
     const frost = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }]);
     grantCard(frost, combatant(frost, "p0") as Extract<Combatant, { kind: "player" }>, "haste3");
     cast(frost, 0, { target: 1 });
     tick(frost);
     expect(RT(frost).cast!.landsAt - RT(frost).cast!.startedAt).toBe(FREEZE_CAST_MS);
-    expect(P(frost).wishReadyAt).toBe(T(frost) + WISH_COOLDOWN_SECONDS * SEC);
+    expect(P(frost).wishReadyAt).toBe(T(frost) + FREEZE_COOLDOWN_SECONDS * SEC);
   });
 });
 
@@ -598,7 +598,7 @@ describe("a cast that fails at its landing keeps its cooldown spent and says so 
     cast(world, 0, { target: 1 });
     tick(world);
     const spent = P(world).wishReadyAt;
-    expect(spent).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
+    expect(spent).toBe(T(world) + FREEZE_COOLDOWN_SECONDS * SEC);
     mutate(world);
     runTo(world, RT(world).cast!.landsAt);
     expect(fxOf("castEnd")).toEqual([{ at: T(world), kind: "castEnd", by: "p0", ability: "freeze", reason: "fizzle" }]);
@@ -1148,7 +1148,8 @@ describe("Blaze Step (Fire)", () => {
     expect(positionAt(RT(world), p, landAt - 200)).toEqual(near(600));
     expect(RT(world).cast ?? null).toBeNull();
     expect(p.effects & EFFECT_CASTING).toBe(0);
-    expect(p.wishReadyAt).toBe(landAt + WISH_COOLDOWN_SECONDS * SEC);
+    expect(p.wishReadyAt).toBe(landAt); // two charges: one is left in hand
+    expect(p.wishFullAt).toBe(landAt + BLAZE_RECHARGE_SECONDS * SEC);
     expect(fxOf("cast")).toEqual([]);
     expect(fxOf("castLand")).toEqual([{ at: landAt, kind: "castLand", by: "p0", ability: "blaze", target: null, x: 300, y: 320, x2: 600, y2: 320 }]);
     const [trail] = trailOf(world);
@@ -1410,7 +1411,7 @@ describe("Last Stand (Holy)", () => {
     expect(floorOf(world)).toMatchObject({ until: landAt + LAST_STAND_MS, floorHp: 1, healShare: LAST_STAND_HEAL_SHARE, taken: 0 });
     expect(findStatus(C(world), "haste")).toMatchObject({ until: landAt + LAST_STAND_MS, value: LAST_STAND_SPEED_BONUS });
     expect(P(world).effects & (EFFECT_LAST_STAND | EFFECT_HASTE)).toBe(EFFECT_LAST_STAND | EFFECT_HASTE);
-    expect(P(world).wishReadyAt).toBe(landAt + WISH_COOLDOWN_SECONDS * SEC);
+    expect(P(world).wishReadyAt).toBe(landAt + LAST_STAND_COOLDOWN_SECONDS * SEC);
     expect(RT(world).cast ?? null).toBeNull();
   });
 
@@ -1782,7 +1783,8 @@ describe("the lifecycle: what clears what", () => {
     expect(RT(world, 1).cast ?? null).toBeNull();
     expect(P(world, 1).wishReadyAt).toBe(readyBefore);
     // the others' Wishes were spent for good
-    for (const i of [0, 2, 3, 4]) expect(P(world, i).wishReadyAt).toBeGreaterThan(at0);
+    for (const i of [0, 3, 4]) expect(P(world, i).wishReadyAt).toBeGreaterThan(at0);
+    expect(P(world, 2).wishFullAt).toBeGreaterThan(at0); // Blaze Step spent a charge for good (one is still in hand)
     // statuses and fields
     expect(world.state.fields.size).toBe(0);
     for (let i = 0; i < 5; i++) {
@@ -1977,7 +1979,8 @@ describe("a cast in flight across the coliseum teleport (M1)", () => {
     cast(world, 0, { x: 640, y: 320 });
     tick(world);
     expect(T(world)).toBe(tp + CAST_TELEPORT_GRACE_MS);
-    expect(P(world).wishReadyAt).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
+    const cd = abilityCooldownMs(wishOf(faction)!, 1, {});
+    expect(P(world).wishReadyAt).toBe(T(world) + cd - (maxCharges(wishOf(faction)!, 1) - 1) * cd); // Blaze Step keeps a charge in hand
     runFor(world, SWARM_CAST_MS + TICK_MS);
     expect(fxOf("castLand")).toHaveLength(1);
   });

@@ -29,7 +29,7 @@ import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from
 import { matchMaker, Room } from "@colyseus/core";
 import {
   CATCHUP_MULT, CHEST_RANGE, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, MOB_TYPES, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
-  SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES,
+  SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES, ABILITIES, abilityCooldownMs, maxCharges,
   type FactionId, type FxBatch, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -399,9 +399,15 @@ async function playRun(
       end: wishFx.filter((f) => f.kind === "castEnd" && f.by === id).length,
       refunded: wishFx.filter((f) => f.kind === "castEnd" && f.by === id && f.reason === "cancelled").length,
     }));
+    // Cooldowns are 30-180 s now (Fire stores two charges, one back every 30 s): a bot may cast the stock it had at the lock's end
+    // plus one per cooldown that has run since, plus the casts the teleport refunded.
+    const lastT = fx.reduce((m, f) => Math.max(m, f.t), 0);
+    const runMs = Math.max(0, lastT - (raidStartedAt + WISH_LOCK_SECONDS * 1000));
     for (const c of wishCounts) {
-      expect(c.cast, `${c.id} began ${c.cast} casts`).toBeLessThanOrEqual(1 + c.refunded);
-      expect(c.land + c.end, `${c.id} ended ${c.land + c.end} casts`).toBeLessThanOrEqual(1 + c.refunded);
+      const def = ABILITIES[WISHES[factionOfSession.get(c.id)!]];
+      const allowed = maxCharges(def, 1) + Math.floor(runMs / abilityCooldownMs(def, 1, {})) + c.refunded;
+      expect(c.cast, `${c.id} began ${c.cast} casts`).toBeLessThanOrEqual(allowed);
+      expect(c.land + c.end, `${c.id} ended ${c.land + c.end} casts`).toBeLessThanOrEqual(allowed);
     }
     const statusFx = fx.flatMap((f) => (f.kind === "status" ? [f] : []));
     for (const f of statusFx) expect(isPlayer(f.by), `${f.status} on ${f.id} from ${f.by}, who is no player`).toBe(true);

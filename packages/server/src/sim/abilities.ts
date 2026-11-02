@@ -16,7 +16,7 @@
 import {
   ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
   GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, hasLineOfSight,
-  HIDDEN_REVEAL_MS, MAX_REWIND_MS, rankOf, setSlotReadyAt, slotReadyAt, TICK_MS, WISH_LOCK_SECONDS,
+  HIDDEN_REVEAL_MS, MAX_REWIND_MS, maxCharges, rankOf, setSlotReadyAt, slotReadyAt, spendCharge, TICK_MS, WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
   type Vec2,
 } from "@raid/shared";
@@ -91,6 +91,7 @@ export function armWishes(world: World): void {
     rt.cast = null;
     removeStatuses(world, c, () => true);
     p.wishReadyAt = readyAt;
+    p.wishFullAt = readyAt;
     p.qReadyAt = 0;
     p.eReadyAt = 0;
     refreshEffects(world, c);
@@ -153,13 +154,22 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   }
 
   const prevReadyAt = slotReadyAt(c.s, cmd.slot);
+  const prevFullAt = c.s.wishFullAt;
+  // For a charged Wish the cooldown is one charge's recharge: a cast takes one off the stock clock and the slot is ready again when
+  // a charge is in hand (with a single charge this is exactly now + cooldown).
   const cooldownMs = abilityCooldownMs(def, rank, { training: world.config.training === true, wishCooldownMult: wishCooldownMultOf(c.s) });
-  setSlotReadyAt(c.s, cmd.slot, now + cooldownMs);
+  if (cmd.slot === "wish") {
+    // With one charge the stock clock is the ready time itself (nothing else to trust).
+    const max = maxCharges(def, rank);
+    const spent = spendCharge(max > 1 ? c.s.wishFullAt : 0, now, max, cooldownMs);
+    c.s.wishFullAt = spent.fullAt;
+    setSlotReadyAt(c.s, cmd.slot, spent.readyAt);
+  } else setSlotReadyAt(c.s, cmd.slot, now + cooldownMs);
   // Wishful Thinking shortens this cooldown, never under half of it (G13): it needs to know when the Wish was spent and for how long.
   if (cmd.slot === "wish") cardsOf(c.rt).wishCast = { at: now, cooldownMs };
   const cast: CastRuntime = {
     ability: def.id, rank, slot: cmd.slot, startedAt: now, landsAt: now + r.castMs, target: target ? target.id : null, point,
-    landing: null, prevReadyAt, lagMs: Math.min(MAX_REWIND_MS, Math.max(TICK_MS, now - (cmd.t ?? now))),
+    landing: null, prevReadyAt, prevFullAt, lagMs: Math.min(MAX_REWIND_MS, Math.max(TICK_MS, now - (cmd.t ?? now))),
   };
   c.rt.cast = cast;
   const face = target ? target.s : rule.kind === "point" || rule.kind === "dir" ? point : null;
@@ -201,7 +211,10 @@ export function cancelCast(world: World, c: Combatant, reason: CastEndReason, re
   const cast = c.rt.cast;
   if (!cast) return;
   emit(world, { type: "fx", fx: { kind: "castEnd", by: c.id, ability: cast.ability, reason } });
-  if (refund && c.kind === "player") setSlotReadyAt(c.s, cast.slot, cast.prevReadyAt);
+  if (refund && c.kind === "player") {
+    setSlotReadyAt(c.s, cast.slot, cast.prevReadyAt);
+    if (cast.slot === "wish" && cast.prevFullAt !== undefined) c.s.wishFullAt = cast.prevFullAt;
+  }
   c.rt.cast = null;
   refreshEffects(world, c);
 }

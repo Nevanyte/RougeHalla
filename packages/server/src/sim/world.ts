@@ -183,6 +183,8 @@ export interface CastRuntime {
   landing: Vec2 | null;
   /** The slot's ready time before the cast spent it, restored when the arena cancels the cast. */
   prevReadyAt: number;
+  /** The Wish stock clock (wishFullAt) before the cast, restored with prevReadyAt on a refund. */
+  prevFullAt?: number;
   /** From the cast's `t`, clamped like a weapon's lag; unused until skills rewind. */
   lagMs: number;
 }

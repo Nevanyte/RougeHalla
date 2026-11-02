@@ -19,7 +19,7 @@
 //   castSeen       subject = caster; chestUp = reward chest id; teleport/planOffer: none
 // `clickMissed` cannot be seen in a percept (the humanizer owns it) and is never emitted here.
 import {
-  ENGAGE_TRADE_SECONDS, isRegionalKind, MOB_LEASH_RADIUS, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH, WISH_COOLDOWN_SECONDS,
+  ENGAGE_TRADE_SECONDS, isRegionalKind, MOB_LEASH_RADIUS, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH, ABILITIES, abilityCooldownMs, wishOf, type AbilityId,
   type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import {
@@ -518,7 +518,10 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
       const f = fighters.get(who);
       if (f) {
         f.wishSeenAt = e.t;
-        f.wishReadyGuess = e.t + WISH_COOLDOWN_SECONDS * 1000;
+        // The fx names the Wish; a charged one (Fire's) is guessed at one recharge.
+        const named = e.data["ability"];
+        const wish = typeof named === "string" && Object.hasOwn(ABILITIES, named) ? ABILITIES[named as AbilityId] : f.faction ? wishOf(f.faction) : null;
+        f.wishReadyGuess = e.t + (wish ? abilityCooldownMs(wish, 1, {}) : 0);
       }
     }
     o.emit("castSeen", who, e.at);

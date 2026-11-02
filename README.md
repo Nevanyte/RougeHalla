@@ -128,7 +128,7 @@ Units are world units: a tile is 32. Player sword, axe, shield and fists attacks
 
 #### Wishes
 
-Each faction has one **Wish**, an ability on `R` for the moment the weapons do not cover. It is locked for the first 45 s of a run and then has a 300 s cooldown that nothing shortens, so a run sees it once, maybe twice. The server refuses a cast it cannot take (cooling down, stunned or silenced, no valid target) at no cost. Once a cast begins its cooldown is spent, even if it then fizzles or is interrupted (only a stun or a silence interrupts one). Every fighter's name carries a small icon of its Wish, grey while it is locked or cooling down, and your own slot sits at the right end of the weapon bar. In the training room a Wish is ready at once and cools down in 5 s.
+Each faction has one **Wish**, an ability on `R` for the moment the weapons do not cover. It is locked for the first 45 s of a run and then has a cooldown that nothing shortens: Frost 45 s, Plague 120 s, Holy 150 s, Sentenced 180 s. Fire's Blaze Step stores up to 2 charges and one charge comes back every 30 s (the slot shows the count and the next charge's timer). The server refuses a cast it cannot take (cooling down, stunned or silenced, no valid target) at no cost. Once a cast begins its cooldown is spent, even if it then fizzles or is interrupted (only a stun or a silence interrupts one). Every fighter's name carries a small icon of its Wish, grey while it is locked or cooling down, and your own slot sits at the right end of the weapon bar. In the training room a Wish is ready at once and (a Blaze Step charge) recharges in 5 s.
 
 | Faction | Wish | What it does | What beats it |
 | --- | --- | --- | --- |

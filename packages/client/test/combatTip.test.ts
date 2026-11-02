@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ABILITIES, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS, WISH_COOLDOWN_SECONDS } from "@raid/shared";
+import { ABILITIES, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS } from "@raid/shared";
 import { abilityTip, weaponTip, wishCooldownMultiplier } from "../src/ui/combatTip";
 
 describe("ability hover details", () => {
@@ -24,8 +24,9 @@ describe("ability hover details", () => {
   it("explains the effective Wish cooldown, including cards and training", () => {
     const mult = wishCooldownMultiplier({ arcaneOverload: 1 }, "fire");
     expect(mult).toBe(2);
-    expect(abilityTip(ABILITIES.blaze, 1, undefined, { wishCooldownMult: mult })).toContain(`Cooldown: ${WISH_COOLDOWN_SECONDS * 2 / 60} min`);
-    expect(abilityTip(ABILITIES.blaze, 1, undefined, { wishCooldownMult: mult, training: true })).toContain("Cooldown: 5 s");
+    expect(abilityTip(ABILITIES.blaze, 1, undefined, { wishCooldownMult: mult })).toContain("Charges: up to 2, one back every 1 min");
+    expect(abilityTip(ABILITIES.freeze, 1, undefined, { wishCooldownMult: mult })).toContain("Cooldown: 1.5 min");
+    expect(abilityTip(ABILITIES.blaze, 1, undefined, { wishCooldownMult: mult, training: true })).toContain("Charges: up to 2, one back every 5 s");
   });
 });
 

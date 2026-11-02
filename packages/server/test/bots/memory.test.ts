@@ -214,11 +214,11 @@ describe("fighter memory", () => {
     expect(m.view.fighters.get("foe")!.feints).toBe(1);
   });
 
-  it("guesses a Wish ready 300 s after it saw one land", () => {
+  it("guesses a Wish ready one cooldown (Freeze: 45 s) after it saw one land", () => {
     const m = mem();
-    const s = m.observe(at(T0, { fighters: [fighter()], events: [ext(T0 - 50, "castLand", { by: "foe", ability: "x" })] }));
+    const s = m.observe(at(T0, { fighters: [fighter()], events: [ext(T0 - 50, "castLand", { by: "foe", ability: "freeze" })] }));
     expect(of(s, "castSeen")).toEqual([{ kind: "castSeen", at: T0, subject: "foe", central: true }]);
-    expect(m.view.fighters.get("foe")).toMatchObject({ wishSeenAt: T0 - 50, wishReadyGuess: T0 - 50 + 300_000 });
+    expect(m.view.fighters.get("foe")).toMatchObject({ wishSeenAt: T0 - 50, wishReadyGuess: T0 - 50 + 45_000 });
     // Other fx kinds, and the bot's own casts, say nothing.
     const quiet = mem();
     expect(quiet.observe(at(T0, { fighters: [fighter()], events: [ext(T0, "cast", { by: "foe" }), ext(T0, "castLand", { by: "me" })] }))).not.toContainEqual(expect.objectContaining({ kind: "castSeen" }));
@@ -233,7 +233,7 @@ describe("fighter memory", () => {
       ext(T0 - 100, "status", { id: "other", status: "stun", ms: 1250, by: "foe" }),
       ext(T0 - 50, "castLand", { by: "foe", ability: "freeze", target: "other", x: ME.x - 200, y: ME.y }),
     ] }));
-    expect(m.view.fighters.get("foe")).toMatchObject({ wishSeenAt: T0 - 50, wishReadyGuess: T0 - 50 + 300_000 });
+    expect(m.view.fighters.get("foe")).toMatchObject({ wishSeenAt: T0 - 50, wishReadyGuess: T0 - 50 + 45_000 });
     expect(m.view.fighters.get("other")!.wishSeenAt).toBeNull();
   });
 

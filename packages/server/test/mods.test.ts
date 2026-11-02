@@ -9,7 +9,7 @@ import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
   ALL_WEAPON_IDS, AS_MULT_CAP, attackInterval, BOW_WINDUP, WAND_WINDUP, damagePerHit, damageShares, decodeFlat, decodeMirrors,
   decodeMult, encodeFlat, encodeMult, IDENTITY_MIRRORS, mapFromTiles, MARK_FARM_AS_EFFICIENCY, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS,
-  PLAYER_SPEED, SIG_CHILLED, slotReadyAt, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, WIRE_IDENTITY_MIRRORS, WISH_COOLDOWN_SECONDS,
+  PLAYER_SPEED, SIG_CHILLED, slotReadyAt, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, WIRE_IDENTITY_MIRRORS, LAST_STAND_COOLDOWN_SECONDS,
   type Effect, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import { PlayerState, RaidState } from "@raid/shared/schema";
@@ -914,7 +914,7 @@ describe("vsExtras: the world's answers to the new `vs` tests", () => {
 describe("the Wish cooldown multiplier (G13), and the locked second slot", () => {
   it("Arcane Overload's `wishCooldown` doubles the cooldown a cast spends, and nothing else's", () => {
     const run = (rows: Effect[]): number => {
-      const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+      const w = pvpArena([{ id: "a", faction: "holy" }, { id: "v", faction: "fire" }], { pvpRules: false });
       const a = RigP(w, "a");
       setExtraRows(w, combatant(w, "a")!, rows);
       a.wishReadyAt = 0;
@@ -922,9 +922,9 @@ describe("the Wish cooldown multiplier (G13), and the locked second slot", () =>
       handleCast(w, combatant(w, "a")!, { kind: "cast", slot: "wish", x: a.x + 200, y: a.y });
       return slotReadyAt(a, "wish") - now;
     };
-    expect(run([])).toBe(WISH_COOLDOWN_SECONDS * 1000);
-    expect(run([mult("wishCooldown", 2)])).toBe(2 * WISH_COOLDOWN_SECONDS * 1000);
-    expect(run([mult("wishCooldown", 0.1)])).toBe(0.5 * WISH_COOLDOWN_SECONDS * 1000);
+    expect(run([])).toBe(LAST_STAND_COOLDOWN_SECONDS * 1000);
+    expect(run([mult("wishCooldown", 2)])).toBe(2 * LAST_STAND_COOLDOWN_SECONDS * 1000);
+    expect(run([mult("wishCooldown", 0.1)])).toBe(0.5 * LAST_STAND_COOLDOWN_SECONDS * 1000);
   });
 
   it("`lockSecondSlot` refuses a swap to slot 1, and a pickup does not go into it", () => {

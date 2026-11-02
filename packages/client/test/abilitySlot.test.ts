@@ -16,10 +16,10 @@ afterEach(() => { vi.unstubAllGlobals(); });
 const BLAZE = ABILITIES.blaze;
 const FREEZE = ABILITIES.freeze;
 const input = (over: Partial<AbilitySlotInput> = {}): AbilitySlotInput => ({
-  phase: "active", alive: true, ability: BLAZE, readyAt: 0, cooldownLen: 300_000, effects: 0, blockedBy: BLAZE.blockedBy, castUntil: 0, ...over,
+  phase: "active", alive: true, ability: FREEZE, readyAt: 0, cooldownLen: 300_000, effects: 0, blockedBy: FREEZE.blockedBy, castUntil: 0, ...over,
 });
 const model = (over: Partial<AbilitySlotModel> = {}): AbilitySlotModel => ({
-  state: "ready", name: "Blaze Step", tip: "Blaze Step", icon: "flame", color: 0xff7043, secondsLeft: 0, sweep: 0, blocked: null, cast: 0, ...over,
+  state: "ready", name: "Blaze Step", tip: "Blaze Step", icon: "flame", color: 0xff7043, secondsLeft: 0, sweep: 0, blocked: null, cast: 0, charges: 1, maxCharges: 1, ...over,
 });
 
 describe("abilitySlotModel", () => {
@@ -37,7 +37,7 @@ describe("abilitySlotModel", () => {
   });
 
   it("names the ability and gives its icon and colour", () => {
-    expect(abilitySlotModel(input(), 0)).toMatchObject({ state: "ready", name: "Blaze Step", icon: "flame", color: 0xff7043 });
+    expect(abilitySlotModel(input({ ability: BLAZE }), 0)).toMatchObject({ state: "ready", name: "Blaze Step", icon: "flame", color: 0xff7043 });
     expect(abilitySlotModel(input({ ability: FREEZE }), 0)).toMatchObject({ name: "Freeze", icon: "snowflake", color: 0x81d4fa });
   });
 
@@ -382,5 +382,23 @@ describe("docked in the weapon bar", () => {
     const sweeps = root.byClass("wb-sweep");
     expect(sweeps).toHaveLength(2);
     for (const s of sweeps) expect(s.hidden).toBe(false);
+  });
+});
+
+describe("a charged Wish (Blaze Step)", () => {
+  const R = 30_000;
+  const charged = (over: Partial<AbilitySlotInput>) => input({ ability: BLAZE, blockedBy: BLAZE.blockedBy, ...over });
+  it("shows both charges and no countdown when full", () => {
+    const m = abilitySlotModel(charged({ fullAt: 0 }), 100_000);
+    expect(m).toMatchObject({ state: "ready", charges: 2, maxCharges: 2, secondsLeft: 0, sweep: 0 });
+  });
+  it("stays ready with one charge while the next one recharges", () => {
+    const m = abilitySlotModel(charged({ readyAt: 100_000, fullAt: 100_000 + R }), 110_000);
+    expect(m).toMatchObject({ state: "ready", charges: 1, secondsLeft: 20 });
+    expect(m.sweep).toBeCloseTo(20 / 30, 5);
+  });
+  it("is on cooldown at zero charges, counting down to the next charge", () => {
+    const m = abilitySlotModel(charged({ readyAt: 130_000, fullAt: 160_000 }), 110_000);
+    expect(m).toMatchObject({ state: "cooldown", charges: 0, secondsLeft: 20 });
   });
 });
