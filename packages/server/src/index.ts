@@ -29,6 +29,7 @@ import {
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 import { tickStats } from "./rooms/tickPacer";
+import { traceWritesSettled } from "./rooms/traceWriter";
 import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
 import { warmCloudSimulation } from "./cloudWarmup";
 import { mirrorSnapshotFile } from "./persistence/FileSnapshotMirror";
@@ -496,6 +497,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
     try { await opts.closeBotSnapshot?.(); }
     catch { console.error("[bot-stats] could not flush remote learning snapshot on shutdown"); }
     try { await telemetry?.close(TELEMETRY_CLOSE_MS); } catch { /* records are best effort */ }
+    // A movement trace's last flush is in flight when the rooms are disposed; no-op when TRACE_INPUTS is off.
+    await traceWritesSettled();
     await maps.stop();
   });
   // Our own model (net/netSim.ts) replaces Colyseus's fixed delay. Core also reads COLYSEUS_LATENCY itself when the server

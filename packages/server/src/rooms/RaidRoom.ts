@@ -32,11 +32,13 @@ import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
 import { planFor } from "../sim/planning";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
+import { installTrace } from "../sim/trace";
 import { installTraining } from "../sim/training";
 import type { RunTelemetry, TelemetryRuntime } from "../telemetry/runtime";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
 import { phaseOf, TickPacer, tickStats } from "./tickPacer";
+import { TraceWriter } from "./traceWriter";
 import { visionSnapshot } from "./visionSync";
 
 /** An acquired-but-never-confirmed profile (onAuth passed, onJoin never ran) frees itself after this. */
@@ -231,6 +233,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private readonly botBatches: FxBatch[] = [];
   /** This arena run's telemetry collector (never in training); null when telemetry is off. */
   private run: RunTelemetry | null = null;
+  /** The movement trace's file writer (TRACE_INPUTS, a local measurement; never in training); null when it is off. */
+  private trace: TraceWriter | null = null;
 
   private get world(): World {
     if (!this.built) throw new Error("the world is built when the first player joins");
@@ -321,6 +325,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         isNameTaken: (name) => store.get(name) !== undefined,
         seed: config.bots.seed ?? randomInt(0, 2 ** 32),
       });
+    }
+    // The movement trace (sim/trace.ts) before telemetry, which has to stay last. Off unless TRACE_INPUTS is set; the file is written
+    // outside the tick, about once a second and on dispose.
+    if (!this.training && config.traceFile) {
+      const writer = new TraceWriter(config.traceFile);
+      installTrace(world, (row) => writer.push(row), { run: this.roomId });
+      this.trace = writer;
+      this.clock.setInterval(() => { void writer.flush(); }, 1000);
     }
     // Telemetry last, so its listeners run after every module's and the bots' (docs/TELEMETRY.md 2). Arena rooms only.
     const telemetry = RaidRoom.ctx.telemetry;
@@ -495,6 +507,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     if (this.pacerTimer) clearTimeout(this.pacerTimer);
     this.pacerTimer = undefined;
     const { profiles, rooms } = RaidRoom.ctx;
+    void this.trace?.flush();
     // The record of a run still waiting out its grace goes now; a run disposed mid-way is abandoned (a shutdown's, void).
     if (this.run?.started && !this.run.done) this.run.finalize(this.run.ended ? undefined : this.shuttingDown ? "void" : "abandoned");
     this.bots?.dispose();

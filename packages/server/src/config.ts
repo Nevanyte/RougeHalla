@@ -62,6 +62,8 @@ export interface ServerConfig extends SimConfig {
   mapWorkerHangMs?: number;
   /** Fill bots for arena lobbies (BOTS_* env, docs/BOTS.md 7.3); `fillTo` 0 turns them off. */
   bots: BotFillConfig;
+  /** Append every arena run's movement trace (sim/trace.ts) as JSONL to this file (TRACE_INPUTS). Absent by default: nothing is recorded. */
+  traceFile?: string;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -185,6 +187,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     netJitterMs: num(env.NET_JITTER_MS, 0),
     netLossPct: num(env.NET_LOSS_PCT, 0),
     ...(env.NET_SEED ? { netSeed: num(env.NET_SEED, 0) } : {}),
+    ...(env.TRACE_INPUTS ? { traceFile: path.resolve(env.TRACE_INPUTS) } : {}),
     allowNetSimWhenHosting: env.ALLOW_NETSIM_WHEN_HOSTING === "1" || env.ALLOW_NETSIM_WHEN_HOSTING === "true",
     trainingIdleSeconds: num(env.TRAINING_IDLE_SECONDS, TRAINING_IDLE_SECONDS),
     clientDir: env.CLIENT_DIR ? path.resolve(env.CLIENT_DIR) : undefined,

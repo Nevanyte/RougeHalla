@@ -196,9 +196,11 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
  * point can be reached: the order was given. A player's `seq` on it is echoed in `moveSeq` once the order has applied.
  */
 function applyInputs(world: World, c: Combatant): void {
-  const { move, moveBefore, aim, aimBefore, actions } = c.rt.inputs.drain();
+  const drained = c.rt.inputs.drain();
+  const { move, moveBefore, aim, aimBefore, actions } = drained;
   // A stunned mob's inputs are drained and lost: its AI does not think either (mobAI.ts). A stunned player's are kept (D5).
   if (c.kind === "mob" && isStunned(world, c)) return;
+  world.hooks.inputsApplied?.(world, c, drained);
   const applyMove = (): void => {
     if (move === null) return;
     cancelLockedWindup(world, c, true);
