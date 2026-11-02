@@ -89,7 +89,7 @@ describe("kill augments", () => {
     choose(w, 0, box.id, ad);
     step(w, TICK_MS);
     expect(box.takenBy[ad]).toBe("p0");
-    expect(P(w, 0).killStats.get("ad")).toBeCloseTo(6, 5);
+    expect(P(w, 0).extra.killStats.get("ad")).toBeCloseTo(6, 5);
     expect(P(w, 0).adBonus).toBeCloseTo(before + 60, 0); // the mirror is in tenths
     expect([...P(w, 0).build.keys()]).toEqual([]); // no card, so no card power
     choose(w, 0, box.id, 0);

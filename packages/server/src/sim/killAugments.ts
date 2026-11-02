@@ -39,7 +39,7 @@ export function trophyOwnerOk(world: World, c: PlayerCombatant, box: ContainerSt
 /** Adds a parsed pick to the player's killStats and folds the mods again. */
 export function grantKillAugment(world: World, c: PlayerCombatant, a: KillAugment): void {
   const { stat, v } = killAugmentGrant(a);
-  c.s.killStats.set(stat, (c.s.killStats.get(stat) ?? 0) + v);
+  c.s.extra.killStats.set(stat, (c.s.extra.killStats.get(stat) ?? 0) + v);
   recomputeMods(world, c);
   syncMaxHp(c.s);
 }

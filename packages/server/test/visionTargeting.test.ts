@@ -179,7 +179,7 @@ describe("bush concealment", () => {
     expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(true);
     place(w, 0, LEFT);
     expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(false);
-    foe.bushRevealUntil = w.state.serverTime + 500;
+    foe.extra.bushRevealUntil = w.state.serverTime + 500;
     expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(true);
   });
 });

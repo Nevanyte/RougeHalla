@@ -560,7 +560,7 @@ export class RaidScene extends Phaser.Scene {
         this.sampleDrawn(id, drawT, p);
       }
       if (id === huntTarget) this.huntMarker = { id, x: this.tmp.x, y: this.tmp.y, tracked: true };
-      if (!shouldRenderActor(local, p.effects, this.tmp, point => this.vision.canSeeActor(id, point, p.bushRevealUntil))) { this.rendered.delete(id); return; }
+      if (!shouldRenderActor(local, p.effects, this.tmp, point => this.vision.canSeeActor(id, point, p.extra?.bushRevealUntil ?? 0))) { this.rendered.delete(id); return; }
       seen.add(id);
       let view = this.views.get(id);
       if (!view) { view = new PlayerView(this, local, this.fx); this.views.set(id, view); }
@@ -1336,7 +1336,7 @@ export class RaidScene extends Phaser.Scene {
     const readyAt = slotReadyAt(me, slot);
     return {
       phase: state.phase, training: state.training, wishCooldownMult: wishCooldownMultiplier(me.build, me.faction),
-      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt, fullAt: slot === "wish" ? me.wishFullAt : 0,
+      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt, fullAt: slot === "wish" ? (me.extra?.wishFullAt ?? 0) : 0,
       cooldownLen: this.slotCooldown(slot).observe(readyAt, state.serverTime), effects: me.effects, blockedBy: entry?.def.blockedBy ?? [],
       castUntil: this.predict.castEndsAt(serverNow),
     };

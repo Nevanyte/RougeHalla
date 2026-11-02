@@ -288,11 +288,11 @@ describe("elite chests", () => {
     choose(w, 0, box.id, 0);
     tick(w);
     expect(box.takenBy[0]).toBe("p0");
-    expect(P(w, 0).chestBoosts.get(stat)).toBe(1);
+    expect(P(w, 0).extra.chestBoosts.get(stat)).toBe(1);
     expect(Object.fromEntries([...P(w, 0).build.entries()])).toEqual(before); // no card power
-    expect(P(w, 1).chestBoosts.size).toBe(0);
+    expect(P(w, 1).extra.chestBoosts.size).toBe(0);
     // The fourth pick on one stat is refused.
-    P(w, 2).chestBoosts.set(stat, 3);
+    P(w, 2).extra.chestBoosts.set(stat, 3);
     const second = dropStatChest(w, { x: at(10), y: at(5) });
     second.options.splice(0, 3, chestBoostId(stat), "boost:ad", "boost:ap");
     tick(w); tick(w);
@@ -740,7 +740,7 @@ describe("every refusal toast of a pick is one the client knows (shared CHEST_RE
     choose(w, 2, box.id, 1); note("p2"); // busy
     const stat = dropStatChest(w, { x: box.x, y: box.y });
     stat.options.splice(0, 3, "boost:ad", "boost:ap", "boost:armor");
-    P(w, 1).chestBoosts.set("ad", 3);
+    P(w, 1).extra.chestBoosts.set("ad", 3);
     tick(w); tick(w);
     place(w, 1, stat, 0);
     choose(w, 1, stat.id, 0); note("p1"); // stat maxed

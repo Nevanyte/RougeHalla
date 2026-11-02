@@ -378,7 +378,7 @@ function wishfulThinking(world: World, by: string, p: PlayerState, rt: PlayerRun
   const cut = Math.min(n * ms, WISHFUL_BUDGET_MS - used, p.wishReadyAt - floorAt);
   if (!(cut > 0)) return;
   p.wishReadyAt -= cut;
-  p.wishFullAt = Math.max(0, p.wishFullAt - cut); // the whole stock clock shifts with it (a charged Wish)
+  p.extra.wishFullAt = Math.max(0, p.extra.wishFullAt - cut); // the whole stock clock shifts with it (a charged Wish)
   cards.trims.push({ at: now, ms: cut });
 }
 

@@ -1149,7 +1149,7 @@ describe("Blaze Step (Fire)", () => {
     expect(RT(world).cast ?? null).toBeNull();
     expect(p.effects & EFFECT_CASTING).toBe(0);
     expect(p.wishReadyAt).toBe(landAt); // two charges: one is left in hand
-    expect(p.wishFullAt).toBe(landAt + BLAZE_RECHARGE_SECONDS * SEC);
+    expect(p.extra.wishFullAt).toBe(landAt + BLAZE_RECHARGE_SECONDS * SEC);
     expect(fxOf("cast")).toEqual([]);
     expect(fxOf("castLand")).toEqual([{ at: landAt, kind: "castLand", by: "p0", ability: "blaze", target: null, x: 300, y: 320, x2: 600, y2: 320 }]);
     const [trail] = trailOf(world);
@@ -1784,7 +1784,7 @@ describe("the lifecycle: what clears what", () => {
     expect(P(world, 1).wishReadyAt).toBe(readyBefore);
     // the others' Wishes were spent for good
     for (const i of [0, 3, 4]) expect(P(world, i).wishReadyAt).toBeGreaterThan(at0);
-    expect(P(world, 2).wishFullAt).toBeGreaterThan(at0); // Blaze Step spent a charge for good (one is still in hand)
+    expect(P(world, 2).extra.wishFullAt).toBeGreaterThan(at0); // Blaze Step spent a charge for good (one is still in hand)
     // statuses and fields
     expect(world.state.fields.size).toBe(0);
     for (let i = 0; i < 5; i++) {

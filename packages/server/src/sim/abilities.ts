@@ -91,7 +91,7 @@ export function armWishes(world: World): void {
     rt.cast = null;
     removeStatuses(world, c, () => true);
     p.wishReadyAt = readyAt;
-    p.wishFullAt = readyAt;
+    p.extra.wishFullAt = readyAt;
     p.qReadyAt = 0;
     p.eReadyAt = 0;
     refreshEffects(world, c);
@@ -154,15 +154,15 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   }
 
   const prevReadyAt = slotReadyAt(c.s, cmd.slot);
-  const prevFullAt = c.s.wishFullAt;
+  const prevFullAt = c.s.extra.wishFullAt;
   // For a charged Wish the cooldown is one charge's recharge: a cast takes one off the stock clock and the slot is ready again when
   // a charge is in hand (with a single charge this is exactly now + cooldown).
   const cooldownMs = abilityCooldownMs(def, rank, { training: world.config.training === true, wishCooldownMult: wishCooldownMultOf(c.s) });
   if (cmd.slot === "wish") {
     // With one charge the stock clock is the ready time itself (nothing else to trust).
     const max = maxCharges(def, rank);
-    const spent = spendCharge(max > 1 ? c.s.wishFullAt : 0, now, max, cooldownMs);
-    c.s.wishFullAt = spent.fullAt;
+    const spent = spendCharge(max > 1 ? c.s.extra.wishFullAt : 0, now, max, cooldownMs);
+    c.s.extra.wishFullAt = spent.fullAt;
     setSlotReadyAt(c.s, cmd.slot, spent.readyAt);
   } else setSlotReadyAt(c.s, cmd.slot, now + cooldownMs);
   // Wishful Thinking shortens this cooldown, never under half of it (G13): it needs to know when the Wish was spent and for how long.
@@ -214,7 +214,7 @@ export function cancelCast(world: World, c: Combatant, reason: CastEndReason, re
   emit(world, { type: "fx", fx: { kind: "castEnd", by: c.id, ability: cast.ability, reason } });
   if (refund && c.kind === "player") {
     setSlotReadyAt(c.s, cast.slot, cast.prevReadyAt);
-    if (cast.slot === "wish" && cast.prevFullAt !== undefined) c.s.wishFullAt = cast.prevFullAt;
+    if (cast.slot === "wish" && cast.prevFullAt !== undefined) c.s.extra.wishFullAt = cast.prevFullAt;
   }
   c.rt.cast = null;
   refreshEffects(world, c);
@@ -240,10 +240,10 @@ export function onStatusApplied(world: World, c: Combatant, st: StatusInstance):
 }
 
 /** An attack or cast exposes a player standing in a bush until a second after it lands (synced, so the client hides it by the same rule). */
-function exposeInBush(world: World, s: { x: number; y: number; bushRevealUntil: number }, landsAt: number): void {
+function exposeInBush(world: World, s: { x: number; y: number; extra: { bushRevealUntil: number } }, landsAt: number): void {
   if (bushAt(world.map, s) === 0) return;
   const until = Math.max(landsAt, world.state.serverTime) + BUSH_REVEAL_MS;
-  if (until > s.bushRevealUntil) s.bushRevealUntil = until;
+  if (until > s.extra.bushRevealUntil) s.extra.bushRevealUntil = until;
 }
 
 /** attackStarted: a hidden fighter's own attack shows it, from the next tick, until the swing lands or the shot leaves, and a moment more. */

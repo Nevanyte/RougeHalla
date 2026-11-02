@@ -13,6 +13,19 @@ export type ItemState = SchemaType<typeof ItemState>;
 // float32 and uint32 here are wire widths only: the server's own values keep full double precision, and a client reads
 // positions, angles and mob hp rounded to float32, or timers truncated to whole ms. Player hp and stat growth use float64.
 // Timers must stay in 0..2^32.
+/** PlayerState's late additions (a child schema: Colyseus allows at most 63 fields per schema). */
+export const PlayerExtraState = schema({
+  /** Server time the Wish is back at full charges (0 = full): the stock clock of a charged Wish (chargesAt in abilities.ts). */
+  wishFullAt: t.uint32().default(0),
+  /** Stat-chest picks per stat id (shared/chestBoosts.ts): a x1.2 of that stat's bonus per pick, not a card (no card power). */
+  chestBoosts: t.map("float64"),
+  /** Stats taken from victims through kill augments (killAugments.ts), keyed by Effect stat; folded as farm rows. */
+  killStats: t.map("float64"),
+  /** Server time until which an attack or cast has exposed this player inside a bush (vision.ts `bushConceals`). Appended for wire compatibility. */
+  bushRevealUntil: t.uint32().default(0),
+}, "PlayerExtraState");
+export type PlayerExtraState = SchemaType<typeof PlayerExtraState>;
+
 export const PlayerState = schema({
   name: t.string().default(""),
   /** Equipped cosmetics as a packed word (see packLook in cosmetics.ts). Set when the player joins, never changed after. */
@@ -131,14 +144,8 @@ export const PlayerState = schema({
   tradeStats: t.map("float64"),
   /** The one Plague companion, kept while dead so a later corpse revives its accumulated growth. */
   plagueZombieId: t.string().default(""),
-  /** Server time the Wish is back at full charges (0 = full): the stock clock of a charged Wish (chargesAt in abilities.ts). */
-  wishFullAt: t.uint32().default(0),
-  /** Stat-chest picks per stat id (shared/chestBoosts.ts): a x1.2 of that stat's bonus per pick, not a card (no card power). */
-  chestBoosts: t.map("float64"),
-  /** Stats taken from victims through kill augments (killAugments.ts), keyed by Effect stat; folded as farm rows. */
-  killStats: t.map("float64"),
-  /** Server time until which an attack or cast has exposed this player inside a bush (vision.ts `bushConceals`). Appended for wire compatibility. */
-  bushRevealUntil: t.uint32().default(0),
+  /** Late additions kept in one child so PlayerState stays under the schema's 63-field limit (PlayerExtraState). */
+  extra: t.ref(PlayerExtraState),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

@@ -133,11 +133,11 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   const id = box.options[i]!;
   const boost = chestBoostStat(id);
   if (boost) {
-    const have = p.chestBoosts.get(boost) ?? 0;
+    const have = p.extra.chestBoosts.get(boost) ?? 0;
     if (have >= CHEST_BOOST_MAX_PICKS) { toast(world, c.id, CHEST_REFUSAL.maxed); return; }
     box.takenBy[i] = c.id;
     box.pickers.push(c.id);
-    p.chestBoosts.set(boost, have + 1);
+    p.extra.chestBoosts.set(boost, have + 1);
     recomputeMods(world, c);
     syncMaxHp(p);
     toast(world, c.id, `${CHEST_BOOST_DEFS[boost].title} x1.2${have > 0 ? ` (${have + 1} of ${CHEST_BOOST_MAX_PICKS}, diminishing)` : ""}`);

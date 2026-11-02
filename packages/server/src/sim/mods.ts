@@ -170,7 +170,7 @@ function buildOf(p: PlayerState): Build {
       }
     }
   }
-  b.farmRows = [...mobStatRows(p.mobStats), ...tradeEffects(p.tradeStats), ...killStatEffects(p.killStats)];
+  b.farmRows = [...mobStatRows(p.mobStats), ...tradeEffects(p.tradeStats), ...killStatEffects(p.extra.killStats)];
   // Corpse growth is earned permanent health, alongside farming and outside card ceilings.
   if (p.faction === "plague" && p.corpseStacks > 0) {
     b.farmRows.push({ k: "stat", stat: "maxHp", v: p.corpseStacks * PLAGUE_CORPSE_HP_SHARE });
@@ -237,7 +237,7 @@ function applyHolds(b: Build, bits: number): void {
 /** Folds the build's rows (shared foldRows: plain sums, conversions, caps, mults, flags) and keeps the result on it. */
 function refold(p: PlayerState, b: Build): void {
   // The rows were filtered by `requires` when the build was made, so every row left is on.
-  b.folded = foldRows(b.rows, { owns: () => true, holds: (e) => b.holding.has(e), baseMaxHp: baseHpOf(p), farmRows: b.farmRows, boosts: chestBoostPicks(p.chestBoosts) });
+  b.folded = foldRows(b.rows, { owns: () => true, holds: (e) => b.holding.has(e), baseMaxHp: baseHpOf(p), farmRows: b.farmRows, boosts: chestBoostPicks(p.extra.chestBoosts) });
   b.sums = b.folded.sums;
 }
 
@@ -336,7 +336,7 @@ export function recomputeMods(world: World, c: Combatant): void {
     if (b.usesCamps && c.kind === "player") b.camps = c.rt.campsCleared ?? 0;
     applyHolds(b, holdsOf(world, c, b));
     refold(c.s, b);
-    cache.build = b.rows.length > 0 || b.farmRows.length > 0 || c.s.chestBoosts.size > 0 ? b : null;
+    cache.build = b.rows.length > 0 || b.farmRows.length > 0 || c.s.extra.chestBoosts.size > 0 ? b : null;
   }
   store(world, c, cache);
   noteSources(world, c.s, src);

@@ -57,7 +57,7 @@ export function canPlayerSeeActor(world: World, viewerId: string, actorId: strin
   if (!canPlayerSee(world, viewerId, point)) return false;
   // Bush occupants (players only: mobs are never concealed) are hidden from viewers outside the bush. Mobs and training ignore it.
   if (memories.has(world) && !world.config.training && viewer && target && target.status === "alive") {
-    if (bushConceals(world.map, viewer, point, target.bushRevealUntil, world.state.serverTime)) return false;
+    if (bushConceals(world.map, viewer, point, target.extra.bushRevealUntil, world.state.serverTime)) return false;
   }
   return true;
 }
