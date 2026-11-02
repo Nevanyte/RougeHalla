@@ -66,9 +66,9 @@ describe("FxChannel: projectiles", () => {
   it("announces a projectile in the first batch after it left, once, with what the client flies it from", () => {
     const flying: Flying = new Map();
     const channel = new FxChannel();
-    loose(flying, "p1");
+    loose(flying, "p1", { ownerId: "player-1" });
     const first = channel.batch([], T, flying)!;
-    expect(unpackLaunches(first)).toEqual([{ id: "p1", kind: "arrow", x: 100, y: 200, vx: 900, vy: -12.5, t: T, range: 240 }]);
+    expect(unpackLaunches(first)).toEqual([{ id: "p1", kind: "arrow", x: 100, y: 200, vx: 900, vy: -12.5, t: T, range: 240, ownerId: "player-1" }]);
     loose(flying, "p2", { kind: "ball", vx: 380, vy: 0, range: 220 });
     const second = channel.batch([], T + 50, flying)!;
     expect(unpackLaunches(second).map((l) => l.id)).toEqual(["p2"]);

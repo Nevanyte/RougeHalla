@@ -116,6 +116,49 @@ describe("anticipation cues", () => {
   });
 });
 
+describe("local auto attack cues", () => {
+  it("plays local windup, melee swing and launch cues immediately without inventing a hit", () => {
+    const { fx, cueLog, landed, hurt } = setup();
+    fx.localAuto("windup", "axe", 0.75, 240, 5100);
+    expect(cueLog.me).toEqual([
+      ["windupEnd", 5100], ["windupStart", 0.75, 240, 5100, "melee"],
+    ]);
+
+    fx.localAuto("swing", "axe", 0.75, 0, 5340);
+    expect(cueLog.me!.slice(-2)).toEqual([["windupEnd", 5340], ["swing", 0.75, 5340]]);
+
+    fx.localAuto("launch", "wand", -0.25, 0, 5400);
+    expect(cueLog.me!.at(-1)).toEqual(["launch", -0.25, 5400]);
+    expect(landed).toEqual([]);
+    expect(hurt).toEqual([]);
+  });
+
+  it("anchors the immediate local axe sweep to the moving local position, while remote swings use server coordinates", () => {
+    const { fx, positions, ofKind } = setup();
+    // The local input cue has no historical x/y; it starts at the latest local position.
+    positions.me = { x: 12, y: 24 };
+    fx.localAuto("swing", "axe", 0.4, 0, 6000);
+    const local = ofKind("graphics")[0]!;
+    expect(local.state.position).toEqual([12, 24 * Y_SCALE]);
+
+    // A remote swing is rendered from the server's stamped ground position, even if its current interpolated pose differs.
+    positions.foe = { x: 40, y: 50 };
+    fx.enqueue({ kind: "swing", by: "foe", weapon: "axe", a: 1.1, x: 300, y: 70, t: 1000 } as TimedFx);
+    fx.update(1000, 6000, true);
+    const [remote] = ofKind("graphics").slice(1);
+    expect(remote!.state.position).toEqual([300, 70 * Y_SCALE]);
+
+    positions.me = { x: 36, y: 48 };
+    fx.update(1000, 6090, true);
+    expect(local.state.position).toEqual([36, 48 * Y_SCALE]);
+    expect(remote!.state.position).toEqual([300, 70 * Y_SCALE]);
+    expect(local.state.alpha as number).toBeCloseTo(0.5);
+    fx.update(1000, 6180, true);
+    expect(local.state.visible).toBe(false);
+    expect(remote!.state.visible).toBe(false);
+  });
+});
+
 describe("the shooter's recoil", () => {
   const launch = (over: Partial<ProjectileLaunch> = {}): ProjectileLaunch =>
     ({ id: "p1", kind: "arrow", x: 90, y: 4, vx: 0, vy: 900, t: 1000, range: 240, ...over });

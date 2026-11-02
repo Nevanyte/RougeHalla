@@ -179,6 +179,8 @@ export type FxEvent =
   | {
     kind: "projEnd"; id: string; proj: ProjectileKind; x0: number; y0: number; t0: number; x: number; y: number;
     reason: ProjectileEnd;
+    /** Original auto projectile owner for visual reconciliation; omitted for reflected arrows. */
+    ownerId?: string;
   }
   /** `by` is the killer's id, or null (sudden death). A player who leaves (MIA) gets no death fx. */
   | { kind: "death"; id: string; x: number; y: number; by: string | null }
@@ -286,6 +288,8 @@ export interface FxBatch {
   p?: FxTuple[];
   /** Target-lock metadata keyed by projectile id; absent on older batches and for directional shots. */
   h?: Array<[projectileId: string, targetId: string]>;
+  /** Projectile ownership keyed by projectile id; absent on older batches. */
+  o?: Array<[projectileId: string, ownerId: string]>;
 }
 
 /**
@@ -303,6 +307,8 @@ export interface ProjectileLaunch {
   range: number;
   /** Present only for a unit-targeted auto-attack; the client may home while it can safely sample this fighter. */
   targetId?: string;
+  /** Original auto projectile owner for visual reconciliation; omitted for reflected arrows. */
+  ownerId?: string;
 }
 
 /**

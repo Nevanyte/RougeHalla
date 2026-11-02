@@ -12,7 +12,7 @@
 //      already reflected MAX_ARROW_REFLECTIONS times is just blocked. Anything else is a hit, recorded in the damage ledger and applied with every other hit after melee.
 // When it stops it leaves `world.projectiles`, and a `projEnd` fx says exactly where and why. Its owner is never hit by
 // it. It outlives its owner: its hit still lands (credited by name only once the owner has left or is out of the run).
-// Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from where the owner's client drew it and
+// Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from the owner's authoritative release position and
 // first move in the next tick's sweep.
 import {
   ARROW_RADIUS, PLAYER_RADIUS,
@@ -50,7 +50,10 @@ interface Launch {
 function launch(world: World, l: Launch): ProjectileRuntime {
   const id = nextId(world, "p");
   const pr: ProjectileRuntime = {
-    id, launch: { id, kind: l.kind, x: l.x, y: l.y, vx: l.vx, vy: l.vy, t: l.t, range: l.range, ...(l.targetId ? { targetId: l.targetId } : {}) },
+    id, launch: {
+      id, kind: l.kind, x: l.x, y: l.y, vx: l.vx, vy: l.vy, t: l.t, range: l.range,
+      ...(l.reflections === undefined || l.reflections === 0 ? { ownerId: l.owner } : {}), ...(l.targetId ? { targetId: l.targetId } : {}),
+    },
     ...(l.targetId ? { targetId: l.targetId } : {}),
     kind: l.kind, weapon: l.weapon, owner: l.owner, ownerName: l.ownerName,
     x: l.x, y: l.y, vx: l.vx, vy: l.vy, simT: l.t, traveled: 0, tickX: l.x, tickY: l.y, packet: l.packet, halved: false, ended: false,
@@ -70,7 +73,10 @@ export function endProjectile(world: World, pr: ProjectileRuntime, x: number, y:
   world.projectiles.delete(pr.id);
   const st = pr.launch;
   emit(world, {
-    type: "fx", fx: { kind: "projEnd", id: pr.id, proj: pr.kind, x0: st.x, y0: st.y, t0: st.t, x, y, reason },
+    type: "fx", fx: {
+      kind: "projEnd", id: pr.id, proj: pr.kind, x0: st.x, y0: st.y, t0: st.t, x, y, reason,
+      ...(pr.reflections === 0 ? { ownerId: pr.owner } : {}),
+    },
   });
 }
 

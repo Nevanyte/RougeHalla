@@ -476,6 +476,23 @@ describe("fx codec: projectile launches", () => {
     expect(unpackLaunches({ t: T, l: [], p: batch.p }).map((p) => p.targetId)).toEqual([undefined]);
   });
 
+  it("carries authoritative owners as an additive side table and still reads older batches", () => {
+    const owned = { ...arrow, id: "owned", ownerId: "fighter-a" };
+    const batch = packFx([], T, { launches: [owned] });
+    expect(batch.o).toEqual([["owned", "fighter-a"]]);
+    expect(unpackLaunches(batch)[0]).toMatchObject({ id: "owned", ownerId: "fighter-a" });
+    expect(unpackLaunches({ t: T, l: [], p: batch.p }).map((p) => p.ownerId)).toEqual([undefined]);
+  });
+
+  it("carries ownership for a projectile that ends before its launch can be announced", () => {
+    const end: FxEvent = { kind: "projEnd", id: "instant", proj: "arrow", x0: 10, y0: 20, t0: T, x: 10, y: 20, reason: "wall", ownerId: "fighter-a" };
+    const batch = packFx([end], T);
+    expect(batch.o).toEqual([["instant", "fighter-a"]]);
+    expect(unpackFx(batch, [])).toEqual([{ ...end, t: T }]);
+    const legacy = packFx([{ ...end, ownerId: undefined }], T);
+    expect(unpackFx(legacy, [])[0]).not.toHaveProperty("ownerId");
+  });
+
   it("is plain integers apart from the id, and absent when nothing left", () => {
     const batch = packFx([], T, { launches: [arrow, ball, { ...arrow, range: 12.6, t: T - 100 }] });
     for (const tuple of batch.p!) for (const v of tuple.slice(1)) expect(Number.isSafeInteger(v), JSON.stringify(tuple)).toBe(true);

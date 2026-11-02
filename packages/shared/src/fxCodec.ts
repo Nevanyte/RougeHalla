@@ -1,6 +1,6 @@
 // Compact wire form of the fx events: one `fxs` message per simulation step instead of one message per event.
 //
-// A batch is `{ t, l, p? }`: `t` is the server time of the step, `l` holds one tuple per fx, in emit order:
+// A batch is `{ t, l, p?, h?, o? }`: `t` is the server time of the step, `l` holds one tuple per fx, in emit order:
 // `[kindCode, ...fields]`. A tuple holds integers, strings and nulls only, because msgpack sends any fraction as a 9 byte
 // float64 while a small integer takes 1 to 3 bytes. Fractions are scaled to integers (FX_SCALE), so a decoded value is
 // within half a step of the original, and nothing else about an event changes:
@@ -24,6 +24,8 @@
 //   launch   [id, kind, x, y, vx, vy, back?, range?]   (x, y, vx, vy in tenths; `back`: ms between the batch `t` and the
 //            moment it left, 0 for every projectile loosed in the step; `range`: left off, together with `back`, when it is
 //            the weapon's own, which it is unless a shield sent an arrow back)
+// `h` is an optional launch-id side table for homing targets. `o` carries original auto-shot ownership, keyed by launch id
+// or by a projEnd id when that shot ended before being announced. Reflected arrows have no owner metadata. Old batches omit either.
 //
 // Tuple layouts ([0] is always the kind code; `W` = weapon code, null where the type allows null):
 //   windup   [by, W, a, ms]                 swing    [by, W, x, y, a]
@@ -134,6 +136,10 @@ export function packFx(fxs: readonly FxEvent[], t: number, opts: PackOptions = {
   if (opts.launches && opts.launches.length > 0) batch.p = opts.launches.map((p) => packLaunch(p, t));
   const homing = opts.launches?.filter((p): p is ProjectileLaunch & { targetId: string } => typeof p.targetId === "string");
   if (homing?.length) batch.h = homing.map((p) => [p.id, p.targetId]);
+  const owned = new Map<string, string>();
+  for (const p of opts.launches ?? []) if (typeof p.ownerId === "string") owned.set(p.id, p.ownerId);
+  for (const fx of fxs) if (fx.kind === "projEnd" && typeof fx.ownerId === "string") owned.set(fx.id, fx.ownerId);
+  if (owned.size > 0) batch.o = [...owned];
   return batch;
 }
 
@@ -244,10 +250,14 @@ export function unpackFx(batch: FxBatch, roster: ArrayLike<string>, onDrop?: FxD
   const t = batch?.t;
   if (typeof t !== "number" || !Number.isFinite(t) || !Array.isArray(batch.l)) return out;
   const names: Names = { roster, missed: false };
+  const owners = new Map<string, string>();
+  if (Array.isArray(batch.o)) for (const pair of batch.o) {
+    if (Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "string") owners.set(pair[0], pair[1]);
+  }
   for (const tuple of batch.l) {
     names.missed = false;
     const fx = unpackOne(tuple, names, t);
-    if (fx) out.push({ ...fx, t });
+    if (fx) out.push({ ...fx, ...(fx.kind === "projEnd" && owners.has(fx.id) ? { ownerId: owners.get(fx.id)! } : {}), t });
     else onDrop?.(tuple, names.missed);
   }
   return out;
@@ -262,6 +272,10 @@ export function unpackLaunches(batch: FxBatch): ProjectileLaunch[] {
   if (Array.isArray(batch.h)) for (const pair of batch.h) {
     if (Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "string") targets.set(pair[0], pair[1]);
   }
+  const owners = new Map<string, string>();
+  if (Array.isArray(batch.o)) for (const pair of batch.o) {
+    if (Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "string") owners.set(pair[0], pair[1]);
+  }
   for (const tuple of batch.p) {
     if (!Array.isArray(tuple) || (tuple.length !== 6 && tuple.length !== 8)) continue;
     const id = typeof tuple[0] === "string" ? tuple[0] : undefined;
@@ -273,7 +287,8 @@ export function unpackLaunches(batch: FxBatch): ProjectileLaunch[] {
       || back === undefined || range === undefined
     ) continue;
     const targetId = targets.get(id);
-    out.push({ id, kind, x, y, vx, vy, t: t - back, range, ...(targetId ? { targetId } : {}) });
+    const ownerId = owners.get(id);
+    out.push({ id, kind, x, y, vx, vy, t: t - back, range, ...(targetId ? { targetId } : {}), ...(ownerId ? { ownerId } : {}) });
   }
   return out;
 }

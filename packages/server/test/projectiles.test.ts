@@ -303,6 +303,7 @@ describe("the launch: written once at spawn, never updated, and not in the synce
       range: 480,
     });
     expect(pr.launch.id).toBe(id);
+    expect(pr.launch.ownerId).toBe("archer");
     expect(pr).toMatchObject({ id, kind: "arrow", weapon: "bow", owner: "archer", ownerName: "Archer", ended: false, halved: false });
     // It is plain data in the runtime. The room state has no map of projectiles: the schema encoder never lets go of an entry
     // of a map it does not walk, so each arrow ever loosed would stay in server memory for the room's lifetime.
@@ -453,7 +454,7 @@ describe("what a client sees over the wire", () => {
     expect(Math.hypot(net.ends[0]!.x - end.x, net.ends[0]!.y - end.y)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-9);
   });
 
-  it("a client that joins while it flies is sent it in a batch of its own, and without its owner", () => {
+  it("a client that joins while it flies is sent its owner with the launch", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     const net = wire(w);
     net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
@@ -463,9 +464,9 @@ describe("what a client sees over the wire", () => {
     expect(batch.l).toEqual([]);
     expect(batch.p).toHaveLength(1);
     const [sent] = unpackLaunches(batch);
-    expect(sent).toMatchObject({ id: pr.id, kind: "arrow", t: pr.launch.t, range: pr.launch.range });
+    expect(sent).toMatchObject({ id: pr.id, kind: "arrow", t: pr.launch.t, range: pr.launch.range, ownerId: "archer" });
     for (const key of ["x", "y", "vx", "vy"] as const) expect(Math.abs(sent![key] - pr.launch[key]), key).toBeLessThanOrEqual(0.05 + 1e-9);
-    expect(JSON.stringify(batch)).not.toContain("archer");
+    expect(batch.o).toEqual([[pr.id, "archer"]]);
     // The same launch the clients that were there got when it left: flying it from either lands in the same place.
     expect(sent).toEqual(net.flying.get(pr.id));
   });
@@ -868,7 +869,7 @@ describe("the projEnd fx", () => {
     const { id, launch: st } = lastProjectile(w);
     const { end } = flyUntilEnd(w);
     expect(end).toEqual({
-      kind: "projEnd", id, proj: "arrow", x0: 100, y0: 300, t0: st.t, x: expect.closeTo(100 + Math.cos(0.2) * 480, 6),
+      kind: "projEnd", id, proj: "arrow", ownerId: "archer", x0: 100, y0: 300, t0: st.t, x: expect.closeTo(100 + Math.cos(0.2) * 480, 6),
       y: expect.closeTo(300 + Math.sin(0.2) * 480, 6), reason: "range",
     });
   });
@@ -900,6 +901,7 @@ describe("shield reflection", () => {
 
     const next = lastProjectile(w);
     expect(next.id).not.toBe(original.id);
+    expect(next.launch.ownerId).toBeUndefined();
     const v = reflectVelocity(900, 0, Math.PI);
     expect(launched(next)).toMatchObject({
       kind: "arrow", owner: "holder", x: expect.closeTo(481, 6), y: expect.closeTo(320, 6), vx: expect.closeTo(v.vx, 6),
@@ -932,6 +934,7 @@ describe("shield reflection", () => {
     expect(next.launch.range).toBe(480);
     const { end } = flyUntilEnd(w);
     expect(end.reason).toBe("range");
+    expect(end.ownerId).toBeUndefined();
     expect(end.x0).toBeCloseTo(481, 6);
     expect(Math.hypot(end.x - end.x0, end.y - end.y0)).toBeCloseTo(480, 6);
     expect(P(w, "archer").hp).toBe(FACTIONS.sentenced.hp);

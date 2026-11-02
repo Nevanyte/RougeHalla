@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { packFx, unpackLaunches, type ProjectileLaunch, type TimedFx } from "@raid/shared";
+import { packFx, unpackLaunches, Y_SCALE, type ProjectileLaunch, type TimedFx } from "@raid/shared";
 import { ProjectileView } from "../src/render/ProjectileView";
 
 /** A Graphics that draws nothing and remembers where it was last put. */
@@ -116,5 +116,135 @@ describe("ProjectileView launches", () => {
     view.update(1000, () => false);
     view.update(6000, () => false);
     expect(made[0]!.state.destroyed).toBe(true);
+  });
+});
+
+describe("local projectile previews", () => {
+  it("uses local time so the owner's shot is visible before the delayed render clock reaches release", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(999_900, undefined, undefined, 1_000_100);
+    expect(made).toHaveLength(1);
+    expect(made[0]!.state.visible).toBe(true);
+    expect(made[0]!.state.pos![0]).toBe(190);
+  });
+
+  it("keeps homing samples on the server clock while the projectile itself runs on local time", () => {
+    const { view } = setup();
+    view.predictLocal({ ...arrow, id: "preview-ball", kind: "ball", targetId: "foe", ownerId: "me", t: 1_000_000, range: 4500 });
+    const times: number[] = [];
+    view.update(1_000_050, (_id, t, out) => { times.push(t); out.x = 300; out.y = 200; return true; }, undefined, 1_000_050);
+    expect(times[0]).toBe(1_000_010);
+    expect(times.at(-1)).toBe(1_000_050);
+  });
+
+  it("reconciles a matching server launch in place without drawing a duplicate", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(999_900, undefined, undefined, 1_000_100);
+    const authoritative = { ...arrow, id: "server-1", ownerId: "me", t: 1_000_000 };
+    view.noteLocalLaunch(authoritative, "preview-1");
+    view.noteLaunch(authoritative); // the normal launch path can also see the same FX batch
+    view.update(999_900, undefined, undefined, 1_000_100);
+    expect(made).toHaveLength(1);
+    expect(made[0]!.state.destroyed).not.toBe(true);
+    expect(made[0]!.state.pos![0]).toBe(190);
+  });
+
+  it("keeps a standalone local launch on its authoritative epoch so its end is not delayed by arrival time", () => {
+    const { view, made } = setup();
+    view.update(1_000_090, undefined, undefined, 1_000_090);
+    view.noteLocalLaunch({ ...arrow, id: "server-standalone", ownerId: "me", t: 1_000_000 });
+    view.noteEnd(end({ id: "server-standalone", x0: 100, x: 190, t0: 1_000_000, t: 1_000_100 }));
+    view.update(1_000_099, undefined, undefined, 1_000_099);
+    const beforeStop = made[0]!.state.pos![0];
+    expect(beforeStop).toBeLessThan(190);
+    view.update(1_000_100, undefined, undefined, 1_000_100);
+    expect(made[0]!.state.pos![0]).toBe(190);
+  });
+
+  it("keeps the authoritative stop point as the local preview's cap", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(1_000_000, undefined, undefined, 1_000_100);
+    view.noteLocalLaunch({ ...arrow, id: "server-1", ownerId: "me", t: 1_000_000 }, "preview-1");
+    view.noteEnd(end({ id: "server-1", x0: 100, x: 190, t0: 1_000_000, t: 1_000_100 }));
+    view.update(1_000_000, undefined, undefined, 1_000_100);
+    const stopped = made[0]!.state.pos;
+    view.update(1_000_000, undefined, undefined, 1_000_150);
+    expect(made[0]!.state.pos).toEqual(stopped);
+    expect(stopped![0]).toBe(190);
+  });
+
+  it("pins the authoritative stop point after a correction changes the trajectory", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(1_000_000, undefined, undefined, 1_000_100);
+    view.noteLocalLaunch({ ...arrow, id: "server-1", ownerId: "me", vx: 0, vy: 900, t: 1_000_000 }, "preview-1");
+    view.noteEnd(end({ id: "server-1", x0: 100, y0: 200, x: 180, y: 260, t0: 1_000_000, t: 1_000_150 }));
+    view.update(1_000_000, undefined, undefined, 1_000_150);
+    expect(made[0]!.state.pos).toEqual([180, 260 * Y_SCALE - 14]);
+  });
+
+  it("reconciles a launch and stop delivered in one FX without keeping a second preview", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(1_000_000, undefined, undefined, 1_000_000);
+    const stoppedFx = end({ id: "server-short", x0: 100, y0: 200, t0: 1_000_050, x: 145, y: 200, t: 1_000_100 });
+    view.update(1_000_000, undefined, undefined, 1_000_100);
+    view.noteLocalEnd(stoppedFx, "preview-1");
+    view.noteEnd(stoppedFx); // a normal FX handler may forward both launch/end paths
+    view.update(1_000_000, undefined, undefined, 1_000_100);
+    expect(view.has("server-short")).toBe(true);
+    expect(view.has("preview-1")).toBe(false);
+    expect(made).toHaveLength(1);
+    expect(made[0]!.state.pos![0]).toBe(145);
+  });
+
+  it("finishes a preview immediately when the authoritative stop has no visible flight", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(1_000_000, undefined, undefined, 1_000_000);
+    view.noteLocalEnd(end({ id: "server-still", x0: 100, y0: 200, t0: 1_000_000, x: 101, y: 200, t: 1_000_001 }), "preview-1");
+    expect(view.has("server-still")).toBe(true);
+    expect(view.has("preview-1")).toBe(true);
+    expect(made[0]!.state.destroyed).toBe(true);
+  });
+
+  it("removes an unconfirmed preview after its bounded lifetime", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "preview-1", ownerId: "me", t: 1_000_000 });
+    view.update(1_000_000, undefined, undefined, 1_000_000);
+    expect(made).toHaveLength(1);
+    view.update(1_000_000, undefined, undefined, 1_001_501);
+    expect(made[0]!.state.destroyed).toBe(true);
+  });
+
+  it("does not let a missing launch token claim a newer live preview", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "expired-preview", ownerId: "me", t: 1_000_000 });
+    view.update(1_000_000, undefined, undefined, 1_001_501); // expires the first token's visual
+    view.predictLocal({ ...arrow, id: "new-preview", ownerId: "me", x: 500, t: 1_001_600 });
+    view.update(1_001_600, undefined, undefined, 1_001_600);
+    const newer = made.find((g) => !g.state.destroyed && (g.state.pos as number[] | null)?.[0] === 500)!;
+
+    view.noteLocalLaunch({ ...arrow, id: "authoritative-old", ownerId: "me", t: 1_001_500 }, "expired-preview");
+    view.update(1_001_600, undefined, undefined, 1_001_600);
+    expect(newer.state.destroyed).not.toBe(true);
+    expect(newer.state.pos![0]).toBe(500);
+    expect(made.filter((g) => !g.state.destroyed)).toHaveLength(2);
+  });
+
+  it("does not let a missing end token claim a newer live preview", () => {
+    const { view, made } = setup();
+    view.predictLocal({ ...arrow, id: "new-preview", ownerId: "me", x: 500, t: 1_001_600 });
+    view.update(1_001_600, undefined, undefined, 1_001_600);
+    const newer = made[0]!;
+    view.noteLocalEnd(end({ id: "authoritative-old", x0: 100, y0: 200, x: 145, y: 200,
+      t0: 1_000_000, t: 1_000_050 }), "expired-preview");
+    view.update(1_001_600, undefined, undefined, 1_001_600);
+    expect(newer.state.destroyed).not.toBe(true);
+    expect(newer.state.pos![0]).toBe(500);
+    expect(made.filter((g) => !g.state.destroyed)).toHaveLength(2);
   });
 });

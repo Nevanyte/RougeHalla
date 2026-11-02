@@ -5,7 +5,7 @@
 import Phaser from "phaser";
 import {
   ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, isAbilityDot, isDot,
-  type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
+  type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx, type WeaponId,
 } from "@raid/shared";
 import { ELITE_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
@@ -234,6 +234,17 @@ export class FxView {
   enqueue(fx: TimedFx): void {
     if (this.destroyed || !fx || !Number.isFinite(fx.t)) return;
     this.push(fx);
+  }
+
+  /** Own auto animations use the input clock; hits and damage numbers still arrive through enqueue. */
+  localAuto(kind: "windup" | "swing" | "launch", weapon: WeaponId, a: number, ms: number, now: number): void {
+    if (this.destroyed) return;
+    const by = this.host.localId;
+    const pos = this.host.position(by);
+    if (!pos) return;
+    if (kind === "windup") this.windup({ kind, by, weapon, a, ms, t: 0 }, now);
+    else if (kind === "swing") this.swing({ kind, by, weapon, a, x: pos.x, y: pos.y, t: 0 }, now);
+    else { this.cancelWindup(by, now); this.host.view(by)?.cues?.launch(a, now); }
   }
 
   /**
@@ -469,22 +480,24 @@ export class FxView {
   /** The landed swing: the swept sector, from where the attacker was drawn when it swung. */
   private swing(fx: FxOf<"swing">, now: number): void {
     this.cancelWindup(fx.by, now);
+    const local = fx.by === this.host.localId;
+    const pos = local ? this.host.position(fx.by) : fx;
     const shape = WEAPONS[fx.weapon]?.shape;
-    if (shape?.kind !== "arc" || !Number.isFinite(fx.x) || !Number.isFinite(fx.y) || !Number.isFinite(fx.a)) return;
-    if (this.host.canSee && (!this.host.position(fx.by) || !this.host.canSee(fx))) return;
+    if (!pos || shape?.kind !== "arc" || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(fx.a)) return;
+    if (this.host.canSee && (!this.host.position(fx.by) || !this.host.canSee(pos))) return;
     // After the cancel above, which lets the wound-up pose go: the swing carries on from where it was.
     this.host.view(fx.by)?.cues?.swing(fx.a, now);
     const color = WEAPONS[fx.weapon].color;
     const reach = shape.reach + PLAYER_RADIUS;
     const g = this.acquireGraphics(DEPTH_FX);
-    g.setPosition(projX(fx.x), projY(fx.y));
+    g.setPosition(projX(pos.x), projY(pos.y));
     g.fillStyle(color, 0.4);
     traceSector(g, 0, 0, reach, fx.a, shape.halfArc);
     g.fillPath();
     g.lineStyle(3, SWING_RIM, 0.9);
     traceRim(g, 0, 0, reach, fx.a, shape.halfArc);
     g.strokePath();
-    this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: "", x: fx.x, y: fx.y, a: 0 });
+    this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: local ? fx.by : "", x: pos.x, y: pos.y, a: 0 });
   }
 
   private hit(fx: FxOf<"hit">, now: number): void {
@@ -767,6 +780,10 @@ export class FxView {
           e.g!.setAlpha(0.4 + 0.6 * p).setScale(0.5 + 0.5 * p);
           break;
         case "swing":
+          if (e.id) {
+            const pos = this.host.position(e.id);
+            if (pos) { e.x = pos.x; e.y = pos.y; e.g!.setPosition(projX(e.x), projY(e.y)); }
+          }
           e.g!.setAlpha(1 - p).setScale(1 + 0.06 * p);
           break;
         case "burst":
