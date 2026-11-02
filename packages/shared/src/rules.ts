@@ -33,6 +33,20 @@ export function patienceSecondsFor(alive: number, fullSeconds: number, minSecond
   return minSeconds + (fullSeconds - minSeconds) * k;
 }
 
+/**
+ * The first coliseum slot at or after `notBefore` on the run clock: `firstS`, `secondS`, then every `repeatS` after the
+ * second (all seconds from `startedAt`, ms). A slot that passed is skipped; repeatS <= 0 means no slot after the second.
+ */
+export function coliseumSlotAt(startedAt: number, notBefore: number, firstS: number, secondS: number, repeatS: number): number {
+  const t1 = startedAt + firstS * 1000;
+  if (notBefore <= t1) return t1;
+  const t2 = startedAt + secondS * 1000;
+  if (notBefore <= t2) return t2;
+  if (repeatS <= 0) return Infinity;
+  const k = Math.ceil((notBefore - t2) / (repeatS * 1000));
+  return t2 + k * repeatS * 1000;
+}
+
 /** Share of max hp per second sudden death burns `elapsedMs` into it (the sim's burn, and the client's damage flash). */
 export function suddenDeathShare(elapsedMs: number): number {
   return SUDDEN_DEATH_START_FRACTION + SUDDEN_DEATH_RAMP_FRACTION * Math.floor(Math.max(0, elapsedMs) / 1000);

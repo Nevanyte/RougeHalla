@@ -445,7 +445,7 @@ describe("deaths restart the timer", () => {
     expect(w.state).toMatchObject({ gatesLocked: true, suddenDeathAt: 2050 + 2000 });
     runTo(w, 3600);
     expect(w.state).toMatchObject({
-      gatesLocked: false, suddenDeathAt: 0, patienceEndsAt: 3600 + 2000, inColiseum: true, phase: "active",
+      gatesLocked: false, suddenDeathAt: 0, patienceEndsAt: 3600 + 2000, inColiseum: false, phase: "active",
     });
     // The sudden death that would have started at 4050 never does.
     runTo(w, 5000);
@@ -474,6 +474,58 @@ describe("deaths restart the timer", () => {
     expect([key(P(w, 0)), key(P(w, 1))].sort()).toEqual(coliseumSpots(w.map, 2).map(key).sort());
     expect(RT(w, 0).history).toEqual([{ t: 6000, x: P(w, 0).x, y: P(w, 0).y }]);
     expect(RT(w, 0).path).toEqual([]);
+  });
+
+  describe("coliseum schedule", () => {
+    // Run starts at 50 ms: slots at 2050 (first), 3050 (second), then every 1000 ms; a reopening waits at least 200 ms.
+    const sched = { firstSeconds: 2, secondSeconds: 3, repeatSeconds: 1, minGapSeconds: 0.2 };
+    const cfg = { coliseumSchedule: sched, patienceSeconds: 1000, suddenDeathSeconds: 100 };
+
+    it("arms the first slot on the run clock and ignores the player count", () => {
+      const w = startRun(3, cfg);
+      expect(w.state.patienceEndsAt).toBe(TICK_MS + 2000);
+    });
+
+    it("firstPatienceSeconds 0 keeps the patience timer", () => {
+      const w = startRun(3, { ...cfg, firstPatienceSeconds: 0, patienceSeconds: 5 });
+      expect(w.state.patienceEndsAt).toBe(TICK_MS + 5000);
+    });
+
+    it("a death outside the coliseum does not move the slot", () => {
+      const w = startRun(3, cfg);
+      atTick(w, 1000, (world) => kill(world, 2));
+      runTo(w, 1100);
+      expect(w.state.patienceEndsAt).toBe(2050);
+      expect(fxOf(runTo(w, 2050), "teleport")).toHaveLength(1);
+    });
+
+    it("a death on the slot tick delays the teleport by one tick", () => {
+      const w = startRun(3, cfg);
+      atTick(w, 2050, (world) => kill(world, 2));
+      expect(fxOf(runTo(w, 2050), "teleport")).toEqual([]);
+      expect(fxOf(tick(w), "teleport")).toHaveLength(1);
+    });
+
+    it("a coliseum death reopens the gates, ends inColiseum and skips to the next slot at least the gap away", () => {
+      const w = startRun(3, cfg);
+      const teleports = countTeleports(w);
+      runTo(w, 2050);
+      expect(w.state).toMatchObject({ gatesLocked: true, inColiseum: true, patienceEndsAt: 0 });
+      atTick(w, 3600, (world) => kill(world, 2)); // after the 3050 slot passed locked
+      runTo(w, 3600);
+      expect(w.state).toMatchObject({ gatesLocked: false, inColiseum: false, suddenDeathAt: 0, patienceEndsAt: 4050 });
+      runTo(w, 4050);
+      expect(teleports.n).toBe(2);
+      expect(w.state).toMatchObject({ gatesLocked: true, inColiseum: true });
+    });
+
+    it("a death inside the minimum gap of a slot pushes the next teleport to the following slot", () => {
+      const w = startRun(4, cfg);
+      runTo(w, 2050);
+      atTick(w, 3950, (world) => kill(world, 3));
+      runTo(w, 3950);
+      expect(w.state.patienceEndsAt).toBe(5050); // 3950 + 200 ms gap = 4150, past the 4050 slot
+    });
   });
 
   it("burning stops the moment a death unlocks the gates", () => {

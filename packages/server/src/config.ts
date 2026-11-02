@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  FIRST_PATIENCE_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS,
+  FIRST_PATIENCE_SECONDS, COLISEUM_FIRST_SECONDS, COLISEUM_SECOND_SECONDS, COLISEUM_REPEAT_SECONDS, COLISEUM_MIN_GAP_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS,
   PATIENCE_SECONDS, PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
 } from "@raid/shared";
 import {
@@ -162,6 +162,17 @@ function originList(v: string | undefined): string[] {
   return (v ?? "").split(",").map((o) => o.trim().replace(/\/+$/, "").toLowerCase()).filter((o) => o !== "");
 }
 
+function coliseumSchedule(env: NodeJS.ProcessEnv): ServerConfig["coliseumSchedule"] {
+  if (env.COLISEUM_SCHEDULE === "0" || env.COLISEUM_SCHEDULE === "false") return undefined;
+  if (env.PATIENCE_SECONDS !== undefined || env.FIRST_PATIENCE_SECONDS !== undefined) return undefined;
+  return {
+    firstSeconds: Math.max(1, num(env.COLISEUM_FIRST_SECONDS, COLISEUM_FIRST_SECONDS)),
+    secondSeconds: Math.max(1, num(env.COLISEUM_SECOND_SECONDS, COLISEUM_SECOND_SECONDS)),
+    repeatSeconds: Math.max(0, num(env.COLISEUM_REPEAT_SECONDS, COLISEUM_REPEAT_SECONDS)),
+    minGapSeconds: Math.max(0, num(env.COLISEUM_MIN_GAP_SECONDS, COLISEUM_MIN_GAP_SECONDS)),
+  };
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const patienceSeconds = num(env.PATIENCE_SECONDS, PATIENCE_SECONDS);
   const hosting = env.NODE_ENV === "production" || !!env.CLIENT_DIR;
@@ -212,6 +223,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     planSeconds: Math.max(0, num(env.PLAN_SECONDS, PLAN_SECONDS)),
     // Decision 10: the first timer is flat. FIRST_PATIENCE_SECONDS=0 scales it with the players like every later one.
     // A dev who sets only PATIENCE_SECONDS (to shorten a run) gets that as the flat first timer too, not 300 s.
+    // The live schedule (first/second/repeat on the run clock) is off when a dev shortens the run with PATIENCE_SECONDS or
+    // FIRST_PATIENCE_SECONDS, or sets COLISEUM_SCHEDULE=0; a sim with firstPatienceSeconds 0 ignores it too (arena.ts).
+    coliseumSchedule: coliseumSchedule(env),
     firstPatienceSeconds: Math.max(
       0, num(env.FIRST_PATIENCE_SECONDS, env.PATIENCE_SECONDS !== undefined ? patienceSeconds : FIRST_PATIENCE_SECONDS),
     ),

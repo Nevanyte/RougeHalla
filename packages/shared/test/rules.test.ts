@@ -3,8 +3,21 @@ import {
   BOUNTY_EXPONENT, BOUNTY_FREE_KILLS, BOUNTY_SCALE, FEED_MOB_KILL_WEIGHT, PATIENCE_FULL_ALIVE, PATIENCE_MIN_ALIVE,
   PATIENCE_MIN_SECONDS, PATIENCE_SECONDS,
 } from "../src/constants";
-import { bountyFor, feedScore, patienceSecondsFor } from "../src/rules";
+import { bountyFor, coliseumSlotAt, feedScore, patienceSecondsFor } from "../src/rules";
 import * as shared from "../src/index";
+
+describe("coliseumSlotAt", () => {
+  const at = (from: number, notBefore: number): number => coliseumSlotAt(from, notBefore, 600, 900, 120);
+  it("is 10:00, 15:00, then every 2 minutes, skipping slots that passed", () => {
+    expect(at(1000, 1000)).toBe(1000 + 600_000);
+    expect(at(0, 600_001)).toBe(900_000);
+    expect(at(0, 900_000)).toBe(900_000);
+    expect(at(0, 900_001)).toBe(1_020_000);
+    expect(at(0, 1_020_000)).toBe(1_020_000);
+    expect(at(0, 1_100_000)).toBe(1_140_000);
+    expect(coliseumSlotAt(0, 1_000_000, 600, 900, 0)).toBe(Infinity);
+  });
+});
 
 describe("the tunables the formulas read", () => {
   it("are the design numbers: 5:00 at 8 alive down to 2:00 at 3, bounty 10 × (player kills − 2)^1.5, mobs worth a quarter of a kill in the feed", () => {

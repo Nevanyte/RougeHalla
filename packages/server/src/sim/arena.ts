@@ -25,7 +25,7 @@
 // This module never touches the store, sockets or the Room.
 import {
   bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_SKIP, GV_WIN, QUEST_GV_CAP,
-  KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
+  KILL_CREDIT_SECONDS, patienceSecondsFor, coliseumSlotAt, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2, type WinBonusWhy,
 } from "@raid/shared";
@@ -60,6 +60,12 @@ export function patienceMs(world: World, alive: number): number {
   return patienceSecondsFor(alive, world.config.patienceSeconds, world.config.patienceMinSeconds) * 1000;
 }
 
+/** The coliseum schedule, unless a test turned it off with firstPatienceSeconds 0. */
+function scheduleOf(world: World): NonNullable<World["config"]["coliseumSchedule"]> | undefined {
+  const c = world.config;
+  return c.coliseumSchedule !== undefined && c.firstPatienceSeconds !== 0 ? c.coliseumSchedule : undefined;
+}
+
 /** Called by startRaid once players are placed. */
 export function beginRun(world: World): void {
   const s = world.state;
@@ -75,7 +81,10 @@ export function beginRun(world: World): void {
   world.arena.voided = false;
   // Decision 10: the first timer can be flat (firstPatienceSeconds); every timer after a death scales (settle).
   const first = world.config.firstPatienceSeconds;
-  s.patienceEndsAt = s.serverTime + (first !== undefined && first > 0 ? first * 1000 : patienceMs(world, s.players.size));
+  const sched = scheduleOf(world);
+  s.patienceEndsAt = sched
+    ? coliseumSlotAt(s.serverTime, s.serverTime, sched.firstSeconds, sched.secondSeconds, sched.repeatSeconds)
+    : s.serverTime + (first !== undefined && first > 0 ? first * 1000 : patienceMs(world, s.players.size));
   s.inColiseum = false;
   s.gatesLocked = false;
   s.suddenDeathAt = 0;
@@ -412,7 +421,19 @@ export function settle(world: World): void {
   }
   for (const d of downed) resolve(world, d.p, d.rt, d.rt.down!.outcome, alive.length + 1, 0);
   if (deaths > 0) {
-    s.patienceEndsAt = s.serverTime + patienceMs(world, alive.length);
+    const sched = scheduleOf(world);
+    if (sched) {
+      // Slots are on the run clock: a death outside the coliseum moves nothing (it only blocks a teleport due this very tick).
+      if (s.gatesLocked) {
+        s.patienceEndsAt = coliseumSlotAt(
+          s.raidStartedAt, s.serverTime + sched.minGapSeconds * 1000,
+          sched.firstSeconds, sched.secondSeconds, sched.repeatSeconds);
+      }
+    } else {
+      s.patienceEndsAt = s.serverTime + patienceMs(world, alive.length);
+    }
+    // The gates reopen: bots read inColiseum as "no farming", so it ends with the lock.
+    if (s.gatesLocked) s.inColiseum = false;
     s.gatesLocked = false;
     s.suddenDeathAt = 0;
     return;
