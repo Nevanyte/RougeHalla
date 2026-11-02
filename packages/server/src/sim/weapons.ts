@@ -14,12 +14,12 @@
 // moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
   ATTACK_BUFFER_MS, attackInterval, CRIT_MULT, damagePerHit, damageShares, MAX_REWIND_MS, moveMultiplier, PLANT_FEET_BONUS, RANGED_RELEASE_PAUSE_MS,
-  scalingDamage, staggerImmuneUntil, swapReadyAt, TICK_MS, WEAPONS, type WeaponId, type WeaponTimings,
+  scalingDamage, staggerImmuneUntil, swapAllowed, swapReadyAt, TICK_MS, WEAPONS, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
 import { plantArmed, rollAttackCrit, spendPlant } from "./cardState";
 import {
-  activeWeapon, combatant, factionOf, handIsEmpty, hostile, isEvading, slotItem, slotWeapon, standing, standingCombatants, timingsOf,
+  activeWeapon, combatant, factionOf, hostile, isEvading, standing, standingCombatants, timingsOf,
   type Combatant,
 } from "./combatant";
 import { hasFlag, hitMultOf, scalingStatsOf } from "./mods";
@@ -156,10 +156,8 @@ export const handleSwap: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "swap") return;
   if (actionBlocked(world, c)) return;
   const target = cmd.slot ?? (c.s.slot === 0 ? 1 : 0);
-  // An empty slot is fists, so swapping to one is fine; two empty slots are the same hand, and swapping costs the swap time.
-  if (target === c.s.slot || slotWeapon(c.s, target) === null) return;
-  if (target === 1 && hasFlag(c.s, "lockSecondSlot")) return; // Committed: the second slot is not used
-  if (slotItem(c.s, target) === null && handIsEmpty(c.s)) return;
+  // The rule is shared with the client, which predicts the swap from it (swapAllowed); Committed locks the second slot.
+  if (!swapAllowed(c.s, target, hasFlag(c.s, "lockSecondSlot"))) return;
   c.s.slot = target;
   weaponChanged(world, c);
 };

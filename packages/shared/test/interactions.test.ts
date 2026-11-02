@@ -3,7 +3,7 @@ import {
   ALL_WEAPON_IDS, angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, bestSlot, decide, inArc, leadAim, MASK_MELEE, MASK_SIGHT, moveMultiplier,
   onShieldFront, PLAYER_RADIUS, POLICIES, projectileOnShieldFront, reachMask, reflectVelocity, riposteShare,
   RIPOSTE_SHARE, SHIELD_HALF_ARC, shieldOutcome, STAGGER_IMMUNITY_SECONDS, staggerImmuneUntil, staggers, SWAP_SECONDS,
-  swapReadyAt, swingVsBall, SWORD_BALL_SCALE, WEAPON_IDS, WEAPONS, wrapAngle, type HitSource,
+  swapAllowed, swapReadyAt, swingVsBall, SWORD_BALL_SCALE, WEAPON_IDS, WEAPONS, wrapAngle, type HitSource,
   type MoveState, type PolicyInput, type Vec2, type WeaponId,
 } from "../src/index";
 
@@ -291,6 +291,44 @@ describe("swapReadyAt", () => {
 
   it("is the later of the two when they coincide", () => {
     expect(swapReadyAt(400, 400)).toBe(650);
+  });
+});
+
+describe("swapAllowed", () => {
+  const hand = (weapon0: string, weapon1: string, slot = 0) => ({ weapon0, weapon1, slot });
+
+  it("takes the other slot when it holds a weapon, whichever way round", () => {
+    expect(swapAllowed(hand("sword", "wand"), 1, false)).toBe(true);
+    expect(swapAllowed(hand("sword", "wand", 1), 0, false)).toBe(true);
+  });
+
+  it("refuses the slot already in hand, and any slot that is not 0 or 1", () => {
+    expect(swapAllowed(hand("sword", "wand"), 0, false)).toBe(false);
+    expect(swapAllowed(hand("sword", "wand", 1), 1, false)).toBe(false);
+    expect(swapAllowed(hand("sword", "wand"), 2, false)).toBe(false);
+    expect(swapAllowed(hand("sword", "wand"), -1, false)).toBe(false);
+  });
+
+  it("treats an empty slot as fists, a legal place to swap to from a weapon", () => {
+    expect(swapAllowed(hand("sword", ""), 1, false)).toBe(true);
+    expect(swapAllowed(hand("", "bow", 1), 0, false)).toBe(true);
+  });
+
+  it("refuses two empty hands (fists to fists), with a literal fists id counting as empty", () => {
+    expect(swapAllowed(hand("", ""), 1, false)).toBe(false);
+    expect(swapAllowed(hand("", "", 1), 0, false)).toBe(false);
+    expect(swapAllowed(hand("fists", ""), 1, false)).toBe(false);
+    expect(swapAllowed(hand("", "bow"), 1, false)).toBe(true); // an empty hand takes a full slot
+  });
+
+  it("refuses a slot with an id the catalog lacks", () => {
+    expect(swapAllowed(hand("sword", "spear"), 1, false)).toBe(false);
+    expect(swapAllowed(hand("spear", "sword", 1), 0, false)).toBe(false);
+  });
+
+  it("refuses the second slot when it is locked (Committed) and still takes the first", () => {
+    expect(swapAllowed(hand("sword", "wand"), 1, true)).toBe(false);
+    expect(swapAllowed(hand("sword", "wand", 1), 0, true)).toBe(true);
   });
 });
 

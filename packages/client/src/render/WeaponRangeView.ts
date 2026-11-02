@@ -45,6 +45,8 @@ export function weaponRangeGeometry(weapon: WeaponId, aim = 0): WeaponRangeGeome
 export interface WeaponRangeFrame {
   phase: string;
   me?: { status: string; weapon0: string; weapon1: string; slot: number; facing: number };
+  /** The slot to draw the reach of, when the scene predicts a swap the patch has not shown yet (net/localHand.ts); default `me.slot`. */
+  slot?: number;
   /** The local fighter's drawn/predicted ground position. */
   at?: Vec2;
   /** Current cursor aim, or the fighter's facing when the cursor is over UI. */
@@ -65,7 +67,7 @@ export class WeaponRangeView {
 
   update(frame: WeaponRangeFrame): void {
     const { me, at } = frame;
-    const id = me?.slot === 1 ? me.weapon1 : me?.weapon0;
+    const id = (frame.slot ?? me?.slot) === 1 ? me?.weapon1 : me?.weapon0;
     const weapon = id === "" ? FISTS : isWeaponId(id) ? id : null;
     if (frame.hidden || frame.phase !== "active" || me?.status !== "alive" || !at || !Number.isFinite(at.x + at.y) || !weapon) {
       if (this.shown) this.graphics.setVisible(false);

@@ -3,8 +3,8 @@ import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
   countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
-  WEAPONS, withGates, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, isWeaponId, mirrorTimings, PLAYER_RADIUS,
-  type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
+  WEAPONS, withGates, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, mirrorTimings, PLAYER_RADIUS, swapAllowed,
+  type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
@@ -14,6 +14,7 @@ import { keyboardMoveGoal, MOVEMENT_KEYS, steerDue } from "../net/keyboardMoveme
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
+import { LocalHand, predictedReadyAt, weaponInSlot } from "../net/localHand";
 import { ConfirmedDamage } from "../net/confirmedDamage";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
@@ -137,6 +138,9 @@ export class RaidScene extends Phaser.Scene {
   private rightAttackHeld = false;
   private directionalAttackHeld = false;
   private readonly localAutos = new LocalAutos();
+  /** The weapon slot the player sees in hand between a swap key and the patch that shows it: it routes clicks and feeds the hand's art and bar. */
+  private readonly hand = new LocalHand();
+  private readonly handNow = { slot: 0, weapon0: "", weapon1: "" };
   private readonly confirmedDamage = new ConfirmedDamage();
   private readonly movementKeys = new Set<string>();
   private keyboardWasMoving = false;
@@ -348,6 +352,7 @@ export class RaidScene extends Phaser.Scene {
     this.rightAttackHeld = false;
     this.directionalAttackHeld = false;
     this.localAutos.reset();
+    this.hand.reset();
     this.confirmedDamage.reset();
     this.lockId = "";
     this.lastAimSent = null;
@@ -483,10 +488,13 @@ export class RaidScene extends Phaser.Scene {
       // latency: ms from a right-click to the first frame the local fighter moved on screen; motion: the prediction's state.
       const motion = this.predict.motion;
       const interp = this.interp;
+      const hand = this.hand;
       const tools = {
         scene: this,
         room: this.room,
         latency: this.latency,
+        /** How the predicted weapon swaps ended (confirmed, refused, expired) and whether one is pending. */
+        get hand() { return { ...hand.counts, predicting: hand.predicting }; },
         /** How far behind the estimated server clock remote fighters are drawn (ms), and the delay the network asks for. */
         get interp() { return { delay: interp.delayMs, target: interp.targetDelayMs }; },
         get motion() {
@@ -524,6 +532,9 @@ export class RaidScene extends Phaser.Scene {
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
     for (const [id, d] of this.deaths) if (renderT >= d.t) this.deaths.delete(id);
 
+    // A swap whose patches stall (a refusal during a gap) is still given up on after ORDER_EXPIRE_MS.
+    const handMe = state.players.get(this.room.sessionId);
+    if (handMe && this.hand.predicting) this.hand.observe(handMe.slot, state.serverTime, now);
     const pointer = this.input.activePointer;
     if (!pointer.rightButtonDown()) this.rightAttackHeld = false;
     if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
@@ -574,7 +585,8 @@ export class RaidScene extends Phaser.Scene {
       if (local) this.localGround = signatures && p.status === "alive" ? ground : NO_STATES;
       const markDim = this.markIsDim(id, p.markBy, this.tmp.x, this.tmp.y, state);
       if (local) view.setLocalBowPull(this.localAutos.bowPull(now));
-      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground, markDim);
+      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground, markDim,
+        local ? this.localSlot(p) : p.slot);
       if (local) {
         const cameraAt = this.cameraFollow.update(this.peek ?? this.tmp, now, this.peek !== null);
         this.cameras.main.centerOn(projX(cameraAt.x), projY(cameraAt.y));
@@ -757,6 +769,7 @@ export class RaidScene extends Phaser.Scene {
       me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "cannon" ? "Enter cannon" : this.nearest?.kind === "chest" ? "Open chest" : this.nearest?.kind === "quest" || this.nearest?.kind === "consumable" ? this.nearest.label : "",
       talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`)
         : blocked ? questAcceptFirstText(blocked.def) : "",
+      me ? this.localSlot(me) : undefined,
     );
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
@@ -927,6 +940,7 @@ export class RaidScene extends Phaser.Scene {
     // No patches arrive while the connection is down, and what is sent is dropped: nothing to predict from until it is back.
     if (this.room.reconnection?.isReconnecting) {
       this.predict.motion.reset();
+      this.hand.clear();
       return;
     }
     // Only a chilled fighter needs to know where the others are (a Frost mob chills as a Frost player does).
@@ -1206,17 +1220,31 @@ export class RaidScene extends Phaser.Scene {
    */
   private noteWeaponChanges(state: RaidState): void {
     state.players?.forEach((p, id) => {
+      const local = id === this.room.sessionId;
+      // First: it settles a predicted swap, and a swap the player pressed already cancelled what it cancels (swapHand).
+      const verdict = local ? this.hand.observe(p.slot, state.serverTime, performance.now()) : "none";
       const hand = `${p.slot}:${p.slot === 1 ? p.weapon1 : p.weapon0}`;
       const before = this.inHand.get(id);
       this.inHand.set(id, hand);
       if (before !== undefined && before !== hand) {
+        if (local) this.predict.noteWeaponChange(state.serverTime);
+        // A swap the player pressed has cancelled the local cosmetics at the press, and an attack made after it belongs to the new
+        // weapon: cancelling again now would kill it. Anything else (a pickup that replaced the hand, a remote swap) cancels here.
+        if (local && (verdict === "confirmed" || verdict === "pending")) return;
         this.fx.cancelWindups(id, state.serverTime);
-        if (id === this.room.sessionId) {
-          this.predict.noteWeaponChange(state.serverTime);
-          this.cancelLocalAutos(performance.now());
-        }
+        if (local) this.cancelLocalAutos(performance.now());
       }
     });
+  }
+
+  /** The weapon slot the local player sees in hand: the predicted one while a swap is in flight (net/localHand.ts), else the server's. */
+  private localSlot(me: { slot: number }): number {
+    return this.hand.slotOf(me.slot);
+  }
+
+  /** What the local player's hand holds for routing a click: the weapon in the slot they see in hand. */
+  private localWeapon(me: { slot: number; weapon0: string; weapon1: string }): WeaponId {
+    return weaponInSlot(me, this.localSlot(me));
   }
 
   private noteAimSent(a: number): void {
@@ -1265,8 +1293,8 @@ export class RaidScene extends Phaser.Scene {
   private clickAttack(pointer: Phaser.Input.Pointer): void {
     if (this.beforeTeleport() || this.frozenWorld || !this.localAlive()) return;
     const me = this.room.state.players.get(this.room.sessionId)!;
-    const weapon = me.slot === 0 ? me.weapon0 : me.weapon1;
-    if (weapon === "wand") { this.sendTarget(pointer); return; }
+    // The weapon the player sees in hand: a click inside a swap's round trip goes by the new one (the server applies the swap first).
+    if (this.localWeapon(me) === "wand") { this.sendTarget(pointer); return; }
     const a = this.cursorAngle(pointer);
     if (a === null) return;
     sendInput(this.room, "attack", { a, t: this.renderT });
@@ -1287,8 +1315,8 @@ export class RaidScene extends Phaser.Scene {
     const state = this.room.state;
     const me = state.players.get(this.room.sessionId);
     if (!me || !isFactionId(me.faction)) return null;
-    const item = me.slot === 1 ? me.weapon1 : me.weapon0;
-    const weapon = isWeaponId(item) ? item : "fists";
+    const slot = this.localSlot(me);
+    const weapon = weaponInSlot(me, slot);
     const timing = mirrorTimings(FACTIONS[me.faction], weapon, decodeMult(me.asMult), decodeMult(me.windupMult));
     const targetId = weapon === "wand" ? this.lockDisplay.shown(me.attackTarget, now) : "";
     const fighter = targetId ? state.players.get(targetId) ?? state.mobs.get(targetId) : undefined;
@@ -1301,11 +1329,13 @@ export class RaidScene extends Phaser.Scene {
       && !!map && hasLineOfSight(map, origin, target);
     const a = target && origin ? Math.atan2(target.y - origin.y, target.x - origin.x)
       : this.cursorAngle(this.input.activePointer) ?? me.facing;
-    return { key: `${me.slot}:${weapon}`, weapon, a, held: this.directionalAttackHeld || inRange,
+    // The swap's own cooldown is not in the patch yet: the first attack with the new weapon waits it out, as the server's will.
+    const readyAt = this.hand.predicting ? predictedReadyAt(me.readyAt, this.hand.applyAt) : me.readyAt;
+    return { key: `${slot}:${weapon}`, weapon, a, held: this.directionalAttackHeld || inRange,
       enabled: state.phase === "active" && me.status === "alive" && !this.beforeTeleport() && !this.frozenWorld
         && !this.room.reconnection?.isReconnecting && (me.effects & (EFFECT_STUNNED | EFFECT_CASTING)) === 0,
       intervalMs: timing.interval * 1000, windupMs: timing.windup * 1000,
-      readyInMs: Math.max(0, me.readyAt - this.localClock(now)), ...(targetId ? { targetId } : {}) };
+      readyInMs: Math.max(0, readyAt - this.localClock(now)), ...(targetId ? { targetId } : {}) };
   }
 
   private showLocalAuto(visual: AutoVisual, now: number): void {
@@ -1337,7 +1367,7 @@ export class RaidScene extends Phaser.Scene {
     if (this.beforeTeleport() || this.frozenWorld || !this.localAlive()) return;
     const id = pickTarget(this.cursorGround(pointer), this.targetCandidates());
     const me = this.room.state.players.get(this.room.sessionId);
-    if (id === null || !me || (me.slot === 0 ? me.weapon0 : me.weapon1) !== "wand") return;
+    if (id === null || !me || this.localWeapon(me) !== "wand") return;
     sendInput(this.room, "target", { id });
     this.orderTarget(id);
     this.lockDisplay.note(id, performance.now());
@@ -1482,7 +1512,7 @@ export class RaidScene extends Phaser.Scene {
       ? this.cursorAngle(this.input.activePointer)
       : me && this.localSource(me, state) === "predicted" ? this.predict.motion.facing() : me?.facing;
     this.weaponRange.update({
-      phase: state.phase, me, at: this.rendered.get(this.room.sessionId), aim,
+      phase: state.phase, me, slot: me ? this.localSlot(me) : undefined, at: this.rendered.get(this.room.sessionId), aim,
       hidden: this.mapHold.held || this.peek !== null || this.beforeTeleport() || this.deathPending(this.room.sessionId) || this.resultsVisible?.() === true,
     });
   }
@@ -1494,7 +1524,7 @@ export class RaidScene extends Phaser.Scene {
     this.hoverId = alive && this.aimKnown && this.input.isOver && !this.peek
       ? pickTarget(this.cursorGround(this.input.activePointer), this.targetCandidates()) ?? ""
       : "";
-    this.lockId = alive && (me.slot === 0 ? me.weapon0 : me.weapon1) === "wand" ? this.liveFighter(this.lockDisplay.shown(me.attackTarget, now)) : "";
+    this.lockId = alive && this.localWeapon(me) === "wand" ? this.liveFighter(this.lockDisplay.shown(me.attackTarget, now)) : "";
     // The lock ring already marks the hovered fighter.
     this.rings.update(
       this.hoverId && this.hoverId !== this.lockId ? this.rendered.get(this.hoverId) ?? null : null,
@@ -1585,12 +1615,42 @@ export class RaidScene extends Phaser.Scene {
     }
     if (e.code === "KeyR") { this.castSlot("wish"); return; }
     if (e.code === "KeyE") { sendInput(this.room, "useConsumable", { kind: "heal" }); return; }
-    if (e.code === "KeyQ") sendInput(this.room, "swap", {});
+    if (e.code === "KeyQ") this.swapHand();
     else if (e.code === "KeyF") this.interact();
     else {
       const digit = /^(?:Digit|Numpad)([12])$/.exec(e.code);
-      if (digit) sendInput(this.room, "swap", { slot: Number(digit[1]) - 1 });
+      if (digit) this.swapHand(digit[1] === "2" ? 1 : 0);
     }
+  }
+
+  /**
+   * Q (the other slot) or 1/2 (that slot): always sent, as the slot the player means given the hand they see, so a swap that the
+   * server refuses (a stun in flight) leaves it where it was instead of toggling the other way later. When the client expects the
+   * server to take it (the shared `swapAllowed` rule, no stun or cast showing or predicted, not Committed's locked slot), the
+   * hand changes at once: the bar, the held weapon and the range guide follow, a click goes to the new weapon's input, and what
+   * the server's swap cancels (a windup, a lock on a non-wand) goes now. The next patch that settles it replaces the guess
+   * (net/localHand.ts); it costs nothing the server has not decided, whose swap penalty and cooldown are unchanged.
+   */
+  private swapHand(explicit?: 0 | 1): void {
+    const state = this.room.state;
+    const me = state.players.get(this.room.sessionId);
+    if (!me) return;
+    const cur = this.localSlot(me);
+    const target: 0 | 1 = explicit ?? (cur === 0 ? 1 : 0);
+    sendInput(this.room, "swap", { slot: target });
+    const now = performance.now();
+    const serverNow = this.localClock(now);
+    if (state.phase !== "active" || me.status !== "alive" || this.room.reconnection?.isReconnecting) return;
+    if ((me.effects & (EFFECT_STUNNED | EFFECT_CASTING)) !== 0 || this.predict.castEndsAt(serverNow) > 0) return;
+    const hand = this.handNow;
+    hand.slot = cur;
+    hand.weapon0 = me.weapon0;
+    hand.weapon1 = me.weapon1;
+    if (!swapAllowed(hand, target, countIn(me.build, "committed") > 0)) return;
+    this.hand.predict(target, me.slot, state.serverTime, now, serverNow, this.predict.motion.delay);
+    // The windup the swap cancels goes now. A held trigger stays held (the server's does too): its next attack is the new weapon's.
+    this.cancelLocalAutos(now);
+    if (this.localWeapon(me) !== "wand") this.lockDisplay.note("", now);
   }
 
   /**
@@ -1679,6 +1739,7 @@ export class RaidScene extends Phaser.Scene {
       }
       if ((fx.kind === "death" && fx.id === this.room.sessionId) || fx.kind === "teleport") {
         this.directionalAttackHeld = false;
+        this.hand.clear();
         this.cancelLocalAutos(performance.now());
       }
       if ((fx.kind === "cancel" || fx.kind === "stagger") && fx.id === this.room.sessionId) {
@@ -1747,6 +1808,7 @@ export class RaidScene extends Phaser.Scene {
     this.unbindQuestReveal = null;
     this.cancelLocalAutos(performance.now());
     this.localAutos.reset();
+    this.hand.reset();
     this.confirmedDamage.reset();
     this.predict.reset();
     this.juice.reset();

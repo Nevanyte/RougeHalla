@@ -129,7 +129,7 @@ describe("RaidScene vision integration", () => {
     scene.aimKnown = true; scene.input.isOver = true; scene.cursorAngle = () => .4;
     scene.beforeTeleport = () => false;
     frame(1000);
-    expect(scene.weaponRange.update).toHaveBeenLastCalledWith({ phase: "active", me, at: { x: 400, y: 400 }, aim: .4, hidden: false });
+    expect(scene.weaponRange.update).toHaveBeenLastCalledWith({ phase: "active", me, slot: 0, at: { x: 400, y: 400 }, aim: .4, hidden: false });
     scene.mapHold = { held: true }; frame(1100);
     expect(scene.weaponRange.update.mock.lastCall[0].hidden).toBe(true);
     scene.mapHold.held = false; scene.peek = { x: 3000, y: 2500 }; frame(1200);
@@ -232,7 +232,7 @@ describe("RaidScene vision integration", () => {
     expect(scene.interaction).toBeNull();
     scene.interact();
     expect(scene.room.send).toHaveBeenCalledTimes(1);
-    expect(scene.weaponBar.update.mock.lastCall.at(-1)).toBe("");
+    expect(scene.weaponBar.update.mock.lastCall[5]).toBe(""); // the talk hint; the hand slot follows it
     expect(scene.minimap.setCorpses.mock.lastCall[0]).toHaveLength(1);
   });
 

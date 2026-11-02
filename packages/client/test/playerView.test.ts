@@ -75,6 +75,30 @@ describe("PlayerView build icons", () => {
     expect(lastWeapon()).toBe("Secondary weapon: Fists");
   });
 
+  it("draws the slot it is told to, for a swap the patch has not shown yet: the held weapon and the secondary icon follow", () => {
+    const { scene } = fakeScene();
+    const view = new PlayerView(scene, true);
+    const marks = (view as unknown as { buildMarks: FakeObject }).buildMarks;
+    const art = (view as unknown as { art: FighterArt }).art;
+    const drawn = vi.spyOn(art, "update");
+    const p = player({ weapon0: "sword", weapon1: "bow", slot: 0, maxHp: FACTIONS.fire.hp });
+    const lastWeapon = () => (argsOf(marks, "add").at(-1)![0] as FakeObject).state.name;
+    const held = () => (view as unknown as { usingWeapon: string }).usingWeapon;
+    const slotDrawn = () => (drawn.mock.lastCall![0] as { slot: number }).slot;
+    view.update(0, 0, p, 1000, 1000);
+    expect([held(), lastWeapon(), slotDrawn()]).toEqual(["sword", "Secondary weapon: Bow", 0]);
+    view.update(0, 0, p, 1016, 1000, false, false, null, NO_STATES, false, 1);
+    expect([held(), lastWeapon(), slotDrawn()]).toEqual(["bow", "Secondary weapon: Sword", 1]);
+    // A predicted facing replaces the synced one in the same view of the fighter, and the slot rides along.
+    view.update(0, 0, p, 1032, 1000, false, false, 0.7, NO_STATES, false, 1);
+    expect(drawn.mock.lastCall![0]).toMatchObject({ slot: 1, facing: 0.7, weapon0: "sword", weapon1: "bow" });
+    expect(held()).toBe("bow");
+    // Left out, the slot is the synced one again, and the synced fighter itself is what the art reads.
+    view.update(0, 0, p, 1048, 1000);
+    expect([held(), lastWeapon()]).toEqual(["sword", "Secondary weapon: Bow"]);
+    expect(drawn.mock.lastCall![0]).toBe(p);
+  });
+
   it("refreshes icons when mob rewards change without changing any stat mirror", () => {
     const { scene } = fakeScene();
     const view = new PlayerView(scene, false);

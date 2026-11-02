@@ -65,6 +65,8 @@ export interface MatrixOptions {
   wish?: boolean;
   /** Measure in a training room (no bots; a Wish is ready every 5 s there). */
   training?: boolean;
+  /** Swap weapons (a wand and a sword from the training rack) and report the predicted hand's effect; implies `training`. */
+  swap?: boolean;
   faction?: string;
   render?: Record<string, number>;
   /** Frame rate of the probe's loop. */
@@ -79,7 +81,8 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
   fs.mkdirSync(o.out, { recursive: true });
   const reports: ProbeReport[] = [];
   for (const p of o.profiles) {
-    const dir = fs.mkdtempSync(path.join(o.tmp ?? os.tmpdir(), "raid-probe-"));
+    // --tmp or PROBE_TMP puts the server's profile file somewhere other than the system temp dir (setting TMPDIR for tsx breaks on a long path).
+    const dir = fs.mkdtempSync(path.join(o.tmp ?? process.env.PROBE_TMP ?? os.tmpdir(), "raid-probe-"));
     let server: ChildProcess | undefined;
     let bots: ChildProcess | undefined;
     try {
@@ -94,7 +97,7 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
       if (!o.training) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
       await sleep(1500);
       console.error(`[matrix] ${o.tag} ${p.name}: probing ${o.seconds} s ...`);
-      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training, faction: o.faction, hz: o.hz, steer: o.steer });
+      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training, swap: o.swap, faction: o.faction, hz: o.hz, steer: o.steer });
       fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}.json`), JSON.stringify(r));
       console.log(formatReport(r));
       reports.push(r);
@@ -116,7 +119,8 @@ function main(): void {
     port: Number(get("--port", "2620")), seconds: Number(get("--seconds", "60")), bots: Number(get("--bots", "7")), tag: get("--tag", "run"),
     out: path.resolve(get("--out", path.join(os.tmpdir(), "netprobe"))), seed: Number(get("--seed", "1")),
     profiles: get("--profiles", "0,30:5,60:10,120:20,30:5:1,60:10:1").split(",").map(parseProfile),
-    legacy: a.includes("--legacy"), trace: a.includes("--trace"), wish: a.includes("--wish"), training: a.includes("--training"),
+    legacy: a.includes("--legacy"), trace: a.includes("--trace"), wish: a.includes("--wish"), training: a.includes("--training") || a.includes("--swap"),
+    swap: a.includes("--swap"),
     ...(a.includes("--faction") ? { faction: get("--faction", "fire") } : {}),
     ...(a.includes("--tmp") ? { tmp: path.resolve(get("--tmp", "")) } : {}),
     ...(a.includes("--hz") ? { hz: Number(get("--hz", "144")) } : {}),

@@ -391,6 +391,64 @@ describe("orders in one tick apply in the order they arrived", () => {
   });
 });
 
+// The client predicts a swap (net/localHand.ts) and routes the click that follows it by the new weapon: a `target` after a swap to
+// the wand, an `attack` after a swap away from it. That is sound because the server applies one player's orders in arrival order.
+describe("a swap and the click after it in one tick", () => {
+  const setup = (): { world: World; foe: string } => {
+    const world = arena([{ faction: "plague", weapons: ["sword"], at: { x: 200, y: 320 } }]);
+    P(world).weapon0 = "sword";
+    P(world).weapon1 = "wand";
+    P(world).slot = 0;
+    return { world, foe: dummy(world, { x: 500, y: 320 }) };
+  };
+
+  it("a swap to the wand and then a target: the swap lands first and the lock is taken", () => {
+    const { world, foe } = setup();
+    send(world, 0, "swap", { slot: 1 });
+    target(world, foe);
+    tick(world);
+    expect(P(world).slot).toBe(1);
+    expect(W(world).lock).toBe(foe);
+    expect(P(world).attackTarget).toBe(foe);
+  });
+
+  it("a target and then a swap to the wand: the target meets a sword and is refused, and the swap does not redo it", () => {
+    const { world, foe } = setup();
+    target(world, foe);
+    send(world, 0, "swap", { slot: 1 });
+    tick(world);
+    expect(P(world).slot).toBe(1);
+    expect(W(world).lock).toBeNull();
+    expect(P(world).attackTarget).toBe("");
+  });
+
+  it("a swap from the wand drops its lock; a target sent after it is refused by the sword", () => {
+    const { world, foe } = setup();
+    send(world, 0, "swap", { slot: 1 });
+    target(world, foe);
+    tick(world);
+    expect(P(world).attackTarget).toBe(foe);
+    send(world, 0, "swap", { slot: 0 });
+    target(world, foe);
+    tick(world);
+    expect(P(world).slot).toBe(0);
+    expect(W(world).lock).toBeNull();
+    expect(P(world).attackTarget).toBe("");
+  });
+
+  it("a swap and then an attack (the click for a non-wand): the attack is the new weapon's and the trigger is held", () => {
+    const { world } = setup();
+    send(world, 0, "swap", { slot: 1 });
+    tick(world);
+    send(world, 0, "swap", { slot: 0 });
+    send(world, 0, "attack", { a: 0 });
+    tick(world);
+    expect(P(world).slot).toBe(0);
+    expect(W(world).held).toBe(true);
+    expect(W(world).lock).toBeNull();
+  });
+});
+
 // ----------------------------------------------------------------------------------------------------------------
 
 describe("how a lock ends", () => {
