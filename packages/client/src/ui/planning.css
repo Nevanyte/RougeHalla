@@ -63,6 +63,55 @@ html[data-ui-narrow] #ui > .planning[data-mode="preview"] .pl-legend { gap: 2px 
   background: rgba(8, 10, 14, 0.5);
 }
 #ui > .planning[data-mode="map"] .pl-body { margin: auto; }
+#ui > .planning[data-mode="map"] .pl-body {
+  display: grid;
+  grid-template-columns: max(var(--pl-roster-size, 220px), var(--pl-rail-size, 250px)) var(--pl-size, 560px) max(var(--pl-roster-size, 220px), var(--pl-rail-size, 250px));
+  align-items: start;
+  gap: var(--pl-tab-gap, 12px);
+  width: max-content;
+  max-width: calc(var(--ui-w, 1280px) - 24px);
+  max-height: calc(var(--ui-h, 800px) - 24px);
+}
+#ui > .planning[data-mode="map"] .pl-mapcol { width: var(--pl-size, 560px); }
+#ui > .planning[data-mode="map"] .pl-side {
+  width: var(--pl-rail-size, 250px);
+  max-height: min(calc(var(--pl-size, 560px) + 76px), calc(var(--ui-h, 800px) - 24px));
+  overflow: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong, #3a434f);
+  border-radius: 8px;
+  background: var(--panel, rgba(20, 24, 30, 0.94));
+}
+#ui > .planning[data-mode="map"] .pl-side > :not(.pl-counters):not(.pl-quests) { display: none; }
+#ui > .planning[data-mode="map"] .pl-side,
+#ui > .planning[data-mode="map"] .pl-side * { pointer-events: auto; }
+#ui > .planning[data-mode="map"] .pl-quests { margin-top: 8px; min-height: 100px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+#ui > .planning[data-mode="map"] .pl-counters {
+  position: static;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  flex: 0 0 auto;
+}
+#ui > .planning[data-mode="map"] .pl-counters .cw-wheel { max-width: 100%; }
+#ui > .planning.pl-tab-stacked[data-mode="map"] .pl-body {
+  width: min(100%, calc(var(--ui-w, 800px) - 24px));
+  max-height: calc(var(--ui-h, 600px) - 24px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow-y: auto;
+}
+#ui > .planning.pl-tab-stacked[data-mode="map"] .pl-mapcol { grid-column: 1 / -1; width: var(--pl-size, 320px); max-width: 100%; justify-self: center; }
+#ui > .planning.pl-tab-stacked[data-mode="map"] .map-roster { flex-basis: auto; }
+#ui > .planning.pl-tab-stacked[data-mode="map"] .pl-side { grid-column: 2; grid-row: 2; width: 100%; max-height: calc(var(--ui-h, 600px) * .32); overflow-y: auto; }
+#ui > .planning.pl-tab-stacked[data-mode="map"] .pl-quests { overflow: visible; flex: 0 0 auto; }
+#ui > .planning.pl-tab-stacked[data-mode="map"] .map-roster { grid-column: 1; grid-row: 2; width: 100%; max-height: calc(var(--ui-h, 600px) * .32); }
 #ui > .planning[data-mode="map"],
 #ui > .planning[data-mode="map"] * { pointer-events: none; }
 #ui > .planning[data-mode="map"] .pl-route,
@@ -483,26 +532,5 @@ html[data-reduced-motion] .planning * { transition: none !important; animation: 
 }
 
 .pl-counters[hidden] { display: none; }
-#ui > .planning[data-mode="map"] .pl-counters {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: min(300px, calc(var(--ui-w, 1280px) * 0.27));
-  max-height: calc(var(--ui-h, 800px) - 24px);
-  overflow: auto;
-  padding: 6px;
-  box-sizing: border-box;
-  background: var(--panel, rgba(20, 24, 30, 0.94));
-  border: 1px solid var(--line-strong, #3a434f);
-  border-radius: 8px;
-}
 .pl-counters .cw-wheels { flex-direction: column; gap: 6px; }
 .pl-counters .cw-wheel { width: 100%; flex: 0 0 auto; padding: 6px; }
-.pl-counters .cw-caption, .pl-counters .cw-hint { display: none; }
-html[data-ui-narrow] #ui > .planning[data-mode="map"] .pl-counters {
-  top: auto;
-  bottom: 8px;
-  right: 8px;
-  width: min(270px, calc(var(--ui-w, 800px) * 0.46));
-  max-height: calc(var(--ui-h, 600px) * 0.42);
-}

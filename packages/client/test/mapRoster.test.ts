@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FACTIONS, mapFromTiles } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
-import { MapRoster, mapRosterLayout, mapRosterRows } from "../src/ui/mapRoster";
+import { MapRoster, mapRosterRows } from "../src/ui/mapRoster";
 import { PlanningView, type PlanningFrame } from "../src/ui/planning";
 import { RouteState } from "../src/ui/route";
 import { setView } from "../src/view/viewState";
@@ -50,12 +50,6 @@ describe("Tab roster model", () => {
     expect(mapRosterRows([{ id: "p", player: p }])[0]!.weapons.map(w => w.name)).toEqual(["Fists", "Fists"]);
   });
 
-  it.each([320, 480, 600, 1280, 1920])("fits the roster left of the map in a %ipx overlay", width => {
-    const layout = mapRosterLayout(width, 800, 1.5);
-    expect(layout.roster).toBeGreaterThanOrEqual(140);
-    expect(layout.map).toBeGreaterThanOrEqual(80);
-    expect(layout.roster + layout.map + 40).toBeLessThanOrEqual(width);
-  });
 });
 
 describe("Tab roster DOM and lifecycle", () => {
@@ -77,6 +71,8 @@ describe("Tab roster DOM and lifecycle", () => {
     expect(weaponSlots.every(w => !/Sword|Wand/.test(w.textContent))).toBe(true);
     expect(first.byClass("map-roster-stat")).toHaveLength(3);
     expect(first.byClass("combat-icon")).toHaveLength(3);
+    expect(first.allText).toContain("Offense");
+    expect(first.allText).toContain("+48");
     roster.update(players, "strong", true);
     expect(dom.ui.byClass("map-roster-player")[0]).toBe(first);
     weak.adBonus = 2400; weak.weapon1 = "bow"; weak.status = "dead";

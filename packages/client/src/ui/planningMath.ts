@@ -117,6 +117,22 @@ export function fullMapSize(uiW: number, uiH: number): number {
   return clamp(Math.floor(Math.min(uiH - 200, uiW - 48)), 240, 820);
 }
 
+/** Symmetric side reservations keep the map's centre on the stage centre while the roster and weapon guide flank it. */
+export interface TabMapLayout { map: number; roster: number; rail: number; gap: number; stacked: boolean }
+export function tabMapLayout(uiW: number, uiH: number, textScale = 1): TabMapLayout {
+  const gap = 12;
+  const stacked = uiW < 900;
+  const roster = Math.round(clamp(250 * textScale, 190, 290));
+  const rail = Math.round(clamp(250 * textScale, 190, 290));
+  if (stacked) {
+    const map = Math.floor(Math.min(uiW - 24, uiH * 0.64));
+    return { map: Math.max(160, map), roster, rail, gap, stacked };
+  }
+  const reserve = Math.max(roster, rail);
+  const map = Math.floor(Math.min(820, uiH - Math.ceil(96 * textScale), uiW - 2 * (reserve + gap) - 24));
+  return { map: Math.max(220, map), roster, rail, gap, stacked };
+}
+
 // ---------------------------------------------------------------------------------------------------- legibility on a big map
 // A 136 x 136 map has 40 camps (at least 9 tiles apart, two elites a zone), 5 zone labels and, while planning, 2 spawn marks. On the
 // small corner preview the marks are about as big as the room between camps (a camp is 1.1 to 2.2 px a tile there, so nine tiles are

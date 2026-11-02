@@ -1,17 +1,9 @@
-// Counters tab: the weapon counter loop as a pentagram (the faction loop is gone: the faction rework made every faction pair even), with the picked faction highlighted
-// (a run starts on fists, which sit outside the weapon loop, so no weapon node is picked). The geometry and the matchups come from shared/wheel.ts, which reads them off BEATS /
-// WEAPON_BEATS, so a retuned loop redraws itself. Built as inline SVG (never innerHTML); the DOM is built once and a
-// new pick only changes classes and arrowheads.
-import {
-  FACTIONS, WEAPONS, WEAPON_WHEEL, isFactionId, wheelMatchups,
-  type FactionId, type Wheel, type WeaponId,
-} from "@raid/shared";
+// Weapon counter guide shared by the hub and Tab. The wheel geometry and matchups come from shared/wheel.ts.
+import { WEAPONS, WEAPON_WHEEL, isWeaponId, wheelMatchups, type Wheel, type WeaponId } from "@raid/shared";
 import { cssColor, el } from "../dom";
+import { weaponIconSvg } from "../weaponIcon";
 import type { HubPanel } from "./hubPanels";
 import "./counterWheel.css";
-
-/** What the Counters tab says where the faction wheel used to be. */
-export const FACTION_NO_COUNTERS = "Every faction pair is tuned to an even fight: no faction beats or loses to another by design.";
 
 export type NodeRole = "pick" | "beats" | "losesTo" | "other";
 /** Seen from the pick: an edge it wins, an edge it loses, or one it is not part of. */
@@ -111,9 +103,11 @@ export function buildWheelSvg<Id extends string>(
   colorOf: (id: Id) => number,
   highlight: WheelHighlight<Id>,
   title = "Counter wheel",
+  iconOf?: (id: Id) => string,
+  onPick?: (id: Id) => void,
 ): WheelSvg<Id> {
   const uid = `cw${wheelSvgs++}`;
-  const svg = svgEl("svg", { viewBox: `0 0 ${VIEW_W} ${VIEW_H}`, role: "img", "aria-label": `${title}. ${wheelDescription(wheel, labelOf)}` });
+  const svg = svgEl("svg", { viewBox: `0 0 ${VIEW_W} ${VIEW_H}`, role: onPick ? "group" : "img", "aria-label": `${title}. ${wheelDescription(wheel, labelOf)}` });
 
   const defs = svgEl("defs");
   for (const role of EDGE_ROLES) {
@@ -142,6 +136,18 @@ export function buildWheelSvg<Id extends string>(
     const name = labelOf(n.id);
     const m = wheelMatchups(wheel, n.id);
     const g = svgEl("g");
+    if (onPick) {
+      g.setAttribute("role", "button");
+      g.setAttribute("tabindex", "0");
+      g.setAttribute("aria-label", `Select ${name}`);
+      g.addEventListener("click", () => onPick(n.id));
+      g.addEventListener("keydown", (event) => {
+        const key = (event as KeyboardEvent).key;
+        if (key !== "Enter" && key !== " " && key !== "Spacebar") return;
+        event.preventDefault();
+        onPick(n.id);
+      });
+    }
     const tip = svgEl("title");
     tip.textContent = matchupText(name, m.beats.map(labelOf), m.losesTo.map(labelOf));
     // The top node's label goes above it; the others sit below, where the pentagon leaves the most room.
@@ -153,8 +159,9 @@ export function buildWheelSvg<Id extends string>(
       svgEl("circle", { cx: at.x, cy: at.y, r: NODE_RADIUS + 8 }, "cw-halo"),
       svgEl("circle", { cx: at.x, cy: at.y, r: NODE_RADIUS + 4 }, "cw-ring"),
       svgEl("circle", { cx: at.x, cy: at.y, r: NODE_RADIUS, fill: cssColor(colorOf(n.id)) }, "cw-dot"),
-      label,
     );
+    if (iconOf) g.append(svgEl("image", { x: at.x - 17, y: at.y - 17, width: 34, height: 34, href: `data:image/svg+xml,${encodeURIComponent(iconOf(n.id))}` }, "cw-weapon-icon"));
+    g.append(label);
     nodeLayer.append(g);
     nodeEls.set(n.id, g);
   }
@@ -163,7 +170,11 @@ export function buildWheelSvg<Id extends string>(
 
   const apply = (h: WheelHighlight<Id>): void => {
     svg.setAttribute("class", h.pick === null ? "cw-svg" : "cw-svg cw-has-pick");
-    for (const [id, g] of nodeEls) g.setAttribute("class", `cw-node cw-n-${h.nodes[id] ?? "other"}`);
+    for (const [id, g] of nodeEls) {
+      const role = h.nodes[id] ?? "other";
+      g.setAttribute("class", `cw-node cw-n-${role}`);
+      if (onPick) g.setAttribute("aria-pressed", String(role === "pick"));
+    }
     wheel.edges.forEach((e, i) => {
       const role = h.edges[i] ?? "other";
       const line = edgeEls[i]!;
@@ -180,10 +191,8 @@ export function buildWheelSvg<Id extends string>(
   return { svg, apply };
 }
 
-/** The faction that is picked, or null for none. An object so a later pick (the weapon in hand, say) can join it. */
-export interface WheelPick { faction: FactionId | null }
-
-const NO_PICK_HINT = "Pick a faction to see your matchups";
+/** Compatibility input for older hub callers; faction selection no longer affects this guide. */
+export interface WheelPick { faction: string | null }
 
 /** The weapon ring's caption for a pick: every run starts on fists, which are not on the ring; a looted weapon joins it. */
 export function startingKitText(factionName: string): string[] {
@@ -206,56 +215,59 @@ export class CounterWheel implements HubPanel {
   readonly title = "Counters";
   readonly root = el("div", "hub-tab hub-counters");
 
-  private readonly hint = el("p", "cw-hint", NO_PICK_HINT);
-  private readonly factionCaption = el("div", "cw-caption");
+  private readonly hint = el("p", "cw-hint", "Choose a weapon to see its intended counters.");
   private readonly weaponCaption = el("div", "cw-caption");
   private readonly weapons: WheelSvg<WeaponId>;
-  private faction: FactionId | null = null;
+  private weapon: WeaponId | null = null;
 
   constructor() {
-    this.weapons = buildWheelSvg(WEAPON_WHEEL, (id) => WEAPONS[id].name, (id) => WEAPONS[id].color, wheelHighlight(WEAPON_WHEEL, null), "Weapon counter wheel");
+    this.weapons = buildWheelSvg(WEAPON_WHEEL, (id) => WEAPONS[id].name, (id) => WEAPONS[id].color, wheelHighlight(WEAPON_WHEEL, null), "Weapon counter wheel", weaponIconSvg, (id) => this.setWeapon(id));
 
     const wheels = el("div", "cw-wheels");
-    // The faction rework removed the faction counter cycle: no faction wheel, a note in its place.
-    const factionBox = el("div", "cw-wheel");
-    const factionHead = el("div", "cw-wheel-head");
-    factionHead.append(el("span", undefined, "Factions"), el("span", "cw-wheel-note", "No counters"));
-    factionBox.append(factionHead, el("p", "cw-sub", FACTION_NO_COUNTERS), this.factionCaption);
-    wheels.append(factionBox, this.section("Weapons", this.weapons.svg, this.weaponCaption));
+    wheels.append(
+      this.section("Weapon counters", this.weapons.svg, this.weaponCaption),
+    );
 
     const legend = el("p", "cw-legend");
     legend.append(
-      "Weapons only: arrows point from winner to loser: solid to the next node round the ring, dashed to the one after. Your pick glows gold; ",
-      el("span", "cw-win", "green"), " is what it beats, ", el("span", "cw-loss", "red"), " is what beats it.",
+      "Arrows point to the countered weapon. Green: advantage · Red: vulnerable. Select a weapon to compare.",
     );
     this.root.append(this.hint, wheels, legend);
-    this.setPick({ faction: null });
+    // The guide is useful before a player has a run loadout. The live Tab view replaces
+    // this default with the held weapon as soon as its HUD state is available.
+    this.setWeapon("sword");
   }
 
   /** Nothing here depends on the profile. */
   render(): void {}
 
-  /** Highlights the picked faction (the weapon ring has no pick: a run starts on fists); `{ faction: null }` clears it. Updates the DOM in place. */
+  /** Kept for callers that still provide a faction; faction counters are no longer shown. */
   setPick(pick: WheelPick): void {
-    const faction = isFactionId(pick.faction) ? pick.faction : null;
-    this.faction = faction;
-    this.weapons.apply(wheelHighlight(WEAPON_WHEEL, null));
-
-    this.hint.hidden = faction !== null;
-    this.factionCaption.hidden = faction === null;
-    this.weaponCaption.hidden = faction === null;
-    if (faction === null) {
-      this.factionCaption.replaceChildren();
-      this.weaponCaption.replaceChildren();
-      return;
-    }
-    this.factionCaption.replaceChildren(el("p", "cw-sub", `${FACTIONS[faction].displayName} has no faction counters: its edge comes from play, weapons and power.`));
-    this.weaponCaption.replaceChildren(...startingKitText(FACTIONS[faction].displayName).map((t) => el("p", "cw-sub", t)));
+    void pick;
   }
 
-  /** The faction last passed to `setPick`. */
-  get pick(): FactionId | null {
-    return this.faction;
+  setWeapon(value: WeaponId | string | null): void {
+    const weapon = isWeaponId(value) && value !== "fists" ? value : null;
+    if (weapon === this.weapon) return;
+    this.weapon = weapon;
+    this.weapons.apply(wheelHighlight(WEAPON_WHEEL, weapon));
+    this.hint.hidden = weapon !== null;
+    this.weaponCaption.hidden = false;
+    if (weapon === null) {
+      this.weaponCaption.replaceChildren(el("p", "cw-sub", "Fists sit outside this weapon wheel. Find a weapon to join the matchups."));
+      return;
+    }
+    const m = wheelMatchups(WEAPON_WHEEL, weapon);
+    this.weaponCaption.replaceChildren(
+      sentence(WEAPONS[weapon].name, WEAPONS[weapon].color, m.beats.map((id) => WEAPONS[id].name), m.losesTo.map((id) => WEAPONS[id].name)),
+      el("p", "cw-sub", "Positioning and build still matter."),
+    );
+  }
+
+  /** The weapon last passed to setWeapon. */
+  get pick(): null { return null; }
+  get weaponPick(): WeaponId | null {
+    return this.weapon;
   }
 
   private section(name: string, svg: SVGSVGElement, caption: HTMLElement): HTMLElement {

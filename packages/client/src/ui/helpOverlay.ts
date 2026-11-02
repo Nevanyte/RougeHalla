@@ -51,7 +51,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["C"], action: "Chest panel: take the keyboard, or give it back" },
       { keys: ["1", "2", "3"], action: "Chest panel (after C): take that card" },
       { keys: ["0"], action: "Chest panel (after C): skip the chest" },
-      { keys: ["Hold Tab"], action: "Map, counter wheels, ranked roster; plan route" },
+      { keys: ["Hold Tab"], action: "Map, weapon guide, quests, ranked roster; plan route" },
       { keys: ["Right-click"], action: "On the minimap: move there" },
       { keys: ["Hold left-click"], action: "On the minimap: peek there, release to snap back" },
       { keys: ["Minimap"], action: "Coral: enemy players; dots/counts: mobs; bright: vision" },

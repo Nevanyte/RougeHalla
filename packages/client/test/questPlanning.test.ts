@@ -60,13 +60,30 @@ describe("PlanningQuests", () => {
     view.update({ mode: "map", serverNow: 5_000, localId: "me", quests });
     const mark = asEl(view.markers).byClass("pl-questmark")[0]!;
     expect(mark.tagName).toBe("BUTTON");
-    expect(view.element.hidden).toBe(true);
+    expect(view.element.hidden).toBe(false);
     expect(view.markers.hidden).toBe(false);
     mark.click();
     expect(selected).toMatchObject([{ x: state.x, y: state.y }]);
     view.update({ mode: "preview", serverNow: 5_000, localId: "me", quests });
     mark.click();
     expect(selected).toHaveLength(1);
+  });
+
+  it("shows live remaining time on Tab and lets quest cards add a giver to the route", () => {
+    const dom = installPlanningDom();
+    const selected: Array<{ x: number; y: number }> = [];
+    const view = new PlanningQuests((at) => selected.push(at));
+    dom.ui.append(asEl(view.element));
+    view.update({ mode: "map", serverNow: 5_000, localId: "me", quests });
+    expect(dom.ui.byClass("pl-quest-time")[0]?.textContent).toBe("1:00");
+    const card = dom.ui.byClass("pl-quest")[0]!;
+    card.click();
+    expect(selected).toMatchObject([{ x: state.x, y: state.y }]);
+    view.update({ mode: "map", serverNow: 6_000, localId: "me", quests });
+    expect(dom.ui.byClass("pl-quest-time")[0]?.textContent).toBe("0:59");
+    expect(dom.ui.byClass("pl-quest")[0]).toBe(card);
+    view.update({ mode: "planning", serverNow: 6_000, localId: "me", quests });
+    expect(dom.ui.byClass("pl-quest-time")[0]?.textContent).toBe("3:20");
   });
 
   it("does not list or mark closed quests as live planning offers", () => {

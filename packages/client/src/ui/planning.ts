@@ -20,14 +20,14 @@ import { campMobsText, campTypeInfo } from "./campInfo";
 import { combatIcon, STAT_ICON_COLORS, type CombatIconKey } from "./combatIcons";
 import { el, uiRoot } from "./dom";
 import { CounterWheel } from "./hub/counterWheel";
-import { MapRoster, mapRosterLayout, type MapRosterPlayer } from "./mapRoster";
+import { MapRoster, type MapRosterPlayer } from "./mapRoster";
 import {
   CROWN_CLIP_PATH, ZONE_PATTERN, paintCrates, paintMapBase, paintPlayer, paintRoute, zoneClipPath, zoneColor,
 } from "./mapPainter";
 import { mapSpan, minimapBacking, minimapToWorld } from "./minimapMath";
 import {
   MAX_WAYPOINTS, ROUTE_REACH, campBoxes, crowdedChips, cycleIndex, formatClock, formatEta, glyphScale,
-  labelSizePx, placeLabels, planningMapSize, previewMapSize, routeAhead, zoneJump, type CampSpot, type PxBox, type RoutePlan,
+  labelSizePx, placeLabels, planningMapSize, previewMapSize, routeAhead, tabMapLayout, zoneJump, type CampSpot, type PxBox, type RoutePlan,
 } from "./planningMath";
 import type { RouteState } from "./route";
 import { PlanningQuests } from "./questPlanning";
@@ -299,6 +299,7 @@ export class PlanningView {
   /** The marker that holds the tab stop among the map's buttons (the others are reached with the arrow keys). */
   private rover: HTMLButtonElement | null = null;
   private lastInfo = "";
+  private guideWeapon: string | null | undefined;
 
   // What was last drawn, so a frame that changes nothing writes nothing.
   private keyTimer = "";
@@ -404,12 +405,14 @@ export class PlanningView {
 
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
-    this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.routeBox, this.status);
-    const body = el("div", "pl-body");
-    body.append(this.roster.element, this.mapCol, this.side);
     this.counters.root.classList.add("pl-counters");
     this.counters.root.hidden = true;
-    this.element.append(body, this.counters.root);
+    this.side.append(this.counters.root, this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.routeBox, this.status);
+    for (const type of ["pointerdown", "mousedown", "touchstart", "click", "contextmenu", "wheel"])
+      this.side.addEventListener(type, (e) => e.stopPropagation());
+    const body = el("div", "pl-body");
+    body.append(this.roster.element, this.mapCol, this.side);
+    this.element.append(body);
   }
 
   private buildLegend(): void {
@@ -493,9 +496,12 @@ export class PlanningView {
   private applyView(): void {
     if (this.shownMode === "hidden") return;
     const { uiW, uiH, uiScale, dpr } = this.layout;
-    const rosterLayout = mapRosterLayout(uiW, uiH, this.textScale);
-    this.element.style.setProperty("--pl-roster-size", `${rosterLayout.roster}px`);
-    const size = this.shownMode === "map" ? rosterLayout.map
+    const tabLayout = tabMapLayout(uiW, uiH, this.textScale);
+    this.element.style.setProperty("--pl-roster-size", `${tabLayout.roster}px`);
+    this.element.style.setProperty("--pl-rail-size", `${tabLayout.rail}px`);
+    this.element.style.setProperty("--pl-tab-gap", `${tabLayout.gap}px`);
+    this.element.classList.toggle("pl-tab-stacked", tabLayout.stacked);
+    const size = this.shownMode === "map" ? tabLayout.map
       : this.shownMode === "preview" ? previewMapSize(uiW, uiH) : planningMapSize(uiW, uiH, this.textScale);
     this.element.style.setProperty("--pl-size", `${size}px`);
     this.sizePx = size;
@@ -529,8 +535,12 @@ export class PlanningView {
     this.applyMode(frame.mode);
     this.roster.update(frame.roster ?? [], frame.localId ?? "", frame.mode === "map");
     if (frame.mode === "map") {
-      const faction = this.myFaction(frame);
-      if (this.counters.pick !== faction) this.counters.setPick({ faction });
+      const local = (frame.roster ?? []).find(({ id }) => id === frame.localId)?.player;
+      const weapon = local ? (local.slot === 1 ? local.weapon1 : local.weapon0) : null;
+      if (weapon !== this.guideWeapon) {
+        this.guideWeapon = weapon ?? null;
+        this.counters.setWeapon(this.guideWeapon);
+      }
     }
     if (frame.mode !== "hidden") this.updateVisionFog(frame);
     if (frame.mode === "hidden") return;
@@ -558,7 +568,7 @@ export class PlanningView {
     this.title.textContent = planning ? "Planning" : "Map preview";
     this.legend.hidden = mode === "hidden";
     this.info.hidden = false;
-    this.side.hidden = mode === "map";
+    this.side.hidden = mode === "hidden";
     this.counters.root.hidden = mode !== "map";
     // The camps stay on the held map (read-only); the dealt spawns and the route's stop buttons are for planning.
     this.markers.hidden = mode === "hidden";

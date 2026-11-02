@@ -4,7 +4,6 @@ import { heldWeapon, inputKey } from "./buildHud";
 import { buildGains, num, type BuildStatId } from "./buildModel";
 import { combatIcon, STAT_ICON_COLORS } from "./combatIcons";
 import { cssColor, el } from "./dom";
-import { fullMapSize } from "./planningMath";
 import { weaponIcon } from "./weaponIcon";
 import "./mapRoster.css";
 
@@ -39,12 +38,6 @@ export function mapRosterRows(players: readonly MapRosterPlayer[], localId = "")
       stats: read.investedStats.slice(0, 3).map(stat => ({ key: stat.key, label: stat.label, short: stat.short, value: byId.get(GAIN_ID[stat.key])!.value })),
     };
   }).sort((a, b) => b.strength - a.strength || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-}
-
-/** Reserve a left column while keeping the square map inside the overlay, including narrow windows. */
-export function mapRosterLayout(uiW: number, uiH: number, textScale = 1): { roster: number; map: number } {
-  const roster = Math.floor(Math.max(140, Math.min(320 * textScale, uiW * .36)));
-  return { roster, map: Math.max(80, Math.min(fullMapSize(uiW, uiH), Math.floor(uiW - roster - 40))) };
 }
 
 export class MapRoster {
@@ -83,6 +76,7 @@ export class MapRoster {
     const strength = el("span", "map-roster-strength", num(row.strength));
     strength.title = BUILD_STRENGTH_TIP; strength.setAttribute("aria-label", `Build strength ${num(row.strength)}`);
     const head = el("div", "map-roster-player-head"); head.append(el("span", "map-roster-rank", String(index + 1)), identity, strength);
+    const loadout = el("div", "map-roster-loadout");
     const weapons = el("div", "map-roster-weapons");
     row.weapons.forEach((weapon, slot) => {
       const chip = el("span", "map-roster-weapon");
@@ -103,10 +97,11 @@ export class MapRoster {
       const chip = el("span", "map-roster-stat");
       chip.style.color = cssColor(STAT_ICON_COLORS[stat.key]);
       chip.title = `${stat.label}: ${stat.value}`; chip.setAttribute("aria-label", chip.title);
-      chip.append(combatIcon(stat.key), el("span", undefined, stat.short), el("strong", undefined, stat.value));
+      chip.append(combatIcon(stat.key), el("span", undefined, stat.label), el("strong", undefined, stat.value));
       stats.append(chip);
     }
-    item.append(head, weapons, stats);
+    loadout.append(weapons, stats);
+    item.append(head, loadout);
     return item;
   }
 
