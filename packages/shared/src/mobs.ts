@@ -2,7 +2,7 @@
 // (names, role marks, health bars) and the tests agree. A mob fights as its region's faction scaled down (scaledFaction), then by its
 // type's role (hp, damage, speed), with its type's weapon (the region's default for a mob without a type), through the same combat
 // code as a player; the sim paces it (DUEL_PACE) like any faction.
-import { ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
+import { ELITE_HP_MULT, ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
 import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
@@ -33,7 +33,8 @@ export function mobFaction(region: FactionId, elite: boolean, k: number = elite 
   if (params.execute !== undefined) params.execute *= k;
   if (params.mark_pct !== undefined) params.mark_pct *= k;
   if (params.mark_kill !== undefined) params.mark_kill *= k;
-  return { ...scaled, params };
+  // Elites carry ELITE_HP_MULT more hp on top of ELITE_K ("Buff elites": tougher more than harder-hitting).
+  return elite ? { ...scaled, params, hp: scaled.hp * ELITE_HP_MULT } : { ...scaled, params };
 }
 
 /** The weapon a mob of the region carries when it has no type of its own (REGION_WEAPONS): the default every type's weapon falls back to. */

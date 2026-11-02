@@ -432,6 +432,14 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
 /**
+ * Owner ruling "Buff elites": an elite's hp is ELITE_K x this (x its role), its damage stays ELITE_K. Hp rather than damage because
+ * the elite camps must stay clearable by an armed, carded player (bench/campDuel.ts --types: every elite type's camp cleared by at
+ * least one faction on its zone's weapon holding the minute-2 kit). 1.35 passes; ELITE_K 0.68 with 1.3 (about +5% damage) or 0.7
+ * with 1.4 left the Archon's camp (Holy, sword skirmisher, met with the wand) uncleared. On fists or the bare zone weapon
+ * the Pox Behemoth's and the Archon's camps no longer fall (a lone elite still does: mobDuel --types).
+ */
+export const ELITE_HP_MULT = 1.35;
+/**
  * The faction rework's camp correction: a zone's mobs deal this share of the damage their scaled faction sheet gives them (hits and
  * signature damage; hp untouched). The reworked sheet made the factions even at full size, which moved each zone's mobs; the
  * Plague zone's faster, harder hits left its elite camps uncleared on the zone's weapon (campDuel --types), and the Holy zone's Archon

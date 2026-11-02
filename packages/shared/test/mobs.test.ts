@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, CARDS, duel, ELITE_K, MOB_ZONE_DAMAGE, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
+  ABILITIES, CARDS, duel, ELITE_HP_MULT, ELITE_K, MOB_ZONE_DAMAGE, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
   mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type MobKind, type MobRole, type MobTypeDef, type MobTypeId, type WeaponId,
@@ -15,7 +15,7 @@ const DAMAGE_PARAMS = ["burn", "backlash", "plague", "execute", "mark_pct", "mar
 
 describe("the tunables the mob catalog reads", () => {
   it("are the contract's numbers", () => {
-    expect([MOB_K, ELITE_K]).toEqual([0.22, 0.65]);
+    expect([MOB_K, ELITE_K, ELITE_HP_MULT]).toEqual([0.22, 0.65, 1.35]);
   });
 
   it("are reachable from the shared index, with the catalog", () => {
@@ -47,23 +47,24 @@ describe("mobFaction", () => {
    * the player's max hp by k once (scaledFaction leaves them alone: a share of a pool already scales with the pool; the mob's target is a
    * full-scale player).
    */
-  const scaledWithExecute = (region: FactionId, k: number): FactionSpec => {
+  const scaledWithExecute = (region: FactionId, k: number, elite = false): FactionSpec => {
     const spec = scaledFaction(FACTIONS[region], k);
     const params = { ...spec.params };
     if (params.execute !== undefined) params.execute *= k;
     if (params.mark_pct !== undefined) params.mark_pct *= k;
     if (params.mark_kill !== undefined) params.mark_kill *= k;
-    return { ...spec, params };
+    // "Buff elites": an elite carries ELITE_HP_MULT more hp, its damage stays at ELITE_K.
+    return elite ? { ...spec, params, hp: spec.hp * ELITE_HP_MULT } : { ...spec, params };
   };
 
   it("is the region's faction scaled by MOB_K, an elite's by ELITE_K (an execute by k squared)", () => {
     for (const region of REGIONS) {
       expect(mobFaction(region, false)).toEqual(scaledWithExecute(region, MOB_K));
-      expect(mobFaction(region, true)).toEqual(scaledWithExecute(region, ELITE_K));
+      expect(mobFaction(region, true)).toEqual(scaledWithExecute(region, ELITE_K, true));
       // A faction with no execute and no mark is exactly scaledFaction.
       if (FACTIONS[region].params.execute === undefined && FACTIONS[region].params.mark_pct === undefined) {
         expect(mobFaction(region, false)).toEqual(scaledFaction(FACTIONS[region], MOB_K));
-        expect(mobFaction(region, true)).toEqual(scaledFaction(FACTIONS[region], ELITE_K));
+        expect(mobFaction(region, true)).toEqual({ ...scaledFaction(FACTIONS[region], ELITE_K), hp: FACTIONS[region].hp * ELITE_K * ELITE_HP_MULT });
       }
     }
   });
@@ -93,7 +94,7 @@ describe("mobFaction", () => {
       for (const [elite, k] of [[false, MOB_K], [true, ELITE_K]] as const) {
         const mob = mobFaction(region, elite);
         const label = `${region}${elite ? " elite" : ""}`;
-        expect(mob.hp, label).toBeCloseTo(base.hp * k, 9);
+        expect(mob.hp, label).toBeCloseTo(base.hp * k * (elite ? ELITE_HP_MULT : 1), 9);
         expect(mob.hit, label).toBeCloseTo(base.hit * k, 9);
         for (const key of Object.keys(base.params)) {
           const want = DAMAGE_PARAMS.includes(key) ? base.params[key]! * k * (key === "execute" ? k : 1) : base.params[key]!;
@@ -124,7 +125,7 @@ describe("mobFaction", () => {
     expect(mobFaction("fire", false).hp).toBeCloseTo(FACTIONS.fire.hp * MOB_K, 9);
     expect(mobFaction("fire", false).hit).toBeCloseTo(FACTIONS.fire.hit * MOB_K, 9);
     expect(mobFaction("fire", false).params.burn).toBeCloseTo(FACTIONS.fire.params.burn! * MOB_K, 9);
-    expect(mobFaction("plague", true).hp).toBeCloseTo(FACTIONS.plague.hp * ELITE_K, 9);
+    expect(mobFaction("plague", true).hp).toBeCloseTo(FACTIONS.plague.hp * ELITE_K * ELITE_HP_MULT, 9);
     expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(FACTIONS.sentenced.params.mark_pct! * MOB_K, 9);
     expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(FACTIONS.sentenced.params.mark_kill! * MOB_K, 9);
   });
