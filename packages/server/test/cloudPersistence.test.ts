@@ -29,6 +29,9 @@ it("waits for durable claims, retains ownership on failure, and reports storage 
     const ready = await fetch(`${origin}/readyz`);
     expect(ready.status).toBe(200);
     expect(ready.headers.get("X-Rougehalla-Server-Build")).toBe(computeServerBuildId());
+    // The rooms' step wakes (rooms/tickPacer.ts), process-wide counters.
+    const { runtime } = await ready.json() as { runtime: { tick: Record<string, unknown> } };
+    expect(runtime.tick).toMatchObject({ wakes: expect.any(Number), zeroStepPct: expect.any(Number), doubleStepPct: expect.any(Number), catchupReanchors: expect.any(Number) });
     fail = true;
     const failed = await fetch(`${origin}/api/profile/cloud_retry`);
     expect(failed.status).toBe(503);

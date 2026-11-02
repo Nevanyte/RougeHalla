@@ -28,6 +28,7 @@ import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
+import { tickStats } from "./rooms/tickPacer";
 import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
 import { warmCloudSimulation } from "./cloudWarmup";
 import { mirrorSnapshotFile } from "./persistence/FileSnapshotMirror";
@@ -353,6 +354,8 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
             cpuSeconds: Math.round((process.cpuUsage().user + process.cpuUsage().system) / 1e6),
             simulationWarmup: readiness.simulationWarmup,
             sockets: transport instanceof CloudflareTransport ? transport.diagnostics : undefined,
+            // Every room's step wakes in this process (rooms/tickPacer.ts): late wakes, catch-ups and re-anchors.
+            tick: tickStats.snapshot(),
           },
         });
       });

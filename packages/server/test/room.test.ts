@@ -20,7 +20,9 @@ import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import { ActiveProfiles } from "../src/rooms/RaidRoom";
+import { tickStats, type TickPacer } from "../src/rooms/tickPacer";
 import * as gameplay from "../src/sim/gameplay";
+import * as stepModule from "../src/sim/step";
 import { combatant } from "../src/sim/combatant";
 import { hurtMob, type MobCombatant } from "../src/sim/mobLife";
 import { getVisionMemory } from "../src/sim/vision";
@@ -451,6 +453,7 @@ describe("matchmaking cost", () => {
   const roomCount = async () => (await matchMaker.query({ name: ROOM_NAME })).length;
   /** Private to the Room; peeked at to prove whether the world exists. */
   const hasWorld = (roomId: string) => (matchMaker.getLocalRoomById(roomId) as unknown as { built?: World }).built !== undefined;
+  const hasPacer = (roomId: string) => (matchMaker.getLocalRoomById(roomId) as unknown as { pacer?: TickPacer }).pacer !== undefined;
 
   it("rapid create requests from one profile open one room, and that room builds no world or map", async () => {
     const who = await claim();
@@ -467,6 +470,7 @@ describe("matchmaking cost", () => {
     expect(build).not.toHaveBeenCalled();
     const { roomId } = await accepted[0]!.json();
     expect(hasWorld(roomId)).toBe(false);
+    expect(hasPacer(roomId)).toBe(false); // and it runs no steps
     expect(isActive(who)).toBe(false); // nobody joined: nothing is held, and nothing waits to be released
   });
 
@@ -1385,6 +1389,83 @@ describe("vision over real multiplayer sockets", () => {
     await sleep(100);
     expect(other).toEqual([]);
     expect(b!.room.state.toJSON()).not.toHaveProperty("vision");
+  });
+});
+
+describe("the tick pacer", () => {
+  /** The Room's step clock, private, peeked at. */
+  interface PacedRoom {
+    world: World;
+    pacer?: TickPacer;
+    pacerTimer?: ReturnType<typeof setTimeout>;
+    wake(): void;
+    broadcastPatch(): unknown;
+  }
+  const pacedRoom = (p: Player) => matchMaker.getLocalRoomById(p.room.roomId) as unknown as PacedRoom;
+
+  it("steps whole ticks on its grid from the first join, sends one patch a wake, and is gone at dispose", async () => {
+    const who = await claim();
+    const p = await createRoom(who, { minPlayers: 3 }); // a lone player: the lobby ticks on
+    const room = pacedRoom(p);
+    expect(room.pacer).toBeDefined();
+    const sent: number[] = [];
+    const broadcast = room.broadcastPatch.bind(room);
+    vi.spyOn(room, "broadcastPatch").mockImplementation(() => { sent.push(room.world.state.serverTime); return broadcast(); });
+    const reanchors = tickStats.reanchors;
+    const t0 = performance.now();
+    const s0 = room.world.state.serverTime;
+    await sleep(2000);
+    const wallSteps = (performance.now() - t0) / TICK_MS;
+    const steps = (room.world.state.serverTime - s0) / TICK_MS;
+    for (let i = 1; i < sent.length; i++) {
+      const d = sent[i]! - sent[i - 1]!;
+      expect(d).toBeGreaterThan(0);
+      expect(d % TICK_MS).toBe(0);
+    }
+    // About 40 steps in 2 s, one patch for each but for the odd catch-up wake (a busy test machine). A stall that dropped sim
+    // time (a re-anchor anywhere in the process) voids the first check.
+    if (tickStats.reanchors === reanchors) expect(Math.abs(steps - wallSteps)).toBeLessThanOrEqual(2);
+    expect(sent.length).toBeGreaterThanOrEqual(steps - 4);
+    expect(sent.length).toBeLessThanOrEqual(steps + 1);
+
+    const cleared: unknown[] = [];
+    const clear = globalThis.clearTimeout;
+    vi.spyOn(globalThis, "clearTimeout").mockImplementation((t) => {
+      if (t !== undefined && t === room.pacerTimer) cleared.push(t);
+      return clear(t);
+    });
+    const roomId = p.room.roomId;
+    await leave(p); // the last one out: the room is disposed
+    await until(() => matchMaker.getLocalRoomById(roomId) === undefined, "the room to be disposed");
+    expect(cleared).toHaveLength(1);
+    expect(room.pacerTimer).toBeUndefined();
+    const after = room.world.state.serverTime;
+    await sleep(3 * TICK_MS);
+    expect(room.world.state.serverTime).toBe(after);
+  });
+
+  it("a step that throws is not owed again, and the room is woken again after it", async () => {
+    const who = await claim();
+    const p = await createRoom(who, { minPlayers: 3 });
+    const room = pacedRoom(p);
+    // The next wake by hand: once the room has stepped, take the timer's, let its slot come due, and make the step throw.
+    await until(() => room.world.state.serverTime > 0, "a first step");
+    clearTimeout(room.pacerTimer);
+    room.pacerTimer = undefined;
+    await sleep(TICK_MS + 10);
+    const before = room.world.state.serverTime;
+    const failing = vi.spyOn(stepModule, "step").mockImplementationOnce(() => { throw new Error("step failed"); });
+    expect(() => room.wake()).toThrow("step failed");
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(room.world.state.serverTime).toBe(before);
+    expect(room.pacerTimer).toBeDefined(); // re-armed all the same
+    const sent: number[] = [];
+    const broadcast = room.broadcastPatch.bind(room);
+    vi.spyOn(room, "broadcastPatch").mockImplementation(() => { sent.push(room.world.state.serverTime); return broadcast(); });
+    await until(() => sent.length >= 3, "three more patches");
+    // The slots it took are spent: the next wake runs the next slot's step, not the failed ones as well (two at most on a busy machine).
+    expect(sent[0]! - before).toBeLessThanOrEqual(2 * TICK_MS);
+    expect(sent[2]! - sent[0]!).toBeGreaterThanOrEqual(2 * TICK_MS);
   });
 });
 
