@@ -8,7 +8,7 @@ import {
   backlashPerSwing, bonusMultiplier, burnDps, cardRows, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
   damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markPct, markWeight,
   MARK_TIER_HITS,
-  ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mobTypeFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
+  ELITE_DMG_MULT, ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mobTypeFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type DamageShares, type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -287,7 +287,7 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       expect(MOB_SPEC.fire.params.backlash! / PLAYER_SPEC.fire.params.backlash!).toBeCloseTo(MOB_K, 12);
     });
 
-    it("an elite burns at ELITE_K strength", () => {
+    it("an elite burns at ELITE_K strength (times the elite damage buff)", () => {
       const rig = makeRig({ player: "plague", weapon: "axe", mob: "fire", elite: true });
       hold(rig);
       const logs = run(rig, 60);
@@ -295,8 +295,8 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       const burns = logs.flatMap((l) => mobBurn(l, rig, "burn"));
       expect(burns.length).toBeGreaterThan(40);
       for (const h of burns) expect(h.amount).toBeCloseTo(expected, 9);
-      expect(burnDps(ELITE_SPEC.fire) / burnDps(PLAYER_SPEC.fire)).toBeCloseTo(ELITE_K, 12);
-      expect(expected / onPlayer("fire", "plague", burnDps(MOB_SPEC.fire) * bonusMultiplier("axe") * DT)).toBeCloseTo(ELITE_K / MOB_K, 9);
+      expect(burnDps(ELITE_SPEC.fire) / burnDps(PLAYER_SPEC.fire)).toBeCloseTo(ELITE_K * ELITE_DMG_MULT, 12);
+      expect(expected / onPlayer("fire", "plague", burnDps(MOB_SPEC.fire) * bonusMultiplier("axe") * DT)).toBeCloseTo(ELITE_K * ELITE_DMG_MULT / MOB_K, 9);
     });
   });
 

@@ -46,6 +46,7 @@ import { aggro } from "../src/sim/mobAI";
 import { placeMob } from "../src/sim/mobLife";
 import { positionAt } from "../src/sim/movement";
 import { addPlayer, step } from "../src/sim/step";
+import { grantKit } from "./kitFlag";
 import { moveMultiplierOf } from "../src/sim/weapons";
 import type { SimEvent, World } from "../src/sim/world";
 
@@ -265,6 +266,7 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
     p.weapon1 = "";
     step(world, TICK_MS); // lobby -> active (no mobs: config.mobs is off, the one below is placed by hand)
     if (world.state.phase !== "active") throw new Error("mobDuel: the run did not start");
+    grantKit(world, PLAYER_ID, weapon);
 
     const type = spec.type ?? typeForSeed(spec.region, spec.elite, spec.seed);
     const mobId = placeMob(world, { region: spec.region, elite: spec.elite, type, at: home, facing: mobFacing });

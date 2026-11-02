@@ -2,7 +2,7 @@
 // (names, role marks, health bars) and the tests agree. A mob fights as its region's faction scaled down (scaledFaction), then by its
 // type's role (hp, damage, speed), with its type's weapon (the region's default for a mob without a type), through the same combat
 // code as a player; the sim paces it (DUEL_PACE) like any faction.
-import { ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
+import { ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
 import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
@@ -28,11 +28,14 @@ export function isRegionalKind(kind: string): kind is "mob" | "elite" {
  * At k = 1 (a player-sized faction, the parity tests) nothing changes.
  */
 export function mobFaction(region: FactionId, elite: boolean, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
-  const scaled = scaledFaction(FACTIONS[region], k);
+  const base = scaledFaction(FACTIONS[region], k);
+  // An elite's extra damage (ELITE_DMG_MULT) is applied to the damage numbers only, its extra hp (ELITE_HP_MULT) to the pool only.
+  const scaled = elite ? { ...scaledFaction(base, ELITE_DMG_MULT), hp: base.hp * ELITE_HP_MULT } : base;
+  const d = elite ? ELITE_DMG_MULT : 1;
   const params: Record<string, number> = { ...scaled.params };
   if (params.execute !== undefined) params.execute *= k;
-  if (params.mark_pct !== undefined) params.mark_pct *= k;
-  if (params.mark_kill !== undefined) params.mark_kill *= k;
+  if (params.mark_pct !== undefined) params.mark_pct *= k * d;
+  if (params.mark_kill !== undefined) params.mark_kill *= k * d;
   return { ...scaled, params };
 }
 

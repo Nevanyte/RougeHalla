@@ -432,6 +432,18 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
 /**
+ * Elite buff (owner ruling, 2026-11: elites died too fast). On top of ELITE_K an elite's hp is multiplied by ELITE_HP_MULT and every
+ * damage number it has (hit, point-damage signatures, mark, execute) by ELITE_DMG_MULT: hp more than damage, so an elite takes about
+ * 1.5-1.6x as long to kill but hits only 5% harder. The 5% sits on top of MOB_ZONE_DAMAGE, so every zone's elite is stronger than
+ * before (Plague's and Holy's stay under their zone's normal damage correction, they just gain the 5% too). Applied in `mobFaction`
+ * (shared/mobs.ts), so the sim, the bots and the planning maths all see it. Chosen with bench/campDuel.ts --types, whose elite gate
+ * is a carded player (the minute-5 kit, `ELITE_GATE_MINUTE`): hp x1.8 with damage x1.1 left the Pox Behemoth's and Archon's camps at
+ * 9 of 25 pairings, hp x1.6 with damage x1.0 at 15; this pair is the strongest that clears at least one faction per elite camp and
+ * most pairings. On the weaker minute-2 kit it leaves those two uncleared (the owner's first pass, hp x1.35 with no damage, held it).
+ */
+export const ELITE_HP_MULT = 1.5;
+export const ELITE_DMG_MULT = 1.05;
+/**
  * The faction rework's camp correction: a zone's mobs deal this share of the damage their scaled faction sheet gives them (hits and
  * signature damage; hp untouched). The reworked sheet made the factions even at full size, which moved each zone's mobs; the
  * Plague zone's faster, harder hits left its elite camps uncleared on the zone's weapon (campDuel --types), and the Holy zone's Archon
