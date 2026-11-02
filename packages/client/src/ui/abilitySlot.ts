@@ -4,7 +4,8 @@
 // is the DOM: an icon in the ability's colour, the key as a keycap, a dark wedge sweeping off as the cooldown runs, the seconds,
 // a thin cast bar and a short deny line above it. The view writes only what changed, so calling it every frame costs nothing.
 import {
-  EFFECT_CASTING, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_STUNNED, rankOf, type AbilityDef, type AbilityIcon,
+  abilityCooldownMs, chargesAt, EFFECT_CASTING, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_STUNNED, maxCharges, nextChargeAt, rankOf,
+  type AbilityDef, type AbilityIcon,
 } from "@raid/shared";
 import "./abilitySlot.css";
 import { cssColor, el } from "./dom";
@@ -37,6 +38,8 @@ export interface AbilitySlotInput {
   training?: boolean;
   /** The Wish cooldown multiplier (Arcane Overload); defaults to 1. */
   wishCooldownMult?: number;
+  /** `PlayerState.wishFullAt`: when a charged Wish has all its charges back (0 or past: full). Unused with one charge. */
+  fullAt?: number;
 }
 
 export type AbilitySlotState = "hidden" | "empty" | "ready" | "cooldown" | "casting" | "blocked";
@@ -56,6 +59,9 @@ export interface AbilitySlotModel {
   blocked: Blocker | null;
   /** How far the cast has run, 0..1 (0 when it is not casting, or the progress is not known). */
   cast: number;
+  /** Charges held and the most it stores; maxCharges is 1 for a plain cooldown. With charges, secondsLeft and sweep time the NEXT charge. */
+  charges: number;
+  maxCharges: number;
 }
 
 const BLOCK_BIT: Readonly<Record<Blocker, number>> = { stun: EFFECT_STUNNED, silence: EFFECT_SILENCED, root: EFFECT_ROOTED };
@@ -74,7 +80,7 @@ export function abilitySlotModel(i: AbilitySlotInput, serverNow: number): Abilit
       training: i.training, wishCooldownMult: i.wishCooldownMult,
     }) : "",
     icon: def?.icon ?? null, color: def?.color ?? 0,
-    secondsLeft: 0, sweep: 0, blocked: null, cast: 0,
+    secondsLeft: 0, sweep: 0, blocked: null, cast: 0, charges: 1, maxCharges: 1,
   };
   if (!i.alive || i.phase !== "active") return model;
   if (!def) return { ...model, state: "empty" };
@@ -83,6 +89,17 @@ export function abilitySlotModel(i: AbilitySlotInput, serverNow: number): Abilit
   if (left > 0) {
     model.secondsLeft = Math.ceil(left / 1000);
     model.sweep = clamp01(left / Math.max(1, i.cooldownLen));
+  }
+  const max = maxCharges(def, i.rank ?? 1);
+  if (max > 1) {
+    // A charged ability: the state above still follows `readyAt` (a charge in hand = ready), the numbers time the next charge.
+    const recharge = abilityCooldownMs(def, i.rank ?? 1, { training: i.training, wishCooldownMult: i.wishCooldownMult });
+    const fullAt = i.fullAt ?? 0;
+    model.maxCharges = max;
+    model.charges = chargesAt(fullAt, serverNow, max, recharge);
+    const next = nextChargeAt(fullAt, serverNow, max, recharge) - serverNow;
+    model.secondsLeft = next > 0 ? Math.ceil(next / 1000) : 0;
+    model.sweep = next > 0 ? clamp01(next / Math.max(1, recharge)) : 0;
   }
   for (const b of i.blockedBy) {
     if ((i.effects & BLOCK_BIT[b]) !== 0) { model.blocked = b; break; }
@@ -194,6 +211,8 @@ export class AbilitySlotView {
   private readonly name = el("span", "as-name");
   private readonly secs = el("span", "as-secs");
   private readonly sweep = el("span", "as-sweep");
+  private readonly chargeBadge = el("span", "as-charges");
+  private shownCharges = "";
   private readonly castBar = el("span", "as-cast");
   private readonly castFill = el("span", "as-cast-fill");
   private readonly denyLine = el("div", "as-deny");
@@ -214,8 +233,9 @@ export class AbilitySlotView {
   constructor(opts: { key: string }) {
     this.sweep.hidden = true;
     this.castBar.hidden = true;
+    this.chargeBadge.hidden = true;
     this.castBar.append(this.castFill);
-    this.box.append(keycap(opts.key, "wb-key"), this.icon, this.name, this.secs, this.sweep, this.castBar);
+    this.box.append(keycap(opts.key, "wb-key"), this.icon, this.name, this.secs, this.sweep, this.chargeBadge, this.castBar);
     this.denyLine.hidden = true;
     this.element.hidden = true;
     this.tip.hidden = true;
@@ -263,6 +283,13 @@ export class AbilitySlotView {
     if (secs !== this.shownSecs) {
       this.shownSecs = secs;
       this.secs.textContent = secs;
+    }
+    const stock = model.maxCharges > 1 ? String(model.charges) : "";
+    if (stock !== this.shownCharges) {
+      this.shownCharges = stock;
+      this.chargeBadge.textContent = stock;
+      this.chargeBadge.hidden = stock === "";
+      this.chargeBadge.classList.toggle("empty", model.charges === 0);
     }
     const deg = Math.round(model.sweep * 360);
     if (deg !== this.sweepDeg) {

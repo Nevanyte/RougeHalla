@@ -129,6 +129,8 @@ export const PlayerState = schema({
   tradeStats: t.map("float64"),
   /** The one Plague companion, kept while dead so a later corpse revives its accumulated growth. */
   plagueZombieId: t.string().default(""),
+  /** Server time the Wish is back at full charges (0 = full): the stock clock of a charged Wish (chargesAt in abilities.ts). */
+  wishFullAt: t.uint32().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

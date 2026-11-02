@@ -2,7 +2,10 @@
 // cast pipeline (sim/abilities.ts) reads it, the client draws and predicts from it. ONE id space covers Wishes and the Q/E
 // skills a later phase adds. A Wish is the faction's once-a-run ability (key D); its numbers are free to change, the
 // framework's names, signatures and wire layouts are the stable API (append only).
-import { TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, WISH_COOLDOWN_MULT_MIN, WISH_COOLDOWN_SECONDS } from "./constants";
+import {
+  BLAZE_MAX_CHARGES, BLAZE_RECHARGE_SECONDS, FREEZE_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, TARGET_SNAP_RADIUS,
+  TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_COOLDOWN_SECONDS, WISH_COOLDOWN_MULT_MIN,
+} from "./constants";
 import { isFactionId, type FactionId } from "./factions";
 import type { CleanseClass, StatusKind } from "./status";
 
@@ -75,7 +78,10 @@ export function effectSide(e: AbilityEffect): "self" | "target" {
 }
 
 export interface AbilityRank {
+  /** The cooldown; for a charged ability (`charges` above 1) the recharge time of ONE charge. */
   cooldownMs: number;
+  /** Stored uses (default 1). */
+  charges?: number;
   /** Telegraph and root (ms); 0 = it lands in the tick it is cast. */
   castMs: number;
   targeting: TargetRule;
@@ -160,7 +166,6 @@ export const LAST_STAND_FLOOR_HP = 1;
 export const LAST_STAND_SPEED_BONUS = 0.3;
 export const LAST_STAND_HEAL_SHARE = 0.3;
 
-const WISH_COOLDOWN_MS = WISH_COOLDOWN_SECONDS * 1000;
 const WISH_BLOCKED_BY = ["stun", "silence"] as const;
 const WISH_CANCELLED_BY = ["stun", "silence"] as const;
 const unitTarget = (range: number): TargetRule => ({ kind: "unit", range, los: true, snapRadius: TARGET_SNAP_RADIUS, who: "enemy" });
@@ -172,7 +177,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["control", "peel", "engage"],
     telegraph: "beam", icon: "snowflake", color: 0x81d4fa,
     ranks: [{
-      cooldownMs: WISH_COOLDOWN_MS, castMs: FREEZE_CAST_MS, targeting: unitTarget(FREEZE_RANGE), shape: { kind: "none" },
+      cooldownMs: FREEZE_COOLDOWN_SECONDS * 1000, castMs: FREEZE_CAST_MS, targeting: unitTarget(FREEZE_RANGE), shape: { kind: "none" },
       effects: [{ do: "status", to: "target", status: "stun", ms: FREEZE_STUN_MS }],
     }],
   },
@@ -183,7 +188,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["escape"],
     telegraph: "swirl", icon: "swarm", color: 0x9ccc65,
     ranks: [{
-      cooldownMs: WISH_COOLDOWN_MS, castMs: SWARM_CAST_MS, targeting: { kind: "self" }, shape: { kind: "circle", radius: SWARM_CLOUD_RADIUS },
+      cooldownMs: SWARM_COOLDOWN_SECONDS * 1000, castMs: SWARM_CAST_MS, targeting: { kind: "self" }, shape: { kind: "circle", radius: SWARM_CLOUD_RADIUS },
       effects: [
         { do: "status", to: "self", status: "hidden", ms: SWARM_MS },
         { do: "cloud", ms: SWARM_MS, radius: SWARM_CLOUD_RADIUS },
@@ -196,7 +201,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["engage", "control"],
     telegraph: "ring", icon: "scales", color: 0xb39ddb,
     ranks: [{
-      cooldownMs: WISH_COOLDOWN_MS, castMs: TRIAL_CAST_MS, targeting: unitTarget(TRIAL_RANGE), shape: { kind: "circle", radius: TRIAL_RADIUS },
+      cooldownMs: TRIAL_COOLDOWN_SECONDS * 1000, castMs: TRIAL_CAST_MS, targeting: unitTarget(TRIAL_RANGE), shape: { kind: "circle", radius: TRIAL_RADIUS },
       effects: [{
         do: "zone", ms: TRIAL_MS, radius: TRIAL_RADIUS, dealtMult: TRIAL_DEALT_MULT, takenFromCasterMult: TRIAL_TAKEN_MULT,
         moveMult: TRIAL_MOVE_MULT, exitStunMs: TRIAL_EXIT_STUN_MS, convictedRadius: TRIAL_CONVICTED_RADIUS,
@@ -209,7 +214,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["escape", "engage"], dot: true,
     telegraph: "flare", icon: "flame", color: 0xff7043,
     ranks: [{
-      cooldownMs: WISH_COOLDOWN_MS, castMs: 0, targeting: { kind: "point", range: BLAZE_RANGE, minRange: BLAZE_MIN_DIST },
+      cooldownMs: BLAZE_RECHARGE_SECONDS * 1000, charges: BLAZE_MAX_CHARGES, castMs: 0, targeting: { kind: "point", range: BLAZE_RANGE, minRange: BLAZE_MIN_DIST },
       shape: { kind: "line", length: BLAZE_RANGE, width: BLAZE_TRAIL_HALF_WIDTH * 2 },
       effects: [
         { do: "blink", maxDist: BLAZE_RANGE, minDist: BLAZE_MIN_DIST },
@@ -223,7 +228,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["sustain", "escape"],
     telegraph: "aura", icon: "cross", color: 0xffd54f,
     ranks: [{
-      cooldownMs: WISH_COOLDOWN_MS, castMs: 0, targeting: { kind: "self" }, shape: { kind: "none" },
+      cooldownMs: LAST_STAND_COOLDOWN_SECONDS * 1000, castMs: 0, targeting: { kind: "self" }, shape: { kind: "none" },
       effects: [
         { do: "deathFloor", ms: LAST_STAND_MS, floorHp: LAST_STAND_FLOOR_HP, healBack: LAST_STAND_HEAL_SHARE },
         { do: "status", to: "self", status: "haste", ms: LAST_STAND_MS, value: LAST_STAND_SPEED_BONUS },
@@ -277,6 +282,34 @@ export function abilityCooldownMs(
   if (def.flat) return mult === 1 ? base : Math.round(base * mult);
   const reduction = Math.min(Math.max(ctx.reduction ?? 0, 0), 0.5);
   return Math.round(base * (1 - reduction) * mult);
+}
+
+/** How many uses a rank stores (1 for a plain cooldown). */
+export function maxCharges(def: AbilityDef, rank: number): number {
+  return Math.max(1, rankOf(def, rank).charges ?? 1);
+}
+
+/**
+ * Charges held at `now` given the time all charges are back (`fullAt`, 0 or past = full). A "stock clock": each charge not yet
+ * back is one recharge before `fullAt`, so nothing ticks and nothing is synced while recharging.
+ */
+export function chargesAt(fullAt: number, now: number, max: number, rechargeMs: number): number {
+  if (fullAt <= now) return max;
+  return Math.max(0, max - Math.ceil((fullAt - now) / Math.max(1, rechargeMs)));
+}
+
+/** The clock after spending one charge at `now`: when all are back, and when the slot can next be cast (a charge is held). */
+export function spendCharge(fullAt: number, now: number, max: number, rechargeMs: number): { fullAt: number; readyAt: number } {
+  const full = Math.max(fullAt, now) + rechargeMs;
+  return { fullAt: full, readyAt: Math.max(0, full - (max - 1) * rechargeMs) };
+}
+
+/** The time the next charge arrives while below the maximum (else 0). */
+export function nextChargeAt(fullAt: number, now: number, max: number, rechargeMs: number): number {
+  void max;
+  if (fullAt <= now) return 0;
+  const missing = Math.ceil((fullAt - now) / Math.max(1, rechargeMs));
+  return fullAt - (missing - 1) * rechargeMs;
 }
 
 /** 1 + bonus / max(baseMult, 0.05): adds `bonus` x the base speed on top of whatever `baseMult` already scales it by. */

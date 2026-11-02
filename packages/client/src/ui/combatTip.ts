@@ -1,5 +1,5 @@
 import {
-  abilityCooldownMs, BASE_STAT_IDS, cardRows, countIn, damageShares, FACTIONS, isFactionId, ownsBase, ownedCards, rankOf,
+  abilityCooldownMs, BASE_STAT_IDS, maxCharges, cardRows, countIn, damageShares, FACTIONS, isFactionId, ownsBase, ownedCards, rankOf,
   weaponDamageShares, WISH_COOLDOWN_MULT_MIN, WEAPONS,
   type AbilityDef, type AbilityEffect, type BaseStatId, type CardCounts, type DamageShares, type FactionSpec, type ReadableFighter, type WeaponId,
 } from "@raid/shared";
@@ -58,7 +58,9 @@ export function abilityTip(
   if (r.castMs > 0) lines.push(`Cast: ${seconds(r.castMs)}`);
   for (const effect of r.effects) lines.push(...effectTip(effect));
   const cooldown = cooldownMs ?? abilityCooldownMs(def, rank, context);
-  lines.push(`Cooldown: ${cooldown >= 60_000 ? `${num(cooldown / 60_000)} min` : `${num(cooldown / 1000)} s`}`);
+  const time = cooldown >= 60_000 ? `${num(cooldown / 60_000)} min` : `${num(cooldown / 1000)} s`;
+  const charges = maxCharges(def, rank);
+  lines.push(charges > 1 ? `Charges: up to ${charges}, one back every ${time}` : `Cooldown: ${time}`);
   return lines.join("\n");
 }
 

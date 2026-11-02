@@ -352,8 +352,15 @@ export const TARGET_LOS_GRACE_MS = 1500;
 export const TARGET_REPATH_MS = 250;
 
 // Wishes and abilities (abilities.ts). The numbers of each Wish live there.
-/** A Wish's cooldown: one use per run in practice (flat: nothing shortens it). */
-export const WISH_COOLDOWN_SECONDS = 300;
+// Per-faction Wish cooldowns (flat: nothing shortens them; Arcane Overload still multiplies). Fire's is a recharge per charge.
+export const FREEZE_COOLDOWN_SECONDS = 45;
+export const SWARM_COOLDOWN_SECONDS = 120;
+export const TRIAL_COOLDOWN_SECONDS = 180;
+export const LAST_STAND_COOLDOWN_SECONDS = 150;
+/** Fire's Blaze Step holds up to this many charges (a best guess). */
+export const BLAZE_MAX_CHARGES = 2;
+/** One Blaze Step charge comes back this often, continuously while below the maximum. */
+export const BLAZE_RECHARGE_SECONDS = 30;
 /** A Wish is locked this long after the run starts (SimConfig.wishLockSeconds overrides it, e.g. in the e2e). */
 export const WISH_LOCK_SECONDS = 45;
 /** A Wish's cooldown in a training room, so it can be practised (a best guess). */

@@ -1335,7 +1335,7 @@ export class RaidScene extends Phaser.Scene {
     const readyAt = slotReadyAt(me, slot);
     return {
       phase: state.phase, training: state.training, wishCooldownMult: wishCooldownMultiplier(me.build, me.faction),
-      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt,
+      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt, fullAt: slot === "wish" ? me.wishFullAt : 0,
       cooldownLen: this.slotCooldown(slot).observe(readyAt, state.serverTime), effects: me.effects, blockedBy: entry?.def.blockedBy ?? [],
       castUntil: this.predict.castEndsAt(serverNow),
     };

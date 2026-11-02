@@ -10,7 +10,7 @@ import {
   CRIT_CHANCE_MAX, CRIT_MULT, critChanceFrom, decayBarrier, effectText, encodeFlat, encodeMirrors, FACTIONS, foldedMaxHp, foldRows,
   FLAT_WIRE_PER_POINT, HP_RACE_CAP, identityMults, LIFESTEAL_MAX, lifestealTotal, LS_CAP, MAX_HP_FLOOR_SHARE, mirrorsFromFold,
   mirrorTimings, MOVE_BONUS_CAP, MULT_KEYS, OUTGOING_ROW_CAP, pacedFaction, scaleEffect, scaleWindup, scalingDamage, TRAINING_WISH_COOLDOWN_SECONDS,
-  weaponTimings, WEAPON_IDS, ALL_WEAPON_IDS, WEAPONS, WISH_COOLDOWN_MULT_MIN, WISH_COOLDOWN_SECONDS, zeroSums,
+  weaponTimings, WEAPON_IDS, ALL_WEAPON_IDS, WEAPONS, WISH_COOLDOWN_MULT_MIN, FREEZE_COOLDOWN_SECONDS, zeroSums,
   type Effect, type WeaponId, type WeaponTimings,
 } from "../src/index";
 
@@ -436,7 +436,7 @@ describe("the guards' helpers", () => {
 describe("a Wish's cooldown (G13)", () => {
   const freeze = ABILITIES.freeze;
   it("is flat, except for the card-level wishCooldown mult, which only a Wish takes", () => {
-    const base = WISH_COOLDOWN_SECONDS * 1000;
+    const base = FREEZE_COOLDOWN_SECONDS * 1000;
     expect(abilityCooldownMs(freeze, 1, {})).toBe(base);
     expect(abilityCooldownMs(freeze, 1, { reduction: 0.5 })).toBe(base); // flat: no reduction
     expect(abilityCooldownMs(freeze, 1, { wishCooldownMult: 2 })).toBe(2 * base); // Arcane Overload

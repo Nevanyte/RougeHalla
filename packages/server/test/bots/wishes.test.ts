@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ABILITIES, abilityInSlot, BLAZE_RANGE, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_STUNNED, FREEZE_RANGE,
-  TARGET_SNAP_RADIUS, TILE, TRIAL_RANGE, WISH_COOLDOWN_SECONDS, WISHES,
+  TARGET_SNAP_RADIUS, TILE, TRIAL_RANGE, FREEZE_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, WISHES,
   type FactionId, type FxEvent, type Vec2,
 } from "@raid/shared";
 import { createBrain } from "../../src/bots/brain/brain";
@@ -631,7 +631,7 @@ describe("a Wish landing on screen (the real fx codec, perception and memory)", 
     for (const p of percepts) seen.push(...memory.observe(p));
     const foe = memory.view.fighters.get("foe")!;
     expect(foe.wishSeenAt).toBe(ext[0]!.t);
-    expect(foe.wishReadyGuess).toBe(ext[0]!.t + WISH_COOLDOWN_SECONDS * 1000);
+    expect(foe.wishReadyGuess).toBe(ext[0]!.t + FREEZE_COOLDOWN_SECONDS * 1000);
     expect(seen.filter((s) => s.kind === "castSeen")).toMatchObject([{ subject: "foe" }]);
   });
 
@@ -716,7 +716,7 @@ class Stand {
       this.hp = 100;
     } else if (cmd.type === "cast" && this.now >= this.readyAt && this.now >= this.castUntil && !this.hidden) {
       const castMs = ABILITIES.swarm.ranks[0]!.castMs;
-      this.readyAt = this.now + WISH_COOLDOWN_SECONDS * 1000;
+      this.readyAt = this.now + SWARM_COOLDOWN_SECONDS * 1000;
       this.castUntil = this.now + castMs;
       this.hiddenUntil = this.now + 8000;
       this.lock = null;

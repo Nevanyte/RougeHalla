@@ -961,7 +961,7 @@ describe("Wishful Thinking (G13)", () => {
     P(w, "a").wishReadyAt = 0;
     RT(w, "a").inputs.pushAction({ kind: "cast", slot: "wish", x: P(w, "a").x, y: P(w, "a").y });
     tick(w);
-    expect(P(w, "a").wishReadyAt).toBeGreaterThan(w.state.serverTime + 290_000);
+    expect(P(w, "a").wishReadyAt).toBeGreaterThan(w.state.serverTime + 140_000);
     return w;
   }
 

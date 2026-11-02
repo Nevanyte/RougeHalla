@@ -5,7 +5,7 @@ import {
   FREEZE_RANGE, FREEZE_STUN_MS, hasteMultiplier, isAbilityDot, isAbilityId, isAbilitySlot, LAST_STAND_FLOOR_HP, LAST_STAND_HEAL_SHARE,
   LAST_STAND_MS, LAST_STAND_SPEED_BONUS, rankOf, setSlotReadyAt, slotReadyAt, STATUS_KINDS, SWARM_CAST_MS, SWARM_CLOUD_RADIUS, SWARM_MS,
   TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_CONVICTED_RADIUS, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
-  TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_COOLDOWN_SECONDS, WISH_LOCK_SECONDS, wishOf, WISHES, type AbilityDef, type AbilityEffect,
+  TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_LOCK_SECONDS, FREEZE_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, BLAZE_RECHARGE_SECONDS, BLAZE_MAX_CHARGES, chargesAt, TRIAL_COOLDOWN_SECONDS, spendCharge, nextChargeAt, maxCharges, wishOf, WISHES, type AbilityDef, type AbilityEffect,
   type AbilityId,
 } from "../src/index";
 
@@ -36,8 +36,35 @@ describe("ability ids and slots", () => {
   });
 });
 
+const COOLDOWNS = { frost: FREEZE_COOLDOWN_SECONDS, plague: SWARM_COOLDOWN_SECONDS, sentenced: TRIAL_COOLDOWN_SECONDS, fire: BLAZE_RECHARGE_SECONDS, holy: LAST_STAND_COOLDOWN_SECONDS } as const;
+
+describe("the stock clock of a charged Wish", () => {
+  const R = 30_000;
+  it("pins the requested numbers", () => {
+    expect([FREEZE_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, BLAZE_RECHARGE_SECONDS, BLAZE_MAX_CHARGES]).toEqual([45, 120, 150, 30, 2]);
+    expect(maxCharges(ABILITIES.blaze, 1)).toBe(2);
+    expect(maxCharges(ABILITIES.freeze, 1)).toBe(1);
+  });
+  it("spends one charge at a time and recharges one every 30 s", () => {
+    let s = { fullAt: 0, readyAt: 0 };
+    expect(chargesAt(s.fullAt, 1000, 2, R)).toBe(2);
+    s = spendCharge(s.fullAt, 1000, 2, R);
+    expect(s).toEqual({ fullAt: 31_000, readyAt: 1000 });
+    expect(chargesAt(s.fullAt, 1000, 2, R)).toBe(1);
+    expect(nextChargeAt(s.fullAt, 1000, 2, R)).toBe(31_000);
+    s = spendCharge(s.fullAt, 2000, 2, R);
+    expect(s).toEqual({ fullAt: 61_000, readyAt: 31_000 });
+    expect(chargesAt(s.fullAt, 2000, 2, R)).toBe(0);
+    expect(chargesAt(s.fullAt, 31_000, 2, R)).toBe(1);
+    expect(chargesAt(s.fullAt, 61_000, 2, R)).toBe(2);
+  });
+  it("is the plain cooldown with one charge", () => {
+    expect(spendCharge(0, 500, 1, 45_000)).toEqual({ fullAt: 45_500, readyAt: 45_500 });
+  });
+});
+
 describe("the Wish catalog", () => {
-  it("gives every faction one Wish of its own: kind wish, flat, one rank, 300 s", () => {
+  it("gives every faction one Wish of its own: kind wish, flat, one rank, its own cooldown", () => {
     expect(Object.keys(WISHES).sort()).toEqual([...FACTION_IDS].sort());
     for (const f of FACTION_IDS) {
       const def = ABILITIES[WISHES[f]];
@@ -45,11 +72,10 @@ describe("the Wish catalog", () => {
       expect(def.kind, f).toBe("wish");
       expect(def.flat, f).toBe(true);
       expect(def.ranks, f).toHaveLength(1);
-      expect(def.ranks[0]!.cooldownMs, f).toBe(300_000);
+      expect(def.ranks[0]!.cooldownMs, f).toBe(COOLDOWNS[f] * 1000);
       expect(wishOf(f), f).toBe(def);
     }
     expect(new Set(Object.values(WISHES)).size).toBe(FACTION_IDS.length);
-    expect(WISH_COOLDOWN_SECONDS).toBe(300);
     expect(WISH_LOCK_SECONDS).toBe(45);
   });
 
