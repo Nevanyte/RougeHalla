@@ -1,11 +1,21 @@
 import { DurableObject } from "cloudflare:workers";
-import { serverBuild } from "../build-meta.json";
+import buildMeta from "../build-meta.json";
 import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
 import { handleBotSnapshot, handleProfileSnapshot } from "./profileSnapshots";
 import { networkProbeAuthorized, networkProbeEcho, networkProbeLayer } from "./networkProbe";
+import { TELEMETRY_INGEST_PATH, TELEMETRY_SECRET_MIN_CHARS } from "@raid/shared/telemetry";
+import type { TelemetryStore } from "./telemetry/durable";
+import { handleTelemetryIngest, type TelemetryStoreNamespace } from "./telemetry/ingest";
+import { handleStats } from "./telemetry/routes";
+
+export { TelemetryStore } from "./telemetry/durable";
+
+const serverBuild: string = buildMeta.serverBuild;
+// Absent from a build-meta.json written before the field existed; null when the build had no Git.
+const sourceCommit: string | null = (buildMeta as { sourceCommit?: string | null }).sourceCommit ?? null;
 
 const ROOM_NAME = "rougehalla-controller-v2";
-const CONTROLLER_VERSION = "11";
+const CONTROLLER_VERSION = "12";
 const PORT = 2567;
 const CONTAINER_INSTANCE = "standard-1";
 const ARENA_LIMIT = "1";
@@ -15,8 +25,13 @@ const INACTIVITY_TIMEOUT_MS = 10 * 60_000;
 const RELEASE_HEADER = "X-Rougehalla-Controller-Release";
 let lastContainerErrorLogAt = 0;
 
-interface Env {
+export interface Env {
   GAME_CONTAINER: DurableObjectNamespace<PublicGameContainer>;
+  TELEMETRY: DurableObjectNamespace<TelemetryStore>;
+  TELEMETRY_TOKEN?: string;
+  DASHBOARD_TOKEN?: string;
+  TELEMETRY_SALT?: string;
+  TELEMETRY_RETAIN_DAYS?: string;
   PROFILES: R2Bucket;
   ASSETS: Fetcher;
   MATCHMAKE_LIMITER: RateLimit;
@@ -26,8 +41,28 @@ interface Env {
   NETWORK_PROBE_TOKEN?: string;
 }
 
+function telemetryOn(env: Env): boolean {
+  return typeof env.TELEMETRY_TOKEN === "string" && env.TELEMETRY_TOKEN.length >= TELEMETRY_SECRET_MIN_CHARS;
+}
+
+// The telemetry flag (never the secret) is in the label so adding or deleting TELEMETRY_TOKEN restarts the
+// container with or without the telemetry env at the next release check.
 function controllerRelease(env: Env): Promise<string> {
-  return containerReleaseLabel(serverBuild, `${CONTROLLER_VERSION}:${CONTAINER_INSTANCE}:${ARENA_LIMIT}:${TRAINING_LIMIT}:${env.PROFILE_EPOCH ?? ""}:${env.GAME_MAINTENANCE ?? "0"}`);
+  return containerReleaseLabel(serverBuild, `${CONTROLLER_VERSION}:${CONTAINER_INSTANCE}:${ARENA_LIMIT}:${TRAINING_LIMIT}:${env.PROFILE_EPOCH ?? ""}:${env.GAME_MAINTENANCE ?? "0"}:${telemetryOn(env) ? "t1" : "t0"}`);
+}
+
+/** The container's telemetry env: only with a valid TELEMETRY_TOKEN; never throws on its absence. */
+export function telemetryContainerEnv(env: Pick<Env, "TELEMETRY_TOKEN" | "TELEMETRY_SALT">, requestUrl: string, commit: string | null): Record<string, string> {
+  const token = env.TELEMETRY_TOKEN;
+  if (typeof token !== "string" || token.length < TELEMETRY_SECRET_MIN_CHARS) return {};
+  const out: Record<string, string> = {
+    TELEMETRY_URL: new URL(TELEMETRY_INGEST_PATH, requestUrl).href,
+    TELEMETRY_TOKEN: token,
+    TELEMETRY_SOURCE: "live",
+  };
+  if (typeof env.TELEMETRY_SALT === "string" && env.TELEMETRY_SALT.length >= TELEMETRY_SECRET_MIN_CHARS) out.TELEMETRY_SALT = env.TELEMETRY_SALT;
+  if (commit) out.GAME_SOURCE_COMMIT = commit;
+  return out;
 }
 
 function noStore(response: Response): Response {
@@ -165,6 +200,7 @@ export class GameContainer extends DurableObject<Env> {
             MAP_WORKER_HANG_MS: "30000",
             CLOUD_GAME_WARMUP: "1",
             GAME_BUILD_ID: serverBuild,
+            ...telemetryContainerEnv(this.env, request.url, sourceCommit),
           },
         });
       }, () => this.watchContainerExit(container), Math.min(15_000, Math.max(0, deadline - Date.now())), () => this.requestContainerStop(container), release);
@@ -220,7 +256,9 @@ export class GameContainer extends DurableObject<Env> {
       await this.starting;
     } catch (error) {
       let detail = error instanceof Error ? error.message : "unknown startup failure";
-      if (this.env.PROFILE_SNAPSHOT_TOKEN) detail = detail.replaceAll(this.env.PROFILE_SNAPSHOT_TOKEN, "[redacted]");
+      for (const secret of [this.env.PROFILE_SNAPSHOT_TOKEN, this.env.TELEMETRY_TOKEN, this.env.TELEMETRY_SALT]) {
+        if (secret) detail = detail.replaceAll(secret, "[redacted]");
+      }
       console.error(`[game] startup failed phase=${this.startupPhase} expected=${serverBuild.slice(0, 12)} detail=${detail.slice(0, 300)}`);
       return new Response("game server unavailable", {
         status: 503,
@@ -260,6 +298,11 @@ export default {
         })
         : new Response("method not allowed", { status: 405, headers: { Allow: "GET, HEAD", "Cache-Control": "no-store" } });
     }
+    if (url.pathname === TELEMETRY_INGEST_PATH) {
+      return handleTelemetryIngest(request, { ...env, TELEMETRY: env.TELEMETRY as unknown as TelemetryStoreNamespace }, { serverBuild, sourceCommit });
+    }
+    const stats = await handleStats(request, { ...env, TELEMETRY: env.TELEMETRY as unknown as TelemetryStoreNamespace });
+    if (stats) return stats;
     if (url.pathname === "/_internal/profiles") {
       return noStore(await handleProfileSnapshot(request, env.PROFILES, env.PROFILE_SNAPSHOT_TOKEN));
     }
