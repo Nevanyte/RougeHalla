@@ -108,6 +108,33 @@ export function loginNext(v: unknown): string {
   return sp.toString();
 }
 
+export const LOGIN_BODY_MAX = 4096;
+
+/** The body's bytes, or null once more than `max` arrive (the rest is never buffered). */
+async function readCapped(body: ReadableStream<Uint8Array> | null, max: number): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!body) return new Uint8Array(0);
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
+}
+
 export async function handleLogin(request: Request, env: LoginEnv, nowMs: number): Promise<Response> {
   if (request.method !== "POST") {
     const h = dashboardHeaders("text/plain; charset=utf-8");
@@ -127,8 +154,11 @@ export async function handleLogin(request: Request, env: LoginEnv, nowMs: number
   let next = "";
   try {
     const length = Number(request.headers.get("Content-Length") ?? "0");
-    if (length > 4096) return redirect("/stats?login=failed");
-    const form = await request.formData();
+    if (length > LOGIN_BODY_MAX) return redirect("/stats?login=failed");
+    // Content-Length is only a header (a chunked body has none), so the bytes themselves are counted too.
+    const body = await readCapped(request.body, LOGIN_BODY_MAX);
+    if (!body) return redirect("/stats?login=failed");
+    const form = await new Response(body, { headers: { "Content-Type": request.headers.get("Content-Type") ?? "" } }).formData();
     const v = form.get("token");
     token = typeof v === "string" ? v.trim() : "";
     next = loginNext(form.get("next"));

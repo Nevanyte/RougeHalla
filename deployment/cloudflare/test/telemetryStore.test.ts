@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { validateRunRecord, wilson95, type RunRecord, type StatsEnvelope } from "@raid/shared/telemetry";
 import { parseOptions, parseStatsQuery } from "../src/telemetry/query";
 import { toRows } from "../src/telemetry/rows";
-import { ingestRows, migrate, pruneBefore, runKey, runQuery, type QueryName, type ResolvedQuery } from "../src/telemetry/store";
+import { QUERY_NAMES, QueryCache, ingestRows, migrate, pruneBefore, runKey, runQuery, type QueryName, type ResolvedQuery, type Sql } from "../src/telemetry/store";
 import { B0, B1, DAY1, EXAMPLE_RUN, count, miniSet, nodeSql } from "./telemetryHelpers";
 
 const FIXTURE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../testing/telemetry/fixtures/runs-v1.ndjson");
@@ -251,5 +251,70 @@ describe("telemetry store: injection probes", () => {
     }
     expect(count(sql, "runs")).toBe(5);
     expect(runKey(sql, "' OR 1=1 --")).toBeNull();
+  });
+});
+
+describe("telemetry store: query plans and the answer cache", () => {
+  // The DO never runs ANALYZE, so these are the plans it gets. Every query that joins runs must reach its child
+  // rows from the runs in range by run_id, never through a secondary index that ignores run_id (that scanned every
+  // human duel, or every augment option, of the whole retention once per run or per query).
+  it("drives every child table of a runs join by run_id, for every pool and offer kind", () => {
+    const base = nodeSql();
+    migrate(base);
+    const bad: string[] = [];
+    const sql: Sql = {
+      ...base,
+      all: (query, ...bind) => {
+        const plan = (base.db.prepare(`EXPLAIN QUERY PLAN ${query}`).all(...bind) as { detail: string }[]).map((r) => r.detail);
+        if (/JOIN runs r/.test(query)) {
+          const first = plan.find((d) => /^(SEARCH|SCAN) /.test(d)) ?? "";
+          if (!/^(SEARCH|SCAN) r /.test(first)) bad.push(`${query.slice(0, 60)} :: ${plan.join(" | ")}`);
+          for (const d of plan) {
+            if (/^(SEARCH|SCAN) (?!r )\w+ /.test(d) && !/run_id=/.test(d)) bad.push(`${query.slice(0, 60)} :: ${d}`);
+          }
+        }
+        return base.all(query, ...bind);
+      },
+    };
+    for (const pool of ["humans", "bots", "all"]) {
+      for (const source of ["live", "any"]) {
+        for (const name of QUERY_NAMES) {
+          for (const kind of ["augment", "stat"]) {
+            const params = new URLSearchParams({ pool, source, kind });
+            const parsed = parseStatsQuery(params, NOW);
+            const opts = parseOptions(name === "offers" ? "offers" : "", params);
+            if (!parsed.ok || !opts.ok) throw new Error("bad params");
+            runQuery(sql, name, parsed.value, opts.value, NOW);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("keeps an answer until cleared, keyed by the whole request, and never keeps the export", () => {
+    const sql = loaded();
+    const cache = new QueryCache(2);
+    let computed = 0;
+    const ask = (name: QueryName, params: Record<string, string> = {}) =>
+      cache.get(name, q(params), {}, () => {
+        computed++;
+        return runQuery(sql, name, q(params), {}, NOW);
+      });
+    const a = ask("overview");
+    expect(ask("overview")).toBe(a);
+    expect(computed).toBe(1);
+    ask("overview", { pool: "bots" });
+    expect(computed).toBe(2);
+    ask("factions"); // over the cap of 2: the oldest goes
+    expect(cache.size).toBe(2);
+    ask("overview");
+    expect(computed).toBe(4);
+    ask("exportPage");
+    ask("exportPage");
+    expect(computed).toBe(6);
+    cache.clear();
+    ask("factions");
+    expect(computed).toBe(7);
   });
 });

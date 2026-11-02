@@ -38,6 +38,9 @@ MAP_TILES = 136
 TILE_ABSENT = 255
 SMALL_N = 5
 MODEL_MIN_DUELS = 200
+# The store's FINISHED: the win-rate views count only runs with a winner or a draw (a void or abandoned run has no winner).
+FINISHED_ENDS = ("winner", "draw")
+STAT_OFFER_NOTE = "A crate's stat chest is offered to the players in range at the drop; anyone who picked from it counts as offered too."
 Z95 = 1.959963984540054
 
 
@@ -191,7 +194,7 @@ def flatten(runs: list[dict]) -> dict[str, list[dict]]:
                 "run_id": rid, "slot": p["slot"], "pid": p.get("pid"), "bot": p["bot"], "tier": p.get("tier"),
                 "persona": p.get("persona"), "faction": p["faction"], "spawn_zone": p["spawn"]["zone"],
                 "spawn_picked": p["spawn"]["picked"], "place": p["place"], "outcome": p["outcome"],
-                "won": p["outcome"] == "won", "alive_ms": p["aliveMs"], "death_kind": dk, "death_detail": detail,
+                "won": p["outcome"] == "won", "finished": r["end"] in FINISHED_ENDS, "alive_ms": p["aliveMs"], "death_kind": dk, "death_detail": detail,
                 "death_ms": d.get("at"), "death_zone": d.get("zone"), "death_coliseum": d.get("coliseum"),
                 "death_camp": d.get("camp"), "kills": p["kills"], "bot_kills": p["botKills"],
                 "mob_kills": sum(p["mobKills"].values()), "elite_kills": p["eliteKills"],
@@ -218,8 +221,11 @@ def flatten(runs: list[dict]) -> dict[str, list[dict]]:
                                          "minute": s["minute"], "card_power": s["cardPower"],
                                          "mob_stats_total": s["mobStatsTotal"], "boosts_total": s["boostsTotal"]})
         for o in r["offers"]:
-            chose = {pk["slot"]: pk["option"] for pk in o["picks"]}
-            for slot in o["eligible"]:
+            chose: dict[int, int] = {}
+            for pk in o["picks"]:
+                chose.setdefault(pk["slot"], pk["option"])
+            # Anyone in range may pick (a crate's list is who stood in range at the drop): a picker was offered it too.
+            for slot in dict.fromkeys([*o["eligible"], *chose]):
                 if slot not in bysl:
                     continue
                 choice = chose.get(slot, -2)
@@ -228,6 +234,7 @@ def flatten(runs: list[dict]) -> dict[str, list[dict]]:
                         "run_id": rid, "i": o["i"], "slot": slot, "pos": pos, "kind": o["kind"],
                         "option": option_group(o["kind"], opt), "picked": choice == pos, "choice": choice,
                         "bot": bysl[slot]["bot"], "won": bysl[slot]["outcome"] == "won", "elite": o["elite"],
+                        "finished": r["end"] in FINISHED_ENDS,
                     })
         for c in r["camps"]:
             k = bysl.get(c["killerSlot"])
@@ -271,6 +278,11 @@ def in_pool_player(bot: bool | None, pool: str) -> bool:
     return (not bot) if pool == "humans" else bot
 
 
+def in_pool_run(humans: int, pool: str) -> bool:
+    """The run-level pool (the store's runWhere with runPool): humans = a run with any human, bots = none."""
+    return pool == "all" or (pool == "humans" and humans > 0) or (pool == "bots" and humans == 0)
+
+
 def in_pool_duel(bots: int, pool: str) -> bool:
     return pool == "all" or (pool == "humans" and bots == 0) or (pool == "bots" and bots == 2)
 
@@ -285,6 +297,9 @@ class Stats:
                         and (not query.get("faction") or p["faction"] == query["faction"])
                         and (not query.get("weapon") or p["main_weapon"] == query["weapon"])]
         self.duels = [d for d in tables["duels"] if in_pool_duel(d["bots"], self.pool)]
+        self.pool_runs = [r for r in tables["runs"] if in_pool_run(r["humans"], self.pool)]
+        # Win rates (factions, weapons, offers) count only runs that had a winner or a draw, as the store's FINISHED.
+        self.finished = [p for p in self.players if p["finished"]]
 
     def env(self, rows: list, notes: list[str] | None = None) -> dict:
         e = {"query": self.q, "generatedAt": self.now, "rows": rows}
@@ -312,9 +327,8 @@ class Stats:
         }
 
     def overview(self) -> dict:
-        runs = self.t["runs"]
-        fb = [r["first_blood_ms"] / 1000 for r in runs if r["first_blood_ms"] is not None
-              and in_pool_player(r["first_blood_victim_bot"], self.pool)]
+        runs = self.pool_runs
+        fb = [r["first_blood_ms"] / 1000 for r in runs if r["first_blood_ms"] is not None]
         allp = self.t["players"]
         return self.env([{
             "runs": len(runs), "players": len(self.players),
@@ -328,7 +342,7 @@ class Stats:
     def factions(self) -> dict:
         rows = []
         for f in FACTIONS:
-            ps = [p for p in self.players if p["faction"] == f]
+            ps = [p for p in self.finished if p["faction"] == f]
             if not ps:
                 continue
             rows.append({"faction": f, "win": wilson95(sum(p["won"] for p in ps), len(ps)),
@@ -346,7 +360,7 @@ class Stats:
         total = sum(held.values()) or 1
         rows = []
         for w in WEAPONS:
-            ps = [p for p in self.players if p["main_weapon"] == w]
+            ps = [p for p in self.finished if p["main_weapon"] == w]
             if not ps and not held.get(w):
                 continue
             rows.append({"weapon": w, "win": wilson95(sum(p["won"] for p in ps), len(ps)), "heldShare": round(held[w] / total, 4)})
@@ -396,7 +410,8 @@ class Stats:
         }])
 
     def offers(self, kind: str = "augment") -> dict:
-        per: dict[str, list] = defaultdict(lambda: [0, 0, 0, 0, 0])  # offered, picked, picked&won, notPicked, notPicked&won
+        # offered, picked, picked&won, notPicked, notPicked&won (finished runs), picked (finished runs)
+        per: dict[str, list] = defaultdict(lambda: [0, 0, 0, 0, 0, 0])
         for o in self.t["offer_options"]:
             if o["kind"] != kind or not in_pool_player(o["bot"], self.pool):
                 continue
@@ -404,6 +419,10 @@ class Stats:
             c[0] += 1
             if o["picked"]:
                 c[1] += 1
+            if not o["finished"]:
+                continue  # offered and picked count every run; the win rates only runs with a winner or a draw
+            if o["picked"]:
+                c[5] += 1
                 c[2] += o["won"]
             else:
                 c[3] += 1
@@ -421,14 +440,14 @@ class Stats:
                         duel_win[card][0] += 1
                         duel_win[card][1] += 1 if d["winner"] == side else 0
         rows = []
-        for opt, (offered, picked, pw, npk, npw) in sorted(per.items(), key=lambda x: -x[1][0]):
+        for opt, (offered, picked, pw, npk, npw, pf) in sorted(per.items(), key=lambda x: -x[1][0]):
             row = {"kind": kind, "option": opt, "offered": offered, "pick": wilson95(picked, offered),
-                   "winPicked": wilson95(pw, picked), "winNotPicked": wilson95(npw, npk)}
+                   "winPicked": wilson95(pw, pf), "winNotPicked": wilson95(npw, npk)}
             if kind == "augment":
                 n, k = duel_win.get(opt, (0, 0))
                 row["duelWin"] = wilson95(k, n)
             rows.append(row)
-        notes = ["A crate's stat chest has no contributors; its eligible list is the players in range."] if kind == "stat" else None
+        notes = [STAT_OFFER_NOTE] if kind == "stat" else None
         return self.env(rows, notes)
 
     def farming(self) -> dict:
@@ -469,18 +488,20 @@ class Stats:
 
     def deaths(self) -> dict:
         ps = [p for p in self.players if p["death_kind"]]
-        total = len(ps)
+        by_faction: dict[str, int] = defaultdict(int)
         groups: dict[tuple, int] = defaultdict(int)
         for p in ps:
             groups[(p["death_kind"], p["faction"], p["death_detail"])] += 1
-        rows = [{"kind": k, "faction": f, "detail": d, "n": n, "share": round(n / total, 4)}
+            by_faction[p["faction"]] += 1
+        # `share` is the row's share of its victim faction's deaths (each faction's bar sums to 1), as the store's.
+        rows = [{"kind": k, "faction": f, "detail": d, "n": n, "share": round(n / by_faction[f], 4)}
                 for (k, f, d), n in sorted(groups.items(), key=lambda x: -x[1])]
         return self.env(rows)
 
     def firstblood(self) -> dict:
         bins = [0] * 21
-        for r in self.t["runs"]:
-            if r["first_blood_ms"] is None or not in_pool_player(r["first_blood_victim_bot"], self.pool):
+        for r in self.pool_runs:
+            if r["first_blood_ms"] is None:
                 continue
             bins[min(20, int(r["first_blood_ms"] // 15000))] += 1
         rows = [{"fromS": i * 15, "toS": (i + 1) * 15 if i < 20 else 3600, "n": n} for i, n in enumerate(bins)]
@@ -489,7 +510,6 @@ class Stats:
     def heatmap(self) -> dict:
         w = MAP_TILES // HEAT_CELL_TILES
         cells: dict[tuple, int] = defaultdict(int)
-        runs = set()
         for p in self.players:
             if not p["tiles"]:
                 continue
@@ -498,9 +518,8 @@ class Stats:
                 if raw[i] == TILE_ABSENT:
                     continue
                 cells[(raw[i] // HEAT_CELL_TILES, raw[i + 1] // HEAT_CELL_TILES)] += 1
-            runs.add(p["run_id"])
         return {"query": self.q, "w": w, "h": w, "cells": [[x, y, s] for (x, y), s in sorted(cells.items())],
-                "runs": len(runs), "generatedAt": self.now}
+                "runs": len(self.pool_runs), "generatedAt": self.now}
 
     def perf(self) -> dict:
         ps = self.players
@@ -635,7 +654,9 @@ def duel_model(duels: list[dict], ridge: float = 1.0) -> dict:
 def run_model(players: list[dict], ridge: float = 1.0) -> dict:
     """won ~ faction + main weapon + log1p(card power at minute 5) + s[pid]."""
     import numpy as np
-    ps = [p for p in players if p["outcome"] != "alive"]
+    # Only players who stood at minute 5: a missing snapshot means "down before minute 5" (a certain loss), and coding it as
+    # power 0 would make the power term measure survival.
+    ps = [p for p in players if p["outcome"] != "alive" and p["p5"] is not None]
     if not ps:
         return {"n": 0}
     fb = sum_zero_basis(FACTIONS)
@@ -650,7 +671,7 @@ def run_model(players: list[dict], ridge: float = 1.0) -> dict:
         X[r, 0] = 1
         X[r, 1:1 + nf] = fb[FACTIONS.index(p["faction"])]
         X[r, 1 + nf:1 + nf + nw] = wb[WEAPONS.index(p["main_weapon"])]
-        X[r, 1 + nf + nw] = math.log1p(p["p5"]) if p["p5"] is not None else 0
+        X[r, 1 + nf + nw] = math.log1p(p["p5"])
         k = skill_key(p["pid"], p["tier"])
         if k:
             X[r, 2 + nf + nw + si[k]] = 1
@@ -742,7 +763,7 @@ def report(res: dict, model: dict | None, run_mod: dict | None) -> str:
                         for r in res["/api/stats/farming"]["rows"]]))
     parts.append(table("Camp clears by type x killer faction", ["type", "elite", "faction", "clears", "median clear s", "player deaths"],
                        [[r["type"], r["elite"] or "-", r["faction"], r["clears"], r["medianClearS"], r["playerDeaths"]] for r in res["/api/stats/camps"]["rows"]]))
-    parts.append(table("Deaths by cause", ["kind", "victim faction", "detail", "n", "share"],
+    parts.append(table("Deaths by cause", ["kind", "victim faction", "detail", "n", "share of faction"],
                        [[r["kind"], r["faction"], r["detail"] or "-", r["n"], f"{100 * r['share']:.1f}%"] for r in res["/api/stats/deaths"]["rows"]]))
     fbins = [b for b in res["/api/stats/firstblood"]["rows"] if b["n"]]
     parts.append(table("First blood", ["from s", "to s", "runs"], [[b["fromS"], b["toS"], b["n"]] for b in fbins]))

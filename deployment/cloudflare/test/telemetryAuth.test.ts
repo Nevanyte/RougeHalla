@@ -111,6 +111,36 @@ describe("dashboard routes and auth", () => {
     expect((await handleStats(login(`token=${DASH}`), env({}, false), NOW))!.status).toBe(429);
   });
 
+  it("caps the login body by its bytes when no Content-Length says how long it is", async () => {
+    const e = env();
+    let pulled = 0;
+    const chunk = new TextEncoder().encode(`token=${DASH}&pad=${"x".repeat(1000)}`);
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulled++;
+        if (pulled > 1000) c.close(); // ~1 MB if nothing stops reading
+        else c.enqueue(chunk);
+      },
+    });
+    const chunked = new Request(`${ORIGIN}/stats/login`, {
+      method: "POST", body, duplex: "half",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Origin: ORIGIN, "CF-Connecting-IP": "203.0.113.9" },
+    } as RequestInit);
+    expect(chunked.headers.get("Content-Length")).toBeNull();
+    const r = (await handleStats(chunked, e, NOW))!;
+    expect(r.status).toBe(303);
+    expect(r.headers.get("Location")).toBe("/stats?login=failed");
+    expect(r.headers.get("Set-Cookie")).toBeNull();
+    expect(pulled).toBeLessThan(10);
+    // A small chunked body still signs in.
+    const small = new Request(`${ORIGIN}/stats/login`, {
+      method: "POST", duplex: "half",
+      body: new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new TextEncoder().encode(`token=${DASH}`)); c.close(); } }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Origin: ORIGIN, "CF-Connecting-IP": "203.0.113.9" },
+    } as RequestInit);
+    expect((await handleStats(small, e, NOW))!.headers.get("Set-Cookie")).not.toBeNull();
+  });
+
   it("carries the page's filters back through the sign-in, and nothing but a plain query", async () => {
     const e = env();
     const next = encodeURIComponent("source=tournament&pool=bots&login=failed");

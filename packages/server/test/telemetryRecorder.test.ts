@@ -2,11 +2,18 @@
 // sampler, power snapshots, the caps and `truncated`, on scripted worlds.
 import { describe, expect, it } from "vitest";
 import {
-  SUDDEN_DEATH_KILLER, TELEMETRY_MAX_OFFERS, TELEMETRY_MAX_SAMPLES, TICK_MS, TILE_ABSENT, unpackTiles, validateRunRecord,
+  mapFromTiles, mulberry32, SUDDEN_DEATH_KILLER, TELEMETRY_MAX_OFFERS, TELEMETRY_MAX_SAMPLES, TICK_MS, TILE, TILE_ABSENT, TILE_FLOOR,
+  TILE_WALL, unpackTiles, validateRunRecord, type CampDef, type GameMap,
 } from "@raid/shared";
 import { dropStatChest } from "../src/sim/chests";
 import { heal } from "../src/sim/factions";
 import { enqueueClientMessage } from "../src/sim/inputs";
+import { combatant } from "../src/sim/combatant";
+import { createGameWorld } from "../src/sim/gameplay";
+import { applyLedger, recordHit } from "../src/sim/ledger";
+import type { MobCombatant } from "../src/sim/mobLife";
+import { addPlayer, step } from "../src/sim/step";
+import { installTelemetry, restartWholeCamps } from "../src/sim/telemetry";
 import { makeRig } from "./support/telemetryRig";
 
 const PER_SECOND = 1000 / TICK_MS;
@@ -151,5 +158,67 @@ describe("telemetry recorder: offers, sampler, snapshots, caps", () => {
     };
     expect(validateRunRecord(record)).toBeNull();
     expect(JSON.stringify(record)).not.toContain("player0");
+  });
+});
+
+describe("telemetry recorder: camp cycles", () => {
+  const at = (t: number): number => t * TILE + TILE / 2;
+  function campWorld() {
+    const W = 40, H = 20;
+    const tiles = new Uint8Array(W * H).fill(TILE_FLOOR);
+    for (let x = 0; x < W; x++) { tiles[x] = TILE_WALL; tiles[(H - 1) * W + x] = TILE_WALL; }
+    for (let y = 0; y < H; y++) { tiles[y * W] = TILE_WALL; tiles[y * W + W - 1] = TILE_WALL; }
+    const camp: CampDef = {
+      id: "fire-1", zone: "fire", x: at(10), y: at(5), r: 96,
+      spots: [{ x: at(9), y: at(4) }, { x: at(11), y: at(4) }, { x: at(10), y: at(7) }],
+      eliteSpot: -1, chest: { x: at(10), y: at(5) }, area: 0, radius: 288,
+    };
+    const map: GameMap = { ...mapFromTiles(W, H, tiles), spawns: Array.from({ length: 8 }, (_, i) => ({ x: at(3 + 4 * i), y: at(15) })), camps: [camp] };
+    const w = createGameWorld({
+      config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
+      random: mulberry32(12), rewardSalt: 99, map,
+    }, { signatures: false });
+    const rec = installTelemetry(w);
+    for (let i = 0; i < 2; i++) addPlayer(w, `p${i}`, `name${i}`, { faction: "frost" });
+    step(w, TICK_MS);
+    expect(w.state.phase).toBe("active");
+    const mobs = [...w.state.mobs].filter(([, m]) => m.camp === 1).map(([id]) => combatant(w, id) as MobCombatant);
+    const hit = (by: string, mob: MobCombatant, raw: number): void => {
+      recordHit(w, { victim: mob.id, by: { id: by, name: by }, packet: { raw, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+      applyLedger(w);
+      w.events.length = 0;
+    };
+    return { w, rec, mobs, hit };
+  }
+
+  it("a camp that went whole again starts its clear's clock and contributors over", () => {
+    const { w, rec, mobs, hit } = campWorld();
+    hit("p1", mobs[0]!, 5);
+    const poked = rec.campEngaged[0]!;
+    expect(poked).toBeGreaterThanOrEqual(0);
+    restartWholeCamps(rec);
+    expect(rec.campEngaged[0]).toBe(poked); // still wounded and fighting
+    // It walks home: whole, idle, at full hp (mobAI's arrival).
+    w.state.serverTime += 30_000;
+    for (const m of mobs) { m.s.hp = m.s.maxHp; m.rt.brain!.mode = "idle"; }
+    restartWholeCamps(rec);
+    expect(rec.campEngaged[0]).toBe(-1);
+    expect(rec.campContrib[0]).toBe(0);
+    const engagedAgain = w.state.serverTime;
+    for (const m of mobs) hit("p0", m, 1e6);
+    expect(rec.camps).toHaveLength(1);
+    expect(rec.camps[0]!.contributors).toEqual([0]);
+    expect(rec.camps[0]!.engagedAt).toBe(Math.round(engagedAgain - rec.startAt));
+  });
+
+  it("a camp with a member down is only paused, not whole", () => {
+    const { rec, mobs, hit } = campWorld();
+    hit("p1", mobs[0]!, 1e6);
+    const poked = rec.campEngaged[0]!;
+    for (const m of mobs.slice(1)) { m.s.hp = m.s.maxHp; m.rt.brain!.mode = "idle"; }
+    restartWholeCamps(rec);
+    expect(rec.campEngaged[0]).toBe(poked);
+    for (const m of mobs.slice(1)) hit("p0", m, 1e6);
+    expect(rec.camps[0]!.contributors).toEqual([0, 1]);
   });
 });

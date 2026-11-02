@@ -269,6 +269,35 @@ export function createFileSink(opts: FileSinkOptions): TelemetrySink {
   };
 }
 
+/**
+ * The file sink for a caller that never yields to the event loop between records (the tournament plays a whole
+ * batch in one synchronous loop, so the async sink's setImmediate work would pin every game's record in memory until
+ * the batch ended and then write them in one burst): `submit` serializes and appends at once, so each record is
+ * released when its game ends. Not for a server's tick, which must never wait on the disk.
+ */
+export function createSyncFileSink(opts: FileSinkOptions): TelemetrySink {
+  const warn = throttledLog(opts.log ?? ((l) => console.warn(l)));
+  const s = { sent: 0, dropped: 0, failed: 0 };
+  let madeDir = false;
+  return {
+    submit(record) {
+      let line: string | null = null;
+      try { line = serializeRecord(record, opts.maxRecordBytes); } catch { line = null; }
+      if (line === null) { s.dropped++; return; }
+      try {
+        if (!madeDir) { fs.mkdirSync(opts.dir, { recursive: true }); madeDir = true; }
+        fs.appendFileSync(path.join(opts.dir, `runs-${telemetryDay(record.endedAtEpoch)}.ndjson`), line + "\n");
+        s.sent++;
+      } catch {
+        s.failed++;
+        warn("file", "[telemetry] could not append to the telemetry directory");
+      }
+    },
+    async close() {},
+    stats: () => ({ ...s, queued: 0 }),
+  };
+}
+
 /** Every record to each sink. */
 export function multiSink(sinks: readonly TelemetrySink[]): TelemetrySink {
   return {

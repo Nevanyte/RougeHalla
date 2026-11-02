@@ -9,7 +9,7 @@ import { telemetryDay, TELEMETRY_BATCH_HEADER, TELEMETRY_SCHEMA_HEADER, type Run
 import { EXAMPLE_RUN } from "../../shared/test/fixtures/telemetryRun.example";
 import { telemetryConfigFromEnv, telemetryEnabled } from "../src/telemetry/config";
 import { pidOf } from "../src/telemetry/identity";
-import { createFileSink, createHttpSink, serializeRecord } from "../src/telemetry/sink";
+import { createFileSink, createHttpSink, createSyncFileSink, serializeRecord } from "../src/telemetry/sink";
 
 const TOKEN = "t".repeat(40);
 const tick = (): Promise<void> => new Promise((r) => setImmediate(r));
@@ -140,6 +140,19 @@ describe("telemetry file sink", () => {
     const lines = fs.readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as RunRecord);
     expect(lines.map((l) => l.runId)).toEqual([rec(1).runId, rec(2).runId]);
     expect(sink.stats()).toMatchObject({ sent: 2, failed: 0 });
+  });
+
+  it("the sync sink writes each record inside submit, with no event-loop turn (the tournament's batch loop)", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "telemetry-"));
+    dirs.push(dir);
+    const sink = createSyncFileSink({ dir: path.join(dir, "nested") });
+    const file = path.join(dir, "nested", `runs-${telemetryDay(EXAMPLE_RUN.endedAtEpoch)}.ndjson`);
+    sink.submit(rec(1));
+    expect(fs.readFileSync(file, "utf8").trim().split("\n")).toHaveLength(1);
+    sink.submit(rec(2));
+    const lines = fs.readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as RunRecord);
+    expect(lines.map((l) => l.runId)).toEqual([rec(1).runId, rec(2).runId]);
+    expect(sink.stats()).toEqual({ sent: 2, dropped: 0, failed: 0, queued: 0 });
   });
 });
 

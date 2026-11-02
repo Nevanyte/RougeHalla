@@ -96,8 +96,50 @@ class Report(unittest.TestCase):
     def test_faction_win_counts(self):
         s = self.stats("all")
         rows = s.factions()["rows"]
-        self.assertEqual(sum(r["win"]["n"] for r in rows), len(s.players))
+        finished = [p for p in s.players if p["finished"]]
+        self.assertLess(len(finished), len(s.players))  # the fixture has a void run
+        self.assertEqual(sum(r["win"]["n"] for r in rows), len(finished))
         self.assertEqual(sum(r["win"]["k"] for r in rows), sum(1 for p in s.players if p["outcome"] == "won"))
+        self.assertEqual(sum(r["win"]["n"] for r in s.weapons()["rows"]), len(finished))
+
+    def test_void_runs_leave_the_win_rates(self):
+        # As the store's FINISHED: a void run's players (no winner) are not in any win-rate denominator.
+        void = [r["run_id"] for r in self.tables["runs"] if r["end_reason"] not in ("winner", "draw")]
+        self.assertTrue(void)
+        s = self.stats("all")
+        n = sum(r["win"]["n"] for r in s.factions()["rows"])
+        self.assertEqual(n, sum(1 for p in s.players if p["run_id"] not in void))
+        for r in s.offers("augment")["rows"]:
+            self.assertLessEqual(r["winPicked"]["n"] + r["winNotPicked"]["n"], r["offered"])
+
+    def test_a_picker_off_the_eligible_list_is_offered(self):
+        runs = analyze.filter_runs(analyze.load_paths([FIXTURE]), None, None, None, "any")
+        run = next(r for r in runs if any(o["kind"] == "stat" for o in r["offers"]) and r["end"] == "winner")
+        o = next(o for o in run["offers"] if o["kind"] == "stat")
+        late = next(p["slot"] for p in run["players"] if p["slot"] not in o["eligible"] and all(k["slot"] != p["slot"] for k in o["picks"]))
+        before = [x for x in analyze.flatten([run])["offer_options"] if x["i"] == o["i"]]
+        o["picks"].append({"slot": late, "option": 0, "at": o["at"] + 5000})
+        rows = [x for x in analyze.flatten([run])["offer_options"] if x["i"] == o["i"]]
+        self.assertEqual(len(rows), len(before) + len(o["options"]))
+        mine = [x for x in rows if x["slot"] == late]
+        self.assertEqual([x["picked"] for x in mine], [True] + [False] * (len(o["options"]) - 1))
+
+    def test_death_shares_are_per_victim_faction(self):
+        rows = self.stats("all").deaths()["rows"]
+        by = {}
+        for r in rows:
+            by[r["faction"]] = by.get(r["faction"], 0) + r["share"]
+        for f, total in by.items():
+            self.assertAlmostEqual(total, 1, places=3, msg=f)
+
+    def test_run_level_pools(self):
+        runs = self.tables["runs"]
+        for pool, keep in (("humans", lambda r: r["humans"] > 0), ("bots", lambda r: r["humans"] == 0), ("all", lambda r: True)):
+            s = self.stats(pool)
+            mine = [r for r in runs if keep(r)]
+            self.assertEqual(s.overview()["rows"][0]["runs"], len(mine), pool)
+            self.assertEqual(sum(b["n"] for b in s.firstblood()["rows"]), sum(1 for r in mine if r["first_blood_ms"] is not None), pool)
+            self.assertEqual(s.heatmap()["runs"], len(mine), pool)
 
     def test_matrix_orientations(self):
         s = self.stats("all")
@@ -119,8 +161,10 @@ class Report(unittest.TestCase):
             self.assertTrue(rows, kind)
             for r in rows:
                 self.assertEqual(r["pick"]["n"], r["offered"])
-                self.assertEqual(r["winPicked"]["n"] + r["winNotPicked"]["n"], r["offered"])
-                self.assertEqual(r["winPicked"]["n"], r["pick"]["k"])
+                self.assertLessEqual(r["winPicked"]["n"] + r["winNotPicked"]["n"], r["offered"])
+                self.assertLessEqual(r["winPicked"]["n"], r["pick"]["k"])
+            fin = [o for o in s.t["offer_options"] if o["kind"] == kind and o["finished"]]
+            self.assertEqual(sum(r["winPicked"]["n"] + r["winNotPicked"]["n"] for r in rows), len(fin))
         self.assertTrue(all(r["option"].count(":") == 1 for r in s.offers("trophy")["rows"]))
 
     def test_report_prints_every_section(self):
@@ -178,6 +222,14 @@ class Model(unittest.TestCase):
         g = m["terms"]["g_log1p_power"]
         self.assertTrue(g["lo"] <= 0.6 <= g["hi"])
         self.assertLess(m["logLoss"], m["logLossFactionOnly"])
+
+    @unittest.skipUnless(HAVE_NUMPY, "numpy")
+    def test_run_model_skips_players_with_no_minute_5_snapshot(self):
+        tables = analyze.flatten(analyze.filter_runs(analyze.load_paths([FIXTURE]), None, None, None, "any"))
+        ps = tables["players"]
+        fit = [p for p in ps if p["outcome"] != "alive" and p["p5"] is not None]
+        self.assertLess(len(fit), sum(1 for p in ps if p["outcome"] != "alive"))
+        self.assertEqual(analyze.run_model(ps)["n"], len(fit))
 
     def test_fixture_model_runs_and_warns(self):
         out = io.StringIO()

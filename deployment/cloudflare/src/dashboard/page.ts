@@ -924,7 +924,7 @@ function renderOffers(env) {
   b.appendChild(legend([["c1", "picked"], ["cg", "offered, not picked"]]));
   b.appendChild(el("p", { cls: "note", text: "Offered = eligible player-offers that showed the option. Not picked = picked another option, skipped, or never chose." +
     (kind === "augment" ? " Clean duel win = clean kill duels won by a side holding the augment at the start." : "") +
-    (kind === "stat" ? " A crate's stat chest has no contributors: its eligible list is whoever stood in range." : "") +
+    (kind === "stat" ? " A crate's stat chest is offered to whoever stood in range at the drop; anyone who picked from it counts as offered too." : "") +
     (kind === "trophy" ? " Trophies are grouped by stat (their gain varies)." : "") }));
 }
 

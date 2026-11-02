@@ -3,7 +3,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { telemetryDay } from "@raid/shared/telemetry";
 import type { IngestRows } from "./rows";
-import { QUERY_NAMES, ingestRows, migrate, pruneBefore, runKey, runQuery, type IngestStatus, type QueryName, type QueryOptions, type ResolvedQuery, type Sql, type SqlValue } from "./store";
+import { QUERY_NAMES, QueryCache, ingestRows, migrate, pruneBefore, runKey, runQuery, type IngestStatus, type QueryName, type QueryOptions, type ResolvedQuery, type Sql, type SqlValue } from "./store";
 
 export const DEFAULT_RETAIN_DAYS = 400;
 const DAY_MS = 86_400_000;
@@ -40,6 +40,7 @@ export function retainDays(env: TelemetryStoreEnv): number {
 
 export class TelemetryStore extends DurableObject<TelemetryStoreEnv> {
   private readonly sql: Sql;
+  private readonly cache = new QueryCache();
 
   constructor(ctx: DurableObjectState, env: TelemetryStoreEnv) {
     super(ctx, env);
@@ -51,12 +52,16 @@ export class TelemetryStore extends DurableObject<TelemetryStoreEnv> {
   }
 
   async ingest(rows: IngestRows[]): Promise<IngestStatus[]> {
-    return rows.map((r) => ingestRows(this.sql, r));
+    try {
+      return rows.map((r) => ingestRows(this.sql, r));
+    } finally {
+      this.cache.clear(); // a duplicate changes nothing, but one throw can follow accepted records: clear either way
+    }
   }
 
   async query(name: QueryName, q: ResolvedQuery, opts: QueryOptions, now: number): Promise<unknown> {
     if (!(QUERY_NAMES as readonly string[]).includes(name)) throw new Error("unknown query");
-    return runQuery(this.sql, name, q, opts, now);
+    return this.cache.get(name, q, opts, () => runQuery(this.sql, name, q, opts, now));
   }
 
   async runKey(runId: string): Promise<string | null> {
@@ -66,6 +71,7 @@ export class TelemetryStore extends DurableObject<TelemetryStoreEnv> {
   async alarm(): Promise<void> {
     const cutoff = telemetryDay(Date.now() - retainDays(this.env) * DAY_MS);
     pruneBefore(this.sql, cutoff);
+    this.cache.clear();
     await this.ctx.storage.setAlarm(Date.now() + DAY_MS);
   }
 }

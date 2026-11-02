@@ -298,10 +298,14 @@ function playerWhere(q: ResolvedQuery, opts: { weapon?: boolean } = {}): [string
   return [w.length ? ` AND ${w.join(" AND ")}` : "", bind];
 }
 
-/** Duels (alias d): humans = both sides human, bots = both bots, all = any. */
+/**
+ * Duels (alias d): humans = both sides human, bots = both bots, all = any. The unary `+` keeps SQLite (which has no
+ * ANALYZE statistics here) from driving the join through duels_bots, which scanned every duel of the pool in the
+ * table once per run in range; the duels are reached from the runs by their primary key instead.
+ */
 function duelPool(q: ResolvedQuery): string {
-  if (q.pool === "humans") return " AND d.bots = 0";
-  if (q.pool === "bots") return " AND d.bots = 2";
+  if (q.pool === "humans") return " AND +d.bots = 0";
+  if (q.pool === "bots") return " AND +d.bots = 2";
   return "";
 }
 
@@ -494,7 +498,7 @@ function offers(ctx: Ctx, opts: QueryOptions): OfferRow[] {
        SUM(o.picked * (${FINISHED})) AS pn, SUM(o.picked * p.won * (${FINISHED})) AS pk,
        SUM((1 - o.picked) * (${FINISHED})) AS nn, SUM((1 - o.picked) * p.won * (${FINISHED})) AS nk
      FROM offer_options o JOIN players p ON p.run_id = o.run_id AND p.slot = o.slot JOIN runs r ON r.run_id = o.run_id
-     WHERE ${rw}${pw} AND o.kind = ? GROUP BY o.option`,
+     WHERE ${rw}${pw} AND +o.kind = ? GROUP BY o.option`, // `+`: drive from the runs in range, not offer_options_opt
     [...rb, ...pb, kind],
   );
   const duelWin = new Map<string, { n: number; k: number }>();
@@ -717,6 +721,35 @@ function exportPage(ctx: Ctx, opts: QueryOptions): ExportPage {
   };
 }
 
+/**
+ * Answers of the query RPC, kept until the data changes. The data changes only when a run is ingested or the retention
+ * alarm prunes, so the DO clears this then; a dashboard's 60 s refresh of an unchanged window costs no SQL. The key
+ * is the whole request (the resolved query carries its days, so a new day is a new key); an answer keeps the
+ * `generatedAt` of when it was computed. The export is not kept (its pages are large and read once).
+ */
+export class QueryCache {
+  private readonly answers = new Map<string, unknown>();
+  constructor(private readonly max = 128) {}
+
+  get(name: QueryName, q: ResolvedQuery, opts: QueryOptions, compute: () => unknown): unknown {
+    if (name === "exportPage") return compute();
+    const key = JSON.stringify([name, q, opts]);
+    if (this.answers.has(key)) return this.answers.get(key);
+    const answer = compute();
+    if (this.answers.size >= this.max) this.answers.delete(this.answers.keys().next().value as string);
+    this.answers.set(key, answer);
+    return answer;
+  }
+
+  clear(): void {
+    this.answers.clear();
+  }
+
+  get size(): number {
+    return this.answers.size;
+  }
+}
+
 export function runKey(sql: Sql, runId: string): string | null {
   const row = sql.all(`SELECT raw_key FROM runs WHERE run_id = ?`, runId)[0];
   return row && typeof row.raw_key === "string" ? row.raw_key : null;
@@ -747,7 +780,7 @@ export function runQuery(sql: Sql, name: QueryName, query: ResolvedQuery, opts: 
     case "duelSummary": return env(duelSummary(ctx));
     case "offers": {
       const e = env(offers(ctx, opts));
-      if (opts.kind === "stat") (e.notes ??= []).push("A crate's stat chest has no contributors: only the players who picked from it count as offered.");
+      if (opts.kind === "stat") (e.notes ??= []).push("A crate's stat chest is offered to the players in range at the drop; anyone who picked from it counts as offered too.");
       return e;
     }
     case "farming": return env(farming(ctx));

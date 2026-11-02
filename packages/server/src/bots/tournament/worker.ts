@@ -11,7 +11,7 @@ import { MAX_GAME_MS, runGame, type GameSummary, type RunGameOptions, type SeatS
 import type { SimConfig } from "../../sim/world";
 import { computeServerBuildId } from "../../buildId";
 import { TelemetryRuntime } from "../../telemetry/runtime";
-import { createFileSink } from "../../telemetry/sink";
+import { createSyncFileSink } from "../../telemetry/sink";
 
 /** Everything a tournament is, as plain data (it crosses to the workers). */
 export interface TournamentPlan {
@@ -43,7 +43,7 @@ function telemetryFor(plan: TournamentPlan): TelemetryRuntime | undefined {
   if (!plan.telemetryDir) return undefined;
   buildId ??= computeServerBuildId();
   const t = new TelemetryRuntime({
-    sink: createFileSink({ dir: plan.telemetryDir }),
+    sink: createSyncFileSink({ dir: plan.telemetryDir }), // written per game: runBatch never yields between games
     source: "tournament",
     build: { server: buildId, commit: process.env.GAME_SOURCE_COMMIT?.trim() || null },
     salt: null,

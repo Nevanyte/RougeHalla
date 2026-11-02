@@ -682,7 +682,39 @@ function system(rec: TelemetryRecorder): void {
     rec.suddenDeath.push(runMs(rec));
   }
   const t = now - rec.startAt;
-  if (t % TELEMETRY_SAMPLE_MS < TICK_MS && t >= TELEMETRY_SAMPLE_MS) sample(rec, t);
+  if (t % TELEMETRY_SAMPLE_MS < TICK_MS && t >= TELEMETRY_SAMPLE_MS) {
+    sample(rec, t);
+    restartWholeCamps(rec);
+  }
+}
+
+/**
+ * A camp whose fight was given up is whole again (every member alive, idle at home and at full hp: a walk home or the
+ * teleport): its cycle's engagement starts over, so a clear is timed from the fight that cleared it and credits only
+ * that fight's contributors (an early poke at 40 s and a clear at 300 s is not a 260 s clear). Read-only on the world.
+ */
+export function restartWholeCamps(rec: TelemetryRecorder): void {
+  const n = rec.campEngaged.length;
+  let any = false;
+  for (let i = 0; i < n; i++) if (rec.campEngaged[i]! >= 0) { any = true; break; }
+  if (!any) return;
+  const w = rec.world;
+  const busy = new Uint8Array(n);
+  for (const rt of w.mobs.values()) {
+    const m = w.state.mobs.get(rt.id);
+    if (m === undefined || m.status !== "alive") continue;
+    const ci = m.camp - 1;
+    if (ci < 0 || ci >= n || rec.campEngaged[ci]! < 0) continue;
+    if (rt.brain?.mode !== "idle" || m.hp < m.maxHp) busy[ci] = 1;
+  }
+  for (let ci = 0; ci < n; ci++) {
+    if (rec.campEngaged[ci]! < 0 || busy[ci]) continue;
+    const st = w.state.camps[ci];
+    const spots = w.map.camps[ci]?.spots.length ?? 0;
+    if (!st || st.alive < spots) continue; // a member is dead: the fight is not over, it is only paused
+    rec.campEngaged[ci] = -1;
+    rec.campContrib[ci] = 0;
+  }
 }
 
 function sample(rec: TelemetryRecorder, t: number): void {
@@ -806,6 +838,7 @@ export function installTelemetry(world: World, opts: { positions?: boolean } = {
     if (!rec.started) return;
     rec.teleports.push(runMs(rec));
     rec.sdNoted = false;
+    restartWholeCamps(rec); // mobLife's hook (chained before this one) has put every mob back on its spot at full hp
     closeAll(rec, { ...NO_FACTS, teleport: true });
   });
   chainHook(world, "runEnded", () => {

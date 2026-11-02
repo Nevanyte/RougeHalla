@@ -185,7 +185,8 @@ There is one new hook, `rewardOffered?(world, box, kind, camp, eligible)`. It fi
 (augment and stat chests) and in `killAugments`' `playerKilled` link (Trophies). `eligible` is
 `eligibleContributors` at the drop for camp chests, the elite pickers' snapshot for an elite chest, and `[owner]`
 for a Trophy. A crate's stat chest has no contributors: its eligible list is every standing player within
-`CHEST_RANGE`, or empty (documented as such on the dashboard). A second hook,
+`CHEST_RANGE` at the drop, or empty; a later picker is not in it, so the views count the pickers too (documented as such
+on the dashboard). A second hook,
 `rewardChosen?(world, c, box, option)`, fires on every successful `handleChoose` (option -1 = skip). The recorder
 keeps its own container-id to offer-index map, so expiry needs nothing.
 
@@ -765,8 +766,8 @@ Definitions the endpoints settle (as built in `deployment/cloudflare/src/telemet
 - `deaths.share` is the row's share of its victim faction's deaths, so each faction's bar sums to 1.
 - `firstblood`: twenty 15 s bins from 0 to 300 s, then one bin `[300, 3600)` that also counts anything later.
 - `heatmap.cells` are in cell coordinates (`w = h = 34` cells of `TELEMETRY_HEAT_CELL_TILES` tiles).
-- `offers`: a crate's stat chest has no eligible list, so its pickers are counted as the slots it was offered to
-  (and the response notes it).
+- `offers`: the slots an offer counts are its eligible list plus its pickers (`handleChoose` checks no list: anyone in
+  range may pick, and a crate's stat chest lists only who stood in range at the drop), and the stat view notes it.
 - `export`: `X-Next-Cursor` is `<ended_at>.<runId>` of the last record; pass it back as `cursor`. Default limit 100.
 - `admin/reindex` answers `{ indexed, duplicate, rejected, cursor }`; `cursor` is null after the last page.
 
@@ -967,7 +968,7 @@ Also:
 
 - `deployment/cloudflare/src/dashboard/fixture.ts`: `DASHBOARD_FIXTURE` (section 10).
 - `deployment/cloudflare/scripts/dashboardDev.ts`: `npx tsx deployment/cloudflare/scripts/dashboardDev.ts`
-  serves the three exports on `http://localhost:8788/stats` and answers `/api/stats/*` from `DASHBOARD_FIXTURE`
+  serves the three exports on `http://127.0.0.1:8788/stats` (loopback only; the token is `DASHBOARD_TOKEN` or a random one printed at start) and answers `/api/stats/*` from `DASHBOARD_FIXTURE`
   (with the same headers), so the page is developed without B.
 - `deployment/cloudflare/test/dashboardPage.test.ts`: the script rules, the CSP-safe HTML (no inline handlers or
   `<script>` bodies), and that every endpoint the script calls has a fixture.

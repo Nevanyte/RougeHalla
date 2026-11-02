@@ -2,8 +2,8 @@
 //   npx tsx deployment/cloudflare/scripts/dashboardDev.ts [--port 8788] [--open]
 // serves the page's three exports at /stats, /stats/app.js and /stats/app.css with the Worker's headers, answers
 // /api/stats/* from DASHBOARD_FIXTURE, and runs the same login flow (form POST, HMAC session cookie). The token is
-// DASHBOARD_TOKEN or the dev default printed at start; --open skips the login. Not for anything but local preview.
-import { createHmac, timingSafeEqual } from "node:crypto";
+// DASHBOARD_TOKEN or a random one printed at start; --open skips the login. Not for anything but local preview.
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dashboardHtml, dashboardScript, dashboardStyles } from "../src/dashboard/page";
 import { DASHBOARD_FIXTURE } from "../src/dashboard/fixture";
@@ -11,7 +11,7 @@ import { DASHBOARD_FIXTURE } from "../src/dashboard/fixture";
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf("--port") + 1]) > 0 && args.includes("--port") ? Number(args[args.indexOf("--port") + 1]) : 8788;
 const open = args.includes("--open");
-const TOKEN = process.env.DASHBOARD_TOKEN ?? "dev-dashboard-token-0123456789abcdef0123";
+const TOKEN = process.env.DASHBOARD_TOKEN ?? randomBytes(24).toString("hex");
 const COOKIE = "rh_stats";
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -98,6 +98,6 @@ const server = createServer(async (req, res) => {
   return send(res, 404, "text/plain", "not found");
 });
 
-server.listen(port, () => {
-  console.log(`dashboard preview on http://localhost:${port}/stats` + (open ? " (no login)" : ` (token: ${TOKEN})`));
+server.listen(port, "127.0.0.1", () => { // loopback only
+  console.log(`dashboard preview on http://127.0.0.1:${port}/stats` + (open ? " (no login)" : ` (token: ${TOKEN})`));
 });

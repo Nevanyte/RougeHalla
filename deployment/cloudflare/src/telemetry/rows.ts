@@ -179,7 +179,7 @@ export function toRows(record: RunRecord & { receivedAt?: number }, receivedAt =
     out.offers.push({ run_id: runId, i: o.i, kind: str(o.kind, "augment"), at_ms: Math.round(num(o.at)), camp: num(o.camp, -1), elite: b(o.elite), options: JSON.stringify(o.options) });
     const choice = new Map<number, number>();
     for (const pick of o.picks ?? []) if (pick && !choice.has(pick.slot)) choice.set(pick.slot, num(pick.option, -1));
-    // A crate's stat chest has no eligible list: whoever picked was offered it too.
+    // Anyone in range may pick (a crate's eligible list is only who stood in range at the drop): a picker was offered it too.
     const slots = new Set<number>([...(o.eligible ?? []), ...choice.keys()]);
     for (const slot of slots) {
       if (!bySlot.has(slot)) continue;

@@ -4,6 +4,7 @@
 // own ingest handler (gzip NDJSON, validation, the R2 key) into an in-memory R2 and the store module on node:sqlite,
 // then serves the Worker's own `handleStats` routes on localhost. Tournament runs are source "tournament" with no
 // humans, so open /stats?source=tournament&pool=bots (printed at start). Local preview only: plain http, no Secure cookie.
+import { randomBytes } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -23,7 +24,8 @@ if (inputs.length === 0) {
   console.error("usage: dashboardLocal.ts <file.ndjson|dir>... [--port 8789] [--open]");
   process.exit(2);
 }
-const DASH = process.env.DASHBOARD_TOKEN ?? "local-dashboard-token-0123456789abcdef";
+// No committed default: a token known to everyone would open the records to anyone who reaches the port.
+const DASH = process.env.DASHBOARD_TOKEN ?? randomBytes(24).toString("hex");
 const INGEST = "local-ingest-token-0123456789abcdef0123";
 
 function nodeSql(): Sql {
@@ -110,6 +112,6 @@ createServer(async (req, res) => {
   });
   res.writeHead(answer.status, out);
   res.end(Buffer.from(await answer.arrayBuffer()));
-}).listen(port, () => {
-  console.log(`dashboard on http://localhost:${port}/stats?source=any&pool=all` + (open ? " (no login)" : ` (token: ${DASH})`));
+}).listen(port, "127.0.0.1", () => { // loopback only: these are real run records
+  console.log(`dashboard on http://127.0.0.1:${port}/stats?source=any&pool=all` + (open ? " (no login)" : ` (token: ${DASH})`));
 });

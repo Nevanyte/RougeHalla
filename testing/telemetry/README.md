@@ -38,10 +38,12 @@ bot players are never mixed unless you ask), `--source` (default `any`, unlike t
 
 Definitions that are easy to get wrong:
 
-- `won` means the run's winner. A draw is not a win.
+- `won` means the run's winner. A draw is not a win. Faction, weapon and offer win rates count only runs with a winner
+  or a draw (a void or abandoned run has none); the overview, first blood and the heatmap's run count use the run-level
+  pool (humans = a run with any human); a death's share is of its victim faction's deaths.
 - A duel matrix shows each duel from both sides. A mirror cell counts each duel as 1 win out of 2. The default is
   clean kills only.
-- "Offered" counts one per eligible player per offer. "Not picked" means the player picked another option,
+- "Offered" counts one per eligible player per offer, plus anyone who picked from it without being on the list. "Not picked" means the player picked another option,
   skipped, or never chose. Trophy options are grouped by stat, because their gains differ.
 - On the overview, `humans` and `bots` count every player record in the filtered runs. `players` counts only the
   pool.
@@ -66,4 +68,4 @@ python3 testing/telemetry/analyze.py testing/telemetry/fixtures/runs-v1.ndjson -
 
 Each value is typed with `satisfies` as its endpoint's response, so a contract change breaks the Worker build.
 `npx tsx deployment/cloudflare/scripts/dashboardDev.ts` serves the page with that fixture on
-`http://localhost:8788/stats`. It prints the dev token; pass `--open` to skip the login.
+`http://127.0.0.1:8788/stats` (loopback only). It prints its token (random per start unless `DASHBOARD_TOKEN` is set); pass `--open` to skip the login.
