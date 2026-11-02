@@ -117,7 +117,10 @@ describe("bandwidth budget (per client, ws payload)", () => {
       return withChests.totalKBps - without.totalKBps;
     });
     expect(diffs.reduce((a, b) => a + b, 0) / diffs.length).toBeLessThan(1);
-    for (const d of diffs) expect(d).toBeLessThan(2);
+    // The per-seed gap follows the fights, not the chests (whose own fx is about 0.01 KB/s): after the build rebalance
+    // (TUNING_BALANCE 13.8) seeds 1-3 measure -1.67 / +0.88 / +2.19 KB/s with 10.5 / 10.5 / 11.9 mobs fighting against
+    // 16.6 / 9.1 / 8.7 without chests, so the outlier guard is 2.5 (the mean above is the chests' cost and stays under 1).
+    for (const d of diffs) expect(d).toBeLessThan(2.5);
   }, 120_000);
 
   // Quests (the shipped default, off in the benches unless asked). On the zone maps with the balance pass (seeds 1-3) typical

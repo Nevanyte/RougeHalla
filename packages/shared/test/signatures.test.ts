@@ -241,13 +241,13 @@ describe("markWeight and markPct (the pulse's share, R4)", () => {
     expect(markPct(f, -2)).toBeCloseTo(base, 12);
   });
 
-  it("every bonus stat point grows the mark alike (the stat bully build): 100 points of any stat make it x1.2", () => {
+  it("every bonus stat point grows the mark alike (the stat bully build): 100 points of any stat make it x1.35", () => {
     const f = SHEET.sentenced;
     const base = markPct(f, 0);
-    expect(MARK_BONUS_STAT_PER_POINT).toBe(0.002);
+    expect(MARK_BONUS_STAT_PER_POINT).toBe(0.0035);
     expect(MARK_BONUS_AP_WEIGHT).toBe(1);
-    for (const stat of ["ad", "ap", "armor", "magicResist"] as const) expect(markPct(f, 0, 1, { [stat]: 100 })).toBeCloseTo(base * 1.2, 12);
-    expect(markPct(f, 0, 1, { ad: 50, armor: 50 })).toBeCloseTo(base * 1.2, 12);
+    for (const stat of ["ad", "ap", "armor", "magicResist"] as const) expect(markPct(f, 0, 1, { [stat]: 100 })).toBeCloseTo(base * 1.35, 12);
+    expect(markPct(f, 0, 1, { ad: 50, armor: 50 })).toBeCloseTo(base * 1.35, 12);
   });
 
   it("five kill-stacks add five kill shares", () => {

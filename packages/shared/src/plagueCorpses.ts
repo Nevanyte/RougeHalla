@@ -20,11 +20,11 @@ export const PLAGUE_ZOMBIE_ASSIST_RANGE = 640;
 
 /**
  * Plague's second build, the zombie tank (the faction rework): the companion's max hp grows by this share per point of the
- * owner's bonus Defense + SD (100 bonus defense: x1.4), and each of its hits adds this share of the owner's SO (AP), so a
+ * owner's bonus Defense + SD (100 bonus defense: x1.2), and each of its hits adds this share of the owner's SO (AP), so a
  * tanky wand Plague's zombie is a real second body.
  */
-export const PLAGUE_ZOMBIE_HP_PER_DEFENSE = 0.004;
-export const PLAGUE_ZOMBIE_AP_SHARE = 0.5;
+export const PLAGUE_ZOMBIE_HP_PER_DEFENSE = 0.002;
+export const PLAGUE_ZOMBIE_AP_SHARE = 0.25;
 
 /** What the owner's build adds to its zombie (both 0 for a plain owner). */
 export interface PlagueZombieBonus { bonusDefense?: number; ap?: number }

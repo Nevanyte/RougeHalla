@@ -68,14 +68,24 @@ export const HOLY_CAMP_LIFESTEAL_PER_CLEAR = 0.0025;
  * HOLY_AP_LIFESTEAL_CAP, so a Soul-damage Holy (wand, or the sword's dominant AP scaling) heals from its burst too. It sits
  * inside LIFESTEAL_MAX with the rest (G5), so it cannot stack past the cap that keeps a Holy mirror finite.
  */
-export const HOLY_LIFESTEAL_PER_AP = 0.0015;
+export const HOLY_LIFESTEAL_PER_AP = 0.001;
 export const HOLY_AP_LIFESTEAL_CAP = 0.15;
 /**
+ * Holy's first build, the lifesteal juggernaut (the build rebalance, testing/TUNING_BALANCE.md 13.8): a Holy's lifesteal rows
+ * (Leech cards and the like) count this many times, still capped at LS_CAP, so a Holy that drafts leech sustains like one.
+ */
+export const HOLY_LEECH_ROW_MULT = 2.7;
+/**
  * Fire's second build, the burn tank (the faction rework): its backlash grows by this share per point of bonus Defense + SD,
- * so a Fire that stacks defenses returns more of every swing it eats (100 bonus defense: x1.4). The burn's AP rider
+ * so a Fire that stacks defenses returns more of every swing it eats (100 bonus defense: x1.15; 0.004 before the build rebalance). The burn's AP rider
  * (AP_DOT_RATIO) is the other half of that build.
  */
-export const FIRE_BACKLASH_PER_DEFENSE = 0.004;
+export const FIRE_BACKLASH_PER_DEFENSE = 0.0015;
+/**
+ * Fire's first build, the Offense burst duelist (the build rebalance, testing/TUNING_BALANCE.md 13.8): a running burn also adds
+ * this much of the Fire's Offense (AD) as magic damage per second, beside the SO rider (AP_DOT_RATIO).
+ */
+export const FIRE_BURN_AD_RATIO = 0.5;
 /**
  * Frost's second build, the bow kiter (the faction rework): a Frost's ranged weapon hit chills its victim's walk to this
  * multiplier for FROST_RANGED_CHILL_MS whatever the distance (the melee-range chill of CHILL_MOVE_RADIUS still applies up
@@ -83,6 +93,22 @@ export const FIRE_BACKLASH_PER_DEFENSE = 0.004;
  */
 export const FROST_RANGED_CHILL_MULT = 0.85;
 export const FROST_RANGED_CHILL_MS = 1_200;
+/**
+ * Frost's builds deepen its chill (the build rebalance, testing/TUNING_BALANCE.md 13.8): the attack chill cuts this much more per
+ * point of the Frost's bonus Soul Defense (the shield tank) and per unit of its bonus attack speed (the bow kiter: +32% attack
+ * speed is +0.144), together at most FROST_CHILL_BONUS_CAP on top of the faction's slow. A plain Frost (no bonus) is unchanged.
+ */
+export const FROST_CHILL_PER_SD = 0.007;
+export const FROST_CHILL_PER_ATTACK_SPEED = 0.45;
+export const FROST_CHILL_BONUS_CAP = 0.2;
+/**
+ * Plague's builds (the build rebalance, testing/TUNING_BALANCE.md 13.8): its disease's SO rider is PLAGUE_AP_DOT_RATIO per point
+ * (Fire's burn keeps AP_DOT_RATIO), and its disease grows by PLAGUE_DISEASE_PER_DEFENSE per point of bonus Defense + SD, at most
+ * +PLAGUE_DISEASE_DEFENSE_CAP (the attrition tank). The execute is not scaled.
+ */
+export const PLAGUE_AP_DOT_RATIO = 2.4;
+export const PLAGUE_DISEASE_PER_DEFENSE = 0.02;
+export const PLAGUE_DISEASE_DEFENSE_CAP = 1;
 /** Frost's Frozen Justice defenses while fighting a true elite, and after contact ends. */
 export const FROST_ELITE_GUARD_BONUS = 15;
 export const FROST_ELITE_GUARD_LINGER_MS = 2_000;
@@ -208,7 +234,7 @@ export const AS_POST_MIN = 0.5;
 export const AS_POST_MAX = 2;
 /** G13: Wishes are flat; the only card that moves their cooldown (Arcane Overload x2) is a `wishCooldown` mult, and none takes it under this share. */
 export const WISH_COOLDOWN_MULT_MIN = 0.5;
-/** 3.3: every running damage-over-time signature (burn, disease, the mark) adds this much of the owner's AP as magic damage per second. */
+/** 3.3: a running burn adds this much of the owner's AP as magic damage per second (Plague's disease uses PLAGUE_AP_DOT_RATIO; mobs use this one for both). */
 export const AP_DOT_RATIO = 0.6;
 /** A fighter is "in a fight" (the `fightTime` condition) from its first landed or taken hit until this long passes with none. */
 export const FIGHT_GAP_SECONDS = 3;

@@ -77,6 +77,8 @@ export interface PlayOpts {
   scale?: readonly [number, number];
   cards?: readonly [readonly string[] | undefined, readonly string[] | undefined];
   startHp?: readonly [number | undefined, number | undefined];
+  /** Plague bodies consumed before the duel, per seat (DuelSpec.corpses: the zombie stands from the first tick). */
+  corpses?: readonly [number | undefined, number | undefined];
 }
 
 export interface DuelRecord {
@@ -105,6 +107,7 @@ export function playDuel(o: PlayOpts): DuelRecord {
     ...(o.style === "lock" ? { locks: [true, true] as const } : {}),
     ...(o.cards ? { cards: o.cards } : {}),
     ...(o.startHp ? { startHp: o.startHp } : {}),
+    ...(o.corpses ? { corpses: o.corpses } : {}),
     ...(scale[0] !== 1 || scale[1] !== 1 ? { damageScale: scale } : {}),
   });
   const first = r.hitLog.length > 0 ? r.hitLog[0]!.t : 0;

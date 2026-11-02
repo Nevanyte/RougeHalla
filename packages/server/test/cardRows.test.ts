@@ -10,7 +10,7 @@ import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
   attackInterval, AUGMENT_IDS, BASE_STAT_IDS, baseCardId, CARD_TIERS, cardDef, cardLive, cardPower, CARDS, damagePerHit, damageShares,
   decodeFlat, decodeMult, diseaseDps, encodeFlat, encodeMult, EXECUTE_BAND, FACTIONS, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS,
-  healOverTimeSpanMs, healOverTimeSteps, lifestealFraction, LIFESTEAL_MAX, lifestealShare, LS_CAP, mapFromTiles, MIRROR_FIELDS, mitigateShares,
+  healOverTimeSpanMs, healOverTimeSteps, holyLeechRowsOf, lifestealFraction, LIFESTEAL_MAX, lifestealShare, LS_CAP, mapFromTiles, MIRROR_FIELDS, mitigateShares,
   mulberry32, pacedFaction, scalingDamage, SIG_EXECUTE, SIGNATURE_WEAPONS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIRE_IDENTITY_MIRRORS,
   cardText, type CardId, type FactionId, type GameMap,
 } from "@raid/shared";
@@ -673,7 +673,8 @@ describe("lifesteal", () => {
       const before = P(w, 0).hp;
       const landed = landOneHit(w, 0, 1, 400);
       const own = lifestealFraction(paced("holy"), frac);
-      const share = lifestealShare(own, copies * quoted("leech3"));
+      // Holy's leech rows count HOLY_LEECH_ROW_MULT times (still held to LS_CAP inside lifestealShare).
+      const share = lifestealShare(own, holyLeechRowsOf(copies * quoted("leech3")));
       expect(P(w, 0).hp - before, `${frac} ${copies}`).toBeCloseTo(landed * share, 9);
       expect(share).toBeLessThanOrEqual(LIFESTEAL_MAX);
     }

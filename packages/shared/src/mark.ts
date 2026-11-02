@@ -11,8 +11,8 @@ import { attackInterval, WEAPONS, type WeaponId } from "./weapons";
 // attack speed at 10%, AP counted six times) are gone; the names stay so the code paths and the wire stay as they were.
 /** Attack speed's exponent in a hit's mark weight: 1, so a hit's pulse is the same at any attack speed and mark dps grows with it. */
 export const MARK_AS_EXPONENT = 1;
-/** Mark growth per decoded bonus point of AD, AP, armor and magic resistance: 100 bonus points of any mix make the pulse x1.2. */
-export const MARK_BONUS_STAT_PER_POINT = 0.002;
+/** Mark growth per decoded bonus point of AD, AP, armor and magic resistance: 100 bonus points of any mix make the pulse x1.35 (the build rebalance, TUNING_BALANCE 13.8). */
+export const MARK_BONUS_STAT_PER_POINT = 0.0035;
 /** AP's weight in that sum: one, like every other stat. */
 export const MARK_BONUS_AP_WEIGHT = 1;
 /** The share of positive card and farm attack-speed bonuses a Sentenced gets: all of it, like every faction. */

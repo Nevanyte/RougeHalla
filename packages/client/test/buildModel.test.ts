@@ -2,7 +2,7 @@
 // power and the PvP factor, each with a tooltip; and the weapon bar's scaling line and special text.
 import { describe, expect, it } from "vitest";
 import {
-  ALL_WEAPON_IDS, FACTIONS, FACTION_IDS, LIFESTEAL_MAX, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, cardPower, encodeMirrors, pvpFactor,
+  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, PLAGUE_AP_DOT_RATIO, LIFESTEAL_MAX, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, cardPower, encodeMirrors, pvpFactor,
   type StatMirrors,
 } from "@raid/shared";
 import {
@@ -85,9 +85,10 @@ describe("the strip's cells", () => {
   it("explains weapon scaling and limits the base-passive SO rider to burn and disease", () => {
     expect(stats({}, {}, "plague", "sword").by("ad").tip).toContain("Your Sword turns each point into 1 damage a second");
     expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1 magic damage a second at base attack speed");
-    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("burn or disease also gains 0.6 magic damage a second per point");
+    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain(`disease also gains ${PLAGUE_AP_DOT_RATIO} magic damage a second per point`);
+    expect(stats({}, {}, "fire", "wand").by("ap").tip).toContain(`burn also gains ${AP_DOT_RATIO} magic damage a second per point`);
     expect(stats({}, {}, "plague", "axe").by("ap").tip).toContain("gets nothing from it directly");
-    expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("burn or disease also gains");
+    expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("disease also gains");
     for (const faction of ["sentenced", "frost", "holy"]) {
       expect(stats({}, {}, faction, "wand").by("ap").tip).toContain("base passive and Wish have no direct SO scaling");
       expect(stats({}, {}, faction, "wand").by("ap").tip).not.toContain("also gains 0.6");

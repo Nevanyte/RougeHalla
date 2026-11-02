@@ -8,7 +8,7 @@
 // The ledger's own readers (G1's kind, the `vs` extras, the Race to 0 card source) are in guards.test.ts; the bog is in terrain.test.ts.
 import { describe, expect, it } from "vitest";
 import {
-  AP_DOT_RATIO, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, chillMultiplier, diseaseDps, ENGAGE_LINGER_SECONDS,
+  AP_DOT_RATIO, FIRE_BURN_AD_RATIO, frostChillBonusOf, FROST_CHILL_BONUS_CAP, PLAGUE_AP_DOT_RATIO, plagueDiseaseMultOf, holyLeechRowsOf, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, chillMultiplier, diseaseDps, ENGAGE_LINGER_SECONDS,
   EXECUTE_BAND, FACTIONS, lifestealFraction, lifestealTotal, LIFESTEAL_MAX, mitigateShares, pacedFaction, resistSlow, SIGNATURE_WEAPONS, TICK_MS,
   type DamageShares, type Effect, type FactionId, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -62,20 +62,41 @@ describe("AP on damage over time (BALANCE_CONTRACT 3.3)", () => {
     expect(apTick).toBeCloseTo(3, 12);
   });
 
+  it("Fire: its Offense feeds the burn's magic entry too (FIRE_BURN_AD_RATIO a point a second)", () => {
+    const { w, seen } = engagedPair("fire", [{ k: "flat", stat: "ad", v: AP }]);
+    tick(w);
+    const burn = drain(seen, "burn");
+    expect(burn).toHaveLength(2);
+    expect(burn[1]!.packet.raw).toBeCloseTo(FIRE_BURN_AD_RATIO * AP * DT, 9);
+    expect(burn[1]!.packet).toMatchObject(MAGIC_SHARES);
+  });
+
   it("no AP, no second entry", () => {
     const { w, seen } = engagedPair("fire", []);
     tick(w);
     expect(drain(seen, "burn")).toHaveLength(1);
   });
 
-  it("Plague: beside the disease, whatever weapon is in hand (AP is flat: no weapon multiplier)", () => {
+  it("Plague: beside the disease, whatever weapon is in hand (AP is flat: no weapon multiplier), at Plague's own ratio", () => {
     for (const weapon of ["bow", "sword"] as const) {
       const { w, seen } = engagedPair("plague", [ap(AP)], weapon);
       tick(w);
       const disease = drain(seen, "disease");
       expect(disease, weapon).toHaveLength(2);
       expect(disease[0]!.packet.raw).toBeCloseTo(diseaseDps(spec("plague"), 1, EXECUTE_BAND) * bonusMultiplier(weapon) * DT, 9);
-      expect(disease[1]!.packet.raw, weapon).toBeCloseTo(apTick, 9);
+      expect(disease[1]!.packet.raw, weapon).toBeCloseTo(PLAGUE_AP_DOT_RATIO * AP * DT, 9);
+    }
+  });
+
+  it("Plague: bonus Defense + SD thicken the disease (plagueDiseaseMultOf), capped, and leave the execute alone", () => {
+    expect(plagueDiseaseMultOf(0)).toBe(1);
+    expect(plagueDiseaseMultOf(1e6)).toBeLessThanOrEqual(2);
+    for (const def of [30, 1000]) {
+      const { w, seen } = engagedPair("plague", [{ k: "flat", stat: "armor", v: def / 2 }, { k: "flat", stat: "shield", v: def / 2 }], "bow");
+      tick(w);
+      const disease = drain(seen, "disease");
+      expect(disease).toHaveLength(1);
+      expect(disease[0]!.packet.raw).toBeCloseTo(diseaseDps(spec("plague"), 1, EXECUTE_BAND) * bonusMultiplier("bow") * plagueDiseaseMultOf(def) * DT, 9);
     }
   });
 
@@ -224,8 +245,9 @@ describe("lifesteal under the card readers (G5)", () => {
     const own = lifestealFraction(FACTIONS.holy, 0.5);
     const { ls0, ls1, ls_cap } = FACTIONS.holy.params;
     expect(own).toBeCloseTo(Math.min(ls_cap!, ls0! + ls1! * 0.5), 12);
-    expect(healed("holy", [stat("lifesteal", 0.1), stat("lifestealMult", 1)], [{ raw: 100 }], "wand")).toBeCloseTo(100 * lifestealTotal(own, 0.1, 2), 6);
-    expect(lifestealTotal(own, 0.1, 2)).toBeCloseTo(Math.min(LIFESTEAL_MAX, own + 0.1 * 2), 12);
+    // Holy's leech rows count HOLY_LEECH_ROW_MULT times (holyLeechRowsOf), still under LS_CAP, before Bloodthirst doubles them.
+    expect(healed("holy", [stat("lifesteal", 0.05), stat("lifestealMult", 1)], [{ raw: 100 }], "wand")).toBeCloseTo(100 * lifestealTotal(own, holyLeechRowsOf(0.05), 2), 6);
+    expect(lifestealTotal(own, holyLeechRowsOf(0.05), 2)).toBeCloseTo(Math.min(LIFESTEAL_MAX, own + holyLeechRowsOf(0.05) * 2), 12);
     expect(healed("holy", [stat("lifesteal", 0.25), stat("lifestealMult", 1)], [{ raw: 100 }], "wand")).toBeCloseTo(85, 6);
   });
 
@@ -335,13 +357,14 @@ describe("slowResist (Iron Will)", () => {
 
   describe("Frost's chill", () => {
     const CHILL = chillMultiplier(FACTIONS.frost);
-    /** A Frost in contact with a Fire with `list` for rows: the Fire's chill after a tick, and the move modifiers' product on it. */
-    function chilled(list: Effect[]) {
+    /** A Frost in contact with a Fire with `list` for rows (`frost` for the Frost's): the Fire's chill after a tick, and the move modifiers' product on it. */
+    function chilled(list: Effect[], frost: Effect[] = []) {
       const w = pvpArena([
         { id: "f", faction: "frost", weapon: "sword", at: { x: 200, y: 320 } },
         { id: "v", faction: "fire", weapon: "sword", at: { x: 236, y: 320 } },
       ], { pvpRules: false, signatures: true });
       rows(w, "v", list);
+      if (frost.length > 0) rows(w, "f", frost);
       noteContact(w, "f", "v");
       tick(w);
       const v = combatant(w, "v")!;
@@ -358,6 +381,13 @@ describe("slowResist (Iron Will)", () => {
       expect(iron.chill).toBeGreaterThan(plain.chill);
       expect(iron.walk).toBeCloseTo(resistSlow(CHILL_MOVE_MULT, 0.4), 12);
       expect(iron.walk).toBeCloseTo(0.82, 12);
+    });
+
+    it("deepens with the Frost's bonus Soul Defense and attack speed (frostChillBonusOf), capped, and not with its Defense", () => {
+      expect(chilled([], [{ k: "flat", stat: "armor", v: 40 }]).chill).toBeCloseTo(CHILL, 12);
+      expect(chilled([], [{ k: "flat", stat: "shield", v: 20 }]).chill).toBeCloseTo(CHILL - frostChillBonusOf(20, 0), 3);
+      expect(chilled([], [stat("attackSpeed", 0.2)]).chill).toBeCloseTo(CHILL - frostChillBonusOf(0, 0.2), 3);
+      expect(chilled([], [{ k: "flat", stat: "shield", v: 1000 }]).chill).toBeCloseTo(CHILL - FROST_CHILL_BONUS_CAP, 3);
     });
 
     it("a resist of 100% is no chill at all", () => {
