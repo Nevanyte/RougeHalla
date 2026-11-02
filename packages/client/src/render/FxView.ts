@@ -250,10 +250,12 @@ export class FxView {
   /**
    * Plays the local player's own swing landing on another fighter (a hit, or a block on their shield) beside the state patch that
    * confirms it, rather than at render time: the swing itself already played on the input clock. `juice` false keeps the screen
-   * still (a backlog behind the patch, as after a stalled tab). It is never queued.
+   * still (a backlog behind the patch, as after a stalled tab). A fighter not drawn now (its drawn past still in a bush) waits for
+   * render time instead, where it is drawn as it was when struck; otherwise it is never queued.
    */
   confirmedOwnBlow(fx: FxOf<"hit"> | FxOf<"block">, now: number, juice = true): void {
-    if (this.destroyed || !Number.isFinite(now) || !isOwnArcBlow(fx, this.host.localId, false)) return;
+    if (this.destroyed || !Number.isFinite(now) || !isOwnArcBlow(fx, this.host.localId)) return;
+    if (!this.host.position(fx.id)) { this.push(fx); return; }
     if (fx.kind === "block") this.block(fx, now);
     else this.hit(fx, now, juice);
   }

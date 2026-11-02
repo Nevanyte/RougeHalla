@@ -16,7 +16,7 @@ import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
 import { LocalHand, predictedReadyAt, swapBlocked, weaponInSlot } from "../net/localHand";
-import { ConfirmedDamage, isOwnArcBlow, shieldReturnsIn, type ConfirmedFx } from "../net/confirmedDamage";
+import { ConfirmedDamage, isOwnArcBlow, type ConfirmedFx } from "../net/confirmedDamage";
 import { PotionCue } from "../net/potionCue";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
@@ -1799,9 +1799,7 @@ export class RaidScene extends Phaser.Scene {
         this.fx.noteLaunch(launch);
       }
     }
-    const fxs = unpackFx(batch, this.room.state.roster, this.warnDropped);
-    const shieldReturns = shieldReturnsIn(fxs, this.room.sessionId);
-    for (const fx of fxs) {
+    for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
       this.ground.combat.note(fx);
       const autoEvent = (fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId ? fx : null;
       const now = performance.now();
@@ -1820,7 +1818,7 @@ export class RaidScene extends Phaser.Scene {
         this.confirmedDamage.enqueue(fx, performance.now());
         continue;
       }
-      if (isOwnArcBlow(fx, this.room.sessionId, shieldReturns)) {
+      if (isOwnArcBlow(fx, this.room.sessionId)) {
         // Its swing already played on the input clock: the confirmation lands with its patch, not a render delay after it.
         this.confirmedBlows.enqueue(fx, performance.now());
         continue;

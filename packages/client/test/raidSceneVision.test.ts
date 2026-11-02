@@ -372,17 +372,20 @@ describe("RaidScene own melee blows", () => {
     expect(fx.confirmedOwnBlow).not.toHaveBeenCalled();
   });
 
-  it("keeps a shield hit on the render clock in a step that may carry a riposte or a reflected arrow", () => {
+  it("keeps damage the local player returned on the render clock whatever weapon it names, and draws its own bash with its patch", () => {
     const {scene,frame,fx} = blowHarness();
-    scene.onFxBatch(packFx([{ kind: "block", id: "me", by: "foe", weapon: "sword" }, ownHit({ weapon: "shield" })], 1100, ROSTER));
     scene.onFxBatch(packFx([
-      { kind: "projEnd", id: "bounced", proj: "arrow", x0: 0, y0: 0, t0: 1100, x: 5, y: 5, reason: "hit" }, ownHit({ weapon: "shield" }),
+      { kind: "block", id: "me", by: "foe", weapon: "sword" }, ownHit({ weapon: "shield", passive: true }), // a riposte
+      ownHit({ weapon: "shield" }), // the local player's own bash in the same step
     ], 1100, ROSTER));
-    expect(fx.enqueue.mock.calls.map(([e]) => e.kind)).toEqual(["block", "hit", "projEnd", "hit"]);
-    scene.onFxBatch(packFx([ownHit({ weapon: "shield" })], 1100, ROSTER)); // a bash
-    expect(fx.enqueue).toHaveBeenCalledTimes(4);
-    frame(1100);
+    scene.onFxBatch(packFx([ownHit({ weapon: "sword", passive: true })], 1150, ROSTER)); // Spiked Shell's return, a step later
+    expect(fx.enqueue.mock.calls.map(([e]) => [e.kind, e.weapon, e.passive])).toEqual([
+      ["block", "sword", undefined], ["hit", "shield", true], ["hit", "sword", true],
+    ]);
+    frame(1150);
     expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
+    expect(fx.confirmedOwnBlow.mock.calls[0]![0]).toMatchObject({ kind: "hit", weapon: "shield" });
+    expect(fx.confirmedOwnBlow.mock.calls[0]![0]).not.toHaveProperty("passive");
   });
 
   it("draws a backlog without juice, drops a stale one, and forgets them when the local player is gone", () => {
@@ -396,9 +399,13 @@ describe("RaidScene own melee blows", () => {
     expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
 
     scene.onFxBatch(packFx([ownHit()], 3700, ROSTER));
+    state.serverTime = 3700; // its patch is in: only the missing local player keeps it from being drawn
     scene.flushConfirmedDamage({ ...state, players: new Map() }, 3700);
     scene.flushConfirmedDamage(state, 3700);
     expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
+    scene.onFxBatch(packFx([ownHit()], 3700, ROSTER));
+    scene.flushConfirmedDamage(state, 3700); // the same flush with the local player there draws it
+    expect(fx.confirmedOwnBlow).toHaveBeenCalledTimes(2);
   });
 
   it("empties the own-blow queue on teardown", () => {
@@ -410,8 +417,12 @@ describe("RaidScene own melee blows", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+    state.serverTime = 1100; // its patch is in: only the teardown keeps it from being drawn
     scene.flushConfirmedDamage(state, 1100);
     expect(fx.confirmedOwnBlow).not.toHaveBeenCalled();
+    scene.onFxBatch(packFx([ownHit()], 1100, ROSTER));
+    scene.flushConfirmedDamage(state, 1100); // the same flush without a teardown draws it
+    expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
   });
 
   it("draws the local player's stagger stars on arrival and leaves anyone else's stagger to render time", () => {

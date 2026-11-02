@@ -1060,7 +1060,9 @@ describe("shield reflection", () => {
     expect(end).toMatchObject({ reason: "hit" });
     expect(end.x).toBeCloseTo(219, 6);
     const expected = mitigateShares(packet.raw * ARROW_REFLECT_SHARE, packet, FACTIONS.sentenced);
-    expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "archer", by: "holder", amount: expect.closeTo(expected, 9), weapon: "shield" }]);
+    expect(fxOf(events, "hit")).toEqual([
+      { kind: "hit", id: "archer", by: "holder", amount: expect.closeTo(expected, 9), weapon: "shield", passive: true },
+    ]);
     expect(FACTIONS.sentenced.hp - P(w, "archer").hp).toBeCloseTo(expected, 9);
     // Reflection preserves the launched packet; only the archer's current defenses mitigate the reflected share.
     expect(expected).toBeCloseTo(hitAmount("sentenced", "bow", "sentenced", ARROW_REFLECT_SHARE), 9);

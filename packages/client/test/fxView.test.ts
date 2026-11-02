@@ -95,7 +95,7 @@ describe("FxView own confirmed blows", () => {
       localId: "me", view: (id) => ({ flash: () => flashes.push(id) }), position: (id) => positions[id], name: () => undefined,
       projectileEnded: () => {}, localLanded: (event) => landed.push(event.amount), localHit: (event) => localHits.push(event.amount),
     });
-    return { fx, flashes, landed, localHits, made, ofKind };
+    return { fx, flashes, landed, localHits, made, ofKind, positions };
   }
   const own = (over: Partial<Extract<TimedFx, { kind: "hit" }>> = {}): Extract<TimedFx, { kind: "hit" }> =>
     ({ kind: "hit", id: "foe", by: "me", amount: 42, weapon: "axe", t: 1000, ...over });
@@ -140,10 +140,32 @@ describe("FxView own confirmed blows", () => {
     fx.confirmedOwnBlow(own({ ability: "freeze" }), 16);
     fx.confirmedOwnBlow(own({ weapon: null }), 16);
     fx.confirmedOwnBlow({ kind: "block", id: "foe", by: "me", weapon: "shield", passive: true, t: 1000 }, 16);
+    fx.confirmedOwnBlow(own({ weapon: "sword", passive: true }), 16); // Spiked Shell's return
     fx.confirmedOwnBlow(own(), Number.NaN);
+    fx.update(1100, 32, true);
     expect(flashes).toEqual([]);
     expect(landed).toEqual([]);
     expect(made).toEqual([]);
+  });
+
+  it("waits for render time when the victim is not drawn at the patch (its drawn past still in a bush)", () => {
+    const { fx, flashes, landed, made, ofKind, positions } = rig();
+    const foe = positions.foe!;
+    delete positions.foe;
+    fx.update(900, 0, true);
+    fx.confirmedOwnBlow(own(), 16);
+    fx.confirmedOwnBlow({ kind: "block", id: "foe", by: "me", weapon: "sword", t: 1000 }, 16);
+    expect(made).toEqual([]);
+    positions.foe = foe;
+    fx.update(999, 32, true);
+    expect(made).toEqual([]);
+    fx.update(1000, 48, true);
+    expect(flashes).toEqual(["foe"]);
+    expect(landed).toEqual([42]);
+    expect(ofKind("text").map((t) => t.state.text)).toEqual(["42"]);
+    expect(ofKind("graphics")).toHaveLength(2); // the impact and the block's spark
+    fx.update(1100, 64, true);
+    expect(landed).toEqual([42]);
   });
 
   it("sparks a blocked swing on the holder's shield, on the side it came from", () => {

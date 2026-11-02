@@ -153,6 +153,18 @@ describe("fx codec: round trip", () => {
     expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe", crit: true }], T).l[0]![4]).toBe(5 + 64);
   });
 
+  it("carries returned (passive) damage in the hit's flags (+128), with or without a crit, and leaves it off when absent", () => {
+    for (const weapon of ["shield", "sword", "fists"] as const) {
+      for (const crit of [undefined, true] as const) {
+        const fx: FxEvent = { kind: "hit", id: "a", by: "b", amount: 6, weapon, ...(crit ? { crit } : {}), passive: true };
+        expect(roundTrip(fx), `${weapon} ${crit}`).toEqual({ ...fx, t: T });
+        expect(packFx([fx], T).l[0], `${weapon} ${crit}`).toHaveLength(5);
+      }
+    }
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "shield", passive: true }], T).l[0]![4]).toBe(4 + 128);
+    expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 5, weapon: "shield", crit: true })).not.toHaveProperty("passive");
+  });
+
   it("skips a hit whose signature code is unknown rather than dropping the signature silently", () => {
     expect(unpackFx({ t: T, l: [[2, "a", "b", 50, 99]] }, NONE)).toEqual([]);
   });

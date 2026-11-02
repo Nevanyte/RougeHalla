@@ -1078,7 +1078,8 @@ describe("damage through the faction formula", () => {
     expect(hpLost(world, 1)).toBeCloseTo(through, 9);
     const hits = fxOf(events, "hit");
     expect(hits).toHaveLength(2);
-    expect(hits).toContainEqual({ kind: "hit", id: "p0", by: "p1", amount: expect.closeTo(riposte, 9), weapon: "shield" });
+    // The riposte's fx says it was returned (the client must not draw it as the holder's own bash); the swing's does not.
+    expect(hits).toContainEqual({ kind: "hit", id: "p0", by: "p1", amount: expect.closeTo(riposte, 9), weapon: "shield", passive: true });
     expect(hits).toContainEqual({ kind: "hit", id: "p1", by: "p0", amount: expect.closeTo(through, 9), weapon: "sword" });
     expect(fxOf(events, "stagger")).toEqual([]);
   });

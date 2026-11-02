@@ -387,7 +387,9 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
       const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
       const named = e.sig ? { ...fx, sig: e.sig } : fx;
       const full = e.ability !== undefined ? { ...named, ability: e.ability } : named;
-      emit(world, { type: "fx", fx: e.packet.crit ? { ...full, crit: true as const } : full });
+      const struck = e.packet.crit ? { ...full, crit: true as const } : full;
+      // Returned damage names the holder's weapon like its own blow; the client must not present it as one (isOwnArcBlow).
+      emit(world, { type: "fx", fx: e.passive ? { ...struck, passive: true as const } : struck });
     }
     // After the victim took the damage and its hit fx went out (on-hit effects: R4b; see WorldHooks.hitLanded). DoT entries too.
     hitLanded?.(world, e, amount);

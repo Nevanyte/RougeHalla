@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TimedFx } from "@raid/shared";
 import {
-  ConfirmedDamage, isOwnArcBlow, shieldReturnsIn, type ConfirmedBlock, type ConfirmedFx, type ConfirmedHit,
+  ConfirmedDamage, isOwnArcBlow, type ConfirmedBlock, type ConfirmedFx, type ConfirmedHit,
 } from "../src/net/confirmedDamage";
 
 const hit = (t: number, over: Partial<ConfirmedHit> = {}): ConfirmedHit => ({
@@ -122,56 +122,41 @@ describe("isOwnArcBlow", () => {
     expect(isOwnArcBlow(own({ id: "mob7" }), "me")).toBe(true);
   });
 
-  it("takes a shield bash only when the batch cannot hold a riposte or a reflected arrow", () => {
-    expect(isOwnArcBlow(own({ weapon: "shield" }), "me", false)).toBe(true);
-    expect(isOwnArcBlow(own({ weapon: "shield" }), "me", true)).toBe(false);
-    expect(isOwnArcBlow(own({ weapon: "shield" }), "me")).toBe(false); // the safe default
+  it("takes a shield bash, and never damage the local player returned, whatever weapon it names", () => {
+    expect(isOwnArcBlow(own({ weapon: "shield" }), "me")).toBe(true);
+    // A riposte and a reflected arrow name the shield; Spiked Shell and Final Verdict name the weapon in hand.
+    for (const weapon of ["shield", "sword", "axe", "fists"] as const) {
+      expect(isOwnArcBlow(own({ weapon, passive: true }), "me"), weapon).toBe(false);
+      expect(isOwnArcBlow(own({ weapon, passive: true, crit: true }), "me"), weapon).toBe(false);
+    }
   });
 
   it("leaves projectiles, damage over time, signatures, abilities and bleeds on the render clock", () => {
-    expect(isOwnArcBlow(own({ weapon: "bow" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(own({ weapon: "wand" }), "me", false)).toBe(false);
-    for (const sig of ["burn", "disease", "mark", "backlash"] as const) expect(isOwnArcBlow(own({ sig }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(own({ ability: "freeze" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(own({ weapon: null }), "me", false)).toBe(false);
+    expect(isOwnArcBlow(own({ weapon: "bow" }), "me")).toBe(false);
+    expect(isOwnArcBlow(own({ weapon: "wand" }), "me")).toBe(false);
+    for (const sig of ["burn", "disease", "mark", "backlash"] as const) expect(isOwnArcBlow(own({ sig }), "me")).toBe(false);
+    expect(isOwnArcBlow(own({ ability: "freeze" }), "me")).toBe(false);
+    expect(isOwnArcBlow(own({ weapon: null }), "me")).toBe(false);
   });
 
   it("never takes a hit on the local player or anyone else's hit", () => {
-    expect(isOwnArcBlow(own({ id: "me" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(own({ by: "foe", id: "me" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(own({ by: "ally" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(own({ by: null }), "me", false)).toBe(false);
+    expect(isOwnArcBlow(own({ id: "me" }), "me")).toBe(false);
+    expect(isOwnArcBlow(own({ by: "foe", id: "me" }), "me")).toBe(false);
+    expect(isOwnArcBlow(own({ by: "ally" }), "me")).toBe(false);
+    expect(isOwnArcBlow(own({ by: null }), "me")).toBe(false);
   });
 
   it("takes a block of the local player's melee swing, and no passive, ranged or own-shield block", () => {
-    expect(isOwnArcBlow(block(), "me", true)).toBe(true);
-    expect(isOwnArcBlow(block({ weapon: "shield" }), "me", true)).toBe(true); // a bash met a shield
-    expect(isOwnArcBlow(block({ weapon: "shield", passive: true }), "me", false)).toBe(false); // a reflected arrow
-    expect(isOwnArcBlow(block({ weapon: "bow" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(block({ id: "me", by: "foe" }), "me", false)).toBe(false);
-    expect(isOwnArcBlow(block({ by: "foe" }), "me", false)).toBe(false);
+    expect(isOwnArcBlow(block(), "me")).toBe(true);
+    expect(isOwnArcBlow(block({ weapon: "shield" }), "me")).toBe(true); // a bash met a shield
+    expect(isOwnArcBlow(block({ weapon: "shield", passive: true }), "me")).toBe(false); // a reflected arrow
+    expect(isOwnArcBlow(block({ weapon: "bow" }), "me")).toBe(false);
+    expect(isOwnArcBlow(block({ id: "me", by: "foe" }), "me")).toBe(false);
+    expect(isOwnArcBlow(block({ by: "foe" }), "me")).toBe(false);
   });
 
   it("refuses every other kind", () => {
-    expect(isOwnArcBlow({ kind: "swing", by: "me", weapon: "sword", x: 0, y: 0, a: 0, t: 1 }, "me", false)).toBe(false);
-    expect(isOwnArcBlow({ kind: "stagger", id: "foe", t: 1 }, "me", false)).toBe(false);
-  });
-});
-
-describe("shieldReturnsIn", () => {
-  const end = (ownerId?: string): TimedFx => ({
-    kind: "projEnd", id: "p", proj: "arrow", x0: 0, y0: 0, t0: 0, x: 1, y: 1, reason: "hit", t: 1, ...(ownerId ? { ownerId } : {}),
-  });
-
-  it("flags a block on the local player (a riposte follows it) and a reflected arrow's end (it names no owner)", () => {
-    expect(shieldReturnsIn([{ kind: "block", id: "me", by: "foe", weapon: "sword", t: 1 }], "me")).toBe(true);
-    expect(shieldReturnsIn([end()], "me")).toBe(true);
-  });
-
-  it("does not flag an owned projectile's end, a block of someone else or a plain hit", () => {
-    expect(shieldReturnsIn([
-      end("foe"), end("me"), { kind: "block", id: "foe", by: "me", weapon: "sword", t: 1 },
-      { kind: "hit", id: "foe", by: "me", amount: 5, weapon: "shield", t: 1 },
-    ], "me")).toBe(false);
+    expect(isOwnArcBlow({ kind: "swing", by: "me", weapon: "sword", x: 0, y: 0, a: 0, t: 1 }, "me")).toBe(false);
+    expect(isOwnArcBlow({ kind: "stagger", id: "foe", t: 1 }, "me")).toBe(false);
   });
 });
