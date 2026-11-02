@@ -1,6 +1,6 @@
-// Visual-only combat effects. The server stamps each event with the server time it happened (`t`); events wait in a
-// queue until render time (the same delayed clock remote players are drawn at) reaches `t`, so a swing appears
-// together with the positions it was made between. Effects are driven from update(), not tweens or timers: nothing
+// Visual-only combat effects. Server impacts and remote attacks wait until the delayed render clock reaches `t`.
+// Own auto animations enter through localAuto on the input clock and follow the local drawn fighter.
+// Effects are driven from update(), not tweens or timers: nothing
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
 import {

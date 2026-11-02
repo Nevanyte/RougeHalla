@@ -104,6 +104,8 @@ const AIM_MIN_DELTA = 0.01;
  * walking, yet the server turns a fighter to its path (and a shield away) once the aim is AIM_STALE_MS (1000) old.
  */
 const AIM_KEEPALIVE_MS = 500;
+/** Cosmetic local attacks older than FxView's stale-event window should not replay after a stalled tab. */
+const LOCAL_AUTO_STALE_MS = 2000;
 /**
  * Attacks travel at body height, so the cursor is read as a point BODY_LIFT pixels above the ground: clicking the
  * middle of a drawn player aims at that player's ground position instead of ~17 world units north of it.
@@ -562,6 +564,7 @@ export class RaidScene extends Phaser.Scene {
       const ground = this.ground.statesOf(id, this.tmp.x, this.tmp.y, p.faction, serverNow, p.hp, p.maxHp, true, p.status === "alive");
       if (local) this.localGround = signatures && p.status === "alive" ? ground : NO_STATES;
       const markDim = this.markIsDim(id, p.markBy, this.tmp.x, this.tmp.y, state);
+      if (local) view.setLocalBowPull(this.localAutos.bowPull(now));
       view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground, markDim);
       if (local) {
         const cameraAt = this.cameraFollow.update(this.peek ?? this.tmp, now, this.peek !== null);
@@ -1600,10 +1603,16 @@ export class RaidScene extends Phaser.Scene {
     for (const launch of unpackLaunches(batch)) {
       if (launch.ownerId === this.room.sessionId) {
         if (this.projectiles.has(launch.id)) continue;
+        const now = performance.now();
+        if (this.localClock(now) - launch.t > LOCAL_AUTO_STALE_MS) {
+          // Keep the authoritative projectile, but do not let an old launch consume a newer local preview or recoil now.
+          this.projectiles.noteLaunch(launch);
+          continue;
+        }
         const weapon = launch.kind === "arrow" ? "bow" : "wand";
-        const predicted = this.localAutos.consume("launch", weapon, performance.now());
+        const predicted = this.localAutos.consume("launch", weapon, now);
         this.projectiles.noteLocalLaunch(launch, predicted);
-        if (!predicted || !this.localAutos.wasReleased(predicted)) this.fx.localAuto("launch", weapon, Math.atan2(launch.vy, launch.vx), 0, performance.now());
+        if (!predicted || !this.localAutos.wasReleased(predicted)) this.fx.localAuto("launch", weapon, Math.atan2(launch.vy, launch.vx), 0, now);
       } else {
         this.projectiles.noteLaunch(launch);
         this.fx.noteLaunch(launch);
@@ -1614,7 +1623,9 @@ export class RaidScene extends Phaser.Scene {
       this.predict.noteFx(fx, this.room.sessionId, this.room.state.players.get(this.room.sessionId));
       if ((fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId) {
         const now = performance.now();
-        if (!this.localAutos.consume(fx.kind, fx.weapon, now)) this.fx.localAuto(fx.kind, fx.weapon, fx.a, fx.kind === "windup" ? fx.ms : 0, now);
+        if (this.localClock(now) - fx.t <= LOCAL_AUTO_STALE_MS && !this.localAutos.consume(fx.kind, fx.weapon, now)) {
+          this.fx.localAuto(fx.kind, fx.weapon, fx.a, fx.kind === "windup" ? fx.ms : 0, now);
+        }
         continue;
       }
       if ((fx.kind === "death" && fx.id === this.room.sessionId) || fx.kind === "teleport") {
@@ -1637,12 +1648,15 @@ export class RaidScene extends Phaser.Scene {
       // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
       if (fx.kind === "projEnd") {
         if (fx.ownerId === this.room.sessionId) {
-          const predicted = this.projectiles.has(fx.id) ? undefined
-            : this.localAutos.consume("launch", fx.proj === "arrow" ? "bow" : "wand", performance.now());
-          if (!this.projectiles.has(fx.id) && (!predicted || !this.localAutos.wasReleased(predicted))) {
-            this.fx.localAuto("launch", fx.proj === "arrow" ? "bow" : "wand", Math.atan2(fx.y - fx.y0, fx.x - fx.x0), 0, performance.now());
+          const now = performance.now();
+          if (this.localClock(now) - fx.t <= LOCAL_AUTO_STALE_MS) {
+            const predicted = this.projectiles.has(fx.id) ? undefined
+              : this.localAutos.consume("launch", fx.proj === "arrow" ? "bow" : "wand", now);
+            if (!this.projectiles.has(fx.id) && (!predicted || !this.localAutos.wasReleased(predicted))) {
+              this.fx.localAuto("launch", fx.proj === "arrow" ? "bow" : "wand", Math.atan2(fx.y - fx.y0, fx.x - fx.x0), 0, now);
+            }
+            this.projectiles.noteLocalEnd(fx, predicted);
           }
-          this.projectiles.noteLocalEnd(fx, predicted);
         }
         this.projectiles.noteEnd(fx);
       }

@@ -4,6 +4,7 @@
 // their own. When a shot stops a `projEnd` fx says where and why. That fx is played at render time, so it is kept
 // (flying, then pinned at its stop point) until FxView reports the fx due, and only then removed. One that was
 // reflected, deleted or destroyed does not stay pinned: something else carries on from there (see VANISHES).
+// Own cosmetic previews use the present server estimate, then reconcile with the owned authoritative launch/stop.
 import Phaser from "phaser";
 import { WEAPONS, type ProjectileEnd, type ProjectileKind, type ProjectileLaunch, type TimedFx, type Vec2 } from "@raid/shared";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";

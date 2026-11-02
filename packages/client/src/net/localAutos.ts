@@ -85,6 +85,14 @@ export class LocalAutos {
 
   wasReleased(id: string): boolean { return this.predictions.some(p => p.id === id && p.released); }
 
+  /** A locally controlled bow ignores delayed draw patches through the release/confirmation window. */
+  bowPull(now: number): number | undefined {
+    if (!this.predictions.some(p => p.weapon === "bow" && p.until >= now)) return undefined;
+    const draw = this.pending;
+    if (!draw || draw.visual.weapon !== "bow") return -1;
+    return Math.max(0, Math.min(1, (now - (draw.at - draw.visual.ms)) / draw.visual.ms));
+  }
+
   /** Cancels an unfinished cosmetic draw; recent releases remain matchable across a swap or death. */
   cancel(): void { this.cancelPending(); this.queuedUntil = -Infinity; this.key = ""; this.nextAt = 0; }
   reset(): void { this.cancel(); this.predictions.length = 0; }

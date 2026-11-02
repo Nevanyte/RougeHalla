@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
-import { fullDrawSeconds } from "../src/render/FighterArt";
+import { FighterArt, fullDrawSeconds } from "../src/render/FighterArt";
 import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { screenAngle } from "../src/render/projection";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
@@ -417,6 +417,26 @@ describe("PlayerView bow draw", () => {
 
   it("an older server with no mirror fields leaves them undefined: the unbuffed draw", () => {
     expect(glows({ asMult: undefined, windupMult: undefined }, null)).toBe(false);
+  });
+
+  it("applies local bow pull overrides only to the local player", () => {
+    const localScene = fakeScene();
+    const local = new PlayerView(localScene.scene, true);
+    const localArt = (local as unknown as { art: FighterArt }).art;
+    local.setLocalBowPull(0.75);
+    local.update(0, 0, player({ weapon0: "bow", drawStartedAt: 0 }), 1000, 1000);
+    expect(localArt.pull).toBe(0.75);
+    local.setLocalBowPull(-1);
+    local.update(0, 0, player({ weapon0: "bow", drawStartedAt: 1000 }), 1100, 1200);
+    expect(localArt.pull).toBe(-1);
+
+    const remoteScene = fakeScene();
+    const remote = new PlayerView(remoteScene.scene, false);
+    const remoteArt = (remote as unknown as { art: FighterArt }).art;
+    remote.setLocalBowPull(0.75); // ignored because this view is not the local player
+    const draw = player({ weapon0: "bow", drawStartedAt: 1000 });
+    remote.update(0, 0, draw, 1100, 1200);
+    expect(remoteArt.pull).toBeCloseTo(0.1 / fullDrawSeconds("fire"), 8);
   });
 });
 

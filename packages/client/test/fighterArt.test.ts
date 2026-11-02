@@ -74,6 +74,29 @@ describe("bow draw display", () => {
     art.update(bowman(0), 1260, 1300);
     expect(drawing()).toBe(false);
   });
+
+  it("uses a local pull override even when the delayed server draw is absent", () => {
+    const { art, drawing } = setup();
+    art.update(bowman(0), 1000, 1000, 0.4);
+    expect(art.pull).toBe(0.4);
+    expect(drawing()).toBe(true);
+  });
+
+  it("lets -1 suppress a stale server draw", () => {
+    const { art, drawing } = setup();
+    art.update(bowman(1000), 1100, 1200);
+    expect(drawing()).toBe(true);
+    art.update(bowman(1000), 1116, 1200, -1);
+    expect(art.pull).toBe(-1);
+    expect(drawing()).toBe(false);
+  });
+
+  it("leaves the server draw tracker in control when the override is undefined", () => {
+    const { art, drawing } = setup();
+    art.update(bowman(1000), 1100, 1200, undefined);
+    expect(art.pull).toBeCloseTo(0.1 / fullDrawSeconds("sentenced"), 8);
+    expect(drawing()).toBe(true);
+  });
 });
 
 describe("bow draw start under a chill", () => {

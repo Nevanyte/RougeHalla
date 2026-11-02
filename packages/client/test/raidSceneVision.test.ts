@@ -5,7 +5,7 @@ import { RaidVision } from "../src/render/RaidVision";
 
 vi.mock("phaser", () => ({default: {Scene: class {}}}));
 vi.mock("../src/render/PlayerView", () => ({PlayerView: class {
-  update = vi.fn(); destroy = vi.fn();
+  update = vi.fn(); destroy = vi.fn(); setLocalBowPull = vi.fn();
 }}));
 vi.mock("../src/render/MobView", () => ({MobView: class {
   update = vi.fn(); destroy = vi.fn();

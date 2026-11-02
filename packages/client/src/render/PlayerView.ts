@@ -105,6 +105,8 @@ export class PlayerView {
   private readonly buildMarks: Phaser.GameObjects.Container;
   private readonly title: Phaser.GameObjects.Text;
   private readonly art: FighterArt;
+  /** The local attack scheduler's bow pull; undefined leaves the delayed server draw track in charge. */
+  private localBowPull: number | undefined;
   private readonly signatures: SignatureArt;
   private readonly status: StatusArt;
   /** The ground under it: flames, ripples, a skid streak, a resting ring. A scene object one depth under the container, not a child. Made the first time it has something to show, so a map without hazards (and the hub) allocates none. */
@@ -216,6 +218,11 @@ export class PlayerView {
     if (this.look) this.applyGold(this.look);
   }
 
+  /** Overrides the synced bow draw for the local fighter; -1 suppresses a stale draw until the server catches up. */
+  setLocalBowPull(pull: number | undefined): void {
+    this.localBowPull = pull;
+  }
+
   /**
    * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
    * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
@@ -257,7 +264,7 @@ export class PlayerView {
     this.setUsing({ faction: p.faction || undefined, weapon: held ?? undefined });
     const face = facing ?? p.facing;
     this.fig.frame(x, y, face, renderT, now); // juice: before the art, which reads the weapon's turn
-    const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT);
+    const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT, this.isLocal ? this.localBowPull : undefined);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
     this.label.setText(displayName(p));
     this.markPlate.update(signatures ? p.markTier : 0, signatures ? p.markTax : 0, signatures ? p.sig : 0, markDim, this.label.width);

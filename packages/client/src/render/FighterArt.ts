@@ -306,7 +306,7 @@ export class FighterArt {
    * stopped (the state ran ahead of what is drawn, so the pull is kept until render time reaches that moment).
    * Returns the weapon in hand (fists for the empty hand of a fighter with a faction).
    */
-  update(f: FighterFields, renderT: number, patchT: number): WeaponId | null {
+  update(f: FighterFields, renderT: number, patchT: number, bowPullOverride?: number): WeaponId | null {
     const weapon = heldWeapon(f);
     // Tracked every frame, not only with a bow in hand, so a draw that a swap cancelled can't linger.
     const drawing = this.draw.track(f.drawStartedAt, renderT, patchT);
@@ -317,7 +317,8 @@ export class FighterArt {
       : undefined;
     const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.asMult, f.windupMult, profile, npcRate) : 0;
     // Clamped at both ends: a chill can leave the start a few ms ahead of render time while the draw is on screen.
-    const pull = full > 0 ? Math.max(0, Math.min(1, (renderT - this.draw.start) / 1000 / full)) : -1;
+    const trackedPull = full > 0 ? Math.max(0, Math.min(1, (renderT - this.draw.start) / 1000 / full)) : -1;
+    const pull = bowPullOverride === undefined ? trackedPull : bowPullOverride < 0 ? -1 : clamp01(bowPullOverride);
     this.pull = pull;
 
     this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing) + this.poseRot);

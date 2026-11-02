@@ -13,6 +13,18 @@ function setup() {
 }
 
 describe("LocalAutos timeline", () => {
+  it("drives the local bow pull from press to release and suppresses the delayed server draw afterward", () => {
+    const { autos, visuals, emit, input } = setup();
+    const bow = input({ key: "0:bow", weapon: "bow", windupMs: 400, intervalMs: 800 });
+    expect(autos.bowPull(0)).toBeUndefined();
+    autos.press(bow, 100, emit);
+    expect(autos.bowPull(100)).toBe(0);
+    expect(autos.bowPull(300)).toBe(0.5);
+    autos.frame({ ...bow, held: false }, 500, emit);
+    expect(visuals.at(-1)?.kind).toBe("launch");
+    expect(autos.bowPull(501)).toBe(-1);
+    expect(autos.bowPull(3000)).toBeUndefined();
+  });
   it("shows a melee click on the press call and continues on cadence without waiting for network confirmation", () => {
     const { autos, visuals, emit, input } = setup();
     autos.press(input({ held: true }), 100, emit);

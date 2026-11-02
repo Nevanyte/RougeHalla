@@ -167,4 +167,36 @@ describe("local autos wired through RaidScene and FxView", () => {
     expect(localAutos.wasReleased("local-auto-1")).toBe(false);
     fx.destroy();
   });
+
+  it("drops stale own attack and recoil cosmetics without consuming a newer preview or skipping server hits", () => {
+    vi.spyOn(performance, "now").mockReturnValue(5_100);
+    const { fx, pose, localAutos, raid, projectiles } = wiredScene();
+    const localAutoCue = vi.spyOn(fx, "localAuto");
+    const launchCue = vi.spyOn(pose, "launch");
+    const enqueue = vi.spyOn(fx, "enqueue");
+    const bow = { key: "0:bow", weapon: "bow" as const, a: 0.2, held: true, enabled: true, intervalMs: 900, windupMs: 300, readyInMs: 0 };
+    localAutos.press(bow, 5_000, (visual) => raid.showLocalAuto(visual, 5_000));
+    expect(localAutoCue).toHaveBeenCalledTimes(1); // the fresh predicted windup
+
+    const oldLaunch: ProjectileLaunch = { id: "old-arrow", ownerId: "me", kind: "arrow", x: 5, y: 6, vx: 900, vy: 0, t: 1_000, range: 520 };
+    raid.onFxBatch(packFx([
+      { kind: "windup", by: "me", weapon: "sword", a: 0.5, ms: 250 },
+      { kind: "swing", by: "me", weapon: "axe", x: -50, y: -60, a: 0.7 },
+      { kind: "hit", id: "foe", by: "me", amount: 15, weapon: "axe" },
+      { kind: "projEnd", id: "old-stop", ownerId: "me", proj: "arrow", x0: 0, y0: 0, t0: 900, x: 20, y: 0, reason: "range" },
+    ], 1_000, { launches: [oldLaunch], roster: new Map([["me", 0], ["foe", 1]]) }));
+    expect(localAutoCue).toHaveBeenCalledTimes(1);
+    expect(launchCue).not.toHaveBeenCalled();
+    expect(localAutos.wasReleased("local-auto-1")).toBe(false);
+    expect(projectiles.has("old-arrow")).toBe(true); // stale FX still update the authoritative projectile view
+    expect(projectiles.has("old-stop")).toBe(true);
+    expect(enqueue.mock.calls.some(([event]) => event.kind === "hit")).toBe(true);
+
+    localAutos.frame({ ...bow, held: false, a: 1.1 }, 5_300, (visual) => raid.showLocalAuto(visual, 5_300));
+    expect(localAutoCue).toHaveBeenCalledTimes(2); // the still-pending current draw gets its one release
+    expect(launchCue).toHaveBeenCalledTimes(1);
+    expect(localAutos.wasReleased("local-auto-1")).toBe(true);
+    expect(projectiles.has("local-auto-1")).toBe(true);
+    fx.destroy();
+  });
 });
