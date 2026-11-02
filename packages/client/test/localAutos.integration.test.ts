@@ -29,7 +29,7 @@ function wiredScene() {
     fx: FxView;
     projectiles: ProjectileView;
     localAutos: LocalAutos;
-    room: { sessionId: string; state: { roster: string[]; players: Map<string, unknown> } };
+    room: { sessionId: string; state: { roster: string[]; players: Map<string, unknown>; serverTime: number } };
     ground: { combat: { note: (event: unknown) => void } };
     predict: { noteFx: (...args: unknown[]) => void; confirmPredictedRangedPause: (...args: unknown[]) => void };
     visiblePosition: (id: string) => { x: number; y: number } | undefined;
@@ -37,11 +37,12 @@ function wiredScene() {
     warnDropped: () => void;
     showLocalAuto: (visual: AutoVisual, now: number) => void;
     onFxBatch: (batch: FxBatch) => void;
+    flushConfirmedDamage: (state: unknown, now: number) => void;
   };
   raid.fx = fx;
   raid.projectiles = projectiles;
   raid.localAutos = localAutos;
-  raid.room = { sessionId: "me", state: { roster: ["me", "foe"], players: new Map([["me", {}]]) } };
+  raid.room = { sessionId: "me", state: { roster: ["me", "foe"], players: new Map([["me", {}]]), serverTime: 0 } };
   raid.ground = { combat: { note: (event) => groundNotes.push(event) } };
   raid.predict = { noteFx: (...args) => predictNotes.push(args), confirmPredictedRangedPause: vi.fn() };
   raid.visiblePosition = (id) => positions[id];
@@ -147,10 +148,17 @@ describe("local autos wired through RaidScene and FxView", () => {
     expect(groundNotes).toHaveLength(2);
     expect(predictNotes).toHaveLength(2);
 
-    fx.update(5_100, 5_100, true);
+    // Render time a delay behind the patch: the own blow is not on FxView's render-time queue.
+    fx.update(5_000, 5_100, true);
+    expect(landed).toEqual([]);
+    raid.room.state.serverTime = 5_100;
+    raid.flushConfirmedDamage(raid.room.state, 5_100);
     expect(landed).toEqual([25]);
     expect(hurt).toEqual([]);
     expect(ofKind("graphics")).toHaveLength(2); // one sweep and the authoritative hit impact
+    fx.update(5_100, 5_116, true);
+    raid.flushConfirmedDamage(raid.room.state, 5_116);
+    expect(landed).toEqual([25]);
     fx.destroy();
   });
 
@@ -209,7 +217,7 @@ describe("local autos wired through RaidScene and FxView", () => {
 
   it("drops stale own attack and recoil cosmetics without consuming a newer preview or skipping server hits", () => {
     vi.spyOn(performance, "now").mockReturnValue(5_100);
-    const { fx, pose, localAutos, raid, projectiles } = wiredScene();
+    const { fx, pose, localAutos, raid, projectiles, landed } = wiredScene();
     const localAutoCue = vi.spyOn(fx, "localAuto");
     const launchCue = vi.spyOn(pose, "launch");
     const enqueue = vi.spyOn(fx, "enqueue");
@@ -229,7 +237,11 @@ describe("local autos wired through RaidScene and FxView", () => {
     expect(localAutos.wasReleased("local-auto-1")).toBe(false);
     expect(projectiles.has("old-arrow")).toBe(true); // stale FX still update the authoritative projectile view
     expect(projectiles.has("old-stop")).toBe(true);
-    expect(enqueue.mock.calls.some(([event]) => event.kind === "hit")).toBe(true);
+    // The old own blow skips the render-time queue and still lands with its patch.
+    expect(enqueue.mock.calls.some(([event]) => event.kind === "hit")).toBe(false);
+    raid.room.state.serverTime = 1_000;
+    raid.flushConfirmedDamage(raid.room.state, 5_100);
+    expect(landed).toEqual([15]);
 
     localAutos.frame({ ...bow, held: false, a: 1.1 }, 5_300, (visual) => raid.showLocalAuto(visual, 5_300));
     expect(localAutoCue).toHaveBeenCalledTimes(2); // the still-pending current draw gets its one release

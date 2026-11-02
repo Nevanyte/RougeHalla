@@ -5,6 +5,9 @@
 // Per trace and setting: the delay drawn (mean, p95, max), starvation (frames where render time is past the newest patch: the
 // buffer would hold and the fighter freeze), how far past (p99 / max, ms), the longest run, frames where render time ran
 // backwards, and the render clock's speed over 1 s windows. Every moving fighter would be starved on a starved frame.
+// `fx wait`: from each patch's arrival to the first frame whose render time reaches its server time, the wait an fx played at render
+// time pays after its step's batch arrived; `patch wait` is the same to the first frame after the arrival, what an fx presented with
+// its state patch pays (RaidScene's confirmed hits on the local player and its own melee blows).
 import fs from "node:fs";
 import { RenderClock, ServerClock, INTERP_DELAY_MS, type RenderClockOptions } from "@raid/shared";
 
@@ -15,6 +18,7 @@ interface Row {
   lagMean: number;
   name: string; delayMean: number; delayP95: number; delayMax: number;
   starvedPct: number; overP99: number; overMax: number; longestMs: number; backwards: number; speedMin: number; speedMax: number;
+  fxWaitMean: number; fxWaitP95: number; patchWaitMean: number; patchWaitP95: number;
 }
 
 const FRAME = 1000 / 144;
@@ -50,12 +54,17 @@ export function evaluate(arrivals: number[][], s: Setting): Row {
   const last = arrivals[arrivals.length - 1]![0]!;
   // Skip the first seconds: the estimator warms up, and the first run of a session is not the steady state.
   const warm = first + 6000;
+  const fxWaits: number[] = [];
+  const patchWaits: number[] = [];
+  /** Patches whose render time has not come yet: [arrival, server time]. */
+  const waiting: Array<[number, number]> = [];
   for (let now = first; now <= last; now += FRAME) {
     while (i < arrivals.length && arrivals[i]![0]! <= now) {
       const [at, t] = arrivals[i]! as [number, number];
       if (rc) rc.onPatch(t, at);
       else if (!pendingLegacy || t > pendingLegacy.t) pendingLegacy = { t, at };
       if (t > newestT) newestT = t;
+      if (at >= warm) { patchWaits.push(now - at); waiting.push([at, t]); }
       i++;
     }
     let r: number;
@@ -67,6 +76,11 @@ export function evaluate(arrivals: number[][], s: Setting): Row {
       if (pendingLegacy) { legacyClock!.observe(pendingLegacy.t, pendingLegacy.at); pendingLegacy = null; }
       r = legacyClock!.renderTime(now);
       delay = INTERP_DELAY_MS;
+    }
+    for (let k = waiting.length - 1; k >= 0; k--) {
+      if (waiting[k]![1] > r) continue;
+      fxWaits.push(now - waiting[k]![0]);
+      waiting.splice(k, 1);
     }
     if (now < warm) { prevR = r; prevNow = now; continue; }
     frames++;
@@ -95,8 +109,12 @@ export function evaluate(arrivals: number[][], s: Setting): Row {
   void prevNow;
   delays.sort((a, b) => a - b);
   overs.sort((a, b) => a - b);
+  fxWaits.sort((a, b) => a - b);
+  patchWaits.sort((a, b) => a - b);
   const q = (v: number[], p: number) => (v.length ? v[Math.min(v.length - 1, Math.floor(p * v.length))]! : 0);
+  const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / Math.max(1, v.length);
   return {
+    fxWaitMean: mean(fxWaits), fxWaitP95: q(fxWaits, 0.95), patchWaitMean: mean(patchWaits), patchWaitP95: q(patchWaits, 0.95),
     name: s.name, lagMean: lags.reduce((a, b) => a + b, 0) / Math.max(1, lags.length),
     delayMean: delays.reduce((a, b) => a + b, 0) / Math.max(1, delays.length), delayP95: q(delays, 0.95), delayMax: delays[delays.length - 1] ?? 0,
     starvedPct: (100 * starved) / Math.max(1, frames), overP99: q(overs, 0.99), overMax: overs[overs.length - 1] ?? 0, longestMs: longest,
@@ -123,7 +141,8 @@ export function formatRow(r: Row): string {
   const f = (v: number, d = 1) => v.toFixed(d);
   return `${r.name.padEnd(34)} lag ${f(r.lagMean).padStart(5)} delay ${f(r.delayMean).padStart(5)} p95 ${f(r.delayP95).padStart(5)} max ${f(r.delayMax).padStart(5)}   ` +
     `starved ${f(r.starvedPct, 2).padStart(5)}%  over p99 ${f(r.overP99).padStart(5)} max ${f(r.overMax).padStart(5)}  longest ${f(r.longestMs).padStart(5)} ms   ` +
-    `back ${String(r.backwards).padStart(3)}  speed ${f(r.speedMin, 3)}..${f(r.speedMax, 3)}`;
+    `back ${String(r.backwards).padStart(3)}  speed ${f(r.speedMin, 3)}..${f(r.speedMax, 3)}   ` +
+    `fx wait ${f(r.fxWaitMean).padStart(5)} p95 ${f(r.fxWaitP95).padStart(5)}  patch wait ${f(r.patchWaitMean).padStart(4)} p95 ${f(r.patchWaitP95).padStart(4)}`;
 }
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
@@ -152,6 +171,8 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
         starvedPct: sum((r) => r.starvedPct), overP99: sum((r) => r.overP99), overMax: Math.max(...rows.map((r) => r.overMax)),
         longestMs: Math.max(...rows.map((r) => r.longestMs)), backwards: rows.reduce((x, r) => x + r.backwards, 0),
         speedMin: Math.min(...rows.map((r) => r.speedMin)), speedMax: Math.max(...rows.map((r) => r.speedMax)),
+        fxWaitMean: sum((r) => r.fxWaitMean), fxWaitP95: sum((r) => r.fxWaitP95),
+        patchWaitMean: sum((r) => r.patchWaitMean), patchWaitP95: sum((r) => r.patchWaitP95),
       };
       console.log(formatRow(merged));
     }

@@ -1,5 +1,6 @@
 // Visual-only combat effects. Server impacts and remote attacks wait until the delayed render clock reaches `t`.
-// Own auto animations enter through localAuto on the input clock and follow the local drawn fighter.
+// Own auto animations enter through localAuto on the input clock and follow the local drawn fighter; hits on the local player and
+// its own melee blows on others are presented by the scene with their state patch (confirmedLocalHit, confirmedOwnBlow).
 // Effects are driven from update(), not tweens or timers: nothing
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
@@ -7,6 +8,7 @@ import {
   ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, isAbilityDot, isDot,
   type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx, type WeaponId,
 } from "@raid/shared";
+import { isOwnArcBlow } from "../net/confirmedDamage";
 import { ELITE_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
 import type { ToastTone } from "../ui/toast";
@@ -60,8 +62,11 @@ const CAMP_RING_WIDTH = 280;
 const CAMP_RING_DEDUPE_MS = 250;
 /** Launch cues wait in a queue of their own, so a stalled tab's flood of them can never push a real fx out of `pending`. */
 const MAX_LAUNCH_CUES = 48;
-/** A juice cue (figure reaction, camera shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
-const FRESH_MS = 250;
+/**
+ * A juice cue (figure reaction, camera shake, recoil) only plays for an event this near render time (or, for one presented with
+ * its state patch, this near the patch): a replay after a stall stays quiet.
+ */
+export const FX_FRESH_MS = 250;
 /** How far from a launch's origin the shooter may be drawn after interpolation. */
 const LAUNCH_NEAR = 56;
 
@@ -240,6 +245,23 @@ export class FxView {
   confirmedLocalHit(fx: FxOf<"hit">, now: number): void {
     if (this.destroyed || fx.kind !== "hit" || fx.id !== this.host.localId || !Number.isFinite(now)) return;
     this.hit(fx, now, true);
+  }
+
+  /**
+   * Plays the local player's own swing landing on another fighter (a hit, or a block on their shield) beside the state patch that
+   * confirms it, rather than at render time: the swing itself already played on the input clock. `juice` false keeps the screen
+   * still (a backlog behind the patch, as after a stalled tab). It is never queued.
+   */
+  confirmedOwnBlow(fx: FxOf<"hit"> | FxOf<"block">, now: number, juice = true): void {
+    if (this.destroyed || !Number.isFinite(now) || !isOwnArcBlow(fx, this.host.localId, false)) return;
+    if (fx.kind === "block") this.block(fx, now);
+    else this.hit(fx, now, juice);
+  }
+
+  /** The local player was staggered: its stars play as the fx arrives, where the scene cancels its own attack (the queue never sees it). */
+  localStagger(now: number): void {
+    if (this.destroyed || !Number.isFinite(now)) return;
+    this.mark(this.host.localId, now);
   }
 
   /** Own auto animations use the input clock; hits and damage numbers still arrive through enqueue. */
@@ -511,7 +533,8 @@ export class FxView {
     this.active.push({ kind: "swing", g, text: null, start: now, duration: SWING_MS, id: fx.by, x: pos.x, y: pos.y, a: 0 });
   }
 
-  private hit(fx: FxOf<"hit">, now: number, confirmedLocalNow = false): void {
+  /** `juice`: whether the screen reacts to a blow; undefined = only while it is fresh in render time. */
+  private hit(fx: FxOf<"hit">, now: number, juice?: boolean): void {
     if (fx.id === this.host.localId) this.host.localHit?.(fx);
     const dot = isDot(fx.sig) || isAbilityDot(fx.ability) || (fx.weapon === null && fx.sig === undefined && fx.ability === undefined);
     // Damage over time is a steady drip, not a blow: no body flash for it.
@@ -522,7 +545,7 @@ export class FxView {
     if (fx.by === null || !(fx.amount > 0)) return;
     const pos = this.host.position(fx.id);
     if (!pos) return;
-    if (!dot && fx.sig === undefined) this.blow(fx, pos, now, confirmedLocalNow);
+    if (!dot && fx.sig === undefined) this.blow(fx, pos, now, juice);
     let amount = Math.max(1, Math.round(fx.amount));
     let color: string;
     let size: number;
@@ -550,7 +573,7 @@ export class FxView {
    * What a blow does to the one it lands on, beyond the flash and the number: the figure is shoved and pops, a bloom and a
    * few dots fly off, and, for the local player's own blows (landed or taken), the figure and camera react.
    */
-  private blow(fx: FxOf<"hit">, pos: { x: number; y: number }, now: number, confirmedLocalNow = false): void {
+  private blow(fx: FxOf<"hit">, pos: { x: number; y: number }, now: number, juice?: boolean): void {
     const from = fx.by === null ? undefined : this.host.position(fx.by);
     const away = from && (from.x !== pos.x || from.y !== pos.y) ? Math.atan2(pos.y - from.y, pos.x - from.x) : null;
     this.host.view(fx.id)?.cues?.hit(away, now);
@@ -562,14 +585,14 @@ export class FxView {
       });
       this.impacts++;
     }
-    if (!confirmedLocalNow && !this.fresh(fx.t)) return;
+    if (!(juice ?? this.fresh(fx.t))) return;
     if (fx.id === this.host.localId) this.host.localHurt?.(fx);
     else if (fx.by === this.host.localId) this.host.localLanded?.(fx);
   }
 
   /** An event for the screen to react to now: not one replayed after a stall, which would shake the camera all at once. */
   private fresh(t: number): boolean {
-    return !this.synced || this.renderT - t <= FRESH_MS;
+    return !this.synced || this.renderT - t <= FX_FRESH_MS;
   }
 
   /** A projectile left: kick back whoever it left from, the one drawn nearest its origin. */
