@@ -2,7 +2,7 @@
 // headless bots and the mobs on, and prints one table. Each profile starts its own server (a temp profile file) and bots, and kills
 // them afterwards.
 //   npx tsx packages/server/bench/netProbeMatrix.ts [--port 2620] [--seconds 60] [--bots 7] [--tag name] [--out dir]
-//        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1]
+//        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1] [--hz 144] [--steer frame|event|mixed] [--tmp dir]
 // A profile is rtt[:jitter[:loss%]] in ms and percent. Output: <out>/<tag>-<profile>.json per profile and the table on stdout.
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
@@ -67,13 +67,19 @@ export interface MatrixOptions {
   training?: boolean;
   faction?: string;
   render?: Record<string, number>;
+  /** Frame rate of the probe's loop. */
+  hz?: number;
+  /** A WASD player whose key events are sent at the next frame or from the event (see ProbeOptions.steer). */
+  steer?: "frame" | "event" | "mixed";
+  /** Where each profile's temporary profile file lives (default: the OS temp dir). */
+  tmp?: string;
 }
 
 export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
   fs.mkdirSync(o.out, { recursive: true });
   const reports: ProbeReport[] = [];
   for (const p of o.profiles) {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-probe-"));
+    const dir = fs.mkdtempSync(path.join(o.tmp ?? os.tmpdir(), "raid-probe-"));
     let server: ChildProcess | undefined;
     let bots: ChildProcess | undefined;
     try {
@@ -88,7 +94,7 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
       if (!o.training) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
       await sleep(1500);
       console.error(`[matrix] ${o.tag} ${p.name}: probing ${o.seconds} s ...`);
-      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training, faction: o.faction });
+      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training, faction: o.faction, hz: o.hz, steer: o.steer });
       fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}.json`), JSON.stringify(r));
       console.log(formatReport(r));
       reports.push(r);
@@ -112,6 +118,9 @@ function main(): void {
     profiles: get("--profiles", "0,30:5,60:10,120:20,30:5:1,60:10:1").split(",").map(parseProfile),
     legacy: a.includes("--legacy"), trace: a.includes("--trace"), wish: a.includes("--wish"), training: a.includes("--training"),
     ...(a.includes("--faction") ? { faction: get("--faction", "fire") } : {}),
+    ...(a.includes("--tmp") ? { tmp: path.resolve(get("--tmp", "")) } : {}),
+    ...(a.includes("--hz") ? { hz: Number(get("--hz", "144")) } : {}),
+    ...(a.includes("--steer") ? { steer: get("--steer", "frame") as "frame" | "event" | "mixed" } : {}),
     ...(a.includes("--render") ? { render: JSON.parse(get("--render", "{}")) as Record<string, number> } : {}),
   };
   runMatrix(opts).then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });

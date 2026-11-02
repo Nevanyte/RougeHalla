@@ -17,6 +17,8 @@
 //                fighter to the server's own path where the prediction aims it (S(c + delay)), and how far it leads the newest sample
 //   orders       wall-clock delay from sending a move to the first patch that shows its seq, the prediction's own delay estimate,
 //                and what became of each lock click (shown by the server, or refused)
+//   keys         with --steer: a WASD player (taps, holds, turns, chords) instead of the mouse script; the wall-clock delay from each key
+//                event to the first patch that shows the order carrying it, and from the event to the message leaving
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
@@ -28,6 +30,7 @@ import {
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import type { RenderClockOptions } from "@raid/shared";
 import { EntityInterpolator } from "../../client/src/net/interpolation";
+import { keyboardMoveGoal, steerDue } from "../../client/src/net/keyboardMovement";
 import { JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS, seqAcked, type LocalMotion } from "../../client/src/net/localMotion";
 import { castUnanswered, LocalPrediction, type SentCast } from "../../client/src/net/localPrediction";
 
@@ -54,6 +57,15 @@ export interface ProbeOptions {
   wish?: boolean;
   /** A training room instead of an arena run: nothing moves but the probe, a Wish is ready every 5 s, and `seconds` counts the time alive. */
   training?: boolean;
+  /**
+   * A keyboard player instead of the mouse script (the aim still streams). `frame`: a key event is sent at the next frame, the
+   * prediction told first (the client before M3); `event`: sent from the key event itself, bytes first (RaidScene.handleKey/onKeyUp).
+   * The same seed gives the same key schedule in both, so the two runs differ in when the order leaves, not in what is pressed.
+   * `mixed`: each gesture picks one of the two at random (from the key stream), so both are measured in ONE run on the same link
+   * and server, paired; run-to-run differences in the network (3-7 ms of send-to-ack between two otherwise equal runs) are larger
+   * than the effect.
+   */
+  steer?: "frame" | "event" | "mixed";
 }
 
 export interface Dist { n: number; p50: number; p95: number; p99: number; max: number; min: number; mean: number }
@@ -109,6 +121,8 @@ export interface ProbeReport {
     lead: Dist;
     delayEstimate: Dist;
     walkingFrames: number;
+    /** With --steer: the same health split by the dispatch mode of the latest key event (both fill in a `mixed` run). */
+    byMode: Record<"frame" | "event", { frames: number; divergenceDrops: number; snaps: number; visualOffset: Dist; errAtDelay: Dist }>;
   };
   wish: {
     casts: number;
@@ -128,6 +142,21 @@ export interface ProbeReport {
     /** Casts after which the drawn fighter made a second big step (more than 25 u) in the 2 s, beside the blink's own: a pop back. */
     popBacks: number;
     divergenceDropsInWindows: number;
+  };
+  keys: {
+    /** Key presses and releases the script made, and the move/stop orders sent for them (the 100 ms repeat of a held key included). */
+    events: number;
+    orders: number;
+    /** The orders that carried at least one key event (the rest are the 100 ms repeat of a held key). */
+    eventOrders: number;
+    /** From each key event to its order leaving: 0 when sent from the event, the wait for the frame otherwise. */
+    keyToSendMs: Dist;
+    /** From each key event to the first patch that shows its order (or a later one) applied. */
+    keyAckWallMs: Dist;
+    /** Orders the server skipped over because a later one of the same tick covered them. */
+    supersededInTick: number;
+    /** The same two distributions per dispatch mode (both are filled in a `mixed` run), with the raw samples for a paired test. */
+    byMode: Record<"frame" | "event", { keyToSendMs: Dist; keyAckWallMs: Dist; sendSamples: number[]; ackSamples: number[] }>;
   };
   orders: {
     moves: number;
@@ -193,11 +222,22 @@ class Metrics {
   divergenceDrops = 0;
   visual: number[] = [];
   err: number[] = [];
+  predFrames: Record<"frame" | "event", number> = { frame: 0, event: 0 };
+  predDiv: Record<"frame" | "event", number> = { frame: 0, event: 0 };
+  predSnaps: Record<"frame" | "event", number> = { frame: 0, event: 0 };
+  predVisual: Record<"frame" | "event", number[]> = { frame: [], event: [] };
+  predErr: Record<"frame" | "event", number[]> = { frame: [], event: [] };
   lead: number[] = [];
   delayEst: number[] = [];
   walkingFrames = 0;
   moves = 0;
   ackWall: number[] = [];
+  keyEvents = 0;
+  keyOrders = 0;
+  keyEventOrders = 0;
+  keyToSend: Record<"frame" | "event", number[]> = { frame: [], event: [] };
+  keyAckWall: Record<"frame" | "event", number[]> = { frame: [], event: [] };
+  keySuperseded = 0;
   locks = 0;
   locksShown = 0;
   locksRefused = 0;
@@ -265,8 +305,20 @@ class Session {
   private aimAngle = 0;
   private aimOn = true;
   private patchTrace: Trace[] = [];
+  // The keyboard script (opts.steer): its own random stream, so a seed gives one schedule whatever the mode.
+  private readonly keyRnd: () => number;
+  private readonly keysHeld = new Set<string>();
+  private keyQueue: Array<{ at: number; down: boolean; code: string; mode: "frame" | "event" }> = [];
+  /** The dispatch mode of the latest key event: `event` sends the message before the path search too. */
+  private curMode: "frame" | "event" = "frame";
+  private nextGestureAt = 0;
+  private keyChanged = false;
+  private keyWasMoving = false;
+  private lastSteerAt = -Infinity;
+  private pendingKeyAts: Array<{ at: number; mode: "frame" | "event" }> = [];
+  private keyOrders: Array<{ seq: number; keyAts: Array<{ at: number; mode: "frame" | "event" }>; sentAt: number }> = [];
   readonly arrivals: number[][] = [];
-  private frameLog: Array<{ now: number; c: number; x: number; y: number; delay: number; visual: number }> = [];
+  private frameLog: Array<{ now: number; c: number; x: number; y: number; delay: number; visual: number; mode: "frame" | "event" }> = [];
   private dead = false;
   private resultIn = false;
   /** The frame being run counts (alive in a running raid). */
@@ -284,6 +336,7 @@ class Session {
     this.interp = new EntityInterpolator({ adaptive: opts.legacy ? false : true, render: opts.render });
     this.sid = room.sessionId;
     this.rnd = mulberry32(seed);
+    this.keyRnd = mulberry32(seed * 7919 + 17);
     this.map = generateMap(room.state.seed);
     this.instrument(this.predict.motion);
     room.onStateChange((state) => this.onPatch(state, performance.now()));
@@ -306,6 +359,7 @@ class Session {
       const who = /at (?:LocalMotion\.)?(rebase|observe|frame|noteDivergence)\b/.exec(stack.split("\n").slice(2).join("\n"))?.[1] ?? "other";
       this.m.snaps[who] = (this.m.snaps[who] ?? 0) + 1;
       this.snapLog.push({ at: performance.now(), who });
+      this.m.predSnaps[this.curMode]++;
       return snap(...args);
     };
     const div = raw.noteDivergence!.bind(motion);
@@ -313,7 +367,7 @@ class Session {
       if (!this.measuring) return div(err);
       const before = (raw as unknown as { path: unknown[] }).path.length;
       const r = div(err);
-      if (before > 0 && (raw as unknown as { path: unknown[] }).path.length === 0) { this.m.divergenceDrops++; this.divLog.push(performance.now()); }
+      if (before > 0 && (raw as unknown as { path: unknown[] }).path.length === 0) { this.m.divergenceDrops++; this.m.predDiv[this.curMode]++; this.divLog.push(performance.now()); }
       return r;
     };
   }
@@ -362,9 +416,23 @@ class Session {
         if (sent !== undefined && this.active(state)) { this.m.ackWall.push(now - sent); this.sendAt.delete(me.moveSeq); }
         this.lastSeqSeen = me.moveSeq;
       }
+      this.noteKeyAcks(me.moveSeq, now, state);
       this.noteLock(me, now);
       if (me.status === "dead") this.dead = true;
     }
+  }
+
+  /** Every key order the patch's `moveSeq` covers is applied: the delay of each key event it carried, from the event itself. */
+  private noteKeyAcks(moveSeq: number, now: number, state: RaidState): void {
+    if (this.keyOrders.length === 0 || moveSeq === 0) return;
+    const keep: typeof this.keyOrders = [];
+    for (const o of this.keyOrders) {
+      if (!seqAcked(o.seq, moveSeq)) { if (now - o.sentAt < 3000) keep.push(o); continue; }
+      if (!this.active(state)) continue;
+      if (o.seq !== moveSeq) this.m.keySuperseded++;
+      for (const k of o.keyAts) this.m.keyAckWall[k.mode].push(now - k.at);
+    }
+    this.keyOrders = keep;
   }
 
   private noteRemote(id: string, p: { x: number; y: number; status: string }): void {
@@ -450,6 +518,7 @@ class Session {
 
     // Orders, then the prediction, as the scene does it.
     if (active) this.script(now, c, me, state);
+    if (active && this.opts.steer) this.steerKeys(now, false);
     const dt = this.lastFrameAt > 0 ? now - this.lastFrameAt : 0;
     this.lastFrameAt = now;
     const others = this.others;
@@ -498,9 +567,11 @@ class Session {
 
     // Prediction health.
     this.m.visual.push(motion.visualOffset);
+    this.m.predFrames[this.curMode]++;
+    this.m.predVisual[this.curMode].push(motion.visualOffset);
     this.m.delayEst.push(motion.delay);
     if (motion.walking) this.m.walkingFrames++;
-    if (motion.ready) this.frameLog.push({ now, c, x: motion.drawn.x, y: motion.drawn.y, delay: motion.delay, visual: motion.visualOffset });
+    if (motion.ready) this.frameLog.push({ now, c, x: motion.drawn.x, y: motion.drawn.y, delay: motion.delay, visual: motion.visualOffset, mode: this.curMode });
     // Follow mode with no lock on the server.
     if (motion.mode === "follow" && me.attackTarget === "") {
       if (this.followRunStart === 0) this.followRunStart = now;
@@ -526,7 +597,7 @@ class Session {
     };
     const p = { x: 0, y: 0 };
     for (const f of this.frameLog) {
-      if (at(f.c + f.delay, p)) this.m.err.push(Math.hypot(f.x - p.x, f.y - p.y));
+      if (at(f.c + f.delay, p)) { const e = Math.hypot(f.x - p.x, f.y - p.y); this.m.err.push(e); this.m.predErr[f.mode].push(e); }
       if (at(f.c, p)) this.m.lead.push(Math.hypot(f.x - p.x, f.y - p.y));
     }
     // The two seconds after each blink: how far the drawn fighter was from where the server's path puts it, how big the smoothing
@@ -597,22 +668,113 @@ class Session {
     return state.gatesLocked ? withGates(this.map) : this.map;
   }
 
-  private sendMove(now: number, c: number, to: Vec2, state: RaidState): void {
+  private sendMove(now: number, c: number, to: Vec2, state: RaidState): number {
     const seq = this.predict.nextSeq();
     const map = this.planMap(state);
     const clamped = { x: Math.min(Math.max(to.x, 0), WORLD_W), y: Math.min(Math.max(to.y, 0), WORLD_H) };
+    // `event` mode is the client with the swap in RaidScene.orderMove: the message leaves before the path search.
+    if (this.curMode === "event") this.room.send("move", { x: clamped.x, y: clamped.y, seq });
     this.predict.motion.order("move", seq, c, clamped, map);
-    this.room.send("move", { x: clamped.x, y: clamped.y, seq });
+    if (this.curMode !== "event") this.room.send("move", { x: clamped.x, y: clamped.y, seq });
     this.sendAt.set(seq, now);
     this.m.moves++;
     this.lockOn = false;
+    return seq;
   }
 
-  private sendStop(now: number, c: number, state: RaidState): void {
+  private sendStop(now: number, c: number, state: RaidState): number {
     const seq = this.predict.nextSeq();
+    if (this.curMode === "event") this.room.send("stop", { seq });
     this.predict.motion.order("stop", seq, c, undefined, this.planMap(state));
-    this.room.send("stop", { seq });
+    if (this.curMode !== "event") this.room.send("stop", { seq });
     this.sendAt.set(seq, now);
+    return seq;
+  }
+
+  // ------------------------------------------------------------------------------------------------------------ the keyboard
+
+  /**
+   * The timer's every tick (about 1 ms), between frames as well: a key event happens here, at its own instant. In `event` mode
+   * it is sent now, as RaidScene.handleKey/onKeyUp do; in `frame` mode it only marks the change and the next frame sends it.
+   */
+  keyTick(now: number): void {
+    if (!this.opts.steer) return;
+    const state = this.room.state;
+    if (!state.players || !this.active(state)) {
+      this.keyQueue.length = 0;
+      this.keysHeld.clear();
+      return;
+    }
+    if (this.keyQueue.length === 0 && now >= this.nextGestureAt) this.planGesture(now);
+    while (this.keyQueue.length > 0 && this.keyQueue[0]!.at <= now) {
+      const e = this.keyQueue.shift()!;
+      if (e.down) this.keysHeld.add(e.code); else this.keysHeld.delete(e.code);
+      this.keyChanged = true;
+      this.curMode = e.mode;
+      this.pendingKeyAts.push({ at: now, mode: e.mode });
+      this.m.keyEvents++;
+      if (e.mode === "event") this.steerKeys(now, true);
+    }
+  }
+
+  /** What a person does with WASD: taps, holds, turns (release one key and press another a few ms apart) and chords. */
+  private planGesture(now: number): void {
+    const r = this.keyRnd;
+    const keys = ["KeyW", "KeyA", "KeyS", "KeyD"];
+    const pick = (not = "") => { let k = keys[Math.floor(r() * 4)]!; while (k === not) k = keys[Math.floor(r() * 4)]!; return k; };
+    const q: Array<{ at: number; down: boolean; code: string; mode: "frame" | "event" }> = [];
+    const k = pick();
+    const kind = r();
+    // Drawn whatever the option, so one seed is one schedule.
+    const dispatch = r() < 0.5 ? "event" : "frame";
+    const mode = this.opts.steer === "mixed" ? dispatch : (this.opts.steer ?? "frame");
+    let end = now;
+    if (kind < 0.4) {
+      end = now + 20 + r() * 130;
+      q.push({ at: now, down: true, code: k, mode }, { at: end, down: false, code: k, mode });
+    } else if (kind < 0.55) {
+      end = now + 400 + r() * 1100;
+      q.push({ at: now, down: true, code: k, mode }, { at: end, down: false, code: k, mode });
+    } else if (kind < 0.85) {
+      const k2 = pick(k);
+      const turn = now + 300 + r() * 500;
+      const skew = r() * 15;
+      end = turn + skew + 300 + r() * 500;
+      q.push({ at: now, down: true, code: k, mode }, { at: turn, down: false, code: k, mode }, { at: turn + skew, down: true, code: k2, mode }, { at: end, down: false, code: k2, mode });
+    } else {
+      const k2 = pick(k);
+      const skew = r() * 12;
+      end = now + 400 + r() * 600;
+      q.push({ at: now, down: true, code: k, mode }, { at: now + skew, down: true, code: k2, mode }, { at: end, down: false, code: k, mode }, { at: end + r() * 10, down: false, code: k2, mode });
+    }
+    q.sort((a, b) => a.at - b.at);
+    this.keyQueue = q;
+    this.nextGestureAt = q[q.length - 1]!.at + 40 + r() * 160;
+  }
+
+  /** RaidScene.steerKeyboard: one order to a short straight goal in the held direction, or a stop. */
+  private steerKeys(now: number, fromEvent: boolean): void {
+    const state = this.room.state;
+    const me = state.players.get(this.sid);
+    if (!me || !this.active(state)) return;
+    if (!steerDue({ changed: this.keyChanged, lastAt: this.lastSteerAt }, now, fromEvent)) return;
+    const motion = this.predict.motion;
+    const origin = motion.ready ? motion.drawn : me;
+    const goal = keyboardMoveGoal(this.planMap(state), origin, this.keysHeld);
+    const c = this.interp.clock.synced ? this.interp.clock.now(now) : state.serverTime;
+    let seq = 0;
+    if (goal) { seq = this.sendMove(now, c, goal, state); this.keyWasMoving = true; }
+    else if (this.keyWasMoving) { seq = this.sendStop(now, c, state); this.keyWasMoving = false; }
+    if (seq !== 0) {
+      this.m.keyOrders++;
+      if (this.pendingKeyAts.length > 0) this.m.keyEventOrders++;
+      for (const k of this.pendingKeyAts) this.m.keyToSend[k.mode].push(now - k.at);
+      this.keyOrders.push({ seq, keyAts: this.pendingKeyAts, sentAt: now });
+    }
+    // A change that sent nothing (a release with nothing to stop, opposite keys) has no order to wait for.
+    this.pendingKeyAts = [];
+    this.keyChanged = false;
+    this.lastSteerAt = now;
   }
 
   private randomReachable(from: Vec2, state: RaidState, min = 120, max = 520): Vec2 | null {
@@ -652,6 +814,7 @@ class Session {
       this.lastAimAt = now;
     }
     if (this.opts.wish) this.tryWish(now, c, me, state);
+    if (this.opts.steer) return; // the keyboard script moves the player, from keyTick and the frame's steerKeys
     if (now < this.holdUntil) {
       // Right button held: a move to the cursor every 100 ms, the cursor drifting.
       if (now >= this.holdNextAt) {
@@ -741,6 +904,7 @@ export async function runProbe(opts: ProbeOptions): Promise<ProbeReport> {
       let last = next;
       const timer = setInterval(() => {
         const now = performance.now();
+        session.keyTick(now);
         if (now < next) return;
         const gap = now - last;
         last = now;
@@ -781,12 +945,24 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
     prediction: {
       snaps: m.snaps, snapsTotal: Object.values(m.snaps).reduce((a, b) => a + b, 0), divergenceDrops: m.divergenceDrops,
       visualOffset: dist(m.visual), errAtDelay: dist(m.err), lead: dist(m.lead), delayEstimate: dist(m.delayEst), walkingFrames: m.walkingFrames,
+      byMode: {
+        frame: { frames: m.predFrames.frame, divergenceDrops: m.predDiv.frame, snaps: m.predSnaps.frame, visualOffset: dist(m.predVisual.frame), errAtDelay: dist(m.predErr.frame) },
+        event: { frames: m.predFrames.event, divergenceDrops: m.predDiv.event, snaps: m.predSnaps.event, visualOffset: dist(m.predVisual.event), errAtDelay: dist(m.predErr.event) },
+      },
     },
     wish: {
       casts: m.castsSent, accepted: m.castsAccepted, refused: m.castsRefused, unanswered: m.castsUnanswered,
       ackWallMs: dist(m.castAckWall), landingErr: dist(m.castLandingErr), visualMaxPerCast: dist(m.castVisualMax),
       errMaxPerCast: dist(m.castErrMax), errP95PerCast: dist(m.castErrP95), snapsInWindows: m.castSnaps, snapsByWho: m.castSnapsByWho,
       popBacks: m.castPopBacks, divergenceDropsInWindows: m.castDivDrops,
+    },
+    keys: {
+      events: m.keyEvents, orders: m.keyOrders, eventOrders: m.keyEventOrders, supersededInTick: m.keySuperseded,
+      keyToSendMs: dist([...m.keyToSend.frame, ...m.keyToSend.event]), keyAckWallMs: dist([...m.keyAckWall.frame, ...m.keyAckWall.event]),
+      byMode: {
+        frame: { keyToSendMs: dist(m.keyToSend.frame), keyAckWallMs: dist(m.keyAckWall.frame), sendSamples: m.keyToSend.frame, ackSamples: m.keyAckWall.frame },
+        event: { keyToSendMs: dist(m.keyToSend.event), keyAckWallMs: dist(m.keyAckWall.event), sendSamples: m.keyToSend.event, ackSamples: m.keyAckWall.event },
+      },
     },
     orders: {
       moves: m.moves, acked: m.ackWall.length, ackWallMs: dist(m.ackWall), locks: m.locks, locksShown: m.locksShown,
@@ -819,6 +995,15 @@ export function formatReport(r: ProbeReport): string {
       `landing err u ${d(r.wish.landingErr)}   per cast 2 s: err max u ${d(r.wish.errMaxPerCast)}  err p95 u ${d(r.wish.errP95PerCast)}  visual max u ${d(r.wish.visualMaxPerCast)}   ` +
       `snaps ${r.wish.snapsInWindows} ${JSON.stringify(r.wish.snapsByWho)}  div drops ${r.wish.divergenceDropsInWindows}  pop backs ${r.wish.popBacks}`,
     ] : []),
+    ...(r.keys.events > 0 ? [
+      `keys      events ${r.keys.events} orders ${r.keys.orders} (for events ${r.keys.eventOrders}) superseded ${r.keys.supersededInTick}`,
+      ...(["frame", "event"] as const).filter((mode) => r.keys.byMode[mode].keyToSendMs.n > 0).map((mode) => {
+        const b = r.keys.byMode[mode];
+        const pm = r.prediction.byMode[mode];
+        return `  ${mode.padEnd(5)}  n ${b.keyToSendMs.n}  key->send ms mean ${f2(b.keyToSendMs.mean)} p95 ${f2(b.keyToSendMs.p95)}   key->ack ms mean ${f1(b.keyAckWallMs.mean)} p50 ${f1(b.keyAckWallMs.p50)} p95 ${f1(b.keyAckWallMs.p95)}` +
+          `   | predict: ${pm.frames} frames, div drops ${pm.divergenceDrops}, snaps ${pm.snaps}, visual p95 ${f2(pm.visualOffset.p95)}, err@delay p95 ${f1(pm.errAtDelay.p95)}`;
+      }),
+    ] : []),
     `orders    moves ${r.orders.moves} acked ${r.orders.acked}  ack wall ms ${d(r.orders.ackWallMs)}   locks ${r.orders.locks} shown ${r.orders.locksShown} refused ${r.orders.locksRefused}  ` +
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,
   ].join("\n");
@@ -840,6 +1025,7 @@ function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
     else if (a === "--legacy") o.legacy = true;
     else if (a === "--wish") o.wish = true;
     else if (a === "--training") o.training = true;
+    else if (a === "--steer") { const mode = v(); if (mode !== "frame" && mode !== "event" && mode !== "mixed") throw new Error("--steer takes frame, event or mixed"); o.steer = mode; }
     else if (a === "--trace") o.trace = true;
     else if (a === "--render") o.render = JSON.parse(v()) as Partial<RenderClockOptions>;
     else throw new Error(`unknown argument ${a}`);
