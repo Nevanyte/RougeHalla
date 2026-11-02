@@ -6,17 +6,20 @@
 //
 // A prediction is made only when the client expects the server to take the swap (RaidScene.swapHand checks), and it ends:
 //   confirmed  a patch shows the predicted slot (the common case: the prediction was right)
-//   refused    a patch stamped after the swap should have been applied (applyAt + SWAP_SETTLE_SLACK_MS) still shows another slot:
-//              a stun or cast landed while the swap was in flight; the display snaps back at that patch, not at the long expiry
-//   expired    no patch settled it within ORDER_EXPIRE_MS (patches stalled)
+//   refused    a patch stamped after the swap should have been applied (applyAt + SWAP_SETTLE_SLACK_MS) still shows another slot,
+//              and a patch since the press showed the stun or casting bit: what refuses a swap and could land unseen while it was
+//              in flight. The display snaps back at that patch, not at the long expiry. Without that evidence a swap that is merely
+//              late (a jitter spike, a retransmit) is waited for: timing alone never refuses it.
+//   expired    no patch settled it within ORDER_EXPIRE_MS (patches stalled, or a refusal the bits do not show)
 // Pure: no Phaser, no clocks of its own (the caller passes performance time and the estimated server time).
-import { FISTS, isWeaponId, swapReadyAt, TICK_MS, type WeaponId } from "@raid/shared";
-import { ORDER_EXPIRE_MS } from "./localMotion";
+import { EFFECT_CASTING, EFFECT_STUNNED, FISTS, isWeaponId, swapReadyAt, TICK_MS, type WeaponId } from "@raid/shared";
+import { DELAY_MAX_MS, ORDER_EXPIRE_MS } from "./localMotion";
 
 /**
- * How long after the swap should have been applied a patch may still show the old slot before the swap counts as refused. The
- * order delay is a running average, so the real application time jitters around `applyAt`; a late swap judged refused would
- * flicker, so this is generous (a refusal is an exception and snapping back one patch later costs nothing).
+ * How long after the swap should have been applied a patch may still show the old slot before the swap counts as refused (and
+ * then only with a stun or cast showing since the press). The order delay is a running average, so the real application time
+ * jitters around `applyAt`; a late swap judged refused would flicker, so this is generous (a refusal is an exception and
+ * snapping back one patch later costs nothing).
  */
 export const SWAP_SETTLE_SLACK_MS = 100;
 
@@ -42,6 +45,8 @@ interface PendingSwap {
   /** The server time of the patch that first shows the swap: the client clock at the press plus the order delay and a tick. */
   applyAt: number;
   settleAt: number;
+  /** A patch since the press showed the fighter stunned or casting, so the server may have refused the swap. */
+  blocked: boolean;
 }
 
 export class LocalHand {
@@ -66,30 +71,38 @@ export class LocalHand {
 
   /**
    * The player pressed a key that the client expects the server to take. `c` is the client clock (the estimated server time now),
-   * `delay` the order delay estimate (`LocalMotion.delay`), `serverSlot` and `patchT` the newest patch. A press while one is
-   * pending replaces it: a double tap ends on the second slot asked for, and the first patch, which shows the first swap and not
-   * the second, is not mistaken for the answer.
+   * `delay` the order delay estimate (`LocalMotion.delay`) and `delayKnown` whether an ack has measured it, `serverSlot` and
+   * `patchT` the newest patch. A press while one is pending replaces it: a double tap ends on the second slot asked for, and the
+   * first patch, which shows the first swap and not the second, is not mistaken for the answer.
    */
-  predict(slot: number, serverSlot: number, patchT: number, now: number, c: number, delay: number): void {
+  predict(slot: number, serverSlot: number, patchT: number, now: number, c: number, delay: number, delayKnown = true): void {
     const applyAt = c + Math.max(delay, 0) + TICK_MS;
+    // An unmeasured delay is LocalMotion's one-tick guess (a new scene, a reconnect): settle as late as any delay it would measure.
+    const settleAt = (delayKnown ? applyAt : c + DELAY_MAX_MS + TICK_MS) + SWAP_SETTLE_SLACK_MS;
+    const p = this.pending;
     this.pending = {
-      slot, from: this.pending ? this.pending.from : serverSlot, presses: this.pending ? this.pending.presses + 1 : 1,
-      sentAt: now, patchT, applyAt, settleAt: applyAt + SWAP_SETTLE_SLACK_MS,
+      slot, from: p ? p.from : serverSlot, presses: p ? p.presses + 1 : 1, sentAt: now, patchT, applyAt, settleAt,
+      blocked: p?.blocked ?? false,
     };
   }
 
   /**
-   * A patch (stamped `patchT`, showing `serverSlot`) arrived, or a frame passed with the newest one. Settles the prediction when
-   * the patch can: it shows the slot asked for, it is old enough that the swap would have been applied (refused if it still shows
-   * another), or too long has passed (`now` is performance time). Idempotent for one patch.
+   * A patch (stamped `patchT`, showing `serverSlot`; `blocked` = its stun or casting bit) arrived, or a frame passed with the
+   * newest one. Settles the prediction when the patch can: it shows the slot asked for, it is old enough that the swap would have
+   * been applied and a stun or cast since the press explains why it still shows another (refused), or too long has passed (`now`
+   * is performance time). Idempotent for one patch.
    */
-  observe(serverSlot: number, patchT: number, now: number): HandVerdict {
+  observe(serverSlot: number, patchT: number, now: number, blocked = false): HandVerdict {
     const p = this.pending;
     if (!p) return "none";
     // After one press the target differs from where the hand was, so a patch showing it is the swap taking effect. After
     // several, the first swap's patch shows an intermediate slot that may equal the last target: wait for the settle time.
     if (p.presses === 1 && serverSlot === p.slot) return this.end("confirmed");
-    if (patchT > p.patchT && patchT >= p.settleAt) return this.end(serverSlot === p.slot ? "confirmed" : "refused");
+    if (patchT > p.patchT) {
+      if (blocked) p.blocked = true;
+      if (patchT >= p.settleAt && serverSlot === p.slot) return this.end("confirmed");
+      if (patchT >= p.settleAt && p.blocked) return this.end("refused");
+    }
     if (now >= p.sentAt + ORDER_EXPIRE_MS) return this.end("expired");
     return "pending";
   }
@@ -110,6 +123,11 @@ export class LocalHand {
     this.counts[verdict]++;
     return verdict;
   }
+}
+
+/** The synced bits under which the server refuses a swap (`actionBlocked`: stunned, or casting a cast with a cast time). */
+export function swapBlocked(effects: number): boolean {
+  return (effects & (EFFECT_STUNNED | EFFECT_CASTING)) !== 0;
 }
 
 /** What `slot` fights with, as the server's `slotWeapon` reads it: the weapon in it, fists for an empty slot or an unknown id. */

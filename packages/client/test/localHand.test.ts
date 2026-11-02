@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { SWAP_SECONDS, swapReadyAt, TICK_MS } from "@raid/shared";
-import { LocalHand, predictedReadyAt, SWAP_SETTLE_SLACK_MS, weaponInSlot } from "../src/net/localHand";
-import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
+import { EFFECT_CASTING, EFFECT_ROOTED, EFFECT_STUNNED, SWAP_SECONDS, swapReadyAt, TICK_MS } from "@raid/shared";
+import { LocalHand, predictedReadyAt, SWAP_SETTLE_SLACK_MS, swapBlocked, weaponInSlot } from "../src/net/localHand";
+import { DELAY_INIT_MS, DELAY_MAX_MS, ORDER_EXPIRE_MS } from "../src/net/localMotion";
 
 // The press: client clock 10_000 (the estimated server time), order delay 120, the newest patch stamped 9_950 showing slot 0.
 const C = 10_000;
@@ -46,12 +46,23 @@ describe("LocalHand", () => {
     expect(hand.slotOf(0)).toBe(1);
   });
 
-  it("snaps back at the first patch stamped at or after the settle time that still shows the old slot (a refusal)", () => {
+  it("snaps back at the first patch at or after the settle time that still shows the old slot, once a stun or cast showed (a refusal)", () => {
     const hand = pressed();
-    expect(hand.observe(0, SETTLE_AT, 5_330)).toBe("refused");
+    expect(hand.observe(0, APPLY_AT - 50, 5_150, true)).toBe("pending"); // a stun landed while the swap was in flight
+    expect(hand.observe(0, SETTLE_AT - 1, 5_300)).toBe("pending");
+    expect(hand.observe(0, SETTLE_AT, 5_330)).toBe("refused"); // the stun need not last to the settle time
     expect(hand.predicting).toBe(false);
     expect(hand.slotOf(0)).toBe(0);
     expect(hand.counts).toEqual({ confirmed: 0, refused: 1, expired: 0 });
+  });
+
+  it("a swap that is only late (a jitter spike, a retransmit) is waited for, not refused, and its patch confirms it", () => {
+    const hand = pressed();
+    expect(hand.observe(0, SETTLE_AT, 5_330)).toBe("pending");
+    expect(hand.observe(0, SETTLE_AT + 150, 5_480)).toBe("pending");
+    expect(hand.slotOf(0)).toBe(1);
+    expect(hand.observe(1, SETTLE_AT + 200, 5_530)).toBe("confirmed");
+    expect(hand.counts).toEqual({ confirmed: 1, refused: 0, expired: 0 });
   });
 
   it("gives up after ORDER_EXPIRE_MS when no patch settles it", () => {
@@ -66,8 +77,9 @@ describe("LocalHand", () => {
     const hand = new LocalHand();
     // A clock estimate that runs ahead of the patches could put the settle time under the newest patch; that patch says nothing.
     hand.predict(1, 0, 20_000, 5_000, C, 0);
-    expect(hand.observe(0, 20_000, 5_010)).toBe("pending");
-    expect(hand.observe(0, 20_050, 5_060)).toBe("refused");
+    expect(hand.observe(0, 20_000, 5_010, true)).toBe("pending");
+    expect(hand.observe(0, 20_050, 5_060)).toBe("pending"); // the press's own patch is no evidence: the client saw it and predicted
+    expect(hand.observe(0, 20_100, 5_110, true)).toBe("refused");
   });
 
   it("a second press replaces the first: a patch with the intermediate slot is not an answer, the final one is", () => {
@@ -95,8 +107,8 @@ describe("LocalHand", () => {
   it("a second press that the server refuses (a stun in between) snaps back to where the hand really is", () => {
     const hand = pressed(1);
     hand.predict(0, 0, PATCH_T, 5_050, C + 50, DELAY);
-    // The first swap landed, the second did not: the server holds slot 1 past the settle time of the second.
-    expect(hand.observe(1, C + 50 + DELAY + TICK_MS + SWAP_SETTLE_SLACK_MS, 5_400)).toBe("refused");
+    // The first swap landed, the second did not: the server holds slot 1, stunned, past the settle time of the second.
+    expect(hand.observe(1, C + 50 + DELAY + TICK_MS + SWAP_SETTLE_SLACK_MS, 5_400, true)).toBe("refused");
     expect(hand.slotOf(1)).toBe(1);
   });
 
@@ -112,10 +124,51 @@ describe("LocalHand", () => {
     expect(used.counts).toEqual({ confirmed: 0, refused: 0, expired: 0 });
   });
 
+  describe("before an order has measured the delay (a new scene, a reconnect)", () => {
+    // LocalMotion's guess is one tick; the real delay at a 250 ms round trip is about 225 ms.
+    const unmeasured = () => {
+      const hand = new LocalHand();
+      hand.predict(1, 0, PATCH_T, 5_000, C, DELAY_INIT_MS, false);
+      return hand;
+    };
+    const guessedSettle = C + DELAY_INIT_MS + TICK_MS + SWAP_SETTLE_SLACK_MS;
+    const lateSettle = C + DELAY_MAX_MS + TICK_MS + SWAP_SETTLE_SLACK_MS;
+
+    it("keeps the hand through the patches of a long round trip and is confirmed by the one that shows the swap", () => {
+      const hand = unmeasured();
+      expect(hand.applyAt).toBe(C + DELAY_INIT_MS + TICK_MS); // the ready time still reads the estimate
+      for (let t = PATCH_T + 50; t < C + 250; t += 50) expect(hand.observe(0, t, 5_000 + t - PATCH_T)).toBe("pending");
+      expect(hand.observe(1, C + 250, 5_300)).toBe("confirmed");
+    });
+
+    it("refuses only once the longest order delay has passed, even with a stun showing", () => {
+      const hand = unmeasured();
+      expect(hand.observe(0, guessedSettle, 5_200, true)).toBe("pending");
+      expect(hand.observe(0, lateSettle - 1, 5_500, true)).toBe("pending");
+      expect(hand.observe(0, lateSettle, 5_550, true)).toBe("refused");
+    });
+
+    it("a double tap is confirmed by the final slot at that late settle time", () => {
+      const hand = unmeasured();
+      hand.predict(0, 0, PATCH_T, 5_020, C + 20, DELAY_INIT_MS, false);
+      expect(hand.observe(0, guessedSettle, 5_200)).toBe("pending");
+      expect(hand.observe(0, C + 20 + DELAY_MAX_MS + TICK_MS + SWAP_SETTLE_SLACK_MS, 5_570)).toBe("confirmed");
+    });
+  });
+
   it("a negative order delay counts as none, and the swap is applied no sooner than the next tick", () => {
     const hand = new LocalHand();
     hand.predict(1, 0, PATCH_T, 5_000, C, -TICK_MS);
     expect(hand.applyAt).toBe(C + TICK_MS);
+  });
+});
+
+describe("swapBlocked", () => {
+  it("is the stun and casting bits, the ones under which the server refuses a swap", () => {
+    expect(swapBlocked(0)).toBe(false);
+    expect(swapBlocked(EFFECT_STUNNED)).toBe(true);
+    expect(swapBlocked(EFFECT_CASTING | EFFECT_ROOTED)).toBe(true);
+    expect(swapBlocked(EFFECT_ROOTED)).toBe(false);
   });
 });
 

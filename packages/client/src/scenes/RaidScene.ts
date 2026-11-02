@@ -15,7 +15,7 @@ import { keyboardMoveGoal, MOVEMENT_KEYS, STEER_REPEAT_MS, steerDue } from "../n
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
-import { LocalHand, predictedReadyAt, weaponInSlot } from "../net/localHand";
+import { LocalHand, predictedReadyAt, swapBlocked, weaponInSlot } from "../net/localHand";
 import { ConfirmedDamage, isOwnArcBlow, shieldReturnsIn, type ConfirmedFx } from "../net/confirmedDamage";
 import { PotionCue } from "../net/potionCue";
 import {
@@ -542,7 +542,7 @@ export class RaidScene extends Phaser.Scene {
 
     // A swap whose patches stall (a refusal during a gap) is still given up on after ORDER_EXPIRE_MS.
     const handMe = state.players.get(this.room.sessionId);
-    if (handMe && this.hand.predicting) this.hand.observe(handMe.slot, state.serverTime, now);
+    if (handMe && this.hand.predicting) this.hand.observe(handMe.slot, state.serverTime, now, swapBlocked(handMe.effects));
     const pointer = this.input.activePointer;
     if (!pointer.rightButtonDown()) this.rightAttackHeld = false;
     if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer)) this.holdMove(pointer);
@@ -1253,7 +1253,7 @@ export class RaidScene extends Phaser.Scene {
     state.players?.forEach((p, id) => {
       const local = id === this.room.sessionId;
       // First: it settles a predicted swap, and a swap the player pressed already cancelled what it cancels (swapHand).
-      const verdict = local ? this.hand.observe(p.slot, state.serverTime, performance.now()) : "none";
+      const verdict = local ? this.hand.observe(p.slot, state.serverTime, performance.now(), swapBlocked(p.effects)) : "none";
       const hand = `${p.slot}:${p.slot === 1 ? p.weapon1 : p.weapon0}`;
       const before = this.inHand.get(id);
       this.inHand.set(id, hand);
@@ -1694,13 +1694,13 @@ export class RaidScene extends Phaser.Scene {
     const now = performance.now();
     const serverNow = this.localClock(now);
     if (state.phase !== "active" || me.status !== "alive" || this.room.reconnection?.isReconnecting) return;
-    if ((me.effects & (EFFECT_STUNNED | EFFECT_CASTING)) !== 0 || this.predict.castEndsAt(serverNow) > 0) return;
+    if (swapBlocked(me.effects) || this.predict.castEndsAt(serverNow) > 0) return;
     const hand = this.handNow;
     hand.slot = cur;
     hand.weapon0 = me.weapon0;
     hand.weapon1 = me.weapon1;
     if (!swapAllowed(hand, target, countIn(me.build, "committed") > 0)) return;
-    this.hand.predict(target, me.slot, state.serverTime, now, serverNow, this.predict.motion.delay);
+    this.hand.predict(target, me.slot, state.serverTime, now, serverNow, this.predict.motion.delay, this.predict.motion.delayKnown);
     // The windup the swap cancels goes now. A held trigger stays held (the server's does too): its next attack is the new weapon's.
     this.cancelLocalAutos(now);
     if (this.localWeapon(me) !== "wand") this.lockDisplay.note("", now);
@@ -1818,7 +1818,11 @@ export class RaidScene extends Phaser.Scene {
         continue;
       }
       if (autoEvent) {
-        if (freshAuto && !predictedAuto) {
+        // An old weapon's windup the server began just before the pressed swap reached it: the swap cancels it there with no fx,
+        // and the patch that confirms the swap cancels nothing (noteWeaponChanges), so it is not drawn at all.
+        const me = this.hand.predicting ? this.room.state.players.get(this.room.sessionId) : undefined;
+        const superseded = autoEvent.kind === "windup" && !!me && autoEvent.weapon !== this.localWeapon(me);
+        if (freshAuto && !predictedAuto && !superseded) {
           this.fx.localAuto(autoEvent.kind, autoEvent.weapon, autoEvent.a, autoEvent.kind === "windup" ? autoEvent.ms : 0, now);
         }
         continue;

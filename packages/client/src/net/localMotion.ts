@@ -249,7 +249,7 @@ export class LocalMotion {
   private history: Pose[] = [];
   private orders: Order[] = [];
   private _delay = DELAY_INIT_MS;
-  private delayKnown = false;
+  private _delayKnown = false;
   /** The delay the rebase aligns the server's samples with (see the header). */
   private align = DELAY_INIT_MS;
   private _ready = false;
@@ -284,6 +284,8 @@ export class LocalMotion {
   get mode(): MotionMode { return this._mode; }
   /** The estimated time an order takes to take effect on the server (ms; smoothed over the acknowledged orders). */
   get delay(): number { return this._delay; }
+  /** Whether an acknowledged order has measured `delay` yet (until then it is DELAY_INIT_MS, a guess). */
+  get delayKnown(): boolean { return this._delayKnown; }
   /** How far the drawn position is from the predicted one right now (u). */
   get visualOffset(): number { return Math.hypot(this.visual.x, this.visual.y); }
   /** Orders sent that the server has not yet applied. */
@@ -312,7 +314,7 @@ export class LocalMotion {
     this.orders.length = 0;
     this._delay = DELAY_INIT_MS;
     this.align = DELAY_INIT_MS;
-    this.delayKnown = false;
+    this._delayKnown = false;
     this._ready = false;
     this.goal = null;
     this.goalMap = null;
@@ -568,8 +570,8 @@ export class LocalMotion {
     o.delay = clamp(raw, DELAY_MIN_MS, DELAY_MAX_MS);
     // Only the order named, unclamped, from a patch of a single step (`observe` says): a skipped one may never have arrived.
     if (o.seq === seq && raw === o.delay) this.phase.push(raw, o.c, t, this.ackAt, this.patchDt);
-    this._delay = this.delayKnown ? this._delay + DELAY_EMA * (o.delay - this._delay) : o.delay;
-    this.delayKnown = true;
+    this._delay = this._delayKnown ? this._delay + DELAY_EMA * (o.delay - this._delay) : o.delay;
+    this._delayKnown = true;
     let timing = false;
     for (const q of covered) {
       timing = timing || q.timing;
@@ -686,7 +688,7 @@ export class LocalMotion {
   /** An order the server has not applied within ORDER_EXPIRE_MS is lost (a message sent while reconnecting): it must not hold the comparison off for good. */
   private expireOrders(c: number): void {
     const o = this.orders;
-    const after = this.delayKnown
+    const after = this._delayKnown
       ? Math.min(ORDER_EXPIRE_MS, Math.max(ORDER_EXPIRE_FLOOR_MS, 2 * Math.max(0, this._delay) + ORDER_EXPIRE_MARGIN_MS))
       : ORDER_EXPIRE_MS;
     // What was ordered after a blink still unanswered depends on it (its walk starts at the landing): it waits as long as the blink.

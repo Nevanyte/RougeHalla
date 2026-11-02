@@ -21,9 +21,12 @@
 //   keys         with --steer: a WASD player (taps, holds, turns, chords) instead of the mouse script; the wall-clock delay from each key
 //                event to the first patch that shows the order carrying it, and from the event to the message leaving; per dispatch
 //                mode, the key events, the orders (the held key's repeat included) and the orders that carried an event
-//   swap         with --swap (a training room): weapon swaps through the client's own LocalHand: when the new hand shows (the first
-//                patch, which is what the screen waited for before the prediction, and the next frame), how the predictions ended,
-//                and how many clicks made inside the round trip after a swap would go to the wrong input by each
+//   swap         with --swap (a training room): weapon swaps through the client's own LocalHand (a copy of RaidScene.swapHand, not
+//                the scene): when the first patch shows the new hand (what the screen waited for before the prediction), how the
+//                predictions ended, and how many clicks at random moments inside the round trip after a swap would go to the wrong
+//                input by the patch's slot. The "after" figures are properties of the model, not measurements of the scene: the
+//                next frame is this loop's own frame interval, and LocalHand's slot is the target, so it is wrong only if the
+//                server refuses the swap
 //   aim          how old the aim each patch's step applied was (`--aim legacy50 | floor25 | aligned`, the client's gate in that
 //                mode: net/uplinkPace.ts): every aim carries its own angle, so the synced facing names it; the lag is the patch's
 //                server time less the client clock the aim left at (the age at the step plus the clock's constant downlink bias,
@@ -33,7 +36,7 @@ import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  abilityInSlot, blinkLanding, CAST_RANGE_SLACK, countIn, EFFECT_CASTING, EFFECT_STUNNED, findPath, generateMap, hasLineOfSight, mulberry32,
+  abilityInSlot, blinkLanding, CAST_RANGE_SLACK, countIn, EFFECT_STUNNED, findPath, generateMap, hasLineOfSight, mulberry32,
   PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt, swapAllowed, TARGET_RANGE, TELEPORT_DISTANCE, TICK_MS, TRAINING_ROOM_NAME, unpackFx,
   withGates, WORLD_H, WORLD_W,
   type AbilityRank, type FxBatch, type GameMap, type ProfileResponse, type Vec2,
@@ -44,7 +47,7 @@ import { EntityInterpolator } from "../../client/src/net/interpolation";
 import { keyboardMoveGoal, steerDue } from "../../client/src/net/keyboardMovement";
 import { JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS, seqAcked, type LocalMotion } from "../../client/src/net/localMotion";
 import { castUnanswered, LocalPrediction, type SentCast } from "../../client/src/net/localPrediction";
-import { LocalHand, weaponInSlot } from "../../client/src/net/localHand";
+import { LocalHand, swapBlocked, weaponInSlot } from "../../client/src/net/localHand";
 import { AimGate, HoldGate, MessageMeter } from "../../client/src/net/uplinkPace";
 
 /** How the probe streams its aim: the gate before the floor (one a tick), the half-tick floor, or the client's own (aligned once the deadline is known). */
@@ -205,9 +208,12 @@ export interface ProbeReport {
     expired: number;
     /** Wall-clock ms from sending a swap to the first patch showing the new slot: when the hand changed on screen before the prediction. */
     shownWallMs: Dist;
-    /** Wall-clock ms from sending a swap to the next frame, the first that draws the predicted hand. */
+    /** Wall-clock ms from sending a swap to this loop's next frame (its frame interval, not a drawn frame of the scene). */
     predictedFrameMs: Dist;
-    /** Clicks simulated at random moments in the round trip after a swap, and how many would go to the wrong input (a wand's `target` against an `attack`) by the patch's slot (before) and by LocalHand's (after). */
+    /**
+     * Clicks simulated at uniform moments in [0, ping p50 + 80 ms] after a swap, and how many would go to the wrong input (a wand's
+     * `target` against an `attack`) by the patch's slot (before) and by LocalHand's (after: 0 whenever the server takes the swap).
+     */
     clicks: number;
     wrongBefore: number;
     wrongAfter: number;
@@ -881,7 +887,7 @@ class Session {
 
   /** Every patch: the hand's prediction is settled or kept, and a swap's first patch showing its slot is timed. */
   private noteSwapPatch(me: PlayerState, t: number, now: number): void {
-    this.hand.observe(me.slot, t, now);
+    this.hand.observe(me.slot, t, now, swapBlocked(me.effects));
     for (const r of this.swaps) {
       if (r.shownAt === 0 && !r.settled && me.slot === r.target && now - r.sentAt < SWAP_SETTLE_WALL_MS) r.shownAt = now;
     }
@@ -920,7 +926,10 @@ class Session {
     }
   }
 
-  /** What the scene's swapHand does: the explicit slot is sent, and the hand is predicted when the server is expected to take it. */
+  /**
+   * A copy of the scene's swapHand, not the scene: the explicit slot is sent, and the hand is predicted when the server is expected
+   * to take it. The scene's reconnect and predicted-cast checks are left out (the probe neither reconnects nor casts here).
+   */
   private sendSwap(now: number, c: number, me: PlayerState, state: RaidState): void {
     const cur = this.hand.slotOf(me.slot);
     const target = cur === 0 ? 1 : 0;
@@ -930,10 +939,10 @@ class Session {
     hand.slot = cur;
     hand.weapon0 = me.weapon0;
     hand.weapon1 = me.weapon1;
-    const predicted = state.phase === "active" && (me.effects & (EFFECT_STUNNED | EFFECT_CASTING)) === 0
+    const predicted = state.phase === "active" && me.status === "alive" && !swapBlocked(me.effects)
       && swapAllowed(hand, target, countIn(me.build, "committed") > 0);
     if (predicted) {
-      this.hand.predict(target, me.slot, state.serverTime, now, c, this.predict.motion.delay);
+      this.hand.predict(target, me.slot, state.serverTime, now, c, this.predict.motion.delay, this.predict.motion.delayKnown);
       this.m.swapsPredicted++;
     }
     // Clicks at random moments inside the round trip (the measured ping and a margin): where the wrong weapon would route them.
@@ -944,7 +953,7 @@ class Session {
 
   /** Every frame: the hand's hard expiry, the first frame after each swap, the simulated clicks, and the swaps that have settled. */
   private swapTick(now: number, me: PlayerState, state: RaidState): void {
-    this.hand.observe(me.slot, state.serverTime, now);
+    this.hand.observe(me.slot, state.serverTime, now, swapBlocked(me.effects));
     for (const r of this.swaps) {
       if (r.settled) continue;
       if (r.frameAt === 0 && now > r.sentAt) r.frameAt = now;
@@ -1383,7 +1392,7 @@ export function formatReport(r: ProbeReport): string {
     ] : []),
     ...(r.swap.sent > 0 ? [
       `swap      sent ${r.swap.sent} (predicted ${r.swap.predicted}, accepted ${r.swap.accepted}; confirmed ${r.swap.confirmed} refused ${r.swap.refused} expired ${r.swap.expired})   ` +
-      `new hand shown, ms after the key: before (first patch) ${d(r.swap.shownWallMs)}   after (next frame) ${d(r.swap.predictedFrameMs)}   ` +
+      `new hand shown, ms after the key: before (first patch) ${d(r.swap.shownWallMs)}   after (the probe's next loop frame) ${d(r.swap.predictedFrameMs)}   ` +
       `clicks routed by the wrong weapon: before ${r.swap.wrongBefore}/${r.swap.clicks} (${f2(100 * r.swap.wrongBefore / Math.max(1, r.swap.clicks))}%)  after ${r.swap.wrongAfter}/${r.swap.clicks} (${f2(100 * r.swap.wrongAfter / Math.max(1, r.swap.clicks))}%)`,
     ] : []),
     ...(r.telegraph.casts > 0 ? [

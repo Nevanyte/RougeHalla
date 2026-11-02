@@ -7,6 +7,7 @@ vi.mock("phaser", () => ({ default: { Scene: class {} } }));
 import { EFFECT_CASTING, EFFECT_STUNNED, packFx, SWAP_SECONDS, TICK_MS } from "@raid/shared";
 import { RaidScene } from "../src/scenes/RaidScene";
 import { SWAP_SETTLE_SLACK_MS } from "../src/net/localHand";
+import { DELAY_INIT_MS, DELAY_MAX_MS } from "../src/net/localMotion";
 
 const NOW = 10_000;
 const DELAY = 120;
@@ -21,7 +22,7 @@ type Scene = {
   room: { sessionId: string; state: { phase: string; serverTime: number; players: Map<string, Me>; mobs: Map<string, unknown>; training: boolean; gatesLocked: boolean; roster: string[] };
     send: ReturnType<typeof vi.fn>; reconnection?: { isReconnecting: boolean } };
   hand: { predicting: boolean; applyAt: number; counts: { confirmed: number; refused: number; expired: number }; slotOf(s: number): number; observe(...a: number[]): string };
-  predict: { motion: { delay: number }; castEndsAt: ReturnType<typeof vi.fn>; noteWeaponChange: ReturnType<typeof vi.fn>; setPredictedRangedPause: ReturnType<typeof vi.fn>; noteFx: ReturnType<typeof vi.fn> };
+  predict: { motion: { delay: number; delayKnown?: boolean }; castEndsAt: ReturnType<typeof vi.fn>; noteWeaponChange: ReturnType<typeof vi.fn>; setPredictedRangedPause: ReturnType<typeof vi.fn>; noteFx: ReturnType<typeof vi.fn> };
   fx: { dropWindups: ReturnType<typeof vi.fn>; cancelWindups: ReturnType<typeof vi.fn>; enqueue: ReturnType<typeof vi.fn>; localAuto: ReturnType<typeof vi.fn> };
   lockDisplay: { shown(synced: string, now: number): string; note(id: string, now: number): void };
   inHand: Map<string, string>;
@@ -242,9 +243,10 @@ describe("the local auto-attack", () => {
   });
 
   it("returns to the server's key and ready time once a refused swap is given up", () => {
-    const { scene, state } = rig({ readyAt: NOW + 100 });
+    const { scene, state, me } = rig({ readyAt: NOW + 100 });
     stub(scene);
     scene.swapHand();
+    me.effects = EFFECT_STUNNED; // a stun landed while the swap was in flight
     state.serverTime = APPLY_AT + SWAP_SETTLE_SLACK_MS;
     scene.noteWeaponChanges(state);
     expect(scene.hand.predicting).toBe(false);
@@ -296,6 +298,38 @@ describe("the patch that follows a swap", () => {
     expect(scene.fx.cancelWindups).toHaveBeenCalledExactlyOnceWith("foe", APPLY_AT);
   });
 
+  it("a late patch with no stun or cast showing keeps the hand, and the patch that shows the swap still cancels nothing", () => {
+    const r = rig();
+    r.scene.cancelLocalAutos = vi.fn();
+    r.scene.noteWeaponChanges(r.state);
+    r.scene.swapHand();
+    (r.scene.cancelLocalAutos as ReturnType<typeof vi.fn>).mockClear();
+    r.state.serverTime = APPLY_AT + SWAP_SETTLE_SLACK_MS + 50;
+    r.scene.noteWeaponChanges(r.state);
+    expect(r.scene.hand.predicting).toBe(true);
+    expect(r.scene.localSlot(r.me)).toBe(1);
+    r.me.slot = 1;
+    r.state.serverTime += 100;
+    r.scene.noteWeaponChanges(r.state);
+    expect(r.scene.hand.counts).toEqual({ confirmed: 1, refused: 0, expired: 0 });
+    expect(r.scene.cancelLocalAutos).not.toHaveBeenCalled();
+    expect(r.scene.fx.cancelWindups).not.toHaveBeenCalled();
+  });
+
+  it("before any order has measured the delay, the settle time waits for the longest delay", () => {
+    const r = rig();
+    r.scene.predict.motion = { delay: DELAY_INIT_MS, delayKnown: false };
+    r.scene.noteWeaponChanges(r.state);
+    r.scene.swapHand();
+    r.me.effects = EFFECT_STUNNED;
+    r.state.serverTime = NOW + DELAY_INIT_MS + TICK_MS + SWAP_SETTLE_SLACK_MS;
+    r.scene.noteWeaponChanges(r.state);
+    expect(r.scene.hand.predicting).toBe(true);
+    r.state.serverTime = NOW + DELAY_MAX_MS + TICK_MS + SWAP_SETTLE_SLACK_MS;
+    r.scene.noteWeaponChanges(r.state);
+    expect(r.scene.hand.counts.refused).toBe(1);
+  });
+
   it("keeps cancelling nothing while a double tap's intermediate patch goes by", () => {
     const r = rig();
     r.scene.cancelLocalAutos = vi.fn();
@@ -309,6 +343,45 @@ describe("the patch that follows a swap", () => {
     expect(r.scene.hand.predicting).toBe(true);
     expect(r.scene.cancelLocalAutos).not.toHaveBeenCalled();
     expect(r.scene.localSlot(r.me)).toBe(0);
+  });
+});
+
+describe("an old weapon's windup in flight when the swap is pressed", () => {
+  const roster = new Map([["me", 0]]);
+  function fxRig() {
+    const r = rig(); // a wand in hand, a sword in the other slot
+    const s = r.scene as unknown as { ground: { combat: { note: () => void } }; warnDropped: () => void; clockSynced: boolean };
+    s.ground = { combat: { note: () => {} } };
+    s.warnDropped = () => {};
+    s.clockSynced = false;
+    r.scene.cancelLocalAutos = vi.fn();
+    r.scene.noteWeaponChanges(r.state);
+    return r;
+  }
+  const windup = (weapon: string, t: number) => packFx([{ kind: "windup", by: "me", weapon, a: 0, ms: 300 } as never], t, { roster });
+
+  it("is not drawn: the server's swap cancels it with no fx and the confirming patch cancels nothing", () => {
+    const r = fxRig();
+    r.scene.swapHand(); // wand to sword
+    (r.scene.cancelLocalAutos as ReturnType<typeof vi.fn>).mockClear();
+    // The server began a wand windup just before the swap reached it; its fx arrives before the patch that shows the swap.
+    r.scene.onFxBatch(windup("wand", NOW - 20));
+    expect(r.scene.fx.localAuto).not.toHaveBeenCalled();
+    // A windup of the weapon the player sees in hand is drawn as before.
+    r.scene.onFxBatch(windup("sword", NOW - 10));
+    expect(r.scene.fx.localAuto).toHaveBeenCalledExactlyOnceWith("windup", "sword", 0, 300, NOW);
+    r.me.slot = 1;
+    r.state.serverTime = APPLY_AT;
+    r.scene.noteWeaponChanges(r.state);
+    expect(r.scene.hand.counts.confirmed).toBe(1);
+    expect(r.scene.cancelLocalAutos).not.toHaveBeenCalled();
+    expect(r.scene.fx.cancelWindups).not.toHaveBeenCalled();
+  });
+
+  it("with no swap in flight the same windup is drawn", () => {
+    const r = fxRig();
+    r.scene.onFxBatch(windup("wand", NOW - 20));
+    expect(r.scene.fx.localAuto).toHaveBeenCalledExactlyOnceWith("windup", "wand", 0, 300, NOW);
   });
 });
 
