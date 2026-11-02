@@ -82,6 +82,107 @@ describe("FxView local hits", () => {
   });
 });
 
+// The local player's own melee blow on someone else, presented by the scene with its state patch (RaidScene.confirmedBlows).
+describe("FxView own confirmed blows", () => {
+  function rig() {
+    const flashes: string[] = [];
+    const landed: number[] = [];
+    const localHits: number[] = [];
+    const { scene, made, ofKind } = fakeScene();
+    const positions: Record<string, { x: number; y: number }> = { me: { x: 0, y: 0 }, foe: { x: 100, y: 0 } };
+    const fx = new FxView(scene, {
+      localId: "me", view: (id) => ({ flash: () => flashes.push(id) }), position: (id) => positions[id], name: () => undefined,
+      projectileEnded: () => {}, localLanded: (event) => landed.push(event.amount), localHit: (event) => localHits.push(event.amount),
+    });
+    return { fx, flashes, landed, localHits, made, ofKind };
+  }
+  const own = (over: Partial<Extract<TimedFx, { kind: "hit" }>> = {}): Extract<TimedFx, { kind: "hit" }> =>
+    ({ kind: "hit", id: "foe", by: "me", amount: 42, weapon: "axe", t: 1000, ...over });
+
+  it("flashes the victim, prints one gold number, bursts one impact and shakes the screen once", () => {
+    const { fx, flashes, landed, localHits, ofKind } = rig();
+    fx.update(900, 0, true); // render time is a delay behind the patch that confirmed it
+    fx.confirmedOwnBlow(own(), 16);
+    expect(flashes).toEqual(["foe"]);
+    expect(landed).toEqual([42]);
+    expect(localHits).toEqual([]);
+    expect(ofKind("text").map((t) => [t.state.text, t.state.color])).toEqual([["42", "#ffd54f"]]);
+    expect(ofKind("graphics")).toHaveLength(1);
+  });
+
+  it("is never queued: render time reaching it later replays nothing", () => {
+    const { fx, flashes, landed, made } = rig();
+    fx.confirmedOwnBlow(own(), 16);
+    const before = made.length;
+    fx.update(1000, 32, true);
+    fx.update(1100, 48, true);
+    expect(flashes).toEqual(["foe"]);
+    expect(landed).toEqual([42]);
+    expect(made.length).toBe(before);
+  });
+
+  it("draws a backlog blow without the screen's reaction", () => {
+    const { fx, flashes, landed, ofKind } = rig();
+    fx.confirmedOwnBlow(own(), 16, false);
+    expect(flashes).toEqual(["foe"]);
+    expect(ofKind("text")).toHaveLength(1);
+    expect(landed).toEqual([]);
+  });
+
+  it("ignores what is not the local player's own melee blow", () => {
+    const { fx, flashes, landed, made } = rig();
+    fx.confirmedOwnBlow(own({ id: "me", by: "foe" }), 16);
+    fx.confirmedOwnBlow(own({ by: "foe" }), 16);
+    fx.confirmedOwnBlow(own({ weapon: "bow" }), 16);
+    fx.confirmedOwnBlow(own({ weapon: "wand" }), 16);
+    fx.confirmedOwnBlow(own({ sig: "burn" }), 16);
+    fx.confirmedOwnBlow(own({ ability: "freeze" }), 16);
+    fx.confirmedOwnBlow(own({ weapon: null }), 16);
+    fx.confirmedOwnBlow({ kind: "block", id: "foe", by: "me", weapon: "shield", passive: true, t: 1000 }, 16);
+    fx.confirmedOwnBlow(own(), Number.NaN);
+    expect(flashes).toEqual([]);
+    expect(landed).toEqual([]);
+    expect(made).toEqual([]);
+  });
+
+  it("sparks a blocked swing on the holder's shield, on the side it came from", () => {
+    const { fx, ofKind, landed } = rig();
+    fx.confirmedOwnBlow({ kind: "block", id: "foe", by: "me", weapon: "sword", t: 1000 }, 16);
+    const bursts = ofKind("graphics");
+    expect(bursts).toHaveLength(1);
+    const [x] = bursts[0]!.state.position as [number, number];
+    expect(x).toBeLessThan(100); // toward the attacker at x 0
+    expect(landed).toEqual([]);
+  });
+
+  it("does nothing once destroyed", () => {
+    const { fx, flashes, made } = rig();
+    fx.destroy();
+    fx.confirmedOwnBlow(own(), 16);
+    expect(flashes).toEqual([]);
+    expect(made).toEqual([]);
+  });
+});
+
+describe("FxView local stagger", () => {
+  it("draws the stars over the local player once, at the call", () => {
+    const { scene, ofKind } = fakeScene();
+    const fx = new FxView(scene, {
+      localId: "me", view: () => undefined, position: (id) => (id === "me" ? { x: 40, y: 0 } : undefined), name: () => undefined,
+      projectileEnded: () => {},
+    });
+    fx.localStagger(10);
+    const stars = ofKind("graphics");
+    expect(stars).toHaveLength(1);
+    expect((stars[0]!.state.position as number[])[0]).toBe(40);
+    fx.update(5000, 20, true);
+    expect(ofKind("graphics")).toHaveLength(1);
+    fx.destroy();
+    fx.localStagger(30);
+    expect(ofKind("graphics")).toHaveLength(1);
+  });
+});
+
 // The announcements the view hands its host: a kill, a rampage, a victory. (The retired buff event used to add the local
 // player's buff news and a ring and a float for everyone; with the cards it plays nothing.)
 describe("FxView announcements", () => {

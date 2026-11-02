@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EFFECT_HIDDEN, QUEST_ITEM_PREFIX, mapFromTiles, packFx } from "@raid/shared";
+import { EFFECT_HIDDEN, QUEST_ITEM_PREFIX, mapFromTiles, packFx, type FxEvent } from "@raid/shared";
 import { RaidScene } from "../src/scenes/RaidScene";
 import { RaidVision } from "../src/render/RaidVision";
 
@@ -58,10 +58,50 @@ function damageHarness() {
       confirmed.push({ amount: event.amount, hp: me.hp, barrier: me.barrier });
       order.push(`hit:${me.hp}:${me.barrier}`);
     }),
+    confirmedOwnBlow: vi.fn(),
   };
   scene.fx = fx;
   scene.ground.combat = { note: vi.fn() };
   return { scene, state, me, frame, order, confirmed, fx };
+}
+
+const ROSTER = { roster: new Map([["me", 0], ["foe", 1]]) };
+const ownHit = (over: Record<string, unknown> = {}) =>
+  ({ kind: "hit" as const, id: "foe", by: "me", amount: 25, weapon: "sword" as const, ...over }) as Extract<FxEvent, { kind: "hit" }>;
+
+/** The scene with FxView mocked: the order of the victim's view update, an own blow's presentation and the render-time fx update. */
+function blowHarness() {
+  const {scene,state,frame} = rig();
+  frame(1000);
+  const order: string[] = [];
+  scene.views.get("foe").update.mockImplementation(() => order.push("foeView"));
+  const fx = {
+    enqueue: vi.fn(),
+    update: vi.fn((renderT: number) => order.push(`fx.update:${renderT}`)),
+    confirmedLocalHit: vi.fn(),
+    confirmedOwnBlow: vi.fn((event: { kind: string; t: number }, _now: number, juice: boolean) => order.push(`blow:${event.kind}:${event.t}:${juice}`)),
+    localStagger: vi.fn(),
+    dropWindups: vi.fn(),
+  };
+  scene.fx = fx;
+  scene.ground.combat = { note: vi.fn() };
+  scene.projectiles = { update: () => {}, noteEnd: vi.fn(), has: () => false };
+  order.length = 0;
+  return { scene, state, frame, order, fx };
+}
+
+/** A `this` for RaidScene's teardown: real queues and view maps, and a callable stub for everything else it touches. */
+function teardownTarget(scene: any) {
+  const stub: any = new Proxy(function () {}, {
+    get: (_t, p) => (p === Symbol.iterator ? function* () {} : p === "then" ? undefined : stub),
+    apply: () => stub,
+  });
+  const own: Record<string, unknown> = {
+    confirmedBlows: scene.confirmedBlows, confirmedDamage: scene.confirmedDamage, localAutos: scene.localAutos,
+    views: new Map(), mobViews: new Map(), zombieViews: new Map(), containerViews: new Map(),
+    rendered: new Map(), deaths: new Map(), inHand: new Map(), movementKeys: new Set(),
+  };
+  return new Proxy(own, { get: (t, p) => (typeof p === "string" && p in t ? t[p] : stub) });
 }
 
 function hitBatch(id: string, amount: number, t: number, count = 1) {
@@ -304,5 +344,84 @@ describe("RaidScene vision integration", () => {
     state.phase="active";state.training=true;frame(1100);
     expect(scene.views.has("foe")).toBe(true);
     state.training=false;frame(1200); expect(scene.views.has("foe")).toBe(false);
+  });
+});
+
+describe("RaidScene own melee blows", () => {
+  it("presents an own blow with its patch, after the victim's view and before the render-time fx, never through the queue", () => {
+    const {scene,frame,order,fx} = blowHarness();
+    scene.onFxBatch(packFx([ownHit(), { kind: "block", id: "foe", by: "me", weapon: "axe" }], 1100, ROSTER));
+    expect(fx.enqueue).not.toHaveBeenCalled();
+    frame(1050);
+    expect(fx.confirmedOwnBlow).not.toHaveBeenCalled();
+    scene.interp.renderTime = () => 1020; // render time a delay behind the patch
+    order.length = 0;
+    frame(1100);
+    expect(order).toEqual(["foeView", "blow:hit:1100:true", "blow:block:1100:true", "fx.update:1020"]);
+    frame(1116);
+    expect(fx.confirmedOwnBlow).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps projectile, signature, ability, bleed and other fighters' hits on the render-time queue", () => {
+    const {scene,fx} = blowHarness();
+    scene.onFxBatch(packFx([
+      ownHit({ weapon: "bow" }), ownHit({ weapon: "wand" }), ownHit({ sig: "burn" }), ownHit({ ability: "blaze" }),
+      ownHit({ weapon: null }), ownHit({ by: "foe" }), { kind: "block", id: "foe", by: "me", weapon: "bow" },
+    ], 1100, ROSTER));
+    expect(fx.enqueue).toHaveBeenCalledTimes(7);
+    expect(fx.confirmedOwnBlow).not.toHaveBeenCalled();
+  });
+
+  it("keeps a shield hit on the render clock in a step that may carry a riposte or a reflected arrow", () => {
+    const {scene,frame,fx} = blowHarness();
+    scene.onFxBatch(packFx([{ kind: "block", id: "me", by: "foe", weapon: "sword" }, ownHit({ weapon: "shield" })], 1100, ROSTER));
+    scene.onFxBatch(packFx([
+      { kind: "projEnd", id: "bounced", proj: "arrow", x0: 0, y0: 0, t0: 1100, x: 5, y: 5, reason: "hit" }, ownHit({ weapon: "shield" }),
+    ], 1100, ROSTER));
+    expect(fx.enqueue.mock.calls.map(([e]) => e.kind)).toEqual(["block", "hit", "projEnd", "hit"]);
+    scene.onFxBatch(packFx([ownHit({ weapon: "shield" })], 1100, ROSTER)); // a bash
+    expect(fx.enqueue).toHaveBeenCalledTimes(4);
+    frame(1100);
+    expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
+  });
+
+  it("draws a backlog without juice, drops a stale one, and forgets them when the local player is gone", () => {
+    const {scene,state,frame,order,fx} = blowHarness();
+    scene.onFxBatch(packFx([ownHit()], 1100, ROSTER));
+    frame(1400); // 300 ms behind its patch by the time a frame runs
+    expect(order).toContain("blow:hit:1100:false");
+
+    scene.onFxBatch(packFx([ownHit()], 1500, ROSTER));
+    frame(3600); // over 2 s late
+    expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
+
+    scene.onFxBatch(packFx([ownHit()], 3700, ROSTER));
+    scene.flushConfirmedDamage({ ...state, players: new Map() }, 3700);
+    scene.flushConfirmedDamage(state, 3700);
+    expect(fx.confirmedOwnBlow).toHaveBeenCalledOnce();
+  });
+
+  it("empties the own-blow queue on teardown", () => {
+    const {scene,state,fx} = blowHarness();
+    vi.stubGlobal("window", { removeEventListener: vi.fn() });
+    try {
+      scene.onFxBatch(packFx([ownHit()], 1100, ROSTER));
+      (RaidScene.prototype as any).teardown.call(teardownTarget(scene));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    scene.flushConfirmedDamage(state, 1100);
+    expect(fx.confirmedOwnBlow).not.toHaveBeenCalled();
+  });
+
+  it("draws the local player's stagger stars on arrival and leaves anyone else's stagger to render time", () => {
+    const {scene,fx} = blowHarness();
+    scene.views.get("me").cues = { windupEnd: vi.fn() };
+    scene.onFxBatch(packFx([{ kind: "stagger", id: "me" }], 1100, ROSTER));
+    expect(fx.localStagger).toHaveBeenCalledOnce();
+    expect(fx.enqueue).not.toHaveBeenCalled();
+    scene.onFxBatch(packFx([{ kind: "stagger", id: "foe" }, { kind: "cancel", id: "me" }], 1100, ROSTER));
+    expect(fx.localStagger).toHaveBeenCalledOnce();
+    expect(fx.enqueue.mock.calls.map(([e]) => [e.kind, e.id])).toEqual([["stagger", "foe"]]);
   });
 });

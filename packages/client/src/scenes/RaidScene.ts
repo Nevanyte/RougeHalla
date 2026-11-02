@@ -14,7 +14,7 @@ import { keyboardMoveGoal, MOVEMENT_KEYS } from "../net/keyboardMovement";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
-import { ConfirmedDamage } from "../net/confirmedDamage";
+import { ConfirmedDamage, isOwnArcBlow, shieldReturnsIn, type ConfirmedFx } from "../net/confirmedDamage";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
 } from "../net/localPrediction";
@@ -22,7 +22,7 @@ import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
 import { chestNameOf, displayName } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
-import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
+import { FX_FRESH_MS, FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, pickInteraction, type Interaction } from "../render/interact";
 import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
@@ -138,6 +138,8 @@ export class RaidScene extends Phaser.Scene {
   private directionalAttackHeld = false;
   private readonly localAutos = new LocalAutos();
   private readonly confirmedDamage = new ConfirmedDamage();
+  /** The local player's own melee blows on others, held for their patch like hits on it; apart, so a crowd sweep never evicts those. */
+  private readonly confirmedBlows = new ConfirmedDamage<ConfirmedFx>();
   private readonly movementKeys = new Set<string>();
   private keyboardWasMoving = false;
   private keyboardChanged = false;
@@ -346,6 +348,7 @@ export class RaidScene extends Phaser.Scene {
     this.directionalAttackHeld = false;
     this.localAutos.reset();
     this.confirmedDamage.reset();
+    this.confirmedBlows.reset();
     this.lockId = "";
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
@@ -1646,7 +1649,9 @@ export class RaidScene extends Phaser.Scene {
         this.fx.noteLaunch(launch);
       }
     }
-    for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
+    const fxs = unpackFx(batch, this.room.state.roster, this.warnDropped);
+    const shieldReturns = shieldReturnsIn(fxs, this.room.sessionId);
+    for (const fx of fxs) {
       this.ground.combat.note(fx);
       const autoEvent = (fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId ? fx : null;
       const now = performance.now();
@@ -1659,6 +1664,11 @@ export class RaidScene extends Phaser.Scene {
       if (fx.kind === "hit" && fx.id === this.room.sessionId) {
         // FX precede their state patch on the wire. Present the confirmed hit in the frame that has its HP/barrier values.
         this.confirmedDamage.enqueue(fx, performance.now());
+        continue;
+      }
+      if (isOwnArcBlow(fx, this.room.sessionId, shieldReturns)) {
+        // Its swing already played on the input clock: the confirmation lands with its patch, not a render delay after it.
+        this.confirmedBlows.enqueue(fx, performance.now());
         continue;
       }
       if (autoEvent) {
@@ -1674,6 +1684,7 @@ export class RaidScene extends Phaser.Scene {
       if ((fx.kind === "cancel" || fx.kind === "stagger") && fx.id === this.room.sessionId) {
         this.cancelLocalAutos(performance.now());
         this.fx.dropWindups(fx.id, fx.t, performance.now());
+        if (fx.kind === "stagger") this.fx.localStagger(performance.now());
         continue;
       }
       // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
@@ -1705,8 +1716,10 @@ export class RaidScene extends Phaser.Scene {
   }
 
   private flushConfirmedDamage(state: RaidState, now: number): void {
-    if (!state.players.has(this.room.sessionId)) { this.confirmedDamage.reset(); return; }
+    if (!state.players.has(this.room.sessionId)) { this.confirmedDamage.reset(); this.confirmedBlows.reset(); return; }
     this.confirmedDamage.drain(state.serverTime, now, fx => this.fx.confirmedLocalHit(fx, now));
+    // A backlog behind the patch (a stalled tab) still draws its numbers, without a pile of camera shakes.
+    this.confirmedBlows.drain(state.serverTime, now, fx => this.fx.confirmedOwnBlow(fx, now, state.serverTime - fx.t <= FX_FRESH_MS));
   }
 
   private teardown(): void {
@@ -1738,6 +1751,7 @@ export class RaidScene extends Phaser.Scene {
     this.cancelLocalAutos(performance.now());
     this.localAutos.reset();
     this.confirmedDamage.reset();
+    this.confirmedBlows.reset();
     this.predict.reset();
     this.juice.reset();
     this.projectiles.destroy();
