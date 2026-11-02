@@ -15,7 +15,7 @@ export const CHEST_TABLE: readonly LootEntry[] = [
 ];
 
 /** Share of mapgen's ground spots that get a loose weapon; the rest stay empty. */
-export const GROUND_WEAPON_CHANCE = 0.35;
+export const GROUND_WEAPON_CHANCE = 0.25;
 
 /** Proportional pick; always consumes exactly one `random()` call. */
 function pickWeighted<T extends { weight: number }>(random: Random, entries: readonly T[]): T {

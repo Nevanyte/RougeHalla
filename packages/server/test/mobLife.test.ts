@@ -1011,6 +1011,19 @@ describe("killMob: rewards", () => {
       }
     });
 
+    it("a camp clear leaves one loose weapon: only the camp's last mob drops, and an armed hand arms from none", () => {
+      const w = makeRun({ seed: 1 });
+      const ci = w.state.camps.findIndex((c) => c.alive >= 3);
+      const mobs = allMobs(w).filter((m) => m.s.camp === ci + 1 && m.s.weapon0 !== "fists");
+      expect(mobs.length).toBeGreaterThanOrEqual(3);
+      P(w, 0).weapon0 = "sword"; // an armed hand, so nothing is taken up
+      const before = w.state.containers.size;
+      mobs.slice(0, -1).forEach((m) => hurt(w, m, ["p0", m.s.hp]));
+      expect(w.state.containers.size).toBe(before);
+      hurt(w, mobs.at(-1)!, ["p0", mobs.at(-1)!.s.hp]);
+      expect(w.state.containers.size).toBe(before + (mobs.at(-1)!.s.weapon0 === "sword" ? 0 : 1));
+    });
+
     it("what the player holds does not change what the next kill pays: a card is no part of the reward", () => {
       const a = makeBare();
       const b = makeBare();
