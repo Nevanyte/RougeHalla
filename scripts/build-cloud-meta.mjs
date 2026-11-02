@@ -3,7 +3,10 @@ import { execFileSync } from "node:child_process";
 import { computeServerBuildId } from "../packages/server/src/buildId.ts";
 
 const root = new URL("../", import.meta.url);
-const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+// The public edge build has Git; the minimal Docker image intentionally has neither Git nor .git.
+let sourceCommit;
+try { sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(); }
+catch { /* Container builds still need their executable fingerprint; omit an unprovable commit. */ }
 await fs.mkdir(new URL("deployment/cloudflare/", root), { recursive: true });
 await fs.writeFile(new URL("deployment/cloudflare/build-meta.json", root), `${JSON.stringify({ serverBuild: computeServerBuildId() })}\n`);
 await fs.mkdir(new URL("packages/client/dist/", root), { recursive: true });
