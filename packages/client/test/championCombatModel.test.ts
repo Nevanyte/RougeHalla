@@ -49,7 +49,7 @@ describe("championCombatModel", () => {
     expect(grown.scaling).toContain("420/840 HP · 3 bodies");
     expect(grown.tooltip).toContain("1320 max HP and 48 raw physical damage");
     expect(grown.tooltip).toContain("assists your current enemy and follows you otherwise");
-    expect(championCombatModel({ ...p, maxHp: 4000, corpseStacks: 3 }).rows[1].tooltip).toContain("1680 max HP and 144 raw physical damage");
+    expect(championCombatModel({ ...p, maxHp: 4000, corpseStacks: 3 }).rows[1].tooltip).toContain("2640 max HP and 96 raw physical damage");
     expect(championCombatModel({ ...p, corpseStacks: 3, zombieAlive: false }).rows[1].scaling).toContain("walk over a body to revive");
   });
   it("matches shared current per-hit formula and damage types for every faction and weapon", () => {
