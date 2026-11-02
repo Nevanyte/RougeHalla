@@ -22,6 +22,8 @@ npm run deploy
 npm run latency -- --url https://play.roguehalla.com
 ```
 
+A tab opened before a deploy keeps its old bundle. Every join carries the page's wire build (a hash of `packages/shared/src`, baked into the client by `npm run build`), and the container, which has `CLIENT_DIR` set and so is hosting, refuses a different one with a Reload card, so a changed fx table or schema never fails silently in an old tab; a join that names no build (bots) is let in. `npm run deploy` builds the client and the image from one tree, so the two agree. `CLIENT_BUILD_CHECK=0` in the container's environment turns the check off if a deploy ever has to let old pages in (CLAUDE.md, "The join names the page's wire build").
+
 The container uses `standard-1` (half a CPU and 4 GiB memory). Admission permits one arena room (up to eight players) and two private training rooms. Additional arenas receive the existing server-full response. Cloudflare chooses container and edge locations; this setup does not guarantee a particular city.
 
 Validation on 2026-10-30 used Cloudflare's `sjc06` allocation. A six-player arena with filler bots completed 150 measurements at 73.8 ms median and 81.7 ms p95, with all six players alive throughout. After routing the public domain, 100 private Training measurements returned 75.7 ms median and 110.5 ms p95 without disconnecting. The Mac's game port was closed during the public checks; ownership, tokens and profile contents were verified for all 19 Mac accounts and 13 original cloud accounts.

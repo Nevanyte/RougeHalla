@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { TELEMETRY_PERF_MESSAGE, type FxBatch, type JoinOptions, type RoomMode, type RunResult, type ServerMessages } from "@raid/shared";
 import { runPerf } from "./net/perfSample";
 import "./style.css";
-import { detachRoom, isCallsignBusy, joinRaid, joinTraining, leaveRoom, type RaidRoom } from "./net/connection";
+import { detachRoom, isCallsignBusy, isClientOutOfDate, joinRaid, joinTraining, leaveRoom, type RaidRoom } from "./net/connection";
 import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, MAP_MISMATCH_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
 import { mapLoader, warmWhenIdle } from "./net/mapWorker";
@@ -17,6 +17,7 @@ import { Banner } from "./ui/banner";
 import { Chrome } from "./ui/chrome";
 import { LoadingScreen, whenReady } from "./ui/loading";
 import { Menu, type RaidRequest } from "./ui/menu";
+import { ReloadPrompt } from "./ui/reloadPrompt";
 import { ResultsScreen } from "./ui/results";
 import { Toasts, toastTone, type ToastTone } from "./ui/toast";
 import { QuestToasts } from "./ui/questToasts";
@@ -54,6 +55,7 @@ const menu = new Menu({
 });
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
 const banner = new Banner();
+const reloadPrompt = new ReloadPrompt();
 const toasts = new Toasts();
 // Quest lifecycle lines are folded (one completion line for the completer, one line for the offers that expire together) before the toast stack.
 const questToasts = new QuestToasts((text) => toasts.show(text, toastTone(text)), () => room?.state.players.get(room.sessionId)?.name ?? "");
@@ -142,6 +144,8 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
       return;
     }
     joinFailed(friendlyError(err));
+    // A page opened before a deploy that changed the contract: the sentence says why, the card gives the way out.
+    if (isClientOutOfDate(err)) reloadPrompt.show();
     return;
   }
   // The wait ran out while the server was still answering: the room that arrived late is not wanted.

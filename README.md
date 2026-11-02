@@ -313,6 +313,7 @@ Set them on the command line, for example `MIN_PLAYERS=1 FILL_SECONDS=1 PATIENCE
 | `ALLOW_TRACE_WHEN_HOSTING` | off | `1`: let a hosting server record `TRACE_INPUTS` anyway (it records every player's movement). `npm run playtest` and the deploy drop both variables. |
 | `CLIENT_DIR` | unset | A built client (`packages/client/dist`) to serve from the same port as the API and the websocket. Setting it, or `NODE_ENV=production`, is "hosting": see [Hosting a playtest](#hosting-a-playtest). |
 | `PLAYTEST_PASSCODE` | unset | When set, a passcode is needed to claim a new callsign and to join a room. |
+| `CLIENT_BUILD_CHECK`, `CLIENT_BUILD` | on when hosting | A hosting server refuses a join from a page built against a different `packages/shared/src` (a tab that outlived a deploy: it shows a Reload card) and lets in a join that names no build (bots, a dev build). `CLIENT_BUILD_CHECK=0` turns the check off; `CLIENT_BUILD=<hash>` requires that build instead of the server's own. |
 | `PASSCODE_FAILS_PER_MINUTE`, `PASSCODE_FAILS_PER_MINUTE_ALL` | `6`, `40` | With a passcode set: wrong guesses a minute per client address and in all, before the server answers 429 (on the profile route and on joining). |
 | `PLAYTEST_TUNNEL`, `PLAYTEST_HOSTNAME` | unset | Launcher only (`npm run playtest`): the named tunnel and its address, as `--named` and `--hostname` ([A stable link](#a-stable-link)). |
 | `CORS_ORIGINS` | unset | Hosting only: comma-separated origins that may read `/api` and matchmaking from another site. Nobody else may. |

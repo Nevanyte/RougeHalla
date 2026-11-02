@@ -7,6 +7,7 @@ import {
 import {
   BOT_FILL_DEFAULTS, PERSONA_IDS, TIER_IDS, type BotFillConfig,
 } from "./bots/brain/types";
+import { wireBuildId } from "./buildId";
 import { MAP_POOL_TARGET, MAP_WORKER_HANG_MS } from "./mapPool";
 import type { SimConfig } from "./sim/world";
 
@@ -38,6 +39,12 @@ export interface ServerConfig extends SimConfig {
   corsOrigins: string[];
   /** The playtest passcode (PLAYTEST_PASSCODE). Unset: none is asked for. Set: needed to claim a callsign and to join a room. */
   passcode: string | undefined;
+  /**
+   * The wire build a join must carry (JoinOptions.build): a join that names another is refused with CLIENT_OUT_OF_DATE_MESSAGE, one
+   * that names none is let in. A hosting server defaults to its own (buildId.ts wireBuildId); CLIENT_BUILD sets it, CLIENT_BUILD_CHECK=0
+   * turns the check off; dev has none, since Vite's hot reload keeps a page across edits of shared code.
+   */
+  clientBuild: string | undefined;
   /** Wrong passcodes a minute per client address, and over the whole server, before it refuses with 429 (PASSCODE_FAILS_PER_MINUTE, PASSCODE_FAILS_PER_MINUTE_ALL; 0 = no limit). Counted on the profile route and on matchmaking. */
   passcodeFailsPerMinute: number;
   passcodeFailsPerMinuteAll: number;
@@ -199,6 +206,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     sameOriginOnly: hosting,
     corsOrigins: originList(env.CORS_ORIGINS),
     passcode: env.PLAYTEST_PASSCODE || undefined,
+    clientBuild: env.CLIENT_BUILD_CHECK === "0" || env.CLIENT_BUILD_CHECK === "false" ? undefined : env.CLIENT_BUILD || (hosting ? wireBuildId() : undefined),
     passcodeFailsPerMinute: Math.floor(limit(env.PASSCODE_FAILS_PER_MINUTE, DEFAULT_PASSCODE_FAILS_PER_MINUTE)),
     passcodeFailsPerMinuteAll: Math.floor(limit(env.PASSCODE_FAILS_PER_MINUTE_ALL, DEFAULT_PASSCODE_FAILS_PER_MINUTE_ALL)),
     maxArenaRooms: Math.floor(limit(env.MAX_ARENA_ROOMS, whenHosting(DEFAULT_MAX_ARENA_ROOMS))),

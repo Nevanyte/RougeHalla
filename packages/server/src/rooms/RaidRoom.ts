@@ -13,7 +13,7 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
+  CLIENT_MESSAGE_TYPES, CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
   TELEMETRY_FINALIZE_GRACE_MS, TELEMETRY_PERF_MESSAGE,
   type FactionId, type FxBatch, type FxEvent, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
 } from "@raid/shared";
@@ -21,6 +21,7 @@ import type { RaidState } from "@raid/shared/schema";
 import { BotManager } from "../bots/BotManager";
 import type { BotStatsStoreApi } from "../bots/brain/types";
 import type { ServerConfig } from "../config";
+import { clientBuildAllowed, noteStaleClient } from "../guards/clientBuild";
 import { addressOfContext } from "../guards/clientIp";
 import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, type PasscodeGate } from "../guards/passcode";
 import type { RoomCounter } from "../guards/roomCounter";
@@ -187,6 +188,13 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // address past its limit gets 429 without its guess being looked at.
     const verdict = passcodeGate.check(options?.passcode, addressOfContext(context), Date.now());
     if (!verdict.ok) throw verdict.blocked ? new ServerError(429, PASSCODE_THROTTLED) : refuse(PASSCODE_REQUIRED);
+    // Then the page's build: a tab that outlived a deploy of a changed contract is sent to reload before it opens or takes anything.
+    // Only the refusal comes of it; the value is not kept (guards/clientBuild.ts).
+    const required = RaidRoom.ctx.config.clientBuild;
+    if (required !== undefined && !clientBuildAllowed(required, options?.build)) {
+      noteStaleClient(required, options?.build);
+      throw new ServerError(CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE);
+    }
     const profile = checkCredentials(options, store);
     if (profiles.isActive(profile)) throw refuse("profile already in a raid");
     if (profiles.hasUnjoinedRoom(profile)) throw refuse("a room was just opened for this profile; join it or try again in a few seconds");
