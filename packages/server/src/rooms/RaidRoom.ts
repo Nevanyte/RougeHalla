@@ -153,8 +153,17 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
 /** What a creation refused for the room cap says (net/errors.ts matches "server is full"). */
 const SERVER_FULL = "the server is full: too many rooms are open right now";
 
-/** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 20 Hz and is its own, cheap, thing). */
+/** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 40 a second and is its own, cheap, thing). */
 const FREE_MESSAGE_TYPE = "aim";
+
+/**
+ * Colyseus closes a client (4002, which the SDK does not reconnect from: the run is lost) past this many messages in a one-second
+ * window opened by the first message after the last one ran out. The busiest honest mix is about 55 a second (aim 40, a held
+ * move or WASD 10, 5 clicks: client/src/net/uplinkPace.ts), and a stalled TCP delivers everything it held at once, so the stall
+ * that closes a client is about cap / rate - 1 s: 2.6 s at 200, 1.2 s at 100. What a message costs stays bounded
+ * past the cap's size: an aim keeps only the latest of a tick and an order spends the budget below.
+ */
+export const MAX_MESSAGES_PER_SECOND = 200;
 
 const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip", quest: "quest" };
 
@@ -184,11 +193,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   maxClients = MAX_PLAYERS;
-  /**
-   * Spam guard; exceeding it disconnects. Legit clients send about 35/s at most (20 Hz aim, 10 Hz move repeat, clicks),
-   * with headroom for a network stall that delivers a couple of seconds of input at once.
-   */
-  maxMessagesPerSecond = 100;
+  /** Spam guard; exceeding it disconnects (MAX_MESSAGES_PER_SECOND: sized for a stall's burst, not the steady rate). */
+  maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
 
   /** Built on the first join (buildWorld), with a map from the pool: a room nobody joins never takes one. */
   private built: World | undefined;

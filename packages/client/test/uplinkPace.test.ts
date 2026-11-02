@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TICK_MS } from "@raid/shared";
 import {
   AIM_ALIGN_FRAME_MS, AIM_BACKUP_MS, AIM_BUDGET_SLOW, AIM_BUDGET_STOP, AIM_FLOOR_MS, AIM_KEEPALIVE_MS, AIM_STARVE_MS, AimGate, FramePace,
-  HOLD_KEEPALIVE_MS, HOLD_MOVE_MIN, HOLD_REPEAT_MS, HoldGate, MessageMeter,
+  HOLD_ALIGNED_GAP_MS, HOLD_KEEPALIVE_MS, HOLD_MOVE_MIN, HOLD_REPEAT_MS, HoldGate, MessageMeter,
 } from "../src/net/uplinkPace";
 import { phaseSlot, type PhaseSource, type PhaseStatus } from "../src/net/tickPhase";
 
@@ -140,7 +140,7 @@ describe("HoldGate", () => {
     expect(gate.next(at(107), HOLD_REPEAT_MS + HOLD_KEEPALIVE_MS, 0, true, null, 7)).toBe("now");
   });
 
-  it("sends a move after a quiet spell at once, then one a tick in the slot before each wake while the deadline is known", () => {
+  it("sends a move after a quiet spell at once, then one in every second slot before a wake while the deadline is known", () => {
     const gate = new HoldGate();
     const phase = knownPhase(true, 90, 6, 0);
     const frame = 1000 / 144;
@@ -159,13 +159,15 @@ describe("HoldGate", () => {
     const aligned = sends.slice(1);
     expect(aligned.every((s) => s.kind === "aligned")).toBe(true);
     const slots = aligned.map((s) => Math.ceil((s.c + 96) / TICK_MS));
-    expect(new Set(slots).size).toBe(slots.length);
+    // Every second slot: one a tick would spend the server's whole order budget (15 a second) on the hold.
+    expect(gaps(slots).every((g) => g === 2)).toBe(true);
+    expect(Math.min(...gaps(sends.map((s) => s.c)))).toBeGreaterThanOrEqual(HOLD_ALIGNED_GAP_MS);
     for (const s of aligned) {
       const deadline = Math.ceil((s.c + 96) / TICK_MS) * TICK_MS - 96;
       expect(deadline - s.c).toBeLessThan(frame + 1e-6);
     }
-    expect(aligned.length).toBeGreaterThanOrEqual(18);
-    expect(aligned.length).toBeLessThanOrEqual(20);
+    expect(aligned.length).toBeGreaterThanOrEqual(9);
+    expect(aligned.length).toBeLessThanOrEqual(10);
   });
 
   it("falls back to HOLD_REPEAT_MS while the deadline is unknown, and forgets everything on reset", () => {

@@ -36,7 +36,7 @@ Both build their input for the same `perception.ts`, run the same `BotRunner` (`
 | Criterion | In-process (chosen for fill) | Headless network clients |
 |---|---|---|
 | Never touches persistence | No profile, token or seat exists. `RaidRoom.settle` drops its result | Joining needs a profile and token (`checkCredentials` in `RaidRoom.ts`), a profile per bot, and `recordRun` on every result: exactly what the brief forbids |
-| Same validation and timing as a human | Same `enqueueClientMessage`. Arrival between steps is applied by the next step, as a socket message is | Same, plus the Colyseus 100 msg/s guard (`maxMessagesPerSecond` in `RaidRoom`). The humanizer caps bots at 2-3 msg/s anyway |
+| Same validation and timing as a human | Same `enqueueClientMessage`. Arrival between steps is applied by the next step, as a socket message is | Same, plus the Colyseus 200 msg/s guard (`MAX_MESSAGES_PER_SECOND` in `RaidRoom`) and the per-player order budget (`ORDER_BURST`, `ORDER_PER_SECOND`). The humanizer caps bots at 2-3 msg/s anyway |
 | Scale | No socket, no per-client patch encode, no downlink | A WebSocket each and a full patch stream each |
 | Tick budget | Brain CPU is on the server's event loop: budgeted, see below | Brain CPU in another process |
 | CLI shares the brain | Yes: runner + perception | Yes: the same runner |

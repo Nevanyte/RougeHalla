@@ -6,12 +6,15 @@
 //   aim   A floor gate of half a tick (two sends a tick on average, wherever the tick is) instead of one tick; and, once the order
 //         acks show where the deadline is (net/tickPhase.ts, which needs a server that wakes on its grid) and frames are short
 //         enough to place a send, one in the last frame before each wake's deadline and a backup a quarter tick before it.
-//   hold  The right button held re-sends its move only when the cursor's ground point moved, at most once a tick (in the slot
-//         before the wake while the deadline is known, else every HOLD_REPEAT_MS), and an unchanged one as a keepalive.
+//   hold  The right button held re-sends its move only when the cursor's ground point moved, about every HOLD_REPEAT_MS (in every
+//         second slot before a wake while the deadline is known), and an unchanged one as a keepalive. Every message but `aim`
+//         spends the server's per-player order budget (ORDER_BURST 30, ORDER_PER_SECOND 15, dropped past it): a hold at one a tick
+//         would empty it in seconds and silently drop the clicks, casts and locks sent beside it.
 //
-// The aim stands back when the client is near the server's message cap (Colyseus closes a client over maxMessagesPerSecond, 100
-// in a one-second window; a stalled TCP flushes in a burst): one a tick from AIM_BUDGET_SLOW a second, keepalives only from
-// AIM_BUDGET_STOP.
+// The aim stands back when the client's own rate nears the server's message cap (Colyseus closes a client past
+// maxMessagesPerSecond in a one-second window, RaidRoom's MAX_MESSAGES_PER_SECOND): one a tick from AIM_BUDGET_SLOW a second,
+// keepalives only from AIM_BUDGET_STOP. The meter counts sends, so it cannot see a stalled TCP that delivers seconds of them at
+// once; the cap's headroom over the busiest steady rate is what covers that.
 import { TICK_MS, type Vec2 } from "@raid/shared";
 import type { PhaseSource } from "./tickPhase";
 
@@ -41,10 +44,15 @@ export const AIM_BUDGET_STOP = 88;
 export const HOLD_MOVE_MIN = 6;
 /** ...at most once per this (ms) while the deadline is not known (the minimap's and the old hold's MOVE_REPEAT_MS)... */
 export const HOLD_REPEAT_MS = 100;
+/**
+ * ...and while it is known, in a slot at least this long after the last send: every second slot, so the hold stays at about 10
+ * a second inside the server's order budget (15 a second) with room for clicks, as the unaligned repeat does.
+ */
+export const HOLD_ALIGNED_GAP_MS = HOLD_REPEAT_MS - TICK_MS / 2;
 /** ...and unchanged after this long. */
 export const HOLD_KEEPALIVE_MS = 250;
-/** A held move this long after the last one goes out at once, not in a slot: the stream was quiet. */
-const HOLD_QUIET_MS = 2 * TICK_MS;
+/** A held move this long after the last one goes out at once, not in a slot: the stream was quiet (past the second slot). */
+const HOLD_QUIET_MS = 3 * TICK_MS;
 /** The frame time is the longest of the last few frames, each clamped to this range (ms). */
 const FRAME_SAMPLES = 6;
 const FRAME_MIN_MS = 1;
@@ -193,6 +201,7 @@ export class HoldGate {
     if (!moved) return since >= HOLD_KEEPALIVE_MS ? "now" : "none";
     if (since >= HOLD_QUIET_MS) return "now";
     if (synced && phase !== null && fdt < TICK_MS && phase.status(c).ready) {
+      if (since < HOLD_ALIGNED_GAP_MS) return "none";
       const slot = phase.slot(c, TICK_MS);
       if (slot.id === this.lastSlot || c + fdt < slot.deadline) return "none";
       this.lastSlot = slot.id;

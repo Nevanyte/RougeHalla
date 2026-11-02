@@ -6,6 +6,7 @@ vi.mock("phaser", () => ({ default: { Scene: class {} } }));
 import { findPath, mapFromTiles, PLAYER_RADIUS, TILE, TILE_FLOOR, TILE_WALL, type GameMap } from "@raid/shared";
 import { STEER_COALESCE_MS, STEER_REPEAT_MS } from "../src/net/keyboardMovement";
 import { LocalPrediction } from "../src/net/localPrediction";
+import { unproject } from "../src/render/projection";
 import { RaidScene } from "../src/scenes/RaidScene";
 
 interface SteerScene {
@@ -22,6 +23,8 @@ interface SteerScene {
   onKeyDown(e: unknown): void;
   onKeyUp(e: unknown): void;
   steerKeyboard(now: number, fromEvent?: boolean): void;
+  holdMove(pointer: unknown): void;
+  cameras: unknown;
   orderMove(kind: "move" | "attackMove" | "stop", point?: { x: number; y: number }): void;
 }
 
@@ -213,6 +216,35 @@ describe("a key event the scene cannot act on yet stays pending for the frame", 
     r.key("down", "KeyD");
     expect(r.sent()).toEqual([]);
     expect(r.scene.keyboardChanged).toBe(true);
+  });
+});
+
+describe("the held right button yields to WASD steering", () => {
+  it("sends no cursor move while a movement key steers, and resumes once the keys are up", () => {
+    withDocument();
+    const r = rig();
+    r.scene.cameras = { main: {} };
+    // The camera follows the walk, so the ground point under a still cursor moves every frame.
+    const pointer = { worldX: 300, worldY: 120, updateWorldPoint: () => {} };
+    const cursor = () => unproject(pointer.worldX, pointer.worldY);
+    r.scene.holdMove(pointer);
+    expect(r.sent()).toEqual([{ type: "move", ...cursor(), seq: 1 }]);
+    r.key("down", "KeyD");
+    // update()'s order: the hold, then the keyboard's frame.
+    for (let i = 0; i < 144; i++) {
+      r.advance(1000 / 144);
+      pointer.worldX += 1.5;
+      r.scene.holdMove(pointer);
+      r.frame();
+    }
+    const steered = r.sent().slice(1);
+    expect(steered.length).toBeGreaterThanOrEqual(9);
+    expect(steered.every((m) => m.type === "move" && m.x === at.x + 64 && m.y === at.y)).toBe(true);
+    r.key("up", "KeyD");
+    expect(r.sent().at(-1)!.type).toBe("stop");
+    r.advance(1000 / 144);
+    r.scene.holdMove(pointer);
+    expect(r.sent().at(-1)).toMatchObject({ type: "move", ...cursor() });
   });
 });
 

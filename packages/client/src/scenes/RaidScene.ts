@@ -1177,11 +1177,12 @@ export class RaidScene extends Phaser.Scene {
   }
 
   /**
-   * The right button held: the move is re-sent when the cursor's ground point moved, at most once a tick and, once the order acks
-   * show the tick's deadline, in the last frame before it (net/uplinkPace.ts HoldGate). Such a send is no sample of the deadline.
+   * The right button held: the move is re-sent when the cursor's ground point moved, about every 100 ms and, once the order acks
+   * show the tick's deadline, in the last frame before every second one (net/uplinkPace.ts HoldGate). Such a send is no sample of
+   * the deadline. WASD steering wins: two repeats on their own clocks would land in alternate ticks and zigzag the fighter.
    */
   private holdMove(pointer: Phaser.Input.Pointer): void {
-    if (this.beforeTeleport() || this.frozenWorld) return;
+    if (this.beforeTeleport() || this.frozenWorld || (this.keyboardWasMoving && this.movementKeys.size > 0)) return;
     pointer.updateWorldPoint(this.cameras.main);
     const target = unproject(pointer.worldX, pointer.worldY);
     const now = performance.now();
