@@ -2,6 +2,7 @@
 // code (EntityInterpolator + ServerClock/SnapshotBuffer, LocalPrediction/LocalMotion) at a fixed frame rate, sending orders
 // like a player (move with seq, right-hold repeats, stop, target locks on nearby mobs and bots, a streamed aim).
 //   npx tsx packages/server/bench/netProbe.ts --url http://localhost:2567 [--seconds 60] [--seed 1] [--hz 144] [--label text] [--json file]
+//        [--aim legacy50|floor25|aligned]
 // It needs other fighters to be worth anything: run it against a server with mobs on and a few `npm run bots` (netProbeMatrix.ts
 // starts both for each network profile). Only the time the probe is alive in a running raid is measured; when it dies it queues
 // into the next run and carries on until it has `--seconds` of that.
@@ -22,6 +23,11 @@
 //   swap         with --swap (a training room): weapon swaps through the client's own LocalHand: when the new hand shows (the first
 //                patch, which is what the screen waited for before the prediction, and the next frame), how the predictions ended,
 //                and how many clicks made inside the round trip after a swap would go to the wrong input by each
+//   aim          how old the aim each patch's step applied was (`--aim legacy50 | floor25 | aligned`, the client's gate in that
+//                mode: net/uplinkPace.ts): every aim carries its own angle, so the synced facing names it; the lag is the patch's
+//                server time less the client clock the aim left at (the age at the step plus the clock's constant downlink bias,
+//                so differences between modes are exact), with the share of patches that applied no newer aim than the one
+//                before, the aims a second, the most messages sent in any second, and how often the tick deadline was known
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
@@ -38,6 +44,13 @@ import { keyboardMoveGoal, steerDue } from "../../client/src/net/keyboardMovemen
 import { JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS, seqAcked, type LocalMotion } from "../../client/src/net/localMotion";
 import { castUnanswered, LocalPrediction, type SentCast } from "../../client/src/net/localPrediction";
 import { LocalHand, weaponInSlot } from "../../client/src/net/localHand";
+import { AimGate, HoldGate, MessageMeter } from "../../client/src/net/uplinkPace";
+
+/** How the probe streams its aim: the gate before the floor (one a tick), the half-tick floor, or the client's own (aligned once the deadline is known). */
+export type AimMode = "legacy50" | "floor25" | "aligned";
+/** The k-th aim's angle: distinct in float32, inside parseAngle's range. */
+const AIM_CODES = 60_000;
+const aimAngle = (k: number): number => -3 + (k % AIM_CODES) * 1e-4;
 
 export interface ProbeOptions {
   url: string;
@@ -77,6 +90,8 @@ export interface ProbeOptions {
    * rack there is where the probe gets a wand and a sword (an arena run starts with empty hands).
    */
   swap?: boolean;
+  /** How the aim is streamed (default "aligned", what the game client does); "aligned" also routes the right-button hold through HoldGate. */
+  aimMode?: AimMode;
 }
 
 export interface Dist { n: number; p50: number; p95: number; p99: number; max: number; min: number; mean: number }
@@ -221,6 +236,18 @@ export interface ProbeReport {
     followWithoutLockFrames: number;
     followWithoutLockMs: Dist;
   };
+  aim: {
+    mode: AimMode;
+    /** Per patch whose step applied a known aim (no lock, no stun): its server time less the client clock that aim left at. */
+    lagMs: Dist;
+    /** Share of such patches that applied the same aim as the patch before (a tick with no newer aim). */
+    stalePct: number;
+    perSec: number;
+    /** The most messages the probe sent in any one second (the server closes a client past 100). */
+    peakPerSec: number;
+    /** Share of frames in which the tick deadline was known (net/tickPhase.ts ready). */
+    phaseReadyPct: number;
+  };
 }
 
 // ------------------------------------------------------------------------------------------------------------------ stats
@@ -330,6 +357,14 @@ class Metrics {
   cueRenderStart: number[] = [];
   cueHold: number[] = [];
   cueAck: number[] = [];
+  aimLag: number[] = [];
+  aimPatches = 0;
+  aimStale = 0;
+  aimsSent = 0;
+  aimMs = 0;
+  peakPerSec = 0;
+  phaseFrames = 0;
+  phaseReady = 0;
 }
 
 /** One swap the swap probe sent: when, to which slot, and the clicks simulated inside its round trip (judged once it has settled). */
@@ -398,7 +433,6 @@ class Session {
   private holdCentre: Vec2 = { x: 0, y: 0 };
   private lockUntil = 0;
   private lastAimAt = 0;
-  private aimAngle = 0;
   private aimOn = true;
   private patchTrace: Trace[] = [];
   // The keyboard script (opts.steer): its own random stream, so a seed gives one schedule whatever the mode.
@@ -426,8 +460,20 @@ class Session {
   private stalled = false;
   /** Server time the clock was last seen to snap (detected from a drop of its offset). */
   private lastOffset: number | null = null;
+  /** The aim stream, as the scene's streamAim gates it, and every message sent (the server's cap counts them all). */
+  private readonly aimMode: AimMode;
+  private readonly aimGate: AimGate;
+  private readonly holdGate = new HoldGate();
+  private readonly meter = new MessageMeter();
+  private aimK = 0;
+  /** Aim code -> the client clock it left at; and the code the previous patch's step applied (-1: none known). */
+  private readonly aimSent = new Map<number, number>();
+  private lastAimCode = -1;
 
   constructor(private readonly room: Room<any, RaidState>, private readonly m: Metrics, seed: number, private readonly opts: ProbeOptions) {
+    this.aimMode = opts.aimMode ?? "aligned";
+    this.aimGate = this.aimMode === "legacy50" ? new AimGate({ floorMs: TICK_MS, aligned: false })
+      : this.aimMode === "floor25" ? new AimGate({ aligned: false }) : new AimGate();
     this.onFrame = opts.onFrame;
     this.interp = new EntityInterpolator({ adaptive: opts.legacy ? false : true, render: opts.render });
     this.sid = room.sessionId;
@@ -445,6 +491,28 @@ class Session {
 
   /** The raid is over for us, or nothing but the probe has moved for STALL_MS (a stuck run: it is left and the next one joined). */
   get over(): boolean { return this.dead || this.resultIn || this.stalled; }
+
+  /** Every message the probe sends, counted as sendInput counts the game client's. */
+  private send(type: string, msg: unknown): void {
+    this.meter.note(performance.now());
+    this.room.send(type, msg);
+  }
+
+  /** Which of our aims the step behind this patch applied, if its facing is one (not a lock's, a stun's or a cast's). */
+  private noteAim(me: PlayerState, t: number): void {
+    const code = Math.round((me.facing + 3) / 1e-4);
+    const sentC = code >= 0 && code < AIM_CODES && Math.abs(aimAngle(code) - me.facing) < 1e-5 ? this.aimSent.get(code) : undefined;
+    if (sentC === undefined || me.attackTarget !== "" || (me.effects & EFFECT_STUNNED) !== 0) {
+      this.lastAimCode = -1;
+      return;
+    }
+    if (this.measuring) {
+      this.m.aimPatches++;
+      this.m.aimLag.push(t - sentC);
+      if (code === this.lastAimCode) this.m.aimStale++;
+    }
+    this.lastAimCode = code;
+  }
 
   private instrument(motion: LocalMotion): void {
     const raw = motion as unknown as Record<string, (...a: unknown[]) => unknown>;
@@ -517,6 +585,7 @@ class Session {
       this.noteKeyAcks(me.moveSeq, now, state);
       this.noteLock(me, now);
       if (this.opts.swap) this.noteSwapPatch(me, t, now);
+      if (this.active(state)) this.noteAim(me, t);
       if (me.status === "dead") this.dead = true;
     }
   }
@@ -626,6 +695,14 @@ class Session {
     this.prevRender = trueT;
     this.prevNow = now;
     this.onFrame?.(now, this.interp);
+    // As the scene's streamAim: the frame pace at the instant the aim is judged, and a clock step voids the deadline's samples.
+    this.aimGate.frames.frame(performance.now());
+    this.predict.motion.phase.noteClock(this.interp.clock.offsetMs);
+    if (measure) {
+      this.m.phaseFrames++;
+      if (this.predict.motion.phase.status(c).ready) this.m.phaseReady++;
+      this.m.peakPerSec = Math.max(this.m.peakPerSec, this.meter.perSecond(now));
+    }
 
     // Orders, then the prediction, as the scene does it.
     if (active) {
@@ -786,7 +863,7 @@ class Session {
     if (!landing) return;
     const seq = this.predict.nextSeq();
     this.predict.noteCast(c, { castMs: r.castMs, seq, blink: { landing } });
-    this.room.send("cast", { slot: "wish", x: aim.x, y: aim.y, seq });
+    this.send("cast", { slot: "wish", x: aim.x, y: aim.y, seq });
     this.pendingCast = { slot: "wish", seq, readyAt, until: now + JUMP_ORDER_EXPIRE_MS };
     this.casts.push({ seq, sentAt: now, c, landing, displace0: me.displaceSeq, acked: false, accepted: false, ackedAt: 0 });
     this.lockOn = false;
@@ -820,7 +897,7 @@ class Session {
       });
       if (!box) return;
       if (best > 40) this.sendMove(now, c, { x: box.x, y: box.y }, state);
-      else this.room.send("pickup", { containerId: box.id });
+      else this.send("pickup", { containerId: box.id });
       return;
     }
     // Walking keeps the order delay estimate measured, as it is for a player who moves between swaps.
@@ -839,7 +916,7 @@ class Session {
   private sendSwap(now: number, c: number, me: PlayerState, state: RaidState): void {
     const cur = this.hand.slotOf(me.slot);
     const target = cur === 0 ? 1 : 0;
-    this.room.send("swap", { slot: target });
+    this.send("swap", { slot: target });
     this.m.swapsSent++;
     const hand = this.handNow;
     hand.slot = cur;
@@ -911,7 +988,7 @@ class Session {
     } else if (rule.kind !== "self") return;
     this.lastCastTry = now;
     const seq = this.predict.nextSeq();
-    this.room.send("cast", { slot: "wish", x: aim.x, y: aim.y, ...(id !== undefined ? { id } : {}), seq });
+    this.send("cast", { slot: "wish", x: aim.x, y: aim.y, ...(id !== undefined ? { id } : {}), seq });
     this.predict.noteCast(c, { castMs: r.castMs, seq });
     this.pendingCast = { slot: "wish", seq, readyAt, until: now + ORDER_EXPIRE_MS };
     this.cues.push({ seq, ability, castMs: r.castMs, pressAt: now, fxAt: 0, fxT: 0, releaseAt: 0, landT: 0, landAt: 0, ackAt: 0 });
@@ -928,9 +1005,9 @@ class Session {
     const map = this.planMap(state);
     const clamped = { x: Math.min(Math.max(to.x, 0), WORLD_W), y: Math.min(Math.max(to.y, 0), WORLD_H) };
     // `event` mode is the client with the swap in RaidScene.orderMove: the message leaves before the path search.
-    if (this.curMode === "event") this.room.send("move", { x: clamped.x, y: clamped.y, seq });
+    if (this.curMode === "event") this.send("move", { x: clamped.x, y: clamped.y, seq });
     this.predict.motion.order("move", seq, c, clamped, map);
-    if (this.curMode !== "event") this.room.send("move", { x: clamped.x, y: clamped.y, seq });
+    if (this.curMode !== "event") this.send("move", { x: clamped.x, y: clamped.y, seq });
     this.sendAt.set(seq, now);
     this.m.moves++;
     this.lockOn = false;
@@ -939,9 +1016,9 @@ class Session {
 
   private sendStop(now: number, c: number, state: RaidState): number {
     const seq = this.predict.nextSeq();
-    if (this.curMode === "event") this.room.send("stop", { seq });
+    if (this.curMode === "event") this.send("stop", { seq });
     this.predict.motion.order("stop", seq, c, undefined, this.planMap(state));
-    if (this.curMode !== "event") this.room.send("stop", { seq });
+    if (this.curMode !== "event") this.send("stop", { seq });
     this.sendAt.set(seq, now);
     return seq;
   }
@@ -1062,22 +1139,40 @@ class Session {
   private script(now: number, c: number, me: PlayerState, state: RaidState): void {
     const at = this.predict.motion.drawn;
     const pos = this.predict.motion.ready ? { x: at.x, y: at.y } : { x: me.x, y: me.y };
-    // The streamed aim: about 20 Hz while the cursor is on the canvas.
-    if (this.aimOn && now - this.lastAimAt >= 50) {
-      this.aimAngle += (this.rnd() - 0.5) * 0.4;
-      this.room.send("aim", { a: this.aimAngle });
-      this.lastAimAt = now;
+    const synced = this.interp.clock.synced;
+    const phase = this.aimMode === "aligned" ? this.predict.motion.phase : null;
+    // The streamed aim: the cursor always moving, each aim its own angle, sent whenever the mode's gate lets one go.
+    if (this.aimOn) {
+      const sendAt = performance.now();
+      const ca = synced ? this.interp.clock.now(sendAt) : c;
+      if (this.aimGate.due(sendAt, ca, synced, this.meter.perSecond(sendAt), phase)) {
+        const k = this.aimK++;
+        this.send("aim", { a: aimAngle(k) });
+        this.aimGate.sent(sendAt);
+        this.aimSent.set(k % AIM_CODES, ca);
+        this.aimSent.delete((k + AIM_CODES - 400) % AIM_CODES);
+        this.lastAimAt = now;
+        if (this.measuring) this.m.aimsSent++;
+      }
     }
     if (this.opts.wish) this.tryWish(now, c, me, state);
     if (this.opts.steer) return; // the keyboard script moves the player, from keyTick and the frame's steerKeys
     if (now < this.holdUntil) {
-      // Right button held: a move to the cursor every 100 ms, the cursor drifting.
-      if (now >= this.holdNextAt) {
+      // Right button held, the cursor drifting: a move to it every 100 ms, or (the client's) when the ground point moved, once a
+      // tick, in the slot before the wake while the deadline is known.
+      const drift = now >= this.holdNextAt;
+      if (drift) {
         this.holdAngle += (this.rnd() - 0.5) * 0.5;
-        const to = { x: pos.x + Math.cos(this.holdAngle) * 260, y: pos.y + Math.sin(this.holdAngle) * 260 };
-        if (findPath(this.planMap(state), pos, to, PLAYER_RADIUS).length > 0) this.sendMove(now, c, to, state);
-        else this.holdAngle += Math.PI / 2;
         this.holdNextAt = now + 100;
+      }
+      const to = { x: pos.x + Math.cos(this.holdAngle) * 260, y: pos.y + Math.sin(this.holdAngle) * 260 };
+      const kind = this.aimMode === "aligned" ? this.holdGate.next(to, now, c, synced, phase, this.aimGate.frames.ms) : drift ? "now" : "none";
+      if (kind !== "none") {
+        if (findPath(this.planMap(state), pos, to, PLAYER_RADIUS).length > 0) {
+          if (kind === "aligned") phase?.noteAlignedSend(c);
+          this.sendMove(now, c, to, state);
+          this.holdGate.sent(to, now);
+        } else this.holdAngle += Math.PI / 2;
       }
       return;
     }
@@ -1099,7 +1194,7 @@ class Session {
       const cand = this.candidates(state, pos);
       const id = cand.length > 0 ? cand[Math.floor(this.rnd() * Math.min(3, cand.length))]! : null;
       if (id) {
-        this.room.send("target", { id });
+        this.send("target", { id });
         this.predict.motion.expectLock(c);
         this.pendingLocks.push({ id, sentAt: now, shown: false, done: false });
         this.m.locks++;
@@ -1235,6 +1330,10 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
       locksRefused: m.locksRefused, lockShownMs: dist(m.lockShown), followWithoutLockFrames: m.followWithoutLockFrames,
       followWithoutLockMs: dist(m.followWithoutLockRuns),
     },
+    aim: {
+      mode: opts.aimMode ?? "aligned", lagMs: dist(m.aimLag), stalePct: pct(m.aimStale, m.aimPatches),
+      perSec: m.activeMs > 0 ? m.aimsSent / (m.activeMs / 1000) : 0, peakPerSec: m.peakPerSec, phaseReadyPct: pct(m.phaseReady, m.phaseFrames),
+    },
   };
 }
 
@@ -1283,7 +1382,14 @@ export function formatReport(r: ProbeReport): string {
     ] : []),
     `orders    moves ${r.orders.moves} acked ${r.orders.acked}  ack wall ms ${d(r.orders.ackWallMs)}   locks ${r.orders.locks} shown ${r.orders.locksShown} refused ${r.orders.locksRefused}  ` +
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,
+    `aim       ${r.aim.mode}  lag ms ${d(r.aim.lagMs)}  mean ${f1(r.aim.lagMs.mean)}   stale ${f2(r.aim.stalePct)}% of ${r.aim.lagMs.n} patches   ` +
+      `${f1(r.aim.perSec)} aims/s  peak ${r.aim.peakPerSec} msgs/s   deadline known ${f1(r.aim.phaseReadyPct)}% of frames`,
   ].join("\n");
+}
+
+export function parseAimMode(s: string): AimMode {
+  if (s === "legacy50" || s === "floor25" || s === "aligned") return s;
+  throw new Error(`--aim: legacy50, floor25 or aligned, not ${s}`);
 }
 
 function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
@@ -1306,6 +1412,7 @@ function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
     else if (a === "--swap") { o.swap = true; o.training = true; }
     else if (a === "--trace") o.trace = true;
     else if (a === "--render") o.render = JSON.parse(v()) as Partial<RenderClockOptions>;
+    else if (a === "--aim") o.aimMode = parseAimMode(v());
     else throw new Error(`unknown argument ${a}`);
   }
   return o;

@@ -2,6 +2,7 @@ import { Client, type Room } from "@colyseus/sdk";
 import { ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME, type ClientMessages, type JoinOptions } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { readPasscode } from "./passcode";
+import { MessageMeter } from "./uplinkPace";
 
 export type RaidRoom = Room<any, RaidState>;
 
@@ -122,7 +123,15 @@ export async function joinTraining(options: Omit<JoinOptions, "mode">): Promise<
   return room;
 }
 
+const outbound = new MessageMeter();
+
+/** Messages sent in the last second (the streams back off near the server's cap: net/uplinkPace.ts). */
+export function outboundPerSecond(now: number): number {
+  return outbound.perSecond(now);
+}
+
 /** Typed input sender: the only way the client talks to the sim. */
 export function sendInput<K extends keyof ClientMessages>(room: RaidRoom, type: K, payload: ClientMessages[K]): void {
+  outbound.note(performance.now());
   room.send(type, payload);
 }

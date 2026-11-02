@@ -26,8 +26,9 @@ export const STEER_COALESCE_MS = 3;
  * Whether the keyboard should send an order now. `changed`: a movement key went down or up since the last send. A key event
  * sends at once (so the order is not quantised to the render frame) unless it follows the last send too closely; the frame
  * picks that one up, since `changed` stays set. A negative gap (the clock stepped back) defers an event instead of sending it.
+ * `repeatMs`: the held direction's repeat, which the scene stretches while the tick's deadline is unknown (net/tickPhase.ts sweepMs).
  */
-export function steerDue(s: { changed: boolean; lastAt: number }, now: number, fromEvent: boolean): boolean {
+export function steerDue(s: { changed: boolean; lastAt: number }, now: number, fromEvent: boolean, repeatMs = STEER_REPEAT_MS): boolean {
   const gap = now - s.lastAt;
-  return fromEvent ? s.changed && gap >= STEER_COALESCE_MS : s.changed || gap >= STEER_REPEAT_MS;
+  return fromEvent ? s.changed && gap >= STEER_COALESCE_MS : s.changed || gap >= repeatMs;
 }
