@@ -1,4 +1,4 @@
-import { TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS } from "./constants";
+import { BUSH_REVEAL_RADIUS, TILE, VISION_RADIUS, VISION_TRAIL_MS, VISION_UPDATE_MS } from "./constants";
 import { inColiseum, isWallTile, MASK_SIGHT, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
@@ -150,4 +150,35 @@ export class VisionMemory {
     const x = Math.floor(point.x / TILE), y = Math.floor(point.y / TILE);
     return x >= 0 && y >= 0 && x < this.width && y < this.height && this.expiresAt[y * this.width + x]! > now;
   }
+}
+
+const bushIds = new WeakMap<GameMap, Uint8Array | null>();
+function bushTable(map: GameMap): Uint8Array | null {
+  let t = bushIds.get(map);
+  if (t !== undefined) return t;
+  t = null;
+  map.features.forEach((f, i) => { if (f.kind === "bush") { t ??= new Uint8Array(map.features.length + 1); t[i + 1] = 1; } });
+  bushIds.set(map, t);
+  return t;
+}
+
+/** The featureGrid value (1 + feature index) of the bush under `p`, else 0. */
+export function bushAt(map: GameMap, p: Vec2): number {
+  const table = bushTable(map);
+  if (!table) return 0;
+  const x = Math.floor(p.x / TILE), y = Math.floor(p.y / TILE);
+  if (x < 0 || y < 0 || x >= map.w || y >= map.h) return 0;
+  const v = map.featureGrid[y * map.w + x];
+  return v !== undefined && table[v] ? v : 0;
+}
+
+/**
+ * LoL-style brush: a player standing in a bush is hidden from a viewer who is not in the same bush, unless within
+ * BUSH_REVEAL_RADIUS or exposed (`revealUntil` > now: an attack or cast). Presentation and targeting only: it changes no sight line.
+ */
+export function bushConceals(map: GameMap, viewer: Vec2, actor: Vec2, revealUntil = 0, now = 0): boolean {
+  const b = bushAt(map, actor);
+  if (b === 0 || revealUntil > now || bushAt(map, viewer) === b) return false;
+  const dx = actor.x - viewer.x, dy = actor.y - viewer.y;
+  return dx * dx + dy * dy > BUSH_REVEAL_RADIUS * BUSH_REVEAL_RADIUS;
 }

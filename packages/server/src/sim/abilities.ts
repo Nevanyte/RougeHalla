@@ -14,7 +14,7 @@
 //
 // Everything here tolerates `world.abilities === null` (nothing has used it yet) and fighters with no statuses.
 import {
-  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
+  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, bushAt, BUSH_REVEAL_MS, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
   GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, hasLineOfSight,
   HIDDEN_REVEAL_MS, MAX_REWIND_MS, maxCharges, rankOf, setSlotReadyAt, slotReadyAt, spendCharge, TICK_MS, WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
@@ -195,6 +195,7 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
     });
   }
   reveal(world, c, cast.landsAt + HIDDEN_REVEAL_MS);
+  if (c.kind === "player") exposeInBush(world, c.s, cast.landsAt);
   refreshEffects(world, c);
 };
 
@@ -238,9 +239,17 @@ export function onStatusApplied(world: World, c: Combatant, st: StatusInstance):
   else if (st.kind === "slowAttack") recomputeMods(world, c); // its removal re-folds in removeStatuses
 }
 
+/** An attack or cast exposes a player standing in a bush until a second after it lands (synced, so the client hides it by the same rule). */
+function exposeInBush(world: World, s: { x: number; y: number; bushRevealUntil: number }, landsAt: number): void {
+  if (bushAt(world.map, s) === 0) return;
+  const until = Math.max(landsAt, world.state.serverTime) + BUSH_REVEAL_MS;
+  if (until > s.bushRevealUntil) s.bushRevealUntil = until;
+}
+
 /** attackStarted: a hidden fighter's own attack shows it, from the next tick, until the swing lands or the shot leaves, and a moment more. */
 function onAttackStarted(world: World, c: Combatant): void {
   const act = c.rt.weapon.action;
+  if (act && c.kind === "player") exposeInBush(world, c.s, act.landsAt);
   if (act && c.rt.statuses && c.rt.statuses.length > 0) reveal(world, c, act.landsAt + HIDDEN_REVEAL_MS);
 }
 

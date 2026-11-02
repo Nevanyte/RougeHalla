@@ -64,7 +64,7 @@ describe("the looks of the features", () => {
     // A design the art does not know is a plain building, never a crash.
     expect(wallLookOf({ kind: "landmark", variant: "lighthouse" })).toBe("plain");
     expect(masonryOf("lighthouse")).toBeNull();
-    const floor: Partial<Record<FeatureKind, string>> = { crater: "bowl", barrow: "tunnel", hall: "hall", mere: "shore", causeway: "causeway" };
+    const floor: Partial<Record<FeatureKind, string>> = { crater: "bowl", barrow: "tunnel", hall: "hall", mere: "shore", causeway: "causeway", bush: "bush" };
     for (const kind of FEATURE_KINDS) expect(floorLookOf({ kind, variant: "" }), kind).toBe(floor[kind] ?? "plain");
     expect(floorLookOf({ kind: "landmark", variant: "shrine" })).toBe("shrine");
   });

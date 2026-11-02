@@ -1,4 +1,4 @@
-import { isInVision, VisionMemory, type Vec2 } from "@raid/shared";
+import { bushConceals, isInVision, VisionMemory, type Vec2 } from "@raid/shared";
 import { chainHook, collisionMap, type World } from "./world";
 
 // Deliberately absent from RaidState: no player's discovery history is broadcast to another player.
@@ -54,7 +54,12 @@ export function canPlayerSeeActor(world: World, viewerId: string, actorId: strin
   if (world.state.phase === "active" && !world.config.training
     && viewer?.status === "alive" && viewer.faction === "sentenced"
     && viewer.huntTarget === actorId && target?.status === "alive") return true;
-  return canPlayerSee(world, viewerId, point);
+  if (!canPlayerSee(world, viewerId, point)) return false;
+  // Bush occupants (players only: mobs are never concealed) are hidden from viewers outside the bush. Mobs and training ignore it.
+  if (memories.has(world) && !world.config.training && viewer && target && target.status === "alive") {
+    if (bushConceals(world.map, viewer, point, target.bushRevealUntil, world.state.serverTime)) return false;
+  }
+  return true;
 }
 
 export function install(world: World): void {

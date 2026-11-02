@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import { VisionMemory, VISION_RADIUS, TILE, Y_SCALE, withGates, type GameMap, type Vec2, type VisionSnapshotMessage } from "@raid/shared";
+import { bushConceals, VisionMemory, VISION_RADIUS, TILE, Y_SCALE, withGates, type GameMap, type Vec2, type VisionSnapshotMessage } from "@raid/shared";
 
 export interface VisionCamp { wardOwner: string; wardExpiresAt: number }
 /** Session-local live vision. Ward expiry never refreshes the personal trail. */
@@ -10,6 +10,8 @@ export class RaidVision {
   private wards = new Map<number, { memory: VisionMemory; end: number; map: GameMap }>();
   private now = 0;
   private trackedTargetId = "";
+  private localOrigin: Vec2 | null = null;
+  private localId = "";
   enabled = false;
 
   reset(map: GameMap | null = null): void {
@@ -34,6 +36,8 @@ export class RaidVision {
     training: boolean, localId: string, camps: ArrayLike<VisionCamp>, now: number): void {
     if (map !== this.map) this.reset(map);
     this.now = now;
+    this.localOrigin = origin && alive ? { x: origin.x, y: origin.y } : null;
+    this.localId = localId;
     this.enabled = active && !training;
     if (!this.enabled) { this.memory?.clear(); this.wards.clear(); return; }
     const sight = locked ? this.lockedMap! : map;
@@ -66,8 +70,11 @@ export class RaidVision {
   }
 
   /** Actor visibility includes the hunted rival while generic terrain and point queries retain normal fog rules. */
-  canSeeActor(id: string, point: Vec2): boolean {
-    return (this.enabled && id === this.trackedTargetId) || this.canSee(point);
+  canSeeActor(id: string, point: Vec2, bushRevealUntil = 0): boolean {
+    if (this.enabled && id === this.trackedTargetId) return true;
+    if (!this.canSee(point)) return false;
+    // Bush occupants are hidden from a living viewer outside their bush (shared/vision.ts); the local fighter is always drawn.
+    return !(this.enabled && this.map && this.localOrigin && id !== this.localId && bushConceals(this.map, this.localOrigin, point, bushRevealUntil, this.now));
   }
 }
 

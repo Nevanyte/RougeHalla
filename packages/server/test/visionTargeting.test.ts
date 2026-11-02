@@ -8,7 +8,7 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { addPlayer, step } from "../src/sim/step";
 import { validUnitTarget } from "../src/sim/abilities";
-import { canPlayerSee, getVisionMemory } from "../src/sim/vision";
+import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../src/sim/vision";
 import type { World } from "../src/sim/world";
 import { CampState } from "@raid/shared/schema";
 
@@ -148,5 +148,38 @@ describe("server visibility for target validation", () => {
     const foe = combatant(w, "p1")!;
     expect(canPlayerSee(w, "p0", foe.s)).toBe(true);
     expect(validUnitTarget(w, self, foe, TARGET_RANGE, false)).toBe(true);
+  });
+});
+
+describe("bush concealment", () => {
+  function bushWorld(): World {
+    const w = world();
+    const m = w.map;
+    m.features = [{ kind: "bush", variant: "", zone: "fire", jobs: ["cover"], ax: 22, ay: 2, p: [0, 0], bbox: { x: 22, y: 2, w: 3, h: 3 }, tiles: 9 }];
+    m.featureGrid = new Uint8Array(m.w * m.h);
+    for (let y = 2; y <= 4; y++) for (let x = 22; x <= 24; x++) m.featureGrid[y * m.w + x] = 1;
+    place(w, 1, at(23, 3));
+    place(w, 2, at(23, 12));
+    seedTrail(w, at(23, 8), VISION_TRAIL_MS);
+    return w;
+  }
+
+  it("hides a bush occupant from a viewer outside it, though the ground is seen", () => {
+    const w = bushWorld();
+    const foe = w.state.players.get("p1")!;
+    expect(canPlayerSee(w, "p0", foe)).toBe(true);
+    expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(false);
+    expect(canPlayerSeeActor(w, "p0", "p2", w.state.players.get("p2")!)).toBe(true);
+  });
+
+  it("shows it up close, once it attacks, and to a viewer in the same bush", () => {
+    const w = bushWorld();
+    const foe = w.state.players.get("p1")!;
+    place(w, 0, at(23, 4));
+    expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(true);
+    place(w, 0, LEFT);
+    expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(false);
+    foe.bushRevealUntil = w.state.serverTime + 500;
+    expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(true);
   });
 });

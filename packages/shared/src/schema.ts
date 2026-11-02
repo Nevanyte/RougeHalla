@@ -137,6 +137,8 @@ export const PlayerState = schema({
   chestBoosts: t.map("float64"),
   /** Stats taken from victims through kill augments (killAugments.ts), keyed by Effect stat; folded as farm rows. */
   killStats: t.map("float64"),
+  /** Server time until which an attack or cast has exposed this player inside a bush (vision.ts `bushConceals`). Appended for wire compatibility. */
+  bushRevealUntil: t.uint32().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

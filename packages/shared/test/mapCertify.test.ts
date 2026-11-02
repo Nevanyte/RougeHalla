@@ -1064,6 +1064,11 @@ function base(): GameMap {
     for (let s = 1; s < 40 && !baseMap; s++) {
       try {
         const m = generateMap(s, undefined, { styleZones: null, landmarks: null });
+        // The steadiest map has no bushes either: tests append features in zone order, and a bush of a later zone would break it.
+        const keep = m.features.map((f) => f.kind !== "bush");
+        const newId = new Map<number, number>();
+        m.features = m.features.filter((_, k) => { if (keep[k]) newId.set(k + 1, newId.size + 1); return keep[k]; });
+        for (let i = 0; i < m.featureGrid.length; i++) if (m.featureGrid[i]) m.featureGrid[i] = newId.get(m.featureGrid[i]) ?? 0;
         if (certifyMap(m).failures.length === 0) baseMap = m;
       } catch { /* a seed the plain generator cannot seat: the next */ }
     }

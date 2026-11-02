@@ -72,6 +72,7 @@ const COLOR_FEATURE_FLOOR: Readonly<Record<string, string>> = {
   burrow: "rgba(255, 255, 255, 0.16)",
   watchtower: "rgba(255, 255, 255, 0.16)",
   shrine: "rgba(255, 255, 255, 0.16)",
+  bush: "rgba(40, 130, 60, 0.5)",
 };
 export const COLOR_OUTLINE = "#0b0e11";
 export const COLOR_CROWN = "#ffd54f";

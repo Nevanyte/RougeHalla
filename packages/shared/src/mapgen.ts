@@ -32,6 +32,7 @@ import type { CampDef, ColiseumDef, FactionRegionDef, GameMap, MapFeature, MapPr
 import type { Vec2 } from "./messages";
 import { findPath, pathLength } from "./pathfind";
 import { primeSpawnWalks } from "./planning";
+import { placeEliteBushes } from "./bushes";
 import { mulberry32, randInt as rngInt, shuffle } from "./rng";
 import type { Rng } from "./rng";
 import { ZONE_LANDMARK_HOOK, ZONE_STYLE_HOOK } from "./styler";
@@ -543,6 +544,12 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, lan
   }
   lap("terrain");
 
+  // --- 10b. Bushes round the elite camps: floor features only, own stream, after every tile and zone change (never fails an attempt).
+  placeEliteBushes({
+    w: W, h: H, seed, attempt, tiles, terrain, zone, territoryGrid, protect, pool5, camps, order, features, featureOwner, terrainNone: TERRAIN_NONE,
+  });
+  lap("bushes");
+
   // --- 11. Ground spots, then the records ---------------------------------------------------------------------------------
   const noLoot = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (landmarkBox[i] || fp[i] || terrain[i] !== TERRAIN_NONE) noLoot[i] = 1;
@@ -992,6 +999,7 @@ function records(
     const d = drafts[k], id = n + 1;
     const p = d.p.slice();
     if (d.kind === "crater" && p.length > 0 && p[0] >= 0 && p[0] < camps.length) p[0] = renumber[p[0] + 1] - 1;
+    if (d.kind === "bush" && p.length > 0 && p[0] >= 0 && p[0] < camps.length) p[0] = renumber[p[0] + 1] - 1;
     if (d.kind === "mere" && p.length > 1) p[1] = ice[id];
     const bbox = count[id] > 0 ? { x: bx0[id], y: by0[id], w: bx1[id] - bx0[id] + 1, h: by1[id] - by0[id] + 1 } : { x: d.ax, y: d.ay, w: 0, h: 0 };
     return { kind: d.kind, variant: d.variant, zone: d.zone, jobs: d.jobs.slice(), ax: d.ax, ay: d.ay, p, bbox, tiles: count[id] };

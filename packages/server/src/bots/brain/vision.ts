@@ -1,5 +1,5 @@
 // Both bot drivers derive sight only from their own position and public camp wards, like the client.
-import { VisionMemory, VISION_RADIUS, withGates, type GameMap, type Vec2 } from "@raid/shared";
+import { bushConceals, VisionMemory, VISION_RADIUS, withGates, type GameMap, type Vec2 } from "@raid/shared";
 import type { PerceptionInput } from "./perception";
 import type { Percept } from "./types";
 
@@ -60,7 +60,7 @@ export class BotVision {
   /** The delay ring may interpolate across unseen terrain or retain a projectile after it leaves sight. */
   filter(percept: Percept): Percept {
     if (!this.enabled) return percept;
-    const fighters = percept.fighters.filter(this.canSee), mobs = percept.mobs.filter(this.canSee);
+    const fighters = percept.fighters.filter((f) => this.canSee(f) && !bushConceals(this.map, percept.self, f)), mobs = percept.mobs.filter(this.canSee);
     const ids = new Set([percept.self.id, ...fighters.map((f) => f.id), ...mobs.map((m) => m.id)]);
     return {
       ...percept, fighters, mobs,

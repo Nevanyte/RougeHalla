@@ -423,6 +423,14 @@ export function drawFloorLook(g: Pen, look: FloorLook, s: FloorSpot): void {
       g.fillStyle(k.slabLo, 0.8).fillRect(x + 4, y + TILE_H - 6, TILE_W - 8, 2);
       break;
     }
+    case "bush": {
+      // Brush: a deep green wash with a few leaf blobs; a player standing in it is hidden from outsiders (shared/vision.ts).
+      g.fillStyle(0x1d5a2a, 0.5).fillRect(x, y, TILE_W, TILE_H);
+      g.fillStyle(0x2f8a3c, 0.55).fillEllipse(x + 8 + bits(h, 2, 4), y + 9 + bits(h, 6, 3), 14, 10);
+      g.fillStyle(0x3fa34a, 0.5).fillEllipse(x + 20 - bits(h, 9, 3), y + 19 - bits(h, 4, 3), 12, 9);
+      if (bits(h, 11, 2) === 0) g.fillStyle(0x144a20, 0.5).fillEllipse(x + 16, y + 14, 8, 6);
+      break;
+    }
     default: break;
   }
 }
