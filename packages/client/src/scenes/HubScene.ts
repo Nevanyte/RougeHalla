@@ -4,7 +4,7 @@
 // a PlayerState lookalike (hub/hubAvatar.ts), so the player's skin, outline, title, trail and faction show here too.
 import Phaser from "phaser";
 import {
-  FACTIONS, FACTION_WHEEL, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, WEAPON_WHEEL, Y_SCALE, cssColor,
+  FACTIONS, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, WEAPON_WHEEL, Y_SCALE, cssColor,
   type FactionId, type ProfileDTO,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -19,6 +19,7 @@ import {
   type HubLayout, type HubStation, type HubStationId, type Vec,
 } from "../hub/hubLayout";
 import { PlayerView } from "../render/PlayerView";
+import { drawWeapon, weaponCenterX } from "../render/FighterArt";
 import { isTypingTarget } from "../ui/chrome";
 import { projX, projY, unproject } from "../render/projection";
 import { scrollForTopLeft } from "../view/viewport";
@@ -58,11 +59,10 @@ const LIFT: Readonly<Record<HubStation["kind"], number>> = {
   pedestal: GEM_LIFT + 12,
 };
 
-/** The counter wheel's two pentagrams, centred this far left and right of the decal's middle. */
-const WHEEL_OFFSET = 130;
-const WHEEL_RADIUS = 64;
+/** One weapon guide, centered on its floor plate. */
+const WHEEL_RADIUS = 76;
 /** A node's name sits this far out on the same ray, on the side away from the node. */
-const WHEEL_LABEL_SCALE = 1.2;
+const WHEEL_LABEL_SCALE = 1.35;
 
 /** The room as the camera frames it: the back wall and its sign rise above the top of the floor. */
 const VIEW_TOP = -(WALL_HEIGHT_NORTH + 34);
@@ -458,7 +458,7 @@ export class HubScene extends Phaser.Scene {
           break;
         }
         case "decal": {
-          const sign = this.label(projX(s.x), projY(r.y) - 8, s.label, signColor, 0.5, 1, 12, DEPTH_DECAL + 5);
+          const sign = this.label(projX(s.x + s.w / 2 - 12), projY(r.y) + 10, s.label, signColor, 1, 0, 12, DEPTH_DECAL + 5);
           this.promptAt.set(s.id, { x: sign.x, y: sign.y - sign.height - 4, ox: 0.5, oy: 1 });
           break;
         }
@@ -486,35 +486,32 @@ export class HubScene extends Phaser.Scene {
     }).setOrigin(0.5, 1).setDepth(DEPTH_PROMPT).setVisible(false));
   }
 
-  /** Names beside the nodes of both pentagrams, and a title under each. Static: only the highlight changes with the pick. */
+  /** Upright weapon silhouettes and names make the floor guide readable before opening its details. */
   private buildWheelLabels(): void {
     const decal = this.layout.stations.find((s) => s.kind === "decal");
     if (!decal) return;
-    const place = (cx: number, nodes: ReadonlyArray<{ x: number; y: number }>, names: string[], colors: number[], title: string): void => {
-      nodes.forEach((n, i) => {
-        const x = projX(cx + n.x * WHEEL_RADIUS * WHEEL_LABEL_SCALE);
-        const y = projY(decal.y + n.y * WHEEL_RADIUS * WHEEL_LABEL_SCALE);
-        // Text grows away from its node, so names never sit on a marker or run into the other wheel's.
-        const ox = n.x > 0.3 ? 0 : n.x < -0.3 ? 1 : 0.5;
-        const oy = Math.abs(n.x) > 0.3 ? 0.5 : n.y < 0 ? 1 : 0;
-        this.label(x, y, names[i]!, cssColor(shade(colors[i]!, 0.35)), ox, oy, 9, DEPTH_DECAL + 5).setStroke("#000000", 2);
-      });
-      this.label(projX(cx), projY(decal.y + decal.h / 2) + 3, title, "#aeb7c2", 0.5, 0, 10, DEPTH_DECAL + 5);
-    };
-    place(decal.x - WHEEL_OFFSET, FACTION_WHEEL.nodes, FACTION_WHEEL.nodes.map((n) => FACTIONS[n.id].displayName),
-      FACTION_WHEEL.nodes.map((n) => FACTIONS[n.id].color), "FACTIONS");
-    place(decal.x + WHEEL_OFFSET, WEAPON_WHEEL.nodes, WEAPON_WHEEL.nodes.map((n) => WEAPONS[n.id].name),
-      WEAPON_WHEEL.nodes.map((n) => WEAPONS[n.id].color), "WEAPONS");
+    WEAPON_WHEEL.nodes.forEach((n) => {
+      const x = projX(decal.x + n.x * WHEEL_RADIUS * WHEEL_LABEL_SCALE);
+      const y = projY(decal.y + n.y * WHEEL_RADIUS * WHEEL_LABEL_SCALE);
+      const icon = this.track(this.add.graphics().setDepth(DEPTH_DECAL + 4));
+      drawWeapon(icon, n.id);
+      icon.setScale(0.85).setPosition(projX(decal.x + n.x * WHEEL_RADIUS) - weaponCenterX(n.id) * 0.85,
+        projY(decal.y + n.y * WHEEL_RADIUS));
+      const ox = n.x > 0.3 ? 0 : n.x < -0.3 ? 1 : 0.5;
+      const oy = Math.abs(n.x) > 0.3 ? 0.5 : n.y < 0 ? 1 : 0;
+      this.label(x, y, WEAPONS[n.id].name, cssColor(shade(WEAPONS[n.id].color, 0.5)), ox, oy, 12, DEPTH_DECAL + 5).setStroke("#000000", 3);
+    });
+    const bottom = projY(decal.y + WHEEL_RADIUS * WHEEL_LABEL_SCALE) + 12;
+    this.label(projX(decal.x), bottom, "Arrow → weapon countered · E to explore", "#c5d0d9", 0.5, 0, 11, DEPTH_DECAL + 5).setStroke("#000000", 2);
   }
 
-  /** The two pentagrams and the five pedestal plates, with the player's pick lit. */
+  /** The weapon pentagram and the five pedestal plates, with the player's pick lit. */
   private redrawPicks(): void {
     const decal = this.layout.stations.find((s) => s.kind === "decal");
     if (this.wheels && decal) {
       this.wheels.clear();
-      drawWheel(this.wheels, FACTION_WHEEL, decal.x - WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => FACTIONS[id].color, this.faction);
       // The weapon ring has no pick: a run starts on fists, which are not on it.
-      drawWheel(this.wheels, WEAPON_WHEEL, decal.x + WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => WEAPONS[id].color, null);
+      drawWheel(this.wheels, WEAPON_WHEEL, decal.x, decal.y, WHEEL_RADIUS, (id) => WEAPONS[id].color, null);
     }
     if (this.plates) {
       this.plates.clear();

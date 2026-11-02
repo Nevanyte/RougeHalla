@@ -92,16 +92,15 @@ describe("which screen shows when", () => {
     for (const phase of ["lobby", "planning", "active", "ended"]) expect(m(phase, true, true)).toBe("hidden");
   });
 
-  it("shows both counter pentagrams on the held map and highlights the local faction", () => {
+  it("shows the weapon counter guide on the held map", () => {
     const { view, q } = setup();
     view.update(frame({ mode: "planning" }));
     expect(q("pl-counters").hidden).toBe(true);
     view.update(frame({ mode: "map" }));
     const wheels = q("pl-counters");
     expect(wheels.hidden).toBe(false);
-    expect(wheels.textContent).toContain("Factions");
-    expect(wheels.textContent).toContain("Weapons");
-    expect(wheels.textContent).toContain("Plague");
+    expect(wheels.textContent).toContain("Weapon counters");
+    expect(wheels.textContent).toContain("Choose a weapon");
     view.update(frame({ mode: "hidden" }));
     expect(wheels.hidden).toBe(true);
   });
@@ -726,7 +725,7 @@ describe("keyboard only", () => {
 });
 
 describe("the map held in a run", () => {
-  it("shows the map alone: no side column, the camps, the route faint and where you stand", () => {
+  it("shows the map with its weapon and quest rail, camps, faint route and where you stand", () => {
     const { view, route, q, root, all, open } = setup();
     open(plan({ pick: 0 }));
     expect(all("pl-spawnmark").every((m) => !m.hidden)).toBe(true);
@@ -734,7 +733,10 @@ describe("the map held in a run", () => {
     route.add({ x: CAMP.x, y: CAMP.y });
     view.update(frame({ mode: "map", local: { x: 600, y: 700, alive: true } }));
     expect(root.getAttribute("data-mode")).toBe("map");
-    expect(q("pl-side").hidden).toBe(true);
+    expect(q("pl-side").hidden).toBe(false);
+    expect(q("pl-counters").parent).toBe(q("pl-side"));
+    expect(q("pl-quests").parent).toBe(q("pl-side"));
+    expect(q("pl-quests").hidden).toBe(false);
     expect(q("pl-head").hidden).toBe(true);
     expect(q("pl-quest-marks").parent).toBe(q("pl-mapwrap"));
     expect(q("pl-quest-marks").parent).not.toBe(q("pl-zones"));

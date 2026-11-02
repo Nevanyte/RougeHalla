@@ -208,8 +208,7 @@ export function drawStationRing(g: Gfx, s: HubStation, lift: number): void {
 }
 
 /**
- * One pentagram of the counter wheel on the floor, centred on ground point (cx, cy). The pick is drawn big with a white
- * ring; the edges it wins are green and the edges it loses are red, as in the faction picker.
+ * One floor pentagram, with visible arrowheads from the weapon with the advantage toward its countered weapon.
  */
 export function drawWheel<Id extends string>(
   g: Gfx, wheel: Wheel<Id>, cx: number, cy: number, radius: number, color: (id: Id) => number, picked: Id | null,
@@ -221,13 +220,19 @@ export function drawWheel<Id extends string>(
     const b = at.get(e.loser)!;
     let c = 0xaeb7c2;
     let width = 1;
-    let alpha = e.kind === "diagonal" ? 0.5 : 0.28;
+    let alpha = e.kind === "diagonal" ? 0.65 : 0.8;
     if (picked !== null) {
       if (e.winner === picked) { c = 0x81c784; width = 2.5; alpha = 0.95; }
       else if (e.loser === picked) { c = 0xe57373; width = 2.5; alpha = 0.95; }
       else alpha *= 0.55;
     }
-    g.lineStyle(width, c, alpha).lineBetween(a.x, a.y, b.x, b.y);
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    const ux = (b.x - a.x) / length, uy = (b.y - a.y) / length;
+    const tip = { x: b.x - ux * 18, y: b.y - uy * 18 };
+    g.lineStyle(width, c, alpha).lineBetween(a.x + ux * 18, a.y + uy * 18, tip.x, tip.y);
+    g.fillStyle(c, alpha).fillTriangle(tip.x, tip.y,
+      tip.x - ux * 7 - uy * 3.5, tip.y - uy * 7 + ux * 3.5,
+      tip.x - ux * 7 + uy * 3.5, tip.y - uy * 7 - ux * 3.5);
   }
   for (const n of wheel.nodes) {
     const p = at.get(n.id)!;
