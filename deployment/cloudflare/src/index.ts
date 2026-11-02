@@ -3,7 +3,8 @@ import buildMeta from "../build-meta.json";
 import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
 import { handleBotSnapshot, handleProfileSnapshot } from "./profileSnapshots";
 import { networkProbeAuthorized, networkProbeEcho, networkProbeLayer } from "./networkProbe";
-import { TELEMETRY_INGEST_PATH, TELEMETRY_SECRET_MIN_CHARS } from "@raid/shared/telemetry";
+import { TELEMETRY_INGEST_PATH } from "@raid/shared/telemetry";
+import { telemetryContainerEnv, telemetryOn } from "./telemetry/containerEnv";
 import type { TelemetryStore } from "./telemetry/durable";
 import { handleTelemetryIngest, type TelemetryStoreNamespace } from "./telemetry/ingest";
 import { handleStats } from "./telemetry/routes";
@@ -41,28 +42,10 @@ export interface Env {
   NETWORK_PROBE_TOKEN?: string;
 }
 
-function telemetryOn(env: Env): boolean {
-  return typeof env.TELEMETRY_TOKEN === "string" && env.TELEMETRY_TOKEN.length >= TELEMETRY_SECRET_MIN_CHARS;
-}
-
 // The telemetry flag (never the secret) is in the label so adding or deleting TELEMETRY_TOKEN restarts the
 // container with or without the telemetry env at the next release check.
 function controllerRelease(env: Env): Promise<string> {
   return containerReleaseLabel(serverBuild, `${CONTROLLER_VERSION}:${CONTAINER_INSTANCE}:${ARENA_LIMIT}:${TRAINING_LIMIT}:${env.PROFILE_EPOCH ?? ""}:${env.GAME_MAINTENANCE ?? "0"}:${telemetryOn(env) ? "t1" : "t0"}`);
-}
-
-/** The container's telemetry env: only with a valid TELEMETRY_TOKEN; never throws on its absence. */
-export function telemetryContainerEnv(env: Pick<Env, "TELEMETRY_TOKEN" | "TELEMETRY_SALT">, requestUrl: string, commit: string | null): Record<string, string> {
-  const token = env.TELEMETRY_TOKEN;
-  if (typeof token !== "string" || token.length < TELEMETRY_SECRET_MIN_CHARS) return {};
-  const out: Record<string, string> = {
-    TELEMETRY_URL: new URL(TELEMETRY_INGEST_PATH, requestUrl).href,
-    TELEMETRY_TOKEN: token,
-    TELEMETRY_SOURCE: "live",
-  };
-  if (typeof env.TELEMETRY_SALT === "string" && env.TELEMETRY_SALT.length >= TELEMETRY_SECRET_MIN_CHARS) out.TELEMETRY_SALT = env.TELEMETRY_SALT;
-  if (commit) out.GAME_SOURCE_COMMIT = commit;
-  return out;
 }
 
 function noStore(response: Response): Response {

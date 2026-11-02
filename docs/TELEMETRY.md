@@ -452,7 +452,7 @@ cells:
 
 - each player's `tiles` is decoded with `unpackTiles`;
 - each standing sample adds 1 s to cell `(floor(tx / TELEMETRY_HEAT_CELL_TILES), floor(ty / ...))` of
-  `(build, day, bot)`.
+  `(build, day, source, bot)`.
 
 ## 7. Storage
 
@@ -623,9 +623,10 @@ CREATE TABLE IF NOT EXISTS duel_cards (run_id TEXT NOT NULL, i INTEGER NOT NULL,
 CREATE INDEX IF NOT EXISTS duel_cards_card ON duel_cards(card);
 
 -- cross-run heat, TELEMETRY_HEAT_CELL_TILES-square cells, seconds standing
-CREATE TABLE IF NOT EXISTS heat_cells (build TEXT NOT NULL, day TEXT NOT NULL, bot INTEGER NOT NULL,
-  cx INTEGER NOT NULL, cy INTEGER NOT NULL, secs INTEGER NOT NULL,
-  PRIMARY KEY (build, day, bot, cx, cy)) WITHOUT ROWID;
+-- (source is in the key so the heatmap honours the source filter like every other view)
+CREATE TABLE IF NOT EXISTS heat_cells (build TEXT NOT NULL, day TEXT NOT NULL, source TEXT NOT NULL,
+  bot INTEGER NOT NULL, cx INTEGER NOT NULL, cy INTEGER NOT NULL, secs INTEGER NOT NULL,
+  PRIMARY KEY (build, day, source, bot, cx, cy)) WITHOUT ROWID;
 ```
 
 Ingest is one transaction per record, idempotent by `run_id`:
@@ -635,8 +636,8 @@ INSERT INTO runs (run_id, v, source, build, ...) VALUES (?, ?, ?, ?, ...)
   ON CONFLICT(run_id) DO NOTHING RETURNING run_id;
 -- no row returned => duplicate: stop, report "duplicate", touch nothing else.
 INSERT INTO players (...) VALUES (...);              -- and every child table, plain INSERTs
-INSERT INTO heat_cells (build, day, bot, cx, cy, secs) VALUES (?, ?, ?, ?, ?, ?)
-  ON CONFLICT(build, day, bot, cx, cy) DO UPDATE SET secs = secs + excluded.secs;
+INSERT INTO heat_cells (build, day, source, bot, cx, cy, secs) VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(build, day, source, bot, cx, cy) DO UPDATE SET secs = secs + excluded.secs;
 ```
 
 Because a duplicate stops at the first statement, a retried batch never double counts heat or rows.
@@ -748,6 +749,21 @@ Every response is a `StatsEnvelope<T>` (`telemetry.ts`) that echoes the resolved
 Heatmap caveat: live maps use fresh seeds, so tile coordinates line up across runs only for the fixed coliseum
 (and the map border). The cross-run heatmap is honest for the coliseum and coarse elsewhere, and the page says so.
 The per-run view (`/api/stats/run/:runId`) is exact.
+
+Definitions the endpoints settle (as built in `deployment/cloudflare/src/telemetry/store.ts`):
+
+- `build=any` lifts the build filter (asked for, so allowed); `source=any` lifts the source filter.
+- Run-level views (`overview`'s run counts, durations and voids, `firstblood`, `runs`, `export`, the heatmap's
+  `runs`) apply `pool` to runs: `humans` = a run with at least one human, `bots` = a run with no human.
+- Run win rates (`factions`, `weapons`, the win columns of `offers`) count only runs that ended `winner` or `draw`.
+  A void or abandoned run has no winner and would read as a loss for everyone.
+- `deaths.share` is the row's share of its victim faction's deaths, so each faction's bar sums to 1.
+- `firstblood`: twenty 15 s bins from 0 to 300 s, then one bin `[300, 3600)` that also counts anything later.
+- `heatmap.cells` are in cell coordinates (`w = h = 34` cells of `TELEMETRY_HEAT_CELL_TILES` tiles).
+- `offers`: a crate's stat chest has no eligible list, so its pickers are counted as the slots it was offered to
+  (and the response notes it).
+- `export`: `X-Next-Cursor` is `<ended_at>.<runId>` of the last record; pass it back as `cursor`. Default limit 100.
+- `admin/reindex` answers `{ indexed, duplicate, rejected, cursor }`; `cursor` is null after the last page.
 
 The page views are listed in section 11 (C).
 
