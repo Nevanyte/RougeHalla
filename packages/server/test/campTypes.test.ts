@@ -8,7 +8,7 @@ import { MOB_TYPES } from "@raid/shared";
 import { GATE_NORMAL, typesReport } from "../bench/campDuel";
 
 describe("campDuel --types (the camp gates of 6.3)", () => {
-  const verdict = typesReport({ seeds: 5, size: 4, cap: 90, weapon: "fists", quiet: true, eliteMinute: 5 });
+  const verdict = typesReport({ seeds: 5, size: 4, cap: 90, weapon: "fists", quiet: true });
 
   it("plays every one of the 30 types against the five starter factions", () => {
     expect(verdict.clears).toHaveLength(MOB_TYPES.length);

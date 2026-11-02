@@ -16,8 +16,8 @@ const DAMAGE_PARAMS = ["burn", "backlash", "plague", "execute", "mark_pct", "mar
 describe("the tunables the mob catalog reads", () => {
   it("are the contract's numbers", () => {
     expect([MOB_K, ELITE_K]).toEqual([0.22, 0.65]);
-    // The elite buff: hp x1.6 and no extra damage, on top of ELITE_K (bench/mobDuel.ts and campDuel.ts --types --minute 5).
-    expect([ELITE_HP_MULT, ELITE_DMG_MULT]).toEqual([1.6, 1]);
+    // The elite buff: hp x1.5 and damage x1.05, on top of ELITE_K (bench/mobDuel.ts and campDuel.ts --types --minute 5).
+    expect([ELITE_HP_MULT, ELITE_DMG_MULT]).toEqual([1.5, 1.05]);
   });
 
   it("are reachable from the shared index, with the catalog", () => {
@@ -68,7 +68,7 @@ describe("mobFaction", () => {
       // A faction with no execute and no mark is exactly scaledFaction.
       if (FACTIONS[region].params.execute === undefined && FACTIONS[region].params.mark_pct === undefined) {
         expect(mobFaction(region, false)).toEqual(scaledFaction(FACTIONS[region], MOB_K));
-        expect(mobFaction(region, true)).toEqual({ ...scaledFaction(FACTIONS[region], ELITE_K), hp: FACTIONS[region].hp * ELITE_K * ELITE_HP_MULT });
+        expect(mobFaction(region, true)).toEqual({ ...scaledFaction(scaledFaction(FACTIONS[region], ELITE_K), ELITE_DMG_MULT), hp: scaledFaction(FACTIONS[region], ELITE_K).hp * ELITE_HP_MULT });
       }
     }
   });
@@ -77,7 +77,7 @@ describe("mobFaction", () => {
     const execute = FACTIONS.plague.params.execute!;
     expect(execute).toBeGreaterThan(0);
     expect(mobFaction("plague", false).params.execute).toBeCloseTo(execute * MOB_K * MOB_K, 9);
-    expect(mobFaction("plague", true).params.execute).toBeCloseTo(execute * ELITE_K * ELITE_K, 9);
+    expect(mobFaction("plague", true).params.execute).toBeCloseTo(execute * ELITE_K * ELITE_K * ELITE_DMG_MULT, 9);
     // Only the execute gets the second factor: the disease beside it, the hit and the hp scale by k alone.
     expect(mobFaction("plague", false).params.plague).toBeCloseTo(FACTIONS.plague.params.plague! * MOB_K, 9);
     expect(mobFaction("plague", false).hit).toBeCloseTo(FACTIONS.plague.hit * MOB_K, 9);

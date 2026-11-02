@@ -31,6 +31,7 @@
 //                                             the zone's camps there (the elite camp for the elite rows), with its real territory leash, its
 //                                             clearing, its walls and hazards, and the player starts ~10 tiles out on walkable ground
 //   options: --seeds N (3)  --size N (4)  --cap SECONDS (90)  --no-territory  --json FILE  --pulls camp,single,group
+//            --elite-kit N (with --types: the elite gate's kit minute, 5 by default; 0 = the bare zone weapon)
 //            --k X  --elite-k X (a what-if scale, through setMobScalesForHarness; MOB_K and ELITE_K when left out)
 //            --sweep takes --ks a,b,c (0.45,0.40,..)  --eks a,b (the elite scale, 0.65)  --sizes a,b,c (--size)
 import { writeFileSync } from "node:fs";
@@ -48,9 +49,9 @@ import { enqueueClientMessage } from "../src/sim/inputs";
 import { aggro } from "../src/sim/mobAI";
 import { placeMob } from "../src/sim/mobLife";
 import { addPlayer, step } from "../src/sim/step";
+import { grantCard } from "../src/sim/chests";
 import { variantOf } from "./mobDuel";
-import { grantKit, withKitMinute } from "./kitFlag";
-import type { Minute } from "./kits";
+import { kitCards, type Minute } from "./kits";
 
 export type Pull = "camp" | "single" | "group";
 const ALL_PULLS: readonly Pull[] = ["camp", "single", "group"];
@@ -76,6 +77,8 @@ export interface CampDuelSpec {
   /** What-if scales for this duel (normal mob, elite); MOB_K and ELITE_K when left out. Always put back. */
   k?: number;
   eliteK?: number;
+  /** Cards the player holds when the duel starts (granted through the chest's own grantCard): an armed, carded player. */
+  cards?: readonly string[];
 }
 
 export interface CampDuelResult {
@@ -183,7 +186,11 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
   p.weapon1 = "";
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("campDuel: the run did not start");
-  grantKit(world, PLAYER_ID, weapon);
+  const holder = combatant(world, PLAYER_ID);
+  if (holder?.kind === "player" && spec.cards?.length) {
+    for (const id of spec.cards) grantCard(world, holder, id);
+    p.hp = p.maxHp;
+  }
 
   // The camp pull places the mobs WITH their camp and publishes its CampState (index 0), so the first damage to any member
   // engages it and wakes the rest through mobAI.aggro, as in a run (and leashes them to its territory, map camp 0).
@@ -361,22 +368,28 @@ export interface TypesVerdict {
 export const GATE_NORMAL = 0.8;
 
 /**
+ * The elite gate's player: on the zone's weapon AND carded, holding the bench kit of this minute (bench/kits.ts: the weapon's
+ * offense base I and Vitality I), because an elite camp is for an armed player who already farmed. "Buff elites" (ELITE_HP_MULT)
+ * left no faction on the bare zone weapon clearing the Pox Behemoth's or the Archon's camp; `--elite-kit 0` is the old gate.
+ */
+export const ELITE_GATE_MINUTE: Minute = 5;
+
+/**
  * Per mob type (balance contract 6.3): the camp pull of a 4-mob camp of the type (a normal type: four of it; an elite type: the
  * elite and three normals of the zone, the type cycling with the seed) against each player faction, `seeds` runs each. Prints
  * one row per type with the clears per faction (unless `quiet`), then the two gates: every normal type cleared in >= GATE_NORMAL of
  * its runs on the chosen weapon (fists by default), every elite type cleared by at least one faction on its zone's weapon.
  * The report never fails a process; test/campTypes.test.ts holds the gates.
  */
-export function typesReport(o: { seeds: number; size: number; cap: number; territory?: boolean; onMap?: boolean; weapon: TypesWeapon; log?: boolean; quiet?: boolean;
-  /** The card kit (kits.ts minute) the separate elite pass on the zone's weapon is played with; `--minute` (default 0, no cards) when left out. */
-  eliteMinute?: Minute }): TypesVerdict {
+export function typesReport(o: { seeds: number; size: number; cap: number; territory?: boolean; onMap?: boolean; weapon: TypesWeapon; log?: boolean; quiet?: boolean; eliteMinute?: Minute }): TypesVerdict {
+  const eliteMinute = o.eliteMinute ?? ELITE_GATE_MINUTE;
   interface Row { t: MobTypeDef; cells: CampDuelResult[][]; cleared: number; runs: number }
-  const play = (t: MobTypeDef, weapon: (t: MobTypeDef) => WeaponId): Row => {
+  const play = (t: MobTypeDef, weapon: (t: MobTypeDef) => WeaponId, minute: Minute = 0): Row => {
     const cells = FACTION_IDS.map((player) => {
       const rs: CampDuelResult[] = [];
       for (let seed = 1; seed <= o.seeds; seed++) {
         rs.push(runCampDuel({
-          player, weapon: weapon(t), zone: t.zone, elite: t.elite, pull: "camp", seed, size: o.size, territory: o.territory, onMap: o.onMap, capSeconds: o.cap,
+          player, weapon: weapon(t), cards: kitCards(minute, weapon(t)), zone: t.zone, elite: t.elite, pull: "camp", seed, size: o.size, territory: o.territory, onMap: o.onMap, capSeconds: o.cap,
           ...(t.elite ? { eliteType: t.id } : { type: t.id }),
         }));
       }
@@ -401,16 +414,19 @@ export function typesReport(o: { seeds: number; size: number; cap: number; terri
   for (const r of rows) say(`| ${r.t.name}${r.t.elite ? " (elite)" : ""} (${r.t.role}, ${r.t.weapon}) | ${r.cleared}/${r.runs} | ${r.cells.map(cellText).join(" | ")} |`);
   const normalFails = rows.filter((r) => !r.t.elite && r.cleared < r.runs * GATE_NORMAL);
   say(`\nnormal-type gate (>= ${Math.round(GATE_NORMAL * 100)}% of runs cleared${o.weapon === "fists" ? " on fists" : ""}): ${normalFails.length === 0 ? "PASS" : `FAIL ${normalFails.map((r) => `${r.t.id} ${r.cleared}/${r.runs}`).join(", ")}`}`);
-  // The elite gate always means the zone's weapon, whichever weapon the table was played with (a second pass when it is not).
-  const eliteRows = o.weapon === "zone" ? rows.filter((r) => r.t.elite) : MOB_TYPES.filter((t) => t.elite).map((t) => (o.eliteMinute === undefined ? play : (...a: Parameters<typeof play>) => withKitMinute(o.eliteMinute!, () => play(...a)))(t, (x) => REGION_WEAPONS[x.zone]));
-  if (o.weapon !== "zone") {
-    say(`\n## elite camps on the zone's weapon (${FACTION_IDS.join(", ")} as the player); a faction clears when it wins at least half its runs`);
+  // The elite gate always means the zone's weapon and the gate's kit, whichever weapon the table was played with (a second pass when they differ).
+  const eliteRows = o.weapon === "zone" && eliteMinute === 0
+    ? rows.filter((r) => r.t.elite)
+    : MOB_TYPES.filter((t) => t.elite).map((t) => play(t, (x) => REGION_WEAPONS[x.zone], eliteMinute));
+  if (o.weapon !== "zone" || eliteMinute !== 0) {
+    const kit = kitCards(eliteMinute, "sword").map((id) => id.replace(/^ad/, "O")).join(" + ") || "no cards";
+    say(`\n## elite camps on the zone's weapon with the minute-${eliteMinute} kit (${kit}; O = the weapon's offense base) (${FACTION_IDS.join(", ")} as the player); a faction clears when it wins at least half its runs`);
     say(`| elite type (zone weapon) | ${FACTION_IDS.join(" | ")} |`);
     say(`|---|${FACTION_IDS.map(() => "---").join("|")}|`);
     for (const r of eliteRows) say(`| ${r.t.name} (${REGION_WEAPONS[r.t.zone]}) | ${r.cells.map(cellText).join(" | ")} |`);
   }
   const eliteFails = eliteRows.filter((r) => !r.cells.some((rs) => rs.filter((x) => x.outcome === "cleared").length * 2 >= rs.length));
-  say(`\nelite-type gate (cleared by at least one faction on the zone's weapon): ${eliteFails.length === 0 ? "PASS" : `FAIL ${eliteFails.map((r) => r.t.id).join(", ")}`}`);
+  say(`\nelite-type gate (cleared by at least one faction on the zone's weapon, minute-${eliteMinute} kit): ${eliteFails.length === 0 ? "PASS" : `FAIL ${eliteFails.map((r) => r.t.id).join(", ")}`}`);
   return {
     clears: rows.map((r) => ({ id: r.t.id, elite: r.t.elite, cleared: r.cleared, runs: r.runs })),
     normalFails: normalFails.map((r) => r.t.id),
@@ -467,7 +483,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (process.argv.includes("--types")) {
     const mode = (weaponFlag ?? "fists") as string;
     if (mode !== "fists" && mode !== "zone" && mode !== "own") throw new Error(`--types takes --weapon fists|zone|own (got "${mode}")`);
-    typesReport({ seeds: Number(arg("--seeds") ?? 5), size, cap, territory, onMap, weapon: mode, log: true });
+    const eliteMinute = arg("--elite-kit") === undefined ? undefined : Number(arg("--elite-kit")) as Minute;
+    typesReport({ seeds: Number(arg("--seeds") ?? 5), size, cap, territory, onMap, weapon: mode, log: true, eliteMinute });
   } else if (process.argv.includes("--sweep")) {
     const ks = parseList(arg("--ks"), [0.45, 0.4, 0.35, 0.3, 0.25, 0.2]);
     const eks = parseList(arg("--eks"), [ELITE_K]);
