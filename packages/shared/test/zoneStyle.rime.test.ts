@@ -5,6 +5,7 @@
 // the Mere (lakes, ICE, headlands, spire, tower, walls), the spawn walks (no headland lengthens a pool member's findPath walk by
 // over 2%, no walk crosses more than 8 ICE tiles), ICE rules (T11, camps, lakes only), determinism, decor-off equality, zone
 // isolation, the Math spy, and a synthetic fixture.
+import { expectBushFloorOnly, isBush } from "./bushRules";
 import { describe, expect, it } from "vitest";
 import { MAPGEN_FAILS, generateMap, mapHash } from "../src/mapgen";
 import type { LandmarkHook, ZoneStyleHook } from "../src/mapgen";
@@ -139,10 +140,14 @@ describe("the Rime on generated maps (the other four zones no-ops, shape gates o
         expect(m.tiles[i], `seed ${s} tile ${i}`).not.toBe(TILE_LOW);
         if (m.tiles[i] === TILE_FLOOR) expect([0, TERRAIN_ICE], `seed ${s} terrain of ${i}`).toContain(m.terrain[i]);
       }
-      for (const f of z.features) expect(["landmark", "headland", "spire", "causeway", "mere"]).toContain(f.kind);
+      // the Mere's own features; a bush is mapgen's (stage 10b), floor only, and checked as such
+      for (const f of z.features) {
+        if (isBush(f)) expectBushFloorOnly(m, f, `seed ${s}`);
+        else expect(["landmark", "headland", "spire", "causeway", "mere"]).toContain(f.kind);
+      }
       // each feature's count matches the grid, its box holds its tiles, a headland/spire/landmark owns walls and floor only of the right kind
       m.features.forEach((f, k) => {
-        if (f.zone !== "frost") return;
+        if (f.zone !== "frost" || isBush(f)) return;
         let n = 0;
         for (let i = 0; i < W * W; i++) if (m.featureGrid[i] === k + 1) {
           n++;

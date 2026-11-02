@@ -5,7 +5,7 @@ import {
   FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   HIDDEN_REVEAL_MS, LIFESTEAL_MAX, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TIER_HITS,
   MARK_TOP_TIER, TARGET_FORGET_SECONDS, TRAINING_WISH_COOLDOWN_SECONDS, WEAPONS, WISH_LOCK_SECONDS,
-  abilityCooldownMs, burnDps, magicShare, markPct, pacedFaction, plagueDps, rankOf, wishOf,
+  abilityCooldownMs, maxCharges, burnDps, magicShare, markPct, pacedFaction, plagueDps, rankOf, wishOf,
   HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS,
   FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP,
   MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
@@ -120,7 +120,9 @@ export function wishGuide(id: FactionId): GuideAbility & { def: AbilityDef; cool
   const targeting = target.kind === "unit" ? `Enemy · ${target.range} u` : target.kind === "point"
     ? `Cursor · ${target.minRange}–${target.range} u` : target.kind === "self" ? "Self" : "Direction";
   const cooldownMs = abilityCooldownMs(def, 1, {});
-  const cooldown = cooldownMs >= 60_000 ? `${guideNumber(cooldownMs / 60_000)} min cooldown` : `${seconds(cooldownMs)} cooldown`;
+  const charges = maxCharges(def, 1);
+  const every = cooldownMs >= 60_000 ? `${guideNumber(cooldownMs / 60_000)} min` : seconds(cooldownMs);
+  const cooldown = charges > 1 ? `${charges} charges · 1 back every ${every}` : `${every} cooldown`;
   const effects = rank.effects;
   const status = effects.find(e => e.do === "status");
   const zone = effects.find(e => e.do === "zone");

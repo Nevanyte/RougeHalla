@@ -2,6 +2,7 @@
 // so the generator itself checks ownership, pieces and the terrain rules), on a synthetic zone with hand-placed camps (the other
 // four zones are no-ops there), its acceptance windows over 200 seeds at 136x136, and the isolation test: every zone's landmark
 // stage stays the registry's and only the style-pass stylers vary.
+import { expectBushFloorOnly, isBush } from "./bushRules";
 import { describe, expect, it, vi } from "vitest";
 import { PLAYER_RADIUS, TILE } from "../src/constants";
 import { raycast } from "../src/geometry";
@@ -590,6 +591,7 @@ describe("the Warren on the generator's maps (200 seeds, the five zone stylers, 
     for (const r of runSweep().slice(0, 60)) {
       const m = r.map;
       for (const f of m.features.filter((q) => q.zone === "plague")) {
+        if (isBush(f)) { expectBushFloorOnly(m, f, `seed ${r.seed}`); continue; } // mapgen's bush stage, not the styler's
         if (f.kind === "barrow") {
           expect(f.p.length).toBe(4);
           expect(f.p[0]).toBeGreaterThanOrEqual(11);

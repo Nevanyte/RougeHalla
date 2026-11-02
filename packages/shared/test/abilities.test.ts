@@ -279,9 +279,19 @@ describe("abilityCooldownMs", () => {
   const wish = ABILITIES.freeze;
   const skill: AbilityDef = { ...wish, kind: "skill", flat: false, ranks: [{ ...wish.ranks[0]!, cooldownMs: 10_000 }] };
 
-  it("gives a Wish its 300 s in a real run", () => {
-    expect(abilityCooldownMs(wish, 1, {})).toBe(300_000);
-    expect(abilityCooldownMs(wish, 1, { training: false })).toBe(300_000);
+  /** Per-faction Wish cooldowns (the merged design): Frost 45 s, Plague 120, Holy 150, Sentenced 180; Fire's Blaze Step is a charge every 30 s. */
+  const WISH_COOLDOWNS: Record<string, number> = {
+    freeze: FREEZE_COOLDOWN_SECONDS * 1000, swarm: SWARM_COOLDOWN_SECONDS * 1000, lastStand: LAST_STAND_COOLDOWN_SECONDS * 1000,
+    trial: TRIAL_COOLDOWN_SECONDS * 1000, blaze: BLAZE_RECHARGE_SECONDS * 1000,
+  };
+
+  it("gives each Wish its own faction's cooldown in a real run", () => {
+    expect(WISH_COOLDOWNS).toEqual({ freeze: 45_000, swarm: 120_000, lastStand: 150_000, trial: 180_000, blaze: 30_000 });
+    for (const id of ABILITY_IDS) {
+      if (ABILITIES[id].kind !== "wish") continue;
+      expect(abilityCooldownMs(ABILITIES[id], 1, {}), id).toBe(WISH_COOLDOWNS[id]);
+      expect(abilityCooldownMs(ABILITIES[id], 1, { training: false }), id).toBe(WISH_COOLDOWNS[id]);
+    }
   });
 
   it("gives a Wish TRAINING_WISH_COOLDOWN_SECONDS in training", () => {
@@ -290,9 +300,14 @@ describe("abilityCooldownMs", () => {
   });
 
   it("lets a flat def ignore any reduction", () => {
-    expect(abilityCooldownMs(wish, 1, { reduction: 0.4 })).toBe(300_000);
-    expect(abilityCooldownMs(wish, 1, { reduction: 0.5 })).toBe(300_000);
-    expect(abilityCooldownMs(wish, 1, { reduction: 0.4, training: true })).toBe(5000);
+    for (const id of ABILITY_IDS) {
+      const def = ABILITIES[id];
+      if (!def.flat) continue;
+      expect(abilityCooldownMs(def, 1, { reduction: 0.4 }), id).toBe(WISH_COOLDOWNS[id]);
+      expect(abilityCooldownMs(def, 1, { reduction: 0.5 }), id).toBe(WISH_COOLDOWNS[id]);
+      expect(abilityCooldownMs(def, 1, { reduction: 0.4, training: true }), id).toBe(5000);
+    }
+    expect(abilityCooldownMs(wish, 1, { reduction: 0.4 })).toBe(45_000);
   });
 
   it("applies reduction to a def that is not flat, clamped to 0..0.5", () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, MARK_TIER_HITS, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS,
-  abilityCooldownMs, burnDps, markPct, pacedFaction, plagueDps, wishOf,
+  abilityCooldownMs, maxCharges, burnDps, markPct, pacedFaction, plagueDps, wishOf,
 } from "@raid/shared";
 import { championGuide, guideNumber, signatureGuide, weaponScalingGuide } from "../src/ui/hub/championGuide";
 
@@ -28,7 +28,11 @@ describe("champion guide matches the combat catalog", () => {
     expect(guide.passive.details.length).toBeGreaterThan(2);
     expect(guide.wish.def).toBe(wish);
     expect(guide.wish.key).toBe("D");
-    expect(guide.wish.cooldown).toContain(String(abilityCooldownMs(wish, 1, {}) / 60000));
+    const cdMs = abilityCooldownMs(wish, 1, {});
+    const every = cdMs >= 60_000 ? `${cdMs / 60_000} min` : `${cdMs / 1000} s`;
+    const charges = maxCharges(wish, 1);
+    expect(guide.wish.cooldown).toBe(charges > 1 ? `${charges} charges · 1 back every ${every}` : `${every} cooldown`);
+    if (id === "fire") expect(charges).toBeGreaterThan(1);
     expect(guide.wish.details.join(" ")).toContain("Offense and SO do not increase");
     expect(guide.wish.details.join(" ")).toContain("Training cooldown: 5 s");
     expect(guide.wish.details.join(" ")).toContain("45 s lock");
