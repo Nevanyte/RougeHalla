@@ -1158,7 +1158,9 @@ describe("killMob: rewards", () => {
       for (const pay of w.combat.payouts) pay();
       expect(w.state.containers.size).toBe(n + 1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["", ""]);
-      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1 kill stack · +1% attack speed total"]);
+      // A killer down in the pass gets no stat stack (its sheet stays as it fell, for the Trophy its own killer rolls).
+      expect(w.events.filter((e) => e.type === "toast")).toEqual([]);
+      expect(mobStatCount(P(w, 0).mobStats, "plagueRat")).toBe(0);
     });
 
     it("is not dropped when the killer already holds that weapon type, in either slot", () => {

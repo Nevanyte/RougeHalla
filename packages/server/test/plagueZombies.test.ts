@@ -17,7 +17,7 @@ import { placeMob } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { updateZombies } from "../src/sim/plagueZombies";
 import { getVisionMemory } from "../src/sim/vision";
-import { statusesOf } from "../src/sim/status";
+import { addStatus, statusesOf } from "../src/sim/status";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import { packetFor } from "../src/sim/weapons";
 import { collisionMap, type World } from "../src/sim/world";
@@ -249,5 +249,19 @@ describe("Plague's single zombie", () => {
     z.s.status = "dead"; z.s.hp = 0;
     for (let i = 0; i < 20; i++) step(w, TICK_MS);
     expect(z.s.hp).toBe(0);
+  });
+
+  it("an anti-heal cuts its regeneration, as it cuts a player's", () => {
+    const w = arena(); harvest(w); const z = pet(w);
+    if (z.kind !== "mob") throw new Error("mob expected");
+    z.s.hp = z.s.maxHp * 0.5; z.rt.lastHitAt = -1e9;
+    const before = z.s.hp;
+    for (let i = 0; i < 20; i++) step(w, TICK_MS);
+    const clean = z.s.hp - before;
+    z.s.hp = before;
+    addStatus(w, z, { kind: "antiHeal", source: { id: "p1", name: "p1" }, ms: 6000, value: 1 }); // held to its 60% cap
+    for (let i = 0; i < 20; i++) step(w, TICK_MS);
+    expect(clean).toBeGreaterThan(0);
+    expect(z.s.hp - before).toBeCloseTo(clean * 0.4, 6);
   });
 });

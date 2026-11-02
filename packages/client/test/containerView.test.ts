@@ -47,6 +47,8 @@ describe("the helpers", () => {
     expect(RING_STEPS).toBe(CHEST_SECONDS * 4);
     expect(ringStep(CHEST_SECONDS)).toBe(RING_STEPS);
     expect(ringStep(CHEST_SECONDS + 5)).toBe(RING_STEPS);
+    // A kill Trophy (30 s) drains over its own life: half its life left is half the ring, not a full one.
+    expect(ringStep(15, 30)).toBe(Math.ceil(RING_STEPS / 2));
     expect(ringStep(CHEST_SECONDS / 2)).toBe(RING_STEPS / 2);
     expect(ringStep(0.01)).toBe(1);
     expect(ringStep(0)).toBe(0);

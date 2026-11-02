@@ -260,7 +260,9 @@ function payMobKill(
     return;
   }
   creditMobKill(world, p, rt, elite, m);
-  if (!elite) grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, type);
+  // A killer that went down in this very pass keeps the kill and its GV but no stat: its sheet must not change after it fell,
+  // or the Trophy its own killer rolls from that sheet would depend on the order the pass paid out in.
+  if (!elite && rt.down === null) grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, type);
   settleWeapons(world, killerId);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite, at });
 }
