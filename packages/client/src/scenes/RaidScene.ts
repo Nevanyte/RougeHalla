@@ -41,6 +41,7 @@ import { WeaponRangeView } from "../render/WeaponRangeView";
 import { isHiddenRemote, shouldRenderActor, visiblePosition } from "../render/visibility";
 import { CampWards } from "../render/CampWards";
 import { CampBuffs } from "../render/CampBuffs";
+import { CampPatienceView } from "../render/CampPatience";
 import { PlagueCorpseView } from "../render/PlagueCorpseView";
 import { RaidVision, VisionFog, visibleCollection } from "../render/RaidVision";
 import { EdgeThreatView } from "../ui/edgeThreat";
@@ -122,6 +123,7 @@ export class RaidScene extends Phaser.Scene {
   private fog!: VisionFog;
   private campWards!: CampWards;
   private campBuffs!: CampBuffs;
+  private campPatience: CampPatienceView | null = null;
   private plagueCorpseView!: PlagueCorpseView;
   private edgeThreats!: EdgeThreatView;
   private readonly cameraFollow = new CameraFollow();
@@ -609,6 +611,7 @@ export class RaidScene extends Phaser.Scene {
       if (!seenZombies.has(id)) { view.destroy(); this.zombieViews.delete(id); this.rendered.delete(id); }
     }
     this.campBuffs.update(this.mapView!.map, state.camps, state.phase === "active" && !state.training, this.vision.canSee, campMobs);
+    this.campPatience?.update(state.camps, state.phase === "active" && !state.training);
     this.projectiles.update(renderT, (id, t, out) => {
       const fighter = state.players.get(id) ?? state.mobs.get(id);
       if (!fighter || fighter.status !== "alive" || !targetable(fighter.effects) || !this.visiblePosition(id)) return false;
@@ -1550,8 +1553,10 @@ export class RaidScene extends Phaser.Scene {
   /** The map is never synced: main.ts hands the scene the one it built from (seed, attempt) and checked. */
   private buildMap(map: GameMap): void {
     this.mapView?.destroy();
+    this.campPatience?.destroy();
     this.cameraFollow.reset();
     this.mapView = new MapView(this, map);
+    this.campPatience = new CampPatienceView(this, map);
     this.vision.reset(map);
     this.fog.reset();
     this.campWards.reset();
@@ -1639,6 +1644,8 @@ export class RaidScene extends Phaser.Scene {
     this.containerViews.clear();
     this.mapView?.destroy();
     this.mapView = null;
+    this.campPatience?.destroy();
+    this.campPatience = null;
     this.highlight.destroy();
     this.rings.destroy();
     this.weaponRange?.destroy(); this.weaponRange = null;
