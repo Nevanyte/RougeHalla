@@ -1,5 +1,5 @@
 import {
-  CANNON_COOLDOWN_MS, CONSUMABLE_CAP, CONSUMABLES, HEAL_OVER_TIME_STEP_MS, POTION_HEAL_MS, POTION_LARGE_SHARE,
+  CANNON_COOLDOWN_MS, CONSUMABLE_CAP, CONSUMABLES, HEAL_OVER_TIME_STEP_MS, POTION_HEAL_MS, POTION_LARGE_SHARE, POTION_MAX_CONCURRENT,
   POTION_SMALL_SHARE, SPEED_BOOST_MS, SPEED_BOOST_MULT, WIND_EMBLEM_DEF, isConsumableId,
   circleClear, hasLineOfSight, MASK_MOVE, mulberry32, PLAYER_RADIUS, TILE, type ConsumableId, type Vec2,
 } from "@raid/shared";
@@ -15,7 +15,7 @@ import { chainHook, collisionMap, emit, tieRank, type ActionHandler, type World 
 
 type Player = Extract<Combatant, { kind: "player" }>;
 interface PotionHot { next: number; left: number; amount: number }
-const healing = new WeakMap<World, Map<string, PotionHot>>();
+const healing = new WeakMap<World, Map<string, PotionHot[]>>();
 const inventoryKey = (id: ConsumableId) => id;
 const windTimers = new WeakMap<World, number>();
 const windRandom = new WeakMap<World, () => number>();
@@ -53,16 +53,19 @@ export const handleUseConsumable: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "useConsumable" || c.kind !== "player" || !standing(c)) return;
   if (actionBlocked(world, c)) { toast(world, c.id, "Can't use an item now"); return; }
   const now = world.state.serverTime;
-  if (c.s.healingUntil > now) { toast(world, c.id, "Potion already healing"); return; }
+  let list = healing.get(world);
+  if (!list) healing.set(world, list = new Map());
+  const active = list.get(c.id) ?? [];
+  if (active.length >= POTION_MAX_CONCURRENT) { toast(world, c.id, `Already drinking ${POTION_MAX_CONCURRENT} potions`); return; }
   if (c.s.hp >= c.s.maxHp) { toast(world, c.id, "Already at full health"); return; }
   const large = c.s.potionLarge > 0;
   if (!large && c.s.potionSmall <= 0) { toast(world, c.id, "No potion stored"); return; }
   if (large) c.s.potionLarge--; else c.s.potionSmall--;
-  c.s.healingUntil = now + POTION_HEAL_MS;
+  c.s.healingUntil = now + POTION_HEAL_MS; // the newest potion always ends last
   const steps = POTION_HEAL_MS / HEAL_OVER_TIME_STEP_MS;
-  let list = healing.get(world);
-  if (!list) healing.set(world, list = new Map());
-  list.set(c.id, { next: now + HEAL_OVER_TIME_STEP_MS, left: steps, amount: c.s.maxHp * (large ? POTION_LARGE_SHARE : POTION_SMALL_SHARE) / steps });
+  active.push({ next: now + HEAL_OVER_TIME_STEP_MS, left: steps, amount: c.s.maxHp * (large ? POTION_LARGE_SHARE : POTION_SMALL_SHARE) / steps });
+  list.set(c.id, active);
+  c.s.potionsHealing = active.length;
   toast(world, c.id, `${large ? "Camp" : "Small"} potion · healing over 5s`);
 };
 
@@ -70,14 +73,18 @@ export function updateConsumables(world: World): void {
   const now = world.state.serverTime;
   updateWindEmblems(world);
   const list = healing.get(world);
-  for (const [id, hot] of list ?? []) {
+  for (const [id, hots] of list ?? []) {
     const p = world.state.players.get(id), rt = world.players.get(id);
-    if (!p || !rt || p.status !== "alive" || rt.resolved) { list!.delete(id); if (p) p.healingUntil = 0; continue; }
-    while (hot.left > 0 && now >= hot.next) {
-      heal(world, { kind: "player", id, s: p, rt }, hot.amount, { ignoreLockout: true });
-      hot.left--; hot.next += HEAL_OVER_TIME_STEP_MS;
+    if (!p || !rt || p.status !== "alive" || rt.resolved) { list!.delete(id); if (p) { p.healingUntil = 0; p.potionsHealing = 0; } continue; }
+    for (const hot of hots) {
+      while (hot.left > 0 && now >= hot.next) {
+        heal(world, { kind: "player", id, s: p, rt }, hot.amount, { ignoreLockout: true });
+        hot.left--; hot.next += HEAL_OVER_TIME_STEP_MS;
+      }
     }
-    if (hot.left <= 0) { p.healingUntil = 0; list!.delete(id); }
+    const live = hots.filter(h => h.left > 0);
+    if (live.length === 0) { p.healingUntil = 0; p.potionsHealing = 0; list!.delete(id); }
+    else if (live.length !== hots.length) { list!.set(id, live); p.potionsHealing = live.length; }
   }
   for (const [id, p] of world.state.players) {
     if (p.speedBoostUntil > 0 && (p.speedBoostUntil <= now || p.status !== "alive")) {
@@ -128,7 +135,7 @@ export function install(world: World): void {
   world.actions.useConsumable = handleUseConsumable;
   world.systems.push(updateConsumables);
   world.modSources.push((w, c) => c.kind === "player" && c.s.speedBoostUntil > w.state.serverTime ? { speedMult: SPEED_BOOST_MULT } : null);
-  chainHook(world, "fighterOut", (w, id) => { healing.get(w)?.delete(id); const p = w.state.players.get(id); if (p) { p.healingUntil = 0; p.speedBoostUntil = 0; } });
+  chainHook(world, "fighterOut", (w, id) => { healing.get(w)?.delete(id); const p = w.state.players.get(id); if (p) { p.healingUntil = 0; p.potionsHealing = 0; p.speedBoostUntil = 0; } });
   windRandom.set(world, mulberry32(world.orderSalt ^ 0x6a2c581f));
   spawnTravel(world);
   chainHook(world, "raidStarted", (w) => windTimers.set(w, w.state.serverTime + WIND_SPAWN_MIN_MS + windRandom.get(w)!() * (WIND_SPAWN_MAX_MS - WIND_SPAWN_MIN_MS)));
