@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, AP_DOT_RATIO, BLAZE_BURN_DPS, BLAZE_BURN_MS, CHILL_MOVE_MULT, EXECUTE_BAND, FACTIONS,
+  ABILITIES, AP_DOT_RATIO, FIRE_BURN_AD_RATIO, FROST_CHILL_PER_SD, HOLY_LEECH_ROW_MULT, PLAGUE_AP_DOT_RATIO, plagueDiseaseMultOf, BLAZE_BURN_DPS, BLAZE_BURN_MS, CHILL_MOVE_MULT, EXECUTE_BAND, FACTIONS,
   FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   LAST_STAND_HEAL_SHARE, LAST_STAND_MS, LAST_STAND_SPEED_BONUS, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY,
   TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, TRIAL_MS, TRIAL_TAKEN_MULT, WIRE_IDENTITY_MIRRORS,
@@ -128,11 +128,23 @@ describe("championCombatModel", () => {
     const input = player({ faction: "plague", weapon0: "bow", apBonus: encodeFlat(20), build: { hereComesTheBoom: 1 } });
     const plain = championCombatModel(input).rows[1]!;
     const faction = pacedFaction(FACTIONS.plague);
-    const expectedBase = (faction.params.plague! * bonusMultiplier("bow") + AP_DOT_RATIO * 20) * 1.25;
+    const expectedBase = (faction.params.plague! * bonusMultiplier("bow") + PLAGUE_AP_DOT_RATIO * 20) * 1.25;
     expect(plain.value).toContain(`${round(expectedBase)} magic/s`);
     expect(plain.value).not.toContain("execute");
     expect(plain.tooltip).toContain("Below 50% target HP, execute adds");
     expect(plain.tooltip).toContain("1.25× DoT multiplier");
+  });
+
+  it("shows the build hooks: Fire's Offense burn, Plague's defense disease, Frost's SD chill and Holy's leech multiplier", () => {
+    const fire = championCombatModel(player({ faction: "fire", weapon0: "sword", adBonus: encodeFlat(20) })).rows[1]!;
+    expect(fire.value).toContain(`${round(FACTIONS.fire.params.burn! * 2 * bonusMultiplier("sword") + FIRE_BURN_AD_RATIO * 20)} magic/s`);
+    const plague = championCombatModel(player({ faction: "plague", weapon0: "bow", armorBonus: encodeFlat(30) })).rows[1]!;
+    const faction = pacedFaction(FACTIONS.plague);
+    expect(plague.value).toContain(`${round(faction.params.plague! * bonusMultiplier("bow") * plagueDiseaseMultOf(30))} magic/s`);
+    const frost = championCombatModel(player({ faction: "frost", weapon0: "shield", shieldBonus: encodeFlat(20) })).rows[1]!;
+    expect(frost.value).toContain(`${round((FACTIONS.frost.params.slow! + FROST_CHILL_PER_SD * 20) * 100)}% AS`);
+    const holy = championCombatModel(player({ faction: "holy", weapon0: "axe" })).rows[1]!;
+    expect(holy.tooltip).toContain(`card leech counts ${HOLY_LEECH_ROW_MULT}×`);
   });
 
   it("reports Sentenced weapon-weighted pulse and scales the mark with kill stacks", () => {

@@ -4,7 +4,7 @@
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
   AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
-  cardPower, cardRows, countIn, decodeMirrors, holyCampLifestealOf, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
+  cardPower, cardRows, countIn, decodeMirrors, holyCampLifestealOf, holyLeechRowsOf, PLAGUE_AP_DOT_RATIO, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
   type BaseStatId, type CardCounts, type StatMirrors, type WeaponId, type WireMirrors,
 } from "@raid/shared";
 
@@ -76,7 +76,8 @@ export function cardLifesteal(build: CardCounts | null | undefined, faction: str
   const hasDoubler = countIn(build, "bloodthirst") > 0;
   const doubled = hasDoubler && hpFrac < 0.5;
   const mult = doubled ? 2 : 1;
-  return { share: lifestealTotal(0, rows, mult, 0, farm), doubled, hasDoubler };
+  // Holy's leech rows count HOLY_LEECH_ROW_MULT times (the build rebalance), still under LS_CAP, as the sim reads them.
+  return { share: lifestealTotal(0, faction === "holy" ? holyLeechRowsOf(rows) : rows, mult, 0, farm), doubled, hasDoubler };
 }
 
 /** The scaling of the weapon in hand per point, in words, for the Offense and SO tooltips ("Your Wand turns each point into 1.2 damage a second"). */
@@ -103,7 +104,7 @@ export function buildStats(input: BuildInput): BuildStat[] {
   const ap = `${STAT_GLOSSARY.ap.text} +${num(m.apBonus)} from your cards. `
     + (apPer > 0 ? `Your ${w.name} turns each point into ${num(apPer)} magic damage a second at base attack speed.` : `Your ${w.name} gets nothing from it directly.`)
     + (spec?.mechanic === "dragonslayer" || spec?.mechanic === "rat_king"
-      ? ` Your engaged burn or disease also gains ${num(AP_DOT_RATIO)} magic damage a second per point.`
+      ? ` Your engaged ${spec.mechanic === "rat_king" ? "disease" : "burn"} also gains ${num(spec.mechanic === "rat_king" ? PLAGUE_AP_DOT_RATIO : AP_DOT_RATIO)} magic damage a second per point.`
       : " Your base passive and Wish have no direct SO scaling; augments may add their own effects.");
 
   const armorBase = spec?.armor ?? 0;
