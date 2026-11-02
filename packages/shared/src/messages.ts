@@ -161,7 +161,7 @@ export type FxEvent =
    * damage, either Fire's backlash on one swing of `id`, or DOT_FX_MS worth of damage over time (burn, disease, mark).
    * `ability`: the ability that dealt it (weapon null); a dot ability's hits come in chunks like a signature's. A hit with no
    * weapon, signature or ability is a bleed (a card's damage over time), also in chunks. `crit`: a critical strike (1.5x).
-   * `passive`: damage `by` returned without an attack of its own (a riposte, a reflected arrow, Spiked Shell, Final Verdict),
+   * `passive`: damage `by` returned without an attack of its own (a riposte, a reflected arrow, Spiked Shell, Final Verdict, Overkill's spill-over),
    * though it names `by`'s weapon.
    */
   | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind; ability?: AbilityId; crit?: true; passive?: true }
