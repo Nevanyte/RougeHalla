@@ -10,7 +10,7 @@ import {
   WEAPONS, wishOf, holyCampLifestealOf, HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS,
   FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP, holyApLifestealOf,
   MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
-  PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_GROWTH_PER_BODY,
+  PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND, PLAGUE_ZOMBIE_GROWTH_PER_BODY,
   PLAGUE_ZOMBIE_INTERVAL_MS, plagueZombieStats, sentencedHuntMarkMultiplier,
 } from "@raid/shared";
 import type { AbilityIcon, CardCounts, FactionId, WeaponId } from "@raid/shared";
@@ -186,7 +186,7 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
         scaling: zombieStatus,
         tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(AP_DOT_RATIO * dotMult)} magic DPS per point. `
           + `Walk over a dead player's body to raise one zombie. It assists your current enemy and follows you otherwise. Each body grants you ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and increases the zombie's max HP. `
-          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first; its health also grows ${fmt(PLAGUE_ZOMBIE_HP_PER_DEFENSE * 100)}% per point of your bonus Defense + SD, and each hit adds ${fmt(PLAGUE_ZOMBIE_AP_SHARE)}× your SO. At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. Another body revives a fallen zombie with its accumulated growth. `
+          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first; its health also grows ${fmt(PLAGUE_ZOMBIE_HP_PER_DEFENSE * 100)}% per point of your bonus Defense + SD, and each hit adds ${fmt(PLAGUE_ZOMBIE_AP_SHARE)}× your SO. At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. It regenerates ${fmt(PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND * 100)}% of its max HP per second, a quarter as fast just after being hit. Another body revives a fallen zombie with its accumulated growth. `
           + `Below ${fmt(band * 100)}% target HP, execute adds ${fmt(faction.params.execute! * bm * dotMult)} × (${fmt(band)} − target HP fraction) magic DPS. Disease and execute include the ${fmt(dotMult)}× DoT multiplier; corpse growth strengthens the zombie rather than these effects.`,
       };
     }

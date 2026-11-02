@@ -9,7 +9,7 @@ import {
   HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS,
   FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP,
   MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
-  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_LIFETIME_MS, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE,
+  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_LIFETIME_MS, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND,
   PLAGUE_ZOMBIE_GROWTH_PER_BODY, PLAGUE_ZOMBIE_INTERVAL_MS,
   SENTENCED_HUNT_MOVE_BONUS, SENTENCED_HUNT_MARK_PER_STACK,
   type AbilityDef, type FactionId, type WeaponId,
@@ -75,7 +75,7 @@ export function signatureGuide(id: FactionId): GuideAbility {
       details: [
         `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO, per second.`,
         `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Walk over one to consume it automatically before another Plague does. The first raises one zombie; each body grants you ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and grows the zombie.`,
-        `The zombie follows you and assists the enemy you attack. Its max HP is ${pct(PLAGUE_ZOMBIE_HP_SHARE)} of your current max HP, and each physical hit is ${pct(PLAGUE_ZOMBIE_HIT_SHARE)} of your current max HP before defenses and PvP scaling. It attacks every ${seconds(PLAGUE_ZOMBIE_INTERVAL_MS)}. Each body after the first adds another ${pct(PLAGUE_ZOMBIE_GROWTH_PER_BODY)} of the zombie's base health and damage. Health from farming, cards and trades also strengthens it.`,
+        `The zombie follows you and assists the enemy you attack. Its max HP is ${pct(PLAGUE_ZOMBIE_HP_SHARE)} of your current max HP, and each physical hit is ${pct(PLAGUE_ZOMBIE_HIT_SHARE)} of your current max HP before defenses and PvP scaling. It attacks every ${seconds(PLAGUE_ZOMBIE_INTERVAL_MS)}. Each body after the first adds another ${pct(PLAGUE_ZOMBIE_GROWTH_PER_BODY)} of the zombie's base health and damage. Health from farming, cards and trades also strengthens it. It regenerates ${pct(PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND)} of its max HP per second, slower just after it is hit.`,
         `Second build, the zombie tank: the zombie's max HP also grows ${pct(PLAGUE_ZOMBIE_HP_PER_DEFENSE)} per point of your bonus Defense + SD, and each of its hits adds ${guideNumber(PLAGUE_ZOMBIE_AP_SHARE)} × your SO, so a tanky wand Plague fights with a second body. The first build stacks attack speed and SO into disease.`,
         "If the zombie dies, consume another player body to revive it with all accumulated growth. It disappears when you die or the run ends. Corpse growth no longer multiplies disease or execute damage.",
         `Extra execute damage/s = ${guideNumber(p.execute!)} × max(0, ${guideNumber(EXECUTE_BAND)} − enemy current-health fraction) × your weapon's damage multiplier. At ${pct(EXECUTE_BAND / 2)} enemy health, this adds ${guideNumber(p.execute! * EXECUTE_BAND / 2)} × weapon multiplier per second.`,
