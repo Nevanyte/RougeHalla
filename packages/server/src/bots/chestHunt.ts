@@ -23,7 +23,7 @@
 //      it again a moment later) neither resets the count nor adds to it.
 //   4. A chest that has expired, or is gone from the state, is simply not in the input any more.
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, cardBlock, cardDef, ownsBase, PLAYER_SPEED, TICK_MS, TILE,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, cardBlock, cardDef, chestBoostStat, ownsBase, PLAYER_SPEED, TICK_MS, TILE,
   type CardCounts, type CardDef, type Vec2, type WeaponId,
 } from "@raid/shared";
 
@@ -209,6 +209,8 @@ function ruleFit(def: CardDef, weapon: WeaponId, faction: string, carried: numbe
  * know (newer server content) scores 0: still takeable.
  */
 export function cardScore(id: string, self: Pick<ChestSelf, "faction" | "weapons" | "build" | "slot" | "risk">): number {
+  const boost = chestBoostStat(id);
+  if (boost) return 2.5 + baseFit(boost === "shield" ? "mr" : boost, activeWeapon(self), self.faction); // a stat boost: between a base card and nothing
   const def = cardDef(id);
   if (!def) return 0;
   if (cardBlock(id, self.build)) return -Infinity;

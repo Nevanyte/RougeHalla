@@ -25,6 +25,7 @@ import {
   AS_MULT_CAP, AS_POST_MAX, AS_POST_MIN, BARRIER_DECAY_SHARE_PER_SECOND, BARRIER_MAX_SHARE, BONUS_DEFENSE_CAP, CONVERT_AD_AP_CAP,
   CRIT_CHANCE_MAX, HP_RACE_CAP, LIFESTEAL_MAX, LS_CAP, MAX_HP_FLOOR_SHARE, MOVE_BONUS_CAP, OUTGOING_ROW_CAP, WISH_COOLDOWN_MULT_MIN,
 } from "./constants";
+import { CHEST_BOOST_STATS, chestBoostGain, type ChestBoostStat } from "./chestBoosts";
 import {
   isProductStat, MULT_KEYS, requirementsMet, type ConvertFrom, type Effect, type EffectFlag, type EffectOf, type MultKey, type StatKey,
 } from "./effects";
@@ -181,6 +182,8 @@ export interface FoldContext {
   baseMaxHp?: number;
   /** Earned mob-stat rewards, kept separate so their permanent growth can continue past card/source ceilings. */
   farmRows?: readonly Effect[];
+  /** Stat-chest picks per stat (PlayerState.chestBoosts): x1.2 of the stat's bonus, folded last with the earned rows (chestBoosts.ts). */
+  boosts?: Partial<Record<ChestBoostStat, number>>;
 }
 
 /**
@@ -251,7 +254,7 @@ function convertInput(from: ConvertFrom, plain: Readonly<StatSums>, farm: Readon
 export function foldRows(effects: readonly Effect[], ctx: FoldContext = {}): Folded {
   const plain = foldStatRows(effects, ctx);
   const farmSums = foldStatRows(ctx.farmRows ?? [], ctx);
-  const maxHp = foldedMaxHp(ctx.baseMaxHp ?? 0, plain.maxHp + farmSums.maxHp);
+  let maxHp = foldedMaxHp(ctx.baseMaxHp ?? 0, plain.maxHp + farmSums.maxHp);
   const mults = identityMults();
   const flags = new Set<EffectFlag>();
   const conv = zeroSums();
@@ -286,6 +289,17 @@ export function foldRows(effects: readonly Effect[], ctx: FoldContext = {}): Fol
   for (const k of MULT_KEYS) if (!(mults[k] >= 0)) mults[k] = 0;
   sums.ap *= mults.ap; // Arcane Overload: after the conversions and their cap
   farmSums.ap *= mults.ap; // Earned AP follows the same AP multiplier, but stays outside its conversion ceiling.
+  if (ctx.boosts) {
+    // Stat chests: x1.2 per pick of what the stat's bonus is now (or its floor), added with the earned rows, after every cap.
+    // All gains are read from the pre-boost sheet, so the order of the stats decides nothing.
+    const gains: Partial<Record<ChestBoostStat, number>> = {};
+    for (const stat of CHEST_BOOST_STATS) {
+      const picks = ctx.boosts[stat] ?? 0;
+      if (picks > 0) gains[stat] = chestBoostGain(stat, picks, sums[stat] + farmSums[stat]);
+    }
+    for (const stat of CHEST_BOOST_STATS) farmSums[stat] += gains[stat] ?? 0;
+    if (gains.maxHp) maxHp = foldedMaxHp(ctx.baseMaxHp ?? 0, plain.maxHp + farmSums.maxHp);
+  }
   return { plain, sums, farmSums, mults, flags, maxHp };
 }
 

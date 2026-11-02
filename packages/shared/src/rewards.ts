@@ -1,7 +1,8 @@
 // A camp's shared chest: three distinct, eligible interactive augments when available. Normal mob kills grant their own fixed,
 // uncapped stat progression (mobStats.ts). Pure: the sim rolls options with `world.rewardRandom` and puts them in synced state; the
 // client reads the same helpers to word the cards. Tier odds remain normal 50/45/5 and elite 10/60/30.
-import { CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
+import { CHEST_BOOST_MAX_PICKS, CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
+import { CHEST_BOOST_DEFS, chestBoostStat } from "./chestBoosts";
 import {
   BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, cardBlock, cardDef, cardLive, cardText, cardsOfKind, countIn, ownsBase, whyOffered, isInteractiveAugment,
   type BaseStatId, type CardCounts, type CardDef, type CardId, type CardKind, type CardTier, type MechanicTag, type WhyOffered,
@@ -102,6 +103,7 @@ export const CHEST_REFUSAL = {
   picked: "You already picked",
   taken: "Already taken",
   owned: "Already yours",
+  maxed: "Stat maxed",
 } as const;
 export const CHEST_REFUSALS: readonly string[] = Object.values(CHEST_REFUSAL);
 export const CHEST_REFUSAL_NEEDS_PREFIX = "Needs ";
@@ -146,6 +148,14 @@ export interface CardOptionView {
 
 /** A synced option id seen by a picker with this build; null for an id the catalog does not know. */
 export function cardOptionView(id: string, build: CardCounts | null | undefined, faction?: string): CardOptionView | null {
+  const boost = chestBoostStat(id);
+  if (boost) {
+    const d = CHEST_BOOST_DEFS[boost];
+    return {
+      id: id as CardId, title: `${d.title} x1.2`, tier: 1, kind: "base", text: `${d.text}. Up to ${CHEST_BOOST_MAX_PICKS} picks, each worth less. Not a card: no card power.`,
+      tags: [], why: { code: "augment", text: "Stat boost" }, blocked: null, held: 0,
+    };
+  }
   const def = cardDef(id);
   if (!def) return null;
   const view: CardOptionView = {

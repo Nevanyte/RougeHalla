@@ -24,6 +24,7 @@
 //     inputs, which already refuse it); the coliseum teleport and the end of the run remove every chest.
 // Reward containers are never weapon containers: `pickup` refuses them (loot.ts), and they hold no items.
 import {
+  CHEST_BOOST_MAX_PICKS, CHEST_BOOST_DEFS, chestBoostStat, rollBoostOptions,
   CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, cardBlock, cardDef, cardLive, countIn, hasLineOfSight, isEliteCamp, isInteractiveAugment, isSolidAt, rollChestOptions,
   SKIP_HEAL_SHARE, type FactionId, type Vec2,
 } from "@raid/shared";
@@ -39,6 +40,7 @@ import { actionBlocked } from "./status";
 import { chainHook, collisionMap, emit, type ActionHandler, type World } from "./world";
 
 export const REWARD_LABEL = "Augment Chest";
+export const STAT_CHEST_LABEL = "Stat Chest";
 
 const elitePickers = new WeakMap<World, Map<number, ReadonlySet<string>>>();
 
@@ -58,8 +60,8 @@ function toast(world: World, to: string, text: string): void {
  * A reward container at `at` with these options (card ids, in card order), expiring CHEST_SECONDS from now. `camp` is the
  * camp's index in map.camps (stored + 1), or omitted for a chest that belongs to no camp (the training console's).
  */
-export function dropRewardChest(world: World, at: Vec2, options: readonly string[], camp?: number): ContainerState {
-  const box = addContainer(world, "reward", at, REWARD_LABEL, []);
+export function dropRewardChest(world: World, at: Vec2, options: readonly string[], camp?: number, label = REWARD_LABEL): ContainerState {
+  const box = addContainer(world, "reward", at, label, []);
   holdBirth(world, box.id); // a chest born in a ledger pass is first pickable two ticks on (an id guessed blind wins nothing)
   box.camp = camp !== undefined && camp >= 0 ? camp + 1 : 0;
   box.expiresAt = world.state.serverTime + CHEST_SECONDS * 1000;
@@ -91,6 +93,14 @@ export function rollChest(world: World, camp: number, elite = false, zone?: Fact
   return dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { elite: elite || isEliteCamp(def), pickers, ...(zone ? { zone } : {}) }), camp);
 }
 
+/**
+ * A stat chest (shared/chestBoosts.ts): three distinct x1.2 stat boosts from world.rewardRandom, on the same 15 s clock and the same
+ * `choose` path as an augment chest. A normal camp's clear drops one on the camp's chest tile; an opened world crate drops one at the crate.
+ */
+export function dropStatChest(world: World, at: Vec2, camp?: number): ContainerState {
+  return dropRewardChest(world, at, rollBoostOptions(world.rewardRandom), camp, STAT_CHEST_LABEL);
+}
+
 /** Every reward container now in the state. */
 export function rewardChests(world: World): ContainerState[] {
   const out: ContainerState[] = [];
@@ -119,6 +129,19 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (!(i >= 0 && i < box.options.length)) return;
   if (box.takenBy[i] !== "") { toast(world, c.id, CHEST_REFUSAL.taken); return; }
   const id = box.options[i]!;
+  const boost = chestBoostStat(id);
+  if (boost) {
+    const have = p.chestBoosts.get(boost) ?? 0;
+    if (have >= CHEST_BOOST_MAX_PICKS) { toast(world, c.id, CHEST_REFUSAL.maxed); return; }
+    box.takenBy[i] = c.id;
+    box.pickers.push(c.id);
+    p.chestBoosts.set(boost, have + 1);
+    recomputeMods(world, c);
+    syncMaxHp(p);
+    toast(world, c.id, `${CHEST_BOOST_DEFS[boost].title} x1.2${have > 0 ? ` (${have + 1} of ${CHEST_BOOST_MAX_PICKS}, diminishing)` : ""}`);
+    emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
+    return;
+  }
   if (!cardDef(id) || !cardLive(id) || !isInteractiveAugment(id)) return; // only live interactive augments are pickable
   const block = cardBlock(id, p.build);
   if (block) { toast(world, c.id, block.text); return; } // "Needs <Base>" or CHEST_REFUSAL.owned
@@ -169,6 +192,13 @@ export function install(world: World): void {
     if (!mob.elite) return;
     if (mob.camp >= 0) rollChest(w, mob.camp, true, mob.zone);
     else dropRewardChest(w, mob.at, rollChestOptions(w.rewardRandom, { elite: true, zone: mob.zone }));
+  });
+  // A normal camp's clear drops a stat chest (elite camps drop their augment chest from the elite's own death above).
+  chainHook(world, "campCleared", (w, camp) => {
+    const def = w.map.camps[camp];
+    if (!def || isEliteCamp(def)) return;
+    const at = chestSpot(w, camp);
+    if (at) dropStatChest(w, at, camp);
   });
   chainHook(world, "teleported", clearChests);
   chainHook(world, "runEnded", clearChests);

@@ -12,6 +12,7 @@ import {
   FISTS, hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
+import { dropStatChest } from "./chests";
 import { pickConsumable, useCannon } from "./consumables";
 import { setSlot, slotItem } from "./combatant";
 import { hasFlag } from "./mods";
@@ -101,7 +102,10 @@ export function dropWeapon(world: World, at: Vec2, def: string): ContainerState 
 /** One chest (one weapon) per chest spot, and a loose weapon on some of the ground spots. */
 export function spawnLoot(world: World): void {
   for (const spot of world.map.crateSpots) {
-    addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: rollChestWeapon(world.random) }, { uid: world.newItemUid(), def: "potionSmall" }]);
+    // A crate is no weapon source any more: it holds a small potion and, when opened, offers a stat choice (dropStatChest). The old
+    // weapon draw is kept so the ground spots' rolls below stay what they were.
+    rollChestWeapon(world.random);
+    addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: "potionSmall" }]);
   }
   for (const spot of world.map.groundSpots) {
     const def = rollGroundWeapon(world.random);
@@ -121,7 +125,11 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   // Movement reach, not sight: a hand does not go through a fence (centres 56 u apart across one tile, INTERACT_RANGE 56).
   if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
   if (box.kind === "cannon") { useCannon(world, c, box); return; }
-  if (box.kind === "chest") box.opened = true;
+  if (box.kind === "chest") {
+    // The first opening of a crate offers 1 of 3 stat boosts (sim/chests.ts), contested for CHEST_SECONDS like any reward chest.
+    if (!box.opened) dropStatChest(world, box);
+    box.opened = true;
+  }
   if (pickConsumable(world, c, box)) return;
   const item = box.items.length > 0 ? box.items.at(0) : undefined;
   if (!item) { toast(world, c.id, "Nothing to take"); return; }
