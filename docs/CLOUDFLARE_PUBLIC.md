@@ -75,3 +75,7 @@ After deliberately importing a new authoritative snapshot, change the `PROFILE_E
 ## Recovery
 
 Back up the current R2 object before any rollback. A rollback to the Mac must first stop the cloud writer, export its latest authoritative profiles and restore them to the Mac's profile file before starting the local server and returning DNS to the tunnel. Reusing the pre-migration local snapshot would discard cloud progress. In-progress matches do not survive a server restart.
+
+## Telemetry and the balance dashboard
+
+Run records, the `TelemetryStore` Durable Object, the `/stats` dashboard and its secrets (`TELEMETRY_TOKEN`, `DASHBOARD_TOKEN`, `TELEMETRY_SALT`; all optional, telemetry off without them) are specified in [TELEMETRY.md](TELEMETRY.md). Its section 12 lists the setup steps.

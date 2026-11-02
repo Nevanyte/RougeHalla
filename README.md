@@ -1,6 +1,6 @@
 # RougeHalla
 
-Public hosting: [Cloudflare deployment and profile migration](docs/CLOUDFLARE_PUBLIC.md). The public game uses a Cloudflare Worker, cloud game container and private R2 profiles. The laptop playtest launcher and its tunnel are an optional local development path.
+Public hosting: [Cloudflare deployment and profile migration](docs/CLOUDFLARE_PUBLIC.md). The public game uses a Cloudflare Worker, cloud game container and private R2 profiles. The laptop playtest launcher and its tunnel are an optional local development path. Balance telemetry and the live dashboard: [docs/TELEMETRY.md](docs/TELEMETRY.md).
 
 ## Live playtest rules
 

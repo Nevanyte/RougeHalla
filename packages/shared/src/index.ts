@@ -51,3 +51,5 @@ export * from "./sentencedHunt";
 export * from "./traders";
 
 export * from "./consumables";
+
+export * from "./telemetry";
