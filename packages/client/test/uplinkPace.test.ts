@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TICK_MS } from "@raid/shared";
 import {
   AIM_ALIGN_FRAME_MS, AIM_BACKUP_MS, AIM_BUDGET_SLOW, AIM_BUDGET_STOP, AIM_FLOOR_MS, AIM_KEEPALIVE_MS, AIM_STARVE_MS, AimGate, FramePace,
-  HOLD_ALIGNED_GAP_MS, HOLD_KEEPALIVE_MS, HOLD_MOVE_MIN, HOLD_REPEAT_MS, HoldGate, MessageMeter,
+  HOLD_ALIGNED_GAP_MS, HOLD_KEEPALIVE_MS, HOLD_MOVE_MIN, HOLD_REPEAT_MS, HoldGate, MessageMeter, STALL_AFTER_MS, StallWatch,
 } from "../src/net/uplinkPace";
 import { phaseSlot, type PhaseSource, type PhaseStatus } from "../src/net/tickPhase";
 
@@ -182,6 +182,94 @@ describe("HoldGate", () => {
     expect(Math.min(...gaps(sent))).toBeGreaterThanOrEqual(HOLD_REPEAT_MS - 1e-9);
     gate.reset();
     expect(gate.next(at(x), 1000, 1000, true, phase, 16)).toBe("now");
+  });
+});
+
+describe("StallWatch", () => {
+  it("says stalled once the socket has held unsent bytes for STALL_AFTER_MS, and clears at the first empty reading", () => {
+    expect(STALL_AFTER_MS).toBe(TICK_MS);
+    const w = new StallWatch();
+    expect(w.stalled(0)).toBe(false);
+    w.sample(1000, 0);
+    expect(w.stalled(1000)).toBe(false);
+    w.sample(1000, 64); // a send's own bytes, read in the frame that sent them
+    expect(w.stalled(1000)).toBe(false);
+    w.sample(1000 + STALL_AFTER_MS - 1, 64);
+    expect(w.stalled(1000 + STALL_AFTER_MS - 1)).toBe(false);
+    w.sample(1000 + STALL_AFTER_MS, 64);
+    expect(w.stalled(1000 + STALL_AFTER_MS)).toBe(true);
+    w.sample(5000, 4096); // still backed up: the clock runs from the first reading above 0, not the latest
+    expect(w.stalled(5000)).toBe(true);
+    w.sample(5007, 0); // drained
+    expect(w.stalled(5007)).toBe(false);
+  });
+
+  it("a healthy link never trips it: a reading above 0 that clears within a frame or two restarts the clock", () => {
+    const w = new StallWatch();
+    for (let now = 0; now < 5000; now += 1000 / 144) {
+      w.sample(now, Math.round(now / (1000 / 144)) % 2 === 0 ? 40 : 0);
+      expect(w.stalled(now)).toBe(false);
+    }
+  });
+
+  it("no reading (no open socket) clears it, and so does reset", () => {
+    const w = new StallWatch();
+    w.sample(0, 10);
+    w.sample(STALL_AFTER_MS, 10);
+    expect(w.stalled(STALL_AFTER_MS)).toBe(true);
+    w.sample(STALL_AFTER_MS + 1, undefined); // the socket closed or is reconnecting
+    expect(w.stalled(STALL_AFTER_MS + 1)).toBe(false);
+    w.sample(STALL_AFTER_MS + 2, Number.NaN); // junk is no backlog either
+    expect(w.stalled(STALL_AFTER_MS + 2)).toBe(false);
+    w.sample(0, 10);
+    w.sample(STALL_AFTER_MS, 10);
+    w.reset();
+    expect(w.stalled(STALL_AFTER_MS)).toBe(false);
+  });
+});
+
+describe("the continuous streams while the uplink is stalled", () => {
+  it("the aim sends nothing, keepalive included, and the first frame after the stall sends at once", () => {
+    const phase = knownPhase();
+    for (const gate of [new AimGate(), new AimGate({ aligned: false })]) {
+      const frame = 1000 / 144;
+      let sentDuring = 0;
+      for (let c = 10_000; c < 14_000; c += frame) {
+        const now = c - 1000;
+        gate.frames.frame(now);
+        if (gate.due(now, c, true, 0, phase, true)) { gate.sent(now); sentDuring++; }
+      }
+      expect(sentDuring).toBe(0);
+      // Well past a keepalive and with the budget meter empty: a stalled gate still says no, a clear one yes.
+      expect(gate.due(20_000, 21_000, true, 0, phase, true)).toBe(false);
+      expect(gate.due(20_000, 21_000, true, 0, phase, false)).toBe(true);
+    }
+  });
+
+  it("the aim gate is what it was when not stalled (the argument defaults to off)", () => {
+    const run = (stalled?: boolean) => {
+      const gate = new AimGate();
+      const sent: number[] = [];
+      for (let c = 10_000; c < 12_000; c += 1000 / 144) {
+        const now = c - 1000;
+        gate.frames.frame(now);
+        if (gate.due(now, c, true, 20, knownPhase(), stalled)) { gate.sent(now); sent.push(c); }
+      }
+      return sent;
+    };
+    expect(run(false)).toEqual(run(undefined));
+    expect(run(false).length).toBeGreaterThan(70);
+  });
+
+  it("a held right button re-sends nothing while stalled, and goes on from the next frame after", () => {
+    const gate = new HoldGate();
+    gate.sent({ x: 100, y: 100 }, 0);
+    const far = { x: 400, y: 100 };
+    // Every other rule would send here: the point moved a long way, well past the quiet spell and the keepalive.
+    expect(gate.next(far, 5000, 5000, true, null, 7, true)).toBe("none");
+    expect(gate.next(far, 5000, 5000, true, knownPhase(), 7, true)).toBe("none");
+    expect(gate.next(far, 5000, 5000, true, null, 7, false)).toBe("now");
+    expect(gate.next(far, 5000, 5000, true, null, 7)).toBe("now");
   });
 });
 

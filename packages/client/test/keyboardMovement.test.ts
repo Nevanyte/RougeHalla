@@ -43,6 +43,15 @@ describe("when the keyboard sends an order (steerDue)", () => {
     expect(steerDue({ changed: false, lastAt: 1000 }, 1000 + STEER_REPEAT_MS, false)).toBe(true);
   });
 
+  it("while the uplink is stalled the repeat waits, but a key change is an order and still goes", () => {
+    expect(steerDue({ changed: false, lastAt: 1000 }, 1000 + STEER_REPEAT_MS, false, STEER_REPEAT_MS, true)).toBe(false);
+    expect(steerDue({ changed: false, lastAt: 1000 }, 60_000, false, STEER_REPEAT_MS, true)).toBe(false);
+    expect(steerDue({ changed: true, lastAt: 1000 }, 1001, false, STEER_REPEAT_MS, true)).toBe(true);
+    expect(steerDue({ changed: true, lastAt: 1000 }, 1010, true, STEER_REPEAT_MS, true)).toBe(true);
+    // Clear again: the repeat that was held back is due at the first frame.
+    expect(steerDue({ changed: false, lastAt: 1000 }, 60_000, false, STEER_REPEAT_MS, false)).toBe(true);
+  });
+
   it("a clock that stepped back is never a reason to send from an event", () => {
     expect(steerDue({ changed: true, lastAt: 1000 }, 990, true)).toBe(false);
     expect(steerDue({ changed: false, lastAt: 1000 }, 990, true)).toBe(false);

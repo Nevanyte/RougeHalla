@@ -123,6 +123,22 @@ export async function joinTraining(options: Omit<JoinOptions, "mode">): Promise<
   return room;
 }
 
+/** WebSocket.readyState OPEN. */
+const WS_OPEN = 1;
+
+/**
+ * The bytes the room's socket still holds for the network (WebSocket.bufferedAmount): above 0 for a while means the uplink is
+ * stalled and what is sent now arrives later, in a burst. The SDK keeps the socket on its transport (`connection.transport.ws`,
+ * WebSocketTransport; another transport has none) and a reconnect builds a new one, so it is looked up on every call. Undefined
+ * when there is no open socket to read.
+ */
+export function socketBufferedBytes(room: RaidRoom): number | undefined {
+  const ws = (room.connection?.transport as unknown as { ws?: { readyState?: number; bufferedAmount?: number } } | undefined)?.ws;
+  if (!ws || ws.readyState !== WS_OPEN) return undefined;
+  const n = ws.bufferedAmount;
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+}
+
 const outbound = new MessageMeter();
 
 /** Messages sent in the last second (the streams back off near the server's cap: net/uplinkPace.ts). */

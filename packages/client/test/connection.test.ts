@@ -179,3 +179,29 @@ describe("the profile requests", () => {
     await expect(purchaseCosmetic("amy", "skin-x")).rejects.toMatchObject({ code: "unavailable", message: RATE_LIMIT_MESSAGE });
   });
 });
+
+describe("socketBufferedBytes", () => {
+  const room = (ws: unknown, transport = true) => ({ connection: transport ? { transport: { ws } } : {} }) as never;
+
+  it("reads the bufferedAmount of the SDK's open socket, afresh on every call", async () => {
+    stubPage();
+    const { socketBufferedBytes } = await load();
+    const ws = { readyState: 1, bufferedAmount: 0 };
+    const r = room(ws);
+    expect(socketBufferedBytes(r)).toBe(0);
+    ws.bufferedAmount = 4096;
+    expect(socketBufferedBytes(r)).toBe(4096);
+  });
+
+  it("is undefined when there is no open socket to read: connecting, closing, closed, another transport or junk", async () => {
+    stubPage();
+    const { socketBufferedBytes } = await load();
+    for (const readyState of [0, 2, 3]) expect(socketBufferedBytes(room({ readyState, bufferedAmount: 99 })), `state ${readyState}`).toBeUndefined();
+    expect(socketBufferedBytes(room(undefined))).toBeUndefined(); // a transport with no `ws`
+    expect(socketBufferedBytes(room(undefined, false))).toBeUndefined(); // no transport yet
+    expect(socketBufferedBytes({} as never)).toBeUndefined();
+    expect(socketBufferedBytes(room({ readyState: 1 }))).toBeUndefined();
+    expect(socketBufferedBytes(room({ readyState: 1, bufferedAmount: Number.NaN }))).toBeUndefined();
+    expect(socketBufferedBytes(room({ readyState: 1, bufferedAmount: "7" }))).toBeUndefined();
+  });
+});

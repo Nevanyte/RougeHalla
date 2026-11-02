@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { TICK_MS, type Vec2 } from "@raid/shared";
 import { phaseSlot, type PhaseSource, type PhaseStatus } from "../../client/src/net/tickPhase";
-import { AimGate, FramePace, HoldGate, MessageMeter } from "../../client/src/net/uplinkPace";
+import { AimGate, FramePace, HoldGate, MessageMeter, StallWatch } from "../../client/src/net/uplinkPace";
 import { STEER_REPEAT_MS } from "../../client/src/net/keyboardMovement";
 import { loadConfig } from "../src/config";
 import { TokenBucket } from "../src/guards/tokenBucket";
@@ -59,17 +59,22 @@ describe("the held right button stays inside the order budget", () => {
  * A minute of the busiest honest mix at 144 fps (the aim always turning, a movement order every STEER_REPEAT_MS, 5 clicks a
  * second), 45 ms up, with the uplink stalled for `stallMs` at 20 s: what was held arrives at once when it clears. Returns the most
  * messages Colyseus counts in one window (its rule: a window opens at the first message after the last one ran out, on the room
- * clock, which moves once a tick) and the steady rate.
+ * clock, which moves once a tick) and the steady rate. `pause`: the scene's stall watch (net/uplinkPace.ts StallWatch) is on, fed
+ * the socket's bufferedAmount the way a stalled TCP shows it (above 0 from the first send into the stall until it clears), and the
+ * aim and the keyboard's repeat stand back while it says stalled; the clicks, discrete orders, always go.
  */
-function stalled(stallMs: number, aligned: boolean): { peakWindow: number; steadyPerSecond: number } {
+function stalled(stallMs: number, aligned: boolean, pause = false): { peakWindow: number; steadyPerSecond: number; sent: number } {
   const phase = readyPhase();
   const aim = new AimGate({ aligned });
   const meter = new MessageMeter();
+  const watch = new StallWatch();
   const frame = 1000 / 144;
   const arrivals: number[] = [];
   const stallAt = 20_000;
-  let last = 0;
+  let last = 0, sent = 0, stuck = 0;
   const send = (now: number) => {
+    sent++;
+    if (now >= stallAt && now < stallAt + stallMs) stuck++;
     meter.note(now);
     const at = now >= stallAt && now < stallAt + stallMs ? stallAt + stallMs : now;
     last = Math.max(last, at + 45);
@@ -78,8 +83,11 @@ function stalled(stallMs: number, aligned: boolean): { peakWindow: number; stead
   let nextMove = 0, nextClick = 0, steady = 0;
   for (let now = 0; now < 60_000; now += frame) {
     aim.frames.frame(now);
-    if (aim.due(now, now + 1000, true, meter.perSecond(now), phase)) { aim.sent(now); send(now); }
-    if (now >= nextMove) { nextMove += STEER_REPEAT_MS; send(now); }
+    watch.sample(now, now >= stallAt && now < stallAt + stallMs && stuck > 0 ? 100 : 0);
+    const hold = pause && watch.stalled(now);
+    if (aim.due(now, now + 1000, true, meter.perSecond(now), phase, hold)) { aim.sent(now); send(now); }
+    // The scene stamps the repeat at the send (lastKeyboardMoveAt): after a pause the next one is a repeat away, not a backlog of them.
+    if (now >= nextMove && !hold) { nextMove = nextMove + STEER_REPEAT_MS > now ? nextMove + STEER_REPEAT_MS : now + STEER_REPEAT_MS; send(now); }
     if (now >= nextClick) { nextClick += 200; send(now); }
     if (now >= 10_000 && now < 10_000 + frame) steady = meter.perSecond(now);
   }
@@ -90,7 +98,15 @@ function stalled(stallMs: number, aligned: boolean): { peakWindow: number; stead
     else count++;
     peakWindow = Math.max(peakWindow, count);
   }
-  return { peakWindow, steadyPerSecond: steady };
+  return { peakWindow, steadyPerSecond: steady, sent };
+}
+
+/** The shortest stall (ms, scanned in `step`s up to `max`) of the busiest mix whose burst Colyseus would close the client for: Infinity if none up to `max`. */
+function kickAt(aligned: boolean, pause: boolean, step = 250, max = 30_000): number {
+  for (let stallMs = step; stallMs <= max; stallMs += step) {
+    if (stalled(stallMs, aligned, pause).peakWindow > MAX_MESSAGES_PER_SECOND) return stallMs;
+  }
+  return Infinity;
 }
 
 describe("a stalled uplink's burst stays under the message cap", () => {
@@ -101,5 +117,27 @@ describe("a stalled uplink's burst stays under the message cap", () => {
     expect(r.peakWindow, `steady ${r.steadyPerSecond}/s`).toBeLessThanOrEqual(MAX_MESSAGES_PER_SECOND);
     // Without a stall the window holds a second of the steady rate.
     expect(stalled(0, aligned).peakWindow).toBeLessThanOrEqual(r.steadyPerSecond + 5);
+  });
+});
+
+describe("pausing the continuous streams while the socket is backed up moves the kick threshold out", () => {
+  it.each([[false], [true]])("aligned aim %s: the busiest mix is kicked by a stall of 2 to 3 s without the pause and only past 20 s with it", (aligned) => {
+    // Honest traffic is 50-65 messages a second, so a stall of about 200 / 60 s plus the window's own steady rate trips the cap
+    // (2.1-2.6 s measured for the aligned aim in the deploy review, 3 s for the floor gate's lower rate).
+    const without = kickAt(aligned, false);
+    expect(without).toBeGreaterThanOrEqual(1750);
+    expect(without).toBeLessThanOrEqual(3250);
+    // With it only the clicks pile up behind the stall (5 a second, beside the window's steady rate): ten times further out and
+    // past anything a live socket survives (the transport's own ping timeout closes it first).
+    const withPause = kickAt(aligned, true, 1000);
+    expect(withPause).toBeGreaterThanOrEqual(20_000);
+    expect(withPause).toBeGreaterThanOrEqual(8 * without);
+    // The stall that kicked before leaves the window at a fraction of the cap.
+    expect(stalled(without, aligned, false).peakWindow).toBeGreaterThan(MAX_MESSAGES_PER_SECOND);
+    expect(stalled(without, aligned, true).peakWindow).toBeLessThan(MAX_MESSAGES_PER_SECOND / 2);
+  });
+
+  it.each([[false], [true]])("aligned aim %s: with no stall the pause never triggers, so the steady stream is the one it was", (aligned) => {
+    expect(stalled(0, aligned, true)).toEqual(stalled(0, aligned, false));
   });
 });

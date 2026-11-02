@@ -7,8 +7,8 @@ import {
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
-import { outboundPerSecond, sendInput, type RaidRoom } from "../net/connection";
-import { AIM_KEEPALIVE_MS, ALIGNED_UPLINK, AimGate, HoldGate } from "../net/uplinkPace";
+import { outboundPerSecond, sendInput, socketBufferedBytes, type RaidRoom } from "../net/connection";
+import { AIM_KEEPALIVE_MS, ALIGNED_UPLINK, AimGate, HoldGate, StallWatch } from "../net/uplinkPace";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import type { PlanInbox } from "../net/planInbox";
 import { keyboardMoveGoal, MOVEMENT_KEYS, STEER_REPEAT_MS, steerDue } from "../net/keyboardMovement";
@@ -225,6 +225,9 @@ export class RaidScene extends Phaser.Scene {
   /** When the aim stream and the held right button's re-sends leave (net/uplinkPace.ts). */
   private readonly aimGate = new AimGate();
   private readonly holdGate = new HoldGate();
+  /** Whether the socket holds unsent bytes (a stalled uplink): the continuous streams send nothing until it drains, read once a frame. */
+  private readonly stall = new StallWatch();
+  private uplinkStalled = false;
   /** Where the camera looks while the minimap is held with the left button (ground units); null = at the local player. */
   private peek: { x: number; y: number } | null = null;
   /** What the player just ordered (target, move, stop), shown until the synced `attackTarget` catches up. */
@@ -348,6 +351,8 @@ export class RaidScene extends Phaser.Scene {
     this.interaction = null;
     this.aimGate.reset();
     this.holdGate.reset();
+    this.stall.reset();
+    this.uplinkStalled = false;
     this.renderT = 0;
     this.teleportAt = 0;
     this.clockSynced = false;
@@ -538,6 +543,8 @@ export class RaidScene extends Phaser.Scene {
     const renderT = this.juice.worldTime(trueT, now);
     this.renderT = renderT;
     this.clockSynced = this.interp.clock.synced;
+    this.stall.sample(now, socketBufferedBytes(this.room));
+    this.uplinkStalled = this.stall.stalled(now);
     // The estimated present, not renderT (the render delay behind it): deadlines and cooldowns are server-time values about now.
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
     for (const [id, d] of this.deaths) if (renderT >= d.t) this.deaths.delete(id);
@@ -1188,7 +1195,7 @@ export class RaidScene extends Phaser.Scene {
     const now = performance.now();
     const c = this.localClock(now);
     const phase = ALIGNED_UPLINK ? this.predict.motion.phase : null;
-    const send = this.holdGate.next(target, now, c, this.clockSynced, phase, this.aimGate.frames.ms);
+    const send = this.holdGate.next(target, now, c, this.clockSynced, phase, this.aimGate.frames.ms, this.uplinkStalled);
     if (send === "none") return;
     if (send === "aligned") phase?.noteAlignedSend(c);
     if (this.moveTo(target, false)) this.holdGate.sent(target, now);
@@ -1317,7 +1324,7 @@ export class RaidScene extends Phaser.Scene {
     if (this.beforeTeleport() || this.frozenWorld || !this.localAlive() || !this.mapView) return;
     // While the order acks cover too few phases of the tick to find its deadline, the repeat is stretched so its sends sweep it.
     const sweep = ALIGNED_UPLINK ? this.predict.motion.phase.sweepMs() : 0;
-    if (!steerDue({ changed: this.keyboardChanged, lastAt: this.lastKeyboardMoveAt }, now, fromEvent, STEER_REPEAT_MS + sweep)) return;
+    if (!steerDue({ changed: this.keyboardChanged, lastAt: this.lastKeyboardMoveAt }, now, fromEvent, STEER_REPEAT_MS + sweep, this.uplinkStalled)) return;
     const origin = this.predict.motion.ready ? this.predict.motion.drawn
       : this.rendered.get(this.room.sessionId) ?? this.room.state.players.get(this.room.sessionId);
     const map = this.planMap();
@@ -1606,7 +1613,7 @@ export class RaidScene extends Phaser.Scene {
     this.predict.motion.phase.noteClock(this.interp.clock.offsetMs);
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
     if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || this.frozenWorld || !this.input.isOver || this.peek) return;
-    if (!this.aimGate.due(at, this.localClock(at), this.clockSynced, outboundPerSecond(at), ALIGNED_UPLINK ? this.predict.motion.phase : null)) return;
+    if (!this.aimGate.due(at, this.localClock(at), this.clockSynced, outboundPerSecond(at), ALIGNED_UPLINK ? this.predict.motion.phase : null, this.uplinkStalled)) return;
     const a = this.cursorAngle(this.input.activePointer);
     if (a === null) return;
     const turned = this.lastAimSent === null || angleBetween(a, this.lastAimSent) > AIM_MIN_DELTA;
