@@ -335,6 +335,22 @@ reach) and `maxCandidates` from its tier route. The hunt's answer is one candida
 - `retreat` becomes a flee goal;
 - `player` means no mob candidate this think.
 
+### 3.6a Builds and camp routes (`brain/buildRoute.ts`)
+
+Each bot draws one of its faction's two builds once per run (A or B, the builds of `testing/TUNING_BALANCE.md` section 13, as stat
+weights in `BUILD_GOALS`; the draw is a hash of the bot's seed and id, so a replay is the same). A normal mob type is worth the
+build's weight for the stat it gives (`typeWeight`, at least `STAT_FLOOR` 0.25). From the public camp state (type, alive,
+cleared, respawn time: what the planning screen shows) it plans `ROUTE_STEPS` (4) camps ahead, greedy by value per second: the
+walk, a wait for a respawn of at most `MAX_WAIT_MS` (40 s) and the time to clear. Cleared camps are planned for their respawn, so
+a bot sweeps the camps it wants and comes back as they return. Elites are left out until `ELITE_AFTER_MS` (6 min) and
+`ELITE_MIN_KILLS` (12) mob kills, or card power 6; the hunt holds them back too (`elitesReady`). The strategy always offers the
+route's next camp as a walk (x1.4 utility; other camps x0.8), and the hunt prefers wanted types and takes an unwanted mob only
+within `OFF_BUILD_WALK` (140 u), one in the way. Adaptability: a camp on the route that loses mobs while the bot is away, has an
+enemy player at it, or is cleared by someone else while the bot walks there is contested for 30 s and the route is made again
+at once; a zone contested twice within 90 s is avoided for 60 s. A bot with a bow or a wand may farm ranged mobs (it shoots back
+where it stands); a melee-only bot still skips them. In headless 8-bot games (seeds 1-6) 47.6% of the mob stat stacks were the
+build's stats (31.9% of camps offer one) and mob stacks rose from 462 to 838 against the build-blind route.
+
 ### 3.7 How fairness is enforced by tests
 
 | Test (`packages/server/test/bots/`) | Asserts |
@@ -596,7 +612,7 @@ onResult(id: string, result: RunResult): void; dispose(): void;
 
 | Env | Default |
 |---|---|
-| `BOTS_FILL_TO` | 6 (0 = off) |
+| `BOTS_FILL_TO` | 8 (0 = off) |
 | `BOTS_ARRIVAL_SECONDS` | 12 |
 | `BOTS_TIER_MIX` | `easy:30,normal:45,hard:25` |
 | `BOTS_PERSONA_MIX` | `farmer:1,hunter:1,opportunist:1,cautious:1` |

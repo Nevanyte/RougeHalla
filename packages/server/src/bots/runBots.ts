@@ -10,7 +10,7 @@
 // bot queues into a new run as soon as its last one is over, until the process is stopped.
 // The server runs the mobs by default; start it with MOBS=0 (or MOBS=false) to leave them out, and the bots simply hunt
 // each other (the result lines show the GV the mobs paid: `mobs N`). The server also fills a lobby with bots of its own
-// (BOTS_FILL_TO, default 6); start it with BOTS_FILL_TO=0 to get only the bots launched here.
+// (BOTS_FILL_TO, default 8); start it with BOTS_FILL_TO=0 to get only the bots launched here.
 //
 // A profile name is claimed once and then needs its token, so tokens are remembered per server in
 // data/bot-tokens.json (next to the profile file, not committed). Running the CLI again reuses the same
@@ -44,7 +44,7 @@ const USAGE = [
   "  --loop      queue again after every run until stopped (Ctrl-C)",
   "  --verbose   log every bot's decisions",
   "",
-  "The server fills its lobbies with bots of its own (BOTS_FILL_TO, default 6): start it with BOTS_FILL_TO=0 to play only against the bots launched here.",
+  "The server fills its lobbies with bots of its own (BOTS_FILL_TO, default 8): start it with BOTS_FILL_TO=0 to play only against the bots launched here.",
 ].join("\n");
 const TOKEN_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../data/bot-tokens.json");
 

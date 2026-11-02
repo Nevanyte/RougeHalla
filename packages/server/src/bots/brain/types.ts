@@ -1171,6 +1171,9 @@ export interface BrainStats extends HumanizerStats {
   readonly jukes: number;
   readonly kiteCycles: number;
   readonly goals: Readonly<Partial<Record<GoalKind, number>>>;
+  /** The build the bot farms for (buildRoute.ts BUILD_GOALS id; "" before it knows its faction) and the camps it found contested. */
+  readonly build: string;
+  readonly routeContests: number;
 }
 
 /** brain.ts: memory -> strategy -> tactics (+ modules) -> humanizer, once per percept. */
@@ -1240,7 +1243,7 @@ export interface BotFillConfig {
 }
 
 export const BOT_FILL_DEFAULTS: BotFillConfig = {
-  fillTo: 6,
+  fillTo: 8,
   arrivalSeconds: 12,
   tierMix: { easy: 0.3, normal: 0.45, hard: 0.25 },
   personaMix: { farmer: 4, hunter: 1, opportunist: 2, cautious: 3 },

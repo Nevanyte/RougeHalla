@@ -278,6 +278,7 @@ export const createBrain: BrainFactory = (cfg: BrainConfig): Brain => {
         grabs, maxStallMs: maxStall,
         dodges: t.dodges, jukes: t.jukes, kiteCycles: t.kiteCycles,
         goals: { ...goalCounts },
+        build: strategy.plan?.build ?? "", routeContests: strategy.plan?.contests ?? 0,
       };
     },
 
