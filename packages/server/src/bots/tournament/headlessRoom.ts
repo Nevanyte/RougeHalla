@@ -17,6 +17,7 @@ import type { BotFillConfig, BotSeatSpec, BotStatsStoreApi, BrainFactory, Featur
 import { FxChannel } from "../../rooms/FxChannel";
 import { createGameWorld } from "../../sim/gameplay";
 import { step } from "../../sim/step";
+import type { RunTelemetry, TelemetryRuntime } from "../../telemetry/runtime";
 import type { SimConfig, SimEvent, World } from "../../sim/world";
 
 /** The GV toast a bot reads, spelt as the Room spells it (RaidRoom.GV_TOAST). */
@@ -58,6 +59,8 @@ export interface HeadlessRoomOptions {
   createBrain?: BrainFactory;
   /** False keeps the lobby open after seating the lineup (a test adds a human, or lets `bots.fillTo` and the countdown run). */
   startAtOnce?: boolean;
+  /** Records the run (docs/TELEMETRY.md): the recorder is installed last, and the record is submitted when the run ends. */
+  telemetry?: TelemetryRuntime;
 }
 
 /** A player's result, as the Room's `settle` receives it. */
@@ -77,6 +80,8 @@ export interface HeadlessRoom {
   readonly results: readonly ResolvedResult[];
   /** The fx batch of the last tick, if it had one. */
   readonly lastBatch: FxBatch | null;
+  /** The run's telemetry collector, with `telemetry` given. */
+  readonly telemetry: RunTelemetry | null;
   /** Ticks stepped. */
   readonly ticks: number;
   /** One Room step: arrivals, due commands, the step, the event routing, the patch and the bots' frames. Returns the step's events. */
@@ -115,6 +120,11 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
     ...(opts.features ? { features: opts.features } : {}),
     ...(opts.createBrain ? { createBrain: opts.createBrain } : {}),
   });
+  // After the manager (its hooks), so the recorder's listeners run last, as in the Room.
+  const run = opts.telemetry?.attach(world, (id) => {
+    const spec = manager.specOf(id);
+    return spec ? { tier: spec.tier, persona: spec.persona } : undefined;
+  }) ?? null;
   const channel = new FxChannel();
   const results: ResolvedResult[] = [];
   const seats: BotSeatSpec[] = [];
@@ -136,6 +146,7 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
     manager.beforeStep(s.serverTime + TICK_MS);
     const events = step(world, TICK_MS);
     ticks++;
+    run?.onEvents(events);
 
     const fxs = [];
     for (const ev of events) {
@@ -169,6 +180,8 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
     channel.extendRoster(s);
     channel.rosterSent();
     manager.afterPatch(lastBatch ? [lastBatch] : []);
+    // No clients wait for a perf sample here: the record goes as soon as the run ends.
+    if (run && run.ended && !run.done) run.finalize();
     return events;
   }
 
@@ -179,6 +192,7 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
     seats,
     results,
     get lastBatch() { return lastBatch; },
+    telemetry: run,
     get ticks() { return ticks; },
     tick,
     runUntilEnd(maxSimMs, onTick) {

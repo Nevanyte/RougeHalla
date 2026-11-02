@@ -27,6 +27,7 @@ function onPlayerKilled(world: World, killer: { id: string }, victim: { id: stri
   box.owner = killer.id;
   box.expiresAt = world.state.serverTime + KILL_AUG_SECONDS * 1000;
   for (const id of options) { box.options.push(id); box.takenBy.push(""); }
+  world.hooks.rewardOffered?.(world, box, "trophy", -1, [killer.id]);
 }
 
 /** The owner check for `choose`: false (with the refusal toast) for anyone but the trophy's owner. */

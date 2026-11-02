@@ -31,6 +31,7 @@ export function grantConsumable(world: World, c: Player, id: ConsumableId, count
   const next = Math.min(CONSUMABLE_CAP, c.s[key] + Math.floor(count));
   if (next <= c.s[key]) return false;
   c.s[key] = next;
+  world.hooks.consumableGranted?.(world, c, id);
   toast(world, c.id, `${CONSUMABLES[id].name} stored · ${CONSUMABLES[id].text}`);
   return true;
 }
@@ -61,6 +62,7 @@ export const handleUseConsumable: ActionHandler = (world, c, cmd) => {
   const large = c.s.potionLarge > 0;
   if (!large && c.s.potionSmall <= 0) { toast(world, c.id, "No potion stored"); return; }
   if (large) c.s.potionLarge--; else c.s.potionSmall--;
+  world.hooks.consumableUsed?.(world, c, large ? "potionLarge" : "potionSmall");
   c.s.healingUntil = now + POTION_HEAL_MS; // the newest potion always ends last
   const steps = POTION_HEAL_MS / HEAL_OVER_TIME_STEP_MS;
   active.push({ next: now + HEAL_OVER_TIME_STEP_MS, left: steps, amount: c.s.maxHp * (large ? POTION_LARGE_SHARE : POTION_SMALL_SHARE) / steps });
@@ -78,7 +80,7 @@ export function updateConsumables(world: World): void {
     if (!p || !rt || p.status !== "alive" || rt.resolved) { list!.delete(id); if (p) { p.healingUntil = 0; p.potionsHealing = 0; } continue; }
     for (const hot of hots) {
       while (hot.left > 0 && now >= hot.next) {
-        heal(world, { kind: "player", id, s: p, rt }, hot.amount, { ignoreLockout: true });
+        heal(world, { kind: "player", id, s: p, rt }, hot.amount, { ignoreLockout: true, source: "potion" });
         hot.left--; hot.next += HEAL_OVER_TIME_STEP_MS;
       }
     }

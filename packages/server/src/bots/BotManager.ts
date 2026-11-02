@@ -435,6 +435,11 @@ export class BotManager {
 
   // ========================================================================================================== inspection
 
+  /** One seated bot's spec (its tier and persona: telemetry tags its record with them), or undefined. */
+  specOf(id: string): BotSeatSpec | undefined {
+    return this.seats.get(id)?.spec;
+  }
+
   /** The bots seated, in seating order. */
   specs(): readonly BotSeatSpec[] {
     return [...this.seats.values()].map((s) => s.spec);

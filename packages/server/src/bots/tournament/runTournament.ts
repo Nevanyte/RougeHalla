@@ -11,7 +11,7 @@ import { PERSONA_IDS, type PersonaId, type TierId } from "../brain/types";
 import { MAX_GAME_MS, type GameSummary } from "./game";
 import type { TuneSpec } from "./tune";
 import { aggregate, evaluate, formatReport, type ReportMeta } from "./report";
-import { runBatch, type GameResult, type TournamentPlan, type WorkerMessage } from "./worker";
+import { flushTelemetry, runBatch, type GameResult, type TournamentPlan, type WorkerMessage } from "./worker";
 
 export interface TournamentArgs {
   readonly games: number;
@@ -32,6 +32,8 @@ export interface TournamentArgs {
   readonly tune: TuneSpec | null;
   readonly quiet: boolean;
   readonly help: boolean;
+  /** Telemetry records of every game, as NDJSON in this directory (null = none). */
+  readonly telemetryDir: string | null;
 }
 
 export const USAGE = `usage: npm run tournament -w @raid/server -- [options]
@@ -47,6 +49,7 @@ export const USAGE = `usage: npm run tournament -w @raid/server -- [options]
   --patience S     patience seconds at a full lobby, scaling to 40% of it (default 120)
   --sudden S       sudden death seconds (default 30)
   --latency MS     --jitter MS   one-way latency of the bots' commands (default 30 and 8)
+  --telemetry DIR  also write every game's telemetry record (docs/TELEMETRY.md) to DIR/runs-<day>.ndjson (alias --telemetry-dir)
   --tune JSON      a tuning diagnostic: patch the TIERS / PERSONAS tables, e.g. '{"tiers":{"easy":{"knowledge":0.95}}}' (or @file.json)
   --quiet          no progress on stderr
   --help`;
@@ -79,7 +82,7 @@ export const defaultWorkers = (cores = os.cpus().length): number => Math.max(1, 
 export function parseArgs(argv: readonly string[], cores = os.cpus().length): TournamentArgs {
   const a: { -readonly [K in keyof TournamentArgs]: TournamentArgs[K] } = {
     games: 400, workers: defaultWorkers(cores), tiers: parseLineup("E,E,N,N,H,H"), seed: 1, learn: true, persona: "mix", faction: "mix", json: null,
-    maxMinutes: MAX_GAME_MS / 60_000, patience: null, sudden: null, latencyMs: null, jitterMs: null, tune: null, quiet: false, help: false,
+    maxMinutes: MAX_GAME_MS / 60_000, patience: null, sudden: null, latencyMs: null, jitterMs: null, tune: null, quiet: false, help: false, telemetryDir: null,
   };
   const args = [...argv];
   while (args.length > 0) {
@@ -128,6 +131,7 @@ export function parseArgs(argv: readonly string[], cores = os.cpus().length): To
         break;
       }
       case "--quiet": a.quiet = true; break;
+      case "--telemetry": case "--telemetry-dir": a.telemetryDir = value(); break;
       case "--help": case "-h": a.help = true; break;
       default: throw new Error(`unknown option "${raw}"`);
     }
@@ -149,6 +153,7 @@ export function planOf(a: TournamentArgs): TournamentPlan {
     ...(a.latencyMs !== null ? { latencyMs: a.latencyMs } : {}),
     ...(a.jitterMs !== null ? { jitterMs: a.jitterMs } : {}),
     ...(a.tune !== null ? { tune: a.tune } : {}),
+    ...(a.telemetryDir !== null ? { telemetryDir: a.telemetryDir } : {}),
   };
 }
 
@@ -163,7 +168,11 @@ export function split(games: number, workers: number): number[][] {
 /** Plays the whole plan; resolves with every game in index order. `onGame` hears each as it finishes. */
 export async function play(plan: TournamentPlan, workers: number, onGame?: (r: GameResult) => void): Promise<GameResult[]> {
   const batches = split(plan.games, workers);
-  if (batches.length === 1) return runBatch(plan, batches[0]!, onGame);
+  if (batches.length === 1) {
+    const out = runBatch(plan, batches[0]!, onGame);
+    await flushTelemetry();
+    return out;
+  }
   const results: GameResult[] = [];
   const workerUrl = new URL("./worker.ts", import.meta.url);
   await Promise.all(batches.map((indices) => new Promise<void>((resolve, reject) => {

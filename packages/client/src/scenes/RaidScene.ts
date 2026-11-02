@@ -70,6 +70,7 @@ import { RouteState } from "../ui/route";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
 import { TrainingBar } from "../ui/trainingBar";
+import { runPerf } from "../net/perfSample";
 import { WeaponBar } from "../ui/weaponBar";
 import { getSettings, onSettingsChange } from "../settings";
 import { screenToWorld } from "../view/viewport";
@@ -319,6 +320,7 @@ export class RaidScene extends Phaser.Scene {
     this.deaths.clear();
     this.inHand.clear();
     this.interp = new EntityInterpolator();
+    runPerf.reset(); // one perf sample per run (docs/TELEMETRY.md 3.9)
     this.views = new Map();
     this.mobViews = new Map();
     this.zombieViews = new Map();
@@ -502,6 +504,7 @@ export class RaidScene extends Phaser.Scene {
     this.minimap.setGatesLocked(gatesLocked);
 
     const now = performance.now();
+    if (!state.training) runPerf.frame(now, this.room, this.interp.delayMs);
     // Not read in create(): tolerate the flag arriving with a later patch.
     if (state.training && !this.trainingBar) {
       this.trainingBar = new TrainingBar(this.leaveTraining, { send: (msg) => sendInput(this.room, "train", msg) });

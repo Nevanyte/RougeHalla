@@ -2,11 +2,12 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId,
+  generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type CastEndReason, type ConsumableId,
+  type DamageShares, type FactionId, type HealSource, type OfferKind,
   type FieldKind, type FxEvent, type GameMap, type GvReason, type MobTypeId, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
   type RunResult, type Sample, type SignatureKind, type SlipState, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { RaidState, type PlayerState } from "@raid/shared/schema";
+import { RaidState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
@@ -747,6 +748,27 @@ export interface WorldHooks {
    * (payLater), right after the `campCleared` fx; campHeal and quests process the clear here. Elite chests use mobKilled.
    */
   campCleared?(world: World, camp: number): void;
+
+  // Telemetry taps (docs/TELEMETRY.md 3.8): optional, fired as `world.hooks.x?.(...)` so an unset one builds no arguments.
+  // Only sim/telemetry.ts listens; a listener reads state and writes its own counters, never the game.
+  /** heal() restored `gained` hp (above 0) to `c`, from `source`. */
+  healed?(world: World, c: Combatant, gained: number, source: HealSource): void;
+  /** A reward container was just offered: `camp` its map index (-1 none), `eligible` the player ids it was offered to. */
+  rewardOffered?(world: World, box: ContainerState, kind: OfferKind, camp: number, eligible: readonly string[]): void;
+  /** `c` just took option `option` of a reward container (-1 = a skip): handleChoose succeeded. */
+  rewardChosen?(world: World, c: Combatant, box: ContainerState, option: number): void;
+  /** `c` drank a stored consumable. */
+  consumableUsed?(world: World, c: Combatant, id: ConsumableId): void;
+  /** `c` stored a consumable (a pickup or a camp clear's potion). */
+  consumableGranted?(world: World, c: Combatant, id: ConsumableId): void;
+  /** `c` accepted quest def `defId` at its giver. */
+  questAccepted?(world: World, c: Combatant, defId: string): void;
+  /** `c` completed quest def `defId` (its reward is being paid). */
+  questCompleted?(world: World, c: Combatant, defId: string): void;
+  /** `c`'s cast of `ability` was accepted (its cooldown is spent). */
+  castAccepted?(world: World, c: Combatant, ability: AbilityId): void;
+  /** `c`'s cast of `ability` ended: it landed, or castEnd's reason. */
+  castEnded?(world: World, c: Combatant, ability: AbilityId, reason: CastEndReason | "landed"): void;
 }
 
 export interface World {
@@ -1023,7 +1045,9 @@ export function emit(world: World, ev: SimEvent): void {
 type ChainableHook =
   | "teleported" | "lobbyClosing" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
   | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled"
-  | "blocked" | "overkilled" | "executeDenied";
+  | "blocked" | "overkilled" | "executeDenied"
+  | "healed" | "rewardOffered" | "rewardChosen" | "consumableUsed" | "consumableGranted" | "questAccepted" | "questCompleted"
+  | "castAccepted" | "castEnded";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

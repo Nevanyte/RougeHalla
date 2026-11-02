@@ -202,6 +202,7 @@ export const handleQuestAccept: ActionHandler = (world, c, cmd) => {
   if (accepted(qt, c.id)) { toast(world, c.id, QUEST_REFUSAL.already); return; }
   if (qt.s.expiresAt === 0) qt.s.expiresAt = world.state.serverTime + qt.def.expiresAtSec * 1000;
   qt.s.accepted.set(c.id, true);
+  world.hooks.questAccepted?.(world, c, qt.def.id);
   toast(world, c.id, questAcceptedText(qt.def));
 };
 
@@ -313,6 +314,7 @@ function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
   const reward = questRewardStats(qt.def);
   const c = combatant(world, playerId);
   if (c?.kind === "player") grantMobStat(world, c, reward.id, reward.stacks);
+  if (c) world.hooks.questCompleted?.(world, c, qt.def.id);
   emit(world, { type: "toast", to: playerId, text: `Quest complete: ${qt.def.name}` });
   announce(world, `${p.name} completed quest: ${qt.def.name}`);
 }

@@ -70,7 +70,7 @@ import {
   lifestealTotal, holyApLifestealOf, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
   plagueDps, sentencedHuntMarkMultiplier, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
   staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
-  type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
+  type DamageShares, type FactionSpec, type HealSource, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
 import { attackSpeedMult, grantBarrier, grantHealBarrier } from "./buffs";
 import { rollDotCrit } from "./cardState";
@@ -1135,7 +1135,8 @@ function onWeaponSwapped(world: World, c: Combatant): void {
  * every tick, which would be a heal number every tick). Returns the hp gained.
  */
 export function heal(
-  world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean; ignoreLockout?: boolean; noBarrier?: boolean } = {},
+  world: World, c: Combatant, amount: number,
+  opts: { lifesteal?: boolean; quiet?: boolean; ignoreLockout?: boolean; noBarrier?: boolean; source?: HealSource } = {},
 ): number {
   if (!(amount > 0) || !standing(c)) return 0;
   const now = world.state.serverTime;
@@ -1154,6 +1155,8 @@ export function heal(
   c.s.hp = Math.min(c.s.maxHp, c.s.hp + amount);
   const gained = c.s.hp - before;
   if (gained > 0 && !opts.quiet) emit(world, { type: "fx", fx: { kind: "heal", id: c.id, amount: gained } });
+  // Telemetry's tap (docs/TELEMETRY.md 3.5): unset, it costs nothing; a listener only counts.
+  if (gained > 0) world.hooks.healed?.(world, c, gained, opts.source ?? (opts.lifesteal ? "lifesteal" : "other"));
   return gained;
 }
 
@@ -1197,7 +1200,7 @@ function runTrigger(world: World, c: Extract<Combatant, { kind: "player" }>, a: 
         payLater(world, () => { startHealOverTime(world, c, amount, ms, ignoreLockout); });
         return;
       }
-      payLater(world, () => { heal(world, c, amount, { ignoreLockout }); });
+      payLater(world, () => { heal(world, c, amount, { ignoreLockout, source: "trigger" }); });
       return;
     }
     case "barrier": {
@@ -1224,7 +1227,7 @@ export function startHealOverTime(
   if (!(amount > 0) || !standing(c)) return;
   const steps = healOverTimeSteps(ms);
   const each = amount / steps;
-  heal(world, c, each, { ignoreLockout });
+  heal(world, c, each, { ignoreLockout, source: "trigger" });
   if (steps > 1) {
     (c.rt.hots ??= []).push({ next: world.state.serverTime + HEAL_OVER_TIME_STEP_MS, left: steps - 1, amount: each, ignoreLockout });
   }
@@ -1244,7 +1247,7 @@ function healOverTime(world: World): void {
     }
     for (const h of hots) {
       while (h.left > 0 && now >= h.next) {
-        heal(world, c, h.amount, { ignoreLockout: h.ignoreLockout });
+        heal(world, c, h.amount, { ignoreLockout: h.ignoreLockout, source: "trigger" });
         h.left--;
         h.next += HEAL_OVER_TIME_STEP_MS;
       }

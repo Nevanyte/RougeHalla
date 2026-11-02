@@ -75,3 +75,43 @@ After deliberately importing a new authoritative snapshot, change the `PROFILE_E
 ## Recovery
 
 Back up the current R2 object before any rollback. A rollback to the Mac must first stop the cloud writer, export its latest authoritative profiles and restore them to the Mac's profile file before starting the local server and returning DNS to the tunnel. Reusing the pre-migration local snapshot would discard cloud progress. In-progress matches do not survive a server restart.
+
+## Telemetry and the balance dashboard
+
+Run records, the `TelemetryStore` Durable Object, the `/stats` dashboard and its secrets (`TELEMETRY_TOKEN`, `DASHBOARD_TOKEN`, `TELEMETRY_SALT`; all optional, telemetry off without them) are specified in [TELEMETRY.md](TELEMETRY.md). This section is the operator's checklist; the design is there.
+
+**What runs where.** The game container posts finished runs (gzipped NDJSON) to `POST /_internal/telemetry` on the Worker. The Worker archives each run in the existing `rougehalla-profiles` bucket under `telemetry/v1/build=<server build>/date=<yyyy-mm-dd>/<runId>.json.gz` and flattens it into the `TelemetryStore` Durable Object (one SQLite instance, `telemetry-v1`). The dashboard at `https://play.roguehalla.com/stats` and its JSON API under `/api/stats/*` are answered by the Worker and that Durable Object only. Viewing stats never wakes or pins the game container, and it works in maintenance. Code: `deployment/cloudflare/src/telemetry/` (`ingest.ts`, `rows.ts`, `store.ts`, `query.ts`, `auth.ts`, `routes.ts`, `durable.ts`, `containerEnv.ts`) and the page in `src/dashboard/page.ts`.
+
+**One-time setup.**
+
+1. Generate three separate secrets, each 64 hex characters, and never reuse one for another purpose (or for `PROFILE_SNAPSHOT_TOKEN` or `NETWORK_PROBE_TOKEN`). Each must be at least 32 characters, or it is treated as unset:
+   ```
+   openssl rand -hex 32   # TELEMETRY_TOKEN: the container's ingest credential
+   openssl rand -hex 32   # DASHBOARD_TOKEN: the dashboard password
+   openssl rand -hex 32   # TELEMETRY_SALT: the HMAC key that turns callsigns into pseudonymous ids
+   ```
+2. Store them as Worker secrets:
+   ```
+   npx wrangler secret put TELEMETRY_TOKEN --config deployment/cloudflare/wrangler.jsonc
+   npx wrangler secret put DASHBOARD_TOKEN --config deployment/cloudflare/wrangler.jsonc
+   npx wrangler secret put TELEMETRY_SALT  --config deployment/cloudflare/wrangler.jsonc
+   ```
+3. Publish as usual: `npm run cf:typecheck`, `npm run cf:test`, `npm run deploy`. The deploy creates the `TelemetryStore` namespace from the `exports` entry in `wrangler.jsonc` (the same SQLite-backed style as the container coordinators, so no `migrations` block is needed). The controller release label carries a telemetry on/off flag (never the secret), so the coordinator restarts the container with `TELEMETRY_URL`, `TELEMETRY_TOKEN`, `TELEMETRY_SALT`, `TELEMETRY_SOURCE=live` and `GAME_SOURCE_COMMIT` at its next release check. Like any release, that happens between requests and ends any match in progress.
+4. Open `https://play.roguehalla.com/stats` and paste `DASHBOARD_TOKEN` into the form. The session cookie is `HttpOnly; Secure; SameSite=Strict` and lasts 7 days. Scripts can send `Authorization: Bearer <DASHBOARD_TOKEN>` to `/api/stats/*` instead, for example `/api/stats/export` to download raw records for `testing/telemetry/analyze.py`.
+
+**Optional.** `TELEMETRY_RETAIN_DAYS` (a Worker variable, default 400) sets how long the summary rows are kept. A daily Durable Object alarm deletes older runs and heat cells. The R2 archive is never deleted by the Worker; add an R2 lifecycle rule on the `telemetry/` prefix if you want one.
+
+**Turning it off or rotating.**
+
+- Telemetry off: `npx wrangler secret delete TELEMETRY_TOKEN --config deployment/cloudflare/wrangler.jsonc`, then deploy. Ingest answers 404, and the next release check restarts the container without the telemetry env.
+- Dashboard off: delete `DASHBOARD_TOKEN`. Every `/stats*` and `/api/stats/*` path then answers 404. Rotating it logs every session out.
+- Rotating `TELEMETRY_TOKEN` takes effect for the container at its next restart (a release, or a bump of `CONTROLLER_VERSION`). Until then, its posts get 401 and are dropped after their retries.
+- Rotating `TELEMETRY_SALT` unlinks all earlier player history from new runs. Raw records keep the old ids.
+
+**Rebuilding the summary tables.** After a store schema change or a Durable Object wipe, replay the R2 archive 200 objects at a time. Call this repeatedly with the returned `cursor` until it is `null`. Records already present count as `duplicate` and change nothing:
+```
+curl -X POST -H "Authorization: Bearer $DASHBOARD_TOKEN" \
+  "https://play.roguehalla.com/api/stats/admin/reindex?confirm=1&cursor=<cursor from the previous call>"
+```
+
+**Checks.** `npm run cf:test` runs the store against `node:sqlite` (hand-checked aggregates, idempotent ingest, injection probes), the ingest and the API against a real SQLite Durable Object and R2 in Miniflare, and the auth rules (cookie flags, forged or expired cookies, the login Origin check, the CSP headers).

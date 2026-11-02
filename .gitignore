@@ -11,3 +11,4 @@ packages/server/.vitest/
 packages/client/.vitest/
 .wrangler/
 deployment/cloudflare/build-meta.json
+.vitest/

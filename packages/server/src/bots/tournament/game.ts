@@ -8,6 +8,7 @@ import {
   type BotStatsStoreApi, type CommandType, type PersonaId, type TierId,
 } from "../brain/types";
 import { createHeadlessRoom } from "./headlessRoom";
+import type { TelemetryRuntime } from "../../telemetry/runtime";
 import type { SimConfig, SimEvent } from "../../sim/world";
 
 /** A game is cut off after this much simulated time since it started (12 minutes). */
@@ -36,6 +37,8 @@ export interface RunGameOptions {
   readonly maxSimMs?: number;
   /** What the bots learn from; null (default) = nothing, which is what makes a game a pure function of its options. */
   readonly store?: BotStatsStoreApi | null;
+  /** Records the game (docs/TELEMETRY.md): it changes nothing in it. */
+  readonly telemetry?: TelemetryRuntime;
 }
 
 /** What one bot measured about itself (brain.stats), as plain data with sorted keys. */
@@ -163,6 +166,7 @@ export function runGame(opts: RunGameOptions): GameSummary {
     lineup: opts.lineup,
     ...(opts.botSeed !== undefined ? { botSeed: opts.botSeed } : {}),
     statsStore: opts.store ?? null,
+    ...(opts.telemetry ? { telemetry: opts.telemetry } : {}),
   });
   const { world, manager } = room;
   const ids = room.seats.map((s) => s.id);
@@ -240,6 +244,8 @@ export function runGame(opts: RunGameOptions): GameSummary {
   };
 
   const ran = room.runUntilEnd(opts.maxSimMs ?? MAX_GAME_MS, observe);
+  // A game the cap cut off still leaves a record (abandoned); one that ended was sent as it ended.
+  room.telemetry?.finalize("abandoned");
   const byId = new Map(room.results.map((r) => [r.id, r.result]));
   const winnerResults = room.results.filter((r) => r.result.outcome === "won");
   const draw = room.results.some((r) => r.result.outcome === "draw");
