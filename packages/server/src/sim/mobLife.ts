@@ -220,13 +220,16 @@ export function killMob(
   const camp = c.s.camp - 1;
   const weapon = c.s.weapon0 === FISTS ? "" : c.s.weapon0; // fists are never an item
   const at = { x: c.s.x, y: c.s.y };
+  // One loose weapon per camp clear: only the camp's last mob leaves one on the ground (a campless mob always does). Any kill
+  // may still arm an empty hand, so a fists starter gets a weapon from its first kill.
+  const lastOfCamp = c.s.camp <= 0 || (world.state.camps[c.s.camp - 1]?.alive ?? 0) <= 0;
   if (killer === null) {
-    // Nobody to pay, but the weapon lies where the mob fell all the same.
-    if (weapon !== "") payLater(world, () => dropWeapon(world, at, weapon));
+    // Nobody to pay: the camp's last mob leaves its weapon where it fell.
+    if (weapon !== "" && lastOfCamp) payLater(world, () => dropWeapon(world, at, weapon));
     return;
   }
-  if (weapon !== "" && !world.config.training) queueWeapon(world, killer, { mob: c.id, weapon, at });
-  payLater(world, () => payMobKill(world, killer!, c.id, region, elite, type, camp, weapon, at, m));
+  if (weapon !== "" && !world.config.training) queueWeapon(world, killer, { mob: c.id, weapon, at, drop: lastOfCamp });
+  payLater(world, () => payMobKill(world, killer!, c.id, region, elite, type, camp, lastOfCamp ? weapon : "", at, m));
 }
 
 /**
@@ -261,7 +264,7 @@ function payMobKill(
 }
 
 /** A weapon a killed mob carried, waiting for its killer's pay-out. */
-interface WeaponAward { mob: string; weapon: string; at: Vec2 }
+interface WeaponAward { mob: string; weapon: string; at: Vec2; drop: boolean }
 
 /**
  * The weapons of the mobs a player killed in one pass, by killer. The pay-outs run in the order the victims were applied, which follows
@@ -295,7 +298,7 @@ function settleWeapons(world: World, killerId: string): void {
   const list = by?.get(killerId);
   if (!by || !list) return;
   by.delete(killerId);
-  for (const a of list.sort(byMobId)) awardMobWeapon(world, killerId, a.weapon, a.at);
+  for (const a of list.sort(byMobId)) awardMobWeapon(world, killerId, a.weapon, a.at, a.drop);
 }
 
 /**
@@ -304,7 +307,7 @@ function settleWeapons(world: World, killerId: string): void {
  * Any other killer (armed, or down in this very pass and so unable to wield it) leaves it as a loose weapon at the mob's feet,
  * unless they already hold that type in either slot.
  */
-function awardMobWeapon(world: World, killerId: string, weapon: string, at: Vec2): void {
+function awardMobWeapon(world: World, killerId: string, weapon: string, at: Vec2, drop: boolean): void {
   const killer = combatant(world, killerId);
   if (killer?.kind === "player" && isWeaponId(weapon) && standing(killer) && handIsEmpty(killer.s)) {
     setSlot(killer.s, killer.s.slot === 1 ? 1 : 0, weapon);
@@ -312,6 +315,7 @@ function awardMobWeapon(world: World, killerId: string, weapon: string, at: Vec2
     emit(world, { type: "toast", to: killerId, text: `Armed: ${WEAPONS[weapon].name}` });
     return;
   }
+  if (!drop) return;
   const p = world.state.players.get(killerId)!;
   if (p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
 }
