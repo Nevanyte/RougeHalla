@@ -586,6 +586,9 @@ describe("a look is cosmetic only", () => {
     const json = (serverPlayer(p) as unknown as { toJSON(): Record<string, unknown> }).toJSON();
     // These clocks differ across independent rooms; Fire Roam also changes speed as its charge advances.
     for (const key of ["name", "look", "x", "y", "facing", "wishReadyAt", "roamCharge", "speedMult"]) delete json[key];
+    // wishFullAt (Blaze Step's charge clock) is the same kind of room clock; it lives in the `extra` child (63-field limit).
+    const extra = json.extra as Record<string, unknown> | undefined;
+    if (extra) delete extra.wishFullAt;
     return json;
   }
 

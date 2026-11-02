@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, mobStatCount, mobStatReward, mobStatRows,
-  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeWeapon,
+  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeIn, mobTypeWeapon, MOB_ZONE_DAMAGE,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
 } from "@raid/shared";
@@ -1017,11 +1017,13 @@ describe("killMob: rewards", () => {
       const mobs = allMobs(w).filter((m) => m.s.camp === ci + 1 && m.s.weapon0 !== "fists");
       expect(mobs.length).toBeGreaterThanOrEqual(3);
       P(w, 0).weapon0 = "sword"; // an armed hand, so nothing is taken up
-      const before = w.state.containers.size;
+      // Weapon drops only: a normal camp's clear also drops its stat chest (a "reward" container, sim/chests.ts).
+      const loose = (): number => [...w.state.containers.values()].filter((c) => c.kind !== "reward").length;
+      const before = loose();
       mobs.slice(0, -1).forEach((m) => hurt(w, m, ["p0", m.s.hp]));
-      expect(w.state.containers.size).toBe(before);
+      expect(loose()).toBe(before);
       hurt(w, mobs.at(-1)!, ["p0", mobs.at(-1)!.s.hp]);
-      expect(w.state.containers.size).toBe(before + (mobs.at(-1)!.s.weapon0 === "sword" ? 0 : 1));
+      expect(loose()).toBe(before + (mobs.at(-1)!.s.weapon0 === "sword" ? 0 : 1));
     });
 
     it("what the player holds does not change what the next kill pays: a card is no part of the reward", () => {
@@ -1680,8 +1682,11 @@ describe("a mob fights as its scaled faction", () => {
     const w = makeBare();
     for (const elite of [false, true]) {
       const m = spawn(w, region, elite);
-      const spec = pacedFaction(mobFaction(region, elite));
+      // The faction rework trims some zones' mob damage (MOB_ZONE_DAMAGE, never hp) on top of the type's role.
+      const spec = pacedFaction(mobTypeFaction(region, elite, m.s.type));
       expect(factionOf(m.s)).toEqual(spec);
+      const roleDmg = mobTypeIn(region, m.s.type)?.dmgMult ?? 1;
+      expect(spec.hit).toBeCloseTo(pacedFaction(mobFaction(region, elite)).hit * roleDmg * (MOB_ZONE_DAMAGE[region] ?? 1), 9);
       expect(defenseOf(m.s)).toEqual({ armor: spec.armor, shield: spec.shield });
       expect(m.s.maxHp).toBe(mobFaction(region, elite).hp);
     }

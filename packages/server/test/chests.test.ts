@@ -720,7 +720,7 @@ describe("choose: picking at the chest", () => {
 });
 
 describe("every refusal toast of a pick is one the client knows (shared CHEST_REFUSALS)", () => {
-  it("covers all eight fixed reasons a handleChoose refusal has (and a conditional's Needs <Base> is recognised too)", () => {
+  it("covers all nine fixed reasons a handleChoose refusal has (and a conditional's Needs <Base> is recognised too)", () => {
     const w = run();
     clearCamp(w, 0); // the Fire camp: its chest has the wall tile 90 u east of it
     tick(w);
@@ -744,6 +744,8 @@ describe("every refusal toast of a pick is one the client knows (shared CHEST_RE
     tick(w); tick(w);
     place(w, 1, stat, 0);
     choose(w, 1, stat.id, 0); note("p1"); // stat maxed
+    stat.owner = "p0"; // a kill trophy (sim/killAugments.ts) is its killer's alone
+    choose(w, 1, stat.id, 1); note("p1"); // not yours
     expect([...said].sort()).toEqual([...CHEST_REFUSALS].sort());
     for (const t of said) expect(Object.values(CHEST_REFUSAL)).toContain(t);
   });

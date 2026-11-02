@@ -776,20 +776,24 @@ describe("a run", () => {
     expectBanked(B, 0, { runs: 1, deaths: 1 }); // leaving a lobby records nothing
   });
 
-  it("pickup and swap reach the sim: a chest's weapon arms the empty hand, a swap puts the empty slot (fists) in hand, and the client sees both", async () => {
+  it("pickup and swap reach the sim: a loose weapon arms the empty hand, a crate gives its potion, a swap puts the empty slot (fists) in hand, and the client sees both", async () => {
     const [A, B] = [await claim(), await claim()];
     const [a] = await startRun([A, B]);
     const world = worldOf(a!);
+    // Crates hold a potion and no weapon since the stat chests: the weapon comes from a loose one on the ground.
+    const ground = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items.length > 0)!;
     const chest = [...world.state.containers.values()].find((c) => c.kind === "chest" && c.items.length > 0)!;
-    const weapon = chest.items.at(0)!.def;
+    const weapon = ground.items.at(0)!.def;
     expect(carried(a!)).toEqual(starterKit(0));
-    placeOnServer(a!, chest.x, chest.y);
+    placeOnServer(a!, ground.x, ground.y);
     await sleep(120);
 
-    a!.room.send("pickup", { containerId: chest.id });
-    await until(() => syncedLoadout(a!).weapon0 === weapon, "the chest's weapon in the hand, on the client");
+    a!.room.send("pickup", { containerId: ground.id });
+    await until(() => syncedLoadout(a!).weapon0 === weapon, "the loose weapon in the hand, on the client");
     expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon0: weapon }); // the hand was empty (fists): it takes the weapon up
     expect(chest.items.map(i => i.def)).toEqual(["potionSmall"]);
+    placeOnServer(a!, chest.x, chest.y);
+    await sleep(120);
     a!.room.send("pickup", { containerId: chest.id });
     await until(() => a!.room.state.players.get(sessionOf(a!))!.potionSmall === 1, "potion inventory to sync");
     expect(chest.items.length).toBe(0);

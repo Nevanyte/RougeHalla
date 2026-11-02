@@ -7,7 +7,7 @@
 // too) and bog (a slower walk, read at the model's own position).
 import { describe, expect, it } from "vitest";
 import {
-  blinkLanding, circleClear, FREEZE_CAST_MS, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, REGION_COLISEUM, SWARM_CAST_MS,
+  BLAZE_MAX_CHARGES, blinkLanding, circleClear, FREEZE_CAST_MS, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, REGION_COLISEUM, SWARM_CAST_MS,
   TERRAIN_BOG, TERRAIN_ICE, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { type FrameInput, type LocalMotion } from "../../client/src/net/localMotion";
@@ -381,8 +381,11 @@ describe("a blink against the real sim (Blaze Step)", () => {
       expect(r.motion.visualOffset, tag).toBeLessThan(2);
       expect(r.maxStep(first), tag).toBeLessThan(2);
       expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.01);
-      // The Wish is spent: its cooldown started, and the sim has no walk or lock for it to carry on.
-      expect(r.server.wishReadyAt, tag).toBeGreaterThan(r.world.state.serverTime);
+      // A charge is spent: Blaze Step's recharge clock started (wishFullAt), and the slot is cooling down only once the last charge
+      // is gone (BLAZE_MAX_CHARGES; the per-faction Wish cooldowns).
+      expect(r.server.extra.wishFullAt, tag).toBeGreaterThan(r.world.state.serverTime);
+      if (BLAZE_MAX_CHARGES > 1) expect(r.server.wishReadyAt, tag).toBeLessThanOrEqual(r.world.state.serverTime);
+      else expect(r.server.wishReadyAt, tag).toBeGreaterThan(r.world.state.serverTime);
     }
   });
 

@@ -3,7 +3,7 @@
 // module's picks and its walks on synthetic percepts, a whole brain walking to a chest and taking a card, and whole headless games.
 import { describe, expect, it } from "vitest";
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, EFFECT_CASTING, EFFECT_STUNNED, hasLineOfSight, PLAYER_SPEED, TICK_MS, TILE,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, EFFECT_CASTING, EFFECT_STUNNED, hasLineOfSight, isChestBoostId, PLAYER_SPEED, TICK_MS, TILE,
   type Vec2,
 } from "@raid/shared";
 import { createBrain } from "../../src/bots/brain/brain";
@@ -814,7 +814,7 @@ describe("bots in whole games", () => {
     const weapons = ["wand", "bow", "axe", "sword", "shield", "bow"] as const;
     room.seats.forEach((seat, i) => { room.world.state.players.get(seat.id)!.weapon0 = weapons[i]!; });
     const taken: Array<{ chest: string; by: string; option: number }> = [];
-    const dropped = new Map<string, number>();
+    const dropped = new Map<string, number>(), seen = new Set<string>();
     const refusals: string[] = [];
     room.runUntilEnd(180_000, (events) => {
       for (const e of events) {
@@ -823,9 +823,15 @@ describe("bots in whole games", () => {
         if (e.fx.kind === "chestTaken") taken.push({ chest: e.fx.chest, by: e.fx.by, option: e.fx.option });
       }
       for (const box of rewardChests(room.world)) {
-        if (dropped.has(box.id)) continue;
-        dropped.set(box.id, box.camp);
-        if (box.camp > 0) expect(room.world.map.camps[box.camp - 1]?.eliteSpot, `chest ${box.id} belongs to an elite camp`).toBeGreaterThanOrEqual(0);
+        if (seen.has(box.id)) continue;
+        seen.add(box.id);
+        // A camp's chest is an augment chest at an elite camp, or (the merged stat chests) a chest of x1.2 boosts at a normal camp.
+        const stat = box.options.length > 0 && box.options.every((o) => isChestBoostId(o));
+        if (!stat) dropped.set(box.id, box.camp);
+        if (box.camp > 0) {
+          const elite = room.world.map.camps[box.camp - 1]!.eliteSpot >= 0;
+          expect(elite, `chest ${box.id} (${stat ? "stat" : "augment"}) at an ${elite ? "elite" : "normal"} camp`).toBe(!stat);
+        }
       }
     });
     const chooseCommands = room.seats.reduce((n, s) => n + (room.manager.brainOf(s.id)?.stats.commands.choose ?? 0), 0);

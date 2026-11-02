@@ -424,11 +424,12 @@ describe("schema round trip", () => {
     runUntil(() => client.serverTime >= client.suddenDeathAt + 1500, "sudden death to have burnt for a while");
     for (const [id, p] of client.players) expect(p.hp, id).toBeLessThan(p.maxHp);
 
-    // A death in the coliseum unlocks the gates and restarts the timer; the coliseum flag stays.
+    // A death in the coliseum unlocks the gates and restarts the timer; since the coliseum schedule the flag goes with the lock
+    // (bots read inColiseum as "no farming").
     slay(world, "a", "b");
     tick();
     expect(client.gatesLocked).toBe(false);
-    expect(client.inColiseum).toBe(true);
+    expect(client.inColiseum).toBe(false);
     expect(client.suddenDeathAt).toBe(0);
     expect(client.patienceEndsAt).toBeGreaterThan(client.serverTime);
     expect(client.players.get("b")!.status).toBe("dead");
@@ -662,6 +663,8 @@ describe("schema round trip", () => {
     addPlayer(world, "c", "carol").weapon0 = SIGNATURE_WEAPONS.plague; // plague: bow
     addPlayer(world, "d", "dave").weapon0 = SIGNATURE_WEAPONS.frost; // frost: shield
     let dummy = addMob(world, { kind: "dummy", name: "Dummy", at: world.map.spawns[0]!, facing: 1, weapon: "shield" });
+    // Crates hold no weapons any more (stat chests, fewer ground weapons): lay out about as many loose ones as the crates once held, so the fuzz still picks up and drops.
+    for (let i = 0; i < 25; i++) dropWeapon(world, world.map.spawns[i % world.map.spawns.length]!, (["sword", "bow", "wand", "shield", "axe"] as const)[i % 5]);
 
     const wire = new Wire(world);
     const early = wire.join();
