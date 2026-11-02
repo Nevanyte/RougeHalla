@@ -262,26 +262,28 @@ describe("elite chests", () => {
     expect({ x: box.x, y: box.y }).toEqual(at);
   });
 
-  it("drops a stat chest (three x1.2 boosts, not cards) on an ordinary camp clear", () => {
+  it("drops no reward container at all on an ordinary camp clear (its reward is the fixed mob stats)", () => {
     const map = campMap();
     map.camps[0] = { ...map.camps[0]!, eliteSpot: -1 };
     const w = run({ map });
     clearCamp(w, 0);
-    tick(w);
-    const boxes = rewardChests(w);
-    expect(boxes).toHaveLength(1);
-    expect(boxes[0]!.label).toBe("Stat Chest");
-    expect(boxes[0]!.options).toHaveLength(3);
-    for (const o of boxes[0]!.options) expect(chestBoostStat(o)).not.toBeNull();
+    tick(w); tick(w);
+    expect(rewardChests(w)).toHaveLength(0);
+    expect(w.state.camps[0]!.state).toBe(CAMP_CLEARED);
+  });
+
+  it("a stat chest (three x1.2 boosts, not cards) is three distinct boosts", () => {
+    const w = run();
+    const box = dropStatChest(w, { x: at(10), y: at(8) });
+    expect(box.label).toBe("Stat Chest");
+    expect(box.options).toHaveLength(3);
+    for (const o of box.options) expect(chestBoostStat(o)).not.toBeNull();
   });
 
   it("a boost pick is x1.2 of that stat for the picker only, is not a card, and stops counting after three", () => {
-    const map = campMap();
-    map.camps[0] = { ...map.camps[0]!, eliteSpot: -1 };
-    const w = run({ map });
-    clearCamp(w, 0);
-    tick(w);
-    const box = onlyChest(w);
+    const w = run();
+    const box = dropStatChest(w, { x: at(10), y: at(8) });
+    tick(w); tick(w);
     place(w, 0, box, 0);
     const stat = chestBoostStat(box.options[0]!)!;
     const before = Object.fromEntries([...P(w, 0).build.entries()]);
@@ -864,8 +866,9 @@ describe("the loop on a generated zone map (server-side, until the bots pick)", 
     }
     tick(w);
     const chests = rewardChests(w);
-    expect(chests).toHaveLength(w.map.camps.length); // an augment chest at each elite camp, a stat chest at the rest
-    expect(chests.filter((box) => box.label === "Stat Chest")).toHaveLength(w.map.camps.filter((camp) => camp.eliteSpot < 0).length);
+    // An augment chest at each elite camp and nothing at the rest: a normal camp's clear drops no chest.
+    expect(chests).toHaveLength(w.map.camps.filter((camp) => camp.eliteSpot >= 0).length);
+    expect(chests.filter((box) => box.label === "Stat Chest")).toHaveLength(0);
     for (const box of chests) {
       const camp = w.map.camps[box.camp - 1]!;
       expect({ x: box.x, y: box.y }).toEqual(camp.chest);

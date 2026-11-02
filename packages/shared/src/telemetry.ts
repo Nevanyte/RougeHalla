@@ -322,7 +322,7 @@ export interface OfferRecord {
   i: number;
   kind: OfferKind;
   at: number;
-  /** Camp index, -1 for a crate's stat chest, a camp-less elite or a Trophy. */
+  /** Camp index (an elite camp), -1 for a crate's stat chest, a camp-less elite or a Trophy. */
   camp: number;
   elite: boolean;
   options: string[];
