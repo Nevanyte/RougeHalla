@@ -44,6 +44,8 @@ interface Root {
   kind: "status" | "cast";
   from: number;
   until: number;
+  /** A stun: a status root that also blocks actions (a root status leaves them free). */
+  stun?: boolean;
   /** A cast root the client predicted: dropped at this client time unless a `cast` fx of ours replaced it by then... */
   expires?: number;
   /** ...or when the patch acks the cast's order number (`moveSeq`) without one: the server refused the cast. */
@@ -57,8 +59,8 @@ const RANGED_PAUSE_CONFIRM_TOLERANCE_MS = 10;
 /** The order-delay estimate can be off by a tick; cap bow draw matching below the fastest ranged shot cadence. */
 const BOW_DRAW_SCHEDULE_TOLERANCE_MS = 120;
 interface RangedPauseRecord extends LocalRangedPause { confirmedUntil?: number }
-/** observe()'s answer on almost every patch: shared, so a patch allocates nothing. */
-const NONE_REFUSED: readonly number[] = Object.freeze([]);
+/** `blockedWhenApplied`'s answer: whether an action reaches the server while the fighter is stunned or casting. */
+export type ActionBlock = "no" | "maybe" | "sure";
 
 /** Where the local fighter is drawn from this frame. */
 export type LocalDrawSource = "predicted" | "frozen" | "snapshot";
@@ -175,36 +177,38 @@ export class LocalPrediction {
   /**
    * A patch arrived: the local fighter's server state. The motion takes it; and a predicted cast root whose order number the
    * patch acks with no `cast` fx of ours having replaced it was refused: it is dropped (the fx of a tick arrive before its patch).
-   * Returns the order numbers of the casts it found refused (the scene drops their telegraphs too), the same empty list when none.
    */
-  observe(s: AuthSample, c: number): readonly number[] {
+  observe(s: AuthSample, c: number): void {
     this.motion.observe(s, c);
-    if (s.moveSeq === 0) return NONE_REFUSED;
-    let refused: number[] | null = null;
+    if (s.moveSeq === 0) return;
     for (let i = this.roots.length - 1; i >= 0; i--) {
       const r = this.roots[i]!;
-      if (r.expires !== undefined && r.seq !== undefined && seqAcked(r.seq, s.moveSeq)) {
-        this.roots.splice(i, 1);
-        (refused ??= []).push(r.seq);
-      }
+      if (r.expires !== undefined && r.seq !== undefined && seqAcked(r.seq, s.moveSeq)) this.roots.splice(i, 1);
     }
-    return refused ?? NONE_REFUSED;
   }
 
   /**
-   * Whether an order sent at client clock `c` reaches the server while the fighter is still casting (the server then refuses an
-   * action: `actionBlocked`): a cast root, predicted at the key press or told by the cast fx, still running `motion.delay` from now.
-   * The synced bit (`effects`) stands in only while no cast is known, since it lags a cast's end by a round trip.
+   * Whether an action sent at client clock `c` reaches the server while the fighter is stunned or casting (the server then
+   * refuses it: `actionBlocked`), judged `motion.delay` from now. "sure": a span the server's own fx told (a stun's `status`, the
+   * own `cast`) still runs then; only a teleport or a death ends one sooner, and they clear it here too. "maybe": what may turn
+   * out otherwise while the action travels: a cast predicted at the key press (the server may refuse it), or a synced bit
+   * standing in while no fx told of a stun or a cast (it lags the end by a round trip). Only "sure" may keep an action unsent.
    */
-  castingWhenApplied(c: number, effects: number): boolean {
+  blockedWhenApplied(c: number, effects: number): ActionBlock {
     const t = c + this.motion.delay;
-    let known = false;
+    let stunKnown = false;
+    let castKnown = false;
+    let maybe = false;
     for (const r of this.roots) {
-      if (r.kind !== "cast") continue;
-      known = true;
-      if (r.until > t) return true;
+      if (r.kind === "cast") castKnown = true;
+      else if (r.stun) stunKnown = true;
+      else continue;
+      if (r.until <= t || (r.expires !== undefined && c >= r.expires)) continue;
+      if (r.expires === undefined) return "sure";
+      maybe = true;
     }
-    return !known && (effects & EFFECT_CASTING) !== 0;
+    if (maybe || (!stunKnown && (effects & EFFECT_STUNNED) !== 0) || (!castKnown && (effects & EFFECT_CASTING) !== 0)) return "maybe";
+    return "no";
   }
 
   /** The server time the local fighter's cast root (predicted or confirmed) ends, or 0 if none is running or due at `t`. */
@@ -242,7 +246,7 @@ export class LocalPrediction {
         if (fx.id !== localId) break;
         if (fx.status === "stun" || fx.status === "root") {
           if (fx.status === "stun") this.setPredictedRangedPause(null);
-          this.roots.push({ kind: "status", from: fx.t, until: fx.t + fx.ms });
+          this.roots.push({ kind: "status", from: fx.t, until: fx.t + fx.ms, ...(fx.status === "stun" ? { stun: true } : {}) });
         }
         else if (fx.status === "haste") this.hastes.push({ from: fx.t, until: fx.t + fx.ms, bonus: LAST_STAND_SPEED_BONUS });
         break;

@@ -393,8 +393,12 @@ describe("the prediction ends with the fighter's run", () => {
     ["the local death", { kind: "death" as const, id: "me", x: 0, y: 0, by: null }],
   ])("%s clears it", (_name, event) => {
     const { scene } = rig();
-    const s = scene as unknown as { ground: { combat: { note: () => void } }; interp: { markCut: () => void }; warnDropped: () => void; hud: { showDeath: () => void }; clockSynced: boolean };
+    const s = scene as unknown as {
+      ground: { combat: { note: () => void } }; interp: { markCut: () => void }; warnDropped: () => void; hud: { showDeath: () => void };
+      clockSynced: boolean; wishFx: { cancelPredicted: () => number };
+    };
     s.ground = { combat: { note: () => {} } };
+    s.wishFx = { cancelPredicted: () => 0 };
     s.interp = { markCut: () => {} };
     s.warnDropped = () => {};
     s.hud = { showDeath: () => {} };

@@ -425,3 +425,16 @@ describe("RaidScene own melee blows", () => {
     expect(fx.enqueue.mock.calls.map(([e]) => [e.kind, e.id])).toEqual([["stagger", "foe"]]);
   });
 });
+
+describe("RaidScene potion counters", () => {
+  it("hands the weapon bar the counters a press in flight will leave, and nothing while none is", () => {
+    const {scene,me,frame} = rig();
+    Object.assign(me, { hp: 100, potionLarge: 1, potionSmall: 2, potionsHealing: 0, healingUntil: 0 });
+    scene.weaponBar = { update: vi.fn() };
+    frame(1000);
+    expect(scene.weaponBar.update.mock.lastCall[7]).toBeUndefined();
+    scene.potionCue.press(me, "no", 1000, 1000);
+    frame(1010);
+    expect(scene.weaponBar.update.mock.lastCall[7]).toMatchObject({ large: 0, small: 2, healing: 1 });
+  });
+});

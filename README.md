@@ -167,7 +167,7 @@ WASD or arrow keys move. Left-click attacks toward the cursor; hold to repeat. O
 | Mouse position | Aim attacks and face the shield. |
 | `Q` / `1` / `2` | Swap weapons or select a slot. |
 | `R` | Cast your faction's Wish. |
-| `E` | Use a stored healing potion (large first). A press that would be refused (stunned or casting, 3 already healing, full health, none stored) says why at once and is not sent. |
+| `E` | Use a stored healing potion (large first). A press the server will take shows at once; one made while a stun or a cast will still hold you when it arrives says so at once and is not sent. Any other refusal (3 already healing, full health, none stored) comes from the server. |
 | `F` | Pick up a highlighted weapon, potion or accepted quest item; talk to a quest giver; enter a ready travel cannon. |
 | `C` | Focus an elite chest's choices. Then `1` / `2` / `3` pick, `0` skips and `C` / `Esc` returns control. |
 | `J` | Toggle the quest log. |

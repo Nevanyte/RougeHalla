@@ -831,66 +831,59 @@ describe("the ground under the model (bog slows the walk, ice lets it slide)", (
   });
 });
 
-// observe() says which predicted casts a patch showed refused (the scene drops their telegraphs), and castingWhenApplied() says
-// whether an action sent now reaches the server inside a cast (the potion key's local check).
-describe("the refusal signal and the cast an action would meet", () => {
-  const sample = (t: number, moveSeq: number) => ({ x: 300, y: 300, t, moveSeq, displaceSeq: 0 });
+// blockedWhenApplied() says whether an action sent now reaches the server while the fighter is stunned or casting (the potion key's
+// local check), and how sure that is: only a span the server's own fx told is "sure"; whatever may change in flight is "maybe".
+describe("the stun or cast an action would meet", () => {
   const cast = (t: number, ms: number): TimedFx => ({ kind: "cast", by: ME, ability: "freeze", ms, target: null, x: 0, y: 0, t });
-  const started = () => {
-    const p = new LocalPrediction();
-    p.observe(sample(0, 0), 0);
-    p.motion.frame(0, 16, { alive: true, speedMult: 1, rooted: false, aiming: false });
-    return p;
-  };
+  const status = (t: number, ms: number, kind: "stun" | "root"): TimedFx => ({ kind: "status", id: ME, status: kind, ms, by: null, t });
 
-  it("names the cast a patch acks with no cast fx, once", () => {
-    const p = started();
-    p.noteCast(1000, { castMs: 250, seq: 7 });
-    expect(p.observe(sample(1020, 3), 1100)).toEqual([]); // an older order's ack
-    expect(p.observe(sample(1070, 7), 1150)).toEqual([7]);
-    expect(p.observe(sample(1120, 7), 1200)).toEqual([]);
-  });
-
-  it("names nothing when the cast fx came first (the server took it)", () => {
-    const p = started();
-    p.noteCast(1000, { castMs: 250, seq: 7 });
-    p.noteFx(cast(1100, 250), ME, fighter());
-    expect(p.observe(sample(1100, 7), 1150)).toEqual([]);
-  });
-
-  it("names a cast acked by a later order, across the wrap from 255 to 1", () => {
-    const p = started();
-    p.noteCast(1000, { castMs: 250, seq: 254 });
-    expect(p.observe(sample(1020, 253), 1100)).toEqual([]);
-    expect(p.observe(sample(1070, 2), 1150)).toEqual([254]);
-  });
-
-  it("answers the same frozen empty list on an ordinary patch: nothing is allocated", () => {
-    const p = started();
-    const a = p.observe(sample(50, 0), 50);
-    const b = p.observe(sample(100, 4), 100);
-    expect(a).toBe(b);
-    expect(a).toHaveLength(0);
-    expect(Object.isFrozen(a)).toBe(true);
-  });
-
-  it("an action sent during a cast root (predicted or told) meets the cast; one that lands after it does not", () => {
+  it("a stun the status fx told is sure until it ends where the action lands, then gone; a root blocks nothing", () => {
     const p = new LocalPrediction();
     expect(p.motion.delay).toBe(50);
-    expect(p.castingWhenApplied(1000, 0)).toBe(false);
-    p.noteCast(1000, { castMs: 250, seq: 7 }); // root [1050, 1300) in server time
-    expect(p.castingWhenApplied(1000, 0)).toBe(true);
-    expect(p.castingWhenApplied(1249, 0)).toBe(true); // arrives at 1299
-    expect(p.castingWhenApplied(1250, 0)).toBe(false); // arrives at 1300: landed
-    p.noteFx(cast(1100, 350), ME, fighter()); // the server's own span replaces it: [1100, 1450)
-    expect(p.castingWhenApplied(1399, 0)).toBe(true);
-    expect(p.castingWhenApplied(1400, 0)).toBe(false);
+    p.noteFx(status(1000, 500, "root"), ME, fighter());
+    expect(p.blockedWhenApplied(1100, 0)).toBe("no");
+    p.noteFx(status(1000, 500, "stun"), ME, fighter()); // [1000, 1500) in server time
+    expect(p.blockedWhenApplied(1100, EFFECT_STUNNED)).toBe("sure");
+    expect(p.blockedWhenApplied(1449, EFFECT_STUNNED)).toBe("sure"); // arrives at 1499
+    // Arrives at 1500 or later: the stun is over there, whatever the lagging bit still says.
+    expect(p.blockedWhenApplied(1450, EFFECT_STUNNED)).toBe("no");
   });
 
-  it("trusts a known cast over the synced bit, which lags its end; the bit stands in when no cast is known", () => {
+  it("the synced stun bit with no fx behind it (a join mid-stun) is only a maybe", () => {
     const p = new LocalPrediction();
-    expect(p.castingWhenApplied(1000, EFFECT_CASTING)).toBe(true); // a join mid-cast: only the bit knows
-    p.noteFx(cast(1000, 250), ME, fighter());
-    expect(p.castingWhenApplied(1300, EFFECT_CASTING)).toBe(false); // landed at 1250, the bit not yet cleared
+    expect(p.blockedWhenApplied(1000, EFFECT_STUNNED)).toBe("maybe");
+    expect(p.blockedWhenApplied(1000, EFFECT_CASTING)).toBe("maybe");
+    expect(p.blockedWhenApplied(1000, 0)).toBe("no");
+  });
+
+  it("a cast predicted at the key press is a maybe (the server may refuse it); its own cast fx makes it sure", () => {
+    const p = new LocalPrediction();
+    p.noteCast(1000, { castMs: 250, seq: 7 }); // root [1050, 1300) in server time
+    expect(p.blockedWhenApplied(1000, 0)).toBe("maybe");
+    expect(p.blockedWhenApplied(1249, 0)).toBe("maybe"); // arrives at 1299
+    expect(p.blockedWhenApplied(1250, 0)).toBe("no"); // arrives at 1300: landed
+    expect(p.blockedWhenApplied(1000 + ORDER_EXPIRE_MS, 0)).toBe("no"); // unanswered: given up
+    p.noteFx(cast(1100, 350), ME, fighter()); // the server's own span replaces it: [1100, 1450)
+    expect(p.blockedWhenApplied(1399, 0)).toBe("sure");
+    expect(p.blockedWhenApplied(1400, EFFECT_CASTING)).toBe("no"); // landed at 1450, the bit not yet cleared
+  });
+
+  it("a predicted cast the patch acks with no cast fx (refused) blocks nothing any more", () => {
+    const p = new LocalPrediction();
+    p.observe({ x: 300, y: 300, t: 0, moveSeq: 0, displaceSeq: 0 }, 0);
+    p.noteCast(1000, { castMs: 250, seq: 7 });
+    p.observe({ x: 300, y: 300, t: 1020, moveSeq: 3, displaceSeq: 0 }, 1100); // an older order's ack
+    expect(p.blockedWhenApplied(1100, 0)).toBe("maybe");
+    p.observe({ x: 300, y: 300, t: 1070, moveSeq: 7, displaceSeq: 0 }, 1150);
+    expect(p.blockedWhenApplied(1150, 0)).toBe("no");
+  });
+
+  it("a teleport or the local death clears what was known", () => {
+    for (const fx of [{ kind: "teleport", t: 1100 }, { kind: "death", id: ME, x: 0, y: 0, by: null, t: 1100 }] as TimedFx[]) {
+      const p = new LocalPrediction();
+      p.noteFx(status(1000, 1000, "stun"), ME, fighter());
+      p.noteFx(fx, ME, fighter());
+      expect(p.blockedWhenApplied(1150, 0)).toBe("no");
+    }
   });
 });

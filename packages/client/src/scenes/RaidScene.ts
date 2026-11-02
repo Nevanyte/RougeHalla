@@ -290,6 +290,12 @@ export class RaidScene extends Phaser.Scene {
     this.noteWeaponChanges(state);
     this.observeLocal(state);
   };
+  /** A server toast. A refused chest pick, quest accept or potion comes back as one: what waits for that answer reads it. */
+  private readonly onToast = (t: ServerMessages["toast"]) => {
+    this.chestPanel?.noteToast(t.text);
+    this.questDialog?.noteToast(t.text);
+    this.potionCue.noteToast(t.text);
+  };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
   private readonly onKeyUp = (e: KeyboardEvent) => {
     if (!this.movementKeys.delete(e.code)) return;
@@ -407,11 +413,7 @@ export class RaidScene extends Phaser.Scene {
       // What is sent while the socket reconnects is dropped (net/connection.ts): the dialog must not show it as sent.
       canSend: () => !this.room.reconnection?.isReconnecting,
     });
-    this.unbindToast = this.room.onMessage("toast", (t: ServerMessages["toast"]) => {
-      this.chestPanel?.noteToast(t.text);
-      this.questDialog?.noteToast(t.text);
-      this.potionCue.noteToast(t.text);
-    });
+    this.unbindToast = this.room.onMessage("toast", this.onToast);
     this.buildMap(data.map);
     this.unbindVision = data.vision?.attach((snapshot) => this.vision.applySnapshot(snapshot)) ?? null;
     this.unbindPlan = data.plan?.attach((m) => this.planning?.setPlan(m)) ?? null;
@@ -932,12 +934,13 @@ export class RaidScene extends Phaser.Scene {
         if (predicted) this.predict.confirmPredictedRangedPause(predicted, me.drawStartedAt + windupMs);
       }
       const now = performance.now();
-      const refused = this.predict.observe(
+      this.predict.observe(
         { x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq, locked: me.attackTarget !== "", displaceSeq: me.displaceSeq },
         this.localClock(now),
       );
-      // A cast acked with no cast fx was refused: the telegraph drawn at its key press goes too.
-      for (const seq of refused) this.wishFx?.cancelPredicted(seq);
+      // A cast acked with no cast fx was refused: the telegraph drawn at its key press goes. Read from the echo itself, however
+      // late it comes: the prediction forgets its cast root at ORDER_EXPIRE_MS, and a teleport or a death clears it.
+      this.wishFx?.cancelAcked(me.moveSeq);
       this.potionCue.reconcile(me, now);
     }
   }
@@ -1708,9 +1711,11 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * E: a potion. The server decides; the client checks the press first with the server's own rule and words (shared
-   * `potionRefusal`), so a press it would refuse says why at once and is not sent, and one it will take rings round the fighter
-   * and shows in the counters now (net/potionCue.ts). Stunned reads the synced bit; casting reads the cast root the server will
-   * still be in when the press arrives. While reconnecting, or outside a running fight, the press is sent as it is.
+   * `potionRefusal`): one it will take rings round the fighter and shows in the counters now (net/potionCue.ts). One it would
+   * refuse is kept unsent, with the server's words at once, only when nothing in flight can change that: a stun or a cast the
+   * server's fx told of, still running when the press arrives (LocalPrediction.blockedWhenApplied). Any other refusal reads
+   * state a round trip old (a hit, a camp's potion, a potion running out or a stun ending can turn it), so that press is sent
+   * with no cue and the server's toast answers it. While reconnecting, or outside a running fight, the press is sent as it is.
    */
   private drinkPotion(): void {
     const me = this.room.state.players.get(this.room.sessionId);
@@ -1720,10 +1725,13 @@ export class RaidScene extends Phaser.Scene {
     }
     const now = performance.now();
     const c = this.localClock(now);
-    const blocked = (me.effects & EFFECT_STUNNED) !== 0 || this.predict.castingWhenApplied(c, me.effects);
-    const verdict = this.potionCue.press(me, blocked, now, c);
-    // Untoned, as the server's refusal is: a late one with the same words merges into this toast instead of stacking.
-    if ("deny" in verdict) { this.announce?.(verdict.deny); return; }
+    const verdict = this.potionCue.press(me, this.predict.blockedWhenApplied(c, me.effects), now, c);
+    if ("deny" in verdict) {
+      // Untoned, as the server's refusal is: a late one with the same words merges into this toast instead of stacking.
+      if (verdict.sure) this.announce?.(verdict.deny);
+      else sendInput(this.room, "useConsumable", { kind: "heal" });
+      return;
+    }
     sendInput(this.room, "useConsumable", { kind: "heal" });
     this.fx.localDrink(verdict.color, now);
   }
@@ -1831,6 +1839,10 @@ export class RaidScene extends Phaser.Scene {
         this.directionalAttackHeld = false;
         this.hand.clear();
         this.cancelLocalAutos(performance.now());
+        // A cast still unconfirmed now reaches the server after the fall or the teleport, which refuse it (the teleport within
+        // its grace), so its telegraph goes now rather than at the echo. A confirmed one ends with the server's castEnd; one the
+        // server takes past the grace on a slow link plays its cast fx at render time.
+        this.wishFx.cancelPredicted();
       }
       if ((fx.kind === "cancel" || fx.kind === "stagger") && fx.id === this.room.sessionId) {
         this.cancelLocalAutos(performance.now());

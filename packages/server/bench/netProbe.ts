@@ -221,8 +221,10 @@ export interface ProbeReport {
   /**
    * The Wishes with a cast time (Freeze, Swarm, Trial: `--faction frost|plague|sentenced`), timed from the key press: when the own
    * `cast` fx arrived, when render time reached it (where the telegraph started before it was drawn at the press), when the landing
-   * reached render time (how long the press-drawn telegraph holds at full: landing - press - castMs), and the ack. `refused` is a
-   * press the server answered with no cast fx: the telegraph drawn at the press was a false start for about the ack's time.
+   * reached render time (how long the press-drawn telegraph holds at full: landing - press - castMs), and the ack of a confirmed
+   * cast. `refused` is a press the server answered with no cast fx: the telegraph drawn at the press was a false start, shown until
+   * that answer (`falseStartMs`, one sample per refusal). A training room's dummies stand still, so its refusal count says little
+   * about a fight: run it against moving bots (no `--training`) for that, and read both with their counts.
    */
   telegraph: {
     casts: number;
@@ -233,6 +235,7 @@ export interface ProbeReport {
     renderStartMs: Dist;
     holdAtFullMs: Dist;
     ackMs: Dist;
+    falseStartMs: Dist;
   };
   orders: {
     moves: number;
@@ -371,6 +374,7 @@ class Metrics {
   cueRenderStart: number[] = [];
   cueHold: number[] = [];
   cueAck: number[] = [];
+  cueFalseStart: number[] = [];
   aimLag: number[] = [];
   aimPatches = 0;
   aimStale = 0;
@@ -842,7 +846,7 @@ class Session {
     for (const k of this.cues) {
       this.m.cueCasts++;
       if (k.ackAt === 0 && k.fxAt === 0) { this.m.cueUnanswered++; continue; }
-      if (k.fxAt === 0) { this.m.cueRefused++; this.m.cueAck.push(k.ackAt - k.pressAt); continue; }
+      if (k.fxAt === 0) { this.m.cueRefused++; this.m.cueFalseStart.push(k.ackAt - k.pressAt); continue; }
       this.m.cueConfirmed++;
       this.m.cueFxArrival.push(k.fxAt - k.pressAt);
       if (k.ackAt > 0) this.m.cueAck.push(k.ackAt - k.pressAt);
@@ -1344,6 +1348,7 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
     telegraph: {
       casts: m.cueCasts, confirmed: m.cueConfirmed, refused: m.cueRefused, unanswered: m.cueUnanswered,
       fxArrivalMs: dist(m.cueFxArrival), renderStartMs: dist(m.cueRenderStart), holdAtFullMs: dist(m.cueHold), ackMs: dist(m.cueAck),
+      falseStartMs: dist(m.cueFalseStart),
     },
     orders: {
       moves: m.moves, acked: m.ackWall.length, ackWallMs: dist(m.ackWall), locks: m.locks, locksShown: m.locksShown,
@@ -1398,7 +1403,7 @@ export function formatReport(r: ProbeReport): string {
     ...(r.telegraph.casts > 0 ? [
       `telegraph casts ${r.telegraph.casts} (confirmed ${r.telegraph.confirmed}, refused ${r.telegraph.refused}, unanswered ${r.telegraph.unanswered})  ` +
       `from the press, ms: cast fx arrives ${d(r.telegraph.fxArrivalMs)}  render-time start ${d(r.telegraph.renderStartMs)} mean ${f1(r.telegraph.renderStartMs.mean)}  ` +
-      `held at full ${d(r.telegraph.holdAtFullMs)}  ack ${d(r.telegraph.ackMs)}`,
+      `held at full ${d(r.telegraph.holdAtFullMs)}  ack ${d(r.telegraph.ackMs)}  false start (refused, press to ack) ${d(r.telegraph.falseStartMs)}`,
     ] : []),
     `orders    moves ${r.orders.moves} acked ${r.orders.acked}  ack wall ms ${d(r.orders.ackWallMs)}   locks ${r.orders.locks} shown ${r.orders.locksShown} refused ${r.orders.locksRefused}  ` +
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,

@@ -1,7 +1,7 @@
 // The cast effects (render/WishFx.ts): a telegraph per ability art while a cast is in progress, an impact when it lands, a puff
 // when it fails, stars for a stun; pooled, bounded and gone with the scene. The scene is fake (test/fakes.ts).
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ABILITIES, Y_SCALE, type AbilityId, type TimedFx } from "@raid/shared";
+import { ABILITIES, MAX_INTERP_DELAY_MS, Y_SCALE, type AbilityId, type TimedFx } from "@raid/shared";
 import { resetReducedMotionCache } from "../src/render/juice";
 import { DEFAULT_SETTINGS, updateSettings } from "../src/settings";
 import { CONFIRMED_HOLD_MS, PREDICTED_LIFE_MS, WishFx, type WishFxHost } from "../src/render/WishFx";
@@ -428,7 +428,8 @@ describe("WishFx landing flashes under the juice setting", () => {
 });
 
 // The caster's own telegraph, drawn at the key press (predictCast) and settled by what the server says: its cast fx confirms it,
-// its castEnd ends it, its order number echoed with no cast fx (a refusal) lets it go quietly, and nothing at all lets it run out.
+// its castEnd ends it, its order number echoed with no cast fx (a refusal) lets it go quietly, and only nothing at all for
+// PREDICTED_LIFE_MS lets it run out.
 describe("WishFx telegraph predicted at the key press", () => {
   const predicted = (ability: AbilityId = "freeze", ms = 250, seq = 7, target: string | null = "foe", x = 200, y = 120) =>
     ({ by: "me", ability, ms, target, x, y, seq });
@@ -437,8 +438,37 @@ describe("WishFx telegraph predicted at the key press", () => {
   const endFx = (reason: "fizzle" | "interrupted" | "cancelled" = "interrupted") =>
     ({ kind: "castEnd", by: "me", ability: "freeze", reason, t: 0 }) as Extract<TimedFx, { kind: "castEnd" }>;
 
-  it("lives exactly as long as the prediction's unanswered order", () => {
-    expect(PREDICTED_LIFE_MS).toBe(ORDER_EXPIRE_MS);
+  it("is not cut by the prediction's order expiry: an answer later than that still finds it", () => {
+    expect(PREDICTED_LIFE_MS).toBeGreaterThan(ORDER_EXPIRE_MS);
+    const { fx, live } = setup();
+    fx.predictCast(predicted(), 1000);
+    fx.update(1000 + ORDER_EXPIRE_MS + 100);
+    expect(live()).toHaveLength(1);
+    expect(fx.confirmPredicted(castFx(), 1000 + ORDER_EXPIRE_MS + 100)).toBe(true);
+  });
+
+  it("goes quietly at the patch that echoes its order number with no cast fx before it, and only then", () => {
+    const { fx, live, made } = setup();
+    fx.predictCast(predicted("freeze", 250, 7), 1000);
+    expect(fx.cancelAcked(0)).toBe(0); // no order applied yet
+    expect(fx.cancelAcked(6)).toBe(0); // an older order's echo
+    expect(fx.cancelAcked(7)).toBe(1);
+    fx.update(1010);
+    expect(live()).toHaveLength(0);
+    expect(made).toHaveLength(1); // no puff
+    // A confirmed one stays: the echo came after its cast fx, so the server took it.
+    fx.predictCast(predicted("freeze", 250, 9), 1100);
+    fx.confirmPredicted(castFx(), 1150);
+    expect(fx.cancelAcked(12)).toBe(0);
+    fx.update(1160);
+    expect(live()).toHaveLength(1);
+  });
+
+  it("reads an echo across the wrap from 255 to 1", () => {
+    const { fx } = setup();
+    fx.predictCast(predicted("freeze", 250, 254), 1000);
+    expect(fx.cancelAcked(253)).toBe(0);
+    expect(fx.cancelAcked(2)).toBe(1);
   });
 
   it("draws the same telegraph as a cast fx would, from the press, with no fx at all", () => {
@@ -589,7 +619,8 @@ describe("WishFx telegraph predicted at the key press", () => {
 });
 
 // The visual contract of the press-drawn telegraph on a frame loop (144 Hz), over link profiles: the uplink, the tick the server
-// waits for, the downlink and the render delay the landing waits behind. Server time is wall time here (a perfect clock).
+// waits for, the downlink and the render delay the landing waits behind once it has arrived (the client's clock runs a downlink
+// behind the server's, and render time a delay behind that). Wall time is the server's.
 describe("WishFx press-drawn telegraph, frame by frame", () => {
   const FRAME = 1000 / 144;
   const MS = 250;
@@ -600,17 +631,20 @@ describe("WishFx press-drawn telegraph, frame by frame", () => {
     { up: 30, down: 30, wait: 50, delay: 100 },
     { up: 150, down: 150, wait: 50, delay: 150 },
     { up: 250, down: 250, wait: 50, delay: 150 },
+    // Past ORDER_EXPIRE_MS before the cast fx comes (a slow link, or a spike).
+    { up: 350, down: 350, wait: 50, delay: 150 },
   ];
 
   it.each(PROFILES)("taken (up $up, down $down, tick wait $wait, delay $delay): one telegraph every frame until the landing, never two", (p) => {
     const { fx, live } = setup();
     const press = 1000;
     const taken = press + p.up + p.wait;
-    const landsOnScreen = taken + MS + p.delay;
+    const landsOnScreen = taken + p.down + MS + p.delay;
     const held = landsOnScreen - (press + MS);
-    expect(held).toBe(p.up + p.wait + p.delay);
-    // No gap between the held telegraph and the landing: it waits CONFIRMED_HOLD_MS past its cast time from the confirmation.
-    expect(landsOnScreen).toBeLessThan(taken + p.down + MS + CONFIRMED_HOLD_MS);
+    expect(held).toBe(p.up + p.wait + p.down + p.delay); // the round trip, the tick wait and the render delay
+    // No gap between the held telegraph and the landing: it waits CONFIRMED_HOLD_MS past its cast time from the confirmation,
+    // which leaves the clock's error a margin past the longest render delay.
+    expect(taken + p.down + MS + CONFIRMED_HOLD_MS - landsOnScreen).toBeGreaterThanOrEqual(CONFIRMED_HOLD_MS - MAX_INTERP_DELAY_MS);
     fx.predictCast({ by: "me", ability: "freeze", ms: MS, target: "foe", x: 200, y: 120, seq: 7 }, press);
     let confirmed = false;
     let landed = false;
@@ -631,8 +665,8 @@ describe("WishFx press-drawn telegraph, frame by frame", () => {
     fx.predictCast({ by: "me", ability: "freeze", ms: MS, target: "foe", x: 200, y: 120, seq: 7 }, press);
     let lastShown = press;
     let cancelled = false;
-    for (let now = press; now < press + 800; now += FRAME) {
-      if (!cancelled && now >= acked) { fx.cancelPredicted(7); cancelled = true; }
+    for (let now = press; now < press + 1200; now += FRAME) {
+      if (!cancelled && now >= acked) { fx.cancelAcked(7); cancelled = true; }
       fx.update(now);
       if (live().length > 0) lastShown = now;
     }

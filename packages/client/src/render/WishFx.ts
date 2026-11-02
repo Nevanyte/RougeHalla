@@ -8,13 +8,15 @@
 // where it would swirl or grow.
 //
 // The caster's own telegraph does not wait for render time: the scene draws it at the key press (`predictCast`), and the own
-// `cast` fx confirms it when it arrives (`confirmPredicted`); a refusal (the cast's order number echoed with no cast fx) or no
-// answer within PREDICTED_LIFE_MS lets it go quietly, and an own `castEnd` ends it at arrival (`endOwn`). It ramps over the
-// true cast time from the press and then holds at full until the landing, which stays at render time with what it caused.
+// `cast` fx confirms it when it arrives (`confirmPredicted`); a refusal (the cast's order number echoed with no cast fx:
+// `cancelAcked`), the caster's fall or the teleport, or no answer at all within PREDICTED_LIFE_MS lets it go quietly, and an own
+// `castEnd` ends it at arrival (`endOwn`). It ramps over the true cast time from the press and then holds at full until the
+// landing, which stays at render time with what it caused.
 import Phaser from "phaser";
 import {
   ABILITIES, MAX_INTERP_DELAY_MS, PLAYER_RADIUS, Y_SCALE, type AbilityDef, type AbilityId, type TelegraphArt, type TimedFx, type Vec2,
 } from "@raid/shared";
+import { seqAcked } from "../net/localMotion";
 import { easeOutCubic, juiceScale } from "./juice";
 import { BODY_LIFT, projX, projY } from "./projection";
 import { trialTelegraphRadius } from "./markPresentation";
@@ -41,15 +43,18 @@ const MAX_ACTIVE = 32;
 const MIN_MS = 40;
 const MAX_MS = 1500;
 /**
- * How long a telegraph drawn at the key press lives with no `cast` fx to confirm it: the prediction's ORDER_EXPIRE_MS
- * (net/localMotion.ts), when LocalPrediction gives up the cast root it predicted with it.
+ * A backstop: how long a telegraph drawn at the key press lives with no answer at all. The own `cast` fx confirms it, or the
+ * patch that echoes its order number without one ends it (`cancelAcked`), a round trip and a tick wait after the press however
+ * slow the link; a reconnect ends every unconfirmed one. A clock cap at ORDER_EXPIRE_MS (600 ms) cut a slow link's telegraph
+ * before its cast fx came (one at 623 ms, 250 ms RTT), which then drew it again from the start.
  */
-export const PREDICTED_LIFE_MS = 600;
+export const PREDICTED_LIFE_MS = 2500;
 /**
- * A confirmed telegraph waits for its landing until its cast time plus this after the confirming fx arrived: the landing is
- * released at render time, at most the render delay (MAX_INTERP_DELAY_MS) after that, less the downlink. A margin covers the
- * clock's error. The landing, or the own castEnd, ends it sooner. (Measured with netProbe: the landing came 130-190 ms past the
- * press-based ramp at 0-30 ms RTT and 340-360 ms at 120 ms, so a fixed hold from the press would leave a gap on a slow link.)
+ * A confirmed telegraph waits for its landing until its cast time plus this after the confirming fx arrived: the landing's fx
+ * arrives that cast time after the cast fx did and plays at render time, the render delay (at most MAX_INTERP_DELAY_MS) later. A
+ * margin covers the clock's error. The landing, or the own castEnd, ends it sooner. Counted from the press, the hold at full is
+ * the round trip, the tick wait and the render delay (measured with netProbe: 130-190 ms at 0-30 ms RTT, 340-360 ms at 120 ms),
+ * so a fixed hold from the press would leave a gap on a slow link.
  */
 export const CONFIRMED_HOLD_MS = MAX_INTERP_DELAY_MS + 150;
 const R = PLAYER_RADIUS;
@@ -217,6 +222,24 @@ export class WishFx {
     for (let i = a.length - 1; i >= 0; i--) {
       const e = a[i]!;
       if (e.seq === undefined || e.confirmed || (seq !== undefined && e.seq !== seq)) continue;
+      this.release(e);
+      a[i] = a[a.length - 1]!;
+      a.pop();
+      n++;
+    }
+    return n;
+  }
+
+  /**
+   * A patch echoed order number `moveSeq`: every telegraph drawn at a press up to it that no cast fx confirmed was refused (the fx
+   * of a tick arrive before its patch), and goes quietly. Returns how many went.
+   */
+  cancelAcked(moveSeq: number): number {
+    const a = this.active;
+    let n = 0;
+    for (let i = a.length - 1; i >= 0; i--) {
+      const e = a[i]!;
+      if (e.seq === undefined || e.confirmed || !seqAcked(e.seq, moveSeq)) continue;
       this.release(e);
       a[i] = a[a.length - 1]!;
       a.pop();
