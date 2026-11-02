@@ -36,10 +36,8 @@ import { installTraining } from "../sim/training";
 import type { RunTelemetry, TelemetryRuntime } from "../telemetry/runtime";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
+import { phaseOf, TickPacer, tickStats } from "./tickPacer";
 import { visionSnapshot } from "./visionSync";
-
-/** Fixed steps run per simulation callback at most; older backlog is dropped. */
-const MAX_CATCHUP_STEPS = 3;
 
 /** An acquired-but-never-confirmed profile (onAuth passed, onJoin never ran) frees itself after this. */
 const PENDING_ACQUIRE_MAX_MS = 30_000;
@@ -194,7 +192,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private built: World | undefined;
   /** The profile that asked for this room, until a player joins it (or the room is disposed). */
   private opener: string | null = null;
-  private accumulator = 0;
+  /** When the room steps (tickPacer.ts): made with the world, so a room nobody joins runs nothing. */
+  private pacer: TickPacer | undefined;
+  /** The pacer's pending wake. */
+  private pacerTimer: ReturnType<typeof setTimeout> | undefined;
+  private disposed = false;
   /**
    * Set when the process is shutting down (a deploy, or a tsx-watch restart in `npm run dev`). The run
    * dies with the process, so players still in it are not MIA: the run is void, but the GV they earned is paid.
@@ -281,10 +283,12 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       if (!this.orderAllowed(client.sessionId)) return;
       this.run.notePerf(client.sessionId, msg);
     });
-    this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);
-    // Patches are sent from tick() right after each simulated step, so every patch carries
-    // exactly the latest tick. Must come after setTimestep (otherwise core installs its own
-    // clock-tick interval, which skews `elapsed`).
+    // The steps are the pacer's (tick()). Core's own loop stays, with nothing in it, as the driver of this.clock: the end-of-run
+    // linger, the telemetry grace and training's idle check run on that clock, and with no loop and patchRate 0 core would tick
+    // it from a 60 Hz interval of its own instead.
+    this.setTimestep(() => {}, TICK_MS);
+    // Patches are sent from tick() right after each wake's steps, so every patch carries exactly the latest tick. Must come after
+    // setTimestep (see above).
     this.patchRate = 0;
   }
 
@@ -329,6 +333,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     this.built = world;
     // Core describes the state to the client after onJoin returns, so this is early enough.
     this.state = world.state;
+    // From here on the room steps, the first time within a tick. Its grid is offset by its id so the rooms of a process do not all
+    // wake together.
+    this.pacer = new TickPacer(performance.now() + phaseOf(this.roomId) - TICK_MS);
+    this.armPacer();
     return world;
   }
 
@@ -482,6 +490,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
+    // First: core calls this before it clears its own timers, and a wake after it would step a room that is gone.
+    this.disposed = true;
+    if (this.pacerTimer) clearTimeout(this.pacerTimer);
+    this.pacerTimer = undefined;
     const { profiles, rooms } = RaidRoom.ctx;
     // The record of a run still waiting out its grace goes now; a run disposed mid-way is abandoned (a shutdown's, void).
     if (this.run?.started && !this.run.done) this.run.finalize(this.run.ended ? undefined : this.shuttingDown ? "void" : "abandoned");
@@ -509,12 +521,31 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     }
   }
 
-  private tick(elapsedMs: number) {
-    if (!this.built) return;
-    const { bots } = this;
-    this.accumulator += elapsedMs;
-    let steps = 0;
-    while (this.accumulator >= TICK_MS && steps < MAX_CATCHUP_STEPS) {
+  /** Sets the timer for the pacer's next slot. Not the room clock's: that one is only ticked every 50 ms by core's loop. */
+  private armPacer() {
+    if (this.disposed || !this.pacer) return;
+    this.pacerTimer = setTimeout(this.wake, this.pacer.delayMs(performance.now()));
+  }
+
+  private readonly wake = () => {
+    this.pacerTimer = undefined;
+    if (this.disposed) return;
+    // Re-armed whatever the step does, as core's interval was: a throw is the process's to handle, not a reason to stop the room.
+    try {
+      this.tick();
+    } finally {
+      this.armPacer();
+    }
+  };
+
+  /** One wake: the steps the pacer says are owed (one, unless the wake came late), then one patch. */
+  private tick() {
+    const { bots, pacer } = this;
+    if (!this.built || !pacer) return;
+    const steps = pacer.take(performance.now());
+    tickStats.note(steps, pacer.lastLateMs, pacer.reanchored);
+    if (steps === 0) return;
+    for (let i = 0; i < steps; i++) {
       if (bots) {
         // Arrivals happen between steps, and a command that has reached the server by this step's time is applied by it, as a
         // socket message that came in since the last step would be.
@@ -522,17 +553,12 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         bots.beforeStep(this.world.state.serverTime + TICK_MS);
       }
       this.handleEvents(step(this.world, TICK_MS));
-      this.accumulator -= TICK_MS;
-      steps++;
     }
-    if (this.accumulator >= TICK_MS) this.accumulator = 0;
-    if (steps > 0) {
-      this.fxChannel.extendRoster(this.world.state);
-      this.broadcastPatch();
-      this.fxChannel.rosterSent();
-      // One frame per patch, like a client: the bots see this state and these batches, never anything a client did not get.
-      bots?.afterPatch(this.botBatches.splice(0));
-    }
+    this.fxChannel.extendRoster(this.world.state);
+    this.broadcastPatch();
+    this.fxChannel.rosterSent();
+    // One frame per patch, like a client: the bots see this state and these batches, never anything a client did not get.
+    bots?.afterPatch(this.botBatches.splice(0));
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {

@@ -22,7 +22,7 @@ import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
 import {
   abilityInSlot, blinkLanding, findPath, generateMap, mulberry32, PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt, TARGET_RANGE,
-  TELEPORT_DISTANCE, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
+  TELEPORT_DISTANCE, TICK_MS, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
   type FxBatch, type GameMap, type ProfileResponse, type Vec2,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
@@ -74,6 +74,10 @@ export interface ProbeReport {
   /** (arrival gap − server time gap) per patch: how irregular delivery is, whatever the server's own timer does. */
   patchLateMs: Dist;
   serverStepGapMs: Dist;
+  /** Share (%) of patches whose server time is two or more steps past the previous one's: a server wake that ran a catch-up. */
+  doubleStepPct: number;
+  /** Share (%) of patches that arrived under half a tick after the previous one: bunched by the server's wakes or the link. */
+  bunchedPct: number;
   pingMs: Dist;
   clock: {
     ratio: Dist;
@@ -768,6 +772,8 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
   return {
     label: opts.label ?? "", url: opts.url, hz, activeSeconds: m.activeMs / 1000, contestedSeconds: m.contestedMs / 1000, frames: m.frames, sessions: m.sessions, deaths: m.deaths,
     patchGapMs: dist(m.patchGaps), patchLateMs: dist(m.patchLate), serverStepGapMs: dist(m.serverGaps), pingMs: dist(m.pings),
+    doubleStepPct: pct(m.serverGaps.filter((g) => g >= 1.5 * TICK_MS).length, m.serverGaps.length),
+    bunchedPct: pct(m.patchGaps.filter((g) => g < TICK_MS / 2).length, m.patchGaps.length),
     clock: {
       ratio: dist(m.ratios), ratioWindow1s: dist(m.ratioWindows), backwardsFrames: m.backwards, fastFrames: m.fast, slowFrames: m.slow,
       delayMs: dist(m.delays), syncSnaps: m.syncSnaps,
@@ -805,7 +811,8 @@ export function formatReport(r: ProbeReport): string {
   const d = (x: Dist, f = f1) => `p50 ${f(x.p50)}  p95 ${f(x.p95)}  p99 ${f(x.p99)}  max ${f(x.max)}`;
   return [
     `== ${r.label} == ${r.activeSeconds.toFixed(0)} s alive, ${r.contestedSeconds.toFixed(0)} s with movers, ${r.frames} frames at ${r.hz} Hz, ${r.sessions} session(s), ${r.deaths} ended`,
-    `patches   gap ms ${d(r.patchGapMs)}   late ms ${d(r.patchLateMs)}   (server step gap ${d(r.serverStepGapMs)})`,
+    `patches   gap ms ${d(r.patchGapMs)}   late ms ${d(r.patchLateMs)}   (server step gap ${d(r.serverStepGapMs)})   ` +
+      `double steps ${f2(r.doubleStepPct)}%  bunched ${f2(r.bunchedPct)}%`,
     `ping      ms ${d(r.pingMs)}`,
     `clock     ratio ${d(r.clock.ratio, f3)}   1s windows min ${f3(r.clock.ratioWindow1s.min)} max ${f3(r.clock.ratioWindow1s.max)}   ` +
       `back ${r.clock.backwardsFrames}  fast ${r.clock.fastFrames}  slow ${r.clock.slowFrames}  snaps ${r.clock.syncSnaps}`,
