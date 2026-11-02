@@ -544,6 +544,8 @@ export const CONSUMABLE_CAP = 5;
 export const POTION_HEAL_MS = 5000;
 export const POTION_LARGE_SHARE = 0.4;
 export const POTION_SMALL_SHARE = 0.25;
+/** Potions may be drunk while others still heal; their heals-over-time run concurrently (best guess: 3). */
+export const POTION_MAX_CONCURRENT = 3;
 export const SPEED_BOOST_MS = 5000;
 export const SPEED_BOOST_MULT = 1.5;
 export const CANNON_COOLDOWN_MS = 75_000;

@@ -36,13 +36,18 @@ describe("stored potions", () => {
     w.state.serverTime = POTION_HEAL_MS; updateConsumables(w);
     expect(c.s.hp).toBe(500); expect(c.s.healingUntil).toBe(0);
   });
-  it("uses small potions for 25%, prevents stacking, and keeps items at full health", () => {
+  it("stacks up to three concurrent potions and keeps items at full health", () => {
     const { w, c } = rig();
-    grantConsumable(w, c, "potionSmall", 2);
+    grantConsumable(w, c, "potionSmall", 5);
+    for (let i = 0; i < 4; i++) handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
+    expect(c.s.potionSmall).toBe(2); expect(c.s.potionsHealing).toBe(3);
+    w.state.serverTime = 5000; updateConsumables(w); expect(c.s.hp).toBe(100 + 3 * 250);
+    expect(c.s.potionsHealing).toBe(0); expect(c.s.healingUntil).toBe(0);
+    c.s.hp = 100;
     handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
-    handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
-    expect(c.s.potionSmall).toBe(1);
-    w.state.serverTime = 5000; updateConsumables(w); expect(c.s.hp).toBe(350);
+    w.state.serverTime = 7000; handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
+    expect(c.s.potionsHealing).toBe(2); expect(c.s.potionSmall).toBe(0);
+    c.s.potionSmall = 1; c.s.hp = c.s.maxHp; w.state.serverTime = 20000; updateConsumables(w); c.s.hp = c.s.maxHp;
     c.s.hp = c.s.maxHp;
     handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
     expect(c.s.potionSmall).toBe(1);

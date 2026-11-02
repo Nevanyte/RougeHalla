@@ -123,6 +123,8 @@ export const PlayerState = schema({
   potionLarge: t.uint8().default(0),
   potionSmall: t.uint8().default(0),
   healingUntil: t.uint32().default(0),
+  /** Potions currently healing (healingUntil is when the last one ends). */
+  potionsHealing: t.uint8().default(0),
   speedBoostUntil: t.uint32().default(0),
   tradeUsed: t.boolean().default(false),
   tradeOffers: t.array("string"),

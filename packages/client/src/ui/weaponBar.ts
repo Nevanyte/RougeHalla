@@ -91,7 +91,7 @@ export class WeaponBar {
     this.tip.hidden = true;
     const healing = el("div", "wb-consumable wb-healing");
     healing.append(keycap("E"), el("strong", undefined, "Heal"), this.healCount, this.healStatus);
-    healing.title = "Large potion: 40% max HP over 5 s. Small potion: 25% over 5 s. Large potions are used first. Healing potions do not stack.";
+    healing.title = "Large potion: 40% max HP over 5 s. Small potion: 25% over 5 s. Large potions are used first. Up to 3 potions can heal at once.";
     const speed = el("div", "wb-consumable wb-speed");
     speed.append(el("strong", undefined, "Wind"), this.speedCount, this.speedStatus);
     speed.title = "Walk over a wind emblem for +50% movement speed for 5 seconds. Emblems disappear when collected.";
@@ -134,7 +134,7 @@ export class WeaponBar {
     this.render(me, patchT, serverNow, pickup, questLabel, talkHint);
     this.healCount.textContent = `${me.potionLarge ?? 0} large · ${me.potionSmall ?? 0} small`;
     this.speedCount.textContent = me.speedBoostUntil > serverNow ? "+50% speed" : "Walk over emblems";
-    this.healStatus.textContent = me.healingUntil > serverNow ? `Healing ${Math.ceil((me.healingUntil - serverNow) / 1000)}s` : "";
+    this.healStatus.textContent = me.healingUntil > serverNow ? `Healing${(me.potionsHealing ?? 0) > 1 ? ` x${me.potionsHealing}` : ""} ${Math.ceil((me.healingUntil - serverNow) / 1000)}s` : "";
     this.speedStatus.textContent = me.speedBoostUntil > serverNow ? `Active ${Math.ceil((me.speedBoostUntil - serverNow) / 1000)}s` : "";
     this.consumables.children[0]?.classList.toggle("empty", !(me.potionLarge || me.potionSmall));
     this.consumables.children[1]?.classList.toggle("empty", !(me.speedBoostUntil > serverNow));
