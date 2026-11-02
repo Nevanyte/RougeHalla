@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CANNON_COOLDOWN_MS, CAMP_WARD_MS, POTION_HEAL_MS, SPEED_BOOST_MS, TICK_MS, TILE, WIND_EMBLEM_DEF, mapFromTiles, mulberry32 } from "@raid/shared";
+import {
+  CANNON_COOLDOWN_MS, CAMP_WARD_MS, POTION_HEAL_MS, POTION_MAX_CONCURRENT, POTION_REFUSAL, POTION_REFUSALS, SPEED_BOOST_MS, TICK_MS, TILE,
+  WIND_EMBLEM_DEF, mapFromTiles, mulberry32,
+} from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
+import { addStatus, removeStatuses } from "../src/sim/status";
 import { dropConsumable, grantConsumable, handleUseConsumable, install, updateConsumables, updateWindEmblems, WIND_EMBLEM_LIMIT } from "../src/sim/consumables";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { addContainer, handlePickup, spawnLoot } from "../src/sim/loot";
@@ -52,6 +56,42 @@ describe("stored potions", () => {
     handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
     expect(c.s.potionSmall).toBe(1);
     expect(enqueueClientMessage(c.rt.inputs, "useConsumable", { kind: "speed" })).toBe(false);
+  });
+  it("refuses only with the shared POTION_REFUSALS, in the shared rule's order, and changes nothing when it does", () => {
+    const { w, c } = rig();
+    const said = new Set<string>();
+    const drink = (): void => {
+      w.events.length = 0;
+      handleUseConsumable(w, c, { kind: "useConsumable", consumable: "heal" });
+      for (const ev of w.events) if (ev.type === "toast" && ev.to === c.id) said.add(ev.text);
+    };
+    const toastsNow = (): string[] => w.events.flatMap((ev) => ev.type === "toast" && ev.to === c.id ? [ev.text] : []);
+    drink(); // nothing stored
+    expect(toastsNow()).toEqual([POTION_REFUSAL.empty]);
+    grantConsumable(w, c, "potionSmall", 5);
+    c.s.hp = c.s.maxHp;
+    drink(); // full
+    expect(toastsNow()).toEqual([POTION_REFUSAL.full]);
+    expect(c.s.potionSmall).toBe(5);
+    c.s.hp = 100;
+    addStatus(w, c, { kind: "stun", source: { id: "x", name: "x" }, ms: 1000 });
+    drink(); // stunned
+    expect(toastsNow()).toEqual([POTION_REFUSAL.blocked]);
+    removeStatuses(w, c, () => true);
+    c.rt.cast = { startedAt: 0, landsAt: 250 } as unknown as typeof c.rt.cast;
+    drink(); // casting
+    expect(toastsNow()).toEqual([POTION_REFUSAL.blocked]);
+    c.rt.cast = null;
+    for (let i = 0; i < POTION_MAX_CONCURRENT; i++) {
+      drink();
+      expect(toastsNow()).toEqual(["Small potion · healing over 5s"]);
+    }
+    drink(); // a fourth at once
+    expect(toastsNow()).toEqual([POTION_REFUSAL.busy]);
+    expect(c.s.potionSmall).toBe(5 - POTION_MAX_CONCURRENT);
+    expect(c.s.potionsHealing).toBe(POTION_MAX_CONCURRENT);
+    said.delete("Small potion · healing over 5s");
+    expect([...said].sort()).toEqual([...POTION_REFUSALS].sort());
   });
   it("puts a small potion in weapon chests", () => {
     const { w } = rig();

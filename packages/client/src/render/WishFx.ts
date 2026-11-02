@@ -6,8 +6,15 @@
 // A telegraph is the warning the one it concerns gets: it lasts the cast's `ms` and follows the fighters as drawn. It is
 // never dimmed by the juice settings (it is information, as FxView's windups are), but reduced motion makes it hold still
 // where it would swirl or grow.
+//
+// The caster's own telegraph does not wait for render time: the scene draws it at the key press (`predictCast`), and the own
+// `cast` fx confirms it when it arrives (`confirmPredicted`); a refusal (the cast's order number echoed with no cast fx) or no
+// answer within PREDICTED_LIFE_MS lets it go quietly, and an own `castEnd` ends it at arrival (`endOwn`). It ramps over the
+// true cast time from the press and then holds at full until the landing, which stays at render time with what it caused.
 import Phaser from "phaser";
-import { ABILITIES, PLAYER_RADIUS, Y_SCALE, type AbilityDef, type TelegraphArt, type TimedFx, type Vec2 } from "@raid/shared";
+import {
+  ABILITIES, MAX_INTERP_DELAY_MS, PLAYER_RADIUS, Y_SCALE, type AbilityDef, type AbilityId, type TelegraphArt, type TimedFx, type Vec2,
+} from "@raid/shared";
 import { easeOutCubic, juiceScale } from "./juice";
 import { BODY_LIFT, projX, projY } from "./projection";
 import { trialTelegraphRadius } from "./markPresentation";
@@ -33,6 +40,18 @@ const MAX_ACTIVE = 32;
 /** A telegraph lasts the cast's `ms`; these bound a malformed one. */
 const MIN_MS = 40;
 const MAX_MS = 1500;
+/**
+ * How long a telegraph drawn at the key press lives with no `cast` fx to confirm it: the prediction's ORDER_EXPIRE_MS
+ * (net/localMotion.ts), when LocalPrediction gives up the cast root it predicted with it.
+ */
+export const PREDICTED_LIFE_MS = 600;
+/**
+ * A confirmed telegraph waits for its landing until its cast time plus this after the confirming fx arrived: the landing is
+ * released at render time, at most the render delay (MAX_INTERP_DELAY_MS) after that, less the downlink. A margin covers the
+ * clock's error. The landing, or the own castEnd, ends it sooner. (Measured with netProbe: the landing came 130-190 ms past the
+ * press-based ramp at 0-30 ms RTT and 340-360 ms at 120 ms, so a fixed hold from the press would leave a gap on a slow link.)
+ */
+export const CONFIRMED_HOLD_MS = MAX_INTERP_DELAY_MS + 150;
 const R = PLAYER_RADIUS;
 
 const TAU = Math.PI * 2;
@@ -64,6 +83,28 @@ interface Active {
   /** A ring's final radius. */
   radius: number;
   telegraph: boolean;
+  /** Milliseconds it stays drawn at full past `duration` (none when absent). */
+  hold?: number;
+  /** A telegraph drawn at the key press: the cast's order number and ability, and whether the own `cast` fx has confirmed it. */
+  seq?: number;
+  ability?: AbilityId;
+  confirmed?: boolean;
+}
+
+/** A cast the local player just sent, as the scene knows it at the key press. */
+export interface PredictedCast {
+  by: string;
+  ability: AbilityId;
+  ms: number;
+  target: string | null;
+  /** Where the cast fx will say it is: the target as drawn, else the caster as drawn. */
+  x: number;
+  y: number;
+  seq: number;
+}
+
+function clampMs(ms: number): number {
+  return Math.max(MIN_MS, Math.min(MAX_MS, ms));
 }
 
 /** The telegraph art of a def, falling back to nothing for an unknown ability. */
@@ -116,18 +157,79 @@ export class WishFx {
       const e = a[i]!;
       const p = (now - e.start) / e.duration;
       const anchor = e.id ? this.host.position(e.id) : e;
-      if (p >= 1 || (this.host.canSee && (!anchor || !this.host.canSee(anchor) || !this.host.canSee({ x: e.x2, y: e.y2 })))) {
+      const ends = e.hold ? 1 + e.hold / e.duration : 1;
+      if (p >= ends || (this.host.canSee && (!anchor || !this.host.canSee(anchor) || !this.host.canSee({ x: e.x2, y: e.y2 })))) {
         this.release(e);
         a[i] = a[a.length - 1]!;
         a.pop();
         continue;
       }
-      if (this.draw(e, p) === false) {
+      if (this.draw(e, Math.min(p, 1)) === false) {
         this.release(e);
         a[i] = a[a.length - 1]!;
         a.pop();
       }
     }
+  }
+
+  /**
+   * The local player just sent a cast with a cast time: its telegraph starts now, ramps over the cast's `ms` and holds at full
+   * until PREDICTED_LIFE_MS unless the own `cast` fx confirms it. Same art and guards as a `cast` fx's.
+   */
+  predictCast(spec: PredictedCast, now: number): void {
+    if (this.destroyed || !Number.isFinite(spec.ms) || (this.host.canSee && !this.host.canSee(spec))) return;
+    this.dropTelegraph(spec.by);
+    if (this.hiddenRemote(spec.by)) return;
+    const def = ABILITIES[spec.ability];
+    const art = artOf(def);
+    if (!def || art === "none" || (spec.target && this.hiddenRemote(spec.target))) return;
+    const duration = clampMs(spec.ms);
+    this.push({
+      kind: art, start: now, duration, id: spec.by, target: spec.target, x: spec.x, y: spec.y, x2: spec.x, y2: spec.y, color: def.color,
+      radius: ringRadius(def), telegraph: true, hold: Math.max(0, PREDICTED_LIFE_MS - duration), seq: spec.seq, ability: spec.ability,
+      confirmed: false,
+    });
+  }
+
+  /**
+   * The own `cast` fx arrived at `now`: the telegraph drawn at the key press is the server's now (its start stays the press, its
+   * length the fx's), and it holds at full until the landing, at most CONFIRMED_HOLD_MS past its cast time counted from `now`. False
+   * when there is none to confirm (it ran out, or was never drawn): the fx then plays at render time as anyone's does.
+   */
+  confirmPredicted(fx: FxOf<"cast">, now: number): boolean {
+    if (this.destroyed) return false;
+    const e = this.active.find((a) => a.telegraph && a.id === fx.by && a.seq !== undefined && !a.confirmed && a.ability === fx.ability);
+    if (!e) return false;
+    e.confirmed = true;
+    if (Number.isFinite(fx.ms)) e.duration = clampMs(fx.ms);
+    if (fx.target) e.target = fx.target;
+    e.hold = Math.max(0, now - e.start) + CONFIRMED_HOLD_MS;
+    return true;
+  }
+
+  /**
+   * The server refused the cast `seq` (its order number came back with no cast fx), or every one (`seq` omitted: the connection is
+   * down): the telegraphs drawn at the press that nothing confirmed go quietly, since nothing happened. Returns how many went.
+   */
+  cancelPredicted(seq?: number): number {
+    const a = this.active;
+    let n = 0;
+    for (let i = a.length - 1; i >= 0; i--) {
+      const e = a[i]!;
+      if (e.seq === undefined || e.confirmed || (seq !== undefined && e.seq !== seq)) continue;
+      this.release(e);
+      a[i] = a[a.length - 1]!;
+      a.pop();
+      n++;
+    }
+    return n;
+  }
+
+  /** The own `castEnd` arrived while the confirmed telegraph from the press is up: it ends now, with its puff. False when none is up. */
+  endOwn(fx: FxOf<"castEnd">, now: number): boolean {
+    if (this.destroyed || !this.active.some((e) => e.telegraph && e.id === fx.by && e.seq !== undefined && e.confirmed)) return false;
+    this.end(fx, now);
+    return true;
   }
 
   destroy(): void {
@@ -155,7 +257,7 @@ export class WishFx {
     // Nothing may point at a hidden fighter (the server refuses such a target, but a patch can show it hidden first).
     if (fx.target && this.hiddenRemote(fx.target)) return;
     this.push({
-      kind: art, start: now, duration: Math.max(MIN_MS, Math.min(MAX_MS, fx.ms)), id: fx.by, target: fx.target,
+      kind: art, start: now, duration: clampMs(fx.ms), id: fx.by, target: fx.target,
       x: fx.x, y: fx.y, x2: fx.x, y2: fx.y, color: def.color, radius: ringRadius(def), telegraph: true,
     });
   }

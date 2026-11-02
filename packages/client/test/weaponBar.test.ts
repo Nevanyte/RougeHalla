@@ -136,3 +136,39 @@ describe("the weapon bar's scaling line and tooltip", () => {
     expect(dom.win.listenerCount("pointermove")).toBe(0);
   });
 });
+
+// The potion counters: the synced ones, or (while a press is in flight: net/potionCue.ts) the ones the press will leave.
+describe("the weapon bar's potion counters", () => {
+  const me = (o: Record<string, unknown> = {}): PlayerState =>
+    ({ status: "alive", faction: "holy", weapon0: "sword", weapon1: "", slot: 0, readyAt: 0, potionLarge: 1, potionSmall: 2,
+      potionsHealing: 0, healingUntil: 0, speedBoostUntil: 0, ...o }) as unknown as PlayerState;
+
+  function setup() {
+    installFakeDom();
+    const bar = new WeaponBar();
+    const parts = bar as unknown as { healCount: FakeEl; healStatus: FakeEl; consumables: FakeEl };
+    const healing = () => (parts.consumables.children as FakeEl[])[0]!;
+    return { bar, parts, healing };
+  }
+
+  it("draws the synced counters when no press is in flight, as before", () => {
+    const { bar, parts, healing } = setup();
+    bar.update(me(), 0, 1000, null);
+    expect(parts.healCount.textContent).toBe("1 large · 2 small");
+    expect(parts.healStatus.textContent).toBe("");
+    bar.update(me({ potionsHealing: 2, healingUntil: 3500 }), 0, 1000, null);
+    expect(parts.healStatus.textContent).toBe("Healing x2 3s");
+    bar.update(me({ potionLarge: 0, potionSmall: 0 }), 0, 1000, null);
+    expect(healing().classList.contains("empty")).toBe(true);
+  });
+
+  it("draws the counters a press in flight will leave in their place", () => {
+    const { bar, parts, healing } = setup();
+    bar.update(me(), 0, 1000, null, "", "", { large: 0, small: 2, healing: 1, healingUntil: 6000 });
+    expect(parts.healCount.textContent).toBe("0 large · 2 small");
+    expect(parts.healStatus.textContent).toBe("Healing 5s");
+    expect(healing().classList.contains("empty")).toBe(false);
+    bar.update(me({ potionLarge: 0, potionSmall: 1 }), 0, 1000, null, "", "", { large: 0, small: 0, healing: 1, healingUntil: 6000 });
+    expect(healing().classList.contains("empty")).toBe(true);
+  });
+});

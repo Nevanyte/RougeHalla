@@ -1,6 +1,6 @@
 import {
-  CANNON_COOLDOWN_MS, CONSUMABLE_CAP, CONSUMABLES, HEAL_OVER_TIME_STEP_MS, POTION_HEAL_MS, POTION_LARGE_SHARE, POTION_MAX_CONCURRENT,
-  POTION_SMALL_SHARE, SPEED_BOOST_MS, SPEED_BOOST_MULT, WIND_EMBLEM_DEF, isConsumableId,
+  CANNON_COOLDOWN_MS, CONSUMABLE_CAP, CONSUMABLES, HEAL_OVER_TIME_STEP_MS, POTION_HEAL_MS, POTION_LARGE_SHARE,
+  POTION_SMALL_SHARE, SPEED_BOOST_MS, SPEED_BOOST_MULT, WIND_EMBLEM_DEF, isConsumableId, potionRefusal,
   circleClear, hasLineOfSight, MASK_MOVE, mulberry32, PLAYER_RADIUS, TILE, type ConsumableId, type Vec2,
 } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
@@ -52,15 +52,16 @@ export function pickConsumable(world: World, c: Player, box: ContainerState): bo
 
 export const handleUseConsumable: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "useConsumable" || c.kind !== "player" || !standing(c)) return;
-  if (actionBlocked(world, c)) { toast(world, c.id, "Can't use an item now"); return; }
   const now = world.state.serverTime;
   let list = healing.get(world);
   if (!list) healing.set(world, list = new Map());
   const active = list.get(c.id) ?? [];
-  if (active.length >= POTION_MAX_CONCURRENT) { toast(world, c.id, `Already drinking ${POTION_MAX_CONCURRENT} potions`); return; }
-  if (c.s.hp >= c.s.maxHp) { toast(world, c.id, "Already at full health"); return; }
+  // The shared rule and words: the client checks a press against the same ones before it sends it.
+  const refusal = potionRefusal({
+    actionBlocked: actionBlocked(world, c), healing: active.length, hp: c.s.hp, maxHp: c.s.maxHp, large: c.s.potionLarge, small: c.s.potionSmall,
+  });
+  if (refusal) { toast(world, c.id, refusal); return; }
   const large = c.s.potionLarge > 0;
-  if (!large && c.s.potionSmall <= 0) { toast(world, c.id, "No potion stored"); return; }
   if (large) c.s.potionLarge--; else c.s.potionSmall--;
   world.hooks.consumableUsed?.(world, c, large ? "potionLarge" : "potionSmall");
   c.s.healingUntil = now + POTION_HEAL_MS; // the newest potion always ends last

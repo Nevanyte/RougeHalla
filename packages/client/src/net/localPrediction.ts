@@ -57,6 +57,8 @@ const RANGED_PAUSE_CONFIRM_TOLERANCE_MS = 10;
 /** The order-delay estimate can be off by a tick; cap bow draw matching below the fastest ranged shot cadence. */
 const BOW_DRAW_SCHEDULE_TOLERANCE_MS = 120;
 interface RangedPauseRecord extends LocalRangedPause { confirmedUntil?: number }
+/** observe()'s answer on almost every patch: shared, so a patch allocates nothing. */
+const NONE_REFUSED: readonly number[] = Object.freeze([]);
 
 /** Where the local fighter is drawn from this frame. */
 export type LocalDrawSource = "predicted" | "frozen" | "snapshot";
@@ -173,14 +175,36 @@ export class LocalPrediction {
   /**
    * A patch arrived: the local fighter's server state. The motion takes it; and a predicted cast root whose order number the
    * patch acks with no `cast` fx of ours having replaced it was refused: it is dropped (the fx of a tick arrive before its patch).
+   * Returns the order numbers of the casts it found refused (the scene drops their telegraphs too), the same empty list when none.
    */
-  observe(s: AuthSample, c: number): void {
+  observe(s: AuthSample, c: number): readonly number[] {
     this.motion.observe(s, c);
-    if (s.moveSeq === 0) return;
+    if (s.moveSeq === 0) return NONE_REFUSED;
+    let refused: number[] | null = null;
     for (let i = this.roots.length - 1; i >= 0; i--) {
       const r = this.roots[i]!;
-      if (r.expires !== undefined && r.seq !== undefined && seqAcked(r.seq, s.moveSeq)) this.roots.splice(i, 1);
+      if (r.expires !== undefined && r.seq !== undefined && seqAcked(r.seq, s.moveSeq)) {
+        this.roots.splice(i, 1);
+        (refused ??= []).push(r.seq);
+      }
     }
+    return refused ?? NONE_REFUSED;
+  }
+
+  /**
+   * Whether an order sent at client clock `c` reaches the server while the fighter is still casting (the server then refuses an
+   * action: `actionBlocked`): a cast root, predicted at the key press or told by the cast fx, still running `motion.delay` from now.
+   * The synced bit (`effects`) stands in only while no cast is known, since it lags a cast's end by a round trip.
+   */
+  castingWhenApplied(c: number, effects: number): boolean {
+    const t = c + this.motion.delay;
+    let known = false;
+    for (const r of this.roots) {
+      if (r.kind !== "cast") continue;
+      known = true;
+      if (r.until > t) return true;
+    }
+    return !known && (effects & EFFECT_CASTING) !== 0;
   }
 
   /** The server time the local fighter's cast root (predicted or confirmed) ends, or 0 if none is running or due at `t`. */
