@@ -23,18 +23,19 @@ describe("combat readability", () => {
     expect(combatDamageShares(p)).toEqual(damageShares(FACTIONS[faction]));
   });
 
-  it("scores attack and move speed from lasting rows only: a while row, a status or a trade-off augment is not an investment", () => {
+  it("for a Trophy (lasting) scores attack and move speed from lasting rows only: a while row, a status or a trade-off augment is not one", () => {
     const p = fighter("fire");
     p.asMult = encodeMult(1.4); // e.g. Last Rites below 30% hp plus Committed
     p.speedMult = encodeMult(1.2); // a haste or a while row
     p.build = { lastRites: 1, committed: 1 };
-    const view = combatReadability(p);
+    const view = combatReadability(p, { lasting: true });
     expect(view.investedStats.find((s) => s.key === "attackSpeed")).toBeUndefined();
     expect(view.investedStats.find((s) => s.key === "speed")).toBeUndefined();
+    expect(combatReadability(p).investedStats.find((s) => s.key === "attackSpeed")).toBeDefined(); // the display shows the mirror
     p.build = { haste1: 1 }; // +9% from a base card counts, never past the mirror
-    expect(combatReadability(p).investedStats.find((s) => s.key === "attackSpeed")?.score).toBeCloseTo(1, 2);
+    expect(combatReadability(p, { lasting: true }).investedStats.find((s) => s.key === "attackSpeed")?.score).toBeCloseTo(1, 2);
     p.asMult = encodeMult(1.03); // slowed now: no more than the mirror shows
-    expect(combatReadability(p).investedStats.find((s) => s.key === "attackSpeed")?.score).toBeCloseTo(0.03 / 0.09, 2);
+    expect(combatReadability(p, { lasting: true }).investedStats.find((s) => s.key === "attackSpeed")?.score).toBeCloseTo(0.03 / 0.09, 2);
   });
 
   it("uses card power and the PvP factor for the growth cue", () => {

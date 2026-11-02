@@ -44,7 +44,7 @@ export function parseKillAugment(id: string): KillAugment | null {
 /** The victim's top three investments as options (fewer when it had fewer; none for a victim with nothing invested). */
 export function rollKillAugments(victim: ReadableFighter): string[] {
   const out: string[] = [];
-  for (const s of combatReadability(victim).investedStats) {
+  for (const s of combatReadability(victim, { lasting: true }).investedStats) {
     const gain = Number((s.score * UNIT[s.key] * KILL_AUG_SHARE).toFixed(FLAT.has(s.key) ? 1 : 4));
     if (!(gain > 0)) continue;
     out.push(encodeKillAugment(s.key, gain));
