@@ -7,6 +7,7 @@ import {
   BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, cardBlock, cardDef, cardLive, cardText, cardsOfKind, countIn, ownsBase, whyOffered, isInteractiveAugment,
   type BaseStatId, type CardCounts, type CardDef, type CardId, type CardKind, type CardTier, type MechanicTag, type WhyOffered,
 } from "./cards";
+import { killAugmentText, parseKillAugment } from "./killAugments";
 import type { Rng } from "./rng";
 import type { FactionId } from "./factions";
 
@@ -104,6 +105,7 @@ export const CHEST_REFUSAL = {
   taken: "Already taken",
   owned: "Already yours",
   maxed: "Stat maxed",
+  notYours: "Not yours",
 } as const;
 export const CHEST_REFUSALS: readonly string[] = Object.values(CHEST_REFUSAL);
 export const CHEST_REFUSAL_NEEDS_PREFIX = "Needs ";
@@ -157,7 +159,12 @@ export function cardOptionView(id: string, build: CardCounts | null | undefined,
     };
   }
   const def = cardDef(id);
-  if (!def) return null;
+  if (!def) {
+    const kill = parseKillAugment(id);
+    if (!kill) return null;
+    const { title, text } = killAugmentText(kill);
+    return { id: id as CardId, title, tier: 1, kind: "augment", text, tags: [], why: { code: "augment", text: "Kill trophy" }, blocked: null, held: 0 };
+  }
   const view: CardOptionView = {
     id: def.id, title: def.title, tier: def.tier, kind: def.kind, text: cardText(id, faction), tags: def.tags,
     why: whyOffered(id, build)!, blocked: cardBlock(id, build), held: countIn(build, id),

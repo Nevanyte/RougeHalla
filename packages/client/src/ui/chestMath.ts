@@ -20,6 +20,8 @@ export interface RewardSource {
   options: ArrayLike<string>;
   takenBy: ArrayLike<string>;
   pickers: ArrayLike<string>;
+  /** A kill augment's only picker ("" or absent on a camp chest). */
+  owner?: string;
 }
 
 /** A live reward chest, copied out of the state (plain arrays, safe to hold for a frame). */
@@ -36,8 +38,10 @@ export interface Reward {
 }
 
 /** The chest as a `Reward`, or null when the container is not a reward chest. */
-export function readReward(c: RewardSource, id: string): Reward | null {
+export function readReward(c: RewardSource, id: string, viewer?: string): Reward | null {
   if (c.kind !== "reward") return null;
+  // A kill augment ("Trophy") belongs to its killer alone: nobody else is shown it.
+  if (c.owner && viewer !== undefined && c.owner !== viewer) return null;
   const options = Array.from(c.options);
   const takenBy = Array.from(c.takenBy);
   // `takenBy` is parallel to `options`; a short one (a patch half applied) reads as free.

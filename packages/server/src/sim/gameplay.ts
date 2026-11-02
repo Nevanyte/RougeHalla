@@ -12,6 +12,7 @@ import { install as installTraders } from "./traders";
 import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
 import { install as installFireRoam } from "./fireRoam";
+import { install as installKillAugments } from "./killAugments";
 import { install as installLoot } from "./loot";
 import { install as installMobAI } from "./mobAI";
 import { install as installMobLife } from "./mobLife";
@@ -44,6 +45,8 @@ const MODULES: Array<(world: World) => void> = [
   installCamps,
   // Elite augment chests: the `choose` action, expiry, and the drop on the elite mobKilled hook.
   installChests,
+  // Kill augments: the playerKilled trophy (private reward container; its pick is chests.ts `choose`).
+  installKillAugments,
   installMobLife,
   installMobAI,
   // Terrain hazards: after the signatures (burn joins the ledger behind their entries) and the faction layer's afterDamage

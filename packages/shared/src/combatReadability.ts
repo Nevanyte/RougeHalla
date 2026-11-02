@@ -34,6 +34,8 @@ export type ReadableFighter = WireMirrors & {
   maxHp: number;
   build?: CardCounts | null;
   mobStats?: MobStatCounts;
+  /** Stats taken through kill augments (killAugments.ts). */
+  killStats?: MobStatCounts;
   campClears?: number;
 };
 
@@ -91,8 +93,8 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
   const power = ceiling > baseline ? Math.max(0, Math.min(1, (factor - baseline) / (ceiling - baseline))) : 0;
   const m = decodeMirrors(p);
   const baseHp = isFactionId(p.faction) ? FACTIONS[p.faction].hp : Math.max(0, p.maxHp);
-  const bonusLeech = cardLeech(p.build, p.faction, p.mobStats, p.campClears);
-  let genericDamage = mobStatRows(p.mobStats).reduce((sum, e) => e.k === "stat" && e.stat === "damage" ? sum + e.v : sum, 0);
+  const bonusLeech = cardLeech(p.build, p.faction, p.mobStats, p.campClears) + killStat(p.killStats, "lifesteal");
+  let genericDamage = killStat(p.killStats, "damage") + mobStatRows(p.mobStats).reduce((sum, e) => e.k === "stat" && e.stat === "damage" ? sum + e.v : sum, 0);
   for (const { def, count } of ownedCards(p.build)) {
     for (const e of cardRows(def.id, p.faction)) if (e.k === "stat" && e.stat === "damage" && !e.requires && !e.needs) genericDamage += e.v * count;
   }
@@ -124,4 +126,9 @@ function cardLeech(build: CardCounts | null | undefined, faction: string, mobSta
   let farm = faction === "holy" ? holyCampLifestealOf(campClears) : 0;
   for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
   return Math.max(0, Math.min(0.25, rows)) + Math.max(0, farm);
+}
+
+function killStat(stats: MobStatCounts, key: string): number {
+  const v = stats && "get" in stats && typeof stats.get === "function" ? stats.get(key) : (stats as Record<string, number> | null | undefined)?.[key];
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0;
 }

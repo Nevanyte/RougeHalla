@@ -316,7 +316,7 @@ export class ChestPanel {
 
     this.rewards.length = 0;
     frame.containers.forEach((c, id) => {
-      const r = readReward(c, id);
+      const r = readReward(c, id, me?.id);
       if (r) this.rewards.push(r);
     });
     this.forgetGone();

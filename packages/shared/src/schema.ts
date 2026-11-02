@@ -135,6 +135,8 @@ export const PlayerState = schema({
   wishFullAt: t.uint32().default(0),
   /** Stat-chest picks per stat id (shared/chestBoosts.ts): a x1.2 of that stat's bonus per pick, not a card (no card power). */
   chestBoosts: t.map("float64"),
+  /** Stats taken from victims through kill augments (killAugments.ts), keyed by Effect stat; folded as farm rows. */
+  killStats: t.map("float64"),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -260,6 +262,8 @@ export const ContainerState = schema({
   targetX: t.float32().default(0),
   targetY: t.float32().default(0),
   opened: t.boolean().default(false),
+  /** A kill augment ("Trophy", sim/killAugments.ts): the only player who may pick it; "" on every other container. */
+  owner: t.string().default(""),
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 

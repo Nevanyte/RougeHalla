@@ -34,6 +34,7 @@ import { syncMaxHp } from "./buffs";
 import { campContribOf, eligibleContributors } from "./campHeal";
 import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
+import { pickKillAugment, trophyOwnerOk } from "./killAugments";
 import { addContainer, bornThisTick, forgetBirth, holdBirth } from "./loot";
 import { recomputeMods } from "./mods";
 import { actionBlocked } from "./status";
@@ -116,12 +117,13 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   const now = world.state.serverTime;
   const box = world.state.containers.get(cmd.chest);
   if (!box || box.kind !== "reward" || bornThisTick(world, box.id) || !(now < box.expiresAt)) { toast(world, c.id, CHEST_REFUSAL.gone); return; }
+  if (!trophyOwnerOk(world, c, box)) return; // a kill augment is private to its killer (sim/killAugments.ts)
   if (Math.hypot(p.x - box.x, p.y - box.y) > CHEST_RANGE) { toast(world, c.id, CHEST_REFUSAL.far); return; }
   if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, CHEST_REFUSAL.blocked); return; }
   if (box.pickers.includes(c.id)) { toast(world, c.id, CHEST_REFUSAL.picked); return; }
   if (cmd.pick === -1) {
     box.pickers.push(c.id);
-    paySkip(world, c);
+    if (box.owner === "") paySkip(world, c); // declining a trophy pays nothing (no GV from bot kills)
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: -1 } });
     return;
   }
@@ -139,6 +141,13 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
     recomputeMods(world, c);
     syncMaxHp(p);
     toast(world, c.id, `${CHEST_BOOST_DEFS[boost].title} x1.2${have > 0 ? ` (${have + 1} of ${CHEST_BOOST_MAX_PICKS}, diminishing)` : ""}`);
+    emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
+    return;
+  }
+  if (box.owner !== "") { // kill augment: the victim's stat, not a card
+    if (!pickKillAugment(world, c, id)) return;
+    box.takenBy[i] = c.id;
+    box.pickers.push(c.id);
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
     return;
   }
