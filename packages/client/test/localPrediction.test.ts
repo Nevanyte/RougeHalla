@@ -844,9 +844,9 @@ describe("the stun or cast an action would meet", () => {
     expect(p.blockedWhenApplied(1100, 0)).toBe("no");
     p.noteFx(status(1000, 500, "stun"), ME, fighter()); // [1000, 1500) in server time
     expect(p.blockedWhenApplied(1100, EFFECT_STUNNED)).toBe("sure");
-    expect(p.blockedWhenApplied(1449, EFFECT_STUNNED)).toBe("sure"); // arrives at 1499
-    // Arrives at 1500 or later: the stun is over there, whatever the lagging bit still says.
-    expect(p.blockedWhenApplied(1450, EFFECT_STUNNED)).toBe("no");
+    expect(p.blockedWhenApplied(1399, EFFECT_STUNNED)).toBe("sure"); // applied by the tick at 1499 (c + delay + one tick)
+    // Applied at 1500 or later: the stun is over there, whatever the lagging bit still says.
+    expect(p.blockedWhenApplied(1400, EFFECT_STUNNED)).toBe("no");
   });
 
   it("the synced stun bit with no fx behind it (a join mid-stun) is only a maybe", () => {
@@ -860,12 +860,12 @@ describe("the stun or cast an action would meet", () => {
     const p = new LocalPrediction();
     p.noteCast(1000, { castMs: 250, seq: 7 }); // root [1050, 1300) in server time
     expect(p.blockedWhenApplied(1000, 0)).toBe("maybe");
-    expect(p.blockedWhenApplied(1249, 0)).toBe("maybe"); // arrives at 1299
-    expect(p.blockedWhenApplied(1250, 0)).toBe("no"); // arrives at 1300: landed
+    expect(p.blockedWhenApplied(1200, 0)).toBe("maybe"); // applied at 1300, the tick the cast lands in: inputs run before it lands
+    expect(p.blockedWhenApplied(1201, 0)).toBe("no"); // applied at 1301: landed
     expect(p.blockedWhenApplied(1000 + ORDER_EXPIRE_MS, 0)).toBe("no"); // unanswered: given up
     p.noteFx(cast(1100, 350), ME, fighter()); // the server's own span replaces it: [1100, 1450)
-    expect(p.blockedWhenApplied(1399, 0)).toBe("sure");
-    expect(p.blockedWhenApplied(1400, EFFECT_CASTING)).toBe("no"); // landed at 1450, the bit not yet cleared
+    expect(p.blockedWhenApplied(1350, 0)).toBe("sure"); // applied at 1450: still casting through that tick's inputs
+    expect(p.blockedWhenApplied(1351, EFFECT_CASTING)).toBe("no"); // applied at 1451: landed at 1450, the bit not yet cleared
   });
 
   it("a predicted cast the patch acks with no cast fx (refused) blocks nothing any more", () => {

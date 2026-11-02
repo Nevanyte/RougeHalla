@@ -10,7 +10,7 @@
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, RANGED_RELEASE_PAUSE_MS,
   EFFECT_STUNNED, FACTIONS, hasteMultiplier, hazardsOf, isFactionId, LAST_STAND_SPEED_BONUS, MOVE_MULT_FLOOR, scaleWindup, SIG_CHILLED,
-  surfaceAt, weaponTimings, mirrorTimings,
+  surfaceAt, TICK_MS, weaponTimings, mirrorTimings,
   type FactionSpec, type GameMap, type TimedFx, type Vec2, type WeaponTimings,
 } from "@raid/shared";
 import { LocalMotion, ORDER_EXPIRE_MS, seqAcked, type AuthSample, type FrameInput } from "./localMotion";
@@ -189,13 +189,16 @@ export class LocalPrediction {
 
   /**
    * Whether an action sent at client clock `c` reaches the server while the fighter is stunned or casting (the server then
-   * refuses it: `actionBlocked`), judged `motion.delay` from now. "sure": a span the server's own fx told (a stun's `status`, the
-   * own `cast`) still runs then; only a teleport or a death ends one sooner, and they clear it here too. "maybe": what may turn
+   * refuses it: `actionBlocked`), judged at the server time of the tick that applies it: `c + motion.delay + TICK_MS` (the
+   * delay is measured to the tick before the one that shows an order applied, `localMotion.ts`). A stun blocks while its
+   * `until` is past that time; a cast still blocks a tick whose server time equals its landing, because the inputs phase
+   * runs before the abilities phase that lands it. "sure": a span the server's own fx told (a stun's `status`, the own
+   * `cast`) still runs then; only a teleport or a death ends one sooner, and they clear it here too. "maybe": what may turn
    * out otherwise while the action travels: a cast predicted at the key press (the server may refuse it), or a synced bit
    * standing in while no fx told of a stun or a cast (it lags the end by a round trip). Only "sure" may keep an action unsent.
    */
   blockedWhenApplied(c: number, effects: number): ActionBlock {
-    const t = c + this.motion.delay;
+    const t = c + this.motion.delay + TICK_MS;
     let stunKnown = false;
     let castKnown = false;
     let maybe = false;
@@ -203,7 +206,8 @@ export class LocalPrediction {
       if (r.kind === "cast") castKnown = true;
       else if (r.stun) stunKnown = true;
       else continue;
-      if (r.until <= t || (r.expires !== undefined && c >= r.expires)) continue;
+      const over = r.kind === "cast" ? r.until < t : r.until <= t;
+      if (over || (r.expires !== undefined && c >= r.expires)) continue;
       if (r.expires === undefined) return "sure";
       maybe = true;
     }
