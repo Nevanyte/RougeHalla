@@ -560,7 +560,7 @@ Sentenced 15.4, Plague 11.6, Frost 34.4, Holy 34.2 (median fists fight 15.4 s; i
 - The sword (all factions): `WeaponSpec.dominant`: it scales 1.0 x the higher of Offense and SO, in that stat's damage type (ties: Offense),
   so an SO burst sword exists without a double dip. The weapon parity tables carry no scaling, so they moved only with the sheet.
 
-`npx tsx packages/server/bench/factionBuilds.ts` (each build at P 6 against every other faction's minute-5 kit on the same weapon; win%):
+`npx tsx packages/server/bench/factionBuilds.ts` (each build at P 6 against every other faction's minute-5 kit on the same weapon; win%); the build rebalance in 13.8 supersedes these numbers and the hook values above):
 
 | build | weapon | vs fire | vs sentenced | vs plague | vs frost | vs holy | mean |
 |---|---|---|---|---|---|---|---|
@@ -597,3 +597,72 @@ No elite was buffed. Sentenced on a zone weapon clears fewer elite camps now (it
   underdog); with every faction pair even, a perfect orb-walker beats an equal melee chaser. Kiting protection now rests on the weapon
   loop and the windups alone. Owner question: rewrite the check against weapon edges.
 - `bench/ttkCurve.ts` and the bots' tier tables were not re-tuned; the median fight on fists is 15 s against the old 19 s.
+
+### 13.8 The build rebalance (fed builds even, base unchanged)
+
+13.5's builds were not even once fed: Fire's SO burn tank read 64% and Plague's zombie tank 31%. Goal: every build's mean 44-56% and
+no cell outside 30-70 in `bench/factionBuilds.ts`, with the kit-0 tables (13.3 on fists and the sword, `matchup_band.py`) unchanged
+and each identity kept. Only stat-scaling hooks moved: each reads a player's *bonus* stats (cards, mob stats, trades) or bonus attack
+speed, so at kit 0 (no bonus) every one is 0 or x1 and mobs (players-only checks) are untouched. The faction sheet did not move
+(`classes.py` == `factions.ts`, no refit).
+
+| constant | old | new | build it serves |
+|---|---|---|---|
+| `FIRE_BACKLASH_PER_DEFENSE` | 0.004 | 0.0015 | Fire B (trimmed: the generic shield kit's 67 armor fed it too) |
+| `FIRE_BURN_AD_RATIO` (new) | - | 0.5 | Fire A: Offense feeds the burn (magic DPS per point, beside `AP_DOT_RATIO` 0.6) |
+| `MARK_BONUS_STAT_PER_POINT` | 0.002 | 0.0035 | Sentenced A: every bonus stat point grows the pulse 0.35% |
+| `PLAGUE_AP_DOT_RATIO` (new) | 0.6 (shared) | 2.4 | Plague A: the disease's SO rider (Fire's burn keeps 0.6) |
+| `PLAGUE_DISEASE_PER_DEFENSE` / `_DEFENSE_CAP` (new) | - | 0.02 / 1 | Plague B: bonus Defense + SD thicken the disease (at most x2; the execute is not scaled) |
+| `PLAGUE_ZOMBIE_HP_PER_DEFENSE` / `PLAGUE_ZOMBIE_AP_SHARE` | 0.004 / 0.5 | 0.002 / 0.25 | Plague B with a zombie (trimmed, see below) |
+| `FROST_CHILL_PER_SD` / `_PER_ATTACK_SPEED` / `FROST_CHILL_BONUS_CAP` (new) | - | 0.007 / 0.45 / 0.2 | Frost A (bonus SD) and Frost B (bonus attack speed) deepen the attack chill |
+| `HOLY_LIFESTEAL_PER_AP` | 0.0015 | 0.001 | Holy B/B2 trimmed |
+| `HOLY_LEECH_ROW_MULT` (new) | - | 2.7 | Holy A: a Holy's lifesteal rows count 2.7x, still under `LS_CAP` 0.25 |
+
+`FROST_RANGED_CHILL_*` did not move: the walk slow does nothing in a locked bow duel (Frost B 43 -> 43 at x0.6 for 2 s). Frost's chill
+hook reads bonus SD, not Defense, on purpose: the generic shield kit carries 67 bonus armor, and a Defense-fed chill made every
+generic Frost shield a wall (Fire B's cell against it went 45 -> 58 once the hook moved to SD). Plague's attack-speed disease hook was
+tried and dropped (+1 at 2 per unit of bonus attack speed). Sim: `sim/factions.ts` (`chillOf`, the burn/disease riders, the Holy rows),
+pure helpers in `shared/championPassives.ts` (`frostChillBonusOf`, `plagueDiseaseMultOf`, `holyLeechRowsOf`), shown by the champion guide
+and the combat model.
+
+`npx tsx packages/server/bench/factionBuilds.ts --setups 18 --draws 16` (18 setups x 2 seats x 16 draws = 576 duels a cell; win%, min-max
+cell of the four):
+
+| build | weapon | before mean (min-max) | after: vs fire | vs sentenced | vs plague | vs frost | vs holy | after mean |
+|---|---|---|---|---|---|---|---|---|
+| Fire A Offense burst | sword | 47 (41-59) | - | 45 | 60 | 46 | 46 | 49 |
+| Fire B SO burn tank | shield | 62 (53-71) | - | 48 | 62 | 56 | 55 | 55 |
+| Sentenced A stat bully | sword | 49 (42-58) | 51 | - | 54 | 42 | 48 | 49 |
+| Sentenced B AS punisher | bow | 52 (48-61) | 47 | - | 56 | 45 | 50 | 49 |
+| Plague A AS SO DoT | wand | 41 (33-46) | 38 | 52 | - | 54 | 48 | 48 |
+| Plague B zombie tank, no body | wand | 36 (30-40) | 35 | 51 | - | 57 | 47 | 47 |
+| Plague B zombie tank, 1 body (zombie up) | wand | 86 (72-98) | 99 | 96 | - | 95 | 87 | 94 |
+| Frost A Defense/SD tank | shield | 39 (28-49) | 47 | 55 | 49 | - | 59 | 53 |
+| Frost B bow kiter | bow | 43 (41-49) | 48 | 50 | 48 | - | 48 | 48 |
+| Holy A lifesteal | axe | 44 (37-54) | 48 | 45 | 57 | 41 | - | 48 |
+| Holy B SO wand | wand | 54 (49-60) | 53 | 56 | 57 | 51 | - | 54 |
+| Holy B2 SO sword | sword | 54 (49-64) | 53 | 51 | 62 | 47 | - | 53 |
+
+("before" is the same command at 18 x 8 on the base tree; the zombie row was added by this pass, through `DuelSpec.corpses`.) Every
+build's mean is 47-55 and every cell 35-62 (the zombie row aside). Noise: 18 x 8 and 18 x 16 agree within 1 point on every mean; the
+bench's default (6 setups x 3 draws, 144 duels a build) swings about +-3 (it reads Holy A 45, Sentenced B 46, Holy B 57, Plague B 49 on
+the same tree), so judge a change at 18 x 8 or more (`--setups 18 --draws 8` takes about 25 s with one process per build).
+
+Base tables, proof: `matchups.ts --layer faction --kit 0 --noise 0.45 --draws 4` on fists and on the sword print byte-identical
+tables before and after (fists 49-52%, |h| <= 3%; sword 49-53%, |h| <= 8%; B1/B2 PASS), and `python3 testing/matchup_band.py` (Python,
+untouched) still has every pair within 2.7% (median 1.0%).
+
+Identity: Fire stays the glass cannon (fights 2.1-2.5 s, its Offense now burns too); Sentenced the bruiser whose mark grows with every
+stat; Plague the attrition faction whose disease is its scaling (SO and defenses); Frost the control tank whose chill deepens with
+its build (Frost A's fights are the longest, 7.0 s); Holy the sustain juggernaut (leech counts most for Holy).
+
+The zombie row stays out of the band: with one body the zombie is a second fighter (55% of the owner's max hp, it also body-blocks
+balls), and it wins 94% of duels whatever the build hooks (both at 0: 84%; at the zombie's half size, `PLAGUE_ZOMBIE_HP_SHARE` 0.3 and
+`PLAGUE_ZOMBIE_HIT_SHARE` 0.01 with the old hooks: 70%). It only exists after a Plague has consumed a body in a free-for-all, so a
+duel overstates it; the zombie's base numbers are not a build hook and were not changed (owner question).
+
+Tests that pinned the old numbers were updated: the mark's x1.2 per 100 points is x1.35 (`shared/test/signatures.test.ts`), the
+disease rider and Holy's rows read the new helpers (`cardConsumers`, `cardRows`, `guards`), new cases cover Fire's Offense burn,
+Plague's defense disease and Frost's SD/attack-speed chill. `bandwidth.test.ts`'s per-seed chest guard is 2.5 KB/s (was 2): seed 3
+measures +2.19 KB/s from fights alone (11.9 against 8.7 mobs fighting; the chests' own fx is about 0.01 KB/s, and seed 1 reads -1.67),
+while the mean bound (< 1 KB/s) and the 20 KB/s budget hold.

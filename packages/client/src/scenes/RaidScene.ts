@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
+  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
   countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
   WEAPONS, withGates, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, isWeaponId, mirrorTimings, PLAYER_RADIUS,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
@@ -1005,7 +1005,8 @@ export class RaidScene extends Phaser.Scene {
         // The chest's clock: its ring drains and its seconds show, against the server's time now (not render time).
         const left = (c.expiresAt - chestNow) / 1000;
         const near = me !== undefined && Math.hypot(me.x - c.x, me.y - c.y) <= CHEST_RANGE * TIMER_TEXT_REACH;
-        view.setTimer(c, Math.min(CHEST_SECONDS, left), near, now);
+        const life = c.owner ? KILL_AUG_SECONDS : CHEST_SECONDS; // a Trophy lives longer than a camp's chest
+        view.setTimer(c, Math.min(life, left), near, now, life);
         if (left > 0) this.blips.push({ x: c.x, y: c.y, left });
       }
     });
@@ -1033,6 +1034,7 @@ export class RaidScene extends Phaser.Scene {
       local.y = me.y;
       local.alive = me.status === "alive";
       local.build = me.build;
+      local.boosts = me.extra?.chestBoosts;
     }
     this.chestFrame.active = state.phase === "active";
     this.chestFrame.serverNow = serverNow;

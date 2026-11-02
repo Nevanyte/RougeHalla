@@ -13,8 +13,8 @@
 // leaves it alone, ui/mapHold.ts). The digits are the panel's ONLY while it has focus, so the weapon keys work as ever otherwise. Every option greys out RTT/2 + CHEST_GREY_MS before the chest expires, and a pick the server refuses comes
 // back as its `toast` (noteToast) into the status line. The server decides everything: this only sends `choose`.
 import {
-  CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, isChestRefusal, skipText,
-  type CampDef, type CardCounts, type CardOptionView, type ClientMessages, type GameMap,
+  CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, isChestBoostId, isChestRefusal, KILL_AUG_LABEL, skipText,
+  type CampDef, type CardCounts, type ChestBoostCounts, type CardOptionView, type ClientMessages, type GameMap,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
@@ -70,6 +70,7 @@ export interface ChestPanelMe {
   y: number;
   alive: boolean;
   build: CardCounts | null | undefined;
+  boosts?: ChestBoostCounts;
 }
 
 /** What the scene hands the panel each frame. */
@@ -390,18 +391,22 @@ export class ChestPanel {
     this.shownId = reward.id;
 
     const closed = picked || this.greyed || this.pending !== null;
-    const cards = optionCards(reward, { myId: me.id, build: me.build, faction: me.faction, closed });
+    const cards = optionCards(reward, { myId: me.id, build: me.build, faction: me.faction, boosts: me.boosts, closed });
     this.currentCards = cards;
     while (this.cards.length < cards.length) this.addCard();
     this.cards.forEach((card, i) => this.paintCard(card, cards[i] ?? null, frame, i));
 
     // The header: the camp's zone and name.
     const camp: CampDef | undefined = this.map?.camps[reward.camp - 1];
-    const title = camp ? `${campTitle(camp)} · Augment chest` : "Augment chest";
+    const kind = reward.trophy ? KILL_AUG_LABEL
+      : reward.options.length > 0 && reward.options.every((o) => isChestBoostId(o)) ? "Stat chest" : "Augment chest";
+    const title = camp ? `${campTitle(camp)} · ${kind}` : kind;
     const headKey = `${title}|${camp?.zone ?? ""}`;
     if (headKey !== this.keyTitle) {
       this.keyTitle = headKey;
       this.title.textContent = title;
+      // The server pays a skip's heal or GV at a camp's chest only: declining a Trophy or a crate's stat chest gives nothing.
+      this.skipLabel.textContent = reward.trophy || reward.camp <= 0 ? "Skip (no reward)" : skipText();
       if (camp) setPoolGlyph(this.headGlyph, camp.zone);
       this.headGlyph.hidden = !camp;
     }

@@ -2,8 +2,12 @@
 import {
   FACTIONS, FACTION_IDS, FACTION_WHEEL, SIGNATURE_WEAPONS, WEAPONS, WEAPON_IDS, WEAPON_WHEEL, wheelMatchups, type Wheel,
 } from "@raid/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { joinNames, matchupText, startingKitText, trimSegment, wheelDescription, wheelHighlight } from "../src/ui/hub/counterWheel";
+import { CounterWheel } from "../src/ui/hub/counterWheel";
+import { asEl, installPlanningDom } from "./planningDom";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const count = (roles: string[], role: string) => roles.filter((r) => r === role).length;
 
@@ -114,5 +118,40 @@ describe("trimSegment", () => {
 
   it("leaves a zero-length segment alone", () => {
     expect(trimSegment({ x: 3, y: 4 }, { x: 3, y: 4 }, 5, 5)).toEqual({ x1: 3, y1: 4, x2: 3, y2: 4 });
+  });
+});
+
+describe("CounterWheel interaction", () => {
+  it("selects weapons by click or keyboard and keeps the comparison when a faction pick arrives", () => {
+    installPlanningDom();
+    const guide = new CounterWheel();
+    const root = asEl(guide.root);
+    expect(root.find((node) => node.tagName === "SVG")[0]!.getAttribute("role")).toBe("group");
+    const nodes = root.find((node) => node.getAttribute("role") === "button");
+    expect(nodes).toHaveLength(WEAPON_IDS.length);
+    const axe = nodes.find((node) => node.getAttribute("aria-label") === "Select Axe")!;
+    axe.click();
+    expect(guide.weaponPick).toBe("axe");
+    expect(axe.getAttribute("aria-pressed")).toBe("true");
+    expect(root.textContent).toContain("Axe beats Wand and Shield");
+
+    const bow = nodes.find((node) => node.getAttribute("aria-label") === "Select Bow")!;
+    bow.key("Enter");
+    expect(guide.weaponPick).toBe("bow");
+    expect(bow.getAttribute("aria-pressed")).toBe("true");
+    expect(axe.getAttribute("aria-pressed")).toBe("false");
+    guide.setPick({ faction: "fire" });
+    expect(guide.weaponPick).toBe("bow");
+  });
+
+  it("explains fists outside the ring and ignores unchanged weapon updates", () => {
+    installPlanningDom();
+    const guide = new CounterWheel();
+    guide.setWeapon("fists");
+    expect(asEl(guide.root).textContent).toContain("Fists sit outside this weapon wheel");
+    const caption = asEl(guide.root).find((node) => node.classList.contains("cw-caption"))[0]!;
+    const child = caption.children[0];
+    guide.setWeapon("fists");
+    expect(caption.children[0]).toBe(child);
   });
 });

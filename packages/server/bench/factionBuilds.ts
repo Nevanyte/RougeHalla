@@ -8,7 +8,8 @@ import { fullSetups } from "../src/harness/matrix";
 import { flag, opt, playDuel } from "./lib/balance";
 import { kitCards } from "./kits";
 
-interface Build { faction: FactionId; key: string; name: string; weapon: WeaponId; cards: string[] }
+/** `corpses`: Plague bodies consumed before the duel, so its zombie fights beside it (the zombie tank measured with its zombie). */
+interface Build { faction: FactionId; key: string; name: string; weapon: WeaponId; cards: string[]; corpses?: number }
 
 const BUILDS: Build[] = [
   { faction: "fire", key: "A", name: "AD burst assassin", weapon: "sword", cards: ["ad2", "ad2", "haste1", "vitality1"] },
@@ -17,6 +18,7 @@ const BUILDS: Build[] = [
   { faction: "sentenced", key: "B", name: "attack-speed max-HP punisher", weapon: "bow", cards: ["haste2", "haste2", "ad1", "vitality1"] },
   { faction: "plague", key: "A", name: "attack-speed AP DoT stacker", weapon: "wand", cards: ["haste2", "ap2", "ap1", "vitality1"] },
   { faction: "plague", key: "B", name: "wand zombie tank (no corpse in a duel)", weapon: "wand", cards: ["armor2", "mr2", "ap1", "vitality1"] },
+  { faction: "plague", key: "BZ", name: "wand zombie tank, 1 body consumed (zombie up)", weapon: "wand", cards: ["armor2", "mr2", "ap1", "vitality1"], corpses: 1 },
   { faction: "frost", key: "A", name: "Defense/SD shield tank", weapon: "shield", cards: ["armor2", "mr2", "vitality2"] },
   { faction: "frost", key: "B", name: "bow kiter", weapon: "bow", cards: ["ad2", "haste2", "fleet2"] },
   { faction: "holy", key: "A", name: "lifesteal juggernaut", weapon: "axe", cards: ["leech2", "vitality2", "ad2"] },
@@ -56,6 +58,7 @@ for (const b of pick) {
         const r = playDuel({
           a: seat === 0 ? b.faction : g, b: seat === 0 ? g : b.faction, weapons: [b.weapon, b.weapon], setup, setupIndex: i,
           style: "lock", cap: 200, draw: d, sigma, cards: seat === 0 ? [b.cards, foe] : [foe, b.cards],
+          ...(b.corpses ? { corpses: seat === 0 ? [b.corpses, undefined] as const : [undefined, b.corpses] as const } : {}),
         });
         if (r.winner === seat) w++;
         else if (r.winner === null) w += 0.5;

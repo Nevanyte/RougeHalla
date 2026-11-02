@@ -48,8 +48,8 @@ export function rewardAlpha(left: number): number {
 }
 
 /** The ring's drain as a step count (0..RING_STEPS) for `left` seconds: the ring is redrawn only when it changes. */
-export function ringStep(left: number): number {
-  return Math.max(0, Math.min(RING_STEPS, Math.ceil((left / CHEST_SECONDS) * RING_STEPS)));
+export function ringStep(left: number, lifeSeconds = CHEST_SECONDS): number {
+  return Math.max(0, Math.min(RING_STEPS, Math.ceil((left / lifeSeconds) * RING_STEPS)));
 }
 
 /** Each look's drawing region around the container's ground point. */
@@ -126,7 +126,8 @@ export class ContainerView {
    * local player is close enough to read the seconds, `now` the local clock. Drains the ring, shows the seconds, plays the drop
    * cue once (motion kinds follow the settings: reduced motion keeps a still flash) and fades the chest out at the end.
    */
-  setTimer(c: { x: number; y: number }, left: number, near: boolean, now: number): void {
+  /** `lifeSeconds`: the chest's whole life, which the ring drains over (a kill Trophy's is KILL_AUG_SECONDS). */
+  setTimer(c: { x: number; y: number }, left: number, near: boolean, now: number, lifeSeconds = CHEST_SECONDS): void {
     if (this.kind !== "reward") return;
     if (!this.ground) {
       this.ground = this.scene.add.graphics().setDepth(DEPTH_HIGHLIGHT).setPosition(projX(c.x), projY(c.y)).setScale(1, Y_SCALE);
@@ -141,7 +142,7 @@ export class ContainerView {
     if (this.bornAt < 0) this.bornAt = now;
     const age = now - this.bornAt;
     const cue = age < DROP_CUE_MS;
-    const step = ringStep(left);
+    const step = ringStep(left, lifeSeconds);
     const urgent = left <= URGENT_SECONDS;
     const sig = `${step}|${urgent}|${cue ? Math.floor(age / 16) : -1}`;
     if (sig !== this.groundSig) {

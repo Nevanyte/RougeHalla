@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   BARRIER_DECAY_SHARE_PER_SECOND, BARRIER_MAX_SHARE, barrierCap, CONVERT_AD_AP_CAP, CRIT_CHANCE_MAX, CRIT_MULT, clampBarrier,
   decayBarrier, encodeFlat, FACTIONS, foldedMaxHp, HP_RACE_CAP, hpRaceMult, lifestealFraction, lifestealShare, lifestealTotal, LIFESTEAL_MAX,
-  LS_CAP, MAX_HP_FLOOR_SHARE, MOVE_BONUS_CAP, mitigateShares, OUTGOING_ROW_CAP, PLAYER_SPEED, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor,
+  holyLeechRowsOf, LS_CAP, MAX_HP_FLOOR_SHARE, MOVE_BONUS_CAP, mitigateShares, OUTGOING_ROW_CAP, PLAYER_SPEED, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor,
   SIG_CHILLED, TICK_MS, cardDef, type Effect,
 } from "@raid/shared";
 import { grantBarrier, syncMaxHp } from "../src/sim/buffs";
@@ -708,7 +708,7 @@ describe("G4 from a card: the `hpRace` mult row is the source, not only the test
     expect(raced.dealt, "the Race really doubled the hit").toBeCloseTo(200, 6);
     expect(raced.healed).toBeCloseTo(plain.healed, 6);
     // Race + a lifesteal row: the heal is still the share of the unraced damage
-    expect(run([race(HP_RACE_CAP), { k: "stat", stat: "lifesteal", v: 0.1 }]).healed).toBeCloseTo(100 * lifestealShare(lifestealFraction(FACTIONS.holy, 0.5), 0.1), 6);
+    expect(run([race(HP_RACE_CAP), { k: "stat", stat: "lifesteal", v: 0.1 }]).healed).toBeCloseTo(100 * lifestealShare(lifestealFraction(FACTIONS.holy, 0.5), holyLeechRowsOf(0.1)), 6);
   });
 
   it("feeds no lifesteal with the extra damage it TAKES either: a Holy attacker heals on the hit it would have dealt, not on the holder's x2.5", () => {

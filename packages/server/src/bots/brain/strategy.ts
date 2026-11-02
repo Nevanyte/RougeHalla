@@ -4,10 +4,11 @@
 // HYSTERESIS. Stateful per bot: the avoid list and chase timers of the pursuit-ring breaker, the exclusions after a failure,
 // and the mob hunt (huntAdapter.ts). Pure otherwise: time is the percept's, randomness is `ctx.rng.decide` and `.lapse`.
 import {
-  REGION_WEAPONS, TARGET_RANGE, TILE, feedScore,
+  REGION_WEAPONS, TARGET_RANGE, TILE, feedScore, PLAYER_SPEED, mobTypeById,
   isRanged, rewardCurve, sigmoid,
-  type Vec2, type WeaponId,
+  type CampDef, type MobTypeId, type Vec2, type WeaponId,
 } from "@raid/shared";
+import { BuildRoute, buildOf, readyForElites, typeWeight, type RouteCamp, type RouteStep } from "./buildRoute";
 import { bestEdge, type MobHuntStats } from "../mobHunt";
 import { createHuntAdapter, wantsMobs, type HuntAdapter } from "./huntAdapter";
 import { gaussian, pickOption } from "./random";
@@ -43,7 +44,27 @@ const HOLD_PATIENCE_MS = 12_000;
 const HOLD_PATIENCE_SPAN_MS = 36_000;
 /** What lying low is worth to a bot at the bottom of its hp ramp (it fades to nothing at the re-engage hp). */
 const LIE_LOW_U = 0.18;
-const CAMP_ROAM_FACTOR = 0.7;
+const CAMP_ROAM_FACTOR = 0.6;
+/** The route's next camp is worth this much more than another camp, and a camp off the route this much less. */
+const ROUTE_BOOST = 1.4;
+const OFF_ROUTE = 0.8;
+
+/** The weapon a camp's mobs carry: its published type's, else its zone's (the elite's own is the hunt's to weigh). */
+function campWeapon(camp: CampDef, type: string | undefined): WeaponId {
+  return (type ? mobTypeById(type as MobTypeId)?.weapon : undefined) ?? REGION_WEAPONS[camp.zone];
+}
+
+/** A bot with a bow or a wand can shoot a ranged mob back where it stands instead of chasing it out of its leash. */
+export function carriesRanged(weapons: readonly (WeaponId | null)[]): boolean {
+  return weapons.some((w) => w !== null && isRanged(w));
+}
+
+/** A number in [0, 1) from a bot's seed and id: the build it goes for, the same every replay. */
+function unitHash(seed: number, id: string): number {
+  let h = (seed ^ 0x811c9dc5) >>> 0;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+  return h / 2 ** 32;
+}
 const MAX_UTILITY = 1.3;
 
 const FLEE_NEAR = 360;
@@ -82,8 +103,8 @@ const EVADE_U = 0.9;
  * is still taken) at the start of the raid, falling to nothing by OPENING_MS. Without it the first kills came at 11 s, before any
  * camp was touched (docs/BOTS_TUNING.md 0).
  */
-const OPENING_LOGIT = 3.5;
-const OPENING_MS = 60_000;
+const OPENING_LOGIT = 4.5;
+const OPENING_MS = 240_000;
 /** The opening's restraint fades out as the patience timer runs under OPENING_TIMER_FREE_MS + OPENING_TIMER_SPAN_MS and is gone at the first. */
 const OPENING_TIMER_FREE_MS = 20_000;
 const OPENING_TIMER_SPAN_MS = 60_000;
@@ -136,6 +157,8 @@ export interface Strategy extends StrategyLayer {
   readonly state: StrategyState;
   /** The mob hunt's counters (BrainStats.mobTargets, mobDrops, retreats, mobFocusMs). Zeros before the first decision. */
   readonly huntStats: MobHuntStats;
+  /** The build this bot farms for and its planned camps (buildRoute.ts); null until it knows its faction. */
+  readonly plan: { build: string; route: readonly RouteStep[]; contests: number } | null;
   /** The mob the hunt is on, if any (null once the strategy chose something else). */
   readonly huntTarget: string | null;
   /** Awake mobs near a point, for tactics' pickup rule. Empty before the first decision. */
@@ -193,8 +216,16 @@ class StrategyImpl implements Strategy {
   /** The misjudgement (a standard normal draw) of each foe, and when it is drawn afresh. */
   private readonly judged = new Map<FighterId, { until: ServerMs; z: number }>();
   private last: readonly GoalDecision[] = [];
+  /** The build this bot farms for and its camp route (buildRoute.ts); null until it knows its faction. */
+  private route: BuildRoute | null = null;
+  private routeNext: RouteStep | null = null;
 
   constructor(private readonly opts: StrategyOptions) {}
+
+  /** The build and the planned route, for the logs and the tests. */
+  get plan(): { build: string; route: readonly RouteStep[]; contests: number } | null {
+    return this.route ? { build: this.route.build.id, route: this.route.route, contests: this.route.stats.contests } : null;
+  }
 
   get state(): StrategyState {
     return { avoidId: this.avoidId, avoidUntil: this.avoidUntil, chase: this.chase, goalSince: this.goalSince, candidates: this.last };
@@ -223,7 +254,10 @@ class StrategyImpl implements Strategy {
     const adapter = this.adapter;
     this.sync(current, now);
     this.settle(current, status, now);
-    const hunt = adapter.decide(ctx);
+    this.planRoute(ctx);
+    const build = this.route?.build;
+    const hunt = adapter.decide(ctx, build ? (type) => typeWeight(build, type) : undefined,
+      build ? readyForElites({ runMs: now - p.hud.raidStartedAt, mobKills: p.self.mobKills, power: p.self.power }) : undefined);
     const enemies = enemiesOf(ctx);
     this.refreshAvoid(ctx, enemies);
     this.trackChase(ctx, current, enemies);
@@ -448,7 +482,7 @@ class StrategyImpl implements Strategy {
     const m = mem.mobs.get(mobId);
     const persona = cfg.persona;
     const reward = rewardCurve(feedScore(me.kills, me.mobKills));
-    let base = persona.pve * (0.35 + 0.5 * reward);
+    let base = persona.pve * (0.5 + 0.4 * reward);
     if (m?.kind === "elite") base *= 0.55 + 0.45 * persona.eliteAppetite;
     const first = me.mobKills === 0 && !mem.choices.some((k) => k.startsWith("opener|"));
     const choice = first && me.faction !== null && m?.faction ? (`opener|${me.faction}|${m.faction}` as ChoiceKey) : undefined;
@@ -532,7 +566,7 @@ class StrategyImpl implements Strategy {
     let best: Cand | null = null;
     for (const e of enemies) {
       if (e.visible || e.age <= REMEMBERED_HUNT_MS || e.dist < ARRIVED) continue;
-      if (e.bounty <= 0 && persona.pvp < 0.7) continue;
+      if (persona.pvp < 0.9) continue;
       const u = Math.min(HUNT_CAP, 0.45 * persona.bounty * clamp01(e.bounty / BOUNTY_FULL) + 0.15 * persona.pvp);
       const c = this.scored(ctx, { kind: "roam", to: e.pos, why: "lastSeen" }, u, `${e.id} last seen ${Math.round(e.age / 1000)} s ago`);
       if (!best || c.utility > best.utility) best = c;
@@ -624,17 +658,25 @@ class StrategyImpl implements Strategy {
     if (me.maxHp > 0 && me.hp / me.maxHp < Math.max(0.5, persona.fleeHp + 0.05)) return [];
     const first = !mem.choices.some((k) => k.startsWith("opener|"));
     const near = cfg.map.camps
-      .map((camp) => ({ camp, d: dist(me, camp) }))
+      .map((camp, index) => ({ camp, index, d: dist(me, camp) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, cfg.tier.route.horizon);
+    // The route's next camp is always a candidate, however far: the bot is going there for its build.
+    const planned = this.routeNext?.camp ?? -1;
+    if (planned >= 0 && !near.some((n) => n.index === planned)) {
+      const camp = cfg.map.camps[planned];
+      if (camp) near.push({ camp, index: planned, d: dist(me, camp) });
+    }
     const out: Cand[] = [];
     let walks = 0;
-    for (const { camp, d } of near) {
+    for (const { camp, index, d } of near) {
       const cm = mem.camps.get(camp.id);
-      if (cm?.clearedAt != null) continue;
+      const onRoute = index === planned;
+      // A cleared camp is a walk only when the route plans to be there for its respawn.
+      if (cm?.clearedAt != null && !onRoute) continue;
       const elite = camp.eliteSpot >= 0;
-      const theirs = REGION_WEAPONS[camp.zone];
-      if (isRanged(theirs) || bestEdge(me.weapons, theirs) <= -2 || (elite && bestEdge(me.weapons, theirs) < 0)) continue; // the hunt never takes these
+      const theirs = campWeapon(camp, p.extras.camps?.find((c) => c.index === index)?.type);
+      if ((isRanged(theirs) && !carriesRanged(me.weapons)) || bestEdge(me.weapons, theirs) <= -2 || (elite && bestEdge(me.weapons, theirs) < 0)) continue; // the hunt never takes these
       if (d < camp.r) continue; // standing in it: whatever the hunt would take, it takes from here
       const share = know.mobShare(me.faction, camp.zone, elite);
       if (share < (elite ? 0.6 : 0.5)) continue;
@@ -648,11 +690,46 @@ class StrategyImpl implements Strategy {
       let u = persona.pve * CAMP_ROAM_FACTOR * value;
       if (elite) u *= 0.55 + 0.45 * persona.eliteAppetite;
       if (cm?.contestedAt != null && p.now - cm.contestedAt < 20_000) u *= 0.7;
+      // The build's route: its next camp first, the camps it does not plan for less.
+      if (this.route) u *= onRoute ? ROUTE_BOOST : OFF_ROUTE;
       const why: RoamWhy = cm?.visitedAt == null ? "explore" : "camp";
       const choice = first ? (`opener|${me.faction}|${camp.zone}` as ChoiceKey) : undefined;
       out.push(this.scored(ctx, { kind: "roam", to: { x: camp.x, y: camp.y }, why }, u, `${camp.id} (${camp.zone}), share ${share.toFixed(2)}`, choice));
     }
     return out.sort((a, b) => b.utility - a.utility).slice(0, 2);
+  }
+
+  /** The build's route (buildRoute.ts): drawn once, planned from the public camp state, made again when it is contested. */
+  private planRoute(ctx: BrainContext): void {
+    const { p, cfg, know } = ctx;
+    const me = p.self;
+    const views = p.extras.camps;
+    if (me.faction === null || p.hud.inColiseum || !views || views.length === 0) { this.routeNext = null; return; }
+    if (!this.route || !this.route.build.id.startsWith(`${me.faction}:`)) this.route = new BuildRoute(buildOf(me.faction, unitHash(cfg.seed, cfg.id)));
+    const faction = me.faction;
+    const camps: RouteCamp[] = [];
+    for (const v of views) {
+      const def = cfg.map.camps[v.index];
+      if (!def) continue;
+      camps.push({
+        index: v.index, id: def.id, zone: def.zone, x: def.x, y: def.y, r: def.r, elite: def.eliteSpot >= 0, spots: def.spots.length,
+        type: (mobTypeById(v.type as MobTypeId)?.id ?? "") as MobTypeId | "", alive: v.alive, state: v.state, respawnAt: v.respawnAt ?? 0,
+      });
+    }
+    const players: Vec2[] = [];
+    for (const f of p.fighters) if (f.status === "alive") players.push({ x: f.x, y: f.y });
+    this.routeNext = this.route.update({
+      now: p.now, runMs: p.now - p.hud.raidStartedAt, self: me, speed: PLAYER_SPEED * (me.speedMult > 0 ? me.speedMult : 1),
+      mobKills: me.mobKills, power: me.power, camps, players,
+      canFarm: (c) => {
+        const def = cfg.map.camps[c.index]!;
+        const theirs = campWeapon(def, c.type || undefined);
+        if (isRanged(theirs) && !carriesRanged(me.weapons)) return false;
+        const edge = bestEdge(me.weapons, theirs);
+        if (edge <= -2 || (c.elite && edge < 0)) return false;
+        return know.mobShare(faction, c.zone, c.elite) >= (c.elite ? 0.6 : 0.5);
+      },
+    });
   }
 
   /** The patience timer is about to teleport everyone: drift toward the coliseum. */
@@ -684,7 +761,7 @@ class StrategyImpl implements Strategy {
     if (!best) return null;
     // A hurt bot does not go looking for people (lieLow); a healthy one with nothing to do walks to the camp it saw longest ago.
     return this.scored(ctx, { kind: "roam", to: { x: best.camp.x, y: best.camp.y }, why: "explore" },
-      (PATROL_U + 0.06 * cfg.persona.pvp) * this.healthy(ctx), `looking for people at ${best.id}`);
+      PATROL_U * this.healthy(ctx), `looking for people at ${best.id}`);
   }
 
   /** 0.15..1: 1 from the persona's re-engage hp up, 0.15 at its flee hp and below (the same ramp the hunts use). */

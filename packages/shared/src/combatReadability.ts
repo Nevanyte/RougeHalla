@@ -3,6 +3,8 @@ import { mobStatRows, type MobStatCounts } from "./mobStats";
 import { FACTIONS, damageShares, isFactionId, pacedFaction, type DamageShares } from "./factions";
 import { decodeMirrors, type WireMirrors } from "./mods";
 import { pvpFactor } from "./rules";
+import { AS_MULT_CAP, MOVE_BONUS_CAP } from "./constants";
+import { chestBoostGain, chestBoostPicks, type ChestBoostCounts } from "./chestBoosts";
 import { holyCampLifestealOf } from "./championPassives";
 import { attackInterval, damagePerHit, isWeaponId, scalingDamage, type WeaponId } from "./weapons";
 
@@ -35,7 +37,7 @@ export type ReadableFighter = WireMirrors & {
   build?: CardCounts | null;
   mobStats?: MobStatCounts;
   /** Stats taken through kill augments (killAugments.ts). */
-  extra?: { killStats?: MobStatCounts };
+  extra?: { killStats?: MobStatCounts; chestBoosts?: ChestBoostCounts };
   campClears?: number;
 };
 
@@ -84,7 +86,11 @@ export function weaponDamageShares(p: ReadableFighter, weaponId: string): Damage
 }
 
 /** A short, card-based build summary; no current HP, bounty, matchup, or hidden-state data affects the strength glow. */
-export function combatReadability(p: ReadableFighter): CombatReadability {
+/**
+ * `lasting`: score attack and move speed from the lasting investments only (a kill Trophy's roll), not the live mirrors, which also
+ * carry a `while` row, a status or the gain half of a trade-off augment. The display (the roster, the overhead icons) shows the mirrors.
+ */
+export function combatReadability(p: ReadableFighter, opts: { lasting?: boolean } = {}): CombatReadability {
   const powerPoints = cardPower(p.build);
   const baseline = pvpFactor(0);
   const factor = pvpFactor(powerPoints);
@@ -103,10 +109,11 @@ export function combatReadability(p: ReadableFighter): CombatReadability {
     ap: m.apBonus / 12,
     damage: genericDamage / 0.01,
     health: baseHp > 0 ? Math.max(0, p.maxHp / baseHp - 1) / 0.09 : 0,
-    attackSpeed: Math.max(0, m.asMult - 1) / 0.09,
+    // Never past what the mirror shows; for a Trophy (`lasting`) never past the lasting investments either.
+    attackSpeed: (opts.lasting ? Math.min(Math.max(0, m.asMult - 1), permanentStat(p, "attackSpeed", AS_MULT_CAP - 1)) : Math.max(0, m.asMult - 1)) / 0.09,
     armor: Math.max(0, m.armorBonus) / 15,
     mr: Math.max(0, m.shieldBonus) / 15,
-    speed: Math.max(0, m.speedMult - 1) / 0.06,
+    speed: (opts.lasting ? Math.min(Math.max(0, m.speedMult - 1), permanentStat(p, "moveSpeed", MOVE_BONUS_CAP)) : Math.max(0, m.speedMult - 1)) / 0.06,
     leech: bonusLeech / 0.05,
   };
   const investedStats = (Object.entries(scores) as Array<[InvestedStatKey, number]>)
@@ -126,6 +133,24 @@ function cardLeech(build: CardCounts | null | undefined, faction: string, mobSta
   let farm = faction === "holy" ? holyCampLifestealOf(campClears) : 0;
   for (const e of mobStatRows(mobStats)) if (e.k === "stat" && e.stat === "lifesteal") farm += e.v;
   return Math.max(0, Math.min(0.25, rows)) + Math.max(0, farm);
+}
+
+/**
+ * A stat's lasting bonus: base stat cards (held to `cardCap`), earned mob stats, kill Trophies and stat-chest boosts. Augments
+ * (rules, often bought with a cost) and conditional cards (true only sometimes) are left out.
+ */
+function permanentStat(p: ReadableFighter, stat: "attackSpeed" | "moveSpeed", cardCap: number): number {
+  let cards = 0;
+  for (const { def, count } of ownedCards(p.build)) {
+    if (def.kind !== "base") continue;
+    // Fleet's row is a `while notShooting` (a pause after a shot, not a state): a base card's rows are all lasting.
+    for (const e of cardRows(def.id, p.faction)) if ((e.k === "stat" || e.k === "while") && e.stat === stat) cards += e.v * count;
+  }
+  let earned = killStat(p.extra?.killStats, stat);
+  for (const e of mobStatRows(p.mobStats)) if (e.k === "stat" && e.stat === stat) earned += e.v;
+  const base = Math.max(0, Math.min(cardCap, cards)) + Math.max(0, earned);
+  const picks = chestBoostPicks(p.extra?.chestBoosts)[stat] ?? 0;
+  return base + (picks > 0 ? chestBoostGain(stat, picks, base) : 0);
 }
 
 function killStat(stats: MobStatCounts, key: string): number {

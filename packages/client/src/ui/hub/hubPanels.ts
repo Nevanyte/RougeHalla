@@ -122,7 +122,7 @@ export class HubPanels {
     return this.opened;
   }
 
-  /** The faction picked on the menu (null for none yet). The Counters tab highlights it and its signature weapon. */
+  /** The faction picked on the menu (null for none yet), used by the champion guide. */
   setPick(pick: { faction: FactionId | null }): void {
     this.pick = { faction: pick.faction };
     this.wheel.setPick(this.pick);

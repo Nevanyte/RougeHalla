@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  mapFromTiles, mulberry32, REGION_COLISEUM, TARGET_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, VISION_RADIUS, VISION_TRAIL_MS,
+  mapFromTiles, mulberry32, REGION_COLISEUM, setSlotReadyAt, TARGET_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, VISION_RADIUS, VISION_TRAIL_MS,
   type CampDef, type FactionId, type GameMap, type Vec2,
 } from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
@@ -32,14 +32,14 @@ function arenaMap(withWard = false): GameMap {
   return { ...mapFromTiles(W, H, tiles, 71), spawns, camps };
 }
 
-function world(options: { ward?: boolean; training?: boolean } = {}): World {
+function world(options: { ward?: boolean; training?: boolean; rand?: number } = {}): World {
   const w = createGameWorld({
     seed: 71,
     config: {
       minPlayers: 3, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
       suddenDeathSeconds: 3600, mobs: false, training: options.training,
     },
-    random: mulberry32(72), map: arenaMap(options.ward),
+    random: mulberry32(options.rand ?? 72), map: arenaMap(options.ward),
   }, { signatures: false });
   (["plague", "frost", "holy"] as FactionId[]).forEach((faction, i) => {
     const player = addPlayer(w, `p${i}`, `player${i}`, { faction });
@@ -152,8 +152,8 @@ describe("server visibility for target validation", () => {
 });
 
 describe("bush concealment", () => {
-  function bushWorld(): World {
-    const w = world();
+  function bushWorld(rand?: number): World {
+    const w = world({ rand });
     const m = w.map;
     m.features = [{ kind: "bush", variant: "", zone: "fire", jobs: ["cover"], ax: 22, ay: 2, p: [0, 0], bbox: { x: 22, y: 2, w: 3, h: 3 }, tiles: 9 }];
     m.featureGrid = new Uint8Array(m.w * m.h);
@@ -181,5 +181,24 @@ describe("bush concealment", () => {
     expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(false);
     foe.extra.bushRevealUntil = w.state.serverTime + 500;
     expect(canPlayerSeeActor(w, "p0", "p1", foe)).toBe(true);
+  });
+
+  it("a cast exposes its bush caster at the next abilities phase, whatever the tick's order", () => {
+    for (let rand = 1; rand <= 12; rand++) {
+      const w = bushWorld(rand);
+      place(w, 1, at(10, 30));
+      place(w, 2, at(23, 3)); // Holy: Last Stand is a self cast
+      place(w, 0, at(23, 12));
+      const caster = w.state.players.get("p2")!;
+      setSlotReadyAt(caster, "wish", 0);
+      expect(enqueueClientMessage(w.players.get("p2")!.inputs, "cast", { slot: "wish", x: caster.x, y: caster.y })).toBe(true);
+      target(w, "p2");
+      step(w, TICK_MS);
+      expect(w.state.players.get("p0")!.attackTarget).toBe("");
+      expect(caster.extra.bushRevealUntil).toBeGreaterThan(w.state.serverTime);
+      target(w, "p2");
+      step(w, TICK_MS);
+      expect(w.state.players.get("p0")!.attackTarget).toBe("p2");
+    }
   });
 });

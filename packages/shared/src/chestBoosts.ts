@@ -15,18 +15,20 @@ export interface ChestBoostDef {
   title: string;
   /** The amount the multiplier is taken of when the stat's bonus is smaller (points, or a fraction). */
   floor: number;
+  /** The most one pick can add (same unit): under a tier-I base card, so a boost never outgrows the card or an augment late in a run. */
+  ceiling: number;
   text: string;
 }
 
 export const CHEST_BOOST_DEFS: Readonly<Record<ChestBoostStat, ChestBoostDef>> = {
-  ad: { title: "Offense", floor: 25, text: "Offense x1.2 (at least +5)" },
-  ap: { title: "Soul Offence", floor: 25, text: "Soul Offence x1.2 (at least +5)" },
-  armor: { title: "Defense", floor: 40, text: "Defense bonus x1.2 (at least +8)" },
-  shield: { title: "Soul Defense", floor: 40, text: "Soul Defense bonus x1.2 (at least +8)" },
-  maxHp: { title: "Max HP", floor: 0.15, text: "Bonus max HP x1.2 (at least +3%)" },
-  attackSpeed: { title: "Attack Speed", floor: 0.15, text: "Bonus attack speed x1.2 (at least +3%)" },
-  moveSpeed: { title: "Move Speed", floor: 0.06, text: "Bonus move speed x1.2 (at least +1.2%)" },
-  lifesteal: { title: "Leech", floor: 0.05, text: "Bonus leech x1.2 (at least +1%)" },
+  ad: { title: "Offense", floor: 25, ceiling: 9, text: "Offense x1.2 (at least +5, at most +9)" },
+  ap: { title: "Soul Offence", floor: 25, ceiling: 9, text: "Soul Offence x1.2 (at least +5, at most +9)" },
+  armor: { title: "Defense", floor: 40, ceiling: 11, text: "Defense bonus x1.2 (at least +8, at most +11)" },
+  shield: { title: "Soul Defense", floor: 40, ceiling: 11, text: "Soul Defense bonus x1.2 (at least +8, at most +11)" },
+  maxHp: { title: "Max HP", floor: 0.15, ceiling: 0.065, text: "Bonus max HP x1.2 (at least +3%, at most +6.5%)" },
+  attackSpeed: { title: "Attack Speed", floor: 0.15, ceiling: 0.065, text: "Bonus attack speed x1.2 (at least +3%, at most +6.5%)" },
+  moveSpeed: { title: "Move Speed", floor: 0.06, ceiling: 0.04, text: "Bonus move speed x1.2 (at least +1.2%, at most +4%)" },
+  lifesteal: { title: "Leech", floor: 0.05, ceiling: 0.035, text: "Bonus leech x1.2 (at least +1%, at most +3.5%)" },
 };
 
 export const chestBoostId = (stat: ChestBoostStat): string => `${CHEST_BOOST_PREFIX}${stat}`;
@@ -41,16 +43,23 @@ export const isChestBoostId = (id: string): boolean => chestBoostStat(id) !== nu
 
 /** The fraction a stat gains from `picks` boosts: +20%, +36%, +48.8%, then nothing more. */
 export function chestBoostBonus(picks: number): number {
-  const n = Math.min(CHEST_BOOST_MAX_PICKS, Math.max(0, Math.floor(Number.isFinite(picks) ? picks : 0)));
+  const n = countedPicks(picks);
   let total = 0;
   let step = CHEST_BOOST_STEP;
   for (let i = 0; i < n; i++) { total += step; step *= CHEST_BOOST_DECAY; }
   return total;
 }
 
-/** What `picks` boosts add to a stat whose bonus is `current` (same unit): the multiplied part, taken of at least the floor. */
+/** The picks that count: whole, at most CHEST_BOOST_MAX_PICKS. */
+const countedPicks = (picks: number): number => Math.min(CHEST_BOOST_MAX_PICKS, Math.max(0, Math.floor(Number.isFinite(picks) ? picks : 0)));
+
+/**
+ * What `picks` boosts add to a stat whose bonus is `current` (same unit, read AFTER that stat's caps): the multiplied part, taken of
+ * at least the floor, and never more than the def's ceiling per pick.
+ */
 export function chestBoostGain(stat: ChestBoostStat, picks: number, current: number): number {
-  return chestBoostBonus(picks) * Math.max(current, CHEST_BOOST_DEFS[stat].floor);
+  const def = CHEST_BOOST_DEFS[stat];
+  return Math.min(chestBoostBonus(picks) * Math.max(current, def.floor), def.ceiling * countedPicks(picks));
 }
 
 export type ChestBoostCounts = { forEach(cb: (value: number, key: string) => void): void } | null | undefined;

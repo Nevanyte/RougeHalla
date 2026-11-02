@@ -99,7 +99,7 @@ const STATIONS: HubStation[] = [
   kiosk("achievements", "ACHIEVEMENTS", "Achievements", 0xffd54f, 308),
   kiosk("leaderboard", "LEADERBOARD", "Leaderboard", 0x00acc1, 412),
   {
-    id: "counters", kind: "decal", label: "COUNTER WHEEL", verb: "Counter wheel", key: "E",
+    id: "counters", kind: "decal", label: "WEAPON COUNTERS", verb: "Weapon counters", key: "E",
     x: CX, y: H / 2, w: 440, h: 160, stand: { x: CX, y: H / 2 }, color: 0xffe082,
   },
   ...pedestals(),

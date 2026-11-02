@@ -3,7 +3,7 @@
 // a layout of the older 96 x 96 map, not the 40 of a zone-shapes one); the DOM side is in planning.test.ts.
 import { describe, expect, it } from "vitest";
 import {
-  campBoxes, campMarkerPx, chipSizePx, crowdedChips, glyphScale, labelSizePx, placeLabels, zoneJump, type CampSpot, type PxBox,
+  campBoxes, campMarkerPx, chipSizePx, crowdedChips, glyphScale, labelSizePx, placeLabels, tabMapLayout, zoneJump, type CampSpot, type PxBox,
 } from "../src/ui/planningMath";
 
 const meet = (a: PxBox, b: PxBox): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -23,6 +23,28 @@ function scatter(size: number, count: number, gap: number): CampSpot[] {
 }
 
 describe("sizes", () => {
+  it("centres the Tab map between equal side reservations and keeps desktop sizing generous", () => {
+    const layout = tabMapLayout(1920, 1080);
+    expect(layout.stacked).toBe(false);
+    expect(layout.map).toBe(820);
+    expect(layout.map + 2 * (Math.max(layout.roster, layout.rail) + layout.gap) + 24).toBeLessThanOrEqual(1920);
+  });
+
+  it("uses a compact stacked layout on narrow stages without letting side panels overlap the map", () => {
+    const layout = tabMapLayout(720, 680);
+    expect(layout.stacked).toBe(true);
+    expect(layout.map).toBeLessThanOrEqual(696);
+    expect(layout.map).toBeGreaterThanOrEqual(160);
+  });
+
+  it.each([1, 1.25, 1.5])("reserves footer space at text scale %s after fullscreen or a resize", (scale) => {
+    for (const [width, height] of [[1280, 800], [1422, 800], [1707, 720], [1000, 750]]) {
+      const layout = tabMapLayout(width!, height!, scale);
+      expect(layout.map + Math.ceil(96 * scale)).toBeLessThanOrEqual(height!);
+      expect(layout.map + 2 * (Math.max(layout.roster, layout.rail) + layout.gap) + 24).toBeLessThanOrEqual(width!);
+    }
+  });
+
   it("scales the marks with the map's side, within bounds (the number planning.ts writes as --pl-glyph)", () => {
     expect(glyphScale(640)).toBe(1);
     expect(glyphScale(100)).toBe(0.55);

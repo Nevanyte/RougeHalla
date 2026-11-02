@@ -9,7 +9,9 @@ import {
   fireRoamBurstDamage, fireRoamSpeedMult, markPct, markWeight, ownedCards, pacedFaction, scalingDamage, WIRE_IDENTITY_MIRRORS,
   WEAPONS, wishOf, holyCampLifestealOf, HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS,
   FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP, holyApLifestealOf,
-  MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
+  FIRE_BURN_AD_RATIO, FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, frostChillBonusOf, HOLY_LEECH_ROW_MULT,
+  PLAGUE_AP_DOT_RATIO, PLAGUE_DISEASE_DEFENSE_CAP, PLAGUE_DISEASE_PER_DEFENSE, plagueDiseaseMultOf,
+  MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AP_SHARE, PLAGUE_ZOMBIE_HIT_CAP_SHARE, PLAGUE_ZOMBIE_HP_PER_DEFENSE,
   PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND, PLAGUE_ZOMBIE_GROWTH_PER_BODY,
   PLAGUE_ZOMBIE_INTERVAL_MS, plagueZombieStats, sentencedHuntMarkMultiplier,
 } from "@raid/shared";
@@ -142,12 +144,13 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
     case "fire": {
       const burnBase = faction.params.burn! * bm;
       const burnAp = AP_DOT_RATIO * mirrors.apBonus;
-      const burn = (burnBase + burnAp) * dotMult;
+      const burnAd = FIRE_BURN_AD_RATIO * mirrors.adBonus;
+      const burn = (burnBase + burnAp + burnAd) * dotMult;
       const backlashTank = 1 + FIRE_BACKLASH_PER_DEFENSE * (Math.max(0, mirrors.armorBonus) + mirrors.shieldBonus);
       return {
         id: "passive", icon: "magic", name: "Dragonslayer", value: `${fmt(burn)} magic/s`,
-        scaling: `SO adds ${fmt(AP_DOT_RATIO)} magic DPS/point · DoT ×${fmt(dotMult)}`,
-        tooltip: `While trading, burn deals ${fmt(burn)} magic DPS: ${fmt(burnBase)} from your faction plus ${fmt(burnAp)} from SO (${fmt(AP_DOT_RATIO)} per SO), including the ${fmt(dotMult)}× DoT multiplier. `
+        scaling: `SO adds ${fmt(AP_DOT_RATIO)}, Offense ${fmt(FIRE_BURN_AD_RATIO)} magic DPS/point · DoT ×${fmt(dotMult)}`,
+        tooltip: `While trading, burn deals ${fmt(burn)} magic DPS: ${fmt(burnBase)} from your faction plus ${fmt(burnAp)} from SO (${fmt(AP_DOT_RATIO)} per SO) and ${fmt(burnAd)} from Offense (${fmt(FIRE_BURN_AD_RATIO)} per Offense), including the ${fmt(dotMult)}× DoT multiplier. `
           + `Engaged enemies also take physical backlash per swing: ${fmt(faction.params.backlash! * bm * returnedMult * backlashTank)} × their unbuffed weapon interval (about that much per second of their attacks), +${fmt(FIRE_BACKLASH_PER_DEFENSE * 100)}% per point of bonus Defense + SD.`,
       };
     }
@@ -174,9 +177,11 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
     case "plague": {
       const band = Math.min(1, Math.max(0, EXECUTE_BAND + executeBandBonus));
       const stacks = Math.max(0, safe(input.corpseStacks, 0));
-      const disease = (faction.params.plague! * bm + AP_DOT_RATIO * mirrors.apBonus) * dotMult;
+      const bonusDefense = Math.max(0, mirrors.armorBonus) + mirrors.shieldBonus;
+      const diseaseMult = plagueDiseaseMultOf(bonusDefense);
+      const disease = (faction.params.plague! * bm * diseaseMult + PLAGUE_AP_DOT_RATIO * mirrors.apBonus) * dotMult;
       const zombie = plagueZombieStats(safe(input.maxHp, faction.hp), stacks, {
-        bonusDefense: Math.max(0, mirrors.armorBonus) + mirrors.shieldBonus, ap: mirrors.apBonus,
+        bonusDefense, ap: mirrors.apBonus,
       });
       const zombieStatus = stacks === 0 ? "Walk over a body: raise zombie"
         : input.zombieAlive === false ? "Zombie fallen · walk over a body to revive"
@@ -184,18 +189,22 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       return {
         id: "passive", icon: "magic", name: "Rat King", value: `${fmt(disease)} magic/s`,
         scaling: zombieStatus,
-        tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(AP_DOT_RATIO * dotMult)} magic DPS per point. `
+        tooltip: `While trading, disease deals ${fmt(disease)} magic DPS, with SO adding ${fmt(PLAGUE_AP_DOT_RATIO * dotMult)} magic DPS per point. `
+          + `Every point of bonus Defense + SD thickens the disease by ${fmt(PLAGUE_DISEASE_PER_DEFENSE * 100)}% (at most +${fmt(PLAGUE_DISEASE_DEFENSE_CAP * 100)}%; now ×${fmt(diseaseMult)}). `
           + `Walk over a dead player's body to raise one zombie. It assists your current enemy and follows you otherwise. Each body grants you ${fmt(PLAGUE_CORPSE_HP_SHARE * 100)}% base max HP and increases the zombie's max HP. `
-          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first; its health also grows ${fmt(PLAGUE_ZOMBIE_HP_PER_DEFENSE * 100)}% per point of your bonus Defense + SD, and each hit adds ${fmt(PLAGUE_ZOMBIE_AP_SHARE)}× your SO. At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. It regenerates ${fmt(PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND * 100)}% of its max HP per second, a quarter as fast just after being hit. Another body revives a fallen zombie with its accumulated growth. `
+          + `Zombie health is ${fmt(PLAGUE_ZOMBIE_HP_SHARE * 100)}% of your current max HP and its physical hit is ${fmt(PLAGUE_ZOMBIE_HIT_SHARE * 100)}% of your current max HP, both multiplied by 1 + ${fmt(PLAGUE_ZOMBIE_GROWTH_PER_BODY * 100)}% per body after the first; its health also grows ${fmt(PLAGUE_ZOMBIE_HP_PER_DEFENSE * 100)}% per point of your bonus Defense + SD, and each hit adds ${fmt(PLAGUE_ZOMBIE_AP_SHARE)}× your SO (up to ${fmt(PLAGUE_ZOMBIE_HIT_CAP_SHARE * 100)}% of your max HP a hit). At your current growth that is ${fmt(zombie.maxHp)} max HP and ${fmt(zombie.damage)} raw physical damage every ${fmt(PLAGUE_ZOMBIE_INTERVAL_MS / 1000)}s, before defenses and PvP scaling. It regenerates ${fmt(PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND * 100)}% of its max HP per second, a quarter as fast just after being hit. Another body revives a fallen zombie with its accumulated growth. `
           + `Below ${fmt(band * 100)}% target HP, execute adds ${fmt(faction.params.execute! * bm * dotMult)} × (${fmt(band)} − target HP fraction) magic DPS. Disease and execute include the ${fmt(dotMult)}× DoT multiplier; corpse growth strengthens the zombie rather than these effects.`,
       };
     }
-    case "frost":
+    case "frost": {
+      const chillAs = decodeMirrors({ ...WIRE_IDENTITY_MIRRORS, asMult: safe(input.asMult, WIRE_IDENTITY_MIRRORS.asMult) }).asMult;
+      const slow = faction.params.slow! + frostChillBonusOf(mirrors.shieldBonus, Math.max(0, chillAs - 1));
       return {
-        id: "passive", icon: "attackSpeed", name: "Ice wall", value: `${fmt(faction.params.slow! * 100)}% AS · ${fmt((1 - CHILL_MOVE_MULT) * 100)}% MS slow`,
+        id: "passive", icon: "attackSpeed", name: "Ice wall", value: `${fmt(slow * 100)}% AS · ${fmt((1 - CHILL_MOVE_MULT) * 100)}% MS slow`,
         scaling: `Frozen Justice: +${FROST_ELITE_GUARD_BONUS} Defense/SD · ${input.frostEliteGuard ? "ACTIVE" : "elite fights"}`,
-        tooltip: `While engaged, Frost slows everything an enemy deals by ${fmt(faction.params.slow! * 100)}%: its attack cooldowns and its damage over time. Nearby enemies also move at ${fmt(CHILL_MOVE_MULT * 100)}% speed briefly, then thaw over 3 seconds; your bow or wand hits slow a target's walk to ${fmt(FROST_RANGED_CHILL_MULT * 100)}% for ${fmt(FROST_RANGED_CHILL_MS / 1000)} s at any range. Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} Defense and Soul Defense while fighting elites, lingering for 2 seconds after contact. This passive deals no damage and does not scale with Offense or SO.`,
+        tooltip: `While engaged, Frost slows everything an enemy deals by ${fmt(slow * 100)}%: its attack cooldowns and its damage over time. The base ${fmt(faction.params.slow! * 100)}% deepens by ${fmt(FROST_CHILL_PER_SD * 100)}% per bonus SD point and ${fmt(FROST_CHILL_PER_ATTACK_SPEED * 10)}% per +10% bonus attack speed, at most +${fmt(FROST_CHILL_BONUS_CAP * 100)}%. Nearby enemies also move at ${fmt(CHILL_MOVE_MULT * 100)}% speed briefly, then thaw over 3 seconds; your bow or wand hits slow a target's walk to ${fmt(FROST_RANGED_CHILL_MULT * 100)}% for ${fmt(FROST_RANGED_CHILL_MS / 1000)} s at any range. Frozen Justice grants +${FROST_ELITE_GUARD_BONUS} Defense and Soul Defense while fighting elites, lingering for 2 seconds after contact. This passive deals no damage and does not scale with Offense or SO.`,
       };
+    }
     case "holy": {
       const hpFrac = input.maxHp && input.maxHp > 0 ? Math.max(0, Math.min(1, safe(input.hp, input.maxHp) / input.maxHp)) : 1;
       const apLeech = holyApLifestealOf(mirrors.apBonus);
@@ -205,7 +214,7 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
       return {
         id: "passive", icon: "leech", name: "Radiant", value: `${fmt((share + campLeech) * 100)}% life steal`,
         scaling: `${fmt(camps)} camps · +${fmt(campLeech * 100)}% earned leech`,
-        tooltip: `Heal for ${fmt((share + campLeech) * 100)}% of post-mitigation damage dealt at your current health (${fmt(hpFrac * 100)}% HP), before card and mob leech. The faction share is ${fmt(faction.params.ls0! * 100)}% plus ${fmt(faction.params.ls1! * 100)}% times missing health, capped at ${fmt(faction.params.ls_cap! * 100)}%, plus ${fmt(HOLY_LIFESTEAL_PER_AP * 100)}% per SO point (now +${fmt(apLeech * 100)}%, at most +${fmt(HOLY_AP_LIFESTEAL_CAP * 100)}%). Each eligible camp clear adds ${fmt(HOLY_CAMP_LIFESTEAL_PER_CLEAR * 100)}% permanent lifesteal without a farming cap. Bloodthirst also doubles that earned bonus below half health.`,
+        tooltip: `Heal for ${fmt((share + campLeech) * 100)}% of post-mitigation damage dealt at your current health (${fmt(hpFrac * 100)}% HP), before card and mob leech. The faction share is ${fmt(faction.params.ls0! * 100)}% plus ${fmt(faction.params.ls1! * 100)}% times missing health, capped at ${fmt(faction.params.ls_cap! * 100)}%, plus ${fmt(HOLY_LIFESTEAL_PER_AP * 100)}% per SO point (now +${fmt(apLeech * 100)}%, at most +${fmt(HOLY_AP_LIFESTEAL_CAP * 100)}%). Your card leech counts ${fmt(HOLY_LEECH_ROW_MULT)}× (still capped). Each eligible camp clear adds ${fmt(HOLY_CAMP_LIFESTEAL_PER_CLEAR * 100)}% permanent lifesteal without a farming cap. Bloodthirst also doubles that earned bonus below half health.`,
       };
     }
   }

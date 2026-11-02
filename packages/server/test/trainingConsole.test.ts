@@ -740,6 +740,7 @@ describe("the console never makes the training room record anything", () => {
       train(w, { cmd: "chest", options: ["gambler"] }, GAP_TICKS);
       if (trainingOff) w.config = { ...w.config, training: false }; // the console needed the flag; the pick does not
       const [chest] = rewardChests(w);
+      if (trainingOff) chest!.camp = 1; // as a camp's chest: only those pay a skip in an arena run (a crate's stat chest does not)
       rtOf(w).inputs.pushAction({ kind: "choose", chest: chest!.id, pick: -1 });
       return run(w, 1);
     };

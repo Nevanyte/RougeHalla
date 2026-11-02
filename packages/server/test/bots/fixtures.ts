@@ -48,7 +48,7 @@ export function selfView(over: Partial<SelfView> = {}): SelfView {
 
 export function hudView(over: Partial<HudView> = {}): HudView {
   return {
-    phase: "active", training: false, lobbyEndsAt: 0, raidStartedAt: 0, patienceEndsAt: 300_000, suddenDeathAt: 0, inColiseum: false,
+    phase: "active", training: false, lobbyEndsAt: 0, raidStartedAt: -1_000_000, patienceEndsAt: 900_000, suddenDeathAt: 0, inColiseum: false,
     gatesLocked: false, startedWith: 6, alive: 6, playerCount: 6, minPlayers: 2, winner: "", ...over,
   };
 }

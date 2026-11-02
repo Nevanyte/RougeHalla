@@ -55,7 +55,7 @@ function rig(opts: BotOptions = {}, weapon: WeaponId = "sword"): Rig {
   const map = generateMap(SEED);
   const { home, foe } = openingFor(map, FOE_DISTANCE);
   // The map as a room publishes it (R2): the seed, its certified attempt and the hash the bot checks its own build against.
-  const state = plainState({ seed: SEED, attempt: map.attempt, mapHash: mapHashU32(map), serverTime: 100_000, raidStartedAt: 60_000 });
+  const state = plainState({ seed: SEED, attempt: map.attempt, mapHash: mapHashU32(map), serverTime: 100_000, raidStartedAt: -300_000 }); // past the opening, when bots hunt (strategy.ts OPENING_MS)
   state.players.set("me", plainPlayer({ name: "me", x: home.x, y: home.y, weapon0: weapon }));
   // Hurt (40%): an even fight is one a Hard hunter weighs and turns down (BOTS_TUNING.md), so the foe has to look worth taking.
   state.players.set("foe", plainPlayer({ name: "foe", x: foe.x, y: foe.y, weapon0: "sword", hp: 200 }));

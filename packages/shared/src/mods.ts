@@ -295,12 +295,18 @@ export function foldRows(effects: readonly Effect[], ctx: FoldContext = {}): Fol
     const gains: Partial<Record<ChestBoostStat, number>> = {};
     for (const stat of CHEST_BOOST_STATS) {
       const picks = ctx.boosts[stat] ?? 0;
-      if (picks > 0) gains[stat] = chestBoostGain(stat, picks, sums[stat] + farmSums[stat]);
+      if (picks > 0) gains[stat] = chestBoostGain(stat, picks, boostBase(stat, sums, farmSums));
     }
     for (const stat of CHEST_BOOST_STATS) farmSums[stat] += gains[stat] ?? 0;
     if (gains.maxHp) maxHp = foldedMaxHp(ctx.baseMaxHp ?? 0, plain.maxHp + farmSums.maxHp);
   }
   return { plain, sums, farmSums, mults, flags, maxHp };
+}
+
+/** The bonus a stat chest multiplies: the rows' share held to the cap that stat meets later (attack speed, leech), plus the earned rows. */
+function boostBase(stat: ChestBoostStat, sums: StatSums, farmSums: StatSums): number {
+  const rows = stat === "attackSpeed" ? Math.min(sums.attackSpeed, AS_MULT_CAP - 1) : stat === "lifesteal" ? Math.min(sums.lifesteal, LS_CAP) : sums[stat];
+  return rows + farmSums[stat];
 }
 
 /** What the registered mod sources (world.modSources) add on top of the rows: multipliers multiply, flat bonuses add. */

@@ -785,11 +785,24 @@ describe("a chest's birth is forgotten with the chest", () => {
 describe("the skip (D12)", () => {
   function skipRig(signatures = false): { w: World; box: ContainerState } {
     const w = run({ signatures });
-    const box = dropRewardChest(w, P(w, 0), ["haste1"]);
+    const box = dropRewardChest(w, P(w, 0), ["haste1"], 0); // a camp's chest: only those pay a skip
     place(w, 0, box);
     tick(w);
     return { w, box };
   }
+
+  it("a crate's stat chest (no camp, no fight behind it) pays nothing for a skip", () => {
+    const w = run({ signatures: true });
+    const box = dropRewardChest(w, P(w, 0), ["boost:ad"]);
+    place(w, 0, box);
+    tick(w);
+    P(w, 0).hp = P(w, 0).maxHp * 0.5;
+    choose(w, 0, box.id, -1);
+    tick(w);
+    expect(P(w, 0).hp).toBe(P(w, 0).maxHp * 0.5);
+    expect(RT(w, 0).gv.mobs).toBe(0);
+    expect(box.pickers).toContain("p0");
+  });
 
   it("heals SKIP_HEAL_SHARE of max hp out of combat, and pays no GV", () => {
     const { w, box } = skipRig(true);

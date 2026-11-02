@@ -146,7 +146,7 @@ export const TIERS: Readonly<Record<TierId, TierParams>> = {
     attention: { central: 0.6, peripheryMult: 1.4, engagedMult: 1.6, reconsiderMs: 2500 },
     memorySpanMs: 25_000,
     feintRead: 0,
-    appraisal: { bias: 0.9, lead: 2, busy: 0.3, hue: 1.1, noise: 0.9 },
+    appraisal: { bias: 0.3, lead: 2, busy: 0.3, hue: 1.1, noise: 0.9 },
     wary: 0,
     caution: { mobShare: 0.3, eliteShare: 0.3, startHp: 0.3 },
   },
@@ -249,23 +249,23 @@ export interface PersonaParams {
 
 export const PERSONAS: Readonly<Record<PersonaId, PersonaParams>> = {
   farmer: {
-    id: "farmer", pve: 1, pvp: 0.3, loot: 0.7, bounty: 0.2, thirdParty: 0.2, engageEdge: 1.3, bountyCaution: 0.5,
-    fleeHp: 0.4, reengageHp: 0.75, kite: 0.4, chaseGiveUpMs: 4000, mobKillGoal: 9, playerThreat: 250, eliteAppetite: 0.8,
+    id: "farmer", pve: 1, pvp: 0.15, loot: 0.7, bounty: 0.1, thirdParty: 0.2, engageEdge: 2.6, bountyCaution: 0.5,
+    fleeHp: 0.4, reengageHp: 0.75, kite: 0.4, chaseGiveUpMs: 4000, mobKillGoal: 999, playerThreat: 140, eliteAppetite: 0.8,
     coliseum: 0.3, risk: 0.3,
   },
   hunter: {
-    id: "hunter", pve: 0.35, pvp: 1, loot: 0.3, bounty: 1, thirdParty: 0.5, engageEdge: 0.3, bountyCaution: 0,
-    fleeHp: 0.2, reengageHp: 0.5, kite: 0.2, chaseGiveUpMs: 9000, mobKillGoal: 3, playerThreat: 400, eliteAppetite: 0.3,
+    id: "hunter", pve: 0.5, pvp: 1, loot: 0.3, bounty: 1, thirdParty: 0.5, engageEdge: 0.6, bountyCaution: 0,
+    fleeHp: 0.2, reengageHp: 0.5, kite: 0.2, chaseGiveUpMs: 9000, mobKillGoal: 40, playerThreat: 300, eliteAppetite: 0.3,
     coliseum: 1, risk: 0.85,
   },
   opportunist: {
-    id: "opportunist", pve: 0.6, pvp: 0.7, loot: 1, bounty: 0.6, thirdParty: 1, engageEdge: 0.8, bountyCaution: 0.3,
-    fleeHp: 0.35, reengageHp: 0.7, kite: 0.5, chaseGiveUpMs: 5000, mobKillGoal: 6, playerThreat: 300, eliteAppetite: 0.5,
+    id: "opportunist", pve: 0.85, pvp: 0.4, loot: 1, bounty: 0.6, thirdParty: 1, engageEdge: 1.9, bountyCaution: 0.3,
+    fleeHp: 0.35, reengageHp: 0.7, kite: 0.5, chaseGiveUpMs: 5000, mobKillGoal: 999, playerThreat: 200, eliteAppetite: 0.5,
     coliseum: 0.5, risk: 0.6,
   },
   cautious: {
-    id: "cautious", pve: 0.7, pvp: 0.4, loot: 0.5, bounty: 0.2, thirdParty: 0.4, engageEdge: 1.6, bountyCaution: 0.6,
-    fleeHp: 0.55, reengageHp: 0.9, kite: 1, chaseGiveUpMs: 3000, mobKillGoal: 7, playerThreat: 320, eliteAppetite: 0.4,
+    id: "cautious", pve: 0.7, pvp: 0.2, loot: 0.5, bounty: 0.1, thirdParty: 0.4, engageEdge: 2.8, bountyCaution: 0.6,
+    fleeHp: 0.55, reengageHp: 0.9, kite: 1, chaseGiveUpMs: 3000, mobKillGoal: 999, playerThreat: 160, eliteAppetite: 0.4,
     coliseum: 0.2, risk: 0.15,
   },
 };
@@ -577,6 +577,8 @@ export interface RewardChestView {
   readonly x: number;
   readonly y: number;
   readonly expiresAt: ServerMs;
+  /** How long the chest lives from its drop (ms): CHEST_SECONDS for a shared chest, KILL_AUG_SECONDS for the bot's own Trophy. Absent = CHEST_SECONDS. */
+  readonly lifeMs?: number;
   readonly options: readonly string[] | null;
   readonly takenBy: readonly string[];
   /** This bot already took (or skipped) its pick. */
@@ -1169,6 +1171,9 @@ export interface BrainStats extends HumanizerStats {
   readonly jukes: number;
   readonly kiteCycles: number;
   readonly goals: Readonly<Partial<Record<GoalKind, number>>>;
+  /** The build the bot farms for (buildRoute.ts BUILD_GOALS id; "" before it knows its faction) and the camps it found contested. */
+  readonly build: string;
+  readonly routeContests: number;
 }
 
 /** brain.ts: memory -> strategy -> tactics (+ modules) -> humanizer, once per percept. */
@@ -1238,10 +1243,10 @@ export interface BotFillConfig {
 }
 
 export const BOT_FILL_DEFAULTS: BotFillConfig = {
-  fillTo: 6,
+  fillTo: 8,
   arrivalSeconds: 12,
   tierMix: { easy: 0.3, normal: 0.45, hard: 0.25 },
-  personaMix: { farmer: 1, hunter: 1, opportunist: 1, cautious: 1 },
+  personaMix: { farmer: 4, hunter: 1, opportunist: 2, cautious: 3 },
   latencyMs: 30,
   jitterMs: 8,
   statsFile: null,

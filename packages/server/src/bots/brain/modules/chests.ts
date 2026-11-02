@@ -82,7 +82,7 @@ const dist = (a: { readonly x: number; readonly y: number }, b: { readonly x: nu
  * Is the chest still inside the server's birth hold? Its age by its own clock (CHEST_SECONDS less its time left), so a chest first
  * seen old, by a bot that was busy elsewhere or came from afar, is not waited for.
  */
-const inHold = (ctx: BrainContext, c: RewardChestView): boolean => CHEST_SECONDS * 1000 - (c.expiresAt - ctx.p.now) < CHEST_HUNT.holdMs;
+const inHold = (ctx: BrainContext, c: RewardChestView): boolean => (c.lifeMs ?? CHEST_SECONDS * 1000) - (c.expiresAt - ctx.p.now) < CHEST_HUNT.holdMs;
 
 /** What the bot holds: its own cards row (the percept), and the cards it took at a chest whose patch has not come yet. */
 function ownBuild(ctx: BrainContext, st: ChestState): Record<string, number> {
@@ -123,7 +123,7 @@ function huntInput(ctx: BrainContext, st: ChestState, skipTried: boolean): Chest
   for (const c of p.extras.chests ?? []) {
     if (c.picked || (skipTried && st.hunter.tried(c.id))) continue;
     chests.push({
-      id: c.id, kind: "reward", x: c.x, y: c.y, expiresAt: c.expiresAt, options: c.options ?? BLIND, takenBy: c.options ? c.takenBy : [], pickers: [],
+      id: c.id, kind: "reward", x: c.x, y: c.y, expiresAt: c.expiresAt, ...(c.lifeMs !== undefined ? { lifeMs: c.lifeMs } : {}), options: c.options ?? BLIND, takenBy: c.options ? c.takenBy : [], pickers: [],
     });
   }
   return {

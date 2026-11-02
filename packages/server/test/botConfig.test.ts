@@ -10,7 +10,7 @@ const bots = (env: Record<string, string>) => loadConfig(env).bots;
 describe("the defaults", () => {
   it("an empty environment gives BOT_FILL_DEFAULTS", () => {
     expect(bots({})).toEqual(BOT_FILL_DEFAULTS);
-    expect(bots({}).fillTo).toBe(6);
+    expect(bots({}).fillTo).toBe(8);
   });
 
   it("hands out its own mixes: a caller that edits them cannot change the defaults", () => {
@@ -44,7 +44,7 @@ describe("BOTS_FILL_TO", () => {
 
   it("falls back to the default when it is not a number", () => {
     for (const bad of ["", "abc", "NaN", "Infinity", "six", "3 bots"]) {
-      expect(bots({ BOTS_FILL_TO: bad }).fillTo, JSON.stringify(bad)).toBe(6);
+      expect(bots({ BOTS_FILL_TO: bad }).fillTo, JSON.stringify(bad)).toBe(8);
     }
   });
 });

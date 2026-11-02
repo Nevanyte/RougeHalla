@@ -18,7 +18,9 @@ import {
 } from "@raid/shared";
 import { grantCard } from "../sim/chests";
 import { activeWeapon, combatant, timingsOf, type Combatant } from "../sim/combatant";
+import { syncMaxHp } from "../sim/buffs";
 import { recomputeMods } from "../sim/mods";
+import { raiseOrGrowZombie } from "../sim/plagueZombies";
 import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
 import { positionAt } from "../sim/movement";
@@ -76,6 +78,11 @@ export interface DuelSpec {
    * a conditional whose base is not granted before it, or a unique card twice, is refused by grantCard and held by no one.
    */
   cards?: readonly [readonly string[] | undefined, readonly string[] | undefined];
+  /**
+   * Plague bodies fighter 0 / fighter 1 has consumed before the duel (a Plague only): its corpse stacks are set, its max hp follows
+   * and its zombie stands beside it from the first tick (sim/plagueZombies.ts raiseOrGrowZombie), so the zombie tank is measured.
+   */
+  corpses?: readonly [number | undefined, number | undefined];
   /** Fighter 0 / fighter 1 starts at this fraction of its max hp (the farm-then-fight bench: a mob kill leaves about 94%). */
   startHp?: readonly [number | undefined, number | undefined];
   /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its cards: a registered mod source (world.modSources). */
@@ -416,6 +423,16 @@ export function runDuel(spec: DuelSpec): DuelResult {
     for (const id of cards) grantCard(world, me, id);
     recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
   }
+  spec.corpses?.forEach((n, i) => {
+    if (!(n !== undefined && n > 0)) return;
+    const me = combatant(world, IDS[i]!) as Extract<Combatant, { kind: "player" }>;
+    if (me.s.faction !== "plague") return;
+    me.s.corpseStacks = Math.floor(n);
+    recomputeMods(world, me);
+    syncMaxHp(me.s);
+    me.s.hp = me.s.maxHp;
+    raiseOrGrowZombie(world, me);
+  });
   spec.startHp?.forEach((frac, i) => {
     if (frac === undefined) return;
     const p = world.state.players.get(IDS[i]!)!;

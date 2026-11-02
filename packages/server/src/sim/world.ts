@@ -263,6 +263,9 @@ export interface PlayerRuntime extends CombatRuntime {
   boost?: BoostRuntime;
   /** Keys of the once-per-run trigger rows that have fired (sim/factions.ts, e.g. Blood Saint's heal). Created on first use. */
   fired?: Set<string>;
+  /** A bush exposure an attack or cast asked for this tick (sim/abilities.ts exposeInBush): copied into the synced
+   *  `extra.bushRevealUntil` at the start of the next abilities phase, so no same-tick order reads it. Absent = none. */
+  bushExposeUntil?: number;
   /** Rampage announcement throttle (sim/feed.ts). Created on first use. */
   announce?: AnnounceRuntime;
   /** Camps this player helped clear this run (sim/campHeal.ts counts every player the clear was paid to, a full-hp one included). Absent = 0. Pack Leader reads it. */

@@ -1009,6 +1009,20 @@ describe("Wishful Thinking (G13)", () => {
     expect(P(w, "a").wishReadyAt).toBe(now + 20_000);
   });
 
+  it("a charged Wish's recharge is shortened while a charge is still in hand", () => {
+    const w = cooldownArena();
+    const rt = RT(w, "a");
+    const now = w.state.serverTime;
+    // Blaze Step-like: one charge in hand (ready now), the second back 30 s from now.
+    rt.cards!.wishCast = { at: now, cooldownMs: 30_000 };
+    rt.cards!.trims = [];
+    P(w, "a").wishReadyAt = now;
+    P(w, "a").extra.wishFullAt = now + 30_000;
+    inStepHit(w, "v", "a", 10);
+    expect(P(w, "a").extra.wishFullAt).toBe(now + 29_000);
+    expect(P(w, "a").wishReadyAt).toBe(now); // still ready: nothing to shorten there
+  });
+
   it("a Wish that has not been cast (the opening lock) is left alone", () => {
     const w = arena([
       { id: "a", faction: "holy", weapon: "", at: near(200) },

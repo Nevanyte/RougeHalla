@@ -9,6 +9,8 @@ export class BotVision {
   private readonly wards = new Map<number, { memory: VisionMemory; end: number; map: GameMap }>();
   private enabled = false;
   private now = 0;
+  /** Each player's synced `extra.bushRevealUntil`: an attack or cast from a bush shows its owner, as it does to a person. */
+  private readonly bushReveal = new Map<string, number>();
 
   constructor(private readonly map: GameMap) {
     this.memory = new VisionMemory(map.w, map.h);
@@ -33,6 +35,8 @@ export class BotVision {
           this.memory.expiresAt[index] = expiry;
       }
     }
+    this.bushReveal.clear();
+    for (const [id, p] of state.players) { const until = p.extra?.bushRevealUntil ?? 0; if (until > this.now) this.bushReveal.set(id, until); }
     const sight = state.gatesLocked ? this.locked : this.map;
     const me = state.players.get(selfId);
     if (me?.status === "alive") this.memory.update(sight, { x: Math.fround(me.x), y: Math.fround(me.y) }, this.now);
@@ -60,7 +64,7 @@ export class BotVision {
   /** The delay ring may interpolate across unseen terrain or retain a projectile after it leaves sight. */
   filter(percept: Percept): Percept {
     if (!this.enabled) return percept;
-    const fighters = percept.fighters.filter((f) => this.canSee(f) && !bushConceals(this.map, percept.self, f)), mobs = percept.mobs.filter(this.canSee);
+    const fighters = percept.fighters.filter((f) => this.canSee(f) && !bushConceals(this.map, percept.self, f, this.bushReveal.get(f.id) ?? 0, this.now)), mobs = percept.mobs.filter(this.canSee);
     const ids = new Set([percept.self.id, ...fighters.map((f) => f.id), ...mobs.map((m) => m.id)]);
     return {
       ...percept, fighters, mobs,

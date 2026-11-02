@@ -61,7 +61,8 @@
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
   AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, capAsMult, CHILL_MOVE_RADIUS,
-  CHILL_MOVE_RESET_MS, chillMultiplier, FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, isRanged, decodeMult, encodeMult, frostMoveMultiplier,
+  CHILL_MOVE_RESET_MS, chillMultiplier, FIRE_BACKLASH_PER_DEFENSE, FIRE_BURN_AD_RATIO, frostChillBonusOf, holyLeechRowsOf,
+  PLAGUE_AP_DOT_RATIO, plagueDiseaseMultOf, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, isRanged, decodeMult, encodeMult, frostMoveMultiplier,
   CRIT_MULT, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, executeDps, FACTIONS, FESTERING_AP_SHARE,
   FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
@@ -78,7 +79,7 @@ import {
 } from "./combatant";
 import { deferHit, recordHit } from "./ledger";
 import {
-  apOf, bonusMaxHpOf, scalingStatsOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
+  adOf, apOf, bonusMaxHpOf, defenseBonusOf, scalingStatsOf, cardAsMultOf, dotMultOf, executeBandOf, farmLifestealRowsOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf,
   lifestealRowsOf, lingerMultOf, markRateOf, farmStatSumsOf, modsOf, recomputeMods, returnedMultOf, slowResistOf, statSumsOf, triggersOf,
 } from "./mods";
 import { addStatus, healFactor, statusesOf } from "./status";
@@ -458,10 +459,16 @@ function signatureDamage(world: World, dtMs: number): void {
       const dot = bm * secs * f.chill;
       const foeFrac = sigOf(world, t.id).hpFrac;
       // AP is flat power in points a second: no weapon multiplier, but the stagger pause takes out its share of the tick too.
-      const apDot = AP_DOT_RATIO * apOf(c.s) * secs * f.chill;
-      dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, apDot);
+      const ap = apOf(c.s);
+      const player = c.kind === "player";
+      // The build rebalance (TUNING_BALANCE 13.8): a Fire's Offense feeds its burn too (FIRE_BURN_AD_RATIO); Plague's SO rider is its own
+      // ratio and its bonus defenses thicken the disease (plagueDiseaseMultOf). Players only, so the camps' mobs are unchanged.
+      const burnRider = (AP_DOT_RATIO * ap + (player ? FIRE_BURN_AD_RATIO * adOf(c.s) : 0)) * secs * f.chill;
+      dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, burnRider);
       // The disease and its execute are two entries of one type: a tier-4 mark denies the second (docs/SENTENCED_REDESIGN.md R7). The AP rider rides the first.
-      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot, apDot);
+      const diseaseMult = player ? plagueDiseaseMultOf(scalingStatsOf(c.s).bonusDefense) : 1;
+      const diseaseRider = (player ? PLAGUE_AP_DOT_RATIO : AP_DOT_RATIO) * ap * secs * f.chill;
+      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot * diseaseMult, diseaseRider);
       dotBonus(world, c, spec, weapon, t, "disease", executeDps(spec, foeFrac, executeBandOf(c.s)) * dot, 0, true);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
@@ -868,7 +875,7 @@ function afterDamage(world: World, dtMs: number): void {
     const spec = factionOf(c.s);
     const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) + (c.kind === "player" ? holyApLifestealOf(apOf(c.s)) : 0) : 0;
     // Holy's own share and the rows' (Bloodthirst doubling them), and for damage over time Siphon's share on top (G5).
-    const rows = lifestealRowsOf(c.s);
+    const rows = c.kind === "player" && c.s.faction === "holy" ? holyLeechRowsOf(lifestealRowsOf(c.s)) : lifestealRowsOf(c.s);
     const farmRows = farmLifestealRowsOf(c.s)
       + (c.kind === "player" && c.s.faction === "holy" ? holyCampLifestealOf(c.s.campClears) : 0);
     const mult = lifestealMultOf(c.s);
@@ -960,7 +967,11 @@ export function stretchUntil(until: number, now: number, dtMs: number, m: number
 /** chillMultiplier of a fighter's faction; 1 for one without (a dummy never chills). */
 function chillOf(c: Combatant): number {
   const spec = factionOf(c.s);
-  return spec ? chillMultiplier(spec) : 1;
+  if (!spec) return 1;
+  const base = chillMultiplier(spec);
+  // The build rebalance (TUNING_BALANCE 13.8): a Frost player's bonus SD and attack speed deepen its chill (frostChillBonusOf).
+  if (!(base < 1) || c.kind !== "player") return base;
+  return base - frostChillBonusOf(defenseBonusOf(c.s).shield, Math.max(0, decodeMult(c.s.asMult) - 1));
 }
 
 function updateChill(world: World, fighters: Combatant[], byId: Map<string, Combatant>, dtMs: number): void {

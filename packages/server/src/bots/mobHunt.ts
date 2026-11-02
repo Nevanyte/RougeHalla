@@ -105,17 +105,18 @@ export const MOB_HUNT: Readonly<MobHuntConfig> = {
   eliteMinPower: 4,
   eliteFullHp: 0.9,
   mobMinShare: 0.5,
-  // The faction rework compressed every elite matchup to 0.5-0.66 (no counters), so the bar sits under the old 0.6.
-  eliteMinShare: 0.55,
-  eliteSureShare: 0.4,
+  // The faction rework compressed every elite matchup to 0.5-0.66 (no counters); the elite buff (ELITE_HP_MULT) moved the straight-duel
+  // shares down to 0.31-0.52, so the bars sit under them (0.55 and 0.4 before) and a bot still takes the elite its faction can beat.
+  eliteMinShare: 0.3,
+  eliteSureShare: 0.2,
   eliteSurePower: 6,
   retreatHp: 0.35,
   retreatClear: 320,
   retreatMinMs: 1500,
   retreatMaxMs: 5000,
-  retreatBanMs: 40_000,
+  retreatBanMs: 15_000,
   killGoal: 5,
-  focusBudgetMs: 150_000,
+  focusBudgetMs: 900_000,
   targetBudgetMs: 60_000,
   stallAttackMs: 3000,
   approachMs: 12_000,
@@ -137,6 +138,11 @@ const CONTEST_PENALTY = 350;
 /** Weaker mobs die sooner: this much score per point of max hp. */
 const HP_WEIGHT = 0.12;
 const NEW_WEAPON_BONUS = 120;
+/** A mob of a type the build wants is worth this much walk (u) per point of its type weight over the floor (0.25). */
+const BUILD_TYPE_BONUS = 320;
+/** With a build, a mob whose type it does not want (weight under BUILD_WANTED) is taken only within this walk: one in the way. */
+const OFF_BUILD_WALK = 140;
+const BUILD_WANTED = 0.6;
 const ELITE_PENALTY = 120;
 
 /** A hp rise this big in one observation means the mob is healing, which only a mob walking home does. */
@@ -241,6 +247,10 @@ export interface HuntInput {
    * bot that read them as a player's fire dropped its mob fight for a player that never shot.
    */
   shotByPlayerAt: number;
+  /** What a normal mob of each type is worth to the bot's build (brain/buildRoute.ts typeWeight); absent = all alike. */
+  typeWeight?: (type: string | undefined) => number;
+  /** False while the build's plan holds elites back (brain/buildRoute.ts readyForElites: later in the run); absent = the old rule only. */
+  elitesReady?: boolean;
 }
 
 export type HuntDecision =
@@ -429,7 +439,7 @@ export class MobHunter {
       if (!isRegionalKind(m.kind) || m.status !== "alive") continue;
       const d = dist(m, self);
       if (d > reach || this.isBanned(id, now) || this.tracker.returning(id, now)) continue;
-      if (m.kind === "elite" && !(progressionPower >= c.eliteMinPower || hpFrac >= c.eliteFullHp)) continue;
+      if (m.kind === "elite" && (inp.elitesReady === false || !(progressionPower >= c.eliteMinPower || hpFrac >= c.eliteFullHp))) continue;
       const share = self.faction !== null && isFactionId(m.faction) ? matchupShare(self.faction, m.faction, m.kind === "elite") : 0.7;
       const need = m.kind !== "elite" ? c.mobMinShare : progressionPower >= c.eliteSurePower ? c.eliteSureShare : c.eliteMinShare;
       if (share < need) continue; // this faction loses to it, or wins too narrowly (Fire against Holy mobs, anyone against the wrong elite)
@@ -438,7 +448,8 @@ export class MobHunter {
       if (edge <= -2) continue; // nothing we carry works against it (see useless)
       // A mob with a bow or a wand backs away from whoever closes in and leaves its leash, taking the fight home with it: the
       // bots kill about one in ten of them. A weapon that loses to its own is worse still, for an elite.
-      if (c.skipRanged && theirs !== null && isRanged(theirs)) continue;
+      // A bot that carries a bow or a wand shoots it back where it stands, so it may take one.
+      if (c.skipRanged && theirs !== null && isRanged(theirs) && !carried.some((w) => isRanged(w!))) continue;
       if (edge < 0 && m.kind === "elite") continue;
       near.push({ id, m, d, theirs, edge, share });
     }
@@ -448,6 +459,8 @@ export class MobHunter {
     for (const { id, m, theirs, edge, share } of near.slice(0, c.maxCandidates)) {
       const walk = inp.walk(m);
       if (walk === null || walk > reach * c.walkSlack) continue;
+      const wanted = m.kind === "elite" || !inp.typeWeight ? 1 : inp.typeWeight(m.type);
+      if (wanted < BUILD_WANTED && walk > OFF_BUILD_WALK && self.mobKills > 0) continue; // the route walks it to a camp it wants
       let score = walk - share * SHARE_BONUS + m.maxHp * HP_WEIGHT;
       if (edge > 0) score -= EDGE_BONUS;
       else if (edge < 0) score += EDGE_PENALTY;
@@ -456,6 +469,7 @@ export class MobHunter {
         if (isRanged(theirs) && !carried.some((w) => isRanged(w!))) score += KITER_PENALTY;
       }
       if (m.kind === "elite") score += ELITE_PENALTY;
+      else score -= BUILD_TYPE_BONUS * (wanted - 0.25);
       if (inp.players.some((p) => dist(p, m) < walk)) score += CONTEST_PENALTY;
       if (score < bestScore) { bestScore = score; best = id; }
     }

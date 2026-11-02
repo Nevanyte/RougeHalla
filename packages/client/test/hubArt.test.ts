@@ -83,4 +83,20 @@ describe("hub art", () => {
       expect(c).toBeLessThanOrEqual(0xffffff);
     }
   });
+
+  it("gives every floor weapon matchup a visible arrow pointing toward its loser", () => {
+    const { g, calls } = recorder();
+    drawWheel(g, WEAPON_WHEEL, 400, 300, 76, id => WEAPONS[id].color, null);
+    const segments = calls.filter(([name]) => name === "lineBetween").map(([, args]) => args as number[]);
+    const arrows = calls.filter(([name]) => name === "fillTriangle").map(([, args]) => args as number[]);
+    expect(arrows).toHaveLength(WEAPON_WHEEL.edges.length);
+    arrows.forEach((arrow, index) => {
+      const segment = segments[index]!;
+      expect(arrow.slice(0, 2)).toEqual(segment.slice(2, 4));
+      // The arrow base lies behind the tip along the winner-to-loser segment.
+      const dx = segment[2]! - segment[0]!, dy = segment[3]! - segment[1]!;
+      const bx = (arrow[2]! + arrow[4]!) / 2, by = (arrow[3]! + arrow[5]!) / 2;
+      expect((arrow[0]! - bx) * dx + (arrow[1]! - by) * dy).toBeGreaterThan(0);
+    });
+  });
 });

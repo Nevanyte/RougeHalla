@@ -10,7 +10,7 @@ import { combatant, hostile, isEvading, standing, type Combatant } from "./comba
 import { displace } from "./displace";
 import { InputQueue } from "./inputs";
 import { scalingStatsOf } from "./mods";
-import { isStunned, isUntargetable } from "./status";
+import { healFactor, isStunned, isUntargetable } from "./status";
 import { canPlayerSeeActor } from "./vision";
 import { cancelAction } from "./weapons";
 import { chainHook, collisionMap, emit, newWeaponRuntime, type World } from "./world";
@@ -161,7 +161,7 @@ export function regenZombies(world: World): void {
     if (!z || z.kind !== "mob" || !standing(z) || !(z.s.hp < z.s.maxHp)) continue;
     const factor = now - rt.lastHitAt < PLAGUE_ZOMBIE_REGEN_QUIET_MS ? PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR : 1;
     const gain = z.s.maxHp * PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND * factor * PLAGUE_ZOMBIE_REGEN_STEP_MS / 1000;
-    z.s.hp = Math.min(z.s.maxHp, z.s.hp + gain);
+    z.s.hp = Math.min(z.s.maxHp, z.s.hp + gain * healFactor(world, z)); // an anti-heal cuts it, as it does a player's regen
   }
 }
 

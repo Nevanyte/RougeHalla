@@ -86,7 +86,8 @@ export interface HuntAdapter {
   readonly config: Readonly<MobHuntConfig>;
   readonly stats: MobHuntStats;
   /** The hunt's answer for this think. Call it once per strategy decision. */
-  decide(ctx: BrainContext): HuntDecision;
+  /** `typeWeight`: what each normal mob type is worth to the bot's build (buildRoute.ts), so the hunt prefers those. */
+  decide(ctx: BrainContext, typeWeight?: (type: string | undefined) => number, elitesReady?: boolean): HuntDecision;
   /** The strategy chose something else than the mob the hunt is on: let go of it, as the old bot did by hunting a player. */
   release(ctx: BrainContext): void;
   awakeNear(from: Vec2, radius: number, now: number): Vec2[];
@@ -102,7 +103,7 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
 
   const attackingOf = (ctx: BrainContext): boolean => (opts.attacking ? opts.attacking() : ctx.p.self.attackTarget !== null && ctx.engaged);
 
-  function input(ctx: BrainContext): HuntInput {
+  function input(ctx: BrainContext, typeWeight?: (type: string | undefined) => number, elitesReady?: boolean): HuntInput {
     const { p, mem } = ctx;
     const me = p.self;
     const players: Vec2[] = [];
@@ -143,6 +144,8 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
       },
       attacking: attackingOf(ctx),
       shotByPlayerAt: mem.self.lastHitByPlayerAt ?? -Infinity,
+      ...(typeWeight ? { typeWeight } : {}),
+      ...(elitesReady !== undefined ? { elitesReady } : {}),
     };
   }
 
@@ -163,8 +166,8 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
     hunter,
     config,
     get stats() { return hunter.stats; },
-    decide(ctx) {
-      const inp = input(ctx);
+    decide(ctx, typeWeight, elitesReady) {
+      const inp = input(ctx, typeWeight, elitesReady);
       seedHomes(ctx, inp);
       // The hunt's timers (a target that never gets hurt, one that is never reached) advance in steps of at most 250 ms. A think
       // every second or two would run them five to ten times slow, so a gap is replayed in pieces over the same snapshot.

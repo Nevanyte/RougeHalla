@@ -1026,6 +1026,27 @@ describe("killMob: rewards", () => {
       expect(loose()).toBe(before + (mobs.at(-1)!.s.weapon0 === "sword" ? 0 : 1));
     });
 
+    it("two of a camp's mobs dying in one pass leave the same one weapon whatever order the ledger takes them in", () => {
+      const dropped = (reverse: boolean): string[] => {
+        const w = makeRun({ seed: 1 });
+        const ci = w.state.camps.findIndex((c) => c.alive >= 3);
+        const mobs = allMobs(w).filter((m) => m.s.camp === ci + 1);
+        P(w, 0).weapon0 = "sword";
+        P(w, 0).weapon1 = "fists";
+        mobs.slice(0, -2).forEach((m) => hurt(w, m, ["p0", m.s.hp]));
+        const [a, b] = mobs.slice(-2);
+        a!.s.weapon0 = "bow";
+        b!.s.weapon0 = "axe";
+        const before = new Set(w.state.containers.keys());
+        for (const m of reverse ? [b!, a!] : [a!, b!]) strike(w, m.id, "p0", m.s.hp * 10);
+        pass(w);
+        return [...w.state.containers.values()].filter((c) => !before.has(c.id) && c.kind !== "reward").map((c) => c.items.at(0)!.def);
+      };
+      const forward = dropped(false);
+      expect(forward).toHaveLength(1);
+      expect(dropped(true)).toEqual(forward);
+    });
+
     it("what the player holds does not change what the next kill pays: a card is no part of the reward", () => {
       const a = makeBare();
       const b = makeBare();
@@ -1137,7 +1158,9 @@ describe("killMob: rewards", () => {
       for (const pay of w.combat.payouts) pay();
       expect(w.state.containers.size).toBe(n + 1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["", ""]);
-      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1 kill stack · +1% attack speed total"]);
+      // A killer down in the pass gets no stat stack (its sheet stays as it fell, for the Trophy its own killer rolls).
+      expect(w.events.filter((e) => e.type === "toast")).toEqual([]);
+      expect(mobStatCount(P(w, 0).mobStats, "plagueRat")).toBe(0);
     });
 
     it("is not dropped when the killer already holds that weapon type, in either slot", () => {

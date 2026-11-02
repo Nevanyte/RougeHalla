@@ -1,6 +1,7 @@
 // The camp gates of balance contract 6.3 (bench/campDuel.ts `--types`), held in the suite: starters on FISTS clear a 4-mob camp of
-// every normal mob type in at least 80% of their runs (20 of 25), and every elite type's camp falls to at least one starter faction
-// on its zone's weapon. The roles (shared mobs.ts MOB_ROLE_DEFS) are tuned against exactly this; the real sim plays every run
+// every normal mob type in at least 80% of their runs (20 of 25), and every elite type's camp falls to at least one faction on its
+// zone's weapon holding the balance pass's minute-5 card kit (bench/kits.ts; "armed and carded": since the elite buff, ELITE_HP_MULT,
+// an uncarded weapon alone no longer clears every elite camp, by design). The roles (shared mobs.ts MOB_ROLE_DEFS) are tuned against exactly this; the real sim plays every run
 // (a few seconds in all), and the runs are deterministic, so a failure is a retune, not noise.
 import { describe, expect, it } from "vitest";
 import { MOB_TYPES } from "@raid/shared";

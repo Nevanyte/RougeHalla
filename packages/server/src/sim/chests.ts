@@ -143,7 +143,8 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (box.pickers.includes(c.id)) { toast(world, c.id, CHEST_REFUSAL.picked); return; }
   if (cmd.pick === -1) {
     box.pickers.push(c.id);
-    if (box.owner === "") paySkip(world, c); // declining a trophy pays nothing (no GV from bot kills)
+    // Only a camp's chest pays a skip: declining a Trophy (no GV from bot kills) or a crate's stat chest (no fight behind it) pays nothing.
+    if (box.owner === "" && box.camp > 0) paySkip(world, c);
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: -1 } });
     world.hooks.rewardChosen?.(world, c, box, -1);
     return;

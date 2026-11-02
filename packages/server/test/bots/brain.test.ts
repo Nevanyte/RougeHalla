@@ -115,7 +115,10 @@ class Stage {
   private readonly loose = new Map<string, Vec2>();
   private readonly rnd;
 
-  constructor(private readonly foeBot = false, seed = 1, private readonly features_: Features = features()) {
+  private foePlanAt = 0;
+
+  /** `foeChases`: the foe walks at the bot instead of between spawns (a player who comes for it). */
+  constructor(private readonly foeBot = false, seed = 1, private readonly features_: Features = features(), private readonly foeChases = false) {
     const map = testMap();
     this.x = map.spawns[0]!.x;
     this.y = map.spawns[0]!.y;
@@ -174,7 +177,10 @@ class Stage {
     }
     this.walk(this, this.path, PLAYER_SPEED * dt, null);
     if (f.alive) {
-      if (this.foePath.length === 0) {
+      if (this.foeChases && this.now >= this.foePlanAt) {
+        this.foePath = Math.hypot(f.x - this.x, f.y - this.y) <= 40 ? [] : findPath(testMap(), f, this);
+        this.foePlanAt = this.now + 1000;
+      } else if (!this.foeChases && this.foePath.length === 0) {
         const s = testMap().spawns[Math.floor(this.rnd() * testMap().spawns.length)]!;
         this.foePath = findPath(testMap(), f, s);
       }
@@ -539,7 +545,8 @@ describe("stats", () => {
 
   it("counts a weapon picked up while a loot goal was current as a grab, once", () => {
     const r = rig("normal", "opportunist");
-    drive(r, 80, (i) => ({ containers: [container({ interactable: true })], self: selfView({ weapons: i < 40 ? ["axe", null] : ["axe", "bow"] }) }));
+    // Early in the raid, when a second weapon is worth a detour (the fixture's raid is long under way).
+    drive(r, 80, (i) => ({ hud: hudView({ raidStartedAt: T0 - 1000 }), containers: [container({ interactable: true })], self: selfView({ weapons: i < 40 ? ["axe", null] : ["axe", "bow"] }) }));
     expect(r.brain.stats.goals.loot).toBe(1);
     expect(r.brain.stats.grabs).toBe(1);
   });
@@ -803,7 +810,9 @@ describe("a long run", () => {
     // seed 22: on the zone-shape maps the wandering foe and a cautious or hunting bot do not always meet within 600 s (seeds 21, 23 and
     // 25 miss for some persona), so the fixture is a seed where they do
     const r = rig(id, persona, { seed: 22 });
-    const stage = new Stage(false, 8);
+    // The foe comes for the bot: bots farm and leave an even fight alone (README "Live playtest rules"), so a foe that only wanders
+    // past may never be met; one that walks up and hits it must be answered.
+    const stage = new Stage(false, 8, features(), true);
     const cmds = play(r, stage, LONG_FRAMES);
     assertSendable(cmds);
     expect(cmds.length).toBeGreaterThan(60);
@@ -815,9 +824,10 @@ describe("a long run", () => {
     // Commands come out in click order.
     const ats = cmds.map((c) => c.tc.at);
     expect([...ats].sort((a, b) => a - b)).toEqual(ats);
-    // The bot played: it met the stage's foe (killed it, hunted it, or, for a cautious bot, fled from it: the foe starts on the spawn
-    // nearest to the bot's and wanders the whole map after that, twice the ground of a 96x96 one), and it did more than one thing.
-    const met = stage.kills + (r.brain.stats.goals.flee ?? 0) + (r.brain.stats.goals.hunt ?? 0);
+    // The bot played: it met the stage's foe (killed it, fought back, hunted it, or, for a cautious bot, fled from it), and it did
+    // more than one thing.
+    const g = r.brain.stats.goals;
+    const met = stage.kills + (g.flee ?? 0) + (g.hunt ?? 0) + (g.fight ?? 0);
     expect(met, `goals ${JSON.stringify(r.brain.stats.goals)}`).toBeGreaterThan(0);
     expect(Object.keys(r.brain.stats.goals).length).toBeGreaterThan(1); // 3+ on the 96x96 map; a cautious bot may only roam and flee on 136x136
     // The order numbers never skipped, however many there were.

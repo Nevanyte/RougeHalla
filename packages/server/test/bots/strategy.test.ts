@@ -21,7 +21,7 @@ import {
   brainConfig, container, ctx as makeCtx, emptyMemory, fighter, hudView, percept, rngs, selfView, testMap,
 } from "./fixtures";
 
-const NOW = 100_000;
+const NOW = 300_000;
 const ME = selfView();
 const RUNNING: GoalStatus = { state: "running", why: "" };
 const IDLE: Goal = { kind: "idle" };
@@ -153,7 +153,7 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
   const farmScene: Scene = {
     mobs: [mobMem("m1", 400)],
     // A fire mirror at half its hp, far enough to leave the mob alone: a fight a hunter takes (it is well ahead on the bars) and a farmer does not.
-    fighters: [foe("rival", -600, { hpFrac: 0.5 })],
+    fighters: [foe("rival", -600, { hpFrac: 0.25 })],
   };
 
   it("a Farmer prefers a mob to an even fight with a player, a Hunter the opposite", () => {
@@ -249,7 +249,7 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
 
   it("a third party is worth more than an equal fight: a fighter already engaged with someone else is easier prey", () => {
     const cfg = config("hard", "opportunist");
-    const a = foe("a", -500, { hpFrac: 0.8 }); // a little ahead on the bars: not enough alone
+    const a = foe("a", -500, { hpFrac: 0.55 }); // a little ahead on the bars: not enough alone
     const quiet = createStrategy();
     decide(quiet, cfg, { fighters: [a] });
     expect(best(quiet, "hunt")).toBeUndefined();
@@ -276,7 +276,7 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
     };
     const hungry = farmOf("farmer", { mobs: [mobMem("m1", 400)] });
     const fed = farmOf("farmer", { mobs: [mobMem("m1", 400)], self: { kills: 6, mobKills: 2 } });
-    expect(fed).toBeLessThan(hungry - 0.2);
+    expect(fed).toBeLessThan(hungry - 0.15); // farming keeps a high floor (0.5 + 0.4 x reward): a fed bot still farms
     // A "normal" tier bot asks 0.8 of its hp kept (matchupShare) for an elite, or only the "sure" share (0.4) once it holds the cards
     // (MOB_HUNT.eliteSurePower). The balance pass's compressed sheet moved Fire against the Sentenced elite from 0.93 to 0.73, so with no
     // cards this bot no longer farms one at all (no candidate: the quotient below was NaN). The scene gives it the cards instead.
@@ -289,7 +289,7 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
     const cfg = config("hard", "cautious");
     const hunt = (hp: number, status = "alive") => {
       const s = createStrategy();
-      decide(s, cfg, { self: { hp, maxHp: 100 }, fighters: [foe("a", -500, { faction: "sentenced", inHand: "axe", hpFrac: 0.4, status })] });
+      decide(s, cfg, { self: { hp, maxHp: 100 }, fighters: [foe("a", -500, { faction: "sentenced", inHand: "axe", hpFrac: 0.1, status })] });
       return best(s, "hunt");
     };
     expect(hunt(80)!).toBeLessThan(hunt(100)!);
@@ -355,9 +355,12 @@ describe("sizing up a fight: the appraisal, the opening and the wariness", () =>
     const mid = foe("a", -500, { hpFrac: 0.45 });
     const sure = foe("b", -500, { hpFrac: 0.05 });
     expect(huntU("hard", { ...start, fighters: [mid] })).toBe(0);
-    expect(huntU("hard", { ...start, fighters: [sure] })).toBeGreaterThan(0);
+    // The opening is long now (OPENING_MS 240 s): a sure thing is taken once a good part of it has passed, a coin flip is not.
+    const midway = { hud: { raidStartedAt: NOW - 100_000 } as Partial<HudView>, now: NOW };
+    expect(huntU("hard", { ...midway, fighters: [sure] })).toBeGreaterThan(0);
+    expect(huntU("hard", { ...midway, fighters: [mid] })).toBe(0);
     // The restraint fades over OPENING_MS...
-    expect(huntU("hard", { now: NOW, hud: { raidStartedAt: NOW - 70_000 }, fighters: [mid] })).toBeGreaterThan(0);
+    expect(huntU("hard", { now: NOW, hud: { raidStartedAt: NOW - 250_000 }, fighters: [mid] })).toBeGreaterThan(0);
     // ...and goes when the patience timer is about to teleport everyone anyway.
     expect(huntU("hard", { ...start, hud: { raidStartedAt: NOW - 5000, patienceEndsAt: NOW + 10_000 }, fighters: [mid] })).toBeGreaterThan(0);
   });
@@ -931,7 +934,7 @@ describe("roaming and looting", () => {
     const cfg = config("hard", "opportunist");
     const bow = container({ id: "bow", kind: "ground", weapon: "bow", x: ME.x + 100 });
     const one = createStrategy();
-    expect(decide(one, cfg, { containers: [bow] }).goal).toEqual({ kind: "loot", container: "bow" });
+    expect(decide(one, cfg, { containers: [bow], hud: { raidStartedAt: NOW - 1000 } as Partial<HudView> }).goal).toEqual({ kind: "loot", container: "bow" });
     const two = createStrategy();
     decide(two, cfg, { self: { weapons: ["sword", "shield"] }, containers: [bow] });
     expect(kinds(two)).not.toContain("loot");
@@ -1095,12 +1098,12 @@ describe("the hunt adapter feeds mobHunt from the percept and the memory (docs/B
   });
 
   it("a player close by wins over the mob; one behind a wall counts as twice as far", () => {
-    const cfg = cfgFor("farmer"); // playerThreat 250
+    const cfg = cfgFor("farmer"); // playerThreat 140
     const mobs = [mobMem("m1", 600)];
-    const close = createHuntAdapter(cfg).decide(scene(cfg, { mobs, fighters: [foe("p", -200)] }));
+    const close = createHuntAdapter(cfg).decide(scene(cfg, { mobs, fighters: [foe("p", -100)] }));
     expect(close).toMatchObject({ kind: "player", why: "a player is close" });
     expect(wantsMobs(close)).toBe(false);
-    const walled = createHuntAdapter(cfg).decide(scene(cfg, { mobs, fighters: [foe("p", -200, { los: false })] }));
+    const walled = createHuntAdapter(cfg).decide(scene(cfg, { mobs, fighters: [foe("p", -100, { los: false })] }));
     expect(walled).toMatchObject({ kind: "mob", id: "m1" });
   });
 

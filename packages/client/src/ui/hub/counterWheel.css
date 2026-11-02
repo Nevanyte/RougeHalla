@@ -1,4 +1,4 @@
-/* Counters tab: two pentagrams side by side, one per counter loop. Classes are prefixed cw- (counter wheel). */
+/* Weapon counter guide shared by the hub and Tab map. */
 .hub-counters { display: flex; flex-direction: column; gap: 10px; }
 
 .cw-hint {
@@ -12,12 +12,12 @@
 }
 .cw-hint[hidden], .cw-caption[hidden] { display: none; }
 
-.cw-wheels { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.cw-wheels { display: flex; justify-content: center; }
 .cw-wheel {
   box-sizing: border-box;
-  flex: 1 1 280px;
+  flex: 1 1 400px;
   min-width: 0;
-  max-width: 360px;
+  max-width: 560px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -49,7 +49,8 @@
 .cw-legend { margin: 0; font-size: 12px; line-height: 1.4; color: var(--dim); }
 
 /* The wheel itself. All sizes are in the SVG's own units (viewBox 280 x 260), so it scales with the box. */
-.cw-svg { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; }
+.cw-svg { display: block; width: 100%; max-width: 460px; height: auto; margin: 0 auto; }
+.cw-weapon-icon { pointer-events: none; }
 
 .cw-edge { fill: none; transition: opacity 0.15s; }
 .cw-e-diagonal { stroke-dasharray: 5 4; }
@@ -64,6 +65,9 @@
 .cw-h-loss { fill: var(--danger); }
 
 .cw-dot { stroke: #0f1317; stroke-width: 2; }
+.cw-node[role="button"] { cursor: pointer; }
+.cw-node[role="button"]:focus { outline: none; }
+.cw-node[role="button"]:focus-visible .cw-ring { opacity: 1; stroke: #fff; stroke-width: 3; stroke-dasharray: 2 2; }
 .cw-halo, .cw-ring { fill: none; opacity: 0; }
 .cw-n-pick .cw-halo { opacity: 1; fill: rgba(255, 224, 130, 0.18); }
 .cw-n-pick .cw-ring { opacity: 1; stroke: var(--accent); stroke-width: 3.5; }
