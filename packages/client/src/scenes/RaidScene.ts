@@ -7,7 +7,8 @@ import {
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
-import { sendInput, type RaidRoom } from "../net/connection";
+import { outboundPerSecond, sendInput, type RaidRoom } from "../net/connection";
+import { AIM_KEEPALIVE_MS, ALIGNED_UPLINK, AimGate, HoldGate } from "../net/uplinkPace";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import type { PlanInbox } from "../net/planInbox";
 import { keyboardMoveGoal, MOVEMENT_KEYS } from "../net/keyboardMovement";
@@ -96,16 +97,14 @@ export interface RaidSceneData {
   plan?: PlanInbox;
 }
 
-/** Right-button hold re-sends the move target at most this often. */
+/** Held movement keys re-send their goal at most this often. */
 const MOVE_REPEAT_MS = 100;
-/** The cursor's aim is streamed at most this often, and only once it has turned by more than AIM_MIN_DELTA... */
-const AIM_SEND_MS = 50;
-const AIM_MIN_DELTA = 0.01;
 /**
- * ...and re-sent unchanged after this long. The camera follows the drawn player, so a still cursor keeps its angle while
- * walking, yet the server turns a fighter to its path (and a shield away) once the aim is AIM_STALE_MS (1000) old.
+ * The cursor's aim is streamed when the gate allows (net/uplinkPace.ts AimGate), only once it has turned by more than this, and
+ * unchanged after AIM_KEEPALIVE_MS: the camera follows the drawn player, so a still cursor keeps its angle while walking, yet the
+ * server turns a fighter to its path (and a shield away) once the aim is AIM_STALE_MS (1000) old.
  */
-const AIM_KEEPALIVE_MS = 500;
+const AIM_MIN_DELTA = 0.01;
 /** Cosmetic local attacks older than FxView's stale-event window should not replay after a stalled tab. */
 const LOCAL_AUTO_STALE_MS = 2000;
 /**
@@ -216,7 +215,9 @@ export class RaidScene extends Phaser.Scene {
     active: false, serverNow: 0, me: null, quests: { forEach: () => {} }, sight: null,
   };
   private marker!: Phaser.GameObjects.Ellipse;
-  private lastMoveSentAt = 0;
+  /** When the aim stream and the held right button's re-sends leave (net/uplinkPace.ts). */
+  private readonly aimGate = new AimGate();
+  private readonly holdGate = new HoldGate();
   /** Where the camera looks while the minimap is held with the left button (ground units); null = at the local player. */
   private peek: { x: number; y: number } | null = null;
   /** What the player just ordered (target, move, stop), shown until the synced `attackTarget` catches up. */
@@ -329,7 +330,8 @@ export class RaidScene extends Phaser.Scene {
     this.nearest = null;
     this.blockedItem = null;
     this.interaction = null;
-    this.lastMoveSentAt = 0;
+    this.aimGate.reset();
+    this.holdGate.reset();
     this.renderT = 0;
     this.teleportAt = 0;
     this.clockSynced = false;
@@ -523,9 +525,7 @@ export class RaidScene extends Phaser.Scene {
 
     const pointer = this.input.activePointer;
     if (!pointer.rightButtonDown()) this.rightAttackHeld = false;
-    if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
-      this.sendMove(pointer, false);
-    }
+    if (pointer.rightButtonDown() && !this.rightAttackHeld && this.pointerStartedOnCanvas(pointer)) this.holdMove(pointer);
     this.steerKeyboard(time);
     if (this.directionalAttackHeld && !pointer.leftButtonDown()) this.releaseAttack();
     // After this frame's orders, before anything reads the local fighter's position.
@@ -690,7 +690,7 @@ export class RaidScene extends Phaser.Scene {
       ? state.players.get(inspected) : undefined, serverNow, state.training);
     this.traderPanel.update({ traders: state.traders, me: state.phase === "active" ? me : undefined, map: this.planMap()!, serverNow, canSee: this.vision.canSee });
     this.traderView.update({ traders: state.traders, me: state.phase === "active" ? me : undefined, canSee: this.vision.canSee });
-    this.streamAim(me, now);
+    this.streamAim(me);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
     this.flushConfirmedDamage(state, now);
@@ -1137,14 +1137,33 @@ export class RaidScene extends Phaser.Scene {
     return this.renderT < this.teleportAt;
   }
 
+  /** The right button's press: a move to the cursor at once, which the held button's re-sends then count from. */
   private sendMove(pointer: Phaser.Input.Pointer, showMarker: boolean): void {
     pointer.updateWorldPoint(this.cameras.main);
-    this.moveTo(unproject(pointer.worldX, pointer.worldY), showMarker);
+    const target = unproject(pointer.worldX, pointer.worldY);
+    if (this.moveTo(target, showMarker)) this.holdGate.sent(target, performance.now());
   }
 
-  /** A walk to a ground point, from a ground click or the minimap: one path, so the prediction (orderMove) covers both. */
-  private moveTo(target: { x: number; y: number }, showMarker: boolean): void {
+  /**
+   * The right button held: the move is re-sent when the cursor's ground point moved, at most once a tick and, once the order acks
+   * show the tick's deadline, in the last frame before it (net/uplinkPace.ts HoldGate). Such a send is no sample of the deadline.
+   */
+  private holdMove(pointer: Phaser.Input.Pointer): void {
     if (this.beforeTeleport() || this.frozenWorld) return;
+    pointer.updateWorldPoint(this.cameras.main);
+    const target = unproject(pointer.worldX, pointer.worldY);
+    const now = performance.now();
+    const c = this.localClock(now);
+    const phase = ALIGNED_UPLINK ? this.predict.motion.phase : null;
+    const send = this.holdGate.next(target, now, c, this.clockSynced, phase, this.aimGate.frames.ms);
+    if (send === "none") return;
+    if (send === "aligned") phase?.noteAlignedSend(c);
+    if (this.moveTo(target, false)) this.holdGate.sent(target, now);
+  }
+
+  /** A walk to a ground point, from a ground click or the minimap: one path, so the prediction (orderMove) covers both. False: not sent. */
+  private moveTo(target: { x: number; y: number }, showMarker: boolean): boolean {
+    if (this.beforeTeleport() || this.frozenWorld) return false;
     this.orderMove("move", target);
     if (import.meta.env.DEV && showMarker) {
       const me = this.rendered.get(this.room.sessionId);
@@ -1153,13 +1172,13 @@ export class RaidScene extends Phaser.Scene {
       this.clickFrom.y = me?.y ?? 0;
     }
     this.lockDisplay.note("", performance.now());
-    this.lastMoveSentAt = this.time.now;
     if (showMarker) {
       this.marker.setPosition(projX(target.x), projY(target.y)).setVisible(true).setAlpha(1).setScale(1);
       this.tweens.killTweensOf(this.marker);
       this.tweens.add({ targets: this.marker, alpha: 0, scale: 0.4, duration: 450 });
       this.fx.ripple(target.x, target.y, performance.now()); // juice: a ring spreading from the marker
     }
+    return true;
   }
 
   /**
@@ -1216,9 +1235,10 @@ export class RaidScene extends Phaser.Scene {
     });
   }
 
-  private noteAimSent(a: number): void {
+  private noteAimSent(a: number, at: number): void {
     this.lastAimSent = a;
-    this.lastAimSentAt = performance.now();
+    this.lastAimSentAt = at;
+    this.aimGate.sent(at);
   }
 
   /**
@@ -1243,7 +1263,9 @@ export class RaidScene extends Phaser.Scene {
   /** A left click: lock the fighter nearest the cursor (within TARGET_SNAP_RADIUS). A click on empty ground does nothing. */
   private steerKeyboard(time: number): void {
     if (this.beforeTeleport() || this.frozenWorld || !this.localAlive() || !this.mapView) return;
-    if (!this.keyboardChanged && time - this.lastKeyboardMoveAt < MOVE_REPEAT_MS) return;
+    // While the order acks cover too few phases of the tick to find its deadline, the repeat is stretched so its sends sweep it.
+    const sweep = ALIGNED_UPLINK ? this.predict.motion.phase.sweepMs() : 0;
+    if (!this.keyboardChanged && time - this.lastKeyboardMoveAt < MOVE_REPEAT_MS + sweep) return;
     const origin = this.predict.motion.ready ? this.predict.motion.drawn
       : this.rendered.get(this.room.sessionId) ?? this.room.state.players.get(this.room.sessionId);
     const map = this.planMap();
@@ -1508,16 +1530,25 @@ export class RaidScene extends Phaser.Scene {
     return visiblePosition(this.rendered, this.room.state.players, this.room.sessionId, id);
   }
 
-  /** Once per frame: streams the aim. The shield faces the cursor while nothing is locked; the server ignores it while one is. */
-  private streamAim(me: PlayerState | undefined, now: number): void {
+  /**
+   * Once per frame: streams the aim. The shield faces the cursor while nothing is locked; the server ignores it while one is. The
+   * server keeps the latest aim of each tick, so the gate times the sends against the tick (net/uplinkPace.ts AimGate).
+   */
+  private streamAim(me: PlayerState | undefined): void {
+    // The frame's `now` was taken milliseconds ago, and the work since varies: the gate is judged, and paced, at the instant the
+    // aim would leave.
+    const at = performance.now();
+    this.aimGate.frames.frame(at);
+    this.predict.motion.phase.noteClock(this.interp.clock.offsetMs);
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
     if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || this.frozenWorld || !this.input.isOver || this.peek) return;
+    if (!this.aimGate.due(at, this.localClock(at), this.clockSynced, outboundPerSecond(at), ALIGNED_UPLINK ? this.predict.motion.phase : null)) return;
     const a = this.cursorAngle(this.input.activePointer);
-    if (a === null || now - this.lastAimSentAt < AIM_SEND_MS) return;
+    if (a === null) return;
     const turned = this.lastAimSent === null || angleBetween(a, this.lastAimSent) > AIM_MIN_DELTA;
-    if (!turned && now - this.lastAimSentAt < AIM_KEEPALIVE_MS) return;
+    if (!turned && at - this.lastAimSentAt < AIM_KEEPALIVE_MS) return;
     sendInput(this.room, "aim", { a });
-    this.noteAimSent(a);
+    this.noteAimSent(a, at);
   }
 
   /**

@@ -2,14 +2,14 @@
 // headless bots and the mobs on, and prints one table. Each profile starts its own server (a temp profile file) and bots, and kills
 // them afterwards.
 //   npx tsx packages/server/bench/netProbeMatrix.ts [--port 2620] [--seconds 60] [--bots 7] [--tag name] [--out dir]
-//        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1]
+//        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1] [--aim legacy50|floor25|aligned]
 // A profile is rtt[:jitter[:loss%]] in ms and percent. Output: <out>/<tag>-<profile>.json per profile and the table on stdout.
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatReport, runProbe, type ProbeReport } from "./netProbe";
+import { formatReport, parseAimMode, runProbe, type AimMode, type ProbeReport } from "./netProbe";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -67,6 +67,8 @@ export interface MatrixOptions {
   training?: boolean;
   faction?: string;
   render?: Record<string, number>;
+  /** How the probe streams its aim (netProbe.ts; default its own, "aligned"). */
+  aimMode?: AimMode;
 }
 
 export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
@@ -88,7 +90,10 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
       if (!o.training) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
       await sleep(1500);
       console.error(`[matrix] ${o.tag} ${p.name}: probing ${o.seconds} s ...`);
-      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training, faction: o.faction });
+      const r = await runProbe({
+        url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training,
+        faction: o.faction, ...(o.aimMode ? { aimMode: o.aimMode } : {}),
+      });
       fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}.json`), JSON.stringify(r));
       console.log(formatReport(r));
       reports.push(r);
@@ -113,6 +118,7 @@ function main(): void {
     legacy: a.includes("--legacy"), trace: a.includes("--trace"), wish: a.includes("--wish"), training: a.includes("--training"),
     ...(a.includes("--faction") ? { faction: get("--faction", "fire") } : {}),
     ...(a.includes("--render") ? { render: JSON.parse(get("--render", "{}")) as Record<string, number> } : {}),
+    ...(a.includes("--aim") ? { aimMode: parseAimMode(get("--aim", "aligned")) } : {}),
   };
   runMatrix(opts).then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
 }

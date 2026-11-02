@@ -56,6 +56,7 @@ import {
   findPath, newSlip, PLAYER_RADIUS, PLAYER_SPEED, regrip, segmentClear, SLIP_REPLAN_MS, slipWalk, TELEPORT_DISTANCE, TICK_MS, WORLD_H, WORLD_W,
   isMovingTowardHuntTarget, SENTENCED_HUNT_MOVE_BONUS, type GameMap, type SlipState, type Vec2,
 } from "@raid/shared";
+import { TickPhase } from "./tickPhase";
 
 export type MotionMode = "predict" | "follow";
 export type OrderKind = "move" | "stop";
@@ -223,6 +224,11 @@ function walkAlong(from: Vec2, path: readonly Vec2[], dist: number, out: Vec2): 
 export class LocalMotion {
   /** Where the local fighter is drawn: the model plus the smoothing offset. Valid once `ready`. */
   readonly drawn: Vec2 = { x: 0, y: 0 };
+  /** The server's tick deadline on the client clock, learned from the same acks as the delay (net/tickPhase.ts). */
+  readonly phase = new TickPhase();
+  /** While `observe` acks: the patch's spacing from the one before and the clock it arrived at, for the phase's samples. */
+  private patchDt = Number.NaN;
+  private ackAt = Number.NaN;
 
   private auth: AuthSample | null = null;
   /** The server velocity (u/s) over the last two samples. */
@@ -322,6 +328,7 @@ export class LocalMotion {
     this.slidUntil = -Infinity;
     this.slipAt = null;
     this.frameMap = null;
+    this.phase.reset();
   }
 
   /**
@@ -468,6 +475,7 @@ export class LocalMotion {
     const oldFollow = wasFollow ? this.followPos(c, this.scratch) : null;
     const ox = oldFollow?.x ?? 0, oy = oldFollow?.y ?? 0;
     const dt = s.t - prev.t;
+    this.phase.notePatch(dt, c);
     // A displacement (a blink, a pull) moves the fighter in one tick: neither a teleport nor a speed.
     const displaced = s.displaceSeq !== undefined && s.displaceSeq !== this.lastDisplaceSeq;
     if (s.displaceSeq !== undefined) this.lastDisplaceSeq = s.displaceSeq;
@@ -495,7 +503,11 @@ export class LocalMotion {
       if (s.locked === true && this.alive) this._mode = "follow";
       return;
     }
+    this.patchDt = dt;
+    this.ackAt = c;
     this.ack(s.moveSeq, s.t);
+    this.patchDt = Number.NaN;
+    this.ackAt = Number.NaN;
     if (refused) {
       this.settleRefused(s, refused);
       return;
@@ -552,7 +564,10 @@ export class LocalMotion {
     const covered = this.orders.filter((q) => !q.applied && seqAcked(q.seq, seq));
     if (covered.length === 0) return;
     const o = covered.find((q) => q.seq === seq) ?? covered[covered.length - 1]!;
-    o.delay = clamp(t - TICK_MS - o.c, DELAY_MIN_MS, DELAY_MAX_MS);
+    const raw = t - TICK_MS - o.c;
+    o.delay = clamp(raw, DELAY_MIN_MS, DELAY_MAX_MS);
+    // Only the order named, unclamped, from a patch of a single step (`observe` says): a skipped one may never have arrived.
+    if (o.seq === seq && raw === o.delay) this.phase.push(raw, o.c, t, this.ackAt, this.patchDt);
     this._delay = this.delayKnown ? this._delay + DELAY_EMA * (o.delay - this._delay) : o.delay;
     this.delayKnown = true;
     let timing = false;

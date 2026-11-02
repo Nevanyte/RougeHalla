@@ -2,7 +2,7 @@
 // TICK_MS, applies the orders that reached it (one per tick, the last wins), walks the player along the same shared A* path
 // at PLAYER_SPEED, and sends each tick's patch (position, server time, moveSeq) back after the downlink delay. The client
 // clock reads a patch's server time when the patch arrives, as ServerClock does: c = now - downlink.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   circleClear, findPath, mapFromTiles, mulberry32, newSlip, PLAYER_RADIUS, PLAYER_SPEED, slipWalk, TELEPORT_DISTANCE, TERRAIN_FENCE, TICK_MS, TILE,
   TILE_FLOOR, TILE_LOW, TILE_WALL, WORLD_H, WORLD_W, withGates, worldToTile,
@@ -401,6 +401,96 @@ describe("acknowledging orders", () => {
     r.move(centre(40, 14));
     r.run(300);
     expect(r.motion.pendingOrders).toBe(0);
+  });
+});
+
+describe("the tick phase's samples (net/tickPhase.ts)", () => {
+  /** A model that has its first sample at server time 1000, and a spy on what it hands the phase. */
+  function primed() {
+    const m = new LocalMotion();
+    m.observe({ x: 300, y: 300, t: 1000, moveSeq: 0, displaceSeq: 0 }, 1000);
+    m.frame(1000, FRAME_MS, ALIVE);
+    return { m, push: vi.spyOn(m.phase, "push") };
+  }
+
+  it("gives one sample per acked order, the one the echo names: d = t - TICK_MS - c, with the patch's spacing and arrival", () => {
+    const { m, push } = primed();
+    m.order("stop", 1, 1010, undefined, arena());
+    m.observe({ x: 300, y: 300, t: 1050, moveSeq: 0, displaceSeq: 0 }, 1052);
+    expect(push).not.toHaveBeenCalled();
+    m.observe({ x: 300, y: 300, t: 1100, moveSeq: 1, displaceSeq: 0 }, 1103);
+    expect(push).toHaveBeenCalledExactlyOnceWith(1100 - TICK_MS - 1010, 1010, 1100, 1103, TICK_MS);
+    expect(m.phase.status(1103).n).toBe(1);
+    // A repeated echo is no new sample.
+    m.observe({ x: 300, y: 300, t: 1150, moveSeq: 1, displaceSeq: 0 }, 1153);
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives none for an order the echo covers but does not name, nor when the named one is forgotten or unknown", () => {
+    const { m, push } = primed();
+    // Two orders in one tick: the server applied the last; the first may never have arrived on its own.
+    m.order("stop", 1, 1005, undefined, arena());
+    m.order("stop", 2, 1012, undefined, arena());
+    m.observe({ x: 300, y: 300, t: 1050, moveSeq: 0, displaceSeq: 0 }, 1053);
+    m.observe({ x: 300, y: 300, t: 1100, moveSeq: 2, displaceSeq: 0 }, 1103);
+    expect(push).toHaveBeenCalledExactlyOnceWith(1100 - TICK_MS - 1012, 1012, 1100, 1103, TICK_MS);
+    push.mockClear();
+    // The echo names number 4, which the model never sent (or forgot): number 3 is covered, its delay measured, no sample.
+    m.order("stop", 3, 1120, undefined, arena());
+    m.observe({ x: 300, y: 300, t: 1150, moveSeq: 2, displaceSeq: 0 }, 1153);
+    m.observe({ x: 300, y: 300, t: 1200, moveSeq: 4, displaceSeq: 0 }, 1203);
+    expect(push).not.toHaveBeenCalled();
+    expect(m.pendingOrders).toBe(0);
+    // A stranger's number covers nothing.
+    m.order("stop", 5, 1220, undefined, arena());
+    m.observe({ x: 300, y: 300, t: 1250, moveSeq: 200, displaceSeq: 0 }, 1253);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("gives none when the delay hit its clamp, from a patch of two steps, or for an ack outside a patch", () => {
+    const { m, push } = primed();
+    m.order("stop", 1, 550, undefined, arena());
+    m.observe({ x: 300, y: 300, t: 1050, moveSeq: 1, displaceSeq: 0 }, 1052); // 450 ms: clamped to DELAY_MAX_MS
+    expect(push).not.toHaveBeenCalled();
+    m.order("stop", 2, 1060, undefined, arena());
+    m.observe({ x: 300, y: 300, t: 1150, moveSeq: 2, displaceSeq: 0 }, 1152); // a catch-up: either step could have applied it
+    expect(push).toHaveBeenCalledOnce();
+    expect(push.mock.lastCall![4]).toBe(2 * TICK_MS);
+    expect(m.phase.status(1152).n).toBe(0);
+    m.order("stop", 3, 1160, undefined, arena());
+    m.ack(3, 1250);
+    expect(m.phase.status(1250).n).toBe(0);
+  });
+
+  it("forgets its samples with the rest on reset", () => {
+    const { m } = primed();
+    let t = 1000;
+    for (let seq = 1; seq <= 10; seq++) {
+      m.order("stop", seq, t + 13, undefined, arena());
+      t += TICK_MS;
+      m.observe({ x: 300, y: 300, t, moveSeq: seq, displaceSeq: 0 }, t + 2);
+    }
+    expect(m.phase.status(t).n).toBe(10);
+    m.reset();
+    expect(m.phase.status(t).n).toBe(0);
+  });
+
+  it("tells the phase of every patch's spacing: a catch-up step, acked or not, drops its samples", () => {
+    const { m } = primed();
+    const note = vi.spyOn(m.phase, "notePatch");
+    let t = 1000;
+    for (let seq = 1; seq <= 10; seq++) {
+      m.order("stop", seq, t + 13, undefined, arena());
+      t += TICK_MS;
+      m.observe({ x: 300, y: 300, t, moveSeq: seq, displaceSeq: 0 }, t + 2);
+    }
+    expect(note).toHaveBeenCalledTimes(10);
+    expect(note).toHaveBeenLastCalledWith(TICK_MS, t + 2);
+    expect(m.phase.status(t).n).toBe(10);
+    t += 2 * TICK_MS;
+    m.observe({ x: 300, y: 300, t, moveSeq: 10, displaceSeq: 0 }, t + 2);
+    expect(note).toHaveBeenLastCalledWith(2 * TICK_MS, t + 2);
+    expect(m.phase.status(t).n).toBe(0);
   });
 });
 
