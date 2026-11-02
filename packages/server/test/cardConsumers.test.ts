@@ -8,7 +8,7 @@
 // The ledger's own readers (G1's kind, the `vs` extras, the Race to 0 card source) are in guards.test.ts; the bog is in terrain.test.ts.
 import { describe, expect, it } from "vitest";
 import {
-  AP_DOT_RATIO, FIRE_BURN_AD_RATIO, frostChillBonusOf, FROST_CHILL_BONUS_CAP, PLAGUE_AP_DOT_RATIO, plagueDiseaseMultOf, holyLeechRowsOf, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, chillMultiplier, diseaseDps, ENGAGE_LINGER_SECONDS,
+  AP_DOT_RATIO, FIRE_BURN_AD_RATIO, frostChillBonusOf, FROST_CHILL_BONUS_CAP, PLAGUE_AP_PER_HIT, holyLeechRowsOf, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, chillMultiplier, diseaseDps, ENGAGE_LINGER_SECONDS,
   EXECUTE_BAND, FACTIONS, lifestealFraction, lifestealTotal, LIFESTEAL_MAX, mitigateShares, pacedFaction, resistSlow, SIGNATURE_WEAPONS, TICK_MS,
   type DamageShares, type Effect, type FactionId, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -77,27 +77,31 @@ describe("AP on damage over time (BALANCE_CONTRACT 3.3)", () => {
     expect(drain(seen, "burn")).toHaveLength(1);
   });
 
-  it("Plague: beside the disease, whatever weapon is in hand (AP is flat: no weapon multiplier), at Plague's own ratio", () => {
+  it("Plague: the SO rider follows its own landed hits on the target, whatever weapon (AP is flat: no weapon multiplier)", () => {
     for (const weapon of ["bow", "sword"] as const) {
       const { w, seen } = engagedPair("plague", [ap(AP)], weapon);
       tick(w);
+      const quiet = drain(seen, "disease");
+      expect(quiet, `${weapon}: no hit yet, no rider`).toHaveLength(1);
+      expect(quiet[0]!.packet.raw).toBeCloseTo(diseaseDps(spec("plague"), 1, EXECUTE_BAND) * bonusMultiplier(weapon) * DT, 9);
+      // One weapon hit in the last second: PLAGUE_AP_PER_HIT x AP a hit, paid at one hit a second.
+      inStep(w, () => { hit(w, "v", "a", 1, { weapon }); });
       const disease = drain(seen, "disease");
       expect(disease, weapon).toHaveLength(2);
-      expect(disease[0]!.packet.raw).toBeCloseTo(diseaseDps(spec("plague"), 1, EXECUTE_BAND) * bonusMultiplier(weapon) * DT, 9);
-      expect(disease[1]!.packet.raw, weapon).toBeCloseTo(PLAGUE_AP_DOT_RATIO * AP * DT, 9);
+      expect(disease[1]!.packet.raw, weapon).toBeCloseTo(PLAGUE_AP_PER_HIT * AP * DT, 9);
+      expect(disease[1]!.packet).toMatchObject(MAGIC_SHARES);
+      // A second hit doubles the rate; a hit on someone else, or a zombie's, is not its own on this target.
+      inStep(w, () => { hit(w, "v", "a", 1, { weapon }); });
+      expect(drain(seen, "disease")[1]!.packet.raw, weapon).toBeCloseTo(2 * PLAGUE_AP_PER_HIT * AP * DT, 9);
     }
   });
 
-  it("Plague: bonus Defense + SD thicken the disease (plagueDiseaseMultOf), capped, and leave the execute alone", () => {
-    expect(plagueDiseaseMultOf(0)).toBe(1);
-    expect(plagueDiseaseMultOf(1e6)).toBeLessThanOrEqual(2);
-    for (const def of [30, 1000]) {
-      const { w, seen } = engagedPair("plague", [{ k: "flat", stat: "armor", v: def / 2 }, { k: "flat", stat: "shield", v: def / 2 }], "bow");
-      tick(w);
-      const disease = drain(seen, "disease");
-      expect(disease).toHaveLength(1);
-      expect(disease[0]!.packet.raw).toBeCloseTo(diseaseDps(spec("plague"), 1, EXECUTE_BAND) * bonusMultiplier("bow") * plagueDiseaseMultOf(def) * DT, 9);
-    }
+  it("Plague: bonus Defense + SD do not thicken the disease (the zombie rework removed that hook)", () => {
+    const { w, seen } = engagedPair("plague", [{ k: "flat", stat: "armor", v: 500 }, { k: "flat", stat: "shield", v: 500 }], "bow");
+    tick(w);
+    const disease = drain(seen, "disease");
+    expect(disease).toHaveLength(1);
+    expect(disease[0]!.packet.raw).toBeCloseTo(diseaseDps(spec("plague"), 1, EXECUTE_BAND) * bonusMultiplier("bow") * DT, 9);
   });
 
   it("Sentenced: the mark is a pulse per landed hit and no damage over time, so AP adds nothing to it", () => {

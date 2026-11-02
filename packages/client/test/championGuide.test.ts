@@ -10,10 +10,11 @@ describe("champion guide matches the combat catalog", () => {
   it("explains Plague's one growing zombie, max-health scaling and body-based revival", () => {
     const guide = signatureGuide("plague"), details = guide.details.join(" ");
     expect(guide.summary).toContain("raise a Plague zombie");
-    expect(guide.scaling).toContain("your max health and harvested bodies");
+    expect(guide.scaling).toContain("your bonus max health and harvested bodies");
     expect(details).toContain("first raises one zombie");
-    expect(details).toContain("55% of your current max HP");
-    expect(details).toContain("each physical hit is 2% of your current max HP");
+    expect(details).toContain("4% of your max HP + 0.4 per point of bonus max HP");
+    expect(details).toContain("each physical hit is 0.3% of your max HP + 2.5% of your bonus max HP");
+    expect(details).toContain("a wand commands it from range");
     expect(details).toContain("consume another player body to revive it");
     expect(details).toContain("no longer multiplies disease or execute damage");
   });

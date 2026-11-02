@@ -62,7 +62,7 @@
 import {
   AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, capAsMult, CHILL_MOVE_RADIUS,
   CHILL_MOVE_RESET_MS, chillMultiplier, FIRE_BACKLASH_PER_DEFENSE, FIRE_BURN_AD_RATIO, frostChillBonusOf, holyLeechRowsOf,
-  PLAGUE_AP_DOT_RATIO, plagueDiseaseMultOf, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, isRanged, decodeMult, encodeMult, frostMoveMultiplier,
+  PLAGUE_AP_PER_HIT, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, isRanged, decodeMult, encodeMult, frostMoveMultiplier,
   CRIT_MULT, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, executeDps, FACTIONS, FESTERING_AP_SHARE,
   FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
@@ -91,6 +91,9 @@ import {
 /** One fighter's signature state. Times are server ms. */
 export interface SigFighter {
   target: string | null;
+  /** Plague's SO rider: the times of its recent weapon hits on `apHitsOn` (hitRate). Created on first use. */
+  apHits?: number[];
+  apHitsOn?: string;
   /** This tick: the target is within reach with a clear line. */
   inReach: boolean;
   /** This tick: recently in reach, and trading. */
@@ -461,14 +464,16 @@ function signatureDamage(world: World, dtMs: number): void {
       // AP is flat power in points a second: no weapon multiplier, but the stagger pause takes out its share of the tick too.
       const ap = apOf(c.s);
       const player = c.kind === "player";
-      // The build rebalance (TUNING_BALANCE 13.8): a Fire's Offense feeds its burn too (FIRE_BURN_AD_RATIO); Plague's SO rider is its own
-      // ratio and its bonus defenses thicken the disease (plagueDiseaseMultOf). Players only, so the camps' mobs are unchanged.
+      // The build rebalance (TUNING_BALANCE 13.8): a Fire's Offense feeds its burn too (FIRE_BURN_AD_RATIO); Plague's SO rider is paid
+      // per landed hit (below). Players only, so the camps' mobs are unchanged.
       const burnRider = (AP_DOT_RATIO * ap + (player ? FIRE_BURN_AD_RATIO * adOf(c.s) : 0)) * secs * f.chill;
       dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, burnRider);
       // The disease and its execute are two entries of one type: a tier-4 mark denies the second (docs/SENTENCED_REDESIGN.md R7). The AP rider rides the first.
-      const diseaseMult = player ? plagueDiseaseMultOf(scalingStatsOf(c.s).bonusDefense) : 1;
-      const diseaseRider = (player ? PLAGUE_AP_DOT_RATIO : AP_DOT_RATIO) * ap * secs * f.chill;
-      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot * diseaseMult, diseaseRider);
+      // A Plague player's SO rider follows its own hits on the target (PLAGUE_AP_PER_HIT a hit, paid evenly at its hit rate over the
+      // last AP_HIT_WINDOW_MS, so the PvP damage-over-time budget sees a steady rate): attack speed carries it, so the wand and bow
+      // disease builds scale and a max-hp zombie build (little SO; its zombie's hits are not its own) does not.
+      const diseaseRider = (player ? PLAGUE_AP_PER_HIT * ap * hitRate(world, f, c.id, t.id, now) * secs : AP_DOT_RATIO * ap * secs) * f.chill;
+      dotBonus(world, c, spec, weapon, t, "disease", plagueDps(spec) * dot, diseaseRider);
       dotBonus(world, c, spec, weapon, t, "disease", executeDps(spec, foeFrac, executeBandOf(c.s)) * dot, 0, true);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
@@ -590,6 +595,17 @@ function inMarkedGroup(world: World, owner: Combatant, member: Combatant): boole
 function countsForMark(e: LedgerEntry): boolean {
   return e.weapon !== null && e.sig === undefined && e.ability === undefined && e.dot !== true && e.passive !== true && e.derived !== true
     && e.final !== true && e.arena !== true && e.scale > 0 && e.packet.raw > 0;
+}
+
+const AP_HIT_WINDOW_MS = 1000;
+
+/** `by`'s weapon hits on `victim` a second, over the last AP_HIT_WINDOW_MS (this tick's from the ledger, the mark's filter). */
+function hitRate(world: World, f: SigFighter, by: string, victim: string, now: number): number {
+  if (f.apHitsOn !== victim) { f.apHitsOn = victim; f.apHits = []; }
+  const hits = (f.apHits ??= []);
+  for (const e of world.combat.ledger) if (e.by.id === by && e.victim === victim && countsForMark(e)) hits.push(now);
+  while (hits.length > 0 && now - hits[0]! >= AP_HIT_WINDOW_MS) hits.shift();
+  return hits.length / (AP_HIT_WINDOW_MS / 1000);
 }
 
 /** This tick's hits that count for a mark, by their Sentenced attacker (the contacts' filter: nobody immune, no mob on a mob). */

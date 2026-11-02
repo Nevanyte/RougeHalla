@@ -1,6 +1,6 @@
 import {
   FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, HOLY_AP_LIFESTEAL_CAP, HOLY_CAMP_LIFESTEAL_PER_CLEAR,
-  HOLY_LEECH_ROW_MULT, HOLY_LIFESTEAL_PER_AP, PLAGUE_DISEASE_DEFENSE_CAP, PLAGUE_DISEASE_PER_DEFENSE,
+  HOLY_LEECH_ROW_MULT, HOLY_LIFESTEAL_PER_AP,
 } from "./constants";
 
 /** Holy's lifesteal from SO (AP), added to its own share (HOLY_LIFESTEAL_PER_AP, capped). */
@@ -30,8 +30,3 @@ export function frostChillBonusOf(bonusSd: number, bonusAttackSpeed: number): nu
   return Math.min(FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_SD * sd + FROST_CHILL_PER_ATTACK_SPEED * as);
 }
 
-/** Plague's disease multiplier from its bonus Defense + SD: 1 + PLAGUE_DISEASE_PER_DEFENSE per point, at most 1 + PLAGUE_DISEASE_DEFENSE_CAP. */
-export function plagueDiseaseMultOf(bonusDefense: number): number {
-  const def = Number.isFinite(bonusDefense) ? Math.max(0, bonusDefense) : 0;
-  return 1 + Math.min(PLAGUE_DISEASE_DEFENSE_CAP, PLAGUE_DISEASE_PER_DEFENSE * def);
-}

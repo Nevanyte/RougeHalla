@@ -38,7 +38,7 @@ export const BUILD_GOALS: Readonly<Record<FactionId, readonly [BuildGoal, BuildG
   ],
   plague: [
     { id: "plague:A", name: "attack-speed SO DoT stacker", weights: { attackSpeed: 1, ap: 1, damage: 0.4 } },
-    { id: "plague:B", name: "zombie tank", weights: { armor: 0.9, shield: 0.9, ap: 0.7, maxHp: 0.6 } },
+    { id: "plague:B", name: "zombie commander", weights: { maxHp: 1, armor: 0.4, shield: 0.4 } }, // the zombie grows with bonus max hp
   ],
   frost: [
     { id: "frost:A", name: "Defense/SD shield tank", weights: { armor: 1, shield: 1, maxHp: 0.8 } },

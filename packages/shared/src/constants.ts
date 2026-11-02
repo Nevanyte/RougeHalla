@@ -102,13 +102,11 @@ export const FROST_CHILL_PER_SD = 0.007;
 export const FROST_CHILL_PER_ATTACK_SPEED = 0.45;
 export const FROST_CHILL_BONUS_CAP = 0.2;
 /**
- * Plague's builds (the build rebalance, testing/TUNING_BALANCE.md 13.8): its disease's SO rider is PLAGUE_AP_DOT_RATIO per point
- * (Fire's burn keeps AP_DOT_RATIO), and its disease grows by PLAGUE_DISEASE_PER_DEFENSE per point of bonus Defense + SD, at most
- * +PLAGUE_DISEASE_DEFENSE_CAP (the attrition tank). The execute is not scaled.
+ * Plague's disease SO rider (the zombie rework): each weapon hit a Plague player lands on its disease target adds this much of its
+ * SO as disease damage, so attack speed carries it (a wand or bow SO build) and a max-hp zombie build gains little. 0.8 a hit is the
+ * old 2.4 a second at a plain wand's three hits a second. Fire's burn keeps AP_DOT_RATIO a second; mobs too.
  */
-export const PLAGUE_AP_DOT_RATIO = 2.4;
-export const PLAGUE_DISEASE_PER_DEFENSE = 0.02;
-export const PLAGUE_DISEASE_DEFENSE_CAP = 1;
+export const PLAGUE_AP_PER_HIT = 0.8;
 /** Frost's Frozen Justice defenses while fighting a true elite, and after contact ends. */
 export const FROST_ELITE_GUARD_BONUS = 15;
 export const FROST_ELITE_GUARD_LINGER_MS = 2_000;
@@ -234,7 +232,7 @@ export const AS_POST_MIN = 0.5;
 export const AS_POST_MAX = 2;
 /** G13: Wishes are flat; the only card that moves their cooldown (Arcane Overload x2) is a `wishCooldown` mult, and none takes it under this share. */
 export const WISH_COOLDOWN_MULT_MIN = 0.5;
-/** 3.3: a running burn adds this much of the owner's AP as magic damage per second (Plague's disease uses PLAGUE_AP_DOT_RATIO; mobs use this one for both). */
+/** 3.3: a running burn adds this much of the owner's AP as magic damage per second (Plague's disease uses PLAGUE_AP_PER_HIT, per hit, for a player; mobs use this one for both). */
 export const AP_DOT_RATIO = 0.6;
 /** A fighter is "in a fight" (the `fightTime` condition) from its first landed or taken hit until this long passes with none. */
 export const FIGHT_GAP_SECONDS = 3;

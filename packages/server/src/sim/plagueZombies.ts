@@ -1,7 +1,7 @@
 // One owned combatant per Plague. Its entries keep the zombie id (no borrowed on-hits or disease); reward and PvP readers
 // resolve ownership explicitly. It has no regional mob brain, reward path, corpse or automatic resurrection.
 import {
-  circleClear, decodeMult, hasLineOfSight, MASK_MOVE, PLAGUE_ZOMBIE_ASSIST_MS, PLAGUE_ZOMBIE_ASSIST_RANGE, PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR,
+  circleClear, decodeMult, FACTIONS, hasLineOfSight, MASK_MOVE, PLAGUE_ZOMBIE_ASSIST_MS, PLAGUE_ZOMBIE_ASSIST_RANGE, PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR,
   PLAGUE_ZOMBIE_REGEN_QUIET_MS, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND, PLAGUE_ZOMBIE_REGEN_STEP_MS, plagueZombieStats,
   PLAYER_RADIUS, TICK_MS, type Vec2,
 } from "@raid/shared";
@@ -38,10 +38,9 @@ function resetCombat(world: World, z: Zombie): void {
   if (z.rt.zombie) { z.rt.zombie.target = null; z.rt.zombie.assistUntil = 0; z.rt.zombie.lastMoveAt = 0; }
 }
 
-/** What the owner's build gives its zombie (shared plagueZombieStats): its bonus defenses and SO. */
-function ownerBonus(s: Owner["s"]): { bonusDefense: number; ap: number } {
-  const st = scalingStatsOf(s);
-  return { bonusDefense: st.bonusDefense, ap: st.ap };
+/** What the owner's build gives its zombie (shared plagueZombieStats): its bonus max hp (above Plague's base) and a little of its bonus Offense. */
+function ownerBonus(s: Owner["s"]): { baseHp: number; ad: number } {
+  return { baseHp: FACTIONS.plague.hp, ad: scalingStatsOf(s).ad };
 }
 
 function syncStats(owner: Owner, z: Zombie, revive = false): void {

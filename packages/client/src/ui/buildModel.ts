@@ -4,7 +4,7 @@
 // Also the weapon bar's tooltip text: a weapon's scaling and what it does beyond a tag.
 import {
   AP_DOT_RATIO, BASE_TITLES, CARD_TIERS, FACTIONS, STAT_GLOSSARY, WEAPONS, WEAPON_TAGS, WIRE_IDENTITY_MIRRORS, baseCardId,
-  cardPower, cardRows, countIn, decodeMirrors, holyCampLifestealOf, holyLeechRowsOf, PLAGUE_AP_DOT_RATIO, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
+  cardPower, cardRows, countIn, decodeMirrors, holyCampLifestealOf, holyLeechRowsOf, PLAGUE_AP_PER_HIT, isFactionId, lifestealTotal, mobStatRows, ownedCards, pvpFactor, tagLabel, tierRoman,
   type BaseStatId, type CardCounts, type StatMirrors, type WeaponId, type WireMirrors,
 } from "@raid/shared";
 
@@ -104,7 +104,9 @@ export function buildStats(input: BuildInput): BuildStat[] {
   const ap = `${STAT_GLOSSARY.ap.text} +${num(m.apBonus)} from your cards. `
     + (apPer > 0 ? `Your ${w.name} turns each point into ${num(apPer)} magic damage a second at base attack speed.` : `Your ${w.name} gets nothing from it directly.`)
     + (spec?.mechanic === "dragonslayer" || spec?.mechanic === "rat_king"
-      ? ` Your engaged ${spec.mechanic === "rat_king" ? "disease" : "burn"} also gains ${num(spec.mechanic === "rat_king" ? PLAGUE_AP_DOT_RATIO : AP_DOT_RATIO)} magic damage a second per point.`
+      ? spec.mechanic === "rat_king"
+        ? ` Your disease also gains ${num(PLAGUE_AP_PER_HIT)} magic damage per point for every weapon hit you land.`
+        : ` Your engaged burn also gains ${num(AP_DOT_RATIO)} magic damage a second per point.`
       : " Your base passive and Wish have no direct SO scaling; augments may add their own effects.");
 
   const armorBase = spec?.armor ?? 0;

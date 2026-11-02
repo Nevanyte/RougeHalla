@@ -666,3 +666,30 @@ disease rider and Holy's rows read the new helpers (`cardConsumers`, `cardRows`,
 Plague's defense disease and Frost's SD/attack-speed chill. `bandwidth.test.ts`'s per-seed chest guard is 2.5 KB/s (was 2): seed 3
 measures +2.19 KB/s from fights alone (11.9 against 8.7 mobs fighting; the chests' own fx is about 0.01 KB/s, and seed 1 reads -1.67),
 while the mean bound (< 1 KB/s) and the 20 KB/s budget hold.
+
+### 13.9 The zombie rework (owner request, 2026-11-02)
+
+Owner: "On hit AP/Dots scaling is already part of plagues kit ... combining this with zombie chase down build is too strong ...
+make zombie AD scaling small and scale primarily off of max HP", then "dont just straight up half bow disease ... change the way
+disease scales ... off of AP/per hit ... the optimal way to use zombie is to build HP and command it from distance with wand."
+No hard restriction is used (a first try that cut the wand to a 20% poke and halved a bow's disease with the zombie up was
+dropped on that note).
+
+- Disease: the base is unchanged (kit-0 tables byte-identical). Its SO rider is `PLAGUE_AP_PER_HIT` 0.8 x SO per weapon hit
+  on the disease target, paid evenly at the hit rate over the last second (`hitRate`, sim/factions.ts). A lump on the hit tick
+  was mostly cut by the PvP damage-over-time budget (`capPvp`), hence the smoothing. The bonus-defense disease multiplier is gone.
+- Zombie: health 0.04 x max hp + 0.4 x bonus max hp; hit 0.003 x max hp + 0.025 x bonus max hp + 0.15 x bonus Offense, at
+  most 0.03 x max hp; both x the body growth. No SO, no defenses.
+- Why the zombie is small for a damage build: in a same-weapon duel even a 30 hp zombie is worth about +13 points (it soaks
+  shots and draws the lock), so its base share has to be low for the commander build to be its best user.
+
+`bench/factionBuilds.ts --setups 18 --draws 16` (the commander build is vitality III + II + I on a wand; BZ/AZ/BowZ have one
+body consumed, the zombie up):
+
+| Plague row | no zombie | zombie up |
+|---|---|---|
+| zombie commander, wand (B / BZ) | 40 | 61 |
+| SO disease wand (A / AZ) | 46 | 59 |
+| Offense bow (BowA / BowZ) | 38 | 51 |
+
+The other factions' rows are unchanged; the kit-0 matchups (fists and sword) read 48-53% in every pair as before.

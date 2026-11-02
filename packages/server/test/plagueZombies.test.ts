@@ -61,23 +61,25 @@ describe("Plague's single zombie", () => {
     const z = pet(w), first = z.s.maxHp;
     expect(z.s).toMatchObject({ kind: "zombie", ownerId: "owner", status: "alive", camp: 0, type: "" });
     expect(P(w).maxHp).toBeCloseTo(base + FACTIONS.plague.hp * .03);
-    expect(z.s.maxHp).toBeCloseTo(plagueZombieStats(P(w).maxHp, 1).maxHp);
-    z.s.hp = 100;
+    expect(z.s.maxHp).toBeCloseTo(plagueZombieStats(P(w).maxHp, 1, { baseHp: FACTIONS.plague.hp }).maxHp);
+    const hurt = first / 2;
+    z.s.hp = hurt;
     harvest(w, "spare");
     expect(pet(w).id).toBe(z.id);
     expect([...w.state.mobs.values()].filter(m => m.kind === "zombie")).toHaveLength(1);
     expect(P(w).maxHp).toBeCloseTo(base + 2 * FACTIONS.plague.hp * .03);
-    expect(z.s.maxHp).toBeCloseTo(plagueZombieStats(P(w).maxHp, 2).maxHp);
-    expect(z.s.hp).toBeCloseTo(100 + z.s.maxHp - first);
-    expect(packetFor(z, "fists").raw).toBeCloseTo(plagueZombieStats(P(w).maxHp, 2).damage);
+    expect(z.s.maxHp).toBeCloseTo(plagueZombieStats(P(w).maxHp, 2, { baseHp: FACTIONS.plague.hp }).maxHp);
+    expect(z.s.hp).toBeCloseTo(hurt + z.s.maxHp - first);
+    expect(packetFor(z, "fists").raw).toBeCloseTo(plagueZombieStats(P(w).maxHp, 2, { baseHp: FACTIONS.plague.hp }).damage);
   });
 
   it("reads later owner max-health growth and never leaves an injured living zombie at zero when max health shrinks", () => {
     const w = arena(); harvest(w); const z = pet(w);
     P(w).maxHp = 3000; updateZombies(w); z.s.hp = 20;
     P(w).maxHp = 1400; updateZombies(w);
-    expect(z.s.hp).toBe(20); expect(z.s.status).toBe("alive"); expect(z.s.maxHp).toBeCloseTo(770);
-    expect(packetFor(z, "fists").raw).toBeCloseTo(28);
+    const at1400 = plagueZombieStats(1400, P(w).corpseStacks, { baseHp: FACTIONS.plague.hp });
+    expect(z.s.hp).toBe(20); expect(z.s.status).toBe("alive"); expect(z.s.maxHp).toBeCloseTo(at1400.maxHp);
+    expect(packetFor(z, "fists").raw).toBeCloseTo(at1400.damage);
   });
 
   it("follows instead of attacking nearby unengaged camps, and paths through the gap rather than through walls", () => {
@@ -202,7 +204,7 @@ describe("Plague's single zombie", () => {
     expect([P(w, "foe").gv, P(w, "foe").kills, P(w, "foe").mobKills, w.state.containers.size, w.state.plagueCorpses.size]).toEqual(rewards);
     harvest(w, "spare");
     expect(pet(w).id).toBe(z.id); expect(z.s.status).toBe("alive"); expect(P(w).corpseStacks).toBe(2);
-    expect(z.s.hp).toBeCloseTo(plagueZombieStats(P(w).maxHp, 2).maxHp);
+    expect(z.s.hp).toBeCloseTo(plagueZombieStats(P(w).maxHp, 2, { baseHp: FACTIONS.plague.hp }).maxHp);
   });
 
   it("follows forced displacement and the locked coliseum teleport, sharing arrival immunity, then disappears on owner death", () => {

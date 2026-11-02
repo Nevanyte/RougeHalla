@@ -52,7 +52,7 @@ describe("Plague corpse harvest", () => {
     const zombie = w.state.mobs.get(p.plagueZombieId)!;
     expect(zombie.kind).toBe("zombie");
     expect(zombie.ownerId).toBe("plague-a");
-    expect(zombie.maxHp).toBeCloseTo(plagueZombieStats(p.maxHp, 1).maxHp, 8);
+    expect(zombie.maxHp).toBeCloseTo(plagueZombieStats(p.maxHp, 1, { baseHp: FACTIONS.plague.hp }).maxHp, 8);
   });
 
   it("allows exactly one Plague to win simultaneous consumption and rejects outsiders and distant players", () => {
@@ -141,7 +141,7 @@ describe("walking over Plague corpses", () => {
     step(w, TICK_MS);
     expect(w.state.plagueCorpses.size).toBe(0); expect(p.corpseStacks).toBe(2);
     const zombies = [...w.state.mobs.values()].filter(m => m.kind === "zombie");
-    expect(zombies).toHaveLength(1); expect(zombies[0]!.maxHp).toBeCloseTo(plagueZombieStats(p.maxHp, 2).maxHp);
+    expect(zombies).toHaveLength(1); expect(zombies[0]!.maxHp).toBeCloseTo(plagueZombieStats(p.maxHp, 2, { baseHp: FACTIONS.plague.hp }).maxHp);
   });
 
   it("settles two overlapping Plagues by shuffled tick rank and grants the corpse exactly once", () => {
@@ -186,7 +186,7 @@ describe("walking over Plague corpses", () => {
     applyLedger(w); expect(z.status).toBe("dead");
     die(w, "other"); step(w, TICK_MS);
     expect(p.plagueZombieId).toBe(id); expect(p.corpseStacks).toBe(2); expect(z.status).toBe("alive");
-    expect(z.hp).toBeCloseTo(plagueZombieStats(p.maxHp, 2).maxHp);
+    expect(z.hp).toBeCloseTo(plagueZombieStats(p.maxHp, 2, { baseHp: FACTIONS.plague.hp }).maxHp);
   });
 
   it("ordinary loot overlap and ordinary pickup messages grant no corpse stack or zombie", () => {

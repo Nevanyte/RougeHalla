@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, AP_DOT_RATIO, FIRE_BURN_AD_RATIO, FROST_CHILL_PER_SD, HOLY_LEECH_ROW_MULT, PLAGUE_AP_DOT_RATIO, plagueDiseaseMultOf, BLAZE_BURN_DPS, BLAZE_BURN_MS, CHILL_MOVE_MULT, EXECUTE_BAND, FACTIONS,
+  ABILITIES, AP_DOT_RATIO, FIRE_BURN_AD_RATIO, FROST_CHILL_PER_SD, HOLY_LEECH_ROW_MULT, PLAGUE_AP_PER_HIT, BLAZE_BURN_DPS, BLAZE_BURN_MS, CHILL_MOVE_MULT, EXECUTE_BAND, FACTIONS,
   FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   LAST_STAND_HEAL_SHARE, LAST_STAND_MS, LAST_STAND_SPEED_BONUS, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY,
   TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, TRIAL_MS, TRIAL_TAKEN_MULT, WIRE_IDENTITY_MIRRORS,
   attackInterval, bonusMultiplier, damagePerHit, damageShares, encodeFlat, encodeMult,
-  decodeMirrors, fireRoamBurstDamage, fireRoamSpeedMult, foldRows, lifestealFraction, markPct, markWeight, ownedCards, pacedFaction, scalingDamage, WEAPONS,
+  decodeMirrors, plagueZombieStats, fireRoamBurstDamage, fireRoamSpeedMult, foldRows, lifestealFraction, markPct, markWeight, ownedCards, pacedFaction, scalingDamage, WEAPONS,
 } from "@raid/shared";
 import { championCombatModel, type ChampionCombatInput } from "../src/ui/championCombatModel";
 
@@ -47,9 +47,12 @@ describe("championCombatModel", () => {
     expect(championCombatModel(p).rows[1].scaling).toContain("Walk over a body: raise zombie");
     const grown = championCombatModel({ ...p, corpseStacks: 3, zombieAlive: true, zombieHp: 420, zombieMaxHp: 840 }).rows[1];
     expect(grown.scaling).toContain("420/840 HP · 3 bodies");
-    expect(grown.tooltip).toContain("1320 max HP and 48 raw physical damage");
+    const at = (maxHp: number) => plagueZombieStats(maxHp, 3, { baseHp: FACTIONS.plague.hp });
+    const two = (n: number): number => Math.round(n * 100) / 100; // the model's fmt
+    expect(grown.tooltip).toContain(`${two(at(2000).maxHp)} max HP and ${two(at(2000).damage)} raw physical damage`);
     expect(grown.tooltip).toContain("assists your current enemy and follows you otherwise");
-    expect(championCombatModel({ ...p, maxHp: 4000, corpseStacks: 3 }).rows[1].tooltip).toContain("2640 max HP and 96 raw physical damage");
+    expect(grown.tooltip).toContain("a wand commands it from range");
+    expect(championCombatModel({ ...p, maxHp: 4000, corpseStacks: 3 }).rows[1].tooltip).toContain(`${two(at(4000).maxHp)} max HP and ${two(at(4000).damage)} raw physical damage`);
     expect(championCombatModel({ ...p, corpseStacks: 3, zombieAlive: false }).rows[1].scaling).toContain("walk over a body to revive");
   });
   it("matches shared current per-hit formula and damage types for every faction and weapon", () => {
@@ -128,19 +131,19 @@ describe("championCombatModel", () => {
     const input = player({ faction: "plague", weapon0: "bow", apBonus: encodeFlat(20), build: { hereComesTheBoom: 1 } });
     const plain = championCombatModel(input).rows[1]!;
     const faction = pacedFaction(FACTIONS.plague);
-    const expectedBase = (faction.params.plague! * bonusMultiplier("bow") + PLAGUE_AP_DOT_RATIO * 20) * 1.25;
+    const expectedBase = (faction.params.plague! * bonusMultiplier("bow") + PLAGUE_AP_PER_HIT * 20 / attackInterval(FACTIONS.plague, "bow", 1)) * 1.25;
     expect(plain.value).toContain(`${round(expectedBase)} magic/s`);
     expect(plain.value).not.toContain("execute");
     expect(plain.tooltip).toContain("Below 50% target HP, execute adds");
     expect(plain.tooltip).toContain("1.25× DoT multiplier");
   });
 
-  it("shows the build hooks: Fire's Offense burn, Plague's defense disease, Frost's SD chill and Holy's leech multiplier", () => {
+  it("shows the build hooks: Fire's Offense burn, Plague's plain disease, Frost's SD chill and Holy's leech multiplier", () => {
     const fire = championCombatModel(player({ faction: "fire", weapon0: "sword", adBonus: encodeFlat(20) })).rows[1]!;
     expect(fire.value).toContain(`${round(FACTIONS.fire.params.burn! * 2 * bonusMultiplier("sword") + FIRE_BURN_AD_RATIO * 20)} magic/s`);
     const plague = championCombatModel(player({ faction: "plague", weapon0: "bow", armorBonus: encodeFlat(30) })).rows[1]!;
     const faction = pacedFaction(FACTIONS.plague);
-    expect(plague.value).toContain(`${round(faction.params.plague! * bonusMultiplier("bow") * plagueDiseaseMultOf(30))} magic/s`);
+    expect(plague.value).toContain(`${round(faction.params.plague! * bonusMultiplier("bow"))} magic/s`); // defenses no longer thicken it
     const frost = championCombatModel(player({ faction: "frost", weapon0: "shield", shieldBonus: encodeFlat(20) })).rows[1]!;
     expect(frost.value).toContain(`${round((FACTIONS.frost.params.slow! + FROST_CHILL_PER_SD * 20) * 100)}% AS`);
     const holy = championCombatModel(player({ faction: "holy", weapon0: "axe" })).rows[1]!;
