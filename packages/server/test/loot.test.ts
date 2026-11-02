@@ -275,7 +275,7 @@ describe("spawnLoot / install", () => {
     expect(bare.state.containers.size).toBeGreaterThan(0);
   });
 
-  it("puts one weapon and a small potion in each chest, plus loose weapons and travel cannons", () => {
+  it("puts a small potion (no weapon) in each chest, plus loose weapons and travel cannons", () => {
     const world = makeWorld();
     const { crateSpots, groundSpots } = world.map;
     expect(crateSpots.length).toBeGreaterThan(0);
@@ -290,9 +290,8 @@ describe("spawnLoot / install", () => {
     expect(chests.map((c) => ({ x: c.x, y: c.y }))).toEqual(crateSpots);
     for (const c of chests) {
       expect(c.label).toBe("Chest");
-      expect(c.items).toHaveLength(2);
-      expect(c.items.at(1)!.def).toBe("potionSmall");
-      expect(WEAPON_IDS).toContain(c.items.at(0)!.def);
+      expect(c.items).toHaveLength(1);
+      expect(c.items.at(0)!.def).toBe("potionSmall");
     }
     // Loose weapons sit on a subset of the ground spots, in order, one on each, named after what they are.
     let next = 0;
@@ -325,8 +324,8 @@ describe("spawnLoot / install", () => {
     expect(s.calls).toBe(10);
     const boxes = [...world.state.containers.values()];
     expect(boxes.map((c) => [c.kind, c.x, c.y, defsOf(c)])).toEqual([
-      ["chest", SPOTS[0]!.x, SPOTS[0]!.y, [first, "potionSmall"]],
-      ["chest", SPOTS[1]!.x, SPOTS[1]!.y, [last, "potionSmall"]],
+      ["chest", SPOTS[0]!.x, SPOTS[0]!.y, ["potionSmall"]],
+      ["chest", SPOTS[1]!.x, SPOTS[1]!.y, ["potionSmall"]],
       ["ground", SPOTS[0]!.x, SPOTS[0]!.y, [first]],
       ["ground", SPOTS[1]!.x, SPOTS[1]!.y, [last]],
     ]);
@@ -351,7 +350,8 @@ describe("spawnLoot / install", () => {
     const b = makeWorld({}, 1234, mulberry32(2));
     const chests = (w: World) => [...w.state.containers.values()].filter((c) => c.kind === "chest");
     expect(chests(a).map((c) => [c.x, c.y])).toEqual(chests(b).map((c) => [c.x, c.y]));
-    expect(chests(a).map(defsOf)).not.toEqual(chests(b).map(defsOf));
+    const ground = (w: World) => [...w.state.containers.values()].filter((c) => c.kind === "ground");
+    expect(ground(a).map(defsOf)).not.toEqual(ground(b).map(defsOf));
   });
 
   it("does not touch Math.random", () => {
@@ -620,6 +620,8 @@ describe("pickup", () => {
       const world = startRaid([alice()]);
       const empty = putContainer(world, "chest", AT, []);
       const junk = putContainer(world, "chest", AT, ["gold"]);
+      empty.opened = true; // an unopened crate would offer its stat choice instead (sim/chests.ts dropStatChest)
+      junk.opened = true;
       const body = putContainer(world, "body", AT, []);
       for (const box of [empty, junk, body]) expect(attempt(world, "a", box.id), box.id).toEqual(["Nothing to take"]);
       expect(defsOf(junk)).toEqual(["gold"]);
@@ -678,6 +680,7 @@ describe("pickup", () => {
       const east = { x: 21 * TILE + PLAYER_RADIUS, y: west.y };
       const world = startRaid([alice()], {}, map);
       const empty = putContainer(world, "chest", { x: east.x - 8, y: east.y }, []);
+      empty.opened = true;
       place(world, "a", { x: west.x - 100, y: west.y });
       expect(attempt(world, "a", "nope")).toEqual(["Nothing there"]); // an unknown id beats everything
       expect(attempt(world, "a", empty.id)).toEqual(["Too far away"]); // out of range beats the wall
@@ -850,9 +853,9 @@ describe("pickup of containers created this tick", () => {
     expect(world.state.tick).toBe(0);
 
     handlePickup(world, combatant(world, "a")!, { kind: "pickup", containerId: chest.id });
-    expect(world.events).toEqual([]);
+    // A lobby player is not standing, so the potion is not stored (the chest keeps it); the request itself was not gated.
+    expect(world.events).toEqual([{ type: "toast", to: "a", text: "Consumable bag full (5 of each)" }]);
     expect(defsOf(chest)).toEqual(["potionSmall"]);
-    expect(P(world, "a").weapon1).not.toBe("");
   });
 
   it("does not gate hand-placed containers, nor leak births between worlds", () => {
@@ -1054,17 +1057,25 @@ describe("loot flow through the sim", () => {
     }
   });
 
-  it("lets a player take a chest's weapon on a generated map", () => {
+  it("lets a player open a crate on a generated map: a small potion, and a stat chest of three boosts at the crate", () => {
     const world = makeWorld({ minPlayers: 1 });
     setWeapons(addPlayer(world, "a", "alice"), ["sword", ""]);
     tick(world);
     const chest = [...world.state.containers.values()].find((c) => c.kind === "chest")!;
-    const weapon = defsOf(chest)[0]!;
     place(world, "a", chest);
     tick(world);
     pickup(world, "a", chest.id);
-    expect(toastsOf(tick(world))).toEqual([]);
-    expect(slotsOf(world, "a")).toEqual(["sword", weapon]);
-    expect(defsOf(chest)).toEqual(["potionSmall"]);
+    tick(world);
+    expect(slotsOf(world, "a")).toEqual(["sword", ""]);
+    expect(defsOf(chest)).toEqual([]);
+    expect(P(world, "a").potionSmall).toBe(1);
+    const reward = [...world.state.containers.values()].find((c) => c.kind === "reward")!;
+    expect([reward.x, reward.y, reward.label]).toEqual([chest.x, chest.y, "Stat Chest"]);
+    expect([...reward.options]).toHaveLength(3);
+    for (const o of reward.options) expect(o.startsWith("boost:")).toBe(true);
+    // Opening again offers nothing new.
+    pickup(world, "a", chest.id);
+    tick(world);
+    expect([...world.state.containers.values()].filter((c) => c.kind === "reward")).toHaveLength(1);
   });
 });

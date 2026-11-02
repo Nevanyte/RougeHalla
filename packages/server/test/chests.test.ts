@@ -5,13 +5,13 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  cardDef, cardPower, CHEST_RANGE, CHEST_REFUSAL, CHEST_REFUSALS, CHEST_SECONDS, GV_MOB_CAP, GV_SKIP, mapFromTiles, mulberry32, needsRefusal,
+  cardDef, chestBoostId, chestBoostStat, cardPower, CHEST_RANGE, CHEST_REFUSAL, CHEST_REFUSALS, CHEST_SECONDS, GV_MOB_CAP, GV_SKIP, mapFromTiles, mulberry32, needsRefusal,
   rollChestOptions, SKIP_HEAL_SHARE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type FxEvent, type GameMap, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { downPlayer, teleportToColiseum } from "../src/sim/arena";
 import { CAMP_CLEARED, CAMP_ENGAGED, CAMP_IDLE } from "../src/sim/camps";
-import { clearChests, dropRewardChest, grantCard, rewardChests } from "../src/sim/chests";
+import { clearChests, dropRewardChest, dropStatChest, grantCard, rewardChests } from "../src/sim/chests";
 import { combatant } from "../src/sim/combatant";
 import { noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -262,12 +262,43 @@ describe("elite chests", () => {
     expect({ x: box.x, y: box.y }).toEqual(at);
   });
 
-  it("does not drop a chest on an ordinary camp clear", () => {
+  it("drops a stat chest (three x1.2 boosts, not cards) on an ordinary camp clear", () => {
     const map = campMap();
     map.camps[0] = { ...map.camps[0]!, eliteSpot: -1 };
     const w = run({ map });
     clearCamp(w, 0);
-    expect(rewardChests(w)).toHaveLength(0);
+    tick(w);
+    const boxes = rewardChests(w);
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0]!.label).toBe("Stat Chest");
+    expect(boxes[0]!.options).toHaveLength(3);
+    for (const o of boxes[0]!.options) expect(chestBoostStat(o)).not.toBeNull();
+  });
+
+  it("a boost pick is x1.2 of that stat for the picker only, is not a card, and stops counting after three", () => {
+    const map = campMap();
+    map.camps[0] = { ...map.camps[0]!, eliteSpot: -1 };
+    const w = run({ map });
+    clearCamp(w, 0);
+    tick(w);
+    const box = onlyChest(w);
+    place(w, 0, box, 0);
+    const stat = chestBoostStat(box.options[0]!)!;
+    const before = Object.fromEntries([...P(w, 0).build.entries()]);
+    choose(w, 0, box.id, 0);
+    tick(w);
+    expect(box.takenBy[0]).toBe("p0");
+    expect(P(w, 0).chestBoosts.get(stat)).toBe(1);
+    expect(Object.fromEntries([...P(w, 0).build.entries()])).toEqual(before); // no card power
+    expect(P(w, 1).chestBoosts.size).toBe(0);
+    // The fourth pick on one stat is refused.
+    P(w, 2).chestBoosts.set(stat, 3);
+    const second = dropStatChest(w, { x: at(10), y: at(5) });
+    second.options.splice(0, 3, chestBoostId(stat), "boost:ad", "boost:ap");
+    tick(w); tick(w);
+    place(w, 2, second, 0);
+    choose(w, 2, second.id, 0);
+    expect(toasts(tick(w), "p2")).toContain("Stat maxed");
   });
 });
 
@@ -689,7 +720,7 @@ describe("choose: picking at the chest", () => {
 });
 
 describe("every refusal toast of a pick is one the client knows (shared CHEST_REFUSALS)", () => {
-  it("covers all seven fixed reasons a handleChoose refusal has (and a conditional's Needs <Base> is recognised too)", () => {
+  it("covers all eight fixed reasons a handleChoose refusal has (and a conditional's Needs <Base> is recognised too)", () => {
     const w = run();
     clearCamp(w, 0); // the Fire camp: its chest has the wall tile 90 u east of it
     tick(w);
@@ -707,6 +738,12 @@ describe("every refusal toast of a pick is one the client knows (shared CHEST_RE
     choose(w, 2, box.id, 2); note("p2"); // already yours (the augment: unique)
     addStatus(w, combatant(w, "p2")!, { kind: "stun", source: { id: "x", name: "x" }, ms: 1000 });
     choose(w, 2, box.id, 1); note("p2"); // busy
+    const stat = dropStatChest(w, { x: box.x, y: box.y });
+    stat.options.splice(0, 3, "boost:ad", "boost:ap", "boost:armor");
+    P(w, 1).chestBoosts.set("ad", 3);
+    tick(w); tick(w);
+    place(w, 1, stat, 0);
+    choose(w, 1, stat.id, 0); note("p1"); // stat maxed
     expect([...said].sort()).toEqual([...CHEST_REFUSALS].sort());
     for (const t of said) expect(Object.values(CHEST_REFUSAL)).toContain(t);
   });
@@ -812,13 +849,14 @@ describe("the loop on a generated zone map (server-side, until the bots pick)", 
     }
     tick(w);
     const chests = rewardChests(w);
-    expect(chests).toHaveLength(w.map.camps.filter((camp) => camp.eliteSpot >= 0).length);
+    expect(chests).toHaveLength(w.map.camps.length); // an augment chest at each elite camp, a stat chest at the rest
+    expect(chests.filter((box) => box.label === "Stat Chest")).toHaveLength(w.map.camps.filter((camp) => camp.eliteSpot < 0).length);
     for (const box of chests) {
       const camp = w.map.camps[box.camp - 1]!;
       expect({ x: box.x, y: box.y }).toEqual(camp.chest);
       expect(new Set(box.options).size).toBe(box.options.length);
     }
-    const box = chests[0]!;
+    const box = chests.find((b) => b.label !== "Stat Chest")!;
     place(w, 0, box, 0, 0);
     choose(w, 0, box.id, 0);
     tick(w);

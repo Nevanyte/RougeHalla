@@ -133,6 +133,8 @@ export const PlayerState = schema({
   plagueZombieId: t.string().default(""),
   /** Server time the Wish is back at full charges (0 = full): the stock clock of a charged Wish (chargesAt in abilities.ts). */
   wishFullAt: t.uint32().default(0),
+  /** Stat-chest picks per stat id (shared/chestBoosts.ts): a x1.2 of that stat's bonus per pick, not a card (no card power). */
+  chestBoosts: t.map("float64"),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

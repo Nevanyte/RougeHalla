@@ -44,6 +44,7 @@ export * from "./fireRoam";
 export * from "./championPassives";
 
 export * from "./mobStats";
+export * from "./chestBoosts";
 export * from "./plagueCorpses";
 export * from "./sentencedHunt";
 export * from "./traders";

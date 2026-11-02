@@ -557,3 +557,11 @@ export const PLAYER_REGEN_SHARE_OUT = 0.008;
 export const PLAYER_REGEN_SHARE_IN = 0.0025;
 /** Time since the last hit dealt or taken after which the out-of-combat pace applies (the heal lockout's length). */
 export const PLAYER_REGEN_QUIET_MS = 3000;
+
+// Stat chests: world crates and normal camp clears offer 1 of 3 multiplicative stat boosts (shared/src/chestBoosts.ts).
+/** One pick is x1.2 of the stat (+20% of max(its bonus, the stat floor)). */
+export const CHEST_BOOST_STEP = 0.2;
+/** Picks per stat that count, so a stat stays under x1.49 however many chests: 1 - 0.8^3 = 0.488. */
+export const CHEST_BOOST_MAX_PICKS = 3;
+/** Each further pick on one stat is worth this share of the one before (+20%, +16%, +12.8%). */
+export const CHEST_BOOST_DECAY = 0.8;

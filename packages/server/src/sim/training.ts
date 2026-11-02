@@ -336,6 +336,7 @@ function trainClear(world: World, c: PlayerCombatant): void {
   const p = c.s;
   p.build.clear();
   p.mobStats.clear();
+  p.chestBoosts.clear();
   c.rt.fired?.clear();
   c.rt.hots = undefined;
   c.rt.cards = undefined;
