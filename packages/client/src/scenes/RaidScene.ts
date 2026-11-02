@@ -16,6 +16,7 @@ import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/loca
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
 import { LocalHand, predictedReadyAt, weaponInSlot } from "../net/localHand";
 import { ConfirmedDamage } from "../net/confirmedDamage";
+import { PotionCue } from "../net/potionCue";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
 } from "../net/localPrediction";
@@ -142,6 +143,8 @@ export class RaidScene extends Phaser.Scene {
   private readonly hand = new LocalHand();
   private readonly handNow = { slot: 0, weapon0: "", weapon1: "" };
   private readonly confirmedDamage = new ConfirmedDamage();
+  /** E: the potion checked with the server's rule before it is sent, and the HUD's counters while it is in flight. */
+  private readonly potionCue = new PotionCue();
   private readonly movementKeys = new Set<string>();
   private keyboardWasMoving = false;
   private keyboardChanged = false;
@@ -354,6 +357,7 @@ export class RaidScene extends Phaser.Scene {
     this.localAutos.reset();
     this.hand.reset();
     this.confirmedDamage.reset();
+    this.potionCue.reset();
     this.lockId = "";
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
@@ -403,6 +407,7 @@ export class RaidScene extends Phaser.Scene {
     this.unbindToast = this.room.onMessage("toast", (t: ServerMessages["toast"]) => {
       this.chestPanel?.noteToast(t.text);
       this.questDialog?.noteToast(t.text);
+      this.potionCue.noteToast(t.text);
     });
     this.buildMap(data.map);
     this.unbindVision = data.vision?.attach((snapshot) => this.vision.applySnapshot(snapshot)) ?? null;
@@ -770,6 +775,7 @@ export class RaidScene extends Phaser.Scene {
       talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`)
         : blocked ? questAcceptFirstText(blocked.def) : "",
       me ? this.localSlot(me) : undefined,
+      me ? this.potionCue.view(me, now) : undefined,
     );
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
@@ -924,10 +930,14 @@ export class RaidScene extends Phaser.Scene {
         const predicted = this.predict.matchPredictedBowDraw(me.drawStartedAt, windupMs);
         if (predicted) this.predict.confirmPredictedRangedPause(predicted, me.drawStartedAt + windupMs);
       }
-      this.predict.observe(
+      const now = performance.now();
+      const refused = this.predict.observe(
         { x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq, locked: me.attackTarget !== "", displaceSeq: me.displaceSeq },
-        this.localClock(performance.now()),
+        this.localClock(now),
       );
+      // A cast acked with no cast fx was refused: the telegraph drawn at its key press goes too.
+      for (const seq of refused) this.wishFx?.cancelPredicted(seq);
+      this.potionCue.reconcile(me, now);
     }
   }
 
@@ -941,6 +951,7 @@ export class RaidScene extends Phaser.Scene {
     if (this.room.reconnection?.isReconnecting) {
       this.predict.motion.reset();
       this.hand.clear();
+      this.wishFx.cancelPredicted();
       return;
     }
     // Only a chilled fighter needs to know where the others are (a Frost mob chills as a Frost player does).
@@ -1450,6 +1461,9 @@ export class RaidScene extends Phaser.Scene {
     const blink = t.kind === "point" ? r.effects.find((e) => e.do === "blink") : undefined;
     // Every cast carries an order number: the server echoes it for a refused cast too, which frees the slot and drops a predicted root.
     let seq = 0;
+    // Where the cast fx will say it is (the target, else the caster), as drawn: the telegraph starts at the press.
+    let target: string | null = null;
+    let anchor: Vec2 = t.kind === "self" && self ? self : aim;
 
     if (blink?.do === "blink") {
       const map = this.mapView?.map;
@@ -1481,6 +1495,8 @@ export class RaidScene extends Phaser.Scene {
       seq = this.predict.nextSeq();
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, id, seq });
       this.predict.noteCast(c, { castMs: r.castMs, seq });
+      target = id;
+      anchor = at;
     } else {
       seq = this.predict.nextSeq();
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, seq });
@@ -1489,6 +1505,11 @@ export class RaidScene extends Phaser.Scene {
     // Until the server answers (the ready time changes, or it echoes `seq`: a refusal), a second press is ignored; a blink waits longer.
     this.pendingCast = { slot, seq, readyAt: slotReadyAt(me, slot), until: now + (blink?.do === "blink" ? JUMP_ORDER_EXPIRE_MS : ORDER_EXPIRE_MS) };
     this.afterCast(def, r.castMs, c, now);
+    // A cast with a cast time is the one with a telegraph: drawn now, confirmed by the own cast fx or let go at the refusal's
+    // ack (observeLocal). Not while reconnecting: what is sent then is dropped.
+    if (r.castMs > 0 && !this.room.reconnection?.isReconnecting) {
+      this.wishFx.predictCast({ by: this.room.sessionId, ability: def.id, ms: r.castMs, target, x: anchor.x, y: anchor.y, seq }, now);
+    }
   }
 
   /**
@@ -1614,7 +1635,7 @@ export class RaidScene extends Phaser.Scene {
       return;
     }
     if (e.code === "KeyR") { this.castSlot("wish"); return; }
-    if (e.code === "KeyE") { sendInput(this.room, "useConsumable", { kind: "heal" }); return; }
+    if (e.code === "KeyE") { this.drinkPotion(); return; }
     if (e.code === "KeyQ") this.swapHand();
     else if (e.code === "KeyF") this.interact();
     else {
@@ -1651,6 +1672,28 @@ export class RaidScene extends Phaser.Scene {
     // The windup the swap cancels goes now. A held trigger stays held (the server's does too): its next attack is the new weapon's.
     this.cancelLocalAutos(now);
     if (this.localWeapon(me) !== "wand") this.lockDisplay.note("", now);
+  }
+
+  /**
+   * E: a potion. The server decides; the client checks the press first with the server's own rule and words (shared
+   * `potionRefusal`), so a press it would refuse says why at once and is not sent, and one it will take rings round the fighter
+   * and shows in the counters now (net/potionCue.ts). Stunned reads the synced bit; casting reads the cast root the server will
+   * still be in when the press arrives. While reconnecting, or outside a running fight, the press is sent as it is.
+   */
+  private drinkPotion(): void {
+    const me = this.room.state.players.get(this.room.sessionId);
+    if (!me || this.room.reconnection?.isReconnecting || this.room.state.phase !== "active") {
+      sendInput(this.room, "useConsumable", { kind: "heal" });
+      return;
+    }
+    const now = performance.now();
+    const c = this.localClock(now);
+    const blocked = (me.effects & EFFECT_STUNNED) !== 0 || this.predict.castingWhenApplied(c, me.effects);
+    const verdict = this.potionCue.press(me, blocked, now, c);
+    // Untoned, as the server's refusal is: a late one with the same words merges into this toast instead of stacking.
+    if ("deny" in verdict) { this.announce?.(verdict.deny); return; }
+    sendInput(this.room, "useConsumable", { kind: "heal" });
+    this.fx.localDrink(verdict.color, now);
   }
 
   /**
@@ -1726,6 +1769,10 @@ export class RaidScene extends Phaser.Scene {
         this.predict.confirmPredictedRangedPause(predictedAuto, fx.t + fx.ms);
       }
       this.predict.noteFx(fx, this.room.sessionId, this.room.state.players.get(this.room.sessionId));
+      // The own telegraph was drawn at the key press: its cast fx confirms it and its castEnd ends it on arrival, so neither waits
+      // in the render queue (the landing does, with the hits and stuns it caused). Unmatched, they play at render time as before.
+      if (fx.kind === "cast" && fx.by === this.room.sessionId && this.wishFx.confirmPredicted(fx, performance.now())) continue;
+      if (fx.kind === "castEnd" && fx.by === this.room.sessionId && this.wishFx.endOwn(fx, performance.now())) continue;
       if (fx.kind === "hit" && fx.id === this.room.sessionId) {
         // FX precede their state patch on the wire. Present the confirmed hit in the frame that has its HP/barrier values.
         this.confirmedDamage.enqueue(fx, performance.now());

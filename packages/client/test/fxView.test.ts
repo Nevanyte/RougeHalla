@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type TimedFx } from "@raid/shared";
 import { FxView, type FxHost } from "../src/render/FxView";
-import { fakeScene } from "./fakes";
+import { resetReducedMotionCache } from "../src/render/juice";
+import { argsOf, fakeScene } from "./fakes";
 
 function setup() {
   const localHits: number[] = [];
@@ -315,5 +316,46 @@ describe("FxView damage over time from an ability", () => {
     const { play, localHits } = rig();
     play(burn(15, { id: "me", by: "foe" }));
     expect(localHits).toEqual([15]);
+  });
+});
+
+// The potion key's cue (localDrink): a ring round the local fighter at the press, in the potion's colour; the heal is the server's.
+describe("FxView localDrink", () => {
+  function drinkRig() {
+    const { scene, ofKind } = fakeScene();
+    const fx = new FxView(scene, {
+      localId: "me", view: () => undefined, position: (id) => id === "me" ? { x: 10, y: 20 } : undefined, name: () => undefined,
+      projectileEnded: () => {},
+    });
+    return { fx, ofKind };
+  }
+
+  it("draws one ring round the local fighter, in the colour given, that grows and goes", () => {
+    const { fx, ofKind } = drinkRig();
+    fx.localDrink(0xf45b78, 1000);
+    const rings = ofKind("graphics");
+    expect(rings).toHaveLength(1);
+    expect(argsOf(rings[0]!, "lineStyle").some((a) => a[1] === 0xf45b78)).toBe(true);
+    fx.update(0, 1100, true);
+    expect(rings[0]!.state.visible).not.toBe(false);
+    fx.update(0, 1500, true);
+    expect(rings[0]!.state.visible).toBe(false);
+  });
+
+  it("draws nothing after destroy() or under reduced motion", () => {
+    const gone = drinkRig();
+    gone.fx.destroy();
+    gone.fx.localDrink(0xf45b78, 1000);
+    expect(gone.ofKind("graphics")).toHaveLength(0);
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    resetReducedMotionCache();
+    try {
+      const still = drinkRig();
+      still.fx.localDrink(0xf45b78, 1000);
+      expect(still.ofKind("graphics")).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+      resetReducedMotionCache();
+    }
   });
 });

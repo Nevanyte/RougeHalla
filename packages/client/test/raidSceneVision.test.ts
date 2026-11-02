@@ -232,7 +232,7 @@ describe("RaidScene vision integration", () => {
     expect(scene.interaction).toBeNull();
     scene.interact();
     expect(scene.room.send).toHaveBeenCalledTimes(1);
-    expect(scene.weaponBar.update.mock.lastCall[5]).toBe(""); // the talk hint; the hand slot follows it
+    expect(scene.weaponBar.update.mock.lastCall[5]).toBe(""); // the talk hint; the hand slot and the potion counters follow it
     expect(scene.minimap.setCorpses.mock.lastCall[0]).toHaveLength(1);
   });
 

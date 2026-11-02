@@ -830,3 +830,67 @@ describe("the ground under the model (bog slows the walk, ice lets it slide)", (
     });
   });
 });
+
+// observe() says which predicted casts a patch showed refused (the scene drops their telegraphs), and castingWhenApplied() says
+// whether an action sent now reaches the server inside a cast (the potion key's local check).
+describe("the refusal signal and the cast an action would meet", () => {
+  const sample = (t: number, moveSeq: number) => ({ x: 300, y: 300, t, moveSeq, displaceSeq: 0 });
+  const cast = (t: number, ms: number): TimedFx => ({ kind: "cast", by: ME, ability: "freeze", ms, target: null, x: 0, y: 0, t });
+  const started = () => {
+    const p = new LocalPrediction();
+    p.observe(sample(0, 0), 0);
+    p.motion.frame(0, 16, { alive: true, speedMult: 1, rooted: false, aiming: false });
+    return p;
+  };
+
+  it("names the cast a patch acks with no cast fx, once", () => {
+    const p = started();
+    p.noteCast(1000, { castMs: 250, seq: 7 });
+    expect(p.observe(sample(1020, 3), 1100)).toEqual([]); // an older order's ack
+    expect(p.observe(sample(1070, 7), 1150)).toEqual([7]);
+    expect(p.observe(sample(1120, 7), 1200)).toEqual([]);
+  });
+
+  it("names nothing when the cast fx came first (the server took it)", () => {
+    const p = started();
+    p.noteCast(1000, { castMs: 250, seq: 7 });
+    p.noteFx(cast(1100, 250), ME, fighter());
+    expect(p.observe(sample(1100, 7), 1150)).toEqual([]);
+  });
+
+  it("names a cast acked by a later order, across the wrap from 255 to 1", () => {
+    const p = started();
+    p.noteCast(1000, { castMs: 250, seq: 254 });
+    expect(p.observe(sample(1020, 253), 1100)).toEqual([]);
+    expect(p.observe(sample(1070, 2), 1150)).toEqual([254]);
+  });
+
+  it("answers the same frozen empty list on an ordinary patch: nothing is allocated", () => {
+    const p = started();
+    const a = p.observe(sample(50, 0), 50);
+    const b = p.observe(sample(100, 4), 100);
+    expect(a).toBe(b);
+    expect(a).toHaveLength(0);
+    expect(Object.isFrozen(a)).toBe(true);
+  });
+
+  it("an action sent during a cast root (predicted or told) meets the cast; one that lands after it does not", () => {
+    const p = new LocalPrediction();
+    expect(p.motion.delay).toBe(50);
+    expect(p.castingWhenApplied(1000, 0)).toBe(false);
+    p.noteCast(1000, { castMs: 250, seq: 7 }); // root [1050, 1300) in server time
+    expect(p.castingWhenApplied(1000, 0)).toBe(true);
+    expect(p.castingWhenApplied(1249, 0)).toBe(true); // arrives at 1299
+    expect(p.castingWhenApplied(1250, 0)).toBe(false); // arrives at 1300: landed
+    p.noteFx(cast(1100, 350), ME, fighter()); // the server's own span replaces it: [1100, 1450)
+    expect(p.castingWhenApplied(1399, 0)).toBe(true);
+    expect(p.castingWhenApplied(1400, 0)).toBe(false);
+  });
+
+  it("trusts a known cast over the synced bit, which lags its end; the bit stands in when no cast is known", () => {
+    const p = new LocalPrediction();
+    expect(p.castingWhenApplied(1000, EFFECT_CASTING)).toBe(true); // a join mid-cast: only the bit knows
+    p.noteFx(cast(1000, 250), ME, fighter());
+    expect(p.castingWhenApplied(1300, EFFECT_CASTING)).toBe(false); // landed at 1250, the bit not yet cleared
+  });
+});

@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ABILITIES, Y_SCALE, type AbilityId, type TimedFx } from "@raid/shared";
 import { resetReducedMotionCache } from "../src/render/juice";
 import { DEFAULT_SETTINGS, updateSettings } from "../src/settings";
-import { WishFx, type WishFxHost } from "../src/render/WishFx";
+import { CONFIRMED_HOLD_MS, PREDICTED_LIFE_MS, WishFx, type WishFxHost } from "../src/render/WishFx";
+import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
 afterEach(() => {
@@ -423,5 +424,219 @@ describe("WishFx landing flashes under the juice setting", () => {
     fx.update(1100);
     expect(live()).toHaveLength(1);
     expect(whites(live()[0]!)).toBeGreaterThan(0);
+  });
+});
+
+// The caster's own telegraph, drawn at the key press (predictCast) and settled by what the server says: its cast fx confirms it,
+// its castEnd ends it, its order number echoed with no cast fx (a refusal) lets it go quietly, and nothing at all lets it run out.
+describe("WishFx telegraph predicted at the key press", () => {
+  const predicted = (ability: AbilityId = "freeze", ms = 250, seq = 7, target: string | null = "foe", x = 200, y = 120) =>
+    ({ by: "me", ability, ms, target, x, y, seq });
+  const castFx = (ability: AbilityId = "freeze", ms = 250, target: string | null = "foe") =>
+    ({ kind: "cast", by: "me", ability, ms, target, x: 200, y: 120, t: 0 }) as Extract<TimedFx, { kind: "cast" }>;
+  const endFx = (reason: "fizzle" | "interrupted" | "cancelled" = "interrupted") =>
+    ({ kind: "castEnd", by: "me", ability: "freeze", reason, t: 0 }) as Extract<TimedFx, { kind: "castEnd" }>;
+
+  it("lives exactly as long as the prediction's unanswered order", () => {
+    expect(PREDICTED_LIFE_MS).toBe(ORDER_EXPIRE_MS);
+  });
+
+  it("draws the same telegraph as a cast fx would, from the press, with no fx at all", () => {
+    const { fx, made, live } = setup();
+    fx.predictCast(predicted(), 1000);
+    fx.update(1100);
+    expect(live()).toHaveLength(1);
+    const [line] = argsOf(made[0]!, "lineBetween");
+    expect(line![0]).toBeCloseTo(10, 6);
+    expect(line![2]).toBeCloseTo(200, 6);
+  });
+
+  it("ramps over the cast time, then holds at full until PREDICTED_LIFE_MS when nothing answers", () => {
+    const { fx, made, live } = setup();
+    fx.predictCast(predicted("freeze", 250), 1000);
+    fx.update(1240);
+    const ramping = argsOf(made[0]!, "lineStyle")[0]![0] as number;
+    fx.update(1250);
+    const full = argsOf(made[0]!, "lineStyle")[0]![0] as number;
+    expect(full).toBeGreaterThan(ramping);
+    fx.update(1500);
+    expect(live()).toHaveLength(1);
+    expect(argsOf(made[0]!, "lineStyle")[0]![0]).toBe(full); // held at its peak, not past it
+    fx.update(1000 + PREDICTED_LIFE_MS - 1);
+    expect(live()).toHaveLength(1);
+    fx.update(1000 + PREDICTED_LIFE_MS);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("is confirmed by the own cast fx without restarting or drawing a second one", () => {
+    const { fx, made, live } = setup();
+    fx.predictCast(predicted(), 1000);
+    fx.update(1100);
+    const before = argsOf(made[0]!, "lineStyle")[0]![0] as number;
+    expect(fx.confirmPredicted(castFx(), 1100)).toBe(true);
+    fx.update(1100);
+    expect(made).toHaveLength(1);
+    expect(argsOf(made[0]!, "lineStyle")[0]![0]).toBe(before); // same progress: the start stayed the press
+    // A confirmed one waits for the landing past the unconfirmed life: its cast time and CONFIRMED_HOLD_MS from the confirmation.
+    fx.update(1100 + 250 + CONFIRMED_HOLD_MS - 1);
+    expect(live()).toHaveLength(1);
+    fx.update(1100 + 250 + CONFIRMED_HOLD_MS);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("confirms nothing when nothing was predicted, when the ability differs, or twice", () => {
+    const { fx } = setup();
+    expect(fx.confirmPredicted(castFx(), 1100)).toBe(false);
+    fx.predictCast(predicted("freeze"), 1000);
+    expect(fx.confirmPredicted(castFx("trial", 350), 1100)).toBe(false);
+    expect(fx.confirmPredicted(castFx("freeze"), 1100)).toBe(true);
+    expect(fx.confirmPredicted(castFx("freeze"), 1100)).toBe(false);
+    // A cast fx played at render time is not a confirmation: someone else's goes through play() as ever.
+    expect(fx.confirmPredicted({ ...castFx(), by: "foe" }, 1100)).toBe(false);
+  });
+
+  it("confirms nothing once it has run out unanswered", () => {
+    const { fx } = setup();
+    fx.predictCast(predicted(), 1000);
+    fx.update(1000 + PREDICTED_LIFE_MS);
+    expect(fx.confirmPredicted(castFx(), 1100)).toBe(false);
+  });
+
+  it("goes quietly on a refusal (no puff), and a confirmed one is not cancelled by it", () => {
+    const { fx, made, live } = setup();
+    fx.predictCast(predicted("freeze", 250, 7), 1000);
+    fx.update(1050);
+    expect(fx.cancelPredicted(8)).toBe(0); // another order number
+    expect(fx.cancelPredicted(7)).toBe(1);
+    fx.update(1060);
+    expect(live()).toHaveLength(0);
+    expect(made).toHaveLength(1); // nothing new was drawn: no fizzle
+    fx.predictCast(predicted("freeze", 250, 9), 1100);
+    fx.confirmPredicted(castFx(), 1100);
+    expect(fx.cancelPredicted(9)).toBe(0);
+    expect(fx.cancelPredicted()).toBe(0);
+    fx.update(1150);
+    expect(live()).toHaveLength(1);
+  });
+
+  it("cancels every unconfirmed one when the order number is not given (a reconnect)", () => {
+    const { fx, live } = setup();
+    fx.predictCast(predicted("freeze", 250, 3), 1000);
+    expect(fx.cancelPredicted()).toBe(1);
+    fx.update(1010);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("is replaced by the landing's burst, which plays at render time as ever", () => {
+    const { fx, live } = setup();
+    fx.predictCast(predicted(), 1000);
+    fx.confirmPredicted(castFx(), 1100);
+    fx.update(1300); // past the cast time: held at full
+    expect(live()).toHaveLength(1);
+    fx.play(land("me", "freeze", 200, 120), 1380);
+    fx.update(1390);
+    expect(live()).toHaveLength(1);
+    expect(argsOf(live()[0]!, "lineBetween").length).toBeGreaterThanOrEqual(8); // the shards, not the beam
+  });
+
+  it("is ended on arrival by the own castEnd, with one puff; with nothing up, endOwn leaves it to render time", () => {
+    const { fx, live } = setup();
+    expect(fx.endOwn(endFx(), 900)).toBe(false);
+    fx.predictCast(predicted(), 1000);
+    expect(fx.endOwn(endFx(), 1010)).toBe(false); // not confirmed yet: the castEnd keeps its place behind the cast fx
+    fx.confirmPredicted(castFx(), 1100);
+    fx.update(1100);
+    expect(fx.endOwn(endFx(), 1150)).toBe(true);
+    fx.update(1160);
+    expect(live()).toHaveLength(1);
+    expect(live()[0]!.state.position).toEqual([10, 20 * Y_SCALE - 14]); // the puff, at the caster
+    fx.update(1500);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("replaces an earlier predicted telegraph of the caster", () => {
+    const { fx, live } = setup();
+    fx.predictCast(predicted("freeze", 250, 1), 1000);
+    fx.predictCast(predicted("trial", 350, 2), 1010);
+    fx.update(1020);
+    expect(live()).toHaveLength(1);
+    expect(fx.cancelPredicted(1)).toBe(0);
+    expect(fx.cancelPredicted(2)).toBe(1);
+  });
+
+  it("keeps the cast fx's guards: a hidden target, a point it cannot see or a bad length draws nothing", () => {
+    const hiddenIds = new Set<string>(["foe"]);
+    const { fx, made } = setup({ hidden: (id) => hiddenIds.has(id), canSee: (p) => p.x < 1000 });
+    fx.predictCast(predicted("freeze"), 1000);
+    fx.predictCast({ ...predicted("swarm", 250, 4, null), x: 5000 }, 1000);
+    fx.predictCast(predicted("swarm", Number.NaN, 6, null, 10, 20), 1000);
+    fx.update(1010);
+    expect(made).toHaveLength(0);
+    hiddenIds.clear();
+    fx.predictCast(predicted("swarm", 250, 5, null, 10, 20), 1000);
+    fx.update(1010);
+    expect(made).toHaveLength(1);
+  });
+
+  it("draws nothing after destroy()", () => {
+    const { fx, made } = setup();
+    fx.destroy();
+    fx.predictCast(predicted(), 1000);
+    expect(fx.confirmPredicted(castFx(), 1100)).toBe(false);
+    expect(fx.endOwn(endFx(), 1000)).toBe(false);
+    expect(made).toHaveLength(0);
+  });
+});
+
+// The visual contract of the press-drawn telegraph on a frame loop (144 Hz), over link profiles: the uplink, the tick the server
+// waits for, the downlink and the render delay the landing waits behind. Server time is wall time here (a perfect clock).
+describe("WishFx press-drawn telegraph, frame by frame", () => {
+  const FRAME = 1000 / 144;
+  const MS = 250;
+  const castFx = { kind: "cast", by: "me", ability: "freeze", ms: MS, target: "foe", x: 200, y: 120, t: 0 } as Extract<TimedFx, { kind: "cast" }>;
+  const PROFILES = [
+    { up: 0, down: 0, wait: 25, delay: 70 },
+    { up: 15, down: 15, wait: 25, delay: 75 },
+    { up: 30, down: 30, wait: 50, delay: 100 },
+    { up: 150, down: 150, wait: 50, delay: 150 },
+    { up: 250, down: 250, wait: 50, delay: 150 },
+  ];
+
+  it.each(PROFILES)("taken (up $up, down $down, tick wait $wait, delay $delay): one telegraph every frame until the landing, never two", (p) => {
+    const { fx, live } = setup();
+    const press = 1000;
+    const taken = press + p.up + p.wait;
+    const landsOnScreen = taken + MS + p.delay;
+    const held = landsOnScreen - (press + MS);
+    expect(held).toBe(p.up + p.wait + p.delay);
+    // No gap between the held telegraph and the landing: it waits CONFIRMED_HOLD_MS past its cast time from the confirmation.
+    expect(landsOnScreen).toBeLessThan(taken + p.down + MS + CONFIRMED_HOLD_MS);
+    fx.predictCast({ by: "me", ability: "freeze", ms: MS, target: "foe", x: 200, y: 120, seq: 7 }, press);
+    let confirmed = false;
+    let landed = false;
+    for (let now = press; now < landsOnScreen + 600; now += FRAME) {
+      if (!confirmed && now >= taken + p.down) confirmed = fx.confirmPredicted(castFx, now);
+      if (!landed && now >= landsOnScreen) { fx.play(land("me", "freeze", 200, 120), now); landed = true; }
+      fx.update(now);
+      expect(live().length).toBeLessThanOrEqual(1);
+      if (now < landsOnScreen) expect(live().length, String(now - press)).toBe(1);
+    }
+    expect(confirmed).toBe(true);
+  });
+
+  it.each(PROFILES)("refused (up $up, down $down, tick wait $wait): gone within a round trip and the tick wait, without a puff", (p) => {
+    const { fx, live, made } = setup();
+    const press = 1000;
+    const acked = press + p.up + p.wait + p.down;
+    fx.predictCast({ by: "me", ability: "freeze", ms: MS, target: "foe", x: 200, y: 120, seq: 7 }, press);
+    let lastShown = press;
+    let cancelled = false;
+    for (let now = press; now < press + 800; now += FRAME) {
+      if (!cancelled && now >= acked) { fx.cancelPredicted(7); cancelled = true; }
+      fx.update(now);
+      if (live().length > 0) lastShown = now;
+    }
+    expect(lastShown - press).toBeLessThan(p.up + p.wait + p.down + FRAME);
+    expect(made).toHaveLength(1);
   });
 });

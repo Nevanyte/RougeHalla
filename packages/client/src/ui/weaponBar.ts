@@ -126,20 +126,27 @@ export class WeaponBar {
    * `questLabel`: the quest token or parcel F would take instead. `talkHint`: what F does at a quest giver ("talk to Ashmother Vela"),
    * when that is the nearest thing to use, or the refusal a quest item of an unaccepted offer would get ("Accept ... at ... first").
    * `slot`: the slot to show in hand when the scene predicts a swap the patch has not shown yet (net/localHand.ts); default the synced one.
+   * `potion`: the potion counters as a press in flight will leave them (net/potionCue.ts), drawn instead of the synced ones until
+   * the patch shows it.
    */
   update(
     me: PlayerState | undefined, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel = "", talkHint = "", slot?: number,
+    potion?: { large: number; small: number; healing: number; healingUntil: number },
   ): void {
     // The lobby hands out nothing yet: weapons arrive with the run.
     const show = me?.status === "alive";
     if (this.root.hidden === show) this.root.hidden = !show;
     if (!me || !show) return;
     this.render(me, patchT, serverNow, pickup, questLabel, talkHint, slot ?? me.slot);
-    this.healCount.textContent = `${me.potionLarge ?? 0} large · ${me.potionSmall ?? 0} small`;
+    const large = potion?.large ?? me.potionLarge ?? 0;
+    const small = potion?.small ?? me.potionSmall ?? 0;
+    const healing = potion?.healing ?? me.potionsHealing ?? 0;
+    const healingUntil = potion?.healingUntil ?? me.healingUntil;
+    this.healCount.textContent = `${large} large · ${small} small`;
     this.speedCount.textContent = me.speedBoostUntil > serverNow ? "+50% speed" : "Walk over emblems";
-    this.healStatus.textContent = me.healingUntil > serverNow ? `Healing${(me.potionsHealing ?? 0) > 1 ? ` x${me.potionsHealing}` : ""} ${Math.ceil((me.healingUntil - serverNow) / 1000)}s` : "";
+    this.healStatus.textContent = healingUntil > serverNow ? `Healing${healing > 1 ? ` x${healing}` : ""} ${Math.ceil((healingUntil - serverNow) / 1000)}s` : "";
     this.speedStatus.textContent = me.speedBoostUntil > serverNow ? `Active ${Math.ceil((me.speedBoostUntil - serverNow) / 1000)}s` : "";
-    this.consumables.children[0]?.classList.toggle("empty", !(me.potionLarge || me.potionSmall));
+    this.consumables.children[0]?.classList.toggle("empty", !(large || small));
     this.consumables.children[1]?.classList.toggle("empty", !(me.speedBoostUntil > serverNow));
   }
 

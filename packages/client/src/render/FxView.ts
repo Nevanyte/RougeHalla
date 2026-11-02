@@ -253,6 +253,12 @@ export class FxView {
     else { this.cancelWindup(by, now); this.host.view(by)?.cues?.launch(a, now); }
   }
 
+  /** The local player drank a potion (E): a ring of its colour round the drawn fighter at the press. The heal is the server's. */
+  localDrink(color: number, now: number): void {
+    if (this.destroyed || juiceScale("motion") <= 0) return;
+    this.ring(this.host.localId, color, 1.9, now);
+  }
+
   /**
    * Drops fighter `id`'s telegraphs once render time reaches `t`. For what cancels an action on the server without an fx
    * (a swap, or a pickup that replaced the weapon in hand): the caller sees it in the state, which is ahead of render
