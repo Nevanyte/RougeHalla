@@ -5,8 +5,9 @@ import path from "node:path";
 import type { TraceRow } from "../sim/trace";
 
 /**
- * Bytes one writer appends before it stops recording. A row is roughly 0.3 to 1 KB, so an 8-player room at 20 Hz writes about 50 to 150 KB/s:
- * a TRACE_INPUTS left set on a hosting server would otherwise fill the disk.
+ * The size the trace FILE may reach before a writer stops recording. A row is roughly 0.3 to 1 KB, so an 8-player room at 20 Hz writes
+ * about 50 to 150 KB/s, and every arena room of a server appends to the one file: the cap reads the file's own size before each append,
+ * so it bounds what all the rooms (and earlier runs of the server) wrote together. Concurrent rooms may overshoot it by one flush each.
  */
 export const TRACE_MAX_BYTES = 512 * 1024 * 1024;
 
@@ -17,7 +18,6 @@ export class TraceWriter {
   private rows: TraceRow[] = [];
   private chain: Promise<void>;
   private failed = false;
-  private written = 0;
 
   constructor(private readonly file: string, private readonly maxBytes: number = TRACE_MAX_BYTES) {
     this.chain = fs.promises.mkdir(path.dirname(file), { recursive: true }).then(() => {}, (err: unknown) => this.fail(err));
@@ -37,12 +37,11 @@ export class TraceWriter {
       if (this.failed) return;
       let text = "";
       for (const r of rows) text += `${JSON.stringify(r)}\n`;
-      const bytes = Buffer.byteLength(text);
-      if (this.written + bytes > this.maxBytes) {
-        this.fail(new Error(`the ${this.maxBytes}-byte cap is reached`));
+      const size = await fs.promises.stat(this.file).then((st) => st.size, () => 0);
+      if (size + Buffer.byteLength(text) > this.maxBytes) {
+        this.fail(new Error(`the file's ${this.maxBytes}-byte cap is reached`));
         return;
       }
-      this.written += bytes;
       await fs.promises.appendFile(this.file, text);
     }).catch((err: unknown) => this.fail(err));
     this.chain = write;

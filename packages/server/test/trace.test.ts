@@ -14,6 +14,7 @@ import { combatant } from "../src/sim/combatant";
 import { displace } from "../src/sim/displace";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, InputQueue } from "../src/sim/inputs";
+import { markDropped, markReconnected } from "../src/sim/arena";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
 import { installTrace, ordersOf, type TraceRow } from "../src/sim/trace";
@@ -74,7 +75,7 @@ describe("movement trace", () => {
     }
     const r = rows[rows.length - 1]!;
     expect(Object.keys(r).sort()).toEqual([
-      "action", "bot", "displaceSeq", "effects", "enemy", "faction", "facing", "hp", "id", "lastHitAt", "lock", "orders", "path", "pathEnd",
+      "action", "bot", "displaceSeq", "dropped", "effects", "enemy", "faction", "facing", "hp", "id", "lastHitAt", "lock", "orders", "path", "pathEnd",
       "pathLen", "rootFrom", "rootUntil", "rooted", "run", "serverTime", "slip", "speedMult", "tick", "vx", "vy", "walkMult", "walkedThisTick",
       "weapon", "x", "y",
     ].sort());
@@ -83,7 +84,7 @@ describe("movement trace", () => {
     // Both hands start empty, and an empty hand fights with fists (main), not with nothing.
     expect(s0.weapon0).toBe("");
     expect(p0).toMatchObject({
-      run: "r1", serverTime: w.state.serverTime, faction: "fire", weapon: "fists", bot: false, slip: false, hp: 1, lock: null, action: null,
+      run: "r1", serverTime: w.state.serverTime, faction: "fire", weapon: "fists", bot: false, dropped: false, slip: false, hp: 1, lock: null, action: null,
       rooted: false, effects: 0, speedMult: 1, walkMult: 1, walkedThisTick: false, orders: [],
     });
     expect(p0.x).toBeCloseTo(s0.x, 1);
@@ -102,6 +103,23 @@ describe("movement trace", () => {
     tick(w);
     expect(rowOf(rows, w, "p2")).toMatchObject({ weapon: "bow", bot: true });
     expect(rowOf(rows, w, "p0")).toMatchObject({ weapon: "fists", bot: false });
+  });
+
+  it("marks a player whose connection dropped for the reconnect grace: nobody steers that fighter", () => {
+    const { w, rows } = world(true);
+    untilActive(w);
+    const s0 = w.state.players.get("p0")!;
+    send(w, "p0", "move", { x: s0.x + 300, y: s0.y });
+    tick(w);
+    expect(rowOf(rows, w, "p0").dropped).toBe(false);
+    markDropped(w, "p0");
+    tick(w);
+    // Still standing and still walking out the path it had, so still recorded, but not as anyone's movement.
+    expect(rowOf(rows, w, "p0")).toMatchObject({ dropped: true, bot: false, walkedThisTick: true });
+    expect(rowOf(rows, w, "p1").dropped).toBe(false);
+    markReconnected(w, "p0");
+    tick(w);
+    expect(rowOf(rows, w, "p0").dropped).toBe(false);
   });
 
   it("records the orders a tick applied, in arrival order, only on that tick's row", () => {
@@ -305,6 +323,45 @@ describe("movement trace", () => {
       await traceWritesSettled();
       expect(fs.readFileSync(file, "utf8").trim().split("\n")).toHaveLength(2);
       expect(err).toHaveBeenCalledTimes(1);
+    } finally {
+      err.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("caps the FILE, which every room of a server appends to and an earlier run may have filled, not one writer's share", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-trace-cap-file-"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const file = path.join(dir, "trace.jsonl");
+      const { w, rows } = world(true);
+      untilActive(w);
+      for (let i = 0; i < 6; i++) tick(w);
+      const one = Buffer.byteLength(`${JSON.stringify(rows[0])}\n`);
+      const cap = one * 3 + one / 2;
+      // Two rooms' writers on one file: three rows fit in all, whichever room wrote them.
+      const a = new TraceWriter(file, cap);
+      const b = new TraceWriter(file, cap);
+      a.push(rows[0]!);
+      await a.flush();
+      b.push(rows[1]!);
+      await b.flush();
+      a.push(rows[2]!);
+      await a.flush();
+      b.push(rows[3]!);
+      await b.flush();
+      a.push(rows[4]!);
+      await a.flush();
+      await traceWritesSettled();
+      expect(fs.readFileSync(file, "utf8").trim().split("\n")).toHaveLength(3);
+      expect(err).toHaveBeenCalledTimes(2);
+      // A later server whose file is already full records nothing.
+      const later = new TraceWriter(file, cap);
+      later.push(rows[5]!);
+      await later.flush();
+      await traceWritesSettled();
+      expect(fs.readFileSync(file, "utf8").trim().split("\n")).toHaveLength(3);
+      expect(err).toHaveBeenCalledTimes(3);
     } finally {
       err.mockRestore();
       fs.rmSync(dir, { recursive: true, force: true });

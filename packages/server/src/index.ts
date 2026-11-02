@@ -303,6 +303,24 @@ function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): ((
   return installNetSim(sim);
 }
 
+/**
+ * The movement trace writes every player's position and orders to disk, so a server on a public link refuses it as it refuses the
+ * network simulator: a TRACE_INPUTS left in the host's shell would record every friend. ALLOW_TRACE_WHEN_HOSTING=1 overrides.
+ */
+function traceUnlessHosting(config: ServerConfig): ServerConfig {
+  if (!config.traceFile || !config.sameOriginOnly) return config;
+  if (config.allowTraceWhenHosting) {
+    console.log(`[server] movement trace ON while hosting (ALLOW_TRACE_WHEN_HOSTING): ${config.traceFile}`);
+    return config;
+  }
+  console.warn(
+    `[server] movement trace REFUSED (${config.traceFile}): this server is hosting a public link, where it would record every player. ` +
+    "Unset TRACE_INPUTS, or set ALLOW_TRACE_WHEN_HOSTING=1 to record anyway.",
+  );
+  const { traceFile: _refused, ...rest } = config;
+  return rest;
+}
+
 export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void>; closeBotSnapshot?: () => Promise<void>; telemetry?: TelemetryRuntime | null } = {}) {
   let storageHealthy = true;
   const readiness = { ready: false, simulationWarmup: null as Awaited<ReturnType<typeof warmCloudSimulation>> | null };
@@ -321,7 +339,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
   // Never touches storageHealthy, /readyz or the profile store: a failing endpoint costs records, nothing else.
   const telemetry = opts.telemetry !== undefined ? opts.telemetry : telemetryFromEnv(config);
-  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate, maps, botStats, telemetry };
+  RaidRoom.ctx = { config: traceUnlessHosting(config), store, profiles, rooms, passcodeGate, maps, botStats, telemetry };
   configureCors(config);
   const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
   const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);

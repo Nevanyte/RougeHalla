@@ -1,4 +1,5 @@
-// PREDICTBENCH: what a "predict the player's next movement" model has to beat, measured on this game. Report only.
+// PREDICTBENCH: the simple baselines a "predict the player's next movement" model is compared with, measured on this game. Report only.
+// A bench run's rows are all scripted BotClient movement (whole A* paths, no WASD): score a human trace (--trace --humans) for players.
 //   npx tsx packages/server/bench/predictBench.ts                      3 headless bot runs (in parallel), then the report
 //   npx tsx packages/server/bench/predictBench.ts --runs 6 --json out.json
 //   npx tsx packages/server/bench/predictBench.ts --trace live.jsonl   score a recorded trace (TRACE_INPUTS) instead
@@ -20,8 +21,8 @@ import type { PersonaId, TierId } from "../src/bots/brain/types";
 import { loadConfig } from "../src/config";
 import { startServer } from "../src/index";
 import { traceWritesSettled } from "../src/rooms/traceWriter";
-import { evaluate, MOVING_SPEED, SPLITS, TURN_ANGLE, type EvalReport, type Split } from "../src/sim/predictBaselines";
-import type { TraceRow } from "../src/sim/trace";
+import { evaluate, MOVING_SPEED, SPLITS, THIN_LIVES, TURN_ANGLE, type EvalReport, type Split } from "../src/sim/predictBaselines";
+import { readTrace, type TraceRead } from "./traceFile";
 
 const BOTS = 4;
 const WISH_LOCK_SECONDS = 5;
@@ -40,7 +41,8 @@ const USAGE = [
   "  --sudden S        seconds in the coliseum before sudden death (default 10)",
   "  --horizons LIST   prediction horizons in ms (default 50,100,150,200,250,300)",
   "  --trace FILE      score this JSONL movement trace instead of playing runs (repeatable; not netProbe's patch trace)",
-  "  --humans          drop the rows of server-filled bots from the traces scored (a live TRACE_INPUTS trace has them)",
+  "  --humans          drop the rows of server-filled bots from the traces scored (a live TRACE_INPUTS trace has them);",
+  "                    rows of a player whose connection was down are always dropped, and so are lines that do not parse",
   "  --port N          listen on this port (default: a free one in 2781..2799)",
   "  --out DIR         keep the recorded traces here (default: a temp dir, deleted)",
   "  --tmp DIR         make the profile file's and the traces' temp dirs under DIR (default: the system temp dir)",
@@ -203,18 +205,6 @@ async function pool<T>(n: number, limit: number, job: (i: number) => Promise<T>)
   return out;
 }
 
-function readTrace(file: string, humansOnly: boolean): TraceRow[] {
-  const rows: TraceRow[] = [];
-  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-    if (line.trim() === "") continue;
-    const row = JSON.parse(line) as TraceRow;
-    // A trace from before the `bot` column has none to drop.
-    if (humansOnly && row.bot === true) continue;
-    rows.push(row);
-  }
-  return rows;
-}
-
 const f1 = (v: number): string => v.toFixed(1);
 const pct = (a: number, b: number): string => (b > 0 ? `${((100 * a) / b).toFixed(1)}%` : "-");
 
@@ -231,6 +221,23 @@ function errorTable(report: EvalReport, split: Split): string[] {
   return lines;
 }
 
+/** Each run's own mean error over all samples, lowest to highest: how far one run's figure is from another's. */
+function spreadTable(report: EvalReport): string[] {
+  const hs = report.horizons;
+  const names = Object.keys(hs[0]?.runSpread ?? {});
+  const lines = [`| predictor | ${hs.map((h) => `${h.horizonMs} ms`).join(" | ")} |`, `|---|${hs.map(() => "---:").join("|")}|`];
+  for (const name of names) lines.push(`| ${name} | ${hs.map((h) => { const s = h.runSpread[name]!; return `${f1(s.min)} - ${f1(s.max)}`; }).join(" | ")} |`);
+  return lines;
+}
+
+function basisText(report: EvalReport, split: Split): string {
+  const h = report.horizons[0]!;
+  const b = h.basis[split];
+  const n = h.errors[Object.keys(h.errors)[0]!]![split].n;
+  const thin = b.lives < THIN_LIVES ? `; THIN: under ${THIN_LIVES} lives, read with care` : "";
+  return `${n} samples from ${b.lives} lives in ${b.runs} run(s) at ${h.horizonMs} ms${thin}`;
+}
+
 function markdown(report: EvalReport, source: string): string {
   const hs = report.horizons;
   const out: string[] = [];
@@ -243,12 +250,17 @@ function markdown(report: EvalReport, source: string): string {
     + "Rows whose horizon crosses a forced move (blink, teleport) or the end of a life are not scored.",
     "",
   );
-  out.push("Predictors: `hold` stays put; `constantVelocity` keeps the last 100 ms velocity (dead reckoning: all a remote client sees); "
-    + "`holdLastSteer` walks straight at the last move order's point at the walking speed, with the known root (a WASD walk is a "
-    + "stream of move orders 8 to 64 u ahead, so it saturates past about 375 ms); `pathFollow` walks the server's path in hand at the "
-    + "walking speed, with the known root. The last two read the orders and the path, which only the server has: they are the ceiling "
-    + "if the walk goal were synced, not a number a remote client can reach today.", "");
-  out.push("## All samples: mean / p95 error (u)", "", ...errorTable(report, "all"), "");
+  out.push("Predictors: `hold` stays put; `constantVelocity` keeps the last 100 ms velocity (dead reckoning on positions); "
+    + "`holdLastSteer` walks straight at the last move order's point at the walking speed, with the known root; `pathFollow` walks the "
+    + "server's path in hand at the walking speed, with the known root. The last two read the orders and the path, which only the "
+    + "server has: they show what a synced walk goal could give, not a number a remote client can reach today. Every prediction starts "
+    + "from the server's present; a remote client's newest sample is already its render delay old, so its lead is the horizon plus that delay.", "");
+  out.push("Who walked matters: a scripted bot orders a whole A* path and seldom re-orders, which flatters `holdLastSteer` and `pathFollow`; "
+    + "a WASD walk is a stream of move orders 8 to 64 u ahead re-sent about every 100 ms, which neither has seen here unless the trace is human play.", "");
+  out.push(`## All samples: mean / p95 error (u), ${basisText(report, "all")}`, "", ...errorTable(report, "all"), "");
+  const runs = hs[0]?.basis.all.runs ?? 0;
+  if (runs > 1) out.push(`## Run to run: the lowest and highest of the ${runs} runs' own mean errors (u), all samples`, "", ...spreadTable(report), "");
+  else out.push("One run scored: no run-to-run spread to show, so a figure here may move by more than its last digit on another run.", "");
   out.push("## How often straight-line extrapolation must be wrong", "");
   out.push(`Moving: over ${MOVING_SPEED} u/s at the prediction. Turn: a tick's step within the horizon more than ${Math.round((TURN_ANGLE * 180) / Math.PI)} degrees off the heading. `
     + "Stop: a tick within the horizon with no walk. Start: a still player walks within the horizon.", "");
@@ -266,9 +278,10 @@ function markdown(report: EvalReport, source: string): string {
   };
   for (const split of SPLITS) {
     const title = titles[split];
-    const n = hs[0]?.errors[Object.keys(hs[0].errors)[0]!]![split].n ?? 0;
-    if (!title || n === 0) continue;
-    out.push(`## ${title}: mean / p95 (u), ${n} samples at ${hs[0]!.horizonMs} ms`, "", ...errorTable(report, split), "");
+    if (!title || !hs[0]) continue;
+    const n = hs[0].errors[Object.keys(hs[0].errors)[0]!]![split].n;
+    if (n === 0) { out.push(`## ${title}: no samples`, ""); continue; }
+    out.push(`## ${title}: mean / p95 (u), ${basisText(report, split)}`, "", ...errorTable(report, split), "");
   }
   return out.join("\n");
 }
@@ -297,12 +310,24 @@ async function main(): Promise<void> {
     files = [file];
     source = `${o.runs} headless bot run(s), ${BOTS} BotClient bots each (hard tier; factions rotated per run; mobs, planning and quests on; `
       + `patience ${o.patience} s, sudden death after ${o.sudden} s; ${((Date.now() - started) / 1000).toFixed(0)} s wall, up to ${o.parallel} rooms at once). `
-      + `Seeds ${summaries.map((s) => s.seed).join(", ")}.${o.out ? ` Trace kept in ${file}.` : ""}`;
+      + `Seeds ${summaries.map((s) => s.seed).join(", ")}.${o.out ? ` Trace kept in ${file}.` : ""} `
+      + "Every row is scripted bot movement, not human WASD play: these numbers say nothing yet about players.";
   } else {
     source = `Trace file(s): ${files.join(", ")}${o.humans ? " (rows of server-filled bots dropped)" : ""}.`;
   }
-  const rows = files.flatMap((f) => readTrace(f, o.humans));
+  const reads: TraceRead[] = [];
+  for (const f of files) reads.push(await readTrace(f, o.humans));
   if (cleanup) fs.rmSync(cleanup, { recursive: true, force: true });
+  const rows = reads.flatMap((r) => r.rows);
+  const skipped = { bots: 0, dropped: 0, unparsable: 0 };
+  for (const r of reads) for (const k of ["bots", "dropped", "unparsable"] as const) skipped[k] += r.skipped[k];
+  const left = [
+    skipped.bots > 0 ? `${skipped.bots} rows of server-filled bots` : "",
+    skipped.dropped > 0 ? `${skipped.dropped} rows of players whose connection was down` : "",
+    skipped.unparsable > 0 ? `${skipped.unparsable} line(s) that are not a row (a cut last line, say)` : "",
+  ].filter((t) => t !== "");
+  if (left.length > 0) source += ` Left out: ${left.join(", ")}.`;
+  if (skipped.unparsable > 0) console.error(`[predict] skipped ${skipped.unparsable} line(s) that do not parse as a trace row`);
   if (rows.length === 0) throw new Error("the trace is empty: nothing to score");
   const report = evaluate(rows, { horizons: o.horizons });
   console.log(markdown(report, source));

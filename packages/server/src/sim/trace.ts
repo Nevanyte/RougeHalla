@@ -43,6 +43,8 @@ export interface TraceRow {
   weapon: WeaponId | null;
   /** A server-filled bot: a live trace mixes scripted and human movement, so rows must be separable. */
   bot: boolean;
+  /** The connection is down (the reconnect grace): the fighter stands in the world but nobody steers it, so it is no one's movement. */
+  dropped: boolean;
   x: number;
   y: number;
   facing: number;
@@ -164,6 +166,7 @@ function rowOf(world: World, c: Extract<Combatant, { kind: "player" }>, run: str
     faction: p.faction,
     weapon: activeWeapon(p),
     bot: p.bot,
+    dropped: c.rt.droppedAt !== null,
     x: r2(p.x),
     y: r2(p.y),
     facing: r3(p.facing),

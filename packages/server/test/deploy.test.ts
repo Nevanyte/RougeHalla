@@ -41,18 +41,20 @@ describe("deployment configuration", () => {
     expect(() => validateConfig({ repository: "file:///tmp/fixture.git", stateDir, publicUrl: "https://user:secret@example.com" })).toThrow();
   });
 
-  it("keeps production profile location and port fixed while stripping development network simulation", async () => {
+  it("keeps production profile location and port fixed while stripping development network simulation and the movement trace", async () => {
     const stateDir = await tempDir();
     const cfg = config(stateDir);
     const env = productionEnvironment(
-      { KEEP_ME: "yes", RAID_PORT: "1", STASH_FILE: "/wrong", NET_SEED: "7", NODE_OPTIONS: "--inspect" },
-      { RAID_PORT: "2", STASH_FILE: "/also-wrong", NET_LOSS_PCT: "99", FEATURE_FLAG: "enabled" },
+      { KEEP_ME: "yes", RAID_PORT: "1", STASH_FILE: "/wrong", NET_SEED: "7", NODE_OPTIONS: "--inspect", TRACE_INPUTS: "trace.jsonl" },
+      { RAID_PORT: "2", STASH_FILE: "/also-wrong", NET_LOSS_PCT: "99", FEATURE_FLAG: "enabled", ALLOW_TRACE_WHEN_HOSTING: "1" },
       cfg,
       path.join(stateDir, "releases", "build-a"),
     );
     expect(env).toMatchObject({ KEEP_ME: "yes", FEATURE_FLAG: "enabled", NODE_ENV: "production", RAID_PORT: String(cfg.port), STASH_FILE: cfg.stashFile });
     expect(env.CLIENT_DIR).toBe(path.join(stateDir, "releases", "build-a", "packages/client/dist"));
-    for (const key of ["NET_SEED", "NET_LOSS_PCT", "NODE_OPTIONS", "COLYSEUS_LATENCY", "RAID_EXIT_ON_STDIN_END"]) expect(env).not.toHaveProperty(key);
+    for (const key of ["NET_SEED", "NET_LOSS_PCT", "NODE_OPTIONS", "COLYSEUS_LATENCY", "RAID_EXIT_ON_STDIN_END", "TRACE_INPUTS", "ALLOW_TRACE_WHEN_HOSTING"]) {
+      expect(env).not.toHaveProperty(key);
+    }
   });
 });
 

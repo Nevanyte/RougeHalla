@@ -68,7 +68,7 @@ export function assertLocalHostingUrl(value) {
 export function productionEnvironment(base, overrides, config, releaseDir) {
   const env = { ...base, ...overrides, NODE_ENV: "production", CLIENT_DIR: path.join(releaseDir, "packages/client/dist"),
     STASH_FILE: config.stashFile, RAID_PORT: String(config.port) };
-  for (const key of ["COLYSEUS_LATENCY", "NET_JITTER_MS", "NET_LOSS_PCT", "NET_SEED", "ALLOW_NETSIM_WHEN_HOSTING", "RAID_EXIT_ON_STDIN_END", "NODE_OPTIONS"]) delete env[key];
+  for (const key of ["COLYSEUS_LATENCY", "NET_JITTER_MS", "NET_LOSS_PCT", "NET_SEED", "ALLOW_NETSIM_WHEN_HOSTING", "TRACE_INPUTS", "ALLOW_TRACE_WHEN_HOSTING", "RAID_EXIT_ON_STDIN_END", "NODE_OPTIONS"]) delete env[key];
   return env;
 }
 export async function readJson(file, fallback = null) {

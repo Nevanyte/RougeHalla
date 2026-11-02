@@ -1,11 +1,13 @@
 // Movement-prediction baselines and how they are scored against a trace (sim/trace.ts rows; bench/predictBench.ts runs it).
-// The question a learned predictor has to answer is "where will this player be h ms from now?", and these are the answers it
-// must beat. Pure: a predictor sees only the present row, a short past and the walk order in force, never a later row.
+// The question a learned predictor answers is "where will this player be h ms from now?", and these are the simple answers it is
+// compared with. Pure: a predictor sees only the present row, a short past and the walk order in force, never a later row.
 //
-// What each baseline knows: `hold` and `constantVelocity` use only what a remote client sees (positions), so they are the only two it
-// could run today. `holdLastSteer` and `pathFollow` read server-only information (the orders and the path in hand), so they are an
-// upper bound on what a remote client could do if the walk goal were synced. On main a WASD walk is a stream of ordinary `move`
-// orders to a goal 8 to 64 u ahead (about 375 ms of walking), so `holdLastSteer` saturates beyond the default 300 ms horizon.
+// What each baseline knows: `hold` and `constantVelocity` use only positions, which a remote client also has; `holdLastSteer` and
+// `pathFollow` read server-only information (the orders and the path in hand), so they show what a synced walk goal could give.
+// Every one is scored from the server's present row: a remote client's newest sample is already its render delay old (RenderClock),
+// so its lead is the horizon plus that delay. The numbers depend on who walked: scripted bots order whole A* paths and seldom
+// re-order, which flatters the two order-reading baselines, while a WASD walk is a stream of `move` orders to a goal 8 to 64 u ahead
+// re-sent about every 100 ms. Read them for players only from a trace of human play.
 import { FISTS, isRanged, PLAYER_SPEED, TICK_MS, type Vec2 } from "@raid/shared";
 import type { TraceRow } from "./trace";
 
@@ -97,6 +99,15 @@ export type Split = (typeof SPLITS)[number];
 
 export interface ErrorStats { n: number; mean: number; p95: number }
 
+/** Under this many player lives a split is thin: its samples are many but strongly correlated. */
+export const THIN_LIVES = 5;
+
+/** How much play a split's samples come from (one life = one player in one run). */
+export interface SplitBasis { lives: number; runs: number }
+
+/** Each run's own mean error (all samples), the lowest and the highest across the runs scored. */
+export interface RunSpread { runs: number; min: number; max: number }
+
 export interface HorizonReport {
   horizonMs: number;
   /** Samples scored (rows with a truth `horizonMs` later in the same life and no forced move in between). */
@@ -110,6 +121,10 @@ export interface HorizonReport {
   heading: { moving: number; turned: number; stopped: number; still: number; started: number };
   /** Displacement error (u) by predictor, then split. */
   errors: Record<string, Record<Split, ErrorStats>>;
+  /** The lives and runs each split's scored samples come from. */
+  basis: Record<Split, SplitBasis>;
+  /** By predictor: the run-to-run spread of the mean error over all samples. */
+  runSpread: Record<string, RunSpread>;
 }
 
 export interface EvalReport {
@@ -186,9 +201,14 @@ export function evaluate(rows: readonly TraceRow[], opts: EvalOptions): EvalRepo
     dropped: { ended: 0, displaced: 0 },
     heading: { moving: 0, turned: 0, stopped: 0, still: 0, started: 0 },
     errors: Object.fromEntries(names.map((n) => [n, Object.fromEntries(SPLITS.map((s) => [s, [] as number[]]))])) as Record<string, Record<Split, number[]>>,
+    lives: Object.fromEntries(SPLITS.map((s) => [s, new Set<string>()])) as Record<Split, Set<string>>,
+    runs: Object.fromEntries(SPLITS.map((s) => [s, new Set<string>()])) as Record<Split, Set<string>>,
+    perRun: Object.fromEntries(names.map((n) => [n, new Map<string, { sum: number; n: number }>()])) as Record<string, Map<string, { sum: number; n: number }>>,
   }));
 
   for (const list of series) {
+    const run = list[0]!.run;
+    const life = `${run}\u0000${list[0]!.id}`;
     let lastMove: MoveIntent | null = null;
     let lifeStart = 0;
     for (let i = 0; i < list.length; i++) {
@@ -228,12 +248,15 @@ export function evaluate(rows: readonly TraceRow[], opts: EvalOptions): EvalRepo
           a.heading.still++;
           if (started) a.heading.started++;
         }
+        for (const s of splits) { a.lives[s].add(life); a.runs[s].add(run); }
         const truth = truthAt(list, i, a.horizonMs);
         for (const name of names) {
           const p = predictors[name]!(ctx, a.horizonMs);
           const err = Math.hypot(p.x - truth.x, p.y - truth.y);
           const bySplit = a.errors[name]!;
           for (const s of splits) bySplit[s].push(err);
+          const own = a.perRun[name]!.get(run);
+          if (own) { own.sum += err; own.n++; } else a.perRun[name]!.set(run, { sum: err, n: 1 });
         }
       }
     }
@@ -251,8 +274,14 @@ export function evaluate(rows: readonly TraceRow[], opts: EvalOptions): EvalRepo
       errors: Object.fromEntries(names.map((n) => [
         n, Object.fromEntries(SPLITS.map((s) => [s, statsOf(a.errors[n]![s])])) as Record<Split, ErrorStats>,
       ])),
+      basis: Object.fromEntries(SPLITS.map((s) => [s, { lives: a.lives[s].size, runs: a.runs[s].size }])) as Record<Split, SplitBasis>,
+      runSpread: Object.fromEntries(names.map((n) => [n, spreadOf([...a.perRun[n]!.values()].map((r) => r.sum / r.n))])),
     })),
   };
+}
+
+function spreadOf(means: number[]): RunSpread {
+  return means.length === 0 ? { runs: 0, min: 0, max: 0 } : { runs: means.length, min: Math.min(...means), max: Math.max(...means) };
 }
 
 /** The true position `horizonMs` after list[i], between ticks if the horizon is not a whole number of them. */

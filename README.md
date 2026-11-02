@@ -309,6 +309,8 @@ Set them on the command line, for example `MIN_PLAYERS=1 FILL_SECONDS=1 PATIENCE
 | `NET_LOSS_PCT` | `0` | Percent of messages that need a retransmission: they wait an extra timeout (at least 200 ms) and everything behind them waits too (head-of-line blocking). |
 | `NET_SEED` | random | Seeds the jitter and loss draws, for repeatable runs. |
 | `ALLOW_NETSIM_WHEN_HOSTING` | off | `1`: let a server that is hosting (`NODE_ENV=production` or `CLIENT_DIR`) install the network simulator anyway. Without it the simulator is refused there with one warning, since it would slow every player; `npm run playtest` drops the three variables above. |
+| `TRACE_INPUTS` | unset | A file path: every arena run appends its per-tick movement trace (`packages/server/src/sim/trace.ts`) to it as JSONL, for `bench/predictBench.ts --trace`. The file is capped at 512 MB. A local measurement: a hosting server refuses it with one warning. |
+| `ALLOW_TRACE_WHEN_HOSTING` | off | `1`: let a hosting server record `TRACE_INPUTS` anyway (it records every player's movement). `npm run playtest` and the deploy drop both variables. |
 | `CLIENT_DIR` | unset | A built client (`packages/client/dist`) to serve from the same port as the API and the websocket. Setting it, or `NODE_ENV=production`, is "hosting": see [Hosting a playtest](#hosting-a-playtest). |
 | `PLAYTEST_PASSCODE` | unset | When set, a passcode is needed to claim a new callsign and to join a room. |
 | `PASSCODE_FAILS_PER_MINUTE`, `PASSCODE_FAILS_PER_MINUTE_ALL` | `6`, `40` | With a passcode set: wrong guesses a minute per client address and in all, before the server answers 429 (on the profile route and on joining). |

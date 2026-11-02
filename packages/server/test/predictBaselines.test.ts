@@ -1,5 +1,9 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PLAYER_SPEED, TICK_MS, type Vec2 } from "@raid/shared";
+import { readTrace } from "../bench/traceFile";
 import { advanceAlongPath, velocityOf } from "../src/sim/movement";
 import {
   constantVelocity, evaluate, hold, holdLastSteer, nextMove, pathFollow, walkMs, type PredictContext,
@@ -11,7 +15,7 @@ const STEP = (PLAYER_SPEED * TICK_MS) / 1000;
 
 function row(over: Partial<TraceRow>): TraceRow {
   return {
-    run: "synthetic", tick: 0, serverTime: 0, id: "p", faction: "fire", weapon: "sword", bot: false, x: 0, y: 0, facing: 0, vx: 0, vy: 0,
+    run: "synthetic", tick: 0, serverTime: 0, id: "p", faction: "fire", weapon: "sword", bot: false, dropped: false, x: 0, y: 0, facing: 0, vx: 0, vy: 0,
     pathEnd: null, pathLen: 0, path: [], walkedThisTick: false, slip: false, action: null, rooted: false, rootFrom: null, rootUntil: null,
     lock: null, hp: 1, lastHitAt: null, enemy: null, effects: 0, speedMult: 1, walkMult: 1, displaceSeq: 0, orders: [],
     ...over,
@@ -131,6 +135,48 @@ describe("movement prediction baselines", () => {
     expect(e.melee.n).toBeGreaterThan(0);
     expect(e.unarmed.n + e.melee.n).toBe(e.all.n);
     expect(e.ranged.n).toBe(0);
+  });
+
+  it("says how many lives and runs each split rests on, and how far the runs' own means are apart", () => {
+    // Two runs of one walker each: the first walks straight, the second turns, so constantVelocity's mean differs between them.
+    const a = walk([{ x: 5000, y: 0 }], 40).map((r) => ({ ...r, run: "a", weapon: "bow" as const }));
+    const b = walk([{ x: 20 * STEP, y: 0 }, { x: 20 * STEP, y: 5000 }], 40).map((r) => ({ ...r, run: "b" }));
+    const both = evaluate([...a, ...b], { horizons: [300] }).horizons[0]!;
+    expect(both.basis.all).toEqual({ lives: 2, runs: 2 });
+    expect(both.basis.ranged).toEqual({ lives: 1, runs: 1 });
+    expect(both.basis.melee).toEqual({ lives: 1, runs: 1 });
+    expect(both.basis.unarmed).toEqual({ lives: 0, runs: 0 });
+    const ownA = evaluate(a, { horizons: [300] }).horizons[0]!.errors.constantVelocity!.all.mean;
+    const ownB = evaluate(b, { horizons: [300] }).horizons[0]!.errors.constantVelocity!.all.mean;
+    expect(ownB).toBeGreaterThan(ownA + 1);
+    expect(both.runSpread.constantVelocity!.runs).toBe(2);
+    expect(both.runSpread.constantVelocity!.min).toBeCloseTo(ownA, 9);
+    expect(both.runSpread.constantVelocity!.max).toBeCloseTo(ownB, 9);
+    expect(evaluate(a, { horizons: [300] }).horizons[0]!.runSpread.hold).toMatchObject({ runs: 1 });
+  });
+
+  it("reads a trace line by line, leaving out a cut last line, a dropped player and, for --humans, the fill bots", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-trace-read-"));
+    try {
+      const file = path.join(dir, "live.jsonl");
+      const rows = walk([{ x: 5000, y: 0 }], 6);
+      const lines = [
+        ...rows.slice(0, 3).map((r) => JSON.stringify(r)),
+        JSON.stringify({ ...rows[3]!, id: "ghost", dropped: true }),
+        JSON.stringify({ ...rows[4]!, id: "filler", bot: true }),
+        "",
+        JSON.stringify(rows[5]!).slice(0, 40),
+      ];
+      fs.writeFileSync(file, lines.join("\n"));
+      const humans = await readTrace(file, true);
+      expect(humans.rows).toEqual(rows.slice(0, 3));
+      expect(humans.skipped).toEqual({ bots: 1, dropped: 1, unparsable: 1 });
+      const all = await readTrace(file, false);
+      expect(all.rows.map((r) => r.id)).toEqual(["p", "p", "p", "filler"]);
+      expect(all.skipped).toEqual({ bots: 0, dropped: 1, unparsable: 1 });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("splits by weapon and combat", () => {

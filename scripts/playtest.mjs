@@ -66,6 +66,8 @@ const TUNNEL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
 const HOSTNAME_RE = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/;
 /** The variables that switch the network simulator on (packages/server/src/net/netSim.ts). */
 const NETSIM_VARS = ["COLYSEUS_LATENCY", "NET_JITTER_MS", "NET_LOSS_PCT", "NET_SEED", "ALLOW_NETSIM_WHEN_HOSTING"];
+/** The variables that record every player's movement to disk (packages/server/src/sim/trace.ts): a local measurement only. */
+const TRACE_VARS = ["TRACE_INPUTS", "ALLOW_TRACE_WHEN_HOSTING"];
 
 const tty = process.stdout.isTTY && !process.env.NO_COLOR;
 const bold = (s) => (tty ? `\x1b[1m${s}\x1b[0m` : s);
@@ -208,7 +210,7 @@ function startServer(port, stashFile) {
   const env = { ...process.env, NODE_ENV: "production", CLIENT_DIR: clientDir, RAID_PORT: String(port), STASH_FILE: stashFile };
   // The network simulator would delay and drop every friend's connection, and a variable exported in this shell for a netcode
   // test is easy to forget (the server refuses it while hosting too, but a launcher that hosts should not even ask).
-  for (const name of NETSIM_VARS) delete env[name];
+  for (const name of [...NETSIM_VARS, ...TRACE_VARS]) delete env[name];
   // One process: tsx's CLI wrapper would relay a signal to a child as well, so Ctrl+C would reach the server twice. Its own
   // process group (detached) keeps the terminal's Ctrl+C from reaching it directly: it gets the single signal we forward.
   // Its stdin is a pipe whose write end only this script holds. However this script dies (a crash, SIGKILL), the pipe
@@ -459,6 +461,8 @@ async function main() {
   if (dropped.length > 0) {
     note(`ignoring ${dropped.map((n) => `${n}=${process.env[n]}`).join(", ")}: the network simulator would delay and drop every friend's connection. To test lag, run the server yourself (README, Hosting a playtest).`);
   }
+  const untraced = TRACE_VARS.filter((name) => process.env[name] !== undefined && process.env[name] !== "");
+  if (untraced.length > 0) note(`ignoring ${untraced.join(", ")}: the movement trace would record every friend's movement. Trace on a local server instead.`);
 
   if (args.build) await buildClient();
   else if (!fs.existsSync(path.join(clientDir, "index.html"))) fail(`--no-build, but there is no build in ${clientDir}: run npm run build first`);
