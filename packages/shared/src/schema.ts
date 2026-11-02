@@ -129,6 +129,8 @@ export const PlayerState = schema({
   tradeStats: t.map("float64"),
   /** The one Plague companion, kept while dead so a later corpse revives its accumulated growth. */
   plagueZombieId: t.string().default(""),
+  /** Server time until which an attack or cast has exposed this player inside a bush (vision.ts `bushConceals`). Appended for wire compatibility. */
+  bushRevealUntil: t.uint32().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

@@ -560,7 +560,7 @@ export class RaidScene extends Phaser.Scene {
         this.sampleDrawn(id, drawT, p);
       }
       if (id === huntTarget) this.huntMarker = { id, x: this.tmp.x, y: this.tmp.y, tracked: true };
-      if (!shouldRenderActor(local, p.effects, this.tmp, point => this.vision.canSeeActor(id, point))) { this.rendered.delete(id); return; }
+      if (!shouldRenderActor(local, p.effects, this.tmp, point => this.vision.canSeeActor(id, point, p.bushRevealUntil))) { this.rendered.delete(id); return; }
       seen.add(id);
       let view = this.views.get(id);
       if (!view) { view = new PlayerView(this, local, this.fx); this.views.set(id, view); }

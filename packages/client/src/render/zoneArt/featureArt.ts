@@ -24,7 +24,7 @@ import type { FloorLook, MasonryLook, WallLook } from "./artBase";
 
 /** The looks in code order: the layers hold the index. */
 export const WALL_LOOKS: readonly WallLook[] = ["plain", "rim", "mound", "pier", "forge", "guardHouse", "burrow", "watchtower", "shrine", "shard", "gallows"];
-export const FLOOR_LOOKS: readonly FloorLook[] = ["plain", "bowl", "tunnel", "hall", "shore", "causeway", "forge", "guardHouse", "burrow", "watchtower", "shrine", "door", "ford"];
+export const FLOOR_LOOKS: readonly FloorLook[] = ["plain", "bowl", "tunnel", "hall", "shore", "causeway", "forge", "guardHouse", "burrow", "watchtower", "shrine", "door", "ford", "bush"];
 
 const WALL_CODE = Object.fromEntries(WALL_LOOKS.map((l, i) => [l, i])) as Readonly<Record<WallLook, number>>;
 const FLOOR_CODE = Object.fromEntries(FLOOR_LOOKS.map((l, i) => [l, i])) as Readonly<Record<FloorLook, number>>;
@@ -59,6 +59,7 @@ export function floorLookOf(f: Pick<MapFeature, "kind" | "variant">): FloorLook 
     case "hall": return "hall";
     case "mere": return "shore";
     case "causeway": return "causeway";
+    case "bush": return "bush";
     case "landmark": return masonryOf(f.variant) ?? "plain";
     default: return "plain";
   }

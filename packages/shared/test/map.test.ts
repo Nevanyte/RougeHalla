@@ -108,7 +108,7 @@ describe("mapFromTiles", () => {
   });
 
   it("pins the feature tables (append only: the client's art, the hash and the certifier key on these)", () => {
-    expect([...FEATURE_KINDS]).toEqual(["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire", "causeway", "hall", "infill"]);
+    expect([...FEATURE_KINDS]).toEqual(["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire", "causeway", "hall", "infill", "bush"]);
     expect([...FEATURE_JOBS]).toEqual(["landmark", "pen", "crossing", "lane", "fork", "lee", "choke", "cover", "rest", "seal"]);
   });
 

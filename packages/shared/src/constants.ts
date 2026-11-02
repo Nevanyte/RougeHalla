@@ -53,6 +53,10 @@ export const PLAYER_SPEED = 170;
 export const VISION_RADIUS = 900;
 /** A tile seen by a player continues to reveal live activity for thirty seconds after its last refresh. */
 export const VISION_TRAIL_MS = 30_000;
+/** Bushes (elite camps): a player inside one is hidden from viewers outside it, unless within this reach or exposed by an attack or cast. */
+export const BUSH_REVEAL_RADIUS = 64;
+/** How long an attack or cast keeps a bush occupant exposed, from the moment the swing lands or the shot leaves. */
+export const BUSH_REVEAL_MS = 1000;
 /** Full camps return three minutes after their last member dies; personal wards have their own shorter lifetime. */
 export const CAMP_RESPAWN_MS = 180_000;
 /** Personal camp ward ends one minute before respawn. */

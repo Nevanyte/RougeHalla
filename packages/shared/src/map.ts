@@ -156,7 +156,7 @@ export interface FactionRegionDef {
 
 /** Feature kinds (zone-shapes contract 2.5). Append only: the client's art, the hash and the certifier key on these. */
 export const FEATURE_KINDS = ["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire",
-  "causeway", "hall", "infill"] as const;
+  "causeway", "hall", "infill", "bush"] as const;
 export type FeatureKind = (typeof FEATURE_KINDS)[number];
 /** What a feature is for (one or two per feature). Append only. */
 export const FEATURE_JOBS = ["landmark", "pen", "crossing", "lane", "fork", "lee", "choke", "cover", "rest", "seal"] as const;
@@ -176,7 +176,7 @@ export interface MapFeature {
   /** Anchor tile (integers): a crater's camp centre, a landmark's template origin, a row's first tile, a lake's seed. */
   ax: number;
   ay: number;
-  /** Kind-specific integers (contract 2.6): crater [campIndex into map.camps, radius4, breachCount, ...breachDir16], mere [lakeIndex, iceTiles], ... */
+  /** Kind-specific integers (contract 2.6): bush [campIndex into map.camps of an elite camp, clump], crater [campIndex into map.camps, radius4, breachCount, ...breachDir16], mere [lakeIndex, iceTiles], ... */
   p: number[];
   /** Bounding box of the tiles it owns. */
   bbox: TileRect;

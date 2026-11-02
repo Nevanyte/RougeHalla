@@ -29,7 +29,7 @@ for (const c of map.camps) mark.set(worldToTile(c.chest.y) * w + worldToTile(c.c
 /** One letter per feature kind (--features). */
 const FEATURE_GLYPH: Record<FeatureKind, string> = {
   landmark: "K", crater: "O", lavaRiver: "R", fenceRow: "F", gallows: "G", barrow: "B", mere: "Q", headland: "H", spire: "^",
-  causeway: "=", hall: "X", infill: "x",
+  causeway: "=", hall: "X", infill: "x", bush: "b",
 };
 const showFeatures = flags.has("--features");
 

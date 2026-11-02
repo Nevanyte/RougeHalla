@@ -92,4 +92,4 @@ export type MasonryLook = "forge" | "guardHouse" | "burrow" | "watchtower" | "sh
  * How a floor tile that a feature owns is dressed under the zone's floor: a crater's ash bowl, a barrow's tunnel, the hall's paving,
  * the mere's shore and the causeway's packed snow, a landmark's interior floor (per design), its doorway sill, and a ford's slabs.
  */
-export type FloorLook = "plain" | "bowl" | "tunnel" | "hall" | "shore" | "causeway" | "forge" | "guardHouse" | "burrow" | "watchtower" | "shrine" | "door" | "ford";
+export type FloorLook = "plain" | "bowl" | "tunnel" | "hall" | "shore" | "causeway" | "forge" | "guardHouse" | "burrow" | "watchtower" | "shrine" | "door" | "ford" | "bush";

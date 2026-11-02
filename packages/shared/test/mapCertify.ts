@@ -98,7 +98,7 @@ export const LANDMARK_HALO_GAP = 3;
 export const FOOTPRINT_MAX_PCT = 13;
 
 // ---- The feature tables (contract 2.5-2.6, section 4), re-declared: map.ts's tables must equal these ----
-export const CERT_FEATURE_KINDS = ["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire", "causeway", "hall", "infill"] as const;
+export const CERT_FEATURE_KINDS = ["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire", "causeway", "hall", "infill", "bush"] as const;
 export type CertFeatureKind = (typeof CERT_FEATURE_KINDS)[number];
 export const CERT_FEATURE_JOBS = ["landmark", "pen", "crossing", "lane", "fork", "lee", "choke", "cover", "rest", "seal"] as const;
 /** Landmark designs and the zone each belongs to (contract 5.2). */
@@ -109,14 +109,14 @@ export const LANDMARK_ZONE: Readonly<Record<string, RegionFaction>> = {
 const KIND_WRITES: Readonly<Record<CertFeatureKind, { wall: boolean; low: boolean }>> = {
   landmark: { wall: true, low: false }, crater: { wall: true, low: false }, lavaRiver: { wall: false, low: true }, fenceRow: { wall: false, low: true },
   gallows: { wall: true, low: false }, barrow: { wall: true, low: false }, mere: { wall: false, low: false }, headland: { wall: true, low: false },
-  spire: { wall: true, low: false }, causeway: { wall: false, low: false }, hall: { wall: true, low: false }, infill: { wall: true, low: false },
+  spire: { wall: true, low: false }, causeway: { wall: false, low: false }, hall: { wall: true, low: false }, infill: { wall: true, low: false }, bush: { wall: false, low: false },
 };
 /** The terrain kind a LOW feature's tiles carry. */
 const KIND_TERRAIN: Readonly<Partial<Record<CertFeatureKind, number>>> = { lavaRiver: TERRAIN_LAVA, fenceRow: TERRAIN_FENCE };
 /** The jobs each kind may carry (section 4: the sets a styler names); a landmark always names "landmark". */
 const KIND_JOBS: Readonly<Record<CertFeatureKind, readonly string[]>> = {
   landmark: ["landmark", "lee", "fork", "rest"], crater: ["pen"], lavaRiver: ["crossing"], fenceRow: ["lane"], gallows: ["landmark"],
-  barrow: ["fork", "choke"], mere: ["crossing"], headland: ["lee"], spire: ["landmark"], causeway: ["crossing", "lee"], hall: ["cover", "rest"], infill: ["seal"],
+  barrow: ["fork", "choke"], mere: ["crossing"], headland: ["lee"], spire: ["landmark"], causeway: ["crossing", "lee"], hall: ["cover", "rest"], infill: ["seal"], bush: ["cover"],
 };
 
 /** Ownership of floor hazards (ember, bog, ice, light) is a strict check of its own: the generator's gate speaks of WALL/LOW tiles. */
@@ -1262,6 +1262,7 @@ export function featureProblems(m: GameMap, strict: readonly number[] = []): str
     } else if (kind === "mere") { if (p.length !== 2 || p[1] !== iceOwned[k + 1]) bad(`[lake ${p[0]}, ice ${p[1]}] but the lake owns ${iceOwned[k + 1]} ICE tiles`); }
     else if (kind === "headland") { if (p.length !== 1 || p[0] < 0 || p[0] > 15) bad("not [dir16]"); }
     else if (kind === "hall") { if (p.length !== 5 || (p[0] !== 0 && p[0] !== 1) || p[1] !== 6) bad("not [axis 0/1, pitch 6, radius, piers, lightBays]"); }
+    else if (kind === "bush") { if (p.length !== 2 || p[0] < 0 || p[0] >= m.camps.length || m.camps[p[0]].eliteSpot < 0 || m.camps[p[0]].zone !== f.zone) bad("not [eliteCampIndex of its zone, clump]"); }
     else if ((kind === "gallows" || kind === "spire" || kind === "causeway" || kind === "infill") && p.length !== 0) bad("takes no params");
   });
   return out;
