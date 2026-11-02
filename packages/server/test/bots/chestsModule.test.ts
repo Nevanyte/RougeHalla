@@ -460,7 +460,7 @@ describe("the walk: a module goal to a chest it knows from the minimap", () => {
     // 8 tiles are within the twelve a fight allows; 400 u (12.5 tiles) are not.
     const near = chest("near", 8 * TILE);
     const far = chest("far", 400);
-    for (const fight of [{ engaged: true }, { mobs: [mobMemory()] }, { fighters: [fighter({ id: "foe", ...along(150), dist: 150 })] }] as Scene[]) {
+    for (const fight of [{ engaged: true }, { mobs: [mobMemory()] }, { fighters: [fighter({ id: "foe", ...along(100), dist: 100 })] }] as Scene[]) { // a player inside the farmer's playerThreat (140)
       expect(one({ ...fight, chests: [far] }), JSON.stringify(Object.keys(fight))).toBeUndefined();
       expect(one({ ...fight, chests: [near] }), JSON.stringify(Object.keys(fight))).toBeDefined();
     }
@@ -723,7 +723,7 @@ describe("chests through the frame ring", () => {
       ring.push(perceive({ state: { ...state } as PerceptionInput["state"] }, { selfId: "me", map, features: CHEST_FEATURES, lastMinimap: null }));
       last = ring.compose({ selfDelayMs: 30, worldDelayMs: 130, map, features: CHEST_FEATURES, attentionCentral: 0.65 }) ?? last;
     }
-    expect(last!.extras.chests).toEqual([{ id: "away", x: SPOT.x + 2400, y: SPOT.y + 900, expiresAt: KIT_T0 + 9000, options: null, takenBy: [], picked: false }]);
+    expect(last!.extras.chests).toEqual([{ id: "away", x: SPOT.x + 2400, y: SPOT.y + 900, expiresAt: KIT_T0 + 9000, lifeMs: CHEST_SECONDS * 1000, options: null, takenBy: [], picked: false }]);
     expect(last!.containers.find((c) => c.id === "away")).toBeUndefined();
   });
 });

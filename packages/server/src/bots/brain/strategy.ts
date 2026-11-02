@@ -43,7 +43,7 @@ const HOLD_PATIENCE_MS = 12_000;
 const HOLD_PATIENCE_SPAN_MS = 36_000;
 /** What lying low is worth to a bot at the bottom of its hp ramp (it fades to nothing at the re-engage hp). */
 const LIE_LOW_U = 0.18;
-const CAMP_ROAM_FACTOR = 0.7;
+const CAMP_ROAM_FACTOR = 0.6;
 const MAX_UTILITY = 1.3;
 
 const FLEE_NEAR = 360;
@@ -82,8 +82,8 @@ const EVADE_U = 0.9;
  * is still taken) at the start of the raid, falling to nothing by OPENING_MS. Without it the first kills came at 11 s, before any
  * camp was touched (docs/BOTS_TUNING.md 0).
  */
-const OPENING_LOGIT = 3.5;
-const OPENING_MS = 60_000;
+const OPENING_LOGIT = 4.5;
+const OPENING_MS = 240_000;
 /** The opening's restraint fades out as the patience timer runs under OPENING_TIMER_FREE_MS + OPENING_TIMER_SPAN_MS and is gone at the first. */
 const OPENING_TIMER_FREE_MS = 20_000;
 const OPENING_TIMER_SPAN_MS = 60_000;
@@ -448,7 +448,7 @@ class StrategyImpl implements Strategy {
     const m = mem.mobs.get(mobId);
     const persona = cfg.persona;
     const reward = rewardCurve(feedScore(me.kills, me.mobKills));
-    let base = persona.pve * (0.35 + 0.5 * reward);
+    let base = persona.pve * (0.5 + 0.4 * reward);
     if (m?.kind === "elite") base *= 0.55 + 0.45 * persona.eliteAppetite;
     const first = me.mobKills === 0 && !mem.choices.some((k) => k.startsWith("opener|"));
     const choice = first && me.faction !== null && m?.faction ? (`opener|${me.faction}|${m.faction}` as ChoiceKey) : undefined;
@@ -532,7 +532,7 @@ class StrategyImpl implements Strategy {
     let best: Cand | null = null;
     for (const e of enemies) {
       if (e.visible || e.age <= REMEMBERED_HUNT_MS || e.dist < ARRIVED) continue;
-      if (e.bounty <= 0 && persona.pvp < 0.7) continue;
+      if (persona.pvp < 0.9) continue;
       const u = Math.min(HUNT_CAP, 0.45 * persona.bounty * clamp01(e.bounty / BOUNTY_FULL) + 0.15 * persona.pvp);
       const c = this.scored(ctx, { kind: "roam", to: e.pos, why: "lastSeen" }, u, `${e.id} last seen ${Math.round(e.age / 1000)} s ago`);
       if (!best || c.utility > best.utility) best = c;
@@ -684,7 +684,7 @@ class StrategyImpl implements Strategy {
     if (!best) return null;
     // A hurt bot does not go looking for people (lieLow); a healthy one with nothing to do walks to the camp it saw longest ago.
     return this.scored(ctx, { kind: "roam", to: { x: best.camp.x, y: best.camp.y }, why: "explore" },
-      (PATROL_U + 0.06 * cfg.persona.pvp) * this.healthy(ctx), `looking for people at ${best.id}`);
+      PATROL_U * this.healthy(ctx), `looking for people at ${best.id}`);
   }
 
   /** 0.15..1: 1 from the persona's re-engage hp up, 0.15 at its flee hp and below (the same ramp the hunts use). */

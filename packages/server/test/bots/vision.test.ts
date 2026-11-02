@@ -62,6 +62,17 @@ describe("live bot raid sight", () => {
     const p=rig.frame(1000);expect(p.fighters).toEqual([]);expect(p.mobs).toHaveLength(1);
   });
 
+  it("hides a bush player until its own attack or cast reveals it (extra.bushRevealUntil)", () => {
+    const rig=setup(false);
+    rig.map.features=[{kind:"bush",variant:"",zone:"fire",jobs:["cover"],ax:23,ay:18,p:[0,0],bbox:{x:22,y:17,w:3,h:3},tiles:9}];
+    rig.map.featureGrid=new Uint8Array(rig.map.w*rig.map.h);
+    for(let y=17;y<=19;y++)for(let x=22;x<=24;x++)rig.map.featureGrid[y*rig.map.w+x]=1;
+    expect(rig.frame(1000).fighters).toEqual([]);
+    (rig.foe as any).extra={bushRevealUntil:1500};
+    expect(rig.frame(1100).fighters.map((f)=>f.id)).toEqual(["foe"]);
+    expect(rig.frame(1500).fighters).toEqual([]);
+  });
+
   it("preserves frame delay and never hands the brain a newer hidden frame", () => {
     const rig=setup(false,100);
     rig.frame(1000);expect(rig.captured).toEqual([]);

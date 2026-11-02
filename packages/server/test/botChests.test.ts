@@ -1,7 +1,7 @@
 // How a bot treats a camp's shared chest (roguelike R5): bots/chestHunt.ts (pure: which option, pick or walk or nothing). The brain's
 // chests module adopts it (test/bots/chestsModule.test.ts has the module, perception's rule for what a chest shows, and whole games).
 import { describe, expect, it } from "vitest";
-import { AUGMENT_IDS, CARDS, CHEST_RANGE, CHEST_SECONDS, PLAYER_SPEED, TICK_MS, TILE, cardDef, type Vec2 } from "@raid/shared";
+import { AUGMENT_IDS, CARDS, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, PLAYER_SPEED, TICK_MS, TILE, cardDef, type Vec2 } from "@raid/shared";
 import {
   CHEST_HUNT, DANGER_RISK, TRADEOFF_RISK, activeWeapon, cardScore, chooseOption, ChestHunter, costsSomething, optionScore, type ChestInput,
   type ChestLike, type ChestSelf,
@@ -542,6 +542,16 @@ describe("the chest hunt and a chest's birth hold", () => {
     young.chests = [chest("c1", 60, 0, { expiresAt: SERVER + 50 + CHEST_SECONDS * 1000 - (CHEST_HUNT.holdMs - 1) })];
     expect(young.step().kind, "one ms short of the hold").toBe("none");
     expect(young.step().kind, "and 50 ms on").toBe("pick");
+  });
+
+  it("a kill Trophy's age is read by its own longer life (lifeMs), so a fresh one is not held back for half its life", () => {
+    const life = KILL_AUG_SECONDS * 1000;
+    const s = new Scene();
+    s.chests = [chest("t", 60, 0, { lifeMs: life, expiresAt: SERVER + 50 + life - 1000 })]; // 1 s old, 29 s left
+    expect(s.step().kind).toBe("pick");
+    const young = new Scene();
+    young.chests = [chest("t", 60, 0, { lifeMs: life, expiresAt: SERVER + 50 + life })]; // born at the first look
+    expect(young.step().kind).toBe("none");
   });
 
   it("a young chest out of reach is walked to as ever: the hold only delays the pick, and a bot that arrives early waits", () => {

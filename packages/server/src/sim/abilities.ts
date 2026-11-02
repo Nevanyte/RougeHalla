@@ -195,7 +195,7 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
     });
   }
   reveal(world, c, cast.landsAt + HIDDEN_REVEAL_MS);
-  if (c.kind === "player") exposeInBush(world, c.s, cast.landsAt);
+  if (c.kind === "player") exposeInBush(world, c.s, c.rt, cast.landsAt);
   refreshEffects(world, c);
 };
 
@@ -240,16 +240,27 @@ export function onStatusApplied(world: World, c: Combatant, st: StatusInstance):
 }
 
 /** An attack or cast exposes a player standing in a bush until a second after it lands (synced, so the client hides it by the same rule). */
-function exposeInBush(world: World, s: { x: number; y: number; extra: { bushRevealUntil: number } }, landsAt: number): void {
+function exposeInBush(world: World, s: { x: number; y: number }, rt: { bushExposeUntil?: number }, landsAt: number): void {
   if (bushAt(world.map, s) === 0) return;
   const until = Math.max(landsAt, world.state.serverTime) + BUSH_REVEAL_MS;
-  if (until > s.extra.bushRevealUntil) s.extra.bushRevealUntil = until;
+  if (until > (rt.bushExposeUntil ?? 0)) rt.bushExposeUntil = until;
+}
+
+/** The exposures asked for since the last abilities phase take effect together here, a fixed point (Swarm's revealFrom rule). */
+function applyBushExposures(world: World): void {
+  for (const [id, rt] of world.players) {
+    const until = rt.bushExposeUntil;
+    if (until === undefined) continue;
+    delete rt.bushExposeUntil;
+    const s = world.state.players.get(id);
+    if (s && until > s.extra.bushRevealUntil) s.extra.bushRevealUntil = until;
+  }
 }
 
 /** attackStarted: a hidden fighter's own attack shows it, from the next tick, until the swing lands or the shot leaves, and a moment more. */
 function onAttackStarted(world: World, c: Combatant): void {
   const act = c.rt.weapon.action;
-  if (act && c.kind === "player") exposeInBush(world, c.s, act.landsAt);
+  if (act && c.kind === "player") exposeInBush(world, c.s, c.rt, act.landsAt);
   if (act && c.rt.statuses && c.rt.statuses.length > 0) reveal(world, c, act.landsAt + HIDDEN_REVEAL_MS);
 }
 
@@ -350,6 +361,7 @@ interface Landing {
  *   4  bits     the effect bits again for what changes with time alone (a reveal window ending)
  */
 export function updateAbilities(world: World): void {
+  applyBushExposures(world);
   const fields = world.abilities?.fields;
   const active = activeFighters(world);
   if (active.length === 0 && (!fields || fields.size === 0)) return;

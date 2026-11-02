@@ -9,7 +9,7 @@
 // state.roster with unpackFx/unpackLaunches, exactly as RaidScene does.
 import * as shared from "@raid/shared";
 import {
-  abilityInSlot, cardPower, CHEST_PANEL_SLACK, CHEST_RANGE, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
+  abilityInSlot, cardPower, CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
   hpBarFractions, INTERACT_RANGE, isDot,
   isFactionId, isWeaponId, MASK_MOVE, TELEPORT_IMMUNITY_MS, TERRAIN_EMBER, TERRAIN_LIGHT, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
@@ -58,6 +58,8 @@ export interface FighterLike {
 /** A PlayerState. The extra fields are read for the bot itself only (its HUD), never for anyone else. */
 export interface PlayerLike extends FighterLike {
   readonly name: string;
+  /** PlayerState.extra (the child that holds the fields past Colyseus's 63-field limit); only what a client reads. */
+  readonly extra?: { readonly bushRevealUntil?: number };
   readonly bot: boolean;
   readonly barrier: number;
   readonly bounty: number;
@@ -785,7 +787,8 @@ function seeChests(state: StateLike, map: GameMap, self: SelfView, selfId: Fight
     const open = self.status === "alive" && Math.hypot(self.x - x, self.y - y) <= CHEST_RANGE - CHEST_PANEL_SLACK && hasLineOfSight(sight, self, { x, y });
     const options: string[] | null = open ? Array.from({ length: c.options?.length ?? 0 }, (_, i) => c.options!.at(i) ?? "") : null;
     const takenBy = options === null ? [] : options.map((_, i) => { const by = c.takenBy?.at(i) ?? ""; return by === "" || by === selfId ? by : "?"; });
-    out.push({ id, x, y, expiresAt: u32(c.expiresAt ?? 0), options, takenBy, picked: listHas(c.pickers, selfId) });
+    const lifeMs = (owner === "" ? CHEST_SECONDS : KILL_AUG_SECONDS) * 1000;
+    out.push({ id, x, y, expiresAt: u32(c.expiresAt ?? 0), lifeMs, options, takenBy, picked: listHas(c.pickers, selfId) });
   }
   out.sort(byId);
   return out;

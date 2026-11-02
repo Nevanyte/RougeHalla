@@ -38,6 +38,8 @@ export interface ChestLike {
   y: number;
   /** Server time (ms, the clock of `state.serverTime`) it vanishes. */
   expiresAt: number;
+  /** Its whole life from the drop (ms): its age is this less its time left. Absent = CHEST_SECONDS (a kill Trophy lives longer). */
+  lifeMs?: number;
   /** Card ids in card order, and who took each ("" = free), and everyone who has made their pick or skipped. */
   options: Iterable<string>;
   takenBy: Iterable<string>;
@@ -316,7 +318,7 @@ export class ChestHunter {
     let held = false;
     for (const u of up) {
       if (u.d > c.pickRange || u.left <= c.pickMarginMs || !inp.sight(u.chest)) continue;
-      if (CHEST_SECONDS * 1000 - u.left < c.holdMs) { held = true; continue; } // too young: not read, not tried, not walked to
+      if ((u.chest.lifeMs ?? CHEST_SECONDS * 1000) - u.left < c.holdMs) { held = true; continue; } // too young: not read, not tried, not walked to
       // The contents are read here and nowhere else: this is the distance at which a player's panel shows them.
       const option = chooseOption(u.chest.options, u.chest.takenBy, self);
       this.markDone(u.chest.id);
