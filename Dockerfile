@@ -7,6 +7,9 @@
 
 # Node 24 is an LTS line inside the range the toolchain declares (vitest: ^22.12 || ^24 || >=26; npm warns on 23 and 25).
 FROM node:24-bookworm-slim
+# Changing this label gives the image a new digest without touching the game: Cloudflare's image preparation for one digest
+# can stick at "pending" (2026-11-03, sha256:1ac845e...), and every redeploy of that digest waits on the same stuck job.
+LABEL com.roguehalla.image-bump="2026-11-03"
 
 WORKDIR /app
 
