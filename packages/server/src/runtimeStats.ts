@@ -152,6 +152,7 @@ export function gcMsSoFar(): number {
 }
 
 const RECENT_SLOW_TICKS = 30;
+const WORST_SLOW_TICKS = 10;
 
 /** Above this a wake's work is logged with its breakdown (one line a second at most). */
 export const SLOW_TICK_MS = 25;
@@ -162,10 +163,13 @@ export class SlowTickLog {
   private suppressed = 0;
   /** The last lines written, oldest first, for /readyz. */
   readonly recent: Array<Record<string, unknown>> = [];
+  /** The slowest wakes since the process started, slowest first, logged or not. */
+  readonly worst: Array<Record<string, unknown> & { wakeMs: number }> = [];
 
   constructor(private readonly write: (line: string) => void = (l) => console.warn(l), readonly minGapMs = 1000) {}
 
-  note(now: number, record: Record<string, unknown>): void {
+  note(now: number, record: Record<string, unknown> & { wakeMs: number }): void {
+    this.keepWorst({ at: new Date().toISOString(), ...record });
     if (now - this.lastAt < this.minGapMs) {
       this.suppressed++;
       return;
@@ -178,7 +182,81 @@ export class SlowTickLog {
     if (this.recent.length > RECENT_SLOW_TICKS) this.recent.shift();
     this.write(`[slow-tick] ${JSON.stringify(line)}`);
   }
+
+  private keepWorst(line: Record<string, unknown> & { wakeMs: number }): void {
+    const w = this.worst;
+    if (w.length >= WORST_SLOW_TICKS && line.wakeMs <= w[w.length - 1]!.wakeMs) return;
+    let i = w.findIndex((x) => x.wakeMs < line.wakeMs);
+    if (i < 0) i = w.length;
+    w.splice(i, 0, line);
+    if (w.length > WORST_SLOW_TICKS) w.pop();
+  }
 }
 
 /** Shared by every room of the process, like tickStats. */
 export const slowTickLog = new SlowTickLog();
+
+/**
+ * The host's CPU steal (time this VM's vCPUs were runnable but the hypervisor ran something else), sampled from /proc/stat once
+ * a second: a slow wake with CPU close to wall and steal in the same second was slowed by the host, not by our code.
+ */
+export class StealSampler {
+  private readonly samples: Array<{ at: number; stealS: number; totalS: number }> = [];
+  private timer: NodeJS.Timeout | null = null;
+
+  constructor(private readonly read: () => string | null = readProcStat, readonly keepMs = 120_000) {}
+
+  start(periodMs = 1000): void {
+    if (this.timer || this.read() === null) return;
+    this.sample();
+    this.timer = setInterval(() => this.sample(), periodMs);
+    this.timer.unref();
+  }
+
+  sample(at = performance.now()): void {
+    const parsed = parseProcStatCpu(this.read());
+    if (!parsed) return;
+    this.samples.push({ at, ...parsed });
+    while (this.samples.length > 2 && at - this.samples[0]!.at > this.keepMs) this.samples.shift();
+  }
+
+  /** Steal as a share of all CPU time between the sample at or before `sinceMs` ago and the newest; null without two samples. */
+  stealPct(sinceMs: number, now = performance.now()): number | null {
+    const s = this.samples;
+    if (s.length < 2) return null;
+    const last = s[s.length - 1]!;
+    let first = s[0]!;
+    for (const x of s) if (x.at <= now - sinceMs) first = x;
+    if (first === last) first = s[s.length - 2]!;
+    const total = last.totalS - first.totalS;
+    return total > 0 ? round2((100 * (last.stealS - first.stealS)) / total) : 0;
+  }
+
+  /** Steal seconds summed over every CPU since boot (the newest sample), null where /proc/stat is absent. */
+  stealSeconds(): number | null {
+    const last = this.samples[this.samples.length - 1];
+    return last ? round2(last.stealS) : null;
+  }
+}
+
+function readProcStat(): string | null {
+  try {
+    return fs.readFileSync("/proc/stat", "utf8");
+  } catch {
+    return null;
+  }
+}
+
+const USER_HZ = 100;
+
+/** The aggregate `cpu` line of /proc/stat: steal is its 8th value; all values are in USER_HZ ticks. */
+export function parseProcStatCpu(text: string | null): { stealS: number; totalS: number } | null {
+  const line = text?.split("\n").find((l) => l.startsWith("cpu "));
+  if (!line) return null;
+  const v = line.trim().split(/\s+/).slice(1).map(Number);
+  if (v.length < 8 || v.some((n) => !Number.isFinite(n))) return null;
+  const total = v.slice(0, 8).reduce((a, b) => a + b, 0);
+  return { stealS: v[7]! / USER_HZ, totalS: total / USER_HZ };
+}
+
+export const stealSampler = new StealSampler();

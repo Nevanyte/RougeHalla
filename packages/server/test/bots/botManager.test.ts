@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FACTION_IDS, MAX_PLAYERS, mulberry32, TICK_MS, type RunResult } from "@raid/shared";
-import { BotManager, type BotManagerDeps } from "../../src/bots/BotManager";
+import { BOT_FRAME_EVERY_TICKS, BotManager, type BotManagerDeps } from "../../src/bots/BotManager";
 import { createBrain } from "../../src/bots/brain/brain";
 import {
   BOT_FILL_DEFAULTS, BOT_PATH_BUDGET_PER_TICK, PERSONA_IDS, TIER_IDS,
@@ -43,7 +43,7 @@ const humansIn = (w: World): number => [...w.players.values()].filter((rt) => !r
 const botsIn = (w: World): string[] => [...w.state.players].filter(([, p]) => p.bot).map(([id]) => id);
 
 function manager(w: World, over: Partial<BotFillConfig> = {}, deps: Partial<BotManagerDeps> = {}, seed = 7): BotManager {
-  return new BotManager(w, { ...CFG, ...over }, { store: null, isNameTaken: () => false, seed, ...deps });
+  return new BotManager(w, { ...CFG, ...over }, { store: null, isNameTaken: () => false, seed, frameEveryTicks: 1, ...deps });
 }
 
 /** The Room's tick, headless: arrivals and due commands before the step, the step's fx batch, the results, then one frame per patch. */
@@ -705,6 +705,31 @@ describe("the delay line", () => {
 });
 
 // -------------------------------------------------------------------------------------------------------------- the frames
+
+describe("the frame cadence", () => {
+  it("thinks every BOT_FRAME_EVERY_TICKS patches on spread phases and carries the skipped fx, toasts and privates into the next frame", () => {
+    const { m, loop, ids, by } = scriptedRun(BOT_FRAME_EVERY_TICKS, {}, { frameEveryTicks: BOT_FRAME_EVERY_TICKS });
+    for (let i = 0; i < 2 * BOT_FRAME_EVERY_TICKS; i++) loop.tick();
+    const counts = ids.map((id) => by.get(id)!.percepts.length);
+    const before = m.stats.frames;
+    const perTick: number[] = [];
+    for (let i = 0; i < 4 * BOT_FRAME_EVERY_TICKS; i++) {
+      const f = m.stats.frames;
+      loop.tick();
+      perTick.push(m.stats.frames - f);
+    }
+    expect(m.stats.frames - before).toBe(4 * ids.length);
+    for (const n of perTick) expect(n).toBe(1);
+    ids.forEach((id, i) => expect(by.get(id)!.percepts.length - counts[i]!).toBe(4));
+
+    m.onToast(ids[0]!, "Too far away");
+    const p = by.get(ids[0]!)!;
+    const seen = p.percepts.length;
+    for (let i = 0; i < 3 * BOT_FRAME_EVERY_TICKS; i++) loop.tick();
+    expect(p.percepts.length).toBe(seen + 3);
+    expect(p.percepts.slice(seen).flatMap((x) => x.events).filter((e) => e.kind === "toast")).toHaveLength(1);
+  });
+});
 
 describe("the frames", () => {
   it("runs a brain only for a bot standing in a running raid, one frame per patch", () => {

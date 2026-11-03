@@ -13,6 +13,7 @@
 // first 200 active ticks (JIT warm-up, the bots' first path searches) are left out of every number: they are reported by
 // `stepBench.ts --bots 8` (a cold process spikes to 25-40 ms there), not gated.
 import { describe, expect, it } from "vitest";
+import { BOT_FRAME_EVERY_TICKS } from "../src/bots/BotManager";
 import {
   AVG_BUDGET_MS, BOTS_SHARE_AVG_BUDGET_MS, BOTS_SHARE_P99_BUDGET_MS, gateMs, P99_BUDGET_MS, runStepBench,
   type BenchOptions, type BenchResult,
@@ -120,8 +121,8 @@ describe("tick budget with in-process bots (docs/BOTS.md 9.2)", () => {
     expect(b.manager.errors).toBe(0);
     expect(b.manager.refused).toBe(0);
     expect(b.manager.sent).toBeGreaterThan(40);
-    // One frame per bot per tick once the raid is on (the first ticks wait for the frame ring to fill).
-    expect(b.manager.frames).toBeGreaterThan(BOTS * (b.warmupTicks + TICKS) * 0.95);
+    // One frame per bot per BOT_FRAME_EVERY_TICKS ticks once the raid is on (the first ticks wait for the frame ring to fill).
+    expect(b.manager.frames).toBeGreaterThan(BOTS * (b.warmupTicks + TICKS) * 0.95 / BOT_FRAME_EVERY_TICKS);
     expect(b.share.avgMs).toBeGreaterThan(0.02);
     expect(b.gatesLocked).toBe(opts.coliseum === true);
     // The whole tick contains the bots' share.

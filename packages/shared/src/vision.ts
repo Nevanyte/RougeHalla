@@ -18,7 +18,38 @@ function sightLine(map: GameMap, x: number, y: number, endX: number, endY: numbe
 
 /** VisionMemory has already validated its origin and enumerates only in-bounds tile centers. */
 function sightLineToTile(map: GameMap, x: number, y: number, tx: number, ty: number, ex: number, ey: number): boolean {
-  return traceSightLine(map, x, y, (ex + 0.5) * TILE, (ey + 0.5) * TILE, tx, ty, ex, ey, MASK_SIGHT, TILE);
+  const endX = (ex + 0.5) * TILE, endY = (ey + 0.5) * TILE;
+  const fast = fastSightLine(map, x, y, endX, endY, tx, ty, ex, ey);
+  return fast >= 0 ? fast === 1 : traceSightLine(map, x, y, endX, endY, tx, ty, ex, ey, MASK_SIGHT, TILE);
+}
+
+/** Crossings that differ by less than this are decided by the exact trace, which settles ties and rounding. */
+const FAST_MARGIN = 1e-7;
+
+/**
+ * traceSightLine with the per-step division replaced by an incremental crossing time. It answers only when every
+ * step's choice is far outside rounding error, so it takes exactly the tiles the exact trace takes; otherwise -1.
+ */
+function fastSightLine(map: GameMap, x: number, y: number, endX: number, endY: number, tx: number, ty: number, ex: number, ey: number): number {
+  const dx = endX - x, dy = endY - y;
+  if (dx === 0 || dy === 0) return -1;
+  const tiles = map.tiles, width = map.w, tileSize = TILE;
+  const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
+  const stepX = tileSize / Math.abs(dx), stepY = tileSize / Math.abs(dy);
+  let crossX = ((tx + (sx > 0 ? 1 : 0)) * tileSize - x) / dx;
+  let crossY = ((ty + (sy > 0 ? 1 : 0)) * tileSize - y) / dy;
+  let index = ty * width + tx;
+  const stepIndexY = sy * width;
+  for (let guard = map.w + map.h; guard > 0; guard--) {
+    if (crossX < crossY - FAST_MARGIN) {
+      tx += sx; index += sx; crossX += stepX;
+    } else if (crossY < crossX - FAST_MARGIN) {
+      ty += sy; index += stepIndexY; crossY += stepY;
+    } else return -1;
+    if (tx === ex && ty === ey) return 1;
+    if ((tiles[index]! & MASK_SIGHT) !== 0) return 0;
+  }
+  return -1;
 }
 
 function traceSightLine(
@@ -73,6 +104,7 @@ export class VisionMemory {
   private lastY = NaN;
   private readonly visible: Uint32Array;
   private visibleCount = 0;
+  private sat = new Int32Array(0);
 
   constructor(readonly width: number, readonly height: number) {
     if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) throw new RangeError("Invalid vision grid");
@@ -125,13 +157,31 @@ export class VisionMemory {
     const originTx = Math.floor(origin.x / tileSize), originTy = Math.floor(origin.y / tileSize);
     const originCanSee = originTx >= 0 && originTy >= 0 && originTx < map.w && originTy < map.h
       && !isWallTile(map, originTx, originTy);
+    // Summed wall counts over the update's window (rebuilt each time, so a map edited in place stays right): a tile
+    // whose sight segment has no wall near any of its pieces cannot be blocked, so it skips the trace.
+    const sw = maxX - minX + 2;
+    const sat = this.satFor(sw * (maxY - minY + 2));
+    if (originCanSee) {
+      const tiles = map.tiles, mw = map.w;
+      for (let ty = minY; ty <= maxY; ty++) {
+        let row = 0;
+        const above = (ty - minY) * sw, here = above + sw, base = ty * mw;
+        for (let tx = minX; tx <= maxX; tx++) {
+          if ((tiles[base + tx]! & MASK_SIGHT) !== 0) row++;
+          sat[here + tx - minX + 1] = sat[above + tx - minX + 1]! + row;
+        }
+      }
+    }
     if (originCanSee) for (let ty = minY; ty <= maxY; ty++) {
       const y = (ty + 0.5) * tileSize, dy = y - origin.y;
       for (let tx = minX; tx <= maxX; tx++) {
         // The full arena was already revealed above, regardless of its walls or the sight circle.
         if (arena && tx >= arena.x && tx < arena.x + arena.w && ty >= arena.y && ty < arena.y + arena.h) continue;
         const x = (tx + 0.5) * tileSize, dx = x - origin.x;
-        if (dx * dx + dy * dy > r2 || !sightLineToTile(map, origin.x, origin.y, originTx, originTy, tx, ty)) continue;
+        if (dx * dx + dy * dy > r2) continue;
+        const cx = (tx + 0.5) * tileSize;
+        if (!this.wallFree(origin.x, origin.y, cx, y, minX, minY, maxX, maxY, sw)
+          && !sightLineToTile(map, origin.x, origin.y, originTx, originTy, tx, ty)) continue;
         const i = ty * this.width + tx;
         this.visible[this.visibleCount++] = i;
         if (until > this.expiresAt[i]!) this.expiresAt[i] = until;
@@ -143,6 +193,21 @@ export class VisionMemory {
       this.visible[this.visibleCount++] = i;
       this.expiresAt[i] = Math.max(this.expiresAt[i]!, until);
     }
+  }
+
+  /** True when no wall lies in the tile box of the segment's ends, grown by one tile for the corner checks: the trace cannot be blocked. */
+  private wallFree(ax: number, ay: number, bx: number, by: number, minX: number, minY: number, maxX: number, maxY: number, sw: number): boolean {
+    const sat = this.sat;
+    const ta = Math.floor(ax / TILE), tb = Math.floor(ay / TILE), tc = Math.floor(bx / TILE), td = Math.floor(by / TILE);
+    const x0 = Math.max(minX, Math.min(ta, tc) - 1) - minX, x1 = Math.min(maxX, Math.max(ta, tc) + 1) - minX + 1;
+    const y0 = Math.max(minY, Math.min(tb, td) - 1) - minY, y1 = Math.min(maxY, Math.max(tb, td) + 1) - minY + 1;
+    return sat[y1 * sw + x1]! - sat[y0 * sw + x1]! - sat[y1 * sw + x0]! + sat[y0 * sw + x0]! === 0;
+  }
+
+  private satFor(n: number): Int32Array {
+    if (this.sat.length < n) this.sat = new Int32Array(n);
+    else this.sat.fill(0, 0, n);
+    return this.sat;
   }
 
   canSee(point: Vec2, now: number): boolean {

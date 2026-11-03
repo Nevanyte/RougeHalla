@@ -36,7 +36,7 @@ import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/
 import { installTrace } from "../sim/trace";
 import { TickProfile } from "../sim/tickProfile";
 import { installTraining } from "../sim/training";
-import { gcMsSoFar, SLOW_TICK_MS, slowTickLog } from "../runtimeStats";
+import { gcMsSoFar, SLOW_TICK_MS, slowTickLog, stealSampler } from "../runtimeStats";
 import type { RunTelemetry, TelemetryRuntime } from "../telemetry/runtime";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
@@ -631,6 +631,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       wakeMs: r1(workMs),
       cpuMs: r1((cpu.user + cpu.system) / 1000),
       gcMs: r1(gcMsSoFar() - gcStart),
+      stealPct2s: stealSampler.stealPct(2000),
       steps,
       players: alive,
       mobsAwake: awake,

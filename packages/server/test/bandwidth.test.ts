@@ -2,6 +2,7 @@
 // zone-shapes map) one client receives under 20 KB/s (ws payload, patches plus fx). The scenarios are in bench/bandwidth.ts and
 // are placed from `map.camps`; bytes do not depend on timing, so a busy machine cannot make these flaky: the result only
 // moves when the sim, the schema, the fx or the map change.
+import { BOT_FRAME_EVERY_TICKS } from "../src/bots/BotManager";
 import { describe, expect, it } from "vitest";
 import {
   BANDWIDTH_BUDGET_KBPS, BOTS_SCENARIO_BOTS, BOTS_SCENARIO_CAMPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
@@ -93,8 +94,8 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.bots!.aliveAtEnd).toBe(BOTS_SCENARIO_BOTS);
     expect(r.bots!.manager.errors).toBe(0);
     expect(r.bots!.manager.refused).toBe(0);
-    // One frame per bot per patch from the raid's start (the first few wait for the frame ring to fill), and they acted.
-    expect(r.bots!.manager.frames).toBeGreaterThan(BOTS_SCENARIO_BOTS * (200 + 1200) * 0.95);
+    // One frame per bot per BOT_FRAME_EVERY_TICKS patches from the raid's start (the first few wait for the frame ring to fill), and they acted.
+    expect(r.bots!.manager.frames).toBeGreaterThan(BOTS_SCENARIO_BOTS * (200 + 1200) * 0.95 / BOT_FRAME_EVERY_TICKS);
     expect(r.bots!.manager.sent).toBeGreaterThan(50);
     expect(r.mobs).toBeGreaterThanOrEqual(140);
     expect(r.avgFighting).toBeGreaterThan(0.5);

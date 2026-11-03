@@ -28,7 +28,7 @@ import {
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 import { tickStats } from "./rooms/tickPacer";
-import { LoopDelayWindow, readCgroupCpu, slowTickLog } from "./runtimeStats";
+import { LoopDelayWindow, readCgroupCpu, slowTickLog, stealSampler } from "./runtimeStats";
 import { traceWritesSettled } from "./rooms/traceWriter";
 import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
 import { warmCloudSimulation } from "./cloudWarmup";
@@ -325,6 +325,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   let storageHealthy = true;
   const readiness = { ready: false, simulationWarmup: null as Awaited<ReturnType<typeof warmCloudSimulation>> | null };
   const loopDelay = opts.onSnapshot ? new LoopDelayWindow() : null;
+  if (opts.onSnapshot) stealSampler.start();
   const onSnapshot = opts.onSnapshot && (async (json: string) => {
     try { await opts.onSnapshot!(json); storageHealthy = true; }
     catch (error) { storageHealthy = false; throw error; }
@@ -371,6 +372,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
             eventLoopP95Ms: loop?.p95 ?? null,
             // The container's CPU quota and how often it throttled the process (cumulative); null outside a cgroup.
             cgroupCpu: readCgroupCpu(),
+            cpuSteal: { pctLast60s: stealSampler.stealPct(60_000), totalSeconds: stealSampler.stealSeconds() },
             mapsReady: maps.size,
             mapStats: maps.stats,
             uptimeSeconds: Math.round(process.uptime()),
@@ -380,6 +382,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
             // Every room's step wakes in this process (rooms/tickPacer.ts): late wakes, catch-ups and re-anchors.
             tick: tickStats.snapshot(),
             slowTicks: slowTickLog.recent,
+            worstTicks: slowTickLog.worst,
           },
         });
       });

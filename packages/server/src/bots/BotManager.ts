@@ -38,8 +38,16 @@ const MAX_PER_FACTION = 2;
 const FACTION_TEMPERATURE = 0.3;
 /** At most this many bots take their first active frame (strategy, camp route, vision fan) in one tick: the rest follow a tick later each. */
 const FIRST_FRAMES_PER_TICK = 1;
-/** The fx batches a bot waits out while its first frame is deferred: it gets them all with that frame. */
-const MAX_HELD_BATCHES = 8;
+/**
+ * A bot thinks on every Nth patch (owner ruling: 5 Hz at the 20 Hz tick), each seat on a phase of its own so the bots' frames
+ * spread over the ticks. The patches it sits out are carried into its next frame, so nothing is lost.
+ */
+export const BOT_FRAME_EVERY_TICKS = 4;
+/**
+ * The fx batches a bot carries to its next frame: the patches of a cadence, or of a deferred first frame (at most one bot starts
+ * a tick, so up to MAX_PLAYERS of them), with room to spare. Only a bot that is not acting at all reaches it.
+ */
+const MAX_HELD_BATCHES = 64;
 /** The last arrival is this long before the countdown ends. */
 const ARRIVAL_END_MARGIN_MS = 1000;
 /** A bot's pending toasts and private messages are capped: a dead bot reads none, and they must not pile up. */
@@ -58,6 +66,8 @@ export interface BotManagerDeps {
   features?: Features;
   /** Test seam: a scripted brain in place of createBrain. */
   createBrain?: BrainFactory;
+  /** Test seam: patches per frame in place of BOT_FRAME_EVERY_TICKS (1 = a frame every patch). */
+  frameEveryTicks?: number;
 }
 
 /** What `addBot` may fix instead of drawing it. */
@@ -103,8 +113,10 @@ interface Seat {
   failed: boolean;
   /** True once the bot has run a frame of the active raid. */
   started: boolean;
-  /** Batches broadcast while its first active frame waited its turn. */
+  /** Batches broadcast since its last frame (its cadence, or its first active frame waiting its turn). */
   held: FxBatch[];
+  /** Which patch of every cadence this bot thinks on. */
+  readonly phase: number;
 }
 
 /** A 32-bit seed for one stream: the seed mixed with a tag (a murmur finaliser), so no two streams of a manager march in step. */
@@ -147,6 +159,10 @@ export class BotManager {
   /** The lobby size to fill up to. */
   private readonly target: number;
   private nextN = 1;
+  /** Patches seen (the cadence's clock; independent of server time, which a lobby does not advance). */
+  private patches = 0;
+  private seatsMade = 0;
+  private readonly every: number;
   /** Server times at which the next bots arrive, ascending. Drawn once, when the countdown gets within arrivalSeconds. */
   private pending: number[] = [];
   private scheduled = false;
@@ -162,6 +178,7 @@ export class BotManager {
     this.world = world;
     this.cfg = cfg;
     this.deps = deps;
+    this.every = Math.max(1, Math.floor(deps.frameEveryTicks ?? BOT_FRAME_EVERY_TICKS));
     this.target = Math.min(MAX_PLAYERS, Math.max(0, Math.floor(cfg.fillTo)));
     this.fillRng = mulberry32(mix(deps.seed, 0));
     this.lineRng = mulberry32(mix(deps.seed, 1));
@@ -336,7 +353,10 @@ export class BotManager {
       features: this.features,
       tier,
     });
-    return { spec, runner, line, toasts: [], privates: [], ended: false, failed: false, started: false, held: [] };
+    return {
+      spec, runner, line, toasts: [], privates: [], ended: false, failed: false, started: false, held: [],
+      phase: this.seatsMade++ % this.every,
+    };
   }
 
   /**
@@ -382,6 +402,7 @@ export class BotManager {
   afterPatch(batches: readonly FxBatch[]): void {
     if (this.disposed) return;
     this.budget.startTick();
+    const patch = this.patches++;
     const state = this.world.state;
     // The planning screen is a phase of its own: a bot's frames run in it too, while its status is still the lobby's.
     const planning = state.phase === "planning";
@@ -399,6 +420,9 @@ export class BotManager {
         }
         starting++;
         seat.started = true;
+      } else if ((patch + seat.phase) % this.every !== 0) {
+        for (const b of batches) if (seat.held.length < MAX_HELD_BATCHES) seat.held.push(b);
+        continue;
       }
       const fxs = seat.held.length > 0 ? seat.held.splice(0).concat(batches) : batches;
       const input: PerceptionInput = {
