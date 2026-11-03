@@ -1,5 +1,5 @@
 // The map screens of a run before and during the fight, one component in four modes (roguelike R3):
-//   preview   the lobby: a small read-only map in the corner (zones, camps, crowns, matchups, who is here);
+//   preview   the lobby: a small read-only map in the corner (zones, camps, elite icons, matchups, who is here);
 //   planning  load-in: the whole map, the two dealt spawns and their "taken" state, Ready, a countdown, and a route to draw;
 //   map       hold Tab during the run: the map centred over the world with your route and where you are;
 //   hidden    otherwise (the overlay is then `hidden`, so it takes no pointer and no key).
@@ -8,7 +8,7 @@
 // placed by percent over the painted map (canvas), so the keyboard and screen readers reach them. Orders go out as `plan`
 // inputs only; the deal and the route stay on this client (the route is never sent).
 import {
-  FACTIONS, TILE, isEliteCamp, isFactionId, mobStatReward, nearestCamps, regionAt, spawnWalks, walkSeconds,
+  FACTIONS, TILE, isEliteCamp, isFactionId, mobStatReward, mobTypeById, nearestCamps, regionAt, spawnWalks, walkSeconds,
   type InvestedStatKey,
   type CampDef, type ClientMessages, type FactionId, type GameMap, type PlanMessage, type Vec2,
 } from "@raid/shared";
@@ -19,6 +19,7 @@ import type { ViewLayout } from "../view/viewport";
 import { campMobsText, campTypeInfo } from "./campInfo";
 import { combatIcon, STAT_ICON_COLORS, type CombatIconKey } from "./combatIcons";
 import { el, uiRoot } from "./dom";
+import { campEliteTypes, eliteGlyphOf, eliteGlyphSvg, noteEliteCamps } from "./eliteGlyphs";
 import { CounterWheel } from "./hub/counterWheel";
 import { MapRoster, type MapRosterPlayer } from "./mapRoster";
 import {
@@ -213,12 +214,26 @@ function glyph(zone: FactionId): HTMLElement {
   return g;
 }
 
-function crown(): HTMLElement {
+/**
+ * The mark over an elite camp: the glyph of the elite that stands in it (the same shapes the minimap paints, ui/eliteGlyphs.ts, as an
+ * inline SVG on the span's background), or the old gold crown when the elite's type is not known.
+ */
+export function crown(elite = ""): HTMLElement {
   const c = el("span", "pl-crown");
-  c.style.setProperty("clip-path", CROWN_CLIP_PATH);
   c.setAttribute("aria-hidden", "true");
+  const glyph = eliteGlyphOf(elite);
+  if (glyph === null) {
+    c.style.setProperty("clip-path", CROWN_CLIP_PATH);
+    return c;
+  }
+  c.classList.add("pl-elite-glyph");
+  c.setAttribute("data-elite", glyph.id);
+  c.style.setProperty("background-image", `url("data:image/svg+xml,${encodeURIComponent(eliteGlyphSvg(glyph))}")`);
   return c;
 }
+
+/** The elite type standing in `camp` of the map the markers were built from ("" for a camp with none), by its place among its zone's elite camps. */
+const eliteOf = (camp: CampDef): string => campEliteTypes([camp])[0] ?? "";
 
 export class PlanningView {
   /** The overlay's root: put in #ui at construction. */
@@ -431,6 +446,7 @@ export class PlanningView {
   setMap(map: GameMap): void {
     this.map = map;
     this.camps.length = 0;
+    noteEliteCamps(map.camps); // which elite stands in which camp, for every marker and card built below
     this.markers.replaceChildren();
     this.zones.replaceChildren();
     this.zoneLabels = [];
@@ -456,7 +472,7 @@ export class PlanningView {
       button.type = "button";
       button.style.setProperty("--zone", zoneColor(camp.zone));
       place(button, camp);
-      if (isEliteCamp(camp)) button.append(crown());
+      if (isEliteCamp(camp)) button.append(crown(eliteOf(camp)));
       const chip = el("span", "pl-chip");
       chip.setAttribute("aria-hidden", "true");
       const rewards = el("span", "pl-camp-rewards");
@@ -732,20 +748,34 @@ export class PlanningView {
     const state = frame?.campStates?.[i] ?? 0;
     if (state === 2) parts.push("Cleared");
     else if (state === 1) parts.push("Someone has fought here"); // history: the state is sticky, not a live fight
-    if (isEliteCamp(camp) && state !== 2) parts.push("Elite camp: dangerous");
+    if (isEliteCamp(camp) && state !== 2) {
+      // Which elite it is is public (the map says it); the room's own word for it, once it has said it, is in the mobs text above.
+      const elite = info?.elite ? undefined : mobTypeById(eliteOf(camp));
+      if (elite) parts.push(`Guarded by the ${elite.name}`);
+      parts.push("Elite camp: dangerous");
+    }
     return parts.join(". ");
   }
 
+  /** The info line: the camp's sentence, and for an elite camp its elite's icon in front (the one over the camp). */
   private showInfo(i: number): void {
+    const marker = i >= 0 ? this.camps[i] : undefined;
+    const elite = marker && isEliteCamp(marker.camp) ? eliteOf(marker.camp) : "";
     const text = i >= 0 ? this.campLine(i) : this.defaultInfo();
-    if (text === this.lastInfo) return;
-    this.lastInfo = text;
-    this.info.textContent = text;
+    const key = `${elite}|${text}`;
+    if (key === this.lastInfo) return;
+    this.lastInfo = key;
+    if (eliteGlyphOf(elite) === null) {
+      this.info.textContent = text;
+      return;
+    }
+    this.info.replaceChildren(crown(elite));
+    this.info.append(text);
   }
 
   private defaultInfo(): string {
     if (this.shownMode === "map") return "Click camps or quests to edit route · release Tab to return";
-    if (this.shownMode === "planning") return "Hover or focus a camp to read its reward. Crowns mark dangerous elite camps.";
+    if (this.shownMode === "planning") return "Hover or focus a camp to read its reward. The gold icon over a camp is its elite.";
     return "Hover or focus a camp to read it. Planning starts when the lobby fills.";
   }
 
@@ -873,7 +903,7 @@ export class PlanningView {
           const item = el("span", "pl-near-item");
           item.style.setProperty("--zone", zoneColor(camp.zone));
           item.append(glyph(camp.zone));
-          if (isEliteCamp(camp)) item.append(crown());
+          if (isEliteCamp(camp)) item.append(crown(eliteOf(camp)));
 
           near.append(item);
         }

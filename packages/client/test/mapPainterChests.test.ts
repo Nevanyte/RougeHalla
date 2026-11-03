@@ -14,8 +14,8 @@ const rec = (): FakeObject => fakeObject("ctx");
 const ctxOf = (o: FakeObject): PaintCtx => o as unknown as PaintCtx;
 const K = 208 / 2048;
 
-type CampPick = Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">;
-const camp = (zone: FactionId, x: number, y: number, eliteSpot = -1): CampPick => ({ zone, x, y, eliteSpot });
+type CampPick = Pick<CampDef, "zone" | "x" | "y" | "eliteSpot"> & { elite?: string };
+const camp = (zone: FactionId, x: number, y: number, eliteSpot = -1, elite?: string): CampPick => ({ zone, x, y, eliteSpot, ...(elite === undefined ? {} : { elite }) });
 
 /** The camp painter as it was before the camp chests, verbatim (the polygons and crown are the painter's own). */
 function referenceCamps(g: FakeObject, camps: readonly CampPick[], k: number, px: number): void {
@@ -47,7 +47,8 @@ function referenceCamps(g: FakeObject, camps: readonly CampPick[], k: number, px
   }
 }
 
-const SOME: CampPick[] = [camp("fire", 400, 300), camp("holy", 900, 1200, 0), camp("plague", 1500, 700), camp("frost", 200, 1800, 0), camp("sentenced", 1700, 1700)];
+// The two elite camps name an elite this build has no glyph for, so they wear the crown the reference paints.
+const SOME: CampPick[] = [camp("fire", 400, 300), camp("holy", 900, 1200, 0, "newElite"), camp("plague", 1500, 700), camp("frost", 200, 1800, 0, "newElite"), camp("sentenced", 1700, 1700)];
 
 describe("paintCamps with no state", () => {
   it("makes exactly the calls it made before the chests, with no states, with none passed, and with every camp idle", () => {

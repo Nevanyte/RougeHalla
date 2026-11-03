@@ -13,6 +13,7 @@ import {
   COLOR_FEATURE_WALL, COLOR_WALL, paintCamps, paintMapBase, type PaintCtx,
 } from "../src/ui/mapPainter";
 import { floorLookOf } from "../src/render/zoneArt/featureArt";
+import { campEliteTypes, eliteGlyphOf } from "../src/ui/eliteGlyphs";
 import { mapSpan, minimapBacking, minimapSize } from "../src/ui/minimapMath";
 import {
   campBoxes, campMarkerPx, crowdedChips, fullMapSize, glyphScale, labelSizePx, placeLabels, planningMapSize, previewMapSize, type CampSpot,
@@ -216,12 +217,14 @@ describe("what the map screens show of the shapes at the sizes they are drawn", 
     }
   });
 
-  it("paints every camp once, an elite with its crown, and a cleared camp crossed out, at the minimap's smallest size", () => {
+  it("paints every camp once, an elite with its own glyph, and a cleared camp crossed out, at the minimap's smallest size", () => {
     const map = real[0]!;
     const g = fakeObject("ctx");
     paintCamps(ctxOf(g), map.camps, 150 / mapSpan(), 1);
-    // A polygon and an outline each (fill and stroke), plus a crown's two for each of the 10 elites.
-    expect(g.calls.filter(([n]) => n === "fill")).toHaveLength(40 + 10);
+    // A polygon and an outline each (fill and stroke), plus a fill for each part of the 10 elites' glyphs (the gold parts and the ink ones).
+    const glyphParts = campEliteTypes(map.camps).reduce((n, type) => n + (eliteGlyphOf(type)?.parts.length ?? 0), 0);
+    expect(glyphParts).toBeGreaterThan(10);
+    expect(g.calls.filter(([n]) => n === "fill")).toHaveLength(40 + glyphParts);
     const crossed = fakeObject("ctx");
     paintCamps(ctxOf(crossed), map.camps, 150 / mapSpan(), 1, map.camps.map((_, i) => (i === 0 ? 2 : 0)));
     expect(crossed.calls.length).toBeGreaterThan(g.calls.length);
