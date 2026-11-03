@@ -7,7 +7,7 @@ import { Encoder } from "@colyseus/schema";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import {
-  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_MONTHS, MONTH_RE, PASSCODE_HEADER, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME,
+  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_MONTHS, LOBBY_PRESENCE_PATH, LOBBY_SNAPSHOT_PATH, MONTH_RE, PASSCODE_HEADER, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME,
   TRAINING_ROOM_NAME, monthKey,
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
@@ -19,6 +19,7 @@ import { CLIENT_ADDRESS_HEADER, clientAddress, stampClientAddress } from "./guar
 import { corsOrigin } from "./guards/cors";
 import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, PasscodeGate } from "./guards/passcode";
 import { RoomCounter } from "./guards/roomCounter";
+import { LobbyStatus } from "./guards/lobbyStatus";
 import { KeyedTokenBuckets } from "./guards/tokenBucket";
 import { NewProfileLimiter } from "./guards/windowLimiter";
 import { MAP_POOL_TARGET, MapPool } from "./mapPool";
@@ -161,6 +162,7 @@ function sendShopError(res: Response, code: ShopErrorCode, extra: { need?: numbe
 /** The shop's bodies are a few dozen bytes; anything bigger is not from the game client. */
 const SHOP_BODY_LIMIT = "1kb";
 const parseShopBody = express.json({ limit: SHOP_BODY_LIMIT, type: "application/json" });
+const parseLobbyBody = express.json({ limit: "512b", type: "application/json" });
 
 /** A malformed, oversized or mislabelled body is the caller's mistake, not a server error, and never an HTML page. */
 const shopBodyError: ErrorRequestHandler = (err, _req, res, _next) => {
@@ -336,13 +338,15 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET, hangMs: config.mapWorkerHangMs })).start();
   const botStats = createBotStats(config);
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
+  const lobbyStatus = new LobbyStatus();
   const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
   // Never touches storageHealthy, /readyz or the profile store: a failing endpoint costs records, nothing else.
   const telemetry = opts.telemetry !== undefined ? opts.telemetry : telemetryFromEnv(config);
-  RaidRoom.ctx = { config: traceUnlessHosting(config), store, profiles, rooms, passcodeGate, maps, botStats, telemetry };
+  RaidRoom.ctx = { config: traceUnlessHosting(config), store, profiles, rooms, lobbyStatus, passcodeGate, maps, botStats, telemetry };
   configureCors(config);
   const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
   const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);
+  const lobbyBuckets = new KeyedTokenBuckets(10, 1);
   // Our own http server only to stamp each request with the address the guards count it under (guards/clientIp.ts); it is
   // what WebSocketTransport would have made.
   const httpServer = http.createServer();
@@ -399,6 +403,43 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
       app.get("/api/health", (_req, res) => {
         res.json({ ok: true });
       });
+
+      const lobbySnapshot = (now = Date.now()) => lobbyStatus.snapshot(config.maxArenaRooms, rooms.count("arena"), now);
+      app.get(LOBBY_SNAPSHOT_PATH, (_req, res) => {
+        res.set("Cache-Control", "no-store").json(lobbySnapshot());
+      });
+      // The path is dynamic and always no-store, including malformed bodies and method refusals.
+      app.all(LOBBY_PRESENCE_PATH, (_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
+      app.all(LOBBY_PRESENCE_PATH, (req, res, next) => {
+        if (req.method === "POST" || req.method === "DELETE") { next(); return; }
+        res.set("Allow", "POST, DELETE, OPTIONS").status(405).json({ error: "method not allowed" });
+      });
+      const lobbyPresence = (leave: boolean): RequestHandler => (req, res) => {
+        const body: unknown = req.body;
+        if (typeof body !== "object" || body === null || Array.isArray(body)) {
+          res.status(400).json({ error: "malformed request", code: "bad_request" }); return;
+        }
+        const { name, tabId } = body as Record<string, unknown>;
+        if (typeof name !== "string" || !PROFILE_RE.test(name) || typeof tabId !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(tabId)) {
+          res.status(400).json({ error: "invalid name or tab id", code: "bad_request" }); return;
+        }
+        const ip = clientIp(req);
+        const verdict = passcodeGate.check(req.get(PASSCODE_HEADER), ip, Date.now());
+        if (!verdict.ok) {
+          if (verdict.blocked) res.set("Retry-After", String(Math.ceil(verdict.retryAfterMs / 1000))).status(429).json({ error: PASSCODE_THROTTLED, code: "passcode_throttled" });
+          else res.status(401).json({ error: PASSCODE_REQUIRED, code: "passcode_required" });
+          return;
+        }
+        const token = req.get(PROFILE_TOKEN_HEADER) ?? "";
+        if (!store.verifyToken(name, token)) { res.status(403).json({ error: "profile belongs to someone else" }); return; }
+        const now = Date.now();
+        if (!lobbyBuckets.take(name, now)) { res.set("Retry-After", "1").status(429).json({ error: "presence updated too often" }); return; }
+        if (leave) lobbyStatus.leave(name, tabId);
+        else if (!lobbyStatus.touch(name, tabId, now)) { res.status(429).json({ error: "lobby presence is full" }); return; }
+        res.json(lobbySnapshot(now));
+      };
+      app.post(LOBBY_PRESENCE_PATH, requireJson, parseLobbyBody, lobbyPresence(false));
+      app.delete(LOBBY_PRESENCE_PATH, requireJson, parseLobbyBody, lobbyPresence(true));
 
       app.all("/api/profile/:name", getOnly);
       app.all("/api/leaderboard", getOnly);

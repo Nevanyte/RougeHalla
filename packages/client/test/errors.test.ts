@@ -46,7 +46,7 @@ describe("friendlyError: the server's join refusals", () => {
 
   it("a creation refused for the room cap reads as a full server", () => {
     const text = friendlyError(sdkError("the server is full: too many rooms are open right now", 523));
-    expect(text).toMatch(/server is full.*try again in a few minutes/i);
+    expect(text).toMatch(/arena is full.*check lobby activity for current availability/i);
     expect(text).not.toContain("too many rooms");
   });
 

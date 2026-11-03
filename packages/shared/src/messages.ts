@@ -456,6 +456,33 @@ export const PROFILE_TOKEN_HEADER = "x-profile-token";
 /** The playtest passcode on REST calls (claiming a new callsign needs it when the server has one set). */
 export const PASSCODE_HEADER = "x-playtest-passcode";
 
+/** Public lobby snapshot; names are public callsigns, never profile claims or authentication tokens. */
+export interface LobbyPerson { name: string }
+export type LobbyGamePhase = "lobby" | "planning" | "active" | "finished";
+export interface LobbyGamePlayer extends LobbyPerson { kind: "human" | "bot"; alive: boolean }
+export interface LobbyGame {
+  phase: LobbyGamePhase;
+  /** Unix epoch milliseconds; null until the raid starts. */
+  startedAt: number | null;
+  players: LobbyGamePlayer[];
+}
+export interface LobbySnapshot {
+  /** Unix epoch milliseconds when this snapshot was generated. */
+  serverNow: number;
+  activeGame: LobbyGame | null;
+  waiting: LobbyPerson[];
+  onlineCount: number;
+  /** null means the configured room count is unlimited. */
+  arenaLimit: number | null;
+  /** Existing arena rooms, including opened rooms without a joined player yet. */
+  arenaRoomCount: number;
+  /** True when an existing lobby accepts clients or another arena room can be opened. */
+  arenaAvailable: boolean;
+}
+export const LOBBY_SNAPSHOT_PATH = "/api/lobby";
+export const LOBBY_PRESENCE_PATH = "/api/lobby/presence";
+export const LOBBY_PRESENCE_TTL_MS = 45_000;
+
 export const PROFILE_RE = /^[A-Za-z0-9_-]{2,16}$/;
 
 /** The shop and wardrobe. Both need the profile's token header; both answer 200 with the updated profile. */

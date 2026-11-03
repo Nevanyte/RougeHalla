@@ -6,6 +6,8 @@ Keep `workers_dev: true` explicit when adding custom domains. Containers started
 
 The production server and map worker are compiled to JavaScript before deployment, so their TypeScript loader does not consume the container's startup CPU allowance. `/build-info.json` reports the Git source commit and a source, dependency and compiled executable digest. `/readyz` independently computes the digest inside Node; the Worker refuses to forward gameplay until it matches.
 
+The hub's lobby activity uses `GET /api/lobby` and authenticated `POST`/`DELETE /api/lobby/presence`. Visible hub tabs refresh every 15 seconds; named presence expires after 45 seconds without a heartbeat. Anonymous reads neither start a stopped container nor keep a confirmed-empty game awake: the controller serves an empty snapshot until another request invalidates it. Running games and named waiters use the authoritative server snapshot, and public reads have a separate rate-limit bucket from matchmaking. These requests create no game rooms and leave the one-arena limit unchanged.
+
 ## Publish
 
 Use Node 24 and a running Docker build engine, with the existing Cloudflare account authenticated in Wrangler:

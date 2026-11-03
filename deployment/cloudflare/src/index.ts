@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import buildMeta from "../build-meta.json";
 import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
+import { coldLobbySnapshotOrContinue, coldLobbySnapshotResponse, confirmsEmptyLobbySnapshotAtGeneration, isLobbySnapshotRequest, lobbyRateLimitKey } from "./lobbySnapshot";
 import { handleBotSnapshot, handleProfileSnapshot } from "./profileSnapshots";
 import { networkProbeAuthorized, networkProbeEcho, networkProbeLayer } from "./networkProbe";
 import { TELEMETRY_INGEST_PATH } from "@raid/shared/telemetry";
@@ -100,6 +101,8 @@ export class GameContainer extends DurableObject<Env> {
   private stopRequested = false;
   private startupPhase = "idle";
   private retired = false;
+  private emptyLobbySnapshotKnown = false;
+  private lobbyGeneration = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -225,6 +228,13 @@ export class GameContainer extends DurableObject<Env> {
       if (this.ctx.container?.running) await this.retireController();
       return new Response("game maintenance", { status: 503, headers: { "Retry-After": "30", "Cache-Control": "no-store" } });
     }
+    const lobbySnapshot = isLobbySnapshotRequest(request);
+    if (!lobbySnapshot) {
+      this.emptyLobbySnapshotKnown = false;
+      this.lobbyGeneration++;
+    }
+    else if (this.emptyLobbySnapshotKnown) return coldLobbySnapshotResponse(request, Number(ARENA_LIMIT));
+    const requestGeneration = this.lobbyGeneration;
     const probeLayer = networkProbeLayer(new URL(request.url).pathname);
     if (probeLayer) {
       if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426, headers: { "Cache-Control": "no-store" } });
@@ -235,6 +245,16 @@ export class GameContainer extends DurableObject<Env> {
       // Probe the same established-socket route without including handshake readiness HTTP calls.
       return this.ctx.container.getTcpPort(PORT).fetch(proxyRequest(request, target));
     }
+    // Snapshot reads while stopped return without starting the container. If it is running or
+    // already starting, the continuation below retains the release/readiness gate.
+    return coldLobbySnapshotOrContinue(
+      request, !!this.ctx.container?.running, !!this.starting, Number(ARENA_LIMIT),
+      () => this.fetchReady(request, requestGeneration),
+      () => { this.emptyLobbySnapshotKnown = true; },
+    );
+  }
+
+  private async fetchReady(request: Request, requestGeneration: number): Promise<Response> {
     // Concurrent cold-start requests share one readiness loop.
     this.starting ??= this.startAndWaitForReady(request).finally(() => { this.starting = undefined; });
     try {
@@ -257,7 +277,11 @@ export class GameContainer extends DurableObject<Env> {
     url.port = String(PORT);
     const forwarded = proxyRequest(request, url);
     // Preserve the native upgrade stream, including binary frames and control frames.
-    return this.ctx.container!.getTcpPort(PORT).fetch(forwarded);
+    const response = await this.ctx.container!.getTcpPort(PORT).fetch(forwarded);
+    if (request.method === "GET" && isLobbySnapshotRequest(request)) {
+      this.emptyLobbySnapshotKnown = await confirmsEmptyLobbySnapshotAtGeneration(response, requestGeneration, () => this.lobbyGeneration);
+    }
+    return response;
   }
 }
 
@@ -268,6 +292,7 @@ export class PublicGameContainer extends GameContainer {}
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const lobbySnapshot = isLobbySnapshotRequest(request);
     const probeLayer = networkProbeLayer(url.pathname);
     if (probeLayer) {
       if (!networkProbeAuthorized(request, env.NETWORK_PROBE_TOKEN)) return new Response("not found", { status: 404, headers: { "Cache-Control": "no-store" } });
@@ -306,10 +331,22 @@ export default {
         headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Retry-After": "10" },
       });
     }
+    if (lobbySnapshot) {
+      const { success } = await env.MATCHMAKE_LIMITER.limit({ key: lobbyRateLimitKey(request) });
+      if (!success) return new Response("lobby snapshot rate limit exceeded", {
+        status: 429,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Retry-After": "10" },
+      });
+    }
     const id = env.GAME_CONTAINER.idFromName(ROOM_NAME);
     try {
       const game = env.GAME_CONTAINER.get(id, { locationHint: "wnam" });
       const release = await controllerRelease(env);
+      if (lobbySnapshot) {
+        const forwarded = new Request(request);
+        forwarded.headers.set(RELEASE_HEADER, release);
+        return await game.fetch(forwarded);
+      }
       if (probeLayer) {
         const forwarded = new Request(request);
         forwarded.headers.set(RELEASE_HEADER, release);

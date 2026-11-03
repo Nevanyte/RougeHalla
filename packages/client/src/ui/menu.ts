@@ -12,6 +12,7 @@ import { el, uiRoot } from "./dom";
 import { HubPanels, type HubTabId } from "./hub/hubPanels";
 import { equippedTitle, titleTag } from "./hub/hubUtil";
 import { FactionPicker } from "./factionPicker";
+import { LobbyActivity } from "./lobbyActivity";
 import "./menuDock.css";
 
 const PROFILE_KEY = "raid.profile";
@@ -103,6 +104,7 @@ export class Menu {
   private readonly championGuide = el("button", "btn menu-champion-guide", "Champions & weapons · guide");
   private readonly board = el("div", "hub-board");
   private readonly boardList = el("ol", "hub-board-list");
+  private readonly lobby = new LobbyActivity();
   private readonly picker = new FactionPicker();
   private readonly startBtn = el("button", "btn primary", "Start Run");
   private readonly trainBtn = el("button", "btn", "Training");
@@ -200,7 +202,7 @@ export class Menu {
     this.championGuide.type = "button";
     this.championGuide.title = "Browse every passive, Wish and weapon scaling. Hold Shift inside the guide for exact rules.";
     this.championGuide.addEventListener("click", event => this.hub.open("champions", { shiftKey: event.shiftKey }));
-    this.root.append(head, row, this.placeholder, this.championGuide, this.body, actions, this.status, this.hint);
+    this.root.append(head, row, this.placeholder, this.championGuide, this.body, this.lobby.root, actions, this.status, this.hint);
 
     this.loadBtn.addEventListener("click", () => void this.load());
     this.startBtn.addEventListener("click", () => this.startRun());
@@ -335,6 +337,7 @@ export class Menu {
     this.setStatus(message, tone);
     // Already up (a join that failed): stay where it is, so the panel's entrance animation does not play again.
     if (!this.root.isConnected) uiRoot().append(this.root);
+    this.lobby.show();
     if (this.chosen && PROFILE_RE.test(this.callsign)) void this.load();
     else this.updateView();
   }
@@ -352,6 +355,7 @@ export class Menu {
 
   /** The run is starting: what was loaded is stale by the time it ends (show() reloads it). */
   hide(): void {
+    this.lobby.hide();
     this.root.remove();
     this.loadSeq++;
     this.endLoading();
@@ -436,6 +440,7 @@ export class Menu {
 
   private setProfile(profile: ProfileDTO, token: string): void {
     this.data = { profile, token };
+    this.lobby.setIdentity({ name: profile.name, token });
     this.showProfile(profile);
     this.hub.setProfile(profile);
     this.syncPick();
@@ -462,6 +467,7 @@ export class Menu {
 
   private clearProfile(): void {
     this.data = null;
+    this.lobby.setIdentity(null);
     this.clearStrip();
     this.emitProfile(null);
     this.hub.setProfile(null);
