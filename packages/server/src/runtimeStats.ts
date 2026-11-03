@@ -1,7 +1,7 @@
 // What /readyz says about the process itself: event-loop delay and tick cost over a recent window, and the container's CPU quota.
 // A throttled cgroup shows as bursts of delay with a low cpuSeconds, which the lifetime figures this replaces could not tell apart.
 import fs from "node:fs";
-import { monitorEventLoopDelay } from "node:perf_hooks";
+import { monitorEventLoopDelay, PerformanceObserver } from "node:perf_hooks";
 
 type IntervalHistogram = ReturnType<typeof monitorEventLoopDelay>;
 
@@ -136,3 +136,49 @@ export function readCgroupCpu(root = "/sys/fs/cgroup"): CgroupCpu | null {
   const s = read(`${v1}/cpu.stat`);
   return q !== null && p !== null && s !== null ? parseCgroupV1(q, p, s) : null;
 }
+
+let gcTotalMs = 0;
+let gcObserver: PerformanceObserver | null = null;
+
+/** Milliseconds the process has spent in GC since the first call (the observer starts then). */
+export function gcMsSoFar(): number {
+  if (!gcObserver) {
+    gcObserver = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) gcTotalMs += e.duration;
+    });
+    gcObserver.observe({ entryTypes: ["gc"] });
+  }
+  return gcTotalMs;
+}
+
+const RECENT_SLOW_TICKS = 30;
+
+/** Above this a wake's work is logged with its breakdown (one line a second at most). */
+export const SLOW_TICK_MS = 25;
+
+/** The one-line JSON record of a slow wake, rate-limited so a stall that repeats every tick does not flood the log. */
+export class SlowTickLog {
+  private lastAt = -Infinity;
+  private suppressed = 0;
+  /** The last lines written, oldest first, for /readyz. */
+  readonly recent: Array<Record<string, unknown>> = [];
+
+  constructor(private readonly write: (line: string) => void = (l) => console.warn(l), readonly minGapMs = 1000) {}
+
+  note(now: number, record: Record<string, unknown>): void {
+    if (now - this.lastAt < this.minGapMs) {
+      this.suppressed++;
+      return;
+    }
+    this.lastAt = now;
+    const extra = this.suppressed > 0 ? { suppressed: this.suppressed } : {};
+    this.suppressed = 0;
+    const line = { at: new Date().toISOString(), ...record, ...extra };
+    this.recent.push(line);
+    if (this.recent.length > RECENT_SLOW_TICKS) this.recent.shift();
+    this.write(`[slow-tick] ${JSON.stringify(line)}`);
+  }
+}
+
+/** Shared by every room of the process, like tickStats. */
+export const slowTickLog = new SlowTickLog();

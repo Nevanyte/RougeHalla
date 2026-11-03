@@ -34,7 +34,9 @@ import { enqueueClientMessage } from "../sim/inputs";
 import { planFor } from "../sim/planning";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
 import { installTrace } from "../sim/trace";
+import { TickProfile } from "../sim/tickProfile";
 import { installTraining } from "../sim/training";
+import { gcMsSoFar, SLOW_TICK_MS, slowTickLog } from "../runtimeStats";
 import type { RunTelemetry, TelemetryRuntime } from "../telemetry/runtime";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
@@ -574,21 +576,69 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     tickStats.note(steps, pacer.lastLateMs, pacer.reanchored);
     if (steps === 0) return;
     const workStart = performance.now();
-    for (let i = 0; i < steps; i++) {
-      if (bots) {
-        // Arrivals happen between steps, and a command that has reached the server by this step's time is applied by it, as a
-        // socket message that came in since the last step would be.
-        if (this.world.state.phase === "lobby") bots.lobbyTick();
-        bots.beforeStep(this.world.state.serverTime + TICK_MS);
+    const cpuStart = process.cpuUsage();
+    const gcStart = gcMsSoFar();
+    const prof = this.profile;
+    prof.clear();
+    prof.start();
+    this.world.profile = prof;
+    try {
+      for (let i = 0; i < steps; i++) {
+        if (bots) {
+          // Arrivals happen between steps, and a command that has reached the server by this step's time is applied by it, as a
+          // socket message that came in since the last step would be.
+          if (this.world.state.phase === "lobby") bots.lobbyTick();
+          bots.beforeStep(this.world.state.serverTime + TICK_MS);
+          prof.lap("bots:before");
+        }
+        const events = step(this.world, TICK_MS);
+        prof.lap("step:other");
+        this.handleEvents(events);
+        prof.lap("events");
       }
-      this.handleEvents(step(this.world, TICK_MS));
+    } finally {
+      this.world.profile = null;
     }
     this.fxChannel.extendRoster(this.world.state);
     this.broadcastPatch();
     this.fxChannel.rosterSent();
+    prof.lap("patch");
     // One frame per patch, like a client: the bots see this state and these batches, never anything a client did not get.
     bots?.afterPatch(this.botBatches.splice(0));
-    tickStats.noteWork(performance.now() - workStart);
+    prof.lap("bots:after");
+    const workMs = performance.now() - workStart;
+    tickStats.noteWork(workMs);
+    if (workMs >= SLOW_TICK_MS) this.logSlowTick(workMs, steps, cpuStart, gcStart);
+  }
+
+  private readonly profile = new TickProfile();
+
+  /** CPU well under wall means the process was descheduled or throttled, not busy; gcMs is GC that overlapped the wake. */
+  private logSlowTick(workMs: number, steps: number, cpuStart: NodeJS.CpuUsage, gcStart: number) {
+    const s = this.world.state;
+    const cpu = process.cpuUsage(cpuStart);
+    let alive = 0, awake = 0, fighting = 0;
+    for (const p of s.players.values()) if (p.status === "alive") alive++;
+    for (const m of this.world.mobs.values()) {
+      if (m.brain !== undefined && m.brain.mode !== "idle") awake++;
+      if (m.brain?.mode === "fight") fighting++;
+    }
+    const r1 = (n: number) => Math.round(n * 10) / 10;
+    slowTickLog.note(performance.now(), {
+      room: this.roomId,
+      phase: s.phase,
+      runS: s.raidStartedAt > 0 ? Math.round((s.serverTime - s.raidStartedAt) / 1000) : null,
+      wakeMs: r1(workMs),
+      cpuMs: r1((cpu.user + cpu.system) / 1000),
+      gcMs: r1(gcMsSoFar() - gcStart),
+      steps,
+      players: alive,
+      mobsAwake: awake,
+      mobsFighting: fighting,
+      projectiles: this.world.projectiles.size,
+      clients: this.clients.length,
+      parts: this.profile.top(),
+    });
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {

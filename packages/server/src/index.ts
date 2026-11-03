@@ -28,7 +28,7 @@ import {
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 import { tickStats } from "./rooms/tickPacer";
-import { LoopDelayWindow, readCgroupCpu } from "./runtimeStats";
+import { LoopDelayWindow, readCgroupCpu, slowTickLog } from "./runtimeStats";
 import { traceWritesSettled } from "./rooms/traceWriter";
 import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
 import { warmCloudSimulation } from "./cloudWarmup";
@@ -379,6 +379,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
             sockets: transport instanceof CloudflareTransport ? transport.diagnostics : undefined,
             // Every room's step wakes in this process (rooms/tickPacer.ts): late wakes, catch-ups and re-anchors.
             tick: tickStats.snapshot(),
+            slowTicks: slowTickLog.recent,
           },
         });
       });

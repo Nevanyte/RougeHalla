@@ -9,6 +9,7 @@ import {
 } from "@raid/shared";
 import { RaidState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
+import type { TickProfile } from "./tickProfile";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, DrainedInputs, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
@@ -822,6 +823,8 @@ export interface World {
   events: SimEvent[];
   /** True while step() runs. Things created outside it (e.g. a body from a leave) belong to the next tick. */
   stepping: boolean;
+  /** Set by the room while it measures a step for the slow-tick log; null or absent otherwise. */
+  profile?: TickProfile | null;
   /** Gameplay modules install themselves here (see sim/gameplay.ts). Unknown actions are ignored. */
   actions: Partial<Record<ActionCommand["kind"], ActionHandler>>;
   /**

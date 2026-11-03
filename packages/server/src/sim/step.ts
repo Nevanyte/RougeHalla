@@ -15,6 +15,7 @@ import { leavePlanning, planningEnabled, startPlanning, updatePlanning } from ".
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
 import { isStunned } from "./status";
 import { updateTargets } from "./targeting";
+import { lap, runTimed } from "./tickProfile";
 import { trainingSettle } from "./training";
 import { cancelLockedWindup, dropLock, moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
@@ -254,10 +255,14 @@ function updateActive(world: World, dtMs: number): void {
   world.combat.rank = new Map(order.map((id, i) => [id, i]));
   for (const id of order) applyInputs(world, combatant(world, id)!);
   for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
+  lap(world, "inputs");
   updateAbilities(world);
+  lap(world, "abilities");
   updateTargets(world);
+  lap(world, "targets");
   updateWeapons(world);
-  for (const sys of world.afterWeapons) sys(world, dtMs);
+  lap(world, "weapons");
+  runTimed(world, world.afterWeapons, dtMs, "afterWeapons");
   const fighters = standingCombatants(world);
   // Every multiplier is read before anyone moves, so none depends on who moved first (the chill reads distances). Their
   // product never drops below MOVE_MULT_FLOOR while it is above 0 (a root's 0 stays 0).
@@ -272,14 +277,18 @@ function updateActive(world: World, dtMs: number): void {
   });
   // Record after everyone has moved so hit tests see one consistent tick.
   for (const c of fighters) recordHistory(c.rt, c.s, now);
+  lap(world, "movement");
   sweepProjectiles(world, dtMs);
   spawnProjectiles(world);
+  lap(world, "projectiles");
   resolveMelee(world);
-  for (const sys of world.beforeDamage) sys(world, dtMs);
+  lap(world, "melee");
+  runTimed(world, world.beforeDamage, dtMs, "beforeDamage");
   // After the signatures, which read the ledger for this tick's contacts: the burn is no one's hit.
   if (!world.config.training) suddenDeath(world, dtMs);
   applyLedger(world);
-  for (const sys of world.systems) sys(world, dtMs);
+  lap(world, "ledger");
+  runTimed(world, world.systems, dtMs, "system");
   if (world.config.training) trainingSettle(world);
   else settle(world);
   // Nothing flies once the run is over: clients would otherwise draw what's left to its full range, through walls.
