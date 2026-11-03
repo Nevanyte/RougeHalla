@@ -1,12 +1,12 @@
 # Mob progression
 
-Regular mobs give one fixed stat stack with every credited kill, with no per-type ceiling. Elites give interactive augments. This document supersedes the balance pass's all-card economy; its historical card catalog and benchmark kits remain available for comparison.
+Regular mobs give three fixed stat stacks with every credited kill (`MOB_KILL_STACKS`, 3 since the tactical-farming pass; it was one), with no per-type ceiling. Elites give interactive augments. This document supersedes the balance pass's all-card economy; its historical card catalog and benchmark kits remain available for comparison.
 
 ## Fixed rewards
 
-Each credited normal kill grants one whole stack of its type, independent of feed, catch-up, kill count, or previous stacks. Counts are uncapped and persist through camp respawns and coliseum rounds. Percentage bonuses add against base values, and types granting the same stat add together. Earned stacks continue to add after ordinary card and temporary-source ceilings; combat sources such as slows still apply to the resulting stats.
+Each credited normal kill grants `MOB_KILL_STACKS` (3) whole stacks of its type, so a kill is worth three times the per-stack row below, independent of feed, catch-up, kill count, or previous stacks. Counts are uncapped and persist through camp respawns and coliseum rounds. Percentage bonuses add against base values, and types granting the same stat add together. Earned stacks continue to add after ordinary card and temporary-source ceilings; combat sources such as slows still apply to the resulting stats.
 
-| Zone | Normal mob | Per kill | At ten stacks (example) |
+| Zone | Normal mob | Per stack (a kill grants 3) | At ten stacks (example) |
 |---|---|---|---|
 | Fire | Ember Imp | +1% damage | +10% damage |
 | Fire | Cinder Hound | +0.5% move speed | +5% move speed |
@@ -29,7 +29,7 @@ Each credited normal kill grants one whole stack of its type, independent of fee
 | Demon Blood | Penitent | +1% max health | +10% max health |
 | Demon Blood | Zealot | +1 armor | +10 armor |
 
-The current map already has eight camps per zone. Bag rosters guarantee all four normal types, and respawning preserves the roster. Fully cleared camps return after three minutes. Personal stat progress survives respawns and coliseum rounds. Dummy, quest-NPC, and training mob kills pay no progression.
+The current map has ten camps per zone (160 x 160 tiles). Bag rosters guarantee all four normal types, and respawning preserves the roster. Fully cleared camps return after three minutes. Personal stat progress survives respawns and coliseum rounds. Dummy, quest-NPC, and training mob kills pay no progression.
 
 The HUD shows earned totals for owned types and exposes all twenty in an expandable catalog. Camp and planning tooltips describe the reward before a pull. The server credits the existing whole-fight damage winner and remains authoritative over all progression.
 
@@ -51,7 +51,7 @@ The reward whitelist contains observable interactions such as bleeding, splash a
 
 ## Quests, practice, and bots
 
-Quests grant 8–16 whole normal-mob stat stacks from their destination zone, added to any previous progress, plus their existing GV. Their per-offer quantity is `clamp(ceil((objSec + 0.4 × travelSec) / 12 × 2), 8, 16)`: it counts objective time fully, discounts travel for incidental farming, and adds a strong route premium. This bounds one award; accumulated earned stacks still have no ceiling. Feed never reduces quest rewards, and quests never grant augments. Bounties pay GV without transferring stats or augments. Historical card tiers/copies and their questBench comparison remain available for tuning reference, not as current quest payout or balance evidence.
+Quests grant 10–20 whole normal-mob stat stacks from their destination zone, added to any previous progress, plus their existing GV. Their per-offer quantity is `clamp(ceil((objSec + 0.4 × travelSec) / 12 × 2.5), 10, 20)`: it counts objective time fully, discounts travel for incidental farming, and adds a strong route premium. This bounds one award; accumulated earned stacks still have no ceiling. Feed never reduces quest rewards, and quests never grant augments. Bounties pay GV without transferring stats or augments. Historical card tiers/copies and their questBench comparison remain available for tuning reference, not as current quest payout or balance evidence.
 
 Training can set a normal type's progress to any non-negative safe integer, practice interactive augments, and clear both. Practice kills do not alter a configured build. Bots read their own stack totals and consider farmed stats when deciding whether to challenge elites. They learn a mob's type from on-screen observations, not hidden state.
 
