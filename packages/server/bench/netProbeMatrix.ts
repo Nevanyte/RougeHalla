@@ -3,16 +3,27 @@
 // them afterwards.
 //   npx tsx packages/server/bench/netProbeMatrix.ts [--port 2620] [--seconds 60] [--bots 7] [--tag name] [--out dir]
 //        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1] [--hz 144 | --hz 60,144] [--steer frame|event|mixed] [--tmp dir]
-//        [--aim legacy50|floor25|aligned] [--drawahead on|off|both] [--ahead '{"heldMoverMs":25}']
+//        [--aim legacy50|floor25|aligned] [--drawahead on|off|both] [--ahead '{"heldMoverMs":25}'] [--movers wasd,lock]
 // A profile is rtt[:jitter[:loss%]] in ms and percent. Several --hz rates run one after the other on each profile's server. Output:
 // <out>/<tag>-<profile>[-<hz>hz].json per run, each run's report, and at the end the draw-ahead table (netProbe.ts drawahead): per
 // profile and rate the remote players' displayed age with it off and on, the error (mean/p95/p99 over all and over moving frames),
-// corrections over 4 u, held movers, snaps, reversals and the acceptance gates' verdict.
+// visible jumps, held movers, snaps, resets, reversals and the acceptance gates' verdict.
+// The probe's room fills with the server's own fill bots (the same brain as the client bots, docs/BOTS.md), which are the remote
+// players it measures: the client bots `--bots` starts end up in rooms of their own. `--movers` adds remote players that are not
+// bots for the draw-ahead to be judged on, each a netProbe of its own started for each rate right after the probe opens its room
+// (no client bots run then, and the lobby waits up to 12 s for the probe and every mover, so the probe's room is the one they
+// join): `wasd` steers like the keyboard (taps, holds, turns, chords), `lock` runs the probe's mouse script (walks, held right
+// button, stops, locks on fighters up to 640 u away) with a wand, the one weapon that takes the target lock: hands start empty, so
+// with a `lock` mover the server runs with DUMMIES=1 (a rack of every weapon, and two training dummies, by each spawn) and the
+// mover takes the wand from its rack (netProbe `--arm wand`).
+// The map is whichever the server's pool hands the room, a new one each run: `--seed` seeds the network's jitter and loss and the
+// probes' scripts, not the map or the bots.
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { MAX_PLAYERS } from "@raid/shared";
 import type { RemoteDrawOptions } from "../../client/src/net/remoteDraw";
 import { formatReport, parseAimMode, parseDrawAhead, runProbe, type AimMode, type ProbeReport } from "./netProbe";
 
@@ -87,6 +98,8 @@ export interface MatrixOptions {
   tmp?: string;
   /** How the probe streams its aim (netProbe.ts; default its own, "aligned"). */
   aimMode?: AimMode;
+  /** Remote players driven by probes of their own, beside the bots: "wasd" (the keyboard script) or "lock" (the mouse script with a wand). */
+  movers?: Array<"wasd" | "lock">;
 }
 
 export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
@@ -97,32 +110,52 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
     const dir = fs.mkdtempSync(path.join(o.tmp ?? process.env.PROBE_TMP ?? os.tmpdir(), "raid-probe-"));
     let server: ChildProcess | undefined;
     let bots: ChildProcess | undefined;
+    const movers: ChildProcess[] = [];
+    const moverKinds = o.training ? [] : o.movers ?? [];
     try {
       server = await start("packages/server/src/index.ts", [], {
-        RAID_PORT: String(o.port), STASH_FILE: path.join(dir, "stash.json"), MIN_PLAYERS: "2", LOBBY_SECONDS: "4", FILL_SECONDS: "0",
+        RAID_PORT: String(o.port), STASH_FILE: path.join(dir, "stash.json"), FILL_SECONDS: "0",
+        // Movers must land in the probe's own room: its lobby closes once the probe and every mover are in (a human takes a fill
+        // bot's seat), or after 12 s.
+        MIN_PLAYERS: String(Math.min(MAX_PLAYERS, 2 + Math.max(0, moverKinds.length - 1))),
+        LOBBY_SECONDS: moverKinds.length > 0 ? "12" : "4",
         PATIENCE_SECONDS: "120", SUDDEN_DEATH_SECONDS: "30", WISH_LOCK_SECONDS: "0",
         COLYSEUS_LATENCY: String(p.rtt), NET_JITTER_MS: String(p.jitter), NET_LOSS_PCT: String(p.loss), NET_SEED: String(o.seed),
+        ...(moverKinds.includes("lock") ? { DUMMIES: "1" } : {}),
         ...o.serverEnv,
       }, /listening/);
       const url = `http://127.0.0.1:${o.port}`;
       const prefix = `pb${Math.floor(Math.random() * 1e5)}x`;
-      if (!o.training) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
+      // With movers, no client bots: a room of theirs would be one more the movers could join instead of the probe's (the server's
+      // own fill bots take the probe room's other seats either way).
+      if (!o.training && moverKinds.length === 0) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
       await sleep(1500);
       const rates = o.hzs && o.hzs.length > 0 ? o.hzs : [o.hz];
       for (const hz of rates) {
         const at = rates.length > 1 ? ` ${hz} Hz` : "";
         console.error(`[matrix] ${o.tag} ${p.name}${at}: probing ${o.seconds} s ...`);
-        const r = await runProbe({
+        const probing = runProbe({
           url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}${at}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish,
           training: o.training, swap: o.swap, faction: o.faction, hz, steer: o.steer, ...(o.aimMode ? { aimMode: o.aimMode } : {}),
           ...(o.drawAhead ? { drawAhead: o.drawAhead } : {}), ...(o.ahead ? { ahead: o.ahead } : {}),
         });
+        // Fresh movers for each rate, started once the probe has opened its room's lobby; nobody measures them.
+        await sleep(500);
+        for (const [i, kind] of moverKinds.entries()) {
+          movers.push(await start("packages/server/bench/netProbe.ts", [
+            "--url", url, "--seconds", "100000", "--hz", "60", "--drawahead", "off", "--seed", String(o.seed * 101 + i + 1), "--label", `mover ${kind}`,
+            ...(kind === "wasd" ? ["--steer", "frame"] : ["--arm", "wand"]),
+          ], {}));
+        }
+        const r = await probing;
+        for (const m of movers.splice(0)) await kill(m);
         const suffix = rates.length > 1 ? `-${hz}hz` : "";
         fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}${suffix}.json`), JSON.stringify(r));
         console.log(formatReport(r));
         reports.push(r);
       }
     } finally {
+      for (const m of movers) await kill(m);
       await kill(bots);
       await kill(server);
       fs.rmSync(dir, { recursive: true, force: true });
@@ -150,11 +183,19 @@ function main(): void {
     ...(a.includes("--steer") ? { steer: get("--steer", "frame") as "frame" | "event" | "mixed" } : {}),
     ...(a.includes("--render") ? { render: JSON.parse(get("--render", "{}")) as Record<string, number> } : {}),
     ...(a.includes("--aim") ? { aimMode: parseAimMode(get("--aim", "aligned")) } : {}),
+    ...(a.includes("--movers") ? { movers: parseMovers(get("--movers", "")) } : {}),
   };
   runMatrix(opts).then((reports) => {
     console.log(drawAheadTable(reports));
     process.exit(0);
   }, (err) => { console.error(err); process.exit(1); });
+}
+
+function parseMovers(s: string): Array<"wasd" | "lock"> {
+  return s.split(",").filter((m) => m !== "").map((m) => {
+    if (m !== "wasd" && m !== "lock") throw new Error(`--movers: a list of wasd and lock, not ${m}`);
+    return m;
+  });
 }
 
 /** One row per run with both draw-ahead arms: the remote players' age off and on, the error, the corrections and the verdict. */
@@ -167,16 +208,18 @@ export function drawAheadTable(reports: readonly ProbeReport[]): string {
     const remote = r.drawAhead!.on!.remote;
     return [
       r.label.padEnd(26), String(r.hz).padStart(4), f1(off.ageMs.mean).padStart(7), f1(on.ageMs.mean).padStart(7), f1(off.ageMs.mean - on.ageMs.mean).padStart(6),
+      f1(off.claimAgeMs.mean - on.claimAgeMs.mean).padStart(6),
       `${f2(on.errU.mean)}/${f2(on.errU.p95)}/${f2(on.errU.p99)}`.padStart(17), `${f2(on.errMovingU.mean)}/${f2(on.errMovingU.p95)}/${f2(on.errMovingU.p99)}`.padStart(17),
-      f2(on.jumpCombatPct).padStart(6), f1(on.heldMovingPct).padStart(6), String(on.snaps32).padStart(5), f2(remote.reversalsPerMin).padStart(7),
-      r.drawAhead!.pass ? "PASS" : "FAIL",
+      f2(on.hindsightJumpCombatPct).padStart(6), f1(on.heldMovingPct).padStart(6), String(on.snaps32).padStart(5), String(remote.resetsUnderSnap).padStart(6),
+      f2(remote.reversalsPerMin).padStart(7), r.drawAhead!.pass ? "PASS" : "FAIL",
     ].join(" | ");
   });
   if (rows.length === 0) return "";
-  const head = ["run".padEnd(26), "hz".padStart(4), "age off".padStart(7), "age on".padStart(7), "drop".padStart(6),
+  const head = ["run".padEnd(26), "hz".padStart(4), "age off".padStart(7), "age on".padStart(7), "drop".padStart(6), "claim".padStart(6),
     "err all m/p95/p99".padStart(17), "err mov m/p95/p99".padStart(17), "jump%".padStart(6), "held%".padStart(6), "snaps".padStart(5),
-    "rev/min".padStart(7), "verdict"].join(" | ");
-  return ["", "draw-ahead (remote players; jump% = corrections over 4 u in combat frames, held% = moving frames held, rev/min per drawn fighter-minute)", head, ...rows].join("\n");
+    "resets".padStart(6), "rev/min".padStart(7), "verdict"].join(" | ");
+  return ["", "draw-ahead (remote players; claim = the claim age's drop, jump% = visible jumps over 4 u in combat frames (hindsight), held% = moving" +
+    " frames held, snaps = player snaps >= 32 u, resets = offsets dropped under 32 u, rev/min per drawn fighter-minute)", head, ...rows].join("\n");
 }
 
 const entry = process.argv[1];

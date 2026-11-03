@@ -140,10 +140,13 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(typicalQuests.initialSyncBytes).toBeGreaterThan(typical().initialSyncBytes);
   });
 
-  // The walk hint (sim/walkHint.ts, docs/PLAYER_PREDICTION.md Stage 2): its two mirrors add under 0.3 KB/s per client on seed 1. The
-  // sim plays the same game without them, so the difference is only their patches. Seed 1 measures +0.298 typical, +0.291 heavy and
-  // +0.219 with the keyboard's cadence: within the gate, with almost no room. Most of it is ranged players holding the trigger: the
-  // count runs 3, 2, 1, 0 toward every release pause and back up after it, which is what walkTicks means.
+  // The walk hint (sim/walkHint.ts, docs/PLAYER_PREDICTION.md Stage 2): the brief gates its two mirrors at under 0.3 KB/s per client in
+  // typical and heavy on seed 1 (WASD is held to it too). The sim plays the same game without them, so the difference is only their
+  // patches. Seed 1 measures +0.2984 typical (0.0016 of room), +0.2913 heavy and +0.2191 with the keyboard's cadence; the scenarios
+  // outside the gate cost as much: idle +0.3103 (over the line), no mobs +0.2924, chests +0.2856 (seeds 2, 3, 5: heavy up to 0.3065,
+  // idle up to 0.3187). The cost is walks, not fights: every leg the 600 ms strafe starts counts walkTicks 3, 2, 1, 0 to its end and
+  // back up (idle, with no ranged trigger ever held, changes it more often than typical), and with WASD the legs do not end, so there
+  // it is mostly the ranged release pauses.
   it("walk hints add under 0.3 KB/s: typical, heavy and typical with WASD steering, seed 1", () => {
     const pairs: Array<[string, Parameters<typeof runBandwidth>[0]]> = [
       ["typical", { camps: TYPICAL_CAMPS }],

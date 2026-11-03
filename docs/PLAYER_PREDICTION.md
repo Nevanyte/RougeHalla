@@ -261,15 +261,32 @@ draw-ahead has been measured yet.
 
 ### Acceptance tests
 
-| Gate | Pass condition |
-|---|---|
-| No outcome change | Same seed and inputs with the predictor on and off: every field but the new mirrors is identical tick for tick. |
-| Displayed age | Mean remote-fighter age drops by at least 50 ms on the stable profile. |
-| Fabrication error | mean ≤ 1.5 u, p95 ≤ 8.5 u, p99 ≤ 17 u |
-| Visible corrections | A jump over 4 u in one frame on at most 2% of combat frames; no snaps under 32 u. |
-| Cost | At most 5k parameters and 10 µs per fighter per tick. The stepBench and bandwidth gates hold; the mirrors add under 0.3 KB/s. |
-| Learned gate | On held-out human runs: at least 15% lower mean error, p95 at most 2% worse, no split worse by over 5%, Brier skill ≥ 0.10, ECE ≤ 0.03. |
-| Feel | A blind A/B test at an emulated 90 ms RTT, counting snaps per minute plus a forced choice, reported per RTT bucket. |
+| Id | Gate | Pass condition |
+|---|---|---|
+| G1 | No outcome change | Same seed and inputs with the predictor on and off: every field but the new mirrors is identical tick for tick. |
+| G2 | Displayed age | Mean remote-fighter age drops by at least 50 ms on the stable profile. |
+| G3 | Fabrication error | mean ≤ 1.5 u, p95 ≤ 8.5 u, p99 ≤ 17 u |
+| G4 | Visible corrections | A jump over 4 u in one frame on at most 2% of combat frames; no snaps under 32 u. |
+| G5 | Cost | At most 5k parameters and 10 µs per fighter per tick. The stepBench and bandwidth gates hold; the mirrors add under 0.3 KB/s. |
+| G6 | Learned gate | On held-out human runs: at least 15% lower mean error, p95 at most 2% worse, no split worse by over 5%, Brier skill ≥ 0.10, ECE ≤ 0.03. |
+| G7 | Feel | A blind A/B test at an emulated 90 ms RTT, counting snaps per minute plus a forced choice, reported per RTT bucket. |
+
+How `bench/drawAheadScore.ts` measures G2 to G4 (netProbe, netProbeMatrix and netTraceEval print them), over the remote players of
+every frame of two arms fed the same patches, judged with hindsight once the samples after each frame are in:
+
+- **G2** is the mean of server-now (the client's estimate) less the moment the frame depicts: render time, capped at the newest
+  sample plus the arm's lead (50 ms). The error G3 is measured at that same moment, so the two are one pair: a fighter held at its
+  newest sample (standing, or moving with no walk hint) still claims render time and pays for the claim in error. G2 therefore
+  checks the render clock, and on a stable link it is structural (the arms' clocks run exactly 50 ms apart below the 150 ms ceiling):
+  it catches the wiring and a ceiling or stall that takes the gain back. The data age (against the newest sample used) and the
+  claim age (against the newest sample plus the lead actually drawn) are reported beside it with their p95 and p99.
+- **G3** is the distance from the drawn position to the server's position at that moment (the lerp of its tick positions), over
+  every remote-player frame; frames within two ticks of a cut are left out of both arms and counted.
+- **G4** counts, over the combat frames (a hit, a block, a windup or a cast within 1 s, or a lock held), the frames whose drawn step
+  differs from the server's own step by over 4 u (a visible jump, with hindsight; frame hitches over 2.5 frames left out), and needs
+  `RemoteDraw.stats.resetsUnderSnap` at 0 (an offset dropped by over 0.5 u that was neither a cut nor a snap). Snaps of 32 u or more
+  are allowed by the gate and printed beside it. The correction's own one-frame step is speed-capped (about 2.5 u a frame at
+  60 Hz), so its share over 4 u is reported but is near-structural too.
 
 ## Shipped in this pass
 
@@ -295,20 +312,26 @@ sub-tick windup starts, and a fresher melee `t`.
 ### Stage 2: the draw-ahead (branch `claude/draw-ahead`, 2026-11-02)
 
 The owner decided: build it, presentation only, keeping the walk hint's cap at 3 ticks (decisions 1 and 2); melee `t` stays the
-render time (decision 5). No hit, root, kill or order is decided differently: a scripted run and an 8-bot run with and without the hint
-step identically, field for field but the two mirrors (`test/walkHint.test.ts`).
+render time (decision 5), which with the draw-ahead's shorter delay means the render time the setting off keeps
+(`RemoteDraw.attackTime`). No hit, root, kill or order is decided differently: a scripted run and an 8-bot run with and without the
+hint step identically, field for field but the two mirrors (`test/walkHint.test.ts`, G1), and an attack carries the same `t` with
+the setting on as off for the same click (the probe's "attack t less the off arm's": 0.00 ms on every frame of the stable runs
+below, a ms or two off in a handful while the clocks slew). The first build sent the fresher render time itself, 50 ms later than
+with the setting off, which rewound melee and a shot's origin 50 ms less; the review caught it.
 
 | Change | Where | Measured |
 |---|---|---|
-| Walk hint: `PlayerExtraState.walkDir` (uint8, 256ths of a turn, 3-step hysteresis) and `walkTicks` (0..3 committed ticks), written by a system appended last, only on a change | `sim/walkHint.ts`, `shared/schema.ts` | bandwidth on seed 1: +0.298 KB/s typical, +0.291 heavy, +0.219 with WASD steering, +0.07 with 7 fill bots (gate under 0.3, `test/bandwidth.test.ts`); heavy reaches +0.306 on seeds 2 and 5 (typical 0.244 to 0.282, WASD 0.175 to 0.236 on seeds 2, 3, 5), most of it ranged players counting down to each release pause; stepBench avg 1.28 ms, p99 2.36 (gate 5 / 15) |
-| Draw-ahead: remote players up to one tick along the hint, mobs 25 ms by velocity, wall-clipped, stopped at known roots, deaths and cuts; the render delay 50 ms shorter; corrections in a decaying, speed-capped offset, snapping only past 32 u; setting "Draw remote fighters ahead", on by default | `net/remoteDraw.ts`, `shared/interp.ts`, `RaidScene`, `settings.ts` | 25 s smoke at RTT 30 +-5 (`netProbeMatrix --drawahead both --hz 60,144`, replayed through `netTraceEval --drawahead`): remote-player age 77.9 to 27.9 ms (drop 50.00, G2 PASS) at 60 and 144 Hz; error mean / p95 / p99 0.08 / 0.27 / 2.02 u at 60 Hz and 0.08 / 0.23 / 2.11 at 144 (G3 PASS; moving frames only 0.28 / 1.49 / 4.10); 0% of combat frames with a correction over 4 u, no snap (G4 PASS); a moving player held (no hint) on 4% of its frames. **Full acceptance runs: PENDING** (the measurement step fills this cell: `netProbeMatrix --seconds 120 --profiles "30:5" --hz 60,144 --drawahead both`, then the full profile sweep, and `netTraceEval --drawahead` with and without `--ahead '{"heldMoverMs":25}'`) |
+| Walk hint: `PlayerExtraState.walkDir` (uint8, 256ths of a turn, 3-step hysteresis) and `walkTicks` (0..3 committed ticks), written by a system appended last, only on a change | `sim/walkHint.ts`, `shared/schema.ts` | bandwidth on seed 1 (`bench/bandwidth.ts`, the same runs without the hint): +0.298 KB/s typical, +0.291 heavy and +0.219 with WASD steering, the gate (under 0.3, `test/bandwidth.test.ts`); outside it +0.310 idle (over the line), +0.292 with no mobs, +0.286 with chests, +0.07 with 7 fill bots. Seeds 2, 3 and 5: typical 0.244 to 0.282, heavy 0.299 to 0.307, idle 0.294 to 0.319, WASD 0.175 to 0.236. The cost is walks, not fights: every leg of the bench's 600 ms strafe counts walkTicks 3, 2, 1, 0 to its end and back up (idle, where no ranged trigger is ever held, changes it 2759 times in 1200 ticks against 2592 in typical), and with WASD the legs do not end, so there it is mostly the ranged release pauses. stepBench avg 1.28 ms, p99 2.36 (gate 5 / 15) |
+| Draw-ahead: remote players up to one tick along the hint, mobs 25 ms by velocity, wall-clipped, stopped at known roots, deaths and cuts; the render delay 50 ms shorter; corrections in a decaying, speed-capped offset that slides along walls, snapping only past 32 u; a shot whose stop is not reported flies at most one tick past the newest patch and never through a wall; an attack's `t` is the setting off's render time; setting "Draw remote fighters ahead", on by default | `net/remoteDraw.ts`, `shared/interp.ts`, `render/ProjectileView.ts`, `RaidScene`, `settings.ts` | **What was measured.** Every run is 120 s of `bench/netProbeMatrix.ts` at RTT 30 +-5 (`--profiles "30:5" --hz 60,144 --drawahead both --trace`) on a map the server's pool picked for that room, a different one each run (`--seed` seeds only the network's jitter and loss and the probes' scripts). The remote players are the server's own fill bots, which follow A* paths with the bots' brain, plus, in the mover runs, two probes of their own in the same room: one steering like the keyboard (`--movers wasd`) and one taking a wand from a rack and locking targets up to 640 u away (`--movers lock`, DUMMIES=1). Mover runs, seeds 5 and 6, are 5 fill bots and the two movers; the others 7 fill bots. **Live, final code** (G2 / G3 mean, p95, p99 / G4 visible jumps in combat frames): seed 1 at 60 Hz 50.0 ms / 0.40, 2.61, 6.45 u / 0.03%, at 144 Hz 50.0 / 0.26, 1.49, 5.06 / 0.00%; mover runs at 60 Hz 0.41, 2.86, 6.34 and 0.40, 2.94, 6.27 u, at 144 Hz 0.32, 2.16, 4.96 and 0.38, 2.56, 6.00 u, visible jumps 0.00 to 0.05%. Every run PASSES G2 to G4, with no reset under 32 u and no player snap. Locked wand chases, the hint's one-tick case, are 209 to 817 frames a mover run (error mean / p95 0.56 to 1.48 / 3.41 to 4.75 u); by behaviour otherwise (seed 1, 60 Hz, mean / p95) still 0.03 / 0.04, straight 0.25 / 1.32, hasted 0.88 / 2.97, turning 1.85 / 6.61, held 3.84 / 8.09 u. A moving player is held (no hint) on 7.5 to 15.6% of its moving frames. Ages: the displayed age drops 50.0 ms in every run (77 to 27 ms); the data age (against the newest sample drawn) 43.4 to 44.3 (with it on mean 33 to 34 ms, p95 46 to 52, p99 53 to 60) and the claim age 46.0 to 47.3. The attack `t` less the off arm's is 0.00 ms (a ms or two in a handful of frames while the clocks slew), and the tested (melee rewind) spot is 3.4 to 5.2 u from the drawn figure on average, p95 8.5 to 11.1, p99 8.6 to 12.7 (0 with the setting off). **Paired replays** (`netTraceEval --drawahead --hz 60,144`, both arms fed the same arrivals, final code) of eight recorded sessions (seeds 1 to 3, 60 and 144 Hz): error mean 0.20 to 0.31, p95 0.96 to 1.86, p99 4.63 to 6.79 u, G2 to G4 PASS in all sixteen rows; they re-score the live sessions, so they are not independent of them. The held-mover alternative (`--ahead '{"heldMoverMs":25}'`) on the seed 1 traces cuts the held frames from 1628 to 5016 to 141 to 360 and the error to 0.14 to 0.22 / 0.66 to 1.37 / 2.79 to 3.62 u, at 0.68 to 1.33 reversals per drawn fighter-minute against 0.13 to 0.63. **Other profiles** (60 Hz, 7 fill bots, `--profiles "0,60:10,120:20,30:5:1,60:10:1"`): G2 to G4 PASS at RTT 0 (error 0.48 / 3.67 / 8.00 u) and 60 +-10 (0.20 / 1.17 / 4.04); G3 and G4 PASS everywhere, but G2 falls short where the 150 ms delay ceiling takes the gain back: 46.5 ms at 120 +-20, 8.6 ms at 30 +-5 with 1% loss and 13.8 at 60 +-10 with 1% loss, and the two lossy runs snap a remote player past 32 u 6 and 8 times in 120 s (the off arm none; nothing under 32 u is reset) |
 
-Notes on the reading. Gate 2 is structural on a stable link: the two arms' render clocks are fed the same patches and draw exactly 50 ms
-apart below the 150 ms ceiling, so the check is that the clock is wired in and that stalls and the ceiling do not eat the gain (the
-data age, against the newest sample used, drops about 44 ms; the claim's age about 45 to 48). The error is judged against the server's
-own tick positions with hindsight; frames within two ticks of a cut are left out in both arms (the client's buffer holds the pre-cut
-sample there whatever the draw-ahead does). The tested spot (where melee would rewind for an attack sent that frame) stays within the
-error: at most one tick's walk behind the drawn target.
+Notes on the reading. G2 is a check of the render clock and is structural on a stable link: the arms' clocks are fed the same patches
+and draw exactly 50 ms apart below the 150 ms ceiling (see the gate definitions under Acceptance tests). G3 is what measures the
+picture, at the moment G2 counts. G4's visible jumps are judged with hindsight against the server's own step, and its reset count
+became honest in the review: it used to be a counter nothing incremented; once counted, the first live run found one (a fighter
+frozen at a pending teleport cut, whose spot the teleport's patch had just walled in by shutting the gates, had its offset cut), now
+fixed. Frames within two ticks of a cut are left out of both arms. The tested spot is where melee would rewind for an attack sent that
+frame: with the setting off it is the drawn spot; with it on it is the render time the setting off keeps, so a mover drawn ahead is up
+to one tick's walk past it (12.75 u at 255 u/s), plus the error.
 
 
 ## Decisions for the owner
@@ -316,13 +339,17 @@ error: at most one tick's walk behind the drawn target.
 1. Should remote fighters be drawn up to one tick past the newest real sample? This reverses "no extrapolation".
    **Decided: yes, presentation only (built, Stage 2).**
 2. Should the walk hint be capped at 3 ticks, 2 ticks, or not exist? Without a hint a client has only constant
-   velocity. **Decided: 3 ticks.** Its bytes sit at the 0.3 KB/s gate (see Stage 2): if a seed or a later change puts it over, the
-   fallbacks are a cap of 2 or publishing only 0 against 1-or-more, which the client is all that reads.
+   velocity. **Decided: 3 ticks.** Its bytes sit at the 0.3 KB/s gate (see Stage 2): typical and heavy pass on seed 1 with 0.002 and
+   0.009 KB/s to spare, while idle there (0.310) and heavy on seeds 2 and 5 (0.306, 0.307) are already over it. The fallbacks are a
+   cap of 2 or publishing only 0 against 1-or-more, which is all the client reads (its lead is one tick, so any count of 1 or more
+   draws the same).
 3. Should windup starts be dated within their tick, sub-tick timing? It saves 25 ms on average and changes a rule.
 4. Should playtests collect human traces, with consent? Raw traces take about 288 MB/h at 8 players.
 5. Should melee `t` follow the fresher drawn time, clamped to the newest published tick? Melee hit rates would need
-   a re-check. **Decided: no; `t` stays the render time.** A target drawn ahead is at most one tick's walk past the spot the server
-   tests.
+   a re-check. **Decided: no; `t` stays the render time.** Since the draw-ahead lowers the render delay by 50 ms, `RaidScene.renderT`
+   is itself 50 ms fresher with it on, so an attack sends `RemoteDraw.attackTime(renderT)`: the render time the setting off keeps,
+   and the rewind is the same as with it off for the same click. A mover drawn ahead is then up to one tick's walk (8.5 u at
+   170 u/s) past the spot the server tests, plus the draw-ahead's own error.
 6. Do you want an aim helper from the same model? That is aim assist, a balance feature, not netcode.
 
 ## Sources

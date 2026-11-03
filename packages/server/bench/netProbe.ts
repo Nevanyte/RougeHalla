@@ -104,6 +104,11 @@ export interface ProbeOptions {
    * rack there is where the probe gets a wand and a sword (an arena run starts with empty hands).
    */
   swap?: boolean;
+  /**
+   * Take this weapon from the nearest container that shows one before the mouse script plays, and again after a death (`--arm wand`):
+   * an arena run starts with empty hands, and only a wand takes a target lock. A server with DUMMIES=1 puts a rack by every spawn.
+   */
+  arm?: string;
   /** How the aim is streamed (default "aligned", what the game client does); "aligned" also routes the right-button hold through HoldGate. */
   aimMode?: AimMode;
   /** Which draw-ahead arms to score (default "both"; the legacy delay scores none). */
@@ -805,7 +810,7 @@ class Session {
     // Orders, then the prediction, as the scene does it.
     if (active) {
       if (this.opts.swap) this.swapScript(now, c, me, state);
-      else this.script(now, c, me, state);
+      else if (!this.opts.arm || this.armed(now, c, me, state)) this.script(now, c, me, state);
     }
     if (active && this.opts.steer) this.steerKeys(now, false);
     const dt = this.lastFrameAt > 0 ? now - this.lastFrameAt : 0;
@@ -981,6 +986,27 @@ class Session {
     for (const r of this.swaps) {
       if (r.shownAt === 0 && !r.settled && me.slot === r.target && now - r.sentAt < SWAP_SETTLE_WALL_MS) r.shownAt = now;
     }
+  }
+
+  /** `opts.arm` in hand: true once it is; until then walks to the nearest container showing it and takes it (or swaps to it). */
+  private armed(now: number, c: number, me: PlayerState, state: RaidState): boolean {
+    const want = this.opts.arm!;
+    const slot = me.weapon0 === want ? 0 : me.weapon1 === want ? 1 : -1;
+    if (slot === me.slot) return true;
+    if (now < this.nextGearAt) return false;
+    this.nextGearAt = now + 400;
+    if (slot >= 0) { this.send("swap", { slot }); return false; }
+    let box: ContainerState | undefined;
+    let best = Infinity;
+    state.containers.forEach((b) => {
+      const d = Math.hypot(me.x - b.x, me.y - b.y);
+      if (b.items.length > 0 && b.items.at(0)?.def === want && d < best) { best = d; box = b; }
+    });
+    // None in sight (a server without racks): play unarmed rather than stand still.
+    if (!box) return true;
+    if (best > 40) this.sendMove(now, c, { x: box.x, y: box.y }, state);
+    else this.send("pickup", { containerId: box.id });
+    return false;
   }
 
   /** A wand and a sword in the two slots (picked from the training rack), then a swap every 1.6 to 2.5 s while walking about. */
@@ -1539,6 +1565,7 @@ function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
     else if (a === "--training") o.training = true;
     else if (a === "--steer") { const mode = v(); if (mode !== "frame" && mode !== "event" && mode !== "mixed") throw new Error("--steer takes frame, event or mixed"); o.steer = mode; }
     else if (a === "--swap") { o.swap = true; o.training = true; }
+    else if (a === "--arm") o.arm = v();
     else if (a === "--trace") o.trace = true;
     else if (a === "--render") o.render = JSON.parse(v()) as Partial<RenderClockOptions>;
     else if (a === "--aim") o.aimMode = parseAimMode(v());

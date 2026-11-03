@@ -7,6 +7,14 @@
 // after it are in: its error is its distance from the server's position at tDrawn (the lerp of the tick samples around it, which is
 // what the off arm draws), its age is the estimated server clock less tDrawn. Labels need hindsight (did the fighter stand, turn, ...),
 // so they are given then too. A frame whose bracket crosses a cut (a teleport, a blink) is left out and counted.
+//
+// The age and the error are one pair: a fighter held at its newest sample (standing, or moving with no walk hint) still claims render
+// time, and pays for the claim in error. So G2 (the age) measures the render clock and is structural on a stable link (the arms' clocks
+// run exactly 50 ms apart below the delay's ceiling): it checks the wiring and that stalls and the ceiling leave the gain. G3 (the error)
+// is what measures the picture. The data age (against the newest sample used) and the claim age (against the newest sample plus the
+// lead actually drawn) are reported beside it. G4 counts visible jumps with hindsight (a drawn step that differs from the server's own
+// step by over 4 u in one frame) and the resets under the snap distance; the correction's own step is speed-capped, so its 4 u share
+// is reported but is near-structural (about 2.5 u a frame at 60 Hz, more only on a hitch or a snap).
 import { MAX_REWIND_MS, PLAYER_SPEED, TELEPORT_DISTANCE, TICK_MS, type GameMap, type TimedFx } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { EntityInterpolator } from "../../client/src/net/interpolation";
@@ -38,7 +46,10 @@ export interface KindReport {
   errMovingU: ScoreDist;
   errCombatU: ScoreDist;
   errBy: Record<Behaviour, ScoreDist>;
-  /** Distance from the spot melee would rewind to for an attack sent this frame (report only: the attack's `t` is render time). */
+  /**
+   * Distance from the spot melee would rewind to for an attack sent this frame (report only): the attack's `t` is RemoteDraw.attackTime,
+   * the render time the setting off keeps, so with it on a mover drawn ahead is up to one tick's walk past that spot.
+   */
   testedU: ScoreDist;
   /** Frames drawn past the newest sample, and how far (ms). */
   aheadMs: ScoreDist;
@@ -49,8 +60,9 @@ export interface KindReport {
   corrStepU: ScoreDist;
   jumpPct: number;
   jumpCombatPct: number;
-  /** Share of frames whose drawn step differed from the truth's own step by over 4 u (hitches left out). */
+  /** Share of frames whose drawn step differed from the truth's own step by over 4 u (hitches left out), all and in combat (G4). */
   hindsightJumpPct: number;
+  hindsightJumpCombatPct: number;
   /** Corrections of 32 u or more (snaps), not across a cut. */
   snaps32: number;
   cutFrames: number;
@@ -63,6 +75,8 @@ export interface RemoteArmReport {
   delayMs: ScoreDist;
   /** RemoteDraw's own counters over the run, and its reversals per minute of drawn fighters (players and mobs). */
   remote: RemoteDrawStats & { reversalsPerMin: number };
+  /** The `t` an attack sent this frame would carry, less the off arm's in the same frame (ms; empty for the off arm itself). */
+  attackVsOffMs: ScoreDist;
 }
 
 /** What an arm drew of one fighter in one frame. */
@@ -107,6 +121,8 @@ class Acc {
   jumpsCombat = 0;
   hindsightFrames = 0;
   hindsightJumps = 0;
+  hindsightCombatFrames = 0;
+  hindsightCombatJumps = 0;
   snaps32 = 0;
   cutFrames = 0;
   ms = 0;
@@ -117,7 +133,10 @@ class Acc {
       for (const v of o[k]) this[k].push(v);
     }
     for (const b of BEHAVIOURS) for (const v of o.errBy[b]) this.errBy[b].push(v);
-    for (const k of ["frames", "extrapolated", "moving", "heldMoving", "jumps", "combat", "jumpsCombat", "hindsightFrames", "hindsightJumps", "snaps32", "cutFrames", "ms"] as const) {
+    for (const k of [
+      "frames", "extrapolated", "moving", "heldMoving", "jumps", "combat", "jumpsCombat", "hindsightFrames", "hindsightJumps", "hindsightCombatFrames",
+      "hindsightCombatJumps", "snaps32", "cutFrames", "ms",
+    ] as const) {
       this[k] += o[k];
     }
   }
@@ -131,7 +150,7 @@ class Acc {
       testedU: scoreDist(this.tested), aheadMs: scoreDist(this.ahead), extrapolatedPct: pct(this.extrapolated, this.frames),
       heldMovingPct: pct(this.heldMoving, this.moving), corrStepU: scoreDist(this.corr), jumpPct: pct(this.jumps, this.frames),
       jumpCombatPct: pct(this.jumpsCombat, this.combat), hindsightJumpPct: pct(this.hindsightJumps, this.hindsightFrames),
-      snaps32: this.snaps32, cutFrames: this.cutFrames,
+      hindsightJumpCombatPct: pct(this.hindsightCombatJumps, this.hindsightCombatFrames), snaps32: this.snaps32, cutFrames: this.cutFrames,
     };
   }
 }
@@ -150,10 +169,15 @@ export class DrawAheadScorer {
   private readonly lastCombat = new Map<string, number>();
   private readonly queues = new Map<string, ScoreFrame[]>();
   private readonly prev = new Map<string, Prev>();
-  private readonly acc = new Map<string, { players: Acc; mobs: Acc; delays: number[]; stats: RemoteDrawStats }>();
+  private readonly acc = new Map<string, { players: Acc; mobs: Acc; delays: number[]; stats: RemoteDrawStats; attackVsOff: number[] }>();
 
   constructor(readonly arms: readonly string[], private readonly nominalFrameMs = 1000 / 144) {
-    for (const a of arms) this.acc.set(a, { players: new Acc(), mobs: new Acc(), delays: [], stats: EMPTY_STATS() });
+    for (const a of arms) this.acc.set(a, { players: new Acc(), mobs: new Acc(), delays: [], stats: EMPTY_STATS(), attackVsOff: [] });
+  }
+
+  /** In one frame, the arm's attack `t` less the off arm's (ms). */
+  attackVsOff(arm: string, diffMs: number): void {
+    this.acc.get(arm)?.attackVsOff.push(diffMs);
   }
 
   /** A patch's position of a remote fighter. `cut`: its displaceSeq changed, or the teleport's patch. `locked`: it holds a target lock. */
@@ -242,6 +266,7 @@ export class DrawAheadScorer {
       a.players.merge(o.players);
       a.mobs.merge(o.mobs);
       for (const v of o.delays) a.delays.push(v);
+      for (const v of o.attackVsOff) a.attackVsOff.push(v);
       this.addStats(arm, o.stats);
     }
   }
@@ -251,7 +276,7 @@ export class DrawAheadScorer {
     const minutes = (a.players.ms + a.mobs.ms) / 60_000;
     return {
       players: a.players.report(), mobs: a.mobs.report(), delayMs: scoreDist(a.delays),
-      remote: { ...a.stats, reversalsPerMin: minutes > 0 ? a.stats.reversals / minutes : 0 },
+      remote: { ...a.stats, reversalsPerMin: minutes > 0 ? a.stats.reversals / minutes : 0 }, attackVsOffMs: scoreDist(a.attackVsOff),
     };
   }
 
@@ -315,6 +340,10 @@ export class DrawAheadScorer {
       a.hindsightFrames++;
       const j = Math.hypot((f.x - p.x) - (truth.x - p.tx), (f.y - p.y) - (truth.y - p.ty));
       if (j > 4) a.hindsightJumps++;
+      if (combat) {
+        a.hindsightCombatFrames++;
+        if (j > 4) a.hindsightCombatJumps++;
+      }
     }
     this.prev.set(key, { frame: f.frame, tDrawn: f.tDrawn, x: f.x, y: f.y, tx: truth.x, ty: truth.y });
   }
@@ -408,15 +437,21 @@ export class DrawAheadRig {
   frame(now: number, dtMs: number, measure: boolean, map: GameMap | null, rttMs: number, given: (arm: string) => number | undefined): void {
     const state = this.state;
     if (!state) return;
+    let offAttackT: number | undefined;
+    const attackTs: Array<[string, number]> = [];
     for (const a of this.arms) {
       const r = a.owned ? a.interp.renderTime(now) : given(a.name);
       if (r === undefined) continue;
       a.draw.beginFrame(map, r);
       const c = a.interp.clock.synced ? a.interp.clock.now(now) : state.serverTime;
       // An attack sent this frame lands at the first tick a round trip after the clock's estimate, and melee rewinds to its `t`
-      // (render time), clamped into [one tick, MAX_REWIND_MS] behind that tick (sim/weapons.ts noteLag, rewindTime).
+      // (RaidScene sends RemoteDraw.attackTime of the render time), clamped into [one tick, MAX_REWIND_MS] behind that tick
+      // (sim/weapons.ts noteLag, rewindTime).
+      const attackT = a.draw.attackTime(r);
+      if (a.name === "off") offAttackT = attackT;
+      else attackTs.push([a.name, attackT]);
       const applyT = (Math.floor((c + Math.max(0, rttMs)) / TICK_MS) + 1) * TICK_MS;
-      const testedT = Math.max(applyT - MAX_REWIND_MS, Math.min(r, applyT - TICK_MS));
+      const testedT = Math.max(applyT - MAX_REWIND_MS, Math.min(attackT, applyT - TICK_MS));
       this.forEachFighter((id, kind, f) => {
         if (!a.draw.draw(id, kind, { x: f.x, y: f.y, status: f.status, effects: f.effects, drawStartedAt: f.drawStartedAt ?? 0 }, r, this.out)) return;
         if (!measure) return;
@@ -431,6 +466,7 @@ export class DrawAheadRig {
       });
       if (measure) this.scorer.armFrame(a.name, a.interp.delayMs);
     }
+    if (measure && offAttackT !== undefined) for (const [name, t] of attackTs) this.scorer.attackVsOff(name, t - offAttackT);
     this.frameNo++;
   }
 
@@ -459,28 +495,34 @@ const fx2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : "-");
 const mark = (ok: boolean) => (ok ? "PASS" : "FAIL");
 
 /**
- * The acceptance gates on remote players (docs/PLAYER_PREDICTION.md): G2 the displayed age drops by at least 50 ms; G3 the error is
- * at most 1.5 u mean, 8.5 u p95, 17 u p99; G4 a correction over 4 u on at most 2% of the combat frames, nothing reset under 32 u.
- * Report-only lines follow. Never sets an exit code.
+ * The acceptance gates on remote players (docs/PLAYER_PREDICTION.md, Acceptance tests): G2 the displayed age (the moment depicted)
+ * drops by at least 50 ms, a check of the render clock that is structural on a stable link (see the header); G3 the error is at most
+ * 1.5 u mean, 8.5 u p95, 17 u p99; G4 a visible jump over 4 u in one frame (with hindsight) on at most 2% of the combat frames, and
+ * nothing reset under 32 u. Report-only lines follow. Never sets an exit code.
  */
 export function verdict(on: RemoteArmReport, off: RemoteArmReport, label = ""): { pass: boolean; lines: string[] } {
   const p = on.players;
-  const drop = off.players.ageMs.mean - p.ageMs.mean;
-  // Both arms count the ages of the same frames: below the ceiling the drop is exactly 50 ms by construction (paired render clocks),
-  // so what this checks is the wiring, and that stalls and the ceiling do not eat the gain.
+  const o = off.players;
+  const drop = o.ageMs.mean - p.ageMs.mean;
   const g2 = drop >= 50 - 0.01;
   const g3 = p.errU.mean <= 1.5 && p.errU.p95 <= 8.5 && p.errU.p99 <= 17;
-  const g4 = p.jumpCombatPct <= 2 && on.remote.resetsUnderSnap === 0;
+  const g4 = p.hindsightJumpCombatPct <= 2 && on.remote.resetsUnderSnap === 0;
   const pre = label ? `${label} ` : "";
+  const ages = (d: ScoreDist) => `${fx1(d.mean)}/${fx1(d.p95)}/${fx1(d.p99)}`;
+  const shift = on.attackVsOffMs;
   const lines = [
-    `${pre}G2 ${mark(g2)}  displayed age drop ${fx2(drop)} ms (off ${fx1(off.players.ageMs.mean)} -> on ${fx1(p.ageMs.mean)}; >= 50)`,
+    `${pre}G2 ${mark(g2)}  displayed age drop ${fx2(drop)} ms (off ${fx1(o.ageMs.mean)} -> on ${fx1(p.ageMs.mean)}; >= 50; a render clock check, structural on a stable link)`,
     `${pre}G3 ${mark(g3)}  error u mean ${fx2(p.errU.mean)} (<= 1.5)  p95 ${fx2(p.errU.p95)} (<= 8.5)  p99 ${fx2(p.errU.p99)} (<= 17)   over ${p.errU.n} remote-player frames`,
-    `${pre}G4 ${mark(g4)}  corrections over 4 u ${fx2(p.jumpCombatPct)}% of combat frames (<= 2), resets under 32 u ${on.remote.resetsUnderSnap}, snaps ${p.snaps32}`,
-    `${pre}   report  moving-only error u mean ${fx2(p.errMovingU.mean)} p95 ${fx2(p.errMovingU.p95)} p99 ${fx2(p.errMovingU.p99)}` +
-      `   data age drop ${fx1(off.players.dataAgeMs.mean - p.dataAgeMs.mean)} ms  claim age drop ${fx1(off.players.claimAgeMs.mean - p.claimAgeMs.mean)} ms`,
+    `${pre}G4 ${mark(g4)}  visible jumps over 4 u ${fx2(p.hindsightJumpCombatPct)}% of combat frames (<= 2), resets under 32 u ${on.remote.resetsUnderSnap};` +
+      `  player snaps >= 32 u ${p.snaps32} (off ${o.snaps32})`,
+    `${pre}   report  ages ms mean/p95/p99, on (off): displayed ${ages(p.ageMs)} (${ages(o.ageMs)})  data ${ages(p.dataAgeMs)} (${ages(o.dataAgeMs)}),` +
+      ` drop ${fx1(o.dataAgeMs.mean - p.dataAgeMs.mean)}  claim ${ages(p.claimAgeMs)} (${ages(o.claimAgeMs)}), drop ${fx1(o.claimAgeMs.mean - p.claimAgeMs.mean)}`,
+    `${pre}   report  moving-only error u mean ${fx2(p.errMovingU.mean)} p95 ${fx2(p.errMovingU.p95)} p99 ${fx2(p.errMovingU.p99)}`,
     `${pre}   report  error by behaviour: ${BEHAVIOURS.map((b) => `${b} ${fx2(p.errBy[b].mean)}/${fx2(p.errBy[b].p95)} (${p.errBy[b].n})`).join("  ")}`,
-    `${pre}   report  hindsight jumps ${fx2(p.hindsightJumpPct)}% (off ${fx2(off.players.hindsightJumpPct)}%)   held while moving ${fx1(p.heldMovingPct)}%` +
-      `   tested spot u mean ${fx2(p.testedU.mean)} p95 ${fx2(p.testedU.p95)} (off ${fx2(off.players.testedU.mean)}/${fx2(off.players.testedU.p95)})`,
+    `${pre}   report  hindsight jumps all frames ${fx2(p.hindsightJumpPct)}% (off ${fx2(o.hindsightJumpPct)}%)  correction steps over 4 u (speed-capped)` +
+      ` ${fx2(p.jumpCombatPct)}% of combat frames   held while moving ${fx1(p.heldMovingPct)}%`,
+    `${pre}   report  attack t less the off arm's ms mean ${fx2(shift.mean)} min ${fx2(shift.min)} max ${fx2(shift.max)}` +
+      `   tested spot u mean ${fx2(p.testedU.mean)} p95 ${fx2(p.testedU.p95)} p99 ${fx2(p.testedU.p99)} (off ${fx2(o.testedU.mean)}/${fx2(o.testedU.p95)})`,
   ];
   return { pass: g2 && g3 && g4, lines };
 }
@@ -492,7 +534,8 @@ export function formatArm(name: string, r: RemoteArmReport): string[] {
     `  err u all ${fx2(x.errU.mean)}/${fx2(x.errU.p95)}/${fx2(x.errU.p99)}  moving ${fx2(x.errMovingU.mean)}/${fx2(x.errMovingU.p95)}/${fx2(x.errMovingU.p99)}` +
     `  combat ${fx2(x.errCombatU.mean)}/${fx2(x.errCombatU.p95)}  tested ${fx2(x.testedU.mean)}/${fx2(x.testedU.p95)}` +
     `  extrapolated ${fx1(x.extrapolatedPct)}% (ahead ms mean ${fx1(x.aheadMs.mean)})  held-moving ${fx1(x.heldMovingPct)}%` +
-    `  jumps>4u ${fx2(x.jumpPct)}% (combat ${fx2(x.jumpCombatPct)}%)  hindsight ${fx2(x.hindsightJumpPct)}%  snaps ${x.snaps32}  cut frames ${x.cutFrames}`;
+    `  jumps>4u ${fx2(x.jumpPct)}% (combat ${fx2(x.jumpCombatPct)}%)  hindsight ${fx2(x.hindsightJumpPct)}% (combat ${fx2(x.hindsightJumpCombatPct)}%)` +
+    `  snaps ${x.snaps32}  cut frames ${x.cutFrames}`;
   return [
     k("players", r.players),
     k("mobs", r.mobs),

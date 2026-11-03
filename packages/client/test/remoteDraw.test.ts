@@ -48,6 +48,8 @@ interface PlayOpts {
   kind?: "player" | "mob";
   on?: boolean;
   map?: GameMap | null;
+  /** The walls of the frame at local time `now` (the gates shutting): overrides `map`. */
+  mapAt?: (now: number) => GameMap | null;
   options?: Partial<RemoteDrawOptions>;
   /** The fx of tick k (they arrive with its patch, just before it). */
   fx?: (k: number, t: number) => FxEvent[];
@@ -102,7 +104,7 @@ function play(truth: (k: number, t: number) => Truth, o: PlayOpts) {
       i++;
     }
     const r = interp.renderTime(now);
-    remote.beginFrame(map, r);
+    remote.beginFrame(o.mapAt ? o.mapAt(now) : map, r);
     if (!latest) continue;
     const f = { x: latest.x, y: latest.y, status: latest.status ?? "alive", effects: latest.effects ?? 0, drawStartedAt: latest.drawStartedAt ?? 0 };
     if (!remote.draw(ID, kind, f, r, out)) continue;
@@ -139,6 +141,22 @@ function play(truth: (k: number, t: number) => Truth, o: PlayOpts) {
 const straight = (speed: number, a = 0, hint: (k: number) => number = () => 3) => (k: number): Truth => ({
   x: 1000 + Math.cos(a) * speed * k * PATCH_MS / 1000, y: 2500 + Math.sin(a) * speed * k * PATCH_MS / 1000, walkDir: encodeWalkDir(a), walkTicks: hint(k),
 });
+
+/** A walk at `speed` along the polyline `pts` with no walk hint, as the server's tick positions (arc length speed x k ticks). */
+const along = (pts: ReadonlyArray<readonly [number, number]>, speed: number) => (k: number): Truth => {
+  let s = (speed * k * PATCH_MS) / 1000;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1]!;
+    const [bx, by] = pts[i]!;
+    const len = Math.hypot(bx - ax, by - ay);
+    if (s <= len || i === pts.length - 1) {
+      const q = Math.min(1, s / len);
+      return { x: ax + (bx - ax) * q, y: ay + (by - ay) * q, walkTicks: 0 };
+    }
+    s -= len;
+  }
+  return { x: pts[0]![0], y: pts[0]![1], walkTicks: 0 };
+};
 
 const settled = (frames: Frame[], fromNow = 2500) => frames.filter((f) => f.now >= fromNow);
 const pct = (v: number[], q: number) => [...v].sort((a, b) => a - b)[Math.min(v.length - 1, Math.floor(q * v.length))]!;
@@ -315,12 +333,59 @@ describe("RemoteDraw, cuts and snaps", () => {
     expect(run.remote.stats.snaps).toBe(0);
   });
 
+  it("the teleport's gates shutting on the spot a held fighter stands frozen at: it still stands exactly where it was drawn, nothing reset", () => {
+    const K = 60;
+    const held = straight(255, 0, () => 0);
+    const at = held(K - 1);
+    // The gated map: the tile the pre-cut sample stands on becomes a wall, from the teleport's arrival on (its patch shuts the gates).
+    const gated = roomMap(160, 160, (tx, ty) => tx === Math.floor(at.x / TILE) && ty === Math.floor(at.y / TILE));
+    const arrival = 500 + K * PATCH_MS + 15;
+    const run = play((k) => (k < K ? held(k) : { x: 3000, y: 3000, walkTicks: 0 }), {
+      ticks: 90, teleport: (k) => k === K, mapAt: (now) => (now >= arrival ? gated : OPEN),
+    });
+    const cutT = 1000 + K * PATCH_MS;
+    const arrived = run.frames.findIndex((f) => f.newest.t === cutT);
+    const crossed = run.frames.findIndex((f) => f.r >= cutT);
+    expect(run.frames[arrived - 1]!.info!.offset).toBeGreaterThan(1);
+    for (let k = arrived; k < crossed; k++) expect({ x: run.frames[k]!.x, y: run.frames[k]!.y }).toEqual({ x: run.frames[arrived - 1]!.x, y: run.frames[arrived - 1]!.y });
+    expect(run.frames[crossed]!.x).toBe(3000);
+    expect(run.remote.stats.resetsUnderSnap).toBe(0);
+  });
+
   it("a jump the server made without a cut, past 32 u, snaps once; nothing under 32 u is ever reset", () => {
     const K = 60;
     const run = play((k) => ({ x: k < K ? 1000 : 1150, y: 2500, walkTicks: 0 }), { ticks: 90 });
     expect(run.remote.stats.snaps).toBe(1);
     expect(run.remote.stats.resetsUnderSnap).toBe(0);
     expect(run.frames[run.frames.length - 1]!.x).toBe(1150);
+  });
+
+  it("rounding a wall's corner while held: the offset slides along the wall, so nothing is reset and no frame jumps", () => {
+    // A block whose corner the walk hugs: east along its south face, then north along its east face, a hair inside the draw-ahead's
+    // clip radius (PLAYER_RADIUS - 1) or, as the lerp of two tick positions cutting the corner can be, two units inside the body's.
+    // Held (hint 0, as at every waypoint), the figure trails the walk and its offset, pointing back down the first leg, cuts the
+    // corner. Cutting the offset at the wall used to jump the figure 2 to 3 u in one frame on top of its step.
+    const map = roomMap(160, 160, (tx, ty) => tx >= 20 && tx <= 39 && ty >= 40 && ty <= 76);
+    for (const gap of [PLAYER_RADIUS - 0.9, PLAYER_RADIUS - 2]) {
+      const corner: Array<[number, number]> = [[900, 77 * TILE + gap], [40 * TILE + gap, 77 * TILE + gap], [40 * TILE + gap, 1900]];
+      for (const speed of [170, 255]) {
+        for (const hz of [60, 144]) {
+          const run = play(along(corner, speed), { ticks: 70, hz, map });
+          const name = `gap ${gap} ${speed} u/s ${hz} Hz`;
+          expect(run.remote.stats.resetsUnderSnap, name).toBe(0);
+          expect(run.remote.stats.snaps, name).toBe(0);
+          // Never deeper in the wall than the walk itself, less the slide's 3 u steps.
+          for (const f of run.frames) expect(circleClear(map, f, gap - 3), name).toBe(true);
+          // A held figure moves by its correction (at most its walk speed on top of its walk) and the lerp: never a frame's jump.
+          const dt = 1000 / hz;
+          for (let k = 1; k < run.frames.length; k++) {
+            const a = run.frames[k - 1]!;
+            const b = run.frames[k]!;
+            expect(Math.hypot(b.x - a.x, b.y - a.y), `${name} frame ${k}`).toBeLessThanOrEqual((2 * speed * Math.max(dt, b.now - a.now)) / 1000 + 0.5);
+          }
+        }
+      }
+    }
   });
 });
 
@@ -417,6 +482,88 @@ describe("RemoteDraw, the model and the frame", () => {
       },
     });
     expect(checked).toBeGreaterThan(10);
+  });
+
+  it("turned off during a held walk: the drain ends only once the drawn offset has decayed, so nothing is reset or jumps", () => {
+    for (const hz of [60, 144]) {
+      let off = false;
+      let drainedAt = Infinity;
+      let prev: Frame | null = null;
+      let before = 0;
+      const dt = 1000 / hz;
+      const run = play(straight(255, 0, () => 0), {
+        ticks: 140, hz,
+        onFrame: (f, { remote, now }) => {
+          if (prev) expect(Math.hypot(f.x - prev.x, f.y - prev.y), `${hz} Hz at ${now}`).toBeLessThanOrEqual((2 * 255 * Math.max(dt, f.now - prev.now)) / 1000 + 0.5);
+          if (off && !remote.drawsAhead && !Number.isFinite(drainedAt)) {
+            // The frame the drain ended in drew sample() exactly: what the frame before drew on top of it must be (nearly) nothing.
+            drainedAt = now;
+            expect(before, `${hz} Hz`).toBeLessThanOrEqual(0.5);
+          }
+          before = f.info?.offset ?? 0;
+          prev = f;
+          if (!off && now >= 3000) { remote.setEnabled(false); off = true; }
+        },
+      });
+      expect(run.remote.stats.resetsUnderSnap, `${hz} Hz`).toBe(0);
+      expect(drainedAt - 3000, `${hz} Hz`).toBeLessThan(3000);
+    }
+  });
+
+  it("turned off and on again while draining: the offsets carry on, nothing is reset", () => {
+    let step = 0;
+    let prev: Frame | null = null;
+    const run = play(straight(255, 0, () => 0), {
+      ticks: 120, hz: 144,
+      onFrame: (f, { remote, now }) => {
+        if (prev) expect(Math.hypot(f.x - prev.x, f.y - prev.y)).toBeLessThanOrEqual((2 * 255 * Math.max(1000 / 144, f.now - prev.now)) / 1000 + 0.5);
+        prev = f;
+        if (step === 0 && now >= 3000) { remote.setEnabled(false); step = 1; }
+        else if (step === 1 && now >= 3100) {
+          expect(remote.drawsAhead).toBe(true);
+          expect(f.info!.offset).toBeGreaterThan(1);
+          remote.setEnabled(true);
+          step = 2;
+        }
+      },
+    });
+    expect(step).toBe(2);
+    expect(run.remote.stats.resetsUnderSnap).toBe(0);
+  });
+
+  it("an attack's t is the render time the setting off keeps (owner decision 5); off, or on the legacy clock, it is the render time", () => {
+    const off = new EntityInterpolator();
+    const on = new EntityInterpolator();
+    const offDraw = new RemoteDraw(off);
+    const onDraw = new RemoteDraw(on);
+    onDraw.setEnabled(true);
+    const legacy = new EntityInterpolator({ adaptive: false });
+    const legacyDraw = new RemoteDraw(legacy);
+    legacyDraw.setEnabled(true);
+    const rng = mulberry32(3);
+    let checked = 0;
+    let k = 0;
+    let last = 0;
+    for (let now = 515; now < 515 + 200 * PATCH_MS; now += 1000 / 144) {
+      while (k < 200) {
+        const at = Math.max(last, 500 + k * PATCH_MS + 15 - 5 * Math.log(1 - rng()));
+        if (at > now) break;
+        last = at;
+        const s = stateOf(1000 + k * PATCH_MS, straight(170)(k), "player");
+        for (const i of [off, on, legacy]) i.onPatch(s, at);
+        k++;
+      }
+      const rOff = off.renderTime(now);
+      const rOn = on.renderTime(now);
+      expect(offDraw.attackTime(rOff)).toBe(rOff);
+      const rLegacy = legacy.renderTime(now);
+      expect(legacyDraw.attackTime(rLegacy)).toBe(rLegacy);
+      if (now < 3000) continue;
+      expect(rOn - rOff).toBeCloseTo(EXTRAPOLATE_MS, 6);
+      expect(Math.abs(onDraw.attackTime(rOn) - rOff)).toBeLessThan(1e-6);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(500);
   });
 
   it("turned off mid-walk: draws ahead until the delay is back at the floor, then is sample() exactly; render time never reverses", () => {

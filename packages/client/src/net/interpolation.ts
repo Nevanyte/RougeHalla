@@ -52,6 +52,12 @@ export class EntityInterpolator {
   /** Whether render time may run EXTRAPOLATE_MS past the newest sample (the legacy delay never does). */
   get drawAhead(): boolean { return (this.rc?.aheadMs ?? 0) > 0; }
 
+  /** How far the delay asked is lowered for the draw-ahead (ms; 0 with it off or on the legacy clock). */
+  get aheadMs(): number { return this.rc?.aheadMs ?? 0; }
+
+  /** The delay's ceiling, which the draw-ahead does not lower (ms). */
+  get maxDelayMs(): number { return this.rc ? this.rc.options.maxMs : INTERP_DELAY_MS; }
+
   /** Turns the draw-ahead's shorter delay on or off; render time reaches the new delay by slewing, never backwards. */
   setDrawAhead(on: boolean): void {
     this.rc?.setAheadMs(on ? EXTRAPOLATE_MS : 0);

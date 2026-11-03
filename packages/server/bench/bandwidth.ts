@@ -674,11 +674,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const cost = (label: string, o: BandwidthOptions): void => {
       const withHints = runBandwidth({ ...common, ...o, walkHints: true });
       const without = runBandwidth({ ...common, ...o, walkHints: false });
-      console.log(`walk hints add ${f(withHints.totalKBps - without.totalKBps)} KB/s ${label} (${f(without.totalKBps)} -> ${f(withHints.totalKBps)})`);
+      console.log(`walk hints add ${withHints.totalKBps - without.totalKBps >= 0.3 ? "(over 0.3) " : ""}` +
+        `${(withHints.totalKBps - without.totalKBps).toFixed(3)} KB/s ${label} (${f(without.totalKBps)} -> ${f(withHints.totalKBps)})`);
     };
+    // Gated (test/bandwidth.test.ts): typical, heavy and WASD. Reported: the rest, idle and no mobs included, where the 600 ms strafe
+    // of every driven player is all there is and its countdowns cost as much as a fight's.
     cost("typical", { camps: TYPICAL_CAMPS });
     cost("heavy", { camps: HEAVY_CAMPS });
     cost("typical, WASD steering", { camps: TYPICAL_CAMPS, steer: "wasd" });
+    cost("idle", { camps: 0 });
+    cost("chests", { camps: TYPICAL_CAMPS, chests: 5 });
+    cost("no mobs", { camps: 0, mobs: 0 });
     cost(`bots (${BOTS_SCENARIO_BOTS} fill bots)`, { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS });
   }
 }

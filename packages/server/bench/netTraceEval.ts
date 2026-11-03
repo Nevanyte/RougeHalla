@@ -235,7 +235,7 @@ function drawAheadMain(files: string[], hzs: number[], sets: Array<{ name: strin
             const off = one.report("off").players;
             console.log(`  ${label} session ${k + 1} (rtt ${f1(trace.rttMs)} ms): age ${f1(off.ageMs.mean)} -> ${f1(on.ageMs.mean)} ms  ` +
               `err u ${f2(on.errU.mean)}/${f2(on.errU.p95)}/${f2(on.errU.p99)} (moving ${f2(on.errMovingU.mean)}/${f2(on.errMovingU.p95)}/${f2(on.errMovingU.p99)})  ` +
-              `jumps ${f2(on.jumpCombatPct)}% of combat frames  held-moving ${f1(on.heldMovingPct)}%  frames ${on.frames}`);
+              `visible jumps ${f2(on.hindsightJumpCombatPct)}% of combat frames  held-moving ${f1(on.heldMovingPct)}%  frames ${on.frames}`);
             merged.merge(one);
           });
           const on = merged.report("on");

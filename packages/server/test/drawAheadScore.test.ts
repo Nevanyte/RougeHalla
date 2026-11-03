@@ -63,6 +63,14 @@ describe("drawAheadScore", () => {
     expect(a.players.errCombatU.n).toBeGreaterThan(0);
     expect(a.remote.cutsCrossed).toBe(1);
     expect(a.remote.resetsUnderSnap).toBe(0);
+    expect(a.players.hindsightJumpCombatPct).toBe(0);
+    // The attack's t is the off arm's render time (owner decision 5), so the melee rewind is unchanged: the walker drawn ahead is a
+    // tick's walk (8.5 u) past the spot the server tests, where the off arm draws exactly that spot.
+    expect(a.attackVsOffMs.n).toBeGreaterThan(1000);
+    expect(Math.max(Math.abs(a.attackVsOffMs.min), Math.abs(a.attackVsOffMs.max))).toBeLessThan(1e-6);
+    expect(b.attackVsOffMs.n).toBe(0);
+    expect(b.players.testedU.max).toBeLessThan(1e-6);
+    expect(a.players.testedU.p50).toBeCloseTo(8.5, 1);
     const v = verdict(a, b, "test");
     expect(v.pass).toBe(true);
     expect(v.lines.filter((l) => /G[234] PASS/.test(l))).toHaveLength(3);

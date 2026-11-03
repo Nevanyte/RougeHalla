@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
-  countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
+  countIn, EXTRAPOLATE_MS, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
   WEAPONS, withGates, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, mirrorTimings, PLAYER_RADIUS, swapAllowed,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -673,7 +673,7 @@ export class RaidScene extends Phaser.Scene {
       if (!at) return false;
       out.x = at.x; out.y = at.y;
       return true;
-    }, this.vision.canSee, serverNow);
+    }, this.vision.canSee, serverNow, this.remoteDraw.drawsAhead ? { map: this.planMap(), until: state.serverTime + EXTRAPOLATE_MS } : undefined);
     this.fieldView.update(state.fields, renderT, now, (id) => this.visiblePosition(id), this.room.sessionId, this.vision.canSee);
 
     // Interaction range is checked against the latest synced position (what the server uses), not the
@@ -1368,7 +1368,8 @@ export class RaidScene extends Phaser.Scene {
     if (this.localWeapon(me) === "wand") { this.sendTarget(pointer); return; }
     const a = this.cursorAngle(pointer);
     if (a === null) return;
-    sendInput(this.room, "attack", { a, t: this.renderT });
+    // The render time the setting off would draw at: the draw-ahead never shortens the server's rewind (owner decision 5).
+    sendInput(this.room, "attack", { a, t: this.remoteDraw.attackTime(this.renderT) });
     this.directionalAttackHeld = true; this.lockDisplay.note("", performance.now());
     const now = performance.now();
     const auto = this.localAutoInput(now);

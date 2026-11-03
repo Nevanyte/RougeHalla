@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { packFx, unpackLaunches, Y_SCALE, type ProjectileLaunch, type TimedFx } from "@raid/shared";
+import { mapFromTiles, packFx, TILE, TILE_FLOOR, TILE_WALL, unpackLaunches, Y_SCALE, type ProjectileLaunch, type TimedFx } from "@raid/shared";
 import { ProjectileView } from "../src/render/ProjectileView";
 
 /** A Graphics that draws nothing and remembers where it was last put. */
@@ -116,6 +116,54 @@ describe("ProjectileView launches", () => {
     view.update(1000, () => false);
     view.update(6000, () => false);
     expect(made[0]!.state.destroyed).toBe(true);
+  });
+});
+
+describe("ProjectileView with render time ahead of the data (the draw-ahead's bound)", () => {
+  // A wall column at x 192..224 across the arrow's line (y 200): the server stops the arrow at x 192.
+  const walled = (() => {
+    const w = 40;
+    const h = 40;
+    const tiles = new Uint8Array(w * h).fill(TILE_FLOOR);
+    for (let y = 0; y < h; y++) tiles[y * w + 6] = TILE_WALL;
+    return mapFromTiles(w, h, tiles);
+  })();
+  const WALL_X = 6 * TILE;
+
+  it("a straight shot whose wall stop is not reported yet is never drawn through the wall", () => {
+    const { view, made } = setup();
+    view.noteLaunch(arrow);
+    for (let t = 1000; t <= 1240; t += 7) {
+      view.update(t, undefined, undefined, t, { map: walled, until: t });
+      expect(made[0]!.state.pos![0]).toBeLessThanOrEqual(WALL_X + 1e-6);
+    }
+    expect(made[0]!.state.pos![0]).toBeCloseTo(WALL_X, 6);
+    // Without the bound (the setting off: render time behind the data) it flies on until its fx says otherwise, as before.
+    const old = setup();
+    old.view.noteLaunch(arrow);
+    old.view.update(1150);
+    expect(old.made[0]!.state.pos![0]).toBeGreaterThan(WALL_X + 30);
+  });
+
+  it("nor later than `until`, the newest patch's time plus one tick, until its projEnd says where it stopped", () => {
+    const { view, made } = setup();
+    view.noteLaunch(arrow);
+    view.update(1100, undefined, undefined, 1100, { map: null, until: 1050 });
+    expect(made[0]!.state.pos![0]).toBeCloseTo(100 + 900 * 0.05, 6);
+    // Its fx is known: the stop point caps it, the bound is done with.
+    view.noteEnd(end({ x0: 100, y0: 200, t0: 1000, x: 180, y: 200, t: 1100, reason: "range" }));
+    view.update(1080, undefined, undefined, 1080, { map: null, until: 1050 });
+    expect(made[0]!.state.pos![0]).toBeCloseTo(100 + 900 * 0.08, 6);
+  });
+
+  it("a homing ball is never drawn through a wall its fx has not reported yet", () => {
+    const { view, made } = setup();
+    view.noteLaunch({ ...arrow, kind: "ball", vx: 380, targetId: "target", range: 4500 });
+    for (let t = 1000; t <= 1400; t += 7) {
+      view.update(t, (_id, _t, out) => { out.x = 400; out.y = 200; return true; }, undefined, t, { map: walled, until: t });
+      if (made[0]) expect(made[0].state.pos![0]).toBeLessThanOrEqual(WALL_X + 1e-6);
+    }
+    expect(made[0]!.state.pos![0]).toBeCloseTo(WALL_X, 6);
   });
 });
 

@@ -6,8 +6,17 @@
 // reflected, deleted or destroyed does not stay pinned: something else carries on from there (see VANISHES).
 // Own cosmetic previews use the present server estimate, then reconcile with the owned authoritative launch/stop.
 import Phaser from "phaser";
-import { WEAPONS, type ProjectileEnd, type ProjectileKind, type ProjectileLaunch, type TimedFx, type Vec2 } from "@raid/shared";
+import { raycast, WEAPONS, type GameMap, type ProjectileEnd, type ProjectileKind, type ProjectileLaunch, type TimedFx, type Vec2 } from "@raid/shared";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
+
+/**
+ * While render time may run past the newest data (the draw-ahead, net/remoteDraw.ts), a shot on the server's clock whose projEnd has
+ * not come is bounded: it flies no later than `until` (the newest patch's time plus EXTRAPOLATE_MS: the fx of every stop up to that
+ * patch are in hand, past it nothing is known) and never through a wall of `map` (the server stops it at the first one it meets: a
+ * body or a shield cannot be known before its fx). Without it a shot flies on toward its range until its fx stops it, as before,
+ * which was safe only while render time stayed behind the data.
+ */
+export interface ProjectileAhead { map: GameMap | null; until: number }
 
 export type ProjEndFx = Extract<TimedFx, { kind: "projEnd" }>;
 
@@ -56,6 +65,10 @@ interface Tracked {
   /** Where, when (server time) and why the stop was reported; set when its projEnd arrives, before it is due. */
   end: { x: number; y: number; t: number; reason: ProjectileEnd } | null;
   g: Phaser.GameObjects.Graphics | null;
+  /** A straight shot's distance to the first wall of a map along its flight (Infinity: none within its range). */
+  wall?: { map: GameMap; dist: number };
+  /** A homing replay that met a wall ahead of the data stops there until its fx (or a replay from the start) says otherwise. */
+  wallHit?: boolean;
 }
 
 /** Resolve a visible target at the client's delayed render time; false means no safe sample is available. */
@@ -161,8 +174,8 @@ export class ProjectileView {
 
   /**
    * A projEnd fx arrived (it plays later). Its stop point caps the flight, so a projectile never overshoots a wall or a
-   * body while the fx waits for render time. One never announced (loosed and stopped within a step) flies its
-   * short path from the fx's own start.
+   * body while the fx waits for render time; before it arrives, render time ahead of the data is bounded by ProjectileAhead.
+   * One never announced (loosed and stopped within a step) flies its short path from the fx's own start.
    */
   noteEnd(fx: ProjEndFx): void {
     if (this.done.has(fx.id)) return;
@@ -239,7 +252,7 @@ export class ProjectileView {
     this.tracked.delete(id);
   }
 
-  update(renderT: number, targetAt?: ProjectileTargetAt, canSee: (point: Vec2) => boolean = () => true, localT = renderT): void {
+  update(renderT: number, targetAt?: ProjectileTargetAt, canSee: (point: Vec2) => boolean = () => true, localT = renderT, ahead?: ProjectileAhead): void {
     this.localT = localT;
     for (const tr of this.tracked.values()) {
       const now = tr.localClock ? localT : renderT;
@@ -248,11 +261,13 @@ export class ProjectileView {
         continue;
       }
       const speed = Math.hypot(tr.vx, tr.vy);
+      // The own shots' previews run on the present clock, far ahead of any data, by design: the bound is for render time.
+      const bound = ahead && !tr.localClock && !tr.end ? ahead : undefined;
       if (tr.targetId) {
-        this.updateHoming(tr, now, speed, targetAt, canSee);
+        this.updateHoming(tr, now, speed, targetAt, canSee, bound);
         continue;
       }
-      const travelled = speed * ((now - tr.t) / 1000);
+      const travelled = speed * (((bound ? Math.min(now, bound.until) : now) - tr.t) / 1000);
       if (tr.end ? now > tr.end.t + END_GRACE_MS : travelled > tr.range + RANGE_SLACK) {
         this.finish(tr.id);
         continue;
@@ -262,7 +277,7 @@ export class ProjectileView {
         tr.g?.setVisible(false);
         continue;
       }
-      const limit = tr.end ? Math.hypot(tr.end.x - tr.x, tr.end.y - tr.y) : tr.range;
+      const limit = tr.end ? Math.hypot(tr.end.x - tr.x, tr.end.y - tr.y) : bound?.map ? Math.min(tr.range, this.wallDist(tr, bound.map, speed)) : tr.range;
       if (tr.end && VANISHES.has(tr.end.reason) && travelled >= limit) {
         this.finish(tr.id);
         continue;
@@ -284,7 +299,18 @@ export class ProjectileView {
     this.done.clear();
   }
 
-  private updateHoming(tr: Tracked, renderT: number, speed: number, targetAt: ProjectileTargetAt | undefined, canSee: (point: Vec2) => boolean): void {
+  /** A straight shot's distance to the first wall along its flight on `map` (cached per map: the gates close at the teleport). */
+  private wallDist(tr: Tracked, map: GameMap, speed: number): number {
+    if (!tr.wall || tr.wall.map !== map) {
+      const hit = speed > 0 ? raycast(map, tr.x, tr.y, tr.x + (tr.vx / speed) * tr.range, tr.y + (tr.vy / speed) * tr.range) : null;
+      tr.wall = { map, dist: hit?.hit ? hit.dist : Infinity };
+    }
+    return tr.wall.dist;
+  }
+
+  private updateHoming(
+    tr: Tracked, renderT: number, speed: number, targetAt: ProjectileTargetAt | undefined, canSee: (point: Vec2) => boolean, bound?: ProjectileAhead,
+  ): void {
     if (speed === 0) { tr.g?.setVisible(false); return; }
     if (renderT < tr.simT) {
       tr.simT = tr.t;
@@ -293,17 +319,21 @@ export class ProjectileView {
       tr.flightVx = tr.vx;
       tr.flightVy = tr.vy;
       tr.traveled = 0;
+      tr.wallHit = false;
     }
     const timeLimit = (tr.range + RANGE_SLACK) / speed * 1000;
     if (tr.end ? renderT > tr.end.t + END_GRACE_MS : renderT - tr.t > timeLimit) {
       this.finish(tr.id);
       return;
     }
-    // A known stop caps simulation while its fx waits for render time. Otherwise replay at the same 10 ms cadence as the server.
-    const stopAt = tr.end ? Math.min(renderT, tr.end.t) : renderT;
+    // A known stop caps simulation while its fx waits for render time; ahead of the data the bound does (ProjectileAhead).
+    // Otherwise replay at the same 10 ms cadence as the server.
+    const stopAt = tr.end ? Math.min(renderT, tr.end.t) : bound ? Math.min(renderT, bound.until) : renderT;
     const aim = { x: 0, y: 0 };
     while (tr.simT < stopAt) {
       const nextT = Math.min(stopAt, tr.simT + 10);
+      // Stays at the wall even once its fx is known: the stop is almost always that wall, and the fx's own point takes over when due.
+      if (tr.wallHit) { tr.simT = stopAt; break; }
       const aimT = tr.localClock && tr.serverT !== undefined ? tr.serverT + (nextT - tr.t) : nextT;
       if (tr.targetId && targetAt?.(tr.targetId, aimT, aim)) {
         const dx = aim.x - tr.flightX;
@@ -312,13 +342,19 @@ export class ProjectileView {
         if (d > 1e-6) { tr.flightVx = (dx / d) * speed; tr.flightVy = (dy / d) * speed; }
       }
       const dt = (nextT - tr.simT) / 1000;
-      const len = Math.min(speed * dt, Math.max(0, tr.range - tr.traveled));
-      const scale = len / speed;
-      tr.flightX += tr.flightVx * scale;
-      tr.flightY += tr.flightVy * scale;
+      let len = Math.min(speed * dt, Math.max(0, tr.range - tr.traveled));
+      let nx = tr.flightX + tr.flightVx * (len / speed);
+      let ny = tr.flightY + tr.flightVy * (len / speed);
+      if (bound?.map) {
+        // The server's sweep stops a ball at the first wall of each substep (sim/projectiles.ts).
+        const hit = raycast(bound.map, tr.flightX, tr.flightY, nx, ny);
+        if (hit.hit) { nx = hit.x; ny = hit.y; len = hit.dist; tr.wallHit = true; }
+      }
+      tr.flightX = nx;
+      tr.flightY = ny;
       tr.traveled += len;
       tr.simT = nextT;
-      if (tr.traveled >= tr.range) break;
+      if (tr.traveled >= tr.range || tr.wallHit) break;
     }
     if (tr.end && renderT >= tr.end.t) {
       if (VANISHES.has(tr.end.reason)) { this.finish(tr.id); return; }
