@@ -206,6 +206,18 @@ export function isUntargetableId(world: World, id: string): boolean {
   return untargetableNow(world, statusesById(world, id));
 }
 
+/**
+ * isUntargetable at a later server time `at`, from the statuses held now: their expiries and reveal windows (a reveal starts a tick
+ * after the attack or cast that makes it). For the walk hint (sim/walkHint.ts), which speaks of the next tick.
+ */
+export function isUntargetableAt(c: Combatant, at: number): boolean {
+  for (const st of c.rt.statuses ?? NONE) {
+    if (st.until <= at) continue;
+    if (st.kind === "untargetable" || (st.kind === "hidden" && !revealedAt(st, at))) return true;
+  }
+  return false;
+}
+
 /** hidden, active, and not revealed by its own attack or cast just now. */
 export function isHidden(world: World, c: Combatant): boolean {
   return hiddenNow(world, c.rt.statuses ?? NONE);

@@ -1,6 +1,16 @@
 // Snapshot interpolation. Pure so it can be unit-tested and reused by headless bots.
 import { INTERP_DELAY_MS, MAX_INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, PATCH_MS, TELEPORT_DISTANCE } from "./constants";
 
+/** The walk hint's heading (PlayerExtraState.walkDir): an angle in radians as 256ths of a turn. */
+export function encodeWalkDir(a: number): number {
+  return Math.round((a * 128) / Math.PI) & 255;
+}
+
+/** The angle (radians, 0..2π) of a walkDir. */
+export function decodeWalkDir(d: number): number {
+  return (d * Math.PI) / 128;
+}
+
 export interface Sample {
   t: number;
   x: number;

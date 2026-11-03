@@ -19,6 +19,21 @@ export const INTERP_DELAY_MS = 100;
 export const MIN_INTERP_DELAY_MS = 70;
 export const MAX_INTERP_DELAY_MS = 150;
 /**
+ * Draw-ahead (docs/PLAYER_PREDICTION.md Stage 2, presentation only): a remote player the server says is walking on (its walk hint,
+ * PlayerExtraState.walkTicks >= 1) may be drawn up to this far past its newest sample, and the render delay's floor, initial
+ * value and asked value all drop by it (shared/interp.ts RenderClock `aheadMs`). One tick: 8.5 u of walk at PLAYER_SPEED.
+ */
+export const EXTRAPOLATE_MS = TICK_MS;
+/** Mobs have no walk hint: one moving at its newest step's velocity is drawn at most this far past its newest sample. */
+export const MOB_EXTRAPOLATE_MS = 25;
+/**
+ * The walk hint's cap (owner decision 2): PlayerExtraState.walkTicks counts at most this many whole ticks of committed walk, so a
+ * destination never leaks.
+ */
+export const WALK_HINT_MAX_TICKS = 3;
+/** A continuing walk's heading (walkDir, 256ths of a turn) is rewritten only when it moves this many steps (about 4.2 degrees). */
+export const WALK_DIR_HYSTERESIS = 3;
+/**
  * How far back the server rewinds targets to match what an attacker saw (lag compensation).
  * Covers INTERP_DELAY_MS + RTT + one tick for clients up to ~150 ms RTT.
  */

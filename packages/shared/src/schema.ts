@@ -23,6 +23,16 @@ export const PlayerExtraState = schema({
   killStats: t.map("float64"),
   /** Server time until which an attack or cast has exposed this player inside a bush (vision.ts `bushConceals`). Appended for wire compatibility. */
   bushRevealUntil: t.uint32().default(0),
+  /**
+   * The walk hint (sim/walkHint.ts; presentation only, the sim never reads it). The heading of the walk the server will continue,
+   * in 256ths of a turn (shared/interp.ts encodeWalkDir); meaningful only while walkTicks > 0.
+   */
+  walkDir: t.uint8().default(0),
+  /**
+   * Whole ticks (0..WALK_HINT_MAX_TICKS) the server is committed to keep walking along walkDir at the current speed, barring a new
+   * order or another fighter's act: a lower bound. Clients draw a remote player ahead only while it is 1 or more.
+   */
+  walkTicks: t.uint8().default(0),
 }, "PlayerExtraState");
 export type PlayerExtraState = SchemaType<typeof PlayerExtraState>;
 

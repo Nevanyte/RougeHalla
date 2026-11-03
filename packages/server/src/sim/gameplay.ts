@@ -28,6 +28,7 @@ import { install as installTargeting } from "./targeting";
 import { install as installTerrain } from "./terrainEffects";
 import { install as installWeapons } from "./weapons";
 import { install as installVision } from "./vision";
+import { install as installWalkHint } from "./walkHint";
 import { createWorld, type World } from "./world";
 
 type CreateOpts = Parameters<typeof createWorld>[0];
@@ -72,15 +73,20 @@ const MODULES: Array<(world: World) => void> = [
   installMods,
   // Companions read the final owner max-health fold when following and growing.
   installPlagueZombies,
+  // Presentation only (the walk hint mirrors, docs/PLAYER_PREDICTION.md Stage 2): after every system that changes the game, so it
+  // reads the paths and roots the next tick starts from. It changes nothing the sim reads.
+  installWalkHint,
 ];
 
 /**
  * `signatures: false` leaves faction signatures out (sim/factions.ts): tests that check a weapon's own damage, timing or
- * fx use it, since the signatures add damage between fighters in contact.
+ * fx use it, since the signatures add damage between fighters in contact. `walkHints: false` leaves the walk hint out (the
+ * no-outcome-change tests and the bandwidth comparison).
  */
-export function createGameWorld(opts: CreateOpts, modules: { signatures?: boolean } = {}): World {
+export function createGameWorld(opts: CreateOpts, modules: { signatures?: boolean; walkHints?: boolean } = {}): World {
   const world = createWorld(opts);
   for (const install of MODULES) {
+    if (install === installWalkHint && modules.walkHints === false) continue;
     // `signatures: false` is the weapon-only test world. Keep faction passives, including Fire's roaming charge,
     // out together so those tests retain a faction-neutral movement baseline.
     if ((install === installFactions || install === installFireRoam || install === installBruiserPassives

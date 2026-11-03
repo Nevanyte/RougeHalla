@@ -249,7 +249,7 @@ export function updateWeapons(world: World): void {
  * A cooldown or a windup that ends exactly on a tick (an interval of 2/3 s lands three swings on 2.000 s) is due on that tick, whichever way
  * float noise in the carried times falls (testing/realtime.py's EPS, 1e-9 s): otherwise a swing slips a whole tick on some sums.
  */
-const TIE_EPS_MS = 1e-6;
+export const TIE_EPS_MS = 1e-6;
 
 function stepWeapon(world: World, c: Combatant): void {
   const now = world.state.serverTime;

@@ -61,6 +61,8 @@ export interface HeadlessRoomOptions {
   startAtOnce?: boolean;
   /** Records the run (docs/TELEMETRY.md): the recorder is installed last, and the record is submitted when the run ends. */
   telemetry?: TelemetryRuntime;
+  /** False leaves the walk hint out (sim/walkHint.ts; createGameWorld's `walkHints`): the no-outcome-change tests and the bandwidth comparison. */
+  walkHints?: boolean;
 }
 
 /** A player's result, as the Room's `settle` receives it. */
@@ -112,7 +114,7 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
     rewardSalt: [mix(seed, 2), mix(seed, 3), mix(seed, 4), mix(seed, 5)],
     // The default is a random UUID, which would put a different string in every container of every replay.
     newItemUid: ((n: number) => () => `u${++n}`)(0),
-  });
+  }, opts.walkHints === false ? { walkHints: false } : {});
   const manager = new BotManager(world, opts.bots, {
     store: opts.statsStore ?? null,
     isNameTaken: opts.isNameTaken ?? (() => false),
