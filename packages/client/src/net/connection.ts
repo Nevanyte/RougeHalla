@@ -1,5 +1,5 @@
 import { Client, type Room } from "@colyseus/sdk";
-import { ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME, type ClientMessages, type JoinOptions } from "@raid/shared";
+import { CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE, ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME, type ClientMessages, type JoinOptions } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { readPasscode } from "./passcode";
 import { MessageMeter } from "./uplinkPace";
@@ -23,10 +23,17 @@ export function serverEndpoint(): string {
   return import.meta.env.DEV ? `${location.protocol}//${location.hostname}:${SERVER_PORT}` : location.origin;
 }
 
-/** The join options with the playtest passcode, when this page has one (a link with ?code=, or one remembered from before). */
-function withPasscode<T extends JoinOptions | Omit<JoinOptions, "mode">>(options: T): T {
+/** The wire build this page was built with (vite.config.ts bakes it into a production build; a dev build and the tests have none). */
+export function pageWireBuild(): string | undefined {
+  const build = import.meta.env.VITE_WIRE_BUILD as string | undefined;
+  return build || undefined;
+}
+
+/** The join options with what the page adds: the playtest passcode, when it has one (a link with ?code=, or one remembered from before), and its wire build. */
+function withPageFacts<T extends JoinOptions | Omit<JoinOptions, "mode">>(options: T): T {
   const passcode = readPasscode();
-  return passcode ? { ...options, passcode } : options;
+  const build = pageWireBuild();
+  return { ...options, ...(passcode ? { passcode } : {}), ...(build ? { build } : {}) };
 }
 
 /**
@@ -62,6 +69,12 @@ function tuneReconnection(room: RaidRoom): void {
 export function joinErrorMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   return msg || "unknown error";
+}
+
+/** The server refused the join because this page is older than the server's contract: the player must reload (CLIENT_OUT_OF_DATE_*). */
+export function isClientOutOfDate(err: unknown): boolean {
+  const code = typeof err === "object" && err !== null ? (err as { code?: unknown }).code : undefined;
+  return code === CLIENT_OUT_OF_DATE_CODE || joinErrorMessage(err).includes(CLIENT_OUT_OF_DATE_MESSAGE);
 }
 
 /** The server refused the join because this callsign already has a seat in a run (typically a duplicated tab). */
@@ -102,7 +115,7 @@ export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
   // the next joinOrCreate lands in a fresh lobby.
   for (let attempt = 0; ; attempt++) {
     try {
-      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, withPasscode(options));
+      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, withPageFacts(options));
       tuneReconnection(room);
       return room;
     } catch (err) {
@@ -118,9 +131,25 @@ export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
 export async function joinTraining(options: Omit<JoinOptions, "mode">): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
   // The server's "training" handler forces the mode; nothing the client sends decides it.
-  const room = await client.create<RaidState>(TRAINING_ROOM_NAME, withPasscode(options));
+  const room = await client.create<RaidState>(TRAINING_ROOM_NAME, withPageFacts(options));
   tuneReconnection(room);
   return room;
+}
+
+/** WebSocket.readyState OPEN. */
+const WS_OPEN = 1;
+
+/**
+ * The bytes the room's socket still holds for the network (WebSocket.bufferedAmount): above 0 for a while means the uplink is
+ * stalled and what is sent now arrives later, in a burst. The SDK keeps the socket on its transport (`connection.transport.ws`,
+ * WebSocketTransport; another transport has none) and a reconnect builds a new one, so it is looked up on every call. Undefined
+ * when there is no open socket to read.
+ */
+export function socketBufferedBytes(room: RaidRoom): number | undefined {
+  const ws = (room.connection?.transport as unknown as { ws?: { readyState?: number; bufferedAmount?: number } } | undefined)?.ws;
+  if (!ws || ws.readyState !== WS_OPEN) return undefined;
+  const n = ws.bufferedAmount;
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
 const outbound = new MessageMeter();

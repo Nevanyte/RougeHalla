@@ -1,6 +1,6 @@
 import { FIRE_ROAM_CHARGE_MAX, FIRE_ROAM_RAMP_MS, fireRoamBurstDamage, fireRoamCharge, fireRoamSpeedMult } from "@raid/shared";
 import { deferHit } from "./ledger";
-import { apOf } from "./mods";
+import { adOf } from "./mods";
 import type { Combatant } from "./combatant";
 import type { DamagePacket, LedgerEntry, World } from "./world";
 import { chainHook } from "./world";
@@ -61,11 +61,11 @@ function onHitLanded(world: World, entry: LedgerEntry, _applied: number): void {
   owner.roamReady = false;
   const victimExists = world.state.players.has(entry.victim) || world.state.mobs.has(entry.victim);
   if (!victimExists) return;
-  const amount = fireRoamBurstDamage(apOf(owner));
+  const amount = fireRoamBurstDamage(adOf(owner));
   deferHit(world, {
     victim: entry.victim,
     by: { id: entry.by.id, name: owner.name },
-    packet: { phys: 0, magic: 1, true: 0, raw: amount },
+    packet: { phys: 1, magic: 0, true: 0, raw: amount },
     weapon: null,
     derived: true,
     stagger: false,

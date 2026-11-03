@@ -262,6 +262,7 @@ class Scene {
   fighting = false;
   retreating = false;
   inColiseum = false;
+  teleportAt = 0;
   sight = true;
   walkLen: (to: Vec2) => number | null = (to) => Math.hypot(to.x - this.self.x, to.y - this.self.y);
   walkCalls = 0;
@@ -271,7 +272,7 @@ class Scene {
     return {
       now: this.now, serverTime: this.serverTime, self: this.self, chests: this.chests,
       walk: (to) => { this.walkCalls++; return this.walkLen(to); },
-      sight: () => this.sight, fighting: this.fighting, retreating: this.retreating, inColiseum: this.inColiseum,
+      sight: () => this.sight, fighting: this.fighting, retreating: this.retreating, inColiseum: this.inColiseum, teleportAt: this.teleportAt,
     };
   }
 
@@ -345,6 +346,18 @@ describe("the chest hunt", () => {
     late.chests = [chest("late", 40, 0, { expiresAt: SERVER + 50 + CHEST_HUNT.pickMarginMs })];
     expect(late.step()).toEqual({ kind: "none" });
     expect(late.hunter.tried("late")).toBe(false);
+  });
+
+  it("counts the next teleport as the end of every chest's life", () => {
+    // The coliseum teleport clears every chest: a pick in its last moment would be refused "Chest gone".
+    const s = new Scene();
+    s.chests = [chest("c1", 40, 0)];
+    // Each step moves the clock 50 ms before it decides.
+    s.teleportAt = SERVER + 50 + CHEST_HUNT.pickMarginMs;
+    expect(s.step()).toEqual({ kind: "none" });
+    expect(s.hunter.tried("c1")).toBe(false);
+    s.teleportAt = SERVER + 100 + CHEST_HUNT.pickMarginMs + 50;
+    expect(s.step().kind).toBe("pick");
   });
 
   it("does not walk to a chest it cannot reach before it vanishes", () => {

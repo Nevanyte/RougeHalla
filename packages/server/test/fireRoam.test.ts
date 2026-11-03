@@ -129,7 +129,7 @@ describe("authoritative Fire roaming charge", () => {
     const hpBeforeBurst = victim.hp;
     const expected = mitigateShares(
       FIRE_ROAM_BURST_BASE,
-      { phys: 0, magic: 1, true: 0 },
+      { phys: 1, magic: 0, true: 0 },
       factionOf(combatant(world, hitVictim)!.s)!,
     );
     step(world, TICK_MS);
@@ -158,10 +158,10 @@ describe("authoritative Fire roaming charge", () => {
     expect(fire.roamReady).toBe(false);
     expect(world.combat.deferred).toHaveLength(1);
     expect(world.combat.deferred[0]!.packet.raw).toBe(FIRE_ROAM_BURST_BASE);
-    expect(world.combat.deferred[0]!.packet.magic).toBe(1);
+    expect(world.combat.deferred[0]!.packet.phys).toBe(1);
 
     const hpBeforeBurst = world.state.players.get("foe-a")!.hp;
-    const expectedBurstDamage = mitigateShares(FIRE_ROAM_BURST_BASE, { phys: 0, magic: 1, true: 0 }, factionOf(combatant(world, "foe-a")!.s)!);
+    const expectedBurstDamage = mitigateShares(FIRE_ROAM_BURST_BASE, { phys: 1, magic: 0, true: 0 }, factionOf(combatant(world, "foe-a")!.s)!);
     step(world, TICK_MS);
     expect(hpBeforeBurst - world.state.players.get("foe-a")!.hp).toBeCloseTo(expectedBurstDamage, 4);
     expect(expectedBurstDamage).toBeGreaterThan(0);

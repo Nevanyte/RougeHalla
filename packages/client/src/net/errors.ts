@@ -1,6 +1,7 @@
 // Turns whatever a failed join, request or socket threw into one short, plain sentence for a player. The raw text (a
 // stack, an SDK message, "[object Object]", a close code) never reaches the screen; callers keep it for console.error.
 // An unrecognised failure reads as the generic line instead of echoing what it said.
+import { CLIENT_OUT_OF_DATE_CODE } from "@raid/shared";
 
 export const UNREACHABLE_MESSAGE = "Can't reach the game server. Check your connection and try again.";
 export const TIMEOUT_MESSAGE = "The game server took too long to answer. Please try again.";
@@ -16,6 +17,8 @@ const NO_MODE_MESSAGE = "The server doesn't offer this game mode right now. Relo
 const GONE_MESSAGE = "That run is no longer available. Try again.";
 const SEAT_EXPIRED_MESSAGE = "Your seat in the run expired before you connected. Try joining again.";
 export const GENERIC_MESSAGE = "Something went wrong. Please try again.";
+/** The server refused the join because this page was loaded before a deploy that changed the contract (CLIENT_OUT_OF_DATE_*). */
+export const OUT_OF_DATE_MESSAGE = "The game was updated since this page was opened. Reload the page to play.";
 export const CALLSIGN_BUSY_MESSAGE =
   "That callsign is still in a run (another tab, or your last run is still closing). Try again in a few seconds, or use another callsign.";
 export const JOIN_CLOSED_MESSAGE = "The connection closed before you could join. Please try again.";
@@ -36,6 +39,7 @@ const TIMEOUT_RE = /timed? ?out|timeout|etimedout|took too long/i;
 
 /** What a failure says, in the order a refusal is most likely to match: the server's own join refusals first. */
 const MESSAGE_RULES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/out of date with the server/i, OUT_OF_DATE_MESSAGE],
   [/wrong passcodes/i, PASSCODE_THROTTLED_MESSAGE],
   [/passcode/i, PASSCODE_MESSAGE],
   [/server is full/i, SERVER_FULL_MESSAGE],
@@ -111,6 +115,7 @@ export function friendlyError(err: unknown): string {
     if (CLOSE_ABNORMAL.has(code)) return UNREACHABLE_MESSAGE;
     if (code === CLOSE_SERVER_SHUTDOWN) return RESTARTING_MESSAGE;
     if (CLOSE_NORMAL.has(code)) return JOIN_CLOSED_MESSAGE;
+    if (code === CLIENT_OUT_OF_DATE_CODE) return OUT_OF_DATE_MESSAGE;
     if (code === 520) return NO_MODE_MESSAGE;
     if (code === 521 || code === 522) return GONE_MESSAGE;
     if (code === 523) return "The game server couldn't set up a run. Please try again in a moment.";

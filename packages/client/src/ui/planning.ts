@@ -62,7 +62,7 @@ export interface PlanningEnemy {
 }
 
 /** Public corpse coordinates, supplied only to a living Plague player. */
-export interface PlanningCorpse { id: string; x: number; y: number; expiresAt: number; playerName?: string }
+export interface PlanningCorpse { id: string; x: number; y: number; playerName?: string }
 
 /** What the scene hands the view each frame (only while the mode is not hidden). */
 export interface PlanningFrame {
@@ -1058,10 +1058,9 @@ export class PlanningView {
       && frame.local.x >= 0 && frame.local.y >= 0 && frame.local.x <= span && frame.local.y <= span
       ? frame.local : null;
     const visibleCorpses = frame.local?.alive && frame.localFaction === "plague"
-      ? (frame.corpses ?? []).filter((c) => Number.isFinite(c.x + c.y) && c.x >= 0 && c.y >= 0 && c.x <= span && c.y <= span
-          && c.expiresAt > frame.serverNow)
+      ? (frame.corpses ?? []).filter((c) => Number.isFinite(c.x + c.y) && c.x >= 0 && c.y >= 0 && c.x <= span && c.y <= span)
       : [];
-    const key = `${local ? `${local.x},${local.y},${local.alive}` : ""}|${visibleEnemies.map((e) => `${e.id}:${e.x},${e.y},${!!e.tracked}`).join(";")}|${visibleCorpses.map((c) => `${c.id}:${c.x},${c.y},${c.expiresAt}`).join(";")}`;
+    const key = `${local ? `${local.x},${local.y},${local.alive}` : ""}|${visibleEnemies.map((e) => `${e.id}:${e.x},${e.y},${!!e.tracked}`).join(";")}|${visibleCorpses.map((c) => `${c.id}:${c.x},${c.y}`).join(";")}`;
     if (key === this.keyActors) return;
     this.keyActors = key;
     const marks: HTMLElement[] = [];

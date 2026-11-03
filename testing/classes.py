@@ -37,7 +37,7 @@ FROST = PowerSpec(
 HOLY = PowerSpec(
     name="Holy", hp=1145, rate=0.95, hit=92.2,
     phys=1.0, true=0.0, armor=78, shield=78,
-    sustain="radiant", params=dict(ls0=0.08, ls1=0.65, ls_cap=0.6),
+    sustain="radiant", params=dict(ls0=0.07, ls1=0.6, ls_cap=0.6),
 )
 
 POWERS = [FIRE, SENTENCED, PLAGUE, FROST, HOLY]

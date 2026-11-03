@@ -2,7 +2,9 @@
 // build (served by the game server itself), the dev port in a dev build, VITE_SERVER_URL over both; the playtest passcode
 // from the page's address, remembered, and sent with a join and with a profile request.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PASSCODE_HEADER, PROFILE_TOKEN_HEADER, ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME } from "@raid/shared";
+import {
+  CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE, PASSCODE_HEADER, PROFILE_TOKEN_HEADER, ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME,
+} from "@raid/shared";
 
 const created: Array<{ endpoint: string; calls: Array<{ method: string; room: string; options: Record<string, unknown> }> }> = [];
 
@@ -177,5 +179,78 @@ describe("the profile requests", () => {
     const { purchaseCosmetic } = await import("../src/net/profile");
     const { RATE_LIMIT_MESSAGE } = await import("../src/net/errors");
     await expect(purchaseCosmetic("amy", "skin-x")).rejects.toMatchObject({ code: "unavailable", message: RATE_LIMIT_MESSAGE });
+  });
+});
+
+describe("socketBufferedBytes", () => {
+  const room = (ws: unknown, transport = true) => ({ connection: transport ? { transport: { ws } } : {} }) as never;
+
+  it("reads the bufferedAmount of the SDK's open socket, afresh on every call", async () => {
+    stubPage();
+    const { socketBufferedBytes } = await load();
+    const ws = { readyState: 1, bufferedAmount: 0 };
+    const r = room(ws);
+    expect(socketBufferedBytes(r)).toBe(0);
+    ws.bufferedAmount = 4096;
+    expect(socketBufferedBytes(r)).toBe(4096);
+  });
+
+  it("is undefined when there is no open socket to read: connecting, closing, closed, another transport or junk", async () => {
+    stubPage();
+    const { socketBufferedBytes } = await load();
+    for (const readyState of [0, 2, 3]) expect(socketBufferedBytes(room({ readyState, bufferedAmount: 99 })), `state ${readyState}`).toBeUndefined();
+    expect(socketBufferedBytes(room(undefined))).toBeUndefined(); // a transport with no `ws`
+    expect(socketBufferedBytes(room(undefined, false))).toBeUndefined(); // no transport yet
+    expect(socketBufferedBytes({} as never)).toBeUndefined();
+    expect(socketBufferedBytes(room({ readyState: 1 }))).toBeUndefined();
+    expect(socketBufferedBytes(room({ readyState: 1, bufferedAmount: Number.NaN }))).toBeUndefined();
+    expect(socketBufferedBytes(room({ readyState: 1, bufferedAmount: "7" }))).toBeUndefined();
+  });
+});
+
+describe("the page's wire build in a join", () => {
+  type Calls = Array<{ client: { calls: Array<{ options: Record<string, unknown> }> } }>;
+  const optionsOfFirstCalls = () => (created as unknown as Calls[number]["client"][]).flatMap((c) => c.calls.map((call) => call.options));
+
+  it("rides in the options of a run join and of a training join, beside the passcode, when the build has one baked in", async () => {
+    vi.stubEnv("VITE_WIRE_BUILD", "a1b2c3");
+    stubPage({ href: "https://x.trycloudflare.com/?code=open-sesame" });
+    const { joinRaid, joinTraining, pageWireBuild } = await load();
+    expect(pageWireBuild()).toBe("a1b2c3");
+    await joinRaid({ profile: "amy", token: "t", faction: "fire" });
+    await joinTraining({ profile: "amy", token: "t" });
+    expect(optionsOfFirstCalls()).toEqual([
+      { profile: "amy", token: "t", faction: "fire", passcode: "open-sesame", build: "a1b2c3" },
+      { profile: "amy", token: "t", passcode: "open-sesame", build: "a1b2c3" },
+    ]);
+  });
+
+  it("is left out of the options entirely when nothing is baked in (a dev build, the tests) or the value is empty", async () => {
+    for (const value of [undefined, ""]) {
+      created.length = 0;
+      vi.resetModules();
+      vi.stubEnv("VITE_WIRE_BUILD", value as string);
+      stubPage();
+      const { joinRaid, pageWireBuild } = await load();
+      expect(pageWireBuild()).toBeUndefined();
+      await joinRaid({ profile: "amy", token: "t" });
+      expect(optionsOfFirstCalls()).toEqual([{ profile: "amy", token: "t" }]);
+      expect(Object.keys(optionsOfFirstCalls()[0]!)).not.toContain("build");
+    }
+  });
+});
+
+describe("isClientOutOfDate", () => {
+  it("knows the server's refusal by its status or by its sentence, and nothing else", async () => {
+    stubPage();
+    const { isClientOutOfDate } = await load();
+    const sdkError = (message: string, code?: number) => Object.assign(new Error(message), { name: "ServerError", code });
+    expect(isClientOutOfDate(sdkError(CLIENT_OUT_OF_DATE_MESSAGE, CLIENT_OUT_OF_DATE_CODE))).toBe(true);
+    expect(isClientOutOfDate(sdkError(CLIENT_OUT_OF_DATE_MESSAGE))).toBe(true);
+    expect(isClientOutOfDate({ code: CLIENT_OUT_OF_DATE_CODE })).toBe(true);
+    expect(isClientOutOfDate(CLIENT_OUT_OF_DATE_MESSAGE)).toBe(true);
+    for (const other of [sdkError("profile already in a raid", 4215), sdkError("the server is full: too many rooms are open right now", 523), new Error("Failed to fetch"), "", undefined, null, 426.5, {}]) {
+      expect(isClientOutOfDate(other), String(other)).toBe(false);
+    }
   });
 });

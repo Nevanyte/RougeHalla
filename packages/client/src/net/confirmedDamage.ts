@@ -51,7 +51,7 @@ export class ConfirmedDamage<F extends ConfirmedFx = ConfirmedHit> {
  * on the input clock (localAutos), so the server's confirmation is shown with the state patch that carries it, not a render delay
  * later. Never a projectile's hit or block (its arrow or ball flies in render time and the impact must meet it), damage over
  * time, a signature, an ability, a card's bleed (FxView.hit's `dot`: no weapon, signature or ability), a passive hit or block
- * (damage the local player returned: a riposte, a reflected arrow, Spiked Shell, Final Verdict; it names the weapon in hand, so
+ * (damage the local player returned: a riposte, a reflected arrow, Spiked Shell, Final Verdict, Overkill's spill-over; it names the weapon in hand, so
  * only the flag tells it from a blow, and it answers a remote attack still ahead in render time), or anything that lands on the
  * local player.
  */

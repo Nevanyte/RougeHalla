@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACTIONS, plagueZombieStats, PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_LIFETIME_MS, PLAGUE_CORPSE_INTERACT_RANGE, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, TICK_MS, generateMap, mapFromTiles, mulberry32, type GameMap } from "@raid/shared";
+import { FACTIONS, plagueZombieStats, PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_INTERACT_RANGE, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, TICK_MS, generateMap, mapFromTiles, mulberry32, type GameMap } from "@raid/shared";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { downPlayer } from "../src/sim/arena";
@@ -35,12 +35,11 @@ function consume(w: World, player: string, corpseId: string): void {
 }
 
 describe("Plague corpse harvest", () => {
-  it("leaves a timed corpse on death and grants max health, one explicit heal, and one zombie", () => {
+  it("leaves a lasting corpse on death and grants max health, one explicit heal, and one zombie", () => {
     const w = world();
     const id = die(w);
     const corpse = w.state.plagueCorpses.get(id)!;
     expect(corpse).toMatchObject({ playerId: "victim", playerName: "Victim", x: 500, y: 500 });
-    expect(corpse.expiresAt - w.state.serverTime).toBe(PLAGUE_CORPSE_LIFETIME_MS);
     const p = w.state.players.get("plague-a")!;
     p.x = 500; p.y = 500; p.hp = p.maxHp / 2;
     const beforeHp = p.hp, beforeMax = p.maxHp;
@@ -75,15 +74,16 @@ describe("Plague corpse harvest", () => {
     expect(w.state.plagueCorpses.has(second)).toBe(true);
   });
 
-  it("expires corpses and leaves no corpse for MIA removals", () => {
+  it("keeps a corpse for the whole run until it is consumed, and leaves no corpse for MIA removals", () => {
     const w = world();
     const id = die(w);
+    step(w, 10 * 60_000);
     const corpse = w.state.plagueCorpses.get(id)!;
-    w.state.serverTime = corpse.expiresAt - TICK_MS;
+    expect(corpse).toBeDefined();
     const p = w.state.players.get("plague-a")!; p.x = corpse.x; p.y = corpse.y;
     consume(w, "plague-a", id);
     expect(w.state.plagueCorpses.has(id)).toBe(false);
-    expect(p.corpseStacks).toBe(0);
+    expect(p.corpseStacks).toBe(1);
 
     const mia = w.state.players.get("other")!;
     downPlayer(w, mia, w.players.get("other")!, "mia");

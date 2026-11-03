@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CampState } from "@raid/shared/schema";
 import {
-  circleClear, FACTIONS, mapFromTiles, mulberry32, plagueZombieStats, PLAGUE_ZOMBIE_ASSIST_MS, TICK_MS,
+  circleClear, FACTIONS, mapFromTiles, mulberry32, plagueZombieStats, PLAGUE_ZOMBIE_ASSIST_MS, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND, TICK_MS,
   TILE_FLOOR, TILE_WALL,
 } from "@raid/shared";
 import { downPlayer, teleportToColiseum } from "../src/sim/arena";
@@ -242,7 +242,7 @@ describe("Plague's single zombie", () => {
     const calm = z.s.hp;
     for (let i = 0; i < 20; i++) step(w, TICK_MS);
     const calmGain = z.s.hp - calm;
-    expect(calmGain).toBeGreaterThan(z.s.maxHp * 0.015 * 0.8);
+    expect(calmGain).toBeGreaterThan(z.s.maxHp * PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND * 0.8);
     z.s.hp = z.s.maxHp * 0.5; const base = z.s.hp;
     z.rt.lastHitAt = w.state.serverTime + 5000;
     for (let i = 0; i < 20; i++) step(w, TICK_MS);

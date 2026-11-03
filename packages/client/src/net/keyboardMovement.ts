@@ -27,8 +27,10 @@ export const STEER_COALESCE_MS = 3;
  * sends at once (so the order is not quantised to the render frame) unless it follows the last send too closely; the frame
  * picks that one up, since `changed` stays set. A negative gap (the clock stepped back) defers an event instead of sending it.
  * `repeatMs`: the held direction's repeat, which the scene stretches while the tick's deadline is unknown (net/tickPhase.ts sweepMs).
+ * `stalled`: the uplink is backed up (net/uplinkPace.ts StallWatch): the repeat, a continuous stream, waits for it to clear; a key
+ * change is an order and still goes.
  */
-export function steerDue(s: { changed: boolean; lastAt: number }, now: number, fromEvent: boolean, repeatMs = STEER_REPEAT_MS): boolean {
+export function steerDue(s: { changed: boolean; lastAt: number }, now: number, fromEvent: boolean, repeatMs = STEER_REPEAT_MS, stalled = false): boolean {
   const gap = now - s.lastAt;
-  return fromEvent ? s.changed && gap >= STEER_COALESCE_MS : s.changed || gap >= repeatMs;
+  return fromEvent ? s.changed && gap >= STEER_COALESCE_MS : s.changed || (!stalled && gap >= repeatMs);
 }

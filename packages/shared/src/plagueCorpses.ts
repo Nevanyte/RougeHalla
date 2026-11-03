@@ -1,5 +1,4 @@
 /** Plague's corpse harvest. These values are shared by the sim and combat readouts. */
-export const PLAGUE_CORPSE_LIFETIME_MS = 90_000;
 export const PLAGUE_CORPSE_AUTO_RANGE = 24;
 /** Compatibility name for older input callers; both paths require the same body overlap. */
 export const PLAGUE_CORPSE_INTERACT_RANGE = PLAGUE_CORPSE_AUTO_RANGE;
@@ -15,7 +14,7 @@ export const PLAGUE_ZOMBIE_HP_PER_BONUS = 0.4;
 export const PLAGUE_ZOMBIE_HIT_SHARE = 0.003;
 export const PLAGUE_ZOMBIE_HIT_PER_BONUS = 0.025;
 /** Passive regen of the zombie's max HP per second; it slows to the combat factor while it was hit within the quiet window. */
-export const PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND = 0.015;
+export const PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND = 0.05;
 export const PLAGUE_ZOMBIE_REGEN_COMBAT_FACTOR = 0.25;
 export const PLAGUE_ZOMBIE_REGEN_QUIET_MS = 4000;
 export const PLAGUE_ZOMBIE_REGEN_STEP_MS = 500;

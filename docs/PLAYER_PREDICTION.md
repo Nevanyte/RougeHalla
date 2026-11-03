@@ -292,6 +292,25 @@ after are means unless marked p95.
 Not done, by the owner's decision list below: the remote draw-ahead of Stage 2, the walk hint, sub-tick windup
 starts, and a fresher melee `t`.
 
+### Follow-ups from the deploy review
+
+The deploy-risk review passed the pass (SHIP) and listed three things it did not fix. They are fixed on
+`claude/netcode-followups`, each with a test; none changes a hit, a root, a kill or an order.
+
+- **Overkill's spill-over is returned damage on the wire.** The splash entry (`sim/cardHooks.ts`) names the holder's
+  weapon and lands on a third fighter, so it is now `passive` like a riposte: its hit fx carries the +128 flag and the
+  holder's client draws it at render time, not as its own swing with the patch and the screen shake. Pinned in
+  `cardHooks.test.ts` and `confirmedDamage.test.ts`.
+- **A stale page is told to reload.** The hit fx's new flag bit makes a pre-deploy decoder drop the whole tuple, so the
+  join now carries the page's wire build (a hash of `packages/shared/src`, baked in by the production client build)
+  and a hosting server refuses a different one with a Reload card (`CLAUDE.md`, "The join names the page's wire
+  build"). A tab older than this check is caught after one reload; a join that names no build is let in.
+- **A stalled upload pauses the continuous streams.** `net/uplinkPace.ts` `StallWatch` fed with the socket's
+  `bufferedAmount` (`net/connection.ts` `socketBufferedBytes`) stops the aim, the held right button's re-sends and the
+  keyboard repeat while the socket has held unsent bytes for a tick, so the burst after a stall is orders only. In the
+  `uplinkBudget.test.ts` model the stall that gets a client closed by `MAX_MESSAGES_PER_SECOND` moves from 2 to 3 s out
+  to about 29 s.
+
 ## Decisions for the owner
 
 1. Should remote fighters be drawn up to one tick past the newest real sample? This reverses "no extrapolation".

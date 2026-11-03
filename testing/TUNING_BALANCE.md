@@ -693,3 +693,28 @@ body consumed, the zombie up):
 | Offense bow (BowA / BowZ) | 38 | 51 |
 
 The other factions' rows are unchanged; the kit-0 matchups (fists and sword) read 48-53% in every pair as before.
+
+### 13.10 Kit pass (owner request, 2026-11-02)
+
+Owner list, applied as asked:
+
+| change | old | new |
+|---|---|---|
+| Fire roam burst (armed after 20 s out of combat) | 50 + 0.4 x SO, magic | 50 + 0.4 x bonus Offense, physical (`FIRE_ROAM_BURST_AD_SHARE`) |
+| Plague corpse life | 90 s | the whole run (until harvested); a green X on a living Plague's minimap and Tab map |
+| Zombie regen (`PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND`) | 1.5% max hp/s | 5% max hp/s (still a quarter for 4 s after a hit) |
+| Frost Frozen Justice (`FROST_ELITE_GUARD_BONUS`) | +15 Defense / +15 SD | +25 / +25 |
+| Holy SO lifesteal (`HOLY_LIFESTEAL_PER_AP`) | 0.1% per SO, cap +15% | removed (another build later) |
+| Holy sheet lifesteal (classes.py == factions.ts) | 0.08 + 0.65 x missing, cap 0.6 | 0.07 + 0.6 x missing, cap 0.6 |
+| Holy camp lifesteal (`HOLY_CAMP_LIFESTEAL_PER_CLEAR`) | +0.25% per clear | +0.5% per clear |
+
+The Holy sheet trim moved the reference rows and the paced fixture (regenerated: `matchup_band.py --reference`,
+`realtime_paced.py ... --pairs`; the old sheet reproduces the old fixture byte for byte). Engine margins with Holy: Plague-Holy
++3.5%, Frost-Holy -0.7%, Holy-Fire 0.0%, Holy-Sentenced -1.4% (each about 2 points toward the other side); every pair within 15%,
+`test_rpsls.py` ALL PASS (Holy's identity still moves a margin 26 points). Real sim, kit 0, noise 0.45 x 6: every first-faction
+share 49-52%, largest |h| 4%.
+
+`bench/factionBuilds.ts --setups 18 --draws 16`: Fire A 50, Fire B 56, Sentenced A 50 / B 50, Plague A 47, B 40 (no body), BZ
+62, AZ 60, BowA 38, BowZ 52, Frost A 57, Frost B 50, Holy A 47, Holy B 52, Holy B2 51. Holy lost 1-2 points (A 48 -> 47, B 54 ->
+52, B2 53 -> 51); the zombie-up rows gained about 1 from the regen. Frozen Justice and the roam burst do not show here (no elites,
+no roam in a duel); Frost A's 57 is its vs-Plague cell (67), which moved with the 13.9 disease rework, not with this pass.
