@@ -86,7 +86,10 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
   input.camps.forEach((camp, i) => {
     // Contacts and clocks replace the background camp symbol at that spot.
     if (marks.some((m) => !m.pinned && m.kind !== "stop" && Math.hypot(m.x - camp.x * k, m.y - camp.y * k) < 8)) return;
-    add("camp", String(i), camp, 11, 17, 10, "", { camp, eliteType: eliteTypes[i], state: input.campStates[i] ?? 0 });
+    // An elite camp claims its space before the normal ones and may take the nearest free slot past the usual reach (essential): on a
+    // crowded 50-camp map the layout may leave out a normal camp's mark, never an elite's own glyph.
+    const elite = eliteTypes[i] !== "";
+    add("camp", String(i), camp, 11, 17, elite ? 12 : 10, "", { camp, eliteType: eliteTypes[i], state: input.campStates[i] ?? 0, essential: elite });
   });
   return layoutMinimapMarks(marks);
 }

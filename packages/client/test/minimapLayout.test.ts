@@ -71,6 +71,17 @@ describe("minimap collision layout", () => {
     }
   });
 
+  it("never leaves out an elite camp's mark on a crowded 50-camp map: the elites claim their space first", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const map = generateMap(seed);
+      const marks = minimapMarks({ ...empty(), camps: map.camps });
+      const elites = marks.filter((p) => p.mark.kind === "camp" && p.mark.eliteType !== "");
+      expect(elites, `seed ${seed}`).toHaveLength(map.camps.filter((c) => c.eliteSpot >= 0).length);
+      // Placed near its camp (a displaced badge is tethered to its true place by minimap.ts), not across the map: seed 7 moves one 22 units.
+      for (const p of elites) expect(Math.hypot(p.x - p.mark.x, p.y - p.mark.y), `seed ${seed} ${p.mark.key}`).toBeLessThan(30);
+    }
+  });
+
   it("replaces a camp with its clock, and its respawn with a live chest instead of drawing duplicates", () => {
     const camp = generateMap(3).camps[0]!;
     const marks = minimapMarks({ ...empty(), camps: [camp], chests: [{ ...camp, left: 12 }], respawns: [{ ...camp, left: 180 }] });
