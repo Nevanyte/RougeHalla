@@ -157,12 +157,21 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
  * so a camp's archers don't eat their own arrows and a player can't hide behind a camp-mate. Every shot passes quest givers.
  */
 function firstBody(
-  world: World, s: Stretch, bodies: readonly Combatant[], t: number, rank: ReadonlyMap<string, number>,
+  world: World, s: Stretch, bodies: readonly Body[], t: number, rank: ReadonlyMap<string, number>,
 ): { c: Combatant; x: number; y: number } | null {
   let best: { c: Combatant; u: number; d: number; r: number } | null = null;
   const mobShot = world.mobs.has(s.pr.owner);
   const owner = combatant(world, s.pr.owner);
-  for (const c of bodies) {
+  // Any contact is within `reach` of the stretch, and positionAt only returns points on the body's history polyline or its
+  // present position (inside `box`), so a body whose box misses the stretch's box grown by reach cannot be met.
+  const reach = (s.pr.kind === "arrow" ? PLAYER_RADIUS + ARROW_RADIUS : RANGED_HIT_REACH) + 1e-6;
+  const lox = Math.min(s.ax, s.bx) - reach;
+  const hix = Math.max(s.ax, s.bx) + reach;
+  const loy = Math.min(s.ay, s.by) - reach;
+  const hiy = Math.max(s.ay, s.by) + reach;
+  for (const b of bodies) {
+    if (b.maxX < lox || b.minX > hix || b.maxY < loy || b.minY > hiy) continue;
+    const c = b.c;
     if (c.id === s.pr.owner || (owner ? !hostile(owner, c) : mobShot && c.kind === "mob") || isEvading(c) || isQuestGiver(c)) continue;
     const at = positionAt(c.rt, c.s, t);
     const u = contactShare(s, at);
@@ -175,6 +184,22 @@ function firstBody(
   return { c: best.c, x: s.ax + (s.bx - s.ax) * best.u, y: s.ay + (s.by - s.ay) * best.u };
 }
 
+/** A standing body and the box around every place positionAt can put it during this sweep (its history samples and its present position). */
+interface Body { c: Combatant; minX: number; maxX: number; minY: number; maxY: number }
+
+function bodyBoxes(bodies: readonly Combatant[]): Body[] {
+  return bodies.map((c) => {
+    let minX = c.s.x, maxX = c.s.x, minY = c.s.y, maxY = c.s.y;
+    for (const h of c.rt.history) {
+      if (h.x < minX) minX = h.x;
+      if (h.x > maxX) maxX = h.x;
+      if (h.y < minY) minY = h.y;
+      if (h.y > maxY) maxY = h.y;
+    }
+    return { c, minX, maxX, minY, maxY };
+  });
+}
+
 /**
  * The sweep phase: every projectile flies from where it was to the present, PROJECTILE_SUBSTEP_MS at a time. Bodies are
  * the fighters standing when the sweep starts (this tick's damage lands only after melee).
@@ -185,6 +210,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
   const now = world.state.serverTime;
   const map = collisionMap(world);
   const bodies = standingCombatants(world);
+  const boxes = bodyBoxes(bodies);
   const active = [...world.projectiles.values()];
   for (const pr of active) {
     pr.tickX = pr.x;
@@ -260,7 +286,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
     for (const s of stretches) {
       const pr = s.pr;
       if (pr.ended) continue;
-      const hit = firstBody(world, s, bodies, t, world.combat.rank);
+      const hit = firstBody(world, s, boxes, t, world.combat.rank);
       if (!hit) {
         pr.x = s.bx;
         pr.y = s.by;
