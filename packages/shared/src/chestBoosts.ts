@@ -1,5 +1,5 @@
 // Stat chests: a few world crates offer 1 of 3 multiplicative stat boosts, "Soul Offence x1.2".
-// Power ladder: one normal mob kill stack (mobStats.ts: +1 point, +1%, +0.25% leech) < one boost pick < one tier-I base card
+// Power ladder: one normal mob kill stack (mobStats.ts: +1 Offense/SO, +1.25 Defense, +1.5 SD, +1%, +0.25% leech) < one boost pick < one tier-I base card
 // (cards.ts BASE_NUMBERS: 12 AD, 15 armor, 9% haste) < an augment (a rule, and it raises card power P, the PvP factor).
 // A boost multiplies max(the stat's bonus today, a floor): the floor keeps a pick worth something on an empty sheet (a x1.2 of 0 is
 // 0), the bonus makes it grow with the build. It is NOT in `build`, so it adds no card power and no PvP factor. Pure.

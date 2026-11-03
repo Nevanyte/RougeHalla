@@ -33,7 +33,8 @@ describe("normal mob kill progression", () => {
     expect(mobStatReward("emberImp")!.text).toBe("+3% damage per kill");
     expect(mobStatReward("cinderHound")!.text).toBe("+1.5% move speed per kill");
     expect(mobStatReward("rotMonk")!.text).toBe("+0.75% lifesteal per kill");
-    expect(mobStatReward("bailiff")!.text).toBe("+3 Defense per kill");
+    expect(mobStatReward("bailiff")!.text).toBe("+3.75 Defense per kill");
+    expect(mobStatReward("chainWarden")!.text).toBe("+4.5 Soul Defense per kill");
     expect(mobStatReward("pardoner")!.text).toBe("+3 Offense per kill");
     for (const r of MOB_STAT_REWARDS) {
       const perKill = r.effect.k === "stat" ? r.effect.v * MOB_KILL_STACKS * 100 : r.effect.v * MOB_KILL_STACKS;

@@ -12,22 +12,24 @@ Each credited normal kill grants `MOB_KILL_STACKS` (3) whole stacks of its type,
 | Fire | Cinder Hound | +0.5% move speed | +5% move speed |
 | Fire | Magma Brute | +1% max health | +10% max health |
 | Fire | Flame Caller | +1 ability power | +10 ability power |
-| Sentenced | Bailiff | +1 armor | +10 armor |
-| Sentenced | Chain Warden | +1 magic resist | +10 magic resist |
+| Sentenced | Bailiff | +1.25 armor | +12.5 armor |
+| Sentenced | Chain Warden | +1.5 magic resist | +15 magic resist |
 | Sentenced | Inquisitor | +1% damage | +10% damage |
 | Sentenced | Pardoner | +1 attack damage | +10 attack damage |
 | Plague | Plague Rat | +1% attack speed | +10% attack speed |
 | Plague | Bloatfly | +0.5% move speed | +5% move speed |
 | Plague | Rot Monk | +0.25 percentage points lifesteal | +2.5 percentage points lifesteal |
 | Plague | Miasma Witch | +1 ability power | +10 ability power |
-| Frost | Frost Wisp | +1 magic resist | +10 magic resist |
+| Frost | Frost Wisp | +1.5 magic resist | +15 magic resist |
 | Frost | Ice Golem | +1% max health | +10% max health |
-| Frost | Rime Stalker | +1 armor | +10 armor |
+| Frost | Rime Stalker | +1.25 armor | +12.5 armor |
 | Frost | Frostbow Sentry | +1% attack speed | +10% attack speed |
 | Demon Blood | Acolyte | +0.25 percentage points lifesteal | +2.5 percentage points lifesteal |
-| Demon Blood | Seraph Shard | +1 magic resist | +10 magic resist |
+| Demon Blood | Seraph Shard | +1.5 magic resist | +15 magic resist |
 | Demon Blood | Penitent | +1% max health | +10% max health |
-| Demon Blood | Zealot | +1 armor | +10 armor |
+| Demon Blood | Zealot | +1.25 armor | +12.5 armor |
+
+Defense (armor) pays 1.25 a stack and Soul Defense (magic resist) 1.5 (`DEFENSE_PER_STACK`, `SOUL_DEFENSE_PER_STACK`; they were 1): a counter to the damage type it answers, never the kill to take against a mixed field, and the most they can pay before a random route's incidental D/SD kills out-farm a build (testing/FARM_ROUTE_PROOF.md).
 
 The current map has ten camps per zone (160 x 160 tiles). Bag rosters guarantee all four normal types, and respawning preserves the roster. Fully cleared camps return after three minutes. Personal stat progress survives respawns and coliseum rounds. Dummy, quest-NPC, and training mob kills pay no progression.
 

@@ -38,28 +38,39 @@ interface RewardDef {
   suffix: string;
 }
 
+/**
+ * Defense and Soul Defense a stack (owner ruling, 2026-11: "D/SD effective enough to counter a specific O/SO build but not so strong
+ * that they can be farmed at random"; testing/FARM_ROUTE_PROOF.md). At +1 a stack a Defense kill was worth less than a max-health kill
+ * even against an all-physical opponent for 8 of 10 builds. These are the largest values at which every build's routed farmer still
+ * beats a nearest-camp farmer: at 1.5 / 2 a Fire (base Defense and Soul Defense 20) gained so much from the D/SD kills a random route
+ * picks up that farming its build stopped paying. Soul Defense is higher because no faction's damage is mostly magic (Fire's backlash
+ * and Holy's hits are physical), so it always answers a diluted share.
+ */
+export const DEFENSE_PER_STACK = 1.25;
+export const SOUL_DEFENSE_PER_STACK = 1.5;
+
 /** Exactly one fixed reward row for each of the twenty normal types; elites have no stat reward. */
 const REWARDS: Partial<Record<MobTypeId, RewardDef>> = {
   emberImp: { effect: { k: "stat", stat: "damage", v: 0.01 }, suffix: "damage" },
   cinderHound: { effect: { k: "stat", stat: "moveSpeed", v: 0.005 }, suffix: "move speed" },
   magmaBrute: { effect: { k: "stat", stat: "maxHp", v: 0.01 }, suffix: "max health" },
-  bailiff: { effect: { k: "flat", stat: "armor", v: 1 }, suffix: "Defense" },
-  chainWarden: { effect: { k: "flat", stat: "shield", v: 1 }, suffix: "Soul Defense" },
+  bailiff: { effect: { k: "flat", stat: "armor", v: DEFENSE_PER_STACK }, suffix: "Defense" },
+  chainWarden: { effect: { k: "flat", stat: "shield", v: SOUL_DEFENSE_PER_STACK }, suffix: "Soul Defense" },
   inquisitor: { effect: { k: "stat", stat: "damage", v: 0.01 }, suffix: "damage" },
   plagueRat: { effect: { k: "stat", stat: "attackSpeed", v: 0.01 }, suffix: "attack speed" },
   bloatfly: { effect: { k: "stat", stat: "moveSpeed", v: 0.005 }, suffix: "move speed" },
   rotMonk: { effect: { k: "stat", stat: "lifesteal", v: 0.0025 }, suffix: "lifesteal" },
-  frostWisp: { effect: { k: "flat", stat: "shield", v: 1 }, suffix: "Soul Defense" },
+  frostWisp: { effect: { k: "flat", stat: "shield", v: SOUL_DEFENSE_PER_STACK }, suffix: "Soul Defense" },
   iceGolem: { effect: { k: "stat", stat: "maxHp", v: 0.01 }, suffix: "max health" },
-  rimeStalker: { effect: { k: "flat", stat: "armor", v: 1 }, suffix: "Defense" },
+  rimeStalker: { effect: { k: "flat", stat: "armor", v: DEFENSE_PER_STACK }, suffix: "Defense" },
   acolyte: { effect: { k: "stat", stat: "lifesteal", v: 0.0025 }, suffix: "lifesteal" },
-  seraphShard: { effect: { k: "flat", stat: "shield", v: 1 }, suffix: "Soul Defense" },
+  seraphShard: { effect: { k: "flat", stat: "shield", v: SOUL_DEFENSE_PER_STACK }, suffix: "Soul Defense" },
   penitent: { effect: { k: "stat", stat: "maxHp", v: 0.01 }, suffix: "max health" },
   flameCaller: { effect: { k: "flat", stat: "ap", v: 1 }, suffix: "Soul Offence" },
   pardoner: { effect: { k: "flat", stat: "ad", v: 1 }, suffix: "Offense" },
   miasmaWitch: { effect: { k: "flat", stat: "ap", v: 1 }, suffix: "Soul Offence" },
   frostbowSentry: { effect: { k: "stat", stat: "attackSpeed", v: 0.01 }, suffix: "attack speed" },
-  zealot: { effect: { k: "flat", stat: "armor", v: 1 }, suffix: "Defense" },
+  zealot: { effect: { k: "flat", stat: "armor", v: DEFENSE_PER_STACK }, suffix: "Defense" },
 };
 
 export interface MobStatReward {

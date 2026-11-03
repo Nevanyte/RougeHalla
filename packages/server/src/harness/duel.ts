@@ -83,6 +83,8 @@ export interface DuelSpec {
    * and its zombie stands beside it from the first tick (sim/plagueZombies.ts raiseOrGrowZombie), so the zombie tank is measured.
    */
   corpses?: readonly [number | undefined, number | undefined];
+  /** Mob-kill stacks (normal mob type id -> stacks) fighter 0 / fighter 1 holds from the first tick, before any body: a farmed kit. */
+  mobStats?: readonly [Readonly<Record<string, number>> | undefined, Readonly<Record<string, number>> | undefined];
   /** Fighter 0 / fighter 1 starts at this fraction of its max hp (the farm-then-fight bench: a mob kill leaves about 94%). */
   startHp?: readonly [number | undefined, number | undefined];
   /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its cards: a registered mod source (world.modSources). */
@@ -423,6 +425,14 @@ export function runDuel(spec: DuelSpec): DuelResult {
     for (const id of cards) grantCard(world, me, id);
     recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
   }
+  spec.mobStats?.forEach((stacks, i) => {
+    if (!stacks) return;
+    const me = combatant(world, IDS[i]!) as Extract<Combatant, { kind: "player" }>;
+    for (const [id, n] of Object.entries(stacks)) if (n > 0) me.s.mobStats.set(id, Math.floor(n));
+    recomputeMods(world, me);
+    syncMaxHp(me.s);
+    me.s.hp = me.s.maxHp;
+  });
   spec.corpses?.forEach((n, i) => {
     if (!(n !== undefined && n > 0)) return;
     const me = combatant(world, IDS[i]!) as Extract<Combatant, { kind: "player" }>;

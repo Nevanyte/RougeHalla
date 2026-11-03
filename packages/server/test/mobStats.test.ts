@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { MOB_STAT_REWARDS, decodeMirrors, FACTIONS, mobStatCount, mobStatRows, mobStatReward, mulberry32, TICK_MS } from "@raid/shared";
+import {
+  DEFENSE_PER_STACK, MOB_STAT_REWARDS, SOUL_DEFENSE_PER_STACK, decodeMirrors, FACTIONS, mobStatCount, mobStatRows, mobStatReward, mulberry32, TICK_MS,
+} from "@raid/shared";
 import { createGameWorld } from "../src/sim/gameplay";
 import { combatant } from "../src/sim/combatant";
 import { addPlayer, step } from "../src/sim/step";
@@ -49,8 +51,9 @@ it("keeps all normal-mob farm stats effective well beyond the former ten-stack c
   const mirrors = decodeMirrors(player.s);
   expect(mirrors.asMult).toBeCloseTo(21);
   expect(mirrors.speedMult).toBeCloseTo(11);
-  expect(mirrors.armorBonus).toBe(3000);
-  expect(mirrors.shieldBonus).toBe(3000);
+  // three types pay each, a thousand stacks each
+  expect(mirrors.armorBonus).toBe(3000 * DEFENSE_PER_STACK);
+  expect(mirrors.shieldBonus).toBe(3000 * SOUL_DEFENSE_PER_STACK);
   expect(mirrors.adBonus).toBe(1000);
   expect(mirrors.apBonus).toBe(2000);
   expect(player.s.maxHp).toBeCloseTo(FACTIONS[player.s.faction as keyof typeof FACTIONS].hp * 31);
