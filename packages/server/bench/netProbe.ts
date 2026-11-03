@@ -32,6 +32,14 @@
 //                server time less the client clock the aim left at (the age at the step plus the clock's constant downlink bias,
 //                so differences between modes are exact), with the share of patches that applied no newer aim than the one
 //                before, the aims a second, the most messages sent in any second, and how often the tick deadline was known
+//   drawahead    the client's draw-ahead of remote fighters (client net/remoteDraw.ts, docs/PLAYER_PREDICTION.md Stage 2), scored by
+//                bench/drawAheadScore.ts: `--drawahead both` (the default) runs a second interpolator with the draw-ahead on beside the
+//                probe's own (off, so every other number stays comparable with older reports), fed the same patches and fx, and draws
+//                every remote player and every mob within 1200 u in both each frame; per arm the displayed age, the error against the
+//                server's own positions (with hindsight), the corrections and the acceptance gates' verdict. `on` or `off` runs one
+//                arm (`on` draws ahead in the probe's own interpolator). `--ahead '{"heldMoverMs":25}'` overrides RemoteDrawOptions.
+//                With --trace, `fighterTraces` keeps per session every remote fighter's patches and the fx that matter, for
+//                netTraceEval.ts --drawahead.
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
@@ -39,11 +47,13 @@ import {
   abilityInSlot, blinkLanding, CAST_RANGE_SLACK, countIn, EFFECT_STUNNED, findPath, generateMap, hasLineOfSight, mulberry32,
   PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt, swapAllowed, TARGET_RANGE, TELEPORT_DISTANCE, TICK_MS, TRAINING_ROOM_NAME, unpackFx,
   withGates, WORLD_H, WORLD_W,
-  type AbilityRank, type FxBatch, type GameMap, type ProfileResponse, type Vec2,
+  type AbilityRank, type FxBatch, type GameMap, type ProfileResponse, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import type { RenderClockOptions } from "@raid/shared";
 import { EntityInterpolator } from "../../client/src/net/interpolation";
+import { RemoteDraw, type RemoteDrawOptions } from "../../client/src/net/remoteDraw";
+import { DrawAheadRig, DrawAheadScorer, formatArm, verdict, type RemoteArmReport } from "./drawAheadScore";
 import { keyboardMoveGoal, steerDue } from "../../client/src/net/keyboardMovement";
 import { JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS, seqAcked, type LocalMotion } from "../../client/src/net/localMotion";
 import { castUnanswered, LocalPrediction, type SentCast } from "../../client/src/net/localPrediction";
@@ -96,13 +106,37 @@ export interface ProbeOptions {
   swap?: boolean;
   /** How the aim is streamed (default "aligned", what the game client does); "aligned" also routes the right-button hold through HoldGate. */
   aimMode?: AimMode;
+  /** Which draw-ahead arms to score (default "both"; the legacy delay scores none). */
+  drawAhead?: "on" | "off" | "both";
+  /** Overrides of the on arm's RemoteDrawOptions (`--ahead` JSON), e.g. `{ heldMoverMs: 25 }`. */
+  ahead?: Partial<RemoteDrawOptions>;
 }
+
+/**
+ * Trace v2 (ProbeOptions.trace): one session's remote fighters as the probe saw them. `patches` rows are
+ * [arrival, t, gatesLocked 0|1, players [[id, x, y, displaceSeq, effects, alive 0|1, walkDir, walkTicks, locked 0|1]],
+ *  mobs [[id, x, y, displaceSeq, effects, alive 0|1, drawStartedAt]]] (mobs within 1200 u of the probe; positions to 0.01 u);
+ * `fx` the fx that the draw-ahead and the scorer read, with their arrival.
+ */
+export interface FighterTrace {
+  seed: number;
+  rttMs: number;
+  patches: Array<[number, number, number, Array<[string, number, number, number, number, number, number, number, number]>, Array<[string, number, number, number, number, number, number]>]>;
+  fx: Array<[number, TimedFx]>;
+}
+
+/** The fx a trace keeps: the draw-ahead's roots, deaths and cuts, and what the scorer counts as combat. */
+const TRACE_FX = new Set(["windup", "cast", "castEnd", "status", "cancel", "stagger", "death", "teleport", "hit", "block"]);
 
 export interface Dist { n: number; p50: number; p95: number; p99: number; max: number; min: number; mean: number }
 
 export interface ProbeReport {
   /** With ProbeOptions.trace: per session, [arrival, server time] of every patch. */
   traces?: number[][][];
+  /** With ProbeOptions.trace: per session, the remote fighters' patches and fx (trace v2, netTraceEval.ts --drawahead). */
+  fighterTraces?: FighterTrace[];
+  /** The draw-ahead's arms (drawAheadScore.ts), and with both the acceptance gates' verdict. */
+  drawAhead?: { on?: RemoteArmReport; off?: RemoteArmReport; verdict?: string[]; pass?: boolean };
   label: string;
   url: string;
   hz: number;
@@ -383,6 +417,9 @@ class Metrics {
   peakPerSec = 0;
   phaseFrames = 0;
   phaseReady = 0;
+  /** The draw-ahead's scorer, over every session (null: none scored). */
+  scorer: DrawAheadScorer | null = null;
+  fighterTraces: FighterTrace[] = [];
 }
 
 /** One swap the swap probe sent: when, to which slot, and the clicks simulated inside its round trip (judged once it has settled). */
@@ -466,6 +503,10 @@ class Session {
   private pendingKeyAts: Array<{ at: number; mode: "frame" | "event" }> = [];
   private keyOrders: Array<{ seq: number; keyAts: Array<{ at: number; mode: "frame" | "event" }>; sentAt: number }> = [];
   readonly arrivals: number[][] = [];
+  /** The draw-ahead's arms, scored into the Metrics' scorer (null: none). */
+  private readonly rig: DrawAheadRig | null = null;
+  readonly fighterTrace: FighterTrace | null;
+  private readonly pingFrom: number;
   private frameLog: Array<{ now: number; c: number; x: number; y: number; delay: number; visual: number; mode: "frame" | "event" }> = [];
   private dead = false;
   private resultIn = false;
@@ -493,8 +534,23 @@ class Session {
     this.aimGate = this.aimMode === "legacy50" ? new AimGate({ floorMs: TICK_MS, aligned: false })
       : this.aimMode === "floor25" ? new AimGate({ aligned: false }) : new AimGate();
     this.onFrame = opts.onFrame;
-    this.interp = new EntityInterpolator({ adaptive: opts.legacy ? false : true, render: opts.render });
+    const ahead = opts.legacy ? "off" : opts.drawAhead ?? "both";
+    this.interp = new EntityInterpolator({ adaptive: opts.legacy ? false : true, render: opts.render, drawAhead: ahead === "on" });
     this.sid = room.sessionId;
+    if (m.scorer && !opts.legacy) {
+      const own = new RemoteDraw(this.interp, ahead === "on" ? opts.ahead : {});
+      if (ahead === "on") own.setEnabled(true);
+      const arms = [{ name: ahead === "on" ? "on" : "off", interp: this.interp, draw: own, owned: false }];
+      if (ahead === "both") {
+        const interp = new EntityInterpolator({ render: opts.render, drawAhead: true });
+        const draw = new RemoteDraw(interp, opts.ahead);
+        draw.setEnabled(true);
+        arms.push({ name: "on", interp, draw, owned: true });
+      }
+      this.rig = new DrawAheadRig(arms, m.scorer, this.sid);
+    }
+    this.fighterTrace = opts.trace ? { seed: room.state.seed, rttMs: NaN, patches: [], fx: [] } : null;
+    this.pingFrom = m.pings.length;
     this.rnd = mulberry32(seed);
     this.keyRnd = mulberry32(seed * 7919 + 17);
     this.map = generateMap(room.state.seed);
@@ -571,6 +627,8 @@ class Session {
     this.lastPatchServerT = t;
     this.arrivals.push([Math.round(now * 100) / 100, t]);
     this.interp.onPatch(state, now);
+    this.rig?.onPatch(state, now);
+    if (this.fighterTrace) this.traceFighters(state, now);
     state.players.forEach((p, id) => { if (id !== this.sid) this.noteRemote(id, p); });
     state.mobs.forEach((p, id) => this.noteRemote(id, p));
     for (const id of this.track.keys()) if (!state.players.has(id) && !state.mobs.has(id)) this.track.delete(id);
@@ -646,9 +704,28 @@ class Session {
     this.pendingLocks = this.pendingLocks.filter((l) => !l.done);
   }
 
+  /** One patch of the remote fighters, for trace v2. */
+  private traceFighters(state: RaidState, now: number): void {
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    const me = state.players.get(this.sid);
+    const players: FighterTrace["patches"][number][3] = [];
+    const mobs: FighterTrace["patches"][number][4] = [];
+    state.players.forEach((p, id) => {
+      if (id === this.sid) return;
+      players.push([id, r2(p.x), r2(p.y), p.displaceSeq, p.effects, p.status === "alive" ? 1 : 0, p.extra?.walkDir ?? 0, p.extra?.walkTicks ?? 0, p.attackTarget ? 1 : 0]);
+    });
+    state.mobs.forEach((m, id) => {
+      if (m.kind === "quest" || (me && Math.hypot(m.x - me.x, m.y - me.y) > 1200)) return;
+      mobs.push([id, r2(m.x), r2(m.y), m.displaceSeq, m.effects, m.status === "alive" ? 1 : 0, m.drawStartedAt]);
+    });
+    this.fighterTrace!.patches.push([r2(now), state.serverTime, state.gatesLocked ? 1 : 0, players, mobs]);
+  }
+
   private onFx(batch: FxBatch): void {
     const me = this.room.state.players.get(this.sid);
     for (const fx of unpackFx(batch, this.room.state.roster)) {
+      this.rig?.onFx(fx);
+      if (this.fighterTrace && TRACE_FX.has(fx.kind)) this.fighterTrace.fx.push([Math.round(performance.now() * 100) / 100, fx]);
       this.predict.noteFx(fx, this.sid, me);
       if (fx.kind === "teleport") { this.interp.markCut(fx.t); this.quietUntil = performance.now() + 3000; }
       if (fx.kind === "cast" && fx.by === this.sid) {
@@ -713,6 +790,9 @@ class Session {
     this.prevRender = trueT;
     this.prevNow = now;
     this.onFrame?.(now, this.interp);
+    // The draw-ahead's arms draw every frame (their offsets evolve whether or not this frame is scored); the probe's own arm at trueT.
+    this.rig?.frame(now, frameGap, measure, state.gatesLocked ? withGates(this.map) : this.map, this.predict.motion.delay + TICK_MS,
+      () => trueT);
     // As the scene's streamAim: the frame pace at the instant the aim is judged, and a clock step voids the deadline's samples.
     this.aimGate.frames.frame(performance.now());
     this.predict.motion.phase.noteClock(this.interp.clock.offsetMs);
@@ -793,6 +873,12 @@ class Session {
 
   /** Called once at the end: the distance of each drawn position from the server's own path, which only exists afterwards. */
   finish(): void {
+    this.rig?.endSession();
+    if (this.fighterTrace) {
+      const pings = this.m.pings.slice(this.pingFrom).sort((a, b) => a - b);
+      this.fighterTrace.rttMs = pings.length > 0 ? pings[pings.length >> 1]! : this.predict.motion.delay + TICK_MS;
+      this.m.fighterTraces.push(this.fighterTrace);
+    }
     this.m.swapConfirmed += this.hand.counts.confirmed;
     this.m.swapRefused += this.hand.counts.refused;
     this.m.swapExpired += this.hand.counts.expired;
@@ -1251,6 +1337,8 @@ export async function runProbe(opts: ProbeOptions): Promise<ProbeReport> {
   const name = `probe${Math.floor(Math.random() * 1e6)}`;
   const { token } = await claim(base, name);
   const m = new Metrics();
+  const ahead = opts.legacy ? null : opts.drawAhead ?? "both";
+  if (ahead) m.scorer = new DrawAheadScorer(ahead === "both" ? ["off", "on"] : [ahead], 1000 / hz);
   const client = new Client(base);
   const started = Date.now();
   const wallLimit = opts.seconds * 1000 * 6 + 180_000;
@@ -1297,7 +1385,15 @@ export async function runProbe(opts: ProbeOptions): Promise<ProbeReport> {
     await sleep(1000);
   }
   const rep = report(m, opts, hz);
-  if (opts.trace) rep.traces = m.traces;
+  if (opts.trace) { rep.traces = m.traces; rep.fighterTraces = m.fighterTraces; }
+  if (m.scorer) {
+    const arms = m.scorer.arms;
+    const da: NonNullable<ProbeReport["drawAhead"]> = {};
+    if (arms.includes("on")) da.on = m.scorer.report("on");
+    if (arms.includes("off")) da.off = m.scorer.report("off");
+    if (da.on && da.off) { const v = verdict(da.on, da.off, `${hz} Hz`); da.verdict = v.lines; da.pass = v.pass; }
+    rep.drawAhead = da;
+  }
   return rep;
 }
 
@@ -1409,7 +1505,15 @@ export function formatReport(r: ProbeReport): string {
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,
     `aim       ${r.aim.mode}  lag ms ${d(r.aim.lagMs)}  mean ${f1(r.aim.lagMs.mean)}   stale ${f2(r.aim.stalePct)}% of ${r.aim.lagMs.n} patches   ` +
       `${f1(r.aim.perSec)} aims/s  peak ${r.aim.peakPerSec} msgs/s   deadline known ${f1(r.aim.phaseReadyPct)}% of frames`,
+    ...(r.drawAhead?.off ? formatArm("off", r.drawAhead.off) : []),
+    ...(r.drawAhead?.on ? formatArm("on", r.drawAhead.on) : []),
+    ...(r.drawAhead?.verdict ?? []),
   ].join("\n");
+}
+
+export function parseDrawAhead(s: string): "on" | "off" | "both" {
+  if (s === "on" || s === "off" || s === "both") return s;
+  throw new Error(`--drawahead: on, off or both, not ${s}`);
 }
 
 export function parseAimMode(s: string): AimMode {
@@ -1438,6 +1542,8 @@ function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
     else if (a === "--trace") o.trace = true;
     else if (a === "--render") o.render = JSON.parse(v()) as Partial<RenderClockOptions>;
     else if (a === "--aim") o.aimMode = parseAimMode(v());
+    else if (a === "--drawahead") o.drawAhead = parseDrawAhead(v());
+    else if (a === "--ahead") o.ahead = JSON.parse(v()) as Partial<RemoteDrawOptions>;
     else throw new Error(`unknown argument ${a}`);
   }
   return o;

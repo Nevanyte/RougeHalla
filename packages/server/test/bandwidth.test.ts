@@ -140,6 +140,26 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(typicalQuests.initialSyncBytes).toBeGreaterThan(typical().initialSyncBytes);
   });
 
+  // The walk hint (sim/walkHint.ts, docs/PLAYER_PREDICTION.md Stage 2): its two mirrors add under 0.3 KB/s per client on seed 1. The
+  // sim plays the same game without them, so the difference is only their patches. Seed 1 measures +0.298 typical, +0.291 heavy and
+  // +0.219 with the keyboard's cadence: within the gate, with almost no room. Most of it is ranged players holding the trigger: the
+  // count runs 3, 2, 1, 0 toward every release pause and back up after it, which is what walkTicks means.
+  it("walk hints add under 0.3 KB/s: typical, heavy and typical with WASD steering, seed 1", () => {
+    const pairs: Array<[string, Parameters<typeof runBandwidth>[0]]> = [
+      ["typical", { camps: TYPICAL_CAMPS }],
+      ["heavy", { camps: HEAVY_CAMPS }],
+      ["wasd", { camps: TYPICAL_CAMPS, steer: "wasd" }],
+    ];
+    for (const [name, opts] of pairs) {
+      const withHints = run(name, opts);
+      const without = run(`${name}NoHints`, { ...opts, walkHints: false });
+      // The same game: the fx are byte for byte the same, only the patches differ.
+      expect(withHints.fxKBps, name).toBe(without.fxKBps);
+      expect(withHints.totalKBps - without.totalKBps, name).toBeGreaterThan(0);
+      expect(withHints.totalKBps - without.totalKBps, name).toBeLessThan(0.3);
+    }
+  }, 300_000);
+
   it("is deterministic for a seed", () => {
     const a = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
     const b = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });

@@ -2,14 +2,19 @@
 // headless bots and the mobs on, and prints one table. Each profile starts its own server (a temp profile file) and bots, and kills
 // them afterwards.
 //   npx tsx packages/server/bench/netProbeMatrix.ts [--port 2620] [--seconds 60] [--bots 7] [--tag name] [--out dir]
-//        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1] [--hz 144] [--steer frame|event|mixed] [--tmp dir] [--aim legacy50|floor25|aligned]
-// A profile is rtt[:jitter[:loss%]] in ms and percent. Output: <out>/<tag>-<profile>.json per profile and the table on stdout.
+//        [--profiles "0,30:5,60:10,120:20,30:5:1,60:10:1"] [--seed 1] [--hz 144 | --hz 60,144] [--steer frame|event|mixed] [--tmp dir]
+//        [--aim legacy50|floor25|aligned] [--drawahead on|off|both] [--ahead '{"heldMoverMs":25}']
+// A profile is rtt[:jitter[:loss%]] in ms and percent. Several --hz rates run one after the other on each profile's server. Output:
+// <out>/<tag>-<profile>[-<hz>hz].json per run, each run's report, and at the end the draw-ahead table (netProbe.ts drawahead): per
+// profile and rate the remote players' displayed age with it off and on, the error (mean/p95/p99 over all and over moving frames),
+// corrections over 4 u, held movers, snaps, reversals and the acceptance gates' verdict.
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatReport, parseAimMode, runProbe, type AimMode, type ProbeReport } from "./netProbe";
+import type { RemoteDrawOptions } from "../../client/src/net/remoteDraw";
+import { formatReport, parseAimMode, parseDrawAhead, runProbe, type AimMode, type ProbeReport } from "./netProbe";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -71,6 +76,11 @@ export interface MatrixOptions {
   render?: Record<string, number>;
   /** Frame rate of the probe's loop. */
   hz?: number;
+  /** Several frame rates, run one after another on each profile (overrides `hz`). */
+  hzs?: number[];
+  /** The draw-ahead's arms (netProbe.ts; default both) and the on arm's RemoteDrawOptions. */
+  drawAhead?: "on" | "off" | "both";
+  ahead?: Partial<RemoteDrawOptions>;
   /** A WASD player whose key events are sent at the next frame or from the event (see ProbeOptions.steer). */
   steer?: "frame" | "event" | "mixed";
   /** Where each profile's temporary profile file lives (default: the OS temp dir). */
@@ -98,14 +108,20 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
       const prefix = `pb${Math.floor(Math.random() * 1e5)}x`;
       if (!o.training) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
       await sleep(1500);
-      console.error(`[matrix] ${o.tag} ${p.name}: probing ${o.seconds} s ...`);
-      const r = await runProbe({
-        url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training,
-        swap: o.swap, faction: o.faction, hz: o.hz, steer: o.steer, ...(o.aimMode ? { aimMode: o.aimMode } : {}),
-      });
-      fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}.json`), JSON.stringify(r));
-      console.log(formatReport(r));
-      reports.push(r);
+      const rates = o.hzs && o.hzs.length > 0 ? o.hzs : [o.hz];
+      for (const hz of rates) {
+        const at = rates.length > 1 ? ` ${hz} Hz` : "";
+        console.error(`[matrix] ${o.tag} ${p.name}${at}: probing ${o.seconds} s ...`);
+        const r = await runProbe({
+          url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}${at}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish,
+          training: o.training, swap: o.swap, faction: o.faction, hz, steer: o.steer, ...(o.aimMode ? { aimMode: o.aimMode } : {}),
+          ...(o.drawAhead ? { drawAhead: o.drawAhead } : {}), ...(o.ahead ? { ahead: o.ahead } : {}),
+        });
+        const suffix = rates.length > 1 ? `-${hz}hz` : "";
+        fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}${suffix}.json`), JSON.stringify(r));
+        console.log(formatReport(r));
+        reports.push(r);
+      }
     } finally {
       await kill(bots);
       await kill(server);
@@ -128,12 +144,39 @@ function main(): void {
     swap: a.includes("--swap"),
     ...(a.includes("--faction") ? { faction: get("--faction", "fire") } : {}),
     ...(a.includes("--tmp") ? { tmp: path.resolve(get("--tmp", "")) } : {}),
-    ...(a.includes("--hz") ? { hz: Number(get("--hz", "144")) } : {}),
+    ...(a.includes("--hz") ? (get("--hz", "144").includes(",") ? { hzs: get("--hz", "144").split(",").map(Number) } : { hz: Number(get("--hz", "144")) }) : {}),
+    ...(a.includes("--drawahead") ? { drawAhead: parseDrawAhead(get("--drawahead", "both")) } : {}),
+    ...(a.includes("--ahead") ? { ahead: JSON.parse(get("--ahead", "{}")) as Partial<RemoteDrawOptions> } : {}),
     ...(a.includes("--steer") ? { steer: get("--steer", "frame") as "frame" | "event" | "mixed" } : {}),
     ...(a.includes("--render") ? { render: JSON.parse(get("--render", "{}")) as Record<string, number> } : {}),
     ...(a.includes("--aim") ? { aimMode: parseAimMode(get("--aim", "aligned")) } : {}),
   };
-  runMatrix(opts).then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
+  runMatrix(opts).then((reports) => {
+    console.log(drawAheadTable(reports));
+    process.exit(0);
+  }, (err) => { console.error(err); process.exit(1); });
+}
+
+/** One row per run with both draw-ahead arms: the remote players' age off and on, the error, the corrections and the verdict. */
+export function drawAheadTable(reports: readonly ProbeReport[]): string {
+  const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : "-");
+  const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : "-");
+  const rows = reports.filter((r) => r.drawAhead?.on && r.drawAhead.off).map((r) => {
+    const on = r.drawAhead!.on!.players;
+    const off = r.drawAhead!.off!.players;
+    const remote = r.drawAhead!.on!.remote;
+    return [
+      r.label.padEnd(26), String(r.hz).padStart(4), f1(off.ageMs.mean).padStart(7), f1(on.ageMs.mean).padStart(7), f1(off.ageMs.mean - on.ageMs.mean).padStart(6),
+      `${f2(on.errU.mean)}/${f2(on.errU.p95)}/${f2(on.errU.p99)}`.padStart(17), `${f2(on.errMovingU.mean)}/${f2(on.errMovingU.p95)}/${f2(on.errMovingU.p99)}`.padStart(17),
+      f2(on.jumpCombatPct).padStart(6), f1(on.heldMovingPct).padStart(6), String(on.snaps32).padStart(5), f2(remote.reversalsPerMin).padStart(7),
+      r.drawAhead!.pass ? "PASS" : "FAIL",
+    ].join(" | ");
+  });
+  if (rows.length === 0) return "";
+  const head = ["run".padEnd(26), "hz".padStart(4), "age off".padStart(7), "age on".padStart(7), "drop".padStart(6),
+    "err all m/p95/p99".padStart(17), "err mov m/p95/p99".padStart(17), "jump%".padStart(6), "held%".padStart(6), "snaps".padStart(5),
+    "rev/min".padStart(7), "verdict"].join(" | ");
+  return ["", "draw-ahead (remote players; jump% = corrections over 4 u in combat frames, held% = moving frames held, rev/min per drawn fighter-minute)", head, ...rows].join("\n");
 }
 
 const entry = process.argv[1];

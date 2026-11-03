@@ -1,6 +1,6 @@
 # Predicting players so ping feels faster
 
-Status: **research and plan, with Stage 0 and Stage 1 shipped**. Only what "Shipped in this pass" lists is built.
+Status: **research and plan, with Stage 0 and Stage 1 shipped, and Stage 2 built on branch `claude/draw-ahead`**. Only what "Shipped in this pass" lists is built.
 Local numbers come from `bench/predictBench.ts` bot runs on 2026-11-02 and a plain-JS cost microbenchmark. Sources
 are at the end.
 
@@ -47,7 +47,7 @@ Main today: the local fighter is predicted (`net/localMotion.ts`). Own attack an
 | Opponent's uplink, half of an 85-97 ms ping | about 45 ms | routing only |
 | Wait for the next 50 ms tick | 0-50 ms, 25 on average | sub-tick timestamps, decision 3 |
 | Downlink | about 45 ms | one WebSocket frame per tick, not two: unconfirmed lead |
-| Remote interpolation delay | 70-150 ms, adaptive; 70 on a good link since the tick pacer shipped (see "Shipped in this pass") | bounded draw-ahead, Stage 2 |
+| Remote interpolation delay | 70-150 ms, adaptive; 70 on a good link since the tick pacer shipped (see "Shipped in this pass") | bounded draw-ahead, Stage 2: 20-150 ms with it on (built) |
 | Own attack animation | drawn at the click | done |
 | Own keyboard walk | sent from the key event since this pass; the server applies it up to a frame sooner (−3.4 ms mean at 144 Hz, −7.4 at 60 Hz); the presser's own picture is unchanged | done |
 | Own weapon swap, Wish telegraph, own melee hit | shown at the key or with the state patch since this pass | done |
@@ -289,18 +289,40 @@ after are means unless marked p95.
 | Own melee hits and blocks presented with their state patch | `render/FxView.ts`, `RaidScene` | 90-142 ms mean wait to 3.5 ms; returned damage (a riposte, a reflected arrow) is flagged on the hit fx so it is never drawn as an own blow |
 | Tick-phase-aligned aim stream and held right button | `net/uplinkPace.ts` | sim model (45 ms each way, 144 fps, grid tick): mean aim age 72 ms old gate, 59 floor, 53-57 aligned at ±0-6 ms, no gain at ±10 ms or at 60 fps; against a real server (before the pacer) the probe measured the floor only (mean 129 / 140 / 147 to 116-120 / 124-128 / 132-135 ms); the aligned gate is active only on a grid-waking server above about 67 fps, else the floor |
 
-Not done, by the owner's decision list below: the remote draw-ahead of Stage 2, the walk hint, sub-tick windup
-starts, and a fresher melee `t`.
+Not done in that pass, by the owner's decision list below: the remote draw-ahead of Stage 2 and the walk hint (built since, next),
+sub-tick windup starts, and a fresher melee `t`.
+
+### Stage 2: the draw-ahead (branch `claude/draw-ahead`, 2026-11-02)
+
+The owner decided: build it, presentation only, keeping the walk hint's cap at 3 ticks (decisions 1 and 2); melee `t` stays the
+render time (decision 5). No hit, root, kill or order is decided differently: a scripted run and an 8-bot run with and without the hint
+step identically, field for field but the two mirrors (`test/walkHint.test.ts`).
+
+| Change | Where | Measured |
+|---|---|---|
+| Walk hint: `PlayerExtraState.walkDir` (uint8, 256ths of a turn, 3-step hysteresis) and `walkTicks` (0..3 committed ticks), written by a system appended last, only on a change | `sim/walkHint.ts`, `shared/schema.ts` | bandwidth on seed 1: +0.298 KB/s typical, +0.291 heavy, +0.219 with WASD steering, +0.07 with 7 fill bots (gate under 0.3, `test/bandwidth.test.ts`); heavy reaches +0.306 on seeds 2 and 5 (typical 0.244 to 0.282, WASD 0.175 to 0.236 on seeds 2, 3, 5), most of it ranged players counting down to each release pause; stepBench avg 1.28 ms, p99 2.36 (gate 5 / 15) |
+| Draw-ahead: remote players up to one tick along the hint, mobs 25 ms by velocity, wall-clipped, stopped at known roots, deaths and cuts; the render delay 50 ms shorter; corrections in a decaying, speed-capped offset, snapping only past 32 u; setting "Draw remote fighters ahead", on by default | `net/remoteDraw.ts`, `shared/interp.ts`, `RaidScene`, `settings.ts` | 25 s smoke at RTT 30 +-5 (`netProbeMatrix --drawahead both --hz 60,144`, replayed through `netTraceEval --drawahead`): remote-player age 77.9 to 27.9 ms (drop 50.00, G2 PASS) at 60 and 144 Hz; error mean / p95 / p99 0.08 / 0.27 / 2.02 u at 60 Hz and 0.08 / 0.23 / 2.11 at 144 (G3 PASS; moving frames only 0.28 / 1.49 / 4.10); 0% of combat frames with a correction over 4 u, no snap (G4 PASS); a moving player held (no hint) on 4% of its frames. **Full acceptance runs: PENDING** (the measurement step fills this cell: `netProbeMatrix --seconds 120 --profiles "30:5" --hz 60,144 --drawahead both`, then the full profile sweep, and `netTraceEval --drawahead` with and without `--ahead '{"heldMoverMs":25}'`) |
+
+Notes on the reading. Gate 2 is structural on a stable link: the two arms' render clocks are fed the same patches and draw exactly 50 ms
+apart below the 150 ms ceiling, so the check is that the clock is wired in and that stalls and the ceiling do not eat the gain (the
+data age, against the newest sample used, drops about 44 ms; the claim's age about 45 to 48). The error is judged against the server's
+own tick positions with hindsight; frames within two ticks of a cut are left out in both arms (the client's buffer holds the pre-cut
+sample there whatever the draw-ahead does). The tested spot (where melee would rewind for an attack sent that frame) stays within the
+error: at most one tick's walk behind the drawn target.
+
 
 ## Decisions for the owner
 
 1. Should remote fighters be drawn up to one tick past the newest real sample? This reverses "no extrapolation".
+   **Decided: yes, presentation only (built, Stage 2).**
 2. Should the walk hint be capped at 3 ticks, 2 ticks, or not exist? Without a hint a client has only constant
-   velocity.
+   velocity. **Decided: 3 ticks.** Its bytes sit at the 0.3 KB/s gate (see Stage 2): if a seed or a later change puts it over, the
+   fallbacks are a cap of 2 or publishing only 0 against 1-or-more, which the client is all that reads.
 3. Should windup starts be dated within their tick, sub-tick timing? It saves 25 ms on average and changes a rule.
 4. Should playtests collect human traces, with consent? Raw traces take about 288 MB/h at 8 players.
 5. Should melee `t` follow the fresher drawn time, clamped to the newest published tick? Melee hit rates would need
-   a re-check.
+   a re-check. **Decided: no; `t` stays the render time.** A target drawn ahead is at most one tick's walk past the spot the server
+   tests.
 6. Do you want an aim helper from the same model? That is aim assist, a balance feature, not netcode.
 
 ## Sources

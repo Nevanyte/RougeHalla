@@ -8,8 +8,22 @@
 // `fx wait`: from each patch's arrival to the first frame whose render time reaches its server time, the wait an fx played at render
 // time pays after its step's batch arrived; `patch wait` is the same to the first frame after the arrival, what an fx presented with
 // its state patch pays (RaidScene's confirmed hits on the local player and its own melee blows).
+//
+// `--drawahead` replays trace v2 (netProbe --trace: `fighterTraces`, the remote fighters' patches and fx) through two arms of the
+// client's own draw-ahead (client net/remoteDraw.ts), off and on, at each rate of `--hz` (default 60,144), and scores them with
+// drawAheadScore.ts as netProbe does live: per session a row, then the merged arms and the acceptance gates' verdict. The same
+// arrivals feed both arms, so the comparison is paired and deterministic. `--set` tunes the RenderClock of both arms (one replay per
+// setting), `--ahead '{"heldMoverMs":25}'` the on arm's RemoteDrawOptions (one replay per --ahead).
+//   npx tsx packages/server/bench/netTraceEval.ts --drawahead run.json [--hz 60,144] [--ahead '{"heldMoverMs":25}'] [--set '{...}']
 import fs from "node:fs";
-import { RenderClock, ServerClock, INTERP_DELAY_MS, type RenderClockOptions } from "@raid/shared";
+import {
+  generateMap, RenderClock, ServerClock, INTERP_DELAY_MS, withGates, type GameMap, type RenderClockOptions, type TimedFx,
+} from "@raid/shared";
+import type { RaidState } from "@raid/shared/schema";
+import { EntityInterpolator } from "../../client/src/net/interpolation";
+import { RemoteDraw, type RemoteDrawOptions } from "../../client/src/net/remoteDraw";
+import { DrawAheadRig, DrawAheadScorer, formatArm, verdict } from "./drawAheadScore";
+import type { FighterTrace } from "./netProbe";
 
 interface Setting { name: string; legacy?: boolean; opts?: Partial<RenderClockOptions> }
 
@@ -145,17 +159,117 @@ export function formatRow(r: Row): string {
     `fx wait ${f(r.fxWaitMean).padStart(5)} p95 ${f(r.fxWaitP95).padStart(5)}  patch wait ${f(r.patchWaitMean).padStart(4)} p95 ${f(r.patchWaitP95).padStart(4)}`;
 }
 
+const maps = new Map<number, GameMap>();
+
+/** The fake state a trace patch stands for: what the interpolator, the draw-ahead and the scorer read of it. */
+function stateOf(row: FighterTrace["patches"][number]): RaidState {
+  const [, t, gates, players, mobs] = row;
+  const p = new Map(players.map(([id, x, y, displaceSeq, effects, alive, walkDir, walkTicks, locked]) => [id, {
+    x, y, displaceSeq, effects, status: alive ? "alive" : "dead", attackTarget: locked ? "?" : "", extra: { walkDir, walkTicks },
+  }]));
+  const m = new Map(mobs.map(([id, x, y, displaceSeq, effects, alive, drawStartedAt]) => [id, {
+    x, y, displaceSeq, effects, status: alive ? "alive" : "dead", drawStartedAt, kind: "mob",
+  }]));
+  return { serverTime: t, gatesLocked: gates === 1, players: p, mobs: m } as unknown as RaidState;
+}
+
+/**
+ * Replays one session of trace v2 through an off and an on arm at `hz` (frames at exact intervals) into `scorer` (arms "off", "on").
+ * The first `warmMs` (10 s) of the session warm the clocks and are not scored: a join often drives both delays to the ceiling, where
+ * the arms are not paired, and the on arm takes a few seconds longer to come down from it (it has 50 ms further to go).
+ */
+export function replayDrawAhead(
+  trace: FighterTrace, hz: number, scorer: DrawAheadScorer,
+  opts: { render?: Partial<RenderClockOptions>; ahead?: Partial<RemoteDrawOptions>; warmMs?: number } = {},
+): void {
+  let map = maps.get(trace.seed);
+  if (!map) { map = generateMap(trace.seed); maps.set(trace.seed, map); }
+  const offInterp = new EntityInterpolator({ render: opts.render });
+  const onInterp = new EntityInterpolator({ render: opts.render, drawAhead: true });
+  const onDraw = new RemoteDraw(onInterp, opts.ahead);
+  onDraw.setEnabled(true);
+  const rig = new DrawAheadRig([
+    { name: "off", interp: offInterp, draw: new RemoteDraw(offInterp), owned: true },
+    { name: "on", interp: onInterp, draw: onDraw, owned: true },
+  ], scorer, null, Infinity);
+  const events: Array<{ at: number; fx?: TimedFx; patch?: FighterTrace["patches"][number] }> = [
+    ...trace.fx.map(([at, fx]) => ({ at, fx })),
+    ...trace.patches.map((row) => ({ at: row[0], patch: row })),
+  ];
+  // By arrival; an fx before a patch that arrived with it (the fx of a tick are sent before its patch).
+  events.sort((a, b) => a.at - b.at || (a.fx ? 0 : 1) - (b.fx ? 0 : 1));
+  if (events.length === 0) return;
+  const frame = 1000 / hz;
+  const first = events[0]!.at;
+  const last = events[events.length - 1]!.at;
+  const warm = first + (opts.warmMs ?? 10_000);
+  let gates = false;
+  let i = 0;
+  for (let now = first; now <= last; now += frame) {
+    while (i < events.length && events[i]!.at <= now) {
+      const e = events[i++]!;
+      if (e.fx) rig.onFx(e.fx);
+      else if (e.patch) { gates = e.patch[2] === 1; rig.onPatch(stateOf(e.patch), e.at); }
+    }
+    rig.frame(now, frame, now >= warm, gates ? withGates(map) : map, trace.rttMs, () => undefined);
+  }
+  rig.endSession();
+}
+
+function drawAheadMain(files: string[], hzs: number[], sets: Array<{ name: string; opts?: Partial<RenderClockOptions> }>, aheads: Array<Partial<RemoteDrawOptions>>): void {
+  const f1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : "-");
+  const f2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : "-");
+  for (const file of files) {
+    const rep = JSON.parse(fs.readFileSync(file, "utf8")) as { label: string; fighterTraces?: FighterTrace[] };
+    const traces = (rep.fighterTraces ?? []).filter((t) => t.patches.length > 200);
+    console.log(`== ${rep.label} (${file}): ${traces.length} session(s) with fighter traces`);
+    for (const set of sets) {
+      for (const ahead of aheads) {
+        for (const hz of hzs) {
+          const label = `${hz} Hz ${set.name}${Object.keys(ahead).length ? ` ahead ${JSON.stringify(ahead).replace(/"/g, "")}` : ""}`;
+          const merged = new DrawAheadScorer(["off", "on"], 1000 / hz);
+          traces.forEach((trace, k) => {
+            const one = new DrawAheadScorer(["off", "on"], 1000 / hz);
+            replayDrawAhead(trace, hz, one, { render: set.opts, ahead });
+            const on = one.report("on").players;
+            const off = one.report("off").players;
+            console.log(`  ${label} session ${k + 1} (rtt ${f1(trace.rttMs)} ms): age ${f1(off.ageMs.mean)} -> ${f1(on.ageMs.mean)} ms  ` +
+              `err u ${f2(on.errU.mean)}/${f2(on.errU.p95)}/${f2(on.errU.p99)} (moving ${f2(on.errMovingU.mean)}/${f2(on.errMovingU.p95)}/${f2(on.errMovingU.p99)})  ` +
+              `jumps ${f2(on.jumpCombatPct)}% of combat frames  held-moving ${f1(on.heldMovingPct)}%  frames ${on.frames}`);
+            merged.merge(one);
+          });
+          const on = merged.report("on");
+          const off = merged.report("off");
+          for (const line of [...formatArm("off", off), ...formatArm("on", on), ...verdict(on, off, label).lines]) console.log(`  ${line}`);
+        }
+      }
+    }
+  }
+}
+
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const files: string[] = [];
   let split = false;
+  let drawAhead = false;
+  let hzs = [60, 144];
+  const aheads: Array<Partial<RemoteDrawOptions>> = [];
+  const extra: Array<{ name: string; opts: Partial<RenderClockOptions> }> = [];
   const sets: Setting[] = [{ name: "legacy (fixed 100, snapping)", legacy: true }, { name: "adaptive (defaults)", opts: {} }];
   const a = process.argv.slice(2);
   for (let k = 0; k < a.length; k++) {
     if (a[k] === "--split") split = true;
+    else if (a[k] === "--drawahead") drawAhead = true;
+    else if (a[k] === "--hz") hzs = a[++k]!.split(",").map(Number);
+    else if (a[k] === "--ahead") aheads.push(JSON.parse(a[++k]!) as Partial<RemoteDrawOptions>);
     else if (a[k] === "--set") {
       const o = JSON.parse(a[++k]!) as Partial<RenderClockOptions>;
       sets.push({ name: JSON.stringify(o).replace(/"/g, ""), opts: o });
+      extra.push({ name: JSON.stringify(o).replace(/"/g, ""), opts: o });
     } else files.push(a[k]!);
+  }
+  if (drawAhead) {
+    drawAheadMain(files, hzs, [{ name: "defaults" }, ...extra], aheads.length > 0 ? [{}, ...aheads] : [{}]);
+    process.exit(0);
   }
   for (const file of files) {
     const rep = JSON.parse(fs.readFileSync(file, "utf8")) as { label: string; traces?: number[][][] };

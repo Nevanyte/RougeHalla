@@ -30,11 +30,15 @@
 // (nothing here reads the clock or Math.random).
 // `chests` (roguelike R5) keeps that many camp chests up through the measurement on top of the ones the fights drop: each
 // is rolled like a real one, picked by a player at 3 s and skipped by another at 6 s, and replaced once it expires.
+// `walkHints: false` (CLI hints=0) leaves the walk hint (sim/walkHint.ts) out of the world: the sim plays the same game, so the
+// difference is exactly what its two mirrors cost. `steer: "wasd"` (CLI steer=wasd) drives the players like the keyboard instead of
+// the 600 ms strafe: one of 8 headings held for about 600 ms, re-sent every 100 ms to a goal 64 u ahead with +-1 u of noise.
 import { getMessageBytes, Protocol } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
 import {
-  CHEST_SECONDS, circleClear, decide, generateMap, hasLineOfSight, inArc, mulberry32, PLAYER_RADIUS, raycast, reachMask, staggers, TICK_MS,
-  TILE, TILE_FLOOR, tileToWorldCenter, WEAPONS, type CampDef, type FactionId, type FxBatch, type FxEvent, type Vec2,
+  CHEST_SECONDS, circleClear, decide, generateMap, hasLineOfSight, inArc, mulberry32, PLAYER_RADIUS, raycast, reachMask, segmentClear,
+  staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter, WEAPONS, type CampDef, type FactionId, type FxBatch, type FxEvent, type GameMap,
+  type Vec2,
 } from "@raid/shared";
 import { BOT_FILL_DEFAULTS, type TierId } from "../src/bots/brain/types";
 import type { BotManagerStats } from "../src/bots/BotManager";
@@ -94,6 +98,10 @@ export interface BandwidthOptions {
   chests?: number;
   /** Quest offers, givers and items (the shipped default, off here unless asked). `quests=1` on the CLI. */
   quests?: boolean;
+  /** The walk hint's two mirrors (sim/walkHint.ts, default true). `hints=0` on the CLI. */
+  walkHints?: boolean;
+  /** How the driven players walk: "strafe" (default, a move every `strafeMs`) or "wasd" (the keyboard's cadence). `steer=wasd` on the CLI. */
+  steer?: "strafe" | "wasd";
   /** Called after every measured step, before the patch is encoded: for analysis scripts that look at what changed. */
   probe?: (world: World) => void;
   /** Called after every measured step with the size of that tick's patch frame (0 when nothing changed). */
@@ -186,6 +194,10 @@ interface Driver {
   /** Player id -> the index in `camps` it stands at. Empty when nobody is near a camp. */
   campOf: Map<string, number>;
   strafeAt: Map<string, number>;
+  /** WASD steering: the heading each player holds, until when, and when it next re-sends. */
+  heading: Map<string, number>;
+  headingUntil: Map<string, number>;
+  steerAt: Map<string, number>;
   /** The players' dice (strafe directions). */
   rnd: () => number;
   /** Where mobs go: a stream of its own, so the players behave the same whatever number of mobs there are. */
@@ -261,8 +273,26 @@ function nearestTarget(world: World, d: Driver, pid: string): Combatant | null {
   return bestId === null ? null : combatant(world, bestId);
 }
 
+/** The client re-sends a held direction this often (client net/keyboardMovement.ts STEER_REPEAT_MS)... */
+const STEER_REPEAT_MS = 100;
+/** ...to a goal this far ahead, shortened in 8 u steps until the way is clear (keyboardMoveGoal). */
+const KEYBOARD_REACH = 64;
+/** A bench player holds one heading this long. */
+const STEER_HOLD_MS = 600;
+
+/** keyboardMoveGoal's goal along angle `a`, `noise` u to the side. */
+function keyboardGoal(map: GameMap, from: Vec2, a: number, noise: number): Vec2 | null {
+  const ux = Math.cos(a);
+  const uy = Math.sin(a);
+  for (let reach = KEYBOARD_REACH; reach >= 8; reach -= 8) {
+    const goal = { x: from.x + ux * reach - uy * noise, y: from.y + uy * reach + ux * noise };
+    if (segmentClear(map, from, goal, PLAYER_RADIUS)) return goal;
+  }
+  return null;
+}
+
 /** What the clients would have sent since the last tick, plus the bench's own heal and wake-ups. */
-function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: number): void {
+function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: number, steer: "strafe" | "wasd" = "strafe"): void {
   const now = world.state.serverTime;
   d.ticks++;
   if (mobsWanted > 0) topUp(world, d, mobsWanted);
@@ -285,6 +315,23 @@ function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: num
     const held = c.rt.weapon.held;
     if (out.hold && !held) q.pushAction({ kind: "attack", a: out.aim, t: now - 100 });
     else if (!out.hold && held) q.pushAction({ kind: "release", a: out.aim, t: now - 100 });
+    if (steer === "wasd") {
+      // The keyboard: one of the 8 headings toward a point around the target, held, its goal re-sent every STEER_REPEAT_MS.
+      if (now >= (d.headingUntil.get(pid) ?? 0)) {
+        const a = d.rnd() * Math.PI * 2;
+        const r = 70 + d.rnd() * 90;
+        const toward = Math.atan2(target.s.y + Math.sin(a) * r - c.s.y, target.s.x + Math.cos(a) * r - c.s.x);
+        d.heading.set(pid, Math.round(toward / (Math.PI / 4)) * (Math.PI / 4));
+        d.headingUntil.set(pid, now + STEER_HOLD_MS);
+        d.steerAt.set(pid, now);
+      }
+      if (now >= (d.steerAt.get(pid) ?? 0)) {
+        d.steerAt.set(pid, now + STEER_REPEAT_MS);
+        const goal = keyboardGoal(collisionMap(world), c.s, d.heading.get(pid)!, d.rnd() * 2 - 1);
+        if (goal) q.pushMove({ kind: "move", x: goal.x, y: goal.y });
+      }
+      continue;
+    }
     // Always on the move around the target: the worst case for the patch.
     if (now >= (d.strafeAt.get(pid) ?? 0)) {
       d.strafeAt.set(pid, now + strafeMs);
@@ -401,6 +448,8 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const strafeMs = opts.strafeMs ?? 600;
   const chestsWanted = opts.chests ?? 0;
   const questsOn = opts.quests === true;
+  const walkHints = opts.walkHints !== false;
+  const steer = opts.steer ?? "strafe";
 
   let uid = 0;
   const map = generateMap(seed);
@@ -410,13 +459,13 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   let world: World;
   if (botCount > 0) {
     room = createHeadlessRoom({
-      seed, map, config: config(playerCount, mobsWanted > 0, questsOn), bots: { ...BOT_FILL_DEFAULTS, fillTo: playerCount },
+      seed, map, config: config(playerCount, mobsWanted > 0, questsOn), bots: { ...BOT_FILL_DEFAULTS, fillTo: playerCount }, walkHints,
     });
     world = room.world;
   } else {
     world = createGameWorld({
       seed, config: config(playerCount, mobsWanted > 0, questsOn), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
-    });
+    }, { walkHints });
   }
   // What the room's SchemaSerializer does in `reset(state)`, before anyone joins. The server raises the encoder's buffer where it
   // starts (src/index.ts ENCODER_BUFFER_BYTES: a 136x136 state is over the 16 KB default); the same here, or every run would log
@@ -445,7 +494,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   if (world.state.phase !== "active") throw new Error("the bandwidth run did not start");
 
   const driver: Driver = {
-    ids, botIds, camps: allCamps(world), campOf: new Map(), strafeAt: new Map(), rnd,
+    ids, botIds, camps: allCamps(world), campOf: new Map(), strafeAt: new Map(), heading: new Map(), headingUntil: new Map(), steerAt: new Map(), rnd,
     placeRnd: mulberry32(seed * 13 + 5), cursor: 0, ticks: 0, chestCursor: 0,
   };
   if (camps > 0 && mobsWanted > 0) {
@@ -503,7 +552,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const channel = room ? room.channel : new FxChannel();
 
   for (let n = 0; n < warmup + ticks; n++) {
-    drivePlayers(world, driver, mobsWanted, strafeMs);
+    drivePlayers(world, driver, mobsWanted, strafeMs, steer);
     if (chestsWanted > 0) keepChests(world, driver, chestsWanted);
     const events = room ? room.tick() : step(world, TICK_MS);
     const measuring = n >= warmup;
@@ -596,6 +645,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (args.seed !== undefined) common.seed = Number(args.seed);
   if (args.ticks !== undefined) common.ticks = Number(args.ticks);
   common.quests = args.quests === "1" || args.quests === "true";
+  if (args.hints !== undefined) common.walkHints = !(args.hints === "0" || args.hints === "false");
+  if (args.steer === "wasd" || args.steer === "strafe") common.steer = args.steer;
   const f = (n: number): string => n.toFixed(2);
   const show = (label: string, o: BandwidthOptions): void => {
     const r = runBandwidth({ ...common, ...o });
@@ -618,4 +669,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   show(`chests  (typical, and 5 camp chests up)`, { camps: TYPICAL_CAMPS, chests: 5 });
   show("no mobs (players only)", { camps: 0, mobs: 0 });
   show(`bots    (${BOTS_SCENARIO_BOTS} fill bots + 1 client at ${BOTS_SCENARIO_CAMPS} camp)`, { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS });
+  // What the walk hint's two mirrors cost: the same runs without them (the sim plays the same game, so only their bytes differ).
+  if (common.walkHints !== false) {
+    const cost = (label: string, o: BandwidthOptions): void => {
+      const withHints = runBandwidth({ ...common, ...o, walkHints: true });
+      const without = runBandwidth({ ...common, ...o, walkHints: false });
+      console.log(`walk hints add ${f(withHints.totalKBps - without.totalKBps)} KB/s ${label} (${f(without.totalKBps)} -> ${f(withHints.totalKBps)})`);
+    };
+    cost("typical", { camps: TYPICAL_CAMPS });
+    cost("heavy", { camps: HEAVY_CAMPS });
+    cost("typical, WASD steering", { camps: TYPICAL_CAMPS, steer: "wasd" });
+    cost(`bots (${BOTS_SCENARIO_BOTS} fill bots)`, { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS });
+  }
 }
