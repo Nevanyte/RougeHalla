@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateMap, WORLD_W, type Vec2 } from "@raid/shared";
+import { generateMap, rollCampElites, WORLD_W, type Vec2 } from "@raid/shared";
 import { clusterMapContacts, layoutMinimapMarks, marksOverlap, type MapContact, type PlacedMark } from "../src/ui/minimapLayout";
 import { minimapMarks, type MarkerInputs } from "../src/ui/minimapMarkers";
 import { mapSpan } from "../src/ui/minimapMath";
@@ -54,6 +54,20 @@ describe("minimap collision layout", () => {
       expect(marks.filter((p) => p.mark.kind === "respawn")).toHaveLength(map.camps.length - 4);
       expect(marks.filter((p) => p.mark.kind === "enemy").length).toBeGreaterThan(0);
       separated(marks.filter((p) => !p.mark.pinned));
+    }
+  });
+
+  it("carries each elite camp's own elite type on its mark, the k-th elite camp of a zone holding the zone's k-th elite", () => {
+    const map = generateMap(5);
+    const marks = minimapMarks({ ...empty(), camps: map.camps });
+    const types = rollCampElites(map.camps);
+    const camps = marks.filter((p) => p.mark.kind === "camp");
+    expect(camps.some((p) => p.mark.eliteType !== "")).toBe(true);
+    for (const p of camps) expect(p.mark.eliteType).toBe(types[Number(p.mark.key.split(":").pop())]);
+    // Two elite camps a zone, each with its own type: the painter no longer has to recover the order from a lone copy.
+    for (const zone of new Set(map.camps.map((c) => c.zone))) {
+      const zoneTypes = camps.filter((p) => p.mark.camp!.zone === zone && p.mark.camp!.eliteSpot >= 0).map((p) => p.mark.eliteType);
+      expect(new Set(zoneTypes).size).toBe(zoneTypes.length);
     }
   });
 

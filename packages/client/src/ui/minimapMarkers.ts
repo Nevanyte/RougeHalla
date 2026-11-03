@@ -1,6 +1,7 @@
 import type { GameMap, Vec2 } from "@raid/shared";
 import { COLOR_CHEST, COLOR_OUTLINE, COLOR_PLAYER, COLOR_PLAYER_DOWN, COLOR_ROUTE,
   FACTION_CSS, paintCamps, type ChestBlip } from "./mapPainter";
+import { campEliteTypes } from "./eliteGlyphs";
 import { layoutMinimapMarks, type MapContact, type MapMark, type PlacedMark } from "./minimapLayout";
 import { mapSpan } from "./minimapMath";
 import { questKindCss, type QuestMapBlip } from "./questModel";
@@ -18,6 +19,8 @@ export interface TacticalMark extends MapMark {
   text?: string;
   elite?: boolean;
   camp?: GameMap["camps"][number];
+  /** A camp mark's elite type ("" for none), worked out from the whole camp list: the mark is painted alone, out of its zone's order. */
+  eliteType?: string;
   state?: number;
   quest?: QuestMapBlip;
   next?: boolean;
@@ -79,10 +82,11 @@ export function minimapMarks(input: MarkerInputs): PlacedMark<TacticalMark>[] {
   });
   input.stops.forEach((p, i) => add("stop", String(i), p, i === input.next ? 10 : 7, i === input.next ? 10 : 7,
     40, COLOR_ROUTE, { next: i === input.next }));
+  const eliteTypes = campEliteTypes(input.camps);
   input.camps.forEach((camp, i) => {
     // Contacts and clocks replace the background camp symbol at that spot.
     if (marks.some((m) => !m.pinned && m.kind !== "stop" && Math.hypot(m.x - camp.x * k, m.y - camp.y * k) < 8)) return;
-    add("camp", String(i), camp, 11, 17, 10, "", { camp, state: input.campStates[i] ?? 0 });
+    add("camp", String(i), camp, 11, 17, 10, "", { camp, eliteType: eliteTypes[i], state: input.campStates[i] ?? 0 });
   });
   return layoutMinimapMarks(marks);
 }
@@ -102,7 +106,7 @@ export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly
     ctx.strokeStyle = COLOR_OUTLINE;
     ctx.fillStyle = m.color;
     if (m.kind === "camp" && m.camp) {
-      paintCamps(ctx, [{ ...m.camp, x: x, y: y }], 1, px * 0.8, [m.state ?? 0]);
+      paintCamps(ctx, [{ ...m.camp, x: x, y: y, elite: m.eliteType }], 1, px * 0.8, [m.state ?? 0]);
     } else if (m.kind === "zombie") {
       // A little square skull distinguishes the follower from camp mobs and green corpse crosses.
       ctx.fillRect(x - 2.7 * px, y - 2.7 * px, 5.4 * px, 5.4 * px);
