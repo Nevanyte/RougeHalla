@@ -67,7 +67,7 @@ import {
   FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, HEAVIER_SENTENCE_PER_BONUS, isDot, isFactionId, isRegionalKind,
   lifestealFraction,
-  lifestealTotal, holyApLifestealOf, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
+  lifestealTotal, holyCampLifestealOf, markPct, markTierOf, markWeight, MARK_AS_EXPONENT, MARK_FARM_AS_EFFICIENCY, MARK_DENIAL_LINGER_MS, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TOP_TIER,
   plagueDps, sentencedHuntMarkMultiplier, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXEC_BLOCKED, SIG_EXECUTE, SIG_SUPPRESSED, SIG_TAXED,
   staggerImmuneUntil, TARGET_FORGET_SECONDS, TARGET_LOS_GRACE_MS, TARGET_RANGE, taxedRate,
   type DamageShares, type FactionSpec, type HealSource, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
@@ -889,7 +889,7 @@ function afterDamage(world: World, dtMs: number): void {
     const c = byId.get(id);
     if (!c) continue;
     const spec = factionOf(c.s);
-    const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) + (c.kind === "player" ? holyApLifestealOf(apOf(c.s)) : 0) : 0;
+    const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) : 0;
     // Holy's own share and the rows' (Bloodthirst doubling them), and for damage over time Siphon's share on top (G5).
     const rows = c.kind === "player" && c.s.faction === "holy" ? holyLeechRowsOf(lifestealRowsOf(c.s)) : lifestealRowsOf(c.s);
     const farmRows = farmLifestealRowsOf(c.s)

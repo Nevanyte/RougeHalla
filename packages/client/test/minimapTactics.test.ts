@@ -62,11 +62,11 @@ describe("tactical minimap integration", () => {
     r.minimap.destroy();
   });
 
-  it("draws public corpses in green and clears them when the Plague player loses eligibility", () => {
+  it("draws public corpses as a green X and clears them when the Plague player loses eligibility", () => {
     const r = rig();
     r.minimap.setCorpses([{ id: "pc1", x: 2000, y: 2100 }]);
     r.paint();
-    expect(argsOf(r.ctx, "strokeStyle=").map(([c]) => c)).toContain("#8bff61");
+    expect(argsOf(r.ctx, "strokeStyle=").map(([c]) => c)).toContain("#6dff3f");
     const before = r.paints();
     r.minimap.setCorpses([]); r.paint();
     expect(r.paints()).toBeGreaterThan(before);

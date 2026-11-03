@@ -136,6 +136,7 @@ function huntInput(ctx: BrainContext, st: ChestState, skipTried: boolean): Chest
     fighting: fighting(ctx, st),
     retreating: retreating(ctx, st),
     inColiseum: p.hud.inColiseum,
+    teleportAt: p.hud.gatesLocked ? 0 : p.hud.patienceEndsAt,
   };
 }
 

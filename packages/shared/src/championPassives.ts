@@ -1,12 +1,6 @@
 import {
-  FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, HOLY_AP_LIFESTEAL_CAP, HOLY_CAMP_LIFESTEAL_PER_CLEAR,
-  HOLY_LEECH_ROW_MULT, HOLY_LIFESTEAL_PER_AP,
+  FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, HOLY_CAMP_LIFESTEAL_PER_CLEAR, HOLY_LEECH_ROW_MULT,
 } from "./constants";
-
-/** Holy's lifesteal from SO (AP), added to its own share (HOLY_LIFESTEAL_PER_AP, capped). */
-export function holyApLifestealOf(ap: number): number {
-  return Number.isFinite(ap) && ap > 0 ? Math.min(HOLY_AP_LIFESTEAL_CAP, ap * HOLY_LIFESTEAL_PER_AP) : 0;
-}
 
 /** Holy's Demon Blood bonus from eligible camp clears, before the normal lifesteal multipliers. */
 export function holyCampLifestealOf(campClears: number): number {

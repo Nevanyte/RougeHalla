@@ -54,14 +54,14 @@ describe("held map actor markers", () => {
     const view = new PlanningView({ map: MAP, route: new RouteState(null, null), send: () => {}, settings: new SettingsStore({ getItem: () => null, setItem: () => {} }) });
     view.update(frame({
       local: { x: 1200, y: 900, alive: true }, localFaction: "plague", canSee: () => false,
-      corpses: [{ id: "pc1", x: 1500, y: 1100, expiresAt: 5000, playerName: "Fallen" }],
+      corpses: [{ id: "pc1", x: 1500, y: 1100, playerName: "Fallen" }],
     }));
     const root = asEl(view.element);
     expect(root.byClass("pl-actor-corpse")).toHaveLength(1);
     expect(root.byClass("pl-actor-corpse")[0]?.getAttribute("aria-label")).toContain("Fallen");
-    view.update(frame({ local: { x: 1200, y: 900, alive: false }, localFaction: "plague", corpses: [{ id: "pc1", x: 1500, y: 1100, expiresAt: 5000 }] }));
+    view.update(frame({ local: { x: 1200, y: 900, alive: false }, localFaction: "plague", corpses: [{ id: "pc1", x: 1500, y: 1100 }] }));
     expect(root.byClass("pl-actor-corpse")).toHaveLength(0);
-    view.update(frame({ local: { x: 1200, y: 900, alive: true }, localFaction: "fire", corpses: [{ id: "pc1", x: 1500, y: 1100, expiresAt: 5000 }] }));
+    view.update(frame({ local: { x: 1200, y: 900, alive: true }, localFaction: "fire", corpses: [{ id: "pc1", x: 1500, y: 1100 }] }));
     expect(root.byClass("pl-actor-corpse")).toHaveLength(0);
     view.destroy();
   });

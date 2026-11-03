@@ -16,7 +16,7 @@ const wire = (over: Partial<StatMirrors>): StatMirrors => encodeMirrors({ ...IDE
 describe("gained-stat strip", () => {
   it("includes earned Holy camp leech without including base faction leech", () => {
     const input = { faction: "holy", build: {}, weapon: "fists" as const, campClears: 8 };
-    expect(buildGains(input).find(s => s.id === "leech")?.value).toBe("+2%");
+    expect(buildGains(input).find(s => s.id === "leech")?.value).toBe("+4%");
     expect(buildGains({ ...input, faction: "fire" }).find(s => s.id === "leech")?.value).toBe("0%");
   });
   it("excludes faction totals and preserves fractional gains from the first mob kill", () => {

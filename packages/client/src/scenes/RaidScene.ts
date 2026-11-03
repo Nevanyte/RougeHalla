@@ -665,8 +665,8 @@ export class RaidScene extends Phaser.Scene {
     this.plagueCorpses = [];
     if (state.phase === "active" && state.training !== true && me?.status === "alive" && me.faction === "plague") {
       state.plagueCorpses.forEach((corpse) => {
-        if (corpse.expiresAt > serverNow && Number.isFinite(corpse.x + corpse.y)) {
-          this.plagueCorpses.push({ id: corpse.id, playerName: corpse.playerName, x: corpse.x, y: corpse.y, expiresAt: corpse.expiresAt });
+        if (Number.isFinite(corpse.x + corpse.y)) {
+          this.plagueCorpses.push({ id: corpse.id, playerName: corpse.playerName, x: corpse.x, y: corpse.y });
         }
       });
     }

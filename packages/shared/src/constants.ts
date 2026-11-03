@@ -62,14 +62,7 @@ export const CAMP_RESPAWN_MS = 180_000;
 /** Personal camp ward ends one minute before respawn. */
 export const CAMP_WARD_MS = 120_000;
 /** Holy's Demon Blood: permanent lifesteal earned per eligible camp clear (not per mob). */
-export const HOLY_CAMP_LIFESTEAL_PER_CLEAR = 0.0025;
-/**
- * Holy's second build (the faction rework): every point of SO (AP) adds this much to Holy's own lifesteal share, up to
- * HOLY_AP_LIFESTEAL_CAP, so a Soul-damage Holy (wand, or the sword's dominant AP scaling) heals from its burst too. It sits
- * inside LIFESTEAL_MAX with the rest (G5), so it cannot stack past the cap that keeps a Holy mirror finite.
- */
-export const HOLY_LIFESTEAL_PER_AP = 0.001;
-export const HOLY_AP_LIFESTEAL_CAP = 0.15;
+export const HOLY_CAMP_LIFESTEAL_PER_CLEAR = 0.005;
 /**
  * Holy's first build, the lifesteal juggernaut (the build rebalance, testing/TUNING_BALANCE.md 13.8): a Holy's lifesteal rows
  * (Leech cards and the like) count this many times, still capped at LS_CAP, so a Holy that drafts leech sustains like one.
@@ -108,7 +101,7 @@ export const FROST_CHILL_BONUS_CAP = 0.2;
  */
 export const PLAGUE_AP_PER_HIT = 0.8;
 /** Frost's Frozen Justice defenses while fighting a true elite, and after contact ends. */
-export const FROST_ELITE_GUARD_BONUS = 15;
+export const FROST_ELITE_GUARD_BONUS = 25;
 export const FROST_ELITE_GUARD_LINGER_MS = 2_000;
 /** Tile sight scans are bounded to ten per second per source; exact current sight remains available between scans. */
 export const VISION_UPDATE_MS = 100;

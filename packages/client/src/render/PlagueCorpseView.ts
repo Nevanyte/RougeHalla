@@ -24,7 +24,7 @@ export class PlagueCorpseView {
   ): void {
     const active = new Set<string>();
     if (eligible) corpses.forEach((corpse, id) => {
-      if (!(corpse.expiresAt > now) || !Number.isFinite(corpse.x + corpse.y)) return;
+      if (!Number.isFinite(corpse.x + corpse.y)) return;
       active.add(id);
       const visible = canSee(corpse);
       let entry = this.drawn.get(id);
