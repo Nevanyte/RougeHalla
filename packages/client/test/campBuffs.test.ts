@@ -21,7 +21,7 @@ describe("CampBuffs", () => {
     expect(ofKind("container")).toHaveLength(1);
     expect(ofKind("graphics")).toHaveLength(1);
     expect(ofKind("text")).toHaveLength(0);
-    expect(root.state.name).toContain("Ember Imp: +1% damage per kill");
+    expect(root.state.name).toContain("Ember Imp: +3% damage per kill");
     expect(root.state.name).toContain("Wyrmling: drops an Augment chest");
     expect(root.calls.filter(([name]) => name === "setPosition")[0]?.[1]).toEqual([120, 120 * Y_SCALE - 72]);
     const count = [ofKind("container").length, ofKind("graphics").length, ofKind("text").length];

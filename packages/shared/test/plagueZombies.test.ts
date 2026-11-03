@@ -21,6 +21,18 @@ describe("Plague zombie scaling", () => {
     expect(built.maxHp / plain.maxHp).toBeGreaterThan(3);
   });
 
+  it("has twice the hp it had before the owner's \"2x zombie HP\" ruling (4% of max hp + 0.4 per bonus point), at every owner hp and body count, with its damage untouched", () => {
+    expect([PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HP_PER_BONUS]).toEqual([0.08, 0.8]);
+    expect([PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_HIT_PER_BONUS]).toEqual([0.003, 0.025]);
+    for (const [ownerHp, bodies, baseHp] of [[1000, 1, 1000], [1500, 1, 1000], [1500, 3, 1000], [2400, 5, 1000], [1000, 1, undefined]] as const) {
+      const z = plagueZombieStats(ownerHp, bodies, baseHp === undefined ? {} : { baseHp });
+      const growth = 1 + (bodies - 1) * 0.1;
+      const extra = baseHp === undefined ? 0 : Math.max(0, ownerHp - baseHp);
+      expect(z.maxHp, `${ownerHp}/${bodies}`).toBeCloseTo(2 * (ownerHp * 0.04 + extra * 0.4) * growth, 9);
+      expect(z.damage, `${ownerHp}/${bodies}`).toBeCloseTo(Math.min((ownerHp * 0.003 + extra * 0.025) * growth, ownerHp * 0.03 * growth), 9);
+    }
+  });
+
   it("adds ten percent to both for each further body", () => {
     const one = plagueZombieStats(1500, 1, { baseHp: 1000 });
     const three = plagueZombieStats(1500, 3, { baseHp: 1000 });

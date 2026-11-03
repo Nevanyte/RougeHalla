@@ -8,7 +8,7 @@ import {
   backlashPerSwing, bonusMultiplier, burnDps, cardRows, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
   damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markPct, markWeight,
   MARK_TIER_HITS,
-  ELITE_DMG_MULT, ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mobTypeFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
+  ELITE_DMG_MULT, ELITE_K, MOB_DMG_MULT, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, mitigateShares, mobFaction, mobTypeFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type DamageShares, type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -53,7 +53,10 @@ function openMap(): GameMap {
   return map;
 }
 
-/** The factions as the sim fights them: players paced, regional mobs scaled by MOB_K (and the zone's MOB_ZONE_DAMAGE) and then paced. */
+/**
+ * The factions as the sim fights them: players paced, regional mobs scaled by MOB_K (and the zone's MOB_ZONE_DAMAGE), their damage
+ * numbers by MOB_DMG_MULT ("half mob damage": an elite's by ELITE_DMG_MULT on top) and then paced.
+ */
 const PLAYER_SPEC = Object.fromEntries(
   Object.keys(FACTIONS).map((id) => [id, pacedFaction(FACTIONS[id as FactionId])]),
 ) as Record<FactionId, FactionSpec>;
@@ -242,10 +245,10 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       }
       expect(engaged).toBeGreaterThan(50);
 
-      // Per second: the scaled paced burn times the weapon's multiplier, which is MOB_K of the full-strength Fire's.
+      // Per second: the scaled paced burn times the weapon's multiplier, which is MOB_K x MOB_DMG_MULT of the full-strength Fire's.
       const perSecond = sum(rig.landed.filter((h) => h.sig === "burn").map((h) => h.amount)) / (engaged * DT);
       expect(perSecond).toBeCloseTo(expected / DT, 6);
-      expect(perSecond / onPlayer("fire", "plague", burnDps(PLAYER_SPEC.fire) * bonusMultiplier("axe"))).toBeCloseTo(MOB_K, 9);
+      expect(perSecond / onPlayer("fire", "plague", burnDps(PLAYER_SPEC.fire) * bonusMultiplier("axe"))).toBeCloseTo(MOB_K * MOB_DMG_MULT, 9);
     });
 
     it("reports the burn as sig \"burn\" hit fx by the mob's id, in DOT_FX_MS chunks, and marks the player burning", () => {
@@ -283,11 +286,11 @@ describe("a regional mob fights with its region's signature at mob strength", ()
           expect(h.amount).toBeCloseTo(expected, 9);
         }
       }
-      // Mob strength: the Fire mob's backlash param is MOB_K of the player-strength Fire's.
-      expect(MOB_SPEC.fire.params.backlash! / PLAYER_SPEC.fire.params.backlash!).toBeCloseTo(MOB_K, 12);
+      // Mob strength: the Fire mob's backlash param is MOB_K x MOB_DMG_MULT of the player-strength Fire's.
+      expect(MOB_SPEC.fire.params.backlash! / PLAYER_SPEC.fire.params.backlash!).toBeCloseTo(MOB_K * MOB_DMG_MULT, 12);
     });
 
-    it("an elite burns at ELITE_K strength (times the elite damage buff)", () => {
+    it("an elite burns at ELITE_K strength (times the mob and elite damage multipliers)", () => {
       const rig = makeRig({ player: "plague", weapon: "axe", mob: "fire", elite: true });
       hold(rig);
       const logs = run(rig, 60);
@@ -295,7 +298,7 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       const burns = logs.flatMap((l) => mobBurn(l, rig, "burn"));
       expect(burns.length).toBeGreaterThan(40);
       for (const h of burns) expect(h.amount).toBeCloseTo(expected, 9);
-      expect(burnDps(ELITE_SPEC.fire) / burnDps(PLAYER_SPEC.fire)).toBeCloseTo(ELITE_K * ELITE_DMG_MULT, 12);
+      expect(burnDps(ELITE_SPEC.fire) / burnDps(PLAYER_SPEC.fire)).toBeCloseTo(ELITE_K * MOB_DMG_MULT * ELITE_DMG_MULT, 12);
       expect(expected / onPlayer("fire", "plague", burnDps(MOB_SPEC.fire) * bonusMultiplier("axe") * DT)).toBeCloseTo(ELITE_K * ELITE_DMG_MULT / MOB_K, 9);
     });
   });
@@ -328,8 +331,8 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       });
       expect(engaged).toBeGreaterThan(50);
       expect(sigLanded(rig.landed, "disease").length).toBe(engaged);
-      // At mob strength: the plague param is MOB_K of the player-strength Plague's.
-      expect(MOB_SPEC.plague.params.plague! / PLAYER_SPEC.plague.params.plague!).toBeCloseTo(MOB_K * MOB_ZONE_DAMAGE.plague!, 12);
+      // At mob strength: the plague param is MOB_K x MOB_DMG_MULT of the player-strength Plague's.
+      expect(MOB_SPEC.plague.params.plague! / PLAYER_SPEC.plague.params.plague!).toBeCloseTo(MOB_K * MOB_DMG_MULT * MOB_ZONE_DAMAGE.plague!, 12);
       const fx = rig.events.flatMap((e) => (e.type === "fx" && e.fx.kind === "hit" && e.fx.sig === "disease" ? [e.fx] : []));
       expect(fx.length).toBeGreaterThanOrEqual(5);
       for (const h of fx) expect(h).toMatchObject({ id: "p", by: rig.mob.id, weapon: "bow", sig: "disease" });
@@ -386,9 +389,9 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       const tier = Math.min(4, 1 + Math.floor(pulses.length / MARK_TIER_HITS));
       expect(signatureState(rig.world, rig.mob.id)!.tier).toBe(tier);
       expect([rig.p.markTier, rig.p.markBy, rig.p.brand]).toEqual([tier, rig.mob.id, tier * 25]);
-      // Mob strength: the share is MOB_K of the player-strength Sentenced's (both paced alike), and a mob earns no kill-stacks.
-      expect(MOB_SPEC.sentenced.params.mark_pct! / PLAYER_SPEC.sentenced.params.mark_pct!).toBeCloseTo(MOB_K, 12);
-      expect(MOB_SPEC.sentenced.params.mark_kill! / PLAYER_SPEC.sentenced.params.mark_kill!).toBeCloseTo(MOB_K, 12);
+      // Mob strength: the share is MOB_K x MOB_DMG_MULT of the player-strength Sentenced's (both paced alike), and a mob earns no kill-stacks.
+      expect(MOB_SPEC.sentenced.params.mark_pct! / PLAYER_SPEC.sentenced.params.mark_pct!).toBeCloseTo(MOB_K * MOB_DMG_MULT, 12);
+      expect(MOB_SPEC.sentenced.params.mark_kill! / PLAYER_SPEC.sentenced.params.mark_kill!).toBeCloseTo(MOB_K * MOB_DMG_MULT, 12);
       expect(rig.p.sentence).toBe(0);
     });
 

@@ -120,7 +120,10 @@ describe("bandwidth budget (per client, ws payload)", () => {
       return withChests.totalKBps - without.totalKBps;
     });
     expect(diffs.reduce((a, b) => a + b, 0) / diffs.length).toBeLessThan(1);
-    for (const d of diffs) expect(d).toBeLessThan(2);
+    // With 2x mob hp and half mob damage (and the mobs' kills slower) the fights move more between a chest run and its twin: seeds 1-6 now
+    // measure +0.11 / +0.44 / +0.62 / -0.12 / +0.06 / +2.18 KB/s (seed 6: 11.7 camp mobs fighting against 9.1, the chests moved the fight),
+    // so the per-seed bound is 2.5 where it was 2; the mean (+0.55) is what judges the chests' own cost.
+    for (const d of diffs) expect(d).toBeLessThan(2.5);
   }, 300_000);
 
   // Quests (the shipped default, off in the benches unless asked). On the zone maps with the balance pass (seeds 1-3) typical

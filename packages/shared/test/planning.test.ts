@@ -131,16 +131,20 @@ describe("matchupShare (moved here from the bots for the planning screen)", () =
     }
   });
 
-  it("follows the duel table: everyone beats a normal mob of their own region, an elite is never easier than its camp-mates", () => {
+  it("follows the duel table: everyone beats a normal mob of their own region, an elite is never easier than its camp-mates, and at least one faction can still win each elite straight", () => {
     for (const f of FACTION_IDS) expect(matchupShare(f, f, false)).toBeGreaterThan(0.5);
     for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
       expect(matchupShare(me, region, true)).toBeLessThanOrEqual(matchupShare(me, region, false));
     }
-    // The faction rework (no counters) leaves no pair a loss against an elite, and no zone's elite much easier than another's
-    // (0.31-0.52 since the elite buff, ELITE_HP_MULT; 0.4-0.66 before).
+    // The faction rework (no counters) left no pair a loss against an elite (0.4-0.66, then 0.31-0.52 after the first elite buff). The
+    // owner's second buff ("buff elites again": ELITE_HP_MULT 2.0, ELITE_DMG_MULT 1.5) on top of "2x mob HP, half mob damage" makes an
+    // elite 2.6x a full-size player's hp at 0.49x its hit, so a straight uncarded duel is a LOSS for Fire, Plague and Frost (share 0) and
+    // 0.14-0.41 for Sentenced and Holy. The carded, minute-5 camp fight in the real sim is what bench/campDuel.ts --types gates.
     for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
-      expect(matchupShare(me, region, true)).toBeGreaterThan(0.25);
-      expect(matchupShare(me, region, true)).toBeLessThan(0.75);
+      expect(matchupShare(me, region, true)).toBeLessThan(0.5);
+    }
+    for (const region of FACTION_IDS) {
+      expect(Math.max(...FACTION_IDS.map((me) => matchupShare(me, region, true))), `${region} elite`).toBeGreaterThan(0.1);
     }
   });
 });

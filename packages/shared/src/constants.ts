@@ -189,10 +189,19 @@ export const GV_WIN = 50;
 export const WIN_BONUS_MIN_PLAYERS = 3;
 export const WIN_BONUS_MIN_OPPONENTS = 2;
 export const GV_KILL = 10;
-export const GV_MOB = 2;
-export const GV_ELITE = 10;
-/** Mob GV (normal and elite together) stops counting past this per run, so farming can't beat winning. */
-export const GV_MOB_CAP = 30;
+/**
+ * Mob GV, x3 by owner ruling (2026-11, "3x mob rewards": farming has to pay for the longer walk between camps and the slower kills of
+ * MOB_HP_MULT / MOB_DMG_MULT): a normal kill was 2 GV, an elite 10, the cap 30. A credited kill's stat stacks went x3 with it
+ * (MOB_KILL_STACKS in mobStats.ts).
+ */
+export const GV_MOB = 6;
+export const GV_ELITE = 30;
+/**
+ * Mob GV (normal and elite together) stops counting past this per run. It was 30, under GV_WIN so farming could not beat winning; by the
+ * same owner ruling it is now 90, which EXCEEDS GV_WIN (50): a run that farms to the cap out-earns a win bonus. Owner's call, flagged
+ * for the next balance read (a free-callsign farm now banks up to 90 mob GV a run).
+ */
+export const GV_MOB_CAP = 90;
 
 // Feed and bounty (LoL-style shutdown gold): see feedScore and bountyFor in rules.ts.
 /** Feed score per run = player kills + this × mob kills. It sets the mob reward curve and the catch-up; the bounty ignores mobs. */
@@ -465,17 +474,34 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
 /**
- * Elite buff (owner ruling, 2026-11: elites died too fast). On top of ELITE_K an elite's hp is multiplied by ELITE_HP_MULT and every
- * damage number it has (hit, point-damage signatures, mark, execute) by ELITE_DMG_MULT: hp more than damage, so an elite takes about
- * 1.5-1.6x as long to kill but hits only 5% harder. The 5% sits on top of MOB_ZONE_DAMAGE, so every zone's elite is stronger than
- * before (Plague's and Holy's stay under their zone's normal damage correction, they just gain the 5% too). Applied in `mobFaction`
- * (shared/mobs.ts), so the sim, the bots and the planning maths all see it. Chosen with bench/campDuel.ts --types, whose elite gate
- * is a carded player (the minute-5 kit, `ELITE_GATE_MINUTE`): hp x1.8 with damage x1.1 left the Pox Behemoth's and Archon's camps at
- * 9 of 25 pairings, hp x1.6 with damage x1.0 at 15; this pair is the strongest that clears at least one faction per elite camp and
- * most pairings. On the weaker minute-2 kit it leaves those two uncleared (the owner's first pass, hp x1.35 with no damage, held it).
+ * "2x mob HP, half mob damage" (owner ruling, 2026-11: the kills were so quick that the best play was to farm the nearest camp; slower
+ * kills, with bigger rewards, should make the walk to a farther camp worth it). Every REGIONAL mob, normal and elite alike, has its hp
+ * multiplied by MOB_HP_MULT and every damage number it has (hit, point-damage signatures, mark shares, execute) by MOB_DMG_MULT, on top
+ * of MOB_K / ELITE_K (which scale hp and damage together) and the zone's MOB_ZONE_DAMAGE. Applied once, in `mobFaction` (shared/mobs.ts),
+ * so the sim, the bots' planning maths and the client's readouts all see it. Training dummies and the Plague companion zombie are not
+ * regional mobs and take neither. Net on a normal mob: it takes twice as long to kill and deals half the damage a second, so a
+ * fight costs the player about as much hp as before (the damage taken is damage per second x time: 0.5 x 2 = 1.0) but lasts twice as long.
  */
-export const ELITE_HP_MULT = 1.5;
-export const ELITE_DMG_MULT = 1.05;
+export const MOB_HP_MULT = 2;
+export const MOB_DMG_MULT = 0.5;
+/**
+ * Elite buff, twice (owner rulings, 2026-11): "elites died too fast", then "buff elites again, they're still too weak". On top of ELITE_K
+ * (and of MOB_HP_MULT / MOB_DMG_MULT, which every regional mob takes) an elite's hp is multiplied by ELITE_HP_MULT and every damage
+ * number it has (hit, point-damage signatures, mark, execute) by ELITE_DMG_MULT. The first pass was hp x1.5 and damage x1.05 (about
+ * 1.5x as long to kill, 5% harder). The second is hp x2.0 and damage x1.5: with the mob multipliers an elite has 2.6x a full-size
+ * player's hp (ELITE_K 0.65 x 2 x 2) and hits at 0.49x a full-size player (0.65 x 0.5 x 1.5), against 0.975x and 0.68x for the old
+ * elite, so it takes 8/3 = 2.67x as long to kill, deals 0.75/1.05 = 0.71x the damage a second and 1.9x the damage over the fight. The
+ * multipliers sit on top of MOB_ZONE_DAMAGE (Plague's 0.85 and Holy's 0.92 still apply). Applied in `mobFaction` (shared/mobs.ts), so
+ * the sim, the bots and the planning maths all see it. Validated with bench/campDuel.ts --types, whose elite gate is a carded player (the
+ * minute-5 kit, `ELITE_GATE_MINUTE`) on the zone's weapon: at least one faction clears every elite camp in at least half its 5 runs.
+ * Measured with this pair: Frost clears all ten elite camps and Holy nine (not the Archon's), Plague three, Fire and Sentenced one
+ * (the Glacial Warden's); the slowest best clear is the Avalanche Troll's at 68 s of the bench's 90 s cap, and a fists starter clears 31 of
+ * 250 elite-camp runs (75 of 250 before). The straight uncarded duel is now a loss for Fire, Plague and Frost against every elite and a
+ * 14-41% win for Sentenced and Holy (`matchupShare`, which the bots and the planning screen read). Had a camp gone unclearable the
+ * order of retreat was ELITE_DMG_MULT first (not below 1.3), then ELITE_HP_MULT (not below 1.8).
+ */
+export const ELITE_HP_MULT = 2.0;
+export const ELITE_DMG_MULT = 1.5;
 /**
  * The faction rework's camp correction: a zone's mobs deal this share of the damage their scaled faction sheet gives them (hits and
  * signature damage; hp untouched). The reworked sheet made the factions even at full size, which moved each zone's mobs; the
@@ -593,8 +619,11 @@ export const QUEST_FETCH_MIN_TILES = 36;
 export const QUEST_ITEM_PREFIX = "quest:";
 /** Parcels one player may carry at once. */
 export const QUEST_MAX_CARRIED = 1;
-/** Separate from mob and bounty GV; supports roughly four or five completions instead of exhausting after two or three. */
-export const QUEST_GV_CAP = 40;
+/**
+ * Separate from mob and bounty GV; supports roughly four or five completions instead of exhausting after two or three. 40 -> 50 with
+ * the quest buff (owner ruling, 2026-11, "slightly buff quests": every quest's GV and stat stacks are x1.25, see shared/quests.ts).
+ */
+export const QUEST_GV_CAP = 50;
 
 // Stored potions and map escape tools.
 export const CONSUMABLE_CAP = 5;

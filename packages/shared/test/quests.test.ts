@@ -36,11 +36,11 @@ describe("the catalog", () => {
 
   /** BALANCE_CONTRACT 8.4's table: quest -> [tier points, card, GV]. The points are the rule's, the card is the catalog's. */
   const CONTRACT_TABLE: Record<string, [number, string, number, number]> = {
-    "cull-fire": [1.94, "ad2", 10, 2], "cull-sentenced": [1.94, "ad2", 10, 3], "cull-plague": [1.94, "haste2", 10, 4], "cull-frost": [2.13, "vitality2", 11, 3],
-    "elite-hunt": [1.42, "ap1", 7, 5], "headhunter": [0, "ad1", 5, 3], "grand-tour": [2.46, "fleet2", 13, 2], "bloom-plague": [1.46, "haste1", 8, 6],
-    "shards-frost": [1.46, "armor1", 8, 4], "ashcap-fire": [1.46, "mr1", 8, 6], "chains-sentenced": [1.46, "ap1", 8, 6], "tithe-holy": [1.46, "ap1", 8, 5],
-    "cache": [1.81, "haste2", 10, 2], "tithe-rim": [2.23, "vitality2", 12, 3], "banner-fire": [1.55, "fleet2", 8, 4], "banner-frost": [1.55, "vitality2", 8, 4],
-    "banner-plague": [1.55, "haste2", 8, 4], "banner-sentenced": [1.55, "ad2", 8, 4], "banner-holy": [1.55, "leech2", 8, 5], "long-haul": [2.2, "haste2", 12, 4],
+    "cull-fire": [1.94, "ad2", 13, 2], "cull-sentenced": [1.94, "ad2", 13, 3], "cull-plague": [1.94, "haste2", 13, 4], "cull-frost": [2.13, "vitality2", 14, 3],
+    "elite-hunt": [1.42, "ap1", 9, 5], "headhunter": [0, "ad1", 6, 3], "grand-tour": [2.46, "fleet2", 16, 2], "bloom-plague": [1.46, "haste1", 10, 6],
+    "shards-frost": [1.46, "armor1", 10, 4], "ashcap-fire": [1.46, "mr1", 10, 6], "chains-sentenced": [1.46, "ap1", 10, 6], "tithe-holy": [1.46, "ap1", 10, 5],
+    "cache": [1.81, "haste2", 13, 2], "tithe-rim": [2.23, "vitality2", 15, 3], "banner-fire": [1.55, "fleet2", 10, 4], "banner-frost": [1.55, "vitality2", 10, 4],
+    "banner-plague": [1.55, "haste2", 10, 4], "banner-sentenced": [1.55, "ad2", 10, 4], "banner-holy": [1.55, "leech2", 10, 5], "long-haul": [2.2, "haste2", 15, 4],
   };
 
   it("pays the card the tier rule says: points = (objSec + 0.4 x travelSec) / 48 x 1.35 x 1.15, tier = round clamped to 1-3, a player kill at tier 1", () => {
@@ -59,6 +59,7 @@ describe("the catalog", () => {
     }
   });
 
+  // GV column: the contract's amounts x1.25, rounded (the owner's "slightly buff quests" ruling, 2026-11): 5/7/8/10/11/12/13 became 6/9/10/13/14/15/16.
   it("matches the contract's table of twenty rows, points and GV included", () => {
     expect(Object.keys(CONTRACT_TABLE).sort()).toEqual(QUEST_DEFS.map((d) => d.id).sort());
     for (const d of QUEST_DEFS) {
@@ -71,11 +72,13 @@ describe("the catalog", () => {
   });
 
   it("keeps every GV amount inside the time-parity band of its objective and travel (a player kill has no mob parity)", () => {
+    // The band was 0.7-1.35 of parityGv; the quest buff multiplies the GV by 1.25, so it is 0.875-1.6875 now (parityGv stays at the
+    // pre-"3x mob rewards" farm rate: the owner tripled mob GV but asked for only a slight quest buff).
     for (const d of QUEST_DEFS) {
       if (d.players) continue;
       const gv = parityGv(d.objSec, d.travelSec);
-      expect(d.reward.gv / gv, `${d.id} gv`).toBeGreaterThanOrEqual(0.7);
-      expect(d.reward.gv / gv, `${d.id} gv`).toBeLessThanOrEqual(1.35);
+      expect(d.reward.gv / gv, `${d.id} gv`).toBeGreaterThanOrEqual(0.7 * 1.25);
+      expect(d.reward.gv / gv, `${d.id} gv`).toBeLessThanOrEqual(1.35 * 1.25);
     }
   });
 
@@ -85,16 +88,17 @@ describe("the catalog", () => {
       const mob = mobStatReward(reward.id)!;
       expect(mob.zone).toBe(def.farZone);
       expect(Number.isInteger(reward.stacks)).toBe(true);
-      expect(reward.stacks).toBeGreaterThanOrEqual(8);
-      expect(reward.stacks).toBeLessThanOrEqual(16);
-      expect(reward.stacks).toBe(Math.max(8, Math.min(16, Math.ceil((def.objSec + def.travelSec * 0.4) / 12 * 2))));
+      // 8-16 stacks before the owner's quest buff (x1.25): 10-20 now.
+      expect(reward.stacks).toBeGreaterThanOrEqual(10);
+      expect(reward.stacks).toBeLessThanOrEqual(20);
+      expect(reward.stacks).toBe(Math.max(10, Math.min(20, Math.ceil((def.objSec + def.travelSec * 0.4) / 12 * 2.5))));
       expect(questRewardText(def)).toContain(mob.name);
       expect(questRewardText(def)).toContain(mobStatText(reward.id, reward.stacks));
       expect(questRewardText(def)).toContain(`${def.reward.gv} GV`);
       expect(questRewardText(def)).not.toContain("cap");
     }
-    expect(questRewardStats(questDefById("cull-fire")!)).toEqual({ id: "emberImp", stacks: 10 });
-    expect(questRewardStats(questDefById("cull-plague")!)).toEqual({ id: "plagueRat", stacks: 10 });
+    expect(questRewardStats(questDefById("cull-fire")!)).toEqual({ id: "emberImp", stacks: 13 });
+    expect(questRewardStats(questDefById("cull-plague")!)).toEqual({ id: "plagueRat", stacks: 13 });
   });
 
   it("retains the historical card-tier tuning helper for benchmark compatibility", () => {
@@ -159,7 +163,7 @@ describe("hidden and reward wire contracts", () => {
 
   it("pins the K1 reveal head start and separate quest GV cap", () => {
     expect(QUEST_REVEAL_HEAD_START_MS).toBe(4000);
-    expect(QUEST_GV_CAP).toBe(40);
+    expect(QUEST_GV_CAP).toBe(50);
   });
 });
 

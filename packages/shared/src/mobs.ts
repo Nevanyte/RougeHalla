@@ -2,7 +2,9 @@
 // (names, role marks, health bars) and the tests agree. A mob fights as its region's faction scaled down (scaledFaction), then by its
 // type's role (hp, damage, speed), with its type's weapon (the region's default for a mob without a type), through the same combat
 // code as a player; the sim paces it (DUEL_PACE) like any faction.
-import { ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
+import {
+  ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS,
+} from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
 import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
@@ -16,22 +18,27 @@ export function isRegionalKind(kind: string): kind is "mob" | "elite" {
 }
 
 /**
- * The faction a regional mob fights as (before DUEL_PACE): its region's faction scaled by MOB_K, an elite's by ELITE_K.
- * `k` overrides the scale (balance sweeps); the game never passes it.
+ * The faction a regional mob fights as (before DUEL_PACE): its region's faction scaled by MOB_K, an elite's by ELITE_K, then the
+ * owner's mob multipliers on top: hp x MOB_HP_MULT and every damage number x MOB_DMG_MULT ("2x mob HP, half mob damage"), and an elite
+ * further hp x ELITE_HP_MULT and damage x ELITE_DMG_MULT. `k` overrides the scale (balance sweeps); the game never passes it. The
+ * multipliers apply at every k, so `mobFaction(r, false, 1)` is the sheet with twice the hp and half the damage.
  *
  * A signature's `execute` is scaled by k once more (k squared overall, balance contract 6.1): its bonus damage per unit
  * of the target's missing hp reads the PLAYER's hp fraction, and a player's pool is full-scale, so scaling it by k alone
  * (as every point-damage number is, because the mob's own hp and hit shrank with it) left it 4-5x too strong: a Plague
  * mob killed a 25%-hp player in 0.9-3.6 s, where any other zone took 5-120 s (bench/mobExecute.ts, acceptance A13).
  * Sentenced's mark is the same case: a pulse is a share of the PLAYER's max hp (a full-scale pool), so `mark_pct` and `mark_kill`, which
- * `scaledFaction` leaves alone (they scale with the hp they are a share of), are scaled by k here.
- * At k = 1 (a player-sized faction, the parity tests) nothing changes.
+ * `scaledFaction` leaves alone (they scale with the hp they are a share of), are scaled by k here. Both are damage-like, so they
+ * take the damage multipliers exactly as the point-damage numbers do (execute through `scaledFaction`, the mark by hand); the hp
+ * multipliers never touch them (a mark reads the sheet's hp, sim/factions.ts `markPool`).
+ * At k = 1 (a player-sized faction, the parity tests) only the owner's multipliers differ from the sheet.
  */
 export function mobFaction(region: FactionId, elite: boolean, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
   const base = scaledFaction(FACTIONS[region], k);
-  // An elite's extra damage (ELITE_DMG_MULT) is applied to the damage numbers only, its extra hp (ELITE_HP_MULT) to the pool only.
-  const scaled = elite ? { ...scaledFaction(base, ELITE_DMG_MULT), hp: base.hp * ELITE_HP_MULT } : base;
-  const d = elite ? ELITE_DMG_MULT : 1;
+  // The damage multipliers go on the damage numbers only (scaledFaction also scales hp, which is then set from the hp multipliers).
+  const hpMult = MOB_HP_MULT * (elite ? ELITE_HP_MULT : 1);
+  const d = MOB_DMG_MULT * (elite ? ELITE_DMG_MULT : 1);
+  const scaled = { ...scaledFaction(base, d), hp: base.hp * hpMult };
   const params: Record<string, number> = { ...scaled.params };
   if (params.execute !== undefined) params.execute *= k;
   if (params.mark_pct !== undefined) params.mark_pct *= k * d;

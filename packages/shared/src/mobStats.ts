@@ -5,6 +5,13 @@ import { MOB_TYPES, type MobTypeId } from "./mobs";
 /** Legacy benchmark scale. This is not an acquisition or reward cap. */
 export const MOB_STAT_CAP = 10;
 
+/**
+ * Stat stacks a credited normal kill grants (owner ruling, 2026-11, "3x mob rewards"; it was 1). The per-stack values below are NOT
+ * tripled, because quests pay in the same stacks (shared/quests.ts `questRewardStats`): only the number of stacks a kill gives is.
+ * `MOB_STAT_REWARDS[].text` states the per-KILL amount, so it reads `v x MOB_KILL_STACKS`.
+ */
+export const MOB_KILL_STACKS = 3;
+
 /** Counts use JS numbers on the wire; safe integers preserve exact per-kill progression. */
 export const MOB_STAT_COUNT_MAX = Number.MAX_SAFE_INTEGER;
 
@@ -59,7 +66,9 @@ export interface MobStatReward {
   id: MobTypeId;
   name: string;
   zone: FactionId;
+  /** One STACK's effect (a kill grants MOB_KILL_STACKS of them, a quest its own number). */
   effect: RewardEffect;
+  /** What one kill grants: "+3% damage per kill" (MOB_KILL_STACKS stacks). */
   text: string;
 }
 
@@ -68,9 +77,11 @@ export const MOB_STAT_REWARDS: readonly MobStatReward[] = MOB_TYPES.flatMap((mob
   const def = REWARDS[mob.id];
   if (!def || mob.elite) return [];
   const { effect } = def;
+  // The text is what ONE KILL grants (MOB_KILL_STACKS stacks); `effect` stays one stack's value, which is what a count multiplies.
+  const perKill = effect.v * MOB_KILL_STACKS;
   const amount = effect.k === "stat"
-    ? `${(effect.v * 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`
-    : `${effect.v}`;
+    ? `${(perKill * 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`
+    : `${Number(perKill.toFixed(6))}`;
   return [{ id: mob.id, name: mob.name, zone: mob.zone, effect, text: `+${amount} ${def.suffix} per kill` }];
 });
 

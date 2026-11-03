@@ -370,7 +370,10 @@ export const GATE_NORMAL = 0.8;
 /**
  * The elite gate's player: on the zone's weapon AND carded, holding the bench kit of this minute (bench/kits.ts: the weapon's
  * offense base I and Vitality I), because an elite camp is for an armed player who already farmed. "Buff elites" (ELITE_HP_MULT)
- * left no faction on the bare zone weapon clearing the Pox Behemoth's or the Archon's camp; `--elite-kit 0` is the old gate.
+ * left no faction on the bare zone weapon clearing the Pox Behemoth's or the Archon's camp, and the second buff ("buff elites again":
+ * hp x2.0, damage x1.5, on top of 2x mob hp and half mob damage) leaves Frost clearing all ten elite camps with the kit and Holy nine
+ * (not the Archon's, 2/5), while Fire and Sentenced clear only the Glacial Warden's and Plague three (Glacial Warden, Blood Saint, Archon);
+ * the gate needs one faction per camp. `--elite-kit 0` is the old gate.
  */
 export const ELITE_GATE_MINUTE: Minute = 5;
 
