@@ -50,7 +50,8 @@ describe("the stylesheet", () => {
     const root = rule(css, "#ui > .chest-panel");
     expect(root).toMatch(/right:\s*12px/);
     expect(root).toMatch(/top:\s*56px/);
-    expect(root).toMatch(/bottom:\s*calc\(var\(--ui-h, 600px\) \* 0\.26 \+ 34px\)/);
+    // The minimap's side (minimap.ts publishes it as --mm-size on #ui) plus its 12 px margin and a gap.
+    expect(root).toMatch(/bottom:\s*calc\(var\(--mm-size, calc\(var\(--ui-h, 600px\) \* 0\.338\)\) \+ 34px\)/);
     expect(root).not.toMatch(/left:\s*50%/);
   });
 

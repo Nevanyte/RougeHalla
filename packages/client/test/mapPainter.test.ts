@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FACTION_IDS, FACTIONS, REGION_IDS, TILE, TILE_WALL, generateMap, isWallTile, mapFromTiles, type CampDef, type GameMap,
 } from "@raid/shared";
-import { mapSpan } from "../src/ui/minimapMath";
+import { mapSpan, minimapBacking, minimapSize } from "../src/ui/minimapMath";
 import { cssColor } from "../src/ui/dom";
 import {
   COLOR_BG, COLOR_REGION, COLOR_WALL, CROWN_CLIP_PATH, SHAPE_POLYGON, ZONE_PATTERN, ZONE_SHAPE, gateRects, makePatternTile,
@@ -198,7 +198,9 @@ describe("the extraction out of the minimap changed no pixels", () => {
     minimap.setMap(map);
     const layer = made[1]!.getContext() as FakeObject;
     const plain = rec();
-    paintMapBase(ctxOf(plain), map, BACKING, BACKING, K_GEN);
+    // The painter at the size the minimap really is at 1280 x 800, dpr 1 (BACKING above is the goldens' own).
+    const side = minimapBacking(minimapSize(1280, 800), 1, 1);
+    paintMapBase(ctxOf(plain), map, side, side, side / mapSpan());
     expect(layer.calls.length).toBeGreaterThan(plain.calls.length);
     const layerRects = new Set(argsOf(layer, "fillRect").map((a) => a.join()));
     for (const r of argsOf(plain, "fillRect")) expect(layerRects.has(r.join())).toBe(true);

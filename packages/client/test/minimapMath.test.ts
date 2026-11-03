@@ -111,18 +111,33 @@ describe("viewRectOnMinimap", () => {
 });
 
 describe("minimapSize", () => {
-  it("is about a quarter of the overlay's height, 150 to 240", () => {
-    expect(minimapSize(1280, 800)).toBe(208);
+  it("is about a third of the overlay's height, 195 to 312 (1.3 times its first size)", () => {
+    // The overlay is laid out 800 px tall at 1920x1080, 1440x900 and 1280x720 alike (view/viewport.ts), so all three get 270 (it was 208).
+    expect(minimapSize(1280, 800)).toBe(270);
+    expect(Math.round(minimapSize(1280, 800) / 208 * 10)).toBe(13);
     expect(minimapSize(1280, 400)).toBe(MINIMAP_MIN);
     expect(minimapSize(3000, 2000)).toBe(MINIMAP_MAX);
+    expect([MINIMAP_MIN, MINIMAP_MAX]).toEqual([195, 312]);
+    // The 4:3 window (the overlay is 960 tall) and the 2560x1440 one (960 too) reach the top of the range, 1.3 times the old 240.
+    expect(minimapSize(1280, 960)).toBe(MINIMAP_MAX);
+    expect(MINIMAP_MAX / 240).toBeCloseTo(1.3, 9);
+  });
+
+  it("never grows into the centred weapon bar and its docked Wish slot (284 px: 142 px either side of the middle)", () => {
+    for (const uiW of [560, 600, 700, 800, 900, 1000, 1280, 1707]) {
+      for (const uiH of [500, 800, 1000]) {
+        const size = minimapSize(uiW, uiH);
+        expect(uiW - 12 - size, `${uiW}x${uiH}`).toBeGreaterThanOrEqual(uiW / 2 + 142);
+      }
+    }
   });
 
   it("shrinks on a narrow overlay rather than run into the centred weapon bar", () => {
-    expect(minimapSize(600, 1000)).toBe(171);
-    const size = minimapSize(500, 1000);
+    expect(minimapSize(600, 1000)).toBe(136);
+    const size = minimapSize(560, 1000);
     expect(size).toBeLessThan(MINIMAP_MIN);
-    // Its left edge stays right of the bar's right edge (half of the 214 px bar, from the centre).
-    expect(500 - 12 - size).toBeGreaterThanOrEqual(500 / 2 + 107);
+    // Its left edge stays right of the bar's right edge (half of the 284 px bar and its Wish slot, from the centre).
+    expect(560 - 12 - size).toBeGreaterThanOrEqual(560 / 2 + 142);
     expect(minimapSize(300, 1000)).toBe(110);
   });
 });
@@ -131,12 +146,13 @@ describe("minimapBacking", () => {
   it("is the element's device-pixel size: overlay size times the overlay's scale times dpr", () => {
     expect(minimapBacking(200, 1, 1)).toBe(200);
     expect(minimapBacking(200, 1.5, 2)).toBe(600);
-    expect(minimapBacking(208, 1.35, 2)).toBe(562);
+    expect(minimapBacking(270, 1.35, 2)).toBe(729);
   });
 
-  it("stays within sane bounds", () => {
-    expect(minimapBacking(240, 1.5, 2)).toBe(720);
-    expect(minimapBacking(240, 10, 10)).toBe(1024);
+  it("stays within sane bounds, and the biggest default map on the densest screen is still crisp (not clamped)", () => {
+    expect(minimapBacking(MINIMAP_MAX, 1.5, 2)).toBe(936);
+    expect(minimapBacking(MINIMAP_MAX * 1.25, 1.5, 2)).toBe(1170);
+    expect(minimapBacking(240, 10, 10)).toBe(1280);
     expect(minimapBacking(1, 0.1, 1)).toBe(32);
   });
 });

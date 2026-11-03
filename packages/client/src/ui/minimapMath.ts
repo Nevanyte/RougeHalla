@@ -12,17 +12,21 @@ export interface Point { x: number; y: number }
 /** A rectangle as fractions of the minimap square: (0, 0) is its top-left, (1, 1) its bottom-right. */
 export interface FracRect { x: number; y: number; w: number; h: number }
 
-export const MINIMAP_MIN = 150;
-export const MINIMAP_MAX = 240;
+/** 1.3 times the first minimap (150 to 240 px at 26% of the overlay's height). */
+export const MINIMAP_MIN = 195;
+export const MINIMAP_MAX = 312;
 /** Share of the overlay's height the minimap takes before the clamp. */
-const HEIGHT_SHARE = 0.26;
-/** Half the weapon bar, plus the gap that keeps the minimap clear of it (overlay px). */
-const BAR_CLEARANCE = 107 + 10;
+const HEIGHT_SHARE = 0.338;
+/**
+ * Half the weapon bar, plus the gap that keeps the minimap clear of it (overlay px). The bar is two 104 px slots and the docked
+ * 64 px Wish slot, 6 px apart: 284 px, centred, so its right edge is 142 px right of the middle.
+ */
+const BAR_CLEARANCE = 142 + 10;
 const RIGHT_GUTTER = 12;
 /** On a very narrow overlay the minimap shrinks below MINIMAP_MIN rather than run into the weapon bar, down to this. */
 const NARROW_FLOOR = 110;
-/** The most backing pixels a side may have: a 240 px map at 1.5x on a 2x screen is 720. */
-const BACKING_MAX = 1024;
+/** The most backing pixels a side may have: a 312 px map at 1.5x on a 2x screen is 936, and one set to 125% still fits. */
+const BACKING_MAX = 1280;
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
@@ -32,8 +36,9 @@ export function mapSpan(worldW: number = WORLD_W, worldH: number = WORLD_H): num
 }
 
 /**
- * The minimap's side in overlay pixels: about a quarter of the overlay's height, 150 to 240, and never wider than the
- * space between the right edge and the centred weapon bar.
+ * The minimap's side in overlay pixels: about a third of the overlay's height, 195 to 312, and never wider than the
+ * space between the right edge and the centred weapon bar. (The overlay is laid out 800 px tall at the common window sizes,
+ * so that is 270 px: 1.3 times the 208 px it was.)
  */
 export function minimapSize(uiW: number, uiH: number): number {
   const wanted = clamp(Math.round(uiH * HEIGHT_SHARE), MINIMAP_MIN, MINIMAP_MAX);

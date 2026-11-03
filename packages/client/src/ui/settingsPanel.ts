@@ -52,7 +52,7 @@ const HI_DPI: SwitchSpec = { key: "hiDpi", label: "Sharp rendering", note: "Draw
 const REDUCED_MOTION: SwitchSpec = { key: "reducedMotion", label: "Reduced motion", note: "Fewer animations and no screen shake. Your system's setting counts too." };
 const SHOW_FPS: SwitchSpec = { key: "showFps", label: "Show FPS", note: "" };
 const SHOW_PING: SwitchSpec = { key: "showPing", label: "Show ping", note: "" };
-const SHOW_ROUTE: SwitchSpec = { key: "showRoute", label: "Show route", note: "Your planned route on the minimap and the Tab map during a run." };
+const SHOW_ROUTE: SwitchSpec = { key: "showRoute", label: "Show route", note: "Your planned route on the ground, the minimap and the Tab map during a run." };
 const DRAW_AHEAD: SwitchSpec = {
   key: "drawAhead", label: "Draw remote fighters ahead",
   note: "Other fighters are drawn up to 50 ms fresher, continuing the walk the server says they are on. Off shows only what the server sent.",
