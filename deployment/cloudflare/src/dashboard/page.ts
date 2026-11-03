@@ -1177,7 +1177,7 @@ function renderHeatmap(env) {
   b.appendChild(el("p", { cls: "note", text: "Seconds standing per cell. Live maps use a fresh seed each run, so only the fixed coliseum (the centre) and the border line up across runs; elsewhere this is coarse. Pick a run for its exact map." }));
   if (selectedRun) {
     var rb = el("div", { cls: "heat" });
-    rb.appendChild(el("h3", { text: "Run " + selectedRun.slice(0, 8) + " (136 x 136 tiles)" }));
+    rb.appendChild(el("h3", { text: "Run " + selectedRun.slice(0, 8) + " (160 x 160 tiles)" }));
     var rc = el("canvas", { role: "img", "aria-label": "One run's position heatmap" });
     rb.appendChild(rc);
     var info = el("p", { cls: "note", text: "Loading the run…" });
@@ -1186,7 +1186,7 @@ function renderHeatmap(env) {
     var id = selectedRun;
     api(API.run + encodeURIComponent(id), null, true).then(function (rec) {
       if (selectedRun !== id) return;
-      var N = 136, g2 = new Float64Array(N * N), m2 = 0;
+      var N = 160, g2 = new Float64Array(N * N), m2 = 0;
       (rec.players || []).forEach(function (p) {
         var bytes = decodeTiles(p.tiles);
         if (!bytes) return;

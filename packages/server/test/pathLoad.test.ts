@@ -1,5 +1,5 @@
-// What the pathfinder costs on a 136 x 136 zone map (zone shapes; roguelike R2 was 96 x 96 with 80 mobs) when it is asked for the most
-// the rules allow: about 170 mobs woken onto the nearest player every second (each leg of a chase or a walk home is a search, at most one per
+// What the pathfinder costs on a 160 x 160 zone map (136 x 136 before; roguelike R2 was 96 x 96 with 80 mobs) when it is asked for the most
+// the rules allow: about 200 mobs woken onto the nearest player every second (each leg of a chase or a walk home is a search, at most one per
 // MOB_REPATH_MS per mob) and 8 players changing their target lock every TARGET_REPATH_MS (a search per accepted order, at
 // most one per TARGET_REPATH_MS per player, and the chase's re-plan on the same clock). Every search is counted through a
 // wrapped findPath (the sim plans paths only through it, as targetingThrottle.test.ts relies on), and timed.

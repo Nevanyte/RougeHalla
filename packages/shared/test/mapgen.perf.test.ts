@@ -1,7 +1,14 @@
-// The generator's cost gate, in a file of its own. The zone-shape rework (contract 6.5) sets the gates to max(60, 1.5 x the measured
+// The generator's cost gate, in a file of its own. The zone-shape rework (contract 6.5) set the gates to max(60, 1.5 x the measured
 // median) with the stylers and max(45, 1.5 x the measured median) without, at 136x136 (phase A: the old stylers through the new
 // runtime, no cover; measured 60.7-64.2 ms scaled with the stylers, 30.6-32.7 ms without, 2026-10-27 on the reference machine under
-// load): STYLED_GATE_MS 93 and PLAIN_GATE_MS 48. (R2's gates were 60 and 45 at 96x96 with the cover.)
+// load): 93 and 48. (R2's gates were 60 and 45 at 96x96 with the cover.)
+//
+// The 160x160 map with ten camps a zone costs about 1.4 times that (the map's area is 1.38 times as big; the camps are 1.25 times as many):
+// this test, run three times in a row under load (load average 6 to 10) on the reference machine, 2026-11-02, measured 85.1-90.8 ms
+// scaled with the stylers and 46.3-50.2 ms without; the 136x136 generator (git 7e74b4d) measured back to back the same way, 61.9-65.0
+// ms and 33.3-35.7 ms, so the old gates (93 and 48) had about 7% and 1% headroom at 160x160 and failed two runs of five. The rule is kept,
+// 1.5 x the measured median: STYLED_GATE_MS 130 and PLAIN_GATE_MS 71. scripts/mapBench.ts gives the unscaled stage costs (mean 35.0 ms a
+// seed at 136x136, 50-51 ms at 160x160, no seed discarded at either size).
 //
 // The full suite runs its files in parallel processes; on a big.LITTLE machine with more workers than fast cores a file
 // can land on a slow core and share memory bandwidth with eight certification shards, which made raw timings 2-5x the
@@ -15,8 +22,8 @@ import { certifiedMap, warmMapgen } from "../src/mapgen";
 /** The yardstick's cost on the reference machine, quiet (ms). */
 const YARDSTICK_QUIET_MS = 5;
 /** The gates (ms per raw seed, scaled to the quiet reference machine): see the header. */
-const STYLED_GATE_MS = 93;
-const PLAIN_GATE_MS = 48;
+const STYLED_GATE_MS = 130;
+const PLAIN_GATE_MS = 71;
 const big = new Uint16Array(16 << 20);
 for (let i = 0; i < big.length; i++) big[i] = (i * 2654435761) >>> 20;
 

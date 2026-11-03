@@ -7,6 +7,7 @@
 // isolation, the Math spy, and a synthetic fixture.
 import { expectBushFloorOnly, isBush } from "./bushRules";
 import { describe, expect, it } from "vitest";
+import { MAP_TILES_W } from "../src/constants";
 import { MAPGEN_FAILS, generateMap, mapHash } from "../src/mapgen";
 import type { LandmarkHook, ZoneStyleHook } from "../src/mapgen";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles } from "../src/map";
@@ -21,7 +22,7 @@ import { mulberry32 } from "../src/rng";
 import { openFixtureFull } from "./zoneStyleOpen";
 
 const HEAVY_MS = 240_000;
-const W = 136, TILE = 32;
+const W = MAP_TILES_W, TILE = 32;
 const FROST = REGION_FACTIONS.indexOf("frost") + 1;
 const SEEDS = Array.from({ length: 60 }, (_, i) => i);
 

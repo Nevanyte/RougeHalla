@@ -1,5 +1,5 @@
 // Warren (plague): The Barrows (zone-shapes contract 4.3, options doc 6.3 option 1). Every road between two camps (an edge of the
-// zone's Gabriel graph over its 8 camps and its front door) forks round a noisy round rock barrow: go left on dry ground, right
+// zone's Gabriel graph over its camps (ten) and its front door) forks round a noisy round rock barrow: go left on dry ground, right
 // through the bog crescent on the barrow's wet flank, or straight through the 3-wide tunnel bored into the biggest barrows. One
 // collapsed burrow (a landmark, 9x9 with two 2-wide doors on the road's axis) stands on each of the two longest roads and is that
 // road's barrow. Plague is exempt from the bog (x0.7 for everyone else), so the wet fork is its home advantage.
@@ -86,7 +86,7 @@ export interface WarrenPlan {
 }
 
 // ------------------------------------------------------------------------------------------------ dials
-/** Barrows per 1710 tiles of zone (contract 4.3: 6, i.e. 12 at 136x136) and tunnel barrows per 1710 tiles (2, i.e. 4). */
+/** Barrows per 1710 tiles of zone (contract 4.3: 6, i.e. 12 wanted at 136x136 and 17 at 160x160; 8.4 and 12.4 are placed on average) and tunnel barrows per 1710 tiles (2, i.e. 4). */
 const BARROWS_PER_REF = 6;
 const TUNNELS_PER_REF = 2;
 /** A road shorter than this (tiles, squared) takes no barrow; a burrow needs 18. */

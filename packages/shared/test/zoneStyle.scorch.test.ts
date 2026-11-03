@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { raycast } from "../src/geometry";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
 import type { GameMap, RegionFaction } from "../src/map";
-import { MAPGEN_FAILS, certifiedMap, generateMap, mapHash, tryAttempt } from "../src/mapgen";
+import { CAMPS_PER_ZONE, MAPGEN_FAILS, certifiedMap, generateMap, mapHash, tryAttempt } from "../src/mapgen";
 import type { MapgenOptions } from "../src/mapgen";
 import { findPath, pathLength } from "../src/pathfind";
 import type { LandmarkHook, ZoneStyleHook } from "../src/styler";
@@ -94,19 +94,19 @@ describe("the forge template", () => {
 });
 
 describe("Scorch on the generator's maps (40 seeds, the five zone stylers)", () => {
-  it("never breaks the hook contract and builds the 8 camps' craters, a river and a forge on the fire zone of (nearly) every map", () => {
+  it("never breaks the hook contract and builds a crater for each of the camps (up to CAMPS_PER_ZONE), a river and a forge on the fire zone of (nearly) every map", () => {
     MAPGEN_FAILS["A:styleBreach"] = 0;
     let craters7 = 0, rivers = 0, forges = 0;
     for (const s of SEEDS) {
       const m = mapOf(s);
       const cr = featuresOf(m, "crater");
-      if (cr.length >= 7) craters7++;
-      expect(cr.length, `seed ${s}: craters`).toBeLessThanOrEqual(8);
+      if (cr.length >= CAMPS_PER_ZONE - 1) craters7++;
+      expect(cr.length, `seed ${s}: craters`).toBeLessThanOrEqual(CAMPS_PER_ZONE);
       if (featuresOf(m, "lavaRiver").length === 1) rivers++;
       if (featuresOf(m, "landmark").length >= 1) forges++;
     }
     expect(MAPGEN_FAILS["A:styleBreach"] ?? 0).toBe(0);
-    expect(craters7, "maps with 7-8 craters").toBeGreaterThanOrEqual(Math.ceil(0.95 * SEEDS.length));
+    expect(craters7, "maps with 9-10 craters").toBeGreaterThanOrEqual(Math.ceil(0.95 * SEEDS.length));
     expect(rivers, "maps with exactly one lava river").toBe(SEEDS.length);
     expect(forges, "maps with a forge").toBeGreaterThanOrEqual(Math.ceil(0.9 * SEEDS.length));
   }, HEAVY_MS);
@@ -180,7 +180,7 @@ describe("Scorch on the generator's maps (40 seeds, the five zone stylers)", () 
     }
   }, HEAVY_MS);
 
-  it("meets the acceptance windows of contract 4.1 (rim walls 150-300, lava 70-160, ember 80-200 on most maps, never absent)", () => {
+  it("meets the acceptance windows of contract 4.1 (rim walls 200-400, lava 95-220, ember 110-275 on most maps, never absent: the 136x136 windows 150-300, 70-160 and 80-200 scaled by the area)", () => {
     let rimOk = 0, lavaOk = 0, emberOk = 0;
     for (const s of SEEDS) {
       const m = mapOf(s);
@@ -190,17 +190,17 @@ describe("Scorch on the generator's maps (40 seeds, the five zone stylers)", () 
       const lava = count(m, (i) => inFire(m, i) && m.terrain[i] === TERRAIN_LAVA);
       const ember = count(m, (i) => inFire(m, i) && m.terrain[i] === TERRAIN_EMBER);
       expect(rim, `seed ${s}: rim`).toBeGreaterThan(100);
-      expect(rim).toBeLessThan(330);
+      expect(rim).toBeLessThan(450);
       expect(lava, `seed ${s}: lava`).toBeGreaterThan(20);
       expect(ember, `seed ${s}: ember`).toBeGreaterThan(0);
-      if (rim >= 150 && rim <= 300) rimOk++;
-      if (lava >= 70 && lava <= 160) lavaOk++;
-      if (ember >= 80 && ember <= 200) emberOk++;
+      if (rim >= 200 && rim <= 400) rimOk++;
+      if (lava >= 95 && lava <= 220) lavaOk++;
+      if (ember >= 110 && ember <= 275) emberOk++;
     }
     const need = Math.ceil(0.8 * SEEDS.length);
-    expect(rimOk, "maps with rim walls in 150-300").toBeGreaterThanOrEqual(need);
-    expect(lavaOk, "maps with lava in 70-160").toBeGreaterThanOrEqual(need);
-    expect(emberOk, "maps with ember in 80-200").toBeGreaterThanOrEqual(need);
+    expect(rimOk, "maps with rim walls in 200-400").toBeGreaterThanOrEqual(need);
+    expect(lavaOk, "maps with lava in 95-220").toBeGreaterThanOrEqual(need);
+    expect(emberOk, "maps with ember in 110-275").toBeGreaterThanOrEqual(need);
   }, HEAVY_MS);
 
   it("is open at bow range 48-68% of rays on average, walls off 16%+ of engagement pairs, keeps the camp graph short (stretch mean <= 1.12) and looped", () => {
@@ -237,7 +237,7 @@ describe("Scorch on the generator's maps (40 seeds, the five zone stylers)", () 
         if (raycast(m, ax * T + T / 2, ay * T + T / 2, bx * T + T / 2, by * T + T / 2).hit) blocked++;
       }
       pairs += blocked / got;
-      // the camp graph (Gabriel over the 8 camps): findPath / straight
+      // the camp graph (Gabriel over the 10 camps): findPath / straight
       const camps = m.camps.filter((c) => c.zone === "fire");
       const nodes: Node[] = camps.map((c, q) => ({ x: c.x, y: c.y, kind: "camp", camp: q, elite: c.eliteSpot >= 0 }));
       const edges = gabrielEdges(nodes);

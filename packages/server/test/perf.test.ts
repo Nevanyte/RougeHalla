@@ -1,4 +1,4 @@
-// The Phase 11 tick budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (40 camps, about 170 on a zone-shapes map) a
+// The Phase 11 tick budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (50 camps, about 200 on a zone-shapes map) a
 // step() averages under 5 ms and its 99th percentile stays under 15 ms. The scenarios are bench/stepBench.ts: eight
 // players at eight camps, and the pathfinder's worst case (every camp woken every second, players re-locking every
 // TARGET_REPATH_MS). The machine may be busy (other tests run in parallel, and on a shared one the process is preempted in

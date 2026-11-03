@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACTIONS, plagueZombieStats, PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_INTERACT_RANGE, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, TICK_MS, generateMap, mapFromTiles, mulberry32, type GameMap } from "@raid/shared";
+import { FACTIONS, plagueZombieStats, PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_INTERACT_RANGE, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, TICK_MS, mapFromTiles, mulberry32, type GameMap } from "@raid/shared";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { downPlayer } from "../src/sim/arena";
@@ -8,7 +8,19 @@ import { dropWeapon } from "../src/sim/loot";
 import { addPlayer, step } from "../src/sim/step";
 import type { World } from "../src/sim/world";
 
-function world(map: GameMap = generateMap(23)): World {
+/**
+ * An open arena of 64 x 64 tiles with a wall border. The tests put their players on fixed points (500, 500 and the like), so the
+ * ground has to be floor there whatever the zone generator builds: on the generated maps (seed 23 was the arena once) that tile is rock
+ * on the 160x160 map.
+ */
+function openArena(): GameMap {
+  const side = 64;
+  const tiles = new Uint8Array(side * side).fill(TILE_FLOOR);
+  for (let i = 0; i < side; i++) { tiles[i] = tiles[(side - 1) * side + i] = tiles[i * side] = tiles[i * side + side - 1] = TILE_WALL; }
+  return mapFromTiles(side, side, tiles);
+}
+
+function world(map: GameMap = openArena()): World {
   const w = createGameWorld({
     config: { minPlayers: 4, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9, pvpRules: false, mobs: false },
     random: mulberry32(23), map,

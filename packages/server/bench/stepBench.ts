@@ -1,5 +1,5 @@
-// Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (zone-shapes maps: 40 camps of 3 to 5,
-// about 170; the roguelike R2 maps had 20 and about 80), eight players fighting at eight camps spread over the zones, arrows and
+// Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (zone-shapes maps: 50 camps of 3 to 5,
+// 184 to 217, about 200; 40 camps and about 170 on the 136x136 map; the roguelike R2 maps had 20 and about 80), eight players fighting at eight camps spread over the zones, arrows and
 // balls in the air, mobs chasing and retreating.
 // Reports the cost of one `step()`.
 //   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --cards, --stress, --quests)
@@ -211,7 +211,7 @@ function timePass(list: Array<(w: World, dtMs: number) => void>, name: string, a
 
 interface BenchCamp { region: FactionId; camp: CampDef }
 
-/** The camp player `i` of `players` fights at: evenly spread over the map's camps (every 2nd of 20, every 5th of 40), so every zone's terrain is in the run. */
+/** The camp player `i` of `players` fights at: evenly spread over the map's camps (every 2nd of 20, every 6th of 50), so every zone's terrain is in the run. */
 export function benchCampIndex(i: number, players: number, camps: number): number {
   return (i * Math.max(1, Math.floor(camps / Math.max(1, players)))) % camps;
 }

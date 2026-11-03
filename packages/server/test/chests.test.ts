@@ -119,7 +119,8 @@ const onlyChest = (w: World): ContainerState => {
 
 describe("camp state: idle, engaged, cleared for good", () => {
   it("goes idle -> engaged on the first damage to any member, and never back", () => {
-    const w = run();
+    // Salt 101 rolls a melee type (a Magma Brute) for the Fire camp: a Flame Caller (salt 99) shoots from the edge of its leash and fights on.
+    const w = run({ salt: 101 });
     expect([...w.state.camps].map((c) => c.state)).toEqual([CAMP_IDLE, CAMP_IDLE]);
     const [m] = campMobs(w, 0);
     hurtMob(w, m!, [5], [{ victim: m!.id, by: { id: "p0", name: "p0" }, packet: { raw: 5, phys: 1, magic: 0, true: 0 }, weapon: "sword", scale: 1, stagger: false }]);

@@ -190,7 +190,7 @@ describe("telemetry store: hand-checked queries", () => {
     expect(fb.length).toBe(21);
     expect(fb.filter((b) => b.n > 0).map((b) => [b.fromS, b.n])).toEqual([[90, 1], [225, 1]]);
     const heat = runQuery(sql, "heatmap", q(), {}, NOW) as { cells: number[][]; w: number; runs: number };
-    expect(heat).toMatchObject({ w: 34, cells: [[5, 7, 3]], runs: 2 });
+    expect(heat).toMatchObject({ w: 40, cells: [[5, 7, 3]], runs: 2 });
     const botHeat = runQuery(sql, "heatmap", q({ pool: "bots" }), {}, NOW) as { cells: number[][]; runs: number };
     expect(botHeat).toMatchObject({ cells: [[5, 7, 1]], runs: 1 });
     const list = rows<{ runId: string; durationS: number; winnerFaction: string }>(sql, "runs", {}, "runs");
