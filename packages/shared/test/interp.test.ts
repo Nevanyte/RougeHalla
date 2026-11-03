@@ -822,3 +822,106 @@ function naiveSample(
   }
   throw new Error("unreachable");
 }
+
+// The client's draw-ahead (net/remoteDraw.ts) reads the buffer through walk() and sampleAhead(), never sample(): the bots and the
+// harness keep the path above, "holds the newest sample when starved" included.
+describe("SnapshotBuffer draw-ahead (opt-in)", () => {
+  const filled = (): SnapshotBuffer => {
+    const b = new SnapshotBuffer();
+    b.push(0, 0, 0);
+    b.push(50, 8.5, 0);
+    b.push(100, 17, 0);
+    return b;
+  };
+
+  it("sampleAhead with aheadMs 0 is sample() everywhere", () => {
+    const b = filled();
+    for (const t of [-50, 0, 25, 60, 100, 130, 1000]) {
+      const a = out();
+      const s = out();
+      expect(b.sampleAhead(t, a, 0, 1, 0, 170)).toBe(0);
+      b.sample(t, s);
+      expect(a).toEqual(s);
+    }
+    expect(new SnapshotBuffer().sampleAhead(10, out(), 50, 1, 0, 170)).toBe(-1);
+  });
+
+  it("interpolates like sample() up to the newest sample, then walks on for at most aheadMs and holds there", () => {
+    const b = filled();
+    for (const t of [10, 50, 75, 100]) {
+      const a = out();
+      const s = out();
+      expect(b.sampleAhead(t, a, 50, 1, 0, 170)).toBe(0);
+      b.sample(t, s);
+      expect(a).toEqual(s);
+    }
+    const o = out();
+    expect(b.sampleAhead(120, o, 50, 0.6, 0.8, 170)).toBe(20);
+    expect(o.x).toBeCloseTo(17 + 0.6 * 3.4, 9);
+    expect(o.y).toBeCloseTo(0.8 * 3.4, 9);
+    expect(b.sampleAhead(150, o, 50, 1, 0, 170)).toBe(50);
+    expect(o.x).toBeCloseTo(25.5, 9);
+    expect(b.sampleAhead(400, o, 50, 1, 0, 170)).toBe(50);
+    expect(o.x).toBeCloseTo(25.5, 9);
+  });
+
+  it("holds a cut newest sample, and the pre-cut position before the cut is due", () => {
+    const b = filled();
+    b.push(150, 900, 0);
+    const o = out();
+    expect(b.sampleAhead(200, o, 50, 1, 0, 170)).toBe(0);
+    expect(o).toEqual({ x: 900, y: 0 });
+    expect(b.sampleAhead(140, o, 50, 1, 0, 170)).toBe(0);
+    expect(o).toEqual({ x: 17, y: 0 });
+  });
+
+  it("walk(): the newest step's velocity, and the faster of the last two steps' speeds", () => {
+    const b = new SnapshotBuffer();
+    const w = { t: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0 };
+    expect(b.walk(w)).toBe(false);
+    b.push(0, 0, 0);
+    expect(b.walk(w)).toBe(false);
+    b.push(50, 8.5, 0);
+    expect(b.walk(w)).toBe(true);
+    expect(w).toEqual({ t: 50, x: 8.5, y: 0, vx: 170, vy: 0, speed: 170 });
+    // A partial step (a waypoint mid-tick) reads the faster one before it as the speed.
+    b.push(100, 12.75, 0);
+    expect(b.walk(w)).toBe(true);
+    expect(w.vx).toBeCloseTo(85, 9);
+    expect(w.speed).toBeCloseTo(170, 9);
+    // A gap over two patches is no walk.
+    b.push(250, 20, 0);
+    expect(b.walk(w)).toBe(false);
+    expect(b.walk(w, 200)).toBe(true);
+  });
+
+  it("walk() is false for a cut newest sample, and a cut before it drops the step before that", () => {
+    const b = new SnapshotBuffer();
+    const w = { t: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0 };
+    b.push(0, 0, 0);
+    b.push(50, 30, 0);
+    b.push(100, 1000, 0);
+    expect(b.walk(w)).toBe(false);
+    b.push(150, 1004, 0);
+    expect(b.walk(w)).toBe(true);
+    expect(w.vx).toBeCloseTo(80, 9);
+    expect(w.speed).toBeCloseTo(80, 9);
+  });
+
+  it("lastCutT follows the cuts pushed, and clear()", () => {
+    const b = new SnapshotBuffer();
+    expect(b.lastCutT).toBe(-Infinity);
+    b.push(0, 0, 0);
+    b.push(50, 5, 0, true);
+    expect(b.lastCutT).toBe(50);
+    b.push(100, 1000, 0);
+    expect(b.lastCutT).toBe(100);
+    // The same timestamp again, no longer a cut: its record goes with it.
+    b.push(100, 6, 0);
+    expect(b.lastCutT).toBe(-Infinity);
+    b.push(150, 2000, 0);
+    expect(b.lastCutT).toBe(150);
+    b.clear();
+    expect(b.lastCutT).toBe(-Infinity);
+  });
+});

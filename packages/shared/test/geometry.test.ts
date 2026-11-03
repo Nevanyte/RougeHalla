@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
-import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
+import { circleClear, clearRun, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
 import { MASK_MELEE, MASK_MOVE, MASK_SIGHT, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, withGates } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
@@ -750,5 +750,37 @@ describe("identity golden on wall-only maps", () => {
     // The raycast hash moved once, with Math.hypot -> Math.sqrt (zone-shapes contract 0.1.5): its `dist` changes in the last bit
     // on some rays (3600333401 before). The disc tests, the swept tests and the paths did not change.
     expect(identityHashes()).toEqual({ raycast: 2334095253, circle: 4243701605, segment: 4055928901, path: 894344229 });
+  });
+});
+
+describe("clearRun", () => {
+  // The pillar's west face is world x = 160; a disc of radius 11 touches it with its centre at x = 149.
+  it("is the whole run on open floor", () => {
+    expect(clearRun(room, { x: 60, y: 60 }, 1, 0, 8.5, 11)).toBe(8.5);
+    expect(clearRun(room, { x: 60, y: 60 }, Math.SQRT1_2, Math.SQRT1_2, 12, 11)).toBe(12);
+  });
+
+  it("toward a wall: an end that is clear and within 0.2 u of contact", () => {
+    for (const x0 of [140, 143.5, 145, 147.9]) {
+      const from = { x: x0, y: 128 };
+      const d = clearRun(room, from, 1, 0, 12, 11);
+      expect(d).toBeLessThan(12);
+      expect(circleClear(room, { x: x0 + d, y: 128 }, 11)).toBe(true);
+      expect(149 - (x0 + d)).toBeGreaterThanOrEqual(-1e-9);
+      expect(149 - (x0 + d)).toBeLessThanOrEqual(0.2);
+    }
+  });
+
+  it("is 0 from inside a wall, or from a disc that already touches one, or for no distance", () => {
+    expect(clearRun(room, { x: 170, y: 128 }, 1, 0, 8.5, 11)).toBe(0);
+    expect(clearRun(room, { x: 152, y: 128 }, -1, 0, 8.5, 11)).toBe(0);
+    expect(clearRun(room, { x: 60, y: 60 }, 1, 0, 0, 11)).toBe(0);
+  });
+
+  it("asks the move mask by default: LOW stops it, and a sight mask lets it through", () => {
+    const fence = asciiMap(["#######", "#..~..#", "#.....#", "#######"]);
+    const from = { x: 50, y: 48 };
+    expect(clearRun(fence, from, 1, 0, 60, 11)).toBeLessThan(60);
+    expect(clearRun(fence, from, 1, 0, 60, 11, MASK_SIGHT)).toBe(60);
   });
 });

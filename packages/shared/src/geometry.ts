@@ -144,3 +144,23 @@ export function segmentClear(map: GameMap, a: Vec2, b: Vec2, radius: number, mas
   }
   return true;
 }
+
+/**
+ * How far a disc of `radius` at `from` can travel along the unit direction (ux, uy), up to `maxDist`, touching no tile `mask` blocks
+ * (default MASK_MOVE): 0 when the disc already overlaps one, `maxDist` when the whole run is clear, else the clear end of six
+ * bisections (maxDist / 64 short of contact at most). The client's draw-ahead clips a remote fighter's lead with it.
+ */
+export function clearRun(map: GameMap, from: Vec2, ux: number, uy: number, maxDist: number, radius: number, mask: number = MASK_MOVE): number {
+  if (!circleClear(map, from, radius, mask)) return 0;
+  if (!(maxDist > 0)) return 0;
+  const end = (d: number): Vec2 => ({ x: from.x + ux * d, y: from.y + uy * d });
+  if (segmentClear(map, from, end(maxDist), radius, mask)) return maxDist;
+  let lo = 0;
+  let hi = maxDist;
+  for (let i = 0; i < 6; i++) {
+    const mid = (lo + hi) / 2;
+    if (segmentClear(map, from, end(mid), radius, mask)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}

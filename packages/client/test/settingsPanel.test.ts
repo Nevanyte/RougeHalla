@@ -92,7 +92,7 @@ describe("SettingsPanel structure", () => {
     const { root } = setup();
     const controls = root.find((e) => e.id.startsWith("sp-"));
     expect(controls.map((c) => c.id).sort()).toEqual(
-      ["sp-fullscreen", "sp-hiDpi", "sp-juice", "sp-reducedMotion", "sp-showFps", "sp-showPing", "sp-showRoute"].sort(),
+      ["sp-drawAhead", "sp-fullscreen", "sp-hiDpi", "sp-juice", "sp-reducedMotion", "sp-showFps", "sp-showPing", "sp-showRoute"].sort(),
     );
     for (const control of controls) {
       const labels = root.find((e) => e.tagName === "LABEL" && e.htmlFor === control.id);
@@ -103,7 +103,7 @@ describe("SettingsPanel structure", () => {
 
   it("makes the switches buttons with role=switch, and leaves the slider as the only <input>", () => {
     const { root, sw } = setup();
-    for (const key of ["fullscreen", "hiDpi", "reducedMotion", "showFps", "showPing", "showRoute"]) {
+    for (const key of ["fullscreen", "hiDpi", "reducedMotion", "showFps", "showPing", "showRoute", "drawAhead"]) {
       expect(sw(key).tagName).toBe("BUTTON");
       expect(sw(key).type).toBe("button");
       expect(sw(key).getAttribute("role")).toBe("switch");
@@ -151,9 +151,20 @@ describe("SettingsPanel controls", () => {
     expect(slider.getAttribute("aria-valuetext")).toBe("40 percent");
   });
 
+  it("'Draw remote fighters ahead' is a switch under Network that flips drawAhead, on by default", () => {
+    const { root, sw, store } = setup();
+    const label = root.find((e) => e.tagName === "LABEL" && e.htmlFor === "sp-drawAhead")[0]!;
+    expect(label.textContent).toContain("Draw remote fighters ahead");
+    expect(sw("drawAhead").getAttribute("role")).toBe("switch");
+    expect(sw("drawAhead").getAttribute("aria-checked")).toBe("true");
+    sw("drawAhead").click();
+    expect(store.get().drawAhead).toBe(false);
+    expect(sw("drawAhead").getAttribute("aria-checked")).toBe("false");
+  });
+
   it("a switch click flips the setting at once and saves it", () => {
     const { sw, store, data } = setup();
-    for (const key of ["showFps", "showPing", "hiDpi", "reducedMotion", "showRoute"] as const) {
+    for (const key of ["showFps", "showPing", "hiDpi", "reducedMotion", "showRoute", "drawAhead"] as const) {
       const before = store.get()[key];
       sw(key).click();
       expect(store.get()[key]).toBe(!before);

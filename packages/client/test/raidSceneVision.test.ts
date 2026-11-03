@@ -33,6 +33,8 @@ function rig() {
     interp:{renderTime:()=>now,clock:{synced:true,now:()=>now}},juice:{worldTime:(t:number)=>t},
     stepLocal:noop,localSource:()=>"snapshot",
     sampleDrawn(this:any,id:string,_time:number,p:any) { this.tmp.x=p.x;this.tmp.y=p.y;this.rendered.set(id,{x:p.x,y:p.y}); },
+    // Remote fighters are drawn by the draw-ahead in the game; here as the stub above draws everyone.
+    drawRemote(this:any,id:string,_kind:string,p:any,time:number) { this.sampleDrawn(id,time,p); },
     cameras:{main:{centerOn:noop,scrollX:0,scrollY:0,width:1600,height:900}},
     trainingBar:view,deathPending:()=>false,markIsDim:()=>false,ground:{statesOf:()=>({}),forget:noop},projectiles:view,fieldView:view,syncContainers:noop,updateChestPanel:noop,updateQuestDialog:noop,
     questView:view,questLog:{trackedId:null,update:noop,setDestination:noop},updateTargets:noop,opponentInspector:view,traderPanel:view,traderView:view,

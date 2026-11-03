@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { RaidState } from "@raid/shared/schema";
 import { EntityInterpolator } from "../src/net/interpolation";
 
-interface Ent { x: number; y: number; displaceSeq?: number; kind?: string; ownerId?: string }
+interface Ent { x: number; y: number; displaceSeq?: number; kind?: string; ownerId?: string; extra?: { walkDir?: number; walkTicks?: number } }
 
 function patch(t: number, players: Record<string, Ent>, mobs: Record<string, Ent> = {}): RaidState {
   return { serverTime: t, players: new Map(Object.entries(players)), mobs: new Map(Object.entries(mobs)) } as unknown as RaidState;
@@ -91,5 +91,46 @@ describe("a changed displaceSeq", () => {
       expect(at(i, id, 1025), id).toEqual({ x: 0, y: 0 });
       expect(at(i, id, 1050), id).toEqual({ x: 8, y: 0 });
     }
+  });
+});
+
+describe("walk hints and pending cuts (for the draw-ahead, net/remoteDraw.ts)", () => {
+  it("records a player's walk hint with its patch's time; none for mobs, none for a state without the fields", () => {
+    const i = new EntityInterpolator();
+    expect(i.hintOf("a")).toBeUndefined();
+    i.onPatch(patch(1000, { a: { x: 0, y: 0, extra: { walkDir: 64, walkTicks: 3 } }, b: { x: 0, y: 0, extra: {} } }, { m: { x: 0, y: 0, extra: { walkDir: 1, walkTicks: 2 } } }), 0);
+    expect(i.hintOf("a")).toEqual({ t: 1000, dir: 64, ticks: 3 });
+    expect(i.hintOf("b")).toBeUndefined();
+    expect(i.hintOf("m")).toBeUndefined();
+    i.onPatch(patch(1050, { a: { x: 8, y: 0, extra: { walkDir: 64, walkTicks: 2 } } }), 50);
+    expect(i.hintOf("a")).toEqual({ t: 1050, dir: 64, ticks: 2 });
+    expect(i.buffer("a")!.latest).toEqual({ t: 1050, x: 8, y: 0 });
+    i.onPatch(patch(1100, {}), 100);
+    expect(i.hintOf("a")).toBeUndefined();
+    expect(i.buffer("a")).toBeUndefined();
+  });
+
+  it("cutPending is true from a teleport fx until its patch", () => {
+    const i = new EntityInterpolator();
+    i.onPatch(patch(1000, { a: { x: 0, y: 0 } }), 0);
+    expect(i.cutPending).toBe(false);
+    i.markCut(1050);
+    expect(i.cutPending).toBe(true);
+    i.onPatch(patch(1050, { a: { x: 8, y: 0 } }), 50);
+    expect(i.cutPending).toBe(false);
+    expect(i.buffer("a")!.lastCutT).toBe(1050);
+  });
+
+  it("drawAhead: off by default; setDrawAhead turns it on and off; the legacy delay never draws ahead", () => {
+    const i = new EntityInterpolator();
+    expect(i.drawAhead).toBe(false);
+    i.setDrawAhead(true);
+    expect(i.drawAhead).toBe(true);
+    i.setDrawAhead(false);
+    expect(i.drawAhead).toBe(false);
+    expect(new EntityInterpolator({ drawAhead: true }).drawAhead).toBe(true);
+    const legacy = new EntityInterpolator({ adaptive: false });
+    legacy.setDrawAhead(true);
+    expect(legacy.drawAhead).toBe(false);
   });
 });

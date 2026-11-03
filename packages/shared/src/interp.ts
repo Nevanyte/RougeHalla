@@ -11,6 +11,9 @@ export function decodeWalkDir(d: number): number {
   return (d * Math.PI) / 128;
 }
 
+/** The newest step of a buffer (SnapshotBuffer.walk): where and when it ends, its velocity and the faster of the last two steps' speeds (u/s). */
+export interface NewestWalk { t: number; x: number; y: number; vx: number; vy: number; speed: number }
+
 export interface Sample {
   t: number;
   x: number;
@@ -23,9 +26,11 @@ export interface Sample {
  * Per-entity history of authoritative positions keyed by server time (ms).
  * `sample(t)` lerps between the two samples bracketing t, holds the newest
  * sample when starved (no extrapolation), and never lerps across a teleport.
+ * `walk` and `sampleAhead` are the client's opt-in draw-ahead (net/remoteDraw.ts); `sample` and the bots never use them.
  */
 export class SnapshotBuffer {
   private samples: Sample[] = [];
+  private lastCut = -Infinity;
 
   constructor(
     private readonly maxSamples = 40,
@@ -36,19 +41,27 @@ export class SnapshotBuffer {
 
   get latest(): Sample | undefined { return this.samples[this.samples.length - 1]; }
 
-  clear(): void { this.samples.length = 0; }
+  /** The server time of the newest cut pushed (-Infinity: none since the last clear). */
+  get lastCutT(): number { return this.lastCut; }
+
+  clear(): void { this.samples.length = 0; this.lastCut = -Infinity; }
 
   /** `forceCut`: the server said this sample is a teleport, however short the jump (see EntityInterpolator.markCut). */
   push(t: number, x: number, y: number, forceCut = false): void {
     let last = this.samples[this.samples.length - 1];
     if (last && t < last.t) return; // out of order: ignore
     // Same timestamp: replace the sample, re-checking the teleport rule against the one before it.
-    if (last && t === last.t) { this.samples.pop(); last = this.samples[this.samples.length - 1]; }
+    if (last && t === last.t) {
+      // A replaced cut takes its record with it: any older cut is gone from the buffer already.
+      if (this.samples.pop()!.cut && this.lastCut === t) this.lastCut = -Infinity;
+      last = this.samples[this.samples.length - 1];
+    }
     let cut = false;
     if (last && (forceCut || Math.hypot(x - last.x, y - last.y) > this.teleportDistance)) {
       // Keep only the pre-teleport sample so the entity stays put until the cut is due.
       this.samples.splice(0, this.samples.length - 1);
       cut = true;
+      this.lastCut = t;
     }
     this.samples.push(cut ? { t, x, y, cut } : { t, x, y });
     if (this.samples.length > this.maxSamples) this.samples.shift();
@@ -79,6 +92,47 @@ export class SnapshotBuffer {
     // Keep one sample before the bracket; everything older is dead weight.
     if (i > 1) s.splice(0, i - 1);
     return true;
+  }
+
+  /**
+   * The newest step: false with fewer than two samples, a cut newest sample, or a gap to the one before outside (0, maxGapMs].
+   * `speed` is the faster of the newest two steps (one across a cut does not count), so a corner or a partial tick does not read slow.
+   */
+  walk(out: NewestWalk, maxGapMs = 2 * PATCH_MS): boolean {
+    const s = this.samples;
+    const n = s.length;
+    if (n < 2) return false;
+    const N = s[n - 1]!;
+    const P = s[n - 2]!;
+    const dt = N.t - P.t;
+    if (N.cut || !(dt > 0 && dt <= maxGapMs)) return false;
+    out.t = N.t;
+    out.x = N.x;
+    out.y = N.y;
+    out.vx = ((N.x - P.x) * 1000) / dt;
+    out.vy = ((N.y - P.y) * 1000) / dt;
+    let speed = Math.hypot(out.vx, out.vy);
+    const P2 = n >= 3 ? s[n - 3]! : undefined;
+    const dt2 = P2 ? P.t - P2.t : 0;
+    if (P2 && !P.cut && dt2 > 0 && dt2 <= maxGapMs) speed = Math.max(speed, (Math.hypot(P.x - P2.x, P.y - P2.y) * 1000) / dt2);
+    out.speed = speed;
+    return true;
+  }
+
+  /**
+   * `sample(t)`, except that past the newest sample it walks on along (dirX, dirY) at `speed` u/s for at most `aheadMs`, and holds
+   * there. Returns how far past the newest sample it drew (ms; 0 when it interpolated or held, -1 with no data). With `aheadMs` <= 0,
+   * fewer than two samples or a cut newest sample it is `sample(t)`.
+   */
+  sampleAhead(t: number, out: { x: number; y: number }, aheadMs: number, dirX: number, dirY: number, speed: number): number {
+    const n = this.samples.length;
+    if (n === 0) return -1;
+    const newest = this.samples[n - 1]!;
+    if (aheadMs <= 0 || n < 2 || newest.cut || t <= newest.t) return this.sample(t, out) ? 0 : -1;
+    const e = Math.min(t - newest.t, aheadMs);
+    out.x = newest.x + (dirX * speed * e) / 1000;
+    out.y = newest.y + (dirY * speed * e) / 1000;
+    return e;
   }
 }
 
@@ -172,6 +226,11 @@ export interface RenderClockOptions {
   stepSpanMs: number;
   /** Patches since a flush before the median is taken from the new samples (until then the old one stands, and so does the delay asked). */
   rewarmMin: number;
+  /**
+   * How far past the newest sample the caller may draw (draw-ahead, client net/remoteDraw.ts). The asked delay, its floor and the
+   * initial delay all drop by it; `maxMs` does not. 0: render time stays behind the data, as it always did.
+   */
+  aheadMs: number;
 }
 
 export const RENDER_CLOCK_DEFAULTS: RenderClockOptions = {
@@ -192,6 +251,7 @@ export const RENDER_CLOCK_DEFAULTS: RenderClockOptions = {
   stepPatches: 3,
   stepSpanMs: 80,
   rewarmMin: 5,
+  aheadMs: 0,
 };
 
 /**
@@ -242,11 +302,27 @@ export class RenderClock {
   /** Median `r` and the delay asked for, as of the last frame. */
   private median = 0;
   private asked: number;
+  /** `aheadMs`, as `setAheadMs` last set it. */
+  private ahead: number;
 
   constructor(options: Partial<RenderClockOptions> = {}, clock?: ServerClock) {
     this.options = { ...RENDER_CLOCK_DEFAULTS, ...options };
     this.clock = clock ?? new ServerClock(2, 250, Infinity);
-    this.asked = this.options.initialMs;
+    this.ahead = this.options.aheadMs;
+    this.asked = this.options.initialMs - this.ahead;
+  }
+
+  /** How far past the newest sample the caller may draw (ms). */
+  get aheadMs(): number { return this.ahead; }
+
+  /**
+   * Changes `aheadMs`. Only the delay asked moves; render time reaches it through the usual slews (never backwards, at no less than
+   * 1 - growRate of real time while the delay grows).
+   */
+  setAheadMs(ms: number): void {
+    const d = ms - this.ahead;
+    this.ahead = ms;
+    this.asked = clamp(this.asked - d, this.options.minMs - ms, this.options.maxMs);
   }
 
   /** A patch arrived (once per patch): its server time and the local time it arrived. */
@@ -334,9 +410,10 @@ export class RenderClock {
     if (s.length < o.warmup) {
       if (!this.warmed) {
         // Not enough to judge: trail the clock's estimate by the initial delay.
-        this.asked = o.initialMs;
+        const initial = o.initialMs - this.ahead;
+        this.asked = initial;
         this.median = this.clock.offsetMs - PATCH_MS;
-        return this.clock.offsetMs - o.initialMs;
+        return this.clock.offsetMs - initial;
       }
       // The window was emptied (a stall, a step): the delay asked before stands, and so does the median until a few new patches
       // have shown where it is now.
@@ -350,7 +427,8 @@ export class RenderClock {
     v.sort((a, b) => a - b);
     const low = v[Math.min(v.length - 1, Math.floor((1 - o.percentile) * v.length))]!;
     this.median = v[v.length >> 1]!;
-    const lag = clamp(this.median - low + o.marginMs, o.minMs - PATCH_MS, o.maxMs - PATCH_MS);
+    // Draw-ahead keeps the same lateness cover, counted from where it starts to hold (newest + ahead) instead of from the newest.
+    const lag = clamp(this.median - low + o.marginMs - this.ahead, o.minMs - this.ahead - PATCH_MS, o.maxMs - PATCH_MS);
     this.asked = PATCH_MS + lag;
     return this.median - lag;
   }
@@ -368,7 +446,7 @@ export class RenderClock {
 
   /** The delay render time has now (ms): the same measure as `targetMs`, so it is the one that is bounded and tuned. */
   get delayMs(): number {
-    return this.anchored ? PATCH_MS + (this.median - this.offset) : this.options.initialMs;
+    return this.anchored ? PATCH_MS + (this.median - this.offset) : this.options.initialMs - this.ahead;
   }
 }
 

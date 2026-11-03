@@ -27,8 +27,10 @@ describe("loading", () => {
     expect(new SettingsStore(memoryStorage()).get()).toEqual(DEFAULT_SETTINGS);
   });
 
-  it("the defaults are what the owner asked for: effects fully on, the readout shown, sharp rendering on, the route shown, normal text", () => {
-    expect(DEFAULT_SETTINGS).toEqual({ juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1, minimapScale: 1 });
+  it("the defaults are what the owner asked for: effects fully on, the readout shown, sharp rendering on, the route shown, normal text, draw-ahead on", () => {
+    expect(DEFAULT_SETTINGS).toEqual({
+      juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1, minimapScale: 1, drawAhead: true,
+    });
   });
 
   it("returns a copy, so changing a loaded value never edits the defaults", () => {
@@ -62,7 +64,7 @@ describe("loading", () => {
 
   it("drops unknown keys", () => {
     const out = sanitizeSettings({ juice: 0.5, hax: true, __proto__: { polluted: 1 }, constructor: 5 });
-    expect(Object.keys(out).sort()).toEqual(["hiDpi", "juice", "minimapScale", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
+    expect(Object.keys(out).sort()).toEqual(["drawAhead", "hiDpi", "juice", "minimapScale", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
     expect(out.juice).toBe(0.5);
   });
 
@@ -79,6 +81,15 @@ describe("loading", () => {
     // An older file with neither key loads with the defaults for them.
     const old = loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ juice: 0.5, showFps: false }) }));
     expect(old).toEqual({ ...DEFAULT_SETTINGS, juice: 0.5, showFps: false });
+  });
+
+  it("keeps the draw-ahead switch as a boolean and defaults anything else; an older save picks up the default", () => {
+    expect(sanitizeSettings({ drawAhead: false }).drawAhead).toBe(false);
+    expect(sanitizeSettings({ drawAhead: true }).drawAhead).toBe(true);
+    for (const bad of ["no", 0, 1, null, undefined, {}]) expect(sanitizeSettings({ drawAhead: bad }).drawAhead).toBe(true);
+    expect(sanitizeSettings({ drawAhead: "no" }, { ...DEFAULT_SETTINGS, drawAhead: false }).drawAhead).toBe(false);
+    const old = loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ juice: 0.5, showRoute: false }) }));
+    expect(old.drawAhead).toBe(true);
   });
 
   it("saves minimap size and clamps invalid values to the offered sizes", () => {

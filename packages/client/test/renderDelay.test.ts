@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTERP_DELAY_MS, mulberry32, PATCH_MS } from "@raid/shared";
+import { EXTRAPOLATE_MS, INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, mulberry32, PATCH_MS } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { EntityInterpolator } from "../src/net/interpolation";
 
@@ -59,6 +59,16 @@ describe("EntityInterpolator", () => {
     expect(it.delayMs).toBeLessThan(INTERP_DELAY_MS);
     expect(it.delayMs).toBeGreaterThanOrEqual(69);
     expect(it.targetDelayMs).toBeLessThan(INTERP_DELAY_MS);
+  });
+
+  it("with the draw-ahead on it starts 50 ms lower and settles at 20 ms on a steady stream, render time still never backwards", () => {
+    const it = new EntityInterpolator();
+    it.setDrawAhead(true);
+    expect(it.delayMs).toBe(INTERP_DELAY_MS - EXTRAPOLATE_MS);
+    const r = drive(it, 20, 3, 1);
+    expect(r.backwards).toBe(0);
+    expect(it.delayMs).toBeGreaterThanOrEqual(MIN_INTERP_DELAY_MS - EXTRAPOLATE_MS - 1);
+    expect(it.delayMs).toBeLessThan(MIN_INTERP_DELAY_MS - EXTRAPOLATE_MS + 5);
   });
 
   it("`adaptive: false` keeps the fixed 100 ms behind a clock that snaps on late patches", () => {

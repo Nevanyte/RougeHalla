@@ -13,6 +13,7 @@ import { dropWarner, type FxInbox } from "../net/fxInbox";
 import type { PlanInbox } from "../net/planInbox";
 import { keyboardMoveGoal, MOVEMENT_KEYS, STEER_REPEAT_MS, steerDue } from "../net/keyboardMovement";
 import { EntityInterpolator } from "../net/interpolation";
+import { RemoteDraw, type RemoteFighter } from "../net/remoteDraw";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import { LocalAutos, type AutoInput, type AutoVisual } from "../net/localAutos";
 import { LocalHand, predictedReadyAt, swapBlocked, weaponInSlot } from "../net/localHand";
@@ -129,7 +130,10 @@ export class RaidScene extends Phaser.Scene {
   private edgeThreats!: EdgeThreatView;
   private readonly cameraFollow = new CameraFollow();
   private unbindVision: (() => void) | null = null;
-  private interp!: EntityInterpolator;
+  // Both are made again in create(); these let a scene that never ran create() (the tests' rigs) draw as sample() does.
+  private interp = new EntityInterpolator();
+  /** Draw-ahead of remote fighters (presentation only; the setting `drawAhead`): players along their walk hint, mobs by velocity. */
+  private remoteDraw = new RemoteDraw(this.interp);
   private views = new Map<string, PlayerView>();
   private opponentInspector!: OpponentInspector;
   private attackMoveArmed = false;
@@ -337,6 +341,8 @@ export class RaidScene extends Phaser.Scene {
     this.deaths.clear();
     this.inHand.clear();
     this.interp = new EntityInterpolator();
+    this.remoteDraw = new RemoteDraw(this.interp);
+    this.remoteDraw.setEnabled(getSettings().drawAhead);
     runPerf.reset(); // one perf sample per run (docs/TELEMETRY.md 3.9)
     this.views = new Map();
     this.mobViews = new Map();
@@ -395,7 +401,10 @@ export class RaidScene extends Phaser.Scene {
     this.planning?.destroy();
     this.planning = null;
     this.minimap.setShowRoute(getSettings().showRoute);
-    this.unbindSettings = onSettingsChange((s) => this.minimap.setShowRoute(s.showRoute));
+    this.unbindSettings = onSettingsChange((s, changed) => {
+      this.minimap.setShowRoute(s.showRoute);
+      if (changed.includes("drawAhead")) this.remoteDraw.setEnabled(s.drawAhead);
+    });
     this.chestPanel?.destroy();
     this.chestMemory = new ChestMemory();
     this.chestPanel = new ChestPanel({
@@ -498,6 +507,7 @@ export class RaidScene extends Phaser.Scene {
       // latency: ms from a right-click to the first frame the local fighter moved on screen; motion: the prediction's state.
       const motion = this.predict.motion;
       const interp = this.interp;
+      const remote = this.remoteDraw;
       const hand = this.hand;
       const tools = {
         scene: this,
@@ -506,7 +516,9 @@ export class RaidScene extends Phaser.Scene {
         /** How the predicted weapon swaps ended (confirmed, refused, expired) and whether one is pending. */
         get hand() { return { ...hand.counts, predicting: hand.predicting }; },
         /** How far behind the estimated server clock remote fighters are drawn (ms), and the delay the network asks for. */
-        get interp() { return { delay: interp.delayMs, target: interp.targetDelayMs }; },
+        get interp() { return { delay: interp.delayMs, target: interp.targetDelayMs, drawAhead: interp.drawAhead }; },
+        /** The draw-ahead's counters (snaps, cuts, reversals, the largest correction step). */
+        get remote() { return { ...remote.stats, enabled: remote.enabled }; },
         get motion() {
           return {
             delay: motion.delay, mode: motion.mode, visual: motion.visualOffset, walking: motion.walking, pending: motion.pendingOrders,
@@ -537,6 +549,7 @@ export class RaidScene extends Phaser.Scene {
     // Opponents, projectiles, and queued effects share a continuous interpolation timeline.
     const renderT = this.juice.worldTime(trueT, now);
     this.renderT = renderT;
+    this.remoteDraw.beginFrame(this.planMap(), renderT);
     this.clockSynced = this.interp.clock.synced;
     // The estimated present, not renderT (the render delay behind it): deadlines and cooldowns are server-time values about now.
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
@@ -580,10 +593,10 @@ export class RaidScene extends Phaser.Scene {
         this.hasFrozen = true;
       } else if (source === "frozen") {
         this.placeDrawn(id, this.frozen);
-      } else {
-        if (local) this.hasFrozen = false;
+      } else if (local) {
+        this.hasFrozen = false;
         this.sampleDrawn(id, drawT, p);
-      }
+      } else this.drawRemote(id, "player", p, renderT);
       if (id === huntTarget) this.huntMarker = { id, x: this.tmp.x, y: this.tmp.y, tracked: true };
       if (!shouldRenderActor(local, p.effects, this.tmp, point => this.vision.canSeeActor(id, point, p.extra?.bushRevealUntil ?? 0))) { this.rendered.delete(id); return; }
       seen.add(id);
@@ -601,14 +614,18 @@ export class RaidScene extends Phaser.Scene {
       }
     });
     for (const [id, view] of this.views) {
-      if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); this.ground.forget(id); }
+      if (!seen.has(id)) {
+        view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); this.ground.forget(id);
+        // Only a fighter that left: one culled by vision keeps the roots the fx told of.
+        if (!state.players.has(id)) this.remoteDraw.forget(id);
+      }
     }
     const seenMobs = new Set<string>();
     const seenZombies = new Set<string>();
     const campMobs: Array<{ camp: number; kind: string; status: string; type: string; x: number; y: number }> = [];
     state.mobs.forEach((m, id) => {
       if (m.kind === "quest") return;
-      this.sampleDrawn(id, renderT, m);
+      this.drawRemote(id, "mob", m, renderT);
       if (!shouldRenderActor(false, m.effects, this.tmp, this.vision.canSee)) { this.rendered.delete(id); return; }
       if (m.kind === "zombie") {
         const owner = state.players.get(m.ownerId);
@@ -631,10 +648,16 @@ export class RaidScene extends Phaser.Scene {
       campMobs.push({ camp: m.camp, kind: m.kind, status: m.status, type: m.type, x: this.tmp.x, y: this.tmp.y });
     });
     for (const [id, view] of this.mobViews) {
-      if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id); }
+      if (!seenMobs.has(id)) {
+        view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id);
+        if (!state.mobs.has(id)) this.remoteDraw.forget(id);
+      }
     }
     for (const [id, view] of this.zombieViews) {
-      if (!seenZombies.has(id)) { view.destroy(); this.zombieViews.delete(id); this.rendered.delete(id); }
+      if (!seenZombies.has(id)) {
+        view.destroy(); this.zombieViews.delete(id); this.rendered.delete(id);
+        if (!state.mobs.has(id)) this.remoteDraw.forget(id);
+      }
     }
     this.campBuffs.update(this.mapView!.map, state.camps, state.phase === "active" && !state.training, this.vision.canSee, campMobs);
     this.campPatience?.update(state.camps, state.phase === "active" && !state.training);
@@ -644,7 +667,8 @@ export class RaidScene extends Phaser.Scene {
     this.projectiles.update(renderT, (id, t, out) => {
       const fighter = state.players.get(id) ?? state.mobs.get(id);
       if (!fighter || fighter.status !== "alive" || !targetable(fighter.effects) || !this.visiblePosition(id)) return false;
-      if (this.interp.sample(id, t, out)) return true;
+      // A ball homes on a remote fighter where its draw-ahead puts it (without the correction offset); the local one as before.
+      if (id === this.room.sessionId ? this.interp.sample(id, t, out) : this.remoteDraw.modelAt(id, t, out)) return true;
       const at = this.rendered.get(id);
       if (!at) return false;
       out.x = at.x; out.y = at.y;
@@ -857,6 +881,15 @@ export class RaidScene extends Phaser.Scene {
   /** Writes where fighter `id` is drawn this frame into `tmp` and `rendered` (the latest patch while it has no history yet). */
   private sampleDrawn(id: string, renderT: number, latest: { x: number; y: number }): void {
     if (!this.interp.sample(id, renderT, this.tmp)) { this.tmp.x = latest.x; this.tmp.y = latest.y; }
+    let drawn = this.rendered.get(id);
+    if (!drawn) { drawn = { x: 0, y: 0 }; this.rendered.set(id, drawn); }
+    drawn.x = this.tmp.x;
+    drawn.y = this.tmp.y;
+  }
+
+  /** Like sampleDrawn for a remote fighter, drawn by the draw-ahead (exactly sampleDrawn while it is off). */
+  private drawRemote(id: string, kind: "player" | "mob", f: RemoteFighter, renderT: number): void {
+    if (!this.remoteDraw.draw(id, kind, f, renderT, this.tmp)) { this.tmp.x = f.x; this.tmp.y = f.y; }
     let drawn = this.rendered.get(id);
     if (!drawn) { drawn = { x: 0, y: 0 }; this.rendered.set(id, drawn); }
     drawn.x = this.tmp.x;
@@ -1801,6 +1834,8 @@ export class RaidScene extends Phaser.Scene {
       }
     }
     for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
+      // At arrival: a root in the newest batch stops the draw-ahead before render time reaches it.
+      this.remoteDraw.noteFx(fx);
       this.ground.combat.note(fx);
       const autoEvent = (fx.kind === "windup" || fx.kind === "swing") && fx.by === this.room.sessionId ? fx : null;
       const now = performance.now();
@@ -1918,6 +1953,7 @@ export class RaidScene extends Phaser.Scene {
     this.predict.reset();
     this.juice.reset();
     this.projectiles.destroy();
+    this.remoteDraw.reset();
     this.input.removeAllListeners();
     this.input.keyboard?.removeAllListeners();
     for (const v of this.views.values()) v.destroy();

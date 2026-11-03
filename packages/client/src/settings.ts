@@ -17,6 +17,11 @@ export interface Settings {
   textScale: number;
   /** Size of the bottom-corner minimap relative to its default. */
   minimapScale: number;
+  /**
+   * Draw other fighters up to one tick past their newest sample along the walk the server says they are on, with a 50 ms shorter
+   * render delay (net/remoteDraw.ts); off shows only what the server sent, at today's delay.
+   */
+  drawAhead: boolean;
 }
 
 /** The text sizes the settings card offers: 100%, 125% and 150%. */
@@ -33,6 +38,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   showRoute: true,
   textScale: 1,
   minimapScale: 1,
+  drawAhead: true,
 });
 
 export const SETTINGS_KEY = "raidbr.settings.v1";
@@ -69,6 +75,7 @@ export function sanitizeSettings(raw: unknown, base: Readonly<Settings> = DEFAUL
     minimapScale: typeof o.minimapScale === "number" && Number.isFinite(o.minimapScale)
       ? MINIMAP_SCALES.reduce((a, b) => Math.abs(b - Number(o.minimapScale)) < Math.abs(a - Number(o.minimapScale)) ? b : a)
       : base.minimapScale,
+    drawAhead: bool(o.drawAhead, base.drawAhead),
   };
 }
 

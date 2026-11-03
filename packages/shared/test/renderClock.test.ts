@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  INTERP_DELAY_MS, MAX_INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, mulberry32, PATCH_MS, RENDER_CLOCK_DEFAULTS, RenderClock, ServerClock,
+  decodeWalkDir, encodeWalkDir, EXTRAPOLATE_MS, INTERP_DELAY_MS, MAX_INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, MOB_EXTRAPOLATE_MS, mulberry32, PATCH_MS,
+  RENDER_CLOCK_DEFAULTS, RenderClock, ServerClock, WALK_HINT_MAX_TICKS,
   type RenderClockOptions,
 } from "../src/index";
 
@@ -490,5 +491,121 @@ describe("RenderClock through stalls, hitches and gaps in the frames", () => {
     expect(c.offsetMs).toBe(4900);
     c.resync(5500, 400);
     expect(c.offsetMs).toBe(5100);
+  });
+});
+
+// --- draw-ahead: `aheadMs` (client net/remoteDraw.ts) ------------------------------------------------------------------------
+//
+// The asked delay, its floor and the initial delay all drop by `aheadMs`; the ceiling does not. Two clocks fed the same arrivals,
+// one of them ahead, then draw exactly `aheadMs` apart (every slew, snap and clamp shifts with them) for as long as the other one
+// is below the ceiling: the age gain of the draw-ahead is structural, and stalls and steps do not eat it.
+
+describe("RenderClock with aheadMs (draw-ahead)", () => {
+  const AHEAD = EXTRAPOLATE_MS;
+
+  /** A flat-latency stream with a uniform jitter of up to `spread` ms. */
+  const even = (n: number, spread: number, seed: number): Arrival[] => {
+    const rng = mulberry32(seed);
+    let last = -Infinity;
+    return Array.from({ length: n }, (_, i) => {
+      const t = 1000 + i * PATCH_MS;
+      const at = Math.max(last, t + 20 + rng() * spread);
+      last = at;
+      return { t, at };
+    });
+  };
+
+  it("starts at the initial delay less aheadMs and settles at the floor less aheadMs (20 ms) on a steady stream", () => {
+    const rc = new RenderClock({ aheadMs: AHEAD });
+    expect(rc.delayMs).toBe(INTERP_DELAY_MS - AHEAD);
+    expect(rc.aheadMs).toBe(AHEAD);
+    const r = run(rc, stream(1000, mulberry32(1), { base: 20 }), 144, 15_000);
+    expect(mean(r.delays)).toBeGreaterThanOrEqual(MIN_INTERP_DELAY_MS - AHEAD - 0.5);
+    expect(mean(r.delays)).toBeLessThan(MIN_INTERP_DELAY_MS - AHEAD + 3);
+    expect(r.backwards).toBe(0);
+  });
+
+  it("with a jitter of 5 ms or less it never draws more than aheadMs past the data", () => {
+    for (const seed of [1, 2, 3]) {
+      const r = run(new RenderClock({ aheadMs: AHEAD }), even(1200, 5, seed), 144, 10_000);
+      expect(Math.max(...r.over), `seed ${seed}`).toBeLessThanOrEqual(AHEAD + 1e-6);
+      expect(r.over.filter((o) => o > 0).length / r.over.length, `seed ${seed}`).toBeGreaterThan(0.3);
+    }
+  });
+
+  it("paired with a clock that is not ahead, fed the same arrivals, it draws exactly aheadMs later on every frame below the ceiling", () => {
+    const latencyStep = (n: number, at: number, extra: number): Arrival[] =>
+      Array.from({ length: n }, (_, i) => ({ t: 1000 + i * PATCH_MS, at: 1000 + i * PATCH_MS + 30 + (i >= at ? extra : 0) }));
+    const cases: Array<[string, Arrival[], number]> = [
+      ["steady", stream(800, mulberry32(1), { base: 20 }), 144],
+      ["jitter", stream(1200, mulberry32(2), { jitter: 10 }), 60],
+      ["stalls and skips", stream(1500, mulberry32(3), { jitter: 3, stall: (i) => (i % 197 === 50 ? 1500 : i % 41 === 7 ? 30 : 0), skip: (i) => i % 53 === 20 }), 144],
+      ["client stall", clientStall(600, 300, 1500), 144],
+      ["server hitch", serverHitch(600, 300, 150), 144],
+      ["latency step", latencyStep(900, 450, 40), 120],
+    ];
+    for (const [name, arrivals, fps] of cases) {
+      const off = new RenderClock();
+      const on = new RenderClock({ aheadMs: AHEAD });
+      const a = drive(off, arrivals, { fps });
+      const b = drive(on, arrivals, { fps });
+      expect(Math.max(...a.map((f) => f.delay)), name).toBeLessThan(MAX_INTERP_DELAY_MS - 1);
+      let worst = 0;
+      for (let k = 0; k < a.length; k++) {
+        if (a[k]!.delay >= MAX_INTERP_DELAY_MS - 1e-9) continue;
+        worst = Math.max(worst, Math.abs(b[k]!.t - a[k]!.t - AHEAD));
+      }
+      expect(worst, name).toBeLessThanOrEqual(1e-6);
+    }
+  });
+
+  it("extrapolates less where the link is worse: past its newest sample on fewer frames at a 15 ms mean jitter than on a steady stream", () => {
+    const steady = run(new RenderClock({ aheadMs: AHEAD }), stream(1500, mulberry32(4), { base: 20 }), 144, 15_000);
+    const rough = run(new RenderClock({ aheadMs: AHEAD }), stream(1500, mulberry32(4), { jitter: 15 }), 144, 15_000);
+    const share = (r: Run) => r.over.filter((o) => o > 0).length / r.over.length;
+    expect(share(steady)).toBeGreaterThan(0.4);
+    expect(share(rough)).toBeLessThan(share(steady) / 2);
+  });
+
+  it("setAheadMs toggled on and off mid-stream: render time never goes backwards and runs at no less than 1 - growRate", () => {
+    for (const fps of [60, 144]) {
+      const rc = new RenderClock();
+      const arrivals = stream(2000, mulberry32(fps), { jitter: 4 });
+      const frame = 1000 / fps;
+      let i = 0;
+      let prev = NaN;
+      let minSpeed = Infinity;
+      let backwards = 0;
+      const end = arrivals[arrivals.length - 1]!.at;
+      let k = 0;
+      for (let now = arrivals[0]!.at; now <= end; now += frame, k++) {
+        while (i < arrivals.length && arrivals[i]!.at <= now) { rc.onPatch(arrivals[i]!.t, arrivals[i]!.at); i++; }
+        if (k % (fps * 7) === fps * 3) rc.setAheadMs(AHEAD);
+        if (k % (fps * 7) === fps * 6) rc.setAheadMs(0);
+        const t = rc.renderTime(now);
+        if (Number.isFinite(prev)) {
+          if (t < prev) backwards++;
+          minSpeed = Math.min(minSpeed, (t - prev) / frame);
+        }
+        prev = t;
+      }
+      expect(backwards, `${fps} Hz`).toBe(0);
+      expect(minSpeed, `${fps} Hz`).toBeGreaterThanOrEqual(1 - D.growRate - 1e-9);
+    }
+  });
+
+  it("the constants hold together", () => {
+    // The same 20 ms of lateness cover: the floor less the lead, measured from where the lead ends, less one patch.
+    expect(MIN_INTERP_DELAY_MS - EXTRAPOLATE_MS + EXTRAPOLATE_MS - PATCH_MS).toBe(20);
+    expect(EXTRAPOLATE_MS).toBe(PATCH_MS);
+    expect(MOB_EXTRAPOLATE_MS).toBeLessThanOrEqual(EXTRAPOLATE_MS);
+    expect(WALK_HINT_MAX_TICKS).toBe(3);
+    expect(RENDER_CLOCK_DEFAULTS.aheadMs).toBe(0);
+    for (let k = 0; k < 720; k++) {
+      const a = ((k / 720) * 2 - 1) * Math.PI * 2;
+      const back = decodeWalkDir(encodeWalkDir(a));
+      const d = Math.abs(Math.atan2(Math.sin(back - a), Math.cos(back - a)));
+      expect(d).toBeLessThanOrEqual((0.71 * Math.PI) / 180);
+    }
   });
 });
