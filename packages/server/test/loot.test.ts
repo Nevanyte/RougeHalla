@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  generateMap, hasLineOfSight, INTERACT_RANGE, mapFromTiles, mulberry32, PLAYER_RADIUS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR,
+  generateMap, hasLineOfSight, INTERACT_RANGE, mapFromTiles, mulberry32, PLAYER_RADIUS, STAT_CHEST_CRATES_PER_MAP, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR,
   TILE_WALL, tileToWorldCenter, WEAPON_IDS, WEAPONS, withGates, type ContainerKind, type GameMap, type GateDef, type GateSide, type Vec2,
   type WeaponId,
 } from "@raid/shared";
@@ -9,7 +9,7 @@ import { downPlayer } from "../src/sim/arena";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
-import { dropBody, dropWeapon, handlePickup, install, spawnLoot } from "../src/sim/loot";
+import { crateHoldsStatChest, dropBody, dropWeapon, handlePickup, install, spawnLoot } from "../src/sim/loot";
 import { CHEST_TABLE, GROUND_WEAPON_CHANCE, rollChestWeapon, rollGroundWeapon } from "../src/sim/lootTables";
 import { addMob } from "../src/sim/mobs";
 import { actionOrder, addPlayer, removePlayer, step } from "../src/sim/step";
@@ -1061,7 +1061,7 @@ describe("loot flow through the sim", () => {
     const world = makeWorld({ minPlayers: 1 });
     setWeapons(addPlayer(world, "a", "alice"), ["sword", ""]);
     tick(world);
-    const chest = [...world.state.containers.values()].find((c) => c.kind === "chest")!;
+    const chest = [...world.state.containers.values()].find((c) => c.kind === "chest" && crateHoldsStatChest(world, c.id))!;
     place(world, "a", chest);
     tick(world);
     pickup(world, "a", chest.id);
@@ -1077,5 +1077,34 @@ describe("loot flow through the sim", () => {
     pickup(world, "a", chest.id);
     tick(world);
     expect([...world.state.containers.values()].filter((c) => c.kind === "reward")).toHaveLength(1);
+  });
+
+  it("only STAT_CHEST_CRATES_PER_MAP crates hold a stat chest; the others give their potion and nothing else", () => {
+    for (const seed of [1234, 7, 99, 2024]) {
+      const world = makeWorld({ minPlayers: 1 }, seed);
+      const crates = [...world.state.containers.values()].filter((c) => c.kind === "chest");
+      expect(crates.length).toBeGreaterThan(STAT_CHEST_CRATES_PER_MAP);
+      expect(crates.filter((c) => crateHoldsStatChest(world, c.id))).toHaveLength(STAT_CHEST_CRATES_PER_MAP);
+    }
+    const world = makeWorld({ minPlayers: 1 });
+    setWeapons(addPlayer(world, "a", "alice"), ["sword", ""]);
+    tick(world);
+    const plain = [...world.state.containers.values()].find((c) => c.kind === "chest" && !crateHoldsStatChest(world, c.id))!;
+    place(world, "a", plain);
+    tick(world);
+    pickup(world, "a", plain.id);
+    tick(world);
+    expect(P(world, "a").potionSmall).toBe(1);
+    expect([...world.state.containers.values()].filter((c) => c.kind === "reward")).toHaveLength(0);
+  });
+
+  it("which crates hold a stat chest depends on the secret reward salt, not on the public seed", () => {
+    const pick = (salt: number): string => {
+      const world = createGameWorld({ seed: 1234, config: makeConfig({ minPlayers: 1 }), random: mulberry32(1235), newItemUid: counter(), rewardSalt: salt });
+      return [...world.state.containers.values()].filter((c) => c.kind === "chest").map((c) => (crateHoldsStatChest(world, c.id) ? "1" : "0")).join("");
+    };
+    expect(pick(11)).toBe(pick(11));
+    const picks = new Set([11, 12, 13, 14, 15].map(pick));
+    expect(picks.size).toBeGreaterThan(1);
   });
 });

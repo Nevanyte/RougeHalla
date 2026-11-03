@@ -61,7 +61,7 @@ export interface QuestDef {
 export const FARM_SECONDS_PER_MOB = 12;
 /** All-in seconds of clearing a camp of four: the unit a quest's time is counted in. */
 export const CAMP_SECONDS = 4 * FARM_SECONDS_PER_MOB;
-/** Tier points a normal camp's chest gives on average (70/25/5 base tiers, a third of the options being useful: 1.35). */
+/** Quest card tier rate. Historical calibration: normal camps no longer drop a chest, so this is no longer a camp reward baseline (70/25/5 base tiers, a third of the options useful: 1.35). */
 export const CARD_TIER_RATE = 1.35;
 /** GV per second of flat-out farming (GV_MOB over FARM_SECONDS_PER_MOB). */
 export const FARM_GV_RATE = 2 / FARM_SECONDS_PER_MOB;

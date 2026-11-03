@@ -161,7 +161,7 @@ export type FxEvent =
    * damage, either Fire's backlash on one swing of `id`, or DOT_FX_MS worth of damage over time (burn, disease, mark).
    * `ability`: the ability that dealt it (weapon null); a dot ability's hits come in chunks like a signature's. A hit with no
    * weapon, signature or ability is a bleed (a card's damage over time), also in chunks. `crit`: a critical strike (1.5x).
-   * `passive`: damage `by` returned without an attack of its own (a riposte, a reflected arrow, Spiked Shell, Final Verdict),
+   * `passive`: damage `by` returned without an attack of its own (a riposte, a reflected arrow, Spiked Shell, Final Verdict, Overkill's spill-over),
    * though it names `by`'s weapon.
    */
   | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind; ability?: AbilityId; crit?: true; passive?: true }
@@ -390,7 +390,18 @@ export interface JoinOptions {
   mode?: RoomMode;
   /** The host's playtest passcode (PLAYTEST_PASSCODE), when the server has one set; ignored otherwise. */
   passcode?: string;
+  /**
+   * The wire build the page was built with (a hash of packages/shared/src: server/src/buildId.ts computeWireBuildId, which the
+   * production client build bakes in as VITE_WIRE_BUILD). A server that serves the page refuses a join that names another one,
+   * so a tab that outlived a deploy never plays with a decoder the server no longer speaks. Absent (a bot, a dev build, a page
+   * older than this field) is let in. Nothing else reads it.
+   */
+  build?: string;
 }
+
+/** The status and sentence of a join refused for a stale page (HTTP 426 Upgrade Required); the client offers a reload on either. */
+export const CLIENT_OUT_OF_DATE_CODE = 426;
+export const CLIENT_OUT_OF_DATE_MESSAGE = "this page is out of date with the server: reload to update";
 
 /** `deaths` counts died and mia; `runs` counts every resolved run, including the ones won or drawn. */
 export interface ProfileStats { runs: number; wins: number; draws: number; deaths: number; kills: number }

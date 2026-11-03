@@ -825,7 +825,7 @@ describe("bots in whole games", () => {
       for (const box of rewardChests(room.world)) {
         if (seen.has(box.id)) continue;
         seen.add(box.id);
-        // A camp's chest is an augment chest at an elite camp, or (the merged stat chests) a chest of x1.2 boosts at a normal camp.
+        // A camp chest is an augment chest at an elite camp only; a normal camp drops none (a stat chest, if any, is a crate's).
         const stat = box.options.length > 0 && box.options.every((o) => isChestBoostId(o));
         if (!stat) dropped.set(box.id, box.camp);
         if (box.camp > 0) {

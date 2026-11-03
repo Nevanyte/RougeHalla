@@ -14,13 +14,13 @@ function rig() {
     return g;
   });
   const view = new PlagueCorpseView({ add: { graphics: add } } as any);
-  const corpse = { id: "pc1", playerId: "dead", playerName: "Fallen", x: 220, y: 180, expiresAt: 10_000 } as any;
+  const corpse = { id: "pc1", playerId: "dead", playerName: "Fallen", x: 220, y: 180 } as any;
   const source = new Map([[corpse.id, corpse]]);
   return { view, add, graphics, corpse, source };
 }
 
 describe("Plague corpse world art", () => {
-  it("creates a green puddle only in vision for an eligible local Plague player, then hides and removes it", () => {
+  it("creates a green puddle only in vision for an eligible local Plague player, then hides it and removes it once harvested", () => {
     const r = rig();
     r.view.update(r.source, 1000, false, () => true);
     expect(r.add).not.toHaveBeenCalled();
@@ -36,7 +36,11 @@ describe("Plague corpse world art", () => {
 
     r.view.update(r.source, 1100, true, () => false);
     expect(g.setVisible).toHaveBeenLastCalledWith(false);
-    r.view.update(r.source, 10_000, true, () => true);
+    // A corpse never decays: only its removal from the state (harvested, or the run's end) takes the art away.
+    r.view.update(r.source, 10_000_000, true, () => true);
+    expect(g.destroy).not.toHaveBeenCalled();
+    r.source.delete(r.corpse.id);
+    r.view.update(r.source, 10_000_001, true, () => true);
     expect(g.destroy).toHaveBeenCalledOnce();
     r.view.destroy();
     expect(r.graphics).toHaveLength(1);

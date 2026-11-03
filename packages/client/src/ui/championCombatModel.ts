@@ -1,6 +1,6 @@
 import {
   ABILITIES, AP_DOT_RATIO, BLAZE_BURN_DPS, BLAZE_BURN_MS, BLAZE_MIN_DIST, BLAZE_RANGE, CHILL_MOVE_MULT,
-  EXECUTE_BAND, FACTIONS, FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_CHARGE_MAX, FIRE_ROAM_RAMP_MS,
+  EXECUTE_BAND, FACTIONS, FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_CHARGE_MAX, FIRE_ROAM_RAMP_MS,
   FREEZE_RANGE, FREEZE_STUN_MS, HEAVIER_SENTENCE_PER_BONUS, LAST_STAND_HEAL_SHARE, LAST_STAND_MS,
   LAST_STAND_SPEED_BONUS, MARK_KILL_STACK_CAP, MARK_TIER_HITS, MARK_TOP_TIER, SWARM_CLOUD_RADIUS,
   SWARM_MS, TRIAL_CONVICTED_RADIUS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS,
@@ -8,7 +8,7 @@ import {
   damageShares, decodeMirrors, foldRows, isFactionId, isWeaponId, lifestealFraction,
   fireRoamBurstDamage, fireRoamSpeedMult, markPct, markWeight, ownedCards, pacedFaction, scalingDamage, WIRE_IDENTITY_MIRRORS,
   WEAPONS, wishOf, holyCampLifestealOf, HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS,
-  FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP, holyApLifestealOf,
+  FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, 
   FIRE_BURN_AD_RATIO, FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, frostChillBonusOf, HOLY_LEECH_ROW_MULT,
   PLAGUE_AP_PER_HIT, PLAGUE_ZOMBIE_AD_SHARE, PLAGUE_ZOMBIE_HIT_PER_BONUS, PLAGUE_ZOMBIE_HP_PER_BONUS,
   MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_HIT_CAP_SHARE,
@@ -113,7 +113,7 @@ export function championCombatModel(input: ChampionCombatInput): ChampionCombatM
   const total = physical + magic + trueDamage;
   const fireRoamText = factionId === "fire"
     ? ` Fire Roam is ${input.roamReady ? "armed" : `${fmt(Math.min(FIRE_ROAM_CHARGE_MAX, Math.max(0, safe(input.roamCharge, 0))))}/${FIRE_ROAM_CHARGE_MAX} charged`}`
-      + ` (${fmt((fireRoamSpeedMult(safe(input.roamCharge, 0)) - 1) * 100)}% move speed); after ${fmt(FIRE_ROAM_RAMP_MS / 1000)} s out of combat, the next landed basic attack adds ${fmt(fireRoamBurstDamage(mirrors.apBonus))} magic (${FIRE_ROAM_BURST_BASE} + ${fmt(FIRE_ROAM_BURST_AP_SHARE)}× SO). Incoming damage resets partial charge but does not cancel an already armed burst; Soul Defense mitigates the burst.`
+      + ` (${fmt((fireRoamSpeedMult(safe(input.roamCharge, 0)) - 1) * 100)}% move speed); after ${fmt(FIRE_ROAM_RAMP_MS / 1000)} s out of combat, the next landed basic attack adds ${fmt(fireRoamBurstDamage(mirrors.adBonus))} physical (${FIRE_ROAM_BURST_BASE} + ${fmt(FIRE_ROAM_BURST_AD_SHARE)}× Offense). Incoming damage resets partial charge but does not cancel an already armed burst; Defense mitigates the burst.`
     : "";
   const weapon = WEAPONS[weaponId];
   const scaleParts: Array<[number | undefined, string]> = [
@@ -204,14 +204,13 @@ function passiveRow(input: ChampionCombatInput, factionId: FactionId, faction: t
     }
     case "holy": {
       const hpFrac = input.maxHp && input.maxHp > 0 ? Math.max(0, Math.min(1, safe(input.hp, input.maxHp) / input.maxHp)) : 1;
-      const apLeech = holyApLifestealOf(mirrors.apBonus);
-      const share = lifestealFraction(faction, hpFrac) + apLeech;
+      const share = lifestealFraction(faction, hpFrac);
       const camps = Math.max(0, safe(input.campClears, 0));
       const campLeech = holyCampLifestealOf(camps) * (countIn(input.build, "bloodthirst") > 0 && hpFrac < 0.5 ? 2 : 1);
       return {
         id: "passive", icon: "leech", name: "Radiant", value: `${fmt((share + campLeech) * 100)}% life steal`,
         scaling: `${fmt(camps)} camps · +${fmt(campLeech * 100)}% earned leech`,
-        tooltip: `Heal for ${fmt((share + campLeech) * 100)}% of post-mitigation damage dealt at your current health (${fmt(hpFrac * 100)}% HP), before card and mob leech. The faction share is ${fmt(faction.params.ls0! * 100)}% plus ${fmt(faction.params.ls1! * 100)}% times missing health, capped at ${fmt(faction.params.ls_cap! * 100)}%, plus ${fmt(HOLY_LIFESTEAL_PER_AP * 100)}% per SO point (now +${fmt(apLeech * 100)}%, at most +${fmt(HOLY_AP_LIFESTEAL_CAP * 100)}%). Your card leech counts ${fmt(HOLY_LEECH_ROW_MULT)}× (still capped). Each eligible camp clear adds ${fmt(HOLY_CAMP_LIFESTEAL_PER_CLEAR * 100)}% permanent lifesteal without a farming cap. Bloodthirst also doubles that earned bonus below half health.`,
+        tooltip: `Heal for ${fmt((share + campLeech) * 100)}% of post-mitigation damage dealt at your current health (${fmt(hpFrac * 100)}% HP), before card and mob leech. The faction share is ${fmt(faction.params.ls0! * 100)}% plus ${fmt(faction.params.ls1! * 100)}% times missing health, capped at ${fmt(faction.params.ls_cap! * 100)}%. Your card leech counts ${fmt(HOLY_LEECH_ROW_MULT)}× (still capped). Each eligible camp clear adds ${fmt(HOLY_CAMP_LIFESTEAL_PER_CLEAR * 100)}% permanent lifesteal without a farming cap. Bloodthirst also doubles that earned bonus below half health.`,
       };
     }
   }

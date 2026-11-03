@@ -221,7 +221,9 @@ function onBlocked(world: World, holder: Combatant, attacker: Combatant, prevent
  * overkilled (in the pass): the pass killed `victim` with `overkill` of the damage to spare. Each entry of an Overkill holder gets the
  * share of it that its damage was of the total, and after the pass (payLater, when who still stands is settled) that share, as damage
  * of the entry's own type, goes to the nearest enemy of the holder within the card's radius of the victim: an entry for the NEXT tick's
- * ledger, `final` (it already carries the multipliers the first hit did) and `derived` (it sets off nothing).
+ * ledger, `final` (it already carries the multipliers the first hit did), `derived` (it sets off nothing) and `passive` (it names the
+ * holder's weapon but is no blow of the holder's own: the hit fx carries the flag, so the holder's client draws it at render time and
+ * never as its own swing with the patch, hit-stop and shake, on a third fighter; see isOwnArcBlow).
  */
 function onOverkilled(world: World, victim: Combatant, hits: readonly OverkillHit[], overkill: number, total: number): void {
   if (!(total > 0)) return;
@@ -259,7 +261,7 @@ function splashOverkill(world: World, holder: Combatant, victimId: string, at: V
   if (!best) return;
   deferHit(world, {
     victim: best.id, by: e.by, packet: { raw, phys: e.packet.phys, magic: e.packet.magic, true: e.packet.true }, weapon: e.weapon,
-    stagger: false, derived: true, final: true,
+    stagger: false, derived: true, final: true, passive: true,
   });
 }
 

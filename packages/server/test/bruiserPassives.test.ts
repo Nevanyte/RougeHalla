@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  holyApLifestealOf,
-  BONUS_DEFENSE_CAP, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS, holyCampLifestealOf, lifestealFraction,
+  BONUS_DEFENSE_CAP, FROST_ELITE_GUARD_BONUS, HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_LINGER_MS, holyCampLifestealOf, lifestealFraction,
   mapFromTiles, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type GameMap,
 } from "@raid/shared";
 import { downPlayer } from "../src/sim/arena";
@@ -9,7 +8,7 @@ import { CAMP_CLEARED, campMobDied } from "../src/sim/camps";
 import { combatant, defenseOf, factionOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
-import { apOf, recomputeMods, setExtraRows } from "../src/sim/mods";
+import { recomputeMods, setExtraRows } from "../src/sim/mods";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
 import { installTraining } from "../src/sim/training";
@@ -98,7 +97,7 @@ describe("Holy Demon Blood", () => {
     expect(world.players.get("p0")!.campsCleared).toBe(1);
     expect(holy.campClears).toBe(1);
     expect(bystander.campClears).toBe(0);
-    expect(holyCampLifestealOf(holy.campClears)).toBe(0.0025);
+    expect(holyCampLifestealOf(holy.campClears)).toBe(HOLY_CAMP_LIFESTEAL_PER_CLEAR);
 
     // A cleared roster cannot pay twice even if its death callback is repeated.
     expect(world.hooks.campCleared).toBeDefined();
@@ -123,9 +122,8 @@ describe("Holy Demon Blood", () => {
     }
     expect(dealt).toBeGreaterThan(0);
     const ownShare = lifestealFraction(factionOf(combatant(world, "p0")!.s)!, 0.4);
-    // Holy's own share includes its SO lifesteal (HOLY_LIFESTEAL_PER_AP: a camp mob's reward may have given it SO).
-    const apShare = holyApLifestealOf(apOf(holy));
-    expect(holy.hp - hpBefore).toBeCloseTo(dealt * (ownShare + apShare + 0.0025), 5);
+    // SO adds no lifesteal of its own any more, even if a camp mob's reward gave this Holy some.
+    expect(holy.hp - hpBefore).toBeCloseTo(dealt * (ownShare + HOLY_CAMP_LIFESTEAL_PER_CLEAR), 5);
   });
 
   it("mirrors eligible training practice camps through the same per-run clear count", () => {

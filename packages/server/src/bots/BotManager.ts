@@ -28,6 +28,7 @@ import {
   type BotAdapter, type BotFillConfig, type BotRunnerApi, type BotSeatSpec, type BotStatsStoreApi, type Brain, type BrainFactory,
   type Command, type Features, type LearnedBias, type PersonaId, type ServerMs, type TierId,
 } from "./brain/types";
+import { matchupShare } from "./mobHunt";
 import { botId, pickCallsign } from "./callsigns";
 import { NO_BIAS } from "./learning/BotStatsStore";
 
@@ -35,6 +36,10 @@ import { NO_BIAS } from "./learning/BotStatsStore";
 const MAX_PER_FACTION = 2;
 /** The faction softmax over `faction|<persona>|<faction>` biases (they are at most +-LEARN.cap, so this keeps every faction in play). */
 const FACTION_TEMPERATURE = 0.3;
+/** At most this many bots take their first active frame (strategy, camp route, vision fan) in one tick: the rest follow a tick later each. */
+const FIRST_FRAMES_PER_TICK = 1;
+/** The fx batches a bot waits out while its first frame is deferred: it gets them all with that frame. */
+const MAX_HELD_BATCHES = 8;
 /** The last arrival is this long before the countdown ends. */
 const ARRIVAL_END_MARGIN_MS = 1000;
 /** A bot's pending toasts and private messages are capped: a dead bot reads none, and they must not pile up. */
@@ -96,6 +101,10 @@ interface Seat {
   privates: PrivateMessage[];
   ended: boolean;
   failed: boolean;
+  /** True once the bot has run a frame of the active raid. */
+  started: boolean;
+  /** Batches broadcast while its first active frame waited its turn. */
+  held: FxBatch[];
 }
 
 /** A 32-bit seed for one stream: the seed mixed with a tag (a murmur finaliser), so no two streams of a manager march in step. */
@@ -145,6 +154,9 @@ export class BotManager {
   private scheduleEnd = 0;
   private lastHumans = 0;
   private disposed = false;
+  /** The camp matchups (a cold one is a 10 ms duel) the seated bots' routes will ask for, worked out one a tick before the raid. */
+  private readonly shareQueue: Array<readonly [FactionId, FactionId, boolean]> = [];
+  private readonly sharesQueued = new Set<FactionId>();
 
   constructor(world: World, cfg: BotFillConfig, deps: BotManagerDeps) {
     this.world = world;
@@ -171,6 +183,7 @@ export class BotManager {
   lobbyTick(): void {
     const s = this.world.state;
     if (this.disposed || this.target <= 0 || s.phase !== "lobby") return;
+    this.primeShare();
     const now = s.serverTime;
     const humans = this.humans();
     for (let i = this.lastHumans; i < humans && this.pending.length > 0; i++) this.pending.pop();
@@ -248,8 +261,21 @@ export class BotManager {
     };
     addPlayer(this.world, spec.id, spec.name, { faction: spec.faction, bot: true });
     this.seats.set(spec.id, this.seat(spec, learned));
+    this.queueShares(spec.faction);
     this.stats.arrived++;
     return spec;
+  }
+
+  private queueShares(me: FactionId): void {
+    if (this.sharesQueued.has(me)) return;
+    this.sharesQueued.add(me);
+    for (const region of FACTION_IDS) for (const elite of [false, true]) this.shareQueue.push([me, region, elite]);
+  }
+
+  /** Computes at most one queued matchup; matchupShare caches it for the whole process. */
+  private primeShare(): void {
+    const next = this.shareQueue.shift();
+    if (next) matchupShare(next[0], next[1], next[2]);
   }
 
   private humans(): number {
@@ -310,7 +336,7 @@ export class BotManager {
       features: this.features,
       tier,
     });
-    return { spec, runner, line, toasts: [], privates: [], ended: false, failed: false };
+    return { spec, runner, line, toasts: [], privates: [], ended: false, failed: false, started: false, held: [] };
   }
 
   /**
@@ -360,12 +386,24 @@ export class BotManager {
     // The planning screen is a phase of its own: a bot's frames run in it too, while its status is still the lobby's.
     const planning = state.phase === "planning";
     if (state.phase !== "active" && !planning) return;
+    if (planning) this.primeShare();
+    let starting = 0;
     for (const seat of this.seats.values()) {
       if (seat.ended || seat.failed) continue;
       if (state.players.get(seat.spec.id)?.status !== (planning ? "lobby" : "alive")) continue;
+      if (!planning && !seat.started) {
+        // The first active frame is the costly one (strategy, the camp route, the vision fan): stagger them, a bot's thinking shifts by a tick or two.
+        if (starting >= FIRST_FRAMES_PER_TICK) {
+          for (const b of batches) if (seat.held.length < MAX_HELD_BATCHES) seat.held.push(b);
+          continue;
+        }
+        starting++;
+        seat.started = true;
+      }
+      const fxs = seat.held.length > 0 ? seat.held.splice(0).concat(batches) : batches;
       const input: PerceptionInput = {
         state,
-        fxs: batches,
+        fxs,
         ...(seat.toasts.length > 0 ? { toasts: seat.toasts } : {}),
         ...(seat.privates.length > 0 ? { privates: seat.privates } : {}),
       };

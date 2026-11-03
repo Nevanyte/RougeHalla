@@ -112,15 +112,19 @@ export function paintMinimapMarks(ctx: CanvasRenderingContext2D, marks: readonly
       ctx.fillRect(x - 1.7 * px, y - 0.9 * px, 1.2 * px, 1.2 * px);
       ctx.fillRect(x + 0.5 * px, y - 0.9 * px, 1.2 * px, 1.2 * px);
     } else if (m.kind === "corpse") {
-      ctx.fillStyle = "#10230e";
-      ctx.beginPath(); ctx.arc(x, y, 4.5 * px, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "#d8ffb7";
-      ctx.lineWidth = 1.4 * px;
-      ctx.beginPath(); ctx.moveTo(x - 2 * px, y - 2 * px); ctx.lineTo(x + 2 * px, y + 2 * px);
-      ctx.moveTo(x + 2 * px, y - 2 * px); ctx.lineTo(x - 2 * px, y + 2 * px); ctx.stroke();
-      ctx.strokeStyle = "#8bff61";
-      ctx.lineWidth = px;
-      ctx.beginPath(); ctx.arc(x, y, 4.5 * px, 0, TAU); ctx.stroke();
+      // A bold green X: a dark outline under the green stroke keeps it readable on any ground.
+      const cross = (): void => {
+        ctx.beginPath(); ctx.moveTo(x - 3.6 * px, y - 3.6 * px); ctx.lineTo(x + 3.6 * px, y + 3.6 * px);
+        ctx.moveTo(x + 3.6 * px, y - 3.6 * px); ctx.lineTo(x - 3.6 * px, y + 3.6 * px); ctx.stroke();
+      };
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#10230e";
+      ctx.lineWidth = 3.4 * px;
+      cross();
+      ctx.strokeStyle = "#6dff3f";
+      ctx.lineWidth = 1.8 * px;
+      cross();
+      ctx.lineCap = "butt";
     } else if (m.kind === "chest" || m.kind === "respawn") {
       const ix = x - 7 * px;
       ctx.fillStyle = m.color;

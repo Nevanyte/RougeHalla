@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ABILITIES, AP_DOT_RATIO, FIRE_BURN_AD_RATIO, FROST_CHILL_PER_SD, HOLY_LEECH_ROW_MULT, PLAGUE_AP_PER_HIT, BLAZE_BURN_DPS, BLAZE_BURN_MS, CHILL_MOVE_MULT, EXECUTE_BAND, FACTIONS,
-  FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
+  FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   LAST_STAND_HEAL_SHARE, LAST_STAND_MS, LAST_STAND_SPEED_BONUS, MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY,
   TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, TRIAL_MS, TRIAL_TAKEN_MULT, WIRE_IDENTITY_MIRRORS,
   attackInterval, bonusMultiplier, damagePerHit, damageShares, encodeFlat, encodeMult,
@@ -29,7 +29,7 @@ describe("championCombatModel", () => {
 
     const holy = player({ faction: "holy", hp: FACTIONS.holy.hp, maxHp: FACTIONS.holy.hp });
     const baseLeech = Number.parseFloat(championCombatModel(holy).rows[1].value);
-    expect(Number.parseFloat(championCombatModel({ ...holy, campClears: 8 }).rows[1].value)).toBeCloseTo(baseLeech + 2, 8);
+    expect(Number.parseFloat(championCombatModel({ ...holy, campClears: 8 }).rows[1].value)).toBeCloseTo(baseLeech + 4, 8);
     expect(championCombatModel({ ...holy, campClears: 8 }).rows[1].scaling).toContain("8 camps");
 
     expect(championCombatModel(player({ faction: "frost", frostEliteGuard: true })).rows[1].scaling).toContain("ACTIVE");
@@ -113,13 +113,13 @@ describe("championCombatModel", () => {
     expect(wish.tooltip).toContain("does not scale with Offense, SO, weapon, or card damage multipliers");
   });
 
-  it("tracks Fire Roam charge and armed magic burst with its current SO", () => {
-    const ap = 32;
+  it("tracks Fire Roam charge and armed physical burst with its current Offense", () => {
+    const ad = 32;
     const charge = 600;
-    const active = championCombatModel(player({ faction: "fire", apBonus: encodeFlat(ap), roamCharge: charge })).rows[0]!;
+    const active = championCombatModel(player({ faction: "fire", adBonus: encodeFlat(ad), roamCharge: charge })).rows[0]!;
     expect(active.tooltip).toContain(`${charge}/1000 charged`);
     expect(active.tooltip).toContain(`${round((fireRoamSpeedMult(charge) - 1) * 100)}% move speed`);
-    expect(active.tooltip).toContain(`${round(fireRoamBurstDamage(ap))} magic (${FIRE_ROAM_BURST_BASE} + ${FIRE_ROAM_BURST_AP_SHARE}× SO)`);
+    expect(active.tooltip).toContain(`${round(fireRoamBurstDamage(ad))} physical (${FIRE_ROAM_BURST_BASE} + ${FIRE_ROAM_BURST_AD_SHARE}× Offense)`);
     expect(active.tooltip).toContain(`${FIRE_ROAM_RAMP_MS / 1000} s out of combat`);
     expect(active.tooltip).toContain("Incoming damage resets partial charge but does not cancel an already armed burst");
     const ready = championCombatModel(player({ faction: "fire", roamCharge: 1000, roamReady: true })).rows[0]!;

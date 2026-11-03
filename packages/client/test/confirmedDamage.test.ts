@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TimedFx } from "@raid/shared";
+import { packFx, unpackFx, type TimedFx } from "@raid/shared";
 import {
   ConfirmedDamage, isOwnArcBlow, type ConfirmedBlock, type ConfirmedFx, type ConfirmedHit,
 } from "../src/net/confirmedDamage";
@@ -128,6 +128,21 @@ describe("isOwnArcBlow", () => {
     for (const weapon of ["shield", "sword", "axe", "fists"] as const) {
       expect(isOwnArcBlow(own({ weapon, passive: true }), "me"), weapon).toBe(false);
       expect(isOwnArcBlow(own({ weapon, passive: true, crit: true }), "me"), weapon).toBe(false);
+    }
+  });
+
+  it("leaves Overkill's spill-over on the render clock: it names the weapon in hand, lands on a third fighter and only the flag tells it from a blow", () => {
+    // The server's splash entry (sim/cardHooks.ts splashOverkill) is derived, final and passive, and its hit fx is the holder's weapon on
+    // the nearest enemy one tick after the kill; the flag has to survive the wire for the client to tell it from the swing it drew.
+    const splash = { kind: "hit", id: "third", by: "me", amount: 450, weapon: "axe", passive: true } as const;
+    expect(unpackFx(packFx([splash], 5), [])).toEqual([{ ...splash, t: 5 }]);
+    for (const weapon of ["sword", "axe", "fists", "shield"] as const) {
+      const flagged = unpackFx(packFx([{ ...splash, weapon }], 5), [])[0]!;
+      expect(isOwnArcBlow(flagged, "me"), weapon).toBe(false);
+      expect(isOwnArcBlow({ ...flagged, crit: true } as TimedFx, "me"), `${weapon} crit`).toBe(false);
+      // Without the flag it is the holder's own swing to the client: the bug the flag closes.
+      const { passive: _passive, ...unflagged } = flagged as ConfirmedHit;
+      expect(isOwnArcBlow(unflagged as TimedFx, "me"), `${weapon} unflagged`).toBe(true);
     }
   });
 

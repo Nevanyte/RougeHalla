@@ -99,17 +99,12 @@ export function rollChest(world: World, camp: number, elite = false, zone?: Fact
 
 /**
  * A stat chest (shared/chestBoosts.ts): three distinct x1.2 stat boosts from world.rewardRandom, on the same 15 s clock and the same
- * `choose` path as an augment chest. A normal camp's clear drops one on the camp's chest tile; an opened world crate drops one at the crate.
+ * `choose` path as an augment chest. Only the few world crates picked in advance (loot.ts, STAT_CHEST_CRATES_PER_MAP) drop one, at the
+ * crate; a camp's clear never does.
  */
-export function dropStatChest(world: World, at: Vec2, camp?: number): ContainerState {
-  const box = dropRewardChest(world, at, rollBoostOptions(world.rewardRandom), camp, STAT_CHEST_LABEL);
-  if (world.hooks.rewardOffered) {
-    // A camp's stat chest is offered to its eligible contributors; a crate's has none, so every standing player in pick range.
-    const eligible = camp !== undefined && camp >= 0
-      ? eligibleContributors(world, camp).map((c) => c.id)
-      : nearbyPlayers(world, at);
-    world.hooks.rewardOffered(world, box, "stat", camp !== undefined && camp >= 0 ? camp : -1, eligible);
-  }
+export function dropStatChest(world: World, at: Vec2): ContainerState {
+  const box = dropRewardChest(world, at, rollBoostOptions(world.rewardRandom), undefined, STAT_CHEST_LABEL);
+  world.hooks.rewardOffered?.(world, box, "stat", -1, nearbyPlayers(world, at));
   return box;
 }
 
@@ -143,7 +138,7 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (box.pickers.includes(c.id)) { toast(world, c.id, CHEST_REFUSAL.picked); return; }
   if (cmd.pick === -1) {
     box.pickers.push(c.id);
-    // Only a camp's chest pays a skip: declining a Trophy (no GV from bot kills) or a crate's stat chest (no fight behind it) pays nothing.
+    // Only an elite camp's chest pays a skip: declining a Trophy (no GV from bot kills) or a crate's stat chest (no fight behind it) pays nothing.
     if (box.owner === "" && box.camp > 0) paySkip(world, c);
     emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: -1 } });
     world.hooks.rewardChosen?.(world, c, box, -1);
@@ -229,13 +224,6 @@ export function install(world: World): void {
       const box = dropRewardChest(w, mob.at, rollChestOptions(w.rewardRandom, { elite: true, zone: mob.zone }));
       w.hooks.rewardOffered?.(w, box, "augment", -1, [_killer.id]);
     }
-  });
-  // A normal camp's clear drops a stat chest (elite camps drop their augment chest from the elite's own death above).
-  chainHook(world, "campCleared", (w, camp) => {
-    const def = w.map.camps[camp];
-    if (!def || isEliteCamp(def)) return;
-    const at = chestSpot(w, camp);
-    if (at) dropStatChest(w, at, camp);
   });
   chainHook(world, "teleported", clearChests);
   chainHook(world, "runEnded", clearChests);

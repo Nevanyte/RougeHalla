@@ -322,6 +322,7 @@ export const PlagueCorpseState = schema({
   playerName: t.string().default(""),
   x: t.float32().default(0),
   y: t.float32().default(0),
+  /** Unused: a corpse lasts until a Plague consumes it or the run ends. Kept so the field order stays put. */
   expiresAt: t.number().default(0),
 }, "PlagueCorpseState");
 export type PlagueCorpseState = SchemaType<typeof PlagueCorpseState>;

@@ -18,6 +18,8 @@ const sourceCommit: string | null = (buildMeta as { sourceCommit?: string | null
 const ROOM_NAME = "rougehalla-controller-v2";
 const CONTROLLER_VERSION = "12";
 const PORT = 2567;
+// The one place the size is chosen (it is part of the release label, so changing it drains the old container). standard-1 is
+// 1/2 vCPU; see docs/CLOUDFLARE_PUBLIC.md "Instance size" for the case for "standard-2" (1 vCPU).
 const CONTAINER_INSTANCE = "standard-1";
 const ARENA_LIMIT = "1";
 const TRAINING_LIMIT = "2";

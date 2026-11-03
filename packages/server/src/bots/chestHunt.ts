@@ -123,6 +123,11 @@ export interface ChestInput {
   retreating: boolean;
   /** After the teleport the gates are locked and every chest is gone. */
   inColiseum: boolean;
+  /**
+   * `state.patienceEndsAt` while the gates are open (0 or absent: none scheduled). The teleport clears every chest, so a chest's
+   * usable life ends there: a pick in its last pickMarginMs would be refused "Chest gone".
+   */
+  teleportAt?: number;
 }
 
 export type ChestDecision =
@@ -301,15 +306,17 @@ export class ChestHunter {
     const c = this.cfg;
     const { now, serverTime, self } = inp;
     if (inp.inColiseum) { this.walking = null; return NONE; }
+    const teleportAt = inp.teleportAt !== undefined && inp.teleportAt > 0 ? inp.teleportAt : Infinity;
 
     // The chests that are up, that we have not picked at, and their distance.
-    const up: { chest: ChestLike; d: number; left: number }[] = [];
+    const up: { chest: ChestLike; d: number; left: number; age: number }[] = [];
     for (const chest of inp.chests) {
       if (chest.kind !== "reward" || this.done.has(chest.id)) continue;
       if ([...chest.pickers].includes(self.id)) { this.markDone(chest.id); continue; } // we made our pick already
-      const left = chest.expiresAt - serverTime;
+      const left = Math.min(chest.expiresAt, teleportAt) - serverTime;
       if (left <= 0) continue;
-      up.push({ chest, d: dist(self, chest), left });
+      const age = (chest.lifeMs ?? CHEST_SECONDS * 1000) - (chest.expiresAt - serverTime);
+      up.push({ chest, d: dist(self, chest), left, age });
     }
     up.sort((a, b) => a.d - b.d || (a.chest.id < b.chest.id ? -1 : 1));
     // A record for a chest that is no longer up (expired, gone) is not needed any more.
@@ -319,7 +326,7 @@ export class ChestHunter {
     let held = false;
     for (const u of up) {
       if (u.d > c.pickRange || u.left <= c.pickMarginMs || !inp.sight(u.chest)) continue;
-      if ((u.chest.lifeMs ?? CHEST_SECONDS * 1000) - u.left < c.holdMs) { held = true; continue; } // too young: not read, not tried, not walked to
+      if (u.age < c.holdMs) { held = true; continue; } // too young: not read, not tried, not walked to
       // The contents are read here and nowhere else: this is the distance at which a player's panel shows them.
       const option = chooseOption(u.chest.options, u.chest.takenBy, self);
       this.markDone(u.chest.id);

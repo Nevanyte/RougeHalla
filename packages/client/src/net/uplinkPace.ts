@@ -14,7 +14,10 @@
 // The aim stands back when the client's own rate nears the server's message cap (Colyseus closes a client past
 // maxMessagesPerSecond in a one-second window, RaidRoom's MAX_MESSAGES_PER_SECOND): one a tick from AIM_BUDGET_SLOW a second,
 // keepalives only from AIM_BUDGET_STOP. The meter counts sends, so it cannot see a stalled TCP that delivers seconds of them at
-// once; the cap's headroom over the busiest steady rate is what covers that.
+// once. That is what the stall watch is for: while the socket holds unsent bytes (WebSocket.bufferedAmount above 0 for a tick) the
+// continuous streams (the aim, the held button's re-sends, the keyboard's repeat) send nothing, so what piles up behind the stall
+// is orders only and the burst that follows it stays far under the cap; the cap's own headroom over the busiest steady rate is
+// the second line. The first fresh sample after the socket drains goes out at once.
 import { TICK_MS, type Vec2 } from "@raid/shared";
 import type { PhaseSource } from "./tickPhase";
 
@@ -59,6 +62,34 @@ const FRAME_MIN_MS = 1;
 const FRAME_MAX_MS = 50;
 const METER_SIZE = 128;
 const METER_WINDOW_MS = 1000;
+/**
+ * The socket must hold unsent bytes this long (ms, read once a frame) before the uplink counts as stalled: a send's own bytes
+ * still read above 0 for a frame or two on a healthy link, and a backlog shorter than a tick costs the server nothing, since it
+ * wakes once a tick and keeps only the newest aim of it.
+ */
+export const STALL_AFTER_MS = TICK_MS;
+
+/**
+ * Whether the uplink is backed up (pure: `now` and the reading are arguments). Fed once a frame with the socket's
+ * `bufferedAmount` (net/connection.ts socketBufferedBytes; undefined when there is no open socket to read, which also clears
+ * it), it says `stalled` once the reading has stayed above 0 for STALL_AFTER_MS and clears at the first reading of 0.
+ */
+export class StallWatch {
+  private since = Number.NaN;
+
+  sample(now: number, buffered: number | undefined): void {
+    if (!(typeof buffered === "number" && buffered > 0)) this.since = Number.NaN;
+    else if (Number.isNaN(this.since)) this.since = now;
+  }
+
+  stalled(now: number): boolean {
+    return !Number.isNaN(this.since) && now - this.since >= STALL_AFTER_MS;
+  }
+
+  reset(): void {
+    this.since = Number.NaN;
+  }
+}
 
 /** Sends over the last second: a ring of the last METER_SIZE send times, so it reads at most METER_SIZE. Allocation free. */
 export class MessageMeter {
@@ -119,7 +150,8 @@ export class FramePace {
 
 /**
  * Whether the aim may be sent this frame. `now` local ms, `c` the estimated server clock at the same instant, `synced` whether
- * that clock is set, `perSecond` the messages sent in the last second, `phase` the deadline learner (null: none). A true answer
+ * that clock is set, `perSecond` the messages sent in the last second, `phase` the deadline learner (null: none), `stalled` whether
+ * the uplink is backed up (StallWatch: the answer is then always no). A true answer
  * in the aligned path uses its slot up even if nothing is sent (the cursor did not turn): the next slot carries the turn.
  */
 export interface AimGateOptions {
@@ -149,7 +181,9 @@ export class AimGate {
     this.alignFrameMs = o.alignFrameMs ?? AIM_ALIGN_FRAME_MS;
   }
 
-  due(now: number, c: number, synced: boolean, perSecond: number, phase: PhaseSource | null): boolean {
+  due(now: number, c: number, synced: boolean, perSecond: number, phase: PhaseSource | null, stalled = false): boolean {
+    // A backed-up uplink delivers whatever is sent into it later, in one burst: nothing continuous goes (not even the keepalive).
+    if (stalled) return false;
     const since = now - this.lastSentAt;
     if (perSecond >= AIM_BUDGET_STOP) return since >= AIM_KEEPALIVE_MS;
     if (perSecond >= AIM_BUDGET_SLOW) return since >= TICK_MS;
@@ -194,8 +228,9 @@ export class HoldGate {
   private lastSentAt = -Infinity;
   private lastSlot = Number.NaN;
 
-  /** `target` the cursor's ground point now; `fdt` how long the next frame may take (FramePace.ms). */
-  next(target: Vec2, now: number, c: number, synced: boolean, phase: PhaseSource | null, fdt: number): HoldSend {
+  /** `target` the cursor's ground point now; `fdt` how long the next frame may take (FramePace.ms); `stalled` the uplink is backed up. */
+  next(target: Vec2, now: number, c: number, synced: boolean, phase: PhaseSource | null, fdt: number, stalled = false): HoldSend {
+    if (stalled) return "none";
     const since = now - this.lastSentAt;
     const moved = !this.hasLast || Math.hypot(target.x - this.last.x, target.y - this.last.y) > HOLD_MOVE_MIN;
     if (!moved) return since >= HOLD_KEEPALIVE_MS ? "now" : "none";

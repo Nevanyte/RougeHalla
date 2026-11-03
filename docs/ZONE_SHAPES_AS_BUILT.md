@@ -217,6 +217,7 @@ a shrine its lit nave).
 | `causeway` | crossing | floor (the lake lane kept plain) | `[]` |
 | `hall` | cover, rest | walls (3x3 piers), floor (aisles, light bays) | `[axis, 6, radius, piers, light bays]` |
 | `infill` | seal | walls the safety nets added | `[]` |
+| `bush` | cover | floor only (no tile or terrain byte changes): 2-4 patches of 4-10 tiles per elite camp, leaning on the walls, low ground and features round it; stage 11b, after the ground spots (`src/bushes.ts`, stream `BUSH_STREAM`) | `[elite camp index, patch]` |
 
 **Shape gates** (`SHAPE_GATES`, `mapgen.ts`, on since phase C1; `MapgenOptions.shapeGates` overrides it for a custom test hook that
 writes tiles without features, which is what the certifier's demo hook passes): every zone WALL or LOW tile owned (`A:unowned`), no

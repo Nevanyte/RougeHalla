@@ -63,7 +63,7 @@ describe("TickPacer", () => {
 describe("TickStats", () => {
   it("counts wakes by steps and the stepping wakes by lateness, with percentiles at the bucket bounds", () => {
     const s = new TickStats();
-    expect(s.snapshot()).toEqual({ wakes: 0, zeroStepPct: 0, doubleStepPct: 0, catchupReanchors: 0, lateMsP50: null, lateMsP95: null });
+    expect(s.snapshot()).toEqual({ wakes: 0, zeroStepPct: 0, doubleStepPct: 0, catchupReanchors: 0, lateMsP50: null, lateMsP95: null, workMs: null });
     for (let i = 0; i < 90; i++) s.note(1, 0.4, false); // (0, 1]
     for (let i = 0; i < 6; i++) s.note(1, -0.3, false); // <= 0
     s.note(0, -1.5, false); // early, stepped nothing: not in the lateness buckets
@@ -74,7 +74,7 @@ describe("TickStats", () => {
     expect(s.steps).toEqual([1, 96, 1, 2]);
     expect(s.late.reduce((a, b) => a + b, 0)).toBe(99);
     expect(s.late).toEqual([6, 90, 0, 1, 0, 1, 0, 1]);
-    expect(s.snapshot()).toEqual({ wakes: 100, zeroStepPct: 1, doubleStepPct: 3, catchupReanchors: 1, lateMsP50: 1, lateMsP95: 1 });
+    expect(s.snapshot()).toEqual({ wakes: 100, zeroStepPct: 1, doubleStepPct: 3, catchupReanchors: 1, lateMsP50: 1, lateMsP95: 1, workMs: null });
     expect(s.latePercentile(0.98)).toBe(16);
     expect(s.latePercentile(1)).toBeNull();
   });

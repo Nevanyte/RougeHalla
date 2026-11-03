@@ -10,7 +10,7 @@ function fighter(faction: (typeof FACTION_IDS)[number]) {
 
 describe("combat readability", () => {
   it("shows earned Holy camp lifesteal as a build investment", () => {
-    const holy = combatReadability({ ...fighter("holy"), campClears: 20 });
+    const holy = combatReadability({ ...fighter("holy"), campClears: 10 });
     expect(holy.investedStats.find(s => s.key === "leech")?.score).toBeCloseTo(1, 12);
     expect(combatReadability({ ...fighter("fire"), campClears: 20 }).investedStats).toEqual([]);
   });

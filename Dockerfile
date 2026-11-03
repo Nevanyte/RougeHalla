@@ -36,4 +36,4 @@ USER node
 # The profile file's single-writer lock holds a process id, and in a container that is always 1: after a hard kill the
 # next start would read its own id as a live holder and refuse. One container owns the volume, so a leftover lock is
 # stale; `exec` keeps node as PID 1, so docker's SIGTERM reaches the server's own shutdown handler.
-CMD ["sh", "-c", "rm -f \"$STASH_FILE.lock\" && exec node packages/server/dist/index.mjs"]
+CMD ["sh", "-c", "rm -f \"$STASH_FILE.lock\" && exec node --max-semi-space-size=32 packages/server/dist/index.mjs"]

@@ -2,7 +2,7 @@
 // are separate: a weapon pickup can never grant a corpse stack or raise a zombie.
 import {
   FACTIONS, hasLineOfSight, MASK_MOVE, PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HEAL_SHARE,
-  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_INTERACT_RANGE, PLAGUE_CORPSE_LIFETIME_MS,
+  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_INTERACT_RANGE,
 } from "@raid/shared";
 import { PlagueCorpseState } from "@raid/shared/schema";
 import { combatant } from "./combatant";
@@ -15,13 +15,13 @@ import { actionBlocked } from "./status";
 import { raiseOrGrowZombie } from "./plagueZombies";
 
 export { PLAGUE_CORPSE_AUTO_RANGE, PLAGUE_CORPSE_HEAL_SHARE, PLAGUE_CORPSE_HP_SHARE,
-  PLAGUE_CORPSE_INTERACT_RANGE, PLAGUE_CORPSE_LIFETIME_MS };
+  PLAGUE_CORPSE_INTERACT_RANGE };
 
 function toast(world: World, id: string, text: string): void {
   emit(world, { type: "toast", to: id, text });
 }
 
-/** One marker is left for a real death, never a disconnect/MIA or a training revival. */
+/** One marker is left for a real death, never a disconnect/MIA or a training revival. It stays until consumed or the run ends. */
 function leaveCorpse(world: World, id: string, cause: "down" | "removed"): void {
   if (cause !== "down" || world.config.training || world.state.phase !== "active") return;
   const player = world.state.players.get(id);
@@ -33,7 +33,6 @@ function leaveCorpse(world: World, id: string, cause: "down" | "removed"): void 
   corpse.playerName = player.name;
   corpse.x = player.x;
   corpse.y = player.y;
-  corpse.expiresAt = world.state.serverTime + PLAGUE_CORPSE_LIFETIME_MS;
   world.state.plagueCorpses.set(corpse.id, corpse);
 }
 
@@ -45,11 +44,6 @@ export const handleConsumeCorpse: ActionHandler = (world, c, cmd) => {
   if (actionBlocked(world, c)) { toast(world, c.id, "Can't do that now"); return; }
   const corpse = world.state.plagueCorpses.get(cmd.corpseId);
   if (!corpse) { toast(world, c.id, "That corpse is gone"); return; }
-  if (world.state.serverTime >= corpse.expiresAt) {
-    world.state.plagueCorpses.delete(corpse.id);
-    toast(world, c.id, "That corpse has decayed");
-    return;
-  }
   if (Math.hypot(p.x - corpse.x, p.y - corpse.y) > PLAGUE_CORPSE_INTERACT_RANGE) {
     toast(world, c.id, "Too far away");
     return;
@@ -78,9 +72,6 @@ export function install(world: World): void {
   world.actions.consumeCorpse = handleConsumeCorpse;
   chainHook(world, "fighterOut", leaveCorpse);
   world.systems.push((w) => {
-    for (const [id, corpse] of w.state.plagueCorpses) {
-      if (w.state.serverTime >= corpse.expiresAt) w.state.plagueCorpses.delete(id);
-    }
     if (w.state.phase !== "active" || w.config.training || w.state.plagueCorpses.size === 0) return;
     // Movement and damage have finished. The same shuffled tick order settles overlapping contenders, independently
     // of join order; removing each corpse inside the shared handler makes it available to exactly one player.

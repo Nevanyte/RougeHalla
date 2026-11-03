@@ -9,7 +9,7 @@
 //     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS). Fists are what an empty slot fights with,
 //     never an item: nothing drops, lies in a body or is picked up as fists.
 import {
-  FISTS, hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
+  FISTS, hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, STAT_CHEST_CRATES_PER_MAP, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { dropStatChest } from "./chests";
@@ -19,7 +19,7 @@ import { hasFlag } from "./mods";
 import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
 import { actionBlocked } from "./status";
 import { weaponChanged } from "./weapons";
-import { collisionMap, emit, nextId, type ActionHandler, type World } from "./world";
+import { collisionMap, emit, nextId, saltedUnit, type ActionHandler, type World } from "./world";
 
 function toast(world: World, to: string, text: string): void {
   emit(world, { type: "toast", to, text });
@@ -99,14 +99,34 @@ export function dropWeapon(world: World, at: Vec2, def: string): ContainerState 
   return addContainer(world, "ground", at, isWeaponId(def) ? WEAPONS[def].name : def, [{ uid: world.newItemUid(), def }]);
 }
 
+/** Container ids of the crates that hold a stat chest. Server-only: nothing synced says which crate has one before it is opened. */
+const statCrates = new WeakMap<World, Set<string>>();
+
+/** True when crate `id` offers a stat chest at its first opening (tests read it; clients cannot). */
+export function crateHoldsStatChest(world: World, id: string): boolean {
+  return statCrates.get(world)?.has(id) ?? false;
+}
+
+/** Which crate indexes hold a stat chest: the STAT_CHEST_CRATES_PER_MAP lowest hashes of the world's secret salt (never the public seed or world.random). */
+function pickStatCrates(world: World, count: number): Set<number> {
+  const ranked: Array<{ i: number; u: number }> = [];
+  for (let i = 0; i < count; i++) ranked.push({ i, u: saltedUnit(world, 0x43524154, i) }); // "CRAT"
+  ranked.sort((a, b) => a.u - b.u || a.i - b.i);
+  return new Set(ranked.slice(0, STAT_CHEST_CRATES_PER_MAP).map((r) => r.i));
+}
+
 /** One chest (one weapon) per chest spot, and a loose weapon on some of the ground spots. */
 export function spawnLoot(world: World): void {
-  for (const spot of world.map.crateSpots) {
-    // A crate is no weapon source any more: it holds a small potion and, when opened, offers a stat choice (dropStatChest). The old
-    // weapon draw is kept so the ground spots' rolls below stay what they were.
+  const withStat = pickStatCrates(world, world.map.crateSpots.length);
+  const held = new Set<string>();
+  statCrates.set(world, held);
+  world.map.crateSpots.forEach((spot, i) => {
+    // A crate is no weapon source any more: it holds a small potion and, for the few picked in advance, offers a stat choice at its
+    // first opening (dropStatChest). The old weapon draw is kept so the ground spots' rolls below stay what they were.
     rollChestWeapon(world.random);
-    addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: "potionSmall" }]);
-  }
+    const box = addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: "potionSmall" }]);
+    if (world.config.training || withStat.has(i)) held.add(box.id); // practice rooms: every crate, to try the boosts
+  });
   for (const spot of world.map.groundSpots) {
     const def = rollGroundWeapon(world.random);
     if (def) dropWeapon(world, spot, def);
@@ -126,8 +146,8 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
   if (box.kind === "cannon") { useCannon(world, c, box); return; }
   if (box.kind === "chest") {
-    // The first opening of a crate offers 1 of 3 stat boosts (sim/chests.ts), contested for CHEST_SECONDS like any reward chest.
-    if (!box.opened) dropStatChest(world, box);
+    // The first opening of one of the few stat crates offers 1 of 3 stat boosts (sim/chests.ts), contested for CHEST_SECONDS.
+    if (!box.opened && crateHoldsStatChest(world, box.id)) dropStatChest(world, box);
     box.opened = true;
   }
   if (pickConsumable(world, c, box)) return;

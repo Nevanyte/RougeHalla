@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE } from "@raid/shared";
 import {
-  CALLSIGN_BUSY_MESSAGE, GENERIC_MESSAGE, SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE, UNREACHABLE_MESSAGE,
+  CALLSIGN_BUSY_MESSAGE, GENERIC_MESSAGE, OUT_OF_DATE_MESSAGE, SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE, UNREACHABLE_MESSAGE,
   friendlyClose, friendlyError,
 } from "../src/net/errors";
 
@@ -51,6 +52,21 @@ describe("friendlyError: the server's join refusals", () => {
 
   it("an auth failure with no recognised reason still reads plainly", () => {
     expect(friendlyError(sdkError("onAuth failed", 525))).toMatch(/wouldn't let you in/i);
+  });
+});
+
+describe("friendlyError: a page older than the server", () => {
+  it("says to reload, for the server's sentence, its status alone, or both, and never echoes the raw text", () => {
+    for (const err of [
+      sdkError(CLIENT_OUT_OF_DATE_MESSAGE, CLIENT_OUT_OF_DATE_CODE, "ServerError"),
+      sdkError(CLIENT_OUT_OF_DATE_MESSAGE),
+      sdkError("", CLIENT_OUT_OF_DATE_CODE),
+    ]) {
+      const text = friendlyError(err);
+      expect(text).toBe(OUT_OF_DATE_MESSAGE);
+      expect(text).toMatch(/reload the page/i);
+      expect(text).not.toContain(CLIENT_OUT_OF_DATE_MESSAGE);
+    }
   });
 });
 

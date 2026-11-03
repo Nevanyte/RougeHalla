@@ -306,8 +306,27 @@ after are means unless marked p95.
 | Own melee hits and blocks presented with their state patch | `render/FxView.ts`, `RaidScene` | 90-142 ms mean wait to 3.5 ms; returned damage (a riposte, a reflected arrow) is flagged on the hit fx so it is never drawn as an own blow |
 | Tick-phase-aligned aim stream and held right button | `net/uplinkPace.ts` | sim model (45 ms each way, 144 fps, grid tick): mean aim age 72 ms old gate, 59 floor, 53-57 aligned at ±0-6 ms, no gain at ±10 ms or at 60 fps; against a real server (before the pacer) the probe measured the floor only (mean 129 / 140 / 147 to 116-120 / 124-128 / 132-135 ms); the aligned gate is active only on a grid-waking server above about 67 fps, else the floor |
 
-Not done in that pass, by the owner's decision list below: the remote draw-ahead of Stage 2 and the walk hint (built since, next),
+Not done in that pass, by the owner's decision list below: the remote draw-ahead of Stage 2 and the walk hint (built since, below),
 sub-tick windup starts, and a fresher melee `t`.
+
+### Follow-ups from the deploy review
+
+The deploy-risk review passed the pass (SHIP) and listed three things it did not fix. They are fixed on
+`claude/netcode-followups`, each with a test; none changes a hit, a root, a kill or an order.
+
+- **Overkill's spill-over is returned damage on the wire.** The splash entry (`sim/cardHooks.ts`) names the holder's
+  weapon and lands on a third fighter, so it is now `passive` like a riposte: its hit fx carries the +128 flag and the
+  holder's client draws it at render time, not as its own swing with the patch and the screen shake. Pinned in
+  `cardHooks.test.ts` and `confirmedDamage.test.ts`.
+- **A stale page is told to reload.** The hit fx's new flag bit makes a pre-deploy decoder drop the whole tuple, so the
+  join now carries the page's wire build (a hash of `packages/shared/src`, baked in by the production client build)
+  and a hosting server refuses a different one with a Reload card (`CLAUDE.md`, "The join names the page's wire
+  build"). A tab older than this check is caught after one reload; a join that names no build is let in.
+- **A stalled upload pauses the continuous streams.** `net/uplinkPace.ts` `StallWatch` fed with the socket's
+  `bufferedAmount` (`net/connection.ts` `socketBufferedBytes`) stops the aim, the held right button's re-sends and the
+  keyboard repeat while the socket has held unsent bytes for a tick, so the burst after a stall is orders only. In the
+  `uplinkBudget.test.ts` model the stall that gets a client closed by `MAX_MESSAGES_PER_SECOND` moves from 2 to 3 s out
+  to about 29 s.
 
 ### Stage 2: the draw-ahead (branch `claude/draw-ahead`, 2026-11-02)
 
@@ -332,7 +351,6 @@ frozen at a pending teleport cut, whose spot the teleport's patch had just walle
 fixed. Frames within two ticks of a cut are left out of both arms. The tested spot is where melee would rewind for an attack sent that
 frame: with the setting off it is the drawn spot; with it on it is the render time the setting off keeps, so a mover drawn ahead is up
 to one tick's walk past it (12.75 u at 255 u/s), plus the error.
-
 
 ## Decisions for the owner
 

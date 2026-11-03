@@ -172,6 +172,8 @@ export interface MapgenOptions {
   decor?: boolean;
   /** Overrides SHAPE_GATES. Tests only: a custom hook that writes tiles without features (mapCertify's demo hook) passes false. */
   shapeGates?: boolean;
+  /** false skips the bush stage (tests only: the map without bushes, to prove they change no tile, terrain byte or other feature). Default true. */
+  bushes?: boolean;
 }
 
 /**
@@ -201,6 +203,7 @@ export function tryAttempt(seed: number, attempt: number, options?: MapgenOption
     options?.landmarks !== undefined ? options.landmarks : ZONE_LANDMARK_HOOK,
     options?.decor !== false,
     options?.shapeGates ?? SHAPE_GATES,
+    options?.bushes !== false,
   );
 }
 
@@ -222,7 +225,7 @@ export function warmMapgen(): void {
 /** Per-stage timing for the bench (`scripts/mapBench.ts`); off by default, and never changes a map. */
 export const MAPGEN_PROFILE = { on: false, attempts: 0, ms: {} as Record<string, number> };
 
-function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, landmarkHook: LandmarkHook | null, decor: boolean, gates: boolean): GameMap | null {
+function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, landmarkHook: LandmarkHook | null, decor: boolean, gates: boolean, bushes = true): GameMap | null {
   const F = fixedLayout();
   const { border, fp, ring } = F;
   let tMark = MAPGEN_PROFILE.on ? performance.now() : 0;
@@ -544,12 +547,6 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, lan
   }
   lap("terrain");
 
-  // --- 10b. Bushes round the elite camps: floor features only, own stream, after every tile and zone change (never fails an attempt).
-  placeEliteBushes({
-    w: W, h: H, seed, attempt, tiles, terrain, zone, territoryGrid, protect, pool5, camps, order, features, featureOwner, terrainNone: TERRAIN_NONE,
-  });
-  lap("bushes");
-
   // --- 11. Ground spots, then the records ---------------------------------------------------------------------------------
   const noLoot = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (landmarkBox[i] || fp[i] || terrain[i] !== TERRAIN_NONE) noLoot[i] = 1;
@@ -567,6 +564,15 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, lan
     for (const g of groundSpots) markRect(clear, cell(Math.floor(g.y / TILE) * W + Math.floor(g.x / TILE)), 1);
     props = props.filter((pr) => clear[Math.floor(pr.y / TILE) * W + Math.floor(pr.x / TILE)] === 0);
   }
+  // --- 11b. Bushes round the elite camps: floor features only, own stream, after every tile and zone change and after the ground spots
+  // and props (so neither moves; a bush takes no crate or ground spot's 3x3). Never fails an attempt.
+  const bushAvoid = new Uint8Array(N);
+  for (const t of allCrates) markRect(bushAvoid, cell(t), 1);
+  for (const g of groundSpots) markRect(bushAvoid, cell(Math.floor(g.y / TILE) * W + Math.floor(g.x / TILE)), 1);
+  if (bushes) placeEliteBushes({
+    w: W, h: H, seed, attempt, tiles, terrain, zone, territoryGrid, protect, pool5, camps, order, features, featureOwner, terrainNone: TERRAIN_NONE, avoid: bushAvoid,
+  });
+  lap("bushes");
   lap("records");
 
   // --- 12. The spawn walk gate: real findPath walks, drop the extreme members, certify max/min <= 1.2 -------------------------

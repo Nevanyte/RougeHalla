@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_CHARGE_MAX, FIRE_ROAM_RAMP_MS,
+  FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_CHARGE_MAX, FIRE_ROAM_RAMP_MS,
   fireRoamBurstDamage, fireRoamCharge, fireRoamSpeedMult,
 } from "../src/fireRoam";
 
@@ -13,8 +13,8 @@ describe("Fire roaming", () => {
     expect(fireRoamCharge(FIRE_ROAM_RAMP_MS * 2)).toBe(FIRE_ROAM_CHARGE_MAX);
   });
 
-  it("scales the charged burst from flat damage and AP", () => {
+  it("scales the charged burst from flat damage and bonus Offense", () => {
     expect(fireRoamBurstDamage(0)).toBe(FIRE_ROAM_BURST_BASE);
-    expect(fireRoamBurstDamage(100)).toBe(FIRE_ROAM_BURST_BASE + FIRE_ROAM_BURST_AP_SHARE * 100);
+    expect(fireRoamBurstDamage(100)).toBe(FIRE_ROAM_BURST_BASE + FIRE_ROAM_BURST_AD_SHARE * 100);
   });
 });

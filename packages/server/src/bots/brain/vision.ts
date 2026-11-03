@@ -65,7 +65,9 @@ export class BotVision {
   filter(percept: Percept): Percept {
     if (!this.enabled) return percept;
     const fighters = percept.fighters.filter((f) => this.canSee(f) && !bushConceals(this.map, percept.self, f, this.bushReveal.get(f.id) ?? 0, this.now)), mobs = percept.mobs.filter(this.canSee);
-    const ids = new Set([percept.self.id, ...fighters.map((f) => f.id), ...mobs.map((m) => m.id)]);
+    const effects = percept.extras.effects;
+    let ids: Set<string> | null = null;
+    if (effects) { ids = new Set([percept.self.id]); for (const f of fighters) ids.add(f.id); for (const m of mobs) ids.add(m.id); }
     return {
       ...percept, fighters, mobs,
       containers: percept.containers.filter(this.canSee), projectiles: percept.projectiles.filter(this.canSee),
@@ -78,7 +80,7 @@ export class BotVision {
         ...percept.extras,
         ...(percept.extras.fields ? { fields: percept.extras.fields.filter((f) => this.canSee(f) && (f.kind !== "trail" || this.canSee({ x: f.x2, y: f.y2 }))) } : {}),
         ...(percept.extras.chests ? { chests: percept.extras.chests.filter(this.canSee) } : {}),
-        ...(percept.extras.effects ? { effects: Object.fromEntries(Object.entries(percept.extras.effects).filter(([id]) => ids.has(id))) } : {}),
+        ...(effects && ids ? { effects: Object.fromEntries(Object.entries(effects).filter(([id]) => ids.has(id))) } : {}),
       },
     };
   }

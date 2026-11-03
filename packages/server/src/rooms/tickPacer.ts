@@ -4,6 +4,7 @@
 // and draws the remote world further back. The pacer counts steps against a fixed grid on a float clock instead, and the Room
 // re-arms its timer for the next slot of that grid, so a late wake does not move the next one. Pure: the Room passes the time in.
 import { TICK_MS } from "@raid/shared";
+import { SampleWindow } from "../runtimeStats";
 
 /** Steps one wake runs at most. A longer backlog (a stall: a first-join map, GC, a throttled host) is dropped and the grid moved. */
 export const MAX_CATCHUP_STEPS = 3;
@@ -74,6 +75,12 @@ export class TickStats {
   /** Wakes that ran a step, by how late they came after its slot (LATE_BOUNDS, then the overflow). */
   readonly late: number[] = new Array<number>(LATE_BOUNDS.length + 1).fill(0);
   reanchors = 0;
+  /** Wall ms a stepping wake spent in the room's tick (steps, patch and bot frame), over the last 2400 wakes of all rooms. */
+  readonly work = new SampleWindow();
+
+  noteWork(ms: number): void {
+    this.work.add(ms);
+  }
 
   note(steps: number, lateMs: number, reanchored: boolean): void {
     this.wakes++;
@@ -105,6 +112,7 @@ export class TickStats {
       catchupReanchors: this.reanchors,
       lateMsP50: this.latePercentile(0.5),
       lateMsP95: this.latePercentile(0.95),
+      workMs: this.work.snapshot(),
     };
   }
 }

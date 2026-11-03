@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
+  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, MARK_TIER_HITS, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS,
   abilityCooldownMs, maxCharges, burnDps, markPct, pacedFaction, plagueDps, wishOf,
 } from "@raid/shared";
@@ -79,7 +79,7 @@ describe("champion guide matches the combat catalog", () => {
   it("describes Fire roam from shared tuning and the Trial movement/exit effects", () => {
     const fire = signatureGuide("fire");
     expect(fire.scaling).toContain(`${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}×`);
-    expect(fire.scaling).toContain(`${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO`);
+    expect(fire.scaling).toContain(`${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AD_SHARE)} × Offense physical`);
     expect(fire.scaling).toContain(`${guideNumber(FIRE_ROAM_RAMP_MS / 1000)} s`);
     expect(fire.details.join(" ")).toContain("does not cancel a burst already armed");
     expect(championGuide("sentenced").wish.scaling).toContain(`${guideNumber((1 - TRIAL_MOVE_MULT) * 100)}% slower`);

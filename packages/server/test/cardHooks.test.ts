@@ -848,6 +848,28 @@ describe("Overkill", () => {
     expect(P(w, "f").hp).toBe(before.f);
   });
 
+  it("the splash is returned damage on the wire: its hit fx carries the passive flag, the blow that killed does not", () => {
+    // The splash names the holder's weapon (an arc one here) and lands on a third fighter a tick later. Without the flag the holder's
+    // client would present it as its own swing with the state patch (confirmedDamage.isOwnArcBlow), hit-stop and shake included.
+    const w = arena([
+      { id: "a", faction: "holy", weapon: "", at: near(200) },
+      { id: "v", faction: "holy", weapon: "", at: near(230), hpFrac: 1 },
+      { id: "n", faction: "holy", weapon: "", at: near(330) },
+    ]);
+    give(w, "a", "overkill");
+    P(w, "v").hp = 50;
+    P(w, "n").maxHp = P(w, "n").hp = 5000;
+    const hitFx = (events: readonly SimEvent[]) => events.flatMap((e) => (e.type === "fx" && e.fx.kind === "hit" ? [e.fx] : []));
+    const killing = hitFx(inStepHit(w, "v", "a", 500));
+    expect(killing).toHaveLength(1);
+    expect(killing[0]).toMatchObject({ id: "v", by: "a", weapon: "axe" });
+    expect(killing[0]!.passive, "the killing blow is the holder's own").toBeUndefined();
+    const splashed = hitFx(tick(w));
+    expect(splashed).toHaveLength(1);
+    expect(splashed[0]).toMatchObject({ id: "n", by: "a", weapon: "axe", passive: true });
+    expect(w.combat.landed.filter((l) => l.victim === "n")).toEqual([expect.objectContaining({ by: "a", derived: true, passive: true })]);
+  });
+
   it("splashes nothing when there is no enemy within 200 u, or when the victim survives", () => {
     const w = arena([
       { id: "a", faction: "holy", weapon: "", at: near(200) },

@@ -2,16 +2,16 @@
 // combat catalog; this view never changes an ability, card, cooldown, or stat.
 import {
   ALL_WEAPON_IDS, AP_DOT_RATIO, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, ENGAGE_LINGER_SECONDS, EXECUTE_BAND, FACTIONS,
-  FIRE_ROAM_BURST_AP_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
+  FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
   HIDDEN_REVEAL_MS, LIFESTEAL_MAX, MARK_FAR_SHARE, MARK_KILL_STACK_CAP, MARK_NEAR_RANGE, MARK_TIER_HITS,
   MARK_TOP_TIER, TARGET_FORGET_SECONDS, TRAINING_WISH_COOLDOWN_SECONDS, WEAPONS, WISH_LOCK_SECONDS,
   abilityCooldownMs, maxCharges, burnDps, magicShare, markPct, pacedFaction, plagueDps, rankOf, wishOf,
   HOLY_CAMP_LIFESTEAL_PER_CLEAR, FROST_ELITE_GUARD_BONUS, FROST_ELITE_GUARD_LINGER_MS,
-  FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, HOLY_AP_LIFESTEAL_CAP, HOLY_LIFESTEAL_PER_AP,
+  FIRE_BACKLASH_PER_DEFENSE, FROST_RANGED_CHILL_MS, FROST_RANGED_CHILL_MULT, 
   MARK_BONUS_STAT_PER_POINT, PLAGUE_ZOMBIE_AD_SHARE, PLAGUE_ZOMBIE_HIT_CAP_SHARE, PLAGUE_ZOMBIE_HIT_PER_BONUS, PLAGUE_ZOMBIE_HP_PER_BONUS,
   FIRE_BURN_AD_RATIO, FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, HOLY_LEECH_ROW_MULT,
   PLAGUE_AP_PER_HIT,
-  PLAGUE_CORPSE_HP_SHARE, PLAGUE_CORPSE_LIFETIME_MS, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND,
+  PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_HP_SHARE, PLAGUE_ZOMBIE_HIT_SHARE, PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND,
   PLAGUE_ZOMBIE_GROWTH_PER_BODY, PLAGUE_ZOMBIE_INTERVAL_MS,
   SENTENCED_HUNT_MOVE_BONUS, SENTENCED_HUNT_MARK_PER_STACK,
   type AbilityDef, type FactionId, type WeaponId,
@@ -42,13 +42,13 @@ export function signatureGuide(id: FactionId): GuideAbility {
   switch (id) {
     case "fire": return {
       ...base, name: "Dragonslayer",
-      summary: "Burn and retaliate during a trade; roam between fights to charge a faster move and a magic hit burst.",
-      scaling: `Burn: ${guideNumber(burnDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × SO + ${guideNumber(FIRE_BURN_AD_RATIO)} × Offense magic damage/s. Roaming reaches ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× move speed and charges a ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO magic burst over ${seconds(FIRE_ROAM_RAMP_MS)}.`,
-      tags: [{ kind: "ap", label: "SO · burn & roam burst" }, { kind: "ad", label: "Offense · burn" }, { kind: "target", label: "Enemy attacks · retaliation" }],
+      summary: "Burn and retaliate during a trade; roam between fights to charge a faster move and a physical hit burst.",
+      scaling: `Burn: ${guideNumber(burnDps(f))} × weapon multiplier + ${guideNumber(AP_DOT_RATIO)} × SO + ${guideNumber(FIRE_BURN_AD_RATIO)} × Offense magic damage/s. Roaming reaches ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× move speed and charges a ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AD_SHARE)} × Offense physical burst over ${seconds(FIRE_ROAM_RAMP_MS)}.`,
+      tags: [{ kind: "ap", label: "SO · burn" }, { kind: "ad", label: "Offense · burn & roam burst" }, { kind: "target", label: "Enemy attacks · retaliation" }],
       details: [
         `Burn = ${guideNumber(burnDps(f))} × your weapon's damage multiplier + ${guideNumber(AP_DOT_RATIO)} × SO + ${guideNumber(FIRE_BURN_AD_RATIO)} × Offense, per second. The SO and Offense parts are added after the weapon multiplier.`,
         `Retaliation per enemy attack = ${guideNumber(p.backlash!)} × the enemy's unbuffed weapon interval × your weapon's damage multiplier: about ${guideNumber(p.backlash!)} × multiplier per second of enemy attacks, whatever its faction or weapon. Enemy attack-speed bonuses create more triggers without shrinking each trigger.`,
-        `Outside combat, movement speed ramps to ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× over ${seconds(FIRE_ROAM_RAMP_MS)}. Combat resets partial charge; taking damage does not cancel a burst already armed for an attack. The next landed basic attack consumes it for ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AP_SHARE)} × SO magic damage, reduced by Soul Defense.`,
+        `Outside combat, movement speed ramps to ${guideNumber(FIRE_ROAM_MAX_SPEED_MULT)}× over ${seconds(FIRE_ROAM_RAMP_MS)}. Combat resets partial charge; taking damage does not cancel a burst already armed for an attack. The next landed basic attack consumes it for ${FIRE_ROAM_BURST_BASE} + ${guideNumber(FIRE_ROAM_BURST_AD_SHARE)} × Offense physical damage, reduced by Defense.`,
         "Burn deals magic damage; retaliation deals physical damage. Offense and SO feed the burn; neither increases retaliation.",
         `Two builds: the Offense burst assassin (Offense on a sword, axe or bow, roaming in for the burst, its Offense feeding the burn), or the SO burn tank (SO feeds the burn, and every point of bonus Defense + SD adds ${pct(FIRE_BACKLASH_PER_DEFENSE)} to retaliation).`,
         `The passive needs an active trade in weapon reach and line of sight. Base reach linger is ${guideNumber(ENGAGE_LINGER_SECONDS)} s; the target is forgotten after ${guideNumber(TARGET_FORGET_SECONDS)} s without contact.`,
@@ -76,7 +76,7 @@ export function signatureGuide(id: FactionId): GuideAbility {
       tags: [{ kind: "health", label: "Max health · zombie" }, { kind: "ap", label: "SO · disease" }, { kind: "target", label: "Enemy low health · execute" }],
       details: [
         `Disease = ${guideNumber(plagueDps(f))} × your weapon's damage multiplier per second while you trade, + ${guideNumber(PLAGUE_AP_PER_HIT)} × SO for every weapon hit you land on the target (paid evenly at your hit rate), so a fast wand or bow is the disease build.`,
-        `Harvest: dead players leave green corpses on your map for ${seconds(PLAGUE_CORPSE_LIFETIME_MS)}. Walk over one to consume it automatically before another Plague does. The first raises one zombie; each body grants you ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and grows the zombie.`,
+        `Harvest: dead players leave corpses that stay for the whole run, marked with a green X on your map until one is harvested. Walk over one to consume it automatically before another Plague does. The first raises one zombie; each body grants you ${pct(PLAGUE_CORPSE_HP_SHARE)} base max health and grows the zombie.`,
         `The zombie follows you and attacks the enemy you lock: a wand commands it from range. Its max HP is ${pct(PLAGUE_ZOMBIE_HP_SHARE)} of your max HP + ${guideNumber(PLAGUE_ZOMBIE_HP_PER_BONUS)} per point of bonus max HP, and each physical hit is ${pct(PLAGUE_ZOMBIE_HIT_SHARE)} of your max HP + ${pct(PLAGUE_ZOMBIE_HIT_PER_BONUS)} of your bonus max HP before defenses and PvP scaling. It attacks every ${seconds(PLAGUE_ZOMBIE_INTERVAL_MS)}. Each body after the first adds another ${pct(PLAGUE_ZOMBIE_GROWTH_PER_BODY)} of the zombie's base health and damage. Health from farming, cards and trades also strengthens it. It regenerates ${pct(PLAGUE_ZOMBIE_REGEN_SHARE_PER_SECOND)} of its max HP per second, slower just after it is hit.`,
         `Second build, the zombie commander: stack max health, and the zombie grows with it; each of its hits also adds ${guideNumber(PLAGUE_ZOMBIE_AD_SHARE)} × your bonus Offense (up to ${pct(PLAGUE_ZOMBIE_HIT_CAP_SHARE)} of your max HP a hit). Lock targets with a wand from range and let the zombie fight. The first build stacks attack speed and SO into disease with a wand or bow.`,
         "If the zombie dies, consume another player body to revive it with all accumulated growth. It disappears when you die or the run ends. Corpse growth no longer multiplies disease or execute damage.",
@@ -109,7 +109,7 @@ export function signatureGuide(id: FactionId): GuideAbility {
       details: [
         `Faction lifesteal = min(${pct(p.ls_cap!)}, ${pct(p.ls0!)} + ${pct(p.ls1!)} × missing-health fraction). At half health, the faction grants ${pct(Math.min(p.ls_cap!, p.ls0! + p.ls1! * .5))} lifesteal.`,
         `Holy earns +${pct(HOLY_CAMP_LIFESTEAL_PER_CLEAR)} permanent lifesteal per eligible camp clear, shared with other living camp contributors. Mob and camp leech grow without a farming cap and receive Bloodthirst's multiplier. The faction and card portion retains its ${pct(LIFESTEAL_MAX)} limit; anti-heal reduces healing received.`,
-        `SO adds ${pct(HOLY_LIFESTEAL_PER_AP)} faction lifesteal per point (at most +${pct(HOLY_AP_LIFESTEAL_CAP)}), so a Soul-damage Holy (wand, or a sword whose SO is its higher stat) sustains through its burst. Offense helps only through damage. Missing health is a fraction of maximum health, not an absolute HP amount.`,
+        "Offense and SO help only through the damage they add. Missing health is a fraction of maximum health, not an absolute HP amount.",
         `Lifesteal juggernaut build: your card leech counts ${guideNumber(HOLY_LEECH_ROW_MULT)}× for Holy (still capped like any card leech), so a Leech card sustains you more than it does anyone else.`,
       ],
     };
