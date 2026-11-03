@@ -33,16 +33,19 @@ export const MOVE_REPEAT_MS = 100;
 const COLOR_GATE = "#9e6967";
 /** What the camera sees. */
 const COLOR_VIEW = "rgba(208, 226, 235, 0.42)";
-/** More than this many mob dots are not drawn (a 40-camp map has up to 200 mobs: 3-5 spots a camp, 160 on average). */
-const MAX_DOTS = 224;
+/**
+ * More than this many mob dots are not drawn. A 50-camp map (10 camps a zone) has up to 250 mobs (3-5 spots a camp, 200 on
+ * average); the rest is room for the Living Plague's zombies.
+ */
+export const MAX_DOTS = 280;
 /** Player, gates, mobs, camera, route, chests, camp states, quests, enemy players, respawns and live vision. */
 const INPUTS = 15;
 /** The chest blip's ring breathes through these steps (0 = at rest, 1 = widest); 0 throughout under reduced motion. */
 const PULSE_STEPS: readonly number[] = [0, 0.33, 0.66, 1, 0.66, 0.33];
 /** ms per pulse step. */
 const PULSE_STEP_MS = 160;
-/** More than this many chest blips are not drawn (a chest per cleared camp, each up 15 s: a map has 40 camps). */
-const MAX_CHESTS = 48;
+/** More than this many chest blips are not drawn (a chest per cleared camp, each up 15 s: a map has 50 camps, so 10 over). */
+export const MAX_CHESTS = 60;
 /** The route is drawn faint: the minimap is for steering, the route is a reminder. */
 const ROUTE_ALPHA = 0.85;
 const HASH_BYTES = new DataView(new ArrayBuffer(8));
@@ -93,6 +96,7 @@ function buttonBit(button: number): number {
 
 export class Minimap {
   private readonly canvas = el("canvas", "minimap");
+  private readonly root = uiRoot();
   private readonly ctx = this.canvas.getContext("2d");
   /** Region tints and walls. A separate canvas so a repaint is one drawImage instead of a few thousand fillRects. */
   private readonly layer = document.createElement("canvas");
@@ -186,7 +190,7 @@ export class Minimap {
     window.addEventListener("pointercancel", this.onAbort);
     window.addEventListener("blur", this.onAbort);
     document.addEventListener("visibilitychange", this.onVisibility);
-    uiRoot().append(c);
+    this.root.append(c);
   }
 
   /** Whether the coliseum gates are drawn closed; takes effect at the next update(). Cheap to call every frame. */
@@ -431,6 +435,8 @@ export class Minimap {
     this.viewW = layout.worldW;
     this.viewH = layout.worldH;
     this.canvas.style.setProperty("--mm-size", `${size}px`);
+    // The overlay's other bottom-right UI (the chest panel docks above the map) keys off the map's real size, not a guess at it.
+    this.root.style.setProperty("--mm-size", `${size}px`);
     if (backing !== this.backing) {
       this.backing = backing;
       this.canvas.width = backing;

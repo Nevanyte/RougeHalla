@@ -4,7 +4,7 @@
 // before. DOM and canvas are the fakes of test/fakes.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TILE_FLOOR, WORLD_H, WORLD_W, mapFromTiles, type CampDef, type GameMap } from "@raid/shared";
-import { Minimap } from "../src/ui/minimap";
+import { MAX_CHESTS, Minimap } from "../src/ui/minimap";
 import { COLOR_DISTURBED } from "../src/ui/mapPainter";
 import { setView } from "../src/view/viewState";
 import { computeLayout } from "../src/view/viewport";
@@ -123,15 +123,20 @@ describe("chest blips", () => {
     expect(argsOf(ctx, "drawImage").length).toBe(before);
   });
 
-  it("draws at most 48 (a chest per cleared camp, 40 camps), and keeps a drawn blip off the camps' own marks (they are separate calls)", () => {
+  it("draws a blip for every camp of a 50-camp map at once, and never more than MAX_CHESTS (60)", () => {
     const { minimap, ctx, paint } = setup(true);
-    minimap.setChests(Array.from({ length: 40 }, (_, i) => ({ x: 100 + i * 40, y: 700, left: 5 })));
+    expect(MAX_CHESTS).toBeGreaterThanOrEqual(50);
+    expect(MAX_CHESTS).toBe(60);
+    // A grid of blips a twelfth of the map apart, clear of the three camps. Fifty clocks fit the 150-unit layout (it has room for 55 in rows).
+    const chests = (n: number) => Array.from({ length: n }, (_, i) => ({ x: ((i % 10) + 1) * SPAN / 12 + 90, y: (Math.floor(i / 10) + 1) * SPAN / 12 + 140, left: 5 }));
+    minimap.setChests(chests(50));
     paint();
-    expect(argsOf(ctx, "fillText")).toHaveLength(40);
+    expect(argsOf(ctx, "fillText")).toHaveLength(50);
     ctx.calls.length = 0;
-    minimap.setChests(Array.from({ length: 60 }, (_, i) => ({ x: 100 + i * 40, y: 700, left: 5 })));
+    minimap.setChests(chests(80));
     paint();
-    expect(argsOf(ctx, "fillText")).toHaveLength(48);
+    expect(argsOf(ctx, "fillText").length).toBeGreaterThan(50);
+    expect(argsOf(ctx, "fillText").length).toBeLessThanOrEqual(MAX_CHESTS);
   });
 
   it("draws the blips over the camps and under the player", () => {

@@ -29,10 +29,10 @@ describe("minimap collision layout", () => {
   });
 
   it("merges nearby same-faction contacts without losing counts or merging different factions", () => {
-    const contacts = Array.from({ length: 224 }, (_, i) => ({ x: 70 + i % 3, y: 60 + i % 2, code: i % 4 }));
+    const contacts = Array.from({ length: 280 }, (_, i) => ({ x: 70 + i % 3, y: 60 + i % 2, code: i % 4 }));
     const groups = clusterMapContacts(contacts, 4.8);
     expect(groups).toHaveLength(4);
-    expect(groups.reduce((n, g) => n + g.count, 0)).toBe(224);
+    expect(groups.reduce((n, g) => n + g.count, 0)).toBe(280);
     expect(clusterMapContacts([...contacts].reverse(), 4.8)).toEqual(groups);
   });
 

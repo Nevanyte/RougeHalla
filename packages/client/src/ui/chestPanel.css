@@ -11,8 +11,9 @@
   z-index: 8;
   right: 12px;
   top: 56px;
-  /* Clear of the minimap (about a quarter of the overlay's height, 12 px from the bottom). */
-  bottom: calc(var(--ui-h, 600px) * 0.26 + 34px);
+  /* Clear of the minimap: its side (--mm-size, set on #ui by minimap.ts; about a third of the overlay's height until it loads),
+     12 px from the bottom, and a 22 px gap. */
+  bottom: calc(var(--mm-size, calc(var(--ui-h, 600px) * 0.338)) + 34px);
   box-sizing: border-box;
   width: min(calc(248px * var(--cp-text, 1)), calc(var(--ui-w, 800px) * 0.42));
   display: flex;

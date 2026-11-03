@@ -41,6 +41,7 @@ import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { WeaponRangeView } from "../render/WeaponRangeView";
+import { GroundRouteView } from "../render/GroundRoute";
 import { isHiddenRemote, shouldRenderActor, visiblePosition } from "../render/visibility";
 import { CampWards } from "../render/CampWards";
 import { CampBuffs } from "../render/CampBuffs";
@@ -169,6 +170,8 @@ export class RaidScene extends Phaser.Scene {
   private highlight!: ContainerHighlight;
   private rings!: TargetRings;
   private weaponRange: WeaponRangeView | null = null;
+  /** The planned route and its camp circles drawn on the ground, fading as the player walks over them (render/GroundRoute.ts). */
+  private groundRoute: GroundRouteView | null = null;
   private minimap!: Minimap;
   /** The lobby preview, the planning screen and the hold-Tab map (ui/planning.ts); built with the map, null before. */
   private planning: PlanningView | null = null;
@@ -403,6 +406,9 @@ export class RaidScene extends Phaser.Scene {
     this.route = new RouteState(this.training ? null : this.room.roomId);
     this.lastRouteVersion = -1;
     this.runStarted = false;
+    // Before buildMap: it hands the view the map's camps.
+    this.groundRoute?.destroy();
+    this.groundRoute = new GroundRouteView(this);
     this.planning?.destroy();
     this.planning = null;
     this.minimap.setShowRoute(getSettings().showRoute);
@@ -814,6 +820,7 @@ export class RaidScene extends Phaser.Scene {
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
     this.trackRoute(state, me);
+    this.updateGroundRoute(state, me, now);
   }
 
   /** The map screens: the lobby's preview, planning, the held-Tab map. Hidden (and free of the pointer) in every other phase. */
@@ -870,7 +877,11 @@ export class RaidScene extends Phaser.Scene {
     const map = this.mapView?.map;
     if (!map) return;
     if (state.phase !== "active" || state.training === true || !me) {
-      if (this.lastRouteVersion !== -2) { this.minimap.setRoute(null); this.lastRouteVersion = -2; }
+      if (this.lastRouteVersion !== -2) {
+        this.minimap.setRoute(null);
+        this.groundRoute?.reset();
+        this.lastRouteVersion = -2;
+      }
       return;
     }
     if (!this.runStarted) {
@@ -878,11 +889,32 @@ export class RaidScene extends Phaser.Scene {
       this.runStarted = true;
       this.route.restart();
       this.route.setStart({ x: me.x, y: me.y });
+      this.groundRoute?.reset();
     }
     if (me.status === "alive") this.route.advance({ x: me.x, y: me.y });
     if (this.route.version === this.lastRouteVersion) return;
     this.lastRouteVersion = this.route.version;
-    this.minimap.setRoute(this.route.ahead(map));
+    const ahead = this.route.ahead(map);
+    this.minimap.setRoute(ahead);
+    // The ground line follows the same route. `me` is where the route starts and the next stop is judged from: a rebuild made while
+    // the player stands on the line keeps the stretch under them gone.
+    this.groundRoute?.setRoute(ahead, me.status === "alive" ? me : null);
+  }
+
+  /**
+   * The route on the ground: drawn while the run is on, for the local player alive, with "Show route" on and no map screen, teleport
+   * cut or results over the world (the weapon range's rule). The walk is followed whenever the player is placed, hidden or not.
+   */
+  private updateGroundRoute(state: RaidState, me: PlayerState | undefined, now: number): void {
+    const view = this.groundRoute;
+    if (!view) return;
+    const placed = state.phase === "active" && state.training !== true && me?.status === "alive"
+      && !this.beforeTeleport() && !this.deathPending(this.room.sessionId);
+    const at = placed ? this.rendered.get(this.room.sessionId) ?? me ?? null : null;
+    view.update({
+      now, at,
+      show: placed && getSettings().showRoute && !this.mapHold.held && this.resultsVisible?.() !== true,
+    });
   }
 
   /** Writes where fighter `id` is drawn this frame into `tmp` and `rendered` (the latest patch while it has no history yet). */
@@ -1809,6 +1841,7 @@ export class RaidScene extends Phaser.Scene {
     this.localGround = NO_STATES;
     this.minimap.setMap(map);
     this.chestPanel?.setMap(map);
+    this.groundRoute?.setCamps(map.camps);
     // The map screens are built once per room, with its map.
     if (this.planning) this.planning.setMap(map);
     else {
@@ -1949,6 +1982,8 @@ export class RaidScene extends Phaser.Scene {
     this.unbindResult = null;
     this.fx.destroy();
     this.wishFx.destroy();
+    this.groundRoute?.destroy();
+    this.groundRoute = null;
     this.fieldView.destroy();
     this.questView.destroy();
     this.unbindQuestReveal?.();

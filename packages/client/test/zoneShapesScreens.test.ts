@@ -327,16 +327,16 @@ describe("the planning view with 40 camps", () => {
 // ------------------------------------------------------------------------------------------------------------------ sizes
 
 describe("the minimap's size at 136 x 136", () => {
-  it("scales by the world's larger side: 150 to 240 px for the corner minimap, a tile 1.1 to 1.8 px wide", () => {
+  it("scales by the world's larger side: 195 to 312 px for the corner minimap, a tile 1 to 2.4 px wide", () => {
     for (const [uiW, uiH] of [[1280, 800], [1600, 900], [900, 900], [1920, 1080]] as const) {
       const size = minimapSize(uiW, uiH);
       expect(size).toBeGreaterThanOrEqual(110);
-      expect(size).toBeLessThanOrEqual(240);
+      expect(size).toBeLessThanOrEqual(312);
       const tile = (TILE * size) / mapSpan();
-      expect(tile).toBeGreaterThan(0.8);
-      expect(tile).toBeLessThan(1.8);
+      expect(tile).toBeGreaterThan(1.0);
+      expect(tile).toBeLessThan(2.4);
     }
     expect(mapSpan()).toBe(136 * TILE);
-    expect(minimapBacking(240, 1.5, 2)).toBe(720);
+    expect(minimapBacking(312, 1.5, 2)).toBe(936);
   });
 });
