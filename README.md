@@ -106,13 +106,15 @@ The server also fills its own lobbies with bots that live inside the room (no pr
 
 You start in a small walkable room. It is drawn on the client only: there is no server room while you are in it. Walk with right-click or `WASD` / arrow keys. Stand at a station and press `E` (or click it) to use it.
 
+**Lobby activity** shows who is in the current game, its phase and elapsed playing time, and the named players waiting in the hub. Bots are labelled separately. When the public server's single game is occupied, the panel explains why a new run cannot start; an existing game lobby can still accept players before planning begins. The lists refresh automatically while the hub is visible. Load a callsign to appear in the waiting list; closed or inactive tabs disappear after a short presence timeout. Waiting here does not reserve a place or join a queue.
+
 | Station | Where | What it does |
 | --- | --- | --- |
 | The Arena (stairs) | North wall | Join a run (matchmade lobby). |
 | Training Grounds (door) | East wall | Start a private practice room. |
 | Five pedestals | South | Pick a faction. |
 | Shop, Wardrobe, Achievements, Leaderboard (kiosks) | West wall | Open that panel. |
-| Counter wheel | Centre of the floor | Both counter loops, with your pick highlighted. |
+| Weapon counters | Centre of the floor | A weapon matchup guide with selectable weapons and arrows toward the weapons they beat. |
 
 Your avatar wears your equipped cosmetics and your faction's colour, and stands on bare fists (a run starts unarmed). The menu docked on the left offers the same things: callsign, GV and stats, a card per faction, Start Run, Training, and the panels (shop, wardrobe, titles, achievements, leaderboard, counters).
 

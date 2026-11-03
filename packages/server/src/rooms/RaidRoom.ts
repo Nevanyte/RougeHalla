@@ -26,6 +26,7 @@ import { LivenessTracker } from "../guards/liveness";
 import { addressOfContext } from "../guards/clientIp";
 import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, type PasscodeGate } from "../guards/passcode";
 import type { RoomCounter } from "../guards/roomCounter";
+import type { LobbyStatus, RoomPresence } from "../guards/lobbyStatus";
 import { TokenBucket } from "../guards/tokenBucket";
 import type { MapSource } from "../mapPool";
 import type { ProfileStore } from "../persistence/ProfileStore";
@@ -120,6 +121,7 @@ export interface RoomContext {
   profiles: ActiveProfiles;
   /** Rooms alive now, per mode, against MAX_ARENA_ROOMS / MAX_TRAINING_ROOMS. */
   rooms: RoomCounter;
+  lobbyStatus: LobbyStatus;
   /** The passcode check, shared with the profile route so that a guesser's wrong tries are counted on both doors. */
   passcodeGate: PasscodeGate;
   /** Certified maps, taken synchronously at a room's first join (mapPool.ts). */
@@ -212,6 +214,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private built: World | undefined;
   /** The profile that asked for this room, until a player joins it (or the room is disposed). */
   private opener: string | null = null;
+  private raidStartedAtEpoch: number | null = null;
   /** When the room steps (tickPacer.ts): made with the world, so a room nobody joins runs nothing. */
   private pacer: TickPacer | undefined;
   /** The pacer's pending wake. */
@@ -270,6 +273,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const mode: RoomMode = this.training ? "training" : "arena";
     if (!rooms.tryOpen(mode)) throw new ServerError(ErrorCode.MATCHMAKE_UNHANDLED, SERVER_FULL);
     this.counted = mode;
+    RaidRoom.ctx.lobbyStatus.registerRoomSource(this.roomId, () => this.lobbyRoomPresence());
     // A room nobody joins gets nothing more: the world, and its map from the pool, come with the first join (buildWorld).
     const opener = options?.profile;
     if (typeof opener === "string" && PROFILE_RE.test(opener)) {
@@ -445,7 +449,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       profiles.confirm(profile, ownerKey);
       if (this.opener) profiles.forgetRoom(this.opener, this.roomId);
       // Training has no lobby to wait out: the run is on as soon as its one player is in.
-      if (this.training) startRaid(world);
+      if (this.training) {
+        startRaid(world);
+        this.raidStartedAtEpoch = Date.now();
+      }
     } catch (err) {
       if (this.built) removePlayer(this.built, client.sessionId);
       this.seats.delete(client.sessionId);
@@ -550,7 +557,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     this.disposed = true;
     if (this.pacerTimer) clearTimeout(this.pacerTimer);
     this.pacerTimer = undefined;
-    const { profiles, rooms } = RaidRoom.ctx;
+    const { profiles, rooms, lobbyStatus } = RaidRoom.ctx;
     void this.trace?.flush();
     // The record of a run still waiting out its grace goes now; a run disposed mid-way is abandoned (a shutdown's, void).
     if (this.run?.started && !this.run.done) this.run.finalize(this.run.ended ? undefined : this.shuttingDown ? "void" : "abandoned");
@@ -567,6 +574,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     }
     this.seats.clear();
     this.picked.clear();
+    lobbyStatus.removeRoom(this.roomId);
   }
 
   private bankVoided(profile: string, gv: number) {
@@ -618,7 +626,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           bots.beforeStep(this.world.state.serverTime + TICK_MS);
           prof.lap("bots:before");
         }
+        const wasActive = this.world.state.phase === "active";
         const events = step(this.world, TICK_MS);
+        if (!wasActive && this.world.state.phase === "active" && this.raidStartedAtEpoch === null) this.raidStartedAtEpoch = Date.now();
         prof.lap("step:other");
         this.handleEvents(events);
         prof.lap("events");
@@ -667,6 +677,26 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       clients: this.clients.length,
       parts: this.profile.top(),
     });
+  }
+
+  /** Publishes only lobby metadata; no room-creation side effects or polling timer. */
+  private lobbyRoomPresence(): RoomPresence {
+    const state = this.built?.state;
+    const phase: RoomPresence["phase"] = state?.phase === "planning" ? "planning"
+      : state?.phase === "active" ? "active"
+        : state?.phase === "ended" ? "finished" : "lobby";
+    const players = state ? [...state.players].flatMap(([id, p]) => {
+      if (!this.seats.has(id) && this.bots?.isBot(id) !== true) return [];
+      return [{ name: p.name, kind: this.seats.has(id) ? "human" as const : "bot" as const, alive: p.status === "alive" }];
+    }) : [];
+    return {
+      training: this.training,
+      joinable: !this.training && phase === "lobby" && this.clients.length < this.maxClients,
+      phase,
+      startedAt: this.raidStartedAtEpoch,
+      players,
+      joinedNames: [...this.seats.values()].map(seat => seat.profile),
+    };
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {
