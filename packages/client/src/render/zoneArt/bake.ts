@@ -1,4 +1,4 @@
-// Bakes a styled map's ground and walls into textures once (part D 7.1). At 136x136 the old way (about 100 Graphics objects that
+// Bakes a styled map's ground and walls into textures once (part D 7.1). At 136x136 (now 160x160) the old way (about 100 Graphics objects that
 // Phaser replays every frame, with richer art on top) is the budget risk; this paints the art once and the scene then draws a few
 // hundred images (about 650-750 strips and 81 floor chunks, under the 1200 scene children the plan allows):
 //   * floor chunks: 16x16 tiles each, one texture per chunk (the zone floor, terrain tiles, flat props, the landmarks' shade, the
@@ -338,7 +338,8 @@ export function planStrips(map: GameMap, kinds?: Pick<BakeContext, "styles" | "z
 /**
  * The texture memory the zone art may take (RGBA8): 64 MB since the map grew to 136 x 136 (zone-shapes contract 7.5). The floor alone
  * is 64.9 MB at scale 1 there (81 chunks of 17 x 17 tiles, 4352 x 3482 px of picture and the overlap), 36.7 MB at 0.75, and the wall
- * pages take 10-15 MB, so a map bakes its floors at 0.75 and fits with room to spare; a bigger map bakes them lower.
+ * pages take 10-15 MB, so a map bakes its floors at 0.75 and fits with room to spare; a bigger map bakes them lower (at 160 x 160 they take 0.625: 0.75
+ * would need 69-78 MB with the walls).
  */
 export const TEXTURE_BUDGET_BYTES = 64 * 1024 * 1024;
 /** The scales a floor may be baked at, best first. */

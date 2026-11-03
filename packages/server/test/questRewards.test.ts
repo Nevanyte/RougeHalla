@@ -100,8 +100,9 @@ describe("quest rewards", () => {
 
   it("caps only the separate per-run quest GV pot at QUEST_GV_CAP", () => {
     const world = makeRun();
-    expect(QUEST_GV_CAP).toBe(40);
+    expect(QUEST_GV_CAP).toBe(50);
 
+    // 13 + 13 + 13 = 39 of the 50, so the fourth quest (14) pays the 11 that fit.
     complete(world, ready(world, "cull-fire"));
     complete(world, ready(world, "cull-sentenced"));
     complete(world, ready(world, "cull-plague"));
@@ -110,7 +111,7 @@ describe("quest rewards", () => {
     expect(RT(world).gv.quest).toBe(QUEST_GV_CAP);
     expect(P(world).gv).toBe(QUEST_GV_CAP);
     const questGv = events.filter((e): e is Extract<SimEvent, { type: "gv" }> => e.type === "gv" && e.reason === "quest");
-    expect(questGv.map((e) => e.amount)).toEqual([10]);
+    expect(questGv.map((e) => e.amount)).toEqual([QUEST_GV_CAP - 39]);
     expect(RT(world).gv.mobs).toBe(0);
     expect(RT(world).gv.kills).toBe(0);
 

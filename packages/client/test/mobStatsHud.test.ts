@@ -25,7 +25,9 @@ describe("MobStatsHud", () => {
     expect(ember.getAttribute("aria-label")).toContain("6 stacks");
     expect(ember.getAttribute("aria-label")).not.toMatch(/maximum|cap/i);
     expect((ember.children[0] as FakeEl).textContent).toBe("Ember Imp ×6");
-    expect((ember.children[1] as FakeEl).textContent).toBe("+1% damage per kill");
+    expect((ember.children[1] as FakeEl).textContent).toBe("+3% damage per kill");
+    // A kill is three stacks (MOB_KILL_STACKS), so the count above (stacks) climbs by 3 a kill and the row says so.
+    expect(String((ember as unknown as { title?: string }).title)).toContain("Each kill adds 3 stacks");
     expect((ember.children[2] as FakeEl).textContent).toBe("+6% damage");
     hud.update({ mobStats: new Map([["rotMonk", 100], ["emberImp", 100]]) } as never, true);
     expect((ember.children[0] as FakeEl).textContent).toBe("Ember Imp ×100");

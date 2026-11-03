@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { MAP_TILES_W, MAP_TILES_H } from "../src/constants";
 import {
   classifyDuelEnd,
   histogramQuantile,
   packTiles,
   sanitizeClientPerf,
+  TELEMETRY_HEAT_CELL_TILES,
+  TELEMETRY_MAP_TILES,
+  TILE_ABSENT,
   telemetryObjectKey,
   unpackTiles,
   validateRunRecord,
@@ -58,5 +62,11 @@ describe("telemetry contract", () => {
     expect(sanitizeClientPerf({ v: 2 })).toBeNull();
     expect(histogramQuantile([0, 10, 0, 0], 1, 0.5)).toBe(1.5);
     expect(histogramQuantile([0, 0], 1, 0.5)).toBeNull();
+  });
+
+  it("the dashboard's map side is the game's, and a tile coordinate never reaches the absent marker", () => {
+    expect([TELEMETRY_MAP_TILES, TELEMETRY_MAP_TILES]).toEqual([MAP_TILES_W, MAP_TILES_H]);
+    expect(MAP_TILES_W).toBeLessThan(TILE_ABSENT);
+    expect(TELEMETRY_MAP_TILES % TELEMETRY_HEAT_CELL_TILES).toBe(0);
   });
 });

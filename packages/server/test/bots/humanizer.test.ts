@@ -1,6 +1,7 @@
 // humanizer.ts (docs/BOTS.md 2.1-2.5, 3.7, 4, 9.1): when a bot clicks, what it clicks, and how often.
 import { describe, expect, it } from "vitest";
 import { mulberry32, WORLD_H, WORLD_W, type Vec2 } from "@raid/shared";
+import { edgeToward } from "../../src/bots/brain/clicks";
 import { createHumanizer, HUMANIZER_RULES, type HumanizerImpl } from "../../src/bots/brain/humanizer";
 import {
   PRIORITY, TIER_IDS, TIERS,
@@ -732,10 +733,22 @@ describe("walks to the edge of the screen", () => {
   it.each(TIER_IDS)("%s: an off-screen destination is clicked on the screen edge or on the minimap, never in between", (id) => {
     const tier = { ...TIERS[id], hesitation: NO_HESITATION };
     const r = rig(tier, { seed: 15 });
-    // Toward the map's middle (the default self is the seed-7 map's first spawn, near one side of the 136x136 map), where the
-    // screen's edge is floor.
-    const dir = me.x > WORLD_W / 2 ? -1 : 1;
-    const to = { x: me.x + dir * 1500, y: me.y + 200 };
+    // Toward the map's middle (the default self is the seed-7 map's first spawn, near one side of the 160x160 map), where the
+    // screen's edge is floor: the first heading, toward the middle or away, up or down, whose window edge (97% or 85% of the way) is
+    // open floor and inside the world (the spawn can stand against rock on one side).
+    const towards = me.x > WORLD_W / 2 ? -1 : 1;
+    let dir = towards;
+    let to: Vec2 | null = null;
+    search: for (const d of [towards, -towards]) {
+      for (const dy of [200, -200, 0, 400, -400]) {
+        const cand = { x: me.x + d * 1500, y: me.y + dy };
+        if (cand.x < 0 || cand.x > WORLD_W || cand.y < 0 || cand.y > WORLD_H) continue;
+        const e = edgeToward(testMap(), me, cand);
+        if (d * (e.x - me.x) > 700) { dir = d; to = cand; break search; }
+      }
+    }
+    expect(to, "a heading whose screen edge is floor").not.toBeNull();
+    to = to!;
     const N = 3000;
     let edge = 0;
     for (let i = 0; i < N; i++) {

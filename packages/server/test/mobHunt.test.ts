@@ -252,21 +252,26 @@ describe("who to farm", () => {
   });
 
   it("counts normal mob stat stacks toward elite access and sure-match thresholds", () => {
+    // Only Sentenced and Holy win a straight duel against an elite now (the second elite buff and 2x mob hp: Fire, Plague and Frost keep
+    // nothing), so a Sentenced bot meets the Frost elite, whose share it keeps about a fifth of its hp, and the bars sit around that.
+    const share = matchupShare("sentenced", "frost", true);
+    expect(share).toBeGreaterThan(0.1);
+    const open = { eliteMinShare: share / 2, eliteSureShare: share / 4 };
     const elite = mob("frost", 200, 0, { kind: "elite" });
-    const withoutProgress = new Scene().add("e", elite);
-    withoutProgress.self = { ...ME, weapons: ["axe", null], hp: 700, mobKills: 4 };
+    const withoutProgress = new Scene(open).add("e", elite);
+    withoutProgress.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 700, mobKills: 4 };
     expect(withoutProgress.step()).toMatchObject({ kind: "player" });
-    const farmed = new Scene().add("e", elite);
-    farmed.self = { ...ME, weapons: ["axe", null], hp: 700, mobKills: 4, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10 } };
+    const farmed = new Scene(open).add("e", elite);
+    farmed.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 700, mobKills: 4, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10 } };
     expect(farmed.step()).toMatchObject({ kind: "mob", id: "e" });
 
-    const combined = new Scene().add("e", elite);
-    combined.self = { ...ME, weapons: ["axe", null], hp: 700, power: 3, mobStats: { emberImp: 10 } };
+    const combined = new Scene(open).add("e", elite);
+    combined.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 700, power: 3, mobStats: { emberImp: 10 } };
     expect(combined.step()).toMatchObject({ kind: "mob", id: "e" }); // 3 card power + 1 progression point unlocks at 4
 
-    const sureCfg = { eliteMinShare: 0.5, eliteSureShare: 0.3 };
+    const sureCfg = { eliteMinShare: share * 1.5, eliteSureShare: share * 0.5 };
     const notSure = new Scene(sureCfg).add("e", mob("frost", 200, 0, { kind: "elite" }));
-    notSure.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700, mobKills: 4, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10 } };
+    notSure.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 700, mobKills: 4, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10 } };
     expect(notSure.step()).toMatchObject({ kind: "player" }); // four progress points unlock elites, not the sure-match threshold
     const sure = new Scene(sureCfg).add("e", mob("frost", 200, 0, { kind: "elite" }));
     sure.self = { ...notSure.self, mobStats: { emberImp: 10, cinderHound: 10, magmaBrute: 10, flameCaller: 10, bailiff: 10, chainWarden: 10 } };
@@ -275,7 +280,7 @@ describe("who to farm", () => {
 
   it("leaves elites to bots with card power or full hp, and to those who can afford the duel", () => {
     const elite = (region: FactionId) => mob(region, 200, 0, { kind: "elite", maxHp: 600 });
-    // Every elite share is close (0.31-0.52 with the elite buff): with the bar at 0.6, Frost keeps too little against a Sentenced elite...
+    // Every elite share is low (0.31-0.52 with the first elite buff; 0 for Fire, Plague and Frost and 0.14-0.41 for Sentenced and Holy since the second): with the bar at 0.6, Frost keeps too little against a Sentenced elite...
     expect(matchupShare("frost", "sentenced", true)).toBeLessThan(0.6);
     const narrow = new Scene({ eliteMinShare: 0.6, eliteSureShare: 0.6 }).add("e", elite("sentenced"));
     narrow.self = { ...ME, faction: "frost", weapons: ["axe", null], hp: 950 };
@@ -284,17 +289,19 @@ describe("who to farm", () => {
     const stackedNarrow = new Scene({ eliteMinShare: 0.6, eliteSureShare: 0.6 }).add("e", elite("sentenced"));
     stackedNarrow.self = { ...ME, faction: "frost", weapons: ["axe", null], hp: 950, power: 6 };
     expect(stackedNarrow.step()).toMatchObject({ kind: "player" });
-    // Plague keeps over the default bar (0.3) against the Frost elite (a melee one: a ranged mob is skipped): fine at full hp...
-    expect(matchupShare("plague", "frost", true)).toBeGreaterThan(0.3);
-    const strong = new Scene().add("e", elite("frost"));
-    strong.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 950 };
+    // Sentenced keeps about a fifth of its hp against the Frost elite (a melee one: a ranged mob is skipped), over a bar set under it: fine at full hp...
+    const keeps = matchupShare("sentenced", "frost", true);
+    expect(keeps).toBeGreaterThan(0.1);
+    const bars = { eliteMinShare: keeps - 0.05, eliteSureShare: keeps - 0.1 };
+    const strong = new Scene(bars).add("e", elite("frost"));
+    strong.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 950 };
     expect(strong.step()).toMatchObject({ kind: "mob", id: "e" });
     // ...not when hurt without power, fine again with four card power.
-    const hurt = new Scene().add("e", elite("frost"));
-    hurt.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700 };
+    const hurt = new Scene(bars).add("e", elite("frost"));
+    hurt.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 700 };
     expect(hurt.step()).toMatchObject({ kind: "player" });
-    const stacked = new Scene().add("e", elite("frost"));
-    stacked.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700, power: 4 };
+    const stacked = new Scene(bars).add("e", elite("frost"));
+    stacked.self = { ...ME, faction: "sentenced", weapons: ["axe", null], hp: 700, power: 4 };
     expect(stacked.step()).toMatchObject({ kind: "mob", id: "e" });
   });
 
@@ -577,9 +584,12 @@ describe("pieces", () => {
     expect(mobWeapon({ weapon0: "", faction: "" })).toBeNull();
   });
 
-  it("matchupShare follows the duel table: everyone beats a normal mob of their own region, and no elite is a flat loss", () => {
+  it("matchupShare follows the duel table: everyone beats a normal mob of their own region, and every elite is a loss for some factions and a win for at least one", () => {
     for (const f of Object.keys(FACTIONS) as FactionId[]) expect(matchupShare(f, f, false)).toBeGreaterThan(0.5);
-    for (const f of Object.keys(FACTIONS) as FactionId[]) for (const r of Object.keys(FACTIONS) as FactionId[]) expect(matchupShare(f, r, true)).toBeGreaterThan(0.25);
+    // Since the second elite buff (hp x2.0, damage x1.5) on top of 2x mob hp / half mob damage, a straight duel against an elite is a loss for
+    // Fire, Plague and Frost (0) and a narrow win for Sentenced and Holy (0.14-0.41), where it was 0.31-0.52 for everyone.
+    for (const f of Object.keys(FACTIONS) as FactionId[]) for (const r of Object.keys(FACTIONS) as FactionId[]) expect(matchupShare(f, r, true)).toBeLessThan(0.5);
+    for (const r of Object.keys(FACTIONS) as FactionId[]) expect(Math.max(...(Object.keys(FACTIONS) as FactionId[]).map((f) => matchupShare(f, r, true)))).toBeGreaterThan(0.1);
     expect(matchupShare("holy", "fire", false)).toBeGreaterThan(0.9);
   });
 

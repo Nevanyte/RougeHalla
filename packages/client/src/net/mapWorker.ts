@@ -1,6 +1,6 @@
 // The room's map, built off the page's thread (ROGUELIKE_PLAN D20, R2 step 8). The map is never synced: the state says
-// (seed, attempt), and every client runs exactly that one attempt of the shared generator. The attempt (a 136 x 136 map: about 60-90
-// ms in Chrome once warm, more cold) would freeze the page, so a Web Worker runs it:
+// (seed, attempt), and every client runs exactly that one attempt of the shared generator. The attempt (a 136 x 136 map took about 60-90
+// ms in Chrome once warm, about 1.5x that at 160 x 160, more cold) would freeze the page, so a Web Worker runs it:
 //   - at app boot, once the hub is up (warmWhenIdle), it builds the layout tables (a few ms) and runs one throwaway attempt, so the
 //     first real map meets a warm JIT;
 //   - when a room is joined, mapFor(seed, attempt) asks it for that map, which comes back with its tile layers moved,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateMap, WORLD_W, type Vec2 } from "@raid/shared";
+import { generateMap, rollCampElites, WORLD_W, type Vec2 } from "@raid/shared";
 import { clusterMapContacts, layoutMinimapMarks, marksOverlap, type MapContact, type PlacedMark } from "../src/ui/minimapLayout";
 import { minimapMarks, type MarkerInputs } from "../src/ui/minimapMarkers";
 import { mapSpan } from "../src/ui/minimapMath";
@@ -29,10 +29,10 @@ describe("minimap collision layout", () => {
   });
 
   it("merges nearby same-faction contacts without losing counts or merging different factions", () => {
-    const contacts = Array.from({ length: 224 }, (_, i) => ({ x: 70 + i % 3, y: 60 + i % 2, code: i % 4 }));
+    const contacts = Array.from({ length: 280 }, (_, i) => ({ x: 70 + i % 3, y: 60 + i % 2, code: i % 4 }));
     const groups = clusterMapContacts(contacts, 4.8);
     expect(groups).toHaveLength(4);
-    expect(groups.reduce((n, g) => n + g.count, 0)).toBe(224);
+    expect(groups.reduce((n, g) => n + g.count, 0)).toBe(280);
     expect(clusterMapContacts([...contacts].reverse(), 4.8)).toEqual(groups);
   });
 
@@ -54,6 +54,31 @@ describe("minimap collision layout", () => {
       expect(marks.filter((p) => p.mark.kind === "respawn")).toHaveLength(map.camps.length - 4);
       expect(marks.filter((p) => p.mark.kind === "enemy").length).toBeGreaterThan(0);
       separated(marks.filter((p) => !p.mark.pinned));
+    }
+  });
+
+  it("carries each elite camp's own elite type on its mark, the k-th elite camp of a zone holding the zone's k-th elite", () => {
+    const map = generateMap(5);
+    const marks = minimapMarks({ ...empty(), camps: map.camps });
+    const types = rollCampElites(map.camps);
+    const camps = marks.filter((p) => p.mark.kind === "camp");
+    expect(camps.some((p) => p.mark.eliteType !== "")).toBe(true);
+    for (const p of camps) expect(p.mark.eliteType).toBe(types[Number(p.mark.key.split(":").pop())]);
+    // Two elite camps a zone, each with its own type: the painter no longer has to recover the order from a lone copy.
+    for (const zone of new Set(map.camps.map((c) => c.zone))) {
+      const zoneTypes = camps.filter((p) => p.mark.camp!.zone === zone && p.mark.camp!.eliteSpot >= 0).map((p) => p.mark.eliteType);
+      expect(new Set(zoneTypes).size).toBe(zoneTypes.length);
+    }
+  });
+
+  it("never leaves out an elite camp's mark on a crowded 50-camp map: the elites claim their space first", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const map = generateMap(seed);
+      const marks = minimapMarks({ ...empty(), camps: map.camps });
+      const elites = marks.filter((p) => p.mark.kind === "camp" && p.mark.eliteType !== "");
+      expect(elites, `seed ${seed}`).toHaveLength(map.camps.filter((c) => c.eliteSpot >= 0).length);
+      // Placed near its camp (a displaced badge is tethered to its true place by minimap.ts), not across the map: seed 7 moves one 22 units.
+      for (const p of elites) expect(Math.hypot(p.x - p.mark.x, p.y - p.mark.y), `seed ${seed} ${p.mark.key}`).toBeLessThan(30);
     }
   });
 

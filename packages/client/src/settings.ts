@@ -11,7 +11,7 @@ export interface Settings {
   showPing: boolean;
   /** Render the canvas at the screen's own pixel density (capped at 2x). Off = 1 canvas pixel per CSS pixel: faster, softer. */
   hiDpi: boolean;
-  /** Draw the route planned on the planning screen on the minimap and the hold-Tab map during a run. */
+  /** Draw the route planned on the planning screen on the ground, the minimap and the hold-Tab map during a run. */
   showRoute: boolean;
   /** Text size of the map and planning screens, one of TEXT_SCALES (1 = as designed). */
   textScale: number;

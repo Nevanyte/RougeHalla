@@ -396,7 +396,7 @@ describe("the Rows on the generator's maps (50 seeds, only this styler new)", ()
     }
   }, HEAVY_MS);
 
-  it("lays rows, a gallows and guard houses: rows >= 6 on 95% of the seeds, fence 100-340, every row on the gate rule, the footprint under 13%", () => {
+  it("lays rows, a gallows and guard houses: rows >= 6 on 95% of the seeds, fence 100-470 (340 at 136x136, x1.38 for the area), every row on the gate rule, the footprint under 13%", () => {
     let rowsOk = 0, houses1 = 0, houses2 = 0, gallows = 0, stretchOk = 0;
     for (const s of SEEDS) {
       const { map, plan } = mapOf(s);
@@ -415,7 +415,7 @@ describe("the Rows on the generator's maps (50 seeds, only this styler new)", ()
         else if (map.tiles[i] === TILE_WALL) wall++;
       }
       expect(fence, `seed ${s} fence tiles`).toBeGreaterThanOrEqual(100);
-      expect(fence, `seed ${s} fence tiles`).toBeLessThanOrEqual(340);
+      expect(fence, `seed ${s} fence tiles`).toBeLessThanOrEqual(470);
       expect((100 * (fence + wall)) / painted, `seed ${s} footprint %`).toBeLessThanOrEqual(13);
       // p = [axis, rowIndex, phase]; one axis per zone; phase 2 / 8 by the row index
       for (const r of rows) {

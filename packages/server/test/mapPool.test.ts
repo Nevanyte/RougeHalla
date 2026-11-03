@@ -959,8 +959,9 @@ describe("a bot's map", () => {
     expect(roomMap(state)).toEqual(map);
     expect(() => roomMap({ ...state, mapHash: (state.mapHash ^ 1) >>> 0 })).toThrow(/map mismatch on seed 7 attempt/);
     // A published attempt that does not certify here cannot be the server's either.
-    let seed = 1;
-    while (tryAttempt(seed, 0, SERVER_MAPGEN)) seed++;
+    // Seed 2459 is the first whose attempt 0 does not certify on the 160x160 map (re-pick after a change to the generator).
+    const seed = 2459;
+    expect(tryAttempt(seed, 0, SERVER_MAPGEN)).toBeNull();
     expect(() => roomMap({ seed, attempt: 0, mapHash: 1 })).toThrow(/does not certify/);
   });
 });

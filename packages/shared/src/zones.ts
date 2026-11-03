@@ -34,18 +34,24 @@ export const SLIVER_MAX = 100;
 /** Painted areas of the five zones: max - min. */
 export const AREA_TOLERANCE = 8;
 /** Camps per zone (zone-shapes contract 0.1.2); ELITES_PER_ZONE of them are elite camps. */
-export const CAMPS_PER_ZONE = 8;
+export const CAMPS_PER_ZONE = 10;
 /** Elite camps per zone: the zone's camp farthest from the coliseum centre, and the next farthest at least ELITE_MIN_SEP from it. */
 export const ELITES_PER_ZONE = 2;
 /** Tiles the second elite camp keeps from the first when any camp of the zone can (else the zone's second farthest is elite). */
 export const ELITE_MIN_SEP = 16;
-/** Camp centres keep this far apart map-wide (tiles). Measured at 136x136 with 8 camps per zone: same-zone neighbours 11.7-44 tiles apart (p50 19.2). */
+/**
+ * Camp centres keep this far apart map-wide (tiles). Measured at 160x160 with 10 camps per zone (200 maps): a camp's nearest neighbour in
+ * its zone is 9.1-53.1 tiles away (p10 17.5, p50 20.2, p90 23.1), the closest pair on a map 13.0-17.0 (p50 15.5); at 136x136 with 8 camps
+ * it was 9.0-49.2 (p50 19.1).
+ */
 export const CAMP_GAP = 9;
 /**
  * Farthest territory floor tile from its camp (tiles): a territory is the camp's leash area, and a long thin arm of a
  * zone would otherwise leave one camp a territory reaching 50-60 tiles away. Measured on the R1 generator (1000 maps,
  * 20 territories each): the median territory reaches 17.5 tiles and the 90th percentile 25; 30 sits past that tail,
- * so it only rejects the long-arm shapes (see docs/R2_GENERATOR_AS_BUILT.md for the measured rate).
+ * so it only rejects the long-arm shapes (see docs/R2_GENERATOR_AS_BUILT.md for the measured rate). On the zone-shapes generator
+ * (200 maps, final territories) the farthest floor tile is a median 18.0 tiles from its camp at 160x160 with 10 camps a zone (p90 22.1,
+ * max 29.8; 17.0, 21.2 and 29.8 at 136x136 with 8): the cap still sits past the tail.
  */
 export const TERRITORY_RADIUS_MAX = 30;
 /** A cut-off floor piece of a territory this small (tiles) may change zone during the repair; a bigger one fails the attempt. */
@@ -59,7 +65,7 @@ const COST_AMP = 36;
 /** Ring arcs: the least tiles an arc gets, and the tiles trimmed off each end of it before the zone pre-claims it. */
 const ARC_MIN = 36;
 const ARC_TRIM = 6;
-/** Zone seeds lie in this annulus (fractions of R0): 37 to 61 tiles from the centre at 136x136. */
+/** Zone seeds lie in this annulus (fractions of R0): 44 to 72 tiles from the centre at 160x160. */
 const ANNULUS_LO = 0.55;
 const ANNULUS_HI = 0.9;
 /** Best-candidate sampling: candidates drawn per zone seed and per camp site. */
@@ -176,7 +182,7 @@ export function pseudoAngle(dx: number, dy: number): number {
   return dx < 0 ? 2 - dy / (-dx - dy) : 3 + dx / (dx - dy);
 }
 
-/** Value noise 0..255: two octaves (cells of 34 and 13 tiles at 136x136, weights 2:1) of bilinear lattice noise, integer arithmetic only. */
+/** Value noise 0..255: two octaves (cells of 40 and 15 tiles at 160x160, weights 2:1) of bilinear lattice noise, integer arithmetic only. */
 function valueNoise(rng: Rng, out: Int32Array): void {
   const octave = (cell: number, weight: number): void => {
     const gw = Math.floor(W / cell) + 2;
@@ -290,7 +296,7 @@ class Heap {
     return r;
   }
 }
-/** Heap keys are cost * KEY + tile (tile < 18496 at 136x136; path costs stay far below 2^31 / KEY = 65536). */
+/** Heap keys are cost * KEY + tile (tile < 25600 at 160x160, and the tile must stay under KEY, so a map side of at most 181; path costs stay far below 2^31 / KEY = 65536). */
 const KEY = 32768;
 const growHeaps: Heap[] = [];
 for (let z = 0; z <= ZONES; z++) growHeaps.push(new Heap(4096));

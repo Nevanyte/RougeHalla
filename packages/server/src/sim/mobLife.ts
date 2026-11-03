@@ -30,12 +30,12 @@
 //          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing. The weapons of every mob a
 //          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
 //       3. the chainable mobKilled hook (quest objectives).
-//     A credited normal kill grants one fixed, uncapped mob-type stat stack; elites grant no stat and drop an augment chest.
+//     A credited normal kill grants MOB_KILL_STACKS (3) fixed, uncapped mob-type stat stacks; elites grant no stat and drop an augment chest.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs. Idle mobs heal after a 3 s
 //     out-of-combat lockout; returning mobs heal rapidly without that lockout and are whole when they arrive home.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
-  campMobs, elitesOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, mobName, mobTypeById, mobTypeFaction, mobTypeIn,
+  campMobs, elitesOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_KILL_STACKS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, mobName, mobTypeById, mobTypeFaction, mobTypeIn,
   mobTypeWeapon, normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
@@ -262,7 +262,7 @@ function payMobKill(
   creditMobKill(world, p, rt, elite, m);
   // A killer that went down in this very pass keeps the kill and its GV but no stat: its sheet must not change after it fell,
   // or the Trophy its own killer rolls from that sheet would depend on the order the pass paid out in.
-  if (!elite && rt.down === null) grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, type);
+  if (!elite && rt.down === null) grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, type, MOB_KILL_STACKS);
   settleWeapons(world, killerId);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite, at });
 }

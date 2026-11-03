@@ -1,6 +1,6 @@
 // The Warren: The Barrows (zone-shapes contract 4.3, WP3). The styler on the generator (the registry's five stylers, shape gates on,
 // so the generator itself checks ownership, pieces and the terrain rules), on a synthetic zone with hand-placed camps (the other
-// four zones are no-ops there), its acceptance windows over 200 seeds at 136x136, and the isolation test: every zone's landmark
+// four zones are no-ops there), its acceptance windows over 200 seeds (scaled from 136x136 to 160x160 by the area), and the isolation test: every zone's landmark
 // stage stays the registry's and only the style-pass stylers vary.
 import { expectBushFloorOnly, isBush } from "./bushRules";
 import { describe, expect, it, vi } from "vitest";
@@ -563,28 +563,28 @@ describe("the Warren on the generator's maps (200 seeds, the five zone stylers, 
   it("meets the acceptance windows of contract 4.3: barrows, tunnels, burrows, walls and bog", () => {
     const rows = runSweep();
     const barrows = rows.map((r) => r.barrows), tunnels = rows.map((r) => r.tunnels);
-    console.info(`[warren] barrows mean ${mean(barrows).toFixed(2)} (p10 ${pctile(barrows, 0.1)}, p90 ${pctile(barrows, 0.9)}; >= 8 on ${((100 * barrows.filter((v) => v >= 8).length) / rows.length).toFixed(1)}%), tunnels ${mean(tunnels).toFixed(2)}, burrows ${mean(rows.map((r) => r.burrows)).toFixed(2)}, walls ${mean(rows.map((r) => r.walls)).toFixed(0)} (barrows ${mean(rows.map((r) => r.barrowWalls)).toFixed(0)}), bog ${mean(rows.map((r) => r.bog)).toFixed(0)}, attempts ${mean(rows.map((r) => r.attempt + 1)).toFixed(3)}`);
-    expect(mean(barrows)).toBeGreaterThanOrEqual(8);
-    expect(Math.max(...barrows)).toBeLessThanOrEqual(12);
-    expect(barrows.filter((v) => v >= 8).length / rows.length, "seeds with 8 or more barrows").toBeGreaterThanOrEqual(0.65);
-    expect(barrows.filter((v) => v >= 6).length / rows.length, "seeds with 6 or more").toBeGreaterThanOrEqual(0.9);
-    expect(Math.max(...tunnels)).toBeLessThanOrEqual(4);
-    expect(tunnels.filter((v) => v >= 3).length / rows.length, "seeds with 3 or more tunnels").toBeGreaterThanOrEqual(0.9);
-    expect(mean(tunnels)).toBeGreaterThanOrEqual(3.5);
+    console.info(`[warren] barrows mean ${mean(barrows).toFixed(2)} (p10 ${pctile(barrows, 0.1)}, p90 ${pctile(barrows, 0.9)}; >= 11 on ${((100 * barrows.filter((v) => v >= 11).length) / rows.length).toFixed(1)}%), tunnels ${mean(tunnels).toFixed(2)}, burrows ${mean(rows.map((r) => r.burrows)).toFixed(2)}, walls ${mean(rows.map((r) => r.walls)).toFixed(0)} (barrows ${mean(rows.map((r) => r.barrowWalls)).toFixed(0)}), bog ${mean(rows.map((r) => r.bog)).toFixed(0)}, attempts ${mean(rows.map((r) => r.attempt + 1)).toFixed(3)}`);
+    expect(mean(barrows)).toBeGreaterThanOrEqual(11); // 8 at 136x136, x1.38 for the area
+    expect(Math.max(...barrows)).toBeLessThanOrEqual(17); // 12 at 136x136
+    expect(barrows.filter((v) => v >= 11).length / rows.length, "seeds with 11 or more barrows").toBeGreaterThanOrEqual(0.65);
+    expect(barrows.filter((v) => v >= 8).length / rows.length, "seeds with 8 or more").toBeGreaterThanOrEqual(0.9);
+    expect(Math.max(...tunnels)).toBeLessThanOrEqual(6); // 4 at 136x136
+    expect(tunnels.filter((v) => v >= 5).length / rows.length, "seeds with 5 or more tunnels").toBeGreaterThanOrEqual(0.9); // 3 at 136x136
+    expect(mean(tunnels)).toBeGreaterThanOrEqual(5); // 3.5 at 136x136
     expect(rows.filter((r) => r.burrows >= 1).length / rows.length, "seeds with a burrow").toBeGreaterThanOrEqual(0.9);
     expect(rows.filter((r) => r.doubleBurrow).length / rows.length, "seeds with two burrows").toBeGreaterThanOrEqual(0.9);
     const bw = mean(rows.map((r) => r.barrowWalls)), bog = mean(rows.map((r) => r.bog));
-    // the contract's window is 250-420; the mean sits at 257, so the floor here leaves the 4% a change of the kit may cost
-    expect(bw, "barrow walls").toBeGreaterThanOrEqual(240);
-    expect(bw).toBeLessThanOrEqual(420);
-    expect(bog, "bog tiles").toBeGreaterThanOrEqual(150);
-    expect(bog).toBeLessThanOrEqual(300);
+    // the contract's window is 250-420 at 136x136 (scaled by the area: 340-580); the mean sits at 429, so the floor here leaves the 20% a change of the kit may cost
+    expect(bw, "barrow walls").toBeGreaterThanOrEqual(340);
+    expect(bw).toBeLessThanOrEqual(580);
+    expect(bog, "bog tiles").toBeGreaterThanOrEqual(205); // 150-300 at 136x136
+    expect(bog).toBeLessThanOrEqual(415);
     // 92% of the rock is in pieces of 12+ (options doc), and nothing is a single tile
     let big = 0, all = 0;
     for (const r of rows) for (const s of r.wallPieces) { all += s; if (s >= 12) big += s; }
     expect(big / all, "share of wall tiles in pieces of 12 or more").toBeGreaterThanOrEqual(0.85);
     // the footprint cap: walls of the zone (barrows + burrows) stay under 13% + 4% of its tiles
-    for (const r of rows) expect(r.walls, `seed ${r.seed}`).toBeLessThanOrEqual(0.17 * 3536);
+    for (const r of rows) expect(r.walls, `seed ${r.seed}`).toBeLessThanOrEqual(0.17 * 4936);
   }, HEAVY_MS);
 
   it("describes every feature with the frozen params and jobs, a burrow with its own box inside the zone and two 2-wide doors", () => {

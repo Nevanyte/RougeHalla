@@ -172,9 +172,10 @@ describe("createWorld / addPlayer", () => {
   });
 
   it("publishes the seed of the map it is given, so (seed, attempt) always rebuilds that map; a seed that disagrees throws", () => {
-    // The first seed that certifies at attempt 1 (several of the first dozen do, see shared/test/mapPins.ts): a published seed alone would rebuild another map.
-    let seed = 0, map = certifiedMap(seed, { decor: false })!;
-    while (map.attempt !== 1) map = certifiedMap(++seed, { decor: false })!;
+    // A seed that certifies at attempt 1: a published seed alone would rebuild another map. Seed 2459 is the first whose attempt 0 does not
+    // certify on the 160x160 map (about one seed in 2000 is like it; shared/test/mapgen.test.ts pins three): re-pick after a change to the generator.
+    const seed = 2459, map = certifiedMap(seed, { decor: false })!;
+    expect(map.attempt).toBe(1);
     const cfg = makeConfig();
     const w = createWorld({ map, config: cfg, random: mulberry32(1) });
     expect(w.state.seed).toBe(seed);
@@ -820,7 +821,7 @@ describe("movement during a raid", () => {
       let guard = 0;
       do {
         stepChecked(world);
-        expect(++guard).toBeLessThan(600);
+        expect(++guard).toBeLessThan(900); // 30 s on the 136x136 map; the longest of these walks across the 160x160 map takes 614 ticks
       } while (rt.path.length > 0);
       expect(p.x).toBeCloseTo(spot.x, 9);
       expect(p.y).toBeCloseTo(spot.y, 9);

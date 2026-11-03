@@ -3,7 +3,7 @@
 // mulberry32 stands in.
 import { describe, expect, it } from "vitest";
 import {
-  BAG_COPIES, campMobs, elitesOf, FACTION_IDS, generateMap, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampTypes,
+  BAG_COPIES, CAMPS_PER_ZONE, campMobs, elitesOf, FACTION_IDS, generateMap, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampTypes,
   rollZoneTypes, type FactionId, type MobTypeId, type Rng,
 } from "../src/index";
 
@@ -21,72 +21,89 @@ const counts = (types: readonly MobTypeId[]): Map<MobTypeId, number> => {
   return m;
 };
 
-describe("rollZoneTypes: the bag of the zone's four normal types, twice", () => {
-  it("is two copies of four types", () => {
-    expect(BAG_COPIES).toBe(2);
+describe("rollZoneTypes: the bag of the zone's four normal types, three rounds", () => {
+  it("is three copies of four types", () => {
+    expect(BAG_COPIES).toBe(3);
     for (const zone of FACTION_IDS) expect(normalTypesOf(zone)).toHaveLength(4);
   });
 
-  it.each(FACTION_IDS)("%s: eight camps show every normal type in exactly two of them", (zone) => {
+  it.each(FACTION_IDS)("%s: ten camps show every normal type in two or three of them (two types thrice, two twice)", (zone) => {
     for (let seed = 0; seed < 300; seed++) {
-      const types = rollZoneTypes(zone, 8, mulberry32(seed));
-      expect(types).toHaveLength(8);
+      const types = rollZoneTypes(zone, 10, mulberry32(seed));
+      expect(types).toHaveLength(10);
       const c = counts(types);
       expect([...c.keys()].sort(), `seed ${seed}`).toEqual(normalIds(zone).sort());
-      expect([...c.values()], `seed ${seed}`).toEqual([2, 2, 2, 2]);
+      expect([...c.values()].sort(), `seed ${seed}`).toEqual([2, 2, 3, 3]);
     }
   });
 
-  it.each(FACTION_IDS)("%s: fewer camps take the first entries of the same bag, so no type shows more than twice", (zone) => {
+  it.each(FACTION_IDS)("%s: every group of four camps in a row shows each type once, so twelve camps show each exactly three times", (zone) => {
+    for (let seed = 0; seed < 300; seed++) {
+      const twelve = rollZoneTypes(zone, 12, mulberry32(seed));
+      for (let round = 0; round < 3; round++) {
+        expect(twelve.slice(round * 4, round * 4 + 4).sort(), `seed ${seed} round ${round}`).toEqual(normalIds(zone).sort());
+      }
+      expect([...counts(twelve).values()], `seed ${seed}`).toEqual([3, 3, 3, 3]);
+    }
+  });
+
+  it.each(FACTION_IDS)("%s: eight camps show every type in exactly two of them", (zone) => {
     for (let seed = 0; seed < 100; seed++) {
-      const eight = rollZoneTypes(zone, 8, mulberry32(seed));
-      for (let n = 1; n <= 8; n++) {
+      const types = rollZoneTypes(zone, 8, mulberry32(seed));
+      expect([...counts(types).values()], `seed ${seed}`).toEqual([2, 2, 2, 2]);
+    }
+  });
+
+  it.each(FACTION_IDS)("%s: fewer camps take the first entries of the same bag, so no camp count shows a type more than ceil(n / 4) times", (zone) => {
+    for (let seed = 0; seed < 100; seed++) {
+      const twelve = rollZoneTypes(zone, 12, mulberry32(seed));
+      for (let n = 1; n <= 12; n++) {
         const types = rollZoneTypes(zone, n, mulberry32(seed));
-        expect(types, `seed ${seed} n ${n}`).toEqual(eight.slice(0, n));
+        expect(types, `seed ${seed} n ${n}`).toEqual(twelve.slice(0, n));
         for (const t of types) expect(normalIds(zone)).toContain(t);
-        for (const v of counts(types).values()) expect(v).toBeLessThanOrEqual(2);
+        const c = counts(types);
+        for (const v of c.values()) expect(v).toBeLessThanOrEqual(Math.ceil(n / 4));
+        // the spread across the four types is never more than one camp
+        const per = normalIds(zone).map((id) => c.get(id) ?? 0);
+        expect(Math.max(...per) - Math.min(...per), `seed ${seed} n ${n}`).toBeLessThanOrEqual(1);
       }
     }
   });
 
-  it("wraps the bag past eight camps: nine camps repeat the first entry, sixteen show every type four times", () => {
+  it("wraps the bag past twelve camps: thirteen camps repeat the first entry, twenty-four show every type six times", () => {
     for (let seed = 0; seed < 50; seed++) {
-      const nine = rollZoneTypes("plague", 9, mulberry32(seed));
-      expect(nine.slice(0, 8)).toEqual(rollZoneTypes("plague", 8, mulberry32(seed)));
-      expect(nine[8]).toBe(nine[0]);
-      const sixteen = rollZoneTypes("plague", 16, mulberry32(seed));
-      expect([...counts(sixteen).values()]).toEqual([4, 4, 4, 4]);
+      const thirteen = rollZoneTypes("plague", 13, mulberry32(seed));
+      expect(thirteen.slice(0, 12)).toEqual(rollZoneTypes("plague", 12, mulberry32(seed)));
+      expect(thirteen[12]).toBe(thirteen[0]);
+      const twentyFour = rollZoneTypes("plague", 24, mulberry32(seed));
+      expect([...counts(twentyFour).values()]).toEqual([6, 6, 6, 6]);
     }
   });
 
-  it("a 4-camp zone (today's maps) can repeat a type or miss one, never more than two of a kind", () => {
-    let missing = 0;
-    let repeating = 0;
+  it("a 4-camp zone shows every type once, a 3-camp zone misses one: never a type twice before all four are out", () => {
     for (let seed = 0; seed < 300; seed++) {
-      const c = counts(rollZoneTypes("frost", 4, mulberry32(seed)));
-      if (c.size < 4) missing++;
-      if ([...c.values()].some((v) => v === 2)) repeating++;
-      expect(Math.max(...c.values())).toBeLessThanOrEqual(2);
+      const four = counts(rollZoneTypes("frost", 4, mulberry32(seed)));
+      expect([...four.values()]).toEqual([1, 1, 1, 1]);
+      const three = counts(rollZoneTypes("frost", 3, mulberry32(seed)));
+      expect(three.size).toBe(3);
     }
-    expect(missing).toBeGreaterThan(0);
-    expect(repeating).toBeGreaterThan(0);
   });
 
-  it("always draws seven numbers for a zone with a camp, however many camps it has; nothing for no camps", () => {
+  it("always draws nine numbers for a zone with a camp, however many camps it has; nothing for no camps", () => {
     const draws = (n: number): number => { const c = counting(7); rollZoneTypes("frost", n, c.rng); return c.draws(); };
     expect(draws(0)).toBe(0);
-    expect([1, 2, 3, 4, 8, 9, 20].map(draws)).toEqual([7, 7, 7, 7, 7, 7, 7]);
+    expect([1, 2, 3, 4, 8, 10, 12, 20].map(draws)).toEqual([9, 9, 9, 9, 9, 9, 9, 9]);
     expect(rollZoneTypes("frost", 0, mulberry32(1))).toEqual([]);
     expect(rollZoneTypes("frost", -2, mulberry32(1))).toEqual([]);
   });
 
   it("is a function of the stream: the same state gives the same roster, other salts give other ones", () => {
-    const a = rollZoneTypes("holy", 8, mulberry32(11));
-    expect(rollZoneTypes("holy", 8, mulberry32(11))).toEqual(a);
+    const a = rollZoneTypes("holy", 10, mulberry32(11));
+    expect(rollZoneTypes("holy", 10, mulberry32(11))).toEqual(a);
     const seen = new Set<string>();
-    for (let seed = 0; seed < 600; seed++) seen.add(rollZoneTypes("holy", 8, mulberry32(seed)).join());
-    // 8! / (2!)^4 = 2520 orderings are possible; 600 seeds reach several hundred of them.
-    expect(seen.size).toBeGreaterThan(300);
+    for (let seed = 0; seed < 600; seed++) seen.add(rollZoneTypes("holy", 10, mulberry32(seed)).join());
+    // 4! x 4! x 12 = 6912 orderings of the first ten entries are possible; 600 seeds reach about 570 of them.
+    expect(seen.size).toBeGreaterThan(400);
     // The first camp can be any of the four types.
     const first = new Set<string>();
     for (let seed = 0; seed < 100; seed++) first.add(rollZoneTypes("holy", 1, mulberry32(seed))[0]!);
@@ -107,24 +124,24 @@ describe("rollCampTypes", () => {
     expect(rng()).toBe(by()); // and it drew exactly what those three rolls drew
   });
 
-  it("draws seven numbers per zone present and takes the zone's camps in camp order", () => {
+  it("draws nine numbers per zone present and takes the zone's camps in camp order", () => {
     const zones: FactionId[] = ["frost", "holy", "frost", "plague", "holy", "frost"];
     const c = counting(9);
     const types = rollCampTypes(zones, c.rng);
-    expect(c.draws()).toBe(3 * 7);
+    expect(c.draws()).toBe(3 * 9);
     types.forEach((t, i) => expect(mobTypeById(t)?.zone).toBe(zones[i]));
     const none = counting(1);
     expect(rollCampTypes([], none.rng)).toEqual([]);
     expect(none.draws()).toBe(0);
   });
 
-  it("gives a map of eight camps per zone (the ids fire-1 to holy-8) each type twice per zone", () => {
-    const zones = FACTION_IDS.flatMap((z) => Array.from({ length: 8 }, () => z));
+  it("gives a map of ten camps per zone (the ids fire-1 to holy-10) each type two or three times per zone", () => {
+    const zones = FACTION_IDS.flatMap((z) => Array.from({ length: 10 }, () => z));
     for (let seed = 0; seed < 40; seed++) {
       const types = rollCampTypes(zones, mulberry32(seed));
       FACTION_IDS.forEach((zone, zi) => {
-        const mine = types.slice(zi * 8, zi * 8 + 8);
-        expect([...counts(mine).values()], `seed ${seed} ${zone}`).toEqual([2, 2, 2, 2]);
+        const mine = types.slice(zi * 10, zi * 10 + 10);
+        expect([...counts(mine).values()].sort(), `seed ${seed} ${zone}`).toEqual([2, 2, 3, 3]);
       });
     }
   });
@@ -138,11 +155,11 @@ describe("rollCampElites: the k-th elite camp of a zone holds the k-th elite", (
     expect(rollCampElites(camps)).toEqual(["", elitesOf("fire")[0]!.id, "", ""]);
   });
 
-  it("gives two elite camps one elite each, in camp order: eight camps per zone with two elite camps", () => {
-    const camps = FACTION_IDS.flatMap((z) => Array.from({ length: 8 }, (_, i) => camp(z, i === 2 || i === 6 ? 0 : -1)));
+  it("gives two elite camps one elite each, in camp order: ten camps per zone with two elite camps", () => {
+    const camps = FACTION_IDS.flatMap((z) => Array.from({ length: 10 }, (_, i) => camp(z, i === 2 || i === 6 ? 0 : -1)));
     const got = rollCampElites(camps);
     FACTION_IDS.forEach((zone, zi) => {
-      const mine = got.slice(zi * 8, zi * 8 + 8);
+      const mine = got.slice(zi * 10, zi * 10 + 10);
       expect(mine.filter((e) => e !== ""), zone).toEqual(elitesOf(zone).map((t) => t.id));
       expect(mine[2], zone).toBe(elitesOf(zone)[0]!.id);
       expect(mine[6], zone).toBe(elitesOf(zone)[1]!.id);
@@ -187,7 +204,7 @@ describe("campMobs", () => {
 
 describe("D5 on generated zone maps (seeds 0..199)", () => {
   it("every zone's camps follow the rules, with mono-type camps and the elites of the elite camps (two per zone)", () => {
-    let eightCamp = 0;
+    let fullZones = 0;
     for (let seed = 0; seed < 200; seed++) {
       const map = generateMap(seed);
       const types = rollCampTypes(map.camps.map((c) => c.zone), mulberry32(seed * 7 + 1));
@@ -198,9 +215,12 @@ describe("D5 on generated zone maps (seeds 0..199)", () => {
         const idx = map.camps.flatMap((c, i) => (c.zone === zone ? [i] : []));
         const zoneTypes = idx.map((i) => types[i]!);
         for (const t of zoneTypes) expect(normalIds(zone), `seed ${seed} ${zone}`).toContain(t);
-        // The first idx.length entries of a bag of two copies: no type more than twice.
+        // The first idx.length entries of a bag of three rounds: every type two or three times when the zone has its ten camps.
         for (const v of counts(zoneTypes).values()) expect(v, `seed ${seed} ${zone}`).toBeLessThanOrEqual(BAG_COPIES);
-        if (idx.length === 8) eightCamp++;
+        if (idx.length === CAMPS_PER_ZONE) {
+          fullZones++;
+          expect([...counts(zoneTypes).values()].sort(), `seed ${seed} ${zone}`).toEqual([2, 2, 3, 3]);
+        }
 
         let elitesSeen = 0;
         idx.forEach((i) => {
@@ -222,7 +242,7 @@ describe("D5 on generated zone maps (seeds 0..199)", () => {
         expect(elitesSeen, `seed ${seed} ${zone}`).toBe(idx.filter((i) => map.camps[i]!.eliteSpot >= 0).length);
       }
     }
-    // The zone maps (zone shapes): eight camps in every zone, two of them elite.
-    expect(eightCamp).toBe(200 * FACTION_IDS.length);
+    // The zone maps: CAMPS_PER_ZONE camps in every zone, two of them elite.
+    expect(fullZones).toBe(200 * FACTION_IDS.length);
   }, 180_000); // 200 maps through the generator
 });

@@ -17,9 +17,9 @@ export type MapWorkerOut =
   | { kind: "fail"; id: number; message: string };
 
 /**
- * The buffers of the map's five 136 x 136 layers (tiles, terrain, regionGrid, territoryGrid, featureGrid: 18.5 KB each) that can be
+ * The buffers of the map's five 160 x 160 layers (tiles, terrain, regionGrid, territoryGrid, featureGrid: 25.6 KB each) that can be
  * moved rather than copied: each owned whole by one layer. What is left (the props, the camps, the pool, the features: about 110 KB
- * of small objects) goes by structured clone, which a 136 x 136 map's reply costs well under a millisecond.
+ * of small objects) goes by structured clone, which a 160 x 160 map's reply costs well under a millisecond.
  */
 export function mapTransferables(map: GameMap): ArrayBuffer[] {
   const out: ArrayBuffer[] = [];

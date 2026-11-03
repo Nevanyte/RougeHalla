@@ -2,6 +2,7 @@
 // route guard, each checked against a brute-force or independent reference, plus the Math spy over module load and every export.
 import { describe, expect, it, vi } from "vitest";
 import { fixedLayout } from "../src/coliseum";
+import { MAP_TILES_H, MAP_TILES_W } from "../src/constants";
 import { findPath } from "../src/pathfind";
 import { descentPath, segmentBlocked, walkField16 } from "../src/gridTopology";
 import { tryAttempt } from "../src/mapgen";
@@ -274,7 +275,7 @@ describe("graphs over nodes (3.5)", () => {
   });
 
   it("campNodes: the camps in order with their elite flags, then the front door in the ring band nearest the centroid", () => {
-    const W = 136, H = 136, n = W * H;
+    const W = MAP_TILES_W, H = MAP_TILES_H, n = W * H;
     const fl = fixedLayout();
     const mask = new Uint8Array(n), tiles = new Uint8Array(n);
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (!fl.fp[y * W + x]) mask[y * W + x] = 1;
@@ -306,7 +307,7 @@ describe("graphs over nodes (3.5)", () => {
     expect(small.length).toBe(3);
     expect(F.campNodes({ ...c, camps: [] }).length).toBe(1);
     // the context's camps list every camp of the map: the ones whose centre is outside the zone are left out, the rest keep their order
-    const everyCamp = [{ x: 68, y: 68, elite: true, index: 1 }, camps[0], { x: -3, y: 4, index: 5 }, { x: 500, y: 2 }, camps[1], { x: 0, y: 0, index: 8 }, camps[2]];
+    const everyCamp = [{ x: W / 2, y: H / 2, elite: true, index: 1 }, camps[0], { x: -3, y: 4, index: 5 }, { x: 500, y: 2 }, camps[1], { x: 0, y: 0, index: 8 }, camps[2]];
     const filtered = F.campNodes({ ...c, camps: everyCamp });
     expect(filtered.map((p) => [p.x, p.y, p.kind, p.camp, p.elite])).toEqual(nodes.map((p) => [p.x, p.y, p.kind, p.camp, p.elite]).map((row, i) => (i === 2 ? [30, 100, "camp", 6, false] : row)));
     expect(F.campNodes({ ...c, camps: [camps[0], camps[1], camps[2]] })).toEqual(nodes);
@@ -783,7 +784,7 @@ describe("route guard (3.9)", () => {
         for (let i = 0; i < w * h; i++) if (guard.corridor[i]) corridor[i] = 1;
       }
       const view = mapFromTiles(w, h, st.tiles.slice());
-      const centre = { x: 68 * 32 + 16, y: 68 * 32 + 16 };
+      const centre = { x: (w / 2) * 32 + 16, y: (h / 2) * 32 + 16 };
       for (const m of st.spawns) {
         const from = { x: (m % w) * 32 + 16, y: Math.floor(m / w) * 32 + 16 };
         const seen = new Set<number>();

@@ -4,7 +4,7 @@
 // walk for the body is clear only under the move mask. Also the span a walk is scored against, which is the map's own width.
 import { describe, expect, it } from "vitest";
 import {
-  generateMap, hasLineOfSight, INTERACT_RANGE, lockSpacing, mapFromTiles, MASK_MOVE, TILE, TILE_LOW, TILE_WALL, tileToWorldCenter,
+  generateMap, hasLineOfSight, INTERACT_RANGE, lockSpacing, mapFromTiles, MAP_TILES_W, MASK_MOVE, TILE, TILE_LOW, TILE_WALL, tileToWorldCenter,
   type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { createPathBudget, createPathService } from "../../src/bots/brain/services";
@@ -211,9 +211,9 @@ describe("the span a walk is scored against is the map's own width", () => {
     return camps[0]!.utility;
   }
 
-  it("a 136-tile map scores a walk by 4352 u, not by the 2000 u of the old 64-tile one", () => {
+  it("a zone map scores a walk by its own width (MAP_TILES_W tiles of TILE u), not by the 2000 u of the old 64-tile one", () => {
     const map = generateMap(7);
-    expect(map.w).toBe(136);
+    expect(map.w).toBe(MAP_TILES_W);
     const span = map.w * TILE;
     // value falls linearly with the walk up to the span: the drop from 0 to 1000 u over the drop from 0 to the span is 1000 / span.
     const u0 = campUtility(map, 0);

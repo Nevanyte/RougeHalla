@@ -2,7 +2,8 @@
 // crown on an elite, drawn under the mob dots; the route and its next stop only when asked and only while "Show route" is on;
 // a changed route repaints, an unchanged one does not. The 2D context is a call recorder (test/fakes.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FACTIONS, generateMap, isEliteCamp, type GameMap } from "@raid/shared";
+import { FACTIONS, elitesOf, generateMap, isEliteCamp, type GameMap } from "@raid/shared";
+import { campEliteTypes, eliteGlyphOf } from "../src/ui/eliteGlyphs";
 import { Minimap, type MinimapMob } from "../src/ui/minimap";
 import { cssColor } from "../src/ui/dom";
 import { setView } from "../src/view/viewState";
@@ -31,16 +32,33 @@ function setup(map: GameMap = MAP) {
 const mob = (over: Partial<MinimapMob> = {}): MinimapMob => ({ x: 400, y: 300, kind: "mob", status: "alive", faction: "fire", ...over });
 
 describe("camp markers", () => {
-  it("draws every camp as its zone's shape in its zone's colour, an elite with a gold crown, and no arcs", () => {
-    const { paint, ctx } = setup();
+  it("draws every camp as its zone's shape in its zone's colour, an elite with its own gold glyph, and no arcs", () => {
+    // Seed 1 keeps all 50 camp marks through the minimap's collision layout (on seed 7 it drops three, two of them elites, in the 150 px
+    // reference box: the layout leaves out a camp mark that meets another and is not essential).
+    const map = generateMap(1);
+    const { paint, ctx } = setup(map);
     paint();
     const fills = argsOf(ctx, "fillStyle=").map(([c]) => c);
-    const elites = MAP.camps.filter(isEliteCamp).length;
+    const elites = map.camps.filter(isEliteCamp).length;
     for (const zone of ["fire", "sentenced", "plague", "frost", "holy"] as const) expect(fills).toContain(cssColor(FACTIONS[zone].color));
     expect(fills.filter((c) => c === "#ffd54f")).toHaveLength(elites);
     // Shapes are paths, not arcs: the mob dots stay the minimap's only circles.
     expect(argsOf(ctx, "arc")).toHaveLength(0);
-    expect(names(ctx).filter((n) => n === "closePath")).toHaveLength(MAP.camps.length + elites);
+    // A path closed per camp mark, and per glyph part: each gold part twice (its outline, then its fill), each ink part once.
+    const glyphPaths = campEliteTypes(map.camps).reduce((n, type) => {
+      const parts = eliteGlyphOf(type)?.parts ?? [];
+      return n + parts.reduce((m, p) => m + (p.ink === true ? 1 : 2), 0);
+    }, 0);
+    expect(names(ctx).filter((n) => n === "closePath")).toHaveLength(map.camps.length + glyphPaths);
+  });
+
+  it("gives every elite camp of the real map the glyph of the elite the roster puts in it", () => {
+    const types = campEliteTypes(MAP.camps);
+    expect(types.filter((t) => t !== "")).toHaveLength(MAP.camps.filter(isEliteCamp).length);
+    for (const zone of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
+      const mine = types.filter((_, i) => MAP.camps[i]!.zone === zone && isEliteCamp(MAP.camps[i]!));
+      expect(mine.map((t) => elitesOf(zone).findIndex((e) => e.id === t))).toEqual([0, 1]);
+    }
   });
 
   it("draws the camps under the mob dots and the player", () => {

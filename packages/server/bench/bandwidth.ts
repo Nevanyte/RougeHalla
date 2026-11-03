@@ -1,5 +1,5 @@
-// Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 170 or so mobs
-// (zone-shapes maps: 40 camps of 3 to 5; the roguelike R2 maps had 20 camps and about 80), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
+// Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 200 or so mobs
+// (zone-shapes maps: 50 camps of 3 to 5; the roguelike R2 maps had 20 camps and about 80), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
 //   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N quests=1 override the defaults)
 // test/bandwidth.test.ts runs the same scenarios against the gate (under 20 KB/s per client).
 //

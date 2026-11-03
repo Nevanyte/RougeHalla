@@ -1,8 +1,9 @@
 // The quest catalog and placement (GAME_DESIGN 2.2; sim/quests.ts runs them in a raid). Five offers are public for planning;
 // five stay server-side until scouted. Quests award a zone-matched normal-mob stat stack and GV when completed. Stack quantity is
-// based on objective effort: count objective seconds fully, travel at the existing 40% incidental-farming rate, double the
-// resulting normal-kill equivalent for a meaningful route premium, then keep each offer between 8 and 16 stacks. It is independent
-// of feed; the old card identity/copy/tier fields remain tuning metadata only.
+// based on objective effort: count objective seconds fully, travel at the existing 40% incidental-farming rate, multiply the
+// resulting normal-kill equivalent by 2.5 for a meaningful route premium (2, x1.25 by the owner's 2026-11 "slightly buff quests"
+// ruling), then keep each offer between 10 and 20 stacks (8 and 16 before). It is independent of feed; the old card
+// identity/copy/tier fields remain tuning metadata only. Every quest's GV in the catalog below is the old amount x1.25, rounded.
 import {
   PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE,
 } from "./constants";
@@ -49,7 +50,7 @@ export interface QuestDef {
   objSec: number;
   /** Expected seconds of pure travel the offer asks for; feeds the parity maths above. */
   travelSec: number;
-  /** Historical reward-card tuning metadata plus the GV it adds. Current mob-stat stacks derive from objective/travel effort. */
+  /** Historical reward-card tuning metadata plus the GV it adds (x1.25 of the old catalog, rounded: owner's quest buff). Current mob-stat stacks derive from objective/travel effort. */
   reward: { card: CardId; copies: number; gv: number };
   /** The offer lapses this many seconds into the run (no farming first, turning in at leisure). */
   expiresAtSec: number;
@@ -63,7 +64,11 @@ export const FARM_SECONDS_PER_MOB = 12;
 export const CAMP_SECONDS = 4 * FARM_SECONDS_PER_MOB;
 /** Quest card tier rate. Historical calibration: normal camps no longer drop a chest, so this is no longer a camp reward baseline (70/25/5 base tiers, a third of the options useful: 1.35). */
 export const CARD_TIER_RATE = 1.35;
-/** GV per second of flat-out farming (GV_MOB over FARM_SECONDS_PER_MOB). */
+/**
+ * GV per second of flat-out farming at the quest model's yardstick: the OLD GV_MOB (2) over FARM_SECONDS_PER_MOB. Not GV_MOB itself:
+ * the owner tripled mob GV (GV_MOB 6) but asked only for a slight quest buff (x1.25 on the catalog's GV, QUEST_GV_CAP 50), so the
+ * quests now sit at 0.875-1.69 of this yardstick's parity and well under a farm's real GV rate. A flagged owner call, not a bug.
+ */
 export const FARM_GV_RATE = 2 / FARM_SECONDS_PER_MOB;
 /** Travel still earns this share of the farm rate (camps and loot met on the way). */
 export const TRAVEL_RATE_SHARE = 0.4;
@@ -89,104 +94,104 @@ export const QUEST_DEFS: readonly QuestDef[] = [
   {
     id: "cull-fire", kind: "kill", name: "Cinder Cull", giver: "Ashmother Vela",
     text: "The ashwoods breed vermin faster than we can burn them. Cull three.", count: 3, region: "fire", farZone: "fire",
-    objSec: 36, travelSec: 60, reward: { card: "ad2", copies: 2, gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "ad2", copies: 2, gv: 13 }, expiresAtSec: 150,
   },
   {
     id: "cull-sentenced", kind: "kill", name: "Break the Chains", giver: "Magistrate Ohm",
     text: "Three convicts walk free who shouldn't. Remind them what chains are for.", count: 3, region: "sentenced", farZone: "sentenced",
-    objSec: 36, travelSec: 60, reward: { card: "ad2", copies: 3, gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "ad2", copies: 3, gv: 13 }, expiresAtSec: 150,
   },
   {
     id: "cull-plague", kind: "kill", name: "Plague Purge", giver: "Sister Mercia",
     text: "The rats carry it further every night. Three fewer carriers, please.", count: 3, region: "plague", farZone: "plague",
-    objSec: 36, travelSec: 60, reward: { card: "haste2", copies: 4, gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "haste2", copies: 4, gv: 13 }, expiresAtSec: 150,
   },
   {
     id: "cull-frost", kind: "kill", name: "Thaw the Watch", giver: "Warden Sigur",
     text: "Rimeguards on the far ridge, three of them. End their watch.", count: 3, region: "frost", farZone: "frost",
-    objSec: 36, travelSec: 75, reward: { card: "vitality2", copies: 3, gv: 11 }, expiresAtSec: 165,
+    objSec: 36, travelSec: 75, reward: { card: "vitality2", copies: 3, gv: 14 }, expiresAtSec: 165,
   },
   {
     id: "elite-hunt", kind: "kill", name: "Worth the Walk", giver: "Huntmaster Brack",
     text: "Any elite, anywhere. Prove you can bring down something that fights back.", count: 1, elite: true, farZone: "fire",
-    objSec: 20, travelSec: 60, reward: { card: "ap1", copies: 5, gv: 7 }, expiresAtSec: 240,
+    objSec: 20, travelSec: 60, reward: { card: "ap1", copies: 5, gv: 9 }, expiresAtSec: 240,
   },
   {
     id: "headhunter", kind: "kill", name: "A Head for a Head", giver: "The Broker",
     text: "One of your fellow champions. Any of them. I don't deal in specifics.", count: 1, players: true, farZone: "sentenced",
-    objSec: 30, travelSec: 60, reward: { card: "ad1", copies: 3, gv: 5 }, expiresAtSec: 300,
+    objSec: 30, travelSec: 60, reward: { card: "ad1", copies: 3, gv: 6 }, expiresAtSec: 300,
   },
   {
     id: "grand-tour", kind: "kill", name: "The Grand Tour", giver: "Cartographer Ines",
     text: "Blood on your blade in three different lands. Bring me the itinerary.", count: 3, tour: 3, farZone: "fire",
-    objSec: 36, travelSec: 100, reward: { card: "fleet2", copies: 2, gv: 13 }, expiresAtSec: 300,
+    objSec: 36, travelSec: 100, reward: { card: "fleet2", copies: 2, gv: 16 }, expiresAtSec: 300,
   },
   // Collect (7)
   {
     id: "bloom-plague", kind: "collect", name: "Blight Blooms", giver: "Apothecary Nyx",
     text: "Pale blooms grow where the rats nest. Three, stems and all.", count: 3, region: "plague", farZone: "plague", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "haste1", copies: 6, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "haste1", copies: 6, gv: 10 }, expiresAtSec: 180,
   },
   {
     id: "shards-frost", kind: "collect", name: "Shards of the Watch", giver: "Smith Halvar",
     text: "Rimeshard splinters litter the far camp. Three will reforge nicely.", count: 3, region: "frost", farZone: "frost", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "armor1", copies: 4, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "armor1", copies: 4, gv: 10 }, expiresAtSec: 180,
   },
   {
     id: "ashcap-fire", kind: "collect", name: "Ashcaps", giver: "Cook Farrell",
     text: "Ashcap mushrooms, the big grey ones, from the ember camp. Three. Don't ask what for.", count: 3, region: "fire", farZone: "fire", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "mr1", copies: 6, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "mr1", copies: 6, gv: 10 }, expiresAtSec: 180,
   },
   {
     id: "chains-sentenced", kind: "collect", name: "Loose Links", giver: "Warden Ohm the Younger",
     text: "Broken links from the chain camp, three of them. Evidence, you understand.", count: 3, region: "sentenced", farZone: "sentenced", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "ap1", copies: 6, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "ap1", copies: 6, gv: 10 }, expiresAtSec: 180,
   },
   {
     id: "tithe-holy", kind: "collect", name: "The Tithe", giver: "Cantor Lucien",
     text: "Blood tokens the imps hoard at their camp. Three, for the collection plate.", count: 3, region: "holy", farZone: "holy", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { card: "ap1", copies: 5, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "ap1", copies: 5, gv: 10 }, expiresAtSec: 180,
   },
   {
     id: "cache", kind: "collect", name: "The Quartermaster's Cache", giver: "Quartermaster Bly",
     text: "I scattered supply stubs around the middle camps. Four of them buy you my gratitude.", count: 4, farZone: "plague", tokens: "mid", tokenSpawns: 6,
-    objSec: 20, travelSec: 90, reward: { card: "haste2", copies: 2, gv: 10 }, expiresAtSec: 220,
+    objSec: 20, travelSec: 90, reward: { card: "haste2", copies: 2, gv: 13 }, expiresAtSec: 220,
   },
   {
     id: "tithe-rim", kind: "collect", name: "Offerings at the Edge", giver: "Pilgrim Saoirse",
     text: "Five shrines by the outer starts, an offering at each. The long way round is the point.", count: 5, farZone: "frost", tokens: "rim", tokenSpawns: 8,
-    objSec: 25, travelSec: 110, reward: { card: "vitality2", copies: 3, gv: 12 }, expiresAtSec: 240,
+    objSec: 25, travelSec: 110, reward: { card: "vitality2", copies: 3, gv: 15 }, expiresAtSec: 240,
   },
   // Fetch (6)
   {
     id: "banner-fire", kind: "fetch", name: "The Ember Banner", giver: "Herald Kest",
     text: "My banner stands in the ashlands. Carry it back and mind the carrier's curse: everyone sees you.", count: 1, region: "fire", farZone: "fire",
-    objSec: 8, travelSec: 100, reward: { card: "fleet2", copies: 4, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "fleet2", copies: 4, gv: 10 }, expiresAtSec: 200,
   },
   {
     id: "banner-frost", kind: "fetch", name: "The Frozen Standard", giver: "Skald Runa",
     text: "A standard lost on the glacier. Bring it home and I'll sing of you.", count: 1, region: "frost", farZone: "frost",
-    objSec: 8, travelSec: 100, reward: { card: "vitality2", copies: 4, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "vitality2", copies: 4, gv: 10 }, expiresAtSec: 200,
   },
   {
     id: "banner-plague", kind: "fetch", name: "The Physician's Satchel", giver: "Physician Aldous",
     text: "My satchel, left behind in the sicklands. Fetch it and try not to touch anything.", count: 1, region: "plague", farZone: "plague",
-    objSec: 8, travelSec: 100, reward: { card: "haste2", copies: 4, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "haste2", copies: 4, gv: 10 }, expiresAtSec: 200,
   },
   {
     id: "banner-sentenced", kind: "fetch", name: "The Warden's Seal", giver: "Clerk Demain",
     text: "The old seal lies in the prison yards. Bureaucracy demands its return.", count: 1, region: "sentenced", farZone: "sentenced",
-    objSec: 8, travelSec: 100, reward: { card: "ad2", copies: 4, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "ad2", copies: 4, gv: 10 }, expiresAtSec: 200,
   },
   {
     id: "banner-holy", kind: "fetch", name: "The Reliquary", giver: "Abbot Gavril",
     text: "A reliquary abandoned at the blood shrine. Handle with reverence. And haste.", count: 1, region: "holy", farZone: "holy",
-    objSec: 8, travelSec: 100, reward: { card: "leech2", copies: 5, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "leech2", copies: 5, gv: 10 }, expiresAtSec: 200,
   },
   {
     id: "long-haul", kind: "fetch", name: "The Long Haul", giver: "Freight Captain Mora",
     text: "One parcel, the whole way across. Nobody who matters will carry it. Will you?", count: 1, farZone: "plague",
-    objSec: 8, travelSec: 150, reward: { card: "haste2", copies: 4, gv: 12 }, expiresAtSec: 280,
+    objSec: 8, travelSec: 150, reward: { card: "haste2", copies: 4, gv: 15 }, expiresAtSec: 280,
   },
 ];
 
@@ -226,14 +231,17 @@ export function questRewardCopies(def: Pick<QuestDef, "reward">): number {
 }
 
 /** Quest stat awards count toward substantial farming progress, based on objective and travel effort. */
-export const QUEST_MIN_STAT_STACKS = 8;
-export const QUEST_MAX_STAT_STACKS = 16;
-export const QUEST_STAT_STACKS_PER_FARM_EQUIVALENT = 2;
+export const QUEST_MIN_STAT_STACKS = 10;
+export const QUEST_MAX_STAT_STACKS = 20;
+export const QUEST_STAT_STACKS_PER_FARM_EQUIVALENT = 2.5;
 
 /**
- * The zone's normal-mob stat and a time-based stack payout. A stack is one ordinary mob kill's fixed reward; objective time counts
- * fully, travel counts at the existing 40% parity rate (camps can be met on the way), and a 2x route premium makes questing a
- * worthwhile alternative to farming. Every offer lands between 8 and 16 stacks, independent of feed/card rewards.
+ * The zone's normal-mob stat and a time-based stack payout. A stack is the fixed reward of ONE STACK of an ordinary mob kill (a kill
+ * grants MOB_KILL_STACKS of them, mobStats.ts); objective time counts fully, travel counts at the existing 40% parity rate (camps can
+ * be met on the way), and a 2.5x route premium (2x, x1.25 by the owner's "slightly buff quests" ruling, 2026-11) makes questing a
+ * worthwhile alternative to farming. Every offer lands between 10 and 20 stacks (8 and 16 before), independent of feed/card rewards.
+ * The farm-equivalent seconds still count one mob per FARM_SECONDS_PER_MOB, so a quest's stacks are worth fewer kills than they were
+ * (10-20 stacks are 3-7 kills at 3 stacks a kill): the owner chose a slight buff, not a re-derivation.
  */
 export function questRewardStats(def: Pick<QuestDef, "reward" | "farZone" | "objSec" | "travelSec">): { id: MobTypeId; stacks: number } {
   const desired = { ad: "damage", ap: "ap", haste: "attackSpeed", vitality: "maxHp", armor: "armor", mr: "shield", leech: "lifesteal", fleet: "moveSpeed" };

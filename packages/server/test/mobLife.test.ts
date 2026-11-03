@@ -3,7 +3,7 @@
 // anything about how a mob fights, only about what happens to it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, mobStatCount, mobStatReward, mobStatRows,
+  elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, MOB_KILL_STACKS, mobStatCount, mobStatReward, mobStatRows,
   MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeIn, mobTypeWeapon, MOB_ZONE_DAMAGE,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
@@ -845,7 +845,7 @@ describe("killMob: who gets the kill", () => {
 });
 
 describe("killMob: rewards", () => {
-  it("GV at feed 0 rounds back to the base: 2 for a mob, 10 for an elite", () => {
+  it("GV at feed 0 rounds a mob back to the base (6) and an elite to the base less one (29 of 30: the curve is x0.976, then x0.972 after the mob)", () => {
     const w = makeBare();
     expect(mobRewardMultiplier(0, 0)).toBeCloseTo(0.976, 3);
     const mob = spawn(w, "fire");
@@ -853,12 +853,12 @@ describe("killMob: rewards", () => {
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
     const elite = spawn(w, "fire", true);
     hurt(w, elite, ["p0", elite.s.hp]);
-    expect(RT(w, 0).gv.mobs).toBe(GV_MOB + GV_ELITE);
+    expect(RT(w, 0).gv.mobs).toBe(GV_MOB + GV_ELITE - 1);
     expect(gvOf(w.events)).toEqual([
       { type: "gv", id: "p0", amount: GV_MOB, reason: "mob" },
-      { type: "gv", id: "p0", amount: GV_ELITE, reason: "elite" },
+      { type: "gv", id: "p0", amount: GV_ELITE - 1, reason: "elite" },
     ]);
-    expect(P(w, 0).gv).toBe(GV_MOB + GV_ELITE);
+    expect(P(w, 0).gv).toBe(GV_MOB + GV_ELITE - 1);
   });
 
   it("the mob counts toward the feed (and so the next mob pays less) but not toward player kills, and never raises a bounty", () => {
@@ -900,12 +900,12 @@ describe("killMob: rewards", () => {
     expect(mult).toBeCloseTo(0.383, 3);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(Math.round(GV_ELITE * mult));
-    expect(RT(w, 0).gv.mobs).toBe(4);
+    expect(RT(w, 0).gv.mobs).toBe(12); // round(11.5)
     expect(paidAt()[0]).toBeCloseTo(mult, 9);
     const n = spawn(w, "fire");
     const before = RT(w, 0).gv.mobs;
     hurt(w, n, ["p0", n.s.hp]);
-    expect(RT(w, 0).gv.mobs - before).toBe(1); // round(0.77): less than the base 2
+    expect(RT(w, 0).gv.mobs - before).toBe(2); // round(2.2): less than the base 6
   });
 
   it("GV rises for a catch-up killer (feed more than 2 under the lobby median): x1.25 on top of the curve", () => {
@@ -917,7 +917,7 @@ describe("killMob: rewards", () => {
     const m = spawn(w, "holy", true);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(Math.round(GV_ELITE * mult));
-    expect(RT(w, 0).gv.mobs).toBe(12);
+    expect(RT(w, 0).gv.mobs).toBe(37); // round(36.6)
     expect(paidAt()[0]).toBeCloseTo(mult, 9);
     const n = spawn(w, "holy");
     hurt(w, n, ["p0", n.s.hp]);
@@ -961,7 +961,7 @@ describe("killMob: rewards", () => {
 
   describe("a kill gives fixed per-type stat progress", () => {
     it.each(MOB_TYPES.map((t) => [t.id, t] as const))(
-      "%s: pays GV and the feed, grants one fixed normal-type stack only, and draws nothing from the world's random", (id, t) => {
+      "%s: pays GV and the feed, grants MOB_KILL_STACKS fixed normal-type stacks only, and draws nothing from the world's random", (id, t) => {
         const w = makeBare();
         const random = vi.fn(() => 0.1);
         w.random = random;
@@ -971,7 +971,8 @@ describe("killMob: rewards", () => {
         expect(RT(w, 0).mobKills).toBe(1);
         expect(RT(w, 0).gv.mobs).toBeGreaterThan(0);
         expect(held(P(w, 0))).toEqual({});
-        expect(mobStatCount(P(w, 0).mobStats, id)).toBe(t.elite ? 0 : 1);
+        expect(mobStatCount(P(w, 0).mobStats, id)).toBe(t.elite ? 0 : MOB_KILL_STACKS);
+        expect(mobStatCount(P(w, 0).mobStats, id)).toBe(t.elite ? 0 : 3); // "3x mob rewards": a credited normal kill is three stacks
         expect(mobStatRows(P(w, 0).mobStats).length).toBe(t.elite ? 0 : 1);
         expect(random).not.toHaveBeenCalled();
         expect(held(P(w, 1))).toEqual({});
@@ -1006,7 +1007,7 @@ describe("killMob: rewards", () => {
         expect(RT(w, 0).mobKills).toBe(w.map.camps.reduce((n, c) => n + c.spots.length, 0));
         for (const t of MOB_TYPES.filter((x) => !x.elite)) {
           const count = allMobs(w).filter((m) => m.s.type === t.id && m.s.kind !== "elite").length;
-          expect(mobStatCount(P(w, 0).mobStats, t.id)).toBe(count);
+          expect(mobStatCount(P(w, 0).mobStats, t.id)).toBe(count * MOB_KILL_STACKS);
         }
       }
     });
@@ -1064,8 +1065,8 @@ describe("killMob: rewards", () => {
       setFeed(high, 0, 99, 999);
       hurt(low, spawn(low, "fire", false, undefined, "emberImp"), ["p0", 1e6]);
       hurt(high, spawn(high, "fire", false, undefined, "emberImp"), ["p0", 1e6]);
-      expect(mobStatCount(P(low, 0).mobStats, "emberImp")).toBe(1);
-      expect(mobStatCount(P(high, 0).mobStats, "emberImp")).toBe(1);
+      expect(mobStatCount(P(low, 0).mobStats, "emberImp")).toBe(MOB_KILL_STACKS);
+      expect(mobStatCount(P(high, 0).mobStats, "emberImp")).toBe(MOB_KILL_STACKS);
       expect(mobStatRows(P(low, 0).mobStats)).toEqual(mobStatRows(P(high, 0).mobStats));
     });
   });
@@ -1144,7 +1145,7 @@ describe("killMob: rewards", () => {
       const { w, created } = killWith("plague", ["sword", ""]);
       expect(created).toHaveLength(1);
       expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["sword", ""]);
-      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +1 kill stack · +1% attack speed total"]);
+      expect(w.events.filter((e) => e.type === "toast").map((e) => e.type === "toast" ? e.text : "")).toEqual(["Plague Rat: +3 kill stacks · +3% attack speed total"]);
     });
 
     it("leaves it on the ground for an empty-handed killer who went down in the same pass (a body cannot wield it)", () => {
@@ -1392,7 +1393,8 @@ describe("reapMobs: regeneration", () => {
     const w = makeBare();
     const m = mobAt(w, 100, "idle");
     w.state.serverTime += 10_000;
-    for (let i = 0; i < 50; i++) reapMobs(w, TICK_MS);
+    // 100 ticks (5 s): a mob heals from empty to full in MOB_REGEN_SECONDS (4 s), and with MOB_HP_MULT it starts a larger share short of its hp.
+    for (let i = 0; i < 100; i++) reapMobs(w, TICK_MS);
     expect(m.s.hp).toBe(m.s.maxHp);
   });
 
@@ -1734,7 +1736,7 @@ describe("full run through the step loop", () => {
     recordHit(w, { victim: m.id, by: { id: "p0", name: "alice" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
     applyLedger(w);
     expect(m.s.status).toBe("dead");
-    expect(RT(w, 0).gv.mobs).toBe(GV_ELITE);
+    expect(RT(w, 0).gv.mobs).toBe(GV_ELITE - 1); // round(30 x 0.976)
     expect(P(w, 0).mobKills).toBe(1);
     // The elite's own type (the roster's elite of its zone); the kill gave GV, no card.
     expect(mobTypeById(m.s.type)!.elite).toBe(true);

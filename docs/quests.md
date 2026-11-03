@@ -1,6 +1,6 @@
 # Quests
 
-> Reward update: a quest grants 8–16 whole normal-mob stat stacks from its destination zone, plus GV from the existing per-run pot. Quantity is derived from objective and travel estimates, independent of feed; earned stacks remain uncapped. Accepted collect/fetch objectives are shown to their accepter on the held map and minimap, even outside current vision. The card-tier/copy tables below are historical tuning metadata.
+> Reward update: a quest grants 10–20 whole normal-mob stat stacks from its destination zone, plus GV from the existing per-run pot. Quantity is derived from objective and travel estimates, independent of feed; earned stacks remain uncapped. Accepted collect/fetch objectives are shown to their accepter on the held map and minimap, even outside current vision. The card-tier/copy tables below are historical tuning metadata.
 
 *K1 quest play on the current roguelike architecture. The shared catalog and placement live in `packages/shared/src/quests.ts`, the authoritative runtime in `packages/server/src/sim/quests.ts`, and the bot-facing contract in [quests-bot-hook.md](quests-bot-hook.md).*
 
@@ -14,7 +14,7 @@ The K1 rules are deliberately small:
 | --- | --- |
 | Roster | `QUEST_COUNT = 20`, with at least two kill, two collect and two fetch offers; `QUEST_KNOWN_COUNT = 10`. |
 | Timing | Each def has its own fixed `expiresAtSec`, from 150 to 300 seconds, beginning on the first acceptance. An unaccepted offer has no running deadline. |
-| Rewards | 8–16 zone-matched mob-stat stacks, based on objective/travel effort and independent of feed; fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 40`. Historical card identity/copy metadata does not affect the current payout. |
+| Rewards | 10–20 zone-matched mob-stat stacks, based on objective/travel effort and independent of feed; fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 50`. Historical card identity/copy metadata does not affect the current payout. |
 | Accepting | Required (owner ruling). `questAccept { quest }` at the giver, within `QUEST_ACCEPT_RANGE` (the turn-in's 64 u) with a clear line, records the player in the public `QuestState.accepted` set. Progress counts only from then on, never backwards. A fill bot's accept is ignored. |
 | Competition | Per-player progress (an accepting player's), one global winner per offer, automatic turn-in at the giver. There is no per-player completion cap. |
 | Hidden offers | Unknown offers stay server-side. The finder gets a private reveal four seconds before the offer enters synced state for everyone. |
@@ -103,7 +103,7 @@ The quest system is a `world.systems` entry after mob AI and before the final st
 
 ### Rewards
 
-Every def has an explicit `farZone` (the zone whose normal-mob type supplies the reward) and historical card metadata. The live stack payout is based on the estimated work: `ceil((objSec + 0.4 × travelSec) / 12 × 2)`, kept within 8–16 for each offer. Objective time counts fully; travel counts at 40% because the route can incidentally farm and loot; the 2× premium gives a player a strong reason to take the detour. `questRewardStats` maps the metadata's base-stat category to a normal mob in `farZone`. Feed never reduces the stack payout. Completion pays the full stat reward plus GV through the separate quest pot; aggregate farm stats have no ceiling.
+Every def has an explicit `farZone` (the zone whose normal-mob type supplies the reward) and historical card metadata. The live stack payout is based on the estimated work: `ceil((objSec + 0.4 × travelSec) / 12 × 2.5)`, kept within 10–20 for each offer. Objective time counts fully; travel counts at 40% because the route can incidentally farm and loot; the 2× premium gives a player a strong reason to take the detour. `questRewardStats` maps the metadata's base-stat category to a normal mob in `farZone`. Feed never reduces the stack payout. Completion pays the full stat reward plus GV through the separate quest pot; aggregate farm stats have no ceiling.
 
 ### Farm-time comparison
 
@@ -119,7 +119,7 @@ One normal-mob stack is the same fixed stat reward as one credited kill, with an
 
 Thus a typical quest grants roughly twice the normal-kill stat value of its discounted farm-time cost, while a player still pays the route, combat, and contest risk. The floor protects short/high-risk objectives; the per-offer ceiling bounds individual awards, not a player's accumulated stacks.
 
-GV remains fixed in each def and is paid through `awardQuestGv`. It has a separate per-run pot capped at **40 GV** (`QUEST_GV_CAP`), independent of `GV_MOB_CAP`. Completion after the GV pot is exhausted still pays the full stat reward. The quest breakdown remains separate from kills, mobs, bounty and the win bonus.
+GV remains fixed in each def and is paid through `awardQuestGv`. It has a separate per-run pot capped at **50 GV** (`QUEST_GV_CAP`), independent of `GV_MOB_CAP`. Completion after the GV pot is exhausted still pays the full stat reward. The quest breakdown remains separate from kills, mobs, bounty and the win bonus.
 
 The earlier quest model used a 24 GV pot; the current pot is 40 GV. Results show quest GV separately from kills, mobs, bounty and the win bonus.
 

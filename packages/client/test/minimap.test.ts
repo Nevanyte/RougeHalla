@@ -3,8 +3,8 @@
 // The DOM and the canvas are fake (test/fakes.ts): the canvas context records its calls and its fillStyle/strokeStyle
 // assignments, and events are dispatched by hand.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FACTIONS, WORLD_H, WORLD_W, Y_SCALE, mapFromTiles, TILE_FLOOR, type FactionId } from "@raid/shared";
-import { MOVE_REPEAT_MS, Minimap, type MinimapMob } from "../src/ui/minimap";
+import { FACTIONS, WORLD_H, WORLD_W, Y_SCALE, generateMap, mapFromTiles, TILE_FLOOR, type FactionId } from "@raid/shared";
+import { MAX_CHESTS, MAX_DOTS, MOVE_REPEAT_MS, Minimap, type MinimapMob } from "../src/ui/minimap";
 import { minimapBacking, minimapSize, viewRectOnMinimap } from "../src/ui/minimapMath";
 import { cssColor } from "../src/ui/dom";
 import { setView } from "../src/view/viewState";
@@ -13,7 +13,7 @@ import { argsOf, fakeEvent, FakeEl, installFakeDom, type FakeObject } from "./fa
 
 const SPAN = Math.max(WORLD_W, WORLD_H);
 
-/** A window at 1280 x 800 and dpr 1: the overlay is 1:1, the minimap 208 px, its backing store 208 px. */
+/** A window at 1280 x 800 and dpr 1: the overlay is 1:1, the minimap 270 px, its backing store 270 px. */
 const BASE = { cssW: 1280, cssH: 800, dpr: 1, hiDpi: true };
 const baseLayout = () => computeLayout(BASE);
 
@@ -75,23 +75,33 @@ describe("Minimap.setMobs", () => {
     expect(arcs()).toHaveLength(3);
   });
 
-  it("preserves all visible contact counts in groups and caps the source at 224", () => {
+  it("preserves all visible contact counts in groups and caps the source at MAX_DOTS (280: 50 camps of up to 5 mobs, and zombies)", () => {
     const represented = (ctx: FakeObject): number => {
       const counts = argsOf(ctx, "fillText").map(([text]) => Number(text));
       return counts.reduce((a, b) => a + b, 0) + argsOf(ctx, "arc").length - counts.length;
     };
+    expect(MAX_DOTS).toBe(280);
+    // Every mob of a 50-camp map at five spots a camp is drawn, none dropped.
     const all = setup();
-    all.map.setMobs(Array.from({ length: 200 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
+    all.map.setMobs(Array.from({ length: 250 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
     all.paint();
-    expect(represented(all.ctx)).toBe(200);
+    expect(represented(all.ctx)).toBe(250);
     const { map, paint, ctx } = setup();
-    map.setMobs(Array.from({ length: 300 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
+    map.setMobs(Array.from({ length: 400 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
     paint();
-    expect(represented(ctx)).toBe(224);
+    expect(represented(ctx)).toBe(MAX_DOTS);
     // The cap counts dots, not mobs offered: skipped ones do not use it up.
-    map.setMobs([...Array.from({ length: 100 }, () => mob({ status: "dead" })), ...Array.from({ length: 224 }, () => mob())]);
+    map.setMobs([...Array.from({ length: 100 }, () => mob({ status: "dead" })), ...Array.from({ length: MAX_DOTS }, () => mob())]);
     paint();
-    expect(represented(ctx)).toBe(224 + 224);
+    expect(represented(ctx)).toBe(MAX_DOTS + MAX_DOTS);
+  });
+
+  it("has a dot and a chest blip for every mob and camp of a generated map (so a bigger map must raise MAX_DOTS / MAX_CHESTS)", () => {
+    for (const seed of [1, 2, 3, 7, 11]) {
+      const map = generateMap(seed);
+      expect(map.camps.reduce((n, c) => n + c.spots.length, 0), `seed ${seed}`).toBeLessThanOrEqual(MAX_DOTS);
+      expect(map.camps.length, `seed ${seed}`).toBeLessThanOrEqual(MAX_CHESTS);
+    }
   });
 
   it("repaints only when a dot appears, moves a pixel or goes, and not within the throttle", () => {
@@ -134,6 +144,30 @@ describe("Minimap sizing", () => {
     expect(canvas.width).toBe(minimapBacking(size, layout.uiScale, 2));
     expect(canvas.height).toBe(canvas.width);
     expect(canvas.width).toBeGreaterThan(size);
+  });
+
+  it("is 1.3 times its first size at the common window sizes, in overlay px and in screen px", () => {
+    // All three windows lay the overlay out 800 px tall, so the map was 208 overlay px (208 x the overlay's scale on screen) and is 270.
+    for (const [cssW, cssH, uiScale] of [[1920, 1080, 1.35], [1440, 900, 1.125], [1280, 720, 0.9]] as const) {
+      const layout = computeLayout({ cssW, cssH, dpr: 1, hiDpi: true });
+      expect(layout.uiScale).toBeCloseTo(uiScale, 9);
+      expect(layout.uiH).toBeCloseTo(800, 6);
+      setView(layout);
+      const { canvas } = setup();
+      expect(canvas.style.props["--mm-size"], `${cssW}x${cssH}`).toBe("270px");
+    }
+    expect(270 / 208).toBeGreaterThan(1.29);
+    expect(270 / 208).toBeLessThan(1.31);
+  });
+
+  it("publishes its size on the overlay root too, for the chest panel that docks above it", () => {
+    setView(computeLayout({ cssW: 1920, cssH: 1080, dpr: 1, hiDpi: true }));
+    const { ui, canvas } = setup();
+    expect(ui.style.props["--mm-size"]).toBe("270px");
+    const big = computeLayout({ cssW: 2560, cssH: 1440, dpr: 2, hiDpi: true });
+    setView(big);
+    expect(ui.style.props["--mm-size"]).toBe(`${minimapSize(big.uiW, big.uiH)}px`);
+    expect(ui.style.props["--mm-size"]).toBe(canvas.style.props["--mm-size"]);
   });
 
   it("is a direct child of the overlay and carries the minimap class", () => {

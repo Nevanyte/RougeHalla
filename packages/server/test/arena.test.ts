@@ -3,7 +3,7 @@ import {
   bountyFor, BOUNTY_ANNOUNCE_MS, feedScore,
   circleClear, COLISEUM_RING_RADIUS, defaultFaction, FACTIONS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
   inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SIGNATURE_WEAPONS,
-  SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
+  rewardCurve, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
   SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIN_BONUS_MIN_OPPONENTS,
   WIN_BONUS_MIN_PLAYERS, withGates, type FxEvent, type GameMap, type RunResult, type Vec2,
 } from "@raid/shared";
@@ -1851,7 +1851,7 @@ describe("Glorious Victory", () => {
     let total = 0;
     for (let i = 0; i < 14; i++) total += awardGv(w, P(w, 0), RT(w, 0), "mob");
     expect(total).toBe(14 * GV_MOB);
-    const partial = awardGv(w, P(w, 0), RT(w, 0), "elite"); // only 2 of the 10 fit
+    const partial = awardGv(w, P(w, 0), RT(w, 0), "elite"); // only 6 of the 30 fit
     expect(partial).toBe(GV_MOB_CAP - 14 * GV_MOB);
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB_CAP);
     const events = w.events.length;
@@ -3094,27 +3094,35 @@ describe("feed and bounty", () => {
   describe("mob kills", () => {
     it("creditMobKill counts toward the feed, pays mob GV (elite GV for elites) and leaves the player kills alone", () => {
       const w = startRun(2);
-      expect(creditMobKill(w, P(w, 0), RT(w, 0), false)).toBe(GV_MOB);
-      expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(GV_ELITE);
+      // The reward curve is 0.976 at a feed of 0 and 0.975 at 0.25 (the first kill's feed): 6 x 0.976 rounds back to GV_MOB, but
+      // 30 x 0.975 is 29.3, so a fed-by-nothing elite pays 29 (it paid its base 10 at the old GV_ELITE).
+      const mobGv = Math.round(GV_MOB * rewardCurve(0));
+      const eliteGv = Math.round(GV_ELITE * rewardCurve(0.25));
+      expect([mobGv, eliteGv]).toEqual([GV_MOB, GV_ELITE - 1]);
+      expect(creditMobKill(w, P(w, 0), RT(w, 0), false)).toBe(mobGv);
+      expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(eliteGv);
       expect(RT(w, 0).mobKills).toBe(2);
       expect(P(w, 0).kills).toBe(0);
-      expect(RT(w, 0).gv).toEqual({ kills: 0, mobs: GV_MOB + GV_ELITE, bounty: 0, quest: 0 });
-      expect(P(w, 0).gv).toBe(GV_MOB + GV_ELITE);
+      expect(RT(w, 0).gv).toEqual({ kills: 0, mobs: mobGv + eliteGv, bounty: 0, quest: 0 });
+      expect(P(w, 0).gv).toBe(mobGv + eliteGv);
       expect(ofType(w.events, "gv")).toEqual([
-        { type: "gv", id: idOf(0), amount: GV_MOB, reason: "mob" },
-        { type: "gv", id: idOf(0), amount: GV_ELITE, reason: "elite" },
+        { type: "gv", id: idOf(0), amount: mobGv, reason: "mob" },
+        { type: "gv", id: idOf(0), amount: eliteGv, reason: "elite" },
       ]);
       expect(bountyFxOf(w.events)).toEqual([]); // a feed of 0.5
     });
 
     // Owner decision: the bounty follows PLAYER kills only (bountyFor(p.kills)); mob kills feed the reward curve, never the bounty.
-    it("12 mob kills are a feed of 3 but no bounty, and three elites reached GV_MOB_CAP and the rest paid nothing", () => {
+    it("12 mob kills are a feed of 3 but no bounty, and three elites and part of the next kill reached GV_MOB_CAP and the rest paid nothing", () => {
       const w = startRun(3);
       const paid: number[] = [];
       for (let i = 0; i < 3; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), true));
       for (let i = 0; i < 9; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), false));
-      // Elite GV is round(GV_ELITE x reward): 9.8, 9.7 and 9.7 at feeds 0, 0.25 and 0.5 all round to GV_ELITE.
-      expect(paid).toEqual([GV_ELITE, GV_ELITE, GV_ELITE, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      // Elite GV is round(GV_ELITE x reward): 29.3, 29.3 and 29.2 at feeds 0, 0.25 and 0.5 all round to 29 (GV_ELITE less one). Three of
+      // them are 87 of the 90 cap, so the next kill pays the 3 that fit and the rest nothing.
+      const eliteGv = Math.round(GV_ELITE * rewardCurve(0));
+      expect(eliteGv).toBe(GV_ELITE - 1);
+      expect(paid).toEqual([eliteGv, eliteGv, eliteGv, GV_MOB_CAP - 3 * eliteGv, 0, 0, 0, 0, 0, 0, 0, 0]);
       expect(RT(w, 0).mobKills).toBe(12);
       expect(P(w, 0).mobKills).toBe(12);
       expect(feedScore(P(w, 0).kills, RT(w, 0).mobKills)).toBe(3); // the feed counts them...
@@ -3122,7 +3130,7 @@ describe("feed and bounty", () => {
       expect(P(w, 0).gv).toBe(GV_MOB_CAP);
       expect(P(w, 0).bounty).toBe(0); // ...and the bounty never sees them
       expect(bountyFxOf(w.events)).toEqual([]);
-      expect(ofType(w.events, "gv")).toHaveLength(3); // a capped kill makes no gv event
+      expect(ofType(w.events, "gv")).toHaveLength(4); // the three elites and the partial payment; a capped kill makes no gv event
     });
 
     it("mob and player kills share one feed, but only player kills make a bounty: two kills and four mob kills are a feed of 3 and a bounty of 0", () => {

@@ -1,5 +1,5 @@
 // The zone map generator (ROGUELIKE_PLAN R2, docs/R1_GENERATOR_NOTE.md; the zone-shapes contract, section 2): five themed zones of
-// equal area grown around the fixed coliseum on a 136x136 map, eight camps per zone (two of them elite) with their territories,
+// equal area grown around the fixed coliseum on a 160x160 map, ten camps per zone (two of them elite) with their territories,
 // the zones' landmarks, a spawn pool on one walking-distance contour, the zone stylers' interiors, the safety nets, the camp spots
 // and weapon crates, the checks after them, the ground spots and the spawn walk gate.
 //
@@ -88,7 +88,7 @@ const SPAWN_SEPARATION = 5;
 const SPAWN_SAFE_SEP = 10;
 /** Members are picked at least this far from camp centres (tiles). */
 const SPAWN_CAMP_PICK = 7;
-/** Members lie this far from the centre (fractions of R0): 34 to 64.6 tiles at 136x136. */
+/** Members lie this far from the centre (fractions of R0): 40 to 76 tiles at 160x160. */
 const SPAWN_RING: readonly [number, number] = [0.5, 0.95];
 const POOL_PICK_TARGET = 32;
 const POOL_MIN = 24;

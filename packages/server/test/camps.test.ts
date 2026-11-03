@@ -72,9 +72,9 @@ describe("the published roster", () => {
   });
 
   /**
-   * Balance contract 6.4 on the map's zones: a zone's camps take the first entries (in camp order) of ONE shuffled bag of its four
-   * normal types twice, so no type stands in more than two camps and a zone of eight shows each exactly twice; every type is its
-   * zone's own; the elite camps hold the zone's elites one each, in camp order, and the other camps none.
+   * Balance contract 6.4 on the map's zones: a zone's camps take the first entries (in camp order) of ONE bag of its four normal
+   * types in BAG_COPIES shuffled rounds, so no type stands in more than BAG_COPIES camps and a zone of ten shows two types thrice and
+   * two twice; every type is its zone's own; the elite camps hold the zone's elites one each, in camp order, and the other camps none.
    */
   function expectBag(w: World, label: string): void {
     const elites = rollCampElites(w.map.camps);
@@ -88,7 +88,7 @@ describe("the published roster", () => {
       }
       const counts = [...new Set(types)].map((t) => types.filter((u) => u === t).length);
       expect(Math.max(...counts), `${label} ${zone}: no type in more than ${BAG_COPIES} camps`).toBeLessThanOrEqual(BAG_COPIES);
-      if (types.length === BAG_COPIES * normalIds(zone).length) expect(counts.sort(), `${label} ${zone}: each type exactly twice`).toEqual([2, 2, 2, 2]);
+      if (types.length === 10) expect(counts.sort(), `${label} ${zone}: two types thrice, two twice`).toEqual([2, 2, 3, 3]);
       idx.forEach((i) => expect(w.state.camps[i]!.elite, `${label} ${w.map.camps[i]!.id}`).toBe(elites[i]));
     }
   }
@@ -107,11 +107,11 @@ describe("the published roster", () => {
     expect(seen.size).toBeGreaterThan(10); // the same map rolls many different rosters
   });
 
-  it("rolls eight camps per zone with two elite camps as the contract says: each type twice, the elites one each, seven draws a zone", () => {
+  it("rolls ten camps per zone with two elite camps as the contract says: two types thrice and two twice, the elites one each, nine draws a zone", () => {
     const w = lobby({ seed: 11 });
     const geometry = FACTION_IDS.map((zone) => w.map.camps.find((c) => c.zone === zone)!);
     const camps = FACTION_IDS.flatMap((zone, zi) =>
-      Array.from({ length: 8 }, (_, i) => ({ ...geometry[zi]!, id: `${zone}-${i + 1}`, eliteSpot: i === 1 || i === 5 ? 0 : -1 })));
+      Array.from({ length: 10 }, (_, i) => ({ ...geometry[zi]!, id: `${zone}-${i + 1}`, eliteSpot: i === 1 || i === 5 ? 0 : -1 })));
     w.map = { ...w.map, camps };
     // What the roll reads is the stream's next numbers: build the expectation from a twin stream, then check the draw count.
     const twin = createGameWorld({ seed: 11, config: BASE, random: mulberry32(12), rewardSalt: 5 });
@@ -121,11 +121,11 @@ describe("the published roster", () => {
     rollRosters(twin);
     const want = rollCampTypes(camps.map((c) => c.zone), control.rewardRandom);
     expect(roster(twin)).toEqual(want);
-    expect(twin.rewardRandom()).toBe(control.rewardRandom()); // the same 35 numbers were drawn
+    expect(twin.rewardRandom()).toBe(control.rewardRandom()); // the same 45 numbers were drawn
     FACTION_IDS.forEach((zone, zi) => {
-      const mine = [...twin.state.camps].slice(zi * 8, zi * 8 + 8);
-      expect([...new Set(mine.map((c) => c.type))].map((t) => mine.filter((c) => c.type === t).length), zone).toEqual([2, 2, 2, 2]);
-      expect(mine.map((c) => c.elite), zone).toEqual(["", elitesOf(zone)[0]!.id, "", "", "", elitesOf(zone)[1]!.id, "", ""]);
+      const mine = [...twin.state.camps].slice(zi * 10, zi * 10 + 10);
+      expect([...new Set(mine.map((c) => c.type))].map((t) => mine.filter((c) => c.type === t).length).sort(), zone).toEqual([2, 2, 3, 3]);
+      expect(mine.map((c) => c.elite), zone).toEqual(["", elitesOf(zone)[0]!.id, "", "", "", elitesOf(zone)[1]!.id, "", "", "", ""]);
     });
   });
 

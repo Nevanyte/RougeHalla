@@ -11,7 +11,9 @@
 //   npx tsx bench/mobDuel.ts --reference           the continuous duel() reference (before the weapon layer and signatures)
 //   npx tsx bench/mobDuel.ts --weapons             the player on fists and on each of the 5 weapons (weapon-edge variants)
 //   npx tsx bench/mobDuel.ts --types               one row per mob type (30) against each player faction: win% / mean hp left % / seconds to kill
-//                                                  (balance contract A11: normal types >= 23 of 25 pairings and mean hp >= 75%, elites >= 18 of 25)
+//                                                  (balance contract A11: normal types >= 23 of 25 pairings and mean hp >= 75%; the old "elites >= 18 of 25" on
+//                                                  fists is retired by the second elite buff, ELITE_HP_MULT 2.0 / ELITE_DMG_MULT 1.5: a lone elite beats a fists
+//                                                  starter in about 23 of 25 pairings now, and elites are gated by campDuel --types with the minute-5 kit)
 //   npx tsx bench/mobDuel.ts --one fire:holy [--elite] [--k 0.4] [--seed 2] [--weapon sword] [--trace]
 //   --weapon <id>|sig  (every mode) the starter's weapon: fists (default), one of the five, or sig = SIGNATURE_WEAPONS[faction]
 //   options: --seeds N (4)  --wake hit|aggro (hit)  --cap SECONDS (60)  --k X  --elite-k X  --json FILE
@@ -457,6 +459,7 @@ export interface Verdict {
   overallMeanAll: number;
   worstDuel: number;
   normalOk: boolean;
+  /** The old fists criterion for elites (18+ pairings won); retired by the second elite buff, so it reads false now. Unused: the elite gate is campDuel --types. */
   eliteOk: boolean;
 }
 

@@ -1,18 +1,19 @@
-// The map screens at 136 x 136 with 40 camps and the zone shapes (zone-shapes contract 7.5): the painter's feature layer (walls in their
+// The map screens at 160 x 160 with 50 camps and the zone shapes (zone-shapes contract 7.5; 136 x 136 with 40 camps until the map grew): the painter's feature layer (walls in their
 // feature's colour, the floor a feature owns as a tint), how legible a minimap of 150 to 240 px, the planning screen and the hold-Tab
 // map are (every feature wall reaches a pixel, no two camp marks meet, how many matchup chips stay), and the planning view's own
-// markers for 40 camps and two crowns a zone. The 2D context is a call recorder or a tiny raster (a pixel holds the style of the last
+// markers for 50 camps and two crowns a zone. The 2D context is a call recorder or a tiny raster (a pixel holds the style of the last
 // fill that covered it); the picture itself is judged in a browser (test/dev/zoneart.html?mode=minimap|tab|planning).
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FACTION_IDS, REGION_FACTIONS, TERRAIN_FENCE, TILE, TILE_LOW, TILE_WALL, generateMap, isEliteCamp, mapFromTiles, regionAt,
+  CAMPS_PER_ZONE, ELITES_PER_ZONE, FACTION_IDS, MAP_TILES_W, REGION_FACTIONS, TERRAIN_FENCE, TILE, TILE_LOW, TILE_WALL, generateMap, isEliteCamp, mapFromTiles, regionAt,
   type GameMap, type MapFeature,
 } from "@raid/shared";
 import {
   COLOR_FEATURE_WALL, COLOR_WALL, paintCamps, paintMapBase, type PaintCtx,
 } from "../src/ui/mapPainter";
 import { floorLookOf } from "../src/render/zoneArt/featureArt";
+import { campEliteTypes, eliteGlyphOf } from "../src/ui/eliteGlyphs";
 import { mapSpan, minimapBacking, minimapSize } from "../src/ui/minimapMath";
 import {
   campBoxes, campMarkerPx, crowdedChips, fullMapSize, glyphScale, labelSizePx, placeLabels, planningMapSize, previewMapSize, type CampSpot,
@@ -194,14 +195,15 @@ describe("what the map screens show of the shapes at the sizes they are drawn", 
         if (any) drawn++;
       }
       expect(fences).toBeGreaterThan(100);
-      expect(drawn / fences, `${n} px`).toBeGreaterThanOrEqual(0.97);
+      // A tile is 0.94 px at 150 px and 1.3 at 208 (1.1 and 1.5 at 136 x 136): a fence tile can lose its pixel to a neighbour's overlap a little more often.
+      expect(drawn / fences, `${n} px`).toBeGreaterThanOrEqual(n <= 208 ? 0.95 : 0.97);
     }
   });
 
-  it("keeps the 40 camp marks of a real map apart at every size the screens use (no two marks meet), and the minimap's own at 150 to 240 px", () => {
+  it("keeps the 50 camp marks of a real map apart at every size the screens use (no two marks meet), and the minimap's own at 150 to 240 px", () => {
     for (const map of real) {
-      expect(map.camps).toHaveLength(40);
-      expect(map.camps.filter(isEliteCamp)).toHaveLength(10);
+      expect(map.camps).toHaveLength(5 * CAMPS_PER_ZONE);
+      expect(map.camps.filter(isEliteCamp)).toHaveLength(5 * ELITES_PER_ZONE);
       for (const zone of REGION_FACTIONS) expect(map.camps.filter((c) => c.zone === zone && isEliteCamp(c))).toHaveLength(2);
       // The minimap: paintCamps draws a camp CAMP_R (3.4) reference pixels from its centre, an elite 4.6, a reference pixel being size / 150.
       for (const size of [150, 208, 240]) {
@@ -216,19 +218,21 @@ describe("what the map screens show of the shapes at the sizes they are drawn", 
     }
   });
 
-  it("paints every camp once, an elite with its crown, and a cleared camp crossed out, at the minimap's smallest size", () => {
+  it("paints every camp once, an elite with its own glyph, and a cleared camp crossed out, at the minimap's smallest size", () => {
     const map = real[0]!;
     const g = fakeObject("ctx");
     paintCamps(ctxOf(g), map.camps, 150 / mapSpan(), 1);
-    // A polygon and an outline each (fill and stroke), plus a crown's two for each of the 10 elites.
-    expect(g.calls.filter(([n]) => n === "fill")).toHaveLength(40 + 10);
+    // A polygon and an outline each (fill and stroke), plus a fill for each part of the 10 elites' glyphs (the gold parts and the ink ones).
+    const glyphParts = campEliteTypes(map.camps).reduce((n, type) => n + (eliteGlyphOf(type)?.parts.length ?? 0), 0);
+    expect(glyphParts).toBeGreaterThan(5 * ELITES_PER_ZONE);
+    expect(g.calls.filter(([n]) => n === "fill")).toHaveLength(5 * CAMPS_PER_ZONE + glyphParts);
     const crossed = fakeObject("ctx");
     paintCamps(ctxOf(crossed), map.camps, 150 / mapSpan(), 1, map.camps.map((_, i) => (i === 0 ? 2 : 0)));
     expect(crossed.calls.length).toBeGreaterThan(g.calls.length);
   });
 });
 
-describe("the planning screens at 40 camps", () => {
+describe("the planning screens at 50 camps", () => {
   const maps = [1, 2, 3, 7].map((seed) => generateMap(seed));
 
   /** The camps as the layout sees them on a map `size` px wide, each with a chip text of 4 characters ("+97%"). */
@@ -251,24 +255,24 @@ describe("the planning screens at 40 camps", () => {
     const preview = previewMapSize(1280, 800), planning = planningMapSize(1280, 800), tab = fullMapSize(1280, 800);
     expect([preview, planning, tab]).toEqual([288, 620, 600]);
     for (const map of maps) {
-      // Planning and the held map: every one of the 40 chips has room; the lobby's corner loses a few to crowding.
-      expect(shown(map, planning), `seed ${map.seed} planning`).toBe(40);
-      expect(shown(map, tab), `seed ${map.seed} tab`).toBe(40);
+      // Planning and the held map: nearly every one of the 50 chips has room (all 40 at 136 x 136; 49 or 50 here); the lobby's corner loses a few to crowding.
+      expect(shown(map, planning), `seed ${map.seed} planning`).toBeGreaterThanOrEqual(5 * CAMPS_PER_ZONE - 2);
+      expect(shown(map, tab), `seed ${map.seed} tab`).toBeGreaterThanOrEqual(5 * CAMPS_PER_ZONE - 2);
       expect(shown(map, preview), `seed ${map.seed} preview`).toBeGreaterThanOrEqual(34);
       for (const size of [preview, planning, tab]) expect(marksMeet(spots(map, size), glyphScale(size)), `seed ${map.seed} at ${size}`).toBe(0);
     }
   });
 
-  it("still fits the marks at the planning screen's smallest map (260 px: 1.9 px a tile) and loses chips only to crowding, 26 of 40 at worst", () => {
+  it("still fits the marks at the planning screen's smallest map (260 px: 1.9 px a tile) and loses chips only to crowding, 26 of 40 at worst at 136 x 136", () => {
     for (const map of maps) {
       expect(marksMeet(spots(map, 260), glyphScale(260)), `seed ${map.seed}`).toBe(0);
       expect(shown(map, 260)).toBeGreaterThanOrEqual(24);
     }
   });
 
-  it("keeps the corner preview of the tiniest window (150 px, 1.1 px a tile) readable as camps, if not as chips: at most a pair of marks meets", () => {
+  it("keeps the corner preview of the tiniest window (150 px, 0.94 px a tile) readable as camps, if not as chips: a few pairs of marks meet (2 at most at 136 x 136 with 40 camps)", () => {
     for (const map of maps) {
-      expect(marksMeet(spots(map, 150), glyphScale(150)), `seed ${map.seed}`).toBeLessThanOrEqual(2);
+      expect(marksMeet(spots(map, 150), glyphScale(150)), `seed ${map.seed}`).toBeLessThanOrEqual(6);
       expect(shown(map, 150)).toBeGreaterThanOrEqual(1);
     }
   });
@@ -294,7 +298,7 @@ describe("the planning screens at 40 camps", () => {
   });
 });
 
-describe("the planning view with 40 camps", () => {
+describe("the planning view with 50 camps", () => {
   const map = generateMap(7);
 
   function open() {
@@ -313,30 +317,30 @@ describe("the planning view with 40 camps", () => {
     return { dom, view, root, camps: root.byClass("pl-camp") };
   }
 
-  it("builds a marker for each of the 40 camps, two crowned elites in every zone, and a chip on each", () => {
+  it("builds a marker for each of the 50 camps, two crowned elites in every zone, and a chip on each", () => {
     const { camps } = open();
-    expect(camps).toHaveLength(40);
-    expect(camps.filter((c) => c.classList.contains("elite"))).toHaveLength(10);
+    expect(camps).toHaveLength(5 * CAMPS_PER_ZONE);
+    expect(camps.filter((c) => c.classList.contains("elite"))).toHaveLength(5 * ELITES_PER_ZONE);
     // Every camp is reachable by name: its label says its zone, its number and whether it is an elite.
     const labels = camps.map((c) => c.getAttribute("aria-label") ?? "");
-    for (const zone of ["Fire", "Sentenced", "Plague", "Frost", "Holy"]) expect(labels.filter((l) => l.startsWith(`${zone} camp`))).toHaveLength(8);
-    expect(labels.filter((l) => l.includes("(elite)"))).toHaveLength(10);
+    for (const zone of ["Fire", "Sentenced", "Plague", "Frost", "Holy"]) expect(labels.filter((l) => l.startsWith(`${zone} camp`))).toHaveLength(CAMPS_PER_ZONE);
+    expect(labels.filter((l) => l.includes("(elite)"))).toHaveLength(5 * ELITES_PER_ZONE);
   });
 });
 
 // ------------------------------------------------------------------------------------------------------------------ sizes
 
-describe("the minimap's size at 136 x 136", () => {
-  it("scales by the world's larger side: 150 to 240 px for the corner minimap, a tile 1.1 to 1.8 px wide", () => {
+describe("the minimap's size at 160 x 160", () => {
+  it("scales by the world's larger side: 195 to 312 px for the corner minimap, a tile 1 to 2.4 px wide", () => {
     for (const [uiW, uiH] of [[1280, 800], [1600, 900], [900, 900], [1920, 1080]] as const) {
       const size = minimapSize(uiW, uiH);
       expect(size).toBeGreaterThanOrEqual(110);
-      expect(size).toBeLessThanOrEqual(240);
+      expect(size).toBeLessThanOrEqual(312);
       const tile = (TILE * size) / mapSpan();
-      expect(tile).toBeGreaterThan(0.8);
-      expect(tile).toBeLessThan(1.8);
+      expect(tile).toBeGreaterThan(1.0);
+      expect(tile).toBeLessThan(2.4);
     }
-    expect(mapSpan()).toBe(136 * TILE);
-    expect(minimapBacking(240, 1.5, 2)).toBe(720);
+    expect(mapSpan()).toBe(MAP_TILES_W * TILE);
+    expect(minimapBacking(312, 1.5, 2)).toBe(936);
   });
 });

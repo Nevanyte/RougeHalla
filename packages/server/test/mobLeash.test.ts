@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  generateMap, leashOk, mapFromTiles, MOB_GIVE_UP_SECONDS, MOB_LEASH_CAP, MOB_LEASH_RADIUS, mulberry32, POLICIES, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  CAMPS_PER_ZONE, generateMap, leashOk, mapFromTiles, MOB_GIVE_UP_SECONDS, MOB_LEASH_CAP, MOB_LEASH_RADIUS, mulberry32, POLICIES, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type CampDef, type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { combatant } from "../src/sim/combatant";
@@ -248,7 +248,7 @@ describe("the territory leash", () => {
 describe("the territory leash on generated maps", () => {
   it.each([1, 2])("seed %i: a mob of every camp, woken onto a far player, never leaves its camp's territory by more than a step and gets home", (seed) => {
     const map = generateMap(seed);
-    expect(map.camps).toHaveLength(40);
+    expect(map.camps).toHaveLength(5 * CAMPS_PER_ZONE);
     const config: SimConfig = {
       minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
     };
@@ -260,7 +260,7 @@ describe("the territory leash on generated maps", () => {
       p.weapon0 = "";
       p.hp = p.maxHp = 1e9;
       // The player stands on the nearest other camp's centre at least 34 tiles away: a reachable floor tile outside this territory,
-      // beyond even a wand mob at its leash (24 tiles) plus its 20-tile range. With eight camps a zone (136x136) the nearest
+      // beyond even a wand mob at its leash (24 tiles) plus its 20-tile range. With ten camps a zone (160x160) the nearest
       // camp can be 12 tiles away, close enough for a ranged mob to keep hitting from inside its territory and never give up.
       const far = map.camps.filter((c, i) => i !== ci && dist(c, camp) >= 55 * TILE);
       const other = far.reduce((a, b) => (dist(a, camp) < dist(b, camp) ? a : b));

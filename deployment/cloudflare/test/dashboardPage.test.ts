@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_RUN } from "../../../packages/shared/test/fixtures/telemetryRun.example";
-import { validateRunRecord } from "@raid/shared/telemetry";
+import { TELEMETRY_MAP_TILES, validateRunRecord } from "@raid/shared/telemetry";
 import { DASHBOARD_FIXTURE } from "../src/dashboard/fixture";
 import { dashboardHtml, dashboardScript, dashboardStyles } from "../src/dashboard/page";
 
@@ -18,6 +18,11 @@ describe("dashboard page", () => {
     expect(script).not.toContain("`");
     expect(script).not.toContain("${");
     expect(() => new Function(script)).not.toThrow();
+  });
+
+  it("the per-run heatmap is as wide as the map", () => {
+    expect(script).toContain(`var N = ${TELEMETRY_MAP_TILES},`);
+    expect(script).toContain(`(${TELEMETRY_MAP_TILES} x ${TELEMETRY_MAP_TILES} tiles)`);
   });
 
   it("the script never parses data as markup or code", () => {

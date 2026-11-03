@@ -23,7 +23,7 @@ export const CAMP_CLEARED = 2;
 /**
  * Rolls every camp's roster and replaces `state.camps` with it: one CampState per `map.camps` entry, `type` the camp's
  * normal mob type, `elite` its elite's type ("" for a camp without an elite spot), `alive` its spot count (one mob per
- * spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom` (zones in first-seen order, seven draws each, see
+ * spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom` (zones in first-seen order, nine draws each, see
  * rollCampTypes); the elites are a function of the camp order (rollCampElites) and draw nothing. A map without camps (a
  * hand-built test map) publishes none.
  */

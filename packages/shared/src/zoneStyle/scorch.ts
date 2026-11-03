@@ -1,6 +1,6 @@
 // Scorch (fire): Crater Basins (zone-shapes contract 4.1, options doc 6.1 option 2). Every camp of the zone sits in a basalt crater
 // (a jagged one-tile rim of radius 5-6.5 tiles, up to 7.5 for an elite camp) that opens through 2-3 named breaches, each aimed at a
-// neighbour on the camp graph (the MST of the zone's 8 camps and its front door, plus Brogue-style shortcuts); between the craters
+// neighbour on the camp graph (the MST of the zone's camps (ten) and its front door, plus Brogue-style shortcuts); between the craters
 // lies open ash, crossed by one lava river with fords (4 path steps, a gap 3-5 tiles wide) where the camp routes and the spawn
 // members' walks cross it; the river's banks and fords are ember. The burnt-out forge is the zone's landmark. Fire is exempt from ember.
 //

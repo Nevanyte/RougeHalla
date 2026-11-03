@@ -117,7 +117,7 @@ describe("the map loader with its worker", () => {
     expect(w.received.map((m) => m.kind)).toEqual(["warm", "map"]);
     expect(map).toEqual(ref(GOOD.seed, GOOD.attempt));
     expect(mapHashU32(map)).toBe(mapHashU32(ref(GOOD.seed, GOOD.attempt)));
-    // The warm reply moves nothing; the map's five 136 x 136 layers (tiles, terrain, regionGrid, territoryGrid, featureGrid) are moved, not copied.
+    // The warm reply moves nothing; the map's five 160 x 160 layers (tiles, terrain, regionGrid, territoryGrid, featureGrid) are moved, not copied.
     expect(w.transfers.map((t) => t.length)).toEqual([0, 5]);
     expect(await loader.mapFor(GOOD.seed, GOOD.attempt)).toBe(map);
     expect(w.received).toHaveLength(2);

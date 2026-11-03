@@ -6,10 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FACTION_IDS, FACTIONS, REGION_IDS, TILE, TILE_WALL, generateMap, isWallTile, mapFromTiles, type CampDef, type GameMap,
 } from "@raid/shared";
-import { mapSpan } from "../src/ui/minimapMath";
+import { mapSpan, minimapBacking, minimapSize } from "../src/ui/minimapMath";
 import { cssColor } from "../src/ui/dom";
 import {
-  COLOR_BG, COLOR_REGION, COLOR_WALL, CROWN_CLIP_PATH, SHAPE_POLYGON, ZONE_PATTERN, ZONE_SHAPE, gateRects, makePatternTile,
+  COLOR_BG, COLOR_CROWN, COLOR_OUTLINE, COLOR_REGION, COLOR_WALL, CROWN_CLIP_PATH, SHAPE_POLYGON, ZONE_PATTERN, ZONE_SHAPE, gateRects, makePatternTile,
   paintCamps, paintCrates, paintMapBase, paintPlayer, paintRoute, patternPeriod, zoneClipPath, type PaintCtx,
 } from "../src/ui/mapPainter";
 import { Minimap } from "../src/ui/minimap";
@@ -198,7 +198,9 @@ describe("the extraction out of the minimap changed no pixels", () => {
     minimap.setMap(map);
     const layer = made[1]!.getContext() as FakeObject;
     const plain = rec();
-    paintMapBase(ctxOf(plain), map, BACKING, BACKING, K_GEN);
+    // The painter at the size the minimap really is at 1280 x 800, dpr 1 (BACKING above is the goldens' own).
+    const side = minimapBacking(minimapSize(1280, 800), 1, 1);
+    paintMapBase(ctxOf(plain), map, side, side, side / mapSpan());
     expect(layer.calls.length).toBeGreaterThan(plain.calls.length);
     const layerRects = new Set(argsOf(layer, "fillRect").map((a) => a.join()));
     for (const r of argsOf(plain, "fillRect")) expect(layerRects.has(r.join())).toBe(true);
@@ -333,18 +335,30 @@ describe("camps", () => {
     expect(first("sentenced")).not.toBe(first("plague"));
   });
 
-  it("gives an elite camp a bigger mark and a gold crown", () => {
+  it("gives an elite camp a bigger mark and its elite's gold glyph, with the outline's dark for the glyph's holes and details", () => {
     const plain = rec();
     const elite = rec();
     paintCamps(ctxOf(plain), [camp("fire", 400, 300)], K, 1);
     paintCamps(ctxOf(elite), [camp("fire", 400, 300, 0)], K, 1);
-    expect(argsOf(elite, "fillStyle=").map(([c]) => c)).toEqual([cssColor(FACTIONS.fire.color), "#ffd54f"]);
+    // The zone's colour for the mark, then the glyph's gold, then the outline's dark for the glyph's ink (the wyrmling's eyes).
+    expect(argsOf(elite, "fillStyle=").map(([c]) => c)).toEqual([cssColor(FACTIONS.fire.color), COLOR_CROWN, COLOR_OUTLINE]);
     expect(argsOf(plain, "fillStyle=")).toHaveLength(1);
     const width = (g: FakeObject): number => {
       const xs = argsOf(g, "lineTo").map(([x]) => x as number).concat(argsOf(g, "moveTo").map(([x]) => x as number));
       return Math.max(...xs) - Math.min(...xs);
     };
     expect(width(elite)).toBeGreaterThan(width(plain));
+    // Shapes on the map are paths, never arcs.
+    expect(argsOf(elite, "arc")).toHaveLength(0);
+  });
+
+  it("falls back to the gold crown for an elite camp whose elite is not known (an id this build has no glyph for)", () => {
+    const crowned = rec();
+    paintCamps(ctxOf(crowned), [{ ...camp("fire", 400, 300, 0), elite: "someFutureElite" }], K, 1);
+    expect(argsOf(crowned, "fillStyle=").map(([c]) => c)).toEqual([cssColor(FACTIONS.fire.color), COLOR_CROWN]);
+    // The mark and the crown: a fill and an outline each.
+    expect(names(crowned).filter((n) => n === "fill")).toHaveLength(2);
+    expect(names(crowned).filter((n) => n === "stroke")).toHaveLength(2);
   });
 
   it("scales with the minimap's own pixel unit and stays readable at the smallest size", () => {

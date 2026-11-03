@@ -277,10 +277,12 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
     const hungry = farmOf("farmer", { mobs: [mobMem("m1", 400)] });
     const fed = farmOf("farmer", { mobs: [mobMem("m1", 400)], self: { kills: 6, mobKills: 2 } });
     expect(fed).toBeLessThan(hungry - 0.15); // farming keeps a high floor (0.5 + 0.4 x reward): a fed bot still farms
-    // A "normal" tier bot asks 0.8 of its hp kept (matchupShare) for an elite, or only the "sure" share (0.4) once it holds the cards
-    // (MOB_HUNT.eliteSurePower). The balance pass's compressed sheet moved Fire against the Sentenced elite from 0.93 to 0.73, so with no
-    // cards this bot no longer farms one at all (no candidate: the quotient below was NaN). The scene gives it the cards instead.
-    const elite = { mobs: [mobMem("m1", 400, { kind: "elite" })], self: { power: MOB_HUNT.eliteSurePower } };
+    // A "normal" tier bot asks 0.8 of its hp kept (matchupShare) for an elite, or only the "sure" share (MOB_HUNT.eliteSureShare, 0.2) once it
+    // holds the cards (MOB_HUNT.eliteSurePower). The balance pass's compressed sheet moved Fire against the Sentenced elite from 0.93 to 0.73,
+    // so with no cards this bot no longer farms one at all (no candidate: the quotient below was NaN). The scene gives it the cards instead.
+    // Since the second elite buff on top of 2x mob hp / half mob damage a Fire bot loses the straight duel to every elite (share 0), so the
+    // scene is a Sentenced bot against the Sentenced elite, which it still wins with 0.23 of its hp left (over the 0.2 "sure" bar).
+    const elite = { mobs: [mobMem("m1", 400, { kind: "elite" })], self: { power: MOB_HUNT.eliteSurePower, faction: "sentenced" as const } };
     const normal = { mobs: [mobMem("m1", 400)] };
     expect(farmOf("farmer", elite) / farmOf("farmer", normal)).toBeGreaterThan(farmOf("hunter", elite) / farmOf("hunter", normal));
   });

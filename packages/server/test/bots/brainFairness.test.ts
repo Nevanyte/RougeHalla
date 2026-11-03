@@ -26,8 +26,12 @@ import {
 
 // ================================================================================================================ open loop
 
-/** 200 frames: 10 s. Seeds 1 and 3 play a branch with status effects (a hidden and an untargetable player). */
-const SCENARIOS: readonly Scenario[] = [1, 2, 3].map((seed) => buildScenario(seed, { frames: 200 }));
+/**
+ * 200 frames: 10 s. Seeds 1 and 9 play a branch with status effects (a hidden and an untargetable player). The seeds are the ones whose
+ * start (the seed-th spawn of the 160x160 test map) lets every bot fight and the runs together lock and shoot (1, 2 and 3 did on the
+ * 136x136 map; on this one 1 and 2 shoot but lock nothing and 3 fights nobody).
+ */
+const SCENARIOS: readonly Scenario[] = [1, 2, 9].map((seed) => buildScenario(seed, { frames: 200 }));
 const BOTS: readonly BrainSpec[] = (["normal", "hard"] as const).flatMap((tier, t) =>
   PERSONA_IDS.map((persona, i) => ({ tier, persona, seed: 17 + 10 * t + i })));
 

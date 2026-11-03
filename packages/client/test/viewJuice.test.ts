@@ -22,7 +22,7 @@ function clock(start = 10000) {
 }
 
 const PLAYER_KID = { body: 6, held: 10, hpBar: 13, label: 14 } as const;
-const MOB_KID = { body: 4, held: 6, hpBar: 8, label: 9 } as const;
+const MOB_KID = { body: 5, held: 9, hpBar: 11, label: 12 } as const;
 
 function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerState {
   return {
