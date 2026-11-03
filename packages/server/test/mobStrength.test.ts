@@ -1,6 +1,6 @@
 // Mob strength on FISTS, held in the suite (balance contract A11, bench/mobDuel.ts --style stand): a starter with an empty hand (how every
-// run starts) beats ONE normal mob of every zone almost always and keeps most of its hp, and wins against an elite most of the
-// time. The grid pools every type of a zone (seed s meets the zone's normal type (s - 1) mod 4 and its elite (s - 1) mod 2), so the
+// run starts) beats ONE normal mob of every zone almost always and keeps most of its hp, and loses to a lone elite almost always (the
+// second elite buff: an elite is for an armed, carded player, which bench/campDuel.ts --types and test/campTypes.test.ts gate). The grid pools every type of a zone (seed s meets the zone's normal type (s - 1) mod 4 and its elite (s - 1) mod 2), so the
 // roles (hp, damage, speed, weapon) are all in it. The runs are deterministic: a failure is a retune.
 import { describe, expect, it } from "vitest";
 import { FACTION_IDS, MOB_TYPES } from "@raid/shared";
@@ -16,8 +16,11 @@ describe("mobDuel on fists (A11)", () => {
     expect(v.overallMean).toBeGreaterThanOrEqual(0.75);
   });
 
-  it("beats an elite in at least 18 of the 25 pairings", () => {
-    expect(verdict(elite).pairingsWon).toBeGreaterThanOrEqual(18);
+  it("beats a lone elite in only a few of the 25 pairings with an empty hand (2 since the second elite buff; 18+ before it)", () => {
+    // Frost and Holy on fists win some duels against the Holy elite and tie (the mob gives up) against others; everyone else loses them all.
+    const won = verdict(elite).pairingsWon;
+    expect(won).toBeGreaterThanOrEqual(1);
+    expect(won).toBeLessThanOrEqual(8);
   });
 
   it("meets every normal type of a zone across four seeds, and both of its elites across two", () => {

@@ -56,7 +56,7 @@ describe("what the console offers", () => {
     expect(mobTypeLabel(type("wyrmling"))).toBe("Wyrmling (elite, grunt, axe)");
     expect(mobTypeLabel(type("flameCaller"))).toBe("Flame Caller (caster, wand)");
     expect(mobTypeLabel(type("gaoler"))).toBe("Gaoler (elite, brute, shield)");
-    expect(mobTypeHint(type("emberImp"))).toContain("Each kill grants +1% damage per kill.");
+    expect(mobTypeHint(type("emberImp"))).toContain("Each kill grants +3% damage per kill.");
     expect(mobTypeHint(type("bailiff"))).toContain("Carries a sword, which a kill can drop.");
     expect(mobTypeHint(type("archon"))).toContain("an elite of the Holy zone");
     for (const t of MOB_TYPES) {

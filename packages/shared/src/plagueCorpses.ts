@@ -8,9 +8,12 @@ export const PLAGUE_CORPSE_HEAL_SHARE = 0.03;
  * The zombie scales off its owner's max hp, and mostly off its BONUS max hp (max hp above the faction's base: cards, mob stats,
  * bodies), so building health is how a Plague builds its zombie: health = HP_SHARE of max hp + HP_PER_BONUS per bonus point, a
  * hit = HIT_SHARE of max hp + HIT_PER_BONUS of the bonus (+ the small AD rider), both times the body growth.
+ * "2x zombie HP" (owner ruling, 2026-11): HP_SHARE 0.04 -> 0.08 and HP_PER_BONUS 0.4 -> 0.8, so the zombie's max hp is exactly double
+ * at every owner max hp and body count (the hit and the regen share are untouched, so its damage is as before; its regen is a share of
+ * max hp, so it heals twice as many hp a second). The zombie is the player's companion, not a regional mob: MOB_HP_MULT does not apply.
  */
-export const PLAGUE_ZOMBIE_HP_SHARE = 0.04;
-export const PLAGUE_ZOMBIE_HP_PER_BONUS = 0.4;
+export const PLAGUE_ZOMBIE_HP_SHARE = 0.08;
+export const PLAGUE_ZOMBIE_HP_PER_BONUS = 0.8;
 export const PLAGUE_ZOMBIE_HIT_SHARE = 0.003;
 export const PLAGUE_ZOMBIE_HIT_PER_BONUS = 0.025;
 /** Passive regen of the zombie's max HP per second; it slows to the combat factor while it was hit within the quiet window. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, CARDS, duel, ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_ZONE_DAMAGE, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
+  ABILITIES, CARDS, duel, ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_ZONE_DAMAGE, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
   mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type MobKind, type MobRole, type MobTypeDef, type MobTypeId, type WeaponId,
@@ -16,8 +16,10 @@ const DAMAGE_PARAMS = ["burn", "backlash", "plague", "execute", "mark_pct", "mar
 describe("the tunables the mob catalog reads", () => {
   it("are the contract's numbers", () => {
     expect([MOB_K, ELITE_K]).toEqual([0.22, 0.65]);
-    // The elite buff: hp x1.5 and damage x1.05, on top of ELITE_K (bench/mobDuel.ts and campDuel.ts --types --minute 5).
-    expect([ELITE_HP_MULT, ELITE_DMG_MULT]).toEqual([1.5, 1.05]);
+    // The owner's "2x mob HP, half mob damage" (every regional mob), then the second elite buff ("buff elites again"): hp x2.0 and
+    // damage x1.5 on top of ELITE_K and of the mob multipliers (bench/campDuel.ts --types: the elite gate with the minute-5 kit).
+    expect([MOB_HP_MULT, MOB_DMG_MULT]).toEqual([2, 0.5]);
+    expect([ELITE_HP_MULT, ELITE_DMG_MULT]).toEqual([2.0, 1.5]);
   });
 
   it("are reachable from the shared index, with the catalog", () => {
@@ -51,9 +53,9 @@ describe("mobFaction", () => {
    */
   const scaledWithExecute = (region: FactionId, k: number, elite = false): FactionSpec => {
     const base = scaledFaction(FACTIONS[region], k);
-    // An elite's hp takes ELITE_HP_MULT and its damage numbers ELITE_DMG_MULT on top.
-    const spec = elite ? { ...scaledFaction(base, ELITE_DMG_MULT), hp: base.hp * ELITE_HP_MULT } : base;
-    const d = elite ? ELITE_DMG_MULT : 1;
+    // Every mob's hp takes MOB_HP_MULT and its damage numbers MOB_DMG_MULT; an elite's ELITE_HP_MULT and ELITE_DMG_MULT on top.
+    const d = MOB_DMG_MULT * (elite ? ELITE_DMG_MULT : 1);
+    const spec = { ...scaledFaction(base, d), hp: base.hp * MOB_HP_MULT * (elite ? ELITE_HP_MULT : 1) };
     const params = { ...spec.params };
     if (params.execute !== undefined) params.execute *= k;
     if (params.mark_pct !== undefined) params.mark_pct *= k * d;
@@ -61,14 +63,16 @@ describe("mobFaction", () => {
     return { ...spec, params };
   };
 
-  it("is the region's faction scaled by MOB_K, an elite's by ELITE_K (an execute by k squared)", () => {
+  it("is the region's faction scaled by MOB_K, an elite's by ELITE_K (an execute by k squared), with the hp and damage multipliers on top", () => {
     for (const region of REGIONS) {
       expect(mobFaction(region, false)).toEqual(scaledWithExecute(region, MOB_K));
       expect(mobFaction(region, true)).toEqual(scaledWithExecute(region, ELITE_K, true));
-      // A faction with no execute and no mark is exactly scaledFaction.
+      // A faction with no execute and no mark is exactly scaledFaction by the damage multiplier, with the hp set from the hp multiplier.
       if (FACTIONS[region].params.execute === undefined && FACTIONS[region].params.mark_pct === undefined) {
-        expect(mobFaction(region, false)).toEqual(scaledFaction(FACTIONS[region], MOB_K));
-        expect(mobFaction(region, true)).toEqual({ ...scaledFaction(scaledFaction(FACTIONS[region], ELITE_K), ELITE_DMG_MULT), hp: scaledFaction(FACTIONS[region], ELITE_K).hp * ELITE_HP_MULT });
+        const mob = scaledFaction(FACTIONS[region], MOB_K);
+        expect(mobFaction(region, false)).toEqual({ ...scaledFaction(mob, MOB_DMG_MULT), hp: mob.hp * MOB_HP_MULT });
+        const elite = scaledFaction(FACTIONS[region], ELITE_K);
+        expect(mobFaction(region, true)).toEqual({ ...scaledFaction(elite, MOB_DMG_MULT * ELITE_DMG_MULT), hp: elite.hp * MOB_HP_MULT * ELITE_HP_MULT });
       }
     }
   });
@@ -76,20 +80,24 @@ describe("mobFaction", () => {
   it("scales an execute by k twice: it reads the PLAYER's hp fraction, whose pool is full-scale (the Plague fix)", () => {
     const execute = FACTIONS.plague.params.execute!;
     expect(execute).toBeGreaterThan(0);
-    expect(mobFaction("plague", false).params.execute).toBeCloseTo(execute * MOB_K * MOB_K, 9);
-    expect(mobFaction("plague", true).params.execute).toBeCloseTo(execute * ELITE_K * ELITE_K * ELITE_DMG_MULT, 9);
-    // Only the execute gets the second factor: the disease beside it, the hit and the hp scale by k alone.
-    expect(mobFaction("plague", false).params.plague).toBeCloseTo(FACTIONS.plague.params.plague! * MOB_K, 9);
-    expect(mobFaction("plague", false).hit).toBeCloseTo(FACTIONS.plague.hit * MOB_K, 9);
-    expect(mobFaction("plague", false).hp).toBeCloseTo(FACTIONS.plague.hp * MOB_K, 9);
-    // So the execute per unit of the player's missing hp is k squared of a player-sized Plague's, where every other number is k.
-    expect(mobFaction("plague", false).params.execute! / execute).toBeCloseTo(MOB_K * MOB_K, 12);
-    expect(mobFaction("plague", false).params.execute! / execute).toBeLessThan(mobFaction("plague", false).hp / FACTIONS.plague.hp);
-    // At k = 1 nothing changes (the parity tests fight player-sized factions).
-    expect(mobFaction("plague", false, 1)).toEqual(FACTIONS.plague);
-    for (const region of REGIONS) expect(mobFaction(region, false, 1)).toEqual(FACTIONS[region]);
+    // The execute is damage-like: it takes the damage multiplier (MOB_DMG_MULT, an elite's ELITE_DMG_MULT too) like every point-damage number.
+    expect(mobFaction("plague", false).params.execute).toBeCloseTo(execute * MOB_K * MOB_K * MOB_DMG_MULT, 9);
+    expect(mobFaction("plague", true).params.execute).toBeCloseTo(execute * ELITE_K * ELITE_K * ELITE_DMG_MULT * MOB_DMG_MULT, 9);
+    // Only the execute gets the second factor: the disease beside it, the hit and the hp scale by k alone (then the multipliers).
+    expect(mobFaction("plague", false).params.plague).toBeCloseTo(FACTIONS.plague.params.plague! * MOB_K * MOB_DMG_MULT, 9);
+    expect(mobFaction("plague", false).hit).toBeCloseTo(FACTIONS.plague.hit * MOB_K * MOB_DMG_MULT, 9);
+    expect(mobFaction("plague", false).hp).toBeCloseTo(FACTIONS.plague.hp * MOB_K * MOB_HP_MULT, 9);
+    // So the execute per unit of the player's missing hp is k squared of a player-sized Plague's (times the damage multiplier), where every other number is k.
+    expect(mobFaction("plague", false).params.execute! / execute).toBeCloseTo(MOB_K * MOB_K * MOB_DMG_MULT, 12);
+    expect(mobFaction("plague", false).params.execute! / execute).toBeLessThan(mobFaction("plague", false).hit / FACTIONS.plague.hit);
+    // At k = 1 (the parity tests' player-sized factions) only the owner's multipliers differ from the sheet: hp x MOB_HP_MULT, damage x MOB_DMG_MULT.
+    const plague1 = mobFaction("plague", false, 1);
+    expect(plague1.hp).toBe(FACTIONS.plague.hp * MOB_HP_MULT);
+    expect(plague1.hit).toBe(FACTIONS.plague.hit * MOB_DMG_MULT);
+    expect(plague1.params.execute).toBe(execute * MOB_DMG_MULT);
+    for (const region of REGIONS) expect(mobFaction(region, false, 1).hp).toBe(FACTIONS[region].hp * MOB_HP_MULT);
     // A sweep's k reaches the execute too.
-    expect(mobFaction("plague", false, 0.5).params.execute).toBeCloseTo(execute * 0.25, 9);
+    expect(mobFaction("plague", false, 0.5).params.execute).toBeCloseTo(execute * 0.25 * MOB_DMG_MULT, 9);
   });
 
   it("scales hp, hit and the damage params, and nothing else", () => {
@@ -98,8 +106,8 @@ describe("mobFaction", () => {
       for (const [elite, k] of [[false, MOB_K], [true, ELITE_K]] as const) {
         const mob = mobFaction(region, elite);
         const label = `${region}${elite ? " elite" : ""}`;
-        const d = elite ? ELITE_DMG_MULT : 1;
-        expect(mob.hp, label).toBeCloseTo(base.hp * k * (elite ? ELITE_HP_MULT : 1), 9);
+        const d = MOB_DMG_MULT * (elite ? ELITE_DMG_MULT : 1);
+        expect(mob.hp, label).toBeCloseTo(base.hp * k * MOB_HP_MULT * (elite ? ELITE_HP_MULT : 1), 9);
         expect(mob.hit, label).toBeCloseTo(base.hit * k * d, 9);
         for (const key of Object.keys(base.params)) {
           const want = DAMAGE_PARAMS.includes(key) ? base.params[key]! * k * d * (key === "execute" ? k : 1) : base.params[key]!;
@@ -126,20 +134,42 @@ describe("mobFaction", () => {
     expect(mobFaction("holy", true).params).toEqual(FACTIONS.holy.params);
   });
 
-  it("has concrete numbers: the faction sheet x MOB_K / ELITE_K", () => {
-    expect(mobFaction("fire", false).hp).toBeCloseTo(FACTIONS.fire.hp * MOB_K, 9);
-    expect(mobFaction("fire", false).hit).toBeCloseTo(FACTIONS.fire.hit * MOB_K, 9);
-    expect(mobFaction("fire", false).params.burn).toBeCloseTo(FACTIONS.fire.params.burn! * MOB_K, 9);
-    expect(mobFaction("plague", true).hp).toBeCloseTo(FACTIONS.plague.hp * ELITE_K * ELITE_HP_MULT, 9);
-    expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(FACTIONS.sentenced.params.mark_pct! * MOB_K, 9);
-    expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(FACTIONS.sentenced.params.mark_kill! * MOB_K, 9);
+  it("has concrete numbers: the faction sheet x MOB_K / ELITE_K, hp x MOB_HP_MULT (x ELITE_HP_MULT), damage x MOB_DMG_MULT (x ELITE_DMG_MULT)", () => {
+    expect(mobFaction("fire", false).hp).toBeCloseTo(FACTIONS.fire.hp * MOB_K * 2, 9);
+    expect(mobFaction("fire", false).hit).toBeCloseTo(FACTIONS.fire.hit * MOB_K * 0.5, 9);
+    expect(mobFaction("fire", false).params.burn).toBeCloseTo(FACTIONS.fire.params.burn! * MOB_K * 0.5, 9);
+    expect(mobFaction("plague", true).hp).toBeCloseTo(FACTIONS.plague.hp * ELITE_K * 2 * 2, 9);
+    expect(mobFaction("plague", true).hit).toBeCloseTo(FACTIONS.plague.hit * ELITE_K * 0.5 * 1.5, 9);
+    // The mark's shares are damage-like: k, then the damage multipliers.
+    expect(mobFaction("sentenced", false).params.mark_pct).toBeCloseTo(FACTIONS.sentenced.params.mark_pct! * MOB_K * 0.5, 9);
+    expect(mobFaction("sentenced", false).params.mark_kill).toBeCloseTo(FACTIONS.sentenced.params.mark_kill! * MOB_K * 0.5, 9);
+    expect(mobFaction("sentenced", true).params.mark_pct).toBeCloseTo(FACTIONS.sentenced.params.mark_pct! * ELITE_K * 0.5 * 1.5, 9);
+  });
+
+  it("makes a mob twice the hp and half the damage of the same mob without the owner's multipliers, and an elite far tougher than the old one", () => {
+    for (const region of REGIONS) {
+      const plain = scaledFaction(FACTIONS[region], MOB_K);
+      const mob = mobFaction(region, false);
+      expect(mob.hp / plain.hp, region).toBeCloseTo(2, 12);
+      expect(mob.hit / plain.hit, region).toBeCloseTo(0.5, 12);
+      // The damage taken over a whole fight is unchanged (the mob lives twice as long and hits half as hard); the fight lasts twice as long.
+      expect((mob.hp * mob.hit) / (plain.hp * plain.hit), region).toBeCloseTo(1, 12);
+    }
+    // Relative to the old elite (hp x1.5, damage x1.05): 8/3 the hp, 0.75/1.05 = 0.71x the damage a second, 1.9x the damage over the fight.
+    const oldHp = ELITE_K * 1.5;
+    const oldHit = ELITE_K * 1.05;
+    for (const region of REGIONS) {
+      const elite = mobFaction(region, true);
+      expect(elite.hp / (FACTIONS[region].hp * oldHp), region).toBeCloseTo(8 / 3, 12);
+      expect(elite.hit / (FACTIONS[region].hit * oldHit), region).toBeCloseTo(0.75 / 1.05, 12);
+    }
   });
 
   it("makes every mob weaker than the player's faction and every elite strictly stronger than the normal mob", () => {
     expect(MOB_K).toBeGreaterThan(0);
     expect(MOB_K).toBeLessThan(ELITE_K);
     expect(ELITE_K).toBeLessThan(1);
-    expect(ELITE_K * ELITE_HP_MULT).toBeLessThan(1.1);
+    expect(MOB_HP_MULT * MOB_DMG_MULT).toBe(1);
     for (const region of REGIONS) {
       const base = FACTIONS[region];
       const mob = mobFaction(region, false);
@@ -148,8 +178,9 @@ describe("mobFaction", () => {
       expect(mob.hit, region).toBeLessThan(base.hit);
       expect(elite.hp, region).toBeGreaterThan(mob.hp);
       expect(elite.hit, region).toBeGreaterThan(mob.hit);
-      // An elite may out-hp a full-size player by a little (ELITE_K x ELITE_HP_MULT ~ 1.04) but never hits as hard.
-      expect(elite.hp, region).toBeLessThan(base.hp * 1.1);
+      // An elite out-hps a full-size player (ELITE_K x MOB_HP_MULT x ELITE_HP_MULT = 2.6) but never hits as hard (ELITE_K x MOB_DMG_MULT x ELITE_DMG_MULT = 0.49).
+      expect(elite.hp, region).toBeCloseTo(base.hp * 2.6, 9);
+      expect(elite.hit, region).toBeCloseTo(base.hit * 0.4875, 9);
       expect(elite.hit, region).toBeLessThan(base.hit);
       expect(damageKeys(elite), region).toEqual(damageKeys(mob));
       for (const key of damageKeys(mob)) expect(elite.params[key]!, `${region} ${key}`).toBeGreaterThan(mob.params[key]!);
@@ -270,8 +301,12 @@ describe("the k guess: a starting player against a regional mob, 25 matchups", (
     for (const o of [...normal, ...elite]) expect(o.winner, `${o.player} vs ${o.region}`).not.toBeNull();
   });
 
-  it("makes an elite a real fight: the player still wins at least 20 of 25", () => {
-    expect(elite.filter((o) => o.winner === 0).length).toBeGreaterThanOrEqual(20);
+  it("makes an elite a hard fight: an uncarded starter on its signature weapon wins only about 10 of 25 straight duels (it won 20+ before the second elite buff)", () => {
+    // Fire, Plague and Frost lose to every elite and Sentenced and Holy win with 18-41% hp; the real gate is the carded, minute-5 camp
+    // fight (bench/campDuel.ts --types: at least one faction clears every elite camp), which a straight uncarded duel does not read.
+    const wins = elite.filter((o) => o.winner === 0).length;
+    expect(wins).toBeGreaterThanOrEqual(5);
+    expect(wins).toBeLessThanOrEqual(15);
   });
 
   it("leaves the player with less hp against every elite than against the same region's normal mob", () => {
@@ -485,8 +520,8 @@ describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)",
   it("takes the sweep's k like mobFaction, and does not touch the shared tables", () => {
     const before = JSON.stringify(FACTIONS);
     const spec = mobTypeFaction("plague", false, "miasmaWitch", 0.5);
-    expect(spec.hp).toBeCloseTo(FACTIONS.plague.hp * 0.5 * 0.75, 9);
-    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * 1.2 * MOB_ZONE_DAMAGE.plague!, 9);
+    expect(spec.hp).toBeCloseTo(FACTIONS.plague.hp * 0.5 * MOB_HP_MULT * 0.75, 9);
+    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * MOB_DMG_MULT * 1.2 * MOB_ZONE_DAMAGE.plague!, 9);
     expect(JSON.stringify(FACTIONS)).toBe(before);
     expect(mobTypeFaction("plague", false, "miasmaWitch").params).not.toBe(mobFaction("plague", false).params);
   });

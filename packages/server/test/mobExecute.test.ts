@@ -2,7 +2,7 @@
 // hp fraction, whose pool is full-scale. The sim reaches it through factionOf (combatant.ts), and bench/mobExecute.ts measures
 // it: seconds until a motionless player at 25% hp dies to one normal mob of each zone.
 import { describe, expect, it } from "vitest";
-import { DUEL_PACE, ELITE_DMG_MULT, ELITE_K, FACTION_IDS, FACTIONS, MOB_K, MOB_ZONE_DAMAGE, mulberry32 } from "@raid/shared";
+import { DUEL_PACE, ELITE_DMG_MULT, ELITE_K, FACTION_IDS, FACTIONS, MOB_DMG_MULT, MOB_K, MOB_ZONE_DAMAGE, mulberry32 } from "@raid/shared";
 import { A13_MIN_RATIO, executeTable, runMobExecute } from "../bench/mobExecute";
 import { combatant, factionOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -18,14 +18,15 @@ function mobSpec(elite: boolean) {
 }
 
 describe("a Plague mob's execute in the sim", () => {
-  it("is the player sheet's times k squared (and the arena pace), normal and elite; its disease is times k", () => {
+  it("is the player sheet's times k squared (and the arena pace), normal and elite; its disease is times k; both take the mob damage multiplier", () => {
     const base = FACTIONS.plague.params;
     const normal = mobSpec(false), elite = mobSpec(true);
     const z = MOB_ZONE_DAMAGE.plague!; // the zone's camp correction (the faction rework)
-    expect(normal.params.execute).toBeCloseTo(base.execute! * MOB_K * MOB_K * DUEL_PACE * z, 9);
-    expect(elite.params.execute).toBeCloseTo(base.execute! * ELITE_K * ELITE_K * ELITE_DMG_MULT * DUEL_PACE * z, 9);
-    expect(normal.params.plague).toBeCloseTo(base.plague! * MOB_K * DUEL_PACE * z, 9);
-    expect(elite.params.plague).toBeCloseTo(base.plague! * ELITE_K * ELITE_DMG_MULT * DUEL_PACE * z, 9);
+    const m = MOB_DMG_MULT; // "half mob damage": every damage number of a regional mob
+    expect(normal.params.execute).toBeCloseTo(base.execute! * MOB_K * MOB_K * m * DUEL_PACE * z, 9);
+    expect(elite.params.execute).toBeCloseTo(base.execute! * ELITE_K * ELITE_K * m * ELITE_DMG_MULT * DUEL_PACE * z, 9);
+    expect(normal.params.plague).toBeCloseTo(base.plague! * MOB_K * m * DUEL_PACE * z, 9);
+    expect(elite.params.plague).toBeCloseTo(base.plague! * ELITE_K * m * ELITE_DMG_MULT * DUEL_PACE * z, 9);
   });
 });
 

@@ -1,7 +1,7 @@
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import { describe, expect, it } from "vitest";
 import {
-  FACTIONS, TILE, TILE_FLOOR, decodeMirrors, mapFromTiles, mobStatCount, mobStatReward, mulberry32,
+  FACTIONS, TILE, TILE_FLOOR, decodeMirrors, mapFromTiles, MOB_KILL_STACKS, mobStatCount, mobStatReward, mulberry32,
   questDefById, questRewardStats, TICK_MS,
 } from "@raid/shared";
 import { PlayerState, RaidState } from "@raid/shared/schema";
@@ -123,7 +123,7 @@ describe("uncapped mob reward progression", () => {
   it("continues granting on real repeated mob kills and pays a quest reward after the old ten-stack threshold", () => {
     const { world, player } = fixture({ quests: true });
     for (let i = 0; i < 11; i++) killMob(world, "emberImp");
-    expect(mobStatCount(player.s.mobStats, "emberImp")).toBe(11);
+    expect(mobStatCount(player.s.mobStats, "emberImp")).toBe(11 * MOB_KILL_STACKS); // a kill is MOB_KILL_STACKS (3) stacks
 
     const def = questDefById("cull-fire")!;
     const reward = questRewardStats(def);

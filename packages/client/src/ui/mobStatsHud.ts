@@ -1,5 +1,5 @@
 // Uncapped normal-mob progression: owned types stay compact; the expandable catalog shows each type's current count and cumulative reward.
-import { MOB_STAT_REWARDS, mobStatCount, mobStatText, REGION_FACTIONS, FACTIONS } from "@raid/shared";
+import { MOB_KILL_STACKS, MOB_STAT_REWARDS, mobStatCount, mobStatText, REGION_FACTIONS, FACTIONS } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { el } from "./dom";
 import "./mobStatsHud.css";
@@ -60,7 +60,7 @@ export class MobStatsHud {
     const perKill = el("span", "mob-stat-per-kill", rewardText);
     const total = el("span", "mob-stat-total", "0 earned");
     row.append(label, perKill, total);
-    row.title = `${rewardText}. Each kill adds another stack; totals can keep growing.`;
+    row.title = `${rewardText}. Each kill adds ${MOB_KILL_STACKS} stacks; totals can keep growing.`;
     return row;
   }
 }

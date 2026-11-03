@@ -309,12 +309,12 @@ describe("creditMobKill", () => {
     const m = rewardCurve(0);
     expect(creditMobKill(w, P(w, 0), RT(w, 0), false)).toBe(Math.round(GV_MOB * m));
     expect(creditMobKill(w, P(w, 1), RT(w, 1), true)).toBe(Math.round(GV_ELITE * m));
-    // At feed 0 the multiplier is 0.976: it rounds back to the base values.
+    // At feed 0 the multiplier is 0.976: it rounds a mob back to its base (5.9 -> 6), but an elite to the base less one (29.3 -> 29 of GV_ELITE 30).
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
-    expect(RT(w, 1).gv.mobs).toBe(GV_ELITE);
+    expect(RT(w, 1).gv.mobs).toBe(GV_ELITE - 1);
     expect(gvOf(w.events)).toEqual([
       { type: "gv", id: idOf(0), amount: GV_MOB, reason: "mob" },
-      { type: "gv", id: idOf(1), amount: GV_ELITE, reason: "elite" },
+      { type: "gv", id: idOf(1), amount: GV_ELITE - 1, reason: "elite" },
     ]);
     expect(P(w, 0).gv).toBe(GV_MOB);
   });
@@ -325,19 +325,19 @@ describe("creditMobKill", () => {
     const hungryElite = creditMobKill(w, P(w, 0), RT(w, 0), true);
     const fedMob = creditMobKill(w, P(w, 1), RT(w, 1), false);
     const fedElite = creditMobKill(w, P(w, 1), RT(w, 1), true);
-    expect([hungryMob, hungryElite]).toEqual([2, 10]);
+    expect([hungryMob, hungryElite]).toEqual([6, 29]); // the elite is the hungry player's second kill, read at feed 0.25 (x0.972)
     // The elite is the fed player's second kill, so it is read at feed 8.25.
     expect([fedMob, fedElite]).toEqual([Math.round(GV_MOB * rewardCurve(8)), Math.round(GV_ELITE * rewardCurve(8.25))]);
-    expect([fedMob, fedElite]).toEqual([1, 4]); // x0.38
+    expect([fedMob, fedElite]).toEqual([2, 11]); // x0.38
     expect(fedElite).toBeLessThan(hungryElite);
     expect(fedMob).toBeLessThan(hungryMob);
-    expect(RT(w, 1).gv.mobs).toBe(5);
+    expect(RT(w, 1).gv.mobs).toBe(13);
   });
 
-  it("never pays 0 for a kill under the cap: the floor of x0.3 rounds a mob to 1 and an elite to 3", () => {
+  it("never pays 0 for a kill under the cap: the floor of x0.3 rounds a mob to 2 and an elite to 9", () => {
     const w = lobby([[100], [100], [100]]);
-    expect(creditMobKill(w, P(w, 0), RT(w, 0), false)).toBe(1);
-    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(3);
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), false)).toBe(2);
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(9);
   });
 
   it("reads the multiplier BEFORE the kill counts toward the feed", () => {
@@ -346,9 +346,9 @@ describe("creditMobKill", () => {
     const before = mobRewardFor(w, P(w, 0), RT(w, 0));
     expect(before).toBe(rewardCurve(1.75) * CATCHUP_MULT);
     const paid = creditMobKill(w, P(w, 0), RT(w, 0), true);
-    expect(paid).toBe(Math.round(GV_ELITE * before)); // 12
-    expect(paid).toBe(12);
-    expect(paid).toBeGreaterThan(Math.round(GV_ELITE * rewardCurve(2))); // what reading it after the kill would have paid (9)
+    expect(paid).toBe(Math.round(GV_ELITE * before)); // 35
+    expect(paid).toBe(35);
+    expect(paid).toBeGreaterThan(Math.round(GV_ELITE * rewardCurve(2))); // what reading it after the kill would have paid (27)
     expect(feedOfPlayer(P(w, 0), RT(w, 0))).toBe(2);
   });
 
@@ -370,7 +370,7 @@ describe("creditMobKill", () => {
     const w = lobby([[0], [0]]);
     RT(w, 0).gv.mobs = GV_MOB_CAP - 5;
     w.events = [];
-    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(5); // 10 would not fit
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(5); // 29 would not fit
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB_CAP);
     expect(P(w, 0).gv).toBe(GV_MOB_CAP);
     expect(gvOf(w.events)).toEqual([{ type: "gv", id: idOf(0), amount: 5, reason: "elite" }]);
@@ -384,10 +384,10 @@ describe("creditMobKill", () => {
     const w = lobby([[0], [6], [6], [6], [6]]); // p0: feed 0, median 6
     expect(mobRewardFor(w, P(w, 0), RT(w, 0))).toBeGreaterThan(1.2);
     RT(w, 0).gv.mobs = GV_MOB_CAP - 3;
-    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(3); // 12 clipped to what is left
-    RT(w, 0).gv.mobs = GV_MOB_CAP - 20;
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(3); // 37 clipped to what is left
+    RT(w, 0).gv.mobs = GV_MOB_CAP - 40;
     setFeed(w, 0, 0);
-    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(Math.round(GV_ELITE * rewardCurve(0) * CATCHUP_MULT)); // 12, under the cap
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(Math.round(GV_ELITE * rewardCurve(0) * CATCHUP_MULT)); // 37, under the cap
   });
 
   it("a catch-up player is paid more than the same feed without it, but never beyond GV_ELITE x 1.25 rounded", () => {
@@ -396,7 +396,7 @@ describe("creditMobKill", () => {
     const catchUp = creditMobKill(behind, P(behind, 0), RT(behind, 0), true);
     const plain = creditMobKill(level, P(level, 0), RT(level, 0), true);
     expect(catchUp).toBeGreaterThan(plain);
-    expect([plain, catchUp]).toEqual([9, 12]);
+    expect([plain, catchUp]).toEqual([28, 35]);
     const ceiling = Math.round(GV_ELITE * CATCHUP_MULT);
     const mobCeiling = Math.round(GV_MOB * CATCHUP_MULT);
     const w = lobby([[0], [30], [30], [30]]);
@@ -447,8 +447,8 @@ describe("the bounty ignores mob kills", () => {
     expect(fed).toBeLessThan(0.31);
     expect(fed).toBeLessThan(hungry);
     RT(w, 0).gv.mobs = 0; // under the cap again
-    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(Math.round(GV_ELITE * rewardCurve(12))); // 3, against 10 for p1
-    expect(creditMobKill(w, P(w, 1), RT(w, 1), true)).toBe(GV_ELITE);
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(Math.round(GV_ELITE * rewardCurve(12))); // 9, against 29 for p1
+    expect(creditMobKill(w, P(w, 1), RT(w, 1), true)).toBe(Math.round(GV_ELITE * rewardCurve(0)));
     expect(P(w, 0).bounty).toBe(0);
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  INTERACT_RANGE, mapFromTiles, mulberry32, QUEST_COUNT, QUEST_ITEM_PREFIX, QUEST_KNOWN_COUNT, questDefById, questRewardStats,
+  INTERACT_RANGE, mapFromTiles, MOB_KILL_STACKS, mulberry32, QUEST_COUNT, QUEST_ITEM_PREFIX, QUEST_KNOWN_COUNT, questDefById, questRewardStats,
   QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, QUEST_UNKNOWN_COUNT, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type Vec2,
 } from "@raid/shared";
@@ -255,14 +255,14 @@ describe("turn-in", () => {
     expect(RT(w, winner).gv.quest).toBe(qt.def.reward.gv);
     expect(RT(w, winner).gv.quest + RT(w, 1 - winner).gv.quest).toBe(qt.def.reward.gv);
     // Only the winner receives the fixed whole stat stacks.
-    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + questRewardStats(qt.def).stacks);
+    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 * MOB_KILL_STACKS + questRewardStats(qt.def).stacks);
     expect(P(w, 1 - winner).build.size).toBe(0);
     expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === `Quest complete: ${qt.def.name}`)).toBe(true);
     expect(ev.some((e) => e.type === "gv" && e.reason === "quest" && e.amount === qt.def.reward.gv)).toBe(true);
     expect(ev.some((e) => e.type === "toast" && e.to === null && e.text.includes(qt.s.doneBy) && e.text.includes(qt.def.name))).toBe(true);
     step(w, TICK_MS);
     expect(P(w, 1 - winner).build.size).toBe(0);
-    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 + questRewardStats(qt.def).stacks); // paid once
+    expect(P(w, winner).mobStats.get(questRewardStats(qt.def).id)).toBe(3 * MOB_KILL_STACKS + questRewardStats(qt.def).stacks); // paid once
   });
 
   it.each([["p0", "p1"], ["p1", "p0"]])(

@@ -39,9 +39,9 @@ describe("campTypeInfo", () => {
 
 describe("campMobsText", () => {
   it("says the type, its role and what it drops, with the right article, and no buff", () => {
-    expect(campMobsText(campTypeInfo("emberImp")!)).toContain("Each normal kill grants +1% damage per kill.");
+    expect(campMobsText(campTypeInfo("emberImp")!)).toContain("Each normal kill grants +3% damage per kill.");
     expect(campMobsText(campTypeInfo("emberImp")!)).toContain("No chest on a normal camp clear.");
-    expect(campMobsText(campTypeInfo("pardoner")!)).toContain("Each normal kill grants +1 Offense per kill.");
+    expect(campMobsText(campTypeInfo("pardoner")!)).toContain("Each normal kill grants +3 Offense per kill.");
     expect(campMobsText(campTypeInfo("gaoler")!)).toContain("Elite death drops an augment chest; it grants no fixed mob stat.");
   });
 
