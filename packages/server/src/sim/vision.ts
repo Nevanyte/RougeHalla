@@ -1,8 +1,9 @@
-import { bushConceals, isInVision, VisionMemory, type Vec2 } from "@raid/shared";
+import { bushConceals, isInVision, TICK_MS, VISION_UPDATE_MS, VisionMemory, type Vec2 } from "@raid/shared";
 import { chainHook, collisionMap, type World } from "./world";
 
 // Deliberately absent from RaidState: no player's discovery history is broadcast to another player.
-interface PrivateVision { map: World["map"]; players: Map<string, VisionMemory> }
+interface PrivateVision { map: World["map"]; players: Map<string, VisionMemory>; phases: Map<string, number>; nextPhase: number }
+const WINDOW_TICKS = Math.max(1, Math.round(VISION_UPDATE_MS / TICK_MS));
 const memories = new WeakMap<World, PrivateVision>();
 
 export function getVisionMemory(world: World, id: string): VisionMemory | null {
@@ -11,6 +12,7 @@ export function getVisionMemory(world: World, id: string): VisionMemory | null {
   if (runtime.map !== world.map) {
     runtime.map = world.map;
     runtime.players.clear();
+    runtime.phases.clear();
   }
   const all = runtime.players;
   const player = world.state.players.get(id);
@@ -24,7 +26,21 @@ export function getVisionMemory(world: World, id: string): VisionMemory | null {
   return memory;
 }
 
+/** Each player refreshes on its own tick of the VISION_UPDATE_MS window (the memory's own throttle keeps the cadence), so one tick never carries every player's rays. */
 export function refreshVision(world: World): void {
+  if (world.state.phase !== "active") return;
+  const runtime = memories.get(world);
+  if (!runtime) return;
+  const tick = Math.round(world.state.serverTime / TICK_MS);
+  for (const id of world.players.keys()) {
+    let phase = runtime.phases.get(id);
+    if (phase === undefined) { phase = runtime.nextPhase++ % WINDOW_TICKS; runtime.phases.set(id, phase); }
+    if ((tick + phase) % WINDOW_TICKS === 0 || !runtime.players.has(id)) getVisionMemory(world, id);
+  }
+}
+
+/** Raid start and teleports need every trail fresh at once. */
+function refreshAllVision(world: World): void {
   if (world.state.phase !== "active") return;
   for (const id of world.players.keys()) getVisionMemory(world, id);
 }
@@ -63,11 +79,14 @@ export function canPlayerSeeActor(world: World, viewerId: string, actorId: strin
 }
 
 export function install(world: World): void {
-  memories.set(world, { map: world.map, players: new Map() });
+  memories.set(world, { map: world.map, players: new Map(), phases: new Map(), nextPhase: 0 });
   world.systems.push(refreshVision);
-  chainHook(world, "raidStarted", refreshVision);
-  chainHook(world, "teleported", refreshVision);
+  chainHook(world, "raidStarted", refreshAllVision);
+  chainHook(world, "teleported", refreshAllVision);
   chainHook(world, "fighterOut", (w, id, cause) => {
-    if (cause === "removed") memories.get(w)?.players.delete(id);
+    if (cause !== "removed") return;
+    const m = memories.get(w);
+    m?.players.delete(id);
+    m?.phases.delete(id);
   });
 }
