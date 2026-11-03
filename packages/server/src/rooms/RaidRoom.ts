@@ -573,6 +573,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const steps = pacer.take(performance.now());
     tickStats.note(steps, pacer.lastLateMs, pacer.reanchored);
     if (steps === 0) return;
+    const workStart = performance.now();
     for (let i = 0; i < steps; i++) {
       if (bots) {
         // Arrivals happen between steps, and a command that has reached the server by this step's time is applied by it, as a
@@ -587,6 +588,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     this.fxChannel.rosterSent();
     // One frame per patch, like a client: the bots see this state and these batches, never anything a client did not get.
     bots?.afterPatch(this.botBatches.splice(0));
+    tickStats.noteWork(performance.now() - workStart);
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {

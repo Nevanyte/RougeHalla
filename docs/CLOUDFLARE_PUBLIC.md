@@ -117,3 +117,19 @@ curl -X POST -H "Authorization: Bearer $DASHBOARD_TOKEN" \
 ```
 
 **Checks.** `npm run cf:test` runs the store against `node:sqlite` (hand-checked aggregates, idempotent ingest, injection probes), the ingest and the API against a real SQLite Durable Object and R2 in Miniflare, and the auth rules (cookie flags, forged or expired cookies, the login Origin check, the CSP headers).
+
+## Runtime diagnostics and instance size
+
+`/readyz` `runtime` reports, without any per-request cost beyond a few procfs reads:
+
+- `eventLoopDelayMs` `{ p50, p95, p99, max }`: event-loop lateness in ms over a recent window (10 to 120 s), measured as the sampling timer's overshoot with its 10 ms period taken off. `eventLoopP95Ms` is kept and now equals `eventLoopDelayMs.p95`. It is no longer lifetime-cumulative and no longer includes the sampling period, so it reads about 20 ms lower than before for the same process and drops after warm-up; do not compare it with older figures in this document.
+- `cgroupCpu` `{ version, limitCpus, periods, throttledPeriods, throttledSeconds, throttledPct }` from `/sys/fs/cgroup` (v2 `cpu.max` and `cpu.stat`, v1 `cpu.cfs_*` fallback); cumulative since the cgroup started, so compare two readings. `null` outside a cgroup. A rising `throttledPeriods` with a low `cpuSeconds` rate means the quota, not the game, is delaying the loop.
+- `tick.workMs` `{ p50, p95, p99, max, samples }`: wall ms a stepping room wake spent in steps, patch and bot frame, over the last 2400 wakes of all rooms. `tick.lateMs*`, `doubleStepPct` and `catchupReanchors` are the wake-timing counters (rooms/tickPacer.ts); they stay cumulative.
+
+Example: `"eventLoopDelayMs":{"p50":0.4,"p95":3.1,"p99":18.2,"max":41.6},"cgroupCpu":{"version":2,"limitCpus":0.5,"periods":9000,"throttledPeriods":1900,"throttledSeconds":96.4,"throttledPct":21.11}`.
+
+### Instance size
+
+`CONTAINER_INSTANCE` in `deployment/cloudflare/src/index.ts` is the single switch. It is `standard-1` (1/2 vCPU). A tick costs about 3 to 5 ms of CPU with a full arena and bots (`bench/stepBench.ts --bots 8`), and the mean is far under the 50 ms budget, but a half-vCPU quota is enforced in 100 ms periods: a burst of work (a map build, a GC, a full-arena tick with bot frames) that uses the period's allowance throttles the process for the rest of the period, and the loop then wakes late and repays two steps (`doubleStepPct`, `catchupReanchors`). If `cgroupCpu.throttledPct` is in the tens of percent while playing, `standard-2` (1 vCPU) doubles the allowance per period and is the direct fix. The choice is a cost decision and has not been made here; changing it needs only that constant.
+
+The container runs `node --max-semi-space-size=32` (Dockerfile). A local `--trace-gc` run of `stepBench.ts --bots 8` on a loaded laptop did not show fewer scavenges (about 100 at the default against about 145 at 32 MB max, 125 with `--min-semi-space-size=16`); pause totals were equal or lower in the quiet runs (75 ms default, 74 ms, 67 ms). Treat the flag as unproven until `cgroupCpu` and `tick.workMs` are compared on the live container before and after. `--single-threaded-gc` was not adopted: it moves scavenge work onto the one quota-limited main thread.

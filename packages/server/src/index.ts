@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { monitorEventLoopDelay } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
@@ -29,6 +28,7 @@ import {
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 import { tickStats } from "./rooms/tickPacer";
+import { LoopDelayWindow, readCgroupCpu } from "./runtimeStats";
 import { traceWritesSettled } from "./rooms/traceWriter";
 import { initializeRemoteSnapshot } from "./persistence/RemoteSnapshot";
 import { warmCloudSimulation } from "./cloudWarmup";
@@ -324,8 +324,7 @@ function traceUnlessHosting(config: ServerConfig): ServerConfig {
 export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool; onSnapshot?: (json: string) => Promise<void>; closeBotSnapshot?: () => Promise<void>; telemetry?: TelemetryRuntime | null } = {}) {
   let storageHealthy = true;
   const readiness = { ready: false, simulationWarmup: null as Awaited<ReturnType<typeof warmCloudSimulation>> | null };
-  const loopDelay = opts.onSnapshot ? monitorEventLoopDelay({ resolution: 20 }) : null;
-  loopDelay?.enable();
+  const loopDelay = opts.onSnapshot ? new LoopDelayWindow() : null;
   const onSnapshot = opts.onSnapshot && (async (json: string) => {
     try { await opts.onSnapshot!(json); storageHealthy = true; }
     catch (error) { storageHealthy = false; throw error; }
@@ -360,13 +359,18 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
     express: (app) => {
       app.disable("x-powered-by");
       app.get("/readyz", (_req, res) => {
+        const loop = loopDelay?.snapshot() ?? null;
         res.set({ "Cache-Control": "no-store", "X-Rougehalla-Server-Build": SERVER_BUILD_ID });
         res.status(readiness.ready && storageHealthy ? 200 : 503).json({
           ok: readiness.ready && storageHealthy,
           runtime: {
             location: process.env.CLOUDFLARE_LOCATION ?? null,
             rssMiB: Math.round(process.memoryUsage().rss / 1048576),
-            eventLoopP95Ms: loopDelay ? Math.round(loopDelay.percentile(95) / 1e6) : null,
+            // Lateness beyond the 10 ms sampling period over the last 10-120 s (the old figure was lifetime and included the period).
+            eventLoopDelayMs: loop,
+            eventLoopP95Ms: loop?.p95 ?? null,
+            // The container's CPU quota and how often it throttled the process (cumulative); null outside a cgroup.
+            cgroupCpu: readCgroupCpu(),
             mapsReady: maps.size,
             mapStats: maps.stats,
             uptimeSeconds: Math.round(process.uptime()),
