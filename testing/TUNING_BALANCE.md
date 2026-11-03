@@ -373,7 +373,7 @@ Everyone leaves a camp at 83-96%: scratched players get a little, ganked-low pla
 
 ### 9.6 Chest economy
 
-A normal camp's chest base card averages 1.35 tiers (70/25/5), its augment 1.55 (50/45/5); an elite camp's both 2.2 (10/60/30). The map has 20 camps today (four a zone: N13), so a run offers 60 options and a farming player takes about one card per camp; the 8-camp layout the rosters are written for would offer 120 (15 a player at 8). `rollChestOptions` is held by `shared/test/cards.test.ts` ("the chest roll": three distinct live cards in base / conditional-or-second-base / augment order, no conditional without an eligible owner, the odds above, order independence, bounded draws).
+(Historical: normal camps no longer drop a chest.) A normal camp's chest base card averages 1.35 tiers (70/25/5), its augment 1.55 (50/45/5); an elite camp's both 2.2 (10/60/30). The map has 20 camps today (four a zone: N13), so a run offers 60 options and a farming player takes about one card per camp; the 8-camp layout the rosters are written for would offer 120 (15 a player at 8). `rollChestOptions` is held by `shared/test/cards.test.ts` ("the chest roll": three distinct live cards in base / conditional-or-second-base / augment order, no conditional without an eligible owner, the odds above, order independence, bounded draws).
 
 ## 10. Acceptance table (A1-A16) and the owner questions
 

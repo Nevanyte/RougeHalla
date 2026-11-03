@@ -125,7 +125,7 @@ export function spawnLoot(world: World): void {
     // first opening (dropStatChest). The old weapon draw is kept so the ground spots' rolls below stay what they were.
     rollChestWeapon(world.random);
     const box = addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: "potionSmall" }]);
-    if (withStat.has(i)) held.add(box.id);
+    if (world.config.training || withStat.has(i)) held.add(box.id); // practice rooms: every crate, to try the boosts
   });
   for (const spot of world.map.groundSpots) {
     const def = rollGroundWeapon(world.random);

@@ -1017,7 +1017,7 @@ describe("killMob: rewards", () => {
       const mobs = allMobs(w).filter((m) => m.s.camp === ci + 1 && m.s.weapon0 !== "fists");
       expect(mobs.length).toBeGreaterThanOrEqual(3);
       P(w, 0).weapon0 = "sword"; // an armed hand, so nothing is taken up
-      // Weapon drops only: a normal camp's clear also drops its stat chest (a "reward" container, sim/chests.ts).
+      // Weapon drops only: a normal camp's clear drops no chest; the filter only ignores any reward container.
       const loose = (): number => [...w.state.containers.values()].filter((c) => c.kind !== "reward").length;
       const before = loose();
       mobs.slice(0, -1).forEach((m) => hurt(w, m, ["p0", m.s.hp]));
