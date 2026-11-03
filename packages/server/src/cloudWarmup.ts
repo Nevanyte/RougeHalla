@@ -2,13 +2,24 @@ import { setImmediate } from "node:timers/promises";
 import { Encoder } from "@colyseus/schema";
 import { ClientState, SchemaSerializer } from "@colyseus/core";
 import { WebSocketClient } from "@colyseus/ws-transport";
-import { certifiedMap } from "@raid/shared";
+import { certifiedMap, FACTION_IDS } from "@raid/shared";
+import { matchupShare } from "./bots/mobHunt";
 import { BOT_FILL_DEFAULTS } from "./bots/brain/types";
 import { createHeadlessRoom } from "./bots/tournament/headlessRoom";
 
-/** Compile the real simulation, bot brains and schema encoder before admitting the first cloud player. */
-export async function warmCloudSimulation(ticks = 400, budgetMs = 40_000) {
+/**
+ * Compile the real simulation, bot brains and schema encoder before admitting the first cloud player. The tick count is the
+ * goal; the wall-clock budget is only a backstop for a hung host. A cold tick costs about 115 ms on the half-vCPU container
+ * (349 ticks took 40 s), so the old 40 s cap ended the warm-up with the JIT still cold; 90 s gives it 2x that headroom and
+ * still bounds the cold start.
+ */
+export async function warmCloudSimulation(ticks = 400, budgetMs = 90_000) {
   const start = performance.now();
+  // Every camp matchup a bot's route can ask for is a cached duel of about 10 ms: work them out here, not in a live raid's first tick.
+  for (const me of FACTION_IDS) for (const region of FACTION_IDS) for (const elite of [false, true]) {
+    matchupShare(me, region, elite);
+    await setImmediate();
+  }
   // Use the same workload on every release; random layouts can exhaust the warm-up budget.
   const map = certifiedMap(1, { decor: false });
   if (!map) throw new Error("Cloud warm-up map did not certify");

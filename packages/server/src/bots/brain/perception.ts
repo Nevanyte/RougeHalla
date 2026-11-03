@@ -590,7 +590,10 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   const self = me ? selfView(selfId, me) : absentSelf(selfId);
   const sx = self.x, sy = self.y;
   const canSee = ctx.canSee ?? (() => true);
-  const near = (x: number, y: number): boolean => inView(sx, sy, x, y, FRAME_MARGIN) && canSee({ x, y });
+  // canSee never keeps the point it is handed, so one scratch object serves every probe of the frame.
+  const probe: Vec2 = { x: 0, y: 0 };
+  const sees = (x: number, y: number): boolean => { probe.x = x; probe.y = y; return canSee(probe); };
+  const near = (x: number, y: number): boolean => inView(sx, sy, x, y, FRAME_MARGIN) && sees(x, y);
   const effects: Record<FighterId, number> | null = statusBits ? {} : null;
   if (effects && me) effects[selfId] = me.effects ?? 0;
 
@@ -618,10 +621,10 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   const mobList: MobSeen[] = [];
   for (const [id, m] of mobs) {
     const x = f32(m.x), y = f32(m.y);
-    if (!canSee({ x, y })) continue;
-    // Visibility was checked for the map-wide minimap dot above; only the box remains to check here.
     const inBox = inView(sx, sy, x, y, FRAME_MARGIN);
+    // Off a repaint only the box matters, so a far mob costs no sight probe.
     if (!repaint && !inBox) continue;
+    if (!sees(x, y)) continue;
     const status = m.status, kind = m.kind, faction = m.faction;
     if (repaint && status === "alive" && (kind === "mob" || kind === "elite")) {
       dots.push({ id, x: quantMinimap(x), y: quantMinimap(y), faction: factionOf(faction), elite: kind === "elite" });
