@@ -312,6 +312,16 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
   transform: translateX(-50%);
   background: var(--gold, #ffd54f);
 }
+/* An elite camp's own icon (ui/eliteGlyphs.ts: gold with a dark outline, the same ten shapes the minimap paints) in the crown's place: a
+   square a little under half the marker over it, so it takes no more room above the marker than the crown did (planningMath.markerBox). */
+.pl-crown.pl-elite-glyph {
+  width: 54%;
+  height: 54%;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
 
 .pl-chip {
   display: inline-block;
@@ -405,6 +415,8 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
 .pattern-bars .pl-swatch { background-image: repeating-linear-gradient(90deg, var(--zone) 0 2px, transparent 2px 6px); }
 
 .pl-info { min-height: 2.8em; font-size: 0.95em; color: var(--muted, #aeb7c2); }
+/* The hovered elite camp's icon at the head of its line. */
+.pl-info .pl-crown { position: static; display: inline-block; width: 1.4em; height: 1.4em; margin-right: 0.45em; vertical-align: -0.3em; transform: none; }
 
 /* ---- the side column ---- */
 .pl-box { box-sizing: border-box; padding: 10px 12px; background: var(--panel, rgba(20, 24, 30, 0.94)); border: 1px solid var(--line-strong, #3a434f); border-radius: 8px; }
@@ -455,6 +467,7 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
 .pl-near-item { position: relative; display: inline-flex; align-items: center; gap: 4px; }
 .pl-near-item .pl-glyph { width: 0.95em; height: 0.95em; }
 .pl-near-item .pl-crown { position: static; width: 0.8em; height: 0.5em; transform: none; }
+.pl-near-item .pl-crown.pl-elite-glyph { width: 1.15em; height: 1.15em; }
 
 .pl-boon {
   appearance: none;

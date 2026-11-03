@@ -1,6 +1,6 @@
 // Paints the whole map for the minimap, the lobby preview, the planning screen and the hold-Tab map: zone tints (with a pattern
-// per zone, so a zone is never told apart by hue alone), the ground (floor hazards, LOW barriers), walls, the coliseum gates, camp markers (a shape per zone, a crown on
-// an elite), weapon crates, the route and the player. It only talks to a 2D context, so a test can hand it a recorder.
+// per zone, so a zone is never told apart by hue alone), the ground (floor hazards, LOW barriers), walls, the coliseum gates, camp markers (a shape per zone, the
+// elite's own glyph above an elite camp: ui/eliteGlyphs.ts), weapon crates, the route and the player. It only talks to a 2D context, so a test can hand it a recorder.
 //
 // Every function takes `k`, the context's pixels per world unit (size / mapSpan()), and `px`, its pixels per reference
 // overlay pixel (marks scale with the map's size). The static layer (`paintMapBase`) is painted once per map and size.
@@ -11,6 +11,7 @@ import {
 } from "@raid/shared";
 import { floorLookOf } from "../render/zoneArt/featureArt";
 import { cssColor } from "./dom";
+import { campEliteTypes, eliteGlyphOf, noteEliteCamps, type EliteCampLike, type EliteGlyph } from "./eliteGlyphs";
 
 export const COLOR_BG = "rgba(20, 24, 30, 0.8)";
 export const COLOR_WALL = "#9aa3ad";
@@ -126,7 +127,7 @@ export const SHAPE_POLYGON: Readonly<Record<ZoneShape, Poly>> = {
   ],
 };
 
-/** A three-spike crown on a unit base, sitting just above an elite camp's shape. */
+/** A three-spike crown on a unit base, sitting just above an elite camp's shape: what an elite camp wears when its elite is not known (ui/eliteGlyphs.ts has the ten elites' own). */
 const CROWN: Poly = [[-1, 0], [-1, -0.9], [-0.5, -0.4], [0, -1.1], [0.5, -0.4], [1, -0.9], [1, 0]];
 
 /** `polygon(...)` for a CSS clip-path (percent of the element's box), from the same points the canvas draws. */
@@ -386,6 +387,9 @@ export function makePatternTile(zone: FactionId, period: number, g: PaintCtx, su
  */
 export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k: number, opts: BaseOptions = {}): void {
   const tile = TILE * k;
+  // The camps the markers will be painted from are this map's own: remember which elite stands in each, so a marker painted alone (the
+  // minimap lays them out one at a time) still wears the right glyph (eliteGlyphs.ts).
+  noteEliteCamps(map.camps);
   if (opts.subdued) g.save();
   g.clearRect(0, 0, w, h);
   g.fillStyle = opts.subdued ? "#111a22" : COLOR_BG;
@@ -495,9 +499,12 @@ export function gateRects(map: GameMap, k: number): number[] {
 
 // ---------------------------------------------------------------------------------------------------- the dynamic marks
 
-/** Half-size of a camp's mark in reference pixels; an elite's is bigger and wears a crown. */
+/** Half-size of a camp's mark in reference pixels; an elite's is bigger and wears its elite's glyph (a crown when the elite is not known). */
 const CAMP_R = 3.4;
 const ELITE_R = 4.6;
+/** An elite glyph's half-size in units of the camp mark's half-size, and the gap between it and the mark in units of its own half-size. */
+const GLYPH_HALF = 0.78;
+const GLYPH_GAP = 0.08;
 
 /** A camp's state as the room syncs it (RaidState.camps[i].state): nobody has hurt a member / a member has / every member died. */
 export const CAMP_IDLE = 0;
@@ -514,18 +521,71 @@ const COLOR_CLEARED_CROSS = "#eceff1";
 export const COLOR_DISTURBED = "#b0bec5";
 const DISTURBED_ALPHA = 0.7;
 
+/** The corners a glyph's disc is cut into: shapes on the map are paths, never arcs (the mob dots stay the minimap's only circles). */
+const DISC_CORNERS = 16;
+
+/** One part of an elite glyph as a path (closed) in a box centred on (cx, cy) with half-size `half`. */
+function glyphPath(g: PaintCtx, part: EliteGlyph["parts"][number], cx: number, cy: number, half: number): void {
+  g.beginPath();
+  if ("disc" in part) {
+    const [dx, dy, dr] = part.disc;
+    for (let i = 0; i < DISC_CORNERS; i++) {
+      const a = (i / DISC_CORNERS) * TAU;
+      const x = cx + (dx + Math.cos(a) * dr) * half;
+      const y = cy + (dy + Math.sin(a) * dr) * half;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+  } else {
+    part.poly.forEach(([x, y], i) => (i === 0 ? g.moveTo(cx + x * half, cy + y * half) : g.lineTo(cx + x * half, cy + y * half)));
+  }
+  g.closePath();
+}
+
 /**
- * Camp markers: the zone's shape in its colour with a dark outline, an elite bigger and crowned. With `states` (one number per
- * camp, CAMP_*), a cleared camp is dimmed and crossed out so everyone reads what was taken, and a disturbed one (somebody has
- * fought there; the state never goes back) wears a small muted ring; without them (or with 0s) the calls are exactly the plain
- * markers'.
+ * An elite glyph in a box centred on (cx, cy): a dark outline round the whole silhouette (every gold part stroked at twice the
+ * outline's width, so only its outer half shows), the gold parts over it, then the ink parts (holes and details) in the outline's
+ * dark. Leaves the outline settings (colour, width `px`) as paintCamps set them.
  */
-export function paintCamps(
-  g: PaintCtx, camps: readonly Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">[], k: number, px: number, states?: ArrayLike<number>,
-): void {
+function paintGlyph(g: PaintCtx, glyph: EliteGlyph, cx: number, cy: number, half: number, px: number): void {
+  const gold = glyph.parts.filter((p) => p.ink !== true);
+  g.lineWidth = 2 * px;
+  for (const part of gold) {
+    glyphPath(g, part, cx, cy, half);
+    g.stroke();
+  }
+  g.lineWidth = px;
+  g.fillStyle = COLOR_CROWN;
+  for (const part of gold) {
+    glyphPath(g, part, cx, cy, half);
+    g.fill();
+  }
+  g.fillStyle = COLOR_OUTLINE;
+  for (const part of glyph.parts) {
+    if (part.ink !== true) continue;
+    glyphPath(g, part, cx, cy, half);
+    g.fill();
+  }
+}
+
+/** What a camp marker reads of a camp: where it is, its zone and whether it is an elite; optionally its `elite` type or its `spots` (see eliteGlyphs.ts). */
+export type CampMark = Pick<CampDef, "zone" | "x" | "y" | "eliteSpot"> & Omit<EliteCampLike, "zone" | "eliteSpot">;
+
+/**
+ * Camp markers: the zone's shape in its colour with a dark outline, an elite bigger and wearing its elite's own glyph above it (ten
+ * glyphs, one per elite type, in the elite gold; the old crown for an elite camp whose type is not known). A camp's elite is the
+ * one it says (`elite`), else the one remembered for the map's own camp (paintMapBase notes them; a copy of a camp keeps its `spots`,
+ * which is how the minimap's one-at-a-time markers still find theirs), else the k-th of its zone's elites for the k-th elite camp of
+ * that zone in `camps` (rollCampElites), so a lone hand-built camp is its zone's first elite. With `states` (one number per camp,
+ * CAMP_*), a cleared camp is dimmed and crossed out (its glyph with it) so everyone reads what was taken, and a disturbed one
+ * (somebody has fought there; the state never goes back) wears a small muted ring; without them (or with 0s) the calls are exactly
+ * the plain markers'.
+ */
+export function paintCamps(g: PaintCtx, camps: readonly CampMark[], k: number, px: number, states?: ArrayLike<number>): void {
   g.lineWidth = px;
   g.strokeStyle = COLOR_OUTLINE;
   g.lineJoin = "round";
+  const elites = campEliteTypes(camps);
   for (let i = 0; i < camps.length; i++) {
     const camp = camps[i]!;
     const state = states?.[i] ?? CAMP_IDLE;
@@ -540,11 +600,17 @@ export function paintCamps(
     g.fill();
     g.stroke();
     if (elite) {
-      g.fillStyle = COLOR_CROWN;
-      g.beginPath();
-      polyPath(g, CROWN, cx, cy - r * 1.05 - r * 0.15, r * 0.7);
-      g.fill();
-      g.stroke();
+      const glyph = eliteGlyphOf(elites[i]);
+      if (glyph) {
+        const half = r * GLYPH_HALF;
+        paintGlyph(g, glyph, cx, cy - r - half * (1 + GLYPH_GAP), half, px);
+      } else {
+        g.fillStyle = COLOR_CROWN;
+        g.beginPath();
+        polyPath(g, CROWN, cx, cy - r * 1.05 - r * 0.15, r * 0.7);
+        g.fill();
+        g.stroke();
+      }
     }
     if (state === CAMP_CLEARED) {
       g.globalAlpha = 1;

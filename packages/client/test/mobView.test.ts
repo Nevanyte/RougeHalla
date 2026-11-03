@@ -8,7 +8,7 @@ import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeed
 import { fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in MobView's constructor. */
-const CHILD = { eliteRing: 1, body: 4, roleGlyph: 5, hpBar: 9, label: 10, eliteStar: 11, status: 12 } as const;
+const CHILD = { eliteRing: 1, eliteBack: 2, body: 5, roleGlyph: 6, eliteFront: 7, hpBar: 11, label: 12, eliteStar: 13, status: 14 } as const;
 const DEATH_MS = 450;
 
 function mob(over: Partial<Record<keyof MobState, unknown>> = {}): MobState {

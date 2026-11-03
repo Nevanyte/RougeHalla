@@ -3,6 +3,7 @@ import { PLAYER_RADIUS, Y_SCALE } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { ELITE_COLOR } from "../ui/buffTheme";
 import { around, bakedImage, pixelImage, placeBake, scaledPart, swapBake, type Region } from "./bake";
+import { ELITE_ART_REGION, ELITE_LAYERS, drawEliteLayer, eliteArtKey, eliteArtOf, type EliteLayer } from "./eliteArt";
 import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, shadowImage } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { roleMarkOf, type RoleGlyph, type RoleMark } from "./mobRole";
@@ -42,7 +43,8 @@ const ROLE_REGION: Region = around(FIGURE_RADIUS + 1);
  * a regional mob (its faction's colour; the bar shows only once it is hurt or fighting, the name stays faint until then)
  * and an elite (the same, plus a gold ring on the ground, a gold-rimmed body, a star over the name and a gold name).
  * A regional mob's TYPE adds a role mark on the disc (mobRole.ts): small dots for a swarm, a chevron for a skirmisher, an inner ring
- * for a caster, a thick rim for a brute.
+ * for a caster, a thick rim for a brute. An elite's type adds its own emblem too (eliteArt.ts: wings, a hood, a halo, boulders...), two
+ * baked layers, one under the disc and one over it, that squash with the figure and flash white with it.
  */
 export class MobView {
   private readonly root: Phaser.GameObjects.Container;
@@ -52,6 +54,14 @@ export class MobView {
   private readonly roleGlyph: Phaser.GameObjects.Image;
   private role: RoleMark = roleMarkOf("");
   private roleType = "";
+  /** An elite's emblem, one layer under the disc (wings, a tail, shoulder boulders) and one over it (a hood, horns, a halo); the bakes are swapped when the type changes. */
+  private readonly eliteBack: Phaser.GameObjects.Image;
+  private readonly eliteFront: Phaser.GameObjects.Image;
+  /** The elite type the emblem shows ("" for none), and whether it is the white hit-flash variant. */
+  private artType = "";
+  private artFlash = false;
+  /** When the hit flash ends (`performance.now()` time), as BodyFlash has it for the disc. */
+  private flashUntil = 0;
   private readonly hpBar: HpBar;
   private readonly label: Phaser.GameObjects.Text;
   private readonly markPlate: MarkPlate;
@@ -89,6 +99,10 @@ export class MobView {
     this.flashing = new BodyFlash(this.body, factionColor(""));
     this.roleGlyph = pixelImage(scene).setPosition(0, -BODY_LIFT).setVisible(false);
     placeBake(this.roleGlyph, ROLE_REGION);
+    this.eliteBack = pixelImage(scene).setPosition(0, -BODY_LIFT).setVisible(false);
+    placeBake(this.eliteBack, ELITE_ART_REGION);
+    this.eliteFront = pixelImage(scene).setPosition(0, -BODY_LIFT).setVisible(false);
+    placeBake(this.eliteFront, ELITE_ART_REGION);
     this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(FIGURE_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
     this.hpBar = new HpBar(scene);
     this.label = scene.add.text(0, LABEL_Y, "", {
@@ -101,11 +115,13 @@ export class MobView {
       g.fillPath().strokePath();
     }).setVisible(false);
     this.root = scene.add.container(0, 0, [
-      shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body.image, this.roleGlyph, this.nose, this.art.held, this.signatures.aura,
+      shadow, this.eliteRing, this.eliteBack, this.signatures.ground, this.art.ground, this.body.image, this.roleGlyph, this.eliteFront, this.nose,
+      this.art.held, this.signatures.aura,
       this.hpBar.root, this.label, this.eliteStar, this.status.g, this.markPlate.pips, this.markPlate.cues,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.roleGlyph), y0: -BODY_LIFT, scaled: true },
+      { obj: scaledPart(this.eliteBack), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.eliteFront), y0: -BODY_LIFT, scaled: true },
       { obj: this.nose, y0: -BODY_LIFT, scaled: false },
       { obj: this.art.held, y0: -BODY_LIFT, scaled: false }, { obj: this.signatures.aura, y0: 0, scaled: false },
     ], this.art, puffs);
@@ -114,6 +130,7 @@ export class MobView {
 
   flash(ms = HIT_FLASH_MS): void {
     this.flashing.trigger(ms);
+    this.flashUntil = performance.now() + ms;
   }
 
   /** `signatures`: draw the faction signature marks (only while a run is active, see PlayerView.update). `ground`: what the tile under it does to it. */
@@ -133,6 +150,8 @@ export class MobView {
     }
     this.setRole(m.type ?? "");
     this.setElite(m.kind === "elite");
+    // An elite of a type this build has no emblem for (newer content) keeps the gold marks alone.
+    this.setArt(m.kind === "elite" ? (m.type ?? "") : "", performance.now() < this.flashUntil);
     this.flashing.setColor(factionColor(m.faction));
     this.root.setPosition(projX(x), projY(y));
     this.root.setDepth(depthFor(y));
@@ -195,6 +214,24 @@ export class MobView {
     this.roleGlyph.setVisible(glyph !== "none").setRotation(0);
     if (glyph !== "none") swapBake(this.roleGlyph, this.scene, `role:${glyph}`, ROLE_REGION, (g) => drawGlyph(g, glyph));
     this.applyRim();
+  }
+
+  /** The emblem of an elite type ("" or any other id: none) in its normal colours or, while the hit flash is on, in white. A no-op while both are unchanged. */
+  private setArt(type: string, flash: boolean): void {
+    if (type === this.artType && flash === this.artFlash) return;
+    this.artType = type;
+    this.artFlash = flash;
+    const art = eliteArtOf(type);
+    for (const layer of ELITE_LAYERS) {
+      const image = this.artLayer(layer);
+      const drawn = art !== null && art[layer] !== null;
+      image.setVisible(drawn);
+      if (art !== null && drawn) swapBake(image, this.scene, eliteArtKey(art.id, layer, flash), ELITE_ART_REGION, (g) => drawEliteLayer(g, art, layer, flash));
+    }
+  }
+
+  private artLayer(layer: EliteLayer): Phaser.GameObjects.Image {
+    return layer === "back" ? this.eliteBack : this.eliteFront;
   }
 
   private applyRim(): void {
