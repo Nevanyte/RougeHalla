@@ -362,6 +362,9 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown, 
       q.pushAction(cmd);
       return true;
     }
+    case "beat":
+      // Liveness only: valid or not it queues nothing, and RaidRoom never counts it as presence (it marks the sender alive before this).
+      return msg === undefined || msg === null || (isRecord(msg) && !Array.isArray(msg) && (msg.n === undefined || (typeof msg.n === "number" && Number.isInteger(msg.n))));
     default:
       return false;
   }

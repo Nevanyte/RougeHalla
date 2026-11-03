@@ -112,6 +112,11 @@ export interface ClientMessages {
    * unless the room is a training room, so an arena client can never use it. Nothing it does is recorded or paid.
    */
   train: TrainMessage;
+  /**
+   * Liveness only (HEARTBEAT_MS): sent about once a second in any phase, never an input, never presence for training's idle limit,
+   * and it touches no game state. The server drops a client that sends nothing for LIVENESS_TIMEOUT_MS. `n` is the sender's own count.
+   */
+  beat: { n?: number };
 }
 
 /**
@@ -129,7 +134,7 @@ export type TrainMessage =
 
 export type ClientMessageType = keyof ClientMessages;
 export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
-  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget", "useConsumable", "trade",
+  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget", "useConsumable", "trade", "beat",
 ];
 
 /** Why a projectile stopped (a `projEnd` fx). */

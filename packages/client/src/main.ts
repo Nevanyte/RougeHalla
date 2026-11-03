@@ -3,11 +3,13 @@ import Phaser from "phaser";
 import { TELEMETRY_PERF_MESSAGE, type FxBatch, type JoinOptions, type RoomMode, type RunResult, type ServerMessages } from "@raid/shared";
 import { runPerf } from "./net/perfSample";
 import "./style.css";
-import { detachRoom, isCallsignBusy, isClientOutOfDate, joinRaid, joinTraining, leaveRoom, type RaidRoom } from "./net/connection";
+import { detachRoom, isCallsignBusy, isClientOutOfDate, joinRaid, joinTraining, leaveRoom, linkOf, reconnectRaid, type RaidRoom } from "./net/connection";
 import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, MAP_MISMATCH_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
+import { LinkWatch } from "./net/linkWatch";
 import { mapLoader, warmWhenIdle } from "./net/mapWorker";
 import { PlanInbox } from "./net/planInbox";
+import { clearSeat, loadSeat, nextRejoinDelay, recoverableClose, REJOIN_WINDOW_MS, saveSeat, shouldRejoinOnBusy, type SeatRecord } from "./net/rejoin";
 import { VisionInbox } from "./net/visionInbox";
 import { checkedMap, type CheckedMap } from "./net/roomMap";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
@@ -45,6 +47,8 @@ new ViewportManager(game);
 const DEATH_RESULTS_DELAY_MS = 1500;
 
 let room: RaidRoom | null = null;
+/** The heartbeat and stall watch of the current room (net/linkWatch.ts). */
+let linkWatch: LinkWatch | null = null;
 /** A `died` result waiting out DEATH_RESULTS_DELAY_MS; null otherwise. */
 let pendingResult: { result: RunResult; timer: ReturnType<typeof setTimeout> } | null = null;
 
@@ -116,20 +120,18 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   let pending: RaidRoom | null = null;
   let handedOver = false;
   const label = training ? "Entering training…" : "Joining run…";
+  const onTimeout = () => {
+    // Once the scene has the room, a slow first frame is not a failed join: the screen has hidden itself, that is all.
+    if (!wanted() || handedOver) return;
+    joinAttempt++;
+    if (pending) {
+      if (room === pending) room = null;
+      detachRoom(pending);
+    }
+    joinFailed(JOIN_SLOW_MESSAGE);
+  };
   menu.setBusy(true, label);
-  loading.show(label, {
-    timeoutMs: JOIN_TIMEOUT_MS,
-    onTimeout: () => {
-      // Once the scene has the room, a slow first frame is not a failed join: the screen has hidden itself, that is all.
-      if (!wanted() || handedOver) return;
-      joinAttempt++;
-      if (pending) {
-        if (room === pending) room = null;
-        detachRoom(pending);
-      }
-      joinFailed(JOIN_SLOW_MESSAGE);
-    },
-  });
+  loading.show(label, { timeoutMs: JOIN_TIMEOUT_MS, onTimeout });
   try {
     // A faction is sent only after a deliberate pick; without one the server assigns its default.
     const options: JoinOptions = { profile: request.profile, token: request.token, ...(request.faction ? { faction: request.faction } : {}) };
@@ -137,24 +139,50 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   } catch (err) {
     console.error(err);
     if (!wanted()) return;
-    if (isCallsignBusy(err)) {
-      loading.hide();
-      menu.showCallsignBusy();
-      toasts.show(friendlyError(err), "error");
+    // The refusal can be this tab's own dead connection, whose seat the server has not yet let go of: its token may work in a moment.
+    const seat = training ? null : loadSeat(request.profile);
+    if (shouldRejoinOnBusy(isCallsignBusy(err), seat, request.profile)) {
+      loading.show("Rejoining your run…", { timeoutMs: REJOIN_WINDOW_MS + JOIN_TIMEOUT_MS, onTimeout });
+      pending = await reconnectLoop(seat!, Date.now(), wanted);
+      if (!wanted()) {
+        if (pending) detachRoom(pending);
+        return;
+      }
+      if (!pending) clearSeat();
+    }
+    // A rejoin that worked is handled below like any join.
+    if (!pending) {
+      if (isCallsignBusy(err)) {
+        loading.hide();
+        menu.showCallsignBusy();
+        toasts.show(friendlyError(err), "error");
+        return;
+      }
+      joinFailed(friendlyError(err));
+      // A page opened before a deploy that changed the contract: the sentence says why, the card gives the way out.
+      if (isClientOutOfDate(err)) reloadPrompt.show();
       return;
     }
-    joinFailed(friendlyError(err));
-    // A page opened before a deploy that changed the contract: the sentence says why, the card gives the way out.
-    if (isClientOutOfDate(err)) reloadPrompt.show();
-    return;
   }
   // The wait ran out while the server was still answering: the room that arrived late is not wanted.
   if (!wanted()) {
     detachRoom(pending);
     return;
   }
-  room = pending;
-  const joined = pending;
+  handedOver = await runJoined(pending, training, request.profile, wanted, joinFailed);
+}
+
+/**
+ * Everything after a room is in hand (a join, or a seat won back): the first state, the map, the handlers, the scene. Resolves true
+ * once the scene has the room. `fail` is where a room that cannot be run goes.
+ */
+async function runJoined(joined: RaidRoom, training: boolean, profile: string, wanted: () => boolean, fail: (message: string) => void): Promise<boolean> {
+  room = joined;
+  // The seat a lost connection can be won back by: the SDK moves the token on at every reconnect, so it is kept current.
+  if (!training) {
+    saveSeat({ profile, token: joined.reconnectionToken });
+    joined.onReconnect(() => saveSeat({ profile, token: joined.reconnectionToken }));
+  }
   // Before anything is awaited: the server's first batch for a client that joins while arrows fly comes right after the full
   // state, and the scene is not there yet to take it. The SDK drops a message no handler is registered for.
   const fxs = new FxInbox();
@@ -167,34 +195,37 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   if (!(await firstState(joined))) {
     // The room closed before its first patch, so the leave handler below was never registered.
     if (room === joined) room = null;
-    if (wanted()) joinFailed(JOIN_CLOSED_MESSAGE);
-    return;
+    if (wanted()) fail(JOIN_CLOSED_MESSAGE);
+    return false;
   }
-  if (!wanted()) return;
+  if (!wanted()) return false;
   // The map is never synced: the state names (seed, attempt), and the map worker builds exactly that attempt while the
   // loading screen stays up (the page does not freeze). A room that closes meanwhile is noticed here, since the handlers
   // below are not registered yet.
   loading.setText(training ? "Building the training ground…" : "Building the map…");
   const built = await mapOrClosed(joined);
-  if (!wanted()) return;
+  if (!wanted()) return false;
   if (built === "closed") {
     if (room === joined) room = null;
-    joinFailed(JOIN_CLOSED_MESSAGE);
-    return;
+    fail(JOIN_CLOSED_MESSAGE);
+    return false;
   }
   if (!built.ok) {
     console.error(`[maps] map mismatch, leaving the room: ${built.detail}`);
     if (room === joined) room = null;
     // Consented, so the server frees the seat and the profile at once.
     leaveRoom(joined);
-    joinFailed(MAP_MISMATCH_MESSAGE);
-    return;
+    clearSeat();
+    fail(MAP_MISMATCH_MESSAGE);
+    return false;
   }
   // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
   if (!training) {
     let perfSent = false;
     joined.onMessage("result", (r: RunResult) => {
       if (room !== joined) return;
+      // The run is over for this seat: a lost connection from here on has nothing to go back to.
+      clearSeat();
       // The run's one perf sample, before the death hold (docs/TELEMETRY.md 3.9); the server keeps the first.
       if (!perfSent) {
         perfSent = true;
@@ -214,13 +245,17 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     if (room !== joined) return;
     questToasts.push(t.text);
   });
+  // When the connection was first lost, for the rejoin window (net/rejoin.ts); cleared when the SDK gets it back.
+  let lostAt: number | null = null;
   joined.onDrop((code, reason) => {
     if (room !== joined) return;
     console.warn(`room connection dropped (code ${code})`, reason);
+    lostAt ??= Date.now();
     banner.reconnecting();
   });
   joined.onReconnect(() => {
     if (room !== joined) return;
+    lostAt = null;
     banner.reconnected();
   });
   joined.onLeave((code, reason) => {
@@ -228,6 +263,14 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     console.warn(`room closed (code ${code})`, reason);
     banner.hide();
     room = null;
+    linkWatch?.stop();
+    // The SDK gave up (the server may not have noticed the drop yet, so it refused the token): keep asking with the stored one.
+    const seat = training || pendingResult || results.visible || !recoverableClose(code) ? null : loadSeat(profile);
+    if (seat) {
+      void recoverRun(joined, seat, lostAt ?? Date.now());
+      return;
+    }
+    clearSeat();
     const message = friendlyClose(code, training);
     if (training) {
       backToMenu(message);
@@ -253,9 +296,60 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     resultsVisible: () => results.visible,
     ...(training ? { leaveTraining: () => backToMenu() } : {}),
   });
-  handedOver = true;
+  // Liveness for the server, and our own eyes on a socket that says it is open and carries nothing (any phase, results included).
+  linkWatch?.stop();
+  const watch = new LinkWatch(linkOf(joined));
+  linkWatch = watch;
+  watch.start();
+  joined.onLeave(() => watch.stop());
   // The loading screen goes once the raid scene has drawn; its own timeout covers a scene that never gets there.
   void whenReady(() => sceneRunning("raid")).then(() => { if (wanted()) loading.hide(); });
+  return true;
+}
+
+/** Asks for a lost seat until it is given back, the window since the connection was lost is over, or the room is gone. */
+async function reconnectLoop(seat: SeatRecord, lostAt: number, wanted: () => boolean): Promise<RaidRoom | null> {
+  for (;;) {
+    if (!wanted()) return null;
+    let failure: unknown;
+    try {
+      return await reconnectRaid(seat.token);
+    } catch (err) {
+      failure = err;
+      console.warn("rejoin refused", err);
+    }
+    const delay = nextRejoinDelay(Date.now(), lostAt, failure);
+    if (delay === null) return null;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+}
+
+/**
+ * The SDK gave up on a run's connection with the seat possibly still held: the picture goes (its Room is dead, and its state is
+ * torn down), the reconnecting screen stays, and on success the scene starts again on the new Room as after a page reload.
+ */
+async function recoverRun(lost: RaidRoom, seat: SeatRecord, lostAt: number): Promise<void> {
+  const attempt = ++joinAttempt;
+  const wanted = (): boolean => attempt === joinAttempt;
+  detachRoom(lost);
+  banner.hide();
+  game.scene.stop("raid");
+  loading.show("Reconnecting…", { timeoutMs: REJOIN_WINDOW_MS + JOIN_TIMEOUT_MS });
+  const back = await reconnectLoop(seat, lostAt, wanted);
+  if (!wanted()) {
+    if (back) detachRoom(back);
+    return;
+  }
+  const giveUp = (message: string): void => {
+    clearSeat();
+    backToMenu(message);
+    toasts.show(message, "error");
+  };
+  if (!back) {
+    giveUp(friendlyClose(4003));
+    return;
+  }
+  await runJoined(back, false, seat.profile, wanted, giveUp);
 }
 
 function flushPendingResult(): void {
@@ -301,6 +395,9 @@ function backToMenu(message = ""): void {
   cancelPendingResult();
   const leaving = room;
   room = null;
+  clearSeat();
+  linkWatch?.stop();
+  linkWatch = null;
   // Detached rather than left politely: the room may be mid-reconnect, where leave() does nothing or throws, and
   // its handlers would never run again to hide the "reconnecting" banner.
   if (leaving) detachRoom(leaving);

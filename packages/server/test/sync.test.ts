@@ -831,7 +831,7 @@ describe("schema round trip", () => {
       useConsumable: { kind: "heal" }, trade: { trader: "barter", pick: 0 },
       plan: { ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
-      choose: { chest: "c1", pick: 0 }, questAccept: { quest: "q1" }, train: { cmd: "clear" },
+      choose: { chest: "c1", pick: 0 }, questAccept: { quest: "q1" }, train: { cmd: "clear" }, beat: { n: 1 },
     };
     // The arena world takes every type but the practice console's.
     for (const type of CLIENT_MESSAGE_TYPES) expect(enqueueClientMessage(inputs, type, valid[type]), type).toBe(type !== "train");

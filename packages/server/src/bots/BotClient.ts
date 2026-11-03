@@ -7,7 +7,7 @@
 // the server run the same brain in-process (BotManager).
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  CLIENT_MESSAGE_TYPES, generateMap, INTERP_DELAY_MS, mapHashU32, mulberry32, PROFILE_TOKEN_HEADER, ROOM_NAME, unpackFx,
+  CLIENT_MESSAGE_TYPES, generateMap, HEARTBEAT_MS, INTERP_DELAY_MS, mapHashU32, mulberry32, PROFILE_TOKEN_HEADER, ROOM_NAME, unpackFx,
   type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions, type ProfileResponse, type RunResult,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -149,7 +149,7 @@ export class BotClient {
   teleports = 0;
   /** Inputs sent so far, by message type. */
   readonly sent: Record<ClientMessageType, number> = {
-    move: 0, attackMove: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, consumeCorpse: 0, huntTarget: 0, plan: 0, cast: 0, choose: 0, train: 0, questAccept: 0, trade: 0, useConsumable: 0,
+    move: 0, attackMove: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, consumeCorpse: 0, huntTarget: 0, plan: 0, cast: 0, choose: 0, train: 0, questAccept: 0, trade: 0, useConsumable: 0, beat: 0,
   };
   /** Private `plan` deals received (the server deals every player in the planning phase; the tests read it). */
   plansSeen = 0;
@@ -163,6 +163,7 @@ export class BotClient {
   private readonly done: Promise<BotRun>;
   private settle!: (run: BotRun) => void;
   private timer: NodeJS.Timeout | undefined;
+  private beatTimer: NodeJS.Timeout | undefined;
 
   private brain: Brain | null = null;
   private tierPlayed: TierId = "hard";
@@ -240,6 +241,9 @@ export class BotClient {
       throw err;
     }
     this.timer = setTimeout(() => this.finish(null, "timed out"), this.opts.timeoutMs ?? 1_200_000);
+    // A real client's liveness beat (a server that hosts drops a silent one); not an input, so not counted in `sent`.
+    this.beatTimer = setInterval(() => { try { if (!this.finished && room.connection?.isOpen) room.send("beat", {}); } catch { /* the close says it */ } }, HEARTBEAT_MS);
+    this.beatTimer.unref?.();
   }
 
   /** Resolves once the run result arrived (or the bot failed); never rejects. */
@@ -363,6 +367,7 @@ export class BotClient {
     if (this.finished) return;
     this.finished = true;
     clearTimeout(this.timer);
+    clearInterval(this.beatTimer);
     if (error) this.log(`stopped: ${error}`);
     this.endRun(result);
     const run: BotRun = { profile: this.profile, result };

@@ -11,9 +11,9 @@
 //   a bot             nothing, ever (sim bots have no client, profile or seat; settle() drops their results, and only the
 //                     bot manager's learning store hears of them)
 import { randomBytes, randomInt } from "node:crypto";
-import { ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
+import { CloseCode, ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
+  CLIENT_MESSAGE_TYPES, CLIENT_OUT_OF_DATE_CODE, CLIENT_OUT_OF_DATE_MESSAGE, ENDED_LINGER_SECONDS, isFactionId, LIVENESS_SWEEP_MS, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
   TELEMETRY_FINALIZE_GRACE_MS, TELEMETRY_PERF_MESSAGE,
   type FactionId, type FxBatch, type FxEvent, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
 } from "@raid/shared";
@@ -22,6 +22,7 @@ import { BotManager } from "../bots/BotManager";
 import type { BotStatsStoreApi } from "../bots/brain/types";
 import type { ServerConfig } from "../config";
 import { clientBuildAllowed, noteStaleClient } from "../guards/clientBuild";
+import { LivenessTracker } from "../guards/liveness";
 import { addressOfContext } from "../guards/clientIp";
 import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, type PasscodeGate } from "../guards/passcode";
 import type { RoomCounter } from "../guards/roomCounter";
@@ -156,8 +157,8 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
 /** What a creation refused for the room cap says (net/errors.ts matches "server is full"). */
 const SERVER_FULL = "the server is full: too many rooms are open right now";
 
-/** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 40 a second and is its own, cheap, thing). */
-const FREE_MESSAGE_TYPE = "aim";
+/** Every client message but `aim` and `beat` is an order that spends the sender's budget (aim streams at up to 40 a second and is its own, cheap, thing; a beat is one a second). */
+const FREE_MESSAGE_TYPES: ReadonlySet<string> = new Set(["aim", "beat"]);
 
 /**
  * Colyseus closes a client (4002, which the SDK does not reconnect from: the run is lost) past this many messages in a one-second
@@ -237,6 +238,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private training = false;
   /** The mode this room was counted under in ctx.rooms; null when it was refused or has been given back (see onCreate and onDispose). */
   private counted: RoomMode | null = null;
+  /** When each connected client last sent anything (the sweep's evidence). */
+  private readonly liveness = new LivenessTracker();
   /** Each player's order budget (a token bucket), made on its first order. */
   private readonly budgets = new Map<string, TokenBucket>();
   /** Orders dropped for being over a budget, in this room: for the log and for the tests. */
@@ -285,13 +288,15 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     }
     for (const type of CLIENT_MESSAGE_TYPES) {
       this.onMessage(type, (client: Client, msg: unknown) => {
+        // Anything the client sends, rejected or over budget included, proves it is there (RaidRoom.sweepSilent).
+        this.liveness.touch(client.sessionId, Date.now());
         const rt = this.built?.players.get(client.sessionId);
         if (!rt) return;
         // A guard at the network edge, not a rule of the game: an order over the sender's budget is dropped before the sim
         // sees it and, like junk, is not presence.
-        if (type !== FREE_MESSAGE_TYPE && !this.orderAllowed(client.sessionId)) return;
+        if (!FREE_MESSAGE_TYPES.has(type) && !this.orderAllowed(client.sessionId)) return;
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) {
+        if (enqueueClientMessage(rt.inputs, type, msg, { training: this.training }) && type !== "beat") {
           this.lastInputAt = Date.now();
           this.run?.noteInput(client.sessionId);
         }
@@ -300,10 +305,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // The client's one perf sample of a run (docs/TELEMETRY.md 3.9): never a sim input and not presence. It spends an order token,
     // and the collector keeps one per session per run, sanitized; training records nothing.
     this.onMessage(TELEMETRY_PERF_MESSAGE, (client: Client, msg: unknown) => {
+      this.liveness.touch(client.sessionId, Date.now());
       if (this.training || !this.run || !this.built?.players.has(client.sessionId)) return;
       if (!this.orderAllowed(client.sessionId)) return;
       this.run.notePerf(client.sessionId, msg);
     });
+    // On the room clock (core's 50 ms loop): a sweep a second is all the liveness check costs.
+    const silenceMs = config.livenessTimeoutMs ?? 0;
+    if (silenceMs > 0) this.clock.setInterval(() => this.sweepSilent(silenceMs), LIVENESS_SWEEP_MS);
     // The steps are the pacer's (tick()). Core's own loop stays, with nothing in it, as the driver of this.clock: the end-of-run
     // linger, the telemetry grace and training's idle check run on that clock, and with no loop and patchRate 0 core would tick
     // it from a 60 Hz interval of its own instead.
@@ -311,6 +320,21 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Patches are sent from tick() right after each wake's steps, so every patch carries exactly the latest tick. Must come after
     // setTimestep (see above).
     this.patchRate = 0;
+  }
+
+  /**
+   * Drops every connected client that has said nothing for `silenceMs`. Close code MAY_TRY_RECONNECT (4010), which core sends to
+   * onDrop (every code but CONSENTED does: Room._onLeave) so the seat enters the reconnect grace as for a real drop, never a
+   * consented leave or MIA; the SDK treats 4010 as a drop too. A fill bot has no client, so it is never in `clients`.
+   */
+  private sweepSilent(silenceMs: number) {
+    if (this.disposed || this.clients.length === 0) return;
+    const silent = this.liveness.silent(this.clients.map((c) => c.sessionId), Date.now(), silenceMs);
+    for (const sessionId of silent) {
+      console.warn(`[raid ${this.roomId}] ${this.seats.get(sessionId)?.profile ?? sessionId} sent nothing for ${silenceMs} ms: dropping the connection`);
+      this.liveness.forget(sessionId);
+      this.kickClient(sessionId, CloseCode.MAY_TRY_RECONNECT, "no heartbeat");
+    }
   }
 
   private buildWorld(): World {
@@ -416,6 +440,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       const owned = store.get(profile)?.cosmetics;
       addPlayer(world, client.sessionId, profile, { faction, look: owned ? packLook(owned.equipped, owned.owned) : 0 });
       this.seats.set(client.sessionId, { profile, ownerKey });
+      this.liveness.touch(client.sessionId, Date.now());
       if (faction && !this.training) this.picked.set(client.sessionId, faction);
       profiles.confirm(profile, ownerKey);
       if (this.opener) profiles.forgetRoom(this.opener, this.roomId);
@@ -448,6 +473,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   onReconnect(client: Client) {
+    this.liveness.touch(client.sessionId, Date.now());
     markReconnected(this.world, client.sessionId);
     this.run?.noteReconnect(client.sessionId);
     const result = this.pendingResults.get(client.sessionId);
@@ -496,6 +522,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Deleting the seat first is what keeps a second onLeave/onDispose from paying out again.
     this.seats.delete(sessionId);
     this.budgets.delete(sessionId);
+    this.liveness.forget(sessionId);
     if (this.training) {
       // Walking out of a practice room is not leaving a run: no MIA, no result, nothing banked.
       abandonPlayer(this.world, sessionId);

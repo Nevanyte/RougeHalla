@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mapFromTiles, mulberry32, TILE, VISION_TRAIL_MS } from "@raid/shared";
+import { LivenessTracker } from "../src/guards/liveness";
 import { visionSnapshot } from "../src/rooms/visionSync";
 import { RaidRoom } from "../src/rooms/RaidRoom";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -54,7 +55,7 @@ describe("reconnect vision snapshots", () => {
   it("sends a private snapshot to the reconnecting socket without broadcasting it", () => {
     const world = fixture();
     const room = Object.create(RaidRoom.prototype) as RaidRoom;
-    Object.assign(room, { built: world, pendingResults: new Map(), fxChannel: { inFlight: vi.fn() } });
+    Object.assign(room, { built: world, pendingResults: new Map(), fxChannel: { inFlight: vi.fn() }, liveness: new LivenessTracker() });
     const send = vi.fn();
     const broadcast = vi.fn();
     Object.assign(room, { broadcast });

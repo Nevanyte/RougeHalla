@@ -133,6 +133,16 @@ export const LOBBY_SECONDS = 30;
 /** Once MIN players are in, the lobby waits at most this long for more before starting. */
 export const LOBBY_FILL_SECONDS = 5;
 export const RECONNECT_SECONDS = 10;
+/**
+ * App-level liveness (the `beat` message). Protocol pings are not proof of a live browser: the Worker/container leg answers them
+ * for a client that is gone, so the server counts the client's own messages. A client sends a `beat` every HEARTBEAT_MS; one that
+ * has said nothing for LIVENESS_TIMEOUT_MS is dropped (seat held for RECONNECT_SECONDS), checked every LIVENESS_SWEEP_MS. A
+ * client that sees no patch for CLIENT_STALL_MS treats its own socket as dead and reconnects.
+ */
+export const HEARTBEAT_MS = 1000;
+export const LIVENESS_TIMEOUT_MS = 4500;
+export const LIVENESS_SWEEP_MS = 1000;
+export const CLIENT_STALL_MS = 3000;
 /** How long an ended room lingers so clients receive their results before disconnect. */
 export const ENDED_LINGER_SECONDS = 5;
 /**

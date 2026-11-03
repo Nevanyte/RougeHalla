@@ -945,6 +945,7 @@ describe("enqueueClientMessage", () => {
       choose: { chest: "c1", pick: -1 },
       questAccept: { quest: "quest3" },
       train: { cmd: "card", id: "ad1", count: 3 },
+      beat: { n: 7 },
     };
 
     it("every client message type is accepted with a valid payload", () => {
@@ -964,6 +965,22 @@ describe("enqueueClientMessage", () => {
 
     it("lists exactly the message types the examples cover", () => {
       expect([...CLIENT_MESSAGE_TYPES].sort()).toEqual(Object.keys(VALID).sort());
+    });
+  });
+
+  describe("beat (liveness)", () => {
+    it("is valid with no payload, an empty one or an integer count, and queues nothing", () => {
+      for (const msg of [undefined, null, {}, { n: 0 }, { n: 41 }]) {
+        const q = fresh();
+        expect(enqueueClientMessage(q, "beat", msg), JSON.stringify(msg)).toBe(true);
+        expect(q.move).toBeNull();
+        expect(q.aim).toBeNull();
+        expect(q.actions).toEqual([]);
+      }
+    });
+
+    it("refuses junk", () => {
+      for (const msg of ["x", 7, [], { n: 1.5 }, { n: "1" }, { n: NaN }]) expect(enqueueClientMessage(fresh(), "beat", msg), JSON.stringify(msg)).toBe(false);
     });
   });
 

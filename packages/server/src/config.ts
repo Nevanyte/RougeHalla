@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  FIRST_PATIENCE_SECONDS, COLISEUM_FIRST_SECONDS, COLISEUM_SECOND_SECONDS, COLISEUM_REPEAT_SECONDS, COLISEUM_MIN_GAP_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS,
+  FIRST_PATIENCE_SECONDS, COLISEUM_FIRST_SECONDS, COLISEUM_SECOND_SECONDS, COLISEUM_REPEAT_SECONDS, COLISEUM_MIN_GAP_SECONDS, LIVENESS_TIMEOUT_MS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS,
   PATIENCE_SECONDS, PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
 } from "@raid/shared";
 import {
@@ -28,6 +28,11 @@ export interface ServerConfig extends SimConfig {
   allowNetSimWhenHosting: boolean;
   /** A training room whose player sends nothing for this long is closed (TRAINING_IDLE_SECONDS). */
   trainingIdleSeconds: number;
+  /**
+   * A client that sends nothing (not even its `beat`) for this long is dropped, its seat held for the reconnect grace (LIVENESS_TIMEOUT_MS
+   * in ms; 0 or unset = off). On when hosting, off in dev and in the tests' hand-made clients, which never beat.
+   */
+  livenessTimeoutMs?: number;
   /** The built client to serve from the same port as the API and the websocket (CLIENT_DIR). Unset: the server serves no pages (dev: Vite does). */
   clientDir: string | undefined;
   /**
@@ -202,6 +207,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     allowTraceWhenHosting: env.ALLOW_TRACE_WHEN_HOSTING === "1" || env.ALLOW_TRACE_WHEN_HOSTING === "true",
     allowNetSimWhenHosting: env.ALLOW_NETSIM_WHEN_HOSTING === "1" || env.ALLOW_NETSIM_WHEN_HOSTING === "true",
     trainingIdleSeconds: num(env.TRAINING_IDLE_SECONDS, TRAINING_IDLE_SECONDS),
+    livenessTimeoutMs: Math.floor(limit(env.LIVENESS_TIMEOUT_MS, whenHosting(LIVENESS_TIMEOUT_MS))),
     clientDir: env.CLIENT_DIR ? path.resolve(env.CLIENT_DIR) : undefined,
     sameOriginOnly: hosting,
     corsOrigins: originList(env.CORS_ORIGINS),
