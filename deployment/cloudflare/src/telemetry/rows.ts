@@ -1,6 +1,7 @@
 // RunRecord -> the summary rows of docs/TELEMETRY.md 7.2. Pure: the Worker flattens, the Durable Object only runs SQL.
 import {
   TELEMETRY_HEAT_CELL_TILES,
+  TELEMETRY_MAP_TILES,
   TILE_ABSENT,
   telemetryDay,
   telemetryObjectKey,
@@ -38,8 +39,8 @@ export const CHILD_TABLES = [
 ] as const;
 export type ChildTable = (typeof CHILD_TABLES)[number];
 
-/** The map is 136 x 136 tiles; cells are TELEMETRY_HEAT_CELL_TILES wide (34 x 34). */
-export const HEAT_GRID = Math.ceil(136 / TELEMETRY_HEAT_CELL_TILES);
+/** The map is TELEMETRY_MAP_TILES (160) tiles square; cells are TELEMETRY_HEAT_CELL_TILES wide (40 x 40). */
+export const HEAT_GRID = Math.ceil(TELEMETRY_MAP_TILES / TELEMETRY_HEAT_CELL_TILES);
 
 const b = (x: boolean | undefined): number => (x ? 1 : 0);
 const r1 = (x: number): number => Math.round(x * 10) / 10;

@@ -7,6 +7,7 @@
 // targets of 6.5), the stylers' time per zone by faction and the landmark stage. `yard` names a module exporting
 // generateMap(seed) (for example the 64x64 wedge generator checked out elsewhere), run interleaved in the same windows
 // as a load yardstick, so numbers from a busy machine can be scaled to a quiet one.
+import { MAP_TILES_H, MAP_TILES_W } from "../src/constants";
 import { MAPGEN_FAILS, MAPGEN_NOTES, MAPGEN_PROFILE, MAX_ATTEMPTS, certifiedMap, tryAttempt, warmMapgen } from "../src/mapgen";
 import type { MapgenOptions } from "../src/mapgen";
 import { STYLER_STATS, resetStylerStats, zoneStylerHook } from "../src/zoneStyle";
@@ -62,13 +63,15 @@ console.log(`attempts ${attempts} (${(attempts / n).toFixed(3)} per seed); certi
 console.log(`failures (A: = whole attempt): ${JSON.stringify(MAPGEN_FAILS)}`);
 console.log(`notes: ${JSON.stringify(MAPGEN_NOTES)}; styler calls ${STYLER_STATS.calls}, ${STYLER_STATS.ms.toFixed(0)} ms in the zone passes (${(STYLER_STATS.ms / Math.max(1, STYLER_STATS.calls)).toFixed(2)} ms per call), repaired ${STYLER_STATS.repaired}, blocked ${STYLER_STATS.blocked}`);
 console.log(`ms per attempt by stage: ${Object.entries(MAPGEN_PROFILE.ms).map(([k, v]) => `${k} ${(v / attempts).toFixed(2)}`).join(", ")}`);
-// The stage targets of zone-shapes contract 6.5 (per attempt; the whole map per certified seed).
+// The stage targets of zone-shapes contract 6.5 (per attempt; the whole map per certified seed). They were written for 136x136 and 8 camps a zone,
+// so they are scaled here by the map's area against that (1.38 at 160x160); the camps' own x1.25 is left in the overshoot.
+const TARGET_SCALE = (MAP_TILES_W * MAP_TILES_H) / (136 * 136);
 const st = (k: string): number => (MAPGEN_PROFILE.ms[k] ?? 0) / Math.max(1, attempts);
 const targets: [string, number, number][] = [
   ["zones + camps", st("zones"), 14], ["landmarks", st("landmarks"), 1], ["spawns (field + pick)", st("spawns"), 3], ["styler", st("styler"), 10],
   ["nets + crates + post + terrain + records", st("nets") + st("crates") + st("post") + st("terrain") + st("records"), 6], ["spawn gate", st("spawnGate"), 8],
 ];
-console.log(`targets (contract 6.5): ${targets.map(([k, v, t]) => `${k} ${v.toFixed(2)}/${t}${v > t ? " OVER" : ""}`).join(", ")}; whole map mean ${mean(times).toFixed(1)}/45, p99 ${pct(sorted, 0.99).toFixed(1)}/120`);
+console.log(`targets (contract 6.5, scaled x${TARGET_SCALE.toFixed(2)}): ${targets.map(([k, v, t]) => `${k} ${v.toFixed(2)}/${(t * TARGET_SCALE).toFixed(1)}${v > t * TARGET_SCALE ? " OVER" : ""}`).join(", ")}; whole map mean ${mean(times).toFixed(1)}/${(45 * TARGET_SCALE).toFixed(0)}, p99 ${pct(sorted, 0.99).toFixed(1)}/${(120 * TARGET_SCALE).toFixed(0)}`);
 const zonesMs = Object.entries(STYLER_STATS.msByFaction).map(([f, v]) => `${f} ${(v / Math.max(1, STYLER_STATS.zonesByFaction[f as keyof typeof STYLER_STATS.zonesByFaction])).toFixed(2)}`);
 console.log(`styler ms per zone by faction: ${zonesMs.join(", ")}; features recorded ${STYLER_STATS.features}`);
 console.log(`landmark stage: ${STYLER_STATS.landmarkCalls} calls, ${(STYLER_STATS.landmarkMs / Math.max(1, STYLER_STATS.landmarkCalls)).toFixed(2)} ms per call, landmarks ${STYLER_STATS.landmarks} (${JSON.stringify(STYLER_STATS.landmarksByFaction)})`);

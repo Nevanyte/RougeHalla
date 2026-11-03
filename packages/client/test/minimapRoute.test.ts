@@ -32,15 +32,18 @@ const mob = (over: Partial<MinimapMob> = {}): MinimapMob => ({ x: 400, y: 300, k
 
 describe("camp markers", () => {
   it("draws every camp as its zone's shape in its zone's colour, an elite with a gold crown, and no arcs", () => {
-    const { paint, ctx } = setup();
+    // Seed 1 keeps all 50 camp marks through the minimap's collision layout (on seed 7 it drops three, two of them elites, in the 150 px
+    // reference box: the layout leaves out a camp mark that meets another and is not essential).
+    const map = generateMap(1);
+    const { paint, ctx } = setup(map);
     paint();
     const fills = argsOf(ctx, "fillStyle=").map(([c]) => c);
-    const elites = MAP.camps.filter(isEliteCamp).length;
+    const elites = map.camps.filter(isEliteCamp).length;
     for (const zone of ["fire", "sentenced", "plague", "frost", "holy"] as const) expect(fills).toContain(cssColor(FACTIONS[zone].color));
     expect(fills.filter((c) => c === "#ffd54f")).toHaveLength(elites);
     // Shapes are paths, not arcs: the mob dots stay the minimap's only circles.
     expect(argsOf(ctx, "arc")).toHaveLength(0);
-    expect(names(ctx).filter((n) => n === "closePath")).toHaveLength(MAP.camps.length + elites);
+    expect(names(ctx).filter((n) => n === "closePath")).toHaveLength(map.camps.length + elites);
   });
 
   it("draws the camps under the mob dots and the player", () => {

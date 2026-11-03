@@ -44,11 +44,12 @@ export const TELEPORT_DISTANCE = 200;
 // World
 export const TILE = 32;
 /**
- * 136x136 tiles since the zone shapes (zone-shapes contract 0.1.1; 96x96 in R2): five zones of about 3534 painted tiles each around
- * the fixed coliseum. Even, so the coliseum centre CX = W / 2 stays a tile corner and the pillar shift CX - 32 an integer.
+ * 160x160 tiles (136x136 with the zone shapes, zone-shapes contract 0.1.1; 96x96 in R2), the map grown so a trip to a far camp is a
+ * real decision: five zones of about 4936 painted tiles each around the fixed coliseum, ten camps in each. Even, so the coliseum
+ * centre CX = W / 2 stays a tile corner and the pillar shift CX - 32 an integer.
  */
-export const MAP_TILES_W = 136;
-export const MAP_TILES_H = 136;
+export const MAP_TILES_W = 160;
+export const MAP_TILES_H = 160;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
 /**

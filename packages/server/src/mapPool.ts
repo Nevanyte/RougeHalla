@@ -42,7 +42,7 @@ export const MAP_WORKER_STOP_MS = 2_000;
 /**
  * A worker that sends nothing for this long while it owes a reply is hung: terminated and restarted like a crash. The clock runs
  * from the oldest unanswered request or the worker's last message, whichever is later, so a slow worker that keeps answering never
- * trips it. A map takes about 45 ms at 136x136 (a cold worker's first about 250 ms), so this is far past the worst wait a healthy one shows.
+ * trips it. A map takes about 45 ms at 136x136 and about 65 ms at 160x160 (x1.47, scripts/mapBench.ts; a cold worker's first about 250 ms), so this is far past the worst wait a healthy one shows.
  */
 export const MAP_WORKER_HANG_MS = 5_000;
 

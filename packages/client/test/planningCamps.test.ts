@@ -92,20 +92,23 @@ describe("camp states on the map screens", () => {
     const { view, camps } = setup();
     const n = MAP.camps.length;
     const campStates = new Array(n).fill(0);
-    campStates[0] = 2;
-    campStates[1] = 1;
+    // A normal camp is the cleared one and an elite camp the engaged one (which camps those are depends on the map).
+    const gone = MAP.camps.findIndex((c) => !isEliteCamp(c));
+    const hot = MAP.camps.findIndex((c) => isEliteCamp(c));
+    campStates[gone] = 2;
+    campStates[hot] = 1;
     view.update(frame({ campStates }));
-    const cleared = camps()[0]!.getAttribute("aria-label")!;
-    expect(cleared).toContain(campTitle(MAP.camps[0]!));
+    const cleared = camps()[gone]!.getAttribute("aria-label")!;
+    expect(cleared).toContain(campTitle(MAP.camps[gone]!));
     expect(cleared).toMatch(/\. Cleared$/); // not "its chest is gone": the chest is up for 15 s after the clear
     expect(cleared).not.toContain("chest");
     expect(cleared).not.toContain("For ");
-    expect(camps()[0]!.byClass("pl-chip")[0]!.hidden).toBe(true);
-    const engaged = camps()[1]!.getAttribute("aria-label")!;
+    expect(camps()[gone]!.byClass("pl-chip")[0]!.hidden).toBe(true);
+    const engaged = camps()[hot]!.getAttribute("aria-label")!;
     expect(engaged).toContain("Someone has fought here");
     expect(engaged, "the state is sticky history, never a live fight").not.toMatch(/is on|under way|in progress|fighting/i);
     expect(engaged).toContain("Elite camp: dangerous");
-    expect(camps()[1]!.byClass("pl-chip")[0]!.hidden).toBe(false);
+    expect(camps()[hot]!.byClass("pl-chip")[0]!.hidden).toBe(false);
   });
 
   it("is the same markers without states (a server before the chests): none cleared, none engaged", () => {

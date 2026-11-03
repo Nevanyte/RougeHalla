@@ -3,30 +3,30 @@
 // seed (D16), so a client cannot read a camp's type off the map. Every camp is mono-type: its normal mobs share one type, and an
 // elite camp holds one elite at its elite spot (the rest of that camp is its normal type).
 //
-// The normal types come from a BAG: the zone's four normal types twice (eight entries), shuffled once per zone (Fisher-Yates,
-// seven draws), and the zone's camps take the entries in `GameMap.camps` order. A zone of eight camps therefore has each
-// normal type in exactly two of them; with fewer camps they take the first entries (a type can repeat or be absent), with
-// more the bag wraps. The elite of an elite camp is no draw at all: the k-th elite camp of a zone (camps order, `eliteSpot >= 0`)
-// holds the k-th of `elitesOf(zone)`, wrapping past the second.
+// The normal types come from a BAG: BAG_COPIES rounds (three) of the zone's four normal types, each round shuffled on its own
+// (Fisher-Yates over four, three draws), all drawn once per zone (nine draws), and the zone's camps take the entries in
+// `GameMap.camps` order. So each group of four camps in a row shows every type once: a zone of ten camps has two of its types in
+// three camps each and the other two in two each (never a type in one camp, never in four), a zone of eight has each type in
+// exactly two, and with fewer camps they take the first entries (a type can repeat or be absent); past twelve the bag wraps. The elite of an elite camp is no draw at all:
+// the k-th elite camp of a zone (camps order, `eliteSpot >= 0`) holds the k-th of `elitesOf(zone)`, wrapping past the second.
 import type { CampDef } from "./map";
 import type { FactionId } from "./factions";
 import { elitesOf, normalTypesOf, type MobTypeId } from "./mobs";
 import { shuffle, type Rng } from "./rng";
 
-/** How many times each normal type is in a zone's bag: a zone of eight camps shows every type in exactly this many. */
-export const BAG_COPIES = 2;
+/** How many rounds of the four normal types are in a zone's bag: twelve entries, so a zone of ten camps shows every type two or three times. */
+export const BAG_COPIES = 3;
 
 /**
- * The normal types of `campCount` camps of one zone, in camp order: the first `campCount` entries of the zone's shuffled
- * bag (the bag wraps when there are more than eight camps). Always seven draws for a zone with at least one camp, however many
- * camps it has, so a map's draw sequence does not depend on how its camps are split between zones; nothing is drawn for a zone
- * with no camps.
+ * The normal types of `campCount` camps of one zone, in camp order: the first `campCount` entries of the zone's bag (BAG_COPIES
+ * shuffled rounds of its four normal types; the bag wraps when there are more than twelve camps). Always nine draws for a zone with
+ * at least one camp, however many camps it has, so a map's draw sequence does not depend on how its camps are split between zones;
+ * nothing is drawn for a zone with no camps.
  */
 export function rollZoneTypes(zone: FactionId, campCount: number, rng: Rng): MobTypeId[] {
   if (!(campCount > 0)) return [];
   const bag: MobTypeId[] = [];
-  for (let copy = 0; copy < BAG_COPIES; copy++) for (const t of normalTypesOf(zone)) bag.push(t.id);
-  shuffle(rng, bag);
+  for (let copy = 0; copy < BAG_COPIES; copy++) bag.push(...shuffle(rng, normalTypesOf(zone).map((t) => t.id)));
   const out: MobTypeId[] = [];
   for (let i = 0; i < campCount; i++) out.push(bag[i % bag.length]!);
   return out;

@@ -16,7 +16,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  defaultFaction, DUMMY_HP, FACTION_IDS, FACTIONS, GV_KILL, isRanged, MAX_PLAYERS, mulberry32, ROOM_NAME, SIGNATURE_WEAPONS,
+  defaultFaction, DUMMY_HP, FACTION_IDS, FACTIONS, GV_KILL, hasLineOfSight, isRanged, isSolidAt, MAX_PLAYERS, mulberry32, ROOM_NAME, SIGNATURE_WEAPONS,
   TICK_MS, TILE, TRAINING_ROOM_NAME, unpackFx, WEAPON_IDS, type FactionId, type FxBatch, type FxEvent, type JoinOptions, type RunResult,
   type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -666,10 +666,22 @@ describe("the training room (live)", () => {
 
   const mobIdNamed = (p: Player, name: string): string => mobNamed(worldOf(p), name);
 
-  /** Stands the player `gap` units from the mob on the side it faces (the spawn's), and returns the aim at it. */
+  /**
+   * Stands the player `gap` units from the mob on the side it faces (the spawn's), and returns the aim at it. When that spot is not
+   * ground a body can stand on, in the mob's sight (a fence row or a river of the 160x160 map can lie between a dummy and its spawn),
+   * it takes the next free spot around the mob, eighth turn by eighth turn.
+   */
   function standBy(p: Player, mobId: string, gap: number): number {
-    const m = worldOf(p).state.mobs.get(mobId)!;
-    const at = { x: m.x + Math.cos(m.facing) * gap, y: m.y + Math.sin(m.facing) * gap };
+    const world = worldOf(p);
+    const m = world.state.mobs.get(mobId)!;
+    const standable = (at: Vec2): boolean =>
+      [[0, 0], [10, 0], [-10, 0], [0, 10], [0, -10]].every(([dx, dy]) => !isSolidAt(world.map, at.x + dx!, at.y + dy!)) && hasLineOfSight(world.map, at, m);
+    let at = { x: m.x + Math.cos(m.facing) * gap, y: m.y + Math.sin(m.facing) * gap };
+    for (const turn of [1, -1, 2, -2, 3, -3, 4]) {
+      if (standable(at)) break;
+      const angle = m.facing + (turn * Math.PI) / 4;
+      at = { x: m.x + Math.cos(angle) * gap, y: m.y + Math.sin(angle) * gap };
+    }
     placeOnServer(p, at);
     return Math.atan2(m.y - at.y, m.x - at.x);
   }

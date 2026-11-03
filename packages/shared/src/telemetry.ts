@@ -40,9 +40,14 @@ export const TELEMETRY_MAX_SAMPLES = 1800;
 export const TELEMETRY_MAX_DUEL_CARDS = 16;
 /** One serialized RunRecord (uncompressed JSON). A record over this is sent without `tiles`, then dropped. */
 export const TELEMETRY_RECORD_MAX_BYTES = 512 * 1024;
-/** A tile byte pair meaning "not standing this second" (not yet started, down, gone). The map is 136 tiles wide. */
+/** A tile byte pair meaning "not standing this second" (not yet started, down, gone). The map is 160 tiles wide, so a tile fits a byte below this. */
 export const TILE_ABSENT = 255;
-/** The dashboard's cross-run heatmap aggregates tiles into square cells this many tiles wide (34 x 34 on 136 x 136). */
+/**
+ * The map's side in tiles as the dashboard knows it (this module imports no values, so a Worker bundle stays small): the Worker sizes its
+ * heatmap grid from it and the dashboard script's per-run view reads the same number. test/telemetry.test.ts keeps it equal to MAP_TILES_W.
+ */
+export const TELEMETRY_MAP_TILES = 160;
+/** The dashboard's cross-run heatmap aggregates tiles into square cells this many tiles wide (40 x 40 on 160 x 160). */
 export const TELEMETRY_HEAT_CELL_TILES = 4;
 
 // Transport (packages/server/src/telemetry/*, deployment/cloudflare ingest).

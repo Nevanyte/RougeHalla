@@ -11,7 +11,7 @@ import { SHAPE_GATES, generateMap, mapHash } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA } from "../src/terrain";
 import {
-  BOW_TILES, CERT_FEATURE_JOBS, CERT_FEATURE_KINDS, FEATURE_CHECKS, FENCE_CHECKS, FENCE_DETOUR_TILES, FENCE_RUN_MAX, LANDMARK_ZONE, PAIR_DRAWS, PAIR_TARGET, RAY_DIRECTIONS,
+  BOW_TILES, CAMPS_PER_ZONE, CERT_FEATURE_JOBS, CERT_FEATURE_KINDS, FEATURE_CHECKS, FENCE_CHECKS, FENCE_DETOUR_TILES, FENCE_RUN_MAX, LANDMARK_ZONE, PAIR_DRAWS, PAIR_TARGET, RAY_DIRECTIONS,
   ZONE_MEASURE_VALUES, ZONE_WINDOWS, campGraph, campGraphNodes, certifyMap, classifyPair, cyclomaticNumber, decorProblems, engagementPairs, featureProblems, fenceProblems,
   fenceReport, gabriel, judgeWindow, lcgNext, pieceProblems, pieceStats, pieces, rayLengthsAt, rayProfile, strictZoneCodes, validElitePairs, walkSegment, zoneMeasures,
 } from "./mapCertify";
@@ -72,7 +72,7 @@ describe("the tables the certifier re-declares", () => {
     expect(ZONE_WINDOWS.sentenced["fence detour"]).toEqual({ lo: 0, hi: 10, share: 1 });
     expect(ZONE_WINDOWS.sentenced["fence run"]).toEqual({ lo: 0, hi: 9, share: 1 });
     expect(ZONE_WINDOWS.plague["rays>=7.5t %"]).toEqual({ lo: 60, hi: 74 });
-    expect(ZONE_WINDOWS.plague.loops.lo).toBe(4.5); // the contract says 6, which a 9-node Gabriel graph (13 edges, E - V + 1 = 5) cannot reach
+    expect(ZONE_WINDOWS.plague.loops.lo).toBe(6); // the contract's own 6: an 11-node Gabriel graph (ten camps and the door) has about 7 loops (the 9 nodes of eight camps had 5, so its floor was 4.5)
     expect(ZONE_WINDOWS.frost["rays>=7.5t %"]).toEqual({ lo: 62, hi: 78 });
     expect(ZONE_WINDOWS.holy["rays>=7.5t %"]).toEqual({ lo: 60, hi: 74 });
     expect(ZONE_WINDOWS.holy.piers).toEqual({ lo: 18, hi: 30 });
@@ -604,8 +604,8 @@ describe("zone measures on a generated map", () => {
       expect(z.rays.share15).toBeLessThanOrEqual(z.rays.share75);
       expect(z.rays.share75).toBeLessThanOrEqual(1);
       expect(z.pairs.wallBlocked + z.pairs.lowSeparated + z.pairs.clear).toBeCloseTo(1, 12);
-      expect(z.graph.nodes).toHaveLength(9);
-      expect(z.graph.nodes.filter((n) => n.kind === "camp")).toHaveLength(8);
+      expect(z.graph.nodes).toHaveLength(CAMPS_PER_ZONE + 1);
+      expect(z.graph.nodes.filter((n) => n.kind === "camp")).toHaveLength(CAMPS_PER_ZONE);
       expect(z.graph.loops).toBeGreaterThanOrEqual(0);
       expect(z.eliteSep).toBeGreaterThanOrEqual(16);
       expect(z.walls + z.lows).toBe(0);
@@ -1103,9 +1103,9 @@ const failuresOf = (m: GameMap, o: Parameters<typeof certifyMap>[1] = {}): strin
 /** A break: it edits a clone of the base map, and certifyMap must report a failure starting with `expect`. */
 const BREAKS: Array<{ what: string; expect: string; edit: (m: GameMap) => void; options?: Parameters<typeof certifyMap>[1] }> = [
   // grid
-  { what: "a tile value that is not 0, 1 or 2", expect: "grid: 136x136", edit: (m) => { m.tiles[quiet(m, 1)] = 7; } },
-  { what: "a floor tile on the border", expect: "grid: 136x136", edit: (m) => { m.tiles[5] = TILE_FLOOR; } },
-  { what: "a region on the border", expect: "grid: 136x136", edit: (m) => { m.regionGrid[5] = 1; } },
+  { what: "a tile value that is not 0, 1 or 2", expect: "grid: 160x160", edit: (m) => { m.tiles[quiet(m, 1)] = 7; } },
+  { what: "a floor tile on the border", expect: "grid: 160x160", edit: (m) => { m.tiles[5] = TILE_FLOOR; } },
+  { what: "a region on the border", expect: "grid: 160x160", edit: (m) => { m.regionGrid[5] = 1; } },
   { what: "a territoryGrid of the wrong size", expect: "grid: territoryGrid", edit: (m) => { m.territoryGrid = new Uint8Array(5); } },
   // connectivity
   { what: "an island of floor", expect: "connectivity: all walkable floor is one 4-connected component", edit: (m) => { const i = quiet(m, 1); for (const d of [1, -1, m.w, -m.w]) m.tiles[i + d] = TILE_WALL; } },
@@ -1156,8 +1156,8 @@ const BREAKS: Array<{ what: string; expect: string; edit: (m: GameMap) => void; 
     }
   } },
   // camps and territories
-  { what: "a camp short", expect: "camps: 8 per zone, exactly two elite camps per zone", edit: (m) => { m.camps.splice(3, 1); } },
-  { what: "an elite camp short", expect: "camps: 8 per zone, exactly two elite camps per zone", edit: (m) => { const c = m.camps.find((q) => q.eliteSpot >= 0)!; c.eliteSpot = -1; } },
+  { what: "a camp short", expect: "camps: 10 per zone, exactly two elite camps per zone", edit: (m) => { m.camps.splice(3, 1); } },
+  { what: "an elite camp short", expect: "camps: 10 per zone, exactly two elite camps per zone", edit: (m) => { const c = m.camps.find((q) => q.eliteSpot >= 0)!; c.eliteSpot = -1; } },
   { what: "camp ids out of order", expect: "camps: ids in zone order", edit: (m) => { const t = m.camps[0].id; m.camps[0].id = m.camps[1].id; m.camps[1].id = t; } },
   { what: "two camps 2 tiles apart", expect: "camps: centres at least 9 tiles apart", edit: (m) => { m.camps[1].x = m.camps[0].x + 2 * TILE; m.camps[1].y = m.camps[0].y; } },
   { what: "a rock in a camp's clearing", expect: "camps: fire-1 clearing grown by one tile", edit: (m) => { m.tiles[tileAt(m, m.camps[0]) + 1] = TILE_WALL; } },

@@ -109,7 +109,7 @@ export interface MobCampDef {
 }
 
 /**
- * A camp (ROGUELIKE_PLAN 3.2). Eight per zone, two of them elite; camp centres are at least 9 tiles apart map-wide. The
+ * A camp (ROGUELIKE_PLAN 3.2). Ten per zone (CAMPS_PER_ZONE), two of them elite; camp centres are at least 9 tiles apart map-wide. The
  * camp sits at the pole of its territory (`territoryGrid`), the part of its zone nearer to it than to the zone's other
  * camps by path cost; the territory is the leash area.
  */

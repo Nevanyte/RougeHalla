@@ -33,13 +33,13 @@ import {
 } from "../src/terrain";
 
 // ---- The contract's numbers (not read from the generator; zone-shapes contract 6.1-6.3) ----
-export const MAP_SIZE = 136;
+export const MAP_SIZE = 160;
 export const ZONE_COUNT = 5;
 export const AREA_SPREAD_MAX = 8;
 export const FLOOR_SHARE_MAX = 1.15;
 export const RING_CONTACT_MIN = 24;
 export const SLIVER_MAX = 100;
-export const CAMPS_PER_ZONE = 8;
+export const CAMPS_PER_ZONE = 10;
 export const ELITES_PER_ZONE = 2;
 export const ELITE_MIN_SEP_TILES = 16;
 export const CAMP_GAP_TILES = 9;
@@ -289,7 +289,7 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
     else if (!b && m.regionGrid[i] === REGION_NONE) gridBad = `no region at ${x},${y}`;
     else if (m.regionGrid[i] > REGION_COLISEUM) gridBad = `region code ${m.regionGrid[i]}`;
   }
-  check("grid: 136x136, tiles 0/1/2, border wall and none, every other tile in a zone or the coliseum", m.w === MAP_SIZE && m.h === MAP_SIZE && gridBad === "", () => gridBad);
+  check("grid: 160x160, tiles 0/1/2, border wall and none, every other tile in a zone or the coliseum", m.w === MAP_SIZE && m.h === MAP_SIZE && gridBad === "", () => gridBad);
   check("grid: territoryGrid and regionGrid are w*h Uint8Arrays", m.territoryGrid instanceof Uint8Array && m.territoryGrid.length === N && m.regionGrid.length === N);
 
   // --- Connectivity ----------------------------------------------------------------------------------------------------
@@ -399,7 +399,7 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   // --- Camps and territories -------------------------------------------------------------------------------------------
   const camps = m.camps;
   const perZone = REGION_FACTIONS.map((f) => camps.filter((c) => c.zone === f));
-  check("camps: 8 per zone, exactly two elite camps per zone", perZone.every((cs) => cs.length === CAMPS_PER_ZONE && cs.filter((c) => c.eliteSpot >= 0).length === ELITES_PER_ZONE), () => perZone.map((cs) => `${cs.length}:${cs.filter((c) => c.eliteSpot >= 0).length}`).join("/"));
+  check("camps: 10 per zone, exactly two elite camps per zone", perZone.every((cs) => cs.length === CAMPS_PER_ZONE && cs.filter((c) => c.eliteSpot >= 0).length === ELITES_PER_ZONE), () => perZone.map((cs) => `${cs.length}:${cs.filter((c) => c.eliteSpot >= 0).length}`).join("/"));
   check("camps: ids in zone order, then index from 1", JSON.stringify(camps.map((c) => c.id)) === JSON.stringify(perZone.flatMap((cs, z) => cs.map((_, k) => `${REGION_FACTIONS[z]}-${k + 1}`))) && camps.every((c, i) => i === 0 || REGION_FACTIONS.indexOf(c.zone) >= REGION_FACTIONS.indexOf(camps[i - 1].zone)));
   let spacing = Infinity;
   for (let i = 0; i < camps.length; i++) for (let j = i + 1; j < camps.length; j++) spacing = Math.min(spacing, dist(camps[i], camps[j]));
@@ -1446,22 +1446,29 @@ export interface MeasureWindow {
   share?: number;
 }
 const inf = Infinity;
-/** Contract section 4's per-zone acceptance windows at 136x136 (report-only: a breach is investigated). Keys are ZONE_MEASURE_VALUES names. */
+/**
+ * Contract section 4's per-zone acceptance windows (report-only: a breach is investigated). Keys are ZONE_MEASURE_VALUES names. Written at
+ * 136x136 with 8 camps a zone; at 160x160 with 10 camps the counts that grow with a zone's area (x1.38: walls, lava, ember, fence, bog) or
+ * its camps (x1.25: craters; barrows, tunnels and the camp graph's loops follow the camps and the area) are scaled here, and the rates
+ * (rays, pairs, stretch, footprint, ice share) are the contract's own. Measured at 160x160 (seeds 0..199, mapSweep) the rates that now breach
+ * their windows are the four rays >= 7.5 tiles (the zones are a little more open: +3.7 fire, +3.2 sentenced, +3.2 frost, +5.8 holy points
+ * against 136x136) and frost's ice share (12.4% of its floor, 17.4% at 136x136: the two meres are a fixed size).
+ */
 export const ZONE_WINDOWS: Readonly<Record<RegionFaction, Readonly<Record<string, MeasureWindow>>>> = {
   fire: {
-    "craters": { lo: 7, hi: 8, share: 0.95 }, "walls": { lo: 150, hi: 300 }, "lava": { lo: 70, hi: 160 }, "ember": { lo: 80, hi: 200 },
+    "craters": { lo: 9, hi: 10, share: 0.95 }, "walls": { lo: 200, hi: 400 }, "lava": { lo: 95, hi: 220 }, "ember": { lo: 110, hi: 275 },
     "pieces<6": { lo: 0, hi: 0 }, "rays>=7.5t %": { lo: 48, hi: 64 }, "pairs wall %": { lo: 18, hi: inf }, "stretch mean": { lo: 0, hi: 1.12 },
     "stretch max": { lo: 0, hi: 1.35 }, "loops": { lo: 1, hi: inf }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },
   sentenced: {
     "fence rows": { lo: 6, hi: inf, share: 0.95 }, "fence detour": { lo: 0, hi: FENCE_DETOUR_TILES, share: 1 }, "fence run": { lo: 0, hi: FENCE_RUN_MAX, share: 1 },
-    "fence": { lo: 150, hi: 320 }, "walls": { lo: 50, hi: 90 }, "rays>=7.5t %": { lo: 72, hi: 88 },
+    "fence": { lo: 200, hi: 440 }, "walls": { lo: 50, hi: 90 }, "rays>=7.5t %": { lo: 72, hi: 88 },
     "pairs LOW %": { lo: 18, hi: inf }, "pairs wall %": { lo: 0, hi: 8 }, "LOW pieces<6": { lo: 0, hi: 0 }, "pieces<6": { lo: 0, hi: 0 },
     "stretch mean": { lo: 0, hi: 1.15 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },
   plague: {
-    "barrows": { lo: 8, hi: 12 }, "tunnels": { lo: 3, hi: 4 }, "walls": { lo: 250, hi: 420 }, "bog": { lo: 150, hi: 300 }, "loops": { lo: 4.5, hi: inf },
-    // loops: the Gabriel graph of 9 nodes has 13 edges, so E - V + 1 is 5 (the contract's 6 needs 14 edges)
+    "barrows": { lo: 11, hi: 16 }, "tunnels": { lo: 4, hi: 6 }, "walls": { lo: 340, hi: 580 }, "bog": { lo: 205, hi: 415 }, "loops": { lo: 6, hi: inf },
+    // loops: the Gabriel graph of 11 nodes (ten camps and the door) has about 17 edges, so E - V + 1 is about 7 (measured 6.8 to 7.1); the 9 nodes of eight camps had 13 edges and a floor of 4.5
     "rays>=7.5t %": { lo: 60, hi: 74 }, "pairs wall %": { lo: 8, hi: inf }, "stretch mean": { lo: 0, hi: 1.1 }, "stretch max": { lo: 0, hi: 1.3 },
     "pieces<6": { lo: 0, hi: 0 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },

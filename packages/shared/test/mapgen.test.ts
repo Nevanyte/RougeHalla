@@ -36,7 +36,7 @@ const pinned = (s: number) => PINNED_MAPS[s].split(":");
 const certifyZone = (m: GameMap) => certifyMap(m, { zone: true });
 
 describe("API", () => {
-  it("is 136x136 and exports the numbers it certifies, which match the contract's", () => {
+  it("is 160x160 and exports the numbers it certifies, which match the contract's", () => {
     expect([MAP_TILES_W, MAP_TILES_H]).toEqual([MAP_SIZE, MAP_SIZE]);
     expect([mapFor(0).w, mapFor(0).h]).toEqual([MAP_SIZE, MAP_SIZE]);
     expect([CAMPS_PER_ZONE, ELITES_PER_ZONE, ELITE_MIN_SEP, CAMP_GAP, TERRITORY_RADIUS_MAX, RING_CONTACT_MIN, SLIVER_MAX, MAX_ATTEMPTS])
@@ -48,9 +48,8 @@ describe("API", () => {
   });
 
   it("generateMap(seed) is the first attempt that certifies; generateMap(seed, attempt), tryAttempt and certifiedMap rebuild it; every earlier attempt fails again", () => {
-    // Seeds 0..39 and, while the pins describe the registered stylers, six seeds the pins say needed a retry; the rebuilds run on every
-    // 4th seed and on those.
-    let retried = 0;
+    // Seeds 0..39 and, while the pins describe the registered stylers, up to six seeds the pins say needed a retry (none does at
+    // 160x160); the rebuilds run on every 4th seed and on those.
     const retriedPinned = PINNED_MAPS.map((p) => p.split(":")).filter((p) => p[1] !== "0").map((p) => Number(p[0])).filter((s) => s >= 40).slice(0, 6);
     for (const s of pinsApply() ? [...seeds(40), ...retriedPinned] : seeds(40)) {
       const m = mapFor(s);
@@ -61,13 +60,48 @@ describe("API", () => {
       expect(tryAttempt(s, m.attempt), `seed ${s}`).toEqual(m);
       if (s % 8 === 0) expect(certifiedMap(s), `seed ${s}`).toEqual(m);
       for (let a = 0; a < m.attempt; a++) {
-        retried++;
         expect(tryAttempt(s, a), `seed ${s} attempt ${a}`).toBeNull();
         expect(() => generateMap(s, a), `seed ${s} attempt ${a}`).toThrow(/does not certify/);
       }
     }
-    // Most seeds certify first time and a few need a retry: the field carries the index, not a constant.
-    if (pinsApply()) expect(retried).toBeGreaterThan(0);
+    // At 160x160 with ten camps a zone no pinned seed needs a retry (nor any of 1200 swept), so the rebuild of earlier attempts above
+    // may find none to check; the forced retry below covers the `attempt` field.
+  }, HEAVY_MS);
+
+  it("seeds that really fail their first attempt get the next one: 2459 (no camp layout fits), 9107 (no zone layout certifies) and 13277 (the spawn walks' ratio)", () => {
+    // About one seed in 2000 fails attempt 0 on the 160x160 map with ten camps a zone (9 of the first 18000: 2459 is the first; about one in
+    // 100 on the 136x136 one, mostly the spawn walks' ratio); re-pick these after a change to the generator (scripts/mapBench.ts counts the
+    // failures by reason, and a loop over tryAttempt(seed, 0) finds the seeds).
+    for (const s of [2459, 9107, 13277]) {
+      expect(tryAttempt(s, 0), `seed ${s}`).toBeNull();
+      expect(() => generateMap(s, 0), `seed ${s}`).toThrow(/does not certify/);
+      const m = certifiedMap(s)!;
+      expect(m.attempt, `seed ${s}`).toBe(1);
+      expect(generateMap(s), `seed ${s}`).toEqual(m);
+      expect(generateMap(s, 1), `seed ${s}`).toEqual(m);
+      expect(certifyZone(m).failures, `seed ${s}`).toEqual([]);
+    }
+  }, HEAVY_MS);
+
+  it("a seed whose first attempt does not certify gets the next one, and the map's attempt field carries the index, not a constant", () => {
+    // Nothing the real generator builds at 160x160 fails its first attempt, so a hook spoils attempt 0 alone: it walls one free zone
+    // tile that no feature owns (the shape gates fail the attempt) and leaves every later attempt as the plain generator builds it.
+    const spoilFirst: ZoneStyleHook = (st) => {
+      if (st.attempt !== 0) return;
+      for (let i = 0; i < st.tiles.length; i++) {
+        if (st.zone[i]! > 0 && !st.protect[i] && st.tiles[i] === TILE_FLOOR) { st.tiles[i] = TILE_WALL; return; }
+      }
+    };
+    const options: MapgenOptions = { styleZones: spoilFirst };
+    for (const s of [3, 11, 29]) {
+      const m = generateMap(s, undefined, options);
+      expect(m.attempt, `seed ${s}`).toBe(1);
+      expect(tryAttempt(s, 0, options), `seed ${s}`).toBeNull();
+      expect(() => generateMap(s, 0, options), `seed ${s}`).toThrow(/does not certify/);
+      expect(tryAttempt(s, 1, options), `seed ${s}`).toEqual(m);
+      expect(generateMap(s, 1, options), `seed ${s}`).toEqual(m);
+      expect(certifiedMap(s, options), `seed ${s}`).toEqual(m);
+    }
   }, HEAVY_MS);
 
   it("rejects an attempt that is not an integer >= 0", () => {
@@ -379,8 +413,8 @@ describe("styler hook", () => {
       expect([...st.zoneFaction].sort()).toEqual([...REGION_FACTIONS].sort());
       const sizes = [1, 2, 3, 4, 5].map((z) => st.zone.reduce((a, v) => a + (v === z ? 1 : 0), 0));
       expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(8);
-      expect(st.camps.length).toBe(40);
-      expect(st.camps.filter((c) => c.elite).length).toBe(10);
+      expect(st.camps.length).toBe(5 * CAMPS_PER_ZONE);
+      expect(st.camps.filter((c) => c.elite).length).toBe(5 * ELITES_PER_ZONE);
       expect(st.spawns.length).toBeGreaterThanOrEqual(24);
       for (const t of st.spawns) { expect(st.protect[t]).toBe(1); expect(st.centreWalk[t]).toBeGreaterThan(0); }
       expect(st.centreWalk.length).toBe(MAP_SIZE * MAP_SIZE);
