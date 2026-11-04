@@ -54,8 +54,9 @@ new `systems/<mechanic>.rs` plus flipping its rows from `Pending` to `Ported`.**
 Hooks are fired through `hooks::fire(&mut Hx, HookArgs)` (typed arguments; the chain follows the record's modes
 default/append/wrap/replace; a link sees the statics, the world and the events, never the tick scratch). Effects that cross
 a tick boundary are typed data in the world (`World::deferred`, legacy `combat.deferred`: entries that open the next tick's
-ledger), never closures. Inside the tick an actor queues commands with `Cx::submit`, which is `Sim::submit`'s own path:
-`InputQueue` is written only by `input::accept`.
+ledger), never closures; legacy `payLater` (paid after the ledger pass, SAME tick) is the separate `World::pay` queue,
+reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the tick an actor queues commands with
+`Cx::submit`, which is `Sim::submit`'s own path: commands are enqueued only by `input::accept`.
 
 ### Checkpoints
 

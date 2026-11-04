@@ -764,3 +764,113 @@ fn an_execution_that_is_not_the_table_is_rejected() {
         "systems before the ledger"
     );
 }
+
+fn rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    for e in std::fs::read_dir(dir).unwrap() {
+        let p = e.unwrap().path();
+        if p.is_dir() {
+            rs_files(&p, out);
+        } else if p.extension().is_some_and(|x| x == "rs") {
+            out.push(p);
+        }
+    }
+}
+
+/// The text of a source file before its first `#[cfg(test)]` (the production code).
+fn production_text(text: &str) -> &str {
+    match text.find("#[cfg(test)]") {
+        Some(at) => &text[..at],
+        None => text,
+    }
+}
+
+/// Every `module::function` the tables name (the phases' bodies, the systems and the action handlers).
+fn scheduled_calls(schedule_src: &str) -> BTreeSet<String> {
+    const MODS: [&str; 8] = [
+        "credit", "inputs", "ledger", "loot", "melee", "movement", "settle", "weapons",
+    ];
+    let mut out = BTreeSet::new();
+    for line in schedule_src.lines().filter(|l| !l.starts_with("use ")) {
+        for m in MODS {
+            let mut rest = line;
+            while let Some(at) = rest.find(&format!("{m}::")) {
+                let after = &rest[at + m.len() + 2..];
+                // A function starts lowercase (`ledger::Entry` is a type: zero length, skipped).
+                let end = after
+                    .find(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'))
+                    .unwrap_or(after.len());
+                if end > 0 {
+                    out.insert(format!("{m}::{}", &after[..end]));
+                }
+                rest = after;
+            }
+        }
+    }
+    out
+}
+
+/// Files of rh-sim's production code that call a scheduled function outside the schedule.
+fn offenders(files: &[(String, String)], calls: &BTreeSet<String>) -> Vec<String> {
+    let mut out = Vec::new();
+    for (name, text) in files {
+        if name == "schedule.rs" || name == "tests.rs" {
+            continue;
+        }
+        for c in calls {
+            if production_text(text).contains(&format!("{c}(")) {
+                out.push(format!("{name}: {c}"));
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn nothing_but_the_schedule_calls_a_system() {
+    // ADR 0009: the tables are the only caller of a ported system, so the order they hold is the order that runs. The
+    // trace test cannot see a system called from inside another phase's closure; this guard reads the source.
+    let src_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../rh-sim/src");
+    let mut paths = Vec::new();
+    rs_files(&src_dir, &mut paths);
+    let files: Vec<(String, String)> = paths
+        .iter()
+        .map(|p| {
+            (
+                p.file_name().unwrap().to_string_lossy().to_string(),
+                std::fs::read_to_string(p).unwrap(),
+            )
+        })
+        .collect();
+    let schedule = &files.iter().find(|(n, _)| n == "schedule.rs").unwrap().1;
+    let calls = scheduled_calls(production_text(schedule));
+    for must in [
+        "settle::settle",
+        "ledger::apply",
+        "credit::flush_announcements",
+        "movement::walk",
+        "weapons::on_attack",
+    ] {
+        assert!(calls.contains(must), "the scan sees {must}: {calls:?}");
+    }
+    let bad = offenders(&files, &calls);
+    assert!(
+        bad.is_empty(),
+        "a system is called outside schedule.rs: {bad:?}"
+    );
+}
+
+#[test]
+fn the_call_guard_rejects_a_system_called_from_another_file() {
+    let calls = scheduled_calls("ported(\"x\", Gate::Always, |cx| { settle::settle(cx); })");
+    assert!(calls.contains("settle::settle"));
+    let stray = vec![(
+        "melee.rs".to_string(),
+        "pub fn f(cx: &mut Cx) { settle::settle(cx); }".to_string(),
+    )];
+    assert_eq!(offenders(&stray, &calls), vec!["melee.rs: settle::settle"]);
+    let in_tests = vec![(
+        "melee.rs".to_string(),
+        "fn ok() {}\n#[cfg(test)]\nmod t { fn f() { settle::settle(cx); } }".to_string(),
+    )];
+    assert!(offenders(&in_tests, &calls).is_empty(), "test code may");
+}

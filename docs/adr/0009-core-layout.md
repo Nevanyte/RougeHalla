@@ -24,7 +24,7 @@ structure as tables:
   The gate (`signatures`, `walkHints`, `mobs`, `quests`, `dummies`, training) is the legacy condition that decides whether
   a world has the row; the slice plays the capture world.
 - A phase returns `Flow::Continue | EndTick` (legacy `return` inside `updateActive`, for `guard:voided`).
-- `systems::update_active` is a loop over `PHASES`; `hooks:<list>` phases iterate their list; nothing else calls a system.
+- `systems::update_active` is a loop over `PHASES`; `hooks:<list>` phases iterate their list; nothing else calls a system (the trace test sees only rows that run; `nothing_but_the_schedule_calls_a_system` reads the source and fails on a call from any other file).
 - `crates/rh-parity/tests/schedule.rs` projects the tables under the three gate sets and compares them with the record
   (names, order, every hook chain and which links a later `replace` dropped), requires every `Pending` row to name a
   backlog packet, and, with the `schedule-trace` feature (an rh-parity dev-dependency feature, never in a production
@@ -41,13 +41,21 @@ that has a call site; a packet that fires another hook adds its variant and the 
 effective chain is the live links from the last live `replace` link on (`schedule::chain_from`, shared by dispatch and the
 conformance projection). A link gets a `Hx` (statics, world, events), not the tick: it cannot touch the scratch or the path
 search, so it decides from its arguments and queues what it pays for later. Legacy's two deferrals are typed data, never
-closures: `payLater` (pay after the ledger pass, inside one tick) becomes a typed payout in the scratch, and
-`combat.deferred` (entries for the NEXT tick's ledger) is `World::deferred`, moved into the ledger by the
-`ledger:openWithDeferred` row. The queue is in the checkpoint and the state hash only while non-empty, so every state that
-existed before it keeps its hash. First link through the seam: `loot.dropBody` (and the default it replaces), fired from
+closures, and they are two different queues that must not be mixed up. `payLater` (pay after the ledger pass, in the SAME
+tick, or at once outside the pass: legacy `combat.collecting`) is `World::pay` (`PayQueue`) holding typed
+`ledger::PayLater` variants; a link reaches it with `Hx::pay_later`, and `ledger::apply` pays the queue in order at the end
+of the pass (a nested `pay_later` then pays at once, as legacy). The slice has one variant, `CreditKill`, which is the
+kill's reward legacy queues with `payLater(creditKill)`, so the queue is exercised by every kill of the parity fixtures. A
+packet whose link calls `payLater` (P-ABIL-1 `fighterOut` clear, P-STATUS-1, P-MOBS-1) adds its variant and its arm.
+`combat.deferred` (`deferHit`, entries for the NEXT tick's ledger) is `World::deferred`, moved into the ledger by the
+`ledger:openWithDeferred` row. A `payLater` effect must never be put in `World::deferred`: it would land one tick late.
+`World::pay` is never checkpointed or hashed (empty and not collecting at every step boundary); `World::deferred` is in
+the checkpoint and the state hash only while non-empty, so every state that existed before it keeps its hash.
+First link through the seam: `loot.dropBody` (and the default it replaces), fired from
 `settle::down_player` where legacy `downPlayer` calls it.
 
-**Input seam (C-INPUT).** `InputQueue` is written by one function, `input::accept`, whose one caller is
+**Input seam (C-INPUT).** Commands are enqueued by one function, `input::accept` (`push` is private; `drain` also empties
+the queue), whose one caller is
 `systems::inputs::submit`. `Sim::submit` runs it, and so does `Cx::submit(PlayerId, Command)` (`Cx::propose` validates a
 `RawCommand` first), so an actor inside the tick (a mob brain, P-MOBS-1) acts only through the same budget and queue rules.
 The commands then apply in the secret action order through the `ACTIONS` table (legacy `world.actions[kind]`).
@@ -56,9 +64,9 @@ The commands then apply in the secret action order through the `ACTIONS` table (
 of a fight months later. The tables cost nothing per tick: a `Plan` resolves them for a gate set in a `const` context
 (only the live, ported rows, in table order; the three recorded worlds are three statics), so the loop is a walk over fn
 pointers with no gate test and no skipped pending row (a first version that tested every row each tick cost +2.8% to +3.3%
-Ir per step on the small duel workloads; the compiled plan measures 0.984 to 0.998 against the base with fewer
+Ir per step on the small duel workloads; the compiled plan measures 0.971 to 0.999 against the base with fewer
 allocations per step, `tools/perfproof`). The gates are all-false for the slice until a packet adds the config switch it
 needs (`Gates::of`).
 
 **Evidence.** `crates/rh-parity/tests/schedule.rs`, `crates/rh-sim/src/schedule.rs` unit tests,
-`crates/rh-sim/src/systems/tests.rs` (input seam, hooks, deferred queue), `cargo run -p rh-parity --bin parity-report`.
+`crates/rh-sim/src/systems/tests.rs` (input seam, hooks, deferred queue, pay-later queue), `cargo run -p rh-parity --bin parity-report`.

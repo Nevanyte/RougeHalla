@@ -24,10 +24,14 @@ pub(crate) fn multipliers(cx: &mut Cx) {
             .iter()
             .map(|&i| weapons::move_multiplier(&w.players[i], now)),
     );
-    // Modifier-major, fighter-minor: each fighter's product is still folded in table order. None is ported in the slice.
-    for &(_, modifier) in schedule::Plan::of(k).move_modifiers.live() {
+    // Fighter-major, as legacy: each fighter's whole chain runs (in table order) before the next fighter's. None is
+    // ported in the slice.
+    let modifiers = schedule::Plan::of(k).move_modifiers.live();
+    if !modifiers.is_empty() {
         for (m, &i) in s.mults.iter_mut().zip(&s.standing) {
-            *m *= modifier(w, &w.players[i], TICK_MS);
+            for &(_, modifier) in modifiers {
+                *m *= modifier(w, &w.players[i], TICK_MS);
+            }
         }
     }
     for m in s.mults.iter_mut() {

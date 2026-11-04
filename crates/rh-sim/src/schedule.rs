@@ -12,7 +12,7 @@
 //! * a row is [`Run::Ported`] (a `fn`) or [`Run::Pending`] (the backlog packet that ports it, a real id in
 //!   `docs/backlog/README.md`); a pending row is skipped, exactly as the legacy mechanic does not exist yet;
 //! * a mechanic packet adds `systems/<mechanic>.rs` and flips its rows from `Pending` to `Ported`; it never reorders a
-//!   table and never calls a system from anywhere else (the loop in [`run_phases`] is the only caller);
+//!   table and never calls a system from anywhere else (the loops in [`run_steps`] and `run_list` are the only callers);
 //! * a row's [`Gate`] is the legacy condition that decides whether the world has it (`signatures`, `walkHints`,
 //!   `quests`, training...); the slice plays the capture world ([`Gates::of`]);
 //! * a phase returns [`Flow`]: `EndTick` ends the tick as a legacy `return` in `updateActive` does (`guard:voided`).
@@ -372,10 +372,19 @@ pub enum TraceEntry {
     Hook(&'static str, &'static str),
 }
 
-/// The trace buffer: bounded, ignored by equality (a World with and without a trace is the same state).
+/// The trace buffer: bounded, ignored by equality (a World with and without a trace is the same state). A clone starts
+/// empty: the trace belongs to the run being observed, and copying up to `CAP` entries with every `World` clone would
+/// only cost memory in a test build.
 #[cfg(feature = "schedule-trace")]
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub(crate) struct TraceLog(Vec<TraceEntry>);
+
+#[cfg(feature = "schedule-trace")]
+impl Clone for TraceLog {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
 
 #[cfg(feature = "schedule-trace")]
 impl PartialEq for TraceLog {
@@ -479,7 +488,12 @@ impl Plan {
         } else if g == Gates::TRAINING {
             &TRAINING_PLAN
         } else {
-            debug_assert!(g == Gates::CAPTURE);
+            // `Gates::of` yields one of the three recorded worlds today. A config switch that makes another combination
+            // must add its plan (and its record) here: it never silently plays the capture world.
+            assert!(
+                g == Gates::CAPTURE,
+                "no compiled plan for gate set {g:?}: add one with the config switch that made it"
+            );
             &CAPTURE_PLAN
         }
     }
@@ -656,6 +670,11 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     ),
     pending("walkHint.updateWalkHints", Gate::WalkHints, "P-NET-2"),
 ];
+/// Legacy `moveModifiers` (`world.moveModifiers`, folded `acc * modifier(c)` in registration order, then floored).
+/// `movement::multipliers` folds fighter by fighter, each fighter's whole chain before the next fighter's, as legacy does.
+/// A [`MoveFn`] takes `&World` and `&Player` today because no modifier is ported: the first one that has a side effect
+/// (`terrainEffects.applyBog` counts hazard seconds) or that also runs for mobs (`mobLife.mobRoleMove`, P-MOBS-1) widens
+/// the signature to a mutable context and a combatant reference in the packet that ports it, with the loop unchanged.
 static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
     pending(
         "factions.frostMovementModifier",
@@ -673,6 +692,10 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
     ),
     pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
 ];
+/// Legacy `modSources` (`world.modSources`, the stat-mod sources `mods.updateMods` folds). A table only: the loop that
+/// consumes it is `mods.updateMods` (P-CARDS-1, the `mods.updateMods` row of [`SYSTEMS`]), and the first packet that flips a
+/// row here adds that loop with it; until then flipping a row would run nothing, so the conformance test only holds the
+/// names, order and gates.
 static MOD_SOURCES: [Item<SourceFn>; 6] = [
     pending("factions.markTaxSource", Gate::Signatures, "P-FACTION-1"),
     pending("abilities.attackSlowSource", Gate::Always, "P-STATUS-1"),

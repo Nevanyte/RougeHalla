@@ -12,20 +12,33 @@
 //! * the effective chain follows the record's modes: links run in install order, and a live `replace` link drops every
 //!   link before it (`schedule::chain_from`, the one function dispatch and the conformance test both use);
 //! * a link gets a [`Hx`], not the whole tick: the statics, the world and the event log. It cannot touch the tick scratch
-//!   or the path search, so a reaction decides from its arguments and the world and queues what it pays for later
-//!   (`World::deferred`, legacy `deferHit`), never mid-pass. That is the rule legacy states for its hooks
-//!   ("decide from the arguments and pay with payLater").
+//!   or the path search, so a reaction decides from its arguments and the world and defers what it pays, never mid-pass
+//!   (legacy: "decide from the arguments and pay with payLater");
+//! * there are two deferrals, and a link picks the one its legacy code calls. `payLater` (same tick, after the ledger pass,
+//!   or at once outside it) is [`Hx::pay_later`] with a typed [`PayLater`](crate::systems::ledger::PayLater) variant; a
+//!   packet whose link calls `payLater` adds the variant and its arm. `deferHit` (the NEXT tick's ledger) is
+//!   `World::deferred`. Never put a `payLater` effect in `World::deferred`: it would land a tick late and break parity.
 
 use crate::events::Event;
 use crate::schedule::{self, Gates, Hook, Run};
 use crate::state::{PlayerId, World};
 use crate::statics::MatchStatic;
+use crate::systems::ledger::{self, PayLater};
 
 /// What a hook link may touch (see the module docs).
 pub(crate) struct Hx<'a> {
     pub(crate) k: &'a MatchStatic,
     pub(crate) w: &'a mut World,
     pub(crate) ev: &'a mut Vec<Event>,
+}
+
+impl Hx<'_> {
+    /// Legacy `payLater`: pays after every victim of the ledger pass took their damage (same tick), or at once when the
+    /// hook fires outside the pass.
+    #[cfg_attr(not(test), allow(dead_code))] // the first link that pays later is P-ABIL-1 / P-STATUS-1; tests use it now
+    pub(crate) fn pay_later(&mut self, p: PayLater) {
+        ledger::pay_later(self.w, self.ev, p);
+    }
 }
 
 /// Why a fighter left the fight (legacy `fighterOut`'s `cause`).

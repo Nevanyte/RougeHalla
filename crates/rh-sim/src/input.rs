@@ -2,9 +2,11 @@
 //! network, a scripted bot, a future learned policy) goes through [`validate`], the [`OrderBudget`] and the same
 //! [`InputQueue`], so nobody gets extra actions per simulated second (docs/CONTRACTS.md C-INPUT).
 //!
-//! The queue cannot be written from anywhere else: `push` is private to this module and [`accept`] is the one function
-//! that reaches it. `accept` has one caller, `systems::inputs::submit`, which both `Sim::submit` (network clients,
-//! scripted bots, policies) and `Cx::submit` (an actor inside the tick, such as a future mob brain) run.
+//! Nothing else enqueues a command: `push` is private to this module and [`accept`] is the one function that reaches it.
+//! `accept` has one caller, `systems::inputs::submit`, which both `Sim::submit` (network clients, scripted bots, policies)
+//! and `Cx::submit` (an actor inside the tick, such as a future mob brain) run. The queue's fields are crate-visible (the
+//! hash and the checkpoint read them), and `drain` also empties it (the tick's input phase, the lobby's start and a
+//! finished match's `drain_all`); only `accept` adds to it.
 
 use crate::constants::{MAX_ACTIONS_PER_TICK, ORDER_BURST, ORDER_PER_SECOND, WORLD_H, WORLD_W};
 use crate::math::wrap_angle;

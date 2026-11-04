@@ -247,3 +247,64 @@ fn a_deferred_hit_opens_the_next_ticks_ledger() {
         "an empty queue adds nothing to a checkpoint"
     );
 }
+
+fn credit(by: u32) -> ledger::PayLater {
+    ledger::PayLater::CreditKill {
+        by: PlayerId(by),
+        victim_bot: false,
+        bounty: 0,
+    }
+}
+
+#[test]
+fn pay_later_outside_the_pass_pays_at_once() {
+    let mut s = sim();
+    with_hx(&mut s, |hx| hx.pay_later(credit(1)));
+    assert_eq!(s.w.players[0].kills, 1, "legacy: not collecting, pay now");
+    assert!(s.w.pay.items.is_empty());
+}
+
+#[test]
+fn pay_later_inside_the_pass_waits_for_its_end_and_pays_in_order() {
+    let mut s = sim();
+    s.w.pay.collecting = true;
+    with_hx(&mut s, |hx| {
+        hx.pay_later(credit(1));
+        hx.pay_later(credit(2));
+        hx.pay_later(credit(1));
+    });
+    assert_eq!(
+        (s.w.players[0].kills, s.w.players[1].kills),
+        (0, 0),
+        "nothing is paid while the pass collects"
+    );
+    assert_eq!(s.w.pay.items, vec![credit(1), credit(2), credit(1)]);
+    let mut ev = Vec::new();
+    ledger::pay_all(&mut s.w, &mut ev);
+    assert_eq!((s.w.players[0].kills, s.w.players[1].kills), (2, 1));
+    assert!(s.w.pay.items.is_empty() && !s.w.pay.collecting);
+    with_hx(&mut s, |hx| hx.pay_later(credit(2)));
+    assert_eq!(
+        s.w.players[1].kills, 2,
+        "after the pass it pays at once again"
+    );
+}
+
+#[test]
+fn a_payout_of_the_pass_lands_in_the_same_tick_not_the_next() {
+    let mut s = sim();
+    s.w.players[1].hp = 1.0;
+    s.w.deferred.defer_hit(hit(1, 2, 1.0e6));
+    s.step();
+    assert_eq!(s.w.players[1].hp, 0.0, "the lethal hit landed");
+    assert_eq!(
+        s.w.players[0].kills, 1,
+        "and its kill credit was paid in that tick's pass"
+    );
+    assert!(s.w.pay.items.is_empty() && !s.w.pay.collecting);
+    let json = serde_json::to_value(&s).unwrap();
+    assert!(
+        json["world"].get("pay").is_none(),
+        "the payout queue is never part of a checkpoint"
+    );
+}

@@ -255,6 +255,11 @@ pub(crate) struct World {
     /// which has no link that defers; absent from a checkpoint while empty, so checkpoints and hashes are unchanged.
     #[serde(default, skip_serializing_if = "DeferredQueue::is_empty")]
     pub(crate) deferred: DeferredQueue,
+    /// The same-tick payouts (legacy `payLater`, `combat.collecting` and `combat.payouts`): queued while the ledger pass
+    /// runs, paid at its end, or at once outside it. Never part of a checkpoint or the hash: it is empty and not
+    /// collecting at every step boundary, where both are taken.
+    #[serde(skip)]
+    pub(crate) pay: PayQueue,
     /// The execution trace of the tick schedule (feature `schedule-trace`, tests only): never serialized, never hashed.
     #[cfg(feature = "schedule-trace")]
     #[serde(skip)]
@@ -262,9 +267,10 @@ pub(crate) struct World {
 }
 
 /// Effects queued across a tick boundary, as typed data (never closures, so they checkpoint, hash and replay). Legacy has
-/// two deferrals: `payLater` (pay after the ledger pass, inside one tick: a typed payout in the tick scratch) and
-/// `combat.deferred` (entries the cards queue for the NEXT tick's ledger: Spiked Shell's returned damage, Overkill's
-/// splash). Only the second survives a tick, so only it is World state.
+/// two deferrals and they are not interchangeable: `combat.deferred` (entries the cards queue for the NEXT tick's ledger:
+/// Spiked Shell's returned damage, Overkill's splash) is this queue; `payLater` (pay after the ledger pass, in the SAME
+/// tick, or at once outside the pass) is [`PayQueue`]. Mapping a `payLater` onto this queue lands the effect one tick
+/// late and breaks parity.
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DeferredQueue {
     /// Ledger entries for the next tick (`ledger:openWithDeferred` moves them into that tick's ledger).
@@ -281,6 +287,16 @@ impl DeferredQueue {
     pub(crate) fn defer_hit(&mut self, e: Entry) {
         self.hits.push(e);
     }
+}
+
+/// Legacy `payLater` (world.ts): while the ledger pass runs (`collecting`) a payout waits in `items`, in the order it was
+/// queued, until every victim has taken their damage (the pass's end, `ledger::apply`); outside the pass it is paid at
+/// once. Typed data ([`crate::systems::ledger::PayLater`]), never a closure. Reach it with `ledger::pay_later` (or
+/// `Hx::pay_later` from a hook link); never push to `items` directly.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct PayQueue {
+    pub(crate) collecting: bool,
+    pub(crate) items: Vec<crate::systems::ledger::PayLater>,
 }
 
 impl World {
@@ -308,6 +324,7 @@ impl World {
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
             deferred: DeferredQueue::default(),
+            pay: PayQueue::default(),
             #[cfg(feature = "schedule-trace")]
             trace: Default::default(),
         }
