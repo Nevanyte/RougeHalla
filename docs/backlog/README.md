@@ -1,0 +1,225 @@
+# Roguehalla migration: remaining-work backlog
+
+Written for a team that has only this repository (no chat history). Stage 1 built the Rust foundation; everything below is
+what is left. Read first: [../CONTRACTS.md](../CONTRACTS.md) (invariants `C-*`), [../adr/README.md](../adr/README.md),
+[../../parity/README.md](../../parity/README.md), [../legacy/INVENTORY.md](../legacy/INVENTORY.md) (legacy systems and numbers,
+and section 9 "stale-doc discrepancies": the legacy `CLAUDE.md` is a map, **code wins**).
+
+**What exists (do not re-plan it):** `rh-sim` slice = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
+fists melee with zero-windup player swings and lag-compensated rewind, the damage ledger (PvP factor at card power 0,
+mitigation, PvP hit cap, simultaneous resolution, kill credit, bounty + announcements, GV, win bonus gate), leaving (MIA),
+observations (current sight only), replays and checkpoints; `rh-parity` (8 legacy scenarios + 300 `findPath` queries match);
+`rh-protocol` v1 + C# mirror; `rh-server` (WSS, admission, resume, drain, limits, interest-managed replication, fill bots on
+the policy seat contract, off-tick result sink, private replays); `rh-persist` (Postgres, fenced leases, idempotent
+results, legacy import); `rh-headless`; `tools/browser-proof`; `client-unity` (RoguehallaNet tested; the Unity project was
+**never opened or compiled**). The ported tick order is in `crates/rh-sim/src/sim.rs` (`update_active`); unported phases
+are bracketed comments there and in [../CONTRACTS.md](../CONTRACTS.md) C-TICK.
+
+## How to pick up work
+
+**Dependency order (earliest first).** A packet may start once everything it depends on is merged; "Ready packet" items have a
+full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the section list below) before they start.
+
+| Wave | Items | Why this order |
+|---|---|---|
+| 0 | P-CAPTURE-1, P-CI-1 | Every mechanic packet needs the capture tool and a CI job that re-captures and runs the workspace |
+| 1 (parallel) | P-COMBAT-1, P-COMBAT-2, P-MAP-1, P-ARENA-1, P-UNITY-1, P-HOST-1, P-PERSIST-2, P-NET-1, P-BOTS-1 | No hard dependency on each other; they touch different crates. Shared files (below) are merged one at a time |
+| 2 | P-COMBAT-3 (after COMBAT-2), P-FACTION-1 (after COMBAT-1), P-MOBS-1 (after COMBAT-1/2, owns the camps part of `rh-map/2`), P-STATUS-1, P-VISION-1 | Locks need ranged aim; signatures need hit events with weapon info; mobs need weapons and camps |
+| 3 | P-ABIL-1, P-CARDS-1, P-FACTION-2..5, P-TERRAIN-1, P-LOOT-1, P-CONS-1, P-TRADE-1, P-MOBS-2, P-ARENA-2 | Build on waves 1-2 |
+| 4 | P-CARDS-2/3, P-QUEST-1, P-BOTS-2..7, P-NET-3..6, P-UI-*, P-OPS-*, P-LOAD-* | Need the mechanics they present or measure |
+| 5 | P-MIG-*, P-OSS-*, P-ML-* follow-ups | Cutover and release; several are owner decisions |
+
+**Shared-file rule.** These files change in almost every mechanic packet; merge those packets one at a time and rebase,
+never in parallel: `crates/rh-sim/src/sim.rs` (tick order: **never reorder systems**, insert a new phase at its legacy
+position), `crates/rh-sim/src/content.rs` (and `content_hash`), `crates/rh-sim/src/observe.rs`
+(`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` + `protocol/fixtures/v1.json`
+(`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`, `Cargo.toml`/`Cargo.lock`, and
+`parity/legacy-capture/capture.ts`. Prefer a new module file per mechanic with a minimal hook in `sim.rs`.
+
+**Status records.** Only the coordinator updates shared status records: the `docs/MIGRATION.md` checkpoint and the status
+table in [../CONTRACTS.md](../CONTRACTS.md). (Both are referenced by the docs; `docs/MIGRATION.md` did not exist when this
+backlog was written, see "Doc/code contradictions" in the hand-off.) A worker updates only its packet's exclusive write
+scope plus the row of the item in this file it finishes (status -> "Done (<commit>)"), and reports evidence (commands run
+and results) in its hand-off.
+
+**Adding a packet.** Create `packets/<ID>.md` with exactly these sections: ID and outcome; Dependencies; Relevant legacy paths
+(verified with `rg`); New paths; Exclusive write scope; Contracts and references; Behaviour to preserve; Acceptance checks;
+Validation commands (only commands that exist, or "to be created by this packet"); Risk and suggested model tier; Known
+traps. Then change the item's status here from "Coarse" to "Ready packet". Cite real files; do not invent numbers.
+
+**Cross-cutting rules every packet inherits.**
+- Parity policy ([../../parity/README.md](../../parity/README.md)): discrete outcomes exact; continuous values within 2e-6
+  after the fixture's 1e-6 rounding; a tolerance that hides a changed hit, winner, reward or timing is a harness bug.
+- Randomness (C-RNG): the core reads no entropy or clock; every new stream is a new field of `Secrets` with its own seed;
+  secrets never appear in observations, snapshots, events or public exports; the public map seed never reproduces
+  gameplay randomness. Legacy streams: `docs/legacy/INVENTORY.md` section 4.
+- Numbers (C-NUM, ADR 0007): f64, legacy evaluation order, no FMA, transcendentals only through `rh_sim::math`
+  (`libm`). JSON checkpoints/replays need `serde_json` with `float_roundtrip`.
+- New public data needs an observation field (C-OBS leak tests stay green), a protocol addition (version bump, C# mirror,
+  golden vectors) and a content-hash update; legacy events emitted between ticks travel with the next step.
+- Policies and ML seams: architecture only. **No training, rewards, datasets, model runtimes, Python bindings, inference
+  services or GPU resources** anywhere in this backlog.
+
+## Backlog
+
+Status: **Ready packet** (spec in `packets/`), **Coarse** (outcome known, packet to be written), **Blocked** (external gate).
+Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `deployment/`, `client-unity/`, `scripts/` or
+`parity/`. `shared` = `packages/shared/src`, `server` = `packages/server/src`.
+
+### 1. Simulation mechanics
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-COMBAT-1 | Items and the other melee weapons: pickup/swap/drop, sword stagger, shield block/riposte, axe shred, weapon specials flag, weapon racks for tests | P-CAPTURE-1 (soft) | Ready packet | server/src/sim/loot.ts, weapons.ts, melee.ts; shared/weapons.ts, interactions.ts |
+| P-COMBAT-2 | Projectiles: bow/wand, lead aim, wand splash, ball vs arrow, swing vs ball | P-COMBAT-1 (merge first for sword/shield cases) | Ready packet | server/src/sim/projectiles.ts, weapons.ts; shared/weapons.ts, interactions.ts, policies.ts |
+| P-COMBAT-3 | Target lock (wand click) and locked-windup cancel | P-COMBAT-2 | Ready packet | server/src/sim/targeting.ts, weapons.ts; shared/constants.ts |
+| P-COMBAT-4 | Loot world: weapon crates, ground spots, bodies drop weapons, loot tables, `holdBirth` | P-COMBAT-1, P-MAP-1 (crate/ground spots) | Coarse | server/src/sim/loot.ts, lootTables.ts |
+| P-FACTION-1 | Faction signatures (burn, backlash, disease + execute, mark, chill) with engagement rules, lifesteal; capture tool `signatures: true` | P-COMBAT-1 | Ready packet | server/src/sim/factions.ts; shared/factions.ts, signatures.ts, signatureShares.ts, mark.ts |
+| P-FACTION-2 | Fire roam | P-FACTION-1, P-STATUS-1 | Coarse | server/src/sim/fireRoam.ts; shared/fireRoam.ts; docs/FIRE_ROAM.md |
+| P-FACTION-3 | Plague corpses, owned zombie, `consumeCorpse` | P-FACTION-1, P-MOBS-1 | Coarse | server/src/sim/plagueCorpses.ts, plagueZombies.ts; shared/plagueCorpses.ts; docs/PLAGUE_CORPSES.md |
+| P-FACTION-4 | Sentenced hunt (`huntTarget`) | P-FACTION-1 | Coarse | server/src/sim/sentencedHunt.ts; shared/sentencedHunt.ts; docs/SENTENCED_HUNT.md, SENTENCED_REDESIGN.md |
+| P-FACTION-5 | Bruiser/champion passives | P-FACTION-1, P-CARDS-1 | Coarse | server/src/sim/bruiserPassives.ts; shared/championPassives.ts; docs/BRUISER_PASSIVES.md |
+| P-STATUS-1 | Status runtime (14 kinds, `STATUS_RULES`), fields (areas), `displace`, effect bits | P-COMBAT-1 | Coarse | server/src/sim/status.ts, fields.ts, displace.ts; shared/status.ts |
+| P-ABIL-1 | Cast pipeline and the five Wishes (`freeze`, `swarm`, `trial`, `blaze`, `lastStand`), Blaze Step blink, wish lock | P-STATUS-1, P-COMBAT-3 | Coarse | server/src/sim/abilities.ts; shared/abilities.ts, blink.ts |
+| P-CARDS-1 | Stat mirrors and the `foldRows` build fold, card catalog (80 cards), card hooks, on-hit pipeline, guards G1-G13, PvP factor beyond power 0 | P-COMBAT-1, P-STATUS-1 | Coarse | server/src/sim/mods.ts, cardHooks.ts, cardState.ts, onHit.ts, vsProbe.ts, buffs.ts; shared/cards.ts, effects.ts, mods.ts, rules.ts |
+| P-CARDS-2 | Camp chests, `choose`, augments, stat chests/crates, chest boosts, skip heal/GV | P-CARDS-1, P-MOBS-1 | Coarse | server/src/sim/chests.ts; shared/rewards.ts, chestBoosts.ts |
+| P-CARDS-3 | Kill augments and mob stat stacks (`MOB_KILL_STACKS` 3) | P-CARDS-1, P-MOBS-1 | Coarse | server/src/sim/killAugments.ts, mobStats.ts; shared/killAugments.ts, mobStats.ts; docs/MOB_PROGRESSION.md |
+| P-CONS-1 | Consumables: stored potions, wind emblems, 75 s cannons, `useConsumable` | P-LOOT-1 or P-COMBAT-4, P-MOBS-1 | Coarse | server/src/sim/consumables.ts; shared/consumables.ts |
+| P-TRADE-1 | Neutral traders and per-run stat exchanges, `trade` | P-CARDS-3 | Coarse | server/src/sim/traders.ts; shared/traders.ts |
+| P-QUEST-1 | K1 quests (20 defs, 10 known), accept, carriers, hidden offers, lifecycle | P-MOBS-1, P-CARDS-3, P-MAP-1 | Coarse | server/src/sim/quests.ts; shared/quests.ts; docs/quests.md |
+| P-VISION-1 | Vision: 120 s revealed-tile trail, owned wards, private `vision` restore, bushes (`bushConceals`) | P-MAP-1 (bush layer), P-NET-3 | Coarse | server/src/sim/vision.ts; shared/vision.ts, bushes.ts |
+| P-TERRAIN-1 | Hazards: ember burn, bog slow, ice slide (`walkFighter`), light heal; faction exemptions | P-MAP-1 (terrain layer), P-FACTION-1 | Coarse | server/src/sim/terrainEffects.ts; shared/terrain.ts, walk.ts |
+| P-ARENA-1 | Planning phase + spawn deal from a private stream, coliseum schedule/teleport/gates, patience, sudden death | none (map gates need P-MAP-1 data; use `rh-map/1` first) | Ready packet | server/src/sim/planning.ts, arena.ts, step.ts; shared/planning.ts, coliseum.ts, rules.ts |
+| P-ARENA-2 | Training rooms and the `train` console (card/stat/camp/chest/clear) | P-CARDS-2, P-MOBS-1 | Coarse | server/src/sim/training.ts; shared/training.ts |
+| P-MOBS-1 | Regional mobs: camps, rosters, mob AI as input-sending players, leash/territory, camp-wide aggro, respawn, kill rewards, mob stat stacks | P-COMBAT-1, P-COMBAT-2 | Ready packet | server/src/sim/mobAI.ts, mobLife.ts, camps.ts; shared/mobs.ts, rosters.ts |
+| P-MOBS-2 | Camp-clear heal, wards, elite chests, regen, `campCleared` hook chain | P-MOBS-1, P-CARDS-2 | Coarse | server/src/sim/campHeal.ts, regen.ts, camps.ts |
+
+### 2. Bots
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-BOTS-1 | Human-like bot brain on `rh-policy` seats: perception from `Observation` only, tiers/personas, cadence | none (grows with Observation) | Ready packet | server/src/bots/brain/*, humanizer.ts, clicks.ts, tactics/ |
+| P-BOTS-2 | Wish module (`abilityPolicy`) | P-ABIL-1, P-BOTS-1 | Coarse | server/src/bots/abilityPolicy.ts, brain/modules/wishes.ts |
+| P-BOTS-3 | Planning, chest, hazard modules | P-ARENA-1, P-CARDS-2, P-TERRAIN-1, P-BOTS-1 | Coarse | server/src/bots/brain/modules/*, chestHunt.ts |
+| P-BOTS-4 | Mob hunting, build routes, camp farming, elite rules | P-MOBS-1, P-BOTS-1 | Coarse | server/src/bots/mobHunt.ts, brain/buildRoute.ts, strategy.ts, huntAdapter.ts |
+| P-BOTS-5 | Learning stats store (`BotStatsStore`) off-tick, in Postgres not a file | P-PERSIST-2 | Coarse | server/src/bots/learning/ |
+| P-BOTS-6 | Tournament runner on `rh-headless` (per-tier win rates, Wilson intervals) | P-BOTS-1 | Coarse | server/src/bots/tournament/ |
+| P-BOTS-7 | Fill policy: `BOTS_FILL_TO`, persona/tier mix, arrival schedule, yield seat, bots never touch profiles/quests | P-BOTS-1 | Coarse | server/src/bots/BotManager.ts, callsigns.ts; crates/rh-server/src/director.rs (already fills) |
+
+### 3. Parity and headless
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | Ready packet | parity/legacy-capture/capture.ts |
+| P-CI-1 | Rust CI: fmt, clippy, `cargo test --workspace`, Postgres service, dotnet tests, browser proof | none | Coarse | .github/workflows/deploy.yml (legacy only; no Rust workflow exists) |
+| P-CI-2 | aarch64 run of the determinism/parity suite (ADR 0007 declares the target, never run) | P-CI-1 | Coarse | none |
+| P-HEAD-1 | Headless benches per mechanic (step cost, TTK, duel harness equivalents) as Rust benches, not Node | each mechanic packet | Coarse | server/bench/*, server/src/harness/ |
+| P-PARITY-2 | Full-map and mob scenarios (real generated map, camps) once their packets land | P-MAP-1, P-MOBS-1 | Coarse | parity/legacy-capture/capture.ts |
+
+### 4. Map
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | Ready packet | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
+| P-MAP-2 | Public layers on the wire (zones, terrain, features, camps, spawn subset): `MapBlob` v2 + C# decode | P-MAP-1 (or `rh-map/2` export), P-NET-3 | Coarse | shared/mapWire.ts, map.ts |
+| P-MAP-3 | Off-tick certified-map pool (worker/thread, target 8, refill 6, fallback, hang watchdog) | P-MAP-1 | Coarse | server/src/mapPool.ts, mapWorker.ts |
+| P-MAP-4 | Client art data: decor/props from the public seed (cosmetic, unhashed), zone art inputs for Unity | P-MAP-2, P-UI-8 | Coarse | shared/propKinds.ts, client/src/render/zoneArt/* |
+
+### 5. Networking and client prediction
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-NET-1 | Prediction parity: C# pathfinding for predicted walks, render-time attack `t`, MAX_REWIND bound per measured RTT, delta-compression decision by measurement | none | Ready packet | client/src/net/localMotion.ts, localPrediction.ts, remoteDraw.ts; shared/interp.ts |
+| P-NET-2 | Remote draw-ahead and the walk hint (presentation only) | P-NET-1 | Coarse | client/src/net/remoteDraw.ts; server/src/sim/walkHint.ts; docs/PLAYER_PREDICTION.md |
+| P-NET-3 | Protocol additions per mechanic: fx kinds, snapshot fields, observation versions (governance of shared files) | each mechanic packet | Coarse | shared/fxCodec.ts, messages.ts, schema.ts; crates/rh-protocol |
+| P-NET-4 | Uplink pacing: aim gate, hold gate, stall watch, order bucket tuning | P-NET-1 | Coarse | client/src/net/uplinkPace.ts, tickPhase.ts |
+| P-NET-5 | Heartbeat/liveness parity (`beat`, 4500 ms timeout, close codes) | none | Coarse | server/src/rooms/RaidRoom.ts, shared/constants.ts |
+| P-NET-6 | Wire-build/content-hash stale-client UX (426 equivalent, reload prompt) | P-UNITY-1 | Coarse | server/src/guards/clientBuild.ts, client/src/ui/reloadPrompt.ts |
+
+### 6. Unity client flows and visuals
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-UNITY-1 | Open the Unity project, confirm exact Unity 6 LTS + packages, fix compile errors, first Web build over wss, browser matrix, budgets, adaptive quality | none (needs a Unity install/license) | Ready packet (Blocked on Unity license) | client/src/main.ts, scenes/RaidScene.ts |
+| P-UI-1 | Hub/menu/profile flows: claim, sign-in links, shop, cosmetics, achievements, leaderboard, faction picker | P-UNITY-1, P-PERSIST-2 | Coarse | client/src/scenes/HubScene.ts, hub/, ui/menu.ts, ui/hub/; shared/cosmetics.ts, achievements.ts |
+| P-UI-2 | Matchmaking and region selection UI, latency probes, queue states | P-UNITY-1, P-HOST-3 | Coarse | client/src/net/lobby.ts, ui/lobbyActivity.ts |
+| P-UI-3 | Reconnect UX (banner, resume, TooSlow, stale client) | P-UNITY-1 | Coarse | client/src/ui/banner.ts, net/errors.ts |
+| P-UI-4 | Results screen (outcome, GV breakdown, win bonus why, killed by bot tag) | P-UNITY-1 | Coarse | client/src/ui/results.ts |
+| P-UI-5 | HUD: vitals, weapon bar, Wish slot, cards row, build strip, minimap, chest panel, quest log, toasts, potion cue | each mechanic; P-UNITY-1 | Coarse | client/src/ui/hud.ts, cardsRow.ts, buildHud.ts, minimap.ts, chestPanel.ts, questLog.ts, weaponBar.ts, abilitySlot.ts |
+| P-UI-6 | Planning screen and hold-Tab map, route drawing | P-ARENA-1, P-MAP-2 | Coarse | client/src/ui/planning.ts, route.ts, mapHold.ts, mapPainter.ts |
+| P-UI-7 | Combat presentation: projectiles, telegraphs, status art, hit numbers, juice (reduced-motion safe) | P-COMBAT-2, P-STATUS-1 | Coarse | client/src/render/* |
+| P-UI-8 | Visual upgrade per [../VISUAL_DIRECTION.md](../VISUAL_DIRECTION.md) (being written in parallel; the file may not exist yet) | P-UNITY-1 | Coarse | client/src/render/zoneArt/*, hub/hubArt.ts |
+| P-UI-9 | Settings, accessibility, input rebinding, audio decision | P-UNITY-1 | Coarse | client/src/settings.ts, ui/settingsPanel.ts |
+| P-UI-10 | Unity batchmode tests + build in CI | P-UNITY-1, P-CI-1 | Coarse | none |
+
+### 7. Persistence and accounts
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | Ready packet | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
+| P-PERSIST-3 | Leaderboard months, shop catalog parity, cosmetics `look` word in `rh-protocol` | P-PERSIST-2 | Coarse | ProfileStore.ts, shared/cosmetics.ts |
+| P-PERSIST-4 | Aurora failover and pool-exhaustion tests; retry/backoff sizing | P-PERSIST-2 | Coarse | none (ADR 0006 "not yet tested") |
+| P-PERSIST-5 | New-profile rate caps and passcode equivalents at the edge | P-PERSIST-2, P-HOST-2 | Coarse | server/src/guards/*, config.ts |
+
+### 8. Hosting, regions and scaling
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Ready packet (Blocked on AWS credentials/budget) | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
+| P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
+| P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |
+| P-HOST-4 | Autoscaling, scale-in protection, warm capacity, drain on deployment | P-HOST-1, P-LOAD-2 | Coarse | none |
+| P-HOST-5 | Deployment and rollback pipeline (image build, fleet update, health gates) | P-HOST-1, P-CI-1 | Coarse | scripts/deploy*.mjs, .github/workflows/deploy.yml |
+| P-HOST-6 | ECS-on-EC2 fallback decision record if staging fails | P-HOST-1 | Coarse | docs/hosting/GAMELIFT_EVALUATION.md section 6 |
+
+### 9. Load testing
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-LOAD-1 | Load client: many protocol-v1 sessions with scripted policies over WSS | P-CI-1 | Coarse | server/bench/netProbe*.ts, bandwidth.ts |
+| P-LOAD-2 | Scenario runner at the **provisional** 200 matches / 1,600 players (an assumption, not authorization to spend) | P-LOAD-1, P-HOST-1 | Coarse | none |
+| P-LOAD-3 | Full-game tick cost and bandwidth budgets (avg < 5 ms / p99 < 15 ms tick and < 20 KB/s per client were the legacy gates) | mechanic packets | Coarse | server/bench/stepBench.ts, bandwidth.ts |
+
+### 10. Operations
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-OPS-1 | Metrics, structured logs, tracing, tick-deadline misses, per-room stats export | P-HOST-1 | Coarse | server/src/rooms/tickPacer.ts (`tickStats`), index.ts `/readyz` |
+| P-OPS-2 | Bounded operational and debugging events for future anti-cheat (order-budget hits, rejects, rewind clamps, impossible-input counters; no learned detectors) | P-OPS-1 | Coarse | server/src/sim/trace.ts, rooms/traceWriter.ts |
+| P-OPS-3 | Telemetry port (balance data): recorder, sinks, analysis | mechanic packets | Coarse | server/src/sim/telemetry.ts, server/src/telemetry/, shared/telemetry.ts, deployment/cloudflare/src/telemetry/, docs/TELEMETRY.md |
+| P-OPS-4 | Dashboards, alerts, runbooks | P-OPS-1 | Coarse | deployment/cloudflare/src/dashboard/ |
+| P-OPS-5 | Secrets and config management (DB URL, salts, tokens) | P-HOST-1 | Coarse | server/src/config.ts |
+| P-OPS-6 | Private replay store, retention and access control | P-OPS-1 | Coarse | crates/rh-server (take_replays) |
+
+### 11. Migration and cutover
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-MIG-1 | Profile export from the legacy store (R2 `profiles/current.json` snapshot / `STASH_FILE`), dry-run import rehearsal, reconcile report | P-PERSIST-2 | Coarse | deployment/cloudflare/src/profileSnapshots.ts; crates/rh-persist (`import-legacy`) |
+| P-MIG-2 | Staged rollout plan: shadow matches, cohort cutover, rollback (needs the ORIGINAL profile file, tokens are hashed) | P-MIG-1, P-LOAD-2 | Coarse | docs/CLOUDFLARE_PUBLIC.md |
+| P-MIG-3 | Retire the legacy Cloudflare deployment (Worker, Container, R2, telemetry DO, DNS) | P-MIG-2 | Coarse | deployment/cloudflare/*, Dockerfile, .github/workflows/deploy.yml |
+| P-MIG-4 | Freeze/retire `packages/` after parity sign-off (owner decision) | P-MIG-3 | Coarse | packages/* |
+
+### 12. Open-source readiness
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-OSS-1 | License decision (no LICENSE exists; all package.json are private) | owner | Coarse | docs/legacy/INVENTORY.md section 8 |
+| P-OSS-2 | Asset and dependency audit: cargo (`cargo deny`/`about`), NuGet, npm, Unity packages, fonts/art provenance, the top-level `Unfinished code/` directory | P-OSS-1 | Coarse | package.json files |
+| P-OSS-3 | CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue templates | P-OSS-1 | Coarse | none |
+| P-OSS-4 | Secret scan and history audit before publishing | P-OSS-1 | Coarse | none |
+
+### 13. ML seams follow-ups (architecture only)
+
+Explicitly out of scope: training, rewards, datasets, model runtimes, Python bindings, inference services, GPU resources.
+
+| ID | Outcome | Depends on | Status | Legacy owners |
+|---|---|---|---|---|
+| P-ML-1 | Policy contract compatibility matrix and version-bump rules (`POLICY_CONTRACT_VERSION`, `OBSERVATION_VERSION`) with tests | P-BOTS-1 | Coarse | none (ADR 0005) |
+| P-ML-2 | Observation extension rules for new mechanics: additive fields, leak tests per field, golden observation fixtures | each mechanic packet | Coarse | crates/rh-sim/tests/observe.rs |
+| P-ML-3 | Networked seat interface (the `AsyncSeat` contract over a local socket, auth and rate limits for an external seat) as a specification plus a stub transport test | P-BOTS-1 | Coarse | none |
+| P-ML-4 | Replay stability guarantee across versions (replay + content hash policy) | mechanic packets | Coarse | crates/rh-sim/src/replay.rs |
+
+## Open owner questions (collected; not resolved here)
+
+See the hand-off report of the backlog author, and each packet's "Risk" and "Known traps" for the question that blocks it.

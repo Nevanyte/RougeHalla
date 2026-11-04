@@ -1,0 +1,60 @@
+# Rust foundation CI: builds and tests with no Unity and no AWS. The legacy TypeScript game keeps its own manual deploy
+# workflow (deploy.yml); this one never deploys anything.
+name: Rust foundation
+
+on:
+  push:
+    branches: [main, optimization_port]
+    paths: ["crates/**", "protocol/**", "parity/**", "client-unity/RoguehallaNet/**", "client-unity/RoguehallaNet.Tests/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
+  pull_request:
+    paths: ["crates/**", "protocol/**", "parity/**", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - name: Parity report (Rust vs captured legacy scenarios)
+        run: cargo run -p rh-parity --bin parity-report
+      - name: Headless smoke (real 160x160 map, 8 bots)
+        run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
+      - name: Browser proof (Chromium over WSS)
+        run: |
+          cargo build -p rh-server
+          npm i --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+          node tools/browser-proof/proof.mjs
+
+  csharp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet test client-unity/RoguehallaNet.Tests
+      - name: Unity copy of the library is up to date
+        run: bash client-unity/sync-net.sh --check

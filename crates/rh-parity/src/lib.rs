@@ -121,6 +121,11 @@ fn fid(id: PlayerId) -> String {
     format!("p{}", id.0 - 1)
 }
 
+/// The fixture input as a raw command (None for a type outside the slice).
+pub fn raw_command_pub(i: &FixInput) -> Option<RawCommand> {
+    raw_command(i)
+}
+
 fn raw_command(i: &FixInput) -> Option<RawCommand> {
     let m = &i.msg;
     let f = |k: &str| m.get(k).and_then(Value::as_f64);

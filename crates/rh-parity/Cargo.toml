@@ -17,3 +17,7 @@ path = "src/bin/parity_report.rs"
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "parity-bench"
+path = "src/bin/parity_bench.rs"
