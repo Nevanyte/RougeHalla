@@ -888,7 +888,22 @@ fn a_replay_is_equal_right_after_decoding() {
 
 #[test]
 fn the_nav_mask_is_the_legacy_neighbour_test() {
-    for (name, map) in maps() {
+    // The two real maps, plus random small maps of every tile kind (thin ones too: 1xN, Nx1, 1x1).
+    let mut all = maps();
+    let mut r = Rng(0x5eed_0007);
+    for k in 0..300u32 {
+        let (w, h) = match k {
+            0 => (1, 1),
+            1 => (1, 9),
+            2 => (9, 1),
+            _ => (1 + r.below(20) as u32, 1 + r.below(20) as u32),
+        };
+        let tiles = (0..w * h)
+            .map(|_| [0u8, 0, 0, 1, 2][r.below(5) as usize])
+            .collect();
+        all.push(("random", TileMap::new(w, h, tiles).unwrap()));
+    }
+    for (name, map) in all {
         let (w, h) = (map.w as i64, map.h as i64);
         let floor = |x: i64, y: i64| map.tile(x, y) == Some(TILE_FLOOR);
         for y in 0..h {

@@ -262,27 +262,35 @@ fn move_components(tiles: &[u8], w: usize, h: usize) -> Vec<i32> {
 }
 
 /// The A* step masks (see [`TileMap::nav`]): exactly the bounds, floor and corner tests the legacy inner loop makes per
-/// neighbour, evaluated once per tile instead of once per expansion.
+/// neighbour, evaluated once per tile instead of once per expansion. A floor grid padded with one non-floor ring turns the
+/// bounds tests into plain loads (about 40 instructions per tile, so building it is a small fraction of `from_rows`).
 fn nav_masks(tiles: &[u8], w: usize, h: usize) -> Vec<u8> {
-    let floor = |x: i64, y: i64| {
-        x >= 0
-            && y >= 0
-            && x < w as i64
-            && y < h as i64
-            && tiles[y as usize * w + x as usize] == TILE_FLOOR
-    };
+    let pw = w + 2;
+    let mut pad = vec![0u8; pw * (h + 2)];
+    for (y, row) in tiles.chunks_exact(w).enumerate() {
+        let dst = &mut pad[(y + 1) * pw + 1..(y + 1) * pw + 1 + w];
+        for (d, &t) in dst.iter_mut().zip(row) {
+            *d = (t == TILE_FLOOR) as u8;
+        }
+    }
     let mut nav = vec![0u8; w * h];
-    for y in 0..h as i64 {
-        for x in 0..w as i64 {
-            let mut m = 0u8;
-            for d in 0..8 {
-                let (nx, ny) = (x + STEP_DX[d], y + STEP_DY[d]);
-                if !floor(nx, ny) || (d >= 4 && (!floor(nx, y) || !floor(x, ny))) {
-                    continue;
-                }
-                m |= 1 << d;
-            }
-            nav[y as usize * w + x as usize] = m;
+    for (y, out) in nav.chunks_exact_mut(w).enumerate() {
+        // Rows above, at and below y in the padded grid; column x of the map is column x + 1 there.
+        let up = &pad[y * pw..(y + 1) * pw];
+        let at = &pad[(y + 1) * pw..(y + 2) * pw];
+        let dn = &pad[(y + 2) * pw..(y + 3) * pw];
+        for (x, o) in out.iter_mut().enumerate() {
+            let (e, wv, s, n) = (at[x + 2], at[x], dn[x + 1], up[x + 1]);
+            // Bit order = STEP_DX/STEP_DY: E, W, S (+y), N (-y), then SE, NE, SW, NW, each diagonal needing both of the
+            // orthogonal tiles it squeezes between.
+            *o = e
+                | wv << 1
+                | s << 2
+                | n << 3
+                | (dn[x + 2] & e & s) << 4
+                | (up[x + 2] & e & n) << 5
+                | (dn[x] & wv & s) << 6
+                | (up[x] & wv & n) << 7;
         }
     }
     nav
