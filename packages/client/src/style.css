@@ -45,6 +45,12 @@
   --warn-line: #ffb74d;
   --info: #4fc3f7;
 
+  /* shared tactical-map language (mirrored by ui/mapPainter.ts and render/GroundRoute.ts) */
+  --map-route: #80deea;
+  --map-player: #69f0ae;
+  --map-player-down: #78909c;
+  --map-enemy: #ff8c91;
+
   /* buttons */
   --btn: #2b323c;
   --btn-hover: #343c48;
