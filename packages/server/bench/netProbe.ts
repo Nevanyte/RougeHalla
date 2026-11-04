@@ -295,7 +295,7 @@ export interface ProbeReport {
     /** Share of such patches that applied the same aim as the patch before (a tick with no newer aim). */
     stalePct: number;
     perSec: number;
-    /** The most messages the probe sent in any one second (the server closes a client past MAX_MESSAGES_PER_SECOND in a second). */
+    /** The most messages the probe sent in any one second (the server closes a client that keeps up more than MESSAGE_RATE a second once its MESSAGE_BURST is spent). */
     peakPerSec: number;
     /** Share of frames in which the tick deadline was known (net/tickPhase.ts ready). */
     phaseReadyPct: number;

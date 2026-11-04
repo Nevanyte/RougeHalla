@@ -11,13 +11,14 @@
 //         spends the server's per-player order budget (ORDER_BURST 30, ORDER_PER_SECOND 15, dropped past it): a hold at one a tick
 //         would empty it in seconds and silently drop the clicks, casts and locks sent beside it.
 //
-// The aim stands back when the client's own rate nears the server's message cap (Colyseus closes a client past
-// maxMessagesPerSecond in a one-second window, RaidRoom's MAX_MESSAGES_PER_SECOND): one a tick from AIM_BUDGET_SLOW a second,
-// keepalives only from AIM_BUDGET_STOP. The meter counts sends, so it cannot see a stalled TCP that delivers seconds of them at
-// once. That is what the stall watch is for: while the socket holds unsent bytes (WebSocket.bufferedAmount above 0 for a tick) the
+// The aim stands back when the client's own rate nears the server's steady message rate (RaidRoom's MESSAGE_RATE, 200 a second,
+// past which a client is closed once its MESSAGE_BURST is spent): one a tick from AIM_BUDGET_SLOW a second, keepalives only from
+// AIM_BUDGET_STOP. The meter counts sends, so it cannot see a stalled TCP that delivers seconds of them at once. The stall watch
+// helps when the browser can see the stall: while the socket holds unsent bytes (WebSocket.bufferedAmount above 0 for a tick) the
 // continuous streams (the aim, the held button's re-sends, the keyboard's repeat) send nothing, so what piles up behind the stall
-// is orders only and the burst that follows it stays far under the cap; the cap's own headroom over the busiest steady rate is
-// the second line. The first fresh sample after the socket drains goes out at once.
+// is orders only. It cannot see most of them (the operating system's send buffer takes many seconds of these small messages before
+// bufferedAmount moves, and a stall of the server or of a hop past the browser never shows here), so the server's budget is sized for
+// the whole backlog (docs/NETWORK_INVESTIGATION_2026-11-04.md). The first fresh sample after the socket drains goes out at once.
 import { TICK_MS, type Vec2 } from "@raid/shared";
 import type { PhaseSource } from "./tickPhase";
 

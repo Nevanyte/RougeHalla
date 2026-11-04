@@ -163,14 +163,26 @@ const SERVER_FULL = "the server is full: too many rooms are open right now";
 const FREE_MESSAGE_TYPES: ReadonlySet<string> = new Set(["aim", "beat"]);
 
 /**
- * Colyseus closes a client (4002, which the SDK does not reconnect from: the run is lost) past this many messages in a one-second
- * window opened by the first message after the last one ran out. The busiest honest mix is about 55 a second (aim 40, a held
- * move or WASD 10, 5 clicks: client/src/net/uplinkPace.ts), and a stalled TCP delivers everything it held at once, so the stall
- * that closes a client is about cap / rate - 1 s: 2.6 s at 200, 0.8 s at 100 (the stall model in test/uplinkBudget.test.ts closes
- * one at about 1 s at 100 and 2.7 to 3 s at 200). What a message costs stays bounded
- * past the cap's size: an aim keeps only the latest of a tick and an order spends the budget below.
+ * Every message a client sends, of any type, spends one token of a bucket this deep that refills at MESSAGE_RATE a second; an
+ * empty bucket closes the client (4002, as Colyseus's own cap did). The busiest honest mix is about 55 a second (aim 40, a held
+ * move or WASD 10, 5 clicks: client/src/net/uplinkPace.ts), but anything that holds a client's messages back for a while (a stalled
+ * TCP uplink, a hop of the Cloudflare path, this process's own event loop) delivers them at once, so the bucket's depth is the
+ * longest honest interruption it rides out: 1500 is 27 s at 55 a second, past the 4.5 s after which the liveness sweep drops a silent
+ * client anyway and the client's own 3 s stall drop. The steady rate stays the old cap's 200.
+ * docs/NETWORK_INVESTIGATION_2026-11-04.md: with Colyseus's window alone, a 3.6 s stall of this process or of one uplink sent every
+ * moving player to the menu.
  */
-export const MAX_MESSAGES_PER_SECOND = 200;
+export const MESSAGE_BURST = 1500;
+export const MESSAGE_RATE = 200;
+
+/**
+ * Colyseus's own cap, kept only as a backstop for what never reaches a handler of ours (binary frames, requests, protocol pings).
+ * It counts in a one-second window opened by the first message after the last one ran out, on the room clock, which advances once
+ * a tick from a timer: a backlog read in one go after any stall lands in a single window together with the second that follows,
+ * whatever its real spread. At 200 that window closed every moving client whose backlog was over about 2.6 s of traffic (the old
+ * value; test/messageBurst.test.ts), so it is now above MESSAGE_BURST plus a second of the steady rate.
+ */
+export const MAX_MESSAGES_PER_SECOND = MESSAGE_BURST + 2 * MESSAGE_RATE;
 
 const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip", quest: "quest" };
 
@@ -247,6 +259,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private lastSweepAt = Date.now();
   /** Each player's order budget (a token bucket), made on its first order. */
   private readonly budgets = new Map<string, TokenBucket>();
+  /** Each client's message budget (MESSAGE_BURST, MESSAGE_RATE), every type counted, made on its first message. */
+  private readonly floods = new Map<string, TokenBucket>();
+  /** The clients that emptied it, until they reconnect or leave: closed once, their remaining messages dropped. */
+  private readonly flooded = new Set<string>();
   /** Orders dropped for being over a budget, in this room: for the log and for the tests. */
   refusedOrders = 0;
   /** When the last input arrived (training's idle limit). */
@@ -294,6 +310,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     }
     for (const type of CLIENT_MESSAGE_TYPES) {
       this.onMessage(type, (client: Client, msg: unknown) => {
+        if (!this.messageAllowed(client)) return;
         // Anything the client sends, rejected or over budget included, proves it is there (RaidRoom.sweepSilent).
         this.liveness.touch(client.sessionId, Date.now());
         const rt = this.built?.players.get(client.sessionId);
@@ -311,6 +328,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // The client's one perf sample of a run (docs/TELEMETRY.md 3.9): never a sim input and not presence. It spends an order token,
     // and the collector keeps one per session per run, sanitized; training records nothing.
     this.onMessage(TELEMETRY_PERF_MESSAGE, (client: Client, msg: unknown) => {
+      if (!this.messageAllowed(client)) return;
       this.liveness.touch(client.sessionId, Date.now());
       if (this.training || !this.run || !this.built?.players.has(client.sessionId)) return;
       if (!this.orderAllowed(client.sessionId)) return;
@@ -408,6 +426,25 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     return world;
   }
 
+  /**
+   * Spends one token of the client's message budget (MESSAGE_BURST, MESSAGE_RATE); an empty one closes the client as Colyseus's cap
+   * did (4002, into the reconnect grace like any drop). Real time, not the room clock: the clock only moves once a tick.
+   */
+  private messageAllowed(client: Client): boolean {
+    const now = performance.now();
+    let bucket = this.floods.get(client.sessionId);
+    if (!bucket) this.floods.set(client.sessionId, (bucket = new TokenBucket(MESSAGE_BURST, MESSAGE_RATE, now)));
+    if (bucket.take(now)) return true;
+    // Only the first refusal closes it; the rest of what was in flight is dropped here until the close lands (onReconnect and
+    // onLeave forget the bucket).
+    if (!this.flooded.has(client.sessionId)) {
+      this.flooded.add(client.sessionId);
+      console.warn(`[raid ${this.roomId}] ${this.seats.get(client.sessionId)?.profile ?? client.sessionId} sent more than ${MESSAGE_BURST} messages at once or ${MESSAGE_RATE} a second: dropping the connection`);
+      this.kickClient(client.sessionId, CloseCode.WITH_ERROR, "too many messages");
+    }
+    return false;
+  }
+
   /** Spends one token of the player's order budget (ORDER_BURST, ORDER_PER_SECOND); false when it is empty. A budget of 0 is off. */
   private orderAllowed(sessionId: string): boolean {
     const { orderBurst, orderPerSecond } = RaidRoom.ctx.config;
@@ -493,6 +530,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   onReconnect(client: Client) {
     this.liveness.touch(client.sessionId, Date.now());
+    this.floods.delete(client.sessionId);
+    this.flooded.delete(client.sessionId);
     markReconnected(this.world, client.sessionId);
     this.run?.noteReconnect(client.sessionId);
     const result = this.pendingResults.get(client.sessionId);
@@ -541,6 +580,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Deleting the seat first is what keeps a second onLeave/onDispose from paying out again.
     this.seats.delete(sessionId);
     this.budgets.delete(sessionId);
+    this.floods.delete(sessionId);
+    this.flooded.delete(sessionId);
     this.liveness.forget(sessionId);
     if (this.training) {
       // Walking out of a practice room is not leaving a run: no MIA, no result, nothing banked.

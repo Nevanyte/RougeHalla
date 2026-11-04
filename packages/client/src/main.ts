@@ -9,7 +9,7 @@ import { FxInbox } from "./net/fxInbox";
 import { LinkWatch } from "./net/linkWatch";
 import { mapLoader, warmWhenIdle } from "./net/mapWorker";
 import { PlanInbox } from "./net/planInbox";
-import { clearSeat, loadSeat, nextRejoinDelay, recoverableClose, REJOIN_WINDOW_MS, saveSeat, shouldRejoinOnBusy, type SeatRecord } from "./net/rejoin";
+import { clearSeat, loadSeat, nextRejoinDelay, recoverableClose, rejoinWindowFor, REJOIN_WINDOW_MS, saveSeat, shouldRejoinOnBusy, type SeatRecord } from "./net/rejoin";
 import { VisionInbox } from "./net/visionInbox";
 import { checkedMap, type CheckedMap } from "./net/roomMap";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
@@ -279,7 +279,7 @@ async function runJoined(joined: RaidRoom, training: boolean, profile: string, w
     // The SDK gave up (the server may not have noticed the drop yet, so it refused the token): keep asking with the stored one.
     const seat = training || pendingResult || results.visible || !recoverableClose(code) ? null : loadSeat(profile);
     if (seat) {
-      void recoverRun(joined, seat, lostAt ?? Date.now());
+      void recoverRun(joined, seat, lostAt ?? Date.now(), rejoinWindowFor(code));
       return;
     }
     clearSeat();
@@ -316,7 +316,7 @@ async function runJoined(joined: RaidRoom, training: boolean, profile: string, w
 }
 
 /** Asks for a lost seat until it is given back, the window since the connection was lost is over, or the room is gone. */
-async function reconnectLoop(seat: SeatRecord, lostAt: number, wanted: () => boolean): Promise<RaidRoom | null> {
+async function reconnectLoop(seat: SeatRecord, lostAt: number, wanted: () => boolean, windowMs = REJOIN_WINDOW_MS): Promise<RaidRoom | null> {
   for (;;) {
     if (!wanted()) return null;
     let failure: unknown;
@@ -326,7 +326,7 @@ async function reconnectLoop(seat: SeatRecord, lostAt: number, wanted: () => boo
       failure = err;
       console.warn("rejoin refused", err);
     }
-    const delay = nextRejoinDelay(Date.now(), lostAt, failure);
+    const delay = nextRejoinDelay(Date.now(), lostAt, failure, windowMs);
     if (delay === null) return null;
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
@@ -336,14 +336,14 @@ async function reconnectLoop(seat: SeatRecord, lostAt: number, wanted: () => boo
  * The SDK gave up on a run's connection with the seat possibly still held: the picture goes (its Room is dead, and its state is
  * torn down), the reconnecting screen stays, and on success the scene starts again on the new Room as after a page reload.
  */
-async function recoverRun(lost: RaidRoom, seat: SeatRecord, lostAt: number): Promise<void> {
+async function recoverRun(lost: RaidRoom, seat: SeatRecord, lostAt: number, windowMs = REJOIN_WINDOW_MS): Promise<void> {
   const attempt = ++joinAttempt;
   const wanted = (): boolean => attempt === joinAttempt;
   detachRoom(lost);
   banner.hide();
   game.scene.stop("raid");
   loading.show("Reconnecting…", { timeoutMs: REJOIN_WINDOW_MS + JOIN_TIMEOUT_MS });
-  const back = await reconnectLoop(seat, lostAt, wanted);
+  const back = await reconnectLoop(seat, lostAt, wanted, windowMs);
   if (!wanted()) {
     if (back) detachRoom(back);
     return;

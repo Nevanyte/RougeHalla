@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CLIENT_STALL_MS, HEARTBEAT_MS, LIVENESS_SWEEP_MS, LIVENESS_TIMEOUT_MS, RECONNECT_SECONDS } from "@raid/shared";
 import { LinkWatch, linkStalled, type LinkRoom } from "../src/net/linkWatch";
 import {
-  clearSeat, loadSeat, nextRejoinDelay, recoverableClose, REJOIN_RETRY_MS, REJOIN_WINDOW_MS, saveSeat, SEAT_KEY, shouldRejoinOnBusy,
+  clearSeat, loadSeat, nextRejoinDelay, recoverableClose, rejoinWindowFor, REJOIN_RETRY_MS, REJOIN_WINDOW_MS, saveSeat, SEAT_KEY,
+  SERVER_CLOSED_REJOIN_WINDOW_MS, shouldRejoinOnBusy,
 } from "../src/net/rejoin";
 
 function memoryStore() {
@@ -61,8 +62,21 @@ describe("when to keep asking for the seat", () => {
   });
 
   it("recovers from the closes that mean a broken connection, and from no others", () => {
-    for (const code of [1001, 1005, 1006, 4003, 4010]) expect(recoverableClose(code), String(code)).toBe(true);
-    for (const code of [undefined, 1000, 4000, 4001, 4002]) expect(recoverableClose(code), String(code)).toBe(false);
+    for (const code of [1001, 1005, 1006, 4002, 4003, 4010]) expect(recoverableClose(code), String(code)).toBe(true);
+    for (const code of [undefined, 1000, 4000, 4001]) expect(recoverableClose(code), String(code)).toBe(false);
+  });
+
+  it("gives a close the server made itself (4002, a burst of messages) a short window: its seat is held now or never", () => {
+    expect(rejoinWindowFor(4002)).toBe(SERVER_CLOSED_REJOIN_WINDOW_MS);
+    for (const code of [1001, 1005, 1006, 4003, 4010]) expect(rejoinWindowFor(code), String(code)).toBe(REJOIN_WINDOW_MS);
+    // Long enough for a few asks through the proxy, far shorter than waiting out a grace the server is not running.
+    expect(SERVER_CLOSED_REJOIN_WINDOW_MS).toBeGreaterThanOrEqual(3 * REJOIN_RETRY_MS);
+    expect(SERVER_CLOSED_REJOIN_WINDOW_MS).toBeLessThan(REJOIN_WINDOW_MS / 4);
+    const lostAt = 1000;
+    const refused = new Error("reconnection token invalid or expired.");
+    expect(nextRejoinDelay(lostAt + 1000, lostAt, refused, SERVER_CLOSED_REJOIN_WINDOW_MS)).toBe(REJOIN_RETRY_MS);
+    expect(nextRejoinDelay(lostAt + SERVER_CLOSED_REJOIN_WINDOW_MS, lostAt, refused, SERVER_CLOSED_REJOIN_WINDOW_MS)).toBeNull();
+    expect(nextRejoinDelay(lostAt + SERVER_CLOSED_REJOIN_WINDOW_MS, lostAt, refused)).toBe(REJOIN_RETRY_MS);
   });
 
   it("tries the token on a busy refusal only when this tab holds that callsign's seat", () => {

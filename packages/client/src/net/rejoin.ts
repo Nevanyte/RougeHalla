@@ -53,19 +53,32 @@ export function clearSeat(store: SeatStore | null = defaultStore()): void {
   try { store.removeItem(SEAT_KEY); } catch { /* nothing to forget */ }
 }
 
-/** Closes that mean the connection broke, as opposed to a leave (4000), a restart (4001) or a server error (4002): a seat may be waiting. */
+/**
+ * Closes that mean the connection broke, as opposed to a leave (4000) or a restart (4001): a seat may be waiting. 4002 is the server
+ * closing a client for a burst of messages (or one it could not read); it holds the seat as for any drop (RaidRoom.onDrop: every code
+ * but a consented leave is a drop), and an honest client's backlog after a stall of the link or of the server is exactly such a
+ * burst (docs/NETWORK_INVESTIGATION_2026-11-04.md), so it is worth a short try (rejoinWindowFor).
+ */
 export function recoverableClose(code: number | undefined): boolean {
-  return code === 1001 || code === 1005 || code === 1006 || code === 4003 || code === 4010;
+  return code === 1001 || code === 1005 || code === 1006 || code === 4002 || code === 4003 || code === 4010;
+}
+
+/** The server closed the socket itself (4002): it has seen the drop, so its seat is held now or never and a few tries settle it. */
+export const SERVER_CLOSED_REJOIN_WINDOW_MS = 5000;
+
+/** How long after the loss to keep asking: a close the server made settles quickly; the others wait out its noticing and its grace. */
+export function rejoinWindowFor(code: number | undefined): number {
+  return code === 4002 ? SERVER_CLOSED_REJOIN_WINDOW_MS : REJOIN_WINDOW_MS;
 }
 
 /** The room is gone for good (a token for it can never work again), so asking more is pointless. */
 const GONE_RE = /room\b.*(?:not found|disposed)|no rooms found|invalid room/i;
 
 /** How long to wait before the next ask, or null to give up: the window since `lostAt` is over, or the last failure was final. */
-export function nextRejoinDelay(now: number, lostAt: number, lastError?: unknown): number | null {
+export function nextRejoinDelay(now: number, lostAt: number, lastError?: unknown, windowMs = REJOIN_WINDOW_MS): number | null {
   const text = lastError instanceof Error ? lastError.message : typeof lastError === "string" ? lastError : "";
   if (GONE_RE.test(text)) return null;
-  return now + REJOIN_RETRY_MS > lostAt + REJOIN_WINDOW_MS ? null : REJOIN_RETRY_MS;
+  return now + REJOIN_RETRY_MS > lostAt + windowMs ? null : REJOIN_RETRY_MS;
 }
 
 /** A refused join is "your profile still holds a seat" and this tab has that profile's seat: the token may now work. */
