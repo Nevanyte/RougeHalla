@@ -14,5 +14,10 @@ serde = { version = "1", features = ["derive", "rc"] }
 [dev-dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
+[features]
+# Records which ported rows of the tick schedule ran, in order (tests only: enabled by rh-parity as a dev-dependency
+# feature, never in a production build). See src/schedule.rs.
+schedule-trace = []
+
 [lints]
 workspace = true

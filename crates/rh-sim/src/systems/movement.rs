@@ -4,38 +4,65 @@
 
 use crate::constants::*;
 use crate::math::{atan2, hypot};
+use crate::schedule;
 use crate::state::{Player, Sample};
 use crate::systems::{weapons, Cx};
 
-/// System (legacy step.walkFighter + movement.recordHistory): every multiplier is read before anyone moves, so none
-/// depends on who moved first; the product never drops below MOVE_MULT_FLOOR while it is above 0 (a root's 0 stays 0).
-/// History is recorded after everyone moved, so hit tests see one consistent tick.
-pub(crate) fn walk(cx: &mut Cx) {
-    let Cx { w, .. } = cx;
+/// System (legacy step.ts, `movement:multipliers(moveModifiers)`): the standing fighters and every one's move speed, read
+/// before anyone moves so none depends on who moved first. The speed is the weapon's own multiplier folded with the
+/// live move modifiers in table order (`schedule::MOVE_MODIFIERS`, `acc * modifier(c)` left to right, so the order is
+/// part of the result); the product never drops below MOVE_MULT_FLOOR while it is above 0 (a root's 0 stays 0).
+pub(crate) fn multipliers(cx: &mut Cx) {
+    let Cx { k, w, s, .. } = cx;
     let now = w.server_time;
-    let standing: Vec<usize> = (0..w.players.len())
-        .filter(|&i| w.players[i].standing())
-        .collect();
-    let mults: Vec<f64> = standing
-        .iter()
-        .map(|&i| {
-            let m = weapons::move_multiplier(&w.players[i], now);
-            if m > 0.0 && m < MOVE_MULT_FLOOR {
-                MOVE_MULT_FLOOR
-            } else {
-                m
+    s.standing.clear();
+    s.standing
+        .extend((0..w.players.len()).filter(|&i| w.players[i].standing()));
+    s.mults.clear();
+    s.mults.extend(
+        s.standing
+            .iter()
+            .map(|&i| weapons::move_multiplier(&w.players[i], now)),
+    );
+    // Fighter-major, as legacy: each fighter's whole chain runs (in table order) before the next fighter's. None is
+    // ported in the slice.
+    let modifiers = schedule::Plan::of(k).move_modifiers.live();
+    if !modifiers.is_empty() {
+        for (m, &i) in s.mults.iter_mut().zip(&s.standing) {
+            for &(_, modifier) in modifiers {
+                *m *= modifier(w, &w.players[i], TICK_MS);
             }
-        })
-        .collect();
+        }
+    }
+    for m in s.mults.iter_mut() {
+        if *m > 0.0 && *m < MOVE_MULT_FLOOR {
+            *m = MOVE_MULT_FLOOR;
+        }
+    }
+}
+
+/// System (legacy step.walkFighter): every standing fighter walks its path at its tick speed, in join order.
+pub(crate) fn walk(cx: &mut Cx) {
+    let Cx { w, s, .. } = cx;
+    let now = w.server_time;
     let dt = TICK_MS / 1000.0;
-    for (k, &i) in standing.iter().enumerate() {
+    for (&i, &mult) in s.standing.iter().zip(&s.mults) {
         let p = &mut w.players[i];
         let aiming = p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS;
-        advance_along_path(p, dt, aiming, mults[k]);
+        advance_along_path(p, dt, aiming, mult);
     }
-    for &i in &standing {
-        record_history(&mut w.players[i], now);
+}
+
+/// System (legacy movement.recordHistory): recorded after everyone moved, so hit tests see one consistent tick. Ends
+/// the tick's movement: the standing list and the multipliers are spent.
+pub(crate) fn record_history(cx: &mut Cx) {
+    let Cx { w, s, .. } = cx;
+    let now = w.server_time;
+    for &i in &s.standing {
+        record_sample(&mut w.players[i], now);
     }
+    s.standing.clear();
+    s.mults.clear();
 }
 
 /// Walks along the path at PLAYER_SPEED x `speed_mult` for `dt` seconds (legacy `advanceAlongPath`).
@@ -62,7 +89,7 @@ fn advance_along_path(p: &mut Player, dt: f64, keep_facing: bool, speed_mult: f6
     }
 }
 
-fn record_history(p: &mut Player, now: f64) {
+fn record_sample(p: &mut Player, now: f64) {
     p.history.push(Sample {
         t: now,
         x: p.x,

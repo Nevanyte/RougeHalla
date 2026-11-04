@@ -14,3 +14,4 @@ provisional decision is the working default until the named experiment confirms 
 | [0006](0006-persistence.md) | PostgreSQL with fenced session leases and idempotent results | Accepted |
 | [0007](0007-determinism.md) | Determinism scope, numeric policy, RNG streams, replays | Accepted |
 | [0008](0008-unity-client.md) | Unity 6 LTS Web client; engine-independent C# net library; narrow prediction | Provisional |
+| [0009](0009-core-layout.md) | `rh-sim` core layout; the tick schedule, hook chains and input seam as data that a test compares with legacy | Accepted |

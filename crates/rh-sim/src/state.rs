@@ -7,6 +7,7 @@ use crate::math::Vec2;
 use crate::results::{GvBreakdown, Outcome};
 use crate::rng::Mulberry32;
 use crate::statics::Secrets;
+use crate::systems::ledger::Entry;
 
 /// A player's public entity id: assigned at join, never reused within a match.
 #[derive(
@@ -117,7 +118,7 @@ pub struct Player {
     pub gv: u32,
     pub immune_until: f64,
     // runtime (server-only)
-    pub inputs: InputQueue,
+    pub(crate) inputs: InputQueue,
     pub budget: OrderBudget,
     pub path: Vec<Vec2>,
     pub history: Vec<Sample>,
@@ -250,6 +251,52 @@ pub(crate) struct World {
     pub(crate) rt: ArenaRt,
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
+    /// Effects a hook link queued for the next tick (legacy `combat.deferred`): they open its ledger. Empty in the slice,
+    /// which has no link that defers; absent from a checkpoint while empty, so checkpoints and hashes are unchanged.
+    #[serde(default, skip_serializing_if = "DeferredQueue::is_empty")]
+    pub(crate) deferred: DeferredQueue,
+    /// The same-tick payouts (legacy `payLater`, `combat.collecting` and `combat.payouts`): queued while the ledger pass
+    /// runs, paid at its end, or at once outside it. Never part of a checkpoint or the hash: it is empty and not
+    /// collecting at every step boundary, where both are taken.
+    #[serde(skip)]
+    pub(crate) pay: PayQueue,
+    /// The execution trace of the tick schedule (feature `schedule-trace`, tests only): never serialized, never hashed.
+    #[cfg(feature = "schedule-trace")]
+    #[serde(skip)]
+    pub(crate) trace: crate::schedule::TraceLog,
+}
+
+/// Effects queued across a tick boundary, as typed data (never closures, so they checkpoint, hash and replay). Legacy has
+/// two deferrals and they are not interchangeable: `combat.deferred` (entries the cards queue for the NEXT tick's ledger:
+/// Spiked Shell's returned damage, Overkill's splash) is this queue; `payLater` (pay after the ledger pass, in the SAME
+/// tick, or at once outside the pass) is [`PayQueue`]. Mapping a `payLater` onto this queue lands the effect one tick
+/// late and breaks parity.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct DeferredQueue {
+    /// Ledger entries for the next tick (`ledger:openWithDeferred` moves them into that tick's ledger).
+    pub(crate) hits: Vec<Entry>,
+}
+
+impl DeferredQueue {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.hits.is_empty()
+    }
+
+    /// Queues a hit to open the next tick's ledger (legacy `deferHit`).
+    #[cfg_attr(not(test), allow(dead_code))] // the first producer is a card link (P-CARDS-1); tests exercise it now
+    pub(crate) fn defer_hit(&mut self, e: Entry) {
+        self.hits.push(e);
+    }
+}
+
+/// Legacy `payLater` (world.ts): while the ledger pass runs (`collecting`) a payout waits in `items`, in the order it was
+/// queued, until every victim has taken their damage (the pass's end, `ledger::apply`); outside the pass it is paid at
+/// once. Typed data ([`crate::systems::ledger::PayLater`]), never a closure. Reach it with `ledger::pay_later` (or
+/// `Hx::pay_later` from a hook link); never push to `items` directly.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct PayQueue {
+    pub(crate) collecting: bool,
+    pub(crate) items: Vec<crate::systems::ledger::PayLater>,
 }
 
 impl World {
@@ -276,6 +323,10 @@ impl World {
             spawn_rng: Mulberry32::new(secrets.spawn_seed),
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
+            deferred: DeferredQueue::default(),
+            pay: PayQueue::default(),
+            #[cfg(feature = "schedule-trace")]
+            trace: Default::default(),
         }
     }
 }

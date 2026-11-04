@@ -22,10 +22,48 @@ pub(crate) struct Entry {
     pub(crate) stagger: bool,
 }
 
-pub(crate) struct Payout {
-    pub(crate) by: PlayerId,
-    pub(crate) victim_bot: bool,
-    pub(crate) bounty: u32,
+/// What a payout does when it is paid (legacy `payLater(world, () => ...)`, as typed data). The slice has one: a kill's
+/// credit. A packet whose legacy code calls `payLater` adds its variant here and its arm to [`PayLater::pay`]; it never
+/// puts the effect in `World::deferred`, which is the NEXT tick's ledger.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum PayLater {
+    /// legacy arena.ts `creditKill`: the kill's GV, bounty and rampage, after every victim took their damage.
+    CreditKill {
+        by: PlayerId,
+        victim_bot: bool,
+        bounty: u32,
+    },
+}
+
+impl PayLater {
+    fn pay(self, w: &mut World, ev: &mut Vec<Event>) {
+        match self {
+            PayLater::CreditKill {
+                by,
+                victim_bot,
+                bounty,
+            } => credit::credit_kill(w, ev, by, victim_bot, bounty),
+        }
+    }
+}
+
+/// Legacy `payLater`: queues `p` while the ledger pass runs and pays it at once otherwise (a hook fired outside the pass:
+/// `remove_player`, the lobby, the run's end).
+pub(crate) fn pay_later(w: &mut World, ev: &mut Vec<Event>, p: PayLater) {
+    if w.pay.collecting {
+        w.pay.items.push(p);
+    } else {
+        p.pay(w, ev);
+    }
+}
+
+/// Ends the pass: everyone has taken their damage, so the queued payouts go out in the order they were queued. A payout
+/// that itself calls `pay_later` pays at once, as in legacy (`collecting` is off by then).
+pub(crate) fn pay_all(w: &mut World, ev: &mut Vec<Event>) {
+    w.pay.collecting = false;
+    for p in std::mem::take(&mut w.pay.items) {
+        p.pay(w, ev);
+    }
 }
 
 /// What applying one victim's hits touches: everything but the ledger, which it only reads.
@@ -45,12 +83,16 @@ fn rank_of(rank: &[(PlayerId, usize)], id: PlayerId) -> usize {
         .unwrap_or(usize::MAX)
 }
 
-/// System (legacy step.ts, the ledger's opening): the tick's ledger and melee queue start empty (the slice has no
-/// deferred entries: legacy `combat.deferred` arrives with P-CARDS-1). Both are already empty at the end of every step;
-/// this keeps the opening explicit.
+/// System (legacy step.ts, the ledger's opening): the entries a hook link deferred last tick (returned damage, Overkill's
+/// splash: `World::deferred`, legacy `combat.deferred`; not `payLater`, which is paid inside its own tick, see
+/// [`pay_later`]) open this tick's ledger, in the order they were queued, and the melee queue starts empty. The scratch
+/// buffers are already empty at the end of every step; this keeps the opening explicit. The slice has no link that
+/// defers, so the queue is empty until P-CARDS-1.
 pub(crate) fn open(cx: &mut Cx) {
-    cx.s.ledger.clear();
-    cx.s.melee.clear();
+    let Cx { w, s, .. } = cx;
+    s.ledger.clear();
+    s.ledger.append(&mut w.deferred.hits);
+    s.melee.clear();
 }
 
 /// System (legacy ledger.applyLedger): every hit of the tick lands at once. Outgoing multipliers are fixed before any
@@ -86,7 +128,8 @@ pub(crate) fn apply(cx: &mut Cx) {
             }
         })
         .collect();
-    let mut payouts: Vec<Payout> = Vec::new();
+    w.pay.items.clear();
+    w.pay.collecting = true;
     let mut pass = Pass {
         k,
         w,
@@ -99,22 +142,13 @@ pub(crate) fn apply(cx: &mut Cx) {
         let idxs: Vec<usize> = (0..ledger.len())
             .filter(|&k| ledger[k].victim == v)
             .collect();
-        apply_victim(&mut pass, v, ledger, &idxs, &mults, &mut payouts);
+        apply_victim(&mut pass, v, ledger, &idxs, &mults);
     }
-    for pay in payouts {
-        credit::credit_kill(pass.w, pass.ev, pay.by, pay.victim_bot, pay.bounty);
-    }
+    pay_all(pass.w, pass.ev);
     ledger.clear();
 }
 
-fn apply_victim(
-    pass: &mut Pass,
-    v: PlayerId,
-    ledger: &[Entry],
-    idxs: &[usize],
-    mults: &[f64],
-    payouts: &mut Vec<Payout>,
-) {
+fn apply_victim(pass: &mut Pass, v: PlayerId, ledger: &[Entry], idxs: &[usize], mults: &[f64]) {
     let Some(vi) = pass.w.idx(v) else { return };
     if !pass.w.players[vi].standing() {
         return;
@@ -154,7 +188,7 @@ fn apply_victim(
             )
         })
         .collect();
-    let applied = apply_hits(pass, vi, &hits, payouts);
+    let applied = apply_hits(pass, vi, &hits);
     if !(applied > 0.0) {
         return;
     }
@@ -183,12 +217,7 @@ fn apply_victim(
 }
 
 /// Legacy `applyHits` for a player victim: the hits land together; the kill goes to the largest rival hit.
-fn apply_hits(
-    pass: &mut Pass,
-    vi: usize,
-    hits: &[(f64, PlayerId, String)],
-    payouts: &mut Vec<Payout>,
-) -> f64 {
+fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId, String)]) -> f64 {
     let w = &mut *pass.w;
     let now = w.server_time;
     {
@@ -274,12 +303,16 @@ fn apply_hits(
     };
     if let Some(c) = credited {
         let bounty = credit::owed_bounty(w, pass.bounty_at_tick_start, vi);
-        payouts.push(Payout {
-            by: c,
-            victim_bot,
-            bounty,
-        });
+        pay_later(
+            w,
+            pass.ev,
+            PayLater::CreditKill {
+                by: c,
+                victim_bot,
+                bounty,
+            },
+        );
     }
-    settle::down_player(w, pass.ev, Some(pass.downed), vi, Outcome::Died);
+    settle::down_player(pass.k, w, pass.ev, Some(pass.downed), vi, Outcome::Died);
     before
 }

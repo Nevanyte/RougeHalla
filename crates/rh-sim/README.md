@@ -11,8 +11,9 @@ it through `Sim::submit` and `Sim::step`.
 | `sim.rs` | The facade: `Sim`, `Placement`, the public read accessors (`tick()`, `phase()`, `server_time()`, `arena()`, `players()`, `player(id)`, ...) and the few mutators (`add_player`, `submit`, `mark_dropped`, `remove_player`, `step`). No game logic. |
 | `statics.rs` | `MatchStatic { config, arena: Arc<Arena>, secrets }`: what the match is played with; immutable once it starts. `Arena`, `SimConfig`, `Secrets`. |
 | `state.rs` | `World`: the evolving match state (players, clock, phase, run bookkeeping, events waiting between steps). The only thing the state hash covers; with the statics it is the whole checkpoint. `Player` and its runtime. |
-| `scratch.rs` | `TickScratch`: per-tick working sets (damage ledger, melee requests, action ranks, tick-start bounties, the downed list). Never serialized, never hashed; each field is written before it is read within a tick. |
+| `scratch.rs` | `TickScratch`: per-tick working sets (damage ledger, melee requests, action ranks, tick-start bounties, the standing list and move multipliers, the downed list). Never serialized, never hashed; each field is written before it is read within a tick. |
 | `systems/` | One file per legacy module; every entry point is `fn(&mut Cx)`. See below. |
+| `schedule.rs`, `hooks.rs` | The tick as data: `PHASES`, the registration lists, `ACTIONS` and the hook chains (each row a legacy name, a config gate and `Ported`/`Pending`), the loop that runs them, and hook dispatch (`hooks::fire`). |
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
 | `hash.rs` | `Sim::state_hash`, hand-written: the values and their order are part of the replay format (a replay recorded by an older build must keep verifying step by step). |
 | `checkpoint.rs` | `{format, statics, world}` serde layout, the `rh-checkpoint/1` tag and `CheckpointError`. |
@@ -36,8 +37,26 @@ players and events; the pathfinder is touched only by `inputs` (a move order pla
 read no statics. Helpers below an entry point take the narrowest borrows (one fighter and the clock, say). The
 disjoint fields replace the earlier `mem::take` workarounds.
 
-`systems::update_active` is the legacy `updateActive` in its order; the phases that are not ported yet are marked where they
-go. Never reorder it. Adding a mechanic is a new `systems/<mechanic>.rs` plus one call at its legacy position.
+### The tick as data (`schedule.rs`, ADR 0009)
+
+`systems::update_active` is a loop over `schedule::PHASES`, the 23 rows of legacy `updateActive` in order. Each row is
+`{legacy name, gate, run}`: `Ported(fn(&mut Cx) -> Flow)` or `Pending("P-XXX-n")` (the backlog packet that ports it). The
+registration lists legacy fills by module install order are tables too: `AFTER_WEAPONS`, `BEFORE_DAMAGE`, `SYSTEMS`
+(`feed.flushAnnouncements` is #6, after `fireRoam`, `factions.afterDamage`, `factions.healOverTime`, `mobs.resetDummies`,
+`buffs.expireBoosts`), `MOVE_MODIFIERS` (folded in table order), `MOD_SOURCES`, `ACTIONS` (queued commands run through it)
+and the 19 `HOOKS` chains. A gate is the legacy condition that decides whether a world has a row (`signatures`,
+`walkHints`, `mobs`, `quests`, `dummies`, training); the slice plays the capture world (`Gates::of`).
+`crates/rh-parity/tests/schedule.rs` fails when a table stops matching `parity/schedule/legacy_schedule.json` in the
+production, capture or training world, and (feature `schedule-trace`, enabled only as an rh-parity dev-dependency
+feature) when a match runs its ported rows in another order than the table. Never reorder a table. **Adding a mechanic is a
+new `systems/<mechanic>.rs` plus flipping its rows from `Pending` to `Ported`.**
+
+Hooks are fired through `hooks::fire(&mut Hx, HookArgs)` (typed arguments; the chain follows the record's modes
+default/append/wrap/replace; a link sees the statics, the world and the events, never the tick scratch). Effects that cross
+a tick boundary are typed data in the world (`World::deferred`, legacy `combat.deferred`: entries that open the next tick's
+ledger), never closures; legacy `payLater` (paid after the ledger pass, SAME tick) is the separate `World::pay` queue,
+reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the tick an actor queues commands with
+`Cx::submit`, which is `Sim::submit`'s own path: commands are enqueued only by `input::accept`.
 
 ### Checkpoints
 
