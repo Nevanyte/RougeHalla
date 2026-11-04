@@ -27,7 +27,8 @@ struct Bucket {
 impl Bucket {
     fn allow(&mut self) -> bool {
         let now = tokio::time::Instant::now();
-        self.tokens = FRAME_BURST.min(self.tokens + now.duration_since(self.at).as_secs_f64() * FRAMES_PER_SECOND);
+        self.tokens = FRAME_BURST
+            .min(self.tokens + now.duration_since(self.at).as_secs_f64() * FRAMES_PER_SECOND);
         self.at = now;
         if self.tokens >= 1.0 {
             self.tokens -= 1.0;
@@ -39,7 +40,16 @@ impl Bucket {
 }
 
 async fn reject(sock: &mut WebSocket, code: RejectCode, reason: &str) {
-    let _ = sock.send(Message::Binary(ServerMsg::Reject { code, reason: reason.into() }.encode().into())).await;
+    let _ = sock
+        .send(Message::Binary(
+            ServerMsg::Reject {
+                code,
+                reason: reason.into(),
+            }
+            .encode()
+            .into(),
+        ))
+        .await;
     let _ = sock.send(Message::Close(None)).await;
 }
 
@@ -52,7 +62,22 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
     };
     let hello = match ClientMsg::decode(&first) {
-        Ok(ClientMsg::Hello { protocol, content_hash, profile, token, faction, resume, .. }) => Hello { protocol, content_hash, profile, token, faction, resume },
+        Ok(ClientMsg::Hello {
+            protocol,
+            content_hash,
+            profile,
+            token,
+            faction,
+            resume,
+            ..
+        }) => Hello {
+            protocol,
+            content_hash,
+            profile,
+            token,
+            faction,
+            resume,
+        },
         _ => {
             reject(&mut sock, RejectCode::Malformed, "expected Hello").await;
             return;
@@ -83,14 +108,26 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                     }
                 }
                 Next::Close(code) => {
-                    let _ = tx.send(Message::Binary(ServerMsg::Reject { code, reason: "closed".into() }.encode().into())).await;
+                    let _ = tx
+                        .send(Message::Binary(
+                            ServerMsg::Reject {
+                                code,
+                                reason: "closed".into(),
+                            }
+                            .encode()
+                            .into(),
+                        ))
+                        .await;
                     let _ = tx.send(Message::Close(None)).await;
                     return;
                 }
             }
         }
     });
-    let mut bucket = Bucket { tokens: FRAME_BURST, at: tokio::time::Instant::now() };
+    let mut bucket = Bucket {
+        tokens: FRAME_BURST,
+        at: tokio::time::Instant::now(),
+    };
     let mut left = false;
     while let Some(msg) = rx.next().await {
         let bytes = match msg {
@@ -108,14 +145,28 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
         match ClientMsg::decode(&bytes) {
             Ok(ClientMsg::Input { seq, commands }) => {
-                if room.try_send(RoomCmd::Input { player, seq, commands }).is_err() {
+                if room
+                    .try_send(RoomCmd::Input {
+                        player,
+                        seq,
+                        commands,
+                    })
+                    .is_err()
+                {
                     outbox.close(RejectCode::TooSlow);
                     break;
                 }
             }
             Ok(ClientMsg::Ping { nonce, client_ms }) => {
                 let server_ms = f64::from_bits(clock.load(Ordering::Relaxed));
-                outbox.important(ServerMsg::Pong { nonce, client_ms, server_ms }.encode());
+                outbox.important(
+                    ServerMsg::Pong {
+                        nonce,
+                        client_ms,
+                        server_ms,
+                    }
+                    .encode(),
+                );
             }
             Ok(ClientMsg::Leave) => {
                 let _ = room.send(RoomCmd::Leave { player }).await;

@@ -24,13 +24,18 @@ pub struct Lifecycle {
 
 impl Default for Lifecycle {
     fn default() -> Self {
-        Self { state: AtomicU8::new(STARTING), terminated: Notify::new() }
+        Self {
+            state: AtomicU8::new(STARTING),
+            terminated: Notify::new(),
+        }
     }
 }
 
 impl Lifecycle {
     pub fn ready(&self) {
-        let _ = self.state.compare_exchange(STARTING, READY, Ordering::SeqCst, Ordering::SeqCst);
+        let _ = self
+            .state
+            .compare_exchange(STARTING, READY, Ordering::SeqCst, Ordering::SeqCst);
     }
     pub fn start_draining(&self) {
         let s = self.state.load(Ordering::SeqCst);
@@ -43,7 +48,11 @@ impl Lifecycle {
     }
     /// Called when the last room closed: a draining server is done.
     pub fn rooms_empty(&self) {
-        if self.state.compare_exchange(DRAINING, TERMINATED, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+        if self
+            .state
+            .compare_exchange(DRAINING, TERMINATED, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
             self.terminated.notify_waiters();
             self.terminated.notify_one();
         }

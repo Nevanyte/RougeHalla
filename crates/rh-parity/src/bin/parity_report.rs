@@ -5,7 +5,11 @@ fn main() {
         for p in rh_parity::fixture_paths(class) {
             let fx = rh_parity::load(&p);
             if class != "slice" {
-                println!("{:<22} capture-only ({} ticks): not in the Rust slice yet", fx.scenario, fx.ticks.len());
+                println!(
+                    "{:<22} capture-only ({} ticks): not in the Rust slice yet",
+                    fx.scenario,
+                    fx.ticks.len()
+                );
                 continue;
             }
             let r = rh_parity::compare(&fx);
@@ -16,8 +20,16 @@ fn main() {
             fail |= !r.mismatches.is_empty();
         }
     }
-    let (n, bad) = rh_parity::compare_paths(&rh_parity::fixtures_dir().join("pathfinding_seed1.json"));
-    println!("pathfinding_seed1      {n} queries | {}", if bad.is_empty() { "MATCH".into() } else { format!("MISMATCH x{}", bad.len()) });
+    let (n, bad) =
+        rh_parity::compare_paths(&rh_parity::fixtures_dir().join("pathfinding_seed1.json"));
+    println!(
+        "pathfinding_seed1      {n} queries | {}",
+        if bad.is_empty() {
+            "MATCH".into()
+        } else {
+            format!("MISMATCH x{}", bad.len())
+        }
+    );
     for m in bad.iter().take(3) {
         println!("    {m}");
     }

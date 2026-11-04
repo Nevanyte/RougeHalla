@@ -17,35 +17,91 @@ pub struct RayHit {
 /// squeeze between two blocked tiles is crossed.
 pub fn raycast(map: &TileMap, x0: f64, y0: f64, x1: f64, y1: f64, mask: u8) -> RayHit {
     if !(x0 + y0 + x1 + y1).is_finite() {
-        return RayHit { hit: true, x: x0, y: y0, dist: 0.0 };
+        return RayHit {
+            hit: true,
+            x: x0,
+            y: y0,
+            dist: 0.0,
+        };
     }
     let mut tx = (x0 / TILE).floor() as i64;
     let mut ty = (y0 / TILE).floor() as i64;
     if map.blocked(tx, ty, mask) {
-        return RayHit { hit: true, x: x0, y: y0, dist: 0.0 };
+        return RayHit {
+            hit: true,
+            x: x0,
+            y: y0,
+            dist: 0.0,
+        };
     }
     let dx = x1 - x0;
     let dy = y1 - y0;
     let len = sqrt(dx * dx + dy * dy);
     if len == 0.0 {
-        return RayHit { hit: false, x: x1, y: y1, dist: 0.0 };
+        return RayHit {
+            hit: false,
+            x: x1,
+            y: y1,
+            dist: 0.0,
+        };
     }
-    let step_x: i64 = if dx > 0.0 { 1 } else if dx < 0.0 { -1 } else { 0 };
-    let step_y: i64 = if dy > 0.0 { 1 } else if dy < 0.0 { -1 } else { 0 };
+    let step_x: i64 = if dx > 0.0 {
+        1
+    } else if dx < 0.0 {
+        -1
+    } else {
+        0
+    };
+    let step_y: i64 = if dy > 0.0 {
+        1
+    } else if dy < 0.0 {
+        -1
+    } else {
+        0
+    };
     let edge = |t: i64, step: i64| (t + if step > 0 { 1 } else { 0 }) as f64 * TILE;
-    let mut t_max_x = if step_x == 0 { f64::INFINITY } else { (edge(tx, step_x) - x0) / dx };
-    let mut t_max_y = if step_y == 0 { f64::INFINITY } else { (edge(ty, step_y) - y0) / dy };
+    let mut t_max_x = if step_x == 0 {
+        f64::INFINITY
+    } else {
+        (edge(tx, step_x) - x0) / dx
+    };
+    let mut t_max_y = if step_y == 0 {
+        f64::INFINITY
+    } else {
+        (edge(ty, step_y) - y0) / dy
+    };
     loop {
         let t = if t_max_x < t_max_y { t_max_x } else { t_max_y };
         if t > 1.0 {
-            return RayHit { hit: false, x: x1, y: y1, dist: len };
+            return RayHit {
+                hit: false,
+                x: x1,
+                y: y1,
+                dist: len,
+            };
         }
         let cross_x = t_max_x <= t;
         let cross_y = t_max_y <= t;
-        let ex = if cross_x { (if step_x > 0 { tx + 1 } else { tx }) as f64 * TILE } else { x0 + dx * t };
-        let ey = if cross_y { (if step_y > 0 { ty + 1 } else { ty }) as f64 * TILE } else { y0 + dy * t };
-        if cross_x && cross_y && (map.blocked(tx + step_x, ty, mask) || map.blocked(tx, ty + step_y, mask)) {
-            return RayHit { hit: true, x: ex, y: ey, dist: t * len };
+        let ex = if cross_x {
+            (if step_x > 0 { tx + 1 } else { tx }) as f64 * TILE
+        } else {
+            x0 + dx * t
+        };
+        let ey = if cross_y {
+            (if step_y > 0 { ty + 1 } else { ty }) as f64 * TILE
+        } else {
+            y0 + dy * t
+        };
+        if cross_x
+            && cross_y
+            && (map.blocked(tx + step_x, ty, mask) || map.blocked(tx, ty + step_y, mask))
+        {
+            return RayHit {
+                hit: true,
+                x: ex,
+                y: ey,
+                dist: t * len,
+            };
         }
         if cross_x {
             tx += step_x;
@@ -56,7 +112,12 @@ pub fn raycast(map: &TileMap, x0: f64, y0: f64, x1: f64, y1: f64, mask: u8) -> R
             t_max_y = (edge(ty, step_y) - y0) / dy;
         }
         if map.blocked(tx, ty, mask) {
-            return RayHit { hit: true, x: ex, y: ey, dist: t * len };
+            return RayHit {
+                hit: true,
+                x: ex,
+                y: ey,
+                dist: t * len,
+            };
         }
     }
 }

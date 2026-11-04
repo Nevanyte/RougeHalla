@@ -6,8 +6,8 @@ use crate::outbox::Outbox;
 use crate::pacer::Pacer;
 use crate::wire;
 use rh_policy::{drive_seats_with, scripted, Seat};
-use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
 use rh_protocol::{RejectCode, ServerMsg, WireEvent};
+use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{Event, FactionId, Phase, PlayerId, RunResult, Secrets, Sim, SimConfig};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -32,21 +32,54 @@ pub struct JoinOk {
 }
 
 pub enum RoomCmd {
-    Join { profile: String, faction: Option<FactionId>, outbox: Arc<Outbox>, reply: oneshot::Sender<Result<JoinOk, RejectCode>> },
-    Resume { session: [u8; 16], outbox: Arc<Outbox>, reply: oneshot::Sender<Result<JoinOk, RejectCode>> },
-    Input { player: PlayerId, seq: u32, commands: Vec<rh_protocol::WireCommand> },
-    Disconnected { player: PlayerId },
-    Leave { player: PlayerId },
+    Join {
+        profile: String,
+        faction: Option<FactionId>,
+        outbox: Arc<Outbox>,
+        reply: oneshot::Sender<Result<JoinOk, RejectCode>>,
+    },
+    Resume {
+        session: [u8; 16],
+        outbox: Arc<Outbox>,
+        reply: oneshot::Sender<Result<JoinOk, RejectCode>>,
+    },
+    Input {
+        player: PlayerId,
+        seq: u32,
+        commands: Vec<rh_protocol::WireCommand>,
+    },
+    Disconnected {
+        player: PlayerId,
+    },
+    Leave {
+        player: PlayerId,
+    },
     Drain,
 }
 
 /// What the room reports to its owner (the director): free a profile, a result to persist, the room closed.
 #[derive(Debug)]
 pub enum RoomReport {
-    Left { profile: String },
-    Result { match_id: MatchId, profile: String, bot: bool, result: RunResult },
-    Closed { match_id: MatchId, stats: RoomStats, final_hash: u64, replay: Option<Box<Replay>> },
-    Phase { match_id: MatchId, phase: Phase, humans: usize },
+    Left {
+        profile: String,
+    },
+    Result {
+        match_id: MatchId,
+        profile: String,
+        bot: bool,
+        result: RunResult,
+    },
+    Closed {
+        match_id: MatchId,
+        stats: RoomStats,
+        final_hash: u64,
+        replay: Option<Box<Replay>>,
+    },
+    Phase {
+        match_id: MatchId,
+        phase: Phase,
+        humans: usize,
+    },
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
@@ -121,13 +154,23 @@ fn random_u32() -> u32 {
 }
 
 impl Room {
-    pub fn new(id: MatchId, cfg: RoomConfig, reports: mpsc::UnboundedSender<RoomReport>, now: Instant) -> Self {
+    pub fn new(
+        id: MatchId,
+        cfg: RoomConfig,
+        reports: mpsc::UnboundedSender<RoomReport>,
+        now: Instant,
+    ) -> Self {
         // Match secrets come from the OS CSPRNG and never leave this task (docs/CONTRACTS.md C-RNG).
-        let secrets = cfg.fixed_secrets.unwrap_or_else(|| Secrets { order_salt: random_u32(), spawn_seed: random_u32() });
+        let secrets = cfg.fixed_secrets.unwrap_or_else(|| Secrets {
+            order_salt: random_u32(),
+            spawn_seed: random_u32(),
+        });
         let m = &cfg.arena.map;
         let welcome_map = rh_protocol::map::MapBlob::new(m.w as u16, m.h as u16, m.tiles.clone());
         let sim = Sim::new(cfg.sim.clone(), cfg.arena, secrets);
-        let recorder = cfg.record.then(|| Recorder::new(&sim, cfg.sim, ReplayStart::Lobby));
+        let recorder = cfg
+            .record
+            .then(|| Recorder::new(&sim, cfg.sim, ReplayStart::Lobby));
         Self {
             id,
             sim,
@@ -182,11 +225,20 @@ impl Room {
 
     pub fn handle(&mut self, cmd: RoomCmd, now: Instant) {
         match cmd {
-            RoomCmd::Join { profile, faction, outbox, reply } => {
+            RoomCmd::Join {
+                profile,
+                faction,
+                outbox,
+                reply,
+            } => {
                 let r = self.join(profile, faction, outbox);
                 let _ = reply.send(r);
             }
-            RoomCmd::Resume { session, outbox, reply } => {
+            RoomCmd::Resume {
+                session,
+                outbox,
+                reply,
+            } => {
                 let r = match self.humans.iter_mut().find(|h| h.session == session) {
                     None => Err(RejectCode::NoSuchSession),
                     Some(h) => {
@@ -195,15 +247,27 @@ impl Room {
                         }
                         h.dropped_at = None;
                         let (player, session) = (h.player, h.session);
-                        self.record(ReplayInput::Dropped { player, dropped: false });
+                        self.record(ReplayInput::Dropped {
+                            player,
+                            dropped: false,
+                        });
                         self.sim.mark_dropped(player, false);
                         // A fresh Welcome is the resync: full map and the current tick; the next snapshot follows.
-                        Ok(JoinOk { player, session, welcome: self.welcome(player, session), clock: self.clock.clone() })
+                        Ok(JoinOk {
+                            player,
+                            session,
+                            welcome: self.welcome(player, session),
+                            clock: self.clock.clone(),
+                        })
                     }
                 };
                 let _ = reply.send(r);
             }
-            RoomCmd::Input { player, seq, commands } => {
+            RoomCmd::Input {
+                player,
+                seq,
+                commands,
+            } => {
                 let mut ok = false;
                 if let Some(h) = self.humans.iter_mut().find(|h| h.player == player) {
                     h.ack_input = seq;
@@ -223,7 +287,10 @@ impl Room {
                 if let Some(h) = self.humans.iter_mut().find(|h| h.player == player) {
                     h.outbox = None;
                     h.dropped_at = Some(now);
-                    self.record(ReplayInput::Dropped { player, dropped: true });
+                    self.record(ReplayInput::Dropped {
+                        player,
+                        dropped: true,
+                    });
                     self.sim.mark_dropped(player, true);
                 }
             }
@@ -232,7 +299,12 @@ impl Room {
         }
     }
 
-    fn join(&mut self, profile: String, faction: Option<FactionId>, outbox: Arc<Outbox>) -> Result<JoinOk, RejectCode> {
+    fn join(
+        &mut self,
+        profile: String,
+        faction: Option<FactionId>,
+        outbox: Arc<Outbox>,
+    ) -> Result<JoinOk, RejectCode> {
         if self.draining {
             return Err(RejectCode::ServerDraining);
         }
@@ -241,19 +313,50 @@ impl Room {
         }
         // A human takes a bot's seat when the lobby is full (legacy: the newest bot yields).
         if self.sim.players().len() >= rh_sim::constants::MAX_PLAYERS {
-            if let Some(bot) = self.sim.players().iter().rev().find(|p| p.bot).map(|p| p.id) {
+            if let Some(bot) = self
+                .sim
+                .players()
+                .iter()
+                .rev()
+                .find(|p| p.bot)
+                .map(|p| p.id)
+            {
                 self.record(ReplayInput::Leave { player: bot });
                 self.sim.remove_player(bot);
                 self.bots.retain(|s| s.player != bot);
             }
         }
-        let player = self.sim.add_player(&profile, faction, false).ok_or(RejectCode::MatchFull)?;
-        self.record(ReplayInput::Join { profile: profile.clone(), faction, bot: false, policy: None });
+        let player = self
+            .sim
+            .add_player(&profile, faction, false)
+            .ok_or(RejectCode::MatchFull)?;
+        self.record(ReplayInput::Join {
+            profile: profile.clone(),
+            faction,
+            bot: false,
+            policy: None,
+        });
         let session = random16();
-        self.humans.push(HumanSeat { player, profile, session, outbox: Some(outbox), dropped_at: None, ack_input: 0 });
+        self.humans.push(HumanSeat {
+            player,
+            profile,
+            session,
+            outbox: Some(outbox),
+            dropped_at: None,
+            ack_input: 0,
+        });
         self.fill_bots();
-        let _ = self.reports.send(RoomReport::Phase { match_id: self.id, phase: self.sim.phase, humans: self.humans_present() });
-        Ok(JoinOk { player, session, welcome: self.welcome(player, session), clock: self.clock.clone() })
+        let _ = self.reports.send(RoomReport::Phase {
+            match_id: self.id,
+            phase: self.sim.phase,
+            humans: self.humans_present(),
+        });
+        Ok(JoinOk {
+            player,
+            session,
+            welcome: self.welcome(player, session),
+            clock: self.clock.clone(),
+        })
     }
 
     /// Scripted bots on the same seat contract as future policies (rh-policy). Bots never close a lobby: only humans count.
@@ -261,14 +364,30 @@ impl Room {
         while self.humans_present() > 0 && self.sim.players().len() < self.fill_to {
             self.bot_seq += 1;
             let name = format!("bot{}", self.bot_seq);
-            let Some(id) = self.sim.add_player(&name, None, true) else { break };
+            let Some(id) = self.sim.add_player(&name, None, true) else {
+                break;
+            };
             let seed = match self.fixed_bot_seed {
                 Some(s) => s.wrapping_add(self.bot_seq),
                 None => u64::from(random_u32()) << 32 | u64::from(random_u32()),
             };
             let interval = 2 + (self.bot_seq % 3) as u32;
-            self.record(ReplayInput::Join { profile: name, faction: None, bot: true, policy: Some(BotPolicy { name: "brawler".into(), interval, seed }) });
-            self.bots.push(Seat::new(id, Box::new(scripted::Brawler::new(interval)), Box::new(scripted::Idle), seed));
+            self.record(ReplayInput::Join {
+                profile: name,
+                faction: None,
+                bot: true,
+                policy: Some(BotPolicy {
+                    name: "brawler".into(),
+                    interval,
+                    seed,
+                }),
+            });
+            self.bots.push(Seat::new(
+                id,
+                Box::new(scripted::Brawler::new(interval)),
+                Box::new(scripted::Idle),
+                seed,
+            ));
         }
     }
 
@@ -291,7 +410,15 @@ impl Room {
     /// Runs the steps the grid owes and publishes once. Returns false when the room should close.
     pub fn wake(&mut self, now: Instant) -> bool {
         // Reconnect grace: a seat whose client did not come back is a leave (MIA in a run).
-        let expired: Vec<PlayerId> = self.humans.iter().filter(|h| h.dropped_at.is_some_and(|t| now.duration_since(t) >= self.reconnect_grace)).map(|h| h.player).collect();
+        let expired: Vec<PlayerId> = self
+            .humans
+            .iter()
+            .filter(|h| {
+                h.dropped_at
+                    .is_some_and(|t| now.duration_since(t) >= self.reconnect_grace)
+            })
+            .map(|h| h.player)
+            .collect();
         for p in expired {
             self.leave(p);
         }
@@ -307,11 +434,16 @@ impl Room {
         for _ in 0..steps {
             let t = std::time::Instant::now();
             let rec = &mut self.recorder;
-            drive_seats_with(&mut self.sim, &mut self.bots, &self.last_events, |player, cmd| {
-                if let Some(r) = rec.as_mut() {
-                    r.record(ReplayInput::Command { player, cmd });
-                }
-            });
+            drive_seats_with(
+                &mut self.sim,
+                &mut self.bots,
+                &self.last_events,
+                |player, cmd| {
+                    if let Some(r) = rec.as_mut() {
+                        r.record(ReplayInput::Command { player, cmd });
+                    }
+                },
+            );
             let ev = self.sim.step();
             let us = t.elapsed().as_micros().min(u32::MAX as u128) as u32;
             if let Some(r) = self.recorder.as_mut() {
@@ -323,17 +455,27 @@ impl Room {
             self.last_events = ev.clone();
             all_events.extend(ev);
         }
-        self.clock.store(self.sim.server_time.to_bits(), Ordering::Relaxed);
+        self.clock
+            .store(self.sim.server_time.to_bits(), Ordering::Relaxed);
         self.publish(&all_events);
         for e in &all_events {
             if let Event::Resolved { result, bot, .. } = e {
                 let profile = result.profile.clone();
-                let _ = self.reports.send(RoomReport::Result { match_id: self.id, profile, bot: *bot, result: result.clone() });
+                let _ = self.reports.send(RoomReport::Result {
+                    match_id: self.id,
+                    profile,
+                    bot: *bot,
+                    result: result.clone(),
+                });
             }
         }
         if self.sim.phase == Phase::Ended && self.ended_at.is_none() {
             self.ended_at = Some(now);
-            let _ = self.reports.send(RoomReport::Phase { match_id: self.id, phase: Phase::Ended, humans: self.humans_present() });
+            let _ = self.reports.send(RoomReport::Phase {
+                match_id: self.id,
+                phase: Phase::Ended,
+                humans: self.humans_present(),
+            });
         }
         if let Some(t) = self.ended_at {
             if now.duration_since(t) >= self.linger {
@@ -356,14 +498,22 @@ impl Room {
                 }
             }
             if !important.is_empty() {
-                let f = ServerMsg::Events { tick: self.sim.tick, events: important }.encode();
+                let f = ServerMsg::Events {
+                    tick: self.sim.tick,
+                    events: important,
+                }
+                .encode();
                 self.bytes_out += f.len() as u64;
                 out.important(f);
             }
             // Fx are filtered per viewer too: only what this player can see (a swing behind a wall is not sent).
             let fx = wire::fx_seen(&obs);
             if !fx.is_empty() {
-                let f = ServerMsg::Fx { tick: self.sim.tick, fx }.encode();
+                let f = ServerMsg::Fx {
+                    tick: self.sim.tick,
+                    fx,
+                }
+                .encode();
                 self.bytes_out += f.len() as u64;
                 out.fx(f);
             }
@@ -378,18 +528,31 @@ impl Room {
             if let Some(o) = &h.outbox {
                 o.close(RejectCode::Kicked);
             }
-            let _ = self.reports.send(RoomReport::Left { profile: h.profile.clone() });
+            let _ = self.reports.send(RoomReport::Left {
+                profile: h.profile.clone(),
+            });
         }
         self.humans.clear();
         let replay = self.recorder.take().map(|r| Box::new(r.replay));
-        let _ = self.reports.send(RoomReport::Closed { match_id: self.id, stats: self.stats(), final_hash: self.sim.state_hash(), replay });
+        let _ = self.reports.send(RoomReport::Closed {
+            match_id: self.id,
+            stats: self.stats(),
+            final_hash: self.sim.state_hash(),
+            replay,
+        });
         false
     }
 
     pub fn stats(&self) -> RoomStats {
         let mut v = self.step_us.clone();
         v.sort_unstable();
-        let q = |p: f64| if v.is_empty() { 0 } else { v[((v.len() - 1) as f64 * p) as usize] as u64 };
+        let q = |p: f64| {
+            if v.is_empty() {
+                0
+            } else {
+                v[((v.len() - 1) as f64 * p) as usize] as u64
+            }
+        };
         RoomStats {
             ticks: v.len() as u64,
             step_us_p50: q(0.5),

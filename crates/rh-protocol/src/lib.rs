@@ -66,21 +66,49 @@ impl RejectCode {
 /// A command as the client sends it (validated again by the server's simulation: never trusted).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireCommand {
-    Move { x: f32, y: f32, seq: Option<u8> },
-    Stop { seq: Option<u8> },
-    Aim { a: f32 },
+    Move {
+        x: f32,
+        y: f32,
+        seq: Option<u8>,
+    },
+    Stop {
+        seq: Option<u8>,
+    },
+    Aim {
+        a: f32,
+    },
     /// `t`: the client's render time in server milliseconds (lag compensation; clamped server side).
-    Attack { a: f32, t: Option<f64> },
-    Release { a: f32, t: Option<f64> },
+    Attack {
+        a: f32,
+        t: Option<f64>,
+    },
+    Release {
+        a: f32,
+        t: Option<f64>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ClientMsg {
     /// First frame of every connection. `resume` is the session token of a dropped connection (reconnect).
-    Hello { protocol: u16, content_hash: u64, build: String, profile: String, token: String, faction: Option<u8>, resume: Option<[u8; 16]> },
+    Hello {
+        protocol: u16,
+        content_hash: u64,
+        build: String,
+        profile: String,
+        token: String,
+        faction: Option<u8>,
+        resume: Option<[u8; 16]>,
+    },
     /// `seq`: the client's input frame counter, echoed in Snapshot.ack_input (prediction reconciliation).
-    Input { seq: u32, commands: Vec<WireCommand> },
-    Ping { nonce: u32, client_ms: f64 },
+    Input {
+        seq: u32,
+        commands: Vec<WireCommand>,
+    },
+    Ping {
+        nonce: u32,
+        client_ms: f64,
+    },
     Leave,
 }
 
@@ -119,9 +147,18 @@ pub struct WireActor {
 /// Important events: delivered reliably and in order (never dropped for a slow client).
 #[derive(Clone, Debug, PartialEq)]
 pub enum WireEvent {
-    Death { id: u32, by: Option<u32> },
-    Bounty { id: u32, bounty: u16 },
-    MatchEnded { winner: Option<u32>, draw: bool },
+    Death {
+        id: u32,
+        by: Option<u32>,
+    },
+    Bounty {
+        id: u32,
+        bounty: u16,
+    },
+    MatchEnded {
+        winner: Option<u32>,
+        draw: bool,
+    },
     /// The player's own resolved run.
     Result(WireResult),
 }
@@ -129,8 +166,18 @@ pub enum WireEvent {
 /// Presentation effects: a slow client may lose them (the server drops the oldest first under backpressure).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireFx {
-    Swing { by: u32, weapon: u8, x: f32, y: f32, a: f32 },
-    Hit { victim: u32, by: u32, amount: f32 },
+    Swing {
+        by: u32,
+        weapon: u8,
+        x: f32,
+        y: f32,
+        a: f32,
+    },
+    Hit {
+        victim: u32,
+        by: u32,
+        amount: f32,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -160,12 +207,32 @@ pub enum ServerMsg {
         /// The canonical public map (server-sent; clients never generate it): docs/adr/0003-canonical-map.md.
         map: map::MapBlob,
     },
-    Reject { code: RejectCode, reason: String },
+    Reject {
+        code: RejectCode,
+        reason: String,
+    },
     /// The receiving player's own interest-managed view (only what it can see), once per tick.
-    Snapshot { tick: u32, server_ms: f64, phase: u8, ack_input: u32, me: Option<WireSelf>, actors: Vec<WireActor> },
-    Events { tick: u32, events: Vec<WireEvent> },
-    Fx { tick: u32, fx: Vec<WireFx> },
-    Pong { nonce: u32, client_ms: f64, server_ms: f64 },
+    Snapshot {
+        tick: u32,
+        server_ms: f64,
+        phase: u8,
+        ack_input: u32,
+        me: Option<WireSelf>,
+        actors: Vec<WireActor>,
+    },
+    Events {
+        tick: u32,
+        events: Vec<WireEvent>,
+    },
+    Fx {
+        tick: u32,
+        fx: Vec<WireFx>,
+    },
+    Pong {
+        nonce: u32,
+        client_ms: f64,
+        server_ms: f64,
+    },
 }
 
 const T_HELLO: u8 = 0x01;
@@ -189,7 +256,15 @@ impl ClientMsg {
     pub fn encode(&self) -> Vec<u8> {
         let mut w = Writer::default();
         match self {
-            ClientMsg::Hello { protocol, content_hash, build, profile, token, faction, resume } => {
+            ClientMsg::Hello {
+                protocol,
+                content_hash,
+                build,
+                profile,
+                token,
+                faction,
+                resume,
+            } => {
                 w.u8(T_HELLO);
                 w.u16(*protocol);
                 w.u64(*content_hash);
@@ -268,17 +343,32 @@ impl ClientMsg {
                 let mut commands = Vec::with_capacity(n);
                 for _ in 0..n {
                     commands.push(match r.u8()? {
-                        C_MOVE => WireCommand::Move { x: r.f32()?, y: r.f32()?, seq: r.opt(|r| r.u8())? },
-                        C_STOP => WireCommand::Stop { seq: r.opt(|r| r.u8())? },
+                        C_MOVE => WireCommand::Move {
+                            x: r.f32()?,
+                            y: r.f32()?,
+                            seq: r.opt(|r| r.u8())?,
+                        },
+                        C_STOP => WireCommand::Stop {
+                            seq: r.opt(|r| r.u8())?,
+                        },
                         C_AIM => WireCommand::Aim { a: r.f32()? },
-                        C_ATTACK => WireCommand::Attack { a: r.f32()?, t: r.opt(|r| r.f64())? },
-                        C_RELEASE => WireCommand::Release { a: r.f32()?, t: r.opt(|r| r.f64())? },
+                        C_ATTACK => WireCommand::Attack {
+                            a: r.f32()?,
+                            t: r.opt(|r| r.f64())?,
+                        },
+                        C_RELEASE => WireCommand::Release {
+                            a: r.f32()?,
+                            t: r.opt(|r| r.f64())?,
+                        },
                         t => return Err(DecodeError::BadTag(t)),
                     });
                 }
                 ClientMsg::Input { seq, commands }
             }
-            T_PING => ClientMsg::Ping { nonce: r.u32()?, client_ms: r.f64()? },
+            T_PING => ClientMsg::Ping {
+                nonce: r.u32()?,
+                client_ms: r.f64()?,
+            },
             T_LEAVE => ClientMsg::Leave,
             t => return Err(DecodeError::BadTag(t)),
         };
@@ -327,7 +417,17 @@ impl ServerMsg {
     pub fn encode(&self) -> Vec<u8> {
         let mut w = Writer::default();
         match self {
-            ServerMsg::Welcome { protocol, content_hash, match_id, player_id, session, tick_rate, tick, server_ms, map } => {
+            ServerMsg::Welcome {
+                protocol,
+                content_hash,
+                match_id,
+                player_id,
+                session,
+                tick_rate,
+                tick,
+                server_ms,
+                map,
+            } => {
                 w.u8(T_WELCOME);
                 w.u16(*protocol);
                 w.u64(*content_hash);
@@ -344,7 +444,14 @@ impl ServerMsg {
                 w.u16(*code as u16);
                 w.str(reason);
             }
-            ServerMsg::Snapshot { tick, server_ms, phase, ack_input, me, actors } => {
+            ServerMsg::Snapshot {
+                tick,
+                server_ms,
+                phase,
+                ack_input,
+                me,
+                actors,
+            } => {
                 w.u8(T_SNAPSHOT);
                 w.u32(*tick);
                 w.f64(*server_ms);
@@ -406,7 +513,13 @@ impl ServerMsg {
                 w.u16(fx.len() as u16);
                 for f in fx {
                     match *f {
-                        WireFx::Swing { by, weapon, x, y, a } => {
+                        WireFx::Swing {
+                            by,
+                            weapon,
+                            x,
+                            y,
+                            a,
+                        } => {
                             w.u8(1);
                             w.u32(by);
                             w.u8(weapon);
@@ -423,7 +536,11 @@ impl ServerMsg {
                     }
                 }
             }
-            ServerMsg::Pong { nonce, client_ms, server_ms } => {
+            ServerMsg::Pong {
+                nonce,
+                client_ms,
+                server_ms,
+            } => {
                 w.u8(T_PONG);
                 w.u32(*nonce);
                 w.f64(*client_ms);
@@ -452,7 +569,10 @@ impl ServerMsg {
             },
             T_REJECT => {
                 let code = r.u16()?;
-                ServerMsg::Reject { code: RejectCode::from_u16(code).ok_or(DecodeError::BadTag(code as u8))?, reason: r.str()? }
+                ServerMsg::Reject {
+                    code: RejectCode::from_u16(code).ok_or(DecodeError::BadTag(code as u8))?,
+                    reason: r.str()?,
+                }
             }
             T_SNAPSHOT => {
                 let tick = r.u32()?;
@@ -478,7 +598,14 @@ impl ServerMsg {
                         bounty: r.u16()?,
                     });
                 }
-                ServerMsg::Snapshot { tick, server_ms, phase, ack_input, me, actors }
+                ServerMsg::Snapshot {
+                    tick,
+                    server_ms,
+                    phase,
+                    ack_input,
+                    me,
+                    actors,
+                }
             }
             T_EVENTS => {
                 let tick = r.u32()?;
@@ -486,9 +613,18 @@ impl ServerMsg {
                 let mut events = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     events.push(match r.u8()? {
-                        1 => WireEvent::Death { id: r.u32()?, by: r.opt(|r| r.u32())? },
-                        2 => WireEvent::Bounty { id: r.u32()?, bounty: r.u16()? },
-                        3 => WireEvent::MatchEnded { winner: r.opt(|r| r.u32())?, draw: r.u8()? != 0 },
+                        1 => WireEvent::Death {
+                            id: r.u32()?,
+                            by: r.opt(|r| r.u32())?,
+                        },
+                        2 => WireEvent::Bounty {
+                            id: r.u32()?,
+                            bounty: r.u16()?,
+                        },
+                        3 => WireEvent::MatchEnded {
+                            winner: r.opt(|r| r.u32())?,
+                            draw: r.u8()? != 0,
+                        },
                         4 => WireEvent::Result(WireResult {
                             outcome: r.u8()?,
                             place: r.u8()?,
@@ -511,14 +647,28 @@ impl ServerMsg {
                 let mut fx = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     fx.push(match r.u8()? {
-                        1 => WireFx::Swing { by: r.u32()?, weapon: r.u8()?, x: r.f32()?, y: r.f32()?, a: r.f32()? },
-                        2 => WireFx::Hit { victim: r.u32()?, by: r.u32()?, amount: r.f32()? },
+                        1 => WireFx::Swing {
+                            by: r.u32()?,
+                            weapon: r.u8()?,
+                            x: r.f32()?,
+                            y: r.f32()?,
+                            a: r.f32()?,
+                        },
+                        2 => WireFx::Hit {
+                            victim: r.u32()?,
+                            by: r.u32()?,
+                            amount: r.f32()?,
+                        },
                         t => return Err(DecodeError::BadTag(t)),
                     });
                 }
                 ServerMsg::Fx { tick, fx }
             }
-            T_PONG => ServerMsg::Pong { nonce: r.u32()?, client_ms: r.f64()?, server_ms: r.f64()? },
+            T_PONG => ServerMsg::Pong {
+                nonce: r.u32()?,
+                client_ms: r.f64()?,
+                server_ms: r.f64()?,
+            },
             t => return Err(DecodeError::BadTag(t)),
         };
         r.end()?;

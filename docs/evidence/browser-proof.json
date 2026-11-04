@@ -1,0 +1,85 @@
+(node:32657) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "server": "/home/user/RougeHalla/target/debug/rh-server",
+  "url": "https://localhost:7445/probe",
+  "tls": "self-signed (ignoreHTTPSErrors)",
+  "checks": {
+    "admission_and_map": {
+      "a": {
+        "player": 1,
+        "tick": 0,
+        "mapW": 12,
+        "mapH": 8,
+        "mapHash": 2876423845,
+        "tickRate": 20
+      },
+      "b": {
+        "player": 2,
+        "tick": 2,
+        "mapW": 12,
+        "mapH": 8,
+        "mapHash": 2876423845,
+        "tickRate": 20
+      }
+    },
+    "run_started": true,
+    "input_applied_and_acked": {
+      "seq": 1,
+      "y0": 144,
+      "y1": 208
+    },
+    "reconnect_same_seat": {
+      "player": 2
+    },
+    "authoritative_results": {
+      "alpha": {
+        "k": "result",
+        "outcome": 2,
+        "place": 2,
+        "players": 2,
+        "kills": 0,
+        "killedBy": "webBravo",
+        "gvTotal": 0,
+        "gvWin": 0,
+        "durationSec": 19,
+        "withheld": false
+      },
+      "bravo": {
+        "k": "result",
+        "outcome": 0,
+        "place": 1,
+        "players": 2,
+        "kills": 1,
+        "killedBy": null,
+        "gvTotal": 10,
+        "gvWin": 0,
+        "durationSec": 19,
+        "withheld": true
+      }
+    },
+    "no_page_errors": true
+  },
+  "measured": {
+    "snapshots": 389,
+    "fxFrames": 110,
+    "rttMsP50": 1.3999999999068677,
+    "rttMsMax": 36.5,
+    "pageErrors": [],
+    "rejects": []
+  },
+  "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+  "serverInfo": {
+    "closedRooms": [],
+    "contentHash": "c9ec31ec76f35b8f",
+    "lobbies": 0,
+    "maxRooms": 16,
+    "players": 2,
+    "protocol": 1,
+    "resultsFailed": 0,
+    "resultsOk": 2,
+    "rooms": 1,
+    "state": "ready"
+  },
+  "verdict": "PASS"
+}

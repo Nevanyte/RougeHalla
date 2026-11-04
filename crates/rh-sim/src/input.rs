@@ -9,13 +9,27 @@ use crate::math::wrap_angle;
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RawCommand {
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
-    Move { x: f64, y: f64, seq: Option<u8> },
-    Stop { seq: Option<u8> },
+    Move {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+    },
+    Stop {
+        seq: Option<u8>,
+    },
     /// Cursor aim (radians).
-    Aim { a: f64 },
+    Aim {
+        a: f64,
+    },
     /// Press the trigger toward `a`; `t` is the client's render time (lag compensation), clamped by the server.
-    Attack { a: f64, t: Option<f64> },
-    Release { a: f64, t: Option<f64> },
+    Attack {
+        a: f64,
+        t: Option<f64>,
+    },
+    Release {
+        a: f64,
+        t: Option<f64>,
+    },
 }
 
 /// A validated command: points finite and clamped to the world, angles finite and wrapped.
@@ -46,7 +60,13 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         }
         Ok((x.clamp(0.0, WORLD_W), y.clamp(0.0, WORLD_H)))
     };
-    let angle = |a: f64| if a.is_finite() { Ok(wrap_angle(a)) } else { Err(Reject::NonFinite) };
+    let angle = |a: f64| {
+        if a.is_finite() {
+            Ok(wrap_angle(a))
+        } else {
+            Err(Reject::NonFinite)
+        }
+    };
     let time = |t: Option<f64>| t.filter(|v| v.is_finite());
     Ok(match raw {
         RawCommand::Move { x, y, seq } => {
@@ -55,8 +75,14 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         }
         RawCommand::Stop { seq } => Command::Stop { seq },
         RawCommand::Aim { a } => Command::Aim { a: angle(a)? },
-        RawCommand::Attack { a, t } => Command::Attack { a: angle(a)?, t: time(t) },
-        RawCommand::Release { a, t } => Command::Release { a: angle(a)?, t: time(t) },
+        RawCommand::Attack { a, t } => Command::Attack {
+            a: angle(a)?,
+            t: time(t),
+        },
+        RawCommand::Release { a, t } => Command::Release {
+            a: angle(a)?,
+            t: time(t),
+        },
     })
 }
 
@@ -146,7 +172,10 @@ pub struct OrderBudget {
 
 impl Default for OrderBudget {
     fn default() -> Self {
-        Self { tokens: ORDER_BURST, at_ms: 0.0 }
+        Self {
+            tokens: ORDER_BURST,
+            at_ms: 0.0,
+        }
     }
 }
 
@@ -156,7 +185,8 @@ impl OrderBudget {
             return true;
         }
         if now_ms > self.at_ms {
-            self.tokens = ORDER_BURST.min(self.tokens + (now_ms - self.at_ms) / 1000.0 * ORDER_PER_SECOND);
+            self.tokens =
+                ORDER_BURST.min(self.tokens + (now_ms - self.at_ms) / 1000.0 * ORDER_PER_SECOND);
             self.at_ms = now_ms;
         }
         if self.tokens >= 1.0 {
@@ -174,10 +204,32 @@ mod tests {
 
     #[test]
     fn validation_clamps_and_rejects() {
-        assert_eq!(validate(RawCommand::Move { x: -50.0, y: 99999.0, seq: None }), Ok(Command::Move { x: 0.0, y: WORLD_H, seq: None }));
-        assert_eq!(validate(RawCommand::Aim { a: f64::NAN }), Err(Reject::NonFinite));
-        assert_eq!(validate(RawCommand::Attack { a: 0.0, t: Some(f64::INFINITY) }), Ok(Command::Attack { a: 0.0, t: None }));
-        let Command::Aim { a } = validate(RawCommand::Aim { a: 7.0 }).unwrap() else { panic!() };
+        assert_eq!(
+            validate(RawCommand::Move {
+                x: -50.0,
+                y: 99999.0,
+                seq: None
+            }),
+            Ok(Command::Move {
+                x: 0.0,
+                y: WORLD_H,
+                seq: None
+            })
+        );
+        assert_eq!(
+            validate(RawCommand::Aim { a: f64::NAN }),
+            Err(Reject::NonFinite)
+        );
+        assert_eq!(
+            validate(RawCommand::Attack {
+                a: 0.0,
+                t: Some(f64::INFINITY)
+            }),
+            Ok(Command::Attack { a: 0.0, t: None })
+        );
+        let Command::Aim { a } = validate(RawCommand::Aim { a: 7.0 }).unwrap() else {
+            panic!()
+        };
         assert!(a > -std::f64::consts::PI && a <= std::f64::consts::PI);
     }
 
@@ -187,7 +239,10 @@ mod tests {
         for _ in 0..MAX_ACTIONS_PER_TICK {
             q.push(Command::Attack { a: 0.0, t: None }).unwrap();
         }
-        assert_eq!(q.push(Command::Attack { a: 0.0, t: None }), Err(Reject::QueueFull));
+        assert_eq!(
+            q.push(Command::Attack { a: 0.0, t: None }),
+            Err(Reject::QueueFull)
+        );
         assert_eq!(q.drain().actions.len(), MAX_ACTIONS_PER_TICK);
     }
 
@@ -197,7 +252,10 @@ mod tests {
         let mv = Command::Stop { seq: None };
         let allowed = (0..40).filter(|_| b.allow(&mv, 0.0)).count();
         assert_eq!(allowed, 30);
-        assert!(b.allow(&Command::Aim { a: 0.0 }, 0.0), "aim never spends a token");
+        assert!(
+            b.allow(&Command::Aim { a: 0.0 }, 0.0),
+            "aim never spends a token"
+        );
         assert!(!b.allow(&mv, 50.0), "0.75 token after 50 ms");
         assert!(b.allow(&mv, 100.0));
     }

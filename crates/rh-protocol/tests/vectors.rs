@@ -3,9 +3,15 @@ use rh_protocol::*;
 
 #[test]
 fn committed_vectors_match_the_encoder() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v1.json");
-    let committed = std::fs::read_to_string(&path).expect("protocol/fixtures/v1.json (run the protocol-fixtures bin)");
-    assert_eq!(committed, manifest(), "the wire encoding changed: bump PROTOCOL_VERSION if incompatible, then regenerate");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v1.json");
+    let committed = std::fs::read_to_string(&path)
+        .expect("protocol/fixtures/v1.json (run the protocol-fixtures bin)");
+    assert_eq!(
+        committed,
+        manifest(),
+        "the wire encoding changed: bump PROTOCOL_VERSION if incompatible, then regenerate"
+    );
 }
 
 #[test]
@@ -21,7 +27,10 @@ fn every_sample_round_trips() {
 #[test]
 fn malformed_client_frames_are_rejected() {
     for (name, bytes) in malformed_client() {
-        assert!(ClientMsg::decode(&bytes).is_err(), "{name} must be rejected");
+        assert!(
+            ClientMsg::decode(&bytes).is_err(),
+            "{name} must be rejected"
+        );
     }
 }
 

@@ -11,8 +11,8 @@
 
 use crate::constants::*;
 use crate::content::{
-    attack_interval, damage_per_hit, damage_shares, mitigate_shares, paced, player_timings, pvp_factor, weapon, DamageShares,
-    FactionId, Shape, WeaponId,
+    attack_interval, damage_per_hit, damage_shares, mitigate_shares, paced, player_timings,
+    pvp_factor, weapon, DamageShares, FactionId, Shape, WeaponId,
 };
 use crate::geometry::raycast;
 use crate::input::{ActionCmd, Command, InputQueue, MoveCmd, OrderBudget, Reject};
@@ -22,7 +22,9 @@ use crate::pathfind::{plan_path, Pathfinder};
 use crate::rng::{action_order, Mulberry32};
 
 /// A player's public entity id: assigned at join, never reused within a match.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct PlayerId(pub u32);
 
 /// Everything the core needs that must not be derivable by clients. The live server draws these from the OS CSPRNG; tests
@@ -58,7 +60,12 @@ pub struct SimConfig {
 
 impl Default for SimConfig {
     fn default() -> Self {
-        Self { min_players: 2, lobby_seconds: 30.0, fill_seconds: 5.0, pvp_rules: true }
+        Self {
+            min_players: 2,
+            lobby_seconds: 30.0,
+            fill_seconds: 5.0,
+            pvp_rules: true,
+        }
     }
 }
 
@@ -73,7 +80,10 @@ impl Arena {
     pub fn centre(&self) -> Vec2 {
         let tx = (self.map.w / 2) as i64;
         let ty = (self.map.h / 2) as i64;
-        Vec2::new(crate::map::tile_to_world_center(tx), crate::map::tile_to_world_center(ty))
+        Vec2::new(
+            crate::map::tile_to_world_center(tx),
+            crate::map::tile_to_world_center(ty),
+        )
     }
 }
 
@@ -144,21 +154,66 @@ pub struct RunResult {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Event {
     RaidStarted,
-    Windup { by: PlayerId, weapon: WeaponId, a: f64, ms: f64 },
-    Swing { by: PlayerId, weapon: WeaponId, x: f64, y: f64, a: f64 },
-    Hit { victim: PlayerId, by: PlayerId, amount: f64, weapon: WeaponId },
-    Stagger { id: PlayerId },
-    Death { id: PlayerId, x: f64, y: f64, by: Option<PlayerId> },
-    Gv { id: PlayerId, amount: u32, reason: GvReason },
-    Bounty { id: PlayerId, bounty: u32 },
-    Victory { id: Option<PlayerId>, draw: bool },
+    Windup {
+        by: PlayerId,
+        weapon: WeaponId,
+        a: f64,
+        ms: f64,
+    },
+    Swing {
+        by: PlayerId,
+        weapon: WeaponId,
+        x: f64,
+        y: f64,
+        a: f64,
+    },
+    Hit {
+        victim: PlayerId,
+        by: PlayerId,
+        amount: f64,
+        weapon: WeaponId,
+    },
+    Stagger {
+        id: PlayerId,
+    },
+    Death {
+        id: PlayerId,
+        x: f64,
+        y: f64,
+        by: Option<PlayerId>,
+    },
+    Gv {
+        id: PlayerId,
+        amount: u32,
+        reason: GvReason,
+    },
+    Bounty {
+        id: PlayerId,
+        bounty: u32,
+    },
+    Victory {
+        id: Option<PlayerId>,
+        draw: bool,
+    },
     RaidEnded,
-    Resolved { id: PlayerId, result: RunResult, bot: bool },
+    Resolved {
+        id: PlayerId,
+        result: RunResult,
+        bot: bool,
+    },
 }
 
 impl Event {
     pub fn is_important(&self) -> bool {
-        matches!(self, Event::RaidStarted | Event::Death { .. } | Event::Victory { .. } | Event::RaidEnded | Event::Resolved { .. } | Event::Gv { .. })
+        matches!(
+            self,
+            Event::RaidStarted
+                | Event::Death { .. }
+                | Event::Victory { .. }
+                | Event::RaidEnded
+                | Event::Resolved { .. }
+                | Event::Gv { .. }
+        )
     }
 }
 
@@ -209,7 +264,17 @@ pub struct WeaponRt {
 
 impl Default for WeaponRt {
     fn default() -> Self {
-        Self { action: None, root_until: 0.0, stagger_immune_until: 0.0, held: false, pressed_at: 0.0, buffered_until: 0.0, aim: 0.0, aim_at: 0.0, lag_ms: 0.0 }
+        Self {
+            action: None,
+            root_until: 0.0,
+            stagger_immune_until: 0.0,
+            held: false,
+            pressed_at: 0.0,
+            buffered_until: 0.0,
+            aim: 0.0,
+            aim_at: 0.0,
+            lag_ms: 0.0,
+        }
     }
 }
 
@@ -268,7 +333,11 @@ impl Player {
     }
     /// The weapon in hand: the item in the active slot, or fists.
     pub fn active_weapon(&self) -> WeaponId {
-        let item = if self.slot == 0 { self.weapon0 } else { self.weapon1 };
+        let item = if self.slot == 0 {
+            self.weapon0
+        } else {
+            self.weapon1
+        };
         item.unwrap_or(WeaponId::Fists)
     }
     /// Where the fighter was at server time `t` (lerped between ticks, clamped to history; legacy `positionAt`).
@@ -384,10 +453,23 @@ impl Sim {
 
     /// Typed reset: a new match whose run is active after its first step, with the players placed as given (the lobby
     /// closes on step 1 exactly as in a live room; placements then override the spawns and reset the rewind history).
-    pub fn reset_active(config: SimConfig, arena: Arena, secrets: Secrets, placements: &[Placement]) -> Self {
+    pub fn reset_active(
+        config: SimConfig,
+        arena: Arena,
+        secrets: Secrets,
+        placements: &[Placement],
+    ) -> Self {
         // The lobby closes on step 1: every human counts toward min_players (bots never close a lobby, as in legacy).
         let humans = placements.iter().filter(|p| !p.bot).count();
-        let mut sim = Sim::new(SimConfig { min_players: humans, fill_seconds: 0.0, ..config }, arena, secrets);
+        let mut sim = Sim::new(
+            SimConfig {
+                min_players: humans,
+                fill_seconds: 0.0,
+                ..config
+            },
+            arena,
+            secrets,
+        );
         for p in placements {
             sim.add_player(&p.profile, Some(p.faction), p.bot);
         }
@@ -400,7 +482,11 @@ impl Sim {
             if let Some(hp) = spec.hp {
                 pl.hp = hp;
             }
-            pl.history = vec![Sample { t, x: pl.x, y: pl.y }];
+            pl.history = vec![Sample {
+                t,
+                x: pl.x,
+                y: pl.y,
+            }];
         }
         sim.take_events();
         sim
@@ -437,7 +523,12 @@ impl Sim {
     }
 
     /// Joins the lobby (legacy `addPlayer`): faction picked or round robin by join order, fists in hand.
-    pub fn add_player(&mut self, profile: &str, faction: Option<FactionId>, bot: bool) -> Option<PlayerId> {
+    pub fn add_player(
+        &mut self,
+        profile: &str,
+        faction: Option<FactionId>,
+        bot: bool,
+    ) -> Option<PlayerId> {
         if self.phase != Phase::Lobby || self.players.len() >= MAX_PLAYERS {
             return None;
         }
@@ -569,7 +660,9 @@ impl Sim {
         }
         let humans = self.players.iter().filter(|p| !p.bot).count();
         if humans >= self.config.min_players {
-            self.lobby_ends_at = self.lobby_ends_at.min(self.server_time + self.config.fill_seconds * 1000.0);
+            self.lobby_ends_at = self
+                .lobby_ends_at
+                .min(self.server_time + self.config.fill_seconds * 1000.0);
         }
         if humans >= MAX_PLAYERS || self.server_time >= self.lobby_ends_at {
             self.start_raid();
@@ -595,7 +688,11 @@ impl Sim {
             }
             p.status = Status::Alive;
             p.inputs.drain();
-            p.history = vec![Sample { t: now, x: p.x, y: p.y }];
+            p.history = vec![Sample {
+                t: now,
+                x: p.x,
+                y: p.y,
+            }];
             p.weapon = WeaponRt::default();
             p.ready_at = 0.0;
             p.draw_started_at = 0.0;
@@ -613,7 +710,11 @@ impl Sim {
         // markTickStart
         self.rt.bounty_at_tick_start.clear();
         for p in &mut self.players {
-            p.hp_frac_at_tick_start = if p.max_hp > 0.0 { (p.hp + p.barrier) / p.max_hp } else { 0.0 };
+            p.hp_frac_at_tick_start = if p.max_hp > 0.0 {
+                (p.hp + p.barrier) / p.max_hp
+            } else {
+                0.0
+            };
             self.rt.bounty_at_tick_start.push((p.id, p.bounty));
         }
         self.ledger.clear();
@@ -629,7 +730,9 @@ impl Sim {
         // [abilities] [target locks]  -- not in the slice (docs/backlog)
         self.update_weapons();
         // [afterWeapons]
-        let standing: Vec<usize> = (0..self.players.len()).filter(|&i| self.players[i].standing()).collect();
+        let standing: Vec<usize> = (0..self.players.len())
+            .filter(|&i| self.players[i].standing())
+            .collect();
         let mults: Vec<f64> = standing
             .iter()
             .map(|&i| {
@@ -690,7 +793,11 @@ impl Sim {
         let from = self.players[i].pos();
         let (path, stop, seq) = match mv {
             MoveCmd::Stop { seq } => (Vec::new(), true, seq),
-            MoveCmd::Move { x, y, seq } => (plan_path(&mut self.pathfinder, &self.arena.map, from, Vec2::new(x, y)), false, seq),
+            MoveCmd::Move { x, y, seq } => (
+                plan_path(&mut self.pathfinder, &self.arena.map, from, Vec2::new(x, y)),
+                false,
+                seq,
+            ),
         };
         let p = &mut self.players[i];
         if stop || !path.is_empty() {
@@ -772,9 +879,18 @@ impl Sim {
         let f = paced(self.players[i].faction);
         let base = damage_per_hit(&f, weapon, 1.0);
         let shares: DamageShares = damage_shares(&f);
-        let packet = Packet { raw: base, phys: shares.phys, magic: shares.magic, true_: shares.true_ };
+        let packet = Packet {
+            raw: base,
+            phys: shares.phys,
+            magic: shares.magic,
+            true_: shares.true_,
+        };
         let p = &mut self.players[i];
-        let start = if p.weapon.pressed_at <= p.ready_at { p.ready_at.max(now - TICK_MS) } else { now };
+        let start = if p.weapon.pressed_at <= p.ready_at {
+            p.ready_at.max(now - TICK_MS)
+        } else {
+            now
+        };
         p.weapon.buffered_until = 0.0;
         let lands_at = start + tm.windup * 1000.0;
         let kind = match (weapon, weapon_shape(weapon)) {
@@ -783,7 +899,14 @@ impl Sim {
             _ => ActionKind::Cast,
         };
         let aim = p.weapon.aim;
-        p.weapon.action = Some(PendingAction { kind, weapon, started_at: start, lands_at, a: aim, packet });
+        p.weapon.action = Some(PendingAction {
+            kind,
+            weapon,
+            started_at: start,
+            lands_at,
+            a: aim,
+            packet,
+        });
         p.ready_at = start + tm.interval * 1000.0;
         if tm.root > 0.0 {
             p.weapon.root_until = start + tm.root * 1000.0;
@@ -792,7 +915,12 @@ impl Sim {
         if weapon == WeaponId::Bow {
             p.draw_started_at = start;
         } else {
-            self.emit(Event::Windup { by: id, weapon, a: aim, ms: (lands_at - now).max(0.0) });
+            self.emit(Event::Windup {
+                by: id,
+                weapon,
+                a: aim,
+                ms: (lands_at - now).max(0.0),
+            });
         }
     }
 
@@ -804,7 +932,13 @@ impl Sim {
             ActionKind::Swing => {
                 let rewind_t = now - MAX_REWIND_MS.min(TICK_MS.max(p.weapon.lag_ms));
                 let attacker = p.id;
-                self.melee.push(MeleeReq { attacker, weapon: act.weapon, a: act.a, rewind_t, packet: act.packet });
+                self.melee.push(MeleeReq {
+                    attacker,
+                    weapon: act.weapon,
+                    a: act.a,
+                    rewind_t,
+                    packet: act.packet,
+                });
             }
             ActionKind::Cast | ActionKind::Draw => {
                 // Projectiles are not in the slice and no ranged weapon can be held in it (no item flow): docs/backlog P-COMBAT-2.
@@ -833,15 +967,27 @@ impl Sim {
         if reqs.is_empty() {
             return;
         }
-        let bodies: Vec<usize> = (0..self.players.len()).filter(|&i| self.players[i].standing()).collect();
+        let bodies: Vec<usize> = (0..self.players.len())
+            .filter(|&i| self.players[i].standing())
+            .collect();
         for req in reqs {
-            let Some(ai) = self.idx(req.attacker) else { continue };
+            let Some(ai) = self.idx(req.attacker) else {
+                continue;
+            };
             if !self.players[ai].standing() {
                 continue;
             }
-            let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else { continue };
+            let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
+                continue;
+            };
             let origin = self.players[ai].position_at(req.rewind_t);
-            self.emit(Event::Swing { by: req.attacker, weapon: req.weapon, x: origin.x, y: origin.y, a: req.a });
+            self.emit(Event::Swing {
+                by: req.attacker,
+                weapon: req.weapon,
+                x: origin.x,
+                y: origin.y,
+                a: req.a,
+            });
             for &ti in &bodies {
                 if ti == ai {
                     continue;
@@ -856,13 +1002,24 @@ impl Sim {
                 // Shields (block/riposte) need a shield in hand: no item flow in the slice (docs/backlog P-COMBAT-1).
                 let victim = self.players[ti].id;
                 let by_name = self.players[ai].name.clone();
-                self.ledger.push(Entry { victim, by: req.attacker, by_name, packet: req.packet, weapon: req.weapon, stagger: req.weapon == WeaponId::Sword });
+                self.ledger.push(Entry {
+                    victim,
+                    by: req.attacker,
+                    by_name,
+                    packet: req.packet,
+                    weapon: req.weapon,
+                    stagger: req.weapon == WeaponId::Sword,
+                });
             }
         }
     }
 
     fn rank_of(&self, id: PlayerId) -> usize {
-        self.rank.iter().find(|(p, _)| *p == id).map(|(_, r)| *r).unwrap_or(usize::MAX)
+        self.rank
+            .iter()
+            .find(|(p, _)| *p == id)
+            .map(|(_, r)| *r)
+            .unwrap_or(usize::MAX)
     }
 
     /// The damage ledger: every hit of the tick lands at once. Outgoing multipliers are fixed before any victim takes damage,
@@ -882,11 +1039,20 @@ impl Sim {
         }
         let mults: Vec<f64> = ledger
             .iter()
-            .map(|e| if self.config.pvp_rules && self.idx(e.by).is_some() && self.idx(e.victim).is_some() { pvp_factor(0.0) } else { 1.0 })
+            .map(|e| {
+                if self.config.pvp_rules && self.idx(e.by).is_some() && self.idx(e.victim).is_some()
+                {
+                    pvp_factor(0.0)
+                } else {
+                    1.0
+                }
+            })
             .collect();
         let mut payouts: Vec<Payout> = Vec::new();
         for v in victims {
-            let idxs: Vec<usize> = (0..ledger.len()).filter(|&k| ledger[k].victim == v).collect();
+            let idxs: Vec<usize> = (0..ledger.len())
+                .filter(|&k| ledger[k].victim == v)
+                .collect();
             self.apply_victim(v, &ledger, &idxs, &mults, &mut payouts);
         }
         for pay in payouts {
@@ -894,7 +1060,14 @@ impl Sim {
         }
     }
 
-    fn apply_victim(&mut self, v: PlayerId, ledger: &[Entry], idxs: &[usize], mults: &[f64], payouts: &mut Vec<Payout>) {
+    fn apply_victim(
+        &mut self,
+        v: PlayerId,
+        ledger: &[Entry],
+        idxs: &[usize],
+        mults: &[f64],
+        payouts: &mut Vec<Payout>,
+    ) {
         let Some(vi) = self.idx(v) else { return };
         if !self.players[vi].standing() {
             return;
@@ -906,7 +1079,11 @@ impl Sim {
             .map(|&k| {
                 let e = &ledger[k];
                 let raw = e.packet.raw * mults[k];
-                let s = DamageShares { phys: e.packet.phys, magic: e.packet.magic, true_: e.packet.true_ };
+                let s = DamageShares {
+                    phys: e.packet.phys,
+                    magic: e.packet.magic,
+                    true_: e.packet.true_,
+                };
                 mitigate_shares(raw, &s, armor, shield)
             })
             .collect();
@@ -920,7 +1097,16 @@ impl Sim {
         }
         let mut order: Vec<usize> = (0..idxs.len()).collect();
         order.sort_by_key(|&j| self.rank_of(ledger[idxs[j]].by));
-        let hits: Vec<(f64, PlayerId, String)> = order.iter().map(|&j| (amounts[j], ledger[idxs[j]].by, ledger[idxs[j]].by_name.clone())).collect();
+        let hits: Vec<(f64, PlayerId, String)> = order
+            .iter()
+            .map(|&j| {
+                (
+                    amounts[j],
+                    ledger[idxs[j]].by,
+                    ledger[idxs[j]].by_name.clone(),
+                )
+            })
+            .collect();
         let applied = self.apply_hits(vi, &hits, payouts);
         if !(applied > 0.0) {
             return;
@@ -928,18 +1114,33 @@ impl Sim {
         for (j, &k) in idxs.iter().enumerate() {
             if amounts[j] > 0.0 {
                 let e = &ledger[k];
-                self.emit(Event::Hit { victim: v, by: e.by, amount: amounts[j], weapon: e.weapon });
+                self.emit(Event::Hit {
+                    victim: v,
+                    by: e.by,
+                    amount: amounts[j],
+                    weapon: e.weapon,
+                });
             }
         }
         if let Some(vi) = self.idx(v) {
-            if self.players[vi].standing() && idxs.iter().enumerate().any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0) {
+            if self.players[vi].standing()
+                && idxs
+                    .iter()
+                    .enumerate()
+                    .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
+            {
                 self.stagger(vi);
             }
         }
     }
 
     /// Legacy `applyHits` for a player victim: the hits land together; the kill goes to the largest rival hit.
-    fn apply_hits(&mut self, vi: usize, hits: &[(f64, PlayerId, String)], payouts: &mut Vec<Payout>) -> f64 {
+    fn apply_hits(
+        &mut self,
+        vi: usize,
+        hits: &[(f64, PlayerId, String)],
+        payouts: &mut Vec<Payout>,
+    ) -> f64 {
         let now = self.server_time;
         {
             let v = &self.players[vi];
@@ -983,7 +1184,11 @@ impl Sim {
         let v = &mut self.players[vi];
         if v.barrier > 0.0 {
             let taken = v.barrier.min(total);
-            v.barrier = if v.barrier - taken < 1e-3 { 0.0 } else { v.barrier - taken };
+            v.barrier = if v.barrier - taken < 1e-3 {
+                0.0
+            } else {
+                v.barrier - taken
+            };
             total -= taken;
         }
         if !(total > 0.0) {
@@ -1008,14 +1213,23 @@ impl Sim {
                 v.killed_by_bot = true;
             }
         }
-        self.emit(Event::Death { id: victim_id, x: vx, y: vy, by: killer_idx.map(|_| *kid) });
+        self.emit(Event::Death {
+            id: victim_id,
+            x: vx,
+            y: vy,
+            by: killer_idx.map(|_| *kid),
+        });
         let credited = match top_rival {
             Some(r) => Some(hits[r].1),
             None => self.recent_rival(vi, now),
         };
         if let Some(c) = credited {
             let bounty = self.owed_bounty(vi);
-            payouts.push(Payout { by: c, victim_bot, bounty });
+            payouts.push(Payout {
+                by: c,
+                victim_bot,
+                bounty,
+            });
         }
         self.down_player(vi, Outcome::Died);
         before
@@ -1024,7 +1238,12 @@ impl Sim {
     fn owed_bounty(&self, vi: usize) -> u32 {
         let v = &self.players[vi];
         if self.stepping {
-            self.rt.bounty_at_tick_start.iter().find(|(id, _)| *id == v.id).map(|(_, b)| *b).unwrap_or(v.bounty)
+            self.rt
+                .bounty_at_tick_start
+                .iter()
+                .find(|(id, _)| *id == v.id)
+                .map(|(_, b)| *b)
+                .unwrap_or(v.bounty)
         } else {
             v.bounty
         }
@@ -1063,7 +1282,11 @@ impl Sim {
         }
         v.weapon.action = None;
         v.draw_started_at = 0.0;
-        v.status = if outcome == Outcome::Died { Status::Dead } else { Status::Mia };
+        v.status = if outcome == Outcome::Died {
+            Status::Dead
+        } else {
+            Status::Mia
+        };
         let victim_bot = v.bot;
         let id = v.id;
         if let Some(c) = credited {
@@ -1170,7 +1393,12 @@ impl Sim {
     fn settle(&mut self) {
         let downed = std::mem::take(&mut self.rt.downed_this_tick);
         self.rt.downs_between_ticks = 0;
-        let alive: Vec<PlayerId> = self.players.iter().filter(|p| p.standing()).map(|p| p.id).collect();
+        let alive: Vec<PlayerId> = self
+            .players
+            .iter()
+            .filter(|p| p.standing())
+            .map(|p| p.id)
+            .collect();
         let contested = self.rt.started_with >= 2;
         if alive.is_empty() || (contested && alive.len() == 1) {
             self.end_run(&alive, &downed, contested);
@@ -1190,8 +1418,19 @@ impl Sim {
         if alive.len() == 1 {
             winners = alive.to_vec();
         } else if contested && !downed.is_empty() {
-            let best = downed.iter().filter_map(|id| self.player(*id)).map(|p| p.hp_frac_at_tick_start).fold(f64::NEG_INFINITY, f64::max);
-            winners = downed.iter().copied().filter(|id| self.player(*id).is_some_and(|p| p.hp_frac_at_tick_start == best)).collect();
+            let best = downed
+                .iter()
+                .filter_map(|id| self.player(*id))
+                .map(|p| p.hp_frac_at_tick_start)
+                .fold(f64::NEG_INFINITY, f64::max);
+            winners = downed
+                .iter()
+                .copied()
+                .filter(|id| {
+                    self.player(*id)
+                        .is_some_and(|p| p.hp_frac_at_tick_start == best)
+                })
+                .collect();
         }
         let draw = winners.len() > 1;
         for id in downed {
@@ -1208,11 +1447,27 @@ impl Sim {
                 self.resolve(i, Outcome::Draw, 1, 0, None);
                 continue;
             }
-            let why = if contested { self.withheld_why(i) } else { Some(WinBonusWhy::Starters) };
-            self.resolve(i, Outcome::Won, 1, if why.is_some() { 0 } else { GV_WIN }, why);
+            let why = if contested {
+                self.withheld_why(i)
+            } else {
+                Some(WinBonusWhy::Starters)
+            };
+            self.resolve(
+                i,
+                Outcome::Won,
+                1,
+                if why.is_some() { 0 } else { GV_WIN },
+                why,
+            );
         }
-        let winner = if !draw && winners.len() == 1 { Some(winners[0]) } else { None };
-        self.winner = winner.and_then(|id| self.player(id)).map(|p| p.name.clone());
+        let winner = if !draw && winners.len() == 1 {
+            Some(winners[0])
+        } else {
+            None
+        };
+        self.winner = winner
+            .and_then(|id| self.player(id))
+            .map(|p| p.name.clone());
         self.phase = Phase::Ended;
         self.emit(Event::Victory { id: winner, draw });
         self.emit(Event::RaidEnded);
@@ -1228,7 +1483,14 @@ impl Sim {
         None
     }
 
-    fn resolve(&mut self, i: usize, outcome: Outcome, place: u32, win: u32, why: Option<WinBonusWhy>) {
+    fn resolve(
+        &mut self,
+        i: usize,
+        outcome: Outcome,
+        place: u32,
+        win: u32,
+        why: Option<WinBonusWhy>,
+    ) {
         let now = self.server_time;
         let started = self.raid_started_at;
         let players = self.rt.started_with;
@@ -1239,13 +1501,25 @@ impl Sim {
         p.resolved = true;
         p.path.clear();
         let g = p.gv_parts;
-        let gv = GvBreakdown { win, total: g.kills + g.mobs + g.bounty + g.quest + win, ..g };
+        let gv = GvBreakdown {
+            win,
+            total: g.kills + g.mobs + g.bounty + g.quest + win,
+            ..g
+        };
         let result = RunResult {
             outcome,
             profile: p.profile.clone(),
-            duration_sec: if started > 0.0 { js_round((now - started) / 1000.0) as u32 } else { 0 },
+            duration_sec: if started > 0.0 {
+                js_round((now - started) / 1000.0) as u32
+            } else {
+                0
+            },
             kills: p.kills - p.bot_kills,
-            killed_by: if outcome == Outcome::Died { p.killed_by.clone() } else { None },
+            killed_by: if outcome == Outcome::Died {
+                p.killed_by.clone()
+            } else {
+                None
+            },
             killed_by_bot: outcome == Outcome::Died && p.killed_by_bot,
             place,
             players,
@@ -1270,7 +1544,17 @@ impl Sim {
         for p in &self.players {
             h.u64(p.id.0 as u64);
             h.u64(p.faction as u64);
-            for v in [p.x, p.y, p.facing, p.hp, p.max_hp, p.barrier, p.ready_at, p.draw_started_at, p.hp_frac_at_tick_start] {
+            for v in [
+                p.x,
+                p.y,
+                p.facing,
+                p.hp,
+                p.max_hp,
+                p.barrier,
+                p.ready_at,
+                p.draw_started_at,
+                p.hp_frac_at_tick_start,
+            ] {
                 h.f64(v);
             }
             h.u64(p.status as u64);
@@ -1287,7 +1571,15 @@ impl Sim {
                 h.f64(s.y);
             }
             let w = &p.weapon;
-            for v in [w.root_until, w.stagger_immune_until, w.pressed_at, w.buffered_until, w.aim, w.aim_at, w.lag_ms] {
+            for v in [
+                w.root_until,
+                w.stagger_immune_until,
+                w.pressed_at,
+                w.buffered_until,
+                w.aim,
+                w.aim_at,
+                w.lag_ms,
+            ] {
                 h.f64(v);
             }
             h.u64(w.held as u64);
@@ -1349,7 +1641,11 @@ fn advance_along_path(p: &mut Player, dt: f64, keep_facing: bool, speed_mult: f6
 }
 
 fn record_history(p: &mut Player, now: f64) {
-    p.history.push(Sample { t: now, x: p.x, y: p.y });
+    p.history.push(Sample {
+        t: now,
+        x: p.x,
+        y: p.y,
+    });
     let cutoff = now - MAX_REWIND_MS - TICK_MS;
     while p.history.len() > 2 && p.history[0].t < cutoff {
         p.history.remove(0);

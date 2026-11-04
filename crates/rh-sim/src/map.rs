@@ -40,7 +40,11 @@ impl std::error::Error for MapError {}
 impl TileMap {
     pub fn new(w: u32, h: u32, tiles: Vec<u8>) -> Result<Self, MapError> {
         if w == 0 || h == 0 || tiles.len() != (w as usize) * (h as usize) {
-            return Err(MapError::Shape { w, h, len: tiles.len() });
+            return Err(MapError::Shape {
+                w,
+                h,
+                len: tiles.len(),
+            });
         }
         let comps = move_components(&tiles, w as usize, h as usize);
         Ok(Self { w, h, tiles, comps })
@@ -49,12 +53,18 @@ impl TileMap {
     /// Parses the fixture/row form: `#` wall, `~` low, `.` floor.
     pub fn from_rows<S: AsRef<str>>(rows: &[S]) -> Result<Self, MapError> {
         let h = rows.len();
-        let w = rows.first().map(|r| r.as_ref().chars().count()).unwrap_or(0);
+        let w = rows
+            .first()
+            .map(|r| r.as_ref().chars().count())
+            .unwrap_or(0);
         let mut tiles = Vec::with_capacity(w * h);
         for (y, r) in rows.iter().enumerate() {
             let r = r.as_ref();
             if r.chars().count() != w {
-                return Err(MapError::BadRow { row: y, len: r.chars().count() });
+                return Err(MapError::BadRow {
+                    row: y,
+                    len: r.chars().count(),
+                });
             }
             for (x, ch) in r.chars().enumerate() {
                 tiles.push(match ch {
@@ -157,13 +167,14 @@ fn move_components(tiles: &[u8], w: usize, h: usize) -> Vec<i32> {
             let i = queue[head];
             head += 1;
             let x = i % w;
-            let visit = |j: usize, comp: &mut Vec<i32>, queue: &mut Vec<usize>, tail: &mut usize| {
-                if tiles[j] == TILE_FLOOR && comp[j] < 0 {
-                    comp[j] = id;
-                    queue[*tail] = j;
-                    *tail += 1;
-                }
-            };
+            let visit =
+                |j: usize, comp: &mut Vec<i32>, queue: &mut Vec<usize>, tail: &mut usize| {
+                    if tiles[j] == TILE_FLOOR && comp[j] < 0 {
+                        comp[j] = id;
+                        queue[*tail] = j;
+                        *tail += 1;
+                    }
+                };
             if x > 0 {
                 visit(i - 1, &mut comp, &mut queue, &mut tail);
             }

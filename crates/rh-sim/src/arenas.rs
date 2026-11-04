@@ -19,7 +19,10 @@ impl MapFile {
             return Err(format!("unknown map format {}", self.format));
         }
         let map = TileMap::from_rows(&self.rows).map_err(|e| e.to_string())?;
-        Ok(Arena { map, spawns: self.spawns.iter().map(|s| Vec2::new(s[0], s[1])).collect() })
+        Ok(Arena {
+            map,
+            spawns: self.spawns.iter().map(|s| Vec2::new(s[0], s[1])).collect(),
+        })
     }
 }
 
@@ -33,14 +36,29 @@ pub fn practice_arena() -> Arena {
             let edge = x == 0 || y == 0 || x == w - 1 || y == h - 1;
             let pillar = (x % 12 == 6) && (y % 10 >= 4 && y % 10 <= 6);
             let fence = x == 24 && (12..=19).contains(&y);
-            r.push(if edge || pillar { '#' } else if fence { '~' } else { '.' });
+            r.push(if edge || pillar {
+                '#'
+            } else if fence {
+                '~'
+            } else {
+                '.'
+            });
         }
         rows.push(r);
     }
     let map = TileMap::from_rows(&rows).expect("practice arena");
-    let spawns = [(4, 4), (43, 4), (4, 27), (43, 27), (14, 15), (33, 15), (24, 4), (24, 27)]
-        .iter()
-        .map(|&(tx, ty)| Vec2::new(tile_to_world_center(tx), tile_to_world_center(ty)))
-        .collect();
+    let spawns = [
+        (4, 4),
+        (43, 4),
+        (4, 27),
+        (43, 27),
+        (14, 15),
+        (33, 15),
+        (24, 4),
+        (24, 27),
+    ]
+    .iter()
+    .map(|&(tx, ty)| Vec2::new(tile_to_world_center(tx), tile_to_world_center(ty)))
+    .collect();
     Arena { map, spawns }
 }

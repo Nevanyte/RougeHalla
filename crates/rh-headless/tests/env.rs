@@ -7,7 +7,16 @@ use rh_sim::arenas::practice_arena;
 use rh_sim::{FactionId, RawCommand, SimConfig};
 
 fn bots(n: usize) -> Vec<AgentSpec> {
-    (0..n).map(|i| AgentSpec { profile: format!("b{i}"), faction: FactionId::ALL[i % 5], bot: true, agent: Agent::Policy { policy: Box::new(Brawler::new(2)) } }).collect()
+    (0..n)
+        .map(|i| AgentSpec {
+            profile: format!("b{i}"),
+            faction: FactionId::ALL[i % 5],
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(Brawler::new(2)),
+            },
+        })
+        .collect()
 }
 
 #[test]
@@ -37,7 +46,16 @@ fn a_recorded_match_replays_exactly() {
 
 #[test]
 fn a_checkpoint_continues_identically() {
-    let mut env = Env::new(EnvConfig { arena: practice_arena(), sim: SimConfig::default(), max_ticks: 5000, record: false }, bots(4), 11);
+    let mut env = Env::new(
+        EnvConfig {
+            arena: practice_arena(),
+            sim: SimConfig::default(),
+            max_ticks: 5000,
+            record: false,
+        },
+        bots(4),
+        11,
+    );
     for _ in 0..300 {
         env.step(&[]);
     }
@@ -59,7 +77,10 @@ fn resets_are_independent() {
     let (_, first) = run_bot_match(&arena, 4, 21, 2000, false);
     let _ = run_bot_match(&arena, 4, 99, 2000, false);
     let (_, again) = run_bot_match(&arena, 4, 21, 2000, false);
-    assert_eq!(first.state_hash, again.state_hash, "nothing leaks from one match into the next");
+    assert_eq!(
+        first.state_hash, again.state_hash,
+        "nothing leaks from one match into the next"
+    );
 }
 
 #[test]
@@ -68,17 +89,43 @@ fn terminated_and_truncated_are_distinct() {
     let (_, short) = run_bot_match(&arena, 4, 5, 10, false);
     assert!(short.truncated && !short.terminated);
     let (_, long) = run_bot_match(&arena, 2, 5, 20_000, false);
-    assert!(long.terminated && !long.truncated, "a 2-bot brawl ends by the rules");
+    assert!(
+        long.terminated && !long.truncated,
+        "a 2-bot brawl ends by the rules"
+    );
     assert_eq!(long.results.len(), 2);
 }
 
 #[test]
 fn a_failing_policy_falls_back_and_the_match_goes_on() {
     let agents = vec![
-        AgentSpec { profile: "p".into(), faction: FactionId::Fire, bot: true, agent: Agent::Policy { policy: Box::new(Panicky(5)) } },
-        AgentSpec { profile: "b".into(), faction: FactionId::Holy, bot: true, agent: Agent::Policy { policy: Box::new(Brawler::new(1)) } },
+        AgentSpec {
+            profile: "p".into(),
+            faction: FactionId::Fire,
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(Panicky(5)),
+            },
+        },
+        AgentSpec {
+            profile: "b".into(),
+            faction: FactionId::Holy,
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(Brawler::new(1)),
+            },
+        },
     ];
-    let mut env = Env::new(EnvConfig { arena: practice_arena(), sim: SimConfig::default(), max_ticks: 400, record: false }, agents, 1);
+    let mut env = Env::new(
+        EnvConfig {
+            arena: practice_arena(),
+            sim: SimConfig::default(),
+            max_ticks: 400,
+            record: false,
+        },
+        agents,
+        1,
+    );
     for _ in 0..50 {
         env.step(&[]);
     }
@@ -91,10 +138,33 @@ fn a_failing_policy_falls_back_and_the_match_goes_on() {
 #[test]
 fn a_flooding_policy_gets_no_extra_actions() {
     let agents = vec![
-        AgentSpec { profile: "f".into(), faction: FactionId::Fire, bot: true, agent: Agent::Policy { policy: Box::new(Flood) } },
-        AgentSpec { profile: "i".into(), faction: FactionId::Holy, bot: true, agent: Agent::Policy { policy: Box::new(Idle) } },
+        AgentSpec {
+            profile: "f".into(),
+            faction: FactionId::Fire,
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(Flood),
+            },
+        },
+        AgentSpec {
+            profile: "i".into(),
+            faction: FactionId::Holy,
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(Idle),
+            },
+        },
     ];
-    let mut env = Env::new(EnvConfig { arena: practice_arena(), sim: SimConfig::default(), max_ticks: 400, record: false }, agents, 1);
+    let mut env = Env::new(
+        EnvConfig {
+            arena: practice_arena(),
+            sim: SimConfig::default(),
+            max_ticks: 400,
+            record: false,
+        },
+        agents,
+        1,
+    );
     for _ in 0..200 {
         env.step(&[]);
     }
@@ -107,13 +177,41 @@ fn a_flooding_policy_gets_no_extra_actions() {
 #[test]
 fn external_agents_act_through_the_same_path() {
     let agents = vec![
-        AgentSpec { profile: "me".into(), faction: FactionId::Frost, bot: false, agent: Agent::External },
-        AgentSpec { profile: "b".into(), faction: FactionId::Holy, bot: true, agent: Agent::Policy { policy: Box::new(Idle) } },
+        AgentSpec {
+            profile: "me".into(),
+            faction: FactionId::Frost,
+            bot: false,
+            agent: Agent::External,
+        },
+        AgentSpec {
+            profile: "b".into(),
+            faction: FactionId::Holy,
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(Idle),
+            },
+        },
     ];
-    let mut env = Env::new(EnvConfig { arena: practice_arena(), sim: SimConfig::default(), max_ticks: 400, record: false }, agents, 2);
+    let mut env = Env::new(
+        EnvConfig {
+            arena: practice_arena(),
+            sim: SimConfig::default(),
+            max_ticks: 400,
+            record: false,
+        },
+        agents,
+        2,
+    );
     let obs = env.observations();
     let me = obs[0].me.clone().unwrap();
-    let out = env.step(&[vec![RawCommand::Move { x: me.x + 200.0, y: me.y, seq: Some(5) }, RawCommand::Aim { a: f64::NAN }]]);
+    let out = env.step(&[vec![
+        RawCommand::Move {
+            x: me.x + 200.0,
+            y: me.y,
+            seq: Some(5),
+        },
+        RawCommand::Aim { a: f64::NAN },
+    ]]);
     assert_eq!(out.observations[0].me.as_ref().unwrap().move_seq, 5);
     let after = env.step(&[vec![]]).observations[0].me.clone().unwrap();
     assert!(after.x > me.x, "walked");

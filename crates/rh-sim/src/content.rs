@@ -5,7 +5,9 @@
 use crate::constants::*;
 use crate::math::{exp, PI};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum FactionId {
     Fire,
     Sentenced,
@@ -15,7 +17,13 @@ pub enum FactionId {
 }
 
 impl FactionId {
-    pub const ALL: [FactionId; 5] = [FactionId::Fire, FactionId::Sentenced, FactionId::Plague, FactionId::Frost, FactionId::Holy];
+    pub const ALL: [FactionId; 5] = [
+        FactionId::Fire,
+        FactionId::Sentenced,
+        FactionId::Plague,
+        FactionId::Frost,
+        FactionId::Holy,
+    ];
     pub fn as_str(self) -> &'static str {
         match self {
             FactionId::Fire => "fire",
@@ -55,18 +63,61 @@ pub struct FactionSpec {
 
 pub fn faction(id: FactionId) -> FactionSpec {
     match id {
-        FactionId::Fire => FactionSpec { hp: 950.0, rate: 0.6, hit: 85.2, phys: 0.0, true_share: 0.0, armor: 20.0, shield: 20.0 },
-        FactionId::Sentenced => FactionSpec { hp: 1085.0, rate: 0.95, hit: 72.1, phys: 0.4, true_share: 0.0, armor: 94.0, shield: 94.0 },
-        FactionId::Plague => FactionSpec { hp: 1020.0, rate: 1.85, hit: 28.7, phys: 0.8, true_share: 0.0, armor: 77.0, shield: 77.0 },
-        FactionId::Frost => FactionSpec { hp: 985.0, rate: 0.45, hit: 168.2, phys: 0.9, true_share: 0.0, armor: 116.0, shield: 116.0 },
-        FactionId::Holy => FactionSpec { hp: 1145.0, rate: 0.95, hit: 92.2, phys: 1.0, true_share: 0.0, armor: 78.0, shield: 78.0 },
+        FactionId::Fire => FactionSpec {
+            hp: 950.0,
+            rate: 0.6,
+            hit: 85.2,
+            phys: 0.0,
+            true_share: 0.0,
+            armor: 20.0,
+            shield: 20.0,
+        },
+        FactionId::Sentenced => FactionSpec {
+            hp: 1085.0,
+            rate: 0.95,
+            hit: 72.1,
+            phys: 0.4,
+            true_share: 0.0,
+            armor: 94.0,
+            shield: 94.0,
+        },
+        FactionId::Plague => FactionSpec {
+            hp: 1020.0,
+            rate: 1.85,
+            hit: 28.7,
+            phys: 0.8,
+            true_share: 0.0,
+            armor: 77.0,
+            shield: 77.0,
+        },
+        FactionId::Frost => FactionSpec {
+            hp: 985.0,
+            rate: 0.45,
+            hit: 168.2,
+            phys: 0.9,
+            true_share: 0.0,
+            armor: 116.0,
+            shield: 116.0,
+        },
+        FactionId::Holy => FactionSpec {
+            hp: 1145.0,
+            rate: 0.95,
+            hit: 92.2,
+            phys: 1.0,
+            true_share: 0.0,
+            armor: 78.0,
+            shield: 78.0,
+        },
     }
 }
 
 /// The faction as fought (legacy `pacedFaction`): the hit times DUEL_PACE, hp unchanged.
 pub fn paced(id: FactionId) -> FactionSpec {
     let f = faction(id);
-    FactionSpec { hit: f.hit * DUEL_PACE, ..f }
+    FactionSpec {
+        hit: f.hit * DUEL_PACE,
+        ..f
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -81,7 +132,11 @@ pub fn magic_share(f: &FactionSpec) -> f64 {
 }
 
 pub fn damage_shares(f: &FactionSpec) -> DamageShares {
-    DamageShares { phys: f.phys, magic: magic_share(f), true_: f.true_share }
+    DamageShares {
+        phys: f.phys,
+        magic: magic_share(f),
+        true_: f.true_share,
+    }
 }
 
 /// The damage law for a hit split into shares (legacy `mitigateShares`).
@@ -105,7 +160,9 @@ pub fn bounty_for(player_kills: i64) -> u32 {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum WeaponId {
     Sword,
     Bow,
@@ -117,7 +174,14 @@ pub enum WeaponId {
 
 impl WeaponId {
     /// Wire order of `ALL_WEAPON_IDS` (legacy): the five loop weapons, then fists. Append only.
-    pub const ALL: [WeaponId; 6] = [WeaponId::Sword, WeaponId::Bow, WeaponId::Wand, WeaponId::Shield, WeaponId::Axe, WeaponId::Fists];
+    pub const ALL: [WeaponId; 6] = [
+        WeaponId::Sword,
+        WeaponId::Bow,
+        WeaponId::Wand,
+        WeaponId::Shield,
+        WeaponId::Axe,
+        WeaponId::Fists,
+    ];
     pub fn as_str(self) -> &'static str {
         match self {
             WeaponId::Sword => "sword",
@@ -155,12 +219,60 @@ pub struct WeaponSpec {
 
 pub fn weapon(id: WeaponId) -> WeaponSpec {
     match id {
-        WeaponId::Sword => WeaponSpec { boost: 1.15, floor: 0.25, dps_mult: 0.75, shape: Shape::Arc { reach: 112.0, half_arc: PI / 4.0 } },
-        WeaponId::Bow => WeaponSpec { boost: 0.95, floor: 0.25, dps_mult: 0.8, shape: Shape::Projectile { speed: 900.0, range: 520.0 } },
-        WeaponId::Wand => WeaponSpec { boost: 0.65, floor: 0.3, dps_mult: 0.8, shape: Shape::Projectile { speed: 380.0, range: 640.0 } },
-        WeaponId::Shield => WeaponSpec { boost: 0.6, floor: 0.3, dps_mult: 0.75, shape: Shape::Arc { reach: 96.0, half_arc: PI / 3.0 } },
-        WeaponId::Axe => WeaponSpec { boost: 0.4, floor: 0.35, dps_mult: 0.77, shape: Shape::Arc { reach: 112.0, half_arc: PI / 2.0 } },
-        WeaponId::Fists => WeaponSpec { boost: 1.5, floor: 0.2, dps_mult: 0.6, shape: Shape::Arc { reach: 72.0, half_arc: PI / 3.0 } },
+        WeaponId::Sword => WeaponSpec {
+            boost: 1.15,
+            floor: 0.25,
+            dps_mult: 0.75,
+            shape: Shape::Arc {
+                reach: 112.0,
+                half_arc: PI / 4.0,
+            },
+        },
+        WeaponId::Bow => WeaponSpec {
+            boost: 0.95,
+            floor: 0.25,
+            dps_mult: 0.8,
+            shape: Shape::Projectile {
+                speed: 900.0,
+                range: 520.0,
+            },
+        },
+        WeaponId::Wand => WeaponSpec {
+            boost: 0.65,
+            floor: 0.3,
+            dps_mult: 0.8,
+            shape: Shape::Projectile {
+                speed: 380.0,
+                range: 640.0,
+            },
+        },
+        WeaponId::Shield => WeaponSpec {
+            boost: 0.6,
+            floor: 0.3,
+            dps_mult: 0.75,
+            shape: Shape::Arc {
+                reach: 96.0,
+                half_arc: PI / 3.0,
+            },
+        },
+        WeaponId::Axe => WeaponSpec {
+            boost: 0.4,
+            floor: 0.35,
+            dps_mult: 0.77,
+            shape: Shape::Arc {
+                reach: 112.0,
+                half_arc: PI / 2.0,
+            },
+        },
+        WeaponId::Fists => WeaponSpec {
+            boost: 1.5,
+            floor: 0.2,
+            dps_mult: 0.6,
+            shape: Shape::Arc {
+                reach: 72.0,
+                half_arc: PI / 3.0,
+            },
+        },
     }
 }
 
@@ -187,7 +299,12 @@ pub struct Timings {
 /// The NPC profile (mob telegraphs) is not in the slice.
 pub fn player_timings(w: WeaponId, interval: f64) -> Timings {
     let ranged = matches!(weapon(w).shape, Shape::Projectile { .. });
-    let mut t = Timings { interval, windup: 0.0, root: 0.0, ranged };
+    let mut t = Timings {
+        interval,
+        windup: 0.0,
+        root: 0.0,
+        ranged,
+    };
     match w {
         WeaponId::Bow => t.windup = 0.5f64.min(0.55 * interval),
         WeaponId::Wand => t.windup = 0.45f64.min(0.5 * interval),
@@ -231,8 +348,22 @@ pub fn content_hash() -> u64 {
         }
     }
     for v in [
-        TICK_MS, MAX_REWIND_MS, TILE, PLAYER_RADIUS, PLAYER_SPEED, ATTACK_BUFFER_MS, DUEL_PACE, PVP_F0, PVP_FMAX, PVP_P0,
-        PVP_HIT_CAP_SHARE, GV_KILL as f64, GV_WIN as f64, BOUNTY_SCALE, BOUNTY_EXPONENT, VISION_RADIUS,
+        TICK_MS,
+        MAX_REWIND_MS,
+        TILE,
+        PLAYER_RADIUS,
+        PLAYER_SPEED,
+        ATTACK_BUFFER_MS,
+        DUEL_PACE,
+        PVP_F0,
+        PVP_FMAX,
+        PVP_P0,
+        PVP_HIT_CAP_SHARE,
+        GV_KILL as f64,
+        GV_WIN as f64,
+        BOUNTY_SCALE,
+        BOUNTY_EXPONENT,
+        VISION_RADIUS,
     ] {
         eat(v);
     }

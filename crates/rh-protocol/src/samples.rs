@@ -37,21 +37,44 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
             ClientMsg::Input {
                 seq: 42,
                 commands: vec![
-                    WireCommand::Move { x: 1234.5, y: -0.25, seq: Some(7) },
+                    WireCommand::Move {
+                        x: 1234.5,
+                        y: -0.25,
+                        seq: Some(7),
+                    },
                     WireCommand::Stop { seq: None },
                     WireCommand::Aim { a: -3.1415927 },
-                    WireCommand::Attack { a: 0.5, t: Some(12345.75) },
+                    WireCommand::Attack {
+                        a: 0.5,
+                        t: Some(12345.75),
+                    },
                     WireCommand::Release { a: 0.5, t: None },
                 ],
             },
         ),
-        ("ping", ClientMsg::Ping { nonce: 0xdead_beef, client_ms: 1.5 }),
+        (
+            "ping",
+            ClientMsg::Ping {
+                nonce: 0xdead_beef,
+                client_ms: 1.5,
+            },
+        ),
         ("leave", ClientMsg::Leave),
     ]
 }
 
 pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
-    let tiles: Vec<u8> = (0..12).map(|i| if i < 4 || i % 4 == 0 { 1 } else if i == 6 { 2 } else { 0 }).collect();
+    let tiles: Vec<u8> = (0..12)
+        .map(|i| {
+            if i < 4 || i % 4 == 0 {
+                1
+            } else if i == 6 {
+                2
+            } else {
+                0
+            }
+        })
+        .collect();
     vec![
         (
             "welcome",
@@ -67,7 +90,13 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 map: MapBlob::new(4, 3, tiles),
             },
         ),
-        ("reject", ServerMsg::Reject { code: RejectCode::ProtocolMismatch, reason: "client protocol 2, server 1".into() }),
+        (
+            "reject",
+            ServerMsg::Reject {
+                code: RejectCode::ProtocolMismatch,
+                reason: "client protocol 2, server 1".into(),
+            },
+        ),
         (
             "snapshot",
             ServerMsg::Snapshot {
@@ -75,11 +104,46 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 server_ms: 5050.0,
                 phase: 1,
                 ack_input: 42,
-                me: Some(WireSelf { id: 3, faction: 4, x: 400.0, y: 320.5, facing: 1.5, hp: 1000.25, max_hp: 1145.0, status: 1, weapon: 5, ready_in_ms: 250, kills: 2, bounty: 0, gv: 20, move_seq: 7 }),
-                actors: vec![WireActor { id: 1, faction: 0, x: 456.0, y: 320.0, facing: -1.0, hp_pct: 87, status: 1, weapon: 5, bounty: 28 }],
+                me: Some(WireSelf {
+                    id: 3,
+                    faction: 4,
+                    x: 400.0,
+                    y: 320.5,
+                    facing: 1.5,
+                    hp: 1000.25,
+                    max_hp: 1145.0,
+                    status: 1,
+                    weapon: 5,
+                    ready_in_ms: 250,
+                    kills: 2,
+                    bounty: 0,
+                    gv: 20,
+                    move_seq: 7,
+                }),
+                actors: vec![WireActor {
+                    id: 1,
+                    faction: 0,
+                    x: 456.0,
+                    y: 320.0,
+                    facing: -1.0,
+                    hp_pct: 87,
+                    status: 1,
+                    weapon: 5,
+                    bounty: 28,
+                }],
             },
         ),
-        ("snapshot_spectator", ServerMsg::Snapshot { tick: 1, server_ms: 50.0, phase: 0, ack_input: 0, me: None, actors: vec![] }),
+        (
+            "snapshot_spectator",
+            ServerMsg::Snapshot {
+                tick: 1,
+                server_ms: 50.0,
+                phase: 0,
+                ack_input: 0,
+                me: None,
+                actors: vec![],
+            },
+        ),
         (
             "events",
             ServerMsg::Events {
@@ -87,23 +151,73 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 events: vec![
                     WireEvent::Death { id: 1, by: Some(2) },
                     WireEvent::Bounty { id: 2, bounty: 28 },
-                    WireEvent::MatchEnded { winner: Some(2), draw: false },
-                    WireEvent::Result(WireResult { outcome: 0, place: 1, players: 2, kills: 1, killed_by: None, gv_total: 10, gv_win: 0, duration_sec: 14, win_bonus_withheld: true }),
-                    WireEvent::Result(WireResult { outcome: 2, place: 2, players: 2, kills: 0, killed_by: Some("P1".into()), gv_total: 0, gv_win: 0, duration_sec: 14, win_bonus_withheld: false }),
+                    WireEvent::MatchEnded {
+                        winner: Some(2),
+                        draw: false,
+                    },
+                    WireEvent::Result(WireResult {
+                        outcome: 0,
+                        place: 1,
+                        players: 2,
+                        kills: 1,
+                        killed_by: None,
+                        gv_total: 10,
+                        gv_win: 0,
+                        duration_sec: 14,
+                        win_bonus_withheld: true,
+                    }),
+                    WireEvent::Result(WireResult {
+                        outcome: 2,
+                        place: 2,
+                        players: 2,
+                        kills: 0,
+                        killed_by: Some("P1".into()),
+                        gv_total: 0,
+                        gv_win: 0,
+                        duration_sec: 14,
+                        win_bonus_withheld: false,
+                    }),
                 ],
             },
         ),
         (
             "fx",
-            ServerMsg::Fx { tick: 3, fx: vec![WireFx::Swing { by: 1, weapon: 5, x: 400.0, y: 320.0, a: 0.0 }, WireFx::Hit { victim: 2, by: 1, amount: 17.690966 }] },
+            ServerMsg::Fx {
+                tick: 3,
+                fx: vec![
+                    WireFx::Swing {
+                        by: 1,
+                        weapon: 5,
+                        x: 400.0,
+                        y: 320.0,
+                        a: 0.0,
+                    },
+                    WireFx::Hit {
+                        victim: 2,
+                        by: 1,
+                        amount: 17.690966,
+                    },
+                ],
+            },
         ),
-        ("pong", ServerMsg::Pong { nonce: 0xdead_beef, client_ms: 1.5, server_ms: 5051.25 }),
+        (
+            "pong",
+            ServerMsg::Pong {
+                nonce: 0xdead_beef,
+                client_ms: 1.5,
+                server_ms: 5051.25,
+            },
+        ),
     ]
 }
 
 /// Client frames the server must reject, with the reason.
 pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
-    let input = ClientMsg::Input { seq: 1, commands: vec![WireCommand::Aim { a: 0.0 }] }.encode();
+    let input = ClientMsg::Input {
+        seq: 1,
+        commands: vec![WireCommand::Aim { a: 0.0 }],
+    }
+    .encode();
     let mut nan = input.clone();
     let n = nan.len();
     nan[n - 4..].copy_from_slice(&f32::NAN.to_le_bytes());
@@ -143,17 +257,31 @@ pub fn manifest() -> String {
     out.push_str(",\n  \"client\": [\n");
     let c = client_samples();
     for (i, (name, m)) in c.iter().enumerate() {
-        out.push_str(&format!("    {{\"name\": \"{name}\", \"hex\": \"{}\", \"debug\": \"{}\"}}{}\n", hex(&m.encode()), escape(&format!("{m:?}")), if i + 1 < c.len() { "," } else { "" }));
+        out.push_str(&format!(
+            "    {{\"name\": \"{name}\", \"hex\": \"{}\", \"debug\": \"{}\"}}{}\n",
+            hex(&m.encode()),
+            escape(&format!("{m:?}")),
+            if i + 1 < c.len() { "," } else { "" }
+        ));
     }
     out.push_str("  ],\n  \"server\": [\n");
     let s = server_samples();
     for (i, (name, m)) in s.iter().enumerate() {
-        out.push_str(&format!("    {{\"name\": \"{name}\", \"hex\": \"{}\", \"debug\": \"{}\"}}{}\n", hex(&m.encode()), escape(&format!("{m:?}")), if i + 1 < s.len() { "," } else { "" }));
+        out.push_str(&format!(
+            "    {{\"name\": \"{name}\", \"hex\": \"{}\", \"debug\": \"{}\"}}{}\n",
+            hex(&m.encode()),
+            escape(&format!("{m:?}")),
+            if i + 1 < s.len() { "," } else { "" }
+        ));
     }
     out.push_str("  ],\n  \"malformedClient\": [\n");
     let b = malformed_client();
     for (i, (name, bytes)) in b.iter().enumerate() {
-        out.push_str(&format!("    {{\"name\": \"{name}\", \"hex\": \"{}\"}}{}\n", hex(bytes), if i + 1 < b.len() { "," } else { "" }));
+        out.push_str(&format!(
+            "    {{\"name\": \"{name}\", \"hex\": \"{}\"}}{}\n",
+            hex(bytes),
+            if i + 1 < b.len() { "," } else { "" }
+        ));
     }
     out.push_str("  ]\n}\n");
     out

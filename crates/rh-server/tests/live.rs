@@ -1,6 +1,8 @@
 //! The live server over real sockets (plain ws:// on loopback; TLS is exercised by the browser proof). The tick grid is
 //! sped up (TEST_TICK of wall time per step) so whole matches finish in a second; simulation time still advances exactly
 //! TICK_MS per step, so outcomes are those of real time (docs/CONTRACTS.md C-TICK).
+// `Persistence` has one variant without the `postgres` feature, so its `let ... else` is irrefutable there.
+#![allow(irrefutable_let_patterns)]
 
 use futures_util::{SinkExt, StreamExt};
 use rh_protocol::{ClientMsg, RejectCode, ServerMsg, WireCommand, WireEvent, PROTOCOL_VERSION};
@@ -20,9 +22,27 @@ const TEST_TICK: Duration = Duration::from_millis(3);
 
 /// A 12x8 room whose two spawns are 32 u apart: both fighters are in fists reach from the first tick.
 fn duel_arena() -> Arena {
-    let rows: Vec<String> = (0..8).map(|y| (0..12).map(|x| if x == 0 || y == 0 || x == 11 || y == 7 { '#' } else { '.' }).collect()).collect();
+    let rows: Vec<String> = (0..8)
+        .map(|y| {
+            (0..12)
+                .map(|x| {
+                    if x == 0 || y == 0 || x == 11 || y == 7 {
+                        '#'
+                    } else {
+                        '.'
+                    }
+                })
+                .collect()
+        })
+        .collect();
     let map = TileMap::from_rows(&rows).unwrap();
-    Arena { map, spawns: vec![Vec2::new(tile_to_world_center(5), tile_to_world_center(4)), Vec2::new(tile_to_world_center(6), tile_to_world_center(4))] }
+    Arena {
+        map,
+        spawns: vec![
+            Vec2::new(tile_to_world_center(5), tile_to_world_center(4)),
+            Vec2::new(tile_to_world_center(6), tile_to_world_center(4)),
+        ],
+    }
 }
 
 struct Server {
@@ -31,21 +51,42 @@ struct Server {
 }
 
 async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server {
-    let sim = SimConfig { min_players: 2, lobby_seconds: 30.0, fill_seconds: 0.0, pvp_rules: true };
-    let mut cfg = DirectorConfig { tick: TEST_TICK, linger: Duration::from_millis(150), reconnect_grace: Duration::from_millis(600), ..DirectorConfig::new(sim, arena) };
+    let sim = SimConfig {
+        min_players: 2,
+        lobby_seconds: 30.0,
+        fill_seconds: 0.0,
+        pvp_rules: true,
+    };
+    let mut cfg = DirectorConfig {
+        tick: TEST_TICK,
+        linger: Duration::from_millis(150),
+        reconnect_grace: Duration::from_millis(600),
+        ..DirectorConfig::new(sim, arena)
+    };
     tweak(&mut cfg);
     let lifecycle = Arc::new(Lifecycle::default());
-    let director = Director::new(cfg, Arc::new(Persistence::memory()), Arc::new(Auth::Dev), lifecycle.clone());
+    let director = Director::new(
+        cfg,
+        Arc::new(Persistence::memory()),
+        Arc::new(Auth::Dev),
+        lifecycle.clone(),
+    );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = rh_server::public_router(director.clone());
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     lifecycle.ready();
-    Server { url: format!("ws://{addr}/ws"), director }
+    Server {
+        url: format!("ws://{addr}/ws"),
+        director,
+    }
 }
 
 async fn connect(url: &str) -> Ws {
-    tokio_tungstenite::connect_async(url).await.expect("connect").0
+    tokio_tungstenite::connect_async(url)
+        .await
+        .expect("connect")
+        .0
 }
 
 async fn send(ws: &mut Ws, m: ClientMsg) {
@@ -56,7 +97,9 @@ async fn send(ws: &mut Ws, m: ClientMsg) {
 async fn recv(ws: &mut Ws) -> Option<ServerMsg> {
     loop {
         match tokio::time::timeout(Duration::from_secs(3), ws.next()).await {
-            Ok(Some(Ok(Message::Binary(b)))) => return Some(ServerMsg::decode(&b).expect("server frames decode")),
+            Ok(Some(Ok(Message::Binary(b)))) => {
+                return Some(ServerMsg::decode(&b).expect("server frames decode"))
+            }
             Ok(Some(Ok(Message::Close(_)))) | Ok(None) | Ok(Some(Err(_))) | Err(_) => return None,
             Ok(Some(Ok(_))) => continue,
         }
@@ -64,7 +107,15 @@ async fn recv(ws: &mut Ws) -> Option<ServerMsg> {
 }
 
 fn hello(profile: &str) -> ClientMsg {
-    ClientMsg::Hello { protocol: PROTOCOL_VERSION, content_hash: rh_sim::content::content_hash(), build: "test".into(), profile: profile.into(), token: "t".into(), faction: None, resume: None }
+    ClientMsg::Hello {
+        protocol: PROTOCOL_VERSION,
+        content_hash: rh_sim::content::content_hash(),
+        build: "test".into(),
+        profile: profile.into(),
+        token: "t".into(),
+        faction: None,
+        resume: None,
+    }
 }
 
 /// Connects and returns (socket, player id, session token).
@@ -76,9 +127,18 @@ async fn join(url: &str, profile: &str, faction: Option<u8>) -> (Ws, u32, [u8; 1
     }
     send(&mut ws, h).await;
     match recv(&mut ws).await {
-        Some(ServerMsg::Welcome { player_id, session, map, tick_rate, .. }) => {
+        Some(ServerMsg::Welcome {
+            player_id,
+            session,
+            map,
+            tick_rate,
+            ..
+        }) => {
             assert_eq!(tick_rate, 20);
-            assert_eq!(map.layer_hash, rh_protocol::map::layer_hash(map.w as u32, map.h as u32, &map.tiles));
+            assert_eq!(
+                map.layer_hash,
+                rh_protocol::map::layer_hash(map.w as u32, map.h as u32, &map.tiles)
+            );
             (ws, player_id, session)
         }
         other => panic!("expected Welcome, got {other:?}"),
@@ -105,7 +165,10 @@ async fn until_result(ws: &mut Ws) -> (Option<rh_protocol::WireResult>, u32) {
 }
 
 fn attack(seq: u32, a: f32) -> ClientMsg {
-    ClientMsg::Input { seq, commands: vec![WireCommand::Attack { a, t: None }] }
+    ClientMsg::Input {
+        seq,
+        commands: vec![WireCommand::Attack { a, t: None }],
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -118,15 +181,28 @@ async fn a_full_match_over_websockets_ends_in_authoritative_results_and_durable_
     let mut pos = std::collections::HashMap::new();
     for ws in [&mut a, &mut b] {
         while let Some(m) = recv(ws).await {
-            if let ServerMsg::Snapshot { me: Some(me), phase: 1, .. } = m {
+            if let ServerMsg::Snapshot {
+                me: Some(me),
+                phase: 1,
+                ..
+            } = m
+            {
                 pos.insert(me.id, me.x);
                 break;
             }
         }
     }
     let (xa, xb) = (pos[&ida], pos[&idb]);
-    send(&mut a, attack(1, if xb > xa { 0.0 } else { std::f32::consts::PI })).await;
-    send(&mut b, attack(1, if xa > xb { 0.0 } else { std::f32::consts::PI })).await;
+    send(
+        &mut a,
+        attack(1, if xb > xa { 0.0 } else { std::f32::consts::PI }),
+    )
+    .await;
+    send(
+        &mut b,
+        attack(1, if xa > xb { 0.0 } else { std::f32::consts::PI }),
+    )
+    .await;
     let (ra, sa) = until_result(&mut a).await;
     let (rb, _) = until_result(&mut b).await;
     let (ra, rb) = (ra.expect("alpha's result"), rb.expect("bravo's result"));
@@ -134,11 +210,16 @@ async fn a_full_match_over_websockets_ends_in_authoritative_results_and_durable_
     // Holy out-trades Fire on fists (the parity fixture fists_duel): Fire dies.
     assert_eq!((ra.outcome, ra.place), (2, 2), "alpha (Fire) died: {ra:?}");
     assert_eq!((rb.outcome, rb.place), (0, 1), "bravo (Holy) won: {rb:?}");
-    assert_eq!(rb.gv_total, 10, "one kill; the win bonus is withheld below 3 human starters");
+    assert_eq!(
+        rb.gv_total, 10,
+        "one kill; the win bonus is withheld below 3 human starters"
+    );
     assert!(rb.win_bonus_withheld);
     // The durable sink received both results once, off the tick.
     tokio::time::sleep(Duration::from_millis(300)).await;
-    let Persistence::Memory(m) = &*s.director.persistence else { unreachable!() };
+    let Persistence::Memory(m) = &*s.director.persistence else {
+        unreachable!()
+    };
     let results = m.results.lock().unwrap();
     assert_eq!(results.len(), 2, "{results:?}");
 }
@@ -148,34 +229,95 @@ async fn refusals_happen_before_a_seat_is_taken() {
     let s = start(duel_arena(), |_| {}).await;
     // Wrong protocol version.
     let mut ws = connect(&s.url).await;
-    send(&mut ws, ClientMsg::Hello { protocol: 99, content_hash: 0, build: String::new(), profile: "x1".into(), token: String::new(), faction: None, resume: None }).await;
-    assert!(matches!(recv(&mut ws).await, Some(ServerMsg::Reject { code: RejectCode::ProtocolMismatch, .. })));
+    send(
+        &mut ws,
+        ClientMsg::Hello {
+            protocol: 99,
+            content_hash: 0,
+            build: String::new(),
+            profile: "x1".into(),
+            token: String::new(),
+            faction: None,
+            resume: None,
+        },
+    )
+    .await;
+    assert!(matches!(
+        recv(&mut ws).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::ProtocolMismatch,
+            ..
+        })
+    ));
     // Wrong content hash: the reason names the server's.
     let mut ws = connect(&s.url).await;
-    send(&mut ws, ClientMsg::Hello { protocol: PROTOCOL_VERSION, content_hash: 1, build: String::new(), profile: "x2".into(), token: String::new(), faction: None, resume: None }).await;
+    send(
+        &mut ws,
+        ClientMsg::Hello {
+            protocol: PROTOCOL_VERSION,
+            content_hash: 1,
+            build: String::new(),
+            profile: "x2".into(),
+            token: String::new(),
+            faction: None,
+            resume: None,
+        },
+    )
+    .await;
     match recv(&mut ws).await {
-        Some(ServerMsg::Reject { code: RejectCode::ContentMismatch, reason }) => assert!(reason.contains(&format!("{:016x}", rh_sim::content::content_hash()))),
+        Some(ServerMsg::Reject {
+            code: RejectCode::ContentMismatch,
+            reason,
+        }) => assert!(reason.contains(&format!("{:016x}", rh_sim::content::content_hash()))),
         other => panic!("{other:?}"),
     }
     // Malformed first frame, and a text frame.
     let mut ws = connect(&s.url).await;
     ws.send(Message::Binary(vec![0x7f].into())).await.unwrap();
-    assert!(matches!(recv(&mut ws).await, Some(ServerMsg::Reject { code: RejectCode::Malformed, .. })));
+    assert!(matches!(
+        recv(&mut ws).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::Malformed,
+            ..
+        })
+    ));
     let mut ws = connect(&s.url).await;
     ws.send(Message::Text("hello".into())).await.unwrap();
-    assert!(matches!(recv(&mut ws).await, Some(ServerMsg::Reject { code: RejectCode::Malformed, .. })));
+    assert!(matches!(
+        recv(&mut ws).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::Malformed,
+            ..
+        })
+    ));
     // A bad callsign.
     let mut ws = connect(&s.url).await;
     send(&mut ws, hello("no spaces allowed")).await;
-    assert!(matches!(recv(&mut ws).await, Some(ServerMsg::Reject { code: RejectCode::BadCredentials, .. })));
+    assert!(matches!(
+        recv(&mut ws).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::BadCredentials,
+            ..
+        })
+    ));
     // A profile already seated.
     let (_keep, _, _) = join(&s.url, "charlie", None).await;
     let mut dup = connect(&s.url).await;
     send(&mut dup, hello("CHARLIE")).await;
-    assert!(matches!(recv(&mut dup).await, Some(ServerMsg::Reject { code: RejectCode::ProfileInUse, .. })));
+    assert!(matches!(
+        recv(&mut dup).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::ProfileInUse,
+            ..
+        })
+    ));
     // An oversize frame (beyond MAX_CLIENT_FRAME) is cut by the WebSocket layer before decoding.
     let (mut big, _, _) = join(&s.url, "delta", None).await;
-    let _ = big.send(Message::Binary(vec![2u8; rh_protocol::MAX_CLIENT_FRAME * 4].into())).await;
+    let _ = big
+        .send(Message::Binary(
+            vec![2u8; rh_protocol::MAX_CLIENT_FRAME * 4].into(),
+        ))
+        .await;
     let mut closed = false;
     for _ in 0..200 {
         match tokio::time::timeout(Duration::from_secs(3), big.next()).await {
@@ -203,14 +345,31 @@ async fn a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia() {
     drop(a);
     tokio::time::sleep(Duration::from_millis(100)).await;
     let mut a2 = connect(&s.url).await;
-    send(&mut a2, ClientMsg::Hello { protocol: PROTOCOL_VERSION, content_hash: rh_sim::content::content_hash(), build: String::new(), profile: "echo".into(), token: "t".into(), faction: None, resume: Some(session) }).await;
+    send(
+        &mut a2,
+        ClientMsg::Hello {
+            protocol: PROTOCOL_VERSION,
+            content_hash: rh_sim::content::content_hash(),
+            build: String::new(),
+            profile: "echo".into(),
+            token: "t".into(),
+            faction: None,
+            resume: Some(session),
+        },
+    )
+    .await;
     match recv(&mut a2).await {
         Some(ServerMsg::Welcome { player_id, .. }) => assert_eq!(player_id, ida, "the same seat"),
         other => panic!("expected a resumed Welcome, got {other:?}"),
     }
     let mut live = false;
     while let Some(m) = recv(&mut a2).await {
-        if let ServerMsg::Snapshot { me: Some(me), phase: 1, .. } = m {
+        if let ServerMsg::Snapshot {
+            me: Some(me),
+            phase: 1,
+            ..
+        } = m
+        {
             assert_eq!(me.status, 1, "still alive after the reconnect");
             live = true;
             break;
@@ -224,8 +383,26 @@ async fn a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia() {
     assert_eq!(rb.outcome, 0, "the remaining fighter wins: {rb:?}");
     // A stale session token is refused.
     let mut a3 = connect(&s.url).await;
-    send(&mut a3, ClientMsg::Hello { protocol: PROTOCOL_VERSION, content_hash: rh_sim::content::content_hash(), build: String::new(), profile: "echo".into(), token: "t".into(), faction: None, resume: Some(session) }).await;
-    assert!(matches!(recv(&mut a3).await, Some(ServerMsg::Reject { code: RejectCode::NoSuchSession, .. })));
+    send(
+        &mut a3,
+        ClientMsg::Hello {
+            protocol: PROTOCOL_VERSION,
+            content_hash: rh_sim::content::content_hash(),
+            build: String::new(),
+            profile: "echo".into(),
+            token: "t".into(),
+            faction: None,
+            resume: Some(session),
+        },
+    )
+    .await;
+    assert!(matches!(
+        recv(&mut a3).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::NoSuchSession,
+            ..
+        })
+    ));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -242,9 +419,14 @@ async fn leaving_mid_run_is_mia_with_a_result() {
     let (rb, _) = until_result(&mut b).await;
     assert_eq!(rb.expect("hotel's result").outcome, 0);
     tokio::time::sleep(Duration::from_millis(300)).await;
-    let Persistence::Memory(m) = &*s.director.persistence else { unreachable!() };
+    let Persistence::Memory(m) = &*s.director.persistence else {
+        unreachable!()
+    };
     let results = m.results.lock().unwrap();
-    let golf = results.iter().find(|(_, p, _)| p == "golf").expect("the leaver's result is banked");
+    let golf = results
+        .iter()
+        .find(|(_, p, _)| p == "golf")
+        .expect("the leaver's result is banked");
     assert_eq!(golf.2.outcome, rh_sim::Outcome::Mia);
 }
 
@@ -256,7 +438,13 @@ async fn draining_refuses_new_players_and_lets_the_match_finish() {
     s.director.drain().await;
     let mut late = connect(&s.url).await;
     send(&mut late, hello("kilo")).await;
-    assert!(matches!(recv(&mut late).await, Some(ServerMsg::Reject { code: RejectCode::ServerDraining, .. })));
+    assert!(matches!(
+        recv(&mut late).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::ServerDraining,
+            ..
+        })
+    ));
     // The running match still plays to its end.
     send(&mut a, attack(1, 0.0)).await;
     send(&mut a, attack(2, std::f32::consts::PI)).await;
@@ -271,7 +459,10 @@ async fn draining_refuses_new_players_and_lets_the_match_finish() {
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    assert!(s.director.lifecycle.is_terminated(), "the last room closed: terminated");
+    assert!(
+        s.director.lifecycle.is_terminated(),
+        "the last room closed: terminated"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -279,13 +470,27 @@ async fn a_flooding_client_is_rate_limited() {
     let s = start(duel_arena(), |_| {}).await;
     let (mut a, _, _) = join(&s.url, "lima", None).await;
     for i in 0..400 {
-        if a.send(Message::Binary(ClientMsg::Ping { nonce: i, client_ms: 0.0 }.encode().into())).await.is_err() {
+        if a.send(Message::Binary(
+            ClientMsg::Ping {
+                nonce: i,
+                client_ms: 0.0,
+            }
+            .encode()
+            .into(),
+        ))
+        .await
+        .is_err()
+        {
             break;
         }
     }
     let mut limited = false;
     while let Some(m) = recv(&mut a).await {
-        if let ServerMsg::Reject { code: RejectCode::RateLimited, .. } = m {
+        if let ServerMsg::Reject {
+            code: RejectCode::RateLimited,
+            ..
+        } = m
+        {
             limited = true;
             break;
         }
@@ -306,5 +511,8 @@ async fn a_stalled_client_does_not_stall_the_match() {
         }
     }
     let span = ticks.last().unwrap() - ticks.first().unwrap();
-    assert!(span > 80, "the room kept stepping for the reading client ({span} ticks in 0.8 s at 5 ms a tick)");
+    assert!(
+        span > 80,
+        "the room kept stepping for the reading client ({span} ticks in 0.8 s at 5 ms a tick)"
+    );
 }

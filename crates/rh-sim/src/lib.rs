@@ -25,4 +25,6 @@ pub use input::{validate, Command, RawCommand, Reject};
 pub use map::TileMap;
 pub use math::Vec2;
 pub use observe::{observe, public_snapshot, Observation, OBSERVATION_VERSION};
-pub use sim::{Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status};
+pub use sim::{
+    Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
+};

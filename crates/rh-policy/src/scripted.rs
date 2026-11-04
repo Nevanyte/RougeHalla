@@ -6,7 +6,13 @@ use rh_sim::observe::Observation;
 use rh_sim::{PlayerId, RawCommand, OBSERVATION_VERSION};
 
 fn spec(name: &str, interval: u32) -> PolicySpec {
-    PolicySpec { name: name.into(), version: "1".into(), contract: POLICY_CONTRACT_VERSION, observation_version: OBSERVATION_VERSION, decision_interval_ticks: interval }
+    PolicySpec {
+        name: name.into(),
+        version: "1".into(),
+        contract: POLICY_CONTRACT_VERSION,
+        observation_version: OBSERVATION_VERSION,
+        decision_interval_ticks: interval,
+    }
 }
 
 /// Does nothing. The fallback of every seat.
@@ -33,7 +39,12 @@ pub struct Brawler {
 
 impl Brawler {
     pub fn new(interval: u32) -> Self {
-        Self { interval, rng: 1, me: PlayerId(0), wander: None }
+        Self {
+            interval,
+            rng: 1,
+            me: PlayerId(0),
+            wander: None,
+        }
     }
     fn next(&mut self) -> f64 {
         // xorshift64*: the policy's own stream (never a match secret).
@@ -71,13 +82,22 @@ impl Policy for Brawler {
                 let d = rh_sim::math::sqrt(dx * dx + dy * dy);
                 let a = rh_sim::math::atan2(dy, dx);
                 if d < 80.0 {
-                    vec![RawCommand::Attack { a, t: Some(obs.server_time - 100.0) }]
+                    vec![RawCommand::Attack {
+                        a,
+                        t: Some(obs.server_time - 100.0),
+                    }]
                 } else {
-                    vec![RawCommand::Move { x: t.x, y: t.y, seq: None }]
+                    vec![RawCommand::Move {
+                        x: t.x,
+                        y: t.y,
+                        seq: None,
+                    }]
                 }
             }
             None => {
-                let reached = self.wander.is_none_or(|(x, y)| (x - me.x).abs() < 16.0 && (y - me.y).abs() < 16.0);
+                let reached = self
+                    .wander
+                    .is_none_or(|(x, y)| (x - me.x).abs() < 16.0 && (y - me.y).abs() < 16.0);
                 if reached {
                     let (rx, ry) = (self.next(), self.next());
                     self.wander = Some((me.x + (rx - 0.5) * 600.0, me.y + (ry - 0.5) * 600.0));
@@ -130,8 +150,15 @@ impl Policy for Flood {
     fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
         let mut v = Vec::new();
         for i in 0..100 {
-            v.push(RawCommand::Attack { a: i as f64 * 0.01, t: Some(obs.server_time) });
-            v.push(RawCommand::Move { x: 100.0 + i as f64, y: 100.0, seq: None });
+            v.push(RawCommand::Attack {
+                a: i as f64 * 0.01,
+                t: Some(obs.server_time),
+            });
+            v.push(RawCommand::Move {
+                x: 100.0 + i as f64,
+                y: 100.0,
+                seq: None,
+            });
             v.push(RawCommand::Aim { a: f64::NAN });
         }
         v

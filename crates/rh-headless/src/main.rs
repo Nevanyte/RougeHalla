@@ -5,7 +5,9 @@
 use std::time::Instant;
 
 fn arg(args: &[String], k: &str) -> Option<String> {
-    args.iter().position(|a| a == k).and_then(|i| args.get(i + 1).cloned())
+    args.iter()
+        .position(|a| a == k)
+        .and_then(|i| args.get(i + 1).cloned())
 }
 
 fn main() {
@@ -15,7 +17,11 @@ fn main() {
         let mut r: rh_sim::replay::Replay = serde_json::from_str(&text).expect("replay json");
         r.arena.map.rebuild();
         match rh_sim::replay::run_replay(&r) {
-            Ok((sim, _)) => println!("{{\"verified\":true,\"steps\":{},\"finalHash\":\"{:016x}\"}}", r.hashes.len(), sim.state_hash()),
+            Ok((sim, _)) => println!(
+                "{{\"verified\":true,\"steps\":{},\"finalHash\":\"{:016x}\"}}",
+                r.hashes.len(),
+                sim.state_hash()
+            ),
             Err(e) => {
                 println!("{{\"verified\":false,\"error\":\"{e:?}\"}}");
                 std::process::exit(1);
@@ -23,10 +29,18 @@ fn main() {
         }
         return;
     }
-    let matches: u64 = arg(&args, "--matches").and_then(|v| v.parse().ok()).unwrap_or(10);
-    let players: usize = arg(&args, "--players").and_then(|v| v.parse().ok()).unwrap_or(8);
-    let seed: u64 = arg(&args, "--seed").and_then(|v| v.parse().ok()).unwrap_or(1);
-    let max_ticks: u32 = arg(&args, "--max-ticks").and_then(|v| v.parse().ok()).unwrap_or(12_000);
+    let matches: u64 = arg(&args, "--matches")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+    let players: usize = arg(&args, "--players")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(8);
+    let seed: u64 = arg(&args, "--seed")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    let max_ticks: u32 = arg(&args, "--max-ticks")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(12_000);
     let arena = match arg(&args, "--map") {
         Some(p) => rh_headless::load_arena(&p).unwrap_or_else(|e| panic!("{e}")),
         None => rh_sim::arenas::practice_arena(),
@@ -37,7 +51,13 @@ fn main() {
     let mut step_ns: Vec<u128> = Vec::new();
     for m in 0..matches {
         let started = Instant::now();
-        let (env, s) = rh_headless::run_bot_match(&arena, players, seed + m, max_ticks, replay_out.is_some() && m == 0);
+        let (env, s) = rh_headless::run_bot_match(
+            &arena,
+            players,
+            seed + m,
+            max_ticks,
+            replay_out.is_some() && m == 0,
+        );
         step_ns.push(started.elapsed().as_nanos() / (s.ticks.max(1) as u128));
         ticks += s.ticks as u64;
         ended += s.terminated as u32;

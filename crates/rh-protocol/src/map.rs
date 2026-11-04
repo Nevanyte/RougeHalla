@@ -17,7 +17,12 @@ pub struct MapBlob {
 /// Same hash as `rh_sim::map::TileMap::layer_hash` (kept here so the protocol crate stands alone; a test pins both).
 pub fn layer_hash(w: u32, h: u32, tiles: &[u8]) -> u32 {
     let mut hsh: u32 = 0x811c_9dc5;
-    for b in w.to_le_bytes().iter().chain(h.to_le_bytes().iter()).chain(tiles.iter()) {
+    for b in w
+        .to_le_bytes()
+        .iter()
+        .chain(h.to_le_bytes().iter())
+        .chain(tiles.iter())
+    {
         hsh ^= *b as u32;
         hsh = hsh.wrapping_mul(0x0100_0193);
     }
@@ -27,7 +32,12 @@ pub fn layer_hash(w: u32, h: u32, tiles: &[u8]) -> u32 {
 impl MapBlob {
     pub fn new(w: u16, h: u16, tiles: Vec<u8>) -> Self {
         let layer_hash = layer_hash(w as u32, h as u32, &tiles);
-        Self { w, h, tiles, layer_hash }
+        Self {
+            w,
+            h,
+            tiles,
+            layer_hash,
+        }
     }
 
     /// `w u16, h u16, hash u32, runs u32, then runs x (tile u8, length u16)`.
@@ -73,6 +83,11 @@ impl MapBlob {
         if layer_hash(w as u32, h as u32, &tiles) != hash {
             return Err(DecodeError::BadMap("hash"));
         }
-        Ok(Self { w, h, tiles, layer_hash: hash })
+        Ok(Self {
+            w,
+            h,
+            tiles,
+            layer_hash: hash,
+        })
     }
 }

@@ -20,7 +20,9 @@ impl Auth {
     pub async fn verify(&self, profile: &str, token: &str) -> bool {
         match self {
             Auth::Dev => true,
-            Auth::Static(m) => m.get(&profile.to_ascii_lowercase()).is_some_and(|t| t == token),
+            Auth::Static(m) => m
+                .get(&profile.to_ascii_lowercase())
+                .is_some_and(|t| t == token),
             #[cfg(feature = "postgres")]
             Auth::Postgres(store) => store.verify_token(profile, token).await.unwrap_or(false),
         }
@@ -43,7 +45,10 @@ pub struct MemoryStore {
 pub enum Persistence {
     Memory(MemoryStore),
     #[cfg(feature = "postgres")]
-    Postgres { store: std::sync::Arc<rh_persist::Store>, owner: String },
+    Postgres {
+        store: std::sync::Arc<rh_persist::Store>,
+        owner: String,
+    },
 }
 
 impl Persistence {
@@ -64,7 +69,12 @@ impl Persistence {
             #[cfg(feature = "postgres")]
             Persistence::Postgres { store, owner } => {
                 let lease = store
-                    .acquire_lease(profile, uuid::Uuid::from_bytes(m), owner, std::time::Duration::from_secs(3600))
+                    .acquire_lease(
+                        profile,
+                        uuid::Uuid::from_bytes(m),
+                        owner,
+                        std::time::Duration::from_secs(3600),
+                    )
                     .await
                     .map_err(|e| format!("lease refused: {e}"))?;
                 Ok(lease.fence)
@@ -72,7 +82,13 @@ impl Persistence {
         }
     }
 
-    pub async fn record(&self, m: MatchId, profile: &str, fence: i64, r: &RunResult) -> Result<Recorded, String> {
+    pub async fn record(
+        &self,
+        m: MatchId,
+        profile: &str,
+        fence: i64,
+        r: &RunResult,
+    ) -> Result<Recorded, String> {
         match self {
             Persistence::Memory(s) => {
                 let key = (m, profile.to_ascii_lowercase());
@@ -80,13 +96,20 @@ impl Persistence {
                     return Ok(Recorded::AlreadyApplied);
                 }
                 let _ = fence;
-                s.results.lock().expect("results").push((m, profile.to_string(), r.clone()));
+                s.results
+                    .lock()
+                    .expect("results")
+                    .push((m, profile.to_string(), r.clone()));
                 Ok(Recorded::Applied)
             }
             #[cfg(feature = "postgres")]
             Persistence::Postgres { store, .. } => {
                 let res = crate::persist::pg::to_persist(r);
-                match store.record_result(uuid::Uuid::from_bytes(m), profile, fence, &res).await.map_err(|e| e.to_string())? {
+                match store
+                    .record_result(uuid::Uuid::from_bytes(m), profile, fence, &res)
+                    .await
+                    .map_err(|e| e.to_string())?
+                {
                     rh_persist::RecordOutcome::Applied { .. } => Ok(Recorded::Applied),
                     rh_persist::RecordOutcome::AlreadyApplied => Ok(Recorded::AlreadyApplied),
                     other => Err(format!("{other:?}")),
@@ -113,7 +136,14 @@ pub mod pg {
                 Outcome::Mia => rh_persist::Outcome::Mia,
             }),
             kills: r.kills as i64,
-            gv: rh_persist::GvBreakdown { kills: g.kills as i64, mobs: g.mobs as i64, bounty: g.bounty as i64, quest: g.quest as i64, win: g.win as i64, total: g.total as i64 },
+            gv: rh_persist::GvBreakdown {
+                kills: g.kills as i64,
+                mobs: g.mobs as i64,
+                bounty: g.bounty as i64,
+                quest: g.quest as i64,
+                win: g.win as i64,
+                total: g.total as i64,
+            },
             faction: None,
             weapon: None,
             win_qualified: r.outcome == Outcome::Won && !r.win_bonus_withheld,

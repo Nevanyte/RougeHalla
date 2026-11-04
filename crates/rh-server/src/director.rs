@@ -5,7 +5,10 @@
 use crate::hosting::Lifecycle;
 use crate::outbox::Outbox;
 use crate::persist::{Auth, Persistence};
-use crate::room::{random16, run_room, JoinOk, MatchId, Room, RoomCmd, RoomConfig, RoomReport, RoomStats, INBOUND_CAP};
+use crate::room::{
+    random16, run_room, JoinOk, MatchId, Room, RoomCmd, RoomConfig, RoomReport, RoomStats,
+    INBOUND_CAP,
+};
 use rh_protocol::{RejectCode, PROTOCOL_VERSION};
 use rh_sim::{Arena, FactionId, Phase, SimConfig};
 use std::collections::HashMap;
@@ -79,39 +82,84 @@ pub struct Hello {
 }
 
 fn profile_ok(p: &str) -> bool {
-    (2..=16).contains(&p.len()) && p.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+    (2..=16).contains(&p.len())
+        && p.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
 impl Director {
-    pub fn new(cfg: DirectorConfig, persistence: Arc<Persistence>, auth: Arc<Auth>, lifecycle: Arc<Lifecycle>) -> Arc<Self> {
+    pub fn new(
+        cfg: DirectorConfig,
+        persistence: Arc<Persistence>,
+        auth: Arc<Auth>,
+        lifecycle: Arc<Lifecycle>,
+    ) -> Arc<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
-        let d = Arc::new(Self { cfg, inner: Mutex::new(Inner::default()), reports: tx, persistence, auth, lifecycle });
+        let d = Arc::new(Self {
+            cfg,
+            inner: Mutex::new(Inner::default()),
+            reports: tx,
+            persistence,
+            auth,
+            lifecycle,
+        });
         tokio::spawn(Self::report_loop(d.clone(), rx));
         d
     }
 
     /// Admits a connection. Every refusal is decided before a seat is taken.
-    pub async fn admit(&self, h: Hello, outbox: Arc<Outbox>) -> Result<(mpsc::Sender<RoomCmd>, JoinOk), (RejectCode, String)> {
+    pub async fn admit(
+        &self,
+        h: Hello,
+        outbox: Arc<Outbox>,
+    ) -> Result<(mpsc::Sender<RoomCmd>, JoinOk), (RejectCode, String)> {
         if h.protocol != PROTOCOL_VERSION {
-            return Err((RejectCode::ProtocolMismatch, format!("server speaks protocol {PROTOCOL_VERSION}, client {}", h.protocol)));
+            return Err((
+                RejectCode::ProtocolMismatch,
+                format!(
+                    "server speaks protocol {PROTOCOL_VERSION}, client {}",
+                    h.protocol
+                ),
+            ));
         }
         let content = rh_sim::content::content_hash();
         if h.content_hash != content {
-            return Err((RejectCode::ContentMismatch, format!("server content {content:016x}")));
+            return Err((
+                RejectCode::ContentMismatch,
+                format!("server content {content:016x}"),
+            ));
         }
         if let Some(session) = h.resume {
             let tx = {
                 let inner = self.inner.lock().expect("director");
-                inner.sessions.get(&session).and_then(|m| inner.rooms.get(m)).map(|r| r.tx.clone())
+                inner
+                    .sessions
+                    .get(&session)
+                    .and_then(|m| inner.rooms.get(m))
+                    .map(|r| r.tx.clone())
             };
-            let Some(tx) = tx else { return Err((RejectCode::NoSuchSession, "session expired".into())) };
+            let Some(tx) = tx else {
+                return Err((RejectCode::NoSuchSession, "session expired".into()));
+            };
             let (reply, rx) = oneshot::channel();
-            tx.send(RoomCmd::Resume { session, outbox, reply }).await.map_err(|_| (RejectCode::NoSuchSession, "match over".into()))?;
-            let ok = rx.await.map_err(|_| (RejectCode::NoSuchSession, "match over".into()))?.map_err(|c| (c, "resume refused".into()))?;
+            tx.send(RoomCmd::Resume {
+                session,
+                outbox,
+                reply,
+            })
+            .await
+            .map_err(|_| (RejectCode::NoSuchSession, "match over".into()))?;
+            let ok = rx
+                .await
+                .map_err(|_| (RejectCode::NoSuchSession, "match over".into()))?
+                .map_err(|c| (c, "resume refused".into()))?;
             return Ok((tx, ok));
         }
         if !profile_ok(&h.profile) {
-            return Err((RejectCode::BadCredentials, "callsign must be 2-16 of A-Z a-z 0-9 _ -".into()));
+            return Err((
+                RejectCode::BadCredentials,
+                "callsign must be 2-16 of A-Z a-z 0-9 _ -".into(),
+            ));
         }
         if self.lifecycle.draining() {
             return Err((RejectCode::ServerDraining, "server draining".into()));
@@ -124,9 +172,16 @@ impl Director {
         let (match_id, tx) = {
             let mut inner = self.inner.lock().expect("director");
             if inner.profiles.contains_key(&key) {
-                return Err((RejectCode::ProfileInUse, "callsign already in a match".into()));
+                return Err((
+                    RejectCode::ProfileInUse,
+                    "callsign already in a match".into(),
+                ));
             }
-            let open = inner.rooms.iter().find(|(_, r)| r.phase == Phase::Lobby && r.humans < rh_sim::constants::MAX_PLAYERS).map(|(id, r)| (*id, r.tx.clone()));
+            let open = inner
+                .rooms
+                .iter()
+                .find(|(_, r)| r.phase == Phase::Lobby && r.humans < rh_sim::constants::MAX_PLAYERS)
+                .map(|(id, r)| (*id, r.tx.clone()));
             let picked = match open {
                 Some(x) => x,
                 None => {
@@ -135,10 +190,27 @@ impl Director {
                     }
                     let id = random16();
                     let (tx, rx) = mpsc::channel(INBOUND_CAP);
-                    let rc = RoomConfig { sim: self.cfg.sim.clone(), arena: self.cfg.arena.clone(), fill_bots_to: self.cfg.fill_bots_to, tick: self.cfg.tick, record: self.cfg.record, fixed_secrets: None, fixed_bot_seed: None, reconnect_grace: self.cfg.reconnect_grace, linger: self.cfg.linger };
+                    let rc = RoomConfig {
+                        sim: self.cfg.sim.clone(),
+                        arena: self.cfg.arena.clone(),
+                        fill_bots_to: self.cfg.fill_bots_to,
+                        tick: self.cfg.tick,
+                        record: self.cfg.record,
+                        fixed_secrets: None,
+                        fixed_bot_seed: None,
+                        reconnect_grace: self.cfg.reconnect_grace,
+                        linger: self.cfg.linger,
+                    };
                     let room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
                     tokio::spawn(run_room(room, rx));
-                    inner.rooms.insert(id, RoomEntry { tx: tx.clone(), phase: Phase::Lobby, humans: 0 });
+                    inner.rooms.insert(
+                        id,
+                        RoomEntry {
+                            tx: tx.clone(),
+                            phase: Phase::Lobby,
+                            humans: 0,
+                        },
+                    );
                     (id, tx)
                 }
             };
@@ -165,7 +237,16 @@ impl Director {
         };
         let (reply, rx) = oneshot::channel();
         let faction = h.faction.and_then(FactionId::from_code);
-        if tx.send(RoomCmd::Join { profile: h.profile.clone(), faction, outbox, reply }).await.is_err() {
+        if tx
+            .send(RoomCmd::Join {
+                profile: h.profile.clone(),
+                faction,
+                outbox,
+                reply,
+            })
+            .await
+            .is_err()
+        {
             release(self);
             return Err((RejectCode::MatchFull, "match closed".into()));
         }
@@ -198,17 +279,33 @@ impl Director {
                         }
                     }
                 }
-                RoomReport::Result { match_id, profile, bot, result } => {
+                RoomReport::Result {
+                    match_id,
+                    profile,
+                    bot,
+                    result,
+                } => {
                     if bot {
                         continue; // bots never touch persistence (legacy rule)
                     }
-                    let fence = this.inner.lock().expect("director").profiles.get(&profile.to_ascii_lowercase()).map(|(_, f)| *f).unwrap_or(0);
+                    let fence = this
+                        .inner
+                        .lock()
+                        .expect("director")
+                        .profiles
+                        .get(&profile.to_ascii_lowercase())
+                        .map(|(_, f)| *f)
+                        .unwrap_or(0);
                     let d = this.clone();
                     // Durable I/O never runs on a room task: retried with backoff here; idempotent by (match, profile).
                     tokio::spawn(async move {
                         let mut delay = Duration::from_millis(100);
                         for attempt in 0..6 {
-                            match d.persistence.record(match_id, &profile, fence, &result).await {
+                            match d
+                                .persistence
+                                .record(match_id, &profile, fence, &result)
+                                .await
+                            {
                                 Ok(_) => {
                                     d.inner.lock().expect("director").results_ok += 1;
                                     return;
@@ -225,7 +322,12 @@ impl Director {
                         }
                     });
                 }
-                RoomReport::Closed { match_id, stats, replay, .. } => {
+                RoomReport::Closed {
+                    match_id,
+                    stats,
+                    replay,
+                    ..
+                } => {
                     let mut inner = this.inner.lock().expect("director");
                     inner.rooms.remove(&match_id);
                     inner.sessions.retain(|_, m| *m != match_id);
@@ -246,8 +348,18 @@ impl Director {
                         this.lifecycle.rooms_empty();
                     }
                 }
-                RoomReport::Phase { match_id, phase, humans } => {
-                    if let Some(r) = this.inner.lock().expect("director").rooms.get_mut(&match_id) {
+                RoomReport::Phase {
+                    match_id,
+                    phase,
+                    humans,
+                } => {
+                    if let Some(r) = this
+                        .inner
+                        .lock()
+                        .expect("director")
+                        .rooms
+                        .get_mut(&match_id)
+                    {
                         r.phase = phase;
                         r.humans = humans;
                     }
@@ -259,7 +371,14 @@ impl Director {
     /// Stop admitting; active matches finish; the lifecycle reports Terminated when the last room closes.
     pub async fn drain(&self) {
         self.lifecycle.start_draining();
-        let txs: Vec<_> = self.inner.lock().expect("director").rooms.values().map(|r| r.tx.clone()).collect();
+        let txs: Vec<_> = self
+            .inner
+            .lock()
+            .expect("director")
+            .rooms
+            .values()
+            .map(|r| r.tx.clone())
+            .collect();
         if txs.is_empty() {
             self.lifecycle.rooms_empty();
         }
@@ -270,7 +389,11 @@ impl Director {
 
     pub fn info(&self) -> serde_json::Value {
         let inner = self.inner.lock().expect("director");
-        let lobbies = inner.rooms.values().filter(|r| r.phase == Phase::Lobby).count();
+        let lobbies = inner
+            .rooms
+            .values()
+            .filter(|r| r.phase == Phase::Lobby)
+            .count();
         serde_json::json!({
             "protocol": PROTOCOL_VERSION,
             "contentHash": format!("{:016x}", rh_sim::content::content_hash()),

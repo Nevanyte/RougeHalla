@@ -86,7 +86,9 @@ impl Pathfinder {
                 if c >= last {
                     break;
                 }
-                if c + 1 < last && before(h[c + 1].1, h[c + 1].2, h[c + 1].0, h[c].1, h[c].2, h[c].0) {
+                if c + 1 < last
+                    && before(h[c + 1].1, h[c + 1].2, h[c + 1].0, h[c].1, h[c].2, h[c].0)
+                {
                     c += 1;
                 }
                 if !before(h[c].1, h[c].2, h[c].0, f, g, node) {
@@ -109,7 +111,11 @@ impl Pathfinder {
         let gy = (goal / w) as i64;
         self.g[start] = 0.0;
         self.parent[start] = -1;
-        self.push(start as i32, octile((start % w) as i64, (start / w) as i64, gx, gy), 0.0);
+        self.push(
+            start as i32,
+            octile((start % w) as i64, (start / w) as i64, gx, gy),
+            0.0,
+        );
         while !self.heap.is_empty() {
             let node = self.pop() as usize;
             if self.closed[node] != 0 {
@@ -202,8 +208,15 @@ impl Pathfinder {
         if map.comp(si) != map.comp(gi) {
             return Vec::new();
         }
-        let Some(tile_path) = self.astar(map, si, gi) else { return Vec::new() };
-        let center = |i: usize| Vec2::new(tile_to_world_center((i % w) as i64), tile_to_world_center((i / w) as i64));
+        let Some(tile_path) = self.astar(map, si, gi) else {
+            return Vec::new();
+        };
+        let center = |i: usize| {
+            Vec2::new(
+                tile_to_world_center((i % w) as i64),
+                tile_to_world_center((i / w) as i64),
+            )
+        };
         let mut cand: Vec<Vec2> = Vec::with_capacity(tile_path.len() + 1);
         if tile_path.len() > 1
             && (start_in_wall

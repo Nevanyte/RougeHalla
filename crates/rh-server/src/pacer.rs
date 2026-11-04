@@ -19,7 +19,13 @@ pub struct Pacer {
 
 impl Pacer {
     pub fn new(start: Instant, period: Duration) -> Self {
-        Self { anchor: start, period, steps: 0, dropped: 0, late_wakes: 0 }
+        Self {
+            anchor: start,
+            period,
+            steps: 0,
+            dropped: 0,
+            late_wakes: 0,
+        }
     }
 
     /// The instant of the next slot.
@@ -60,10 +66,22 @@ mod tests {
         let mut p = Pacer::new(t0, p50);
         assert_eq!(p.due(t0 + Duration::from_millis(49)), 0);
         assert_eq!(p.due(t0 + Duration::from_millis(50)), 1);
-        assert_eq!(p.due(t0 + Duration::from_millis(160)), 2, "a late wake catches up");
-        assert_eq!(p.due(t0 + Duration::from_millis(1200)), MAX_CATCHUP, "a long stall runs at most MAX_CATCHUP");
+        assert_eq!(
+            p.due(t0 + Duration::from_millis(160)),
+            2,
+            "a late wake catches up"
+        );
+        assert_eq!(
+            p.due(t0 + Duration::from_millis(1200)),
+            MAX_CATCHUP,
+            "a long stall runs at most MAX_CATCHUP"
+        );
         assert!(p.dropped > 0);
         let next = p.next_deadline();
-        assert_eq!(next, t0 + Duration::from_millis(1250), "the grid re-anchors on the slot after the stall");
+        assert_eq!(
+            next,
+            t0 + Duration::from_millis(1250),
+            "the grid re-anchors on the slot after the stall"
+        );
     }
 }

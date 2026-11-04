@@ -43,10 +43,16 @@ pub trait Policy: Send {
 pub enum Fault {
     Panicked,
     /// The inline call took longer than its wall-clock budget (live seats only; reported, then the fallback takes over).
-    OverBudget { ms: f64 },
+    OverBudget {
+        ms: f64,
+    },
     /// An async decision arrived after its deadline tick.
-    Late { ticks: u32 },
-    IncompatibleContract { contract: u16 },
+    Late {
+        ticks: u32,
+    },
+    IncompatibleContract {
+        contract: u16,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -72,13 +78,30 @@ pub struct Seat {
 }
 
 impl Seat {
-    pub fn new(player: PlayerId, mut policy: Box<dyn Policy>, mut fallback: Box<dyn Policy>, seed: u64) -> Self {
+    pub fn new(
+        player: PlayerId,
+        mut policy: Box<dyn Policy>,
+        mut fallback: Box<dyn Policy>,
+        seed: u64,
+    ) -> Self {
         let spec = policy.spec();
         let interval = spec.decision_interval_ticks.max(1);
         policy.reset(seed, player);
         fallback.reset(seed ^ 0x9e37_79b9_7f4a_7c15, player);
-        let fault = (spec.contract != POLICY_CONTRACT_VERSION).then_some(Fault::IncompatibleContract { contract: spec.contract });
-        Self { player, policy, fallback, fault, next_tick: 0, interval, budget: None, stats: SeatStats::default() }
+        let fault =
+            (spec.contract != POLICY_CONTRACT_VERSION).then_some(Fault::IncompatibleContract {
+                contract: spec.contract,
+            });
+        Self {
+            player,
+            policy,
+            fallback,
+            fault,
+            next_tick: 0,
+            interval,
+            budget: None,
+            stats: SeatStats::default(),
+        }
     }
 
     fn due(&self, tick: u32) -> bool {
@@ -108,7 +131,9 @@ impl Seat {
                 if let Some(b) = self.budget {
                     let el = started.elapsed();
                     if el > b {
-                        self.fault = Some(Fault::OverBudget { ms: el.as_secs_f64() * 1000.0 });
+                        self.fault = Some(Fault::OverBudget {
+                            ms: el.as_secs_f64() * 1000.0,
+                        });
                     }
                 }
                 cmds
@@ -127,7 +152,12 @@ pub fn drive_seats(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event]) {
 /// [`drive_seats`], reporting every command that passed validation and was SUBMITTED (accepted or refused by the order
 /// budget: a refusal still moves the budget's refill state, so a replay must re-submit it). The one implementation both
 /// runners use.
-pub fn drive_seats_with(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event], mut submitted: impl FnMut(PlayerId, rh_sim::Command)) {
+pub fn drive_seats_with(
+    sim: &mut Sim,
+    seats: &mut [Seat],
+    last_events: &[Event],
+    mut submitted: impl FnMut(PlayerId, rh_sim::Command),
+) {
     for seat in seats.iter_mut() {
         if !sim.player(seat.player).is_some_and(|p| p.standing()) {
             continue;
@@ -176,7 +206,13 @@ pub struct AsyncSeat {
 }
 
 impl AsyncSeat {
-    pub fn spawn(player: PlayerId, mut policy: Box<dyn Policy>, mut fallback: Box<dyn Policy>, seed: u64, deadline_ticks: u32) -> Self {
+    pub fn spawn(
+        player: PlayerId,
+        mut policy: Box<dyn Policy>,
+        mut fallback: Box<dyn Policy>,
+        seed: u64,
+        deadline_ticks: u32,
+    ) -> Self {
         let interval = policy.spec().decision_interval_ticks.max(1);
         policy.reset(seed, player);
         fallback.reset(seed ^ 1, player);
@@ -184,13 +220,25 @@ impl AsyncSeat {
         let (res_tx, rx) = mpsc::channel::<(u32, Vec<RawCommand>)>();
         std::thread::spawn(move || {
             while let Ok((tick, obs)) = req_rx.recv() {
-                let cmds = catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).unwrap_or_default();
+                let cmds =
+                    catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).unwrap_or_default();
                 if res_tx.send((tick, cmds)).is_err() {
                     break;
                 }
             }
         });
-        Self { player, tx, rx, fallback, pending: None, deadline_ticks, interval, next_tick: 0, late: 0, stats: SeatStats::default() }
+        Self {
+            player,
+            tx,
+            rx,
+            fallback,
+            pending: None,
+            deadline_ticks,
+            interval,
+            next_tick: 0,
+            late: 0,
+            stats: SeatStats::default(),
+        }
     }
 
     /// Called once per tick with the current observation; returns the commands to submit this tick.

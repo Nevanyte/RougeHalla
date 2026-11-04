@@ -55,11 +55,30 @@ pub struct ActorView {
 /// An event the observer could perceive.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SeenEvent {
-    Swing { by: PlayerId, weapon: WeaponId, x: f64, y: f64, a: f64 },
-    Hit { victim: PlayerId, by: PlayerId, amount: f64 },
-    Death { id: PlayerId, by: Option<PlayerId> },
-    Bounty { id: PlayerId, bounty: u32 },
-    Ended { winner: Option<PlayerId>, draw: bool },
+    Swing {
+        by: PlayerId,
+        weapon: WeaponId,
+        x: f64,
+        y: f64,
+        a: f64,
+    },
+    Hit {
+        victim: PlayerId,
+        by: PlayerId,
+        amount: f64,
+    },
+    Death {
+        id: PlayerId,
+        by: Option<PlayerId>,
+    },
+    Bounty {
+        id: PlayerId,
+        bounty: u32,
+    },
+    Ended {
+        winner: Option<PlayerId>,
+        draw: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -76,7 +95,8 @@ pub struct Observation {
 fn sees(sim: &Sim, me: &Player, other: &Player) -> bool {
     let dx = other.x - me.x;
     let dy = other.y - me.y;
-    dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS && !raycast(&sim.arena.map, me.x, me.y, other.x, other.y, MASK_SIGHT).hit
+    dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
+        && !raycast(&sim.arena.map, me.x, me.y, other.x, other.y, MASK_SIGHT).hit
 }
 
 /// The observation of player `viewer` after a step whose events are `events` (pass the step's return value).
@@ -111,7 +131,11 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
                 x: o.x,
                 y: o.y,
                 facing: o.facing,
-                hp_frac: if o.max_hp > 0.0 { (o.hp / o.max_hp * 100.0).round() / 100.0 } else { 0.0 },
+                hp_frac: if o.max_hp > 0.0 {
+                    (o.hp / o.max_hp * 100.0).round() / 100.0
+                } else {
+                    0.0
+                },
                 status: o.status,
                 weapon: o.active_weapon(),
                 bounty: o.bounty,
@@ -123,18 +147,50 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
     let mut seen = Vec::new();
     for e in events {
         match e {
-            Event::Swing { by, weapon, x, y, a } if can_see(*by) => seen.push(SeenEvent::Swing { by: *by, weapon: *weapon, x: *x, y: *y, a: *a }),
-            Event::Hit { victim, by, amount, .. } if can_see(*victim) || Some(*by) == me.map(|m| m.id) => {
-                seen.push(SeenEvent::Hit { victim: *victim, by: *by, amount: *amount })
+            Event::Swing {
+                by,
+                weapon,
+                x,
+                y,
+                a,
+            } if can_see(*by) => seen.push(SeenEvent::Swing {
+                by: *by,
+                weapon: *weapon,
+                x: *x,
+                y: *y,
+                a: *a,
+            }),
+            Event::Hit {
+                victim, by, amount, ..
+            } if can_see(*victim) || Some(*by) == me.map(|m| m.id) => seen.push(SeenEvent::Hit {
+                victim: *victim,
+                by: *by,
+                amount: *amount,
+            }),
+            Event::Death { id, by, .. } if can_see(*id) => {
+                seen.push(SeenEvent::Death { id: *id, by: *by })
             }
-            Event::Death { id, by, .. } if can_see(*id) => seen.push(SeenEvent::Death { id: *id, by: *by }),
             // Bounty announcements and the end of the run are announced to everyone in the legacy game.
-            Event::Bounty { id, bounty } => seen.push(SeenEvent::Bounty { id: *id, bounty: *bounty }),
-            Event::Victory { id, draw } => seen.push(SeenEvent::Ended { winner: *id, draw: *draw }),
+            Event::Bounty { id, bounty } => seen.push(SeenEvent::Bounty {
+                id: *id,
+                bounty: *bounty,
+            }),
+            Event::Victory { id, draw } => seen.push(SeenEvent::Ended {
+                winner: *id,
+                draw: *draw,
+            }),
             _ => {}
         }
     }
-    Observation { version: OBSERVATION_VERSION, tick: sim.tick, server_time: now, phase: sim.phase, me: self_view, visible, events: seen }
+    Observation {
+        version: OBSERVATION_VERSION,
+        tick: sim.tick,
+        server_time: now,
+        phase: sim.phase,
+        me: self_view,
+        visible,
+        events: seen,
+    }
 }
 
 /// What anyone may see with no secrets: every player's public fields (for replays, spectators and results pages). Never
@@ -184,5 +240,11 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         })
         .collect();
     players.sort_by_key(|p| p.id);
-    PublicSnapshot { tick: sim.tick, server_time: sim.server_time, phase: sim.phase, winner: sim.winner.clone(), players }
+    PublicSnapshot {
+        tick: sim.tick,
+        server_time: sim.server_time,
+        phase: sim.phase,
+        winner: sim.winner.clone(),
+        players,
+    }
 }

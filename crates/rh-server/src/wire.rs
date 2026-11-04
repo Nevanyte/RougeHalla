@@ -9,7 +9,11 @@ use rh_sim::{RawCommand, RunResult};
 
 pub fn command(c: WireCommand) -> RawCommand {
     match c {
-        WireCommand::Move { x, y, seq } => RawCommand::Move { x: x as f64, y: y as f64, seq },
+        WireCommand::Move { x, y, seq } => RawCommand::Move {
+            x: x as f64,
+            y: y as f64,
+            seq,
+        },
         WireCommand::Stop { seq } => RawCommand::Stop { seq },
         WireCommand::Aim { a } => RawCommand::Aim { a: a as f64 },
         WireCommand::Attack { a, t } => RawCommand::Attack { a: a as f64, t },
@@ -70,7 +74,14 @@ pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
             bounty: sat16(a.bounty),
         })
         .collect();
-    ServerMsg::Snapshot { tick: obs.tick, server_ms: obs.server_time, phase: phase(obs.phase), ack_input, me, actors }
+    ServerMsg::Snapshot {
+        tick: obs.tick,
+        server_ms: obs.server_time,
+        phase: phase(obs.phase),
+        ack_input,
+        me,
+        actors,
+    }
 }
 
 /// The important events this viewer may know of (already filtered by its observation).
@@ -78,9 +89,18 @@ pub fn important(_events: &[rh_sim::Event], obs: &Observation) -> Vec<WireEvent>
     obs.events
         .iter()
         .filter_map(|e| match e {
-            SeenEvent::Death { id, by } => Some(WireEvent::Death { id: id.0, by: by.map(|b| b.0) }),
-            SeenEvent::Bounty { id, bounty } => Some(WireEvent::Bounty { id: id.0, bounty: sat16(*bounty) }),
-            SeenEvent::Ended { winner, draw } => Some(WireEvent::MatchEnded { winner: winner.map(|w| w.0), draw: *draw }),
+            SeenEvent::Death { id, by } => Some(WireEvent::Death {
+                id: id.0,
+                by: by.map(|b| b.0),
+            }),
+            SeenEvent::Bounty { id, bounty } => Some(WireEvent::Bounty {
+                id: id.0,
+                bounty: sat16(*bounty),
+            }),
+            SeenEvent::Ended { winner, draw } => Some(WireEvent::MatchEnded {
+                winner: winner.map(|w| w.0),
+                draw: *draw,
+            }),
             _ => None,
         })
         .collect()
@@ -90,8 +110,24 @@ pub fn fx_seen(obs: &Observation) -> Vec<WireFx> {
     obs.events
         .iter()
         .filter_map(|e| match *e {
-            SeenEvent::Swing { by, weapon, x, y, a } => Some(WireFx::Swing { by: by.0, weapon: weapon.code(), x: x as f32, y: y as f32, a: a as f32 }),
-            SeenEvent::Hit { victim, by, amount } => Some(WireFx::Hit { victim: victim.0, by: by.0, amount: amount as f32 }),
+            SeenEvent::Swing {
+                by,
+                weapon,
+                x,
+                y,
+                a,
+            } => Some(WireFx::Swing {
+                by: by.0,
+                weapon: weapon.code(),
+                x: x as f32,
+                y: y as f32,
+                a: a as f32,
+            }),
+            SeenEvent::Hit { victim, by, amount } => Some(WireFx::Hit {
+                victim: victim.0,
+                by: by.0,
+                amount: amount as f32,
+            }),
             _ => None,
         })
         .collect()

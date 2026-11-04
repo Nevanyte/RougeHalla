@@ -33,7 +33,10 @@ pub fn public_router(director: Arc<Director>) -> Router {
 
 /// The local control listener for the hosting bridge (bind it to 127.0.0.1 only).
 pub fn control_router(director: Arc<Director>) -> Router {
-    Router::new().route("/control/health", get(control_health)).route("/control/drain", post(control_drain)).with_state(director)
+    Router::new()
+        .route("/control/health", get(control_health))
+        .route("/control/drain", post(control_drain))
+        .with_state(director)
 }
 
 async fn ws(upgrade: WebSocketUpgrade, State(d): State<Arc<Director>>) -> Response {
@@ -58,12 +61,25 @@ async fn info(State(d): State<Arc<Director>>) -> impl IntoResponse {
 /// The regional latency probe a browser times (docs/hosting/LATENCY_PROBES.md): tiny, uncached, served by the game
 /// process itself so it measures the same path as the game's WebSocket.
 async fn ping() -> impl IntoResponse {
-    ([(header::CACHE_CONTROL, "no-store"), (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")], "pong")
+    (
+        [
+            (header::CACHE_CONTROL, "no-store"),
+            (header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"),
+        ],
+        "pong",
+    )
 }
 
 async fn control_health(State(d): State<Arc<Director>>) -> impl IntoResponse {
-    let code = if d.lifecycle.healthy() { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
-    (code, Json(serde_json::json!({ "state": d.lifecycle.state_name(), "rooms": d.room_count() })))
+    let code = if d.lifecycle.healthy() {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (
+        code,
+        Json(serde_json::json!({ "state": d.lifecycle.state_name(), "rooms": d.room_count() })),
+    )
 }
 
 async fn control_drain(State(d): State<Arc<Director>>) -> impl IntoResponse {

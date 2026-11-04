@@ -46,7 +46,8 @@ impl Outbox {
         if s.important.len() >= IMPORTANT_CAP {
             s.closed = Some(RejectCode::TooSlow);
         } else {
-            self.bytes_queued.fetch_add(frame.len() as u64, Ordering::Relaxed);
+            self.bytes_queued
+                .fetch_add(frame.len() as u64, Ordering::Relaxed);
             s.important.push_back(frame);
         }
         drop(s);
@@ -62,7 +63,8 @@ impl Outbox {
             s.fx.pop_front();
             self.fx_dropped.fetch_add(1, Ordering::Relaxed);
         }
-        self.bytes_queued.fetch_add(frame.len() as u64, Ordering::Relaxed);
+        self.bytes_queued
+            .fetch_add(frame.len() as u64, Ordering::Relaxed);
         s.fx.push_back(frame);
         drop(s);
         self.notify.notify_one();
@@ -142,7 +144,9 @@ mod tests {
         for _ in 0..=IMPORTANT_CAP {
             o.important(vec![1]);
         }
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         rt.block_on(async {
             for _ in 0..IMPORTANT_CAP {
                 assert!(matches!(o.next().await, Next::Frame(_)));

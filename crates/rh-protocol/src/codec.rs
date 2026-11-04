@@ -78,7 +78,11 @@ pub struct Reader<'a> {
 
 impl<'a> Reader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        Self { buf, pos: 0, finite_only: false }
+        Self {
+            buf,
+            pos: 0,
+            finite_only: false,
+        }
     }
     fn take(&mut self, n: usize) -> Result<&'a [u8], DecodeError> {
         let end = self.pos.checked_add(n).ok_or(DecodeError::Truncated)?;
@@ -126,7 +130,10 @@ impl<'a> Reader<'a> {
         let b = self.take(n)?;
         String::from_utf8(b.to_vec()).map_err(|_| DecodeError::BadUtf8)
     }
-    pub fn opt<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T, DecodeError>) -> Result<Option<T>, DecodeError> {
+    pub fn opt<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<T, DecodeError>,
+    ) -> Result<Option<T>, DecodeError> {
         match self.u8()? {
             0 => Ok(None),
             1 => f(self).map(Some),

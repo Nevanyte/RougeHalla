@@ -13,12 +13,28 @@ pub const REPLAY_FORMAT: &str = "rh-replay/1";
 pub enum ReplayInput {
     /// A lobby join (live rooms start from a lobby). `policy` names the bot policy and its own seed, so a headless re-run
     /// can rebuild the same bot and let it decide again (the policy-equivalence check), instead of replaying its commands.
-    Join { profile: String, faction: Option<FactionId>, bot: bool, policy: Option<BotPolicy> },
-    Command { player: PlayerId, cmd: Command },
+    Join {
+        profile: String,
+        faction: Option<FactionId>,
+        bot: bool,
+        policy: Option<BotPolicy>,
+    },
+    Command {
+        player: PlayerId,
+        cmd: Command,
+    },
     /// Queued with no order budget (the parity harness only).
-    Unbudgeted { player: PlayerId, cmd: Command },
-    Leave { player: PlayerId },
-    Dropped { player: PlayerId, dropped: bool },
+    Unbudgeted {
+        player: PlayerId,
+        cmd: Command,
+    },
+    Leave {
+        player: PlayerId,
+    },
+    Dropped {
+        player: PlayerId,
+        dropped: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -84,7 +100,10 @@ impl Recorder {
     pub fn stepped(&mut self, sim: &Sim) {
         let inputs = std::mem::take(&mut self.pending);
         if !inputs.is_empty() {
-            self.replay.ticks.push(ReplayTick { tick: sim.tick, inputs });
+            self.replay.ticks.push(ReplayTick {
+                tick: sim.tick,
+                inputs,
+            });
         }
         self.replay.hashes.push(sim.state_hash());
     }
@@ -93,7 +112,12 @@ impl Recorder {
 /// Applies one recorded input to a sim (shared by the recorder's callers and the replayer).
 pub fn apply_input(sim: &mut Sim, input: &ReplayInput) {
     match *input {
-        ReplayInput::Join { ref profile, faction, bot, .. } => {
+        ReplayInput::Join {
+            ref profile,
+            faction,
+            bot,
+            ..
+        } => {
             let _ = sim.add_player(profile, faction, bot);
         }
         ReplayInput::Command { player, cmd } => {
@@ -109,15 +133,25 @@ pub fn apply_input(sim: &mut Sim, input: &ReplayInput) {
 
 #[derive(Debug, PartialEq)]
 pub enum ReplayError {
-    ContentMismatch { replay: u64, build: u64 },
-    Diverged { step: usize, expected: u64, got: u64 },
+    ContentMismatch {
+        replay: u64,
+        build: u64,
+    },
+    Diverged {
+        step: usize,
+        expected: u64,
+        got: u64,
+    },
 }
 
 /// Replays from the reset and checks every step's hash. Returns the final sim and all events.
 pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
     let build = crate::content::content_hash();
     if r.content_hash != build {
-        return Err(ReplayError::ContentMismatch { replay: r.content_hash, build });
+        return Err(ReplayError::ContentMismatch {
+            replay: r.content_hash,
+            build,
+        });
     }
     let mut sim = start_sim(r);
     let mut events = Vec::new();
@@ -135,7 +169,11 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
         events.extend(sim.step());
         let got = sim.state_hash();
         if got != expected {
-            return Err(ReplayError::Diverged { step, expected, got });
+            return Err(ReplayError::Diverged {
+                step,
+                expected,
+                got,
+            });
         }
     }
     Ok((sim, events))
@@ -144,7 +182,9 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
 /// The sim a replay starts from.
 pub fn start_sim(r: &Replay) -> Sim {
     match &r.start {
-        ReplayStart::Active { placements } => Sim::reset_active(r.config.clone(), r.arena.clone(), r.secrets, placements),
+        ReplayStart::Active { placements } => {
+            Sim::reset_active(r.config.clone(), r.arena.clone(), r.secrets, placements)
+        }
         ReplayStart::Lobby => Sim::new(r.config.clone(), r.arena.clone(), r.secrets),
     }
 }
