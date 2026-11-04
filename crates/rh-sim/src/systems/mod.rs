@@ -100,7 +100,7 @@ impl Sim {
         // [projectile sweep, spawns] -- not in the slice
         self.resolve_melee();
         // [beforeDamage: signatures, terrain, statuses] [sudden death] -- not in the slice
-        self.apply_ledger();
+        self.with_cx(ledger::apply);
         // systems
         self.with_cx(credit::flush_announcements);
         self.with_cx(settle::settle);
