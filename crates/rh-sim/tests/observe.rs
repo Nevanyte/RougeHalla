@@ -264,8 +264,8 @@ fn per_step_filtering_judges_each_steps_events_against_that_steps_sight() {
             sees_it_then,
             "gap {gap}: judged at its own step"
         );
-        // What the room did before: the whole wake's events against the LAST step's sight (the viewer is 40 steps of walking
-        // away or closer by now).
+        // What the room did before: the whole wake's events against the LAST step's sight (the viewer has walked about 25 u
+        // by then, across the vision edge).
         let late = observe(&sim, viewer, &all).events;
         assert_ne!(
             swung(&late),

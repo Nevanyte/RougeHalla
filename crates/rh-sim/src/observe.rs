@@ -14,7 +14,7 @@ use crate::constants::VISION_RADIUS;
 use crate::content::{FactionId, WeaponId};
 use crate::events::{Class, Visibility};
 use crate::fighter::FighterRef;
-use crate::geometry::raycast;
+use crate::geometry::ray_blocked;
 use crate::map::MASK_SIGHT;
 use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 
@@ -154,13 +154,14 @@ impl Default for Observation {
     }
 }
 
-/// Whether `me` sees `other`: inside the vision radius with a clear line on the sight mask. Written against the read-only
+/// Whether `me` sees `other`: inside the vision radius with a clear line on the sight mask (the verdict-only traversal,
+/// asserted equal to `raycast(..).hit` in tests/kernel.rs). Written against the read-only
 /// [`FighterRef`] view, so anything that fights (a player now, a mob later) is seen the same way.
 fn sees(sim: &Sim, me: FighterRef<'_>, other: FighterRef<'_>) -> bool {
     let (a, b) = (me.pos(), other.pos());
     let (dx, dy) = (b.x - a.x, b.y - a.y);
     dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
-        && !raycast(&sim.arena().map, a.x, a.y, b.x, b.y, MASK_SIGHT).hit
+        && !ray_blocked(&sim.arena().map, a.x, a.y, b.x, b.y, MASK_SIGHT)
 }
 
 /// The events an observer is shown, in order: each is judged by its own declared [`Event::visibility`] against `can_see`

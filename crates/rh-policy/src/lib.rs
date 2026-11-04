@@ -11,7 +11,10 @@
 
 pub mod scripted;
 
-use rh_sim::{observe_into, validate, Event, Observation, PlayerId, RawCommand, Sim};
+use rh_sim::{
+    observe_events_into, observe_into, validate, Event, Observation, PlayerId, RawCommand,
+    SeenEvent, Sim,
+};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -84,7 +87,14 @@ pub struct Seat {
     /// Reused every decision tick (never read between ticks): the seat's observation and its proposal buffer.
     obs: Observation,
     cmds: Vec<RawCommand>,
+    /// What this seat could perceive of the steps since its last decision, each step judged against that step's own line of
+    /// sight; at most [`MAX_PENDING_EVENTS`] (the newest). Prepended to the next observation's events, then emptied.
+    pending: Vec<SeenEvent>,
 }
+
+/// The most events a seat holds between two decisions; past it the OLDEST are dropped (a policy that decides every few
+/// ticks never gets near it: a step has a handful of events).
+pub const MAX_PENDING_EVENTS: usize = 256;
 
 impl Seat {
     pub fn new(
@@ -112,6 +122,7 @@ impl Seat {
             stats: SeatStats::default(),
             obs: Observation::default(),
             cmds: Vec::new(),
+            pending: Vec::new(),
         }
     }
 
@@ -171,10 +182,11 @@ impl Seat {
 /// (`validate` + `Sim::submit`). The live room and the headless runner both call this, so a policy behaves identically
 /// in both (tested: crates/rh-server/tests/equivalence.rs).
 ///
-/// Event delivery rule (docs/CONTRACTS.md C-POLICY): a seat is observed only on its decision ticks, and the events in that
-/// observation are those of the step just before it, filtered like a human's. Events of the steps between two decisions
-/// are not delivered (they never were: a non-due seat's observation used to be built and thrown away). A policy that must
-/// see every event sets its decision interval to 1.
+/// Event delivery rule (docs/CONTRACTS.md C-POLICY): a seat is observed (an observation is built) only on its decision
+/// ticks. The events of the steps in between are not lost: after each such step the seat is told what it could perceive of
+/// that step, judged against that step's own line of sight like a human's, and holds the newest [`MAX_PENDING_EVENTS`] of
+/// them; the next decision's observation carries them first, in step order, then the events of the step just before it.
+/// A policy therefore sees every event it could perceive, whatever its decision interval.
 pub fn drive_seats(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event]) {
     drive_seats_with(sim, seats, last_events, |_, _| {});
 }
@@ -189,13 +201,28 @@ pub fn drive_seats_with(
     mut submitted: impl FnMut(PlayerId, rh_sim::Command),
 ) {
     for seat in seats.iter_mut() {
-        if !seat.wants(sim.tick()) || !sim.player(seat.player).is_some_and(|p| p.standing()) {
+        if !sim.player(seat.player).is_some_and(|p| p.standing()) {
+            continue;
+        }
+        if !seat.wants(sim.tick()) {
+            // Not a decision tick: no observation, only what this step's events tell the seat.
+            if !last_events.is_empty() {
+                observe_events_into(sim, seat.player, last_events, &mut seat.pending);
+                let over = seat.pending.len().saturating_sub(MAX_PENDING_EVENTS);
+                seat.pending.drain(..over);
+            }
             continue;
         }
         // The seat's own buffers, moved out for the call (a move of a few words, no allocation).
         let mut obs = std::mem::take(&mut seat.obs);
         let mut cmds = std::mem::take(&mut seat.cmds);
         observe_into(sim, seat.player, last_events, &mut obs);
+        if !seat.pending.is_empty() {
+            seat.pending.append(&mut obs.events);
+            std::mem::swap(&mut seat.pending, &mut obs.events);
+            let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
+            obs.events.drain(..over);
+        }
         cmds.clear();
         seat.decide_into(&obs, &mut cmds);
         for raw in cmds.drain(..) {

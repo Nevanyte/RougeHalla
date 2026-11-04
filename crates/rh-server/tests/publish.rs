@@ -207,6 +207,8 @@ impl Told {
 }
 
 struct Hand {
+    player: PlayerId,
+    seq: u32,
     room: Room,
     now: Instant,
     out: Arc<Outbox>,
@@ -217,7 +219,12 @@ impl Hand {
     /// A room with one idle human and seven bots on the practice arena, all secrets and bot seeds fixed: two of these given
     /// the same wakes are the same match.
     fn new() -> Self {
-        let assets = MapAssets::new(practice_arena()).expect("assets");
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../parity/maps/seed1.map.json"
+        );
+        let assets =
+            MapAssets::new(rh_headless::load_arena(path).expect("seed-1 map")).expect("assets");
         let (tx, reports) = mpsc::unbounded_channel();
         let now = Instant::now();
         let cfg = RoomConfig {
@@ -254,13 +261,29 @@ impl Hand {
             },
             now,
         );
-        let _: JoinOk = rx.try_recv().expect("replied").expect("seated");
+        let joined: JoinOk = rx.try_recv().expect("replied").expect("seated");
         Self {
+            player: joined.player,
+            seq: 0,
             room,
             now,
             out,
             _reports: reports,
         }
+    }
+
+    /// The human orders a walk to (`x`, `y`), through the room's input path (validate + submit like any client).
+    fn walk_to(&mut self, x: f32, y: f32) {
+        self.seq += 1;
+        self.room.handle(
+            RoomCmd::Input {
+                player: self.player,
+                conn: 1,
+                seq: self.seq,
+                commands: vec![rh_protocol::WireCommand::Move { x, y, seq: None }],
+            },
+            self.now,
+        );
     }
 
     /// Wakes the room once, `slots` grid slots later.
@@ -287,7 +310,16 @@ fn a_three_step_wake_tells_what_three_single_step_wakes_tell() {
     }
     told_one = Told::default();
     told_three = Told::default();
-    for _ in 0..400 {
+    for w in 0..400u32 {
+        // The human keeps walking between the corners of the arena, through its pillars and across the bots' 900 u vision
+        // radius, so what it can see changes inside a wake: a viewer that stood still would hide a wrong per-step rule.
+        let (x, y) = if (w / 8) % 2 == 0 {
+            (150.0, 150.0)
+        } else {
+            (1400.0, 900.0)
+        };
+        one.walk_to(x, y);
+        three.walk_to(x, y);
         for _ in 0..3 {
             one.wake(1);
             told_one.take(&one.out);
@@ -371,4 +403,98 @@ fn the_publisher_tells_a_swing_by_the_sight_of_the_step_it_happened_in() {
         let snap = ServerMsg::decode(&f.snapshot.unwrap()).unwrap();
         assert!(matches!(snap, ServerMsg::Snapshot { tick, .. } if tick == sim.tick()));
     }
+}
+
+// ---- bot event accumulation -----------------------------------------------------------------------------------------------
+
+type Log = Arc<std::sync::Mutex<Vec<(u32, Vec<SeenEvent>)>>>;
+
+/// Records what it is shown: (tick, events) per decision, proposes nothing.
+struct Recorder {
+    interval: u32,
+    log: Log,
+}
+
+impl rh_policy::Policy for Recorder {
+    fn spec(&self) -> rh_policy::PolicySpec {
+        rh_policy::PolicySpec {
+            name: "recorder".into(),
+            version: "1".into(),
+            contract: rh_policy::POLICY_CONTRACT_VERSION,
+            observation_version: rh_sim::observe::OBSERVATION_VERSION,
+            decision_interval_ticks: self.interval,
+        }
+    }
+    fn reset(&mut self, _seed: u64, _me: PlayerId) {}
+    fn decide(&mut self, obs: &Observation) -> Vec<rh_sim::RawCommand> {
+        self.log
+            .lock()
+            .unwrap()
+            .push((obs.tick, obs.events.clone()));
+        Vec::new()
+    }
+}
+
+/// A bot that decides every fourth tick is told the same events, in the same order, as one that decides every tick, up to
+/// its last decision: the events of the steps between its decisions are held (each judged against its own step's sight) and
+/// delivered with the next observation (C-POLICY).
+#[test]
+fn a_slow_seat_is_told_every_event_a_fast_seat_is_told() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../parity/maps/seed1.map.json"
+    );
+    let arena = rh_headless::load_arena(path).expect("seed-1 map");
+    let place = |i: usize| Placement {
+        profile: format!("p{i}"),
+        faction: FactionId::ALL[i % 5],
+        bot: true,
+        at: Vec2::new(2000.0 + 70.0 * i as f64, 2000.0 + 40.0 * (i % 3) as f64),
+        hp: None,
+    };
+    let places: Vec<_> = (0..7).map(place).collect();
+    let mut sim = Sim::reset_active(SimConfig::default(), arena, Secrets::from_seed(5), &places);
+    let ids: Vec<_> = sim.players().iter().map(|p| p.id).collect();
+    let (fast, slow) = (Log::default(), Log::default());
+    let mut seats = Vec::new();
+    for (i, id) in ids.iter().enumerate().skip(1) {
+        seats.push(rh_policy::Seat::new(
+            *id,
+            Box::new(Brawler::new(2)),
+            Box::new(rh_policy::scripted::Idle),
+            i as u64,
+        ));
+    }
+    let watcher = ids[0];
+    for (interval, log) in [(1, &fast), (4, &slow)] {
+        seats.push(rh_policy::Seat::new(
+            watcher,
+            Box::new(Recorder {
+                interval,
+                log: Arc::clone(log),
+            }),
+            Box::new(rh_policy::scripted::Idle),
+            0,
+        ));
+    }
+    let mut last = Vec::new();
+    for _ in 0..800 {
+        rh_policy::drive_seats(&mut sim, &mut seats, &last);
+        last = sim.step();
+    }
+    let (fast, slow) = (fast.lock().unwrap(), slow.lock().unwrap());
+    let end = slow.last().expect("the slow seat decided").0;
+    let flat = |log: &[(u32, Vec<SeenEvent>)]| -> Vec<SeenEvent> {
+        log.iter()
+            .filter(|(t, _)| *t <= end)
+            .flat_map(|(_, e)| e.iter().cloned())
+            .collect()
+    };
+    let (told_fast, told_slow) = (flat(&fast), flat(&slow));
+    assert!(
+        told_fast.len() > 50,
+        "the match must show the watcher events: {}",
+        told_fast.len()
+    );
+    assert_eq!(told_slow, told_fast);
 }

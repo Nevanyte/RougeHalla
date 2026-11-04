@@ -101,7 +101,8 @@ impl Event {
         }
     }
 
-    /// How a client that may know of this event receives it. No wildcard arm, on purpose.
+    /// How a client that may know of this event receives it. No wildcard arm, on purpose. Advisory for the wire: the publish
+    /// path routes by its own exhaustive match over what an observer is shown, and debug-asserts it agrees with this.
     pub fn class(&self) -> Class {
         match self {
             Event::Death { .. }
