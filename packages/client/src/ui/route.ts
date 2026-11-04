@@ -1,7 +1,7 @@
 // The route a player draws on the planning screen: waypoints, kept in this tab's sessionStorage by room id (so a reload of the
 // page finds them again) and never sent to the server. The same state feeds the planning map, the minimap's faint route and
 // the hold-Tab map. Pure apart from the storage, which is wrapped like every other storage access in the client.
-import type { GameMap, Vec2 } from "@raid/shared";
+import { TILE, type GameMap, type Vec2 } from "@raid/shared";
 import { MAX_WAYPOINTS, advanceNext, clampToWorld, planRoute, routeAhead, type RouteAhead, type RoutePlan } from "./planningMath";
 
 /** The slice of Storage this module uses, so a test can pass a fake. */
@@ -11,6 +11,12 @@ export interface RouteStorage {
 }
 
 export const ROUTE_KEY_PREFIX = "raidbr.route.v1:";
+/** A displacement beyond this is a teleport/rejoin, not a walk the route should keep tracing from its old origin. */
+export const ROUTE_REANCHOR_DISTANCE = 16 * TILE;
+
+export function routeJumped(from: Vec2 | null, to: Vec2): boolean {
+  return from !== null && Number.isFinite(to.x + to.y) && Math.hypot(to.x - from.x, to.y - from.y) > ROUTE_REANCHOR_DISTANCE;
+}
 
 export function routeStorageKey(roomId: string): string {
   return ROUTE_KEY_PREFIX + roomId;

@@ -8,7 +8,7 @@ import {
   MAX_WAYPOINTS, ROUTE_REACH, advanceNext, clampToWorld, cycleIndex, describeMatchup, formatClock, formatEta, fullMapSize,
   planRoute, planningMapSize, previewMapSize, routeAhead,
 } from "../src/ui/planningMath";
-import { RouteState, loadRoute, routeStorageKey, sanitizeWaypoints, saveRoute, type RouteStorage } from "../src/ui/route";
+import { ROUTE_REANCHOR_DISTANCE, RouteState, loadRoute, routeJumped, routeStorageKey, sanitizeWaypoints, saveRoute, type RouteStorage } from "../src/ui/route";
 
 const MAP: GameMap = generateMap(7);
 const spawn = MAP.spawnPool[0]!;
@@ -117,6 +117,31 @@ describe("routeAhead and advanceNext: how far along the player is", () => {
     expect(advanceNext(stops, 3, stops[2]!)).toBe(3);
     // Two stops in one place are passed together.
     expect(advanceNext([stops[0]!, stops[0]!], 0, stops[0]!)).toBe(2);
+  });
+});
+
+describe("routeJumped: teleports and rejoins re-anchor the route", () => {
+  it("ignores ordinary walking and the first position, but detects a landing farther than sixteen tiles", () => {
+    expect(ROUTE_REANCHOR_DISTANCE).toBe(16 * TILE);
+    expect(routeJumped(null, spawn)).toBe(false);
+    expect(routeJumped(spawn, { x: spawn.x + TILE * 4, y: spawn.y })).toBe(false);
+    expect(routeJumped(spawn, { x: spawn.x + ROUTE_REANCHOR_DISTANCE, y: spawn.y })).toBe(false);
+    expect(routeJumped(spawn, { x: spawn.x + ROUTE_REANCHOR_DISTANCE + 1, y: spawn.y })).toBe(true);
+    expect(routeJumped(spawn, { x: Number.NaN, y: spawn.y })).toBe(false);
+  });
+
+  it("re-paths the remaining stops from the landing point", () => {
+    const r = new RouteState(null, null);
+    r.setStart(spawn);
+    r.add({ x: camps[0]!.x, y: camps[0]!.y });
+    const landing = camps.map((c) => ({ x: c.x, y: c.y })).find((at) => routeJumped(spawn, at))!;
+    expect(landing).toBeDefined();
+    expect(routeJumped(spawn, landing)).toBe(true);
+    const version = r.version;
+    r.setStart(landing);
+    expect(r.version).toBeGreaterThan(version);
+    expect(r.ahead(MAP).points[0]).toEqual(landing);
+    expect(r.ahead(MAP).stops).toEqual([{ x: camps[0]!.x, y: camps[0]!.y }]);
   });
 });
 
