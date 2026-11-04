@@ -4,7 +4,7 @@
 P-ARENA-1. The run lifecycle around the active phase matches legacy: lobby -> **planning** (private spawn deal, picks, ready) ->
 active -> the **coliseum schedule** (patience timer, teleport, gates lock, teleport immunity) -> **sudden death** burn -> end,
 including the MIA-in-planning rule and the first-patience rules. Today the Rust slice goes lobby -> active and never teleports
-(`sim.rs` ~l.1413 carries the placeholder comment).
+(the `Pending("P-ARENA-1")` rows in `crates/rh-sim/src/schedule.rs` and the bracketed comment in `systems/settle.rs` mark where it plugs in).
 
 ## Dependencies
 None hard. Needs map data the `rh-map/1` export lacks: per-spawn zone and walk tier (for the deal), the coliseum centre, the four gates
@@ -20,13 +20,13 @@ P-MAP-1 lands, hand-built test maps get a coliseum helper in `rh-sim` tests.
 - Tests: `packages/server/test/planning.test.ts`, `planningRoom.test.ts`, `arena.test.ts`, `lifecycle.test.ts`, `lobby.test.ts`.
 
 ## New paths
-`crates/rh-sim/src/planning.rs`, `crates/rh-sim/src/arena_rules.rs` (coliseum/sudden death), a `plan_seed` and `teleport_seed` in `Secrets`, protocol additions
+`crates/rh-sim/src/systems/planning.rs`, `crates/rh-sim/src/systems/arena_rules.rs` (coliseum/sudden death), a `plan_seed` and `teleport_seed` in `Secrets`, protocol additions
 (`Plan` message to one player, phase `Planning`), capture scenarios and `rh-map/2` fields.
 
 ## Exclusive write scope
-`crates/rh-sim/src/{planning.rs,arena_rules.rs,sim.rs,constants.rs,content.rs,map.rs,observe.rs,rng.rs,lib.rs}`, `crates/rh-sim/tests/`,
+`crates/rh-sim/src/{systems/planning.rs,systems/arena_rules.rs,systems/mod.rs,schedule.rs,state.rs,scratch.rs,statics.rs,checkpoint.rs,constants.rs,content.rs,map.rs,observe.rs,rng.rs,lib.rs}`, `crates/rh-sim/tests/`,
 `crates/rh-parity/**`, `crates/rh-server/src/{room.rs,wire.rs}` for sending the private plan, `parity/legacy-capture/capture.ts`,
-`parity/maps/`. Protocol/C# edits are the shared-file change (README).
+`parity/maps/`. Protocol/C# edits are the shared-file change (README). Core layout rules (post-sweep, [ADR 0009](../../adr/0009-core-layout.md); the README "Shared-file rule" has the long form): the mechanic is `systems/<mechanic>.rs` with `fn(&mut Cx)` entry points, plus its rows flipped from `Pending` to `Ported` in `schedule.rs` at their legacy position (the row names, never a reorder); entity data goes in `fighter.rs` / `state.rs` / `store.rs` (hashed and checkpointed: extend `check_world` in `checkpoint.rs` if the new data has an invariant the tick relies on) and per-tick lists in `TickScratch` (`scratch.rs`, never serialized); `tests/no_alloc.rs` must stay at zero allocations per step, new content goes through the `content.rs` registry (`content_hash`), and every new serialized field must be covered by `tests/hash_coverage.rs`. `sim.rs` is a facade and is not in any write scope.
 
 ## Contracts and references
 C-RNG (deal and teleport shuffles are **secret streams**, new `Secrets` fields, never derived from the public map seed; the legacy deal reads `rewardRandom`, the teleport shuffle `world.random`), C-TICK (settle is last; the teleport only happens in a tick with no death), C-OBS (the deal is private: observation/protocol carry only the player's own two options and `taken` flags), C-NET (admission refused once locked at planning), C-PARITY. `docs/GAME_DESIGN.md` section 6. ADR 0007.

@@ -17,15 +17,15 @@ Soft: P-CAPTURE-1 (scenario helpers). None hard. Merge before P-COMBAT-2 touches
 - Tests to read: `packages/server/test/weapons.test.ts`, `swapRule.test.ts`, `melee.test.ts`, `loot.test.ts`, `fists.test.ts`.
 
 ## New paths
-- `crates/rh-sim/src/items.rs` (containers, pickup, swap, drop; keeps `sim.rs` hooks minimal).
-- `crates/rh-sim/src/weapons.rs` only if `sim.rs` weapon code is moved; otherwise extend in place (do not refactor the ported fists path).
+- `crates/rh-sim/src/systems/items.rs` (containers, pickup, swap, drop), registered in `systems/mod.rs`; its rows (`Pending("P-COMBAT-1")` in `schedule.rs`) flip to `Ported`.
+- `crates/rh-sim/src/systems/weapons.rs` already holds the ported fists path (`start_attack`, `land`, `stagger`): extend it in place, do not refactor it. Once items can be carried, widen the fists-only rule of `check_world` in `checkpoint.rs` (and the matching seeds in `tests/hash_coverage.rs`), and revisit the `debug_assert` in `land` for ranged kinds.
 - `parity/legacy-capture/capture.ts` scenarios (see Acceptance); `parity/fixtures/*.json` outputs.
 - `crates/rh-parity/tests/parity.rs`: no new test needed if scenarios are `parity: "slice"` (the harness loops over every fixture).
 
 ## Exclusive write scope
-`crates/rh-sim/src/{items.rs,sim.rs,content.rs,constants.rs,lib.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
+`crates/rh-sim/src/{systems/items.rs,systems/weapons.rs,systems/melee.rs,systems/mod.rs,schedule.rs,state.rs,fighter.rs,scratch.rs,checkpoint.rs,content.rs,constants.rs,lib.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
 `parity/legacy-capture/capture.ts` (scenario additions only), `parity/fixtures/`. Protocol/observation fields for weapons are
-**not** in scope unless the coordinator allocates the protocol shared files to this packet (see backlog README "Shared-file rule").
+**not** in scope unless the coordinator allocates the protocol shared files to this packet (see backlog README "Shared-file rule"). Core layout rules (post-sweep, [ADR 0009](../../adr/0009-core-layout.md); the README "Shared-file rule" has the long form): the mechanic is `systems/<mechanic>.rs` with `fn(&mut Cx)` entry points, plus its rows flipped from `Pending` to `Ported` in `schedule.rs` at their legacy position (the row names, never a reorder); entity data goes in `fighter.rs` / `state.rs` / `store.rs` (hashed and checkpointed: extend `check_world` in `checkpoint.rs` if the new data has an invariant the tick relies on) and per-tick lists in `TickScratch` (`scratch.rs`, never serialized); `tests/no_alloc.rs` must stay at zero allocations per step, new content goes through the `content.rs` registry (`content_hash`), and every new serialized field must be covered by `tests/hash_coverage.rs`. `sim.rs` is a facade and is not in any write scope.
 
 ## Contracts and references
 C-TICK (weapons phase position), C-INPUT (new `swap`/`pickup` commands go through `validate` + the order budget and count in the

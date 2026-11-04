@@ -22,7 +22,7 @@ injected values). Cosmetics `look` on the wire is P-PERSIST-3.
 `crates/rh-server/src/api.rs` (profile HTTP routes; or a new crate `rh-api` if the coordinator prefers a separate service: decide in the first PR, record in ADR 0006), `crates/rh-persist/src/achievements.rs` + a migration `0002_*.sql` only if the schema needs it, `crates/rh-server/tests/persist_pg.rs`, achievements data tables as Rust consts generated from `achievements.ts`/`cosmetics.ts` with a parity test.
 
 ## Exclusive write scope
-`crates/rh-persist/**`, `crates/rh-server/src/{persist.rs,director.rs,main.rs,api.rs,lib.rs}`, `crates/rh-server/tests/persist_pg.rs`, `crates/rh-sim/src/sim.rs` (only `RunResult` fields: coordinate, shared file), `docs/adr/0006-persistence.md` (evidence lines), `crates/rh-persist/README.md`. `tools/pgtest/*` for test infrastructure.
+`crates/rh-persist/**`, `crates/rh-server/src/{persist.rs,director.rs,main.rs,api.rs,lib.rs}`, `crates/rh-server/tests/persist_pg.rs`, `crates/rh-sim/src/results.rs` (only `RunResult` fields: coordinate, shared file), `docs/adr/0006-persistence.md` (evidence lines), `crates/rh-persist/README.md`. `tools/pgtest/*` for test infrastructure.
 
 ## Contracts and references
 C-PERSIST (idempotent results, fenced leases, ledger reconciliation: FROZEN), C-NET (admission order: profile ownership by process then fenced lease, before capacity), ADR 0006, `crates/rh-persist/README.md`. Durable I/O never runs on a room task.
