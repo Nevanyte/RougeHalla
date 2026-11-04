@@ -105,6 +105,9 @@ fn run(name: &str) -> (u32, u64, Option<u32>) {
             let _ = sc.sim.submit_unbudgeted(*id, *cmd);
         }
         out.clear();
+        // The schedule trace (a test-only feature) is a growing log: keep it bounded so it is not counted as the tick's.
+        #[cfg(feature = "schedule-trace")]
+        sc.sim.clear_schedule_trace();
         let before = dhat::HeapStats::get().total_blocks;
         sc.sim.step_into(&mut out);
         let used = dhat::HeapStats::get().total_blocks - before;

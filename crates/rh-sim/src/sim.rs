@@ -260,6 +260,12 @@ impl Sim {
         self.w.trace.take()
     }
 
+    /// Forgets the trace without allocating (feature `schedule-trace`): for a run that steps many times and reads none of it.
+    #[cfg(feature = "schedule-trace")]
+    pub fn clear_schedule_trace(&mut self) {
+        self.w.trace.clear();
+    }
+
     /// Advances by exactly one fixed step and returns its events (a thin wrapper over [`Sim::step_into`]).
     pub fn step(&mut self) -> Vec<Event> {
         let mut ev = Vec::new();

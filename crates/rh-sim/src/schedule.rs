@@ -406,6 +406,14 @@ impl TraceLog {
     pub(crate) fn take(&mut self) -> Vec<TraceEntry> {
         std::mem::take(&mut self.0)
     }
+
+    /// Forgets the entries and keeps the buffer, so a long run that reads nothing can bound the trace without a
+    /// reallocation per step.
+    pub(crate) fn clear(&mut self) {
+        self.0.clear();
+        // Room for any one tick's entries (a few dozen), so the next step's pushes never grow the buffer.
+        self.0.reserve(256);
+    }
 }
 
 /// The rows of a table that are live (their gate is on) and ported under one gate set, resolved at compile time: the
