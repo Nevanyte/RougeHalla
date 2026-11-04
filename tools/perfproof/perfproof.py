@@ -82,8 +82,10 @@ def last_json(text):
 def unit_of(out, key):
     if key in out:
         return float(out[key])
-    if key == "steps" and "ticks" in out and "runs" in out:  # parity-bench: ticks per run x (runs + 3 warm-up)
-        return float(out["ticks"]) * (int(out["runs"]) + 3)
+    if key == "steps" and "ticks" in out and "runs" in out:
+        # parity-bench: "ticks" counts the timed steps (runs x scenario length); it also runs 3 untimed warm-up passes.
+        runs = int(out["runs"])
+        return float(out["ticks"]) / runs * (runs + 3)
     raise KeyError(f"work unit {key} missing from {out}")
 
 
