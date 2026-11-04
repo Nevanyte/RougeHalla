@@ -9,12 +9,20 @@
 //!
 //! This crate does not depend on the simulation: the server maps sim types to these wire types, so internal refactors never
 //! change the wire by accident.
+//!
+//! Encoding (module `encode`): every message knows its exact `encoded_len()`, so `encode()` allocates the frame once and
+//! never regrows it, `encode_into()` appends to a caller's reused buffer, and [`SnapshotWriter`] streams a Snapshot's
+//! actors straight from the caller's own data (no intermediate `Vec<WireActor>`). The fallible paths (`try_encode`,
+//! `encode_into`, [`SnapshotWriter::finish`]) refuse, with an [`EncodeError`], any message a decoder would reject (more
+//! than [`MAX_ACTORS`] actors, an oversized frame, a bad map): the codec never clamps or drops what the observation chose.
 
 pub mod codec;
+mod encode;
 pub mod map;
 pub mod samples;
 
-pub use codec::{DecodeError, Reader, Writer};
+pub use codec::{DecodeError, EncodeError, Reader, Writer};
+pub use encode::{encode_welcome, encode_welcome_into, SnapshotWriter, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
 pub const PROTOCOL_VERSION: u16 = 1;
@@ -24,7 +32,8 @@ pub const MAX_CLIENT_FRAME: usize = 1024;
 pub const MAX_SERVER_FRAME: usize = 256 * 1024;
 /// Most commands one Input frame may carry.
 pub const MAX_COMMANDS_PER_INPUT: usize = 16;
-/// Most actors one Snapshot may list (8 players today; mobs later).
+/// Most actors one Snapshot may list (8 players today; mobs later). Decoders reject more, so the fallible encoders refuse
+/// more ([`EncodeError::TooMany`]); deciding what fits is the observation's job, never the codec's.
 pub const MAX_ACTORS: usize = 512;
 
 /// Why the server refuses or closes a session. Codes are wire format (append only).
@@ -253,70 +262,6 @@ const C_ATTACK: u8 = 4;
 const C_RELEASE: u8 = 5;
 
 impl ClientMsg {
-    pub fn encode(&self) -> Vec<u8> {
-        let mut w = Writer::default();
-        match self {
-            ClientMsg::Hello {
-                protocol,
-                content_hash,
-                build,
-                profile,
-                token,
-                faction,
-                resume,
-            } => {
-                w.u8(T_HELLO);
-                w.u16(*protocol);
-                w.u64(*content_hash);
-                w.str(build);
-                w.str(profile);
-                w.str(token);
-                w.opt(faction.as_ref(), |w, f| w.u8(*f));
-                w.opt(resume.as_ref(), |w, r| w.bytes(r));
-            }
-            ClientMsg::Input { seq, commands } => {
-                w.u8(T_INPUT);
-                w.u32(*seq);
-                w.u16(commands.len() as u16);
-                for c in commands {
-                    match *c {
-                        WireCommand::Move { x, y, seq } => {
-                            w.u8(C_MOVE);
-                            w.f32(x);
-                            w.f32(y);
-                            w.opt(seq.as_ref(), |w, s| w.u8(*s));
-                        }
-                        WireCommand::Stop { seq } => {
-                            w.u8(C_STOP);
-                            w.opt(seq.as_ref(), |w, s| w.u8(*s));
-                        }
-                        WireCommand::Aim { a } => {
-                            w.u8(C_AIM);
-                            w.f32(a);
-                        }
-                        WireCommand::Attack { a, t } => {
-                            w.u8(C_ATTACK);
-                            w.f32(a);
-                            w.opt(t.as_ref(), |w, t| w.f64(*t));
-                        }
-                        WireCommand::Release { a, t } => {
-                            w.u8(C_RELEASE);
-                            w.f32(a);
-                            w.opt(t.as_ref(), |w, t| w.f64(*t));
-                        }
-                    }
-                }
-            }
-            ClientMsg::Ping { nonce, client_ms } => {
-                w.u8(T_PING);
-                w.u32(*nonce);
-                w.f64(*client_ms);
-            }
-            ClientMsg::Leave => w.u8(T_LEAVE),
-        }
-        w.finish()
-    }
-
     /// Decodes an untrusted client frame. Size limit, finite floats, list bounds and no trailing bytes are enforced here.
     pub fn decode(frame: &[u8]) -> Result<Self, DecodeError> {
         if frame.len() > MAX_CLIENT_FRAME {
@@ -377,23 +322,6 @@ impl ClientMsg {
     }
 }
 
-fn write_self(w: &mut Writer, s: &WireSelf) {
-    w.u32(s.id);
-    w.u8(s.faction);
-    w.f32(s.x);
-    w.f32(s.y);
-    w.f32(s.facing);
-    w.f32(s.hp);
-    w.f32(s.max_hp);
-    w.u8(s.status);
-    w.u8(s.weapon);
-    w.u16(s.ready_in_ms);
-    w.u16(s.kills);
-    w.u16(s.bounty);
-    w.u16(s.gv);
-    w.u8(s.move_seq);
-}
-
 fn read_self(r: &mut Reader) -> Result<WireSelf, DecodeError> {
     Ok(WireSelf {
         id: r.u32()?,
@@ -414,142 +342,6 @@ fn read_self(r: &mut Reader) -> Result<WireSelf, DecodeError> {
 }
 
 impl ServerMsg {
-    pub fn encode(&self) -> Vec<u8> {
-        let mut w = Writer::default();
-        match self {
-            ServerMsg::Welcome {
-                protocol,
-                content_hash,
-                match_id,
-                player_id,
-                session,
-                tick_rate,
-                tick,
-                server_ms,
-                map,
-            } => {
-                w.u8(T_WELCOME);
-                w.u16(*protocol);
-                w.u64(*content_hash);
-                w.bytes(match_id);
-                w.u32(*player_id);
-                w.bytes(session);
-                w.u8(*tick_rate);
-                w.u32(*tick);
-                w.f64(*server_ms);
-                map.write(&mut w);
-            }
-            ServerMsg::Reject { code, reason } => {
-                w.u8(T_REJECT);
-                w.u16(*code as u16);
-                w.str(reason);
-            }
-            ServerMsg::Snapshot {
-                tick,
-                server_ms,
-                phase,
-                ack_input,
-                me,
-                actors,
-            } => {
-                w.u8(T_SNAPSHOT);
-                w.u32(*tick);
-                w.f64(*server_ms);
-                w.u8(*phase);
-                w.u32(*ack_input);
-                w.opt(me.as_ref(), write_self);
-                w.u16(actors.len() as u16);
-                for a in actors {
-                    w.u32(a.id);
-                    w.u8(a.faction);
-                    w.f32(a.x);
-                    w.f32(a.y);
-                    w.f32(a.facing);
-                    w.u8(a.hp_pct);
-                    w.u8(a.status);
-                    w.u8(a.weapon);
-                    w.u16(a.bounty);
-                }
-            }
-            ServerMsg::Events { tick, events } => {
-                w.u8(T_EVENTS);
-                w.u32(*tick);
-                w.u16(events.len() as u16);
-                for e in events {
-                    match e {
-                        WireEvent::Death { id, by } => {
-                            w.u8(1);
-                            w.u32(*id);
-                            w.opt(by.as_ref(), |w, b| w.u32(*b));
-                        }
-                        WireEvent::Bounty { id, bounty } => {
-                            w.u8(2);
-                            w.u32(*id);
-                            w.u16(*bounty);
-                        }
-                        WireEvent::MatchEnded { winner, draw } => {
-                            w.u8(3);
-                            w.opt(winner.as_ref(), |w, b| w.u32(*b));
-                            w.u8(*draw as u8);
-                        }
-                        WireEvent::Result(r) => {
-                            w.u8(4);
-                            w.u8(r.outcome);
-                            w.u8(r.place);
-                            w.u8(r.players);
-                            w.u16(r.kills);
-                            w.opt(r.killed_by.as_ref(), |w, s| w.str(s));
-                            w.u32(r.gv_total);
-                            w.u32(r.gv_win);
-                            w.u32(r.duration_sec);
-                            w.u8(r.win_bonus_withheld as u8);
-                        }
-                    }
-                }
-            }
-            ServerMsg::Fx { tick, fx } => {
-                w.u8(T_FX);
-                w.u32(*tick);
-                w.u16(fx.len() as u16);
-                for f in fx {
-                    match *f {
-                        WireFx::Swing {
-                            by,
-                            weapon,
-                            x,
-                            y,
-                            a,
-                        } => {
-                            w.u8(1);
-                            w.u32(by);
-                            w.u8(weapon);
-                            w.f32(x);
-                            w.f32(y);
-                            w.f32(a);
-                        }
-                        WireFx::Hit { victim, by, amount } => {
-                            w.u8(2);
-                            w.u32(victim);
-                            w.u32(by);
-                            w.f32(amount);
-                        }
-                    }
-                }
-            }
-            ServerMsg::Pong {
-                nonce,
-                client_ms,
-                server_ms,
-            } => {
-                w.u8(T_PONG);
-                w.u32(*nonce);
-                w.f64(*client_ms);
-                w.f64(*server_ms);
-            }
-        }
-        w.finish()
-    }
-
     pub fn decode(frame: &[u8]) -> Result<Self, DecodeError> {
         if frame.len() > MAX_SERVER_FRAME {
             return Err(DecodeError::TooLarge(frame.len()));
