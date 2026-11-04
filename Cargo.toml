@@ -1,0 +1,18 @@
+# Roguehalla Rust workspace: the authoritative simulation, protocol, live server, headless runner and persistence.
+# Builds and tests with no Unity and no AWS (see docs/MIGRATION.md "Commands").
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+# No license is declared: the repository has none yet (an owner decision, docs/REQUIREMENTS.md "Open-source readiness").
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+debug = 1
