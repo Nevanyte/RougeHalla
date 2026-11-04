@@ -578,9 +578,10 @@ mod tests {
         }
     }
 
-    /// A Ping flood is charged to the frame bucket like data frames: it ends RateLimited after the burst.
+    /// The bucket a control frame is charged to lets exactly `FRAME_BURST` frames through at one instant (the wiring is guarded
+    /// end to end by tests/transport.rs `a_websocket_ping_flood_is_rate_limited`).
     #[test]
-    fn control_frames_spend_the_frame_bucket() {
+    fn the_frame_bucket_allows_exactly_its_burst_at_one_instant() {
         let t = tokio::time::Instant::now();
         let mut b = Bucket {
             tokens: FRAME_BURST,

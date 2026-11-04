@@ -113,6 +113,7 @@ pub enum RoomReport {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RoomStats {
     pub ticks: u64,
     /// Step wall-time quantiles in microseconds, from a log-linear histogram: p50 and p99 are bucket upper bounds (never
