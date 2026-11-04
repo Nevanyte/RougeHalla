@@ -88,7 +88,7 @@ fn main() {
         for id in &ids {
             let obs = rh_sim::observe(&env.sim, *id, events);
             visible_sum += obs.visible.len() as u64;
-            let snap = rh_server::wire::snapshot(&obs, 0).encode();
+            let snap = rh_server::wire::encode_snapshot(&obs, 0).expect("snapshot encodes");
             snap_bytes += snap.len() as u64;
             snaps += 1;
             bytes += snap.len() as u64;

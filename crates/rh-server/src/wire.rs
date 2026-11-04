@@ -73,8 +73,8 @@ fn sat16(v: u32) -> u16 {
     v.min(u16::MAX as u32) as u16
 }
 
-pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
-    let me = obs.me.as_ref().map(|m| WireSelf {
+fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
+    WireSelf {
         id: m.id.0,
         faction: m.faction.code(),
         x: m.x as f32,
@@ -89,29 +89,63 @@ pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
         bounty: sat16(m.bounty),
         gv: sat16(m.gv),
         move_seq: m.move_seq,
-    });
-    let actors = obs
-        .visible
-        .iter()
-        .map(|a| WireActor {
-            id: a.id.0,
-            faction: a.faction.code(),
-            x: a.x as f32,
-            y: a.y as f32,
-            facing: a.facing as f32,
-            hp_pct: (a.hp_frac * 100.0).round().clamp(0.0, 100.0) as u8,
-            status: status(a.status),
-            weapon: a.weapon.code(),
-            bounty: sat16(a.bounty),
-        })
-        .collect();
+    }
+}
+
+fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
+    WireActor {
+        id: a.id.0,
+        faction: a.faction.code(),
+        x: a.x as f32,
+        y: a.y as f32,
+        facing: a.facing as f32,
+        hp_pct: (a.hp_frac * 100.0).round().clamp(0.0, 100.0) as u8,
+        status: status(a.status),
+        weapon: a.weapon.code(),
+        bounty: sat16(a.bounty),
+    }
+}
+
+pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
     ServerMsg::Snapshot {
         tick: obs.tick,
         phase: phase(obs.phase),
         ack_input,
-        me,
-        actors,
+        me: obs.me.as_ref().map(wire_self),
+        actors: obs.visible.iter().map(wire_actor).collect(),
     }
+}
+
+/// The Snapshot frame of `obs`: byte-identical to `snapshot(obs, ack_input).try_encode()`, but streamed actor by actor
+/// into a reused per-thread buffer, so no `Vec<WireActor>` is built and the only allocation is the returned frame. An
+/// observation the codec refuses (a position off the wire grid) is an error, never a repaired frame.
+pub fn encode_snapshot(
+    obs: &Observation,
+    ack_input: u32,
+) -> Result<Vec<u8>, rh_protocol::EncodeError> {
+    thread_local! {
+        static SCRATCH: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+    SCRATCH.with(|cell| {
+        let mut buf = std::mem::take(&mut *cell.borrow_mut());
+        buf.clear();
+        let me = obs.me.as_ref().map(wire_self);
+        let mut w = rh_protocol::SnapshotWriter::begin(
+            &mut buf,
+            obs.tick,
+            phase(obs.phase),
+            ack_input,
+            me.as_ref(),
+            obs.visible.len(),
+        );
+        for a in &obs.visible {
+            w.actor(&wire_actor(a));
+        }
+        let done = w.finish();
+        let out = done.map(|_| buf.clone());
+        *cell.borrow_mut() = buf;
+        out
+    })
 }
 
 /// The important events this viewer may know of (already filtered by its observation).
@@ -256,6 +290,26 @@ mod tests {
             }
         }
         assert!(env.sim.tick() > 0);
+    }
+
+    /// The streamed frame is the message's frame, byte for byte, over a whole match (every viewer, every tick), and the
+    /// scratch buffer it reuses never leaks one frame into the next.
+    #[test]
+    fn encode_snapshot_is_byte_identical_to_the_message_encoding() {
+        let mut env = seed1_match(900);
+        let ids: Vec<_> = env.sim.players().iter().map(|p| p.id).collect();
+        let mut frames = 0;
+        for t in 0..900u32 {
+            let out = env.step(&[]);
+            for id in &ids {
+                let obs = rh_sim::observe(&env.sim, *id, &out.events);
+                let streamed = encode_snapshot(&obs, t).expect("encodes");
+                assert_eq!(streamed, snapshot(&obs, t).try_encode().expect("encodes"));
+                assert_eq!(streamed.capacity(), streamed.len());
+                frames += 1;
+            }
+        }
+        assert!(frames > 1000);
     }
 
     /// The seed-1 160 x 160 map (and the nominal world) fits the u16 position grid, and over a whole match every remote

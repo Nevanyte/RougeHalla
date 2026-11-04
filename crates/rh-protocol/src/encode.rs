@@ -44,6 +44,10 @@ trait Frame {
     /// `len` is `encoded_len()` (computed once by the caller).
     fn check(&self, len: usize) -> Result<(), EncodeError>;
     fn write(&self, w: &mut Writer);
+    /// The frame in one allocation of exactly its length. The default sizes it first (`encoded_len`), then writes.
+    fn exact_vec(&self) -> Vec<u8> {
+        sized_then_written(self)
+    }
 }
 
 fn frame_size(len: usize, max: usize) -> Result<(), EncodeError> {
@@ -61,6 +65,10 @@ fn list(what: &'static str, n: usize, max: usize) -> Result<(), EncodeError> {
 }
 
 fn encode_exact<F: Frame>(m: &F) -> Vec<u8> {
+    m.exact_vec()
+}
+
+fn sized_then_written<F: Frame + ?Sized>(m: &F) -> Vec<u8> {
     let len = m.encoded_len();
     #[cfg(debug_assertions)]
     if let Err(e) = m.check(len) {
@@ -339,37 +347,110 @@ fn self_len(s: &WireSelf, mask: u16) -> usize {
     n
 }
 
-fn write_self(w: &mut Writer, s: &WireSelf, mask: u16) {
+/// A record built on the stack (no capacity checks per byte), then appended to the frame with one copy: the byte-wise
+/// `Vec::push` path of [`Writer`] dominated the cost of a Snapshot's header and actors. `N` is the record's maximum size
+/// (a longer write panics, which the size constants below make unreachable).
+struct Fixed<const N: usize> {
+    b: [u8; N],
+    n: usize,
+}
+
+impl<const N: usize> Fixed<N> {
+    #[inline]
+    fn new() -> Self {
+        Self { b: [0; N], n: 0 }
+    }
+    #[inline]
+    fn u8(&mut self, v: u8) {
+        self.b[self.n] = v;
+        self.n += 1;
+    }
+    #[inline]
+    fn bytes<const M: usize>(&mut self, v: [u8; M]) {
+        if let Some(dst) = self.b[self.n..].first_chunk_mut::<M>() {
+            *dst = v;
+            self.n += M;
+        } else {
+            unreachable!("Fixed record overflow");
+        }
+    }
+    #[inline]
+    fn u16(&mut self, v: u16) {
+        self.bytes(v.to_le_bytes());
+    }
+    #[inline]
+    fn f32(&mut self, v: f32) {
+        self.bytes(v.to_le_bytes());
+    }
+    #[inline]
+    fn varint(&mut self, mut v: u32) {
+        while v >= 0x80 {
+            self.u8((v as u8) | 0x80);
+            v >>= 7;
+        }
+        self.u8(v as u8);
+    }
+    #[inline]
+    fn put(&self, w: &mut Writer) {
+        w.bytes(&self.b[..self.n]);
+    }
+}
+
+/// Largest Snapshot head: tag, tick, ack (5 each at most), head word, a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
+/// kills, bounty, gv 3 each, move_seq) and the actor count.
+const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 5;
+/// Largest actor: id 5, mask, x, y, facing, kit, hp, bounty 3.
+const MAX_ACTOR_LEN: usize = 5 + 1 + 6 + 1 + 1 + 3;
+
+/// Writes the self record and returns its head word, in one pass over the optional fields (the same word [`head_word`]
+/// computes for [`self_len`]; a debug assertion holds them equal). The caller patches the word in.
+#[inline]
+fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, phase: u8, s: &WireSelf) -> u16 {
+    let mut m = ((phase as u16 & 3) << HM_PHASE_SHIFT)
+        | HM_PRESENT
+        | ((s.status as u16 & 3) << HM_STATUS_SHIFT);
     w.varint(s.id);
-    w.f32(s.x);
-    w.f32(s.y);
-    w.f32(s.facing);
-    if mask & HM_MAXHP_F32 != 0 {
-        w.f32(s.max_hp);
-    } else {
+    let [x0, x1, x2, x3] = s.x.to_le_bytes();
+    let [y0, y1, y2, y3] = s.y.to_le_bytes();
+    let [f0, f1, f2, f3] = s.facing.to_le_bytes();
+    w.bytes([x0, x1, x2, x3, y0, y1, y2, y3, f0, f1, f2, f3]);
+    if max_hp_is_varint(s.max_hp) {
         w.varint(s.max_hp as u32);
+    } else {
+        m |= HM_MAXHP_F32;
+        w.f32(s.max_hp);
     }
-    if mask & HM_KIT != 0 {
-        w.u8(kit(s.faction, s.weapon));
+    let k = kit(s.faction, s.weapon);
+    if k != 0 {
+        m |= HM_KIT;
+        w.u8(k);
     }
-    if mask & HM_HP != 0 {
+    // Bitwise: -0.0 and NaN payloads must survive.
+    if s.hp.to_bits() != s.max_hp.to_bits() {
+        m |= HM_HP;
         w.f32(s.hp);
     }
-    if mask & HM_READY != 0 {
+    if s.ready_in_ms != 0 {
+        m |= HM_READY;
         w.u16(s.ready_in_ms);
     }
-    if mask & HM_KILLS != 0 {
+    if s.kills != 0 {
+        m |= HM_KILLS;
         w.varint(s.kills as u32);
     }
-    if mask & HM_BOUNTY != 0 {
+    if s.bounty != 0 {
+        m |= HM_BOUNTY;
         w.varint(s.bounty as u32);
     }
-    if mask & HM_GV != 0 {
+    if s.gv != 0 {
+        m |= HM_GV;
         w.varint(s.gv as u32);
     }
-    if mask & HM_MOVE_SEQ != 0 {
+    if s.move_seq != 0 {
+        m |= HM_MOVE_SEQ;
         w.u8(s.move_seq);
     }
+    m
 }
 
 /// The actor mask of `a`: the status inline, and a bit for every optional field that differs from its default.
@@ -456,8 +537,9 @@ fn kit_status_fault(faction: u8, weapon: u8, status: u8) -> Option<&'static str>
 }
 
 #[inline]
-fn write_actor(w: &mut Writer, a: &WireActor, prev: Option<u32>) {
+fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     let m = actor_mask(a);
+    let mut w = Fixed::<MAX_ACTOR_LEN>::new();
     w.varint(id_field(a.id, prev));
     w.u8(m);
     w.u16(quant::quantize_pos(a.x));
@@ -472,6 +554,7 @@ fn write_actor(w: &mut Writer, a: &WireActor, prev: Option<u32>) {
     if m & AM_BOUNTY != 0 {
         w.varint(a.bounty as u32);
     }
+    w.put(out);
 }
 
 /// Exact size of a Snapshot frame.
@@ -503,15 +586,20 @@ fn write_snapshot_head(
     me: Option<&WireSelf>,
     actors: usize,
 ) {
-    w.u8(T_SNAPSHOT);
-    w.varint(tick);
-    w.varint(ack_input);
-    let head = head_word(phase, me);
-    w.u16(head);
-    if let Some(s) = me {
-        write_self(w, s, head);
-    }
-    w.varint(actors as u32);
+    let mut f = Fixed::<MAX_HEAD_LEN>::new();
+    f.u8(T_SNAPSHOT);
+    f.varint(tick);
+    f.varint(ack_input);
+    let at = f.n;
+    f.u16(0);
+    let head = match me {
+        Some(s) => write_self(&mut f, phase, s),
+        None => (phase as u16 & 3) << HM_PHASE_SHIFT,
+    };
+    debug_assert_eq!(head, head_word(phase, me));
+    f.b[at..at + 2].copy_from_slice(&head.to_le_bytes());
+    f.varint(actors as u32);
+    f.put(w);
 }
 
 impl Frame for ServerMsg {
@@ -565,6 +653,37 @@ impl Frame for ServerMsg {
             ServerMsg::Reject { .. } | ServerMsg::Pong { .. } => {}
         }
         frame_size(len, Self::MAX_FRAME)
+    }
+
+    /// A Snapshot is written once into a reused per-thread scratch buffer and copied to its exact size: every actor's mask
+    /// and field lengths are computed once (by the writer), not again by a sizing pass. The bytes are those of the sized
+    /// path (debug builds assert it). Every other message is sized first.
+    fn exact_vec(&self) -> Vec<u8> {
+        if !matches!(self, ServerMsg::Snapshot { .. }) {
+            return sized_then_written(self);
+        }
+        #[cfg(debug_assertions)]
+        if let Err(e) = self.check(self.encoded_len()) {
+            panic!("encoding a frame every decoder rejects: {e} (use try_encode or encode_into)");
+        }
+        thread_local! {
+            static SCRATCH: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+        SCRATCH.with(|cell| {
+            let mut buf = std::mem::take(&mut *cell.borrow_mut());
+            buf.clear();
+            let mut w = Writer::from_vec(buf);
+            self.write(&mut w);
+            let buf = w.finish();
+            debug_assert_eq!(
+                buf.len(),
+                self.encoded_len(),
+                "encoded_len disagrees with the writer"
+            );
+            let out = buf.clone();
+            *cell.borrow_mut() = buf;
+            out
+        })
     }
 
     fn write(&self, w: &mut Writer) {

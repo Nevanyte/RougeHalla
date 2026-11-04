@@ -37,12 +37,27 @@ pub fn pos_in_range(v: f32) -> bool {
     (0.0..=POS_MAX).contains(&v)
 }
 
+/// `f64::round` (half away from zero) without the libm call a baseline x86-64 build makes for it: truncate, then step
+/// away from zero when the dropped fraction is at least a half (exact in `f64`). NaN is 0; `t` is clamped to
+/// +-[`FACING_CLAMP`] first (far outside both callers' ranges), so the arithmetic cannot overflow.
+#[inline]
+fn round_half_away(t: f64) -> i64 {
+    let t = t.clamp(-FACING_CLAMP, FACING_CLAMP);
+    let i = t as i64;
+    let frac = t - i as f64;
+    if frac >= 0.5 {
+        i + 1
+    } else if frac <= -0.5 {
+        i - 1
+    } else {
+        i
+    }
+}
+
 /// World units to the nearest 1/8 u, saturating to `0 ..= 65535` (NaN is 0).
 #[inline]
 pub fn quantize_pos(v: f32) -> u16 {
-    ((v as f64) * (POS_SCALE as f64))
-        .round()
-        .clamp(0.0, 65535.0) as u16
+    round_half_away((v as f64) * (POS_SCALE as f64)).clamp(0, 65535) as u16
 }
 
 #[inline]
@@ -57,7 +72,7 @@ pub fn quantize_facing(a: f32) -> u16 {
     if !t.is_finite() {
         return 0;
     }
-    (t.clamp(-FACING_CLAMP, FACING_CLAMP).round() as i64 & 0xffff) as u16
+    (round_half_away(t) & 0xffff) as u16
 }
 
 /// The angle a code stands for, in `[-pi, pi)`.
@@ -90,6 +105,51 @@ mod tests {
         assert_eq!(quantize_pos(1e9), 65535);
         assert_eq!(dequantize_pos(quantize_pos(5120.0)), 5120.0);
         assert_eq!(quantize_pos(0.0625), 1, "ties round away from zero");
+    }
+
+    /// The two quantizers are the `f64::round` formulas they replaced, bit for bit, across the whole `f32` line (a stride
+    /// through every exponent, plus every value next to a rounding tie).
+    #[test]
+    fn quantizers_match_the_f64_round_reference() {
+        let pos_ref = |v: f32| ((v as f64) * 8.0).round().clamp(0.0, 65535.0) as u16;
+        let facing_ref = |a: f32| {
+            let t = (a as f64) / FACING_STEP;
+            if !t.is_finite() {
+                return 0;
+            }
+            (t.clamp(-FACING_CLAMP, FACING_CLAMP).round() as i64 & 0xffff) as u16
+        };
+        let mut bits = 0u32;
+        while bits < u32::MAX - 4099 {
+            for b in [bits, bits | 0x8000_0000] {
+                let v = f32::from_bits(b);
+                assert_eq!(quantize_pos(v), pos_ref(v), "pos {v}");
+                assert_eq!(quantize_facing(v), facing_ref(v), "facing {v}");
+            }
+            bits += 4099;
+        }
+        for q in 0..=65536u32 {
+            for d in [-1.0f64, 0.0, 1.0] {
+                let tie = (q as f64 + 0.5) / 8.0;
+                let v = f32::from_bits((tie as f32).to_bits().wrapping_add(d as i32 as u32));
+                assert_eq!(quantize_pos(v), pos_ref(v), "pos tie {v}");
+                let a = (q as f64 - 32768.0 + 0.5) * FACING_STEP;
+                let v = f32::from_bits((a as f32).to_bits().wrapping_add(d as i32 as u32));
+                assert_eq!(quantize_facing(v), facing_ref(v), "facing tie {v}");
+            }
+        }
+        for v in [
+            f32::NAN,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::MAX,
+            f32::MIN,
+            -0.0,
+            0.0,
+        ] {
+            assert_eq!(quantize_pos(v), pos_ref(v));
+            assert_eq!(quantize_facing(v), facing_ref(v));
+        }
     }
 
     #[test]
