@@ -11,48 +11,36 @@
 
 use crate::constants::*;
 use crate::content::FactionId;
-use crate::input::{Command, InputQueue, OrderBudget, Reject};
+use crate::input::{Command, Reject};
 use crate::math::Vec2;
 use crate::pathfind::Pathfinder;
-use crate::rng::Mulberry32;
+use crate::scratch::TickScratch;
+use crate::state::World;
+use crate::statics::MatchStatic;
 use crate::systems::weapons::release_trigger;
+use std::sync::Arc;
 
 pub use crate::events::Event;
 pub use crate::results::{GvBreakdown, GvReason, Outcome, RunResult, WinBonusWhy};
-pub(crate) use crate::state::ArenaRt;
 pub use crate::state::{
     ActionKind, Packet, PendingAction, Phase, Player, PlayerId, Sample, Status, WeaponRt,
 };
 pub use crate::statics::{Arena, Secrets, SimConfig};
-use crate::systems::ledger::Entry;
 pub use crate::systems::melee::in_arc;
-use crate::systems::melee::MeleeReq;
 
-/// One match. Clone + serde = checkpoint (the derived map tables and the path scratch are rebuilt on restore).
+/// One match: what it is played with ([`MatchStatic`]), what evolves ([`World`]), per-tick working sets
+/// ([`TickScratch`], never part of a checkpoint or the hash) and the path search scratch.
+/// Clone + serde = checkpoint (the derived map tables and the scratch are rebuilt on restore).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Sim {
-    pub config: SimConfig,
-    pub arena: Arena,
-    pub(crate) secrets: Secrets,
-    pub tick: u32,
-    pub server_time: f64,
-    pub phase: Phase,
-    pub lobby_ends_at: f64,
-    pub raid_started_at: f64,
-    pub winner: Option<String>,
-    pub(crate) players: Vec<Player>,
-    pub(crate) next_id: u32,
-    pub(crate) joined: usize,
-    pub(crate) spawn_rng: Mulberry32,
-    pub(crate) rt: ArenaRt,
-    pub(crate) ledger: Vec<Entry>,
-    pub(crate) melee: Vec<MeleeReq>,
-    pub(crate) rank: Vec<(PlayerId, usize)>,
-    pub(crate) stepping: bool,
-    /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint.
-    pub(crate) events: Vec<Event>,
+    #[serde(rename = "statics")]
+    pub(crate) k: MatchStatic,
+    #[serde(rename = "world")]
+    pub(crate) w: World,
     #[serde(skip)]
-    pub(crate) pathfinder: Pathfinder,
+    pub(crate) s: TickScratch,
+    #[serde(skip)]
+    pub(crate) pf: Pathfinder,
 }
 
 /// Placement for [`Sim::reset_active`]: the scenario API used by the headless runner, the parity harness and tests.
@@ -67,28 +55,16 @@ pub struct Placement {
 }
 
 impl Sim {
-    pub fn new(config: SimConfig, arena: Arena, secrets: Secrets) -> Self {
+    pub fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
         Self {
-            config,
-            arena,
-            secrets,
-            tick: 0,
-            server_time: 0.0,
-            phase: Phase::Lobby,
-            lobby_ends_at: 0.0,
-            raid_started_at: 0.0,
-            winner: None,
-            players: Vec::new(),
-            next_id: 1,
-            joined: 0,
-            spawn_rng: Mulberry32::new(secrets.spawn_seed),
-            rt: ArenaRt::default(),
-            ledger: Vec::new(),
-            melee: Vec::new(),
-            rank: Vec::new(),
-            stepping: false,
-            events: Vec::new(),
-            pathfinder: Pathfinder::default(),
+            k: MatchStatic {
+                config,
+                arena: arena.into(),
+                secrets,
+            },
+            w: World::new(&secrets),
+            s: TickScratch::default(),
+            pf: Pathfinder::default(),
         }
     }
 
@@ -96,7 +72,7 @@ impl Sim {
     /// closes on step 1 exactly as in a live room; placements then override the spawns and reset the rewind history).
     pub fn reset_active(
         config: SimConfig,
-        arena: Arena,
+        arena: impl Into<Arc<Arena>>,
         secrets: Secrets,
         placements: &[Placement],
     ) -> Self {
@@ -115,8 +91,8 @@ impl Sim {
             sim.add_player(&p.profile, Some(p.faction), p.bot);
         }
         sim.step();
-        let t = sim.server_time;
-        for (pl, spec) in sim.players.iter_mut().zip(placements) {
+        let t = sim.w.server_time;
+        for (pl, spec) in sim.w.players.iter_mut().zip(placements) {
             pl.x = spec.at.x;
             pl.y = spec.at.y;
             pl.facing = 0.0;
@@ -133,28 +109,57 @@ impl Sim {
         sim
     }
 
+    pub fn config(&self) -> &SimConfig {
+        &self.k.config
+    }
+    pub fn arena(&self) -> &Arena {
+        &self.k.arena
+    }
+    /// The shared arena, for holders that keep it beyond the match (a recorder, a room).
+    pub fn shared_arena(&self) -> &Arc<Arena> {
+        &self.k.arena
+    }
+    pub fn tick(&self) -> u32 {
+        self.w.tick
+    }
+    pub fn server_time(&self) -> f64 {
+        self.w.server_time
+    }
+    pub fn phase(&self) -> Phase {
+        self.w.phase
+    }
+    pub fn lobby_ends_at(&self) -> f64 {
+        self.w.lobby_ends_at
+    }
+    pub fn raid_started_at(&self) -> f64 {
+        self.w.raid_started_at
+    }
+    /// The winner's display name once the run ended with one.
+    pub fn winner(&self) -> Option<&str> {
+        self.w.winner.as_deref()
+    }
     pub fn players(&self) -> &[Player] {
-        &self.players
+        &self.w.players
     }
     pub fn player(&self, id: PlayerId) -> Option<&Player> {
-        self.players.iter().find(|p| p.id == id)
+        self.w.players.iter().find(|p| p.id == id)
     }
     pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
-        self.players.iter().position(|p| p.id == id)
+        self.w.players.iter().position(|p| p.id == id)
     }
     pub fn secrets_for_replay(&self) -> Secrets {
-        self.secrets
+        self.k.secrets
     }
     pub fn path_searches(&self) -> u64 {
-        self.pathfinder.searches
+        self.pf.searches
     }
 
     pub fn take_events(&mut self) -> Vec<Event> {
-        std::mem::take(&mut self.events)
+        std::mem::take(&mut self.w.pending_events)
     }
 
     pub(crate) fn emit(&mut self, e: Event) {
-        self.events.push(e);
+        self.w.pending_events.push(e);
     }
 
     /// Joins the lobby (legacy `addPlayer`): faction picked or round robin by join order, fists in hand.
@@ -164,73 +169,35 @@ impl Sim {
         faction: Option<FactionId>,
         bot: bool,
     ) -> Option<PlayerId> {
-        if self.phase != Phase::Lobby || self.players.len() >= MAX_PLAYERS {
+        if self.w.phase != Phase::Lobby || self.w.players.len() >= MAX_PLAYERS {
             return None;
         }
-        let join_index = self.joined;
-        self.joined += 1;
+        let join_index = self.w.joined;
+        self.w.joined += 1;
         let faction = faction.unwrap_or_else(|| FactionId::default_for(join_index));
         let hp = crate::content::faction(faction).hp;
-        let spot = if self.arena.spawns.is_empty() {
-            self.arena.centre()
+        let spot = if self.k.arena.spawns.is_empty() {
+            self.k.arena.centre()
         } else {
-            self.arena.spawns[self.players.len() % self.arena.spawns.len()]
+            self.k.arena.spawns[self.w.players.len() % self.k.arena.spawns.len()]
         };
-        if self.players.is_empty() {
-            self.lobby_ends_at = self.server_time + self.config.lobby_seconds * 1000.0;
+        if self.w.players.is_empty() {
+            self.w.lobby_ends_at = self.w.server_time + self.k.config.lobby_seconds * 1000.0;
         }
-        let id = PlayerId(self.next_id);
-        self.next_id += 1;
-        self.players.push(Player {
-            id,
-            profile: profile.to_string(),
-            name: profile.to_string(),
-            bot,
-            faction,
-            x: spot.x,
-            y: spot.y,
-            facing: 0.0,
-            hp,
-            max_hp: hp,
-            barrier: 0.0,
-            status: Status::Lobby,
-            weapon0: None,
-            weapon1: None,
-            slot: 0,
-            ready_at: 0.0,
-            draw_started_at: 0.0,
-            move_seq: 0,
-            kills: 0,
-            bounty: 0,
-            gv: 0,
-            immune_until: 0.0,
-            inputs: InputQueue::default(),
-            budget: OrderBudget::default(),
-            path: Vec::new(),
-            history: Vec::new(),
-            weapon: WeaponRt::default(),
-            killed_by: None,
-            killed_by_bot: false,
-            gv_parts: GvBreakdown::default(),
-            last_hit: None,
-            damaged: Vec::new(),
-            damaged_humans: Vec::new(),
-            dropped_at: None,
-            hp_frac_at_tick_start: 1.0,
-            down: None,
-            resolved: false,
-            bot_kills: 0,
-            announce: None,
-        });
+        let id = PlayerId(self.w.next_id);
+        self.w.next_id += 1;
+        self.w
+            .players
+            .push(Player::joining(id, profile, bot, faction, spot, hp));
         Some(id)
     }
 
     /// Queues a validated command for the next step, through the seat's order budget (sim time). The ONLY way any actor's
     /// commands reach the simulation: network clients, scripted bots and policies alike.
     pub fn submit(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
-        let now = self.server_time;
+        let now = self.w.server_time;
         let Some(i) = self.idx(id) else { return Ok(()) };
-        let p = &mut self.players[i];
+        let p = &mut self.w.players[i];
         if !p.budget.allow(&cmd, now) {
             return Err(Reject::OverBudget);
         }
@@ -240,7 +207,7 @@ impl Sim {
     /// Queues a command with no order budget: the parity harness only (the legacy capture fed the sim directly).
     pub fn submit_unbudgeted(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
         let Some(i) = self.idx(id) else { return Ok(()) };
-        self.players[i].inputs.push(cmd)
+        self.w.players[i].inputs.push(cmd)
     }
 
     /// A client's connection dropped: the seat is held (reconnect grace is the adapter's job); the time is remembered for
@@ -249,10 +216,10 @@ impl Sim {
     /// queued inputs are dropped (a press that arrived just before the socket closed must not hold the trigger for the whole
     /// grace) and the trigger is released, since the release the client sends will never arrive.
     pub fn mark_dropped(&mut self, id: PlayerId, dropped: bool) {
-        let now = self.server_time;
-        let active = self.phase == Phase::Active;
+        let now = self.w.server_time;
+        let active = self.w.phase == Phase::Active;
         if let Some(i) = self.idx(id) {
-            let p = &mut self.players[i];
+            let p = &mut self.w.players[i];
             if dropped {
                 if p.dropped_at.is_none() && active {
                     p.dropped_at = Some(now);
@@ -268,27 +235,31 @@ impl Sim {
     /// A player leaves for good (legacy `removePlayer`): in an active run it counts as a death (MIA), resolved at once.
     pub fn remove_player(&mut self, id: PlayerId) {
         let Some(i) = self.idx(id) else { return };
-        if self.phase == Phase::Active {
+        if self.w.phase == Phase::Active {
             self.down_player(i, Outcome::Mia);
         }
-        self.players.remove(i);
+        self.w.players.remove(i);
     }
 
     /// Advances by exactly one fixed step and returns its events.
     pub fn step(&mut self) -> Vec<Event> {
-        self.server_time += TICK_MS;
-        self.tick += 1;
-        self.stepping = true;
-        match self.phase {
+        self.w.server_time += TICK_MS;
+        self.w.tick += 1;
+        self.s.stepping = true;
+        match self.w.phase {
             Phase::Lobby => self.update_lobby(),
             Phase::Active => self.update_active(),
             Phase::Ended => {
-                for p in &mut self.players {
+                for p in &mut self.w.players {
                     p.inputs.drain();
                 }
             }
         }
-        self.stepping = false;
+        self.s.stepping = false;
+        debug_assert!(
+            self.s.is_settled(),
+            "tick-local buffers must be empty at the end of a step"
+        );
         self.take_events()
     }
 }

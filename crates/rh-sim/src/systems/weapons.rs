@@ -10,8 +10,8 @@ use crate::systems::melee::MeleeReq;
 
 impl Sim {
     pub(crate) fn set_aim(&mut self, i: usize, a: f64) {
-        let now = self.server_time;
-        let p = &mut self.players[i];
+        let now = self.w.server_time;
+        let p = &mut self.w.players[i];
         p.weapon.aim = a;
         p.weapon.aim_at = now;
         p.facing = a;
@@ -20,16 +20,16 @@ impl Sim {
     pub(crate) fn note_lag(&mut self, i: usize, t: Option<f64>) {
         let lag = match t {
             None => TICK_MS,
-            Some(t) => self.server_time - t,
+            Some(t) => self.w.server_time - t,
         };
-        self.players[i].weapon.lag_ms = MAX_REWIND_MS.min(TICK_MS.max(lag));
+        self.w.players[i].weapon.lag_ms = MAX_REWIND_MS.min(TICK_MS.max(lag));
     }
 
     pub(crate) fn handle_press(&mut self, i: usize, a: f64, t: Option<f64>) {
-        let now = self.server_time;
+        let now = self.w.server_time;
         self.set_aim(i, a);
         self.note_lag(i, t);
-        let w = &mut self.players[i].weapon;
+        let w = &mut self.w.players[i].weapon;
         if !w.held {
             w.pressed_at = now;
         }
@@ -42,33 +42,33 @@ impl Sim {
         if t.is_some() {
             self.note_lag(i, t);
         }
-        self.players[i].weapon.held = false;
+        self.w.players[i].weapon.held = false;
     }
 
     pub(crate) fn update_weapons(&mut self) {
-        for i in 0..self.players.len() {
-            if self.players[i].standing() {
+        for i in 0..self.w.players.len() {
+            if self.w.players[i].standing() {
                 self.step_weapon(i);
             }
         }
     }
 
     pub(crate) fn step_weapon(&mut self, i: usize) {
-        let now = self.server_time;
-        let weapon = self.players[i].active_weapon();
-        let f = paced(self.players[i].faction);
+        let now = self.w.server_time;
+        let weapon = self.w.players[i].active_weapon();
+        let f = paced(self.w.players[i].faction);
         let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
-        if let Some(act) = self.players[i].weapon.action {
+        if let Some(act) = self.w.players[i].weapon.action {
             if now + TIE_EPS_MS >= act.lands_at {
                 self.land(i, act);
             }
         }
-        let p = &self.players[i];
+        let p = &self.w.players[i];
         let wants = p.weapon.held || now <= p.weapon.buffered_until;
         if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.ready_at {
             self.start_attack(i, weapon, tm);
             if tm.windup == 0.0 {
-                if let Some(act) = self.players[i].weapon.action {
+                if let Some(act) = self.w.players[i].weapon.action {
                     self.land(i, act);
                 }
             }
@@ -76,8 +76,8 @@ impl Sim {
     }
 
     pub(crate) fn start_attack(&mut self, i: usize, weapon: WeaponId, tm: crate::content::Timings) {
-        let now = self.server_time;
-        let f = paced(self.players[i].faction);
+        let now = self.w.server_time;
+        let f = paced(self.w.players[i].faction);
         let base = damage_per_hit(&f, weapon, 1.0);
         let shares: DamageShares = damage_shares(&f);
         let packet = Packet {
@@ -86,7 +86,7 @@ impl Sim {
             magic: shares.magic,
             true_: shares.true_,
         };
-        let p = &mut self.players[i];
+        let p = &mut self.w.players[i];
         let start = if p.weapon.pressed_at <= p.ready_at {
             p.ready_at.max(now - TICK_MS)
         } else {
@@ -126,14 +126,14 @@ impl Sim {
     }
 
     pub(crate) fn land(&mut self, i: usize, act: PendingAction) {
-        let now = self.server_time;
-        let p = &mut self.players[i];
+        let now = self.w.server_time;
+        let p = &mut self.w.players[i];
         p.weapon.action = None;
         match act.kind {
             ActionKind::Swing => {
                 let rewind_t = now - MAX_REWIND_MS.min(TICK_MS.max(p.weapon.lag_ms));
                 let attacker = p.id;
-                self.melee.push(MeleeReq {
+                self.s.melee.push(MeleeReq {
                     attacker,
                     weapon: act.weapon,
                     a: act.a,
@@ -150,8 +150,8 @@ impl Sim {
     }
 
     pub(crate) fn move_multiplier(&self, i: usize) -> f64 {
-        let p = &self.players[i];
-        let now = self.server_time;
+        let p = &self.w.players[i];
+        let now = self.w.server_time;
         let winding = match p.weapon.action {
             Some(a) => a.kind == ActionKind::Swing || now >= a.lands_at - RANGED_RELEASE_PAUSE_MS,
             None => false,
@@ -164,8 +164,8 @@ impl Sim {
     }
 
     pub(crate) fn stagger(&mut self, i: usize) {
-        let now = self.server_time;
-        let p = &mut self.players[i];
+        let now = self.w.server_time;
+        let p = &mut self.w.players[i];
         if now < p.weapon.stagger_immune_until {
             return;
         }

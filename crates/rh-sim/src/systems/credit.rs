@@ -5,9 +5,9 @@ use crate::sim::{Event, GvReason, PlayerId, Sim};
 
 impl Sim {
     pub(crate) fn owed_bounty(&self, vi: usize) -> u32 {
-        let v = &self.players[vi];
-        if self.stepping {
-            self.rt
+        let v = &self.w.players[vi];
+        if self.s.stepping {
+            self.s
                 .bounty_at_tick_start
                 .iter()
                 .find(|(id, _)| *id == v.id)
@@ -19,22 +19,22 @@ impl Sim {
     }
 
     pub(crate) fn recent_rival(&self, vi: usize, at: f64) -> Option<PlayerId> {
-        let (by, when) = self.players[vi].last_hit?;
+        let (by, when) = self.w.players[vi].last_hit?;
         if at - when > KILL_CREDIT_SECONDS * 1000.0 {
             return None;
         }
         let si = self.idx(by)?;
-        (!self.players[si].resolved).then_some(by)
+        (!self.w.players[si].resolved).then_some(by)
     }
 
     pub(crate) fn credit_kill(&mut self, by: PlayerId, victim_bot: bool, bounty: u32) {
         let Some(bi) = self.idx(by) else { return };
-        if self.players[bi].resolved {
+        if self.w.players[bi].resolved {
             return;
         }
-        self.players[bi].kills += 1;
+        self.w.players[bi].kills += 1;
         if victim_bot {
-            self.players[bi].bot_kills += 1;
+            self.w.players[bi].bot_kills += 1;
         } else {
             self.credit(bi, GvReason::Kill, GV_KILL);
         }
@@ -45,7 +45,7 @@ impl Sim {
     }
 
     pub(crate) fn credit(&mut self, i: usize, reason: GvReason, amount: u32) {
-        let p = &mut self.players[i];
+        let p = &mut self.w.players[i];
         if p.resolved || amount == 0 {
             return;
         }
@@ -60,7 +60,7 @@ impl Sim {
     }
 
     pub(crate) fn update_bounty(&mut self, i: usize) {
-        let p = &mut self.players[i];
+        let p = &mut self.w.players[i];
         if !p.standing() {
             return;
         }
@@ -73,8 +73,8 @@ impl Sim {
     }
 
     pub(crate) fn announce_bounty(&mut self, i: usize) {
-        let now = self.server_time;
-        let p = &mut self.players[i];
+        let now = self.w.server_time;
+        let p = &mut self.w.players[i];
         let (last_at, sent) = p.announce.unwrap_or((f64::NEG_INFINITY, 0));
         if p.bounty <= sent || now - last_at < BOUNTY_ANNOUNCE_MS {
             p.announce = Some((last_at, sent));
@@ -86,8 +86,8 @@ impl Sim {
     }
 
     pub(crate) fn flush_bounty_announcements(&mut self) {
-        for i in 0..self.players.len() {
-            let p = &self.players[i];
+        for i in 0..self.w.players.len() {
+            let p = &self.w.players[i];
             if let Some((_, sent)) = p.announce {
                 if p.standing() && p.bounty > sent {
                     self.announce_bounty(i);

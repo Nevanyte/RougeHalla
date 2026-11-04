@@ -120,8 +120,8 @@ fn main() {
         .unwrap_or_default();
     println!(
         "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
-        env.sim.arena.map.w,
-        env.sim.arena.map.h,
+        env.sim.arena().map.w,
+        env.sim.arena().map.h,
         welcome.len(),
         bytes as f64 / 8.0 / secs,
         frames as f64 / 8.0 / secs,

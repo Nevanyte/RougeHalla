@@ -2,6 +2,17 @@
 
 use crate::map::TileMap;
 use crate::math::Vec2;
+use std::sync::Arc;
+
+/// The match's immutable inputs, fixed when the [`crate::Sim`] is created. The arena is shared ([`Arc`]): rooms and
+/// recorders can hold the same map without copying it. Part of a checkpoint (the derived map tables are rebuilt on
+/// restore); not part of the state hash, which a replay pins by recording them.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct MatchStatic {
+    pub(crate) config: SimConfig,
+    pub(crate) arena: Arc<Arena>,
+    pub(crate) secrets: Secrets,
+}
 
 /// Everything the core needs that must not be derivable by clients. The live server draws these from the OS CSPRNG; tests
 /// and the headless runner derive them from a run seed ([`Secrets::from_seed`]). Never sent to clients or public exports.

@@ -1,9 +1,12 @@
 //! The evolving match state: players and their runtime, and the arena's run bookkeeping.
 
 use crate::content::{FactionId, WeaponId};
+use crate::events::Event;
 use crate::input::{InputQueue, OrderBudget};
 use crate::math::Vec2;
 use crate::results::{GvBreakdown, Outcome};
+use crate::rng::Mulberry32;
+use crate::statics::Secrets;
 
 /// A player's public entity id: assigned at join, never reused within a match.
 #[derive(
@@ -134,6 +137,58 @@ pub struct Player {
 }
 
 impl Player {
+    /// A fresh lobby seat (legacy `addPlayer`): fists in hand, full hp, nothing earned.
+    pub(crate) fn joining(
+        id: PlayerId,
+        profile: &str,
+        bot: bool,
+        faction: FactionId,
+        spot: Vec2,
+        hp: f64,
+    ) -> Self {
+        Self {
+            id,
+            profile: profile.to_string(),
+            name: profile.to_string(),
+            bot,
+            faction,
+            x: spot.x,
+            y: spot.y,
+            facing: 0.0,
+            hp,
+            max_hp: hp,
+            barrier: 0.0,
+            status: Status::Lobby,
+            weapon0: None,
+            weapon1: None,
+            slot: 0,
+            ready_at: 0.0,
+            draw_started_at: 0.0,
+            move_seq: 0,
+            kills: 0,
+            bounty: 0,
+            gv: 0,
+            immune_until: 0.0,
+            inputs: InputQueue::default(),
+            budget: OrderBudget::default(),
+            path: Vec::new(),
+            history: Vec::new(),
+            weapon: WeaponRt::default(),
+            killed_by: None,
+            killed_by_bot: false,
+            gv_parts: GvBreakdown::default(),
+            last_hit: None,
+            damaged: Vec::new(),
+            damaged_humans: Vec::new(),
+            dropped_at: None,
+            hp_frac_at_tick_start: 1.0,
+            down: None,
+            resolved: false,
+            bot_kills: 0,
+            announce: None,
+        }
+    }
+
     pub fn standing(&self) -> bool {
         self.status == Status::Alive && self.down.is_none() && !self.resolved
     }
@@ -168,11 +223,50 @@ impl Player {
     }
 }
 
+/// The arena's run bookkeeping that outlives a tick (legacy `world.arena`).
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ArenaRt {
     pub(crate) started_with: u32,
     pub(crate) started_humans: usize,
-    pub(crate) downed_this_tick: Vec<PlayerId>,
     pub(crate) downs_between_ticks: u32,
-    pub(crate) bounty_at_tick_start: Vec<(PlayerId, u32)>,
+}
+
+/// The evolving match state: everything a later tick can depend on. With [`crate::statics::MatchStatic`] it is the whole
+/// checkpoint, and it is what [`crate::Sim::state_hash`] hashes. Per-tick working sets live in
+/// [`crate::scratch::TickScratch`] instead.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct World {
+    pub(crate) tick: u32,
+    pub(crate) server_time: f64,
+    pub(crate) phase: Phase,
+    pub(crate) lobby_ends_at: f64,
+    pub(crate) raid_started_at: f64,
+    pub(crate) winner: Option<String>,
+    /// In join order (legacy Map insertion order).
+    pub(crate) players: Vec<Player>,
+    pub(crate) next_id: u32,
+    pub(crate) joined: usize,
+    pub(crate) spawn_rng: Mulberry32,
+    pub(crate) rt: ArenaRt,
+    /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
+    pub(crate) pending_events: Vec<Event>,
+}
+
+impl World {
+    pub(crate) fn new(secrets: &Secrets) -> Self {
+        Self {
+            tick: 0,
+            server_time: 0.0,
+            phase: Phase::Lobby,
+            lobby_ends_at: 0.0,
+            raid_started_at: 0.0,
+            winner: None,
+            players: Vec::new(),
+            next_id: 1,
+            joined: 0,
+            spawn_rng: Mulberry32::new(secrets.spawn_seed),
+            rt: ArenaRt::default(),
+            pending_events: Vec::new(),
+        }
+    }
 }

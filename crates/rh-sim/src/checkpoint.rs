@@ -1,13 +1,17 @@
 //! Checkpoints: Clone + serde of the whole [`Sim`]; the derived tables are rebuilt on restore.
 
 use crate::pathfind::Pathfinder;
+use crate::scratch::TickScratch;
 use crate::sim::Sim;
+use std::sync::Arc;
 
 impl Sim {
     /// Restores the derived tables after deserializing a checkpoint.
     pub fn after_restore(&mut self) {
-        self.arena.map.rebuild();
-        self.pathfinder = Pathfinder::default();
+        // A freshly deserialized arena is not shared, so this rebuilds in place (it clones only a shared one).
+        Arc::make_mut(&mut self.k.arena).map.rebuild();
+        self.s = TickScratch::default();
+        self.pf = Pathfinder::default();
     }
 }
 

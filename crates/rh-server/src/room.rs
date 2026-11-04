@@ -240,8 +240,8 @@ impl Room {
             player_id: player.0,
             session,
             tick_rate: rh_sim::constants::TICK_RATE as u8,
-            tick: self.sim.tick,
-            server_ms: self.sim.server_time,
+            tick: self.sim.tick(),
+            server_ms: self.sim.server_time(),
             map: self.welcome_map.clone(),
         }
         .encode()
@@ -361,7 +361,7 @@ impl Room {
         if self.draining {
             return Err(RejectCode::ServerDraining);
         }
-        if self.sim.phase != Phase::Lobby {
+        if self.sim.phase() != Phase::Lobby {
             return Err(RejectCode::MatchFull);
         }
         // A human takes a bot's seat when the lobby is full (legacy: the newest bot yields).
@@ -404,7 +404,7 @@ impl Room {
         self.fill_bots();
         let _ = self.reports.send(RoomReport::Phase {
             match_id: self.id,
-            phase: self.sim.phase,
+            phase: self.sim.phase(),
             humans: self.humans_present(),
         });
         Ok(JoinOk {
@@ -455,7 +455,7 @@ impl Room {
             }
             // Leaving a run one still stands in is MIA: the sim resolves it now and its result is reported with the next
             // step's events; the director holds the profile until it is written.
-            let result_pending = self.sim.phase == Phase::Active
+            let result_pending = self.sim.phase() == Phase::Active
                 && self.sim.player(player).is_some_and(|p| !p.resolved);
             self.record(ReplayInput::Leave { player });
             self.sim.remove_player(player);
@@ -487,7 +487,7 @@ impl Room {
             self.leave(p);
         }
         if self.humans.is_empty()
-            && self.sim.phase != Phase::Ended
+            && self.sim.phase() != Phase::Ended
             && (self.had_human || now.duration_since(self.opened_at) >= UNCLAIMED_TIMEOUT)
         {
             // Nobody left to play for: a lobby closes; a run's remaining players are all bots or gone. A room nobody has
@@ -524,19 +524,19 @@ impl Room {
             all_events.extend(ev);
         }
         self.clock
-            .store(self.sim.server_time.to_bits(), Ordering::Relaxed);
+            .store(self.sim.server_time().to_bits(), Ordering::Relaxed);
         self.publish(&all_events);
         self.report_results(&all_events);
-        if self.sim.phase != self.reported_phase {
+        if self.sim.phase() != self.reported_phase {
             // Every phase change reaches the director (a lobby that closed into a run must stop receiving joins).
-            self.reported_phase = self.sim.phase;
+            self.reported_phase = self.sim.phase();
             let _ = self.reports.send(RoomReport::Phase {
                 match_id: self.id,
-                phase: self.sim.phase,
+                phase: self.sim.phase(),
                 humans: self.humans_present(),
             });
         }
-        if self.sim.phase == Phase::Ended && self.ended_at.is_none() {
+        if self.sim.phase() == Phase::Ended && self.ended_at.is_none() {
             self.ended_at = Some(now);
         }
         if let Some(t) = self.ended_at {
@@ -561,7 +561,7 @@ impl Room {
             }
             if !important.is_empty() {
                 let f = ServerMsg::Events {
-                    tick: self.sim.tick,
+                    tick: self.sim.tick(),
                     events: important,
                 }
                 .encode();
@@ -572,7 +572,7 @@ impl Room {
             let fx = wire::fx_seen(&obs);
             if !fx.is_empty() {
                 let f = ServerMsg::Fx {
-                    tick: self.sim.tick,
+                    tick: self.sim.tick(),
                     fx,
                 }
                 .encode();

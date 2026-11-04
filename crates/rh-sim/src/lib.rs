@@ -22,6 +22,7 @@ pub mod pathfind;
 pub mod replay;
 pub mod results;
 pub mod rng;
+mod scratch;
 pub mod sim;
 pub mod state;
 pub mod statics;

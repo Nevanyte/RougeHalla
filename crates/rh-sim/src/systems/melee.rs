@@ -20,24 +20,24 @@ pub(crate) struct MeleeReq {
 
 impl Sim {
     pub(crate) fn resolve_melee(&mut self) {
-        let reqs = std::mem::take(&mut self.melee);
+        let reqs = std::mem::take(&mut self.s.melee);
         if reqs.is_empty() {
             return;
         }
-        let bodies: Vec<usize> = (0..self.players.len())
-            .filter(|&i| self.players[i].standing())
+        let bodies: Vec<usize> = (0..self.w.players.len())
+            .filter(|&i| self.w.players[i].standing())
             .collect();
         for req in reqs {
             let Some(ai) = self.idx(req.attacker) else {
                 continue;
             };
-            if !self.players[ai].standing() {
+            if !self.w.players[ai].standing() {
                 continue;
             }
             let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
                 continue;
             };
-            let origin = self.players[ai].position_at(req.rewind_t);
+            let origin = self.w.players[ai].position_at(req.rewind_t);
             self.emit(Event::Swing {
                 by: req.attacker,
                 weapon: req.weapon,
@@ -49,17 +49,26 @@ impl Sim {
                 if ti == ai {
                     continue;
                 }
-                let at = self.players[ti].position_at(req.rewind_t);
+                let at = self.w.players[ti].position_at(req.rewind_t);
                 if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
                     continue;
                 }
-                if raycast(&self.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE).hit {
+                if raycast(
+                    &self.k.arena.map,
+                    origin.x,
+                    origin.y,
+                    at.x,
+                    at.y,
+                    MASK_MELEE,
+                )
+                .hit
+                {
                     continue;
                 }
                 // Shields (block/riposte) need a shield in hand: no item flow in the slice (docs/backlog P-COMBAT-1).
-                let victim = self.players[ti].id;
-                let by_name = self.players[ai].name.clone();
-                self.ledger.push(Entry {
+                let victim = self.w.players[ti].id;
+                let by_name = self.w.players[ai].name.clone();
+                self.s.ledger.push(Entry {
                     victim,
                     by: req.attacker,
                     by_name,

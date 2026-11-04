@@ -22,7 +22,8 @@ pub(crate) struct Payout {
 
 impl Sim {
     pub(crate) fn rank_of(&self, id: PlayerId) -> usize {
-        self.rank
+        self.s
+            .rank
             .iter()
             .find(|(p, _)| *p == id)
             .map(|(_, r)| *r)
@@ -33,7 +34,7 @@ impl Sim {
     /// each victim's hits are mitigated, capped and applied together (ranked by the secret action order for kill credit),
     /// and kill spoils are paid only after every victim took its damage, so no reward decides who survives the pass.
     pub(crate) fn apply_ledger(&mut self) {
-        let ledger = std::mem::take(&mut self.ledger);
+        let ledger = std::mem::take(&mut self.s.ledger);
         if ledger.is_empty() {
             return;
         }
@@ -47,7 +48,9 @@ impl Sim {
         let mults: Vec<f64> = ledger
             .iter()
             .map(|e| {
-                if self.config.pvp_rules && self.idx(e.by).is_some() && self.idx(e.victim).is_some()
+                if self.k.config.pvp_rules
+                    && self.idx(e.by).is_some()
+                    && self.idx(e.victim).is_some()
                 {
                     pvp_factor(0.0)
                 } else {
@@ -76,10 +79,10 @@ impl Sim {
         payouts: &mut Vec<Payout>,
     ) {
         let Some(vi) = self.idx(v) else { return };
-        if !self.players[vi].standing() {
+        if !self.w.players[vi].standing() {
             return;
         }
-        let vf = crate::content::faction(self.players[vi].faction);
+        let vf = crate::content::faction(self.w.players[vi].faction);
         let (armor, shield) = (vf.armor.max(0.0), vf.shield);
         let mut amounts: Vec<f64> = idxs
             .iter()
@@ -94,8 +97,8 @@ impl Sim {
                 mitigate_shares(raw, &s, armor, shield)
             })
             .collect();
-        if self.config.pvp_rules {
-            let cap = PVP_HIT_CAP_SHARE * self.players[vi].max_hp;
+        if self.k.config.pvp_rules {
+            let cap = PVP_HIT_CAP_SHARE * self.w.players[vi].max_hp;
             for a in amounts.iter_mut() {
                 if *a > 0.0 && *a > cap {
                     *a = cap;
@@ -130,7 +133,7 @@ impl Sim {
             }
         }
         if let Some(vi) = self.idx(v) {
-            if self.players[vi].standing()
+            if self.w.players[vi].standing()
                 && idxs
                     .iter()
                     .enumerate()
@@ -148,15 +151,15 @@ impl Sim {
         hits: &[(f64, PlayerId, String)],
         payouts: &mut Vec<Payout>,
     ) -> f64 {
-        let now = self.server_time;
+        let now = self.w.server_time;
         {
-            let v = &self.players[vi];
+            let v = &self.w.players[vi];
             if !v.standing() || v.hp <= 0.0 || now < v.immune_until {
                 return 0.0;
             }
         }
-        let victim_id = self.players[vi].id;
-        let victim_bot = self.players[vi].bot;
+        let victim_id = self.w.players[vi].id;
+        let victim_bot = self.w.players[vi].bot;
         let mut total = 0.0;
         let mut top: Option<usize> = None;
         let mut top_rival: Option<usize> = None;
@@ -170,8 +173,8 @@ impl Sim {
             }
             // A source still in the run (not resolved) is an attacker; anyone else is a name only.
             if let Some(si) = self.idx(*by) {
-                if !self.players[si].resolved && *by != victim_id {
-                    let src = &mut self.players[si];
+                if !self.w.players[si].resolved && *by != victim_id {
+                    let src = &mut self.w.players[si];
                     if !src.damaged.contains(&victim_id) {
                         src.damaged.push(victim_id);
                     }
@@ -186,9 +189,9 @@ impl Sim {
         }
         let Some(top) = top else { return 0.0 };
         if let Some(r) = top_rival {
-            self.players[vi].last_hit = Some((hits[r].1, now));
+            self.w.players[vi].last_hit = Some((hits[r].1, now));
         }
-        let v = &mut self.players[vi];
+        let v = &mut self.w.players[vi];
         if v.barrier > 0.0 {
             let taken = v.barrier.min(total);
             v.barrier = if v.barrier - taken < 1e-3 {
@@ -209,11 +212,11 @@ impl Sim {
         }
         let killer = top_rival.unwrap_or(top);
         let (_, kid, kname) = &hits[killer];
-        let killer_idx = self.idx(*kid).filter(|&k| !self.players[k].resolved);
-        let killer_bot = killer_idx.map(|k| self.players[k].bot).unwrap_or(false);
-        let (vx, vy) = (self.players[vi].x, self.players[vi].y);
+        let killer_idx = self.idx(*kid).filter(|&k| !self.w.players[k].resolved);
+        let killer_bot = killer_idx.map(|k| self.w.players[k].bot).unwrap_or(false);
+        let (vx, vy) = (self.w.players[vi].x, self.w.players[vi].y);
         {
-            let v = &mut self.players[vi];
+            let v = &mut self.w.players[vi];
             // The killer's display name (legacy: the attacker's name, or the source name of one who already left).
             v.killed_by = Some(kname.clone());
             if killer_bot {

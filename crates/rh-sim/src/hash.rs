@@ -5,16 +5,18 @@ use crate::sim::Sim;
 
 impl Sim {
     /// FNV-1a 64 over the authoritative state (every field that can affect a later tick), for determinism and
-    /// live/headless equivalence checks. Not a security hash.
+    /// live/headless equivalence checks. Not a security hash. It reads the [`crate::state::World`] only: the statics are
+    /// pinned by whoever records the hashes (a replay stores them), and tick scratch is empty or stale-safe between steps.
+    /// The values and their order are those of the base revision, so replays recorded before the split keep verifying.
     pub fn state_hash(&self) -> u64 {
         let mut h = Fnv64::new();
-        h.u64(self.tick as u64);
-        h.f64(self.server_time);
-        h.u64(self.phase as u64);
-        h.f64(self.lobby_ends_at);
-        h.f64(self.raid_started_at);
-        h.u64(self.spawn_rng.clone().next_u32() as u64);
-        for p in &self.players {
+        h.u64(self.w.tick as u64);
+        h.f64(self.w.server_time);
+        h.u64(self.w.phase as u64);
+        h.f64(self.w.lobby_ends_at);
+        h.f64(self.w.raid_started_at);
+        h.u64(self.w.spawn_rng.clone().next_u32() as u64);
+        for p in &self.w.players {
             h.u64(p.id.0 as u64);
             h.u64(p.faction as u64);
             for v in [
@@ -118,18 +120,18 @@ impl Sim {
             );
             h.str(&p.profile);
         }
-        h.u64(self.rt.started_with as u64);
-        h.u64(self.rt.started_humans as u64);
-        h.u64(self.rt.downs_between_ticks as u64);
-        for d in &self.rt.downed_this_tick {
-            h.u64(d.0 as u64);
-        }
-        h.u64(self.next_id as u64);
-        h.u64(self.joined as u64);
-        h.str(self.winner.as_deref().unwrap_or(""));
+        h.u64(self.w.rt.started_with as u64);
+        h.u64(self.w.rt.started_humans as u64);
+        h.u64(self.w.rt.downs_between_ticks as u64);
+        // The base fed `downed_this_tick` here: it is empty whenever a hash can be taken (it is drained by the settle of
+        // the step that filled it), so it fed nothing. It is tick scratch now and the hash covers the World only.
+        debug_assert!(self.s.is_settled(), "state_hash between steps only");
+        h.u64(self.w.next_id as u64);
+        h.u64(self.w.joined as u64);
+        h.str(self.w.winner.as_deref().unwrap_or(""));
         // Results waiting between steps (a leave's MIA) are outcomes too.
-        h.u64(self.events.len() as u64);
-        for e in &self.events {
+        h.u64(self.w.pending_events.len() as u64);
+        for e in &self.w.pending_events {
             if let Event::Resolved { id, result, .. } = e {
                 h.u64(id.0 as u64);
                 h.u64(result.outcome as u64);
@@ -212,34 +214,34 @@ mod tests {
         let h0 = base.state_hash();
         type Mutation = (&'static str, Box<dyn Fn(&mut Sim)>);
         let mutations: Vec<Mutation> = vec![
-            ("gv parts", Box::new(|s| s.players[0].gv_parts.bounty = 7)),
+            ("gv parts", Box::new(|s| s.w.players[0].gv_parts.bounty = 7)),
             (
                 "killed by",
-                Box::new(|s| s.players[0].killed_by = Some("X".into())),
+                Box::new(|s| s.w.players[0].killed_by = Some("X".into())),
             ),
             (
                 "damaged humans",
-                Box::new(|s| s.players[0].damaged_humans.push(PlayerId(2))),
+                Box::new(|s| s.w.players[0].damaged_humans.push(PlayerId(2))),
             ),
             (
                 "last hit",
-                Box::new(|s| s.players[0].last_hit = Some((PlayerId(2), 50.0))),
+                Box::new(|s| s.w.players[0].last_hit = Some((PlayerId(2), 50.0))),
             ),
             (
                 "dropped at",
-                Box::new(|s| s.players[0].dropped_at = Some(50.0)),
+                Box::new(|s| s.w.players[0].dropped_at = Some(50.0)),
             ),
-            ("bot kills", Box::new(|s| s.players[0].bot_kills = 1)),
+            ("bot kills", Box::new(|s| s.w.players[0].bot_kills = 1)),
             (
                 "budget",
                 Box::new(|s| {
-                    let _ = s.players[0]
+                    let _ = s.w.players[0]
                         .budget
                         .allow(&Command::Stop { seq: None }, 50.0);
                 }),
             ),
-            ("started humans", Box::new(|s| s.rt.started_humans = 1)),
-            ("winner", Box::new(|s| s.winner = Some("A".into()))),
+            ("started humans", Box::new(|s| s.w.rt.started_humans = 1)),
+            ("winner", Box::new(|s| s.w.winner = Some("A".into()))),
         ];
         for (name, m) in mutations {
             let mut s = base.clone();

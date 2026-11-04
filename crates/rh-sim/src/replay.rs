@@ -84,7 +84,7 @@ impl Recorder {
                 format: REPLAY_FORMAT.into(),
                 content_hash: crate::content::content_hash(),
                 config,
-                arena: sim.arena.clone(),
+                arena: sim.arena().clone(),
                 secrets: sim.secrets_for_replay(),
                 start,
                 ticks: Vec::new(),
@@ -101,7 +101,7 @@ impl Recorder {
         let inputs = std::mem::take(&mut self.pending);
         if !inputs.is_empty() {
             self.replay.ticks.push(ReplayTick {
-                tick: sim.tick,
+                tick: sim.tick(),
                 inputs,
             });
         }
@@ -157,7 +157,7 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
     let mut events = Vec::new();
     let mut next = 0;
     for (step, &expected) in r.hashes.iter().enumerate() {
-        let target = sim.tick + 1;
+        let target = sim.tick() + 1;
         if let Some(t) = r.ticks.get(next) {
             if t.tick == target {
                 for i in &t.inputs {

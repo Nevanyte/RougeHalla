@@ -7,10 +7,10 @@ use crate::sim::{Sim, Status};
 
 impl Sim {
     pub(crate) fn apply_inputs(&mut self, i: usize) {
-        let d = self.players[i].inputs.drain();
+        let d = self.w.players[i].inputs.drain();
         let n = d.actions.len();
         for k in 0..=n {
-            if self.players[i].status != Status::Alive {
+            if self.w.players[i].status != Status::Alive {
                 return;
             }
             if k == d.move_before.min(n) {
@@ -34,16 +34,16 @@ impl Sim {
 
     pub(crate) fn apply_move(&mut self, i: usize, mv: MoveCmd) {
         // cancelLockedWindup / dropLock: no target lock in the slice.
-        let from = self.players[i].pos();
+        let from = self.w.players[i].pos();
         let (path, stop, seq) = match mv {
             MoveCmd::Stop { seq } => (Vec::new(), true, seq),
             MoveCmd::Move { x, y, seq } => (
-                plan_path(&mut self.pathfinder, &self.arena.map, from, Vec2::new(x, y)),
+                plan_path(&mut self.pf, &self.k.arena.map, from, Vec2::new(x, y)),
                 false,
                 seq,
             ),
         };
-        let p = &mut self.players[i];
+        let p = &mut self.w.players[i];
         if stop || !path.is_empty() {
             p.path = path;
         }

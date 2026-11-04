@@ -786,10 +786,13 @@ pub fn compare(fx: &Fixture) -> Report {
         // Events emitted between steps (a leave's MIA result) travel with the NEXT step's events, as in legacy.
         let all: Vec<Event> = events;
         rep.ticks += 1;
-        if sim.tick != t.tick || !close(sim.server_time, t.server_time) {
+        if sim.tick() != t.tick || !close(sim.server_time(), t.server_time) {
             rep.fail(format!(
                 "clock: rust tick {} t {} vs legacy tick {} t {}",
-                sim.tick, sim.server_time, t.tick, t.server_time
+                sim.tick(),
+                sim.server_time(),
+                t.tick,
+                t.server_time
             ));
         }
         compare_entities(

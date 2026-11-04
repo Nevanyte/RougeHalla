@@ -9,17 +9,17 @@ use crate::systems::weapons::release_trigger;
 
 impl Sim {
     pub(crate) fn down_player(&mut self, vi: usize, outcome: Outcome) {
-        if !self.players[vi].standing() {
+        if !self.w.players[vi].standing() {
             return;
         }
-        let now = self.server_time;
+        let now = self.w.server_time;
         let credited = if outcome == Outcome::Mia {
-            let at = self.players[vi].dropped_at.unwrap_or(now);
+            let at = self.w.players[vi].dropped_at.unwrap_or(now);
             self.recent_rival(vi, at)
         } else {
             None
         };
-        let v = &mut self.players[vi];
+        let v = &mut self.w.players[vi];
         v.down = Some(outcome);
         v.path.clear();
         release_trigger(v, now);
@@ -31,36 +31,37 @@ impl Sim {
         let victim_bot = v.bot;
         let id = v.id;
         if let Some(c) = credited {
-            let bounty = self.players[vi].bounty;
+            let bounty = self.w.players[vi].bounty;
             self.credit_kill(c, victim_bot, bounty);
         }
-        if self.stepping {
-            self.rt.downed_this_tick.push(id);
+        if self.s.stepping {
+            self.s.downed_this_tick.push(id);
             return;
         }
-        self.rt.downs_between_ticks += 1;
-        let alive = self.players.iter().filter(|p| p.standing()).count() as u32;
+        self.w.rt.downs_between_ticks += 1;
+        let alive = self.w.players.iter().filter(|p| p.standing()).count() as u32;
         let vi = self.idx(id).expect("still present");
         self.resolve(vi, outcome, alive + 1, 0, None);
     }
 
     pub(crate) fn settle(&mut self) {
-        let downed = std::mem::take(&mut self.rt.downed_this_tick);
-        self.rt.downs_between_ticks = 0;
+        let downed = std::mem::take(&mut self.s.downed_this_tick);
+        self.w.rt.downs_between_ticks = 0;
         let alive: Vec<PlayerId> = self
+            .w
             .players
             .iter()
             .filter(|p| p.standing())
             .map(|p| p.id)
             .collect();
-        let contested = self.rt.started_with >= 2;
+        let contested = self.w.rt.started_with >= 2;
         if alive.is_empty() || (contested && alive.len() == 1) {
             self.end_run(&alive, &downed, contested);
             return;
         }
         for id in downed {
             if let Some(i) = self.idx(id) {
-                let outcome = self.players[i].down.expect("downed");
+                let outcome = self.w.players[i].down.expect("downed");
                 self.resolve(i, outcome, alive.len() as u32 + 1, 0, None);
             }
         }
@@ -90,7 +91,7 @@ impl Sim {
         for id in downed {
             if !winners.contains(id) {
                 if let Some(i) = self.idx(*id) {
-                    let outcome = self.players[i].down.expect("downed");
+                    let outcome = self.w.players[i].down.expect("downed");
                     self.resolve(i, outcome, winners.len() as u32 + 1, 0, None);
                 }
             }
@@ -119,19 +120,19 @@ impl Sim {
         } else {
             None
         };
-        self.winner = winner
+        self.w.winner = winner
             .and_then(|id| self.player(id))
             .map(|p| p.name.clone());
-        self.phase = Phase::Ended;
+        self.w.phase = Phase::Ended;
         self.emit(Event::Victory { id: winner, draw });
         self.emit(Event::RaidEnded);
     }
 
     pub(crate) fn withheld_why(&self, i: usize) -> Option<WinBonusWhy> {
-        if self.rt.started_humans < WIN_BONUS_MIN_PLAYERS {
+        if self.w.rt.started_humans < WIN_BONUS_MIN_PLAYERS {
             return Some(WinBonusWhy::Starters);
         }
-        if self.players[i].damaged_humans.len() < WIN_BONUS_MIN_OPPONENTS {
+        if self.w.players[i].damaged_humans.len() < WIN_BONUS_MIN_OPPONENTS {
             return Some(WinBonusWhy::Opponents);
         }
         None
@@ -145,10 +146,10 @@ impl Sim {
         win: u32,
         why: Option<WinBonusWhy>,
     ) {
-        let now = self.server_time;
-        let started = self.raid_started_at;
-        let players = self.rt.started_with;
-        let p = &mut self.players[i];
+        let now = self.w.server_time;
+        let started = self.w.raid_started_at;
+        let players = self.w.rt.started_with;
+        let p = &mut self.w.players[i];
         if p.resolved {
             return;
         }

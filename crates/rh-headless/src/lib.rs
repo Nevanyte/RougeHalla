@@ -101,7 +101,7 @@ impl Env {
                 Agent::External => external.push(id),
             }
         }
-        let start_tick = sim.tick;
+        let start_tick = sim.tick();
         Self {
             cfg,
             sim,
@@ -151,10 +151,10 @@ impl Env {
                 }
             })
             .collect();
-        let terminated = self.sim.phase == Phase::Ended;
-        let truncated = !terminated && self.sim.tick - self.start_tick >= self.cfg.max_ticks;
+        let terminated = self.sim.phase() == Phase::Ended;
+        let truncated = !terminated && self.sim.tick() - self.start_tick >= self.cfg.max_ticks;
         StepOut {
-            tick: self.sim.tick,
+            tick: self.sim.tick(),
             observations: self.observations(),
             events,
             terminated,
@@ -324,8 +324,16 @@ mod tests {
         assert_ne!(one(&[hit(10.0)]), one(&[hit(10.000000000000002)]));
         assert_ne!(one(&[hit(10.0)]), one(&[]));
         // One public field one ulp off.
-        let mut other = sim.clone();
-        other.server_time = f64::from_bits(other.server_time.to_bits() + 1);
+        // (State is written from outside the core only through a checkpoint.)
+        let mut cp = serde_json::to_value(&sim).unwrap();
+        let t = cp["world"]["server_time"].as_f64().unwrap();
+        cp["world"]["server_time"] = serde_json::json!(f64::from_bits(t.to_bits() + 1));
+        let mut other: rh_sim::Sim = serde_json::from_value(cp).unwrap();
+        other.after_restore();
+        assert_eq!(
+            other.server_time(),
+            f64::from_bits(sim.server_time().to_bits() + 1)
+        );
         assert_ne!(one(&[]), {
             let mut d = digest::OutcomeDigest::new();
             d.tick(&other, &[]);

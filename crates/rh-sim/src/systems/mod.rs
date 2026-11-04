@@ -17,22 +17,22 @@ use movement::{advance_along_path, record_history};
 
 impl Sim {
     pub(crate) fn update_active(&mut self) {
-        let now = self.server_time;
+        let now = self.w.server_time;
         // markTickStart
-        self.rt.bounty_at_tick_start.clear();
-        for p in &mut self.players {
+        self.s.bounty_at_tick_start.clear();
+        for p in &mut self.w.players {
             p.hp_frac_at_tick_start = if p.max_hp > 0.0 {
                 (p.hp + p.barrier) / p.max_hp
             } else {
                 0.0
             };
-            self.rt.bounty_at_tick_start.push((p.id, p.bounty));
+            self.s.bounty_at_tick_start.push((p.id, p.bounty));
         }
-        self.ledger.clear();
-        self.melee.clear();
-        let join: Vec<PlayerId> = self.players.iter().map(|p| p.id).collect();
-        let order = action_order(self.secrets.order_salt, self.tick, &join);
-        self.rank = order.iter().enumerate().map(|(i, id)| (*id, i)).collect();
+        self.s.ledger.clear();
+        self.s.melee.clear();
+        let join: Vec<PlayerId> = self.w.players.iter().map(|p| p.id).collect();
+        let order = action_order(self.k.secrets.order_salt, self.w.tick, &join);
+        self.s.rank = order.iter().enumerate().map(|(i, id)| (*id, i)).collect();
         for id in &order {
             if let Some(i) = self.idx(*id) {
                 self.apply_inputs(i);
@@ -41,8 +41,8 @@ impl Sim {
         // [abilities] [target locks]  -- not in the slice (docs/backlog)
         self.update_weapons();
         // [afterWeapons]
-        let standing: Vec<usize> = (0..self.players.len())
-            .filter(|&i| self.players[i].standing())
+        let standing: Vec<usize> = (0..self.w.players.len())
+            .filter(|&i| self.w.players[i].standing())
             .collect();
         let mults: Vec<f64> = standing
             .iter()
@@ -57,12 +57,12 @@ impl Sim {
             .collect();
         let dt = TICK_MS / 1000.0;
         for (k, &i) in standing.iter().enumerate() {
-            let p = &mut self.players[i];
+            let p = &mut self.w.players[i];
             let aiming = p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS;
             advance_along_path(p, dt, aiming, mults[k]);
         }
         for &i in &standing {
-            record_history(&mut self.players[i], now);
+            record_history(&mut self.w.players[i], now);
         }
         // [projectile sweep, spawns] -- not in the slice
         self.resolve_melee();
