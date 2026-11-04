@@ -47,8 +47,13 @@ fn verify(path: &str, ignore_content_hash: bool) {
             sim.state_hash()
         ),
         Err(e) => {
+            // `steps` is the work actually done: the steps replayed up to and including the diverging one.
+            let done = match e {
+                rh_sim::replay::ReplayError::Diverged { step, .. } => step + 1,
+                rh_sim::replay::ReplayError::ContentMismatch { .. } => 0,
+            };
             println!(
-                "{{\"verified\":false,\"steps\":{},\"contentHash\":\"{content}\",\"error\":\"{e:?}\"}}",
+                "{{\"verified\":false,\"steps\":{done},\"recordedSteps\":{},\"contentHash\":\"{content}\",\"error\":\"{e:?}\"}}",
                 r.hashes.len()
             );
             std::process::exit(1);

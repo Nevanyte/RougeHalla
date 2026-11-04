@@ -203,6 +203,10 @@ def measure(side, src, target, out_dir, wl, fp_out):
     bk_s, by_s = dhat(exe, a_short, src, out_dir, f"{side}.{name}.s")
     bk_l, by_l = dhat(exe, a_long, src, out_dir, f"{side}.{name}.l")
     du = unit_of(o_l, unit) - unit_of(o_s, unit)
+    if du <= 0:
+        # No work difference (e.g. a replay that fails its content gate on both lengths): no per-unit figure; the
+        # fingerprint still reports what happened.
+        du = float("nan")
     if unit_of(fp_out, unit) != unit_of(o_l, unit):
         sys.stderr.write(f"[perfproof] {name} {side}: the fingerprint run did {unit_of(fp_out, unit)} {unit}, the "
                          f"measured run {unit_of(o_l, unit)}: not the same work\n")
