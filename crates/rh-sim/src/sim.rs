@@ -17,8 +17,8 @@ use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::state::World;
 use crate::statics::MatchStatic;
-use crate::systems::settle;
 use crate::systems::weapons::release_trigger;
+use crate::systems::{inputs, settle};
 use std::sync::Arc;
 
 pub use crate::events::Event;
@@ -249,11 +249,7 @@ impl Sim {
         match self.w.phase {
             Phase::Lobby => self.update_lobby(),
             Phase::Active => self.update_active(),
-            Phase::Ended => {
-                for p in &mut self.w.players {
-                    p.inputs.drain();
-                }
-            }
+            Phase::Ended => self.with_cx(inputs::drain_all),
         }
         debug_assert!(
             self.s.is_settled(),

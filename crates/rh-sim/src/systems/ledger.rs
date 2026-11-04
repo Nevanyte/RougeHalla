@@ -45,6 +45,14 @@ fn rank_of(rank: &[(PlayerId, usize)], id: PlayerId) -> usize {
         .unwrap_or(usize::MAX)
 }
 
+/// System (legacy step.ts, the ledger's opening): the tick's ledger and melee queue start empty (the slice has no
+/// deferred entries: legacy `combat.deferred` arrives with P-CARDS-1). Both are already empty at the end of every step;
+/// this keeps the opening explicit.
+pub(crate) fn open(cx: &mut Cx) {
+    cx.s.ledger.clear();
+    cx.s.melee.clear();
+}
+
 /// System (legacy ledger.applyLedger): every hit of the tick lands at once. Outgoing multipliers are fixed before any
 /// victim takes damage, each victim's hits are mitigated, capped and applied together (ranked by the secret action order
 /// for kill credit), and kill spoils are paid only after every victim took its damage, so no reward decides who survives

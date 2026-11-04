@@ -1,7 +1,7 @@
 //! Downs, settlement, the end of the run and the results (legacy arena.ts `downPlayer`, `settle`, `endRun`).
 //!
 //! Touches: the players' standing and results, the run bookkeeping (`rt`, winner, phase) and the event log; `settle`
-//! drains the tick's downed list.
+//! drains the tick's downed list, `mark_tick_start` writes the tick-start snapshot.
 
 use crate::constants::*;
 use crate::events::Event;
@@ -11,6 +11,21 @@ use crate::state::{Phase, PlayerId, Status, World};
 use crate::systems::credit;
 use crate::systems::weapons::release_trigger;
 use crate::systems::Cx;
+
+/// System (legacy arena.markTickStart): what the tick's outcomes are judged against, before anyone acts. The hp
+/// fraction decides simultaneous deaths; the bounty is what a kill this tick pays.
+pub(crate) fn mark_tick_start(cx: &mut Cx) {
+    let Cx { w, s, .. } = cx;
+    s.bounty_at_tick_start.clear();
+    for p in &mut w.players {
+        p.hp_frac_at_tick_start = if p.max_hp > 0.0 {
+            (p.hp + p.barrier) / p.max_hp
+        } else {
+            0.0
+        };
+        s.bounty_at_tick_start.push((p.id, p.bounty));
+    }
+}
 
 /// Takes player `vi` out of the run (legacy `downPlayer`). Inside a step (`in_step` is the tick's downed list) the
 /// result waits for the settle at the end of the step; between steps (a leave) it is resolved at once.

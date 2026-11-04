@@ -12,9 +12,8 @@ pub(crate) mod weapons;
 
 use crate::events::Event;
 use crate::pathfind::Pathfinder;
-use crate::rng::action_order;
 use crate::scratch::TickScratch;
-use crate::sim::{PlayerId, Sim};
+use crate::sim::Sim;
 use crate::state::World;
 use crate::statics::MatchStatic;
 
@@ -48,26 +47,9 @@ impl Sim {
 
 impl Sim {
     pub(crate) fn update_active(&mut self) {
-        // markTickStart
-        self.s.bounty_at_tick_start.clear();
-        for p in &mut self.w.players {
-            p.hp_frac_at_tick_start = if p.max_hp > 0.0 {
-                (p.hp + p.barrier) / p.max_hp
-            } else {
-                0.0
-            };
-            self.s.bounty_at_tick_start.push((p.id, p.bounty));
-        }
-        self.s.ledger.clear();
-        self.s.melee.clear();
-        let join: Vec<PlayerId> = self.w.players.iter().map(|p| p.id).collect();
-        let order = action_order(self.k.secrets.order_salt, self.w.tick, &join);
-        self.s.rank = order.iter().enumerate().map(|(i, id)| (*id, i)).collect();
-        for id in &order {
-            if let Some(i) = self.idx(*id) {
-                self.apply_inputs(i);
-            }
-        }
+        self.with_cx(settle::mark_tick_start);
+        self.with_cx(ledger::open);
+        self.with_cx(inputs::apply_all);
         // [abilities] [target locks]  -- not in the slice (docs/backlog)
         self.with_cx(weapons::update);
         // [afterWeapons]
