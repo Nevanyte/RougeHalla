@@ -1,7 +1,10 @@
 // Reusable Claude Code workflow for one stage of the core sweep (docs/sweep/README.md). Invoke with the Workflow tool:
 // scriptPath tools/sweep/core-stage.workflow.js, args {scratch: <a writable temp dir for review worktrees>, base: <sha>,
-// packages: [{id, title, spec, resume?, resume_note?}]} (specs: docs/sweep/PACKAGES.md). Optional args.audit overrides the
-// audit record path. Implementers and fixers run on Sonnet, reviewers on Opus (owner policy).
+// packages: [{id, title, spec, resume?, resume_note?}]} (specs: docs/sweep/PACKAGES.md): independent packages in parallel,
+// all on one base. Or args {scratch, base, chains: [[pkg, pkg, ...], ...]}: chains run in parallel; inside a chain each
+// package is STACKED on the previous package's final branch (its fix branch if it had one), so a dependent package starts
+// without waiting for the coordinator's merge; a chain stops if a package is still blocked after its fix and re-review.
+// Optional args.audit overrides the audit record path. Implementers and fixers run on Sonnet, reviewers on Opus (owner policy).
 export const meta = {
   name: 'core-stage',
   description: 'Implement one stage of the core improvement plan: packages in isolated worktrees, independent review, fixes',
@@ -13,7 +16,7 @@ export const meta = {
 }
 
 const SP = args.scratch
-const BRIEF = `Repository: the Roguehalla monorepo (your cwd is an isolated git worktree of it). Main branch of this effort: optimization_port. Base revision for this stage: ${args.base} (verify with git log -1; if your worktree HEAD differs, run git checkout --detach ${args.base} before anything else). Roguehalla is being ported from a TypeScript game (packages/, legacy, keep it untouched and runnable) to a Rust authoritative server (crates/) and a Unity client (client-unity/). docs/MIGRATION.md, docs/CONTRACTS.md, docs/adr/ and docs/backlog/ describe the state.
+const brief = (BASE) => `Repository: the Roguehalla monorepo (your cwd is an isolated git worktree of it). Main branch of this effort: optimization_port. Base revision for this stage: ${BASE} (verify with git log -1; if your worktree HEAD differs, run git checkout --detach ${BASE} before anything else). If the base is a package branch that is not merged into optimization_port yet, that is intended (stacked packages): build on it. Roguehalla is being ported from a TypeScript game (packages/, legacy, keep it untouched and runnable) to a Rust authoritative server (crates/) and a Unity client (client-unity/). docs/MIGRATION.md, docs/CONTRACTS.md, docs/adr/ and docs/backlog/ describe the state.
 
 THE GOAL (owner, verbatim): "do a final optimization sweep, and make provable improvements to the architecture as this will be the core for the rest of the project. The architecture should NOT be 1:1 as legacy version but in new languages but should also be substantially improved." Gameplay must stay identical to legacy: the parity harness keeps matching exactly. Non-negotiables: rh-sim stays pure (no I/O, clock, entropy, HashMap iteration); fixed 20 Hz step; the legacy ORDER of tick systems is never changed (C-TICK); every actor acts only through validate + Sim::submit (C-INPUT); observations never leak hidden state (C-OBS); secrets never leave the server (C-RNG); f64 operation order and A* tie-breaking stay exactly as they are (bit-identical results); any wire change bumps PROTOCOL_VERSION, regenerates the golden vectors and the C# mirror must pass. No ML of any kind. No model identifiers in commits, code or docs.
 
@@ -36,7 +39,7 @@ GATES (run all before you finish; report the results honestly, with numbers; a f
 4. cargo run -p rh-parity --bin parity-report: its last line must say all MATCH (13 slice scenarios + 1 capture-only and 300 pathfinding queries at the stage-2 base; more if you add fixtures)
 5. If you touched client-unity: PATH=$HOME/.dotnet:$PATH DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet test client-unity/RoguehallaNet.Tests, and bash client-unity/sync-net.sh --check (run bash client-unity/sync-net.sh to sync first)
 6. If you touched the wire, the server's frames or observations: cargo build -p rh-server && node tools/browser-proof/proof.mjs (Playwright 1.63.0 and Chromium are preinstalled; if the playwright module is missing in your worktree run npm i --no-save playwright@1.63.0)
-7. python3 tools/perfproof/perfproof.py --baseline ${args.base} (read its --help: workloads include sim_*, paths_300, wire_seed1_8bots, headless_*, headless_seed1_recorded and verify_replay, which verifies base-recorded replays on both binaries; gate flags --max-ir-ratio etc.) (deterministic callgrind/DHAT A/B of your working tree vs the base; it builds both into target/perfproof, ~10 min; add workloads with --only if useful). Paste its table into your report. Behaviour fingerprints must be identical unless your package declares the change. Then rm -rf target/perfproof to free disk.
+7. python3 tools/perfproof/perfproof.py --baseline ${BASE} (read its --help: workloads include sim_*, paths_300, wire_seed1_8bots, headless_*, headless_seed1_recorded and verify_replay, which verifies base-recorded replays on both binaries; gate flags --max-ir-ratio etc.) (deterministic callgrind/DHAT A/B of your working tree vs the base; it builds both into target/perfproof, ~10 min; add workloads with --only if useful). Paste its table into your report. Behaviour fingerprints must be identical unless your package declares the change. Then rm -rf target/perfproof to free disk.
 Finally delete your worktree's target/ directory contents only if disk is below 5 GB free (df -h /).
 
 Return the structured report. head_sha must be the final commit of your branch.`
@@ -66,13 +69,10 @@ const REVIEW = {
   required: ['verdict', 'blocking', 'nonblocking'],
 }
 
-const results = await pipeline(args.packages,
-  (pkg) => agent(`${BRIEF}\n\nYOUR ASSIGNMENT: package ${pkg.id}: ${pkg.title}\n\n${pkg.resume ? `RESUMING: an earlier engineer started this package and was stopped. Do NOT create pkg/${pkg.id}; instead run git checkout ${pkg.resume} (it is not checked out anywhere else). Its commits so far: ${pkg.resume_note}. Read them (git log -p ${args.base}..HEAD) and the spec, then finish the remaining work, keeping their design unless it is wrong (say so). Your report covers the whole package (branch = ${pkg.resume}).\n\n` : ''}${pkg.spec}`,
-    { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' }),
-  (rep, pkg) => rep && agent(`You are an independent senior reviewer. Do NOT edit files, commit or switch branches in the main checkout (/home/user/RougeHalla, branch optimization_port). Use read-only git (git diff ${args.base}..${rep.branch}, git show, git log) and read files at that revision with git show ${rep.branch}:<path>. You may create a throwaway worktree under ${SP}/review-${pkg.id} (git worktree add --detach ${SP}/review-${pkg.id} ${rep.branch}) to build and run tests or perfproof there, and must remove it when done (git worktree remove --force).
+const reviewPrompt = (pkg, rep, BASE, extra) => `You are an independent senior reviewer. Do NOT edit files, commit or switch branches in the main checkout (/home/user/RougeHalla, branch optimization_port). Use read-only git (git diff ${BASE}..${rep.branch}, git show, git log) and read files at that revision with git show ${rep.branch}:<path>. You may create a throwaway worktree under ${SP}/review-${pkg.id} (git worktree add --detach ${SP}/review-${pkg.id} ${rep.branch}) to build and run tests or perfproof there, and must remove it when done (git worktree remove --force).
 
 Context:
-${BRIEF.slice(0, 2600)}
+${brief(BASE).slice(0, 2700)}
 
 The package spec the engineer was given:
 ${pkg.title}
@@ -80,12 +80,46 @@ ${pkg.spec}
 
 The engineer's report (claims to verify, not to trust):
 ${JSON.stringify(rep)}
+${extra || ''}
+Review the branch diff for: behaviour changes that would break parity or a contract (f64 operation order, A* tie-breaking, event order, observation contents, hashing/checkpoint coverage, C-TICK/C-INPUT/C-OBS/C-RNG); proofs that are not real (thresholds not met, numbers not reproducible, fingerprints that differ); spec items silently skipped; tests that would not catch a regression; writes outside scope; unsafe or panicking paths introduced; docs that overstate. Re-run the cheap gates that matter for your doubts. Blocking = must be fixed before merge. Be concrete (file:line, fix).`
 
-Review the branch diff for: behaviour changes that would break parity or a contract (f64 operation order, A* tie-breaking, event order, observation contents, hashing/checkpoint coverage, C-TICK/C-INPUT/C-OBS/C-RNG); proofs that are not real (thresholds not met, numbers not reproducible, fingerprints that differ); spec items silently skipped; tests that would not catch a regression; writes outside scope; unsafe or panicking paths introduced; docs that overstate. Re-run the cheap gates that matter for your doubts. Blocking = must be fixed before merge. Be concrete (file:line, fix).`,
-    { label: `review:${pkg.id}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' }).then(rv => ({ rep, rv })),
-  (x, pkg) => {
-    if (!x || !x.rv || x.rv.verdict === 'accept' || !x.rv.blocking.length) return x
-    return agent(`${BRIEF}\n\nYOUR ASSIGNMENT: fix the blocking review findings on package ${pkg.id} (${pkg.title}). Instead of creating pkg/${pkg.id}, run: git checkout -b pkg/${pkg.id}-fix ${x.rep.branch} (the original branch is ${x.rep.branch} at ${x.rep.head_sha}). Fix every blocking finding below (or explain precisely why one is wrong, with evidence), re-run all gates, commit, and return the full structured report for the package as it now stands (branch = pkg/${pkg.id}-fix).\n\nPACKAGE SPEC:\n${pkg.spec}\n\nBLOCKING FINDINGS:\n${JSON.stringify(x.rv.blocking)}\n\nNON-BLOCKING NOTES (address if cheap):\n${JSON.stringify(x.rv.nonblocking)}`,
-      { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' }).then(f => ({ ...x, fix: f }))
-  })
+async function runPackage(pkg, BASE) {
+  const B = brief(BASE)
+  const rep = await agent(`${B}\n\nYOUR ASSIGNMENT: package ${pkg.id}: ${pkg.title}\n\n${pkg.resume ? `RESUMING: an earlier engineer started this package and was stopped. Do NOT create pkg/${pkg.id}; instead run git checkout ${pkg.resume} (it is not checked out anywhere else). Its commits so far: ${pkg.resume_note}. Read them (git log -p ${BASE}..HEAD) and the spec, then finish the remaining work, keeping their design unless it is wrong (say so). Your report covers the whole package (branch = ${pkg.resume}).\n\n` : ''}${pkg.spec}`,
+    { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' })
+  if (!rep) return null
+  const rv = await agent(reviewPrompt(pkg, rep, BASE), { label: `review:${pkg.id}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })
+  const x = { rep, rv, base: BASE, final_branch: rep.branch, final_head: rep.head_sha, accepted: !!rv && (rv.verdict === 'accept' || !rv.blocking.length) }
+  if (!rv || x.accepted) return x
+  const fix = await agent(`${B}\n\nYOUR ASSIGNMENT: fix the blocking review findings on package ${pkg.id} (${pkg.title}). Instead of creating pkg/${pkg.id}, run: git checkout -b pkg/${pkg.id}-fix ${rep.branch} (the original branch is ${rep.branch} at ${rep.head_sha}). Fix every blocking finding below (or explain precisely why one is wrong, with evidence), re-run all gates, commit, and return the full structured report for the package as it now stands (branch = pkg/${pkg.id}-fix).\n\nPACKAGE SPEC:\n${pkg.spec}\n\nBLOCKING FINDINGS:\n${JSON.stringify(rv.blocking)}\n\nNON-BLOCKING NOTES (address if cheap):\n${JSON.stringify(rv.nonblocking)}`,
+    { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' })
+  x.fix = fix
+  if (!fix) return x
+  x.final_branch = fix.branch; x.final_head = fix.head_sha
+  if (args.chains) {
+    // Stacked work builds on this branch: confirm the fix before the next package depends on it.
+    const rv2 = await agent(reviewPrompt(pkg, fix, BASE, `\nThis is a RE-REVIEW after a fix pass. The earlier blocking findings were:\n${JSON.stringify(rv.blocking)}\nCheck each is resolved (or convincingly refuted) and that the fix introduced nothing new.\n`),
+      { label: `rereview:${pkg.id}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })
+    x.rereview = rv2
+    x.accepted = !!rv2 && (rv2.verdict === 'accept' || !rv2.blocking.length)
+  }
+  return x
+}
+
+if (args.chains) {
+  const out = await parallel(args.chains.map((chain, ci) => async () => {
+    let base = args.base
+    const done = []
+    for (const pkg of chain) {
+      const r = await runPackage(pkg, pkg.base || base)
+      done.push(r ? { id: pkg.id, ...r } : { id: pkg.id, failed: true })
+      if (!r || !r.accepted) { log(`chain ${ci}: ${pkg.id} not accepted; stopping this chain`); break }
+      base = r.final_head
+      log(`chain ${ci}: ${pkg.id} accepted at ${r.final_branch} ${r.final_head}`)
+    }
+    return done
+  }))
+  return out
+}
+const results = await pipeline(args.packages, (pkg) => runPackage(pkg, args.base))
 return results
