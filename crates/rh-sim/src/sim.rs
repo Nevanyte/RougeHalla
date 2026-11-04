@@ -18,7 +18,7 @@ use crate::scratch::TickScratch;
 use crate::state::World;
 use crate::statics::MatchStatic;
 use crate::systems::weapons::release_trigger;
-use crate::systems::{inputs, settle};
+use crate::systems::{self, settle, Cx};
 use std::sync::Arc;
 
 pub use crate::events::Event;
@@ -145,9 +145,6 @@ impl Sim {
     pub fn player(&self, id: PlayerId) -> Option<&Player> {
         self.w.players.iter().find(|p| p.id == id)
     }
-    pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
-        self.w.idx(id)
-    }
     pub fn secrets_for_replay(&self) -> Secrets {
         self.k.secrets
     }
@@ -159,8 +156,18 @@ impl Sim {
         std::mem::take(&mut self.w.pending_events)
     }
 
-    pub(crate) fn emit(&mut self, e: Event) {
-        self.w.pending_events.push(e);
+    /// Runs `f` over a [`Cx`] outside a step (a leave): its events wait in the world for the next step, in order.
+    fn with_cx<R>(&mut self, f: impl FnOnce(&mut Cx<'_>) -> R) -> R {
+        let mut ev = std::mem::take(&mut self.w.pending_events);
+        let r = f(&mut Cx {
+            k: &self.k,
+            w: &mut self.w,
+            s: &mut self.s,
+            ev: &mut ev,
+            pf: &mut self.pf,
+        });
+        self.w.pending_events = ev;
+        r
     }
 
     /// Joins the lobby (legacy `addPlayer`): faction picked or round robin by join order, fists in hand.
@@ -197,7 +204,9 @@ impl Sim {
     /// commands reach the simulation: network clients, scripted bots and policies alike.
     pub fn submit(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
         let now = self.w.server_time;
-        let Some(i) = self.idx(id) else { return Ok(()) };
+        let Some(i) = self.w.idx(id) else {
+            return Ok(());
+        };
         let p = &mut self.w.players[i];
         if !p.budget.allow(&cmd, now) {
             return Err(Reject::OverBudget);
@@ -207,7 +216,9 @@ impl Sim {
 
     /// Queues a command with no order budget: the parity harness only (the legacy capture fed the sim directly).
     pub fn submit_unbudgeted(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
-        let Some(i) = self.idx(id) else { return Ok(()) };
+        let Some(i) = self.w.idx(id) else {
+            return Ok(());
+        };
         self.w.players[i].inputs.push(cmd)
     }
 
@@ -219,7 +230,7 @@ impl Sim {
     pub fn mark_dropped(&mut self, id: PlayerId, dropped: bool) {
         let now = self.w.server_time;
         let active = self.w.phase == Phase::Active;
-        if let Some(i) = self.idx(id) {
+        if let Some(i) = self.w.idx(id) {
             let p = &mut self.w.players[i];
             if dropped {
                 if p.dropped_at.is_none() && active {
@@ -235,7 +246,7 @@ impl Sim {
 
     /// A player leaves for good (legacy `removePlayer`): in an active run it counts as a death (MIA), resolved at once.
     pub fn remove_player(&mut self, id: PlayerId) {
-        let Some(i) = self.idx(id) else { return };
+        let Some(i) = self.w.idx(id) else { return };
         if self.w.phase == Phase::Active {
             self.with_cx(|cx| settle::down_player(cx.w, cx.ev, None, i, Outcome::Mia));
         }
@@ -246,15 +257,19 @@ impl Sim {
     pub fn step(&mut self) -> Vec<Event> {
         self.w.server_time += TICK_MS;
         self.w.tick += 1;
-        match self.w.phase {
-            Phase::Lobby => self.update_lobby(),
-            Phase::Active => self.update_active(),
-            Phase::Ended => self.with_cx(inputs::drain_all),
-        }
+        // The step's event log starts with the events that waited since the last step (a leave's result).
+        let mut ev = std::mem::take(&mut self.w.pending_events);
+        systems::step(&mut Cx {
+            k: &self.k,
+            w: &mut self.w,
+            s: &mut self.s,
+            ev: &mut ev,
+            pf: &mut self.pf,
+        });
         debug_assert!(
             self.s.is_settled(),
             "tick-local buffers must be empty at the end of a step"
         );
-        self.take_events()
+        ev
     }
 }
