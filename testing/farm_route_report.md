@@ -13,25 +13,25 @@ numbers): 5-45 s a camp and 15-85% of max hp; the model below is the same order 
 
 | build (weapon) | fire | sentenced | plague | frost | holy | mean s | mean hp |
 |---|---|---|---|---|---|---|---|
-| fire:A (sword) | 5s · 31% | 9s · 43% | 7s · 33% | 12s · 40% | 9s · 30% | 8 | 35% |
-| fire:B (shield) | 4s · 30% | 9s · 43% | 7s · 33% | 12s · 39% | 9s · 30% | 8 | 35% |
-| sentenced:A (sword) | 11s · 41% | 22s · 61% | 19s · 48% | 30s · 53% | 24s · 42% | 21 | 49% |
-| sentenced:B (bow) | 13s · 46% | 25s · 65% | 18s · 45% | 36s · 56% | 25s · 42% | 23 | 51% |
-| plague:A (wand) | 7s · 30% | 14s · 43% | 11s · 32% | 19s · 38% | 15s · 30% | 13 | 35% |
-| plague:B (wand) | 7s · 29% | 14s · 42% | 11s · 31% | 19s · 36% | 14s · 28% | 13 | 33% |
-| frost:A (shield) | 12s · 29% | 23s · 42% | 23s · 37% | 32s · 37% | 28s · 32% | 23 | 35% |
-| frost:B (bow) | 15s · 35% | 31s · 48% | 22s · 35% | 42s · 41% | 30s · 32% | 28 | 38% |
-| holy:A (axe) | 8s · 10% | 16s · 14% | 19s · 20% | 23s · 15% | 23s · 6% | 18 | 13% |
-| holy:B (wand) | 11s · 13% | 21s · 17% | 19s · 18% | 29s · 17% | 24s · 5% | 21 | 14% |
+| fire:A (sword) | 5s · 46% | 9s · 66% | 7s · 39% | 12s · 60% | 9s · 41% | 8 | 51% |
+| fire:B (shield) | 4s · 46% | 9s · 66% | 7s · 39% | 12s · 60% | 9s · 41% | 8 | 50% |
+| sentenced:A (sword) | 11s · 63% | 22s · 93% | 19s · 59% | 30s · 82% | 24s · 58% | 21 | 71% |
+| sentenced:B (bow) | 13s · 70% | 25s · 101% | 18s · 55% | 36s · 88% | 25s · 57% | 23 | 74% |
+| plague:A (wand) | 7s · 46% | 14s · 67% | 11s · 40% | 19s · 59% | 15s · 41% | 13 | 50% |
+| plague:B (wand) | 7s · 43% | 14s · 64% | 11s · 38% | 19s · 56% | 14s · 39% | 13 | 48% |
+| frost:A (shield) | 12s · 44% | 23s · 65% | 23s · 46% | 32s · 58% | 28s · 43% | 23 | 51% |
+| frost:B (bow) | 15s · 54% | 31s · 77% | 22s · 43% | 42s · 67% | 30s · 44% | 28 | 57% |
+| holy:A (axe) | 8s · 20% | 16s · 28% | 19s · 26% | 23s · 28% | 23s · 12% | 18 | 23% |
+| holy:B (wand) | 11s · 25% | 21s · 33% | 19s · 25% | 29s · 33% | 24s · 12% | 21 | 25% |
 
-The field: the mean bonus kit of every player at 600 s (mean 64 kills, min 23, max 168): ad 9.7, ap 22.5, armor 33.3, shield 40.5, maxHp 0.281, attackSpeed 0.207, moveSpeed 0.0959, lifesteal 0.0448, damage 0.212
+The field: the mean bonus kit of every player at 600 s (mean 64 kills, min 26, max 185): ad 9.73, ap 22.5, armor 33.2, shield 40.5, maxHp 0.282, attackSpeed 0.207, moveSpeed 0.0958, lifesteal 0.0448, damage 0.21
 
 ## 3b. What one kill is worth to each build (combat lens, a player holding the field's kit; 100 = the build's best stat)
 
 | build | ad | ap | armor | shield | maxHp | attackSpeed | moveSpeed | lifesteal | damage | best mob types (stat) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| fire:A (sword) | 13 | 45 | 76 | 55 | 73 | 25 | 0 | 33 | 100 | Ember Imp, Inquisitor, Bailiff, Rime Stalker, Zealot |
-| fire:B (shield) | 12 | 23 | 91 | 72 | 73 | 28 | 0 | 34 | 100 | Ember Imp, Inquisitor, Bailiff, Rime Stalker, Zealot |
+| fire:A (sword) | 13 | 45 | 76 | 54 | 73 | 25 | 0 | 33 | 100 | Ember Imp, Inquisitor, Bailiff, Rime Stalker, Zealot |
+| fire:B (shield) | 12 | 23 | 91 | 72 | 73 | 27 | 0 | 34 | 100 | Ember Imp, Inquisitor, Bailiff, Rime Stalker, Zealot |
 | sentenced:A (sword) | 15 | 64 | 62 | 50 | 72 | 100 | 0 | 29 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Magma Brute |
 | sentenced:B (bow) | 66 | 16 | 63 | 51 | 72 | 100 | 0 | 29 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Magma Brute |
 | plague:A (wand) | 10 | 100 | 34 | 22 | 54 | 30 | 0 | 20 | 72 | Flame Caller, Miasma Witch, Ember Imp, Inquisitor, Magma Brute |
@@ -39,7 +39,7 @@ The field: the mean bonus kit of every player at 600 s (mean 64 kills, min 23, m
 | frost:A (shield) | 0 | 24 | 81 | 74 | 75 | 100 | 0 | 44 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Bailiff |
 | frost:B (bow) | 93 | 0 | 40 | 25 | 74 | 100 | 0 | 38 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Pardoner |
 | holy:A (axe) | 80 | 0 | 49 | 25 | 64 | 100 | 0 | 16 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Pardoner |
-| holy:B (wand) | 22 | 71 | 49 | 25 | 45 | 100 | 0 | 19 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Flame Caller |
+| holy:B (wand) | 22 | 71 | 50 | 25 | 45 | 100 | 0 | 19 | 100 | Plague Rat, Frostbow Sentry, Ember Imp, Inquisitor, Flame Caller |
 
 ## 3. Break-even detour (analytic, one decision at a time)
 The decision: the camp next to you is not for your build; is walking on to the nearest camp that is worth it? From a camp,
@@ -50,31 +50,31 @@ they add to duel power for the build holding the kit its routed player ends with
 
 | build | r (design) | nearest cycle w_n + c (s) | affordable extra walk (s) | actual extra walk to its nearest build camp (s) | pays (design) | pays (combat) |
 |---|---|---|---|---|---|---|
-| fire:A | 3.13 | 12.6 | 26.9 | 2.4 | 97% | 36% |
+| fire:A | 3.13 | 12.7 | 26.9 | 2.4 | 97% | 36% |
 | fire:B | 3.34 | 10.9 | 25.6 | 1.0 | 98% | 57% |
-| sentenced:A | 2.58 | 25.4 | 40.2 | 1.4 | 98% | 41% |
-| sentenced:B | 3.37 | 25.8 | 61.0 | 2.4 | 91% | 64% |
-| plague:A | 4.03 | 17.8 | 53.7 | 3.8 | 99% | 48% |
-| plague:B | 3.53 | 16.3 | 41.3 | 3.9 | 98% | 56% |
-| frost:A | 3.78 | 25.3 | 70.3 | 1.9 | 98% | 68% |
-| frost:B | 2.86 | 34.3 | 63.9 | 2.4 | 98% | 68% |
+| sentenced:A | 2.58 | 25.5 | 40.2 | 1.4 | 98% | 42% |
+| sentenced:B | 3.37 | 25.8 | 61.2 | 2.4 | 91% | 65% |
+| plague:A | 4.03 | 17.8 | 53.8 | 3.8 | 99% | 49% |
+| plague:B | 3.53 | 16.3 | 41.4 | 3.9 | 98% | 57% |
+| frost:A | 3.78 | 25.3 | 70.4 | 1.9 | 98% | 68% |
+| frost:B | 2.86 | 34.4 | 64.0 | 2.4 | 98% | 68% |
 | holy:A | 3.09 | 20.3 | 42.4 | 2.4 | 97% | 41% |
-| holy:B | 3.33 | 25.1 | 58.3 | 3.2 | 99% | 41% |
+| holy:B | 3.33 | 25.1 | 58.4 | 3.2 | 99% | 41% |
 
 ## 3c. Defense and Soul Defense as counters (one kill of it, against one kill of max health / of the best other stat)
 
 | you (nearest-farmer kit) | Defense vs Offense builds | Soul Def. vs Soul Offence builds | Defense vs the field | Soul Def. vs the field |
 |---|---|---|---|---|
-| fire:A | 1.42 / 1.02 | 1.21 / 0.97 | 1.08 / 0.72 | 0.85 / 0.56 |
-| fire:B | 1.63 / 1.15 | 1.41 / 1.13 | 1.30 / 0.86 | 1.10 / 0.72 |
-| sentenced:A | 0.99 / 0.75 | 0.93 / 0.76 | 0.81 / 0.56 | 0.70 / 0.48 |
-| sentenced:B | 0.98 / 0.76 | 0.93 / 0.77 | 0.81 / 0.56 | 0.70 / 0.49 |
-| plague:A | 0.83 / 0.46 | 0.70 / 0.42 | 0.60 / 0.31 | 0.42 / 0.21 |
-| plague:B | 0.72 / 0.48 | 0.65 / 0.43 | 0.54 / 0.31 | 0.37 / 0.22 |
-| frost:A | 1.18 / 0.92 | 1.11 / 0.92 | 1.04 / 0.74 | 0.98 / 0.69 |
-| frost:B | 0.69 / 0.54 | 0.55 / 0.46 | 0.51 / 0.36 | 0.33 / 0.24 |
-| holy:A | 0.80 / 0.46 | 0.71 / 0.55 | 0.84 / 0.36 | 0.62 / 0.26 |
-| holy:B | 1.16 / 0.47 | 0.93 / 0.56 | 1.44 / 0.36 | 1.04 / 0.26 |
+| fire:A | 1.35 / 1.00 | 1.44 / 0.94 | 1.02 / 0.70 | 0.83 / 0.57 |
+| fire:B | 1.60 / 1.14 | 1.75 / 1.10 | 1.27 / 0.84 | 1.10 / 0.73 |
+| sentenced:A | 0.96 / 0.76 | 1.04 / 0.73 | 0.78 / 0.56 | 0.67 / 0.48 |
+| sentenced:B | 1.01 / 0.80 | 1.05 / 0.75 | 0.82 / 0.59 | 0.69 / 0.50 |
+| plague:A | 0.79 / 0.45 | 0.83 / 0.41 | 0.57 / 0.30 | 0.42 / 0.22 |
+| plague:B | 0.71 / 0.48 | 0.75 / 0.41 | 0.52 / 0.31 | 0.37 / 0.22 |
+| frost:A | 1.16 / 0.90 | 1.34 / 0.89 | 1.02 / 0.72 | 0.97 / 0.68 |
+| frost:B | 0.67 / 0.54 | 0.65 / 0.46 | 0.49 / 0.36 | 0.34 / 0.25 |
+| holy:A | 0.80 / 0.45 | 0.95 / 0.52 | 0.85 / 0.62 | 0.82 / 0.60 |
+| holy:B | 1.14 / 0.46 | 1.35 / 0.53 | 2.86 / 0.36 | 1.66 / 0.21 |
 
 ## 4. Route simulation: value banked at 300 s and 600 s (mean over maps x rosters x random starts)
 design = weighted stacks (1 per wanted stack, 0.25 per unwanted); combat = duel power vs the field in log units
@@ -83,46 +83,46 @@ nearest camp. h2h = targeted (combat lens) against nearest, same faction and wea
 
 | build | strategy | kills@300 | kills@600 | design@300 | design@600 | combat@300 | combat@600 | walk/kill | rest+wait s | skip | detour s/skip |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| fire:A | nearest | 59 | 106 | 70 | 132 | +0.959 | +1.643 | 2.0 | 206 | 0% | 0.0 |
-| fire:A | onbuild | 37 | 66 | 95 | 172 | +0.664 | +1.071 | 2.6 | 363 | 58% | 35.9 |
-| fire:A | targeted:design | 56 | 98 | 115 | 207 | +0.901 | +1.446 | 2.0 | 306 | 46% | 24.1 |
-| fire:A | targeted:combat | 56 | 97 | 86 | 149 | +1.269 | +1.987 | 2.3 | 244 | 45% | 13.1 |
-| fire:B | nearest | 60 | 107 | 96 | 169 | +1.023 | +1.734 | 2.0 | 210 | 0% | 0.0 |
-| fire:B | onbuild | 46 | 79 | 107 | 184 | +1.019 | +1.504 | 2.5 | 242 | 38% | 18.0 |
-| fire:B | targeted:design | 52 | 86 | 121 | 204 | +0.974 | +1.427 | 2.3 | 257 | 50% | 16.3 |
-| fire:B | targeted:combat | 56 | 96 | 98 | 161 | +1.381 | +2.172 | 2.3 | 254 | 47% | 12.8 |
-| sentenced:A | nearest | 35 | 70 | 53 | 105 | +0.765 | +1.344 | 2.4 | 152 | 0% | 0.0 |
-| sentenced:A | onbuild | 28 | 52 | 64 | 117 | +0.632 | +0.983 | 2.7 | 218 | 51% | 18.1 |
-| sentenced:A | targeted:design | 31 | 55 | 69 | 121 | +0.715 | +1.072 | 2.4 | 228 | 58% | 18.6 |
-| sentenced:A | targeted:combat | 39 | 72 | 53 | 101 | +1.138 | +1.772 | 2.7 | 221 | 58% | 14.9 |
-| sentenced:B | nearest | 34 | 66 | 40 | 78 | +0.646 | +1.149 | 2.3 | 146 | 0% | 0.0 |
-| sentenced:B | onbuild | 20 | 36 | 53 | 95 | +0.574 | +0.914 | 3.2 | 261 | 75% | 28.0 |
-| sentenced:B | targeted:design | 29 | 49 | 64 | 109 | +0.804 | +1.203 | 2.7 | 276 | 69% | 28.5 |
-| sentenced:B | targeted:combat | 35 | 64 | 58 | 105 | +1.000 | +1.599 | 2.8 | 218 | 58% | 16.4 |
-| plague:A | nearest | 47 | 89 | 53 | 102 | +0.757 | +1.368 | 2.2 | 183 | 0% | 0.0 |
-| plague:A | onbuild | 24 | 44 | 73 | 133 | +0.671 | +1.066 | 2.8 | 407 | 72% | 46.1 |
-| plague:A | targeted:design | 42 | 73 | 85 | 151 | +0.971 | +1.514 | 2.2 | 333 | 59% | 29.6 |
-| plague:A | targeted:combat | 47 | 84 | 74 | 130 | +1.279 | +2.033 | 2.5 | 268 | 54% | 20.9 |
-| plague:B | nearest | 48 | 89 | 57 | 104 | +0.787 | +1.397 | 2.2 | 186 | 0% | 0.0 |
-| plague:B | onbuild | 22 | 37 | 66 | 112 | +0.575 | +0.875 | 3.1 | 339 | 79% | 39.4 |
-| plague:B | targeted:design | 36 | 60 | 76 | 129 | +0.782 | +1.166 | 2.5 | 274 | 62% | 23.3 |
-| plague:B | targeted:combat | 47 | 85 | 60 | 108 | +1.295 | +2.051 | 2.5 | 264 | 54% | 18.8 |
-| frost:A | nearest | 33 | 67 | 55 | 109 | +1.181 | +1.873 | 2.4 | 148 | 0% | 0.0 |
-| frost:A | onbuild | 26 | 47 | 72 | 132 | +1.266 | +1.782 | 2.7 | 206 | 50% | 17.9 |
-| frost:A | targeted:design | 29 | 50 | 82 | 140 | +1.401 | +1.840 | 2.5 | 245 | 66% | 21.6 |
-| frost:A | targeted:combat | 34 | 64 | 70 | 126 | +1.641 | +2.323 | 2.7 | 215 | 58% | 15.8 |
-| frost:B | nearest | 29 | 57 | 39 | 74 | +0.805 | +1.294 | 2.4 | 121 | 0% | 0.0 |
-| frost:B | onbuild | 28 | 51 | 62 | 111 | +0.783 | +1.219 | 2.2 | 300 | 63% | 30.8 |
-| frost:B | targeted:design | 30 | 52 | 67 | 114 | +0.912 | +1.315 | 2.3 | 290 | 65% | 28.3 |
-| frost:B | targeted:combat | 27 | 50 | 49 | 83 | +1.244 | +1.783 | 2.8 | 251 | 72% | 24.6 |
-| holy:A | nearest | 39 | 75 | 49 | 93 | +0.910 | +1.876 | 2.3 | 159 | 0% | 0.0 |
-| holy:A | onbuild | 24 | 42 | 61 | 103 | +0.418 | +0.699 | 2.9 | 260 | 72% | 24.5 |
-| holy:A | targeted:design | 31 | 52 | 66 | 110 | +0.584 | +1.013 | 2.5 | 270 | 65% | 22.5 |
-| holy:A | targeted:combat | 41 | 72 | 46 | 79 | +1.807 | +3.322 | 2.6 | 257 | 60% | 18.8 |
-| holy:B | nearest | 36 | 69 | 42 | 81 | +0.869 | +1.856 | 2.3 | 144 | 0% | 0.0 |
-| holy:B | onbuild | 24 | 42 | 59 | 104 | +0.303 | +0.726 | 2.7 | 312 | 73% | 33.1 |
-| holy:B | targeted:design | 31 | 54 | 68 | 118 | +0.702 | +1.398 | 2.5 | 297 | 61% | 30.5 |
-| holy:B | targeted:combat | 37 | 66 | 39 | 77 | +1.655 | +3.113 | 2.7 | 258 | 63% | 21.2 |
+| fire:A | nearest | 58 | 106 | 71 | 133 | +0.921 | +1.604 | 2.1 | 204 | 0% | 0.0 |
+| fire:A | onbuild | 35 | 63 | 92 | 164 | +0.636 | +1.031 | 2.6 | 362 | 64% | 32.1 |
+| fire:A | targeted:design | 55 | 94 | 111 | 198 | +0.873 | +1.362 | 2.1 | 305 | 50% | 23.1 |
+| fire:A | targeted:combat | 56 | 99 | 87 | 151 | +1.261 | +2.009 | 2.4 | 231 | 48% | 11.5 |
+| fire:B | nearest | 58 | 106 | 91 | 168 | +0.979 | +1.692 | 2.1 | 208 | 0% | 0.0 |
+| fire:B | onbuild | 45 | 78 | 104 | 183 | +0.989 | +1.502 | 2.5 | 243 | 41% | 14.1 |
+| fire:B | targeted:design | 52 | 88 | 118 | 204 | +0.999 | +1.500 | 2.4 | 246 | 53% | 13.6 |
+| fire:B | targeted:combat | 56 | 96 | 97 | 160 | +1.383 | +2.169 | 2.4 | 242 | 48% | 11.9 |
+| sentenced:A | nearest | 33 | 68 | 48 | 101 | +0.699 | +1.270 | 2.4 | 159 | 0% | 0.0 |
+| sentenced:A | onbuild | 25 | 48 | 57 | 110 | +0.577 | +0.941 | 3.0 | 228 | 51% | 19.8 |
+| sentenced:A | targeted:design | 29 | 52 | 61 | 112 | +0.648 | +1.013 | 2.8 | 225 | 59% | 19.0 |
+| sentenced:A | targeted:combat | 36 | 70 | 48 | 100 | +1.061 | +1.729 | 2.8 | 215 | 58% | 15.4 |
+| sentenced:B | nearest | 31 | 63 | 37 | 74 | +0.569 | +1.052 | 2.5 | 158 | 0% | 0.0 |
+| sentenced:B | onbuild | 19 | 34 | 49 | 90 | +0.544 | +0.892 | 3.3 | 292 | 77% | 33.7 |
+| sentenced:B | targeted:design | 26 | 47 | 57 | 103 | +0.729 | +1.155 | 2.8 | 294 | 69% | 32.3 |
+| sentenced:B | targeted:combat | 32 | 63 | 55 | 103 | +0.933 | +1.561 | 2.9 | 214 | 59% | 16.5 |
+| plague:A | nearest | 46 | 88 | 54 | 102 | +0.731 | +1.343 | 2.2 | 183 | 0% | 0.0 |
+| plague:A | onbuild | 24 | 43 | 72 | 130 | +0.648 | +1.049 | 2.8 | 407 | 72% | 47.0 |
+| plague:A | targeted:design | 43 | 73 | 85 | 150 | +0.955 | +1.481 | 2.3 | 330 | 58% | 30.4 |
+| plague:A | targeted:combat | 47 | 84 | 73 | 130 | +1.283 | +2.032 | 2.5 | 263 | 55% | 19.7 |
+| plague:B | nearest | 47 | 88 | 55 | 102 | +0.753 | +1.344 | 2.2 | 185 | 0% | 0.0 |
+| plague:B | onbuild | 22 | 38 | 65 | 113 | +0.569 | +0.875 | 3.1 | 338 | 80% | 38.6 |
+| plague:B | targeted:design | 37 | 62 | 74 | 127 | +0.793 | +1.191 | 2.5 | 264 | 60% | 22.9 |
+| plague:B | targeted:combat | 48 | 86 | 62 | 110 | +1.301 | +2.057 | 2.5 | 257 | 56% | 17.7 |
+| frost:A | nearest | 34 | 69 | 57 | 113 | +1.220 | +1.895 | 2.4 | 137 | 0% | 0.0 |
+| frost:A | onbuild | 26 | 48 | 73 | 135 | +1.282 | +1.820 | 2.7 | 200 | 50% | 17.1 |
+| frost:A | targeted:design | 30 | 52 | 85 | 147 | +1.425 | +1.887 | 2.5 | 225 | 64% | 18.2 |
+| frost:A | targeted:combat | 36 | 68 | 74 | 137 | +1.687 | +2.395 | 2.7 | 195 | 56% | 12.1 |
+| frost:B | nearest | 29 | 58 | 39 | 76 | +0.798 | +1.288 | 2.4 | 127 | 0% | 0.0 |
+| frost:B | onbuild | 27 | 51 | 60 | 110 | +0.744 | +1.204 | 2.3 | 299 | 62% | 29.9 |
+| frost:B | targeted:design | 30 | 53 | 66 | 115 | +0.935 | +1.342 | 2.3 | 284 | 66% | 27.4 |
+| frost:B | targeted:combat | 28 | 52 | 50 | 88 | +1.260 | +1.831 | 2.8 | 233 | 69% | 22.2 |
+| holy:A | nearest | 40 | 78 | 49 | 96 | +0.928 | +1.941 | 2.3 | 144 | 0% | 0.0 |
+| holy:A | onbuild | 25 | 42 | 61 | 104 | +0.435 | +0.703 | 2.8 | 252 | 68% | 25.0 |
+| holy:A | targeted:design | 32 | 53 | 67 | 112 | +0.583 | +1.054 | 2.5 | 261 | 64% | 23.5 |
+| holy:A | targeted:combat | 44 | 76 | 48 | 84 | +1.880 | +3.337 | 2.5 | 252 | 59% | 17.3 |
+| holy:B | nearest | 36 | 71 | 40 | 81 | +0.847 | +1.871 | 2.3 | 131 | 0% | 0.0 |
+| holy:B | onbuild | 24 | 42 | 59 | 105 | +0.303 | +0.747 | 2.8 | 309 | 72% | 34.1 |
+| holy:B | targeted:design | 31 | 54 | 67 | 116 | +0.674 | +1.319 | 2.5 | 295 | 65% | 30.3 |
+| holy:B | targeted:combat | 38 | 67 | 40 | 76 | +1.658 | +3.056 | 2.6 | 257 | 61% | 22.6 |
 
 ## 5. Verdict per build: is walking to the build's camps worth it, against farming the nearest camp?
 
@@ -134,31 +134,16 @@ nearest camp. h2h = targeted (combat lens) against nearest, same faction and wea
 
 | build | decisions worth it | games (build value) | design gain | games (fights) | combat gain | mirror | mirror, bots' weights | walk per kill x | holds |
 |---|---|---|---|---|---|---|---|---|---|
-| fire:A | 73% | 97% | +57% | 93% | +0.34 | 73% | 39% | 0.98 | YES |
-| fire:B | 86% | 86% | +20% | 94% | +0.44 | 76% | 35% | 1.15 | YES |
-| sentenced:A | 84% | 86% | +16% | 94% | +0.43 | 73% | 39% | 1.03 | YES |
-| sentenced:B | 80% | 96% | +39% | 95% | +0.45 | 73% | 49% | 1.17 | YES |
-| plague:A | 68% | 89% | +48% | 94% | +0.66 | 84% | 58% | 1.04 | YES |
-| plague:B | 69% | 88% | +25% | 95% | +0.65 | 84% | 40% | 1.16 | YES |
-| frost:A | 96% | 95% | +29% | 94% | +0.45 | 76% | 48% | 1.04 | YES |
-| frost:B | 92% | 97% | +54% | 97% | +0.49 | 76% | 48% | 0.94 | YES |
-| holy:A | 79% | 82% | +19% | 96% | +1.45 | 100% | 0% | 1.09 | YES |
-| holy:B | 83% | 96% | +46% | 96% | +1.26 | 100% | 5% | 1.06 | YES |
+| fire:A | 73% | 96% | +49% | 96% | +0.41 | 75% | 37% | 1.00 | YES |
+| fire:B | 88% | 93% | +22% | 94% | +0.48 | 78% | 42% | 1.15 | YES |
+| sentenced:A | 86% | 72% | +11% | 96% | +0.46 | 73% | 39% | 1.15 | YES |
+| sentenced:B | 81% | 93% | +39% | 97% | +0.51 | 75% | 51% | 1.14 | YES |
+| plague:A | 70% | 90% | +47% | 99% | +0.69 | 84% | 59% | 1.03 | YES |
+| plague:B | 69% | 89% | +24% | 100% | +0.71 | 86% | 44% | 1.13 | YES |
+| frost:A | 95% | 93% | +31% | 98% | +0.50 | 78% | 50% | 1.08 | YES |
+| frost:B | 92% | 96% | +52% | 96% | +0.54 | 79% | 50% | 0.95 | YES |
+| holy:A | 79% | 79% | +17% | 99% | +1.40 | 100% | 0% | 1.08 | YES |
+| holy:B | 83% | 97% | +43% | 93% | +1.18 | 100% | 1% | 1.08 | YES |
 
 ALL BUILDS HOLD
-
-## 6. Sweep: mob time-to-kill (mob hp x s) with the reward per kill scaled alike (stacks x s, so a minute of farming pays
-the same), and time-to-kill alone (stacks x 1). Where does targeting stop paying?
-
-| mob hp x | stacks x | builds holding | worst design gain | worst combat gain | worst mirror h2h | mean design gain | mean combat gain |
-|---|---|---|---|---|---|---|---|
-| 0.25 | 0.25 | 5/10 | +20% | +0.106 | 56% | +33% | +0.198 |
-| 0.5 | 0.5 | 9/10 | +14% | +0.196 | 62% | +35% | +0.361 |
-| 0.75 | 0.75 | 7/10 | +16% | +0.330 | 68% | +36% | +0.516 |
-| 1.0 | 1.0 | 10/10 | +16% | +0.344 | 73% | +35% | +0.662 |
-| 1.5 | 1.5 | 8/10 | +17% | +0.773 | 87% | +42% | +1.155 |
-| 2.0 | 2.0 | 8/10 | +25% | +1.300 | 96% | +65% | +2.043 |
-| 0.5 | 1.0 | 4/10 | +11% | +0.240 | 69% | +34% | +0.594 |
-| 1.5 | 1.0 | 10/10 | +21% | +0.460 | 77% | +45% | +0.833 |
-| 2.0 | 1.0 | 10/10 | +35% | +0.524 | 75% | +73% | +1.052 |
 

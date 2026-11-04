@@ -31,7 +31,7 @@
     "build:cloud-meta": "node --import tsx scripts/build-cloud-meta.mjs",
     "cf:typecheck": "npm run build:cloud-meta && tsc --noEmit -p deployment/cloudflare/tsconfig.json",
     "cf:test": "vitest run --dir deployment/cloudflare/test",
-    "cf:deploy": "npm run build && wrangler deploy --config deployment/cloudflare/wrangler.jsonc",
+    "cf:deploy": "npm run build && node scripts/cf-deploy.mjs",
     "latency": "node scripts/latency-probe.mjs",
     "latency:layers": "node scripts/network-probe.mjs"
   },

@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, MOB_KILL_STACKS, mobStatCount, mobStatReward, mobStatRows,
-  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeIn, mobTypeWeapon, MOB_ZONE_DAMAGE,
+  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobReachDamage, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeIn, mobTypeWeapon, MOB_ZONE_DAMAGE,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
 } from "@raid/shared";
@@ -158,10 +158,11 @@ describe("a mob type's weapon and role (shared mobs.ts MOB_TYPES)", () => {
     for (const t of MOB_TYPES) {
       const spec = factionOf(spawn(w, t.zone, t.elite, { x: 200, y: 200 }, t.id).s)!;
       const grunt = factionOf(spawn(w, t.zone, t.elite, { x: 220, y: 200 }).s)!;
-      expect(spec.hit, t.id).toBeCloseTo(grunt.hit * t.dmgMult, 9);
+      const dmg = t.dmgMult * mobReachDamage(t);
+      expect(spec.hit, t.id).toBeCloseTo(grunt.hit * dmg, 9);
       for (const key of Object.keys(grunt.params)) {
         const damage = ["burn", "backlash", "plague", "execute", "mark_pct", "mark_kill"].includes(key);
-        expect(spec.params[key], `${t.id} ${key}`).toBeCloseTo(damage ? grunt.params[key]! * t.dmgMult : grunt.params[key]!, 9);
+        expect(spec.params[key], `${t.id} ${key}`).toBeCloseTo(damage ? grunt.params[key]! * dmg : grunt.params[key]!, 9);
       }
       expect([spec.armor, spec.shield, spec.rate], t.id).toEqual([grunt.armor, grunt.shield, grunt.rate]);
       expect(spec.hp, t.id).toBeCloseTo(grunt.hp * t.hpMult, 9);

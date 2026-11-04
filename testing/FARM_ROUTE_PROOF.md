@@ -22,6 +22,11 @@ One change shipped with it: **Defense pays 1.25 a stack (was 1) and Soul Defense
 camp damage and every other reward are unchanged: the sweep (section 7) shows the shipped time to kill is already where every
 build holds.
 
+Then camp damage by reach (owner ruling, the same day: "melee mobs can receive a larger damage buff, mobs that kite with wand and
+arrow a lesser one"): a normal mob with a melee weapon deals `MOB_MELEE_DMG_MULT` 1.6x and a bow or wand mob `MOB_RANGED_DMG_MULT`
+1.2x on top of `MOB_DMG_MULT` 0.5; elites unchanged (section 6b). Every build still holds. Per the owner's ruling, the generalist
+builds (Sentenced, Holy: "don't have specific scaling") are held to the fights and the decisions, not to the per-game build-value bar.
+
 One finding is left for a follow-up: **the bots' build weights (`BUILD_GOALS`) point most builds at the wrong camps.** A kit
 farmed by them loses the mirror to a nearest-camp farmer for 8 of 10 builds (29-59% in the real sim; section 8).
 
@@ -205,6 +210,33 @@ Sentenced), and against the whole field.
   (81% against 79% at +1.5/+2; 77% against 76% at +1). Ten kills are a small share of a 60-100-kill kit.
 - The "+damage" camps needed no buff: they are already the best kill for 9 of 10 builds, and a buff would only make random
   farming stronger.
+
+## 6b. Camp damage by reach
+
+Real sim (`bench/campDuel.ts --types --seeds 5`, fresh players on fists, 4-mob camps):
+
+- Before the change, every normal camp was cleared 25/25 with 46-93% hp left.
+- At melee 1.6x / ranged 1.2x, every normal camp is still cleared 25/25. The tightest case is a fists Fire (base Defense 20)
+  against a melee brute camp: Chain Warden leaves 15% hp, Magma Brute 16%. Ranged camps leave 35-77%.
+- The elite gate still passes: every elite camp is cleared by at least one faction holding the minute-5 kit.
+- `test/mobStrength.test.ts` still passes (a fists starter beats a lone normal mob of every zone).
+
+In the model, a fresh player's mean camp hp cost rises from 13-51% to 23-74%. Routing still pays (8-player lobbies, final values):
+
+| build | decisions worth it | games won (build value) | games won (fights) | mirror vs nearest farmer |
+|---|---|---|---|---|
+| fire:A | 73% | 96% | 96% | 75% |
+| fire:B | 88% | 93% | 94% | 78% |
+| sentenced:A (generalist) | 86% | 72% | 96% | 73% |
+| sentenced:B | 81% | 93% | 97% | 75% |
+| plague:A | 70% | 90% | 99% | 84% |
+| plague:B | 69% | 89% | 100% | 86% |
+| frost:A | 95% | 93% | 98% | 78% |
+| frost:B | 92% | 96% | 96% | 79% |
+| holy:A (generalist) | 79% | 79% | 99% | 100% |
+| holy:B | 83% | 97% | 93% | 100% |
+
+1.4x / 1.15x was also tried. It changes no verdict: Sentenced A and Holy A sit at 79% either way, and Frost A's fights fall to 90%.
 
 ## 7. Time to kill, reward and camp damage
 

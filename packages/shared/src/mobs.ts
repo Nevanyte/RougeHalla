@@ -3,12 +3,13 @@
 // type's role (hp, damage, speed), with its type's weapon (the region's default for a mob without a type), through the same combat
 // code as a player; the sim paces it (DUEL_PACE) like any faction.
 import {
-  ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, MOB_ZONE_DAMAGE, MOB_LEASH_CAP, MOB_LEASH_RADIUS,
+  ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, MOB_MELEE_DMG_MULT, MOB_RANGED_DMG_MULT, MOB_ZONE_DAMAGE,
+  MOB_LEASH_CAP, MOB_LEASH_RADIUS,
 } from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
 import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
-import type { WeaponId } from "./weapons";
+import { WEAPONS, type WeaponId } from "./weapons";
 
 /** What state.mobs[id].kind says. "dummy" is Phase 9's training dummy; the other two are regional mobs. */
 export type MobKind = "dummy" | "mob" | "elite" | "zombie";
@@ -196,16 +197,22 @@ export function mobTypeIn(region: FactionId, id: string | undefined): MobTypeDef
   return t !== undefined && t.zone === region ? t : undefined;
 }
 
+/** A normal mob type's damage by its reach (MOB_MELEE_DMG_MULT / MOB_RANGED_DMG_MULT); 1 for an elite, whose ELITE_DMG_MULT stands alone. */
+export function mobReachDamage(t: MobTypeDef): number {
+  if (t.elite) return 1;
+  return WEAPONS[t.weapon].shape.kind === "projectile" ? MOB_RANGED_DMG_MULT : MOB_MELEE_DMG_MULT;
+}
+
 /**
  * The faction a regional mob of `type` fights as (before DUEL_PACE): the zone's mobFaction (hp and damage x k) with the type's
- * role on top: hp x hpMult, and the hit and every point-damage number x dmgMult. A type that is missing or of another zone
- * gives the plain mobFaction (a grunt's numbers). `k` overrides the scale as in mobFaction.
+ * role on top: hp x hpMult, and the hit and every point-damage number x dmgMult and by its reach (mobReachDamage). A type that is
+ * missing or of another zone gives the plain mobFaction (a grunt's numbers). `k` overrides the scale as in mobFaction.
  */
 export function mobTypeFaction(region: FactionId, elite: boolean, type?: string, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
   const base = mobFaction(region, elite, k);
   const t = mobTypeIn(region, type);
   // The role's damage and the zone's camp correction (MOB_ZONE_DAMAGE, the faction rework) both scale every damage number, never the hp.
-  const dmg = (t?.dmgMult ?? 1) * (MOB_ZONE_DAMAGE[region] ?? 1);
+  const dmg = (t?.dmgMult ?? 1) * (MOB_ZONE_DAMAGE[region] ?? 1) * (t ? mobReachDamage(t) : 1);
   if (dmg === 1 && (t === undefined || t.hpMult === 1)) return base;
   const typed = scaledFaction(base, dmg);
   const params: Record<string, number> = { ...typed.params };

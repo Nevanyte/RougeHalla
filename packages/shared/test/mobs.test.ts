@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ABILITIES, CARDS, duel, ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, MOB_ZONE_DAMAGE, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
-  mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS,
+  mobReachDamage, mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS, MOB_MELEE_DMG_MULT,
+  MOB_RANGED_DMG_MULT,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type MobKind, type MobRole, type MobTypeDef, type MobTypeId, type WeaponId,
 } from "../src/index";
@@ -506,7 +507,7 @@ describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)",
     for (const t of MOB_TYPES) {
       const base = mobFaction(t.zone, t.elite);
       const spec = mobTypeFaction(t.zone, t.elite, t.id);
-      const dmg = t.dmgMult * (MOB_ZONE_DAMAGE[t.zone] ?? 1);
+      const dmg = t.dmgMult * (MOB_ZONE_DAMAGE[t.zone] ?? 1) * mobReachDamage(t);
       expect(spec.hp, t.id).toBeCloseTo(base.hp * t.hpMult, 9);
       expect(spec.hit, t.id).toBeCloseTo(base.hit * dmg, 9);
       for (const key of Object.keys(base.params)) {
@@ -517,11 +518,19 @@ describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)",
     }
   });
 
+  it("hits harder by reach: a normal melee type x MOB_MELEE_DMG_MULT, a bow or wand type x MOB_RANGED_DMG_MULT, an elite neither", () => {
+    expect(MOB_MELEE_DMG_MULT).toBeGreaterThan(MOB_RANGED_DMG_MULT);
+    for (const t of MOB_TYPES) {
+      const ranged = t.weapon === "bow" || t.weapon === "wand";
+      expect(mobReachDamage(t), t.id).toBe(t.elite ? 1 : ranged ? MOB_RANGED_DMG_MULT : MOB_MELEE_DMG_MULT);
+    }
+  });
+
   it("takes the sweep's k like mobFaction, and does not touch the shared tables", () => {
     const before = JSON.stringify(FACTIONS);
     const spec = mobTypeFaction("plague", false, "miasmaWitch", 0.5);
     expect(spec.hp).toBeCloseTo(FACTIONS.plague.hp * 0.5 * MOB_HP_MULT * 0.75, 9);
-    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * MOB_DMG_MULT * 1.2 * MOB_ZONE_DAMAGE.plague!, 9);
+    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * MOB_DMG_MULT * 1.2 * MOB_RANGED_DMG_MULT * MOB_ZONE_DAMAGE.plague!, 9);
     expect(JSON.stringify(FACTIONS)).toBe(before);
     expect(mobTypeFaction("plague", false, "miasmaWitch").params).not.toBe(mobFaction("plague", false).params);
   });

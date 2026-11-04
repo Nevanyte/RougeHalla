@@ -513,6 +513,18 @@ export const MOB_DMG_MULT = 0.5;
 export const ELITE_HP_MULT = 2.0;
 export const ELITE_DMG_MULT = 1.5;
 /**
+ * Camp damage by reach (owner ruling, 2026-11: "the camps don't do enough damage"; MOB_DMG_MULT halved it for the doubled hp). On top
+ * of MOB_DMG_MULT, every damage number of a NORMAL mob of a type (mobTypeFaction) is multiplied by MOB_MELEE_DMG_MULT when its weapon
+ * is a melee one (sword, axe, shield) and by MOB_RANGED_DMG_MULT when it shoots (bow, wand). Melee mobs crowd round a player whose arc
+ * or wand splash hits several of them at once, and a player's scaling outgrows them fast, so they take back the larger share; bow and
+ * wand mobs kite and spread out (and casters already hit x1.2 by role), so theirs is smaller. Elites keep ELITE_DMG_MULT alone (their
+ * gates were tuned with it); a mob with no type keeps the zone's plain numbers. Validated with bench/campDuel.ts --types (every
+ * normal type's 4-mob camp cleared on fists, the elite gate), bench/mobDuel.ts (test/mobStrength.test.ts) and
+ * testing/farm_route_proof.py.
+ */
+export const MOB_MELEE_DMG_MULT = 1.6;
+export const MOB_RANGED_DMG_MULT = 1.2;
+/**
  * The faction rework's camp correction: a zone's mobs deal this share of the damage their scaled faction sheet gives them (hits and
  * signature damage; hp untouched). The reworked sheet made the factions even at full size, which moved each zone's mobs; the
  * Plague zone's faster, harder hits left its elite camps uncleared on the zone's weapon (campDuel --types), and the Holy zone's Archon

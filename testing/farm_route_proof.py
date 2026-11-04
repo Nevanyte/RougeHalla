@@ -1098,11 +1098,14 @@ GAME_FLOOR = 0.80       # the games in which routing by the build's value banks 
 FIGHT_FLOOR = 0.90      # the games in which routing by what the kills add in a duel ends stronger than the nearest farmer
 MIRROR_FLOOR = 60.0     # and that kit wins the mirror duel against the nearest farmer's this often (noise model)
 DESIGN_MARGIN = 0.10    # the sweep's design-value margin
+# "Some builds like Sentenced and Holy don't have specific scaling" (owner, 2026-11-03): their weights name shared stats, so their
+# routed farmer is held to the fights (FIGHT_FLOOR, MIRROR_FLOOR) and the decisions, not to out-banking a nearest farmer on those weights.
+GENERALIST = ("sentenced", "holy")
 
 
-def holds(v: dict) -> bool:
-    return (v["ingame_worth"] >= DECISION_FLOOR and v["design_win_share"] >= GAME_FLOOR and v["combat_win_share"] >= FIGHT_FLOOR
-            and v["h2h"] >= MIRROR_FLOOR)
+def holds(v: dict, gid: str = "") -> bool:
+    games = v["design_win_share"] >= GAME_FLOOR or gid.split(":")[0] in GENERALIST
+    return v["ingame_worth"] >= DECISION_FLOOR and games and v["combat_win_share"] >= FIGHT_FLOOR and v["h2h"] >= MIRROR_FLOOR
 
 
 def judge(verdict: dict, has_combat: bool) -> bool:
@@ -1119,7 +1122,7 @@ def judge(verdict: dict, has_combat: bool) -> bool:
     print("|---|---|---|---|---|---|---|---|---|---|")
     ok_all = True
     for gid, v in verdict.items():
-        ok = holds(v)
+        ok = holds(v, gid)
         print(f"| {gid} | {100 * v['ingame_worth']:.0f}% | {100 * v['design_win_share']:.0f}% | {100 * v['design_gain']:+.0f}% | "
               f"{100 * v['combat_win_share']:.0f}% | {v['combat_gain']:+.2f} | {v['h2h']:.0f}% | {v['h2h_design']:.0f}% | {v['walk_ratio']:.2f} | "
               f"{'YES' if ok else 'NO'} |")
@@ -1194,7 +1197,7 @@ def evaluate(tune: Tuning, a, cannons: bool, report: bool) -> bool:
 
 
 def all_hold(verdict: dict) -> bool:
-    return all(holds(v) for v in verdict.values())
+    return all(holds(v, gid) for gid, v in verdict.items())
 
 
 def collect_verdict(results, horizon: float) -> dict:
@@ -1215,7 +1218,7 @@ def sweep(a, cannons: bool, ok_now: bool) -> None:
     for hpm, stk in ((0.25, 0.25), (0.5, 0.5), (0.75, 0.75), (1.0, 1.0), (1.5, 1.5), (2.0, 2.0), (0.5, 1.0), (1.5, 1.0), (2.0, 1.0)):
         ok, v = evaluate(Tuning(hpm, stk), a2, cannons, report=False)
         vs = list(v.values())
-        print(f"| {hpm} | {stk} | {sum(holds(x) for x in vs)}/{len(vs)} | {100 * min(x['design_gain'] for x in vs):+.0f}% | "
+        print(f"| {hpm} | {stk} | {sum(holds(x, g) for g, x in v.items())}/{len(vs)} | {100 * min(x['design_gain'] for x in vs):+.0f}% | "
               f"{min(x['combat_gain'] for x in vs):+.3f} | {min(x['h2h'] for x in vs):.0f}% | {100 * mean(x['design_gain'] for x in vs):+.0f}% | "
               f"{mean(x['combat_gain'] for x in vs):+.3f} |")
     print()
