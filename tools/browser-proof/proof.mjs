@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v2 over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v3 (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -52,6 +52,22 @@ try {
   await wait(a, () => window.__probe.phase === 1);
   pass("run_started");
 
+  // Protocol 3: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
+  await wait(a, () => window.__probe.deltaSnapshots > 20);
+  const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
+  const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
+  info0.protocol === 3 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_3_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_3_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+
+  // A resync request is answered with a Full snapshot, and deltas continue from it.
+  const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
+  await a.evaluate(() => window.__probe.requestResync());
+  await a.waitForFunction((n) => window.__probe.fullSnapshots > n, f0, { timeout: 5000 });
+  const d0 = await a.evaluate(() => window.__probe.deltaSnapshots);
+  await a.waitForFunction((n) => window.__probe.deltaSnapshots > n + 5, d0, { timeout: 5000 });
+  const rs = await a.evaluate(() => ({ full: window.__probe.fullSnapshots, refused: window.__probe.refused }));
+  rs.full === f0 + 1 && rs.refused.length === 0 ? pass("resync_answered_with_one_full_snapshot", rs) : fail("resync_answered_with_one_full_snapshot", JSON.stringify([f0, rs]));
+
   // A movement order is applied by the server and acknowledged (move_seq echo), and the server position changes.
   const before = await a.evaluate(() => window.__probe.me);
   const seq = await a.evaluate(() => window.__probe.move(window.__probe.me.x, window.__probe.me.y + 64));
@@ -64,6 +80,10 @@ try {
   await wait(b, () => window.__probe.resumes === 1 && window.__probe.open);
   const wb2 = await b.evaluate(() => window.__probe.welcome);
   wb2.player === wb.player ? pass("reconnect_same_seat", { player: wb2.player }) : fail("reconnect_same_seat", JSON.stringify(wb2));
+  // A resumed connection always starts with a Full snapshot (its decoder holds nothing, whatever the old connection had).
+  await wait(b, () => window.__probe.firstSnapshotAfterWelcome.length === 2 && window.__probe.deltaSnapshots > 0);
+  const bk = await b.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
+  bk.first.join() === "full,full" && bk.refused.length === 0 && bk.resyncs === 0 ? pass("resume_starts_with_a_full_snapshot", bk) : fail("resume_starts_with_a_full_snapshot", JSON.stringify(bk));
 
   // Fight to the end: both hold attack toward each other; the server decides the outcome.
   for (const [page, other] of [[a, wb.player], [b, wa.player]]) {
@@ -81,10 +101,10 @@ try {
   const ok = ra.outcome === 2 && rb.outcome === 0 && ra.place === 2 && rb.place === 1;
   ok ? pass("authoritative_results", { alpha: ra, bravo: rb }) : fail("authoritative_results", JSON.stringify({ ra, rb }));
 
-  const pa = await a.evaluate(() => ({ joinMs: window.__probe.joinMs, snapshots: window.__probe.snapshots, fx: window.__probe.fx, rtts: window.__probe.rtts, errors: window.__probe.errors, rejects: window.__probe.rejects }));
+  const pa = await a.evaluate(() => ({ joinMs: window.__probe.joinMs, snapshots: window.__probe.snapshots, fullSnapshots: window.__probe.fullSnapshots, deltaSnapshots: window.__probe.deltaSnapshots, resyncs: window.__probe.resyncs, refusedDeltas: window.__probe.refused, fx: window.__probe.fx, rtts: window.__probe.rtts, errors: window.__probe.errors, rejects: window.__probe.rejects }));
   const sorted = [...pa.rtts].sort((x, y) => x - y);
   const resumeMs = await b.evaluate(() => window.__probe.resumeMs);
-  report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
+  report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fullSnapshots: pa.fullSnapshots, deltaSnapshots: pa.deltaSnapshots, resyncs: pa.resyncs, refusedDeltas: pa.refusedDeltas, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
   report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
 } catch (e) {

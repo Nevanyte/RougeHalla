@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v2 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v3 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v2 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v2.json) ----
+// ---- protocol v3 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v3.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -67,7 +67,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 2;
+const PROTOCOL = 3;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
 const dqPos = (q) => q / 8;
@@ -89,6 +89,8 @@ function input(seq, cmds) {
 }
 function ping(nonce) { const w = new W(); w.u8(3); w.u32(nonce); w.f64(performance.now()); return w.out(); }
 function leave() { return new Uint8Array([4]); }
+// "Send me a full snapshot" (a delta was refused).
+function resync() { return new Uint8Array([5]); }
 function decode(buf) {
   const r = new R(buf);
   const m = decodeBody(r);
@@ -143,6 +145,62 @@ function decodeBody(r) {
     }
     return s;
   }
+  if (tag === 0x87) {
+    // A snapshot delta: syntax and ranges only (Tracker decides whether it applies).
+    const tick = r.varint(), age = r.varint();
+    if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
+    const ack = r.varint(), head = r.u16();
+    // bit 15 a self follows, bit 14 a departed list follows, bits 12..13 phase, bits 0..11 the self fields.
+    if ((head & 0x8000) === 0 && (head & 0x0fff) !== 0) throw new Error("bad head");
+    const d = { t: "delta", tick, baseTick: tick - age, phase: (head >> 12) & 3, ack, me: null, changed: [], departed: [] };
+    if (head & 0x8000) {
+      const m = head & 0x0fff, s = { mask: m };
+      if (m & 0x001) s.x = r.f32();
+      if (m & 0x002) s.y = r.f32();
+      if (m & 0x004) s.facing = r.f32();
+      if (m & 0x008) s.hp = r.f32();
+      if (m & 0x010) s.maxHp = r.f32();
+      if (m & 0x020) s.kit = r.u8();
+      if (m & 0x040) s.readyIn = r.u16();
+      if (m & 0x080) s.kills = r.varintU16("kills");
+      if (m & 0x100) s.bounty = r.varintU16("bounty");
+      if (m & 0x200) s.gv = r.varintU16("gv");
+      if (m & 0x400) s.moveSeq = r.u8();
+      if (m & 0x800) { s.status = r.u8(); if (s.status > 3) throw new Error("bad status"); }
+      d.me = s;
+    }
+    const n = r.varint();
+    if (n > 512) throw new Error("too many actors");
+    let prev = null;
+    for (let i = 0; i < n; i++) {
+      const field = r.varint();
+      let id = field;
+      if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
+      prev = id;
+      const m = r.u8(), mask = m & 0x3f, a = { id, mask, status: m >> 6 };
+      if (mask & 1) a.x = r.u16();
+      if (mask & 2) a.y = r.u16();
+      if (mask & 4) a.facing = r.u16();
+      if (mask & 8) a.kit = r.u8();
+      if (mask & 16) { a.hpPct = r.u8(); if (a.hpPct > 100) throw new Error("bad hp_pct"); }
+      if (mask & 32) a.bounty = r.varintU16("bounty");
+      d.changed.push(a);
+    }
+    if (head & 0x4000) {
+      const k = r.varint();
+      if (k === 0) throw new Error("bad departed");
+      if (k > 512) throw new Error("too many actors");
+      let last = null;
+      for (let i = 0; i < k; i++) {
+        const field = r.varint();
+        let id = field;
+        if (last !== null) { id = last + field; if (field === 0 || id > 0xffffffff) throw new Error("bad departed order"); }
+        last = id;
+        d.departed.push(id);
+      }
+    }
+    return d;
+  }
   if (tag === 0x84) {
     const e = { t: "events", tick: r.u32(), events: [] }; const n = r.u16();
     for (let i = 0; i < n; i++) {
@@ -170,12 +228,87 @@ function decodeBody(r) {
   throw new Error("unknown tag " + tag);
 }
 
+// A client's snapshot decoder (mirror of rh-protocol SnapshotTracker): holds the last snapshot applied, the base of the next delta.
+// A delta it cannot apply is REFUSED (an Error with a `code`), the held snapshot is kept, and nothing is repaired or clamped.
+function refused(code) { const e = new Error("refused " + code); e.code = code; return e; }
+class Tracker {
+  constructor() { this.base = null; }
+  reset() { this.base = null; }
+  decode(buf) { return this.apply(decode(buf)); }
+  apply(m) {
+    if (m.t === "welcome") { this.reset(); return m; }
+    if (m.t === "snapshot") { this.base = { tick: m.tick, me: m.me, actors: m.actors }; return m; }
+    if (m.t !== "delta") return m;
+    const b = this.base;
+    if (!b) throw refused("no_base");
+    if (b.tick !== m.baseTick) throw refused("base_mismatch");
+    if (m.me && !b.me) throw refused("self_without_base");
+    const dep = m.departed, out = [];
+    let bi = 0, di = 0;
+    // Copies (or retires, when departed) the base actors below `limit` (all when null); a departed id no base actor matches is refused.
+    const flush = (limit) => {
+      while (bi < b.actors.length && (limit === null || b.actors[bi].id < limit)) {
+        const a = b.actors[bi];
+        if (di < dep.length && dep[di] < a.id) throw refused("unknown_departed");
+        if (di < dep.length && dep[di] === a.id) di++; else out.push(a);
+        bi++;
+      }
+    };
+    const upd = (a, ch) => {
+      const n = { ...a, id: ch.id, status: ch.status };
+      if (ch.mask & 1) n.x = dqPos(ch.x);
+      if (ch.mask & 2) n.y = dqPos(ch.y);
+      if (ch.mask & 4) n.facing = dqAngle(ch.facing);
+      if (ch.mask & 8) { n.faction = ch.kit & 15; n.weapon = ch.kit >> 4; }
+      if (ch.mask & 16) n.hpPct = ch.hpPct;
+      if (ch.mask & 32) n.bounty = ch.bounty;
+      return n;
+    };
+    for (const ch of m.changed) {
+      flush(ch.id);
+      if (bi < b.actors.length && b.actors[bi].id === ch.id) {
+        if (di < dep.length && dep[di] === ch.id) throw refused("departed_and_changed");
+        out.push(upd(b.actors[bi], ch));
+        bi++;
+      } else {
+        if (ch.mask !== 0x3f) throw refused("incomplete_new_actor");
+        out.push(upd({}, ch));
+      }
+    }
+    flush(null);
+    if (di < dep.length) throw refused("unknown_departed");
+    if (out.length > 512) throw refused("too_many_actors");
+    let me = null;
+    if (m.me) {
+      const d = m.me, s = { ...b.me };
+      if (d.mask & 0x001) s.x = d.x;
+      if (d.mask & 0x002) s.y = d.y;
+      if (d.mask & 0x004) s.facing = d.facing;
+      if (d.mask & 0x008) s.hp = d.hp;
+      if (d.mask & 0x010) s.maxHp = d.maxHp;
+      if (d.mask & 0x020) { s.faction = d.kit & 15; s.weapon = d.kit >> 4; }
+      if (d.mask & 0x040) s.readyIn = d.readyIn;
+      if (d.mask & 0x080) s.kills = d.kills;
+      if (d.mask & 0x100) s.bounty = d.bounty;
+      if (d.mask & 0x200) s.gv = d.gv;
+      if (d.mask & 0x400) s.moveSeq = d.moveSeq;
+      if (d.mask & 0x800) s.status = d.status;
+      me = s;
+    }
+    const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase, ack: m.ack, me, actors: out };
+    this.base = { tick: s.tick, me: s.me, actors: s.actors };
+    return s;
+  }
+}
+
 // ---- probe state (read by automated browser tests through window.__probe) ----
 const qs = new URLSearchParams(location.search);
 const profile = qs.get("profile") || ("web" + Math.floor(Math.random() * 1e6));
 const token = qs.get("token") || "dev";
 const faction = qs.has("faction") ? Number(qs.get("faction")) : null;
-const P = window.__probe = { welcome: null, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
+const P = window.__probe = { welcome: null, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], refused: [], fullSnapshots: 0, deltaSnapshots: 0, resyncs: 0, firstSnapshotAfterWelcome: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
+const tracker = new Tracker();
+let needFull = false, awaitingFirst = false;
 let ws = null, session = null, contentHash = 0n, map = null, nonce = 0, mouse = { x: 0, y: 0 }, attacking = false;
 
 async function connect(resume) {
@@ -191,7 +324,18 @@ async function connect(resume) {
   ws.onerror = () => P.errors.push("socket error");
   ws.onmessage = (ev) => {
     let m;
-    try { m = decode(ev.data); } catch (e) { P.errors.push(String(e)); return; }
+    const tag = new Uint8Array(ev.data)[0];
+    try { m = tracker.decode(ev.data); } catch (e) {
+      // A delta that does not apply (or cannot be read) is refused, not fatal: ask for a Full snapshot once and skip deltas until it comes.
+      if (e.code || tag === 0x87) { P.refused.push(String(e.message)); if (!needFull) { needFull = true; P.resyncs++; send(resync()); } }
+      else P.errors.push(String(e));
+      return;
+    }
+    if (m.t === "welcome") { needFull = false; awaitingFirst = true; }
+    if (m.t === "snapshot") {
+      if (tag === 0x83) { needFull = false; P.fullSnapshots++; } else P.deltaSnapshots++;
+      if (awaitingFirst) { awaitingFirst = false; P.firstSnapshotAfterWelcome.push(tag === 0x83 ? "full" : "delta"); }
+    }
     if (m.t === "welcome") { if (!resume) { P.joinMs = { pageToWelcome: performance.now(), helloToWelcome: performance.now() - P.helloAt }; } else { P.resumeMs = performance.now() - P.helloAt; } P.welcome = { player: m.player, tick: m.tick, mapW: m.map.w, mapH: m.map.h, mapHash: m.map.hash, tickRate: m.tickRate }; session = m.session; map = m.map; if (resume) P.resumes++; }
     else if (m.t === "snapshot") { P.snapshots++; P.lastTick = m.tick; P.me = m.me; P.actors = m.actors; P.phase = m.phase; P.ack = m.ack; }
     else if (m.t === "events") { for (const e of m.events) { P.events.push(e); if (e.k === "result") P.results.push(e); } }
@@ -205,6 +349,7 @@ P.move = (x, y) => { P.moveSeq = (P.moveSeq + 1) & 255; send(input(++P.inputSeq,
 P.attack = (a) => send(input(++P.inputSeq, [{ k: "attack", a, t: null }]));
 P.dropAndResume = () => new Promise((res) => { const old = ws; old.onclose = () => { P.open = false; connect(true).then(res); }; old.close(); });
 P.leave = () => send(leave());
+P.requestResync = () => { needFull = true; P.resyncs++; send(resync()); };
 setInterval(() => send(ping(++nonce)), 500);
 
 // ---- input and drawing ----
