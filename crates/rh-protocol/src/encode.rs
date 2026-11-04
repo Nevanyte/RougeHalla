@@ -382,17 +382,35 @@ impl<const N: usize> Fixed<N> {
     fn f32(&mut self, v: f32) {
         self.bytes(v.to_le_bytes());
     }
-    #[inline]
-    fn varint(&mut self, mut v: u32) {
-        while v >= 0x80 {
-            self.u8((v as u8) | 0x80);
-            v >>= 7;
+    /// Unsigned LEB128, one bounds check per length class instead of one per byte.
+    #[inline(always)]
+    fn varint(&mut self, v: u32) {
+        if v < 0x80 {
+            self.u8(v as u8);
+        } else if v < 0x4000 {
+            self.bytes([(v as u8) | 0x80, (v >> 7) as u8]);
+        } else if v < 0x20_0000 {
+            self.bytes([(v as u8) | 0x80, ((v >> 7) as u8) | 0x80, (v >> 14) as u8]);
+        } else if v < 0x1000_0000 {
+            self.bytes([
+                (v as u8) | 0x80,
+                ((v >> 7) as u8) | 0x80,
+                ((v >> 14) as u8) | 0x80,
+                (v >> 21) as u8,
+            ]);
+        } else {
+            self.bytes([
+                (v as u8) | 0x80,
+                ((v >> 7) as u8) | 0x80,
+                ((v >> 14) as u8) | 0x80,
+                ((v >> 21) as u8) | 0x80,
+                (v >> 28) as u8,
+            ]);
         }
-        self.u8(v as u8);
     }
     #[inline]
     fn put(&self, w: &mut Writer) {
-        w.bytes(&self.b[..self.n]);
+        w.append_record(&self.b, self.n);
     }
 }
 
@@ -522,6 +540,16 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         prev = Some(a.id);
     }
     None
+}
+
+/// Whether `snapshot_fault` could report `a` (or its order after `prev`): a cheap superset test, exact when it says no.
+#[inline(always)]
+fn actor_looks_bad(a: &WireActor, prev: Option<u32>) -> bool {
+    (a.faction | a.weapon) > MAX_KIT_CODE
+        || a.status > MAX_STATUS_CODE
+        || a.hp_pct > 100
+        || !(quant::pos_in_range(a.x) && quant::pos_in_range(a.y))
+        || prev.is_some_and(|p| a.id <= p)
 }
 
 fn kit_status_fault(faction: u8, weapon: u8, status: u8) -> Option<&'static str> {
@@ -927,7 +955,14 @@ impl<'a> SnapshotWriter<'a> {
         actors: usize,
     ) -> Self {
         let start = out.len();
-        let fault = snapshot_fault(phase, me, &[]);
+        let fault = if phase > MAX_PHASE_CODE
+            || me.is_some_and(|s| {
+                (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE
+            }) {
+            snapshot_fault(phase, me, &[])
+        } else {
+            None
+        };
         let mut w = Writer::from_vec(std::mem::take(out));
         w.reserve(
             MIN_SNAPSHOT_HEAD_LEN
@@ -950,7 +985,8 @@ impl<'a> SnapshotWriter<'a> {
     #[inline]
     pub fn actor(&mut self, a: &WireActor) {
         write_actor(&mut self.w, a, self.last_id);
-        if self.fault.is_none() {
+        // One branch on the hot path; the reason is worked out only for a refused frame.
+        if actor_looks_bad(a, self.last_id) && self.fault.is_none() {
             self.fault = snapshot_fault(0, None, std::slice::from_ref(a)).or(self
                 .last_id
                 .is_some_and(|p| a.id <= p)
@@ -990,5 +1026,32 @@ impl Drop for SnapshotWriter<'_> {
         let mut w = std::mem::take(&mut self.w);
         w.truncate(self.start);
         *self.out = w.finish();
+    }
+}
+
+#[cfg(test)]
+mod fixed_tests {
+    use super::*;
+
+    /// The stack record's varint, record append and the byte-wise `Writer` agree on every length-class boundary.
+    #[test]
+    fn fixed_varint_matches_writer_varint() {
+        let mut vals = vec![0u32, 1, u32::MAX, u32::MAX - 1];
+        for sh in [7u32, 14, 21, 28] {
+            let b = 1u32 << sh;
+            vals.extend([b - 1, b, b + 1]);
+        }
+        for v in vals {
+            let mut f = Fixed::<8>::new();
+            f.varint(v);
+            let mut w = Writer::with_capacity(8);
+            w.varint(v);
+            let mut out = Writer::with_capacity(0);
+            out.u8(0xAA);
+            f.put(&mut out);
+            let got = out.finish();
+            assert_eq!(&got[1..], &w.finish()[..], "{v}");
+            assert_eq!(got[0], 0xAA);
+        }
     }
 }

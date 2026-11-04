@@ -157,6 +157,15 @@ impl Writer {
             }
         }
     }
+    /// Appends the first `n` bytes of the fixed-size record `b` (`n <= N`) with a constant-size copy (inline moves, no
+    /// `memcpy` call for a length only known at run time), then drops the unused tail.
+    #[inline]
+    pub(crate) fn append_record<const N: usize>(&mut self, b: &[u8; N], n: usize) {
+        debug_assert!(n <= N);
+        let len = self.buf.len();
+        self.buf.extend_from_slice(b);
+        self.buf.truncate(len + n);
+    }
     pub(crate) fn truncate(&mut self, len: usize) {
         self.buf.truncate(len);
     }
