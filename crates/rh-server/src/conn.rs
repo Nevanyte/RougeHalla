@@ -382,12 +382,13 @@ mod tests {
     /// let the tick win about half of these and dropped a client whose frame had already arrived).
     #[tokio::test]
     async fn a_ready_frame_beats_an_overdue_liveness_tick() {
-        let idle = Duration::from_millis(40);
+        let idle = Duration::from_millis(1);
         for trial in 0..200 {
             let start = tokio::time::Instant::now();
             let mut liveness = tokio::time::interval_at(start, Duration::from_millis(1));
-            // The tick is ready now, and the last frame is long past idle: a tick that wins ends the connection.
-            let mut last_seen = start - Duration::from_secs(60);
+            // The tick is ready now and, after the 2 ms sleep below, the last frame is past `idle` (no clock
+            // subtraction, which could underflow on a young monotonic clock): a tick that wins ends the connection.
+            let mut last_seen = start;
             let mut rx = futures_util::stream::iter([7u8, 8]);
             let mut writer = std::future::pending::<()>();
             tokio::time::sleep(Duration::from_millis(2)).await;

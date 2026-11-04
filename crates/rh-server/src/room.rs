@@ -126,6 +126,8 @@ pub struct RoomStats {
     pub snapshots_skipped: u64,
     /// Snapshots the encoder refused to send (never a repaired frame): counted here, logged once per room.
     pub snapshot_refusals: u64,
+    /// Refusal log lines printed: at most one per room, however many refusals there were.
+    pub snapshot_refusals_logged: u64,
 }
 
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
@@ -193,6 +195,7 @@ pub struct Room {
     metrics: &'static Metrics,
     bytes_out: u64,
     snapshot_refusals: u64,
+    snapshot_refusals_logged: u64,
     ended_at: Option<Instant>,
     draining: bool,
     welcome_map: Arc<EncodedMap>,
@@ -252,6 +255,7 @@ impl Room {
             metrics: metrics::process(),
             bytes_out: 0,
             snapshot_refusals: 0,
+            snapshot_refusals_logged: 0,
             ended_at: None,
             draining: false,
             welcome_map: cfg.welcome_map,
@@ -678,6 +682,7 @@ impl Room {
                 Err(e) => {
                     // Logged once per room (the cause is per map and persists): the count is in the room's stats.
                     if self.snapshot_refusals == 0 {
+                        self.snapshot_refusals_logged += 1;
                         eprintln!(
                             "[room] snapshot not sent: {e} (logged once per room; see snapshotRefusals)"
                         );
@@ -772,6 +777,7 @@ impl Room {
             fx_dropped: outboxes.fx_dropped,
             snapshots_skipped: outboxes.snapshots_skipped,
             snapshot_refusals: self.snapshot_refusals,
+            snapshot_refusals_logged: self.snapshot_refusals_logged,
         }
     }
 }

@@ -227,7 +227,7 @@ async fn the_density_engine_with_bots_is_deterministic_and_bots_cost_no_egress()
 }
 
 /// A snapshot the encoder refuses is never repaired and never logged per viewer per tick: the room counts every refusal
-/// (the log line is once per room).
+/// and prints exactly one log line (`snapshot_refusals_logged`).
 #[tokio::test(start_paused = true)]
 async fn refused_snapshots_are_counted_per_room_not_logged_per_tick() {
     // A world wider than the wire position range (8191.875 u): the director refuses such a map at startup, a Room built
@@ -272,10 +272,15 @@ async fn refused_snapshots_are_counted_per_room_not_logged_per_tick() {
         now += TICK;
         assert!(room.wake(now));
     }
-    let refusals = room.stats().snapshot_refusals;
+    let stats = room.stats();
+    let refusals = stats.snapshot_refusals;
     assert!(
         refusals >= 50,
         "every tick of the run refuses each viewer's snapshot: {refusals}"
+    );
+    assert_eq!(
+        stats.snapshot_refusals_logged, 1,
+        "{refusals} refusals, exactly one log line"
     );
 }
 
