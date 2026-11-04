@@ -1,33 +1,53 @@
-.map-roster { display: flex; flex: 0 0 var(--pl-roster-size, 250px); flex-direction: column; width: var(--pl-roster-size, 250px); max-height: min(calc(var(--pl-size, 560px) + 76px), calc(var(--ui-h, 800px) - 24px)); box-sizing: border-box; border: 1px solid #526170; border-radius: 8px; background: #101820f2; box-shadow: 0 8px 28px #0008; overflow: hidden; }
-.map-roster[hidden] { display: none; }
-#ui > .planning[data-mode="map"] .map-roster,
-#ui > .planning[data-mode="map"] .map-roster * { pointer-events: auto; }
-.map-roster-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 9px 10px; border-bottom: 1px solid #35424e; }
-.map-roster-title { margin: 0; font-size: 1.1em; }
-.map-roster-order { color: #a8bac8; font-size: .76em; }
-.map-roster-list { min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.map-roster-player { padding: 7px 9px; border-bottom: 1px solid #293642; }
-.map-roster-player:last-child { border-bottom: 0; }
-.map-roster-player.local { background: #2eaccb15; box-shadow: inset 3px 0 #4ed6f5; }
-.map-roster-player.out { opacity: .55; }
-.map-roster-player-head { display: flex; align-items: center; gap: 8px; }
-.map-roster-rank { min-width: 1.1em; color: #8197a8; font-size: .85em; font-variant-numeric: tabular-nums; }
-.map-roster-identity { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
-.map-roster-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.map-roster-champion { color: #a8bac8; font-size: .78em; }
-.map-roster-strength { color: #eac986; font-size: .9em; font-weight: 700; font-variant-numeric: tabular-nums; }
-.map-roster-loadout { display: flex; align-items: center; flex-wrap: nowrap; gap: 4px 6px; margin-top: 5px; min-width: 0; }
-.map-roster-weapons { display: flex; flex: 0 0 auto; gap: 4px; }
-.map-roster-weapon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 34px; box-sizing: border-box; color: #c1ccd5; background: #18232e; border: 2px solid #526170; border-radius: 6px; opacity: .76; }
-.map-roster-weapon .weapon-icon { width: 34px; height: 30px; }
-.map-roster-weapon.active { color: #fff2b8; opacity: 1; border-color: #ffe18b; background: #3b321d; box-shadow: 0 0 0 1px #ffe18b40, inset 0 0 9px #ffe18b14; }
-.map-roster-weapon-slot { position: absolute; left: 3px; bottom: 1px; font-size: 9px; line-height: 10px; font-weight: 700; text-shadow: 0 1px 2px #000; }
-.map-roster-weapon-equipped { position: absolute; right: -5px; top: -5px; display: grid; place-items: center; width: 13px; height: 13px; border: 1px solid #fff2b8; border-radius: 50%; color: #251d07; background: #ffe18b; font-size: 10px; line-height: 1; font-weight: 900; }
-.map-roster-stats { display: flex; flex: 1 1 0; min-width: 0; flex-wrap: wrap; gap: 3px 5px; font-size: .88em; }
-.map-roster-stat { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.map-roster-stat .combat-icon { width: 17px; height: 17px; flex: 0 0 17px; }
-.map-roster-stat > span:not(.combat-icon) { color: #c5d0d9; }
-.map-roster-stat strong { color: #f1f5f8; font-size: 1.04em; font-variant-numeric: tabular-nums; }
-.map-roster-fresh { color: #8d9da9; font-size: .95em; }
-.pl-tab-stacked .map-roster-loadout { flex-wrap: wrap; }
-.pl-tab-stacked .map-roster-stats { flex-basis: 100%; }
+.map-roster {
+  position: absolute;
+  right: 18px;
+  top: 90px;
+  width: 190px;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--plate);
+  pointer-events: none;
+}
+.map-roster-title {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.map-roster-player {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 25px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+.map-roster-player.local {
+  background: #69f0ae12;
+  box-shadow: inset 3px 0 var(--map-player, #69f0ae);
+}
+.map-roster-player.down { color: var(--dim); }
+.map-roster-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.map-roster-player.alive .map-roster-dot { background: var(--ok); }
+.map-roster-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-roster-hp {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+}
