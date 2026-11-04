@@ -4,7 +4,7 @@
 //! When each field is (re)written, and why a stale value is never read:
 //! * `bounty_at_tick_start`, `rank`: rewritten at the start of every active tick (markTickStart, the action order) and
 //!   read only later in that same tick (the kill bounty, kill-credit ranks);
-//! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step;
+//! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds).
 
 use crate::state::PlayerId;
 use crate::systems::ledger::Entry;
