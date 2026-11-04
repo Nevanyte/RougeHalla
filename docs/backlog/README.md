@@ -30,11 +30,17 @@ full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the s
 | 5 | P-MIG-*, P-OSS-*, P-ML-* follow-ups | Cutover and release; several are owner decisions |
 
 **Shared-file rule.** These files change in almost every mechanic packet; merge those packets one at a time and rebase,
-never in parallel: `crates/rh-sim/src/sim.rs` (tick order: **never reorder systems**, insert a new phase at its legacy
-position), `crates/rh-sim/src/content.rs` (and `content_hash`), `crates/rh-sim/src/observe.rs`
-(`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` + `protocol/fixtures/v1.json`
-(`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`, `Cargo.toml`/`Cargo.lock`, and
-`parity/legacy-capture/capture.ts`. Prefer a new module file per mechanic with a minimal hook in `sim.rs`.
+never in parallel: `crates/rh-sim/src/schedule.rs` (the tick as data: **never reorder rows**; a mechanic flips its rows
+from `Pending("P-XXX-n")` to `Ported(fn)` at their legacy position, and `crates/rh-parity/tests/schedule.rs` fails when a
+table stops matching `parity/schedule/legacy_schedule.json`), `crates/rh-sim/src/content.rs` (and `content_hash`),
+`crates/rh-sim/src/observe.rs` (`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` +
+`protocol/fixtures/v1.json` (`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`,
+`Cargo.toml`/`Cargo.lock`, and `parity/legacy-capture/capture.ts`. **A mechanic is a new file, not an edit of a monolith:**
+`crates/rh-sim/src/systems/<mechanic>.rs` (every entry point `fn(&mut Cx)`) plus its rows in `schedule.rs`; its state goes
+in `state.rs` (hashed and checkpointed), its per-tick working sets in `scratch.rs`, and a hook link it ports is a `fn(&mut
+Hx, &HookArgs)` in its own file, fired by the call site that legacy has (`hooks::fire`). `sim.rs` is a facade and `Cx::submit`
+is the only input path inside the tick ([ADR 0009](../adr/0009-core-layout.md)). Update `what_the_slice_has_ported_stays_ported`
+in the schedule test for the rows you flip.
 
 **Status records.** Only the coordinator updates shared status records: the `docs/MIGRATION.md` checkpoint (referenced by
 `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md` and `docs/REQUIREMENTS.md`), the

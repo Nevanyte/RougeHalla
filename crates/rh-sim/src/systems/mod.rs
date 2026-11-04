@@ -67,3 +67,6 @@ fn update_active(cx: &mut Cx) {
     let g = Gates::of(cx.k);
     schedule::run_phases(cx, &schedule::PHASES, &g);
 }
+
+#[cfg(test)]
+mod tests;

@@ -3,8 +3,9 @@
 //! cap, simultaneous resolution), deaths, leaving (MIA), kill credit, bounty, GV and results.
 //!
 //! The tick order is the legacy one (`packages/server/src/sim/step.ts`), minus the phases whose mechanics are not in the
-//! slice (abilities, target lock, projectiles, signatures, statuses, sudden death, mobs, loot): they are listed in
-//! docs/backlog/README.md and must be inserted at their legacy position, never reordered.
+//! slice (abilities, target lock, projectiles, signatures, statuses, sudden death, mobs, loot): they are `Pending` rows of
+//! the schedule tables (`schedule.rs`, checked against the legacy record by `rh-parity/tests/schedule.rs`) and are
+//! ported in place at their legacy position, never reordered.
 //!
 //! No I/O, no wall clock, no entropy: time advances only through [`Sim::step`] by exactly [`TICK_MS`], and every secret
 //! arrives through [`Secrets`].
