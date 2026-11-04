@@ -1,0 +1,714 @@
+//! `rh-persist`: the profile store for many independent writers, on PostgreSQL.
+//!
+//! It replaces the legacy single-file `ProfileStore`. Invariants (proven by `tests/`, see the README):
+//! * one live match per profile, across hosts, by a lease with a monotonic fence;
+//! * a match result is applied at most once per (match, profile), and a stale writer changes nothing;
+//! * `profiles.gv` only moves together with an append-only `gv_ledger` row;
+//! * a purchase is idempotent by id and cannot overdraw.
+//!
+//! Achievements are NOT ported yet (`achievements_pending`): the counters they read (`progress`, `stats`) are kept
+//! exactly as the legacy `recordRun` keeps them, and `RecordOutcome::Applied::unlocked` is always empty.
+
+pub mod admin;
+pub mod legacy;
+pub mod model;
+
+use std::collections::BTreeMap;
+use std::time::Duration;
+
+use sha2::{Digest, Sha256};
+use sqlx::postgres::{PgPool, PgPoolOptions};
+use sqlx::types::Json;
+use sqlx::{PgConnection, Row};
+use uuid::Uuid;
+
+pub use model::*;
+
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
+/// The newest schema version this binary knows.
+pub fn known_schema_version() -> i64 {
+    MIGRATOR.iter().map(|m| m.version).max().unwrap_or(0)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("database error: {0}")]
+    Db(#[from] sqlx::Error),
+    #[error("migration error: {0}")]
+    Migrate(#[from] sqlx::migrate::MigrateError),
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error(
+        "database schema v{db} is newer than this binary understands (v{binary}); refusing to run"
+    )]
+    SchemaTooNew { db: i64, binary: i64 },
+    #[error("unknown profile {0:?}")]
+    UnknownProfile(String),
+    #[error("profile {callsign:?} is already in a live match ({match_id}, owner {owner})")]
+    LeaseHeld {
+        callsign: String,
+        match_id: Uuid,
+        owner: String,
+    },
+    #[error("invalid input: {0}")]
+    Invalid(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+pub fn hash_token(token: &str) -> [u8; 32] {
+    Sha256::digest(token.as_bytes()).into()
+}
+
+/// Proof of ownership of a profile's live-match slot. A writer presents `fence` with its result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Lease {
+    pub callsign: String,
+    pub match_id: Uuid,
+    pub owner: String,
+    pub fence: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Claim {
+    Created,
+    Existing,
+    Forbidden,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordOutcome {
+    /// `gv_credited` is what was added to the balance; `unlocked` is always empty until achievements are ported.
+    Applied {
+        gv_credited: i64,
+        unlocked: Vec<String>,
+    },
+    AlreadyApplied,
+    StaleFence,
+    NoLease,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PurchaseOutcome {
+    Ok { gv_left: i64 },
+    Insufficient { need: i64, have: i64 },
+    AlreadyApplied,
+    AlreadyOwned,
+    BadToken,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EquipOutcome {
+    Ok,
+    NotOwned,
+    BadToken,
+}
+
+#[derive(Clone)]
+pub struct Store {
+    pool: PgPool,
+}
+
+type ProfileRow = (
+    String,
+    Vec<u8>,
+    i64,
+    i64,
+    Json<Stats>,
+    Json<Cosmetics>,
+    Json<BTreeMap<String, i64>>,
+    Json<Progress>,
+);
+
+impl Store {
+    /// Connects and refuses a database whose schema is newer than this binary (it does not migrate).
+    pub async fn connect(url: &str) -> Result<Store> {
+        Self::connect_with(url, 16).await
+    }
+
+    pub async fn connect_with(url: &str, max_connections: u32) -> Result<Store> {
+        let pool = PgPoolOptions::new()
+            .max_connections(max_connections)
+            .acquire_timeout(Duration::from_secs(30))
+            .connect(url)
+            .await?;
+        let store = Store { pool };
+        store.check_schema().await?;
+        Ok(store)
+    }
+
+    pub fn from_pool(pool: PgPool) -> Store {
+        Store { pool }
+    }
+
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
+    /// Applies the embedded migrations (after the too-new check).
+    pub async fn migrate(&self) -> Result<()> {
+        self.check_schema().await?;
+        MIGRATOR.run(&self.pool).await?;
+        Ok(())
+    }
+
+    /// The newest applied migration, or `None` for a database that was never migrated.
+    pub async fn schema_version(&self) -> Result<Option<i64>> {
+        let exists: bool = sqlx::query_scalar("SELECT to_regclass('_sqlx_migrations') IS NOT NULL")
+            .fetch_one(&self.pool)
+            .await?;
+        if !exists {
+            return Ok(None);
+        }
+        let v: Option<i64> =
+            sqlx::query_scalar("SELECT max(version) FROM _sqlx_migrations WHERE success")
+                .fetch_one(&self.pool)
+                .await?;
+        Ok(v)
+    }
+
+    async fn check_schema(&self) -> Result<()> {
+        if let Some(db) = self.schema_version().await? {
+            let binary = known_schema_version();
+            if db > binary {
+                return Err(Error::SchemaTooNew { db, binary });
+            }
+        }
+        Ok(())
+    }
+
+    // ---- profiles -------------------------------------------------------------------------------------------
+
+    /// Legacy `claim`: creates the profile when the name is unknown (any case); otherwise the token must match.
+    pub async fn create_profile(&self, callsign: &str, token: &str) -> Result<Claim> {
+        if !valid_callsign(callsign) {
+            return Err(Error::Invalid(format!("callsign {callsign:?}")));
+        }
+        if token.is_empty() {
+            return Err(Error::Invalid("empty token".into()));
+        }
+        let hash = hash_token(token);
+        // The unique index on lower(callsign) decides a race: the loser inserts nothing and falls through to a compare.
+        let inserted = sqlx::query(
+            "INSERT INTO profiles (callsign, token_sha256) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        )
+        .bind(callsign)
+        .bind(&hash[..])
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        if inserted == 1 {
+            return Ok(Claim::Created);
+        }
+        Ok(if self.verify_token(callsign, token).await? {
+            Claim::Existing
+        } else {
+            Claim::Forbidden
+        })
+    }
+
+    pub async fn verify_token(&self, callsign: &str, token: &str) -> Result<bool> {
+        let stored: Option<Vec<u8>> = sqlx::query_scalar(
+            "SELECT token_sha256 FROM profiles WHERE lower(callsign) = lower($1)",
+        )
+        .bind(callsign)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(stored.is_some_and(|s| s == hash_token(token)))
+    }
+
+    pub async fn get_profile(&self, callsign: &str) -> Result<Option<Profile>> {
+        let mut c = self.pool.acquire().await?;
+        load_profile(&mut c, callsign, false).await
+    }
+
+    /// Profiles by GV banked in `month`, highest first, ties by name (legacy `leaderboard`).
+    pub async fn leaderboard(&self, month: &str, limit: i64) -> Result<Vec<(String, i64)>> {
+        if !valid_month(month) {
+            return Ok(vec![]);
+        }
+        let rows = sqlx::query(
+            "SELECT callsign, gv FROM gv_by_month WHERE month = $1 AND gv > 0 ORDER BY gv DESC, callsign LIMIT $2",
+        )
+        .bind(month)
+        .bind(limit.clamp(1, 1000))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(|r| (r.get(0), r.get(1))).collect())
+    }
+
+    // ---- leases ---------------------------------------------------------------------------------------------
+
+    /// Takes the profile's live-match slot. Succeeds when there is no lease, the old one expired or was released
+    /// (the fence is incremented), or it is the same (match, owner) still live (the fence is kept: idempotent).
+    pub async fn acquire_lease(
+        &self,
+        callsign: &str,
+        match_id: Uuid,
+        owner: &str,
+        ttl: Duration,
+    ) -> Result<Lease> {
+        let canon = self.canonical(callsign).await?;
+        let fence: Option<i64> = sqlx::query_scalar(
+            "INSERT INTO session_leases (callsign, match_id, owner, fence, expires_at)
+             VALUES ($1, $2, $3, 1, now() + make_interval(secs => $4))
+             ON CONFLICT (callsign) DO UPDATE SET
+               fence = CASE WHEN session_leases.released_at IS NULL
+                              AND session_leases.match_id = EXCLUDED.match_id
+                              AND session_leases.owner = EXCLUDED.owner
+                            THEN session_leases.fence ELSE session_leases.fence + 1 END,
+               match_id = EXCLUDED.match_id, owner = EXCLUDED.owner,
+               expires_at = EXCLUDED.expires_at, released_at = NULL
+             WHERE session_leases.released_at IS NOT NULL
+                OR session_leases.expires_at < now()
+                OR (session_leases.match_id = EXCLUDED.match_id AND session_leases.owner = EXCLUDED.owner)
+             RETURNING fence",
+        )
+        .bind(&canon)
+        .bind(match_id)
+        .bind(owner)
+        .bind(ttl.as_secs_f64())
+        .fetch_optional(&self.pool)
+        .await?;
+        match fence {
+            Some(fence) => Ok(Lease {
+                callsign: canon,
+                match_id,
+                owner: owner.to_owned(),
+                fence,
+            }),
+            None => {
+                let (m, o): (Uuid, String) = sqlx::query_as(
+                    "SELECT match_id, owner FROM session_leases WHERE callsign = $1",
+                )
+                .bind(&canon)
+                .fetch_one(&self.pool)
+                .await?;
+                Err(Error::LeaseHeld {
+                    callsign: canon,
+                    match_id: m,
+                    owner: o,
+                })
+            }
+        }
+    }
+
+    /// Extends a lease the caller still holds (fence matches and it was not released). An expired lease nobody took
+    /// over can be renewed: the fence, not the clock, is what protects.
+    pub async fn renew_lease(&self, callsign: &str, fence: i64, ttl: Duration) -> Result<bool> {
+        let n = sqlx::query(
+            "UPDATE session_leases SET expires_at = now() + make_interval(secs => $3)
+             WHERE lower(callsign) = lower($1) AND fence = $2 AND released_at IS NULL",
+        )
+        .bind(callsign)
+        .bind(fence)
+        .bind(ttl.as_secs_f64())
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        Ok(n == 1)
+    }
+
+    /// Gives the slot back. The row stays (marked released) so the fence is never reused. False when the fence is
+    /// stale or the lease was already released.
+    pub async fn release_lease(&self, callsign: &str, fence: i64) -> Result<bool> {
+        let n = sqlx::query(
+            "UPDATE session_leases SET released_at = now(), expires_at = now()
+             WHERE lower(callsign) = lower($1) AND fence = $2 AND released_at IS NULL",
+        )
+        .bind(callsign)
+        .bind(fence)
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        Ok(n == 1)
+    }
+
+    async fn canonical(&self, callsign: &str) -> Result<String> {
+        sqlx::query_scalar::<_, String>(
+            "SELECT callsign FROM profiles WHERE lower(callsign) = lower($1)",
+        )
+        .bind(callsign)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| Error::UnknownProfile(callsign.to_owned()))
+    }
+
+    // ---- results --------------------------------------------------------------------------------------------
+
+    /// Banks one match for one player in ONE transaction. See the module docs for the order of the checks.
+    pub async fn record_result(
+        &self,
+        match_id: Uuid,
+        callsign: &str,
+        fence: i64,
+        result: &MatchResult,
+    ) -> Result<RecordOutcome> {
+        self.record_inner(match_id, callsign, fence, result, false)
+            .await
+    }
+
+    /// Test seam: does every write of `record_result`, then kills its own backend before COMMIT (as a crashed host
+    /// or a dropped connection would) and returns the commit error. Nothing must be applied.
+    #[doc(hidden)]
+    pub async fn record_result_crash_before_commit(
+        &self,
+        match_id: Uuid,
+        callsign: &str,
+        fence: i64,
+        result: &MatchResult,
+    ) -> Result<RecordOutcome> {
+        self.record_inner(match_id, callsign, fence, result, true)
+            .await
+    }
+
+    async fn record_inner(
+        &self,
+        match_id: Uuid,
+        callsign: &str,
+        fence: i64,
+        r: &MatchResult,
+        crash: bool,
+    ) -> Result<RecordOutcome> {
+        let mut tx = self.pool.begin().await?;
+        let Some(canon) = sqlx::query_scalar::<_, String>(
+            "SELECT callsign FROM profiles WHERE lower(callsign) = lower($1)",
+        )
+        .bind(callsign)
+        .fetch_optional(&mut *tx)
+        .await?
+        else {
+            return Ok(RecordOutcome::NoLease);
+        };
+        // The lease row is the per-profile mutex: everything below runs serialized per callsign.
+        let lease: Option<(Uuid, i64, bool)> = sqlx::query_as(
+            "SELECT match_id, fence, released_at IS NOT NULL FROM session_leases WHERE callsign = $1 FOR UPDATE",
+        )
+        .bind(&canon)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let applied: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM match_results WHERE match_id = $1 AND callsign = $2)",
+        )
+        .bind(match_id)
+        .bind(&canon)
+        .fetch_one(&mut *tx)
+        .await?;
+        if applied {
+            return Ok(RecordOutcome::AlreadyApplied);
+        }
+        let Some((lease_match, lease_fence, released)) = lease else {
+            return Ok(RecordOutcome::NoLease);
+        };
+        if lease_fence != fence {
+            return Ok(RecordOutcome::StaleFence);
+        }
+        if released || lease_match != match_id {
+            return Ok(RecordOutcome::NoLease);
+        }
+
+        let (stats, progress): (Json<Stats>, Json<Progress>) =
+            sqlx::query_as("SELECT stats, progress FROM profiles WHERE callsign = $1 FOR UPDATE")
+                .bind(&canon)
+                .fetch_one(&mut *tx)
+                .await?;
+        let (mut stats, mut progress) = (stats.0, progress.0);
+        let gv = whole(r.gv.total);
+        if let Some(outcome) = r.outcome {
+            apply_run(&mut stats, &mut progress, outcome, r);
+        }
+        let month: String =
+            sqlx::query_scalar("SELECT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM')")
+                .fetch_one(&mut *tx)
+                .await?;
+        sqlx::query(
+            "UPDATE profiles SET gv = gv + $2, gv_lifetime = gv_lifetime + $2, stats = $3, progress = $4,
+                    updated_at = now() WHERE callsign = $1",
+        )
+        .bind(&canon)
+        .bind(gv)
+        .bind(Json(&stats))
+        .bind(Json(&progress))
+        .execute(&mut *tx)
+        .await?;
+        if gv > 0 {
+            sqlx::query(
+                "INSERT INTO gv_by_month (callsign, month, gv) VALUES ($1, $2, $3)
+                 ON CONFLICT (callsign, month) DO UPDATE SET gv = gv_by_month.gv + EXCLUDED.gv",
+            )
+            .bind(&canon)
+            .bind(&month)
+            .bind(gv)
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
+                "INSERT INTO gv_ledger (callsign, delta, reason, ref) VALUES ($1, $2, $3, $4)",
+            )
+            .bind(&canon)
+            .bind(gv)
+            .bind(if r.outcome.is_some() {
+                "run"
+            } else {
+                "void_run"
+            })
+            .bind(match_id.to_string())
+            .execute(&mut *tx)
+            .await?;
+        }
+        sqlx::query(
+            "INSERT INTO match_results (match_id, callsign, result, fence) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(match_id)
+        .bind(&canon)
+        .bind(Json(r))
+        .bind(fence)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE session_leases SET released_at = now(), expires_at = now() WHERE callsign = $1",
+        )
+        .bind(&canon)
+        .execute(&mut *tx)
+        .await?;
+        if crash {
+            let pid: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+                .fetch_one(&mut *tx)
+                .await?;
+            sqlx::query("SELECT pg_terminate_backend($1)")
+                .bind(pid)
+                .execute(&self.pool)
+                .await?;
+            // Give the postmaster a moment to kill the backend; the commit then fails on a dead connection.
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+        tx.commit().await?;
+        Ok(RecordOutcome::Applied {
+            gv_credited: gv,
+            unlocked: Vec::new(),
+        })
+    }
+
+    // ---- shop -----------------------------------------------------------------------------------------------
+
+    /// Buys `item_id` at `price` (the catalog lives in the caller). Idempotent by `purchase_id`; the debit, the
+    /// grant and the ledger row are one transaction under the profile's row lock, and the balance can't go below 0.
+    /// Spending lowers `gv` only, never `gv_lifetime` or `gv_by_month` (legacy rule).
+    pub async fn purchase(
+        &self,
+        callsign: &str,
+        token: &str,
+        purchase_id: Uuid,
+        item_id: &str,
+        price: i64,
+    ) -> Result<PurchaseOutcome> {
+        if price < 0 {
+            return Err(Error::Invalid("negative price".into()));
+        }
+        let mut tx = self.pool.begin().await?;
+        let Some(canon) = locked_authorized(&mut tx, callsign, token).await? else {
+            return Ok(PurchaseOutcome::BadToken);
+        };
+        let prior: Option<(String, String)> =
+            sqlx::query_as("SELECT callsign, item_id FROM purchases WHERE purchase_id = $1")
+                .bind(purchase_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+        if let Some((c, item)) = prior {
+            if c == canon && item == item_id {
+                return Ok(PurchaseOutcome::AlreadyApplied);
+            }
+            return Err(Error::Conflict(format!(
+                "purchase id {purchase_id} was used for something else"
+            )));
+        }
+        let (gv, mut cosmetics): (i64, Json<Cosmetics>) =
+            sqlx::query_as("SELECT gv, cosmetics FROM profiles WHERE callsign = $1")
+                .bind(&canon)
+                .fetch_one(&mut *tx)
+                .await?;
+        if cosmetics.owned.iter().any(|o| o == item_id) {
+            return Ok(PurchaseOutcome::AlreadyOwned);
+        }
+        if gv < price {
+            return Ok(PurchaseOutcome::Insufficient {
+                need: price,
+                have: gv,
+            });
+        }
+        cosmetics.owned.push(item_id.to_owned());
+        let left: Option<i64> = sqlx::query_scalar(
+            "UPDATE profiles SET gv = gv - $2, cosmetics = $3, updated_at = now()
+             WHERE callsign = $1 AND gv >= $2 RETURNING gv",
+        )
+        .bind(&canon)
+        .bind(price)
+        .bind(&cosmetics)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(left) = left else {
+            return Ok(PurchaseOutcome::Insufficient {
+                need: price,
+                have: gv,
+            });
+        };
+        sqlx::query(
+            "INSERT INTO purchases (purchase_id, callsign, item_id, price) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(purchase_id)
+        .bind(&canon)
+        .bind(item_id)
+        .bind(price)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO gv_ledger (callsign, delta, reason, ref) VALUES ($1, $2, 'purchase', $3)",
+        )
+        .bind(&canon)
+        .bind(-price)
+        .bind(purchase_id.to_string())
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(PurchaseOutcome::Ok { gv_left: left })
+    }
+
+    /// Equips owned `item_id` in `slot`, or empties the slot when `item_id` is `None`. The caller validates that the
+    /// slot and the item belong together (the cosmetic catalog is not in this crate).
+    pub async fn equip(
+        &self,
+        callsign: &str,
+        token: &str,
+        slot: &str,
+        item_id: Option<&str>,
+    ) -> Result<EquipOutcome> {
+        let mut tx = self.pool.begin().await?;
+        let Some(canon) = locked_authorized(&mut tx, callsign, token).await? else {
+            return Ok(EquipOutcome::BadToken);
+        };
+        let mut cosmetics: Json<Cosmetics> =
+            sqlx::query_scalar("SELECT cosmetics FROM profiles WHERE callsign = $1")
+                .bind(&canon)
+                .fetch_one(&mut *tx)
+                .await?;
+        match item_id {
+            None => {
+                cosmetics.equipped.remove(slot);
+            }
+            Some(id) => {
+                if !cosmetics.owned.iter().any(|o| o == id) {
+                    return Ok(EquipOutcome::NotOwned);
+                }
+                cosmetics.equipped.insert(slot.to_owned(), id.to_owned());
+            }
+        }
+        sqlx::query("UPDATE profiles SET cosmetics = $2, updated_at = now() WHERE callsign = $1")
+            .bind(&canon)
+            .bind(&cosmetics)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(EquipOutcome::Ok)
+    }
+}
+
+/// Locks the profile row and checks the token; the canonical callsign, or `None` for an unknown name or bad token.
+async fn locked_authorized(
+    conn: &mut PgConnection,
+    callsign: &str,
+    token: &str,
+) -> Result<Option<String>> {
+    let row: Option<(String, Vec<u8>)> = sqlx::query_as(
+        "SELECT callsign, token_sha256 FROM profiles WHERE lower(callsign) = lower($1) FOR UPDATE",
+    )
+    .bind(callsign)
+    .fetch_optional(conn)
+    .await?;
+    Ok(row.filter(|(_, h)| *h == hash_token(token)).map(|(c, _)| c))
+}
+
+/// Counts and GV from the sim are whole and non-negative; anything else counts as 0 (legacy `wholeAmount`).
+fn whole(n: i64) -> i64 {
+    n.clamp(0, MAX_SAFE)
+}
+
+/// The legacy `recordRun` counters, line for line.
+fn apply_run(stats: &mut Stats, progress: &mut Progress, outcome: Outcome, r: &MatchResult) {
+    let kills = whole(r.kills);
+    let bounty = whole(r.gv.bounty);
+    stats.runs = add_count(stats.runs, 1);
+    let slot = match outcome {
+        Outcome::Won => &mut stats.wins,
+        Outcome::Draw => &mut stats.draws,
+        Outcome::Died | Outcome::Mia => &mut stats.deaths,
+    };
+    *slot = add_count(*slot, 1);
+    stats.kills = add_count(stats.kills, kills);
+    progress.best_run_kills = progress.best_run_kills.max(kills);
+    if bounty > 0 {
+        progress.bounty_runs = add_count(progress.bounty_runs, 1);
+    }
+    if outcome == Outcome::Won && r.win_qualified {
+        progress.qualified_wins = add_count(progress.qualified_wins, 1);
+        count_win(
+            &mut progress.wins_by_faction,
+            &GOLD_FACTIONS,
+            r.faction.as_deref(),
+        );
+        count_win(
+            &mut progress.wins_by_weapon,
+            &GOLD_WEAPONS,
+            r.weapon.as_deref(),
+        );
+    }
+}
+
+fn count_win(wins: &mut BTreeMap<String, i64>, known: &[&str], id: Option<&str>) {
+    if let Some(id) = id.filter(|id| known.contains(id)) {
+        let e = wins.entry(id.to_owned()).or_insert(0);
+        *e = add_count(*e, 1);
+    }
+}
+
+/// Loads a profile (and its monthly totals). `lock` takes the row lock.
+pub(crate) async fn load_profile(
+    conn: &mut PgConnection,
+    callsign: &str,
+    lock: bool,
+) -> Result<Option<Profile>> {
+    let sql = format!(
+        "SELECT callsign, token_sha256, gv, gv_lifetime, stats, cosmetics, achievements, progress
+         FROM profiles WHERE lower(callsign) = lower($1){}",
+        if lock { " FOR UPDATE" } else { "" }
+    );
+    let Some(row) = sqlx::query_as::<_, ProfileRow>(&sql)
+        .bind(callsign)
+        .fetch_optional(&mut *conn)
+        .await?
+    else {
+        return Ok(None);
+    };
+    let months: Vec<(String, i64)> =
+        sqlx::query_as("SELECT month, gv FROM gv_by_month WHERE callsign = $1")
+            .bind(&row.0)
+            .fetch_all(&mut *conn)
+            .await?;
+    let token_sha256: [u8; 32] = row
+        .1
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::Invalid("token hash is not 32 bytes".into()))?;
+    Ok(Some(Profile {
+        callsign: row.0,
+        token_sha256,
+        gv: row.2,
+        gv_lifetime: row.3,
+        gv_by_month: months.into_iter().collect(),
+        stats: row.4 .0,
+        cosmetics: row.5 .0,
+        achievements: row.6 .0,
+        progress: row.7 .0,
+    }))
+}

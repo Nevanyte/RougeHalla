@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "profiles": {
+    "oldtimer": {
+      "name": "oldtimer",
+      "token": "55555555-5555-4555-8555-555555555555",
+      "stats": { "raids": 9, "extracts": 4, "deaths": 5, "kills": 7 },
+      "stash": [ { "uid": "a", "def": "sword" }, { "uid": "b", "def": "bow" } ]
+    }
+  }
+}
