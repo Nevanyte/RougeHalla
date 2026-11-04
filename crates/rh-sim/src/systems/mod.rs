@@ -21,7 +21,7 @@ pub(crate) mod weapons;
 use crate::events::Event;
 use crate::input::{validate, Command, RawCommand, Reject};
 use crate::pathfind::Pathfinder;
-use crate::schedule::{self, Gates};
+use crate::schedule;
 use crate::scratch::TickScratch;
 use crate::state::{Phase, PlayerId, World};
 use crate::statics::MatchStatic;
@@ -61,11 +61,11 @@ pub(crate) fn step(cx: &mut Cx) {
     }
 }
 
-/// Legacy `updateActive` (packages/server/src/sim/step.ts): the rows of `schedule::PHASES`, in order, under the match's
-/// gates. The phases whose mechanics are not in the slice are `Pending` rows there (docs/backlog/README.md).
+/// Legacy `updateActive` (packages/server/src/sim/step.ts): the rows of `schedule::PHASES`, in order, that the match's
+/// world has (its gates) and that are ported, resolved once at compile time (`schedule::Plan`). The phases whose
+/// mechanics are not in the slice are `Pending` rows there (docs/backlog/README.md).
 fn update_active(cx: &mut Cx) {
-    let g = Gates::of(cx.k);
-    schedule::run_phases(cx, &schedule::PHASES, &g);
+    schedule::run_steps(cx, schedule::Plan::of(cx.k).phases.live());
 }
 
 #[cfg(test)]

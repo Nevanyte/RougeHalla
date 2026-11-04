@@ -25,8 +25,7 @@ pub(crate) fn multipliers(cx: &mut Cx) {
             .map(|&i| weapons::move_multiplier(&w.players[i], now)),
     );
     // Modifier-major, fighter-minor: each fighter's product is still folded in table order. None is ported in the slice.
-    let g = schedule::Gates::of(k);
-    for modifier in schedule::move_modifiers(&g) {
+    for &(_, modifier) in schedule::Plan::of(k).move_modifiers.live() {
         for (m, &i) in s.mults.iter_mut().zip(&s.standing) {
             *m *= modifier(w, &w.players[i], TICK_MS);
         }

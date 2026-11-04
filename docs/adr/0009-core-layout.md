@@ -53,8 +53,12 @@ existed before it keeps its hash. First link through the seam: `loot.dropBody` (
 The commands then apply in the secret action order through the `ACTIONS` table (legacy `world.actions[kind]`).
 
 **Consequences.** Packets that add mechanics edit disjoint files plus rows in one table, and a reorder fails a test instead
-of a fight months later. The loop costs a gate test per row per tick (measured: within the 1.5% step budget,
-`tools/perfproof`). The gates are all-false for the slice until a packet adds the config switch it needs (`Gates::of`).
+of a fight months later. The tables cost nothing per tick: a `Plan` resolves them for a gate set in a `const` context
+(only the live, ported rows, in table order; the three recorded worlds are three statics), so the loop is a walk over fn
+pointers with no gate test and no skipped pending row (a first version that tested every row each tick cost +2.8% to +3.3%
+Ir per step on the small duel workloads; the compiled plan measures 0.984 to 0.998 against the base with fewer
+allocations per step, `tools/perfproof`). The gates are all-false for the slice until a packet adds the config switch it
+needs (`Gates::of`).
 
 **Evidence.** `crates/rh-parity/tests/schedule.rs`, `crates/rh-sim/src/schedule.rs` unit tests,
 `crates/rh-sim/src/systems/tests.rs` (input seam, hooks, deferred queue), `cargo run -p rh-parity --bin parity-report`.

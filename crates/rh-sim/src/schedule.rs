@@ -399,61 +399,141 @@ impl TraceLog {
     }
 }
 
-/// Runs the rows of a phase table in order, under `g`: the one place `updateActive`'s systems are called from.
-pub(crate) fn run_phases(cx: &mut Cx, rows: &[Item<PhaseFn>], g: &Gates) -> Flow {
-    for row in rows {
-        if !row.gate.on(g) {
-            continue;
-        }
-        if let Run::Ported(f) = row.run {
-            #[cfg(feature = "schedule-trace")]
-            cx.w.trace.push(TraceEntry::Phase(row.legacy));
-            if f(cx) == Flow::EndTick {
-                return Flow::EndTick;
+/// The rows of a table that are live (their gate is on) and ported under one gate set, resolved at compile time: the
+/// per-tick loop never tests a gate or skips a pending row, it walks `live()`. Table order is kept.
+#[derive(Clone, Copy)]
+pub(crate) struct Compiled<F: Copy, const N: usize> {
+    items: [(&'static str, F); N],
+    len: usize,
+}
+
+impl<F: Copy, const N: usize> Compiled<F, N> {
+    const fn compile(rows: &[Item<F>; N], g: &Gates, filler: F) -> Self {
+        let mut items = [("", filler); N];
+        let mut len = 0;
+        let mut i = 0;
+        while i < N {
+            if let Run::Ported(f) = rows[i].run {
+                if rows[i].gate.on(g) {
+                    items[len] = (rows[i].legacy, f);
+                    len += 1;
+                }
             }
+            i += 1;
+        }
+        Self { items, len }
+    }
+
+    pub(crate) fn live(&self) -> &[(&'static str, F)] {
+        &self.items[..self.len]
+    }
+}
+
+/// The tables resolved for one gate set (see [`Compiled`]): what a tick of a world with those gates runs. Built in a
+/// `const` context, so the three recorded worlds are three statics and a tick picks one ([`Plan::of`]).
+pub(crate) struct Plan {
+    pub(crate) phases: Compiled<PhaseFn, 23>,
+    pub(crate) after_weapons: Compiled<SystemFn, 3>,
+    pub(crate) before_damage: Compiled<SystemFn, 3>,
+    pub(crate) systems: Compiled<SystemFn, 24>,
+    pub(crate) move_modifiers: Compiled<MoveFn, 7>,
+    /// Indexed by [`ActionId`]; `None` is pending or gated off (the command is dropped).
+    actions: [Option<ActionFn>; 13],
+}
+
+fn no_phase(_: &mut Cx) -> Flow {
+    Flow::Continue
+}
+fn no_system(_: &mut Cx) {}
+fn no_modifier(_: &World, _: &Player, _: f64) -> f64 {
+    1.0
+}
+
+impl Plan {
+    const fn compile(g: &Gates) -> Plan {
+        let mut actions: [Option<ActionFn>; 13] = [None; 13];
+        let mut i = 0;
+        while i < ACTIONS.len() {
+            if let Run::Ported(f) = ACTIONS[i].run {
+                if ACTIONS[i].gate.on(g) {
+                    actions[ACTIONS[i].id as usize] = Some(f);
+                }
+            }
+            i += 1;
+        }
+        Plan {
+            phases: Compiled::compile(&PHASES, g, no_phase),
+            after_weapons: Compiled::compile(&AFTER_WEAPONS, g, no_system),
+            before_damage: Compiled::compile(&BEFORE_DAMAGE, g, no_system),
+            systems: Compiled::compile(&SYSTEMS, g, no_system),
+            move_modifiers: Compiled::compile(&MOVE_MODIFIERS, g, no_modifier),
+            actions,
+        }
+    }
+
+    /// The plan of a match's world.
+    pub(crate) fn of(k: &MatchStatic) -> &'static Plan {
+        let g = Gates::of(k);
+        if g == Gates::PRODUCTION {
+            &PRODUCTION_PLAN
+        } else if g == Gates::TRAINING {
+            &TRAINING_PLAN
+        } else {
+            debug_assert!(g == Gates::CAPTURE);
+            &CAPTURE_PLAN
+        }
+    }
+}
+
+static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
+static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
+static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
+
+/// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
+pub(crate) fn run_steps(cx: &mut Cx, steps: &[(&'static str, PhaseFn)]) -> Flow {
+    for &(_name, f) in steps {
+        #[cfg(feature = "schedule-trace")]
+        cx.w.trace.push(TraceEntry::Phase(_name));
+        if f(cx) == Flow::EndTick {
+            return Flow::EndTick;
         }
     }
     Flow::Continue
 }
 
-/// Runs a registration list (`hooks:<list>` phases): every live ported system, in registration order.
-fn run_list(cx: &mut Cx, list: &'static str, items: &[Item<SystemFn>]) {
-    let g = Gates::of(cx.k);
-    for it in items {
-        if !it.gate.on(&g) {
-            continue;
-        }
-        if let Run::Ported(f) = it.run {
-            #[cfg(feature = "schedule-trace")]
-            cx.w.trace.push(TraceEntry::Link(list, it.legacy));
-            #[cfg(not(feature = "schedule-trace"))]
-            let _ = list;
-            f(cx);
-        }
+/// Runs a compiled registration list (`hooks:<list>` phases): every live ported system, in registration order.
+fn run_list(cx: &mut Cx, _list: &'static str, items: &[(&'static str, SystemFn)]) {
+    for &(_name, f) in items {
+        #[cfg(feature = "schedule-trace")]
+        cx.w.trace.push(TraceEntry::Link(_list, _name));
+        f(cx);
     }
+}
+
+fn list_after_weapons(cx: &mut Cx) -> Flow {
+    run_list(cx, "afterWeapons", Plan::of(cx.k).after_weapons.live());
+    Flow::Continue
+}
+
+fn list_before_damage(cx: &mut Cx) -> Flow {
+    run_list(cx, "beforeDamage", Plan::of(cx.k).before_damage.live());
+    Flow::Continue
+}
+
+fn list_systems(cx: &mut Cx) -> Flow {
+    run_list(cx, "systems", Plan::of(cx.k).systems.live());
+    Flow::Continue
 }
 
 /// Runs the handler of a queued action for the fighter at index `i` (legacy `world.actions[cmd.kind]?.(...)`): a
 /// command whose handler is pending or gated off is dropped, as legacy drops a kind nobody registered.
 pub(crate) fn run_action(cx: &mut Cx, id: ActionId, i: usize, cmd: &ActionCmd) {
-    let row = &ACTIONS[id as usize];
-    debug_assert!(row.id == id);
-    if !row.gate.on(&Gates::of(cx.k)) {
-        return;
-    }
-    if let Run::Ported(f) = row.run {
+    if let Some(f) = Plan::of(cx.k).actions[id as usize] {
         #[cfg(feature = "schedule-trace")]
-        cx.w.trace.push(TraceEntry::Action(row.name));
+        cx.w.trace
+            .push(TraceEntry::Action(ACTIONS[id as usize].name));
         f(cx, i, cmd);
     }
-}
-
-/// The fighters' move-speed factors in fold order, under `g` (the ported modifiers of [`MOVE_MODIFIERS`]).
-pub(crate) fn move_modifiers(g: &Gates) -> impl Iterator<Item = MoveFn> + '_ {
-    MOVE_MODIFIERS.iter().filter_map(move |m| match m.run {
-        Run::Ported(f) if m.gate.on(g) => Some(f),
-        _ => None,
-    })
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -488,10 +568,7 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         weapons::update(cx);
         Flow::Continue
     }),
-    ported("hooks:afterWeapons", Gate::Always, |cx| {
-        run_list(cx, "afterWeapons", &AFTER_WEAPONS);
-        Flow::Continue
-    }),
+    ported("hooks:afterWeapons", Gate::Always, list_after_weapons),
     ported("movement:multipliers(moveModifiers)", Gate::Always, |cx| {
         movement::multipliers(cx);
         Flow::Continue
@@ -510,20 +587,14 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         melee::resolve(cx);
         Flow::Continue
     }),
-    ported("hooks:beforeDamage", Gate::Always, |cx| {
-        run_list(cx, "beforeDamage", &BEFORE_DAMAGE);
-        Flow::Continue
-    }),
+    ported("hooks:beforeDamage", Gate::Always, list_before_damage),
     // After the signatures, which read the ledger for this tick's contacts: the burn is no one's hit.
     pending("suddenDeath(notTraining)", Gate::NotTraining, "P-ARENA-1"),
     ported("ledger:apply", Gate::Always, |cx| {
         ledger::apply(cx);
         Flow::Continue
     }),
-    ported("hooks:systems", Gate::Always, |cx| {
-        run_list(cx, "systems", &SYSTEMS);
-        Flow::Continue
-    }),
+    ported("hooks:systems", Gate::Always, list_systems),
     pending("settle:training", Gate::Training, "P-ARENA-2"),
     ported("settle", Gate::NotTraining, |cx| {
         settle::settle(cx);
@@ -1395,6 +1466,51 @@ mod tests {
     }
 
     #[test]
+    fn a_plan_is_the_tables_resolved_for_its_gates() {
+        let t = tables();
+        for (plan, g) in [
+            (&PRODUCTION_PLAN, Gates::PRODUCTION),
+            (&CAPTURE_PLAN, Gates::CAPTURE),
+            (&TRAINING_PLAN, Gates::TRAINING),
+        ] {
+            let ported_live = |es: &[Entry]| -> Vec<&'static str> {
+                es.iter()
+                    .filter(|e| e.gate.on(&g) && e.pending.is_none())
+                    .map(|e| e.legacy)
+                    .collect()
+            };
+            let names = |c: &[(&'static str, SystemFn)]| -> Vec<&'static str> {
+                c.iter().map(|(n, _)| *n).collect()
+            };
+            let phases: Vec<&str> = plan.phases.live().iter().map(|(n, _)| *n).collect();
+            assert_eq!(phases, ported_live(&t.phases));
+            assert_eq!(names(plan.systems.live()), ported_live(&t.systems));
+            assert_eq!(
+                names(plan.after_weapons.live()),
+                ported_live(&t.after_weapons)
+            );
+            assert_eq!(
+                names(plan.before_damage.live()),
+                ported_live(&t.before_damage)
+            );
+            assert_eq!(plan.move_modifiers.live().len(), 0, "none ported yet");
+            for a in &ACTIONS {
+                let live = a.gate.on(&g) && matches!(a.run, Run::Ported(_));
+                assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
+            }
+        }
+        // The slice's world: the capture plan runs 14 phases and one registered system.
+        assert_eq!(CAPTURE_PLAN.phases.live().len(), 14);
+        assert_eq!(CAPTURE_PLAN.systems.live().len(), 1);
+        // Training swaps the settle for a pending one: no ported settle in that world yet.
+        assert!(!TRAINING_PLAN
+            .phases
+            .live()
+            .iter()
+            .any(|(n, _)| *n == "settle"));
+    }
+
+    #[test]
     fn training_swaps_the_settle_and_drops_sudden_death() {
         assert!(rows(&Gates::PRODUCTION).contains(&"suddenDeath(notTraining)"));
         assert!(rows(&Gates::PRODUCTION).contains(&"settle"));
@@ -1447,8 +1563,10 @@ mod tests {
             ported("never", Gate::Always, marker_never),
             ported("a2", Gate::Always, marker_a),
         ];
+        let plan = Compiled::compile(&rows, &Gates::CAPTURE, no_phase);
+        assert_eq!(plan.live().len(), 4, "the gated-off row is not compiled in");
         let mut ev = Vec::new();
-        let flow = run_phases(
+        let flow = run_steps(
             &mut Cx {
                 k: &sim.k,
                 w: &mut sim.w,
@@ -1456,8 +1574,7 @@ mod tests {
                 ev: &mut ev,
                 pf: &mut sim.pf,
             },
-            &rows,
-            &Gates::CAPTURE,
+            plan.live(),
         );
         assert_eq!(flow, Flow::EndTick);
         assert_eq!(sim.w.joined, before + 11, "rows after EndTick must not run");
