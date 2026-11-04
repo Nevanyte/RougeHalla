@@ -3,6 +3,8 @@
 //! bot-vs-bot runs, determinism tests and benches. Built-in policies sit in seats; external agents (a test, later a
 //! trainer) act for their own players through [`Env::step`]. Both go through the same input path.
 
+pub mod digest;
+
 use rh_policy::{drive_seats_with, scripted, submit_all, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
@@ -195,6 +197,19 @@ pub fn run_bot_match(
     max_ticks: u32,
     record: bool,
 ) -> (Env, MatchSummary) {
+    run_bot_match_with(arena, players, seed, max_ticks, record, false)
+}
+
+/// [`run_bot_match`], optionally folding the [`digest::OutcomeDigest`] of every tick into
+/// [`MatchSummary::outcome_digest`] (an observer: it reads the sim after each step and changes nothing).
+pub fn run_bot_match_with(
+    arena: &Arena,
+    players: usize,
+    seed: u64,
+    max_ticks: u32,
+    record: bool,
+    digest: bool,
+) -> (Env, MatchSummary) {
     let agents = (0..players)
         .map(|i| AgentSpec {
             profile: format!("bot{i}"),
@@ -216,8 +231,12 @@ pub fn run_bot_match(
         seed,
     );
     let mut summary = MatchSummary::default();
+    let mut fold = digest.then(digest::OutcomeDigest::new);
     loop {
         let out = env.step(&[]);
+        if let Some(d) = fold.as_mut() {
+            d.tick(&env.sim, &out.events);
+        }
         summary.ticks += 1;
         summary.results.extend(out.results);
         summary.hits += out
@@ -232,6 +251,7 @@ pub fn run_bot_match(
         }
     }
     summary.state_hash = env.sim.state_hash();
+    summary.outcome_digest = fold.map(|d| d.value());
     (env, summary)
 }
 
@@ -244,6 +264,8 @@ pub struct MatchSummary {
     #[serde(skip)]
     pub results: Vec<(PlayerId, RunResult)>,
     pub state_hash: u64,
+    /// The match's [`digest::OutcomeDigest`] (hash-independent behaviour fingerprint), when asked for.
+    pub outcome_digest: Option<u64>,
 }
 
 /// Loads an `rh-map/1` file.
@@ -256,4 +278,58 @@ pub fn load_arena(path: &str) -> Result<Arena, String> {
 
 pub fn centre_of(a: &Arena) -> Vec2 {
     a.centre()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_outcome_digest_is_a_behaviour_fingerprint() {
+        let arena = rh_sim::arenas::practice_arena();
+        let d = |seed, record| {
+            run_bot_match_with(&arena, 4, seed, 600, record, true)
+                .1
+                .outcome_digest
+                .expect("asked for")
+        };
+        // Deterministic, and an observer: recording does not change what happened.
+        assert_eq!(d(3, false), d(3, false));
+        assert_eq!(d(3, false), d(3, true));
+        // Another match (other secrets, other bot seeds) is another digest.
+        assert_ne!(d(3, false), d(4, false));
+        assert!(run_bot_match(&arena, 4, 3, 50, false)
+            .1
+            .outcome_digest
+            .is_none());
+    }
+
+    #[test]
+    fn the_outcome_digest_sees_one_changed_event_or_field() {
+        let arena = rh_sim::arenas::practice_arena();
+        let (env, _) = run_bot_match(&arena, 2, 1, 40, false);
+        let sim = env.sim;
+        let hit = |amount| Event::Hit {
+            victim: PlayerId(1),
+            by: PlayerId(2),
+            amount,
+            weapon: rh_sim::WeaponId::Fists,
+        };
+        let one = |events: &[Event]| {
+            let mut d = digest::OutcomeDigest::new();
+            d.tick(&sim, events);
+            d.value()
+        };
+        assert_eq!(one(&[hit(10.0)]), one(&[hit(10.0)]));
+        assert_ne!(one(&[hit(10.0)]), one(&[hit(10.000000000000002)]));
+        assert_ne!(one(&[hit(10.0)]), one(&[]));
+        // One public field one ulp off.
+        let mut other = sim.clone();
+        other.server_time = f64::from_bits(other.server_time.to_bits() + 1);
+        assert_ne!(one(&[]), {
+            let mut d = digest::OutcomeDigest::new();
+            d.tick(&other, &[]);
+            d.value()
+        });
+    }
 }
