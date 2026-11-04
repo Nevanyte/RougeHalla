@@ -495,7 +495,7 @@ impl Director {
         }
     }
 
-    /// Gives a lease back off the asking task (no-op in memory), then frees `owner`'s entry if it is still that entry.
+    /// Gives a lease back off the asking task (no-op in memory), then tells `owner`'s entry (if it is still that entry).
     /// Best effort: an unreleased lease only expires later. Releasing by fence is harmless when the lease moved on.
     fn give_back(&self, key: &str, fence: i64, owner: Option<u64>) {
         let Some(d) = self.me.upgrade() else {
@@ -739,16 +739,20 @@ impl Director {
         }
     }
 
-    /// Frees a `Leaving` entry once its lease is given back, only if it is still `gen`'s, and wakes the admissions
-    /// waiting for the profile.
+    /// A give-back for `gen`'s entry landed: its lease is gone, and the entry is freed (and the admissions waiting for the
+    /// profile woken) once nothing else is pending for it: never while a result write is still in flight. An entry a newer
+    /// admission owns is not touched.
     fn free(&self, key: &str, gen: u64) {
         let mut inner = self.inner.lock().expect("director");
-        if inner
-            .profiles
-            .get(key)
-            .is_some_and(|s| s.gen == gen && s.state == SeatState::Leaving)
-        {
-            inner.profiles.remove(key);
+        let mine = match inner.profiles.get_mut(key) {
+            Some(s) if s.gen == gen => {
+                s.lease = LeaseState::Gone;
+                true
+            }
+            _ => false,
+        };
+        if mine {
+            self.advance(&mut inner, key);
         }
         drop(inner);
         self.freed.notify_waiters();
@@ -1219,6 +1223,40 @@ mod tests {
         assert!(
             store(&d).lease("papa").unwrap().released,
             "released by the write"
+        );
+    }
+
+    /// Even if a result report arrived after its seat's give-back started (no room sends that order, but the bookkeeping
+    /// must not depend on it), the entry is not freed while the write is in flight.
+    #[tokio::test(start_paused = true)]
+    async fn a_give_back_never_frees_an_entry_with_a_write_in_flight() {
+        let d = director_with(MemoryStore {
+            record_delay: Duration::from_millis(300),
+            ..MemoryStore::strict()
+        });
+        let m = id(1);
+        d.inner.lock().unwrap().profiles.insert(
+            "papa".into(),
+            ProfileSeat {
+                writes: 1,
+                lease: LeaseState::Releasing,
+                ..seat(6, m, 1, SeatState::Leaving)
+            },
+        );
+        d.free("papa", 6);
+        let e = entry_of(&d, "papa").expect("kept while the write is in flight");
+        assert_eq!((e.writes, e.lease), (1, LeaseState::Gone));
+        d.inner
+            .lock()
+            .unwrap()
+            .profiles
+            .get_mut("papa")
+            .unwrap()
+            .writes = 0;
+        d.free("papa", 6);
+        assert!(
+            entry_of(&d, "papa").is_none(),
+            "free once nothing is pending"
         );
     }
 
