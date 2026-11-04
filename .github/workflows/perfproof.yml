@@ -1,0 +1,109 @@
+# Performance gate: deterministic callgrind/DHAT A/B of the PR head against its merge-base (tools/perfproof/perfproof.py).
+# Instruction counts do not depend on machine load, so the gate is exact; a revision measured against itself moves by at
+# most a few tenths of a percent Ir per unit (measured up to -0.29%, on the shortest workload) with identical allocations,
+# so the 1.03 ratio leaves about 10x headroom over noise while still catching a real 3% regression. Behaviour fingerprints (outcome digest, state hashes, replay verification) must be equal
+# unless the PR declares the change on a line of its description:
+#     Perf-Allow-Fingerprint: sim_crowded_8, paths_300.outcomeDigest
+# (workload names, fingerprint keys or workload.key; the same syntax as --allow-fingerprint-change).
+# The description is read through the API when the job runs, so after adding the line, re-run the failed job (or push).
+name: Perf gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths: ["crates/**", "parity/**", "Cargo.*", "rust-toolchain.toml", "tools/perfproof/**", ".github/workflows/perfproof.yml"]
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: "Revision to compare against: a SHA or origin/<branch> (default: merge-base with the default branch)"
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: perfproof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perfproof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: "0"
+      MAX_IR_RATIO: "1.03"
+      MAX_ALLOC_INCREASE: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The PR head itself, not the synthetic merge commit: the gate compares the PR's own changes with the point it
+          # branched from. Full history so the merge-base always exists.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: valgrind
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target/perfproof/cand-target"
+          shared-key: perfproof
+      - name: Resolve baseline and declared fingerprint changes
+        id: plan
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          INPUT_BASELINE: ${{ inputs.baseline }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_BASELINE:-}" ]; then
+            base="$(git rev-parse "$INPUT_BASELINE")"
+          else
+            ref="${BASE_REF:-$DEFAULT_BRANCH}"
+            git fetch --no-tags origin "+refs/heads/${ref}:refs/remotes/origin/${ref}"
+            base="$(git merge-base "origin/${ref}" HEAD)"
+          fi
+          # Read the description now, not from the event payload: a re-run replays the original payload, which would
+          # hide a description edited after the first run.
+          PR_BODY=""
+          if [ -n "${PR_NUMBER:-}" ]; then
+            PR_BODY="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.body // ""')"
+          fi
+          # The declaration is data from the PR description: keep only characters a workload/key name can contain.
+          allow="$(printf '%s\n' "${PR_BODY:-}" | tr -d '\r' \
+            | sed -n 's/^[[:space:]]*[Pp]erf-[Aa]llow-[Ff]ingerprint:[[:space:]]*//p' \
+            | tr -c 'A-Za-z0-9_.,\n' ',' | tr -s ',\n' ',' | sed 's/^,*//; s/,*$//')"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "allow=$allow" >> "$GITHUB_OUTPUT"
+          echo "baseline $base; declared fingerprint changes: '${allow}'"
+      - name: perfproof (candidate vs merge-base)
+        env:
+          BASE: ${{ steps.plan.outputs.base }}
+          ALLOW: ${{ steps.plan.outputs.allow }}
+        run: |
+          set -uo pipefail
+          python3 tools/perfproof/perfproof.py --baseline "$BASE" \
+            --max-ir-ratio "$MAX_IR_RATIO" --max-alloc-increase "$MAX_ALLOC_INCREASE" \
+            --allow-fingerprint-change "$ALLOW" | tee perfproof.out
+          status=${PIPESTATUS[0]}
+          {
+            echo "## Perf gate (Ir ratio <= ${MAX_IR_RATIO}, allocation increase <= ${MAX_ALLOC_INCREASE}, fingerprints equal)"
+            echo
+            echo "Declared fingerprint changes: \`${ALLOW:-none}\`"
+            echo
+            cat perfproof.out
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perfproof-report
+          path: |
+            perfproof.out
+            target/perfproof/report.json
+          if-no-files-found: ignore
