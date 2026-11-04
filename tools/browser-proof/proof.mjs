@@ -81,11 +81,11 @@ try {
   const ok = ra.outcome === 2 && rb.outcome === 0 && ra.place === 2 && rb.place === 1;
   ok ? pass("authoritative_results", { alpha: ra, bravo: rb }) : fail("authoritative_results", JSON.stringify({ ra, rb }));
 
-  const pa = await a.evaluate(() => ({ snapshots: window.__probe.snapshots, fx: window.__probe.fx, rtts: window.__probe.rtts, errors: window.__probe.errors, rejects: window.__probe.rejects }));
+  const pa = await a.evaluate(() => ({ joinMs: window.__probe.joinMs, snapshots: window.__probe.snapshots, fx: window.__probe.fx, rtts: window.__probe.rtts, errors: window.__probe.errors, rejects: window.__probe.rejects }));
   const sorted = [...pa.rtts].sort((x, y) => x - y);
-  report.measured = { snapshots: pa.snapshots, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
-  const info = await (await fetch(`https://localhost:${port}/info`).catch(() => null))?.json?.().catch(() => null);
-  report.serverInfo = info;
+  const resumeMs = await b.evaluate(() => window.__probe.resumeMs);
+  report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
+  report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
 } catch (e) {
   fail("exception", String(e));

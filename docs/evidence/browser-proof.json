@@ -1,8 +1,6 @@
-(node:32657) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
 {
   "server": "/home/user/RougeHalla/target/debug/rh-server",
-  "url": "https://localhost:7445/probe",
+  "url": "https://localhost:7448/probe",
   "tls": "self-signed (ignoreHTTPSErrors)",
   "checks": {
     "admission_and_map": {
@@ -61,10 +59,15 @@
     "no_page_errors": true
   },
   "measured": {
+    "joinMs": {
+      "pageToWelcome": 129.29999999981374,
+      "helloToWelcome": 2.400000000372529
+    },
+    "resumeHelloToWelcomeMs": 2.5,
     "snapshots": 389,
     "fxFrames": 110,
-    "rttMsP50": 1.3999999999068677,
-    "rttMsMax": 36.5,
+    "rttMsP50": 1.400000000372529,
+    "rttMsMax": 2.2999999998137355,
     "pageErrors": [],
     "rejects": []
   },

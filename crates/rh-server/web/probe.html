@@ -126,13 +126,13 @@ async function connect(resume) {
   const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
   ws = new WebSocket(url);
   ws.binaryType = "arraybuffer";
-  ws.onopen = () => { P.open = true; ws.send(hello(contentHash, profile, token, faction, resume ? session : null)); };
+  ws.onopen = () => { P.open = true; P.helloAt = performance.now(); ws.send(hello(contentHash, profile, token, faction, resume ? session : null)); };
   ws.onclose = () => { P.open = false; };
   ws.onerror = () => P.errors.push("socket error");
   ws.onmessage = (ev) => {
     let m;
     try { m = decode(ev.data); } catch (e) { P.errors.push(String(e)); return; }
-    if (m.t === "welcome") { P.welcome = { player: m.player, tick: m.tick, mapW: m.map.w, mapH: m.map.h, mapHash: m.map.hash, tickRate: m.tickRate }; session = m.session; map = m.map; if (resume) P.resumes++; }
+    if (m.t === "welcome") { if (!resume) { P.joinMs = { pageToWelcome: performance.now(), helloToWelcome: performance.now() - P.helloAt }; } else { P.resumeMs = performance.now() - P.helloAt; } P.welcome = { player: m.player, tick: m.tick, mapW: m.map.w, mapH: m.map.h, mapHash: m.map.hash, tickRate: m.tickRate }; session = m.session; map = m.map; if (resume) P.resumes++; }
     else if (m.t === "snapshot") { P.snapshots++; P.lastTick = m.tick; P.me = m.me; P.actors = m.actors; P.phase = m.phase; P.ack = m.ack; }
     else if (m.t === "events") { for (const e of m.events) { P.events.push(e); if (e.k === "result") P.results.push(e); } }
     else if (m.t === "fx") P.fx += m.fx.length;
