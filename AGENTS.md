@@ -13,7 +13,7 @@ Non-negotiables:
 - Every actor (human, bot, future policy) acts only through `validate` + `Sim::submit` (C-INPUT); observations never
   leak hidden state (C-OBS); secrets never leave the server (C-RNG).
 - Every ported mechanic comes with captured legacy fixtures and a parity test (`parity/`, C-PARITY).
-- Wire changes: bump `PROTOCOL_VERSION` when incompatible; regenerate `protocol/fixtures/v1.json`; the C# mirror passes.
+- Wire changes: bump `PROTOCOL_VERSION` when incompatible; regenerate the golden vectors `protocol/fixtures/v<PROTOCOL_VERSION>.json` (`cargo run -p rh-protocol --bin protocol-fixtures`); the Rust, C# and JS decoders must all pass them.
 - No ML training, models, datasets, Python bindings or inference services ([docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) R-ML).
 - Only the coordinator edits shared status records (MIGRATION checkpoint, CONTRACTS status table) and `Cargo.lock`.
 

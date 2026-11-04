@@ -7,7 +7,7 @@ provisional decision is the working default until the named experiment confirms 
 | ADR | Decision | Status |
 |---|---|---|
 | [0001](0001-architecture.md) | Rust workspace of a few owned crates; thin adapters; legacy kept runnable beside it | Accepted |
-| [0002](0002-transport-and-protocol.md) | WSS binary protocol v1 (no Colyseus compatibility); interest-managed snapshots | Accepted |
+| [0002](0002-transport-and-protocol.md) | WSS binary protocol v2 (no Colyseus compatibility); interest-managed, quantized snapshots | Accepted |
 | [0003](0003-canonical-map.md) | The server sends the map's collision layer; clients never generate maps | Accepted |
 | [0004](0004-hosting.md) | GameLift managed containers + queues first, SDK bridge out of process, own TLS + DNS | Provisional |
 | [0005](0005-policy-seam.md) | One seat contract for humans, scripted bots and future learned policies | Accepted |

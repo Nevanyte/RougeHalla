@@ -32,7 +32,7 @@ full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the s
 **Shared-file rule.** These files change in almost every mechanic packet; merge those packets one at a time and rebase,
 never in parallel: `crates/rh-sim/src/sim.rs` (tick order: **never reorder systems**, insert a new phase at its legacy
 position), `crates/rh-sim/src/content.rs` (and `content_hash`), `crates/rh-sim/src/observe.rs`
-(`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` + `protocol/fixtures/v1.json`
+(`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` + `protocol/fixtures/v2.json`
 (`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`, `Cargo.toml`/`Cargo.lock`, and
 `parity/legacy-capture/capture.ts`. Prefer a new module file per mechanic with a minimal hook in `sim.rs`.
 
