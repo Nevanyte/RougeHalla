@@ -2,12 +2,14 @@
 
 use crate::constants::*;
 use crate::content::{Shape, WeaponId};
+use crate::events::Event;
 use crate::geometry::raycast;
 use crate::map::MASK_MELEE;
 use crate::math::{angle_between, asin, atan2, hypot, Vec2};
-use crate::sim::{Event, Packet, PlayerId, Sim};
+use crate::state::{Packet, PlayerId, World};
 use crate::systems::ledger::Entry;
 use crate::systems::weapons::weapon_shape;
+use crate::systems::Cx;
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct MeleeReq {
@@ -18,67 +20,61 @@ pub(crate) struct MeleeReq {
     pub(crate) packet: Packet,
 }
 
-impl Sim {
-    pub(crate) fn resolve_melee(&mut self) {
-        let reqs = std::mem::take(&mut self.s.melee);
-        if reqs.is_empty() {
-            return;
+/// System (legacy melee.resolveMelee): every swing that landed this tick, tested against the bodies standing at its
+/// rewound time; each contact joins the ledger. Reads the world (it moves nobody and damages nobody); the melee queue
+/// is empty afterwards.
+pub(crate) fn resolve(cx: &mut Cx) {
+    let Cx { k, w, s, ev, .. } = cx;
+    let w: &World = w;
+    if s.melee.is_empty() {
+        return;
+    }
+    let bodies: Vec<usize> = (0..w.players.len())
+        .filter(|&i| w.players[i].standing())
+        .collect();
+    for req in s.melee.iter() {
+        let Some(ai) = w.idx(req.attacker) else {
+            continue;
+        };
+        if !w.players[ai].standing() {
+            continue;
         }
-        let bodies: Vec<usize> = (0..self.w.players.len())
-            .filter(|&i| self.w.players[i].standing())
-            .collect();
-        for req in reqs {
-            let Some(ai) = self.idx(req.attacker) else {
-                continue;
-            };
-            if !self.w.players[ai].standing() {
+        let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
+            continue;
+        };
+        let origin = w.players[ai].position_at(req.rewind_t);
+        ev.push(Event::Swing {
+            by: req.attacker,
+            weapon: req.weapon,
+            x: origin.x,
+            y: origin.y,
+            a: req.a,
+        });
+        for &ti in &bodies {
+            if ti == ai {
                 continue;
             }
-            let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
+            let at = w.players[ti].position_at(req.rewind_t);
+            if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
                 continue;
-            };
-            let origin = self.w.players[ai].position_at(req.rewind_t);
-            self.emit(Event::Swing {
+            }
+            if raycast(&k.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE).hit {
+                continue;
+            }
+            // Shields (block/riposte) need a shield in hand: no item flow in the slice (docs/backlog P-COMBAT-1).
+            let victim = w.players[ti].id;
+            let by_name = w.players[ai].name.clone();
+            s.ledger.push(Entry {
+                victim,
                 by: req.attacker,
+                by_name,
+                packet: req.packet,
                 weapon: req.weapon,
-                x: origin.x,
-                y: origin.y,
-                a: req.a,
+                stagger: req.weapon == WeaponId::Sword,
             });
-            for &ti in &bodies {
-                if ti == ai {
-                    continue;
-                }
-                let at = self.w.players[ti].position_at(req.rewind_t);
-                if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
-                    continue;
-                }
-                if raycast(
-                    &self.k.arena.map,
-                    origin.x,
-                    origin.y,
-                    at.x,
-                    at.y,
-                    MASK_MELEE,
-                )
-                .hit
-                {
-                    continue;
-                }
-                // Shields (block/riposte) need a shield in hand: no item flow in the slice (docs/backlog P-COMBAT-1).
-                let victim = self.w.players[ti].id;
-                let by_name = self.w.players[ai].name.clone();
-                self.s.ledger.push(Entry {
-                    victim,
-                    by: req.attacker,
-                    by_name,
-                    packet: req.packet,
-                    weapon: req.weapon,
-                    stagger: req.weapon == WeaponId::Sword,
-                });
-            }
         }
     }
+    s.melee.clear();
 }
 
 /// Is `p` (a disc of radius `r`) inside the arc? Legacy `inArc`.

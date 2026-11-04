@@ -98,7 +98,7 @@ impl Sim {
             record_history(&mut self.w.players[i], now);
         }
         // [projectile sweep, spawns] -- not in the slice
-        self.resolve_melee();
+        self.with_cx(melee::resolve);
         // [beforeDamage: signatures, terrain, statuses] [sudden death] -- not in the slice
         self.with_cx(ledger::apply);
         // systems
