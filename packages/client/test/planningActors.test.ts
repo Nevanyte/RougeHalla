@@ -45,8 +45,8 @@ describe("held map actor markers", () => {
   it("keeps actor labels click-through above the camp and quest controls", () => {
     expect(css).toMatch(/\.pl-actors\s*\{[^}]*pointer-events:\s*none/s);
     expect(css).toMatch(/\.pl-actor\s*\{[^}]*pointer-events:\s*none/s);
-    expect(css).toMatch(/\.pl-actor-you \.pl-actor-shape[^}]*background:\s*#38d9ff/s);
-    expect(css).toMatch(/\.pl-actor-enemy \.pl-actor-shape[^}]*background:\s*#f04452/s);
+    expect(css).toMatch(/\.pl-actor-you \.pl-actor-shape[^}]*background:\s*var\(--map-player, #69f0ae\)/s);
+    expect(css).toMatch(/\.pl-actor-enemy \.pl-actor-shape[^}]*background:\s*var\(--map-enemy, #ff8c91\)/s);
   });
 
   it("shows Plague corpses independently of fog only for a living Plague local player", () => {

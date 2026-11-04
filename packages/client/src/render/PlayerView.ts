@@ -7,7 +7,7 @@ import {
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { drawCombatIcon, STAT_ICON_COLORS } from "../ui/combatIcons";
-import { around, bakedImage, ensureBake, pixelImage, placeBake, scaledPart, type Region } from "./bake";
+import { bakedImage, pixelImage, scaledPart, type Region } from "./bake";
 import { BodyDisc, BodyFlash, FighterArt, HpBar, drawWeapon, factionColor, heldWeapon, shadowImage, weaponCenterX, type FighterFields } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { displayName } from "./displayName";
@@ -57,16 +57,13 @@ const RIM_LOCAL = { width: 2, color: LOCAL_MARK, alpha: 0.95 } as const;
 /** The viewer's own fighter is drawn this faint while it is hidden (a Swarm); a hidden remote fighter is not drawn at all. */
 const HIDDEN_LOCAL_ALPHA = 0.45;
 
-/** The Wish icon beside the name: its box, the gap to the name, and the name's own bottom edge (see the label below). */
-const WISH_ICON_SIZE = 15;
-const WISH_ICON_GAP = 3;
-/** The icon's drawing is baked around its own centre, once per Wish and ready state. */
-const WISH_ICON_REGION: Region = around(WISH_ICON_SIZE / 2 + 2);
 const LABEL_Y = -BODY_LIFT - FIGURE_RADIUS - 18;
-/** Secondary weapon and build badges above each fighter. */
-const BUILD_MARK_SIZE = 18;
+/** One overhead status rail: Wish readiness, secondary weapon and the two strongest stat investments. */
+const BUILD_MARK_SIZE = 24;
 const BUILD_MARK_HALF = BUILD_MARK_SIZE / 2;
-const BUILD_MARK_WEAPON_SCALE = 0.33;
+const BUILD_MARK_GAP = 3;
+const BUILD_MARK_WEAPON_SCALE = 0.42;
+const BUILD_MARK_BACKGROUND = 0x101820;
 
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
 const TITLE_Y = Math.ceil(PLAYER_RADIUS * 0.55) + 2;
@@ -111,10 +108,6 @@ export class PlayerView {
   private readonly status: StatusArt;
   /** The ground under it: flames, ripples, a skid streak, a resting ring. A scene object one depth under the container, not a child. Made the first time it has something to show, so a map without hazards (and the hub) allocates none. */
   private feet: FeetFx | null = null;
-  /** The faction's Wish, drawn small to the left of the name: coloured while its cooldown is over, grey before. */
-  private readonly wishIcon: Phaser.GameObjects.Image;
-  /** What the icon was last drawn for (ability, ready, name: the name sets where it sits); "" = none. */
-  private wishKey = "";
   /** The container's alpha as last set (1, or HIDDEN_LOCAL_ALPHA for the local fighter while hidden). */
   private bodyAlpha = 1;
   private readonly flashing: BodyFlash;
@@ -152,8 +145,6 @@ export class PlayerView {
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene);
     this.status = new StatusArt(scene);
-    this.wishIcon = pixelImage(scene).setVisible(false);
-    placeBake(this.wishIcon, WISH_ICON_REGION);
     this.strengthGlow = scene.add.graphics();
     this.goldHalo = scene.add.graphics().setVisible(false);
     this.fireRoamGlow = scene.add.graphics();
@@ -169,7 +160,7 @@ export class PlayerView {
     this.barrierRing = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
     this.label = scene.add.text(0, LABEL_Y, "", {
-      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
+      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#69f0ae" : "#eceff1",
       stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
     this.markPlate = new MarkPlate(scene, LABEL_Y);
@@ -191,7 +182,7 @@ export class PlayerView {
     this.root = scene.add.container(0, 0, [
       shadow, mark, this.signatures.ground, this.strengthGlow, this.goldHalo, this.art.ground, this.body.image, this.barrierRing, this.core.image, this.nose,
       this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.crown, this.crownLabel, this.title,
-      this.status.g, this.wishIcon, this.buildMarks, this.markPlate.pips, this.markPlate.cues, this.fireRoamGlow,
+      this.status.g, this.buildMarks, this.markPlate.pips, this.markPlate.cues, this.fireRoamGlow,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.core.image), y0: -BODY_LIFT, scaled: true },
@@ -270,10 +261,9 @@ export class PlayerView {
     this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
     this.label.setText(displayName(p));
     this.markPlate.update(signatures ? p.markTier : 0, signatures ? p.markTax : 0, signatures ? p.sig : 0, markDim, this.label.width);
-    this.setWishIcon(p, renderT);
     const readability = this.readabilityFor(p);
     this.drawStrength(readability);
-    this.drawBuildMarks(readability, p, slot);
+    this.drawBuildMarks(readability, p, slot, renderT);
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);
@@ -386,28 +376,6 @@ export class PlayerView {
     this.art.setGold(gold.weapon !== undefined);
   }
 
-  /**
-   * The faction's Wish beside the name, redrawn only when its look changes: coloured once `renderT` has passed its ready time
-   * (the cooldown, or the first 45 s of a run, is over), grey before. Nothing for a fighter with no faction, nor in the lobby,
-   * where every ready time is 0 until the run starts and the icon would read "ready".
-   */
-  private setWishIcon(p: PlayerState, renderT: number): void {
-    const def = p.status === "lobby" ? null : wishOf(p.faction);
-    const ready = renderT >= p.wishReadyAt;
-    const key = def ? `${def.id}|${ready ? 1 : 0}|${p.name}` : "";
-    if (key === this.wishKey) return;
-    this.wishKey = key;
-    this.wishIcon.setVisible(def !== null);
-    if (!def) return;
-    const texture = ensureBake(this.scene, `wish:${def.id}:${ready ? 1 : 0}`, WISH_ICON_REGION, (g) => {
-      drawAbilityIcon(g, def, 0, 0, WISH_ICON_SIZE, ready);
-    });
-    if (this.wishIcon.texture.key !== texture) this.wishIcon.setTexture(texture);
-    // Left of the name's left edge (Phaser's text width once set; a fake or a font not yet measured falls back to an estimate).
-    const width = typeof this.label.width === "number" && this.label.width > 0 ? this.label.width : p.name.length * 6;
-    this.wishIcon.setPosition(-width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5);
-  }
-
   /** Draws the barrier bubble at `strength` (0..1: barrierStrength, a barrier against BARRIER_FULL_SHARE of max hp); 0 clears it. A no-op while the step is unchanged. */
   private setBarrier(strength: number): void {
     const step = strength > 0 ? Math.max(1, Math.round(strength * BARRIER_STEPS)) : 0;
@@ -449,34 +417,47 @@ export class PlayerView {
       .strokeCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4 + strength * 2);
   }
 
-  /** Three fixed spots: the secondary weapon on the left, followed by the two strongest stat investments. */
-  private drawBuildMarks(readability: CombatReadability, p: PlayerState, slot: number): void {
+  /** A single centred rail, large enough to read in a fight: Wish, secondary weapon, then the top two investments. */
+  private drawBuildMarks(readability: CombatReadability, p: PlayerState, slot: number, renderT: number): void {
     const stats = readability.investedStats.slice(0, 2);
     const secondary = heldWeapon({ weapon0: p.weapon0, weapon1: p.weapon1, slot: slot === 1 ? 0 : 1, faction: p.faction }) ?? FISTS;
+    const wish = p.status === "lobby" ? null : wishOf(p.faction);
+    const wishReady = renderT >= p.wishReadyAt;
     const crownScale = 1 + CROWN_GROWTH * Math.min(1, Math.max(0, p.bounty) / CROWN_FULL_BOUNTY);
-    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 14 : LABEL_Y - 27);
-    const key = `${secondary}|${stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|")}`;
+    this.buildMarks.setY(p.bounty > 0 ? CROWN_BASE_Y - CROWN_H * crownScale - 22 : LABEL_Y - 32);
+    const key = `${wish?.id ?? "none"}:${wishReady ? 1 : 0}|${secondary}|${stats.map((s) => `${s.key}:${Math.round(s.score * 100)}`).join("|")}`;
     if (key === this.buildMarksKey) return;
     this.buildMarksKey = key;
     this.buildMarks.removeAll(true);
-    const weaponMark = this.scene.add.graphics();
-    const weaponColor = WEAPONS[secondary].color;
-    weaponMark.fillStyle(0x101820, 0.95).fillRoundedRect(-BUILD_MARK_SIZE - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
-    weaponMark.lineStyle(1, weaponColor, 0.95).strokeRoundedRect(-BUILD_MARK_SIZE - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
-    weaponMark.save().translateCanvas(-BUILD_MARK_SIZE - weaponCenterX(secondary) * BUILD_MARK_WEAPON_SCALE, 0).scaleCanvas(BUILD_MARK_WEAPON_SCALE, BUILD_MARK_WEAPON_SCALE);
-    drawWeapon(weaponMark, secondary);
-    weaponMark.restore().setName(`Secondary weapon: ${WEAPONS[secondary].name}`);
-    this.buildMarks.add(weaponMark);
-    stats.forEach((stat, i) => {
-      const x = i * BUILD_MARK_SIZE;
+
+    const count = (wish ? 1 : 0) + 1 + stats.length;
+    const firstX = -((count * BUILD_MARK_SIZE + (count - 1) * BUILD_MARK_GAP) / 2) + BUILD_MARK_HALF;
+    const mark = (index: number, color: number, name: string): { g: Phaser.GameObjects.Graphics; x: number } => {
+      const x = firstX + index * (BUILD_MARK_SIZE + BUILD_MARK_GAP);
+      const g = this.scene.add.graphics();
+      g.fillStyle(BUILD_MARK_BACKGROUND, 0.95).fillRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 5);
+      g.lineStyle(1.5, color, 0.95).strokeRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 5);
+      g.setName(name);
+      this.buildMarks.add(g);
+      return { g, x };
+    };
+
+    let index = 0;
+    if (wish) {
+      const color = wishReady ? 0xffe082 : 0x6f7b88;
+      const { g, x } = mark(index++, color, `${wish.name}: ${wishReady ? "ready" : "recharging"}`);
+      drawAbilityIcon(g, wish, x, 0, 18, wishReady);
+      g.fillStyle(wishReady ? 0x69f0ae : 0x78909c, 1).fillCircle(x + 8, 8, 2.25);
+    }
+    const weapon = mark(index++, WEAPONS[secondary].color, `Secondary weapon: ${WEAPONS[secondary].name}`);
+    weapon.g.save().translateCanvas(weapon.x - weaponCenterX(secondary) * BUILD_MARK_WEAPON_SCALE, 0).scaleCanvas(BUILD_MARK_WEAPON_SCALE, BUILD_MARK_WEAPON_SCALE);
+    drawWeapon(weapon.g, secondary);
+    weapon.g.restore();
+    for (const stat of stats) {
       const color = STAT_ICON_COLORS[stat.key];
-      const mark = this.scene.add.graphics();
-      mark.fillStyle(0x101820, 0.95).fillRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
-      mark.lineStyle(1, color, 0.95).strokeRoundedRect(x - BUILD_MARK_HALF, -BUILD_MARK_HALF, BUILD_MARK_SIZE, BUILD_MARK_SIZE, 4);
-      drawCombatIcon(mark, stat.key, x, 0, 13, color);
-      mark.setName(`${stat.label}: ${stat.score.toFixed(2)}`);
-      this.buildMarks.add(mark);
-    });
+      const { g, x } = mark(index++, color, `${stat.label}: ${stat.score.toFixed(2)}`);
+      drawCombatIcon(g, stat.key, x, 0, 17, color);
+    }
   }
 
   /** Shows the crown for `bounty` GV, scaled with it; 0 hides it. A no-op while the number is unchanged. */
