@@ -5,7 +5,7 @@
 // (an aim every 25 ms while the cursor or the player moves, a held move every 100 ms, the beat). Each trial injects one fault and
 // reports what became of every client: kept its socket, won its seat back (and how long it was out), or ended on the menu (and why).
 //   npx tsx packages/server/bench/dropHarness.ts [--clients 3] [--fill 8] [--faults stall:2000,stall:3500,...] [--trials N]
-//        [--idle 1] [--settle 25] [--cpu 3] [--json file]
+//        [--idle 1] [--settle 25] [--cpu 3] [--phase lobby|planning|active] [--json file]
 // Faults: stall:MS (the server's event loop is blocked for MS), blackhole:MS (one client's link carries nothing either way for MS,
 // then delivers everything it held, as TCP does), uplink:MS (only that client's uploads are held), downlink:MS (only its downloads).
 // `--idle 1` makes the last client a player whose cursor and fighter are still (an aim keepalive every 500 ms, no moves).
@@ -26,7 +26,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // ------------------------------------------------------------------------------------------------------------------ the server
 
-interface ServeArgs { port: number; fill: number; humans: number; dir: string; liveness: number; planSeconds: number }
+interface ServeArgs { port: number; fill: number; humans: number; dir: string; liveness: number; planSeconds: number; fillSeconds: number }
 
 async function serve(a: ServeArgs): Promise<void> {
   const { startServer } = await import("../src/index");
@@ -39,7 +39,7 @@ async function serve(a: ServeArgs): Promise<void> {
     port: a.port,
     stashFile: path.join(a.dir, "stash.json"),
     minPlayers: a.humans,
-    fillSeconds: 4,
+    fillSeconds: a.fillSeconds,
     lobbySeconds: 60,
     planSeconds: a.planSeconds,
     patienceSeconds: 1200,
@@ -288,7 +288,9 @@ async function main(): Promise<void> {
   const trials = Number(args.trials ?? 1);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-drop-"));
   const port = await freePort();
-  const serveArgs: ServeArgs = { port, fill, humans: clients, dir, liveness: Number(args.liveness ?? 4500), planSeconds: Number(args.plan ?? 12) };
+  const phase = (args.phase ?? "active") as "lobby" | "planning" | "active";
+  // A lobby fault needs a lobby that stays open past it (the fault comes 2 s after the last join).
+  const serveArgs: ServeArgs = { port, fill, humans: clients, dir, liveness: Number(args.liveness ?? 4500), planSeconds: Number(args.plan ?? 12), fillSeconds: phase === "lobby" ? 45 : 4 };
   const execArgv = ["--import", "tsx"];
   const child: ChildProcess = fork(here, ["--serve", JSON.stringify(serveArgs)], { execArgv, stdio: ["ignore", "inherit", "inherit", "ipc"] });
   if (args.cpu !== undefined) {
@@ -325,8 +327,9 @@ async function main(): Promise<void> {
       const run = ++runs;
       const bs = proxies.map((p, i) => new BrowserModel(`dh${process.pid % 10000}r${run}c${i}`, p, idleLast && i === clients - 1, mods));
       for (const b of bs) await b.join();
-      await waitFor(() => bs.every((b) => b.phase === "active"), "the run to start", 120_000);
-      await sleep(6000);
+      // The fault comes 2 s into the phase asked for (`--phase`), 6 s into the run by default.
+      await waitFor(() => bs.every((b) => b.phase === phase), `the ${phase} phase`, 120_000);
+      await sleep(phase === "active" ? 6000 : 2000);
       for (const b of bs) b.messagesSent = 0;
       const [kind, msText] = fault.split(":") as [string, string];
       const ms = Number(msText);

@@ -55,7 +55,7 @@ describe("reconnect vision snapshots", () => {
   it("sends a private snapshot to the reconnecting socket without broadcasting it", () => {
     const world = fixture();
     const room = Object.create(RaidRoom.prototype) as RaidRoom;
-    Object.assign(room, { built: world, pendingResults: new Map(), fxChannel: { inFlight: vi.fn() }, liveness: new LivenessTracker() });
+    Object.assign(room, { built: world, pendingResults: new Map(), fxChannel: { inFlight: vi.fn() }, liveness: new LivenessTracker(), floods: new Map(), flooded: new Set() });
     const send = vi.fn();
     const broadcast = vi.fn();
     Object.assign(room, { broadcast });
