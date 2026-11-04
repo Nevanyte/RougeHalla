@@ -1,8 +1,9 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v2.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v3.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
 
+use crate::delta::{AD_ALL, AD_BOUNTY, AD_HP, AD_X};
 use crate::map::MapBlob;
 use crate::*;
 use crate::{AM_BOUNTY, AM_HP};
@@ -63,6 +64,7 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
             },
         ),
         ("leave", ClientMsg::Leave),
+        ("resync", ClientMsg::Resync),
     ]
 }
 
@@ -529,6 +531,418 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
         ("fx_bad_tag", vec![0x85, 0, 1, 9]),
     ]
+    .into_iter()
+    .chain(malformed_deltas())
+    .collect()
+}
+
+
+/// What one frame of a chain does to a client's [`SnapshotTracker`].
+pub enum ChainOutcome {
+    /// The frame applies; a snapshot (Full or resolved from a delta) is the client's state afterwards.
+    Applied(ServerMsg),
+    /// The frame applies and the client then holds this many actors at this tick (a large state, not listed in full).
+    Held { tick: u32, actors: usize },
+    /// A Welcome: the tracker forgets its base.
+    Reset,
+    /// The delta is refused for this [`DeltaError::code`] and the client's state is unchanged.
+    Refused(&'static str),
+}
+
+pub struct ChainStep {
+    pub frame: Vec<u8>,
+    pub outcome: ChainOutcome,
+}
+
+fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
+    WireActor {
+        id,
+        faction: (id % 5) as u8,
+        x,
+        y,
+        facing: 0.5,
+        hp_pct,
+        status,
+        weapon: 2,
+        bounty: 0,
+    }
+}
+
+fn chain_self(x: f32) -> WireSelf {
+    WireSelf {
+        id: 3,
+        faction: 4,
+        x,
+        y: 320.5,
+        facing: 1.5,
+        hp: 1145.0,
+        max_hp: 1145.0,
+        status: 1,
+        weapon: 5,
+        ready_in_ms: 0,
+        kills: 0,
+        bounty: 0,
+        gv: 0,
+        move_seq: 0,
+    }
+}
+
+fn snap(
+    tick: u32,
+    phase: u8,
+    ack: u32,
+    me: Option<WireSelf>,
+    actors: &[WireActor],
+) -> SnapshotData {
+    SnapshotData::build(tick, phase, ack, me, actors.iter().copied()).expect("a valid sample")
+}
+
+/// The base every refusal chain starts from: tick 10, a self (id 3) and actors 1, 5 and 9.
+fn refusal_base() -> SnapshotData {
+    snap(
+        10,
+        1,
+        4,
+        Some(chain_self(400.0)),
+        &[
+            wa(1, 100.0, 100.0, 100, 1),
+            wa(5, 200.0, 100.0, 80, 1),
+            wa(9, 300.0, 100.0, 100, 1),
+        ],
+    )
+}
+
+fn full_frame(s: &SnapshotData) -> Vec<u8> {
+    let mut v = Vec::new();
+    s.encode_full_into(&mut v);
+    v
+}
+
+fn delta_message(d: SnapshotDelta) -> Vec<u8> {
+    ServerMsg::SnapshotDelta(d).encode()
+}
+
+/// A delta of the refusal base (tick 10 -> 11) with nothing in it, to be filled in.
+fn empty_delta() -> SnapshotDelta {
+    SnapshotDelta {
+        tick: 11,
+        base_tick: 10,
+        phase: 1,
+        ack_input: 4,
+        me: Some(SelfDelta::default()),
+        changed: vec![],
+        departed: vec![],
+    }
+}
+
+/// Chains of frames for a client's tracker, each starting from a fresh one: the result after every frame (the snapshot the
+/// client holds, a reset, or the reason a delta is refused and the state kept). The first chain is produced by the real
+/// [`ConnEncoder`] (a full house of cases); the others are hand-made deltas a correct writer never sends.
+pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
+    let mut chains = Vec::new();
+
+    // A connection's life: Full first, then deltas, a tick gap, an actor appearing and leaving, rare self fields, a self that
+    // goes away (a delta) and comes back (a Full), a resync (a Full), and deltas again.
+    let crowd = |dx: f32| -> Vec<WireActor> {
+        (1..=6)
+            .map(|i| wa(i * 2, 100.0 * i as f32 + dx, 50.0, 100, 1))
+            .collect()
+    };
+    let mut s3 = crowd(1.0);
+    s3.push(wa(7, 9.0, 9.0, 100, 1));
+    s3.sort_by_key(|a| a.id);
+    let mut s4 = crowd(2.0);
+    s4.remove(1);
+    s4[0].hp_pct = 41;
+    s4[2].status = 2;
+    s4[3].bounty = 300;
+    s4[4].weapon = 5;
+    let mut self4 = chain_self(402.0);
+    self4.hp = -0.0;
+    self4.max_hp = 1145.5;
+    self4.weapon = 1;
+    self4.status = 2;
+    let mut self5 = self4;
+    self5.kills = 3;
+    self5.bounty = 70;
+    self5.gv = 20_000;
+    self5.ready_in_ms = 250;
+    self5.move_seq = 9;
+    self5.x = 5119.875;
+    self5.facing = -3.1415927;
+    let plan: Vec<(SnapshotData, FrameKind)> = vec![
+        (snap(100, 1, 1, Some(chain_self(400.0)), &crowd(0.0)), FrameKind::Full),
+        (snap(101, 1, 1, Some(chain_self(401.0)), &crowd(0.5)), FrameKind::Delta),
+        (snap(102, 1, 2, Some(chain_self(401.0)), &s3), FrameKind::Delta),
+        (snap(103, 2, 2, Some(self4), &s4), FrameKind::Delta),
+        (snap(108, 2, 300, Some(self5), &s4), FrameKind::Delta),
+        (snap(109, 2, 300, None, &s4), FrameKind::Delta),
+        (snap(110, 2, 300, Some(self5), &s4), FrameKind::Full),
+        (snap(111, 2, 301, Some(self5), &s4), FrameKind::Delta),
+        (snap(112, 2, 301, Some(self5), &s4), FrameKind::Delta),
+    ];
+    let mut enc = ConnEncoder::new();
+    let mut tracker = SnapshotTracker::new();
+    let mut steps = Vec::new();
+    for (s, want) in plan {
+        let mut frame = Vec::new();
+        let kind = enc.encode(s.clone(), &mut frame);
+        assert_eq!(kind, want, "chain sample at tick {}", s.tick());
+        let msg = tracker.decode(&frame).expect("the chain applies");
+        assert_eq!(msg, s.decoded());
+        steps.push(ChainStep {
+            frame,
+            outcome: ChainOutcome::Applied(msg),
+        });
+    }
+    // A resync request, then one more snapshot: Full.
+    enc.request_full();
+    let s = snap(113, 2, 302, Some(self5), &s4);
+    let mut frame = Vec::new();
+    assert_eq!(enc.encode(s.clone(), &mut frame), FrameKind::Full);
+    let msg = tracker.decode(&frame).expect("applies");
+    steps.push(ChainStep {
+        frame,
+        outcome: ChainOutcome::Applied(msg),
+    });
+    chains.push(("delta_chain", steps));
+
+    let applied = |t: &mut SnapshotTracker, f: Vec<u8>| -> ChainStep {
+        let msg = t.decode(&f).expect("applies");
+        ChainStep {
+            frame: f,
+            outcome: ChainOutcome::Applied(msg),
+        }
+    };
+    let refused = |t: &mut SnapshotTracker, f: Vec<u8>, code: &'static str| -> ChainStep {
+        let e = t.decode(&f).expect_err("refused");
+        match e {
+            TrackError::Delta(d) => assert_eq!(d.code(), code),
+            other => panic!("not a delta refusal: {other:?}"),
+        }
+        ChainStep {
+            frame: f,
+            outcome: ChainOutcome::Refused(code),
+        }
+    };
+    let mut refusal = |name: &'static str, d: SnapshotDelta, code: &'static str| {
+        let mut t = SnapshotTracker::new();
+        let base = applied(&mut t, full_frame(&refusal_base()));
+        let bad = refused(&mut t, delta_message(d), code);
+        // The refusal changed nothing: the empty delta of the real base still applies and equals the base at tick 11.
+        let ok = applied(&mut t, delta_message(empty_delta()));
+        chains.push((name, vec![base, bad, ok]));
+    };
+    let new_actor = |id: u32| ActorDelta {
+        mask: AD_ALL,
+        q: QActor {
+            id,
+            x: 8,
+            y: 8,
+            facing: 0,
+            kit: 0,
+            hp_pct: 100,
+            status: 1,
+            bounty: 0,
+        },
+    };
+    refusal(
+        "delta_base_mismatch",
+        SnapshotDelta {
+            base_tick: 9,
+            tick: 11,
+            ..empty_delta()
+        },
+        "base_mismatch",
+    );
+    refusal(
+        "delta_departs_unknown_actor",
+        SnapshotDelta {
+            departed: vec![7],
+            ..empty_delta()
+        },
+        "unknown_departed",
+    );
+    refusal(
+        "delta_updates_departed_actor",
+        SnapshotDelta {
+            changed: vec![ActorDelta {
+                mask: AD_X,
+                q: QActor {
+                    id: 5,
+                    x: 77,
+                    status: 1,
+                    ..QActor::default()
+                },
+            }],
+            departed: vec![5],
+            ..empty_delta()
+        },
+        "departed_and_changed",
+    );
+    refusal(
+        "delta_updates_unknown_actor",
+        SnapshotDelta {
+            changed: vec![ActorDelta {
+                mask: AD_X,
+                q: QActor {
+                    id: 7,
+                    x: 77,
+                    status: 1,
+                    ..QActor::default()
+                },
+            }],
+            ..empty_delta()
+        },
+        "incomplete_new_actor",
+    );
+    // More than MAX_ACTORS after applying: a base of MAX_ACTORS actors and one new one.
+    {
+        let crowd512: Vec<WireActor> = (0..MAX_ACTORS as u32)
+            .map(|i| wa(i * 2 + 2, 10.0, 10.0, 100, 1))
+            .collect();
+        let base = snap(10, 1, 0, None, &crowd512);
+        let mut t = SnapshotTracker::new();
+        let mut s0 = applied(&mut t, full_frame(&base));
+        s0.outcome = ChainOutcome::Held {
+            tick: 10,
+            actors: MAX_ACTORS,
+        };
+        let bad = refused(
+            &mut t,
+            delta_message(SnapshotDelta {
+                me: None,
+                changed: vec![new_actor(1)],
+                ..empty_delta()
+            }),
+            "too_many_actors",
+        );
+        chains.push(("delta_past_max_actors", vec![s0, bad]));
+    }
+    // Resume: a Welcome resets the client, so a delta before the first Full of the new connection is refused.
+    {
+        let mut t = SnapshotTracker::new();
+        let base = applied(&mut t, full_frame(&refusal_base()));
+        let welcome = server_samples()
+            .into_iter()
+            .find(|(n, _)| *n == "welcome")
+            .expect("welcome sample")
+            .1
+            .encode();
+        t.decode(&welcome).expect("welcome");
+        let reset = ChainStep {
+            frame: welcome,
+            outcome: ChainOutcome::Reset,
+        };
+        let bad = refused(&mut t, delta_message(empty_delta()), "no_base");
+        let full = applied(&mut t, full_frame(&refusal_base()));
+        let ok = applied(&mut t, delta_message(empty_delta()));
+        chains.push(("delta_after_welcome", vec![base, reset, bad, full, ok]));
+    }
+    // A delta with nothing before it.
+    {
+        let mut t = SnapshotTracker::new();
+        let bad = refused(&mut t, delta_message(empty_delta()), "no_base");
+        chains.push(("delta_without_base", vec![bad]));
+    }
+    // A self delta on a base that has no self.
+    {
+        let mut t = SnapshotTracker::new();
+        let base = snap(10, 1, 4, None, &[wa(1, 1.0, 1.0, 100, 1)]);
+        let s0 = applied(&mut t, full_frame(&base));
+        let bad = refused(&mut t, delta_message(empty_delta()), "self_without_base");
+        chains.push(("delta_self_without_base", vec![s0, bad]));
+    }
+    chains
+}
+
+/// A delta frame with a hand-written body: tag, tick, age, ack, `head`, then `rest`.
+fn delta_bytes(tick: u32, age: u32, head: u16, rest: &[u8]) -> Vec<u8> {
+    let mut w = Writer::default();
+    w.u8(0x87);
+    w.varint(tick);
+    w.varint(age);
+    w.varint(0);
+    w.u16(head);
+    w.bytes(rest);
+    w.finish()
+}
+
+/// Delta frames a client must reject on syntax alone (the same names and reasons in the Rust, C# and JS tests).
+pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
+    let valid = delta_message(SnapshotDelta {
+        me: None,
+        changed: vec![ActorDelta {
+            mask: AD_X,
+            q: QActor {
+                id: 5,
+                x: 40,
+                status: 1,
+                ..QActor::default()
+            },
+        }],
+        ..empty_delta()
+    });
+    let mut trailing = valid.clone();
+    trailing.push(0);
+    let record = |id: u8, mask: u8, extra: &[u8]| -> Vec<u8> {
+        let mut v = vec![id, mask];
+        v.extend_from_slice(extra);
+        v
+    };
+    vec![
+        ("delta_age_zero", delta_bytes(10, 0, 0, &[0])),
+        ("delta_age_over_max", delta_bytes(100, 65, 0, &[0])),
+        ("delta_age_past_tick", delta_bytes(5, 6, 0, &[0])),
+        (
+            "delta_head_field_without_present_bit",
+            delta_bytes(10, 1, 0x0001, &[0]),
+        ),
+        (
+            "delta_self_status_over_3",
+            delta_bytes(10, 1, 0x8800, &[4, 0]),
+        ),
+        (
+            "delta_actor_id_gap_zero",
+            delta_bytes(
+                10,
+                1,
+                0,
+                &[vec![2], record(1, 0, &[]), record(0, 0, &[])].concat(),
+            ),
+        ),
+        (
+            "delta_actor_hp_over_100",
+            delta_bytes(10, 1, 0, &[vec![1], record(1, AD_HP, &[101])].concat()),
+        ),
+        (
+            "delta_actor_bounty_over_u16",
+            delta_bytes(
+                10,
+                1,
+                0,
+                &[vec![1], record(1, AD_BOUNTY, &[0x80, 0x80, 0x04])].concat(),
+            ),
+        ),
+        (
+            "delta_too_many_actors",
+            delta_bytes(10, 1, 0, &[0x81, 0x04]),
+        ),
+        (
+            "delta_departed_empty",
+            delta_bytes(10, 1, 0x4000, &[0, 0]),
+        ),
+        (
+            "delta_departed_id_gap_zero",
+            delta_bytes(10, 1, 0x4000, &[0, 2, 5, 0]),
+        ),
+        (
+            "delta_departed_too_many",
+            delta_bytes(10, 1, 0x4000, &[0, 0x81, 0x04]),
+        ),
+        ("delta_truncated", valid[..valid.len() - 1].to_vec()),
+        ("delta_trailing_byte", trailing),
+    ]
 }
 
 pub fn hex(b: &[u8]) -> String {
@@ -622,7 +1036,7 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
 /// The manifest JSON (hand-written to keep this crate dependency-free; field names are the C# and JS tests' contract).
 /// A server vector's `debug` is the message a client DECODES (quantized), not the sample as written.
 pub fn manifest() -> String {
-    let mut out = String::from("{\n  \"format\": \"rh-protocol-vectors/2\",\n  \"protocol\": ");
+    let mut out = String::from("{\n  \"format\": \"rh-protocol-vectors/3\",\n  \"protocol\": ");
     out.push_str(&PROTOCOL_VERSION.to_string());
     out.push_str(",\n  \"client\": [\n");
     let c = client_samples();
@@ -665,6 +1079,30 @@ pub fn manifest() -> String {
                 if i + 1 < list.len() { "," } else { "" }
             ));
         }
+    }
+    out.push_str("  ],\n  \"chains\": [\n");
+    let chains = chain_samples();
+    for (i, (name, steps)) in chains.iter().enumerate() {
+        out.push_str(&format!("    {{\"name\": \"{name}\", \"steps\": [\n"));
+        for (j, step) in steps.iter().enumerate() {
+            let result = match &step.outcome {
+                ChainOutcome::Applied(m) => format!("\"decoded\": {}", decoded_snapshot_json(m)),
+                ChainOutcome::Held { tick, actors } => {
+                    format!("\"held\": {{\"tick\": {tick}, \"actors\": {actors}}}")
+                }
+                ChainOutcome::Reset => "\"reset\": true".to_string(),
+                ChainOutcome::Refused(why) => format!("\"refused\": \"{why}\""),
+            };
+            out.push_str(&format!(
+                "      {{\"hex\": \"{}\", {result}}}{}\n",
+                hex(&step.frame),
+                if j + 1 < steps.len() { "," } else { "" }
+            ));
+        }
+        out.push_str(&format!(
+            "    ]}}{}\n",
+            if i + 1 < chains.len() { "," } else { "" }
+        ));
     }
     out.push_str("  ]\n}\n");
     out

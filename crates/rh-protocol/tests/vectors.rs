@@ -4,9 +4,9 @@ use rh_protocol::*;
 #[test]
 fn committed_vectors_match_the_encoder() {
     let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v2.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v3.json");
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v2.json (run the protocol-fixtures bin)");
+        .expect("protocol/fixtures/v3.json (run the protocol-fixtures bin)");
     assert_eq!(
         committed,
         manifest(),
@@ -65,6 +65,17 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "actor_id_gap_zero" | "actor_id_overflow" => BadField("actor order"),
             "actor_hp_over_100" => BadField("hp_pct"),
             "actor_bounty_over_u16" => BadField("bounty"),
+            "delta_age_zero" | "delta_age_over_max" | "delta_age_past_tick" => BadField("base age"),
+            "delta_head_field_without_present_bit" => BadField("head"),
+            "delta_self_status_over_3" => BadField("status"),
+            "delta_actor_id_gap_zero" => BadField("actor order"),
+            "delta_actor_hp_over_100" => BadField("hp_pct"),
+            "delta_actor_bounty_over_u16" => BadField("bounty"),
+            "delta_too_many_actors" | "delta_departed_too_many" => TooMany(0),
+            "delta_departed_empty" => BadField("departed"),
+            "delta_departed_id_gap_zero" => BadField("departed order"),
+            "delta_truncated" => Truncated,
+            "delta_trailing_byte" => Trailing(0),
             other => panic!("no expectation for {other}"),
         }
     };
@@ -187,4 +198,36 @@ fn fuzzed_client_frames_never_panic() {
             }
         }
     }
+}
+
+/// The chains in the vectors replay on a fresh tracker to exactly the recorded result at every step (the C# and JS suites do
+/// the same with their own trackers).
+#[test]
+fn every_chain_replays_to_its_recorded_outcome() {
+    for (name, steps) in chain_samples() {
+        let mut t = SnapshotTracker::new();
+        for (i, step) in steps.iter().enumerate() {
+            let got = t.decode(&step.frame);
+            match (&step.outcome, got) {
+                (ChainOutcome::Applied(want), Ok(m)) => assert_eq!(&m, want, "{name} step {i}"),
+                (ChainOutcome::Held { tick, actors }, Ok(_)) => {
+                    assert_eq!((t.held_tick(), t.actors().len()), (Some(*tick), *actors), "{name}")
+                }
+                (ChainOutcome::Reset, Ok(ServerMsg::Welcome { .. })) => {}
+                (ChainOutcome::Refused(why), Err(TrackError::Delta(e))) => {
+                    assert_eq!(e.code(), *why, "{name} step {i}")
+                }
+                (_, other) => panic!("{name} step {i}: {other:?}"),
+            }
+        }
+    }
+}
+
+#[test]
+fn the_delta_chain_uses_both_frame_kinds_and_every_field_class() {
+    let chains = chain_samples();
+    let (_, steps) = chains.iter().find(|(n, _)| *n == "delta_chain").unwrap();
+    let tags: Vec<u8> = steps.iter().map(|s| s.frame[0]).collect();
+    assert!(tags.contains(&0x83) && tags.contains(&0x87), "{tags:?}");
+    assert_eq!(tags[0], 0x83, "a connection starts with a Full frame");
 }
