@@ -55,9 +55,11 @@ pub fn round_half_away(t: f64) -> i64 {
 }
 
 /// World units to the nearest 1/8 u, saturating to `0 ..= 65535` (NaN is 0). Ties go away from zero: for the
-/// non-negative values that survive the clamp that is `floor(t + 0.5)`, which is exact here (`t` is an `f32` times 8, so
-/// adding a half loses nothing in `f64`), and the saturating `as u16` is the clamp (a negative `t` gives 0). A test holds
-/// it equal to the `f64::round` formula over the whole `f32` line.
+/// non-negative values that survive the clamp that is `floor(t + 0.5)`. The product `t = v * 8` is exact in `f64` (an
+/// `f32` has 24 significant bits, so times a power of two it fits 53 bits); the addition of the half may round for a tiny
+/// `t` (the sum is then just 0.5), and that still floors to 0 as the exact sum would, so the result is exact. The
+/// saturating `as u16` is the clamp (a negative `t` gives 0). A test holds it equal to the `f64::round` formula over the
+/// whole `f32` line.
 #[inline]
 pub fn quantize_pos(v: f32) -> u16 {
     ((v as f64) * (POS_SCALE as f64) + 0.5) as u16

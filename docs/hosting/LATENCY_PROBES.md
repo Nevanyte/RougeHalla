@@ -26,5 +26,5 @@ always-on pool of game hosts in that Region (or a tiny probe service on the same
   warning.
 
 ## Validation (not run in Stage 1)
-- Compare the probe's median with the in-game RTT (Ping/Pong in protocol v1) for the same client and Region: they should
+- Compare the probe's median with the in-game RTT (Ping/Pong in protocol v2, unchanged from v1) for the same client and Region: they should
   agree within a few ms after warm-up. Measure from western Canada (Calgary, Vancouver) to `ca-central-1` and `us-west-2`.

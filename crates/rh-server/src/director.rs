@@ -14,7 +14,7 @@ use rh_sim::{Arena, FactionId, Phase, SimConfig};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, Notify};
 
 #[derive(Clone)]
 pub struct DirectorConfig {
@@ -110,7 +110,14 @@ pub struct Director {
     pub persistence: Arc<Persistence>,
     pub auth: Arc<Auth>,
     pub lifecycle: Arc<Lifecycle>,
+    /// Woken whenever a `leaving` profile is freed: an admission for it waits on this instead of being refused.
+    freed: Notify,
 }
+
+/// How long an admission waits for a profile that is mid-release (its lease give-back is in flight) before it is refused
+/// as in use. A release is milliseconds; a result write that is being retried can take minutes, and that is a refusal,
+/// not a wait.
+pub const LEAVING_WAIT: Duration = Duration::from_secs(3);
 
 pub struct Hello {
     pub protocol: u16,
@@ -148,6 +155,7 @@ impl Director {
             persistence,
             auth,
             lifecycle,
+            freed: Notify::new(),
         });
         tokio::spawn(Self::report_loop(d.clone(), rx));
         d
@@ -160,11 +168,14 @@ impl Director {
         outbox: Arc<Outbox>,
         conn: u64,
     ) -> Result<(mpsc::Sender<RoomCmd>, JoinOk), (RejectCode, String)> {
-        // A lobby can close into its run between the pick and the join (the room then refuses MatchFull): try another.
+        // A lobby can close into its run, or its last player can leave and the room close, between the pick and the join
+        // (the room then refuses MatchFull, or its inbox is gone): that room is marked unjoinable, try another.
         let mut tries = 0;
         loop {
             match self.admit_once(&h, outbox.clone(), conn).await {
-                Err((RejectCode::MatchFull, reason)) if reason == "lobby closed" && tries < 2 => {
+                Err((RejectCode::MatchFull, reason))
+                    if (reason == "lobby closed" || reason == "match closed") && tries < 3 =>
+                {
                     tries += 1
                 }
                 other => return other,
@@ -234,6 +245,9 @@ impl Director {
             return Err((RejectCode::BadCredentials, "bad credentials".into()));
         }
         let key = h.profile.to_ascii_lowercase();
+        // A player who just left (or whose match just closed) has its lease give-back in flight: wait for it instead of
+        // refusing, so a quick rejoin is deterministic. A profile with a live seat is refused below as before.
+        self.wait_while_leaving(&key, LEAVING_WAIT).await;
         // Pick (or open) a lobby, reserving the profile in the same critical section so two connections cannot both pass.
         let (match_id, tx) = {
             let mut inner = self.inner.lock().expect("director");
@@ -323,6 +337,7 @@ impl Director {
         {
             release(self);
             self.release_lease(&h.profile, fence);
+            self.mark_unjoinable(match_id);
             return Err((RejectCode::MatchFull, "match closed".into()));
         }
         match rx.await {
@@ -344,15 +359,7 @@ impl Director {
                 self.release_lease(&h.profile, fence);
                 if code == RejectCode::MatchFull {
                     // The lobby closed into its run: never pick it again; admit() tries another room.
-                    if let Some(r) = self
-                        .inner
-                        .lock()
-                        .expect("director")
-                        .rooms
-                        .get_mut(&match_id)
-                    {
-                        r.phase = Phase::Active;
-                    }
+                    self.mark_unjoinable(match_id);
                     return Err((code, "lobby closed".into()));
                 }
                 Err((code, "join refused".into()))
@@ -360,6 +367,7 @@ impl Director {
             Err(_) => {
                 release(self);
                 self.release_lease(&h.profile, fence);
+                self.mark_unjoinable(match_id);
                 Err((RejectCode::MatchFull, "match closed".into()))
             }
         }
@@ -392,14 +400,7 @@ impl Director {
                         let m = seat.match_id;
                         tokio::spawn(async move {
                             let _ = d.persistence.release(&profile, fence).await;
-                            let mut inner = d.inner.lock().expect("director");
-                            if inner
-                                .profiles
-                                .get(&key)
-                                .is_some_and(|s| s.leaving && s.match_id == m)
-                            {
-                                inner.profiles.remove(&key);
-                            }
+                            d.free_leaving(&key, m);
                         });
                     }
                 }
@@ -454,15 +455,7 @@ impl Director {
                         }
                         // A profile that left with this result pending is free once it is written (the store released
                         // its lease in the same transaction).
-                        let mut inner = d.inner.lock().expect("director");
-                        if inner
-                            .profiles
-                            .get(&key)
-                            .is_some_and(|s| s.leaving && s.match_id == match_id)
-                        {
-                            inner.profiles.remove(&key);
-                        }
-                        drop(inner);
+                        d.free_leaving(&key, match_id);
                         d.pending_writes
                             .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                     });
@@ -476,18 +469,22 @@ impl Director {
                     let mut inner = this.inner.lock().expect("director");
                     inner.rooms.remove(&match_id);
                     inner.sessions.retain(|_, m| *m != match_id);
-                    // Seats still held by this match lose their leases (a result, if any, was already reported).
-                    let orphaned: Vec<(String, i64)> = inner
-                        .profiles
-                        .iter()
-                        .filter(|(_, s)| s.match_id == match_id && !s.leaving)
-                        .map(|(k, s)| (k.clone(), s.fence))
-                        .collect();
-                    inner
-                        .profiles
-                        .retain(|_, s| s.match_id != match_id || s.leaving);
+                    // Seats still held by this match lose their leases (a result, if any, was already reported). Each
+                    // profile stays reserved (`leaving`) until its lease is given back, like a lobby leave: a quick
+                    // rejoin must not race the release.
+                    let mut orphaned: Vec<(String, i64)> = Vec::new();
+                    for (k, s) in inner.profiles.iter_mut() {
+                        if s.match_id == match_id && !s.leaving {
+                            s.leaving = true;
+                            orphaned.push((k.clone(), s.fence));
+                        }
+                    }
                     for (k, f) in orphaned {
-                        this.release_lease(&k, f);
+                        let d = this.clone();
+                        tokio::spawn(async move {
+                            let _ = d.persistence.release(&k, f).await;
+                            d.free_leaving(&k, match_id);
+                        });
                     }
                     inner.closed.push(stats);
                     if inner.closed.len() > 64 {
@@ -534,6 +531,55 @@ impl Director {
                         r.phase = phase;
                     }
                 }
+            }
+        }
+    }
+
+    /// Never offer this room to an admission again (its lobby ended or its task is gone; its `Closed` report removes it).
+    fn mark_unjoinable(&self, match_id: MatchId) {
+        if let Some(r) = self
+            .inner
+            .lock()
+            .expect("director")
+            .rooms
+            .get_mut(&match_id)
+        {
+            r.phase = Phase::Active;
+        }
+    }
+
+    /// Frees a `leaving` profile (its lease is given back or its result written) and wakes the admissions waiting for it.
+    fn free_leaving(&self, key: &str, match_id: MatchId) {
+        let mut inner = self.inner.lock().expect("director");
+        if inner
+            .profiles
+            .get(key)
+            .is_some_and(|s| s.leaving && s.match_id == match_id)
+        {
+            inner.profiles.remove(key);
+        }
+        drop(inner);
+        self.freed.notify_waiters();
+    }
+
+    /// Waits, for at most `max`, while `key` is a `leaving` profile. Returns at once for a free profile and for one with a
+    /// live seat (the caller refuses that: concurrent ownership is never weakened).
+    async fn wait_while_leaving(&self, key: &str, max: Duration) {
+        let deadline = tokio::time::Instant::now() + max;
+        loop {
+            // Register for the wake-up before looking, so a free between the look and the wait is not missed.
+            let notified = self.freed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            let leaving = self
+                .inner
+                .lock()
+                .expect("director")
+                .profiles
+                .get(key)
+                .is_some_and(|s| s.leaving);
+            if !leaving || tokio::time::timeout_at(deadline, notified).await.is_err() {
+                return;
             }
         }
     }
@@ -720,6 +766,95 @@ mod tests {
         for _ in 0..8 {
             tokio::task::yield_now().await;
         }
+    }
+
+    /// A lobby whose room task already ended (its last player left) is still in the map until its `Closed` report is
+    /// handled: an admission that picks it is moved to another room instead of being refused.
+    #[tokio::test]
+    async fn an_admission_that_picks_a_room_that_just_closed_lands_in_another() {
+        let d = director();
+        let dead = id(9);
+        let (tx, rx) = mpsc::channel(1);
+        drop(rx);
+        d.inner.lock().unwrap().rooms.insert(
+            dead,
+            RoomEntry {
+                tx,
+                phase: Phase::Lobby,
+                seated: 1,
+                reserved: 0,
+            },
+        );
+        let hello = Hello {
+            protocol: PROTOCOL_VERSION,
+            content_hash: rh_sim::content::content_hash(),
+            profile: "papa".into(),
+            token: String::new(),
+            faction: None,
+            resume: None,
+        };
+        let (_tx, ok) = d
+            .admit(hello, Arc::new(Outbox::default()), 1)
+            .await
+            .expect("admitted into a fresh lobby");
+        assert_ne!(ok.session, [0; 16]);
+        let inner = d.inner.lock().unwrap();
+        assert_eq!(
+            inner.rooms[&dead].phase,
+            Phase::Active,
+            "never offered again"
+        );
+        assert_eq!(inner.rooms.len(), 2);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_admission_waits_for_a_leaving_profile_but_not_for_a_seated_one() {
+        let d = director();
+        let m = id(1);
+        let seat = |leaving| ProfileSeat {
+            match_id: m,
+            fence: 1,
+            leaving,
+        };
+        d.inner
+            .lock()
+            .unwrap()
+            .profiles
+            .insert("papa".into(), seat(true));
+        d.inner
+            .lock()
+            .unwrap()
+            .profiles
+            .insert("quebec".into(), seat(false));
+        // A live seat is not waited for: the caller refuses it.
+        tokio::time::timeout(
+            Duration::from_millis(1),
+            d.wait_while_leaving("quebec", LEAVING_WAIT),
+        )
+        .await
+        .expect("returns at once");
+        // A leaving profile is waited for until it is freed.
+        let waiter = {
+            let d = d.clone();
+            tokio::spawn(async move { d.wait_while_leaving("papa", LEAVING_WAIT).await })
+        };
+        settle().await;
+        assert!(!waiter.is_finished(), "still mid-release");
+        d.free_leaving("papa", m);
+        waiter.await.unwrap();
+        assert!(!d.inner.lock().unwrap().profiles.contains_key("papa"));
+        // A release that never lands ends the wait at the bound (the caller then refuses as in use).
+        d.inner
+            .lock()
+            .unwrap()
+            .profiles
+            .insert("papa".into(), seat(true));
+        let t0 = tokio::time::Instant::now();
+        d.wait_while_leaving("papa", LEAVING_WAIT).await;
+        assert_eq!(t0.elapsed(), LEAVING_WAIT);
+        // Another match's free does not free this one.
+        d.free_leaving("papa", id(2));
+        assert!(d.inner.lock().unwrap().profiles.contains_key("papa"));
     }
 
     #[tokio::test]

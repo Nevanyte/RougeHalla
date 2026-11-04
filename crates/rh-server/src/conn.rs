@@ -142,21 +142,10 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     let mut writer_done = false;
     loop {
         // Stop reading as soon as the writer is done (a TooSlow/RateLimited close, or a dead socket), or on idleness.
-        let msg = tokio::select! {
-            m = rx.next() => match m {
-                Some(m) => {
-                    last_seen = tokio::time::Instant::now();
-                    m
-                }
-                None => break,
-            },
-            t = liveness.tick() => {
-                if t.duration_since(last_seen) >= idle {
-                    break;
-                }
-                continue;
-            }
-            _ = &mut writer => {
+        let msg = match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
+            Wake::Frame(m) => m,
+            Wake::Closed | Wake::Idle => break,
+            Wake::WriterDone => {
                 writer_done = true;
                 break;
             }
@@ -233,7 +222,57 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     .await;
 }
 
-/// Worst-case WebSocket framing a server frame adds in the write buffer (an unmasked header is at most 10 bytes).
+/// What ended one wait of the reader loop.
+enum Wake<M> {
+    /// A frame arrived (and `last_seen` is now).
+    Frame(M),
+    /// The peer's stream ended.
+    Closed,
+    /// Nothing was heard for `idle`.
+    Idle,
+    /// The writer task finished (a close it was told to send, or a dead socket).
+    WriterDone,
+}
+
+/// Waits for the next thing the reader loop acts on. The select is `biased` with the client's frames first: when a frame
+/// is already readable and an overdue liveness tick is ready too, the frame wins and refreshes `last_seen`, so a client
+/// that did send is never dropped for idleness by the tick winning a coin flip. Then the writer, then the liveness check.
+async fn next_wake<R, M, W>(
+    rx: &mut R,
+    liveness: &mut tokio::time::Interval,
+    last_seen: &mut tokio::time::Instant,
+    idle: Duration,
+    writer: &mut W,
+) -> Wake<M>
+where
+    R: futures_util::Stream<Item = M> + Unpin,
+    W: std::future::Future + Unpin,
+{
+    loop {
+        tokio::select! {
+            biased;
+            m = rx.next() => {
+                return match m {
+                    Some(m) => {
+                        *last_seen = tokio::time::Instant::now();
+                        Wake::Frame(m)
+                    }
+                    None => Wake::Closed,
+                };
+            }
+            _ = &mut *writer => return Wake::WriterDone,
+            t = liveness.tick() => {
+                if t.duration_since(*last_seen) >= idle {
+                    return Wake::Idle;
+                }
+            }
+        }
+    }
+}
+
+/// WebSocket framing a server frame is charged in the write buffer. A server frame is unmasked (header at most 10 bytes);
+/// 14 is the masked maximum (10 + a 4-byte mask), kept as a conservative bound: the budget only ever errs towards an
+/// early flush.
 const FRAME_OVERHEAD: usize = 14;
 
 /// Writes one drained batch: every frame is fed as its own WebSocket message (identical bytes, identical order), then the
@@ -337,6 +376,57 @@ mod tests {
             Message::Binary(b) => b,
             _ => panic!("expected a binary message"),
         }
+    }
+
+    /// A ready frame and an overdue liveness tick are both ready: the frame must win every time (the old unbiased select
+    /// let the tick win about half of these and dropped a client whose frame had already arrived).
+    #[tokio::test]
+    async fn a_ready_frame_beats_an_overdue_liveness_tick() {
+        let idle = Duration::from_millis(1);
+        for trial in 0..200 {
+            let start = tokio::time::Instant::now();
+            let mut liveness = tokio::time::interval_at(start, Duration::from_millis(1));
+            // The tick is ready now and, after the 2 ms sleep below, the last frame is past `idle` (no clock
+            // subtraction, which could underflow on a young monotonic clock): a tick that wins ends the connection.
+            let mut last_seen = start;
+            let mut rx = futures_util::stream::iter([7u8, 8]);
+            let mut writer = std::future::pending::<()>();
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
+                Wake::Frame(7) => {}
+                _ => panic!("trial {trial}: the tick won over a ready frame"),
+            }
+            assert!(
+                last_seen >= start,
+                "the frame refreshed last_seen, so the next tick finds the client alive"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_silent_client_is_idle_and_a_finished_writer_or_stream_ends_the_wait() {
+        let idle = Duration::from_millis(30);
+        let start = tokio::time::Instant::now();
+        let mut liveness =
+            tokio::time::interval_at(start + Duration::from_millis(5), Duration::from_millis(5));
+        let mut last_seen = start;
+        let mut rx = futures_util::stream::pending::<u8>();
+        let mut writer = std::future::pending::<()>();
+        assert!(matches!(
+            next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await,
+            Wake::Idle
+        ));
+        assert!(start.elapsed() >= idle);
+        let mut done = std::future::ready(());
+        assert!(matches!(
+            next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut done).await,
+            Wake::WriterDone
+        ));
+        let mut ended = futures_util::stream::empty::<u8>();
+        assert!(matches!(
+            next_wake(&mut ended, &mut liveness, &mut last_seen, idle, &mut writer).await,
+            Wake::Closed
+        ));
     }
 
     #[tokio::test]

@@ -21,6 +21,10 @@ struct State {
     fx: VecDeque<Vec<u8>>,
     snapshot: Option<Vec<u8>>,
     closed: Option<RejectCode>,
+    /// `Notify::notify_one` calls made so far (counted under the lock the push already holds: no extra atomic), and how
+    /// many of them were the close.
+    notifies: u64,
+    close_notifies: u64,
 }
 
 /// What an [`Outbox`] counted over its life (relaxed reads: the room that pushes is the only writer).
@@ -120,6 +124,25 @@ impl State {
 }
 
 impl Outbox {
+    /// Wakes the writer: the one place `notify_one` is called, so every call is counted.
+    fn wake(&self, mut s: std::sync::MutexGuard<'_, State>, close: bool) {
+        s.notifies += 1;
+        s.close_notifies += u64::from(close);
+        drop(s);
+        self.notify.notify_one();
+    }
+
+    /// How many times this outbox has called `Notify::notify_one` (a push that queued something, or a close). The density
+    /// benchmark counts real notifies with it instead of trusting a side counter.
+    pub fn notify_calls(&self) -> u64 {
+        self.state.lock().expect("outbox lock").notifies
+    }
+
+    /// The part of [`Outbox::notify_calls`] made by `close` (a connection ends with one; ticks do not make it).
+    pub fn close_notify_calls(&self) -> u64 {
+        self.state.lock().expect("outbox lock").close_notifies
+    }
+
     fn counts(&self) -> Counts<'_> {
         Counts {
             fx_dropped: &self.fx_dropped,
@@ -131,22 +154,19 @@ impl Outbox {
     pub fn important(&self, frame: Vec<u8>) {
         let mut s = self.state.lock().expect("outbox lock");
         s.push_important(&self.counts(), frame);
-        drop(s);
-        self.notify.notify_one();
+        self.wake(s, false);
     }
 
     pub fn fx(&self, frame: Vec<u8>) {
         let mut s = self.state.lock().expect("outbox lock");
         s.push_fx(&self.counts(), frame);
-        drop(s);
-        self.notify.notify_one();
+        self.wake(s, false);
     }
 
     pub fn snapshot(&self, frame: Vec<u8>) {
         let mut s = self.state.lock().expect("outbox lock");
         s.push_snapshot(&self.counts(), frame);
-        drop(s);
-        self.notify.notify_one();
+        self.wake(s, false);
     }
 
     /// One tick's frames for this client: one lock and one notify however many there are. Exactly equivalent to calling
@@ -172,8 +192,7 @@ impl Outbox {
         if let Some(f) = snapshot {
             s.push_snapshot(&c, f);
         }
-        drop(s);
-        self.notify.notify_one();
+        self.wake(s, false);
     }
 
     pub fn counters(&self) -> OutboxCounters {
@@ -189,8 +208,7 @@ impl Outbox {
         if s.closed.is_none() {
             s.closed = Some(why);
         }
-        drop(s);
-        self.notify.notify_one();
+        self.wake(s, true);
     }
 
     /// The next single frame to write: important first, then fx, then the latest snapshot. Waits when there is none. The
@@ -267,6 +285,18 @@ mod tests {
         assert_eq!((imp, fx, snap), (1, FX_CAP, true));
         assert_eq!(o.fx_dropped.load(Ordering::Relaxed), 100 - FX_CAP as u64);
         assert_eq!(o.snapshots_skipped.load(Ordering::Relaxed), 99);
+    }
+
+    #[test]
+    fn a_tick_push_is_one_notify_however_many_frames_and_an_empty_one_is_none() {
+        let o = Outbox::default();
+        o.push_tick(None, None, None);
+        assert_eq!(o.notify_calls(), 0);
+        o.push_tick(Some(vec![1]), Some(vec![2]), Some(vec![3]));
+        assert_eq!(o.notify_calls(), 1);
+        o.push_tick(None, None, Some(vec![3]));
+        o.close(RejectCode::Kicked);
+        assert_eq!((o.notify_calls(), o.close_notify_calls()), (3, 1));
     }
 
     #[test]
