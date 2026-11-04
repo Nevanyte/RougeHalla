@@ -204,6 +204,34 @@ impl serde::Serialize for ActionBuf {
     }
 }
 
+impl InputQueue {
+    /// Whether every queued value is one [`validate`] produced (finite, clamped, wrapped): the rule [`Command`]'s decoder
+    /// applies, for a checkpoint taken between a submit and the step.
+    pub(crate) fn check(&self) -> Result<(), String> {
+        let same = |raw: RawCommand, kind: Kind| match validate(raw) {
+            Ok(c) if c.0 == kind => Ok(()),
+            _ => Err(format!("queued input {kind:?} is not a validated command")),
+        };
+        if let Some(MoveCmd::Move { x, y, seq }) = self.mv {
+            same(RawCommand::Move { x, y, seq }, Kind::Move { x, y, seq })?;
+        }
+        if let Some(a) = self.aim {
+            same(RawCommand::Aim { a }, Kind::Aim { a })?;
+        }
+        for act in self.actions.as_slice() {
+            match *act {
+                ActionCmd::Attack { a, t } => {
+                    same(RawCommand::Attack { a, t }, Kind::Attack { a, t })?
+                }
+                ActionCmd::Release { a, t } => {
+                    same(RawCommand::Release { a, t }, Kind::Release { a, t })?
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for ActionBuf {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let v = Vec::<ActionCmd>::deserialize(d)?;

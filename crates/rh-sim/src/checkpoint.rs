@@ -5,11 +5,12 @@
 //! (docs/CONTRACTS.md C-DET). A decoded [`Sim`] is complete (the map tables and the statics digest are built while
 //! decoding); malformed or truncated input is an `Err`, never a panic.
 
+use crate::constants::TICK_MS;
 use crate::content::WeaponId;
 use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::sim::Sim;
-use crate::state::World;
+use crate::state::{ActionKind, World};
 use crate::statics::MatchStatic;
 use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::{
@@ -202,9 +203,19 @@ fn check_world(w: &World) -> Result<(), String> {
             ));
         }
     }
+    // The next join adds one to it.
+    if w.next_id == u32::MAX {
+        return Err("next_id is at its maximum".into());
+    }
     // Roster order is checked by its own decoder and player order by the store's.
-    if !w.server_time.is_finite() {
-        return Err(format!("server_time {} is not finite", w.server_time));
+    // The clock must stay where `+= TICK_MS` and the rewind cutoff are exact (the most the tick counter can reach); far
+    // beyond it the additions are absorbed, no sample is ever trimmed and the history ring fills.
+    if !(0.0..=u32::MAX as f64 * TICK_MS).contains(&w.server_time) {
+        return Err(format!(
+            "server_time {} is outside 0..={}",
+            w.server_time,
+            u32::MAX as f64 * TICK_MS
+        ));
     }
     // The tick counter is incremented every step.
     if w.tick == u32::MAX {
@@ -235,6 +246,31 @@ fn check_world(w: &World) -> Result<(), String> {
                 return Err(format!("player {}: carries {item:?}", p.id.0));
             }
         }
+        // The same goes for the action in flight: only a fist swing exists in the slice, with finite times and angle.
+        if let Some(a) = p.weapon.action {
+            let pk = a.packet;
+            let finite = [
+                a.started_at,
+                a.lands_at,
+                a.a,
+                pk.raw,
+                pk.phys,
+                pk.magic,
+                pk.true_,
+            ]
+            .iter()
+            .all(|v| v.is_finite());
+            if a.kind != ActionKind::Swing || a.weapon != WeaponId::Fists || !finite {
+                return Err(format!(
+                    "player {}: pending {:?} action with {:?} (or a non-finite value)",
+                    p.id.0, a.kind, a.weapon
+                ));
+            }
+        }
+        p.core
+            .inputs
+            .check()
+            .map_err(|e| format!("player {}: {e}", p.id.0))?;
     }
     Ok(())
 }
@@ -371,6 +407,7 @@ impl<'de> Deserializer<'de> for Buf {
 mod tests {
     use super::{CheckpointError, CHECKPOINT_FORMAT};
     use crate::arenas::practice_arena;
+    use crate::constants::TICK_MS;
     use crate::content::FactionId;
     use crate::math::Vec2;
     use crate::sim::{Event, Placement, PlayerId, Secrets, Sim, SimConfig};
@@ -559,6 +596,12 @@ mod tests {
         assert!(refusal(&json).contains("next_id"));
         json["world"]["next_id"] = 4.into();
         assert!(Sim::restore(&json).is_ok());
+        // The next join adds one: u32::MAX would overflow it.
+        let mut json = stepped(5);
+        json["world"]["next_id"] = u32::MAX.into();
+        assert!(refusal(&json).contains("next_id"));
+        json["world"]["next_id"] = (u32::MAX - 1).into();
+        assert!(Sim::restore(&json).is_ok());
     }
 
     #[test]
@@ -585,8 +628,106 @@ mod tests {
         }
         let mut a = sim();
         assert!(super::check_world(&a.w).is_ok());
-        a.w.server_time = 1e300; // finite but absurd: the history rule below catches what it would leave behind
+        // Finite but beyond where tick arithmetic is exact (the rewind ring would never trim and would fill), or negative.
+        for bad in [1e300, -1.0, u32::MAX as f64 * TICK_MS * 2.0] {
+            a.w.server_time = bad;
+            assert!(super::check_world(&a.w).is_err(), "{bad}");
+        }
+        a.w.server_time = u32::MAX as f64 * TICK_MS;
         assert!(super::check_world(&a.w).is_ok());
+    }
+
+    #[test]
+    fn a_pending_action_the_slice_cannot_land_is_refused() {
+        let action = |kind: &str, weapon: &str| {
+            let p = serde_json::json!({"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0});
+            serde_json::json!({"kind": kind, "weapon": weapon, "started_at": 0.0, "lands_at": 1.0, "a": 0.5, "packet": p})
+        };
+        for (kind, weapon) in [
+            ("Cast", "Fists"),
+            ("Draw", "Bow"),
+            ("Swing", "Bow"),
+            ("Draw", "Fists"),
+        ] {
+            let mut json = stepped(5);
+            json["world"]["players"][0]["core"]["weapon"]["action"] = action(kind, weapon);
+            assert!(refusal(&json).contains("pending"), "{kind} {weapon}");
+        }
+        // A fist swing is the one action the slice has, and steps.
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["weapon"]["action"] = action("Swing", "Fists");
+        let mut restored = Sim::restore(&json).expect("a fist swing restores");
+        for _ in 0..5 {
+            restored.step();
+        }
+        // Non-finite numbers cannot be written in JSON, so check the decoded state.
+        let mut a = sim();
+        let mut act: crate::state::PendingAction =
+            serde_json::from_value(action("Swing", "Fists")).unwrap();
+        act.lands_at = f64::NAN;
+        a.w.players.iter_mut().next().unwrap().weapon.action = Some(act);
+        assert!(super::check_world(&a.w).is_err());
+    }
+
+    #[test]
+    fn a_queued_input_validation_would_change_is_refused() {
+        let at = |json: &mut serde_json::Value, field: &str, v: serde_json::Value| {
+            json["world"]["players"][0]["core"]["inputs"][field] = v;
+        };
+        let cases: [(&str, serde_json::Value); 8] = [
+            (
+                "mv",
+                serde_json::json!({"Move": {"x": 1e300, "y": -1e300, "seq": null}}),
+            ),
+            (
+                "mv",
+                serde_json::json!({"Move": {"x": 1.0e7, "y": 10.0, "seq": 1}}),
+            ),
+            (
+                "mv",
+                serde_json::json!({"Move": {"x": -1.0, "y": 10.0, "seq": 1}}),
+            ),
+            ("aim", 7.5.into()),
+            ("aim", 1e300.into()),
+            (
+                "actions",
+                serde_json::json!([{"Attack": {"a": 100.0, "t": null}}]),
+            ),
+            (
+                "actions",
+                serde_json::json!([{"Release": {"a": 1e300, "t": 1.0}}]),
+            ),
+            (
+                "actions",
+                serde_json::json!([{"Attack": {"a": 0.5, "t": 1e300}}]),
+            ),
+        ];
+        for (field, v) in cases {
+            let mut json = stepped(5);
+            at(&mut json, field, v.clone());
+            // The last case is a finite time validation keeps; every other one it would change.
+            if field == "actions" && v[0]["Attack"]["t"] == 1e300 {
+                assert!(Sim::restore(&json).is_ok());
+            } else {
+                assert!(refusal(&json).contains("queued input"), "{field} {v}");
+            }
+        }
+        let mut json = stepped(5);
+        at(
+            &mut json,
+            "mv",
+            serde_json::json!({"Move": {"x": 100.0, "y": 100.0, "seq": 1}}),
+        );
+        at(&mut json, "aim", 1.0.into());
+        at(
+            &mut json,
+            "actions",
+            serde_json::json!([{"Attack": {"a": 0.5, "t": 1.0}}]),
+        );
+        let mut restored = Sim::restore(&json).expect("valid queued inputs restore");
+        for _ in 0..5 {
+            restored.step();
+        }
     }
 
     #[test]
@@ -680,9 +821,49 @@ mod tests {
     fn mutated_checkpoints_never_panic_on_restore_or_the_steps_after() {
         use crate::rng::Mulberry32;
         let base = stepped(40);
+        // `base` is stepped to a quiet moment: give players queued inputs and an action in flight to mutate.
+        let mut base = base;
+        base["world"]["players"][0]["core"]["inputs"]["mv"] =
+            serde_json::json!({"Move": {"x": 100.0, "y": 100.0, "seq": 1}});
+        base["world"]["players"][0]["core"]["inputs"]["aim"] = 1.0.into();
+        base["world"]["players"][0]["core"]["inputs"]["actions"] =
+            serde_json::json!([{"Attack": {"a": 0.5, "t": 1.0}}]);
+        base["world"]["players"][1]["core"]["weapon"]["action"] = serde_json::json!({"kind": "Swing", "weapon": "Fists",
+            "started_at": 0.0, "lands_at": 1.0, "a": 0.5, "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}});
         let mut all = Vec::new();
         paths(&base["world"], &mut vec!["world".into()], &mut all);
-        let pick: [serde_json::Value; 10] = [
+        // Aim the mutations at the places the rules guard as often as at any other node.
+        let guarded: Vec<_> = all
+            .iter()
+            .filter(|p| {
+                let l = p.last().map(String::as_str);
+                matches!(
+                    l,
+                    Some(
+                        "server_time"
+                            | "next_id"
+                            | "tick"
+                            | "inputs"
+                            | "action"
+                            | "mv"
+                            | "aim"
+                            | "actions"
+                            | "history"
+                    )
+                )
+            })
+            .cloned()
+            .collect();
+        all.extend(guarded.iter().cycle().take(all.len()).cloned());
+        let pick: [serde_json::Value; 16] = [
+            serde_json::json!({"Move": {"x": 1e300, "y": -1e300, "seq": null}}),
+            serde_json::json!({"Attack": {"a": 1e300, "t": null}}),
+            serde_json::json!([{"Release": {"a": 9.0, "t": 1e300}}]),
+            serde_json::json!({"kind": "Cast", "weapon": "Fists", "started_at": 0.0, "lands_at": 0.0, "a": 0.0,
+                "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}}),
+            serde_json::json!({"kind": "Draw", "weapon": "Bow", "started_at": 0.0, "lands_at": 0.0, "a": 0.0,
+                "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}}),
+            serde_json::json!({"t": 1e12, "x": 1.0, "y": 1.0}),
             0.into(),
             1.into(),
             (-1).into(),
@@ -696,7 +877,7 @@ mod tests {
         ];
         let mut rng = Mulberry32::new(0xC0FFEE);
         let (mut refused, mut stepped_ok) = (0, 0);
-        for _ in 0..400 {
+        for _ in 0..800 {
             let mut json = base.clone();
             for _ in 0..1 + rng.next_u32() % 3 {
                 let at = &all[rng.next_u32() as usize % all.len()];

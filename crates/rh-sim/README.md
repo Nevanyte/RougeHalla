@@ -67,11 +67,15 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 `serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/3", "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
-cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, a roster or player list
-out of id order, a non-finite `server_time`, `tick` at `u32::MAX`, a rewind history out of time order or dated after
-`server_time`, and any carried weapon but fists (the slice has no item flow, so the ranged path in `weapons.rs` is
-unreachable). A restored sim therefore steps without tripping the tick's own asserts; `checkpoint.rs` tests every rule and
-mutates a real checkpoint a few hundred times to check it. A change that makes
+cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a
+roster or player list out of id order; a `server_time` that is negative, non-finite or beyond `u32::MAX` ticks (where the
+clock's own additions stop being exact); `tick` at `u32::MAX`; a rewind history out of time order or dated after
+`server_time`; any carried weapon but fists and any pending action but a finite fist swing (the slice has no item flow, so
+the ranged path in `weapons.rs` is unreachable); and queued inputs that `validate` would change (non-finite or out-of-range
+points and angles). These are the rules the tick is known to rely on: each has a refusal test in `checkpoint.rs`, and a
+few hundred random and structured mutations of a real checkpoint restore and step without a panic. Counters that only
+count up (kills, downs) are not bounded: a checkpoint within a few increments of `u32::MAX` there can still overflow.
+A change that makes
 `statics` or `world` unreadable by old checkpoints bumps `CHECKPOINT_FORMAT`.
 
 The arena is an `Arc<Arena>` (serde `rc`): it serializes exactly as a plain `Arena`, so replay JSON is unchanged, and
