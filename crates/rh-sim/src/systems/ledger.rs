@@ -3,7 +3,7 @@
 use crate::constants::*;
 use crate::content::{mitigate_shares, pvp_factor, DamageShares, WeaponId};
 use crate::sim::{Event, Outcome, Packet, PlayerId, Sim};
-use crate::systems::{credit, settle};
+use crate::systems::{credit, settle, weapons};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
@@ -140,7 +140,8 @@ impl Sim {
                     .enumerate()
                     .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
             {
-                self.stagger(vi);
+                let now = self.w.server_time;
+                weapons::stagger(&mut self.w.players[vi], now, &mut self.w.pending_events);
             }
         }
     }

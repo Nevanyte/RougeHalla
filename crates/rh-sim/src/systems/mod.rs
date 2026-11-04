@@ -72,7 +72,7 @@ impl Sim {
             }
         }
         // [abilities] [target locks]  -- not in the slice (docs/backlog)
-        self.update_weapons();
+        self.with_cx(weapons::update);
         // [afterWeapons]
         let standing: Vec<usize> = (0..self.w.players.len())
             .filter(|&i| self.w.players[i].standing())
@@ -80,7 +80,7 @@ impl Sim {
         let mults: Vec<f64> = standing
             .iter()
             .map(|&i| {
-                let m = self.move_multiplier(i);
+                let m = weapons::move_multiplier(&self.w.players[i], now);
                 if m > 0.0 && m < MOVE_MULT_FLOOR {
                     MOVE_MULT_FLOOR
                 } else {

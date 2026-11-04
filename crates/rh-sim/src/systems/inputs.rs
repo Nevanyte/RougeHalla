@@ -4,6 +4,7 @@ use crate::input::{ActionCmd, MoveCmd};
 use crate::math::Vec2;
 use crate::pathfind::plan_path;
 use crate::sim::{Sim, Status};
+use crate::systems::weapons;
 
 impl Sim {
     pub(crate) fn apply_inputs(&mut self, i: usize) {
@@ -20,13 +21,20 @@ impl Sim {
             }
             if k == d.aim_before.min(n) {
                 if let Some(a) = d.aim {
-                    self.set_aim(i, a);
+                    let now = self.w.server_time;
+                    weapons::set_aim(&mut self.w.players[i], now, a);
                 }
             }
             if let Some(cmd) = d.actions.get(k) {
                 match *cmd {
-                    ActionCmd::Attack { a, t } => self.handle_press(i, a, t),
-                    ActionCmd::Release { a, t } => self.handle_release(i, a, t),
+                    ActionCmd::Attack { a, t } => {
+                        let now = self.w.server_time;
+                        weapons::handle_press(&mut self.w.players[i], now, a, t)
+                    }
+                    ActionCmd::Release { a, t } => {
+                        let now = self.w.server_time;
+                        weapons::handle_release(&mut self.w.players[i], now, a, t)
+                    }
                 }
             }
         }
