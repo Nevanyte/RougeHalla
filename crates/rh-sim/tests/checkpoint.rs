@@ -100,7 +100,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
 fn a_mid_fight_checkpoint_continues_identically() {
     let mut a = crowded_8();
     drive(&mut a, 100);
-    let mut b = Sim::restore(&serde_json::to_value(&a).unwrap()).unwrap();
+    let mut b = Sim::restore(serde_json::to_value(&a).unwrap()).unwrap();
     assert_eq!(a.state_hash(), b.state_hash());
     for sim in [&mut a, &mut b] {
         drive(sim, 120);
