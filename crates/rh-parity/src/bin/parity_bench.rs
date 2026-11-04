@@ -14,6 +14,64 @@ use std::time::Instant;
 #[allow(dead_code)]
 mod digest;
 
+/// An out-of-band action between two steps, parsed once.
+enum Act {
+    Remove,
+    Drop(bool),
+}
+
+/// What happens around each step of the scenario, parsed and validated once before any pass: the JSON of the fixture
+/// (field strings, `msg` objects, player names) never sits inside a measured loop, so the bench's instruction count is
+/// the sim's. `cmds` are the inputs due before the step (fixture order), `acts` the actions after it.
+struct Step {
+    cmds: Vec<(rh_sim::PlayerId, rh_sim::Command)>,
+    acts: Vec<(Act, rh_sim::PlayerId)>,
+}
+
+struct Plan {
+    steps: Vec<Step>,
+}
+
+impl Plan {
+    fn of(fx: &rh_parity::Fixture) -> Self {
+        let mut inputs = fx.inputs.iter().peekable();
+        let steps = fx
+            .ticks
+            .iter()
+            .map(|t| {
+                let mut cmds = Vec::new();
+                while let Some(i) = inputs.peek() {
+                    if i.tick > t.tick {
+                        break;
+                    }
+                    let i = inputs.next().unwrap();
+                    if let Some(c) =
+                        rh_parity::raw_command_pub(i).and_then(|r| rh_sim::validate(r).ok())
+                    {
+                        cmds.push((rh_parity::pid(&i.player), c));
+                    }
+                }
+                let acts = fx
+                    .actions
+                    .iter()
+                    .filter(|a| a.tick == t.tick)
+                    .map(|a| {
+                        let act = match a.kind.as_str() {
+                            "remove" => Act::Remove,
+                            "drop" => Act::Drop(true),
+                            "reconnect" => Act::Drop(false),
+                            other => panic!("unknown fixture action {other}"),
+                        };
+                        (act, rh_parity::pid(&a.player))
+                    })
+                    .collect();
+                Step { cmds, acts }
+            })
+            .collect();
+        Self { steps }
+    }
+}
+
 fn quantiles(mut all: Vec<f64>) -> String {
     if all.is_empty() {
         return "null".into(); // runs = 0: nothing timed
@@ -81,6 +139,7 @@ fn main() {
         return;
     }
     let fx = rh_parity::load(&rh_parity::fixtures_dir().join(format!("{name}.json")));
+    let plan = Plan::of(&fx);
     let mut all: Vec<f64> = Vec::new();
     let mut d = digest::OutcomeDigest::new();
     let mut final_hash = 0;
@@ -88,18 +147,9 @@ fn main() {
     let mut ev = Vec::new();
     for r in 0..runs + 3 {
         let mut sim = rh_parity::build(&fx);
-        let mut inputs = fx.inputs.iter().peekable();
-        for t in &fx.ticks {
-            while let Some(i) = inputs.peek() {
-                if i.tick > t.tick {
-                    break;
-                }
-                let i = inputs.next().unwrap();
-                if let Some(raw) = rh_parity::raw_command_pub(i) {
-                    if let Ok(c) = rh_sim::validate(raw) {
-                        let _ = sim.submit_unbudgeted(rh_parity::pid(&i.player), c);
-                    }
-                }
+        for step in &plan.steps {
+            for (player, c) in &step.cmds {
+                let _ = sim.submit_unbudgeted(*player, *c);
             }
             let t0 = Instant::now();
             ev.clear();
@@ -112,7 +162,12 @@ fn main() {
             if r >= 3 {
                 all.push(us);
             }
-            rh_parity::apply_actions(&mut sim, &fx, t.tick);
+            for (act, player) in &step.acts {
+                match act {
+                    Act::Remove => sim.remove_player(*player),
+                    Act::Drop(dropped) => sim.mark_dropped(*player, *dropped),
+                }
+            }
         }
         if r == 0 {
             final_hash = sim.state_hash();

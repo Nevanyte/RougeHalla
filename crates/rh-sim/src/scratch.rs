@@ -2,12 +2,12 @@
 //! state hash. A restored [`crate::Sim`] starts with an empty [`TickScratch`] and behaves identically.
 //!
 //! When each field is (re)written, and why a stale value is never read:
-//! * `bounty_at_tick_start`, `rank`: rewritten at the start of every active tick (markTickStart, the action order) and
+//! * `bounty_at_tick_start`, `action_order`, `rank` (all by slot): rewritten at the start of every active tick (markTickStart, the action order) and
 //!   read only later in that same tick (the kill bounty, kill-credit ranks, the inputs in that order);
 //! * `standing`, `mults`: written by `movement:multipliers`, read by `movement:walk` and `movement:recordHistory`, which
 //!   empties them (the fighters standing when the multipliers were read, and each one's move speed this tick);
-//! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds);
-//! * `bodies`, `victims`, `ledger_mults`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`: the working lists of one
+//! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds, with `slot_head`/`slot_tail`: all `NONE` between ledger passes);
+//! * `bodies`, `victims`, `ledger_mults`, `entry_next`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`: the working lists of one
 //!   system call, cleared by the system before it fills them and never read by another.
 //!
 //! Every buffer is cleared, never taken, so its capacity survives across ticks: after the first few ticks a step allocates
@@ -106,12 +106,20 @@ impl Clone for TickScratch {
 }
 
 impl TickScratch {
-    /// True when nothing tick-local survives the step (asserted at the end of every step in debug builds).
+    /// True when nothing tick-local survives the step (asserted at the end of every step in debug builds). Checked: the
+    /// queues a tick fills and drains (`melee`, `ledger`, `downed_this_tick`), the lists the movement systems hand from
+    /// one system to the next (`standing`, `mults`), and the ledger's per-slot chains, which must be all `NONE` between
+    /// passes (a stale link would corrupt the next pass). Not checked, because each is cleared by its own system before
+    /// it is filled and never read by another, so what it holds after a step is dead: `action_order`, `rank` and
+    /// `bounty_at_tick_start` (rewritten at the start of every active tick), `bodies`, `victims`, `ledger_mults`,
+    /// `entry_next`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path` and `drained`.
     pub(crate) fn is_settled(&self) -> bool {
         self.melee.is_empty()
             && self.ledger.is_empty()
             && self.downed_this_tick.is_empty()
             && self.standing.is_empty()
             && self.mults.is_empty()
+            && self.slot_head.iter().all(|&n| n == NONE)
+            && self.slot_tail.iter().all(|&n| n == NONE)
     }
 }

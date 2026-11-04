@@ -166,7 +166,7 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
                 next += 1;
             }
         }
-        events.extend(sim.step());
+        sim.step_into(&mut events);
         let got = sim.state_hash();
         if got != expected {
             return Err(ReplayError::Diverged {

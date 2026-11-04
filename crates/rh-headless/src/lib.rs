@@ -46,6 +46,14 @@ pub struct StepOut {
     pub results: Vec<(PlayerId, RunResult)>,
 }
 
+/// Where a step left the match.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Progress {
+    pub tick: u32,
+    pub terminated: bool,
+    pub truncated: bool,
+}
+
 pub struct Env {
     cfg: EnvConfig,
     pub sim: Sim,
@@ -126,21 +134,8 @@ impl Env {
 
     /// One fixed step: external agents' commands (one list per external player, in order), then the seats, then the sim.
     pub fn step(&mut self, external_cmds: &[Vec<RawCommand>]) -> StepOut {
-        let mut ext_stats = SeatStats::default();
-        for (id, cmds) in self.external.iter().zip(external_cmds) {
-            for raw in cmds {
-                if let (Some(rec), Ok(cmd)) = (self.recorder.as_mut(), rh_sim::validate(*raw)) {
-                    rec.record(ReplayInput::Command { player: *id, cmd });
-                }
-            }
-            submit_all(&mut self.sim, *id, cmds.clone(), &mut ext_stats);
-        }
-        self.drive_and_record();
-        let events = self.sim.step();
-        if let Some(rec) = self.recorder.as_mut() {
-            rec.stepped(&self.sim);
-        }
-        self.last_events = events.clone();
+        let p = self.advance(external_cmds);
+        let events = self.last_events.clone();
         let results = events
             .iter()
             .filter_map(|e| {
@@ -151,16 +146,47 @@ impl Env {
                 }
             })
             .collect();
-        let terminated = self.sim.phase() == Phase::Ended;
-        let truncated = !terminated && self.sim.tick() - self.start_tick >= self.cfg.max_ticks;
         StepOut {
-            tick: self.sim.tick(),
+            tick: p.tick,
             observations: self.observations(),
             events,
-            terminated,
-            truncated,
+            terminated: p.terminated,
+            truncated: p.truncated,
             results,
         }
+    }
+
+    /// [`Env::step`] without the owned report: the step's events stay in the env ([`Env::last_events`], one buffer
+    /// reused every step through `Sim::step_into`), so a runner that only folds them allocates nothing per step on the
+    /// sim's side.
+    pub fn advance(&mut self, external_cmds: &[Vec<RawCommand>]) -> Progress {
+        let mut ext_stats = SeatStats::default();
+        for (id, cmds) in self.external.iter().zip(external_cmds) {
+            for raw in cmds {
+                if let (Some(rec), Ok(cmd)) = (self.recorder.as_mut(), rh_sim::validate(*raw)) {
+                    rec.record(ReplayInput::Command { player: *id, cmd });
+                }
+            }
+            submit_all(&mut self.sim, *id, cmds.clone(), &mut ext_stats);
+        }
+        self.drive_and_record();
+        self.last_events.clear();
+        self.sim.step_into(&mut self.last_events);
+        if let Some(rec) = self.recorder.as_mut() {
+            rec.stepped(&self.sim);
+        }
+        let terminated = self.sim.phase() == Phase::Ended;
+        let truncated = !terminated && self.sim.tick() - self.start_tick >= self.cfg.max_ticks;
+        Progress {
+            tick: self.sim.tick(),
+            terminated,
+            truncated,
+        }
+    }
+
+    /// The events of the last step, in order.
+    pub fn last_events(&self) -> &[Event] {
+        &self.last_events
     }
 
     fn drive_and_record(&mut self) {
@@ -233,17 +259,19 @@ pub fn run_bot_match_with(
     let mut summary = MatchSummary::default();
     let mut fold = digest.then(digest::OutcomeDigest::new);
     loop {
-        let out = env.step(&[]);
+        let out = env.advance(&[]);
+        let events = env.last_events();
         if let Some(d) = fold.as_mut() {
-            d.tick(&env.sim, &out.events);
+            d.tick(&env.sim, events);
         }
         summary.ticks += 1;
-        summary.results.extend(out.results);
-        summary.hits += out
-            .events
-            .iter()
-            .filter(|e| matches!(e, Event::Hit { .. }))
-            .count() as u64;
+        for e in events {
+            match e {
+                Event::Resolved { id, result, .. } => summary.results.push((*id, result.clone())),
+                Event::Hit { .. } => summary.hits += 1,
+                _ => {}
+            }
+        }
         if out.terminated || out.truncated {
             summary.terminated = out.terminated;
             summary.truncated = out.truncated;

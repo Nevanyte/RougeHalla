@@ -42,8 +42,8 @@ pub struct Sample {
 
 /// How many rewind samples a fighter keeps: the window [`MAX_REWIND_MS`] + one tick (see [`History::record`]) holds at
 /// most `window / TICK_MS + 1` samples one tick apart; one more is slack. Derived from the constants so a change to the
-/// rewind window or the tick rate resizes the ring instead of silently dropping samples (`History::push` also refuses
-/// to drop one in a debug build).
+/// rewind window or the tick rate resizes the ring instead of silently dropping samples (`History::push` and `History::record`
+/// refuse to drop one, in every build).
 const fn history_cap() -> usize {
     ((MAX_REWIND_MS + TICK_MS) / TICK_MS) as usize + 2
 }
@@ -105,12 +105,10 @@ impl History {
         self.push(s);
     }
     pub fn push(&mut self, s: Sample) {
-        if self.len() == history_cap() {
-            // Unreachable while the ring is sized from the rewind window (samples are a tick apart and the trim runs before
-            // the push); never drop one silently if a later change breaks that.
-            debug_assert!(false, "rewind history ring is full");
-            self.pop_front();
-        }
+        // Unreachable while the ring is sized from the rewind window (samples are a tick apart and the trim runs before the
+        // push). A full ring is never answered by dropping a sample: that would silently shorten the rewind in a release
+        // build, so it is a hard failure in every build.
+        assert!(self.len() < history_cap(), "rewind history ring is full");
         let mut at = self.head as usize + self.len();
         if at >= history_cap() {
             at -= history_cap();
@@ -142,15 +140,8 @@ impl History {
             }
             len -= 1;
         }
-        if len == cap {
-            // Unreachable while the ring is sized from the rewind window; never drop one silently if that breaks.
-            debug_assert!(false, "rewind history ring is full");
-            head += 1;
-            if head == cap {
-                head = 0;
-            }
-            len -= 1;
-        }
+        // Unreachable while the ring is sized from the rewind window (see `push`): a hard failure, never a dropped sample.
+        assert!(len < cap, "rewind history ring is full");
         let mut at = head + len;
         if at >= cap {
             at -= cap;
@@ -648,6 +639,19 @@ mod tests {
             .unwrap()
         )
         .is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "ring is full")]
+    fn a_full_history_ring_refuses_a_push_in_every_build() {
+        let mut ring = History::default();
+        for n in 0..=history_cap() {
+            ring.push(Sample {
+                t: n as f64,
+                x: 0.0,
+                y: 0.0,
+            });
+        }
     }
 
     #[test]

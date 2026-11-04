@@ -76,6 +76,28 @@ impl Sim {
         secrets: Secrets,
         placements: &[Placement],
     ) -> Self {
+        Self::reset_active_capped(config, arena, secrets, placements, MAX_PLAYERS)
+    }
+
+    /// A run with `placements.len()` fighters past the real lobby cap, for scaling measurements only (feature `bench`):
+    /// everything else is [`Sim::reset_active`], and [`MAX_PLAYERS`] stays the cap of the real API (`add_player`).
+    #[cfg(feature = "bench")]
+    pub fn synthetic(
+        config: SimConfig,
+        arena: impl Into<Arc<Arena>>,
+        secrets: Secrets,
+        placements: &[Placement],
+    ) -> Self {
+        Self::reset_active_capped(config, arena, secrets, placements, usize::MAX)
+    }
+
+    fn reset_active_capped(
+        config: SimConfig,
+        arena: impl Into<Arc<Arena>>,
+        secrets: Secrets,
+        placements: &[Placement],
+        cap: usize,
+    ) -> Self {
         // The lobby closes on step 1: every human counts toward min_players (bots never close a lobby, as in legacy).
         let humans = placements.iter().filter(|p| !p.bot).count();
         let mut sim = Sim::new(
@@ -88,7 +110,7 @@ impl Sim {
             secrets,
         );
         for p in placements {
-            sim.add_player(&p.profile, Some(p.faction), p.bot);
+            sim.join(&p.profile, Some(p.faction), p.bot, cap);
         }
         sim.step();
         let t = sim.w.server_time;
@@ -176,7 +198,18 @@ impl Sim {
         faction: Option<FactionId>,
         bot: bool,
     ) -> Option<PlayerId> {
-        if self.w.phase != Phase::Lobby || self.w.players.len() >= MAX_PLAYERS {
+        self.join(profile, faction, bot, MAX_PLAYERS)
+    }
+
+    /// [`Sim::add_player`] with the lobby cap as a parameter (the real API always passes [`MAX_PLAYERS`]).
+    fn join(
+        &mut self,
+        profile: &str,
+        faction: Option<FactionId>,
+        bot: bool,
+        cap: usize,
+    ) -> Option<PlayerId> {
+        if self.w.phase != Phase::Lobby || self.w.players.len() >= cap {
             return None;
         }
         let join_index = self.w.joined;
