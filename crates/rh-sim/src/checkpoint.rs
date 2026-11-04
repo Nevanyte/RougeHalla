@@ -5,10 +5,12 @@
 //! (docs/CONTRACTS.md C-DET). A decoded [`Sim`] is complete (the map tables and the statics digest are built while
 //! decoding); malformed or truncated input is an `Err`, never a panic.
 
+use crate::constants::{TICK_MS, TILE};
+use crate::content::WeaponId;
 use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::sim::Sim;
-use crate::state::World;
+use crate::state::{ActionKind, World};
 use crate::statics::MatchStatic;
 use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
 use serde::de::{
@@ -19,6 +21,9 @@ use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
 pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/3";
+
+/// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
+const COORD_MARGIN: f64 = 1024.0;
 
 /// Why a checkpoint was refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -170,14 +175,8 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                 return Err(self.refuse(CheckpointError::Malformed(e.to_string())))
             }
         };
-        // `next_id` hands out the next join: at or below a present id it would push out of order (a panic in the store).
-        if let Some(last) = w.players.last() {
-            if w.next_id <= last.id.0 {
-                return Err(self.refuse(CheckpointError::Malformed(format!(
-                    "next_id {} is not greater than the last player id {}",
-                    w.next_id, last.id.0
-                ))));
-            }
+        if let Err(why) = check_world(&k, &w) {
+            return Err(self.refuse(CheckpointError::Malformed(why)));
         }
         Ok(Sim {
             k,
@@ -186,6 +185,150 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
             pf: Pathfinder::default(),
         })
     }
+}
+
+/// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
+/// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
+fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
+    // Every coordinate the kernel will read must be a real place near the arena: a huge or non-finite one overflows the
+    // tile arithmetic of the next path request (debug panic, release wrap), and two huge opposite ones cancel in a
+    // finiteness sum.
+    let lo = -COORD_MARGIN;
+    let hi_x = k.arena.map.w as f64 * TILE + COORD_MARGIN;
+    let hi_y = k.arena.map.h as f64 * TILE + COORD_MARGIN;
+    let near = |x: f64, y: f64| (lo..=hi_x).contains(&x) && (lo..=hi_y).contains(&y);
+    for s in &k.arena.spawns {
+        if !near(s.x, s.y) {
+            return Err(format!("spawn ({}, {}) is outside the arena", s.x, s.y));
+        }
+    }
+    // The counters the tick increments cannot be past what the match could have produced: the roster holds everyone who
+    // ever joined, a join adds one, a kill needs a victim and a down needs a fighter.
+    let joined_ever = w.roster.len();
+    if w.joined > joined_ever {
+        return Err(format!(
+            "joined {} exceeds the roster of {joined_ever}",
+            w.joined
+        ));
+    }
+    if w.rt.downs_between_ticks as usize > joined_ever {
+        return Err(format!(
+            "downs_between_ticks {} exceeds the roster of {joined_ever}",
+            w.rt.downs_between_ticks
+        ));
+    }
+    // `next_id` hands out the next join: at or below a present or past id it would push out of order (a panic).
+    let ceiling = w
+        .players
+        .last()
+        .map(|p| p.id)
+        .into_iter()
+        .chain(w.roster.last_id())
+        .max();
+    if let Some(last) = ceiling {
+        if w.next_id <= last.0 {
+            return Err(format!(
+                "next_id {} is not greater than the last player or roster id {}",
+                w.next_id, last.0
+            ));
+        }
+    }
+    // The next join adds one to it.
+    if w.next_id == u32::MAX {
+        return Err("next_id is at its maximum".into());
+    }
+    // Roster order is checked by its own decoder and player order by the store's.
+    // The clock must stay where `+= TICK_MS` and the rewind cutoff are exact (the most the tick counter can reach); far
+    // beyond it the additions are absorbed, no sample is ever trimmed and the history ring fills.
+    if !(0.0..=u32::MAX as f64 * TICK_MS).contains(&w.server_time) {
+        return Err(format!(
+            "server_time {} is outside 0..={}",
+            w.server_time,
+            u32::MAX as f64 * TICK_MS
+        ));
+    }
+    // The tick counter is incremented every step.
+    if w.tick == u32::MAX {
+        return Err("tick is at its maximum".into());
+    }
+    for p in w.players.iter() {
+        // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
+        // fills the ring.
+        if !near(p.body.x, p.body.y) {
+            return Err(format!(
+                "player {}: body at ({}, {}) is outside the arena",
+                p.id.0, p.body.x, p.body.y
+            ));
+        }
+        if let Some(q) = p.motion.path.as_slice().iter().find(|q| !near(q.x, q.y)) {
+            return Err(format!(
+                "player {}: path point ({}, {}) is outside the arena",
+                p.id.0, q.x, q.y
+            ));
+        }
+        if p.credit.bot_kills > p.credit.kills || p.credit.kills as usize > joined_ever {
+            return Err(format!(
+                "player {}: {} kills of which {} bots, with {joined_ever} ever joined",
+                p.id.0, p.credit.kills, p.credit.bot_kills
+            ));
+        }
+        // Samples are appended one tick apart at least (a trim keeps the ring within its window only then); closer ones
+        // fill the ring within a few steps. The gap test also covers time order.
+        let h = p.body.history.as_slice();
+        if h.windows(2).any(|s| !(s[1].t - s[0].t >= TICK_MS)) {
+            return Err(format!(
+                "player {}: rewind history is not in time order, a tick apart",
+                p.id.0
+            ));
+        }
+        if let Some(q) = h.iter().find(|q| !near(q.x, q.y)) {
+            return Err(format!(
+                "player {}: rewind sample ({}, {}) is outside the arena",
+                p.id.0, q.x, q.y
+            ));
+        }
+        if let Some(l) = h.last() {
+            if !(l.t <= w.server_time) {
+                return Err(format!(
+                    "player {}: rewind history ends at {}, after server_time {}",
+                    p.id.0, l.t, w.server_time
+                ));
+            }
+        }
+        // The slice has no item flow, so nobody carries anything but fists; a bow or wand would reach the ranged attack
+        // path, which is not in the slice (systems/weapons.rs `land`).
+        for item in [p.weapon.weapon0, p.weapon.weapon1].into_iter().flatten() {
+            if item != WeaponId::Fists {
+                return Err(format!("player {}: carries {item:?}", p.id.0));
+            }
+        }
+        // The same goes for the action in flight: only a fist swing exists in the slice, with finite times and angle.
+        if let Some(a) = p.weapon.action {
+            let pk = a.packet;
+            let finite = [
+                a.started_at,
+                a.lands_at,
+                a.a,
+                pk.raw,
+                pk.phys,
+                pk.magic,
+                pk.true_,
+            ]
+            .iter()
+            .all(|v| v.is_finite());
+            if a.kind != ActionKind::Swing || a.weapon != WeaponId::Fists || !finite {
+                return Err(format!(
+                    "player {}: pending {:?} action with {:?} (or a non-finite value)",
+                    p.id.0, a.kind, a.weapon
+                ));
+            }
+        }
+        p.core
+            .inputs
+            .check()
+            .map_err(|e| format!("player {}: {e}", p.id.0))?;
+    }
+    Ok(())
 }
 
 /// A self-describing value held while a checkpoint's tag is still unread (serde_json's `Value`, in miniature), which then
@@ -320,6 +463,7 @@ impl<'de> Deserializer<'de> for Buf {
 mod tests {
     use super::{CheckpointError, CHECKPOINT_FORMAT};
     use crate::arenas::practice_arena;
+    use crate::constants::TICK_MS;
     use crate::content::FactionId;
     use crate::math::Vec2;
     use crate::sim::{Event, Placement, PlayerId, Secrets, Sim, SimConfig};
@@ -477,5 +621,533 @@ mod tests {
             Sim::restore(&json),
             Err(CheckpointError::Malformed(_))
         ));
+    }
+
+    /// Restores `json` and returns why it was refused.
+    fn refusal(json: &serde_json::Value) -> String {
+        match Sim::restore(json) {
+            Err(CheckpointError::Malformed(why)) => why,
+            Err(e) => panic!("expected Malformed, got {e}"),
+            Ok(_) => panic!("the checkpoint was accepted"),
+        }
+    }
+
+    fn stepped(n: usize) -> serde_json::Value {
+        let mut a = sim();
+        for _ in 0..n {
+            a.step();
+        }
+        serde_json::to_value(&a).unwrap()
+    }
+
+    #[test]
+    fn a_stale_next_id_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["next_id"] = 3.into(); // players 1..=3 are seated
+        assert!(refusal(&json).contains("next_id"));
+        // A leaver stays in the roster: its id is not free either.
+        let mut json = stepped(5);
+        json["world"]["players"].as_array_mut().unwrap().pop();
+        json["world"]["next_id"] = 3.into();
+        assert!(refusal(&json).contains("next_id"));
+        json["world"]["next_id"] = 4.into();
+        assert!(Sim::restore(&json).is_ok());
+        // The next join adds one: u32::MAX would overflow it.
+        let mut json = stepped(5);
+        json["world"]["next_id"] = u32::MAX.into();
+        assert!(refusal(&json).contains("next_id"));
+        json["world"]["next_id"] = (u32::MAX - 1).into();
+        assert!(Sim::restore(&json).is_ok());
+    }
+
+    #[test]
+    fn a_roster_out_of_order_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["roster"]["names"]
+            .as_array_mut()
+            .unwrap()
+            .swap(0, 1);
+        assert!(refusal(&json).contains("ascending"));
+        let mut json = stepped(5);
+        let names = json["world"]["roster"]["names"].as_array_mut().unwrap();
+        names[1] = names[0].clone();
+        assert!(refusal(&json).contains("ascending"));
+    }
+
+    #[test]
+    fn a_non_finite_clock_is_refused() {
+        // JSON cannot carry NaN or infinity, but another serde format can: check the decoded state itself.
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let mut a = sim();
+            a.w.server_time = bad;
+            assert!(super::check_world(&a.k, &a.w).is_err(), "{bad}");
+        }
+        let mut a = sim();
+        assert!(super::check_world(&a.k, &a.w).is_ok());
+        // Finite but beyond where tick arithmetic is exact (the rewind ring would never trim and would fill), or negative.
+        for bad in [1e300, -1.0, u32::MAX as f64 * TICK_MS * 2.0] {
+            a.w.server_time = bad;
+            assert!(super::check_world(&a.k, &a.w).is_err(), "{bad}");
+        }
+        a.w.server_time = u32::MAX as f64 * TICK_MS;
+        assert!(super::check_world(&a.k, &a.w).is_ok());
+    }
+
+    #[test]
+    fn a_pending_action_the_slice_cannot_land_is_refused() {
+        let action = |kind: &str, weapon: &str| {
+            let p = serde_json::json!({"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0});
+            serde_json::json!({"kind": kind, "weapon": weapon, "started_at": 0.0, "lands_at": 1.0, "a": 0.5, "packet": p})
+        };
+        for (kind, weapon) in [
+            ("Cast", "Fists"),
+            ("Draw", "Bow"),
+            ("Swing", "Bow"),
+            ("Draw", "Fists"),
+        ] {
+            let mut json = stepped(5);
+            json["world"]["players"][0]["core"]["weapon"]["action"] = action(kind, weapon);
+            assert!(refusal(&json).contains("pending"), "{kind} {weapon}");
+        }
+        // A fist swing is the one action the slice has, and steps.
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["weapon"]["action"] = action("Swing", "Fists");
+        let mut restored = Sim::restore(&json).expect("a fist swing restores");
+        for _ in 0..5 {
+            restored.step();
+        }
+        // Non-finite numbers cannot be written in JSON, so check the decoded state.
+        let mut a = sim();
+        let mut act: crate::state::PendingAction =
+            serde_json::from_value(action("Swing", "Fists")).unwrap();
+        act.lands_at = f64::NAN;
+        a.w.players.iter_mut().next().unwrap().weapon.action = Some(act);
+        assert!(super::check_world(&a.k, &a.w).is_err());
+    }
+
+    #[test]
+    fn a_queued_input_validation_would_change_is_refused() {
+        let at = |json: &mut serde_json::Value, field: &str, v: serde_json::Value| {
+            json["world"]["players"][0]["core"]["inputs"][field] = v;
+        };
+        let cases: [(&str, serde_json::Value); 8] = [
+            (
+                "mv",
+                serde_json::json!({"Move": {"x": 1e300, "y": -1e300, "seq": null}}),
+            ),
+            (
+                "mv",
+                serde_json::json!({"Move": {"x": 1.0e7, "y": 10.0, "seq": 1}}),
+            ),
+            (
+                "mv",
+                serde_json::json!({"Move": {"x": -1.0, "y": 10.0, "seq": 1}}),
+            ),
+            ("aim", 7.5.into()),
+            ("aim", 1e300.into()),
+            (
+                "actions",
+                serde_json::json!([{"Attack": {"a": 100.0, "t": null}}]),
+            ),
+            (
+                "actions",
+                serde_json::json!([{"Release": {"a": 1e300, "t": 1.0}}]),
+            ),
+            (
+                "actions",
+                serde_json::json!([{"Attack": {"a": 0.5, "t": 1e300}}]),
+            ),
+        ];
+        for (field, v) in cases {
+            let mut json = stepped(5);
+            at(&mut json, field, v.clone());
+            // The last case is a finite time validation keeps; every other one it would change.
+            if field == "actions" && v[0]["Attack"]["t"] == 1e300 {
+                assert!(Sim::restore(&json).is_ok());
+            } else {
+                assert!(refusal(&json).contains("queued input"), "{field} {v}");
+            }
+        }
+        let mut json = stepped(5);
+        at(
+            &mut json,
+            "mv",
+            serde_json::json!({"Move": {"x": 100.0, "y": 100.0, "seq": 1}}),
+        );
+        at(&mut json, "aim", 1.0.into());
+        at(
+            &mut json,
+            "actions",
+            serde_json::json!([{"Attack": {"a": 0.5, "t": 1.0}}]),
+        );
+        let mut restored = Sim::restore(&json).expect("valid queued inputs restore");
+        for _ in 0..5 {
+            restored.step();
+        }
+    }
+
+    #[test]
+    fn a_tick_counter_at_its_maximum_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["tick"] = u32::MAX.into();
+        assert!(refusal(&json).contains("tick"));
+        json["world"]["tick"] = (u32::MAX - 1).into();
+        assert!(Sim::restore(&json).is_ok());
+    }
+
+    #[test]
+    fn a_rewind_history_out_of_time_order_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["body"]["history"]
+            .as_array_mut()
+            .unwrap()
+            .swap(0, 1);
+        assert!(refusal(&json).contains("time order"));
+    }
+
+    #[test]
+    fn a_rewind_history_dated_after_the_clock_is_refused() {
+        let mut json = stepped(5);
+        let h = json["world"]["players"][1]["core"]["body"]["history"]
+            .as_array_mut()
+            .unwrap();
+        let last = h.len() - 1;
+        h[last]["t"] = 1e12.into();
+        assert!(refusal(&json).contains("server_time"));
+        // And a whole history in the far future (the ring would fill and panic) is refused the same way.
+        let mut json = stepped(5);
+        for s in json["world"]["players"][0]["core"]["body"]["history"]
+            .as_array_mut()
+            .unwrap()
+        {
+            s["t"] = (1e12 + s["t"].as_f64().unwrap()).into();
+        }
+        assert!(refusal(&json).contains("server_time"));
+    }
+
+    /// Steps a restored sim and exercises the doors a caller has: submit, leave, join.
+    fn poke(sim: &mut Sim) {
+        use crate::input::{validate, RawCommand};
+        for _ in 0..6 {
+            for id in sim.players().iter().map(|p| p.id).collect::<Vec<_>>() {
+                for raw in [
+                    RawCommand::Move {
+                        x: 300.0,
+                        y: 300.0,
+                        seq: Some(1),
+                    },
+                    RawCommand::Attack { a: 0.5, t: None },
+                ] {
+                    let _ = sim.submit(id, validate(raw).unwrap());
+                }
+            }
+            sim.step();
+        }
+        if let Some(id) = sim.players().first().map(|p| p.id) {
+            sim.remove_player(id);
+        }
+        let _ = sim.add_player("late", None, false);
+        sim.step();
+    }
+
+    #[test]
+    fn a_too_dense_rewind_history_is_refused() {
+        // Samples all at the clock, or a millisecond apart, would fill the 9-slot ring within three steps.
+        for gaps in [0.0, 1.0, 49.0] {
+            let mut json = stepped(5);
+            let now = json["world"]["server_time"].as_f64().unwrap();
+            let h: Vec<_> = (0..9)
+                .map(|i| {
+                    serde_json::json!({"t": now - gaps * (8 - i) as f64, "x": 200.0, "y": 200.0})
+                })
+                .collect();
+            json["world"]["players"][0]["core"]["body"]["history"] = h.into();
+            assert!(refusal(&json).contains("tick apart"), "gap {gaps}");
+        }
+        // A tick apart is what real histories hold (the minimum over real checkpoints is exactly one tick).
+        let json = stepped(5);
+        let mut s = Sim::restore(&json).unwrap();
+        poke(&mut s);
+    }
+
+    #[test]
+    fn coordinates_outside_the_arena_are_refused() {
+        let body = |x: f64, y: f64| {
+            let mut json = stepped(5);
+            json["world"]["players"][0]["core"]["body"]["x"] = x.into();
+            json["world"]["players"][0]["core"]["body"]["y"] = y.into();
+            json
+        };
+        // Opposite extremes cancel in a finiteness sum; 1e25 overflows tile arithmetic; both panicked on the next Move.
+        for (x, y) in [
+            (1e300, -1e300),
+            (1e25, 1e25),
+            (-1e15, 0.0),
+            (0.0, 1e9),
+            (-5000.0, 10.0),
+        ] {
+            assert!(
+                refusal(&body(x, y)).contains("outside the arena"),
+                "{x} {y}"
+            );
+        }
+        // A body on the map edge is fine.
+        let mut s = Sim::restore(body(5.0, 5.0)).unwrap();
+        poke(&mut s);
+        // So are history samples, path points and spawns.
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["body"]["history"][0]["x"] = 1e300.into();
+        assert!(refusal(&json).contains("rewind sample"));
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["motion"]["path"] =
+            serde_json::json!([{"x": 1e300, "y": -1e300}]);
+        assert!(refusal(&json).contains("path point"));
+        let mut json = stepped(5);
+        json["statics"]["arena"]["spawns"] = serde_json::json!([{"x": 1e300, "y": -1e300}]);
+        assert!(refusal(&json).contains("spawn"));
+    }
+
+    #[test]
+    fn a_lobby_with_a_wild_spawn_is_refused() {
+        let mut a = Sim::new(
+            SimConfig::default(),
+            practice_arena(),
+            Secrets::from_seed(1),
+        );
+        a.add_player("a", None, false);
+        let mut json = serde_json::to_value(&a).unwrap();
+        json["statics"]["arena"]["spawns"] = serde_json::json!([{"x": 1e300, "y": -1e300}]);
+        assert!(refusal(&json).contains("spawn"));
+    }
+
+    #[test]
+    fn counters_past_what_a_match_can_have_produced_are_refused() {
+        let cases: [(&[&str], serde_json::Value, &str); 6] = [
+            (&["players", "0", "credit", "bot_kills"], 5.into(), "kills"),
+            (&["players", "0", "credit", "kills"], 99.into(), "kills"),
+            (
+                &["players", "0", "credit", "kills"],
+                u32::MAX.into(),
+                "kills",
+            ),
+            (&["joined"], 99.into(), "joined"),
+            (
+                &["rt", "downs_between_ticks"],
+                99.into(),
+                "downs_between_ticks",
+            ),
+            (
+                &["rt", "downs_between_ticks"],
+                u32::MAX.into(),
+                "downs_between_ticks",
+            ),
+        ];
+        for (path, v, needle) in cases {
+            let mut json = stepped(5);
+            let mut at = &mut json["world"];
+            for k in path {
+                at = match k.parse::<usize>() {
+                    Ok(i) => &mut at[i],
+                    Err(_) => &mut at[*k],
+                };
+            }
+            *at = v.clone();
+            assert!(refusal(&json).contains(needle), "{path:?} {v}");
+        }
+        // bot_kills > kills panicked at the next resolve (debug overflow; release persisted 4294967295).
+        let mut json = stepped(5);
+        json["world"]["players"][0]["credit"]["bot_kills"] = 1.into();
+        assert!(refusal(&json).contains("kills"));
+        // Inside the natural bounds it restores and plays on.
+        let mut json = stepped(5);
+        json["world"]["players"][0]["credit"]["kills"] = 2.into();
+        json["world"]["players"][0]["credit"]["bot_kills"] = 1.into();
+        json["world"]["rt"]["downs_between_ticks"] = 1.into();
+        let mut s = Sim::restore(&json).unwrap();
+        poke(&mut s);
+    }
+
+    #[test]
+    fn counters_that_cannot_be_bounded_saturate() {
+        // `dropped` counts rejected orders with no natural bound: at its maximum it stays there (debug used to overflow).
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["inputs"]["dropped"] = u32::MAX.into();
+        let mut s = Sim::restore(&json).unwrap();
+        poke(&mut s);
+        let mut json = stepped(5);
+        json["world"]["players"][0]["credit"]["gv_parts"]["bounty"] = u32::MAX.into();
+        json["world"]["players"][0]["credit"]["gv_parts"]["kills"] = u32::MAX.into();
+        let mut s = Sim::restore(&json).unwrap();
+        poke(&mut s);
+    }
+
+    #[test]
+    fn a_carried_ranged_weapon_is_refused() {
+        for item in ["Bow", "Wand", "Sword"] {
+            let mut json = stepped(5);
+            json["world"]["players"][2]["core"]["weapon"]["weapon1"] = item.into();
+            assert!(refusal(&json).contains("carries"), "{item}");
+        }
+        let mut json = stepped(5);
+        json["world"]["players"][2]["core"]["weapon"]["weapon0"] = "Fists".into();
+        assert!(Sim::restore(&json).is_ok());
+    }
+
+    /// Every node of a JSON document, as a path of keys and indices.
+    fn paths(v: &serde_json::Value, at: &mut Vec<String>, out: &mut Vec<Vec<String>>) {
+        out.push(at.clone());
+        match v {
+            serde_json::Value::Array(a) => {
+                for (i, x) in a.iter().enumerate() {
+                    at.push(i.to_string());
+                    paths(x, at, out);
+                    at.pop();
+                }
+            }
+            serde_json::Value::Object(o) => {
+                for (k, x) in o {
+                    at.push(k.clone());
+                    paths(x, at, out);
+                    at.pop();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn node<'a>(v: &'a mut serde_json::Value, at: &[String]) -> &'a mut serde_json::Value {
+        let mut cur = v;
+        for k in at {
+            cur = match cur {
+                serde_json::Value::Array(a) => &mut a[k.parse::<usize>().unwrap()],
+                serde_json::Value::Object(o) => o.get_mut(k).unwrap(),
+                _ => unreachable!(),
+            };
+        }
+        cur
+    }
+
+    /// Whatever a damaged checkpoint holds, restoring it either fails with an error or yields a match that steps: the
+    /// tick's own asserts are never the first to notice.
+    #[test]
+    fn mutated_checkpoints_never_panic_on_restore_or_the_steps_after() {
+        use crate::rng::Mulberry32;
+        let base = stepped(40);
+        // `base` is stepped to a quiet moment: give players queued inputs and an action in flight to mutate.
+        let mut base = base;
+        base["world"]["players"][0]["core"]["inputs"]["mv"] =
+            serde_json::json!({"Move": {"x": 100.0, "y": 100.0, "seq": 1}});
+        base["world"]["players"][0]["core"]["inputs"]["aim"] = 1.0.into();
+        base["world"]["players"][0]["core"]["inputs"]["actions"] =
+            serde_json::json!([{"Attack": {"a": 0.5, "t": 1.0}}]);
+        base["world"]["players"][1]["core"]["weapon"]["action"] = serde_json::json!({"kind": "Swing", "weapon": "Fists",
+            "started_at": 0.0, "lands_at": 1.0, "a": 0.5, "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}});
+        let mut all = Vec::new();
+        paths(&base["world"], &mut vec!["world".into()], &mut all);
+        // Aim the mutations at the places the rules guard as often as at any other node.
+        let guarded: Vec<_> = all
+            .iter()
+            .filter(|p| {
+                let l = p.last().map(String::as_str);
+                matches!(
+                    l,
+                    Some(
+                        "server_time"
+                            | "next_id"
+                            | "tick"
+                            | "inputs"
+                            | "action"
+                            | "mv"
+                            | "aim"
+                            | "actions"
+                            | "history"
+                            | "x"
+                            | "y"
+                            | "kills"
+                            | "bot_kills"
+                            | "joined"
+                            | "dropped"
+                            | "downs_between_ticks"
+                            | "path"
+                            | "bounty"
+                    )
+                )
+            })
+            .cloned()
+            .collect();
+        all.extend(guarded.iter().cycle().take(all.len()).cloned());
+        let pick: [serde_json::Value; 22] = [
+            serde_json::json!({"Move": {"x": 1e300, "y": -1e300, "seq": null}}),
+            serde_json::json!({"Attack": {"a": 1e300, "t": null}}),
+            serde_json::json!([{"Release": {"a": 9.0, "t": 1e300}}]),
+            serde_json::json!({"kind": "Cast", "weapon": "Fists", "started_at": 0.0, "lands_at": 0.0, "a": 0.0,
+                "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}}),
+            serde_json::json!({"kind": "Draw", "weapon": "Bow", "started_at": 0.0, "lands_at": 0.0, "a": 0.0,
+                "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}}),
+            serde_json::json!({"t": 1e12, "x": 1.0, "y": 1.0}),
+            // Dense histories, huge or cancelling coordinates, counters at their extremes.
+            serde_json::json!((0..9)
+                .map(|_| serde_json::json!({"t": 2000.0, "x": 1.0, "y": 1.0}))
+                .collect::<Vec<_>>()),
+            serde_json::json!((0..9)
+                .map(|i| serde_json::json!({"t": 1960.0 + i as f64, "x": 1.0, "y": 1.0}))
+                .collect::<Vec<_>>()),
+            serde_json::json!([{"x": 1e300, "y": -1e300}]),
+            serde_json::json!({"x": 1e300, "y": -1e300}),
+            (-1e300_f64).into(),
+            4294967294u32.into(),
+            0.into(),
+            1.into(),
+            (-1).into(),
+            3.into(),
+            1e12.into(),
+            1e300.into(),
+            u32::MAX.into(),
+            serde_json::Value::Null,
+            "Bow".into(),
+            true.into(),
+        ];
+        let mut rng = Mulberry32::new(0xC0FFEE);
+        let (mut refused, mut stepped_ok) = (0, 0);
+        for _ in 0..800 {
+            let mut json = base.clone();
+            for _ in 0..1 + rng.next_u32() % 3 {
+                let at = &all[rng.next_u32() as usize % all.len()];
+                // The path may point into a node an earlier mutation replaced; skip what no longer resolves.
+                let ok = at.iter().try_fold(&json, |cur, k| match cur {
+                    serde_json::Value::Array(a) => a.get(k.parse::<usize>().ok()?),
+                    serde_json::Value::Object(o) => o.get(k),
+                    _ => None,
+                });
+                if ok.is_none() {
+                    continue;
+                }
+                let target = node(&mut json, at);
+                match rng.next_u32() % 4 {
+                    0 if target.is_array() => {
+                        let a = target.as_array_mut().unwrap();
+                        if a.len() >= 2 {
+                            let n = a.len();
+                            a.swap(0, n - 1);
+                        }
+                    }
+                    1 if target.is_array() => {
+                        target.as_array_mut().unwrap().pop();
+                    }
+                    _ => *target = pick[rng.next_u32() as usize % pick.len()].clone(),
+                }
+            }
+            match Sim::restore(&json) {
+                Err(_) => refused += 1,
+                Ok(mut sim) => {
+                    for _ in 0..20 {
+                        sim.step();
+                    }
+                    poke(&mut sim);
+                    stepped_ok += 1;
+                }
+            }
+        }
+        assert!(refused > 50 && stepped_ok > 5, "{refused} {stepped_ok}");
     }
 }

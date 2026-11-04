@@ -3,7 +3,14 @@
 //! bit-identically.
 
 use rh_sim::arenas::practice_arena;
-use rh_sim::{Command, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+use rh_sim::{
+    validate, Command, FactionId, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig, Vec2,
+};
+
+/// A command through the one door in (C-INPUT): these tests only use valid ones.
+fn cmd(raw: RawCommand) -> Command {
+    validate(raw).expect("a valid test command")
+}
 use serde_json::Value;
 
 /// Eight fighters packed into one corner of the practice arena, all swinging at their neighbour.
@@ -41,12 +48,12 @@ fn drive(sim: &mut Sim, ticks: u32) {
     for t in 0..ticks {
         for i in 1..=8u32 {
             let a = (t as f64 * 0.05) + i as f64;
-            let _ = sim.submit(PlayerId(i), Command::Aim { a });
+            let _ = sim.submit(PlayerId(i), cmd(RawCommand::Aim { a }));
             if t % 7 == 0 {
-                let _ = sim.submit(PlayerId(i), Command::Attack { a, t: None });
+                let _ = sim.submit(PlayerId(i), cmd(RawCommand::Attack { a, t: None }));
             }
             if t % 7 == 3 {
-                let _ = sim.submit(PlayerId(i), Command::Release { a, t: None });
+                let _ = sim.submit(PlayerId(i), cmd(RawCommand::Release { a, t: None }));
             }
         }
         sim.step();

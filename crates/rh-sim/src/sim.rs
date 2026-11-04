@@ -210,7 +210,7 @@ impl Sim {
             return None;
         }
         let join_index = self.w.joined;
-        self.w.joined += 1;
+        self.w.joined = self.w.joined.saturating_add(1);
         let faction = faction.unwrap_or_else(|| FactionId::default_for(join_index));
         let hp = crate::content::faction(faction).hp;
         let spot = if self.k.arena.spawns.is_empty() {

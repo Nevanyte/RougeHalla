@@ -21,8 +21,8 @@ use rh_protocol::quant::{quantize_facing, quantize_pos, round_half_away};
 use rh_protocol::Writer;
 use rh_sim::observe::ActorView;
 use rh_sim::{
-    arenas::practice_arena, observe_into, validate, Command, FactionId, Observation, Placement,
-    PlayerId, RawCommand, Secrets, Sim, SimConfig, Vec2,
+    arenas::practice_arena, observe_into, validate, FactionId, Observation, Placement, PlayerId,
+    RawCommand, Secrets, Sim, SimConfig, Vec2,
 };
 
 /// One remote actor as a connection would remember it: what the wire carries, 15 bytes of fields (16 with padding).
@@ -412,7 +412,7 @@ fn synth(n: usize, ticks: u32) {
             let rng = &mut rngs[i];
             if (tick as usize + i) % 16 == 0 {
                 let (gx, gy) = (w_ * (0.35 + 0.3 * unit(rng)), h_ * (0.35 + 0.3 * unit(rng)));
-                if let Ok(c @ Command::Move { .. }) = validate(RawCommand::Move {
+                if let Ok(c) = validate(RawCommand::Move {
                     x: gx,
                     y: gy,
                     seq: None,

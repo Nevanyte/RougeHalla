@@ -2,9 +2,10 @@
 
 Invariants of the Rust foundation, each linked to its canonical source (code is the source of truth; this file only names
 and points) and to the tests that hold it. **Decision status** (Accepted / Provisional) is independent of **validation
-status** (Passed / Failed / Blocked / Not run) at the revision recorded in [MIGRATION.md](MIGRATION.md).
+status** (Passed / Failed / Blocked / Not run). Validation columns refer to `optimization_port` at `3ad072b` (the merge of
+H-server; the revision and results are recorded in [MIGRATION.md](MIGRATION.md)) unless a cell says otherwise.
 
-**FROZEN** means: the baseline ordinary workers preserve. GPT's coordinator may amend a FROZEN contract only with evidence
+**FROZEN** means: the baseline ordinary workers preserve. The coordinator may amend a FROZEN contract only with evidence
 (a failing scenario or a measurement) and an independent review, recorded in an ADR or in this file's change log.
 
 ## Status table
@@ -12,17 +13,18 @@ status** (Passed / Failed / Blocked / Not run) at the revision recorded in [MIGR
 | ID | Contract | Decision | Validation | Tests |
 |---|---|---|---|---|
 | C-TICK | Fixed 20 Hz step; sim time +50 ms per step; fixed system order, held as an executable schedule checked against the legacy record | Accepted, FROZEN | Passed | parity suite; `rh-parity/tests/schedule.rs`; `rh-sim/src/systems/tests.rs`; `rh-server` pacer unit tests; `rh-server/tests/density.rs` |
-| C-RNG | No entropy in the core; injected secrets; one stream per purpose | Accepted, FROZEN | Passed (with the known tie-outcome observability below) | `rh-sim/tests/observe.rs`; `tie_kill_credit_*` parity fixtures; determinism tests |
+| C-RNG | No entropy in the core; injected secrets; one stream per purpose; the state hash is server-private (it depends on `spawn_seed`) | Accepted, FROZEN | Passed (with the known tie-outcome observability and the state-hash oracle limit below) | `rh-sim/tests/observe.rs`; `tie_kill_credit_*` parity fixtures; determinism tests; `rh-sim/tests/hash_coverage.rs` (statics secrets held out and asserted) |
 | C-NUM | f64, legacy order, no FMA, `libm` transcendentals | Accepted, FROZEN | Passed (x86_64) / Not run (aarch64) | parity suite |
-| C-DET | Replays and checkpoints (`rh-checkpoint/3`) reproduce every step hash; live = headless; the tick allocates nothing in steady state | Accepted, FROZEN | Passed (`state_hash` still lists its fields by hand until P8) | `rh-headless/tests/env.rs`, `rh-server/tests/equivalence.rs`, `rh-sim/tests/checkpoint.rs`, `rh-sim/tests/no_alloc.rs` |
+| C-DET | Replays (`rh-replay/2`) and checkpoints (`rh-checkpoint/3`) reproduce every step hash; the state hash is derived from the serialized `World` (0 unhashed leaves); live = headless; the tick allocates nothing in steady state | Accepted, FROZEN | Passed (P8 merged; restore hardening H-sim is in progress on another branch) | `rh-headless/tests/env.rs`, `rh-server/tests/equivalence.rs`, `rh-sim/tests/{checkpoint,hash_coverage,replay,no_alloc}.rs`, `rh-sim/src/hash.rs` unit tests, `rh-sim/clippy.toml` |
 | C-INPUT | One input path for every actor (including in-tick actors via `Cx::submit`); validation; order budget; ≤ 6 actions/tick | Accepted, FROZEN | Passed | `rh-sim` input unit tests; flood policy test; live tests |
-| C-OBS | Three views (state / public snapshot / observation); no leaks | Accepted, FROZEN | Passed (slice) | `rh-sim/tests/observe.rs` |
-| C-NET | Protocol v2 framing, limits, versioning, event classes, resume, liveness, batched egress | Accepted, FROZEN | Passed (loopback and in-process density runs; no real-network or socket-level load test yet) | `rh-protocol/tests`, C# tests, `tools/protocol-js/check-vectors.mjs`, `rh-server/tests/{live,transport,density}.rs`, `conn.rs` unit tests, browser proof |
+| C-OBS | Three views (state / public snapshot / observation); no leaks; every event declares who may perceive it (exhaustive `visibility`/`class`); catch-up wakes judge each step against its own sight | Accepted, FROZEN | Passed (slice) | `rh-sim/tests/{observe,kernel}.rs`, `rh-server/tests/publish.rs` |
+| C-NET | Protocol v2 framing, limits, versioning, event classes, resume, liveness, batched egress, fair guarded reader, refusing encoders. Protocol v3 (per-connection delta, ADR 0010) is **Accepted, not shipped**: the wire is v2 until packet P10c merges | Accepted, FROZEN (v2); v3 Accepted (ADR 0010) | Passed for v2 (loopback and in-process density runs; no real-network or socket-level load test yet). v3: Not run (implementation in progress) | `rh-protocol/tests`, C# tests (138 at H-server), `tools/protocol-js/check-vectors.mjs` (12 server vectors, 31 malformed, 663 checks), `rh-server/tests/{live,transport,density,publish}.rs`, `conn.rs`/`room.rs` unit tests, browser proof |
 | C-MAP | Server-sent canonical map | Accepted | Passed (blob + hash) | protocol vectors; browser proof `admission_and_map` |
-| C-POLICY | Seat contract, cadence, faults, async deadline | Accepted, FROZEN | Passed | `rh-headless/tests/env.rs`, equivalence test |
-| C-PERSIST | Idempotent results, fenced leases, ledger reconciliation | Accepted, FROZEN | Store: Passed (local PG 16). Server path: Passed for results, MIA results, lease release on leave/close and rejoin after a leave (`pg_e2e`, 30 of 30 runs under CPU load after P5d); **lease renewal not implemented**, a crashed host's leases wait for their TTL (3600 s), and unwritten results live only in memory (~2 min of retries) | `rh-persist/tests`, `rh-server/tests/pg_e2e.rs` |
-| C-HOST | Lifecycle states, drain (control API, SIGTERM, Ctrl-C), no SDK in process | Provisional | Passed locally / Blocked on AWS | `rh-server/tests/live.rs` drain test, `tests/sigterm.rs` |
-| C-PARITY | Legacy behaviour reproduced within the stated tolerances | Accepted, FROZEN | Passed (slice: 8 scenarios + 300 paths) | `rh-parity/tests/parity.rs` |
+| C-POLICY | Seat contract, cadence, faults, async deadline; a seat is observed only on its decision ticks, events between decisions accumulate (bounded) | Accepted, FROZEN | Passed | `rh-headless/tests/env.rs`, equivalence test, `rh-policy` unit tests |
+| C-PERSIST | Idempotent results, fenced leases, ledger reconciliation; one owned entry per profile in the director (owner token, lease states), a lease never given back while a result is due or in flight | Accepted, FROZEN | Store: Passed (local PG 16). Server path: Passed for results, MIA results, lease release on leave/close, rejoin after a leave and the director state machine (`pg_e2e`: 30 of 30 under CPU load after P5d, 20 of 20 after H-server; director unit tests on strict memory leases). **Lease renewal not implemented**, a crashed host's leases wait for their TTL (3600 s), and unwritten results live only in memory (~2 min of retries) | `rh-persist/tests`, `rh-server/src/director.rs` unit tests, `rh-server/tests/pg_e2e.rs` |
+| C-HOST | Lifecycle states, drain (control API, SIGTERM, Ctrl-C), no SDK in process; a panicking room is reported `Closed` and its seats and leases are freed | Provisional | Passed locally / Blocked on AWS | `rh-server/tests/live.rs` drain test, `tests/sigterm.rs`, `director.rs` room-panic test |
+| C-PARITY | Legacy behaviour reproduced within the stated tolerances | Accepted, FROZEN | Passed (slice: 13 scenarios MATCH + 1 capture-only + 300 paths) | `rh-parity/tests/parity.rs`, `rh-parity/tests/schedule.rs` |
+| C-PERF | Pull requests touching the Rust core are A/B-measured against their merge-base with deterministic counts (Ir per unit <= 1.03x, no allocation increase, equal behaviour fingerprints unless declared) | Accepted | Not run in CI yet: the workflow passed `actionlint` and a local dry run of its exact command line; its first real pull-request run is still to be observed | `.github/workflows/perfproof.yml`, `tools/perfproof/perfproof.py`, [CONTRIBUTING.md](../CONTRIBUTING.md) |
 
 ## C-TICK: time and order
 - `rh_sim::Sim::step` advances exactly `TICK_MS` (50 ms) of simulation time; nothing else advances time
@@ -44,11 +46,14 @@ status** (Passed / Failed / Blocked / Not run) at the revision recorded in [MIGR
   and opens the next tick's ledger. Kill credit goes through `World::pay`.
 - The live room loop's select is biased with the step deadline first (one pinned timer): when a step is due and commands are
   queued at the same poll, the step runs first and the commands are applied after it, taking effect in the next step's input
-  window. Replays record the order actually applied (`density.rs` `a_due_step_runs_before_a_queued_command`).
+  window. Replays record the order actually applied (`density.rs` `a_due_step_runs_before_a_queued_command`). Under overload
+  (H-server): when a wake ends with its next step already due, the commands already queued (at most `INBOUND_CAP`) are
+  applied before that step, so at most one wake runs between two looks at the inbox; this is the order a command arriving
+  during a wake meets in the normal case, so no new ordering is introduced (`room.rs` `an_overloaded_room_still_applies_queued_commands`).
 - Entities live in `Store<T>` (`crates/rh-sim/src/store.rs`: ascending `EntityId` = join order, O(1) lookup while dense, O(log n)
   after leavers). Per-tick working lists indexed by entity (action rank, tick-start bounty, ledger victim chains) are dense by
-  slot and rewritten every active tick. Systems that act on a fighter take `FighterCore` (`fighter.rs`) or one of its
-  components; only seat, credit and fate logic needs the `Player`.
+  slot and rewritten every active tick. A fighter's data lives in `FighterCore` components (`fighter.rs`) and `Player`
+  derefs to it; most systems still take the `Player` today, and a mechanic packet may narrow its signatures.
 - The live adapter paces a fixed wall-clock grid, runs at most 3 owed steps per wake and drops a longer backlog
   (`crates/rh-server/src/pacer.rs`). Dropping wall time never changes an outcome, because sim time is virtual.
 - Message handlers never mutate state between steps except by queueing inputs (and joins/leaves, which the legacy server
@@ -61,6 +66,13 @@ status** (Passed / Failed / Blocked / Not run) at the revision recorded in [MIGR
   `spawn_seed` → spawn shuffle. Future streams (rewards, quests, loot, mob AI) get their own seeds in `Secrets`
   (legacy: `rewardRandom`, `questRandom`, `hashSalt`, `world.random`: docs/legacy/INVENTORY.md section 4).
 - Secrets never appear in snapshots, observations, events or public exports. Replays contain them (private artifacts).
+- The state hash is **server-private**. The statics secrets (`Secrets`) are not mixed into the statics digest, but
+  `World.spawn_rng` is `Mulberry32::new(spawn_seed)` and is hashed on purpose (it is simulation state), so the state hash
+  is still a function of the 32-bit spawn seed. A hash that is logged or exported, together with a near-public lobby world,
+  would be an offline oracle against that secret. Therefore `Sim::state_hash` and per-step replay hashes are never sent to
+  clients and never appear in public exports or logs. The server keeps only the final hash in its internal closed-room
+  report and ignores it; the director holds the last 4 replays in memory. Before any public replay or checkpoint export,
+  separate `spawn_rng` from `spawn_seed` or use a keyed hash (open follow-up, ADR 0007).
 - Known limit (inherited from legacy, its Known TODOs): the action order decides tied outcomes (e.g. who gets a kill when
   two equal hits land together), so a client that stages many ties and reads their outcomes learns bits of the order salt.
   A per-match salt bounds the damage; changing it is owner decision 14 in [backlog/README.md](backlog/README.md).
@@ -70,11 +82,27 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 
 ## C-DET: reproducibility
 - Same arena + config + secrets + inputs ⇒ the same state hash after every step on declared targets.
-- `rh_sim::replay::Replay` (`rh-replay/1`) records the start (typed reset or lobby), secrets, every input with its tick
-  (joins, commands as submitted, drops, leaves) and each step's hash; `run_replay` checks every hash. Replays recorded
-  before P7a/P7b still verify step for step: `state_hash` feeds the same values in the same order.
-- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, statics, world}`; `after_restore`
-  rebuilds derived tables and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
+- `rh_sim::replay::Replay` (`rh-replay/2`) records the start (typed reset or lobby), secrets, every input with its tick
+  (joins, commands as submitted, drops, leaves) and each step's hash; `run_replay` checks every hash. Any other tag
+  (`rh-replay/1` or unknown) is refused with `ReplayError::Format { found }` before a step runs: P8 redefined the per-step
+  hashes once, so an `rh-replay/1` file cannot verify on any build.
+- State identity by construction (P8, [adr/0007-determinism.md](adr/0007-determinism.md) addendum): `Sim::state_hash` is
+  derived from the serialized `World` by a serde `Serializer` (`crates/rh-sim/src/hash.rs`, `HashSer`: 64-bit words,
+  length-prefixed sequences, maps and strings, enum variant index, `Option` tag), seeded with a digest of the statics
+  (config, map layer, spawns; no secrets). What a checkpoint restores and what the hash sees are the same set: a new
+  component is hashed the moment it is a serde field of the world. `tests/hash_coverage.rs` perturbs every serialized leaf
+  of real scenarios and asserts the hash changes (0 unhashed of 12,696; the hand list left 66 unhashed at `7d94332`); only
+  the statics secrets are held out, and the test asserts that. The world layout rule is enforced by `Sim::check_layout`
+  (a validating run of the same serializer): no non-finite float (a sentinel is an `Option`), no `skip_serializing_if`, no
+  `flatten`, no sequence of unknown length; `#[serde(skip)]` is the only way to leave a field out and every use is pinned.
+  A decoded value is complete (`TileMap::rebuild` and `Sim::after_restore` are gone); malformed or truncated input is an
+  `Err`, and `Sim::restore` refuses a `next_id` not past the last player id (`CheckpointError::Malformed`). The ADR 0007
+  rules are a lint: `crates/rh-sim/clippy.toml` (and `rh-policy/clippy.toml`) disallow `HashMap`/`HashSet`, platform-libm
+  `f64` transcendentals, `mul_add`, `Instant` and `SystemTime`; a sanctioned use carries an `#[allow]` with its reason.
+- Not done yet: `Sim::restore` still accepts `next_id == u32::MAX` (the next join then overflows; possible at base too) and
+  `TileMap` keeps public `w`/`h`/`tiles`; both are in [sweep/README.md](sweep/README.md) under follow-ups.
+- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, statics, world}`; deserialization
+  builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
   world carries `roster` (append-only join names, leavers included; `killed_by` and `winner` are ids resolved to names only
   in results). Fighter path and rewind history serialize as their logical sequence (path from the cursor; history oldest
@@ -99,18 +127,39 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 - Full state: `Sim` (server-only). Public snapshot: `observe::public_snapshot` (no secrets; ignores line of sight; never
   sent to a playing client). Observation: `observe::observe(sim, viewer, events)`: self in full; other actors only within
   `VISION_RADIUS` with a clear line on the sight mask; sorted by public id; hp as a bar (hundredths); events filtered to
-  what the viewer could perceive. Clients and policies receive the same observation.
+  what the viewer could perceive. Clients and policies receive the same observation. `observe_into` fills caller-owned
+  buffers (`observe` wraps it).
+- Event visibility is declared, not inferred (P9): `Event::visibility()` and `Event::class()` (`crates/rh-sim/src/events.rs`)
+  are exhaustive matches, and observation and the wire mapping (`SeenEvent`) are exhaustive too; a new event variant fails
+  to compile until it says who may perceive it and whether it is important or droppable. `is_important` is gone.
+- Sight is judged per ordered pair: `ray_blocked(a, b)` is not always equal to `ray_blocked(b, a)` (5,946 of 2e6 segments
+  on the seed-1 map, 14,497 on the practice map), so the observation judges each (viewer, other) pair on its own; never
+  reuse one verdict for both viewers (`rh-sim/tests/kernel.rs`, `the_sight_verdict_is_not_symmetric_so_each_ordered_pair_is_judged_alone`).
+- Catch-up wakes (several steps in one wake): each human's events of the earlier steps are judged against that step's own
+  line of sight, at that step, and carried to the final frame; only the last step's events are judged in the observation,
+  so an event is never judged against a later step's sight. One snapshot goes out for the final state. A room test
+  (`rh-server/tests/publish.rs`, a three-step wake equals three single-step wakes, walking a human across the vision edge)
+  fails when the carry is removed. On single-step wakes frames are byte-identical to the pre-P9 path.
 - The legacy vision has a 120 s revealed-tile trail and bushes (docs/legacy/INVENTORY.md); the slice implements current
   sight only (stricter). Porting the trail must keep the leak tests green (packet P-VISION-1).
 
 ## C-NET: protocol and sessions
 - `crates/rh-protocol` v2 (`PROTOCOL_VERSION = 2`), mirrored in `client-unity/RoguehallaNet/Protocol`; golden vectors
   `protocol/fixtures/v2.json` (regenerated with `cargo run -p rh-protocol --bin protocol-fixtures`; the Rust and C# test
-  suites and `tools/protocol-js/check-vectors.mjs` assert byte equality and malformed-frame rejection).
+  suites and `tools/protocol-js/check-vectors.mjs` assert byte equality and malformed-frame rejection). Since H-server the
+  `malformedServer` vectors also cover Reject codes outside 1..=11, a reason that is not UTF-8 and every MapBlob rule, and the
+  Rust, C# and JS decoders all reject them; the C# encoders refuse off-grid positions as Rust does.
+- **Protocol v3 is accepted but not shipped.** [ADR 0010](adr/0010-snapshot-delta.md) adopts a per-connection snapshot delta
+  (62% of bytes at 8 players at an estimated 1.06x publish Ir; the gate passed). It is implemented by packet P10c, which is
+  in progress; until it merges the wire, the fixtures and the decoders are v2. Nothing here describes v3 as a behaviour.
 - Snapshots (v2): no `server_ms` (decoders derive it as tick x `TICK_MS`); the self view is full precision; remote actors are
   quantized (position on a 1/8 u grid, facing, hp as a percent, a per-actor field mask) and encoded with varints
   (`crates/rh-protocol/src/quant.rs`, `encode.rs`). Quantization **refuses, never clamps**: a position outside the grid is
   `EncodeError::BadValue`, and the server refuses at startup an arena that does not fit (`wire::arena_fits`).
+- Every server frame that can be refused goes through a refusing encoder: Snapshot (`encode_snapshot_into`), Events and Fx
+  (`try_encode`, one exact allocation, `wire::encode_or_refuse`). A refused frame is never clamped or repaired: it is not
+  sent, it is counted per room (`snapshot_refusals`, `frame_refusals` in `/info` `closedRooms`) and logged once per room, not
+  per tick and viewer. `SnapshotWriter` was removed (it had no production caller and a second refusal path).
 - Codes: status 0 lobby / 1 alive / 2 dead / 3 mia; phase 0 lobby / 1 active / 2 ended; outcome 0 won / 1 draw / 2 died /
   3 mia; faction and weapon codes are `FactionId::ALL` / `WeaponId::ALL` order (append only) (`crates/rh-server/src/wire.rs`).
 - Admission order (all refusals before a seat is taken): protocol version → content hash → resume token → callsign
@@ -124,39 +173,89 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   message with identical bytes and flushes once per wake, flushing early only so unflushed bytes stay within
   `WS_MAX_WRITE_BUFFER` (a large batch costs extra flushes, never a failed send).
 - Reader: a ready client frame always wins over an overdue liveness tick (biased select), and the reader serves a drained
-  batch in the old order (client frame first, then the writer-done signal). The writer-done arm is polled only when no client
-  frame is ready, so a client keeping frames continuously ready can have inputs forwarded for a short while after the writer
-  ended; the frame token bucket bounds this.
+  batch in the old order (client frame first, then the writer-done signal). Fairness (H-server): after `FAIR_STREAK` (32)
+  frames in a row the reader checks the writer once, so a finished writer ends the reader within 33 frames even under an
+  always-ready stream; the liveness tick is never checked ahead of a ready frame. Every inbound WebSocket frame, control
+  frames (Ping, Pong) included, is charged to the frame bucket (60/s, burst 120): a Ping flood is closed `RateLimited`
+  (`tests/transport.rs`).
 - Resume: Welcome carries a 16-byte session token; a dropped seat is held `RECONNECT_GRACE` (10 s) and then leaves (MIA in
   a run); resuming re-sends Welcome (full map) and continues.
 - Liveness: inbound liveness is the time of the last client frame, checked on a coarse interval (`IDLE_TIMEOUT`/4, between
   10 ms and 1 s): a connection that sends nothing for `IDLE_TIMEOUT` (10 s; clients ping every 0.5-1 s) is dropped between
-  `IDLE_TIMEOUT` and `IDLE_TIMEOUT` plus one period (its seat held for the grace). A batch write (feed and flush, including
-  the closing Reject and Close) stuck for `SEND_TIMEOUT` (5 s) ends the connection. Each connection has a process-unique id: a
+  `IDLE_TIMEOUT` and `IDLE_TIMEOUT` plus one period (its seat held for the grace). Every server write is bounded by
+  `SEND_TIMEOUT` (5 s): the Welcome, a Reject, and each drained batch (feed and flush, including the closing Reject and
+  Close); a write stuck for that long ends the connection. Each connection has a process-unique id: a
   seat ignores input, disconnect and leave from a connection its resume replaced.
 - Telemetry: a room's step times are a fixed 384-byte log-linear histogram (`crates/rh-server/src/metrics.rs`, 4 sub-buckets
   per power of two). `/info` `closedRooms` `step_us_p50` and `step_us_p99` are **bucket upper bounds** (never below the true
   value, at most 25% above it); `step_us_max` and `ticks` are exact. `/control/health` also carries process-wide counters
   and histogram summaries under `metrics` (wakes, steps, droppedSteps, bytesOut, outboxPushes, stepUs, publishUs,
-  latenessUs, rssBytes). A refused snapshot is counted per room and logged once per room, not per tick and viewer.
+  latenessUs, rssBytes). `/info` also carries `resultsRefused` (result writes the store refused for good) and, per closed
+  room, `crashed`, `frame_refusals` and `frame_refusals_logged` (the room stats serialize in snake_case).
 - Every room phase change is reported to the director; a lobby that closed into its run is never offered to a new player.
+- Crash safety (H-server): each call into a room (wake, handle, close) is wrapped in `catch_unwind`. A panic closes the
+  room's connections and reports `Closed` with `crashed = true`, so the director frees its seats and gives their leases
+  back (`director.rs`, room-panic test).
 - Durable I/O never runs on a room task.
 
 ## C-POLICY
 See [adr/0005-policy-seam.md](adr/0005-policy-seam.md). `rh_policy::{Policy, Seat, AsyncSeat, drive_seats}`.
+- A seat is observed (an `Observation` is built) only on its decision ticks (`Seat::wants(tick)`); `Policy::decide_into`
+  has a default that wraps `decide`, so `POLICY_CONTRACT_VERSION` did not change (P9).
+- Events between decisions accumulate, bounded. After every step that is not a decision tick, the seat is told what it could
+  perceive of that step's events, judged against that step's own line of sight like a human's
+  (`rh_sim::observe_events_into`), and holds them in a per-seat buffer capped at `MAX_PENDING_EVENTS` = 256
+  (`crates/rh-policy/src/lib.rs`). Overflow rule: the oldest are dropped first. The next decision's observation carries the
+  held events first, in step order, then the events of the step just before the decision; the buffer is then emptied. A
+  policy therefore sees every event it could perceive whatever its decision interval, except after a gap of more than 256
+  perceivable events. Scripted-bot outcomes are unchanged (outcome digest and state-hash fold identical to the base).
 
 ## C-PERSIST
 See [adr/0006-persistence.md](adr/0006-persistence.md) and `crates/rh-persist/README.md`.
-- Rejoin (`crates/rh-server/src/director.rs`): a profile that left, was dropped past the reconnect grace, or whose room
-  closed stays reserved only until its lease give-back (or result write) lands. An admission for it waits for that, at most
-  `LEAVING_WAIT` (3 s) per attempt, and is then admitted or refused `ProfileInUse`; `admit()` may retry a closed match or
-  lobby up to 4 times, so the worst case is about 4 x `LEAVING_WAIT`. A profile with a LIVE seat is refused immediately (one
-  live seat per profile; the durable lease fences across hosts). `pg_e2e` covers the rejoin.
+- Profile ownership in process (`crates/rh-server/src/director.rs`, ownership invariant in the doc comment on `Inner`;
+  H-server). There is one entry per profile. While it exists, a new admission for the profile is refused `ProfileInUse`. Each
+  entry has an **owner token** (`gen`, unique per admission), a state (`Reserved`, `Seated`, `Leaving`), `result_due`, a count
+  of result writes in flight and a lease state (`Held`, `Releasing`, `Gone`). Only an admission creates an entry (`Reserved`),
+  and only that entry's owner removes or changes it: the admission's own unwinding, or the give-back or result write of the
+  seat it became, each naming its `gen`. A room's `Closed` never touches a reservation.
+- If the entry is `Leaving` (the profile left, was dropped past the reconnect grace, or its room closed or crashed), the
+  admission waits for it to go. **One `LEAVING_WAIT` (3 s) deadline covers the whole admission, retries included, and it starts
+  before authentication** (a slow database `auth.verify` eats into it); `admit()` may retry a closed match or lobby up to 4
+  times but never waits longer than that deadline in total. The admission is then admitted or refused `ProfileInUse`. A failed
+  attempt keeps its entry `Leaving` until its own lease give-back lands, so a dead-lobby retry waits for it instead of racing it.
+  A profile with a LIVE seat is refused immediately (one live seat per profile; the durable fenced lease covers cross-host
+  ownership).
+- A seat that left has its lease given back only when no result is due or in flight for it; a result write that lands
+  releases the lease in its own transaction, so a give-back never runs in parallel with the write it would fence out. A write
+  the store refuses for good (`NoLease`, `StaleFence`) is not retried: the loop stops at once, counts it in `resultsRefused`
+  and frees the profile; only transient errors back off and retry. A `Left` for a seat this process holds no entry for still
+  releases its fenced lease. After a room crash, `Closed` lets go of `Seated` entries and clears `result_due`.
+- Tests: director unit tests on `MemoryStore::strict` (rh-persist's lease rules minus expiry, with optional release and
+  record delays on the tokio clock): the dead-lobby retry waits for its own give-back, one deadline for the whole admission
+  (refused at exactly 3.000 s with three dead lobbies), a result in flight keeps the lease, a refused write is not retried,
+  entries change only through their owner, a room panic frees seats and leases. Each was mutation-checked. Also
+  `tests/pg_e2e.rs`. Known gap: no `pg_e2e` case for a dead-lobby retry (it needs a test seam; the race is covered only by
+  the strict-memory director test). `AlreadyApplied` results do not give the lease back (benign: the earlier write released it).
 
 ## C-HOST
 See [adr/0004-hosting.md](adr/0004-hosting.md). `crates/rh-server/src/hosting.rs`: Starting → Ready → Draining →
 Terminated; `/control/health` (200 only when Ready), `/control/drain`; SIGTERM/Ctrl-C drains; draining refuses new
-admissions with `ServerDraining`, lets running matches finish, and terminates when the last room closes.
+admissions with `ServerDraining`, lets running matches finish, and terminates when the last room closes. `/control/health`
+also carries the process `metrics` object (see C-NET); a panicking room is reported `Closed` (C-NET, crash safety).
+
+## C-PERF
+`.github/workflows/perfproof.yml` runs `tools/perfproof/perfproof.py` against the pull request's merge-base (or a
+`workflow_dispatch` baseline) when a PR touches `crates/**`, `parity/**`, `Cargo.*`, `rust-toolchain.toml`,
+`tools/perfproof/**` or the workflow. It fails on Ir per unit of work above 1.03x (`--max-ir-ratio`), any allocation
+increase per unit (`--max-alloc-increase 0`), or any behaviour-fingerprint difference (outcome digest, state hashes, replay
+verification of base-recorded replays). A PR that changes behaviour on purpose declares it with one description line,
+`Perf-Allow-Fingerprint: <workload|key|workload.key>, ...`; the description is read when the job runs (`gh api`), and
+`edited` re-triggers it. The 1.03 threshold sits well above the measured noise, which is **not** +-0.02%: the sweep-wide
+review measured a revision against itself at about -0.1% (0.9989, 0.9994, 0.9991 on the three `sim_*` workloads) and up to
+0.3% on the smallest per-step workloads (0.9971 between two revisions with no Rust change). Instruction counts are
+architecture-specific; compare A/B on one machine. See [CONTRIBUTING.md](../CONTRIBUTING.md). Open: the first real PR run
+should confirm the cache mapping and the `apt-get` valgrind install time; perfproof has no `densitybench` workload (those
+figures are taken by hand).
 
 ## C-PARITY
 `parity/README.md`: discrete outcomes exact; continuous values within 2e-6. The harness must fail when a rule changes
@@ -164,7 +263,16 @@ admissions with `ServerDraining`, lets running matches finish, and terminates wh
 
 ## Change log
 - Stage 1: initial contracts.
-- Core sweep (P2b, P10a, P7a, P5b, P5c, P7b, P5d merged; P8, P9, P10b, CI pending): C-TICK gained the executable schedule,
+- Core sweep, final record (P8, P9, CI, P10b measurement and H-server merged at `3ad072b`; H-sim and P10c in progress):
+  C-DET gained the derived state hash, `rh-replay/2` and the layout rule and lints; C-RNG records that the state hash is
+  server-private (it depends on `spawn_seed` through `spawn_rng`); C-OBS gained exhaustive event visibility and class,
+  per-ordered-pair sight and per-step catch-up filtering; C-POLICY gained due-only observation and the bounded event
+  accumulation (256, oldest dropped); C-PERSIST was rewritten around owner tokens, lease states and one admission
+  deadline (the earlier "4 x `LEAVING_WAIT`" worst case is gone); C-NET gained the Ping/Pong bucket charge, reader
+  fairness, bounded Welcome and Reject sends, refusing Events/Fx encoders and stricter decoders; C-TICK gained the
+  overload drain; C-HOST gained room-crash safety; C-PERF is new. Protocol v3 is accepted (ADR 0010) and not shipped.
+  Evidence: [sweep/README.md](sweep/README.md).
+- Core sweep, first record (P2b, P10a, P7a, P5b, P5c, P7b, P5d merged; P8, P9, P10b, CI pending at that time): C-TICK gained the executable schedule,
   hooks, the same-tick `payLater` seam and the biased room loop; C-NET moved to protocol v2 and gained batched egress, the
   biased reader, the batch `SEND_TIMEOUT` and the telemetry description; C-DET gained `rh-checkpoint/3` and the
   zero-allocation step; C-INPUT gained `Cx::submit`; C-PERSIST gained the bounded rejoin wait. Evidence:

@@ -18,12 +18,12 @@ helpers; the signature fields of `hit` events are needed). Mob-side signatures, 
 - Tests: `packages/server/test/factions.test.ts`, `factionCycle.test.ts`, `mobSignatures.test.ts`, `shared/test/factions.test.ts`, `signatures.test.ts`.
 
 ## New paths
-`crates/rh-sim/src/signatures.rs` (engagement, targets, per-faction damage entries), `crates/rh-sim/src/heal.rs` (heal + lockout),
+`crates/rh-sim/src/systems/signatures.rs` (engagement, targets, per-faction damage entries), `crates/rh-sim/src/systems/heal.rs` (heal + lockout), both fired from their `schedule.rs` rows and hook links,
 extend `content.rs` with `FactionSpec.params`/mechanic (and `content_hash`); capture: a `signatures` scenario flag + new scenarios.
 
 ## Exclusive write scope
-`crates/rh-sim/src/{signatures.rs,heal.rs,sim.rs,content.rs,constants.rs,lib.rs,observe.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
-`parity/legacy-capture/capture.ts`, `parity/fixtures/`. `testing/` Python tools are read-only references.
+`crates/rh-sim/src/{systems/signatures.rs,systems/heal.rs,systems/ledger.rs,systems/mod.rs,schedule.rs,hooks.rs,state.rs,fighter.rs,scratch.rs,checkpoint.rs,content.rs,constants.rs,lib.rs,observe.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
+`parity/legacy-capture/capture.ts`, `parity/fixtures/`. `testing/` Python tools are read-only references. Core layout rules (post-sweep, [ADR 0009](../../adr/0009-core-layout.md); the README "Shared-file rule" has the long form): the mechanic is `systems/<mechanic>.rs` with `fn(&mut Cx)` entry points, plus its rows flipped from `Pending` to `Ported` in `schedule.rs` at their legacy position (the row names, never a reorder); entity data goes in `fighter.rs` / `state.rs` / `store.rs` (hashed and checkpointed: extend `check_world` in `checkpoint.rs` if the new data has an invariant the tick relies on) and per-tick lists in `TickScratch` (`scratch.rs`, never serialized); `tests/no_alloc.rs` must stay at zero allocations per step, new content goes through the `content.rs` registry (`content_hash`), and every new serialized field must be covered by `tests/hash_coverage.rs`. `sim.rs` is a facade and is not in any write scope.
 
 ## Contracts and references
 C-TICK (signatures sit in `[beforeDamage]`, after melee and before sudden death and the ledger; `afterWeapons` and `afterDamage` hooks bracket weapons and the ledger), C-PARITY, C-DET, C-RNG (no randomness here except the per-tick tie hash: use the order salt as legacy does), C-OBS (hp of others is a bar; signature state like marks/chill is public only as effect bits). ADR 0007.

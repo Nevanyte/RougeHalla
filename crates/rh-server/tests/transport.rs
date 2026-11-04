@@ -337,3 +337,21 @@ async fn a_burst_larger_than_the_read_buffer_is_read_whole_and_in_order() {
     }
     s.handle.shutdown();
 }
+
+/// WebSocket control frames are charged to the frame bucket: a client that floods Pings (which used to skip the bucket
+/// and, with the biased reader, could keep a dead writer hidden for as long as it kept sending) is closed `RateLimited`,
+/// like a data flood.
+#[tokio::test]
+async fn a_websocket_ping_flood_is_rate_limited() {
+    let s = start(false).await;
+    let mut ws = welcomed(&s, "pinger").await;
+    for _ in 0..(rh_server::conn::FRAME_BURST as usize * 2) {
+        ws.feed(Message::Ping(vec![0u8; 4].into())).await.unwrap();
+    }
+    ws.flush().await.unwrap();
+    assert_eq!(
+        reject_code(&mut ws).await,
+        rh_protocol::RejectCode::RateLimited
+    );
+    s.handle.shutdown();
+}

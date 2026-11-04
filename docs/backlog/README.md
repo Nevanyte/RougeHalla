@@ -5,15 +5,15 @@ what is left. Read first: [../CONTRACTS.md](../CONTRACTS.md) (invariants `C-*`),
 [../../parity/README.md](../../parity/README.md), [../legacy/INVENTORY.md](../legacy/INVENTORY.md) (legacy systems and numbers,
 and section 9 "stale-doc discrepancies": the legacy `docs/legacy/CLAUDE_LEGACY.md` is a map, **code wins**).
 
-**What exists (do not re-plan it):** `rh-sim` slice = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
+**What exists (do not re-plan it):** `rh-sim` slice (core layout: [ADR 0009](../adr/0009-core-layout.md) and `crates/rh-sim/README.md`) = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
 fists melee with zero-windup player swings and lag-compensated rewind, the damage ledger (PvP factor at card power 0,
 mitigation, PvP hit cap, simultaneous resolution, kill credit, bounty + announcements, GV, win bonus gate), leaving (MIA),
-observations (current sight only), replays and checkpoints; `rh-parity` (8 legacy scenarios + 300 `findPath` queries match);
+observations (current sight only), replays and checkpoints; `rh-parity` (the legacy slice scenarios and 300 `findPath` queries match; `cargo run -p rh-parity --bin parity-report`);
 `rh-protocol` v1 + C# mirror; `rh-server` (WSS, admission, resume, drain, limits, interest-managed replication, fill bots on
 the policy seat contract, off-tick result sink, private replays); `rh-persist` (Postgres, fenced leases, idempotent
 results, legacy import); `rh-headless`; `tools/browser-proof`; `client-unity` (RoguehallaNet tested; the Unity project was
-**never opened or compiled**). The ported tick order is in `crates/rh-sim/src/sim.rs` (`update_active`); unported phases
-are bracketed comments there and in [../CONTRACTS.md](../CONTRACTS.md) C-TICK.
+**never opened or compiled**). The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
+rows are `Pending("P-...")` entries there, named after the legacy rows, and [../CONTRACTS.md](../CONTRACTS.md) C-TICK describes them.
 
 ## How to pick up work
 
@@ -39,7 +39,13 @@ table stops matching `parity/schedule/legacy_schedule.json`), `crates/rh-sim/src
 `crates/rh-sim/src/systems/<mechanic>.rs` (every entry point `fn(&mut Cx)`) plus its rows in `schedule.rs`; its state goes
 in `state.rs` (hashed and checkpointed), its per-tick working sets in `scratch.rs`, and a hook link it ports is a `fn(&mut
 Hx, &HookArgs)` in its own file, fired by the call site that legacy has (`hooks::fire`). `sim.rs` is a facade and `Cx::submit`
-is the only input path inside the tick ([ADR 0009](../adr/0009-core-layout.md)). Update `what_the_slice_has_ported_stays_ported`
+is the only input path inside the tick ([ADR 0009](../adr/0009-core-layout.md)); a `Command` can only come from `validate` (it is
+opaque, and decoding re-validates), so a new command variant is a `RawCommand` variant plus its `validate` arm.
+Every sim-editing packet also keeps these green: per-tick lists live in `TickScratch` (never serialized), `crates/rh-sim/tests/no_alloc.rs`
+stays at zero allocations per step, new content is registered in `content.rs` (and `content_hash`), every new serialized field
+is covered by `tests/hash_coverage.rs` (each leaf must change the state hash), new state with an invariant gets a rule in
+`check_world` (`checkpoint.rs`, one refusal test each), and `crates/rh-parity/tests/schedule.rs` and `tests/content.rs`
+classification still pass. Update `what_the_slice_has_ported_stays_ported`
 in the schedule test for the rows you flip.
 
 **Status records.** Only the coordinator updates shared status records: the `docs/MIGRATION.md` checkpoint (referenced by

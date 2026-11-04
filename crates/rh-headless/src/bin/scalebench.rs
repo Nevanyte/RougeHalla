@@ -13,8 +13,8 @@
 //! `*observe*`) at two tick counts and divide the difference. The fighters come from `Sim::synthetic` (rh-sim feature
 //! `bench`): `MAX_PLAYERS` stays the cap of the real API.
 use rh_sim::{
-    arenas::practice_arena, observe, public_snapshot, validate, Command, Event, FactionId,
-    Placement, RawCommand, Secrets, Sim, SimConfig, Vec2,
+    arenas::practice_arena, observe, public_snapshot, validate, Event, FactionId, Placement,
+    RawCommand, Secrets, Sim, SimConfig, Vec2,
 };
 use std::time::Instant;
 
@@ -107,7 +107,7 @@ fn step(n: usize, ticks: u32) {
             }
             if (t as usize + i) % 16 == 0 {
                 let (gx, gy) = (w * (0.35 + 0.3 * unit(rng)), h * (0.35 + 0.3 * unit(rng)));
-                if let Ok(c @ Command::Move { .. }) = validate(RawCommand::Move {
+                if let Ok(c) = validate(RawCommand::Move {
                     x: gx,
                     y: gy,
                     seq: None,

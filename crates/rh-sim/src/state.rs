@@ -257,21 +257,53 @@ impl<'de> serde::Deserialize<'de> for Path {
 /// Every player that joined this match, in join order, kept for leavers: the one place a name is resolved from an id (a
 /// kill's `killed_by`, the winner), at result time. The tick itself carries ids only (the ledger, the melee queue and the
 /// payouts are `Copy`), so a hit never clones a name and a shooter who already left is still named.
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 pub(crate) struct Roster {
     names: Vec<(PlayerId, String)>,
 }
 
 impl Roster {
+    /// Appends a join. Ids ascend strictly (the name lookup is a binary search), in every build, like [`Store::push`].
     pub(crate) fn push(&mut self, id: PlayerId, name: &str) {
-        debug_assert!(self.names.last().is_none_or(|(l, _)| *l < id));
+        assert!(
+            self.names.last().is_none_or(|(l, _)| *l < id),
+            "roster ids must be appended in ascending order"
+        );
         self.names.push((id, name.to_string()));
+    }
+
+    /// How many players ever joined.
+    pub(crate) fn len(&self) -> usize {
+        self.names.len()
+    }
+
+    /// The id of the latest join, if any.
+    pub(crate) fn last_id(&self) -> Option<PlayerId> {
+        self.names.last().map(|(id, _)| *id)
     }
 
     /// The display name `id` joined with (a leaver's too).
     pub(crate) fn name(&self, id: PlayerId) -> Option<&str> {
         let i = self.names.binary_search_by_key(&id, |(p, _)| *p).ok()?;
         Some(self.names[i].1.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Roster {
+    /// Refuses ids that are not strictly ascending, as [`Store`] does: a disordered roster would answer `name` wrongly.
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename = "Roster")]
+        struct Raw {
+            names: Vec<(PlayerId, String)>,
+        }
+        let Raw { names } = Raw::deserialize(d)?;
+        if names.windows(2).any(|w| w[0].0 >= w[1].0) {
+            return Err(serde::de::Error::custom(
+                "roster ids are not in strictly ascending order",
+            ));
+        }
+        Ok(Self { names })
     }
 }
 

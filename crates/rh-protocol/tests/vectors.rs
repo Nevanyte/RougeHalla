@@ -76,6 +76,12 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "delta_departed_id_gap_zero" => BadField("departed order"),
             "delta_truncated" => Truncated,
             "delta_trailing_byte" => Trailing(0),
+            "reject_code_zero" | "reject_code_unknown" => BadTag(0),
+            "server_bad_utf8" => BadUtf8,
+            "map_zero_size" | "map_too_large" => BadMap("size"),
+            "map_bad_tile" | "map_zero_run" | "map_run_past_size" => BadMap("run"),
+            "map_short" => BadMap("length"),
+            "map_hash_mismatch" => BadMap("hash"),
             other => panic!("no expectation for {other}"),
         }
     };
@@ -87,8 +93,9 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             std::mem::discriminant(&want(name)),
             "{name}: {got:?}"
         );
-        if let (BadField(a), BadField(b)) = (&got, &want(name)) {
-            assert_eq!(a, b, "{name}");
+        match (&got, &want(name)) {
+            (BadField(a), BadField(b)) | (BadMap(a), BadMap(b)) => assert_eq!(a, b, "{name}"),
+            _ => {}
         }
     }
 }

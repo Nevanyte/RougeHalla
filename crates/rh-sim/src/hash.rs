@@ -368,7 +368,7 @@ mod tests {
     use super::{check_of, hash_of};
     use crate::arenas::practice_arena;
     use crate::content::FactionId;
-    use crate::input::Command;
+    use crate::input::{cmd, RawCommand};
     use crate::math::Vec2;
     use crate::sim::{Placement, PlayerId, Secrets, Sim, SimConfig};
 
@@ -442,7 +442,7 @@ mod tests {
                     let _ = s.w.players[0]
                         .seat
                         .budget
-                        .allow(&Command::Stop { seq: None }, 50.0);
+                        .allow(&cmd(RawCommand::Stop { seq: None }), 50.0);
                 }),
             ),
             ("started humans", Box::new(|s| s.w.rt.started_humans = 1)),

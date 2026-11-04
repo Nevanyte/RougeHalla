@@ -158,7 +158,9 @@ fn land(p: &mut Player, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAction)
             });
         }
         ActionKind::Cast | ActionKind::Draw => {
-            // Projectiles are not in the slice and no ranged weapon can be held in it (no item flow): docs/backlog P-COMBAT-2.
+            // Projectiles are not in the slice and no ranged weapon can be held in it: there is no item flow, and
+            // `Sim::restore` refuses a checkpoint that carries one or a pending ranged action (`check_world`), so this is unreachable in every build
+            // (docs/backlog P-COMBAT-2).
             debug_assert!(false, "ranged attacks are not in the slice");
             p.weapon.draw_started_at = 0.0;
         }

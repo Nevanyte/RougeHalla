@@ -42,7 +42,8 @@ async fn join_when_free(
                         tokio::time::Instant::now() < deadline,
                         "still refused after 20 s: {reason}"
                     );
-                    tokio::task::yield_now().await;
+                    // A short backoff (the Leave is a few ms from landing), not a busy loop of connections.
+                    tokio::time::sleep(Duration::from_millis(10)).await;
                     break;
                 }
                 ServerMsg::Reject { code, reason } => panic!("rejoin refused: {code:?} {reason}"),

@@ -281,6 +281,11 @@ namespace Roguehalla.Net.Tests
                 case "delta_too_many_actors": case "delta_departed_too_many": want = DecodeError.TooMany; break;
                 case "delta_truncated": want = DecodeError.Truncated; break;
                 case "delta_trailing_byte": want = DecodeError.Trailing; break;
+                case "reject_code_zero": case "reject_code_unknown": want = DecodeError.BadTag; break;
+                case "server_bad_utf8": want = DecodeError.BadUtf8; break;
+                case "map_zero_size": case "map_too_large": case "map_bad_tile": case "map_zero_run": case "map_run_past_size":
+                case "map_short": case "map_hash_mismatch":
+                    want = DecodeError.BadMap; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);
@@ -325,6 +330,17 @@ namespace Roguehalla.Net.Tests
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { A(2), A(2) } }.Encode(), "duplicate ids");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { A(3), A(2) } }.Encode(), "descending ids");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, HpPct = 101 } } }.Encode(), "hp over 100");
+            // Positions off the grid are refused like rh-protocol (BadValue "position"), never saturated.
+            foreach (float bad in new[] { -0.5f, Quant.PosMax + 0.125f, float.NaN, float.PositiveInfinity })
+            {
+                Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, X = bad } } }.Encode(), "actor x " + bad);
+                Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Y = bad } } }.Encode(), "actor y " + bad);
+                var fx = new ServerMsg.Fx(); fx.List.Add(new WireFx { Kind = FxKind.Swing, X = bad, Y = 1f });
+                Assert.Throws<ArgumentException>(() => fx.Encode(), "swing x " + bad);
+            }
+            Assert.DoesNotThrow(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, X = Quant.PosMax, Y = 0f } } }.Encode(), "the edges are on the grid");
+            var hit = new ServerMsg.Fx(); hit.List.Add(new WireFx { Kind = FxKind.Hit, X = -5f });
+            Assert.DoesNotThrow(() => hit.Encode(), "a hit carries no position");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Faction = 16 } } }.Encode(), "faction over 4 bits");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Status = 4 } } }.Encode(), "status over 2 bits");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Phase = 4 }.Encode(), "phase over 2 bits");
@@ -413,8 +429,10 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void ServerFramesMayCarryNonFiniteFloatsButClientsMayNot()
         {
-            var snap = new ServerMsg.Snapshot { Actors = new[] { new WireActor { X = float.NaN } } };
-            Assert.DoesNotThrow(() => ServerMsg.Decode(snap.Encode()));
+            // The self's floats travel as f32 bit patterns (a remote actor's position is a grid code: NaN is refused there).
+            var snap = new ServerMsg.Snapshot { Me = new WireSelf { X = float.NaN, Hp = float.PositiveInfinity } };
+            var back = (ServerMsg.Snapshot)ServerMsg.Decode(snap.Encode());
+            Assert.IsTrue(float.IsNaN(back.Me.X) && float.IsPositiveInfinity(back.Me.Hp));
             var inp = new ClientMsg.Input(); inp.Commands.Add(WireCommand.Aim(float.PositiveInfinity));
             Assert.AreEqual(DecodeError.NonFinite, Assert.Throws<DecodeException>(() => ClientMsg.Decode(inp.Encode())).Error);
         }

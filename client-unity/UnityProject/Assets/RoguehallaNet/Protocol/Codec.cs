@@ -44,6 +44,13 @@ namespace Roguehalla.Net.Protocol
 
         public static float DequantizePos(ushort q) { return q / PosScale; }
 
+        /// <summary>The largest position the grid carries exactly (65535 / 8 u).</summary>
+        public const float PosMax = 65535f / PosScale;
+
+        /// <summary>Whether the encoder can carry <paramref name="v"/>: finite and within 0..<see cref="PosMax"/> (rh-protocol
+        /// <c>pos_in_range</c>). The encoders refuse anything else instead of saturating it.</summary>
+        public static bool PosInRange(float v) { return v >= 0f && v <= PosMax; }
+
         public static ushort QuantizeFacing(float a)
         {
             double t = (double)a / FacingStep;

@@ -133,9 +133,9 @@ async fn a_stalled_clients_skipped_snapshots_reach_the_closed_rooms_stats() {
     assert!(c.snapshots_skipped >= 15, "{c:?}");
     let closed = closed_rooms(&d);
     assert_eq!(closed.len(), 1);
-    assert_eq!(closed[0]["snapshots_skipped"], c.snapshots_skipped);
-    assert_eq!(closed[0]["bytes_enqueued_total"], c.bytes_enqueued_total);
-    assert!(closed[0]["bytes_enqueued_total"].as_u64().unwrap() > 0);
+    assert_eq!(closed[0]["snapshotsSkipped"], c.snapshots_skipped);
+    assert_eq!(closed[0]["bytesEnqueuedTotal"], c.bytes_enqueued_total);
+    assert!(closed[0]["bytesEnqueuedTotal"].as_u64().unwrap() > 0);
 }
 
 /// A room, driven by hand: `wake` at the instants the test chooses.

@@ -291,8 +291,12 @@ impl Outbox {
         }
     }
 
+    /// Never panics (a poisoned lock is still closed): a crashed room closes its connections while unwinding.
     pub fn close(&self, why: RejectCode) {
-        let mut s = self.state.lock().expect("outbox lock");
+        let mut s = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if s.closed.is_none() {
             s.closed = Some(why);
         }
