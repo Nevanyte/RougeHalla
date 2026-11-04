@@ -1,0 +1,486 @@
+//! The content registry contract (crates/rh-sim/src/constants.rs, docs in content.rs): every gameplay number is declared
+//! once in the `content!` registry, `content_hash` folds all of it, and nothing escapes by living in another file.
+
+use rh_sim::constants::{ContentVal, Entry, REGISTRY};
+use rh_sim::content::{
+    content_hash, content_hash_of, content_hash_of_rules, staggers, WeaponId, STAGGER_WEAPONS,
+};
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+
+/// Every `const` / `static` in `crates/rh-sim/src` that is deliberately not a gameplay number, with the reason. Adding to
+/// this list is a review decision: a number that can change an outcome belongs in the registry instead.
+const NON_GAMEPLAY: &[(&str, &str)] = &[
+    ("TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("OBSERVATION_VERSION", "observation layout version (a format, versioned on its own), not a rule"),
+    ("REPLAY_FORMAT", "replay file format string, not a rule"),
+    ("PI", "mathematical constant"),
+    ("SQRT2", "mathematical constant"),
+    ("DX", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
+    ("DY", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
+    ("LEGACY_12", "test vector captured from the legacy generator"),
+    ("LEGACY_0", "test vector captured from the legacy generator"),
+];
+
+/// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs).
+const TABLES_FOLDED_BY_HASH: &[(&str, &str)] = &[
+    (
+        "ALL",
+        "FactionId::ALL / WeaponId::ALL wire-order tables: folded by name, in order",
+    ),
+    (
+        "STAGGER_WEAPONS",
+        "which weapons stagger: folded as a per-weapon flag",
+    ),
+];
+
+/// Numbers whose live copy was still in another file when the registry was introduced (integer consts): the registry
+/// value must equal the declaration at the site while it exists, and once the site no longer declares it the registry
+/// name must be in use instead.
+const EXTERNAL_CONSTS: &[&str] = &[
+    "SNAP_RADIUS",
+    "PULL_WINDOW",
+    "MASK_SIGHT",
+    "MASK_MOVE",
+    "MASK_MELEE",
+];
+
+/// Inline float literals that decide outcomes: (registry name, substrings the line must contain, marker right before the
+/// literal). Same rule as above: equal at the site while the literal is there, in use by name once it is switched.
+const INLINE_LITERALS: &[(&str, &[&str], &str)] = &[
+    ("BARRIER_EPS", &["barrier", "taken", "taken < "], "taken < "),
+    ("FACING_EPS", &["dist > "], "dist > "),
+    ("ARC_EPS", &["asin(", "+ 1e-9"], "min(1.0)) + "),
+    ("PATH_TIE_EPS", &["f1 - f2", "abs() > "], "abs() > "),
+];
+
+/// Numbers the hash folded at the base revision a0cfa2e: everything else in the list below was missing from it.
+const MISSING_AT_BASE: &[&str] = &[
+    "TICK_RATE", // only through TICK_MS
+    "MAP_TILES_W",
+    "MAP_TILES_H",
+    "WORLD_W",
+    "WORLD_H",
+    "MAX_PLAYERS",
+    "MAX_ACTIONS_PER_TICK",
+    "AIM_STALE_MS",
+    "STAGGER_IMMUNITY_SECONDS",
+    "SWAP_SECONDS",
+    "MOVE_MULT_FLOOR",
+    "TIE_EPS_MS",
+    "RANGED_RELEASE_PAUSE_MS",
+    "KILL_CREDIT_SECONDS",
+    "WIN_BONUS_MIN_PLAYERS",
+    "WIN_BONUS_MIN_OPPONENTS",
+    "BOUNTY_FREE_KILLS",
+    "BOUNTY_ANNOUNCE_MS",
+    "ORDER_BURST",
+    "ORDER_PER_SECOND",
+];
+
+fn src_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
+}
+
+fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let mut entries: Vec<_> = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("read_dir {}: {e}", dir.display()))
+        .map(|e| e.unwrap().path())
+        .collect();
+    entries.sort();
+    for p in entries {
+        if p.is_dir() {
+            rs_files(&p, out);
+        } else if p.extension().is_some_and(|x| x == "rs") {
+            out.push(p);
+        }
+    }
+}
+
+/// (path relative to src, source with line comments removed) of every rust file under src, recursively.
+fn sources() -> Vec<(String, String)> {
+    let root = src_dir();
+    let mut files = Vec::new();
+    rs_files(&root, &mut files);
+    assert!(!files.is_empty());
+    files
+        .into_iter()
+        .map(|p| {
+            let text = std::fs::read_to_string(&p).unwrap();
+            let code: String = text
+                .lines()
+                .map(|l| l.split("//").next().unwrap_or(""))
+                .collect::<Vec<_>>()
+                .join("\n");
+            (
+                p.strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/"),
+                code,
+            )
+        })
+        .collect()
+}
+
+fn is_ident(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Names declared as `const NAME` or `static NAME` (upper case identifiers; `const fn` and `$name` do not match).
+fn declared_consts(code: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for kw in ["const ", "static "] {
+        let mut from = 0;
+        while let Some(i) = code[from..].find(kw) {
+            let at = from + i;
+            from = at + kw.len();
+            if code[..at].chars().next_back().is_some_and(is_ident) {
+                continue;
+            }
+            let name: String = code[from..].chars().take_while(|c| is_ident(*c)).collect();
+            if name
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_uppercase() || c == '_')
+                && name
+                    .chars()
+                    .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+            {
+                out.push(name);
+            }
+        }
+    }
+    out
+}
+
+/// Does `code` mention `name` as a whole word?
+fn uses_word(code: &str, name: &str) -> bool {
+    let mut from = 0;
+    while let Some(i) = code[from..].find(name) {
+        let at = from + i;
+        let end = at + name.len();
+        let before_ok = !code[..at].chars().next_back().is_some_and(is_ident);
+        let after_ok = !code[end..].chars().next().is_some_and(is_ident);
+        if before_ok && after_ok {
+            return true;
+        }
+        from = end;
+    }
+    false
+}
+
+fn registry_names() -> BTreeSet<&'static str> {
+    REGISTRY.iter().map(|e| e.name).collect()
+}
+
+fn find(name: &str) -> &'static Entry {
+    REGISTRY
+        .iter()
+        .find(|e| e.name == name)
+        .unwrap_or_else(|| panic!("{name} is not registered"))
+}
+
+fn bump(v: ContentVal) -> ContentVal {
+    match v {
+        ContentVal::F64(x) => ContentVal::F64(f64::from_bits(x.to_bits() ^ 1)),
+        ContentVal::U64(x) => ContentVal::U64(x ^ 1),
+        ContentVal::I64(x) => ContentVal::I64(x ^ 1),
+    }
+}
+
+fn perturbed(i: usize) -> Vec<Entry> {
+    let mut r = REGISTRY.to_vec();
+    r[i].val = bump(r[i].val);
+    r
+}
+
+#[test]
+fn registry_is_well_formed() {
+    let mut seen = BTreeSet::new();
+    for e in REGISTRY {
+        assert!(seen.insert(e.name), "{} is registered twice", e.name);
+        assert!(!e.unit.is_empty(), "{} has no unit", e.name);
+        assert!(
+            e.name
+                .chars()
+                .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'),
+            "{} is not SCREAMING_CASE",
+            e.name
+        );
+        if let ContentVal::F64(x) = e.val {
+            assert!(x.is_finite(), "{} is not finite", e.name);
+        }
+    }
+    assert!(
+        REGISTRY.len() >= 49,
+        "registry shrank to {} rows",
+        REGISTRY.len()
+    );
+}
+
+#[test]
+fn hash_is_stable_and_derived_from_the_registry() {
+    assert_eq!(content_hash(), content_hash());
+    assert_eq!(content_hash(), content_hash_of(REGISTRY));
+}
+
+/// The rules identity of this build. A change here is a gameplay (or rules identity) change on purpose: Welcome, /info and
+/// replays carry it, older replays are refused with ContentMismatch. Update it in the same commit as the change that moves it.
+#[test]
+fn hash_golden() {
+    assert_eq!(
+        content_hash(),
+        GOLDEN_CONTENT_HASH,
+        "content_hash is now {:016x}",
+        content_hash()
+    );
+}
+const GOLDEN_CONTENT_HASH: u64 = 0x2f8c_f40f_6d3c_0b53;
+
+#[test]
+fn every_registry_row_perturbs_the_hash() {
+    let base = content_hash();
+    let mut hashes = BTreeSet::new();
+    hashes.insert(base);
+    for (i, e) in REGISTRY.iter().enumerate() {
+        let h = content_hash_of(&perturbed(i));
+        assert_ne!(h, base, "changing {} does not change content_hash", e.name);
+        assert!(
+            hashes.insert(h),
+            "changing {} collides with another perturbation",
+            e.name
+        );
+    }
+}
+
+#[test]
+fn removing_renaming_or_reordering_a_row_perturbs_the_hash() {
+    let base = content_hash();
+    let mut removed = REGISTRY.to_vec();
+    removed.pop();
+    assert_ne!(content_hash_of(&removed), base);
+    let mut renamed = REGISTRY.to_vec();
+    renamed[0].name = "SOMETHING_ELSE";
+    assert_ne!(content_hash_of(&renamed), base);
+    let mut swapped = REGISTRY.to_vec();
+    swapped.swap(0, 1);
+    assert_ne!(content_hash_of(&swapped), base);
+}
+
+#[test]
+fn numbers_missing_from_the_hash_at_the_base_now_move_it() {
+    let base = content_hash();
+    for name in MISSING_AT_BASE {
+        let i = REGISTRY
+            .iter()
+            .position(|e| e.name == *name)
+            .unwrap_or_else(|| panic!("{name} is not registered"));
+        assert_ne!(content_hash_of(&perturbed(i)), base, "{name}");
+    }
+    for name in [
+        "BOW_WINDUP_MAX_S",
+        "BOW_WINDUP_INTERVAL_SHARE",
+        "WAND_WINDUP_MAX_S",
+        "WAND_WINDUP_INTERVAL_SHARE",
+        "SNAP_RADIUS",
+        "PULL_WINDOW",
+        "MASK_SIGHT",
+        "MASK_MOVE",
+        "MASK_MELEE",
+        "BARRIER_EPS",
+        "FACING_EPS",
+        "ARC_EPS",
+        "PATH_TIE_EPS",
+    ] {
+        find(name);
+    }
+}
+
+#[test]
+fn stagger_rule_moves_the_hash() {
+    let base = content_hash();
+    assert_ne!(content_hash_of_rules(REGISTRY, &[]), base);
+    assert_ne!(
+        content_hash_of_rules(REGISTRY, &[WeaponId::Sword, WeaponId::Axe]),
+        base
+    );
+    assert_ne!(content_hash_of_rules(REGISTRY, &[WeaponId::Axe]), base);
+    assert_eq!(content_hash_of_rules(REGISTRY, STAGGER_WEAPONS), base);
+}
+
+#[test]
+fn stagger_rule_is_registered_data() {
+    assert_eq!(STAGGER_WEAPONS, &[WeaponId::Sword]);
+    for w in WeaponId::ALL {
+        assert_eq!(staggers(w), w == WeaponId::Sword, "{w:?}");
+    }
+}
+
+#[test]
+fn every_const_in_the_source_tree_is_registered_or_explained() {
+    let registered = registry_names();
+    let non_gameplay: BTreeSet<&str> = NON_GAMEPLAY.iter().map(|(n, _)| *n).collect();
+    for (n, reason) in NON_GAMEPLAY {
+        assert!(!reason.is_empty(), "{n} needs a reason");
+        assert!(
+            !registered.contains(n),
+            "{n} is both registered and listed as not gameplay"
+        );
+    }
+    let folded_tables: BTreeSet<&str> = TABLES_FOLDED_BY_HASH.iter().map(|(n, _)| *n).collect();
+    let mut stray = Vec::new();
+    let mut found = 0;
+    for (file, code) in sources() {
+        for name in declared_consts(&code) {
+            found += 1;
+            // constants.rs declares only through content! (REGISTRY itself is the macro's output); a hand-written const
+            // there would bypass the registry.
+            let bypasses = file == "constants.rs" && name != "REGISTRY";
+            let unexplained = file != "constants.rs"
+                && !registered.contains(name.as_str())
+                && !non_gameplay.contains(name.as_str())
+                && !folded_tables.contains(name.as_str());
+            if bypasses || unexplained {
+                stray.push(format!("{file}: {name}"));
+            }
+        }
+    }
+    assert!(found > 0, "the scan found no consts at all");
+    assert!(
+        stray.is_empty(),
+        "consts that are neither in the content! registry nor in NON_GAMEPLAY: {stray:#?}\n\
+         a gameplay number is one line in crates/rh-sim/src/constants.rs content!; anything else needs a reason in NON_GAMEPLAY"
+    );
+}
+
+fn as_i128(v: ContentVal) -> i128 {
+    match v {
+        ContentVal::U64(x) => x as i128,
+        ContentVal::I64(x) => x as i128,
+        ContentVal::F64(x) => panic!("{x} is not an integer row"),
+    }
+}
+
+/// Minimal evaluator for the integer const expressions at the external sites: literals, `|` and other consts.
+fn eval_int(expr: &str, decls: &[(String, String)]) -> i128 {
+    expr.split('|')
+        .map(|t| {
+            let t = t.trim();
+            let t = if t.starts_with(|c: char| c.is_ascii_digit()) {
+                t.replace('_', "")
+            } else {
+                t.to_string()
+            };
+            if let Some(hex) = t.strip_prefix("0x") {
+                i128::from_str_radix(hex, 16).unwrap()
+            } else if let Some(bin) = t.strip_prefix("0b") {
+                i128::from_str_radix(bin, 2).unwrap()
+            } else if let Ok(n) = t.parse::<i128>() {
+                n
+            } else {
+                let (_, e) = decls
+                    .iter()
+                    .find(|(n, _)| *n == t)
+                    .unwrap_or_else(|| panic!("cannot evaluate `{t}`"));
+                eval_int(e, decls)
+            }
+        })
+        .fold(0, |a, b| a | b)
+}
+
+/// All `const NAME: ty = expr;` outside constants.rs as (name, expr text).
+fn site_decls(srcs: &[(String, String)]) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for (file, code) in srcs {
+        if file == "constants.rs" {
+            continue;
+        }
+        for name in declared_consts(code) {
+            let at = code
+                .find(&format!("const {name}"))
+                .or_else(|| code.find(&format!("static {name}")))
+                .unwrap();
+            let rest = &code[at..];
+            let (Some(eq), Some(semi)) = (rest.find('='), rest.find(';')) else {
+                continue;
+            };
+            if eq < semi {
+                out.push((name, rest[eq + 1..semi].trim().to_string()));
+            }
+        }
+    }
+    out
+}
+
+fn used_outside_registry(srcs: &[(String, String)], name: &str) -> bool {
+    srcs.iter()
+        .any(|(f, c)| f != "constants.rs" && f != "content.rs" && uses_word(c, name))
+}
+
+#[test]
+fn external_consts_equal_their_site_or_the_site_uses_the_registry() {
+    let srcs = sources();
+    let decls = site_decls(&srcs);
+    for name in EXTERNAL_CONSTS {
+        let reg = as_i128(find(name).val);
+        match decls.iter().find(|(n, _)| n == name) {
+            Some((_, expr)) => {
+                assert_eq!(
+                    reg,
+                    eval_int(expr, &decls),
+                    "{name}: registry value differs from the site `{expr}`"
+                )
+            }
+            None => assert!(
+                used_outside_registry(&srcs, name),
+                "{name}: no declaration at a site and no use of the registry name; was it removed?"
+            ),
+        }
+    }
+}
+
+fn literal_after(line: &str, marker: &str) -> Option<f64> {
+    let rest = &line[line.find(marker)? + marker.len()..];
+    let lit: String = rest
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || matches!(c, '.' | 'e' | '-' | '_'))
+        .collect();
+    lit.replace('_', "").parse().ok()
+}
+
+#[test]
+fn inline_epsilons_equal_their_site_or_the_site_uses_the_registry() {
+    let srcs = sources();
+    for (name, needles, marker) in INLINE_LITERALS {
+        let ContentVal::F64(reg) = find(name).val else {
+            panic!("{name} must be an f64 row")
+        };
+        let mut sites = 0;
+        for (file, code) in &srcs {
+            if file == "constants.rs" || file == "content.rs" {
+                continue;
+            }
+            for line in code
+                .lines()
+                .filter(|l| needles.iter().all(|n| l.contains(n)))
+            {
+                sites += 1;
+                let lit = literal_after(line, marker)
+                    .unwrap_or_else(|| panic!("{name}: no literal after `{marker}` in `{line}`"));
+                assert_eq!(
+                    lit.to_bits(),
+                    reg.to_bits(),
+                    "{name}: registry {reg:e} differs from the literal {lit:e} at {file}: `{}`",
+                    line.trim()
+                );
+            }
+        }
+        assert!(
+            sites > 0 || used_outside_registry(&srcs, name),
+            "{name}: the inline literal site was not found and the registry name is unused; update INLINE_LITERALS if the code moved"
+        );
+    }
+}
