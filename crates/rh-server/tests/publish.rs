@@ -10,7 +10,15 @@ use rh_server::room::{JoinOk, MapAssets, Room, RoomCmd, RoomConfig};
 use rh_server::wire::{self, Publisher};
 use rh_sim::arenas::practice_arena;
 use rh_sim::observe::{Observation, SeenEvent};
-use rh_sim::{Command, Event, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+use rh_sim::{
+    validate, Command, Event, FactionId, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig,
+    Vec2,
+};
+
+/// A command through the one door in (C-INPUT): these tests only use valid ones.
+fn cmd(raw: RawCommand) -> Command {
+    validate(raw).expect("a valid test command")
+}
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
@@ -367,15 +375,15 @@ fn the_publisher_tells_a_swing_by_the_sight_of_the_step_it_happened_in() {
             &[place("viewer", 100.0), place("swinger", 100.0 + gap)],
         );
         let (viewer, swinger) = (PlayerId(1), PlayerId(2));
-        sim.submit(swinger, Command::Attack { a: 0.0, t: None })
+        sim.submit(swinger, cmd(RawCommand::Attack { a: 0.0, t: None }))
             .unwrap();
         sim.submit(
             viewer,
-            Command::Move {
+            cmd(RawCommand::Move {
                 x: to_x,
                 y: 272.0,
                 seq: None,
-            },
+            }),
         )
         .unwrap();
         let (mut all, mut earlier, mut last) = (Vec::new(), Vec::new(), Vec::new());

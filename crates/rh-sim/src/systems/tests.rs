@@ -4,6 +4,7 @@ use super::*;
 use crate::arenas::practice_arena;
 use crate::constants::{MAX_ACTIONS_PER_TICK, TICK_MS};
 use crate::hooks::{self, HookArgs, Hx, OutCause};
+use crate::input::{cmd, RawCommand};
 use crate::state::Packet;
 use crate::{FactionId, Placement, Secrets, Sim, SimConfig, Vec2};
 
@@ -43,22 +44,22 @@ fn step_with_actor(sim: &mut Sim, actor: impl FnOnce(&mut Cx)) {
 
 fn commands() -> Vec<Command> {
     let mut v = vec![
-        Command::Move {
+        cmd(RawCommand::Move {
             x: 700.0,
             y: 320.0,
             seq: Some(1),
-        },
-        Command::Aim { a: 0.4 },
+        }),
+        cmd(RawCommand::Aim { a: 0.4 }),
     ];
     // Past the order budget (30 tokens) and the per-tick action cap.
     v.extend((0..40).map(|i| {
         if i % 2 == 0 {
-            Command::Attack { a: 0.1, t: None }
+            cmd(RawCommand::Attack { a: 0.1, t: None })
         } else {
-            Command::Release { a: 0.1, t: None }
+            cmd(RawCommand::Release { a: 0.1, t: None })
         }
     }));
-    v.push(Command::Stop { seq: Some(2) });
+    v.push(cmd(RawCommand::Stop { seq: Some(2) }));
     v
 }
 
@@ -101,12 +102,12 @@ fn a_command_through_cx_submit_and_through_sim_submit_leaves_identical_state() {
 #[test]
 fn an_actor_inside_the_tick_acts_exactly_like_a_submit_after_the_step() {
     let cmds = [
-        Command::Move {
+        cmd(RawCommand::Move {
             x: 500.0,
             y: 300.0,
             seq: Some(3),
-        },
-        Command::Attack { a: 0.0, t: None },
+        }),
+        cmd(RawCommand::Attack { a: 0.0, t: None }),
     ];
     let mut a = sim();
     let mut b = a.clone();

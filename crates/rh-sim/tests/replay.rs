@@ -5,7 +5,14 @@ use rh_sim::arenas::practice_arena;
 use rh_sim::replay::{
     apply_input, run_replay, Recorder, Replay, ReplayError, ReplayInput, ReplayStart, REPLAY_FORMAT,
 };
-use rh_sim::{Command, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+use rh_sim::{
+    validate, Command, FactionId, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig, Vec2,
+};
+
+/// A command through the one door in (C-INPUT): these tests only use valid ones.
+fn cmd(raw: RawCommand) -> Command {
+    validate(raw).expect("a valid test command")
+}
 
 fn placements() -> Vec<Placement> {
     (0..4)
@@ -27,7 +34,10 @@ fn recorded(ticks: u32) -> Replay {
     for t in 0..ticks {
         for i in 1..=4u32 {
             let a = t as f64 * 0.07 + i as f64;
-            for cmd in [Command::Aim { a }, Command::Attack { a, t: None }] {
+            for cmd in [
+                cmd(RawCommand::Aim { a }),
+                cmd(RawCommand::Attack { a, t: None }),
+            ] {
                 let input = ReplayInput::Command {
                     player: PlayerId(i),
                     cmd,
@@ -82,6 +92,16 @@ fn a_tampered_step_hash_is_a_divergence() {
         run_replay(&r),
         Err(ReplayError::Diverged { step: 3, .. })
     ));
+}
+
+#[test]
+fn an_edited_replay_cannot_inject_an_unvalidated_command() {
+    let mut v = serde_json::to_value(recorded(5)).unwrap();
+    let input = &mut v["ticks"][0]["inputs"][0];
+    assert!(input["Command"]["cmd"]["Aim"].is_object(), "{input}");
+    // An angle `validate` would have wrapped, written straight into the replay.
+    input["Command"]["cmd"]["Aim"]["a"] = 50.0.into();
+    assert!(serde_json::from_value::<Replay>(v).is_err());
 }
 
 #[test]
