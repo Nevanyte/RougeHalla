@@ -196,6 +196,8 @@ pub struct ViewFrames {
     pub fx: Option<Vec<u8>>,
     /// The state snapshot; an error when the codec refuses the observation (never a repaired frame).
     pub snapshot: Result<Vec<u8>, rh_protocol::EncodeError>,
+    /// The first refusal of the Events or Fx frame (that frame is then `None`): the codec never clamps or repairs one.
+    pub refused: Option<rh_protocol::EncodeError>,
 }
 
 impl ViewFrames {
@@ -268,6 +270,9 @@ impl Publisher {
             }
         }
         let tick = self.obs.tick;
+        // Both go through the refusing encoder: a frame a decoder would reject (an fx position off the grid, too many
+        // entries) is not sent, never clamped (release) nor a panic (debug).
+        let mut refused = None;
         let important = if self.events.is_empty() {
             None
         } else {
@@ -275,11 +280,11 @@ impl Publisher {
                 tick,
                 events: std::mem::take(&mut self.events),
             };
-            let frame = msg.encode();
+            let frame = encode_or_refuse(&msg, &mut refused);
             if let ServerMsg::Events { events, .. } = msg {
                 self.events = events;
             }
-            Some(frame)
+            frame
         };
         let fx = if self.fx.is_empty() {
             None
@@ -288,17 +293,33 @@ impl Publisher {
                 tick,
                 fx: std::mem::take(&mut self.fx),
             };
-            let frame = msg.encode();
+            let frame = encode_or_refuse(&msg, &mut refused);
             if let ServerMsg::Fx { fx, .. } = msg {
                 self.fx = fx;
             }
-            Some(frame)
+            frame
         };
         let snapshot = encode_snapshot(&self.obs, ack_input, &mut self.scratch);
         ViewFrames {
             important,
             fx,
             snapshot,
+            refused,
+        }
+    }
+}
+
+/// The frame of `msg`, or `None` with the reason kept in `refused` (the first one wins) when a decoder would reject it:
+/// never a clamped frame (release) and never a panic (debug).
+fn encode_or_refuse(
+    msg: &ServerMsg,
+    refused: &mut Option<rh_protocol::EncodeError>,
+) -> Option<Vec<u8>> {
+    match msg.try_encode() {
+        Ok(f) => Some(f),
+        Err(e) => {
+            refused.get_or_insert(e);
+            None
         }
     }
 }
@@ -509,6 +530,46 @@ mod tests {
         ] {
             assert_eq!(hp_pct(f), reference(f), "{f}");
         }
+    }
+
+    /// An Fx frame with a swing off the position grid is refused and reported, not clamped (release) nor a panic in the
+    /// room (debug); a good frame is the message's own bytes.
+    #[test]
+    fn an_fx_frame_off_the_grid_is_refused_not_clamped() {
+        let swing = |x: f32| WireFx::Swing {
+            by: 3,
+            weapon: 1,
+            x,
+            y: 10.0,
+            a: 0.5,
+        };
+        let mut refused = None;
+        let good = ServerMsg::Fx {
+            tick: 9,
+            fx: vec![swing(100.0)],
+        };
+        assert_eq!(encode_or_refuse(&good, &mut refused), Some(good.encode()));
+        assert!(refused.is_none());
+        for x in [POS_MAX + 1.0, -1.0, f32::NAN] {
+            let bad = ServerMsg::Fx {
+                tick: 9,
+                fx: vec![swing(100.0), swing(x)],
+            };
+            let mut refused = None;
+            assert_eq!(encode_or_refuse(&bad, &mut refused), None, "{x}");
+            assert_eq!(
+                refused,
+                Some(rh_protocol::EncodeError::BadValue("position"))
+            );
+        }
+        // The first refusal of a wake is the one kept.
+        let mut refused = Some(rh_protocol::EncodeError::NonFinite);
+        let bad = ServerMsg::Fx {
+            tick: 9,
+            fx: vec![swing(-5.0)],
+        };
+        assert_eq!(encode_or_refuse(&bad, &mut refused), None);
+        assert_eq!(refused, Some(rh_protocol::EncodeError::NonFinite));
     }
 
     fn flat_arena(w: u32, h: u32) -> rh_sim::Arena {

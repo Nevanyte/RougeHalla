@@ -518,6 +518,7 @@ namespace Roguehalla.Net.Protocol
                     var a = Actors[i];
                     if (a.Faction > Wire.MaxKitCode || a.Weapon > Wire.MaxKitCode || a.Status > Wire.MaxStatusCode) throw new ArgumentException("actor faction/weapon/status");
                     if (a.HpPct > 100) throw new ArgumentException("hp_pct");
+                    if (!Quant.PosInRange(a.X) || !Quant.PosInRange(a.Y)) throw new ArgumentException("position");
                     if (i > 0 && a.Id <= Actors[i - 1].Id) throw new ArgumentException("actor ids must strictly ascend");
                 }
                 var w = new Writer(EncodedLength);
@@ -596,6 +597,9 @@ namespace Roguehalla.Net.Protocol
             public override byte[] Encode()
             {
                 if (List.Count > ushort.MaxValue) throw new ArgumentException("too many fx");
+                // Like rh-protocol: a swing off the position grid is refused, never saturated.
+                foreach (var f in List)
+                    if (f.Kind == FxKind.Swing && (!Quant.PosInRange(f.X) || !Quant.PosInRange(f.Y))) throw new ArgumentException("position");
                 int len = 1 + Writer.VarintLength(Tick) + Writer.VarintLength((uint)List.Count);
                 foreach (var f in List)
                     len += f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 4;
