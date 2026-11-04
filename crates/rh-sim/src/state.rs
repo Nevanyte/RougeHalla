@@ -1,0 +1,178 @@
+//! The evolving match state: players and their runtime, and the arena's run bookkeeping.
+
+use crate::content::{FactionId, WeaponId};
+use crate::input::{InputQueue, OrderBudget};
+use crate::math::Vec2;
+use crate::results::{GvBreakdown, Outcome};
+
+/// A player's public entity id: assigned at join, never reused within a match.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+pub struct PlayerId(pub u32);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Phase {
+    Lobby,
+    Active,
+    Ended,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Status {
+    Lobby,
+    Alive,
+    Dead,
+    Mia,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Sample {
+    pub t: f64,
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ActionKind {
+    Swing,
+    Cast,
+    Draw,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Packet {
+    pub raw: f64,
+    pub phys: f64,
+    pub magic: f64,
+    pub true_: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PendingAction {
+    pub kind: ActionKind,
+    pub weapon: WeaponId,
+    pub started_at: f64,
+    pub lands_at: f64,
+    pub a: f64,
+    pub packet: Packet,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct WeaponRt {
+    pub action: Option<PendingAction>,
+    pub root_until: f64,
+    pub stagger_immune_until: f64,
+    pub held: bool,
+    pub pressed_at: f64,
+    pub buffered_until: f64,
+    pub aim: f64,
+    pub aim_at: f64,
+    pub lag_ms: f64,
+}
+
+impl Default for WeaponRt {
+    fn default() -> Self {
+        Self {
+            action: None,
+            root_until: 0.0,
+            stagger_immune_until: 0.0,
+            held: false,
+            pressed_at: 0.0,
+            buffered_until: 0.0,
+            aim: 0.0,
+            aim_at: 0.0,
+            lag_ms: 0.0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Player {
+    pub id: PlayerId,
+    /// The profile (callsign) the result is banked to; for a bot only its display name.
+    pub profile: String,
+    pub name: String,
+    pub bot: bool,
+    pub faction: FactionId,
+    pub x: f64,
+    pub y: f64,
+    pub facing: f64,
+    pub hp: f64,
+    pub max_hp: f64,
+    pub barrier: f64,
+    pub status: Status,
+    /// Carried items; `None` fights with fists. The slice has no item flow, so these stay `None`.
+    pub weapon0: Option<WeaponId>,
+    pub weapon1: Option<WeaponId>,
+    pub slot: u8,
+    pub ready_at: f64,
+    pub draw_started_at: f64,
+    pub move_seq: u8,
+    pub kills: u32,
+    pub bounty: u32,
+    pub gv: u32,
+    pub immune_until: f64,
+    // runtime (server-only)
+    pub inputs: InputQueue,
+    pub budget: OrderBudget,
+    pub path: Vec<Vec2>,
+    pub history: Vec<Sample>,
+    pub weapon: WeaponRt,
+    pub killed_by: Option<String>,
+    pub killed_by_bot: bool,
+    pub gv_parts: GvBreakdown,
+    pub last_hit: Option<(PlayerId, f64)>,
+    pub damaged: Vec<PlayerId>,
+    pub damaged_humans: Vec<PlayerId>,
+    pub dropped_at: Option<f64>,
+    pub hp_frac_at_tick_start: f64,
+    pub down: Option<Outcome>,
+    pub resolved: bool,
+    pub bot_kills: u32,
+    pub announce: Option<(f64, u32)>,
+}
+
+impl Player {
+    pub fn standing(&self) -> bool {
+        self.status == Status::Alive && self.down.is_none() && !self.resolved
+    }
+    pub fn pos(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+    /// The weapon in hand: the item in the active slot, or fists.
+    pub fn active_weapon(&self) -> WeaponId {
+        let item = if self.slot == 0 {
+            self.weapon0
+        } else {
+            self.weapon1
+        };
+        item.unwrap_or(WeaponId::Fists)
+    }
+    /// Where the fighter was at server time `t` (lerped between ticks, clamped to history; legacy `positionAt`).
+    pub fn position_at(&self, t: f64) -> Vec2 {
+        let h = &self.history;
+        if h.is_empty() || t >= h[h.len() - 1].t {
+            return self.pos();
+        }
+        if t <= h[0].t {
+            return Vec2::new(h[0].x, h[0].y);
+        }
+        let mut i = h.len() - 2;
+        while i > 0 && h[i].t > t {
+            i -= 1;
+        }
+        let (a, b) = (h[i], h[i + 1]);
+        let k = (t - a.t) / (b.t - a.t);
+        Vec2::new(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct ArenaRt {
+    pub(crate) started_with: u32,
+    pub(crate) started_humans: usize,
+    pub(crate) downed_this_tick: Vec<PlayerId>,
+    pub(crate) downs_between_ticks: u32,
+    pub(crate) bounty_at_tick_start: Vec<(PlayerId, u32)>,
+}
