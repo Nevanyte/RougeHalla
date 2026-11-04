@@ -50,7 +50,9 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
     use DecodeError::*;
     let want = |name: &str| -> DecodeError {
         match name {
-            "empty" | "truncated_snapshot" | "self_truncated" | "actor_count_without_actors" => Truncated,
+            "empty" | "truncated_snapshot" | "self_truncated" | "actor_count_without_actors" => {
+                Truncated
+            }
             "unknown_tag" | "client_tag_from_server" => BadTag(0),
             "trailing_byte" => Trailing(0),
             "overlong_varint" | "varint_past_u32" | "varint_too_long" => BadVarint,
@@ -113,16 +115,38 @@ fn decoding_then_encoding_a_valid_snapshot_is_byte_identical() {
 
 #[test]
 fn varints_round_trip_and_have_one_encoding() {
-    for v in [0u32, 1, 127, 128, 255, 16383, 16384, 2_097_151, 2_097_152, 268_435_455, 268_435_456, u32::MAX] {
+    for v in [
+        0u32,
+        1,
+        127,
+        128,
+        255,
+        16383,
+        16384,
+        2_097_151,
+        2_097_152,
+        268_435_455,
+        268_435_456,
+        u32::MAX,
+    ] {
         let mut w = Writer::default();
         w.varint(v);
         let b = w.finish();
         assert_eq!(b.len(), codec::varint_len(v), "{v}");
         assert_eq!(Reader::new(&b).varint(), Ok(v));
     }
-    assert_eq!(Reader::new(&[0x80, 0x00]).varint(), Err(DecodeError::BadVarint));
-    assert_eq!(Reader::new(&[0xff, 0xff, 0xff, 0xff, 0x10]).varint(), Err(DecodeError::BadVarint));
-    assert_eq!(Reader::new(&[0x80, 0x80, 0x80, 0x80, 0x80]).varint(), Err(DecodeError::BadVarint));
+    assert_eq!(
+        Reader::new(&[0x80, 0x00]).varint(),
+        Err(DecodeError::BadVarint)
+    );
+    assert_eq!(
+        Reader::new(&[0xff, 0xff, 0xff, 0xff, 0x10]).varint(),
+        Err(DecodeError::BadVarint)
+    );
+    assert_eq!(
+        Reader::new(&[0x80, 0x80, 0x80, 0x80, 0x80]).varint(),
+        Err(DecodeError::BadVarint)
+    );
     assert_eq!(Reader::new(&[0x80]).varint(), Err(DecodeError::Truncated));
 }
 

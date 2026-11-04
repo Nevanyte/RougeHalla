@@ -31,7 +31,9 @@ const FACING_CLAMP: f64 = (1u64 << 40) as f64;
 /// World units to the nearest 1/8 u, saturating to `0 ..= 65535` (NaN is 0).
 #[inline]
 pub fn quantize_pos(v: f32) -> u16 {
-    ((v as f64) * (POS_SCALE as f64)).round().clamp(0.0, 65535.0) as u16
+    ((v as f64) * (POS_SCALE as f64))
+        .round()
+        .clamp(0.0, 65535.0) as u16
 }
 
 #[inline]

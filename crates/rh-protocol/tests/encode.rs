@@ -78,14 +78,7 @@ fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     else {
         panic!("not a snapshot")
     };
-    let mut s = SnapshotWriter::begin(
-        out,
-        *tick,
-        *phase,
-        *ack_input,
-        me.as_ref(),
-        actors.len(),
-    );
+    let mut s = SnapshotWriter::begin(out, *tick, *phase, *ack_input, me.as_ref(), actors.len());
     for a in actors {
         s.actor(a);
     }
@@ -191,7 +184,11 @@ fn an_announced_count_over_the_limit_is_too_many() {
     w.actor(&actor(1));
     assert!(matches!(
         w.finish(),
-        Err(EncodeError::TooMany { what: "actors", n: 1000, .. })
+        Err(EncodeError::TooMany {
+            what: "actors",
+            n: 1000,
+            ..
+        })
     ));
     assert_eq!(out, [7]);
 }

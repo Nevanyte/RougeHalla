@@ -522,7 +522,9 @@ impl Frame for ServerMsg {
                 1 + 4 + 2 + events.iter().map(event_len).sum::<usize>()
             }
             ServerMsg::Fx { tick, fx } => {
-                1 + varint_len(*tick) + varint_len(fx.len() as u32) + fx.iter().map(fx_len).sum::<usize>()
+                1 + varint_len(*tick)
+                    + varint_len(fx.len() as u32)
+                    + fx.iter().map(fx_len).sum::<usize>()
             }
             ServerMsg::Pong { .. } => 1 + 4 + 8 + 8,
         }
@@ -789,7 +791,11 @@ impl<'a> SnapshotWriter<'a> {
         let start = out.len();
         let fault = snapshot_fault(phase, me, &[]);
         let mut w = Writer::from_vec(std::mem::take(out));
-        w.reserve(MIN_SNAPSHOT_HEAD_LEN + me.map_or(0, |_| MIN_SELF_LEN) + MIN_ACTOR_LEN * actors.min(MAX_ACTORS));
+        w.reserve(
+            MIN_SNAPSHOT_HEAD_LEN
+                + me.map_or(0, |_| MIN_SELF_LEN)
+                + MIN_ACTOR_LEN * actors.min(MAX_ACTORS),
+        );
         write_snapshot_head(&mut w, tick, phase, ack_input, me, actors);
         Self {
             out,
@@ -807,11 +813,10 @@ impl<'a> SnapshotWriter<'a> {
     pub fn actor(&mut self, a: &WireActor) {
         write_actor(&mut self.w, a, self.last_id);
         if self.fault.is_none() {
-            self.fault = snapshot_fault(0, None, std::slice::from_ref(a)).or(
-                self.last_id
-                    .is_some_and(|p| a.id <= p)
-                    .then_some("actor order"),
-            );
+            self.fault = snapshot_fault(0, None, std::slice::from_ref(a)).or(self
+                .last_id
+                .is_some_and(|p| a.id <= p)
+                .then_some("actor order"));
         }
         self.last_id = Some(a.id);
         self.n += 1;

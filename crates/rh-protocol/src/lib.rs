@@ -210,7 +210,13 @@ impl WireFx {
     /// What a client decodes after this effect went over the wire (a swing's position and angle quantized).
     pub fn quantized(&self) -> WireFx {
         match *self {
-            WireFx::Swing { by, weapon, x, y, a } => WireFx::Swing {
+            WireFx::Swing {
+                by,
+                weapon,
+                x,
+                y,
+                a,
+            } => WireFx::Swing {
                 by,
                 weapon,
                 x: quant::dequantize_pos(quant::quantize_pos(x)),
@@ -444,9 +450,21 @@ fn read_self(r: &mut Reader, mask: u16) -> Result<WireSelf, DecodeError> {
     };
     let hp = if mask & HM_HP != 0 { r.f32()? } else { max_hp };
     let ready_in_ms = if mask & HM_READY != 0 { r.u16()? } else { 0 };
-    let kills = if mask & HM_KILLS != 0 { varint_u16(r, "kills")? } else { 0 };
-    let bounty = if mask & HM_BOUNTY != 0 { varint_u16(r, "bounty")? } else { 0 };
-    let gv = if mask & HM_GV != 0 { varint_u16(r, "gv")? } else { 0 };
+    let kills = if mask & HM_KILLS != 0 {
+        varint_u16(r, "kills")?
+    } else {
+        0
+    };
+    let bounty = if mask & HM_BOUNTY != 0 {
+        varint_u16(r, "bounty")?
+    } else {
+        0
+    };
+    let gv = if mask & HM_GV != 0 {
+        varint_u16(r, "gv")?
+    } else {
+        0
+    };
     let move_seq = if mask & HM_MOVE_SEQ != 0 { r.u8()? } else { 0 };
     Ok(WireSelf {
         id,
@@ -489,11 +507,19 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
     } else {
         (0, 0)
     };
-    let hp_pct = if mask & AM_HP != 0 { r.u8()? } else { DEFAULT_HP_PCT };
+    let hp_pct = if mask & AM_HP != 0 {
+        r.u8()?
+    } else {
+        DEFAULT_HP_PCT
+    };
     if hp_pct > 100 {
         return Err(DecodeError::BadField("hp_pct"));
     }
-    let bounty = if mask & AM_BOUNTY != 0 { varint_u16(r, "bounty")? } else { 0 };
+    let bounty = if mask & AM_BOUNTY != 0 {
+        varint_u16(r, "bounty")?
+    } else {
+        0
+    };
     Ok(WireActor {
         id,
         faction,

@@ -9,6 +9,12 @@
 //! `--actors N` gives every Snapshot N actors instead of the slice mix. The output's fnv is a hash of every frame's bytes:
 //! with `--check` it must be the same for every mode (and for any revision of the encoder); without it the frames are
 //! not hashed (so a measured run counts only the encoder) and fnv stays at its seed.
+//!
+//! `--report [--actors N] [--shape slice|worst]` encodes the pool once and prints the wire cost against protocol v1's fixed
+//! layout (a v1 Snapshot was 18 + (1 or 37, the self) + 2 + 22 per actor bytes; no encoder for it is kept, the formula is
+//! the layout in the v1 docs): total bytes of the Snapshots, the per-actor cost of both, and their ratio. `slice` (the
+//! default) gives every actor the field mix the slice measures (a faction on 4 of 5, damaged, alive or dead, a weapon, no
+//! bounty); `worst` sets every optional field (a faction, a weapon, a bounty, damage).
 use rh_protocol::{ServerMsg, WireActor, WireFx, WireSelf};
 
 fn arg(args: &[String], k: &str) -> Option<String> {
@@ -17,7 +23,7 @@ fn arg(args: &[String], k: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
-fn pool(fixed_actors: Option<usize>) -> Vec<ServerMsg> {
+fn pool(fixed_actors: Option<usize>, slice: bool) -> Vec<ServerMsg> {
     // The slice's mean is 1.49 visible actors per snapshot; this mix averages 1.5.
     const MIX: [usize; 8] = [1, 2, 1, 0, 2, 3, 1, 2];
     (0..64u32)
@@ -67,10 +73,22 @@ fn pool(fixed_actors: Option<usize>) -> Vec<ServerMsg> {
                         x: 300.0 + (i * 7 + k) as f32,
                         y: 410.25 - k as f32,
                         facing: -1.0 + 0.01 * (i + k) as f32,
-                        hp_pct: ((i + k) % 101) as u8,
-                        status: (k % 2) as u8,
-                        weapon: (k % 7) as u8,
-                        bounty: (k * 5) as u16,
+                        hp_pct: if slice {
+                            ((i + k) % 100) as u8
+                        } else {
+                            ((i + k) % 101) as u8
+                        },
+                        status: if slice {
+                            1 + (k % 2) as u8
+                        } else {
+                            (k % 2) as u8
+                        },
+                        weapon: if slice {
+                            1 + (k % 5) as u8
+                        } else {
+                            (k % 7) as u8
+                        },
+                        bounty: if slice { 0 } else { (k * 5) as u16 },
                     })
                     .collect(),
             }
@@ -97,6 +115,47 @@ fn sink(hash: bool, h: u64, b: &[u8]) -> u64 {
     }
 }
 
+/// Protocol v1's Snapshot size (fixed layout: 18 header + self flag/36 + 2 count + 22 per actor).
+fn v1_snapshot_len(me: bool, actors: usize) -> usize {
+    18 + if me { 37 } else { 1 } + 2 + 22 * actors
+}
+
+fn report(pool: &[ServerMsg], fixed: Option<usize>, slice: bool) {
+    let (mut v1, mut v2, mut v2_empty, mut actors, mut snaps) =
+        (0usize, 0usize, 0usize, 0usize, 0usize);
+    for m in pool {
+        if let ServerMsg::Snapshot {
+            tick,
+            phase,
+            ack_input,
+            me,
+            actors: a,
+        } = m
+        {
+            snaps += 1;
+            actors += a.len();
+            v1 += v1_snapshot_len(me.is_some(), a.len());
+            v2 += m.encoded_len();
+            v2_empty += ServerMsg::Snapshot {
+                tick: *tick,
+                phase: *phase,
+                ack_input: *ack_input,
+                me: *me,
+                actors: vec![],
+            }
+            .encoded_len();
+        }
+    }
+    let per_actor_v2 = (v2 - v2_empty) as f64 / actors.max(1) as f64;
+    println!(
+        "{{\"shape\":\"{}\",\"actorsPerSnapshot\":\"{}\",\"snapshots\":{snaps},\"v1Bytes\":{v1},\"v2Bytes\":{v2},\"ratio\":{:.3},\"bytesPerActorV1\":22,\"bytesPerActorV2\":{per_actor_v2:.2},\"actorRatio\":{:.3}}}",
+        if slice { "slice" } else { "worst" },
+        fixed.map_or("mix".to_string(), |n| n.to_string()),
+        v2 as f64 / v1 as f64,
+        per_actor_v2 / 22.0
+    );
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let frames: usize = arg(&args, "--frames")
@@ -105,7 +164,12 @@ fn main() {
     let mode = arg(&args, "--mode").unwrap_or_else(|| "encode".into());
     let fixed = arg(&args, "--actors").and_then(|v| v.parse().ok());
     let hash = args.iter().any(|a| a == "--check");
-    let pool = pool(fixed);
+    let slice = arg(&args, "--shape").as_deref() != Some("worst");
+    let pool = pool(fixed, slice);
+    if args.iter().any(|a| a == "--report") {
+        report(&pool, fixed, slice);
+        return;
+    }
     let (mut bytes, mut h) = (0u64, 0xcbf2_9ce4_8422_2325u64);
     let mut buf = Vec::new();
     for i in 0..frames {
