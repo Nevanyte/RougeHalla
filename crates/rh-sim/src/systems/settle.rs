@@ -5,9 +5,11 @@
 
 use crate::constants::*;
 use crate::events::Event;
+use crate::hooks::{self, HookArgs, Hx, OutCause};
 use crate::math::js_round;
 use crate::results::{GvBreakdown, Outcome, RunResult, WinBonusWhy};
 use crate::state::{Phase, PlayerId, Status, World};
+use crate::statics::MatchStatic;
 use crate::systems::credit;
 use crate::systems::weapons::release_trigger;
 use crate::systems::Cx;
@@ -30,6 +32,7 @@ pub(crate) fn mark_tick_start(cx: &mut Cx) {
 /// Takes player `vi` out of the run (legacy `downPlayer`). Inside a step (`in_step` is the tick's downed list) the
 /// result waits for the settle at the end of the step; between steps (a leave) it is resolved at once.
 pub(crate) fn down_player(
+    k: &MatchStatic,
     w: &mut World,
     ev: &mut Vec<Event>,
     in_step: Option<&mut Vec<PlayerId>>,
@@ -57,10 +60,20 @@ pub(crate) fn down_player(
     };
     let victim_bot = v.bot;
     let id = v.id;
+    // Legacy order: fighterOut, the kill credit, then dropBody.
+    let mut hx = Hx { k, w, ev };
+    hooks::fire(
+        &mut hx,
+        HookArgs::FighterOut {
+            id,
+            cause: OutCause::Down,
+        },
+    );
     if let Some(c) = credited {
-        let bounty = w.players[vi].bounty;
-        credit::credit_kill(w, ev, c, victim_bot, bounty);
+        let bounty = hx.w.players[vi].bounty;
+        credit::credit_kill(hx.w, hx.ev, c, victim_bot, bounty);
     }
+    hooks::fire(&mut hx, HookArgs::DropBody { victim: id });
     if let Some(downed) = in_step {
         downed.push(id);
         return;
@@ -73,7 +86,7 @@ pub(crate) fn down_player(
 
 /// System (legacy arena.settle): resolve the tick's downs, or end the run when at most one fighter stands.
 pub(crate) fn settle(cx: &mut Cx) {
-    let Cx { w, s, ev, .. } = cx;
+    let Cx { k, w, s, ev, .. } = cx;
     let downed = &mut s.downed_this_tick;
     w.rt.downs_between_ticks = 0;
     let alive: Vec<PlayerId> = w
@@ -84,7 +97,7 @@ pub(crate) fn settle(cx: &mut Cx) {
         .collect();
     let contested = w.rt.started_with >= 2;
     if alive.is_empty() || (contested && alive.len() == 1) {
-        end_run(w, ev, &alive, downed, contested);
+        end_run(k, w, ev, &alive, downed, contested);
         downed.clear();
         return;
     }
@@ -99,6 +112,7 @@ pub(crate) fn settle(cx: &mut Cx) {
 }
 
 fn end_run(
+    k: &MatchStatic,
     w: &mut World,
     ev: &mut Vec<Event>,
     alive: &[PlayerId],
@@ -160,6 +174,7 @@ fn end_run(
     };
     w.winner = winner.and_then(|id| w.player(id)).map(|p| p.name.clone());
     w.phase = Phase::Ended;
+    hooks::fire(&mut Hx { k, w, ev }, HookArgs::RunEnded);
     ev.push(Event::Victory { id: winner, draw });
     ev.push(Event::RaidEnded);
 }

@@ -9,6 +9,7 @@ use crate::content::{
     Shape, Timings, WeaponId,
 };
 use crate::events::Event;
+use crate::input::ActionCmd;
 use crate::state::{ActionKind, Packet, PendingAction, Player};
 use crate::systems::melee::MeleeReq;
 use crate::systems::Cx;
@@ -44,6 +45,22 @@ pub(crate) fn handle_release(p: &mut Player, now: f64, a: f64, t: Option<f64>) {
         note_lag(p, now, t);
     }
     p.weapon.held = false;
+}
+
+/// Action handler `attack` (legacy weapons.ts, `world.actions.attack`): press the trigger toward the command's angle.
+pub(crate) fn on_attack(cx: &mut Cx, i: usize, cmd: &ActionCmd) {
+    if let ActionCmd::Attack { a, t } = *cmd {
+        let now = cx.w.server_time;
+        handle_press(&mut cx.w.players[i], now, a, t);
+    }
+}
+
+/// Action handler `release` (legacy weapons.ts, `world.actions.release`).
+pub(crate) fn on_release(cx: &mut Cx, i: usize, cmd: &ActionCmd) {
+    if let ActionCmd::Release { a, t } = *cmd {
+        let now = cx.w.server_time;
+        handle_release(&mut cx.w.players[i], now, a, t);
+    }
 }
 
 /// System (legacy weapons.updateWeapons): every standing fighter's weapon state machine, in join order.

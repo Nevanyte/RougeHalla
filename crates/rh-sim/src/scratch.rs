@@ -3,7 +3,9 @@
 //!
 //! When each field is (re)written, and why a stale value is never read:
 //! * `bounty_at_tick_start`, `rank`: rewritten at the start of every active tick (markTickStart, the action order) and
-//!   read only later in that same tick (the kill bounty, kill-credit ranks);
+//!   read only later in that same tick (the kill bounty, kill-credit ranks, the inputs in that order);
+//! * `standing`, `mults`: written by `movement:multipliers`, read by `movement:walk` and `movement:recordHistory`, which
+//!   empties them (the fighters standing when the multipliers were read, and each one's move speed this tick);
 //! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds).
 
 use crate::state::PlayerId;
@@ -15,8 +17,13 @@ pub(crate) struct TickScratch {
     /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`): a kill pays what the victim was worth
     /// before the tick's own kills raised it.
     pub(crate) bounty_at_tick_start: Vec<(PlayerId, u32)>,
-    /// The tick's secret action order as (id, rank): ranks kill credit among a victim's hits.
+    /// The tick's secret action order as (id, rank): the order the inputs apply in, and the rank of kill credit among a
+    /// victim's hits.
     pub(crate) rank: Vec<(PlayerId, usize)>,
+    /// Indices of the players standing when this tick's move multipliers were read (legacy `standingCombatants`).
+    pub(crate) standing: Vec<usize>,
+    /// Their move multipliers, aligned with `standing`: every one is read before anyone moves.
+    pub(crate) mults: Vec<f64>,
     /// Melee swings that landed this tick, resolved after movement (rewound).
     pub(crate) melee: Vec<MeleeReq>,
     /// The damage ledger: every hit of the tick, applied at once.
@@ -28,6 +35,10 @@ pub(crate) struct TickScratch {
 impl TickScratch {
     /// True when nothing tick-local survives the step (asserted at the end of every step in debug builds).
     pub(crate) fn is_settled(&self) -> bool {
-        self.melee.is_empty() && self.ledger.is_empty() && self.downed_this_tick.is_empty()
+        self.melee.is_empty()
+            && self.ledger.is_empty()
+            && self.downed_this_tick.is_empty()
+            && self.standing.is_empty()
+            && self.mults.is_empty()
     }
 }

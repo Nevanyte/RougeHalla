@@ -139,6 +139,20 @@ impl Sim {
                 h.u64(result.gv.total as u64);
             }
         }
+        // Effects deferred to the next tick's ledger decide a later outcome. An empty queue (the slice never queues) feeds
+        // nothing, so the hash of every state that existed before the queue did is unchanged.
+        if !self.w.deferred.is_empty() {
+            h.u64(self.w.deferred.hits.len() as u64);
+            for e in &self.w.deferred.hits {
+                h.u64(e.victim.0 as u64);
+                h.u64(e.by.0 as u64);
+                h.str(&e.by_name);
+                for v in [e.packet.raw, e.packet.phys, e.packet.magic, e.packet.true_] {
+                    h.f64(v);
+                }
+                h.u64(e.weapon as u64 | (e.stagger as u64) << 8);
+            }
+        }
         h.finish()
     }
 }
@@ -242,6 +256,24 @@ mod tests {
             ),
             ("started humans", Box::new(|s| s.w.rt.started_humans = 1)),
             ("winner", Box::new(|s| s.w.winner = Some("A".into()))),
+            (
+                "deferred hit",
+                Box::new(|s| {
+                    s.w.deferred.defer_hit(crate::systems::ledger::Entry {
+                        victim: PlayerId(1),
+                        by: PlayerId(2),
+                        by_name: "b".into(),
+                        packet: crate::state::Packet {
+                            raw: 1.0,
+                            phys: 1.0,
+                            magic: 0.0,
+                            true_: 0.0,
+                        },
+                        weapon: crate::content::WeaponId::Fists,
+                        stagger: false,
+                    })
+                }),
+            ),
         ];
         for (name, m) in mutations {
             let mut s = base.clone();

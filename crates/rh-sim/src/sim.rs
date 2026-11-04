@@ -11,6 +11,7 @@
 
 use crate::constants::*;
 use crate::content::FactionId;
+use crate::hooks::{self, HookArgs, Hx, OutCause};
 use crate::input::{Command, Reject};
 use crate::math::Vec2;
 use crate::pathfind::Pathfinder;
@@ -18,7 +19,7 @@ use crate::scratch::TickScratch;
 use crate::state::World;
 use crate::statics::MatchStatic;
 use crate::systems::weapons::release_trigger;
-use crate::systems::{self, settle, Cx};
+use crate::systems::{self, inputs, settle, Cx};
 use std::sync::Arc;
 
 pub use crate::events::Event;
@@ -198,25 +199,15 @@ impl Sim {
     }
 
     /// Queues a validated command for the next step, through the seat's order budget (sim time). The ONLY way any actor's
-    /// commands reach the simulation: network clients, scripted bots and policies alike.
+    /// commands reach the simulation: network clients, scripted bots and policies alike. An actor inside the tick (a
+    /// future mob brain) uses `Cx::submit`, which is this same path (`systems::inputs::submit`).
     pub fn submit(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
-        let now = self.w.server_time;
-        let Some(i) = self.w.idx(id) else {
-            return Ok(());
-        };
-        let p = &mut self.w.players[i];
-        if !p.budget.allow(&cmd, now) {
-            return Err(Reject::OverBudget);
-        }
-        p.inputs.push(cmd)
+        self.with_cx(|cx| cx.submit(id, cmd))
     }
 
     /// Queues a command with no order budget: the parity harness only (the legacy capture fed the sim directly).
     pub fn submit_unbudgeted(&mut self, id: PlayerId, cmd: Command) -> Result<(), Reject> {
-        let Some(i) = self.w.idx(id) else {
-            return Ok(());
-        };
-        self.w.players[i].inputs.push(cmd)
+        inputs::submit_unbudgeted(&mut self.w, id, cmd)
     }
 
     /// A client's connection dropped: the seat is held (reconnect grace is the adapter's job); the time is remembered for
@@ -244,10 +235,27 @@ impl Sim {
     /// A player leaves for good (legacy `removePlayer`): in an active run it counts as a death (MIA), resolved at once.
     pub fn remove_player(&mut self, id: PlayerId) {
         let Some(i) = self.w.idx(id) else { return };
-        if self.w.phase == Phase::Active {
-            self.with_cx(|cx| settle::down_player(cx.w, cx.ev, None, i, Outcome::Mia));
-        }
+        self.with_cx(|cx| {
+            if cx.w.phase == Phase::Active {
+                settle::down_player(cx.k, cx.w, cx.ev, None, i, Outcome::Mia);
+            }
+            // Legacy removePlayer: the hook fires after the down and before the seat is removed.
+            let cause = OutCause::Removed;
+            let mut hx = Hx {
+                k: cx.k,
+                w: cx.w,
+                ev: cx.ev,
+            };
+            hooks::fire(&mut hx, HookArgs::FighterOut { id, cause });
+        });
         self.w.players.remove(i);
+    }
+
+    /// What the schedule ran since the last call, in order: the ported phases, registered systems, action handlers and
+    /// hook links (feature `schedule-trace`, for the conformance test; a production build has no trace).
+    #[cfg(feature = "schedule-trace")]
+    pub fn schedule_trace(&mut self) -> Vec<crate::schedule::TraceEntry> {
+        self.w.trace.take()
     }
 
     /// Advances by exactly one fixed step and returns its events.

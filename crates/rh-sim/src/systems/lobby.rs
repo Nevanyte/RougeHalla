@@ -5,6 +5,7 @@
 
 use crate::constants::*;
 use crate::events::Event;
+use crate::hooks::{self, HookArgs, Hx};
 use crate::scratch::TickScratch;
 use crate::state::{Phase, Sample, Status, WeaponRt, World};
 use crate::statics::MatchStatic;
@@ -62,5 +63,7 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
     s.downed_this_tick.clear();
     w.rt.downs_between_ticks = 0;
     w.winner = None;
+    // Legacy startRaid: beginRun, then the raidStarted hook chain, then the event.
+    hooks::fire(&mut Hx { k, w, ev }, HookArgs::RaidStarted);
     ev.push(Event::RaidStarted);
 }

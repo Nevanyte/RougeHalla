@@ -45,12 +45,15 @@ fn rank_of(rank: &[(PlayerId, usize)], id: PlayerId) -> usize {
         .unwrap_or(usize::MAX)
 }
 
-/// System (legacy step.ts, the ledger's opening): the tick's ledger and melee queue start empty (the slice has no
-/// deferred entries: legacy `combat.deferred` arrives with P-CARDS-1). Both are already empty at the end of every step;
-/// this keeps the opening explicit.
+/// System (legacy step.ts, the ledger's opening): the entries a hook link deferred last tick (returned damage, Overkill's
+/// splash: `World::deferred`, legacy `combat.deferred`) open this tick's ledger, in the order they were queued, and the
+/// melee queue starts empty. The scratch buffers are already empty at the end of every step; this keeps the opening
+/// explicit. The slice has no link that defers, so the queue is empty until P-CARDS-1.
 pub(crate) fn open(cx: &mut Cx) {
-    cx.s.ledger.clear();
-    cx.s.melee.clear();
+    let Cx { w, s, .. } = cx;
+    s.ledger.clear();
+    s.ledger.append(&mut w.deferred.hits);
+    s.melee.clear();
 }
 
 /// System (legacy ledger.applyLedger): every hit of the tick lands at once. Outgoing multipliers are fixed before any
@@ -280,6 +283,6 @@ fn apply_hits(
             bounty,
         });
     }
-    settle::down_player(w, pass.ev, Some(pass.downed), vi, Outcome::Died);
+    settle::down_player(pass.k, w, pass.ev, Some(pass.downed), vi, Outcome::Died);
     before
 }

@@ -7,6 +7,7 @@ use crate::math::Vec2;
 use crate::results::{GvBreakdown, Outcome};
 use crate::rng::Mulberry32;
 use crate::statics::Secrets;
+use crate::systems::ledger::Entry;
 
 /// A player's public entity id: assigned at join, never reused within a match.
 #[derive(
@@ -117,7 +118,7 @@ pub struct Player {
     pub gv: u32,
     pub immune_until: f64,
     // runtime (server-only)
-    pub inputs: InputQueue,
+    pub(crate) inputs: InputQueue,
     pub budget: OrderBudget,
     pub path: Vec<Vec2>,
     pub history: Vec<Sample>,
@@ -250,6 +251,36 @@ pub(crate) struct World {
     pub(crate) rt: ArenaRt,
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
+    /// Effects a hook link queued for the next tick (legacy `combat.deferred`): they open its ledger. Empty in the slice,
+    /// which has no link that defers; absent from a checkpoint while empty, so checkpoints and hashes are unchanged.
+    #[serde(default, skip_serializing_if = "DeferredQueue::is_empty")]
+    pub(crate) deferred: DeferredQueue,
+    /// The execution trace of the tick schedule (feature `schedule-trace`, tests only): never serialized, never hashed.
+    #[cfg(feature = "schedule-trace")]
+    #[serde(skip)]
+    pub(crate) trace: crate::schedule::TraceLog,
+}
+
+/// Effects queued across a tick boundary, as typed data (never closures, so they checkpoint, hash and replay). Legacy has
+/// two deferrals: `payLater` (pay after the ledger pass, inside one tick: a typed payout in the tick scratch) and
+/// `combat.deferred` (entries the cards queue for the NEXT tick's ledger: Spiked Shell's returned damage, Overkill's
+/// splash). Only the second survives a tick, so only it is World state.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct DeferredQueue {
+    /// Ledger entries for the next tick (`ledger:openWithDeferred` moves them into that tick's ledger).
+    pub(crate) hits: Vec<Entry>,
+}
+
+impl DeferredQueue {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.hits.is_empty()
+    }
+
+    /// Queues a hit to open the next tick's ledger (legacy `deferHit`).
+    #[cfg_attr(not(test), allow(dead_code))] // the first producer is a card link (P-CARDS-1); tests exercise it now
+    pub(crate) fn defer_hit(&mut self, e: Entry) {
+        self.hits.push(e);
+    }
 }
 
 impl World {
@@ -276,6 +307,9 @@ impl World {
             spawn_rng: Mulberry32::new(secrets.spawn_seed),
             rt: ArenaRt::default(),
             pending_events: Vec::new(),
+            deferred: DeferredQueue::default(),
+            #[cfg(feature = "schedule-trace")]
+            trace: Default::default(),
         }
     }
 }

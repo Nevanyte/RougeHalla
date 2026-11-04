@@ -1,9 +1,14 @@
 //! Player commands, their validation, the per-tick input queue and the order budget. Every source of actions (a human over the
 //! network, a scripted bot, a future learned policy) goes through [`validate`], the [`OrderBudget`] and the same
 //! [`InputQueue`], so nobody gets extra actions per simulated second (docs/CONTRACTS.md C-INPUT).
+//!
+//! The queue cannot be written from anywhere else: `push` is private to this module and [`accept`] is the one function
+//! that reaches it. `accept` has one caller, `systems::inputs::submit`, which both `Sim::submit` (network clients,
+//! scripted bots, policies) and `Cx::submit` (an actor inside the tick, such as a future mob brain) run.
 
 use crate::constants::{MAX_ACTIONS_PER_TICK, ORDER_BURST, ORDER_PER_SECOND, WORLD_H, WORLD_W};
 use crate::math::wrap_angle;
+use crate::state::Player;
 
 /// A command as it arrives (decoded from the wire or proposed by a policy), not yet validated.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -87,39 +92,55 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum MoveCmd {
+pub(crate) enum MoveCmd {
     Move { x: f64, y: f64, seq: Option<u8> },
     Stop { seq: Option<u8> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum ActionCmd {
+pub(crate) enum ActionCmd {
     Attack { a: f64, t: Option<f64> },
     Release { a: f64, t: Option<f64> },
 }
 
 /// One fighter's commands for the next tick, in arrival order (legacy `InputQueue`): the latest move and the latest aim win,
-/// each remembering how many actions had arrived before it so orders replace each other in arrival order.
+/// each remembering how many actions had arrived before it so orders replace each other in arrival order. The fields are
+/// readable inside the crate (the state hash reads their shape); only [`accept`] writes them.
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct InputQueue {
-    pub mv: Option<MoveCmd>,
-    pub move_before: usize,
-    pub aim: Option<f64>,
-    pub aim_before: usize,
-    pub actions: Vec<ActionCmd>,
-    pub dropped: u32,
+    pub(crate) mv: Option<MoveCmd>,
+    pub(crate) move_before: usize,
+    pub(crate) aim: Option<f64>,
+    pub(crate) aim_before: usize,
+    pub(crate) actions: Vec<ActionCmd>,
+    pub(crate) dropped: u32,
 }
 
-pub struct Drained {
-    pub mv: Option<MoveCmd>,
-    pub move_before: usize,
-    pub aim: Option<f64>,
-    pub aim_before: usize,
-    pub actions: Vec<ActionCmd>,
+pub(crate) struct Drained {
+    pub(crate) mv: Option<MoveCmd>,
+    pub(crate) move_before: usize,
+    pub(crate) aim: Option<f64>,
+    pub(crate) aim_before: usize,
+    pub(crate) actions: Vec<ActionCmd>,
+}
+
+/// The seat's intake (C-INPUT): a validated command spends the seat's order budget (unless `budgeted` is false, the
+/// parity harness only: the legacy capture fed the sim directly) and joins its queue with the arrival-order rules. The
+/// only function that writes an [`InputQueue`] outside this module's tests.
+pub(crate) fn accept(
+    p: &mut Player,
+    cmd: Command,
+    now_ms: f64,
+    budgeted: bool,
+) -> Result<(), Reject> {
+    if budgeted && !p.budget.allow(&cmd, now_ms) {
+        return Err(Reject::OverBudget);
+    }
+    p.inputs.push(cmd)
 }
 
 impl InputQueue {
-    pub fn push(&mut self, cmd: Command) -> Result<(), Reject> {
+    fn push(&mut self, cmd: Command) -> Result<(), Reject> {
         match cmd {
             Command::Move { x, y, seq } => {
                 self.mv = Some(MoveCmd::Move { x, y, seq });
@@ -148,7 +169,7 @@ impl InputQueue {
         Ok(())
     }
 
-    pub fn drain(&mut self) -> Drained {
+    pub(crate) fn drain(&mut self) -> Drained {
         let out = Drained {
             mv: self.mv.take(),
             move_before: self.move_before,
