@@ -76,8 +76,6 @@ pub(crate) fn update(cx: &mut Cx) {
 
 fn step_weapon(p: &mut Player, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<MeleeReq>) {
     let weapon = p.active_weapon();
-    let f = paced(p.faction);
-    let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
     if let Some(act) = p.weapon.action {
         if now + TIE_EPS_MS >= act.lands_at {
             land(p, now, melee, act);
@@ -85,6 +83,9 @@ fn step_weapon(p: &mut Player, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<Me
     }
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
     if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.ready_at {
+        // The timings are pure content formulas of the faction and the weapon: read only when an attack starts.
+        let f = paced(p.faction);
+        let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
         start_attack(p, now, ev, weapon, tm);
         if tm.windup == 0.0 {
             if let Some(act) = p.weapon.action {

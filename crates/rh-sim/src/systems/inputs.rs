@@ -65,14 +65,16 @@ pub(crate) fn drain_all(cx: &mut Cx) {
 
 fn apply_inputs(cx: &mut Cx, i: usize) {
     let now = cx.w.server_time;
-    let d = cx.w.players[i].inputs.drain();
-    let n = d.actions.len();
+    cx.w.players[i].inputs.drain_into(&mut cx.s.drained);
+    let (mv, aim) = (cx.s.drained.mv, cx.s.drained.aim);
+    let (move_before, aim_before) = (cx.s.drained.move_before, cx.s.drained.aim_before);
+    let n = cx.s.drained.actions.len();
     for k in 0..=n {
         if cx.w.players[i].status != Status::Alive {
             return;
         }
-        if k == d.move_before.min(n) {
-            if let Some(mv) = d.mv {
+        if k == move_before.min(n) {
+            if let Some(mv) = mv {
                 apply_move(
                     &mut cx.w.players[i],
                     &cx.k.arena.map,
@@ -82,13 +84,13 @@ fn apply_inputs(cx: &mut Cx, i: usize) {
                 );
             }
         }
-        if k == d.aim_before.min(n) {
-            if let Some(a) = d.aim {
+        if k == aim_before.min(n) {
+            if let Some(a) = aim {
                 weapons::set_aim(&mut cx.w.players[i], now, a);
             }
         }
-        if let Some(cmd) = d.actions.get(k) {
-            schedule::run_action(cx, action_id(cmd), i, cmd);
+        if let Some(cmd) = cx.s.drained.actions.get(k).copied() {
+            schedule::run_action(cx, action_id(&cmd), i, &cmd);
         }
     }
 }

@@ -47,11 +47,12 @@ const fn history_cap() -> usize {
 }
 
 /// A fighter's rewind history: the last [`history_cap`] samples, oldest first, in a fixed inline ring (no heap, no shifting
-/// on trim). Serialized and hashed as the plain oldest-first sequence a `Vec<Sample>` was, so checkpoints keep their shape
-/// and state hashes keep their values.
+/// on trim). Every sample is written twice, `cap` apart, so the live samples are always one contiguous slice
+/// ([`History::as_slice`]) and a read needs no modulo. Serialized and hashed as the plain oldest-first sequence a
+/// `Vec<Sample>` was, so checkpoints keep their shape and state hashes keep their values.
 #[derive(Clone, Copy, Debug)]
 pub struct History {
-    buf: [Sample; history_cap()],
+    buf: [Sample; 2 * history_cap()],
     head: u8,
     len: u8,
 }
@@ -65,7 +66,7 @@ impl Default for History {
                 t: 0.0,
                 x: 0.0,
                 y: 0.0,
-            }; history_cap()],
+            }; 2 * history_cap()],
             head: 0,
             len: 0,
         }
@@ -79,13 +80,18 @@ impl History {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+    /// The samples, oldest first.
+    pub fn as_slice(&self) -> &[Sample] {
+        let head = self.head as usize;
+        &self.buf[head..head + self.len()]
+    }
     /// The `i`-th oldest sample.
     pub fn get(&self, i: usize) -> Option<Sample> {
-        (i < self.len()).then(|| self.buf[(self.head as usize + i) % history_cap()])
+        self.as_slice().get(i).copied()
     }
     /// Oldest first.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = Sample> + '_ {
-        (0..self.len()).map(|i| self.buf[(self.head as usize + i) % history_cap()])
+        self.as_slice().iter().copied()
     }
     pub fn clear(&mut self) {
         self.head = 0;
@@ -103,13 +109,20 @@ impl History {
             debug_assert!(false, "rewind history ring is full");
             self.pop_front();
         }
-        let at = (self.head as usize + self.len()) % history_cap();
+        let mut at = self.head as usize + self.len();
+        if at >= history_cap() {
+            at -= history_cap();
+        }
         self.buf[at] = s;
+        self.buf[at + history_cap()] = s;
         self.len += 1;
     }
     pub fn pop_front(&mut self) {
         if self.len > 0 {
-            self.head = ((self.head as usize + 1) % history_cap()) as u8;
+            self.head += 1;
+            if self.head as usize == history_cap() {
+                self.head = 0;
+            }
             self.len -= 1;
         }
     }
@@ -118,18 +131,40 @@ impl History {
     /// two). The trim runs first here, so the ring never holds more than the window; the resulting sequence is the same.
     pub fn record(&mut self, now: f64, x: f64, y: f64) {
         let cutoff = now - MAX_REWIND_MS - TICK_MS;
-        while self.len() >= 2 && self.get(0).is_some_and(|s| s.t < cutoff) {
-            self.pop_front();
+        let cap = history_cap();
+        let (mut head, mut len) = (self.head as usize, self.len as usize);
+        while len >= 2 && self.buf[head].t < cutoff {
+            head += 1;
+            if head == cap {
+                head = 0;
+            }
+            len -= 1;
         }
-        self.push(Sample { t: now, x, y });
+        if len == cap {
+            // Unreachable while the ring is sized from the rewind window; never drop one silently if that breaks.
+            debug_assert!(false, "rewind history ring is full");
+            head += 1;
+            if head == cap {
+                head = 0;
+            }
+            len -= 1;
+        }
+        let mut at = head + len;
+        if at >= cap {
+            at -= cap;
+        }
+        let s = Sample { t: now, x, y };
+        self.buf[at] = s;
+        self.buf[at + cap] = s;
+        self.head = head as u8;
+        self.len = len as u8 + 1;
     }
 }
 
 impl std::ops::Index<usize> for History {
     type Output = Sample;
     fn index(&self, i: usize) -> &Sample {
-        assert!(i < self.len(), "history index {i} out of {}", self.len());
-        &self.buf[(self.head as usize + i) % history_cap()]
+        &self.as_slice()[i]
     }
 }
 
@@ -419,7 +454,7 @@ impl Player {
     }
     /// Where the fighter was at server time `t` (lerped between ticks, clamped to history; legacy `positionAt`).
     pub fn position_at(&self, t: f64) -> Vec2 {
-        let h = &self.history;
+        let h = self.history.as_slice();
         if h.is_empty() || t >= h[h.len() - 1].t {
             return self.pos();
         }

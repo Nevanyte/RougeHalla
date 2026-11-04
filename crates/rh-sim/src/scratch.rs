@@ -14,6 +14,7 @@
 //! nothing (`tests/no_alloc.rs` counts it). A new system that needs a list adds a field here.
 
 use crate::constants::MAX_PLAYERS;
+use crate::input::Drained;
 use crate::math::Vec2;
 use crate::state::PlayerId;
 use crate::systems::ledger::Entry;
@@ -51,6 +52,8 @@ pub(crate) struct TickScratch {
     pub(crate) alive: Vec<PlayerId>,
     /// A path search's output, copied into the fighter's path when the order replaces it.
     pub(crate) path: Vec<Vec2>,
+    /// The fighter whose inputs are being applied: its queue, drained here so the handlers can borrow the world.
+    pub(crate) drained: Drained,
 }
 
 impl Default for TickScratch {
@@ -76,6 +79,7 @@ impl Default for TickScratch {
             hits: Vec::with_capacity(p),
             alive: Vec::with_capacity(p),
             path: Vec::with_capacity(64),
+            drained: Drained::default(),
         }
     }
 }

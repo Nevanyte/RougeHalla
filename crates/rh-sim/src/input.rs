@@ -134,6 +134,12 @@ impl ActionBuf {
     pub(crate) fn get(&self, i: usize) -> Option<&ActionCmd> {
         self.as_slice().get(i)
     }
+    /// Becomes a copy of `o`, moving only the queued actions (not the whole inline array).
+    fn copy_from(&mut self, o: &ActionBuf) {
+        let n = o.len();
+        self.items[..n].copy_from_slice(&o.items[..n]);
+        self.len = o.len;
+    }
     fn push(&mut self, cmd: ActionCmd) -> bool {
         if self.len() >= MAX_ACTIONS_PER_TICK {
             return false;
@@ -184,6 +190,7 @@ pub struct InputQueue {
     pub(crate) dropped: u32,
 }
 
+#[derive(Debug, Default)]
 pub(crate) struct Drained {
     pub(crate) mv: Option<MoveCmd>,
     pub(crate) move_before: usize,
@@ -236,6 +243,8 @@ impl InputQueue {
         Ok(())
     }
 
+    /// [`InputQueue::drain_into`] for a caller that wants the queue by value (tests).
+    #[cfg(test)]
     pub(crate) fn drain(&mut self) -> Drained {
         let out = Drained {
             mv: self.mv.take(),
@@ -246,6 +255,17 @@ impl InputQueue {
         };
         self.clear();
         out
+    }
+
+    /// [`InputQueue::drain`] into a reused buffer, copying only the queued actions: the tick's input phase (a drain in place,
+    /// since each fighter's queue is applied while the world is borrowed by the handlers).
+    pub(crate) fn drain_into(&mut self, out: &mut Drained) {
+        out.mv = self.mv;
+        out.move_before = self.move_before;
+        out.aim = self.aim;
+        out.aim_before = self.aim_before;
+        out.actions.copy_from(&self.actions);
+        self.clear();
     }
 
     /// Drops everything queued without handing it out (a lobby, a finished match, a dropped connection).

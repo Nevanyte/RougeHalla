@@ -16,14 +16,13 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     let Cx { k, w, s, .. } = cx;
     let now = w.server_time;
     s.standing.clear();
-    s.standing
-        .extend((0..w.players.len()).filter(|&i| w.players[i].standing()));
     s.mults.clear();
-    s.mults.extend(
-        s.standing
-            .iter()
-            .map(|&i| weapons::move_multiplier(&w.players[i], now)),
-    );
+    for (i, p) in w.players.iter().enumerate() {
+        if p.standing() {
+            s.standing.push(i);
+            s.mults.push(weapons::move_multiplier(p, now));
+        }
+    }
     // Fighter-major, as legacy: each fighter's whole chain runs (in table order) before the next fighter's. None is
     // ported in the slice.
     let modifiers = schedule::Plan::of(k).move_modifiers.live();

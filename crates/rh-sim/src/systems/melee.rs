@@ -85,6 +85,13 @@ pub(crate) fn resolve(cx: &mut Cx) {
 pub fn in_arc(origin: Vec2, a: f64, reach: f64, half_arc: f64, p: Vec2, r: f64) -> bool {
     let dx = p.x - origin.x;
     let dy = p.y - origin.y;
+    // A target far outside the reach is out whatever its bearing: decided on the squared distance with a margin far above
+    // any rounding error (1e-9 relative on the radius against ~1e-16), which is the same verdict `d > reach + r` gives
+    // below without the hypot call. Anything near the edge falls through to the exact test.
+    let far = (reach + r) * (1.0 + 1e-9);
+    if reach >= 0.0 && dx * dx + dy * dy > far * far {
+        return false;
+    }
     let d = hypot(dx, dy);
     if d <= r {
         return true;

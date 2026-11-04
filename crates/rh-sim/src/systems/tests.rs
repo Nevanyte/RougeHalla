@@ -409,3 +409,56 @@ fn a_hit_by_a_departed_shooter_is_named_from_the_roster() {
     );
     assert_eq!(s.w.players.iter().map(|p| p.kills).sum::<u32>(), 0);
 }
+
+#[test]
+fn the_far_reject_in_in_arc_gives_the_exact_verdict() {
+    use super::melee::in_arc;
+    use crate::constants::{ARC_EPS, PLAYER_RADIUS};
+    use crate::math::{angle_between, asin, atan2, hypot};
+    use crate::rng::Mulberry32;
+    // The test as first written: the hypot first, then the two rejects, then the arc.
+    fn reference(origin: Vec2, a: f64, reach: f64, half_arc: f64, p: Vec2, r: f64) -> bool {
+        let dx = p.x - origin.x;
+        let dy = p.y - origin.y;
+        let d = hypot(dx, dy);
+        if d <= r {
+            return true;
+        }
+        if d > reach + r {
+            return false;
+        }
+        angle_between(atan2(dy, dx), a) <= half_arc + asin((r / d).min(1.0)) + ARC_EPS
+    }
+    let mut rng = Mulberry32::new(7);
+    let mut out = 0u32;
+    for n in 0..400_000u32 {
+        let reach = [38.0, 56.0, 90.0, 0.0][(n % 4) as usize];
+        let half_arc = 0.2 + rng.next_f64();
+        let origin = Vec2::new(
+            100.0 + rng.next_f64() * 500.0,
+            100.0 + rng.next_f64() * 500.0,
+        );
+        let a = (rng.next_f64() - 0.5) * 6.4;
+        // Targets around the edge of the reach (where the pre-check hands over to the exact test), and anywhere.
+        let (dist, ang) = if n % 3 == 0 {
+            (
+                (reach + PLAYER_RADIUS) * (1.0 + (rng.next_f64() - 0.5) * 4e-9),
+                rng.next_f64() * 6.3,
+            )
+        } else {
+            (
+                rng.next_f64() * 4.0 * (reach + PLAYER_RADIUS + 1.0),
+                rng.next_f64() * 6.3,
+            )
+        };
+        let p = Vec2::new(origin.x + dist * ang.cos(), origin.y + dist * ang.sin());
+        let want = reference(origin, a, reach, half_arc, p, PLAYER_RADIUS);
+        assert_eq!(
+            in_arc(origin, a, reach, half_arc, p, PLAYER_RADIUS),
+            want,
+            "{origin:?} {a} {reach} {half_arc} {p:?}"
+        );
+        out += !want as u32;
+    }
+    assert!(out > 100_000, "the sample has plenty of misses: {out}");
+}
