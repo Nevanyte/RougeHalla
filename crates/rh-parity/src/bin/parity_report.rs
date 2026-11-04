@@ -1,10 +1,16 @@
 //! cargo run -p rh-parity --bin parity-report : human-readable parity report over every fixture.
 //! The gate: every `slice` scenario MATCHes, `capture-only` scenarios are listed (not compared), and the 300 legacy
-//! findPath queries MATCH. Exits 1 on any mismatch or unreadable scenario fixture.
+//! findPath queries MATCH. Exits 1 on any mismatch, any unreadable scenario fixture, or any JSON file in parity/fixtures
+//! whose format is neither a scenario nor the pathfinding fixture (discovery is loud: nothing leaves the gate unseen).
 fn main() {
     let mut fail = false;
     let (mut slice, mut capture_only) = (0, 0);
-    for p in rh_parity::scenario_paths() {
+    let files = rh_parity::discover(&rh_parity::fixtures_dir());
+    for m in files.problems() {
+        println!("UNRECOGNISED {m}");
+        fail = true;
+    }
+    for p in files.scenarios {
         let text = std::fs::read_to_string(&p).expect("fixture");
         let fx = match rh_parity::parse(&text) {
             Ok(fx) => fx,
@@ -47,7 +53,12 @@ fn main() {
     }
     fail |= !bad.is_empty();
     println!(
-        "{slice} slice scenarios + {capture_only} capture-only, {n} pathfinding queries: {}",
+        "{slice} slice scenarios + {capture_only} capture-only, {n} pathfinding queries{}: {}",
+        if files.unrecognised.is_empty() {
+            String::new()
+        } else {
+            format!(", {} unrecognised files", files.unrecognised.len())
+        },
         if fail { "FAIL" } else { "all MATCH" }
     );
     std::process::exit(if fail { 1 } else { 0 });

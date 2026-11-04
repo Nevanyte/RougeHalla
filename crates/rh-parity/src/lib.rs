@@ -152,7 +152,9 @@ pub fn load(path: &Path) -> Fixture {
 }
 
 /// The `format` of a fixture file, read from its first bytes: capture.ts writes `format` as the first key, so this never
-/// parses the whole file. `None` when the file does not start with a `format` key.
+/// parses the whole file. `None` when the file does not start with a `format` key. Only the valid UTF-8 prefix of the
+/// first 256 bytes is read, so a multibyte character cut at byte 256 (an em dash in a long description) cannot hide the
+/// format.
 pub fn peek_format(path: &Path) -> Option<String> {
     use std::io::Read;
     let mut head = [0u8; 256];
@@ -165,7 +167,11 @@ pub fn peek_format(path: &Path) -> Option<String> {
             Err(_) => return None,
         }
     }
-    let s = std::str::from_utf8(&head[..n]).ok()?;
+    let s = match std::str::from_utf8(&head[..n]) {
+        Ok(s) => s,
+        // The valid prefix is UTF-8 by construction.
+        Err(e) => std::str::from_utf8(&head[..e.valid_up_to()]).ok()?,
+    };
     let rest = s.trim_start().strip_prefix('{')?.trim_start();
     let rest = rest.strip_prefix("\"format\"")?.trim_start();
     let rest = rest.strip_prefix(':')?.trim_start();
@@ -173,17 +179,68 @@ pub fn peek_format(path: &Path) -> Option<String> {
     Some(rest[..rest.find('"')?].to_string())
 }
 
-/// Every scenario fixture (`format` = [`SCENARIO_FORMAT`]) in parity/fixtures, sorted by name. Other JSON files there
-/// (the pathfinding fixture, anything else) are never loaded as scenarios, so they can neither break nor join the gate.
-pub fn scenario_paths() -> Vec<PathBuf> {
-    let mut out: Vec<PathBuf> = std::fs::read_dir(fixtures_dir())
-        .expect("parity/fixtures")
+/// The JSON files of a fixture directory, classified by their peeked `format`. Discovery is loud: a `*.json` file that
+/// is neither a scenario nor the pathfinding fixture lands in `unrecognised`, and every gate entry point fails on it,
+/// so a fixture can never leave the gate (or a stray file join it) without a word.
+#[derive(Debug, Default)]
+pub struct FixtureFiles {
+    /// Format [`SCENARIO_FORMAT`], sorted by name.
+    pub scenarios: Vec<PathBuf>,
+    /// Format [`PATHFINDING_FORMAT`], sorted by name.
+    pub pathfinding: Vec<PathBuf>,
+    /// Every other `*.json` file, with the format it declares (`None`: no leading `format` key).
+    pub unrecognised: Vec<(PathBuf, Option<String>)>,
+}
+
+impl FixtureFiles {
+    /// One line per unrecognised file (empty when discovery is clean).
+    pub fn problems(&self) -> Vec<String> {
+        self.unrecognised
+            .iter()
+            .map(|(p, f)| match f {
+                None => format!(
+                    "{}: no leading \"format\" key: not a fixture this harness knows",
+                    p.display()
+                ),
+                Some(f) => format!(
+                    "{}: format {f:?} is neither {SCENARIO_FORMAT} nor {PATHFINDING_FORMAT}",
+                    p.display()
+                ),
+            })
+            .collect()
+    }
+}
+
+/// Classifies every `*.json` file of `dir` by its peeked format (see [`FixtureFiles`]).
+pub fn discover(dir: &Path) -> FixtureFiles {
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().is_some_and(|x| x == "json"))
-        .filter(|p| peek_format(p).as_deref() == Some(SCENARIO_FORMAT))
         .collect();
-    out.sort();
+    paths.sort();
+    let mut out = FixtureFiles::default();
+    for p in paths {
+        match peek_format(&p) {
+            Some(f) if f == SCENARIO_FORMAT => out.scenarios.push(p),
+            Some(f) if f == PATHFINDING_FORMAT => out.pathfinding.push(p),
+            f => out.unrecognised.push((p, f)),
+        }
+    }
     out
+}
+
+/// Every scenario fixture (`format` = [`SCENARIO_FORMAT`]) in parity/fixtures, sorted by name. Panics when the directory
+/// holds any other JSON file than scenarios and the pathfinding fixture ([`discover`]), so nothing drops out silently.
+pub fn scenario_paths() -> Vec<PathBuf> {
+    let files = discover(&fixtures_dir());
+    let bad = files.problems();
+    assert!(
+        bad.is_empty(),
+        "unrecognised files in parity/fixtures:\n  {}",
+        bad.join("\n  ")
+    );
+    files.scenarios
 }
 
 /// Every scenario fixture of the given parity class, sorted by name (each file parsed once).
@@ -211,6 +268,32 @@ fn fid(id: PlayerId) -> String {
 /// The fixture input as a raw command (None for a type outside the slice).
 pub fn raw_command_pub(i: &FixInput) -> Option<RawCommand> {
     raw_command(i)
+}
+
+/// The `msg` keys each slice input type may carry: [`raw_command`] reads exactly these, so any other key (a future
+/// `charge` on an attack) is reported by [`unread_msg_keys`] instead of being dropped without a word.
+pub const INPUT_MSG_KEYS: [(&str, &[&str]); 5] = [
+    ("move", &["x", "y", "seq"]),
+    ("stop", &["seq"]),
+    ("aim", &["a"]),
+    ("attack", &["a", "t"]),
+    ("release", &["a", "t"]),
+];
+
+/// The keys of a slice input's `msg` that [`raw_command`] does not read (a non-object `msg` reports `<not an object>`).
+/// Empty for an input type outside the slice (that input fails on its own).
+pub fn unread_msg_keys(i: &FixInput) -> Vec<String> {
+    let Some((_, keys)) = INPUT_MSG_KEYS.iter().find(|(k, _)| *k == i.kind) else {
+        return Vec::new();
+    };
+    match i.msg.as_object() {
+        None => vec!["<not an object>".into()],
+        Some(m) => m
+            .keys()
+            .filter(|k| !keys.contains(&k.as_str()))
+            .cloned()
+            .collect(),
+    }
 }
 
 fn raw_command(i: &FixInput) -> Option<RawCommand> {
@@ -675,6 +758,12 @@ pub fn compare(fx: &Fixture) -> Report {
                 break;
             }
             let i = inputs.next().unwrap();
+            for k in unread_msg_keys(i) {
+                rep.fail(format!(
+                    "tick {}: input {} msg key {k} is not read by the harness",
+                    i.tick, i.kind
+                ));
+            }
             let Some(raw) = raw_command(i) else {
                 rep.fail(format!(
                     "tick {}: input type {} is not in the slice",

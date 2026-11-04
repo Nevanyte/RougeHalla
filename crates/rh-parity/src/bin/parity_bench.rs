@@ -15,6 +15,9 @@ use std::time::Instant;
 mod digest;
 
 fn quantiles(mut all: Vec<f64>) -> String {
+    if all.is_empty() {
+        return "null".into(); // runs = 0: nothing timed
+    }
     all.sort_by(|a, b| a.total_cmp(b));
     let q = |p: f64| all[((all.len() as f64 * p) as usize).min(all.len() - 1)];
     let mean = all.iter().sum::<f64>() / all.len() as f64;

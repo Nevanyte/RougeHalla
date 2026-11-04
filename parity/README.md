@@ -86,8 +86,13 @@ a compared key there is refused), and a projected key the legacy entity lacks fa
 capture field plus one projection line; a new entity kind (mobs, projectiles) is one `FixTick` list plus one
 `EntityKind` table.
 
-Scenario files are found by their leading `"format": "rh-legacy-scenario/1"` key (capture.ts writes it first), so other
-JSON files in `fixtures/` (the pathfinding fixture) never load as scenarios. `cargo run -p rh-parity --bin parity-report`
+Scenario files are found by their leading `"format": "rh-legacy-scenario/1"` key (capture.ts writes it first; the peek
+reads the valid UTF-8 prefix of the first 256 bytes, so a multibyte character cut at the boundary cannot hide it), so
+the pathfinding fixture (`rh-legacy-pathfinding/1`) never loads as a scenario. Discovery is loud (`rh_parity::discover`):
+any other `*.json` file in `fixtures/` (no leading `format` key, or another format) fails the test, `scenario_paths()`
+and `parity-report` (`UNRECOGNISED ...`, exit 1), so a fixture can neither drop out of the gate nor join it unseen. The
+`msg` of each slice input type may only carry the keys the harness reads (`rh_parity::INPUT_MSG_KEYS`: move `x, y, seq`,
+stop `seq`, aim `a`, attack and release `a, t`); any other key fails the comparison. `cargo run -p rh-parity --bin parity-report`
 prints `13 slice scenarios + 1 capture-only, 300 pathfinding queries: all MATCH` when the gate is green.
 
 `parity: "slice"` fixtures are compared by the Rust harness. `parity: "capture-only"` fixtures (projectiles) are for the

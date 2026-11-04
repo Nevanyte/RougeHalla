@@ -261,3 +261,93 @@ fn only_scenario_files_are_scenarios() {
     assert_eq!(peek_format(&odd).as_deref(), Some("rh-legacy-schedule/1"));
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn fixture_discovery_is_loud_and_complete() {
+    // Every JSON file in parity/fixtures is a scenario or the pathfinding fixture: nothing is skipped without a word.
+    let files = discover(&fixtures_dir());
+    assert!(files.problems().is_empty(), "{:?}", files.problems());
+    assert_eq!(
+        files.pathfinding,
+        vec![fixtures_dir().join("pathfinding_seed1.json")]
+    );
+    let json = std::fs::read_dir(fixtures_dir())
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .path()
+                .extension()
+                .is_some_and(|x| x == "json")
+        })
+        .count();
+    assert_eq!(json, files.scenarios.len() + files.pathfinding.len());
+    assert_eq!(scenario_paths(), files.scenarios);
+
+    // A stray JSON file (no leading format key, or another format) is reported, never silently dropped.
+    let dir = std::env::temp_dir().join(format!("rh-parity-discover-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("a.json"), r#"{"scenario":"x"}"#).unwrap();
+    std::fs::write(dir.join("b.json"), r#"{"format":"rh-legacy-scenario/2"}"#).unwrap();
+    std::fs::write(dir.join("c.txt"), "not json").unwrap();
+    let got = discover(&dir);
+    assert!(got.scenarios.is_empty() && got.pathfinding.is_empty());
+    assert_eq!(
+        got.unrecognised,
+        vec![
+            (dir.join("a.json"), None),
+            (dir.join("b.json"), Some("rh-legacy-scenario/2".to_string()))
+        ]
+    );
+    assert_eq!(got.problems().len(), 2);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_multibyte_character_at_the_peek_boundary_keeps_the_scenario() {
+    // Regression: a 3-byte U+2014 straddling bytes 255..258 of the 256-byte peek once made the scenario vanish from the
+    // gate. Place it there, in the description of a copy of fists_duel.
+    let text = std::fs::read_to_string(fixtures_dir().join("fists_duel.json")).unwrap();
+    let key = "\"description\":\"";
+    let at = text.find(key).unwrap() + key.len();
+    assert!(at < 255);
+    let padded = format!(
+        "{}{}\u{2014}{}",
+        &text[..at],
+        "x".repeat(255 - at),
+        &text[at..]
+    );
+    assert_eq!(&padded.as_bytes()[255..258], "\u{2014}".as_bytes());
+    let dir = std::env::temp_dir().join(format!("rh-parity-utf8-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let p = dir.join("zz_utf8.json");
+    std::fs::write(&p, &padded).unwrap();
+    assert_eq!(peek_format(&p).as_deref(), Some(SCENARIO_FORMAT));
+    let got = discover(&dir);
+    assert_eq!(got.scenarios, vec![p.clone()]);
+    assert!(got.unrecognised.is_empty());
+    // And it is a whole scenario that still matches.
+    assert!(compare(&load(&p)).mismatches.is_empty());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn an_unread_input_msg_key_fails() {
+    // raw_command reads only the keys it knows; any other msg key (a future attack `charge`) is reported.
+    let mut v = fists_duel_json();
+    let i = v["inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|i| i["type"] == "attack")
+        .unwrap();
+    v["inputs"][i]["msg"]["charge"] = serde_json::json!(1);
+    let rep = compare(&reparse(&v).unwrap());
+    assert!(
+        rep.mismatches
+            .iter()
+            .any(|m| m.contains("input attack msg key charge is not read")),
+        "{:?}",
+        rep.mismatches
+    );
+}
