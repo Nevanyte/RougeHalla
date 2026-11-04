@@ -1,7 +1,7 @@
 {
- "format": "rh-legacy-schedule/1",
- "legacyRevision": "79dfba3f7c775d1b42edabff6d92411fc4e03d00",
- "note": "updateActive's fixed phases in order; each hook list in resolved registration order with its module. 'production' is createGameWorld with the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures (signatures and walk hints off). Telemetry and the input trace attach after these in RaidRoom (observers, not gameplay).",
+ "format": "rh-legacy-schedule/2",
+ "legacyRevision": "06d735164aaadf5a63983f9a5ed1d9968da95e39",
+ "note": "updateActive's fixed phases in order; each hook list in resolved registration order with its module; each world hook as its chain of links in install order (mode default | append (chainHook) | wrap (prev-first wrapper) | replace; a `dropped` link was discarded by a later replace; the rest run in list order). 'production' is createGameWorld with the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures (signatures and walk hints off); 'training' is the practice room (training config, then installTraining). Telemetry and the input trace attach after these in RaidRoom (observers, not gameplay).",
  "updateActive": [
   "guard:voided",
   "markTickStart",
@@ -259,114 +259,464 @@
   },
   "hooks": {
    "dropBody": [
-    "loot",
-    "quests"
+    {
+     "module": "world",
+     "mode": "default",
+     "fn": "dropBody",
+     "dropped": true
+    },
+    {
+     "module": "loot",
+     "mode": "replace",
+     "fn": "dropBody"
+    },
+    {
+     "module": "quests",
+     "mode": "wrap",
+     "fn": "<arrow>",
+     "src": "(w, p) => { prevDrop(w, p); dropParcel(w, p); }",
+     "when": "!(!world.config.quests || world.config.training)"
+    }
    ],
    "teleported": [
-    "weapons",
-    "projectiles",
-    "factions",
-    "chests",
-    "mobLife",
-    "terrainEffects",
-    "abilities",
-    "quests",
-    "vision",
-    "cardHooks",
-    "plagueZombies",
-    "walkHint"
+    {
+     "module": "weapons",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const c of standingCombatants(w)) { releaseTrigger(w, c); c.rt.weapon.roo..."
+    },
+    {
+     "module": "projectiles",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clearProjectiles(w, \"cleared\")"
+    },
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { resetAll(w, true); dropHealsOverTime(w); rearmTriggers(w); }"
+    },
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "clearChests"
+    },
+    {
+     "module": "mobLife",
+     "mode": "append",
+     "fn": "resetAllMobs"
+    },
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "clearSlips"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clearAll(w, \"teleport\")"
+    },
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => closeAll(w, true)",
+     "when": "!(!world.config.quests || world.config.training)"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "refreshAllVision"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "resetFight"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "dropDeferred"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const p of w.state.players.values()) { const z = p.plagueZombieId ? comba..."
+    },
+    {
+     "module": "walkHint",
+     "mode": "append",
+     "fn": "zeroAll"
+    }
    ],
    "attackStarted": [
-    "factions",
-    "abilities",
-    "fireRoam"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c) => { const act = c.rt.weapon.action; if (c.kind !== \"player\" || act?.kind !== \"s..."
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "onAttackStarted"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "onAttackStarted"
+    }
    ],
    "weaponSwapped": [
-    "factions"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onWeaponSwapped"
+    }
    ],
    "hurt": [
-    "factions",
-    "fireRoam"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onHurt"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c, applied) => { if (applied > 0) resetCharge(w, c.id); }"
+    }
    ],
    "playerKilled": [
-    "factions",
-    "killAugments",
-    "quests"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onPlayerKilled"
+    },
+    {
+     "module": "killAugments",
+     "mode": "append",
+     "fn": "onPlayerKilled"
+    },
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "onPlayerKilled",
+     "when": "!(!world.config.quests || world.config.training)"
+    }
    ],
    "executeDenied": [
-    "factions"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onExecuteDenied"
+    }
    ],
    "raidStarted": [
-    "factions",
-    "mobLife",
-    "terrainEffects",
-    "regen",
-    "abilities",
-    "quests",
-    "vision",
-    "consumables",
-    "traders",
-    "cardHooks",
-    "fireRoam",
-    "bruiserPassives"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { resetAll(w, false); for (const p of w.state.players.values()) if (p.sentence !..."
+    },
+    {
+     "module": "mobLife",
+     "mode": "append",
+     "fn": "spawnRegionalMobs",
+     "when": "world.config.mobs"
+    },
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "onRaidStarted"
+    },
+    {
+     "module": "regen",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clockOf(w).clear()"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "armWishes"
+    },
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "raidStarted",
+     "when": "!(!world.config.quests || world.config.training)"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "refreshAllVision"
+    },
+    {
+     "module": "consumables",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => windTimers.set(w, w.state.serverTime + WIND_SPAWN_MIN_MS + windRandom.get(w)!() ..."
+    },
+    {
+     "module": "traders",
+     "mode": "append",
+     "fn": "spawnTraders",
+     "when": "!(w.config.training)"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "resetAll"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { rt.lastCombatAt.clear(); rt.armedPackets = new WeakMap(); for (const [id, p] o..."
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "resetRun"
+    }
    ],
    "runEnded": [
-    "factions",
-    "chests",
-    "abilities",
-    "quests",
-    "cardHooks",
-    "plagueCorpses",
-    "fireRoam",
-    "bruiserPassives",
-    "sentencedHunt",
-    "plagueZombies",
-    "walkHint"
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "flushDotFx"
+    },
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "clearChests"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { flushAbilityDot(w); clearAll(w, \"runEnd\"); }"
+    },
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => closeAll(w, false)",
+     "when": "!(!world.config.quests || world.config.training)"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "dropDeferred"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "flushBleeds"
+    },
+    {
+     "module": "plagueCorpses",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { w.state.plagueCorpses.clear(); }"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const p of w.state.players.values()) { p.roamCharge = 0; p.roamReady = fa..."
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "resetRun"
+    },
+    {
+     "module": "sentencedHunt",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const p of w.state.players.values()) p.huntTarget = \"\"; }"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "w => { for (const id of w.players.keys()) removeOwned(w, id); }"
+    },
+    {
+     "module": "walkHint",
+     "mode": "append",
+     "fn": "zeroAll"
+    }
    ],
    "mobKilled": [
-    "chests",
-    "quests"
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, _killer, mob) => { if (!mob.elite) return; if (mob.camp >= 0) rollChest(w, mob.camp..."
+    },
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "onMobKilled",
+     "when": "!(!world.config.quests || world.config.training)"
+    }
    ],
    "arenaHurt": [
-    "terrainEffects"
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "terrainHurt"
+    }
    ],
    "fighterOut": [
-    "abilities",
-    "vision",
-    "consumables",
-    "plagueCorpses",
-    "fireRoam",
-    "bruiserPassives",
-    "sentencedHunt",
-    "plagueZombies"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id, cause) => payLater(w, () => clearFighter(w, id, cause))"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id, cause) => { if (cause !== \"removed\") return; const m = memories.get(w); m?.play..."
+    },
+    {
+     "module": "consumables",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { healing.get(w)?.delete(id); const p = w.state.players.get(id); if (p) { p...."
+    },
+    {
+     "module": "plagueCorpses",
+     "mode": "append",
+     "fn": "leaveCorpse"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { rt.lastCombatAt.delete(id); const p = w.state.players.get(id); if (p) { p...."
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => clearPlayer(w, id)"
+    },
+    {
+     "module": "sentencedHunt",
+     "mode": "append",
+     "fn": "fighterOut"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { if (w.state.players.has(id)) removeOwned(w, id); }"
+    }
    ],
    "statusApplied": [
-    "abilities"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "onStatusApplied"
+    }
    ],
    "staggered": [
-    "abilities"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c) => cancelIf(w, c, \"stagger\")"
+    }
    ],
    "planningStarted": [
-    "quests"
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "spawnQuests",
+     "when": "!(!world.config.quests || world.config.training)"
+    }
    ],
    "campCleared": [
-    "quests",
-    "campHeal",
-    "bruiserPassives"
+    {
+     "module": "quests",
+     "mode": "append",
+     "fn": "onCampCleared",
+     "when": "!(!world.config.quests || world.config.training)"
+    },
+    {
+     "module": "campHeal",
+     "mode": "append",
+     "fn": "payCampHeal"
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => update(w)"
+    }
    ],
    "hitLanded": [
-    "cardHooks",
-    "fireRoam",
-    "bruiserPassives",
-    "plagueZombies"
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onHitLanded"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "onHitLanded"
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "noteLedgerContact"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, e, applied) => { if (!(applied > 0) || e.weapon === null || e.sig || e.dot || e.pas..."
+    }
    ],
    "blocked": [
-    "cardHooks",
-    "bruiserPassives"
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onBlocked"
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "noteBlockedContact"
+    }
    ],
    "overkilled": [
-    "cardHooks"
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onOverkilled"
+    }
    ]
+  },
+  "hookTotals": {
+   "links": 74,
+   "live": 73,
+   "default": 1,
+   "append": 71,
+   "wrap": 1,
+   "replace": 1,
+   "dropped": 1,
+   "staticSites": 74,
+   "conditionalSitesNotTaken": 1
   }
  },
  "capture": {
@@ -514,67 +864,878 @@
   },
   "hooks": {
    "dropBody": [
-    "loot"
+    {
+     "module": "world",
+     "mode": "default",
+     "fn": "dropBody",
+     "dropped": true
+    },
+    {
+     "module": "loot",
+     "mode": "replace",
+     "fn": "dropBody"
+    }
    ],
    "teleported": [
-    "weapons",
-    "projectiles",
-    "chests",
-    "mobLife",
-    "terrainEffects",
-    "abilities",
-    "vision",
-    "cardHooks"
+    {
+     "module": "weapons",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const c of standingCombatants(w)) { releaseTrigger(w, c); c.rt.weapon.roo..."
+    },
+    {
+     "module": "projectiles",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clearProjectiles(w, \"cleared\")"
+    },
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "clearChests"
+    },
+    {
+     "module": "mobLife",
+     "mode": "append",
+     "fn": "resetAllMobs"
+    },
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "clearSlips"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clearAll(w, \"teleport\")"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "refreshAllVision"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "resetFight"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "dropDeferred"
+    }
    ],
    "mobKilled": [
-    "chests"
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, _killer, mob) => { if (!mob.elite) return; if (mob.camp >= 0) rollChest(w, mob.camp..."
+    }
    ],
    "runEnded": [
-    "chests",
-    "abilities",
-    "cardHooks"
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "clearChests"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { flushAbilityDot(w); clearAll(w, \"runEnd\"); }"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "dropDeferred"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "flushBleeds"
+    }
    ],
    "playerKilled": [
-    "killAugments"
+    {
+     "module": "killAugments",
+     "mode": "append",
+     "fn": "onPlayerKilled"
+    }
    ],
    "arenaHurt": [
-    "terrainEffects"
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "terrainHurt"
+    }
    ],
    "raidStarted": [
-    "terrainEffects",
-    "regen",
-    "abilities",
-    "vision",
-    "consumables",
-    "traders",
-    "cardHooks"
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "onRaidStarted"
+    },
+    {
+     "module": "regen",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clockOf(w).clear()"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "armWishes"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "refreshAllVision"
+    },
+    {
+     "module": "consumables",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => windTimers.set(w, w.state.serverTime + WIND_SPAWN_MIN_MS + windRandom.get(w)!() ..."
+    },
+    {
+     "module": "traders",
+     "mode": "append",
+     "fn": "spawnTraders",
+     "when": "!(w.config.training)"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "resetAll"
+    }
    ],
    "fighterOut": [
-    "abilities",
-    "vision",
-    "consumables"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id, cause) => payLater(w, () => clearFighter(w, id, cause))"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id, cause) => { if (cause !== \"removed\") return; const m = memories.get(w); m?.play..."
+    },
+    {
+     "module": "consumables",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { healing.get(w)?.delete(id); const p = w.state.players.get(id); if (p) { p...."
+    }
    ],
    "attackStarted": [
-    "abilities"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "onAttackStarted"
+    }
    ],
    "statusApplied": [
-    "abilities"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "onStatusApplied"
+    }
    ],
    "staggered": [
-    "abilities"
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c) => cancelIf(w, c, \"stagger\")"
+    }
    ],
    "campCleared": [
-    "campHeal"
+    {
+     "module": "campHeal",
+     "mode": "append",
+     "fn": "payCampHeal"
+    }
    ],
    "hitLanded": [
-    "cardHooks"
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onHitLanded"
+    }
    ],
    "blocked": [
-    "cardHooks"
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onBlocked"
+    }
    ],
    "overkilled": [
-    "cardHooks"
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onOverkilled"
+    }
    ]
+  },
+  "hookTotals": {
+   "links": 35,
+   "live": 34,
+   "default": 1,
+   "append": 33,
+   "wrap": 0,
+   "replace": 1,
+   "dropped": 1,
+   "staticSites": 44,
+   "conditionalSitesNotTaken": 10
+  }
+ },
+ "training": {
+  "modules": [
+   "loot",
+   "weapons",
+   "targeting",
+   "projectiles",
+   "factions",
+   "mobs",
+   "buffs",
+   "feed",
+   "camps",
+   "chests",
+   "killAugments",
+   "mobLife",
+   "mobAI",
+   "terrainEffects",
+   "regen",
+   "abilities",
+   "quests",
+   "vision",
+   "campHeal",
+   "consumables",
+   "traders",
+   "cardHooks",
+   "plagueCorpses",
+   "fireRoam",
+   "bruiserPassives",
+   "sentencedHunt",
+   "mods",
+   "plagueZombies",
+   "walkHint",
+   "training"
+  ],
+  "lists": {
+   "afterWeapons": [
+    {
+     "module": "factions",
+     "fn": "afterWeapons"
+    },
+    {
+     "module": "bruiserPassives",
+     "fn": "update"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "<anonymous>"
+    }
+   ],
+   "beforeDamage": [
+    {
+     "module": "factions",
+     "fn": "signatureDamage"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "burnPass"
+    },
+    {
+     "module": "abilities",
+     "fn": "statusDamage"
+    }
+   ],
+   "systems": [
+    {
+     "module": "fireRoam",
+     "fn": "update"
+    },
+    {
+     "module": "factions",
+     "fn": "afterDamage"
+    },
+    {
+     "module": "factions",
+     "fn": "healOverTime"
+    },
+    {
+     "module": "mobs",
+     "fn": "resetDummies"
+    },
+    {
+     "module": "buffs",
+     "fn": "expireBoosts"
+    },
+    {
+     "module": "feed",
+     "fn": "flushAnnouncements"
+    },
+    {
+     "module": "chests",
+     "fn": "expireChests"
+    },
+    {
+     "module": "mobLife",
+     "fn": "reapMobs"
+    },
+    {
+     "module": "mobLife",
+     "fn": "respawnCamps"
+    },
+    {
+     "module": "mobAI",
+     "fn": "thinkMobs"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "lightPass"
+    },
+    {
+     "module": "regen",
+     "fn": "regenPass"
+    },
+    {
+     "module": "abilities",
+     "fn": "abilityDotFx"
+    },
+    {
+     "module": "vision",
+     "fn": "refreshVision"
+    },
+    {
+     "module": "consumables",
+     "fn": "updateConsumables"
+    },
+    {
+     "module": "cardHooks",
+     "fn": "afterDamage"
+    },
+    {
+     "module": "plagueCorpses",
+     "fn": "<anonymous>"
+    },
+    {
+     "module": "bruiserPassives",
+     "fn": "update"
+    },
+    {
+     "module": "mods",
+     "fn": "updateMods"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "updateZombies"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "regenZombies"
+    },
+    {
+     "module": "walkHint",
+     "fn": "updateWalkHints"
+    }
+   ],
+   "moveModifiers": [
+    {
+     "module": "factions",
+     "fn": "frostMovementModifier"
+    },
+    {
+     "module": "buffs",
+     "fn": "moveSpeedMult"
+    },
+    {
+     "module": "mobLife",
+     "fn": "mobRoleMove"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "applyBog"
+    },
+    {
+     "module": "abilities",
+     "fn": "statusMoveMultiplier"
+    },
+    {
+     "module": "sentencedHunt",
+     "fn": "huntMoveMultiplier"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "<anonymous>"
+    }
+   ],
+   "modSources": [
+    {
+     "module": "factions",
+     "fn": "markTaxSource"
+    },
+    {
+     "module": "abilities",
+     "fn": "attackSlowSource"
+    },
+    {
+     "module": "consumables",
+     "fn": "<anonymous>"
+    },
+    {
+     "module": "cardHooks",
+     "fn": "cardSource"
+    },
+    {
+     "module": "fireRoam",
+     "fn": "roamingSpeed"
+    },
+    {
+     "module": "bruiserPassives",
+     "fn": "frozenJustice"
+    }
+   ]
+  },
+  "actions": {
+   "pickup": "loot",
+   "attack": "weapons",
+   "release": "weapons",
+   "swap": "weapons",
+   "target": "targeting",
+   "choose": "chests",
+   "cast": "abilities",
+   "useConsumable": "consumables",
+   "consumeCorpse": "plagueCorpses",
+   "huntTarget": "sentencedHunt",
+   "train": "training"
+  },
+  "hooks": {
+   "dropBody": [
+    {
+     "module": "world",
+     "mode": "default",
+     "fn": "dropBody",
+     "dropped": true
+    },
+    {
+     "module": "loot",
+     "mode": "replace",
+     "fn": "dropBody",
+     "dropped": true
+    },
+    {
+     "module": "training",
+     "mode": "replace",
+     "fn": "<arrow>",
+     "src": "() => {}"
+    }
+   ],
+   "teleported": [
+    {
+     "module": "weapons",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const c of standingCombatants(w)) { releaseTrigger(w, c); c.rt.weapon.roo..."
+    },
+    {
+     "module": "projectiles",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clearProjectiles(w, \"cleared\")"
+    },
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { resetAll(w, true); dropHealsOverTime(w); rearmTriggers(w); }"
+    },
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "clearChests"
+    },
+    {
+     "module": "mobLife",
+     "mode": "append",
+     "fn": "resetAllMobs"
+    },
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "clearSlips"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clearAll(w, \"teleport\")"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "refreshAllVision"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "resetFight"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "dropDeferred"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const p of w.state.players.values()) { const z = p.plagueZombieId ? comba..."
+    },
+    {
+     "module": "walkHint",
+     "mode": "append",
+     "fn": "zeroAll"
+    }
+   ],
+   "attackStarted": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c) => { const act = c.rt.weapon.action; if (c.kind !== \"player\" || act?.kind !== \"s..."
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "onAttackStarted"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "onAttackStarted"
+    }
+   ],
+   "weaponSwapped": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onWeaponSwapped"
+    }
+   ],
+   "hurt": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onHurt"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c, applied) => { if (applied > 0) resetCharge(w, c.id); }"
+    }
+   ],
+   "playerKilled": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onPlayerKilled"
+    },
+    {
+     "module": "killAugments",
+     "mode": "append",
+     "fn": "onPlayerKilled"
+    }
+   ],
+   "executeDenied": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "onExecuteDenied"
+    }
+   ],
+   "raidStarted": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { resetAll(w, false); for (const p of w.state.players.values()) if (p.sentence !..."
+    },
+    {
+     "module": "mobs",
+     "mode": "append",
+     "fn": "spawnTraining",
+     "when": "world.config.dummies"
+    },
+    {
+     "module": "mobLife",
+     "mode": "append",
+     "fn": "spawnRegionalMobs",
+     "when": "world.config.mobs"
+    },
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "onRaidStarted"
+    },
+    {
+     "module": "regen",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => clockOf(w).clear()"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "armWishes"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "refreshAllVision"
+    },
+    {
+     "module": "consumables",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => windTimers.set(w, w.state.serverTime + WIND_SPAWN_MIN_MS + windRandom.get(w)!() ..."
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "resetAll"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { rt.lastCombatAt.clear(); rt.armedPackets = new WeakMap(); for (const [id, p] o..."
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "resetRun"
+    },
+    {
+     "module": "training",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { w.state.patienceEndsAt = 0; }"
+    }
+   ],
+   "runEnded": [
+    {
+     "module": "factions",
+     "mode": "append",
+     "fn": "flushDotFx"
+    },
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "clearChests"
+    },
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { flushAbilityDot(w); clearAll(w, \"runEnd\"); }"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "dropDeferred"
+    },
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "flushBleeds"
+    },
+    {
+     "module": "plagueCorpses",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { w.state.plagueCorpses.clear(); }"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const p of w.state.players.values()) { p.roamCharge = 0; p.roamReady = fa..."
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "resetRun"
+    },
+    {
+     "module": "sentencedHunt",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => { for (const p of w.state.players.values()) p.huntTarget = \"\"; }"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "w => { for (const id of w.players.keys()) removeOwned(w, id); }"
+    },
+    {
+     "module": "walkHint",
+     "mode": "append",
+     "fn": "zeroAll"
+    }
+   ],
+   "mobKilled": [
+    {
+     "module": "chests",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, _killer, mob) => { if (!mob.elite) return; if (mob.camp >= 0) rollChest(w, mob.camp..."
+    }
+   ],
+   "arenaHurt": [
+    {
+     "module": "terrainEffects",
+     "mode": "append",
+     "fn": "terrainHurt"
+    }
+   ],
+   "fighterOut": [
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id, cause) => payLater(w, () => clearFighter(w, id, cause))"
+    },
+    {
+     "module": "vision",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id, cause) => { if (cause !== \"removed\") return; const m = memories.get(w); m?.play..."
+    },
+    {
+     "module": "consumables",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { healing.get(w)?.delete(id); const p = w.state.players.get(id); if (p) { p...."
+    },
+    {
+     "module": "plagueCorpses",
+     "mode": "append",
+     "fn": "leaveCorpse"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { rt.lastCombatAt.delete(id); const p = w.state.players.get(id); if (p) { p...."
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => clearPlayer(w, id)"
+    },
+    {
+     "module": "sentencedHunt",
+     "mode": "append",
+     "fn": "fighterOut"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, id) => { if (w.state.players.has(id)) removeOwned(w, id); }"
+    }
+   ],
+   "statusApplied": [
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "onStatusApplied"
+    }
+   ],
+   "staggered": [
+    {
+     "module": "abilities",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, c) => cancelIf(w, c, \"stagger\")"
+    }
+   ],
+   "campCleared": [
+    {
+     "module": "campHeal",
+     "mode": "append",
+     "fn": "payCampHeal"
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w) => update(w)"
+    }
+   ],
+   "hitLanded": [
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onHitLanded"
+    },
+    {
+     "module": "fireRoam",
+     "mode": "append",
+     "fn": "onHitLanded"
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "noteLedgerContact"
+    },
+    {
+     "module": "plagueZombies",
+     "mode": "append",
+     "fn": "<arrow>",
+     "src": "(w, e, applied) => { if (!(applied > 0) || e.weapon === null || e.sig || e.dot || e.pas..."
+    }
+   ],
+   "blocked": [
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onBlocked"
+    },
+    {
+     "module": "bruiserPassives",
+     "mode": "append",
+     "fn": "noteBlockedContact"
+    }
+   ],
+   "overkilled": [
+    {
+     "module": "cardHooks",
+     "mode": "append",
+     "fn": "onOverkilled"
+    }
+   ]
+  },
+  "hookTotals": {
+   "links": 68,
+   "live": 66,
+   "default": 1,
+   "append": 65,
+   "wrap": 0,
+   "replace": 2,
+   "dropped": 2,
+   "staticSites": 76,
+   "conditionalSitesNotTaken": 9
   }
  }
 }
