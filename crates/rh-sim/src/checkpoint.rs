@@ -5,6 +5,7 @@
 //! (docs/CONTRACTS.md C-DET). A decoded [`Sim`] is complete (the map tables and the statics digest are built while
 //! decoding); malformed or truncated input is an `Err`, never a panic.
 
+use crate::content::WeaponId;
 use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::sim::Sim;
@@ -170,14 +171,8 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                 return Err(self.refuse(CheckpointError::Malformed(e.to_string())))
             }
         };
-        // `next_id` hands out the next join: at or below a present id it would push out of order (a panic in the store).
-        if let Some(last) = w.players.last() {
-            if w.next_id <= last.id.0 {
-                return Err(self.refuse(CheckpointError::Malformed(format!(
-                    "next_id {} is not greater than the last player id {}",
-                    w.next_id, last.id.0
-                ))));
-            }
+        if let Err(why) = check_world(&w) {
+            return Err(self.refuse(CheckpointError::Malformed(why)));
         }
         Ok(Sim {
             k,
@@ -186,6 +181,62 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
             pf: Pathfinder::default(),
         })
     }
+}
+
+/// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
+/// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
+fn check_world(w: &World) -> Result<(), String> {
+    // `next_id` hands out the next join: at or below a present or past id it would push out of order (a panic).
+    let ceiling = w
+        .players
+        .last()
+        .map(|p| p.id)
+        .into_iter()
+        .chain(w.roster.last_id())
+        .max();
+    if let Some(last) = ceiling {
+        if w.next_id <= last.0 {
+            return Err(format!(
+                "next_id {} is not greater than the last player or roster id {}",
+                w.next_id, last.0
+            ));
+        }
+    }
+    // Roster order is checked by its own decoder and player order by the store's.
+    if !w.server_time.is_finite() {
+        return Err(format!("server_time {} is not finite", w.server_time));
+    }
+    // The tick counter is incremented every step.
+    if w.tick == u32::MAX {
+        return Err("tick is at its maximum".into());
+    }
+    for p in w.players.iter() {
+        // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
+        // fills the ring.
+        let h = p.body.history.as_slice();
+        if h.windows(2).any(|s| !(s[0].t <= s[1].t)) {
+            return Err(format!(
+                "player {}: rewind history is not in time order",
+                p.id.0
+            ));
+        }
+        if let Some(l) = h.last() {
+            if !(l.t <= w.server_time) {
+                return Err(format!(
+                    "player {}: rewind history ends at {}, after server_time {}",
+                    p.id.0, l.t, w.server_time
+                ));
+            }
+        }
+        // The slice has no item flow, so nobody carries anything but fists; a bow or wand would reach the ranged attack
+        // path, which is not in the slice (systems/weapons.rs `land`).
+        for item in [p.weapon.weapon0, p.weapon.weapon1].into_iter().flatten() {
+            if item != WeaponId::Fists {
+                return Err(format!("player {}: carries {item:?}", p.id.0));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// A self-describing value held while a checkpoint's tag is still unread (serde_json's `Value`, in miniature), which then
@@ -477,5 +528,212 @@ mod tests {
             Sim::restore(&json),
             Err(CheckpointError::Malformed(_))
         ));
+    }
+
+    /// Restores `json` and returns why it was refused.
+    fn refusal(json: &serde_json::Value) -> String {
+        match Sim::restore(json) {
+            Err(CheckpointError::Malformed(why)) => why,
+            Err(e) => panic!("expected Malformed, got {e}"),
+            Ok(_) => panic!("the checkpoint was accepted"),
+        }
+    }
+
+    fn stepped(n: usize) -> serde_json::Value {
+        let mut a = sim();
+        for _ in 0..n {
+            a.step();
+        }
+        serde_json::to_value(&a).unwrap()
+    }
+
+    #[test]
+    fn a_stale_next_id_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["next_id"] = 3.into(); // players 1..=3 are seated
+        assert!(refusal(&json).contains("next_id"));
+        // A leaver stays in the roster: its id is not free either.
+        let mut json = stepped(5);
+        json["world"]["players"].as_array_mut().unwrap().pop();
+        json["world"]["next_id"] = 3.into();
+        assert!(refusal(&json).contains("next_id"));
+        json["world"]["next_id"] = 4.into();
+        assert!(Sim::restore(&json).is_ok());
+    }
+
+    #[test]
+    fn a_roster_out_of_order_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["roster"]["names"]
+            .as_array_mut()
+            .unwrap()
+            .swap(0, 1);
+        assert!(refusal(&json).contains("ascending"));
+        let mut json = stepped(5);
+        let names = json["world"]["roster"]["names"].as_array_mut().unwrap();
+        names[1] = names[0].clone();
+        assert!(refusal(&json).contains("ascending"));
+    }
+
+    #[test]
+    fn a_non_finite_clock_is_refused() {
+        // JSON cannot carry NaN or infinity, but another serde format can: check the decoded state itself.
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let mut a = sim();
+            a.w.server_time = bad;
+            assert!(super::check_world(&a.w).is_err(), "{bad}");
+        }
+        let mut a = sim();
+        assert!(super::check_world(&a.w).is_ok());
+        a.w.server_time = 1e300; // finite but absurd: the history rule below catches what it would leave behind
+        assert!(super::check_world(&a.w).is_ok());
+    }
+
+    #[test]
+    fn a_tick_counter_at_its_maximum_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["tick"] = u32::MAX.into();
+        assert!(refusal(&json).contains("tick"));
+        json["world"]["tick"] = (u32::MAX - 1).into();
+        assert!(Sim::restore(&json).is_ok());
+    }
+
+    #[test]
+    fn a_rewind_history_out_of_time_order_is_refused() {
+        let mut json = stepped(5);
+        json["world"]["players"][0]["core"]["body"]["history"]
+            .as_array_mut()
+            .unwrap()
+            .swap(0, 1);
+        assert!(refusal(&json).contains("time order"));
+    }
+
+    #[test]
+    fn a_rewind_history_dated_after_the_clock_is_refused() {
+        let mut json = stepped(5);
+        let h = json["world"]["players"][1]["core"]["body"]["history"]
+            .as_array_mut()
+            .unwrap();
+        let last = h.len() - 1;
+        h[last]["t"] = 1e12.into();
+        assert!(refusal(&json).contains("server_time"));
+        // And a whole history in the far future (the ring would fill and panic) is refused the same way.
+        let mut json = stepped(5);
+        for s in json["world"]["players"][0]["core"]["body"]["history"]
+            .as_array_mut()
+            .unwrap()
+        {
+            s["t"] = (1e12 + s["t"].as_f64().unwrap()).into();
+        }
+        assert!(refusal(&json).contains("server_time"));
+    }
+
+    #[test]
+    fn a_carried_ranged_weapon_is_refused() {
+        for item in ["Bow", "Wand", "Sword"] {
+            let mut json = stepped(5);
+            json["world"]["players"][2]["core"]["weapon"]["weapon1"] = item.into();
+            assert!(refusal(&json).contains("carries"), "{item}");
+        }
+        let mut json = stepped(5);
+        json["world"]["players"][2]["core"]["weapon"]["weapon0"] = "Fists".into();
+        assert!(Sim::restore(&json).is_ok());
+    }
+
+    /// Every node of a JSON document, as a path of keys and indices.
+    fn paths(v: &serde_json::Value, at: &mut Vec<String>, out: &mut Vec<Vec<String>>) {
+        out.push(at.clone());
+        match v {
+            serde_json::Value::Array(a) => {
+                for (i, x) in a.iter().enumerate() {
+                    at.push(i.to_string());
+                    paths(x, at, out);
+                    at.pop();
+                }
+            }
+            serde_json::Value::Object(o) => {
+                for (k, x) in o {
+                    at.push(k.clone());
+                    paths(x, at, out);
+                    at.pop();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn node<'a>(v: &'a mut serde_json::Value, at: &[String]) -> &'a mut serde_json::Value {
+        let mut cur = v;
+        for k in at {
+            cur = match cur {
+                serde_json::Value::Array(a) => &mut a[k.parse::<usize>().unwrap()],
+                serde_json::Value::Object(o) => o.get_mut(k).unwrap(),
+                _ => unreachable!(),
+            };
+        }
+        cur
+    }
+
+    /// Whatever a damaged checkpoint holds, restoring it either fails with an error or yields a match that steps: the
+    /// tick's own asserts are never the first to notice.
+    #[test]
+    fn mutated_checkpoints_never_panic_on_restore_or_the_steps_after() {
+        use crate::rng::Mulberry32;
+        let base = stepped(40);
+        let mut all = Vec::new();
+        paths(&base["world"], &mut vec!["world".into()], &mut all);
+        let pick: [serde_json::Value; 10] = [
+            0.into(),
+            1.into(),
+            (-1).into(),
+            3.into(),
+            1e12.into(),
+            1e300.into(),
+            u32::MAX.into(),
+            serde_json::Value::Null,
+            "Bow".into(),
+            true.into(),
+        ];
+        let mut rng = Mulberry32::new(0xC0FFEE);
+        let (mut refused, mut stepped_ok) = (0, 0);
+        for _ in 0..400 {
+            let mut json = base.clone();
+            for _ in 0..1 + rng.next_u32() % 3 {
+                let at = &all[rng.next_u32() as usize % all.len()];
+                // The path may point into a node an earlier mutation replaced; skip what no longer resolves.
+                let ok = at.iter().try_fold(&json, |cur, k| match cur {
+                    serde_json::Value::Array(a) => a.get(k.parse::<usize>().ok()?),
+                    serde_json::Value::Object(o) => o.get(k),
+                    _ => None,
+                });
+                if ok.is_none() {
+                    continue;
+                }
+                let target = node(&mut json, at);
+                match rng.next_u32() % 4 {
+                    0 if target.is_array() => {
+                        let a = target.as_array_mut().unwrap();
+                        if a.len() >= 2 {
+                            let n = a.len();
+                            a.swap(0, n - 1);
+                        }
+                    }
+                    1 if target.is_array() => {
+                        target.as_array_mut().unwrap().pop();
+                    }
+                    _ => *target = pick[rng.next_u32() as usize % pick.len()].clone(),
+                }
+            }
+            match Sim::restore(&json) {
+                Err(_) => refused += 1,
+                Ok(mut sim) => {
+                    for _ in 0..20 {
+                        sim.step();
+                    }
+                    stepped_ok += 1;
+                }
+            }
+        }
+        assert!(refused > 50 && stepped_ok > 5, "{refused} {stepped_ok}");
     }
 }
