@@ -5,7 +5,8 @@
 //!   valgrind --tool=callgrind target/release/examples/encodebench --frames 20000 [--mode encode|into|stream] [--actors N]
 //!   valgrind --tool=dhat      target/release/examples/encodebench --frames 20000 ...
 //! Modes: `encode` = ServerMsg::encode() per frame (a fresh Vec each); `into` = encode_into() into one reused buffer;
-//! `stream` = Snapshots through SnapshotWriter (actors written from the pool's slices), Fx through encode_into.
+//! `stream` = Snapshots through encode_snapshot_into (actors streamed from the pool's slices, the server's path), Fx
+//! through encode_into.
 //! `--actors N` gives every Snapshot N actors instead of the slice mix. The output's fnv is a hash of every frame's bytes:
 //! with `--check` it must be the same for every mode (and for any revision of the encoder); without it the frames are
 //! not hashed (so a measured run counts only the encoder) and fnv stays at its seed.
@@ -196,18 +197,15 @@ fn main() {
                         me,
                         actors,
                     } => {
-                        let mut s = rh_protocol::SnapshotWriter::begin(
+                        rh_protocol::encode_snapshot_into(
                             &mut buf,
                             *tick,
                             *phase,
                             *ack_input,
                             me.as_ref(),
-                            actors.len(),
-                        );
-                        for a in actors {
-                            s.actor(a);
-                        }
-                        s.finish().expect("legal frame");
+                            actors.iter().copied(),
+                        )
+                        .expect("legal frame");
                     }
                     _ => {
                         m.encode_into(&mut buf).expect("legal frame");
