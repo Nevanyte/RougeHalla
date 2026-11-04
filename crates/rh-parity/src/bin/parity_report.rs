@@ -1,24 +1,36 @@
 //! cargo run -p rh-parity --bin parity-report : human-readable parity report over every fixture.
+//! The gate: every `slice` scenario MATCHes, `capture-only` scenarios are listed (not compared), and the 300 legacy
+//! findPath queries MATCH. Exits 1 on any mismatch or unreadable scenario fixture.
 fn main() {
     let mut fail = false;
-    for class in ["slice", "capture-only"] {
-        for p in rh_parity::fixture_paths(class) {
-            let fx = rh_parity::load(&p);
-            if class != "slice" {
-                println!(
-                    "{:<22} capture-only ({} ticks): not in the Rust slice yet",
-                    fx.scenario,
-                    fx.ticks.len()
-                );
+    let (mut slice, mut capture_only) = (0, 0);
+    for p in rh_parity::scenario_paths() {
+        let text = std::fs::read_to_string(&p).expect("fixture");
+        let fx = match rh_parity::parse(&text) {
+            Ok(fx) => fx,
+            Err(e) => {
+                println!("{} UNREADABLE: {e}", p.display());
+                fail = true;
                 continue;
             }
-            let r = rh_parity::compare(&fx);
-            println!("{:<22} legacy {} | ticks {:>4} events {:>5} results {} | max pos err {:.2e} hp err {:.2e} | {}", fx.scenario, &fx.legacy_revision[..12.min(fx.legacy_revision.len())], r.ticks, r.events, r.results, r.max_pos_err, r.max_hp_err, if r.mismatches.is_empty() { "MATCH".to_string() } else { format!("MISMATCH x{}", r.mismatches.len()) });
-            for m in r.mismatches.iter().take(5) {
-                println!("    {m}");
-            }
-            fail |= !r.mismatches.is_empty();
+        };
+        if fx.parity == "capture-only" {
+            capture_only += 1;
+            println!(
+                "{:<22} capture-only ({} ticks): not in the Rust slice yet",
+                fx.scenario,
+                fx.ticks.len()
+            );
+            continue;
         }
+        // Anything else is compared (an unknown class fails its preconditions).
+        slice += 1;
+        let r = rh_parity::compare(&fx);
+        println!("{:<22} legacy {} | ticks {:>4} events {:>5} results {} | max pos err {:.2e} hp err {:.2e} | {}", fx.scenario, &fx.legacy_revision[..12.min(fx.legacy_revision.len())], r.ticks, r.events, r.results, r.max_pos_err, r.max_hp_err, if r.mismatches.is_empty() { "MATCH".to_string() } else { format!("MISMATCH x{}", r.mismatches.len()) });
+        for m in r.mismatches.iter().take(5) {
+            println!("    {m}");
+        }
+        fail |= !r.mismatches.is_empty();
     }
     let (n, bad) =
         rh_parity::compare_paths(&rh_parity::fixtures_dir().join("pathfinding_seed1.json"));
@@ -33,5 +45,10 @@ fn main() {
     for m in bad.iter().take(3) {
         println!("    {m}");
     }
-    std::process::exit(if fail || !bad.is_empty() { 1 } else { 0 });
+    fail |= !bad.is_empty();
+    println!(
+        "{slice} slice scenarios + {capture_only} capture-only, {n} pathfinding queries: {}",
+        if fail { "FAIL" } else { "all MATCH" }
+    );
+    std::process::exit(if fail { 1 } else { 0 });
 }
