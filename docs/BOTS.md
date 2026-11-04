@@ -338,7 +338,10 @@ reach) and `maxCandidates` from its tier route. The hunt's answer is one candida
 ### 3.6a Builds and camp routes (`brain/buildRoute.ts`)
 
 Each bot draws one of its faction's two builds once per run (A or B, the builds of `testing/TUNING_BALANCE.md` section 13, as stat
-weights in `BUILD_GOALS`; the draw is a hash of the bot's seed and id, so a replay is the same). A normal mob type is worth the
+weights in `BUILD_GOALS`; the draw is a hash of the bot's seed and id, so a replay is the same). The weights are what a kill adds to
+the build's duel power along a run, with the build's signature stats kept at 0.75 or more (`testing/FARM_ROUTE_PROOF.md` section 8,
+2026-11-03): a bot's routed kit beats a nearest-camp farmer's in 65-75% of real-sim mirror duels for every build, where the
+hand-set weights lost for 8 of 10. A normal mob type is worth the
 build's weight for the stat it gives (`typeWeight`, at least `STAT_FLOOR` 0.25). From the public camp state (type, alive,
 cleared, respawn time: what the planning screen shows) it plans `ROUTE_STEPS` (4) camps ahead, greedy by value per second: the
 walk, a wait for a respawn of at most `MAX_WAIT_MS` (40 s) and the time to clear. Cleared camps are planned for their respawn, so

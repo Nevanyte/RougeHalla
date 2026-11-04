@@ -27,8 +27,9 @@ arrow a lesser one"): a normal mob with a melee weapon deals `MOB_MELEE_DMG_MULT
 1.2x on top of `MOB_DMG_MULT` 0.5; elites unchanged (section 6b). Every build still holds. Per the owner's ruling, the generalist
 builds (Sentenced, Holy: "don't have specific scaling") are held to the fights and the decisions, not to the per-game build-value bar.
 
-One finding is left for a follow-up: **the bots' build weights (`BUILD_GOALS`) point most builds at the wrong camps.** A kit
-farmed by them loses the mirror to a nearest-camp farmer for 8 of 10 builds (29-59% in the real sim; section 8).
+The bots' build weights (`BUILD_GOALS`) pointed most builds at the wrong camps: a kit farmed by them lost the mirror to a
+nearest-camp farmer for 8 of 10 builds (29-59% in the real sim). **They are now derived from fight value** (section 8), and a bot's
+routed kit beats a nearest-camp farmer's for all ten builds (65-75% in the real sim).
 
 ## 1. The model
 
@@ -261,19 +262,41 @@ some builds' build-value decisions, so no change is warranted. Explored and reje
 - Fresh players could no longer clear most camps.
 - More camp damage on its own made things worse.
 
-## 8. Follow-up: the bots' build weights
+## 8. The bots' build weights
 
-Routing by `BUILD_GOALS` beats the nearest camp on those weights in 82-97% of games, but the kit it builds loses the mirror to a
-nearest farmer for 8 of 10 builds: model 0-58%, real sim 29-59% (section 5). The weights:
+The hand-set `BUILD_GOALS` beat the nearest camp on their own weights in 82-97% of games, but the kit they built lost the mirror to
+a nearest farmer for 8 of 10 builds: model 0-59%, real sim 29-59%. They valued move speed, which wins no duel (Fire A 0.4,
+Frost B 0.7), put lifesteal first for Holy A (a lifesteal kill is worth about a sixth of a damage kill), left out the +damage and
++attack-speed kills every build gains most from, and gave Plague B max health alone.
 
-- value move speed, which wins no duel (Fire A 0.4, Frost B 0.7);
-- put lifesteal first for Holy A, where a lifesteal kill is worth a sixth of a damage kill;
-- leave out the +damage and +attack-speed kills every build gains most from;
-- give Plague B max health alone.
+**Now (owner request, 2026-11-03):** each build's weight for a stat is what one kill of it adds to that build's duel power, averaged
+at a quarter, half and three quarters of its fight-value kit against the lobby's field, squared (so the route leans on the best
+stats) and scaled so the best is 1. Stats under 0.3 are dropped (`STAT_FLOOR` covers them). Each build's old top stats stay at 0.75
+or more so it still farms toward its name: Offense for Fire A, Soul Offence for Fire B, Defense, Soul Defense and Offense for
+Sentenced A, attack speed for Plague A, max health for Plague B, Defense for Frost A, lifesteal for Holy A, Soul Offence for Holy B.
+Frost B is set by hand from its fight-value kit (`attackSpeed` 1, Offense and damage 0.8, max health 0.6, Soul Defense 0.4): the
+averaged weights leaned on Soul Defense for the chill bonus, which caps early at 0.2, and that kit lost (42%).
 
-So the fill bots farm toward builds that lose to a player who farms at random. Re-deriving the weights from the fight values
-(section 4), per build and weapon, would fix the bots and give each named build a farm list that wins. That changes what the
-builds are, so it is the owner's call.
+| build | old weights | new weights | bot route vs nearest farmer: fights won (model) | mirror (model) | mirror (real sim) |
+|---|---|---|---|---|---|
+| fire:A | AD 1, damage 1, attack speed 0.6, move speed 0.4 | damage 1, max hp 0.95, Defense 0.76, AD 0.75, SD 0.53, lifesteal 0.46 | 92% (27%) | 72% (37%) | 72% (35%) |
+| fire:B | AP 1, Defense 0.8, SD 0.8, max hp 0.6 | Defense 1, damage 1, max hp 0.94, AP 0.75, SD 0.73, lifesteal 0.55 | 85% (30%) | 76% (42%) | 75% (40%) |
+| sentenced:A | Defense 0.8, SD 0.8, AD 0.8, AP 0.6, max hp 0.5 | attack speed 1, Defense, SD, AD 0.75, damage 0.74, max hp 0.72, AP 0.51 | 91% (12%) | 67% (39%) | 68% (34%) |
+| sentenced:B | attack speed 1, max hp 0.8, damage 0.5 | attack speed 1, damage 0.78, max hp 0.73, AD 0.51, Defense 0.42 | 88% (59%) | 62% (51%) | 65% (51%) |
+| plague:A | attack speed 1, AP 1, damage 0.4 | AP 1, attack speed 0.75, damage 0.49, max hp 0.46 | 73% (56%) | 65% (59%) | 65% (59%) |
+| plague:B | max hp 1, Defense 0.4, SD 0.4 | AP 1, max hp 0.75, damage 0.52 | 82% (30%) | 71% (44%) | 69% (30%) |
+| frost:A | Defense 1, SD 1, max hp 0.8 | attack speed 1, SD 0.81, Defense 0.75, max hp 0.58, damage 0.56 | 88% (46%) | 71% (50%) | 66% (43%) |
+| frost:B | attack speed 1, move speed 0.7, damage 0.6, SD 0.5 | attack speed 1, AD 0.8, damage 0.8, max hp 0.6, SD 0.4 | 93% (59%) | 70% (50%) | 69% (45%) |
+| holy:A | lifesteal 1, max hp 0.7, AD 0.5, attack speed 0.4 | attack speed 1, lifesteal 0.75, damage 0.64, AD 0.57, max hp 0.31 | 80% (11%) | 100% (0%) | 65% (29%) |
+| holy:B | AP 1, lifesteal 0.7, max hp 0.4 | attack speed 1, AP 0.75, damage 0.75, Defense 0.31 | 82% (16%) | 100% (1%) | 69% (37%) |
+
+(In brackets: the old weights. Model: 8-player lobbies, 24 maps x 4 rosters, all seven fill bots on the new weights; real sim:
+`bench/farmKitDuel.ts`, 144-288 mirror duels a build. The model's Holy mirrors run high: its stall dynamics overrate Holy's
+lifesteal, see section 5.)
+
+The cost: the in-game decisions where walking to a build camp pays fell for the builds that now want fewer types (Plague A 57%,
+Plague B 67%, Holy B 69%; they were 69-83%), since fewer camps count as theirs. The builds share more of their top stats (attack
+speed and damage lead six of them), because those are what wins fights; the named identities survive as the 0.75 floors.
 
 ## 9. What the model leaves out
 

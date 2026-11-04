@@ -44,7 +44,8 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = json.load(open(os.path.join(HERE, "farm_route_data.json")))
+# FARM_ROUTE_DATA points at another export (a what-if copy, e.g. other build weights); the workers read the same file.
+DATA = json.load(open(os.environ.get("FARM_ROUTE_DATA") or os.path.join(HERE, "farm_route_data.json")))
 C = DATA["constants"]
 FACTIONS = DATA["factions"]
 WEAPONS = DATA["weapons"]

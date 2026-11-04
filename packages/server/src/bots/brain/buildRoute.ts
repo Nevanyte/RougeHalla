@@ -26,27 +26,35 @@ export interface BuildGoal {
   readonly weights: Readonly<Partial<Record<FarmStat, number>>>;
 }
 
-/** The faction rework's two builds per faction, as stat weights (README "Live playtest rules": two builds per faction). */
+/**
+ * The faction rework's two builds per faction, as stat weights (README "Live playtest rules": two builds per faction). The weights
+ * are what a kill adds to the build's duel power along a run (testing/farm_route_proof.py: the per-kill gain at a quarter, half and
+ * three quarters of its fight-value kit against the lobby's field, averaged, squared and scaled to 1), with each build's signature
+ * stats kept at 0.75 or more so it still farms toward its name. Hand-weighted ones (move speed for the kiter, lifesteal first for
+ * Holy A, max health alone for Plague B) farmed kits that lost the mirror duel to a nearest-camp farmer for 8 of 10 builds (29-59%
+ * in the real sim, bench/farmKitDuel.ts); these win it for all ten (65-75%; testing/FARM_ROUTE_PROOF.md section 8).
+ */
 export const BUILD_GOALS: Readonly<Record<FactionId, readonly [BuildGoal, BuildGoal]>> = {
   fire: [
-    { id: "fire:A", name: "AD burst assassin", weights: { ad: 1, damage: 1, attackSpeed: 0.6, moveSpeed: 0.4 } },
-    { id: "fire:B", name: "AP burn tank", weights: { ap: 1, armor: 0.8, shield: 0.8, maxHp: 0.6 } },
+    { id: "fire:A", name: "AD burst assassin", weights: { damage: 1, maxHp: 0.95, armor: 0.76, ad: 0.75, shield: 0.53, lifesteal: 0.46 } },
+    { id: "fire:B", name: "AP burn tank", weights: { armor: 1, damage: 1, maxHp: 0.94, ap: 0.75, shield: 0.73, lifesteal: 0.55 } },
   ],
   sentenced: [
-    { id: "sentenced:A", name: "stat bully bruiser", weights: { armor: 0.8, shield: 0.8, ad: 0.8, ap: 0.6, maxHp: 0.5 } },
-    { id: "sentenced:B", name: "attack-speed max-HP punisher", weights: { attackSpeed: 1, maxHp: 0.8, damage: 0.5 } },
+    { id: "sentenced:A", name: "stat bully bruiser", weights: { attackSpeed: 1, armor: 0.75, shield: 0.75, ad: 0.75, damage: 0.74, maxHp: 0.72, ap: 0.51 } },
+    { id: "sentenced:B", name: "attack-speed max-HP punisher", weights: { attackSpeed: 1, damage: 0.78, maxHp: 0.73, ad: 0.51, armor: 0.42 } },
   ],
   plague: [
-    { id: "plague:A", name: "attack-speed SO DoT stacker", weights: { attackSpeed: 1, ap: 1, damage: 0.4 } },
-    { id: "plague:B", name: "zombie commander", weights: { maxHp: 1, armor: 0.4, shield: 0.4 } }, // the zombie grows with bonus max hp
+    { id: "plague:A", name: "attack-speed SO DoT stacker", weights: { ap: 1, attackSpeed: 0.75, damage: 0.49, maxHp: 0.46 } },
+    { id: "plague:B", name: "zombie commander", weights: { ap: 1, maxHp: 0.75, damage: 0.52 } }, // the zombie grows with bonus max hp
   ],
   frost: [
-    { id: "frost:A", name: "Defense/SD shield tank", weights: { armor: 1, shield: 1, maxHp: 0.8 } },
-    { id: "frost:B", name: "bow kiter", weights: { attackSpeed: 1, moveSpeed: 0.7, damage: 0.6, shield: 0.5 } },
+    { id: "frost:A", name: "Defense/SD shield tank", weights: { attackSpeed: 1, shield: 0.81, armor: 0.75, maxHp: 0.58, damage: 0.56 } },
+    // Hand-set from the fight-value kit: the averaged weights leaned on Soul Defense for its chill bonus, which caps early (0.2), and lost.
+    { id: "frost:B", name: "bow kiter", weights: { attackSpeed: 1, ad: 0.8, damage: 0.8, maxHp: 0.6, shield: 0.4 } },
   ],
   holy: [
-    { id: "holy:A", name: "lifesteal juggernaut", weights: { lifesteal: 1, maxHp: 0.7, ad: 0.5, attackSpeed: 0.4 } },
-    { id: "holy:B", name: "Soul-damage Holy", weights: { ap: 1, lifesteal: 0.7, maxHp: 0.4 } },
+    { id: "holy:A", name: "lifesteal juggernaut", weights: { attackSpeed: 1, lifesteal: 0.75, damage: 0.64, ad: 0.57, maxHp: 0.31 } },
+    { id: "holy:B", name: "Soul-damage Holy", weights: { attackSpeed: 1, ap: 0.75, damage: 0.75, armor: 0.31 } },
   ],
 };
 

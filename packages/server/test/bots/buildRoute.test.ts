@@ -12,7 +12,8 @@ const camp = (index: number, x: number, type: MobTypeId, over: Partial<RouteCamp
 const input = (camps: RouteCamp[], over: Partial<RouteInput> = {}): RouteInput => ({
   now: NOW, runMs: 60_000, self: { x: 0, y: 0 }, speed: 160, mobKills: 0, power: 0, camps, players: [], canFarm: () => true, ...over,
 });
-// Fire A (AD burst) wants AD (Pardoner) and damage (Ember Imp); Fire B (AP burn tank) wants SO (Flame Caller) and defenses.
+// Fire A (AD burst) wants damage (Ember Imp) most, then Offense (Pardoner) and defenses; Fire B (AP burn tank) wants Defense and damage
+// most and Soul Offence (Flame Caller) too, and no Offense (BUILD_GOALS: weights from what a kill adds in a fight).
 const fireA = BUILD_GOALS.fire[0];
 const fireB = BUILD_GOALS.fire[1];
 
@@ -27,21 +28,25 @@ describe("the build a bot farms for", () => {
   });
 
   it("weighs a type by the stat it gives", () => {
-    expect(typeWeight(fireA, "pardoner")).toBe(1); // +1 Offense
+    expect(typeWeight(fireA, "emberImp")).toBe(1); // +damage
+    expect(typeWeight(fireA, "pardoner")).toBe(fireA.weights.ad); // Offense, the build's signature stat
     expect(typeWeight(fireA, "flameCaller")).toBe(STAT_FLOOR); // SO: not this build's
-    expect(typeWeight(fireB, "flameCaller")).toBe(1);
+    expect(typeWeight(fireB, "flameCaller")).toBe(fireB.weights.ap);
+    expect(typeWeight(fireB, "bailiff")).toBe(1); // Defense
+    expect(typeWeight(fireB, "pardoner")).toBe(STAT_FLOOR);
     expect(typeWeight(fireB, undefined)).toBe(STAT_FLOOR);
   });
 });
 
 describe("the route", () => {
   it("goes for the camps its build wants first, even a little farther, and sequences the rest", () => {
-    const camps = [camp(0, 500, "flameCaller"), camp(1, 800, "pardoner"), camp(2, 1100, "emberImp")];
+    const camps = [camp(0, 500, "flameCaller"), camp(1, 800, "emberImp"), camp(2, 1100, "pardoner")];
     const a = new BuildRoute(fireA);
-    expect(a.update(input(camps))?.camp).toBe(1);
+    expect(a.update(input(camps))?.camp).toBe(1); // damage, past the nearer Soul Offence camp
     expect(a.route.map((s) => s.camp)).toEqual([1, 2, 0]);
-    const b = new BuildRoute(fireB);
-    expect(b.update(input(camps))?.camp).toBe(0);
+    const near = [camp(0, 500, "pardoner"), camp(1, 800, "bailiff")];
+    expect(new BuildRoute(fireA).update(input(near))?.camp).toBe(0); // Offense is Fire A's
+    expect(new BuildRoute(fireB).update(input(near))?.camp).toBe(1); // Defense is Fire B's: it walks past the Offense camp
   });
 
   it("plans a cleared camp for its respawn when it is close, and leaves it out when it is far off", () => {
@@ -94,9 +99,9 @@ describe("adapting when the route is contested", () => {
 
   it("treats a camp cleared by someone else while it walked there as contested", () => {
     const r = new BuildRoute(fireA);
-    expect(r.update(input([camp(0, 800, "pardoner"), camp(1, 1200, "emberImp")]))?.camp).toBe(0);
-    const stolen = camp(0, 800, "pardoner", { state: 2, alive: 0, respawnAt: NOW + 5000 });
-    expect(r.update(input([stolen, camp(1, 1200, "emberImp")], { now: NOW + 1000 }))?.camp).toBe(1);
+    expect(r.update(input([camp(0, 800, "emberImp"), camp(1, 1200, "pardoner")]))?.camp).toBe(0);
+    const stolen = camp(0, 800, "emberImp", { state: 2, alive: 0, respawnAt: NOW + 5000 });
+    expect(r.update(input([stolen, camp(1, 1200, "pardoner")], { now: NOW + 1000 }))?.camp).toBe(1);
     expect(r.stats.contests).toBe(1);
   });
 
