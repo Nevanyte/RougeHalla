@@ -82,7 +82,11 @@ rule is vectors for the current version only).
   until a Full frame arrives, and do not disconnect. The server never drops a `Resync`: the writer answers it with a Full frame,
   but at least 20 ticks (1 s) after its previous forced Full, so a request that arrives sooner stays pending and is answered when
   the interval ends (a client asks once per burst of refusals and must be able to rely on that answer). The interval is counted in
-  ticks, so it is deterministic; the frame-rate bucket bounds a flood of requests.
+  ticks, so it is deterministic; a client that sends one before every snapshot gets one forced Full per 20 ticks, not one per
+  request, and the frame-rate bucket bounds the flood itself. As defence in depth the clients repeat a request still unanswered
+  after 2 s (with the next refused delta), longer than the server's interval so a well-behaved server never sees a repeat.
+  The refusal of a remote actor off the position grid (H-server) happens in `SnapshotData::build`, so it holds for Full frames and
+  deltas alike (a Delta carries only grid codes of a built snapshot; the C# `ActorDelta` fields are grid codes by type).
 - C-OBS: a Delta names only actors the Full frame of that tick lists, and its departed list only ids the client was told about;
   `tests/snapshot_delta.rs` checks both over a whole match for every viewer.
 
@@ -91,7 +95,8 @@ player per second (66%; the ADR 0010 prototype measured 345). Snapshot frames 43
 Delta). The 2-byte head (self field bits in the head word, the status as a rare byte, no id in the self delta) is where this beats
 the prototype's 4 (head word plus a separate 2-byte mask).
 
-**Cost** (`tools/perfproof/perfproof.py --baseline 8e54a25`, deterministic counts): the wire workload (`wirebench`, the sim step
+**Cost** (`tools/perfproof/perfproof.py --baseline 8e54a25`, deterministic counts, before the merge with H-server; the
+figures on top of 2e8682c are in the P10c record): the wire workload (`wirebench`, the sim step
 included) goes 25,811 -> 27,282 Ir per step (1.057x) with allocations per step unchanged (9.08) and every gameplay fingerprint
 identical (the declared byte counts aside); on the publish path alone (observe plus encode, 2,047 Ir per viewer-tick in ADR 0010)
 it is +184 Ir per viewer-tick, about 1.09x. Two things keep it there: a snapshot is validated and quantized once in the room and

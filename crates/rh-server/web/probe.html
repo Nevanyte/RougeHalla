@@ -369,6 +369,8 @@ P.attack = (a) => send(input(++P.inputSeq, [{ k: "attack", a, t: null }]));
 P.dropAndResume = () => new Promise((res) => { const old = ws; old.onclose = () => { P.open = false; connect(true).then(res); }; old.close(); });
 P.leave = () => send(leave());
 P.requestResync = askFull;
+// Test hook: forget the snapshot held (as if a delta had been lost), so the next delta is refused and the page asks for a Full one.
+P.loseSnapshot = () => tracker.reset();
 setInterval(() => send(ping(++nonce)), 500);
 
 // ---- input and drawing ----

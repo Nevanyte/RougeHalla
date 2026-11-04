@@ -68,6 +68,18 @@ try {
   const rs = await a.evaluate(() => ({ full: window.__probe.fullSnapshots, refused: window.__probe.refused }));
   rs.full === f0 + 1 && rs.refused.length === 0 ? pass("resync_answered_with_one_full_snapshot", rs) : fail("resync_answered_with_one_full_snapshot", JSON.stringify([f0, rs]));
 
+  // The review's failing sequence: right after that forced Full the page loses its snapshot, so the next delta is refused and it
+  // asks again inside the server's 20-tick interval. The request is deferred, never dropped: one more Full frame arrives, from
+  // the one Resync (no client retry needed), and deltas apply again.
+  const r0 = await a.evaluate(() => ({ full: window.__probe.fullSnapshots, resyncs: window.__probe.resyncs, refused: window.__probe.refused.length }));
+  await a.evaluate(() => window.__probe.loseSnapshot());
+  await a.waitForFunction((n) => window.__probe.fullSnapshots > n, r0.full, { timeout: 5000 });
+  const d1 = await a.evaluate(() => window.__probe.deltaSnapshots);
+  await a.waitForFunction((n) => window.__probe.deltaSnapshots > n + 5, d1, { timeout: 5000 });
+  const r1 = await a.evaluate(() => ({ full: window.__probe.fullSnapshots, resyncs: window.__probe.resyncs, refused: window.__probe.refused.length, errors: window.__probe.errors.length }));
+  r1.full === r0.full + 1 && r1.resyncs === r0.resyncs + 1 && r1.refused > r0.refused && r1.errors === 0
+    ? pass("refusal_inside_the_interval_still_gets_a_full_snapshot", { before: r0, after: r1 }) : fail("refusal_inside_the_interval_still_gets_a_full_snapshot", JSON.stringify([r0, r1]));
+
   // A movement order is applied by the server and acknowledged (move_seq echo), and the server position changes.
   const before = await a.evaluate(() => window.__probe.me);
   const seq = await a.evaluate(() => window.__probe.move(window.__probe.me.x, window.__probe.me.y + 64));
