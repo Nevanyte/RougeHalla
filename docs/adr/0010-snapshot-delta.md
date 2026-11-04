@@ -1,7 +1,8 @@
 # ADR 0010: per-connection snapshot delta (packet P10b)
 
-**Status:** Gate passed, implementation not started: waiting for an owner decision (see Decision). The protocol stays v2
-until then. **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
+**Status:** Accepted (coordinator decision: the gate passed, so protocol v3 is adopted). Implementation is packet P10c,
+scheduled after the server hardening package because both edit `rh-protocol`, `conn.rs` and the C#/JS codecs. The protocol
+stays v2 until P10c merges. **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
 connection, encoded in that connection's writer task (so a skipped snapshot is never encoded and encoding leaves the room
 task), with a full frame on join, resume and resync. It would be protocol v3, a stateful writer, a base-tick reference,
 and mirrors in Rust, C# and JS. The packet was gated on numbers; this records them.
@@ -73,10 +74,10 @@ replace them.
 
 ## Decision
 
-The gate says adopt: 62% of the bytes at 8 players (>= 25%) at about 1.06x publish Ir (<= 1.10x). This change does not
-implement it. Part (2) is a breaking protocol v3 with three decoders and new fixtures, a larger package than a bench fix,
-so the coordinator needs to either schedule it or make an explicit owner decision to override the gate on complexity
-grounds. It is not recorded as a threshold miss. Scope of the implementation if scheduled: `PROTOCOL_VERSION` 3; a delta
+The gate says adopt: 62% of the bytes at 8 players (>= 25%) at about 1.06x publish Ir (<= 1.10x). Adopted: the byte
+saving matters for regional egress cost and for browser clients on weak links, and the complexity is contained (TCP
+delivers in order, so the base is simply the last snapshot that connection's writer actually wrote; no client ack is
+needed). It is implemented as packet P10c; this measurement change does not implement it. Scope of the implementation if scheduled: `PROTOCOL_VERSION` 3; a delta
 frame referencing a base tick; full frames on join, resume, resync and when the base is unknown or too old (a resumed
 connection always gets a full frame first); bounded per-connection state in the writer task; Rust encoder and decoder, C#
 mirror and JS decoder; `protocol/fixtures/v3.json`; tests for resume, full frame, drop, out-of-order and malformed
