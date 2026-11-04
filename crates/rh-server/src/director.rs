@@ -6,8 +6,8 @@ use crate::hosting::Lifecycle;
 use crate::outbox::Outbox;
 use crate::persist::{Auth, Persistence};
 use crate::room::{
-    random16, run_room, JoinOk, MatchId, Room, RoomCmd, RoomConfig, RoomReport, RoomStats,
-    INBOUND_CAP,
+    random16, run_room, JoinOk, MapAssets, MatchId, Room, RoomCmd, RoomConfig, RoomReport,
+    RoomStats, INBOUND_CAP,
 };
 use rh_protocol::{RejectCode, PROTOCOL_VERSION};
 use rh_sim::{Arena, FactionId, Phase, SimConfig};
@@ -19,7 +19,8 @@ use tokio::sync::{mpsc, oneshot};
 #[derive(Clone)]
 pub struct DirectorConfig {
     pub sim: SimConfig,
-    pub arena: Arena,
+    /// The map every room plays on, shared (never cloned per room).
+    pub arena: Arc<Arena>,
     pub max_rooms: usize,
     pub fill_bots_to: usize,
     pub tick: Duration,
@@ -32,10 +33,10 @@ pub struct DirectorConfig {
 }
 
 impl DirectorConfig {
-    pub fn new(sim: SimConfig, arena: Arena) -> Self {
+    pub fn new(sim: SimConfig, arena: impl Into<Arc<Arena>>) -> Self {
         Self {
             sim,
-            arena,
+            arena: arena.into(),
             max_rooms: 16,
             fill_bots_to: 0,
             tick: Duration::from_millis(rh_sim::constants::TICK_MS as u64),
@@ -50,7 +51,28 @@ impl DirectorConfig {
 struct RoomEntry {
     tx: mpsc::Sender<RoomCmd>,
     phase: Phase,
-    humans: usize,
+    /// Humans the room reported seated (its `Seated` reports, less its `Left` ones).
+    seated: usize,
+    /// Admissions that picked this room and have not been seated yet (their durable lease may still be pending). Kept
+    /// apart from `seated` so a report of the seated count can never erase them.
+    reserved: usize,
+}
+
+impl RoomEntry {
+    /// Humans the room has or is about to have.
+    fn committed(&self) -> usize {
+        self.seated + self.reserved
+    }
+}
+
+/// The lobby the next admission joins: among lobbies with a free seat (counting reservations), the fullest, so matches fill
+/// before another opens; ties go to the lowest id. Deterministic (no HashMap order).
+fn open_lobby(rooms: &HashMap<MatchId, RoomEntry>) -> Option<MatchId> {
+    rooms
+        .iter()
+        .filter(|(_, r)| r.phase == Phase::Lobby && r.committed() < rh_sim::constants::MAX_PLAYERS)
+        .min_by_key(|(id, r)| (std::cmp::Reverse(r.committed()), **id))
+        .map(|(id, _)| *id)
 }
 
 #[derive(Clone, Copy)]
@@ -81,6 +103,8 @@ pub struct Director {
     /// Result writes in flight (the process waits for them before exiting).
     pub pending_writes: std::sync::atomic::AtomicUsize,
     cfg: DirectorConfig,
+    /// The configured map and its Welcome blob, built once and lent to every room.
+    map: MapAssets,
     inner: Mutex<Inner>,
     reports: mpsc::UnboundedSender<RoomReport>,
     pub persistence: Arc<Persistence>,
@@ -114,9 +138,11 @@ impl Director {
             panic!("refusing to host this arena: {e}");
         }
         let (tx, rx) = mpsc::unbounded_channel();
+        let map = MapAssets::new(cfg.arena.clone()).expect("the arena's map encodes as a Welcome");
         let d = Arc::new(Self {
             pending_writes: std::sync::atomic::AtomicUsize::new(0),
             cfg,
+            map,
             inner: Mutex::new(Inner::default()),
             reports: tx,
             persistence,
@@ -217,11 +243,8 @@ impl Director {
                     "callsign already in a match".into(),
                 ));
             }
-            let open = inner
-                .rooms
-                .iter()
-                .find(|(_, r)| r.phase == Phase::Lobby && r.humans < rh_sim::constants::MAX_PLAYERS)
-                .map(|(id, r)| (*id, r.tx.clone()));
+            let open = open_lobby(&inner.rooms)
+                .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
             let picked = match open {
                 Some(x) => x,
                 None => {
@@ -232,7 +255,8 @@ impl Director {
                     let (tx, rx) = mpsc::channel(INBOUND_CAP);
                     let rc = RoomConfig {
                         sim: self.cfg.sim.clone(),
-                        arena: self.cfg.arena.clone(),
+                        arena: self.map.arena.clone(),
+                        welcome_map: self.map.welcome_map.clone(),
                         fill_bots_to: self.cfg.fill_bots_to,
                         tick: self.cfg.tick,
                         record: self.cfg.record,
@@ -248,7 +272,8 @@ impl Director {
                         RoomEntry {
                             tx: tx.clone(),
                             phase: Phase::Lobby,
-                            humans: 0,
+                            seated: 0,
+                            reserved: 0,
                         },
                     );
                     (id, tx)
@@ -263,7 +288,7 @@ impl Director {
                 },
             );
             if let Some(r) = inner.rooms.get_mut(&picked.0) {
-                r.humans += 1;
+                r.reserved += 1;
             }
             picked
         };
@@ -271,7 +296,7 @@ impl Director {
             let mut inner = this.inner.lock().expect("director");
             inner.profiles.remove(&key);
             if let Some(r) = inner.rooms.get_mut(&match_id) {
-                r.humans = r.humans.saturating_sub(1);
+                r.reserved = r.reserved.saturating_sub(1);
             }
         };
         // Cross-host session ownership: a fenced lease in durable storage (off the tick; before the seat is taken).
@@ -354,7 +379,7 @@ impl Director {
                         continue;
                     };
                     if let Some(room) = inner.rooms.get_mut(&seat.match_id) {
-                        room.humans = room.humans.saturating_sub(1);
+                        room.seated = room.seated.saturating_sub(1);
                     }
                     // The profile stays reserved (`leaving`) until its result is written (Result below) or, with no result
                     // to come, until its lease is released: a quick rejoin must not race the durable lease.
@@ -480,7 +505,7 @@ impl Director {
                         this.lifecycle.rooms_empty();
                     }
                 }
-                RoomReport::Phase {
+                RoomReport::Seated {
                     match_id,
                     phase,
                     humans,
@@ -492,8 +517,21 @@ impl Director {
                         .rooms
                         .get_mut(&match_id)
                     {
+                        // The admission that took this seat stops being a reservation; the others still are.
+                        r.reserved = r.reserved.saturating_sub(1);
+                        r.seated = humans;
                         r.phase = phase;
-                        r.humans = humans;
+                    }
+                }
+                RoomReport::Phase { match_id, phase } => {
+                    if let Some(r) = this
+                        .inner
+                        .lock()
+                        .expect("director")
+                        .rooms
+                        .get_mut(&match_id)
+                    {
+                        r.phase = phase;
                     }
                 }
             }
@@ -577,5 +615,149 @@ impl Director {
 
     pub fn room_count(&self) -> usize {
         self.inner.lock().expect("director").rooms.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(phase: Phase, seated: usize, reserved: usize) -> RoomEntry {
+        RoomEntry {
+            tx: mpsc::channel(1).0,
+            phase,
+            seated,
+            reserved,
+        }
+    }
+
+    fn id(n: u8) -> MatchId {
+        let mut b = [0u8; 16];
+        b[15] = n;
+        b
+    }
+
+    fn rooms(entries: &[(u8, Phase, usize, usize)]) -> HashMap<MatchId, RoomEntry> {
+        entries
+            .iter()
+            .map(|&(n, p, s, r)| (id(n), entry(p, s, r)))
+            .collect()
+    }
+
+    #[test]
+    fn the_fullest_open_lobby_is_picked_and_ties_go_to_the_lowest_id() {
+        let m = rooms(&[
+            (9, Phase::Lobby, 2, 0),
+            (4, Phase::Lobby, 5, 0),
+            (7, Phase::Lobby, 5, 0),
+            (1, Phase::Lobby, 1, 0),
+        ]);
+        assert_eq!(
+            open_lobby(&m),
+            Some(id(4)),
+            "fullest first, tie to the lowest id"
+        );
+        let m = rooms(&[(3, Phase::Lobby, 0, 0), (2, Phase::Lobby, 0, 0)]);
+        assert_eq!(open_lobby(&m), Some(id(2)));
+        assert_eq!(open_lobby(&HashMap::new()), None);
+    }
+
+    #[test]
+    fn the_pick_does_not_depend_on_hash_map_order() {
+        // The same rooms inserted in every rotation iterate differently (the map is randomly seeded per instance);
+        // the pick is always the same.
+        let spec = [
+            (5, Phase::Lobby, 3, 1),
+            (2, Phase::Lobby, 4, 0),
+            (8, Phase::Active, 6, 0),
+            (6, Phase::Lobby, 4, 0),
+            (1, Phase::Lobby, 0, 2),
+        ];
+        for rot in 0..spec.len() {
+            let mut s = spec.to_vec();
+            s.rotate_left(rot);
+            for _ in 0..8 {
+                assert_eq!(open_lobby(&rooms(&s)), Some(id(2)));
+            }
+        }
+    }
+
+    #[test]
+    fn a_lobby_counts_its_reservations_and_runs_and_full_lobbies_are_not_offered() {
+        // 6 seated + 2 reserved = full: not offered although only 6 are seated; the emptier lobby is.
+        let m = rooms(&[(1, Phase::Lobby, 6, 2), (2, Phase::Lobby, 1, 0)]);
+        assert_eq!(open_lobby(&m), Some(id(2)));
+        // A lobby that closed into its run never is, however empty.
+        let m = rooms(&[(1, Phase::Active, 0, 0), (2, Phase::Ended, 0, 0)]);
+        assert_eq!(open_lobby(&m), None);
+        // Reservations alone make a lobby fuller than its rival.
+        let m = rooms(&[(1, Phase::Lobby, 1, 0), (2, Phase::Lobby, 0, 3)]);
+        assert_eq!(open_lobby(&m), Some(id(2)));
+    }
+
+    fn director() -> Arc<Director> {
+        let sim = SimConfig {
+            min_players: 2,
+            lobby_seconds: 30.0,
+            fill_seconds: 0.0,
+            pvp_rules: true,
+        };
+        let map = rh_sim::TileMap::from_rows(&["####", "#..#", "#..#", "####"]).unwrap();
+        let arena = Arena {
+            map,
+            spawns: vec![rh_sim::Vec2::new(48.0, 48.0)],
+        };
+        Director::new(
+            DirectorConfig::new(sim, arena),
+            Arc::new(Persistence::memory()),
+            Arc::new(Auth::Dev),
+            Arc::new(Lifecycle::default()),
+        )
+    }
+
+    /// Lets the report loop (and anything else runnable) drain.
+    async fn settle() {
+        for _ in 0..8 {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn a_report_of_the_seated_count_never_erases_admissions_still_acquiring_their_lease() {
+        let d = director();
+        let m = id(1);
+        // Seven admissions picked this lobby; their leases are pending: reserved, none seated.
+        d.inner
+            .lock()
+            .unwrap()
+            .rooms
+            .insert(m, entry(Phase::Lobby, 0, 7));
+        let committed = |d: &Director| d.inner.lock().unwrap().rooms[&m].committed();
+        assert_eq!(committed(&d), 7);
+        // The first of them is seated: its reservation becomes a seat, the other six stay reserved.
+        d.reports
+            .send(RoomReport::Seated {
+                match_id: m,
+                phase: Phase::Lobby,
+                humans: 1,
+            })
+            .unwrap();
+        settle().await;
+        assert_eq!(committed(&d), 7, "1 seated + 6 reserved");
+        assert_eq!(d.inner.lock().unwrap().rooms[&m].reserved, 6);
+        // A phase report carries no count at all and changes nothing else.
+        d.reports
+            .send(RoomReport::Phase {
+                match_id: m,
+                phase: Phase::Lobby,
+            })
+            .unwrap();
+        settle().await;
+        assert_eq!(committed(&d), 7);
+        // So an eighth admission still fits and the ninth is not offered this lobby.
+        let mut inner = d.inner.lock().unwrap();
+        assert_eq!(open_lobby(&inner.rooms), Some(m));
+        inner.rooms.get_mut(&m).unwrap().reserved += 1;
+        assert_eq!(open_lobby(&inner.rooms), None, "never over-offered");
     }
 }

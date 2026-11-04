@@ -23,13 +23,33 @@ struct State {
     closed: Option<RejectCode>,
 }
 
+/// What an [`Outbox`] counted over its life (relaxed reads: the room that pushes is the only writer).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct OutboxCounters {
+    /// Fx frames evicted unsent because the client was FX_CAP frames behind.
+    pub fx_dropped: u64,
+    /// Snapshots replaced by a newer one before the writer took them.
+    pub snapshots_skipped: u64,
+    /// Bytes of every frame accepted into the queues (including fx and snapshots later dropped); only ever increases.
+    pub bytes_enqueued_total: u64,
+}
+
+impl OutboxCounters {
+    pub fn add(&mut self, o: OutboxCounters) {
+        self.fx_dropped += o.fx_dropped;
+        self.snapshots_skipped += o.snapshots_skipped;
+        self.bytes_enqueued_total += o.bytes_enqueued_total;
+    }
+}
+
 #[derive(Default)]
 pub struct Outbox {
     state: Mutex<State>,
     notify: Notify,
     pub fx_dropped: AtomicU64,
     pub snapshots_skipped: AtomicU64,
-    pub bytes_queued: AtomicU64,
+    /// Total bytes of frames accepted into the queues (see [`OutboxCounters::bytes_enqueued_total`]).
+    pub bytes_enqueued_total: AtomicU64,
 }
 
 pub enum Next {
@@ -46,7 +66,7 @@ impl Outbox {
         if s.important.len() >= IMPORTANT_CAP {
             s.closed = Some(RejectCode::TooSlow);
         } else {
-            self.bytes_queued
+            self.bytes_enqueued_total
                 .fetch_add(frame.len() as u64, Ordering::Relaxed);
             s.important.push_back(frame);
         }
@@ -63,7 +83,7 @@ impl Outbox {
             s.fx.pop_front();
             self.fx_dropped.fetch_add(1, Ordering::Relaxed);
         }
-        self.bytes_queued
+        self.bytes_enqueued_total
             .fetch_add(frame.len() as u64, Ordering::Relaxed);
         s.fx.push_back(frame);
         drop(s);
@@ -75,11 +95,21 @@ impl Outbox {
         if s.closed.is_some() {
             return;
         }
+        self.bytes_enqueued_total
+            .fetch_add(frame.len() as u64, Ordering::Relaxed);
         if s.snapshot.replace(frame).is_some() {
             self.snapshots_skipped.fetch_add(1, Ordering::Relaxed);
         }
         drop(s);
         self.notify.notify_one();
+    }
+
+    pub fn counters(&self) -> OutboxCounters {
+        OutboxCounters {
+            fx_dropped: self.fx_dropped.load(Ordering::Relaxed),
+            snapshots_skipped: self.snapshots_skipped.load(Ordering::Relaxed),
+            bytes_enqueued_total: self.bytes_enqueued_total.load(Ordering::Relaxed),
+        }
     }
 
     pub fn close(&self, why: RejectCode) {
@@ -136,6 +166,33 @@ mod tests {
         assert_eq!((imp, fx, snap), (1, FX_CAP, true));
         assert_eq!(o.fx_dropped.load(Ordering::Relaxed), 100 - FX_CAP as u64);
         assert_eq!(o.snapshots_skipped.load(Ordering::Relaxed), 99);
+    }
+
+    #[test]
+    fn counters_total_every_accepted_frame_and_ignore_a_closed_outbox() {
+        let o = Outbox::default();
+        o.important(vec![0; 10]);
+        for _ in 0..FX_CAP + 2 {
+            o.fx(vec![0; 3]);
+        }
+        o.snapshot(vec![0; 100]);
+        o.snapshot(vec![0; 200]);
+        let c = o.counters();
+        assert_eq!(c.fx_dropped, 2);
+        assert_eq!(c.snapshots_skipped, 1);
+        assert_eq!(c.bytes_enqueued_total, 10 + 3 * (FX_CAP as u64 + 2) + 300);
+        o.close(RejectCode::Kicked);
+        o.fx(vec![0; 50]);
+        o.snapshot(vec![0; 50]);
+        assert_eq!(
+            o.counters(),
+            c,
+            "a closed outbox accepts and counts nothing"
+        );
+        let mut sum = OutboxCounters::default();
+        sum.add(c);
+        sum.add(c);
+        assert_eq!(sum.fx_dropped, 4);
     }
 
     #[test]

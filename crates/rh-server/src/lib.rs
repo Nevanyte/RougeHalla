@@ -15,8 +15,15 @@ use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use axum_server::accept::Accept;
+use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
+use axum_server::Handle;
 use director::Director;
+use std::future::Ready;
+use std::io;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::TcpStream;
 
 pub const PROBE_PAGE: &str = include_str!("../web/probe.html");
 
@@ -39,8 +46,22 @@ pub fn control_router(director: Arc<Director>) -> Router {
         .with_state(director)
 }
 
+/// Per-connection WebSocket read buffer. Client frames are at most `MAX_CLIENT_FRAME` (1 KiB) plus a 14-byte header, so
+/// 4 KiB holds several; tungstenite's default of 128 KiB was 92% of the heap peak with 64 idle connections.
+pub const WS_READ_BUFFER: usize = 4 * 1024;
+/// Target size at which tungstenite writes its out-buffer to the socket (every send is flushed anyway; this only bounds
+/// what a burst of queued frames collects before the first socket write). Default is 128 KiB.
+pub const WS_WRITE_BUFFER: usize = 16 * 1024;
+/// Hard cap on the out-buffer: it can only grow past `WS_WRITE_BUFFER` while socket writes are stalling, and it must hold
+/// the buffered bytes plus the largest server frame (`MAX_SERVER_FRAME`) the writer may still feed. Past it the send
+/// fails and the connection ends, the same end a stalled client reaches through `SEND_TIMEOUT`.
+pub const WS_MAX_WRITE_BUFFER: usize = WS_WRITE_BUFFER + 2 * rh_protocol::MAX_SERVER_FRAME;
+
 async fn ws(upgrade: WebSocketUpgrade, State(d): State<Arc<Director>>) -> Response {
     upgrade
+        .read_buffer_size(WS_READ_BUFFER)
+        .write_buffer_size(WS_WRITE_BUFFER)
+        .max_write_buffer_size(WS_MAX_WRITE_BUFFER)
         .max_message_size(rh_protocol::MAX_CLIENT_FRAME)
         .max_frame_size(rh_protocol::MAX_CLIENT_FRAME)
         .on_upgrade(move |sock| conn::serve(sock, d))
@@ -85,4 +106,79 @@ async fn control_health(State(d): State<Arc<Director>>) -> impl IntoResponse {
 async fn control_drain(State(d): State<Arc<Director>>) -> impl IntoResponse {
     d.drain().await;
     Json(serde_json::json!({ "state": d.lifecycle.state_name() }))
+}
+
+/// Callback run on every accepted TCP stream after `TCP_NODELAY` was applied (tests read the socket option back here).
+pub type AcceptHook = Arc<dyn Fn(&TcpStream) + Send + Sync>;
+
+/// The production acceptor: sets `TCP_NODELAY` on every accepted socket, before any TLS handshake wraps it. Up to three
+/// small frames per client per tick would otherwise wait on Nagle and the peer's delayed ACK.
+#[derive(Clone, Default)]
+pub struct NoDelay {
+    hook: Option<AcceptHook>,
+}
+
+impl NoDelay {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The same acceptor, additionally calling `hook` with each accepted stream once nodelay is set.
+    pub fn with_hook(hook: AcceptHook) -> Self {
+        Self { hook: Some(hook) }
+    }
+}
+
+impl<S> Accept<TcpStream, S> for NoDelay {
+    type Stream = TcpStream;
+    type Service = S;
+    type Future = Ready<io::Result<(TcpStream, S)>>;
+
+    fn accept(&self, stream: TcpStream, service: S) -> Self::Future {
+        let done = stream.set_nodelay(true).map(|()| {
+            if let Some(hook) = &self.hook {
+                hook(&stream);
+            }
+            (stream, service)
+        });
+        std::future::ready(done)
+    }
+}
+
+/// Serve `router` on `bind`: wss/https when `tls` is given, plain ws/http otherwise. This is the one production serve
+/// path (main.rs and the tests both run it). `handle` carries graceful shutdown and the bound address.
+pub async fn serve(
+    bind: SocketAddr,
+    tls: Option<RustlsConfig>,
+    router: Router,
+    handle: Handle,
+) -> io::Result<()> {
+    serve_with(bind, tls, router, handle, NoDelay::new()).await
+}
+
+/// [`serve`] with a caller-supplied [`NoDelay`] (a test's accept hook).
+pub async fn serve_with(
+    bind: SocketAddr,
+    tls: Option<RustlsConfig>,
+    router: Router,
+    handle: Handle,
+    acceptor: NoDelay,
+) -> io::Result<()> {
+    let svc = router.into_make_service();
+    match tls {
+        Some(cfg) => {
+            axum_server::bind(bind)
+                .acceptor(RustlsAcceptor::new(cfg).acceptor(acceptor))
+                .handle(handle)
+                .serve(svc)
+                .await
+        }
+        None => {
+            axum_server::bind(bind)
+                .acceptor(acceptor)
+                .handle(handle)
+                .serve(svc)
+                .await
+        }
+    }
 }

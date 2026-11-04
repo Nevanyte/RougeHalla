@@ -71,10 +71,16 @@ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server 
         Arc::new(Auth::Dev),
         lifecycle.clone(),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    // The production serve path (TCP_NODELAY acceptor, WebSocket buffer sizes), not a test-only listener.
     let app = rh_server::public_router(director.clone());
-    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let handle = axum_server::Handle::new();
+    let h = handle.clone();
+    tokio::spawn(async move {
+        rh_server::serve("127.0.0.1:0".parse().unwrap(), None, app, h)
+            .await
+            .unwrap()
+    });
+    let addr = handle.listening().await.expect("listening");
     lifecycle.ready();
     Server {
         url: format!("ws://{addr}/ws"),
