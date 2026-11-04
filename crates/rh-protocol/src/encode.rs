@@ -375,10 +375,17 @@ fn write_self(w: &mut Writer, s: &WireSelf, mask: u16) {
 /// The actor mask of `a`: the status inline, and a bit for every optional field that differs from its default.
 #[inline]
 fn actor_mask(a: &WireActor) -> u8 {
-    (kit(a.faction, a.weapon) != 0) as u8 * AM_KIT
-        | (a.hp_pct != DEFAULT_HP_PCT) as u8 * AM_HP
-        | (a.status & 3) << AM_STATUS_SHIFT
-        | (a.bounty != 0) as u8 * AM_BOUNTY
+    let mut m = (a.status & 3) << AM_STATUS_SHIFT;
+    if kit(a.faction, a.weapon) != 0 {
+        m |= AM_KIT;
+    }
+    if a.hp_pct != DEFAULT_HP_PCT {
+        m |= AM_HP;
+    }
+    if a.bounty != 0 {
+        m |= AM_BOUNTY;
+    }
+    m
 }
 
 /// Bytes one actor takes on the wire.

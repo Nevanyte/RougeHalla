@@ -188,6 +188,20 @@ mod tests {
         )
     }
 
+    /// A faction or weapon code rides in a 4-bit nibble, a status or phase code in 2 bits: adding content past that is a
+    /// protocol change, and this test is where it shows up first.
+    #[test]
+    fn content_codes_fit_the_wire_bit_widths() {
+        assert!(FactionId::ALL.len() as u8 <= rh_protocol::MAX_KIT_CODE + 1);
+        assert!(rh_sim::content::WeaponId::ALL.len() as u8 <= rh_protocol::MAX_KIT_CODE + 1);
+        for s in [Status::Lobby, Status::Alive, Status::Dead, Status::Mia] {
+            assert!(status(s) <= rh_protocol::MAX_STATUS_CODE);
+        }
+        for p in [Phase::Lobby, Phase::Active, Phase::Ended] {
+            assert!(phase(p) <= rh_protocol::MAX_PHASE_CODE);
+        }
+    }
+
     /// The v2 Snapshot carries no server time because it is always `tick x 50 ms`: the simulation starts at 0 and adds
     /// exactly one tick step per step, and an integer multiple of 50 is exact in f64.
     #[test]
