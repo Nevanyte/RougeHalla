@@ -31,16 +31,13 @@ pub use crate::systems::melee::in_arc;
 
 /// One match: what it is played with ([`MatchStatic`]), what evolves ([`World`]), per-tick working sets
 /// ([`TickScratch`], never part of a checkpoint or the hash) and the path search scratch.
-/// Clone + serde = checkpoint (the derived map tables and the scratch are rebuilt on restore).
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+/// Clone + serde = checkpoint `{format, statics, world}` (see `checkpoint.rs`; the derived map tables and the scratch are
+/// rebuilt on restore, and neither the scratch nor the path search state is ever serialized).
+#[derive(Clone, Debug)]
 pub struct Sim {
-    #[serde(rename = "statics")]
     pub(crate) k: MatchStatic,
-    #[serde(rename = "world")]
     pub(crate) w: World,
-    #[serde(skip)]
     pub(crate) s: TickScratch,
-    #[serde(skip)]
     pub(crate) pf: Pathfinder,
 }
 
