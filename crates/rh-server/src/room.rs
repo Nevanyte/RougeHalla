@@ -20,6 +20,9 @@ pub const RECONNECT_GRACE: Duration = Duration::from_secs(10);
 /// A finished match stays up this long so clients receive the end and their results.
 pub const LINGER: Duration = Duration::from_secs(5);
 pub const INBOUND_CAP: usize = 512;
+/// A room nobody has joined yet waits this long for its first player (admission may still be acquiring a durable lease)
+/// before closing itself.
+pub const UNCLAIMED_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub type MatchId = [u8; 16];
 
@@ -139,6 +142,8 @@ pub struct Room {
     fixed_bot_seed: Option<u64>,
     reconnect_grace: Duration,
     linger: Duration,
+    opened_at: Instant,
+    had_human: bool,
 }
 
 pub fn random16() -> [u8; 16] {
@@ -191,6 +196,8 @@ impl Room {
             fixed_bot_seed: cfg.fixed_bot_seed,
             reconnect_grace: cfg.reconnect_grace,
             linger: cfg.linger,
+            opened_at: now,
+            had_human: false,
         }
     }
 
@@ -422,8 +429,12 @@ impl Room {
         for p in expired {
             self.leave(p);
         }
-        if self.humans.is_empty() && self.sim.phase != Phase::Ended {
-            // Nobody left to play for: a lobby closes; a run's remaining players are all bots or gone.
+        if self.humans.is_empty()
+            && self.sim.phase != Phase::Ended
+            && (self.had_human || now.duration_since(self.opened_at) >= UNCLAIMED_TIMEOUT)
+        {
+            // Nobody left to play for: a lobby closes; a run's remaining players are all bots or gone. A room nobody has
+            // joined yet waits for its first player (its admission may be acquiring a durable lease off the tick).
             return self.close();
         }
         let steps = self.pacer.due(now);

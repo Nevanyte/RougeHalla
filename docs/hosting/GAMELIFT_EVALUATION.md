@@ -1,5 +1,9 @@
 # Amazon GameLift Servers (managed containers + queues) evaluation
 
+> **Stage 1 note (coordinator).** The Rust server's local control API is `/control/health` and `/control/drain` today
+> (`crates/rh-server/src/lib.rs`). The `/internal/*` endpoint names below were this evaluation's proposal; the remaining
+> bridge endpoints (session start, player admission/leave, ended) are backlog packet P-HOST-1, which reconciles the names.
+
 Status: research only. Nothing here was run against AWS (no credentials in this environment).
 Research date: 2026-11-04. All docs were fetched on that date; AWS pages change, so re-check before committing money.
 Convention: every claim has a URL. `UNVERIFIED` = not confirmed from a primary source in this pass.

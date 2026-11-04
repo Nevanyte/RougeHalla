@@ -29,6 +29,7 @@ serde_json = { version = "1", features = ["float_roundtrip"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 
 [dev-dependencies]
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"] }
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 tokio = { version = "1", features = ["test-util"] }
 

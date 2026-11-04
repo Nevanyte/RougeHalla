@@ -30,7 +30,7 @@ in `input.rs`; the protocol/C# mirror is a shared-file change (README).
 C-INPUT (`target` is a normal validated command; one path search per `TARGET_REPATH_MS` per player is the abuse bound), C-TICK
 (`updateTargets` position), C-OBS, C-PARITY. ADR 0005 (policies may issue `target` through the same seat path).
 
-## Behaviour to preserve (from code)
+## Behaviour to preserve
 - Only the **wand** locks (`handleTarget`: `activeWeapon === "wand"`); the game client sends `target` for the wand and `attack`/`release` for everything else. Mobs never lock.
 - `lockable`: target standing, not evading, not untargetable (Swarm, P-ABIL-1), hostile, visible to the locker (players), within `TARGET_RANGE` 640 u. Line of sight is not needed to lock, only to attack; a target out of sight needs a path (one search; an order sooner than `TARGET_REPATH_MS` after the last is refused). Re-clicking the locked fighter changes nothing (no cooldown loss, trigger kept). A new lock clears the earlier walk and lets go of the trigger; the old lock's pending windup is cancelled unless it already targets the new fighter.
 - Each tick (`follow`): drop to `resumeAttackMove` when the locker is not standing, the target is gone/unlockable, or the weapon is no longer the wand; a stunned locker keeps the lock but does not chase/aim/fire; sight bookkeeping (`lockSeen`, `lockLosLostAt`; a target seen once and then out of sight for `TARGET_LOS_GRACE_MS` 1.5 s is dropped, a target never seen is chased behind the wall); `decide(...)` with `lockSpacing("wand")`: `far = 0.88 * 640`, `attackRange = 0.96 * 640`, `retreatBelow 0`, lead speed from the policy; movement re-planned at most every `TARGET_REPATH_MS` and only if the goal moved over `GOAL_MOVED` 8 u or the path ran out; a goal with no path that is out of sight, or provably in another move component (`sealedOff`, `moveComponents`), ends the lock.
@@ -39,7 +39,7 @@ C-INPUT (`target` is a normal validated command; one path search per `TARGET_REP
 - The player's own `move`, `stop` or an accepted `target` on another fighter **cancels a locked windup** that has not landed (`cancelLockedWindup`): no ball/arrow/swing, `readyAt = action.startedAt` (cooldown refunded), root cut, bow `drawStartedAt` cleared, a `cancel` fx for the telegraph. Re-clicking the same target, a refused `target`, a landed attack and an `attack` input cancel nothing. A directional windup (mob, harness, `attack` input) stays committed.
 - Attack-move (`attackMove {x, y}`): wand only; walks the point order and acquires the nearest lockable hostile in `attackRange` with line of sight (ties: cursor distance, then smaller id); after losing a target it resumes the point order (`resumeAttackMove`).
 - `endRun` and the teleport drop every lock; a swap to a non-wand drops it.
-- Doc/code note: CLAUDE.md describes bows as locking in older text; code and "Live playtest controls" say wand only.
+- Doc/code note: docs/legacy/CLAUDE_LEGACY.md describes bows as locking in older text; code and "Live playtest controls" say wand only.
 
 ## Acceptance checks
 1. Re-capture `bow_wand_capture`, set `parity: "slice"` in `capture.ts`, and make `cargo test -p rh-parity` pass on it (727 ticks, 56 hits, 1 death, uses a wand lock plus a directional bow).

@@ -32,7 +32,7 @@ C-TICK (weapons phase position), C-INPUT (new `swap`/`pickup` commands go throug
 6 actions per tick), C-PARITY, C-DET (state hash must include new state), C-OBS (carried weapons of others are public:
 `ActorView.weapon` already exists; ground items need a deliberate observation decision). ADR 0007. `docs/GAME_DESIGN.md` section 9.
 
-## Behaviour to preserve (from code)
+## Behaviour to preserve
 - Weapon numbers already in `content.rs`: sword reach 112 / half-arc pi/4 / boost 1.15 / floor 0.25 / dpsMult 0.75; shield reach 96 / pi/3 / 0.6 / 0.3 / 0.75; axe 112 / pi/2 / 0.4 / 0.35 / 0.77; fists 72 / pi/3 / 1.5 / 0.2 / 0.6. Player melee windup is 0 for every melee weapon, the axe included (`weaponTimings(..., "player")` in `shared/src/weapons.ts` returns early for a non-ranged weapon; `AXE_WINDUP` 0.25 s / `AXE_ROOT` 0 are the NPC/mob profile, P-MOBS-1), which is what Rust `player_timings` does. Keep it; an axe capture proves it.
 - Swap: `swapAllowed(hand, target, secondLocked)`; the slot changes, the current action is cancelled, `readyAt = max(readyAt, now) + SWAP_SECONDS (0.25 s) * 1000`; a swap to an empty slot is allowed (it is fists); a swap between two empty slots does nothing; blocked while stunned or casting (stun/cast are P-STATUS-1: gate with a TODO test). `dropLock` unless the new weapon is a wand (locks arrive in P-COMBAT-3).
 - Pickup: only the exact container id sent; within `INTERACT_RANGE` 56 u of the **server** position, with a clear line on the **move** mask (`hasLineOfSight(..., MASK_MOVE)`, "Can't reach that" across a fence); a container born this tick is "Nothing there" (`bornThisTick`/`holdBirth`: a chest born in a ledger pass is first pickable two ticks on). Weapon goes into the hand's slot if empty (arms at once via `weaponChanged`), else the other slot if free (hand stays), else replaces the hand's weapon, which drops as a ground container at the player. Fists are never an item; picking up `fists` is refused.
@@ -41,7 +41,7 @@ C-TICK (weapons phase position), C-INPUT (new `swap`/`pickup` commands go throug
 - Shield: a raised shield (always up while in hand) blocks a **frontal** sword or bash hit (`angleBetween(atan2(...), facing) <= SHIELD_HALF_ARC + 1e-9`, 60 degrees): `SHIELD_BLOCK_SHARE` 0.07 of the hit is stopped, 0.93 lands and never staggers; the riposte returns `RIPOSTE_SHARE` 0.5 of the **blocked part** (`raw * 0.07 * 0.5`) to the attacker as a `passive` hit with weapon `shield`. Fists pierce shields (`shieldOutcome`).
 - Axe shred: each axe hit takes `AXE_SHRED_ARMOR` 3 off the target for `AXE_SHRED_MS` 3000, summing to `AXE_SHRED_CAP` 6 (a negative armor bonus; total armor stops at 0; a weapon never scales with a debuff). Wand splash is P-COMBAT-2.
 - `SimConfig.weaponSpecials: false` leaves every weapon with its damage alone (legacy flag used by the faction parity harness): add the same flag.
-- Doc/code note: CLAUDE.md says sword/bash windup 0.1 s; the code has `SWORD_WINDUP`/`BASH_WINDUP` 0.1 for the NPC profile and 0 for players. Code wins.
+- Doc/code note: docs/legacy/CLAUDE_LEGACY.md says sword/bash windup 0.1 s; the code has `SWORD_WINDUP`/`BASH_WINDUP` 0.1 for the NPC profile and 0 for players. Code wins.
 
 ## Acceptance checks
 1. New capture scenarios (all `parity: "slice"`; add `weapon0`/`weapon1` to the Rust `Placement` so the harness sets them like `capture.ts` does with `s.weapon0`): `sword_vs_fists`, `shield_block_riposte`, `axe_shred_stack`, `sword_stagger_cancel`, `swap_cooldown`, `pickup_replace_drop`. Each runs >= 200 ticks with hits, events and a result.

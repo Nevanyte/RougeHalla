@@ -5,7 +5,8 @@
 //!   Starting --ready--> Ready --(sessions run)--> Draining --(last room closes)--> Terminated
 //!
 //! * readiness/health: `GET /control/health` (200 while Ready and healthy, 503 otherwise) and the state name in `/info`;
-//! * allocation: rooms are created on admission (local) or ahead of a placement (`POST /control/session`);
+//! * allocation: rooms are created on admission today; creating one ahead of a GameLift placement (a session-start
+//!   endpoint for the bridge) is backlog packet P-HOST-1;
 //! * draining (scale-in, deployment, SIGTERM, GameLift onProcessTerminate): `POST /control/drain` stops admissions; active
 //!   matches play to their end; `Terminated` is reached when the last room closes, and the binary exits.
 

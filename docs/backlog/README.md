@@ -3,7 +3,7 @@
 Written for a team that has only this repository (no chat history). Stage 1 built the Rust foundation; everything below is
 what is left. Read first: [../CONTRACTS.md](../CONTRACTS.md) (invariants `C-*`), [../adr/README.md](../adr/README.md),
 [../../parity/README.md](../../parity/README.md), [../legacy/INVENTORY.md](../legacy/INVENTORY.md) (legacy systems and numbers,
-and section 9 "stale-doc discrepancies": the legacy `CLAUDE.md` is a map, **code wins**).
+and section 9 "stale-doc discrepancies": the legacy `docs/legacy/CLAUDE_LEGACY.md` is a map, **code wins**).
 
 **What exists (do not re-plan it):** `rh-sim` slice = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
 fists melee with zero-windup player swings and lag-compensated rewind, the damage ledger (PvP factor at card power 0,
@@ -22,7 +22,7 @@ full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the s
 
 | Wave | Items | Why this order |
 |---|---|---|
-| 0 | P-CAPTURE-1, P-CI-1 | Every mechanic packet needs the capture tool and a CI job that re-captures and runs the workspace |
+| 0 | P-CAPTURE-1 | Every mechanic packet needs the generalised capture tool and the re-capture CI job (the Rust CI baseline, `.github/workflows/rust.yml`, already exists) |
 | 1 (parallel) | P-COMBAT-1, P-COMBAT-2, P-MAP-1, P-ARENA-1, P-UNITY-1, P-HOST-1, P-PERSIST-2, P-NET-1, P-BOTS-1 | No hard dependency on each other; they touch different crates. Shared files (below) are merged one at a time |
 | 2 | P-COMBAT-3 (after COMBAT-2), P-FACTION-1 (after COMBAT-1), P-MOBS-1 (after COMBAT-1/2, owns the camps part of `rh-map/2`), P-STATUS-1, P-VISION-1 | Locks need ranged aim; signatures need hit events with weapon info; mobs need weapons and camps |
 | 3 | P-ABIL-1, P-CARDS-1, P-FACTION-2..5, P-TERRAIN-1, P-LOOT-1, P-CONS-1, P-TRADE-1, P-MOBS-2, P-ARENA-2 | Build on waves 1-2 |
@@ -36,9 +36,10 @@ position), `crates/rh-sim/src/content.rs` (and `content_hash`), `crates/rh-sim/s
 (`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`, `Cargo.toml`/`Cargo.lock`, and
 `parity/legacy-capture/capture.ts`. Prefer a new module file per mechanic with a minimal hook in `sim.rs`.
 
-**Status records.** Only the coordinator updates shared status records: the `docs/MIGRATION.md` checkpoint and the status
-table in [../CONTRACTS.md](../CONTRACTS.md). (Both are referenced by the docs; `docs/MIGRATION.md` did not exist when this
-backlog was written, see "Doc/code contradictions" in the hand-off.) A worker updates only its packet's exclusive write
+**Status records.** Only the coordinator updates shared status records: the `docs/MIGRATION.md` checkpoint (referenced by
+`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md` and `docs/REQUIREMENTS.md`; it did not exist when this backlog was written), the
+status table in [../CONTRACTS.md](../CONTRACTS.md), and `Cargo.lock` (`AGENTS.md`: a packet that adds a crate or dependency
+lists it in its hand-off and the coordinator regenerates the lock). A worker updates only its packet's exclusive write
 scope plus the row of the item in this file it finishes (status -> "Done (<commit>)"), and reports evidence (commands run
 and results) in its hand-off.
 
@@ -57,6 +58,10 @@ traps. Then change the item's status here from "Coarse" to "Ready packet". Cite 
   (`libm`). JSON checkpoints/replays need `serde_json` with `float_roundtrip`.
 - New public data needs an observation field (C-OBS leak tests stay green), a protocol addition (version bump, C# mirror,
   golden vectors) and a content-hash update; legacy events emitted between ticks travel with the next step.
+- Optimization (R-OPT-2): any change justified by speed or size records observed cost, mechanism, behavioural risk and
+  before/after evidence (revision, hardware, workload, build mode); existing tools: `cargo run --release -p rh-parity --bin
+  parity-bench -- crowded_8 20` vs `npx tsx parity/legacy-capture/bench.ts --scenario crowded_8`, and `cargo run --release -p
+  rh-server --bin wirebench`. Complexity without demonstrated value is removed.
 - Policies and ML seams: architecture only. **No training, rewards, datasets, model runtimes, Python bindings, inference
   services or GPU resources** anywhere in this backlog.
 
@@ -111,7 +116,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
 | P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | Ready packet | parity/legacy-capture/capture.ts |
-| P-CI-1 | Rust CI: fmt, clippy, `cargo test --workspace`, Postgres service, dotnet tests, browser proof | none | Coarse | .github/workflows/deploy.yml (legacy only; no Rust workflow exists) |
+| P-CI-1 | Rust CI baseline: fmt, clippy `-D warnings`, `cargo test --workspace` with a Postgres service, parity report, headless smoke, browser proof, dotnet job | none | Done (commit 659c4cf, `.github/workflows/rust.yml`); extras are tracked in P-CAPTURE-1 (re-capture job), P-CI-2, P-UI-10, P-OSS-2 | .github/workflows/deploy.yml (legacy manual deploy; untouched) |
 | P-CI-2 | aarch64 run of the determinism/parity suite (ADR 0007 declares the target, never run) | P-CI-1 | Coarse | none |
 | P-HEAD-1 | Headless benches per mechanic (step cost, TTK, duel harness equivalents) as Rust benches, not Node | each mechanic packet | Coarse | server/bench/*, server/src/harness/ |
 | P-PARITY-2 | Full-map and mob scenarios (real generated map, camps) once their packets land | P-MAP-1, P-MOBS-1 | Coarse | parity/legacy-capture/capture.ts |
@@ -148,7 +153,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-UI-5 | HUD: vitals, weapon bar, Wish slot, cards row, build strip, minimap, chest panel, quest log, toasts, potion cue | each mechanic; P-UNITY-1 | Coarse | client/src/ui/hud.ts, cardsRow.ts, buildHud.ts, minimap.ts, chestPanel.ts, questLog.ts, weaponBar.ts, abilitySlot.ts |
 | P-UI-6 | Planning screen and hold-Tab map, route drawing | P-ARENA-1, P-MAP-2 | Coarse | client/src/ui/planning.ts, route.ts, mapHold.ts, mapPainter.ts |
 | P-UI-7 | Combat presentation: projectiles, telegraphs, status art, hit numbers, juice (reduced-motion safe) | P-COMBAT-2, P-STATUS-1 | Coarse | client/src/render/* |
-| P-UI-8 | Visual upgrade per [../VISUAL_DIRECTION.md](../VISUAL_DIRECTION.md) (being written in parallel; the file may not exist yet) | P-UNITY-1 | Coarse | client/src/render/zoneArt/*, hub/hubArt.ts |
+| P-UI-8 | Visual upgrade per [../VISUAL_DIRECTION.md](../VISUAL_DIRECTION.md) (exists: quality tiers, budgets to establish) | P-UNITY-1 | Coarse | client/src/render/zoneArt/*, hub/hubArt.ts |
 | P-UI-9 | Settings, accessibility, input rebinding, audio decision | P-UNITY-1 | Coarse | client/src/settings.ts, ui/settingsPanel.ts |
 | P-UI-10 | Unity batchmode tests + build in CI | P-UNITY-1, P-CI-1 | Coarse | none |
 
@@ -178,7 +183,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 |---|---|---|---|---|
 | P-LOAD-1 | Load client: many protocol-v1 sessions with scripted policies over WSS | P-CI-1 | Coarse | server/bench/netProbe*.ts, bandwidth.ts |
 | P-LOAD-2 | Scenario runner at the **provisional** 200 matches / 1,600 players (an assumption, not authorization to spend) | P-LOAD-1, P-HOST-1 | Coarse | none |
-| P-LOAD-3 | Full-game tick cost and bandwidth budgets (avg < 5 ms / p99 < 15 ms tick and < 20 KB/s per client were the legacy gates) | mechanic packets | Coarse | server/bench/stepBench.ts, bandwidth.ts |
+| P-LOAD-3 | Full-game tick cost and bandwidth budgets (avg < 5 ms / p99 < 15 ms tick and < 20 KB/s per client were the legacy gates); extend the existing `parity-bench` (Rust `step()` on captured inputs vs `parity/legacy-capture/bench.ts`) and `wirebench` (bytes per player per second) | mechanic packets | Coarse | server/bench/stepBench.ts, bandwidth.ts |
 
 ### 10. Operations
 
@@ -206,7 +211,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 |---|---|---|---|---|
 | P-OSS-1 | License decision (no LICENSE exists; all package.json are private) | owner | Coarse | docs/legacy/INVENTORY.md section 8 |
 | P-OSS-2 | Asset and dependency audit: cargo (`cargo deny`/`about`), NuGet, npm, Unity packages, fonts/art provenance, the top-level `Unfinished code/` directory | P-OSS-1 | Coarse | package.json files |
-| P-OSS-3 | CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue templates | P-OSS-1 | Coarse | none |
+| P-OSS-3 | CODE_OF_CONDUCT, SECURITY, issue/PR templates, LICENSE file after the decision (`CONTRIBUTING.md` already exists and is correct for today's setup) | P-OSS-1 | Coarse | CONTRIBUTING.md |
 | P-OSS-4 | Secret scan and history audit before publishing | P-OSS-1 | Coarse | none |
 
 ### 13. ML seams follow-ups (architecture only)
@@ -220,6 +225,23 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 | P-ML-3 | Networked seat interface (the `AsyncSeat` contract over a local socket, auth and rate limits for an external seat) as a specification plus a stub transport test | P-BOTS-1 | Coarse | none |
 | P-ML-4 | Replay stability guarantee across versions (replay + content hash policy) | mechanic packets | Coarse | crates/rh-sim/src/replay.rs |
 
+## Requirement coverage ([../REQUIREMENTS.md](../REQUIREMENTS.md))
+
+| Requirement | Items |
+|---|---|
+| R-AUTH (Rust authority) | every section 1 item; P-NET-1 (prediction limits) |
+| R-WEB (Unity Web, 60 FPS target, budgets) | P-UNITY-1, P-UI-* |
+| R-AWS (hosting, regions, scaling, TLS, 200/1,600 assumption) | P-HOST-1..6, P-UI-2, P-LOAD-1..3 |
+| R-GAME (continuity) | sections 1-4, P-PARITY-2, P-CAPTURE-1 |
+| R-OPT (measured optimization) | P-LOAD-3, P-HEAD-1, cross-cutting rule above |
+| R-VIS (restrained visual upgrade) | P-UI-7, P-UI-8, P-UI-9, P-MAP-4 |
+| R-OSS | P-OSS-1..4, P-CI-1/2 |
+| R-ML (architecture only) | P-BOTS-1, P-ML-1..4 |
+| R-PERSIST | P-PERSIST-2..5, P-MIG-1 |
+| R-PROC | README rules; packets never claim parity beyond what is compared |
+
 ## Open owner questions (collected; not resolved here)
 
-See the hand-off report of the backlog author, and each packet's "Risk" and "Known traps" for the question that blocks it.
+Each packet's "Risk" and "Known traps" name the question that blocks it. The author's consolidated list is in the hand-off
+report of this backlog (license, map re-pin if hashes cannot match, hosting spend authorisation, Unity licence/hardware
+naming, `packages/` retirement, bot perception window, and the doc conflicts noted there).

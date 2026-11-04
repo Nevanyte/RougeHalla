@@ -1,5 +1,9 @@
 # GameLift container fleet staging experiment
 
+> **Stage 1 note (coordinator).** The Rust server's local control API is `/control/health` and `/control/drain` today
+> (`crates/rh-server/src/lib.rs`). The `/internal/*` endpoint names below were this evaluation's proposal; the remaining
+> bridge endpoints (session start, player admission/leave, ended) are backlog packet P-HOST-1, which reconciles the names.
+
 STATUS: **NOT RUN.** Written 2026-11-04 with no AWS access. Every command below is unexecuted. Command and parameter names were checked against the AWS CLI/API reference pages cited in `GAMELIFT_EVALUATION.md`; items marked `[verify: aws gamelift <cmd> help]` were not confirmed from a doc page and must be checked against `aws gamelift help` before use.
 Nothing here authorizes spending. Run only in a dedicated sandbox account after the owner approves the budget in section 1.
 

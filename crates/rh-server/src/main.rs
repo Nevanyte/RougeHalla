@@ -3,6 +3,7 @@
 //!   cargo run --release -p rh-server -- --bind 127.0.0.1:7777 [--self-signed | --tls-cert cert.pem --tls-key key.pem]
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
+//!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
 //!
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
 //! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits.
@@ -13,6 +14,31 @@ use rh_server::persist::{Auth, Persistence};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+
+/// `--database-url`: profiles, credentials, session leases and results in PostgreSQL (feature `postgres`).
+#[cfg(feature = "postgres")]
+async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
+    let store = Arc::new(
+        rh_persist::Store::connect(url)
+            .await
+            .expect("connect to PostgreSQL"),
+    );
+    store.migrate().await.expect("migrate");
+    let owner =
+        arg(args, "--instance-id").unwrap_or_else(|| format!("rh-server-{}", std::process::id()));
+    (
+        Persistence::Postgres {
+            store: store.clone(),
+            owner,
+        },
+        Auth::Postgres(store),
+    )
+}
+
+#[cfg(not(feature = "postgres"))]
+async fn durable(_: &str, _: &[String]) -> (Persistence, Auth) {
+    panic!("--database-url needs a build with `--features postgres`");
+}
 
 fn arg(args: &[String], k: &str) -> Option<String> {
     args.iter()
@@ -64,9 +90,13 @@ async fn main() {
         Some(other) => panic!("unknown --auth {other}"),
     };
     let lifecycle = Arc::new(Lifecycle::default());
+    let (persistence, auth) = match arg(&args, "--database-url") {
+        None => (Persistence::memory(), auth),
+        Some(url) => durable(&url, &args).await,
+    };
     let director = Director::new(
         cfg,
-        Arc::new(Persistence::memory()),
+        Arc::new(persistence),
         Arc::new(auth),
         lifecycle.clone(),
     );
