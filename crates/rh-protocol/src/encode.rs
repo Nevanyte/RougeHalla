@@ -921,95 +921,10 @@ pub fn encode_welcome_into(
     Ok(len)
 }
 
-/// The one implementation of a Snapshot frame's streaming and refusals: [`encode_snapshot_into`] and [`SnapshotWriter`] are
-/// both thin shells over it, so their bytes and errors cannot drift apart. It owns the buffer from `begin` to `finish`.
-struct SnapshotCore {
-    w: Writer,
-    /// Where the frame starts in the caller's buffer (bytes before it are the caller's and are never touched).
-    start: usize,
-    declared: usize,
-    n: usize,
-    fault: Option<&'static str>,
-    last_id: Option<u32>,
-}
-
-impl SnapshotCore {
-    /// Takes the buffer and writes the header, the self and the announced actor count. The buffer is reserved for the least
-    /// those bytes can take (an actor is 8 to 22 bytes, a typical one 9).
-    #[inline]
-    fn begin(
-        buf: Vec<u8>,
-        tick: u32,
-        phase: u8,
-        ack_input: u32,
-        me: Option<&WireSelf>,
-        actors: usize,
-    ) -> Self {
-        let start = buf.len();
-        let fault = if phase > MAX_PHASE_CODE
-            || me.is_some_and(|s| {
-                (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE
-            }) {
-            snapshot_fault(phase, me, &[])
-        } else {
-            None
-        };
-        let mut w = Writer::from_vec(buf);
-        w.reserve(
-            MIN_SNAPSHOT_HEAD_LEN
-                + me.map_or(0, |_| MIN_SELF_LEN)
-                + MIN_ACTOR_LEN * actors.min(MAX_ACTORS),
-        );
-        write_snapshot_head(&mut w, tick, phase, ack_input, me, actors);
-        Self {
-            w,
-            start,
-            declared: actors,
-            n: 0,
-            fault,
-            last_id: None,
-        }
-    }
-
-    #[inline]
-    fn actor(&mut self, a: &WireActor) {
-        write_actor(&mut self.w, a, self.last_id);
-        // One branch on the hot path; the reason is worked out only for a refused frame.
-        if actor_looks_bad(a, self.last_id) && self.fault.is_none() {
-            self.fault = snapshot_fault(0, None, std::slice::from_ref(a)).or(self
-                .last_id
-                .is_some_and(|p| a.id <= p)
-                .then_some("actor order"));
-        }
-        self.last_id = Some(a.id);
-        self.n += 1;
-    }
-
-    /// Hands the buffer back with the frame in it (its length is returned), or with the frame removed and the reason.
-    #[inline]
-    fn finish(mut self) -> (Vec<u8>, Result<usize, EncodeError>) {
-        let result = match list("actors", self.declared, MAX_ACTORS) {
-            Err(e) => Err(e),
-            Ok(()) if self.n != self.declared => Err(EncodeError::CountMismatch {
-                declared: self.declared,
-                written: self.n,
-            }),
-            Ok(()) => match self.fault {
-                Some(why) => Err(EncodeError::BadValue(why)),
-                None => Ok(self.w.len() - self.start),
-            },
-        };
-        if result.is_err() {
-            self.w.truncate(self.start);
-        }
-        (self.w.finish(), result)
-    }
-}
-
 /// Appends one Snapshot frame to `out` from an iterator of the caller's actors, in one call: the same bytes, refusals and
-/// errors as [`SnapshotWriter`] (`begin`, one `actor` each, `finish`; both run the same core). The iterator's `len()` is
-/// the announced actor count; an iterator that yields another number is a [`EncodeError::CountMismatch`]. On any error
-/// `out` is left as it was. Returns the frame's length.
+/// errors as [`SnapshotWriter`] (`begin`, one `actor` each, `finish`), without that type's moves and bookkeeping. The
+/// iterator's `len()` is the announced actor count; an iterator that yields another number is a
+/// [`EncodeError::CountMismatch`]. On any error `out` is left as it was. Returns the frame's length.
 pub fn encode_snapshot_into<I>(
     out: &mut Vec<u8>,
     tick: u32,
@@ -1022,14 +937,42 @@ where
     I: ExactSizeIterator<Item = WireActor>,
 {
     let declared = actors.len();
-    // Refused before anything is written (and before the buffer is touched).
     list("actors", declared, MAX_ACTORS)?;
-    let mut core = SnapshotCore::begin(std::mem::take(out), tick, phase, ack_input, me, declared);
+    let start = out.len();
+    let mut fault = if phase > MAX_PHASE_CODE
+        || me.is_some_and(|s| (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE)
+    {
+        snapshot_fault(phase, me, &[])
+    } else {
+        None
+    };
+    let mut w = Writer::from_vec(std::mem::take(out));
+    w.reserve(MIN_SNAPSHOT_HEAD_LEN + me.map_or(0, |_| MIN_SELF_LEN) + MIN_ACTOR_LEN * declared);
+    write_snapshot_head(&mut w, tick, phase, ack_input, me, declared);
+    let (mut last, mut n) = (None, 0usize);
     for a in actors {
-        core.actor(&a);
+        write_actor(&mut w, &a, last);
+        if actor_looks_bad(&a, last) && fault.is_none() {
+            fault = snapshot_fault(0, None, std::slice::from_ref(&a))
+                .or(last.is_some_and(|p| a.id <= p).then_some("actor order"));
+        }
+        last = Some(a.id);
+        n += 1;
     }
-    let (buf, result) = core.finish();
-    *out = buf;
+    let result = if n != declared {
+        Err(EncodeError::CountMismatch {
+            declared,
+            written: n,
+        })
+    } else if let Some(why) = fault {
+        Err(EncodeError::BadValue(why))
+    } else {
+        Ok(w.len() - start)
+    };
+    if result.is_err() {
+        w.truncate(start);
+    }
+    *out = w.finish();
     result
 }
 
@@ -1038,23 +981,31 @@ where
 /// its own data (an observation) to [`WireActor`]s one at a time on the stack, so no `Vec<WireActor>` is built. The bytes
 /// are exactly those of the equivalent `ServerMsg::Snapshot`.
 ///
-/// The server's own path is [`encode_snapshot_into`] (one call over an iterator); this is the push-style form for a caller
-/// that cannot hand over an iterator, over the same core, so the two accept and refuse exactly the same frames.
+/// The server's own path is [`encode_snapshot_into`] (one call over an iterator, the one the hot path pays for); this is
+/// the push-style form for callers that cannot hand over an iterator (the encode benchmark, tests). They are separate
+/// code on purpose: routing the server through a shared core measured +1.05% instructions per step on the wire workload,
+/// so `tests/encode.rs` holds them byte- and refusal-identical instead (every refusal, including a lying length).
 ///
 /// The count goes first on the wire (a varint, so it cannot be patched afterwards): `begin` takes the exact number of
 /// actors that will follow, and `finish` fails with [`EncodeError::CountMismatch`] when the caller wrote another number,
-/// [`EncodeError::TooMany`] when it is over [`MAX_ACTORS`] or [`EncodeError::BadValue`] for a value the format cannot carry
-/// (an `hp_pct` over 100, ids that do not strictly ascend, a faction, weapon, status or phase over its bit width; frames
-/// every decoder would reject); the frame is removed from the buffer in both cases, and the writer never drops actors
-/// itself. Dropping the writer without `finish` also removes the partial frame.
+/// [`EncodeError::TooMany`] when it is over [`MAX_ACTORS`] or [`EncodeError::BadValue`] for a value the format cannot carry (an `hp_pct` over 100, ids that do not strictly
+/// ascend, a faction, weapon, status or phase over its bit width; frames every
+/// decoder would reject); the frame is removed
+/// from the buffer in both cases, and the writer never drops actors itself. Dropping the writer without `finish` also
+/// removes the partial frame.
 pub struct SnapshotWriter<'a> {
     out: &'a mut Vec<u8>,
-    /// `None` once finished (the buffer is back in `out`).
-    core: Option<SnapshotCore>,
+    w: Writer,
+    start: usize,
+    declared: usize,
+    n: usize,
+    fault: Option<&'static str>,
+    last_id: Option<u32>,
 }
 
 impl<'a> SnapshotWriter<'a> {
-    /// `actors`: how many actors will follow.
+    /// `actors`: how many actors will follow. The buffer is reserved for the least those bytes can take (an actor is 8 to
+    /// 22 bytes, a typical one 9), so a buffer reused across frames never grows more than once to its working size.
     pub fn begin(
         out: &'a mut Vec<u8>,
         tick: u32,
@@ -1063,42 +1014,78 @@ impl<'a> SnapshotWriter<'a> {
         me: Option<&WireSelf>,
         actors: usize,
     ) -> Self {
-        let core = SnapshotCore::begin(std::mem::take(out), tick, phase, ack_input, me, actors);
+        let start = out.len();
+        let fault = if phase > MAX_PHASE_CODE
+            || me.is_some_and(|s| {
+                (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE
+            }) {
+            snapshot_fault(phase, me, &[])
+        } else {
+            None
+        };
+        let mut w = Writer::from_vec(std::mem::take(out));
+        w.reserve(
+            MIN_SNAPSHOT_HEAD_LEN
+                + me.map_or(0, |_| MIN_SELF_LEN)
+                + MIN_ACTOR_LEN * actors.min(MAX_ACTORS),
+        );
+        write_snapshot_head(&mut w, tick, phase, ack_input, me, actors);
         Self {
             out,
-            core: Some(core),
+            w,
+            start,
+            declared: actors,
+            n: 0,
+            fault,
+            last_id: None,
         }
     }
 
     /// Appends one actor (in the order the observation lists them).
     #[inline]
     pub fn actor(&mut self, a: &WireActor) {
-        if let Some(c) = self.core.as_mut() {
-            c.actor(a);
+        write_actor(&mut self.w, a, self.last_id);
+        // One branch on the hot path; the reason is worked out only for a refused frame.
+        if actor_looks_bad(a, self.last_id) && self.fault.is_none() {
+            self.fault = snapshot_fault(0, None, std::slice::from_ref(a)).or(self
+                .last_id
+                .is_some_and(|p| a.id <= p)
+                .then_some("actor order"));
         }
+        self.last_id = Some(a.id);
+        self.n += 1;
     }
 
     /// Actors written so far.
     pub fn actors(&self) -> usize {
-        self.core.as_ref().map_or(0, |c| c.n)
+        self.n
     }
 
     /// Completes the frame and returns its length, or removes it from the buffer (see the type's docs).
     pub fn finish(mut self) -> Result<usize, EncodeError> {
-        let core = self.core.take().expect("finish consumes the writer once");
-        let (buf, result) = core.finish();
-        *self.out = buf;
-        result
+        list("actors", self.declared, MAX_ACTORS)?;
+        if self.n != self.declared {
+            return Err(EncodeError::CountMismatch {
+                declared: self.declared,
+                written: self.n,
+            });
+        }
+        if let Some(why) = self.fault {
+            return Err(EncodeError::BadValue(why));
+        }
+        let len = self.w.len() - self.start;
+        // Mark the frame complete for Drop: everything up to the current end is kept.
+        self.start = self.w.len();
+        Ok(len)
     }
 }
 
 impl Drop for SnapshotWriter<'_> {
-    /// Hands the buffer back; an unfinished frame is removed, so `out` never holds half a frame.
+    /// Hands the buffer back; an unfinished (or refused) frame is removed, so `out` never holds half a frame.
     fn drop(&mut self) {
-        if let Some(mut c) = self.core.take() {
-            c.w.truncate(c.start);
-            *self.out = c.w.finish();
-        }
+        let mut w = std::mem::take(&mut self.w);
+        w.truncate(self.start);
+        *self.out = w.finish();
     }
 }
 

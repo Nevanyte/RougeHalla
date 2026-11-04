@@ -306,6 +306,17 @@ fn a_lying_exact_size_iterator_is_a_count_mismatch_and_leaves_the_buffer_alone()
         })
     );
     assert_eq!(out, [7, 8]);
+    // The push-style writer refuses the same lie the same way.
+    let mut w = SnapshotWriter::begin(&mut out, 1, 1, 1, Some(&me()), 5);
+    (0..4).for_each(|i| w.actor(&actor(i)));
+    assert_eq!(
+        w.finish(),
+        Err(EncodeError::CountMismatch {
+            declared: 5,
+            written: 4
+        })
+    );
+    assert_eq!(out, [7, 8]);
     // And a truthful one still writes (the buffer is reusable after a refusal).
     assert!(
         rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, Liar { left: 4, claim: 4 })
