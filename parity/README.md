@@ -41,7 +41,7 @@ legacy generator's certified attempt, with its `mapHashU32`) and 300 `findPath` 
 
 Discrete outcomes must match **exactly**: which events happen on which tick (hits, swings, deaths, victory), who hit whom,
 statuses, results (outcome, place, kills, killedBy, GV). Continuous values (positions, facings, hp, hit amounts, ready
-times) must match within `1e-6` absolute after the fixture's own 1e-6 rounding (so effectively within one rounding step):
+times) must match within `2e-6` absolute (`rh_parity::TOL`: the fixture's own 1e-6 rounding plus one step):
 the Rust core uses the same IEEE-754 double arithmetic in the same order, and transcendental functions (`atan2`, `hypot`,
 `exp`, `asin`, `sin`, `cos`) come from the `libm` crate in Rust and from V8 in the legacy code, which can differ in the last
 ulp. A tolerance that hides a changed hit, winner, reward or timing is a harness bug.

@@ -1,1 +1,1 @@
-{"probe":"client-unity/RoguehallaNet.Probe (dotnet 8) against target/debug/rh-server ws://127.0.0.1:7461, duel map, 1 human + 2 fill bots, 8 s","result":{"welcome":true,"snapshots":157,"lastTick":157,"rttMsP50":8.25,"rejects":[],"resultSeen":false,"errors":[]}}
+{"probe":"client-unity/RoguehallaNet.Probe (dotnet 8) against target/debug/rh-server ws://127.0.0.1:7461, duel map, 1 human + 2 fill bots, 8 s (re-run after the exit-review fixes)","result":{"welcome":true,"snapshots":157,"lastTick":157,"rttMsP50":8.4,"rejects":[],"resultSeen":false,"errors":[]}}

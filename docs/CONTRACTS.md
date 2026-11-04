@@ -12,16 +12,16 @@ status** (Passed / Failed / Blocked / Not run) at the revision recorded in [MIGR
 | ID | Contract | Decision | Validation | Tests |
 |---|---|---|---|---|
 | C-TICK | Fixed 20 Hz step; sim time +50 ms per step; fixed system order | Accepted, FROZEN | Passed | parity suite; `rh-server` pacer unit tests |
-| C-RNG | No entropy in the core; injected secrets; one stream per purpose | Accepted, FROZEN | Passed | `rh-sim/tests/observe.rs` salt test; determinism tests |
+| C-RNG | No entropy in the core; injected secrets; one stream per purpose | Accepted, FROZEN | Passed (with the known tie-outcome observability below) | `rh-sim/tests/observe.rs`; `tie_kill_credit_*` parity fixtures; determinism tests |
 | C-NUM | f64, legacy order, no FMA, `libm` transcendentals | Accepted, FROZEN | Passed (x86_64) / Not run (aarch64) | parity suite |
 | C-DET | Replays and checkpoints reproduce every step hash; live = headless | Accepted, FROZEN | Passed | `rh-headless/tests/env.rs`, `rh-server/tests/equivalence.rs` |
 | C-INPUT | One input path for every actor; validation; order budget; ≤ 6 actions/tick | Accepted, FROZEN | Passed | `rh-sim` input unit tests; flood policy test; live tests |
 | C-OBS | Three views (state / public snapshot / observation); no leaks | Accepted, FROZEN | Passed (slice) | `rh-sim/tests/observe.rs` |
-| C-NET | Protocol v1 framing, limits, versioning, event classes, resume | Accepted, FROZEN | Passed | `rh-protocol/tests`, C# tests, `rh-server/tests/live.rs`, browser proof |
+| C-NET | Protocol v1 framing, limits, versioning, event classes, resume, liveness | Accepted, FROZEN | Passed (loopback; no real-network or load test yet) | `rh-protocol/tests`, C# tests, `rh-server/tests/live.rs`, browser proof |
 | C-MAP | Server-sent canonical map | Accepted | Passed (blob + hash) | protocol vectors; browser proof `admission_and_map` |
 | C-POLICY | Seat contract, cadence, faults, async deadline | Accepted, FROZEN | Passed | `rh-headless/tests/env.rs`, equivalence test |
-| C-PERSIST | Idempotent results, fenced leases, ledger reconciliation | Accepted, FROZEN | Passed (local PG 16) | `rh-persist/tests` |
-| C-HOST | Lifecycle states, drain, control API, no SDK in process | Provisional | Passed locally / Blocked on AWS | `rh-server/tests/live.rs` drain test |
+| C-PERSIST | Idempotent results, fenced leases, ledger reconciliation | Accepted, FROZEN | Store: Passed (local PG 16). Server path: Passed for results, MIA results and lease release on leave/close (`pg_e2e`); **lease renewal not implemented**, a crashed host's leases wait for their TTL (3600 s), and unwritten results live only in memory (~2 min of retries) | `rh-persist/tests`, `rh-server/tests/pg_e2e.rs` |
+| C-HOST | Lifecycle states, drain (control API, SIGTERM, Ctrl-C), no SDK in process | Provisional | Passed locally / Blocked on AWS | `rh-server/tests/live.rs` drain test, `tests/sigterm.rs` |
 | C-PARITY | Legacy behaviour reproduced within the stated tolerances | Accepted, FROZEN | Passed (slice: 8 scenarios + 300 paths) | `rh-parity/tests/parity.rs` |
 
 ## C-TICK: time and order
@@ -43,6 +43,9 @@ status** (Passed / Failed / Blocked / Not run) at the revision recorded in [MIGR
   `spawn_seed` → spawn shuffle. Future streams (rewards, quests, loot, mob AI) get their own seeds in `Secrets`
   (legacy: `rewardRandom`, `questRandom`, `hashSalt`, `world.random`: docs/legacy/INVENTORY.md section 4).
 - Secrets never appear in snapshots, observations, events or public exports. Replays contain them (private artifacts).
+- Known limit (inherited from legacy, its Known TODOs): the action order decides tied outcomes (e.g. who gets a kill when
+  two equal hits land together), so a client that stages many ties and reads their outcomes learns bits of the order salt.
+  A per-match salt bounds the damage; changing it is owner decision 14 in [backlog/README.md](backlog/README.md).
 
 ## C-NUM: numeric policy
 See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the only source of `atan2/hypot/exp/asin/pow`.
@@ -80,6 +83,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   (latest-wins, with `ack_input`). A client more than 256 important frames behind is closed with `TooSlow`.
 - Resume: Welcome carries a 16-byte session token; a dropped seat is held `RECONNECT_GRACE` (10 s) and then leaves (MIA in
   a run); resuming re-sends Welcome (full map) and continues.
+- Liveness: a connection that sends nothing for `idle_timeout` (10 s; clients ping every 0.5-1 s) is dropped (its seat held
+  for the grace); a socket write stuck for 5 s ends the connection. Each connection has a process-unique id: a seat ignores
+  input, disconnect and leave from a connection its resume replaced.
+- Every room phase change is reported to the director; a lobby that closed into its run is never offered to a new player.
 - Durable I/O never runs on a room task.
 
 ## C-POLICY
@@ -98,4 +105,6 @@ admissions with `ServerDraining`, lets running matches finish, and terminates wh
 (`a_changed_rule_is_caught`).
 
 ## Change log
-- Stage 1 (this revision): initial contracts.
+- Stage 1: initial contracts.
+- Stage 1 exit review: C-PERSIST and C-HOST statuses corrected after independent review found defects (fixed, with
+  regression tests); C-NET gained liveness and connection identity; C-RNG records the tie-outcome observability.

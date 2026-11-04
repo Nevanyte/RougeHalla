@@ -42,7 +42,7 @@ C-NET (protocol v1; any new field is a version bump with golden vectors on both 
 ## Validation commands
 `export PATH=/root/.dotnet:$PATH; dotnet test client-unity/RoguehallaNet.Tests`; `client-unity/sync-net.sh` then `client-unity/sync-net.sh --check`;
 `cargo test -p rh-server`, `cargo test -p rh-protocol`, `cargo test --workspace`, `cargo run --release -p rh-server --bin wirebench`; `node tools/browser-proof/proof.mjs` (after `cargo build -p rh-server`);
-`dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7777/ws --profile probe1 --token t1 --seconds 10` against `cargo run -p rh-server -- --bind 127.0.0.1:7777`.
+`dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7777/ws --profile probe1 --token t1 --seconds 10 --content-hash "$(curl -s http://127.0.0.1:7777/info | python3 -c \"import json,sys; print(int(json.load(sys.stdin)['contentHash'],16))\")"` against `cargo run -p rh-server -- --bind 127.0.0.1:7777` (the server refuses a client whose content hash differs; `0` is not a wildcard).
 
 ## Risk and suggested model tier
 Medium: algorithmic port with an exact oracle (the fixture) plus a security-relevant clamp. Strong builder; strongest model for the

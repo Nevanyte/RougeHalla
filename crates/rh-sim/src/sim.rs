@@ -1805,7 +1805,8 @@ mod hash_and_checkpoint_tests {
     fn the_state_hash_sees_every_outcome_field() {
         let base = sim();
         let h0 = base.state_hash();
-        let mutations: Vec<(&str, Box<dyn Fn(&mut Sim)>)> = vec![
+        type Mutation = (&'static str, Box<dyn Fn(&mut Sim)>);
+        let mutations: Vec<Mutation> = vec![
             ("gv parts", Box::new(|s| s.players[0].gv_parts.bounty = 7)),
             (
                 "killed by",

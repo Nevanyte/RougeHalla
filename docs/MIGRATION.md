@@ -57,8 +57,8 @@ Run on this machine while other work competed for its 4 vCPUs (so time-limited t
 - `npm test -w @raid/server`: 5,831 passed, 8 failed (171 files; `perf.test.ts` then skipped by the script's `&&`). Six are
   timeouts (60-120 s limits: `chestsModule`, `tournament`, `mapPool` x2, `planning` "taken", `terrain` seeds 1..20); two
   are CPU-budget gates under load (`perception` cost 2.08 ms vs < 1 ms; `terrainPerf` step avg 7.2 ms vs < 5 ms).
-- `npm test -w @raid/shared`: not completed (stopped to free the CPU for the benchmarks; it includes the 200-seed map
-  certification). Re-run on a quiet machine.
+- `npm test -w @raid/shared`: 1,816 passed, 8 failed. Five are timeouts; three are CPU-budget gates under load (styler
+  12.8 ms vs <= 6 ms, pathfind 2.26 ms vs < 2 ms, warren 48.7 ms vs < 30 ms). Re-run the gates on a quiet machine.
 None of these is a behavioural failure; they are recorded as pre-existing environment failures. Stage 1 changed no file
 under `packages/` (verify: `git diff 75c5b83 --stat -- packages` is empty).
 
@@ -73,12 +73,11 @@ Python 3.13.18; Playwright 1.63.0 with HeadlessChrome 153.0.8010.12; Claude Code
 |---|---|
 | `cargo fmt --all --check` | clean |
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | clean |
-| `cargo test --workspace` (with `DATABASE_URL` from `tools/pgtest/start.sh`) | 54 passed, 0 failed (rh-sim, rh-parity, rh-protocol, rh-policy, rh-headless, rh-server, rh-persist) |
-| `cargo test -p rh-server --features postgres --test pg_e2e` | 1 passed |
-| `cargo run -p rh-parity --bin parity-report` | 8 slice scenarios MATCH (max position error 5.0e-7 u, max hp error 4.9e-7); 300 findPath queries MATCH; `bow_wand_capture` capture-only |
-| `dotnet test client-unity/RoguehallaNet.Tests` | 71 passed |
-| `node tools/browser-proof/proof.mjs` | PASS: admission + map hash, input applied and acked, resume into the same seat, authoritative results, no page errors ([evidence/browser-proof.json](evidence/browser-proof.json)) |
-| `dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7461/ws ...` | Welcome + 157 snapshots in 8 s, no errors ([evidence/csharp-probe.json](evidence/csharp-probe.json)) |
+| `cargo test --workspace --all-features` (with `DATABASE_URL` from `tools/pgtest/start.sh`) | 63 passed, 0 failed, in three consecutive full runs (rh-sim, rh-parity, rh-protocol, rh-policy, rh-headless, rh-server incl. `live` 11, `pg_e2e` 2, `sigterm` 1, `equivalence` 1, rh-persist) |
+| `cargo run -p rh-parity --bin parity-report` | 13 slice scenarios MATCH (max position error 5.0e-7 u, max hp error 4.9e-7), including `drop_releases_trigger` and four `tie_kill_credit_*` scenarios decided only by the secret action order; 300 findPath queries MATCH; `bow_wand_capture` capture-only |
+| `dotnet test client-unity/RoguehallaNet.Tests` | 72 passed; `client-unity/sync-net.sh --check` up to date |
+| `node tools/browser-proof/proof.mjs` | PASS (re-run after the exit-review fixes): admission + map hash, input applied and acked, resume into the same seat, authoritative results, no page errors ([evidence/browser-proof.json](evidence/browser-proof.json)) |
+| `dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7461/ws --content-hash <from /info> ...` | Welcome + 157 snapshots in 8 s, RTT p50 8.4 ms, no errors; the server then drained on SIGTERM ([evidence/csharp-probe.json](evidence/csharp-probe.json)) |
 | `npm run typecheck` (legacy) | passed |
 
 ## Benchmarks (labelled; the machine is a shared 4-vCPU container, read the shape, not the decimals)
@@ -131,7 +130,7 @@ are historical, not re-measured), memory per match (the slice's `Sim` is small; 
 | Interest-managed replication | Each client gets only what its observation contains (legacy synced every entity to everyone) | `wirebench` bytes per player (table above); leak tests | Vision trail memory not yet ported: a client sees less than legacy until P-VISION-1 (never more) |
 | Server-sent canonical map | Clients no longer run the generator and compare hashes; one RLE blob per join | Welcome size (table above) | Generator port must keep layers identical (P-MAP-1) |
 | Rust core on identical workload | Native code, no GC; same algorithms and order (parity holds) | `parity-bench` vs `bench.ts` (table above) | None measured (parity suite) |
-| Off-tick durable I/O with idempotency | Results through a retrying writer, keyed by (match, profile) | `rh-persist` tests, `pg_e2e` | Lease renewal not wired (P-PERSIST-2) |
+| Off-tick durable I/O with idempotency | Results through a retrying writer (~2 min, capped backoff; the process waits for it on exit), keyed by (match, profile), fenced by the lease the seat was admitted under | `rh-persist` tests, `pg_e2e` | Lease renewal not wired; no local spool (P-PERSIST-2) |
 | Hashed tokens | Profiles store SHA-256 of tokens (legacy stored plain tokens) | `rh-persist` tests | Rollback to legacy needs the original file |
 Queued with evidence or as measurement tasks: delta snapshot compression (only if bandwidth needs it), spatial indexing for
 mobs and perception (P-MOBS-1, when entity counts rise), client-side A* for prediction (P-NET-1), Graviton builds (P-HOST-1).
@@ -146,13 +145,58 @@ mobs and perception (P-MOBS-1, when entity counts rise), client-side A* for pred
 3. JSON replays/checkpoints were not bit-exact (serde_json's default float parsing); fixed with `float_roundtrip`.
    Regression: `rh-headless/tests/env.rs`.
 
+Found by the exit review (below) or by its re-runs; each fixed on this branch with the regression named:
+
+4. Rooms did not report the lobby → run transition; once any run was in progress new players were refused `MatchFull`
+   instead of getting a new lobby. Regression: `live.rs` `a_new_player_gets_a_new_lobby_while_a_run_is_in_progress`.
+5. A half-open old socket could steer or detach the seat its resume had replaced. Fixed with per-connection ids.
+   Regression: `live.rs` `a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat`.
+6. A player who left mid-run lost the MIA result in PostgreSQL: the profile's lease was freed first and the write
+   presented fence 0 (`StaleFence`). Leases were also never released on leave, refusal or room close. Regression:
+   `pg_e2e.rs` `an_mia_leave_is_banked_under_its_fence` (fails on the old code).
+7. The last human's MIA result was dropped when the room closed before its next step. Regression: `live.rs`
+   `the_last_humans_mia_result_is_banked_although_the_room_closes`.
+8. SIGTERM (what ECS/GameLift send) was not handled: only Ctrl-C drained. Regression: `sigterm.rs` runs the real binary.
+9. No liveness: a silent half-open connection held its seat forever and a stuck socket write blocked its writer.
+   Regression: `live.rs` `a_silent_connection_is_dropped_and_its_seat_lapses`.
+10. C# client: closing raced queued sends (a Leave was lost); a `TooSlow` reject ended the session instead of resuming.
+    Regression: `RoguehallaNet.Tests`.
+11. A dropped connection kept its trigger held (legacy releases it and drains queued inputs). Regression: legacy
+    fixture `drop_releases_trigger`.
+12. `state_hash` missed fields that decide later outcomes (GV parts, credit state, budgets, drop times, pending results);
+    checkpoints lost results emitted between steps; replays loaded from JSON lacked map tables. Regression:
+    `sim.rs` `the_state_hash_sees_every_outcome_field`, `a_checkpoint_keeps_results_emitted_between_steps`.
+13. The parity suite never exercised the secret action order, so its negative control passed trivially. Regression: four
+    `tie_kill_credit_*` fixtures and a negative control that swaps in a consistent salt and must catch the changed killer.
+14. The result writer gave up after a few attempts and the process exited without waiting for in-flight writes.
+15. A rate-limited (flooding) client could miss its `RateLimited` reject: the server dropped the socket with unread input
+    and the kernel reset it (1 failure in a full-suite run under load). Fixed with a 1 s close linger
+    (`conn.rs` `CLOSE_LINGER`). Regression: `live.rs` `a_flooding_client_is_rate_limited` (0 failures in 3 full-suite and
+    6 `live` runs after the fix).
+16. Docs overstated C-PERSIST, C-HOST and C-NET as fully passed; [CONTRACTS.md](CONTRACTS.md) now states what is and is
+    not proven.
+
+## Exit gate: independent review
+One review workflow, run read-only against this branch: four independent reviewers (high effort; lenses: simulation and
+determinism, networking and server, persistence and hosting, handoff and requirements), each asked to challenge the
+foundation against [REQUIREMENTS.md](REQUIREMENTS.md) and executable evidence, then one skeptic per critical or major
+finding trying to refute it (6 verified, all confirmed). Ten agents in total. Every confirmed finding and the
+consequential minor ones are fixed above (4-16). Accepted as open, with owners:
+- Lease renewal and the crash lockout: a crashed host's profiles stay leased for the fixed 3600 s TTL; unwritten
+  results live only in memory (~2 min of retries), with no local spool (P-PERSIST-2).
+- A database error at admission is reported with a generic reject code (minor; P-PERSIST-2).
+- The secret order salt is observable through tied outcomes (inherited from legacy; [CONTRACTS.md](CONTRACTS.md) C-RNG).
+- Legacy callsigns are case-sensitive while the new store is not (owner decision; backlog list).
+- Unity build and AWS staging: external gates 1 and 2.
+
 ## Risks (ranked) and next actions
 1. Unity Web build unproven (external gate 1): the C# library is tested, the Unity glue was written without a compiler.
 2. Hosting unproven on AWS (external gate 2): TLS/DNS on container fleets and `ca-west-1` are the main unknowns.
-3. The slice's per-tick cost says little about the full game's (mobs, signatures, statuses, quests): measure each
+3. Durable sessions are not crash-safe yet: no lease renewal, no result spool (P-PERSIST-2 before any real players).
+4. The slice's per-tick cost says little about the full game's (mobs, signatures, statuses, quests): measure each
    mechanic as it lands (`stepBench`-style gates per packet) before choosing host density.
-4. Legacy behaviour lives in ~95k lines; parity coverage grows only as fast as fixtures are captured (P-CAPTURE-1 first).
-5. Observation scope (current sight only) is stricter than legacy (120 s tile trail): the client will show less until
+5. Legacy behaviour lives in ~95k lines; parity coverage grows only as fast as fixtures are captured (P-CAPTURE-1 first).
+6. Observation scope (current sight only) is stricter than legacy (120 s tile trail): the client will show less until
    P-VISION-1.
 
 ## Agents and models used in Stage 1 (recorded per the brief)
@@ -161,4 +205,5 @@ Verified once: Claude Code 2.1.318; the Agent tool exposed `model` (sonnet, opus
 observed. Coordinator/lead architect: this session's model (Opus 5.5 configured; serving model not independently
 verified). Workers: legacy-inventory scout (sonnet, low), hosting investigator (sonnet, medium, web access), persistence
 builder (sonnet, medium, isolated worktree), C# builder (sonnet, medium), backlog builder (sonnet, medium); exit-gate
-reviewers (opus, high). At most two workers ran at once.
+reviewers and verifiers (opus, high; 10 agents in one workflow, outside the two-worker limit, run once at the exit gate).
+At most two building workers ran at once.

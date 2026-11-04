@@ -20,6 +20,10 @@ pub const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(10);
 /// A socket write that cannot complete in this long ends the connection (a client that stopped reading).
 pub const SEND_TIMEOUT: Duration = Duration::from_secs(5);
+/// After the server closes a connection it keeps reading (and discarding) for up to this long, until the peer's close
+/// or EOF. Dropping a socket with unread input makes the kernel reset it, and a reset can destroy the Reject frame
+/// before the client reads it (seen under load with a flooding client).
+pub const CLOSE_LINGER: Duration = Duration::from_secs(1);
 /// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst.
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
@@ -224,4 +228,12 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     {
         writer.abort();
     }
+    let _ = tokio::time::timeout(CLOSE_LINGER, async {
+        while let Some(Ok(m)) = rx.next().await {
+            if matches!(m, Message::Close(_)) {
+                break;
+            }
+        }
+    })
+    .await;
 }

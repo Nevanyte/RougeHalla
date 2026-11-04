@@ -23,3 +23,14 @@ docs
 *.md
 Dockerfile
 .dockerignore
+# The Rust + Unity migration (docs/MIGRATION.md) is not part of the legacy game image.
+target
+crates
+client-unity
+parity
+protocol
+tools
+Cargo.toml
+Cargo.lock
+rust-toolchain.toml
+.github

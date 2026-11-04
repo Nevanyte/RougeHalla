@@ -23,7 +23,7 @@ full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the s
 | Wave | Items | Why this order |
 |---|---|---|
 | 0 | P-CAPTURE-1 | Every mechanic packet needs the generalised capture tool and the re-capture CI job (the Rust CI baseline, `.github/workflows/rust.yml`, already exists) |
-| 1 (parallel) | P-COMBAT-1, P-COMBAT-2, P-MAP-1, P-ARENA-1, P-UNITY-1, P-HOST-1, P-PERSIST-2, P-NET-1, P-BOTS-1 | No hard dependency on each other; they touch different crates. Shared files (below) are merged one at a time |
+| 1 (parallel; P-COMBAT-2 merges after P-COMBAT-1 for the sword/shield cases) | P-COMBAT-1, P-COMBAT-2, P-MAP-1, P-ARENA-1, P-UNITY-1, P-HOST-1, P-PERSIST-2, P-NET-1, P-BOTS-1 | No hard dependency on each other; they touch different crates. Shared files (below) are merged one at a time |
 | 2 | P-COMBAT-3 (after COMBAT-2), P-FACTION-1 (after COMBAT-1), P-MOBS-1 (after COMBAT-1/2, owns the camps part of `rh-map/2`), P-STATUS-1, P-VISION-1 | Locks need ranged aim; signatures need hit events with weapon info; mobs need weapons and camps |
 | 3 | P-ABIL-1, P-CARDS-1, P-FACTION-2..5, P-TERRAIN-1, P-LOOT-1, P-CONS-1, P-TRADE-1, P-MOBS-2, P-ARENA-2 | Build on waves 1-2 |
 | 4 | P-CARDS-2/3, P-QUEST-1, P-BOTS-2..7, P-NET-3..6, P-UI-*, P-OPS-*, P-LOAD-* | Need the mechanics they present or measure |
@@ -37,7 +37,7 @@ position), `crates/rh-sim/src/content.rs` (and `content_hash`), `crates/rh-sim/s
 `parity/legacy-capture/capture.ts`. Prefer a new module file per mechanic with a minimal hook in `sim.rs`.
 
 **Status records.** Only the coordinator updates shared status records: the `docs/MIGRATION.md` checkpoint (referenced by
-`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md` and `docs/REQUIREMENTS.md`; it did not exist when this backlog was written), the
+`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md` and `docs/REQUIREMENTS.md`), the
 status table in [../CONTRACTS.md](../CONTRACTS.md), and `Cargo.lock` (`AGENTS.md`: a packet that adds a crate or dependency
 lists it in its hand-off and the coordinator regenerates the lock). A worker updates only its packet's exclusive write
 scope plus the row of the item in this file it finishes (status -> "Done (<commit>)"), and reports evidence (commands run
@@ -245,3 +245,20 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 Each packet's "Risk" and "Known traps" name the question that blocks it. The author's consolidated list is in the hand-off
 report of this backlog (license, map re-pin if hashes cannot match, hosting spend authorisation, Unity licence/hardware
 naming, `packages/` retirement, bot perception window, and the doc conflicts noted there).
+
+
+## Open owner decisions (recorded at the end of Stage 1; none resolved)
+1. License: none is declared (no LICENSE file; every package is `private`).
+2. Whether a re-pin is acceptable if the Rust map generator cannot reproduce the legacy pinned hashes (P-MAP-1).
+3. Spending authorization and a sandbox AWS account for the staging experiment; the 200 matches / 1,600 players scenario stays an assumption.
+4. The named hardware for the 60 FPS target; the exact Unity 6 LTS patch and license; who approves download, memory and frame-time budgets.
+5. Bot perception: keep the legacy screen-window view or adopt the observation's 900 u sight circle (P-BOTS-1 assumes the observation).
+6. Where the profile REST API lives: inside `rh-server` or a separate service (P-PERSIST-2).
+7. When to retire or freeze `packages/` after sign-off; the rollout and rollback policy (P-MIG-*).
+8. How tightly to bound the rewind time `t` by measured RTT (P-NET-1).
+9. The delta-compression threshold (P-NET-1 proposes: only if typical load exceeds the legacy 20 KB/s gate or a lower owner budget).
+10. Fire roam scaling: AP (docs/FIRE_ROAM.md) or bonus Offense (legacy CLAUDE): check `packages/shared/src/fireRoam.ts`; code wins unless the owner rules otherwise.
+11. `ca-west-1` and container-fleet home-Region support: unverified until the staging run.
+12. Legacy callsigns are case-sensitive; the new store is case-insensitive (import reports case collisions as conflicts): choose how to resolve collisions before cutover (P-MIG-*).
+13. Latency ceilings and the party rule (docs/hosting/LATENCY_PROBES.md).
+14. Tie outcomes reveal bits of the secret action order (inherited from legacy; CONTRACTS C-RNG): accept it, or break ties with a separate secret stream (a deliberate legacy behaviour change, needs new fixtures).

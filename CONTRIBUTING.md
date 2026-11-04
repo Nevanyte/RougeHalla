@@ -21,8 +21,9 @@ cargo run -p rh-parity --bin parity-report          # Rust vs captured legacy sc
 cargo run --release -p rh-headless -- --matches 20 --players 8 --map parity/maps/seed1.map.json
 cargo run -p rh-server -- --self-signed --fill-bots 4 --min-players 1 --fill-seconds 2
                                                     # then open https://localhost:7777/probe (accept the self-signed cert)
+npm i --no-save playwright@1.63.0 && npx playwright install chromium   # once, for the browser proof
 node tools/browser-proof/proof.mjs                  # Chromium over WSS end to end (after cargo build -p rh-server)
-dotnet test client-unity/RoguehallaNet.Tests
+dotnet test client-unity/RoguehallaNet.Tests        # any .NET 8 SDK on PATH
 npx tsx parity/legacy-capture/capture.ts            # re-capture legacy fixtures after a legacy change
 ```
 

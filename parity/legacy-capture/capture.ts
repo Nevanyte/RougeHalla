@@ -476,9 +476,11 @@ function exportMap(seed: number): unknown {
 }
 
 if (!only || only === "map") {
-  mkdirSync(resolve(repo, "parity/maps"), { recursive: true });
-  writeFileSync(resolve(repo, "parity/maps/seed1.map.json"), JSON.stringify(exportMap(1)));
-  console.log("parity/maps/seed1.map.json written");
+  // Honours --out: by default the map goes next to the fixtures' sibling `maps/` directory (parity/maps).
+  const mapsDir = outArg > 0 ? join(OUT, "maps") : resolve(repo, "parity/maps");
+  mkdirSync(mapsDir, { recursive: true });
+  writeFileSync(join(mapsDir, "seed1.map.json"), JSON.stringify(exportMap(1)));
+  console.log(`${join(mapsDir, "seed1.map.json")} written`);
 }
 if (!only || only === "pathfinding") {
   const t0 = performance.now();
