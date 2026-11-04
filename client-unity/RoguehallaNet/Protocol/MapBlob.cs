@@ -34,22 +34,39 @@ namespace Roguehalla.Net.Protocol
 
         public byte At(int tx, int ty) { return Tiles[ty * W + tx]; }
 
+        /// <summary>Length of the run starting at <paramref name="i"/>: equal tiles, at most ushort.MaxValue (longer ones split).</summary>
+        int RunAt(int i)
+        {
+            byte t = Tiles[i];
+            int end = Math.Min(Tiles.Length, i + ushort.MaxValue), j = i + 1;
+            while (j < end && Tiles[j] == t) j++;
+            return j - i;
+        }
+
+        int RunCount()
+        {
+            int runs = 0;
+            for (int i = 0; i < Tiles.Length; i += RunAt(i)) runs++;
+            return runs;
+        }
+
+        /// <summary>Exact size of what <see cref="Write"/> writes.</summary>
+        public int EncodedLength { get { return 12 + 3 * RunCount(); } }
+
         /// <summary>w u16, h u16, hash u32, runs u32, then runs x (tile u8, length u16).</summary>
         public void Write(Writer w)
         {
             w.U16(W); w.U16(H); w.U32(LayerHash);
-            var runs = new System.Collections.Generic.List<(byte, ushort)>();
-            foreach (byte t in Tiles)
+            w.U32((uint)RunCount());
+            for (int i = 0; i < Tiles.Length;)
             {
-                int last = runs.Count - 1;
-                if (last >= 0 && runs[last].Item1 == t && runs[last].Item2 < ushort.MaxValue) runs[last] = (t, (ushort)(runs[last].Item2 + 1));
-                else runs.Add((t, 1));
+                int n = RunAt(i);
+                w.U8(Tiles[i]); w.U16((ushort)n);
+                i += n;
             }
-            w.U32((uint)runs.Count);
-            foreach (var (t, n) in runs) { w.U8(t); w.U16(n); }
         }
 
-        public static MapBlob Read(Reader r)
+        public static MapBlob Read(ref Reader r)
         {
             ushort w = r.U16(), h = r.U16();
             uint hash = r.U32();

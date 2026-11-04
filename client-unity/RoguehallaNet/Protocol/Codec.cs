@@ -25,8 +25,14 @@ namespace Roguehalla.Net.Protocol
     /// <summary>Little-endian writer built by hand so the bytes never depend on the host's endianness or on BinaryWriter.</summary>
     public sealed class Writer
     {
-        byte[] _buf = new byte[64];
+        byte[] _buf;
         int _len;
+
+        public Writer() : this(64) { }
+
+        /// <summary>A writer for a frame of <paramref name="capacity"/> bytes: when that is the exact size, the buffer never
+        /// grows and <see cref="Finish"/> returns it without a copy.</summary>
+        public Writer(int capacity) { _buf = new byte[Math.Max(capacity, 1)]; }
 
         void Ensure(int n)
         {
@@ -54,16 +60,21 @@ namespace Roguehalla.Net.Protocol
             _len += end;
         }
 
+        /// <summary>The frame. Returns the writer's own buffer when it is exactly full (no copy), so do not write after this.</summary>
         public byte[] Finish()
         {
+            if (_len == _buf.Length) return _buf;
             var r = new byte[_len];
             Buffer.BlockCopy(_buf, 0, r, 0, _len);
             return r;
         }
     }
 
-    /// <summary>Bounds-checked reader for untrusted bytes. Throws DecodeException; never reads past <c>length</c>.</summary>
-    public sealed class Reader
+    /// <summary>
+    /// Bounds-checked reader for untrusted bytes. Throws DecodeException; never reads past <c>length</c>. A stack-only value
+    /// (decoding allocates no reader object): keep it in a local and pass it on by <c>ref</c>.
+    /// </summary>
+    public ref struct Reader
     {
         static readonly UTF8Encoding Strict = new UTF8Encoding(false, true);
         readonly byte[] _buf;
@@ -76,6 +87,8 @@ namespace Roguehalla.Net.Protocol
         {
             _buf = buf;
             _end = length < 0 ? buf.Length : length;
+            _pos = 0;
+            FiniteOnly = false;
         }
 
         int Take(int n)
