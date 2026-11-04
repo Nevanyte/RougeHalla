@@ -76,7 +76,6 @@ pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
         .collect();
     ServerMsg::Snapshot {
         tick: obs.tick,
-        server_ms: obs.server_time,
         phase: phase(obs.phase),
         ack_input,
         me,
@@ -149,5 +148,150 @@ pub fn result(r: &RunResult) -> WireResult {
         gv_win: r.gv.win,
         duration_sec: r.duration_sec,
         win_bonus_withheld: r.win_bonus_withheld,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
+    use rh_policy::scripted::Brawler;
+    use rh_protocol::quant::{POS_MAX, POS_SCALE};
+    use rh_protocol::{snapshot_server_ms, TICK_MS};
+    use rh_sim::{FactionId, SimConfig};
+
+    fn seed1_match(ticks: u32) -> Env {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../parity/maps/seed1.map.json"
+        );
+        let arena = rh_headless::load_arena(path).expect("seed-1 map");
+        let agents = (0..8)
+            .map(|i| AgentSpec {
+                profile: format!("b{i}"),
+                faction: FactionId::ALL[i % 5],
+                bot: true,
+                agent: Agent::Policy {
+                    policy: Box::new(Brawler::new(2)),
+                },
+            })
+            .collect();
+        Env::new(
+            EnvConfig {
+                arena,
+                sim: SimConfig::default(),
+                max_ticks: ticks,
+                record: false,
+            },
+            agents,
+            1,
+        )
+    }
+
+    /// A faction or weapon code rides in a 4-bit nibble, a status or phase code in 2 bits: adding content past that is a
+    /// protocol change, and this test is where it shows up first.
+    #[test]
+    fn content_codes_fit_the_wire_bit_widths() {
+        assert!(FactionId::ALL.len() as u8 <= rh_protocol::MAX_KIT_CODE + 1);
+        assert!(rh_sim::content::WeaponId::ALL.len() as u8 <= rh_protocol::MAX_KIT_CODE + 1);
+        for s in [Status::Lobby, Status::Alive, Status::Dead, Status::Mia] {
+            assert!(status(s) <= rh_protocol::MAX_STATUS_CODE);
+        }
+        for p in [Phase::Lobby, Phase::Active, Phase::Ended] {
+            assert!(phase(p) <= rh_protocol::MAX_PHASE_CODE);
+        }
+    }
+
+    /// The v2 Snapshot carries no server time because it is always `tick x 50 ms`: the simulation starts at 0 and adds
+    /// exactly one tick step per step, and an integer multiple of 50 is exact in f64.
+    #[test]
+    fn server_time_is_tick_times_50() {
+        assert_eq!(rh_sim::constants::TICK_MS, TICK_MS as f64);
+        let mut env = seed1_match(600);
+        let ids: Vec<_> = env.sim.players().iter().map(|p| p.id).collect();
+        for _ in 0..600 {
+            let out = env.step(&[]);
+            assert_eq!(
+                env.sim.server_time(),
+                env.sim.tick() as f64 * rh_sim::constants::TICK_MS
+            );
+            assert_eq!(env.sim.server_time(), snapshot_server_ms(env.sim.tick()));
+            for id in &ids {
+                let obs = rh_sim::observe(&env.sim, *id, &out.events);
+                assert_eq!(obs.server_time, snapshot_server_ms(obs.tick));
+            }
+            if out.terminated {
+                break;
+            }
+        }
+        assert!(env.sim.tick() > 0);
+    }
+
+    /// The seed-1 160 x 160 map (and the nominal world) fits the u16 position grid, and over a whole match every remote
+    /// actor a client decodes is within the documented error of the observation (position 1/16 u, facing 4.85e-5 rad),
+    /// with the same ids, in the same order, and everything else exact (C-OBS: only the encoding changed).
+    #[test]
+    fn remote_actors_decode_within_the_documented_bound_over_a_match() {
+        let mut env = seed1_match(1200);
+        let tile = rh_sim::constants::TILE as f32;
+        assert_eq!(env.sim.arena().map.w, 160);
+        assert_eq!(env.sim.arena().map.h, 160);
+        assert!(env.sim.arena().map.w as f32 * tile * POS_SCALE <= 65535.0);
+        assert!(env.sim.arena().map.h as f32 * tile * POS_SCALE <= 65535.0);
+        assert!(rh_sim::constants::WORLD_W as f32 <= POS_MAX);
+        assert!(rh_sim::constants::WORLD_H as f32 <= POS_MAX);
+        let ids: Vec<_> = env.sim.players().iter().map(|p| p.id).collect();
+        let (mut actors_seen, mut worst_pos, mut worst_facing) = (0usize, 0f64, 0f64);
+        for _ in 0..1200 {
+            let out = env.step(&[]);
+            for id in &ids {
+                let obs = rh_sim::observe(&env.sim, *id, &out.events);
+                let ServerMsg::Snapshot {
+                    tick,
+                    me,
+                    actors,
+                    phase: p,
+                    ack_input,
+                } = ServerMsg::decode(&snapshot(&obs, 9).encode()).expect("decodes")
+                else {
+                    panic!("a snapshot")
+                };
+                assert_eq!((tick, ack_input, p), (obs.tick, 9, phase(obs.phase)));
+                // Self is exact (the f32 of the sim's f64, as before).
+                assert_eq!(
+                    me.map(|m| (m.x, m.y)),
+                    obs.me.as_ref().map(|m| (m.x as f32, m.y as f32))
+                );
+                assert_eq!(actors.len(), obs.visible.len());
+                for (w, a) in actors.iter().zip(&obs.visible) {
+                    actors_seen += 1;
+                    assert_eq!(w.id, a.id.0);
+                    assert_eq!(w.faction, a.faction.code());
+                    assert_eq!(w.status, status(a.status));
+                    assert_eq!(w.weapon, a.weapon.code());
+                    assert_eq!(w.bounty, sat16(a.bounty));
+                    assert_eq!(
+                        w.hp_pct,
+                        (a.hp_frac * 100.0).round().clamp(0.0, 100.0) as u8
+                    );
+                    worst_pos = worst_pos
+                        .max((w.x as f64 - a.x).abs())
+                        .max((w.y as f64 - a.y).abs());
+                    let tau = std::f64::consts::TAU;
+                    let mut d = (w.facing as f64 - a.facing).rem_euclid(tau);
+                    if d > tau / 2.0 {
+                        d -= tau;
+                    }
+                    worst_facing = worst_facing.max(d.abs());
+                }
+            }
+        }
+        assert!(
+            actors_seen > 1000,
+            "the match must show remote actors: {actors_seen}"
+        );
+        // 1/16 u from the grid, plus the f32 rounding of the sim's f64 position (under 0.001 at 5120 u).
+        assert!(worst_pos <= 0.0626, "position error {worst_pos}");
+        assert!(worst_facing <= 4.9e-5, "facing error {worst_facing}");
     }
 }

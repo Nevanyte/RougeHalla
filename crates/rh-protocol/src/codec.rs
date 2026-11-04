@@ -13,6 +13,10 @@ pub enum DecodeError {
     NonFinite,
     Trailing(usize),
     BadMap(&'static str),
+    /// A LEB128 varint that is longer than its canonical form, or does not fit its type.
+    BadVarint,
+    /// A field mask with a reserved bit set, or a value outside its documented range (named).
+    BadField(&'static str),
 }
 
 impl std::fmt::Display for DecodeError {
@@ -37,6 +41,10 @@ pub enum EncodeError {
     /// A map the decoders reject; the reason is the one [`DecodeError::BadMap`] would name ("size", "length", "run",
     /// "hash").
     BadMap(&'static str),
+    /// A value a decoder rejects as out of range (`hp_pct` over 100).
+    BadValue(&'static str),
+    /// A [`crate::SnapshotWriter`] given a different number of actors than it announced.
+    CountMismatch { declared: usize, written: usize },
     /// A NaN or infinite float in a client message (client decoders reject them).
     NonFinite,
 }
@@ -47,6 +55,13 @@ impl std::fmt::Display for EncodeError {
     }
 }
 impl std::error::Error for EncodeError {}
+
+/// Encoded size of [`Writer::varint`]: 1 byte below 128, 2 below 16384, 3 below 2^21, 4 below 2^28, else 5.
+#[inline]
+pub const fn varint_len(v: u32) -> usize {
+    // 32 - leading_zeros = bit length; 7 bits per byte, at least one byte.
+    (38 - (v | 1).leading_zeros() as usize) / 7
+}
 
 /// Encoded size of [`Writer::str`]: the u8 length plus the bytes it keeps.
 pub fn str_len(s: &str) -> usize {
@@ -105,6 +120,16 @@ impl Writer {
     pub fn u64(&mut self, v: u64) {
         self.buf.extend_from_slice(&v.to_le_bytes());
     }
+    /// Unsigned LEB128 (7 bits per byte, low group first, high bit = more): 1 to 5 bytes for a u32. Always the canonical
+    /// (shortest) form; [`Reader::varint`] rejects anything else, so decode then encode is byte-identical.
+    #[inline]
+    pub fn varint(&mut self, mut v: u32) {
+        while v >= 0x80 {
+            self.buf.push((v as u8) | 0x80);
+            v >>= 7;
+        }
+        self.buf.push(v as u8);
+    }
     #[inline]
     pub fn f32(&mut self, v: f32) {
         self.buf.extend_from_slice(&v.to_le_bytes());
@@ -131,10 +156,6 @@ impl Writer {
                 f(self, x);
             }
         }
-    }
-    /// Overwrites two bytes already written at `at` (a list count patched once the items are known).
-    pub(crate) fn patch_u16(&mut self, at: usize, v: u16) {
-        self.buf[at..at + 2].copy_from_slice(&v.to_le_bytes());
     }
     pub(crate) fn truncate(&mut self, len: usize) {
         self.buf.truncate(len);
@@ -179,6 +200,27 @@ impl<'a> Reader<'a> {
     }
     pub fn u64(&mut self) -> Result<u64, DecodeError> {
         Ok(u64::from_le_bytes(self.take(8)?.try_into().unwrap()))
+    }
+    /// Unsigned LEB128 into a u32. Rejects a value past 5 bytes or past `u32::MAX`, and any non-canonical form (a final
+    /// zero group after the first byte), so every value has exactly one encoding.
+    #[inline]
+    pub fn varint(&mut self) -> Result<u32, DecodeError> {
+        let mut v: u32 = 0;
+        for i in 0..5 {
+            let b = self.u8()?;
+            let g = (b & 0x7f) as u32;
+            if i == 4 && g > 0x0f {
+                return Err(DecodeError::BadVarint);
+            }
+            v |= g << (7 * i);
+            if b & 0x80 == 0 {
+                if i > 0 && g == 0 {
+                    return Err(DecodeError::BadVarint);
+                }
+                return Ok(v);
+            }
+        }
+        Err(DecodeError::BadVarint)
     }
     pub fn f32(&mut self) -> Result<f32, DecodeError> {
         let v = f32::from_le_bytes(self.take(4)?.try_into().unwrap());

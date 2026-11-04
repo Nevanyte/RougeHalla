@@ -32,7 +32,7 @@ namespace Roguehalla.Net.Tests
             onMsg(hello);
             if (reject) { await Send(new ServerMsg.Reject { Code = RejectCode.ContentMismatch, Reason = "server content hash 1234" }); return; }
             var map = new MapBlob(8, 8, new byte[64]);
-            await Send(new ServerMsg.Welcome { Protocol = 1, MatchId = new byte[16], Session = new byte[16], PlayerId = 1, TickRate = 20, Tick = 1, ServerMs = 50, Map = map });
+            await Send(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], PlayerId = 1, TickRate = 20, Tick = 1, ServerMs = 50, Map = map });
             uint tick = 1;
             var recvTask = Recv();
             while (!ct.IsCancellationRequested)
@@ -46,7 +46,7 @@ namespace Roguehalla.Net.Tests
                     recvTask = Recv();
                 }
                 tick++;
-                await Send(new ServerMsg.Snapshot { Tick = tick, ServerMs = tick * 50.0, Me = new WireSelf { Id = 1, X = 100, Y = 100, Hp = 50, MaxHp = 50 } });
+                await Send(new ServerMsg.Snapshot { Tick = tick, Me = new WireSelf { Id = 1, X = 100, Y = 100, Hp = 50, MaxHp = 50 } });
                 await Task.Delay(50, ct);
             }
         }

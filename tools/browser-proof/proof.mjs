@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v1 over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v2 over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //

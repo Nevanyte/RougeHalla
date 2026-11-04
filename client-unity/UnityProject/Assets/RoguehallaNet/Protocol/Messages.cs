@@ -173,24 +173,83 @@ namespace Roguehalla.Net.Protocol
         public ushort ReadyInMs, Kills, Bounty, Gv;
         public byte MoveSeq;
 
-        internal const int WireSize = 36;
+        // Head word bits (rh-protocol lib.rs): the self's field bits 0..9, phase in bits 12..13, bit 15 = a self follows.
+        internal const ushort HKit = 1 << 0, HHp = 1 << 1, HReady = 1 << 4, HKills = 1 << 5, HBounty = 1 << 6, HGv = 1 << 7,
+            HMoveSeq = 1 << 8, HMaxHpF32 = 1 << 9, HPresent = 1 << 15;
+        internal const int StatusShift = 2, PhaseShift = 12;
+        internal const ushort SelfBits = 0x03ff | HPresent, Known = SelfBits | (3 << PhaseShift);
 
-        internal void Read(ref Reader r)
+        static bool MaxHpIsVarint(float v)
         {
-            Id = r.U32(); Faction = r.U8(); X = r.F32(); Y = r.F32(); Facing = r.F32(); Hp = r.F32(); MaxHp = r.F32();
-            Status = r.U8(); Weapon = r.U8(); ReadyInMs = r.U16(); Kills = r.U16(); Bounty = r.U16(); Gv = r.U16(); MoveSeq = r.U8();
+            if (!(v >= 0f && v <= 65535f)) return false;
+            return BitConverter.SingleToInt32Bits(v) == BitConverter.SingleToInt32Bits((float)(ushort)v);
         }
 
-        internal void Write(Writer w)
+        internal static byte Kit(byte faction, byte weapon) { return (byte)((faction & 0x0f) | (weapon << 4)); }
+
+        internal ushort Head(byte phase)
         {
-            w.U32(Id); w.U8(Faction); w.F32(X); w.F32(Y); w.F32(Facing); w.F32(Hp); w.F32(MaxHp);
-            w.U8(Status); w.U8(Weapon); w.U16(ReadyInMs); w.U16(Kills); w.U16(Bounty); w.U16(Gv); w.U8(MoveSeq);
+            int m = (phase & 3) << PhaseShift;
+            m |= HPresent | ((Status & 3) << StatusShift);
+            if (Kit(Faction, Weapon) != 0) m |= HKit;
+            if (BitConverter.SingleToInt32Bits(Hp) != BitConverter.SingleToInt32Bits(MaxHp)) m |= HHp;
+            if (ReadyInMs != 0) m |= HReady;
+            if (Kills != 0) m |= HKills;
+            if (Bounty != 0) m |= HBounty;
+            if (Gv != 0) m |= HGv;
+            if (MoveSeq != 0) m |= HMoveSeq;
+            if (!MaxHpIsVarint(MaxHp)) m |= HMaxHpF32;
+            return (ushort)m;
+        }
+
+        /// <summary>Bytes after the head word.</summary>
+        internal int Length(ushort head)
+        {
+            int n = Writer.VarintLength(Id) + 12;
+            n += (head & HMaxHpF32) != 0 ? 4 : Writer.VarintLength((uint)MaxHp);
+            if ((head & HKit) != 0) n += 1;
+            if ((head & HHp) != 0) n += 4;
+            if ((head & HReady) != 0) n += 2;
+            if ((head & HKills) != 0) n += Writer.VarintLength(Kills);
+            if ((head & HBounty) != 0) n += Writer.VarintLength(Bounty);
+            if ((head & HGv) != 0) n += Writer.VarintLength(Gv);
+            if ((head & HMoveSeq) != 0) n += 1;
+            return n;
+        }
+
+        /// <summary>Reads the self after its head word (<paramref name="head"/> has HPresent set).</summary>
+        internal void Read(ref Reader r, ushort head)
+        {
+            Id = r.Varint(); X = r.F32(); Y = r.F32(); Facing = r.F32();
+            MaxHp = (head & HMaxHpF32) != 0 ? r.F32() : r.VarintU16("max_hp");
+            if ((head & HKit) != 0) { byte k = r.U8(); Faction = (byte)(k & 0x0f); Weapon = (byte)(k >> 4); } else { Faction = 0; Weapon = 0; }
+            Hp = (head & HHp) != 0 ? r.F32() : MaxHp;
+            ReadyInMs = (head & HReady) != 0 ? r.U16() : (ushort)0;
+            Kills = (head & HKills) != 0 ? r.VarintU16("kills") : (ushort)0;
+            Bounty = (head & HBounty) != 0 ? r.VarintU16("bounty") : (ushort)0;
+            Gv = (head & HGv) != 0 ? r.VarintU16("gv") : (ushort)0;
+            MoveSeq = (head & HMoveSeq) != 0 ? r.U8() : (byte)0;
+            Status = (byte)((head >> StatusShift) & 3);
+        }
+
+        internal void Write(Writer w, ushort head)
+        {
+            w.Varint(Id); w.F32(X); w.F32(Y); w.F32(Facing);
+            if ((head & HMaxHpF32) != 0) w.F32(MaxHp); else w.Varint((uint)MaxHp);
+            if ((head & HKit) != 0) w.U8(Kit(Faction, Weapon));
+            if ((head & HHp) != 0) w.F32(Hp);
+            if ((head & HReady) != 0) w.U16(ReadyInMs);
+            if ((head & HKills) != 0) w.Varint(Kills);
+            if ((head & HBounty) != 0) w.Varint(Bounty);
+            if ((head & HGv) != 0) w.Varint(Gv);
+            if ((head & HMoveSeq) != 0) w.U8(MoveSeq);
         }
     }
 
     /// <summary>
     /// One visible actor. A value type: a snapshot's actors live inline in its array (no object per actor). The fields are
     /// declared widest first so the struct packs into 24 bytes; the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
+    /// X, Y and Facing are what the wire carries (quantized to 1/8 u and 2 pi / 65536).
     /// </summary>
     public struct WireActor
     {
@@ -202,19 +261,60 @@ namespace Roguehalla.Net.Protocol
         public byte HpPct;
         public byte Status, Weapon;
 
-        internal const int WireSize = 22;
+        // Actor mask bits: 0 kit, 1 hp, 2..3 status (inline), 4 bounty, 5..7 reserved.
+        internal const byte MKit = 1 << 0, MHp = 1 << 1, MBounty = 1 << 4, MKnown = MKit | MHp | (3 << 2) | MBounty;
+        internal const int StatusShift = 2;
+        internal const byte DefaultHpPct = 100;
 
-        internal static WireActor Read(ref Reader r)
+        internal byte Mask()
+        {
+            int m = (Status & 3) << StatusShift;
+            if (WireSelf.Kit(Faction, Weapon) != 0) m |= MKit;
+            if (HpPct != DefaultHpPct) m |= MHp;
+            if (Bounty != 0) m |= MBounty;
+            return (byte)m;
+        }
+
+        internal static uint IdField(uint id, bool first, uint prev) { return first ? id : unchecked(id - prev); }
+
+        internal int Length(bool first, uint prev)
+        {
+            byte m = Mask();
+            return Writer.VarintLength(IdField(Id, first, prev)) + 7 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
+                + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0);
+        }
+
+        /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
+        internal static WireActor Read(ref Reader r, bool first, uint prev)
         {
             WireActor a;
-            a.Id = r.U32(); a.Faction = r.U8(); a.X = r.F32(); a.Y = r.F32(); a.Facing = r.F32(); a.HpPct = r.U8();
-            a.Status = r.U8(); a.Weapon = r.U8(); a.Bounty = r.U16();
+            uint field = r.Varint();
+            if (first) a.Id = field;
+            else
+            {
+                ulong id = (ulong)prev + field;
+                if (field == 0 || id > uint.MaxValue) throw new DecodeException(DecodeError.BadField, "actor order");
+                a.Id = (uint)id;
+            }
+            byte mask = r.U8();
+            if ((mask & ~MKnown) != 0) throw new DecodeException(DecodeError.BadField, "actor mask");
+            a.X = Quant.DequantizePos(r.U16()); a.Y = Quant.DequantizePos(r.U16()); a.Facing = Quant.DequantizeFacing(r.U16());
+            if ((mask & MKit) != 0) { byte k = r.U8(); a.Faction = (byte)(k & 0x0f); a.Weapon = (byte)(k >> 4); } else { a.Faction = 0; a.Weapon = 0; }
+            a.HpPct = (mask & MHp) != 0 ? r.U8() : DefaultHpPct;
+            if (a.HpPct > 100) throw new DecodeException(DecodeError.BadField, "hp_pct");
+            a.Bounty = (mask & MBounty) != 0 ? r.VarintU16("bounty") : (ushort)0;
+            a.Status = (byte)((mask >> StatusShift) & 3);
             return a;
         }
 
-        internal void Write(Writer w)
+        internal void Write(Writer w, bool first, uint prev)
         {
-            w.U32(Id); w.U8(Faction); w.F32(X); w.F32(Y); w.F32(Facing); w.U8(HpPct); w.U8(Status); w.U8(Weapon); w.U16(Bounty);
+            byte m = Mask();
+            w.Varint(IdField(Id, first, prev)); w.U8(m);
+            w.U16(Quant.QuantizePos(X)); w.U16(Quant.QuantizePos(Y)); w.U16(Quant.QuantizeFacing(Facing));
+            if ((m & MKit) != 0) w.U8(WireSelf.Kit(Faction, Weapon));
+            if ((m & MHp) != 0) w.U8(HpPct);
+            if ((m & MBounty) != 0) w.Varint(Bounty);
         }
     }
 
@@ -323,15 +423,22 @@ namespace Roguehalla.Net.Protocol
                 }
                 case TFx:
                 {
-                    var f = new Fx { Tick = r.U32() };
-                    int n = r.U16();
-                    for (int i = 0; i < n; i++)
+                    var f = new Fx { Tick = r.Varint() };
+                    uint n = r.Varint();
+                    if (n > ushort.MaxValue) throw new DecodeException(DecodeError.TooMany, n.ToString());
+                    for (uint i = 0; i < n; i++)
                     {
                         byte tag = r.U8();
                         switch (tag)
                         {
-                            case 1: f.List.Add(new WireFx { Kind = FxKind.Swing, By = r.U32(), Weapon = r.U8(), X = r.F32(), Y = r.F32(), A = r.F32() }); break;
-                            case 2: f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = r.U32(), By = r.U32(), Amount = r.F32() }); break;
+                            case 1:
+                            {
+                                var sw = new WireFx { Kind = FxKind.Swing, By = r.Varint(), Weapon = r.U8() };
+                                sw.X = Quant.DequantizePos(r.U16()); sw.Y = Quant.DequantizePos(r.U16()); sw.A = Quant.DequantizeFacing(r.U16());
+                                f.List.Add(sw);
+                                break;
+                            }
+                            case 2: { uint victim = r.Varint(), by = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = r.F32() }); break; }
                             default: throw new DecodeException(DecodeError.BadTag, tag.ToString());
                         }
                     }
@@ -376,46 +483,75 @@ namespace Roguehalla.Net.Protocol
         public sealed class Snapshot : ServerMsg
         {
             public uint Tick;
-            public double ServerMs;
             public byte Phase;
             public uint AckInput;
             /// <summary>Null for a spectator (or a dead player's view without a self).</summary>
             public WireSelf Me;
-            /// <summary>Sorted by id (C-OBS). Never null; shared empty array when nothing is visible.</summary>
+            /// <summary>Sorted by id, strictly ascending (C-OBS; the wire needs it). Never null; shared empty array when nothing is visible.</summary>
             public WireActor[] Actors = Array.Empty<WireActor>();
 
+            /// <summary>The server time of this snapshot in ms. Not on the wire: the server's clock is always Tick * 50 ms.</summary>
+            public double ServerMs { get { return Tick * (double)Wire.TickMs; } }
+
             /// <summary>Exact size of <see cref="Encode"/>'s frame.</summary>
-            public int EncodedLength { get { return 18 + (Me != null ? 1 + WireSelf.WireSize : 1) + 2 + WireActor.WireSize * Actors.Length; } }
+            public int EncodedLength
+            {
+                get
+                {
+                    int n = 1 + Writer.VarintLength(Tick) + Writer.VarintLength(AckInput) + 2;
+                    if (Me != null) n += Me.Length(Me.Head(Phase));
+                    n += Writer.VarintLength((uint)Actors.Length);
+                    uint prev = 0;
+                    for (int i = 0; i < Actors.Length; i++) { n += Actors[i].Length(i == 0, prev); prev = Actors[i].Id; }
+                    return n;
+                }
+            }
 
             public override byte[] Encode()
             {
                 // The encoder never writes a frame every decoder rejects (and never trims one to fit): rh-protocol does the same.
                 if (Actors.Length > Wire.MaxActors) throw new ArgumentException("more than " + Wire.MaxActors + " actors");
+                if (Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
+                if (Me != null && (Me.Faction > Wire.MaxKitCode || Me.Weapon > Wire.MaxKitCode || Me.Status > Wire.MaxStatusCode)) throw new ArgumentException("self faction/weapon/status");
+                for (int i = 0; i < Actors.Length; i++)
+                {
+                    var a = Actors[i];
+                    if (a.Faction > Wire.MaxKitCode || a.Weapon > Wire.MaxKitCode || a.Status > Wire.MaxStatusCode) throw new ArgumentException("actor faction/weapon/status");
+                    if (a.HpPct > 100) throw new ArgumentException("hp_pct");
+                    if (i > 0 && a.Id <= Actors[i - 1].Id) throw new ArgumentException("actor ids must strictly ascend");
+                }
                 var w = new Writer(EncodedLength);
-                w.U8(TSnapshot); w.U32(Tick); w.F64(ServerMs); w.U8(Phase); w.U32(AckInput);
-                if (Me != null) { w.U8(1); Me.Write(w); }
-                else w.U8(0);
-                w.U16((ushort)Actors.Length);
-                for (int i = 0; i < Actors.Length; i++) Actors[i].Write(w);
+                w.U8(TSnapshot); w.Varint(Tick); w.Varint(AckInput);
+                if (Me != null) { ushort head = Me.Head(Phase); w.U16(head); Me.Write(w, head); }
+                else w.U16((ushort)((Phase & 3) << WireSelf.PhaseShift));
+                w.Varint((uint)Actors.Length);
+                uint prev = 0;
+                for (int i = 0; i < Actors.Length; i++) { Actors[i].Write(w, i == 0, prev); prev = Actors[i].Id; }
                 return w.Finish();
             }
 
             /// <summary>Reads the body of a Snapshot frame into <paramref name="s"/>, reusing its Me object and actor array.</summary>
             internal static Snapshot Read(ref Reader r, Snapshot s)
             {
-                s.Tick = r.U32(); s.ServerMs = r.F64(); s.Phase = r.U8(); s.AckInput = r.U32();
-                if (r.Flag())
+                s.Tick = r.Varint(); s.AckInput = r.Varint();
+                ushort head = r.U16();
+                if ((head & ~WireSelf.Known) != 0 || ((head & WireSelf.HPresent) == 0 && (head & WireSelf.SelfBits) != 0))
+                    throw new DecodeException(DecodeError.BadField, "head");
+                s.Phase = (byte)((head >> WireSelf.PhaseShift) & 3);
+                if ((head & WireSelf.HPresent) != 0)
                 {
                     var me = s.Me ?? new WireSelf();
-                    me.Read(ref r);
+                    me.Read(ref r, head);
                     s.Me = me;
                 }
                 else s.Me = null;
-                int n = r.U16();
-                if (n > Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, n.ToString());
+                uint count = r.Varint();
+                if (count > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, count.ToString());
+                int n = (int)count;
                 var actors = s.Actors;
                 if (actors == null || actors.Length != n) actors = n == 0 ? Array.Empty<WireActor>() : new WireActor[n];
-                for (int i = 0; i < n; i++) actors[i] = WireActor.Read(ref r);
+                uint prev = 0;
+                for (int i = 0; i < n; i++) { actors[i] = WireActor.Read(ref r, i == 0, prev); prev = actors[i].Id; }
                 s.Actors = actors;
                 return s;
             }
@@ -459,15 +595,17 @@ namespace Roguehalla.Net.Protocol
 
             public override byte[] Encode()
             {
-                int len = 7;
-                foreach (var f in List) len += f.Kind == FxKind.Swing ? 18 : 13;
+                if (List.Count > ushort.MaxValue) throw new ArgumentException("too many fx");
+                int len = 1 + Writer.VarintLength(Tick) + Writer.VarintLength((uint)List.Count);
+                foreach (var f in List)
+                    len += f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 4;
                 var w = new Writer(len);
-                w.U8(TFx); w.U32(Tick); w.U16((ushort)List.Count);
+                w.U8(TFx); w.Varint(Tick); w.Varint((uint)List.Count);
                 foreach (var f in List)
                 {
                     w.U8((byte)f.Kind);
-                    if (f.Kind == FxKind.Swing) { w.U32(f.By); w.U8(f.Weapon); w.F32(f.X); w.F32(f.Y); w.F32(f.A); }
-                    else { w.U32(f.Victim); w.U32(f.By); w.F32(f.Amount); }
+                    if (f.Kind == FxKind.Swing) { w.Varint(f.By); w.U8(f.Weapon); w.U16(Quant.QuantizePos(f.X)); w.U16(Quant.QuantizePos(f.Y)); w.U16(Quant.QuantizeFacing(f.A)); }
+                    else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); }
                 }
                 return w.Finish();
             }

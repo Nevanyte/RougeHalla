@@ -249,6 +249,28 @@ async fn refusals_happen_before_a_seat_is_taken() {
             ..
         })
     ));
+    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v2.
+    let mut ws = connect(&s.url).await;
+    send(
+        &mut ws,
+        ClientMsg::Hello {
+            protocol: 1,
+            content_hash: rh_sim::content::content_hash(),
+            build: String::new(),
+            profile: "x1v1".into(),
+            token: String::new(),
+            faction: None,
+            resume: None,
+        },
+    )
+    .await;
+    match recv(&mut ws).await {
+        Some(ServerMsg::Reject {
+            code: RejectCode::ProtocolMismatch,
+            reason,
+        }) => assert!(reason.contains("protocol 2"), "{reason}"),
+        other => panic!("{other:?}"),
+    }
     // Wrong content hash: the reason names the server's.
     let mut ws = connect(&s.url).await;
     send(

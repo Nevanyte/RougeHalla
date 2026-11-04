@@ -24,15 +24,19 @@ namespace Roguehalla.Net.Tests
         {
             var a = new WireActor[actors];
             for (int k = 0; k < actors; k++)
-                a[k] = new WireActor { Id = (uint)(2 * k + 1), Faction = (byte)(k % 5), X = 100 + tick + k, Y = 200 - k, Facing = 0.01f * (tick + k), HpPct = (byte)(k % 101), Weapon = (byte)(k % 7), Bounty = (ushort)k };
-            return new ServerMsg.Snapshot { Tick = tick, ServerMs = tick * 50.0, Phase = 1, AckInput = tick, Me = me ? Self(tick) : null, Actors = a };
+                a[k] = new WireActor { Id = (uint)(2 * k + 1), Faction = (byte)(k % 5), X = 100 + (tick % 1000) + k, Y = 200 - k, Facing = 0.01f * ((tick % 1000) + k), HpPct = (byte)(k % 101), Weapon = (byte)(k % 7), Bounty = (ushort)k };
+            return new ServerMsg.Snapshot { Tick = tick, Phase = 1, AckInput = tick, Me = me ? Self(tick) : null, Actors = a };
         }
 
-        /// <summary>Overwrites a Snapshot frame's server_ms (bytes 5..12) in place, so one frame can be delivered as a stream.</summary>
-        static void SetServerMs(byte[] frame, double ms)
+        /// <summary>First tick whose varint is three bytes: a frame encoded at <see cref="BaseTick"/> can be re-stamped in place.</summary>
+        const uint BaseTick = 20000;
+
+        /// <summary>Overwrites a Snapshot frame's tick (the three-byte varint at bytes 1..3) in place, so one frame can be delivered
+        /// as a stream. The frame must have been encoded with a tick of 16384 to 2097151.</summary>
+        static void SetTick(byte[] frame, uint tick)
         {
-            long bits = BitConverter.DoubleToInt64Bits(ms);
-            for (int k = 0; k < 8; k++) frame[5 + k] = (byte)(bits >> (8 * k));
+            if (tick < 16384u || tick > 2097151u) throw new ArgumentOutOfRangeException(nameof(tick));
+            frame[1] = (byte)((tick & 0x7f) | 0x80); frame[2] = (byte)(((tick >> 7) & 0x7f) | 0x80); frame[3] = (byte)(tick >> 14);
         }
 
         /// <summary>Bytes allocated per call of <paramref name="body"/>, after a warm-up (JIT, first-use statics).</summary>
@@ -46,7 +50,7 @@ namespace Roguehalla.Net.Tests
 
         static double DecodeGarbage(int actors, bool me)
         {
-            var frame = Snap(7, actors, me).Encode();
+            var frame = Snap(BaseTick, actors, me).Encode();
             object sink = null;
             double b = PerCall(i => { sink = ServerMsg.Decode(frame, frame.Length); });
             GC.KeepAlive(sink);
@@ -69,13 +73,13 @@ namespace Roguehalla.Net.Tests
         /// snapshot (the worst case: the actor array cannot be reused).</summary>
         static double PooledGarbage(int actors, bool vary)
         {
-            byte[] a = Snap(7, actors).Encode(), b = Snap(7, vary ? actors + 1 : actors).Encode();
+            byte[] a = Snap(BaseTick, actors).Encode(), b = Snap(BaseTick, vary ? actors + 1 : actors).Encode();
             var buf = new SnapshotBuffer();
             int refused = 0;
             double perSnapshot = PerCall(i =>
             {
                 var frame = (i & 1) == 0 ? a : b;
-                SetServerMs(frame, i * 50.0);
+                SetTick(frame, BaseTick + (uint)i);
                 var spare = buf.TakeSpare();
                 var msg = (ServerMsg.Snapshot)ServerMsg.Decode(frame, frame.Length, spare);
                 if (!buf.Add(msg)) refused++;
@@ -105,16 +109,16 @@ namespace Roguehalla.Net.Tests
             var t = new FakeTransport();
             var s = new Session(t, new SessionOptions { Now = () => now });
             s.Connect(); t.Open();
-            t.Deliver(new ServerMsg.Welcome { Protocol = 1, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            t.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
             Assert.AreEqual(SessionState.InMatch, s.State);
-            var frame = Snap(7, actors).Encode();
+            var frame = Snap(BaseTick, actors).Encode();
             var o = new List<InterpActor>();
             double b = PerCall(i =>
             {
                 now += 50;
-                SetServerMs(frame, i * 50.0);
+                SetTick(frame, BaseTick + (uint)i);
                 t.DeliverRaw(frame);
-                s.Snapshots.Sample(i * 50.0 - 100, o);
+                s.Snapshots.Sample((BaseTick + i) * 50.0 - 100, o);
             });
             TestContext.Progress.WriteLine("session receive + sample, {0} actors: {1} B per snapshot", actors, b);
             Assert.AreEqual(0.0, b);
@@ -142,7 +146,7 @@ namespace Roguehalla.Net.Tests
     {
         static byte[] Frame(uint tick, WireSelf me, params WireActor[] actors)
         {
-            return new ServerMsg.Snapshot { Tick = tick, ServerMs = tick * 50.0, Me = me, Actors = actors }.Encode();
+            return new ServerMsg.Snapshot { Tick = tick, Me = me, Actors = actors }.Encode();
         }
 
         [Test]
@@ -200,19 +204,19 @@ namespace Roguehalla.Net.Tests
             WireSelf me = s.Latest != null ? s.Latest.Me : null;
             Assert.IsNull(me);
             s.Connect(); t.Open();
-            t.Deliver(new ServerMsg.Welcome { Protocol = 1, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
-            t.Deliver(new ServerMsg.Snapshot { Tick = 1, ServerMs = 50, Me = new WireSelf { Id = 3, Hp = 10, MaxHp = 20 } });
+            t.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, Hp = 10, MaxHp = 20 } });
             me = s.Latest != null ? s.Latest.Me : null;
             uint myId = me != null ? me.Id : 0;
             Assert.AreEqual(3u, myId);
-            t.Deliver(new ServerMsg.Snapshot { Tick = 2, ServerMs = 100, Me = null, Actors = new[] { new WireActor { Id = 3 } } });
+            t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = null, Actors = new[] { new WireActor { Id = 3 } } });
             me = s.Latest != null ? s.Latest.Me : null;
             Assert.IsNull(me, "spectating: no self");
             // Recycling keeps that true: run the buffer through many snapshots alternating self / no self.
             for (uint k = 3; k < 200; k++)
             {
                 bool has = (k % 3) != 0;
-                t.Deliver(new ServerMsg.Snapshot { Tick = k, ServerMs = k * 50, Me = has ? new WireSelf { Id = 3, X = k } : null });
+                t.Deliver(new ServerMsg.Snapshot { Tick = k, Me = has ? new WireSelf { Id = 3, X = k } : null });
                 me = s.Latest != null ? s.Latest.Me : null;
                 Assert.AreEqual(has, me != null, "tick " + k);
                 if (has) Assert.AreEqual((float)k, me.X);
@@ -261,8 +265,8 @@ namespace Roguehalla.Net.Tests
                     for (int k = 0; k < arr.Length; k++) arr[k] = new WireActor { Id = ids[k], X = rnd.Next(-300, 300), Y = rnd.Next(-300, 300), Facing = (float)(rnd.NextDouble() * 6 - 3), HpPct = (byte)rnd.Next(101) };
                     return arr;
                 }
-                var a = new ServerMsg.Snapshot { ServerMs = 1000, Actors = Make() };
-                var b = new ServerMsg.Snapshot { ServerMs = 1050, Actors = Make() };
+                var a = new ServerMsg.Snapshot { Tick = 20, Actors = Make() };
+                var b = new ServerMsg.Snapshot { Tick = 21, Actors = Make() };
                 var buf = new SnapshotBuffer();
                 buf.Add(a); buf.Add(b);
                 var got = new List<InterpActor>();
@@ -290,10 +294,11 @@ namespace Roguehalla.Net.Tests
         [Test]
         public void EncodeRefusesMoreThanMaxActorsInsteadOfTrimming()
         {
-            var ok = new ServerMsg.Snapshot { Actors = new WireActor[Wire.MaxActors] };
+            WireActor[] Many(int n) { var a = new WireActor[n]; for (int i = 0; i < n; i++) a[i].Id = (uint)i + 1; return a; }
+            var ok = new ServerMsg.Snapshot { Actors = Many(Wire.MaxActors) };
             Assert.AreEqual(Wire.MaxActors, ((ServerMsg.Snapshot)ServerMsg.Decode(ok.Encode())).Actors.Length);
             Assert.AreEqual(ok.EncodedLength, ok.Encode().Length);
-            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new WireActor[Wire.MaxActors + 1] }.Encode());
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = Many(Wire.MaxActors + 1) }.Encode());
         }
     }
 }

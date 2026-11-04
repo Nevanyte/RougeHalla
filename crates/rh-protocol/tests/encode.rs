@@ -40,7 +40,6 @@ fn me() -> WireSelf {
 fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     ServerMsg::Snapshot {
         tick: 101,
-        server_ms: 5050.0,
         phase: 1,
         ack_input: 42,
         me,
@@ -48,10 +47,29 @@ fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     }
 }
 
+/// What a client decodes: remote actors quantized, everything else as sent.
+fn decoded_form(m: &ServerMsg) -> ServerMsg {
+    match m {
+        ServerMsg::Snapshot {
+            tick,
+            phase,
+            ack_input,
+            me,
+            actors,
+        } => ServerMsg::Snapshot {
+            tick: *tick,
+            phase: *phase,
+            ack_input: *ack_input,
+            me: *me,
+            actors: actors.iter().map(WireActor::quantized).collect(),
+        },
+        other => other.clone(),
+    }
+}
+
 fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     let ServerMsg::Snapshot {
         tick,
-        server_ms,
         phase,
         ack_input,
         me,
@@ -60,15 +78,7 @@ fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     else {
         panic!("not a snapshot")
     };
-    let mut s = SnapshotWriter::begin(
-        out,
-        *tick,
-        *server_ms,
-        *phase,
-        *ack_input,
-        me.as_ref(),
-        actors.len(),
-    );
+    let mut s = SnapshotWriter::begin(out, *tick, *phase, *ack_input, me.as_ref(), actors.len());
     for a in actors {
         s.actor(a);
     }
@@ -146,27 +156,48 @@ fn snapshot_writer_matches_the_message_for_every_size() {
             let mut out = Vec::new();
             assert_eq!(stream(&mut out, &m), Ok(m.encoded_len()));
             assert_eq!(out, m.encode());
-            assert_eq!(ServerMsg::decode(&out), Ok(m.clone()));
+            assert_eq!(ServerMsg::decode(&out), Ok(decoded_form(&m)));
         }
     }
-    // The hint is only a reservation: fewer or more actors than announced still give the right frame.
-    for hint in [0, 3, 1000] {
-        let m = snapshot(Some(me()), 5);
-        let mut out = Vec::new();
-        let mut s = SnapshotWriter::begin(&mut out, 101, 5050.0, 1, 42, Some(&me()), hint);
+    // The announced count is exact: another number of actors is refused, and the frame is removed.
+    for announced in [0usize, 3, 400] {
+        let mut out = vec![7];
+        let mut w = SnapshotWriter::begin(&mut out, 101, 1, 42, Some(&me()), announced);
         for i in 0..5 {
-            s.actor(&actor(i));
+            w.actor(&actor(i));
         }
-        s.finish().unwrap();
-        assert_eq!(out, m.encode(), "hint {hint}");
+        assert_eq!(
+            w.finish(),
+            Err(EncodeError::CountMismatch {
+                declared: announced,
+                written: 5
+            })
+        );
+        assert_eq!(out, [7], "announced {announced}");
     }
+}
+
+#[test]
+fn an_announced_count_over_the_limit_is_too_many() {
+    let mut out = vec![7];
+    let mut w = SnapshotWriter::begin(&mut out, 101, 1, 42, None, 1000);
+    w.actor(&actor(1));
+    assert!(matches!(
+        w.finish(),
+        Err(EncodeError::TooMany {
+            what: "actors",
+            n: 1000,
+            ..
+        })
+    ));
+    assert_eq!(out, [7]);
 }
 
 #[test]
 fn max_actors_encodes_and_one_more_is_refused_not_clamped() {
     let ok = snapshot(Some(me()), MAX_ACTORS as u32);
     let bytes = ok.try_encode().expect("512 actors is a legal frame");
-    assert_eq!(ServerMsg::decode(&bytes), Ok(ok));
+    assert_eq!(ServerMsg::decode(&bytes), Ok(decoded_form(&ok)));
 
     let over = snapshot(Some(me()), MAX_ACTORS as u32 + 1);
     let err = EncodeError::TooMany {
@@ -184,18 +215,22 @@ fn max_actors_encodes_and_one_more_is_refused_not_clamped() {
     );
     assert_eq!(stream(&mut out, &over), Err(err));
     assert_eq!(out, [1, 2, 3], "a refused streamed frame is removed");
-    // What every decoder does with the frame the encoder refuses to write:
-    let mut forged = bytes.clone();
-    let count_at = forged.len() - 2 - ACTOR_BYTES * MAX_ACTORS;
-    forged[count_at..count_at + 2].copy_from_slice(&(MAX_ACTORS as u16 + 1).to_le_bytes());
-    forged.extend_from_slice(&[0; ACTOR_BYTES]);
+    // What every decoder does with the frame the encoder refuses to write (hand-built: 513 minimal actors).
+    let mut w = Writer::default();
+    w.u8(0x83);
+    w.varint(1);
+    w.varint(0);
+    w.u16(0);
+    w.varint(MAX_ACTORS as u32 + 1);
+    for _ in 0..=MAX_ACTORS {
+        w.varint(1);
+        w.bytes(&[0; 7]);
+    }
     assert_eq!(
-        ServerMsg::decode(&forged),
+        ServerMsg::decode(&w.finish()),
         Err(DecodeError::TooMany(MAX_ACTORS + 1))
     );
 }
-
-const ACTOR_BYTES: usize = 22;
 
 #[cfg(debug_assertions)]
 #[test]
@@ -208,11 +243,11 @@ fn encode_debug_asserts_on_too_many_actors() {
 fn an_abandoned_snapshot_writer_leaves_no_partial_frame() {
     let mut out = vec![9];
     {
-        let mut s = SnapshotWriter::begin(&mut out, 1, 2.0, 0, 0, Some(&me()), 4);
+        let mut s = SnapshotWriter::begin(&mut out, 1, 0, 0, Some(&me()), 4);
         s.actor(&actor(1));
     }
     assert_eq!(out, [9]);
-    let mut s = SnapshotWriter::begin(&mut out, 1, 2.0, 0, 0, None, 0);
+    let mut s = SnapshotWriter::begin(&mut out, 1, 0, 0, None, 1);
     s.actor(&actor(1));
     let n = s.finish().unwrap();
     assert_eq!(out.len(), 1 + n);
@@ -291,7 +326,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
         events.try_encode(),
         Err(EncodeError::TooMany { what: "events", .. })
     ));
-    // A legal count whose frame is still over the server frame limit (13 B per hit).
+    // A legal count whose frame is still over the server frame limit.
     let big = ServerMsg::Fx {
         tick: 1,
         fx: vec![
@@ -300,13 +335,14 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0
             };
-            30_000
+            40_000
         ],
     };
+    // tag 1, tick 1, count 3 (a varint of 40000), then 1 + 1 + 1 + 4 per hit.
     assert_eq!(
         big.try_encode(),
         Err(EncodeError::TooLarge {
-            len: 7 + 13 * 30_000,
+            len: 5 + 7 * 40_000,
             max: MAX_SERVER_FRAME
         })
     );
