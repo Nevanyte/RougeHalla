@@ -143,7 +143,11 @@ export const RECONNECT_SECONDS = 20;
 export const HEARTBEAT_MS = 1000;
 export const LIVENESS_TIMEOUT_MS = 4500;
 export const LIVENESS_SWEEP_MS = 1000;
-export const CLIENT_STALL_MS = 3000;
+/**
+ * 4 s (was 3): the server lets an honest backlog through after a pause now (RaidRoom's message bucket), so a 3-4 s hiccup is ridden
+ * out instead of turned into a reconnect; it stays under LIVENESS_TIMEOUT_MS so the client still notices a dead link first.
+ */
+export const CLIENT_STALL_MS = 4000;
 /** How long an ended room lingers so clients receive their results before disconnect. */
 export const ENDED_LINGER_SECONDS = 5;
 /**

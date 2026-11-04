@@ -49,6 +49,17 @@ const DEATH_RESULTS_DELAY_MS = 1500;
 let room: RaidRoom | null = null;
 /** The heartbeat and stall watch of the current room (net/linkWatch.ts). */
 let linkWatch: LinkWatch | null = null;
+// Closing or leaving the page while in the lobby is a leave, not a lost connection: the lobby holds a dropped seat for the reconnect
+// grace, and a seat still held when the lobby closes into planning would count as walking out of a run (MIA). Later phases keep
+// the held seat on purpose (a reload can come back to the run).
+window.addEventListener("pagehide", (e) => {
+  const current = room;
+  if (e.persisted || !current || current.state?.phase !== "lobby") return;
+  room = null;
+  clearSeat();
+  leaveRoom(current);
+});
+
 /** A `died` result waiting out DEATH_RESULTS_DELAY_MS; null otherwise. */
 let pendingResult: { result: RunResult; timer: ReturnType<typeof setTimeout> } | null = null;
 
