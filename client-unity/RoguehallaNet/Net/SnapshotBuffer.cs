@@ -15,6 +15,9 @@ namespace Roguehalla.Net
     /// <summary>
     /// Recent server snapshots, sampled at a render time in server milliseconds. Remote actors are drawn in the past so there are
     /// always two snapshots to blend; when starved the newest is held (no extrapolation at this stage).
+    /// Sampling makes no garbage: actors are matched across the two snapshots by a merge over their id-sorted arrays (C-OBS lists
+    /// them by id). The snapshot that falls out of the buffer is kept as a spare that the next decode can overwrite
+    /// (<see cref="TakeSpare"/>, <c>ServerMsg.Decode(frame, length, reuse)</c>), so a steady stream makes no garbage either.
     /// </summary>
     public sealed class SnapshotBuffer
     {
@@ -22,8 +25,8 @@ namespace Roguehalla.Net
         public const float TeleportDistance = 256f;
         const int Capacity = 40;
 
-        readonly List<ServerMsg.Snapshot> _snaps = new List<ServerMsg.Snapshot>();
-        readonly Dictionary<uint, WireActor> _prev = new Dictionary<uint, WireActor>();
+        readonly List<ServerMsg.Snapshot> _snaps = new List<ServerMsg.Snapshot>(Capacity + 1);
+        ServerMsg.Snapshot _spare;
 
         public int Count { get { return _snaps.Count; } }
         public ServerMsg.Snapshot Newest { get { return _snaps.Count == 0 ? null : _snaps[_snaps.Count - 1]; } }
@@ -37,9 +40,28 @@ namespace Roguehalla.Net
         {
             if (_snaps.Count > 0 && s.ServerMs <= NewestMs) return false;
             _snaps.Add(s);
-            if (_snaps.Count > Capacity) _snaps.RemoveAt(0);
+            if (_snaps.Count > Capacity)
+            {
+                _spare = _snaps[0];
+                _snaps.RemoveAt(0);
+            }
             return true;
         }
+
+        /// <summary>
+        /// The snapshot that last fell out of the buffer (null if none), for <c>ServerMsg.Decode(frame, length, reuse)</c> to decode
+        /// into. It is no longer in the buffer; whoever takes it owns it. Only safe when nothing else still holds that snapshot
+        /// (it is <see cref="Capacity"/> snapshots old, two seconds at 20 Hz).
+        /// </summary>
+        public ServerMsg.Snapshot TakeSpare()
+        {
+            var s = _spare;
+            _spare = null;
+            return s;
+        }
+
+        /// <summary>Hands back a spare that was taken but not used (the frame was not a snapshot, or failed to decode).</summary>
+        internal void Recycle(ServerMsg.Snapshot s) { if (s != null) _spare = s; }
 
         /// <summary>Fills <paramref name="outActors"/> with the actors as they were at <paramref name="renderMs"/>. False when empty.</summary>
         public bool Sample(double renderMs, List<InterpActor> outActors)
@@ -59,22 +81,46 @@ namespace Roguehalla.Net
             return true;
         }
 
+        static bool SortedById(WireActor[] a)
+        {
+            for (int i = 1; i < a.Length; i++) if (a[i - 1].Id >= a[i].Id) return false;
+            return true;
+        }
+
+        /// <summary>Index of the last actor with <paramref name="id"/> (what a map built in array order would hold), or -1.</summary>
+        static int LastIndexOf(WireActor[] a, uint id)
+        {
+            for (int i = a.Length - 1; i >= 0; i--) if (a[i].Id == id) return i;
+            return -1;
+        }
+
         void Emit(ServerMsg.Snapshot b, ServerMsg.Snapshot a, float t, List<InterpActor> outActors)
         {
-            _prev.Clear();
-            if (a != null) foreach (var p in a.Actors) _prev[p.Id] = p;
-            foreach (var cur in b.Actors)
+            WireActor[] cur = b.Actors, prev = a != null ? a.Actors : null;
+            // Snapshots list actors by ascending id (C-OBS), so one forward merge pairs them in O(n + m). Anything else (a hand-made
+            // snapshot) falls back to a search with the same result; neither allocates.
+            bool merge = prev != null && SortedById(prev) && SortedById(cur);
+            int j = 0;
+            for (int i = 0; i < cur.Length; i++)
             {
-                var o = new InterpActor { Id = cur.Id, Faction = cur.Faction, HpPct = cur.HpPct, Status = cur.Status, Weapon = cur.Weapon, Bounty = cur.Bounty, X = cur.X, Y = cur.Y, Facing = cur.Facing };
-                WireActor p;
-                if (a != null && _prev.TryGetValue(cur.Id, out p))
+                ref readonly WireActor c = ref cur[i];
+                var o = new InterpActor { Id = c.Id, Faction = c.Faction, HpPct = c.HpPct, Status = c.Status, Weapon = c.Weapon, Bounty = c.Bounty, X = c.X, Y = c.Y, Facing = c.Facing };
+                int k = -1;
+                if (merge)
                 {
-                    float dx = cur.X - p.X, dy = cur.Y - p.Y;
+                    while (j < prev.Length && prev[j].Id < c.Id) j++;
+                    if (j < prev.Length && prev[j].Id == c.Id) k = j;
+                }
+                else if (prev != null) k = LastIndexOf(prev, c.Id);
+                if (k >= 0)
+                {
+                    ref readonly WireActor p = ref prev[k];
+                    float dx = c.X - p.X, dy = c.Y - p.Y;
                     if (dx * dx + dy * dy <= TeleportDistance * TeleportDistance)
                     {
                         o.X = p.X + dx * t;
                         o.Y = p.Y + dy * t;
-                        o.Facing = LerpAngle(p.Facing, cur.Facing, t);
+                        o.Facing = LerpAngle(p.Facing, c.Facing, t);
                     }
                 }
                 outActors.Add(o);

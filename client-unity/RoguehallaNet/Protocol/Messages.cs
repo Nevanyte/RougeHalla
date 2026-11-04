@@ -114,7 +114,9 @@ namespace Roguehalla.Net.Protocol
             public override byte[] Encode()
             {
                 if (Commands.Count > Wire.MaxCommandsPerInput) throw new ArgumentException("too many commands");
-                var w = new Writer();
+                int len = 7;
+                foreach (var c in Commands) len += CommandLength(c);
+                var w = new Writer(len);
                 w.U8(TInput); w.U32(Seq); w.U16((ushort)Commands.Count);
                 foreach (var c in Commands)
                 {
@@ -135,13 +137,24 @@ namespace Roguehalla.Net.Protocol
             }
 
             static void Opt(Writer w, byte? v) { if (v.HasValue) { w.U8(1); w.U8(v.Value); } else w.U8(0); }
+
+            static int CommandLength(WireCommand c)
+            {
+                switch (c.Kind)
+                {
+                    case CommandKind.Move: return 9 + (c.Seq.HasValue ? 2 : 1);
+                    case CommandKind.Stop: return 1 + (c.Seq.HasValue ? 2 : 1);
+                    case CommandKind.Aim: return 5;
+                    default: return 5 + (c.T.HasValue ? 9 : 1);
+                }
+            }
         }
 
         public sealed class Ping : ClientMsg
         {
             public uint Nonce;
             public double ClientMs;
-            public override byte[] Encode() { var w = new Writer(); w.U8(TPing); w.U32(Nonce); w.F64(ClientMs); return w.Finish(); }
+            public override byte[] Encode() { var w = new Writer(13); w.U8(TPing); w.U32(Nonce); w.F64(ClientMs); return w.Finish(); }
         }
 
         public sealed class Leave : ClientMsg
@@ -150,6 +163,7 @@ namespace Roguehalla.Net.Protocol
         }
     }
 
+    /// <summary>The receiving player's own state. A class on purpose: <c>Snapshot.Me</c> is null for a spectator.</summary>
     public sealed class WireSelf
     {
         public uint Id;
@@ -158,17 +172,50 @@ namespace Roguehalla.Net.Protocol
         public byte Status, Weapon;
         public ushort ReadyInMs, Kills, Bounty, Gv;
         public byte MoveSeq;
+
+        internal const int WireSize = 36;
+
+        internal void Read(ref Reader r)
+        {
+            Id = r.U32(); Faction = r.U8(); X = r.F32(); Y = r.F32(); Facing = r.F32(); Hp = r.F32(); MaxHp = r.F32();
+            Status = r.U8(); Weapon = r.U8(); ReadyInMs = r.U16(); Kills = r.U16(); Bounty = r.U16(); Gv = r.U16(); MoveSeq = r.U8();
+        }
+
+        internal void Write(Writer w)
+        {
+            w.U32(Id); w.U8(Faction); w.F32(X); w.F32(Y); w.F32(Facing); w.F32(Hp); w.F32(MaxHp);
+            w.U8(Status); w.U8(Weapon); w.U16(ReadyInMs); w.U16(Kills); w.U16(Bounty); w.U16(Gv); w.U8(MoveSeq);
+        }
     }
 
-    public sealed class WireActor
+    /// <summary>
+    /// One visible actor. A value type: a snapshot's actors live inline in its array (no object per actor). The fields are
+    /// declared widest first so the struct packs into 24 bytes; the wire order is fixed by <see cref="Read"/>/<see cref="Write"/>.
+    /// </summary>
+    public struct WireActor
     {
         public uint Id;
-        public byte Faction;
         public float X, Y, Facing;
+        public ushort Bounty;
+        public byte Faction;
         /// <summary>hp fraction in hundredths (0..100).</summary>
         public byte HpPct;
         public byte Status, Weapon;
-        public ushort Bounty;
+
+        internal const int WireSize = 22;
+
+        internal static WireActor Read(ref Reader r)
+        {
+            WireActor a;
+            a.Id = r.U32(); a.Faction = r.U8(); a.X = r.F32(); a.Y = r.F32(); a.Facing = r.F32(); a.HpPct = r.U8();
+            a.Status = r.U8(); a.Weapon = r.U8(); a.Bounty = r.U16();
+            return a;
+        }
+
+        internal void Write(Writer w)
+        {
+            w.U32(Id); w.U8(Faction); w.F32(X); w.F32(Y); w.F32(Facing); w.U8(HpPct); w.U8(Status); w.U8(Weapon); w.U16(Bounty);
+        }
     }
 
     public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4 }
@@ -210,10 +257,18 @@ namespace Roguehalla.Net.Protocol
 
         public abstract byte[] Encode();
 
-        public static ServerMsg Decode(byte[] frame) { return Decode(frame, frame.Length); }
+        public static ServerMsg Decode(byte[] frame) { return Decode(frame, frame.Length, null); }
 
         /// <summary>Decodes the first <paramref name="length"/> bytes (transports may hand over a reused buffer).</summary>
-        public static ServerMsg Decode(byte[] frame, int length)
+        public static ServerMsg Decode(byte[] frame, int length) { return Decode(frame, length, null); }
+
+        /// <summary>
+        /// As <see cref="Decode(byte[], int)"/>, but a Snapshot frame is decoded INTO <paramref name="reuse"/> (when given) and
+        /// returns it: its Me object and its actor array are reused when they fit, so a steady stream of snapshots makes no
+        /// garbage. Pass only a snapshot nothing else still reads (SnapshotBuffer.TakeSpare hands out such one). Other frames
+        /// ignore <paramref name="reuse"/>. If decoding throws, <paramref name="reuse"/> is left partly overwritten.
+        /// </summary>
+        public static ServerMsg Decode(byte[] frame, int length, Snapshot reuse)
         {
             if (length > Wire.MaxServerFrame) throw new DecodeException(DecodeError.TooLarge, length.ToString());
             var r = new Reader(frame, length);
@@ -224,7 +279,7 @@ namespace Roguehalla.Net.Protocol
                     msg = new Welcome
                     {
                         Protocol = r.U16(), ContentHash = r.U64(), MatchId = r.Array16(), PlayerId = r.U32(), Session = r.Array16(),
-                        TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Map = MapBlob.Read(r),
+                        TickRate = r.U8(), Tick = r.U32(), ServerMs = r.F64(), Map = MapBlob.Read(ref r),
                     };
                     break;
                 case TReject:
@@ -235,26 +290,8 @@ namespace Roguehalla.Net.Protocol
                     break;
                 }
                 case TSnapshot:
-                {
-                    var s = new Snapshot { Tick = r.U32(), ServerMs = r.F64(), Phase = r.U8(), AckInput = r.U32() };
-                    if (r.Flag())
-                        s.Me = new WireSelf
-                        {
-                            Id = r.U32(), Faction = r.U8(), X = r.F32(), Y = r.F32(), Facing = r.F32(), Hp = r.F32(), MaxHp = r.F32(),
-                            Status = r.U8(), Weapon = r.U8(), ReadyInMs = r.U16(), Kills = r.U16(), Bounty = r.U16(), Gv = r.U16(), MoveSeq = r.U8(),
-                        };
-                    int n = r.U16();
-                    if (n > Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, n.ToString());
-                    s.Actors = new WireActor[n];
-                    for (int i = 0; i < n; i++)
-                        s.Actors[i] = new WireActor
-                        {
-                            Id = r.U32(), Faction = r.U8(), X = r.F32(), Y = r.F32(), Facing = r.F32(), HpPct = r.U8(),
-                            Status = r.U8(), Weapon = r.U8(), Bounty = r.U16(),
-                        };
-                    msg = s;
+                    msg = Snapshot.Read(ref r, reuse ?? new Snapshot());
                     break;
-                }
                 case TEvents:
                 {
                     var e = new Events { Tick = r.U32() };
@@ -321,7 +358,7 @@ namespace Roguehalla.Net.Protocol
 
             public override byte[] Encode()
             {
-                var w = new Writer();
+                var w = new Writer(60 + Map.EncodedLength);
                 w.U8(TWelcome); w.U16(Protocol); w.U64(ContentHash); w.Bytes(MatchId); w.U32(PlayerId); w.Bytes(Session);
                 w.U8(TickRate); w.U32(Tick); w.F64(ServerMs);
                 Map.Write(w);
@@ -342,26 +379,45 @@ namespace Roguehalla.Net.Protocol
             public double ServerMs;
             public byte Phase;
             public uint AckInput;
+            /// <summary>Null for a spectator (or a dead player's view without a self).</summary>
             public WireSelf Me;
-            public WireActor[] Actors = new WireActor[0];
+            /// <summary>Sorted by id (C-OBS). Never null; shared empty array when nothing is visible.</summary>
+            public WireActor[] Actors = Array.Empty<WireActor>();
+
+            /// <summary>Exact size of <see cref="Encode"/>'s frame.</summary>
+            public int EncodedLength { get { return 18 + (Me != null ? 1 + WireSelf.WireSize : 1) + 2 + WireActor.WireSize * Actors.Length; } }
 
             public override byte[] Encode()
             {
-                var w = new Writer();
+                // The encoder never writes a frame every decoder rejects (and never trims one to fit): rh-protocol does the same.
+                if (Actors.Length > Wire.MaxActors) throw new ArgumentException("more than " + Wire.MaxActors + " actors");
+                var w = new Writer(EncodedLength);
                 w.U8(TSnapshot); w.U32(Tick); w.F64(ServerMs); w.U8(Phase); w.U32(AckInput);
-                if (Me != null)
-                {
-                    w.U8(1);
-                    w.U32(Me.Id); w.U8(Me.Faction); w.F32(Me.X); w.F32(Me.Y); w.F32(Me.Facing); w.F32(Me.Hp); w.F32(Me.MaxHp);
-                    w.U8(Me.Status); w.U8(Me.Weapon); w.U16(Me.ReadyInMs); w.U16(Me.Kills); w.U16(Me.Bounty); w.U16(Me.Gv); w.U8(Me.MoveSeq);
-                }
+                if (Me != null) { w.U8(1); Me.Write(w); }
                 else w.U8(0);
                 w.U16((ushort)Actors.Length);
-                foreach (var a in Actors)
-                {
-                    w.U32(a.Id); w.U8(a.Faction); w.F32(a.X); w.F32(a.Y); w.F32(a.Facing); w.U8(a.HpPct); w.U8(a.Status); w.U8(a.Weapon); w.U16(a.Bounty);
-                }
+                for (int i = 0; i < Actors.Length; i++) Actors[i].Write(w);
                 return w.Finish();
+            }
+
+            /// <summary>Reads the body of a Snapshot frame into <paramref name="s"/>, reusing its Me object and actor array.</summary>
+            internal static Snapshot Read(ref Reader r, Snapshot s)
+            {
+                s.Tick = r.U32(); s.ServerMs = r.F64(); s.Phase = r.U8(); s.AckInput = r.U32();
+                if (r.Flag())
+                {
+                    var me = s.Me ?? new WireSelf();
+                    me.Read(ref r);
+                    s.Me = me;
+                }
+                else s.Me = null;
+                int n = r.U16();
+                if (n > Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, n.ToString());
+                var actors = s.Actors;
+                if (actors == null || actors.Length != n) actors = n == 0 ? Array.Empty<WireActor>() : new WireActor[n];
+                for (int i = 0; i < n; i++) actors[i] = WireActor.Read(ref r);
+                s.Actors = actors;
+                return s;
             }
         }
 
@@ -403,7 +459,9 @@ namespace Roguehalla.Net.Protocol
 
             public override byte[] Encode()
             {
-                var w = new Writer();
+                int len = 7;
+                foreach (var f in List) len += f.Kind == FxKind.Swing ? 18 : 13;
+                var w = new Writer(len);
                 w.U8(TFx); w.U32(Tick); w.U16((ushort)List.Count);
                 foreach (var f in List)
                 {
@@ -419,7 +477,7 @@ namespace Roguehalla.Net.Protocol
         {
             public uint Nonce;
             public double ClientMs, ServerMs;
-            public override byte[] Encode() { var w = new Writer(); w.U8(TPong); w.U32(Nonce); w.F64(ClientMs); w.F64(ServerMs); return w.Finish(); }
+            public override byte[] Encode() { var w = new Writer(21); w.U8(TPong); w.U32(Nonce); w.F64(ClientMs); w.F64(ServerMs); return w.Finish(); }
         }
     }
 }

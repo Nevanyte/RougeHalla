@@ -52,6 +52,11 @@ namespace Roguehalla.Net
         public byte[] SessionToken { get; private set; }
         public MapBlob Map { get { return Welcome == null ? null : Welcome.Map; } }
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
+        /// <summary>
+        /// The newest snapshot received. Snapshot objects (this one, those raised by SnapshotReceived and those in Snapshots) are
+        /// recycled for later frames once they fall out of the 40-snapshot buffer: read them when they arrive or per frame, and
+        /// copy what must outlive that.
+        /// </summary>
         public ServerMsg.Snapshot Latest { get; private set; }
         public WireResult LastResult { get; private set; }
         public int ReconnectAttempt { get { return _attempt; } }
@@ -182,8 +187,11 @@ namespace Roguehalla.Net
         void OnReceived(byte[] frame)
         {
             ServerMsg msg;
-            try { msg = ServerMsg.Decode(frame); }
-            catch (DecodeException e) { DecodeErrors++; Error = "bad server frame: " + e.Message; return; }
+            // A snapshot decodes into the one that last left the buffer (two seconds old), so steady play makes no garbage.
+            var spare = Snapshots.TakeSpare();
+            try { msg = ServerMsg.Decode(frame, frame.Length, spare); }
+            catch (DecodeException e) { Snapshots.Recycle(spare); DecodeErrors++; Error = "bad server frame: " + e.Message; return; }
+            if (!ReferenceEquals(msg, spare)) Snapshots.Recycle(spare);
 
             var reject = msg as ServerMsg.Reject;
             if (reject != null)

@@ -1,8 +1,18 @@
 //! The canonical public map on the wire (docs/adr/0003-canonical-map.md): the server sends the collision layer it simulates
 //! on, run-length encoded, with its FNV-1a identity. Clients never run a generator, so a client can never disagree with the
 //! server about walls (the legacy design rebuilt the map from a seed in every client and checked a hash).
+//!
+//! The map never changes during a match, so the server can RLE-encode it once ([`MapBlob::pre_encode`]) and copy the
+//! [`EncodedMap`] into every Welcome ([`crate::encode_welcome`]); the bytes are the ones [`MapBlob::write`] produces.
 
-use crate::codec::{DecodeError, Reader, Writer};
+use crate::codec::{DecodeError, EncodeError, Reader, Writer};
+
+/// Most tiles a decoder accepts (`w * h`).
+pub const MAX_MAP_TILES: usize = 1024 * 1024;
+/// `w u16, h u16, hash u32, runs u32`.
+const MAP_HEAD_LEN: usize = 12;
+/// `tile u8, length u16`.
+const RUN_LEN: usize = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MapBlob {
@@ -29,6 +39,22 @@ pub fn layer_hash(w: u32, h: u32, tiles: &[u8]) -> u32 {
     hsh
 }
 
+/// The runs of `tiles`: maximal stretches of one tile class, split at `u16::MAX` (no allocation).
+struct Runs<'a> {
+    tiles: &'a [u8],
+}
+
+impl Iterator for Runs<'_> {
+    type Item = (u8, u16);
+    fn next(&mut self) -> Option<(u8, u16)> {
+        let (&t, rest) = self.tiles.split_first()?;
+        let max = rest.len().min(u16::MAX as usize - 1);
+        let same = rest[..max].iter().take_while(|&&x| x == t).count();
+        self.tiles = &rest[same..];
+        Some((t, same as u16 + 1))
+    }
+}
+
 impl MapBlob {
     pub fn new(w: u16, h: u16, tiles: Vec<u8>) -> Self {
         let layer_hash = layer_hash(w as u32, h as u32, &tiles);
@@ -40,23 +66,57 @@ impl MapBlob {
         }
     }
 
+    fn runs(&self) -> Runs<'_> {
+        Runs { tiles: &self.tiles }
+    }
+
+    /// Exact size of [`MapBlob::write`]'s output (one pass over the tiles, no allocation).
+    pub fn encoded_len(&self) -> usize {
+        MAP_HEAD_LEN + RUN_LEN * self.runs().count()
+    }
+
+    /// Whether [`MapBlob::read`] accepts what [`MapBlob::write`] produces for this map: the same checks, in the same
+    /// order, with the same reasons.
+    pub fn check(&self) -> Result<(), EncodeError> {
+        let total = self.w as usize * self.h as usize;
+        if self.w == 0 || self.h == 0 || total > MAX_MAP_TILES {
+            return Err(EncodeError::BadMap("size"));
+        }
+        if self.tiles.iter().any(|&t| t > 2) {
+            return Err(EncodeError::BadMap("run"));
+        }
+        if self.tiles.len() != total {
+            return Err(EncodeError::BadMap("length"));
+        }
+        if layer_hash(self.w as u32, self.h as u32, &self.tiles) != self.layer_hash {
+            return Err(EncodeError::BadMap("hash"));
+        }
+        Ok(())
+    }
+
     /// `w u16, h u16, hash u32, runs u32, then runs x (tile u8, length u16)`.
     pub fn write(&self, w: &mut Writer) {
         w.u16(self.w);
         w.u16(self.h);
         w.u32(self.layer_hash);
-        let mut runs: Vec<(u8, u16)> = Vec::new();
-        for &t in &self.tiles {
-            match runs.last_mut() {
-                Some((v, n)) if *v == t && *n < u16::MAX => *n += 1,
-                _ => runs.push((t, 1)),
-            }
-        }
-        w.u32(runs.len() as u32);
-        for (t, n) in runs {
+        w.u32(self.runs().count() as u32);
+        for (t, n) in self.runs() {
             w.u8(t);
             w.u16(n);
         }
+    }
+
+    /// RLE-encodes the map once (for a server that sends it in many Welcomes). Fails for a map decoders would reject.
+    pub fn pre_encode(&self) -> Result<EncodedMap, EncodeError> {
+        self.check()?;
+        let mut w = Writer::with_capacity(self.encoded_len());
+        self.write(&mut w);
+        Ok(EncodedMap {
+            w: self.w,
+            h: self.h,
+            layer_hash: self.layer_hash,
+            body: w.finish().into_boxed_slice(),
+        })
     }
 
     pub fn read(r: &mut Reader) -> Result<Self, DecodeError> {
@@ -65,7 +125,7 @@ impl MapBlob {
         let hash = r.u32()?;
         let runs = r.u32()? as usize;
         let total = w as usize * h as usize;
-        if w == 0 || h == 0 || total > 1024 * 1024 {
+        if w == 0 || h == 0 || total > MAX_MAP_TILES {
             return Err(DecodeError::BadMap("size"));
         }
         let mut tiles = Vec::with_capacity(total);
@@ -89,5 +149,37 @@ impl MapBlob {
             tiles,
             layer_hash: hash,
         })
+    }
+}
+
+/// A [`MapBlob`] already in its wire form (made by [`MapBlob::pre_encode`], so it is known to decode). A Welcome copies
+/// these bytes instead of run-length encoding the map again for every joining player.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EncodedMap {
+    w: u16,
+    h: u16,
+    layer_hash: u32,
+    body: Box<[u8]>,
+}
+
+impl EncodedMap {
+    /// The bytes [`MapBlob::write`] produces for the map.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.body
+    }
+    pub fn len(&self) -> usize {
+        self.body.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.body.is_empty()
+    }
+    pub fn w(&self) -> u16 {
+        self.w
+    }
+    pub fn h(&self) -> u16 {
+        self.h
+    }
+    pub fn layer_hash(&self) -> u32 {
+        self.layer_hash
     }
 }
