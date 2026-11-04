@@ -1,6 +1,9 @@
 //! Replication cost of the slice: bytes per player per second and encode time, from the same observation path the live
 //! room uses (observe -> wire -> protocol encode), on a headless 8-bot match.
 //!   cargo run --release -p rh-server --bin wirebench -- [--map parity/maps/seed1.map.json] [--ticks 2400] [--seed 1]
+//!                                                     [--digest]
+//! `--digest` adds `outcomeDigest`, the match's hash-independent behaviour fingerprint (rh_headless::digest), folded
+//! outside the timed sections.
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
 use rh_policy::scripted::Brawler;
 use rh_protocol::ServerMsg;
@@ -67,11 +70,18 @@ fn main() {
     let (mut bytes, mut frames, mut enc_ns, mut step_ns, mut n) = (0u64, 0u64, 0u128, 0u128, 0u64);
     let (mut snap_bytes, mut snaps, mut visible_sum) = (0u64, 0u64, 0u64);
     let mut steps = 0;
+    let mut digest = args
+        .iter()
+        .any(|a| a == "--digest")
+        .then(rh_headless::digest::OutcomeDigest::new);
     for _ in 0..ticks {
         let t = Instant::now();
         let out = env.step(&[]);
         step_ns += t.elapsed().as_nanos();
         steps += 1;
+        if let Some(d) = digest.as_mut() {
+            d.tick(&env.sim, &out.events);
+        }
         let events: &Vec<Event> = &out.events;
         let t = Instant::now();
         for id in &ids {
@@ -105,8 +115,11 @@ fn main() {
         }
     }
     let secs = steps as f64 * 0.05;
+    let digest = digest
+        .map(|d| format!("\"outcomeDigest\":\"{}\",", d.hex()))
+        .unwrap_or_default();
     println!(
-        "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
+        "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
         env.sim.arena.map.w,
         env.sim.arena.map.h,
         welcome.len(),
