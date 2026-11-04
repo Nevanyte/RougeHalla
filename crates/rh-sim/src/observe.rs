@@ -221,12 +221,21 @@ pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Obs
     });
     out.visible.clear();
     if let Some(m) = me {
-        let mf = m.fighter();
-        out.visible.extend(
-            sim.players()
-                .iter()
-                .filter(|o| o.id != m.id && o.status != Status::Lobby && sees(sim, mf, o.fighter()))
-                .map(|o| ActorView {
+        let map = &sim.arena().map;
+        let (ax, ay) = (m.body.x, m.body.y);
+        let limit = VISION_RADIUS * VISION_RADIUS;
+        // A plain loop (not a filter-map extend): the viewer's own record, then each other seated player in store order,
+        // the radius test before the line (a cheap reject of most far pairs), the same two conditions as [`sees`].
+        out.visible.reserve(sim.players().len());
+        for o in sim.players() {
+            if o.id == m.id || o.status == Status::Lobby {
+                continue;
+            }
+            let (dx, dy) = (o.body.x - ax, o.body.y - ay);
+            if dx * dx + dy * dy <= limit
+                && !ray_blocked(map, ax, ay, o.body.x, o.body.y, MASK_SIGHT)
+            {
+                out.visible.push(ActorView {
                     id: o.id,
                     faction: o.vitals.faction,
                     x: o.body.x,
@@ -240,8 +249,9 @@ pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Obs
                     status: o.status,
                     weapon: o.active_weapon(),
                     bounty: o.credit.bounty,
-                }),
-        );
+                });
+            }
+        }
     }
     // Public id order, never join order (a no-op scan when the store already iterates in id order).
     out.visible.sort_by_key(|a| a.id);
