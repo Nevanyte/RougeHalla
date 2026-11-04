@@ -1,29 +1,69 @@
 //! A* over floor tiles plus string pulling, an exact port of `packages/shared/src/pathfind.ts` `findPath`: same heap
 //! tie-breaking, same snapping, same clamp, same pull window, so the waypoints match the legacy ones (parity fixture
-//! `pathfinding_seed1.json`: 300 queries on a generated 160x160 map). The scratch buffers are owned by a [`Pathfinder`] and
-//! reused across searches (no allocation per search beyond the output).
+//! `pathfinding_seed1.json`: 300 queries on a generated 160x160 map).
+//!
+//! What is kept exactly, because it is semantics: the binary heap with its sift order and the [`before`] comparator (its
+//! 1e-9 epsilon makes it non-transitive, so the heap's shape decides near-ties: a different queue would reorder them), the
+//! neighbour order `d = 0..8`, and the string pull's linear scan from the far end of the window (clearness is not
+//! monotonic in `j`). What is not legacy, and changes no result:
+//! * O(explored) reset. Every node carries a generation stamp; a search bumps the generation by 2 (`stamp == base`:
+//!   touched this search, `g` valid; `base + 1`: closed; anything older: `g = inf`, open), so starting a search costs
+//!   O(1), not a fill of `g` and `closed` over the whole map (25,600 cells on 160x160). The arrays are cleared only
+//!   when the map size changes or the 32-bit generation wraps ([`Pathfinder::full_resets`] counts that).
+//! * The neighbour tests read one byte per expanded node ([`TileMap::nav`]), built with the map.
+//! * The string pull checks each end disc once (per anchor, and memoized per candidate) instead of twice per tested
+//!   segment, then runs only the rays; all predicates are pure, so every verdict is the one `segment_clear` gives.
+//! * The scratch (tile path, candidates) lives in the [`Pathfinder`]; [`Pathfinder::find_path_into`] writes into a
+//!   caller's buffer, so a steady-state query allocates nothing.
 
 use crate::constants::{PLAYER_RADIUS, TILE};
-use crate::geometry::{circle_clear, segment_clear};
-use crate::map::{tile_to_world_center, world_to_tile, TileMap, MASK_MOVE, TILE_FLOOR};
+use crate::geometry::{circle_clear, segment_rays_clear};
+use crate::map::{tile_to_world_center, world_to_tile, TileMap, MASK_MOVE, STEP_DX, STEP_DY};
 use crate::math::Vec2;
 
 pub const SNAP_RADIUS: i64 = 4;
 /// Candidates past the anchor that string pulling considers (legacy PULL_WINDOW).
 pub const PULL_WINDOW: usize = 96;
 const SQRT2: f64 = core::f64::consts::SQRT_2;
-const DX: [i64; 8] = [1, -1, 0, 0, 1, 1, -1, -1];
-const DY: [i64; 8] = [0, 0, 1, -1, 1, -1, 1, -1];
 
-#[derive(Default, Clone, Debug)]
+/// Per-cell search state. `g` and `parent` are meaningful only while `stamp` is the current generation (`base`) or the
+/// closed mark (`base + 1`).
+#[derive(Clone, Copy, Debug, Default)]
+struct Node {
+    g: f64,
+    parent: i32,
+    stamp: u32,
+}
+
+/// Memo of `circle_clear(cand[j])` during one string pull.
+const UNKNOWN: u8 = 0;
+const CLEAR: u8 = 1;
+const BLOCKED: u8 = 2;
+
+/// Reusable A* scratch. Cloning gives a fresh, empty scratch (the search counter is kept): the scratch never carries
+/// information from one search to the next, so a clone (a checkpoint, a forked sim) has no reason to copy ~400 KB.
+#[derive(Default, Debug)]
 pub struct Pathfinder {
     n: usize,
-    g: Vec<f64>,
-    parent: Vec<i32>,
-    closed: Vec<u8>,
+    nodes: Vec<Node>,
+    /// The current generation (even; `base + 1` marks closed nodes).
+    base: u32,
     heap: Vec<(i32, f64, f64)>,
+    tile_path: Vec<usize>,
+    cand: Vec<Vec2>,
+    cand_clear: Vec<u8>,
+    full_resets: u64,
     /// Searches run (for the step benchmarks and the path budget).
     pub searches: u64,
+}
+
+impl Clone for Pathfinder {
+    fn clone(&self) -> Self {
+        Self {
+            searches: self.searches,
+            ..Self::default()
+        }
+    }
 }
 
 #[inline]
@@ -44,17 +84,26 @@ fn octile(x: i64, y: i64, gx: i64, gy: i64) -> f64 {
 }
 
 impl Pathfinder {
+    /// How many times the node arrays were cleared over their whole length: once per map size, plus once per 2^31
+    /// searches (generation wrap). A steady stream of searches on one map leaves it at 1.
+    pub fn full_resets(&self) -> u64 {
+        self.full_resets
+    }
+
+    /// Starts a search over `n` cells: O(1) except on a size change or a generation wrap.
     fn reset(&mut self, n: usize) {
-        if self.n != n {
+        if self.n != n || self.base >= u32::MAX - 2 {
             self.n = n;
-            self.g = vec![f64::INFINITY; n];
-            self.parent = vec![0; n];
-            self.closed = vec![0; n];
-            self.heap = Vec::with_capacity(1024);
-        } else {
-            self.g.fill(f64::INFINITY);
-            self.closed.fill(0);
+            self.nodes.clear();
+            self.nodes.resize(n, Node::default());
+            self.base = 0;
+            self.full_resets += 1;
+            if self.heap.capacity() == 0 {
+                self.heap.reserve(1024);
+            }
         }
+        // Every stamp in `nodes` is now below `base`: g = inf, open.
+        self.base += 2;
         self.heap.clear();
     }
 
@@ -102,15 +151,20 @@ impl Pathfinder {
         top
     }
 
-    fn astar(&mut self, map: &TileMap, start: usize, goal: usize) -> Option<Vec<usize>> {
+    /// A* from tile `start` to tile `goal`; on success the tile path (start first) is in `self.tile_path`.
+    fn astar(&mut self, map: &TileMap, start: usize, goal: usize) -> bool {
         let w = map.w as usize;
-        let h = map.h as usize;
-        self.reset(w * h);
+        self.reset(w * map.h as usize);
         self.searches += 1;
+        let base = self.base;
+        let closed = base + 1;
         let gx = (goal % w) as i64;
         let gy = (goal / w) as i64;
-        self.g[start] = 0.0;
-        self.parent[start] = -1;
+        self.nodes[start] = Node {
+            g: 0.0,
+            parent: -1,
+            stamp: base,
+        };
         self.push(
             start as i32,
             octile((start % w) as i64, (start / w) as i64, gx, gy),
@@ -118,57 +172,77 @@ impl Pathfinder {
         );
         while !self.heap.is_empty() {
             let node = self.pop() as usize;
-            if self.closed[node] != 0 {
+            if self.nodes[node].stamp == closed {
                 continue;
             }
-            self.closed[node] = 1;
+            self.nodes[node].stamp = closed;
             if node == goal {
-                let mut path = Vec::new();
+                self.tile_path.clear();
                 let mut n = node as i32;
                 while n != -1 {
-                    path.push(n as usize);
-                    n = self.parent[n as usize];
+                    self.tile_path.push(n as usize);
+                    n = self.nodes[n as usize].parent;
                 }
-                path.reverse();
-                return Some(path);
+                self.tile_path.reverse();
+                return true;
             }
             let x = (node % w) as i64;
             let y = (node / w) as i64;
-            let g = self.g[node];
+            let g = self.nodes[node].g;
+            // Bounds, floor and the diagonal corner rule of all eight steps, precomputed with the map.
+            let steps = map.nav(node);
             for d in 0..8 {
-                let nx = x + DX[d];
-                let ny = y + DY[d];
-                if nx < 0 || ny < 0 || nx >= w as i64 || ny >= h as i64 {
+                if steps & (1 << d) == 0 {
                     continue;
                 }
+                let nx = x + STEP_DX[d];
+                let ny = y + STEP_DY[d];
                 let ni = (ny as usize) * w + nx as usize;
-                if map.tiles[ni] != TILE_FLOOR || self.closed[ni] != 0 {
+                let nn = self.nodes[ni];
+                if nn.stamp == closed {
                     continue;
                 }
-                let diagonal = d >= 4;
-                if diagonal
-                    && (map.tiles[(y as usize) * w + nx as usize] != TILE_FLOOR
-                        || map.tiles[(ny as usize) * w + x as usize] != TILE_FLOOR)
-                {
-                    continue;
-                }
-                let ng = g + if diagonal { SQRT2 } else { 1.0 };
-                if ng < self.g[ni] {
-                    self.g[ni] = ng;
-                    self.parent[ni] = node as i32;
+                let ng = g + if d >= 4 { SQRT2 } else { 1.0 };
+                let old_g = if nn.stamp == base {
+                    nn.g
+                } else {
+                    f64::INFINITY
+                };
+                if ng < old_g {
+                    self.nodes[ni] = Node {
+                        g: ng,
+                        parent: node as i32,
+                        stamp: base,
+                    };
                     self.push(ni as i32, ng + octile(nx, ny, gx, gy), ng);
                 }
             }
         }
-        None
+        false
     }
 
     /// Waypoints (excluding `from`) that walk a disc of `radius` from `from` to `to`; empty when unreachable. A goal inside a
     /// wall snaps to the nearest floor tile within [`SNAP_RADIUS`] rings; the last waypoint is `to` itself when the disc fits
     /// there, else the nearest in-tile point where it does.
     pub fn find_path(&mut self, map: &TileMap, from: Vec2, to: Vec2, radius: f64) -> Vec<Vec2> {
+        let mut out = Vec::new();
+        self.find_path_into(map, from, to, radius, &mut out);
+        out
+    }
+
+    /// [`find_path`](Self::find_path) into `out` (cleared first), with every intermediate buffer kept in the pathfinder:
+    /// no allocation once the buffers have grown. The waypoints are bit-identical to `find_path`'s.
+    pub fn find_path_into(
+        &mut self,
+        map: &TileMap,
+        from: Vec2,
+        to: Vec2,
+        radius: f64,
+        out: &mut Vec<Vec2>,
+    ) {
+        out.clear();
         if !(from.x + from.y + to.x + to.y).is_finite() {
-            return Vec::new();
+            return;
         }
         let w = map.w as usize;
         let mut sx = world_to_tile(from.x);
@@ -180,7 +254,7 @@ impl Pathfinder {
                     sx = tx;
                     sy = ty;
                 }
-                None => return Vec::new(),
+                None => return,
             }
         }
         let mut gx = world_to_tile(to.x);
@@ -194,30 +268,45 @@ impl Pathfinder {
                     gy = ty;
                     target = Vec2::new(tile_to_world_center(gx), tile_to_world_center(gy));
                 }
-                None => return Vec::new(),
+                None => return,
             }
         }
         if !goal_in_wall {
             target = clamp_clear(map, to, gx, gy, radius);
         }
-        if !start_in_wall && segment_clear(map, from, target, radius, MASK_MOVE) {
-            return vec![target];
+        // The end discs of `from` and `target` are pure functions of the map: each is evaluated at most once per query.
+        let mut from_clear: Option<bool> = None;
+        let mut target_clear: Option<bool> = None;
+        if !start_in_wall {
+            // segment_clear(from, target): the disc at from, the disc at target, then the rays (its short-circuit order).
+            let a = circle_clear(map, from, radius, MASK_MOVE);
+            from_clear = Some(a);
+            if a {
+                let b = circle_clear(map, target, radius, MASK_MOVE);
+                target_clear = Some(b);
+                if b && segment_rays_clear(map, from, target, radius, MASK_MOVE) {
+                    out.push(target);
+                    return;
+                }
+            }
         }
         let si = (sy as usize) * w + sx as usize;
         let gi = (gy as usize) * w + gx as usize;
         if map.comp(si) != map.comp(gi) {
-            return Vec::new();
+            return;
         }
-        let Some(tile_path) = self.astar(map, si, gi) else {
-            return Vec::new();
-        };
+        if !self.astar(map, si, gi) {
+            return;
+        }
         let center = |i: usize| {
             Vec2::new(
                 tile_to_world_center((i % w) as i64),
                 tile_to_world_center((i / w) as i64),
             )
         };
-        let mut cand: Vec<Vec2> = Vec::with_capacity(tile_path.len() + 1);
+        let tile_path = &self.tile_path;
+        let cand = &mut self.cand;
+        cand.clear();
         if tile_path.len() > 1
             && (start_in_wall
                 || (from.x - tile_to_world_center(sx)).abs() > 0.5
@@ -236,19 +325,52 @@ impl Pathfinder {
         if target.x != goal_center.x || target.y != goal_center.y {
             cand.push(target);
         }
-        let mut out = Vec::new();
+        // The last candidate equals `target` (it is `target`, or a tile centre numerically equal to it; centres are
+        // positive, so there is no signed-zero case): its disc verdict is known if the direct test evaluated it.
+        let cand: &[Vec2] = cand;
+        let cc = &mut self.cand_clear;
+        cc.clear();
+        cc.resize(cand.len(), UNKNOWN);
+        if let Some(b) = target_clear {
+            cc[cand.len() - 1] = if b { CLEAR } else { BLOCKED };
+        }
+        let mut disc = |j: usize| -> bool {
+            if cc[j] == UNKNOWN {
+                cc[j] = if circle_clear(map, cand[j], radius, MASK_MOVE) {
+                    CLEAR
+                } else {
+                    BLOCKED
+                };
+            }
+            cc[j] == CLEAR
+        };
+        // String pulling: from each anchor, the farthest j in the window whose segment is clear, scanning down from the
+        // far end exactly as legacy `segmentClear(anchor, cand[j])` does, with the end discs read from the memo.
         let mut anchor = from;
+        // None: the anchor is `from`; Some(a): it is cand[a]. Its disc is evaluated only when a segment is tested.
+        let mut anchor_j: Option<usize> = None;
         let mut i = 0;
         while i < cand.len() {
             let mut j = (cand.len() - 1).min(i + PULL_WINDOW);
-            while j > i && !segment_clear(map, anchor, cand[j], radius, MASK_MOVE) {
+            while j > i {
+                let anchor_clear = match anchor_j {
+                    Some(a) => disc(a),
+                    None => *from_clear
+                        .get_or_insert_with(|| circle_clear(map, from, radius, MASK_MOVE)),
+                };
+                if anchor_clear
+                    && disc(j)
+                    && segment_rays_clear(map, anchor, cand[j], radius, MASK_MOVE)
+                {
+                    break;
+                }
                 j -= 1;
             }
             out.push(cand[j]);
             anchor = cand[j];
+            anchor_j = Some(j);
             i = j + 1;
         }
-        out
     }
 }
 
@@ -314,4 +436,77 @@ fn clamp_clear(map: &TileMap, p: Vec2, gx: i64, gy: i64, radius: f64) -> Vec2 {
 /// `find_path` with the player radius (legacy `planPath`).
 pub fn plan_path(pf: &mut Pathfinder, map: &TileMap, from: Vec2, to: Vec2) -> Vec<Vec2> {
     pf.find_path(map, from, to, PLAYER_RADIUS)
+}
+
+/// [`plan_path`] into a caller's buffer ([`Pathfinder::find_path_into`]).
+pub fn plan_path_into(
+    pf: &mut Pathfinder,
+    map: &TileMap,
+    from: Vec2,
+    to: Vec2,
+    out: &mut Vec<Vec2>,
+) {
+    pf.find_path_into(map, from, to, PLAYER_RADIUS, out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::arenas::practice_arena;
+
+    /// Queries on the practice arena that need A* (a pillar or the fence is in the way) and one that does not.
+    fn queries() -> Vec<(Vec2, Vec2)> {
+        vec![
+            (Vec2::new(100.0, 176.0), Vec2::new(300.0, 176.0)),
+            (Vec2::new(300.0, 176.0), Vec2::new(100.0, 170.0)),
+            (Vec2::new(700.0, 500.0), Vec2::new(860.0, 480.0)),
+            (Vec2::new(60.0, 60.0), Vec2::new(1400.0, 950.0)),
+            (Vec2::new(500.0, 300.0), Vec2::new(520.0, 310.0)),
+        ]
+    }
+
+    #[test]
+    fn the_generation_wrap_clears_once_and_changes_nothing() {
+        let map = practice_arena().map;
+        let mut pf = Pathfinder::default();
+        let want: Vec<Vec<Vec2>> = queries()
+            .iter()
+            .map(|&(a, b)| Pathfinder::default().find_path(&map, a, b, PLAYER_RADIUS))
+            .collect();
+        assert!(want.iter().filter(|p| p.len() > 1).count() >= 3, "{want:?}");
+        pf.find_path(&map, queries()[0].0, queries()[0].1, PLAYER_RADIUS);
+        assert_eq!(pf.full_resets(), 1);
+        // Jump to just below the wrap: the next searches run at the last generations, then the arrays clear once.
+        pf.base = u32::MAX - 7;
+        let mut seen_top = false;
+        for round in 0..4 {
+            for (k, &(a, b)) in queries().iter().enumerate() {
+                assert_eq!(
+                    pf.find_path(&map, a, b, PLAYER_RADIUS),
+                    want[k],
+                    "round {round} query {k}"
+                );
+                seen_top |= pf.base == u32::MAX - 1;
+            }
+        }
+        assert!(seen_top, "a search ran with closed == u32::MAX");
+        assert_eq!(pf.full_resets(), 2, "one clear at the wrap");
+    }
+
+    #[test]
+    fn a_search_never_fills_the_node_arrays() {
+        let map = practice_arena().map;
+        let mut pf = Pathfinder::default();
+        let mut out = Vec::new();
+        for _ in 0..50 {
+            for &(a, b) in &queries() {
+                pf.find_path_into(&map, a, b, PLAYER_RADIUS, &mut out);
+            }
+        }
+        assert!(pf.searches >= 150, "{}", pf.searches);
+        assert_eq!(pf.full_resets(), 1);
+        assert_eq!(pf.nodes.len(), (map.w * map.h) as usize);
+        // Stamps only move forward: every touched node is at most the closed mark of the last search.
+        assert!(pf.nodes.iter().all(|n| n.stamp <= pf.base + 1));
+    }
 }
