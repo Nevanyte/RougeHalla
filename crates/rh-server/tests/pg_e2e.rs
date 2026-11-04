@@ -14,6 +14,44 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_tungstenite::tungstenite::Message;
 
+/// Connects and says Hello until the profile is admitted (a Welcome). A `ProfileInUse` refusal is retried (by condition,
+/// bounded): it is the answer while the previous seat's Leave is still in flight. Any other refusal fails the test.
+async fn join_when_free(
+    ws_url: &str,
+    hello: ClientMsg,
+) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    loop {
+        let (mut ws, _) = tokio_tungstenite::connect_async(ws_url).await.unwrap();
+        ws.send(Message::Binary(hello.encode().into()))
+            .await
+            .unwrap();
+        loop {
+            let Ok(Some(Ok(Message::Binary(b)))) =
+                tokio::time::timeout(Duration::from_secs(10), ws.next()).await
+            else {
+                panic!("no answer to the Hello")
+            };
+            match ServerMsg::decode(&b).unwrap() {
+                ServerMsg::Welcome { .. } => return ws,
+                ServerMsg::Reject {
+                    code: rh_protocol::RejectCode::ProfileInUse,
+                    reason,
+                } => {
+                    assert!(
+                        tokio::time::Instant::now() < deadline,
+                        "still refused after 20 s: {reason}"
+                    );
+                    tokio::task::yield_now().await;
+                    break;
+                }
+                ServerMsg::Reject { code, reason } => panic!("rejoin refused: {code:?} {reason}"),
+                _ => {}
+            }
+        }
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_match_over_websockets_banks_results_once_in_postgres() {
     let Ok(url) = std::env::var("DATABASE_URL") else {
@@ -225,52 +263,26 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         .unwrap();
     assert_eq!(fences, vec![1, 1], "each profile held one fenced lease");
 
-    // A lobby leave releases the lease, so the profile can play again at once (no hour-long ProfileInUse).
-    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
-    ws.send(Message::Binary(
-        hello("papa", "tok-papa", 0).encode().into(),
-    ))
-    .await
-    .unwrap();
-    loop {
-        let Ok(Some(Ok(Message::Binary(b)))) =
-            tokio::time::timeout(Duration::from_secs(10), ws.next()).await
-        else {
-            panic!("no welcome")
-        };
-        match ServerMsg::decode(&b).unwrap() {
-            ServerMsg::Welcome { .. } => break,
-            ServerMsg::Reject { code, reason } => panic!("rejoin refused: {code:?} {reason}"),
-            _ => {}
-        }
+    // The match is over, but its seats are held until the players leave (the room lingers): a profile in a live seat is
+    // refused, as C-PERSIST requires. Rejoining right after the result therefore raced the room's own close (this was the
+    // flake: the match's own socket still owned the profile). Each player leaves; the profile is free as soon as its lease
+    // release lands, and an admission for a profile that is mid-release waits for it (director LEAVING_WAIT), so a rejoin
+    // is admitted with no sleep. Only a refusal sent before the Leave was processed is retried, by condition.
+    for ws in sockets.iter_mut() {
+        ws.send(Message::Binary(ClientMsg::Leave.encode().into()))
+            .await
+            .unwrap();
     }
+    let mut ws = join_when_free(&ws_url, hello("papa", "tok-papa", 0)).await;
+    // A lobby leave releases the lease, so the profile can play again at once (no hour-long ProfileInUse).
     ws.send(Message::Binary(ClientMsg::Leave.encode().into()))
         .await
         .unwrap();
-    let mut rejoined = false;
-    for _ in 0..40 {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        let (mut again, _) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
-        again
-            .send(Message::Binary(
-                hello("papa", "tok-papa", 0).encode().into(),
-            ))
-            .await
-            .unwrap();
-        if let Ok(Some(Ok(Message::Binary(b)))) =
-            tokio::time::timeout(Duration::from_secs(10), again.next()).await
-        {
-            if matches!(ServerMsg::decode(&b).unwrap(), ServerMsg::Welcome { .. }) {
-                rejoined = true;
-                again
-                    .send(Message::Binary(ClientMsg::Leave.encode().into()))
-                    .await
-                    .unwrap();
-                break;
-            }
-        }
-    }
-    assert!(rejoined, "the released lease lets the profile join again");
+    let mut again = join_when_free(&ws_url, hello("papa", "tok-papa", 0)).await;
+    again
+        .send(Message::Binary(ClientMsg::Leave.encode().into()))
+        .await
+        .unwrap();
     drop(store);
     let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)"))
         .execute(admin.pool())

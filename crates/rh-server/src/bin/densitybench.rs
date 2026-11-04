@@ -1,6 +1,11 @@
 //! Deterministic server density benchmark: N rooms x H humans through the production room task, outbox and pacer, on a
 //! paused clock (see `densitybench/engine.rs` for exactly what is and is not in the path).
 //!
+//! Rooms hold `--humans` in-process clients (default 8: a full room) and are filled with scripted bots up to `--fill-to`
+//! players (default 8, so the default run has NO bots). A mixed room is `--humans 4 --fill-to 8`: 4 clients and 4 bots,
+//! whose steps, A* and observations cost instructions but who have no connection (no frames, no notifies). Per-human-tick
+//! figures divide by the humans only.
+//!
 //!   cargo build --release -p rh-server --features bench --bin densitybench
 //!   target/release/densitybench --rooms 4 --humans 8 --secs 20 [--fill-to 8] [--profile active|idle]
 //!       [--map parity/maps/seed1.map.json] [--lobby-secs 2] [--seed 1] [--check]
@@ -12,7 +17,8 @@
 //!   Ir per match-second = (Ir at --secs S2 - Ir at --secs S1) / (rooms x (S2 - S1)): the difference removes setup.
 //!
 //! The JSON on stdout has two kinds of numbers. Deterministic counts (identical run to run): matchSeconds, steps, frames,
-//! bytes, notifies and writer wakes per human-tick (heap per room: see the DHAT recipe in engine.rs). Informational and NOT deterministic: `wallSeconds` and
+//! bytes, notifies (real `Notify::notify_one` calls) and writer wakes per human-tick (heap per room: see the DHAT recipe in
+//! engine.rs). Informational and NOT deterministic: `wallSeconds` and
 //! everything derived from it. The capacity block is an ESTIMATE from this machine's single-thread paused-clock speed with
 //! no sockets, TLS or kernel network cost in it: it is not measured capacity on any cloud instance.
 #[path = "densitybench/engine.rs"]
@@ -90,6 +96,7 @@ fn main() {
         "framesPerHumanTick": r.per_human_tick(r.frames),
         "bytesPerHumanTick": r.per_human_tick(r.bytes),
         "notifiesPerHumanTick": r.per_human_tick(r.notifies),
+        "outboxPushesPerHumanTick": r.per_human_tick(r.pushes),
         "writerWakesPerHumanTick": r.per_human_tick(r.writer_wakes),
         "rssPerRoomBytes": r.rss_per_room,
         "heapNote": "exact heap per room: run under valgrind --tool=dhat at --rooms 1 and --rooms N and divide the t-gmax difference (rssPerRoomBytes is informational)",
