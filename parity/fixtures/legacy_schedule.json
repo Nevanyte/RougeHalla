@@ -1,0 +1,443 @@
+{
+ "format": "rh-legacy-schedule/1",
+ "legacyRevision": "335be92388a1a417ab6654ee406230521ea95f2f",
+ "note": "updateActive's fixed phases in order; each hook list in resolved registration order with its module. 'production' is createGameWorld with the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures (signatures and walk hints off). Telemetry and the input trace attach after these in RaidRoom (observers, not gameplay).",
+ "updateActive": [
+  "guard:voided",
+  "markTickStart",
+  "ledger:openWithDeferred",
+  "actionOrder",
+  "inputs:players(actionOrder)",
+  "inputs:mobs(insertionOrder)",
+  "abilities",
+  "targets",
+  "weapons",
+  "hooks:afterWeapons",
+  "movement:multipliers(moveModifiers)",
+  "movement:walk",
+  "movement:recordHistory",
+  "projectiles:sweep",
+  "projectiles:spawn",
+  "melee",
+  "hooks:beforeDamage",
+  "suddenDeath(notTraining)",
+  "ledger:apply",
+  "hooks:systems",
+  "settle:training",
+  "settle",
+  "projectiles:clearIfEnded"
+ ],
+ "production": {
+  "modules": [
+   "loot",
+   "weapons",
+   "targeting",
+   "projectiles",
+   "factions",
+   "mobs",
+   "buffs",
+   "feed",
+   "camps",
+   "chests",
+   "killAugments",
+   "mobLife",
+   "mobAI",
+   "terrainEffects",
+   "regen",
+   "abilities",
+   "quests",
+   "vision",
+   "campHeal",
+   "consumables",
+   "traders",
+   "cardHooks",
+   "plagueCorpses",
+   "fireRoam",
+   "bruiserPassives",
+   "sentencedHunt",
+   "mods",
+   "plagueZombies",
+   "walkHint"
+  ],
+  "lists": {
+   "afterWeapons": [
+    {
+     "module": "factions",
+     "fn": "afterWeapons"
+    },
+    {
+     "module": "bruiserPassives",
+     "fn": "update"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "<anonymous>"
+    }
+   ],
+   "beforeDamage": [
+    {
+     "module": "factions",
+     "fn": "signatureDamage"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "burnPass"
+    },
+    {
+     "module": "abilities",
+     "fn": "statusDamage"
+    }
+   ],
+   "systems": [
+    {
+     "module": "fireRoam",
+     "fn": "update"
+    },
+    {
+     "module": "factions",
+     "fn": "afterDamage"
+    },
+    {
+     "module": "factions",
+     "fn": "healOverTime"
+    },
+    {
+     "module": "mobs",
+     "fn": "resetDummies"
+    },
+    {
+     "module": "buffs",
+     "fn": "expireBoosts"
+    },
+    {
+     "module": "feed",
+     "fn": "flushAnnouncements"
+    },
+    {
+     "module": "chests",
+     "fn": "expireChests"
+    },
+    {
+     "module": "mobLife",
+     "fn": "reapMobs"
+    },
+    {
+     "module": "mobLife",
+     "fn": "respawnCamps"
+    },
+    {
+     "module": "mobAI",
+     "fn": "thinkMobs"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "lightPass"
+    },
+    {
+     "module": "regen",
+     "fn": "regenPass"
+    },
+    {
+     "module": "abilities",
+     "fn": "abilityDotFx"
+    },
+    {
+     "module": "quests",
+     "fn": "questSystem"
+    },
+    {
+     "module": "vision",
+     "fn": "refreshVision"
+    },
+    {
+     "module": "consumables",
+     "fn": "updateConsumables"
+    },
+    {
+     "module": "traders",
+     "fn": "updateTraders"
+    },
+    {
+     "module": "cardHooks",
+     "fn": "afterDamage"
+    },
+    {
+     "module": "plagueCorpses",
+     "fn": "<anonymous>"
+    },
+    {
+     "module": "bruiserPassives",
+     "fn": "update"
+    },
+    {
+     "module": "mods",
+     "fn": "updateMods"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "updateZombies"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "regenZombies"
+    },
+    {
+     "module": "walkHint",
+     "fn": "updateWalkHints"
+    }
+   ],
+   "moveModifiers": [
+    {
+     "module": "factions",
+     "fn": "frostMovementModifier"
+    },
+    {
+     "module": "buffs",
+     "fn": "moveSpeedMult"
+    },
+    {
+     "module": "mobLife",
+     "fn": "mobRoleMove"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "applyBog"
+    },
+    {
+     "module": "abilities",
+     "fn": "statusMoveMultiplier"
+    },
+    {
+     "module": "sentencedHunt",
+     "fn": "huntMoveMultiplier"
+    },
+    {
+     "module": "plagueZombies",
+     "fn": "<anonymous>"
+    }
+   ],
+   "modSources": [
+    {
+     "module": "factions",
+     "fn": "markTaxSource"
+    },
+    {
+     "module": "abilities",
+     "fn": "attackSlowSource"
+    },
+    {
+     "module": "consumables",
+     "fn": "<anonymous>"
+    },
+    {
+     "module": "cardHooks",
+     "fn": "cardSource"
+    },
+    {
+     "module": "fireRoam",
+     "fn": "roamingSpeed"
+    },
+    {
+     "module": "bruiserPassives",
+     "fn": "frozenJustice"
+    }
+   ]
+  },
+  "actions": {
+   "pickup": "loot",
+   "attack": "weapons",
+   "release": "weapons",
+   "swap": "weapons",
+   "target": "targeting",
+   "choose": "chests",
+   "cast": "abilities",
+   "questAccept": "quests",
+   "useConsumable": "consumables",
+   "trade": "traders",
+   "consumeCorpse": "plagueCorpses",
+   "huntTarget": "sentencedHunt"
+  },
+  "hooks": {
+   "dropBody": "quests",
+   "teleported": "walkHint",
+   "attackStarted": "fireRoam",
+   "weaponSwapped": "factions",
+   "hurt": "fireRoam",
+   "playerKilled": "quests",
+   "executeDenied": "factions",
+   "raidStarted": "bruiserPassives",
+   "runEnded": "walkHint",
+   "mobKilled": "quests",
+   "arenaHurt": "terrainEffects",
+   "fighterOut": "plagueZombies",
+   "statusApplied": "abilities",
+   "staggered": "abilities",
+   "planningStarted": "quests",
+   "campCleared": "bruiserPassives",
+   "hitLanded": "plagueZombies",
+   "blocked": "bruiserPassives",
+   "overkilled": "cardHooks"
+  }
+ },
+ "capture": {
+  "modules": [
+   "loot",
+   "weapons",
+   "targeting",
+   "projectiles",
+   "mobs",
+   "buffs",
+   "feed",
+   "camps",
+   "chests",
+   "killAugments",
+   "mobLife",
+   "mobAI",
+   "terrainEffects",
+   "regen",
+   "abilities",
+   "quests",
+   "vision",
+   "campHeal",
+   "consumables",
+   "traders",
+   "cardHooks",
+   "mods"
+  ],
+  "lists": {
+   "afterWeapons": [],
+   "beforeDamage": [
+    {
+     "module": "terrainEffects",
+     "fn": "burnPass"
+    },
+    {
+     "module": "abilities",
+     "fn": "statusDamage"
+    }
+   ],
+   "systems": [
+    {
+     "module": "mobs",
+     "fn": "resetDummies"
+    },
+    {
+     "module": "buffs",
+     "fn": "expireBoosts"
+    },
+    {
+     "module": "feed",
+     "fn": "flushAnnouncements"
+    },
+    {
+     "module": "chests",
+     "fn": "expireChests"
+    },
+    {
+     "module": "mobLife",
+     "fn": "reapMobs"
+    },
+    {
+     "module": "mobLife",
+     "fn": "respawnCamps"
+    },
+    {
+     "module": "mobAI",
+     "fn": "thinkMobs"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "lightPass"
+    },
+    {
+     "module": "regen",
+     "fn": "regenPass"
+    },
+    {
+     "module": "abilities",
+     "fn": "abilityDotFx"
+    },
+    {
+     "module": "vision",
+     "fn": "refreshVision"
+    },
+    {
+     "module": "consumables",
+     "fn": "updateConsumables"
+    },
+    {
+     "module": "traders",
+     "fn": "updateTraders"
+    },
+    {
+     "module": "cardHooks",
+     "fn": "afterDamage"
+    },
+    {
+     "module": "mods",
+     "fn": "updateMods"
+    }
+   ],
+   "moveModifiers": [
+    {
+     "module": "buffs",
+     "fn": "moveSpeedMult"
+    },
+    {
+     "module": "mobLife",
+     "fn": "mobRoleMove"
+    },
+    {
+     "module": "terrainEffects",
+     "fn": "applyBog"
+    },
+    {
+     "module": "abilities",
+     "fn": "statusMoveMultiplier"
+    }
+   ],
+   "modSources": [
+    {
+     "module": "abilities",
+     "fn": "attackSlowSource"
+    },
+    {
+     "module": "consumables",
+     "fn": "<anonymous>"
+    },
+    {
+     "module": "cardHooks",
+     "fn": "cardSource"
+    }
+   ]
+  },
+  "actions": {
+   "pickup": "loot",
+   "attack": "weapons",
+   "release": "weapons",
+   "swap": "weapons",
+   "target": "targeting",
+   "choose": "chests",
+   "cast": "abilities",
+   "useConsumable": "consumables",
+   "trade": "traders"
+  },
+  "hooks": {
+   "dropBody": "loot",
+   "teleported": "cardHooks",
+   "mobKilled": "chests",
+   "runEnded": "cardHooks",
+   "playerKilled": "killAugments",
+   "arenaHurt": "terrainEffects",
+   "raidStarted": "cardHooks",
+   "fighterOut": "consumables",
+   "attackStarted": "abilities",
+   "statusApplied": "abilities",
+   "staggered": "abilities",
+   "campCleared": "campHeal",
+   "hitLanded": "cardHooks",
+   "blocked": "cardHooks",
+   "overkilled": "cardHooks"
+  }
+ }
+}

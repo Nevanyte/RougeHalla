@@ -14,6 +14,16 @@ cargo test -p rh-parity                                  # replays every "slice"
 cargo run -p rh-parity --bin parity-report               # the same comparison as a human-readable report
 ```
 
+`legacy-capture/schedule.ts` records the legacy **tick schedule** as data (`fixtures/legacy_schedule.json`): the fixed phase
+order of `updateActive` and the resolved order of every runtime-registered hook list (`afterWeapons`, `beforeDamage`,
+`systems`, `moveModifiers`, `modSources`), each entry attributed to its module, for the production world and for the
+parity-capture world. In legacy that order is emergent (module install order plus push/unshift); the record is checked
+against the real `createGameWorld` and fails loudly when `step.ts` or `gameplay.ts` change shape.
+
+```
+npx tsx parity/legacy-capture/schedule.ts                # -> parity/fixtures/legacy_schedule.json
+```
+
 Legacy configuration of every scenario (also recorded in each file's `legacyConfig`): `signatures: false` (faction
 signatures, Fire roam, bruiser passives, Plague corpses/zombies and the Sentenced hunt are not installed), `walkHints: false`,
 no mobs, quests, hazards or regen, PvP rules on (the PvP factor at card power 0 is 0.77, hit cap 35% of max hp), no cards,
