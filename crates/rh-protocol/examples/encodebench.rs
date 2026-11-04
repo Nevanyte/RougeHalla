@@ -42,7 +42,6 @@ fn pool(fixed_actors: Option<usize>) -> Vec<ServerMsg> {
             let n = fixed_actors.unwrap_or(MIX[i as usize % 8]);
             ServerMsg::Snapshot {
                 tick: 100 + i,
-                server_ms: 5000.0 + 50.0 * i as f64,
                 phase: 1,
                 ack_input: i * 3,
                 me: Some(WireSelf {
@@ -128,7 +127,6 @@ fn main() {
                 match m {
                     ServerMsg::Snapshot {
                         tick,
-                        server_ms,
                         phase,
                         ack_input,
                         me,
@@ -137,7 +135,6 @@ fn main() {
                         let mut s = rh_protocol::SnapshotWriter::begin(
                             &mut buf,
                             *tick,
-                            *server_ms,
                             *phase,
                             *ack_input,
                             me.as_ref(),
