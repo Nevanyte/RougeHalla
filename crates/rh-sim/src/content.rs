@@ -1,8 +1,20 @@
 //! Content tables of the slice: the faction sheet, the weapon catalog and the damage law, copied from the legacy
 //! `packages/shared/src/factions.ts` and `weapons.ts` at the tested revision. Content is versioned by [`content_hash`]: a
 //! server and a client (or a replay) with different hashes are running different rules and must not be mixed.
+//!
+//! ## One registry, one rule
+//!
+//! Every gameplay number is declared once, as one line of the `content!` registry in [`crate::constants`] (name, type,
+//! value, unit). That line is all a new tunable needs: it becomes the `pub const` the code uses and a row of
+//! [`REGISTRY`], and [`content_hash`] folds the whole registry, so the rules identity cannot miss it. Rules that are code
+//! rather than numbers are registered as data here (the faction and weapon tables, [`STAGGER_WEAPONS`], the player
+//! windup formula's constants) and are folded too; the derived-value probes in [`content_hash`] additionally pin the
+//! formulas (`attack_interval`, `damage_per_hit`, `pvp_factor`, `bounty_for`, `player_timings`) to their results.
+//! `tests/content.rs` fails when a `const` appears anywhere in `crates/rh-sim/src` that is neither registered nor listed
+//! (with a reason) as not gameplay, and when changing any single registry row leaves the hash unchanged.
 
 use crate::constants::*;
+pub use crate::constants::{ContentVal, Entry, REGISTRY};
 use crate::math::{exp, PI};
 
 #[derive(
@@ -306,66 +318,148 @@ pub fn player_timings(w: WeaponId, interval: f64) -> Timings {
         ranged,
     };
     match w {
-        WeaponId::Bow => t.windup = 0.5f64.min(0.55 * interval),
-        WeaponId::Wand => t.windup = 0.45f64.min(0.5 * interval),
+        WeaponId::Bow => t.windup = BOW_WINDUP_MAX_S.min(BOW_WINDUP_INTERVAL_SHARE * interval),
+        WeaponId::Wand => t.windup = WAND_WINDUP_MAX_S.min(WAND_WINDUP_INTERVAL_SHARE * interval),
         _ => {}
     }
     t
 }
 
-/// Identity of the rules in this build: a 64-bit FNV-1a over every content number above, in a fixed order. Sent in the
-/// protocol's Welcome and recorded in replays.
-pub fn content_hash() -> u64 {
-    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    let mut eat = |v: f64| {
-        for b in v.to_bits().to_le_bytes() {
-            h ^= b as u64;
-            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+/// Weapons whose hits stagger the victim (legacy: the sword). A rule flag registered as data so the rules identity covers
+/// it; the sim's stagger check still compares against `WeaponId::Sword` directly until it is switched to read this table.
+pub const STAGGER_WEAPONS: &[WeaponId] = &[WeaponId::Sword];
+
+/// Whether a hit by `w` staggers (reads [`STAGGER_WEAPONS`]).
+pub fn staggers(w: WeaponId) -> bool {
+    STAGGER_WEAPONS.contains(&w)
+}
+
+/// FNV-1a over a byte stream; the only hasher of the rules identity.
+struct Fnv(u64);
+
+impl Fnv {
+    fn new() -> Self {
+        Fnv(0xcbf2_9ce4_8422_2325)
+    }
+    fn byte(&mut self, b: u8) {
+        self.0 ^= b as u64;
+        self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    fn u64(&mut self, v: u64) {
+        for b in v.to_le_bytes() {
+            self.byte(b);
         }
-    };
+    }
+    fn f64(&mut self, v: f64) {
+        self.u64(v.to_bits());
+    }
+    /// Length-prefixed so that adjacent strings cannot run together.
+    fn str(&mut self, s: &str) {
+        self.u64(s.len() as u64);
+        for b in s.bytes() {
+            self.byte(b);
+        }
+    }
+    fn val(&mut self, v: &ContentVal) {
+        match *v {
+            ContentVal::F64(x) => {
+                self.byte(1);
+                self.f64(x);
+            }
+            ContentVal::U64(x) => {
+                self.byte(2);
+                self.u64(x);
+            }
+            ContentVal::I64(x) => {
+                self.byte(3);
+                self.u64(x as u64);
+            }
+        }
+    }
+}
+
+/// Identity of the rules in this build: a 64-bit FNV-1a over the whole content registry, the faction and weapon tables,
+/// the rule flags and probes of the content formulas. Sent in the protocol's Welcome and recorded in replays.
+pub fn content_hash() -> u64 {
+    content_hash_of(REGISTRY)
+}
+
+/// [`content_hash`] with the registry rows given by the caller (the tables are always the build's own). Public so that
+/// `tests/content.rs` can perturb any single row and require the hash to move.
+pub fn content_hash_of(registry: &[Entry]) -> u64 {
+    content_hash_of_rules(registry, STAGGER_WEAPONS)
+}
+
+/// [`content_hash_of`] with the stagger rule flag table given as well (for the perturbation tests).
+pub fn content_hash_of_rules(registry: &[Entry], stagger_weapons: &[WeaponId]) -> u64 {
+    let mut h = Fnv::new();
+
+    h.str("registry");
+    h.u64(registry.len() as u64);
+    for e in registry {
+        h.str(e.name);
+        h.val(&e.val);
+    }
+
+    h.str("factions");
     for f in FactionId::ALL {
+        h.str(f.as_str());
         let s = faction(f);
         for v in [s.hp, s.rate, s.hit, s.phys, s.true_share, s.armor, s.shield] {
-            eat(v);
+            h.f64(v);
         }
     }
+
+    h.str("weapons");
     for w in WeaponId::ALL {
+        h.str(w.as_str());
         let s = weapon(w);
-        eat(s.boost);
-        eat(s.floor);
-        eat(s.dps_mult);
+        h.f64(s.boost);
+        h.f64(s.floor);
+        h.f64(s.dps_mult);
         match s.shape {
             Shape::Arc { reach, half_arc } => {
-                eat(1.0);
-                eat(reach);
-                eat(half_arc);
+                h.byte(1);
+                h.f64(reach);
+                h.f64(half_arc);
             }
             Shape::Projectile { speed, range } => {
-                eat(2.0);
-                eat(speed);
-                eat(range);
+                h.byte(2);
+                h.f64(speed);
+                h.f64(range);
             }
         }
     }
-    for v in [
-        TICK_MS,
-        MAX_REWIND_MS,
-        TILE,
-        PLAYER_RADIUS,
-        PLAYER_SPEED,
-        ATTACK_BUFFER_MS,
-        DUEL_PACE,
-        PVP_F0,
-        PVP_FMAX,
-        PVP_P0,
-        PVP_HIT_CAP_SHARE,
-        GV_KILL as f64,
-        GV_WIN as f64,
-        BOUNTY_SCALE,
-        BOUNTY_EXPONENT,
-        VISION_RADIUS,
-    ] {
-        eat(v);
+
+    h.str("stagger");
+    for w in WeaponId::ALL {
+        h.byte(stagger_weapons.contains(&w) as u8);
     }
-    h
+
+    // Probes: the content formulas are code, so their results are folded for fixed inputs. A formula edit that moves any
+    // outcome moves the identity even when no registered number changed.
+    h.str("probes");
+    for f in FactionId::ALL {
+        let spec = paced(f);
+        for w in WeaponId::ALL {
+            for as_mult in [1.0, 1.35] {
+                let interval = attack_interval(&spec, w, as_mult);
+                h.f64(interval);
+                h.f64(damage_per_hit(&spec, w, as_mult));
+                let t = player_timings(w, interval);
+                h.f64(t.windup);
+                h.f64(t.root);
+                h.byte(t.ranged as u8);
+            }
+        }
+        let shares = damage_shares(&spec);
+        h.f64(mitigate_shares(100.0, &shares, spec.armor, spec.shield));
+    }
+    for p in [0.0, 1.0, 6.0, 25.0] {
+        h.f64(pvp_factor(p));
+    }
+    for k in 0..10 {
+        h.u64(bounty_for(k) as u64);
+    }
+    h.0
 }
