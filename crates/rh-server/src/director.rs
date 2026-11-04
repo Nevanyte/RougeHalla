@@ -4,7 +4,7 @@
 
 use crate::hosting::Lifecycle;
 use crate::outbox::Outbox;
-use crate::persist::{Auth, Persistence, RecordError};
+use crate::persist::{Auth, Persistence, RecordError, Recorded};
 use crate::room::{
     random16, run_room, JoinOk, MapAssets, MatchId, Room, RoomCmd, RoomConfig, RoomReport,
     RoomStats, INBOUND_CAP,
@@ -423,7 +423,10 @@ impl Director {
                 if orphaned {
                     self.advance(&mut inner, &key);
                 }
-                inner.sessions.insert(ok.session, match_id);
+                // A room that already closed has had its sessions swept: nothing would ever remove this one.
+                if !room_gone {
+                    inner.sessions.insert(ok.session, match_id);
+                }
                 Ok((tx, ok))
             }
             Ok(Err(code)) => {
@@ -591,9 +594,16 @@ impl Director {
                                 .record(match_id, &profile, fence, &result)
                                 .await
                             {
-                                Ok(_) => {
+                                Ok(Recorded::Applied) => {
                                     d.inner.lock().expect("director").results_ok += 1;
                                     lease_gone = true;
+                                    break;
+                                }
+                                // A duplicate report: the store answers before it looks at the lease, so the lease the
+                                // caller holds (if any) is still live. It is not marked gone: the seat's ordinary
+                                // fenced give-back releases it (a no-op when the lease already moved on).
+                                Ok(Recorded::AlreadyApplied) => {
+                                    d.inner.lock().expect("director").results_ok += 1;
                                     break;
                                 }
                                 Err(RecordError::Refused(e)) => {
@@ -1390,6 +1400,166 @@ mod tests {
             (newer, false),
             "a stale fence releases nothing"
         );
+    }
+
+    /// `/info` and `/control/health` use camelCase keys throughout, `closedRooms` entries included (the contract text and the
+    /// room's own log line say `frameRefusals`).
+    #[tokio::test]
+    async fn info_and_closed_room_keys_are_exactly_these_camel_case_names() {
+        let d = director();
+        d.inner
+            .lock()
+            .unwrap()
+            .closed
+            .push(crate::room::RoomStats::default());
+        let info = d.info();
+        let sorted = |v: &serde_json::Value| {
+            let mut k: Vec<String> = v.as_object().unwrap().keys().cloned().collect();
+            k.sort_unstable();
+            k
+        };
+        let want = |names: &[&str]| {
+            let mut k: Vec<String> = names.iter().map(|s| s.to_string()).collect();
+            k.sort_unstable();
+            k
+        };
+        assert_eq!(
+            sorted(&info),
+            want(&[
+                "closedRooms",
+                "contentHash",
+                "lobbies",
+                "maxRooms",
+                "players",
+                "protocol",
+                "resultsFailed",
+                "resultsOk",
+                "resultsRefused",
+                "rooms",
+                "state"
+            ])
+        );
+        assert_eq!(
+            sorted(&info["closedRooms"][0]),
+            want(&[
+                "bytesEnqueuedTotal",
+                "bytesOut",
+                "crashed",
+                "droppedSteps",
+                "frameRefusals",
+                "frameRefusalsLogged",
+                "fxDropped",
+                "lateWakes",
+                "snapshotRefusals",
+                "snapshotRefusalsLogged",
+                "snapshotsSkipped",
+                "stepUsMax",
+                "stepUsP50",
+                "stepUsP99",
+                "ticks",
+            ])
+        );
+        let health = crate::metrics::process().json();
+        for k in health.as_object().unwrap().keys() {
+            assert!(!k.contains('_'), "{k}");
+        }
+    }
+
+    /// A join reply that arrives after the room's `Closed` was handled does not leave a session entry for the dead room.
+    #[tokio::test(start_paused = true)]
+    async fn a_join_reply_after_the_rooms_close_registers_no_session() {
+        let d = director();
+        let m = id(1);
+        let (tx, mut rx) = mpsc::channel(4);
+        d.inner.lock().unwrap().rooms.insert(
+            m,
+            RoomEntry {
+                tx,
+                phase: Phase::Lobby,
+                seated: 0,
+                reserved: 0,
+            },
+        );
+        let d2 = d.clone();
+        let admit = tokio::spawn(async move {
+            d2.admit(hello("papa"), Arc::new(Outbox::default()), 1)
+                .await
+        });
+        let Some(RoomCmd::Join { reply, .. }) = rx.recv().await else {
+            panic!("a join");
+        };
+        // The room closed (crashed) before it replied.
+        d.reports
+            .send(RoomReport::Closed {
+                match_id: m,
+                stats: Default::default(),
+                final_hash: 0,
+                replay: None,
+            })
+            .unwrap();
+        settle().await;
+        assert!(d.inner.lock().unwrap().rooms.is_empty());
+        let _ = reply.send(Ok(JoinOk {
+            player: rh_sim::PlayerId(1),
+            session: [9; 16],
+            welcome: Vec::new(),
+            clock: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        }));
+        assert!(admit.await.unwrap().is_ok());
+        settle().await;
+        assert!(
+            d.inner.lock().unwrap().sessions.is_empty(),
+            "no session for a gone room"
+        );
+    }
+
+    /// A duplicate result report is answered `AlreadyApplied` before the store looks at the lease: the live lease is still
+    /// given back (fenced), not left to expire.
+    #[tokio::test(start_paused = true)]
+    async fn a_duplicate_result_report_still_gives_its_live_lease_back() {
+        let d = director_with(MemoryStore::strict());
+        let m = id(1);
+        let f1 = d.persistence.acquire("papa", m).await.unwrap();
+        assert_eq!(
+            d.persistence
+                .record(m, "papa", f1, &some_result("papa"))
+                .await,
+            Ok(Recorded::Applied)
+        );
+        // The same match's profile holds a live lease again; a second report for the match arrives.
+        let f2 = d.persistence.acquire("papa", m).await.unwrap();
+        assert!(f2 > f1 && !store(&d).lease("papa").unwrap().released);
+        d.inner
+            .lock()
+            .unwrap()
+            .profiles
+            .insert("papa".into(), seat(4, m, f2, SeatState::Seated));
+        d.reports
+            .send(RoomReport::Left {
+                match_id: m,
+                profile: "papa".into(),
+                fence: f2,
+                result_pending: true,
+            })
+            .unwrap();
+        d.reports
+            .send(RoomReport::Result {
+                match_id: m,
+                profile: "papa".into(),
+                bot: false,
+                fence: Some(f2),
+                result: some_result("papa"),
+            })
+            .unwrap();
+        settle().await;
+        settle().await;
+        assert!(
+            store(&d).lease("papa").unwrap().released,
+            "lease given back"
+        );
+        assert!(entry_of(&d, "papa").is_none(), "profile free");
+        assert_eq!(store(&d).results.lock().unwrap().len(), 1, "applied once");
+        assert_eq!(d.inner.lock().unwrap().results_ok, 1);
     }
 
     /// A room task that panics still reports `Closed`: its seats are freed and their leases given back, instead of the
