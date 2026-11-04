@@ -1,23 +1,26 @@
 # Performance gate: deterministic callgrind/DHAT A/B of the PR head against its merge-base (tools/perfproof/perfproof.py).
 # Instruction counts do not depend on machine load, so the gate is exact; a revision measured against itself moves by at
-# most +-0.02% Ir per unit with identical allocations, so the 1.03 ratio leaves ~100x headroom over noise while still
-# catching a real 3% regression. Behaviour fingerprints (outcome digest, state hashes, replay verification) must be equal
+# most a few tenths of a percent Ir per unit (measured up to -0.29%, on the shortest workload) with identical allocations,
+# so the 1.03 ratio leaves about 10x headroom over noise while still catching a real 3% regression. Behaviour fingerprints (outcome digest, state hashes, replay verification) must be equal
 # unless the PR declares the change on a line of its description:
 #     Perf-Allow-Fingerprint: sim_crowded_8, paths_300.outcomeDigest
 # (workload names, fingerprint keys or workload.key; the same syntax as --allow-fingerprint-change).
+# The description is read through the API when the job runs, so after adding the line, re-run the failed job (or push).
 name: Perf gate
 
 on:
   pull_request:
-    paths: ["crates/**", "parity/maps/**", "Cargo.*", "rust-toolchain.toml", "tools/perfproof/**", ".github/workflows/perfproof.yml"]
+    types: [opened, synchronize, reopened, edited]
+    paths: ["crates/**", "parity/**", "Cargo.*", "rust-toolchain.toml", "tools/perfproof/**", ".github/workflows/perfproof.yml"]
   workflow_dispatch:
     inputs:
       baseline:
-        description: "Revision to compare against (default: merge-base with the default branch)"
+        description: "Revision to compare against: a SHA or origin/<branch> (default: merge-base with the default branch)"
         required: false
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: perfproof-${{ github.event.pull_request.number || github.ref }}
@@ -52,15 +55,24 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           INPUT_BASELINE: ${{ inputs.baseline }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ -n "${INPUT_BASELINE:-}" ]; then
             base="$(git rev-parse "$INPUT_BASELINE")"
           else
-            ref="${BASE_REF:-$(git remote show origin | sed -n 's/.*HEAD branch: //p')}"
+            ref="${BASE_REF:-$DEFAULT_BRANCH}"
             git fetch --no-tags origin "+refs/heads/${ref}:refs/remotes/origin/${ref}"
             base="$(git merge-base "origin/${ref}" HEAD)"
+          fi
+          # Read the description now, not from the event payload: a re-run replays the original payload, which would
+          # hide a description edited after the first run.
+          PR_BODY=""
+          if [ -n "${PR_NUMBER:-}" ]; then
+            PR_BODY="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.body // ""')"
           fi
           # The declaration is data from the PR description: keep only characters a workload/key name can contain.
           allow="$(printf '%s\n' "${PR_BODY:-}" | tr -d '\r' \

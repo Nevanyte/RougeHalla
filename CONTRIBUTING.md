@@ -28,10 +28,10 @@ npx tsx parity/legacy-capture/capture.ts            # re-capture legacy fixtures
 ```
 
 ## Performance gate
-Pull requests that touch `crates/`, `Cargo.*` or `tools/perfproof/` run `.github/workflows/perfproof.yml`: a deterministic
+Pull requests that touch `crates/`, `parity/`, `Cargo.*`, `rust-toolchain.toml` or `tools/perfproof/` run `.github/workflows/perfproof.yml`: a deterministic
 valgrind (callgrind and DHAT) A/B of the PR head against its merge-base on fixed workloads, with the table in the job
-summary. It fails when instructions per unit of work rise by more than 3% (`--max-ir-ratio 1.03`; a revision against
-itself moves by +-0.02%), when allocations per unit rise at all (`--max-alloc-increase 0`), or when any behaviour
+summary. It fails when instructions per unit of work rise by more than 3% (`--max-ir-ratio 1.03`; measured noise for a revision
+against itself is a few tenths of a percent at most), when allocations per unit rise at all (`--max-alloc-increase 0`), or when any behaviour
 fingerprint (outcome digest, state hashes, replay verification against base-recorded replays) differs.
 
 A PR that changes behaviour on purpose declares it with one line in its description, naming workloads, fingerprint keys
@@ -39,6 +39,9 @@ or `workload.key` (the syntax of `--allow-fingerprint-change`):
 ```
 Perf-Allow-Fingerprint: sim_crowded_8, paths_300.outcomeDigest
 ```
+The description is read when the job runs and the workflow also reacts to description edits (`edited`), so a newly added
+line is picked up by the next run: edit the description (which starts a run) or re-run the failed job.
+
 Run it locally (needs valgrind on Linux; builds both sides into `target/perfproof`, then `rm -rf target/perfproof`):
 ```
 python3 tools/perfproof/perfproof.py --baseline $(git merge-base origin/main HEAD) --max-ir-ratio 1.03 --max-alloc-increase 0
