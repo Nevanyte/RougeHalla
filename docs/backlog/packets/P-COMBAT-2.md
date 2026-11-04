@@ -18,13 +18,13 @@ packet ports the `targetId` flight but cannot create a locked shot until P-COMBA
 - Tests: `packages/server/test/projectiles.test.ts`, `weapons.test.ts`; fixture `parity/fixtures/bow_wand_capture.json` (capture-only).
 
 ## New paths
-`crates/rh-sim/src/projectiles.rs`; additions to `content.rs` (specials, constants, `content_hash`); capture scenarios; optionally
+`crates/rh-sim/src/systems/projectiles.rs` (its rows flip in `schedule.rs`; the live projectile list is world state, the per-substep lists are `TickScratch`); additions to `content.rs` (specials, constants, `content_hash`); capture scenarios; optionally
 `crates/rh-protocol` launch/end tuples (coordinate: shared files).
 
 ## Exclusive write scope
-`crates/rh-sim/src/{projectiles.rs,sim.rs,content.rs,constants.rs,lib.rs,observe.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
+`crates/rh-sim/src/{systems/projectiles.rs,systems/weapons.rs,systems/melee.rs,systems/mod.rs,schedule.rs,state.rs,scratch.rs,checkpoint.rs,content.rs,constants.rs,lib.rs,observe.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
 `parity/legacy-capture/capture.ts` (new scenarios and the projectile recorder), `parity/fixtures/`. Protocol and C# files only if the coordinator
-assigns them (README "Shared-file rule").
+assigns them (README "Shared-file rule"). Core layout rules (post-sweep, [ADR 0009](../../adr/0009-core-layout.md); the README "Shared-file rule" has the long form): the mechanic is `systems/<mechanic>.rs` with `fn(&mut Cx)` entry points, plus its rows flipped from `Pending` to `Ported` in `schedule.rs` at their legacy position (the row names, never a reorder); entity data goes in `fighter.rs` / `state.rs` / `store.rs` (hashed and checkpointed: extend `check_world` in `checkpoint.rs` if the new data has an invariant the tick relies on) and per-tick lists in `TickScratch` (`scratch.rs`, never serialized); `tests/no_alloc.rs` must stay at zero allocations per step, new content goes through the `content.rs` registry (`content_hash`), and every new serialized field must be covered by `tests/hash_coverage.rs`. `sim.rs` is a facade and is not in any write scope.
 
 ## Contracts and references
 C-TICK (projectile sweep sits after history, before melee, with "spawns"), C-DET, C-OBS (a launch is perceivable by viewers who can see the
@@ -39,7 +39,7 @@ shooter or the path: decide and leak-test), C-NET (fx are droppable; `projEnd` m
 - Launch point is the shooter's **rewound** (drawn) position for `attack` inputs; for locked attacks the server aims from the present with `leadAim` and `lagMs = TICK_MS` (P-COMBAT-3). Projectiles loosed this tick leave from the authoritative release position and first move next tick's sweep. A hit lands in the ledger of the tick it connects, after melee.
 - Timings: bow windup `min(0.5, 0.55 * interval)` with `drawStartedAt` synced, wand `min(0.45, 0.5 * interval)`; ranged users are rooted only for the final `RANGED_RELEASE_PAUSE_MS` 200 ms of the windup (`windingUp`), a stagger never cancels a bow draw. Homing wand ball (locked): flies toward the target's position at each substep time at its launch speed, dies after 5000 ms or when the target is not standing.
 - A projectile outlives its owner; a kill by a departed shooter is credited by name only (no GV/bounty).
-- `Rust` already has `Draw` actions and the release pause in `sim.rs` (~l.955): verify against fixtures, do not re-derive.
+- `Rust` already has `Draw` actions and the release pause in `systems/weapons.rs` (`start_attack`, `move_multiplier`, `RANGED_RELEASE_PAUSE_MS`); `land` has a `debug_assert` that ranged attacks are unreachable, to be replaced by the real path (and `check_world` in `checkpoint.rs` currently refuses a carried bow or wand): verify against fixtures, do not re-derive.
 
 ## Acceptance checks
 1. Fix the capture first: `canonicalEvent` maps `projEnd` to `{kind}` only and launches are not events. Extend the capture (coordinate with P-CAPTURE-1) to record every launch (`world.projectiles` additions per tick: id, kind, owner, x, y, vx, vy, t, range, targetId) and `projEnd` with `x, y, why`.

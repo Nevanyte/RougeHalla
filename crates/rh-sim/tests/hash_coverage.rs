@@ -10,7 +10,14 @@
 //! is validated input, not an unhashed leaf; each such pattern must be in `VALIDATED`.
 
 use rh_sim::arenas::practice_arena;
-use rh_sim::{Command, FactionId, Placement, PlayerId, Secrets, Sim, SimConfig, Vec2};
+use rh_sim::{
+    validate, Command, FactionId, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig, Vec2,
+};
+
+/// A command through the one door in (C-INPUT): these tests only use valid ones.
+fn cmd(raw: RawCommand) -> Command {
+    validate(raw).expect("a valid test command")
+}
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -48,21 +55,21 @@ fn drive(sim: &mut Sim, ticks: u32) {
     for t in 0..ticks {
         for i in 1..=8u32 {
             let a = (t as f64 * 0.05) + i as f64;
-            let _ = sim.submit(PlayerId(i), Command::Aim { a });
+            let _ = sim.submit(PlayerId(i), cmd(RawCommand::Aim { a }));
             if t % 7 == 0 {
-                let _ = sim.submit(PlayerId(i), Command::Attack { a, t: None });
+                let _ = sim.submit(PlayerId(i), cmd(RawCommand::Attack { a, t: None }));
             }
             if t % 7 == 3 {
-                let _ = sim.submit(PlayerId(i), Command::Release { a, t: None });
+                let _ = sim.submit(PlayerId(i), cmd(RawCommand::Release { a, t: None }));
             }
             if t % 11 == 5 {
                 let _ = sim.submit(
                     PlayerId(i),
-                    Command::Move {
+                    cmd(RawCommand::Move {
                         x: 300.0 + 40.0 * i as f64,
                         y: 500.0,
                         seq: Some((t % 200) as u8),
-                    },
+                    }),
                 );
             }
         }
@@ -125,19 +132,19 @@ fn with_queued_inputs() -> Sim {
     for i in 1..=4u32 {
         let _ = s.submit(
             PlayerId(i),
-            Command::Move {
+            cmd(RawCommand::Move {
                 x: 500.0 + i as f64,
                 y: 450.0,
                 seq: Some(i as u8),
-            },
+            }),
         );
-        let _ = s.submit(PlayerId(i), Command::Aim { a: 0.25 * i as f64 });
+        let _ = s.submit(PlayerId(i), cmd(RawCommand::Aim { a: 0.25 * i as f64 }));
         let _ = s.submit(
             PlayerId(i),
-            Command::Attack {
+            cmd(RawCommand::Attack {
                 a: 0.5,
                 t: Some(1.0),
-            },
+            }),
         );
     }
     s
@@ -345,6 +352,18 @@ const VALIDATED: &[(&str, &str)] = &[
         "a tuple (attacker, time) has no shorter form",
     ),
     (
+        "world.roster.names.*.*",
+        "the roster is strictly ordered by id like the store, and below next_id: a neighbour's id collides",
+    ),
+    (
+        "world.players.*.core.body.history.*.t",
+        "samples are at least a tick apart and not after the clock (checkpoint.rs `check_world`)",
+    ),
+    (
+        "world.roster.names.#len",
+        "kills, joined and downs are bounded by the roster length (checkpoint.rs `check_world`)",
+    ),
+    (
         "world.roster.names.*.#len",
         "a roster entry is a (id, name) pair",
     ),
@@ -355,7 +374,8 @@ const VALIDATED: &[(&str, &str)] = &[
 fn seeds(pat: &str) -> Vec<Value> {
     match pat {
         "world.players.*.core.weapon.weapon0" | "world.players.*.core.weapon.weapon1" => {
-            vec![serde_json::json!("Sword"), serde_json::json!("Bow")]
+            // Fists is the only item a restore accepts while the slice has no item flow (checkpoint.rs `check_world`).
+            vec![serde_json::json!("Fists")]
         }
         "world.players.*.core.weapon.action" => vec![serde_json::json!({
             "kind": "Swing", "weapon": "Fists", "started_at": 1.0, "lands_at": 2.0, "a": 0.5,
@@ -434,6 +454,20 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
                 v
             }
             Kind::Leaf => candidates(leaf, &strings),
+        };
+        // `bot_kills` may not exceed `kills` (checkpoint.rs `check_world`) and no scripted match has kills at this moment:
+        // perturb it from a base where the fighter has some, and compare against that base's hash.
+        let (base, h0) = if pat == "world.players.*.credit.bot_kills" {
+            let mut b = base.clone();
+            let mut at = path.clone();
+            at.pop();
+            *at_mut(&mut b, &[&at[..], &["kills".to_string()]].concat()) = 3.into();
+            let h = Sim::restore(&b)
+                .expect("kills within the roster restore")
+                .state_hash();
+            (b, h)
+        } else {
+            (base.clone(), h0)
         };
         let mut result = None;
         for cand in tries {

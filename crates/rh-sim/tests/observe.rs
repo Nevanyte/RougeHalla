@@ -1,7 +1,15 @@
 //! Observation leak tests (docs/CONTRACTS.md C-OBS): hidden state must not change what a player is shown.
 
 use rh_sim::arenas::practice_arena;
-use rh_sim::{observe, observe_into, Command, FactionId, Placement, Secrets, Sim, SimConfig, Vec2};
+use rh_sim::{
+    observe, observe_into, validate, Command, FactionId, Placement, RawCommand, Secrets, Sim,
+    SimConfig, Vec2,
+};
+
+/// A command through the one door in (C-INPUT): these tests only use valid ones.
+fn cmd(raw: RawCommand) -> Command {
+    validate(raw).expect("a valid test command")
+}
 
 fn place(profile: &str, faction: FactionId, x: f64, y: f64, hp: Option<f64>) -> Placement {
     Placement {
@@ -41,20 +49,20 @@ fn hidden_actors_change_nothing_the_viewer_is_shown() {
     for (sim, mv) in [(&mut a, 340.0), (&mut b, 360.0)] {
         sim.submit(
             rh_sim::PlayerId(2),
-            Command::Move {
+            cmd(RawCommand::Move {
                 x: mv,
                 y: 176.0,
                 seq: Some(9),
-            },
+            }),
         )
         .unwrap();
         sim.submit(
             rh_sim::PlayerId(3),
-            Command::Move {
+            cmd(RawCommand::Move {
                 x: 160.0,
                 y: 600.0,
                 seq: None,
-            },
+            }),
         )
         .unwrap();
     }
@@ -148,11 +156,11 @@ fn steer(sim: &mut Sim, rng: &mut u64) {
     for i in 1..=6u32 {
         if lcg(rng) < 0.35 {
             let (x, y) = (150.0 + lcg(rng) * 700.0, 150.0 + lcg(rng) * 700.0);
-            let _ = sim.submit(PlayerId(i), Command::Move { x, y, seq: None });
+            let _ = sim.submit(PlayerId(i), cmd(RawCommand::Move { x, y, seq: None }));
         }
         if lcg(rng) < 0.5 {
             let a = lcg(rng) * std::f64::consts::TAU;
-            let _ = sim.submit(PlayerId(i), Command::Attack { a, t: None });
+            let _ = sim.submit(PlayerId(i), cmd(RawCommand::Attack { a, t: None }));
         }
     }
 }
@@ -229,15 +237,15 @@ fn per_step_filtering_judges_each_steps_events_against_that_steps_sight() {
             Secrets::from_seed(5),
             &ps,
         );
-        sim.submit(PlayerId(2), Command::Attack { a: 0.0, t: None })
+        sim.submit(PlayerId(2), cmd(RawCommand::Attack { a: 0.0, t: None }))
             .unwrap();
         sim.submit(
             viewer,
-            Command::Move {
+            cmd(RawCommand::Move {
                 x: to_x,
                 y: 272.0,
                 seq: None,
-            },
+            }),
         )
         .unwrap();
         let mut at_its_step = Vec::new();

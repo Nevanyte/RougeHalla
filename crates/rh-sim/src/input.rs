@@ -39,14 +39,56 @@ pub enum RawCommand {
     },
 }
 
-/// A validated command: points finite and clamped to the world, angles finite and wrapped.
+/// A validated command: points finite and clamped to the world, angles finite and wrapped. Opaque on purpose: the only
+/// ways to hold one are [`validate`] and decoding (a replay), which runs [`validate`] again and refuses anything it would
+/// change, so no code path (a test fixture, an edited replay) can hand the sim an unvalidated command (C-INPUT). It
+/// serializes as the plain variant it wraps, so recorded replays keep their shape.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+#[serde(transparent)]
+pub struct Command(Kind);
+
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum Command {
+enum Kind {
     Move { x: f64, y: f64, seq: Option<u8> },
     Stop { seq: Option<u8> },
     Aim { a: f64 },
     Attack { a: f64, t: Option<f64> },
     Release { a: f64, t: Option<f64> },
+}
+
+impl Kind {
+    fn raw(self) -> RawCommand {
+        match self {
+            Kind::Move { x, y, seq } => RawCommand::Move { x, y, seq },
+            Kind::Stop { seq } => RawCommand::Stop { seq },
+            Kind::Aim { a } => RawCommand::Aim { a },
+            Kind::Attack { a, t } => RawCommand::Attack { a, t },
+            Kind::Release { a, t } => RawCommand::Release { a, t },
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Command {
+    /// A decoded command is validated again, and one that validation would alter (an angle out of range, a point outside
+    /// the world, a non-finite number) or reject is refused: what is stored is what `validate` produced.
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let kind = Kind::deserialize(d)?;
+        match validate(kind.raw()) {
+            Ok(c) if c.0 == kind => Ok(c),
+            Ok(_) => Err(serde::de::Error::custom(
+                "command was not produced by validation (out of range)",
+            )),
+            Err(r) => Err(serde::de::Error::custom(format!(
+                "command is not valid: {r:?}"
+            ))),
+        }
+    }
+}
+
+/// A valid command for a unit test (the one door in is [`validate`], tests included).
+#[cfg(test)]
+pub(crate) fn cmd(raw: RawCommand) -> Command {
+    validate(raw).expect("a valid test command")
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,22 +117,22 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         }
     };
     let time = |t: Option<f64>| t.filter(|v| v.is_finite());
-    Ok(match raw {
+    Ok(Command(match raw {
         RawCommand::Move { x, y, seq } => {
             let (x, y) = clamp_pt(x, y)?;
-            Command::Move { x, y, seq }
+            Kind::Move { x, y, seq }
         }
-        RawCommand::Stop { seq } => Command::Stop { seq },
-        RawCommand::Aim { a } => Command::Aim { a: angle(a)? },
-        RawCommand::Attack { a, t } => Command::Attack {
+        RawCommand::Stop { seq } => Kind::Stop { seq },
+        RawCommand::Aim { a } => Kind::Aim { a: angle(a)? },
+        RawCommand::Attack { a, t } => Kind::Attack {
             a: angle(a)?,
             t: time(t),
         },
-        RawCommand::Release { a, t } => Command::Release {
+        RawCommand::Release { a, t } => Kind::Release {
             a: angle(a)?,
             t: time(t),
         },
-    })
+    }))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -162,6 +204,34 @@ impl serde::Serialize for ActionBuf {
     }
 }
 
+impl InputQueue {
+    /// Whether every queued value is one [`validate`] produced (finite, clamped, wrapped): the rule [`Command`]'s decoder
+    /// applies, for a checkpoint taken between a submit and the step.
+    pub(crate) fn check(&self) -> Result<(), String> {
+        let same = |raw: RawCommand, kind: Kind| match validate(raw) {
+            Ok(c) if c.0 == kind => Ok(()),
+            _ => Err(format!("queued input {kind:?} is not a validated command")),
+        };
+        if let Some(MoveCmd::Move { x, y, seq }) = self.mv {
+            same(RawCommand::Move { x, y, seq }, Kind::Move { x, y, seq })?;
+        }
+        if let Some(a) = self.aim {
+            same(RawCommand::Aim { a }, Kind::Aim { a })?;
+        }
+        for act in self.actions.as_slice() {
+            match *act {
+                ActionCmd::Attack { a, t } => {
+                    same(RawCommand::Attack { a, t }, Kind::Attack { a, t })?
+                }
+                ActionCmd::Release { a, t } => {
+                    same(RawCommand::Release { a, t }, Kind::Release { a, t })?
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for ActionBuf {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let v = Vec::<ActionCmd>::deserialize(d)?;
@@ -216,28 +286,28 @@ pub(crate) fn accept(
 
 impl InputQueue {
     fn push(&mut self, cmd: Command) -> Result<(), Reject> {
-        match cmd {
-            Command::Move { x, y, seq } => {
+        match cmd.0 {
+            Kind::Move { x, y, seq } => {
                 self.mv = Some(MoveCmd::Move { x, y, seq });
                 self.move_before = self.actions.len();
             }
-            Command::Stop { seq } => {
+            Kind::Stop { seq } => {
                 self.mv = Some(MoveCmd::Stop { seq });
                 self.move_before = self.actions.len();
             }
-            Command::Aim { a } => {
+            Kind::Aim { a } => {
                 self.aim = Some(a);
                 self.aim_before = self.actions.len();
             }
-            Command::Attack { a, t } => return self.push_action(ActionCmd::Attack { a, t }),
-            Command::Release { a, t } => return self.push_action(ActionCmd::Release { a, t }),
+            Kind::Attack { a, t } => return self.push_action(ActionCmd::Attack { a, t }),
+            Kind::Release { a, t } => return self.push_action(ActionCmd::Release { a, t }),
         }
         Ok(())
     }
 
     fn push_action(&mut self, cmd: ActionCmd) -> Result<(), Reject> {
         if !self.actions.push(cmd) {
-            self.dropped += 1;
+            self.dropped = self.dropped.saturating_add(1);
             return Err(Reject::QueueFull);
         }
         Ok(())
@@ -302,7 +372,7 @@ impl OrderBudget {
     }
 
     pub fn allow(&mut self, cmd: &Command, now_ms: f64) -> bool {
-        if matches!(cmd, Command::Aim { .. }) {
+        if matches!(cmd.0, Kind::Aim { .. }) {
             return true;
         }
         if now_ms > self.at_ms {
@@ -331,11 +401,11 @@ mod tests {
                 y: 99999.0,
                 seq: None
             }),
-            Ok(Command::Move {
+            Ok(cmd(RawCommand::Move {
                 x: 0.0,
                 y: WORLD_H,
                 seq: None
-            })
+            }))
         );
         assert_eq!(
             validate(RawCommand::Aim { a: f64::NAN }),
@@ -346,22 +416,71 @@ mod tests {
                 a: 0.0,
                 t: Some(f64::INFINITY)
             }),
-            Ok(Command::Attack { a: 0.0, t: None })
+            Ok(cmd(RawCommand::Attack { a: 0.0, t: None }))
         );
-        let Command::Aim { a } = validate(RawCommand::Aim { a: 7.0 }).unwrap() else {
-            panic!()
-        };
-        assert!(a > -std::f64::consts::PI && a <= std::f64::consts::PI);
+        let wrapped = 7.0 - 2.0 * std::f64::consts::PI;
+        assert!(wrapped > -std::f64::consts::PI && wrapped <= std::f64::consts::PI);
+        assert_eq!(
+            validate(RawCommand::Aim { a: 7.0 }),
+            Ok(cmd(RawCommand::Aim { a: wrapped }))
+        );
+    }
+
+    #[test]
+    fn a_command_decodes_only_as_validation_made_it() {
+        let valid = [
+            RawCommand::Move {
+                x: 10.5,
+                y: 20.25,
+                seq: Some(3),
+            },
+            RawCommand::Stop { seq: None },
+            RawCommand::Aim { a: -3.0 },
+            RawCommand::Attack {
+                a: 2.75,
+                t: Some(1234.5),
+            },
+            RawCommand::Release { a: 0.0, t: None },
+        ];
+        for raw in valid {
+            let c = cmd(raw);
+            let json = serde_json::to_value(c).unwrap();
+            // Serialized as the bare variant, so recorded replays keep their shape.
+            assert!(json.is_object(), "{json}");
+            assert_eq!(serde_json::from_value::<Command>(json).unwrap(), c);
+        }
+        let json = serde_json::json!({"Move": {"x": 1.0, "y": 2.0, "seq": 7}});
+        assert_eq!(
+            serde_json::from_value::<Command>(json).unwrap(),
+            cmd(RawCommand::Move {
+                x: 1.0,
+                y: 2.0,
+                seq: Some(7)
+            })
+        );
+        // What validation would alter is refused, not silently repaired.
+        for bad in [
+            serde_json::json!({"Move": {"x": -5.0, "y": 2.0, "seq": null}}),
+            serde_json::json!({"Move": {"x": 1.0, "y": 1e9, "seq": null}}),
+            serde_json::json!({"Aim": {"a": 9.0}}),
+            serde_json::json!({"Attack": {"a": -4.0, "t": null}}),
+            serde_json::json!({"Release": {"a": 100.0, "t": 1.0}}),
+        ] {
+            assert!(
+                serde_json::from_value::<Command>(bad.clone()).is_err(),
+                "{bad}"
+            );
+        }
     }
 
     #[test]
     fn queue_caps_actions_per_tick() {
         let mut q = InputQueue::default();
         for _ in 0..MAX_ACTIONS_PER_TICK {
-            q.push(Command::Attack { a: 0.0, t: None }).unwrap();
+            q.push(cmd(RawCommand::Attack { a: 0.0, t: None })).unwrap();
         }
         assert_eq!(
-            q.push(Command::Attack { a: 0.0, t: None }),
+            q.push(cmd(RawCommand::Attack { a: 0.0, t: None })),
             Err(Reject::QueueFull)
         );
         assert_eq!(q.drain().actions.len(), MAX_ACTIONS_PER_TICK);
@@ -370,11 +489,11 @@ mod tests {
     #[test]
     fn the_inline_queue_serializes_as_the_sequence_it_replaced() {
         let mut q = InputQueue::default();
-        q.push(Command::Attack { a: 1.0, t: None }).unwrap();
-        q.push(Command::Release {
+        q.push(cmd(RawCommand::Attack { a: 1.0, t: None })).unwrap();
+        q.push(cmd(RawCommand::Release {
             a: 2.0,
             t: Some(5.0),
-        })
+        }))
         .unwrap();
         let want = vec![
             ActionCmd::Attack { a: 1.0, t: None },
@@ -390,14 +509,16 @@ mod tests {
         // Slots past the length are dead data: a drained-and-refilled queue equals a fresh one with the same actions.
         let mut used = InputQueue::default();
         for _ in 0..MAX_ACTIONS_PER_TICK {
-            used.push(Command::Attack { a: 9.0, t: None }).unwrap();
+            used.push(cmd(RawCommand::Attack { a: 9.0, t: None }))
+                .unwrap();
         }
         used.clear();
-        used.push(Command::Attack { a: 1.0, t: None }).unwrap();
-        used.push(Command::Release {
+        used.push(cmd(RawCommand::Attack { a: 1.0, t: None }))
+            .unwrap();
+        used.push(cmd(RawCommand::Release {
             a: 2.0,
             t: Some(5.0),
-        })
+        }))
         .unwrap();
         assert_eq!(used.actions, q.actions);
         // A checkpoint with more actions than a tick may queue is refused.
@@ -411,11 +532,11 @@ mod tests {
     #[test]
     fn budget_refills_on_sim_time() {
         let mut b = OrderBudget::default();
-        let mv = Command::Stop { seq: None };
+        let mv = cmd(RawCommand::Stop { seq: None });
         let allowed = (0..40).filter(|_| b.allow(&mv, 0.0)).count();
         assert_eq!(allowed, 30);
         assert!(
-            b.allow(&Command::Aim { a: 0.0 }, 0.0),
+            b.allow(&cmd(RawCommand::Aim { a: 0.0 }), 0.0),
             "aim never spends a token"
         );
         assert!(!b.allow(&mv, 50.0), "0.75 token after 50 ms");

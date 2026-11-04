@@ -19,12 +19,12 @@ Visibility of lock targets uses sight (`canPlayerSeeActor`): the slice has curre
 - Tests: `packages/server/test/targeting.test.ts`, `targetingThrottle.test.ts`, `visionTargeting.test.ts`, `playtestCombatControls.test.ts`, `pathLoad.test.ts`.
 
 ## New paths
-`crates/rh-sim/src/targeting.rs` (+ `policies.rs` if `decide`/`lockSpacing` are ported as a pure module shared with P-BOTS-1 and P-MOBS-1); capture scenarios.
+`crates/rh-sim/src/systems/targeting.rs` (+ `policies.rs` if `decide`/`lockSpacing` are ported as a pure module shared with P-BOTS-1 and P-MOBS-1); capture scenarios.
 
 ## Exclusive write scope
-`crates/rh-sim/src/{targeting.rs,policies.rs,sim.rs,input.rs,content.rs,lib.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
-`parity/legacy-capture/capture.ts` (scenarios), `parity/fixtures/`. New commands (`Target`, `AttackMove`) extend `RawCommand`/`Command`
-in `input.rs`; the protocol/C# mirror is a shared-file change (README).
+`crates/rh-sim/src/{systems/targeting.rs,policies.rs,systems/inputs.rs,systems/weapons.rs,systems/mod.rs,schedule.rs,state.rs,fighter.rs,scratch.rs,checkpoint.rs,input.rs,content.rs,lib.rs}`, `crates/rh-sim/tests/`, `crates/rh-parity/**`,
+`parity/legacy-capture/capture.ts` (scenarios), `parity/fixtures/`. New commands (`Target`, `AttackMove`) extend `RawCommand` and
+the private `Kind` behind the opaque `Command` in `input.rs` (a variant is built by `validate` only; its decode re-validates); the protocol/C# mirror is a shared-file change (README). Core layout rules (post-sweep, [ADR 0009](../../adr/0009-core-layout.md); the README "Shared-file rule" has the long form): the mechanic is `systems/<mechanic>.rs` with `fn(&mut Cx)` entry points, plus its rows flipped from `Pending` to `Ported` in `schedule.rs` at their legacy position (the row names, never a reorder); entity data goes in `fighter.rs` / `state.rs` / `store.rs` (hashed and checkpointed: extend `check_world` in `checkpoint.rs` if the new data has an invariant the tick relies on) and per-tick lists in `TickScratch` (`scratch.rs`, never serialized); `tests/no_alloc.rs` must stay at zero allocations per step, new content goes through the `content.rs` registry (`content_hash`), and every new serialized field must be covered by `tests/hash_coverage.rs`. `sim.rs` is a facade and is not in any write scope.
 
 ## Contracts and references
 C-INPUT (`target` is a normal validated command; one path search per `TARGET_REPATH_MS` per player is the abuse bound), C-TICK

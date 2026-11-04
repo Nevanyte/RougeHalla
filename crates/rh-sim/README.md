@@ -2,7 +2,8 @@
 
 The authoritative simulation core: pure (no I/O, wall clock, entropy or hash-map iteration), a fixed 20 Hz step, and the
 legacy tick order (`docs/CONTRACTS.md` C-TICK). Everything else (server, headless runner, parity harness, policies) drives
-it through `Sim::submit` and `Sim::step`.
+it through `Sim::submit` and `Sim::step` (or `Sim::step_into`, the allocation-free entry that fills a reused event buffer;
+`tests/no_alloc.rs` holds it at zero allocations per step).
 
 ## Layout
 
@@ -11,7 +12,7 @@ it through `Sim::submit` and `Sim::step`.
 | `sim.rs` | The facade: `Sim`, `Placement`, the public read accessors (`tick()`, `phase()`, `server_time()`, `arena()`, `players()`, `player(id)`, ...) and the few mutators (`add_player`, `submit`, `mark_dropped`, `remove_player`, `step`). No game logic. |
 | `statics.rs` | `MatchStatic { config, arena: Arc<Arena>, secrets }`: what the match is played with; immutable once it starts. `Arena`, `SimConfig`, `Secrets`. |
 | `state.rs` | `World`: the evolving match state (players, clock, phase, run bookkeeping, events waiting between steps). The state hash covers it (seeded with the statics digest); with the statics it is the whole checkpoint. `Player` and its runtime. |
-| `fighter.rs` | The fighter as components: `FighterCore { id, body, vitals, weapon, motion, inputs }` (what the combat systems read and write for anything that fights), `FighterRef` (a read-only view), and what only a seated player adds: `Seat`, `Credit`, `Fate`. `Player` wraps a core and derefs to it. |
+| `fighter.rs` | The fighter as components: `FighterCore { id, body, vitals, weapon, motion, inputs }` (the components every fighter has) and `FighterRef` (a read-only view of a core plus whether it still stands), and what only a seated player adds: `Seat`, `Credit`, `Fate`. `Player` wraps a core and derefs to it. Today `FighterRef` has one consumer, the line-of-sight and fog filter in `observe.rs` (`sees`), so what an observer sees does not depend on the seated-player record. The tick systems (inputs, movement, weapons, melee, ledger, settle) still take `&Player` / `&mut Player`, reaching the core through `Deref`; a mob packet moves them onto the core when a second kind of fighter needs it. |
 | `store.rs` | `EntityId` and `Store<T>`: entities in ascending id order (join order), looked up by id in O(1) while ids are dense and O(log n) otherwise; its slot is the index the dense per-slot scratch lists use. |
 | `scratch.rs` | `TickScratch`: per-tick working sets (damage ledger, melee requests, action order and per-slot ranks, per-slot tick-start bounties, the standing list and move multipliers, the downed list). Never serialized, never hashed; each field is written before it is read within a tick. |
 | `systems/` | One file per legacy module; every entry point is `fn(&mut Cx)`. See below. |
@@ -19,7 +20,8 @@ it through `Sim::submit` and `Sim::step`.
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
 | `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/2; other tags are refused. |
 | `checkpoint.rs` | `{format, statics, world}` serde layout, the `rh-checkpoint/3` tag and `CheckpointError`. |
-| `observe.rs`, `input.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
+| `input.rs` | `RawCommand` (as it arrives), `validate`, and `Command`, an opaque type: it is built only by `validate` or by decoding, which validates again and refuses a command validation would change, so a replay cannot inject an unvalidated command (C-INPUT). Also the order budget and the per-fighter queue. |
+| `observe.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
 
 ### Systems over a borrow-split `Cx`
 
@@ -35,8 +37,8 @@ pub(crate) struct Cx<'a> {
 
 A system entry point destructures only what it touches, so its first lines show its reach: `ledger::apply` splits the
 scratch into the ledger, the action ranks, the tick-start bounties and the downed list, reads the statics and writes
-players and events; the pathfinder is touched only by `inputs` (a move order plans its path); `credit` and `settle` never
-read no statics. Helpers below an entry point take the narrowest borrows (one fighter and the clock, say). The
+players and events; the pathfinder is touched only by `inputs` (a move order plans its path); `credit` reads no
+statics and `settle` reads them only to fire hooks and end the run. Helpers below an entry point take the narrowest borrows (one fighter and the clock, say). The
 disjoint fields replace the earlier `mem::take` workarounds.
 
 ### The tick as data (`schedule.rs`, ADR 0009)
@@ -64,7 +66,21 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 `serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/3", "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
-missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. A change that makes
+missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
+cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a
+roster or player list out of id order; a `server_time` that is negative, non-finite or beyond `u32::MAX` ticks (where the
+clock's own additions stop being exact); `tick` at `u32::MAX`; a rewind history whose samples are not at least one tick apart (which also orders them) or that is
+dated after `server_time` (a denser one fills the ring within a few steps); any body, rewind sample, waypoint or arena
+spawn that is non-finite or more than 1024 units past the map (huge coordinates overflow the tile arithmetic, and opposite
+extremes cancel in a finiteness sum); `bot_kills` above `kills`, `kills` above the roster length, `joined` or
+`downs_between_ticks` above the roster length (natural bounds: a kill needs a victim, a down a fighter); any carried
+weapon but fists and any pending action but a finite fist swing (the slice has no item flow, so the ranged path in
+`weapons.rs` is unreachable); and queued inputs that `validate` would change (non-finite or out-of-range points and
+angles). Counters with no natural bound (`inputs.dropped`, the gv parts and their sum) use saturating arithmetic, which is
+bit-identical below `u32::MAX`. These are the rules the tick is known to rely on: each has a refusal test in
+`checkpoint.rs`; a few hundred random and structured mutations of a real checkpoint restore, step, take commands and
+join/leave without a panic; and `rh-headless/tests/restore_real.rs` restores checkpoints of real bot and lobby matches at
+hundreds of steps and asserts none is refused. A change that makes
 `statics` or `world` unreadable by old checkpoints bumps `CHECKPOINT_FORMAT`.
 
 The arena is an `Arc<Arena>` (serde `rc`): it serializes exactly as a plain `Arena`, so replay JSON is unchanged, and
