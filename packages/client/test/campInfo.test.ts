@@ -2,7 +2,7 @@
 // or a type from newer content, never throws.
 import { describe, expect, it } from "vitest";
 import { MOB_ROLE_DEFS, MOB_TYPES, WEAPONS } from "@raid/shared";
-import { campMobsText, campTypeInfo, readCampElites, readCampStates, readCampTypes } from "../src/ui/campInfo";
+import { campBuffSource, campMobsText, campTypeInfo, readCampBuffs, readCampElites, readCampStates, readCampTypes } from "../src/ui/campInfo";
 
 describe("campTypeInfo", () => {
   it("names a known type with its role and the weapon it drops", () => {
@@ -71,6 +71,25 @@ describe("readCampTypes", () => {
     expect(readCampTypes({ camps: [{ type: "emberImp" }, { type: 5 }, {}] }, 4)).toEqual(["emberImp", "", "", ""]);
     expect(readCampTypes({ camps: { 0: { type: "bailiff" }, length: 1 } }, 2)).toEqual(["bailiff", ""]);
     expect(readCampTypes({}, 0)).toEqual([]);
+  });
+});
+
+describe("an out-of-theme camp buff (CampState.buff)", () => {
+  it("is kept on the info only when it differs from the camp's type, and the sentence pays it and says where it comes from", () => {
+    expect(campTypeInfo("flameCaller", "", "pardoner")?.buff).toBe("pardoner");
+    expect(campTypeInfo("flameCaller", "", "")?.buff).toBeUndefined();
+    expect(campTypeInfo("flameCaller", "", "flameCaller")?.buff).toBeUndefined();
+    const text = campMobsText(campTypeInfo("flameCaller", "ashDrake", "pardoner")!);
+    expect(text).toContain("Flame Caller (Caster: shoots from range), drops a Wand");
+    expect(text).toContain("Each normal kill grants +3 Offense per kill (the Pardoner's, from the Sentenced zone).");
+    expect(campBuffSource("flameCaller", "pardoner")).toBe("the Pardoner's, from the Sentenced zone");
+    expect(campBuffSource("flameCaller", "")).toBe("");
+    expect(campBuffSource("flameCaller", "someNewMob")).toBe("");
+  });
+
+  it("is read from state.camps[i].buff, \"\" where the state has none", () => {
+    expect(readCampBuffs({}, 2)).toEqual(["", ""]);
+    expect(readCampBuffs({ camps: [{ buff: "pardoner" }, { buff: 4 }, {}, { buff: "" }] }, 4)).toEqual(["pardoner", "", "", ""]);
   });
 });
 

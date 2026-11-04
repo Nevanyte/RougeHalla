@@ -1,11 +1,11 @@
 // Camp rosters (sim/camps.ts, ROGUELIKE_PLAN D5/D16): rolled at world build from world.rewardRandom only, published as
 // state.camps before anyone joins, what the camp spawner places, how `alive` counts down, and what a training or mob-less
-// world has. The pure roll (rollZoneTypes and friends) is covered in shared/test/rosters.test.ts.
+// world has. The pure roll (rollCampRosters and friends) is covered in shared/test/rosters.test.ts.
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  BAG_COPIES, CAMPS_PER_ZONE, campMobs, ELITE_K, elitesOf, MOB_K, mobTypeFaction, FACTION_IDS, mapFromTiles, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampTypes,
-  TICK_MS, type FactionId, type MobTypeId,
+  campBuffBounds, campBuffDistances, CAMPS_PER_ZONE, campMobs, campRewardId, ELITE_K, elitesOf, MOB_K, MOB_STAT_KEYS, mobTypeFaction, FACTION_IDS,
+  mapFromTiles, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampRosters, statKeyOf, TICK_MS, zoneTheme, type FactionId, type MobTypeId,
 } from "@raid/shared";
 import { campMobDied, ensureRosters, rollRosters } from "../src/sim/camps";
 import { combatant } from "../src/sim/combatant";
@@ -41,7 +41,7 @@ function run(o: Opts = {}): World {
   return w;
 }
 
-const roster = (w: World): string[] => [...w.state.camps].map((c) => c.type);
+const roster = (w: World): string[] => [...w.state.camps].map((c) => `${c.type}/${c.buff}`);
 const normalIds = (zone: FactionId): MobTypeId[] => normalTypesOf(zone).map((t) => t.id);
 const mobsOf = (w: World): MobCombatant[] => [...w.state.mobs.keys()].map((id) => combatant(w, id) as MobCombatant);
 
@@ -72,42 +72,52 @@ describe("the published roster", () => {
   });
 
   /**
-   * Balance contract 6.4 on the map's zones: a zone's camps take the first entries (in camp order) of ONE bag of its four normal
-   * types in BAG_COPIES shuffled rounds, so no type stands in more than BAG_COPIES camps and a zone of ten shows two types thrice and
-   * two twice; every type is its zone's own; the elite camps hold the zone's elites one each, in camp order, and the other camps none.
+   * Balance contract 6.4 and the camp buffs (shared/rosters.ts) on the map's zones: every type is its zone's own normal type; a buff
+   * is set only off the zone's theme, to another zone's normal type; every buff stands on 5 or 6 of the 50 camps and within the
+   * bound of every camp; the elite camps hold the zone's elites one each, in camp order, and the other camps none.
    */
-  function expectBag(w: World, label: string): void {
+  function expectRoster(w: World, label: string): void {
     const elites = rollCampElites(w.map.camps);
     for (const zone of FACTION_IDS) {
       const idx = w.map.camps.flatMap((c, i) => (c.zone === zone ? [i] : []));
-      const types = idx.map((i) => w.state.camps[i]!.type);
-      expect(types.length, `${label} ${zone}`).toBe(CAMPS_PER_ZONE);
-      for (const t of types) {
-        expect(mobTypeById(t)?.zone, `${label} ${zone}`).toBe(zone);
-        expect(mobTypeById(t)?.elite, `${label} ${zone}`).toBe(false);
+      expect(idx.length, `${label} ${zone}`).toBe(CAMPS_PER_ZONE);
+      for (const i of idx) {
+        const s = w.state.camps[i]!;
+        expect(mobTypeById(s.type)?.zone, `${label} ${zone}`).toBe(zone);
+        expect(mobTypeById(s.type)?.elite, `${label} ${zone}`).toBe(false);
+        if (s.buff !== "") {
+          expect(mobTypeById(s.buff)?.zone, `${label} ${w.map.camps[i]!.id}`).not.toBe(zone);
+          expect(mobTypeById(s.buff)?.elite, `${label} ${w.map.camps[i]!.id}`).toBe(false);
+          expect(zoneTheme(zone)).not.toContain(statKeyOf(s.buff));
+        }
+        expect(s.elite, `${label} ${w.map.camps[i]!.id}`).toBe(elites[i]);
       }
-      const counts = [...new Set(types)].map((t) => types.filter((u) => u === t).length);
-      expect(Math.max(...counts), `${label} ${zone}: no type in more than ${BAG_COPIES} camps`).toBeLessThanOrEqual(BAG_COPIES);
-      if (types.length === 10) expect(counts.sort(), `${label} ${zone}: two types thrice, two twice`).toEqual([2, 2, 3, 3]);
-      idx.forEach((i) => expect(w.state.camps[i]!.elite, `${label} ${w.map.camps[i]!.id}`).toBe(elites[i]));
     }
+    const rewards = [...w.state.camps].map(campRewardId);
+    for (const k of MOB_STAT_KEYS) {
+      const n = rewards.filter((id) => statKeyOf(id) === k).length;
+      expect(n, `${label} ${k}`).toBeGreaterThanOrEqual(5);
+      expect(n, `${label} ${k}`).toBeLessThanOrEqual(6);
+    }
+    const bounds = campBuffBounds(w.map.camps);
+    campBuffDistances(w.map.camps, rewards).forEach((row, c) => row.forEach((d) => expect(d, `${label} camp ${c}`).toBeLessThanOrEqual(bounds[c]!)));
   }
 
-  it.each([1, 2, 3, 100, 732])("seed %i follows the bag roster: every zone's camps from one shuffled bag, every type its zone's own", (seed) => {
-    expectBag(lobby({ seed }), `seed ${seed}`);
+  it.each([1, 2, 3, 100, 732])("seed %i follows the roster rules: zone types, spread buffs, a theme per zone", (seed) => {
+    expectRoster(lobby({ seed }), `seed ${seed}`);
   });
 
-  it("holds the bag roster over many worlds, and the salt alone decides which types a map's zones have", () => {
+  it("holds the roster rules over many worlds, and the salt alone decides a map's rosters", () => {
     const seen = new Set<string>();
     for (let salt = 0; salt < 40; salt++) {
       const w = lobby({ seed: 21, salt });
       seen.add(roster(w).join());
-      expectBag(w, `salt ${salt}`);
+      expectRoster(w, `salt ${salt}`);
     }
-    expect(seen.size).toBeGreaterThan(10); // the same map rolls many different rosters
+    expect(seen.size).toBe(40); // the same map rolls a different roster for every salt
   });
 
-  it("rolls ten camps per zone with two elite camps as the contract says: two types thrice and two twice, the elites one each, nine draws a zone", () => {
+  it("rolls what rollCampRosters rolls from the reward stream, 2n - 1 draws, and the elites one each in camp order", () => {
     const w = lobby({ seed: 11 });
     const geometry = FACTION_IDS.map((zone) => w.map.camps.find((c) => c.zone === zone)!);
     const camps = FACTION_IDS.flatMap((zone, zi) =>
@@ -119,12 +129,11 @@ describe("the published roster", () => {
     twin.map = w.map;
     control.map = w.map;
     rollRosters(twin);
-    const want = rollCampTypes(camps.map((c) => c.zone), control.rewardRandom);
-    expect(roster(twin)).toEqual(want);
-    expect(twin.rewardRandom()).toBe(control.rewardRandom()); // the same 45 numbers were drawn
+    const want = rollCampRosters(camps, control.rewardRandom);
+    expect([...twin.state.camps].map((c) => ({ type: c.type, buff: c.buff }))).toEqual(want);
+    expect(twin.rewardRandom()).toBe(control.rewardRandom()); // the same 99 numbers were drawn
     FACTION_IDS.forEach((zone, zi) => {
       const mine = [...twin.state.camps].slice(zi * 10, zi * 10 + 10);
-      expect([...new Set(mine.map((c) => c.type))].map((t) => mine.filter((c) => c.type === t).length).sort(), zone).toEqual([2, 2, 3, 3]);
       expect(mine.map((c) => c.elite), zone).toEqual(["", elitesOf(zone)[0]!.id, "", "", "", elitesOf(zone)[1]!.id, "", "", "", ""]);
     });
   });
@@ -307,6 +316,25 @@ describe("alive counts down", () => {
     for (let i = 0; i < 400; i++) step(w, TICK_MS); // past MOB_CORPSE_MS: the body is removed
     expect(w.state.mobs.has(m.id)).toBe(false);
     expect(w.state.camps[1]!.alive).toBe(alive - 1);
+  });
+
+  it("a normal kill pays its camp's buff: another zone's type's stat on an off-theme camp, its own type's otherwise", () => {
+    const w = run({ seed: 3 });
+    const spill = [...w.state.camps].findIndex((c) => c.buff !== "");
+    const own = [...w.state.camps].findIndex((c) => c.buff === "");
+    expect(spill).toBeGreaterThanOrEqual(0);
+    expect(own).toBeGreaterThanOrEqual(0);
+    const p0 = w.state.players.get("p0")!;
+    for (const [ci, pays] of [[spill, w.state.camps[spill]!.buff], [own, w.state.camps[own]!.type]] as const) {
+      const m = mobsOf(w).find((x) => x.s.camp === ci + 1 && x.s.kind === "mob" && x.s.status === "alive")!;
+      const before = p0.mobStats.get(pays) ?? 0;
+      hurtMob(w, m, [m.s.maxHp + 5], [entryBy(m.id, "p0", m.s.maxHp + 5)]);
+      expect(m.s.status).toBe("dead");
+      expect(p0.mobStats.get(pays) ?? 0, `camp ${ci}`).toBe(before + 3);
+      if (pays !== m.s.type) expect(p0.mobStats.get(m.s.type) ?? 0, `camp ${ci}: the mob's own type pays nothing`).toBe(0);
+    }
+    const toast = w.events.find((e) => e.type === "toast" && e.text.includes(" of ")) as { text: string } | undefined;
+    expect(toast?.text).toContain(`${mobTypeById(w.state.camps[spill]!.type)!.name}: +3 kill stacks of ${mobTypeById(w.state.camps[spill]!.buff)!.name}`);
   });
 
   it("ignores a mob with no camp and a camp that is not published", () => {

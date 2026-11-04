@@ -96,6 +96,8 @@ export interface RouteCamp {
   readonly elite: boolean;
   readonly spots: number;
   readonly type: MobTypeId | "";
+  /** The type whose stat its normal kills pay when not `type` (CampState.buff); absent or "" = `type`. */
+  readonly buff?: MobTypeId | "";
   readonly alive: number;
   /** 0 idle, 1 engaged, 2 cleared. */
   readonly state: number;
@@ -123,7 +125,10 @@ export function buildOf(faction: FactionId, draw: number): BuildGoal {
   return BUILD_GOALS[faction][draw < 0.5 ? 0 : 1];
 }
 
-/** How much a kill of this normal type is worth to the build (STAT_FLOOR..1); an unknown type is worth the floor. */
+/**
+ * How much a kill paying this normal type's stat is worth to the build (STAT_FLOOR..1); an unknown type is worth the floor. For a
+ * camp, pass the type its kills pay (`campRewardId`: its buff, else its type).
+ */
 export function typeWeight(build: BuildGoal, type: string | undefined): number {
   const reward = type ? mobStatReward(type) : undefined;
   if (!reward) return STAT_FLOOR;
@@ -172,7 +177,7 @@ export class BuildRoute {
     if (c.elite && !elites) return 0;
     const mobs = c.state === 2 ? c.spots : Math.max(0, c.alive);
     const normals = c.elite ? Math.max(0, mobs - 1) : mobs;
-    let v = normals * typeWeight(this.build, c.type || undefined);
+    let v = normals * typeWeight(this.build, c.buff || c.type || undefined);
     if (c.elite && mobs > 0) v += ELITE_VALUE;
     return v;
   }

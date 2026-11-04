@@ -3,7 +3,7 @@
 // anything about how a mob fights, only about what happens to it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, MOB_KILL_STACKS, mobStatCount, mobStatReward, mobStatRows,
+  campRewardId, elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles, MOB_KILL_STACKS, mobStatCount, mobStatReward, mobStatRows,
   MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_RETURN_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobReachDamage, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeIn, mobTypeWeapon, MOB_ZONE_DAMAGE,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
@@ -1006,10 +1006,13 @@ describe("killMob: rewards", () => {
           feed += 0.25;
         }
         expect(RT(w, 0).mobKills).toBe(w.map.camps.reduce((n, c) => n + c.spots.length, 0));
+        // A normal kill pays its camp's buff (another zone's type's stat on an off-theme camp), else its own type's.
+        const pays = (m: MobCombatant): string => campRewardId(w.state.camps[m.s.camp - 1]) || m.s.type;
         for (const t of MOB_TYPES.filter((x) => !x.elite)) {
-          const count = allMobs(w).filter((m) => m.s.type === t.id && m.s.kind !== "elite").length;
-          expect(mobStatCount(P(w, 0).mobStats, t.id)).toBe(count * MOB_KILL_STACKS);
+          const count = allMobs(w).filter((m) => m.s.kind !== "elite" && pays(m) === t.id).length;
+          expect(mobStatCount(P(w, 0).mobStats, t.id), t.id).toBe(count * MOB_KILL_STACKS);
         }
+        expect(allMobs(w).some((m) => m.s.kind !== "elite" && pays(m) !== m.s.type), "some camp pays another type's stat").toBe(true);
       }
     });
 

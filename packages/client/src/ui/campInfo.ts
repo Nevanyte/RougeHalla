@@ -1,7 +1,7 @@
 // What the planning screen says of a camp's mobs. This is the only client module that reads the mob roster for the planning screen,
 // and it reads it defensively: a type id the catalog does not know (newer server content) is shown as its raw id, never an error.
 // A camp tooltip explains the weapon drop, each normal mob's fixed stat reward and the elite augment chest.
-import { MOB_ROLE_DEFS, WEAPONS, mobStatReward, mobTypeById, type MobTypeDef } from "@raid/shared";
+import { FACTIONS, MOB_ROLE_DEFS, WEAPONS, mobStatReward, mobTypeById, type MobTypeDef } from "@raid/shared";
 
 /** One mob type as the planning screen reads it. */
 export interface MobTypeInfo {
@@ -19,6 +19,8 @@ export interface MobTypeInfo {
 export interface CampTypeInfo extends MobTypeInfo {
   /** The camp's elite type, when it has one (an elite camp). */
   elite?: MobTypeInfo;
+  /** The type whose stat the camp's normal kills pay (CampState.buff), when it is not this type's own: an out-of-theme camp buff. */
+  buff?: string;
 }
 
 function typeInfo(id: string, def: MobTypeDef | undefined = mobTypeById(id)): MobTypeInfo {
@@ -27,10 +29,25 @@ function typeInfo(id: string, def: MobTypeDef | undefined = mobTypeById(id)): Mo
   return { id, name: def.name, role: role.label, blurb: role.blurb, weapon: WEAPONS[def.weapon].name };
 }
 
-/** The camp's mob type (RaidState.camps[i].type) and its elite (.elite, "" for none): null while the room does not say (empty or not synced yet). */
-export function campTypeInfo(type: string | undefined, elite?: string): CampTypeInfo | null {
+/**
+ * The camp's mob type (RaidState.camps[i].type), its elite (.elite, "" for none) and its buff (.buff, "" for the type's own stat):
+ * null while the room does not say (empty or not synced yet).
+ */
+export function campTypeInfo(type: string | undefined, elite?: string, buff?: string): CampTypeInfo | null {
   if (!type) return null;
-  return elite ? { ...typeInfo(type), elite: typeInfo(elite) } : typeInfo(type);
+  const info: CampTypeInfo = elite ? { ...typeInfo(type), elite: typeInfo(elite) } : typeInfo(type);
+  if (buff && buff !== type) info.buff = buff;
+  return info;
+}
+
+/**
+ * A camp buff that is off its zone's theme, in words: "the Pardoner's, from the Sentenced zone". Empty for a camp that pays its own
+ * type's stat or a type this build does not know.
+ */
+export function campBuffSource(type: string | undefined, buff: string | undefined): string {
+  if (!buff || buff === type) return "";
+  const reward = mobStatReward(buff);
+  return reward ? `the ${reward.name}'s, from the ${FACTIONS[reward.zone].displayName} zone` : "";
 }
 
 /**
@@ -43,8 +60,11 @@ export function campMobsText(info: CampTypeInfo): string {
     const blurb = t.blurb.replace(/\.$/, "").toLowerCase();
     return `${t.name} (${t.role}: ${blurb}), drops ${/^[aeiou]/i.test(t.weapon) ? "an" : "a"} ${t.weapon}`;
   };
-  const normalReward = mobStatReward(info.id);
-  const line = normalReward ? `Each normal kill grants ${normalReward.text}.` : "This elite gives no fixed per-kill stat.";
+  const normalReward = mobStatReward(info.buff ?? info.id);
+  const source = campBuffSource(info.id, info.buff);
+  const line = normalReward
+    ? `Each normal kill grants ${normalReward.text}${source ? ` (${source})` : ""}.`
+    : "This elite gives no fixed per-kill stat.";
   const isEliteCamp = mobTypeById(info.id)?.elite === true;
   return info.elite
     ? `${one(info)}. ${line} Elite: ${one(info.elite)}. Elite death drops an augment chest; it grants no fixed mob stat.`
@@ -60,6 +80,17 @@ export function readCampTypes(state: unknown, count: number): string[] {
   for (let i = 0; i < count; i++) {
     const t = camps?.[i]?.type;
     out.push(typeof t === "string" ? t : "");
+  }
+  return out;
+}
+
+/** `RaidState.camps[i].buff` for each of `count` camps: "" for a camp paying its own type's stat, or a state without the field. */
+export function readCampBuffs(state: unknown, count: number): string[] {
+  const camps = (state as { camps?: ArrayLike<{ buff?: unknown }> | undefined } | null | undefined)?.camps;
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const b = camps?.[i]?.buff;
+    out.push(typeof b === "string" ? b : "");
   }
   return out;
 }

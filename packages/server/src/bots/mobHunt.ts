@@ -35,6 +35,8 @@ export interface MobLike {
   weapon0: string;
   /** MobTypeId, only when learned from a visible mob. */
   type?: MobTypeId;
+  /** The type whose stat its kill pays when not `type` (its camp's public buff, CampState.buff); absent = `type`. */
+  reward?: MobTypeId;
 }
 
 /** `[id, mob]` pairs: a Colyseus MapSchema and a Map both iterate like this. */
@@ -459,7 +461,7 @@ export class MobHunter {
     for (const { id, m, theirs, edge, share } of near.slice(0, c.maxCandidates)) {
       const walk = inp.walk(m);
       if (walk === null || walk > reach * c.walkSlack) continue;
-      const wanted = m.kind === "elite" || !inp.typeWeight ? 1 : inp.typeWeight(m.type);
+      const wanted = m.kind === "elite" || !inp.typeWeight ? 1 : inp.typeWeight(m.reward ?? m.type);
       if (wanted < BUILD_WANTED && walk > OFF_BUILD_WALK && self.mobKills > 0) continue; // the route walks it to a camp it wants
       let score = walk - share * SHARE_BONUS + m.maxHp * HP_WEIGHT;
       if (edge > 0) score -= EDGE_BONUS;

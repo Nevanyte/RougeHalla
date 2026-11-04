@@ -259,6 +259,8 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
   text-shadow: 0 1px 2px #000;
 }
 .pl-camp-reward .combat-icon { width: 12px; height: 12px; }
+/* A buff off the zone's theme (another zone's type's stat, CampState.buff): the same badge, with a dashed rim, not a new colour. */
+.pl-camp-reward.spill { border-style: dashed; }
 .pl-camp-reward-amount { font-variant-numeric: tabular-nums; }
 .pl-camp-chest { border-color: #ffd54f; color: #ffe082; }
 .pl-chest-icon {

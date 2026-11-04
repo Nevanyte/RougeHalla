@@ -713,7 +713,8 @@ class StrategyImpl implements Strategy {
       if (!def) continue;
       camps.push({
         index: v.index, id: def.id, zone: def.zone, x: def.x, y: def.y, r: def.r, elite: def.eliteSpot >= 0, spots: def.spots.length,
-        type: (mobTypeById(v.type as MobTypeId)?.id ?? "") as MobTypeId | "", alive: v.alive, state: v.state, respawnAt: v.respawnAt ?? 0,
+        type: (mobTypeById(v.type as MobTypeId)?.id ?? "") as MobTypeId | "", buff: (mobTypeById(v.buff ?? "")?.id ?? "") as MobTypeId | "",
+        alive: v.alive, state: v.state, respawnAt: v.respawnAt ?? 0,
       });
     }
     const players: Vec2[] = [];

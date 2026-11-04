@@ -590,6 +590,28 @@ export const SKIP_HEAL_SHARE = 0.15;
 export const GV_SKIP = 3;
 /** D24: damaging one camp member wakes every idle member of that camp (false: each mob wakes on its own damage only). */
 export const CAMP_WIDE_AGGRO = true;
+// Camp buffs (shared/rosters.ts `rollCampRosters`, owner request 2026-11: "each zone a theme of the buffs it gives, mob buffs with a
+// max distance, as even a spread of camp buffs as possible"). A camp's buff is the stat its normal kills pay (one of the nine stat
+// kinds of shared/mobStats.ts); a zone's theme is the four its own normal types pay. docs/MOB_PROGRESSION.md has the measurements.
+/**
+ * The max distance, the repair's first aim: from every camp, the nearest camp of each buff within this (straight line, camp centre to
+ * centre), or, for a camp whose ninth nearest camp (itself included) is farther, within that distance, the least any roll can do (a
+ * camp in a far corner: 61-73 tiles at worst on a map). The smallest value that met it on essentially every roll with about 70% of
+ * camps on theme: 560 rolls on seeds 1-40 and 101-200 met it but one, 0.2 tiles over. At 60 tiles 95% of rolls met it, with 65% on theme.
+ */
+export const CAMP_BUFF_MAX_DISTANCE_TILES = 65;
+/** The draw's theme factor of a buff outside the camp's zone's four (its own four weigh 1). */
+export const CAMP_BUFF_OFF_THEME_WEIGHT = 0.15;
+/**
+ * The draw's need factor: 1 + (d / REF)^2, d the distance in tiles from the camp to the nearest camp already given that buff, capped
+ * at CAP (also its value when no camp has the buff yet). A buff no camp nearby gives is drawn far more often.
+ */
+export const CAMP_BUFF_NEED_REF_TILES = 30;
+export const CAMP_BUFF_NEED_CAP_TILES = 90;
+/** The draw's balance factor: (even share / (camps given the buff so far + 1))^POWER, a whole number. */
+export const CAMP_BUFF_BALANCE_POWER = 2;
+/** At most this many repair moves after the draw (each strictly improves coverage, then the count band, then the theme). */
+export const CAMP_BUFF_REPAIR_STEPS = 160;
 /**
  * Camp-clear heal (balance contract 7, shared/rules.ts `campHealAmount`): everyone who damaged a camp and stands when its last
  * mob dies is healed `missing x f(m)`, m = the share of max hp missing, f(m) = LO + (HI - LO) x sigmoid((m - MID) / WIDTH). A

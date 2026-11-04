@@ -1,6 +1,7 @@
 // Camp rosters and the public camp state (ROGUELIKE_PLAN D5, D16; 3.3). At world build, before anyone joins, each map camp
-// gets its mono-type roster, rolled ONLY from world.rewardRandom (never world.random, so loot rolls and the sim's
-// draws are what they were, and never from the public seed, so a client cannot read a camp's type off the map). The result
+// gets its mono-type roster and its buff (the stat its normal kills pay), rolled ONLY from world.rewardRandom (never
+// world.random, so loot rolls and the sim's draws are what they were, and never from the public seed, so a client cannot read a
+// camp's type off the map). The result
 // is published as `RaidState.camps`, one CampState per `map.camps` entry at the same index; geometry stays seed-derived.
 // Mobs themselves still appear at `raidStarted` (mobLife.spawnRegionalMobs reads the roster), and the planning screen reads
 // `state.camps` during the lobby.
@@ -10,7 +11,7 @@
 // back to idle until the full roster respawns three minutes after a clear. The coliseum teleport puts LIVING mobs back on
 // their spots; camp respawn clocks continue while gates are locked. The clear is paid after the ledger pass (payLater): the
 // `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
-import { CAMP_RESPAWN_MS, CAMP_WARD_MS, rollCampElites, rollCampTypes } from "@raid/shared";
+import { CAMP_RESPAWN_MS, CAMP_WARD_MS, rollCampElites, rollCampRosters } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { payCampHeal } from "./campHeal";
 import { emit, payLater, type World } from "./world";
@@ -22,19 +23,20 @@ export const CAMP_CLEARED = 2;
 
 /**
  * Rolls every camp's roster and replaces `state.camps` with it: one CampState per `map.camps` entry, `type` the camp's
- * normal mob type, `elite` its elite's type ("" for a camp without an elite spot), `alive` its spot count (one mob per
- * spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom` (zones in first-seen order, nine draws each, see
- * rollCampTypes); the elites are a function of the camp order (rollCampElites) and draw nothing. A map without camps (a
- * hand-built test map) publishes none.
+ * normal mob type, `buff` the type whose stat its normal kills pay when that is off its zone's theme ("" = its own type),
+ * `elite` its elite's type ("" for a camp without an elite spot), `alive` its spot count (one mob per spot), `reward` "" and
+ * `state` 0. Draws only from `world.rewardRandom` (2n - 1 numbers for n camps, see rollCampRosters); the elites are a
+ * function of the camp order (rollCampElites) and draw nothing. A map without camps (a hand-built test map) publishes none.
  */
 export function rollRosters(world: World): void {
   const camps = world.map.camps;
-  const types = rollCampTypes(camps.map((c) => c.zone), world.rewardRandom);
+  const rolls = rollCampRosters(camps, world.rewardRandom);
   const elites = rollCampElites(camps);
   world.state.camps.clear();
   camps.forEach((camp, i) => {
     const s = new CampState();
-    s.type = types[i]!;
+    s.type = rolls[i]!.type;
+    s.buff = rolls[i]!.buff;
     s.elite = elites[i]!;
     s.reward = "";
     s.alive = camp.spots.length;

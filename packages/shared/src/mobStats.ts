@@ -103,6 +103,22 @@ export function mobStatReward(id: string): MobStatReward | undefined {
   return rewardsById.get(id as MobTypeId);
 }
 
+/** A reward's stat kind, "stat:damage" or "flat:ad": two types with one key pay the same stat (they fold in mobStatRows). */
+export function mobStatKey(reward: Pick<MobStatReward, "effect">): string {
+  return `${reward.effect.k}:${reward.effect.stat}`;
+}
+
+/** The nine stat kinds a normal kill can pay, in catalog order of their first type (the camp buffs of shared/rosters.ts). */
+export const MOB_STAT_KEYS: readonly string[] = [...new Set(MOB_STAT_REWARDS.map(mobStatKey))];
+
+/**
+ * The normal type whose stat a camp's normal kills pay: `CampState.buff` when it names one (an out-of-theme camp buff, shared/rosters.ts),
+ * else the camp's own `type`. "" for a camp the state does not describe.
+ */
+export function campRewardId(camp: { readonly type?: string; readonly buff?: string } | null | undefined): string {
+  return camp?.buff || camp?.type || "";
+}
+
 /** Read a type's non-negative safe-integer count. Invalid wire values are ignored. */
 export function mobStatCount(stacks: MobStatCounts, id: string): number {
   const hasGet = stacks && typeof (stacks as { get?: unknown }).get === "function";

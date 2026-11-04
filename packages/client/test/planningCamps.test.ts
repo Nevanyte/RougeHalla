@@ -61,6 +61,23 @@ describe("camp states on the map screens", () => {
     view.destroy();
   });
 
+  it("shows an out-of-theme camp buff as the stat it pays, with a dashed rim and where it comes from", () => {
+    const { view, camps } = setup();
+    const i = MAP.camps.findIndex((c) => c.zone === "fire" && !isEliteCamp(c));
+    const normalTypes = MAP.camps.map((camp) => normalTypesOf(camp.zone)[0]!.id);
+    const buffs = MAP.camps.map((_c, k) => (k === i ? "pardoner" : ""));
+    view.update(frame({ mode: "map", campTypes: normalTypes, campBuffs: buffs }));
+    const stat = camps()[i]!.byClass("pl-camp-reward").find((badge) => !badge.classList.contains("pl-camp-chest"))!;
+    expect(stat.classList.contains("spill")).toBe(true);
+    expect(stat.textContent).toContain("+3");
+    expect(stat.title).toBe("+3 Offense per kill (the Pardoner's, from the Sentenced zone)");
+    expect(camps()[i]!.title).toContain("Each normal kill grants +3 Offense per kill (the Pardoner's, from the Sentenced zone).");
+    const other = camps()[i + 1]!.byClass("pl-camp-reward").find((badge) => !badge.classList.contains("pl-camp-chest"))!;
+    expect(other.classList.contains("spill")).toBe(false);
+    expect(css).toMatch(/\.pl-camp-reward\.spill\s*\{[^}]*dashed/);
+    view.destroy();
+  });
+
   it("marks a cleared camp and a disturbed one, and leaves the rest alone", () => {
     const { view, states } = setup();
     const n = MAP.camps.length;

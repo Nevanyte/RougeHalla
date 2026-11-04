@@ -49,6 +49,15 @@ describe("the route", () => {
     expect(new BuildRoute(fireB).update(input(near))?.camp).toBe(1); // Defense is Fire B's: it walks past the Offense camp
   });
 
+  it("values a camp by the stat its kills pay: an out-of-theme buff (CampState.buff), not its mob type's own", () => {
+    const r = new BuildRoute(fireA);
+    // A Flame Caller camp (Soul Offence) whose buff is the Pardoner's Offense is worth Offense to Fire A.
+    expect(r.campValue(camp(0, 500, "flameCaller", { buff: "pardoner" }), false)).toBe(4 * typeWeight(fireA, "pardoner"));
+    expect(r.campValue(camp(0, 500, "flameCaller", { buff: "" }), false)).toBe(4 * STAT_FLOOR);
+    const camps = [camp(0, 500, "flameCaller"), camp(1, 900, "flameCaller", { buff: "emberImp" })];
+    expect(new BuildRoute(fireA).update(input(camps))?.camp).toBe(1); // damage, past the nearer Soul Offence camp
+  });
+
   it("plans a cleared camp for its respawn when it is close, and leaves it out when it is far off", () => {
     const soon = camp(0, 300, "pardoner", { state: 2, alive: 0, respawnAt: NOW + 10_000 });
     const late = camp(1, 300, "pardoner", { state: 2, alive: 0, respawnAt: NOW + MAX_WAIT_MS + 60_000 });

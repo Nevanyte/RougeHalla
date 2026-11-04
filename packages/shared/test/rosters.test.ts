@@ -1,10 +1,11 @@
-// Camp rosters (ROGUELIKE_PLAN D5, balance contract 6.4): rollZoneTypes / rollCampTypes / rollCampElites / campMobs are pure
-// functions of the stream they are given. The server feeds them world.rewardRandom (server/test/camps.test.ts); here a seeded
-// mulberry32 stands in.
+// Camp rosters (ROGUELIKE_PLAN D5, balance contract 6.4) and camp buffs (the owner's request of 2026-11: a theme per zone, a max
+// distance to every buff, as even a spread as possible): rollCampRosters / rollCampElites / campMobs are pure functions of the stream
+// they are given. The server feeds them world.rewardRandom (server/test/camps.test.ts); here a seeded mulberry32 stands in.
 import { describe, expect, it } from "vitest";
 import {
-  BAG_COPIES, CAMPS_PER_ZONE, campMobs, elitesOf, FACTION_IDS, generateMap, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampTypes,
-  rollZoneTypes, type FactionId, type MobTypeId, type Rng,
+  CAMP_BUFF_MAX_DISTANCE_TILES, CAMPS_PER_ZONE, campBuffBounds, campBuffDistances, campMobs, campRewardId, elitesOf, FACTION_IDS, generateMap,
+  MOB_STAT_KEYS, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampRosters, statKeyOf, TILE, zoneTheme,
+  type CampSite, type FactionId, type GameMap, type MobTypeId, type Rng,
 } from "../src/index";
 
 /** A stream that counts how many numbers it gave. */
@@ -15,136 +16,162 @@ function counting(seed: number): { rng: Rng; draws: () => number } {
 }
 
 const normalIds = (zone: FactionId): MobTypeId[] => normalTypesOf(zone).map((t) => t.id);
-const counts = (types: readonly MobTypeId[]): Map<MobTypeId, number> => {
-  const m = new Map<MobTypeId, number>();
-  for (const t of types) m.set(t, (m.get(t) ?? 0) + 1);
-  return m;
+const maps = new Map<number, GameMap>();
+/** The first forty seeds' maps are kept: two describes read them. */
+const mapOf = (seed: number): GameMap => {
+  const hit = maps.get(seed);
+  if (hit) return hit;
+  const map = generateMap(seed, undefined, { decor: false });
+  if (seed < 40) maps.set(seed, map);
+  return map;
 };
 
-describe("rollZoneTypes: the bag of the zone's four normal types, three rounds", () => {
-  it("is three copies of four types", () => {
-    expect(BAG_COPIES).toBe(3);
-    for (const zone of FACTION_IDS) expect(normalTypesOf(zone)).toHaveLength(4);
-  });
+/** Ten camps a zone on a ring, as the generator lays a map out (zones as wedges round the centre), for the tests that need no map. */
+function ringCamps(perZone = 10): CampSite[] {
+  return FACTION_IDS.flatMap((zone, zi) => Array.from({ length: perZone }, (_, i) => {
+    const turn = (zi + (i + 0.5) / perZone) / FACTION_IDS.length;
+    const r = (30 + (i % 3) * 22) * TILE;
+    return { zone, x: 80 * TILE + r * Math.cos(turn * 2 * Math.PI), y: 80 * TILE + r * Math.sin(turn * 2 * Math.PI) };
+  }));
+}
 
-  it.each(FACTION_IDS)("%s: ten camps show every normal type in two or three of them (two types thrice, two twice)", (zone) => {
-    for (let seed = 0; seed < 300; seed++) {
-      const types = rollZoneTypes(zone, 10, mulberry32(seed));
-      expect(types).toHaveLength(10);
-      const c = counts(types);
-      expect([...c.keys()].sort(), `seed ${seed}`).toEqual(normalIds(zone).sort());
-      expect([...c.values()].sort(), `seed ${seed}`).toEqual([2, 2, 3, 3]);
-    }
-  });
-
-  it.each(FACTION_IDS)("%s: every group of four camps in a row shows each type once, so twelve camps show each exactly three times", (zone) => {
-    for (let seed = 0; seed < 300; seed++) {
-      const twelve = rollZoneTypes(zone, 12, mulberry32(seed));
-      for (let round = 0; round < 3; round++) {
-        expect(twelve.slice(round * 4, round * 4 + 4).sort(), `seed ${seed} round ${round}`).toEqual(normalIds(zone).sort());
-      }
-      expect([...counts(twelve).values()], `seed ${seed}`).toEqual([3, 3, 3, 3]);
-    }
-  });
-
-  it.each(FACTION_IDS)("%s: eight camps show every type in exactly two of them", (zone) => {
-    for (let seed = 0; seed < 100; seed++) {
-      const types = rollZoneTypes(zone, 8, mulberry32(seed));
-      expect([...counts(types).values()], `seed ${seed}`).toEqual([2, 2, 2, 2]);
-    }
-  });
-
-  it.each(FACTION_IDS)("%s: fewer camps take the first entries of the same bag, so no camp count shows a type more than ceil(n / 4) times", (zone) => {
-    for (let seed = 0; seed < 100; seed++) {
-      const twelve = rollZoneTypes(zone, 12, mulberry32(seed));
-      for (let n = 1; n <= 12; n++) {
-        const types = rollZoneTypes(zone, n, mulberry32(seed));
-        expect(types, `seed ${seed} n ${n}`).toEqual(twelve.slice(0, n));
-        for (const t of types) expect(normalIds(zone)).toContain(t);
-        const c = counts(types);
-        for (const v of c.values()) expect(v).toBeLessThanOrEqual(Math.ceil(n / 4));
-        // the spread across the four types is never more than one camp
-        const per = normalIds(zone).map((id) => c.get(id) ?? 0);
-        expect(Math.max(...per) - Math.min(...per), `seed ${seed} n ${n}`).toBeLessThanOrEqual(1);
-      }
-    }
-  });
-
-  it("wraps the bag past twelve camps: thirteen camps repeat the first entry, twenty-four show every type six times", () => {
-    for (let seed = 0; seed < 50; seed++) {
-      const thirteen = rollZoneTypes("plague", 13, mulberry32(seed));
-      expect(thirteen.slice(0, 12)).toEqual(rollZoneTypes("plague", 12, mulberry32(seed)));
-      expect(thirteen[12]).toBe(thirteen[0]);
-      const twentyFour = rollZoneTypes("plague", 24, mulberry32(seed));
-      expect([...counts(twentyFour).values()]).toEqual([6, 6, 6, 6]);
-    }
-  });
-
-  it("a 4-camp zone shows every type once, a 3-camp zone misses one: never a type twice before all four are out", () => {
-    for (let seed = 0; seed < 300; seed++) {
-      const four = counts(rollZoneTypes("frost", 4, mulberry32(seed)));
-      expect([...four.values()]).toEqual([1, 1, 1, 1]);
-      const three = counts(rollZoneTypes("frost", 3, mulberry32(seed)));
-      expect(three.size).toBe(3);
-    }
-  });
-
-  it("always draws nine numbers for a zone with a camp, however many camps it has; nothing for no camps", () => {
-    const draws = (n: number): number => { const c = counting(7); rollZoneTypes("frost", n, c.rng); return c.draws(); };
-    expect(draws(0)).toBe(0);
-    expect([1, 2, 3, 4, 8, 10, 12, 20].map(draws)).toEqual([9, 9, 9, 9, 9, 9, 9, 9]);
-    expect(rollZoneTypes("frost", 0, mulberry32(1))).toEqual([]);
-    expect(rollZoneTypes("frost", -2, mulberry32(1))).toEqual([]);
-  });
-
-  it("is a function of the stream: the same state gives the same roster, other salts give other ones", () => {
-    const a = rollZoneTypes("holy", 10, mulberry32(11));
-    expect(rollZoneTypes("holy", 10, mulberry32(11))).toEqual(a);
-    const seen = new Set<string>();
-    for (let seed = 0; seed < 600; seed++) seen.add(rollZoneTypes("holy", 10, mulberry32(seed)).join());
-    // 4! x 4! x 12 = 6912 orderings of the first ten entries are possible; 600 seeds reach about 570 of them.
-    expect(seen.size).toBeGreaterThan(400);
-    // The first camp can be any of the four types.
-    const first = new Set<string>();
-    for (let seed = 0; seed < 100; seed++) first.add(rollZoneTypes("holy", 1, mulberry32(seed))[0]!);
-    expect(first.size).toBe(4);
-  });
-});
-
-describe("rollCampTypes", () => {
-  it("rolls each zone in the order it first appears, whatever the camp order of the map", () => {
-    const zones: FactionId[] = ["fire", "fire", "sentenced", "fire", "sentenced", "holy"];
-    const rng = mulberry32(5);
-    const got = rollCampTypes(zones, rng);
-    const by = mulberry32(5);
-    const fire = rollZoneTypes("fire", 3, by);
-    const sentenced = rollZoneTypes("sentenced", 2, by);
-    const holy = rollZoneTypes("holy", 1, by);
-    expect(got).toEqual([fire[0], fire[1], sentenced[0], fire[2], sentenced[1], holy[0]]);
-    expect(rng()).toBe(by()); // and it drew exactly what those three rolls drew
-  });
-
-  it("draws nine numbers per zone present and takes the zone's camps in camp order", () => {
-    const zones: FactionId[] = ["frost", "holy", "frost", "plague", "holy", "frost"];
-    const c = counting(9);
-    const types = rollCampTypes(zones, c.rng);
-    expect(c.draws()).toBe(3 * 9);
-    types.forEach((t, i) => expect(mobTypeById(t)?.zone).toBe(zones[i]));
-    const none = counting(1);
-    expect(rollCampTypes([], none.rng)).toEqual([]);
-    expect(none.draws()).toBe(0);
-  });
-
-  it("gives a map of ten camps per zone (the ids fire-1 to holy-10) each type two or three times per zone", () => {
-    const zones = FACTION_IDS.flatMap((z) => Array.from({ length: 10 }, () => z));
-    for (let seed = 0; seed < 40; seed++) {
-      const types = rollCampTypes(zones, mulberry32(seed));
-      FACTION_IDS.forEach((zone, zi) => {
-        const mine = types.slice(zi * 10, zi * 10 + 10);
-        expect([...counts(mine).values()].sort(), `seed ${seed} ${zone}`).toEqual([2, 2, 3, 3]);
+describe("rollCampRosters: what each camp is and what it pays", () => {
+  it("gives every camp a normal type of its own zone, and a buff only off its zone's theme, paid by another zone's type", () => {
+    const camps = ringCamps();
+    for (let seed = 0; seed < 20; seed++) {
+      const rolls = rollCampRosters(camps, mulberry32(seed));
+      expect(rolls).toHaveLength(camps.length);
+      rolls.forEach((r, c) => {
+        const zone = camps[c]!.zone;
+        expect(normalIds(zone), `seed ${seed} camp ${c}`).toContain(r.type);
+        if (r.buff === "") return;
+        const by = mobTypeById(r.buff)!;
+        expect(by.elite).toBe(false);
+        expect(by.zone, `seed ${seed} camp ${c}`).not.toBe(zone);
+        expect(zoneTheme(zone), `seed ${seed} camp ${c}: an on-theme buff is the camp's own type`).not.toContain(statKeyOf(r.buff));
       });
     }
   });
+
+  it("names the spill-over buff by the zone nearest the camp that has the stat on theme", () => {
+    const camps = ringCamps();
+    let spills = 0;
+    for (let seed = 0; seed < 20; seed++) {
+      rollCampRosters(camps, mulberry32(seed)).forEach((r, c) => {
+        if (r.buff === "") return;
+        spills++;
+        const key = statKeyOf(r.buff)!;
+        let best = Infinity, zone: FactionId | null = null;
+        camps.forEach((o) => {
+          const d = Math.round(Math.hypot(o.x - camps[c]!.x, o.y - camps[c]!.y));
+          if (zoneTheme(o.zone).includes(key) && d < best) { best = d; zone = o.zone; }
+        });
+        expect(mobTypeById(r.buff)!.zone, `seed ${seed} camp ${c}`).toBe(zone);
+      });
+    }
+    expect(spills).toBeGreaterThan(0);
+  });
+
+  it("gives an off-theme camp the zone's type used least so far (camp order; a tie in catalog order from the camp's index)", () => {
+    const camps = ringCamps();
+    for (let seed = 0; seed < 20; seed++) {
+      const rolls = rollCampRosters(camps, mulberry32(seed));
+      const used = new Map<MobTypeId, number>();
+      rolls.forEach((r) => { if (r.buff === "") used.set(r.type, (used.get(r.type) ?? 0) + 1); });
+      rolls.forEach((r, c) => {
+        if (r.buff === "") return;
+        const ids = normalIds(camps[c]!.zone);
+        const rotated = ids.map((_id, k) => ids[(c + k) % ids.length]!);
+        const counts = rotated.map((id) => used.get(id) ?? 0);
+        expect(rotated[counts.indexOf(Math.min(...counts))], `seed ${seed} camp ${c}`).toBe(r.type);
+        used.set(r.type, (used.get(r.type) ?? 0) + 1);
+      });
+    }
+  });
+
+  it("draws 2n - 1 numbers for n camps, whatever the zones; nothing for no camps", () => {
+    const draws = (camps: CampSite[]): number => { const c = counting(7); rollCampRosters(camps, c.rng); return c.draws(); };
+    expect(draws([])).toBe(0);
+    expect(rollCampRosters([], mulberry32(1))).toEqual([]);
+    const ring = ringCamps();
+    expect(draws(ring)).toBe(2 * ring.length - 1);
+    expect(draws(ring.slice(0, 7))).toBe(13);
+    expect(draws(ring.map((c) => ({ ...c, zone: "frost" as FactionId })))).toBe(2 * ring.length - 1);
+  });
+
+  it("is a function of the stream: the same state gives the same roll, other states other rolls", () => {
+    const camps = ringCamps();
+    const a = rollCampRosters(camps, mulberry32(11));
+    expect(rollCampRosters(camps, mulberry32(11))).toEqual(a);
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 40; seed++) seen.add(rollCampRosters(camps, mulberry32(seed)).map(campRewardId).join());
+    expect(seen.size).toBe(40);
+  });
+
+  it("keeps every buff on an even share of a small map: fewer camps than buffs means nine distinct buffs at most once each", () => {
+    const camps = ringCamps(1); // five camps, one a zone
+    for (let seed = 0; seed < 30; seed++) {
+      const keys = rollCampRosters(camps, mulberry32(seed)).map((r) => statKeyOf(campRewardId(r)));
+      expect(new Set(keys).size, `seed ${seed}`).toBe(keys.length);
+    }
+    const two = ringCamps(2); // ten camps: one buff twice, the other eight once
+    for (let seed = 0; seed < 30; seed++) {
+      const keys = rollCampRosters(two, mulberry32(seed)).map((r) => statKeyOf(campRewardId(r))!);
+      const counts = MOB_STAT_KEYS.map((k) => keys.filter((x) => x === k).length);
+      expect([...counts].sort(), `seed ${seed}`).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 2]);
+    }
+  });
+
+  it("reads campRewardId as the buff, else the type", () => {
+    expect(campRewardId({ type: "flameCaller", buff: "pardoner" })).toBe("pardoner");
+    expect(campRewardId({ type: "flameCaller", buff: "" })).toBe("flameCaller");
+    expect(campRewardId({ type: "flameCaller" })).toBe("flameCaller");
+    expect(campRewardId(undefined)).toBe("");
+  });
+});
+
+describe("camp buffs on generated maps (seeds 0..39, four rolls each)", () => {
+  it("puts every buff on 5 or 6 camps, every buff within the bound of every camp, and about 70% of camps on their zone's theme", () => {
+    expect(CAMP_BUFF_MAX_DISTANCE_TILES).toBe(65);
+    let themed = 0, total = 0, worstTheme = 1;
+    for (let seed = 0; seed < 40; seed++) {
+      const map = mapOf(seed);
+      expect(map.camps).toHaveLength(CAMPS_PER_ZONE * FACTION_IDS.length);
+      const bounds = campBuffBounds(map.camps);
+      for (const b of bounds) expect(b).toBeGreaterThanOrEqual(CAMP_BUFF_MAX_DISTANCE_TILES * TILE);
+      for (let r = 0; r < 4; r++) {
+        const rolls = rollCampRosters(map.camps, mulberry32(seed * 1009 + r));
+        const rewards = rolls.map(campRewardId);
+        const keys = rewards.map((id) => statKeyOf(id)!);
+        for (const k of MOB_STAT_KEYS) {
+          const n = keys.filter((x) => x === k).length;
+          expect(n, `seed ${seed} roll ${r} ${k}`).toBeGreaterThanOrEqual(5);
+          expect(n, `seed ${seed} roll ${r} ${k}`).toBeLessThanOrEqual(6);
+        }
+        campBuffDistances(map.camps, rewards).forEach((row, c) => row.forEach((d, b) => {
+          expect(d, `seed ${seed} roll ${r} ${map.camps[c]!.id} ${MOB_STAT_KEYS[b]}`).toBeLessThanOrEqual(bounds[c]!);
+        }));
+        const onTheme = keys.filter((k, c) => zoneTheme(map.camps[c]!.zone).includes(k)).length;
+        themed += onTheme;
+        total += keys.length;
+        worstTheme = Math.min(worstTheme, onTheme / keys.length);
+      }
+    }
+    // Measured at 0.713 a roll on average, 0.62 at worst (docs/MOB_PROGRESSION.md).
+    expect(themed / total).toBeGreaterThan(0.68);
+    expect(worstTheme).toBeGreaterThanOrEqual(0.56);
+  }, 120_000);
+
+  it("holds a corner camp only to its ninth nearest camp: the bound is the larger of the constant and that distance", () => {
+    for (let seed = 0; seed < 10; seed++) {
+      const map = mapOf(seed);
+      const bounds = campBuffBounds(map.camps);
+      map.camps.forEach((a, c) => {
+        const ninth = map.camps.map((b) => Math.round(Math.hypot(a.x - b.x, a.y - b.y))).sort((x, y) => x - y)[8]!;
+        expect(bounds[c]).toBe(Math.max(Math.round(CAMP_BUFF_MAX_DISTANCE_TILES * TILE), ninth));
+      });
+    }
+  }, 60_000);
 });
 
 describe("rollCampElites: the k-th elite camp of a zone holds the k-th elite", () => {
@@ -203,29 +230,27 @@ describe("campMobs", () => {
 });
 
 describe("D5 on generated zone maps (seeds 0..199)", () => {
-  it("every zone's camps follow the rules, with mono-type camps and the elites of the elite camps (two per zone)", () => {
+  it("every zone's camps follow the rules, with mono-type camps of the zone's own types and the elites of the elite camps (two per zone)", () => {
     let fullZones = 0;
     for (let seed = 0; seed < 200; seed++) {
-      const map = generateMap(seed);
-      const types = rollCampTypes(map.camps.map((c) => c.zone), mulberry32(seed * 7 + 1));
+      const map = mapOf(seed);
+      const rolls = rollCampRosters(map.camps, mulberry32(seed * 7 + 1));
       const elites = rollCampElites(map.camps);
-      expect(types).toHaveLength(map.camps.length);
+      expect(rolls).toHaveLength(map.camps.length);
       expect(elites).toHaveLength(map.camps.length);
       for (const zone of FACTION_IDS) {
         const idx = map.camps.flatMap((c, i) => (c.zone === zone ? [i] : []));
-        const zoneTypes = idx.map((i) => types[i]!);
-        for (const t of zoneTypes) expect(normalIds(zone), `seed ${seed} ${zone}`).toContain(t);
-        // The first idx.length entries of a bag of three rounds: every type two or three times when the zone has its ten camps.
-        for (const v of counts(zoneTypes).values()) expect(v, `seed ${seed} ${zone}`).toBeLessThanOrEqual(BAG_COPIES);
-        if (idx.length === CAMPS_PER_ZONE) {
-          fullZones++;
-          expect([...counts(zoneTypes).values()].sort(), `seed ${seed} ${zone}`).toEqual([2, 2, 3, 3]);
+        for (const i of idx) {
+          expect(normalIds(zone), `seed ${seed} ${zone}`).toContain(rolls[i]!.type);
+          // A buff on the zone's theme is its own type's; one off it is another zone's type.
+          if (rolls[i]!.buff !== "") expect(mobTypeById(rolls[i]!.buff)!.zone, `seed ${seed} ${map.camps[i]!.id}`).not.toBe(zone);
         }
+        if (idx.length === CAMPS_PER_ZONE) fullZones++;
 
         let elitesSeen = 0;
         idx.forEach((i) => {
           const camp = map.camps[i]!;
-          const mobs = campMobs(camp, types[i]!, elites[i] === "" ? undefined : elites[i] as MobTypeId);
+          const mobs = campMobs(camp, rolls[i]!.type, elites[i] === "" ? undefined : elites[i] as MobTypeId);
           expect(mobs).toHaveLength(camp.spots.length);
           mobs.forEach((m, spot) => {
             if (m.elite) {
@@ -233,7 +258,7 @@ describe("D5 on generated zone maps (seeds 0..199)", () => {
               expect(m.type).toBe(elitesOf(zone)[elitesSeen % 2]!.id);
               elitesSeen++;
             } else {
-              expect(m.type, `seed ${seed} ${camp.id} spot ${spot}`).toBe(types[i]);
+              expect(m.type, `seed ${seed} ${camp.id} spot ${spot}`).toBe(rolls[i]!.type);
             }
           });
           expect(elites[i] === "", `seed ${seed} ${camp.id}`).toBe(camp.eliteSpot < 0);
@@ -244,5 +269,5 @@ describe("D5 on generated zone maps (seeds 0..199)", () => {
     }
     // The zone maps: CAMPS_PER_ZONE camps in every zone, two of them elite.
     expect(fullZones).toBe(200 * FACTION_IDS.length);
-  }, 180_000); // 200 maps through the generator
+  }, 240_000); // 200 maps through the generator
 });

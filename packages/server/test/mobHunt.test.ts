@@ -135,6 +135,15 @@ describe("who to farm", () => {
     expect(s.step()).toMatchObject({ kind: "mob", id: "nearer" });
   });
 
+  it("weighs a mob by what its kill pays: its camp's buff (`reward`) when it has one, else its type", () => {
+    const s = new Scene();
+    s.add("plain", mob("sentenced", 100, 0, { type: "bailiff" })).add("buffed", mob("sentenced", 0, 130, { type: "bailiff", reward: "inquisitor" }));
+    const typeWeight = (type: string | undefined): number => (type === "inquisitor" ? 1 : 0.25);
+    expect(s.hunter.decide({ ...s.input(), typeWeight })).toMatchObject({ kind: "mob", id: "buffed" });
+    s.mobs.set("buffed", mob("sentenced", 0, 130, { type: "bailiff" }));
+    expect(new MobHunter(MOB_HUNT).decide({ ...s.input(), typeWeight })).toMatchObject({ kind: "mob", id: "plain" });
+  });
+
   it("walks farther for a first kill than for the rest", () => {
     const first = new Scene().add("m", mob("sentenced", 1000, 0));
     expect(first.step()).toMatchObject({ kind: "mob", id: "m" });
