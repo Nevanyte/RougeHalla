@@ -142,7 +142,7 @@ impl Sim {
         &self.w.players
     }
     pub fn player(&self, id: PlayerId) -> Option<&Player> {
-        self.w.players.iter().find(|p| p.id == id)
+        self.w.players.get(id)
     }
     pub fn secrets_for_replay(&self) -> Secrets {
         self.k.secrets
@@ -250,7 +250,7 @@ impl Sim {
             };
             hooks::fire(&mut hx, HookArgs::FighterOut { id, cause });
         });
-        self.w.players.remove(i);
+        self.w.players.remove(id);
     }
 
     /// What the schedule ran since the last call, in order: the ported phases, registered systems, action handlers and

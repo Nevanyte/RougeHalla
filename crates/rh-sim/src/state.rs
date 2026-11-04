@@ -8,6 +8,7 @@ use crate::math::Vec2;
 use crate::results::{GvBreakdown, Outcome};
 use crate::rng::Mulberry32;
 use crate::statics::Secrets;
+use crate::store::{Keyed, Store};
 use crate::systems::ledger::Entry;
 
 /// A player's public entity id: assigned at join, never reused within a match.
@@ -383,6 +384,12 @@ pub struct Player {
     pub announce: Option<(f64, u32)>,
 }
 
+impl Keyed for Player {
+    fn key(&self) -> PlayerId {
+        self.id
+    }
+}
+
 impl Player {
     /// A fresh lobby seat (legacy `addPlayer`): fists in hand, full hp, nothing earned.
     pub(crate) fn joining(
@@ -491,7 +498,7 @@ pub(crate) struct World {
     pub(crate) raid_started_at: f64,
     pub(crate) winner: Option<PlayerId>,
     /// In join order (legacy Map insertion order).
-    pub(crate) players: Vec<Player>,
+    pub(crate) players: Store<Player>,
     pub(crate) next_id: u32,
     /// Names of everyone who joined, leavers included (append-only; see [`Roster`]).
     pub(crate) roster: Roster,
@@ -549,13 +556,13 @@ pub(crate) struct PayQueue {
 }
 
 impl World {
-    /// The index of a present player (join order).
+    /// The slot of a present player (join order = id order): a binary search.
     pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
-        self.players.iter().position(|p| p.id == id)
+        self.players.idx(id)
     }
 
     pub(crate) fn player(&self, id: PlayerId) -> Option<&Player> {
-        self.players.iter().find(|p| p.id == id)
+        self.players.get(id)
     }
 
     pub(crate) fn new(secrets: &Secrets) -> Self {
@@ -566,7 +573,7 @@ impl World {
             lobby_ends_at: 0.0,
             raid_started_at: 0.0,
             winner: None,
-            players: Vec::new(),
+            players: Store::new(),
             next_id: 1,
             roster: Roster::default(),
             joined: 0,

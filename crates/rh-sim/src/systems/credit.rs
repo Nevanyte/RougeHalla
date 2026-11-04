@@ -12,13 +12,11 @@ use crate::systems::Cx;
 /// The bounty a kill of player `vi` pays inside a step: its bounty at the start of the tick (legacy `owedBounty`), so
 /// the tick's own kills never raise what it is worth. Only the ledger pays bounties this way, always inside a step; a
 /// leave between steps pays the current bounty (`settle::down_player`).
-pub(crate) fn owed_bounty(w: &World, bounty_at_tick_start: &[(PlayerId, u32)], vi: usize) -> u32 {
-    let v = &w.players[vi];
+pub(crate) fn owed_bounty(w: &World, bounty_at_tick_start: &[u32], vi: usize) -> u32 {
     bounty_at_tick_start
-        .iter()
-        .find(|(id, _)| *id == v.id)
-        .map(|(_, b)| *b)
-        .unwrap_or(v.bounty)
+        .get(vi)
+        .copied()
+        .unwrap_or(w.players[vi].bounty)
 }
 
 /// The rival who hit player `vi` recently enough at time `at` to be credited (legacy `recentRival`).

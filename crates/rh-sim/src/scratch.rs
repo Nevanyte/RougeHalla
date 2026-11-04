@@ -20,14 +20,18 @@ use crate::state::PlayerId;
 use crate::systems::ledger::Entry;
 use crate::systems::melee::MeleeReq;
 
+/// "No entry / no slot" in the dense per-slot lists.
+pub(crate) const NONE: u32 = u32::MAX;
+
 #[derive(Debug)]
 pub(crate) struct TickScratch {
-    /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`): a kill pays what the victim was worth
-    /// before the tick's own kills raised it.
-    pub(crate) bounty_at_tick_start: Vec<(PlayerId, u32)>,
-    /// The tick's secret action order as (id, rank): the order the inputs apply in, and the rank of kill credit among a
-    /// victim's hits.
-    pub(crate) rank: Vec<(PlayerId, usize)>,
+    /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`), by slot: a kill pays what the victim
+    /// was worth before the tick's own kills raised it.
+    pub(crate) bounty_at_tick_start: Vec<u32>,
+    /// The tick's secret action order as slots: the order the inputs apply in.
+    pub(crate) action_order: Vec<u32>,
+    /// Each slot's place in `action_order` (the rank of kill credit among a victim's hits), by slot.
+    pub(crate) rank: Vec<u32>,
     /// Indices of the players standing when this tick's move multipliers were read (legacy `standingCombatants`).
     pub(crate) standing: Vec<usize>,
     /// Their move multipliers, aligned with `standing`: every one is read before anyone moves.
@@ -40,9 +44,13 @@ pub(crate) struct TickScratch {
     pub(crate) downed_this_tick: Vec<PlayerId>,
     /// The fighters standing when the melee queue is resolved.
     pub(crate) bodies: Vec<usize>,
-    /// The ledger pass: victims in order of first appearance, and each entry's outgoing multiplier.
-    pub(crate) victims: Vec<PlayerId>,
+    /// The ledger pass: the victims' slots in order of first appearance, each entry's outgoing multiplier, and the entries
+    /// chained per victim slot (`slot_head`/`slot_tail` by slot, `entry_next` by entry: all `NONE` between passes).
+    pub(crate) victims: Vec<u32>,
     pub(crate) ledger_mults: Vec<f64>,
+    pub(crate) slot_head: Vec<u32>,
+    pub(crate) slot_tail: Vec<u32>,
+    pub(crate) entry_next: Vec<u32>,
     /// One victim's pass: its entries' indices, mitigated amounts, the (rank, entry) order they land in and the hits.
     pub(crate) idxs: Vec<usize>,
     pub(crate) amounts: Vec<f64>,
@@ -64,6 +72,7 @@ impl Default for TickScratch {
         let (p, hits) = (MAX_PLAYERS, MAX_PLAYERS * MAX_PLAYERS);
         Self {
             bounty_at_tick_start: Vec::with_capacity(p),
+            action_order: Vec::with_capacity(p),
             rank: Vec::with_capacity(p),
             standing: Vec::with_capacity(p),
             mults: Vec::with_capacity(p),
@@ -73,6 +82,9 @@ impl Default for TickScratch {
             bodies: Vec::with_capacity(p),
             victims: Vec::with_capacity(p),
             ledger_mults: Vec::with_capacity(hits),
+            slot_head: vec![NONE; p],
+            slot_tail: vec![NONE; p],
+            entry_next: Vec::with_capacity(hits),
             idxs: Vec::with_capacity(p),
             amounts: Vec::with_capacity(p),
             order: Vec::with_capacity(p),

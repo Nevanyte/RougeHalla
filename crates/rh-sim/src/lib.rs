@@ -28,6 +28,7 @@ mod scratch;
 pub mod sim;
 pub mod state;
 pub mod statics;
+pub mod store;
 mod systems;
 
 pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
@@ -36,6 +37,7 @@ pub use input::{validate, Command, RawCommand, Reject};
 pub use map::TileMap;
 pub use math::Vec2;
 pub use observe::{observe, public_snapshot, Observation, OBSERVATION_VERSION};
+pub use store::{EntityId, Store};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
 };

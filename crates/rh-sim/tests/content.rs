@@ -22,6 +22,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("pathfind.rs", "DX", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
     ("pathfind.rs", "DY", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
     ("checkpoint.rs", "CHECKPOINT_FORMAT", "checkpoint format tag (a data format, versioned on its own), not a rule"),
+    ("scratch.rs", "NONE", "empty marker of the dense per-slot working lists; an index sentinel, not a rule"),
     ("checkpoint.rs", "FIELDS", "serde field names of the checkpoint visitor; wire layout, not a rule"),
     ("map.rs", "STEP_DX", "A* neighbour offsets in the legacy expansion order; algorithm structure pinned by the pathfinding parity fixture (300 queries), not a tunable rule number"),
     ("map.rs", "STEP_DY", "A* neighbour offsets in the legacy expansion order; algorithm structure pinned by the pathfinding parity fixture (300 queries), not a tunable rule number"),

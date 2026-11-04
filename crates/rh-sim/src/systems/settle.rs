@@ -26,7 +26,7 @@ pub(crate) fn mark_tick_start(cx: &mut Cx) {
         } else {
             0.0
         };
-        s.bounty_at_tick_start.push((p.id, p.bounty));
+        s.bounty_at_tick_start.push(p.bounty);
     }
 }
 

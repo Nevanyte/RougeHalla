@@ -7,7 +7,7 @@ use crate::constants::*;
 use crate::content::{mitigate_shares, pvp_factor, DamageShares, WeaponId};
 use crate::events::Event;
 use crate::results::Outcome;
-use crate::scratch::TickScratch;
+use crate::scratch::{TickScratch, NONE};
 use crate::state::{Packet, PlayerId, World};
 use crate::statics::MatchStatic;
 use crate::systems::{credit, settle, weapons, Cx};
@@ -77,8 +77,8 @@ struct Pass<'a> {
     k: &'a MatchStatic,
     w: &'a mut World,
     ev: &'a mut Vec<Event>,
-    rank: &'a [(PlayerId, usize)],
-    bounty_at_tick_start: &'a [(PlayerId, u32)],
+    rank: &'a [u32],
+    bounty_at_tick_start: &'a [u32],
     downed: &'a mut Vec<PlayerId>,
 }
 
@@ -90,11 +90,12 @@ struct Bufs<'a> {
     hits: &'a mut Vec<(f64, PlayerId)>,
 }
 
-fn rank_of(rank: &[(PlayerId, usize)], id: PlayerId) -> usize {
-    rank.iter()
-        .find(|(p, _)| *p == id)
-        .map(|(_, r)| *r)
-        .unwrap_or(usize::MAX)
+/// The place of `id` in the tick's action order (anyone not in it, such as a leaver, after everyone): the slot is a
+/// binary search, the rank a dense array read.
+fn rank_of(w: &World, rank: &[u32], id: PlayerId) -> usize {
+    w.idx(id)
+        .and_then(|slot| rank.get(slot))
+        .map_or(usize::MAX, |&r| r as usize)
 }
 
 /// System (legacy step.ts, the ledger's opening): the entries a hook link deferred last tick (returned damage, Overkill's
@@ -122,6 +123,9 @@ pub(crate) fn apply(cx: &mut Cx) {
         downed_this_tick,
         victims,
         ledger_mults: mults,
+        slot_head,
+        slot_tail,
+        entry_next,
         idxs,
         amounts,
         order,
@@ -131,21 +135,36 @@ pub(crate) fn apply(cx: &mut Cx) {
     if ledger.is_empty() {
         return;
     }
-    // Group by victim in order of first appearance (legacy Map insertion order).
+    // Group by victim in order of first appearance (legacy Map insertion order): each entry is chained on its victim's
+    // slot, so a pass costs O(entries + victims) however many fighters there are. A victim who is no longer present has no
+    // slot and nothing to apply to.
     victims.clear();
-    for e in ledger.iter() {
-        if !victims.contains(&e.victim) {
-            victims.push(e.victim);
-        }
+    entry_next.clear();
+    entry_next.resize(ledger.len(), NONE);
+    if slot_head.len() < w.players.len() {
+        slot_head.resize(w.players.len(), NONE);
+        slot_tail.resize(w.players.len(), NONE);
     }
     mults.clear();
-    mults.extend(ledger.iter().map(|e| {
-        if k.config.pvp_rules && w.idx(e.by).is_some() && w.idx(e.victim).is_some() {
-            pvp_factor(0.0)
-        } else {
-            1.0
+    for (n, e) in ledger.iter().enumerate() {
+        let vslot = w.idx(e.victim);
+        if let Some(v) = vslot {
+            if slot_head[v] == NONE {
+                victims.push(v as u32);
+                slot_head[v] = n as u32;
+            } else {
+                entry_next[slot_tail[v] as usize] = n as u32;
+            }
+            slot_tail[v] = n as u32;
         }
-    }));
+        mults.push(
+            if k.config.pvp_rules && vslot.is_some() && w.idx(e.by).is_some() {
+                pvp_factor(0.0)
+            } else {
+                1.0
+            },
+        );
+    }
     w.pay.items.clear();
     w.pay.collecting = true;
     let mut pass = Pass {
@@ -162,18 +181,24 @@ pub(crate) fn apply(cx: &mut Cx) {
         order,
         hits,
     };
-    for &v in victims.iter() {
+    for &vi in victims.iter() {
+        let vi = vi as usize;
         bufs.idxs.clear();
-        bufs.idxs
-            .extend((0..ledger.len()).filter(|&k| ledger[k].victim == v));
-        apply_victim(&mut pass, &mut bufs, v, ledger, mults);
+        let mut n = slot_head[vi];
+        while n != NONE {
+            bufs.idxs.push(n as usize);
+            n = entry_next[n as usize];
+        }
+        slot_head[vi] = NONE;
+        slot_tail[vi] = NONE;
+        apply_victim(&mut pass, &mut bufs, vi, ledger, mults);
     }
     pay_all(pass.w, pass.ev);
     ledger.clear();
 }
 
-fn apply_victim(pass: &mut Pass, b: &mut Bufs, v: PlayerId, ledger: &[Entry], mults: &[f64]) {
-    let Some(vi) = pass.w.idx(v) else { return };
+fn apply_victim(pass: &mut Pass, b: &mut Bufs, vi: usize, ledger: &[Entry], mults: &[f64]) {
+    let v = pass.w.players[vi].id;
     if !pass.w.players[vi].standing() {
         return;
     }
@@ -208,7 +233,7 @@ fn apply_victim(pass: &mut Pass, b: &mut Bufs, v: PlayerId, ledger: &[Entry], mu
     // entries' own order: the key (rank, position) is total, so an unstable sort gives the stable sort's order and needs no
     // merge buffer however many hits a victim takes.
     order.clear();
-    order.extend((0..idxs.len()).map(|j| (rank_of(pass.rank, ledger[idxs[j]].by), j)));
+    order.extend((0..idxs.len()).map(|j| (rank_of(pass.w, pass.rank, ledger[idxs[j]].by), j)));
     order.sort_unstable();
     hits.clear();
     hits.extend(order.iter().map(|&(_, j)| (amounts[j], ledger[idxs[j]].by)));
@@ -227,16 +252,14 @@ fn apply_victim(pass: &mut Pass, b: &mut Bufs, v: PlayerId, ledger: &[Entry], mu
             });
         }
     }
-    if let Some(vi) = pass.w.idx(v) {
-        if pass.w.players[vi].standing()
-            && idxs
-                .iter()
-                .enumerate()
-                .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
-        {
-            let now = pass.w.server_time;
-            weapons::stagger(&mut pass.w.players[vi], now, pass.ev);
-        }
+    if pass.w.players[vi].standing()
+        && idxs
+            .iter()
+            .enumerate()
+            .any(|(j, &k)| ledger[k].stagger && amounts[j] > 0.0)
+    {
+        let now = pass.w.server_time;
+        weapons::stagger(&mut pass.w.players[vi], now, pass.ev);
     }
 }
 
