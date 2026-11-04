@@ -36,7 +36,8 @@ impl From<StaticRepr> for MatchStatic {
 impl MatchStatic {
     pub(crate) fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
         let arena = arena.into();
-        // The secrets stay out of the digest (C-RNG): they never become part of anything that can be logged.
+        // The statics secrets stay out of the digest. The state hash still depends on spawn_seed through World.spawn_rng,
+        // so it is server-private (see hash.rs).
         let digest = crate::hash::hash_of(0, &(&config, &*arena));
         Self {
             config,

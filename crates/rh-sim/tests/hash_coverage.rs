@@ -2,8 +2,9 @@
 //! serialized leaf must change it. This test proves that on real matches instead of trusting a field list: it serializes a
 //! checkpoint, perturbs every leaf one at a time (numbers one ulp or one unit, bools flipped, strings changed, sequences
 //! shortened, optional values removed or filled), restores the perturbed checkpoint and demands a different `state_hash`.
-//! The allowlist of unhashed leaves is EMPTY, with one deliberate exclusion that is asserted rather than skipped: the
-//! secrets (`statics.secrets`) must NOT change the hash (C-RNG: a hash that mixed them would be an offline oracle).
+//! The allowlist of unhashed leaves is EMPTY, with one deliberate exclusion that is asserted rather than skipped: only the
+//! statics secrets (`statics.secrets`) are held out of the hash. `World.spawn_rng` (derived from `spawn_seed`) is hashed
+//! on purpose, so the hash itself is server-private (see ADR 0007).
 //!
 //! A perturbation the restore refuses (a map whose shape no longer fits, a middle id that collides in the ordered store)
 //! is validated input, not an unhashed leaf; each such pattern must be in `VALIDATED`.

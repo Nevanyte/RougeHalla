@@ -10,14 +10,14 @@ it through `Sim::submit` and `Sim::step`.
 | --- | --- |
 | `sim.rs` | The facade: `Sim`, `Placement`, the public read accessors (`tick()`, `phase()`, `server_time()`, `arena()`, `players()`, `player(id)`, ...) and the few mutators (`add_player`, `submit`, `mark_dropped`, `remove_player`, `step`). No game logic. |
 | `statics.rs` | `MatchStatic { config, arena: Arc<Arena>, secrets }`: what the match is played with; immutable once it starts. `Arena`, `SimConfig`, `Secrets`. |
-| `state.rs` | `World`: the evolving match state (players, clock, phase, run bookkeeping, events waiting between steps). The only thing the state hash covers; with the statics it is the whole checkpoint. `Player` and its runtime. |
+| `state.rs` | `World`: the evolving match state (players, clock, phase, run bookkeeping, events waiting between steps). The state hash covers it (seeded with the statics digest); with the statics it is the whole checkpoint. `Player` and its runtime. |
 | `fighter.rs` | The fighter as components: `FighterCore { id, body, vitals, weapon, motion, inputs }` (what the combat systems read and write for anything that fights), `FighterRef` (a read-only view), and what only a seated player adds: `Seat`, `Credit`, `Fate`. `Player` wraps a core and derefs to it. |
 | `store.rs` | `EntityId` and `Store<T>`: entities in ascending id order (join order), looked up by id in O(1) while ids are dense and O(log n) otherwise; its slot is the index the dense per-slot scratch lists use. |
 | `scratch.rs` | `TickScratch`: per-tick working sets (damage ledger, melee requests, action order and per-slot ranks, per-slot tick-start bounties, the standing list and move multipliers, the downed list). Never serialized, never hashed; each field is written before it is read within a tick. |
 | `systems/` | One file per legacy module; every entry point is `fn(&mut Cx)`. See below. |
 | `schedule.rs`, `hooks.rs` | The tick as data: `PHASES`, the registration lists, `ACTIONS` and the hook chains (each row a legacy name, a config gate and `Ported`/`Pending`), the loop that runs them, and hook dispatch (`hooks::fire`). |
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
-| `hash.rs` | `Sim::state_hash`, hand-written: the values and their order are part of the replay format (a replay recorded by an older build must keep verifying step by step). |
+| `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/2; other tags are refused. |
 | `checkpoint.rs` | `{format, statics, world}` serde layout, the `rh-checkpoint/3` tag and `CheckpointError`. |
 | `observe.rs`, `input.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
 

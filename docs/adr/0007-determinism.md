@@ -48,7 +48,7 @@ run in CI: backlog P-CI-2).
 - **The numeric and ordering rules are a lint.** `crates/rh-sim/clippy.toml` disallows `HashMap`/`HashSet`, the platform-libm
   `f64` transcendentals (`sin`, `cos`, `atan2`, `hypot`, `exp`, `ln`, `powf`, ...), `mul_add` and the wall clock
   (`Instant`, `SystemTime`) in `rh-sim`; CI's `clippy -D warnings` enforces it. A sanctioned use carries
-  `#[allow(clippy::disallowed_methods)]` with its reason beside it (today: one test input generator).
+  `#[allow(clippy::disallowed_methods)]` with its reason beside it (today: three test-only uses, in `systems/tests.rs` and two exact-power `powi` uses in `tests/kernel.rs`).
 
 **Evidence.** `crates/rh-sim/tests/hash_coverage.rs`, `crates/rh-sim/tests/replay.rs`, `crates/rh-sim/tests/checkpoint.rs`,
 `crates/rh-sim/src/hash.rs` unit tests, `crates/rh-sim/clippy.toml`.
