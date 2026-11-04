@@ -187,11 +187,100 @@ async fn the_density_engine_is_deterministic() {
         a.human_ticks
     );
     // Batched egress: a tick's frames for a client are one push and one notify, so notifies per human-tick is exactly 1
-    // (every tick carries at least a snapshot; it was up to 3 with a push per frame).
+    // (every tick carries at least a snapshot; it was up to 3 with a push per frame). `notifies` counts the real
+    // `notify_one` calls at the outboxes; `pushes` is the room's own counter and must agree with it.
     assert_eq!(a.notifies, a.human_ticks);
+    assert_eq!(
+        a.pushes, a.notifies,
+        "the side counter matches the real calls"
+    );
     assert!(
         a.frames > a.notifies,
         "events/fx frames ride in the same push"
+    );
+}
+
+/// A mixed room (4 humans + 4 scripted bots): bots are driven by the room but have no outbox, so the egress figures are
+/// still per human: one real notify per human-tick, and the same counts on every run.
+#[tokio::test(start_paused = true)]
+async fn the_density_engine_with_bots_is_deterministic_and_bots_cost_no_egress() {
+    let mut o = engine::Opts::new(rh_sim::arenas::practice_arena());
+    o.rooms = 2;
+    o.humans = 4;
+    o.fill_to = 8;
+    o.secs = 6;
+    let a = engine::run(&o, true).await;
+    let b = engine::run(&o, true).await;
+    assert_eq!((a.rooms_closed, a.steps), (2, 2 * 6 * 20));
+    assert_eq!(
+        a.human_ticks,
+        a.steps * 4,
+        "humans only: bots have no connection"
+    );
+    assert_eq!(a.notifies, a.human_ticks);
+    assert_eq!(a.pushes, a.notifies);
+    assert_eq!(
+        (a.frames, a.bytes, a.notifies, a.writer_wakes, a.steps),
+        (b.frames, b.bytes, b.notifies, b.writer_wakes, b.steps)
+    );
+    assert!(a.writer_wakes <= a.human_ticks);
+}
+
+/// A snapshot the encoder refuses is never repaired and never logged per viewer per tick: the room counts every refusal
+/// and prints exactly one log line (`snapshot_refusals_logged`).
+#[tokio::test(start_paused = true)]
+async fn refused_snapshots_are_counted_per_room_not_logged_per_tick() {
+    // A world wider than the wire position range (8191.875 u): the director refuses such a map at startup, a Room built
+    // directly does not, so every snapshot of a player standing past the range is refused.
+    let tile = rh_sim::constants::TILE;
+    let w = (rh_protocol::quant::POS_MAX as f64 / tile) as usize + 8;
+    let rows: Vec<String> = (0..3)
+        .map(|y| {
+            (0..w)
+                .map(|x| {
+                    if x == 0 || y == 0 || x == w - 1 || y == 2 {
+                        '#'
+                    } else {
+                        '.'
+                    }
+                })
+                .collect()
+        })
+        .collect();
+    let spawn = rh_sim::map::tile_to_world_center(w as i64 - 3);
+    let arena = rh_sim::Arena {
+        map: rh_sim::TileMap::from_rows(&rows).unwrap(),
+        spawns: vec![
+            rh_sim::Vec2::new(spawn, rh_sim::map::tile_to_world_center(1)),
+            rh_sim::Vec2::new(spawn - 64.0, rh_sim::map::tile_to_world_center(1)),
+        ],
+    };
+    let assets = MapAssets::new(arena).unwrap();
+    let mut cfg = room_cfg();
+    cfg.sim.lobby_seconds = 0.2;
+    cfg.arena = assets.arena;
+    cfg.welcome_map = assets.welcome_map;
+    let (reports, _keep) = mpsc::unbounded_channel();
+    let mut room = Room::new([3; 16], cfg, reports, Instant::now()).with_metrics(leaked_metrics());
+    // Self is sent at full precision; it is the other actors that ride the position grid, so the viewer needs a neighbour.
+    for (name, conn) in [("alpha", 1), ("bravo", 2)] {
+        let (cmd, _reply) = join(name, conn);
+        room.handle(cmd, Instant::now());
+    }
+    let mut now = Instant::now();
+    for _ in 0..100 {
+        now += TICK;
+        assert!(room.wake(now));
+    }
+    let stats = room.stats();
+    let refusals = stats.snapshot_refusals;
+    assert!(
+        refusals >= 50,
+        "every tick of the run refuses each viewer's snapshot: {refusals}"
+    );
+    assert_eq!(
+        stats.snapshot_refusals_logged, 1,
+        "{refusals} refusals, exactly one log line"
     );
 }
 

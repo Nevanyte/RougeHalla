@@ -257,6 +257,73 @@ fn encode_snapshot_into_matches_the_writer_and_its_refusals() {
     assert_eq!(out, [7]);
 }
 
+/// An `ExactSizeIterator` that lies about its length (announces 5, yields 4) is a count mismatch, never a frame whose
+/// announced count disagrees with its actors, and the caller's buffer is untouched.
+#[test]
+fn a_lying_exact_size_iterator_is_a_count_mismatch_and_leaves_the_buffer_alone() {
+    struct Liar {
+        left: u32,
+        claim: usize,
+    }
+    impl Iterator for Liar {
+        type Item = WireActor;
+        fn next(&mut self) -> Option<WireActor> {
+            (self.left > 0).then(|| {
+                self.left -= 1;
+                actor(10 - self.left)
+            })
+        }
+    }
+    impl ExactSizeIterator for Liar {
+        fn len(&self) -> usize {
+            self.claim
+        }
+    }
+    let mut out = vec![7u8, 8];
+    let r = rh_protocol::encode_snapshot_into(
+        &mut out,
+        1,
+        1,
+        1,
+        Some(&me()),
+        Liar { left: 4, claim: 5 },
+    );
+    assert_eq!(
+        r,
+        Err(EncodeError::CountMismatch {
+            declared: 5,
+            written: 4
+        })
+    );
+    assert_eq!(out, [7, 8]);
+    // The other way (claims 3, yields 4) is a mismatch too.
+    let r = rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, Liar { left: 4, claim: 3 });
+    assert_eq!(
+        r,
+        Err(EncodeError::CountMismatch {
+            declared: 3,
+            written: 4
+        })
+    );
+    assert_eq!(out, [7, 8]);
+    // The push-style writer refuses the same lie the same way.
+    let mut w = SnapshotWriter::begin(&mut out, 1, 1, 1, Some(&me()), 5);
+    (0..4).for_each(|i| w.actor(&actor(i)));
+    assert_eq!(
+        w.finish(),
+        Err(EncodeError::CountMismatch {
+            declared: 5,
+            written: 4
+        })
+    );
+    assert_eq!(out, [7, 8]);
+    // And a truthful one still writes (the buffer is reusable after a refusal).
+    assert!(
+        rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, Liar { left: 4, claim: 4 })
+            .is_ok()
+    );
+}
+
 #[test]
 fn an_announced_count_over_the_limit_is_too_many() {
     let mut out = vec![7];
