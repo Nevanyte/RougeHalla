@@ -798,3 +798,95 @@ fn fuzzed_delta_frames_never_panic_and_a_refused_one_changes_nothing() {
         }
     }
 }
+
+/// The v3 writer path refuses a remote actor off the position grid like every v2 encoder (`tests/encode.rs`): the room's
+/// `SnapshotData::build` is where it is checked, so neither a Full frame nor a Delta can ever carry one (a Delta carries only
+/// grid codes taken from a built snapshot). The top of the range is carried exactly, as a Full frame and as a delta.
+#[test]
+fn snapshot_data_refuses_positions_off_the_grid_so_no_delta_can_carry_one() {
+    use rh_protocol::quant::POS_MAX;
+    let mut rng = Rng(5);
+    let base = actor(4, &mut rng);
+    let at = |x: f32, y: f32| WireActor { x, y, ..base };
+    let build = |a: WireActor| SnapshotData::build(2, 1, 0, None, std::iter::once(a));
+    for (x, y) in [
+        (8191.876, 0.0),
+        (0.0, 8192.0),
+        (1.0e9, 5.0),
+        (-0.01, 5.0),
+        (5.0, f32::NAN),
+        (f32::INFINITY, 5.0),
+    ] {
+        assert_eq!(
+            build(at(x, y)).err(),
+            Some(EncodeError::BadValue("position")),
+            "{x},{y}"
+        );
+        // Same refusal when built in a recycled block.
+        let spare = build(at(1.0, 1.0)).unwrap();
+        assert_eq!(
+            SnapshotData::build_with(Some(spare), 2, 1, 0, None, std::iter::once(at(x, y))).err(),
+            Some(EncodeError::BadValue("position"))
+        );
+    }
+    let mut enc = ConnEncoder::new();
+    let mut tracker = SnapshotTracker::new();
+    let first = build(at(1.0, 1.0)).unwrap();
+    let mut f = Vec::new();
+    assert_eq!(enc.encode(first, &mut f), FrameKind::Full);
+    tracker.decode(&f).unwrap();
+    let top = SnapshotData::build(3, 1, 0, None, std::iter::once(at(POS_MAX, POS_MAX))).unwrap();
+    f.clear();
+    assert_eq!(enc.encode(top.clone(), &mut f), FrameKind::Delta);
+    tracker.decode(&f).unwrap();
+    assert_eq!(tracker.snapshot().unwrap(), top.decoded());
+    let ServerMsg::Snapshot { actors, .. } = top.decoded() else {
+        unreachable!()
+    };
+    assert_eq!((actors[0].x, actors[0].y), (POS_MAX, POS_MAX));
+}
+
+/// The abuse case: a client that sends a Resync before every snapshot gets at most one forced Full frame per
+/// MIN_FORCED_FULL_TICKS, not one per request, and still never waits longer than that interval for a Full frame.
+#[test]
+fn a_resync_flood_costs_one_forced_full_frame_per_interval() {
+    let snaps = walk(11, 400);
+    let natural: Vec<bool> = {
+        let mut enc = ConnEncoder::new();
+        snaps
+            .iter()
+            .map(|s| enc.encode(s.clone(), &mut Vec::new()) == FrameKind::Full)
+            .collect()
+    };
+    let mut enc = ConnEncoder::new();
+    let (mut forced, mut fulls) = (Vec::new(), Vec::new());
+    for (i, s) in snaps.iter().enumerate() {
+        enc.request_full();
+        if enc.encode(s.clone(), &mut Vec::new()) == FrameKind::Full {
+            fulls.push(s.tick());
+            if !natural[i] {
+                forced.push(s.tick());
+            }
+        } else {
+            assert!(
+                !natural[i],
+                "a request never turns a Full frame into a delta"
+            );
+        }
+    }
+    assert!(forced.len() >= 2, "{forced:?}");
+    for w in forced.windows(2) {
+        assert!(w[1] - w[0] >= MIN_FORCED_FULL_TICKS, "{forced:?}");
+    }
+    let span = snaps.last().unwrap().tick() - snaps[0].tick();
+    assert!(
+        forced.len() as u32 <= span / MIN_FORCED_FULL_TICKS + 1,
+        "{forced:?}"
+    );
+    for w in fulls.windows(2) {
+        assert!(
+            w[1] - w[0] <= MIN_FORCED_FULL_TICKS,
+            "a pending request waits at most the interval: {fulls:?}"
+        );
+    }
+}
