@@ -12,11 +12,12 @@ use crate::state::{Packet, PlayerId, World};
 use crate::statics::MatchStatic;
 use crate::systems::{credit, settle, weapons, Cx};
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+/// One hit of the tick's ledger. `Copy` and name-free: the attacker is an id, and its display name is resolved from the
+/// roster only when a result needs it (`World::roster`), so a hit never clones a string.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
     pub(crate) victim: PlayerId,
     pub(crate) by: PlayerId,
-    pub(crate) by_name: String,
     pub(crate) packet: Packet,
     pub(crate) weapon: WeaponId,
     pub(crate) stagger: bool,
@@ -25,7 +26,7 @@ pub(crate) struct Entry {
 /// What a payout does when it is paid (legacy `payLater(world, () => ...)`, as typed data). The slice has one: a kill's
 /// credit. A packet whose legacy code calls `payLater` adds its variant here and its arm to [`PayLater::pay`]; it never
 /// puts the effect in `World::deferred`, which is the NEXT tick's ledger.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum PayLater {
     /// legacy arena.ts `creditKill`: the kill's GV, bounty and rampage, after every victim took their damage.
     CreditKill {
@@ -61,9 +62,14 @@ pub(crate) fn pay_later(w: &mut World, ev: &mut Vec<Event>, p: PayLater) {
 /// that itself calls `pay_later` pays at once, as in legacy (`collecting` is off by then).
 pub(crate) fn pay_all(w: &mut World, ev: &mut Vec<Event>) {
     w.pay.collecting = false;
-    for p in std::mem::take(&mut w.pay.items) {
+    // Index, not take: the queue keeps its capacity, and a payout cannot queue another (it pays at once now).
+    let mut i = 0;
+    while i < w.pay.items.len() {
+        let p = w.pay.items[i];
+        i += 1;
         p.pay(w, ev);
     }
+    w.pay.items.clear();
 }
 
 /// What applying one victim's hits touches: everything but the ledger, which it only reads.
@@ -74,6 +80,14 @@ struct Pass<'a> {
     rank: &'a [(PlayerId, usize)],
     bounty_at_tick_start: &'a [(PlayerId, u32)],
     downed: &'a mut Vec<PlayerId>,
+}
+
+/// One victim's working lists (tick scratch, reused for every victim of the pass).
+struct Bufs<'a> {
+    idxs: &'a mut Vec<usize>,
+    amounts: &'a mut Vec<f64>,
+    order: &'a mut Vec<(usize, usize)>,
+    hits: &'a mut Vec<(f64, PlayerId)>,
 }
 
 fn rank_of(rank: &[(PlayerId, usize)], id: PlayerId) -> usize {
@@ -106,28 +120,32 @@ pub(crate) fn apply(cx: &mut Cx) {
         rank,
         bounty_at_tick_start,
         downed_this_tick,
+        victims,
+        ledger_mults: mults,
+        idxs,
+        amounts,
+        order,
+        hits,
         ..
     } = &mut **s;
     if ledger.is_empty() {
         return;
     }
     // Group by victim in order of first appearance (legacy Map insertion order).
-    let mut victims: Vec<PlayerId> = Vec::new();
+    victims.clear();
     for e in ledger.iter() {
         if !victims.contains(&e.victim) {
             victims.push(e.victim);
         }
     }
-    let mults: Vec<f64> = ledger
-        .iter()
-        .map(|e| {
-            if k.config.pvp_rules && w.idx(e.by).is_some() && w.idx(e.victim).is_some() {
-                pvp_factor(0.0)
-            } else {
-                1.0
-            }
-        })
-        .collect();
+    mults.clear();
+    mults.extend(ledger.iter().map(|e| {
+        if k.config.pvp_rules && w.idx(e.by).is_some() && w.idx(e.victim).is_some() {
+            pvp_factor(0.0)
+        } else {
+            1.0
+        }
+    }));
     w.pay.items.clear();
     w.pay.collecting = true;
     let mut pass = Pass {
@@ -138,36 +156,46 @@ pub(crate) fn apply(cx: &mut Cx) {
         bounty_at_tick_start,
         downed: downed_this_tick,
     };
-    for v in victims {
-        let idxs: Vec<usize> = (0..ledger.len())
-            .filter(|&k| ledger[k].victim == v)
-            .collect();
-        apply_victim(&mut pass, v, ledger, &idxs, &mults);
+    let mut bufs = Bufs {
+        idxs,
+        amounts,
+        order,
+        hits,
+    };
+    for &v in victims.iter() {
+        bufs.idxs.clear();
+        bufs.idxs
+            .extend((0..ledger.len()).filter(|&k| ledger[k].victim == v));
+        apply_victim(&mut pass, &mut bufs, v, ledger, mults);
     }
     pay_all(pass.w, pass.ev);
     ledger.clear();
 }
 
-fn apply_victim(pass: &mut Pass, v: PlayerId, ledger: &[Entry], idxs: &[usize], mults: &[f64]) {
+fn apply_victim(pass: &mut Pass, b: &mut Bufs, v: PlayerId, ledger: &[Entry], mults: &[f64]) {
     let Some(vi) = pass.w.idx(v) else { return };
     if !pass.w.players[vi].standing() {
         return;
     }
     let vf = crate::content::faction(pass.w.players[vi].faction);
     let (armor, shield) = (vf.armor.max(0.0), vf.shield);
-    let mut amounts: Vec<f64> = idxs
-        .iter()
-        .map(|&k| {
-            let e = &ledger[k];
-            let raw = e.packet.raw * mults[k];
-            let s = DamageShares {
-                phys: e.packet.phys,
-                magic: e.packet.magic,
-                true_: e.packet.true_,
-            };
-            mitigate_shares(raw, &s, armor, shield)
-        })
-        .collect();
+    let Bufs {
+        idxs,
+        amounts,
+        order,
+        hits,
+    } = b;
+    amounts.clear();
+    amounts.extend(idxs.iter().map(|&k| {
+        let e = &ledger[k];
+        let raw = e.packet.raw * mults[k];
+        let s = DamageShares {
+            phys: e.packet.phys,
+            magic: e.packet.magic,
+            true_: e.packet.true_,
+        };
+        mitigate_shares(raw, &s, armor, shield)
+    }));
     if pass.k.config.pvp_rules {
         let cap = PVP_HIT_CAP_SHARE * pass.w.players[vi].max_hp;
         for a in amounts.iter_mut() {
@@ -176,19 +204,15 @@ fn apply_victim(pass: &mut Pass, v: PlayerId, ledger: &[Entry], idxs: &[usize], 
             }
         }
     }
-    let mut order: Vec<usize> = (0..idxs.len()).collect();
-    order.sort_by_key(|&j| rank_of(pass.rank, ledger[idxs[j]].by));
-    let hits: Vec<(f64, PlayerId, String)> = order
-        .iter()
-        .map(|&j| {
-            (
-                amounts[j],
-                ledger[idxs[j]].by,
-                ledger[idxs[j]].by_name.clone(),
-            )
-        })
-        .collect();
-    let applied = apply_hits(pass, vi, &hits);
+    // The hits land in action-order rank (anyone not in the order, such as a leaver, after everyone). Ties keep the
+    // entries' own order: the key (rank, position) is total, so an unstable sort gives the stable sort's order and needs no
+    // merge buffer however many hits a victim takes.
+    order.clear();
+    order.extend((0..idxs.len()).map(|j| (rank_of(pass.rank, ledger[idxs[j]].by), j)));
+    order.sort_unstable();
+    hits.clear();
+    hits.extend(order.iter().map(|&(_, j)| (amounts[j], ledger[idxs[j]].by)));
+    let applied = apply_hits(pass, vi, hits);
     if !(applied > 0.0) {
         return;
     }
@@ -217,7 +241,7 @@ fn apply_victim(pass: &mut Pass, v: PlayerId, ledger: &[Entry], idxs: &[usize], 
 }
 
 /// Legacy `applyHits` for a player victim: the hits land together; the kill goes to the largest rival hit.
-fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId, String)]) -> f64 {
+fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
     let w = &mut *pass.w;
     let now = w.server_time;
     {
@@ -231,7 +255,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId, String)]) -> f
     let mut total = 0.0;
     let mut top: Option<usize> = None;
     let mut top_rival: Option<usize> = None;
-    for (h, (amount, by, _)) in hits.iter().enumerate() {
+    for (h, (amount, by)) in hits.iter().enumerate() {
         if !(*amount > 0.0) {
             continue;
         }
@@ -262,7 +286,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId, String)]) -> f
     let v = &mut w.players[vi];
     if v.barrier > 0.0 {
         let taken = v.barrier.min(total);
-        v.barrier = if v.barrier - taken < 1e-3 {
+        v.barrier = if v.barrier - taken < BARRIER_EPS {
             0.0
         } else {
             v.barrier - taken
@@ -279,14 +303,15 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId, String)]) -> f
         return if v.hp > unheld { total } else { before - v.hp };
     }
     let killer = top_rival.unwrap_or(top);
-    let (_, kid, kname) = &hits[killer];
+    let (_, kid) = &hits[killer];
     let killer_idx = w.idx(*kid).filter(|&k| !w.players[k].resolved);
     let killer_bot = killer_idx.map(|k| w.players[k].bot).unwrap_or(false);
     let (vx, vy) = (w.players[vi].x, w.players[vi].y);
     {
         let v = &mut w.players[vi];
-        // The killer's display name (legacy: the attacker's name, or the source name of one who already left).
-        v.killed_by = Some(kname.clone());
+        // The killer, by id: the roster names it when the result is built (legacy: the attacker's name, or the source
+        // name of one who already left).
+        v.killed_by = Some(*kid);
         if killer_bot {
             v.killed_by_bot = true;
         }

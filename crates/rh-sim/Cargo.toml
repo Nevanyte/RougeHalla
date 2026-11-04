@@ -13,6 +13,8 @@ serde = { version = "1", features = ["derive", "rc"] }
 
 [dev-dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }
+# Counting allocator for tests/no_alloc.rs: the allocation-free tick is a permanent gate, not a one-off measurement.
+dhat = "0.3"
 
 [features]
 # Records which ported rows of the tick schedule ran, in order (tests only: enabled by rh-parity as a dev-dependency

@@ -1,14 +1,15 @@
 //! Melee resolution against rewound positions (legacy melee.ts).
 
 use crate::constants::*;
-use crate::content::{Shape, WeaponId};
+use crate::content::{staggers, Shape, WeaponId};
 use crate::events::Event;
-use crate::geometry::raycast;
+use crate::geometry::ray_blocked;
 use crate::map::MASK_MELEE;
 use crate::math::{angle_between, asin, atan2, hypot, Vec2};
 use crate::state::{Packet, PlayerId, World};
 use crate::systems::ledger::Entry;
 use crate::systems::weapons::weapon_shape;
+use crate::scratch::TickScratch;
 use crate::systems::Cx;
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -26,13 +27,18 @@ pub(crate) struct MeleeReq {
 pub(crate) fn resolve(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
     let w: &World = w;
-    if s.melee.is_empty() {
+    let TickScratch {
+        melee,
+        ledger,
+        bodies,
+        ..
+    } = &mut **s;
+    if melee.is_empty() {
         return;
     }
-    let bodies: Vec<usize> = (0..w.players.len())
-        .filter(|&i| w.players[i].standing())
-        .collect();
-    for req in s.melee.iter() {
+    bodies.clear();
+    bodies.extend((0..w.players.len()).filter(|&i| w.players[i].standing()));
+    for req in melee.iter() {
         let Some(ai) = w.idx(req.attacker) else {
             continue;
         };
@@ -50,7 +56,7 @@ pub(crate) fn resolve(cx: &mut Cx) {
             y: origin.y,
             a: req.a,
         });
-        for &ti in &bodies {
+        for &ti in bodies.iter() {
             if ti == ai {
                 continue;
             }
@@ -58,23 +64,21 @@ pub(crate) fn resolve(cx: &mut Cx) {
             if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
                 continue;
             }
-            if raycast(&k.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE).hit {
+            if ray_blocked(&k.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE) {
                 continue;
             }
             // Shields (block/riposte) need a shield in hand: no item flow in the slice (docs/backlog P-COMBAT-1).
             let victim = w.players[ti].id;
-            let by_name = w.players[ai].name.clone();
-            s.ledger.push(Entry {
+            ledger.push(Entry {
                 victim,
                 by: req.attacker,
-                by_name,
                 packet: req.packet,
                 weapon: req.weapon,
-                stagger: req.weapon == WeaponId::Sword,
+                stagger: staggers(req.weapon),
             });
         }
     }
-    s.melee.clear();
+    melee.clear();
 }
 
 /// Is `p` (a disc of radius `r`) inside the arc? Legacy `inArc`.
@@ -88,5 +92,5 @@ pub fn in_arc(origin: Vec2, a: f64, reach: f64, half_arc: f64, p: Vec2, r: f64) 
     if d > reach + r {
         return false;
     }
-    angle_between(atan2(dy, dx), a) <= half_arc + asin((r / d).min(1.0)) + 1e-9
+    angle_between(atan2(dy, dx), a) <= half_arc + asin((r / d).min(1.0)) + ARC_EPS
 }

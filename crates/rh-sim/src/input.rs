@@ -105,6 +105,72 @@ pub(crate) enum ActionCmd {
     Release { a: f64, t: Option<f64> },
 }
 
+/// The actions queued for one tick: the first `len` of `MAX_ACTIONS_PER_TICK` inline slots (the cap is a constant, so the
+/// heap buys nothing). Serialized, compared and hashed as the plain sequence of the queued actions, as the `Vec` it replaces
+/// was; the slots past `len` are dead data and never observed.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ActionBuf {
+    items: [ActionCmd; MAX_ACTIONS_PER_TICK],
+    len: u8,
+}
+
+impl Default for ActionBuf {
+    fn default() -> Self {
+        const { assert!(MAX_ACTIONS_PER_TICK <= u8::MAX as usize) };
+        Self {
+            items: [ActionCmd::Release { a: 0.0, t: None }; MAX_ACTIONS_PER_TICK],
+            len: 0,
+        }
+    }
+}
+
+impl ActionBuf {
+    pub(crate) fn len(&self) -> usize {
+        self.len as usize
+    }
+    pub(crate) fn as_slice(&self) -> &[ActionCmd] {
+        &self.items[..self.len()]
+    }
+    pub(crate) fn get(&self, i: usize) -> Option<&ActionCmd> {
+        self.as_slice().get(i)
+    }
+    fn push(&mut self, cmd: ActionCmd) -> bool {
+        if self.len() >= MAX_ACTIONS_PER_TICK {
+            return false;
+        }
+        self.items[self.len()] = cmd;
+        self.len += 1;
+        true
+    }
+}
+
+impl PartialEq for ActionBuf {
+    fn eq(&self, o: &Self) -> bool {
+        self.as_slice() == o.as_slice()
+    }
+}
+
+impl serde::Serialize for ActionBuf {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_seq(self.as_slice())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ActionBuf {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = Vec::<ActionCmd>::deserialize(d)?;
+        let mut b = ActionBuf::default();
+        for cmd in v {
+            if !b.push(cmd) {
+                return Err(serde::de::Error::custom(format!(
+                    "more than {MAX_ACTIONS_PER_TICK} queued actions"
+                )));
+            }
+        }
+        Ok(b)
+    }
+}
+
 /// One fighter's commands for the next tick, in arrival order (legacy `InputQueue`): the latest move and the latest aim win,
 /// each remembering how many actions had arrived before it so orders replace each other in arrival order. The fields are
 /// readable inside the crate (the state hash reads their shape); only [`accept`] writes them.
@@ -114,7 +180,7 @@ pub struct InputQueue {
     pub(crate) move_before: usize,
     pub(crate) aim: Option<f64>,
     pub(crate) aim_before: usize,
-    pub(crate) actions: Vec<ActionCmd>,
+    pub(crate) actions: ActionBuf,
     pub(crate) dropped: u32,
 }
 
@@ -123,7 +189,7 @@ pub(crate) struct Drained {
     pub(crate) move_before: usize,
     pub(crate) aim: Option<f64>,
     pub(crate) aim_before: usize,
-    pub(crate) actions: Vec<ActionCmd>,
+    pub(crate) actions: ActionBuf,
 }
 
 /// The seat's intake (C-INPUT): a validated command spends the seat's order budget (unless `budgeted` is false, the
@@ -163,11 +229,10 @@ impl InputQueue {
     }
 
     fn push_action(&mut self, cmd: ActionCmd) -> Result<(), Reject> {
-        if self.actions.len() >= MAX_ACTIONS_PER_TICK {
+        if !self.actions.push(cmd) {
             self.dropped += 1;
             return Err(Reject::QueueFull);
         }
-        self.actions.push(cmd);
         Ok(())
     }
 
@@ -177,11 +242,19 @@ impl InputQueue {
             move_before: self.move_before,
             aim: self.aim.take(),
             aim_before: self.aim_before,
-            actions: std::mem::take(&mut self.actions),
+            actions: self.actions,
         };
+        self.clear();
+        out
+    }
+
+    /// Drops everything queued without handing it out (a lobby, a finished match, a dropped connection).
+    pub(crate) fn clear(&mut self) {
+        self.mv = None;
+        self.aim = None;
+        self.actions.len = 0;
         self.move_before = 0;
         self.aim_before = 0;
-        out
     }
 }
 

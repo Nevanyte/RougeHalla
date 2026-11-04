@@ -29,15 +29,29 @@ impl Mulberry32 {
 /// The secret per-tick order in which players' inputs apply (legacy `actionOrder`): a Fisher-Yates shuffle of the join
 /// order, keyed by the secret order salt and the tick. Fair for any subset of contenders and unpredictable to clients.
 pub fn action_order<T: Copy>(order_salt: u32, tick: u32, join_order: &[T]) -> Vec<T> {
-    let mut ids = join_order.to_vec();
+    let mut ids = Vec::new();
+    action_order_into(order_salt, tick, join_order, &mut ids);
+    ids
+}
+
+/// [`action_order`] into a caller's buffer (cleared first): the tick's order without an allocation once the buffer has
+/// grown.
+pub fn action_order_into<T: Copy>(order_salt: u32, tick: u32, join_order: &[T], out: &mut Vec<T>) {
+    out.clear();
+    out.extend_from_slice(join_order);
+    action_order_in_place(order_salt, tick, out);
+}
+
+/// The shuffle itself, over `ids` already in join order. The draw is in [0, 1) so `draw * (i + 1)` is a non-negative
+/// number below `i + 1`: truncation is its floor, exactly.
+pub fn action_order_in_place<T>(order_salt: u32, tick: u32, ids: &mut [T]) {
     let mut rng = Mulberry32::new(order_salt ^ tick.wrapping_mul(0x9e37_79b1));
     let mut i = ids.len();
     while i > 1 {
         i -= 1;
-        let j = (rng.next_f64() * (i + 1) as f64).floor() as usize;
+        let j = (rng.next_f64() * (i + 1) as f64) as usize;
         ids.swap(i, j);
     }
-    ids
 }
 
 /// Integer mixing for independent stream seeds (legacy `hashSeed`).

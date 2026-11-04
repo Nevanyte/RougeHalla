@@ -207,7 +207,6 @@ fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
     ledger::Entry {
         victim: PlayerId(victim),
         by: PlayerId(by),
-        by_name: format!("p{}", by - 1),
         packet: Packet {
             raw,
             phys: raw,
