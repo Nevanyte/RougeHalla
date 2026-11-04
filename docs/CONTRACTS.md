@@ -101,8 +101,8 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   `f64` transcendentals, `mul_add`, `Instant` and `SystemTime`; a sanctioned use carries an `#[allow]` with its reason.
 - Not done yet: `Sim::restore` still accepts `next_id == u32::MAX` (the next join then overflows; possible at base too) and
   `TileMap` keeps public `w`/`h`/`tiles`; both are in [sweep/README.md](sweep/README.md) under follow-ups.
-- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, statics, world}`; `after_restore`
-  rebuilds derived tables and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
+- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, statics, world}`; deserialization
+  builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
   world carries `roster` (append-only join names, leavers included; `killed_by` and `winner` are ids resolved to names only
   in results). Fighter path and rewind history serialize as their logical sequence (path from the cursor; history oldest
