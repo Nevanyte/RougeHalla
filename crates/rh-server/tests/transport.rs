@@ -198,3 +198,141 @@ async fn a_bare_accepted_socket_has_no_nodelay() {
     let (stream, _) = accepted.unwrap();
     assert!(!stream.nodelay().unwrap());
 }
+
+/// Connects, says Hello as `name` and reads to the Welcome.
+async fn welcomed(
+    s: &Started,
+    name: &str,
+) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
+    let (mut ws, _) = tokio_tungstenite::connect_async(format!("ws://{}/ws", s.addr))
+        .await
+        .expect("connect");
+    let h = ClientMsg::Hello {
+        protocol: PROTOCOL_VERSION,
+        content_hash: rh_sim::content::content_hash(),
+        build: "test".into(),
+        profile: name.into(),
+        token: "t".into(),
+        faction: None,
+        resume: None,
+    };
+    ws.send(Message::Binary(h.encode().into())).await.unwrap();
+    loop {
+        let m = tokio::time::timeout(Duration::from_secs(3), ws.next())
+            .await
+            .expect("Welcome in time")
+            .expect("open")
+            .expect("frame");
+        if let Message::Binary(b) = m {
+            if matches!(ServerMsg::decode(&b), Ok(ServerMsg::Welcome { .. })) {
+                return ws;
+            }
+        }
+    }
+}
+
+/// The reason the server ends the connection with: the code of the next `Reject` frame.
+async fn reject_code<S>(ws: &mut tokio_tungstenite::WebSocketStream<S>) -> rh_protocol::RejectCode
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    loop {
+        let m = tokio::time::timeout(Duration::from_secs(3), ws.next())
+            .await
+            .expect("a Reject in time")
+            .expect("open")
+            .expect("frame");
+        if let Message::Binary(b) = m {
+            if let Ok(ServerMsg::Reject { code, .. }) = ServerMsg::decode(&b) {
+                return code;
+            }
+        }
+    }
+}
+
+/// ws()'s `max_frame_size`/`max_message_size`: a client frame of exactly MAX_CLIENT_FRAME reaches the decoder (which
+/// refuses the junk as Malformed); one byte more is cut by the WebSocket layer first, so the connection just ends (Kicked).
+#[tokio::test]
+async fn the_websocket_layer_cuts_client_frames_exactly_past_the_limit() {
+    let s = start(false).await;
+    let mut ws = welcomed(&s, "limit_ok").await;
+    ws.send(Message::Binary(
+        vec![0xff; rh_protocol::MAX_CLIENT_FRAME].into(),
+    ))
+    .await
+    .unwrap();
+    assert_eq!(
+        reject_code(&mut ws).await,
+        rh_protocol::RejectCode::Malformed,
+        "a frame at the limit is decoded (and refused as junk)"
+    );
+    let mut ws = welcomed(&s, "limit_over").await;
+    let _ = ws
+        .send(Message::Binary(
+            vec![0xff; rh_protocol::MAX_CLIENT_FRAME + 1].into(),
+        ))
+        .await;
+    assert_eq!(
+        reject_code(&mut ws).await,
+        rh_protocol::RejectCode::Kicked,
+        "a frame past the limit never reaches the decoder"
+    );
+    s.handle.shutdown();
+}
+
+/// ws()'s 4 KiB read buffer: a burst far larger than the buffer (50 inputs and 50 pings, written without waiting) is read
+/// whole and in order: the 50 pongs come back with nonces 0..50.
+#[tokio::test]
+async fn a_burst_larger_than_the_read_buffer_is_read_whole_and_in_order() {
+    let s = start(false).await;
+    let mut ws = welcomed(&s, "burster").await;
+    let moves = vec![
+        rh_protocol::WireCommand::Move {
+            x: 100.0,
+            y: 100.0,
+            seq: Some(1),
+        };
+        rh_protocol::MAX_COMMANDS_PER_INPUT
+    ];
+    let input = ClientMsg::Input {
+        seq: 1,
+        commands: moves,
+    }
+    .encode();
+    assert!(
+        input.len() * 50 > 2 * rh_server::WS_READ_BUFFER,
+        "the burst must dwarf the read buffer ({} B per input)",
+        input.len()
+    );
+    for nonce in 0..50u32 {
+        ws.feed(Message::Binary(input.clone().into()))
+            .await
+            .unwrap();
+        let ping = ClientMsg::Ping {
+            nonce,
+            client_ms: 0.0,
+        };
+        ws.feed(Message::Binary(ping.encode().into()))
+            .await
+            .unwrap();
+    }
+    ws.flush().await.unwrap();
+    let mut next = 0u32;
+    while next < 50 {
+        let m = tokio::time::timeout(Duration::from_secs(5), ws.next())
+            .await
+            .expect("pongs in time")
+            .expect("open")
+            .expect("frame");
+        let Message::Binary(b) = m else { continue };
+        match ServerMsg::decode(&b).expect("decodes") {
+            ServerMsg::Pong { nonce, .. } => {
+                assert_eq!(nonce, next, "pongs arrive in ping order");
+                next += 1;
+            }
+            ServerMsg::Reject { code, reason } => panic!("rejected: {code:?} {reason}"),
+            _ => {}
+        }
+    }
+    s.handle.shutdown();
+}

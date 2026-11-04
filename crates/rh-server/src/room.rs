@@ -2,6 +2,7 @@
 //! task, in arrival order, between steps (the legacy rule: handlers validate and enqueue, the sim consumes at the next step).
 //! Nothing here blocks on I/O: frames go to per-connection [`Outbox`]es, results to a channel drained off-tick.
 
+use crate::metrics::{self, Histogram, Metrics};
 use crate::outbox::{Outbox, OutboxCounters};
 use crate::pacer::Pacer;
 use crate::wire;
@@ -108,6 +109,8 @@ pub enum RoomReport {
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct RoomStats {
     pub ticks: u64,
+    /// Step wall-time quantiles in microseconds, from a log-linear histogram: p50 and p99 are bucket upper bounds (never
+    /// below the true value, at most 25% above it); the max is exact.
     pub step_us_p50: u64,
     pub step_us_p99: u64,
     pub step_us_max: u64,
@@ -183,7 +186,9 @@ pub struct Room {
     last_events: Vec<Event>,
     reports: mpsc::UnboundedSender<RoomReport>,
     clock: Arc<AtomicU64>,
-    step_us: Vec<u32>,
+    /// Step wall times: a fixed-size histogram (384 bytes at any uptime; was a Vec growing to 288 KB).
+    step_us: Histogram,
+    metrics: &'static Metrics,
     bytes_out: u64,
     ended_at: Option<Instant>,
     draining: bool,
@@ -240,7 +245,8 @@ impl Room {
             last_events: Vec::new(),
             reports,
             clock: Arc::new(AtomicU64::new(0f64.to_bits())),
-            step_us: Vec::with_capacity(4096),
+            step_us: Histogram::new(),
+            metrics: metrics::process(),
             bytes_out: 0,
             ended_at: None,
             draining: false,
@@ -256,6 +262,12 @@ impl Room {
             fences: Vec::new(),
             reported_phase: Phase::Lobby,
         }
+    }
+
+    /// Reports to `metrics` instead of the process-wide counters (tests and benches that need isolated numbers).
+    pub fn with_metrics(mut self, metrics: &'static Metrics) -> Self {
+        self.metrics = metrics;
+        self
     }
 
     fn record(&mut self, input: ReplayInput) {
@@ -545,10 +557,24 @@ impl Room {
             // joined yet waits for its first player (its admission may be acquiring a durable lease off the tick).
             return self.close();
         }
+        let slot = self.pacer.next_deadline();
+        let dropped_before = self.pacer.dropped;
         let steps = self.pacer.due(now);
         if steps == 0 {
             return true;
         }
+        self.metrics.wakes.fetch_add(1, Ordering::Relaxed);
+        self.metrics
+            .steps
+            .fetch_add(u64::from(steps), Ordering::Relaxed);
+        self.metrics
+            .dropped_steps
+            .fetch_add(self.pacer.dropped - dropped_before, Ordering::Relaxed);
+        self.metrics.lateness_us.record(
+            now.saturating_duration_since(slot)
+                .as_micros()
+                .min(u128::from(u32::MAX)) as u32,
+        );
         let mut all_events: Vec<Event> = Vec::new();
         for _ in 0..steps {
             let t = std::time::Instant::now();
@@ -568,15 +594,18 @@ impl Room {
             if let Some(r) = self.recorder.as_mut() {
                 r.stepped(&self.sim);
             }
-            if self.step_us.len() < 72_000 {
-                self.step_us.push(us);
-            }
+            self.step_us.record(us);
+            self.metrics.step_us.record(us);
             self.last_events = ev.clone();
             all_events.extend(ev);
         }
         self.clock
             .store(self.sim.server_time().to_bits(), Ordering::Relaxed);
+        let t = std::time::Instant::now();
         self.publish(&all_events);
+        self.metrics
+            .publish_us
+            .record(t.elapsed().as_micros().min(u128::from(u32::MAX)) as u32);
         self.report_results(&all_events);
         if self.sim.phase() != self.reported_phase {
             // Every phase change reaches the director (a lobby that closed into a run must stop receiving joins).
@@ -616,6 +645,10 @@ impl Room {
                 }
                 .encode();
                 self.bytes_out += f.len() as u64;
+                self.metrics
+                    .bytes_out
+                    .fetch_add(f.len() as u64, Ordering::Relaxed);
+                self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
                 out.important(f);
             }
             // Fx are filtered per viewer too: only what this player can see (a swing behind a wall is not sent).
@@ -627,11 +660,19 @@ impl Room {
                 }
                 .encode();
                 self.bytes_out += f.len() as u64;
+                self.metrics
+                    .bytes_out
+                    .fetch_add(f.len() as u64, Ordering::Relaxed);
+                self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
                 out.fx(f);
             }
             match wire::encode_snapshot(&obs, h.ack_input) {
                 Ok(snap) => {
                     self.bytes_out += snap.len() as u64;
+                    self.metrics
+                        .bytes_out
+                        .fetch_add(snap.len() as u64, Ordering::Relaxed);
+                    self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
                     out.snapshot(snap);
                 }
                 // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
@@ -686,25 +727,16 @@ impl Room {
     }
 
     pub fn stats(&self) -> RoomStats {
-        let mut v = self.step_us.clone();
-        v.sort_unstable();
-        let q = |p: f64| {
-            if v.is_empty() {
-                0
-            } else {
-                v[((v.len() - 1) as f64 * p) as usize] as u64
-            }
-        };
         // Connections the room still holds count live; the ones it let go were folded in when it did.
         let mut outboxes = self.retired_outboxes;
         for o in self.humans.iter().filter_map(|h| h.outbox.as_deref()) {
             outboxes.add(o.counters());
         }
         RoomStats {
-            ticks: v.len() as u64,
-            step_us_p50: q(0.5),
-            step_us_p99: q(0.99),
-            step_us_max: v.last().copied().unwrap_or(0) as u64,
+            ticks: self.step_us.count(),
+            step_us_p50: self.step_us.quantile(0.5),
+            step_us_p99: self.step_us.quantile(0.99),
+            step_us_max: self.step_us.max(),
             late_wakes: self.pacer.late_wakes,
             dropped_steps: self.pacer.dropped,
             bytes_out: self.bytes_out,
@@ -716,17 +748,40 @@ impl Room {
 }
 
 /// The room's task: commands in arrival order between steps; one wake per grid slot.
+///
+/// C-TICK note: the select is `biased` with the step deadline first. When a step is due and commands are queued at the same
+/// poll, the step runs first and the commands are applied (and acknowledged) after it, so they take effect in the next
+/// step's input window. Before, either order was possible and a paused-clock run varied with the runtime's random branch
+/// choice (about 1.4% in instructions). Only already-allowed orderings remain: a command arriving a moment after the wake
+/// would have met the same order, and replays record the order actually applied. The deadline is one pinned [`Sleep`]
+/// that is reset only when the grid's next slot changes, not a new timer per loop turn.
+///
+/// [`Sleep`]: tokio::time::Sleep
 pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
+    let mut armed = room.next_deadline();
+    let sleep = tokio::time::sleep_until(armed);
+    tokio::pin!(sleep);
     loop {
-        let deadline = room.next_deadline();
         tokio::select! {
+            biased;
+            _ = &mut sleep => {
+                if !room.wake(Instant::now()) { return; }
+                // The sleep has fired: arm it for the next slot (a wake that ran no step leaves the slot where it was,
+                // and re-arming it then behaves as a fresh `sleep_until`, as before).
+                armed = room.next_deadline();
+                sleep.as_mut().reset(armed);
+            }
             cmd = rx.recv() => match cmd {
-                Some(cmd) => room.handle(cmd, Instant::now()),
+                Some(cmd) => {
+                    room.handle(cmd, Instant::now());
+                    let next = room.next_deadline();
+                    if next != armed {
+                        armed = next;
+                        sleep.as_mut().reset(armed);
+                    }
+                }
                 None => { room.close(); return; }
             },
-            _ = tokio::time::sleep_until(deadline) => {
-                if !room.wake(Instant::now()) { return; }
-            }
         }
     }
 }

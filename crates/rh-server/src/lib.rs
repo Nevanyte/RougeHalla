@@ -4,6 +4,7 @@
 pub mod conn;
 pub mod director;
 pub mod hosting;
+pub mod metrics;
 pub mod outbox;
 pub mod pacer;
 pub mod persist;
@@ -99,7 +100,11 @@ async fn control_health(State(d): State<Arc<Director>>) -> impl IntoResponse {
     };
     (
         code,
-        Json(serde_json::json!({ "state": d.lifecycle.state_name(), "rooms": d.room_count() })),
+        Json(serde_json::json!({
+            "state": d.lifecycle.state_name(),
+            "rooms": d.room_count(),
+            "metrics": metrics::process().json(),
+        })),
     )
 }
 
@@ -113,6 +118,12 @@ pub type AcceptHook = Arc<dyn Fn(&TcpStream) + Send + Sync>;
 
 /// The production acceptor: sets `TCP_NODELAY` on every accepted socket, before any TLS handshake wraps it. Up to three
 /// small frames per client per tick would otherwise wait on Nagle and the peer's delayed ACK.
+///
+/// Why this type and not `axum_server::accept::NoDelayAcceptor`: that one does exactly the same `set_nodelay(true)` and
+/// nothing else. This one adds the accept hook, which runs on the accepted `TcpStream` right after the option is set. Once
+/// `RustlsAcceptor` wraps the stream the socket is out of reach, so the hook is the only place the transport tests can
+/// read `TCP_NODELAY` back from the real production acceptor (plain and TLS alike). With no hook (production) the two
+/// behave identically; swap to the stock acceptor only if those tests find another way to observe the socket.
 #[derive(Clone, Default)]
 pub struct NoDelay {
     hook: Option<AcceptHook>,
