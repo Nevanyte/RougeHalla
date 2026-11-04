@@ -3,7 +3,9 @@
 //! 1 draw, 2 died, 3 mia; faction and weapon codes are the content tables' order.
 
 use rh_protocol::quant::POS_MAX;
-use rh_protocol::{ServerMsg, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf};
+use rh_protocol::{
+    ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf,
+};
 use rh_sim::observe::{Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
@@ -146,6 +148,22 @@ pub fn encode_snapshot(
     Ok(scratch.clone())
 }
 
+/// The snapshot of `obs` as the wire data a connection's writer encodes (protocol v3): the actors quantized, the self at full
+/// precision, validated. Its Full frame is byte-identical to `snapshot(obs, ack_input).try_encode()`. An observation the codec
+/// refuses (a position off the wire grid) is an error, never a repaired snapshot.
+pub fn snapshot_data(
+    obs: &Observation,
+    ack_input: u32,
+) -> Result<SnapshotData, rh_protocol::EncodeError> {
+    SnapshotData::build(
+        obs.tick,
+        phase(obs.phase),
+        ack_input,
+        obs.me.as_ref().map(wire_self),
+        obs.visible.iter().map(wire_actor),
+    )
+}
+
 /// What one observed event is on the wire: the reliable Events frame or the disposable Fx frame. Exhaustive over
 /// [`SeenEvent`] (no wildcard): a new kind of observed event cannot reach a client without a wire form being chosen.
 enum Wire {
@@ -194,18 +212,21 @@ pub struct ViewFrames {
     pub important: Option<Vec<u8>>,
     /// Disposable fx the viewer can see, if any.
     pub fx: Option<Vec<u8>>,
-    /// The state snapshot; an error when the codec refuses the observation (never a repaired frame).
-    pub snapshot: Result<Vec<u8>, rh_protocol::EncodeError>,
+    /// The state snapshot as wire data for the connection's writer to encode (Full or delta); an error when the codec
+    /// refuses the observation (never a repaired snapshot).
+    pub snapshot: Result<SnapshotData, rh_protocol::EncodeError>,
 }
 
 impl ViewFrames {
+    /// Bytes handed to the outbox: the events and fx frames, and the snapshot at the size of its Full frame (the writer may
+    /// send less: a delta).
     pub fn bytes(&self) -> usize {
         [&self.important, &self.fx]
             .into_iter()
             .flatten()
             .map(Vec::len)
             .sum::<usize>()
-            + self.snapshot.as_ref().map_or(0, Vec::len)
+            + self.snapshot.as_ref().map_or(0, SnapshotData::full_len)
     }
 }
 
@@ -216,7 +237,6 @@ pub struct Publisher {
     obs: Observation,
     events: Vec<WireEvent>,
     fx: Vec<WireFx>,
-    scratch: Vec<u8>,
 }
 
 impl Publisher {
@@ -294,7 +314,7 @@ impl Publisher {
             }
             Some(frame)
         };
-        let snapshot = encode_snapshot(&self.obs, ack_input, &mut self.scratch);
+        let snapshot = snapshot_data(&self.obs, ack_input);
         ViewFrames {
             important,
             fx,

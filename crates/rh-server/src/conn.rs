@@ -24,6 +24,9 @@ pub const SEND_TIMEOUT: Duration = Duration::from_secs(5);
 /// or EOF. Dropping a socket with unread input makes the kernel reset it, and a reset can destroy the Reject frame
 /// before the client reads it (seen under load with a flooding client).
 pub const CLOSE_LINGER: Duration = Duration::from_secs(1);
+/// A client's `Resync` (it refused a delta) is honoured at most this often; more are ignored, not punished (the frame bucket
+/// below already bounds a flood).
+pub const RESYNC_MIN_INTERVAL: Duration = Duration::from_secs(1);
 /// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst.
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
@@ -47,6 +50,25 @@ impl Bucket {
         } else {
             false
         }
+    }
+}
+
+/// Admits a `Resync` when none was honoured within [`RESYNC_MIN_INTERVAL`].
+#[derive(Default)]
+struct ResyncLimit {
+    last: Option<tokio::time::Instant>,
+}
+
+impl ResyncLimit {
+    fn allow(&mut self, now: tokio::time::Instant) -> bool {
+        if self
+            .last
+            .is_some_and(|t| now.duration_since(t) < RESYNC_MIN_INTERVAL)
+        {
+            return false;
+        }
+        self.last = Some(now);
+        true
     }
 }
 
@@ -140,6 +162,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     let mut last_seen = start;
     let mut left = false;
     let mut writer_done = false;
+    let mut resync = ResyncLimit::default();
     loop {
         // Stop reading as soon as the writer is done (a TooSlow/RateLimited close, or a dead socket), or on idleness.
         let msg = match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
@@ -188,6 +211,12 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                     }
                     .encode(),
                 );
+            }
+            Ok(ClientMsg::Resync) => {
+                // The client refused a delta: its next snapshot is a Full frame (rate limited; a flood is ignored).
+                if resync.allow(last_seen) {
+                    outbox.request_resync();
+                }
             }
             Ok(ClientMsg::Leave) => {
                 let _ = room.send(RoomCmd::Leave { player, conn }).await;
@@ -371,6 +400,17 @@ mod tests {
         }
     }
 
+    fn snap(tick: u32) -> rh_protocol::SnapshotData {
+        rh_protocol::SnapshotData::build(tick, 1, 0, None, std::iter::empty()).expect("valid")
+    }
+
+    /// The Full frame of `snap(tick)`.
+    fn snap_frame(tick: u32) -> Vec<u8> {
+        let mut v = Vec::new();
+        snap(tick).encode_full_into(&mut v);
+        v
+    }
+
     fn bin(m: &Message) -> &[u8] {
         match m {
             Message::Binary(b) => b,
@@ -434,7 +474,7 @@ mod tests {
         let out = Outbox::default();
         // A tick for a client that is also owed a Pong: pong, events, fx, snapshot.
         out.important(vec![1, 1]);
-        out.push_tick(Some(vec![1, 2]), Some(vec![2, 1]), Some(vec![3, 1]));
+        out.push_tick(Some(vec![1, 2]), Some(vec![2, 1]), Some(snap(1)));
         let mut batch = Vec::new();
         let d = out.wait_drain(&mut batch).await;
         assert_eq!(d.frames, 4);
@@ -448,14 +488,15 @@ mod tests {
             "the flush comes after every frame"
         );
         let got: Vec<&[u8]> = sink.sent.iter().map(bin).collect();
-        assert_eq!(got, vec![&[1u8, 1][..], &[1, 2], &[2, 1], &[3, 1]]);
+        let full = snap_frame(1);
+        assert_eq!(got, vec![&[1u8, 1][..], &[1, 2], &[2, 1], &full[..]]);
         assert!(batch.is_empty());
     }
 
     #[tokio::test]
     async fn a_close_shares_the_flush_of_the_frames_before_it() {
         let out = Outbox::default();
-        out.push_tick(Some(vec![7]), Some(vec![8]), Some(vec![9]));
+        out.push_tick(Some(vec![7]), Some(vec![8]), Some(snap(9)));
         out.close(RejectCode::RateLimited);
         let mut batch = Vec::new();
         let d = out.wait_drain(&mut batch).await;
@@ -501,5 +542,16 @@ mod tests {
         let mut tick = vec![vec![0u8; 3000], vec![0u8; 200], vec![0u8; 9000]];
         let mut sink = CountingSink::default();
         assert_eq!(write_batch(&mut sink, &mut tick, None).await, Ok(1));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn resyncs_are_honoured_once_per_interval() {
+        let mut l = ResyncLimit::default();
+        let t0 = tokio::time::Instant::now();
+        assert!(l.allow(t0));
+        assert!(!l.allow(t0 + Duration::from_millis(10)));
+        assert!(!l.allow(t0 + RESYNC_MIN_INTERVAL - Duration::from_millis(1)));
+        assert!(l.allow(t0 + RESYNC_MIN_INTERVAL));
+        assert!(!l.allow(t0 + RESYNC_MIN_INTERVAL + Duration::from_millis(1)));
     }
 }

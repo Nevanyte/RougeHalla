@@ -5,7 +5,9 @@
 #![allow(irrefutable_let_patterns)]
 
 use futures_util::{SinkExt, StreamExt};
-use rh_protocol::{ClientMsg, RejectCode, ServerMsg, WireCommand, WireEvent, PROTOCOL_VERSION};
+use rh_protocol::{
+    ClientMsg, RejectCode, ServerMsg, SnapshotTracker, WireCommand, WireEvent, PROTOCOL_VERSION,
+};
 use rh_server::director::{Director, DirectorConfig};
 use rh_server::hosting::Lifecycle;
 use rh_server::persist::{Auth, Persistence};
@@ -17,7 +19,25 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
+/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v3), and `recv` resolves
+/// both to `ServerMsg::Snapshot`, as a client does. A Welcome resets the decoder, so a resumed connection starts afresh.
+struct Ws {
+    sock: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    track: SnapshotTracker,
+}
+
+impl std::ops::Deref for Ws {
+    type Target = WebSocketStream<MaybeTlsStream<TcpStream>>;
+    fn deref(&self) -> &Self::Target {
+        &self.sock
+    }
+}
+
+impl std::ops::DerefMut for Ws {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sock
+    }
+}
 const TEST_TICK: Duration = Duration::from_millis(3);
 
 /// A 12x8 room whose two spawns are 32 u apart: both fighters are in fists reach from the first tick.
@@ -89,10 +109,13 @@ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server 
 }
 
 async fn connect(url: &str) -> Ws {
-    tokio_tungstenite::connect_async(url)
-        .await
-        .expect("connect")
-        .0
+    Ws {
+        sock: tokio_tungstenite::connect_async(url)
+            .await
+            .expect("connect")
+            .0,
+        track: SnapshotTracker::new(),
+    }
 }
 
 async fn send(ws: &mut Ws, m: ClientMsg) {
@@ -102,9 +125,9 @@ async fn send(ws: &mut Ws, m: ClientMsg) {
 /// The next server message, or None if the socket closed or nothing came within 3 s.
 async fn recv(ws: &mut Ws) -> Option<ServerMsg> {
     loop {
-        match tokio::time::timeout(Duration::from_secs(3), ws.next()).await {
+        match tokio::time::timeout(Duration::from_secs(3), ws.sock.next()).await {
             Ok(Some(Ok(Message::Binary(b)))) => {
-                return Some(ServerMsg::decode(&b).expect("server frames decode"))
+                return Some(ws.track.decode(&b).expect("server frames decode and apply"))
             }
             Ok(Some(Ok(Message::Close(_)))) | Ok(None) | Ok(Some(Err(_))) | Err(_) => return None,
             Ok(Some(Ok(_))) => continue,
@@ -255,7 +278,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             ..
         })
     ));
-    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v2.
+    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v3.
     let mut ws = connect(&s.url).await;
     send(
         &mut ws,
@@ -274,7 +297,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
         Some(ServerMsg::Reject {
             code: RejectCode::ProtocolMismatch,
             reason,
-        }) => assert!(reason.contains("protocol 2"), "{reason}"),
+        }) => assert!(reason.contains("protocol 3"), "{reason}"),
         other => panic!("{other:?}"),
     }
     // Wrong content hash: the reason names the server's.
