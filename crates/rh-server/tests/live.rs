@@ -583,9 +583,10 @@ async fn snapshot_kinds_for(ws: &mut Ws, ms: u64) -> Vec<u8> {
 }
 
 /// Protocol v3 over a real socket: the first snapshot is Full and deltas follow; a Resync is answered by exactly one Full
-/// snapshot; a second Resync inside the interval is ignored (not punished: the connection stays up); one after it is honoured.
+/// snapshot; Resyncs that follow within the interval between forced Full frames (20 ticks) are not lost: each burst of them ends
+/// with one more Full snapshot and deltas resume (a client that asks once per burst of refusals can never freeze).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_resync_is_answered_with_one_full_snapshot_at_most_once_a_second() {
+async fn a_resync_is_answered_with_a_full_snapshot_and_never_dropped() {
     let s = start(duel_arena(), |_| {}).await;
     let (mut ws, _, _) = join(&s.url, "tango2", None).await;
     let full = |k: &[u8]| k.iter().filter(|b| **b == 0x83).count();
@@ -596,21 +597,41 @@ async fn a_resync_is_answered_with_one_full_snapshot_at_most_once_a_second() {
 
     send(&mut ws, ClientMsg::Resync).await;
     let answered = snapshot_kinds_for(&mut ws, 300).await;
-    assert_eq!(full(&answered), 1, "one Full per honoured Resync");
+    assert_eq!(full(&answered), 1, "one Full per Resync");
     assert!(
         answered.len() > 20 && answered.last() == Some(&0x87),
         "deltas resume"
     );
 
+    // Two refusals back to back (the second inside the 20-tick interval between forced Full frames): the first is answered at
+    // once, the second is not dropped but answered when the interval ends. Two Full frames, then deltas.
     send(&mut ws, ClientMsg::Resync).await;
-    let ignored = snapshot_kinds_for(&mut ws, 300).await;
-    assert_eq!(full(&ignored), 0, "a Resync inside the interval is ignored");
-    assert!(ignored.len() > 20, "and the connection is fine");
+    tokio::time::sleep(Duration::from_millis(15)).await; // a few ticks: the two requests are not one
+    send(&mut ws, ClientMsg::Resync).await;
+    let deferred = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(
+        full(&deferred),
+        2,
+        "the early Resync is answered, not dropped"
+    );
+    assert!(deferred.len() > 20 && deferred.last() == Some(&0x87));
+    // A burst is answered by a bounded number of Full frames (one per interval at most), and the last one always is.
+    for _ in 0..4 {
+        send(&mut ws, ClientMsg::Resync).await;
+        tokio::time::sleep(Duration::from_millis(15)).await;
+    }
+    let burst = snapshot_kinds_for(&mut ws, 300).await;
+    assert!(
+        (2..=4).contains(&full(&burst)),
+        "{} Full frames",
+        full(&burst)
+    );
+    assert!(burst.len() > 20 && burst.last() == Some(&0x87));
 
-    tokio::time::sleep(Duration::from_millis(1100)).await;
-    send(&mut ws, ClientMsg::Resync).await;
-    let again = snapshot_kinds_for(&mut ws, 300).await;
-    assert_eq!(full(&again), 1, "honoured again after the interval");
+    // The connection is fine and quiet again.
+    let quiet = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(full(&quiet), 0);
+    assert!(quiet.len() > 20);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

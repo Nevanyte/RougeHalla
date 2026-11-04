@@ -3,8 +3,8 @@
 //! Three pieces, one per side of the socket:
 //!
 //! * [`SnapshotData`]: one viewer's snapshot as the room hands it to a connection: remote actors already quantized
-//!   ([`QActor`]), the self at full precision, and the exact size of its Full frame. The room builds it once per tick from the
-//!   observation ([`SnapshotData::build`], which refuses what the encoders always refused) and does not encode it.
+//!   ([`QActor`]), the self at full precision, and a lower bound of its Full frame size (the exact size is computed only when
+//!   needed). The room builds it once per tick from the observation ([`SnapshotData::build`], which refuses what the encoders always refused) and does not encode it.
 //! * [`ConnEncoder`]: the connection's writer state. It remembers the last snapshot it wrote and encodes the next one as a
 //!   Full frame (the v2 layout) or as a Delta against that base, whichever is smaller; a snapshot a slow client skipped never
 //!   reaches it. Its memory is bounded by [`MAX_ACTORS`] (one base, two scratch lists).
@@ -23,6 +23,11 @@ use crate::*;
 
 /// Most ticks a delta's base may be behind it (a writer that skipped more sends a Full frame instead).
 pub const MAX_DELTA_AGE: u32 = 64;
+
+/// Fewest ticks between two Full frames that a resync request forced (20 ticks = 1 s at 20 Hz). A request that arrives sooner
+/// is not dropped: it stays pending and the Full frame goes out when the interval ends, so a client that asks once per burst
+/// of refusals always gets its Full frame, and a client that asks in a flood costs the writer one Full per interval.
+pub const MIN_FORCED_FULL_TICKS: u32 = 20;
 
 /// Delta head word: bit 15 a self follows, bit 14 a departed list follows, bits 12..=13 the phase, bits 0..=11 the self
 /// fields that follow (the same order as the bits).
@@ -374,8 +379,11 @@ pub enum FrameKind {
 #[derive(Debug, Default)]
 pub struct ConnEncoder {
     base: Option<SnapshotData>,
-    /// A resync was requested: the next snapshot is Full.
+    /// A resync was requested and not yet answered: the next snapshot is Full once [`MIN_FORCED_FULL_TICKS`] have passed since
+    /// the last forced one (until then deltas continue and the request stays pending).
     force_full: bool,
+    /// The tick of the last Full frame that answered a resync request.
+    last_forced: Option<u32>,
     departed: Vec<u32>,
     /// The base before the current one, free to build the next snapshot in ([`ConnEncoder::take_spare`]).
     spare: Option<SnapshotData>,
@@ -386,7 +394,8 @@ impl ConnEncoder {
         Self::default()
     }
 
-    /// The next snapshot is a Full frame (a client asked to resync).
+    /// A client asked to resync: the next snapshot is a Full frame, or the first one at least [`MIN_FORCED_FULL_TICKS`] after the
+    /// last forced Full (the request is kept, never dropped). Asking again while it is pending changes nothing.
     pub fn request_full(&mut self) {
         self.force_full = true;
     }
@@ -411,10 +420,19 @@ impl ConnEncoder {
         self.spare.take()
     }
 
-    /// Whether `cur` may be sent as a delta against the base.
-    fn delta_possible(&self, cur: &SnapshotData) -> bool {
+    /// Whether a pending resync request is to be answered with `cur` (it is pending and the interval since the last forced Full
+    /// has passed).
+    fn forced_full_due(&self, cur: &SnapshotData) -> bool {
+        self.force_full
+            && self
+                .last_forced
+                .is_none_or(|t| cur.tick.wrapping_sub(t) >= MIN_FORCED_FULL_TICKS)
+    }
+
+    /// Whether `cur` may be sent as a delta against the base; `forced` is [`ConnEncoder::forced_full_due`].
+    fn delta_possible(&self, cur: &SnapshotData, forced: bool) -> bool {
         let Some(b) = &self.base else { return false };
-        if self.force_full || cur.tick <= b.tick || cur.tick - b.tick > MAX_DELTA_AGE {
+        if forced || cur.tick <= b.tick || cur.tick - b.tick > MAX_DELTA_AGE {
             return false;
         }
         match (&b.me, &cur.me) {
@@ -429,7 +447,8 @@ impl ConnEncoder {
     pub fn encode(&mut self, snap: SnapshotData, out: &mut Vec<u8>) -> FrameKind {
         let start = out.len();
         let mut kind = FrameKind::Full;
-        if self.delta_possible(&snap) {
+        let forced = self.forced_full_due(&snap);
+        if self.delta_possible(&snap, forced) {
             let base = self.base.as_ref().expect("checked by delta_possible");
             write_delta(base, &snap, &mut self.departed, out);
             // Smaller than the Full frame? Below the Full frame's least size it certainly is; the exact size (a pass over the
@@ -444,7 +463,13 @@ impl ConnEncoder {
         if kind == FrameKind::Full {
             snap.encode_full_into(out);
         }
-        self.force_full = false;
+        if kind == FrameKind::Full {
+            // Any Full frame answers a pending request (the client holds a snapshot it can apply deltas to again).
+            self.force_full = false;
+            if forced {
+                self.last_forced = Some(snap.tick);
+            }
+        }
         self.spare = self.base.replace(snap);
         kind
     }

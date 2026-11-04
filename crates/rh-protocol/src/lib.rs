@@ -193,7 +193,8 @@ pub enum ClientMsg {
     },
     Leave,
     /// "Send me a full snapshot": the client refused a delta it could not apply (v3). The server answers with a Full
-    /// snapshot at its next tick, honouring at most one request per second per connection.
+    /// snapshot at its next tick, or at the first tick at least 20 (one second) after its previous forced Full if that is
+    /// later: a request is never dropped, only deferred ([`delta::MIN_FORCED_FULL_TICKS`]).
     Resync,
 }
 

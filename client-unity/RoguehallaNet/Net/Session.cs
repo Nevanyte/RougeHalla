@@ -261,12 +261,12 @@ namespace Roguehalla.Net
             if (fx != null && FxReceived != null) FxReceived(fx);
         }
 
-        /// <summary>A delta did not apply: keep the snapshot held, and (once per burst, while in the match) ask for a Full one.</summary>
+        /// <summary>A delta did not apply: keep the snapshot held, and (once per burst, while in the match or after it ended: snapshots still arrive) ask for a Full one.</summary>
         void RefuseDelta(string why)
         {
             DeltasRefused++;
             Error = why;
-            if (_needFull || State != SessionState.InMatch) return;
+            if (_needFull || (State != SessionState.InMatch && State != SessionState.Ended)) return;
             _needFull = true;
             ResyncsSent++;
             Send(new ClientMsg.Resync());

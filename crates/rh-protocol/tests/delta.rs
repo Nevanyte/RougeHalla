@@ -1,5 +1,5 @@
 //! Protocol v3 snapshot deltas: the writer's encoder and the client's tracker, held to each other and to the Full frame.
-use rh_protocol::delta::{diff, AD_ALL, AD_X, AD_Y};
+use rh_protocol::delta::{diff, AD_ALL, AD_X, AD_Y, MIN_FORCED_FULL_TICKS};
 use rh_protocol::*;
 
 struct Rng(u64);
@@ -291,6 +291,103 @@ fn first_full(s: &SnapshotData) -> Vec<u8> {
     let mut v = Vec::new();
     assert_eq!(enc.encode(s.clone(), &mut v), FrameKind::Full);
     v
+}
+
+/// A resync request is never lost: one that comes within MIN_FORCED_FULL_TICKS of the last forced Full stays pending, deltas go on
+/// until the interval ends, and then exactly one Full frame answers it (however many requests came meanwhile). A client that
+/// refused its deltas in between recovers with that Full frame.
+#[test]
+fn a_resync_inside_the_interval_is_deferred_not_dropped() {
+    let snaps = walk(1, 120);
+    // The Full frames the walk needs without any request (a delta larger than its Full frame, say).
+    let natural: Vec<usize> = {
+        let mut enc = ConnEncoder::new();
+        (0..snaps.len())
+            .filter(|&i| enc.encode(snaps[i].clone(), &mut Vec::new()) == FrameKind::Full)
+            .collect()
+    };
+    let mut enc = ConnEncoder::new();
+    let mut tracker = SnapshotTracker::new();
+    let mut kinds = Vec::new();
+    let mut forced_at = Vec::new();
+    for (i, s) in snaps.iter().enumerate() {
+        // Requests: at snapshot 5 (answered at once: none forced before), 8 (deferred), repeatedly at 9..=12 (still one), and
+        // at 60 (long after the interval).
+        if matches!(i, 5 | 8 | 9 | 10 | 11 | 12 | 60) {
+            enc.request_full();
+        }
+        let mut f = Vec::new();
+        let kind = enc.encode(s.clone(), &mut f);
+        kinds.push(kind);
+        if kind == FrameKind::Full && i > 0 && !natural.contains(&i) {
+            forced_at.push((i, s.tick()));
+        }
+        // The decoder under test holds nothing back: it applies every frame the writer wrote.
+        tracker.decode(&f).expect("every frame applies");
+        assert_eq!(tracker.snapshot().unwrap(), s.decoded());
+    }
+    assert_eq!(kinds[0], FrameKind::Full);
+    let first = snaps[5].tick();
+    let due = first + MIN_FORCED_FULL_TICKS;
+    let second = snaps
+        .iter()
+        .position(|s| s.tick() >= due)
+        .expect("the walk is long enough");
+    assert_eq!(
+        forced_at.iter().map(|(i, _)| *i).collect::<Vec<_>>(),
+        vec![5, second, 60],
+        "one Full per answered request: at once, when the interval ends, and later"
+    );
+    for kind in &kinds[6..second] {
+        assert_eq!(*kind, FrameKind::Delta, "deltas continue while pending");
+    }
+}
+
+/// The failing sequence of the review: a delta is refused, the Full frame answers, the next delta is refused within the interval,
+/// and the (single) second request still ends with a Full frame the client applies.
+#[test]
+fn two_refusals_inside_the_interval_still_end_with_a_full_frame() {
+    let snaps = walk(9, 100);
+    let mut enc = ConnEncoder::new();
+    let mut tracker = SnapshotTracker::new();
+    let mut f = Vec::new();
+    enc.encode(snaps[0].clone(), &mut f);
+    tracker.decode(&f).unwrap();
+    // The client lost its snapshot (a refusal) and asks; the answer is Full.
+    tracker.reset();
+    enc.request_full();
+    f.clear();
+    assert_eq!(enc.encode(snaps[1].clone(), &mut f), FrameKind::Full);
+    tracker.decode(&f).unwrap();
+    // It refuses the very next delta (it was reset again) and asks once, then skips deltas until a Full frame.
+    tracker.reset();
+    enc.request_full();
+    let mut full_at = None;
+    for s in &snaps[2..] {
+        f.clear();
+        let kind = enc.encode(s.clone(), &mut f);
+        if tracker.decode(&f).is_ok() {
+            assert_eq!(
+                kind,
+                FrameKind::Full,
+                "only a Full frame applies to a client with no base"
+            );
+            full_at = Some(s.tick());
+            break;
+        }
+        assert_eq!(kind, FrameKind::Delta);
+    }
+    assert_eq!(
+        full_at,
+        Some(snaps[1].tick() + MIN_FORCED_FULL_TICKS),
+        "the Full frame goes out when the interval ends"
+    );
+    // And deltas apply again.
+    f.clear();
+    let next = snaps.iter().find(|s| Some(s.tick()) > full_at).unwrap();
+    assert_eq!(enc.encode(next.clone(), &mut f), FrameKind::Delta);
+    tracker.decode(&f).expect("applies again");
+    assert_eq!(tracker.snapshot().unwrap(), next.decoded());
 }
 
 #[test]

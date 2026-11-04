@@ -24,9 +24,6 @@ pub const SEND_TIMEOUT: Duration = Duration::from_secs(5);
 /// or EOF. Dropping a socket with unread input makes the kernel reset it, and a reset can destroy the Reject frame
 /// before the client reads it (seen under load with a flooding client).
 pub const CLOSE_LINGER: Duration = Duration::from_secs(1);
-/// A client's `Resync` (it refused a delta) is honoured at most this often; more are ignored, not punished (the frame bucket
-/// below already bounds a flood).
-pub const RESYNC_MIN_INTERVAL: Duration = Duration::from_secs(1);
 /// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst.
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
@@ -50,25 +47,6 @@ impl Bucket {
         } else {
             false
         }
-    }
-}
-
-/// Admits a `Resync` when none was honoured within [`RESYNC_MIN_INTERVAL`].
-#[derive(Default)]
-struct ResyncLimit {
-    last: Option<tokio::time::Instant>,
-}
-
-impl ResyncLimit {
-    fn allow(&mut self, now: tokio::time::Instant) -> bool {
-        if self
-            .last
-            .is_some_and(|t| now.duration_since(t) < RESYNC_MIN_INTERVAL)
-        {
-            return false;
-        }
-        self.last = Some(now);
-        true
     }
 }
 
@@ -162,7 +140,6 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     let mut last_seen = start;
     let mut left = false;
     let mut writer_done = false;
-    let mut resync = ResyncLimit::default();
     loop {
         // Stop reading as soon as the writer is done (a TooSlow/RateLimited close, or a dead socket), or on idleness.
         let msg = match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
@@ -213,10 +190,10 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                 );
             }
             Ok(ClientMsg::Resync) => {
-                // The client refused a delta: its next snapshot is a Full frame (rate limited; a flood is ignored).
-                if resync.allow(last_seen) {
-                    outbox.request_resync();
-                }
+                // The client refused a delta: it gets a Full frame. The request is never dropped; the writer spaces forced Full
+                // frames by MIN_FORCED_FULL_TICKS and keeps a request that arrives sooner pending (the frame bucket above
+                // bounds a flood).
+                outbox.request_resync();
             }
             Ok(ClientMsg::Leave) => {
                 let _ = room.send(RoomCmd::Leave { player, conn }).await;
@@ -542,16 +519,5 @@ mod tests {
         let mut tick = vec![vec![0u8; 3000], vec![0u8; 200], vec![0u8; 9000]];
         let mut sink = CountingSink::default();
         assert_eq!(write_batch(&mut sink, &mut tick, None).await, Ok(1));
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn resyncs_are_honoured_once_per_interval() {
-        let mut l = ResyncLimit::default();
-        let t0 = tokio::time::Instant::now();
-        assert!(l.allow(t0));
-        assert!(!l.allow(t0 + Duration::from_millis(10)));
-        assert!(!l.allow(t0 + RESYNC_MIN_INTERVAL - Duration::from_millis(1)));
-        assert!(l.allow(t0 + RESYNC_MIN_INTERVAL));
-        assert!(!l.allow(t0 + RESYNC_MIN_INTERVAL + Duration::from_millis(1)));
     }
 }

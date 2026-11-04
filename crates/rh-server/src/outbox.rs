@@ -40,8 +40,8 @@ pub struct OutboxCounters {
     pub fx_dropped: u64,
     /// Snapshots replaced by a newer one before the writer took them.
     pub snapshots_skipped: u64,
-    /// Bytes of every frame accepted into the queues (including fx and snapshots later dropped; a snapshot counts at the
-    /// size of its Full frame); only ever increases.
+    /// Bytes of every frame accepted into the queues (including fx and snapshots later dropped; a snapshot counts at
+    /// [`SnapshotData::min_len`], a lower bound of its Full frame, not at the bytes sent: see `snapshot_bytes_sent`); only ever increases.
     pub bytes_enqueued_total: u64,
     /// Snapshot frames the writer encoded as Full frames (the first after a Welcome, resyncs, large changes).
     pub snapshots_full: u64,
@@ -199,8 +199,9 @@ impl Outbox {
         self.wake(s, false);
     }
 
-    /// A client asked for a Full snapshot (it refused a delta): the next snapshot the writer encodes is Full. The caller rate
-    /// limits requests (`conn.rs`); a flood of them only keeps the flag set.
+    /// A client asked for a Full snapshot (it refused a delta). The request is kept until answered: the writer encodes a Full
+    /// frame with the next snapshot, or, when it forced one less than `MIN_FORCED_FULL_TICKS` ago, with the first snapshot after
+    /// that interval. Requests never get lost, and a flood of them only keeps the flag set.
     pub fn request_resync(&self) {
         self.resync.store(true, Ordering::Relaxed);
     }
@@ -226,7 +227,12 @@ impl Outbox {
         self.snapshot_bytes_sent
             .fetch_add(frame.len() as u64, Ordering::Relaxed);
         if spare.is_some() {
-            self.state.lock().expect("outbox lock").spare = spare;
+            // A spare the room has not taken yet (put there when a pending snapshot was replaced) stays: one block is recycled,
+            // the other is dropped, never one overwriting the other's slot silently.
+            let mut st = self.state.lock().expect("outbox lock");
+            if st.spare.is_none() {
+                st.spare = spare;
+            }
         }
         frame
     }

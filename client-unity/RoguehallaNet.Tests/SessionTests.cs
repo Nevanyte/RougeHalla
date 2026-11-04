@@ -188,6 +188,28 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void TwoRefusalsCloseTogetherEachAskAndTheFullFrameThatEndsThemRestoresTheTracker()
+        {
+            // The server answers a Resync with a Full frame, but never earlier than 20 ticks after its previous forced one: the
+            // second request waits. The client asks once per burst and must be able to rely on that answer.
+            ToMatch();
+            _t.Deliver(FullSnap(2, 40, Actor(9, 1)));
+            _t.Deliver(Delta(5, 4, 50, 8)); // refusal 1
+            Assert.AreEqual(1, Resyncs());
+            _t.Deliver(FullSnap(6, 41, Actor(9, 1))); // the answer
+            _t.Deliver(Delta(8, 7, 51, 8)); // refusal 2, right after
+            Assert.AreEqual(2, _s.DeltasRefused); Assert.AreEqual(2, Resyncs(), "a new burst asks again");
+            _t.Deliver(Delta(9, 8, 52, 8)); // deltas the server sends while it defers the request
+            _t.Deliver(Delta(10, 9, 53, 8));
+            Assert.AreEqual(4, _s.DeltasRefused); Assert.AreEqual(2, Resyncs(), "and only once");
+            Assert.AreEqual(2, _s.Snapshots.Count, "nothing applied meanwhile");
+            _t.Deliver(FullSnap(26, 60, Actor(9, 3))); // the deferred answer
+            _t.Deliver(Delta(27, 26, 61, 8));
+            Assert.AreEqual(4, _s.Snapshots.Count); Assert.AreEqual(61f, _s.Latest.Me.X);
+            Assert.AreEqual(4, _s.DeltasRefused); Assert.AreEqual(2, Resyncs());
+        }
+
+        [Test]
         public void AMalformedDeltaIsRefusedNotFatal()
         {
             ToMatch();

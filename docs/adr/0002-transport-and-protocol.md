@@ -68,7 +68,7 @@ rule is vectors for the current version only).
   encodings (exact, bitwise), the changed actors (a mask and only the changed quantized fields; a new actor carries all of them) and
   the departed ids. Everything is lossless: a chain of frames equals the Full frame of the same tick.
 - The room no longer encodes snapshots. It hands each connection's outbox the validated wire data of the tick (`SnapshotData`:
-  remote actors already quantized, the self at full precision, the exact size of its Full frame); the writer encodes when it drains
+  remote actors already quantized, the self at full precision, a lower bound of its Full frame size); the writer encodes when it drains
   (`Outbox::drain_into`), so a snapshot a slow client skips is never encoded, encoding is off the room task, and "latest wins" is
   unchanged. The writer keeps one base per connection (bounded by `MAX_ACTORS`: 16 B per actor plus two scratch lists).
 - The writer sends a Full frame for: the first snapshot after a Welcome (so a resumed connection ALWAYS starts Full), a client
@@ -79,8 +79,10 @@ rule is vectors for the current version only).
   a new actor without every field, that has a self without a base self, that would pass `MAX_ACTORS`, or that is malformed (a
   reserved or out-of-range field, a bad age, ids that do not strictly ascend, truncation, trailing bytes). A refusal changes
   nothing. The C# `Session` and the JS probe answer a refusal with one client message, `Resync` (tag 0x05, no body), skip deltas
-  until a Full frame arrives, and do not disconnect. The server honours at most one `Resync` per second per connection and ignores
-  the rest (the frame-rate bucket already bounds a flood).
+  until a Full frame arrives, and do not disconnect. The server never drops a `Resync`: the writer answers it with a Full frame,
+  but at least 20 ticks (1 s) after its previous forced Full, so a request that arrives sooner stays pending and is answered when
+  the interval ends (a client asks once per burst of refusals and must be able to rely on that answer). The interval is counted in
+  ticks, so it is deterministic; the frame-rate bucket bounds a flood of requests.
 - C-OBS: a Delta names only actors the Full frame of that tick lists, and its departed list only ids the client was told about;
   `tests/snapshot_delta.rs` checks both over a whole match for every viewer.
 
