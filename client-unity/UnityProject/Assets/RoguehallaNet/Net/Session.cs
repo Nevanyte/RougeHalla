@@ -27,6 +27,12 @@ namespace Roguehalla.Net
         public byte? Faction;
         public int MaxReconnectAttempts = 5;
         public double ReconnectBaseMs = 500, ReconnectMaxMs = 8000, PingIntervalMs = 1000;
+        /// <summary>
+        /// A Resync still unanswered after this long is sent again with the next refused delta. The server never drops a Resync
+        /// and answers within one second (it spaces forced Full frames by 20 ticks), so this only matters if a request or its
+        /// answer is lost; it is longer than that second so a well-behaved server never sees a repeat.
+        /// </summary>
+        public double ResyncRetryMs = 2000;
         /// <summary>Monotonic clock in ms.</summary>
         public Func<double> Now;
     }
@@ -44,9 +50,11 @@ namespace Roguehalla.Net
         double _nextAttemptAt, _lastPing = double.NegativeInfinity;
         bool _attemptInFlight;
         // Snapshots arrive as Full frames and deltas (protocol v3): the tracker holds the last one applied. After a refused delta
-        // the session asks for a Full snapshot once and ignores deltas (they all name a base it does not hold) until one arrives.
+        // the session asks for a Full snapshot once and ignores deltas (they all name a base it does not hold) until one arrives;
+        // it asks again only if the answer is ResyncRetryMs late.
         readonly SnapshotTracker _track = new SnapshotTracker();
         bool _needFull;
+        double _lastResyncAt;
 
         public SessionState State { get; private set; }
         public RejectCode? RejectCode { get; private set; }
@@ -261,13 +269,19 @@ namespace Roguehalla.Net
             if (fx != null && FxReceived != null) FxReceived(fx);
         }
 
-        /// <summary>A delta did not apply: keep the snapshot held, and (once per burst, while in the match or after it ended: snapshots still arrive) ask for a Full one.</summary>
+        /// <summary>
+        /// A delta did not apply: keep the snapshot held, and (once per burst, while in the match or after it ended: snapshots still
+        /// arrive) ask for a Full one; a burst that outlasts ResyncRetryMs asks again (defence in depth: the server never drops one).
+        /// </summary>
         void RefuseDelta(string why)
         {
             DeltasRefused++;
             Error = why;
-            if (_needFull || (State != SessionState.InMatch && State != SessionState.Ended)) return;
+            if (State != SessionState.InMatch && State != SessionState.Ended) return;
+            double now = Now;
+            if (_needFull && now - _lastResyncAt < _o.ResyncRetryMs) return;
             _needFull = true;
+            _lastResyncAt = now;
             ResyncsSent++;
             Send(new ClientMsg.Resync());
         }

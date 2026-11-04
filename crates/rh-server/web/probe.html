@@ -308,7 +308,9 @@ const token = qs.get("token") || "dev";
 const faction = qs.has("faction") ? Number(qs.get("faction")) : null;
 const P = window.__probe = { welcome: null, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], refused: [], fullSnapshots: 0, deltaSnapshots: 0, resyncs: 0, firstSnapshotAfterWelcome: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
 const tracker = new Tracker();
-let needFull = false, awaitingFirst = false;
+let needFull = false, awaitingFirst = false, resyncAt = 0;
+const RESYNC_RETRY_MS = 2000;
+function askFull() { needFull = true; resyncAt = performance.now(); P.resyncs++; send(resync()); }
 let ws = null, session = null, contentHash = 0n, map = null, nonce = 0, mouse = { x: 0, y: 0 }, attacking = false;
 
 async function connect(resume) {
@@ -326,8 +328,9 @@ async function connect(resume) {
     let m;
     const tag = new Uint8Array(ev.data)[0];
     try { m = tracker.decode(ev.data); } catch (e) {
-      // A delta that does not apply (or cannot be read) is refused, not fatal: ask for a Full snapshot once and skip deltas until it comes.
-      if (e.code || tag === 0x87) { P.refused.push(String(e.message)); if (!needFull) { needFull = true; P.resyncs++; send(resync()); } }
+      // A delta that does not apply (or cannot be read) is refused, not fatal: ask for a Full snapshot once and skip deltas until it
+      // comes; ask again only if it is RESYNC_RETRY_MS late (the server never drops a request: this covers a lost one).
+      if (e.code || tag === 0x87) { P.refused.push(String(e.message)); if (!needFull || performance.now() - resyncAt >= RESYNC_RETRY_MS) askFull(); }
       else P.errors.push(String(e));
       return;
     }
@@ -349,7 +352,7 @@ P.move = (x, y) => { P.moveSeq = (P.moveSeq + 1) & 255; send(input(++P.inputSeq,
 P.attack = (a) => send(input(++P.inputSeq, [{ k: "attack", a, t: null }]));
 P.dropAndResume = () => new Promise((res) => { const old = ws; old.onclose = () => { P.open = false; connect(true).then(res); }; old.close(); });
 P.leave = () => send(leave());
-P.requestResync = () => { needFull = true; P.resyncs++; send(resync()); };
+P.requestResync = askFull;
 setInterval(() => send(ping(++nonce)), 500);
 
 // ---- input and drawing ----

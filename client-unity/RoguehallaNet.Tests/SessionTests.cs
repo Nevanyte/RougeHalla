@@ -210,6 +210,28 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void AResyncLeftUnansweredIsSentAgainAfterTheRetryIntervalAndOnlyThen()
+        {
+            // Defence in depth: the server never drops a Resync, but if the request or its answer is lost the client is not left
+            // refusing deltas for good. It asks again with the first refused delta ResyncRetryMs (2 s) after its last request.
+            ToMatch();
+            _t.Deliver(FullSnap(2, 40, Actor(9, 1)));
+            _t.Deliver(Delta(5, 4, 50, 8));
+            Assert.AreEqual(1, Resyncs());
+            _now += 1999;
+            _t.Deliver(Delta(6, 5, 51, 8));
+            Assert.AreEqual(1, Resyncs(), "not before the interval");
+            _now += 1;
+            _t.Deliver(Delta(7, 6, 52, 8));
+            Assert.AreEqual(2, Resyncs(), "asked again");
+            _t.Deliver(Delta(8, 7, 53, 8));
+            Assert.AreEqual(2, Resyncs(), "once per interval");
+            _t.Deliver(FullSnap(9, 60, Actor(9, 3)));
+            _t.Deliver(Delta(10, 9, 61, 8));
+            Assert.AreEqual(61f, _s.Latest.Me.X); Assert.AreEqual(4, _s.DeltasRefused); Assert.AreEqual(2, Resyncs());
+        }
+
+        [Test]
         public void AMalformedDeltaIsRefusedNotFatal()
         {
             ToMatch();
