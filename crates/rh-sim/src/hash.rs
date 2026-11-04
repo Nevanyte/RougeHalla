@@ -7,9 +7,10 @@
 //! leaf-perturbation test (`tests/hash_coverage.rs`) proves it on real matches: every serialized leaf changes the hash.
 //!
 //! The statics (configuration, map layer, spawns) are folded once at construction into the `digest` of
-//! [`crate::statics::MatchStatic`], which seeds the hash. The secrets are deliberately NOT part of the digest: they are
-//! constant for a match, a replay stores them, and a hash that mixed them would be an offline oracle against them the day
-//! it is logged (C-RNG). The state hash is a server-side determinism check, not a security hash.
+//! [`crate::statics::MatchStatic`], which seeds the hash. The statics secrets are deliberately NOT part of the digest, but
+//! the hash is not secret-free: `World.spawn_rng` is `Mulberry32::new(spawn_seed)` (its state is the seed), is hashed on
+//! purpose as simulation state, and makes the state hash a function of the 32-bit spawn seed. The hash is therefore a
+//! server-private determinism check: never sent to clients, never in public exports or logs (C-RNG).
 //!
 //! Layout rules the serializer relies on (checked by [`Sim::check_layout`]): field names are not hashed, only their values
 //! and their order; enum variants hash their index; sequences, maps and strings hash their length first (8-byte chunks for
@@ -476,14 +477,16 @@ mod tests {
     }
 
     #[test]
-    fn the_secrets_are_not_part_of_the_hash() {
+    fn the_statics_secrets_are_not_mixed_into_the_digest() {
+        // Only the statics secrets are tested here: `World.spawn_rng` derives from the spawn seed and is hashed on purpose,
+        // so the state hash itself must stay server-private (see the module doc).
         let a = sim();
         let mut b = a.clone();
         b.k.secrets = Secrets::from_seed(77);
         assert_eq!(
             a.state_hash(),
             b.state_hash(),
-            "secrets never reach the hash"
+            "the statics secrets never reach the digest"
         );
     }
 

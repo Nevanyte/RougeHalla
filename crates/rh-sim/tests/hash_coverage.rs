@@ -641,7 +641,7 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
                 let n = std::fs::read_to_string(&p)
                     .unwrap()
                     .lines()
-                    .filter(|l| l.trim_start().starts_with("#[serde(skip)]"))
+                    .filter(|l| is_serde_skip(l))
                     .count();
                 if n > 0 {
                     found.insert(p.strip_prefix(&dir).unwrap().display().to_string(), n);
@@ -657,4 +657,16 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
         found, want,
         "a `#[serde(skip...)]` was added or removed: it is outside the checkpoint and the state hash; document it here"
     );
+}
+
+/// A serde attribute line that skips a field in any spelling (`skip`, `skip, default`, `skip_serializing`, ...), but not
+/// `skip_serializing_if` (refused separately by `Sim::check_layout`).
+fn is_serde_skip(line: &str) -> bool {
+    let t = line.trim_start();
+    if !t.starts_with("#[serde(") {
+        return false;
+    }
+    let body = t.split(")]").next().unwrap_or(t);
+    body.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .any(|w| w == "skip" || w == "skip_serializing" || w == "skip_deserializing")
 }

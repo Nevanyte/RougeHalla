@@ -27,9 +27,13 @@ run in CI: backlog P-CI-2).
   digest of the statics (configuration, map layer, spawns) computed once at construction and on decoding. What a checkpoint
   restores and what the hash sees are the same set: a new component is hashed the moment it is a serde field of the world.
   The hand list and its 66 invisible leaves are gone (`tests/hash_coverage.rs`: 0 unhashed of 12,696 leaves perturbed).
-- **Secrets stay out of the digest.** They are constant per match and a replay stores them; a hash that mixed them would
-  be an offline oracle against the 32-bit secrets the day a hash is logged or exported (C-RNG). The state hash is a
-  server-side determinism check, not a security hash.
+- **The statics secrets stay out of the digest, the hash stays server-private.** `Secrets` (in the statics) is not mixed into
+  the digest. But `World.spawn_rng` is `Mulberry32::new(secrets.spawn_seed)` and Mulberry32 stores the seed as its state, so
+  the state hash is still a function of the 32-bit spawn seed (before the first spawn draw the field equals the seed, after
+  `n` draws it equals `seed + n*0x6d2b79f5`). `spawn_rng` is hashed on purpose: it is simulation state. A logged or exported
+  hash plus a near-public lobby world would therefore be an offline oracle against that secret. The state hash is a
+  server-side determinism check, not a security hash: it is never sent to clients and never appears in public exports or logs
+  (C-RNG).
 - **The world has a layout rule, enforced.** No non-finite float (JSON writes it as `null`, so a checkpoint could not restore
   it; a "never" sentinel is an `Option`), no `skip_serializing_if` and no `flatten` (a missing or map-shaped field would be
   ambiguous to the hasher), no sequence of unknown length. `Sim::check_layout` (a validating run of the same serializer) is

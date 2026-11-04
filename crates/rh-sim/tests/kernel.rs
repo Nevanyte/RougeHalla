@@ -256,6 +256,8 @@ fn floor_edges() -> Vec<f64> {
         -1e300,
     ];
     for p in [52, 53, 62, 63, 64] {
+        // 2^p for p <= 64 is exact on every platform, so powi cannot round differently here.
+        #[allow(clippy::disallowed_methods)]
         let b = 2f64.powi(p);
         for x in [b - 1.0, b - 0.5, b, b + 0.5, b + 1.0, b + 2.0] {
             v.push(x);
@@ -340,6 +342,8 @@ fn reference_math_round(x: f64) -> f64 {
 
 #[test]
 fn js_round_is_math_round() {
+    // exact power of two: no platform rounding involved
+    #[allow(clippy::disallowed_methods)]
     let p52 = 2f64.powi(52);
     // (input, Math.round(input)) as V8 prints them.
     let vectors: [(f64, f64); 22] = [

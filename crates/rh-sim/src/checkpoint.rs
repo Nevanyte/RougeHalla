@@ -266,8 +266,8 @@ impl<'de> Deserializer<'de> for Buf {
             Buf::U64(n) => v.visit_u64(n),
             Buf::F64(n) => v.visit_f64(n),
             Buf::Str(s) => v.visit_string(s),
-            Buf::Seq(x) => v.visit_seq(SeqDeserializer::new(x.into_iter())),
-            Buf::Map(m) => v.visit_map(MapDeserializer::new(m.into_iter())),
+            Buf::Seq(x) => SeqDeserializer::new(x.into_iter()).deserialize_any(v),
+            Buf::Map(m) => MapDeserializer::new(m.into_iter()).deserialize_any(v),
         }
     }
 
