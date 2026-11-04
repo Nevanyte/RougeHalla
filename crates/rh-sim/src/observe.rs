@@ -93,10 +93,18 @@ pub struct Observation {
 }
 
 fn sees(sim: &Sim, me: &Player, other: &Player) -> bool {
-    let dx = other.x - me.x;
-    let dy = other.y - me.y;
+    let dx = other.body.x - me.body.x;
+    let dy = other.body.y - me.body.y;
     dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
-        && !raycast(&sim.arena().map, me.x, me.y, other.x, other.y, MASK_SIGHT).hit
+        && !raycast(
+            &sim.arena().map,
+            me.body.x,
+            me.body.y,
+            other.body.x,
+            other.body.y,
+            MASK_SIGHT,
+        )
+        .hit
 }
 
 /// The observation of player `viewer` after a step whose events are `events` (pass the step's return value).
@@ -105,19 +113,19 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
     let now = sim.server_time();
     let self_view = me.map(|p| SelfView {
         id: p.id,
-        faction: p.faction,
-        x: p.x,
-        y: p.y,
-        facing: p.facing,
-        hp: p.hp,
-        max_hp: p.max_hp,
+        faction: p.vitals.faction,
+        x: p.body.x,
+        y: p.body.y,
+        facing: p.body.facing,
+        hp: p.vitals.hp,
+        max_hp: p.vitals.max_hp,
         status: p.status,
         weapon: p.active_weapon(),
-        ready_in_ms: (p.ready_at - now).max(0.0),
-        kills: p.kills,
-        bounty: p.bounty,
-        gv: p.gv,
-        move_seq: p.move_seq,
+        ready_in_ms: (p.weapon.ready_at - now).max(0.0),
+        kills: p.credit.kills,
+        bounty: p.credit.bounty,
+        gv: p.credit.gv,
+        move_seq: p.motion.move_seq,
     });
     let mut visible: Vec<ActorView> = match me {
         None => Vec::new(),
@@ -127,18 +135,18 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
             .filter(|o| o.id != m.id && o.status != Status::Lobby && sees(sim, m, o))
             .map(|o| ActorView {
                 id: o.id,
-                faction: o.faction,
-                x: o.x,
-                y: o.y,
-                facing: o.facing,
-                hp_frac: if o.max_hp > 0.0 {
-                    (o.hp / o.max_hp * 100.0).round() / 100.0
+                faction: o.vitals.faction,
+                x: o.body.x,
+                y: o.body.y,
+                facing: o.body.facing,
+                hp_frac: if o.vitals.max_hp > 0.0 {
+                    (o.vitals.hp / o.vitals.max_hp * 100.0).round() / 100.0
                 } else {
                     0.0
                 },
                 status: o.status,
                 weapon: o.active_weapon(),
-                bounty: o.bounty,
+                bounty: o.credit.bounty,
             })
             .collect(),
     };
@@ -226,17 +234,17 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         .iter()
         .map(|p| PublicPlayer {
             id: p.id,
-            name: p.name.clone(),
-            bot: p.bot,
-            faction: p.faction,
-            x: p.x,
-            y: p.y,
-            facing: p.facing,
-            hp: p.hp,
-            max_hp: p.max_hp,
+            name: p.seat.name.clone(),
+            bot: p.seat.bot,
+            faction: p.vitals.faction,
+            x: p.body.x,
+            y: p.body.y,
+            facing: p.body.facing,
+            hp: p.vitals.hp,
+            max_hp: p.vitals.max_hp,
             status: p.status,
-            kills: p.kills,
-            bounty: p.bounty,
+            kills: p.credit.kills,
+            bounty: p.credit.bounty,
         })
         .collect();
     players.sort_by_key(|p| p.id);

@@ -21,12 +21,12 @@ pub(crate) fn mark_tick_start(cx: &mut Cx) {
     let Cx { w, s, .. } = cx;
     s.bounty_at_tick_start.clear();
     for p in &mut w.players {
-        p.hp_frac_at_tick_start = if p.max_hp > 0.0 {
-            (p.hp + p.barrier) / p.max_hp
+        p.vitals.hp_frac_at_tick_start = if p.vitals.max_hp > 0.0 {
+            (p.vitals.hp + p.vitals.barrier) / p.vitals.max_hp
         } else {
             0.0
         };
-        s.bounty_at_tick_start.push(p.bounty);
+        s.bounty_at_tick_start.push(p.credit.bounty);
     }
 }
 
@@ -45,21 +45,21 @@ pub(crate) fn down_player(
     }
     let now = w.server_time;
     let credited = if outcome == Outcome::Mia {
-        let at = w.players[vi].dropped_at.unwrap_or(now);
+        let at = w.players[vi].seat.dropped_at.unwrap_or(now);
         credit::recent_rival(w, vi, at)
     } else {
         None
     };
     let v = &mut w.players[vi];
     v.down = Some(outcome);
-    v.path.clear();
+    v.motion.path.clear();
     release_trigger(v, now);
     v.status = if outcome == Outcome::Died {
         Status::Dead
     } else {
         Status::Mia
     };
-    let victim_bot = v.bot;
+    let victim_bot = v.seat.bot;
     let id = v.id;
     // Legacy order: fighterOut, the kill credit, then dropBody.
     let mut hx = Hx { k, w, ev };
@@ -71,7 +71,7 @@ pub(crate) fn down_player(
         },
     );
     if let Some(c) = credited {
-        let bounty = hx.w.players[vi].bounty;
+        let bounty = hx.w.players[vi].credit.bounty;
         credit::credit_kill(hx.w, hx.ev, c, victim_bot, bounty);
     }
     hooks::fire(&mut hx, HookArgs::DropBody { victim: id });
@@ -129,14 +129,14 @@ fn end_run(
         let best = downed
             .iter()
             .filter_map(|id| w.player(*id))
-            .map(|p| p.hp_frac_at_tick_start)
+            .map(|p| p.vitals.hp_frac_at_tick_start)
             .fold(f64::NEG_INFINITY, f64::max);
         winners = downed
             .iter()
             .copied()
             .filter(|id| {
                 w.player(*id)
-                    .is_some_and(|p| p.hp_frac_at_tick_start == best)
+                    .is_some_and(|p| p.vitals.hp_frac_at_tick_start == best)
             })
             .collect();
     }
@@ -186,7 +186,7 @@ fn withheld_why(w: &World, i: usize) -> Option<WinBonusWhy> {
     if w.rt.started_humans < WIN_BONUS_MIN_PLAYERS {
         return Some(WinBonusWhy::Starters);
     }
-    if w.players[i].damaged_humans.len() < WIN_BONUS_MIN_OPPONENTS {
+    if w.players[i].credit.damaged_humans.len() < WIN_BONUS_MIN_OPPONENTS {
         return Some(WinBonusWhy::Opponents);
     }
     None
@@ -211,8 +211,8 @@ fn resolve(
         return;
     }
     p.resolved = true;
-    p.path.clear();
-    let g = p.gv_parts;
+    p.motion.path.clear();
+    let g = p.credit.gv_parts;
     let gv = GvBreakdown {
         win,
         total: g.kills + g.mobs + g.bounty + g.quest + win,
@@ -220,27 +220,28 @@ fn resolve(
     };
     let result = RunResult {
         outcome,
-        profile: p.profile.clone(),
+        profile: p.seat.profile.clone(),
         duration_sec: if started > 0.0 {
             js_round((now - started) / 1000.0) as u32
         } else {
             0
         },
-        kills: p.kills - p.bot_kills,
+        kills: p.credit.kills - p.credit.bot_kills,
         killed_by: if outcome == Outcome::Died {
-            p.killed_by
+            p.fate
+                .killed_by
                 .and_then(|by| roster.name(by))
                 .map(str::to_string)
         } else {
             None
         },
-        killed_by_bot: outcome == Outcome::Died && p.killed_by_bot,
+        killed_by_bot: outcome == Outcome::Died && p.fate.killed_by_bot,
         place,
         players,
         gv,
         win_bonus_withheld: why.is_some(),
         win_bonus_why: why,
     };
-    let (id, bot) = (p.id, p.bot);
+    let (id, bot) = (p.id, p.seat.bot);
     ev.push(Event::Resolved { id, result, bot });
 }

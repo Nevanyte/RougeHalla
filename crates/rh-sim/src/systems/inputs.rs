@@ -124,9 +124,9 @@ fn apply_move(
     };
     // An order with no route (a goal in a wall with nothing to snap to) leaves the current path alone.
     if stop || !out.is_empty() {
-        p.path.set_from(out);
+        p.motion.path.set_from(out);
     }
     if let Some(s) = seq {
-        p.move_seq = s;
+        p.motion.move_seq = s;
     }
 }

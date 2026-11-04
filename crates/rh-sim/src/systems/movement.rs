@@ -67,27 +67,30 @@ pub(crate) fn record_history(cx: &mut Cx) {
 /// Walks along the path at PLAYER_SPEED x `speed_mult` for `dt` seconds (legacy `advanceAlongPath`).
 fn advance_along_path(p: &mut Player, dt: f64, keep_facing: bool, speed_mult: f64) {
     let mut budget = PLAYER_SPEED * speed_mult * dt;
-    while budget > 0.0 && !p.path.is_empty() {
-        let Some(target) = p.path.first() else { break };
-        let dx = target.x - p.x;
-        let dy = target.y - p.y;
+    while budget > 0.0 && !p.motion.path.is_empty() {
+        let Some(target) = p.motion.path.first() else {
+            break;
+        };
+        let dx = target.x - p.body.x;
+        let dy = target.y - p.body.y;
         let dist = hypot(dx, dy);
         if dist <= budget {
-            p.x = target.x;
-            p.y = target.y;
+            p.body.x = target.x;
+            p.body.y = target.y;
             budget -= dist;
-            p.path.advance();
+            p.motion.path.advance();
         } else {
-            p.x += (dx / dist) * budget;
-            p.y += (dy / dist) * budget;
+            p.body.x += (dx / dist) * budget;
+            p.body.y += (dy / dist) * budget;
             budget = 0.0;
         }
         if dist > FACING_EPS && !keep_facing {
-            p.facing = atan2(dy, dx);
+            p.body.facing = atan2(dy, dx);
         }
     }
 }
 
 fn record_sample(p: &mut Player, now: f64) {
-    p.history.record(now, p.x, p.y);
+    let (x, y) = (p.body.x, p.body.y);
+    p.body.history.record(now, x, y);
 }

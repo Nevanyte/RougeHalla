@@ -419,7 +419,7 @@ impl Room {
                 .players()
                 .iter()
                 .rev()
-                .find(|p| p.bot)
+                .find(|p| p.seat.bot)
                 .map(|p| p.id)
             {
                 self.record(ReplayInput::Leave { player: bot });

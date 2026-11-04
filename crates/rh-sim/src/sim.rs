@@ -93,16 +93,16 @@ impl Sim {
         sim.step();
         let t = sim.w.server_time;
         for (pl, spec) in sim.w.players.iter_mut().zip(placements) {
-            pl.x = spec.at.x;
-            pl.y = spec.at.y;
-            pl.facing = 0.0;
+            pl.body.x = spec.at.x;
+            pl.body.y = spec.at.y;
+            pl.body.facing = 0.0;
             if let Some(hp) = spec.hp {
-                pl.hp = hp;
+                pl.vitals.hp = hp;
             }
-            pl.history.reset(Sample {
+            pl.body.history.reset(Sample {
                 t,
-                x: pl.x,
-                y: pl.y,
+                x: spec.at.x,
+                y: spec.at.y,
             });
         }
         sim.take_events();
@@ -223,12 +223,12 @@ impl Sim {
         if let Some(i) = self.w.idx(id) {
             let p = &mut self.w.players[i];
             if dropped {
-                if p.dropped_at.is_none() && active {
-                    p.dropped_at = Some(now);
+                if p.seat.dropped_at.is_none() && active {
+                    p.seat.dropped_at = Some(now);
                 }
                 p.inputs.clear();
             } else {
-                p.dropped_at = None;
+                p.seat.dropped_at = None;
             }
             release_trigger(p, now);
         }

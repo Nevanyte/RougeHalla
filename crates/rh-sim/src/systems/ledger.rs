@@ -202,7 +202,7 @@ fn apply_victim(pass: &mut Pass, b: &mut Bufs, vi: usize, ledger: &[Entry], mult
     if !pass.w.players[vi].standing() {
         return;
     }
-    let vf = crate::content::faction(pass.w.players[vi].faction);
+    let vf = crate::content::faction(pass.w.players[vi].vitals.faction);
     let (armor, shield) = (vf.armor.max(0.0), vf.shield);
     let Bufs {
         idxs,
@@ -222,7 +222,7 @@ fn apply_victim(pass: &mut Pass, b: &mut Bufs, vi: usize, ledger: &[Entry], mult
         mitigate_shares(raw, &s, armor, shield)
     }));
     if pass.k.config.pvp_rules {
-        let cap = PVP_HIT_CAP_SHARE * pass.w.players[vi].max_hp;
+        let cap = PVP_HIT_CAP_SHARE * pass.w.players[vi].vitals.max_hp;
         for a in amounts.iter_mut() {
             if *a > 0.0 && *a > cap {
                 *a = cap;
@@ -269,12 +269,12 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
     let now = w.server_time;
     {
         let v = &w.players[vi];
-        if !v.standing() || v.hp <= 0.0 || now < v.immune_until {
+        if !v.standing() || v.vitals.hp <= 0.0 || now < v.vitals.immune_until {
             return 0.0;
         }
     }
     let victim_id = w.players[vi].id;
-    let victim_bot = w.players[vi].bot;
+    let victim_bot = w.players[vi].seat.bot;
     let mut total = 0.0;
     let mut top: Option<usize> = None;
     let mut top_rival: Option<usize> = None;
@@ -290,11 +290,11 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
         if let Some(si) = w.idx(*by) {
             if !w.players[si].resolved && *by != victim_id {
                 let src = &mut w.players[si];
-                if !src.damaged.contains(&victim_id) {
-                    src.damaged.push(victim_id);
+                if !src.credit.damaged.contains(&victim_id) {
+                    src.credit.damaged.push(victim_id);
                 }
-                if !victim_bot && !src.damaged_humans.contains(&victim_id) {
-                    src.damaged_humans.push(victim_id);
+                if !victim_bot && !src.credit.damaged_humans.contains(&victim_id) {
+                    src.credit.damaged_humans.push(victim_id);
                 }
                 if top_rival.is_none_or(|t| *amount > hits[t].0) {
                     top_rival = Some(h);
@@ -304,39 +304,43 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
     }
     let Some(top) = top else { return 0.0 };
     if let Some(r) = top_rival {
-        w.players[vi].last_hit = Some((hits[r].1, now));
+        w.players[vi].credit.last_hit = Some((hits[r].1, now));
     }
     let v = &mut w.players[vi];
-    if v.barrier > 0.0 {
-        let taken = v.barrier.min(total);
-        v.barrier = if v.barrier - taken < BARRIER_EPS {
+    if v.vitals.barrier > 0.0 {
+        let taken = v.vitals.barrier.min(total);
+        v.vitals.barrier = if v.vitals.barrier - taken < BARRIER_EPS {
             0.0
         } else {
-            v.barrier - taken
+            v.vitals.barrier - taken
         };
         total -= taken;
     }
     if !(total > 0.0) {
         return 0.0;
     }
-    let before = v.hp;
+    let before = v.vitals.hp;
     let unheld = (before - total).max(0.0);
-    v.hp = (before - total).max(0.0);
-    if v.hp > 0.0 {
-        return if v.hp > unheld { total } else { before - v.hp };
+    v.vitals.hp = (before - total).max(0.0);
+    if v.vitals.hp > 0.0 {
+        return if v.vitals.hp > unheld {
+            total
+        } else {
+            before - v.vitals.hp
+        };
     }
     let killer = top_rival.unwrap_or(top);
     let (_, kid) = &hits[killer];
     let killer_idx = w.idx(*kid).filter(|&k| !w.players[k].resolved);
-    let killer_bot = killer_idx.map(|k| w.players[k].bot).unwrap_or(false);
-    let (vx, vy) = (w.players[vi].x, w.players[vi].y);
+    let killer_bot = killer_idx.map(|k| w.players[k].seat.bot).unwrap_or(false);
+    let (vx, vy) = (w.players[vi].body.x, w.players[vi].body.y);
     {
         let v = &mut w.players[vi];
         // The killer, by id: the roster names it when the result is built (legacy: the attacker's name, or the source
         // name of one who already left).
-        v.killed_by = Some(*kid);
+        v.fate.killed_by = Some(*kid);
         if killer_bot {
-            v.killed_by_bot = true;
+            v.fate.killed_by_bot = true;
         }
     }
     pass.ev.push(Event::Death {

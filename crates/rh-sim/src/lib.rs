@@ -12,6 +12,7 @@ pub mod checkpoint;
 pub mod constants;
 pub mod content;
 pub mod events;
+pub mod fighter;
 pub mod geometry;
 mod hash;
 mod hooks;
@@ -37,7 +38,7 @@ pub use input::{validate, Command, RawCommand, Reject};
 pub use map::TileMap;
 pub use math::Vec2;
 pub use observe::{observe, public_snapshot, Observation, OBSERVATION_VERSION};
-pub use store::{EntityId, Store};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
 };
+pub use store::{EntityId, Store};

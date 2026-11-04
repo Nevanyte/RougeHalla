@@ -17,7 +17,7 @@ use crate::systems::Cx;
 pub(crate) fn set_aim(p: &mut Player, now: f64, a: f64) {
     p.weapon.aim = a;
     p.weapon.aim_at = now;
-    p.facing = a;
+    p.body.facing = a;
 }
 
 fn note_lag(p: &mut Player, now: f64, t: Option<f64>) {
@@ -82,9 +82,9 @@ fn step_weapon(p: &mut Player, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<Me
         }
     }
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
-    if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.ready_at {
+    if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.weapon.ready_at {
         // The timings are pure content formulas of the faction and the weapon: read only when an attack starts.
-        let f = paced(p.faction);
+        let f = paced(p.vitals.faction);
         let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
         start_attack(p, now, ev, weapon, tm);
         if tm.windup == 0.0 {
@@ -96,7 +96,7 @@ fn step_weapon(p: &mut Player, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<Me
 }
 
 fn start_attack(p: &mut Player, now: f64, ev: &mut Vec<Event>, weapon: WeaponId, tm: Timings) {
-    let f = paced(p.faction);
+    let f = paced(p.vitals.faction);
     let base = damage_per_hit(&f, weapon, 1.0);
     let shares: DamageShares = damage_shares(&f);
     let packet = Packet {
@@ -105,8 +105,8 @@ fn start_attack(p: &mut Player, now: f64, ev: &mut Vec<Event>, weapon: WeaponId,
         magic: shares.magic,
         true_: shares.true_,
     };
-    let start = if p.weapon.pressed_at <= p.ready_at {
-        p.ready_at.max(now - TICK_MS)
+    let start = if p.weapon.pressed_at <= p.weapon.ready_at {
+        p.weapon.ready_at.max(now - TICK_MS)
     } else {
         now
     };
@@ -126,13 +126,13 @@ fn start_attack(p: &mut Player, now: f64, ev: &mut Vec<Event>, weapon: WeaponId,
         a: aim,
         packet,
     });
-    p.ready_at = start + tm.interval * 1000.0;
+    p.weapon.ready_at = start + tm.interval * 1000.0;
     if tm.root > 0.0 {
         p.weapon.root_until = start + tm.root * 1000.0;
     }
     let id = p.id;
     if weapon == WeaponId::Bow {
-        p.draw_started_at = start;
+        p.weapon.draw_started_at = start;
     } else {
         ev.push(Event::Windup {
             by: id,
@@ -160,7 +160,7 @@ fn land(p: &mut Player, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAction)
         ActionKind::Cast | ActionKind::Draw => {
             // Projectiles are not in the slice and no ranged weapon can be held in it (no item flow): docs/backlog P-COMBAT-2.
             debug_assert!(false, "ranged attacks are not in the slice");
-            p.draw_started_at = 0.0;
+            p.weapon.draw_started_at = 0.0;
         }
     }
 }
@@ -189,7 +189,7 @@ pub(crate) fn stagger(p: &mut Player, now: f64, ev: &mut Vec<Event>) {
         if a.kind != ActionKind::Draw {
             p.weapon.root_until = p.weapon.root_until.min(now);
             p.weapon.action = None;
-            p.draw_started_at = 0.0;
+            p.weapon.draw_started_at = 0.0;
             let id = p.id;
             ev.push(Event::Stagger { id });
         }
@@ -211,5 +211,5 @@ pub(crate) fn release_trigger(p: &mut Player, now: f64) {
         }
     }
     p.weapon.action = None;
-    p.draw_started_at = 0.0;
+    p.weapon.draw_started_at = 0.0;
 }

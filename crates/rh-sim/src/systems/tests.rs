@@ -176,12 +176,12 @@ fn with_hx<R>(sim: &mut Sim, f: impl FnOnce(&mut Hx) -> R) -> R {
 fn the_drop_body_hook_empties_the_slots_through_the_dispatcher() {
     use crate::content::WeaponId;
     let mut s = sim();
-    s.w.players[1].weapon0 = Some(WeaponId::Sword);
-    s.w.players[1].weapon1 = Some(WeaponId::Axe);
+    s.w.players[1].weapon.weapon0 = Some(WeaponId::Sword);
+    s.w.players[1].weapon.weapon1 = Some(WeaponId::Axe);
     let victim = s.w.players[1].id;
     with_hx(&mut s, |hx| hooks::fire(hx, HookArgs::DropBody { victim }));
-    assert_eq!(s.w.players[1].weapon0, None);
-    assert_eq!(s.w.players[1].weapon1, None);
+    assert_eq!(s.w.players[1].weapon.weapon0, None);
+    assert_eq!(s.w.players[1].weapon.weapon1, None);
 }
 
 #[test]
@@ -221,7 +221,7 @@ fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
 #[test]
 fn a_deferred_hit_opens_the_next_ticks_ledger() {
     let mut s = sim();
-    let max = s.w.players[1].max_hp;
+    let max = s.w.players[1].vitals.max_hp;
     let h0 = s.state_hash();
     s.w.deferred.defer_hit(hit(1, 2, 10.0));
     assert_ne!(
@@ -237,7 +237,7 @@ fn a_deferred_hit_opens_the_next_ticks_ledger() {
     let mut restored: Sim = serde_json::from_value(json).unwrap();
     s.step();
     restored.step();
-    assert!(s.w.players[1].hp < max, "the deferred hit landed");
+    assert!(s.w.players[1].vitals.hp < max, "the deferred hit landed");
     assert!(s.w.deferred.is_empty(), "and the queue is spent");
     assert_eq!(s.w, restored.w, "a restored queue lands identically");
     let json = serde_json::to_value(&s).unwrap();
@@ -259,7 +259,10 @@ fn credit(by: u32) -> ledger::PayLater {
 fn pay_later_outside_the_pass_pays_at_once() {
     let mut s = sim();
     with_hx(&mut s, |hx| hx.pay_later(credit(1)));
-    assert_eq!(s.w.players[0].kills, 1, "legacy: not collecting, pay now");
+    assert_eq!(
+        s.w.players[0].credit.kills, 1,
+        "legacy: not collecting, pay now"
+    );
     assert!(s.w.pay.items.is_empty());
 }
 
@@ -273,18 +276,21 @@ fn pay_later_inside_the_pass_waits_for_its_end_and_pays_in_order() {
         hx.pay_later(credit(1));
     });
     assert_eq!(
-        (s.w.players[0].kills, s.w.players[1].kills),
+        (s.w.players[0].credit.kills, s.w.players[1].credit.kills),
         (0, 0),
         "nothing is paid while the pass collects"
     );
     assert_eq!(s.w.pay.items, vec![credit(1), credit(2), credit(1)]);
     let mut ev = Vec::new();
     ledger::pay_all(&mut s.w, &mut ev);
-    assert_eq!((s.w.players[0].kills, s.w.players[1].kills), (2, 1));
+    assert_eq!(
+        (s.w.players[0].credit.kills, s.w.players[1].credit.kills),
+        (2, 1)
+    );
     assert!(s.w.pay.items.is_empty() && !s.w.pay.collecting);
     with_hx(&mut s, |hx| hx.pay_later(credit(2)));
     assert_eq!(
-        s.w.players[1].kills, 2,
+        s.w.players[1].credit.kills, 2,
         "after the pass it pays at once again"
     );
 }
@@ -292,12 +298,12 @@ fn pay_later_inside_the_pass_waits_for_its_end_and_pays_in_order() {
 #[test]
 fn a_payout_of_the_pass_lands_in_the_same_tick_not_the_next() {
     let mut s = sim();
-    s.w.players[1].hp = 1.0;
+    s.w.players[1].vitals.hp = 1.0;
     s.w.deferred.defer_hit(hit(1, 2, 1.0e6));
     s.step();
-    assert_eq!(s.w.players[1].hp, 0.0, "the lethal hit landed");
+    assert_eq!(s.w.players[1].vitals.hp, 0.0, "the lethal hit landed");
     assert_eq!(
-        s.w.players[0].kills, 1,
+        s.w.players[0].credit.kills, 1,
         "and its kill credit was paid in that tick's pass"
     );
     assert!(s.w.pay.items.is_empty() && !s.w.pay.collecting);
@@ -407,7 +413,7 @@ fn a_hit_by_a_departed_shooter_is_named_from_the_roster() {
         !events.iter().any(|e| matches!(e, Event::Gv { .. })),
         "no credit for a shooter who left: {events:?}"
     );
-    assert_eq!(s.w.players.iter().map(|p| p.kills).sum::<u32>(), 0);
+    assert_eq!(s.w.players.iter().map(|p| p.credit.kills).sum::<u32>(), 0);
 }
 
 #[test]
