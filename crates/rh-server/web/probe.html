@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roguehalla protocol probe</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #11131a; color: #d8dce6; font: 14px/1.4 system-ui, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  canvas { width: 100%; background: #1b1f2a; image-rendering: pixelated; border-radius: 6px; }
+  pre { background: #1b1f2a; padding: 8px; border-radius: 6px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Roguehalla protocol probe</h1>
+  <p>A browser client for protocol v1 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
+  <canvas id="c" width="960" height="640"></canvas>
+  <pre id="s">connecting…</pre>
+</main>
+<script>
+"use strict";
+// ---- protocol v1 (mirror of crates/rh-protocol) ----
+class W {
+  constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
+  need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
+  u8(x) { this.need(1); this.v.setUint8(this.n, x); this.n += 1; }
+  u16(x) { this.need(2); this.v.setUint16(this.n, x, true); this.n += 2; }
+  u32(x) { this.need(4); this.v.setUint32(this.n, x >>> 0, true); this.n += 4; }
+  u64(x) { this.need(8); this.v.setBigUint64(this.n, BigInt.asUintN(64, x), true); this.n += 8; }
+  f32(x) { this.need(4); this.v.setFloat32(this.n, x, true); this.n += 4; }
+  f64(x) { this.need(8); this.v.setFloat64(this.n, x, true); this.n += 8; }
+  bytes(a) { this.need(a.length); this.b.set(a, this.n); this.n += a.length; }
+  str(s) { const e = new TextEncoder().encode(s).slice(0, 255); this.u8(e.length); this.bytes(e); }
+  out() { return this.b.slice(0, this.n); }
+}
+class R {
+  constructor(buf) { this.v = new DataView(buf); this.p = 0; }
+  u8() { const x = this.v.getUint8(this.p); this.p += 1; return x; }
+  u16() { const x = this.v.getUint16(this.p, true); this.p += 2; return x; }
+  u32() { const x = this.v.getUint32(this.p, true); this.p += 4; return x; }
+  u64() { const x = this.v.getBigUint64(this.p, true); this.p += 8; return x; }
+  f32() { const x = this.v.getFloat32(this.p, true); this.p += 4; return x; }
+  f64() { const x = this.v.getFloat64(this.p, true); this.p += 8; return x; }
+  bytes(n) { const a = new Uint8Array(this.v.buffer.slice(this.p, this.p + n)); this.p += n; return a; }
+  str() { return new TextDecoder().decode(this.bytes(this.u8())); }
+  opt(f) { const t = this.u8(); if (t === 0) return null; if (t === 1) return f(); throw new Error("bad option"); }
+}
+function fnv(w, h, tiles) {
+  let x = 0x811c9dc5;
+  const eat = (b) => { x ^= b; x = Math.imul(x, 0x01000193) >>> 0; };
+  for (const v of [w, h]) for (let i = 0; i < 4; i++) eat((v >>> (8 * i)) & 255);
+  for (const t of tiles) eat(t);
+  return x >>> 0;
+}
+function hello(contentHash, profile, token, faction, resume) {
+  const w = new W(); w.u8(1); w.u16(1); w.u64(contentHash); w.str("probe-js"); w.str(profile); w.str(token);
+  if (faction === null) w.u8(0); else { w.u8(1); w.u8(faction); }
+  if (!resume) w.u8(0); else { w.u8(1); w.bytes(resume); }
+  return w.out();
+}
+function input(seq, cmds) {
+  const w = new W(); w.u8(2); w.u32(seq); w.u16(cmds.length);
+  for (const c of cmds) {
+    if (c.k === "move") { w.u8(1); w.f32(c.x); w.f32(c.y); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
+    else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
+    else if (c.k === "release") { w.u8(5); w.f32(c.a); w.u8(0); }
+  }
+  return w.out();
+}
+function ping(nonce) { const w = new W(); w.u8(3); w.u32(nonce); w.f64(performance.now()); return w.out(); }
+function leave() { return new Uint8Array([4]); }
+function decode(buf) {
+  const r = new R(buf); const tag = r.u8();
+  if (tag === 0x81) {
+    const m = { t: "welcome", protocol: r.u16(), content: r.u64(), match: r.bytes(16), player: r.u32(), session: r.bytes(16), tickRate: r.u8(), tick: r.u32(), serverMs: r.f64() };
+    const w = r.u16(), h = r.u16(), hash = r.u32(), runs = r.u32(); const tiles = new Uint8Array(w * h); let n = 0;
+    for (let i = 0; i < runs; i++) { const v = r.u8(), k = r.u16(); tiles.fill(v, n, n + k); n += k; }
+    if (n !== w * h || fnv(w, h, tiles) !== hash) throw new Error("map blob hash mismatch");
+    m.map = { w, h, tiles, hash }; return m;
+  }
+  if (tag === 0x82) return { t: "reject", code: r.u16(), reason: r.str() };
+  if (tag === 0x83) {
+    const s = { t: "snapshot", tick: r.u32(), serverMs: r.f64(), phase: r.u8(), ack: r.u32() };
+    s.me = r.opt(() => ({ id: r.u32(), faction: r.u8(), x: r.f32(), y: r.f32(), facing: r.f32(), hp: r.f32(), maxHp: r.f32(), status: r.u8(), weapon: r.u8(), readyIn: r.u16(), kills: r.u16(), bounty: r.u16(), gv: r.u16(), moveSeq: r.u8() }));
+    const n = r.u16(); s.actors = [];
+    for (let i = 0; i < n; i++) s.actors.push({ id: r.u32(), faction: r.u8(), x: r.f32(), y: r.f32(), facing: r.f32(), hpPct: r.u8(), status: r.u8(), weapon: r.u8(), bounty: r.u16() });
+    return s;
+  }
+  if (tag === 0x84) {
+    const e = { t: "events", tick: r.u32(), events: [] }; const n = r.u16();
+    for (let i = 0; i < n; i++) {
+      const k = r.u8();
+      if (k === 1) e.events.push({ k: "death", id: r.u32(), by: r.opt(() => r.u32()) });
+      else if (k === 2) e.events.push({ k: "bounty", id: r.u32(), bounty: r.u16() });
+      else if (k === 3) e.events.push({ k: "ended", winner: r.opt(() => r.u32()), draw: r.u8() !== 0 });
+      else if (k === 4) e.events.push({ k: "result", outcome: r.u8(), place: r.u8(), players: r.u8(), kills: r.u16(), killedBy: r.opt(() => r.str()), gvTotal: r.u32(), gvWin: r.u32(), durationSec: r.u32(), withheld: r.u8() !== 0 });
+      else throw new Error("bad event");
+    }
+    return e;
+  }
+  if (tag === 0x85) {
+    const f = { t: "fx", tick: r.u32(), fx: [] }; const n = r.u16();
+    for (let i = 0; i < n; i++) { const k = r.u8(); if (k === 1) f.fx.push({ k: "swing", by: r.u32(), weapon: r.u8(), x: r.f32(), y: r.f32(), a: r.f32() }); else f.fx.push({ k: "hit", victim: r.u32(), by: r.u32(), amount: r.f32() }); }
+    return f;
+  }
+  if (tag === 0x86) return { t: "pong", nonce: r.u32(), clientMs: r.f64(), serverMs: r.f64() };
+  throw new Error("unknown tag " + tag);
+}
+
+// ---- probe state (read by automated browser tests through window.__probe) ----
+const qs = new URLSearchParams(location.search);
+const profile = qs.get("profile") || ("web" + Math.floor(Math.random() * 1e6));
+const token = qs.get("token") || "dev";
+const faction = qs.has("faction") ? Number(qs.get("faction")) : null;
+const P = window.__probe = { welcome: null, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
+let ws = null, session = null, contentHash = 0n, map = null, nonce = 0, mouse = { x: 0, y: 0 }, attacking = false;
+
+async function connect(resume) {
+  if (contentHash === 0n) {
+    const info = await (await fetch("/info", { cache: "no-store" })).json();
+    contentHash = BigInt("0x" + info.contentHash);
+  }
+  const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
+  ws = new WebSocket(url);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => { P.open = true; ws.send(hello(contentHash, profile, token, faction, resume ? session : null)); };
+  ws.onclose = () => { P.open = false; };
+  ws.onerror = () => P.errors.push("socket error");
+  ws.onmessage = (ev) => {
+    let m;
+    try { m = decode(ev.data); } catch (e) { P.errors.push(String(e)); return; }
+    if (m.t === "welcome") { P.welcome = { player: m.player, tick: m.tick, mapW: m.map.w, mapH: m.map.h, mapHash: m.map.hash, tickRate: m.tickRate }; session = m.session; map = m.map; if (resume) P.resumes++; }
+    else if (m.t === "snapshot") { P.snapshots++; P.lastTick = m.tick; P.me = m.me; P.actors = m.actors; P.phase = m.phase; P.ack = m.ack; }
+    else if (m.t === "events") { for (const e of m.events) { P.events.push(e); if (e.k === "result") P.results.push(e); } }
+    else if (m.t === "fx") P.fx += m.fx.length;
+    else if (m.t === "pong") P.rtts.push(performance.now() - m.clientMs);
+    else if (m.t === "reject") P.rejects.push({ code: m.code, reason: m.reason });
+  };
+}
+function send(bytes) { if (ws && ws.readyState === 1) ws.send(bytes); }
+P.move = (x, y) => { P.moveSeq = (P.moveSeq + 1) & 255; send(input(++P.inputSeq, [{ k: "move", x, y, seq: P.moveSeq }])); return P.moveSeq; };
+P.attack = (a) => send(input(++P.inputSeq, [{ k: "attack", a, t: null }]));
+P.dropAndResume = () => new Promise((res) => { const old = ws; old.onclose = () => { P.open = false; connect(true).then(res); }; old.close(); });
+P.leave = () => send(leave());
+setInterval(() => send(ping(++nonce)), 500);
+
+// ---- input and drawing ----
+const cv = document.getElementById("c"), g = cv.getContext("2d"), st = document.getElementById("s");
+const COLORS = [0xff7043, 0x9575cd, 0x9ccc65, 0x4fc3f7, 0xfff176].map((c) => "#" + c.toString(16).padStart(6, "0"));
+function view() { if (!P.me || !map) return null; const s = 1; return { s, ox: P.me.x - cv.width / 2 / s, oy: P.me.y - cv.height / 2 / s }; }
+cv.addEventListener("mousemove", (e) => { const b = cv.getBoundingClientRect(); mouse = { x: (e.clientX - b.left) * cv.width / b.width, y: (e.clientY - b.top) * cv.height / b.height }; });
+cv.addEventListener("mousedown", () => { const v = view(); if (v) P.move(mouse.x / v.s + v.ox, mouse.y / v.s + v.oy); });
+addEventListener("keydown", (e) => { if (e.code === "Space") attacking = true; });
+addEventListener("keyup", (e) => { if (e.code === "Space") attacking = false; });
+setInterval(() => { const v = view(); if (attacking && v) P.attack(Math.atan2(mouse.y / v.s + v.oy - P.me.y, mouse.x / v.s + v.ox - P.me.x)); }, 100);
+function draw() {
+  const v = view();
+  g.fillStyle = "#1b1f2a"; g.fillRect(0, 0, cv.width, cv.height);
+  if (v) {
+    const T = 32;
+    const x0 = Math.max(0, Math.floor(v.ox / T)), y0 = Math.max(0, Math.floor(v.oy / T));
+    for (let ty = y0; ty < Math.min(map.h, y0 + cv.height / T + 2); ty++) for (let tx = x0; tx < Math.min(map.w, x0 + cv.width / T + 2); tx++) {
+      const t = map.tiles[ty * map.w + tx]; if (t === 0) continue;
+      g.fillStyle = t === 1 ? "#4a5068" : "#7a5a3a"; g.fillRect(tx * T - v.ox, ty * T - v.oy, T, T);
+    }
+    const disc = (a, me) => { g.fillStyle = COLORS[a.faction] || "#ccc"; g.beginPath(); g.arc(a.x - v.ox, a.y - v.oy, 12, 0, Math.PI * 2); g.fill(); if (me) { g.strokeStyle = "#fff"; g.stroke(); } };
+    for (const a of P.actors) if (a.status === 1) disc(a, false);
+    if (P.me && P.me.status === 1) disc(P.me, true);
+  }
+  const rtt = P.rtts.slice(-10).sort((a, b) => a - b);
+  st.textContent = JSON.stringify({ profile, player: P.welcome && P.welcome.player, tick: P.lastTick, phase: P.phase, hp: P.me && Math.round(P.me.hp), visible: P.actors.length, rttMs: rtt.length ? Math.round(rtt[rtt.length >> 1]) : null, results: P.results, rejects: P.rejects, errors: P.errors });
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+connect(false).catch((e) => P.errors.push(String(e)));
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 //! match's [`crate::Secrets`], a replay is a PRIVATE, server-side artifact: publish [`crate::observe::public_snapshot`]s or
 //! a replay with its secrets stripped (which then only replays the recorded results, not the hidden order).
 
+use crate::content::FactionId;
 use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
@@ -10,11 +11,28 @@ pub const REPLAY_FORMAT: &str = "rh-replay/1";
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ReplayInput {
+    /// A lobby join (live rooms start from a lobby). `policy` names the bot policy and its own seed, so a headless re-run
+    /// can rebuild the same bot and let it decide again (the policy-equivalence check), instead of replaying its commands.
+    Join { profile: String, faction: Option<FactionId>, bot: bool, policy: Option<BotPolicy> },
     Command { player: PlayerId, cmd: Command },
     /// Queued with no order budget (the parity harness only).
     Unbudgeted { player: PlayerId, cmd: Command },
     Leave { player: PlayerId },
     Dropped { player: PlayerId, dropped: bool },
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BotPolicy {
+    pub name: String,
+    pub interval: u32,
+    pub seed: u64,
+}
+
+/// How a replay starts: a typed reset with placements (headless, parity) or an empty lobby (a live room).
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ReplayStart {
+    Active { placements: Vec<Placement> },
+    Lobby,
 }
 
 /// Inputs applied before the step that makes `sim.tick == tick`.
@@ -31,7 +49,7 @@ pub struct Replay {
     pub config: SimConfig,
     pub arena: Arena,
     pub secrets: Secrets,
-    pub placements: Vec<Placement>,
+    pub start: ReplayStart,
     pub ticks: Vec<ReplayTick>,
     /// State hash after every recorded step (index i = after the i-th step past the reset).
     pub hashes: Vec<u64>,
@@ -44,7 +62,7 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    pub fn new(sim: &Sim, config: SimConfig, placements: Vec<Placement>) -> Self {
+    pub fn new(sim: &Sim, config: SimConfig, start: ReplayStart) -> Self {
         Self {
             replay: Replay {
                 format: REPLAY_FORMAT.into(),
@@ -52,7 +70,7 @@ impl Recorder {
                 config,
                 arena: sim.arena.clone(),
                 secrets: sim.secrets_for_replay(),
-                placements,
+                start,
                 ticks: Vec::new(),
                 hashes: Vec::new(),
             },
@@ -75,6 +93,9 @@ impl Recorder {
 /// Applies one recorded input to a sim (shared by the recorder's callers and the replayer).
 pub fn apply_input(sim: &mut Sim, input: &ReplayInput) {
     match *input {
+        ReplayInput::Join { ref profile, faction, bot, .. } => {
+            let _ = sim.add_player(profile, faction, bot);
+        }
         ReplayInput::Command { player, cmd } => {
             let _ = sim.submit(player, cmd);
         }
@@ -98,7 +119,7 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
     if r.content_hash != build {
         return Err(ReplayError::ContentMismatch { replay: r.content_hash, build });
     }
-    let mut sim = Sim::reset_active(r.config.clone(), r.arena.clone(), r.secrets, &r.placements);
+    let mut sim = start_sim(r);
     let mut events = Vec::new();
     let mut next = 0;
     for (step, &expected) in r.hashes.iter().enumerate() {
@@ -118,4 +139,12 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
         }
     }
     Ok((sim, events))
+}
+
+/// The sim a replay starts from.
+pub fn start_sim(r: &Replay) -> Sim {
+    match &r.start {
+        ReplayStart::Active { placements } => Sim::reset_active(r.config.clone(), r.arena.clone(), r.secrets, placements),
+        ReplayStart::Lobby => Sim::new(r.config.clone(), r.arena.clone(), r.secrets),
+    }
 }

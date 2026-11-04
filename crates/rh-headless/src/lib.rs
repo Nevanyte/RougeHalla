@@ -3,8 +3,8 @@
 //! bot-vs-bot runs, determinism tests and benches. Built-in policies sit in seats; external agents (a test, later a
 //! trainer) act for their own players through [`Env::step`]. Both go through the same input path.
 
-use rh_policy::{drive_seats, scripted, submit_all, Policy, Seat, SeatStats};
-use rh_sim::replay::{Recorder, Replay, ReplayInput};
+use rh_policy::{drive_seats_with, scripted, submit_all, Policy, Seat, SeatStats};
+use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{observe, Arena, Event, FactionId, Observation, Phase, Placement, PlayerId, RawCommand, RunResult, Secrets, Sim, SimConfig, Vec2};
 
 pub enum Agent {
@@ -69,7 +69,7 @@ impl Env {
             })
             .collect();
         let sim = Sim::reset_active(cfg.sim.clone(), cfg.arena.clone(), secrets, &placements);
-        let recorder = cfg.record.then(|| Recorder::new(&sim, cfg.sim.clone(), placements.clone()));
+        let recorder = cfg.record.then(|| Recorder::new(&sim, cfg.sim.clone(), ReplayStart::Active { placements: placements.clone() }));
         let mut seats = Vec::new();
         let mut external = Vec::new();
         for (i, a) in agents.into_iter().enumerate() {
@@ -115,29 +115,12 @@ impl Env {
     }
 
     fn drive_and_record(&mut self) {
-        if self.recorder.is_none() {
-            drive_seats(&mut self.sim, &mut self.seats, &self.last_events);
-            return;
-        }
-        // Same calls as drive_seats, with every accepted command recorded for the replay.
-        for seat in self.seats.iter_mut() {
-            if !self.sim.player(seat.player).is_some_and(|p| p.standing()) {
-                continue;
+        let rec = &mut self.recorder;
+        drive_seats_with(&mut self.sim, &mut self.seats, &self.last_events, |player, cmd| {
+            if let Some(r) = rec.as_mut() {
+                r.record(ReplayInput::Command { player, cmd });
             }
-            let obs = observe(&self.sim, seat.player, &self.last_events);
-            for raw in seat.decide(&obs) {
-                seat.stats.proposed += 1;
-                match rh_sim::validate(raw).and_then(|c| self.sim.submit(seat.player, c).map(|_| c)) {
-                    Ok(cmd) => {
-                        seat.stats.accepted += 1;
-                        if let Some(rec) = self.recorder.as_mut() {
-                            rec.record(ReplayInput::Command { player: seat.player, cmd });
-                        }
-                    }
-                    Err(_) => seat.stats.rejected += 1,
-                }
-            }
-        }
+        });
     }
 
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {

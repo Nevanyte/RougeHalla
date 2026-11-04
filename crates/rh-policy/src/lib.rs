@@ -121,13 +121,30 @@ impl Seat {
 /// (`validate` + `Sim::submit`). The live room and the headless runner both call this, so a policy behaves identically
 /// in both (tested: crates/rh-server/tests/equivalence.rs).
 pub fn drive_seats(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event]) {
+    drive_seats_with(sim, seats, last_events, |_, _| {});
+}
+
+/// [`drive_seats`], reporting every command that passed validation and was SUBMITTED (accepted or refused by the order
+/// budget: a refusal still moves the budget's refill state, so a replay must re-submit it). The one implementation both
+/// runners use.
+pub fn drive_seats_with(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event], mut submitted: impl FnMut(PlayerId, rh_sim::Command)) {
     for seat in seats.iter_mut() {
         if !sim.player(seat.player).is_some_and(|p| p.standing()) {
             continue;
         }
         let obs = observe(sim, seat.player, last_events);
-        let cmds = seat.decide(&obs);
-        submit_all(sim, seat.player, cmds, &mut seat.stats);
+        for raw in seat.decide(&obs) {
+            seat.stats.proposed += 1;
+            let Ok(c) = validate(raw) else {
+                seat.stats.rejected += 1;
+                continue;
+            };
+            submitted(seat.player, c);
+            match sim.submit(seat.player, c) {
+                Ok(()) => seat.stats.accepted += 1,
+                Err(_) => seat.stats.rejected += 1,
+            }
+        }
     }
 }
 

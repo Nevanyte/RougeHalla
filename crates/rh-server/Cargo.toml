@@ -1,0 +1,36 @@
+[package]
+name = "rh-server"
+description = "Roguehalla live authoritative match server: WSS, admission, pacing, interest-managed replication, hosting lifecycle."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+# Durable results through rh-persist (PostgreSQL). Off by default so the server builds and runs with no database.
+postgres = ["dep:rh-persist", "dep:uuid"]
+
+[dependencies]
+rh-sim = { path = "../rh-sim" }
+rh-protocol = { path = "../rh-protocol" }
+rh-policy = { path = "../rh-policy" }
+rh-headless = { path = "../rh-headless" }
+rh-persist = { path = "../rh-persist", optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "signal"] }
+axum = { version = "0.8", features = ["ws"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rcgen = "0.13"
+getrandom = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+[dev-dependencies]
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+tokio = { version = "1", features = ["test-util"] }
+
+[lints]
+workspace = true
