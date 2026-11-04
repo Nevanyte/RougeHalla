@@ -5,7 +5,7 @@
 // schedule statically (crates/rh-sim/src/schedule.rs) and a test checks it against this file, so a port can neither
 // reorder a system nor silently skip one.
 //
-//   npx tsx parity/legacy-capture/schedule.ts [--out parity/fixtures]
+//   npx tsx parity/legacy-capture/schedule.ts [--out parity/schedule]
 //
 // Two worlds are recorded: "production" (createGameWorld defaults, what RaidRoom runs) and "capture" (the module set
 // capture.ts uses for the parity fixtures: signatures and walk hints off). Each is rebuilt module by module to attribute
@@ -24,7 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../..");
 const simDir = join(repo, "packages/server/src/sim");
 const outArg = process.argv.indexOf("--out");
-const OUT = resolve(repo, outArg > 0 ? process.argv[outArg + 1]! : "parity/fixtures");
+const OUT = resolve(repo, outArg > 0 ? process.argv[outArg + 1]! : "parity/schedule");
 
 const LISTS = ["afterWeapons", "beforeDamage", "systems", "moveModifiers", "modSources"] as const;
 type ListName = (typeof LISTS)[number];
@@ -83,7 +83,9 @@ async function resolveSchedule(kind: WorldKind, opts: { signatures?: boolean; wa
   const world = createWorld(worldOpts(kind)) as World & Record<ListName, unknown[]>;
   const owner = new Map<unknown, string>();
   const actions: Record<string, string> = {};
-  const hooks: Record<string, string> = {};
+  // A hook chain in execution order: chainHook runs the earlier link first (world.ts), so the modules that set it, in
+  // install order. (A module that replaced a hook without chaining it would look the same here.)
+  const hooks: Record<string, string[]> = {};
   const installed: string[] = [];
   for (const [install, file] of modules()) {
     if (skipped(install, opts)) continue;
@@ -94,7 +96,7 @@ async function resolveSchedule(kind: WorldKind, opts: { signatures?: boolean; wa
     installed.push(file);
     for (const l of LISTS) for (const f of world[l]) if (!owner.has(f)) owner.set(f, file);
     for (const [k, v] of Object.entries(world.actions)) if ((beforeActions as Record<string, unknown>)[k] !== v) actions[k] = file;
-    for (const [k, v] of Object.entries(world.hooks)) if ((beforeHooks as Record<string, unknown>)[k] !== v) hooks[k] = file;
+    for (const [k, v] of Object.entries(world.hooks)) if ((beforeHooks as Record<string, unknown>)[k] !== v) (hooks[k] ??= []).push(file);
   }
   const lists = Object.fromEntries(LISTS.map((l) => [l, world[l].map((f) => ({
     module: owner.get(f)!, fn: (f as { name?: string }).name || "<anonymous>",

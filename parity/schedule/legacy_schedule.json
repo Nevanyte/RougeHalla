@@ -1,6 +1,6 @@
 {
  "format": "rh-legacy-schedule/1",
- "legacyRevision": "335be92388a1a417ab6654ee406230521ea95f2f",
+ "legacyRevision": "79dfba3f7c775d1b42edabff6d92411fc4e03d00",
  "note": "updateActive's fixed phases in order; each hook list in resolved registration order with its module. 'production' is createGameWorld with the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures (signatures and walk hints off). Telemetry and the input trace attach after these in RaidRoom (observers, not gameplay).",
  "updateActive": [
   "guard:voided",
@@ -258,25 +258,115 @@
    "huntTarget": "sentencedHunt"
   },
   "hooks": {
-   "dropBody": "quests",
-   "teleported": "walkHint",
-   "attackStarted": "fireRoam",
-   "weaponSwapped": "factions",
-   "hurt": "fireRoam",
-   "playerKilled": "quests",
-   "executeDenied": "factions",
-   "raidStarted": "bruiserPassives",
-   "runEnded": "walkHint",
-   "mobKilled": "quests",
-   "arenaHurt": "terrainEffects",
-   "fighterOut": "plagueZombies",
-   "statusApplied": "abilities",
-   "staggered": "abilities",
-   "planningStarted": "quests",
-   "campCleared": "bruiserPassives",
-   "hitLanded": "plagueZombies",
-   "blocked": "bruiserPassives",
-   "overkilled": "cardHooks"
+   "dropBody": [
+    "loot",
+    "quests"
+   ],
+   "teleported": [
+    "weapons",
+    "projectiles",
+    "factions",
+    "chests",
+    "mobLife",
+    "terrainEffects",
+    "abilities",
+    "quests",
+    "vision",
+    "cardHooks",
+    "plagueZombies",
+    "walkHint"
+   ],
+   "attackStarted": [
+    "factions",
+    "abilities",
+    "fireRoam"
+   ],
+   "weaponSwapped": [
+    "factions"
+   ],
+   "hurt": [
+    "factions",
+    "fireRoam"
+   ],
+   "playerKilled": [
+    "factions",
+    "killAugments",
+    "quests"
+   ],
+   "executeDenied": [
+    "factions"
+   ],
+   "raidStarted": [
+    "factions",
+    "mobLife",
+    "terrainEffects",
+    "regen",
+    "abilities",
+    "quests",
+    "vision",
+    "consumables",
+    "traders",
+    "cardHooks",
+    "fireRoam",
+    "bruiserPassives"
+   ],
+   "runEnded": [
+    "factions",
+    "chests",
+    "abilities",
+    "quests",
+    "cardHooks",
+    "plagueCorpses",
+    "fireRoam",
+    "bruiserPassives",
+    "sentencedHunt",
+    "plagueZombies",
+    "walkHint"
+   ],
+   "mobKilled": [
+    "chests",
+    "quests"
+   ],
+   "arenaHurt": [
+    "terrainEffects"
+   ],
+   "fighterOut": [
+    "abilities",
+    "vision",
+    "consumables",
+    "plagueCorpses",
+    "fireRoam",
+    "bruiserPassives",
+    "sentencedHunt",
+    "plagueZombies"
+   ],
+   "statusApplied": [
+    "abilities"
+   ],
+   "staggered": [
+    "abilities"
+   ],
+   "planningStarted": [
+    "quests"
+   ],
+   "campCleared": [
+    "quests",
+    "campHeal",
+    "bruiserPassives"
+   ],
+   "hitLanded": [
+    "cardHooks",
+    "fireRoam",
+    "bruiserPassives",
+    "plagueZombies"
+   ],
+   "blocked": [
+    "cardHooks",
+    "bruiserPassives"
+   ],
+   "overkilled": [
+    "cardHooks"
+   ]
   }
  },
  "capture": {
@@ -423,21 +513,68 @@
    "trade": "traders"
   },
   "hooks": {
-   "dropBody": "loot",
-   "teleported": "cardHooks",
-   "mobKilled": "chests",
-   "runEnded": "cardHooks",
-   "playerKilled": "killAugments",
-   "arenaHurt": "terrainEffects",
-   "raidStarted": "cardHooks",
-   "fighterOut": "consumables",
-   "attackStarted": "abilities",
-   "statusApplied": "abilities",
-   "staggered": "abilities",
-   "campCleared": "campHeal",
-   "hitLanded": "cardHooks",
-   "blocked": "cardHooks",
-   "overkilled": "cardHooks"
+   "dropBody": [
+    "loot"
+   ],
+   "teleported": [
+    "weapons",
+    "projectiles",
+    "chests",
+    "mobLife",
+    "terrainEffects",
+    "abilities",
+    "vision",
+    "cardHooks"
+   ],
+   "mobKilled": [
+    "chests"
+   ],
+   "runEnded": [
+    "chests",
+    "abilities",
+    "cardHooks"
+   ],
+   "playerKilled": [
+    "killAugments"
+   ],
+   "arenaHurt": [
+    "terrainEffects"
+   ],
+   "raidStarted": [
+    "terrainEffects",
+    "regen",
+    "abilities",
+    "vision",
+    "consumables",
+    "traders",
+    "cardHooks"
+   ],
+   "fighterOut": [
+    "abilities",
+    "vision",
+    "consumables"
+   ],
+   "attackStarted": [
+    "abilities"
+   ],
+   "statusApplied": [
+    "abilities"
+   ],
+   "staggered": [
+    "abilities"
+   ],
+   "campCleared": [
+    "campHeal"
+   ],
+   "hitLanded": [
+    "cardHooks"
+   ],
+   "blocked": [
+    "cardHooks"
+   ],
+   "overkilled": [
+    "cardHooks"
+   ]
   }
  }
 }
