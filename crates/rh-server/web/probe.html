@@ -33,7 +33,8 @@ class W {
   f32(x) { this.need(4); this.v.setFloat32(this.n, x, true); this.n += 4; }
   f64(x) { this.need(8); this.v.setFloat64(this.n, x, true); this.n += 8; }
   bytes(a) { this.need(a.length); this.b.set(a, this.n); this.n += a.length; }
-  str(s) { const e = new TextEncoder().encode(s).slice(0, 255); this.u8(e.length); this.bytes(e); }
+  // At most 255 bytes, cut at a character boundary (never inside a UTF-8 sequence), like rh-protocol and the C# mirror.
+  str(s) { const e = new TextEncoder().encode(s); let n = Math.min(e.length, 255); while (n < e.length && (e[n] & 0xc0) === 0x80) n--; this.u8(n); this.bytes(e.subarray(0, n)); }
   out() { return this.b.slice(0, this.n); }
 }
 class R {
@@ -57,9 +58,12 @@ class R {
   f32() { const x = this.v.getFloat32(this.p, true); this.p += 4; return x; }
   f64() { const x = this.v.getFloat64(this.p, true); this.p += 8; return x; }
   bytes(n) { const a = new Uint8Array(this.v.buffer.slice(this.p, this.p + n)); this.p += n; return a; }
-  str() { return new TextDecoder().decode(this.bytes(this.u8())); }
+  // Strict UTF-8 (fatal), like rh-protocol (String::from_utf8) and the C# mirror.
+  str() { const b = this.bytes(this.u8()); try { return UTF8.decode(b); } catch { throw new Error("bad utf-8"); } }
   opt(f) { const t = this.u8(); if (t === 0) return null; if (t === 1) return f(); throw new Error("bad option"); }
 }
+const UTF8 = new TextDecoder("utf-8", { fatal: true });
+const MAX_MAP_TILES = 1024 * 1024;
 function fnv(w, h, tiles) {
   let x = 0x811c9dc5;
   const eat = (b) => { x ^= b; x = Math.imul(x, 0x01000193) >>> 0; };
@@ -99,12 +103,24 @@ function decodeBody(r) {
   const tag = r.u8();
   if (tag === 0x81) {
     const m = { t: "welcome", protocol: r.u16(), content: r.u64(), match: r.bytes(16), player: r.u32(), session: r.bytes(16), tickRate: r.u8(), tick: r.u32(), serverMs: r.f64() };
-    const w = r.u16(), h = r.u16(), hash = r.u32(), runs = r.u32(); const tiles = new Uint8Array(w * h); let n = 0;
-    for (let i = 0; i < runs; i++) { const v = r.u8(), k = r.u16(); tiles.fill(v, n, n + k); n += k; }
-    if (n !== w * h || fnv(w, h, tiles) !== hash) throw new Error("map blob hash mismatch");
+    // The MapBlob rules of rh-protocol map.rs, in its order: size before anything is allocated, then every run, length, hash.
+    const w = r.u16(), h = r.u16(), hash = r.u32(), runs = r.u32();
+    if (w === 0 || h === 0 || w * h > MAX_MAP_TILES) throw new Error("bad map size");
+    const tiles = new Uint8Array(w * h); let n = 0;
+    for (let i = 0; i < runs; i++) {
+      const v = r.u8(), k = r.u16();
+      if (v > 2 || k === 0 || n + k > w * h) throw new Error("bad map run");
+      tiles.fill(v, n, n + k); n += k;
+    }
+    if (n !== w * h) throw new Error("bad map length");
+    if (fnv(w, h, tiles) !== hash) throw new Error("bad map hash");
     m.map = { w, h, tiles, hash }; return m;
   }
-  if (tag === 0x82) return { t: "reject", code: r.u16(), reason: r.str() };
+  if (tag === 0x82) {
+    const code = r.u16();
+    if (code < 1 || code > 11) throw new Error("bad reject code " + code);
+    return { t: "reject", code, reason: r.str() };
+  }
   if (tag === 0x83) {
     const tick = r.varint(), ack = r.varint(), head = r.u16();
     // bit 15 a self follows, bits 12..13 phase, bits 0..9 the self's fields; the rest is reserved.

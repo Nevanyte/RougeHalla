@@ -424,6 +424,34 @@ fn snapshot_bytes(head: u16, body: &[u8], count: u32, actors: &[u8]) -> Vec<u8> 
     w.finish()
 }
 
+/// A Welcome whose map is `w` x `h` with these (tile, length) runs and `hash` (by default the true hash of the tiles the
+/// runs spell, so only the named fault is wrong).
+fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8> {
+    let tiles: Vec<u8> = runs
+        .iter()
+        .flat_map(|&(t, n)| std::iter::repeat_n(t, n as usize))
+        .collect();
+    let mut b = Writer::default();
+    b.u8(0x81);
+    b.u16(PROTOCOL_VERSION);
+    b.u64(0x1234);
+    b.bytes(&[7; 16]);
+    b.u32(1);
+    b.bytes(&[9; 16]);
+    b.u8(20);
+    b.u32(0);
+    b.f64(0.0);
+    b.u16(w);
+    b.u16(h);
+    b.u32(hash.unwrap_or_else(|| crate::map::layer_hash(w as u32, h as u32, &tiles)));
+    b.u32(runs.len() as u32);
+    for &(t, n) in runs {
+        b.u8(t);
+        b.u16(n);
+    }
+    b.finish()
+}
+
 /// One minimal actor record: id 1, `mask`, x y facing all 0, then `extra`.
 fn actor_bytes(mask: u8, extra: &[u8]) -> Vec<u8> {
     let mut a = vec![1, mask, 0, 0, 0, 0, 0, 0];
@@ -528,6 +556,26 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Fx: a count past u16, a bad item tag.
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
         ("fx_bad_tag", vec![0x85, 0, 1, 9]),
+        // Reject: a code outside 1..=11; a reason that is not UTF-8 (the same strictness for every server string).
+        ("reject_code_zero", vec![0x82, 0, 0, 0]),
+        ("reject_code_unknown", vec![0x82, 12, 0, 0]),
+        ("server_bad_utf8", vec![0x82, 7, 0, 2, 0xc3, 0x28]),
+        // Welcome maps: every MapBlob rule, one fault each.
+        ("map_zero_size", welcome_map(0, 4, None, &[])),
+        ("map_too_large", welcome_map(2048, 1024, None, &[(0, 1)])),
+        ("map_bad_tile", welcome_map(1, 1, None, &[(3, 1)])),
+        ("map_zero_run", welcome_map(1, 1, None, &[(0, 0), (0, 1)])),
+        ("map_run_past_size", welcome_map(1, 1, None, &[(0, 2)])),
+        ("map_short", welcome_map(2, 1, None, &[(0, 1)])),
+        (
+            "map_hash_mismatch",
+            welcome_map(
+                1,
+                1,
+                Some(crate::map::layer_hash(1, 1, &[0]) ^ 1),
+                &[(0, 1)],
+            ),
+        ),
     ]
 }
 
