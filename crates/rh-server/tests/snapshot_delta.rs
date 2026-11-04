@@ -105,7 +105,10 @@ impl Viewer {
                             "{at}"
                         );
                     }
-                    let got = self.client.decode(&f).unwrap_or_else(|e| panic!("{at}: {e}"));
+                    let got = self
+                        .client
+                        .decode(&f)
+                        .unwrap_or_else(|e| panic!("{at}: {e}"));
                     assert_eq!(got, want, "{at}: the applied frames equal the Full frame");
                     if let ServerMsg::Snapshot { actors, .. } = &got {
                         self.told = actors.iter().map(|a| a.id).collect();
@@ -161,8 +164,14 @@ fn applying_the_writers_frames_equals_the_full_frame_of_every_tick_for_every_vie
         }
     }
     assert!(pushed > 8 * 1000, "{pushed}");
-    assert!(written > 2000 && written * 2 < pushed, "{written} of {pushed}");
-    assert_eq!(full, 8, "one Full per connection (the first), nothing else needed one");
+    assert!(
+        written > 2000 && written * 2 < pushed,
+        "{written} of {pushed}"
+    );
+    assert_eq!(
+        full, 8,
+        "one Full per connection (the first), nothing else needed one"
+    );
     assert!(delta > 2000, "{delta}");
     assert!(
         sent_bytes * 2 < full_bytes,
@@ -182,14 +191,15 @@ fn a_resumed_connection_starts_with_a_full_snapshot_and_a_resync_makes_the_next_
     let mut publisher = Publisher::default();
     let mut earlier = Vec::new();
     let mut v = Viewer::new();
-    let step = |env: &mut Env, publisher: &mut Publisher, earlier: &mut Vec<_>, v: &mut Viewer, t: u32| {
-        env.advance(&[]);
-        let events = env.last_events().to_vec();
-        let f = publisher.frames(&env.sim, id, t, &events, earlier, &events);
-        let data = f.snapshot.expect("encodes");
-        v.last = Some(data.clone());
-        v.out.snapshot(data);
-    };
+    let step =
+        |env: &mut Env, publisher: &mut Publisher, earlier: &mut Vec<_>, v: &mut Viewer, t: u32| {
+            env.advance(&[]);
+            let events = env.last_events().to_vec();
+            let f = publisher.frames(&env.sim, id, t, &events, earlier, &events);
+            let data = f.snapshot.expect("encodes");
+            v.last = Some(data.clone());
+            v.out.snapshot(data);
+        };
     let mut kinds = Vec::new();
     for t in 0..10 {
         step(&mut env, &mut publisher, &mut earlier, &mut v, t);
@@ -239,17 +249,61 @@ fn a_connections_snapshot_state_is_bounded_and_a_skipped_snapshot_costs_the_writ
     }
     // 300 snapshots pushed, none drained: nothing was encoded, and the writer holds no snapshot state to speak of.
     let c = out.counters();
-    assert_eq!((c.snapshots_full, c.snapshots_delta, c.snapshot_bytes_sent), (0, 0, 0));
+    assert_eq!(
+        (c.snapshots_full, c.snapshots_delta, c.snapshot_bytes_sent),
+        (0, 0, 0)
+    );
     assert_eq!(c.snapshots_skipped, 299);
     let idle = out.snapshot_state_bytes();
     let mut frames = Vec::new();
     out.drain_into(&mut frames);
     assert_eq!(frames.len(), 1);
     let c = out.counters();
-    assert_eq!((c.snapshots_full, c.snapshots_delta), (1, 0), "the one snapshot drained is the first: Full");
+    assert_eq!(
+        (c.snapshots_full, c.snapshots_delta),
+        (1, 0),
+        "the one snapshot drained is the first: Full"
+    );
     assert!(out.snapshot_state_bytes() <= idle + 16 * 1024);
     assert!(
         out.snapshot_state_bytes() < 2 * rh_protocol::MAX_ACTORS * (16 + 17 + 4) + 2048,
         "bounded by MAX_ACTORS"
+    );
+}
+
+/// The snapshot blocks cycle room -> outbox slot -> writer base -> spare -> room: over a run with a writer that drains every tick,
+/// the room builds in a handful of distinct heap blocks (it allocated one per snapshot before), and the bytes still equal the
+/// Full frame of every tick.
+#[test]
+fn snapshot_blocks_are_recycled_between_the_room_and_the_writer() {
+    let mut env = seed1_match(400);
+    let id = env.sim.players()[0].id;
+    let mut publisher = Publisher::default();
+    let mut earlier = Vec::new();
+    let mut v = Viewer::new();
+    let mut spare = None;
+    let mut blocks = BTreeSet::new();
+    for t in 0..400u32 {
+        env.advance(&[]);
+        let events = env.last_events().to_vec();
+        let f = publisher.frames_in(
+            spare.take(),
+            &env.sim,
+            id,
+            t,
+            &events,
+            &mut earlier,
+            &events,
+        );
+        let data = f.snapshot.expect("encodes");
+        blocks.insert(&*data as *const _ as usize);
+        v.last = Some(data.clone());
+        spare = v.out.push_tick(f.important, f.fx, Some(data));
+        v.drain_and_check("recycled");
+    }
+    assert!(
+        blocks.len() <= 4,
+        "{} distinct blocks over 400 snapshots",
+        blocks.len()
     );
 }

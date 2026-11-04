@@ -134,8 +134,15 @@ fn full_bytes(s: &SnapshotData) -> Vec<u8> {
 fn v2_bytes(s: &SnapshotData) -> Vec<u8> {
     let actors: Vec<WireActor> = s.actors().iter().map(QActor::to_wire).collect();
     let mut v = Vec::new();
-    encode_snapshot_into(&mut v, s.tick(), s.phase(), s.ack_input(), s.me(), actors.into_iter())
-        .expect("encodes");
+    encode_snapshot_into(
+        &mut v,
+        s.tick(),
+        s.phase(),
+        s.ack_input(),
+        s.me(),
+        actors.into_iter(),
+    )
+    .expect("encodes");
     v
 }
 
@@ -174,7 +181,11 @@ fn a_chain_of_full_and_delta_frames_equals_the_full_frame_of_every_tick() {
             }
             full_bytes_sum += full_len;
             sent_bytes_sum += frame.len();
-            assert_eq!(tracker.decode(&frame).expect("applies"), want, "seed {seed}");
+            assert_eq!(
+                tracker.decode(&frame).expect("applies"),
+                want,
+                "seed {seed}"
+            );
         }
     }
     assert!(fulls > 40 && deltas > 5000, "{fulls} full, {deltas} delta");
@@ -220,15 +231,22 @@ fn the_encoders_delta_bytes_are_the_reference_messages_bytes() {
             let kind = enc.encode(b.clone(), &mut frame);
             let reference = diff(a, b).map(|d| ServerMsg::SnapshotDelta(d).encode());
             match (kind, reference) {
-                (FrameKind::Delta, Some(r)) => assert_eq!(frame, r, "seed {seed} tick {}", b.tick()),
-                (FrameKind::Full, Some(r)) => assert!(r.len() >= b.full_len(), "a Full only when not smaller"),
+                (FrameKind::Delta, Some(r)) => {
+                    assert_eq!(frame, r, "seed {seed} tick {}", b.tick())
+                }
+                (FrameKind::Full, Some(r)) => {
+                    assert!(r.len() >= b.full_len(), "a Full only when not smaller")
+                }
                 (FrameKind::Full, None) => {}
                 (FrameKind::Delta, None) => panic!("a delta the reference cannot make"),
             }
             if let Some(d) = diff(a, b) {
                 // The message decodes back to itself, and applying it to the base gives the next snapshot.
                 let bytes = ServerMsg::SnapshotDelta(d.clone()).encode();
-                assert_eq!(ServerMsg::decode(&bytes).unwrap(), ServerMsg::SnapshotDelta(d));
+                assert_eq!(
+                    ServerMsg::decode(&bytes).unwrap(),
+                    ServerMsg::SnapshotDelta(d)
+                );
             }
         }
     }
@@ -246,7 +264,11 @@ fn the_first_snapshot_a_resync_a_stale_base_and_a_new_self_are_full_frames() {
     let snaps = walk(3, 200);
     let mut enc = ConnEncoder::new();
     let mut f = Vec::new();
-    assert_eq!(enc.encode(snaps[0].clone(), &mut f), FrameKind::Full, "first after a Welcome");
+    assert_eq!(
+        enc.encode(snaps[0].clone(), &mut f),
+        FrameKind::Full,
+        "first after a Welcome"
+    );
     f.clear();
     assert_eq!(enc.encode(snaps[1].clone(), &mut f), FrameKind::Delta);
     // A resync request makes exactly the next one Full.
@@ -258,13 +280,25 @@ fn the_first_snapshot_a_resync_a_stale_base_and_a_new_self_are_full_frames() {
     // A base more than MAX_DELTA_AGE ticks behind: Full; exactly MAX_DELTA_AGE behind: still a delta.
     f.clear();
     let last_tick = snaps[3].tick();
-    let exactly = SnapshotData::build(last_tick + MAX_DELTA_AGE, 0, 0, snaps[3].me().copied(), snaps[3].actors().iter().map(QActor::to_wire))
-        .unwrap();
+    let exactly = SnapshotData::build(
+        last_tick + MAX_DELTA_AGE,
+        0,
+        0,
+        snaps[3].me().copied(),
+        snaps[3].actors().iter().map(QActor::to_wire),
+    )
+    .unwrap();
     let mut probe = ConnEncoder::new();
     probe.encode(snaps[3].clone(), &mut Vec::new());
     assert_eq!(probe.encode(exactly, &mut f), FrameKind::Delta);
-    let too_old = SnapshotData::build(last_tick + MAX_DELTA_AGE + 1, 0, 0, snaps[3].me().copied(), snaps[3].actors().iter().map(QActor::to_wire))
-        .unwrap();
+    let too_old = SnapshotData::build(
+        last_tick + MAX_DELTA_AGE + 1,
+        0,
+        0,
+        snaps[3].me().copied(),
+        snaps[3].actors().iter().map(QActor::to_wire),
+    )
+    .unwrap();
     let mut probe = ConnEncoder::new();
     probe.encode(snaps[3].clone(), &mut Vec::new());
     f.clear();
@@ -277,17 +311,37 @@ fn the_first_snapshot_a_resync_a_stale_base_and_a_new_self_are_full_frames() {
     // A self that appears after a snapshot without one cannot be a delta; one that goes away can.
     let with = |t: u32, has_self: bool| {
         let mut rng = Rng(6);
-        SnapshotData::build(t, 1, 0, has_self.then(|| me(9, &mut Rng(5))), (1..9).map(|i| actor(i, &mut rng))).unwrap()
+        SnapshotData::build(
+            t,
+            1,
+            0,
+            has_self.then(|| me(9, &mut Rng(5))),
+            (1..9).map(|i| actor(i, &mut rng)),
+        )
+        .unwrap()
     };
     let mut probe = ConnEncoder::new();
     probe.encode(with(1, false), &mut Vec::new());
-    assert_eq!(probe.encode(with(2, true), &mut Vec::new()), FrameKind::Full);
-    assert_eq!(probe.encode(with(3, false), &mut Vec::new()), FrameKind::Delta);
+    assert_eq!(
+        probe.encode(with(2, true), &mut Vec::new()),
+        FrameKind::Full
+    );
+    assert_eq!(
+        probe.encode(with(3, false), &mut Vec::new()),
+        FrameKind::Delta
+    );
     // A different self id is a Full frame.
     let mut probe = ConnEncoder::new();
     probe.encode(with(1, true), &mut Vec::new());
     let mut rng = Rng(6);
-    let other = SnapshotData::build(2, 1, 0, Some(me(10, &mut Rng(5))), (1..9).map(|i| actor(i, &mut rng))).unwrap();
+    let other = SnapshotData::build(
+        2,
+        1,
+        0,
+        Some(me(10, &mut Rng(5))),
+        (1..9).map(|i| actor(i, &mut rng)),
+    )
+    .unwrap();
     assert_eq!(probe.encode(other, &mut Vec::new()), FrameKind::Full);
 }
 
@@ -329,11 +383,27 @@ fn a_resumed_connection_starts_with_a_full_frame_whatever_the_old_one_held() {
     assert!(fresh.decode(&f).is_ok());
 }
 
-fn base_and_delta(f: impl FnOnce(&mut SnapshotDelta)) -> (SnapshotTracker, Result<ServerMsg, TrackError>) {
+fn base_and_delta(
+    f: impl FnOnce(&mut SnapshotDelta),
+) -> (SnapshotTracker, Result<ServerMsg, TrackError>) {
     let mut rng = Rng(4);
-    let a = SnapshotData::build(10, 1, 0, Some(me(1, &mut rng)), (1..5).map(|i| actor(i * 2, &mut rng))).unwrap();
+    let a = SnapshotData::build(
+        10,
+        1,
+        0,
+        Some(me(1, &mut rng)),
+        (1..5).map(|i| actor(i * 2, &mut rng)),
+    )
+    .unwrap();
     let mut b_rng = Rng(5);
-    let b = SnapshotData::build(11, 1, 0, Some(me(1, &mut b_rng)), (1..5).map(|i| actor(i * 2, &mut b_rng))).unwrap();
+    let b = SnapshotData::build(
+        11,
+        1,
+        0,
+        Some(me(1, &mut b_rng)),
+        (1..5).map(|i| actor(i * 2, &mut b_rng)),
+    )
+    .unwrap();
     let mut t = SnapshotTracker::new();
     t.decode(&first_full(&a)).unwrap();
     let mut d = diff(&a, &b).unwrap();
@@ -346,7 +416,13 @@ fn base_and_delta(f: impl FnOnce(&mut SnapshotDelta)) -> (SnapshotTracker, Resul
 fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let all = |q: QActor| ActorDelta { mask: AD_ALL, q };
     let (t, r) = base_and_delta(|d| d.base_tick = 9);
-    assert_eq!(r, Err(TrackError::Delta(DeltaError::BaseMismatch { have: 10, want: 9 })));
+    assert_eq!(
+        r,
+        Err(TrackError::Delta(DeltaError::BaseMismatch {
+            have: 10,
+            want: 9
+        }))
+    );
     assert_eq!(t.held_tick(), Some(10), "state unchanged");
 
     let (_, r) = base_and_delta(|d| d.departed = vec![5]);
@@ -354,19 +430,45 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let (_, r) = base_and_delta(|d| d.departed = vec![999]);
     assert_eq!(r, Err(TrackError::Delta(DeltaError::UnknownDeparted(999))));
     let (_, r) = base_and_delta(|d| {
-        d.changed = vec![ActorDelta { mask: AD_X, q: QActor { id: 2, x: 5, status: 1, ..QActor::default() } }];
+        d.changed = vec![ActorDelta {
+            mask: AD_X,
+            q: QActor {
+                id: 2,
+                x: 5,
+                status: 1,
+                ..QActor::default()
+            },
+        }];
         d.departed = vec![2];
     });
     assert_eq!(r, Err(TrackError::Delta(DeltaError::DepartedAndChanged(2))));
     // An update to an actor the base does not hold (departed earlier, or never seen).
     let (_, r) = base_and_delta(|d| {
-        d.changed = vec![ActorDelta { mask: AD_X | AD_Y, q: QActor { id: 3, x: 5, y: 5, status: 1, ..QActor::default() } }];
+        d.changed = vec![ActorDelta {
+            mask: AD_X | AD_Y,
+            q: QActor {
+                id: 3,
+                x: 5,
+                y: 5,
+                status: 1,
+                ..QActor::default()
+            },
+        }];
         d.departed.clear();
     });
     assert_eq!(r, Err(TrackError::Delta(DeltaError::IncompleteNewActor(3))));
     // A complete new actor is fine.
     let (t, r) = base_and_delta(|d| {
-        d.changed = vec![all(QActor { id: 3, x: 5, y: 5, facing: 0, kit: 0, hp_pct: 100, status: 1, bounty: 0 })];
+        d.changed = vec![all(QActor {
+            id: 3,
+            x: 5,
+            y: 5,
+            facing: 0,
+            kit: 0,
+            hp_pct: 100,
+            status: 1,
+            bounty: 0,
+        })];
         d.departed.clear();
     });
     r.expect("applies");
@@ -376,11 +478,38 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let a = SnapshotData::build(10, 1, 0, None, (1..3).map(|i| actor(i, &mut rng))).unwrap();
     let mut t = SnapshotTracker::new();
     t.decode(&first_full(&a)).unwrap();
-    let d = SnapshotDelta { tick: 11, base_tick: 10, phase: 1, ack_input: 0, me: Some(SelfDelta { mask: 1, x: 1.0, ..SelfDelta::default() }), changed: vec![], departed: vec![] };
-    assert_eq!(t.decode(&ServerMsg::SnapshotDelta(d).encode()), Err(TrackError::Delta(DeltaError::SelfWithoutBase)));
+    let d = SnapshotDelta {
+        tick: 11,
+        base_tick: 10,
+        phase: 1,
+        ack_input: 0,
+        me: Some(SelfDelta {
+            mask: 1,
+            x: 1.0,
+            ..SelfDelta::default()
+        }),
+        changed: vec![],
+        departed: vec![],
+    };
+    assert_eq!(
+        t.decode(&ServerMsg::SnapshotDelta(d).encode()),
+        Err(TrackError::Delta(DeltaError::SelfWithoutBase))
+    );
     // Before any snapshot, and after a Welcome.
-    let d = ServerMsg::SnapshotDelta(SnapshotDelta { tick: 11, base_tick: 10, phase: 1, ack_input: 0, me: None, changed: vec![], departed: vec![] }).encode();
-    assert_eq!(SnapshotTracker::new().decode(&d), Err(TrackError::Delta(DeltaError::NoBase)));
+    let d = ServerMsg::SnapshotDelta(SnapshotDelta {
+        tick: 11,
+        base_tick: 10,
+        phase: 1,
+        ack_input: 0,
+        me: None,
+        changed: vec![],
+        departed: vec![],
+    })
+    .encode();
+    assert_eq!(
+        SnapshotTracker::new().decode(&d),
+        Err(TrackError::Delta(DeltaError::NoBase))
+    );
     let welcome = server_sample("welcome");
     let mut t = SnapshotTracker::new();
     t.decode(&first_full(&a)).unwrap();
@@ -389,7 +518,12 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
 }
 
 fn server_sample(name: &str) -> Vec<u8> {
-    samples::server_samples().into_iter().find(|(n, _)| *n == name).unwrap().1.encode()
+    samples::server_samples()
+        .into_iter()
+        .find(|(n, _)| *n == name)
+        .unwrap()
+        .1
+        .encode()
 }
 
 #[test]
@@ -407,10 +541,21 @@ fn a_delta_cannot_grow_the_actor_list_past_max_actors() {
         phase: 1,
         ack_input: 0,
         me: None,
-        changed: vec![ActorDelta { mask: AD_ALL, q: QActor { id: 100_000, status: 1, hp_pct: 100, ..QActor::default() } }],
+        changed: vec![ActorDelta {
+            mask: AD_ALL,
+            q: QActor {
+                id: 100_000,
+                status: 1,
+                hp_pct: 100,
+                ..QActor::default()
+            },
+        }],
         departed: vec![],
     };
-    assert_eq!(t.decode(&ServerMsg::SnapshotDelta(d).encode()), Err(TrackError::Delta(DeltaError::TooManyActors(MAX_ACTORS + 1))));
+    assert_eq!(
+        t.decode(&ServerMsg::SnapshotDelta(d).encode()),
+        Err(TrackError::Delta(DeltaError::TooManyActors(MAX_ACTORS + 1)))
+    );
     assert_eq!(t.actors().len(), MAX_ACTORS);
 }
 
@@ -422,14 +567,25 @@ fn a_delta_reveals_nothing_the_full_frame_does_not() {
         let mut enc = ConnEncoder::new();
         let mut known: std::collections::BTreeSet<u32> = Default::default();
         for s in walk(seed, 200) {
-            let visible: std::collections::BTreeSet<u32> = s.actors().iter().map(|q| q.id).collect();
+            let visible: std::collections::BTreeSet<u32> =
+                s.actors().iter().map(|q| q.id).collect();
             let mut f = Vec::new();
             enc.encode(s, &mut f);
             match ServerMsg::decode(&f).unwrap() {
-                ServerMsg::Snapshot { actors, .. } => assert!(actors.iter().all(|a| visible.contains(&a.id))),
+                ServerMsg::Snapshot { actors, .. } => {
+                    assert!(actors.iter().all(|a| visible.contains(&a.id)))
+                }
                 ServerMsg::SnapshotDelta(d) => {
-                    assert!(d.changed.iter().all(|a| visible.contains(&a.q.id)), "only visible actors are named");
-                    assert!(d.departed.iter().all(|id| known.contains(id) && !visible.contains(id)), "departed: told before, gone now");
+                    assert!(
+                        d.changed.iter().all(|a| visible.contains(&a.q.id)),
+                        "only visible actors are named"
+                    );
+                    assert!(
+                        d.departed
+                            .iter()
+                            .all(|id| known.contains(id) && !visible.contains(id)),
+                        "departed: told before, gone now"
+                    );
                 }
                 _ => unreachable!(),
             }
@@ -448,7 +604,14 @@ fn per_connection_state_is_bounded_by_max_actors() {
         // Alternate a full house and an empty one: the worst growth of the base, the record list and the departed list.
         let n = if t % 2 == 0 { MAX_ACTORS } else { 0 };
         let base = if t % 3 == 0 { 1 } else { 1000 };
-        let s = SnapshotData::build(t, 1, 0, Some(me(1, &mut rng)), (0..n as u32).map(|i| actor(i * 2 + base, &mut rng))).unwrap();
+        let s = SnapshotData::build(
+            t,
+            1,
+            0,
+            Some(me(1, &mut rng)),
+            (0..n as u32).map(|i| actor(i * 2 + base, &mut rng)),
+        )
+        .unwrap();
         let mut f = Vec::new();
         enc.encode(s.clone(), &mut f);
         assert_eq!(tracker.decode(&f).unwrap(), s.decoded());

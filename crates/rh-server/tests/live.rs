@@ -597,7 +597,10 @@ async fn a_resync_is_answered_with_one_full_snapshot_at_most_once_a_second() {
     send(&mut ws, ClientMsg::Resync).await;
     let answered = snapshot_kinds_for(&mut ws, 300).await;
     assert_eq!(full(&answered), 1, "one Full per honoured Resync");
-    assert!(answered.len() > 20 && answered.last() == Some(&0x87), "deltas resume");
+    assert!(
+        answered.len() > 20 && answered.last() == Some(&0x87),
+        "deltas resume"
+    );
 
     send(&mut ws, ClientMsg::Resync).await;
     let ignored = snapshot_kinds_for(&mut ws, 300).await;

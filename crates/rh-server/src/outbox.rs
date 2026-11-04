@@ -23,6 +23,9 @@ struct State {
     important: VecDeque<Vec<u8>>,
     fx: VecDeque<Vec<u8>>,
     snapshot: Option<SnapshotData>,
+    /// A snapshot the writer or a replaced slot is finished with: the room builds its next one in its block
+    /// ([`Outbox::push_tick`] hands it back), so a steady stream allocates none.
+    spare: Option<SnapshotData>,
     closed: Option<RejectCode>,
     /// `Notify::notify_one` calls made so far (counted under the lock the push already holds: no extra atomic), and how
     /// many of them were the close.
@@ -76,12 +79,10 @@ pub struct Outbox {
     writer: Mutex<SnapshotWriter>,
 }
 
-/// What the draining side keeps per connection: the delta encoder (its base is the last snapshot written) and a scratch
-/// buffer the frame is built in.
+/// What the draining side keeps per connection: the delta encoder (its base is the last snapshot written).
 #[derive(Default)]
 struct SnapshotWriter {
     enc: ConnEncoder,
-    scratch: Vec<u8>,
 }
 
 pub enum Next {
@@ -144,9 +145,10 @@ impl State {
             return;
         }
         c.bytes_enqueued_total
-            .fetch_add(snap.full_len() as u64, Ordering::Relaxed);
-        if self.snapshot.replace(snap).is_some() {
+            .fetch_add(snap.min_len() as u64, Ordering::Relaxed);
+        if let Some(old) = self.snapshot.replace(snap) {
             c.snapshots_skipped.fetch_add(1, Ordering::Relaxed);
+            self.spare = Some(old);
         }
     }
 }
@@ -206,40 +208,55 @@ impl Outbox {
     /// Encodes `snap` for this connection: a Full frame or a delta against the last snapshot encoded here. Called by the
     /// drain, which is the connection's writer.
     fn encode_snapshot(&self, snap: SnapshotData) -> Vec<u8> {
+        // The frame is built in the Vec the batch will own (no scratch copy): a delta is far smaller than this, a Full frame
+        // grows it once.
+        let mut frame = Vec::with_capacity(snap.frame_capacity());
         let mut w = self.writer.lock().expect("snapshot writer lock");
         if self.resync.swap(false, Ordering::Relaxed) {
             w.enc.request_full();
         }
-        let SnapshotWriter { enc, scratch } = &mut *w;
-        scratch.clear();
-        let kind = enc.encode(snap, scratch);
-        let (counter, bytes) = match kind {
-            FrameKind::Full => (&self.snapshots_full, scratch.len()),
-            FrameKind::Delta => (&self.snapshots_delta, scratch.len()),
+        let kind = w.enc.encode(snap, &mut frame);
+        let spare = w.enc.take_spare();
+        drop(w);
+        let counter = match kind {
+            FrameKind::Full => &self.snapshots_full,
+            FrameKind::Delta => &self.snapshots_delta,
         };
         counter.fetch_add(1, Ordering::Relaxed);
         self.snapshot_bytes_sent
-            .fetch_add(bytes as u64, Ordering::Relaxed);
-        scratch.clone()
+            .fetch_add(frame.len() as u64, Ordering::Relaxed);
+        if spare.is_some() {
+            self.state.lock().expect("outbox lock").spare = spare;
+        }
+        frame
     }
 
-    /// Bytes of snapshot state this connection's writer holds (the delta base and scratch): bounded by `MAX_ACTORS`.
+    /// Bytes of snapshot state this connection holds beyond the pending slot: the writer's delta base and spare lists, and the
+    /// spare the room has yet to take. Bounded by `MAX_ACTORS`.
     pub fn snapshot_state_bytes(&self) -> usize {
         let w = self.writer.lock().expect("snapshot writer lock");
-        w.enc.memory_bytes() + w.scratch.capacity()
+        w.enc.memory_bytes()
+            + self
+                .state
+                .lock()
+                .expect("outbox lock")
+                .spare
+                .as_ref()
+                .map_or(0, SnapshotData::memory_bytes)
     }
 
     /// One tick's frames for this client: one lock and one notify however many there are. Exactly equivalent to calling
     /// [`Outbox::important`], [`Outbox::fx`] and [`Outbox::snapshot`] in that order (an important frame that overflows
-    /// the queue closes the outbox, and the disposable frames after it are then ignored).
+    /// the queue closes the outbox, and the disposable frames after it are then ignored). Returns a finished snapshot to build the
+    /// next one in ([`SnapshotData::build_with`]), if there is one.
     pub fn push_tick(
         &self,
         important: Option<Vec<u8>>,
         fx: Option<Vec<u8>>,
         snapshot: Option<SnapshotData>,
-    ) {
+    ) -> Option<SnapshotData> {
         if important.is_none() && fx.is_none() && snapshot.is_none() {
-            return;
+            return None;
         }
         let c = self.counts();
         let mut s = self.state.lock().expect("outbox lock");
@@ -252,7 +269,9 @@ impl Outbox {
         if let Some(f) = snapshot {
             s.push_snapshot(&c, f);
         }
+        let spare = s.spare.take();
         self.wake(s, false);
+        spare
     }
 
     pub fn counters(&self) -> OutboxCounters {
@@ -386,7 +405,7 @@ mod tests {
         let c = o.counters();
         assert_eq!(c.fx_dropped, 2);
         assert_eq!(c.snapshots_skipped, 1);
-        let snaps = (snap(100).full_len() + snap(200).full_len()) as u64;
+        let snaps = (snap(100).min_len() + snap(200).min_len()) as u64;
         assert_eq!(c.bytes_enqueued_total, 10 + 3 * (FX_CAP as u64 + 2) + snaps);
         o.close(RejectCode::Kicked);
         o.fx(vec![0; 50]);

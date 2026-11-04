@@ -155,7 +155,17 @@ pub fn snapshot_data(
     obs: &Observation,
     ack_input: u32,
 ) -> Result<SnapshotData, rh_protocol::EncodeError> {
-    SnapshotData::build(
+    snapshot_data_with(None, obs, ack_input)
+}
+
+/// [`snapshot_data`] built in the block of a finished snapshot (see [`SnapshotData::build_with`]).
+pub fn snapshot_data_with(
+    spare: Option<SnapshotData>,
+    obs: &Observation,
+    ack_input: u32,
+) -> Result<SnapshotData, rh_protocol::EncodeError> {
+    SnapshotData::build_with(
+        spare,
         obs.tick,
         phase(obs.phase),
         ack_input,
@@ -218,15 +228,15 @@ pub struct ViewFrames {
 }
 
 impl ViewFrames {
-    /// Bytes handed to the outbox: the events and fx frames, and the snapshot at the size of its Full frame (the writer may
-    /// send less: a delta).
+    /// Bytes handed to the outbox: the events and fx frames, and the snapshot at a lower bound of the size of its Full frame
+    /// ([`SnapshotData::min_len`]; the writer sends a Full frame or a smaller delta and counts the real bytes).
     pub fn bytes(&self) -> usize {
         [&self.important, &self.fx]
             .into_iter()
             .flatten()
             .map(Vec::len)
             .sum::<usize>()
-            + self.snapshot.as_ref().map_or(0, SnapshotData::full_len)
+            + self.snapshot.as_ref().map_or(0, SnapshotData::min_len)
     }
 }
 
@@ -253,6 +263,22 @@ impl Publisher {
     /// * `all`: every event of the wake, for the viewer's own result (a dedicated path, not an observed event).
     pub fn frames(
         &mut self,
+        sim: &rh_sim::Sim,
+        viewer: rh_sim::PlayerId,
+        ack_input: u32,
+        last_step: &[rh_sim::Event],
+        earlier: &mut Vec<SeenEvent>,
+        all: &[rh_sim::Event],
+    ) -> ViewFrames {
+        self.frames_in(None, sim, viewer, ack_input, last_step, earlier, all)
+    }
+
+    /// [`Publisher::frames`] with the snapshot built in `spare`, a snapshot a connection has finished with
+    /// ([`rh_protocol::ConnEncoder::take_spare`], [`crate::outbox::Outbox::push_tick`]).
+    #[allow(clippy::too_many_arguments)]
+    pub fn frames_in(
+        &mut self,
+        spare: Option<SnapshotData>,
         sim: &rh_sim::Sim,
         viewer: rh_sim::PlayerId,
         ack_input: u32,
@@ -314,7 +340,7 @@ impl Publisher {
             }
             Some(frame)
         };
-        let snapshot = snapshot_data(&self.obs, ack_input);
+        let snapshot = snapshot_data_with(spare, &self.obs, ack_input);
         ViewFrames {
             important,
             fx,

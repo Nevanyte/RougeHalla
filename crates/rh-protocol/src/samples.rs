@@ -595,7 +595,6 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
     .collect()
 }
 
-
 /// What one frame of a chain does to a client's [`SnapshotTracker`].
 pub enum ChainOutcome {
     /// The frame applies; a snapshot (Full or resolved from a delta) is the client's state afterwards.
@@ -697,6 +696,7 @@ fn empty_delta() -> SnapshotDelta {
 /// Chains of frames for a client's tracker, each starting from a fresh one: the result after every frame (the snapshot the
 /// client holds, a reset, or the reason a delta is refused and the state kept). The first chain is produced by the real
 /// [`ConnEncoder`] (a full house of cases); the others are hand-made deltas a correct writer never sends.
+#[allow(clippy::approx_constant)] // a facing of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range
 pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     let mut chains = Vec::new();
 
@@ -730,9 +730,18 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     self5.x = 5119.875;
     self5.facing = -3.1415927;
     let plan: Vec<(SnapshotData, FrameKind)> = vec![
-        (snap(100, 1, 1, Some(chain_self(400.0)), &crowd(0.0)), FrameKind::Full),
-        (snap(101, 1, 1, Some(chain_self(401.0)), &crowd(0.5)), FrameKind::Delta),
-        (snap(102, 1, 2, Some(chain_self(401.0)), &s3), FrameKind::Delta),
+        (
+            snap(100, 1, 1, Some(chain_self(400.0)), &crowd(0.0)),
+            FrameKind::Full,
+        ),
+        (
+            snap(101, 1, 1, Some(chain_self(401.0)), &crowd(0.5)),
+            FrameKind::Delta,
+        ),
+        (
+            snap(102, 1, 2, Some(chain_self(401.0)), &s3),
+            FrameKind::Delta,
+        ),
         (snap(103, 2, 2, Some(self4), &s4), FrameKind::Delta),
         (snap(108, 2, 300, Some(self5), &s4), FrameKind::Delta),
         (snap(109, 2, 300, None, &s4), FrameKind::Delta),
@@ -987,10 +996,7 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_too_many_actors",
             delta_bytes(10, 1, 0, &[0x81, 0x04]),
         ),
-        (
-            "delta_departed_empty",
-            delta_bytes(10, 1, 0x4000, &[0, 0]),
-        ),
+        ("delta_departed_empty", delta_bytes(10, 1, 0x4000, &[0, 0])),
         (
             "delta_departed_id_gap_zero",
             delta_bytes(10, 1, 0x4000, &[0, 2, 5, 0]),

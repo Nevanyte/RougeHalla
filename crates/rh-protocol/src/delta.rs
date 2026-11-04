@@ -15,8 +15,8 @@
 //! tick (quantized as always), and the self block is exact (bitwise, so -0.0 and NaN payloads survive).
 
 use super::{
-    actor_looks_bad, head_word, id_field, kit, list, self_len, snapshot_fault, write_snapshot_head, Fixed,
-    MAX_ACTOR_LEN,
+    actor_looks_bad, head_word, id_field, kit, list, self_len, snapshot_fault, write_snapshot_head,
+    Fixed, MAX_ACTOR_LEN,
 };
 use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
 use crate::*;
@@ -53,6 +53,11 @@ pub const AD_BOUNTY: u8 = 1 << 5;
 /// Every field: what a new actor (one the base does not hold) must carry.
 pub const AD_ALL: u8 = 0x3f;
 const AD_STATUS_SHIFT: u8 = 6;
+
+/// Fewest bytes a self takes after the head word (id, x y facing, a one-byte max_hp) and an actor takes in a Full frame (id, mask,
+/// x y facing).
+const MIN_SELF: usize = 1 + 12 + 1;
+const MIN_ACTOR: usize = 1 + 1 + 6;
 
 /// Largest self delta after the head word: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
 /// move_seq, status.
@@ -164,14 +169,32 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
 
 /// One viewer's snapshot as the room hands it to that viewer's connection (validated: every frame built from it is one every
 /// decoder accepts). Immutable once built; the connection's [`ConnEncoder`] keeps the last one it wrote as its base.
+///
+/// A handle to a heap block (the snapshot is some 80 bytes plus its actor list): it moves from the room to the outbox slot to the
+/// writer's base as a pointer, and the block of a snapshot the writer is finished with is handed back to build the next one in
+/// ([`ConnEncoder::take_spare`], [`SnapshotData::build_with`]), so a steady stream allocates nothing and copies nothing.
 #[derive(Clone, Debug, PartialEq)]
-pub struct SnapshotData {
+pub struct SnapshotData(Box<SnapshotInner>);
+
+/// What a [`SnapshotData`] holds (its fields are this module's; read them through the accessors).
+#[doc(hidden)]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SnapshotInner {
     tick: u32,
     phase: u8,
     ack_input: u32,
     me: Option<WireSelf>,
     actors: Vec<QActor>,
-    full_len: u32,
+    /// [`SnapshotData::min_len`], worked out once.
+    min_len: u32,
+}
+
+impl std::ops::Deref for SnapshotData {
+    type Target = SnapshotInner;
+    #[inline]
+    fn deref(&self) -> &SnapshotInner {
+        &self.0
+    }
 }
 
 impl SnapshotData {
@@ -188,23 +211,37 @@ impl SnapshotData {
     where
         I: ExactSizeIterator<Item = WireActor>,
     {
+        Self::build_with(None, tick, phase, ack_input, me, actors)
+    }
+
+    /// [`SnapshotData::build`] in the block of an earlier snapshot ([`ConnEncoder::take_spare`]; its contents are overwritten),
+    /// so a steady stream builds its snapshots without allocating.
+    pub fn build_with<I>(
+        spare: Option<SnapshotData>,
+        tick: u32,
+        phase: u8,
+        ack_input: u32,
+        me: Option<WireSelf>,
+        actors: I,
+    ) -> Result<Self, EncodeError>
+    where
+        I: ExactSizeIterator<Item = WireActor>,
+    {
         let declared = actors.len();
         list("actors", declared, MAX_ACTORS)?;
         if phase > MAX_PHASE_CODE
-            || me.is_some_and(|s| (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE)
+            || me.is_some_and(|s| {
+                (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE
+            })
         {
             if let Some(why) = snapshot_fault(phase, me.as_ref(), &[]) {
                 return Err(EncodeError::BadValue(why));
             }
         }
-        let mut full = 1
-            + varint_len(tick)
-            + varint_len(ack_input)
-            + 2
-            + me.as_ref()
-                .map_or(0, |s| self_len(s, head_word(phase, Some(s))))
-            + varint_len(declared as u32);
-        let mut out = Vec::with_capacity(declared);
+        let mut b = spare.map_or_else(Box::default, |s| s.0);
+        let out = &mut b.actors;
+        out.clear();
+        out.reserve(declared);
         let mut prev: Option<u32> = None;
         for a in actors {
             if actor_looks_bad(&a, prev) {
@@ -214,7 +251,6 @@ impl SnapshotData {
                 return Err(EncodeError::BadValue(why));
             }
             let q = QActor::from_wire(&a);
-            full += q.full_len(prev);
             prev = Some(q.id);
             out.push(q);
         }
@@ -224,14 +260,18 @@ impl SnapshotData {
                 written: out.len(),
             });
         }
-        Ok(SnapshotData {
-            tick,
-            phase,
-            ack_input,
-            me,
-            actors: out,
-            full_len: full as u32,
-        })
+        b.min_len = (1
+            + varint_len(tick)
+            + varint_len(ack_input)
+            + 2
+            + varint_len(declared as u32)
+            + me.as_ref().map_or(0, |_| MIN_SELF)
+            + MIN_ACTOR * declared) as u32;
+        b.tick = tick;
+        b.phase = phase;
+        b.ack_input = ack_input;
+        b.me = me;
+        Ok(SnapshotData(b))
     }
 
     pub fn tick(&self) -> u32 {
@@ -249,16 +289,43 @@ impl SnapshotData {
     pub fn actors(&self) -> &[QActor] {
         &self.actors
     }
-    /// Exact size of this snapshot's Full frame.
+    /// Exact size of this snapshot's Full frame (a pass over the actors: the writer asks only when a delta is not clearly
+    /// smaller).
     pub fn full_len(&self) -> usize {
-        self.full_len as usize
+        let mut n = 1
+            + varint_len(self.tick)
+            + varint_len(self.ack_input)
+            + 2
+            + self
+                .me
+                .as_ref()
+                .map_or(0, |s| self_len(s, head_word(self.phase, Some(s))))
+            + varint_len(self.actors.len() as u32);
+        let mut prev = None;
+        for q in &self.actors {
+            n += q.full_len(prev);
+            prev = Some(q.id);
+        }
+        n
+    }
+
+    /// A capacity to build this snapshot's frame in without growing: its least Full size plus room for the stack records a delta
+    /// is assembled from (they are copied whole, then trimmed).
+    pub fn frame_capacity(&self) -> usize {
+        self.min_len() + MAX_DELTA_HEAD + MAX_ACTOR_DELTA
+    }
+
+    /// A lower bound of [`SnapshotData::full_len`] in constant time: the fewest bytes the head, the self and the actors take.
+    #[inline]
+    pub fn min_len(&self) -> usize {
+        self.min_len as usize
     }
 
     /// Appends this snapshot as a Full frame (the v2 layout): the same bytes `encode_snapshot_into` writes for it.
     pub fn encode_full_into(&self, out: &mut Vec<u8>) -> usize {
         let start = out.len();
         let mut w = Writer::from_vec(std::mem::take(out));
-        w.reserve(self.full_len as usize);
+        w.reserve(self.min_len());
         write_snapshot_head(
             &mut w,
             self.tick,
@@ -273,7 +340,7 @@ impl SnapshotData {
             prev = Some(q.id);
         }
         *out = w.finish();
-        debug_assert_eq!(out.len() - start, self.full_len as usize);
+        debug_assert_eq!(out.len() - start, self.full_len());
         out.len() - start
     }
 
@@ -290,7 +357,9 @@ impl SnapshotData {
 
     /// Heap and inline bytes this value occupies.
     pub fn memory_bytes(&self) -> usize {
-        std::mem::size_of::<Self>() + self.actors.capacity() * std::mem::size_of::<QActor>()
+        std::mem::size_of::<Self>()
+            + std::mem::size_of::<SnapshotInner>()
+            + self.actors.capacity() * std::mem::size_of::<QActor>()
     }
 }
 
@@ -307,8 +376,9 @@ pub struct ConnEncoder {
     base: Option<SnapshotData>,
     /// A resync was requested: the next snapshot is Full.
     force_full: bool,
-    records: Vec<u8>,
     departed: Vec<u32>,
+    /// The base before the current one, free to build the next snapshot in ([`ConnEncoder::take_spare`]).
+    spare: Option<SnapshotData>,
 }
 
 impl ConnEncoder {
@@ -326,12 +396,19 @@ impl ConnEncoder {
         self.base.as_ref().map(SnapshotData::tick)
     }
 
-    /// Bytes this connection's snapshot state holds (base, scratch lists): bounded by [`MAX_ACTORS`] whatever the traffic.
+    /// Bytes this connection's snapshot state holds (base, spare list, scratch list): bounded by [`MAX_ACTORS`] whatever the
+    /// traffic.
     pub fn memory_bytes(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.base.as_ref().map_or(0, |b| b.memory_bytes())
-            + self.records.capacity()
+            + self.spare.as_ref().map_or(0, SnapshotData::memory_bytes)
             + self.departed.capacity() * 4
+    }
+
+    /// The snapshot the base replaced, finished with: pass it to [`SnapshotData::build_with`] for the next snapshot, so the
+    /// steady state never allocates one. `None` until the base has been replaced once.
+    pub fn take_spare(&mut self) -> Option<SnapshotData> {
+        self.spare.take()
     }
 
     /// Whether `cur` may be sent as a delta against the base.
@@ -354,8 +431,11 @@ impl ConnEncoder {
         let mut kind = FrameKind::Full;
         if self.delta_possible(&snap) {
             let base = self.base.as_ref().expect("checked by delta_possible");
-            write_delta(base, &snap, &mut self.records, &mut self.departed, out);
-            if out.len() - start < snap.full_len as usize {
+            write_delta(base, &snap, &mut self.departed, out);
+            // Smaller than the Full frame? Below the Full frame's least size it certainly is; the exact size (a pass over the
+            // actors) is asked for only when the delta is that large.
+            let len = out.len() - start;
+            if len < snap.min_len() || len < snap.full_len() {
                 kind = FrameKind::Delta;
             } else {
                 out.truncate(start);
@@ -365,23 +445,48 @@ impl ConnEncoder {
             snap.encode_full_into(out);
         }
         self.force_full = false;
-        self.base = Some(snap);
+        self.spare = self.base.replace(snap);
         kind
     }
 }
 
-/// Writes the delta of `cur` against `base` (the caller has checked [`ConnEncoder::delta_possible`]'s conditions).
+/// Appends a stack record to the frame with one constant-size copy (inline moves, no `memcpy` call for a length only known at
+/// run time), then drops the unused tail: what `Fixed::put` does for a [`Writer`].
+#[inline(always)]
+fn put<const N: usize>(out: &mut Vec<u8>, f: &Fixed<N>) {
+    let len = out.len();
+    out.extend_from_slice(&f.b);
+    out.truncate(len + f.n);
+}
+
+/// Appends the delta of `cur` against `base` to `out` (the caller has checked [`ConnEncoder::delta_possible`]'s conditions).
+/// One pass: the head is written with its departed bit and the changed count as placeholders that are patched once the actors
+/// have been walked (the count is one byte unless 128 or more actors changed), and each changed actor is appended as it is found.
 fn write_delta(
     base: &SnapshotData,
     cur: &SnapshotData,
-    records: &mut Vec<u8>,
     departed: &mut Vec<u32>,
     out: &mut Vec<u8>,
 ) {
-    records.clear();
     departed.clear();
+    let start = out.len();
+    let age = cur.tick - base.tick;
+    let mut f = Fixed::<MAX_DELTA_HEAD>::new();
+    f.u8(T_SNAPSHOT_DELTA);
+    f.varint(cur.tick);
+    f.varint(age);
+    f.varint(cur.ack_input);
+    let head_at = f.n;
+    f.u16(0);
+    let mut head = ((cur.phase as u16) & 3) << DH_PHASE_SHIFT;
+    if let (Some(bm), Some(cm)) = (&base.me, &cur.me) {
+        head |= DH_PRESENT | write_self_delta(&mut f, bm, cm);
+    }
+    let count_at = f.n;
+    f.u8(0);
+    put(out, &f);
+
     let (b, c) = (base.actors.as_slice(), cur.actors.as_slice());
-    let mut rec = Writer::from_vec(std::mem::take(records));
     let (mut i, mut last, mut changed) = (0usize, 0u32, 0u32);
     for q in c {
         while i < b.len() && b[i].id < q.id {
@@ -427,36 +532,24 @@ fn write_delta(
         if mask & AD_BOUNTY != 0 {
             w.varint(q.bounty as u32);
         }
-        w.put(&mut rec);
+        put(out, &w);
         last = q.id;
         changed += 1;
     }
     departed.extend(b[i..].iter().map(|p| p.id));
-    *records = rec.finish();
-
-    let age = cur.tick - base.tick;
-    let mut f = Fixed::<MAX_DELTA_HEAD>::new();
-    f.u8(T_SNAPSHOT_DELTA);
-    f.varint(cur.tick);
-    f.varint(age);
-    f.varint(cur.ack_input);
-    let head_at = f.n;
-    f.u16(0);
-    let mut head = ((cur.phase as u16) & 3) << DH_PHASE_SHIFT;
-    if let (Some(bm), Some(cm)) = (&base.me, &cur.me) {
-        head |= DH_PRESENT | write_self_delta(&mut f, bm, cm);
-    }
     if !departed.is_empty() {
         head |= DH_DEPARTED;
-    }
-    f.b[head_at..head_at + 2].copy_from_slice(&head.to_le_bytes());
-    f.varint(changed);
-    out.extend_from_slice(&f.b[..f.n]);
-    out.extend_from_slice(records);
-    if !departed.is_empty() {
         let mut w = Writer::from_vec(std::mem::take(out));
         write_departed(&mut w, departed);
         *out = w.finish();
+    }
+    out[start + head_at..start + head_at + 2].copy_from_slice(&head.to_le_bytes());
+    if changed < 0x80 {
+        out[start + count_at] = changed as u8;
+    } else {
+        // 128 or more changed actors: the count is a two-byte varint (at most 512).
+        let v = [(changed as u8) | 0x80, (changed >> 7) as u8];
+        out.splice(start + count_at..start + count_at + 1, v);
     }
 }
 
@@ -604,7 +697,11 @@ impl SelfDelta {
             facing: if keep(DH_FACING) { c.facing } else { 0.0 },
             hp: if keep(DH_HP) { c.hp } else { 0.0 },
             max_hp: if keep(DH_MAX_HP) { c.max_hp } else { 0.0 },
-            kit: if keep(DH_KIT) { kit(c.faction, c.weapon) } else { 0 },
+            kit: if keep(DH_KIT) {
+                kit(c.faction, c.weapon)
+            } else {
+                0
+            },
             ready_in_ms: if keep(DH_READY) { c.ready_in_ms } else { 0 },
             kills: if keep(DH_KILLS) { c.kills } else { 0 },
             bounty: if keep(DH_BOUNTY) { c.bounty } else { 0 },
@@ -692,7 +789,10 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
                     | ((p.hp_pct != q.hp_pct) as u8) << 4
                     | ((p.bounty != q.bounty) as u8) << 5;
                 if mask != 0 || p.status != q.status {
-                    changed.push(ActorDelta { mask, q: mask_fields(q, mask) });
+                    changed.push(ActorDelta {
+                        mask,
+                        q: mask_fields(q, mask),
+                    });
                 }
             }
             Err(_) => changed.push(ActorDelta {
@@ -1186,25 +1286,30 @@ impl SnapshotTracker {
     }
 
     /// `base` with `d`'s changes and departures applied, into `out` (ascending by id).
-    fn merge(base: &[WireActor], d: &SnapshotDelta, out: &mut Vec<WireActor>) -> Result<(), DeltaError> {
+    fn merge(
+        base: &[WireActor],
+        d: &SnapshotDelta,
+        out: &mut Vec<WireActor>,
+    ) -> Result<(), DeltaError> {
         let dep = &d.departed;
         let (mut bi, mut di) = (0usize, 0usize);
         // Copies (or retires) base actors below `limit`; a departed id that no base actor matches is refused.
-        let flush = |bi: &mut usize, di: &mut usize, limit: Option<u32>, out: &mut Vec<WireActor>| {
-            while *bi < base.len() && limit.is_none_or(|l| base[*bi].id < l) {
-                let a = &base[*bi];
-                if *di < dep.len() && dep[*di] < a.id {
-                    return Err(DeltaError::UnknownDeparted(dep[*di]));
+        let flush =
+            |bi: &mut usize, di: &mut usize, limit: Option<u32>, out: &mut Vec<WireActor>| {
+                while *bi < base.len() && limit.is_none_or(|l| base[*bi].id < l) {
+                    let a = &base[*bi];
+                    if *di < dep.len() && dep[*di] < a.id {
+                        return Err(DeltaError::UnknownDeparted(dep[*di]));
+                    }
+                    if *di < dep.len() && dep[*di] == a.id {
+                        *di += 1;
+                    } else {
+                        out.push(*a);
+                    }
+                    *bi += 1;
                 }
-                if *di < dep.len() && dep[*di] == a.id {
-                    *di += 1;
-                } else {
-                    out.push(*a);
-                }
-                *bi += 1;
-            }
-            Ok(())
-        };
+                Ok(())
+            };
         for ch in &d.changed {
             flush(&mut bi, &mut di, Some(ch.q.id), out)?;
             if bi < base.len() && base[bi].id == ch.q.id {

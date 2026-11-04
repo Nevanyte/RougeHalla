@@ -1,8 +1,7 @@
 # ADR 0010: per-connection snapshot delta (packet P10b)
 
-**Status:** Accepted (coordinator decision: the gate passed, so protocol v3 is adopted). Implementation is packet P10c,
-scheduled after the server hardening package because both edit `rh-protocol`, `conn.rs` and the C#/JS codecs. The protocol
-stays v2 until P10c merges. **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
+**Status:** Accepted and implemented in packet P10c (protocol v3; see the v3 addendum of [ADR 0002](0002-transport-and-protocol.md)
+for the shipped layout and the measured result, 908 -> 305 B/player/s). **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
 connection, encoded in that connection's writer task (so a skipped snapshot is never encoded and encoding leaves the room
 task), with a full frame on join, resume and resync. It would be protocol v3, a stateful writer, a base-tick reference,
 and mirrors in Rust, C# and JS. The packet was gated on numbers; this records them.

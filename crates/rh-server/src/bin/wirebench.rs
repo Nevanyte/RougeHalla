@@ -6,7 +6,7 @@
 //! outside the timed sections.
 //! Protocol v3: each viewer has its own `ConnEncoder` (the connection writer's state, as `Outbox::drain_into` uses it) and
 //! every snapshot is written, none skipped, so the bytes are the Full-or-delta frames a client that keeps up receives.
-//! `fullSnapshotBytesPerPlayerPerSec` is what the same snapshots cost as v2-style Full frames.
+//! `--compare-full` adds `fullSnapshotBytesPerPlayerPerSec`, what the same snapshots cost as v2-style Full frames.
 use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
 use rh_policy::scripted::Brawler;
 use rh_protocol::{ConnEncoder, FrameKind, ServerMsg};
@@ -73,8 +73,11 @@ fn main() {
     let (mut bytes, mut frames, mut enc_ns, mut step_ns, mut n) = (0u64, 0u64, 0u128, 0u128, 0u64);
     let (mut snap_bytes, mut snaps, mut visible_sum) = (0u64, 0u64, 0u64);
     let (mut full_bytes, mut full_frames, mut delta_frames) = (0u64, 0u64, 0u64);
+    // `--compare-full` also sizes every snapshot as a Full frame (a pass the writer itself rarely needs): off by default so the
+    // measured work is the production work.
+    let compare_full = args.iter().any(|a| a == "--compare-full");
     let mut encoders: Vec<ConnEncoder> = ids.iter().map(|_| ConnEncoder::new()).collect();
-    let mut scratch: Vec<u8> = Vec::new();
+    let mut spares: Vec<Option<rh_protocol::SnapshotData>> = ids.iter().map(|_| None).collect();
     let (mut event_bytes, mut fx_bytes) = (0u64, 0u64);
     let mut steps = 0;
     let mut digest = args
@@ -95,17 +98,27 @@ fn main() {
         }
         let t = Instant::now();
         for (k, id) in ids.iter().enumerate() {
-            let f = publisher.frames(&env.sim, *id, 0, events, &mut earlier, events);
+            let f = publisher.frames_in(
+                spares[k].take(),
+                &env.sim,
+                *id,
+                0,
+                events,
+                &mut earlier,
+                events,
+            );
             visible_sum += publisher.observation().visible.len() as u64;
             let snap = f.snapshot.expect("snapshot encodes");
-            full_bytes += snap.full_len() as u64;
+            if compare_full {
+                full_bytes += snap.full_len() as u64;
+            }
             // The connection writer's work: encode against the last frame it wrote, into an owned frame.
-            scratch.clear();
-            match encoders[k].encode(snap, &mut scratch) {
+            let mut frame = Vec::with_capacity(snap.frame_capacity());
+            match encoders[k].encode(snap, &mut frame) {
                 FrameKind::Full => full_frames += 1,
                 FrameKind::Delta => delta_frames += 1,
             }
-            let frame = scratch.clone();
+            spares[k] = encoders[k].take_spare();
             snap_bytes += frame.len() as u64;
             snaps += 1;
             bytes += frame.len() as u64;
@@ -132,13 +145,17 @@ fn main() {
         .map(|d| format!("\"outcomeDigest\":\"{}\",", d.hex()))
         .unwrap_or_default();
     println!(
-        "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"snapshotBytesPerPlayerPerSec\":{:.0},\"fullSnapshotBytesPerPlayerPerSec\":{:.0},\"fullSnapshotFrames\":{full_frames},\"deltaSnapshotFrames\":{delta_frames},\"eventBytesPerPlayerPerSec\":{:.0},\"fxBytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
+        "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"snapshotBytesPerPlayerPerSec\":{:.0},\"fullSnapshotBytesPerPlayerPerSec\":{},\"fullSnapshotFrames\":{full_frames},\"deltaSnapshotFrames\":{delta_frames},\"eventBytesPerPlayerPerSec\":{:.0},\"fxBytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
         env.sim.arena().map.w,
         env.sim.arena().map.h,
         welcome.len(),
         bytes as f64 / 8.0 / secs,
         snap_bytes as f64 / 8.0 / secs,
-        full_bytes as f64 / 8.0 / secs,
+        if compare_full {
+            format!("{:.0}", full_bytes as f64 / 8.0 / secs)
+        } else {
+            "null".to_string()
+        },
         event_bytes as f64 / 8.0 / secs,
         fx_bytes as f64 / 8.0 / secs,
         frames as f64 / 8.0 / secs,

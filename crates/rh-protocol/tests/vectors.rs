@@ -211,7 +211,11 @@ fn every_chain_replays_to_its_recorded_outcome() {
             match (&step.outcome, got) {
                 (ChainOutcome::Applied(want), Ok(m)) => assert_eq!(&m, want, "{name} step {i}"),
                 (ChainOutcome::Held { tick, actors }, Ok(_)) => {
-                    assert_eq!((t.held_tick(), t.actors().len()), (Some(*tick), *actors), "{name}")
+                    assert_eq!(
+                        (t.held_tick(), t.actors().len()),
+                        (Some(*tick), *actors),
+                        "{name}"
+                    )
                 }
                 (ChainOutcome::Reset, Ok(ServerMsg::Welcome { .. })) => {}
                 (ChainOutcome::Refused(why), Err(TrackError::Delta(e))) => {
