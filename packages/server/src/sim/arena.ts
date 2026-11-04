@@ -288,8 +288,9 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 /** The Room lost this player's connection and holds the seat for a reconnect (they stay in the fight meanwhile). */
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
-  // During planning too: a dropped player does not hold up the early start (sim/planning.ts everyoneReady).
-  const held = world.state.phase === "active" || world.state.phase === "planning";
+  // During planning too: a dropped player does not hold up the early start (sim/planning.ts everyoneReady); in the lobby it does not
+  // count towards an early start (sim/step.ts updateLobby).
+  const held = world.state.phase === "active" || world.state.phase === "planning" || world.state.phase === "lobby";
   if (rt && rt.droppedAt === null && held) rt.droppedAt = world.state.serverTime;
   // A press that arrived just before the socket closed would hold the trigger for the whole grace.
   rt?.inputs.drain();

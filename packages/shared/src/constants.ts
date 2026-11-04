@@ -132,7 +132,8 @@ export const MIN_PLAYERS_TO_START = 2;
 export const LOBBY_SECONDS = 30;
 /** Once MIN players are in, the lobby waits at most this long for more before starting. */
 export const LOBBY_FILL_SECONDS = 5;
-export const RECONNECT_SECONDS = 10;
+/** How long a dropped seat is held (every arena phase). 20 s: a reconnect goes Worker -> coordinator -> container, after the server noticed. */
+export const RECONNECT_SECONDS = 20;
 /**
  * App-level liveness (the `beat` message). Protocol pings are not proof of a live browser: the Worker/container leg answers them
  * for a client that is gone, so the server counts the client's own messages. A client sends a `beat` every HEARTBEAT_MS; one that

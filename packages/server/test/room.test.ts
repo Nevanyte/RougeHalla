@@ -702,19 +702,40 @@ describe("leaving during the lobby", () => {
     expect(isActive(a)).toBe(true);
   });
 
-  it("a dropped connection is treated as a leave right away, not held for a reconnect", async () => {
+  it("a dropped connection holds the seat for the reconnect grace, and a grace that runs out is a free leave", async () => {
+    shortenReconnectHold(400);
     const who = await claim();
     const before = record(who);
-    const p = await createRoom(who);
+    const p = await createRoom(who, { minPlayers: 3 });
     p.room.reconnection.enabled = false;
     const sid = sessionOf(p);
     await until(() => p.room.state.players.has(sid), "the join to finish");
     await sleep(100); // core only offers a reconnect to a client that has completed its join handshake
-    const world = worldOf(p); // the room is disposed along with its last player
+    const world = worldOf(p);
     serverRoom(p).clients.getById(sid)!.ref.terminate();
-    await until(() => !isActive(who), "profile to be released", 2000);
+    await sleep(150);
+    expect(world.state.players.has(sid), "held through the grace").toBe(true);
+    expect(world.players.get(sid)?.droppedAt).not.toBeNull();
+    expect(world.state.phase).toBe("lobby");
+    await until(() => !isActive(who), "profile to be released", 3000);
     expect(world.state.players.has(sid)).toBe(false);
     expect(record(who)).toEqual(before);
+  });
+
+  it("a dropped connection in the lobby reconnects to its seat", async () => {
+    const who = await claim();
+    const p = await createRoom(who, { minPlayers: 3 });
+    const sid = sessionOf(p);
+    await until(() => p.room.state.players.has(sid), "the join to finish");
+    await sleep(100);
+    const back = reconnectAfter(p, 20);
+    serverRoom(p).clients.getById(sid)!.ref.terminate();
+    await until(back.reconnected, "the SDK to reconnect", 8000);
+    const world = worldOf(p);
+    expect(world.state.players.has(sid)).toBe(true);
+    expect(world.players.get(sid)?.droppedAt).toBeNull();
+    expect(world.state.phase).toBe("lobby");
+    expect(isActive(who)).toBe(true);
   });
 
   it("the profile can queue again straight away", async () => {

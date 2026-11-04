@@ -165,7 +165,8 @@ function updateLobby(world: World): void {
   // Server-filled bots never shorten a human's countdown or close the lobby early (docs/BOTS.md 7.2): only humans count towards
   // minPlayers and towards a full lobby, so a lobby of bots and humans stays open to the next human (who takes a bot's seat).
   let humans = 0;
-  for (const rt of world.players.values()) if (!rt.bot) humans++;
+  // A dropped player (held for the reconnect grace) is not one: a ghost must not shorten the countdown or fill the lobby.
+  for (const rt of world.players.values()) if (!rt.bot && rt.droppedAt === null) humans++;
   if (humans >= world.config.minPlayers) {
     s.lobbyEndsAt = Math.min(s.lobbyEndsAt, s.serverTime + world.config.fillSeconds * 1000);
   }

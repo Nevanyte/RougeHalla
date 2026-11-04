@@ -59,11 +59,11 @@ export function apiBase(): string {
 let client: Client | null = null;
 
 /**
- * Server keeps a dropped seat for RECONNECT_SECONDS (10s); give up a little before that. A server that has not noticed the drop yet
+ * Server keeps a dropped seat for RECONNECT_SECONDS (20 s); give up a little before that. A server that has not noticed the drop yet
  * refuses the token and the SDK stops at once: main.ts then keeps asking with the stored token (net/rejoin.ts).
  */
 function tuneReconnection(room: RaidRoom): void {
-  room.reconnection.maxRetries = 6; // ≈0.2+0.6+1.4+2+2+2 s with the 2 s cap
+  room.reconnection.maxRetries = 10; // ≈0.2+0.6+1.4+2x7 s ≈ 16 s with the 2 s cap
   room.reconnection.maxDelay = 2000;
   // Inputs typed while disconnected are stale by the time we're back; drop them.
   room.reconnection.maxEnqueuedMessages = 0;

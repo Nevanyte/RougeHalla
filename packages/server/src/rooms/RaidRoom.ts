@@ -474,15 +474,16 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   onDrop(client: Client) {
-    // Nothing to hold in the lobby: a ghost would count toward minPlayers and could be spawned into
-    // the raid unable to act. Not allowing reconnection makes core call onLeave right away. Once the run
-    // is on, the seat is held (and the player stays alive, and hittable) so a blip doesn't cost them.
+    // The seat is held for the reconnect grace in every arena phase (the player stays alive, and hittable, in the run) so a blip
+    // doesn't cost them. A grace that runs out in the lobby is a free leave, as before.
     // Planning holds it too: the room is locked by then, so a blip would otherwise cost the whole run (a dropped
     // player keeps their pick, or is given the default at the end, and does not hold up the early start). If the grace
     // runs out before the run starts, onLeave counts it as any leave in planning: MIA.
     // A training room has nothing to hold either: the shipped client leaves with a non-consented close, which lands here, and a
     // hold would keep the profile locked for the whole grace period after the player has gone back to the hub.
-    if (!this.built || this.built.state.phase === "lobby" || this.training) return;
+    // The lobby holds the seat too (it used to let go at once): a blip there, the most common moment for one on a public link, cost
+    // the player their place and the reconnect was refused. A dropped player does not count towards starting the lobby early.
+    if (!this.built || this.training) return;
     // For kill credit, a player who never comes back left now, not when the grace runs out.
     markDropped(this.world, client.sessionId);
     this.run?.noteDrop(client.sessionId);
