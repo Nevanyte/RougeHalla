@@ -258,6 +258,10 @@ impl World {
         self.players.iter().position(|p| p.id == id)
     }
 
+    pub(crate) fn player(&self, id: PlayerId) -> Option<&Player> {
+        self.players.iter().find(|p| p.id == id)
+    }
+
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
             tick: 0,

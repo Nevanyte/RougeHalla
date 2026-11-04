@@ -103,6 +103,6 @@ impl Sim {
         self.apply_ledger();
         // systems
         self.with_cx(credit::flush_announcements);
-        self.settle();
+        self.with_cx(settle::settle);
     }
 }

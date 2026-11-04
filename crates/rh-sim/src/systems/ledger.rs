@@ -3,7 +3,7 @@
 use crate::constants::*;
 use crate::content::{mitigate_shares, pvp_factor, DamageShares, WeaponId};
 use crate::sim::{Event, Outcome, Packet, PlayerId, Sim};
-use crate::systems::credit;
+use crate::systems::{credit, settle};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
@@ -235,14 +235,22 @@ impl Sim {
             None => credit::recent_rival(&self.w, vi, now),
         };
         if let Some(c) = credited {
-            let bounty = credit::owed_bounty(&self.w, &self.s, vi);
+            let bounty = credit::owed_bounty(&self.w, &self.s.bounty_at_tick_start, vi);
             payouts.push(Payout {
                 by: c,
                 victim_bot,
                 bounty,
             });
         }
-        self.down_player(vi, Outcome::Died);
+        self.with_cx(|cx| {
+            settle::down_player(
+                cx.w,
+                cx.ev,
+                Some(&mut cx.s.downed_this_tick),
+                vi,
+                Outcome::Died,
+            )
+        });
         before
     }
 }

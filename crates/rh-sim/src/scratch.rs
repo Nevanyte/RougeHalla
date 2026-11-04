@@ -5,7 +5,6 @@
 //! * `bounty_at_tick_start`, `rank`: rewritten at the start of every active tick (markTickStart, the action order) and
 //!   read only later in that same tick (the kill bounty, kill-credit ranks);
 //! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step;
-//! * `stepping`: true only inside [`crate::Sim::step`].
 
 use crate::state::PlayerId;
 use crate::systems::ledger::Entry;
@@ -24,15 +23,11 @@ pub(crate) struct TickScratch {
     pub(crate) ledger: Vec<Entry>,
     /// Players downed during this step, settled at its end.
     pub(crate) downed_this_tick: Vec<PlayerId>,
-    pub(crate) stepping: bool,
 }
 
 impl TickScratch {
     /// True when nothing tick-local survives the step (asserted at the end of every step in debug builds).
     pub(crate) fn is_settled(&self) -> bool {
-        self.melee.is_empty()
-            && self.ledger.is_empty()
-            && self.downed_this_tick.is_empty()
-            && !self.stepping
+        self.melee.is_empty() && self.ledger.is_empty() && self.downed_this_tick.is_empty()
     }
 }

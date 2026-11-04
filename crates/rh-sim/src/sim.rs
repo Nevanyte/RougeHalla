@@ -17,6 +17,7 @@ use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::state::World;
 use crate::statics::MatchStatic;
+use crate::systems::settle;
 use crate::systems::weapons::release_trigger;
 use std::sync::Arc;
 
@@ -236,7 +237,7 @@ impl Sim {
     pub fn remove_player(&mut self, id: PlayerId) {
         let Some(i) = self.idx(id) else { return };
         if self.w.phase == Phase::Active {
-            self.down_player(i, Outcome::Mia);
+            self.with_cx(|cx| settle::down_player(cx.w, cx.ev, None, i, Outcome::Mia));
         }
         self.w.players.remove(i);
     }
@@ -245,7 +246,6 @@ impl Sim {
     pub fn step(&mut self) -> Vec<Event> {
         self.w.server_time += TICK_MS;
         self.w.tick += 1;
-        self.s.stepping = true;
         match self.w.phase {
             Phase::Lobby => self.update_lobby(),
             Phase::Active => self.update_active(),
@@ -255,7 +255,6 @@ impl Sim {
                 }
             }
         }
-        self.s.stepping = false;
         debug_assert!(
             self.s.is_settled(),
             "tick-local buffers must be empty at the end of a step"
