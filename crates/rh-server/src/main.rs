@@ -59,6 +59,10 @@ async fn main() {
         Some(p) => rh_headless::load_arena(&p).unwrap_or_else(|e| panic!("{e}")),
         None => rh_sim::arenas::practice_arena(),
     };
+    if let Err(e) = rh_server::wire::arena_fits(&arena) {
+        eprintln!("[server] refusing to host this arena: {e}");
+        std::process::exit(2);
+    }
     let num = |k: &str, d: f64| {
         arg(&args, k)
             .and_then(|v| v.parse::<f64>().ok())

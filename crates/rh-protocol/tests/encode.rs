@@ -1,6 +1,7 @@
 //! The encoder paths (encode, try_encode, encode_into, SnapshotWriter, encode_welcome) all write the golden-vector bytes,
 //! size every frame exactly, and refuse instead of repair any frame a decoder would reject.
 use rh_protocol::map::MapBlob;
+use rh_protocol::quant::POS_MAX;
 use rh_protocol::samples::*;
 use rh_protocol::*;
 
@@ -9,7 +10,7 @@ fn actor(i: u32) -> WireActor {
         id: i * 3 + 1,
         faction: (i % 5) as u8,
         x: 100.25 + i as f32,
-        y: -7.5 * i as f32,
+        y: 7.5 * i as f32,
         facing: (i as f32 * 0.37).sin(),
         hp_pct: (i % 101) as u8,
         status: (i % 4) as u8,
@@ -40,7 +41,6 @@ fn me() -> WireSelf {
 fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     ServerMsg::Snapshot {
         tick: 101,
-        server_ms: 5050.0,
         phase: 1,
         ack_input: 42,
         me,
@@ -48,10 +48,29 @@ fn snapshot(me: Option<WireSelf>, n: u32) -> ServerMsg {
     }
 }
 
+/// What a client decodes: remote actors quantized, everything else as sent.
+fn decoded_form(m: &ServerMsg) -> ServerMsg {
+    match m {
+        ServerMsg::Snapshot {
+            tick,
+            phase,
+            ack_input,
+            me,
+            actors,
+        } => ServerMsg::Snapshot {
+            tick: *tick,
+            phase: *phase,
+            ack_input: *ack_input,
+            me: *me,
+            actors: actors.iter().map(WireActor::quantized).collect(),
+        },
+        other => other.clone(),
+    }
+}
+
 fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     let ServerMsg::Snapshot {
         tick,
-        server_ms,
         phase,
         ack_input,
         me,
@@ -60,15 +79,7 @@ fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     else {
         panic!("not a snapshot")
     };
-    let mut s = SnapshotWriter::begin(
-        out,
-        *tick,
-        *server_ms,
-        *phase,
-        *ack_input,
-        me.as_ref(),
-        actors.len(),
-    );
+    let mut s = SnapshotWriter::begin(out, *tick, *phase, *ack_input, me.as_ref(), actors.len());
     for a in actors {
         s.actor(a);
     }
@@ -146,27 +157,127 @@ fn snapshot_writer_matches_the_message_for_every_size() {
             let mut out = Vec::new();
             assert_eq!(stream(&mut out, &m), Ok(m.encoded_len()));
             assert_eq!(out, m.encode());
-            assert_eq!(ServerMsg::decode(&out), Ok(m.clone()));
+            assert_eq!(ServerMsg::decode(&out), Ok(decoded_form(&m)));
         }
     }
-    // The hint is only a reservation: fewer or more actors than announced still give the right frame.
-    for hint in [0, 3, 1000] {
-        let m = snapshot(Some(me()), 5);
-        let mut out = Vec::new();
-        let mut s = SnapshotWriter::begin(&mut out, 101, 5050.0, 1, 42, Some(&me()), hint);
+    // The announced count is exact: another number of actors is refused, and the frame is removed.
+    for announced in [0usize, 3, 400] {
+        let mut out = vec![7];
+        let mut w = SnapshotWriter::begin(&mut out, 101, 1, 42, Some(&me()), announced);
         for i in 0..5 {
-            s.actor(&actor(i));
+            w.actor(&actor(i));
         }
-        s.finish().unwrap();
-        assert_eq!(out, m.encode(), "hint {hint}");
+        assert_eq!(
+            w.finish(),
+            Err(EncodeError::CountMismatch {
+                declared: announced,
+                written: 5
+            })
+        );
+        assert_eq!(out, [7], "announced {announced}");
     }
+}
+
+fn into(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
+    let ServerMsg::Snapshot {
+        tick,
+        phase,
+        ack_input,
+        me,
+        actors,
+    } = m
+    else {
+        panic!("not a snapshot")
+    };
+    rh_protocol::encode_snapshot_into(
+        out,
+        *tick,
+        *phase,
+        *ack_input,
+        me.as_ref(),
+        actors.iter().copied(),
+    )
+}
+
+/// `encode_snapshot_into` is the message's frame byte for byte, appends after existing bytes, and refuses (leaving the
+/// buffer untouched) exactly what `SnapshotWriter` refuses.
+#[test]
+fn encode_snapshot_into_matches_the_writer_and_its_refusals() {
+    for n in [0u32, 1, 2, 14, 68, 300, MAX_ACTORS as u32] {
+        for m in [snapshot(None, n), snapshot(Some(me()), n)] {
+            let mut out = vec![9, 9];
+            assert_eq!(into(&mut out, &m), Ok(m.encoded_len()));
+            assert_eq!(&out[..2], &[9, 9]);
+            assert_eq!(&out[2..], &m.encode()[..]);
+        }
+    }
+    let ServerMsg::Snapshot { actors, .. } = snapshot(Some(me()), 3) else {
+        unreachable!()
+    };
+    let bad_variants: Vec<Vec<WireActor>> = vec![
+        actors
+            .iter()
+            .map(|a| WireActor { hp_pct: 101, ..*a })
+            .collect(),
+        actors
+            .iter()
+            .map(|a| WireActor { x: f32::NAN, ..*a })
+            .collect(),
+        actors
+            .iter()
+            .map(|a| WireActor { faction: 16, ..*a })
+            .collect(),
+        actors.iter().rev().copied().collect(),
+    ];
+    for bad in bad_variants {
+        let mut a = vec![7u8];
+        let mut b = vec![7u8];
+        let via_into =
+            rh_protocol::encode_snapshot_into(&mut a, 101, 1, 42, Some(&me()), bad.iter().copied());
+        let mut w = SnapshotWriter::begin(&mut b, 101, 1, 42, Some(&me()), bad.len());
+        for x in &bad {
+            w.actor(x);
+        }
+        assert!(via_into.is_err());
+        assert_eq!(via_into, w.finish());
+        assert_eq!((a, b), (vec![7u8], vec![7u8]));
+    }
+    // A count that disagrees with the iterator's own length is a mismatch, and over the limit is TooMany.
+    let mut out = vec![7u8];
+    let mut it = (0..5).map(actor);
+    it.next();
+    let r = rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, it);
+    assert!(r.is_ok());
+    let mut out = vec![7u8];
+    let many: Vec<WireActor> = (0..(MAX_ACTORS as u32 + 1)).map(actor).collect();
+    assert!(matches!(
+        rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, many.into_iter()),
+        Err(EncodeError::TooMany { .. })
+    ));
+    assert_eq!(out, [7]);
+}
+
+#[test]
+fn an_announced_count_over_the_limit_is_too_many() {
+    let mut out = vec![7];
+    let mut w = SnapshotWriter::begin(&mut out, 101, 1, 42, None, 1000);
+    w.actor(&actor(1));
+    assert!(matches!(
+        w.finish(),
+        Err(EncodeError::TooMany {
+            what: "actors",
+            n: 1000,
+            ..
+        })
+    ));
+    assert_eq!(out, [7]);
 }
 
 #[test]
 fn max_actors_encodes_and_one_more_is_refused_not_clamped() {
     let ok = snapshot(Some(me()), MAX_ACTORS as u32);
     let bytes = ok.try_encode().expect("512 actors is a legal frame");
-    assert_eq!(ServerMsg::decode(&bytes), Ok(ok));
+    assert_eq!(ServerMsg::decode(&bytes), Ok(decoded_form(&ok)));
 
     let over = snapshot(Some(me()), MAX_ACTORS as u32 + 1);
     let err = EncodeError::TooMany {
@@ -184,18 +295,22 @@ fn max_actors_encodes_and_one_more_is_refused_not_clamped() {
     );
     assert_eq!(stream(&mut out, &over), Err(err));
     assert_eq!(out, [1, 2, 3], "a refused streamed frame is removed");
-    // What every decoder does with the frame the encoder refuses to write:
-    let mut forged = bytes.clone();
-    let count_at = forged.len() - 2 - ACTOR_BYTES * MAX_ACTORS;
-    forged[count_at..count_at + 2].copy_from_slice(&(MAX_ACTORS as u16 + 1).to_le_bytes());
-    forged.extend_from_slice(&[0; ACTOR_BYTES]);
+    // What every decoder does with the frame the encoder refuses to write (hand-built: 513 minimal actors).
+    let mut w = Writer::default();
+    w.u8(0x83);
+    w.varint(1);
+    w.varint(0);
+    w.u16(0);
+    w.varint(MAX_ACTORS as u32 + 1);
+    for _ in 0..=MAX_ACTORS {
+        w.varint(1);
+        w.bytes(&[0; 7]);
+    }
     assert_eq!(
-        ServerMsg::decode(&forged),
+        ServerMsg::decode(&w.finish()),
         Err(DecodeError::TooMany(MAX_ACTORS + 1))
     );
 }
-
-const ACTOR_BYTES: usize = 22;
 
 #[cfg(debug_assertions)]
 #[test]
@@ -208,11 +323,11 @@ fn encode_debug_asserts_on_too_many_actors() {
 fn an_abandoned_snapshot_writer_leaves_no_partial_frame() {
     let mut out = vec![9];
     {
-        let mut s = SnapshotWriter::begin(&mut out, 1, 2.0, 0, 0, Some(&me()), 4);
+        let mut s = SnapshotWriter::begin(&mut out, 1, 0, 0, Some(&me()), 4);
         s.actor(&actor(1));
     }
     assert_eq!(out, [9]);
-    let mut s = SnapshotWriter::begin(&mut out, 1, 2.0, 0, 0, None, 0);
+    let mut s = SnapshotWriter::begin(&mut out, 1, 0, 0, None, 1);
     s.actor(&actor(1));
     let n = s.finish().unwrap();
     assert_eq!(out.len(), 1 + n);
@@ -291,7 +406,7 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
         events.try_encode(),
         Err(EncodeError::TooMany { what: "events", .. })
     ));
-    // A legal count whose frame is still over the server frame limit (13 B per hit).
+    // A legal count whose frame is still over the server frame limit.
     let big = ServerMsg::Fx {
         tick: 1,
         fx: vec![
@@ -300,13 +415,14 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
                 by: 2,
                 amount: 3.0
             };
-            30_000
+            40_000
         ],
     };
+    // tag 1, tick 1, count 3 (a varint of 40000), then 1 + 1 + 1 + 4 per hit.
     assert_eq!(
         big.try_encode(),
         Err(EncodeError::TooLarge {
-            len: 7 + 13 * 30_000,
+            len: 5 + 7 * 40_000,
             max: MAX_SERVER_FRAME
         })
     );
@@ -434,4 +550,69 @@ fn maps_decoders_reject_are_refused_for_the_same_reason() {
         Err(EncodeError::TooLarge { .. })
     ));
     assert!(out.is_empty());
+}
+
+/// A remote actor or swing outside the 0 ..= POS_MAX grid is refused (never clamped), on every encoder path; one at the
+/// top of the range is carried exactly.
+#[test]
+fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
+    let at = |x: f32, y: f32| WireActor { x, y, ..actor(0) };
+    let snap = |a: WireActor| ServerMsg::Snapshot {
+        tick: 1,
+        phase: 1,
+        ack_input: 0,
+        me: None,
+        actors: vec![a],
+    };
+    let inside = snap(at(POS_MAX, 8191.5));
+    let bytes = inside.try_encode().expect("the top of the range encodes");
+    assert_eq!(ServerMsg::decode(&bytes).unwrap(), decoded_form(&inside));
+    assert_eq!(
+        decoded_form(&inside),
+        inside,
+        "and decodes to what was sent"
+    );
+    for (x, y) in [
+        (8191.876, 0.0),
+        (0.0, 8192.0),
+        (1.0e9, 5.0),
+        (-0.01, 5.0),
+        (5.0, f32::NAN),
+        (f32::INFINITY, 5.0),
+    ] {
+        let m = snap(at(x, y));
+        assert_eq!(
+            m.try_encode(),
+            Err(EncodeError::BadValue("position")),
+            "{x},{y}"
+        );
+        let mut out = vec![9u8];
+        assert_eq!(
+            m.encode_into(&mut out),
+            Err(EncodeError::BadValue("position"))
+        );
+        assert_eq!(out, vec![9u8], "an error leaves the buffer unchanged");
+        let mut out = Vec::new();
+        assert_eq!(stream(&mut out, &m), Err(EncodeError::BadValue("position")));
+        assert!(out.is_empty());
+    }
+    let swing = |x: f32, y: f32| ServerMsg::Fx {
+        tick: 1,
+        fx: vec![WireFx::Swing {
+            by: 1,
+            weapon: 2,
+            x,
+            y,
+            a: 0.5,
+        }],
+    };
+    assert!(swing(POS_MAX, 0.0).try_encode().is_ok());
+    assert_eq!(
+        swing(0.0, 8192.0).try_encode(),
+        Err(EncodeError::BadValue("position"))
+    );
+    assert_eq!(
+        swing(f32::NAN, 0.0).try_encode(),
+        Err(EncodeError::BadValue("position"))
+    );
 }

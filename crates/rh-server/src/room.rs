@@ -629,9 +629,14 @@ impl Room {
                 self.bytes_out += f.len() as u64;
                 out.fx(f);
             }
-            let snap = wire::snapshot(&obs, h.ack_input).encode();
-            self.bytes_out += snap.len() as u64;
-            out.snapshot(snap);
+            match wire::encode_snapshot(&obs, h.ack_input) {
+                Ok(snap) => {
+                    self.bytes_out += snap.len() as u64;
+                    out.snapshot(snap);
+                }
+                // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
+                Err(e) => eprintln!("[room] snapshot not sent: {e}"),
+            }
         }
     }
 

@@ -35,7 +35,7 @@ fn main() {
         arena.map.tiles.clone(),
     );
     let welcome = ServerMsg::Welcome {
-        protocol: 1,
+        protocol: rh_protocol::PROTOCOL_VERSION,
         content_hash: 0,
         match_id: [0; 16],
         player_id: 1,
@@ -69,6 +69,7 @@ fn main() {
     let ids: Vec<_> = env.sim.players().iter().map(|p| p.id).collect();
     let (mut bytes, mut frames, mut enc_ns, mut step_ns, mut n) = (0u64, 0u64, 0u128, 0u128, 0u64);
     let (mut snap_bytes, mut snaps, mut visible_sum) = (0u64, 0u64, 0u64);
+    let (mut event_bytes, mut fx_bytes) = (0u64, 0u64);
     let mut steps = 0;
     let mut digest = args
         .iter()
@@ -87,24 +88,28 @@ fn main() {
         for id in &ids {
             let obs = rh_sim::observe(&env.sim, *id, events);
             visible_sum += obs.visible.len() as u64;
-            let snap = rh_server::wire::snapshot(&obs, 0).encode();
+            let snap = rh_server::wire::encode_snapshot(&obs, 0).expect("snapshot encodes");
             snap_bytes += snap.len() as u64;
             snaps += 1;
             bytes += snap.len() as u64;
             frames += 1;
             let imp = rh_server::wire::important(events, &obs);
             if !imp.is_empty() {
-                bytes += ServerMsg::Events {
+                let n = ServerMsg::Events {
                     tick: obs.tick,
                     events: imp,
                 }
                 .encode()
                 .len() as u64;
+                bytes += n;
+                event_bytes += n;
                 frames += 1;
             }
             let fx = rh_server::wire::fx_seen(&obs);
             if !fx.is_empty() {
-                bytes += ServerMsg::Fx { tick: obs.tick, fx }.encode().len() as u64;
+                let n = ServerMsg::Fx { tick: obs.tick, fx }.encode().len() as u64;
+                bytes += n;
+                fx_bytes += n;
                 frames += 1;
             }
             n += 1;
@@ -119,11 +124,14 @@ fn main() {
         .map(|d| format!("\"outcomeDigest\":\"{}\",", d.hex()))
         .unwrap_or_default();
     println!(
-        "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
+        "{{\"map\":\"{}x{}\",\"players\":8,\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"snapshotBytesPerPlayerPerSec\":{:.0},\"eventBytesPerPlayerPerSec\":{:.0},\"fxBytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice\"}}",
         env.sim.arena().map.w,
         env.sim.arena().map.h,
         welcome.len(),
         bytes as f64 / 8.0 / secs,
+        snap_bytes as f64 / 8.0 / secs,
+        event_bytes as f64 / 8.0 / secs,
+        fx_bytes as f64 / 8.0 / secs,
         frames as f64 / 8.0 / secs,
         snap_bytes as f64 / snaps.max(1) as f64,
         visible_sum as f64 / n.max(1) as f64,

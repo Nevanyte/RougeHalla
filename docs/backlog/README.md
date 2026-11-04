@@ -34,7 +34,7 @@ never in parallel: `crates/rh-sim/src/schedule.rs` (the tick as data: **never re
 from `Pending("P-XXX-n")` to `Ported(fn)` at their legacy position, and `crates/rh-parity/tests/schedule.rs` fails when a
 table stops matching `parity/schedule/legacy_schedule.json`), `crates/rh-sim/src/content.rs` (and `content_hash`),
 `crates/rh-sim/src/observe.rs` (`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` +
-`protocol/fixtures/v1.json` (`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`,
+`protocol/fixtures/v2.json` (`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`,
 `Cargo.toml`/`Cargo.lock`, and `parity/legacy-capture/capture.ts`. **A mechanic is a new file, not an edit of a monolith:**
 `crates/rh-sim/src/systems/<mechanic>.rs` (every entry point `fn(&mut Cx)`) plus its rows in `schedule.rs`; its state goes
 in `state.rs` (hashed and checkpointed), its per-tick working sets in `scratch.rs`, and a hook link it ports is a `fn(&mut

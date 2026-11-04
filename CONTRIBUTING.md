@@ -29,8 +29,9 @@ npx tsx parity/legacy-capture/capture.ts            # re-capture legacy fixtures
 
 ## Rules
 - The simulation is pure: no I/O, clock or entropy in `rh-sim`; the tick order is fixed ([docs/CONTRACTS.md](docs/CONTRACTS.md) C-TICK).
-- A wire change bumps `PROTOCOL_VERSION` when incompatible and regenerates `protocol/fixtures/v1.json`
-  (`cargo run -p rh-protocol --bin protocol-fixtures`); the C# mirror must pass the same vectors.
+- Wire changes: bump `PROTOCOL_VERSION` when incompatible; regenerate the golden vectors
+  `protocol/fixtures/v<PROTOCOL_VERSION>.json` (`cargo run -p rh-protocol --bin protocol-fixtures`); the Rust, C# and JS
+  decoders must all pass them.
 - Every ported mechanic arrives with captured legacy fixtures and a parity test.
 - Shared files (`Cargo.lock`, `docs/MIGRATION.md`, the CONTRACTS status table) are edited by one coordinator at a time.
 - No license is declared yet: do not add third-party assets without recording their license.

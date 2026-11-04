@@ -9,7 +9,7 @@ namespace Roguehalla.Net.Tests
 {
     public class ProtocolVectorTests
     {
-        static JsonElement Fixture() { return JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol", "fixtures", "v1.json"))).RootElement; }
+        static JsonElement Fixture() { return JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol", "fixtures", "v2.json"))).RootElement; }
 
         static IEnumerable<TestCaseData> Vectors(string section)
         {
@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV1() { Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV2() { Assert.AreEqual(2, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -75,7 +75,7 @@ namespace Roguehalla.Net.Tests
         public void HelloFields()
         {
             var h = Client<ClientMsg.Hello>("hello");
-            Assert.AreEqual(1, h.Protocol);
+            Assert.AreEqual(Wire.ProtocolVersion, h.Protocol);
             Assert.AreEqual(0x1122334455667788UL, h.ContentHash);
             Assert.AreEqual("web-0.1.0", h.Build);
             Assert.AreEqual("Nevan_01", h.Profile);
@@ -140,7 +140,7 @@ namespace Roguehalla.Net.Tests
         {
             var rj = Server<ServerMsg.Reject>("reject");
             Assert.AreEqual(RejectCode.ProtocolMismatch, rj.Code);
-            Assert.AreEqual("client protocol 2, server 1", rj.Reason);
+            Assert.AreEqual("client protocol 1, server 2", rj.Reason);
 
             var s = Server<ServerMsg.Snapshot>("snapshot");
             Assert.AreEqual(101u, s.Tick); Assert.AreEqual(5050.0, s.ServerMs); Assert.AreEqual((byte)1, s.Phase); Assert.AreEqual(42u, s.AckInput);
@@ -150,7 +150,7 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual((ushort)2, s.Me.Kills); Assert.AreEqual((ushort)0, s.Me.Bounty); Assert.AreEqual((ushort)20, s.Me.Gv); Assert.AreEqual((byte)7, s.Me.MoveSeq);
             Assert.AreEqual(1, s.Actors.Length);
             var a = s.Actors[0];
-            Assert.AreEqual(1u, a.Id); Assert.AreEqual(456f, a.X); Assert.AreEqual(320f, a.Y); Assert.AreEqual(-1f, a.Facing);
+            Assert.AreEqual(1u, a.Id); Assert.AreEqual(456f, a.X); Assert.AreEqual(320f, a.Y); Assert.AreEqual(-0.99996376f, a.Facing); // -1 rad, quantized to 2 pi / 65536
             Assert.AreEqual((byte)87, a.HpPct); Assert.AreEqual((ushort)28, a.Bounty);
 
             var sp = Server<ServerMsg.Snapshot>("snapshot_spectator");
@@ -180,6 +180,143 @@ namespace Roguehalla.Net.Tests
 
             var p = Server<ServerMsg.Pong>("pong");
             Assert.AreEqual(0xdeadbeefu, p.Nonce); Assert.AreEqual(1.5, p.ClientMs); Assert.AreEqual(5051.25, p.ServerMs);
+        }
+
+        static int Bits(float f) { return BitConverter.SingleToInt32Bits(f); }
+
+        static IEnumerable<TestCaseData> DecodedVectors()
+        {
+            foreach (var v in Fixture().GetProperty("server").EnumerateArray())
+                if (v.TryGetProperty("decoded", out _))
+                    yield return new TestCaseData(v.GetProperty("name").GetString()).SetName("decoded:" + v.GetProperty("name").GetString());
+        }
+
+        /// <summary>The vectors carry what a decoder must produce (floats as bit patterns): the quantization is held across languages, not just the bytes.</summary>
+        [TestCaseSource(nameof(DecodedVectors))]
+        public void DecodedVectorMatchesFieldForField(string name)
+        {
+            JsonElement v = default;
+            foreach (var e in Fixture().GetProperty("server").EnumerateArray()) if (e.GetProperty("name").GetString() == name) v = e;
+            var d = v.GetProperty("decoded");
+            var msg = ServerMsg.Decode(Util.FromHex(v.GetProperty("hex").GetString()));
+            if (msg is ServerMsg.Fx fx)
+            {
+                Assert.AreEqual(d.GetProperty("tick").GetUInt32(), fx.Tick);
+                var items = d.GetProperty("fx");
+                Assert.AreEqual(items.GetArrayLength(), fx.List.Count);
+                for (int i = 0; i < fx.List.Count; i++)
+                {
+                    var it = items[i]; var f = fx.List[i];
+                    if (it.GetProperty("k").GetString() == "swing")
+                    {
+                        Assert.AreEqual(FxKind.Swing, f.Kind);
+                        Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By); Assert.AreEqual(it.GetProperty("weapon").GetByte(), f.Weapon);
+                        Assert.AreEqual(it.GetProperty("xBits").GetInt64(), (long)(uint)Bits(f.X)); Assert.AreEqual(it.GetProperty("yBits").GetInt64(), (long)(uint)Bits(f.Y));
+                        Assert.AreEqual(it.GetProperty("aBits").GetInt64(), (long)(uint)Bits(f.A));
+                    }
+                    else
+                    {
+                        Assert.AreEqual(FxKind.Hit, f.Kind);
+                        Assert.AreEqual(it.GetProperty("victim").GetUInt32(), f.Victim); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By);
+                        Assert.AreEqual(it.GetProperty("amountBits").GetInt64(), (long)(uint)Bits(f.Amount));
+                    }
+                }
+                return;
+            }
+            var s = (ServerMsg.Snapshot)msg;
+            Assert.AreEqual(d.GetProperty("tick").GetUInt32(), s.Tick);
+            Assert.AreEqual(d.GetProperty("serverMs").GetDouble(), s.ServerMs);
+            Assert.AreEqual(d.GetProperty("phase").GetByte(), s.Phase);
+            Assert.AreEqual(d.GetProperty("ack").GetUInt32(), s.AckInput);
+            var me = d.GetProperty("me");
+            if (me.ValueKind == JsonValueKind.Null) Assert.IsNull(s.Me);
+            else
+            {
+                Assert.AreEqual(me.GetProperty("id").GetUInt32(), s.Me.Id); Assert.AreEqual(me.GetProperty("faction").GetByte(), s.Me.Faction);
+                Assert.AreEqual(me.GetProperty("xBits").GetInt64(), (long)(uint)Bits(s.Me.X)); Assert.AreEqual(me.GetProperty("yBits").GetInt64(), (long)(uint)Bits(s.Me.Y));
+                Assert.AreEqual(me.GetProperty("facingBits").GetInt64(), (long)(uint)Bits(s.Me.Facing));
+                Assert.AreEqual(me.GetProperty("hpBits").GetInt64(), (long)(uint)Bits(s.Me.Hp)); Assert.AreEqual(me.GetProperty("maxHpBits").GetInt64(), (long)(uint)Bits(s.Me.MaxHp));
+                Assert.AreEqual(me.GetProperty("status").GetByte(), s.Me.Status); Assert.AreEqual(me.GetProperty("weapon").GetByte(), s.Me.Weapon);
+                Assert.AreEqual(me.GetProperty("readyInMs").GetUInt16(), s.Me.ReadyInMs); Assert.AreEqual(me.GetProperty("kills").GetUInt16(), s.Me.Kills);
+                Assert.AreEqual(me.GetProperty("bounty").GetUInt16(), s.Me.Bounty); Assert.AreEqual(me.GetProperty("gv").GetUInt16(), s.Me.Gv);
+                Assert.AreEqual(me.GetProperty("moveSeq").GetByte(), s.Me.MoveSeq);
+            }
+            var actors = d.GetProperty("actors");
+            Assert.AreEqual(actors.GetArrayLength(), s.Actors.Length);
+            for (int i = 0; i < s.Actors.Length; i++)
+            {
+                var e = actors[i]; var a = s.Actors[i];
+                Assert.AreEqual(e.GetProperty("id").GetUInt32(), a.Id); Assert.AreEqual(e.GetProperty("faction").GetByte(), a.Faction);
+                Assert.AreEqual(e.GetProperty("xBits").GetInt64(), (long)(uint)Bits(a.X)); Assert.AreEqual(e.GetProperty("yBits").GetInt64(), (long)(uint)Bits(a.Y));
+                Assert.AreEqual(e.GetProperty("facingBits").GetInt64(), (long)(uint)Bits(a.Facing));
+                Assert.AreEqual(e.GetProperty("hpPct").GetByte(), a.HpPct); Assert.AreEqual(e.GetProperty("status").GetByte(), a.Status);
+                Assert.AreEqual(e.GetProperty("weapon").GetByte(), a.Weapon); Assert.AreEqual(e.GetProperty("bounty").GetUInt16(), a.Bounty);
+            }
+        }
+
+        static IEnumerable<TestCaseData> MalformedServerVectors() { return Vectors("malformedServer"); }
+
+        [TestCaseSource(nameof(MalformedServerVectors))]
+        public void MalformedServerFrameIsRejectedForTheDocumentedReason(string name, string hex)
+        {
+            DecodeError want;
+            switch (name)
+            {
+                case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
+                case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
+                case "trailing_byte": want = DecodeError.Trailing; break;
+                case "overlong_varint": case "varint_past_u32": case "varint_too_long": want = DecodeError.BadVarint; break;
+                case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
+                case "head_self_bit_without_present_bit": case "head_reserved_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
+                case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
+                    want = DecodeError.BadField; break;
+                default: throw new KeyNotFoundException("no expectation for " + name);
+            }
+            Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);
+        }
+
+        [Test]
+        public void ServerMsIsTickTimes50AndNotOnTheWire()
+        {
+            Assert.AreEqual(5050.0, Server<ServerMsg.Snapshot>("snapshot").ServerMs);
+            Assert.AreEqual(1000000 * 50.0, Server<ServerMsg.Snapshot>("snapshot_full").ServerMs);
+            // The frame of a spectator snapshot at tick 1 is 6 bytes: tag, tick, ack, head u16, count.
+            Assert.AreEqual(6, new ServerMsg.Snapshot { Tick = 1 }.Encode().Length);
+        }
+
+        [Test]
+        public void QuantizationErrorStaysWithinTheDocumentedBounds()
+        {
+            for (int i = 0; i <= 40960; i++)
+            {
+                float v = i * 0.125f + 0.0625f;
+                Assert.LessOrEqual(Math.Abs(Quant.DequantizePos(Quant.QuantizePos(v)) - v), 0.0625f, "pos " + v);
+            }
+            Assert.AreEqual(0, Quant.QuantizePos(-5f)); Assert.AreEqual(0, Quant.QuantizePos(float.NaN)); Assert.AreEqual(65535, Quant.QuantizePos(1e9f));
+            Assert.AreEqual(1, Quant.QuantizePos(0.0625f), "ties round away from zero");
+            const double Tau = Math.PI * 2;
+            for (int i = 0; i < 10000; i++)
+            {
+                float a = -3.2f + 6.4f * i / 10000f;
+                double d = ((Quant.DequantizeFacing(Quant.QuantizeFacing(a)) - (double)a) % Tau + Tau) % Tau;
+                if (d > Tau / 2) d -= Tau;
+                Assert.LessOrEqual(Math.Abs(d), 4.85e-5, "facing " + a);
+            }
+            Assert.AreEqual(0, Quant.QuantizeFacing(float.PositiveInfinity));
+            Assert.AreEqual(-(float)Math.PI, Quant.DequantizeFacing(0x8000));
+            Assert.AreEqual(0x8000, Quant.QuantizeFacing((float)Math.PI));
+        }
+
+        [Test]
+        public void EncodersRefuseWhatNoDecoderAccepts()
+        {
+            WireActor A(uint id) { return new WireActor { Id = id }; }
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { A(2), A(2) } }.Encode(), "duplicate ids");
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { A(3), A(2) } }.Encode(), "descending ids");
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, HpPct = 101 } } }.Encode(), "hp over 100");
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Faction = 16 } } }.Encode(), "faction over 4 bits");
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Status = 4 } } }.Encode(), "status over 2 bits");
+            Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Phase = 4 }.Encode(), "phase over 2 bits");
         }
 
         [Test]
@@ -227,7 +364,7 @@ namespace Roguehalla.Net.Tests
         {
             var tiles = new byte[70000];
             var m = new MapBlob(500, 140, tiles);
-            var w = new ServerMsg.Welcome { Protocol = 1, MatchId = new byte[16], Session = new byte[16], Map = m };
+            var w = new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], Map = m };
             var back = (ServerMsg.Welcome)ServerMsg.Decode(w.Encode());
             Assert.AreEqual(70000, back.Map.Tiles.Length);
         }

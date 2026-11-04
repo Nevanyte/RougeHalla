@@ -3,10 +3,14 @@ using System.Text;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire constants of rh-protocol v1 (crates/rh-protocol/src/lib.rs).</summary>
+    /// <summary>Wire constants of rh-protocol v2 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 1;
+        public const ushort ProtocolVersion = 2;
+        /// <summary>Milliseconds per server tick: a Snapshot's server time is Tick * TickMs, exactly (it is not sent).</summary>
+        public const int TickMs = 50;
+        /// <summary>Largest faction and weapon (4 bits each in the kit byte), status and phase (2 bits each) a frame can carry.</summary>
+        public const int MaxKitCode = 15, MaxStatusCode = 3, MaxPhaseCode = 3;
         public const int MaxClientFrame = 1024;
         public const int MaxServerFrame = 256 * 1024;
         public const int MaxCommandsPerInput = 16;
@@ -14,7 +18,41 @@ namespace Roguehalla.Net.Protocol
         public const int MaxMapTiles = 1024 * 1024;
     }
 
-    public enum DecodeError { Truncated, TooLarge, TooMany, BadTag, BadUtf8, NonFinite, Trailing, BadMap }
+    public enum DecodeError { Truncated, TooLarge, TooMany, BadTag, BadUtf8, NonFinite, Trailing, BadMap, BadVarint, BadField }
+
+    /// <summary>
+    /// Quantization of remote actors and swing effects (rh-protocol quant.rs; error bounds are documented there). The SELF view is
+    /// never quantized. Position: u16 at 1/8 world unit, 0..65535 (the encoder refuses a position outside 0..8191.875), ties away from zero. Angle: u16 over 2 pi, read
+    /// as a two's complement angle in [-pi, pi). Decoding is the same f32 arithmetic as Rust: q / 8 (exact) and the signed code
+    /// times <see cref="FacingStepF"/> (one rounding).
+    /// </summary>
+    public static class Quant
+    {
+        public const float PosScale = 8f;
+        public static readonly double FacingStep = 2.0 * Math.PI / 65536.0;
+        public static readonly float FacingStepF = (float)(2.0 * Math.PI / 65536.0);
+        const double FacingClamp = 1099511627776.0; // 2^40
+
+        public static ushort QuantizePos(float v)
+        {
+            double t = Math.Round((double)v * 8.0, MidpointRounding.AwayFromZero);
+            if (!(t > 0.0)) return 0; // negative and NaN
+            return t >= 65535.0 ? (ushort)65535 : (ushort)t;
+        }
+
+        public static float DequantizePos(ushort q) { return q / PosScale; }
+
+        public static ushort QuantizeFacing(float a)
+        {
+            double t = (double)a / FacingStep;
+            if (double.IsNaN(t) || double.IsInfinity(t)) return 0;
+            if (t > FacingClamp) t = FacingClamp; else if (t < -FacingClamp) t = -FacingClamp;
+            long q = (long)Math.Round(t, MidpointRounding.AwayFromZero);
+            return (ushort)(q & 0xffff);
+        }
+
+        public static float DequantizeFacing(ushort q) { return unchecked((short)q) * FacingStepF; }
+    }
 
     public sealed class DecodeException : Exception
     {
@@ -43,6 +81,22 @@ namespace Roguehalla.Net.Protocol
         public void U8(byte v) { Ensure(1); _buf[_len++] = v; }
         public void U16(ushort v) { Ensure(2); _buf[_len++] = (byte)v; _buf[_len++] = (byte)(v >> 8); }
         public void U32(uint v) { Ensure(4); for (int i = 0; i < 4; i++) _buf[_len++] = (byte)(v >> (8 * i)); }
+
+        /// <summary>Canonical unsigned LEB128 (1 to 5 bytes for a u32).</summary>
+        public void Varint(uint v)
+        {
+            Ensure(5);
+            while (v >= 0x80) { _buf[_len++] = (byte)(v | 0x80); v >>= 7; }
+            _buf[_len++] = (byte)v;
+        }
+
+        /// <summary>Encoded size of <see cref="Varint"/>.</summary>
+        public static int VarintLength(uint v)
+        {
+            int n = 1;
+            while (v >= 0x80) { n++; v >>= 7; }
+            return n;
+        }
         public void U64(ulong v) { Ensure(8); for (int i = 0; i < 8; i++) _buf[_len++] = (byte)(v >> (8 * i)); }
         public void F32(float v) { U32(unchecked((uint)BitConverter.SingleToInt32Bits(v))); }
         public void F64(double v) { U64(unchecked((ulong)BitConverter.DoubleToInt64Bits(v))); }
@@ -102,6 +156,33 @@ namespace Roguehalla.Net.Protocol
         public byte U8() { return _buf[Take(1)]; }
         public ushort U16() { int p = Take(2); return (ushort)(_buf[p] | (_buf[p + 1] << 8)); }
         public uint U32() { int p = Take(4); return (uint)(_buf[p] | (_buf[p + 1] << 8) | (_buf[p + 2] << 16) | (_buf[p + 3] << 24)); }
+        /// <summary>Unsigned LEB128 into a u32; rejects a value past 5 bytes or past u32, and any non-canonical form.</summary>
+        public uint Varint()
+        {
+            uint v = 0;
+            for (int i = 0; i < 5; i++)
+            {
+                byte b = U8();
+                uint g = (uint)(b & 0x7f);
+                if (i == 4 && g > 0x0f) throw new DecodeException(DecodeError.BadVarint);
+                v |= g << (7 * i);
+                if ((b & 0x80) == 0)
+                {
+                    if (i > 0 && g == 0) throw new DecodeException(DecodeError.BadVarint);
+                    return v;
+                }
+            }
+            throw new DecodeException(DecodeError.BadVarint);
+        }
+
+        /// <summary>A varint that must fit a u16 (kills, bounty, gv, max hp); <paramref name="what"/> names the field in the error.</summary>
+        public ushort VarintU16(string what)
+        {
+            uint v = Varint();
+            if (v > ushort.MaxValue) throw new DecodeException(DecodeError.BadField, what);
+            return (ushort)v;
+        }
+
         public ulong U64() { int p = Take(8); ulong v = 0; for (int i = 7; i >= 0; i--) v = (v << 8) | _buf[p + i]; return v; }
 
         public float F32()

@@ -42,6 +42,8 @@ jobs:
         run: cargo run -p rh-parity --bin parity-report
       - name: Headless smoke (real 160x160 map, 8 bots)
         run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
+      - name: JS probe decoder vs the golden vectors
+        run: node tools/protocol-js/check-vectors.mjs
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server
