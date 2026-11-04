@@ -131,6 +131,37 @@ describe("LinkWatch", () => {
     w.stop();
   });
 
+  it("does not drop after its own thread was blocked: the queued patches get their turn first", () => {
+    const w = new LinkWatch(link, () => now);
+    w.start();
+    advance(HEARTBEAT_MS);
+    // A 5 s long task: the interval's next run comes before the socket events that queued up meanwhile.
+    now += 5000;
+    vi.advanceTimersByTime(HEARTBEAT_MS);
+    expect(link.drops).toBe(0);
+    inbound!();
+    advance(2 * HEARTBEAT_MS);
+    expect(link.drops).toBe(0);
+    // A real stall after that is still found.
+    advance(CLIENT_STALL_MS + HEARTBEAT_MS);
+    expect(link.drops).toBe(1);
+    w.stop();
+  });
+
+  it("beats while loading without judging the socket, and judges it once armed", () => {
+    const w = new LinkWatch(link, () => now);
+    w.start({ stalls: false });
+    advance(CLIENT_STALL_MS * 3);
+    expect(link.drops).toBe(0);
+    expect(link.sent.length).toBeGreaterThanOrEqual(3 * CLIENT_STALL_MS / HEARTBEAT_MS - 1);
+    w.armStalls();
+    advance(HEARTBEAT_MS);
+    expect(link.drops).toBe(0);
+    advance(CLIENT_STALL_MS + HEARTBEAT_MS);
+    expect(link.drops).toBe(1);
+    w.stop();
+  });
+
   it("leaves the SDK alone while it is already reconnecting or the socket is closed, and does not count that silence", () => {
     const w = new LinkWatch(link, () => now);
     w.start();

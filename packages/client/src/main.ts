@@ -178,6 +178,18 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
  */
 async function runJoined(joined: RaidRoom, training: boolean, profile: string, wanted: () => boolean, fail: (message: string) => void): Promise<boolean> {
   room = joined;
+  // Beats from the first moment: the server drops a client silent for LIVENESS_TIMEOUT_MS, and the first state, the map build and
+  // the scene's first frame can together take that long on a slow device (a drop in the lobby loses the seat).
+  linkWatch?.stop();
+  const watch = new LinkWatch(linkOf(joined));
+  linkWatch = watch;
+  watch.start({ stalls: false });
+  joined.onLeave(() => watch.stop());
+  const bail = (): false => {
+    watch.stop();
+    if (linkWatch === watch) linkWatch = null;
+    return bail();
+  };
   // The seat a lost connection can be won back by: the SDK moves the token on at every reconnect, so it is kept current.
   if (!training) {
     saveSeat({ profile, token: joined.reconnectionToken });
@@ -196,19 +208,19 @@ async function runJoined(joined: RaidRoom, training: boolean, profile: string, w
     // The room closed before its first patch, so the leave handler below was never registered.
     if (room === joined) room = null;
     if (wanted()) fail(JOIN_CLOSED_MESSAGE);
-    return false;
+    return bail();
   }
-  if (!wanted()) return false;
+  if (!wanted()) return bail();
   // The map is never synced: the state names (seed, attempt), and the map worker builds exactly that attempt while the
   // loading screen stays up (the page does not freeze). A room that closes meanwhile is noticed here, since the handlers
   // below are not registered yet.
   loading.setText(training ? "Building the training ground…" : "Building the map…");
   const built = await mapOrClosed(joined);
-  if (!wanted()) return false;
+  if (!wanted()) return bail();
   if (built === "closed") {
     if (room === joined) room = null;
     fail(JOIN_CLOSED_MESSAGE);
-    return false;
+    return bail();
   }
   if (!built.ok) {
     console.error(`[maps] map mismatch, leaving the room: ${built.detail}`);
@@ -217,7 +229,7 @@ async function runJoined(joined: RaidRoom, training: boolean, profile: string, w
     leaveRoom(joined);
     clearSeat();
     fail(MAP_MISMATCH_MESSAGE);
-    return false;
+    return bail();
   }
   // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
   if (!training) {
@@ -296,12 +308,8 @@ async function runJoined(joined: RaidRoom, training: boolean, profile: string, w
     resultsVisible: () => results.visible,
     ...(training ? { leaveTraining: () => backToMenu() } : {}),
   });
-  // Liveness for the server, and our own eyes on a socket that says it is open and carries nothing (any phase, results included).
-  linkWatch?.stop();
-  const watch = new LinkWatch(linkOf(joined));
-  linkWatch = watch;
-  watch.start();
-  joined.onLeave(() => watch.stop());
+  // Our own eyes on a socket that says it is open and carries nothing (any phase, results included), now that a drop is handled.
+  watch.armStalls();
   // The loading screen goes once the raid scene has drawn; its own timeout covers a scene that never gets there.
   void whenReady(() => sceneRunning("raid")).then(() => { if (wanted()) loading.hide(); });
   return true;

@@ -243,6 +243,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private counted: RoomMode | null = null;
   /** When each connected client last sent anything (the sweep's evidence). */
   private readonly liveness = new LivenessTracker();
+  /** When sweepSilent last ran (a late one is the process's own stall). */
+  private lastSweepAt = Date.now();
   /** Each player's order budget (a token bucket), made on its first order. */
   private readonly budgets = new Map<string, TokenBucket>();
   /** Orders dropped for being over a budget, in this room: for the log and for the tests. */
@@ -332,7 +334,16 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    * consented leave or MIA; the SDK treats 4010 as a drop too. A fill bot has no client, so it is never in `clients`.
    */
   private sweepSilent(silenceMs: number) {
+    const now = Date.now();
+    const gap = now - this.lastSweepAt;
+    this.lastSweepAt = now;
     if (this.disposed || this.clients.length === 0) return;
+    // A sweep that comes late means this process was stalled (a GC, a CPU-starved container): the clients' messages from that
+    // time are still queued behind this callback, so their silence is ours. Count everyone as heard and judge at the next sweep.
+    if (gap > 2 * LIVENESS_SWEEP_MS) {
+      for (const c of this.clients) this.liveness.touch(c.sessionId, now);
+      return;
+    }
     const silent = this.liveness.silent(this.clients.map((c) => c.sessionId), Date.now(), silenceMs);
     for (const sessionId of silent) {
       console.warn(`[raid ${this.roomId}] ${this.seats.get(sessionId)?.profile ?? sessionId} sent nothing for ${silenceMs} ms: dropping the connection`);
