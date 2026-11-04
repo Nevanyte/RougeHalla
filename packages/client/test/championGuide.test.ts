@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS,
+  ALL_WEAPON_IDS, AP_DOT_RATIO, FACTIONS, FACTION_IDS, FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_MAX_SPEED_MULT, FIRE_ROAM_RAMP_MS, FROST_WALL_LENGTH, FROST_WALL_MS,
   MARK_AS_EXPONENT, MARK_BONUS_STAT_PER_POINT, MARK_BONUS_AP_WEIGHT, MARK_FARM_AS_EFFICIENCY, MARK_TIER_HITS, TRIAL_EXIT_STUN_MS, TRIAL_MOVE_MULT, WEAPONS,
   abilityCooldownMs, maxCharges, burnDps, markPct, pacedFaction, plagueDps, wishOf,
 } from "@raid/shared";
@@ -88,7 +88,7 @@ describe("champion guide matches the combat catalog", () => {
 
   it("keeps fixed Wish values separate from passive and weapon scaling", () => {
     expect(championGuide("fire").wish.scaling).toContain("30 true damage/s");
-    expect(championGuide("frost").wish.scaling).toContain("1.25 s stun");
+    expect(championGuide("frost").wish.scaling).toContain(`${FROST_WALL_LENGTH} u wall for ${guideNumber(FROST_WALL_MS / 1000)} s`);
     expect(championGuide("plague").wish.scaling).toContain("8 s concealment");
     expect(championGuide("holy").passive.scaling).toContain(`${guideNumber(FACTIONS.holy.params.ls0! * 100)}%–${guideNumber(FACTIONS.holy.params.ls_cap! * 100)}%`);
     expect(championGuide("holy").wish.scaling).toContain("30% of damage held");

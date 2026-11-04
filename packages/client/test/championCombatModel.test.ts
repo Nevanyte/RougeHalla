@@ -203,7 +203,7 @@ describe("championCombatModel", () => {
     const expected: Record<(typeof factions)[number], string[]> = {
       fire: [`${BLAZE_BURN_DPS} true DPS`, `${BLAZE_BURN_MS / 1000}s trail`],
       sentenced: [`${TRIAL_MS / 1000}s zone`, "20% less dealt"],
-      plague: ["8s hidden", "72 radius"], frost: ["1.25s stun", "450 range"],
+      plague: ["8s hidden", "72 radius"], frost: ["4s wall", "450 range"],
       holy: [`${LAST_STAND_MS / 1000}s floor at 1 HP`, `+${LAST_STAND_SPEED_BONUS * 100}% move`],
     };
     for (const faction of factions) {

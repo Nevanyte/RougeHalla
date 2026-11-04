@@ -131,7 +131,9 @@ export function wishGuide(id: FactionId): GuideAbility & { def: AbilityDef; cool
   const zone = effects.find(e => e.do === "zone");
   const trail = effects.find(e => e.do === "trail");
   const floor = effects.find(e => e.do === "deathFloor");
-  const scaling = id === "frost" && status?.do === "status" ? `Fixed ${seconds(status.ms)} stun · no Offense/SO scaling.`
+  const wall = effects.find(e => e.do === "wall");
+  const scaling = id === "frost" && wall?.do === "wall" ? `Fixed ${guideNumber(wall.length)} u wall for ${seconds(wall.ms)} · no Offense/SO scaling.`
+    : id === "frost" && status?.do === "status" ? `Fixed ${seconds(status.ms)} stun · no Offense/SO scaling.`
     : id === "plague" && status?.do === "status" ? `Fixed ${seconds(status.ms)} concealment · no Offense/SO scaling.`
     : id === "sentenced" && zone?.do === "zone" ? `Fixed ${seconds(zone.ms)} ring: enemy deals ${pct(1 - zone.dealtMult)} less, moves ${pct(1 - zone.moveMult)} slower, takes ${pct(zone.takenFromCasterMult - 1)} more damage from you, and is stunned for ${seconds(zone.exitStunMs)} on exit.`
     : id === "fire" && trail?.do === "trail" ? `Fixed ${guideNumber(trail.dps)} true damage/s on the trail · no Offense/SO scaling.`
@@ -141,7 +143,7 @@ export function wishGuide(id: FactionId): GuideAbility & { def: AbilityDef; cool
     fire: "Blink toward your cursor through walls and leave a burning trail behind you.",
     sentenced: "Trap an enemy in a judgment ring: weaken their damage, strengthen yours, and stun them if they leave.",
     plague: "Become a hidden swarm to break enemy targeting and reposition.",
-    frost: "Stun the enemy nearest your cursor to catch them or interrupt their attack.",
+    frost: "Raise a wall of ice where you aim to cut off a chaser or split a fight: bodies and swings stop at it, shots fly over.",
     holy: "Survive lethal damage briefly, move faster, then recover a share of the damage the effect held.",
   };
   return {
@@ -153,6 +155,7 @@ export function wishGuide(id: FactionId): GuideAbility & { def: AbilityDef; cool
         ? [`Against a convicted target (mark tier 3+), ring radius is ${zone.convictedRadius} u instead of ${zone.radius} u. Your mark remains at full strength inside your Trial ring.`] : []),
       ...(id === "plague" ? [`Your own attack or cast temporarily reveals you until it lands, plus ${seconds(HIDDEN_REVEAL_MS)}. Concealment is not invulnerability.`] : []),
       ...(def.ownOrder ? ["Casting replaces your current attack and movement order."] : []),
+      ...(def.aim === "preview" ? ["R shows where it lands; a left click places it (R again, Esc or a right click cancel). The Quick cast setting places it on the key."] : []),
       `Available after the run's initial ${WISH_LOCK_SECONDS} s lock. Training cooldown: ${TRAINING_WISH_COOLDOWN_SECONDS} s.`,
       "Offense and SO do not increase this Wish's base effect values. Augments can alter cooldowns or add effects; the numbers here describe the unmodified kit.",
       ...(rank.castMs > 0 ? [`Cast interruption: ${def.cancelledBy.join(", ")}.`] : []),

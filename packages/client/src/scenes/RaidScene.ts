@@ -1015,7 +1015,8 @@ export class RaidScene extends Phaser.Scene {
     const base = this.room.state.gatesLocked ? withGates(map) : map;
     let key = "";
     const walls: string[] = [];
-    this.room.state.fields.forEach((f, id) => {
+    // A test's hand-made state may carry no areas at all.
+    this.room.state.fields?.forEach((f, id) => {
       if (fieldKindOf(f.kind) === "wall" && f.cells) { key += id + ";"; walls.push(f.cells); }
     });
     if (walls.length === 0) return base;
