@@ -27,9 +27,12 @@ fn pathfinding_matches_legacy_on_a_generated_map() {
 
 #[test]
 fn a_changed_rule_is_caught() {
-    // The harness must not hide a changed outcome: perturb the recorded salt (another action order) on the crowded
-    // fixture and expect a difference, or perturb an input on the duel and expect one.
+    // The harness must not hide a changed rule: fight the duel with another faction (other damage, other mitigation)
+    // and the comparison must fail; replay the brawl under another secret order salt and it must fail too.
     let mut fx = load(&fixtures_dir().join("fists_duel.json"));
-    fx.inputs.retain(|i| !(i.player == "p0" && i.tick % 7 == 0));
-    assert!(!compare(&fx).mismatches.is_empty(), "dropping inputs must change the outcome");
+    fx.players[1].faction = "frost".into();
+    assert!(!compare(&fx).mismatches.is_empty(), "a changed faction must change the outcome");
+    let mut crowd = load(&fixtures_dir().join("crowded_8.json"));
+    crowd.legacy_config.order_salt ^= 0x5555;
+    assert!(!compare(&crowd).mismatches.is_empty(), "another action order must be detected");
 }

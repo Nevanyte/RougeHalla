@@ -15,3 +15,6 @@ deployment/cloudflare/build-meta.json
 
 # Rust
 /target
+
+# Claude Code subagent worktrees
+.claude/worktrees/
