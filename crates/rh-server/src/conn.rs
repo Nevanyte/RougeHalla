@@ -5,7 +5,7 @@
 //! served in time is closed with `TooSlow`, never allowed to stall the match).
 
 use crate::director::{Director, Hello};
-use crate::outbox::{Next, Outbox};
+use crate::outbox::Outbox;
 use crate::room::RoomCmd;
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
@@ -37,8 +37,7 @@ struct Bucket {
 }
 
 impl Bucket {
-    fn allow(&mut self) -> bool {
-        let now = tokio::time::Instant::now();
+    fn allow(&mut self, now: tokio::time::Instant) -> bool {
         self.tokens = FRAME_BURST
             .min(self.tokens + now.duration_since(self.at).as_secs_f64() * FRAMES_PER_SECOND);
         self.at = now;
@@ -118,50 +117,35 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     let (mut tx, mut rx) = sock.split();
     let writer_out = outbox.clone();
     let mut writer = tokio::spawn(async move {
+        // One wake takes everything queued (a tick's frames for this client) and flushes it once.
+        let mut batch: Vec<Vec<u8>> = Vec::with_capacity(8);
         loop {
-            match writer_out.next().await {
-                Next::Frame(f) => {
-                    match tokio::time::timeout(SEND_TIMEOUT, tx.send(Message::Binary(f.into())))
-                        .await
-                    {
-                        Ok(Ok(())) => {}
-                        _ => return,
-                    }
-                }
-                Next::Close(code) => {
-                    let _ = tokio::time::timeout(
-                        SEND_TIMEOUT,
-                        tx.send(Message::Binary(
-                            ServerMsg::Reject {
-                                code,
-                                reason: "closed".into(),
-                            }
-                            .encode()
-                            .into(),
-                        )),
-                    )
-                    .await;
-                    let _ = tokio::time::timeout(SEND_TIMEOUT, tx.send(Message::Close(None))).await;
-                    return;
-                }
+            let d = writer_out.wait_drain(&mut batch).await;
+            if write_batch(&mut tx, &mut batch, d.close).await.is_err() || d.close.is_some() {
+                return;
             }
         }
     });
+    let start = tokio::time::Instant::now();
     let mut bucket = Bucket {
         tokens: FRAME_BURST,
-        at: tokio::time::Instant::now(),
+        at: start,
     };
+    // Liveness: the time of the last frame of any kind from the client, checked by a coarse interval instead of one timer
+    // per message. A silent client is dropped between `idle` and `idle + period` after its last frame.
     let idle = director.idle_timeout();
+    let period = (idle / 4).clamp(Duration::from_millis(10), Duration::from_secs(1));
+    let mut liveness = tokio::time::interval_at(start + period, period);
+    liveness.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut last_seen = start;
     let mut left = false;
     let mut writer_done = false;
     loop {
         // Stop reading as soon as the writer is done (a TooSlow/RateLimited close, or a dead socket), or on idleness.
-        let msg = tokio::select! {
-            m = tokio::time::timeout(idle, rx.next()) => match m {
-                Ok(Some(m)) => m,
-                Ok(None) | Err(_) => break,
-            },
-            _ = &mut writer => {
+        let msg = match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
+            Wake::Frame(m) => m,
+            Wake::Closed | Wake::Idle => break,
+            Wake::WriterDone => {
                 writer_done = true;
                 break;
             }
@@ -175,7 +159,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                 break;
             }
         };
-        if !bucket.allow() {
+        if !bucket.allow(last_seen) {
             outbox.close(RejectCode::RateLimited);
             break;
         }
@@ -236,4 +220,286 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
     })
     .await;
+}
+
+/// What ended one wait of the reader loop.
+enum Wake<M> {
+    /// A frame arrived (and `last_seen` is now).
+    Frame(M),
+    /// The peer's stream ended.
+    Closed,
+    /// Nothing was heard for `idle`.
+    Idle,
+    /// The writer task finished (a close it was told to send, or a dead socket).
+    WriterDone,
+}
+
+/// Waits for the next thing the reader loop acts on. The select is `biased` with the client's frames first: when a frame
+/// is already readable and an overdue liveness tick is ready too, the frame wins and refreshes `last_seen`, so a client
+/// that did send is never dropped for idleness by the tick winning a coin flip. Then the writer, then the liveness check.
+async fn next_wake<R, M, W>(
+    rx: &mut R,
+    liveness: &mut tokio::time::Interval,
+    last_seen: &mut tokio::time::Instant,
+    idle: Duration,
+    writer: &mut W,
+) -> Wake<M>
+where
+    R: futures_util::Stream<Item = M> + Unpin,
+    W: std::future::Future + Unpin,
+{
+    loop {
+        tokio::select! {
+            biased;
+            m = rx.next() => {
+                return match m {
+                    Some(m) => {
+                        *last_seen = tokio::time::Instant::now();
+                        Wake::Frame(m)
+                    }
+                    None => Wake::Closed,
+                };
+            }
+            _ = &mut *writer => return Wake::WriterDone,
+            t = liveness.tick() => {
+                if t.duration_since(*last_seen) >= idle {
+                    return Wake::Idle;
+                }
+            }
+        }
+    }
+}
+
+/// WebSocket framing a server frame is charged in the write buffer. A server frame is unmasked (header at most 10 bytes);
+/// 14 is the masked maximum (10 + a 4-byte mask), kept as a conservative bound: the budget only ever errs towards an
+/// early flush.
+const FRAME_OVERHEAD: usize = 14;
+
+/// Writes one drained batch: every frame is fed as its own WebSocket message (identical bytes, identical order), then the
+/// sink is flushed once, all under one `SEND_TIMEOUT`. A close appends the Reject and the Close message to the same flush.
+/// Returns the number of flushes made. The fed total between two flushes never exceeds `WS_MAX_WRITE_BUFFER` (the limit
+/// of tungstenite's out-buffer): when the next frame would pass it, the batch flushes early, so a very large batch costs
+/// extra flushes instead of failing the send. Frames are consumed from `frames`, which is left empty.
+pub(crate) async fn write_batch<S>(
+    tx: &mut S,
+    frames: &mut Vec<Vec<u8>>,
+    close: Option<RejectCode>,
+) -> Result<u32, ()>
+where
+    S: futures_util::Sink<Message> + Unpin,
+{
+    let r = tokio::time::timeout(SEND_TIMEOUT, async {
+        let mut flushes = 0u32;
+        let mut fed = 0usize;
+        for f in frames.drain(..) {
+            let cost = f.len() + FRAME_OVERHEAD;
+            if fed > 0 && fed + cost > crate::WS_MAX_WRITE_BUFFER {
+                tx.flush().await.map_err(|_| ())?;
+                flushes += 1;
+                fed = 0;
+            }
+            tx.feed(Message::Binary(f.into())).await.map_err(|_| ())?;
+            fed += cost;
+        }
+        if let Some(code) = close {
+            let reject = ServerMsg::Reject {
+                code,
+                reason: "closed".into(),
+            }
+            .encode();
+            if fed > 0 && fed + reject.len() + 2 * FRAME_OVERHEAD > crate::WS_MAX_WRITE_BUFFER {
+                tx.flush().await.map_err(|_| ())?;
+                flushes += 1;
+            }
+            tx.feed(Message::Binary(reject.into()))
+                .await
+                .map_err(|_| ())?;
+            tx.feed(Message::Close(None)).await.map_err(|_| ())?;
+        }
+        tx.flush().await.map_err(|_| ())?;
+        Ok::<u32, ()>(flushes + 1)
+    })
+    .await;
+    frames.clear();
+    r.unwrap_or(Err(()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::Infallible;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    /// Records what the writer does to a socket sink: every message in order, and when each flush happened.
+    #[derive(Default)]
+    struct CountingSink {
+        sent: Vec<Message>,
+        flushes: usize,
+        /// Length of `sent` at each flush.
+        flush_marks: Vec<usize>,
+        /// Largest number of bytes fed between two flushes.
+        max_unflushed: usize,
+        unflushed: usize,
+    }
+
+    impl futures_util::Sink<Message> for CountingSink {
+        type Error = Infallible;
+        fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Infallible>> {
+            Poll::Ready(Ok(()))
+        }
+        fn start_send(mut self: Pin<&mut Self>, m: Message) -> Result<(), Infallible> {
+            if let Message::Binary(b) = &m {
+                self.unflushed += b.len() + FRAME_OVERHEAD;
+                self.max_unflushed = self.max_unflushed.max(self.unflushed);
+            }
+            self.sent.push(m);
+            Ok(())
+        }
+        fn poll_flush(
+            mut self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+        ) -> Poll<Result<(), Infallible>> {
+            self.flushes += 1;
+            let n = self.sent.len();
+            self.flush_marks.push(n);
+            self.unflushed = 0;
+            Poll::Ready(Ok(()))
+        }
+        fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Infallible>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    fn bin(m: &Message) -> &[u8] {
+        match m {
+            Message::Binary(b) => b,
+            _ => panic!("expected a binary message"),
+        }
+    }
+
+    /// A ready frame and an overdue liveness tick are both ready: the frame must win every time (the old unbiased select
+    /// let the tick win about half of these and dropped a client whose frame had already arrived).
+    #[tokio::test]
+    async fn a_ready_frame_beats_an_overdue_liveness_tick() {
+        let idle = Duration::from_millis(1);
+        for trial in 0..200 {
+            let start = tokio::time::Instant::now();
+            let mut liveness = tokio::time::interval_at(start, Duration::from_millis(1));
+            // The tick is ready now and, after the 2 ms sleep below, the last frame is past `idle` (no clock
+            // subtraction, which could underflow on a young monotonic clock): a tick that wins ends the connection.
+            let mut last_seen = start;
+            let mut rx = futures_util::stream::iter([7u8, 8]);
+            let mut writer = std::future::pending::<()>();
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
+                Wake::Frame(7) => {}
+                _ => panic!("trial {trial}: the tick won over a ready frame"),
+            }
+            assert!(
+                last_seen >= start,
+                "the frame refreshed last_seen, so the next tick finds the client alive"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_silent_client_is_idle_and_a_finished_writer_or_stream_ends_the_wait() {
+        let idle = Duration::from_millis(30);
+        let start = tokio::time::Instant::now();
+        let mut liveness =
+            tokio::time::interval_at(start + Duration::from_millis(5), Duration::from_millis(5));
+        let mut last_seen = start;
+        let mut rx = futures_util::stream::pending::<u8>();
+        let mut writer = std::future::pending::<()>();
+        assert!(matches!(
+            next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await,
+            Wake::Idle
+        ));
+        assert!(start.elapsed() >= idle);
+        let mut done = std::future::ready(());
+        assert!(matches!(
+            next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut done).await,
+            Wake::WriterDone
+        ));
+        let mut ended = futures_util::stream::empty::<u8>();
+        assert!(matches!(
+            next_wake(&mut ended, &mut liveness, &mut last_seen, idle, &mut writer).await,
+            Wake::Closed
+        ));
+    }
+
+    #[tokio::test]
+    async fn one_wake_is_one_flush_with_every_frame_in_the_old_order() {
+        let out = Outbox::default();
+        // A tick for a client that is also owed a Pong: pong, events, fx, snapshot.
+        out.important(vec![1, 1]);
+        out.push_tick(Some(vec![1, 2]), Some(vec![2, 1]), Some(vec![3, 1]));
+        let mut batch = Vec::new();
+        let d = out.wait_drain(&mut batch).await;
+        assert_eq!(d.frames, 4);
+        let mut sink = CountingSink::default();
+        let flushes = write_batch(&mut sink, &mut batch, d.close).await.unwrap();
+        assert_eq!(flushes, 1);
+        assert_eq!(sink.flushes, 1, "exactly one flush per wake");
+        assert_eq!(
+            sink.flush_marks,
+            vec![4],
+            "the flush comes after every frame"
+        );
+        let got: Vec<&[u8]> = sink.sent.iter().map(bin).collect();
+        assert_eq!(got, vec![&[1u8, 1][..], &[1, 2], &[2, 1], &[3, 1]]);
+        assert!(batch.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_close_shares_the_flush_of_the_frames_before_it() {
+        let out = Outbox::default();
+        out.push_tick(Some(vec![7]), Some(vec![8]), Some(vec![9]));
+        out.close(RejectCode::RateLimited);
+        let mut batch = Vec::new();
+        let d = out.wait_drain(&mut batch).await;
+        let mut sink = CountingSink::default();
+        write_batch(&mut sink, &mut batch, d.close).await.unwrap();
+        assert_eq!(sink.flushes, 1);
+        assert_eq!(
+            sink.sent.len(),
+            3,
+            "the important frame, the Reject, the Close"
+        );
+        assert_eq!(bin(&sink.sent[0]), &[7]);
+        assert!(matches!(
+            ServerMsg::decode(bin(&sink.sent[1])),
+            Ok(ServerMsg::Reject {
+                code: RejectCode::RateLimited,
+                ..
+            })
+        ));
+        assert!(matches!(sink.sent[2], Message::Close(None)));
+    }
+
+    #[tokio::test]
+    async fn a_batch_never_feeds_more_than_the_write_buffer_cap_between_flushes() {
+        // Worst case: the important queue is full of the largest frames the protocol allows.
+        let big = vec![0u8; rh_protocol::MAX_SERVER_FRAME];
+        let mut batch: Vec<Vec<u8>> = (0..crate::outbox::IMPORTANT_CAP)
+            .map(|_| big.clone())
+            .collect();
+        let total = batch.len();
+        let mut sink = CountingSink::default();
+        let flushes = write_batch(&mut sink, &mut batch, Some(RejectCode::TooSlow))
+            .await
+            .unwrap();
+        assert!(sink.max_unflushed <= crate::WS_MAX_WRITE_BUFFER);
+        assert!(
+            flushes > 1,
+            "a huge batch flushes early instead of overrunning the buffer"
+        );
+        assert_eq!(sink.flushes as u32, flushes);
+        assert_eq!(sink.sent.len(), total + 2);
+        // A normal tick (a few KiB) stays far below the cap: one flush.
+        let mut tick = vec![vec![0u8; 3000], vec![0u8; 200], vec![0u8; 9000]];
+        let mut sink = CountingSink::default();
+        assert_eq!(write_batch(&mut sink, &mut tick, None).await, Ok(1));
+    }
 }

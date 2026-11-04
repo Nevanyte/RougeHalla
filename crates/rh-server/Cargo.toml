@@ -10,6 +10,9 @@ publish.workspace = true
 default = []
 # Durable results through rh-persist (PostgreSQL). Off by default so the server builds and runs with no database.
 postgres = ["dep:rh-persist", "dep:uuid"]
+# The density benchmark (src/bin/densitybench.rs): it runs rooms on a paused tokio clock, which needs tokio's test-util.
+# Only a feature of the existing tokio dependency (no new crate); a default build of the server does not carry it.
+bench = ["tokio/test-util"]
 
 [dependencies]
 rh-sim = { path = "../rh-sim" }
@@ -32,6 +35,11 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres"] }
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 tokio = { version = "1", features = ["test-util"] }
+
+[[bin]]
+name = "densitybench"
+path = "src/bin/densitybench.rs"
+required-features = ["bench"]
 
 [lints]
 workspace = true

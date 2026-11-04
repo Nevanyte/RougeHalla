@@ -117,6 +117,11 @@ async fn main() {
             let l = tokio::net::TcpListener::bind(addr)
                 .await
                 .expect("bind control");
+            // The loopback control socket gets TCP_NODELAY too (one small JSON reply per request).
+            use axum::serve::ListenerExt;
+            let l = l.tap_io(|tcp| {
+                let _ = tcp.set_nodelay(true);
+            });
             axum::serve(l, router).await.expect("control server");
         });
     }

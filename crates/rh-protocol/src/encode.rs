@@ -981,6 +981,11 @@ where
 /// its own data (an observation) to [`WireActor`]s one at a time on the stack, so no `Vec<WireActor>` is built. The bytes
 /// are exactly those of the equivalent `ServerMsg::Snapshot`.
 ///
+/// The server's own path is [`encode_snapshot_into`] (one call over an iterator, the one the hot path pays for); this is
+/// the push-style form for callers that cannot hand over an iterator (the encode benchmark, tests). They are separate
+/// code on purpose: routing the server through a shared core measured +1.05% instructions per step on the wire workload,
+/// so `tests/encode.rs` holds them byte- and refusal-identical instead (every refusal, including a lying length).
+///
 /// The count goes first on the wire (a varint, so it cannot be patched afterwards): `begin` takes the exact number of
 /// actors that will follow, and `finish` fails with [`EncodeError::CountMismatch`] when the caller wrote another number,
 /// [`EncodeError::TooMany`] when it is over [`MAX_ACTORS`] or [`EncodeError::BadValue`] for a value the format cannot carry (an `hp_pct` over 100, ids that do not strictly
