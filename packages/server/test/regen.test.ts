@@ -42,7 +42,7 @@ describe("passive regen", () => {
     expect(p.hp - h0).toBeCloseTo(PLAYER_REGEN_SHARE_OUT * p.maxHp, 6);
   });
 
-  it("is slower in combat and never passes max hp", () => {
+  it("heals nothing in combat (out of combat only) and never passes max hp", () => {
     const w = rig();
     const p = P(w, "p0");
     p.hp = p.maxHp / 2;
@@ -54,7 +54,8 @@ describe("passive regen", () => {
     step(w, TICK_MS);
     const h0 = p.hp;
     run(w, 20);
-    expect(p.hp - h0).toBeCloseTo(PLAYER_REGEN_SHARE_IN * p.maxHp, 6);
+    expect(PLAYER_REGEN_SHARE_IN).toBe(0);
+    expect(p.hp - h0).toBe(0);
     p.hp = p.maxHp - 1;
     run(w, 400);
     expect(p.hp).toBe(p.maxHp);

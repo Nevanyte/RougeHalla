@@ -1,5 +1,5 @@
-// Passive player health regeneration: slow and always on. Out of combat (no hit dealt or taken for PLAYER_REGEN_QUIET_MS)
-// a standing player regains PLAYER_REGEN_SHARE_OUT of max hp a second, in a fight a quarter of that. It runs as a system
+// Passive player health regeneration: slow, and out of combat only. With no hit dealt or taken for PLAYER_REGEN_QUIET_MS a
+// standing player regains PLAYER_REGEN_SHARE_OUT of max hp a second; in a fight PLAYER_REGEN_SHARE_IN (0: none). It runs as a system
 // after the damage pass (this tick's hits have stamped the clock), keeps its own combat clock from `combat.landed` (so it
 // works without the faction layer, as terrain's light does), goes through heal() so anti-heal and the healTaken cards
 // apply, and is quiet (no fx) and feeds no Second Skin barrier. Off unless `SimConfig.regen`.
@@ -31,6 +31,7 @@ function regenPass(world: World, dtMs: number): void {
     const last = clock.get(c.id);
     const quiet = last === undefined || now - last >= PLAYER_REGEN_QUIET_MS;
     const share = quiet ? PLAYER_REGEN_SHARE_OUT : PLAYER_REGEN_SHARE_IN;
+    if (share <= 0) continue;
     heal(world, c, c.s.maxHp * share * (dtMs / 1000), { quiet: true, ignoreLockout: true, noBarrier: true, source: "regen" });
   }
 }

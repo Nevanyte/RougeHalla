@@ -659,11 +659,11 @@ export const SPEED_BOOST_MS = 5000;
 export const SPEED_BOOST_MULT = 1.5;
 export const CANNON_COOLDOWN_MS = 75_000;
 
-// --- Passive player regeneration (sim/regen.ts): slow, always on, first picks ---
+// --- Passive player regeneration (sim/regen.ts): slow, out of combat only (owner ruling 2026-11-04), first picks ---
 /** Max hp a standing player regains per second with no hit dealt or taken for PLAYER_REGEN_QUIET_MS. */
 export const PLAYER_REGEN_SHARE_OUT = 0.008;
-/** The trickle while fighting: a quarter of the out-of-combat pace, so it never decides a duel but a long skirmish still feels it. */
-export const PLAYER_REGEN_SHARE_IN = 0.0025;
+/** The pace in combat: none (owner ruling 2026-11-04: the passive heal is for out of combat only; it was a quarter of the pace). */
+export const PLAYER_REGEN_SHARE_IN = 0;
 /** Time since the last hit dealt or taken after which the out-of-combat pace applies (the heal lockout's length). */
 export const PLAYER_REGEN_QUIET_MS = 3000;
 
