@@ -351,10 +351,17 @@ mod tests {
     fn the_inline_queue_serializes_as_the_sequence_it_replaced() {
         let mut q = InputQueue::default();
         q.push(Command::Attack { a: 1.0, t: None }).unwrap();
-        q.push(Command::Release { a: 2.0, t: Some(5.0) }).unwrap();
+        q.push(Command::Release {
+            a: 2.0,
+            t: Some(5.0),
+        })
+        .unwrap();
         let want = vec![
             ActionCmd::Attack { a: 1.0, t: None },
-            ActionCmd::Release { a: 2.0, t: Some(5.0) },
+            ActionCmd::Release {
+                a: 2.0,
+                t: Some(5.0),
+            },
         ];
         let json = serde_json::to_value(&q).unwrap();
         assert_eq!(json["actions"], serde_json::to_value(&want).unwrap());
@@ -367,7 +374,11 @@ mod tests {
         }
         used.clear();
         used.push(Command::Attack { a: 1.0, t: None }).unwrap();
-        used.push(Command::Release { a: 2.0, t: Some(5.0) }).unwrap();
+        used.push(Command::Release {
+            a: 2.0,
+            t: Some(5.0),
+        })
+        .unwrap();
         assert_eq!(used.actions, q.actions);
         // A checkpoint with more actions than a tick may queue is refused.
         let too_many = serde_json::json!({

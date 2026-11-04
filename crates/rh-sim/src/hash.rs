@@ -101,7 +101,11 @@ impl Sim {
                 h.u64(d.0 as u64);
             }
             h.f64(p.dropped_at.unwrap_or(-1.0));
-            h.str(p.killed_by.and_then(|by| self.w.roster.name(by)).unwrap_or(""));
+            h.str(
+                p.killed_by
+                    .and_then(|by| self.w.roster.name(by))
+                    .unwrap_or(""),
+            );
             h.u64(p.killed_by_bot as u64);
             match p.announce {
                 Some((at, sent)) => {

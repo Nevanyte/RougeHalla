@@ -566,12 +566,20 @@ mod tests {
         let mut now = 50.0;
         // Mostly one tick apart, with gaps (a fighter that did not stand records nothing for a while).
         for n in 0..2000u32 {
-            now += TICK_MS * if n % 97 < 5 { 1.0 + (n % 13) as f64 } else { 1.0 };
+            now += TICK_MS
+                * if n % 97 < 5 {
+                    1.0 + (n % 13) as f64
+                } else {
+                    1.0
+                };
             let (x, y) = (n as f64 * 0.37, 1000.0 - n as f64 * 0.11);
             ring.record(now, x, y);
             reference(&mut vec, now, x, y);
             assert_eq!(ring.iter().collect::<Vec<_>>(), vec, "tick {n}");
-            assert_eq!(serde_json::to_value(ring).unwrap(), serde_json::to_value(&vec).unwrap());
+            assert_eq!(
+                serde_json::to_value(ring).unwrap(),
+                serde_json::to_value(&vec).unwrap()
+            );
             assert!(ring.len() <= history_cap());
         }
         // Restarting keeps one sample, and a checkpoint of the ring restores it.
@@ -636,7 +644,11 @@ mod tests {
         assert_eq!((p.cursor, p.pts.len()), (0, 1), "replacing compacts");
         p.advance();
         assert!(p.is_empty() && p.first().is_none());
-        assert_eq!((p.cursor, p.pts.len()), (0, 0), "running out resets the cursor");
+        assert_eq!(
+            (p.cursor, p.pts.len()),
+            (0, 0),
+            "running out resets the cursor"
+        );
         assert_eq!(serde_json::to_value(&p).unwrap(), serde_json::json!([]));
     }
 

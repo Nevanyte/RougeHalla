@@ -6,10 +6,10 @@ use crate::events::Event;
 use crate::geometry::ray_blocked;
 use crate::map::MASK_MELEE;
 use crate::math::{angle_between, asin, atan2, hypot, Vec2};
+use crate::scratch::TickScratch;
 use crate::state::{Packet, PlayerId, World};
 use crate::systems::ledger::Entry;
 use crate::systems::weapons::weapon_shape;
-use crate::scratch::TickScratch;
 use crate::systems::Cx;
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

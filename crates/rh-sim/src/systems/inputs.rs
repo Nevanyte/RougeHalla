@@ -73,7 +73,13 @@ fn apply_inputs(cx: &mut Cx, i: usize) {
         }
         if k == d.move_before.min(n) {
             if let Some(mv) = d.mv {
-                apply_move(&mut cx.w.players[i], &cx.k.arena.map, cx.pf, &mut cx.s.path, mv);
+                apply_move(
+                    &mut cx.w.players[i],
+                    &cx.k.arena.map,
+                    cx.pf,
+                    &mut cx.s.path,
+                    mv,
+                );
             }
         }
         if k == d.aim_before.min(n) {

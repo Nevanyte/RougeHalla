@@ -27,7 +27,8 @@ struct Scenario {
 }
 
 fn load(name: &str) -> Scenario {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../parity/fixtures/{name}.json"));
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../parity/fixtures/{name}.json"));
     let fx: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     let rows: Vec<&str> = fx["map"]["rows"]
         .as_array()
@@ -126,7 +127,10 @@ fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
     for name in ["crowded_8", "duel_chase", "fists_duel"] {
         let (steady, allocs, first_bad) = run(name);
-        assert!(steady >= 100, "{name}: only {steady} steady steps were counted");
+        assert!(
+            steady >= 100,
+            "{name}: only {steady} steady steps were counted"
+        );
         assert_eq!(
             allocs, 0,
             "{name}: {allocs} allocations over {steady} steady steps (first at tick {first_bad:?})"
