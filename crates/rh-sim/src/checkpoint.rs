@@ -14,7 +14,7 @@ use std::fmt;
 use std::sync::Arc;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/1";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/2";
 
 /// Why a checkpoint was refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -248,6 +248,15 @@ mod tests {
         // Through plain serde the same refusal arrives as the error message.
         let err = serde_json::from_value::<Sim>(json).unwrap_err().to_string();
         assert!(err.contains("unsupported checkpoint format"), "{err}");
+        // The previous layout (no roster, String winners) is refused by its tag, not as a serde error.
+        let mut old = serde_json::to_value(sim()).unwrap();
+        old["format"] = "rh-checkpoint/1".into();
+        assert_eq!(
+            Sim::restore(&old).err(),
+            Some(CheckpointError::UnsupportedFormat {
+                found: "rh-checkpoint/1".into()
+            })
+        );
         // A payload of another layout is still refused by its tag, whatever it holds.
         let alien = serde_json::json!({"format": "rh-checkpoint/9", "statics": 1, "world": [2]});
         assert!(matches!(

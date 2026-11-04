@@ -91,7 +91,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
             "a checkpoint must not carry the scratch key `{banned}`"
         );
     }
-    assert_eq!(json["format"], "rh-checkpoint/1");
+    assert_eq!(json["format"], "rh-checkpoint/2");
     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
     assert_eq!(top.len(), 3, "format, statics, world: {top:?}");
 }
