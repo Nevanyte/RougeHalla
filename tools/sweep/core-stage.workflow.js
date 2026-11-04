@@ -25,7 +25,7 @@ WORKING RULES:
 - Do not edit the shared status records: the checkpoint and tables in docs/MIGRATION.md and the status table in docs/CONTRACTS.md. Propose their text in contract_text_proposals instead. Do not add dependencies or change Cargo.lock unless your assignment authorizes it.
 - Keep every existing test passing and add the tests your package needs. Prefer small, reviewable commits. Every commit message ends with exactly these two lines:
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-  Claude-Session: https://claude.ai/code/session_01QQocgbUMhUpD2vgjZDsjZx
+  Claude-Session: https://claude.ai/code/session_01QQocgaHcm3R5i2ca874umN
 - Machine: other packages build in parallel in their own worktrees. Wall-clock timings are noise; prove with deterministic counts (perfproof needs valgrind on Linux: on macOS run it in the Linux container described in docs/sweep/README.md).
 - Disk discipline (mandatory): before any cargo command run: export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only (smaller target dirs; no behaviour change). Run perfproof with --only <the workloads your proofs need> unless you need all, and rm -rf target/perfproof right after. If df -h / shows less than 3 GB free, run cargo clean in your worktree before continuing.
 
@@ -68,7 +68,7 @@ const REVIEW = {
 
 const results = await pipeline(args.packages,
   (pkg) => agent(`${BRIEF}\n\nYOUR ASSIGNMENT: package ${pkg.id}: ${pkg.title}\n\n${pkg.resume ? `RESUMING: an earlier engineer started this package and was stopped. Do NOT create pkg/${pkg.id}; instead run git checkout ${pkg.resume} (it is not checked out anywhere else). Its commits so far: ${pkg.resume_note}. Read them (git log -p ${args.base}..HEAD) and the spec, then finish the remaining work, keeping their design unless it is wrong (say so). Your report covers the whole package (branch = ${pkg.resume}).\n\n` : ''}${pkg.spec}`,
-    { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'high' }),
+    { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' }),
   (rep, pkg) => rep && agent(`You are an independent senior reviewer. Do NOT edit files, commit or switch branches in the main checkout (/home/user/RougeHalla, branch optimization_port). Use read-only git (git diff ${args.base}..${rep.branch}, git show, git log) and read files at that revision with git show ${rep.branch}:<path>. You may create a throwaway worktree under ${SP}/review-${pkg.id} (git worktree add --detach ${SP}/review-${pkg.id} ${rep.branch}) to build and run tests or perfproof there, and must remove it when done (git worktree remove --force).
 
 Context:
@@ -86,6 +86,6 @@ Review the branch diff for: behaviour changes that would break parity or a contr
   (x, pkg) => {
     if (!x || !x.rv || x.rv.verdict === 'accept' || !x.rv.blocking.length) return x
     return agent(`${BRIEF}\n\nYOUR ASSIGNMENT: fix the blocking review findings on package ${pkg.id} (${pkg.title}). Instead of creating pkg/${pkg.id}, run: git checkout -b pkg/${pkg.id}-fix ${x.rep.branch} (the original branch is ${x.rep.branch} at ${x.rep.head_sha}). Fix every blocking finding below (or explain precisely why one is wrong, with evidence), re-run all gates, commit, and return the full structured report for the package as it now stands (branch = pkg/${pkg.id}-fix).\n\nPACKAGE SPEC:\n${pkg.spec}\n\nBLOCKING FINDINGS:\n${JSON.stringify(x.rv.blocking)}\n\nNON-BLOCKING NOTES (address if cheap):\n${JSON.stringify(x.rv.nonblocking)}`,
-      { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'high' }).then(f => ({ ...x, fix: f }))
+      { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' }).then(f => ({ ...x, fix: f }))
   })
 return results
