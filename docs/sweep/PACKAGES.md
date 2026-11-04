@@ -1,6 +1,6 @@
-# Core sweep: remaining packages
+# Core sweep: packages
 
-Specs for the packages not yet built. Each is implemented by one engineer agent in its own git worktree and branch
+Merged packages (one line each) and the specs of the packages not yet merged. Each is implemented by one engineer agent in its own git worktree and branch
 (`tools/sweep/core-stage.workflow.js`), reviewed independently, fixed, then merged by the coordinator, who re-runs every gate.
 Every package keeps the parity report at all MATCH, proves its claims with `tools/perfproof/perfproof.py` (deterministic
 instruction and allocation counts against the merge-base, behaviour fingerprints identical unless declared), and follows
@@ -12,58 +12,22 @@ Dependencies: P7a after P2b; P5b after P5a (done); P7b after P7a; P5c after P5b;
 P10b after P9; then the final review. Packages on different lines of that graph can run in parallel when their write scopes
 are disjoint (the sim track P7a -> P7b -> P8 and the server track P5b -> P5c are disjoint).
 
-Coordinator decisions that bind them: `dhat` may be added as a dev-dependency of rh-sim (P7a's zero-allocation test);
-ADR numbers continue at 0010 (0009 is the core layout, on the P2b branch); secrets stay out of the state-hash digest;
-policy events between decisions accumulate (bounded) unless that changes scripted-bot outcomes, in which case document
-the rule; the codec never clamps what a client sees (it refuses).
+Coordinator decisions that bind them: `dhat` is a dev-dependency of rh-sim (P7a's zero-allocation test); ADR numbers continue
+at 0010 (0009 is the core layout, merged with P2b); secrets stay out of the state-hash digest; policy events between
+decisions accumulate (bounded) unless that changes scripted-bot outcomes, in which case document the rule; the codec never
+clamps what a client sees (it refuses).
 
-
-## P7a: allocation-free tick (architect P7 step 4 + Copy ledger from step 2; critic P7 issues)
-Scope: crates/rh-sim/src/{scratch.rs,systems/*,input.rs,rng.rs,sim.rs,state.rs,results.rs,hash.rs (field paths only)},
-crates/rh-sim/Cargo.toml + Cargo.lock (ONLY: dhat as a dev-dependency of rh-sim), crates/rh-sim/tests/no_alloc.rs,
-crates/rh-parity/src/bin/parity_bench.rs (use step_into), one-line call sites elsewhere if an API changes.
-Do: TickScratch buffers cleared not taken; action_order_into; inline InputQueue [ActionCmd; MAX_ACTIONS_PER_TICK]+len serialized
-as a sequence; step_into(&mut Vec<Event>) (step() wraps); history ring (capacity const-asserted from MAX_REWIND_MS/TICK_MS,
-serialized/hashed oldest-first); path cursor (serialize/hash path[cursor..], compact on replace); sort_unstable_by_key((rank,j));
-Copy ledger/melee/payout entries without Strings, names resolved from an append-only Roster at result time (departed-shooter
-fallback test with leave_mia); adopt find_path_into/ray_blocked/floor_i64 where bit-identical.
-Proofs: dhat test: 0 allocations per steady-state step_into on crowded_8 inputs after warm-up; perfproof sim_crowded_8 allocs/step
-<= 0.25; Ir/step vs 7d94332 crowded_8 <= 0.70x, duel_chase <= 0.62x (cumulative with P3); verify_replay; parity; fingerprints identical.
-Inherited follow-ups: switch the inline epsilon sites (BARRIER_EPS, FACING_EPS, ARC_EPS, PATH_TIE_EPS, START_CENTER_SLACK) and the
-duplicated SNAP_RADIUS/PULL_WINDOW/MASK_* declarations to the content registry names (crates/rh-sim/tests/content.rs keeps
-passing either way); switch the sword stagger check to content::STAGGER_WEAPONS. Depends on P2b being merged.
-
-## P5b: density benchmark + bounded telemetry (architect P5 part)
-Scope: crates/rh-server/src/{room.rs (select, telemetry),metrics.rs (new),lib.rs (control health),bin/densitybench.rs (new)},
-crates/rh-server/tests/density.rs (new).
-Do: biased select with a pinned Sleep (a due step before queued commands; document C-TICK note); log-linear histograms replace
-step_us (<= 1 KB per room); live process metrics on /control/health; densitybench: in-process, real Room/Outbox/Pacer, paused
-tokio clock, N rooms x 8 humans as in-process clients draining outboxes (+ bots), deterministic; reports Ir per match-second,
-notifies and writer wakes per human-tick, heap per room; a capacity estimate (matches per vCPU) clearly labelled.
-Proofs: 3 callgrind runs within +-0.05%; telemetry <= 1 KB/room; tests green.
-Inherited from the P5a-2 review: document why rh_server's NoDelay acceptor exists (its accept hook) instead of
-axum_server::accept::NoDelayAcceptor; add a behavioural test for the ws() buffer settings (today only const asserts); the
-/control listener (loopback) has no TCP_NODELAY (low value); densitybench should run the production path via
-rh_server::serve_with (as examples/connheap.rs does).
-
-## P7b: identity and data model (architect P7 steps 1,3,5)
-Scope: crates/rh-sim/src/{store.rs,fighter.rs (new),state.rs,systems/*,sim.rs,hash.rs (paths only),observe.rs (paths)},
-crates/rh-sim/Cargo.toml (feature bench), crates/rh-headless/Cargo.toml (feature bench), crates/rh-headless/src/bin/scalebench.rs,
-one-line call sites in rh-policy/rh-server/rh-parity.
-Do: EntityId (PlayerId alias) + Store<T> in id order (binary-search get, legacy iteration order); dense per-slot ranks and
-bounty-at-start; O(1)/O(log n) idx/rank_of/owed_bounty/victims; FighterCore {body, vitals, weapon, motion, inputs} + seat +
-credit + fate; FighterRef; scalebench N=8/32/128/212 per step and per fighter, plus observe/publish scaling at 204/1000
-synthetic actors (bench feature constructor; MAX_PLAYERS stays in the real API).
-Proofs: lookup scaling <= 1.3x growth N=32->212 per fighter; parity; verify_replay; fingerprints identical; no Ir regression.
-
-## P5c: per-tick batched egress (architect P5 part)
-Scope: crates/rh-server/src/{outbox.rs,conn.rs,room.rs (publish only)}, tests.
-Do: one Outbox push + one notify per client per tick; writer drains in priority order, flushes once per wake under one timeout;
-reader liveness via last-seen timestamp + coarse timer. Counting-Sink unit test: exactly one flush per wake, byte-identical frames
-in the old order. densitybench notifies per human-tick = 1.
-Proofs: those; live tests (drain, resume, liveness, rate limit, slow client) green; browser proof PASS.
-Inherited from the P5a-2 review: WS_MAX_WRITE_BUFFER is 16 KiB + 2 x MAX_SERVER_FRAME; a batched flush must keep its feed
-total under it (or raise it deliberately).
+## Done (merged into `optimization_port`; numbers in [README.md](README.md))
+Earlier packages (perfproof, P1, P6, P2a, P3, P4, P5a-1, P5a-2) are listed in the README's merged table.
+- **P2b** executable tick schedule, hook dispatch, same-tick `payLater` seam, `Cx::submit`, ADR 0009: merge `dd867d9`.
+- **P10a** protocol v2 (quantized remote actors, `server_ms` derived, `protocol/fixtures/v2.json`): merge `fe4e168`.
+- **P7a** allocation-free tick (`step_into`, Roster, inline queues, history ring, `rh-checkpoint/2`): merge `94a34c1`.
+- **P5b** density bench, bounded log-linear telemetry, biased pinned-Sleep room loop, `/control/health` metrics: merge `76534b6`
+  (merged together with P5c).
+- **P5c** one push and one notify per client per tick, batched priority-order flush: merge `76534b6`.
+- **P7b** `Store<T>`, `FighterCore`, dense per-slot ranks, scalebench, `rh-checkpoint/3`: merge `29d341c`.
+- **P5d** (follow-ups of P5b/P5c: biased reader select, director admission races, padded metrics, refusal log once per room):
+  merge `a0e705e`.
 
 ## P8: state identity by construction (architect P8, critic P8)
 Scope: crates/rh-sim/src/{hash.rs,checkpoint.rs,replay.rs}, crates/rh-sim/tests/{hash_coverage.rs,replay.rs}, crates/rh-sim/clippy.toml,
@@ -93,6 +57,7 @@ of the merged P10a.
 
 ## Final: review, docs, CI gate
 An independent multi-lens review of the whole sweep diff (correctness, parity, contracts, proofs), fixes, then: update
-docs/CONTRACTS.md (C-TICK executable schedule, C-NET protocol v2, C-DET checkpoint/hash, C-OBS event visibility; status
-table), docs/MIGRATION.md (benchmarks and results, the sweep record), ADRs, and a CI job that runs perfproof against the
-PR merge-base with `--max-ir-ratio` and the allocation gate (valgrind is available on the ubuntu runners).
+docs/CONTRACTS.md and docs/MIGRATION.md for P8, P9 and P10b (C-DET hash, C-OBS event visibility, C-NET deltas; the merged
+packages' text is already recorded: C-TICK schedule, C-NET protocol v2 and egress, checkpoint/3, C-PERSIST admission wait),
+ADRs, and a CI job that runs perfproof against the PR merge-base with `--max-ir-ratio` and the allocation gate (valgrind is
+available on the ubuntu runners).
