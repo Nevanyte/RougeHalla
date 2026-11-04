@@ -1,7 +1,7 @@
 // The rejoin decisions and the seat's storage (net/rejoin.ts), and the liveness watch (net/linkWatch.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CLIENT_STALL_MS, HEARTBEAT_MS, LIVENESS_SWEEP_MS, LIVENESS_TIMEOUT_MS, RECONNECT_SECONDS } from "@raid/shared";
-import { LinkWatch, linkStalled, type LinkRoom } from "../src/net/linkWatch";
+import { KEEPALIVE_MS, LinkWatch, linkStalled, type LinkRoom } from "../src/net/linkWatch";
 import {
   clearSeat, loadSeat, nextRejoinDelay, recoverableClose, rejoinWindowFor, REJOIN_RETRY_MS, REJOIN_WINDOW_MS, saveSeat, SEAT_KEY,
   SERVER_CLOSED_REJOIN_WINDOW_MS, shouldRejoinOnBusy,
@@ -174,6 +174,23 @@ describe("LinkWatch", () => {
     advance(CLIENT_STALL_MS + HEARTBEAT_MS);
     expect(link.drops).toBe(1);
     w.stop();
+  });
+
+  it("makes one keep-alive request every KEEPALIVE_MS while it runs, reconnecting or not, and none once stopped", () => {
+    let pokes = 0;
+    const w = new LinkWatch({ ...link, keepAlive: () => { pokes++; } }, () => now);
+    w.start();
+    for (let t = 0; t < KEEPALIVE_MS - HEARTBEAT_MS; t += HEARTBEAT_MS) { advance(HEARTBEAT_MS); inbound!(); }
+    expect(pokes).toBe(0);
+    advance(HEARTBEAT_MS);
+    inbound!();
+    expect(pokes).toBe(1);
+    link.reconnecting = true;
+    advance(KEEPALIVE_MS);
+    expect(pokes).toBe(2);
+    w.stop();
+    advance(KEEPALIVE_MS * 2);
+    expect(pokes).toBe(2);
   });
 
   it("leaves the SDK alone while it is already reconnecting or the socket is closed, and does not count that silence", () => {

@@ -59,3 +59,17 @@ export async function ensureContainerImage(
   if (!exited || container.running) throw new Error("The previous game container did not stop cleanly");
   startCurrentImage();
 }
+
+/**
+ * The log line for the game container's process ending (the coordinator's monitor settled), so a stop that drops every player
+ * shows in the Worker's logs with what caused it: one the coordinator asked for (a release change, maintenance), or one it did not
+ * (a crash, an out-of-memory kill, or the platform stopping an idle container). `secrets` are scrubbed from the error text.
+ */
+export function containerExitLine(
+  outcome: "exited" | "failed", watchedMs: number, stopRequested: boolean, retired: boolean, error: unknown, secrets: readonly (string | undefined)[] = [],
+): string {
+  let detail = error instanceof Error ? error.message : error === undefined ? "" : String(error);
+  for (const secret of secrets) if (secret) detail = detail.replaceAll(secret, "[redacted]");
+  const cause = stopRequested || retired ? "requested" : "unrequested";
+  return `[game] container ${outcome} (${cause}) after ${Math.round(watchedMs / 1000)} s watched${detail ? `: ${detail.slice(0, 300)}` : ""}`;
+}

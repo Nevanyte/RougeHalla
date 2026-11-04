@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { TELEMETRY_PERF_MESSAGE, type FxBatch, type JoinOptions, type RoomMode, type RunResult, type ServerMessages } from "@raid/shared";
 import { runPerf } from "./net/perfSample";
 import "./style.css";
-import { detachRoom, isCallsignBusy, isClientOutOfDate, joinRaid, joinTraining, leaveRoom, linkOf, reconnectRaid, type RaidRoom } from "./net/connection";
+import { apiBase, detachRoom, isCallsignBusy, isClientOutOfDate, joinRaid, joinTraining, leaveRoom, linkOf, reconnectRaid, type RaidRoom } from "./net/connection";
 import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, MAP_MISMATCH_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
 import { LinkWatch } from "./net/linkWatch";
@@ -192,7 +192,11 @@ async function runJoined(joined: RaidRoom, training: boolean, profile: string, w
   // Beats from the first moment: the server drops a client silent for LIVENESS_TIMEOUT_MS, and the first state, the map build and
   // the scene's first frame can together take that long on a slow device (a drop in the lobby loses the seat).
   linkWatch?.stop();
-  const watch = new LinkWatch(linkOf(joined));
+  // The keep-alive (KEEPALIVE_MS): a plain request through the Worker, so Cloudflare never counts a running game as an idle container.
+  const watch = new LinkWatch({
+    ...linkOf(joined),
+    keepAlive: () => { void fetch(`${apiBase()}/readyz`, { cache: "no-store" }).then((r) => r.body?.cancel(), () => {}); },
+  });
   linkWatch = watch;
   watch.start({ stalls: false });
   joined.onLeave(() => watch.stop());

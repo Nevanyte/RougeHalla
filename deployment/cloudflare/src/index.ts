@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import buildMeta from "../build-meta.json";
-import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
+import { containerExitLine, containerReleaseLabel, ensureContainerImage, isReadyServerBuild } from "./containerLifecycle";
 import { coldLobbySnapshotOrContinue, coldLobbySnapshotResponse, confirmsEmptyLobbySnapshotAtGeneration, isLobbySnapshotRequest, lobbyRateLimitKey } from "./lobbySnapshot";
 import { handleBotSnapshot, handleProfileSnapshot } from "./profileSnapshots";
 import { networkProbeAuthorized, networkProbeEcho, networkProbeLayer } from "./networkProbe";
@@ -116,9 +116,18 @@ export class GameContainer extends DurableObject<Env> {
   private watchContainerExit(container: Container): Promise<void> {
     if (!this.exitMonitor) {
       let monitored: Promise<void>;
+      const since = Date.now();
+      // Every end of the game process is logged: an unrequested one (a crash, an OOM kill, the platform stopping an idle
+      // container) drops every player at once, and this line is the only record of when and why.
+      const log = (outcome: "exited" | "failed", error?: unknown): void => {
+        const line = containerExitLine(outcome, Date.now() - since, this.stopRequested, this.retired, error,
+          [this.env.PROFILE_SNAPSHOT_TOKEN, this.env.TELEMETRY_TOKEN, this.env.TELEMETRY_SALT]);
+        if (outcome === "failed" || !(this.stopRequested || this.retired)) console.error(line);
+        else console.log(line);
+      };
       monitored = Promise.resolve()
         .then(() => container.monitor())
-        .then(() => undefined, () => undefined)
+        .then(() => log("exited"), (error: unknown) => log("failed", error))
         .finally(() => { if (this.exitMonitor === monitored) this.exitMonitor = undefined; });
       this.exitMonitor = monitored;
       this.ctx.waitUntil(monitored);

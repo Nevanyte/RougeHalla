@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { containerReleaseLabel, ensureContainerImage, isReadyServerBuild, type ImageManagedContainer } from "../src/containerLifecycle";
+import { containerExitLine, containerReleaseLabel, ensureContainerImage, isReadyServerBuild, type ImageManagedContainer } from "../src/containerLifecycle";
 
 it("keeps release labels within the runtime limit and changes them for profile imports", async () => {
   const build = "a".repeat(64);
@@ -130,5 +130,15 @@ describe("Cloudflare container image lifecycle", () => {
       .rejects.toThrow(/Cannot verify/);
     expect(f.order).toEqual(["inspect"]);
     expect(starts).toBe(0);
+  });
+});
+
+describe("the container exit log line", () => {
+  it("says whether the coordinator asked for the stop, how long it watched, and scrubs secrets from the error", () => {
+    expect(containerExitLine("exited", 1_500_400, true, false, undefined)).toBe("[game] container exited (requested) after 1500 s watched");
+    expect(containerExitLine("exited", 61_000, false, false, undefined)).toBe("[game] container exited (unrequested) after 61 s watched");
+    const line = containerExitLine("failed", 5_000, false, false, new Error("exit 137 token=s3cret-token-value"), ["s3cret-token-value", undefined]);
+    expect(line).toBe("[game] container failed (unrequested) after 5 s watched: exit 137 token=[redacted]");
+    expect(containerExitLine("exited", 0, false, true, undefined)).toContain("(requested)");
   });
 });
