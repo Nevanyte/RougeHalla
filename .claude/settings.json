@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo test -p *)",
+      "Bash(cargo test -q -p *)",
+      "Bash(cargo test --workspace --all-features)",
+      "Bash(callgrind_annotate *)",
+      "Bash(cargo fmt --all --check)",
+      "Bash(cargo clippy --workspace --all-targets --all-features -- -D warnings)",
+      "Bash(cargo run -p rh-parity --bin parity-report)",
+      "Bash(cargo run -q -p rh-parity --bin parity-report)"
+    ]
+  }
+}
