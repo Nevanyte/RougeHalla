@@ -9,7 +9,7 @@ namespace Roguehalla.Net.Tests
 {
     public class ProtocolVectorTests
     {
-        static JsonElement Fixture() { return JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol", "fixtures", "v2.json"))).RootElement; }
+        static JsonElement Fixture() { return JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol", "fixtures", "v3.json"))).RootElement; }
 
         static IEnumerable<TestCaseData> Vectors(string section)
         {
@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV2() { Assert.AreEqual(2, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV3() { Assert.AreEqual(3, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -223,7 +223,12 @@ namespace Roguehalla.Net.Tests
                 }
                 return;
             }
-            var s = (ServerMsg.Snapshot)msg;
+            CheckSnapshot(d, (ServerMsg.Snapshot)msg);
+        }
+
+        /// <summary>A snapshot equals the vector's decoded form field for field (floats as bit patterns).</summary>
+        static void CheckSnapshot(JsonElement d, ServerMsg.Snapshot s)
+        {
             Assert.AreEqual(d.GetProperty("tick").GetUInt32(), s.Tick);
             Assert.AreEqual(d.GetProperty("serverMs").GetDouble(), s.ServerMs);
             Assert.AreEqual(d.GetProperty("phase").GetByte(), s.Phase);
@@ -269,7 +274,13 @@ namespace Roguehalla.Net.Tests
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
                 case "head_self_bit_without_present_bit": case "head_reserved_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
+                case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit":
+                case "delta_self_status_over_3": case "delta_actor_id_gap_zero": case "delta_actor_hp_over_100": case "delta_actor_bounty_over_u16":
+                case "delta_departed_empty": case "delta_departed_id_gap_zero":
                     want = DecodeError.BadField; break;
+                case "delta_too_many_actors": case "delta_departed_too_many": want = DecodeError.TooMany; break;
+                case "delta_truncated": want = DecodeError.Truncated; break;
+                case "delta_trailing_byte": want = DecodeError.Trailing; break;
                 default: throw new KeyNotFoundException("no expectation for " + name);
             }
             Assert.AreEqual(want, Assert.Throws<DecodeException>(() => ServerMsg.Decode(Util.FromHex(hex)), name).Error, name);
@@ -317,6 +328,69 @@ namespace Roguehalla.Net.Tests
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Faction = 16 } } }.Encode(), "faction over 4 bits");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Actors = new[] { new WireActor { Id = 1, Status = 4 } } }.Encode(), "status over 2 bits");
             Assert.Throws<ArgumentException>(() => new ServerMsg.Snapshot { Phase = 4 }.Encode(), "phase over 2 bits");
+        }
+
+        /// <summary>
+        /// The chains in the vectors (frames a client's tracker applies in order): after every frame the tracker holds exactly the
+        /// recorded snapshot, a Welcome resets it, and a refused delta is refused for the recorded reason and changes nothing.
+        /// </summary>
+        static IEnumerable<TestCaseData> Chains()
+        {
+            foreach (var c in Fixture().GetProperty("chains").EnumerateArray())
+                yield return new TestCaseData(c.GetProperty("name").GetString()).SetName("chain:" + c.GetProperty("name").GetString());
+        }
+
+        [TestCaseSource(nameof(Chains))]
+        public void ChainReplaysToTheRecordedOutcomeAtEveryStep(string name)
+        {
+            JsonElement chain = default;
+            foreach (var c in Fixture().GetProperty("chains").EnumerateArray()) if (c.GetProperty("name").GetString() == name) chain = c;
+            var track = new SnapshotTracker();
+            int i = 0;
+            foreach (var step in chain.GetProperty("steps").EnumerateArray())
+            {
+                byte[] frame = Util.FromHex(step.GetProperty("hex").GetString());
+                string at = name + " step " + i++;
+                if (step.TryGetProperty("refused", out var why))
+                {
+                    uint held = track.HeldTick; int actors = track.HeldActors;
+                    var e = Assert.Throws<DeltaException>(() => track.Decode(frame, frame.Length, null), at);
+                    Assert.AreEqual(why.GetString(), e.Code, at);
+                    Assert.AreEqual(held, track.HeldTick, at + ": a refused delta changes nothing");
+                    Assert.AreEqual(actors, track.HeldActors, at);
+                    continue;
+                }
+                var msg = track.Decode(frame, frame.Length, null);
+                if (step.TryGetProperty("reset", out _)) { Assert.IsInstanceOf<ServerMsg.Welcome>(msg, at); Assert.IsFalse(track.HasBase, at); }
+                else if (step.TryGetProperty("held", out var held))
+                {
+                    Assert.AreEqual(held.GetProperty("tick").GetUInt32(), track.HeldTick, at);
+                    Assert.AreEqual(held.GetProperty("actors").GetInt32(), track.HeldActors, at);
+                }
+                else CheckSnapshot(step.GetProperty("decoded"), (ServerMsg.Snapshot)msg);
+            }
+        }
+
+        [Test]
+        public void ADeltaDecodedAloneIsTheMessageAndReEncodesByteForByte()
+        {
+            foreach (var name in new[] { "snapshot_delta", "snapshot_delta_empty" })
+            {
+                var d = Server<ServerMsg.SnapshotDelta>(name);
+                Assert.AreEqual(SrvHex(name), Util.ToHex(d.Encode()), name);
+            }
+            var full = Server<ServerMsg.SnapshotDelta>("snapshot_delta");
+            Assert.AreEqual(1000000u, full.Tick); Assert.AreEqual(999990u, full.BaseTick); Assert.AreEqual((byte)2, full.Phase);
+            Assert.IsTrue(full.HasSelf); Assert.AreEqual(2, full.ChangedCount); Assert.AreEqual(2, full.DepartedCount);
+            Assert.AreEqual(70000u, full.Departed[1]); Assert.AreEqual(128u, full.Changed[1].Id); Assert.AreEqual(ActorDelta.MAll, full.Changed[1].Mask);
+        }
+
+        [Test]
+        public void AResyncIsOneByteWithNoBody()
+        {
+            CollectionAssert.AreEqual(new byte[] { 5 }, new ClientMsg.Resync().Encode());
+            Assert.IsInstanceOf<ClientMsg.Resync>(Client<ClientMsg.Resync>("resync"));
+            Assert.Throws<DecodeException>(() => ClientMsg.Decode(new byte[] { 5, 0 }));
         }
 
         [Test]

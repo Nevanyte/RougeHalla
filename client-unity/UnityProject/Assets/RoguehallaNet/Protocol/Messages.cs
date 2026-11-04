@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Protocol
 
     public abstract class ClientMsg
     {
-        const byte THello = 0x01, TInput = 0x02, TPing = 0x03, TLeave = 0x04;
+        const byte THello = 0x01, TInput = 0x02, TPing = 0x03, TLeave = 0x04, TResync = 0x05;
 
         public abstract byte[] Encode();
 
@@ -76,6 +76,7 @@ namespace Roguehalla.Net.Protocol
                 }
                 case TPing: msg = new Ping { Nonce = r.U32(), ClientMs = r.F64() }; break;
                 case TLeave: msg = new Leave(); break;
+                case TResync: msg = new Resync(); break;
                 default: throw new DecodeException(DecodeError.BadTag);
             }
             r.End();
@@ -161,6 +162,12 @@ namespace Roguehalla.Net.Protocol
         {
             public override byte[] Encode() { return new[] { TLeave }; }
         }
+
+        /// <summary>"Send me a full snapshot": the client refused a delta it could not apply (v3). The server honours one per second.</summary>
+        public sealed class Resync : ClientMsg
+        {
+            public override byte[] Encode() { return new[] { TResync }; }
+        }
     }
 
     /// <summary>The receiving player's own state. A class on purpose: <c>Snapshot.Me</c> is null for a spectator.</summary>
@@ -172,6 +179,12 @@ namespace Roguehalla.Net.Protocol
         public byte Status, Weapon;
         public ushort ReadyInMs, Kills, Bounty, Gv;
         public byte MoveSeq;
+
+        internal void CopyFrom(WireSelf o)
+        {
+            Id = o.Id; Faction = o.Faction; X = o.X; Y = o.Y; Facing = o.Facing; Hp = o.Hp; MaxHp = o.MaxHp; Status = o.Status; Weapon = o.Weapon;
+            ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq;
+        }
 
         // Head word bits (rh-protocol lib.rs): the self's field bits 0..9, phase in bits 12..13, bit 15 = a self follows.
         internal const ushort HKit = 1 << 0, HHp = 1 << 1, HReady = 1 << 4, HKills = 1 << 5, HBounty = 1 << 6, HGv = 1 << 7,
@@ -318,6 +331,92 @@ namespace Roguehalla.Net.Protocol
         }
     }
 
+    /// <summary>
+    /// The changed self fields of a snapshot delta: <see cref="Mask"/> has the head's field bits (0..11); only the fields whose
+    /// bit is set mean anything. The self's id is the base's.
+    /// </summary>
+    public struct SelfDelta
+    {
+        public const ushort FX = 1 << 0, FY = 1 << 1, FFacing = 1 << 2, FHp = 1 << 3, FMaxHp = 1 << 4, FKit = 1 << 5, FReady = 1 << 6,
+            FKills = 1 << 7, FBounty = 1 << 8, FGv = 1 << 9, FMoveSeq = 1 << 10, FStatus = 1 << 11;
+        public ushort Mask;
+        public float X, Y, Facing, Hp, MaxHp;
+        public byte Kit;
+        public ushort ReadyInMs, Kills, Bounty, Gv;
+        public byte MoveSeq;
+        /// <summary>The new status (0..3) when <see cref="FStatus"/> is set in <see cref="Mask"/>.</summary>
+        public byte StatusValue;
+
+        internal static SelfDelta Read(ref Reader r, ushort mask)
+        {
+            var s = new SelfDelta { Mask = mask };
+            if ((mask & FX) != 0) s.X = r.F32();
+            if ((mask & FY) != 0) s.Y = r.F32();
+            if ((mask & FFacing) != 0) s.Facing = r.F32();
+            if ((mask & FHp) != 0) s.Hp = r.F32();
+            if ((mask & FMaxHp) != 0) s.MaxHp = r.F32();
+            if ((mask & FKit) != 0) s.Kit = r.U8();
+            if ((mask & FReady) != 0) s.ReadyInMs = r.U16();
+            if ((mask & FKills) != 0) s.Kills = r.VarintU16("kills");
+            if ((mask & FBounty) != 0) s.Bounty = r.VarintU16("bounty");
+            if ((mask & FGv) != 0) s.Gv = r.VarintU16("gv");
+            if ((mask & FMoveSeq) != 0) s.MoveSeq = r.U8();
+            if ((mask & FStatus) != 0)
+            {
+                s.StatusValue = r.U8();
+                if (s.StatusValue > Wire.MaxStatusCode) throw new DecodeException(DecodeError.BadField, "status");
+            }
+            return s;
+        }
+
+        internal void Write(Writer w)
+        {
+            if ((Mask & FX) != 0) w.F32(X);
+            if ((Mask & FY) != 0) w.F32(Y);
+            if ((Mask & FFacing) != 0) w.F32(Facing);
+            if ((Mask & FHp) != 0) w.F32(Hp);
+            if ((Mask & FMaxHp) != 0) w.F32(MaxHp);
+            if ((Mask & FKit) != 0) w.U8(Kit);
+            if ((Mask & FReady) != 0) w.U16(ReadyInMs);
+            if ((Mask & FKills) != 0) w.Varint(Kills);
+            if ((Mask & FBounty) != 0) w.Varint(Bounty);
+            if ((Mask & FGv) != 0) w.Varint(Gv);
+            if ((Mask & FMoveSeq) != 0) w.U8(MoveSeq);
+            if ((Mask & FStatus) != 0) w.U8(StatusValue);
+        }
+
+        internal void ApplyTo(WireSelf s)
+        {
+            if ((Mask & FX) != 0) s.X = X;
+            if ((Mask & FY) != 0) s.Y = Y;
+            if ((Mask & FFacing) != 0) s.Facing = Facing;
+            if ((Mask & FHp) != 0) s.Hp = Hp;
+            if ((Mask & FMaxHp) != 0) s.MaxHp = MaxHp;
+            if ((Mask & FKit) != 0) { s.Faction = (byte)(Kit & 0x0f); s.Weapon = (byte)(Kit >> 4); }
+            if ((Mask & FReady) != 0) s.ReadyInMs = ReadyInMs;
+            if ((Mask & FKills) != 0) s.Kills = Kills;
+            if ((Mask & FBounty) != 0) s.Bounty = Bounty;
+            if ((Mask & FGv) != 0) s.Gv = Gv;
+            if ((Mask & FMoveSeq) != 0) s.MoveSeq = MoveSeq;
+            if ((Mask & FStatus) != 0) s.Status = StatusValue;
+        }
+    }
+
+    /// <summary>
+    /// One changed remote actor of a snapshot delta: <see cref="Mask"/> (bits <see cref="X"/>..<see cref="Bounty"/>) says which
+    /// quantized fields are carried; the status always is. A new actor carries every field (<see cref="All"/>).
+    /// </summary>
+    public struct ActorDelta
+    {
+        public const byte MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MAll = 0x3f;
+        public const int StatusShift = 6;
+        public uint Id;
+        public byte Mask;
+        public ushort X, Y, Facing;
+        public byte Kit, HpPct, Status;
+        public ushort Bounty;
+    }
+
     public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4 }
 
     /// <summary>Reliable, ordered events. Only the fields of its Kind are meaningful.</summary>
@@ -353,7 +452,7 @@ namespace Roguehalla.Net.Protocol
 
     public abstract class ServerMsg
     {
-        const byte TWelcome = 0x81, TReject = 0x82, TSnapshot = 0x83, TEvents = 0x84, TFx = 0x85, TPong = 0x86;
+        const byte TWelcome = 0x81, TReject = 0x82, TSnapshot = 0x83, TEvents = 0x84, TFx = 0x85, TPong = 0x86, TSnapshotDelta = 0x87;
 
         public abstract byte[] Encode();
 
@@ -391,6 +490,9 @@ namespace Roguehalla.Net.Protocol
                 }
                 case TSnapshot:
                     msg = Snapshot.Read(ref r, reuse ?? new Snapshot());
+                    break;
+                case TSnapshotDelta:
+                    msg = SnapshotDelta.Read(ref r, new SnapshotDelta());
                     break;
                 case TEvents:
                 {
@@ -554,6 +656,129 @@ namespace Roguehalla.Net.Protocol
                 for (int i = 0; i < n; i++) { actors[i] = WireActor.Read(ref r, i == 0, prev); prev = actors[i].Id; }
                 s.Actors = actors;
                 return s;
+            }
+        }
+
+        /// <summary>
+        /// A snapshot as a delta against the last one the connection received (v3; layout in crates/rh-protocol/src/lib.rs). A
+        /// client does not use this directly: <see cref="SnapshotTracker"/> applies it and hands out the resolved
+        /// <see cref="Snapshot"/>. The lists are arrays with counts so that a tracker's one instance decodes every frame without
+        /// garbage.
+        /// </summary>
+        public sealed class SnapshotDelta : ServerMsg
+        {
+            public uint Tick, BaseTick, AckInput;
+            public byte Phase;
+            public bool HasSelf;
+            public SelfDelta Me;
+            public ActorDelta[] Changed = new ActorDelta[8];
+            public int ChangedCount;
+            public uint[] Departed = new uint[8];
+            public int DepartedCount;
+
+            // Head word: bit 15 a self follows, bit 14 a departed list follows, bits 12..13 phase, bits 0..11 the self fields.
+            const ushort HDeparted = 1 << 14, HPresent = 1 << 15, Fields = 0x0fff;
+            const int PhaseShift = 12;
+
+            /// <summary>Reads the body of a delta frame (after the tag): syntax and ranges only; whether it applies is the tracker's question.</summary>
+            internal static SnapshotDelta Read(ref Reader r, SnapshotDelta d)
+            {
+                d.Tick = r.Varint();
+                uint age = r.Varint();
+                if (age < 1 || age > Wire.MaxDeltaAge || age > d.Tick) throw new DecodeException(DecodeError.BadField, "base age");
+                d.BaseTick = d.Tick - age;
+                d.AckInput = r.Varint();
+                ushort head = r.U16();
+                if ((head & HPresent) == 0 && (head & Fields) != 0) throw new DecodeException(DecodeError.BadField, "head");
+                d.Phase = (byte)((head >> PhaseShift) & 3);
+                d.HasSelf = (head & HPresent) != 0;
+                d.Me = d.HasSelf ? SelfDelta.Read(ref r, (ushort)(head & Fields)) : default(SelfDelta);
+                uint n = r.Varint();
+                if (n > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, n.ToString());
+                if (d.Changed.Length < n) d.Changed = new ActorDelta[Math.Max((int)n, d.Changed.Length * 2)];
+                d.ChangedCount = (int)n;
+                uint prev = 0;
+                for (int i = 0; i < (int)n; i++)
+                {
+                    uint field = r.Varint();
+                    ulong id = i == 0 ? field : (ulong)prev + field;
+                    if (i > 0 && (field == 0 || id > uint.MaxValue)) throw new DecodeException(DecodeError.BadField, "actor order");
+                    prev = (uint)id;
+                    ActorDelta a = default(ActorDelta);
+                    a.Id = prev;
+                    byte m = r.U8();
+                    a.Mask = (byte)(m & ActorDelta.MAll);
+                    a.Status = (byte)(m >> ActorDelta.StatusShift);
+                    if ((a.Mask & ActorDelta.MX) != 0) a.X = r.U16();
+                    if ((a.Mask & ActorDelta.MY) != 0) a.Y = r.U16();
+                    if ((a.Mask & ActorDelta.MFacing) != 0) a.Facing = r.U16();
+                    if ((a.Mask & ActorDelta.MKit) != 0) a.Kit = r.U8();
+                    if ((a.Mask & ActorDelta.MHp) != 0) { a.HpPct = r.U8(); if (a.HpPct > 100) throw new DecodeException(DecodeError.BadField, "hp_pct"); }
+                    if ((a.Mask & ActorDelta.MBounty) != 0) a.Bounty = r.VarintU16("bounty");
+                    d.Changed[i] = a;
+                }
+                d.DepartedCount = 0;
+                if ((head & HDeparted) != 0)
+                {
+                    uint k = r.Varint();
+                    if (k == 0) throw new DecodeException(DecodeError.BadField, "departed");
+                    if (k > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, k.ToString());
+                    if (d.Departed.Length < k) d.Departed = new uint[Math.Max((int)k, d.Departed.Length * 2)];
+                    d.DepartedCount = (int)k;
+                    uint last = 0;
+                    for (int i = 0; i < (int)k; i++)
+                    {
+                        uint field = r.Varint();
+                        ulong id = i == 0 ? field : (ulong)last + field;
+                        if (i > 0 && (field == 0 || id > uint.MaxValue)) throw new DecodeException(DecodeError.BadField, "departed order");
+                        last = (uint)id;
+                        d.Departed[i] = last;
+                    }
+                }
+                return d;
+            }
+
+            public override byte[] Encode()
+            {
+                if (Tick < BaseTick + 1 || Tick - BaseTick > Wire.MaxDeltaAge) throw new ArgumentException("base age");
+                if (Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
+                if (ChangedCount > Wire.MaxActors || DepartedCount > Wire.MaxActors) throw new ArgumentException("too many actors");
+                if (HasSelf && (Me.Mask & ~Fields) != 0) throw new ArgumentException("head");
+                if (HasSelf && (Me.Mask & SelfDelta.FStatus) != 0 && Me.StatusValue > Wire.MaxStatusCode) throw new ArgumentException("status");
+                for (int i = 0; i < ChangedCount; i++)
+                {
+                    var a = Changed[i];
+                    if (a.Status > Wire.MaxStatusCode || (a.Mask & ~ActorDelta.MAll) != 0) throw new ArgumentException("actor mask or status");
+                    if ((a.Mask & ActorDelta.MHp) != 0 && a.HpPct > 100) throw new ArgumentException("hp_pct");
+                    if (i > 0 && a.Id <= Changed[i - 1].Id) throw new ArgumentException("actor ids must strictly ascend");
+                }
+                for (int i = 1; i < DepartedCount; i++) if (Departed[i] <= Departed[i - 1]) throw new ArgumentException("departed ids must strictly ascend");
+                var w = new Writer();
+                w.U8(TSnapshotDelta); w.Varint(Tick); w.Varint(Tick - BaseTick); w.Varint(AckInput);
+                ushort head = (ushort)((Phase & 3) << PhaseShift);
+                if (HasSelf) head |= (ushort)(HPresent | (Me.Mask & Fields));
+                if (DepartedCount > 0) head |= HDeparted;
+                w.U16(head);
+                if (HasSelf) Me.Write(w);
+                w.Varint((uint)ChangedCount);
+                for (int i = 0; i < ChangedCount; i++)
+                {
+                    var a = Changed[i];
+                    w.Varint(i == 0 ? a.Id : a.Id - Changed[i - 1].Id);
+                    w.U8((byte)((a.Mask & ActorDelta.MAll) | (a.Status << ActorDelta.StatusShift)));
+                    if ((a.Mask & ActorDelta.MX) != 0) w.U16(a.X);
+                    if ((a.Mask & ActorDelta.MY) != 0) w.U16(a.Y);
+                    if ((a.Mask & ActorDelta.MFacing) != 0) w.U16(a.Facing);
+                    if ((a.Mask & ActorDelta.MKit) != 0) w.U8(a.Kit);
+                    if ((a.Mask & ActorDelta.MHp) != 0) w.U8(a.HpPct);
+                    if ((a.Mask & ActorDelta.MBounty) != 0) w.Varint(a.Bounty);
+                }
+                if (DepartedCount > 0)
+                {
+                    w.Varint((uint)DepartedCount);
+                    for (int i = 0; i < DepartedCount; i++) w.Varint(i == 0 ? Departed[i] : Departed[i] - Departed[i - 1]);
+                }
+                return w.Finish();
             }
         }
 

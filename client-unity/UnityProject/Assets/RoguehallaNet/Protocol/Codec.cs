@@ -3,10 +3,12 @@ using System.Text;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire constants of rh-protocol v2 (crates/rh-protocol/src/lib.rs).</summary>
+    /// <summary>Wire constants of rh-protocol v3 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 2;
+        public const ushort ProtocolVersion = 3;
+        /// <summary>Most ticks a snapshot delta's base may be behind it (a writer that skipped more sends a Full snapshot).</summary>
+        public const uint MaxDeltaAge = 64;
         /// <summary>Milliseconds per server tick: a Snapshot's server time is Tick * TickMs, exactly (it is not sent).</summary>
         public const int TickMs = 50;
         /// <summary>Largest faction and weapon (4 bits each in the kit byte), status and phase (2 bits each) a frame can carry.</summary>

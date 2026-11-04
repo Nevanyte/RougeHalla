@@ -126,6 +126,40 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(actors, o.Count);
         }
 
+        /// <summary>The steady stream of protocol v3: a Full snapshot, then a delta every tick (moving every actor and the self). Applying
+        /// deltas, resolving each into the buffer's spare and sampling make no garbage either.</summary>
+        [TestCase(1)]
+        [TestCase(14)]
+        [TestCase(68)]
+        public void ASessionReceivingDeltasMakesNoGarbage(int actors)
+        {
+            double now = 1000;
+            var t = new FakeTransport();
+            var s = new Session(t, new SessionOptions { Now = () => now });
+            s.Connect(); t.Open();
+            t.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            t.Deliver(Snap(BaseTick - 1, actors));
+            var d = new ServerMsg.SnapshotDelta { Tick = BaseTick, BaseTick = BaseTick - 1, Phase = 1, HasSelf = true, ChangedCount = actors, Changed = new ActorDelta[actors] };
+            d.Me = new SelfDelta { Mask = SelfDelta.FX | SelfDelta.FMoveSeq, X = 401, MoveSeq = 1 };
+            for (int k = 0; k < actors; k++) d.Changed[k] = new ActorDelta { Id = (uint)(2 * k + 1), Mask = ActorDelta.MX | ActorDelta.MFacing, X = (ushort)(800 + k), Facing = 5, Status = 1 };
+            var frame = d.Encode();
+            Assert.AreEqual(0x87, frame[0]);
+            Assert.AreEqual(1, frame[4], "the age is the byte after the three-byte tick");
+            var o = new List<InterpActor>();
+            double b = PerCall(i =>
+            {
+                now += 50;
+                SetTick(frame, BaseTick + (uint)i);
+                t.DeliverRaw(frame);
+                s.Snapshots.Sample((BaseTick + i) * 50.0 - 100, o);
+            });
+            TestContext.Progress.WriteLine("session delta receive + sample, {0} actors: {1} B per snapshot", actors, b);
+            Assert.AreEqual(0, s.DeltasRefused, s.Error);
+            Assert.AreEqual(0.0, b);
+            Assert.AreEqual(Iterations + 200, s.SnapshotsReceived - 1);
+            Assert.AreEqual(actors, o.Count);
+        }
+
         [TestCase(1)]
         [TestCase(14)]
         [TestCase(68)]

@@ -282,6 +282,65 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 actors: vec![],
             },
         ),
+        // Deltas (protocol v3). Nothing changed and no self: the smallest delta.
+        (
+            "snapshot_delta_empty",
+            ServerMsg::SnapshotDelta(SnapshotDelta {
+                tick: 102,
+                base_tick: 101,
+                phase: 1,
+                ack_input: 42,
+                me: None,
+                changed: vec![],
+                departed: vec![],
+            }),
+        ),
+        // A self with some fields changed (f32 pairs, a varint, a status), a changed actor, a new actor and a departed one.
+        (
+            "snapshot_delta",
+            ServerMsg::SnapshotDelta(SnapshotDelta {
+                tick: 1_000_000,
+                base_tick: 999_990,
+                phase: 2,
+                ack_input: 300,
+                me: Some(SelfDelta {
+                    mask: 0x0801 | 0x0002 | 0x0008 | 0x0080 | 0x0400,
+                    x: 5119.875,
+                    y: 0.1,
+                    hp: -0.0,
+                    kills: 200,
+                    move_seq: 255,
+                    status: 2,
+                    ..SelfDelta::default()
+                }),
+                changed: vec![
+                    ActorDelta {
+                        mask: AD_X | AD_HP,
+                        q: QActor {
+                            id: 2,
+                            x: 65535,
+                            hp_pct: 0,
+                            status: 2,
+                            ..QActor::default()
+                        },
+                    },
+                    ActorDelta {
+                        mask: AD_ALL,
+                        q: QActor {
+                            id: 128,
+                            x: 100,
+                            y: 200,
+                            facing: 0x8000,
+                            kit: 0x52,
+                            hp_pct: 100,
+                            status: 3,
+                            bounty: 65535,
+                        },
+                    },
+                ],
+                departed: vec![5, 70_000],
+            }),
+        ),
         (
             "events",
             ServerMsg::Events {

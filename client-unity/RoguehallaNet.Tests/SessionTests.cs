@@ -131,6 +131,87 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(SessionState.Rejected, _s.State); Assert.AreEqual(RejectCode.NoSuchSession, _s.RejectCode);
         }
 
+        // ---- snapshot deltas (protocol v3) ----
+
+        static ServerMsg.Snapshot FullSnap(uint tick, float x, params WireActor[] a)
+        {
+            return new ServerMsg.Snapshot { Tick = tick, Me = new WireSelf { Id = 3, X = x, Y = 40, Hp = 10, MaxHp = 10 }, Actors = a };
+        }
+
+        static WireActor Actor(uint id, float x) { return new WireActor { Id = id, X = x, Y = 8, HpPct = 100, Status = 1 }; }
+
+        /// <summary>A delta of tick+1 against `baseTick` that moves the self's x and actor 9's x (in grid units).</summary>
+        static ServerMsg.SnapshotDelta Delta(uint tick, uint baseTick, float selfX, ushort actorX)
+        {
+            var d = new ServerMsg.SnapshotDelta { Tick = tick, BaseTick = baseTick, HasSelf = true, ChangedCount = 1 };
+            d.Me = new SelfDelta { Mask = SelfDelta.FX, X = selfX };
+            d.Changed[0] = new ActorDelta { Id = 9, Mask = ActorDelta.MX, X = actorX, Status = 1 };
+            return d;
+        }
+
+        int Resyncs() { int n = 0; foreach (var f in _t.Sent) if (f.Length == 1 && f[0] == 5) n++; return n; }
+
+        [Test]
+        public void ADeltaIsAppliedToTheHeldSnapshotAndReachesTheBufferAsAFullOne()
+        {
+            ToMatch();
+            _t.Deliver(FullSnap(2, 40, Actor(9, 1), Actor(11, 2)));
+            _t.Deliver(Delta(3, 2, 41, 80)); // actor 9 to x = 10
+            Assert.AreEqual(2, _s.Snapshots.Count);
+            var s = _s.Latest;
+            Assert.AreEqual(3u, s.Tick); Assert.AreEqual(41f, s.Me.X); Assert.AreEqual(40f, s.Me.Y, "unchanged self fields are kept");
+            Assert.AreEqual(2, s.Actors.Length); Assert.AreEqual(10f, s.Actors[0].X); Assert.AreEqual(2f, s.Actors[1].X);
+            Assert.AreEqual(0, _s.DeltasRefused); Assert.AreEqual(0, Resyncs());
+            Assert.AreEqual(2, _s.SnapshotsReceived);
+        }
+
+        [Test]
+        public void ARefusedDeltaAsksForAFullSnapshotOnceIgnoresDeltasUntilItArrivesAndNeverDisconnects()
+        {
+            ToMatch();
+            _t.Deliver(FullSnap(2, 40, Actor(9, 1)));
+            _t.Deliver(Delta(5, 4, 50, 8)); // the base (tick 4) was never received
+            Assert.AreEqual(SessionState.InMatch, _s.State); Assert.IsFalse(_t.CloseCalled);
+            Assert.AreEqual(1, _s.DeltasRefused); Assert.AreEqual(1, Resyncs()); Assert.IsNotNull(_s.Error);
+            Assert.AreEqual(1, _s.Snapshots.Count, "the snapshot held is untouched");
+            _t.Deliver(Delta(6, 5, 51, 8));
+            _t.Deliver(Delta(7, 6, 52, 8));
+            Assert.AreEqual(3, _s.DeltasRefused); Assert.AreEqual(1, Resyncs(), "one request per burst");
+            _t.Deliver(FullSnap(8, 60, Actor(9, 3)));
+            Assert.AreEqual(2, _s.Snapshots.Count); Assert.AreEqual(8u, _s.Latest.Tick);
+            _t.Deliver(Delta(9, 8, 61, 8));
+            Assert.AreEqual(3, _s.Snapshots.Count); Assert.AreEqual(61f, _s.Latest.Me.X);
+            Assert.AreEqual(3, _s.DeltasRefused); Assert.AreEqual(1, Resyncs());
+            // A second burst asks again.
+            _t.Deliver(Delta(12, 11, 70, 8));
+            Assert.AreEqual(2, Resyncs());
+        }
+
+        [Test]
+        public void AMalformedDeltaIsRefusedNotFatal()
+        {
+            ToMatch();
+            _t.Deliver(FullSnap(2, 40, Actor(9, 1)));
+            _t.DeliverRaw(new byte[] { 0x87, 10, 0, 0, 0, 0, 0 }); // base age 0
+            Assert.AreEqual(SessionState.InMatch, _s.State); Assert.AreEqual(1, _s.DeltasRefused); Assert.AreEqual(1, Resyncs());
+            Assert.AreEqual(0, _s.DecodeErrors, "a delta that cannot be read is a refused delta");
+        }
+
+        [Test]
+        public void AResumeStartsFromANewWelcomeSoTheFirstSnapshotMustBeFull()
+        {
+            ToMatch();
+            _t.Deliver(FullSnap(2, 40, Actor(9, 1)));
+            _t.Drop();
+            _now += 600; _s.Update(); _t.Open();
+            _t.Deliver(Welcome());
+            _t.Deliver(Delta(3, 2, 41, 8)); // the old connection's base: the new decoder holds nothing
+            Assert.AreEqual(1, _s.DeltasRefused); Assert.AreEqual(1, Resyncs());
+            _t.Deliver(FullSnap(4, 42, Actor(9, 1)));
+            _t.Deliver(Delta(5, 4, 43, 8));
+            Assert.AreEqual(43f, _s.Latest.Me.X);
+        }
+
         [Test]
         public void SnapshotsFeedTheBufferClockAndPrediction()
         {

@@ -1,6 +1,6 @@
 # client-unity: Roguehalla Unity (Web) client, Stage 1
 
-Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v2 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v2.json`; a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`).
+Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v3 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v3.json`; a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
 
 ## Layout
 
