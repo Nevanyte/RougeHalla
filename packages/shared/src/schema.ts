@@ -225,6 +225,11 @@ export const CampState = schema({
   /** Only this player receives the camp ward's vision, until its public expiry. */
   wardOwner: t.string().default(""),
   wardExpiresAt: t.number().default(0),
+  /**
+   * The normal type whose stat this camp's normal kills pay, when that is not `type` (an out-of-theme camp buff, shared/rosters.ts:
+   * the type that pays it in the zone nearest the camp that has it on theme); "" = the camp's own type. Read it through `campRewardId`.
+   */
+  buff: t.string().default(""),
 }, "CampState");
 export type CampState = SchemaType<typeof CampState>;
 

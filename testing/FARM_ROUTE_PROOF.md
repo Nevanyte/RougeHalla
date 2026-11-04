@@ -34,8 +34,10 @@ routed kit beats a nearest-camp farmer's for all ten builds (65-75% in the real 
 ## 1. The model
 
 **Map.** Walk distances are the 5-7-11 walk field over the move mask (about 2% over a string-pulled path) at 170 u/s plus farmed
-move speed, and the five travel cannons (75 s reload) where they are faster. Rosters are rolled per map by `shared/rosters.ts`'s
-bag rule. Elite camps are left out: they pay augments, not stats. Per map there are 40 normal camps. The walk to the nearest camp
+move speed, and the five travel cannons (75 s reload) where they are faster. Rosters are drawn per map from the rolls of `shared/rosters.ts`
+`rollCampRosters` that `farmRouteData.ts` exports (`rosters`, eight a map: each camp's mob type, which the fight is against, and its
+buff, the stat its kills pay; until 2026-11-04 the rule was a bag of the zone's four types, which the script still rolls for an
+older export). Elite camps are left out: they pay augments, not stats. Per map there are 40 normal camps. The walk to the nearest camp
 is 1.9 s from a spawn and 3.9 s from a camp; to the nearest camp of one given type 12.4 s; to a random camp 14.3 s.
 
 **Time to kill.** A camp is n normals of one type, all awake at the first hit (camp-wide aggro), killed one at a time while a melee

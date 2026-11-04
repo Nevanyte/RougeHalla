@@ -57,7 +57,7 @@ import { WishFx } from "../render/WishFx";
 import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { LockDisplay, pickTarget, targetable, targetableMob, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
-import { readCampElites, readCampStates, readCampTypes } from "../ui/campInfo";
+import { readCampBuffs, readCampElites, readCampStates, readCampTypes } from "../ui/campInfo";
 import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow } from "../ui/chestMath";
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
@@ -871,6 +871,7 @@ export class RaidScene extends Phaser.Scene {
     view.update({
       mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players, roster,
       campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
+      campBuffs: readCampBuffs(state, this.mapView?.map.camps.length ?? 0),
       campElites: readCampElites(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,

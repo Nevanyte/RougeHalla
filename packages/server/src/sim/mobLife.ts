@@ -30,7 +30,8 @@
 //          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing. The weapons of every mob a
 //          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
 //       3. the chainable mobKilled hook (quest objectives).
-//     A credited normal kill grants MOB_KILL_STACKS (3) fixed, uncapped mob-type stat stacks; elites grant no stat and drop an augment chest.
+//     A credited normal kill grants MOB_KILL_STACKS (3) fixed, uncapped stat stacks of its camp's buff (CampState.buff, else the mob's
+//     own type: shared/rosters.ts); elites grant no stat and drop an augment chest.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs. Idle mobs heal after a 3 s
 //     out-of-combat lockout; returning mobs heal rapidly without that lockout and are whole when they arrive home.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
@@ -261,8 +262,12 @@ function payMobKill(
   }
   creditMobKill(world, p, rt, elite, m);
   // A killer that went down in this very pass keeps the kill and its GV but no stat: its sheet must not change after it fell,
-  // or the Trophy its own killer rolls from that sheet would depend on the order the pass paid out in.
-  if (!elite && rt.down === null) grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, type, MOB_KILL_STACKS);
+  // or the Trophy its own killer rolls from that sheet would depend on the order the pass paid out in. The stat is the camp's buff
+  // (CampState.buff, an out-of-theme camp paying another zone's type's stat), else the mob's own type's.
+  if (!elite && rt.down === null) {
+    const buff = camp >= 0 ? world.state.camps[camp]?.buff ?? "" : "";
+    grantMobStat(world, { kind: "player", id: killerId, s: p, rt }, buff || type, MOB_KILL_STACKS, buff ? mobTypeById(type)?.name : undefined);
+  }
   settleWeapons(world, killerId);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite, at });
 }

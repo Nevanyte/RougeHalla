@@ -33,6 +33,17 @@ describe("CampBuffs", () => {
     view.destroy();
   });
 
+  it("shows a camp's out-of-theme buff on its normal mobs (the stat another zone's type pays), never on its elite", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new CampBuffs(scene);
+    view.update(ONE_CAMP, [{ ...RUNTIME[0]!, buff: "pardoner" }], true, () => true, MOBS as never);
+    const root = ofKind("container")[0]!;
+    expect(root.state.name).toContain("Ember Imp: +3 Offense per kill");
+    expect(root.state.name).not.toContain("damage");
+    expect(root.state.name).toContain("Wyrmling: drops an Augment chest");
+    view.destroy();
+  });
+
   it("hides unknown, cleared, inactive, and unseen camps and resets cached marks", () => {
     const { scene, ofKind } = fakeScene();
     const view = new CampBuffs(scene);

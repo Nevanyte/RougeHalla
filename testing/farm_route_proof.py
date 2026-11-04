@@ -428,8 +428,31 @@ class CombatLens(Lens):
 
 
 # -------------------------------------------------------------------------------------------------------------- the maps ---
+class Pays(str):
+    """A roster entry: the normal type whose stat the camp's kills pay (the str itself, what every reward lookup reads) and, as
+    `.fight`, the camp's own mob type (what the fight is against). They differ on a camp whose buff is off its zone's theme."""
+    fight: str
+
+    def __new__(cls, pays: str, fight: str):
+        s = super().__new__(cls, pays)
+        s.fight = fight
+        return s
+
+    def __getnewargs__(self):  # the workers send kill logs keyed by these back through pickle
+        return (str(self), self.fight)
+
+
+def fight_type(entry: str) -> str:
+    return getattr(entry, "fight", entry)
+
+
 def roll_roster(m: dict, rng: random.Random) -> list:
-    """shared/rosters.ts rollZoneTypes: per zone BAG_COPIES shuffled rounds of its four normal types, dealt to its camps in order."""
+    """One of the map's exported rolls of shared/rosters.ts rollCampRosters (farmRouteData.ts `rosters`): per camp the type its
+    kills pay (its buff, else its type) carrying its mob type. Data from before camp buffs has none: then the old rule, per zone
+    BAG_COPIES shuffled rounds of its four normal types dealt to its camps in order."""
+    if m.get("rosters"):
+        roll = m["rosters"][rng.randrange(len(m["rosters"]))]
+        return [Pays(r["buff"] or r["type"], r["type"]) for r in roll]
     out = [None] * len(m["camps"])
     by_zone: dict = {}
     for i, c in enumerate(m["camps"]):
@@ -514,7 +537,7 @@ class Run:
         return best, used
 
     def fight(self, camp: int) -> Fight:
-        tid, n = self.roster[camp], self.m["camps"][camp]["spots"]
+        tid, n = fight_type(self.roster[camp]), self.m["camps"][camp]["spots"]
         key = (self.kit_key(), self.tune, tid, n)
         cached = _FIGHTS.get(key)
         if cached is None:
@@ -856,7 +879,7 @@ def map_facts(maps: int) -> None:
     print(f"- normal camps a map: {sum(1 for c in DATA['maps'][0]['camps'] if not c['elite'])} (plus 10 elite camps, left out: they pay augments, not stats)")
     print(f"- spawn to nearest normal camp: {mean(spawn_near):.0f} u = {mean(spawn_near) / sp:.1f} s")
     print(f"- camp to nearest other normal camp: {mean(near):.0f} u = {mean(near) / sp:.1f} s (median {st.median(near) / sp:.1f} s)")
-    print(f"- camp to nearest camp of one given type (20 types, 2-3 camps each a map): {mean(per_type):.0f} u = {mean(per_type) / sp:.1f} s")
+    print(f"- camp to nearest camp paying one given type's stat (20 types; off-theme camp buffs pay other zones' types): {mean(per_type):.0f} u = {mean(per_type) / sp:.1f} s")
     print(f"- camp to a random normal camp: {mean(pair):.0f} u = {mean(pair) / sp:.1f} s")
     print()
 
@@ -925,7 +948,7 @@ def breakeven(maps: int, tune: Tuning, kit: dict | None = None, report: bool = T
             roster = roll_roster(m, rng)
             W = m["campWalk"]
             normal = [i for i, c in enumerate(m["camps"]) if not c["elite"]]
-            fights = {i: camp_fight(p, roster[i], m["camps"][i]["spots"], tune) for i in normal}
+            fights = {i: camp_fight(p, fight_type(roster[i]), m["camps"][i]["spots"], tune) for i in normal}
             for i in normal:
                 others = [j for j in normal if j != i and math.isfinite(fights[j].seconds)]
                 n = min(others, key=lambda j: W[i][j])

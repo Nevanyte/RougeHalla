@@ -4,7 +4,7 @@ Regular mobs give three fixed stat stacks with every credited kill (`MOB_KILL_ST
 
 ## Fixed rewards
 
-Each credited normal kill grants `MOB_KILL_STACKS` (3) whole stacks of its type, so a kill is worth three times the per-stack row below, independent of feed, catch-up, kill count, or previous stacks. Counts are uncapped and persist through camp respawns and coliseum rounds. Percentage bonuses add against base values, and types granting the same stat add together. Earned stacks continue to add after ordinary card and temporary-source ceilings; combat sources such as slows still apply to the resulting stats.
+Each credited normal kill grants `MOB_KILL_STACKS` (3) whole stacks of its camp's buff (the type below whose stat the camp pays: the mob's own type, or another zone's on an out-of-theme camp, see "Camp buffs"), so a kill is worth three times the per-stack row below, independent of feed, catch-up, kill count, or previous stacks. Counts are uncapped and persist through camp respawns and coliseum rounds. Percentage bonuses add against base values, and types granting the same stat add together. Earned stacks continue to add after ordinary card and temporary-source ceilings; combat sources such as slows still apply to the resulting stats.
 
 | Zone | Normal mob | Per stack (a kill grants 3) | At ten stacks (example) |
 |---|---|---|---|
@@ -31,7 +31,32 @@ Each credited normal kill grants `MOB_KILL_STACKS` (3) whole stacks of its type,
 
 Defense (armor) pays 1.25 a stack and Soul Defense (magic resist) 1.5 (`DEFENSE_PER_STACK`, `SOUL_DEFENSE_PER_STACK`; they were 1): a counter to the damage type it answers, never the kill to take against a mixed field, and the most they can pay before a random route's incidental D/SD kills out-farm a build (testing/FARM_ROUTE_PROOF.md).
 
-The current map has ten camps per zone (160 x 160 tiles). Bag rosters guarantee all four normal types, and respawning preserves the roster. Fully cleared camps return after three minutes. Personal stat progress survives respawns and coliseum rounds. Dummy, quest-NPC, and training mob kills pay no progression.
+The current map has ten camps per zone (160 x 160 tiles). Each camp's buff is rolled for theme and spread (next section), and respawning preserves the roster and the buffs. Fully cleared camps return after three minutes.
+
+## Camp buffs: a theme per zone, a max distance, an even spread
+
+Owner request (2026-11): "each zone [should] have a theme of the buffs it gives based on the character, however I want mob buffs to have a max distance, [...] as close as an even spread of camp buffs as possible." A camp's **buff** is the stat kind its normal kills pay, one of nine (damage, move speed, max health, Soul Offence, Defense, Soul Defense, Offense, attack speed, lifesteal: `MOB_STAT_KEYS`); a zone's **theme** is the four stats its own four normal types pay. The old bag rule gave every camp one of its zone's four types, so Offense stood only in the Sentenced zone (two or three camps a map), max health, Defense and Soul Defense in three zones each (seven or eight camps), and a camp on the far side of the map was up to 140-190 tiles from the nearest Offense camp.
+
+`shared/rosters.ts` `rollCampRosters` (server: `sim/camps.ts`, from `world.rewardRandom` only, 2n - 1 draws for n camps) rolls it in three steps:
+
+1. **The draw.** The camps in a shuffled order, each drawing its buff with weight theme x need x balance. Theme is 1 for the zone's four and `CAMP_BUFF_OFF_THEME_WEIGHT` (0.15) for the other five. Need is 1 + (d / `CAMP_BUFF_NEED_REF_TILES`)^2, d the distance in tiles to the nearest camp already given that buff (capped at `CAMP_BUFF_NEED_CAP_TILES`): a buff that no nearby camp has is much more likely. Balance is (even share / (count + 1))^`CAMP_BUFF_BALANCE_POWER`.
+2. **The repair** (deterministic, at most `CAMP_BUFF_REPAIR_STEPS` moves): the best change of one camp's buff, or swap of two camps' buffs, judged first by the coverage excess (how far past its bound the nearest camp of each buff lies, summed over camps and buffs), then by the count band (every buff on floor(n / 9) to ceil(n / 9) camps: 5 or 6 of 50), then by how many camps are on their zone's theme. A camp's bound is `CAMP_BUFF_MAX_DISTANCE_TILES` (65 tiles, straight line between camp centres), or its ninth-nearest-camp distance (itself included) where that is farther: a camp needs nine camps that close to see nine buffs, so for a corner camp (61-73 tiles on the worst camp of a map) no roll can do better.
+3. **The types.** A camp whose buff is on its zone's theme has the zone type that pays it, exactly as before (`CampState.buff` ""). Any other keeps a type of its own zone (its mobs, faction, role, weapon and art never change zone), the zone's least used so far, and `CampState.buff` names the type that pays its stat in the zone nearest it that has the stat on theme: an Offense camp in the Fire zone is a Fire camp whose kills pay the Sentenced Pardoner's Offense. The kill toast says so ("Ember Imp: +3 kill stacks of Pardoner"), the stacks count under that type, and the planning screen's badge (dashed rim), its tooltip ("+3 Offense per kill (the Pardoner's, from the Sentenced zone)"), the in-world camp badge and the bots' routes all read the buff (`campRewardId`).
+
+Measured (camp geometry of seeds 1-40, four rolls a map; the same metrics on the old bag rule; distances are straight lines between camp centres in tiles; "worst gap" is, per roll, the largest distance from any camp to the nearest camp of any buff):
+
+| | old bag | camp buffs |
+|---|---|---|
+| camps per buff (fewest buff / most buff, over the rolls) | 2-3 / 7-9 | 5 / 6 |
+| mean camps per buff (damage, move speed, max health, SO, Defense, SD, Offense, attack speed, lifesteal) | 5.0, 5.0, 7.6, 4.9, 7.5, 7.5, 2.5, 4.9, 5.0 | 5.6, 5.5, 5.8, 5.5, 5.7, 5.7, 5.3, 5.5, 5.5 |
+| worst gap, p50 / p90 / max | 139 / 163 / 188 | 64.9 / 67.3 / 71.6 |
+| camp to the nearest camp of a buff, over every (camp, buff): mean / p90 | 43.5 / 87.5 | 30.5 / 51.2 |
+| (camp, buff) pairs farther than 65 tiles | 22.5% | 0.10% (corner camps) |
+| rolls meeting every camp's bound | 0 of 160 | 160 of 160 |
+| camps on their zone's theme: mean / worst roll | 100% / 100% | 71.3% / 64% |
+| a camp given the same buff in two rolls of one map | 25.6% | 17.1% |
+
+On seeds 101-200 (400 rolls) the new roll reads the same: 5-6 camps a buff, worst gap p50 65.0 / p90 68.0 / max 72.3 tiles, theme 71.3% (worst roll 62%), and 399 of 400 rolls met the bound (the miss is 0.2 tiles over, a local optimum of the repair). The bound is the dial between spread and theme (seeds 1-40): at 60 tiles 95% of rolls met it with 65% of camps on theme, at 62 tiles 99% with 68%, at 65 tiles 100% with 71%, at 70 tiles 100% with 76%. The draw's own factors move none of these by more than a point (the repair decides them); they set how varied the rolls are. The camps' mob types keep the old mix: 8.8 to 10.4 normal mobs of each type a map (the bag: 9.3 to 9.9), and by role brute 36.9, caster 39.6, grunt 28.5, skirmisher 48.7, swarm 37.6 (the bag: 38.8, 38.4, 28.9, 47.2, 38.1). A roll costs about 3-5 ms at world build (p99 under 25 ms on a loaded machine). `testing/farm_route_proof.py` now draws from rolls `bench/farmRouteData.ts` exports (`rosters`, eight a map). Its full run (24 maps x 4 rosters, 8-player lobbies) holds for all ten builds on them: decisions worth it 67-91%, games won on build value 92-99%, on fights 97-100%, mirror 72-100%. The same run on the old bag rosters, same tree, failed one build (plague:A: a build camp paid more in only 56% of its decisions, under the 67% bar). Personal stat progress survives respawns and coliseum rounds. Dummy, quest-NPC, and training mob kills pay no progression.
 
 The HUD shows earned totals for owned types and exposes all twenty in an expandable catalog. Camp and planning tooltips describe the reward before a pull. The server credits the existing whole-fight damage winner and remains authoritative over all progression.
 

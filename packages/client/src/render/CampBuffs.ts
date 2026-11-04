@@ -5,7 +5,8 @@ import type { MobState } from "@raid/shared/schema";
 import { drawCombatIcon, STAT_ICON_COLORS } from "../ui/combatIcons";
 import { projX, projY } from "./projection";
 
-type CampRuntime = { type?: string; elite?: string; state?: number };
+/** `buff`: CampState.buff, the type whose stat the camp's normal kills pay when it is not their own type's. */
+type CampRuntime = { type?: string; elite?: string; state?: number; buff?: string };
 type MobPosition = Pick<MobState, "camp" | "kind" | "status" | "type" | "x" | "y">;
 interface Badge { root: Phaser.GameObjects.Container; signature: string }
 /** One cached marker per living, visible camp group; normal mob stats and elite augment drops are shown together. */
@@ -34,14 +35,18 @@ export class CampBuffs {
       const camp = camps?.[i];
       const live = grouped.get(i) ?? [];
       const types = [...new Set(live.map(mob => mob.type).filter(Boolean))];
-      const rewards = types.map(type => ({ type: mobTypeById(type), stat: mobStatReward(type) }));
+      // A normal mob pays its camp's buff (another zone's type's stat on an out-of-theme camp); an elite pays none.
+      const rewards = types.map(type => {
+        const def = mobTypeById(type);
+        return { type: def, stat: mobStatReward(def?.elite ? type : camp?.buff || type) };
+      });
       if (!camp || camp.state === undefined || camp.state === 2 || live.length === 0 || rewards.length === 0) {
         this.badges.get(i)?.root.setVisible(false);
         continue;
       }
       const rows: Array<{ icon: InvestedStatKey; text: string }> = [];
       for (const reward of rewards) {
-        if (reward.stat) rows.push({ icon: mobRewardIcon(reward.stat.effect.stat), text: `${reward.stat.name}: ${reward.stat.text}` });
+        if (reward.stat) rows.push({ icon: mobRewardIcon(reward.stat.effect.stat), text: `${reward.type?.name ?? reward.stat.name}: ${reward.stat.text}` });
         else if (reward.type?.elite) rows.push({ icon: "ap", text: `${reward.type.name}: drops an Augment chest` });
       }
       if (rows.length === 0) { this.badges.get(i)?.root.setVisible(false); continue; }

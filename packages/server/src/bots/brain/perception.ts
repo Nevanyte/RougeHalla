@@ -116,6 +116,8 @@ export interface CampLike {
   readonly wardOwner?: string;
   readonly wardExpiresAt?: number;
   readonly type: string;
+  /** CampState.buff: the type whose stat the camp's normal kills pay when not `type`. Absent on a server without it. */
+  readonly buff?: string;
   readonly reward: string;
   readonly alive: number;
   readonly state: number;
@@ -804,7 +806,8 @@ function seeCamps(camps: ArrayLike<CampLike>, map: GameMap, vision: boolean, sel
     const c = camps[i];
     if (c) out.push({
       ...(!vision || c.clearedAt === undefined ? {} : { clearedAt: c.clearedAt, respawnAt: c.respawnAt, wardOwner: c.wardOwner === selfId ? selfId : c.wardOwner ? "?" : "", wardExpiresAt: c.wardExpiresAt }),
-      index: i, id: map.camps[i]?.id ?? `camp${i}`, type: c.type, reward: c.reward, alive: c.alive, state: c.state === 1 || c.state === 2 ? c.state : 0 });
+      index: i, id: map.camps[i]?.id ?? `camp${i}`, type: c.type, ...(c.buff ? { buff: c.buff } : {}), reward: c.reward, alive: c.alive,
+      state: c.state === 1 || c.state === 2 ? c.state : 0 });
   }
   return out;
 }

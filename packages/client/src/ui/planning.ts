@@ -8,7 +8,7 @@
 // placed by percent over the painted map (canvas), so the keyboard and screen readers reach them. Orders go out as `plan`
 // inputs only; the deal and the route stay on this client (the route is never sent).
 import {
-  FACTIONS, TILE, isEliteCamp, isFactionId, mobStatReward, mobTypeById, nearestCamps, regionAt, spawnWalks, walkSeconds,
+  FACTIONS, TILE, campRewardId, isEliteCamp, isFactionId, mobStatReward, mobTypeById, nearestCamps, regionAt, spawnWalks, walkSeconds,
   type InvestedStatKey,
   type CampDef, type ClientMessages, type FactionId, type GameMap, type PlanMessage, type Vec2,
 } from "@raid/shared";
@@ -16,7 +16,7 @@ import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
-import { campMobsText, campTypeInfo } from "./campInfo";
+import { campBuffSource, campMobsText, campTypeInfo } from "./campInfo";
 import { combatIcon, STAT_ICON_COLORS, type CombatIconKey } from "./combatIcons";
 import { el, uiRoot } from "./dom";
 import { campEliteTypes, eliteGlyphOf, eliteGlyphSvg, noteEliteCamps } from "./eliteGlyphs";
@@ -79,6 +79,8 @@ export interface PlanningFrame {
   roster?: readonly MapRosterPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
+  /** RaidState.camps[i].buff for every camp: the type whose stat its normal kills pay when not its own, "" otherwise. Absent: none. */
+  campBuffs?: readonly string[];
   /** RaidState.camps[i].elite for every camp: the elite type of an elite camp, "" for any other (or where unknown). Absent: none. */
   campElites?: readonly string[];
   /**
@@ -173,11 +175,13 @@ function rewardIconFor(stat: string): CombatIconKey {
   }
 }
 
-function campRewardBadge(reward: NonNullable<ReturnType<typeof mobStatReward>>): HTMLElement {
+/** `source`: an out-of-theme camp buff's origin in words (campBuffSource), "" for a camp paying its own type's stat. */
+function campRewardBadge(reward: NonNullable<ReturnType<typeof mobStatReward>>, source = ""): HTMLElement {
   const iconKey = rewardIconFor(reward.effect.stat);
-  const badge = el("span", "pl-camp-reward");
-  badge.title = `${reward.name}: ${reward.text}`;
-  badge.setAttribute("aria-label", `${reward.name}: ${reward.text}`);
+  const badge = el("span", source ? "pl-camp-reward spill" : "pl-camp-reward");
+  const words = source ? `${reward.text} (${source})` : `${reward.name}: ${reward.text}`;
+  badge.title = words;
+  badge.setAttribute("aria-label", words);
   const icon = combatIcon(iconKey);
   icon.style.color = `#${STAT_ICON_COLORS[iconKey as InvestedStatKey].toString(16).padStart(6, "0")}`;
   const amount = /^\+([^ ]+)/.exec(reward.text)?.[0] ?? "";
@@ -672,7 +676,7 @@ export class PlanningView {
   private renderCamps(frame: PlanningFrame): void {
     const me = this.myFaction(frame);
     const states = frame.campStates;
-    const key = `${me ?? ""}|${frame.campTypes.join(",")}|${frame.campElites?.join(",") ?? ""}|${states ? states.join("") : ""}`;
+    const key = `${me ?? ""}|${frame.campTypes.join(",")}|${frame.campBuffs?.join(",") ?? ""}|${frame.campElites?.join(",") ?? ""}|${states ? states.join("") : ""}`;
     if (key === this.keyCamps) return;
     this.keyCamps = key;
     this.camps.forEach(({ camp, button, chip, rewards }, i) => {
@@ -685,8 +689,9 @@ export class PlanningView {
       // A cleared camp has nothing left to weigh up: no matchup chip.
       chip.hidden = !elite || state === 2;
       rewards.replaceChildren();
-      const normalReward = mobStatReward(frame.campTypes[i] ?? "");
-      if (normalReward) rewards.append(campRewardBadge(normalReward));
+      const type = frame.campTypes[i] ?? "", buff = frame.campBuffs?.[i] ?? "";
+      const normalReward = mobStatReward(campRewardId({ type, buff }));
+      if (normalReward) rewards.append(campRewardBadge(normalReward, campBuffSource(type, buff)));
       if (isEliteCamp(camp)) rewards.append(eliteChestBadge());
       rewards.hidden = this.shownMode !== "map" || rewards.children.length === 0;
       const label = this.campLine(i, frame);
@@ -742,7 +747,7 @@ export class PlanningView {
     if (!marker) return "";
     const { camp } = marker;
     const me = this.myFaction(frame);
-    const info = campTypeInfo(frame?.campTypes[i], frame?.campElites?.[i]);
+    const info = campTypeInfo(frame?.campTypes[i], frame?.campElites?.[i], frame?.campBuffs?.[i]);
     const parts = [campTitle(camp)];
     if (info) parts.push(campMobsText(info));
     const state = frame?.campStates?.[i] ?? 0;

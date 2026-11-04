@@ -3,20 +3,21 @@
 // the travel cannons (one at each zone pole, linked half-way round the ring, as sim/consumables.ts spawnTravel places them). Walks are
 // the 5-7-11 walk field (gridTopology walkField16, about 2% over a string-pulled path) on the move mask. Then the sheets: factions,
 // weapons, every mob type's faction as mobTypeFaction builds it (before DUEL_PACE), the stat each normal type pays, the bots' build
-// goals and the balance bench's build weapons, and the constants the model reads. Rosters are NOT exported: the proof rolls them
-// itself from the rule in shared/rosters.ts (BAG_COPIES shuffled rounds of the zone's four normal types), many times per map.
+// goals and the balance bench's build weapons, and the constants the model reads. Per map, `--rosters` rolls of shared/rosters.ts
+// rollCampRosters (each camp's normal type and buff: the type whose stat its kills pay when off its zone's theme, "" otherwise),
+// which the proof draws from instead of rolling the rule itself (the roll is a search, not a few shuffles).
 //
-//   npx tsx packages/server/bench/farmRouteData.ts [--maps 24] [--from 1] [--out testing/farm_route_data.json]
+//   npx tsx packages/server/bench/farmRouteData.ts [--maps 24] [--from 1] [--rosters 8] [--out testing/farm_route_data.json]
 import { writeFileSync } from "node:fs";
 import {
-  AP_DOT_RATIO, BAG_COPIES, CAMP_HEAL_HI, CAMP_HEAL_LO, CAMP_HEAL_MID, CAMP_HEAL_WIDTH, CAMP_RESPAWN_MS, CANNON_COOLDOWN_MS,
+  AP_DOT_RATIO, CAMP_HEAL_HI, CAMP_HEAL_LO, CAMP_HEAL_MID, CAMP_HEAL_WIDTH, CAMP_RESPAWN_MS, CANNON_COOLDOWN_MS,
   DUEL_PACE, ELITE_DMG_MULT, ELITE_HP_MULT, ELITE_K, FACTIONS, FACTION_IDS, FIRE_BACKLASH_PER_DEFENSE, FIRE_BURN_AD_RATIO,
   FIRST_PATIENCE_SECONDS, FROST_CHILL_BONUS_CAP, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_PER_SD, HOLY_CAMP_LIFESTEAL_PER_CLEAR,
   HOLY_LEECH_ROW_MULT, LIFESTEAL_MAX, MARK_BONUS_STAT_PER_POINT, MOB_DMG_MULT, MOB_HP_MULT, MOB_K, MOB_KILL_STACKS, MOB_ROLE_DEFS,
   MOB_STAT_REWARDS, MOB_TYPES, PLAGUE_AP_PER_HIT, PLAYER_REGEN_QUIET_MS, PLAYER_REGEN_SHARE_IN, PLAYER_REGEN_SHARE_OUT,
   PLAGUE_CORPSE_HP_SHARE, PLAGUE_ZOMBIE_AD_SHARE, PLAGUE_ZOMBIE_HIT_CAP_SHARE, PLAGUE_ZOMBIE_HIT_PER_BONUS, PLAGUE_ZOMBIE_HIT_SHARE,
   PLAGUE_ZOMBIE_HP_PER_BONUS, PLAGUE_ZOMBIE_HP_SHARE, PLAYER_SPEED, POTION_HEAL_MS, POTION_LARGE_SHARE, PVP_F0, TILE, TILE_FLOOR,
-  WAND_SPLASH_SHARE, WEAPONS, generateMap, mobTypeFaction, walkField16,
+  WAND_SPLASH_SHARE, WEAPONS, generateMap, mobTypeFaction, mulberry32, rollCampRosters, walkField16,
   type GameMap, type Vec2,
 } from "@raid/shared";
 import { BUILD_GOALS, STAT_FLOOR } from "../src/bots/brain/buildRoute";
@@ -25,6 +26,7 @@ import { opt } from "./lib/balance";
 const args = process.argv.slice(2);
 const maps = Number(opt(args, "maps", "24"));
 const from = Number(opt(args, "from", "1"));
+const rosterCount = Number(opt(args, "rosters", "8"));
 const out = opt(args, "out", "testing/farm_route_data.json");
 
 const tileOf = (map: GameMap, p: Vec2): number => Math.floor(p.y / TILE) * map.w + Math.floor(p.x / TILE);
@@ -63,6 +65,7 @@ for (let s = from; s < from + maps; s++) {
     cannons: can.map((c) => ({ x: c.at.x, y: c.at.y, to: c.to })),
     // cannon i -> every camp (walk from the cannon's landing, which is cannon `to`'s site), and every camp -> cannon i.
     cannonWalk: can.map((c) => walks(map, c.at, campPts)),
+    rosters: Array.from({ length: rosterCount }, (_, r) => rollCampRosters(map.camps, mulberry32(s * 7919 + r))),
   });
   process.stderr.write(`map ${s} (attempt ${map.attempt}): ${camps.length} camps, ${map.spawnPool.length} starts\n`);
 }
@@ -79,7 +82,7 @@ const mobTypes = MOB_TYPES.map((t) => {
 const data = {
   generatedBy: "packages/server/bench/farmRouteData.ts",
   constants: {
-    TILE, PLAYER_SPEED, CAMP_RESPAWN_MS, CANNON_COOLDOWN_MS, FIRST_PATIENCE_SECONDS, DUEL_PACE, MOB_KILL_STACKS, BAG_COPIES,
+    TILE, PLAYER_SPEED, CAMP_RESPAWN_MS, CANNON_COOLDOWN_MS, FIRST_PATIENCE_SECONDS, DUEL_PACE, MOB_KILL_STACKS,
     MOB_K, ELITE_K, MOB_HP_MULT, MOB_DMG_MULT, ELITE_HP_MULT, ELITE_DMG_MULT, PVP_F0,
     AP_DOT_RATIO, FIRE_BURN_AD_RATIO, FIRE_BACKLASH_PER_DEFENSE, PLAGUE_AP_PER_HIT, MARK_BONUS_STAT_PER_POINT,
     FROST_CHILL_PER_SD, FROST_CHILL_PER_ATTACK_SPEED, FROST_CHILL_BONUS_CAP, HOLY_LEECH_ROW_MULT, HOLY_CAMP_LIFESTEAL_PER_CLEAR,

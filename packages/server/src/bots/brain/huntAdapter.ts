@@ -1,7 +1,7 @@
 // Feeds the unchanged MobHunter (../mobHunt) from a percept and the memory, as docs/BOTS.md 3.6 says. One adapter per bot: it
 // holds the hunter (its engagement, bans and retreat timers) and its per-bot MobHuntConfig. The strategy turns the answer into
 // a candidate goal: `mob` is a farm, `retreat` a flee, `player` no mob candidate this think.
-import { isRegionalKind, MOB_TYPES, mobFaction, mobTypeById, mobTypeFaction, type FactionId, type Vec2 } from "@raid/shared";
+import { isRegionalKind, MOB_TYPES, mobFaction, mobTypeById, mobTypeFaction, type FactionId, type MobTypeId, type Vec2 } from "@raid/shared";
 import {
   MOB_HUNT, MobHunter, type HuntDecision, type HuntInput, type MobHuntConfig, type MobHuntStats, type MobLike,
 } from "../mobHunt";
@@ -120,12 +120,19 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
       const w = mem.whereabouts(id, p.now);
       if (w) players.push({ x: w.at.x, y: w.at.y });
     }
+    // A camp's public buff (CampState.buff) is what its normal kills pay when it is not their type's own stat.
+    const buffs = new Map<string, MobTypeId>();
+    for (const c of p.extras.camps ?? []) {
+      const buff = c.buff ? mobTypeById(c.buff)?.id : undefined;
+      if (buff) buffs.set(c.id, buff);
+    }
     const mobs: [string, MobLike][] = [];
     for (const [id, m] of mem.mobs) {
       if (m.returning) continue; // walking home: rapid healing makes this a poor hunt target
       const like = mobLikeOf(m);
       if (!like) continue;
-      mobs.push([id, like]);
+      const reward = m.campId !== null ? buffs.get(m.campId) : undefined;
+      mobs.push([id, reward ? { ...like, reward } : like]);
     }
     const from = { x: me.x, y: me.y };
     return {

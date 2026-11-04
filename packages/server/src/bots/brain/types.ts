@@ -565,6 +565,8 @@ export interface CampView {
   readonly index: number;
   readonly id: string;
   readonly type: string;
+  /** The type whose stat its normal kills pay when not `type` (CampState.buff, public like the type); absent = `type`. */
+  readonly buff?: string;
   readonly reward: string;
   readonly alive: number;
   /** 0 idle, 1 engaged, 2 cleared. */
