@@ -425,25 +425,25 @@ pub const PLAYERS: EntityKind<Player> = EntityKind {
             key: "x",
             tol: Tol::Abs,
             stat: ErrStat::Pos,
-            get: |p| Got::Num(p.x),
+            get: |p| Got::Num(p.body.x),
         },
         Field {
             key: "y",
             tol: Tol::Abs,
             stat: ErrStat::Pos,
-            get: |p| Got::Num(p.y),
+            get: |p| Got::Num(p.body.y),
         },
         Field {
             key: "facing",
             tol: Tol::Angle,
             stat: ErrStat::None,
-            get: |p| Got::Num(p.facing),
+            get: |p| Got::Num(p.body.facing),
         },
         Field {
             key: "hp",
             tol: Tol::Abs,
             stat: ErrStat::Hp,
-            get: |p| Got::Num(p.hp),
+            get: |p| Got::Num(p.vitals.hp),
         },
         Field {
             key: "status",
@@ -455,7 +455,7 @@ pub const PLAYERS: EntityKind<Player> = EntityKind {
             key: "readyAt",
             tol: Tol::Abs,
             stat: ErrStat::None,
-            get: |p| Got::Num(p.ready_at),
+            get: |p| Got::Num(p.weapon.ready_at),
         },
     ],
 };
@@ -705,21 +705,21 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             continue;
         };
         need(
-            rp.max_hp == p.max_hp,
+            rp.vitals.max_hp == p.max_hp,
             format!(
                 "{} maxHp {} != the faction's {} ({})",
-                p.id, p.max_hp, rp.max_hp, p.faction
+                p.id, p.max_hp, rp.vitals.max_hp, p.faction
             ),
         );
         let w0 = (!p.weapon0.is_empty()).then(|| WeaponId::parse(&p.weapon0));
         need(
             match w0 {
-                None => rp.weapon0.is_none(),
-                Some(w) => w.is_some() && rp.weapon0 == w,
+                None => rp.weapon.weapon0.is_none(),
+                Some(w) => w.is_some() && rp.weapon.weapon0 == w,
             },
             format!(
                 "{} weapon0 {:?} is not applied (the Rust player carries {:?})",
-                p.id, p.weapon0, rp.weapon0
+                p.id, p.weapon0, rp.weapon.weapon0
             ),
         );
     }

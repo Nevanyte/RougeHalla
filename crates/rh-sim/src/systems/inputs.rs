@@ -33,26 +33,30 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
     input::accept(&mut w.players[i], cmd, now, false)
 }
 
-/// System (legacy step.actionOrder): the tick's secret action order, kept as (id, rank): the order the inputs apply in
-/// and the rank of kill credit among a victim's hits.
+/// System (legacy step.actionOrder): the tick's secret action order, kept as slots in apply order (`action_order`) and as
+/// each slot's place in it (`rank`, dense by slot): the order the inputs apply in and the rank of kill credit among a
+/// victim's hits.
 pub(crate) fn action_order(cx: &mut Cx) {
     let Cx { k, w, s, .. } = cx;
-    // The join order, shuffled in place by the secret order; each id's rank is its place in the result.
-    s.rank.clear();
-    s.rank.extend(w.players.iter().map(|p| (p.id, 0)));
-    action_order_in_place(k.secrets.order_salt, w.tick, &mut s.rank);
-    for (i, e) in s.rank.iter_mut().enumerate() {
-        e.1 = i;
+    // The join order (slot order), shuffled in place by the secret order; a slot's rank is its place in the result.
+    s.action_order.clear();
+    s.action_order.extend(0..w.players.len() as u32);
+    action_order_in_place(k.secrets.order_salt, w.tick, &mut s.action_order);
+    // The order is a permutation of the slots, so every entry is overwritten below: only a change of size needs a fill.
+    if s.rank.len() != w.players.len() {
+        s.rank.clear();
+        s.rank.resize(w.players.len(), 0);
+    }
+    for (r, &slot) in s.action_order.iter().enumerate() {
+        s.rank[slot as usize] = r as u32;
     }
 }
 
 /// System (legacy step.applyInputs for players): every present player's queued inputs, in the action order.
 pub(crate) fn apply_players(cx: &mut Cx) {
-    for r in 0..cx.s.rank.len() {
-        let id = cx.s.rank[r].0;
-        if let Some(i) = cx.w.idx(id) {
-            apply_inputs(cx, i);
-        }
+    for r in 0..cx.s.action_order.len() {
+        let slot = cx.s.action_order[r] as usize;
+        apply_inputs(cx, slot);
     }
 }
 
@@ -123,9 +127,9 @@ fn apply_move(
     };
     // An order with no route (a goal in a wall with nothing to snap to) leaves the current path alone.
     if stop || !out.is_empty() {
-        p.path.set_from(out);
+        p.motion.path.set_from(out);
     }
     if let Some(s) = seq {
-        p.move_seq = s;
+        p.motion.move_seq = s;
     }
 }

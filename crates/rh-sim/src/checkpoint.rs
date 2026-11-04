@@ -14,7 +14,7 @@ use std::fmt;
 use std::sync::Arc;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/2";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/3";
 
 /// Why a checkpoint was refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -257,6 +257,22 @@ mod tests {
                 found: "rh-checkpoint/1".into()
             })
         );
+        // The layout before the fighter components (flat player records) is refused by its tag too, and a payload that
+        // still carries the old nesting under the new tag is malformed, not a silently wrong state.
+        let mut flat = serde_json::to_value(sim()).unwrap();
+        flat["format"] = "rh-checkpoint/2".into();
+        assert_eq!(
+            Sim::restore(&flat).err(),
+            Some(CheckpointError::UnsupportedFormat {
+                found: "rh-checkpoint/2".into()
+            })
+        );
+        let mut retagged = serde_json::to_value(sim()).unwrap();
+        retagged["world"]["players"] = serde_json::json!([{"id": 1, "x": 0.0, "hp": 1.0}]);
+        assert!(matches!(
+            Sim::restore(&retagged),
+            Err(CheckpointError::Malformed(_))
+        ));
         // A payload of another layout is still refused by its tag, whatever it holds.
         let alien = serde_json::json!({"format": "rh-checkpoint/9", "statics": 1, "world": [2]});
         assert!(matches!(

@@ -20,6 +20,9 @@ dhat = "0.3"
 # Records which ported rows of the tick schedule ran, in order (tests only: enabled by rh-parity as a dev-dependency
 # feature, never in a production build). See src/schedule.rs.
 schedule-trace = []
+# Scaling measurements past the real lobby cap (`Sim::synthetic`): used by rh-headless's scalebench only, never in a
+# production build.
+bench = []
 
 [lints]
 workspace = true

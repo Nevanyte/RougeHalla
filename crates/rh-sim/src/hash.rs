@@ -18,29 +18,29 @@ impl Sim {
         h.u64(self.w.spawn_rng.clone().next_u32() as u64);
         for p in &self.w.players {
             h.u64(p.id.0 as u64);
-            h.u64(p.faction as u64);
+            h.u64(p.vitals.faction as u64);
             for v in [
-                p.x,
-                p.y,
-                p.facing,
-                p.hp,
-                p.max_hp,
-                p.barrier,
-                p.ready_at,
-                p.draw_started_at,
-                p.hp_frac_at_tick_start,
+                p.body.x,
+                p.body.y,
+                p.body.facing,
+                p.vitals.hp,
+                p.vitals.max_hp,
+                p.vitals.barrier,
+                p.weapon.ready_at,
+                p.weapon.draw_started_at,
+                p.vitals.hp_frac_at_tick_start,
             ] {
                 h.f64(v);
             }
             h.u64(p.status as u64);
-            h.u64(((p.kills as u64) << 32) | p.bounty as u64);
-            h.u64(((p.gv as u64) << 32) | p.move_seq as u64);
+            h.u64(((p.credit.kills as u64) << 32) | p.credit.bounty as u64);
+            h.u64(((p.credit.gv as u64) << 32) | p.motion.move_seq as u64);
             h.u64(p.resolved as u64 | (p.down.map(|o| o as u64 + 1).unwrap_or(0) << 1));
-            for w in p.path.as_slice() {
+            for w in p.motion.path.as_slice() {
                 h.f64(w.x);
                 h.f64(w.y);
             }
-            for s in p.history.iter() {
+            for s in p.body.history.iter() {
                 h.f64(s.t);
                 h.f64(s.x);
                 h.f64(s.y);
@@ -75,46 +75,47 @@ impl Sim {
             }
             // Everything else that can decide a later outcome or a result.
             h.u64(
-                p.bot as u64
-                    | (p.slot as u64) << 1
-                    | (p.weapon0.map(|w| w as u64 + 1).unwrap_or(0)) << 8
-                    | (p.weapon1.map(|w| w as u64 + 1).unwrap_or(0)) << 16,
+                p.seat.bot as u64
+                    | (p.weapon.slot as u64) << 1
+                    | (p.weapon.weapon0.map(|w| w as u64 + 1).unwrap_or(0)) << 8
+                    | (p.weapon.weapon1.map(|w| w as u64 + 1).unwrap_or(0)) << 16,
             );
-            h.f64(p.immune_until);
-            let g = p.gv_parts;
+            h.f64(p.vitals.immune_until);
+            let g = p.credit.gv_parts;
             h.u64(((g.kills as u64) << 32) | g.bounty as u64);
             h.u64(((g.mobs as u64) << 32) | g.quest as u64);
-            h.u64(p.bot_kills as u64);
-            match p.last_hit {
+            h.u64(p.credit.bot_kills as u64);
+            match p.credit.last_hit {
                 Some((by, at)) => {
                     h.u64(by.0 as u64 + 1);
                     h.f64(at);
                 }
                 None => h.u64(0),
             }
-            h.u64(p.damaged.len() as u64);
-            for d in &p.damaged {
+            h.u64(p.credit.damaged.len() as u64);
+            for d in &p.credit.damaged {
                 h.u64(d.0 as u64);
             }
-            h.u64(p.damaged_humans.len() as u64);
-            for d in &p.damaged_humans {
+            h.u64(p.credit.damaged_humans.len() as u64);
+            for d in &p.credit.damaged_humans {
                 h.u64(d.0 as u64);
             }
-            h.f64(p.dropped_at.unwrap_or(-1.0));
+            h.f64(p.seat.dropped_at.unwrap_or(-1.0));
             h.str(
-                p.killed_by
+                p.fate
+                    .killed_by
                     .and_then(|by| self.w.roster.name(by))
                     .unwrap_or(""),
             );
-            h.u64(p.killed_by_bot as u64);
-            match p.announce {
+            h.u64(p.fate.killed_by_bot as u64);
+            match p.credit.announce {
                 Some((at, sent)) => {
                     h.f64(at);
                     h.u64(sent as u64);
                 }
                 None => h.u64(u64::MAX),
             }
-            let (tokens, at) = p.budget.state();
+            let (tokens, at) = p.seat.budget.state();
             h.f64(tokens);
             h.f64(at);
             h.u64(
@@ -122,7 +123,7 @@ impl Sim {
                     | (p.inputs.mv.is_some() as u64) << 8
                     | (p.inputs.aim.is_some() as u64) << 9,
             );
-            h.str(&p.profile);
+            h.str(&p.seat.profile);
         }
         h.u64(self.w.rt.started_with as u64);
         h.u64(self.w.rt.started_humans as u64);
@@ -232,28 +233,35 @@ mod tests {
         let h0 = base.state_hash();
         type Mutation = (&'static str, Box<dyn Fn(&mut Sim)>);
         let mutations: Vec<Mutation> = vec![
-            ("gv parts", Box::new(|s| s.w.players[0].gv_parts.bounty = 7)),
+            (
+                "gv parts",
+                Box::new(|s| s.w.players[0].credit.gv_parts.bounty = 7),
+            ),
             (
                 "killed by",
-                Box::new(|s| s.w.players[0].killed_by = Some(PlayerId(2))),
+                Box::new(|s| s.w.players[0].fate.killed_by = Some(PlayerId(2))),
             ),
             (
                 "damaged humans",
-                Box::new(|s| s.w.players[0].damaged_humans.push(PlayerId(2))),
+                Box::new(|s| s.w.players[0].credit.damaged_humans.push(PlayerId(2))),
             ),
             (
                 "last hit",
-                Box::new(|s| s.w.players[0].last_hit = Some((PlayerId(2), 50.0))),
+                Box::new(|s| s.w.players[0].credit.last_hit = Some((PlayerId(2), 50.0))),
             ),
             (
                 "dropped at",
-                Box::new(|s| s.w.players[0].dropped_at = Some(50.0)),
+                Box::new(|s| s.w.players[0].seat.dropped_at = Some(50.0)),
             ),
-            ("bot kills", Box::new(|s| s.w.players[0].bot_kills = 1)),
+            (
+                "bot kills",
+                Box::new(|s| s.w.players[0].credit.bot_kills = 1),
+            ),
             (
                 "budget",
                 Box::new(|s| {
                     let _ = s.w.players[0]
+                        .seat
                         .budget
                         .allow(&Command::Stop { seq: None }, 50.0);
                 }),

@@ -76,6 +76,28 @@ impl Sim {
         secrets: Secrets,
         placements: &[Placement],
     ) -> Self {
+        Self::reset_active_capped(config, arena, secrets, placements, MAX_PLAYERS)
+    }
+
+    /// A run with `placements.len()` fighters past the real lobby cap, for scaling measurements only (feature `bench`):
+    /// everything else is [`Sim::reset_active`], and [`MAX_PLAYERS`] stays the cap of the real API (`add_player`).
+    #[cfg(feature = "bench")]
+    pub fn synthetic(
+        config: SimConfig,
+        arena: impl Into<Arc<Arena>>,
+        secrets: Secrets,
+        placements: &[Placement],
+    ) -> Self {
+        Self::reset_active_capped(config, arena, secrets, placements, usize::MAX)
+    }
+
+    fn reset_active_capped(
+        config: SimConfig,
+        arena: impl Into<Arc<Arena>>,
+        secrets: Secrets,
+        placements: &[Placement],
+        cap: usize,
+    ) -> Self {
         // The lobby closes on step 1: every human counts toward min_players (bots never close a lobby, as in legacy).
         let humans = placements.iter().filter(|p| !p.bot).count();
         let mut sim = Sim::new(
@@ -88,21 +110,21 @@ impl Sim {
             secrets,
         );
         for p in placements {
-            sim.add_player(&p.profile, Some(p.faction), p.bot);
+            sim.join(&p.profile, Some(p.faction), p.bot, cap);
         }
         sim.step();
         let t = sim.w.server_time;
         for (pl, spec) in sim.w.players.iter_mut().zip(placements) {
-            pl.x = spec.at.x;
-            pl.y = spec.at.y;
-            pl.facing = 0.0;
+            pl.body.x = spec.at.x;
+            pl.body.y = spec.at.y;
+            pl.body.facing = 0.0;
             if let Some(hp) = spec.hp {
-                pl.hp = hp;
+                pl.vitals.hp = hp;
             }
-            pl.history.reset(Sample {
+            pl.body.history.reset(Sample {
                 t,
-                x: pl.x,
-                y: pl.y,
+                x: spec.at.x,
+                y: spec.at.y,
             });
         }
         sim.take_events();
@@ -142,7 +164,7 @@ impl Sim {
         &self.w.players
     }
     pub fn player(&self, id: PlayerId) -> Option<&Player> {
-        self.w.players.iter().find(|p| p.id == id)
+        self.w.players.get(id)
     }
     pub fn secrets_for_replay(&self) -> Secrets {
         self.k.secrets
@@ -176,7 +198,18 @@ impl Sim {
         faction: Option<FactionId>,
         bot: bool,
     ) -> Option<PlayerId> {
-        if self.w.phase != Phase::Lobby || self.w.players.len() >= MAX_PLAYERS {
+        self.join(profile, faction, bot, MAX_PLAYERS)
+    }
+
+    /// [`Sim::add_player`] with the lobby cap as a parameter (the real API always passes [`MAX_PLAYERS`]).
+    fn join(
+        &mut self,
+        profile: &str,
+        faction: Option<FactionId>,
+        bot: bool,
+        cap: usize,
+    ) -> Option<PlayerId> {
+        if self.w.phase != Phase::Lobby || self.w.players.len() >= cap {
             return None;
         }
         let join_index = self.w.joined;
@@ -223,12 +256,12 @@ impl Sim {
         if let Some(i) = self.w.idx(id) {
             let p = &mut self.w.players[i];
             if dropped {
-                if p.dropped_at.is_none() && active {
-                    p.dropped_at = Some(now);
+                if p.seat.dropped_at.is_none() && active {
+                    p.seat.dropped_at = Some(now);
                 }
                 p.inputs.clear();
             } else {
-                p.dropped_at = None;
+                p.seat.dropped_at = None;
             }
             release_trigger(p, now);
         }
@@ -250,7 +283,7 @@ impl Sim {
             };
             hooks::fire(&mut hx, HookArgs::FighterOut { id, cause });
         });
-        self.w.players.remove(i);
+        self.w.players.remove(id);
     }
 
     /// What the schedule ran since the last call, in order: the ported phases, registered systems, action handlers and

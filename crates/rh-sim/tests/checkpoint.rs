@@ -71,7 +71,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
     let mut sim = crowded_8();
     drive(&mut sim, 100);
     assert!(
-        sim.players().iter().any(|p| p.hp < p.max_hp),
+        sim.players().iter().any(|p| p.vitals.hp < p.vitals.max_hp),
         "the crowd fought, so the ledger and melee scratch were used"
     );
     let json = serde_json::to_value(&sim).unwrap();
@@ -91,7 +91,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
             "a checkpoint must not carry the scratch key `{banned}`"
         );
     }
-    assert_eq!(json["format"], "rh-checkpoint/2");
+    assert_eq!(json["format"], "rh-checkpoint/3");
     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
     assert_eq!(top.len(), 3, "format, statics, world: {top:?}");
 }

@@ -16,5 +16,14 @@ serde_json = { version = "1", features = ["float_roundtrip"] }
 name = "rh-headless"
 path = "src/main.rs"
 
+[[bin]]
+name = "scalebench"
+path = "src/bin/scalebench.rs"
+required-features = ["bench"]
+
+[features]
+# Builds scalebench: N fighters past MAX_PLAYERS (rh-sim's `bench` constructor).
+bench = ["rh-sim/bench"]
+
 [lints]
 workspace = true

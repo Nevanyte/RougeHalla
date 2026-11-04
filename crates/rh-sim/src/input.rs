@@ -208,7 +208,7 @@ pub(crate) fn accept(
     now_ms: f64,
     budgeted: bool,
 ) -> Result<(), Reject> {
-    if budgeted && !p.budget.allow(&cmd, now_ms) {
+    if budgeted && !p.seat.budget.allow(&cmd, now_ms) {
         return Err(Reject::OverBudget);
     }
     p.inputs.push(cmd)

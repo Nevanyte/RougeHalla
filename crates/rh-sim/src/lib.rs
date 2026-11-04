@@ -12,6 +12,7 @@ pub mod checkpoint;
 pub mod constants;
 pub mod content;
 pub mod events;
+pub mod fighter;
 pub mod geometry;
 mod hash;
 mod hooks;
@@ -28,6 +29,7 @@ mod scratch;
 pub mod sim;
 pub mod state;
 pub mod statics;
+pub mod store;
 mod systems;
 
 pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
@@ -39,3 +41,4 @@ pub use observe::{observe, public_snapshot, Observation, OBSERVATION_VERSION};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
 };
+pub use store::{EntityId, Store};

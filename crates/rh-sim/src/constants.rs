@@ -14,10 +14,6 @@
 //! `crates/rh-sim/tests/content.rs` enforces it: it walks every `crates/rh-sim/src/**/*.rs` file and fails on any
 //! `const NAME` that is neither in this registry nor in its reviewed NON_GAMEPLAY list, and it perturbs every registry
 //! row and requires the hash to move. Declaration order is part of the hash: append new rows, do not shuffle.
-//!
-//! Rows marked "(site: ...)" are numbers whose live copy still sits in another module (or is an inline literal); they are
-//! registered here with the identical value, and the test asserts the registry value equals the value at the site until
-//! the site is switched to the registry name.
 
 /// A registered value. Integers keep their own variant so no gameplay count is ever routed through a lossy f64.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -116,25 +112,24 @@ content! {
     WAND_WINDUP_MAX_S: f64 = 0.45, "s";
     WAND_WINDUP_INTERVAL_SHARE: f64 = 0.5, "share of interval";
 
-    // ---- numbers whose live copy is elsewhere (site: the file that still uses it; the coordinator switches it to the
-    // registry name after the merge, tests/content.rs holds the values equal until then) ----
-    /// (site: pathfind.rs) Rings searched when a start or goal sits in a wall.
+    // ---- search, mask and epsilon numbers used by pathfind.rs, map.rs and the combat systems (by name) ----
+    /// Rings searched when a start or goal sits in a wall.
     SNAP_RADIUS: i64 = 4, "tiles";
-    /// (site: pathfind.rs) Candidates past the anchor that string pulling considers (legacy PULL_WINDOW).
+    /// Candidates past the anchor that string pulling considers (legacy PULL_WINDOW).
     PULL_WINDOW: usize = 96, "waypoints";
-    /// (site: map.rs) Tile-class masks of the three queries: sight (walls), movement (everything), melee (walls and low cover).
+    /// Tile-class masks of the three queries: sight (walls), movement (everything), melee (walls and low cover).
     MASK_SIGHT: u8 = 0b01, "bitmask";
     MASK_MOVE: u8 = 0xff, "bitmask";
     MASK_MELEE: u8 = 0b11, "bitmask";
-    /// (site: inline in the barrier update of apply_hits) A barrier below this after a hit is cleared to zero.
+    /// A barrier below this after a hit is cleared to zero.
     BARRIER_EPS: f64 = 1e-3, "hp";
-    /// (site: inline in the facing update of advance_along_path) Movement shorter than this does not turn the player.
+    /// Movement shorter than this does not turn the player.
     FACING_EPS: f64 = 0.001, "u";
-    /// (site: inline in in_arc) Slack on the half arc plus the target's angular radius.
+    /// Slack on the half arc plus the target's angular radius.
     ARC_EPS: f64 = 1e-9, "rad";
-    /// (site: pathfind.rs `before`) A* f-scores closer than this tie and fall through to the g and index rules.
+    /// A* f-scores closer than this tie and fall through to the g and index rules.
     PATH_TIE_EPS: f64 = 1e-9, "cost";
-    /// (site: pathfind.rs, the start-tile test in the string-pulling candidate list) The start tile's centre becomes a
+    /// The start tile's centre becomes a
     /// waypoint when the start is in a wall or farther than this from the centre on either axis.
     START_CENTER_SLACK: f64 = 0.5, "u";
 }
