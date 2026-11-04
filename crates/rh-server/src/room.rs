@@ -638,45 +638,51 @@ impl Room {
                     }
                 }
             }
-            if !important.is_empty() {
-                let f = ServerMsg::Events {
-                    tick: self.sim.tick(),
-                    events: important,
-                }
-                .encode();
-                self.bytes_out += f.len() as u64;
-                self.metrics
-                    .bytes_out
-                    .fetch_add(f.len() as u64, Ordering::Relaxed);
-                self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
-                out.important(f);
-            }
+            let important = if important.is_empty() {
+                None
+            } else {
+                Some(
+                    ServerMsg::Events {
+                        tick: self.sim.tick(),
+                        events: important,
+                    }
+                    .encode(),
+                )
+            };
             // Fx are filtered per viewer too: only what this player can see (a swing behind a wall is not sent).
             let fx = wire::fx_seen(&obs);
-            if !fx.is_empty() {
-                let f = ServerMsg::Fx {
-                    tick: self.sim.tick(),
-                    fx,
+            let fx = if fx.is_empty() {
+                None
+            } else {
+                Some(
+                    ServerMsg::Fx {
+                        tick: self.sim.tick(),
+                        fx,
+                    }
+                    .encode(),
+                )
+            };
+            let snap = match wire::encode_snapshot(&obs, h.ack_input) {
+                Ok(snap) => Some(snap),
+                // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
+                Err(e) => {
+                    eprintln!("[room] snapshot not sent: {e}");
+                    None
                 }
-                .encode();
-                self.bytes_out += f.len() as u64;
+            };
+            let bytes: usize = [&important, &fx, &snap]
+                .into_iter()
+                .flatten()
+                .map(Vec::len)
+                .sum();
+            if bytes > 0 {
+                self.bytes_out += bytes as u64;
                 self.metrics
                     .bytes_out
-                    .fetch_add(f.len() as u64, Ordering::Relaxed);
+                    .fetch_add(bytes as u64, Ordering::Relaxed);
+                // One lock and one notify for the client's whole tick.
                 self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
-                out.fx(f);
-            }
-            match wire::encode_snapshot(&obs, h.ack_input) {
-                Ok(snap) => {
-                    self.bytes_out += snap.len() as u64;
-                    self.metrics
-                        .bytes_out
-                        .fetch_add(snap.len() as u64, Ordering::Relaxed);
-                    self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
-                    out.snapshot(snap);
-                }
-                // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
-                Err(e) => eprintln!("[room] snapshot not sent: {e}"),
+                out.push_tick(important, fx, snap);
             }
         }
     }

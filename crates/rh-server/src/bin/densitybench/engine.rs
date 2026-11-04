@@ -3,8 +3,8 @@
 //! timing path, a paused clock (virtual time advances only when every task is idle), one thread, and every `select!`
 //! biased. Two runs of the same options execute the same instructions (callgrind: within +-0.05%).
 //!
-//! The in-process client is what `conn.rs`'s writer does with the outbox minus the socket: it awaits `Outbox::next()` for
-//! every frame. A "writer wake" is a time that await had to park (the outbox was empty) and was woken by a notify; frames
+//! The in-process client is what `conn.rs`'s writer does with the outbox minus the socket: it awaits `Outbox::wait_drain()`
+//! and takes the whole batch of one tick. A "writer wake" is a time that await had to park (the outbox was empty) and was woken by a notify; frames
 //! that were already queued when the client looked are drained in the same wake. A human also sends inputs on a
 //! deterministic schedule (profile `active`) through the room's inbox, as `conn.rs` forwards them.
 //!
@@ -21,7 +21,7 @@
 
 use rh_protocol::{ServerMsg, WireCommand};
 use rh_server::metrics::Metrics;
-use rh_server::outbox::{Next, Outbox};
+use rh_server::outbox::{Drained, Outbox};
 use rh_server::room::{run_room, MapAssets, Room, RoomCmd, RoomConfig, RoomReport};
 use rh_sim::{Arena, Secrets, SimConfig};
 use std::future::Future;
@@ -115,9 +115,9 @@ impl Lcg {
     }
 }
 
-/// `outbox.next()` and whether it had to park first.
-async fn next_counted(outbox: &Outbox, wakes: &AtomicU64) -> Next {
-    let mut fut = pin!(outbox.next());
+/// `outbox.wait_drain(batch)` and whether it had to park first.
+async fn drain_counted(outbox: &Outbox, batch: &mut Vec<Vec<u8>>, wakes: &AtomicU64) -> Drained {
+    let mut fut = pin!(outbox.wait_drain(batch));
     let mut parked = false;
     std::future::poll_fn(|cx| match fut.as_mut().poll(cx) {
         Poll::Pending => {
@@ -135,16 +135,18 @@ async fn next_counted(outbox: &Outbox, wakes: &AtomicU64) -> Next {
 }
 
 async fn drain(outbox: Arc<Outbox>, c: Arc<ClientCounters>, check: bool) {
+    let mut batch: Vec<Vec<u8>> = Vec::new();
     loop {
-        match next_counted(&outbox, &c.wakes).await {
-            Next::Frame(f) => {
-                c.frames.fetch_add(1, Ordering::Relaxed);
-                c.bytes.fetch_add(f.len() as u64, Ordering::Relaxed);
-                if check {
-                    ServerMsg::decode(&f).expect("every frame the room pushed decodes");
-                }
+        let d = drain_counted(&outbox, &mut batch, &c.wakes).await;
+        for f in batch.drain(..) {
+            c.frames.fetch_add(1, Ordering::Relaxed);
+            c.bytes.fetch_add(f.len() as u64, Ordering::Relaxed);
+            if check {
+                ServerMsg::decode(&f).expect("every frame the room pushed decodes");
             }
-            Next::Close(_) => return,
+        }
+        if d.close.is_some() {
+            return;
         }
     }
 }

@@ -179,8 +179,8 @@ pub struct Metrics {
     pub dropped_steps: AtomicU64,
     /// Bytes of every frame rooms encoded for their humans.
     pub bytes_out: AtomicU64,
-    /// Frames rooms pushed into outboxes. Every push is one `Notify::notify_one` on an open outbox, so this is also the
-    /// notify count while the outbox notifies per frame.
+    /// Outbox pushes by rooms: one per human per tick that had any frame (`Outbox::push_tick`). Every push is one
+    /// `Notify::notify_one`, so this is also the notify count.
     pub outbox_pushes: AtomicU64,
     /// Wall microseconds of one simulation step (drive bots + step + record).
     pub step_us: AtomicHistogram,

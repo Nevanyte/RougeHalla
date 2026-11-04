@@ -186,8 +186,13 @@ async fn the_density_engine_is_deterministic() {
         a.writer_wakes,
         a.human_ticks
     );
-    // Every push is a notify: a frame per push, at least one snapshot per human-tick.
-    assert!(a.notifies >= a.human_ticks);
+    // Batched egress: a tick's frames for a client are one push and one notify, so notifies per human-tick is exactly 1
+    // (every tick carries at least a snapshot; it was up to 3 with a push per frame).
+    assert_eq!(a.notifies, a.human_ticks);
+    assert!(
+        a.frames > a.notifies,
+        "events/fx frames ride in the same push"
+    );
 }
 
 /// The live process metrics are on /control/health.
