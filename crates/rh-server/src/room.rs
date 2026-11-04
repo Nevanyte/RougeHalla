@@ -837,7 +837,7 @@ impl Room {
         }
     }
 
-    /// The room task is unwinding from a panic: its connections are closed and `Closed` is reported (marked `crashed`),
+    /// A call into the room panicked (see `guarded`): its connections are closed and `Closed` is reported (marked `crashed`),
     /// so the director frees every seat and gives the leases back instead of holding them until the process restarts.
     /// The simulation is not touched (its state is suspect: no results, no final hash). Never panics itself.
     fn crashed(&mut self) {
@@ -860,14 +860,15 @@ impl Room {
     }
 }
 
-/// Owns the room for [`run_room`]: if the task unwinds from a panic, it reports the room closed ([`Room::crashed`]). A
-/// normal end (the room closed itself, or its inbox ended) and a cancelled task report nothing here.
-struct Running(Room);
-
-impl Drop for Running {
-    fn drop(&mut self) {
-        if std::thread::panicking() {
-            self.0.crashed();
+/// Runs one call into the room for [`run_room`]. A panic inside it (a simulation assert, a bug) is caught, the room is
+/// reported closed ([`Room::crashed`]) and `None` is returned: the task then ends. Only the room's own code is guarded,
+/// so a task cancelled while its thread unwinds from someone else's panic reports nothing.
+fn guarded<T>(room: &mut Room, f: impl FnOnce(&mut Room) -> T) -> Option<T> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(room))) {
+        Ok(v) => Some(v),
+        Err(_) => {
+            room.crashed();
+            None
         }
     }
 }
@@ -889,12 +890,11 @@ impl Drop for Running {
 /// after the step that was running, before the next one), so no new ordering is introduced; in the normal case (the next
 /// deadline is still ahead) nothing changes and a due step still runs before a queued command.
 ///
-/// A panic in the room is reported as `Closed` by an unwinding guard (see `Running`).
+/// A panic in the room is caught at the call (`guarded`) and reported as `Closed`, marked `crashed`.
 ///
 /// [`Sleep`]: tokio::time::Sleep
-pub async fn run_room(room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
-    let mut room = Running(room);
-    let room = &mut room.0;
+pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
+    let room = &mut room;
     let mut armed = room.next_deadline();
     let sleep = tokio::time::sleep_until(armed);
     tokio::pin!(sleep);
@@ -902,15 +902,17 @@ pub async fn run_room(room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
         tokio::select! {
             biased;
             _ = &mut sleep => {
-                if !room.wake(Instant::now()) { return; }
+                if guarded(room, |r| r.wake(Instant::now())) != Some(true) { return; }
                 // Overloaded (the next step is already due): what is queued now is applied before it.
                 if room.next_deadline() <= Instant::now() {
                     for _ in 0..INBOUND_CAP {
                         match rx.try_recv() {
-                            Ok(cmd) => room.handle(cmd, Instant::now()),
+                            Ok(cmd) => {
+                                if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() { return; }
+                            }
                             Err(mpsc::error::TryRecvError::Empty) => break,
                             Err(mpsc::error::TryRecvError::Disconnected) => {
-                                room.close();
+                                guarded(room, Room::close);
                                 return;
                             }
                         }
@@ -923,14 +925,14 @@ pub async fn run_room(room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
             }
             cmd = rx.recv() => match cmd {
                 Some(cmd) => {
-                    room.handle(cmd, Instant::now());
+                    if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() { return; }
                     let next = room.next_deadline();
                     if next != armed {
                         armed = next;
                         sleep.as_mut().reset(armed);
                     }
                 }
-                None => { room.close(); return; }
+                None => { guarded(room, Room::close); return; }
             },
         }
     }
@@ -972,6 +974,13 @@ mod tests {
         let mut room = Room::new([3; 16], cfg(tick), reports, Instant::now()).with_metrics(metrics);
         room.stall = tick * 3 / 2;
         let (tx, rx) = mpsc::channel(8);
+        // Keeps the timer driver turning on the other worker while the room's worker is busy, so the room's re-armed
+        // deadline is already elapsed for the timer wheel when the loop looks again (the starving case).
+        let ticker = tokio::spawn(async {
+            loop {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        });
         let task = tokio::spawn(run_room(room, rx));
         // Let it fall behind: several overloaded wakes before the command arrives.
         tokio::time::sleep(tick * 5).await;
@@ -997,5 +1006,6 @@ mod tests {
         );
         drop(ok);
         task.abort();
+        ticker.abort();
     }
 }
