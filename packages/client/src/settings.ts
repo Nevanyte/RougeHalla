@@ -22,6 +22,11 @@ export interface Settings {
    * render delay (net/remoteDraw.ts); off shows only what the server sent, at today's delay.
    */
   drawAhead: boolean;
+  /**
+   * Quick cast for abilities aimed with a preview (Frost Wall): the key casts at the cursor at once. Off (the default): the key shows
+   * where it would land, a left click deploys it, and the key again, Esc or a right click puts it away.
+   */
+  quickCast: boolean;
 }
 
 /** The text sizes the settings card offers: 100%, 125% and 150%. */
@@ -39,6 +44,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   textScale: 1,
   minimapScale: 1,
   drawAhead: true,
+  quickCast: false,
 });
 
 export const SETTINGS_KEY = "raidbr.settings.v1";
@@ -76,6 +82,7 @@ export function sanitizeSettings(raw: unknown, base: Readonly<Settings> = DEFAUL
       ? MINIMAP_SCALES.reduce((a, b) => Math.abs(b - Number(o.minimapScale)) < Math.abs(a - Number(o.minimapScale)) ? b : a)
       : base.minimapScale,
     drawAhead: bool(o.drawAhead, base.drawAhead),
+    quickCast: bool(o.quickCast, base.quickCast),
   };
 }
 

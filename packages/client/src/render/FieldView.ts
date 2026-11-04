@@ -1,10 +1,11 @@
-// The synced areas (`RaidState.fields`: a Trial's zone, a Swarm's cloud, a Blaze Step's burning trail) drawn on the ground.
+// The synced areas (`RaidState.fields`: a Trial's zone, a Swarm's cloud, a Blaze Step's burning trail, a Frost Wall's ice) drawn on
+// the ground.
 // Presentation only: the server owns what an area does; this reads the field and paints it. Fields are set once and never
 // moved by the server, so a moving area is a position and a velocity (`fieldCentre`) and a cloud follows its owner as
 // drawn. One Graphics per field, redrawn each frame while the field lives and destroyed when the server removes it.
 // Times are server ms on the delayed render clock, so an area appears together with the bodies it concerns.
 import Phaser from "phaser";
-import { ABILITIES, ABILITY_IDS, Y_SCALE, fieldKindOf, type Vec2 } from "@raid/shared";
+import { ABILITIES, ABILITY_IDS, TILE, Y_SCALE, decodeCells, fieldKindOf, type Vec2 } from "@raid/shared";
 import { juiceScale } from "./juice";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 import { life, pulse } from "./signatureLook";
@@ -49,7 +50,15 @@ export interface FieldStateLike {
   subject: string;
   startedAt: number;
   endsAt: number;
+  /** A wall's tiles (shared/barriers.ts encodeCells); absent or "" on every other kind. */
+  cells?: string;
 }
+
+/** How high a Frost Wall's blocks stand (projected px), and their colours. */
+const WALL_LIFT = 20;
+const WALL_TOP = 0xe1f5fe;
+const WALL_FRONT = 0x4fc3f7;
+const WALL_EDGE = 0x0288d1;
 
 /**
  * How visible a field is at render time: 0 before it starts, 1 through its life and fading to 0 over its last
@@ -115,6 +124,8 @@ interface Entry {
   g: Phaser.GameObjects.Graphics;
   smoother: CloudSmoother | null;
   seen: boolean;
+  /** A wall's decoded tiles (decoded once: a field is never updated). */
+  cells?: number[];
 }
 
 /** FNV-ish hash of a field id, so every cloud's flies and wobble start at their own phase. */
@@ -127,6 +138,9 @@ function hashPhase(id: string): number {
 export class FieldView {
   private readonly entries = new Map<string, Entry>();
   private destroyed = false;
+  /** The map's size in tiles, for a wall's tile indices (0 until the map is built: no wall is drawn). */
+  mapW = 0;
+  mapH = 0;
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -164,6 +178,7 @@ export class FieldView {
       const fl = juiceScale("flash") > 0 ? now : 0;
       if (kind === "zone") this.drawZone(g, f, renderT, alpha, mo);
       else if (kind === "trail") this.drawTrail(g, f, alpha, mo, fl);
+      else if (kind === "wall") this.drawWall(g, e, f, alpha, renderT);
       else this.drawCloud(g, e.smoother!, f, id, at, localId, alpha, renderT, now, mo);
     });
     for (const [id, e] of this.entries) {
@@ -251,6 +266,30 @@ export class FieldView {
       const ey = f.y + dy * t + (dx / len) * side;
       const colour = i % 2 === 0 ? TRAIL_CORE : 0xff9800;
       g.fillStyle(colour, (1 - p) * 0.85).fillCircle(projX(ex), projY(ey, 2 + 14 * p), 1.2 + 1.6 * (1 - p));
+    }
+  }
+
+  /**
+   * A Frost Wall: an ice block on each of its tiles (the very tiles that block, from the server), a pale top over a blue face,
+   * cracking pale in its last second. One Graphics at the depth of its southmost tile.
+   */
+  private drawWall(g: Phaser.GameObjects.Graphics, e: Entry, f: FieldStateLike, alpha: number, renderT: number): void {
+    if (this.mapW <= 0) return;
+    e.cells ??= decodeCells(f.cells ?? "", this.mapW * this.mapH);
+    if (e.cells.length === 0) return;
+    let maxY = 0;
+    for (const i of e.cells) maxY = Math.max(maxY, Math.floor(i / this.mapW));
+    g.setPosition(0, 0).setDepth(depthFor((maxY + 1) * TILE)).setAlpha(alpha);
+    const left = f.endsAt - renderT;
+    const crack = left < 1000 ? 1 - Math.max(0, left) / 1000 : 0;
+    const h = TILE * Y_SCALE;
+    for (const i of e.cells) {
+      const x = (i % this.mapW) * TILE;
+      const y = Math.floor(i / this.mapW) * TILE;
+      const top = projY(y, WALL_LIFT);
+      g.fillStyle(WALL_FRONT, 0.78 - 0.3 * crack).fillRect(projX(x), top + h, TILE, WALL_LIFT);
+      g.fillStyle(WALL_TOP, 0.85 - 0.3 * crack).fillRect(projX(x), top, TILE, h);
+      g.lineStyle(1, WALL_EDGE, 0.6).strokeRect(projX(x) + 0.5, top + 0.5, TILE - 1, h + WALL_LIFT - 1);
     }
   }
 

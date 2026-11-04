@@ -25,6 +25,10 @@ import { FRAME_MS, plainPlayer, plainState, runPerception, T0 as KIT_T0, type Pl
 import {
   brainConfig, ctx as makeCtx, emptyMemory, features, fighter, hudView, mobView, pathService, percept, rngs, selfView, testMap,
 } from "./fixtures";
+import { useLegacyFreeze } from "../support/legacyFreeze";
+
+// The module is tested with Freeze as its unit-cast Wish (Frost's until Frost Wall; the wall's placement is abilityPolicy.test.ts's).
+useLegacyFreeze();
 
 /**
  * Where the bot stands: open floor on the test map with a clear walk 300 u away from a foe 160 u east of it, and a clear line 240 u

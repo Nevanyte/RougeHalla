@@ -20,6 +20,10 @@ import { addStatus, isCasting } from "../src/sim/status";
 import { addPlayer, startRaid, step } from "../src/sim/step";
 import { installTraining } from "../src/sim/training";
 import type { LedgerEntry, SimEvent, World } from "../src/sim/world";
+import { useLegacyFreeze } from "./support/legacyFreeze";
+
+// The pipeline's unit-target tests use Freeze (Frost's Wish until Frost Wall): this file's Frost slot holds it.
+useLegacyFreeze();
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 

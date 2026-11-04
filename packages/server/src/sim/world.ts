@@ -2,7 +2,7 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type CastEndReason, type ConsumableId,
+  generateMap, mapHashU32, mulberry32, withBarriers, withGates, type AbilityId, type AbilitySlot, type CastEndReason, type ConsumableId,
   type DamageShares, type FactionId, type HealSource, type OfferKind,
   type FieldKind, type FxEvent, type GameMap, type GvReason, type MobTypeId, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
   type RunResult, type Sample, type SignatureKind, type SlipState, type StatusKind, type Vec2, type WeaponId,
@@ -220,6 +220,8 @@ export interface FieldRuntime {
   endsAt: number;
   /** A zone's escape stun (ms), fixed when it was cast (Gallows' Patience lengthens it) so it survives a caster that left. */
   exitStunMs?: number;
+  /** A barrier's tiles (kind "wall"), synced as FieldState.cells: LOW in collisionMap while it stands. */
+  cells?: readonly number[];
 }
 
 /** Server-only ability data, created on first use (sim/fields.ts `abilitiesRt`); `World.abilities` is null until then. */
@@ -230,6 +232,11 @@ export interface AbilitiesRuntime {
   dotSince: number;
   /** Server ms of the coliseum teleport, once there was one: a cast arriving within CAST_TELEPORT_GRACE_MS of it is refused. */
   teleportedAt?: number;
+  /** Barriers standing (fields of kind "wall"): bumped by sim/fields.ts on every add and removal; collisionMap's cache key. */
+  barrierVersion?: number;
+  barrierCount?: number;
+  /** collisionMap's last overlay: the base map it was built on, the version, and the map. */
+  barrierMap?: { base: GameMap; version: number; map: GameMap };
 }
 
 export interface PlayerRuntime extends CombatRuntime {
@@ -1070,7 +1077,19 @@ export function chainHook<K extends ChainableHook>(world: World, key: K, fn: Non
  * (cached per map, so this is free every tick), which seals the coliseum.
  */
 export function collisionMap(world: World): GameMap {
-  return world.state.gatesLocked ? withGates(world.map) : world.map;
+  const base = world.state.gatesLocked ? withGates(world.map) : world.map;
+  const a = world.abilities;
+  if (!a || !a.barrierCount) return base;
+  // Deployed barriers (Frost Wall): their tiles are LOW while they stand. One overlay per barrier set, rebuilt only when one is
+  // raised or falls, or the gates change.
+  const version = a.barrierVersion ?? 0;
+  const cached = a.barrierMap;
+  if (cached && cached.base === base && cached.version === version) return cached.map;
+  const cells: number[] = [];
+  for (const f of a.fields.values()) if (f.kind === "wall" && f.cells) cells.push(...f.cells);
+  const map = withBarriers(base, cells);
+  a.barrierMap = { base, version, map };
+  return map;
 }
 
 /**

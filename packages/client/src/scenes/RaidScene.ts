@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
   countIn, EXTRAPOLATE_MS, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
-  WEAPONS, withGates, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, mirrorTimings, PLAYER_RADIUS, swapAllowed,
+  WEAPONS, withGates, withBarriers, wallSegmentFor, decodeCells, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, mirrorTimings, PLAYER_RADIUS, swapAllowed,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -26,6 +26,7 @@ import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
 import { chestNameOf, displayName } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
+import { AbilityAim, aimPlan } from "../render/AbilityAim";
 import { FX_FRESH_MS, FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, pickInteraction, type Interaction } from "../render/interact";
 import { MapView } from "../render/MapView";
@@ -39,6 +40,7 @@ import { ProjectileView } from "../render/ProjectileView";
 import { QuestView } from "../render/QuestView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
+import { juiceScale } from "../render/juice";
 import { TargetRings } from "../render/TargetRings";
 import { WeaponRangeView } from "../render/WeaponRangeView";
 import { GroundRouteView } from "../render/GroundRoute";
@@ -265,6 +267,11 @@ export class RaidScene extends Phaser.Scene {
   private fx!: FxView;
   /** The areas the state carries (a Trial's zone, a Swarm's cloud, Blaze Step's trail), and the casts' telegraphs and impacts. */
   private fieldView!: FieldView;
+  /** The aim preview of a placed ability (AbilityDef.aim "preview"), and the slot being aimed (null: none up). */
+  private abilityAim!: AbilityAim;
+  private aimingSlot: AbilitySlot | null = null;
+  /** planMap's last barrier overlay: keyed on the base map and the standing walls' ids. */
+  private barrierCache: { base: GameMap; key: string; map: GameMap } | null = null;
   private wishFx!: WishFx;
   /** Cosmetic camera reactions; the interpolated world clock remains continuous. */
   private juice!: ScreenJuice;
@@ -469,6 +476,7 @@ export class RaidScene extends Phaser.Scene {
       wishFx: (fx, now) => this.wishFx.play(fx, now),
     });
     this.fieldView = new FieldView(this);
+    this.abilityAim = new AbilityAim(this);
     this.questView = new QuestView(this);
     this.unbindQuestReveal = this.room.onMessage("questReveal", (message: ServerMessages["questReveal"]) => {
       const preview = questFromReveal(message);
@@ -502,10 +510,21 @@ export class RaidScene extends Phaser.Scene {
       // The button that went down, not the buttons held: a second press while one is held must not read as the first.
       // macOS reports ctrl+click (a context click) as button 0 with only the right button in `buttons`: not a lock.
       if (pointer.button === 2) {
+        // A right click puts an aim preview away (and walks, as it always does).
+        this.cancelAim();
         this.attackMoveArmed = false;
         this.input.setDefaultCursor("default");
         this.sendMove(pointer, true);
-      } else if (pointer.button === 0 && pointer.leftButtonDown()) this.clickAttack(pointer);
+      } else if (pointer.button === 0 && pointer.leftButtonDown()) {
+        // A left click with an aim preview up deploys it there; it is no attack.
+        const aiming = this.aimingSlot;
+        if (aiming !== null) {
+          this.cancelAim();
+          this.castSlot(aiming, true);
+          return;
+        }
+        this.clickAttack(pointer);
+      }
     });
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => { if (pointer.button === 0) this.releaseAttack(); });
     this.input.on("pointermove", () => { this.aimKnown = true; });
@@ -687,7 +706,10 @@ export class RaidScene extends Phaser.Scene {
       out.x = at.x; out.y = at.y;
       return true;
     }, this.vision.canSee, serverNow, this.remoteDraw.drawsAhead ? { map: this.planMap(), until: state.serverTime + EXTRAPOLATE_MS } : undefined);
+    const fieldMap = this.mapView?.map;
+    if (fieldMap) { this.fieldView.mapW = fieldMap.w; this.fieldView.mapH = fieldMap.h; }
     this.fieldView.update(state.fields, renderT, now, (id) => this.visiblePosition(id), this.room.sessionId, this.vision.canSee);
+    this.updateAimPreview(now);
 
     // Interaction range is checked against the latest synced position (what the server uses), not the
     // interpolated one the player is drawn at, which trails it by the render delay.
@@ -983,10 +1005,59 @@ export class RaidScene extends Phaser.Scene {
     return this.interp.clock.synced ? this.interp.clock.now(now) : this.room.state.serverTime;
   }
 
-  /** The walls the server walks and plans on: the gates are walls from the first teleport. Null before the map is built. */
+  /**
+   * The walls the server walks and plans on: the gates are walls from the first teleport, and a standing Frost Wall's tiles (synced
+   * on its field, the server's own list) are LOW while it stands. Null before the map is built.
+   */
   private planMap(): GameMap | null {
     const map = this.mapView?.map;
-    return map ? (this.room.state.gatesLocked ? withGates(map) : map) : null;
+    if (!map) return null;
+    const base = this.room.state.gatesLocked ? withGates(map) : map;
+    let key = "";
+    const walls: string[] = [];
+    this.room.state.fields.forEach((f, id) => {
+      if (fieldKindOf(f.kind) === "wall" && f.cells) { key += id + ";"; walls.push(f.cells); }
+    });
+    if (walls.length === 0) return base;
+    const c = this.barrierCache;
+    if (c && c.base === base && c.key === key) return c.map;
+    const cells: number[] = [];
+    for (const w of walls) cells.push(...decodeCells(w, map.w * map.h));
+    const out = withBarriers(base, cells);
+    this.barrierCache = { base, key, map: out };
+    return out;
+  }
+
+  /** The aim preview while a placed ability is held up: drawn each frame, put away when it can no longer be cast. */
+  private updateAimPreview(now: number): void {
+    const slot = this.aimingSlot;
+    if (slot === null) return;
+    const state = this.room.state;
+    const me = state.players.get(this.room.sessionId);
+    const entry = me ? abilityInSlot(me, slot) : null;
+    const map = this.planMap();
+    const from = this.predict.motion.ready ? this.predict.motion.predicted : this.rendered.get(this.room.sessionId);
+    if (!me || !entry || entry.def.aim !== "preview" || !map || !from || !this.localAlive() || this.frozenWorld || this.beforeTeleport()
+      || state.phase !== "active" || this.peek) {
+      this.cancelAim();
+      return;
+    }
+    const pointer = this.input.activePointer;
+    pointer.updateWorldPoint(this.cameras.main);
+    const cursor = clampToWorld(unproject(pointer.worldX, pointer.worldY));
+    const plan = aimPlan(entry.def, entry.rank, map, from, cursor, me.facing);
+    if (!plan) {
+      this.cancelAim();
+      return;
+    }
+    this.abilityAim.draw(plan, from, map, entry.def.color, now, juiceScale("motion") > 0);
+  }
+
+  /** Puts the aim preview away (nothing is sent). */
+  private cancelAim(): void {
+    if (this.aimingSlot == null) return;
+    this.aimingSlot = null;
+    this.abilityAim?.hide();
   }
 
   /** The cursor's aim is being streamed: the server turns the fighter to the cursor, not to the way it walks. */
@@ -1518,11 +1589,16 @@ export class RaidScene extends Phaser.Scene {
    * (`LocalPrediction.noteCast`) roots the model for a cast with a telegraph and moves it at once for a blink, which the
    * server computes from the same pure `blinkLanding`. Generic over the slot: a skill's Q and E use it as is.
    */
-  private castSlot(slot: AbilitySlot): void {
+  private castSlot(slot: AbilitySlot, confirm = false): void {
     const state = this.room.state;
     const me = state.players.get(this.room.sessionId);
     const entry = me ? abilityInSlot(me, slot) : null;
     const view = this.slotView(slot);
+    // The key again while its preview is up puts it away (a toggle).
+    if (!confirm && this.aimingSlot === slot) {
+      this.cancelAim();
+      return;
+    }
     // Planning freezes the world (the server drops everything but `plan` then), like every other order path.
     if (!me || !entry || !view || this.beforeTeleport() || this.frozenWorld) return;
     const { def, rank } = entry;
@@ -1541,6 +1617,13 @@ export class RaidScene extends Phaser.Scene {
     const denial = castDenial(m);
     if (denial) {
       view.deny(denial, now);
+      return;
+    }
+    // A placed ability is aimed first: the key shows where it would land and a left click deploys it (unless Quick cast is on).
+    if (def.aim === "preview" && !confirm && !getSettings().quickCast) {
+      this.cancelAim();
+      this.aimingSlot = slot;
+      this.updateAimPreview(now);
       return;
     }
     const self = this.rendered.get(this.room.sessionId);
@@ -1566,7 +1649,8 @@ export class RaidScene extends Phaser.Scene {
     let anchor: Vec2 = t.kind === "self" && self ? self : aim;
 
     if (blink?.do === "blink") {
-      const map = this.mapView?.map;
+      // The collision map, a standing Frost Wall included: a blink never lands on its ice.
+      const map = this.planMap();
       const from = this.predict.motion.ready ? this.predict.motion.predicted : self;
       const landing = map && from ? blinkLanding(map, state.gatesLocked, from, aim, blink.maxDist, blink.minDist) : null;
       if (!landing) {
@@ -1598,6 +1682,14 @@ export class RaidScene extends Phaser.Scene {
       target = id;
       anchor = at;
     } else {
+      // A placed ability goes to the cursor clamped to its range from where the fighter is (the server clamps the same way), so
+      // the telegraph drawn at the press stands where the preview did.
+      const from = this.predict.motion.ready ? this.predict.motion.predicted : self;
+      if (t.kind === "point" && r.shape.kind === "wall" && from) {
+        const seg = wallSegmentFor(from, aim, t.range, t.minRange, 0, me.facing);
+        aim = { x: seg.cx, y: seg.cy };
+        anchor = aim;
+      }
       seq = this.predict.nextSeq();
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, seq });
       this.predict.noteCast(c, { castMs: r.castMs, seq });
@@ -1731,6 +1823,7 @@ export class RaidScene extends Phaser.Scene {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
     // Esc has no other use in a run; leaving a practice room costs nothing, so one press is enough.
     if (e.code === "Escape") {
+      if (this.aimingSlot !== null) { this.cancelAim(); return; }
       if (this.attackMoveArmed) { this.attackMoveArmed = false; this.input.setDefaultCursor("default"); return; }
       this.trainingBar?.leave();
       return;
@@ -1985,6 +2078,7 @@ export class RaidScene extends Phaser.Scene {
     this.groundRoute?.destroy();
     this.groundRoute = null;
     this.fieldView.destroy();
+    this.abilityAim.destroy();
     this.questView.destroy();
     this.unbindQuestReveal?.();
     this.unbindQuestReveal = null;

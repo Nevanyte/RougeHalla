@@ -252,6 +252,8 @@ export const FieldState = schema({
   subject: t.string().default(""),
   startedAt: t.uint32().default(0),
   endsAt: t.uint32().default(0),
+  /** A barrier's tiles (kind "wall"): shared/barriers.ts encodeCells; "" for every other kind. Set once, never updated. */
+  cells: t.string().default(""),
 }, "FieldState");
 export type FieldState = SchemaType<typeof FieldState>;
 

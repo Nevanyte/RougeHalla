@@ -3517,7 +3517,7 @@ describe("feed and bounty", () => {
       expect(P(w, 0).kills).toBe(0);
     });
 
-    it("markDropped keeps the first drop and does nothing outside an active run", () => {
+    it("markDropped keeps the first drop, and marks a lobby drop too (the lobby holds the seat for the reconnect grace)", () => {
       const w = startRun(3, LONG);
       runTo(w, 200);
       markDropped(w, idOf(1));
@@ -3528,7 +3528,7 @@ describe("feed and bounty", () => {
       const lobby = createWorld({ seed: 3, config: makeConfig({ minPlayers: 2 }), random: mulberry32(3) });
       addPlayer(lobby, "x", "xavier");
       markDropped(lobby, "x");
-      expect(lobby.players.get("x")!.droppedAt).toBeNull();
+      expect(lobby.players.get("x")!.droppedAt).toBe(lobby.state.serverTime);
     });
 
     describe("a mob finishes a hunted player", () => {

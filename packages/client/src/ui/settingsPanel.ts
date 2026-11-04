@@ -40,7 +40,7 @@ export function applyReducedMotion(root: Pick<Element, "setAttribute" | "removeA
   else root.removeAttribute(REDUCED_MOTION_ATTR);
 }
 
-type SwitchKey = "hiDpi" | "reducedMotion" | "showFps" | "showPing" | "showRoute" | "drawAhead";
+type SwitchKey = "hiDpi" | "reducedMotion" | "showFps" | "showPing" | "showRoute" | "drawAhead" | "quickCast";
 
 interface SwitchSpec {
   key: SwitchKey;
@@ -53,6 +53,10 @@ const REDUCED_MOTION: SwitchSpec = { key: "reducedMotion", label: "Reduced motio
 const SHOW_FPS: SwitchSpec = { key: "showFps", label: "Show FPS", note: "" };
 const SHOW_PING: SwitchSpec = { key: "showPing", label: "Show ping", note: "" };
 const SHOW_ROUTE: SwitchSpec = { key: "showRoute", label: "Show route", note: "Your planned route on the ground, the minimap and the Tab map during a run." };
+const QUICK_CAST: SwitchSpec = {
+  key: "quickCast", label: "Quick cast",
+  note: "Abilities you aim (Frost Wall) cast at the cursor the moment you press the key. Off: the key shows where it lands and a click places it.",
+};
 const DRAW_AHEAD: SwitchSpec = {
   key: "drawAhead", label: "Draw remote fighters ahead",
   note: "Other fighters are drawn up to 50 ms fresher, continuing the walk the server says they are on. Off shows only what the server sent.",
@@ -111,6 +115,7 @@ export class SettingsPanel {
       section("Display", this.fullscreenRow(), this.switchRow(HI_DPI)),
       section("Effects", this.sliderRow(), this.switchRow(REDUCED_MOTION)),
       section("Readout", this.switchRow(SHOW_FPS), this.switchRow(SHOW_PING)),
+      section("Controls", this.switchRow(QUICK_CAST)),
       section("Network", this.switchRow(DRAW_AHEAD)),
       section("Map", this.switchRow(SHOW_ROUTE), this.minimapSizeRow(), this.textSizeRow()),
     );

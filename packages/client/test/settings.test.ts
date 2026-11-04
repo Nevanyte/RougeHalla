@@ -29,7 +29,7 @@ describe("loading", () => {
 
   it("the defaults are what the owner asked for: effects fully on, the readout shown, sharp rendering on, the route shown, normal text, draw-ahead on", () => {
     expect(DEFAULT_SETTINGS).toEqual({
-      juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1, minimapScale: 1, drawAhead: true,
+      juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1, minimapScale: 1, drawAhead: true, quickCast: false,
     });
   });
 
@@ -64,7 +64,7 @@ describe("loading", () => {
 
   it("drops unknown keys", () => {
     const out = sanitizeSettings({ juice: 0.5, hax: true, __proto__: { polluted: 1 }, constructor: 5 });
-    expect(Object.keys(out).sort()).toEqual(["drawAhead", "hiDpi", "juice", "minimapScale", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
+    expect(Object.keys(out).sort()).toEqual(["drawAhead", "hiDpi", "juice", "minimapScale", "quickCast", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
     expect(out.juice).toBe(0.5);
   });
 

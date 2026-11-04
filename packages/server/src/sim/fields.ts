@@ -1,8 +1,9 @@
-// Areas of the ability framework: a Trial's zone, a Swarm's cloud, a Blaze Step's trail. The runtime table is
+// Areas of the ability framework: a Trial's zone, a Swarm's cloud, a Blaze Step's trail, a Frost Wall's barrier (its tiles are
+// LOW in collisionMap while it stands). The runtime table is
 // `world.abilities.fields`; each entry is mirrored ONCE into the synced `state.fields` (clients draw it from the entry and
 // never get an update) and deleted from both when it ends. The server never moves one: a moving area carries its velocity
 // and clients move it themselves. A leaf module: shared, the schema and world only.
-import { ABILITY_IDS, distPointToSegment, FIELD_KINDS, type Vec2 } from "@raid/shared";
+import { ABILITY_IDS, distPointToSegment, encodeCells, FIELD_KINDS, type Vec2 } from "@raid/shared";
 import { FieldState } from "@raid/shared/schema";
 import { nextId, type AbilitiesRuntime, type FieldRuntime, type World } from "./world";
 
@@ -28,8 +29,17 @@ export function addField(world: World, f: Omit<FieldRuntime, "id">): FieldRuntim
   s.subject = field.subject ?? "";
   s.startedAt = field.startedAt;
   s.endsAt = field.endsAt;
+  if (field.cells) s.cells = encodeCells(field.cells);
   world.state.fields.set(field.id, s);
+  if (field.kind === "wall") barrierChanged(world, +1);
   return field;
+}
+
+/** A barrier was raised (+1) or fell (-1): collisionMap's overlay is out of date. */
+function barrierChanged(world: World, delta: number): void {
+  const a = abilitiesRt(world);
+  a.barrierCount = Math.max(0, (a.barrierCount ?? 0) + delta);
+  a.barrierVersion = (a.barrierVersion ?? 0) + 1;
 }
 
 export function removeField(world: World, id: string): FieldRuntime | null {
@@ -38,6 +48,7 @@ export function removeField(world: World, id: string): FieldRuntime | null {
   if (!fields || !f) return null;
   fields.delete(id);
   world.state.fields.delete(id);
+  if (f.kind === "wall") barrierChanged(world, -1);
   return f;
 }
 

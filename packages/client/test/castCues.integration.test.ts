@@ -12,6 +12,15 @@ import { resetReducedMotionCache } from "../src/render/juice";
 import { WishFx } from "../src/render/WishFx";
 import { RaidScene } from "../src/scenes/RaidScene";
 import { argsOf, fakeScene } from "./fakes";
+import { afterAll, beforeAll } from "vitest";
+import { mapFromTiles, TILE_FLOOR, WISHES, type AbilityId } from "@raid/shared";
+import { updateSettings } from "../src/settings";
+
+// Written with Freeze as the unit cast (Frost's Wish until Frost Wall, which is aimed with a preview instead): this file's Frost
+// slot holds it again (vitest isolates the file's modules).
+const wishTable = WISHES as Record<string, AbilityId>;
+beforeAll(() => { wishTable.frost = "freeze"; });
+afterAll(() => { wishTable.frost = "frostWall"; });
 
 afterEach(() => { vi.restoreAllMocks(); resetReducedMotionCache(); });
 
@@ -341,5 +350,54 @@ describe("the potion key through RaidScene", () => {
     expect(sent).toHaveLength(2);
     expect(said).toEqual([]);
     expect(ofKind("graphics")).toHaveLength(0);
+  });
+});
+
+describe("a placed Wish (Frost Wall) is aimed with a preview first", () => {
+  /** castable("frost") with Frost Wall in the slot and an open room under it. */
+  function aimable(quickCast = false) {
+    const w = castable("frost");
+    wishTable.frost = "frostWall";
+    const tiles = new Uint8Array(40 * 20).fill(TILE_FLOOR);
+    const map = mapFromTiles(40, 20, tiles);
+    const raid = w.raid as unknown as Record<string, unknown> & Wired;
+    raid.mapView = { map };
+    raid.abilityAim = { draw: vi.fn(), hide: vi.fn() };
+    (raid.room.state as Record<string, unknown>).fields = new Map();
+    updateSettings({ quickCast });
+    return { ...w, raid, aim: raid.abilityAim as { draw: ReturnType<typeof vi.fn>; hide: ReturnType<typeof vi.fn> } };
+  }
+  afterEach(() => { wishTable.frost = "freeze"; updateSettings({ quickCast: false }); });
+
+  it("R shows where it would land and sends nothing; R again puts it away", () => {
+    const { raid, aim, castSent } = aimable();
+    raid.castSlot("wish");
+    expect(castSent()).toEqual([]);
+    expect(aim.draw).toHaveBeenCalled();
+    raid.castSlot("wish");
+    expect(castSent()).toEqual([]);
+    expect(aim.hide).toHaveBeenCalled();
+  });
+
+  it("the confirming click casts at the cursor clamped to its range, with an order number", () => {
+    const { raid, castSent, predictCast } = aimable();
+    raid.castSlot("wish");
+    (raid as unknown as { castSlot(slot: "wish", confirm: boolean): void }).castSlot("wish", true);
+    const sent = castSent();
+    expect(sent).toHaveLength(1);
+    const c = sent[0] as unknown as { x: number; y: number; seq: number; id?: string };
+    expect(c.id).toBeUndefined();
+    // The cursor at (120, 40) from a caster at (30, 40): 90 u away, inside the 450 u reach, so the point stands.
+    expect(c.x).toBeCloseTo(120, 6);
+    expect(c.y).toBeCloseTo(40, 6);
+    expect(predictCast).toHaveBeenCalledTimes(1);
+    expect(predictCast.mock.calls[0]![0]).toMatchObject({ ability: "frostWall", x: c.x, y: c.y, seq: c.seq });
+  });
+
+  it("with Quick cast on, the key casts at once", () => {
+    const { raid, castSent, aim } = aimable(true);
+    raid.castSlot("wish");
+    expect(castSent()).toHaveLength(1);
+    expect(aim.draw).not.toHaveBeenCalled();
   });
 });

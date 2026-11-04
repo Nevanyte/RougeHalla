@@ -158,8 +158,9 @@ describe("quest giver immunity", () => {
   });
 
   it("rejects a unit-targeted Wish and spends no cooldown", () => {
+    // Trial is the unit-targeted Wish (Frost's Freeze was, until Frost Wall).
     const world = makeRun([
-      { faction: "frost", weapon: "bow", at: { x: 300, y: 320 } },
+      { faction: "sentenced", weapon: "bow", at: { x: 300, y: 320 } },
       { faction: "fire", weapon: "sword", at: { x: 600, y: 500 } },
     ]);
     const qt = give(world, { x: 400, y: 320 });

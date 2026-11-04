@@ -14,7 +14,7 @@
 //
 // Everything here tolerates `world.abilities === null` (nothing has used it yet) and fighters with no statuses.
 import {
-  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, bushAt, BUSH_REVEAL_MS, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
+  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, bushAt, circleClear, MASK_MOVE, PLAYER_RADIUS, segmentClear, wallCells, wallSegmentFor, BUSH_REVEAL_MS, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
   GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, hasLineOfSight,
   HIDDEN_REVEAL_MS, MAX_REWIND_MS, maxCharges, rankOf, setSlotReadyAt, slotReadyAt, spendCharge, TICK_MS, WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
@@ -23,6 +23,7 @@ import {
 import { cardsOf, rollDotCrit } from "./cardState";
 import { combatant, hostile, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
 import { displace } from "./displace";
+import { planPath } from "./movement";
 import { heal, markTierOn } from "./factions";
 import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWhere } from "./fields";
 import { recordHit } from "./ledger";
@@ -150,7 +151,14 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
     if (!target || !validUnitTarget(world, c, target, rule.range + CAST_RANGE_SLACK, rule.los)) return;
   } else if (rule.kind === "point") {
     const blink = blinkOf(r);
-    if (blink && blinkLanding(world.map, world.state.gatesLocked, c.s, point, blink.maxDist, blink.minDist) === null) return;
+    if (blink && blinkLanding(collisionMap(world), world.state.gatesLocked, c.s, point, blink.maxDist, blink.minDist) === null) return;
+    // A placed ability (a wall) lands at the cursor clamped to its range, measured from where the caster stands now (it is rooted
+    // through the cast): the telegraph, the landing and the client's preview all read that one point.
+    if (!blink) {
+      const seg = wallSegmentFor(c.s, point, rule.range, rule.minRange, 0, c.s.facing);
+      point.x = seg.cx;
+      point.y = seg.cy;
+    }
   }
 
   const prevReadyAt = slotReadyAt(c.s, cmd.slot);
@@ -296,7 +304,7 @@ export function clearFighter(world: World, id: string, _cause: "down" | "removed
     cancelCast(world, c, "cancelled", false);
     removeStatuses(world, c, () => true);
   }
-  endFields(world, (f) => (f.owner.id === id && f.kind !== "trail") || f.subject === id);
+  endFields(world, (f) => (f.owner.id === id && f.kind !== "trail" && f.kind !== "wall") || f.subject === id);
 }
 
 /**
@@ -351,6 +359,8 @@ interface Landing {
   /** Where the caster stood when its effects began, and where a blink put it. */
   origin: Vec2;
   to: Vec2 | null;
+  /** Where a placed effect (a wall) stood up: the castLand fx is drawn there. */
+  at?: Vec2;
 }
 
 /**
@@ -410,7 +420,7 @@ function landCasts(world: World, active: readonly Combatant[], now: number): voi
     }
     const blink = ok ? blinkOf(r) : undefined;
     if (blink) {
-      cast.landing = blinkLanding(world.map, world.state.gatesLocked, c.s, cast.point, blink.maxDist, blink.minDist);
+      cast.landing = blinkLanding(collisionMap(world), world.state.gatesLocked, c.s, cast.point, blink.maxDist, blink.minDist);
       ok = cast.landing !== null;
     }
     if (!ok) {
@@ -432,7 +442,7 @@ function landCasts(world: World, active: readonly Combatant[], now: number): voi
     }
   }
   for (const l of landing) {
-    const at = l.to ? l.origin : l.t ? l.t.s : l.c.s;
+    const at = l.to ? l.origin : l.t ? l.t.s : l.at ?? l.c.s;
     emit(world, {
       type: "fx",
       fx: {
@@ -500,6 +510,9 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
         displace(world, c, l.to);
       }
       return;
+    case "wall":
+      l.at = raiseWall(world, l, e, now);
+      return;
     case "trail":
       if (l.to) {
         addField(world, {
@@ -513,6 +526,92 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
       void unknown;
     }
   }
+}
+
+/** How far past the wall's tiles a fighter it lands on is set down, and the step of the search for a clear spot. */
+const WALL_PUSH_STEP = 4;
+const WALL_PUSH_MAX = 96;
+
+/**
+ * Raises a barrier (Frost Wall) square to the line from the caster to its aim point. Its tiles are the FLOOR tiles under it
+ * (shared/barriers.ts). Every standing fighter it would trap is set down clear of it on its own side of the line (the caster on
+ * the caster's side; one right on the line on the far side), searched outward along the wall's normal; one with no clear spot on
+ * either side keeps the tiles round it free (a gap) rather than be trapped. Then every walk planned through it is planned again,
+ * so nobody walks into the ice. A wall outlives its caster (as a trail does) and falls at its time, the teleport or the run's end.
+ * Returns the wall's centre (the castLand fx's point).
+ */
+function raiseWall(world: World, l: Landing, e: Extract<AbilityEffect, { do: "wall" }>, now: number): Vec2 {
+  const { c, def } = l;
+  const rule = l.r.targeting;
+  const range = rule.kind === "point" ? rule.range : 0;
+  const minRange = rule.kind === "point" ? rule.minRange : 0;
+  const seg = wallSegmentFor(l.origin, l.cast.point, range + CAST_RANGE_SLACK, minRange, e.length, c.s.facing);
+  const before = collisionMap(world);
+  const cells = new Set(wallCells(before, seg));
+  if (cells.size === 0) return { x: seg.cx, y: seg.cy };
+  const w = before.w;
+  // The wall's unit normal, pointing away from the caster.
+  let nx = seg.cx - l.origin.x;
+  let ny = seg.cy - l.origin.y;
+  const nd = Math.sqrt(nx * nx + ny * ny);
+  if (nd >= 1) { nx /= nd; ny /= nd; } else { nx = Math.cos(c.s.facing); ny = Math.sin(c.s.facing); }
+  const overlaps = (p: Vec2): boolean => {
+    const r = PLAYER_RADIUS + 1;
+    const x0 = Math.floor((p.x - r) / 32), x1 = Math.floor((p.x + r) / 32);
+    const y0 = Math.floor((p.y - r) / 32), y1 = Math.floor((p.y + r) / 32);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (cells.has(ty * w + tx)) return true;
+    return false;
+  };
+  const moves: Array<{ f: Combatant; to: Vec2 }> = [];
+  for (const f of standingCombatants(world)) {
+    if (f.kind === "mob" && f.s.kind === "quest") continue;
+    if (!overlaps(f.s)) continue;
+    const along = (f.s.x - seg.cx) * nx + (f.s.y - seg.cy) * ny;
+    const first = f.id === c.id ? -1 : along >= 0 ? 1 : -1;
+    let to: Vec2 | null = null;
+    for (const side of [first, -first]) {
+      // Start from the fighter's own spot projected onto the wall's line, so it is set straight across, not along it.
+      const bx = f.s.x - along * nx;
+      const by = f.s.y - along * ny;
+      for (let d = WALL_PUSH_STEP; d <= WALL_PUSH_MAX && !to; d += WALL_PUSH_STEP) {
+        const p = { x: bx + nx * side * d, y: by + ny * side * d };
+        if (!overlaps(p) && circleClear(before, p, PLAYER_RADIUS, MASK_MOVE)) to = p;
+      }
+      if (to) break;
+    }
+    if (to) moves.push({ f, to });
+    else {
+      // No room on either side (a wall cast into a narrow pass with someone in it): the ice leaves a gap round them.
+      const r = PLAYER_RADIUS + 32;
+      for (const i of [...cells]) {
+        const px = (i % w) * 32 + 16;
+        const py = Math.floor(i / w) * 32 + 16;
+        if (Math.abs(px - f.s.x) <= r && Math.abs(py - f.s.y) <= r) cells.delete(i);
+      }
+    }
+  }
+  const list = [...cells].sort((a, b) => a - b);
+  if (list.length === 0) return { x: seg.cx, y: seg.cy };
+  addField(world, {
+    kind: "wall", ability: def.id, owner: sourceOf(c), subject: null, x: seg.x1, y: seg.y1, x2: seg.x2, y2: seg.y2, r: 0, vx: 0, vy: 0,
+    startedAt: now, endsAt: now + e.ms, cells: list,
+  });
+  // displace re-plans a walk in hand on the new collision map; everyone else whose walk now runs into the ice plans it again.
+  for (const m of moves) displace(world, m.f, m.to);
+  const after = collisionMap(world);
+  const moved = new Set(moves.map((m) => m.f.id));
+  for (const f of standingCombatants(world)) {
+    const path = f.rt.path;
+    if (moved.has(f.id) || path.length === 0) continue;
+    let from: Vec2 = f.s;
+    let blocked = false;
+    for (const p of path) {
+      if (!segmentClear(after, from, p, PLAYER_RADIUS)) { blocked = true; break; }
+      from = p;
+    }
+    if (blocked) f.rt.path = planPath(world, f.s, path[path.length - 1]!);
+  }
+  return { x: seg.cx, y: seg.cy };
 }
 
 /** Step 3: a Trial's zone ends when its subject is gone (silently) or has walked, or blinked, out of it (stunned by the zone's owner). */

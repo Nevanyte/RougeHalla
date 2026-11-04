@@ -31,6 +31,7 @@ function effectTip(effect: AbilityEffect): string[] {
     ];
     case "cloud": return [`Cloud lasts ${seconds(effect.ms)} · radius ${effect.radius} u`];
     case "blink": return [`Blink distance: ${effect.minDist}–${effect.maxDist} u`];
+    case "wall": return [`Wall: ${effect.length} u long for ${seconds(effect.ms)}`, "Blocks walking and melee swings; shots fly over it"];
     case "trail": return [`Trail: ${num(effect.dps)} true damage/s for ${seconds(effect.ms)}`, `Burn lingers ${seconds(effect.dotMs)} · width ${effect.halfWidth * 2} u`];
     default: {
       const exhaustive: never = effect;
@@ -55,6 +56,7 @@ export function abilityTip(
   if (r.shape.kind === "circle") lines.push(`Area radius: ${r.shape.radius} u`);
   else if (r.shape.kind === "line") lines.push(`Line: ${r.shape.length} × ${r.shape.width} u`);
   else if (r.shape.kind === "cone") lines.push(`Cone radius: ${r.shape.radius} u`);
+  else if (r.shape.kind === "wall") lines.push(`Wall: ${r.shape.length} u long`);
   if (r.castMs > 0) lines.push(`Cast: ${seconds(r.castMs)}`);
   for (const effect of r.effects) lines.push(...effectTip(effect));
   const cooldown = cooldownMs ?? abilityCooldownMs(def, rank, context);

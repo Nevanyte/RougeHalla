@@ -456,7 +456,7 @@ describe("the Wish slot (Features.wishes)", () => {
     lastOf(run(8, () => ({ state: wishWorld(faction, wishReadyAt, effects) }), { features })).extras.wish;
 
   it("is the faction's Wish as shared names it, with its ready time as the weapon bar shows it", () => {
-    for (const [faction, ability] of [["frost", "freeze"], ["plague", "swarm"], ["sentenced", "trial"], ["fire", "blaze"], ["holy", "lastStand"]] as const) {
+    for (const [faction, ability] of [["frost", "frostWall"], ["plague", "swarm"], ["sentenced", "trial"], ["fire", "blaze"], ["holy", "lastStand"]] as const) {
       const w = wishOf(faction, 91_234.6)!;
       expect(w.ability).toBe(ability);
       expect(w.def).toBe(ABILITIES[ability]);

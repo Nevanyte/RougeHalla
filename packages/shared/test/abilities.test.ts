@@ -10,8 +10,8 @@ import {
 } from "../src/index";
 
 describe("ability ids and slots", () => {
-  it("lists the five Wishes in the wire order, each once", () => {
-    expect([...ABILITY_IDS]).toEqual(["freeze", "swarm", "trial", "blaze", "lastStand"]);
+  it("lists the abilities in the wire order, each once (Frost Wall appended; Freeze kept)", () => {
+    expect([...ABILITY_IDS]).toEqual(["freeze", "swarm", "trial", "blaze", "lastStand", "frostWall"]);
     expect(new Set(ABILITY_IDS).size).toBe(ABILITY_IDS.length);
     expect(Object.keys(ABILITIES).sort()).toEqual([...ABILITY_IDS].sort());
     for (const id of ABILITY_IDS) expect(ABILITIES[id].id).toBe(id);
@@ -26,11 +26,12 @@ describe("ability ids and slots", () => {
   });
 
   it("lists the field kinds in the wire order", () => {
-    expect([...FIELD_KINDS]).toEqual(["zone", "cloud", "trail"]);
+    expect([...FIELD_KINDS]).toEqual(["zone", "cloud", "trail", "wall"]);
     expect(fieldKindOf(0)).toBe("zone");
     expect(fieldKindOf(1)).toBe("cloud");
     expect(fieldKindOf(2)).toBe("trail");
-    expect(fieldKindOf(3)).toBeUndefined();
+    expect(fieldKindOf(3)).toBe("wall");
+    expect(fieldKindOf(4)).toBeUndefined();
     expect(fieldKindOf(-1)).toBeUndefined();
     expect(fieldKindOf(Number.NaN)).toBeUndefined();
   });
@@ -80,7 +81,7 @@ describe("the Wish catalog", () => {
   });
 
   it("maps each faction to its Wish", () => {
-    expect(WISHES).toEqual({ frost: "freeze", plague: "swarm", sentenced: "trial", fire: "blaze", holy: "lastStand" });
+    expect(WISHES).toEqual({ frost: "frostWall", plague: "swarm", sentenced: "trial", fire: "blaze", holy: "lastStand" });
   });
 
   it("is cancelled and blocked by stun and silence only, so a stagger or a root never wastes one", () => {
@@ -282,11 +283,11 @@ describe("abilityCooldownMs", () => {
   /** Per-faction Wish cooldowns (the merged design): Frost 45 s, Plague 120, Holy 150, Sentenced 180; Fire's Blaze Step is a charge every 30 s. */
   const WISH_COOLDOWNS: Record<string, number> = {
     freeze: FREEZE_COOLDOWN_SECONDS * 1000, swarm: SWARM_COOLDOWN_SECONDS * 1000, lastStand: LAST_STAND_COOLDOWN_SECONDS * 1000,
-    trial: TRIAL_COOLDOWN_SECONDS * 1000, blaze: BLAZE_RECHARGE_SECONDS * 1000,
+    trial: TRIAL_COOLDOWN_SECONDS * 1000, blaze: BLAZE_RECHARGE_SECONDS * 1000, frostWall: FREEZE_COOLDOWN_SECONDS * 1000,
   };
 
   it("gives each Wish its own faction's cooldown in a real run", () => {
-    expect(WISH_COOLDOWNS).toEqual({ freeze: 45_000, swarm: 120_000, lastStand: 150_000, trial: 180_000, blaze: 30_000 });
+    expect(WISH_COOLDOWNS).toEqual({ freeze: 45_000, swarm: 120_000, lastStand: 150_000, trial: 180_000, blaze: 30_000, frostWall: 45_000 });
     for (const id of ABILITY_IDS) {
       if (ABILITIES[id].kind !== "wish") continue;
       expect(abilityCooldownMs(ABILITIES[id], 1, {}), id).toBe(WISH_COOLDOWNS[id]);

@@ -3,15 +3,15 @@
 // skills a later phase adds. A Wish is the faction's once-a-run ability (key D); its numbers are free to change, the
 // framework's names, signatures and wire layouts are the stable API (append only).
 import {
-  BLAZE_MAX_CHARGES, BLAZE_RECHARGE_SECONDS, FREEZE_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, TARGET_SNAP_RADIUS,
+  BLAZE_MAX_CHARGES, BLAZE_RECHARGE_SECONDS, FREEZE_COOLDOWN_SECONDS, FROST_WALL_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, TARGET_SNAP_RADIUS,
   TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_COOLDOWN_SECONDS, WISH_COOLDOWN_MULT_MIN,
 } from "./constants";
 import { isFactionId, type FactionId } from "./factions";
 import type { CleanseClass, StatusKind } from "./status";
 
 /** ONE id space for Wishes and Q/E skills. Wire order (fx, FieldState.ability): append only. */
-export type AbilityId = "freeze" | "swarm" | "trial" | "blaze" | "lastStand";
-export const ABILITY_IDS: readonly AbilityId[] = ["freeze", "swarm", "trial", "blaze", "lastStand"];
+export type AbilityId = "freeze" | "swarm" | "trial" | "blaze" | "lastStand" | "frostWall";
+export const ABILITY_IDS: readonly AbilityId[] = ["freeze", "swarm", "trial", "blaze", "lastStand", "frostWall"];
 
 export type AbilityKind = "wish" | "skill";
 export type AbilitySlot = "wish" | "q" | "e";
@@ -33,7 +33,9 @@ export type TargetRule =
 
 export type AbilityShape =
   | { kind: "none" } | { kind: "circle"; radius: number }
-  | { kind: "line"; length: number; width: number } | { kind: "cone"; radius: number; halfAngle: number };
+  | { kind: "line"; length: number; width: number } | { kind: "cone"; radius: number; halfAngle: number }
+  /** A barrier square to the aim, centred on the aim point (shared/barriers.ts wallSegmentFor). */
+  | { kind: "wall"; length: number };
 
 /**
  * What a cast does, as `do:` verbs. Closed, with an exhaustive switch in sim/abilities.ts: a later phase appends `damage`,
@@ -54,7 +56,12 @@ export type AbilityEffect =
   /** Self: a jump toward the cursor, through walls (blink.ts). */
   | { do: "blink"; maxDist: number; minDist: number }
   /** Self, after a blink: a burning band between the two ends. */
-  | { do: "trail"; ms: number; halfWidth: number; dps: number; dotMs: number };
+  | { do: "trail"; ms: number; halfWidth: number; dps: number; dotMs: number }
+  /**
+   * At the (clamped) aim point: a barrier square to the aim, `length` long, standing `ms` (shared/barriers.ts). Its tiles stop bodies
+   * and melee swings, not sight or shots; a fighter it lands on is pushed out to its own side (the caster's side for the caster).
+   */
+  | { do: "wall"; ms: number; length: number };
 
 /** Which pass of the cast's landing applies an effect (all casts due in a tick land together, self effects first). */
 export function effectSide(e: AbilityEffect): "self" | "target" {
@@ -63,6 +70,7 @@ export function effectSide(e: AbilityEffect): "self" | "target" {
     case "cleanse":
       return e.to;
     case "zone":
+    case "wall":
       return "target";
     case "deathFloor":
     case "cloud":
@@ -90,7 +98,7 @@ export interface AbilityRank {
 }
 
 export type AbilityIcon = "snowflake" | "swarm" | "scales" | "flame" | "cross";
-export type TelegraphArt = "none" | "beam" | "ring" | "swirl" | "flare" | "aura";
+export type TelegraphArt = "none" | "beam" | "ring" | "swirl" | "flare" | "aura" | "wall";
 
 export interface AbilityDef {
   id: AbilityId;
@@ -120,6 +128,12 @@ export interface AbilityDef {
   telegraph: TelegraphArt;
   icon: AbilityIcon;
   color: number;
+  /**
+   * How the client aims it: "preview" shows a translucent outline of where it would land (its shape, clamped to its range) from the
+   * key press, and a left click deploys it (the key again, Esc or a right click puts it away; the Quick cast setting casts at once
+   * instead). Absent: the key casts at the cursor at once, as it always did.
+   */
+  aim?: "preview";
 }
 
 /** The rank's numbers; a rank past either end is clamped to 1..ranks.length. */
@@ -140,6 +154,13 @@ export function isAbilityId(v: unknown): v is AbilityId {
 export const FREEZE_RANGE = 450;
 export const FREEZE_STUN_MS = 1250;
 export const FREEZE_CAST_MS = 250;
+/** Frost Wall (the Frost Wish since 2026-11-04, owner ruling: Freeze's point-and-click stun was too strong). Best guesses. */
+export const FROST_WALL_RANGE = 450;
+export const FROST_WALL_MIN_RANGE = 64;
+/** Seven tiles. */
+export const FROST_WALL_LENGTH = 224;
+export const FROST_WALL_MS = 4000;
+export const FROST_WALL_CAST_MS = 250;
 export const SWARM_MS = 8000;
 export const SWARM_CAST_MS = 250;
 export const SWARM_CLOUD_RADIUS = 72;
@@ -171,6 +192,7 @@ const WISH_CANCELLED_BY = ["stun", "silence"] as const;
 const unitTarget = (range: number): TargetRule => ({ kind: "unit", range, los: true, snapRadius: TARGET_SNAP_RADIUS, who: "enemy" });
 
 export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
+  // Frost's Wish until 2026-11-04 (now Frost Wall): kept in the catalog, which is a wire order, and for the harnesses that need a stun.
   freeze: {
     id: "freeze", name: "Freeze", blurb: "Freeze the enemy nearest your cursor in place for a moment.",
     kind: "wish", faction: "frost", flat: true, ownOrder: false, dropsLock: false,
@@ -235,10 +257,21 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
       ],
     }],
   },
+  frostWall: {
+    id: "frostWall", name: "Frost Wall", blurb: "Raise a wall of ice where you aim: nobody can walk or swing through it for a few seconds, but shots fly over it.",
+    kind: "wish", faction: "frost", flat: true, ownOrder: false, dropsLock: false,
+    cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["peel", "escape"],
+    telegraph: "wall", icon: "snowflake", color: 0x81d4fa, aim: "preview",
+    ranks: [{
+      cooldownMs: FROST_WALL_COOLDOWN_SECONDS * 1000, castMs: FROST_WALL_CAST_MS,
+      targeting: { kind: "point", range: FROST_WALL_RANGE, minRange: FROST_WALL_MIN_RANGE }, shape: { kind: "wall", length: FROST_WALL_LENGTH },
+      effects: [{ do: "wall", ms: FROST_WALL_MS, length: FROST_WALL_LENGTH }],
+    }],
+  },
 };
 
 export const WISHES: Readonly<Record<FactionId, AbilityId>> = {
-  frost: "freeze", plague: "swarm", sentenced: "trial", fire: "blaze", holy: "lastStand",
+  frost: "frostWall", plague: "swarm", sentenced: "trial", fire: "blaze", holy: "lastStand",
 };
 
 /** A faction's Wish, or null for an unknown faction (a training dummy has none). */
@@ -326,8 +359,8 @@ export function isAbilityDot(ability: AbilityId | undefined): boolean {
 export type CastEndReason = "fizzle" | "interrupted" | "cancelled";
 
 /** FieldState.kind codes: append only. */
-export type FieldKind = "zone" | "cloud" | "trail";
-export const FIELD_KINDS: readonly FieldKind[] = ["zone", "cloud", "trail"];
+export type FieldKind = "zone" | "cloud" | "trail" | "wall";
+export const FIELD_KINDS: readonly FieldKind[] = ["zone", "cloud", "trail", "wall"];
 
 export function fieldKindOf(code: number): FieldKind | undefined {
   return FIELD_KINDS[code];

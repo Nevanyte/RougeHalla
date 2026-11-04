@@ -419,6 +419,8 @@ export const TARGET_REPATH_MS = 250;
 // Wishes and abilities (abilities.ts). The numbers of each Wish live there.
 // Per-faction Wish cooldowns (flat: nothing shortens them; Arcane Overload still multiplies). Fire's is a recharge per charge.
 export const FREEZE_COOLDOWN_SECONDS = 45;
+/** Frost Wall, Frost's Wish (it replaced Freeze). */
+export const FROST_WALL_COOLDOWN_SECONDS = 45;
 export const SWARM_COOLDOWN_SECONDS = 120;
 export const TRIAL_COOLDOWN_SECONDS = 180;
 export const LAST_STAND_COOLDOWN_SECONDS = 150;

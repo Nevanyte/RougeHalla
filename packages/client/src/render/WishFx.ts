@@ -66,7 +66,7 @@ const FIZZLE_RED = 0xef9a9a;
 
 type EffectKind =
   // Telegraphs, one per TelegraphArt.
-  | "beam" | "ring" | "swirl" | "flare" | "aura"
+  | "beam" | "ring" | "swirl" | "flare" | "aura" | "wall"
   // Landings and the rest.
   | "iceBurst" | "slam" | "puff" | "embers" | "goldBurst" | "plain" | "fizzle" | "stars";
 
@@ -120,7 +120,7 @@ function artOf(def: AbilityDef | undefined): TelegraphArt {
 /** The radius a ring telegraph and a slam grow to: the ability's circle, else a modest ring. */
 function ringRadius(def: AbilityDef | undefined): number {
   const shape = def?.ranks[0]?.shape;
-  return shape?.kind === "circle" ? shape.radius : 120;
+  return shape?.kind === "circle" ? shape.radius : shape?.kind === "wall" ? shape.length / 2 : 120;
 }
 
 export class WishFx {
@@ -290,7 +290,7 @@ export class WishFx {
     this.dropTelegraph(fx.by);
     const def = ABILITIES[fx.ability];
     const art = artOf(def);
-    const kind: EffectKind = art === "beam" ? "iceBurst" : art === "ring" ? "slam" : art === "swirl" ? "puff"
+    const kind: EffectKind = art === "beam" || art === "wall" ? "iceBurst" : art === "ring" ? "slam" : art === "swirl" ? "puff"
       : art === "flare" ? "embers" : art === "aura" ? "goldBurst" : "plain";
     const base = {
       start: now, id: "", target: null, x: fx.x, y: fx.y, x2: fx.x2 ?? fx.x, y2: fx.y2 ?? fx.y, color: def?.color ?? 0xffffff,
@@ -370,6 +370,7 @@ export class WishFx {
     this.fl = Math.min(1, juiceScale("flash"));
     switch (e.kind) {
       case "beam": return this.drawBeam(g, e, p);
+      case "wall": return this.drawWallTelegraph(g, e, p);
       case "ring": return this.drawRing(g, e, p, moves);
       case "swirl": return this.drawSwirl(g, e, p, moves);
       case "flare": return this.drawFlare(g, e, p, moves);
@@ -403,6 +404,23 @@ export class WishFx {
       const th = (i / 3) * Math.PI;
       g.lineBetween(bx - Math.cos(th) * len, by - Math.sin(th) * len, bx + Math.cos(th) * len, by + Math.sin(th) * len);
     }
+    return true;
+  }
+
+  /** Frost Wall: a line of frost across the aim point, square to the caster, thickening as the cast gathers (the wall itself is FieldView's). */
+  private drawWallTelegraph(g: Phaser.GameObjects.Graphics, e: Active, p: number): boolean {
+    const from = this.anchorOf(e);
+    let ux = e.x - from.x;
+    let uy = e.y - from.y;
+    const d = Math.hypot(ux, uy);
+    if (d < 1) return true;
+    ux /= d;
+    uy /= d;
+    const half = e.radius;
+    const ax = projX(e.x - uy * half), ay = projY(e.y + ux * half);
+    const bx = projX(e.x + uy * half), by = projY(e.y - ux * half);
+    g.lineStyle(3 + 9 * p, e.color, 0.15 + 0.35 * p).lineBetween(ax, ay, bx, by);
+    g.lineStyle(1 + p, 0xffffff, 0.3 + 0.5 * p).lineBetween(ax, ay, bx, by);
     return true;
   }
 

@@ -1,7 +1,7 @@
 import {
   ABILITIES, AP_DOT_RATIO, BLAZE_BURN_DPS, BLAZE_BURN_MS, BLAZE_MIN_DIST, BLAZE_RANGE, CHILL_MOVE_MULT,
   EXECUTE_BAND, FACTIONS, FIRE_ROAM_BURST_AD_SHARE, FIRE_ROAM_BURST_BASE, FIRE_ROAM_CHARGE_MAX, FIRE_ROAM_RAMP_MS,
-  FREEZE_RANGE, FREEZE_STUN_MS, HEAVIER_SENTENCE_PER_BONUS, LAST_STAND_HEAL_SHARE, LAST_STAND_MS,
+  FREEZE_RANGE, FREEZE_STUN_MS, FROST_WALL_LENGTH, FROST_WALL_MS, FROST_WALL_RANGE, HEAVIER_SENTENCE_PER_BONUS, LAST_STAND_HEAL_SHARE, LAST_STAND_MS,
   LAST_STAND_SPEED_BONUS, MARK_KILL_STACK_CAP, MARK_TIER_HITS, MARK_TOP_TIER, SWARM_CLOUD_RADIUS,
   SWARM_MS, TRIAL_CONVICTED_RADIUS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS,
   TRIAL_MOVE_MULT, TRIAL_RADIUS, TRIAL_TAKEN_MULT, MARK_AS_EXPONENT, attackInterval, bonusMultiplier, cardRows, countIn, damagePerHit,
@@ -220,6 +220,7 @@ function wishRow(faction: FactionId): ChampionCombatRow {
   const def = ABILITIES[wishOf(faction)!.id];
   switch (def.id) {
     case "freeze": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(FREEZE_STUN_MS / 1000)}s stun · ${fmt(FREEZE_RANGE)} range`, scaling: "No damage scaling", tooltip: `${def.blurb} Fixed ${fmt(FREEZE_STUN_MS / 1000)} second stun within ${FREEZE_RANGE} range; no damage.` };
+    case "frostWall": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(FROST_WALL_MS / 1000)}s wall · ${fmt(FROST_WALL_RANGE)} range`, scaling: "No damage scaling", tooltip: `${def.blurb} Press R to aim it (an outline shows where it lands), click to raise it. The wall is ${FROST_WALL_LENGTH} units long, stands ${fmt(FROST_WALL_MS / 1000)} seconds and reaches ${FROST_WALL_RANGE} units; anyone it lands on is pushed to their side. No damage.` };
     case "swarm": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(SWARM_MS / 1000)}s hidden · ${SWARM_CLOUD_RADIUS} radius`, scaling: "No damage scaling", tooltip: `${def.blurb} Hidden for ${fmt(SWARM_MS / 1000)} seconds; the cloud radius is ${SWARM_CLOUD_RADIUS}. No damage.` };
     case "trial": return { id: "wish", icon: def.icon, name: def.name, value: `${fmt(TRIAL_MS / 1000)}s zone · ${fmt((1 - TRIAL_DEALT_MULT) * 100)}% less dealt`, scaling: `${fmt((1 - TRIAL_MOVE_MULT) * 100)}% slower · +${fmt((TRIAL_TAKEN_MULT - 1) * 100)}% taken · ${fmt(TRIAL_EXIT_STUN_MS / 1000)}s exit stun`, tooltip: `${def.blurb} The ring lasts ${fmt(TRIAL_MS / 1000)} seconds, radius ${TRIAL_RADIUS} (or ${TRIAL_CONVICTED_RADIUS} on a convicted mark); its target deals ${fmt(TRIAL_DEALT_MULT * 100)}% damage, moves at ${fmt(TRIAL_MOVE_MULT * 100)}% speed, takes ${fmt(TRIAL_TAKEN_MULT * 100)}%, and is stunned ${fmt(TRIAL_EXIT_STUN_MS / 1000)} seconds on exit. No damage scaling.` };
     case "blaze": return { id: "wish", icon: def.icon, name: def.name, value: `${BLAZE_BURN_DPS} true DPS · ${fmt(BLAZE_BURN_MS / 1000)}s trail`, scaling: `${BLAZE_MIN_DIST}–${BLAZE_RANGE} blink · fixed damage`, tooltip: `${def.blurb} Blink ${BLAZE_MIN_DIST}–${BLAZE_RANGE} units and leave a ${fmt(BLAZE_BURN_MS / 1000)} second trail dealing fixed ${BLAZE_BURN_DPS} true damage per second. Wish damage does not scale with Offense, SO, weapon, or card damage multipliers.` };

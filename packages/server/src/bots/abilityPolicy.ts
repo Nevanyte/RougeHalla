@@ -4,11 +4,12 @@
 //
 // The intents are tried in the order the def lists them, and the first that fires decides:
 //   escape   in trouble (low hp with a threat close, or low hp and being hit): a self cast goes as it is; a point cast (a blink)
-//            goes away from the threat, at the first of a few headings that has a valid landing; a unit cast is not an escape
+//            goes away from the threat, at the first of a few headings that has a valid landing; a wall goes between us and the
+//            threat; a unit cast is not an escape
 //   sustain  low hp and being hit: a self cast
 //   engage / control   a targetable PLAYER foe in line of sight within the ability's range: a unit cast on it, or a point or
 //            direction toward it (a blink stops short of it)
-//   peel     a targetable enemy right on us and chasing: a unit cast on it
+//   peel     a targetable enemy right on us and chasing: a unit cast on it, or a wall dropped on it (it is pushed to its far side)
 //   burst / zone / buff   not used until skills arrive
 // Nothing is cast while a status the def lists as blocking is on the bot, or while it is already casting.
 import {
@@ -50,6 +51,12 @@ export const ENGAGE_BLINK_STOP_SHORT = 40;
 
 const BLOCK_BITS = { stun: EFFECT_STUNNED, silence: EFFECT_SILENCED, root: EFFECT_ROOTED } as const;
 
+/** A wall goes up against an enemy chasing us this close (and not closer than WALL_PEEL_MIN, where it would land on us too). */
+export const WALL_PEEL_DISTANCE = 260;
+export const WALL_PEEL_MIN = 56;
+/** A wall dropped to peel lands this share of the way to the enemy (pushing it back to its side). */
+export const WALL_PEEL_SHARE = 0.7;
+
 /** Headings tried for an escaping blink, as angles off straight away from the threat. */
 const ESCAPE_HEADINGS = [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, (3 * Math.PI) / 4, -(3 * Math.PI) / 4];
 
@@ -65,7 +72,7 @@ export function decideCast(def: AbilityDef, rank: number, s: CastSituation): Cas
       case "sustain": choice = s.me.hpFrac < SUSTAIN_HP && s.me.recentlyHit && r.targeting.kind === "self" ? self(s) : null; break;
       case "engage":
       case "control": choice = engage(r.targeting, r.effects, s); break;
-      case "peel": choice = peel(r.targeting, s); break;
+      case "peel": choice = peel(r.targeting, r.effects, s); break;
       case "burst":
       case "zone":
       case "buff":
@@ -81,6 +88,17 @@ export function decideCast(def: AbilityDef, rank: number, s: CastSituation): Cas
 }
 
 const self = (s: CastSituation): CastChoice => ({ x: s.me.x, y: s.me.y });
+
+function wallOf(effects: readonly AbilityEffect[]): boolean {
+  return effects.some((e) => e.do === "wall");
+}
+
+/** A wall between us and an enemy at `t`: most of the way to it, inside the wall's range. */
+function wallBetween(rule: TargetRule, s: CastSituation, t: { x: number; y: number; d: number }): CastChoice | null {
+  if (rule.kind !== "point" || t.d < WALL_PEEL_MIN || t.d > WALL_PEEL_DISTANCE) return null;
+  const k = Math.min(rule.range, t.d * WALL_PEEL_SHARE) / t.d;
+  return { x: s.me.x + (t.x - s.me.x) * k, y: s.me.y + (t.y - s.me.y) * k };
+}
 
 function blinkOf(effects: readonly AbilityEffect[]): Extract<AbilityEffect, { do: "blink" }> | undefined {
   for (const e of effects) if (e.do === "blink") return e;
@@ -102,6 +120,7 @@ function escape(rule: TargetRule, effects: readonly AbilityEffect[], s: CastSitu
   // Away from the enemy that is on us; failing that, away from what we are fighting.
   const from = s.threat ?? s.foe;
   if (!from) return null;
+  if (wallOf(effects)) return wallBetween(rule, s, { x: from.x, y: from.y, d: Math.hypot(from.x - s.me.x, from.y - s.me.y) });
   const dx = m.x - from.x;
   const dy = m.y - from.y;
   const len = Math.hypot(dx, dy);
@@ -142,9 +161,11 @@ function engage(rule: TargetRule, effects: readonly AbilityEffect[], s: CastSitu
   return null;
 }
 
-function peel(rule: TargetRule, s: CastSituation): CastChoice | null {
+function peel(rule: TargetRule, effects: readonly AbilityEffect[], s: CastSituation): CastChoice | null {
   const t = s.threat;
-  if (!t || !t.chasing || t.d > PEEL_DISTANCE || t.targetable === false) return null;
+  if (!t || !t.chasing || t.targetable === false) return null;
+  if (wallOf(effects)) return wallBetween(rule, s, t);
+  if (t.d > PEEL_DISTANCE) return null;
   if (rule.kind === "unit") {
     if (t.id === undefined || t.los === false || t.d > rule.range - ENGAGE_RANGE_MARGIN) return null;
     return { x: t.x, y: t.y, id: t.id };

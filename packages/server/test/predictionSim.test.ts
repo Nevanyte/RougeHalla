@@ -20,6 +20,10 @@ import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
 import type { World } from "../src/sim/world";
 import { roomMap, tileClassAt, vertical } from "./terrainWorld";
+import { useLegacyFreeze } from "./support/legacyFreeze";
+
+// The pipeline's unit-target tests use Freeze (Frost's Wish until Frost Wall): this file's Frost slot holds it.
+useLegacyFreeze();
 
 const W = 60;
 const H = 30;

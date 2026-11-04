@@ -92,7 +92,7 @@ describe("SettingsPanel structure", () => {
     const { root } = setup();
     const controls = root.find((e) => e.id.startsWith("sp-"));
     expect(controls.map((c) => c.id).sort()).toEqual(
-      ["sp-drawAhead", "sp-fullscreen", "sp-hiDpi", "sp-juice", "sp-reducedMotion", "sp-showFps", "sp-showPing", "sp-showRoute"].sort(),
+      ["sp-drawAhead", "sp-fullscreen", "sp-hiDpi", "sp-juice", "sp-quickCast", "sp-reducedMotion", "sp-showFps", "sp-showPing", "sp-showRoute"].sort(),
     );
     for (const control of controls) {
       const labels = root.find((e) => e.tagName === "LABEL" && e.htmlFor === control.id);

@@ -7,7 +7,7 @@ import {
   TILE_FLOOR, TILE_WALL, TRIAL_RANGE, WISHES, type AbilityDef, type AbilityId, type FactionId, type GameMap,
 } from "@raid/shared";
 import {
-  ENGAGE_BLINK_MIN_DISTANCE, ENGAGE_BLINK_STOP_SHORT, ENGAGE_RANGE_MARGIN, PEEL_DISTANCE, decideCast, type CastSituation,
+  ENGAGE_BLINK_MIN_DISTANCE, ENGAGE_BLINK_STOP_SHORT, ENGAGE_RANGE_MARGIN, PEEL_DISTANCE, WALL_PEEL_DISTANCE, WALL_PEEL_MIN, WALL_PEEL_SHARE, decideCast, type CastSituation,
 } from "../src/bots/abilityPolicy";
 
 const W = 40;
@@ -214,9 +214,25 @@ describe("Blaze Step (a point cast: a blink)", () => {
 });
 
 describe("one policy per intent covers every Wish", () => {
+  it("Frost Wall peels and escapes by dropping the wall most of the way to the chaser, never on a foe that stands off or is on top of it", () => {
+    const at = cast("frostWall", calm({ threat: threatAt(200) }));
+    expect(at).not.toBeNull();
+    expect(at!.id).toBeUndefined();
+    expect(at!.x - ME.x).toBeCloseTo(200 * WALL_PEEL_SHARE, 6);
+    expect(at!.y).toBe(ME.y);
+    expect(cast("frostWall", calm({ threat: threatAt(200, { chasing: false }) }))).toBeNull();
+    expect(cast("frostWall", calm({ threat: threatAt(WALL_PEEL_MIN - 1) }))).toBeNull();
+    expect(cast("frostWall", calm({ threat: threatAt(WALL_PEEL_DISTANCE + 1) }))).toBeNull();
+    // In trouble (low and hit) it goes between the bot and the enemy too, chasing or not.
+    const out = cast("frostWall", calm({ me: { hpFrac: 0.3, recentlyHit: true }, threat: threatAt(150, { chasing: false }) }));
+    expect(out!.x - ME.x).toBeCloseTo(150 * WALL_PEEL_SHARE, 6);
+    // Never a unit cast, and nothing at peace.
+    expect(cast("frostWall", calm({ foe: foeAt(200) }))).toBeNull();
+  });
+
   it("each Wish has an intent the policy handles, and a situation in which it casts", () => {
     const wants: Record<FactionId, CastSituation> = {
-      frost: calm({ foe: foeAt(200) }),
+      frost: calm({ threat: threatAt(200) }),
       plague: calm({ me: { hpFrac: 0.3, recentlyHit: true } }),
       sentenced: calm({ foe: foeAt(200) }),
       fire: calm({ me: { hpFrac: 0.4 }, threat: threatAt(150) }),

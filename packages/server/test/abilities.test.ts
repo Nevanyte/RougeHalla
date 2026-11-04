@@ -38,6 +38,10 @@ import { addStatus, findStatus, isHidden, isStunned, isUntargetable, reveal, sta
 import { installTraining } from "../src/sim/training";
 import { stagger } from "../src/sim/weapons";
 import type { SimEvent, World } from "../src/sim/world";
+import { useLegacyFreeze } from "./support/legacyFreeze";
+
+// The pipeline's unit-target tests use Freeze (Frost's Wish until Frost Wall): this file's Frost slot holds it.
+useLegacyFreeze();
 
 const W_TILES = 40;
 const H_TILES = 20;
