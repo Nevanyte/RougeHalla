@@ -4,6 +4,10 @@
 //! Boundaries: no sockets, files, threads, wall clock or entropy. The live server (`rh-server`) and the headless runner
 //! (`rh-headless`) drive the same [`Sim`] through [`Sim::submit`] and [`Sim::step`].
 
+// `!(x > 0.0)` is deliberate throughout: it is the legacy NaN-safe test ("not a positive number"), not `x <= 0.0`.
+#![allow(clippy::neg_cmp_op_on_partial_ord)]
+
+pub mod arenas;
 pub mod constants;
 pub mod content;
 pub mod geometry;

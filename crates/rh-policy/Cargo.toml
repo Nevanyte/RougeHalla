@@ -1,0 +1,13 @@
+[package]
+name = "rh-policy"
+description = "The policy contract: how scripted bots today and learned policies later drive a seat, live or headless."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+rh-sim = { path = "../rh-sim" }
+
+[lints]
+workspace = true

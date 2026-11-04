@@ -916,6 +916,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rh-headless"
+version = "0.1.0"
+dependencies = [
+ "rh-policy",
+ "rh-sim",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rh-parity"
 version = "0.1.0"
 dependencies = [
@@ -937,6 +947,13 @@ dependencies = [
  "thiserror",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "rh-policy"
+version = "0.1.0"
+dependencies = [
+ "rh-sim",
 ]
 
 [[package]]

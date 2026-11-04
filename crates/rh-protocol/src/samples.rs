@@ -4,6 +4,8 @@
 use crate::map::MapBlob;
 use crate::*;
 
+// The aim of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range.
+#[allow(clippy::approx_constant)]
 pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
     vec![
         (

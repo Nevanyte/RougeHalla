@@ -425,6 +425,21 @@ for (const sc of SCENARIOS) {
   writeFileSync(join(OUT, `${sc.name}.json`), JSON.stringify(fx));
   console.log(`${sc.name}: ${fx.ticks.length} ticks, ${fx.results.length} results, mobs ${fx.legacyConfig.mobsPresent}, unexpected [${fx.legacyConfig.unexpectedEventTypes.join(",")}] (${(performance.now() - t0).toFixed(0)} ms)`);
 }
+// The canonical public map for the Rust server and headless runner: the legacy generator's certified map of a seed, exported once
+// (docs/adr/0003-canonical-map.md). The generator itself is not ported yet (docs/backlog P-MAP-1).
+function exportMap(seed: number): unknown {
+  const map = generateMap(seed);
+  return {
+    format: "rh-map/1", source: "legacy generateMap", legacyRevision: revision(), seed, attempt: map.attempt, mapHashU32: mapHashU32(map),
+    w: map.w, h: map.h, tile: TILE, rows: rowsOf(map), spawns: map.spawnPool.map((s) => [s.x, s.y]),
+  };
+}
+
+if (!only || only === "map") {
+  mkdirSync(resolve(repo, "parity/maps"), { recursive: true });
+  writeFileSync(resolve(repo, "parity/maps/seed1.map.json"), JSON.stringify(exportMap(1)));
+  console.log("parity/maps/seed1.map.json written");
+}
 if (!only || only === "pathfinding") {
   const t0 = performance.now();
   writeFileSync(join(OUT, "pathfinding_seed1.json"), JSON.stringify(pathfindingFixture(1, 300)));

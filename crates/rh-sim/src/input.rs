@@ -44,7 +44,7 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         if !x.is_finite() || !y.is_finite() {
             return Err(Reject::NonFinite);
         }
-        Ok((x.max(0.0).min(WORLD_W), y.max(0.0).min(WORLD_H)))
+        Ok((x.clamp(0.0, WORLD_W), y.clamp(0.0, WORLD_H)))
     };
     let angle = |a: f64| if a.is_finite() { Ok(wrap_angle(a)) } else { Err(Reject::NonFinite) };
     let time = |t: Option<f64>| t.filter(|v| v.is_finite());
