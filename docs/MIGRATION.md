@@ -12,8 +12,8 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 | Stage 1 revision | the head of `optimization_port` carrying this file (Stage 1 commits: `114156b`..HEAD; see `git log 75c5b83..`) |
 | Working tree at handoff | clean (everything committed and pushed) |
 | Verdict | **READY FOR GPT WITH EXTERNAL GATES** (gates below) |
-| Next | Finish the core optimization sweep ([sweep/README.md](sweep/README.md): 8 packages merged, 2 WIP branches, remaining specs), then backlog wave 0 (P-CAPTURE-1) and wave 1 |
-| Sweep status | Paused for the move to local development; the Stage 1 numbers below predate it (current numbers: sweep/README.md) |
+| Next | Finish the core optimization sweep ([sweep/README.md](sweep/README.md): P2b, P10a, P7a, P5b, P5c, P7b and P5d are merged at `a0e705e`; P8, P9, P10b and the CI perf gate are in progress on other branches, then the final review), then backlog wave 0 (P-CAPTURE-1) and wave 1 |
+| Sweep status | **In progress** with the packages above merged; the Stage 1 tables below are kept as recorded and marked, the "Sweep results" section carries the current numbers (cumulative table: sweep/README.md) |
 
 ### External gates (cannot be resolved inside this repository)
 1. **Unity Editor + license**: none was available. The Unity project (`client-unity/UnityProject`) was never opened,
@@ -82,6 +82,8 @@ Python 3.13.18; Playwright 1.63.0 with HeadlessChrome 153.0.8010.12; Claude Code
 | `npm run typecheck` (legacy) | passed |
 
 ## Benchmarks (labelled; the machine is a shared 4-vCPU container, read the shape, not the decimals)
+The tables in this section are the **Stage 1 record** (revision at the checkpoint above, wall-clock, protocol v1); the
+sweep changed the tick, the wire and the server since. Current deterministic numbers are in "Sweep results" below.
 Release builds; `x86_64`, native; the shared 4-vCPU container described above. Sources: `parity-bench`,
 `parity/legacy-capture/bench.ts`, `wirebench`, `rh-headless`, and the legacy `stepBench.ts` / `bandwidth.ts`.
 
@@ -106,7 +108,8 @@ ticks/s on one thread (p50 per-match mean step 14.1 µs); legacy seed-1 map 160x
 (2.7 µs/step), all truncated at 12,000 ticks because the wandering bots rarely meet on the big map (a scripted-bot
 limitation, not the sim's).
 
-**Bytes per player** (payload only, no WebSocket/TCP/TLS framing):
+**Bytes per player, Stage 1, protocol v1** (payload only, no WebSocket/TCP/TLS framing; protocol v2 is 908 B/player/s on
+the "players only" workload, see "Sweep results"; the other rows were not re-measured):
 
 | | Rust slice (`wirebench`) | Legacy (`bandwidth.ts`, seed 1) |
 |---|---|---|
@@ -123,7 +126,61 @@ browser frame times (the Unity client does not exist yet; the legacy Phaser figu
 are historical, not re-measured), memory per match (the slice's `Sim` is small; measure with mobs).
 
 **Capacity:** not established. The slice's numbers say nothing about the full game's density; the sizing scenario
-(200 matches / 1,600 players) remains an assumption (ADR 0004).
+(200 matches / 1,600 players) remains an assumption (ADR 0004). The sweep added an in-process density estimate, clearly
+labelled below ("Sweep results"); it is not AWS capacity.
+
+## Sweep results (core optimization sweep, in progress; measured at `a0e705e`)
+Machine for every number here: x86_64 cloud container, 4 vCPU (Intel Xeon @ 2.80 GHz, shared), Linux 6.18. Instruction and
+allocation figures are **deterministic counts** (valgrind callgrind Ir and DHAT, identical run to run); wall times are not
+used for any claim. Packages merged: P2b, P10a, P7a, P5b, P5c, P7b, P5d (details and per-package proofs:
+[sweep/README.md](sweep/README.md)); P8, P9, P10b and the CI gate are not merged, so none of their effects is included.
+
+**Cumulative against the Stage 1 head `7d94332`** (`python3 tools/perfproof/perfproof.py --baseline 7d94332 --only
+sim_crowded_8,sim_duel_chase,sim_fists_duel,wire_seed1_8bots,headless_seed1_8bots,headless_arena_8bots`; needs valgrind):
+
+| Workload (per step / tick) | Instructions | Allocations |
+|---|---|---|
+| sim_crowded_8 | 15,272 -> 7,545 (0.494x, harness caveat) | 19.32 -> 0.13 |
+| sim_duel_chase | 5,893 -> 2,979 (0.506x, harness caveat) | 10.71 -> 0.07 |
+| sim_fists_duel | 5,521 -> 2,665 (0.483x, harness caveat) | 10.45 -> 0.18 |
+| wire_seed1_8bots | 50,692 -> 32,345 (0.638x) | 72.16 -> 22.73 |
+| headless_seed1_8bots | 14,647 -> 10,124 (0.691x) | 13.34 -> 3.38 |
+| headless_arena_8bots | 48,844 -> 41,315 (0.846x) | 32.15 -> 14.74 |
+
+Harness caveat: the `sim_*` rows compare the old `parity_bench` (parsed fixture JSON inside the measured loop) with the new one
+(P7b moved the parsing out), so they include removing the harness's own work. With the new harness on both sides (P7b report,
+not re-run here): crowded_8 0.595x and duel_chase 0.612x Ir per step vs `7d94332`. Behaviour fingerprints are identical on
+every workload except the declared wire change below.
+
+**Wire** (`cargo run --release -p rh-server --bin wirebench`, seed 1, 8 bots, 2,400 steps, payload bytes only):
+**908 B/player/s** (snapshot 859, fx 48, events 0; 22.9 frames per player-second; mean snapshot 43.0 B; mean 1.49 actors in
+sight; Welcome 4,911 B), against 1,888 B/player/s (mean snapshot 89.8 B) under protocol v1 at `7d94332`: 0.481x. Encoder
+cost stayed within budget (wire workload 0.638x Ir/step of Stage 1 including everything else that changed).
+
+**Server density** (`densitybench`, in-process: the real Room, Outbox and Pacer on a paused clock, in-process clients, no
+sockets, TLS or kernel network). `cargo build --release -p rh-server --features bench --bin densitybench`, then
+`target/release/densitybench --rooms 4 --humans 8 --secs 20` (practice map, 8 humans per room, no bots): notifies 1.0 and
+writer wakes 1.0 per human-tick (1.097 notifies before P5c), 1.0947 frames and 92.83 B per human-tick, **4,178,279 Ir per
+match-second** (callgrind: (519,590,708 at `--secs 30` - 185,328,394 at `--secs 10`) / (4 rooms x 20 s)). From the P5b report,
+not re-run here: about 82 KB heap per room (DHAT, practice map, `--rooms 1` vs `--rooms 5` t-gmax), 31.1 M Ir per match-second
+on the seed-1 map (2 rooms), per-room step telemetry 384 B (fixed histogram; was an unbounded sample list).
+
+**Capacity estimate (an ESTIMATE, not measured AWS capacity):** the bench prints matches per vCPU from this machine's
+single-thread paused-clock wall time with 50% CPU headroom: 539.5 on the practice map in the run above (wall time is noisy);
+the P5b report recorded 566 (practice map) and 73 (seed-1 map, the large map) per vCPU. There are no sockets, TLS or kernel
+network in it; the Stage 1 audit measured sockets at about 80% of server CPU on the slice, so a real instance will be well
+below these figures and must be measured on the target instance (ADR 0004, P-HOST-1). Use the deterministic counts (Ir per
+match-second per map, wakes and notifies per human-tick, heap per room) as the sizing inputs, not these wall-clock estimates.
+
+**Scaling** (`cargo run --release -p rh-headless --features bench --bin scalebench -- step 212 200`; P7b report, not re-run
+here): ledger Ir per entry 873 at N=32 and 878 at N=212 (1.006x; 3.96x before P7b); `Sim::step` Ir per fighter per step in a packed
+melee 1,730 / 2,628 / 5,019 / 7,204 at N = 8 / 32 / 128 / 212 (17,425 at N=212 before P7b: the melee candidate scan is still
+O(attackers x bodies)); observe 7.3 us and publish 9.6 us at 204 synthetic actors (wall, noisy).
+
+**Commands for these numbers:** perfproof as above (self-contained: it builds the baseline in a temporary worktree; use
+`CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only` and about 6 GB of free disk; delete `target/perfproof`
+afterwards); `cargo run --release -p rh-server --bin wirebench`; densitybench and scalebench as above;
+`cargo test -p rh-sim --test no_alloc` (0 allocations per steady-state step).
 
 ## Optimizations made in Stage 1 (with evidence)
 | Change | Mechanism | Evidence | Behavioural risk |

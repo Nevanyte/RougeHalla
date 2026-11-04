@@ -3,8 +3,8 @@
 Roguehalla is being migrated from a TypeScript/Colyseus/Phaser game (`packages/`, still runnable) to a Rust authoritative
 server (`crates/`) and a Unity browser client (`client-unity/`). Stage 1 (foundation) is done; the bulk port is next.
 
-**In progress: the core optimization sweep** ([docs/sweep/README.md](docs/sweep/README.md): merged packages, two WIP
-branches to finish, remaining specs in [docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)). Finish it before backlog packets that edit `crates/rh-sim`.
+**In progress: the core optimization sweep** ([docs/sweep/README.md](docs/sweep/README.md): merged packages; P8, P9, P10b and the
+CI perf gate still in progress, specs in [docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)). Finish it before backlog packets that edit `crates/rh-sim`.
 
 Read in this order: [docs/MIGRATION.md](docs/MIGRATION.md) (state, checkpoint, commands, results), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md),
 [docs/CONTRACTS.md](docs/CONTRACTS.md), [docs/backlog/README.md](docs/backlog/README.md) and its ready packets,
