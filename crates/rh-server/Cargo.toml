@@ -13,6 +13,8 @@ postgres = ["dep:rh-persist", "dep:uuid"]
 # The density benchmark (src/bin/densitybench.rs): it runs rooms on a paused tokio clock, which needs tokio's test-util.
 # Only a feature of the existing tokio dependency (no new crate); a default build of the server does not carry it.
 bench = ["tokio/test-util"]
+# The snapshot-delta decision bench (src/bin/deltabench.rs, ADR 0010): fighters past the lobby cap (rh-sim `bench`).
+synthetic = ["rh-sim/bench"]
 
 [dependencies]
 rh-sim = { path = "../rh-sim" }
@@ -40,6 +42,11 @@ tokio = { version = "1", features = ["test-util"] }
 name = "densitybench"
 path = "src/bin/densitybench.rs"
 required-features = ["bench"]
+
+[[bin]]
+name = "deltabench"
+path = "src/bin/deltabench.rs"
+required-features = ["synthetic"]
 
 [lints]
 workspace = true

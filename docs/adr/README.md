@@ -15,3 +15,4 @@ provisional decision is the working default until the named experiment confirms 
 | [0007](0007-determinism.md) | Determinism scope, numeric policy, RNG streams, replays | Accepted |
 | [0008](0008-unity-client.md) | Unity 6 LTS Web client; engine-independent C# net library; narrow prediction | Provisional |
 | [0009](0009-core-layout.md) | `rh-sim` core layout; the tick schedule, hook chains and input seam as data that a test compares with legacy | Accepted |
+| [0010](0010-snapshot-delta.md) | Per-connection snapshot delta: gate passed (62% of bytes at 8 players), implementation awaits an owner decision; the wire stays v2 | Proposed |
