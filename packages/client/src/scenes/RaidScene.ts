@@ -71,7 +71,7 @@ import type { MapRosterPlayer } from "../ui/mapRoster";
 import { QuestDialog, type QuestDialogFrame, type QuestDialogMe } from "../ui/questDialog";
 import { QuestLog } from "../ui/questLog";
 import { expireQuestPreviews, questAccepted, questItemQuestId, questCollections, questFromReveal, questMinimapBlips, questObjectiveMarkers, type QuestMobTarget, type QuestStateLike } from "../ui/questModel";
-import { RouteState } from "../ui/route";
+import { RouteState, routeJumped } from "../ui/route";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
 import { TrainingBar } from "../ui/trainingBar";
@@ -196,6 +196,8 @@ export class RaidScene extends Phaser.Scene {
   /** The route's version the minimap was last given, and whether this run's start was set from where the player stands. */
   private lastRouteVersion = -1;
   private runStarted = false;
+  /** Last living server position used to spot a teleport/rejoin that must re-anchor every route view. */
+  private lastRouteAt: Vec2 | null = null;
   private hud!: Hud;
   private huntHud!: SentencedHuntHud;
   private huntMarker: PlanningEnemy | null = null;
@@ -406,6 +408,7 @@ export class RaidScene extends Phaser.Scene {
     this.route = new RouteState(this.training ? null : this.room.roomId);
     this.lastRouteVersion = -1;
     this.runStarted = false;
+    this.lastRouteAt = null;
     // Before buildMap: it hands the view the map's camps.
     this.groundRoute?.destroy();
     this.groundRoute = new GroundRouteView(this);
@@ -877,6 +880,7 @@ export class RaidScene extends Phaser.Scene {
     const map = this.mapView?.map;
     if (!map) return;
     if (state.phase !== "active" || state.training === true || !me) {
+      this.lastRouteAt = null;
       if (this.lastRouteVersion !== -2) {
         this.minimap.setRoute(null);
         this.groundRoute?.reset();
@@ -891,7 +895,19 @@ export class RaidScene extends Phaser.Scene {
       this.route.setStart({ x: me.x, y: me.y });
       this.groundRoute?.reset();
     }
-    if (me.status === "alive") this.route.advance({ x: me.x, y: me.y });
+    if (me.status === "alive") {
+      const at = { x: me.x, y: me.y };
+      if (routeJumped(this.lastRouteAt, at)) {
+        // A teleport/rejoin skips the old ground instead of walking it. Re-path from the landing point and clear every old dash,
+        // so the ground, minimap and held map never disagree about where the remaining route begins.
+        this.route.setStart(at);
+        this.groundRoute?.reset();
+      }
+      this.lastRouteAt = at;
+      this.route.advance(at);
+    } else {
+      this.lastRouteAt = null;
+    }
     if (this.route.version === this.lastRouteVersion) return;
     this.lastRouteVersion = this.route.version;
     const ahead = this.route.ahead(map);
