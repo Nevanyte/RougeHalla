@@ -77,7 +77,6 @@ struct Pass<'a> {
     k: &'a MatchStatic,
     w: &'a mut World,
     ev: &'a mut Vec<Event>,
-    rank: &'a [u32],
     bounty_at_tick_start: &'a [u32],
     downed: &'a mut Vec<PlayerId>,
 }
@@ -88,14 +87,6 @@ struct Bufs<'a> {
     amounts: &'a mut Vec<f64>,
     order: &'a mut Vec<(usize, usize)>,
     hits: &'a mut Vec<(f64, PlayerId)>,
-}
-
-/// The place of `id` in the tick's action order (anyone not in it, such as a leaver, after everyone): the slot is a
-/// binary search, the rank a dense array read.
-fn rank_of(w: &World, rank: &[u32], id: PlayerId) -> usize {
-    w.idx(id)
-        .and_then(|slot| rank.get(slot))
-        .map_or(usize::MAX, |&r| r as usize)
 }
 
 /// System (legacy step.ts, the ledger's opening): the entries a hook link deferred last tick (returned damage, Overkill's
@@ -126,6 +117,7 @@ pub(crate) fn apply(cx: &mut Cx) {
         slot_head,
         slot_tail,
         entry_next,
+        entry_rank,
         idxs,
         amounts,
         order,
@@ -140,7 +132,7 @@ pub(crate) fn apply(cx: &mut Cx) {
     // slot and nothing to apply to.
     victims.clear();
     entry_next.clear();
-    entry_next.resize(ledger.len(), NONE);
+    entry_rank.clear();
     if slot_head.len() < w.players.len() {
         slot_head.resize(w.players.len(), NONE);
         slot_tail.resize(w.players.len(), NONE);
@@ -148,6 +140,10 @@ pub(crate) fn apply(cx: &mut Cx) {
     mults.clear();
     for (n, e) in ledger.iter().enumerate() {
         let vslot = w.idx(e.victim);
+        let by_slot = w.idx(e.by);
+        entry_next.push(NONE);
+        // The hit's place in the action order (anyone not in it, such as a leaver, after everyone), looked up once here.
+        entry_rank.push(by_slot.and_then(|b| rank.get(b)).map_or(u32::MAX, |&r| r));
         if let Some(v) = vslot {
             if slot_head[v] == NONE {
                 victims.push(v as u32);
@@ -158,7 +154,7 @@ pub(crate) fn apply(cx: &mut Cx) {
             slot_tail[v] = n as u32;
         }
         mults.push(
-            if k.config.pvp_rules && vslot.is_some() && w.idx(e.by).is_some() {
+            if k.config.pvp_rules && vslot.is_some() && by_slot.is_some() {
                 pvp_factor(0.0)
             } else {
                 1.0
@@ -171,7 +167,6 @@ pub(crate) fn apply(cx: &mut Cx) {
         k,
         w,
         ev,
-        rank,
         bounty_at_tick_start,
         downed: downed_this_tick,
     };
@@ -191,13 +186,20 @@ pub(crate) fn apply(cx: &mut Cx) {
         }
         slot_head[vi] = NONE;
         slot_tail[vi] = NONE;
-        apply_victim(&mut pass, &mut bufs, vi, ledger, mults);
+        apply_victim(&mut pass, &mut bufs, vi, ledger, mults, entry_rank);
     }
     pay_all(pass.w, pass.ev);
     ledger.clear();
 }
 
-fn apply_victim(pass: &mut Pass, b: &mut Bufs, vi: usize, ledger: &[Entry], mults: &[f64]) {
+fn apply_victim(
+    pass: &mut Pass,
+    b: &mut Bufs,
+    vi: usize,
+    ledger: &[Entry],
+    mults: &[f64],
+    entry_rank: &[u32],
+) {
     let v = pass.w.players[vi].id;
     if !pass.w.players[vi].standing() {
         return;
@@ -233,7 +235,7 @@ fn apply_victim(pass: &mut Pass, b: &mut Bufs, vi: usize, ledger: &[Entry], mult
     // entries' own order: the key (rank, position) is total, so an unstable sort gives the stable sort's order and needs no
     // merge buffer however many hits a victim takes.
     order.clear();
-    order.extend((0..idxs.len()).map(|j| (rank_of(pass.w, pass.rank, ledger[idxs[j]].by), j)));
+    order.extend((0..idxs.len()).map(|j| (entry_rank[idxs[j]] as usize, j)));
     order.sort_unstable();
     hits.clear();
     hits.extend(order.iter().map(|&(_, j)| (amounts[j], ledger[idxs[j]].by)));

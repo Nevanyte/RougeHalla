@@ -42,8 +42,11 @@ pub(crate) fn action_order(cx: &mut Cx) {
     s.action_order.clear();
     s.action_order.extend(0..w.players.len() as u32);
     action_order_in_place(k.secrets.order_salt, w.tick, &mut s.action_order);
-    s.rank.clear();
-    s.rank.resize(w.players.len(), 0);
+    // The order is a permutation of the slots, so every entry is overwritten below: only a change of size needs a fill.
+    if s.rank.len() != w.players.len() {
+        s.rank.clear();
+        s.rank.resize(w.players.len(), 0);
+    }
     for (r, &slot) in s.action_order.iter().enumerate() {
         s.rank[slot as usize] = r as u32;
     }

@@ -40,10 +40,17 @@ impl<T: Keyed> Store<T> {
         }
     }
 
-    /// The slot of `id`, if present: O(log n).
+    /// The slot of `id`, if present: O(1) while ids are dense (nobody left), O(log n) otherwise. Ids strictly ascend, so an
+    /// item with id `id` sits at a slot no later than `id - first id`: that slot is tried first (the whole answer for a
+    /// store nobody has been removed from) and bounds the binary search when it misses.
     #[inline]
     pub fn idx(&self, id: EntityId) -> Option<usize> {
-        self.items.binary_search_by_key(&id, Keyed::key).ok()
+        let first = self.items.first()?.key();
+        let at = (id.0.checked_sub(first.0)? as usize).min(self.items.len() - 1);
+        if self.items[at].key() == id {
+            return Some(at);
+        }
+        self.items[..at].binary_search_by_key(&id, Keyed::key).ok()
     }
 
     #[inline]
@@ -167,6 +174,23 @@ mod tests {
             "iteration is id order"
         );
         assert!(s.remove(PlayerId(2)).is_none());
+        // Below the first id, and past the last: absent, never a wrong slot.
+        assert_eq!(s.idx(PlayerId(0)), None);
+        assert_eq!(s.idx(PlayerId(100)), None);
+        assert_eq!(Store::<It>::new().idx(PlayerId(1)), None);
+    }
+
+    #[test]
+    fn every_id_of_a_sparse_store_finds_its_slot() {
+        let ids = [3u32, 4, 8, 9, 10, 40, 41, 100];
+        let mut s = Store::new();
+        for id in ids {
+            s.push(It(PlayerId(id), 0));
+        }
+        for probe in 0..120u32 {
+            let want = ids.iter().position(|&i| i == probe);
+            assert_eq!(s.idx(PlayerId(probe)), want, "id {probe}");
+        }
     }
 
     #[test]
