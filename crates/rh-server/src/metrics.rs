@@ -7,7 +7,28 @@
 //! exact maximum, so a reported quantile is never below the true one and at most 25% above it (the bucket width is a quarter
 //! of its lower bound); values from 0 to 3 are exact. Values from 7 * 2^21 up share the last bucket (the maximum stays exact).
 
+use std::ops::Deref;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+
+/// A relaxed counter alone on its cache line (64 B aligned and padded): rooms on different threads bump different counters
+/// without invalidating each other's line (false sharing). Derefs to the `AtomicU64`.
+#[derive(Default)]
+#[repr(align(64))]
+pub struct Counter(AtomicU64);
+
+impl Counter {
+    pub const fn new() -> Self {
+        Self(AtomicU64::new(0))
+    }
+}
+
+impl Deref for Counter {
+    type Target = AtomicU64;
+    #[inline]
+    fn deref(&self) -> &AtomicU64 {
+        &self.0
+    }
+}
 
 /// Sub-buckets per power of two (as a shift): 4.
 const SUB_BITS: u32 = 2;
@@ -113,9 +134,13 @@ impl Histogram {
 }
 
 /// [`Histogram`] with atomic counters, for a value shared between tasks (relaxed: it is telemetry, not synchronisation).
+///
+/// One `record` is one atomic add (its bucket) plus, only when `v` beats the maximum seen, one `fetch_max`: there is no
+/// separate total, `count()` sums the buckets (it is read by `/control/health`, not on the hot path). The struct is 64 B
+/// aligned so two histograms never share a line at their edges.
+#[repr(align(64))]
 pub struct AtomicHistogram {
     counts: [AtomicU64; BUCKETS],
-    count: AtomicU64,
     max: AtomicU32,
 }
 
@@ -129,7 +154,6 @@ impl AtomicHistogram {
     pub const fn new() -> Self {
         Self {
             counts: [const { AtomicU64::new(0) }; BUCKETS],
-            count: AtomicU64::new(0),
             max: AtomicU32::new(0),
         }
     }
@@ -137,12 +161,15 @@ impl AtomicHistogram {
     #[inline]
     pub fn record(&self, v: u32) {
         self.counts[bucket_of(v)].fetch_add(1, Ordering::Relaxed);
-        self.count.fetch_add(1, Ordering::Relaxed);
-        self.max.fetch_max(v, Ordering::Relaxed);
+        // A plain load first: the maximum rarely moves, so the read-modify-write is skipped almost always.
+        if v > self.max.load(Ordering::Relaxed) {
+            self.max.fetch_max(v, Ordering::Relaxed);
+        }
     }
 
+    /// Observations recorded (the sum of the buckets).
     pub fn count(&self) -> u64 {
-        self.count.load(Ordering::Relaxed)
+        self.counts.iter().map(|c| c.load(Ordering::Relaxed)).sum()
     }
 
     pub fn max(&self) -> u64 {
@@ -150,6 +177,8 @@ impl AtomicHistogram {
     }
 
     pub fn quantile(&self, p: f64) -> u64 {
+        // One pass over the buckets for the total and the quantile alike would see a moving target; read the total first
+        // and let the quantile walk stop at the last bucket if concurrent records pushed the rank past it.
         quantile(
             self.counts.iter().map(|c| c.load(Ordering::Relaxed)),
             self.count(),
@@ -168,20 +197,21 @@ impl AtomicHistogram {
     }
 }
 
-/// Process-wide live counters. Rooms update them with relaxed atomics (once per wake, plus once per step for the step
-/// histogram); `/control/health` reads them. Nothing here allocates after start.
+/// Process-wide live counters. Rooms add to them with relaxed atomics, each counter once per wake (a room accumulates in
+/// locals and flushes at the end of the wake), plus one histogram bucket add per recorded value; every counter sits on its
+/// own cache line. `/control/health` reads them. Nothing here allocates after start.
 pub struct Metrics {
     /// Room wakes that ran at least one step.
-    pub wakes: AtomicU64,
+    pub wakes: Counter,
     /// Steps run, over every room.
-    pub steps: AtomicU64,
+    pub steps: Counter,
     /// Steps the pacer dropped (a backlog beyond the catch-up bound).
-    pub dropped_steps: AtomicU64,
+    pub dropped_steps: Counter,
     /// Bytes of every frame rooms encoded for their humans.
-    pub bytes_out: AtomicU64,
+    pub bytes_out: Counter,
     /// Outbox pushes by rooms: one per human per tick that had any frame (`Outbox::push_tick`). Every push is one
     /// `Notify::notify_one`, so this is also the notify count.
-    pub outbox_pushes: AtomicU64,
+    pub outbox_pushes: Counter,
     /// Wall microseconds of one simulation step (drive bots + step + record).
     pub step_us: AtomicHistogram,
     /// Wall microseconds of one publish (observe + encode + push for every human of a room).
@@ -199,11 +229,11 @@ impl Default for Metrics {
 impl Metrics {
     pub const fn new() -> Self {
         Self {
-            wakes: AtomicU64::new(0),
-            steps: AtomicU64::new(0),
-            dropped_steps: AtomicU64::new(0),
-            bytes_out: AtomicU64::new(0),
-            outbox_pushes: AtomicU64::new(0),
+            wakes: Counter::new(),
+            steps: Counter::new(),
+            dropped_steps: Counter::new(),
+            bytes_out: Counter::new(),
+            outbox_pushes: Counter::new(),
             step_us: AtomicHistogram::new(),
             publish_us: AtomicHistogram::new(),
             lateness_us: AtomicHistogram::new(),
@@ -316,5 +346,35 @@ mod tests {
             assert_eq!(a.quantile(p), h.quantile(p));
         }
         assert_eq!((a.count(), a.max()), (h.count(), h.max()));
+    }
+
+    #[test]
+    fn hot_counters_have_a_cache_line_each() {
+        assert_eq!(std::mem::align_of::<Counter>(), 64);
+        assert_eq!(std::mem::size_of::<Counter>(), 64);
+        assert_eq!(std::mem::align_of::<AtomicHistogram>(), 64);
+        let m = Metrics::new();
+        let at = |c: &Counter| c as *const Counter as usize;
+        let mut addrs = [
+            at(&m.wakes),
+            at(&m.steps),
+            at(&m.dropped_steps),
+            at(&m.bytes_out),
+            at(&m.outbox_pushes),
+        ];
+        addrs.sort_unstable();
+        assert!(addrs.windows(2).all(|w| w[1] - w[0] >= 64), "{addrs:?}");
+        m.wakes.fetch_add(3, Ordering::Relaxed);
+        assert_eq!(m.json()["wakes"], 3);
+    }
+
+    #[test]
+    fn the_atomic_max_only_moves_up_and_count_sums_the_buckets() {
+        let a = AtomicHistogram::new();
+        assert_eq!((a.count(), a.max(), a.quantile(0.5)), (0, 0, 0));
+        for v in [5, 900, 40, 900, 1] {
+            a.record(v);
+        }
+        assert_eq!((a.count(), a.max()), (5, 900));
     }
 }

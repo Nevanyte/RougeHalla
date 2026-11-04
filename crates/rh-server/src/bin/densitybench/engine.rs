@@ -1,23 +1,30 @@
-//! The density benchmark engine: N rooms of H humans through the real `Room`/`run_room`, `Outbox` and `Pacer`, on a paused
-//! tokio clock, with in-process clients in place of sockets. Deterministic: fixed secrets and bot seeds, no entropy in the
-//! timing path, a paused clock (virtual time advances only when every task is idle), one thread, and every `select!`
-//! biased. Two runs of the same options execute the same instructions (callgrind: within +-0.05%).
+//! The density benchmark engine: N rooms of H humans through the real `Room`/`run_room`, `Outbox` and `Pacer`, on a
+//! paused tokio clock, with in-process clients in place of sockets. Deterministic: fixed secrets and bot seeds, no
+//! entropy in the timing path, a paused clock (virtual time advances only when every task is idle), one thread, and
+//! every `select!` biased. Two runs of the same options execute the same instructions (callgrind: within +-0.05%).
 //!
-//! The in-process client is what `conn.rs`'s writer does with the outbox minus the socket: it awaits `Outbox::wait_drain()`
-//! and takes the whole batch of one tick. A "writer wake" is a time that await had to park (the outbox was empty) and was woken by a notify; frames
-//! that were already queued when the client looked are drained in the same wake. A human also sends inputs on a
-//! deterministic schedule (profile `active`) through the room's inbox, as `conn.rs` forwards them.
+//! The in-process client is what `conn.rs`'s writer does with the outbox minus the socket: it awaits
+//! `Outbox::wait_drain()` and takes the whole batch of one tick. A "writer wake" is a time that await had to park
+//! (the outbox was empty) and was woken by a notify; frames that were already queued when the client looked are
+//! drained in the same wake. A human also sends inputs on a deterministic schedule (profile `active`) through the
+//! room's inbox, as `conn.rs` forwards them.
+//!
+//! Bots: `Opts::fill_to` fills each room with scripted bots up to that many players, driven by the room task like any
+//! other seat; they have no outbox and no in-process client, so `humans` alone is what the per-human-tick figures
+//! divide by (the default `humans` = `fill_to` = 8 means no bots at all: use e.g. `humans 4, fill_to 8` for a mixed
+//! room).
 //!
 //! Heap per room is not measured here: the workspace forbids `unsafe`, so no counting allocator. Run the binary under
-//! DHAT (`valgrind --tool=dhat`) at `--rooms 1` and `--rooms N`: (t-gmax(N) - t-gmax(1)) / (N - 1) is the exact heap per
-//! room, deterministic. `rssPerRoomBytes` in the output is only an informational cross-check.
+//! DHAT (`valgrind --tool=dhat`) at `--rooms 1` and `--rooms N`: (t-gmax(N) - t-gmax(1)) / (N - 1) is the exact heap
+//! per room, deterministic. `rssPerRoomBytes` in the output is only an informational cross-check.
 //!
-//! Why not sockets (`rh_server::serve_with`, as `examples/connheap.rs` does): a paused clock auto-advances whenever the
-//! runtime parks, including while a loopback socket round-trip is in flight, so a socket run is neither deterministic nor
-//! reproducible in instructions (and tokio-tungstenite, the client, is a dev-dependency a bin cannot use). `connheap`
-//! stays the socket-level heap check; `transport.rs`/`live.rs` the socket-level behaviour. This engine covers everything
-//! behind the connection: room, sim, observe, encode, outbox, pacer. The director is not in the path either: it would put
-//! all humans into one lobby per MAX_PLAYERS in arrival order with OS-random match ids and secrets.
+//! Why not sockets (`rh_server::serve_with`, as `examples/connheap.rs` does): a paused clock auto-advances whenever
+//! the runtime parks, including while a loopback socket round-trip is in flight, so a socket run is neither
+//! deterministic nor reproducible in instructions (and tokio-tungstenite, the client, is a dev-dependency a bin
+//! cannot use). `connheap` stays the socket-level heap check; `transport.rs`/`live.rs` the socket-level behaviour.
+//! This engine covers everything behind the connection: room, sim, observe, encode, outbox, pacer. The director is
+//! not in the path either: it would put all humans into one lobby per MAX_PLAYERS in arrival order with OS-random
+//! match ids and secrets.
 
 use rh_protocol::{ServerMsg, WireCommand};
 use rh_server::metrics::Metrics;
@@ -88,8 +95,11 @@ pub struct Report {
     pub dropped_steps: u64,
     pub frames: u64,
     pub bytes: u64,
-    /// Outbox pushes (= `Notify::notify_one` calls on open outboxes), from the metrics the rooms fed.
+    /// Real `Notify::notify_one` calls on the clients' outboxes (counted by the outbox at the call), over the run, not
+    /// counting the ones that closed a connection.
     pub notifies: u64,
+    /// Outbox pushes the rooms counted in their metrics (`Metrics::outbox_pushes`): the cross-check for `notifies`.
+    pub pushes: u64,
     pub writer_wakes: u64,
     /// Resident-set growth per room over the run (informational: RSS is not deterministic; exact heap comes from DHAT).
     pub rss_per_room: Option<u64>,
@@ -203,6 +213,7 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
     let rss0 = rh_server::metrics::rss_bytes();
     let mut senders = Vec::new();
     let mut counters = Vec::new();
+    let mut outboxes: Vec<Arc<Outbox>> = Vec::new();
     let mut tasks = Vec::new();
     let mut input_tasks = Vec::new();
     let mut conn = 0u64;
@@ -241,6 +252,7 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
             let ok = rrx.await.expect("join reply").expect("seat");
             let c = Arc::new(ClientCounters::default());
             counters.push(c.clone());
+            outboxes.push(outbox.clone());
             tasks.push(tokio::spawn(drain(outbox, c, check_frames)));
             if o.profile == Profile::Active {
                 let rng = Lcg(o.seed ^ conn.wrapping_mul(0x9E37_79B9_7F4A_7C15));
@@ -273,6 +285,11 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
     for t in tasks {
         let _ = t.await;
     }
+    // The notifies the ticks caused: every real call, less the one each connection's close made.
+    let notifies: u64 = outboxes
+        .iter()
+        .map(|o| o.notify_calls() - o.close_notify_calls())
+        .sum();
     let ticks: u64 = stats.iter().map(|s| s.ticks).sum();
     let dropped: u64 = stats.iter().map(|s| s.dropped_steps).sum();
     let sum = |f: fn(&ClientCounters) -> &AtomicU64| {
@@ -291,7 +308,8 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
         dropped_steps: dropped,
         frames: sum(|c| &c.frames),
         bytes: sum(|c| &c.bytes),
-        notifies: metrics.outbox_pushes.load(Ordering::Relaxed),
+        notifies,
+        pushes: metrics.outbox_pushes.load(Ordering::Relaxed),
         writer_wakes: sum(|c| &c.wakes),
         rss_per_room: rss0
             .zip(rss1)

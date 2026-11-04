@@ -124,6 +124,8 @@ pub struct RoomStats {
     pub fx_dropped: u64,
     /// Snapshots a slow client skipped because a newer one replaced them.
     pub snapshots_skipped: u64,
+    /// Snapshots the encoder refused to send (never a repaired frame): counted here, logged once per room.
+    pub snapshot_refusals: u64,
 }
 
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
@@ -190,6 +192,7 @@ pub struct Room {
     step_us: Histogram,
     metrics: &'static Metrics,
     bytes_out: u64,
+    snapshot_refusals: u64,
     ended_at: Option<Instant>,
     draining: bool,
     welcome_map: Arc<EncodedMap>,
@@ -248,6 +251,7 @@ impl Room {
             step_us: Histogram::new(),
             metrics: metrics::process(),
             bytes_out: 0,
+            snapshot_refusals: 0,
             ended_at: None,
             draining: false,
             welcome_map: cfg.welcome_map,
@@ -563,13 +567,17 @@ impl Room {
         if steps == 0 {
             return true;
         }
+        // One add per shared counter for this wake (the histograms add one bucket per value).
         self.metrics.wakes.fetch_add(1, Ordering::Relaxed);
         self.metrics
             .steps
             .fetch_add(u64::from(steps), Ordering::Relaxed);
-        self.metrics
-            .dropped_steps
-            .fetch_add(self.pacer.dropped - dropped_before, Ordering::Relaxed);
+        let dropped = self.pacer.dropped - dropped_before;
+        if dropped > 0 {
+            self.metrics
+                .dropped_steps
+                .fetch_add(dropped, Ordering::Relaxed);
+        }
         self.metrics.lateness_us.record(
             now.saturating_duration_since(slot)
                 .as_micros()
@@ -627,6 +635,8 @@ impl Room {
     }
 
     fn publish(&mut self, events: &[Event]) {
+        // Shared counters get one add each per publish, however many humans the room has.
+        let (mut bytes_total, mut pushes) = (0u64, 0u64);
         for h in &self.humans {
             let Some(out) = &h.outbox else { continue };
             let obs = rh_sim::observe(&self.sim, h.player, events);
@@ -666,7 +676,13 @@ impl Room {
                 Ok(snap) => Some(snap),
                 // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
                 Err(e) => {
-                    eprintln!("[room] snapshot not sent: {e}");
+                    // Logged once per room (the cause is per map and persists): the count is in the room's stats.
+                    if self.snapshot_refusals == 0 {
+                        eprintln!(
+                            "[room] snapshot not sent: {e} (logged once per room; see snapshotRefusals)"
+                        );
+                    }
+                    self.snapshot_refusals += 1;
                     None
                 }
             };
@@ -677,13 +693,19 @@ impl Room {
                 .sum();
             if bytes > 0 {
                 self.bytes_out += bytes as u64;
-                self.metrics
-                    .bytes_out
-                    .fetch_add(bytes as u64, Ordering::Relaxed);
+                bytes_total += bytes as u64;
+                pushes += 1;
                 // One lock and one notify for the client's whole tick.
-                self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
                 out.push_tick(important, fx, snap);
             }
+        }
+        if pushes > 0 {
+            self.metrics
+                .bytes_out
+                .fetch_add(bytes_total, Ordering::Relaxed);
+            self.metrics
+                .outbox_pushes
+                .fetch_add(pushes, Ordering::Relaxed);
         }
     }
 
@@ -749,6 +771,7 @@ impl Room {
             bytes_enqueued_total: outboxes.bytes_enqueued_total,
             fx_dropped: outboxes.fx_dropped,
             snapshots_skipped: outboxes.snapshots_skipped,
+            snapshot_refusals: self.snapshot_refusals,
         }
     }
 }
