@@ -1,17 +1,21 @@
-//! Checkpoints: `{format, statics, world}` as JSON (or any serde format). The format tag is written first and checked
-//! first on restore, so a checkpoint of another layout (or none at all) fails with a typed [`CheckpointError`] instead of an
-//! arbitrary serde error or a silently wrong state. Per-tick scratch is never part of a checkpoint: a restored [`Sim`] starts
-//! with an empty [`TickScratch`] and behaves identically (docs/CONTRACTS.md C-DET).
+//! Checkpoints: `{format, statics, world}` as JSON (or any serde format). The format tag is written first and refused
+//! before the payload is interpreted, whatever order the keys arrive in, so a checkpoint of another layout (or none at all)
+//! fails with a typed [`CheckpointError`] instead of an arbitrary serde error or a silently wrong state. Per-tick scratch is
+//! never part of a checkpoint: a restored [`Sim`] starts with an empty [`TickScratch`] and behaves identically
+//! (docs/CONTRACTS.md C-DET). A decoded [`Sim`] is complete (the map tables and the statics digest are built while
+//! decoding); malformed or truncated input is an `Err`, never a panic.
 
 use crate::pathfind::Pathfinder;
 use crate::scratch::TickScratch;
 use crate::sim::Sim;
 use crate::state::World;
 use crate::statics::MatchStatic;
-use serde::de::{self, Deserializer, IgnoredAny, MapAccess, Visitor};
+use serde::de::value::{MapAccessDeserializer, MapDeserializer, SeqDeserializer};
+use serde::de::{
+    self, Deserialize, Deserializer, IgnoredAny, IntoDeserializer, MapAccess, Visitor,
+};
 use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
-use std::sync::Arc;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
 pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/3";
@@ -46,15 +50,6 @@ impl fmt::Display for CheckpointError {
 impl std::error::Error for CheckpointError {}
 
 impl Sim {
-    /// Restores the derived tables after deserializing a checkpoint. Deserializing a [`Sim`] already does this; the method
-    /// stays for callers that still call it. Idempotent.
-    pub fn after_restore(&mut self) {
-        // A freshly deserialized arena is not shared, so this rebuilds in place (it clones only a shared one).
-        Arc::make_mut(&mut self.k.arena).map.rebuild();
-        self.s = TickScratch::default();
-        self.pf = Pathfinder::default();
-    }
-
     /// Restores a match from a checkpoint read through `d`, refusing any other format with a typed error.
     pub fn restore<'de, D: Deserializer<'de>>(d: D) -> Result<Sim, CheckpointError> {
         let mut why = None;
@@ -93,6 +88,21 @@ enum Key {
     Other,
 }
 
+/// A part of the checkpoint: parsed at once when the tag is already known good, or held as a [`Buf`] until it is.
+enum Part<T> {
+    Typed(T),
+    Held(Buf),
+}
+
+impl<T: for<'a> Deserialize<'a>> Part<T> {
+    fn typed(self) -> Result<T, de::value::Error> {
+        match self {
+            Part::Typed(t) => Ok(t),
+            Part::Held(b) => T::deserialize(b),
+        }
+    }
+}
+
 struct CheckpointVisitor<'a> {
     why: &'a mut Option<CheckpointError>,
 }
@@ -114,7 +124,8 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Sim, A::Error> {
-        let (mut tagged, mut statics, mut world) = (false, None::<MatchStatic>, None::<World>);
+        let mut tagged = false;
+        let (mut statics, mut world) = (None::<Part<MatchStatic>>, None::<Part<World>>);
         while let Some(key) = map.next_key::<Key>()? {
             match key {
                 Key::Format => {
@@ -124,8 +135,22 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                     }
                     tagged = true;
                 }
-                Key::Statics => statics = Some(map.next_value()?),
-                Key::World => world = Some(map.next_value()?),
+                // Before the tag has been read a payload is only held (a stale layout must be refused by its tag, not by
+                // whatever its payload happens to fail on); after it, it is parsed straight into its type.
+                Key::Statics => {
+                    statics = Some(if tagged {
+                        Part::Typed(map.next_value()?)
+                    } else {
+                        Part::Held(map.next_value()?)
+                    })
+                }
+                Key::World => {
+                    world = Some(if tagged {
+                        Part::Typed(map.next_value()?)
+                    } else {
+                        Part::Held(map.next_value()?)
+                    })
+                }
                 Key::Other => {
                     map.next_value::<IgnoredAny>()?;
                 }
@@ -139,14 +164,146 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                 "missing `statics` or `world`".into(),
             )));
         };
-        let mut sim = Sim {
+        let (k, w) = match (k.typed(), w.typed()) {
+            (Ok(k), Ok(w)) => (k, w),
+            (Err(e), _) | (_, Err(e)) => {
+                return Err(self.refuse(CheckpointError::Malformed(e.to_string())))
+            }
+        };
+        Ok(Sim {
             k,
             w,
             s: TickScratch::default(),
             pf: Pathfinder::default(),
-        };
-        sim.after_restore();
-        Ok(sim)
+        })
+    }
+}
+
+/// A self-describing value held while a checkpoint's tag is still unread (serde_json's `Value`, in miniature), which then
+/// deserializes into the real type. Only used when a payload key precedes `format`; checkpoints this build writes never do.
+enum Buf {
+    Unit,
+    Bool(bool),
+    I64(i64),
+    U64(u64),
+    F64(f64),
+    Str(String),
+    Seq(Vec<Buf>),
+    Map(Vec<(Buf, Buf)>),
+}
+
+impl<'de> Deserialize<'de> for Buf {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        d.deserialize_any(BufVisitor)
+    }
+}
+
+struct BufVisitor;
+
+impl<'de> Visitor<'de> for BufVisitor {
+    type Value = Buf;
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("any value")
+    }
+    fn visit_bool<E>(self, v: bool) -> Result<Buf, E> {
+        Ok(Buf::Bool(v))
+    }
+    fn visit_i64<E>(self, v: i64) -> Result<Buf, E> {
+        Ok(Buf::I64(v))
+    }
+    fn visit_u64<E>(self, v: u64) -> Result<Buf, E> {
+        Ok(Buf::U64(v))
+    }
+    fn visit_f64<E>(self, v: f64) -> Result<Buf, E> {
+        Ok(Buf::F64(v))
+    }
+    fn visit_str<E>(self, v: &str) -> Result<Buf, E> {
+        Ok(Buf::Str(v.to_owned()))
+    }
+    fn visit_string<E>(self, v: String) -> Result<Buf, E> {
+        Ok(Buf::Str(v))
+    }
+    fn visit_unit<E>(self) -> Result<Buf, E> {
+        Ok(Buf::Unit)
+    }
+    fn visit_none<E>(self) -> Result<Buf, E> {
+        Ok(Buf::Unit)
+    }
+    fn visit_some<D: Deserializer<'de>>(self, d: D) -> Result<Buf, D::Error> {
+        Buf::deserialize(d)
+    }
+    fn visit_seq<A: de::SeqAccess<'de>>(self, mut a: A) -> Result<Buf, A::Error> {
+        let mut v = Vec::with_capacity(a.size_hint().unwrap_or(0).min(4096));
+        while let Some(x) = a.next_element()? {
+            v.push(x);
+        }
+        Ok(Buf::Seq(v))
+    }
+    fn visit_map<A: MapAccess<'de>>(self, mut a: A) -> Result<Buf, A::Error> {
+        let mut v = Vec::with_capacity(a.size_hint().unwrap_or(0).min(4096));
+        while let Some(kv) = a.next_entry()? {
+            v.push(kv);
+        }
+        Ok(Buf::Map(v))
+    }
+}
+
+impl<'de> IntoDeserializer<'de, de::value::Error> for Buf {
+    type Deserializer = Buf;
+    fn into_deserializer(self) -> Buf {
+        self
+    }
+}
+
+impl<'de> Deserializer<'de> for Buf {
+    type Error = de::value::Error;
+
+    fn deserialize_any<V: Visitor<'de>>(self, v: V) -> Result<V::Value, Self::Error> {
+        match self {
+            Buf::Unit => v.visit_unit(),
+            Buf::Bool(b) => v.visit_bool(b),
+            Buf::I64(n) => v.visit_i64(n),
+            Buf::U64(n) => v.visit_u64(n),
+            Buf::F64(n) => v.visit_f64(n),
+            Buf::Str(s) => v.visit_string(s),
+            Buf::Seq(x) => v.visit_seq(SeqDeserializer::new(x.into_iter())),
+            Buf::Map(m) => v.visit_map(MapDeserializer::new(m.into_iter())),
+        }
+    }
+
+    fn deserialize_option<V: Visitor<'de>>(self, v: V) -> Result<V::Value, Self::Error> {
+        match self {
+            Buf::Unit => v.visit_none(),
+            other => v.visit_some(other),
+        }
+    }
+
+    fn deserialize_newtype_struct<V: Visitor<'de>>(
+        self,
+        _: &'static str,
+        v: V,
+    ) -> Result<V::Value, Self::Error> {
+        v.visit_newtype_struct(self)
+    }
+
+    fn deserialize_enum<V: Visitor<'de>>(
+        self,
+        _: &'static str,
+        _: &'static [&'static str],
+        v: V,
+    ) -> Result<V::Value, Self::Error> {
+        match self {
+            Buf::Str(s) => v.visit_enum(s.into_deserializer()),
+            Buf::Map(m) if m.len() == 1 => v.visit_enum(MapAccessDeserializer::new(
+                MapDeserializer::new(m.into_iter()),
+            )),
+            _ => Err(de::Error::custom("expected an enum")),
+        }
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string bytes byte_buf unit unit_struct
+        seq tuple tuple_struct map struct identifier ignored_any
     }
 }
 
@@ -196,7 +353,6 @@ mod tests {
         a.step();
         a.remove_player(PlayerId(3)); // a leave between steps: its MIA result waits for the next step
         let mut b: Sim = serde_json::from_str(&serde_json::to_string(&a).unwrap()).unwrap();
-        b.after_restore();
         assert_eq!(a.state_hash(), b.state_hash());
         let (ea, eb) = (a.step(), b.step());
         let resolved = |e: &Vec<Event>| {
@@ -214,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn a_checkpoint_is_tagged_and_restores_without_after_restore() {
+    fn a_checkpoint_is_tagged_and_restores_complete() {
         let mut a = sim();
         for _ in 0..30 {
             a.step();

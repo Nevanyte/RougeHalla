@@ -7,7 +7,9 @@ use crate::content::FactionId;
 use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
-pub const REPLAY_FORMAT: &str = "rh-replay/1";
+/// The tag every replay carries. `rh-replay/2`: per-step hashes are the serde-derived word hash of `hash.rs` (`rh-replay/1`
+/// held the hand-listed byte-wise FNV hashes, which no build can reproduce any more). [`run_replay`] refuses any other tag.
+pub const REPLAY_FORMAT: &str = "rh-replay/2";
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ReplayInput {
@@ -133,6 +135,10 @@ pub fn apply_input(sim: &mut Sim, input: &ReplayInput) {
 
 #[derive(Debug, PartialEq)]
 pub enum ReplayError {
+    /// The replay's `format` tag is not [`REPLAY_FORMAT`] (an older replay, or not one of ours): nothing was run.
+    Format {
+        found: String,
+    },
     ContentMismatch {
         replay: u64,
         build: u64,
@@ -146,6 +152,11 @@ pub enum ReplayError {
 
 /// Replays from the reset and checks every step's hash. Returns the final sim and all events.
 pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
+    if r.format != REPLAY_FORMAT {
+        return Err(ReplayError::Format {
+            found: r.format.clone(),
+        });
+    }
     let build = crate::content::content_hash();
     if r.content_hash != build {
         return Err(ReplayError::ContentMismatch {
@@ -181,9 +192,8 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
 
 /// The sim a replay starts from.
 pub fn start_sim(r: &Replay) -> Sim {
-    // A deserialized replay carries the map without its derived tables: rebuild them.
-    let mut arena = r.arena.clone();
-    arena.map.rebuild();
+    // A deserialized replay's map is complete (the shape is checked and the derived tables built while decoding).
+    let arena = r.arena.clone();
     match &r.start {
         ReplayStart::Active { placements } => {
             Sim::reset_active(r.config.clone(), arena, r.secrets, placements)

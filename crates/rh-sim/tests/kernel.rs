@@ -834,9 +834,6 @@ fn malformed_maps_are_decode_errors_and_decoded_maps_are_complete() {
             assert_eq!(back.comp(i), map.comp(i));
             assert_eq!(back.nav(i), map.nav(i));
         }
-        let mut rebuilt = back.clone();
-        rebuilt.rebuild();
-        assert_eq!(rebuilt, back);
         let mut r = Rng(7);
         let (mut a, mut b) = (Pathfinder::default(), Pathfinder::default());
         for _ in 0..200 {

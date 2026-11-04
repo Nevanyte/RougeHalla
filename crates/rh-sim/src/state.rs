@@ -486,8 +486,9 @@ pub(crate) struct World {
     /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint and the hash.
     pub(crate) pending_events: Vec<Event>,
     /// Effects a hook link queued for the next tick (legacy `combat.deferred`): they open its ledger. Empty in the slice,
-    /// which has no link that defers; absent from a checkpoint while empty, so checkpoints and hashes are unchanged.
-    #[serde(default, skip_serializing_if = "DeferredQueue::is_empty")]
+    /// which has no link that defers. Always serialized (a skipped field would be ambiguous to the state hash, see
+    /// `hash.rs`); `default` still reads checkpoints written while it was omitted.
+    #[serde(default)]
     pub(crate) deferred: DeferredQueue,
     /// The same-tick payouts (legacy `payLater`, `combat.collecting` and `combat.payouts`): queued while the ledger pass
     /// runs, paid at its end, or at once outside it. Never part of a checkpoint or the hash: it is empty and not
@@ -512,10 +513,6 @@ pub(crate) struct DeferredQueue {
 }
 
 impl DeferredQueue {
-    pub(crate) fn is_empty(&self) -> bool {
-        self.hits.is_empty()
-    }
-
     /// Queues a hit to open the next tick's ledger (legacy `deferHit`).
     #[cfg_attr(not(test), allow(dead_code))] // the first producer is a card link (P-CARDS-1); tests exercise it now
     pub(crate) fn defer_hit(&mut self, e: Entry) {

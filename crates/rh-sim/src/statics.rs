@@ -5,13 +5,46 @@ use crate::math::Vec2;
 use std::sync::Arc;
 
 /// The match's immutable inputs, fixed when the [`crate::Sim`] is created. The arena is shared ([`Arc`]): rooms and
-/// recorders can hold the same map without copying it. Part of a checkpoint (the derived map tables are rebuilt on
-/// restore); not part of the state hash, which a replay pins by recording them.
+/// recorders can hold the same map without copying it. Part of a checkpoint. `digest` is derived (config, map layer and
+/// spawns, never the secrets: see `hash.rs`), computed by [`MatchStatic::new`] and by deserialization, so a decoded value
+/// is complete; it seeds the state hash, which therefore pins the statics without re-hashing the map every step.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(from = "StaticRepr")]
 pub(crate) struct MatchStatic {
     pub(crate) config: SimConfig,
     pub(crate) arena: Arc<Arena>,
     pub(crate) secrets: Secrets,
+    #[serde(skip)] // derived from the fields above
+    pub(crate) digest: u64,
+}
+
+/// The serialized shape of [`MatchStatic`]: exactly its stored fields.
+#[derive(serde::Deserialize)]
+#[serde(rename = "MatchStatic")]
+struct StaticRepr {
+    config: SimConfig,
+    arena: Arc<Arena>,
+    secrets: Secrets,
+}
+
+impl From<StaticRepr> for MatchStatic {
+    fn from(r: StaticRepr) -> Self {
+        MatchStatic::new(r.config, r.arena, r.secrets)
+    }
+}
+
+impl MatchStatic {
+    pub(crate) fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
+        let arena = arena.into();
+        // The secrets stay out of the digest (C-RNG): they never become part of anything that can be logged.
+        let digest = crate::hash::hash_of(0, &(&config, &*arena));
+        Self {
+            config,
+            arena,
+            secrets,
+            digest,
+        }
+    }
 }
 
 /// Everything the core needs that must not be derivable by clients. The live server draws these from the OS CSPRNG; tests

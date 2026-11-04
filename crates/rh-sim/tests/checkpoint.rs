@@ -107,3 +107,124 @@ fn a_mid_fight_checkpoint_continues_identically() {
     }
     assert_eq!(a.state_hash(), b.state_hash());
 }
+
+/// Reorders the three top-level keys of a checkpoint document (as text, so the order is the order on the wire).
+fn reordered(json: &Value, order: [&str; 3]) -> String {
+    let parts: Vec<String> = order
+        .iter()
+        .map(|k| format!("{}:{}", serde_json::to_string(k).unwrap(), json[k]))
+        .collect();
+    format!("{{{}}}", parts.join(","))
+}
+
+#[test]
+fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
+    use rh_sim::CheckpointError;
+    let mut a = crowded_8();
+    drive(&mut a, 30);
+    let good = serde_json::to_value(&a).unwrap();
+    // Every order restores a good checkpoint, identically.
+    for order in [
+        ["format", "statics", "world"],
+        ["world", "statics", "format"],
+        ["statics", "world", "format"],
+        ["world", "format", "statics"],
+    ] {
+        let text = reordered(&good, order);
+        let b = Sim::restore(&mut serde_json::Deserializer::from_str(&text))
+            .unwrap_or_else(|e| panic!("{order:?}: {e}"));
+        assert_eq!(b.state_hash(), a.state_hash(), "{order:?}");
+    }
+    // A stale layout under a stale tag is refused by its tag, wherever the tag is, even though its payload would not parse.
+    let mut stale = good.clone();
+    stale["format"] = "rh-checkpoint/2".into();
+    stale["world"] = serde_json::json!({"players": [{"id": 1, "x": 0.0}], "tick": "soon"});
+    stale["statics"] = serde_json::json!([1, 2, 3]);
+    for order in [
+        ["format", "statics", "world"],
+        ["world", "statics", "format"],
+        ["statics", "world", "format"],
+    ] {
+        let text = reordered(&stale, order);
+        assert_eq!(
+            Sim::restore(&mut serde_json::Deserializer::from_str(&text)).err(),
+            Some(CheckpointError::UnsupportedFormat {
+                found: "rh-checkpoint/2".into()
+            }),
+            "{order:?}"
+        );
+    }
+    // No tag at all, payload last or first: still MissingFormat, not a payload error.
+    for order in [
+        ["world", "statics", "format"],
+        ["statics", "world", "format"],
+    ] {
+        let mut text = reordered(&stale, order);
+        text = text.replace("\"format\":\"rh-checkpoint/2\"", "\"other\":1");
+        assert_eq!(
+            Sim::restore(&mut serde_json::Deserializer::from_str(&text)).err(),
+            Some(CheckpointError::MissingFormat),
+            "{order:?}"
+        );
+    }
+    // A good tag over a broken payload is Malformed, in either order.
+    let mut broken = good.clone();
+    broken["world"] = serde_json::json!({"tick": "soon"});
+    for order in [
+        ["format", "statics", "world"],
+        ["world", "statics", "format"],
+    ] {
+        let text = reordered(&broken, order);
+        assert!(matches!(
+            Sim::restore(&mut serde_json::Deserializer::from_str(&text)),
+            Err(CheckpointError::Malformed(_))
+        ));
+    }
+}
+
+#[test]
+fn a_truncated_or_garbled_checkpoint_is_an_error_never_a_panic() {
+    let mut a = crowded_8();
+    drive(&mut a, 20);
+    let text = serde_json::to_string(&a).unwrap();
+    let step = text.len() / 97 + 1;
+    for cut in (0..text.len()).step_by(step) {
+        let r = Sim::restore(&mut serde_json::Deserializer::from_str(&text[..cut]));
+        assert!(r.is_err(), "cut at {cut} of {}", text.len());
+    }
+    for junk in [
+        "",
+        "null",
+        "[]",
+        "42",
+        "\"rh-checkpoint/3\"",
+        "{}",
+        "{\"format\":3}",
+    ] {
+        assert!(Sim::restore(&mut serde_json::Deserializer::from_str(junk)).is_err());
+    }
+    // Structurally valid, semantically broken parts: a map of the wrong shape, a store out of order, a ring too long.
+    let good = serde_json::to_value(&a).unwrap();
+    let mut v = good.clone();
+    v["statics"]["arena"]["map"]["tiles"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    assert!(Sim::restore(&v).is_err(), "map shape");
+    let mut v = good.clone();
+    v["world"]["players"].as_array_mut().unwrap().reverse();
+    assert!(Sim::restore(&v).is_err(), "store order");
+    let mut v = good;
+    let h = v["world"]["players"][0]["core"]["body"]["history"].clone();
+    let long = serde_json::Value::Array(
+        h.as_array()
+            .unwrap()
+            .iter()
+            .cycle()
+            .take(500)
+            .cloned()
+            .collect(),
+    );
+    v["world"]["players"][0]["core"]["body"]["history"] = long;
+    assert!(Sim::restore(&v).is_err(), "history ring");
+}

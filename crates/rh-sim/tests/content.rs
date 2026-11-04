@@ -17,6 +17,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("map.rs", "TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("observe.rs", "OBSERVATION_VERSION", "observation layout version (a format, versioned on its own), not a rule"),
     ("replay.rs", "REPLAY_FORMAT", "replay file format string, not a rule"),
+    ("hash.rs", "K", "mixing multiplier of the state hash (an observer, never read by the simulation)"),
+    ("hash.rs", "CHECK", "const generic of the hashing serializer: layout validation on or off, not a rule"),
     ("math.rs", "PI", "mathematical constant"),
     ("pathfind.rs", "SQRT2", "mathematical constant"),
     ("pathfind.rs", "DX", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
