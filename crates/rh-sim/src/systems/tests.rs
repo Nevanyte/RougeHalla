@@ -238,13 +238,18 @@ fn a_deferred_hit_opens_the_next_ticks_ledger() {
     s.step();
     restored.step();
     assert!(s.w.players[1].vitals.hp < max, "the deferred hit landed");
-    assert!(s.w.deferred.is_empty(), "and the queue is spent");
+    assert!(s.w.deferred.hits.is_empty(), "and the queue is spent");
     assert_eq!(s.w, restored.w, "a restored queue lands identically");
-    let json = serde_json::to_value(&s).unwrap();
-    assert!(
-        json["world"].get("deferred").is_none(),
-        "an empty queue adds nothing to a checkpoint"
+    let mut json = serde_json::to_value(&s).unwrap();
+    assert_eq!(
+        json["world"]["deferred"]["hits"],
+        serde_json::json!([]),
+        "an empty queue is still serialized: the state hash and the layout check allow no skipped field"
     );
+    // A checkpoint written while the empty queue was omitted still restores.
+    json["world"].as_object_mut().unwrap().remove("deferred");
+    let old: Sim = serde_json::from_value(json).unwrap();
+    assert_eq!(s.w, old.w);
 }
 
 fn credit(by: u32) -> ledger::PayLater {
@@ -457,6 +462,9 @@ fn the_far_reject_in_in_arc_gives_the_exact_verdict() {
                 rng.next_f64() * 6.3,
             )
         };
+        // Sanctioned: test input generation only. Both the arc test and its reference see the same `p`, whatever its last
+        // bit is on this platform; nothing the sim computes depends on it.
+        #[allow(clippy::disallowed_methods)]
         let p = Vec2::new(origin.x + dist * ang.cos(), origin.y + dist * ang.sin());
         let want = reference(origin, a, reach, half_arc, p, PLAYER_RADIUS);
         assert_eq!(

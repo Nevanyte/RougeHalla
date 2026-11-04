@@ -38,8 +38,7 @@ fn a_recorded_match_replays_exactly() {
     assert_eq!(replay.hashes.len() as u32, s.ticks);
     // Through JSON and back, as a file would.
     let text = serde_json::to_string(&replay).unwrap();
-    let mut back: rh_sim::replay::Replay = serde_json::from_str(&text).unwrap();
-    back.arena.map.rebuild();
+    let back: rh_sim::replay::Replay = serde_json::from_str(&text).unwrap();
     let (sim, _) = rh_sim::replay::run_replay(&back).expect("replays");
     assert_eq!(sim.state_hash(), s.state_hash);
 }
@@ -61,7 +60,6 @@ fn a_checkpoint_continues_identically() {
     }
     let text = serde_json::to_string(&env.sim).unwrap();
     let mut restored: rh_sim::Sim = serde_json::from_str(&text).unwrap();
-    restored.after_restore();
     assert_eq!(restored.state_hash(), env.sim.state_hash());
     // Step both with no further inputs: identical.
     for _ in 0..200 {

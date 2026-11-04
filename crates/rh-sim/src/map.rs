@@ -26,6 +26,8 @@ pub const STEP_DY: [i64; 8] = [0, 0, 1, -1, 1, -1, 1, -1];
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(try_from = "TileMapRepr")]
 pub struct TileMap {
+    // Read-only by convention: the derived tables below are built from these three at construction, so a map is changed by
+    // building a new one with `TileMap::new` (privacy is a follow-up: the fields are read across crates).
     pub w: u32,
     pub h: u32,
     pub tiles: Vec<u8>,
@@ -132,14 +134,6 @@ impl TileMap {
             }
         }
         Self::new(w as u32, h as u32, tiles)
-    }
-
-    /// Rebuilds the derived tables from `tiles`. Deserialization already builds them (through [`TileMap::new`]), so this is
-    /// an idempotent no-op for a decoded map; it is kept for the existing restore call sites and for a caller that edited
-    /// the public `tiles`.
-    pub fn rebuild(&mut self) {
-        self.comps = move_components(&self.tiles, self.w as usize, self.h as usize);
-        self.nav = nav_masks(&self.tiles, self.w as usize, self.h as usize);
     }
 
     #[inline]

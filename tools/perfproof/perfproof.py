@@ -21,7 +21,10 @@ Behaviour fingerprints. Every workload also has a fingerprint, read from one ext
   * the state hash where the binary reports one (stateHashFold, finalStateHash, finalHash), tick/step counts, and for
     the wire workload its byte counts;
   * verify_replay: replays RECORDED BY THE BASELINE binary (600 and 3000 steps), verified by BOTH binaries: `verified`
-    true on the candidate proves bit-identical per-step state hashes across the two revisions.
+    true on the candidate proves bit-identical per-step state hashes across the two revisions. With --rerecord (a
+    package that redefines the hash, so base replays cannot verify on the candidate) each side verifies the replays its
+    own binary recorded, and the recorded starting conditions and inputs of both sides must be identical: the two builds
+    played the same match, so only the hash values may differ (declare them with --allow-fingerprint-change).
 A key present on both sides must be equal. A key the baseline prints and the candidate does not is a violation (a
 candidate that stops printing outcomeDigest must not pass); so is any fingerprint key of the workload table below that
 the candidate does not print. A key only the candidate prints (the baseline predates it) is listed, not failed. A
@@ -70,16 +73,30 @@ def headless(matches, ticks, *extra):
     return ["--matches", str(matches), "--players", "8", "--map", SEED1, "--max-ticks", str(ticks), *extra]
 
 
-def replay_path(out_dir, ticks):
-    return os.path.join(out_dir, f"replay.base.{ticks}.json")
+RERECORD = False  # --rerecord: verify_replay verifies each side's OWN replays (for a package that redefines the hash)
+
+
+def replay_path(out_dir, ticks, side="base"):
+    return os.path.join(out_dir, f"replay.{side if RERECORD else 'base'}.{ticks}.json")
 
 
 def record_base_replays(out_dir, sides):
-    """The verify_replay inputs: replays recorded by the BASELINE binary (two lengths, so long minus short is defined)."""
-    src, tgt = sides["base"]
-    for ticks in (600, 3000):
-        sh([os.path.join(tgt, "release", "rh-headless")] + headless(1, ticks, "--replay-out", replay_path(out_dir, ticks)),
-           cwd=src)
+    """The verify_replay inputs: replays recorded by the BASELINE binary (two lengths, so long minus short is defined);
+    with --rerecord, one set per side, and the recorded INPUTS of the two sets must be identical (same starting
+    conditions and the same commands every tick: the two builds played the same match, only the hashes may differ)."""
+    for side in (["base", "cand"] if RERECORD else ["base"]):
+        src, tgt = sides[side]
+        for ticks in (600, 3000):
+            sh([os.path.join(tgt, "release", "rh-headless")]
+               + headless(1, ticks, "--replay-out", replay_path(out_dir, ticks, side)), cwd=src)
+    if RERECORD:
+        for ticks in (600, 3000):
+            a, b = (json.load(open(replay_path(out_dir, ticks, s))) for s in ("base", "cand"))
+            for k in ("format", "hashes"):
+                a.pop(k), b.pop(k)
+            if a != b:
+                sys.exit(f"[perfproof] the two builds recorded different inputs for the {ticks}-tick match")
+            sys.stderr.write(f"[perfproof] {ticks}-tick replays: starting conditions and inputs identical on both builds\n")
 
 
 WORKLOADS = [
@@ -105,8 +122,8 @@ WORKLOADS = [
       "ticks", HEADLESS_FP),
     # --ignore-content-hash (dev only) skips the content gate only; every step hash is still compared.
     W("verify_replay", "rh-headless",
-      lambda out, side: ["--verify-replay", replay_path(out, 600), "--ignore-content-hash"],
-      lambda out, side: ["--verify-replay", replay_path(out, 3000), "--ignore-content-hash"],
+      lambda out, side: ["--verify-replay", replay_path(out, 600, side.split(".")[0]), "--ignore-content-hash"],
+      lambda out, side: ["--verify-replay", replay_path(out, 3000, side.split(".")[0]), "--ignore-content-hash"],
       "steps", ["verified", "steps", "finalHash", "contentHash"], digest=False, prepare=record_base_replays),
 ]
 PACKAGES = {"parity-bench": "rh-parity", "wirebench": "rh-server", "rh-headless": "rh-headless",
@@ -363,7 +380,12 @@ def main():
                     help="fail when a workload's candidate allocations per unit exceed the base's by more than this")
     ap.add_argument("--allow-fingerprint-change", default="",
                     help="workloads, fingerprint keys or workload.key whose fingerprint may differ (declared changes)")
+    ap.add_argument("--rerecord", action="store_true",
+                    help="verify_replay: each side verifies replays its own binary recorded (use when the hash definition "
+                         "changed); the recorded inputs of both sides must be identical")
     a = ap.parse_args()
+    global RERECORD
+    RERECORD = a.rerecord
     if a.self_test:
         return self_test()
     if not a.baseline:

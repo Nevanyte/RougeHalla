@@ -29,7 +29,6 @@ fn flag(args: &[String], k: &str) -> bool {
 fn verify(path: &str, ignore_content_hash: bool) {
     let text = std::fs::read_to_string(path).expect("replay file");
     let mut r: rh_sim::replay::Replay = serde_json::from_str(&text).expect("replay json");
-    r.arena.map.rebuild();
     let build = rh_sim::content::content_hash();
     let content = if r.content_hash == build {
         "same"
@@ -50,7 +49,8 @@ fn verify(path: &str, ignore_content_hash: bool) {
             // `steps` is the work actually done: the steps replayed up to and including the diverging one.
             let done = match e {
                 rh_sim::replay::ReplayError::Diverged { step, .. } => step + 1,
-                rh_sim::replay::ReplayError::ContentMismatch { .. } => 0,
+                rh_sim::replay::ReplayError::ContentMismatch { .. }
+                | rh_sim::replay::ReplayError::Format { .. } => 0,
             };
             println!(
                 "{{\"verified\":false,\"steps\":{done},\"recordedSteps\":{},\"contentHash\":\"{content}\",\"error\":\"{e:?}\"}}",

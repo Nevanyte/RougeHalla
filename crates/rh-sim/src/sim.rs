@@ -33,8 +33,9 @@ pub use crate::systems::melee::in_arc;
 
 /// One match: what it is played with ([`MatchStatic`]), what evolves ([`World`]), per-tick working sets
 /// ([`TickScratch`], never part of a checkpoint or the hash) and the path search scratch.
-/// Clone + serde = checkpoint `{format, statics, world}` (see `checkpoint.rs`; the derived map tables and the scratch are
-/// rebuilt on restore, and neither the scratch nor the path search state is ever serialized).
+/// Clone + serde = checkpoint `{format, statics, world}` (see `checkpoint.rs`; a decoded `Sim` is complete: the derived
+/// map tables and the statics digest are built by deserialization, the scratch starts empty, and neither the scratch
+/// nor the path search state is ever serialized).
 #[derive(Clone, Debug)]
 pub struct Sim {
     pub(crate) k: MatchStatic,
@@ -57,11 +58,7 @@ pub struct Placement {
 impl Sim {
     pub fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
         Self {
-            k: MatchStatic {
-                config,
-                arena: arena.into(),
-                secrets,
-            },
+            k: MatchStatic::new(config, arena, secrets),
             w: World::new(&secrets),
             s: TickScratch::default(),
             pf: Pathfinder::default(),

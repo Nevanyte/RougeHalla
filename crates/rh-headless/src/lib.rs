@@ -356,8 +356,7 @@ mod tests {
         let mut cp = serde_json::to_value(&sim).unwrap();
         let t = cp["world"]["server_time"].as_f64().unwrap();
         cp["world"]["server_time"] = serde_json::json!(f64::from_bits(t.to_bits() + 1));
-        let mut other: rh_sim::Sim = serde_json::from_value(cp).unwrap();
-        other.after_restore();
+        let other: rh_sim::Sim = serde_json::from_value(cp).unwrap();
         assert_eq!(
             other.server_time(),
             f64::from_bits(sim.server_time().to_bits() + 1)
