@@ -356,16 +356,16 @@ struct Fixed<const N: usize> {
 }
 
 impl<const N: usize> Fixed<N> {
-    #[inline]
+    #[inline(always)]
     fn new() -> Self {
         Self { b: [0; N], n: 0 }
     }
-    #[inline]
+    #[inline(always)]
     fn u8(&mut self, v: u8) {
         self.b[self.n] = v;
         self.n += 1;
     }
-    #[inline]
+    #[inline(always)]
     fn bytes<const M: usize>(&mut self, v: [u8; M]) {
         if let Some(dst) = self.b[self.n..].first_chunk_mut::<M>() {
             *dst = v;
@@ -374,11 +374,11 @@ impl<const N: usize> Fixed<N> {
             unreachable!("Fixed record overflow");
         }
     }
-    #[inline]
+    #[inline(always)]
     fn u16(&mut self, v: u16) {
         self.bytes(v.to_le_bytes());
     }
-    #[inline]
+    #[inline(always)]
     fn f32(&mut self, v: f32) {
         self.bytes(v.to_le_bytes());
     }
@@ -408,7 +408,7 @@ impl<const N: usize> Fixed<N> {
             ]);
         }
     }
-    #[inline]
+    #[inline(always)]
     fn put(&self, w: &mut Writer) {
         w.append_record(&self.b, self.n);
     }
@@ -564,7 +564,7 @@ fn kit_status_fault(faction: u8, weapon: u8, status: u8) -> Option<&'static str>
     }
 }
 
-#[inline]
+#[inline(always)]
 fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     let m = actor_mask(a);
     let mut w = Fixed::<MAX_ACTOR_LEN>::new();
@@ -919,6 +919,61 @@ pub fn encode_welcome_into(
     w.bytes(map.as_bytes());
     *out = w.finish();
     Ok(len)
+}
+
+/// Appends one Snapshot frame to `out` from an iterator of the caller's actors, in one call: the same bytes, refusals and
+/// errors as [`SnapshotWriter`] (`begin`, one `actor` each, `finish`), without that type's moves and bookkeeping. The
+/// iterator's `len()` is the announced actor count; an iterator that yields another number is a
+/// [`EncodeError::CountMismatch`]. On any error `out` is left as it was. Returns the frame's length.
+pub fn encode_snapshot_into<I>(
+    out: &mut Vec<u8>,
+    tick: u32,
+    phase: u8,
+    ack_input: u32,
+    me: Option<&WireSelf>,
+    actors: I,
+) -> Result<usize, EncodeError>
+where
+    I: ExactSizeIterator<Item = WireActor>,
+{
+    let declared = actors.len();
+    list("actors", declared, MAX_ACTORS)?;
+    let start = out.len();
+    let mut fault = if phase > MAX_PHASE_CODE
+        || me.is_some_and(|s| (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE)
+    {
+        snapshot_fault(phase, me, &[])
+    } else {
+        None
+    };
+    let mut w = Writer::from_vec(std::mem::take(out));
+    w.reserve(MIN_SNAPSHOT_HEAD_LEN + me.map_or(0, |_| MIN_SELF_LEN) + MIN_ACTOR_LEN * declared);
+    write_snapshot_head(&mut w, tick, phase, ack_input, me, declared);
+    let (mut last, mut n) = (None, 0usize);
+    for a in actors {
+        write_actor(&mut w, &a, last);
+        if actor_looks_bad(&a, last) && fault.is_none() {
+            fault = snapshot_fault(0, None, std::slice::from_ref(&a))
+                .or(last.is_some_and(|p| a.id <= p).then_some("actor order"));
+        }
+        last = Some(a.id);
+        n += 1;
+    }
+    let result = if n != declared {
+        Err(EncodeError::CountMismatch {
+            declared,
+            written: n,
+        })
+    } else if let Some(why) = fault {
+        Err(EncodeError::BadValue(why))
+    } else {
+        Ok(w.len() - start)
+    };
+    if result.is_err() {
+        w.truncate(start);
+    }
+    *out = w.finish();
+    result
 }
 
 /// Streams one Snapshot frame into a caller's buffer: [`SnapshotWriter::begin`] writes the header, the self and the actor

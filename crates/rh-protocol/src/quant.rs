@@ -41,7 +41,7 @@ pub fn pos_in_range(v: f32) -> bool {
 /// away from zero when the dropped fraction is at least a half (exact in `f64`). NaN is 0; `t` is clamped to
 /// +-[`FACING_CLAMP`] first (far outside both callers' ranges), so the arithmetic cannot overflow.
 #[inline]
-fn round_half_away(t: f64) -> i64 {
+pub fn round_half_away(t: f64) -> i64 {
     let t = t.clamp(-FACING_CLAMP, FACING_CLAMP);
     let i = t as i64;
     let frac = t - i as f64;
@@ -54,10 +54,13 @@ fn round_half_away(t: f64) -> i64 {
     }
 }
 
-/// World units to the nearest 1/8 u, saturating to `0 ..= 65535` (NaN is 0).
+/// World units to the nearest 1/8 u, saturating to `0 ..= 65535` (NaN is 0). Ties go away from zero: for the
+/// non-negative values that survive the clamp that is `floor(t + 0.5)`, which is exact here (`t` is an `f32` times 8, so
+/// adding a half loses nothing in `f64`), and the saturating `as u16` is the clamp (a negative `t` gives 0). A test holds
+/// it equal to the `f64::round` formula over the whole `f32` line.
 #[inline]
 pub fn quantize_pos(v: f32) -> u16 {
-    round_half_away((v as f64) * (POS_SCALE as f64)).clamp(0, 65535) as u16
+    ((v as f64) * (POS_SCALE as f64) + 0.5) as u16
 }
 
 #[inline]

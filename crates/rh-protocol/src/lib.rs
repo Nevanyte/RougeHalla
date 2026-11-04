@@ -51,7 +51,9 @@ pub mod quant;
 pub mod samples;
 
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
-pub use encode::{encode_welcome, encode_welcome_into, SnapshotWriter, WelcomeHeader};
+pub use encode::{
+    encode_snapshot_into, encode_welcome, encode_welcome_into, SnapshotWriter, WelcomeHeader,
+};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
 pub const PROTOCOL_VERSION: u16 = 2;

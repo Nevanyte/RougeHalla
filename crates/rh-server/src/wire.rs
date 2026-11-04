@@ -92,6 +92,13 @@ fn wire_self(m: &rh_sim::observe::SelfView) -> WireSelf {
     }
 }
 
+/// Health as a whole percent, 0 to 100: `(f * 100).round()` clamped (half away from zero, NaN is 0) without the libm
+/// `round` call; a test holds it equal to that expression.
+#[inline]
+fn hp_pct(f: f64) -> u8 {
+    rh_protocol::quant::round_half_away(f * 100.0).clamp(0, 100) as u8
+}
+
 fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
     WireActor {
         id: a.id.0,
@@ -99,7 +106,7 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
         x: a.x as f32,
         y: a.y as f32,
         facing: a.facing as f32,
-        hp_pct: (a.hp_frac * 100.0).round().clamp(0.0, 100.0) as u8,
+        hp_pct: hp_pct(a.hp_frac),
         status: status(a.status),
         weapon: a.weapon.code(),
         bounty: sat16(a.bounty),
@@ -130,18 +137,14 @@ pub fn encode_snapshot(
         let mut buf = std::mem::take(&mut *cell.borrow_mut());
         buf.clear();
         let me = obs.me.as_ref().map(wire_self);
-        let mut w = rh_protocol::SnapshotWriter::begin(
+        let done = rh_protocol::encode_snapshot_into(
             &mut buf,
             obs.tick,
             phase(obs.phase),
             ack_input,
             me.as_ref(),
-            obs.visible.len(),
+            obs.visible.iter().map(wire_actor),
         );
-        for a in &obs.visible {
-            w.actor(&wire_actor(a));
-        }
-        let done = w.finish();
         let out = done.map(|_| buf.clone());
         *cell.borrow_mut() = buf;
         out
@@ -355,10 +358,7 @@ mod tests {
                     assert_eq!(w.status, status(a.status));
                     assert_eq!(w.weapon, a.weapon.code());
                     assert_eq!(w.bounty, sat16(a.bounty));
-                    assert_eq!(
-                        w.hp_pct,
-                        (a.hp_frac * 100.0).round().clamp(0.0, 100.0) as u8
-                    );
+                    assert_eq!(w.hp_pct, hp_pct(a.hp_frac));
                     worst_pos = worst_pos
                         .max((w.x as f64 - a.x).abs())
                         .max((w.y as f64 - a.y).abs());
@@ -378,6 +378,33 @@ mod tests {
         // 1/16 u from the grid, plus the f32 rounding of the sim's f64 position (under 0.001 at 5120 u).
         assert!(worst_pos <= 0.0626, "position error {worst_pos}");
         assert!(worst_facing <= 4.9e-5, "facing error {worst_facing}");
+    }
+
+    /// `hp_pct` is the `round` expression it replaced for every fraction a match produces, ties and edges included.
+    #[test]
+    fn hp_pct_matches_the_f64_round_reference() {
+        let reference = |f: f64| (f * 100.0).round().clamp(0.0, 100.0) as u8;
+        for i in 0..=200_000u32 {
+            let f = i as f64 / 100_000.0 - 0.5;
+            assert_eq!(hp_pct(f), reference(f), "{f}");
+        }
+        for k in 0..=100u32 {
+            for d in [-1i64, 0, 1] {
+                let tie = (k as f64 + 0.5) / 100.0;
+                let f = f64::from_bits((tie.to_bits() as i64 + d) as u64);
+                assert_eq!(hp_pct(f), reference(f), "{f}");
+            }
+        }
+        for f in [
+            f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            -0.0,
+            1e300,
+            -1e300,
+        ] {
+            assert_eq!(hp_pct(f), reference(f), "{f}");
+        }
     }
 
     fn flat_arena(w: u32, h: u32) -> rh_sim::Arena {

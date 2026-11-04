@@ -178,6 +178,85 @@ fn snapshot_writer_matches_the_message_for_every_size() {
     }
 }
 
+fn into(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
+    let ServerMsg::Snapshot {
+        tick,
+        phase,
+        ack_input,
+        me,
+        actors,
+    } = m
+    else {
+        panic!("not a snapshot")
+    };
+    rh_protocol::encode_snapshot_into(
+        out,
+        *tick,
+        *phase,
+        *ack_input,
+        me.as_ref(),
+        actors.iter().copied(),
+    )
+}
+
+/// `encode_snapshot_into` is the message's frame byte for byte, appends after existing bytes, and refuses (leaving the
+/// buffer untouched) exactly what `SnapshotWriter` refuses.
+#[test]
+fn encode_snapshot_into_matches_the_writer_and_its_refusals() {
+    for n in [0u32, 1, 2, 14, 68, 300, MAX_ACTORS as u32] {
+        for m in [snapshot(None, n), snapshot(Some(me()), n)] {
+            let mut out = vec![9, 9];
+            assert_eq!(into(&mut out, &m), Ok(m.encoded_len()));
+            assert_eq!(&out[..2], &[9, 9]);
+            assert_eq!(&out[2..], &m.encode()[..]);
+        }
+    }
+    let ServerMsg::Snapshot { actors, .. } = snapshot(Some(me()), 3) else {
+        unreachable!()
+    };
+    let bad_variants: Vec<Vec<WireActor>> = vec![
+        actors
+            .iter()
+            .map(|a| WireActor { hp_pct: 101, ..*a })
+            .collect(),
+        actors
+            .iter()
+            .map(|a| WireActor { x: f32::NAN, ..*a })
+            .collect(),
+        actors
+            .iter()
+            .map(|a| WireActor { faction: 16, ..*a })
+            .collect(),
+        actors.iter().rev().copied().collect(),
+    ];
+    for bad in bad_variants {
+        let mut a = vec![7u8];
+        let mut b = vec![7u8];
+        let via_into =
+            rh_protocol::encode_snapshot_into(&mut a, 101, 1, 42, Some(&me()), bad.iter().copied());
+        let mut w = SnapshotWriter::begin(&mut b, 101, 1, 42, Some(&me()), bad.len());
+        for x in &bad {
+            w.actor(x);
+        }
+        assert!(via_into.is_err());
+        assert_eq!(via_into, w.finish());
+        assert_eq!((a, b), (vec![7u8], vec![7u8]));
+    }
+    // A count that disagrees with the iterator's own length is a mismatch, and over the limit is TooMany.
+    let mut out = vec![7u8];
+    let mut it = (0..5).map(actor);
+    it.next();
+    let r = rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, it);
+    assert!(r.is_ok());
+    let mut out = vec![7u8];
+    let many: Vec<WireActor> = (0..(MAX_ACTORS as u32 + 1)).map(actor).collect();
+    assert!(matches!(
+        rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, many.into_iter()),
+        Err(EncodeError::TooMany { .. })
+    ));
+    assert_eq!(out, [7]);
+}
+
 #[test]
 fn an_announced_count_over_the_limit_is_too_many() {
     let mut out = vec![7];
