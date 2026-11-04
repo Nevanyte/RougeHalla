@@ -179,18 +179,9 @@ async fn main() {
         rh_protocol::PROTOCOL_VERSION,
         rh_sim::content::content_hash()
     );
-    let svc = app.into_make_service();
-    match tls {
-        Some(t) => axum_server::bind_rustls(bind, t)
-            .handle(handle)
-            .serve(svc)
-            .await
-            .expect("server"),
-        None => axum_server::bind(bind)
-            .handle(handle)
-            .serve(svc)
-            .await
-            .expect("server"),
-    }
+    // The one shared serve path (TCP_NODELAY on plain and TLS sockets); the live tests run the same function.
+    rh_server::serve(bind, tls, app, handle)
+        .await
+        .expect("server");
     eprintln!("[server] terminated");
 }
