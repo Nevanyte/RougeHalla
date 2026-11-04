@@ -24,9 +24,14 @@ pub const SEND_TIMEOUT: Duration = Duration::from_secs(5);
 /// or EOF. Dropping a socket with unread input makes the kernel reset it, and a reset can destroy the Reject frame
 /// before the client reads it (seen under load with a flooding client).
 pub const CLOSE_LINGER: Duration = Duration::from_secs(1);
-/// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst.
+/// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst. Every inbound frame
+/// counts, WebSocket control frames (Ping, Pong) included: a client cannot keep its socket readable forever for free.
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
+/// Fairness of the reader's biased select: after this many frames in a row, the next wait looks at the writer first (once,
+/// without waiting). Bounds how long a client whose frames are always readable can hide a finished writer, independently
+/// of the frame bucket.
+pub const FAIR_STREAK: u32 = 32;
 
 /// Connection ids, unique per process: a seat only listens to the connection that currently owns it.
 static NEXT_CONN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -50,18 +55,29 @@ impl Bucket {
     }
 }
 
+/// Sends `msgs` in order, all under one `SEND_TIMEOUT`: false when a send failed or the time ran out (a client that
+/// stopped reading cannot hold the task). Every write of a connection is bounded so; the batched writer uses `write_batch`.
+async fn send_bounded<S, I>(sock: &mut S, msgs: I) -> bool
+where
+    S: futures_util::Sink<Message> + Unpin,
+    I: IntoIterator<Item = Message>,
+{
+    let all = async {
+        for m in msgs {
+            sock.send(m).await.map_err(|_| ())?;
+        }
+        Ok::<(), ()>(())
+    };
+    matches!(tokio::time::timeout(SEND_TIMEOUT, all).await, Ok(Ok(())))
+}
+
 async fn reject(sock: &mut WebSocket, code: RejectCode, reason: &str) {
-    let _ = sock
-        .send(Message::Binary(
-            ServerMsg::Reject {
-                code,
-                reason: reason.into(),
-            }
-            .encode()
-            .into(),
-        ))
-        .await;
-    let _ = sock.send(Message::Close(None)).await;
+    let frame = ServerMsg::Reject {
+        code,
+        reason: reason.into(),
+    }
+    .encode();
+    send_bounded(sock, [Message::Binary(frame.into()), Message::Close(None)]).await;
 }
 
 pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
@@ -103,7 +119,9 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
             return;
         }
     };
-    if sock.send(Message::Binary(ok.welcome.into())).await.is_err() {
+    // Under SEND_TIMEOUT like every later write: a client that completed Hello and then stopped reading (a zero TCP window)
+    // must not hold its seat live forever before the reader's idle check has even started.
+    if !send_bounded(&mut sock, [Message::Binary(ok.welcome.into())]).await {
         let _ = room
             .send(RoomCmd::Disconnected {
                 player: ok.player,
@@ -138,11 +156,21 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     let mut liveness = tokio::time::interval_at(start + period, period);
     liveness.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut last_seen = start;
+    let mut streak = 0u32;
     let mut left = false;
     let mut writer_done = false;
     loop {
         // Stop reading as soon as the writer is done (a TooSlow/RateLimited close, or a dead socket), or on idleness.
-        let msg = match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
+        let msg = match next_wake(
+            &mut rx,
+            &mut liveness,
+            &mut last_seen,
+            idle,
+            &mut writer,
+            &mut streak,
+        )
+        .await
+        {
             Wake::Frame(m) => m,
             Wake::Closed | Wake::Idle => break,
             Wake::WriterDone => {
@@ -152,7 +180,15 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         };
         let bytes = match msg {
             Ok(Message::Binary(b)) => b,
-            Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => continue,
+            // Control frames are charged like data frames: a Ping flood ends RateLimited (tungstenite answers each Ping
+            // with a Pong on its own; that answer is all a control frame gets).
+            Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {
+                if !bucket.allow(last_seen) {
+                    outbox.close(RejectCode::RateLimited);
+                    break;
+                }
+                continue;
+            }
             Ok(Message::Close(_)) | Err(_) => break,
             Ok(Message::Text(_)) => {
                 outbox.close(RejectCode::Malformed);
@@ -237,17 +273,33 @@ enum Wake<M> {
 /// Waits for the next thing the reader loop acts on. The select is `biased` with the client's frames first: when a frame
 /// is already readable and an overdue liveness tick is ready too, the frame wins and refreshes `last_seen`, so a client
 /// that did send is never dropped for idleness by the tick winning a coin flip. Then the writer, then the liveness check.
+///
+/// Fairness: `streak` counts the frames returned in a row. Once it reaches [`FAIR_STREAK`], this wait first looks (without
+/// waiting) at the writer, so a client whose frames are always readable cannot starve it: a finished writer (a TooSlow or
+/// RateLimited close, a dead socket) ends the reader within `FAIR_STREAK + 1` frames. The liveness tick is never looked at
+/// ahead of a ready frame (the P5d rule holds); while frames keep coming it has nothing to find anyway.
 async fn next_wake<R, M, W>(
     rx: &mut R,
     liveness: &mut tokio::time::Interval,
     last_seen: &mut tokio::time::Instant,
     idle: Duration,
     writer: &mut W,
+    streak: &mut u32,
 ) -> Wake<M>
 where
     R: futures_util::Stream<Item = M> + Unpin,
     W: std::future::Future + Unpin,
 {
+    if *streak >= FAIR_STREAK {
+        *streak = 0;
+        let done = std::future::poll_fn(|cx| {
+            std::task::Poll::Ready(std::pin::Pin::new(&mut *writer).poll(cx).is_ready())
+        })
+        .await;
+        if done {
+            return Wake::WriterDone;
+        }
+    }
     loop {
         tokio::select! {
             biased;
@@ -255,6 +307,7 @@ where
                 return match m {
                     Some(m) => {
                         *last_seen = tokio::time::Instant::now();
+                        *streak += 1;
                         Wake::Frame(m)
                     }
                     None => Wake::Closed,
@@ -262,6 +315,7 @@ where
             }
             _ = &mut *writer => return Wake::WriterDone,
             t = liveness.tick() => {
+                *streak = 0;
                 if t.duration_since(*last_seen) >= idle {
                     return Wake::Idle;
                 }
@@ -392,7 +446,16 @@ mod tests {
             let mut rx = futures_util::stream::iter([7u8, 8]);
             let mut writer = std::future::pending::<()>();
             tokio::time::sleep(Duration::from_millis(2)).await;
-            match next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await {
+            match next_wake(
+                &mut rx,
+                &mut liveness,
+                &mut last_seen,
+                idle,
+                &mut writer,
+                &mut 0,
+            )
+            .await
+            {
                 Wake::Frame(7) => {}
                 _ => panic!("trial {trial}: the tick won over a ready frame"),
             }
@@ -413,20 +476,155 @@ mod tests {
         let mut rx = futures_util::stream::pending::<u8>();
         let mut writer = std::future::pending::<()>();
         assert!(matches!(
-            next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut writer).await,
+            next_wake(
+                &mut rx,
+                &mut liveness,
+                &mut last_seen,
+                idle,
+                &mut writer,
+                &mut 0
+            )
+            .await,
             Wake::Idle
         ));
         assert!(start.elapsed() >= idle);
         let mut done = std::future::ready(());
         assert!(matches!(
-            next_wake(&mut rx, &mut liveness, &mut last_seen, idle, &mut done).await,
+            next_wake(
+                &mut rx,
+                &mut liveness,
+                &mut last_seen,
+                idle,
+                &mut done,
+                &mut 0
+            )
+            .await,
             Wake::WriterDone
         ));
         let mut ended = futures_util::stream::empty::<u8>();
         assert!(matches!(
-            next_wake(&mut ended, &mut liveness, &mut last_seen, idle, &mut writer).await,
+            next_wake(
+                &mut ended,
+                &mut liveness,
+                &mut last_seen,
+                idle,
+                &mut writer,
+                &mut 0
+            )
+            .await,
             Wake::Closed
         ));
+    }
+
+    /// A client whose frames are always readable (a Ping flood) cannot starve a writer that already finished: the reader
+    /// learns of it within FAIR_STREAK + 1 frames, where the biased select alone would return frames forever.
+    #[tokio::test]
+    async fn a_flood_of_ready_frames_cannot_hide_a_finished_writer() {
+        let idle = Duration::from_secs(10);
+        let start = tokio::time::Instant::now();
+        let mut liveness = tokio::time::interval_at(start + idle, idle);
+        let mut last_seen = start;
+        let mut rx = futures_util::stream::repeat(0u8);
+        let mut writer = std::future::ready(());
+        let mut streak = 0;
+        let mut frames = 0;
+        loop {
+            match next_wake(
+                &mut rx,
+                &mut liveness,
+                &mut last_seen,
+                idle,
+                &mut writer,
+                &mut streak,
+            )
+            .await
+            {
+                Wake::Frame(_) => frames += 1,
+                Wake::WriterDone => break,
+                _ => panic!("only frames and the writer are ready"),
+            }
+            assert!(frames <= FAIR_STREAK, "the writer was starved");
+        }
+        assert_eq!(frames, FAIR_STREAK);
+    }
+
+    /// The fairness look never puts an overdue liveness tick ahead of a ready frame (the P5d rule): at a look, with the
+    /// client silent past `idle`, the tick overdue and a frame readable, the frame still wins, on every trial.
+    #[tokio::test]
+    async fn the_fairness_look_keeps_a_ready_frame_ahead_of_an_overdue_tick() {
+        let idle = Duration::from_millis(1);
+        for trial in 0..50 {
+            let start = tokio::time::Instant::now();
+            let mut liveness = tokio::time::interval_at(start, Duration::from_millis(1));
+            let mut last_seen = start;
+            let mut rx = futures_util::stream::repeat(0u8);
+            let mut writer = std::future::pending::<()>();
+            let mut streak = FAIR_STREAK;
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            match next_wake(
+                &mut rx,
+                &mut liveness,
+                &mut last_seen,
+                idle,
+                &mut writer,
+                &mut streak,
+            )
+            .await
+            {
+                Wake::Frame(_) => {}
+                _ => panic!("trial {trial}: the look dropped a client whose frame was ready"),
+            }
+            assert_eq!(streak, 1);
+        }
+    }
+
+    /// A Ping flood is charged to the frame bucket like data frames: it ends RateLimited after the burst.
+    #[test]
+    fn control_frames_spend_the_frame_bucket() {
+        let t = tokio::time::Instant::now();
+        let mut b = Bucket {
+            tokens: FRAME_BURST,
+            at: t,
+        };
+        let allowed = (0..1000).take_while(|_| b.allow(t)).count();
+        assert_eq!(allowed, FRAME_BURST as usize);
+    }
+
+    /// A sink that never accepts anything (a client with a zero TCP window).
+    struct StalledSink;
+
+    impl futures_util::Sink<Message> for StalledSink {
+        type Error = Infallible;
+        fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Infallible>> {
+            Poll::Pending
+        }
+        fn start_send(self: Pin<&mut Self>, _: Message) -> Result<(), Infallible> {
+            Ok(())
+        }
+        fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Infallible>> {
+            Poll::Pending
+        }
+        fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Infallible>> {
+            Poll::Pending
+        }
+    }
+
+    /// The Welcome (and a Reject) are bounded like every later write: a client that stops reading right after its Hello
+    /// gives up its connection after SEND_TIMEOUT instead of holding the task (and its seat) forever.
+    #[tokio::test(start_paused = true)]
+    async fn the_welcome_and_reject_sends_give_up_after_send_timeout() {
+        let t0 = tokio::time::Instant::now();
+        assert!(!send_bounded(&mut StalledSink, [Message::Binary(vec![1u8; 9].into())]).await);
+        assert_eq!(t0.elapsed(), SEND_TIMEOUT);
+        let mut ok = CountingSink::default();
+        assert!(
+            send_bounded(
+                &mut ok,
+                [Message::Binary(vec![1u8].into()), Message::Close(None)]
+            )
+            .await
+        );
+        assert_eq!((ok.sent.len(), ok.flushes), (2, 2));
     }
 
     #[tokio::test]

@@ -196,6 +196,8 @@ pub struct ViewFrames {
     pub fx: Option<Vec<u8>>,
     /// The state snapshot; an error when the codec refuses the observation (never a repaired frame).
     pub snapshot: Result<Vec<u8>, rh_protocol::EncodeError>,
+    /// The first refusal of the Events or Fx frame (that frame is then `None`): the codec never clamps or repairs one.
+    pub refused: Option<rh_protocol::EncodeError>,
 }
 
 impl ViewFrames {
@@ -268,6 +270,9 @@ impl Publisher {
             }
         }
         let tick = self.obs.tick;
+        // Both go through the refusing encoder: a frame a decoder would reject (an fx position off the grid, too many
+        // entries) is not sent, never clamped (release) nor a panic (debug).
+        let mut refused = None;
         let important = if self.events.is_empty() {
             None
         } else {
@@ -275,11 +280,11 @@ impl Publisher {
                 tick,
                 events: std::mem::take(&mut self.events),
             };
-            let frame = msg.encode();
+            let frame = msg.try_encode().map_err(|e| refused = Some(e)).ok();
             if let ServerMsg::Events { events, .. } = msg {
                 self.events = events;
             }
-            Some(frame)
+            frame
         };
         let fx = if self.fx.is_empty() {
             None
@@ -288,17 +293,23 @@ impl Publisher {
                 tick,
                 fx: std::mem::take(&mut self.fx),
             };
-            let frame = msg.encode();
+            let frame = msg
+                .try_encode()
+                .map_err(|e| {
+                    refused.get_or_insert(e);
+                })
+                .ok();
             if let ServerMsg::Fx { fx, .. } = msg {
                 self.fx = fx;
             }
-            Some(frame)
+            frame
         };
         let snapshot = encode_snapshot(&self.obs, ack_input, &mut self.scratch);
         ViewFrames {
             important,
             fx,
             snapshot,
+            refused,
         }
     }
 }

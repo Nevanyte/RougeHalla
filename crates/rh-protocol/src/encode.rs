@@ -80,6 +80,17 @@ fn sized_then_written<F: Frame + ?Sized>(m: &F) -> Vec<u8> {
     w.finish()
 }
 
+/// The refusing twin of [`sized_then_written`]: the same single allocation of exactly the frame's size, or the reason a
+/// decoder would reject the frame (nothing is allocated then).
+fn checked_exact<F: Frame>(m: &F) -> Result<Vec<u8>, EncodeError> {
+    let len = m.encoded_len();
+    m.check(len)?;
+    let mut w = Writer::with_capacity(len);
+    m.write(&mut w);
+    debug_assert_eq!(w.len(), len, "encoded_len disagrees with the writer");
+    Ok(w.finish())
+}
+
 fn encode_into<F: Frame>(m: &F, out: &mut Vec<u8>) -> Result<usize, EncodeError> {
     let len = m.encoded_len();
     m.check(len)?;
@@ -234,11 +245,9 @@ impl ClientMsg {
         encode_exact(self)
     }
 
-    /// Like [`ClientMsg::encode`], but a message decoders would reject is an error.
+    /// Like [`ClientMsg::encode`] (one allocation of the exact size), but a message decoders would reject is an error.
     pub fn try_encode(&self) -> Result<Vec<u8>, EncodeError> {
-        let mut out = Vec::new();
-        encode_into(self, &mut out)?;
-        Ok(out)
+        checked_exact(self)
     }
 
     /// Appends the frame to `out` and returns its length; on error `out` is unchanged.
@@ -846,11 +855,10 @@ impl ServerMsg {
         encode_exact(self)
     }
 
-    /// Like [`ServerMsg::encode`], but a message decoders would reject is an error.
+    /// Like [`ServerMsg::encode`] (one allocation of the exact size), but a message decoders would reject is an error. The
+    /// server encodes every Events and Fx frame through this.
     pub fn try_encode(&self) -> Result<Vec<u8>, EncodeError> {
-        let mut out = Vec::new();
-        encode_into(self, &mut out)?;
-        Ok(out)
+        checked_exact(self)
     }
 
     /// Appends the frame to `out` (a buffer the caller reuses) and returns its length; on error `out` is unchanged.
