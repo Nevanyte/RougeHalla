@@ -75,47 +75,41 @@ fn main() {
         .iter()
         .any(|a| a == "--digest")
         .then(rh_headless::digest::OutcomeDigest::new);
+    // The room's own publish path (`wire::Publisher::frames`), one wake of one step per tick, with its buffers reused.
+    let mut publisher = rh_server::wire::Publisher::default();
+    let mut earlier: Vec<rh_sim::SeenEvent> = Vec::new();
     for _ in 0..ticks {
         let t = Instant::now();
-        let out = env.step(&[]);
+        let progress = env.advance(&[]);
         step_ns += t.elapsed().as_nanos();
         steps += 1;
+        let events: &[Event] = env.last_events();
         if let Some(d) = digest.as_mut() {
-            d.tick(&env.sim, &out.events);
+            d.tick(&env.sim, events);
         }
-        let events: &Vec<Event> = &out.events;
         let t = Instant::now();
         for id in &ids {
-            let obs = rh_sim::observe(&env.sim, *id, events);
-            visible_sum += obs.visible.len() as u64;
-            let snap = rh_server::wire::encode_snapshot(&obs, 0).expect("snapshot encodes");
+            let f = publisher.frames(&env.sim, *id, 0, events, &mut earlier, events);
+            visible_sum += publisher.observation().visible.len() as u64;
+            let snap = f.snapshot.as_ref().expect("snapshot encodes");
             snap_bytes += snap.len() as u64;
             snaps += 1;
             bytes += snap.len() as u64;
             frames += 1;
-            let imp = rh_server::wire::important(events, &obs);
-            if !imp.is_empty() {
-                let n = ServerMsg::Events {
-                    tick: obs.tick,
-                    events: imp,
-                }
-                .encode()
-                .len() as u64;
-                bytes += n;
-                event_bytes += n;
+            if let Some(imp) = &f.important {
+                bytes += imp.len() as u64;
+                event_bytes += imp.len() as u64;
                 frames += 1;
             }
-            let fx = rh_server::wire::fx_seen(&obs);
-            if !fx.is_empty() {
-                let n = ServerMsg::Fx { tick: obs.tick, fx }.encode().len() as u64;
-                bytes += n;
-                fx_bytes += n;
+            if let Some(fx) = &f.fx {
+                bytes += fx.len() as u64;
+                fx_bytes += fx.len() as u64;
                 frames += 1;
             }
             n += 1;
         }
         enc_ns += t.elapsed().as_nanos();
-        if out.terminated {
+        if progress.terminated {
             break;
         }
     }

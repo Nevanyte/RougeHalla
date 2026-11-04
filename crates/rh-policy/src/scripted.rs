@@ -65,7 +65,12 @@ impl Policy for Brawler {
         self.wander = None;
     }
     fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
-        let Some(me) = &obs.me else { return Vec::new() };
+        let mut out = Vec::new();
+        self.decide_into(obs, &mut out);
+        out
+    }
+    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<RawCommand>) {
+        let Some(me) = &obs.me else { return };
         let target = obs
             .visible
             .iter()
@@ -82,16 +87,16 @@ impl Policy for Brawler {
                 let d = rh_sim::math::sqrt(dx * dx + dy * dy);
                 let a = rh_sim::math::atan2(dy, dx);
                 if d < 80.0 {
-                    vec![RawCommand::Attack {
+                    out.push(RawCommand::Attack {
                         a,
                         t: Some(obs.server_time - 100.0),
-                    }]
+                    });
                 } else {
-                    vec![RawCommand::Move {
+                    out.push(RawCommand::Move {
                         x: t.x,
                         y: t.y,
                         seq: None,
-                    }]
+                    });
                 }
             }
             None => {
@@ -102,9 +107,7 @@ impl Policy for Brawler {
                     let (rx, ry) = (self.next(), self.next());
                     self.wander = Some((me.x + (rx - 0.5) * 600.0, me.y + (ry - 0.5) * 600.0));
                     let (x, y) = self.wander.unwrap();
-                    vec![RawCommand::Move { x, y, seq: None }]
-                } else {
-                    Vec::new()
+                    out.push(RawCommand::Move { x, y, seq: None });
                 }
             }
         }

@@ -34,10 +34,14 @@ mod systems;
 
 pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
 pub use content::{FactionId, WeaponId};
+pub use events::{Class, Visibility};
 pub use input::{validate, Command, RawCommand, Reject};
 pub use map::TileMap;
 pub use math::Vec2;
-pub use observe::{observe, public_snapshot, Observation, OBSERVATION_VERSION};
+pub use observe::{
+    observe, observe_events_into, observe_into, public_snapshot, Observation, SeenEvent,
+    OBSERVATION_VERSION,
+};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
 };

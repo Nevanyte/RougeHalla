@@ -925,3 +925,24 @@ fn world_to_tile_round_trips_tile_centres() {
         assert_eq!(world_to_tile(tile_to_world_center(t)), t);
     }
 }
+
+/// The sight verdict is NOT symmetric: `ray_blocked(a, b)` and `ray_blocked(b, a)` differ on a measurable share of segments that
+/// graze a tile edge or corner (the traversal starts in a's tile and rounds its crossings from a). The publish path therefore
+/// judges every ordered (viewer, other) pair on its own and never reuses one verdict for both directions; this test is what
+/// stops a "compute each pair once" change, until that is shown bit for bit equal.
+#[test]
+fn the_sight_verdict_is_not_symmetric_so_each_ordered_pair_is_judged_alone() {
+    for (name, map) in maps() {
+        let mut r = Rng(0x5eed_0002 ^ map.layer_hash() as u64);
+        let mut asym = 0u32;
+        for _ in 0..2_000_000u32 {
+            let (x0, y0, x1, y1) = segment(&mut r, &map);
+            if ray_blocked(&map, x0, y0, x1, y1, MASK_SIGHT)
+                != ray_blocked(&map, x1, y1, x0, y0, MASK_SIGHT)
+            {
+                asym += 1;
+            }
+        }
+        assert!(asym > 0, "{name}: no asymmetric pair found in 2e6 segments");
+    }
+}

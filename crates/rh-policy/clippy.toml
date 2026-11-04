@@ -1,0 +1,22 @@
+# The determinism rules of docs/adr/0007-determinism.md as lints (the same table as rh-sim's): a policy that decides inside
+# a deterministic match must not use platform math, a clock or hash-map order. The one wall-clock read, Seat's inline
+# decision budget, is allowed where it is written.
+disallowed-methods = [
+    { path = "f64::sin", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::cos", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::tan", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::atan2", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::asin", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::acos", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::hypot", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::exp", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::ln", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::powf", reason = "use rh_sim::math (libm): ADR 0007" },
+    { path = "f64::mul_add", reason = "no fused multiply-add: ADR 0007" },
+    { path = "std::time::Instant::now", reason = "no clock in a decision: ADR 0007" },
+    { path = "std::time::SystemTime::now", reason = "no clock in a decision: ADR 0007" },
+]
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "iteration order is not deterministic: ADR 0007" },
+    { path = "std::collections::HashSet", reason = "iteration order is not deterministic: ADR 0007" },
+]
