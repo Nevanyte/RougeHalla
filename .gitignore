@@ -12,3 +12,4 @@ packages/client/.vitest/
 .wrangler/
 deployment/cloudflare/build-meta.json
 .vitest/
+.claude/worktrees/
