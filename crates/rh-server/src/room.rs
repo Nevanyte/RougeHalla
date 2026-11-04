@@ -2,13 +2,14 @@
 //! task, in arrival order, between steps (the legacy rule: handlers validate and enqueue, the sim consumes at the next step).
 //! Nothing here blocks on I/O: frames go to per-connection [`Outbox`]es, results to a channel drained off-tick.
 
-use crate::outbox::Outbox;
+use crate::outbox::{Outbox, OutboxCounters};
 use crate::pacer::Pacer;
 use crate::wire;
 use rh_policy::{drive_seats_with, scripted, Seat};
-use rh_protocol::{RejectCode, ServerMsg, WireEvent};
+use rh_protocol::map::{EncodedMap, MapBlob};
+use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent};
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
-use rh_sim::{Event, FactionId, Phase, PlayerId, RunResult, Secrets, Sim, SimConfig};
+use rh_sim::{Arena, Event, FactionId, Phase, PlayerId, RunResult, Secrets, Sim, SimConfig};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -92,11 +93,16 @@ pub enum RoomReport {
         final_hash: u64,
         replay: Option<Box<Replay>>,
     },
-    Phase {
+    /// A human took a seat (its Join reply follows this report): `humans` is the room's seated count. The director counts
+    /// the admission as seated from here on; until then it was only a reservation (an admission that may still be
+    /// acquiring its durable lease).
+    Seated {
         match_id: MatchId,
         phase: Phase,
         humans: usize,
     },
+    /// The room's phase changed (a lobby that closed into a run must stop receiving joins).
+    Phase { match_id: MatchId, phase: Phase },
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
@@ -107,14 +113,43 @@ pub struct RoomStats {
     pub step_us_max: u64,
     pub late_wakes: u64,
     pub dropped_steps: u64,
+    /// Bytes of every frame the room encoded for its humans.
     pub bytes_out: u64,
+    /// Bytes of the frames the outboxes accepted (at most `bytes_out`: a closed outbox takes nothing).
+    pub bytes_enqueued_total: u64,
+    /// Fx frames evicted unsent from slow clients' outboxes, over every connection the match had.
     pub fx_dropped: u64,
+    /// Snapshots a slow client skipped because a newer one replaced them.
     pub snapshots_skipped: u64,
+}
+
+/// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
+/// one per map; a room only clones the `Arc`s.
+#[derive(Clone)]
+pub struct MapAssets {
+    pub arena: Arc<Arena>,
+    pub welcome_map: Arc<EncodedMap>,
+}
+
+impl MapAssets {
+    /// Fails (with the protocol's reason) for a map a client would refuse to decode.
+    pub fn new(arena: impl Into<Arc<Arena>>) -> Result<Self, rh_protocol::EncodeError> {
+        let arena = arena.into();
+        let m = &arena.map;
+        let welcome_map = MapBlob::new(m.w as u16, m.h as u16, m.tiles.clone()).pre_encode()?;
+        Ok(Self {
+            arena,
+            welcome_map: Arc::new(welcome_map),
+        })
+    }
 }
 
 pub struct RoomConfig {
     pub sim: SimConfig,
-    pub arena: rh_sim::Arena,
+    /// Shared by every room of the map (never cloned per room).
+    pub arena: Arc<Arena>,
+    /// The map's Welcome blob (see [`MapAssets`]); every join and resume copies these bytes.
+    pub welcome_map: Arc<EncodedMap>,
     /// Fill the match with scripted bots up to this many players (0: none).
     pub fill_bots_to: usize,
     pub tick: Duration,
@@ -152,7 +187,9 @@ pub struct Room {
     bytes_out: u64,
     ended_at: Option<Instant>,
     draining: bool,
-    welcome_map: rh_protocol::map::MapBlob,
+    welcome_map: Arc<EncodedMap>,
+    /// Counters of the outboxes this room no longer holds (a resumed, dropped or left connection's).
+    retired_outboxes: OutboxCounters,
     bot_seq: u64,
     recorder: Option<Recorder>,
     fixed_bot_seed: Option<u64>,
@@ -189,8 +226,6 @@ impl Room {
             order_salt: random_u32(),
             spawn_seed: random_u32(),
         });
-        let m = &cfg.arena.map;
-        let welcome_map = rh_protocol::map::MapBlob::new(m.w as u16, m.h as u16, m.tiles.clone());
         let sim = Sim::new(cfg.sim.clone(), cfg.arena, secrets);
         let recorder = cfg
             .record
@@ -209,7 +244,8 @@ impl Room {
             bytes_out: 0,
             ended_at: None,
             draining: false,
-            welcome_map,
+            welcome_map: cfg.welcome_map,
+            retired_outboxes: OutboxCounters::default(),
             bot_seq: 0,
             recorder,
             fixed_bot_seed: cfg.fixed_bot_seed,
@@ -233,18 +269,25 @@ impl Room {
     }
 
     fn welcome(&self, player: PlayerId, session: [u8; 16]) -> Vec<u8> {
-        ServerMsg::Welcome {
-            protocol: rh_protocol::PROTOCOL_VERSION,
-            content_hash: rh_sim::content::content_hash(),
-            match_id: self.id,
-            player_id: player.0,
-            session,
-            tick_rate: rh_sim::constants::TICK_RATE as u8,
-            tick: self.sim.tick(),
-            server_ms: self.sim.server_time(),
-            map: self.welcome_map.clone(),
-        }
-        .encode()
+        // The map is copied from its once-encoded blob, not run-length encoded per join and resume.
+        encode_welcome(
+            &WelcomeHeader {
+                protocol: rh_protocol::PROTOCOL_VERSION,
+                content_hash: rh_sim::content::content_hash(),
+                match_id: self.id,
+                player_id: player.0,
+                session,
+                tick_rate: rh_sim::constants::TICK_RATE as u8,
+                tick: self.sim.tick(),
+                server_ms: self.sim.server_time(),
+            },
+            &self.welcome_map,
+        )
+    }
+
+    /// Takes a connection's counters into the room's totals once the room stops pushing to it.
+    fn retire_outbox(&mut self, o: &Outbox) {
+        self.retired_outboxes.add(o.counters());
     }
 
     fn humans_present(&self) -> usize {
@@ -273,13 +316,15 @@ impl Room {
                 let r = match self.humans.iter_mut().find(|h| h.session == session) {
                     None => Err(RejectCode::NoSuchSession),
                     Some(h) => {
-                        if let Some(old) = h.outbox.replace(outbox) {
-                            old.close(RejectCode::Kicked);
-                        }
+                        let old = h.outbox.replace(outbox);
                         // From now on only the new connection speaks for this seat.
                         h.conn = conn;
                         h.dropped_at = None;
                         let (player, session) = (h.player, h.session);
+                        if let Some(old) = old {
+                            old.close(RejectCode::Kicked);
+                            self.retire_outbox(&old);
+                        }
                         self.record(ReplayInput::Dropped {
                             player,
                             dropped: false,
@@ -328,13 +373,16 @@ impl Room {
                     .iter_mut()
                     .find(|h| h.player == player && h.conn == conn)
                 {
-                    h.outbox = None;
+                    let old = h.outbox.take();
                     h.dropped_at = Some(now);
                     self.record(ReplayInput::Dropped {
                         player,
                         dropped: true,
                     });
                     self.sim.mark_dropped(player, true);
+                    if let Some(old) = old {
+                        self.retire_outbox(&old);
+                    }
                 }
             }
             RoomCmd::Leave { player, conn } => {
@@ -391,6 +439,8 @@ impl Room {
         });
         let session = random16();
         self.fences.push((player, fence));
+        // A room that has had a human closes the moment it has none again (see `wake`).
+        self.had_human = true;
         self.humans.push(HumanSeat {
             player,
             conn,
@@ -402,7 +452,7 @@ impl Room {
             ack_input: 0,
         });
         self.fill_bots();
-        let _ = self.reports.send(RoomReport::Phase {
+        let _ = self.reports.send(RoomReport::Seated {
             match_id: self.id,
             phase: self.sim.phase(),
             humans: self.humans_present(),
@@ -452,6 +502,7 @@ impl Room {
             let h = self.humans.remove(i);
             if let Some(o) = h.outbox {
                 o.close(RejectCode::Kicked);
+                self.retire_outbox(&o);
             }
             // Leaving a run one still stands in is MIA: the sim resolves it now and its result is reported with the next
             // step's events; the director holds the profile until it is written.
@@ -533,7 +584,6 @@ impl Room {
             let _ = self.reports.send(RoomReport::Phase {
                 match_id: self.id,
                 phase: self.sim.phase(),
-                humans: self.humans_present(),
             });
         }
         if self.sim.phase() == Phase::Ended && self.ended_at.is_none() {
@@ -609,17 +659,17 @@ impl Room {
         // Results emitted between steps (the last human's MIA leave) would otherwise die with the room.
         let pending = self.sim.take_events();
         self.report_results(&pending);
-        for h in &self.humans {
+        for h in std::mem::take(&mut self.humans) {
             if let Some(o) = &h.outbox {
                 o.close(RejectCode::Kicked);
+                self.retire_outbox(o);
             }
             let _ = self.reports.send(RoomReport::Left {
-                profile: h.profile.clone(),
+                profile: h.profile,
                 fence: h.fence,
                 result_pending: false,
             });
         }
-        self.humans.clear();
         let replay = self.recorder.take().map(|r| Box::new(r.replay));
         let _ = self.reports.send(RoomReport::Closed {
             match_id: self.id,
@@ -640,6 +690,11 @@ impl Room {
                 v[((v.len() - 1) as f64 * p) as usize] as u64
             }
         };
+        // Connections the room still holds count live; the ones it let go were folded in when it did.
+        let mut outboxes = self.retired_outboxes;
+        for o in self.humans.iter().filter_map(|h| h.outbox.as_deref()) {
+            outboxes.add(o.counters());
+        }
         RoomStats {
             ticks: v.len() as u64,
             step_us_p50: q(0.5),
@@ -648,8 +703,9 @@ impl Room {
             late_wakes: self.pacer.late_wakes,
             dropped_steps: self.pacer.dropped,
             bytes_out: self.bytes_out,
-            fx_dropped: 0,
-            snapshots_skipped: 0,
+            bytes_enqueued_total: outboxes.bytes_enqueued_total,
+            fx_dropped: outboxes.fx_dropped,
+            snapshots_skipped: outboxes.snapshots_skipped,
         }
     }
 }

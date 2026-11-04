@@ -12,7 +12,8 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 | Stage 1 revision | the head of `optimization_port` carrying this file (Stage 1 commits: `114156b`..HEAD; see `git log 75c5b83..`) |
 | Working tree at handoff | clean (everything committed and pushed) |
 | Verdict | **READY FOR GPT WITH EXTERNAL GATES** (gates below) |
-| Next | Backlog wave 0 (P-CAPTURE-1), then wave 1 packets in parallel |
+| Next | Finish the core optimization sweep ([sweep/README.md](sweep/README.md): 8 packages merged, 2 WIP branches, remaining specs), then backlog wave 0 (P-CAPTURE-1) and wave 1 |
+| Sweep status | Paused for the move to local development; the Stage 1 numbers below predate it (current numbers: sweep/README.md) |
 
 ### External gates (cannot be resolved inside this repository)
 1. **Unity Editor + license**: none was available. The Unity project (`client-unity/UnityProject`) was never opened,
