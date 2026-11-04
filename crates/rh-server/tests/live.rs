@@ -568,6 +568,48 @@ async fn a_stalled_client_does_not_stall_the_match() {
     );
 }
 
+/// The first byte (0x83 Full, 0x87 delta) of every snapshot frame that arrives within `ms`.
+async fn snapshot_kinds_for(ws: &mut Ws, ms: u64) -> Vec<u8> {
+    let mut kinds = Vec::new();
+    let end = tokio::time::Instant::now() + Duration::from_millis(ms);
+    while let Ok(Some(Ok(m))) = tokio::time::timeout_at(end, ws.sock.next()).await {
+        if let Message::Binary(b) = m {
+            if b[0] == 0x83 || b[0] == 0x87 {
+                kinds.push(b[0]);
+            }
+        }
+    }
+    kinds
+}
+
+/// Protocol v3 over a real socket: the first snapshot is Full and deltas follow; a Resync is answered by exactly one Full
+/// snapshot; a second Resync inside the interval is ignored (not punished: the connection stays up); one after it is honoured.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_resync_is_answered_with_one_full_snapshot_at_most_once_a_second() {
+    let s = start(duel_arena(), |_| {}).await;
+    let (mut ws, _, _) = join(&s.url, "tango2", None).await;
+    let full = |k: &[u8]| k.iter().filter(|b| **b == 0x83).count();
+    let first = snapshot_kinds_for(&mut ws, 300).await;
+    assert!(first.len() > 20, "{}", first.len());
+    assert_eq!(first[0], 0x83, "the first snapshot after a Welcome is Full");
+    assert!(first[1..].iter().all(|k| *k == 0x87), "then deltas");
+
+    send(&mut ws, ClientMsg::Resync).await;
+    let answered = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(full(&answered), 1, "one Full per honoured Resync");
+    assert!(answered.len() > 20 && answered.last() == Some(&0x87), "deltas resume");
+
+    send(&mut ws, ClientMsg::Resync).await;
+    let ignored = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(full(&ignored), 0, "a Resync inside the interval is ignored");
+    assert!(ignored.len() > 20, "and the connection is fine");
+
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    send(&mut ws, ClientMsg::Resync).await;
+    let again = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(full(&again), 1, "honoured again after the interval");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat() {
     let s = start(duel_arena(), |c| c.reconnect_grace = Duration::from_secs(5)).await;
