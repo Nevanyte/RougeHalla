@@ -6,7 +6,7 @@
 
 use crate::hooks::{HookArgs, Hx};
 
-/// The world's default `dropBody` (legacy createWorld: `p.weapon.weapon0 = ""; p.weapon.weapon1 = ""`): the downed player's weapon
+/// The world's default `dropBody` (legacy createWorld: `p.weapon0 = ""; p.weapon1 = ""`): the downed player's weapon
 /// slots empty. Loot's `replace` link drops it in every recorded world, so a dispatch never reaches it.
 pub(crate) fn clear_slots(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::DropBody { victim } = *args else {

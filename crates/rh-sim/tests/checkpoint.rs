@@ -228,3 +228,26 @@ fn a_truncated_or_garbled_checkpoint_is_an_error_never_a_panic() {
     v["world"]["players"][0]["core"]["body"]["history"] = long;
     assert!(Sim::restore(&v).is_err(), "history ring");
 }
+
+#[test]
+fn a_checkpoint_whose_next_id_is_not_past_the_last_player_is_malformed_not_a_panic() {
+    use rh_sim::CheckpointError;
+    let mut a = crowded_8();
+    drive(&mut a, 5);
+    let good: Value = serde_json::to_value(&a).unwrap();
+    let last = good["world"]["next_id"].as_u64().unwrap() - 1;
+    assert!(last >= 1, "the crowded match has players");
+    for bad in [last, 1, 0] {
+        let mut v = good.clone();
+        v["world"]["next_id"] = serde_json::json!(bad);
+        let r = Sim::restore(v);
+        assert!(
+            matches!(r, Err(CheckpointError::Malformed(ref m)) if m.contains("next_id")),
+            "next_id {bad}: {:?}",
+            r.err()
+        );
+    }
+    // The honest value restores.
+    let ok = Sim::restore(good).unwrap();
+    assert_eq!(ok.state_hash(), a.state_hash());
+}

@@ -170,6 +170,15 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                 return Err(self.refuse(CheckpointError::Malformed(e.to_string())))
             }
         };
+        // `next_id` hands out the next join: at or below a present id it would push out of order (a panic in the store).
+        if let Some(last) = w.players.last() {
+            if w.next_id <= last.id.0 {
+                return Err(self.refuse(CheckpointError::Malformed(format!(
+                    "next_id {} is not greater than the last player id {}",
+                    w.next_id, last.id.0
+                ))));
+            }
+        }
         Ok(Sim {
             k,
             w,
