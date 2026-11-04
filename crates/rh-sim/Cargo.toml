@@ -1,0 +1,18 @@
+[package]
+name = "rh-sim"
+description = "Roguehalla authoritative simulation core: fixed-step, deterministic, no I/O, no wall clock."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Pure-Rust transcendental functions: identical results on every declared target (no platform libm differences).
+libm = "0.2"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints]
+workspace = true
