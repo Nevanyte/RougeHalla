@@ -39,8 +39,9 @@ merge commit of the package before yours) into its own target dir; the candidate
 (uncommitted changes included) built into another target dir. Both are plain `--release` builds, the profile that
 ships, each with `--remap-path-prefix <its source dir>=/rh` appended to RUSTFLAGS, so the two builds embed the same
 paths (panic locations, debug info) and an unchanged source gives the same code: without it, Ir moved by ~0.2% between
-runs that built the same revision in different directories. Nothing outside --out (default target/perfproof) is
-written.
+runs that built the same revision in different directories. With it, a revision against itself measures within
++-0.02% Ir per unit on every workload (allocations identical), so read a ratio closer to 1 than that as no change.
+Nothing outside --out (default target/perfproof) is written.
 """
 
 import argparse
