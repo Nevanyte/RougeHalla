@@ -63,7 +63,7 @@ fn hidden_actors_change_nothing_the_viewer_is_shown() {
         let eb = b.step();
         let oa = observe(&a, viewer, &ea);
         let ob = observe(&b, viewer, &eb);
-        assert_eq!(oa, ob, "tick {}", a.tick);
+        assert_eq!(oa, ob, "tick {}", a.tick());
         assert!(
             oa.visible.iter().all(|v| v.id != rh_sim::PlayerId(2)),
             "the pillar hides player 2"

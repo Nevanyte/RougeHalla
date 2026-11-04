@@ -8,18 +8,27 @@
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
 pub mod arenas;
+pub mod checkpoint;
 pub mod constants;
 pub mod content;
+pub mod events;
 pub mod geometry;
+mod hash;
 pub mod input;
 pub mod map;
 pub mod math;
 pub mod observe;
 pub mod pathfind;
 pub mod replay;
+pub mod results;
 pub mod rng;
+mod scratch;
 pub mod sim;
+pub mod state;
+pub mod statics;
+mod systems;
 
+pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
 pub use content::{FactionId, WeaponId};
 pub use input::{validate, Command, RawCommand, Reject};
 pub use map::TileMap;

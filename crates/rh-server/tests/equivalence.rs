@@ -181,7 +181,7 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
     let mut next = 0;
     let mut last: Vec<Event> = Vec::new();
     for (step, expected) in replay.hashes.iter().enumerate() {
-        let target = sim.tick + 1;
+        let target = sim.tick() + 1;
         if let Some(t) = replay.ticks.get(next) {
             if t.tick == target {
                 for input in &t.inputs {

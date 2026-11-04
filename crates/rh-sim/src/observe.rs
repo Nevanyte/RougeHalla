@@ -96,13 +96,13 @@ fn sees(sim: &Sim, me: &Player, other: &Player) -> bool {
     let dx = other.x - me.x;
     let dy = other.y - me.y;
     dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
-        && !raycast(&sim.arena.map, me.x, me.y, other.x, other.y, MASK_SIGHT).hit
+        && !raycast(&sim.arena().map, me.x, me.y, other.x, other.y, MASK_SIGHT).hit
 }
 
 /// The observation of player `viewer` after a step whose events are `events` (pass the step's return value).
 pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
     let me = sim.player(viewer);
-    let now = sim.server_time;
+    let now = sim.server_time();
     let self_view = me.map(|p| SelfView {
         id: p.id,
         faction: p.faction,
@@ -184,9 +184,9 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
     }
     Observation {
         version: OBSERVATION_VERSION,
-        tick: sim.tick,
+        tick: sim.tick(),
         server_time: now,
-        phase: sim.phase,
+        phase: sim.phase(),
         me: self_view,
         visible,
         events: seen,
@@ -241,10 +241,10 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         .collect();
     players.sort_by_key(|p| p.id);
     PublicSnapshot {
-        tick: sim.tick,
-        server_time: sim.server_time,
-        phase: sim.phase,
-        winner: sim.winner.clone(),
+        tick: sim.tick(),
+        server_time: sim.server_time(),
+        phase: sim.phase(),
+        winner: sim.winner().map(str::to_owned),
         players,
     }
 }
