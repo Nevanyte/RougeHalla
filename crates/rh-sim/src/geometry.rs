@@ -212,13 +212,17 @@ pub fn circle_clear(map: &TileMap, p: Vec2, radius: f64, mask: u8) -> bool {
     }
     let reach = 1i64.max(ceil_i64(radius / TILE));
     let r2 = radius * radius;
-    for j in (ty - reach)..=(ty + reach) {
-        for i in (tx - reach)..=(tx + reach) {
+    for j in ty.saturating_sub(reach)..=ty.saturating_add(reach) {
+        for i in tx.saturating_sub(reach)..=tx.saturating_add(reach) {
             if !map.blocked(i, j, mask) {
                 continue;
             }
-            let nx = cx.max(i as f64 * TILE).min((i + 1) as f64 * TILE);
-            let ny = cy.max(j as f64 * TILE).min((j + 1) as f64 * TILE);
+            let nx = cx
+                .max(i as f64 * TILE)
+                .min(i.saturating_add(1) as f64 * TILE);
+            let ny = cy
+                .max(j as f64 * TILE)
+                .min(j.saturating_add(1) as f64 * TILE);
             let ddx = cx - nx;
             let ddy = cy - ny;
             if ddx * ddx + ddy * ddy < r2 {

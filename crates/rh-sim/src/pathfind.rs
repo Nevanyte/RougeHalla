@@ -240,7 +240,8 @@ impl Pathfinder {
         out: &mut Vec<Vec2>,
     ) {
         out.clear();
-        if !(from.x + from.y + to.x + to.y).is_finite() {
+        // Each coordinate on its own: opposite extremes cancel in a sum.
+        if !(from.x.is_finite() && from.y.is_finite() && to.x.is_finite() && to.y.is_finite()) {
             return;
         }
         let w = map.w as usize;
@@ -383,8 +384,8 @@ fn snap_to_floor(map: &TileMap, x: f64, y: f64) -> Option<(i64, i64)> {
             let rest = ring - dy.abs();
             let dxs: &[i64] = if rest == 0 { &[0] } else { &[-rest, rest] };
             for &dx in dxs {
-                let tx = cx + dx;
-                let ty = cy + dy;
+                let tx = cx.saturating_add(dx);
+                let ty = cy.saturating_add(dy);
                 if !map.is_floor(tx, ty) {
                     continue;
                 }

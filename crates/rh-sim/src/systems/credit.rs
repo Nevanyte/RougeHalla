@@ -40,9 +40,9 @@ pub(crate) fn credit_kill(
     if w.players[bi].resolved {
         return;
     }
-    w.players[bi].credit.kills += 1;
+    w.players[bi].credit.kills = w.players[bi].credit.kills.saturating_add(1);
     if victim_bot {
-        w.players[bi].credit.bot_kills += 1;
+        w.players[bi].credit.bot_kills = w.players[bi].credit.bot_kills.saturating_add(1);
     } else {
         credit(w, ev, bi, GvReason::Kill, GV_KILL);
     }
@@ -58,14 +58,19 @@ fn credit(w: &mut World, ev: &mut Vec<Event>, i: usize, reason: GvReason, amount
         return;
     }
     match reason {
-        GvReason::Kill => p.credit.gv_parts.kills += amount,
-        GvReason::Bounty => p.credit.gv_parts.bounty += amount,
+        GvReason::Kill => p.credit.gv_parts.kills = p.credit.gv_parts.kills.saturating_add(amount),
+        GvReason::Bounty => {
+            p.credit.gv_parts.bounty = p.credit.gv_parts.bounty.saturating_add(amount)
+        }
         GvReason::Win => {}
     }
-    p.credit.gv = p.credit.gv_parts.kills
-        + p.credit.gv_parts.mobs
-        + p.credit.gv_parts.bounty
-        + p.credit.gv_parts.quest;
+    p.credit.gv = p
+        .credit
+        .gv_parts
+        .kills
+        .saturating_add(p.credit.gv_parts.mobs)
+        .saturating_add(p.credit.gv_parts.bounty)
+        .saturating_add(p.credit.gv_parts.quest);
     let id = p.id;
     ev.push(Event::Gv { id, amount, reason });
 }

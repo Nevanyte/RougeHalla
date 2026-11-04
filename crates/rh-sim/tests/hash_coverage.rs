@@ -356,6 +356,14 @@ const VALIDATED: &[(&str, &str)] = &[
         "the roster is strictly ordered by id like the store, and below next_id: a neighbour's id collides",
     ),
     (
+        "world.players.*.core.body.history.*.t",
+        "samples are at least a tick apart and not after the clock (checkpoint.rs `check_world`)",
+    ),
+    (
+        "world.roster.names.#len",
+        "kills, joined and downs are bounded by the roster length (checkpoint.rs `check_world`)",
+    ),
+    (
         "world.roster.names.*.#len",
         "a roster entry is a (id, name) pair",
     ),
@@ -446,6 +454,20 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
                 v
             }
             Kind::Leaf => candidates(leaf, &strings),
+        };
+        // `bot_kills` may not exceed `kills` (checkpoint.rs `check_world`) and no scripted match has kills at this moment:
+        // perturb it from a base where the fighter has some, and compare against that base's hash.
+        let (base, h0) = if pat == "world.players.*.credit.bot_kills" {
+            let mut b = base.clone();
+            let mut at = path.clone();
+            at.pop();
+            *at_mut(&mut b, &[&at[..], &["kills".to_string()]].concat()) = 3.into();
+            let h = Sim::restore(&b)
+                .expect("kills within the roster restore")
+                .state_hash();
+            (b, h)
+        } else {
+            (base.clone(), h0)
         };
         let mut result = None;
         for cand in tries {

@@ -307,7 +307,7 @@ impl InputQueue {
 
     fn push_action(&mut self, cmd: ActionCmd) -> Result<(), Reject> {
         if !self.actions.push(cmd) {
-            self.dropped += 1;
+            self.dropped = self.dropped.saturating_add(1);
             return Err(Reject::QueueFull);
         }
         Ok(())

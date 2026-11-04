@@ -272,6 +272,11 @@ impl Roster {
         self.names.push((id, name.to_string()));
     }
 
+    /// How many players ever joined.
+    pub(crate) fn len(&self) -> usize {
+        self.names.len()
+    }
+
     /// The id of the latest join, if any.
     pub(crate) fn last_id(&self) -> Option<PlayerId> {
         self.names.last().map(|(id, _)| *id)

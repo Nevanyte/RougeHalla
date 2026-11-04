@@ -79,7 +79,7 @@ pub(crate) fn down_player(
         downed.push(id);
         return;
     }
-    w.rt.downs_between_ticks += 1;
+    w.rt.downs_between_ticks = w.rt.downs_between_ticks.saturating_add(1);
     let alive = w.players.iter().filter(|p| p.standing()).count() as u32;
     let vi = w.idx(id).expect("still present");
     resolve(w, ev, vi, outcome, alive + 1, 0, None);
@@ -215,7 +215,12 @@ fn resolve(
     let g = p.credit.gv_parts;
     let gv = GvBreakdown {
         win,
-        total: g.kills + g.mobs + g.bounty + g.quest + win,
+        total: g
+            .kills
+            .saturating_add(g.mobs)
+            .saturating_add(g.bounty)
+            .saturating_add(g.quest)
+            .saturating_add(win),
         ..g
     };
     let result = RunResult {
@@ -226,7 +231,7 @@ fn resolve(
         } else {
             0
         },
-        kills: p.credit.kills - p.credit.bot_kills,
+        kills: p.credit.kills.saturating_sub(p.credit.bot_kills),
         killed_by: if outcome == Outcome::Died {
             p.fate
                 .killed_by

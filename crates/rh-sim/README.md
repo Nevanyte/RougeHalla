@@ -69,13 +69,18 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
 cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a
 roster or player list out of id order; a `server_time` that is negative, non-finite or beyond `u32::MAX` ticks (where the
-clock's own additions stop being exact); `tick` at `u32::MAX`; a rewind history out of time order or dated after
-`server_time`; any carried weapon but fists and any pending action but a finite fist swing (the slice has no item flow, so
-the ranged path in `weapons.rs` is unreachable); and queued inputs that `validate` would change (non-finite or out-of-range
-points and angles). These are the rules the tick is known to rely on: each has a refusal test in `checkpoint.rs`, and a
-few hundred random and structured mutations of a real checkpoint restore and step without a panic. Counters that only
-count up (kills, downs) are not bounded: a checkpoint within a few increments of `u32::MAX` there can still overflow.
-A change that makes
+clock's own additions stop being exact); `tick` at `u32::MAX`; a rewind history whose samples are not at least one tick apart (which also orders them) or that is
+dated after `server_time` (a denser one fills the ring within a few steps); any body, rewind sample, waypoint or arena
+spawn that is non-finite or more than 1024 units past the map (huge coordinates overflow the tile arithmetic, and opposite
+extremes cancel in a finiteness sum); `bot_kills` above `kills`, `kills` above the roster length, `joined` or
+`downs_between_ticks` above the roster length (natural bounds: a kill needs a victim, a down a fighter); any carried
+weapon but fists and any pending action but a finite fist swing (the slice has no item flow, so the ranged path in
+`weapons.rs` is unreachable); and queued inputs that `validate` would change (non-finite or out-of-range points and
+angles). Counters with no natural bound (`inputs.dropped`, the gv parts and their sum) use saturating arithmetic, which is
+bit-identical below `u32::MAX`. These are the rules the tick is known to rely on: each has a refusal test in
+`checkpoint.rs`; a few hundred random and structured mutations of a real checkpoint restore, step, take commands and
+join/leave without a panic; and `rh-headless/tests/restore_real.rs` restores checkpoints of real bot and lobby matches at
+hundreds of steps and asserts none is refused. A change that makes
 `statics` or `world` unreadable by old checkpoints bumps `CHECKPOINT_FORMAT`.
 
 The arena is an `Arc<Arena>` (serde `rc`): it serializes exactly as a plain `Arena`, so replay JSON is unchanged, and
