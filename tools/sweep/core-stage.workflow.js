@@ -4,7 +4,8 @@
 // all on one base. Or args {scratch, base, chains: [[pkg, pkg, ...], ...]}: chains run in parallel; inside a chain each
 // package is STACKED on the previous package's final branch (its fix branch if it had one), so a dependent package starts
 // without waiting for the coordinator's merge; a chain stops if a package is still blocked after its fix and re-review.
-// Optional args.audit overrides the audit record path. Implementers and fixers run on Sonnet, reviewers on Opus (owner policy).
+// Optional args.audit overrides the audit record path. Implementers and fixers run on Sonnet (a package may set model/effort for
+// a consequential design), reviewers on Opus (owner policy).
 export const meta = {
   name: 'core-stage',
   description: 'Implement one stage of the core improvement plan: packages in isolated worktrees, independent review, fixes',
@@ -86,13 +87,13 @@ Review the branch diff for: behaviour changes that would break parity or a contr
 async function runPackage(pkg, BASE) {
   const B = brief(BASE)
   const rep = await agent(`${B}\n\nYOUR ASSIGNMENT: package ${pkg.id}: ${pkg.title}\n\n${pkg.resume ? `RESUMING: an earlier engineer started this package and was stopped. Do NOT create pkg/${pkg.id}; instead run git checkout ${pkg.resume} (it is not checked out anywhere else). Its commits so far: ${pkg.resume_note}. Read them (git log -p ${BASE}..HEAD) and the spec, then finish the remaining work, keeping their design unless it is wrong (say so). Your report covers the whole package (branch = ${pkg.resume}).\n\n` : ''}${pkg.spec}`,
-    { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' })
+    { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: pkg.model || 'sonnet', effort: pkg.effort || 'medium' })
   if (!rep) return null
   const rv = await agent(reviewPrompt(pkg, rep, BASE), { label: `review:${pkg.id}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })
   const x = { rep, rv, base: BASE, final_branch: rep.branch, final_head: rep.head_sha, accepted: !!rv && (rv.verdict === 'accept' || !rv.blocking.length) }
   if (!rv || x.accepted) return x
   const fix = await agent(`${B}\n\nYOUR ASSIGNMENT: fix the blocking review findings on package ${pkg.id} (${pkg.title}). Instead of creating pkg/${pkg.id}, run: git checkout -b pkg/${pkg.id}-fix ${rep.branch} (the original branch is ${rep.branch} at ${rep.head_sha}). Fix every blocking finding below (or explain precisely why one is wrong, with evidence), re-run all gates, commit, and return the full structured report for the package as it now stands (branch = pkg/${pkg.id}-fix).\n\nPACKAGE SPEC:\n${pkg.spec}\n\nBLOCKING FINDINGS:\n${JSON.stringify(rv.blocking)}\n\nNON-BLOCKING NOTES (address if cheap):\n${JSON.stringify(rv.nonblocking)}`,
-    { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: 'sonnet', effort: 'medium' })
+    { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: pkg.model || 'sonnet', effort: pkg.effort || 'medium' })
   x.fix = fix
   if (!fix) return x
   x.final_branch = fix.branch; x.final_head = fix.head_sha
