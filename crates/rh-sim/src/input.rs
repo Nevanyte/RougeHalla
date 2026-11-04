@@ -348,6 +348,36 @@ mod tests {
     }
 
     #[test]
+    fn the_inline_queue_serializes_as_the_sequence_it_replaced() {
+        let mut q = InputQueue::default();
+        q.push(Command::Attack { a: 1.0, t: None }).unwrap();
+        q.push(Command::Release { a: 2.0, t: Some(5.0) }).unwrap();
+        let want = vec![
+            ActionCmd::Attack { a: 1.0, t: None },
+            ActionCmd::Release { a: 2.0, t: Some(5.0) },
+        ];
+        let json = serde_json::to_value(&q).unwrap();
+        assert_eq!(json["actions"], serde_json::to_value(&want).unwrap());
+        let back: InputQueue = serde_json::from_value(json).unwrap();
+        assert_eq!(back, q);
+        // Slots past the length are dead data: a drained-and-refilled queue equals a fresh one with the same actions.
+        let mut used = InputQueue::default();
+        for _ in 0..MAX_ACTIONS_PER_TICK {
+            used.push(Command::Attack { a: 9.0, t: None }).unwrap();
+        }
+        used.clear();
+        used.push(Command::Attack { a: 1.0, t: None }).unwrap();
+        used.push(Command::Release { a: 2.0, t: Some(5.0) }).unwrap();
+        assert_eq!(used.actions, q.actions);
+        // A checkpoint with more actions than a tick may queue is refused.
+        let too_many = serde_json::json!({
+            "mv": null, "move_before": 0, "aim": null, "aim_before": 0, "dropped": 0,
+            "actions": vec![serde_json::to_value(ActionCmd::Release { a: 0.0, t: None }).unwrap(); MAX_ACTIONS_PER_TICK + 1],
+        });
+        assert!(serde_json::from_value::<InputQueue>(too_many).is_err());
+    }
+
+    #[test]
     fn budget_refills_on_sim_time() {
         let mut b = OrderBudget::default();
         let mv = Command::Stop { seq: None };

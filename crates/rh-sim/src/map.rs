@@ -11,12 +11,10 @@ use crate::constants::TILE;
 pub const TILE_FLOOR: u8 = 0;
 pub const TILE_WALL: u8 = 1;
 pub const TILE_LOW: u8 = 2;
-/// Eyes, projectiles, target acceptance: walls only.
-pub const MASK_SIGHT: u8 = TILE_WALL;
-/// Bodies, A*, placement: anything not floor.
-pub const MASK_MOVE: u8 = 0xff;
-/// Swings: walls and LOW (fences, lava, crevasses).
-pub const MASK_MELEE: u8 = TILE_WALL | TILE_LOW;
+/// The query masks are content rows (`constants::MASK_*`, hashed with the rest of the rules): sight (eyes, projectiles,
+/// target acceptance: walls only), movement (bodies, A*, placement: anything not floor) and melee (swings: walls and LOW
+/// cover, fences, lava, crevasses). Re-exported here, where the tile classes they select from are.
+pub use crate::constants::{MASK_MELEE, MASK_MOVE, MASK_SIGHT};
 
 /// A* neighbour order (legacy `findPath`): the four orthogonal steps, then the four diagonals. Bit `d` of
 /// [`TileMap::nav`] refers to step `(STEP_DX[d], STEP_DY[d])`.

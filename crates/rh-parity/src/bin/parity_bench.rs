@@ -84,6 +84,8 @@ fn main() {
     let mut all: Vec<f64> = Vec::new();
     let mut d = digest::OutcomeDigest::new();
     let mut final_hash = 0;
+    // One event buffer for the whole bench: the step is measured without the per-step Vec the old `step()` allocated.
+    let mut ev = Vec::new();
     for r in 0..runs + 3 {
         let mut sim = rh_parity::build(&fx);
         let mut inputs = fx.inputs.iter().peekable();
@@ -100,12 +102,13 @@ fn main() {
                 }
             }
             let t0 = Instant::now();
-            let ev = sim.step();
+            ev.clear();
+            sim.step_into(&mut ev);
             let us = t0.elapsed().as_secs_f64() * 1e6;
             if r == 0 && want_digest {
                 d.tick(&sim, &ev);
             }
-            std::hint::black_box(ev);
+            std::hint::black_box(&ev);
             if r >= 3 {
                 all.push(us);
             }

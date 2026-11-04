@@ -307,3 +307,105 @@ fn a_payout_of_the_pass_lands_in_the_same_tick_not_the_next() {
         "the payout queue is never part of a checkpoint"
     );
 }
+
+/// Three fighters spread out on the practice arena, named p0 p1 p2 (ids 1 2 3), one hit point each.
+fn sim3() -> Sim {
+    let ps: Vec<Placement> = (0..3)
+        .map(|i| Placement {
+            profile: format!("p{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(300.0 + 300.0 * i as f64, 300.0),
+            hp: Some(1.0),
+        })
+        .collect();
+    Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(21),
+        &ps,
+    )
+}
+
+#[test]
+fn kill_credit_is_paid_after_every_victim_took_their_damage() {
+    // p1 kills p2 and p2 kills p3 in the same pass: both hits land (the ledger is simultaneous), both die, and only then do
+    // the two kill credits go out, in the order they were queued. A victim who is down but not yet settled can still be
+    // credited: no reward decides who survives the pass.
+    let mut s = sim3();
+    let mut ev = Vec::new();
+    let mut cx = Cx {
+        k: &s.k,
+        w: &mut s.w,
+        s: &mut s.s,
+        ev: &mut ev,
+        pf: &mut s.pf,
+    };
+    settle::mark_tick_start(&mut cx);
+    inputs::action_order(&mut cx);
+    cx.s.ledger.push(hit(1, 2, 1.0e6));
+    cx.s.ledger.push(hit(2, 3, 1.0e6));
+    ledger::apply(&mut cx);
+    assert!(cx.s.ledger.is_empty());
+    assert!(cx.w.pay.items.is_empty() && !cx.w.pay.collecting);
+    let at = |f: &dyn Fn(&Event) -> bool| ev.iter().position(f).unwrap_or(usize::MAX);
+    let death2 = at(&|e| matches!(e, Event::Death { id, .. } if *id == PlayerId(2)));
+    let death3 = at(&|e| matches!(e, Event::Death { id, .. } if *id == PlayerId(3)));
+    assert!(
+        death2 < ev.len() && death3 < ev.len(),
+        "both victims died: {ev:?}"
+    );
+    let credits: Vec<(usize, PlayerId)> = ev
+        .iter()
+        .enumerate()
+        .filter_map(|(i, e)| match e {
+            Event::Gv { id, .. } => Some((i, *id)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        credits.iter().map(|(_, id)| *id).collect::<Vec<_>>(),
+        [PlayerId(1), PlayerId(2)],
+        "one kill credit per kill, in queue order: {ev:?}"
+    );
+    assert!(
+        credits.iter().all(|(i, _)| *i > death2.max(death3)),
+        "every credit comes after both deaths: {ev:?}"
+    );
+}
+
+#[test]
+fn a_hit_by_a_departed_shooter_is_named_from_the_roster() {
+    // leave_mia's shape: a fighter leaves between ticks (MIA, removed from the seats) and a hit it dealt is still queued (a
+    // deferred entry survives one tick boundary). The victim dies of it: the result names the shooter from its roster entry,
+    // credits nobody (the shooter is gone: no kill, no GV) and the Death names no attacker.
+    let mut s = sim3();
+    s.w.deferred.defer_hit(hit(2, 1, 1.0e6));
+    s.remove_player(PlayerId(2));
+    assert!(s.player(PlayerId(2)).is_none(), "the shooter is gone");
+    let events = s.step();
+    let resolved = |id: u32| {
+        events.iter().find_map(|e| match e {
+            Event::Resolved { id: i, result, .. } if *i == PlayerId(id) => Some(result.clone()),
+            _ => None,
+        })
+    };
+    let victim = resolved(1).expect("the victim's run resolved");
+    assert_eq!(victim.outcome, crate::results::Outcome::Died);
+    assert_eq!(
+        victim.killed_by.as_deref(),
+        Some("p1"),
+        "the departed shooter is named from the roster (id 2 joined as p1)"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, Event::Death { id, by: None, .. } if *id == PlayerId(1))),
+        "{events:?}"
+    );
+    assert!(
+        !events.iter().any(|e| matches!(e, Event::Gv { .. })),
+        "no credit for a shooter who left: {events:?}"
+    );
+    assert_eq!(s.w.players.iter().map(|p| p.kills).sum::<u32>(), 0);
+}

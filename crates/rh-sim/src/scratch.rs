@@ -13,12 +13,13 @@
 //! Every buffer is cleared, never taken, so its capacity survives across ticks: after the first few ticks a step allocates
 //! nothing (`tests/no_alloc.rs` counts it). A new system that needs a list adds a field here.
 
+use crate::constants::MAX_PLAYERS;
 use crate::math::Vec2;
 use crate::state::PlayerId;
 use crate::systems::ledger::Entry;
 use crate::systems::melee::MeleeReq;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct TickScratch {
     /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`): a kill pays what the victim was worth
     /// before the tick's own kills raised it.
@@ -50,6 +51,42 @@ pub(crate) struct TickScratch {
     pub(crate) alive: Vec<PlayerId>,
     /// A path search's output, copied into the fighter's path when the order replaces it.
     pub(crate) path: Vec<Vec2>,
+}
+
+impl Default for TickScratch {
+    /// Every list starts at the size one tick of a full lobby can need (`MAX_PLAYERS` fighters, each landing at most one
+    /// swing on every other), so a normal match never grows a buffer: not even on its first crowded tick. Later packets
+    /// that add actors (mobs) grow them once, to their high-water mark.
+    fn default() -> Self {
+        let (p, hits) = (MAX_PLAYERS, MAX_PLAYERS * MAX_PLAYERS);
+        Self {
+            bounty_at_tick_start: Vec::with_capacity(p),
+            rank: Vec::with_capacity(p),
+            standing: Vec::with_capacity(p),
+            mults: Vec::with_capacity(p),
+            melee: Vec::with_capacity(p),
+            ledger: Vec::with_capacity(hits),
+            downed_this_tick: Vec::with_capacity(p),
+            bodies: Vec::with_capacity(p),
+            victims: Vec::with_capacity(p),
+            ledger_mults: Vec::with_capacity(hits),
+            idxs: Vec::with_capacity(p),
+            amounts: Vec::with_capacity(p),
+            order: Vec::with_capacity(p),
+            hits: Vec::with_capacity(p),
+            alive: Vec::with_capacity(p),
+            path: Vec::with_capacity(64),
+        }
+    }
+}
+
+/// The working lists hold nothing between steps (asserted in debug builds), so a clone is a fresh scratch: it is sized
+/// like a new one and copies no dead data.
+impl Clone for TickScratch {
+    fn clone(&self) -> Self {
+        debug_assert!(self.is_settled(), "a sim is cloned between steps");
+        Self::default()
+    }
 }
 
 impl TickScratch {

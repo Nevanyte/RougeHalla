@@ -79,6 +79,35 @@ mod tests {
         assert_eq!(got0, LEGACY_0);
     }
 
+    #[test]
+    fn the_buffer_shuffle_is_the_floor_shuffle() {
+        // The reference is the shuffle as first written (a floor of the scaled draw); the integer truncation and the
+        // in-place form must give its order for every salt, tick and size.
+        fn reference(salt: u32, tick: u32, n: usize) -> Vec<usize> {
+            let mut ids: Vec<usize> = (0..n).collect();
+            let mut rng = Mulberry32::new(salt ^ tick.wrapping_mul(0x9e37_79b1));
+            let mut i = n;
+            while i > 1 {
+                i -= 1;
+                let j = (rng.next_f64() * (i + 1) as f64).floor() as usize;
+                ids.swap(i, j);
+            }
+            ids
+        }
+        let mut buf = Vec::new();
+        for salt in [0u32, 1, 0x8c2b_f464, u32::MAX] {
+            for tick in 0..400u32 {
+                for n in 0..=9usize {
+                    let join: Vec<usize> = (0..n).collect();
+                    let want = reference(salt, tick, n);
+                    assert_eq!(action_order(salt, tick, &join), want);
+                    action_order_into(salt, tick, &join, &mut buf);
+                    assert_eq!(buf, want, "salt {salt} tick {tick} n {n}");
+                }
+            }
+        }
+    }
+
     // From `node` against packages/shared/src/rng.ts; the fixtures also record orderSalt = the first draw of
     // mulberry32(randomSeed), which the parity harness checks.
     const LEGACY_12: [u32; 3] = [1237598750, 324989476, 2491772807];
