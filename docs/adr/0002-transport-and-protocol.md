@@ -95,8 +95,10 @@ player per second (66%; the ADR 0010 prototype measured 345). Snapshot frames 43
 Delta). The 2-byte head (self field bits in the head word, the status as a rare byte, no id in the self delta) is where this beats
 the prototype's 4 (head word plus a separate 2-byte mask).
 
-**Cost** (`tools/perfproof/perfproof.py --baseline 8e54a25`, deterministic counts, before the merge with H-server; the
-figures on top of 2e8682c are in the P10c record): the wire workload (`wirebench`, the sim step
+**Cost** on top of H-server (`perfproof.py --baseline 2e8682c --only wire_seed1_8bots,headless_seed1_8bots`): wire 25,929 ->
+27,178 Ir per step (1.048x), allocations 9.08 -> 9.08 per step, allocated bytes 366 -> 827 per step (each frame reserves room
+for a Full frame; see below), headless 0.9999x, every gameplay fingerprint identical (only `bytesPerPlayerPerSec` 908 -> 305 and
+`meanSnapshotBytes` 43.0 -> 12.8 change, declared). Before that merge (`--baseline 8e54a25`, deterministic counts): the wire workload (`wirebench`, the sim step
 included) goes 25,811 -> 27,282 Ir per step (1.057x) with allocations per step unchanged (9.08) and every gameplay fingerprint
 identical (the declared byte counts aside); on the publish path alone (observe plus encode, 2,047 Ir per viewer-tick in ADR 0010)
 it is +184 Ir per viewer-tick, about 1.09x. Two things keep it there: a snapshot is validated and quantized once in the room and
