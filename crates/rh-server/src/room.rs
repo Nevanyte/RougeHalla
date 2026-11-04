@@ -70,6 +70,9 @@ pub enum RoomCmd {
         conn: u64,
     },
     Drain,
+    /// Tests: the room task panics (the crash path).
+    #[cfg(test)]
+    Crash,
 }
 
 /// What the room reports to its owner (the director): free a profile, a result to persist, the room closed.
@@ -78,6 +81,7 @@ pub enum RoomReport {
     /// A human left its seat. `result_pending`: it left a run it was still standing in, so its (MIA) result follows in a
     /// `Result` report; the director keeps the profile reserved until that result is written.
     Left {
+        match_id: MatchId,
         profile: String,
         fence: i64,
         result_pending: bool,
@@ -130,6 +134,11 @@ pub struct RoomStats {
     pub snapshot_refusals: u64,
     /// Refusal log lines printed: at most one per room, however many refusals there were.
     pub snapshot_refusals_logged: u64,
+    /// Events and Fx frames the encoder refused (never a clamped or repaired frame): counted, logged once per room.
+    pub frame_refusals: u64,
+    pub frame_refusals_logged: u64,
+    /// The room task panicked: these are the stats it had, reported by its unwinding guard.
+    pub crashed: bool,
 }
 
 /// What every room of one map shares: the immutable arena and its Welcome map blob, RLE-encoded once. The director builds
@@ -207,6 +216,8 @@ pub struct Room {
     bytes_out: u64,
     snapshot_refusals: u64,
     snapshot_refusals_logged: u64,
+    frame_refusals: u64,
+    frame_refusals_logged: u64,
     ended_at: Option<Instant>,
     draining: bool,
     welcome_map: Arc<EncodedMap>,
@@ -222,6 +233,9 @@ pub struct Room {
     /// Every human's lease fence, kept after it leaves: its result may be reported a step later.
     fences: Vec<(PlayerId, i64)>,
     reported_phase: Phase,
+    /// Tests: wall time every wake burns (an overloaded host).
+    #[cfg(test)]
+    stall: Duration,
 }
 
 pub fn random16() -> [u8; 16] {
@@ -270,6 +284,8 @@ impl Room {
             bytes_out: 0,
             snapshot_refusals: 0,
             snapshot_refusals_logged: 0,
+            frame_refusals: 0,
+            frame_refusals_logged: 0,
             ended_at: None,
             draining: false,
             welcome_map: cfg.welcome_map,
@@ -283,6 +299,8 @@ impl Room {
             had_human: false,
             fences: Vec::new(),
             reported_phase: Phase::Lobby,
+            #[cfg(test)]
+            stall: Duration::ZERO,
         }
     }
 
@@ -429,6 +447,8 @@ impl Room {
                 }
             }
             RoomCmd::Drain => self.draining = true,
+            #[cfg(test)]
+            RoomCmd::Crash => panic!("test: the room task panics"),
         }
     }
 
@@ -546,6 +566,7 @@ impl Room {
             self.record(ReplayInput::Leave { player });
             self.sim.remove_player(player);
             let _ = self.reports.send(RoomReport::Left {
+                match_id: self.id,
                 profile: h.profile,
                 fence: h.fence,
                 result_pending,
@@ -585,6 +606,10 @@ impl Room {
         let steps = self.pacer.due(now);
         if steps == 0 {
             return true;
+        }
+        #[cfg(test)]
+        if !self.stall.is_zero() {
+            std::thread::sleep(self.stall);
         }
         // One add per shared counter for this wake (the histograms add one bucket per value).
         self.metrics.wakes.fetch_add(1, Ordering::Relaxed);
@@ -691,6 +716,16 @@ impl Room {
                 &mut h.carry,
                 events,
             );
+            if let Some(e) = frames.refused {
+                // An Events or Fx frame the codec refused: not sent (never clamped), counted, logged once per room.
+                if self.frame_refusals == 0 {
+                    self.frame_refusals_logged += 1;
+                    eprintln!(
+                        "[room] frame not sent: {e} (logged once per room; see frameRefusals)"
+                    );
+                }
+                self.frame_refusals += 1;
+            }
             let snap = match frames.snapshot {
                 Ok(snap) => Some(snap),
                 // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
@@ -758,7 +793,10 @@ impl Room {
                 o.close(RejectCode::Kicked);
                 self.retire_outbox(o);
             }
+            // A result this seat earned was reported above or earlier; the director keeps the profile until its write
+            // lands (the write releases the lease), so `result_pending` stays about results still to come.
             let _ = self.reports.send(RoomReport::Left {
+                match_id: self.id,
                 profile: h.profile,
                 fence: h.fence,
                 result_pending: false,
@@ -793,6 +831,44 @@ impl Room {
             snapshots_skipped: outboxes.snapshots_skipped,
             snapshot_refusals: self.snapshot_refusals,
             snapshot_refusals_logged: self.snapshot_refusals_logged,
+            frame_refusals: self.frame_refusals,
+            frame_refusals_logged: self.frame_refusals_logged,
+            crashed: false,
+        }
+    }
+
+    /// A call into the room panicked (see `guarded`): its connections are closed and `Closed` is reported (marked `crashed`),
+    /// so the director frees every seat and gives the leases back instead of holding them until the process restarts.
+    /// The simulation is not touched (its state is suspect: no results, no final hash). Never panics itself.
+    fn crashed(&mut self) {
+        eprintln!("[room] the room task panicked: reporting it closed");
+        for h in &self.humans {
+            if let Some(o) = &h.outbox {
+                o.close(RejectCode::Kicked);
+            }
+        }
+        let stats = RoomStats {
+            crashed: true,
+            ..self.stats()
+        };
+        let _ = self.reports.send(RoomReport::Closed {
+            match_id: self.id,
+            stats,
+            final_hash: 0,
+            replay: None,
+        });
+    }
+}
+
+/// Runs one call into the room for [`run_room`]. A panic inside it (a simulation assert, a bug) is caught, the room is
+/// reported closed ([`Room::crashed`]) and `None` is returned: the task then ends. Only the room's own code is guarded,
+/// so a task cancelled while its thread unwinds from someone else's panic reports nothing.
+fn guarded<T>(room: &mut Room, f: impl FnOnce(&mut Room) -> T) -> Option<T> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(room))) {
+        Ok(v) => Some(v),
+        Err(_) => {
+            room.crashed();
+            None
         }
     }
 }
@@ -806,8 +882,19 @@ impl Room {
 /// would have met the same order, and replays record the order actually applied. The deadline is one pinned [`Sleep`]
 /// that is reset only when the grid's next slot changes, not a new timer per loop turn.
 ///
+/// Overload: under sustained overload (a wake that takes longer than its slot), the next deadline is already past when the
+/// select runs again, and the biased select alone would step forever without polling the inbox (joins, leaves and inputs
+/// would starve until every client is closed `TooSlow`). So when a wake ends with its next step already due, the commands
+/// already queued (at most [`INBOUND_CAP`], one inbox) are applied before that step: at most one wake runs between two
+/// looks at the inbox. That is the same order a command arriving during the wake meets in the normal case (it is applied
+/// after the step that was running, before the next one), so no new ordering is introduced; in the normal case (the next
+/// deadline is still ahead) nothing changes and a due step still runs before a queued command.
+///
+/// A panic in the room is caught at the call (`guarded`) and reported as `Closed`, marked `crashed`.
+///
 /// [`Sleep`]: tokio::time::Sleep
 pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
+    let room = &mut room;
     let mut armed = room.next_deadline();
     let sleep = tokio::time::sleep_until(armed);
     tokio::pin!(sleep);
@@ -815,7 +902,22 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
         tokio::select! {
             biased;
             _ = &mut sleep => {
-                if !room.wake(Instant::now()) { return; }
+                if guarded(room, |r| r.wake(Instant::now())) != Some(true) { return; }
+                // Overloaded (the next step is already due): what is queued now is applied before it.
+                if room.next_deadline() <= Instant::now() {
+                    for _ in 0..INBOUND_CAP {
+                        match rx.try_recv() {
+                            Ok(cmd) => {
+                                if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() { return; }
+                            }
+                            Err(mpsc::error::TryRecvError::Empty) => break,
+                            Err(mpsc::error::TryRecvError::Disconnected) => {
+                                guarded(room, Room::close);
+                                return;
+                            }
+                        }
+                    }
+                }
                 // The sleep has fired: arm it for the next slot (a wake that ran no step leaves the slot where it was,
                 // and re-arming it then behaves as a fresh `sleep_until`, as before).
                 armed = room.next_deadline();
@@ -823,15 +925,87 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
             }
             cmd = rx.recv() => match cmd {
                 Some(cmd) => {
-                    room.handle(cmd, Instant::now());
+                    if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() { return; }
                     let next = room.next_deadline();
                     if next != armed {
                         armed = next;
                         sleep.as_mut().reset(armed);
                     }
                 }
-                None => { room.close(); return; }
+                None => { guarded(room, Room::close); return; }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(tick: Duration) -> RoomConfig {
+        let assets = MapAssets::new(rh_sim::arenas::practice_arena()).unwrap();
+        RoomConfig {
+            sim: SimConfig {
+                min_players: 2,
+                lobby_seconds: 30.0,
+                fill_seconds: 0.0,
+                pvp_rules: true,
+            },
+            arena: assets.arena,
+            welcome_map: assets.welcome_map,
+            fill_bots_to: 0,
+            tick,
+            record: false,
+            fixed_secrets: Some(Secrets::from_seed(7)),
+            fixed_bot_seed: Some(7),
+            reconnect_grace: RECONNECT_GRACE,
+            linger: LINGER,
+        }
+    }
+
+    /// Under sustained overload (every wake takes 1.5 slots, so the next step is always already due when the loop looks
+    /// again), queued commands are still applied after each wake. The biased step-first select alone never polled the
+    /// inbox again: this join waited forever.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn an_overloaded_room_still_applies_queued_commands() {
+        let tick = Duration::from_millis(20);
+        let (reports, _keep) = mpsc::unbounded_channel();
+        let metrics: &'static Metrics = Box::leak(Box::new(Metrics::new()));
+        let mut room = Room::new([3; 16], cfg(tick), reports, Instant::now()).with_metrics(metrics);
+        room.stall = tick * 3 / 2;
+        let (tx, rx) = mpsc::channel(8);
+        // Keeps the timer driver turning on the other worker while the room's worker is busy, so the room's re-armed
+        // deadline is already elapsed for the timer wheel when the loop looks again (the starving case).
+        let ticker = tokio::spawn(async {
+            loop {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        });
+        let task = tokio::spawn(run_room(room, rx));
+        // Let it fall behind: several overloaded wakes before the command arrives.
+        tokio::time::sleep(tick * 5).await;
+        let (reply, got) = oneshot::channel();
+        tx.send(RoomCmd::Join {
+            profile: "alpha".into(),
+            faction: None,
+            outbox: Arc::new(Outbox::default()),
+            conn: 1,
+            fence: 1,
+            reply,
+        })
+        .await
+        .unwrap();
+        let ok = tokio::time::timeout(Duration::from_secs(3), got)
+            .await
+            .expect("the join is applied while the room is overloaded")
+            .unwrap()
+            .expect("seated");
+        assert!(
+            metrics.wakes.load(Ordering::Relaxed) >= 3,
+            "it was stepping all along"
+        );
+        drop(ok);
+        task.abort();
+        ticker.abort();
     }
 }

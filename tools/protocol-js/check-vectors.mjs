@@ -62,6 +62,9 @@ const reason = {
   head_self_bit_without_present_bit: /head/, head_reserved_bit: /head/, self_max_hp_over_u16: /max_hp/,
   too_many_actors: /too many actors/, actor_reserved_mask_bit: /actor mask/, actor_id_gap_zero: /actor order/, actor_id_overflow: /actor order/,
   actor_hp_over_100: /hp_pct/, actor_bounty_over_u16: /bounty/, fx_too_many: /too many fx/, fx_bad_tag: /bad fx/,
+  reject_code_zero: /reject code/, reject_code_unknown: /reject code/, server_bad_utf8: /utf-8/,
+  map_zero_size: /map size/, map_too_large: /map size/, map_bad_tile: /map run/, map_zero_run: /map run/,
+  map_run_past_size: /map run/, map_short: /map length/, map_hash_mismatch: /map hash/,
 };
 for (const v of fx.malformedServer) {
   const want = reason[v.name];

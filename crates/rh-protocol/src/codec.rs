@@ -43,7 +43,7 @@ pub enum EncodeError {
     BadMap(&'static str),
     /// A value a decoder rejects as out of range (`hp_pct` over 100).
     BadValue(&'static str),
-    /// A [`crate::SnapshotWriter`] given a different number of actors than it announced.
+    /// An [`crate::encode_snapshot_into`] iterator that yielded a different number of actors than its `len()` announced.
     CountMismatch { declared: usize, written: usize },
     /// A NaN or infinite float in a client message (client decoders reject them).
     NonFinite,
