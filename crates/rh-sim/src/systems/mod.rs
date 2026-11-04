@@ -10,7 +10,6 @@ pub(crate) mod movement;
 pub(crate) mod settle;
 pub(crate) mod weapons;
 
-use crate::constants::*;
 use crate::events::Event;
 use crate::pathfind::Pathfinder;
 use crate::rng::action_order;
@@ -18,7 +17,6 @@ use crate::scratch::TickScratch;
 use crate::sim::{PlayerId, Sim};
 use crate::state::World;
 use crate::statics::MatchStatic;
-use movement::{advance_along_path, record_history};
 
 /// What a system runs over: the match statics (read only), the world, the tick scratch, the step's event log and the
 /// path search scratch, as disjoint borrows. A system destructures what it touches.
@@ -50,7 +48,6 @@ impl Sim {
 
 impl Sim {
     pub(crate) fn update_active(&mut self) {
-        let now = self.w.server_time;
         // markTickStart
         self.s.bounty_at_tick_start.clear();
         for p in &mut self.w.players {
@@ -74,29 +71,7 @@ impl Sim {
         // [abilities] [target locks]  -- not in the slice (docs/backlog)
         self.with_cx(weapons::update);
         // [afterWeapons]
-        let standing: Vec<usize> = (0..self.w.players.len())
-            .filter(|&i| self.w.players[i].standing())
-            .collect();
-        let mults: Vec<f64> = standing
-            .iter()
-            .map(|&i| {
-                let m = weapons::move_multiplier(&self.w.players[i], now);
-                if m > 0.0 && m < MOVE_MULT_FLOOR {
-                    MOVE_MULT_FLOOR
-                } else {
-                    m
-                }
-            })
-            .collect();
-        let dt = TICK_MS / 1000.0;
-        for (k, &i) in standing.iter().enumerate() {
-            let p = &mut self.w.players[i];
-            let aiming = p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS;
-            advance_along_path(p, dt, aiming, mults[k]);
-        }
-        for &i in &standing {
-            record_history(&mut self.w.players[i], now);
-        }
+        self.with_cx(movement::walk);
         // [projectile sweep, spawns] -- not in the slice
         self.with_cx(melee::resolve);
         // [beforeDamage: signatures, terrain, statuses] [sudden death] -- not in the slice
