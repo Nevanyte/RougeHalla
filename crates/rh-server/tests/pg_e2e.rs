@@ -224,6 +224,191 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         .await
         .unwrap();
     assert_eq!(fences, vec![1, 1], "each profile held one fenced lease");
+
+    // A lobby leave releases the lease, so the profile can play again at once (no hour-long ProfileInUse).
+    let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
+    ws.send(Message::Binary(
+        hello("papa", "tok-papa", 0).encode().into(),
+    ))
+    .await
+    .unwrap();
+    loop {
+        let Ok(Some(Ok(Message::Binary(b)))) =
+            tokio::time::timeout(Duration::from_secs(10), ws.next()).await
+        else {
+            panic!("no welcome")
+        };
+        match ServerMsg::decode(&b).unwrap() {
+            ServerMsg::Welcome { .. } => break,
+            ServerMsg::Reject { code, reason } => panic!("rejoin refused: {code:?} {reason}"),
+            _ => {}
+        }
+    }
+    ws.send(Message::Binary(ClientMsg::Leave.encode().into()))
+        .await
+        .unwrap();
+    let mut rejoined = false;
+    for _ in 0..40 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let (mut again, _) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
+        again
+            .send(Message::Binary(
+                hello("papa", "tok-papa", 0).encode().into(),
+            ))
+            .await
+            .unwrap();
+        if let Ok(Some(Ok(Message::Binary(b)))) =
+            tokio::time::timeout(Duration::from_secs(10), again.next()).await
+        {
+            if matches!(ServerMsg::decode(&b).unwrap(), ServerMsg::Welcome { .. }) {
+                rejoined = true;
+                again
+                    .send(Message::Binary(ClientMsg::Leave.encode().into()))
+                    .await
+                    .unwrap();
+                break;
+            }
+        }
+    }
+    assert!(rejoined, "the released lease lets the profile join again");
+    drop(store);
+    let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)"))
+        .execute(admin.pool())
+        .await;
+}
+
+/// Leaving mid-run is MIA: its result is banked under the fence it was earned with, although the seat is gone by the time
+/// the result is reported (the director keeps the profile reserved until the write).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_mia_leave_is_banked_under_its_fence() {
+    let Ok(url) = std::env::var("DATABASE_URL") else {
+        if std::env::var("RH_SKIP_PG_TESTS").as_deref() == Ok("1") {
+            return;
+        }
+        panic!("DATABASE_URL is not set (eval \"$(tools/pgtest/start.sh)\")");
+    };
+    let admin = rh_persist::Store::connect(&url).await.unwrap();
+    let db = format!("rh_srv_mia_{}", std::process::id());
+    let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db}"))
+        .execute(admin.pool())
+        .await;
+    sqlx::query(&format!("CREATE DATABASE {db}"))
+        .execute(admin.pool())
+        .await
+        .unwrap();
+    let db_url = format!("{}/{db}", &url[..url.rfind('/').unwrap()]);
+    let store = Arc::new(rh_persist::Store::connect(&db_url).await.unwrap());
+    store.migrate().await.unwrap();
+    store.create_profile("tango", "t1").await.unwrap();
+    store.create_profile("uniform", "t2").await.unwrap();
+    let rows: Vec<String> = (0..8)
+        .map(|y| {
+            (0..12)
+                .map(|x| {
+                    if x == 0 || y == 0 || x == 11 || y == 7 {
+                        '#'
+                    } else {
+                        '.'
+                    }
+                })
+                .collect()
+        })
+        .collect();
+    let arena = Arena {
+        map: TileMap::from_rows(&rows).unwrap(),
+        spawns: vec![
+            Vec2::new(tile_to_world_center(3), tile_to_world_center(4)),
+            Vec2::new(tile_to_world_center(8), tile_to_world_center(4)),
+        ],
+    };
+    let cfg = DirectorConfig {
+        tick: Duration::from_millis(3),
+        linger: Duration::from_millis(100),
+        ..DirectorConfig::new(
+            SimConfig {
+                min_players: 2,
+                lobby_seconds: 30.0,
+                fill_seconds: 0.0,
+                pvp_rules: true,
+            },
+            arena,
+        )
+    };
+    let lifecycle = Arc::new(Lifecycle::default());
+    let director = Director::new(
+        cfg,
+        Arc::new(Persistence::Postgres {
+            store: store.clone(),
+            owner: "test-host".into(),
+        }),
+        Arc::new(Auth::Postgres(store.clone())),
+        lifecycle.clone(),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ws_url = format!("ws://{}/ws", listener.local_addr().unwrap());
+    tokio::spawn(async move {
+        axum::serve(listener, rh_server::public_router(director))
+            .await
+            .unwrap()
+    });
+    lifecycle.ready();
+    let hello = |p: &str, t: &str| ClientMsg::Hello {
+        protocol: PROTOCOL_VERSION,
+        content_hash: rh_sim::content::content_hash(),
+        build: String::new(),
+        profile: p.into(),
+        token: t.into(),
+        faction: None,
+        resume: None,
+    };
+    let mut socks = Vec::new();
+    for (p, t) in [("tango", "t1"), ("uniform", "t2")] {
+        let (mut ws, _) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
+        ws.send(Message::Binary(hello(p, t).encode().into()))
+            .await
+            .unwrap();
+        socks.push(ws);
+    }
+    loop {
+        let Ok(Some(Ok(Message::Binary(b)))) =
+            tokio::time::timeout(Duration::from_secs(10), socks[0].next()).await
+        else {
+            panic!("no run")
+        };
+        if matches!(
+            ServerMsg::decode(&b).unwrap(),
+            ServerMsg::Snapshot { phase: 1, .. }
+        ) {
+            break;
+        }
+    }
+    socks[0]
+        .send(Message::Binary(ClientMsg::Leave.encode().into()))
+        .await
+        .unwrap();
+    let mut banked = false;
+    for _ in 0..60 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let rows: Vec<(String, i64)> =
+            sqlx::query_as("SELECT callsign, fence FROM match_results ORDER BY callsign")
+                .fetch_all(store.pool())
+                .await
+                .unwrap();
+        if rows.iter().any(|(c, _)| c == "tango") && rows.iter().any(|(c, _)| c == "uniform") {
+            assert!(
+                rows.iter().all(|(_, f)| *f == 1),
+                "written under the fence each seat held: {rows:?}"
+            );
+            banked = true;
+            break;
+        }
+    }
+    assert!(
+        banked,
+        "both results (the leaver's MIA and the walkover win) were banked"
+    );
+    let tango = store.get_profile("tango").await.unwrap().unwrap();
+    assert_eq!(tango.stats.runs, 1);
     drop(store);
     let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)"))
         .execute(admin.pool())

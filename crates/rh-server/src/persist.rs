@@ -82,6 +82,21 @@ impl Persistence {
         }
     }
 
+    /// Gives back a session lease that will not carry a result (a lobby leave, a closed room).
+    pub async fn release(&self, profile: &str, fence: i64) -> Result<bool, String> {
+        match self {
+            Persistence::Memory(_) => {
+                let _ = (profile, fence);
+                Ok(true)
+            }
+            #[cfg(feature = "postgres")]
+            Persistence::Postgres { store, .. } => store
+                .release_lease(profile, fence)
+                .await
+                .map_err(|e| e.to_string()),
+        }
+    }
+
     pub async fn record(
         &self,
         m: MatchId,

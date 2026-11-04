@@ -19,6 +19,9 @@ pub const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
 
+/// Connection ids, unique per process: a seat only listens to the connection that currently owns it.
+static NEXT_CONN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 struct Bucket {
     tokens: f64,
     at: tokio::time::Instant,
@@ -84,7 +87,8 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
     };
     let outbox = Arc::new(Outbox::default());
-    let (room, ok) = match director.admit(hello, outbox.clone()).await {
+    let conn = NEXT_CONN.fetch_add(1, Ordering::Relaxed);
+    let (room, ok) = match director.admit(hello, outbox.clone(), conn).await {
         Ok(x) => x,
         Err((code, reason)) => {
             reject(&mut sock, code, &reason).await;
@@ -92,7 +96,12 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         }
     };
     if sock.send(Message::Binary(ok.welcome.into())).await.is_err() {
-        let _ = room.send(RoomCmd::Disconnected { player: ok.player }).await;
+        let _ = room
+            .send(RoomCmd::Disconnected {
+                player: ok.player,
+                conn,
+            })
+            .await;
         return;
     }
     let player = ok.player;
@@ -148,6 +157,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                 if room
                     .try_send(RoomCmd::Input {
                         player,
+                        conn,
                         seq,
                         commands,
                     })
@@ -169,7 +179,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                 );
             }
             Ok(ClientMsg::Leave) => {
-                let _ = room.send(RoomCmd::Leave { player }).await;
+                let _ = room.send(RoomCmd::Leave { player, conn }).await;
                 left = true;
                 break;
             }
@@ -181,7 +191,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     }
     if !left {
         // A dropped connection keeps the seat for the reconnect grace (room.rs).
-        let _ = room.send(RoomCmd::Disconnected { player }).await;
+        let _ = room.send(RoomCmd::Disconnected { player, conn }).await;
     }
     outbox.close(RejectCode::Kicked);
     let _ = writer.await;

@@ -35,27 +35,35 @@ pub struct JoinOk {
 }
 
 pub enum RoomCmd {
+    /// `conn` identifies the connection (unique per process); `fence` is the profile's session-lease fence.
     Join {
         profile: String,
         faction: Option<FactionId>,
         outbox: Arc<Outbox>,
+        conn: u64,
+        fence: i64,
         reply: oneshot::Sender<Result<JoinOk, RejectCode>>,
     },
     Resume {
         session: [u8; 16],
         outbox: Arc<Outbox>,
+        conn: u64,
         reply: oneshot::Sender<Result<JoinOk, RejectCode>>,
     },
+    /// Commands from a connection that is no longer the seat's (it was replaced by a resume) are ignored.
     Input {
         player: PlayerId,
+        conn: u64,
         seq: u32,
         commands: Vec<rh_protocol::WireCommand>,
     },
     Disconnected {
         player: PlayerId,
+        conn: u64,
     },
     Leave {
         player: PlayerId,
+        conn: u64,
     },
     Drain,
 }
@@ -63,13 +71,19 @@ pub enum RoomCmd {
 /// What the room reports to its owner (the director): free a profile, a result to persist, the room closed.
 #[derive(Debug)]
 pub enum RoomReport {
+    /// A human left its seat. `result_pending`: it left a run it was still standing in, so its (MIA) result follows in a
+    /// `Result` report; the director keeps the profile reserved until that result is written.
     Left {
         profile: String,
+        fence: i64,
+        result_pending: bool,
     },
+    /// `fence`: the session-lease fence the result was earned under (None for a bot).
     Result {
         match_id: MatchId,
         profile: String,
         bot: bool,
+        fence: Option<i64>,
         result: RunResult,
     },
     Closed {
@@ -115,6 +129,8 @@ pub struct RoomConfig {
 
 struct HumanSeat {
     player: PlayerId,
+    conn: u64,
+    fence: i64,
     profile: String,
     session: [u8; 16],
     outbox: Option<Arc<Outbox>>,
@@ -144,6 +160,8 @@ pub struct Room {
     linger: Duration,
     opened_at: Instant,
     had_human: bool,
+    /// Every human's lease fence, kept after it leaves: its result may be reported a step later.
+    fences: Vec<(PlayerId, i64)>,
 }
 
 pub fn random16() -> [u8; 16] {
@@ -198,6 +216,7 @@ impl Room {
             linger: cfg.linger,
             opened_at: now,
             had_human: false,
+            fences: Vec::new(),
         }
     }
 
@@ -236,14 +255,17 @@ impl Room {
                 profile,
                 faction,
                 outbox,
+                conn,
+                fence,
                 reply,
             } => {
-                let r = self.join(profile, faction, outbox);
+                let r = self.join(profile, faction, outbox, conn, fence);
                 let _ = reply.send(r);
             }
             RoomCmd::Resume {
                 session,
                 outbox,
+                conn,
                 reply,
             } => {
                 let r = match self.humans.iter_mut().find(|h| h.session == session) {
@@ -252,6 +274,8 @@ impl Room {
                         if let Some(old) = h.outbox.replace(outbox) {
                             old.close(RejectCode::Kicked);
                         }
+                        // From now on only the new connection speaks for this seat.
+                        h.conn = conn;
                         h.dropped_at = None;
                         let (player, session) = (h.player, h.session);
                         self.record(ReplayInput::Dropped {
@@ -272,11 +296,16 @@ impl Room {
             }
             RoomCmd::Input {
                 player,
+                conn,
                 seq,
                 commands,
             } => {
                 let mut ok = false;
-                if let Some(h) = self.humans.iter_mut().find(|h| h.player == player) {
+                if let Some(h) = self
+                    .humans
+                    .iter_mut()
+                    .find(|h| h.player == player && h.conn == conn)
+                {
                     h.ack_input = seq;
                     ok = true;
                 }
@@ -290,8 +319,13 @@ impl Room {
                     }
                 }
             }
-            RoomCmd::Disconnected { player } => {
-                if let Some(h) = self.humans.iter_mut().find(|h| h.player == player) {
+            RoomCmd::Disconnected { player, conn } => {
+                // A replaced connection's late disconnect must not detach the seat its resume took over.
+                if let Some(h) = self
+                    .humans
+                    .iter_mut()
+                    .find(|h| h.player == player && h.conn == conn)
+                {
                     h.outbox = None;
                     h.dropped_at = Some(now);
                     self.record(ReplayInput::Dropped {
@@ -301,7 +335,15 @@ impl Room {
                     self.sim.mark_dropped(player, true);
                 }
             }
-            RoomCmd::Leave { player } => self.leave(player),
+            RoomCmd::Leave { player, conn } => {
+                if self
+                    .humans
+                    .iter()
+                    .any(|h| h.player == player && h.conn == conn)
+                {
+                    self.leave(player);
+                }
+            }
             RoomCmd::Drain => self.draining = true,
         }
     }
@@ -311,6 +353,8 @@ impl Room {
         profile: String,
         faction: Option<FactionId>,
         outbox: Arc<Outbox>,
+        conn: u64,
+        fence: i64,
     ) -> Result<JoinOk, RejectCode> {
         if self.draining {
             return Err(RejectCode::ServerDraining);
@@ -344,8 +388,11 @@ impl Room {
             policy: None,
         });
         let session = random16();
+        self.fences.push((player, fence));
         self.humans.push(HumanSeat {
             player,
+            conn,
+            fence,
             profile,
             session,
             outbox: Some(outbox),
@@ -404,9 +451,17 @@ impl Room {
             if let Some(o) = h.outbox {
                 o.close(RejectCode::Kicked);
             }
+            // Leaving a run one still stands in is MIA: the sim resolves it now and its result is reported with the next
+            // step's events; the director holds the profile until it is written.
+            let result_pending = self.sim.phase == Phase::Active
+                && self.sim.player(player).is_some_and(|p| !p.resolved);
             self.record(ReplayInput::Leave { player });
             self.sim.remove_player(player);
-            let _ = self.reports.send(RoomReport::Left { profile: h.profile });
+            let _ = self.reports.send(RoomReport::Left {
+                profile: h.profile,
+                fence: h.fence,
+                result_pending,
+            });
         }
     }
 
@@ -470,12 +525,18 @@ impl Room {
             .store(self.sim.server_time.to_bits(), Ordering::Relaxed);
         self.publish(&all_events);
         for e in &all_events {
-            if let Event::Resolved { result, bot, .. } = e {
+            if let Event::Resolved { id, result, bot } = e {
                 let profile = result.profile.clone();
+                let fence = if *bot {
+                    None
+                } else {
+                    self.fences.iter().find(|(p, _)| p == id).map(|(_, f)| *f)
+                };
                 let _ = self.reports.send(RoomReport::Result {
                     match_id: self.id,
                     profile,
                     bot: *bot,
+                    fence,
                     result: result.clone(),
                 });
             }
@@ -541,6 +602,8 @@ impl Room {
             }
             let _ = self.reports.send(RoomReport::Left {
                 profile: h.profile.clone(),
+                fence: h.fence,
+                result_pending: false,
             });
         }
         self.humans.clear();

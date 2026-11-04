@@ -516,3 +516,68 @@ async fn a_stalled_client_does_not_stall_the_match() {
         "the room kept stepping for the reading client ({span} ticks in 0.8 s at 5 ms a tick)"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat() {
+    let s = start(duel_arena(), |c| c.reconnect_grace = Duration::from_secs(5)).await;
+    let (mut old, _, session) = join(&s.url, "romeo", None).await;
+    let (mut b, _, _) = join(&s.url, "sierra", None).await;
+    while let Some(m) = recv(&mut b).await {
+        if matches!(m, ServerMsg::Snapshot { phase: 1, .. }) {
+            break;
+        }
+    }
+    // Resume on a second connection while the first is still open (a half-open socket after a network change).
+    let mut new = connect(&s.url).await;
+    send(
+        &mut new,
+        ClientMsg::Hello {
+            protocol: PROTOCOL_VERSION,
+            content_hash: rh_sim::content::content_hash(),
+            build: String::new(),
+            profile: "romeo".into(),
+            token: "t".into(),
+            faction: None,
+            resume: Some(session),
+        },
+    )
+    .await;
+    assert!(matches!(
+        recv(&mut new).await,
+        Some(ServerMsg::Welcome { .. })
+    ));
+    // The old connection tries to steer the seat, then dies late.
+    let _ = old
+        .send(Message::Binary(
+            ClientMsg::Input {
+                seq: 9,
+                commands: vec![WireCommand::Move {
+                    x: 40.0,
+                    y: 40.0,
+                    seq: Some(99),
+                }],
+            }
+            .encode()
+            .into(),
+        ))
+        .await;
+    drop(old);
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let mut snaps = 0;
+    while let Some(m) = recv(&mut new).await {
+        if let ServerMsg::Snapshot { me: Some(me), .. } = m {
+            assert_ne!(
+                me.move_seq, 99,
+                "the replaced connection's order was ignored"
+            );
+            snaps += 1;
+            if snaps >= 20 {
+                break;
+            }
+        }
+    }
+    assert_eq!(
+        snaps, 20,
+        "the resumed seat keeps receiving snapshots after the old socket closed"
+    );
+}

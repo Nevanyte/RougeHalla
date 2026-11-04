@@ -50,12 +50,20 @@ struct RoomEntry {
     humans: usize,
 }
 
+#[derive(Clone, Copy)]
+struct ProfileSeat {
+    match_id: MatchId,
+    fence: i64,
+    leaving: bool,
+}
+
 #[derive(Default)]
 struct Inner {
     rooms: HashMap<MatchId, RoomEntry>,
-    /// Lower-cased profile -> (match, fence): one live seat per profile in this process (the database lease makes it
-    /// cross-host).
-    profiles: HashMap<String, (MatchId, i64)>,
+    /// Lower-cased profile -> its seat: one live seat per profile in this process (the database lease makes it
+    /// cross-host). A profile that left a run with its result still to be written stays reserved (`leaving`) until the
+    /// write finishes, so it cannot take a new lease that would make that write stale.
+    profiles: HashMap<String, ProfileSeat>,
     sessions: HashMap<[u8; 16], MatchId>,
     closed: Vec<RoomStats>,
     results_ok: u64,
@@ -112,6 +120,7 @@ impl Director {
         &self,
         h: Hello,
         outbox: Arc<Outbox>,
+        conn: u64,
     ) -> Result<(mpsc::Sender<RoomCmd>, JoinOk), (RejectCode, String)> {
         if h.protocol != PROTOCOL_VERSION {
             return Err((
@@ -145,6 +154,7 @@ impl Director {
             tx.send(RoomCmd::Resume {
                 session,
                 outbox,
+                conn,
                 reply,
             })
             .await
@@ -214,7 +224,14 @@ impl Director {
                     (id, tx)
                 }
             };
-            inner.profiles.insert(key.clone(), (picked.0, 0));
+            inner.profiles.insert(
+                key.clone(),
+                ProfileSeat {
+                    match_id: picked.0,
+                    fence: 0,
+                    leaving: false,
+                },
+            );
             if let Some(r) = inner.rooms.get_mut(&picked.0) {
                 r.humans += 1;
             }
@@ -242,27 +259,39 @@ impl Director {
                 profile: h.profile.clone(),
                 faction,
                 outbox,
+                conn,
+                fence,
                 reply,
             })
             .await
             .is_err()
         {
             release(self);
+            self.release_lease(&h.profile, fence);
             return Err((RejectCode::MatchFull, "match closed".into()));
         }
         match rx.await {
             Ok(Ok(ok)) => {
                 let mut inner = self.inner.lock().expect("director");
-                inner.profiles.insert(key, (match_id, fence));
+                inner.profiles.insert(
+                    key,
+                    ProfileSeat {
+                        match_id,
+                        fence,
+                        leaving: false,
+                    },
+                );
                 inner.sessions.insert(ok.session, match_id);
                 Ok((tx, ok))
             }
             Ok(Err(code)) => {
                 release(self);
+                self.release_lease(&h.profile, fence);
                 Err((code, "join refused".into()))
             }
             Err(_) => {
                 release(self);
+                self.release_lease(&h.profile, fence);
                 Err((RejectCode::MatchFull, "match closed".into()))
             }
         }
@@ -271,30 +300,61 @@ impl Director {
     async fn report_loop(this: Arc<Self>, mut rx: mpsc::UnboundedReceiver<RoomReport>) {
         while let Some(r) = rx.recv().await {
             match r {
-                RoomReport::Left { profile } => {
+                RoomReport::Left {
+                    profile,
+                    fence,
+                    result_pending,
+                } => {
+                    let key = profile.to_ascii_lowercase();
                     let mut inner = this.inner.lock().expect("director");
-                    if let Some((m, _)) = inner.profiles.remove(&profile.to_ascii_lowercase()) {
-                        if let Some(room) = inner.rooms.get_mut(&m) {
-                            room.humans = room.humans.saturating_sub(1);
-                        }
+                    let Some(seat) = inner.profiles.get(&key).copied() else {
+                        continue;
+                    };
+                    if let Some(room) = inner.rooms.get_mut(&seat.match_id) {
+                        room.humans = room.humans.saturating_sub(1);
+                    }
+                    // The profile stays reserved (`leaving`) until its result is written (Result below) or, with no result
+                    // to come, until its lease is released: a quick rejoin must not race the durable lease.
+                    if let Some(s) = inner.profiles.get_mut(&key) {
+                        s.leaving = true;
+                    }
+                    drop(inner);
+                    if !result_pending {
+                        let d = this.clone();
+                        let m = seat.match_id;
+                        tokio::spawn(async move {
+                            let _ = d.persistence.release(&profile, fence).await;
+                            let mut inner = d.inner.lock().expect("director");
+                            if inner
+                                .profiles
+                                .get(&key)
+                                .is_some_and(|s| s.leaving && s.match_id == m)
+                            {
+                                inner.profiles.remove(&key);
+                            }
+                        });
                     }
                 }
                 RoomReport::Result {
                     match_id,
                     profile,
                     bot,
+                    fence,
                     result,
                 } => {
                     if bot {
                         continue; // bots never touch persistence (legacy rule)
                     }
-                    let fence = this
-                        .inner
-                        .lock()
-                        .expect("director")
-                        .profiles
-                        .get(&profile.to_ascii_lowercase())
-                        .map(|(_, f)| *f)
+                    let key = profile.to_ascii_lowercase();
+                    let fence = fence
+                        .or_else(|| {
+                            this.inner
+                                .lock()
+                                .expect("director")
+                                .profiles
+                                .get(&key)
+                                .map(|s| s.fence)
+                        })
                         .unwrap_or(0);
                     let d = this.clone();
                     // Durable I/O never runs on a room task: retried with backoff here; idempotent by (match, profile).
@@ -308,7 +368,7 @@ impl Director {
                             {
                                 Ok(_) => {
                                     d.inner.lock().expect("director").results_ok += 1;
-                                    return;
+                                    break;
                                 }
                                 Err(e) if attempt == 5 => {
                                     eprintln!("[results] giving up on {profile}: {e}");
@@ -319,6 +379,16 @@ impl Director {
                                     delay *= 2;
                                 }
                             }
+                        }
+                        // A profile that left with this result pending is free once it is written (the store released
+                        // its lease in the same transaction).
+                        let mut inner = d.inner.lock().expect("director");
+                        if inner
+                            .profiles
+                            .get(&key)
+                            .is_some_and(|s| s.leaving && s.match_id == match_id)
+                        {
+                            inner.profiles.remove(&key);
                         }
                     });
                 }
@@ -331,7 +401,19 @@ impl Director {
                     let mut inner = this.inner.lock().expect("director");
                     inner.rooms.remove(&match_id);
                     inner.sessions.retain(|_, m| *m != match_id);
-                    inner.profiles.retain(|_, (m, _)| *m != match_id);
+                    // Seats still held by this match lose their leases (a result, if any, was already reported).
+                    let orphaned: Vec<(String, i64)> = inner
+                        .profiles
+                        .iter()
+                        .filter(|(_, s)| s.match_id == match_id && !s.leaving)
+                        .map(|(k, s)| (k.clone(), s.fence))
+                        .collect();
+                    inner
+                        .profiles
+                        .retain(|_, s| s.match_id != match_id || s.leaving);
+                    for (k, f) in orphaned {
+                        this.release_lease(&k, f);
+                    }
                     inner.closed.push(stats);
                     if inner.closed.len() > 64 {
                         inner.closed.remove(0);
@@ -366,6 +448,16 @@ impl Director {
                 }
             }
         }
+    }
+
+    /// Releases a profile's session lease off the task that asked (no-op in memory). Best effort: an unreleased lease only
+    /// expires later.
+    fn release_lease(&self, profile: &str, fence: i64) {
+        let p = self.persistence.clone();
+        let profile = profile.to_string();
+        tokio::spawn(async move {
+            let _ = p.release(&profile, fence).await;
+        });
     }
 
     /// Stop admitting; active matches finish; the lifecycle reports Terminated when the last room closes.
