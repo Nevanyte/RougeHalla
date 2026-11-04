@@ -16,14 +16,13 @@
 //! * The scratch (tile path, candidates) lives in the [`Pathfinder`]; [`Pathfinder::find_path_into`] writes into a
 //!   caller's buffer, so a steady-state query allocates nothing.
 
-use crate::constants::{PLAYER_RADIUS, TILE};
+use crate::constants::{
+    PATH_TIE_EPS, PLAYER_RADIUS, PULL_WINDOW, SNAP_RADIUS, START_CENTER_SLACK, TILE,
+};
 use crate::geometry::{circle_clear, segment_rays_clear};
 use crate::map::{tile_to_world_center, world_to_tile, TileMap, MASK_MOVE, STEP_DX, STEP_DY};
 use crate::math::Vec2;
 
-pub const SNAP_RADIUS: i64 = 4;
-/// Candidates past the anchor that string pulling considers (legacy PULL_WINDOW).
-pub const PULL_WINDOW: usize = 96;
 const SQRT2: f64 = core::f64::consts::SQRT_2;
 
 /// Per-cell search state. `g` and `parent` are meaningful only while `stamp` is the current generation (`base`) or the
@@ -68,7 +67,7 @@ impl Clone for Pathfinder {
 
 #[inline]
 fn before(f1: f64, g1: f64, n1: i32, f2: f64, g2: f64, n2: i32) -> bool {
-    if (f1 - f2).abs() > 1e-9 {
+    if (f1 - f2).abs() > PATH_TIE_EPS {
         return f1 < f2;
     }
     if g1 != g2 {
@@ -309,8 +308,8 @@ impl Pathfinder {
         cand.clear();
         if tile_path.len() > 1
             && (start_in_wall
-                || (from.x - tile_to_world_center(sx)).abs() > 0.5
-                || (from.y - tile_to_world_center(sy)).abs() > 0.5)
+                || (from.x - tile_to_world_center(sx)).abs() > START_CENTER_SLACK
+                || (from.y - tile_to_world_center(sy)).abs() > START_CENTER_SLACK)
         {
             cand.push(center(tile_path[0]));
         }

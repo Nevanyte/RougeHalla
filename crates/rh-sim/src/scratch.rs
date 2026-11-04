@@ -6,13 +6,21 @@
 //!   read only later in that same tick (the kill bounty, kill-credit ranks, the inputs in that order);
 //! * `standing`, `mults`: written by `movement:multipliers`, read by `movement:walk` and `movement:recordHistory`, which
 //!   empties them (the fighters standing when the multipliers were read, and each one's move speed this tick);
-//! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds).
+//! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds);
+//! * `bodies`, `victims`, `ledger_mults`, `idxs`, `amounts`, `order`, `hits`, `alive`, `path`: the working lists of one
+//!   system call, cleared by the system before it fills them and never read by another.
+//!
+//! Every buffer is cleared, never taken, so its capacity survives across ticks: after the first few ticks a step allocates
+//! nothing (`tests/no_alloc.rs` counts it). A new system that needs a list adds a field here.
 
+use crate::constants::MAX_PLAYERS;
+use crate::input::Drained;
+use crate::math::Vec2;
 use crate::state::PlayerId;
 use crate::systems::ledger::Entry;
 use crate::systems::melee::MeleeReq;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct TickScratch {
     /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`): a kill pays what the victim was worth
     /// before the tick's own kills raised it.
@@ -30,6 +38,59 @@ pub(crate) struct TickScratch {
     pub(crate) ledger: Vec<Entry>,
     /// Players downed during this step, settled at its end.
     pub(crate) downed_this_tick: Vec<PlayerId>,
+    /// The fighters standing when the melee queue is resolved.
+    pub(crate) bodies: Vec<usize>,
+    /// The ledger pass: victims in order of first appearance, and each entry's outgoing multiplier.
+    pub(crate) victims: Vec<PlayerId>,
+    pub(crate) ledger_mults: Vec<f64>,
+    /// One victim's pass: its entries' indices, mitigated amounts, the (rank, entry) order they land in and the hits.
+    pub(crate) idxs: Vec<usize>,
+    pub(crate) amounts: Vec<f64>,
+    pub(crate) order: Vec<(usize, usize)>,
+    pub(crate) hits: Vec<(f64, PlayerId)>,
+    /// Who still stands, collected only when the settle needs the ids (the end of a run).
+    pub(crate) alive: Vec<PlayerId>,
+    /// A path search's output, copied into the fighter's path when the order replaces it.
+    pub(crate) path: Vec<Vec2>,
+    /// The fighter whose inputs are being applied: its queue, drained here so the handlers can borrow the world.
+    pub(crate) drained: Drained,
+}
+
+impl Default for TickScratch {
+    /// Every list starts at the size one tick of a full lobby can need (`MAX_PLAYERS` fighters, each landing at most one
+    /// swing on every other), so a normal match never grows a buffer: not even on its first crowded tick. Later packets
+    /// that add actors (mobs) grow them once, to their high-water mark.
+    fn default() -> Self {
+        let (p, hits) = (MAX_PLAYERS, MAX_PLAYERS * MAX_PLAYERS);
+        Self {
+            bounty_at_tick_start: Vec::with_capacity(p),
+            rank: Vec::with_capacity(p),
+            standing: Vec::with_capacity(p),
+            mults: Vec::with_capacity(p),
+            melee: Vec::with_capacity(p),
+            ledger: Vec::with_capacity(hits),
+            downed_this_tick: Vec::with_capacity(p),
+            bodies: Vec::with_capacity(p),
+            victims: Vec::with_capacity(p),
+            ledger_mults: Vec::with_capacity(hits),
+            idxs: Vec::with_capacity(p),
+            amounts: Vec::with_capacity(p),
+            order: Vec::with_capacity(p),
+            hits: Vec::with_capacity(p),
+            alive: Vec::with_capacity(p),
+            path: Vec::with_capacity(64),
+            drained: Drained::default(),
+        }
+    }
+}
+
+/// The working lists hold nothing between steps (asserted in debug builds), so a clone is a fresh scratch: it is sized
+/// like a new one and copies no dead data.
+impl Clone for TickScratch {
+    fn clone(&self) -> Self {
+        debug_assert!(self.is_settled(), "a sim is cloned between steps");
+        Self::default()
+    }
 }
 
 impl TickScratch {

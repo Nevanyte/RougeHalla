@@ -1,5 +1,6 @@
 //! The evolving match state: players and their runtime, and the arena's run bookkeeping.
 
+use crate::constants::{MAX_PLAYERS, MAX_REWIND_MS, TICK_MS};
 use crate::content::{FactionId, WeaponId};
 use crate::events::Event;
 use crate::input::{InputQueue, OrderBudget};
@@ -35,6 +36,250 @@ pub struct Sample {
     pub t: f64,
     pub x: f64,
     pub y: f64,
+}
+
+/// How many rewind samples a fighter keeps: the window [`MAX_REWIND_MS`] + one tick (see [`History::record`]) holds at
+/// most `window / TICK_MS + 1` samples one tick apart; one more is slack. Derived from the constants so a change to the
+/// rewind window or the tick rate resizes the ring instead of silently dropping samples (`History::push` also refuses
+/// to drop one in a debug build).
+const fn history_cap() -> usize {
+    ((MAX_REWIND_MS + TICK_MS) / TICK_MS) as usize + 2
+}
+
+/// A fighter's rewind history: the last [`history_cap`] samples, oldest first, in a fixed inline ring (no heap, no shifting
+/// on trim). Every sample is written twice, `cap` apart, so the live samples are always one contiguous slice
+/// ([`History::as_slice`]) and a read needs no modulo. Serialized and hashed as the plain oldest-first sequence a
+/// `Vec<Sample>` was, so checkpoints keep their shape and state hashes keep their values.
+#[derive(Clone, Copy, Debug)]
+pub struct History {
+    buf: [Sample; 2 * history_cap()],
+    head: u8,
+    len: u8,
+}
+
+impl Default for History {
+    fn default() -> Self {
+        const { assert!(history_cap() <= u8::MAX as usize) };
+        const { assert!(history_cap() as f64 * TICK_MS > MAX_REWIND_MS + TICK_MS) };
+        Self {
+            buf: [Sample {
+                t: 0.0,
+                x: 0.0,
+                y: 0.0,
+            }; 2 * history_cap()],
+            head: 0,
+            len: 0,
+        }
+    }
+}
+
+impl History {
+    pub fn len(&self) -> usize {
+        self.len as usize
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+    /// The samples, oldest first.
+    pub fn as_slice(&self) -> &[Sample] {
+        let head = self.head as usize;
+        &self.buf[head..head + self.len()]
+    }
+    /// The `i`-th oldest sample.
+    pub fn get(&self, i: usize) -> Option<Sample> {
+        self.as_slice().get(i).copied()
+    }
+    /// Oldest first.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = Sample> + '_ {
+        self.as_slice().iter().copied()
+    }
+    pub fn clear(&mut self) {
+        self.head = 0;
+        self.len = 0;
+    }
+    /// Starts over with one sample (a raid start, a scenario placement).
+    pub fn reset(&mut self, s: Sample) {
+        self.clear();
+        self.push(s);
+    }
+    pub fn push(&mut self, s: Sample) {
+        if self.len() == history_cap() {
+            // Unreachable while the ring is sized from the rewind window (samples are a tick apart and the trim runs before
+            // the push); never drop one silently if a later change breaks that.
+            debug_assert!(false, "rewind history ring is full");
+            self.pop_front();
+        }
+        let mut at = self.head as usize + self.len();
+        if at >= history_cap() {
+            at -= history_cap();
+        }
+        self.buf[at] = s;
+        self.buf[at + history_cap()] = s;
+        self.len += 1;
+    }
+    pub fn pop_front(&mut self) {
+        if self.len > 0 {
+            self.head += 1;
+            if self.head as usize == history_cap() {
+                self.head = 0;
+            }
+            self.len -= 1;
+        }
+    }
+    /// Records the fighter's position at `now` and drops what the rewind window no longer needs: the oldest samples older
+    /// than `now - MAX_REWIND_MS - TICK_MS`, always keeping two (legacy `recordHistory`: push, then trim while longer than
+    /// two). The trim runs first here, so the ring never holds more than the window; the resulting sequence is the same.
+    pub fn record(&mut self, now: f64, x: f64, y: f64) {
+        let cutoff = now - MAX_REWIND_MS - TICK_MS;
+        let cap = history_cap();
+        let (mut head, mut len) = (self.head as usize, self.len as usize);
+        while len >= 2 && self.buf[head].t < cutoff {
+            head += 1;
+            if head == cap {
+                head = 0;
+            }
+            len -= 1;
+        }
+        if len == cap {
+            // Unreachable while the ring is sized from the rewind window; never drop one silently if that breaks.
+            debug_assert!(false, "rewind history ring is full");
+            head += 1;
+            if head == cap {
+                head = 0;
+            }
+            len -= 1;
+        }
+        let mut at = head + len;
+        if at >= cap {
+            at -= cap;
+        }
+        let s = Sample { t: now, x, y };
+        self.buf[at] = s;
+        self.buf[at + cap] = s;
+        self.head = head as u8;
+        self.len = len as u8 + 1;
+    }
+}
+
+impl std::ops::Index<usize> for History {
+    type Output = Sample;
+    fn index(&self, i: usize) -> &Sample {
+        &self.as_slice()[i]
+    }
+}
+
+impl PartialEq for History {
+    fn eq(&self, o: &Self) -> bool {
+        self.len == o.len && self.iter().eq(o.iter())
+    }
+}
+
+impl serde::Serialize for History {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_seq(self.iter())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for History {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = Vec::<Sample>::deserialize(d)?;
+        if v.len() > history_cap() {
+            return Err(serde::de::Error::custom(format!(
+                "rewind history of {} samples exceeds the ring of {}",
+                v.len(),
+                history_cap()
+            )));
+        }
+        let mut h = History::default();
+        for s in v {
+            h.push(s);
+        }
+        Ok(h)
+    }
+}
+
+/// The waypoints a fighter still walks, consumed from the front with a cursor instead of `remove(0)`. Only the logical
+/// content (`pts[cursor..]`) is serialized, compared and hashed: the consumed prefix is dead data. The buffer is compacted
+/// whenever the path is replaced or runs out, so the cursor never outlives a path.
+#[derive(Clone, Debug, Default)]
+pub struct Path {
+    pts: Vec<Vec2>,
+    cursor: usize,
+}
+
+impl Path {
+    pub fn as_slice(&self) -> &[Vec2] {
+        &self.pts[self.cursor..]
+    }
+    pub fn is_empty(&self) -> bool {
+        self.cursor >= self.pts.len()
+    }
+    pub fn len(&self) -> usize {
+        self.pts.len() - self.cursor
+    }
+    /// The next waypoint.
+    pub fn first(&self) -> Option<Vec2> {
+        self.pts.get(self.cursor).copied()
+    }
+    /// Consumes the next waypoint.
+    pub fn advance(&mut self) {
+        self.cursor += 1;
+        if self.cursor >= self.pts.len() {
+            self.clear();
+        }
+    }
+    pub fn clear(&mut self) {
+        self.pts.clear();
+        self.cursor = 0;
+    }
+    /// Replaces the path with `pts` (compacting: the cursor restarts at 0); the buffer keeps its capacity.
+    pub fn set_from(&mut self, pts: &[Vec2]) {
+        self.pts.clear();
+        self.pts.extend_from_slice(pts);
+        self.cursor = 0;
+    }
+}
+
+impl PartialEq for Path {
+    fn eq(&self, o: &Self) -> bool {
+        self.as_slice() == o.as_slice()
+    }
+}
+
+impl serde::Serialize for Path {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_seq(self.as_slice())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Path {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        Ok(Path {
+            pts: Vec::<Vec2>::deserialize(d)?,
+            cursor: 0,
+        })
+    }
+}
+
+/// Every player that joined this match, in join order, kept for leavers: the one place a name is resolved from an id (a
+/// kill's `killed_by`, the winner), at result time. The tick itself carries ids only (the ledger, the melee queue and the
+/// payouts are `Copy`), so a hit never clones a name and a shooter who already left is still named.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Roster {
+    names: Vec<(PlayerId, String)>,
+}
+
+impl Roster {
+    pub(crate) fn push(&mut self, id: PlayerId, name: &str) {
+        debug_assert!(self.names.last().is_none_or(|(l, _)| *l < id));
+        self.names.push((id, name.to_string()));
+    }
+
+    /// The display name `id` joined with (a leaver's too).
+    pub(crate) fn name(&self, id: PlayerId) -> Option<&str> {
+        let i = self.names.binary_search_by_key(&id, |(p, _)| *p).ok()?;
+        Some(self.names[i].1.as_str())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -120,10 +365,11 @@ pub struct Player {
     // runtime (server-only)
     pub(crate) inputs: InputQueue,
     pub budget: OrderBudget,
-    pub path: Vec<Vec2>,
-    pub history: Vec<Sample>,
+    pub path: Path,
+    pub history: History,
     pub weapon: WeaponRt,
-    pub killed_by: Option<String>,
+    /// Who dealt the killing blow (resolved to a display name through the roster when the result is built).
+    pub killed_by: Option<PlayerId>,
     pub killed_by_bot: bool,
     pub gv_parts: GvBreakdown,
     pub last_hit: Option<(PlayerId, f64)>,
@@ -172,15 +418,16 @@ impl Player {
             immune_until: 0.0,
             inputs: InputQueue::default(),
             budget: OrderBudget::default(),
-            path: Vec::new(),
-            history: Vec::new(),
+            path: Path::default(),
+            history: History::default(),
             weapon: WeaponRt::default(),
             killed_by: None,
             killed_by_bot: false,
             gv_parts: GvBreakdown::default(),
             last_hit: None,
-            damaged: Vec::new(),
-            damaged_humans: Vec::new(),
+            // Everyone else in the lobby fits, so a normal match never grows them mid-fight.
+            damaged: Vec::with_capacity(MAX_PLAYERS),
+            damaged_humans: Vec::with_capacity(MAX_PLAYERS),
             dropped_at: None,
             hp_frac_at_tick_start: 1.0,
             down: None,
@@ -207,7 +454,7 @@ impl Player {
     }
     /// Where the fighter was at server time `t` (lerped between ticks, clamped to history; legacy `positionAt`).
     pub fn position_at(&self, t: f64) -> Vec2 {
-        let h = &self.history;
+        let h = self.history.as_slice();
         if h.is_empty() || t >= h[h.len() - 1].t {
             return self.pos();
         }
@@ -242,10 +489,12 @@ pub(crate) struct World {
     pub(crate) phase: Phase,
     pub(crate) lobby_ends_at: f64,
     pub(crate) raid_started_at: f64,
-    pub(crate) winner: Option<String>,
+    pub(crate) winner: Option<PlayerId>,
     /// In join order (legacy Map insertion order).
     pub(crate) players: Vec<Player>,
     pub(crate) next_id: u32,
+    /// Names of everyone who joined, leavers included (append-only; see [`Roster`]).
+    pub(crate) roster: Roster,
     pub(crate) joined: usize,
     pub(crate) spawn_rng: Mulberry32,
     pub(crate) rt: ArenaRt,
@@ -319,6 +568,7 @@ impl World {
             winner: None,
             players: Vec::new(),
             next_id: 1,
+            roster: Roster::default(),
             joined: 0,
             spawn_rng: Mulberry32::new(secrets.spawn_seed),
             rt: ArenaRt::default(),
@@ -328,5 +578,123 @@ impl World {
             #[cfg(feature = "schedule-trace")]
             trace: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The recorder as it was: push, then trim from the front while longer than two and the oldest is out of the window.
+    fn reference(h: &mut Vec<Sample>, now: f64, x: f64, y: f64) {
+        h.push(Sample { t: now, x, y });
+        let cutoff = now - MAX_REWIND_MS - TICK_MS;
+        while h.len() > 2 && h[0].t < cutoff {
+            h.remove(0);
+        }
+    }
+
+    #[test]
+    fn the_history_ring_is_the_trimmed_vec_it_replaced() {
+        let mut ring = History::default();
+        let mut vec: Vec<Sample> = Vec::new();
+        let mut now = 50.0;
+        // Mostly one tick apart, with gaps (a fighter that did not stand records nothing for a while).
+        for n in 0..2000u32 {
+            now += TICK_MS
+                * if n % 97 < 5 {
+                    1.0 + (n % 13) as f64
+                } else {
+                    1.0
+                };
+            let (x, y) = (n as f64 * 0.37, 1000.0 - n as f64 * 0.11);
+            ring.record(now, x, y);
+            reference(&mut vec, now, x, y);
+            assert_eq!(ring.iter().collect::<Vec<_>>(), vec, "tick {n}");
+            assert_eq!(
+                serde_json::to_value(ring).unwrap(),
+                serde_json::to_value(&vec).unwrap()
+            );
+            assert!(ring.len() <= history_cap());
+        }
+        // Restarting keeps one sample, and a checkpoint of the ring restores it.
+        let s = Sample {
+            t: now,
+            x: 1.0,
+            y: 2.0,
+        };
+        ring.reset(s);
+        assert_eq!(ring.iter().collect::<Vec<_>>(), [s]);
+        let back: History = serde_json::from_value(serde_json::to_value(ring).unwrap()).unwrap();
+        assert_eq!(back, ring);
+    }
+
+    #[test]
+    fn the_ring_holds_the_whole_rewind_window() {
+        // Samples one tick apart: the window plus the tick of slack, never more than the capacity, so nothing the rewind can
+        // ask for is dropped.
+        let mut ring = History::default();
+        for n in 0..100u32 {
+            ring.record(TICK_MS * n as f64, 0.0, 0.0);
+        }
+        let want = ((MAX_REWIND_MS + TICK_MS) / TICK_MS) as usize + 1;
+        assert_eq!(ring.len(), want);
+        assert!(ring.len() < history_cap());
+        assert_eq!(ring[ring.len() - 1].t, TICK_MS * 99.0);
+        assert_eq!(ring[0].t, TICK_MS * (99 - want + 1) as f64);
+        assert!(serde_json::from_value::<History>(
+            serde_json::to_value(vec![
+                Sample {
+                    t: 0.0,
+                    x: 0.0,
+                    y: 0.0
+                };
+                history_cap() + 1
+            ])
+            .unwrap()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn a_path_serializes_only_what_is_left_and_compacts_on_replace() {
+        let pts: Vec<Vec2> = (0..5).map(|i| Vec2::new(i as f64, -(i as f64))).collect();
+        let mut p = Path::default();
+        p.set_from(&pts);
+        p.advance();
+        p.advance();
+        assert_eq!(p.first(), Some(pts[2]));
+        assert_eq!(p.len(), 3);
+        assert_eq!(
+            serde_json::to_value(&p).unwrap(),
+            serde_json::to_value(&pts[2..]).unwrap(),
+            "the consumed prefix is not serialized"
+        );
+        let mut fresh = Path::default();
+        fresh.set_from(&pts[2..]);
+        assert_eq!(p, fresh, "equality sees the logical path only");
+        let back: Path = serde_json::from_value(serde_json::to_value(&p).unwrap()).unwrap();
+        assert_eq!(back, p);
+        p.set_from(&pts[..1]);
+        assert_eq!((p.cursor, p.pts.len()), (0, 1), "replacing compacts");
+        p.advance();
+        assert!(p.is_empty() && p.first().is_none());
+        assert_eq!(
+            (p.cursor, p.pts.len()),
+            (0, 0),
+            "running out resets the cursor"
+        );
+        assert_eq!(serde_json::to_value(&p).unwrap(), serde_json::json!([]));
+    }
+
+    #[test]
+    fn the_roster_names_leavers_too() {
+        let mut r = Roster::default();
+        r.push(PlayerId(1), "a");
+        r.push(PlayerId(2), "b");
+        r.push(PlayerId(5), "c");
+        assert_eq!(r.name(PlayerId(2)), Some("b"));
+        assert_eq!(r.name(PlayerId(5)), Some("c"));
+        assert_eq!(r.name(PlayerId(3)), None);
     }
 }

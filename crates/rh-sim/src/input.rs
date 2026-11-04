@@ -105,6 +105,78 @@ pub(crate) enum ActionCmd {
     Release { a: f64, t: Option<f64> },
 }
 
+/// The actions queued for one tick: the first `len` of `MAX_ACTIONS_PER_TICK` inline slots (the cap is a constant, so the
+/// heap buys nothing). Serialized, compared and hashed as the plain sequence of the queued actions, as the `Vec` it replaces
+/// was; the slots past `len` are dead data and never observed.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ActionBuf {
+    items: [ActionCmd; MAX_ACTIONS_PER_TICK],
+    len: u8,
+}
+
+impl Default for ActionBuf {
+    fn default() -> Self {
+        const { assert!(MAX_ACTIONS_PER_TICK <= u8::MAX as usize) };
+        Self {
+            items: [ActionCmd::Release { a: 0.0, t: None }; MAX_ACTIONS_PER_TICK],
+            len: 0,
+        }
+    }
+}
+
+impl ActionBuf {
+    pub(crate) fn len(&self) -> usize {
+        self.len as usize
+    }
+    pub(crate) fn as_slice(&self) -> &[ActionCmd] {
+        &self.items[..self.len()]
+    }
+    pub(crate) fn get(&self, i: usize) -> Option<&ActionCmd> {
+        self.as_slice().get(i)
+    }
+    /// Becomes a copy of `o`, moving only the queued actions (not the whole inline array).
+    fn copy_from(&mut self, o: &ActionBuf) {
+        let n = o.len();
+        self.items[..n].copy_from_slice(&o.items[..n]);
+        self.len = o.len;
+    }
+    fn push(&mut self, cmd: ActionCmd) -> bool {
+        if self.len() >= MAX_ACTIONS_PER_TICK {
+            return false;
+        }
+        self.items[self.len()] = cmd;
+        self.len += 1;
+        true
+    }
+}
+
+impl PartialEq for ActionBuf {
+    fn eq(&self, o: &Self) -> bool {
+        self.as_slice() == o.as_slice()
+    }
+}
+
+impl serde::Serialize for ActionBuf {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_seq(self.as_slice())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ActionBuf {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = Vec::<ActionCmd>::deserialize(d)?;
+        let mut b = ActionBuf::default();
+        for cmd in v {
+            if !b.push(cmd) {
+                return Err(serde::de::Error::custom(format!(
+                    "more than {MAX_ACTIONS_PER_TICK} queued actions"
+                )));
+            }
+        }
+        Ok(b)
+    }
+}
+
 /// One fighter's commands for the next tick, in arrival order (legacy `InputQueue`): the latest move and the latest aim win,
 /// each remembering how many actions had arrived before it so orders replace each other in arrival order. The fields are
 /// readable inside the crate (the state hash reads their shape); only [`accept`] writes them.
@@ -114,16 +186,17 @@ pub struct InputQueue {
     pub(crate) move_before: usize,
     pub(crate) aim: Option<f64>,
     pub(crate) aim_before: usize,
-    pub(crate) actions: Vec<ActionCmd>,
+    pub(crate) actions: ActionBuf,
     pub(crate) dropped: u32,
 }
 
+#[derive(Debug, Default)]
 pub(crate) struct Drained {
     pub(crate) mv: Option<MoveCmd>,
     pub(crate) move_before: usize,
     pub(crate) aim: Option<f64>,
     pub(crate) aim_before: usize,
-    pub(crate) actions: Vec<ActionCmd>,
+    pub(crate) actions: ActionBuf,
 }
 
 /// The seat's intake (C-INPUT): a validated command spends the seat's order budget (unless `budgeted` is false, the
@@ -163,25 +236,45 @@ impl InputQueue {
     }
 
     fn push_action(&mut self, cmd: ActionCmd) -> Result<(), Reject> {
-        if self.actions.len() >= MAX_ACTIONS_PER_TICK {
+        if !self.actions.push(cmd) {
             self.dropped += 1;
             return Err(Reject::QueueFull);
         }
-        self.actions.push(cmd);
         Ok(())
     }
 
+    /// [`InputQueue::drain_into`] for a caller that wants the queue by value (tests).
+    #[cfg(test)]
     pub(crate) fn drain(&mut self) -> Drained {
         let out = Drained {
             mv: self.mv.take(),
             move_before: self.move_before,
             aim: self.aim.take(),
             aim_before: self.aim_before,
-            actions: std::mem::take(&mut self.actions),
+            actions: self.actions,
         };
+        self.clear();
+        out
+    }
+
+    /// [`InputQueue::drain`] into a reused buffer, copying only the queued actions: the tick's input phase (a drain in place,
+    /// since each fighter's queue is applied while the world is borrowed by the handlers).
+    pub(crate) fn drain_into(&mut self, out: &mut Drained) {
+        out.mv = self.mv;
+        out.move_before = self.move_before;
+        out.aim = self.aim;
+        out.aim_before = self.aim_before;
+        out.actions.copy_from(&self.actions);
+        self.clear();
+    }
+
+    /// Drops everything queued without handing it out (a lobby, a finished match, a dropped connection).
+    pub(crate) fn clear(&mut self) {
+        self.mv = None;
+        self.aim = None;
+        self.actions.len = 0;
         self.move_before = 0;
         self.aim_before = 0;
-        out
     }
 }
 
@@ -272,6 +365,47 @@ mod tests {
             Err(Reject::QueueFull)
         );
         assert_eq!(q.drain().actions.len(), MAX_ACTIONS_PER_TICK);
+    }
+
+    #[test]
+    fn the_inline_queue_serializes_as_the_sequence_it_replaced() {
+        let mut q = InputQueue::default();
+        q.push(Command::Attack { a: 1.0, t: None }).unwrap();
+        q.push(Command::Release {
+            a: 2.0,
+            t: Some(5.0),
+        })
+        .unwrap();
+        let want = vec![
+            ActionCmd::Attack { a: 1.0, t: None },
+            ActionCmd::Release {
+                a: 2.0,
+                t: Some(5.0),
+            },
+        ];
+        let json = serde_json::to_value(&q).unwrap();
+        assert_eq!(json["actions"], serde_json::to_value(&want).unwrap());
+        let back: InputQueue = serde_json::from_value(json).unwrap();
+        assert_eq!(back, q);
+        // Slots past the length are dead data: a drained-and-refilled queue equals a fresh one with the same actions.
+        let mut used = InputQueue::default();
+        for _ in 0..MAX_ACTIONS_PER_TICK {
+            used.push(Command::Attack { a: 9.0, t: None }).unwrap();
+        }
+        used.clear();
+        used.push(Command::Attack { a: 1.0, t: None }).unwrap();
+        used.push(Command::Release {
+            a: 2.0,
+            t: Some(5.0),
+        })
+        .unwrap();
+        assert_eq!(used.actions, q.actions);
+        // A checkpoint with more actions than a tick may queue is refused.
+        let too_many = serde_json::json!({
+            "mv": null, "move_before": 0, "aim": null, "aim_before": 0, "dropped": 0,
+            "actions": vec![serde_json::to_value(ActionCmd::Release { a: 0.0, t: None }).unwrap(); MAX_ACTIONS_PER_TICK + 1],
+        });
+        assert!(serde_json::from_value::<InputQueue>(too_many).is_err());
     }
 
     #[test]

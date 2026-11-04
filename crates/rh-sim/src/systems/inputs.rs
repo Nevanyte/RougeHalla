@@ -8,8 +8,8 @@
 use crate::input::{self, ActionCmd, Command, MoveCmd, Reject};
 use crate::map::TileMap;
 use crate::math::Vec2;
-use crate::pathfind::{plan_path, Pathfinder};
-use crate::rng::action_order as secret_order;
+use crate::pathfind::{plan_path_into, Pathfinder};
+use crate::rng::action_order_in_place;
 use crate::schedule::{self, ActionId};
 use crate::state::{Player, PlayerId, Status, World};
 use crate::systems::{weapons, Cx};
@@ -37,11 +37,13 @@ pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Re
 /// and the rank of kill credit among a victim's hits.
 pub(crate) fn action_order(cx: &mut Cx) {
     let Cx { k, w, s, .. } = cx;
-    let join: Vec<PlayerId> = w.players.iter().map(|p| p.id).collect();
-    let order = secret_order(k.secrets.order_salt, w.tick, &join);
+    // The join order, shuffled in place by the secret order; each id's rank is its place in the result.
     s.rank.clear();
-    s.rank
-        .extend(order.iter().enumerate().map(|(i, id)| (*id, i)));
+    s.rank.extend(w.players.iter().map(|p| (p.id, 0)));
+    action_order_in_place(k.secrets.order_salt, w.tick, &mut s.rank);
+    for (i, e) in s.rank.iter_mut().enumerate() {
+        e.1 = i;
+    }
 }
 
 /// System (legacy step.applyInputs for players): every present player's queued inputs, in the action order.
@@ -57,30 +59,38 @@ pub(crate) fn apply_players(cx: &mut Cx) {
 /// Drops every queued input (lobby and ended phases: nothing is applied there).
 pub(crate) fn drain_all(cx: &mut Cx) {
     for p in &mut cx.w.players {
-        p.inputs.drain();
+        p.inputs.clear();
     }
 }
 
 fn apply_inputs(cx: &mut Cx, i: usize) {
     let now = cx.w.server_time;
-    let d = cx.w.players[i].inputs.drain();
-    let n = d.actions.len();
+    cx.w.players[i].inputs.drain_into(&mut cx.s.drained);
+    let (mv, aim) = (cx.s.drained.mv, cx.s.drained.aim);
+    let (move_before, aim_before) = (cx.s.drained.move_before, cx.s.drained.aim_before);
+    let n = cx.s.drained.actions.len();
     for k in 0..=n {
         if cx.w.players[i].status != Status::Alive {
             return;
         }
-        if k == d.move_before.min(n) {
-            if let Some(mv) = d.mv {
-                apply_move(&mut cx.w.players[i], &cx.k.arena.map, cx.pf, mv);
+        if k == move_before.min(n) {
+            if let Some(mv) = mv {
+                apply_move(
+                    &mut cx.w.players[i],
+                    &cx.k.arena.map,
+                    cx.pf,
+                    &mut cx.s.path,
+                    mv,
+                );
             }
         }
-        if k == d.aim_before.min(n) {
-            if let Some(a) = d.aim {
+        if k == aim_before.min(n) {
+            if let Some(a) = aim {
                 weapons::set_aim(&mut cx.w.players[i], now, a);
             }
         }
-        if let Some(cmd) = d.actions.get(k) {
-            schedule::run_action(cx, action_id(cmd), i, cmd);
+        if let Some(cmd) = cx.s.drained.actions.get(k).copied() {
+            schedule::run_action(cx, action_id(&cmd), i, &cmd);
         }
     }
 }
@@ -92,15 +102,28 @@ fn action_id(cmd: &ActionCmd) -> ActionId {
     }
 }
 
-fn apply_move(p: &mut Player, map: &TileMap, pf: &mut Pathfinder, mv: MoveCmd) {
+fn apply_move(
+    p: &mut Player,
+    map: &TileMap,
+    pf: &mut Pathfinder,
+    out: &mut Vec<Vec2>,
+    mv: MoveCmd,
+) {
     // cancelLockedWindup / dropLock: no target lock in the slice.
     let from = p.pos();
-    let (path, stop, seq) = match mv {
-        MoveCmd::Stop { seq } => (Vec::new(), true, seq),
-        MoveCmd::Move { x, y, seq } => (plan_path(pf, map, from, Vec2::new(x, y)), false, seq),
+    let (stop, seq) = match mv {
+        MoveCmd::Stop { seq } => {
+            out.clear();
+            (true, seq)
+        }
+        MoveCmd::Move { x, y, seq } => {
+            plan_path_into(pf, map, from, Vec2::new(x, y), out);
+            (false, seq)
+        }
     };
-    if stop || !path.is_empty() {
-        p.path = path;
+    // An order with no route (a goal in a wall with nothing to snap to) leaves the current path alone.
+    if stop || !out.is_empty() {
+        p.path.set_from(out);
     }
     if let Some(s) = seq {
         p.move_seq = s;

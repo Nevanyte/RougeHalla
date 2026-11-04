@@ -99,11 +99,11 @@ impl Sim {
             if let Some(hp) = spec.hp {
                 pl.hp = hp;
             }
-            pl.history = vec![Sample {
+            pl.history.reset(Sample {
                 t,
                 x: pl.x,
                 y: pl.y,
-            }];
+            });
         }
         sim.take_events();
         sim
@@ -136,7 +136,7 @@ impl Sim {
     }
     /// The winner's display name once the run ended with one.
     pub fn winner(&self) -> Option<&str> {
-        self.w.winner.as_deref()
+        self.w.winner.and_then(|id| self.w.roster.name(id))
     }
     pub fn players(&self) -> &[Player] {
         &self.w.players
@@ -193,6 +193,7 @@ impl Sim {
         }
         let id = PlayerId(self.w.next_id);
         self.w.next_id += 1;
+        self.w.roster.push(id, profile);
         self.w
             .players
             .push(Player::joining(id, profile, bot, faction, spot, hp));
@@ -225,7 +226,7 @@ impl Sim {
                 if p.dropped_at.is_none() && active {
                     p.dropped_at = Some(now);
                 }
-                p.inputs.drain();
+                p.inputs.clear();
             } else {
                 p.dropped_at = None;
             }
@@ -259,23 +260,40 @@ impl Sim {
         self.w.trace.take()
     }
 
-    /// Advances by exactly one fixed step and returns its events.
+    /// Forgets the trace without allocating (feature `schedule-trace`): for a run that steps many times and reads none of it.
+    #[cfg(feature = "schedule-trace")]
+    pub fn clear_schedule_trace(&mut self) {
+        self.w.trace.clear();
+    }
+
+    /// Advances by exactly one fixed step and returns its events (a thin wrapper over [`Sim::step_into`]).
     pub fn step(&mut self) -> Vec<Event> {
+        let mut ev = Vec::new();
+        self.step_into(&mut ev);
+        ev
+    }
+
+    /// Advances by exactly one fixed step, appending its events to `out`: first the events that waited since the last step
+    /// (a leave's result), then the step's own, in order. `out` is not cleared, so a caller that loops reuses one buffer
+    /// (`out.clear()` between steps) and a steady-state step allocates nothing (`tests/no_alloc.rs`).
+    pub fn step_into(&mut self, out: &mut Vec<Event>) {
         self.w.server_time += TICK_MS;
         self.w.tick += 1;
-        // The step's event log starts with the events that waited since the last step (a leave's result).
-        let mut ev = std::mem::take(&mut self.w.pending_events);
+        out.append(&mut self.w.pending_events);
         systems::step(&mut Cx {
             k: &self.k,
             w: &mut self.w,
             s: &mut self.s,
-            ev: &mut ev,
+            ev: out,
             pf: &mut self.pf,
         });
         debug_assert!(
             self.s.is_settled(),
             "tick-local buffers must be empty at the end of a step"
         );
-        ev
+        debug_assert!(
+            self.w.pay.items.is_empty() && !self.w.pay.collecting,
+            "the payout queue must be spent and not collecting at the end of a step"
+        );
     }
 }

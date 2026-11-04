@@ -36,11 +36,11 @@ impl Sim {
             h.u64(((p.kills as u64) << 32) | p.bounty as u64);
             h.u64(((p.gv as u64) << 32) | p.move_seq as u64);
             h.u64(p.resolved as u64 | (p.down.map(|o| o as u64 + 1).unwrap_or(0) << 1));
-            for w in &p.path {
+            for w in p.path.as_slice() {
                 h.f64(w.x);
                 h.f64(w.y);
             }
-            for s in &p.history {
+            for s in p.history.iter() {
                 h.f64(s.t);
                 h.f64(s.x);
                 h.f64(s.y);
@@ -101,7 +101,11 @@ impl Sim {
                 h.u64(d.0 as u64);
             }
             h.f64(p.dropped_at.unwrap_or(-1.0));
-            h.str(p.killed_by.as_deref().unwrap_or(""));
+            h.str(
+                p.killed_by
+                    .and_then(|by| self.w.roster.name(by))
+                    .unwrap_or(""),
+            );
             h.u64(p.killed_by_bot as u64);
             match p.announce {
                 Some((at, sent)) => {
@@ -128,7 +132,7 @@ impl Sim {
         debug_assert!(self.s.is_settled(), "state_hash between steps only");
         h.u64(self.w.next_id as u64);
         h.u64(self.w.joined as u64);
-        h.str(self.w.winner.as_deref().unwrap_or(""));
+        h.str(self.winner().unwrap_or(""));
         // Results waiting between steps (a leave's MIA) are outcomes too.
         h.u64(self.w.pending_events.len() as u64);
         for e in &self.w.pending_events {
@@ -146,7 +150,7 @@ impl Sim {
             for e in &self.w.deferred.hits {
                 h.u64(e.victim.0 as u64);
                 h.u64(e.by.0 as u64);
-                h.str(&e.by_name);
+                h.str(self.w.roster.name(e.by).unwrap_or(""));
                 for v in [e.packet.raw, e.packet.phys, e.packet.magic, e.packet.true_] {
                     h.f64(v);
                 }
@@ -231,7 +235,7 @@ mod tests {
             ("gv parts", Box::new(|s| s.w.players[0].gv_parts.bounty = 7)),
             (
                 "killed by",
-                Box::new(|s| s.w.players[0].killed_by = Some("X".into())),
+                Box::new(|s| s.w.players[0].killed_by = Some(PlayerId(2))),
             ),
             (
                 "damaged humans",
@@ -255,14 +259,13 @@ mod tests {
                 }),
             ),
             ("started humans", Box::new(|s| s.w.rt.started_humans = 1)),
-            ("winner", Box::new(|s| s.w.winner = Some("A".into()))),
+            ("winner", Box::new(|s| s.w.winner = Some(PlayerId(1)))),
             (
                 "deferred hit",
                 Box::new(|s| {
                     s.w.deferred.defer_hit(crate::systems::ledger::Entry {
                         victim: PlayerId(1),
                         by: PlayerId(2),
-                        by_name: "b".into(),
                         packet: crate::state::Packet {
                             raw: 1.0,
                             phys: 1.0,

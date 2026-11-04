@@ -8,6 +8,7 @@ use crate::events::Event;
 use crate::hooks::{self, HookArgs, Hx, OutCause};
 use crate::math::js_round;
 use crate::results::{GvBreakdown, Outcome, RunResult, WinBonusWhy};
+use crate::scratch::TickScratch;
 use crate::state::{Phase, PlayerId, Status, World};
 use crate::statics::MatchStatic;
 use crate::systems::credit;
@@ -87,24 +88,26 @@ pub(crate) fn down_player(
 /// System (legacy arena.settle): resolve the tick's downs, or end the run when at most one fighter stands.
 pub(crate) fn settle(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
-    let downed = &mut s.downed_this_tick;
+    let TickScratch {
+        downed_this_tick: downed,
+        alive,
+        ..
+    } = &mut **s;
     w.rt.downs_between_ticks = 0;
-    let alive: Vec<PlayerId> = w
-        .players
-        .iter()
-        .filter(|p| p.standing())
-        .map(|p| p.id)
-        .collect();
+    // Only the count decides a step that is not the end; the ids are collected when the run ends.
+    let standing = w.players.iter().filter(|p| p.standing()).count();
     let contested = w.rt.started_with >= 2;
-    if alive.is_empty() || (contested && alive.len() == 1) {
-        end_run(k, w, ev, &alive, downed, contested);
+    if standing == 0 || (contested && standing == 1) {
+        alive.clear();
+        alive.extend(w.players.iter().filter(|p| p.standing()).map(|p| p.id));
+        end_run(k, w, ev, alive, downed, contested);
         downed.clear();
         return;
     }
     for &id in downed.iter() {
         if let Some(i) = w.idx(id) {
             let outcome = w.players[i].down.expect("downed");
-            resolve(w, ev, i, outcome, alive.len() as u32 + 1, 0, None);
+            resolve(w, ev, i, outcome, standing as u32 + 1, 0, None);
         }
     }
     downed.clear();
@@ -172,7 +175,7 @@ fn end_run(
     } else {
         None
     };
-    w.winner = winner.and_then(|id| w.player(id)).map(|p| p.name.clone());
+    w.winner = winner.filter(|id| w.player(*id).is_some());
     w.phase = Phase::Ended;
     hooks::fire(&mut Hx { k, w, ev }, HookArgs::RunEnded);
     ev.push(Event::Victory { id: winner, draw });
@@ -202,6 +205,7 @@ fn resolve(
     let now = w.server_time;
     let started = w.raid_started_at;
     let players = w.rt.started_with;
+    let roster = &w.roster;
     let p = &mut w.players[i];
     if p.resolved {
         return;
@@ -224,7 +228,9 @@ fn resolve(
         },
         kills: p.kills - p.bot_kills,
         killed_by: if outcome == Outcome::Died {
-            p.killed_by.clone()
+            p.killed_by
+                .and_then(|by| roster.name(by))
+                .map(str::to_string)
         } else {
             None
         },

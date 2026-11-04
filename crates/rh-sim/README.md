@@ -16,7 +16,7 @@ it through `Sim::submit` and `Sim::step`.
 | `schedule.rs`, `hooks.rs` | The tick as data: `PHASES`, the registration lists, `ACTIONS` and the hook chains (each row a legacy name, a config gate and `Ported`/`Pending`), the loop that runs them, and hook dispatch (`hooks::fire`). |
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
 | `hash.rs` | `Sim::state_hash`, hand-written: the values and their order are part of the replay format (a replay recorded by an older build must keep verifying step by step). |
-| `checkpoint.rs` | `{format, statics, world}` serde layout, the `rh-checkpoint/1` tag and `CheckpointError`. |
+| `checkpoint.rs` | `{format, statics, world}` serde layout, the `rh-checkpoint/2` tag and `CheckpointError`. |
 | `observe.rs`, `input.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
 
 ### Systems over a borrow-split `Cx`
@@ -60,7 +60,7 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 ### Checkpoints
 
-`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/1", "statics": ..., "world": ...}` with the tag first.
+`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/2", "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. A change that makes
 `statics` or `world` unreadable by old checkpoints bumps `CHECKPOINT_FORMAT`.

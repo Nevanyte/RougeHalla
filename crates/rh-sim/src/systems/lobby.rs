@@ -37,7 +37,8 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
     let mut i = spawns.len();
     while i > 1 {
         i -= 1;
-        let j = (w.spawn_rng.next_f64() * (i + 1) as f64).floor() as usize;
+        // A draw in [0, 1) times (i + 1) is non-negative: truncation is its floor.
+        let j = (w.spawn_rng.next_f64() * (i + 1) as f64) as usize;
         spawns.swap(i, j);
     }
     let now = w.server_time;
@@ -48,12 +49,12 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
             p.y = s.y;
         }
         p.status = Status::Alive;
-        p.inputs.drain();
-        p.history = vec![Sample {
+        p.inputs.clear();
+        p.history.reset(Sample {
             t: now,
             x: p.x,
             y: p.y,
-        }];
+        });
         p.weapon = WeaponRt::default();
         p.ready_at = 0.0;
         p.draw_started_at = 0.0;
