@@ -1,0 +1,7 @@
+{
+  "name": "Roguehalla.Editor",
+  "rootNamespace": "Roguehalla.Editor",
+  "references": ["Roguehalla.Client"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": []
+}

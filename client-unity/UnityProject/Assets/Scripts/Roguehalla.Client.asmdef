@@ -1,0 +1,9 @@
+{
+  "name": "Roguehalla.Client",
+  "rootNamespace": "Roguehalla.Client",
+  "references": ["RoguehallaNet", "Unity.InputSystem"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": true
+}
