@@ -6,6 +6,7 @@ use rh_protocol::quant::POS_MAX;
 use rh_protocol::{ServerMsg, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf};
 use rh_sim::observe::{Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
+use rh_sim::Class;
 use rh_sim::{RawCommand, RunResult};
 
 pub fn command(c: WireCommand) -> RawCommand {
@@ -124,80 +125,182 @@ pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
 }
 
 /// The Snapshot frame of `obs`: byte-identical to `snapshot(obs, ack_input).try_encode()`, but streamed actor by actor
-/// into a reused per-thread buffer, so no `Vec<WireActor>` is built and the only allocation is the returned frame. An
-/// observation the codec refuses (a position off the wire grid) is an error, never a repaired frame.
+/// into the caller's reused `scratch` buffer, so no `Vec<WireActor>` is built and the only allocation is the returned
+/// frame (one block of exactly its size, which the outbox then owns). An observation the codec refuses (a position off the
+/// wire grid) is an error, never a repaired frame.
 pub fn encode_snapshot(
     obs: &Observation,
     ack_input: u32,
+    scratch: &mut Vec<u8>,
 ) -> Result<Vec<u8>, rh_protocol::EncodeError> {
-    thread_local! {
-        static SCRATCH: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+    scratch.clear();
+    let me = obs.me.as_ref().map(wire_self);
+    rh_protocol::encode_snapshot_into(
+        scratch,
+        obs.tick,
+        phase(obs.phase),
+        ack_input,
+        me.as_ref(),
+        obs.visible.iter().map(wire_actor),
+    )?;
+    Ok(scratch.clone())
+}
+
+/// What one observed event is on the wire: the reliable Events frame or the disposable Fx frame. Exhaustive over
+/// [`SeenEvent`] (no wildcard): a new kind of observed event cannot reach a client without a wire form being chosen.
+enum Wire {
+    Event(WireEvent),
+    Fx(WireFx),
+}
+
+fn to_wire(e: &SeenEvent) -> Wire {
+    match *e {
+        SeenEvent::Death { id, by } => Wire::Event(WireEvent::Death {
+            id: id.0,
+            by: by.map(|b| b.0),
+        }),
+        SeenEvent::Bounty { id, bounty } => Wire::Event(WireEvent::Bounty {
+            id: id.0,
+            bounty: sat16(bounty),
+        }),
+        SeenEvent::Ended { winner, draw } => Wire::Event(WireEvent::MatchEnded {
+            winner: winner.map(|w| w.0),
+            draw,
+        }),
+        SeenEvent::Swing {
+            by,
+            weapon,
+            x,
+            y,
+            a,
+        } => Wire::Fx(WireFx::Swing {
+            by: by.0,
+            weapon: weapon.code(),
+            x: x as f32,
+            y: y as f32,
+            a: a as f32,
+        }),
+        SeenEvent::Hit { victim, by, amount } => Wire::Fx(WireFx::Hit {
+            victim: victim.0,
+            by: by.0,
+            amount: amount as f32,
+        }),
     }
-    SCRATCH.with(|cell| {
-        let mut buf = std::mem::take(&mut *cell.borrow_mut());
-        buf.clear();
-        let me = obs.me.as_ref().map(wire_self);
-        let done = rh_protocol::encode_snapshot_into(
-            &mut buf,
-            obs.tick,
-            phase(obs.phase),
-            ack_input,
-            me.as_ref(),
-            obs.visible.iter().map(wire_actor),
-        );
-        let out = done.map(|_| buf.clone());
-        *cell.borrow_mut() = buf;
-        out
-    })
 }
 
-/// The important events this viewer may know of (already filtered by its observation).
-pub fn important(_events: &[rh_sim::Event], obs: &Observation) -> Vec<WireEvent> {
-    obs.events
-        .iter()
-        .filter_map(|e| match e {
-            SeenEvent::Death { id, by } => Some(WireEvent::Death {
-                id: id.0,
-                by: by.map(|b| b.0),
-            }),
-            SeenEvent::Bounty { id, bounty } => Some(WireEvent::Bounty {
-                id: id.0,
-                bounty: sat16(*bounty),
-            }),
-            SeenEvent::Ended { winner, draw } => Some(WireEvent::MatchEnded {
-                winner: winner.map(|w| w.0),
-                draw: *draw,
-            }),
-            _ => None,
-        })
-        .collect()
+/// One viewer's frames for one wake. Each is one allocation of its exact size.
+pub struct ViewFrames {
+    /// Reliable events (deaths, bounties, the end, the viewer's own result), if any.
+    pub important: Option<Vec<u8>>,
+    /// Disposable fx the viewer can see, if any.
+    pub fx: Option<Vec<u8>>,
+    /// The state snapshot; an error when the codec refuses the observation (never a repaired frame).
+    pub snapshot: Result<Vec<u8>, rh_protocol::EncodeError>,
 }
 
-pub fn fx_seen(obs: &Observation) -> Vec<WireFx> {
-    obs.events
-        .iter()
-        .filter_map(|e| match *e {
-            SeenEvent::Swing {
-                by,
-                weapon,
-                x,
-                y,
-                a,
-            } => Some(WireFx::Swing {
-                by: by.0,
-                weapon: weapon.code(),
-                x: x as f32,
-                y: y as f32,
-                a: a as f32,
-            }),
-            SeenEvent::Hit { victim, by, amount } => Some(WireFx::Hit {
-                victim: victim.0,
-                by: by.0,
-                amount: amount as f32,
-            }),
-            _ => None,
-        })
-        .collect()
+impl ViewFrames {
+    pub fn bytes(&self) -> usize {
+        [&self.important, &self.fx]
+            .into_iter()
+            .flatten()
+            .map(Vec::len)
+            .sum::<usize>()
+            + self.snapshot.as_ref().map_or(0, Vec::len)
+    }
+}
+
+/// The publish path: the observation, its wire forms and the frames, with every intermediate buffer kept between viewers
+/// and ticks. The room and wirebench both call [`Publisher::frames`], so the bench measures the production path.
+#[derive(Default)]
+pub struct Publisher {
+    obs: Observation,
+    events: Vec<WireEvent>,
+    fx: Vec<WireFx>,
+    scratch: Vec<u8>,
+}
+
+impl Publisher {
+    /// The observation of the last [`Publisher::frames`] call.
+    pub fn observation(&self) -> &Observation {
+        &self.obs
+    }
+
+    /// The frames for `viewer` after a wake.
+    ///
+    /// * `last_step`: the events of the wake's LAST step; the observation is built from them against the sim as it stands.
+    /// * `earlier`: what `viewer` could know of the wake's earlier steps, judged step by step as they ran
+    ///   ([`rh_sim::observe_events_into`]); empty on a one-step wake. It is emptied here, and those events come first.
+    /// * `all`: every event of the wake, for the viewer's own result (a dedicated path, not an observed event).
+    pub fn frames(
+        &mut self,
+        sim: &rh_sim::Sim,
+        viewer: rh_sim::PlayerId,
+        ack_input: u32,
+        last_step: &[rh_sim::Event],
+        earlier: &mut Vec<SeenEvent>,
+        all: &[rh_sim::Event],
+    ) -> ViewFrames {
+        rh_sim::observe_into(sim, viewer, last_step, &mut self.obs);
+        if !earlier.is_empty() {
+            earlier.append(&mut self.obs.events);
+            std::mem::swap(earlier, &mut self.obs.events);
+        }
+        self.events.clear();
+        self.fx.clear();
+        for e in &self.obs.events {
+            match to_wire(e) {
+                Wire::Event(w) => {
+                    debug_assert_eq!(e.class(), Class::Important);
+                    self.events.push(w);
+                }
+                Wire::Fx(w) => {
+                    debug_assert_eq!(e.class(), Class::Fx);
+                    self.fx.push(w);
+                }
+            }
+        }
+        for e in all {
+            if let rh_sim::Event::Resolved { id, result: r, .. } = e {
+                if *id == viewer {
+                    debug_assert_eq!(e.class(), Class::Important);
+                    self.events.push(WireEvent::Result(result(r)));
+                }
+            }
+        }
+        let tick = self.obs.tick;
+        let important = if self.events.is_empty() {
+            None
+        } else {
+            let msg = ServerMsg::Events {
+                tick,
+                events: std::mem::take(&mut self.events),
+            };
+            let frame = msg.encode();
+            if let ServerMsg::Events { events, .. } = msg {
+                self.events = events;
+            }
+            Some(frame)
+        };
+        let fx = if self.fx.is_empty() {
+            None
+        } else {
+            let msg = ServerMsg::Fx {
+                tick,
+                fx: std::mem::take(&mut self.fx),
+            };
+            let frame = msg.encode();
+            if let ServerMsg::Fx { fx, .. } = msg {
+                self.fx = fx;
+            }
+            Some(frame)
+        };
+        let snapshot = encode_snapshot(&self.obs, ack_input, &mut self.scratch);
+        ViewFrames {
+            important,
+            fx,
+            snapshot,
+        }
+    }
 }
 
 pub fn result(r: &RunResult) -> WireResult {
@@ -302,11 +405,12 @@ mod tests {
         let mut env = seed1_match(900);
         let ids: Vec<_> = env.sim.players().iter().map(|p| p.id).collect();
         let mut frames = 0;
+        let mut scratch = Vec::new();
         for t in 0..900u32 {
             let out = env.step(&[]);
             for id in &ids {
                 let obs = rh_sim::observe(&env.sim, *id, &out.events);
-                let streamed = encode_snapshot(&obs, t).expect("encodes");
+                let streamed = encode_snapshot(&obs, t, &mut scratch).expect("encodes");
                 assert_eq!(streamed, snapshot(&obs, t).try_encode().expect("encodes"));
                 assert_eq!(streamed.capacity(), streamed.len());
                 frames += 1;

@@ -11,7 +11,7 @@
 
 pub mod scripted;
 
-use rh_sim::{observe, validate, Event, Observation, PlayerId, RawCommand, Sim};
+use rh_sim::{observe_into, validate, Event, Observation, PlayerId, RawCommand, Sim};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -37,6 +37,12 @@ pub trait Policy: Send {
     fn reset(&mut self, seed: u64, me: PlayerId);
     /// May keep memory of earlier observations; must not depend on anything else about the match.
     fn decide(&mut self, obs: &Observation) -> Vec<RawCommand>;
+    /// [`Policy::decide`] into a caller-owned buffer (cleared by the caller; the buffer keeps its capacity, so a policy that
+    /// overrides this allocates nothing per decision). The default wraps `decide`, so a policy written before this existed
+    /// is unchanged; a policy that overrides it must propose the same commands as its `decide`.
+    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<RawCommand>) {
+        out.extend(self.decide(obs));
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -75,6 +81,9 @@ pub struct Seat {
     /// Live seats set a wall-clock budget per inline decision; headless leaves it None (deterministic).
     pub budget: Option<Duration>,
     pub stats: SeatStats,
+    /// Reused every decision tick (never read between ticks): the seat's observation and its proposal buffer.
+    obs: Observation,
+    cmds: Vec<RawCommand>,
 }
 
 impl Seat {
@@ -101,33 +110,50 @@ impl Seat {
             interval,
             budget: None,
             stats: SeatStats::default(),
+            obs: Observation::default(),
+            cmds: Vec::new(),
         }
     }
 
-    fn due(&self, tick: u32) -> bool {
+    /// Whether this seat decides on `tick`. A seat that does not want a tick is not shown an observation for it (the
+    /// observation is not even built), so a policy sees exactly its decision ticks.
+    pub fn wants(&self, tick: u32) -> bool {
         tick >= self.next_tick
     }
 
     /// The commands this seat proposes on `obs.tick` (empty when it is not due).
     pub fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
-        if !self.due(obs.tick) {
-            return Vec::new();
+        let mut out = Vec::new();
+        self.decide_into(obs, &mut out);
+        out
+    }
+
+    /// [`Seat::decide`] appending to `out`.
+    pub fn decide_into(&mut self, obs: &Observation, out: &mut Vec<RawCommand>) {
+        if !self.wants(obs.tick) {
+            return;
         }
         self.next_tick = obs.tick + self.interval;
         self.stats.decisions += 1;
+        let base = out.len();
         if self.fault.is_some() {
             self.stats.fallback_decisions += 1;
-            return self.fallback.decide(obs);
+            self.fallback.decide_into(obs, out);
+            return;
         }
+        // The seat's wall-clock budget is a live-only fault detector, never an input to a decision.
+        #[allow(clippy::disallowed_methods)]
         let started = Instant::now();
-        let out = catch_unwind(AssertUnwindSafe(|| self.policy.decide(obs)));
-        match out {
+        let ran = catch_unwind(AssertUnwindSafe(|| self.policy.decide_into(obs, out)));
+        match ran {
             Err(_) => {
+                // Whatever the policy had proposed before it failed is discarded with it.
+                out.truncate(base);
                 self.fault = Some(Fault::Panicked);
                 self.stats.fallback_decisions += 1;
-                self.fallback.decide(obs)
+                self.fallback.decide_into(obs, out);
             }
-            Ok(cmds) => {
+            Ok(()) => {
                 if let Some(b) = self.budget {
                     let el = started.elapsed();
                     if el > b {
@@ -136,15 +162,19 @@ impl Seat {
                         });
                     }
                 }
-                cmds
             }
         }
     }
 }
 
-/// Feeds every seat its observation of the last step and submits what it proposes through the ONLY input path
+/// Feeds every seat that is due its observation of the last step and submits what it proposes through the ONLY input path
 /// (`validate` + `Sim::submit`). The live room and the headless runner both call this, so a policy behaves identically
 /// in both (tested: crates/rh-server/tests/equivalence.rs).
+///
+/// Event delivery rule (docs/CONTRACTS.md C-POLICY): a seat is observed only on its decision ticks, and the events in that
+/// observation are those of the step just before it, filtered like a human's. Events of the steps between two decisions
+/// are not delivered (they never were: a non-due seat's observation used to be built and thrown away). A policy that must
+/// see every event sets its decision interval to 1.
 pub fn drive_seats(sim: &mut Sim, seats: &mut [Seat], last_events: &[Event]) {
     drive_seats_with(sim, seats, last_events, |_, _| {});
 }
@@ -159,11 +189,16 @@ pub fn drive_seats_with(
     mut submitted: impl FnMut(PlayerId, rh_sim::Command),
 ) {
     for seat in seats.iter_mut() {
-        if !sim.player(seat.player).is_some_and(|p| p.standing()) {
+        if !seat.wants(sim.tick()) || !sim.player(seat.player).is_some_and(|p| p.standing()) {
             continue;
         }
-        let obs = observe(sim, seat.player, last_events);
-        for raw in seat.decide(&obs) {
+        // The seat's own buffers, moved out for the call (a move of a few words, no allocation).
+        let mut obs = std::mem::take(&mut seat.obs);
+        let mut cmds = std::mem::take(&mut seat.cmds);
+        observe_into(sim, seat.player, last_events, &mut obs);
+        cmds.clear();
+        seat.decide_into(&obs, &mut cmds);
+        for raw in cmds.drain(..) {
             seat.stats.proposed += 1;
             let Ok(c) = validate(raw) else {
                 seat.stats.rejected += 1;
@@ -175,6 +210,8 @@ pub fn drive_seats_with(
                 Err(_) => seat.stats.rejected += 1,
             }
         }
+        seat.obs = obs;
+        seat.cmds = cmds;
     }
 }
 

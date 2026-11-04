@@ -8,9 +8,11 @@ use crate::pacer::Pacer;
 use crate::wire;
 use rh_policy::{drive_seats_with, scripted, Seat};
 use rh_protocol::map::{EncodedMap, MapBlob};
-use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent};
+use rh_protocol::{encode_welcome, RejectCode, WelcomeHeader};
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
-use rh_sim::{Arena, Event, FactionId, Phase, PlayerId, RunResult, Secrets, Sim, SimConfig};
+use rh_sim::{
+    Arena, Event, FactionId, Phase, PlayerId, RunResult, Secrets, SeenEvent, Sim, SimConfig,
+};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -174,6 +176,9 @@ struct HumanSeat {
     outbox: Option<Arc<Outbox>>,
     dropped_at: Option<Instant>,
     ack_input: u32,
+    /// What this human could know of the wake's steps before the last, judged step by step as they ran (empty between
+    /// wakes and on every one-step wake).
+    carry: Vec<SeenEvent>,
 }
 
 pub struct Room {
@@ -183,7 +188,13 @@ pub struct Room {
     bots: Vec<Seat>,
     fill_to: usize,
     pacer: Pacer,
+    /// The last step's events (the bots' input to their next decision, and the observation's events when published). Two
+    /// buffers swap through `step_into` each step: the room allocates no event list per step.
     last_events: Vec<Event>,
+    step_events: Vec<Event>,
+    /// Every event of the current wake, in order (reused).
+    wake_events: Vec<Event>,
+    publisher: wire::Publisher,
     reports: mpsc::UnboundedSender<RoomReport>,
     clock: Arc<AtomicU64>,
     /// Step wall times: a fixed-size histogram (384 bytes at any uptime; was a Vec growing to 288 KB).
@@ -243,6 +254,9 @@ impl Room {
             fill_to: cfg.fill_bots_to,
             pacer: Pacer::new(now, cfg.tick),
             last_events: Vec::new(),
+            step_events: Vec::new(),
+            wake_events: Vec::new(),
+            publisher: wire::Publisher::default(),
             reports,
             clock: Arc::new(AtomicU64::new(0f64.to_bits())),
             step_us: Histogram::new(),
@@ -462,6 +476,7 @@ impl Room {
             outbox: Some(outbox),
             dropped_at: None,
             ack_input: 0,
+            carry: Vec::new(),
         });
         self.fill_bots();
         let _ = self.reports.send(RoomReport::Seated {
@@ -575,8 +590,8 @@ impl Room {
                 .as_micros()
                 .min(u128::from(u32::MAX)) as u32,
         );
-        let mut all_events: Vec<Event> = Vec::new();
-        for _ in 0..steps {
+        self.wake_events.clear();
+        for n in 0..steps {
             let t = std::time::Instant::now();
             let rec = &mut self.recorder;
             drive_seats_with(
@@ -589,24 +604,44 @@ impl Room {
                     }
                 },
             );
-            let ev = self.sim.step();
+            self.step_events.clear();
+            self.sim.step_into(&mut self.step_events);
             let us = t.elapsed().as_micros().min(u32::MAX as u128) as u32;
             if let Some(r) = self.recorder.as_mut() {
                 r.stepped(&self.sim);
             }
             self.step_us.record(us);
             self.metrics.step_us.record(us);
-            self.last_events = ev.clone();
-            all_events.extend(ev);
+            if n + 1 < steps {
+                // C-OBS on a catch-up wake: this step's events are judged against THIS step's line of sight, now, not
+                // against the last step's (an attacker who steps out of sight in a later step must not hide its swing,
+                // and one who steps into sight must not reveal an earlier one). One snapshot still goes out, for the
+                // final state.
+                for h in &mut self.humans {
+                    if h.outbox.is_some() {
+                        rh_sim::observe_events_into(
+                            &self.sim,
+                            h.player,
+                            &self.step_events,
+                            &mut h.carry,
+                        );
+                    }
+                }
+            }
+            self.wake_events.extend_from_slice(&self.step_events);
+            std::mem::swap(&mut self.last_events, &mut self.step_events);
         }
         self.clock
             .store(self.sim.server_time().to_bits(), Ordering::Relaxed);
         let t = std::time::Instant::now();
+        // The buffer leaves the room for the call (publish borrows the room mutably) and comes back.
+        let all_events = std::mem::take(&mut self.wake_events);
         self.publish(&all_events);
         self.metrics
             .publish_us
             .record(t.elapsed().as_micros().min(u128::from(u32::MAX)) as u32);
         self.report_results(&all_events);
+        self.wake_events = all_events;
         if self.sim.phase() != self.reported_phase {
             // Every phase change reaches the director (a lobby that closed into a run must stop receiving joins).
             self.reported_phase = self.sim.phase();
@@ -626,43 +661,23 @@ impl Room {
         true
     }
 
+    /// One tick's frames for every connected human. `events`: every event of the wake; the observation's own events are
+    /// those of the last step (`last_events`) plus what each human's `carry` gathered from the earlier steps.
     fn publish(&mut self, events: &[Event]) {
-        for h in &self.humans {
-            let Some(out) = &h.outbox else { continue };
-            let obs = rh_sim::observe(&self.sim, h.player, events);
-            let mut important: Vec<WireEvent> = wire::important(events, &obs);
-            for e in events {
-                if let Event::Resolved { id, result, .. } = e {
-                    if *id == h.player {
-                        important.push(WireEvent::Result(wire::result(result)));
-                    }
-                }
-            }
-            let important = if important.is_empty() {
-                None
-            } else {
-                Some(
-                    ServerMsg::Events {
-                        tick: self.sim.tick(),
-                        events: important,
-                    }
-                    .encode(),
-                )
+        for h in &mut self.humans {
+            let Some(out) = &h.outbox else {
+                h.carry.clear();
+                continue;
             };
-            // Fx are filtered per viewer too: only what this player can see (a swing behind a wall is not sent).
-            let fx = wire::fx_seen(&obs);
-            let fx = if fx.is_empty() {
-                None
-            } else {
-                Some(
-                    ServerMsg::Fx {
-                        tick: self.sim.tick(),
-                        fx,
-                    }
-                    .encode(),
-                )
-            };
-            let snap = match wire::encode_snapshot(&obs, h.ack_input) {
+            let frames = self.publisher.frames(
+                &self.sim,
+                h.player,
+                h.ack_input,
+                &self.last_events,
+                &mut h.carry,
+                events,
+            );
+            let snap = match frames.snapshot {
                 Ok(snap) => Some(snap),
                 // Never a repaired frame: the viewer simply misses this snapshot (the next one supersedes it).
                 Err(e) => {
@@ -670,7 +685,7 @@ impl Room {
                     None
                 }
             };
-            let bytes: usize = [&important, &fx, &snap]
+            let bytes: usize = [&frames.important, &frames.fx, &snap]
                 .into_iter()
                 .flatten()
                 .map(Vec::len)
@@ -682,7 +697,7 @@ impl Room {
                     .fetch_add(bytes as u64, Ordering::Relaxed);
                 // One lock and one notify for the client's whole tick.
                 self.metrics.outbox_pushes.fetch_add(1, Ordering::Relaxed);
-                out.push_tick(important, fx, snap);
+                out.push_tick(frames.important, frames.fx, snap);
             }
         }
     }
