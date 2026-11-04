@@ -110,6 +110,9 @@ impl Director {
         auth: Arc<Auth>,
         lifecycle: Arc<Lifecycle>,
     ) -> Arc<Self> {
+        if let Err(e) = crate::wire::arena_fits(&cfg.arena) {
+            panic!("refusing to host this arena: {e}");
+        }
         let (tx, rx) = mpsc::unbounded_channel();
         let d = Arc::new(Self {
             pending_writes: std::sync::atomic::AtomicUsize::new(0),

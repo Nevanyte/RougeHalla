@@ -22,7 +22,7 @@ namespace Roguehalla.Net.Protocol
 
     /// <summary>
     /// Quantization of remote actors and swing effects (rh-protocol quant.rs; error bounds are documented there). The SELF view is
-    /// never quantized. Position: u16 at 1/8 world unit, saturating to 0..65535, ties away from zero. Angle: u16 over 2 pi, read
+    /// never quantized. Position: u16 at 1/8 world unit, 0..65535 (the encoder refuses a position outside 0..8191.875), ties away from zero. Angle: u16 over 2 pi, read
     /// as a two's complement angle in [-pi, pi). Decoding is the same f32 arithmetic as Rust: q / 8 (exact) and the signed code
     /// times <see cref="FacingStepF"/> (one rounding).
     /// </summary>

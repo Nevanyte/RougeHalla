@@ -3,8 +3,11 @@
 //!
 //! * Position: `u16` at 1/8 world unit ([`POS_SCALE`]). The finest power-of-two step that fits a `u16` over the largest
 //!   world extent: the nominal world is 160 x 32 u = 5120 u, and 5120 * 8 = 40960 <= 65535 (a step of 1/16 would need
-//!   81920). Representable range 0 ..= 8191.875 u (the 255-tile guide limit of a 256-tile map); a value outside it
-//!   SATURATES (the codec never fails an observation over a position). Rounding is half away from zero.
+//!   81920). Representable range 0 ..= 8191.875 u ([`POS_MAX`]: a map up to 255 tiles a side). The ENCODER refuses a
+//!   position outside it (NaN included) with `EncodeError::BadValue("position")`: it never clamps, so the codec cannot
+//!   change what a client sees; the server refuses to host a map whose world does not fit (`rh_server::wire::arena_fits`).
+//!   [`quantize_pos`] itself still saturates (it is total); [`pos_in_range`] is the encoder's test. Rounding is half away
+//!   from zero.
 //!   Error bound: |decoded - original| <= 1/16 u = 0.0625 u (for a value inside the range, up to f32 rounding of the input).
 //! * Facing: `u16` over 2 pi, read as a two's complement angle in `[-pi, pi)`. The step is [`FACING_STEP`] = 2 pi / 65536
 //!   (9.59e-5 rad, 0.0055 degree); the error is at most half of it, 4.79e-5 rad (modulo 2 pi: +pi and -pi are the same
@@ -27,6 +30,12 @@ pub const FACING_STEP: f64 = TAU / 65536.0;
 pub const FACING_STEP_F32: f32 = FACING_STEP as f32;
 /// Largest quantity (in steps) the encoder rounds; anything beyond is an absurd angle that only has to be deterministic.
 const FACING_CLAMP: f64 = (1u64 << 40) as f64;
+
+/// Whether the encoder can carry `v` without changing it: finite and within `0 ..= POS_MAX`.
+#[inline]
+pub fn pos_in_range(v: f32) -> bool {
+    (0.0..=POS_MAX).contains(&v)
+}
 
 /// World units to the nearest 1/8 u, saturating to `0 ..= 65535` (NaN is 0).
 #[inline]
@@ -81,6 +90,23 @@ mod tests {
         assert_eq!(quantize_pos(1e9), 65535);
         assert_eq!(dequantize_pos(quantize_pos(5120.0)), 5120.0);
         assert_eq!(quantize_pos(0.0625), 1, "ties round away from zero");
+    }
+
+    #[test]
+    fn range_is_zero_to_pos_max_and_refuses_nan() {
+        assert!(pos_in_range(0.0));
+        assert!(pos_in_range(POS_MAX));
+        assert!(pos_in_range(8191.8));
+        assert!(!pos_in_range(8191.876));
+        assert!(!pos_in_range(8192.0));
+        assert!(!pos_in_range(-0.001));
+        assert!(!pos_in_range(f32::NAN));
+        assert!(!pos_in_range(f32::INFINITY));
+        assert_eq!(
+            dequantize_pos(quantize_pos(POS_MAX)),
+            POS_MAX,
+            "the top of the range is exact"
+        );
     }
 
     #[test]

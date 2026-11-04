@@ -37,7 +37,7 @@ the cheapest moment to change the wire; the server speaks only v2 and refuses a 
 - Counters (tick, ack, ids, counts, kills, bounty, gv) are canonical LEB128 varints; a non-canonical or overlong varint is
   malformed, so decode then encode is byte-identical.
 - Remote actors are quantized: positions u16 at 1/8 world unit (the finest power of two that fits a u16 over the 5120 u
-  world; saturating), facing u16 over 2 pi, hp_pct exact. Error bounds: 0.0625 u and 4.8e-5 rad (`quant.rs`). Each actor
+  world; the encoder refuses a position outside 0..8191.875 u rather than clamp, and the server refuses a larger map), facing u16 over 2 pi, hp_pct exact. Error bounds: 0.0625 u and 4.8e-5 rad (`quant.rs`). Each actor
   carries a mask byte so that default values (full hp, no faction or weapon nibble, no bounty) cost nothing; status is
   inline in the mask. Actor ids are sent as gaps (the observation sorts by id, and the wire requires strictly ascending ids).
 - The SELF view keeps full precision (prediction and reconciliation need it); a head word carries the phase and a mask of

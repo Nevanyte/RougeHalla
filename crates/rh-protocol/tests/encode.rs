@@ -1,6 +1,7 @@
 //! The encoder paths (encode, try_encode, encode_into, SnapshotWriter, encode_welcome) all write the golden-vector bytes,
 //! size every frame exactly, and refuse instead of repair any frame a decoder would reject.
 use rh_protocol::map::MapBlob;
+use rh_protocol::quant::POS_MAX;
 use rh_protocol::samples::*;
 use rh_protocol::*;
 
@@ -9,7 +10,7 @@ fn actor(i: u32) -> WireActor {
         id: i * 3 + 1,
         faction: (i % 5) as u8,
         x: 100.25 + i as f32,
-        y: -7.5 * i as f32,
+        y: 7.5 * i as f32,
         facing: (i as f32 * 0.37).sin(),
         hp_pct: (i % 101) as u8,
         status: (i % 4) as u8,
@@ -470,4 +471,69 @@ fn maps_decoders_reject_are_refused_for_the_same_reason() {
         Err(EncodeError::TooLarge { .. })
     ));
     assert!(out.is_empty());
+}
+
+/// A remote actor or swing outside the 0 ..= POS_MAX grid is refused (never clamped), on every encoder path; one at the
+/// top of the range is carried exactly.
+#[test]
+fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
+    let at = |x: f32, y: f32| WireActor { x, y, ..actor(0) };
+    let snap = |a: WireActor| ServerMsg::Snapshot {
+        tick: 1,
+        phase: 1,
+        ack_input: 0,
+        me: None,
+        actors: vec![a],
+    };
+    let inside = snap(at(POS_MAX, 8191.5));
+    let bytes = inside.try_encode().expect("the top of the range encodes");
+    assert_eq!(ServerMsg::decode(&bytes).unwrap(), decoded_form(&inside));
+    assert_eq!(
+        decoded_form(&inside),
+        inside,
+        "and decodes to what was sent"
+    );
+    for (x, y) in [
+        (8191.876, 0.0),
+        (0.0, 8192.0),
+        (1.0e9, 5.0),
+        (-0.01, 5.0),
+        (5.0, f32::NAN),
+        (f32::INFINITY, 5.0),
+    ] {
+        let m = snap(at(x, y));
+        assert_eq!(
+            m.try_encode(),
+            Err(EncodeError::BadValue("position")),
+            "{x},{y}"
+        );
+        let mut out = vec![9u8];
+        assert_eq!(
+            m.encode_into(&mut out),
+            Err(EncodeError::BadValue("position"))
+        );
+        assert_eq!(out, vec![9u8], "an error leaves the buffer unchanged");
+        let mut out = Vec::new();
+        assert_eq!(stream(&mut out, &m), Err(EncodeError::BadValue("position")));
+        assert!(out.is_empty());
+    }
+    let swing = |x: f32, y: f32| ServerMsg::Fx {
+        tick: 1,
+        fx: vec![WireFx::Swing {
+            by: 1,
+            weapon: 2,
+            x,
+            y,
+            a: 0.5,
+        }],
+    };
+    assert!(swing(POS_MAX, 0.0).try_encode().is_ok());
+    assert_eq!(
+        swing(0.0, 8192.0).try_encode(),
+        Err(EncodeError::BadValue("position"))
+    );
+    assert_eq!(
+        swing(f32::NAN, 0.0).try_encode(),
+        Err(EncodeError::BadValue("position"))
+    );
 }

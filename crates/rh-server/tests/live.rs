@@ -718,3 +718,12 @@ async fn the_last_humans_mia_result_is_banked_although_the_room_closes() {
     }
     panic!("the leaver's MIA result was never reported");
 }
+
+/// A server never hosts a map whose world exceeds the wire's position range (the encoder would refuse every snapshot).
+#[tokio::test]
+#[should_panic(expected = "refusing to host this arena")]
+async fn a_server_refuses_to_host_an_arena_beyond_the_position_range() {
+    let map = TileMap::new(256, 4, vec![0; 256 * 4]).unwrap();
+    let spawns = vec![Vec2::new(48.0, 48.0)];
+    start(Arena { map, spawns }, |_| {}).await;
+}

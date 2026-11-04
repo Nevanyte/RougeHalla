@@ -183,7 +183,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             },
         ),
         // Every field set, multi-byte varints everywhere, off-grid and edge positions and angles (a tie rounds away from
-        // zero, the facing of +pi wraps to -pi, a position past the range saturates, a negative one clamps to 0).
+        // zero, the facing of +pi wraps to -pi, the largest positions, 8191.875 and 8191.8, and a tiny one rounding to 0; the encoder refuses a position outside 0..=8191.875).
         (
             "snapshot_full",
             ServerMsg::Snapshot {
@@ -222,7 +222,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         id: 128,
                         faction: 4,
                         x: 1234.5678,
-                        y: 9000.0,
+                        y: 8191.8,
                         facing: 0.7853982,
                         hp_pct: 100,
                         status: 3,
@@ -232,7 +232,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     WireActor {
                         id: 70_000,
                         faction: 0,
-                        x: -3.0,
+                        x: 0.03,
                         y: 8191.875,
                         facing: -1.0,
                         hp_pct: 33,
@@ -346,7 +346,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         by: 70_000,
                         weapon: 2,
                         x: 1234.5678,
-                        y: -2.0,
+                        y: 0.0,
                         a: -2.5,
                     },
                     WireFx::Hit {

@@ -432,6 +432,9 @@ fn snapshot_fault(phase: u8, me: Option<&WireSelf>, actors: &[WireActor]) -> Opt
         if a.hp_pct > 100 {
             return Some("hp_pct");
         }
+        if !quant::pos_in_range(a.x) || !quant::pos_in_range(a.y) {
+            return Some("position");
+        }
         if prev.is_some_and(|p| a.id <= p) {
             return Some("actor order");
         }
@@ -549,7 +552,16 @@ impl Frame for ServerMsg {
                 }
             }
             ServerMsg::Events { events, .. } => list("events", events.len(), u16::MAX as usize)?,
-            ServerMsg::Fx { fx, .. } => list("fx", fx.len(), u16::MAX as usize)?,
+            ServerMsg::Fx { fx, .. } => {
+                list("fx", fx.len(), u16::MAX as usize)?;
+                let swing_off_grid = |f: &WireFx| {
+                    matches!(*f, WireFx::Swing { x, y, .. }
+                        if !quant::pos_in_range(x) || !quant::pos_in_range(y))
+                };
+                if fx.iter().any(swing_off_grid) {
+                    return Err(EncodeError::BadValue("position"));
+                }
+            }
             ServerMsg::Reject { .. } | ServerMsg::Pong { .. } => {}
         }
         frame_size(len, Self::MAX_FRAME)

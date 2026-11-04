@@ -2,6 +2,7 @@
 //! (docs/CONTRACTS.md C-NET-3): status 0 lobby, 1 alive, 2 dead, 3 mia; phase 0 lobby, 1 active, 2 ended; outcome 0 won,
 //! 1 draw, 2 died, 3 mia; faction and weapon codes are the content tables' order.
 
+use rh_protocol::quant::POS_MAX;
 use rh_protocol::{ServerMsg, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf};
 use rh_sim::observe::{Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
@@ -36,6 +37,36 @@ pub fn phase(p: Phase) -> u8 {
         Phase::Active => 1,
         Phase::Ended => 2,
     }
+}
+
+/// Whether the wire can carry every position of a match on `arena`: the world extent (`w * TILE` by `h * TILE` u) and
+/// every spawn must lie within `0 ..= POS_MAX` (8191.875 u, a map of at most 255 tiles a side), the range of the u16 1/8 u
+/// position grid of protocol v2. The encoder refuses a position outside it rather than clamp, so a larger map is refused
+/// here, at startup, instead of failing every snapshot.
+pub fn arena_fits(arena: &rh_sim::Arena) -> Result<(), String> {
+    let tile = rh_sim::constants::TILE;
+    let limit = POS_MAX as f64;
+    let (w, h) = (arena.map.w as f64 * tile, arena.map.h as f64 * tile);
+    if w > limit || h > limit {
+        return Err(format!(
+            "map {}x{} tiles is a world of {w} x {h} u, which does not fit the wire position range 0..={limit} u \
+             (protocol v2: u16 at 1/8 u, at most {} tiles a side)",
+            arena.map.w,
+            arena.map.h,
+            (limit / tile) as u32
+        ));
+    }
+    if let Some(p) = arena
+        .spawns
+        .iter()
+        .find(|p| !(0.0..=limit).contains(&p.x) || !(0.0..=limit).contains(&p.y))
+    {
+        return Err(format!(
+            "spawn ({}, {}) is outside the wire position range 0..={limit} u",
+            p.x, p.y
+        ));
+    }
+    Ok(())
 }
 
 fn sat16(v: u32) -> u16 {
@@ -156,7 +187,7 @@ mod tests {
     use super::*;
     use rh_headless::{Agent, AgentSpec, Env, EnvConfig};
     use rh_policy::scripted::Brawler;
-    use rh_protocol::quant::{POS_MAX, POS_SCALE};
+    use rh_protocol::quant::POS_SCALE;
     use rh_protocol::{snapshot_server_ms, TICK_MS};
     use rh_sim::{FactionId, SimConfig};
 
@@ -293,5 +324,27 @@ mod tests {
         // 1/16 u from the grid, plus the f32 rounding of the sim's f64 position (under 0.001 at 5120 u).
         assert!(worst_pos <= 0.0626, "position error {worst_pos}");
         assert!(worst_facing <= 4.9e-5, "facing error {worst_facing}");
+    }
+
+    fn flat_arena(w: u32, h: u32) -> rh_sim::Arena {
+        rh_sim::Arena {
+            map: rh_sim::TileMap::new(w, h, vec![0; (w * h) as usize]).expect("map"),
+            spawns: vec![rh_sim::Vec2::new(48.0, 48.0)],
+        }
+    }
+
+    /// 255 tiles (8160 u) fits the position grid; 256 (8192 u) does not, on either axis, and the refusal names the limit.
+    #[test]
+    fn an_arena_larger_than_the_position_grid_is_refused() {
+        assert!(arena_fits(&flat_arena(255, 255)).is_ok());
+        assert!(arena_fits(&flat_arena(160, 160)).is_ok());
+        for (w, h) in [(256, 4), (4, 256), (300, 300)] {
+            let e = arena_fits(&flat_arena(w, h)).expect_err("too large");
+            assert!(e.contains("8191.875") && e.contains("255 tiles"), "{e}");
+        }
+        let mut a = flat_arena(8, 8);
+        a.spawns.push(rh_sim::Vec2::new(9000.0, 1.0));
+        assert!(arena_fits(&a).expect_err("spawn").contains("spawn"));
+        assert!(arena_fits(&rh_sim::arenas::practice_arena()).is_ok());
     }
 }
