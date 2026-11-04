@@ -5,6 +5,7 @@ use crate::math::js_round;
 use crate::sim::{
     Event, GvBreakdown, Outcome, Phase, PlayerId, RunResult, Sim, Status, WinBonusWhy,
 };
+use crate::systems::credit;
 use crate::systems::weapons::release_trigger;
 
 impl Sim {
@@ -15,7 +16,7 @@ impl Sim {
         let now = self.w.server_time;
         let credited = if outcome == Outcome::Mia {
             let at = self.w.players[vi].dropped_at.unwrap_or(now);
-            self.recent_rival(vi, at)
+            credit::recent_rival(&self.w, vi, at)
         } else {
             None
         };
@@ -32,7 +33,7 @@ impl Sim {
         let id = v.id;
         if let Some(c) = credited {
             let bounty = self.w.players[vi].bounty;
-            self.credit_kill(c, victim_bot, bounty);
+            self.with_cx(|cx| credit::credit_kill(cx.w, cx.ev, c, victim_bot, bounty));
         }
         if self.s.stepping {
             self.s.downed_this_tick.push(id);

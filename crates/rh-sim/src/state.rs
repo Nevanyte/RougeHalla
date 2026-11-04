@@ -253,6 +253,11 @@ pub(crate) struct World {
 }
 
 impl World {
+    /// The index of a present player (join order).
+    pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
+        self.players.iter().position(|p| p.id == id)
+    }
+
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
             tick: 0,

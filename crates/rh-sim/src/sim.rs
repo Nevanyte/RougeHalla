@@ -145,7 +145,7 @@ impl Sim {
         self.w.players.iter().find(|p| p.id == id)
     }
     pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
-        self.w.players.iter().position(|p| p.id == id)
+        self.w.idx(id)
     }
     pub fn secrets_for_replay(&self) -> Secrets {
         self.k.secrets
