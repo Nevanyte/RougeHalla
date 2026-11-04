@@ -23,7 +23,7 @@ namespace Roguehalla.Net.Tests
         static ServerMsg.Welcome Welcome()
         {
             var tiles = new byte[16]; // 4x4 floor
-            return new ServerMsg.Welcome { Protocol = 1, MatchId = Enumerable16(1), PlayerId = 3, Session = Token, TickRate = 20, Tick = 1, ServerMs = 50, Map = new MapBlob(4, 4, tiles) };
+            return new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = Enumerable16(1), PlayerId = 3, Session = Token, TickRate = 20, Tick = 1, ServerMs = 50, Map = new MapBlob(4, 4, tiles) };
         }
 
         void ToMatch() { _s.Connect(); _t.Open(); _t.Deliver(Welcome()); }
@@ -38,7 +38,7 @@ namespace Roguehalla.Net.Tests
             _t.Open();
             Assert.AreEqual(SessionState.HelloSent, _s.State);
             var h = _t.LastSent<ClientMsg.Hello>();
-            Assert.AreEqual(1, h.Protocol); Assert.AreEqual("p", h.Profile); Assert.AreEqual("tok", h.Token); Assert.AreEqual((byte)2, h.Faction); Assert.IsNull(h.Resume);
+            Assert.AreEqual(Wire.ProtocolVersion, h.Protocol); Assert.AreEqual("p", h.Profile); Assert.AreEqual("tok", h.Token); Assert.AreEqual((byte)2, h.Faction); Assert.IsNull(h.Resume);
             _t.Deliver(Welcome());
             CollectionAssert.AreEqual(new[] { SessionState.Connecting, SessionState.HelloSent, SessionState.InMatch }, states);
             Assert.AreEqual(3u, _s.PlayerId); Assert.IsNotNull(_s.Motion); CollectionAssert.AreEqual(Token, _s.SessionToken);
@@ -136,7 +136,7 @@ namespace Roguehalla.Net.Tests
         {
             ToMatch();
             _now = 2000;
-            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, ServerMs = 100, Me = new WireSelf { X = 40, Y = 40, Hp = 10 }, Actors = new[] { new WireActor { Id = 9, X = 1, Y = 2 } } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { X = 40, Y = 40, Hp = 10 }, Actors = new[] { new WireActor { Id = 9, X = 1, Y = 2 } } });
             Assert.AreEqual(1, _s.Snapshots.Count); Assert.IsTrue(_s.Clock.Ready); Assert.IsTrue(_s.Motion.Initialized);
             Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3);
             _s.OrderMove(100, 40); _s.Update();

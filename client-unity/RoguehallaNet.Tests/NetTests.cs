@@ -8,7 +8,7 @@ namespace Roguehalla.Net.Tests
 {
     public class SnapshotAndClockTests
     {
-        static ServerMsg.Snapshot Snap(double ms, params WireActor[] a) { return new ServerMsg.Snapshot { ServerMs = ms, Tick = (uint)(ms / 50), Actors = a }; }
+        static ServerMsg.Snapshot Snap(double ms, params WireActor[] a) { return new ServerMsg.Snapshot { Tick = (uint)(ms / 50), Actors = a }; }
         static WireActor Act(uint id, float x, float y, float facing = 0) { return new WireActor { Id = id, X = x, Y = y, Facing = facing, HpPct = 100 }; }
 
         [Test]
