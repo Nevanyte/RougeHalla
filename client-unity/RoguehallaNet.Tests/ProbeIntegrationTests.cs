@@ -61,6 +61,8 @@ namespace Roguehalla.Net.Tests
             var server = Serve(http, false, cts.Token, m => { if (m is ClientMsg.Hello h) hello = h; if (m is ClientMsg.Ping) pings++; if (m is ClientMsg.Input i) moves += i.Commands.Count; if (m is ClientMsg.Leave) left = true; });
             var o = new StringWriter();
             int code = await Roguehalla.Probe.Program.Run(new[] { "--url", $"ws://127.0.0.1:{port}/ws", "--profile", "probe1", "--token", "t1", "--seconds", "2.3" }, o, TextWriter.Null);
+            // Let the fake server finish reading (it polls every 50 ms) before asserting what it received.
+            await Task.WhenAny(server, Task.Delay(3000));
             http.Stop();
             string json = o.ToString().Trim();
             TestContext.Out.WriteLine(json);

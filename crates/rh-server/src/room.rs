@@ -19,7 +19,7 @@ use tokio::time::Instant;
 pub const RECONNECT_GRACE: Duration = Duration::from_secs(10);
 /// A finished match stays up this long so clients receive the end and their results.
 pub const LINGER: Duration = Duration::from_secs(5);
-pub const INBOUND_CAP: usize = 512;
+pub const INBOUND_CAP: usize = 2048;
 /// A room nobody has joined yet waits this long for its first player (admission may still be acquiring a durable lease)
 /// before closing itself.
 pub const UNCLAIMED_TIMEOUT: Duration = Duration::from_secs(30);
@@ -162,6 +162,7 @@ pub struct Room {
     had_human: bool,
     /// Every human's lease fence, kept after it leaves: its result may be reported a step later.
     fences: Vec<(PlayerId, i64)>,
+    reported_phase: Phase,
 }
 
 pub fn random16() -> [u8; 16] {
@@ -217,6 +218,7 @@ impl Room {
             opened_at: now,
             had_human: false,
             fences: Vec::new(),
+            reported_phase: Phase::Lobby,
         }
     }
 
@@ -541,13 +543,17 @@ impl Room {
                 });
             }
         }
-        if self.sim.phase == Phase::Ended && self.ended_at.is_none() {
-            self.ended_at = Some(now);
+        if self.sim.phase != self.reported_phase {
+            // Every phase change reaches the director (a lobby that closed into a run must stop receiving joins).
+            self.reported_phase = self.sim.phase;
             let _ = self.reports.send(RoomReport::Phase {
                 match_id: self.id,
-                phase: Phase::Ended,
+                phase: self.sim.phase,
                 humans: self.humans_present(),
             });
+        }
+        if self.sim.phase == Phase::Ended && self.ended_at.is_none() {
+            self.ended_at = Some(now);
         }
         if let Some(t) = self.ended_at {
             if now.duration_since(t) >= self.linger {

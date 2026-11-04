@@ -72,6 +72,18 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void TooSlowInAMatchResumesTheSeatInsteadOfEnding()
+        {
+            ToMatch();
+            _t.Deliver(new ServerMsg.Reject { Code = RejectCode.TooSlow, Reason = "closed" });
+            Assert.AreEqual(SessionState.Reconnecting, _s.State);
+            _now += 500; _s.Update(); _t.Open();
+            CollectionAssert.AreEqual(Token, _t.LastSent<ClientMsg.Hello>().Resume);
+            _t.Deliver(Welcome());
+            Assert.AreEqual(SessionState.InMatch, _s.State);
+        }
+
+        [Test]
         public void ClosedBeforeWelcomeFails()
         {
             _s.Connect(); _t.Open(); _t.Drop("refused");

@@ -119,6 +119,18 @@ async fn main() {
 
     let shutdown_director = director.clone();
     tokio::spawn(async move {
+        // SIGTERM is how a container platform (and the hosting bridge) asks a process to stop; Ctrl-C is SIGINT.
+        #[cfg(unix)]
+        {
+            let mut term =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    .expect("SIGTERM handler");
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {}
+                _ = term.recv() => {}
+            }
+        }
+        #[cfg(not(unix))]
         let _ = tokio::signal::ctrl_c().await;
         eprintln!("[server] draining: no new admissions; active matches finish");
         shutdown_director.drain().await;

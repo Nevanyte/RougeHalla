@@ -190,6 +190,16 @@ namespace Roguehalla.Net
             {
                 RejectCode = reject.Code;
                 RejectReason = reject.Reason;
+                // The server closed a live seat because this client fell behind: the seat is held for the reconnect grace,
+                // so resume it (a fresh Welcome resyncs). Every other reject ends the session.
+                if (reject.Code == Protocol.RejectCode.TooSlow && State == SessionState.InMatch && SessionToken != null)
+                {
+                    _t.Close();
+                    _resuming = true;
+                    _attempt = 0;
+                    ScheduleRetry("too slow");
+                    return;
+                }
                 Set(SessionState.Rejected);
                 _t.Close();
                 return;

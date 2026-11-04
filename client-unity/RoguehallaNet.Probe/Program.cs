@@ -68,9 +68,10 @@ namespace Roguehalla.Probe
                 await Task.Delay(5);
             }
             if (session.State == SessionState.InMatch) session.Leave();
-            await Task.Delay(100);
             session.Update();
-            transport.Close();
+            // The Leave must reach the server before the socket closes: flush, then close after the queued sends.
+            await Task.WhenAny(transport.FlushAsync(), Task.Delay(2000));
+            await Task.WhenAny(transport.CloseAsync(), Task.Delay(2000));
 
             var rejects = new List<string>();
             if (session.RejectCode.HasValue)

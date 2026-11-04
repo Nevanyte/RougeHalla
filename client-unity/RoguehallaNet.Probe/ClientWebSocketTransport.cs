@@ -70,14 +70,21 @@ namespace Roguehalla.Probe
                 : Task.CompletedTask, TaskScheduler.Default).Unwrap();
         }
 
-        public void Close()
+        /// <summary>Completes when every frame queued so far has been handed to the socket (e.g. a Leave before Close).</summary>
+        public Task FlushAsync() => _sendChain;
+
+        public void Close() { _ = CloseAsync(); }
+
+        /// <summary>Closes after the queued sends: a close frame must not overtake (or run concurrently with) a pending send.</summary>
+        public Task CloseAsync()
         {
-            var ws = _ws; var cts = _cts;
+            var ws = _ws; var cts = _cts; var chain = _sendChain;
             _ws = null; _cts = null;
-            if (ws == null) return;
+            if (ws == null) return Task.CompletedTask;
             Interlocked.Increment(ref _generation); // late events of this socket are dropped
-            _ = Task.Run(async () =>
+            return Task.Run(async () =>
             {
+                try { await chain.ConfigureAwait(false); } catch { }
                 try { await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None).ConfigureAwait(false); } catch { }
                 try { cts.Cancel(); ws.Dispose(); } catch { }
             });

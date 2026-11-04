@@ -27,6 +27,8 @@ pub struct DirectorConfig {
     pub record: bool,
     pub reconnect_grace: Duration,
     pub linger: Duration,
+    /// A connection that sends nothing for this long is treated as dropped (clients ping at least every second).
+    pub idle_timeout: Duration,
 }
 
 impl DirectorConfig {
@@ -40,6 +42,7 @@ impl DirectorConfig {
             record: false,
             reconnect_grace: crate::room::RECONNECT_GRACE,
             linger: crate::room::LINGER,
+            idle_timeout: crate::conn::IDLE_TIMEOUT,
         }
     }
 }
@@ -119,6 +122,24 @@ impl Director {
     pub async fn admit(
         &self,
         h: Hello,
+        outbox: Arc<Outbox>,
+        conn: u64,
+    ) -> Result<(mpsc::Sender<RoomCmd>, JoinOk), (RejectCode, String)> {
+        // A lobby can close into its run between the pick and the join (the room then refuses MatchFull): try another.
+        let mut tries = 0;
+        loop {
+            match self.admit_once(&h, outbox.clone(), conn).await {
+                Err((RejectCode::MatchFull, reason)) if reason == "lobby closed" && tries < 2 => {
+                    tries += 1
+                }
+                other => return other,
+            }
+        }
+    }
+
+    async fn admit_once(
+        &self,
+        h: &Hello,
         outbox: Arc<Outbox>,
         conn: u64,
     ) -> Result<(mpsc::Sender<RoomCmd>, JoinOk), (RejectCode, String)> {
@@ -287,6 +308,19 @@ impl Director {
             Ok(Err(code)) => {
                 release(self);
                 self.release_lease(&h.profile, fence);
+                if code == RejectCode::MatchFull {
+                    // The lobby closed into its run: never pick it again; admit() tries another room.
+                    if let Some(r) = self
+                        .inner
+                        .lock()
+                        .expect("director")
+                        .rooms
+                        .get_mut(&match_id)
+                    {
+                        r.phase = Phase::Active;
+                    }
+                    return Err((code, "lobby closed".into()));
+                }
                 Err((code, "join refused".into()))
             }
             Err(_) => {
@@ -503,6 +537,10 @@ impl Director {
     /// Recorded replays of the last closed rooms (private: they hold match secrets).
     pub fn take_replays(&self) -> Vec<rh_sim::replay::Replay> {
         std::mem::take(&mut self.inner.lock().expect("director").replays)
+    }
+
+    pub fn idle_timeout(&self) -> Duration {
+        self.cfg.idle_timeout
     }
 
     pub fn room_count(&self) -> usize {

@@ -581,3 +581,87 @@ async fn a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat() {
         "the resumed seat keeps receiving snapshots after the old socket closed"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_new_player_gets_a_new_lobby_while_a_run_is_in_progress() {
+    let s = start(duel_arena(), |_| {}).await;
+    let (mut a, _, _) = join(&s.url, "victor", None).await;
+    let (_b, _, _) = join(&s.url, "whiskey", None).await;
+    while let Some(m) = recv(&mut a).await {
+        if matches!(m, ServerMsg::Snapshot { phase: 1, .. }) {
+            break;
+        }
+    }
+    // The first room is running: a third player must be seated in a fresh lobby, not refused.
+    let (mut c, _, _) = join(&s.url, "xray", None).await;
+    let mut lobby = false;
+    while let Some(m) = recv(&mut c).await {
+        if let ServerMsg::Snapshot { phase, .. } = m {
+            lobby = phase == 0;
+            break;
+        }
+    }
+    assert!(lobby, "the new player waits in a new lobby");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_silent_connection_is_dropped_and_its_seat_lapses() {
+    let s = start(duel_arena(), |c| {
+        c.idle_timeout = Duration::from_millis(400);
+        c.reconnect_grace = Duration::from_millis(300);
+    })
+    .await;
+    let (_silent, _, _) = join(&s.url, "yankee", None).await; // never sends a frame again (a half-open socket)
+    let (mut b, _, _) = join(&s.url, "zulu", None).await;
+    // zulu keeps itself alive with pings; nobody attacks. The silent seat is dropped, then lapses (MIA): zulu wins.
+    let mut nonce = 0;
+    let mut result = None;
+    let mut seen: Vec<String> = Vec::new();
+    let t0 = std::time::Instant::now();
+    let mut next_ping = std::time::Instant::now();
+    while result.is_none() && t0.elapsed() < Duration::from_secs(10) {
+        // A client's keep-alive cadence (10 a second), well under the frame-rate limit.
+        if std::time::Instant::now() >= next_ping {
+            next_ping += Duration::from_millis(100);
+            nonce += 1;
+            if let Err(e) = b
+                .send(Message::Binary(
+                    ClientMsg::Ping {
+                        nonce,
+                        client_ms: 0.0,
+                    }
+                    .encode()
+                    .into(),
+                ))
+                .await
+            {
+                seen.push(format!("send failed: {e}"));
+                break;
+            }
+        }
+        if let Ok(Some(m)) = tokio::time::timeout(Duration::from_millis(100), recv(&mut b)).await {
+            match m {
+                ServerMsg::Events { events, .. } => {
+                    seen.push(format!("{events:?}"));
+                    result = events.into_iter().find_map(|e| {
+                        if let WireEvent::Result(r) = e {
+                            Some(r)
+                        } else {
+                            None
+                        }
+                    });
+                }
+                ServerMsg::Reject { code, .. } => seen.push(format!("reject {code:?}")),
+                ServerMsg::Snapshot { phase, .. } => {
+                    let tag = format!("snapshot phase {phase}");
+                    if seen.last() != Some(&tag) {
+                        seen.push(tag);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let r = result.unwrap_or_else(|| panic!("no result; zulu saw {seen:?}"));
+    assert_eq!(r.outcome, 0, "zulu won the walkover: {r:?}");
+}

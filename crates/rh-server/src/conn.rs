@@ -15,6 +15,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
+/// Liveness: a client that sends nothing (clients ping at least every second) for this long is treated as dropped; its
+/// seat is held for the reconnect grace (legacy: a 4.5 s beat timeout). Catches half-open sockets.
+pub const IDLE_TIMEOUT: Duration = Duration::from_secs(10);
+/// A socket write that cannot complete in this long ends the connection (a client that stopped reading).
+pub const SEND_TIMEOUT: Duration = Duration::from_secs(5);
 /// Frames per second a client may send (aim 40/s + orders + pings fit well under it), with a burst.
 pub const FRAMES_PER_SECOND: f64 = 60.0;
 pub const FRAME_BURST: f64 = 120.0;
@@ -108,26 +113,31 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
     let clock = ok.clock.clone();
     let (mut tx, mut rx) = sock.split();
     let writer_out = outbox.clone();
-    let writer = tokio::spawn(async move {
+    let mut writer = tokio::spawn(async move {
         loop {
             match writer_out.next().await {
                 Next::Frame(f) => {
-                    if tx.send(Message::Binary(f.into())).await.is_err() {
-                        return;
+                    match tokio::time::timeout(SEND_TIMEOUT, tx.send(Message::Binary(f.into())))
+                        .await
+                    {
+                        Ok(Ok(())) => {}
+                        _ => return,
                     }
                 }
                 Next::Close(code) => {
-                    let _ = tx
-                        .send(Message::Binary(
+                    let _ = tokio::time::timeout(
+                        SEND_TIMEOUT,
+                        tx.send(Message::Binary(
                             ServerMsg::Reject {
                                 code,
                                 reason: "closed".into(),
                             }
                             .encode()
                             .into(),
-                        ))
-                        .await;
-                    let _ = tx.send(Message::Close(None)).await;
+                        )),
+                    )
+                    .await;
+                    let _ = tokio::time::timeout(SEND_TIMEOUT, tx.send(Message::Close(None))).await;
                     return;
                 }
             }
@@ -137,8 +147,21 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         tokens: FRAME_BURST,
         at: tokio::time::Instant::now(),
     };
+    let idle = director.idle_timeout();
     let mut left = false;
-    while let Some(msg) = rx.next().await {
+    let mut writer_done = false;
+    loop {
+        // Stop reading as soon as the writer is done (a TooSlow/RateLimited close, or a dead socket), or on idleness.
+        let msg = tokio::select! {
+            m = tokio::time::timeout(idle, rx.next()) => match m {
+                Ok(Some(m)) => m,
+                Ok(None) | Err(_) => break,
+            },
+            _ = &mut writer => {
+                writer_done = true;
+                break;
+            }
+        };
         let bytes = match msg {
             Ok(Message::Binary(b)) => b,
             Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => continue,
@@ -194,5 +217,11 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
         let _ = room.send(RoomCmd::Disconnected { player, conn }).await;
     }
     outbox.close(RejectCode::Kicked);
-    let _ = writer.await;
+    if !writer_done
+        && tokio::time::timeout(SEND_TIMEOUT, &mut writer)
+            .await
+            .is_err()
+    {
+        writer.abort();
+    }
 }
