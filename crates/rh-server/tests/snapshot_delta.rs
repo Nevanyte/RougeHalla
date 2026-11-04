@@ -266,7 +266,7 @@ fn a_connections_snapshot_state_is_bounded_and_a_skipped_snapshot_costs_the_writ
     );
     assert!(out.snapshot_state_bytes() <= idle + 16 * 1024);
     assert!(
-        out.snapshot_state_bytes() < 2 * rh_protocol::MAX_ACTORS * (16 + 17 + 4) + 2048,
+        out.snapshot_state_bytes() < 2 * rh_protocol::MAX_ACTORS * (16 + 16 + 4) + 2048,
         "bounded by MAX_ACTORS"
     );
 }

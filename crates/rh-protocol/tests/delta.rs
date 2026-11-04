@@ -18,6 +18,40 @@ impl Rng {
     }
 }
 
+/// A crowd where every actor moves a little and some leave and arrive: the changed count passes 127 (a two-byte varint, patched
+/// into the frame after the actors are walked) and the frame is the reference message's, byte for byte.
+#[test]
+fn a_delta_of_hundreds_of_changed_actors_has_a_two_byte_count_and_applies() {
+    let crowd = |t: u32, shift: f32, gone: u32, extra: u32| -> SnapshotData {
+        let mut rng = Rng(5);
+        let mut actors: Vec<WireActor> = (0..400u32)
+            .filter(|i| i % 50 != gone)
+            .map(|i| {
+                let mut a = actor(i * 2 + 1, &mut rng);
+                a.x = 100.0 + i as f32 + shift;
+                a
+            })
+            .collect();
+        for k in 0..extra {
+            actors.push(actor(2_000 + k, &mut rng));
+        }
+        SnapshotData::build(t, 1, 0, None, actors.into_iter()).unwrap()
+    };
+    let a = crowd(1, 0.0, 99, 0);
+    let b = crowd(2, 0.5, 7, 3);
+    let mut enc = ConnEncoder::new();
+    let mut tracker = SnapshotTracker::new();
+    let mut f = Vec::new();
+    assert_eq!(enc.encode(a.clone(), &mut f), FrameKind::Full);
+    tracker.decode(&f).unwrap();
+    f.clear();
+    assert_eq!(enc.encode(b.clone(), &mut f), FrameKind::Delta);
+    let want = diff(&a, &b).expect("a delta");
+    assert!(want.changed.len() > 300 && !want.departed.is_empty());
+    assert_eq!(f, ServerMsg::SnapshotDelta(want).encode());
+    assert_eq!(tracker.decode(&f).unwrap(), b.decoded());
+}
+
 fn actor(id: u32, rng: &mut Rng) -> WireActor {
     WireActor {
         id,
@@ -617,9 +651,10 @@ fn per_connection_state_is_bounded_by_max_actors() {
         assert_eq!(tracker.decode(&f).unwrap(), s.decoded());
         peak = peak.max(enc.memory_bytes());
     }
-    // One base (16 B per actor), the changed-record scratch (at most 17 B per actor) and the departed ids (4 B), each of
-    // which may have grown to twice its use.
-    let bound = 2 * MAX_ACTORS * (16 + 17 + 4) + 1024;
+    // The base and the spare block (16 B per actor each) and the departed ids (4 B), each of which may have grown to twice
+    // its use.
+    let bound = 2 * MAX_ACTORS * (16 + 16 + 4) + 1024;
+    eprintln!("peak connection snapshot state {peak} B (bound {bound} B)");
     assert!(peak <= bound, "{peak} > {bound}");
     assert!(peak > MAX_ACTORS * 16, "the bound is not vacuous");
 }

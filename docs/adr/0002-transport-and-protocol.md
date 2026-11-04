@@ -87,5 +87,15 @@ rule is vectors for the current version only).
 **Measured** (`wirebench --ticks 2400`, seed-1 map, 8 bots, payload bytes only, every snapshot written): 908 -> 305 bytes per
 player per second (66%; the ADR 0010 prototype measured 345). Snapshot frames 43.0 -> 12.8 bytes on average (8 Full, 19,192
 Delta). The 2-byte head (self field bits in the head word, the status as a rare byte, no id in the self delta) is where this beats
-the prototype's 4 (head word plus a separate 2-byte mask). Publish cost and per-connection memory: the P10c report.
+the prototype's 4 (head word plus a separate 2-byte mask).
+
+**Cost** (`tools/perfproof/perfproof.py --baseline 8e54a25`, deterministic counts): the wire workload (`wirebench`, the sim step
+included) goes 25,811 -> 27,282 Ir per step (1.057x) with allocations per step unchanged (9.08) and every gameplay fingerprint
+identical (the declared byte counts aside); on the publish path alone (observe plus encode, 2,047 Ir per viewer-tick in ADR 0010)
+it is +184 Ir per viewer-tick, about 1.09x. Two things keep it there: a snapshot is validated and quantized once in the room and
+its heap block cycles room -> outbox slot -> writer base -> spare -> room (no allocation or copy of the snapshot per tick), and
+the writer builds a delta in one pass into the frame it hands to the socket. Memory per connection: the pending slot, the writer's
+base and one spare, each a block of about 100 B plus 16 B per visible actor (a few hundred bytes at 8 players; 10.5 KB measured
+for the base and spare at `MAX_ACTORS`, the bound is a few tens of KB).
+
 
