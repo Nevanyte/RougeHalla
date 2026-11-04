@@ -30,9 +30,7 @@ fn main() {
             if r >= 3 {
                 all.push(us);
             }
-            if fx.scenario == "leave_mia" && t.tick == 40 {
-                sim.remove_player(rh_parity::pid("p2"));
-            }
+            rh_parity::apply_actions(&mut sim, &fx, t.tick);
         }
     }
     all.sort_by(|a, b| a.total_cmp(b));

@@ -180,6 +180,11 @@ impl Default for OrderBudget {
 }
 
 impl OrderBudget {
+    /// (tokens, last refill time) for the state hash.
+    pub fn state(&self) -> (f64, f64) {
+        (self.tokens, self.at_ms)
+    }
+
     pub fn allow(&mut self, cmd: &Command, now_ms: f64) -> bool {
         if matches!(cmd, Command::Aim { .. }) {
             return true;

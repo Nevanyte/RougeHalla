@@ -24,6 +24,7 @@ import {
 import { createGameWorld } from "../../packages/server/src/sim/gameplay";
 import { enqueueClientMessage } from "../../packages/server/src/sim/inputs";
 import { addPlayer, removePlayer, step } from "../../packages/server/src/sim/step";
+import { markDropped, markReconnected } from "../../packages/server/src/sim/arena";
 import type { SimEvent, World } from "../../packages/server/src/sim/world";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -77,8 +78,9 @@ interface Scenario {
   maxTicks: number;
   /** Called before each step with the tick about to run. */
   drive: (ctx: Ctx) => void;
-  /** Extra per-tick hook after the step (e.g. remove a player between ticks, as a leave would). */
-  after?: (ctx: Ctx) => void;
+  /** Out-of-band actions applied between steps, after the step of `tick` (as the Room does): a leave, a dropped connection,
+   * a reconnect. Recorded in the fixture's `actions` so the Rust harness replays them. */
+  actions?: Array<{ tick: number; kind: "remove" | "drop" | "reconnect"; player: string }>;
 }
 
 const r6 = (v: number): number => Math.round(v * 1e6) / 1e6;
@@ -148,7 +150,12 @@ function run(sc: Scenario): unknown {
     ctx.tick = world.state.tick + 1;
     sc.drive(ctx);
     const events = step(world, TICK_MS);
-    sc.after?.(ctx);
+    for (const a of sc.actions ?? []) {
+      if (a.tick !== ctx.tick) continue;
+      if (a.kind === "remove") removePlayer(world, a.player);
+      else if (a.kind === "drop") markDropped(world, a.player);
+      else markReconnected(world, a.player);
+    }
     const evs: unknown[] = [];
     for (const e of events) {
       if (e.type === "resolved") {
@@ -186,6 +193,7 @@ function run(sc: Scenario): unknown {
     map: { w: map.w, h: map.h, tile: TILE, rows: sc.rows },
     players: sc.players.map((p) => ({ id: p.id, faction: p.faction, x: p.at.x, y: p.at.y, hp: p.hp ?? FACTIONS[p.faction].hp, maxHp: FACTIONS[p.faction].hp, weapon0: p.weapon0 ?? "" })),
     inputs,
+    actions: sc.actions ?? [],
     ticks,
     results,
   };
@@ -366,8 +374,40 @@ const SCENARIOS: Scenario[] = [
       send("p0", "attack", { a: angle(pos("p0"), pos("p1")), t: now - 100 });
       send("p1", "attack", { a: angle(pos("p1"), pos("p0")), t: now - 100 });
     },
-    after: ({ tick, world }) => { if (tick === 40) removePlayer(world, "p2"); },
+    actions: [{ tick: 40, kind: "remove", player: "p2" }],
   },
+  {
+    name: "drop_releases_trigger",
+    description: "p0 holds attack; its connection drops after tick 11 (queued inputs drained, trigger released), a late press at 12 holds it again, and the reconnect after tick 30 releases it: no swing after 30.",
+    parity: "slice",
+    rows: OPEN,
+    randomSeed: 12,
+    players: [{ id: "p0", faction: "plague", at: { x: 400, y: 320 } }, { id: "p1", faction: "frost", at: { x: 450, y: 320 } }],
+    maxTicks: 60,
+    drive: ({ tick, send, pos, world }) => {
+      if (tick === 3 || tick === 12) send("p0", "attack", { a: angle(pos("p0"), pos("p1")), t: world.state.serverTime - 50 });
+    },
+    actions: [{ tick: 11, kind: "drop", player: "p0" }, { tick: 30, kind: "reconnect", player: "p0" }],
+  },
+  ...[3, 17, 41, 77].map((seed): Scenario => ({
+    name: `tie_kill_credit_${seed}`,
+    description: "Two attackers of one faction land equal hits on a victim in the same tick and kill it together: the kill (credit, GV, killedBy) goes to whichever comes first in the SECRET action order, which this seed's salt decides.",
+    parity: "slice",
+    rows: OPEN,
+    randomSeed: seed,
+    players: [
+      { id: "p0", faction: "sentenced", at: { x: 360, y: 320 } },
+      { id: "p1", faction: "holy", at: { x: 400, y: 320 }, hp: 20 },
+      { id: "p2", faction: "sentenced", at: { x: 440, y: 320 } },
+    ],
+    maxTicks: 8,
+    drive: ({ tick, send, world }) => {
+      if (tick !== 3) return;
+      const t = world.state.serverTime - 50;
+      send("p0", "attack", { a: 0, t });
+      send("p2", "attack", { a: Math.PI, t });
+    },
+  })),
   {
     name: "bow_wand_capture",
     description: "CAPTURE ONLY (projectiles are not in the Rust slice yet): a bow and a wand fighter trade shots at range.",

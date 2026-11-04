@@ -25,6 +25,9 @@ pub struct Fixture {
     pub map: FixMap,
     pub players: Vec<FixPlayer>,
     pub inputs: Vec<FixInput>,
+    /// Out-of-band actions after a step (leave, drop, reconnect).
+    #[serde(default)]
+    pub actions: Vec<FixAction>,
     pub ticks: Vec<FixTick>,
     pub results: Vec<FixResult>,
 }
@@ -58,6 +61,13 @@ pub struct FixInput {
     #[serde(rename = "type")]
     pub kind: String,
     pub msg: Value,
+}
+
+#[derive(Deserialize)]
+pub struct FixAction {
+    pub tick: u32,
+    pub kind: String,
+    pub player: String,
 }
 
 #[derive(Deserialize)]
@@ -287,11 +297,6 @@ pub fn compare(fx: &Fixture) -> Report {
         ));
     }
     let mut sim = build(fx);
-    let leave_after: Option<(u32, PlayerId)> = if fx.scenario == "leave_mia" {
-        Some((40, pid("p2")))
-    } else {
-        None
-    };
     let mut inputs = fx.inputs.iter().peekable();
     let mut rust_results: Vec<(u32, PlayerId, rh_sim::RunResult)> = Vec::new();
     for t in &fx.ticks {
@@ -318,11 +323,7 @@ pub fn compare(fx: &Fixture) -> Report {
             }
         }
         let events = sim.step();
-        if let Some((tick, who)) = leave_after {
-            if tick == t.tick {
-                sim.remove_player(who);
-            }
-        }
+        apply_actions(&mut sim, fx, t.tick);
         // Events emitted between steps (a leave's MIA result) travel with the NEXT step's events, as in legacy.
         let all: Vec<Event> = events;
         rep.ticks += 1;
@@ -431,6 +432,20 @@ pub fn compare(fx: &Fixture) -> Report {
         }
     }
     rep
+}
+
+/// Applies the fixture's out-of-band actions recorded after the step of `tick` (as the legacy Room applies them between
+/// steps).
+pub fn apply_actions(sim: &mut Sim, fx: &Fixture, tick: u32) {
+    for a in fx.actions.iter().filter(|a| a.tick == tick) {
+        let p = pid(&a.player);
+        match a.kind.as_str() {
+            "remove" => sim.remove_player(p),
+            "drop" => sim.mark_dropped(p, true),
+            "reconnect" => sim.mark_dropped(p, false),
+            other => panic!("unknown fixture action {other}"),
+        }
+    }
 }
 
 /// Every fixture file of the given parity class, sorted by name.

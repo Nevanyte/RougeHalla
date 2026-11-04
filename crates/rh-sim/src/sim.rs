@@ -408,7 +408,7 @@ pub struct Sim {
     melee: Vec<MeleeReq>,
     rank: Vec<(PlayerId, usize)>,
     stepping: bool,
-    #[serde(skip)]
+    /// Events emitted between steps (a leave's result) wait here for the next step: part of a checkpoint.
     events: Vec<Event>,
     #[serde(skip)]
     pathfinder: Pathfinder,
@@ -610,17 +610,23 @@ impl Sim {
 
     /// A client's connection dropped: the seat is held (reconnect grace is the adapter's job); the time is remembered for
     /// leave credit.
+    /// Legacy `markDropped` / `markReconnected`: the drop time is remembered only in a run (leave credit); either way the
+    /// queued inputs are dropped (a press that arrived just before the socket closed must not hold the trigger for the whole
+    /// grace) and the trigger is released, since the release the client sends will never arrive.
     pub fn mark_dropped(&mut self, id: PlayerId, dropped: bool) {
         let now = self.server_time;
+        let active = self.phase == Phase::Active;
         if let Some(i) = self.idx(id) {
             let p = &mut self.players[i];
             if dropped {
-                if p.dropped_at.is_none() {
+                if p.dropped_at.is_none() && active {
                     p.dropped_at = Some(now);
                 }
+                p.inputs.drain();
             } else {
                 p.dropped_at = None;
             }
+            release_trigger(p, now);
         }
     }
 
@@ -1272,16 +1278,7 @@ impl Sim {
         let v = &mut self.players[vi];
         v.down = Some(outcome);
         v.path.clear();
-        // releaseTrigger
-        v.weapon.held = false;
-        v.weapon.buffered_until = 0.0;
-        if let Some(a) = v.weapon.action {
-            if a.kind != ActionKind::Draw {
-                v.weapon.root_until = v.weapon.root_until.min(now);
-            }
-        }
-        v.weapon.action = None;
-        v.draw_started_at = 0.0;
+        release_trigger(v, now);
         v.status = if outcome == Outcome::Died {
             Status::Dead
         } else {
@@ -1584,8 +1581,84 @@ impl Sim {
             }
             h.u64(w.held as u64);
             if let Some(a) = w.action {
-                h.f64(a.lands_at);
-                h.f64(a.a);
+                h.u64(a.kind as u64 + 1);
+                h.u64(a.weapon as u64);
+                for v in [
+                    a.started_at,
+                    a.lands_at,
+                    a.a,
+                    a.packet.raw,
+                    a.packet.phys,
+                    a.packet.magic,
+                    a.packet.true_,
+                ] {
+                    h.f64(v);
+                }
+            }
+            // Everything else that can decide a later outcome or a result.
+            h.u64(
+                p.bot as u64
+                    | (p.slot as u64) << 1
+                    | (p.weapon0.map(|w| w as u64 + 1).unwrap_or(0)) << 8
+                    | (p.weapon1.map(|w| w as u64 + 1).unwrap_or(0)) << 16,
+            );
+            h.f64(p.immune_until);
+            let g = p.gv_parts;
+            h.u64(((g.kills as u64) << 32) | g.bounty as u64);
+            h.u64(((g.mobs as u64) << 32) | g.quest as u64);
+            h.u64(p.bot_kills as u64);
+            match p.last_hit {
+                Some((by, at)) => {
+                    h.u64(by.0 as u64 + 1);
+                    h.f64(at);
+                }
+                None => h.u64(0),
+            }
+            h.u64(p.damaged.len() as u64);
+            for d in &p.damaged {
+                h.u64(d.0 as u64);
+            }
+            h.u64(p.damaged_humans.len() as u64);
+            for d in &p.damaged_humans {
+                h.u64(d.0 as u64);
+            }
+            h.f64(p.dropped_at.unwrap_or(-1.0));
+            h.str(p.killed_by.as_deref().unwrap_or(""));
+            h.u64(p.killed_by_bot as u64);
+            match p.announce {
+                Some((at, sent)) => {
+                    h.f64(at);
+                    h.u64(sent as u64);
+                }
+                None => h.u64(u64::MAX),
+            }
+            let (tokens, at) = p.budget.state();
+            h.f64(tokens);
+            h.f64(at);
+            h.u64(
+                p.inputs.actions.len() as u64
+                    | (p.inputs.mv.is_some() as u64) << 8
+                    | (p.inputs.aim.is_some() as u64) << 9,
+            );
+            h.str(&p.profile);
+        }
+        h.u64(self.rt.started_with as u64);
+        h.u64(self.rt.started_humans as u64);
+        h.u64(self.rt.downs_between_ticks as u64);
+        for d in &self.rt.downed_this_tick {
+            h.u64(d.0 as u64);
+        }
+        h.u64(self.next_id as u64);
+        h.u64(self.joined as u64);
+        h.str(self.winner.as_deref().unwrap_or(""));
+        // Results waiting between steps (a leave's MIA) are outcomes too.
+        h.u64(self.events.len() as u64);
+        for e in &self.events {
+            if let Event::Resolved { id, result, .. } = e {
+                h.u64(id.0 as u64);
+                h.u64(result.outcome as u64);
+                h.u64(result.place as u64);
+                h.u64(result.gv.total as u64);
             }
         }
         h.finish()
@@ -1640,6 +1713,20 @@ fn advance_along_path(p: &mut Player, dt: f64, keep_facing: bool, speed_mult: f6
     }
 }
 
+/// Legacy `releaseTrigger` for the slice (no lock, no attack-move): let go of the trigger and cancel what was in progress
+/// (no landing; a pending swing or cast takes its root with it).
+fn release_trigger(p: &mut Player, now: f64) {
+    p.weapon.held = false;
+    p.weapon.buffered_until = 0.0;
+    if let Some(a) = p.weapon.action {
+        if a.kind != ActionKind::Draw {
+            p.weapon.root_until = p.weapon.root_until.min(now);
+        }
+    }
+    p.weapon.action = None;
+    p.draw_started_at = 0.0;
+}
+
 fn record_history(p: &mut Player, now: f64) {
     p.history.push(Sample {
         t: now,
@@ -1666,7 +1753,115 @@ impl Fnv64 {
     fn f64(&mut self, v: f64) {
         self.u64(v.to_bits());
     }
+    fn str(&mut self, s: &str) {
+        self.u64(s.len() as u64);
+        for b in s.bytes() {
+            self.u64(b as u64);
+        }
+    }
     fn finish(&self) -> u64 {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod hash_and_checkpoint_tests {
+    use super::*;
+    use crate::arenas::practice_arena;
+
+    fn sim() -> Sim {
+        let ps = [
+            Placement {
+                profile: "a".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(200.0, 200.0),
+                hp: None,
+            },
+            Placement {
+                profile: "b".into(),
+                faction: FactionId::Fire,
+                bot: false,
+                at: Vec2::new(600.0, 600.0),
+                hp: None,
+            },
+            Placement {
+                profile: "c".into(),
+                faction: FactionId::Frost,
+                bot: false,
+                at: Vec2::new(900.0, 300.0),
+                hp: None,
+            },
+        ];
+        Sim::reset_active(
+            SimConfig::default(),
+            practice_arena(),
+            Secrets::from_seed(5),
+            &ps,
+        )
+    }
+
+    #[test]
+    fn the_state_hash_sees_every_outcome_field() {
+        let base = sim();
+        let h0 = base.state_hash();
+        let mutations: Vec<(&str, Box<dyn Fn(&mut Sim)>)> = vec![
+            ("gv parts", Box::new(|s| s.players[0].gv_parts.bounty = 7)),
+            (
+                "killed by",
+                Box::new(|s| s.players[0].killed_by = Some("X".into())),
+            ),
+            (
+                "damaged humans",
+                Box::new(|s| s.players[0].damaged_humans.push(PlayerId(2))),
+            ),
+            (
+                "last hit",
+                Box::new(|s| s.players[0].last_hit = Some((PlayerId(2), 50.0))),
+            ),
+            (
+                "dropped at",
+                Box::new(|s| s.players[0].dropped_at = Some(50.0)),
+            ),
+            ("bot kills", Box::new(|s| s.players[0].bot_kills = 1)),
+            (
+                "budget",
+                Box::new(|s| {
+                    let _ = s.players[0]
+                        .budget
+                        .allow(&Command::Stop { seq: None }, 50.0);
+                }),
+            ),
+            ("started humans", Box::new(|s| s.rt.started_humans = 1)),
+            ("winner", Box::new(|s| s.winner = Some("A".into()))),
+        ];
+        for (name, m) in mutations {
+            let mut s = base.clone();
+            m(&mut s);
+            assert_ne!(s.state_hash(), h0, "{name} must change the state hash");
+        }
+    }
+
+    #[test]
+    fn a_checkpoint_keeps_results_emitted_between_steps() {
+        let mut a = sim();
+        a.step();
+        a.remove_player(PlayerId(3)); // a leave between steps: its MIA result waits for the next step
+        let mut b: Sim = serde_json::from_str(&serde_json::to_string(&a).unwrap()).unwrap();
+        b.after_restore();
+        assert_eq!(a.state_hash(), b.state_hash());
+        let (ea, eb) = (a.step(), b.step());
+        let resolved = |e: &Vec<Event>| {
+            e.iter()
+                .filter(|e| matches!(e, Event::Resolved { .. }))
+                .count()
+        };
+        assert_eq!(resolved(&ea), 1);
+        assert_eq!(
+            resolved(&eb),
+            1,
+            "the restored sim still delivers the leave's result"
+        );
+        assert_eq!(a.state_hash(), b.state_hash());
     }
 }

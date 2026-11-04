@@ -526,23 +526,7 @@ impl Room {
         self.clock
             .store(self.sim.server_time.to_bits(), Ordering::Relaxed);
         self.publish(&all_events);
-        for e in &all_events {
-            if let Event::Resolved { id, result, bot } = e {
-                let profile = result.profile.clone();
-                let fence = if *bot {
-                    None
-                } else {
-                    self.fences.iter().find(|(p, _)| p == id).map(|(_, f)| *f)
-                };
-                let _ = self.reports.send(RoomReport::Result {
-                    match_id: self.id,
-                    profile,
-                    bot: *bot,
-                    fence,
-                    result: result.clone(),
-                });
-            }
-        }
+        self.report_results(&all_events);
         if self.sim.phase != self.reported_phase {
             // Every phase change reaches the director (a lobby that closed into a run must stop receiving joins).
             self.reported_phase = self.sim.phase;
@@ -601,7 +585,30 @@ impl Room {
         }
     }
 
+    /// Every resolved result goes to the director (durable storage), with the fence it was earned under.
+    fn report_results(&self, events: &[Event]) {
+        for e in events {
+            if let Event::Resolved { id, result, bot } = e {
+                let fence = if *bot {
+                    None
+                } else {
+                    self.fences.iter().find(|(p, _)| p == id).map(|(_, f)| *f)
+                };
+                let _ = self.reports.send(RoomReport::Result {
+                    match_id: self.id,
+                    profile: result.profile.clone(),
+                    bot: *bot,
+                    fence,
+                    result: result.clone(),
+                });
+            }
+        }
+    }
+
     fn close(&mut self) -> bool {
+        // Results emitted between steps (the last human's MIA leave) would otherwise die with the room.
+        let pending = self.sim.take_events();
+        self.report_results(&pending);
         for h in &self.humans {
             if let Some(o) = &h.outbox {
                 o.close(RejectCode::Kicked);

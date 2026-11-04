@@ -181,10 +181,13 @@ pub fn run_replay(r: &Replay) -> Result<(Sim, Vec<Event>), ReplayError> {
 
 /// The sim a replay starts from.
 pub fn start_sim(r: &Replay) -> Sim {
+    // A deserialized replay carries the map without its derived tables: rebuild them.
+    let mut arena = r.arena.clone();
+    arena.map.rebuild();
     match &r.start {
         ReplayStart::Active { placements } => {
-            Sim::reset_active(r.config.clone(), r.arena.clone(), r.secrets, placements)
+            Sim::reset_active(r.config.clone(), arena, r.secrets, placements)
         }
-        ReplayStart::Lobby => Sim::new(r.config.clone(), r.arena.clone(), r.secrets),
+        ReplayStart::Lobby => Sim::new(r.config.clone(), arena, r.secrets),
     }
 }

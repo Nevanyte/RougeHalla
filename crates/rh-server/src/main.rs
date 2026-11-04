@@ -140,8 +140,13 @@ async fn main() {
     let handle = axum_server::Handle::new();
     let h2 = handle.clone();
     let lc = lifecycle.clone();
+    let writes = director.clone();
     tokio::spawn(async move {
         lc.terminated.notified().await;
+        // Results still being written survive the shutdown (bounded: a dead database cannot hold the process forever).
+        if !writes.wait_for_writes(Duration::from_secs(150)).await {
+            eprintln!("[server] exiting with result writes still pending");
+        }
         h2.graceful_shutdown(Some(Duration::from_secs(5)));
     });
     let tls = if args.iter().any(|a| a == "--self-signed") {

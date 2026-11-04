@@ -74,7 +74,12 @@ struct Inner {
     replays: Vec<rh_sim::replay::Replay>,
 }
 
+/// Attempts per result write (100 ms doubling to 5 s: about two minutes in all).
+pub const RESULT_ATTEMPTS: u32 = 30;
+
 pub struct Director {
+    /// Result writes in flight (the process waits for them before exiting).
+    pub pending_writes: std::sync::atomic::AtomicUsize,
     cfg: DirectorConfig,
     inner: Mutex<Inner>,
     reports: mpsc::UnboundedSender<RoomReport>,
@@ -107,6 +112,7 @@ impl Director {
     ) -> Arc<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
         let d = Arc::new(Self {
+            pending_writes: std::sync::atomic::AtomicUsize::new(0),
             cfg,
             inner: Mutex::new(Inner::default()),
             reports: tx,
@@ -391,10 +397,14 @@ impl Director {
                         })
                         .unwrap_or(0);
                     let d = this.clone();
-                    // Durable I/O never runs on a room task: retried with backoff here; idempotent by (match, profile).
+                    // Durable I/O never runs on a room task: retried here with capped backoff for about two minutes
+                    // (a database blip must not lose a result), idempotent by (match, profile); the process waits for
+                    // in-flight writes before exiting (main.rs, `wait_for_writes`).
+                    d.pending_writes
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     tokio::spawn(async move {
                         let mut delay = Duration::from_millis(100);
-                        for attempt in 0..6 {
+                        for attempt in 0..RESULT_ATTEMPTS {
                             match d
                                 .persistence
                                 .record(match_id, &profile, fence, &result)
@@ -404,13 +414,13 @@ impl Director {
                                     d.inner.lock().expect("director").results_ok += 1;
                                     break;
                                 }
-                                Err(e) if attempt == 5 => {
+                                Err(e) if attempt == RESULT_ATTEMPTS - 1 => {
                                     eprintln!("[results] giving up on {profile}: {e}");
                                     d.inner.lock().expect("director").results_failed += 1;
                                 }
                                 Err(_) => {
                                     tokio::time::sleep(delay).await;
-                                    delay *= 2;
+                                    delay = (delay * 2).min(Duration::from_secs(5));
                                 }
                             }
                         }
@@ -424,6 +434,9 @@ impl Director {
                         {
                             inner.profiles.remove(&key);
                         }
+                        drop(inner);
+                        d.pending_writes
+                            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                     });
                 }
                 RoomReport::Closed {
@@ -537,6 +550,22 @@ impl Director {
     /// Recorded replays of the last closed rooms (private: they hold match secrets).
     pub fn take_replays(&self) -> Vec<rh_sim::replay::Replay> {
         std::mem::take(&mut self.inner.lock().expect("director").replays)
+    }
+
+    /// Waits (at most `max`) until no result write is in flight. Called before the process exits.
+    pub async fn wait_for_writes(&self, max: Duration) -> bool {
+        let t0 = tokio::time::Instant::now();
+        while self
+            .pending_writes
+            .load(std::sync::atomic::Ordering::SeqCst)
+            > 0
+        {
+            if t0.elapsed() >= max {
+                return false;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        true
     }
 
     pub fn idle_timeout(&self) -> Duration {

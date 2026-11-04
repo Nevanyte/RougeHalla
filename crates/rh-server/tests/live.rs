@@ -665,3 +665,34 @@ async fn a_silent_connection_is_dropped_and_its_seat_lapses() {
     let r = result.unwrap_or_else(|| panic!("no result; zulu saw {seen:?}"));
     assert_eq!(r.outcome, 0, "zulu won the walkover: {r:?}");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_last_humans_mia_result_is_banked_although_the_room_closes() {
+    let s = start(duel_arena(), |c| {
+        c.sim.min_players = 1;
+        c.fill_bots_to = 2;
+    })
+    .await;
+    let (mut a, _, _) = join(&s.url, "alfa", None).await;
+    while let Some(m) = recv(&mut a).await {
+        if matches!(m, ServerMsg::Snapshot { phase: 1, .. }) {
+            break;
+        }
+    }
+    send(&mut a, ClientMsg::Leave).await; // the only human leaves a running match: the room closes right after
+    let Persistence::Memory(m) = &*s.director.persistence else {
+        unreachable!()
+    };
+    for _ in 0..50 {
+        if m.results
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(_, p, r)| p == "alfa" && r.outcome == rh_sim::Outcome::Mia)
+        {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the leaver's MIA result was never reported");
+}

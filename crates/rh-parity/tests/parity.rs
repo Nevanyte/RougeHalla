@@ -56,10 +56,22 @@ fn a_changed_rule_is_caught() {
         !compare(&fx).mismatches.is_empty(),
         "a changed faction must change the outcome"
     );
-    let mut crowd = load(&fixtures_dir().join("crowded_8.json"));
-    crowd.legacy_config.order_salt ^= 0x5555;
+    // Another secret salt (with its consistent seed, so the metadata check passes) must change who gets a tied kill: the
+    // harness has to see the outcome itself, not only the recorded salt.
+    let mut tie = load(&fixtures_dir().join("tie_kill_credit_3.json"));
+    let other = load(&fixtures_dir().join("tie_kill_credit_17.json"));
+    assert_ne!(
+        tie.results[0].killed_by, other.results[0].killed_by,
+        "the two salts give the kill to different attackers"
+    );
+    tie.legacy_config.order_salt = other.legacy_config.order_salt;
+    tie.legacy_config.random_seed = other.legacy_config.random_seed;
+    let rep = compare(&tie);
     assert!(
-        !compare(&crowd).mismatches.is_empty(),
-        "another action order must be detected"
+        rep.mismatches
+            .iter()
+            .any(|m| m.contains("result") || m.contains("death")),
+        "the changed killer is caught: {:?}",
+        rep.mismatches
     );
 }
