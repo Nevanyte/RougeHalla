@@ -42,13 +42,15 @@ the chain: every earlier link is marked `dropped` and never runs, e.g. loot's an
 are not `dropped` run in list order. `fn` is the function's name when the source names it, else `<arrow>` with `src`
 its compacted source; `when` is the condition of a conditional site (`if (...) chainHook(...)`, or an install guard
 such as quests' `if (!world.config.quests || world.config.training) return;`). One module can link a hook more than once
-(cardHooks chains `teleported` and `runEnded` twice).
+(cardHooks chains `teleported` and `runEnded` twice). Only gameplay.ts's `MODULES` (and `installTraining`) are recorded: telemetry.ts (16
+chainHook links) and the input trace (trace.ts, 1) attach later in RaidRoom as observers, and BotManager chains
+`lobbyClosing` (1) when the room runs bots, so the record is the gameplay chain, not the complete runtime chain.
 
 Each link is captured twice and the two must agree: at runtime (a logging Proxy on `world.hooks` while each module
 installs; an assignment made by `chainHook` is an append, a direct assignment after reading the hook a wrap, any other a
 replace) and statically (the `chainHook(world, "key", fn)` call sites and `world.hooks.key = ...` assignments of each
-module in source order). Per (module, key) the runtime count must lie between the unconditional and all static sites,
-and the modes must be the same sequence; a wrapper that does not call its previous link first is refused (execution order
+module in source order). Per (module, key) the runtime count must equal the number of unconditional static sites or
+the number of all static sites, and the modes must be the same sequence; a wrapper that does not call its previous link first is refused (execution order
 would no longer be install order). Production at the recorded revision: 74 static sites in 29 modules (72 chainHook, 1
 wrap, 1 replace), 73 links installed plus the createWorld default, 1 conditional site not taken (mobs' dummies-only
 `raidStarted`).

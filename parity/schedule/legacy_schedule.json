@@ -1,7 +1,7 @@
 {
  "format": "rh-legacy-schedule/2",
- "legacyRevision": "06d735164aaadf5a63983f9a5ed1d9968da95e39",
- "note": "updateActive's fixed phases in order; each hook list in resolved registration order with its module; each world hook as its chain of links in install order (mode default | append (chainHook) | wrap (prev-first wrapper) | replace; a `dropped` link was discarded by a later replace; the rest run in list order). 'production' is createGameWorld with the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures (signatures and walk hints off); 'training' is the practice room (training config, then installTraining). Telemetry and the input trace attach after these in RaidRoom (observers, not gameplay).",
+ "legacyRevision": "94ae3a8c1ad720feeb530f45eb2668c7abfb02d6",
+ "note": "updateActive's fixed phases in order; each hook list in resolved registration order with its module; each world hook as its chain of links in install order (mode default | append (chainHook) | wrap (prev-first wrapper) | replace; a `dropped` link was discarded by a later replace; the rest run in list order). 'production' is createGameWorld with the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures (signatures and walk hints off); 'training' is the practice room (training config, then installTraining). Only the MODULES of gameplay.ts (and installTraining) are recorded; three installers outside them also chain world hooks at runtime and are NOT in this record: telemetry.ts (16 chainHook links) and the input trace (trace.ts, 1) attach after these in RaidRoom as observers, and BotManager chains lobbyClosing (1) when the room runs bots. So this is the gameplay chain, not the complete runtime chain.",
  "updateActive": [
   "guard:voided",
   "markTickStart",

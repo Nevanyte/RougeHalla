@@ -4,6 +4,7 @@
     python3 tools/perfproof/perfproof.py --baseline REV [--out DIR] [--only NAME,...] [--wall N] [--keep]
                                          [--max-ir-ratio R] [--max-alloc-increase A]
                                          [--allow-fingerprint-change NAME,...]
+    python3 tools/perfproof/perfproof.py --self-test      # checks the gate's rules on synthetic rows (seconds)
 
 What it measures (all deterministic, so the result does not depend on machine load):
   * instructions (valgrind callgrind "Ir") per unit of work,
@@ -21,22 +22,30 @@ Behaviour fingerprints. Every workload also has a fingerprint, read from one ext
     the wire workload its byte counts;
   * verify_replay: replays RECORDED BY THE BASELINE binary (600 and 3000 steps), verified by BOTH binaries: `verified`
     true on the candidate proves bit-identical per-step state hashes across the two revisions.
-A key present on both sides must be equal. A key on one side only (a key the baseline predates) is listed, not failed.
-A workload the baseline cannot run (it predates it) is reported as one side only.
+A key present on both sides must be equal. A key the baseline prints and the candidate does not is a violation (a
+candidate that stops printing outcomeDigest must not pass); so is any fingerprint key of the workload table below that
+the candidate does not print. A key only the candidate prints (the baseline predates it) is listed, not failed. A
+workload the baseline cannot run (it predates it) is reported as one side only.
 
-Gate (exit status 1, with the reasons printed): any fingerprint difference, unless the workload, the key or
-`workload.key` is named in --allow-fingerprint-change (a package that changes behaviour on purpose declares it);
-with --max-ir-ratio R, any workload whose candidate/base Ir per unit exceeds R; with --max-alloc-increase A, any
-workload whose candidate allocations per unit exceed the baseline's by more than A.
+Gate (exit status 1, with the reasons printed): any fingerprint difference or lost fingerprint key, unless the
+workload, the key or `workload.key` is named in --allow-fingerprint-change (a package that changes behaviour on purpose
+declares it); a workload with no work difference between its short and long run on either side (no per-unit figure
+exists, so the Ir and allocation gates could not see anything); with --max-ir-ratio R, any workload whose
+candidate/base Ir per unit exceeds R; with --max-alloc-increase A, any workload whose candidate allocations per unit
+exceed the baseline's by more than A.
 
 The baseline is built from a detached git worktree of REV (required: name the revision you compare against, e.g. the
 merge commit of the package before yours) into its own target dir; the candidate is the current working tree
 (uncommitted changes included) built into another target dir. Both are plain `--release` builds, the profile that
-ships. Nothing outside --out (default target/perfproof) is written.
+ships, each with `--remap-path-prefix <its source dir>=/rh` appended to RUSTFLAGS, so the two builds embed the same
+paths (panic locations, debug info) and an unchanged source gives the same code: without it, Ir moved by ~0.2% between
+runs that built the same revision in different directories. Nothing outside --out (default target/perfproof) is
+written.
 """
 
 import argparse
 import json
+import math
 import os
 import statistics
 import subprocess
@@ -112,7 +121,8 @@ def sh(cmd, cwd=None, env=None, capture=True):
 
 
 def build(src, target, bins):
-    env = dict(os.environ, CARGO_TARGET_DIR=target)
+    flags = (os.environ.get("RUSTFLAGS", "") + f" --remap-path-prefix={os.path.realpath(src)}=/rh").strip()
+    env = dict(os.environ, CARGO_TARGET_DIR=target, RUSTFLAGS=flags)
     have = []
     for b in bins:
         r = subprocess.run(["cargo", "build", "--release", "-q", "-p", PACKAGES[b], "--bin", b], cwd=src, env=env,
@@ -215,23 +225,133 @@ def measure(side, src, target, out_dir, wl, fp_out):
         "unit": unit, "work": du,
         "ir_per_unit": (ir_l - ir_s) / du, "allocs_per_unit": (bk_l - bk_s) / du, "bytes_per_unit": (by_l - by_s) / du,
         "fingerprint": {k: fp_out[k] for k in wl["fp"] if k in fp_out},
+        # Fingerprint keys of the workload table this side's output lacks (a violation on the candidate side).
+        "fp_missing": [k for k in wl["fp"] if k not in fp_out],
     }
 
 
 def wall(src, target, binary, args):
-    return last_json(sh([os.path.join(target, "release", binary)] + args, cwd=src))
+    """One timed native run. A non-zero exit is accepted (a failed replay verification is a result the fingerprint
+    reports), so --wall never aborts the whole run."""
+    subprocess.run([os.path.join(target, "release", binary)] + args, cwd=src, capture_output=True, text=True)
 
 
 def compare_fingerprints(b, c):
-    """(differences, keys on one side only)."""
+    """(differences on keys both print, keys the baseline prints and the candidate lost, keys only the candidate
+    prints)."""
     diff = {k: (b[k], c[k]) for k in b if k in c and b[k] != c[k]}
-    only = sorted(set(b) ^ set(c))
-    return diff, only
+    lost = sorted(set(b) - set(c))
+    new = sorted(set(c) - set(b))
+    return diff, lost, new
+
+
+def evaluate(report, allowed, max_ir_ratio=None, max_alloc_increase=None, wall_n=0):
+    """The A/B table and the gate: (table lines, violations). Pure, so --self-test can check the gate's rules."""
+    out, violations = [], []
+    out.append(f"baseline {report['baseline']} vs candidate {report['candidate']} (per unit of work; deterministic counts)\n")
+    out.append("| workload | unit | Ir base | Ir cand | ratio | allocs base | allocs cand | bytes base | bytes cand | same behaviour |")
+    out.append("|---|---|---|---|---|---|---|---|---|---|")
+    for r in report["workloads"]:
+        b, c = r["base"], r["cand"]
+        declared = lambda k: bool({r["name"], k, f"{r['name']}.{k}"} & allowed)  # noqa: E731
+        for side, x in (("base", b), ("candidate", c)):
+            if x and math.isnan(x["work"]):
+                violations.append(f"{r['name']}: no work difference between the short and the long run on the {side} "
+                                  f"side, so there is no per-{x['unit']} figure to gate")
+        if c:
+            for k in c["fp_missing"]:
+                if not declared(k):
+                    violations.append(f"{r['name']}: the candidate does not print fingerprint key {k}"
+                                      + (f" (the baseline printed {b['fingerprint'][k]})" if b and k in b["fingerprint"] else "")
+                                      + " (declare with --allow-fingerprint-change)")
+        if not b or not c:
+            x = b or c
+            if not x:
+                out.append(f"| {r['name']} | | - | - | n/a | | | | | neither side ran it |")
+                violations.append(f"{r['name']}: neither side could run it")
+                continue
+            out.append(f"| {r['name']} | {x['unit']} | {'-' if not b else round(b['ir_per_unit'])} | "
+                       f"{'-' if not c else round(c['ir_per_unit'])} | n/a | | {'' if not c else round(c['allocs_per_unit'], 2)} "
+                       f"| | | one side only ({'candidate' if c else 'base'}) |")
+            if not c:
+                violations.append(f"{r['name']}: the candidate cannot run it")
+            continue
+        diff, lost, new = compare_fingerprints(b["fingerprint"], c["fingerprint"])
+        ok_diff = {k: v for k, v in diff.items() if not declared(k)}
+        ok_lost = [k for k in lost if not declared(k)]
+        if not diff and not lost:
+            same = "yes"
+        else:
+            same = ("NO (declared): " if not ok_diff and not ok_lost else "NO: ") + "; ".join(
+                [f"{k} {v[0]} -> {v[1]}" for k, v in diff.items()] + [f"{k} {b['fingerprint'][k]} -> (missing)" for k in lost])
+        if new:
+            same += f" (candidate only: {', '.join(new)})"
+        for k, v in ok_diff.items():
+            violations.append(f"{r['name']}: fingerprint {k} changed {v[0]} -> {v[1]} (declare with --allow-fingerprint-change)")
+        for k in ok_lost:
+            if k not in c["fp_missing"]:  # reported above when the workload table names the key
+                violations.append(f"{r['name']}: fingerprint {k} is printed by the baseline, not by the candidate "
+                                  f"(declare with --allow-fingerprint-change)")
+        ratio = c["ir_per_unit"] / b["ir_per_unit"]
+        if max_ir_ratio is not None and ratio > max_ir_ratio:
+            violations.append(f"{r['name']}: Ir ratio {ratio:.4f} > --max-ir-ratio {max_ir_ratio}")
+        inc = c["allocs_per_unit"] - b["allocs_per_unit"]
+        if max_alloc_increase is not None and inc > max_alloc_increase:
+            violations.append(f"{r['name']}: allocations per {b['unit']} +{inc:.3f} > --max-alloc-increase "
+                              f"{max_alloc_increase}")
+        out.append(f"| {r['name']} | {b['unit']} | {b['ir_per_unit']:.0f} | {c['ir_per_unit']:.0f} | "
+                   f"{ratio:.4f} | {b['allocs_per_unit']:.2f} | {c['allocs_per_unit']:.2f} | "
+                   f"{b['bytes_per_unit']:.0f} | {c['bytes_per_unit']:.0f} | {same} |")
+        if "wall_median_s" in r:
+            w = r["wall_median_s"]
+            out.append(f"|   wall-clock median of {wall_n} interleaved runs | s | {w['base']:.3f} | {w['cand']:.3f} | "
+                       f"{w['cand'] / w['base']:.3f} | | | | | |")
+    return out, violations
+
+
+def self_test():
+    """Checks the gate's rules on synthetic rows (no build, no valgrind): python3 tools/perfproof/perfproof.py --self-test"""
+    def side(fp, missing=(), work=100.0, ir=1000.0, allocs=1.0):
+        return {"unit": "steps", "work": work, "ir_per_unit": ir, "allocs_per_unit": allocs, "bytes_per_unit": 8.0,
+                "fingerprint": dict(fp), "fp_missing": list(missing)}
+
+    def run(b, c, allowed=(), **kw):
+        rep = {"baseline": "b", "candidate": "c", "workloads": [{"name": "w", "base": b, "cand": c}]}
+        return evaluate(rep, set(allowed), **kw)[1]
+
+    fp = {"outcomeDigest": "aa", "ticks": 10}
+    cases = [
+        ("identical", side(fp), side(fp), (), {}, 0),
+        ("changed digest", side(fp), side({**fp, "outcomeDigest": "bb"}), (), {}, 1),
+        ("changed digest, declared", side(fp), side({**fp, "outcomeDigest": "bb"}), ("w.outcomeDigest",), {}, 0),
+        ("candidate lost a key the baseline prints", side(fp), side({"ticks": 10}, missing=["outcomeDigest"]), (), {}, 1),
+        ("lost key, declared", side(fp), side({"ticks": 10}, missing=["outcomeDigest"]), ("outcomeDigest",), {}, 0),
+        ("candidate lacks a table key the baseline lacks too", side({"ticks": 10}, missing=["outcomeDigest"]),
+         side({"ticks": 10}, missing=["outcomeDigest"]), (), {}, 1),
+        ("candidate-only key (baseline predates it)", side({"ticks": 10}, missing=["outcomeDigest"]), side(fp), (), {}, 0),
+        ("baseline cannot run the workload", None, side(fp), (), {}, 0),
+        ("candidate cannot run the workload", side(fp), None, (), {}, 1),
+        ("no work difference", side(fp), side(fp, work=float("nan")), (), {}, 1),
+        ("Ir ratio above the limit", side(fp), side(fp, ir=1100.0), (), {"max_ir_ratio": 1.05}, 1),
+        ("Ir ratio within the limit", side(fp), side(fp, ir=1040.0), (), {"max_ir_ratio": 1.05}, 0),
+        ("allocations above the limit", side(fp), side(fp, allocs=1.5), (), {"max_alloc_increase": 0.1}, 1),
+    ]
+    bad = []
+    for name, b, c, allowed, kw, want in cases:
+        got = run(b, c, allowed, **kw)
+        ok = len(got) == want
+        print(f"{'ok  ' if ok else 'FAIL'} {name}: {len(got)} violation(s) {got}")
+        if not ok:
+            bad.append(name)
+    if bad:
+        sys.exit(f"self-test failed: {bad}")
+    print(f"self-test: {len(cases)} cases pass")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--baseline", required=True, help="the revision to compare against")
+    ap.add_argument("--baseline", help="the revision to compare against (required)")
+    ap.add_argument("--self-test", action="store_true", help="check the gate's rules on synthetic rows and exit")
     ap.add_argument("--out", default=os.path.join(ROOT, "target", "perfproof"))
     ap.add_argument("--only", default="")
     ap.add_argument("--wall", type=int, default=0)
@@ -243,6 +363,10 @@ def main():
     ap.add_argument("--allow-fingerprint-change", default="",
                     help="workloads, fingerprint keys or workload.key whose fingerprint may differ (declared changes)")
     a = ap.parse_args()
+    if a.self_test:
+        return self_test()
+    if not a.baseline:
+        ap.error("--baseline REV is required")
     allowed = {x for x in a.allow_fingerprint_change.split(",") if x}
     os.makedirs(a.out, exist_ok=True)
     known = {w["name"] for w in WORKLOADS}
@@ -291,48 +415,8 @@ def main():
                     t[s].append(time.perf_counter() - t0)
             row["wall_median_s"] = {s: statistics.median(v) for s, v in t.items()}
 
-    violations = []
-    print(f"baseline {report['baseline']} vs candidate {report['candidate']} (per unit of work; deterministic counts)\n")
-    print("| workload | unit | Ir base | Ir cand | ratio | allocs base | allocs cand | bytes base | bytes cand | same behaviour |")
-    print("|---|---|---|---|---|---|---|---|---|---|")
-    for r in report["workloads"]:
-        b, c = r["base"], r["cand"]
-        if not b or not c:
-            x = b or c
-            if not x:
-                print(f"| {r['name']} | | - | - | n/a | | | | | neither side ran it |")
-                violations.append(f"{r['name']}: neither side could run it")
-                continue
-            print(f"| {r['name']} | {x['unit']} | {'-' if not b else round(b['ir_per_unit'])} | "
-                  f"{'-' if not c else round(c['ir_per_unit'])} | n/a | | {'' if not c else round(c['allocs_per_unit'], 2)} "
-                  f"| | | one side only ({'candidate' if c else 'base'}) |")
-            if not c:
-                violations.append(f"{r['name']}: the candidate cannot run it")
-            continue
-        diff, one_side = compare_fingerprints(b["fingerprint"], c["fingerprint"])
-        ok_diff = {k: v for k, v in diff.items() if not ({r["name"], k, f"{r['name']}.{k}"} & allowed)}
-        if not diff:
-            same = "yes"
-        else:
-            same = ("NO (declared): " if not ok_diff else "NO: ") + "; ".join(f"{k} {v[0]} -> {v[1]}" for k, v in diff.items())
-        if one_side:
-            same += f" (one side only: {', '.join(one_side)})"
-        for k, v in ok_diff.items():
-            violations.append(f"{r['name']}: fingerprint {k} changed {v[0]} -> {v[1]} (declare with --allow-fingerprint-change)")
-        ratio = c["ir_per_unit"] / b["ir_per_unit"]
-        if a.max_ir_ratio is not None and ratio > a.max_ir_ratio:
-            violations.append(f"{r['name']}: Ir ratio {ratio:.4f} > --max-ir-ratio {a.max_ir_ratio}")
-        inc = c["allocs_per_unit"] - b["allocs_per_unit"]
-        if a.max_alloc_increase is not None and inc > a.max_alloc_increase:
-            violations.append(f"{r['name']}: allocations per {b['unit']} +{inc:.3f} > --max-alloc-increase "
-                              f"{a.max_alloc_increase}")
-        print(f"| {r['name']} | {b['unit']} | {b['ir_per_unit']:.0f} | {c['ir_per_unit']:.0f} | "
-              f"{ratio:.4f} | {b['allocs_per_unit']:.2f} | {c['allocs_per_unit']:.2f} | "
-              f"{b['bytes_per_unit']:.0f} | {c['bytes_per_unit']:.0f} | {same} |")
-        if "wall_median_s" in r:
-            w = r["wall_median_s"]
-            print(f"|   wall-clock median of {a.wall} interleaved runs | s | {w['base']:.3f} | {w['cand']:.3f} | "
-                  f"{w['cand'] / w['base']:.3f} | | | | | |")
+    lines, violations = evaluate(report, allowed, a.max_ir_ratio, a.max_alloc_increase, a.wall)
+    print("\n".join(lines))
     print("\nfingerprints (candidate):")
     for r in report["workloads"]:
         x = r["cand"] or r["base"]

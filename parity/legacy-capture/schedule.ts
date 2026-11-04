@@ -2,9 +2,9 @@
 // the RESOLVED order of every runtime-registered hook list (afterWeapons, beforeDamage, systems, moveModifiers, modSources),
 // each entry attributed to the module that registered it, and every LINK of every world hook chain (world.hooks), in
 // execution order. In the legacy game that order is emergent: it follows the MODULES install list in gameplay.ts and each
-// module's push/unshift and chainHook calls (fireRoam unshifts). The Rust core declares its schedule statically
-// (crates/rh-sim/src/schedule.rs) and a test checks it against this file, so a port can neither reorder a system nor
-// silently skip one.
+// module's push/unshift and chainHook calls (fireRoam unshifts). The record is the reference a Rust schedule
+// declaration is checked against (nothing in Rust reads it yet: the conformance test arrives with the port of the
+// hooks), so a port can neither reorder a system nor silently skip one.
 //
 //   npx tsx parity/legacy-capture/schedule.ts [--out parity/schedule]
 //
@@ -21,8 +21,8 @@
 //   static: the chainHook(world, "key", fn) call sites and the `world.hooks.key = ...` assignments of each module's
 //     source, in source order (with the function name where the argument is an identifier, and the condition for an
 //     `if (...) chainHook(...)` site).
-// Per (module, key) the runtime link count must lie between the static unconditional and all sites, and the modes must
-// be the same sequence. A wrapper must call its previous link first (so execution order is install order); any other
+// Per (module, key) the runtime link count must EQUAL either the number of static unconditional sites (no conditional
+// site was taken) or the number of all static sites (every one was), and the modes must be the same sequence. A wrapper must call its previous link first (so execution order is install order); any other
 // shape throws.
 
 import { execSync } from "node:child_process";
@@ -392,8 +392,11 @@ const record = {
     "hook as its chain of links in install order (mode default | append (chainHook) | wrap (prev-first wrapper) | replace; " +
     "a `dropped` link was discarded by a later replace; the rest run in list order). 'production' is createGameWorld with " +
     "the live server's default config (loadConfig({})); 'capture' is the module set and config of the parity fixtures " +
-    "(signatures and walk hints off); 'training' is the practice room (training config, then installTraining). Telemetry " +
-    "and the input trace attach after these in RaidRoom (observers, not gameplay).",
+    "(signatures and walk hints off); 'training' is the practice room (training config, then installTraining). Only the " +
+    "MODULES of gameplay.ts (and installTraining) are recorded; three installers outside them also chain world hooks at " +
+    "runtime and are NOT in this record: telemetry.ts (16 chainHook links) and the input trace (trace.ts, 1) attach after " +
+    "these in RaidRoom as observers, and BotManager chains lobbyClosing (1) when the room runs bots. So this is the " +
+    "gameplay chain, not the complete runtime chain.",
   updateActive: fixedPhases(),
   production,
   capture,
