@@ -8,29 +8,33 @@ use rh_sim::content::{
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// Every `const` / `static` in `crates/rh-sim/src` that is deliberately not a gameplay number, with the reason. Adding to
-/// this list is a review decision: a number that can change an outcome belongs in the registry instead.
-const NON_GAMEPLAY: &[(&str, &str)] = &[
-    ("TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
-    ("TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
-    ("TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
-    ("OBSERVATION_VERSION", "observation layout version (a format, versioned on its own), not a rule"),
-    ("REPLAY_FORMAT", "replay file format string, not a rule"),
-    ("PI", "mathematical constant"),
-    ("SQRT2", "mathematical constant"),
-    ("DX", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
-    ("DY", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
-    ("LEGACY_12", "test vector captured from the legacy generator"),
-    ("LEGACY_0", "test vector captured from the legacy generator"),
+/// Every `const` / `static` in `crates/rh-sim/src` that is deliberately not a gameplay number, as (file, name, reason). The
+/// file is part of the key: a gameplay `const DX` or `const ALL` added in some other file is not exempted by its name.
+/// Adding to this list is a review decision: a number that can change an outcome belongs in the registry instead.
+const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("map.rs", "TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("map.rs", "TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("map.rs", "TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("observe.rs", "OBSERVATION_VERSION", "observation layout version (a format, versioned on its own), not a rule"),
+    ("replay.rs", "REPLAY_FORMAT", "replay file format string, not a rule"),
+    ("math.rs", "PI", "mathematical constant"),
+    ("pathfind.rs", "SQRT2", "mathematical constant"),
+    ("pathfind.rs", "DX", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
+    ("pathfind.rs", "DY", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
+    ("rng.rs", "LEGACY_12", "test vector captured from the legacy generator"),
+    ("rng.rs", "LEGACY_0", "test vector captured from the legacy generator"),
 ];
 
-/// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs).
-const TABLES_FOLDED_BY_HASH: &[(&str, &str)] = &[
+/// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
+/// (file, name, reason).
+const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     (
+        "content.rs",
         "ALL",
         "FactionId::ALL / WeaponId::ALL wire-order tables: folded by name, in order",
     ),
     (
+        "content.rs",
         "STAGGER_WEAPONS",
         "which weapons stagger: folded as a per-weapon flag",
     ),
@@ -38,7 +42,7 @@ const TABLES_FOLDED_BY_HASH: &[(&str, &str)] = &[
 
 /// Numbers whose live copy was still in another file when the registry was introduced (integer consts): the registry
 /// value must equal the declaration at the site while it exists, and once the site no longer declares it the registry
-/// name must be in use instead.
+/// name must be in use instead. These are the ONLY registered names that may be declared outside constants.rs.
 const EXTERNAL_CONSTS: &[&str] = &[
     "SNAP_RADIUS",
     "PULL_WINDOW",
@@ -47,13 +51,24 @@ const EXTERNAL_CONSTS: &[&str] = &[
     "MASK_MELEE",
 ];
 
-/// Inline float literals that decide outcomes: (registry name, substrings the line must contain, marker right before the
-/// literal). Same rule as above: equal at the site while the literal is there, in use by name once it is switched.
+/// Inline float literals that decide outcomes: (registry name, substrings the line must contain besides the literal, the
+/// text right before the literal). The needles are specific to the one statement and never contain a number, so the line
+/// still matches after the site is switched. Equal at the site while the literal is there, in use by name once switched.
 const INLINE_LITERALS: &[(&str, &[&str], &str)] = &[
-    ("BARRIER_EPS", &["barrier", "taken", "taken < "], "taken < "),
-    ("FACING_EPS", &["dist > "], "dist > "),
-    ("ARC_EPS", &["asin(", "+ 1e-9"], "min(1.0)) + "),
-    ("PATH_TIE_EPS", &["f1 - f2", "abs() > "], "abs() > "),
+    ("BARRIER_EPS", &["barrier - taken <"], "taken < "),
+    ("FACING_EPS", &["dist >", "!keep_facing"], "dist > "),
+    ("ARC_EPS", &["half_arc + asin("], "min(1.0)) + "),
+    ("PATH_TIE_EPS", &["f1 - f2"], "abs() > "),
+    (
+        "START_CENTER_SLACK",
+        &["from.x - tile_to_world_center(sx)"],
+        "abs() > ",
+    ),
+    (
+        "START_CENTER_SLACK",
+        &["from.y - tile_to_world_center(sy)"],
+        "abs() > ",
+    ),
 ];
 
 /// Numbers the hash folded at the base revision a0cfa2e: everything else in the list below was missing from it.
@@ -215,7 +230,7 @@ fn registry_is_well_formed() {
         }
     }
     assert!(
-        REGISTRY.len() >= 49,
+        REGISTRY.len() >= 50,
         "registry shrank to {} rows",
         REGISTRY.len()
     );
@@ -238,7 +253,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x2f8c_f40f_6d3c_0b53;
+const GOLDEN_CONTENT_HASH: u64 = 0xf47c_30e6_c8ca_3493;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -294,6 +309,7 @@ fn numbers_missing_from_the_hash_at_the_base_now_move_it() {
         "FACING_EPS",
         "ARC_EPS",
         "PATH_TIE_EPS",
+        "START_CENTER_SLACK",
     ] {
         find(name);
     }
@@ -319,31 +335,42 @@ fn stagger_rule_is_registered_data() {
     }
 }
 
+/// Is `name`, declared in `file`, a number the registry does not account for? constants.rs declares only through content!
+/// (REGISTRY itself is the macro's output); a hand-written const there would bypass the registry. Elsewhere a registered
+/// name may be declared only at its listed external site (value-checked by
+/// external_consts_equal_their_site_or_the_site_uses_the_registry): any other declaration of a registered number is a
+/// second, unhashed copy. An unregistered name needs an entry keyed by (file, name) in NON_GAMEPLAY or the folded tables.
+fn is_stray(file: &str, name: &str, registered: &BTreeSet<&str>) -> bool {
+    if file == "constants.rs" {
+        return name != "REGISTRY";
+    }
+    if registered.contains(name) {
+        return !EXTERNAL_CONSTS.contains(&name);
+    }
+    !NON_GAMEPLAY
+        .iter()
+        .any(|(f, n, _)| *f == file && *n == name)
+        && !TABLES_FOLDED_BY_HASH
+            .iter()
+            .any(|(f, n, _)| *f == file && *n == name)
+}
+
 #[test]
 fn every_const_in_the_source_tree_is_registered_or_explained() {
     let registered = registry_names();
-    let non_gameplay: BTreeSet<&str> = NON_GAMEPLAY.iter().map(|(n, _)| *n).collect();
-    for (n, reason) in NON_GAMEPLAY {
-        assert!(!reason.is_empty(), "{n} needs a reason");
+    for (f, n, reason) in NON_GAMEPLAY {
+        assert!(!reason.is_empty(), "{f}: {n} needs a reason");
         assert!(
             !registered.contains(n),
             "{n} is both registered and listed as not gameplay"
         );
     }
-    let folded_tables: BTreeSet<&str> = TABLES_FOLDED_BY_HASH.iter().map(|(n, _)| *n).collect();
     let mut stray = Vec::new();
     let mut found = 0;
     for (file, code) in sources() {
         for name in declared_consts(&code) {
             found += 1;
-            // constants.rs declares only through content! (REGISTRY itself is the macro's output); a hand-written const
-            // there would bypass the registry.
-            let bypasses = file == "constants.rs" && name != "REGISTRY";
-            let unexplained = file != "constants.rs"
-                && !registered.contains(name.as_str())
-                && !non_gameplay.contains(name.as_str())
-                && !folded_tables.contains(name.as_str());
-            if bypasses || unexplained {
+            if is_stray(&file, &name, &registered) {
                 stray.push(format!("{file}: {name}"));
             }
         }
@@ -351,9 +378,33 @@ fn every_const_in_the_source_tree_is_registered_or_explained() {
     assert!(found > 0, "the scan found no consts at all");
     assert!(
         stray.is_empty(),
-        "consts that are neither in the content! registry nor in NON_GAMEPLAY: {stray:#?}\n\
+        "consts that are neither in the content! registry nor in NON_GAMEPLAY (or registered names declared a second time): {stray:#?}\n\
          a gameplay number is one line in crates/rh-sim/src/constants.rs content!; anything else needs a reason in NON_GAMEPLAY"
     );
+}
+
+/// A registered number declared a second time (as a module split might do), or a gameplay `const ALL` / `DX` in a file that
+/// is not the listed one, is a stray whatever its value.
+#[test]
+fn a_second_declaration_of_a_registered_name_is_a_stray() {
+    let registered = registry_names();
+    // The scan sees the declaration...
+    let code = "pub const PLAYER_RADIUS: f64 = 13.0;\nconst NOT_A_RULE_X: u8 = 1;";
+    assert_eq!(declared_consts(code), ["PLAYER_RADIUS", "NOT_A_RULE_X"]);
+    // ...and rejects it outside constants.rs, with the same value or another.
+    assert!(registered.contains("PLAYER_RADIUS"));
+    assert!(is_stray("observe.rs", "PLAYER_RADIUS", &registered));
+    assert!(is_stray("sim/combat.rs", "PLAYER_RADIUS", &registered));
+    assert!(is_stray("constants.rs", "PLAYER_RADIUS", &registered));
+    // The listed external sites stay accepted.
+    assert!(!is_stray("pathfind.rs", "SNAP_RADIUS", &registered));
+    assert!(!is_stray("map.rs", "MASK_MELEE", &registered));
+    // Exemptions are per file.
+    assert!(!is_stray("pathfind.rs", "DX", &registered));
+    assert!(is_stray("sim/combat.rs", "DX", &registered));
+    assert!(is_stray("sim.rs", "ALL", &registered));
+    assert!(!is_stray("content.rs", "ALL", &registered));
+    assert!(is_stray("sim.rs", "NOT_A_RULE_X", &registered));
 }
 
 fn as_i128(v: ContentVal) -> i128 {
@@ -451,14 +502,42 @@ fn literal_after(line: &str, marker: &str) -> Option<f64> {
     lit.replace('_', "").parse().ok()
 }
 
+/// How one matched source line relates to the registry.
+#[derive(Debug, PartialEq)]
+enum Site {
+    /// The line already uses the registry name.
+    InUse,
+    /// The line still has the literal and it equals the registry value.
+    LiteralEqual,
+}
+
+/// Judge one line of an inline-literal site. A line that mentions the registry name is switched and accepted as is; otherwise
+/// the literal after `marker` must exist and be bit-equal to the registry value.
+fn check_site(name: &str, reg: f64, marker: &str, line: &str) -> Result<Site, String> {
+    if uses_word(line, name) {
+        return Ok(Site::InUse);
+    }
+    let lit = literal_after(line, marker)
+        .ok_or_else(|| format!("{name}: no literal after `{marker}` in `{}`", line.trim()))?;
+    if lit.to_bits() == reg.to_bits() {
+        Ok(Site::LiteralEqual)
+    } else {
+        Err(format!(
+            "{name}: registry {reg:e} differs from the literal {lit:e} in `{}`",
+            line.trim()
+        ))
+    }
+}
+
 #[test]
 fn inline_epsilons_equal_their_site_or_the_site_uses_the_registry() {
     let srcs = sources();
+    let mut sites_by_name: std::collections::BTreeMap<&str, usize> = Default::default();
     for (name, needles, marker) in INLINE_LITERALS {
         let ContentVal::F64(reg) = find(name).val else {
             panic!("{name} must be an f64 row")
         };
-        let mut sites = 0;
+        let sites = sites_by_name.entry(name).or_default();
         for (file, code) in &srcs {
             if file == "constants.rs" || file == "content.rs" {
                 continue;
@@ -467,20 +546,84 @@ fn inline_epsilons_equal_their_site_or_the_site_uses_the_registry() {
                 .lines()
                 .filter(|l| needles.iter().all(|n| l.contains(n)))
             {
-                sites += 1;
-                let lit = literal_after(line, marker)
-                    .unwrap_or_else(|| panic!("{name}: no literal after `{marker}` in `{line}`"));
-                assert_eq!(
-                    lit.to_bits(),
-                    reg.to_bits(),
-                    "{name}: registry {reg:e} differs from the literal {lit:e} at {file}: `{}`",
-                    line.trim()
-                );
+                *sites += 1;
+                if let Err(e) = check_site(name, reg, marker, line) {
+                    panic!("{file}: {e}");
+                }
             }
         }
+    }
+    for (name, sites) in sites_by_name {
         assert!(
             sites > 0 || used_outside_registry(&srcs, name),
             "{name}: the inline literal site was not found and the registry name is unused; update INLINE_LITERALS if the code moved"
         );
+    }
+}
+
+/// The follow-up that switches each site from the literal to the registry name must keep the suite green; a diverged
+/// literal must not.
+#[test]
+fn switched_sites_are_accepted_and_diverged_sites_are_not() {
+    // (name, the statement once switched, as it reads today, a diverged literal, marker)
+    let cases: &[(&str, &str, &str, &str, &str)] = &[
+        (
+            "BARRIER_EPS",
+            "v.barrier = if v.barrier - taken < BARRIER_EPS {",
+            "v.barrier = if v.barrier - taken < 1e-3 {",
+            "v.barrier = if v.barrier - taken < 2e-3 {",
+            "taken < ",
+        ),
+        (
+            "FACING_EPS",
+            "if dist > FACING_EPS && !keep_facing {",
+            "if dist > 0.001 && !keep_facing {",
+            "if dist > 0.002 && !keep_facing {",
+            "dist > ",
+        ),
+        (
+            "ARC_EPS",
+            "<= half_arc + asin((r / d).min(1.0)) + ARC_EPS",
+            "<= half_arc + asin((r / d).min(1.0)) + 1e-9",
+            "<= half_arc + asin((r / d).min(1.0)) + 1e-8",
+            "min(1.0)) + ",
+        ),
+        (
+            "PATH_TIE_EPS",
+            "if (f1 - f2).abs() > PATH_TIE_EPS {",
+            "if (f1 - f2).abs() > 1e-9 {",
+            "if (f1 - f2).abs() > 1e-8 {",
+            "abs() > ",
+        ),
+        (
+            "START_CENTER_SLACK",
+            "|| (from.x - tile_to_world_center(sx)).abs() > START_CENTER_SLACK",
+            "|| (from.x - tile_to_world_center(sx)).abs() > 0.5",
+            "|| (from.x - tile_to_world_center(sx)).abs() > 0.6",
+            "abs() > ",
+        ),
+    ];
+    for (name, switched, literal, diverged, marker) in cases {
+        let ContentVal::F64(reg) = find(name).val else {
+            panic!("{name} must be an f64 row")
+        };
+        let needles = INLINE_LITERALS
+            .iter()
+            .filter(|(n, _, _)| n == name)
+            .collect::<Vec<_>>();
+        assert!(!needles.is_empty(), "{name} has no INLINE_LITERALS entry");
+        // The switched line still matches the entry's needles (so it is judged as a site, not silently skipped).
+        assert!(
+            needles
+                .iter()
+                .any(|(_, ns, _)| ns.iter().all(|n| switched.contains(n))),
+            "{name}: the switched statement no longer matches its needles"
+        );
+        assert_eq!(check_site(name, reg, marker, switched), Ok(Site::InUse));
+        assert_eq!(
+            check_site(name, reg, marker, literal),
+            Ok(Site::LiteralEqual)
+        );
+        assert!(check_site(name, reg, marker, diverged).is_err(), "{name}");
     }
 }

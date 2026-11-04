@@ -134,4 +134,7 @@ content! {
     ARC_EPS: f64 = 1e-9, "rad";
     /// (site: pathfind.rs `before`) A* f-scores closer than this tie and fall through to the g and index rules.
     PATH_TIE_EPS: f64 = 1e-9, "cost";
+    /// (site: pathfind.rs, the start-tile test in the string-pulling candidate list) The start tile's centre becomes a
+    /// waypoint when the start is in a wall or farther than this from the centre on either axis.
+    START_CENTER_SLACK: f64 = 0.5, "u";
 }
