@@ -17,7 +17,9 @@ namespace Roguehalla.Net.Protocol
     /// A client's snapshot decoder (rh-protocol <c>SnapshotTracker</c>): it holds the last snapshot it applied, which is the base of
     /// the next delta. One per connection; a Welcome resets it, so the first snapshot after one must be Full. A refused delta
     /// leaves it exactly as it was. <see cref="Decode"/> hands out a <see cref="ServerMsg.Snapshot"/> for both kinds of snapshot
-    /// frame, decoded INTO <c>reuse</c> when one is given, so steady play makes no garbage.
+    /// frame, decoded INTO <c>reuse</c> when one is given, so steady play makes no garbage while the number of visible actors
+    /// stays the same (<c>Snapshot.Actors</c> is an exact-length array: a reused snapshot whose count differs gets a new one, as
+    /// in the Full decode).
     /// </summary>
     public sealed class SnapshotTracker
     {
