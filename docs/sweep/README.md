@@ -103,5 +103,19 @@ Agents: run Claude Code in the repo and invoke the stage workflow with `scriptPa
 10. Implementers and fixers are Sonnet, reviewers Opus. Give each worktree its own target dir (the default) and keep an
 eye on disk: `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only` keeps each worktree's build small.
 
-## Cumulative (current `optimization_port` vs the Stage 1 head `7d94332`)
-Filled in by the commit that adds this file; see below the table if present.
+## Cumulative (merged head `9ef486a` vs the Stage 1 head `7d94332`)
+`python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,wire_seed1_8bots,headless_seed1_8bots,headless_arena_8bots`
+(x86_64 cloud container; deterministic counts per unit of work; gate: pass, behaviour identical on every key both sides print):
+
+| Workload | Instructions | Allocations | Allocated bytes |
+|---|---|---|---|
+| sim_crowded_8 (8 players brawling, per step) | 15,259 -> 14,480 (0.949x) | 19.32 -> 17.40 | 1,804 -> 1,467 |
+| sim_duel_chase (pathfinding, per step) | 5,896 -> 5,556 (0.942x) | 10.71 -> 9.26 | 625 -> 492 |
+| sim_fists_duel (per step) | 5,514 -> 5,299 (0.961x) | 10.45 -> 9.09 | 669 -> 549 |
+| wire_seed1_8bots (step + observe + encode for 8, per step) | 50,692 -> 32,974 (0.651x) | 72.16 -> 37.16 | 5,273 -> 3,840 |
+| headless_seed1_8bots (full bot tick, per tick) | 14,678 -> 12,729 (0.867x) | 13.34 -> 11.94 | 1,502 -> 1,333 |
+| headless_arena_8bots (per tick) | 48,796 -> 45,555 (0.934x) | 32.15 -> 30.11 | 5,014 -> 4,658 |
+
+The packages with the largest expected gains are not merged yet: the allocation-free tick (P7a, target <= 0.25 allocations
+per step), the serde-derived state hash (P8, hashing cost <= 0.30x), the observation/publish path (P9) and protocol v2
+(P10a: 0.481x bytes per player on its branch). Wire bytes above are still protocol v1 (1,888 B/player/s).
