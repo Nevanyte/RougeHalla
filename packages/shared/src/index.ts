@@ -30,6 +30,7 @@ export * from "./status";
 export * from "./abilities";
 export * from "./blink";
 export * from "./barriers";
+export * from "./spells";
 export * from "./effects";
 export * from "./mods";
 export * from "./walk";

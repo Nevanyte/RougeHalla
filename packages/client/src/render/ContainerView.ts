@@ -4,7 +4,7 @@
 // the seconds left as text while the player is close, and a short cue when it drops (the ring and timer are the scene's, via
 // setTimer); those ground marks stay a Graphics, redrawn only when the ring steps.
 import Phaser from "phaser";
-import { CHEST_RANGE, CHEST_SECONDS, CONSUMABLES, isConsumableId, WIND_EMBLEM_DEF, PLAYER_RADIUS, WEAPONS, Y_SCALE, type WeaponId } from "@raid/shared";
+import { ABILITIES, CHEST_RANGE, CHEST_SECONDS, CONSUMABLES, isConsumableId, isSpellId, WIND_EMBLEM_DEF, PLAYER_RADIUS, WEAPONS, Y_SCALE, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { bakeScale, bakedImage, placeBake, swapBake, type Region } from "./bake";
 import { WEAPON_REGION, weaponCenterX, weaponTexture } from "./FighterArt";
@@ -25,7 +25,7 @@ const REWARD_HEIGHT = CHEST_HEIGHT + 2;
 const GROUND_HOVER = 9;
 const ICON_SCALE = 0.85;
 const ICON_TILT = -0.6;
-const DEFAULT_LABEL: Record<string, string> = { chest: "Chest", ground: "Weapon", body: "Body", reward: "Camp chest" };
+const DEFAULT_LABEL: Record<string, string> = { chest: "Chest", ground: "Weapon", body: "Body", reward: "Camp chest", spell: "Spell" };
 
 // The reward chest's ground marks (world units, drawn flat on the ground layer so no player is ever covered by them).
 const GOLD = 0xffd54f;
@@ -110,6 +110,7 @@ export class ContainerView {
     }
     this.label.setText(c.kind === "chest" ? "Chest" : c.kind === "cannon" ?
       (c.readyAt > serverNow ? `Cannon · reloading ${Math.ceil((c.readyAt - serverNow) / 1000)}s` : "Travel cannon · F to blast") :
+      c.kind === "spell" ? spellLabel(c.label, c.readyAt, serverNow) :
       c.label || DEFAULT_LABEL[c.kind] || "");
     this.syncLabel();
   }
@@ -220,6 +221,10 @@ export class ContainerView {
       const region = { x0: -24, y0: -32, x1: 24, y1: 8 };
       this.show(`consumable:${def}`, region, (g) => drawConsumable(g, def));
       this.label.setY(-34);
+    } else if (kind === "spell") {
+      const color = isSpellId(def) ? ABILITIES[def].color : 0xb39ddb;
+      this.show(`spell:${color}`, SPELL_REGION, (g) => drawSpellFind(g, color));
+      this.label.setY(-34);
     } else if (kind === "cannon") {
       this.show("travel:cannon", { x0: -28, y0: -48, x1: 28, y1: 12 }, drawCannon);
       this.label.setY(-50);
@@ -313,6 +318,23 @@ function drawConsumable(g: Phaser.GameObjects.Graphics, def: string): void {
   g.lineStyle(2, 0xffffff, 0.8).fillStyle(color, 0.9).fillRoundedRect(-7, -18, 14, 17, 4).strokeRoundedRect(-7, -18, 14, 17, 4);
   g.fillStyle(0xdac7a5, 1).fillRect(-4, -23, 8, 6);
   g.lineStyle(2, 0xffffff, 1).lineBetween(-3, -10, 3, -10).lineBetween(0, -13, 0, -7);
+}
+
+const SPELL_REGION: Region = { x0: -20, y0: -34, x1: 20, y1: 8 };
+
+/** The label of a spell find: its name, and while the copy is still reloading (a spell someone held and laid down) how long for. */
+export function spellLabel(name: string, fullAt: number, serverNow: number): string {
+  const spell = name || "Spell";
+  return fullAt > serverNow ? `${spell} · reloading ${Math.ceil((fullAt - serverNow) / 1000)}s` : spell;
+}
+
+/** A spell find: a floating rune stone in the spell's colour over a glow. */
+function drawSpellFind(g: Phaser.GameObjects.Graphics, color: number): void {
+  g.fillStyle(0x000000, 0.3).fillEllipse(0, 1, 22, 9);
+  g.fillStyle(color, 0.22).fillEllipse(0, -13, 34, 24);
+  g.lineStyle(2, 0xffffff, 0.85).fillStyle(color, 0.95);
+  g.beginPath().moveTo(0, -27).lineTo(9, -14).lineTo(0, -2).lineTo(-9, -14).closePath().fillPath().strokePath();
+  g.lineStyle(1.5, 0xffffff, 0.9).lineBetween(-4, -14, 4, -14).lineBetween(0, -19, 0, -9);
 }
 
 function drawCannon(g: Phaser.GameObjects.Graphics): void {

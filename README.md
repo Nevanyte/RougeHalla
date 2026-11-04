@@ -162,6 +162,10 @@ Each faction has one **Wish**, an ability on `R` for the moment the weapons do n
 
 Trial picks the enemy nearest the cursor, within 64 u like a left-click. Blaze Step goes toward the cursor; Frost Wall is aimed with its preview. Swarm and Last Stand need no aim. The full rules, the numbers and what is a best guess are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8.8 and 8.9.
 
+#### Spells (the slot is built, no spell exists yet)
+
+A second ability slot sits beside the Wish on `Shift`. It holds one **spell** found on the map: a rune on the ground, taken with `F` like a weapon. You hold one spell at a time; taking another lays the one you held down where the new one lay. A spell has a few uses and reloads one at a time by itself, and that reload belongs to the copy: a spell someone laid down keeps reloading on the ground (its label says how long), so swapping never reloads one. A spell drops where its holder falls. Each zone gets `SPELL_FINDS_PER_ZONE` (2) finds when the run starts, placed privately on its loot spots; the training room racks one of every spell beside the weapons. No spell has been made yet, so the slot shows "No spell" and nothing is placed. [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) 8.10 has the rules.
+
 ### Controls
 
 WASD or arrow keys move. Left-click attacks toward the cursor; hold to repeat. Only a wand can lock onto an enemy and home its projectiles.
@@ -174,6 +178,7 @@ WASD or arrow keys move. Left-click attacks toward the cursor; hold to repeat. O
 | Mouse position | Aim attacks and face the shield. |
 | `Q` / `1` / `2` | Swap weapons or select a slot. |
 | `R` | Cast your faction's Wish. |
+| `Shift` | Cast the spell you found (none exist yet). |
 | `E` | Use a stored healing potion (large first). A press the server will take shows at once; one made while a stun or a cast will still hold you when it arrives says so at once and is not sent. Any other refusal (3 already healing, full health, none stored) comes from the server. |
 | `F` | Pick up a highlighted weapon, potion or accepted quest item; talk to a quest giver; enter a ready travel cannon. |
 | `C` | Focus an elite chest's choices. Then `1` / `2` / `3` pick, `0` skips and `C` / `Esc` returns control. |

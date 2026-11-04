@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, KILL_AUG_SECONDS, MARK_NEAR_RANGE, fieldKindOf,
-  countIn, EXTRAPOLATE_MS, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
+  countIn, EXTRAPOLATE_MS, feedScore, hasLineOfSight, heldSpell, isAbilityDot, questAcceptFirstText, rankOf, slotFullAt, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches,
   WEAPONS, withGates, withBarriers, wallSegmentFor, decodeCells, decodeMult, EFFECT_CASTING, EFFECT_STUNNED, FACTIONS, isFactionId, mirrorTimings, PLAYER_RADIUS, swapAllowed,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -28,7 +28,7 @@ import { chestNameOf, displayName } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
 import { AbilityAim, aimPlan } from "../render/AbilityAim";
 import { FX_FRESH_MS, FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
-import { containerWeapon, pickInteraction, type Interaction } from "../render/interact";
+import { containerSpell, containerWeapon, pickInteraction, spellFindHint, type Interaction } from "../render/interact";
 import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
 import { ZombieView } from "../render/ZombieView";
@@ -202,9 +202,12 @@ export class RaidScene extends Phaser.Scene {
   private huntHud!: SentencedHuntHud;
   private huntMarker: PlanningEnemy | null = null;
   private weaponBar!: WeaponBar;
-  /** The Wish slot (key D), docked in the weapon bar, and what gives its cooldown a length: the server syncs only when it ends. */
+  /** The Wish slot (key R), docked in the weapon bar, and what gives its cooldown a length: the server syncs only when it ends. */
   private wishSlot!: AbilitySlotView;
   private readonly wishCooldown = new CooldownTracker();
+  /** The spell slot (Shift): the one spell found on the map that the player holds (shared/spells.ts). */
+  private spellSlot!: AbilitySlotView;
+  private readonly spellCooldown = new CooldownTracker();
   /**
    * The cast just sent and not yet answered: until the patch shows the slot's new ready time or the server echoes the cast's
    * order number (a refusal), a second press is ignored, so a double tap cannot predict a second blink the server will refuse.
@@ -401,6 +404,9 @@ export class RaidScene extends Phaser.Scene {
     this.wishSlot = new AbilitySlotView({ key: "R" });
     this.weaponBar.dock(this.wishSlot.element);
     this.wishCooldown.reset();
+    this.spellSlot = new AbilitySlotView({ key: "Shift" });
+    this.weaponBar.dock(this.spellSlot.element);
+    this.spellCooldown.reset();
     this.pendingCast = null;
     this.feedback = new ScreenFeedback();
     this.peek = null;
@@ -832,14 +838,15 @@ export class RaidScene extends Phaser.Scene {
     this.huntHud?.update(state, this.room.sessionId, message => sendInput(this.room, "huntTarget", message));
     const talk = this.interaction?.kind === "talk" ? this.interaction : null;
     const blocked = this.interaction?.kind === "blocked" ? this.interaction : null;
+    const found = this.nearest ? containerSpell(this.nearest) : null;
     this.weaponBar.update(
       me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "cannon" ? "Enter cannon" : this.nearest?.kind === "chest" ? "Open chest" : this.nearest?.kind === "quest" || this.nearest?.kind === "consumable" ? this.nearest.label : "",
       talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`)
-        : blocked ? questAcceptFirstText(blocked.def) : "",
+        : blocked ? questAcceptFirstText(blocked.def) : found && me ? spellFindHint(heldSpell(me), found) : "",
       me ? this.localSlot(me) : undefined,
       me ? this.potionCue.view(me, now) : undefined,
     );
-    this.updateWishSlot(me, state, serverNow, now);
+    this.updateAbilitySlots(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
     this.trackRoute(state, me);
     this.updateGroundRoute(state, me, now);
@@ -1563,25 +1570,27 @@ export class RaidScene extends Phaser.Scene {
     const readyAt = slotReadyAt(me, slot);
     return {
       phase: state.phase, training: state.training, wishCooldownMult: wishCooldownMultiplier(me.build, me.faction),
-      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt, fullAt: slot === "wish" ? (me.extra?.wishFullAt ?? 0) : 0,
+      alive: me.status === "alive", ability: entry?.def ?? null, rank: entry?.rank, readyAt, fullAt: slotFullAt(me, slot),
       cooldownLen: this.slotCooldown(slot).observe(readyAt, state.serverTime), effects: me.effects, blockedBy: entry?.def.blockedBy ?? [],
       castUntil: this.predict.castEndsAt(serverNow),
+      ...(slot === "spell" ? { emptyName: "No spell", emptyTip: "Spell slot (Shift)\nFind a spell on the map and take it with F. You hold one spell at a time: taking another lays this one down." } : {}),
     };
   }
 
-  /** The slot's view and its cooldown tracker. Only the Wish has one until skills fill Q and E. */
+  /** The slot's view and its cooldown tracker: the Wish's and the spell's (Q and E have none until skills fill them). */
   private slotView(slot: AbilitySlot): AbilitySlotView | undefined {
-    return slot === "wish" ? this.wishSlot : undefined;
+    return slot === "wish" ? this.wishSlot : slot === "spell" ? this.spellSlot : undefined;
   }
 
-  private slotCooldown(_slot: AbilitySlot): CooldownTracker {
-    return this.wishCooldown;
+  private slotCooldown(slot: AbilitySlot): CooldownTracker {
+    return slot === "spell" ? this.spellCooldown : this.wishCooldown;
   }
 
-  /** Once per frame: the Wish slot's picture. */
-  private updateWishSlot(me: PlayerState | undefined, state: RaidState, serverNow: number, now: number): void {
+  /** Once per frame: the Wish slot's and the spell slot's pictures. */
+  private updateAbilitySlots(me: PlayerState | undefined, state: RaidState, serverNow: number, now: number): void {
     if (!me) return;
     this.wishSlot.update(abilitySlotModel(this.slotInput(me, state, "wish", serverNow), serverNow), now);
+    this.spellSlot.update(abilitySlotModel(this.slotInput(me, state, "spell", serverNow), serverNow), now);
   }
 
   /**
@@ -1839,6 +1848,8 @@ export class RaidScene extends Phaser.Scene {
       return;
     }
     if (e.code === "KeyR") { this.castSlot("wish"); return; }
+    // Either Shift: the spell slot (cast through the same path as the Wish; a placed spell shows its preview first).
+    if (e.code === "ShiftLeft" || e.code === "ShiftRight") { this.castSlot("spell"); return; }
     if (e.code === "KeyE") { this.drinkPotion(); return; }
     if (e.code === "KeyQ") this.swapHand();
     else if (e.code === "KeyF") this.interact();
@@ -2136,6 +2147,7 @@ export class RaidScene extends Phaser.Scene {
     this.trainingBar = null;
     this.weaponBar.destroy();
     this.wishSlot.destroy();
+    this.spellSlot.destroy();
     this.feedback.destroy();
     if (import.meta.env.DEV) {
       const w = window as unknown as { __raid?: { scene?: unknown } };

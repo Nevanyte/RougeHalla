@@ -1,4 +1,5 @@
-// The reusable cooldown widget for one ability slot: the Wish's today (key D, docked in the weapon bar), the Q and E skills' later.
+// The reusable cooldown widget for one ability slot: the Wish's (key R) and the spell slot's (Shift), docked in the weapon bar; the
+// Q and E skills' later.
 // Three pieces. `abilitySlotModel` is pure: what the slot shows, from the synced state and the server clock. `CooldownTracker`
 // finds the length of a cooldown from the ready time alone (the server syncs when it ends, not how long it was). `AbilitySlotView`
 // is the DOM: an icon in the ability's colour, the key as a keycap, a dark wedge sweeping off as the cooldown runs, the seconds,
@@ -38,8 +39,11 @@ export interface AbilitySlotInput {
   training?: boolean;
   /** The Wish cooldown multiplier (Arcane Overload); defaults to 1. */
   wishCooldownMult?: number;
-  /** `PlayerState.wishFullAt`: when a charged Wish has all its charges back (0 or past: full). Unused with one charge. */
+  /** The slot's stock clock (`slotFullAt`: a charged Wish's charges, a spell's reload): when all its charges are back (0 or past: full). Unused with one charge. */
   fullAt?: number;
+  /** What an empty slot says (the spell slot before a spell is found); "" by default. */
+  emptyName?: string;
+  emptyTip?: string;
 }
 
 export type AbilitySlotState = "hidden" | "empty" | "ready" | "cooldown" | "casting" | "blocked";
@@ -83,7 +87,7 @@ export function abilitySlotModel(i: AbilitySlotInput, serverNow: number): Abilit
     secondsLeft: 0, sweep: 0, blocked: null, cast: 0, charges: 1, maxCharges: 1,
   };
   if (!i.alive || i.phase !== "active") return model;
-  if (!def) return { ...model, state: "empty" };
+  if (!def) return { ...model, state: "empty", name: i.emptyName ?? "", tip: i.emptyTip ?? "" };
 
   const left = i.readyAt - serverNow;
   if (left > 0) {

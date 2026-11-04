@@ -262,8 +262,16 @@ describe("spawnLoot / install", () => {
   it("is part of createGameWorld: the handler, the body hook and the containers are installed", () => {
     const world = makeWorld();
     expect(world.actions.pickup).toBe(handlePickup);
-    expect(world.hooks.dropBody).toBe(dropBody);
     expect(world.state.containers.size).toBeGreaterThan(world.map.crateSpots.length);
+    // Other modules chain onto the body hook (the spell slot drops the held spell after it), so the hook is loot's dropBody first.
+    const p = addPlayer(world, "a", "alice");
+    p.weapon0 = "sword";
+    const before = world.state.containers.size;
+    world.hooks.dropBody(world, p);
+    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+    expect(world.state.containers.size).toBe(before + 1);
+    expect(body.items.map((i) => i.def)).toEqual(["sword"]);
+    expect(p.weapon0).toBe("");
   });
 
   it("install() works on a bare world and registers nothing beyond loot", () => {

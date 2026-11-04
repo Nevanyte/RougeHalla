@@ -22,7 +22,7 @@ import {
 export type ServerMs = number;
 /** A player's or a mob's key in the synced maps (a session id, `BOT_ID_PREFIX`n, or a mob id). */
 export type FighterId = string;
-export type AbilitySlotId = "wish" | "q" | "e";
+export type AbilitySlotId = "wish" | "q" | "e" | "spell";
 
 // =================================================================================================================== tiers
 
@@ -311,6 +311,8 @@ export interface Features {
   readonly chests: boolean;
   /** Q/E slots on PlayerState (R6). */
   readonly skills: boolean;
+  /** The spell slot (PlayerExtraState.spell) and "cast" accepted: spells found on the map, one held at a time (key Shift). */
+  readonly spells: boolean;
   /** PlayerState.build (relics, curses, boons; R7). */
   readonly relics: boolean;
   /** RaidState.camps (CampState; R5). */
@@ -480,8 +482,10 @@ export interface ContainerSeen {
    * the interaction target (in INTERACT_RANGE with line of sight). undefined = cannot tell from here; null = nothing in it.
    */
   readonly weapon: WeaponId | null | undefined;
-  /** Within INTERACT_RANGE with line of sight from the bot's latest position (what F would take). */
+  /** Within INTERACT_RANGE with line of sight from the bot's latest position (what F would take; for a spell find, its own reach). */
   readonly interactable: boolean;
+  /** A spell find's spell (its rune's colour and name show it), for kind "spell" only. */
+  readonly spell?: string;
 }
 
 export interface ContainerView extends ContainerSeen {
@@ -612,6 +616,8 @@ export interface PlanOffer {
 /** Feature-only fields: each is absent unless its feature is on (and filled only by perception.ts). */
 export interface PerceptExtras {
   readonly wish?: WishView;
+  /** The spell slot as the weapon bar shows it: null while it holds nothing (the `spells` feature on), absent with the feature off. */
+  readonly spell?: WishView | null;
   readonly skills?: { readonly q: SkillSlotView | null; readonly e: SkillSlotView | null };
   /** EFFECT_* bits of the bot and of every fighter in `fighters`/`mobs`. */
   readonly effects?: Readonly<Record<FighterId, number>>;

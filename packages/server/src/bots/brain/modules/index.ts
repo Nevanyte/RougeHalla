@@ -1,4 +1,4 @@
-// The feature-module registry (docs/BOTS.md 8). A module (Wishes, planning, chests, skills, relics, hazards) is registered here;
+// The feature-module registry (docs/BOTS.md 8). A module (Wishes, planning, chests, spells, skills, relics, hazards) is registered here;
 // the driver hands `enabledModules(features)` to each brain as `BrainConfig.modules`, and the brain calls only those. A module
 // that needs a symbol the branch may lack reads it off Features, PerceptExtras and `ext` events. The modules that are built are
 // registered at the bottom of this file, so every caller of `enabledModules` gets them without naming them.
@@ -6,6 +6,7 @@ import type { CastPolicy, FeatureModule, Features } from "../types";
 import { chestsModule } from "./chests";
 import { hazardsModule } from "./hazards";
 import { planningModule } from "./planning";
+import { spellsModule } from "./spells";
 import { wishesModule } from "./wishes";
 
 const modules = new Map<string, FeatureModule>();
@@ -45,3 +46,4 @@ registerModule(wishesModule);
 registerModule(planningModule);
 registerModule(chestsModule);
 registerModule(hazardsModule);
+registerModule(spellsModule);

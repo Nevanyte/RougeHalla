@@ -371,11 +371,12 @@ describe("both drivers perceive the same", () => {
     for (const [state, player] of [[server, new PlayerState()], [client, client.players.get("me")!]] as const) {
       const f = detectFeatures({ state, player, map: testMap() });
       // The merged schema: the Wish, the status bits, the areas, planning (`plan`), the camps and chests (`choose`) and the build
-      // (relics) exist; the Q/E fields are in the schema but no ability fills them; the zone map carries floor hazards.
+      // (relics) exist; the Q/E fields are in the schema but no ability fills them; the spell slot is there (no spell exists yet); the
+      // zone map carries floor hazards.
       // (Detected, not yet used: no module acts on them.)
       expect(f).toEqual(featureSet({
         messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept", "attackMove", "consumeCorpse", "huntTarget", "useConsumable", "trade", "beat"],
-        wishes: true, statusEffects: true, fields: true, skills: false, planning: true, chests: true, camps: true, relics: true,
+        wishes: true, statusEffects: true, fields: true, skills: false, spells: true, planning: true, chests: true, camps: true, relics: true,
         hazards: true,
       }));
       expect("barrier" in player).toBe(true);

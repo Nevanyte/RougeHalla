@@ -1,5 +1,6 @@
-// The Wishes module (docs/BOTS.md 8): the bot presses D the way a person does. It reads the Wish slot as the weapon bar shows it
-// (`extras.wish`: ability, ready time, a cast under way) and its own status bits, describes the moment to the shared cast policy
+// The Wishes module (docs/BOTS.md 8): the bot presses R the way a person does. It reads the Wish slot as the weapon bar shows it
+// (`extras.wish`: ability, ready time, a cast under way), and the spell slot (Shift, `extras.spell`: the found spell it holds, if any)
+// the same way, and its own status bits, describes the moment to the shared cast policy
 // (`decideCast` by the ability's intent tags, never by id) and emits a `cast` intent, timed as an answer to what made the moment
 // (a hit, a low-hp warning, a new enemy, a windup at it) or as the next step of a plan when nothing new happened. The humanizer
 // supplies the reaction time, the hesitation and the hand: a unit cast is resolved like a lock click, so it can miss.
@@ -51,13 +52,21 @@ const SLIP_GOAL: Extract<Goal, { kind: "module" }> = { kind: "module", module: "
 /** The stimuli that make a cast sensible, most telling first: a human presses D because of one of them. */
 const CAST_STIMULI: readonly StimulusKind[] = ["lowHp", "hpLoss", "windupAtMe", "drawAtMe", "newThreat", "incoming"];
 
-/** What the module keeps for one bot (keyed on the brain's own config object: the one module instance serves every bot of a room). */
-interface WishState {
-  /** The Wish was usable at the last observation: a new availability draws the Easy gate again. */
+/** The slots this module presses: the Wish (R), then the spell found on the map (Shift). One cast is asked for per think. */
+export type CastSlot = "wish" | "spell";
+const CAST_SLOTS: readonly CastSlot[] = ["wish", "spell"];
+
+/** One slot's memory: whether it was usable at the last observation (a new availability draws the Easy gate again), and the gate. */
+interface SlotState {
   available: boolean;
   /** This availability is remembered (always, except for Easy's draw). */
   remembers: boolean;
   lastTryAt: ServerMs;
+}
+
+/** What the module keeps for one bot (keyed on the brain's own config object: the one module instance serves every bot of a room). */
+interface WishState {
+  readonly slots: Record<CastSlot, SlotState>;
   /** A Wish that hides its caster was decided at this time (null: none outstanding), with its cast time. */
   armedAt: ServerMs | null;
   castMs: number;
@@ -72,7 +81,8 @@ const states = new WeakMap<object, WishState>();
 function stateOf(ctx: BrainContext): WishState {
   let st = states.get(ctx.cfg);
   if (!st) {
-    st = { available: false, remembers: true, lastTryAt: Number.NEGATIVE_INFINITY, armedAt: null, castMs: 0, from: null, leg: null };
+    const slot = (): SlotState => ({ available: false, remembers: true, lastTryAt: Number.NEGATIVE_INFINITY });
+    st = { slots: { wish: slot(), spell: slot() }, armedAt: null, castMs: 0, from: null, leg: null };
     states.set(ctx.cfg, st);
   }
   return st;
@@ -80,8 +90,13 @@ function stateOf(ctx: BrainContext): WishState {
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** The def behind `extras.wish.def`, if it is one (it is opaque to the brain's contract). */
-function defOf(view: WishView | undefined): AbilityDef | null {
+/** A slot as the weapon bar shows it (null or undefined: nothing in it, or the feature is off). */
+function viewOf(ctx: BrainContext, slot: CastSlot): WishView | undefined {
+  return slot === "wish" ? ctx.p.extras.wish : ctx.p.extras.spell ?? undefined;
+}
+
+/** The def behind a slot view's `def`, if it is one (it is opaque to the brain's contract). */
+function defOf(view: WishView | null | undefined): AbilityDef | null {
   const def = view?.def as Partial<AbilityDef> | null | undefined;
   return def && typeof def === "object" && Array.isArray(def.ranks) && def.ranks.length > 0 && Array.isArray(def.ai) && Array.isArray(def.blockedBy)
     ? (def as AbilityDef)
@@ -210,19 +225,28 @@ function slipStep(ctx: BrainContext, st: WishState): Intent | null {
 
 // ============================================================================================================== the cast
 
-/** The cast to send for this goal now, or null. Marks the attempt, and arms the slip when the Wish hides its caster. */
+/** The cast to send for this goal now, or null: the Wish first, else the spell. Marks the attempt, and arms the slip when it hides its caster. */
 function castIntent(ctx: BrainContext, st: WishState, goal: Goal): Intent | null {
+  for (const slot of CAST_SLOTS) {
+    const cast = slotCast(ctx, st, goal, slot);
+    if (cast) return cast;
+  }
+  return null;
+}
+
+function slotCast(ctx: BrainContext, st: WishState, goal: Goal, slot: CastSlot): Intent | null {
   const { p } = ctx;
-  const view = p.extras.wish;
+  const view = viewOf(ctx, slot);
   const def = defOf(view);
-  if (!view || !def || !usable(ctx, view) || view.casting || !st.remembers || p.now - st.lastTryAt < WISH_RULES.retryMs) return null;
+  const mem = st.slots[slot];
+  if (!view || !def || !usable(ctx, view) || view.casting || !mem.remembers || p.now - mem.lastTryAt < WISH_RULES.retryMs) return null;
   const played = playedDef(ctx, def);
   if (!played) return null;
   const s = castSituation(ctx, goal);
   const choice = decideCast(played, view.rank, s);
   if (!choice) return null;
 
-  st.lastTryAt = p.now;
+  mem.lastTryAt = p.now;
   const rank = rankOf(def, view.rank);
   if (hidesCaster(def, view.rank)) {
     st.armedAt = p.now;
@@ -236,12 +260,15 @@ function castIntent(ctx: BrainContext, st: WishState, goal: Goal): Intent | null
   if (choice.id !== undefined) {
     const snapRadius = rank.targeting.kind === "unit" ? rank.targeting.snapRadius : TARGET_SNAP_RADIUS;
     return {
-      kind: "cast", slot: "wish", x: choice.x, y: choice.y, target: choice.id, at: { x: choice.x, y: choice.y }, snapRadius,
+      kind: "cast", slot, x: choice.x, y: choice.y, target: choice.id, at: { x: choice.x, y: choice.y }, snapRadius,
       priority, timing: timingOf(ctx), why,
     };
   }
-  return { kind: "cast", slot: "wish", x: choice.x, y: choice.y, priority, timing: timingOf(ctx), why };
+  return { kind: "cast", slot, x: choice.x, y: choice.y, priority, timing: timingOf(ctx), why };
 }
+
+/** The bot holds something this module casts (its Wish, a spell). */
+const castsAnything = (ctx: BrainContext): boolean => CAST_SLOTS.some((slot) => defOf(viewOf(ctx, slot)) !== null);
 
 // =============================================================================================================== the module
 
@@ -251,24 +278,28 @@ export const wishesModule: FeatureModule = {
 
   observe(ctx) {
     const st = stateOf(ctx);
-    const view = ctx.p.extras.wish;
-    const now = view !== undefined && usable(ctx, view);
-    if (now && !st.available) {
-      // Easy forgets its Wish some of the times it could have used it.
-      st.remembers = ctx.cfg.tier.id !== "easy" || ctx.rng.decide() < WISH_RULES.easyRemembers;
+    for (const slot of CAST_SLOTS) {
+      const view = viewOf(ctx, slot);
+      const mem = st.slots[slot];
+      const now = view !== undefined && defOf(view) !== null && usable(ctx, view);
+      if (now && !mem.available) {
+        // Easy forgets its Wish (and a spell) some of the times it could have used it. The spell's draw is skipped while no spell
+        // exists, so the Wish's draws are what they were.
+        mem.remembers = ctx.cfg.tier.id !== "easy" || ctx.rng.decide() < WISH_RULES.easyRemembers;
+      }
+      mem.available = now;
     }
-    st.available = now;
   },
 
   goals(ctx): readonly GoalDecision[] {
     const st = stateOf(ctx);
-    if (!defOf(ctx.p.extras.wish) || !slipping(ctx, st) || (st.from === null && nearestEnemy(ctx) === null)) return [];
+    if (!castsAnything(ctx) || !slipping(ctx, st) || (st.from === null && nearestEnemy(ctx) === null)) return [];
     return [{ goal: SLIP_GOAL, utility: WISH_RULES.slipUtility, why: "hidden behind a Swarm, or about to be: slip away, lock nobody" }];
   },
 
   intents(ctx, goal): readonly Intent[] {
     const st = stateOf(ctx);
-    if (!defOf(ctx.p.extras.wish)) return [];
+    if (!castsAnything(ctx)) return [];
     const out: Intent[] = [];
     // The cast first: arming the slip is part of deciding it, and the walk follows in the same think.
     const cast = castIntent(ctx, st, goal);
@@ -283,7 +314,7 @@ export const wishesModule: FeatureModule = {
   act(ctx, goal): TacticsOutput {
     const st = stateOf(ctx);
     if (goal.data["mode"] !== "slip") return { intents: [], status: { state: "failed", why: `unknown wishes goal` }, attacking: false };
-    if (!defOf(ctx.p.extras.wish) || !slipping(ctx, st)) {
+    if (!castsAnything(ctx) || !slipping(ctx, st)) {
       return { intents: [], status: { state: "done", why: "no longer hidden or about to be" }, attacking: false };
     }
     const intents: Intent[] = [];

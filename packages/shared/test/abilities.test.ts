@@ -3,7 +3,7 @@ import {
   ABILITIES, ABILITY_IDS, ABILITY_SLOTS, abilityCooldownMs, abilityInSlot, BLAZE_BURN_DPS, BLAZE_BURN_MS, BLAZE_MIN_DIST, BLAZE_RANGE,
   BLAZE_TRAIL_HALF_WIDTH, BLAZE_TRAIL_MS, BLINK_STEP, CAST_RANGE_SLACK, effectSide, FACTION_IDS, FIELD_KINDS, fieldKindOf, FREEZE_CAST_MS,
   FREEZE_RANGE, FREEZE_STUN_MS, hasteMultiplier, isAbilityDot, isAbilityId, isAbilitySlot, LAST_STAND_FLOOR_HP, LAST_STAND_HEAL_SHARE,
-  LAST_STAND_MS, LAST_STAND_SPEED_BONUS, rankOf, setSlotReadyAt, slotReadyAt, STATUS_KINDS, SWARM_CAST_MS, SWARM_CLOUD_RADIUS, SWARM_MS,
+  LAST_STAND_MS, LAST_STAND_SPEED_BONUS, rankOf, heldSpell, setSlotFullAt, setSlotReadyAt, slotFullAt, slotHasStock, slotReadyAt, stockReadyAt, STATUS_KINDS, SWARM_CAST_MS, SWARM_CLOUD_RADIUS, SWARM_MS,
   TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_CONVICTED_RADIUS, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
   TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_LOCK_SECONDS, FREEZE_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, BLAZE_RECHARGE_SECONDS, BLAZE_MAX_CHARGES, chargesAt, TRIAL_COOLDOWN_SECONDS, spendCharge, nextChargeAt, maxCharges, wishOf, WISHES, type AbilityDef, type AbilityEffect,
   type AbilityId,
@@ -18,7 +18,7 @@ describe("ability ids and slots", () => {
   });
 
   it("knows its slots and rejects anything else", () => {
-    expect([...ABILITY_SLOTS]).toEqual(["wish", "q", "e"]);
+    expect([...ABILITY_SLOTS]).toEqual(["wish", "q", "e", "spell"]);
     for (const s of ABILITY_SLOTS) expect(isAbilitySlot(s)).toBe(true);
     for (const v of ["", "Wish", "r", "WISH", 0, null, undefined, {}]) expect(isAbilitySlot(v), String(v)).toBe(false);
     for (const id of ABILITY_IDS) expect(isAbilityId(id)).toBe(true);
@@ -245,12 +245,13 @@ describe("rankOf", () => {
 });
 
 describe("slots", () => {
-  it("abilityInSlot: the wish slot is the faction's Wish at rank 1; q and e are empty", () => {
+  it("abilityInSlot: the wish slot is the faction's Wish at rank 1; q, e and an empty spell slot are empty", () => {
     for (const f of FACTION_IDS) {
       const got = abilityInSlot({ faction: f }, "wish");
       expect(got).toEqual({ def: ABILITIES[WISHES[f]], rank: 1 });
       expect(abilityInSlot({ faction: f }, "q")).toBeNull();
       expect(abilityInSlot({ faction: f }, "e")).toBeNull();
+      expect(abilityInSlot({ faction: f }, "spell")).toBeNull();
     }
   });
 
@@ -263,16 +264,52 @@ describe("slots", () => {
   });
 
   it("slotReadyAt and setSlotReadyAt round trip each slot without touching the others", () => {
-    const p = { wishReadyAt: 0, qReadyAt: 0, eReadyAt: 0 };
+    const p = { wishReadyAt: 0, qReadyAt: 0, eReadyAt: 0, extra: { wishFullAt: 0, spellReadyAt: 0, spellFullAt: 0 } };
     setSlotReadyAt(p, "wish", 45_000);
-    expect(p).toEqual({ wishReadyAt: 45_000, qReadyAt: 0, eReadyAt: 0 });
+    expect(p).toEqual({ wishReadyAt: 45_000, qReadyAt: 0, eReadyAt: 0, extra: { wishFullAt: 0, spellReadyAt: 0, spellFullAt: 0 } });
     setSlotReadyAt(p, "q", 7);
     setSlotReadyAt(p, "e", 9);
-    expect(p).toEqual({ wishReadyAt: 45_000, qReadyAt: 7, eReadyAt: 9 });
-    expect(ABILITY_SLOTS.map((s) => slotReadyAt(p, s))).toEqual([45_000, 7, 9]);
+    setSlotReadyAt(p, "spell", 11);
+    expect(p).toEqual({ wishReadyAt: 45_000, qReadyAt: 7, eReadyAt: 9, extra: { wishFullAt: 0, spellReadyAt: 11, spellFullAt: 0 } });
+    expect(ABILITY_SLOTS.map((s) => slotReadyAt(p, s))).toEqual([45_000, 7, 9, 11]);
     setSlotReadyAt(p, "wish", 0);
     expect(slotReadyAt(p, "wish")).toBe(0);
     expect(slotReadyAt(p, "q")).toBe(7);
+    // No `extra` (a bare fixture): the spell slot reads as ready and a write is dropped.
+    const bare = { wishReadyAt: 0, qReadyAt: 0, eReadyAt: 0 };
+    setSlotReadyAt(bare, "spell", 5);
+    expect(slotReadyAt(bare, "spell")).toBe(0);
+  });
+
+  it("the stock clocks: the Wish's and the spell's are their own, Q and E have none", () => {
+    const p = { wishReadyAt: 0, qReadyAt: 0, eReadyAt: 0, extra: { wishFullAt: 0, spellReadyAt: 0, spellFullAt: 0 } };
+    expect(ABILITY_SLOTS.filter(slotHasStock)).toEqual(["wish", "spell"]);
+    setSlotFullAt(p, "wish", 100);
+    setSlotFullAt(p, "spell", 200);
+    setSlotFullAt(p, "q", 300);
+    expect(ABILITY_SLOTS.map((s) => slotFullAt(p, s))).toEqual([100, 0, 0, 200]);
+    expect(p.extra).toEqual({ wishFullAt: 100, spellReadyAt: 0, spellFullAt: 200 });
+  });
+
+  it("stockReadyAt: a clock taken over as it stands is ready with a charge in hand, and agrees with spendCharge", () => {
+    expect(stockReadyAt(0, 3, 1000)).toBe(0);
+    // 3 charges, all back at 10 000: one is in hand from 8 000 (two recharges out).
+    expect(stockReadyAt(10_000, 3, 1000)).toBe(8_000);
+    expect(stockReadyAt(10_000, 1, 1000)).toBe(10_000);
+    for (const [fullAt, now, max] of [[0, 5_000, 1], [0, 5_000, 3], [6_000, 5_000, 3], [9_500, 5_000, 2]] as const) {
+      const spent = spendCharge(fullAt, now, max, 1000);
+      expect(stockReadyAt(spent.fullAt, max, 1000)).toBe(spent.readyAt);
+    }
+  });
+
+  it("the spell slot holds the spell in `extra.spell`, and only an ability of kind \"spell\" (none exists yet)", () => {
+    expect(ABILITY_IDS.filter((id) => ABILITIES[id].kind === "spell")).toEqual([]);
+    expect(abilityInSlot({ faction: "fire" }, "spell")).toBeNull();
+    expect(abilityInSlot({ faction: "fire", extra: { spell: "" } }, "spell")).toBeNull();
+    // A Wish's id in the spell slot is no spell.
+    expect(heldSpell({ extra: { spell: "blaze" } })).toBeNull();
+    expect(abilityInSlot({ faction: "fire", extra: { spell: "blaze" } }, "spell")).toBeNull();
+    expect(isAbilitySlot("spell")).toBe(true);
   });
 });
 

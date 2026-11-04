@@ -1,7 +1,8 @@
 // The ability framework and the Wish catalog. An ability is a definition (`AbilityDef`) with per-rank numbers; the server's
-// cast pipeline (sim/abilities.ts) reads it, the client draws and predicts from it. ONE id space covers Wishes and the Q/E
-// skills a later phase adds. A Wish is the faction's once-a-run ability (key D); its numbers are free to change, the
-// framework's names, signatures and wire layouts are the stable API (append only).
+// cast pipeline (sim/abilities.ts) reads it, the client draws and predicts from it. ONE id space covers Wishes, the Q/E
+// skills a later phase adds and the spells found on the map (kind "spell", slot "spell", key Shift: shared/spells.ts). A Wish
+// is the faction's ability (key R); its numbers are free to change, the framework's names, signatures and wire layouts are the
+// stable API (append only).
 import {
   BLAZE_MAX_CHARGES, BLAZE_RECHARGE_SECONDS, FREEZE_COOLDOWN_SECONDS, FROST_WALL_COOLDOWN_SECONDS, LAST_STAND_COOLDOWN_SECONDS, SWARM_COOLDOWN_SECONDS, TARGET_SNAP_RADIUS,
   TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_COOLDOWN_SECONDS, WISH_COOLDOWN_MULT_MIN,
@@ -13,9 +14,10 @@ import type { CleanseClass, StatusKind } from "./status";
 export type AbilityId = "freeze" | "swarm" | "trial" | "blaze" | "lastStand" | "frostWall";
 export const ABILITY_IDS: readonly AbilityId[] = ["freeze", "swarm", "trial", "blaze", "lastStand", "frostWall"];
 
-export type AbilityKind = "wish" | "skill";
-export type AbilitySlot = "wish" | "q" | "e";
-export const ABILITY_SLOTS: readonly AbilitySlot[] = ["wish", "q", "e"];
+export type AbilityKind = "wish" | "skill" | "spell";
+/** "spell": the one found spell a player holds (PlayerExtraState.spell; shared/spells.ts). Append only: a slot travels on `cast`. */
+export type AbilitySlot = "wish" | "q" | "e" | "spell";
+export const ABILITY_SLOTS: readonly AbilitySlot[] = ["wish", "q", "e", "spell"];
 
 /** What a bot or a mob's AI uses an ability for: policies pick and aim a cast by intent, never by id. */
 export type AiIntent = "escape" | "engage" | "peel" | "control" | "sustain" | "burst" | "zone" | "buff";
@@ -134,6 +136,11 @@ export interface AbilityDef {
    * instead). Absent: the key casts at the cursor at once, as it always did.
    */
   aim?: "preview";
+  /**
+   * A spell's share of the spell finds placed on the map (kind "spell" only; default 1, 0 = never placed: a spell that only a
+   * training rack or a later source hands out). shared/spells.ts `pickSpell`.
+   */
+  spawnWeight?: number;
 }
 
 /** The rank's numbers; a rank past either end is clamped to 1..ranks.length. */
@@ -279,24 +286,68 @@ export function wishOf(faction: string): AbilityDef | null {
   return isFactionId(faction) ? ABILITIES[WISHES[faction]] : null;
 }
 
-/** The ability and rank in a slot: "wish" is the faction's Wish at rank 1; "q" and "e" are null until a later phase reads the skill slots. */
-export function abilityInSlot(p: { faction: string }, slot: AbilitySlot): { def: AbilityDef; rank: number } | null {
+/** The spell `p` holds (PlayerExtraState.spell), or null: "" or an id that is not a spell is no spell. */
+export function heldSpell(p: { extra?: { spell?: string } | null }): AbilityDef | null {
+  const id = p.extra?.spell;
+  return isAbilityId(id) && ABILITIES[id].kind === "spell" ? ABILITIES[id] : null;
+}
+
+/**
+ * The ability and rank in a slot: "wish" is the faction's Wish at rank 1, "spell" the spell held (rank 1; null with none); "q" and
+ * "e" are null until a later phase reads the skill slots.
+ */
+export function abilityInSlot(p: { faction: string; extra?: { spell?: string } | null }, slot: AbilitySlot): { def: AbilityDef; rank: number } | null {
+  if (slot === "spell") {
+    const def = heldSpell(p);
+    return def ? { def, rank: 1 } : null;
+  }
   if (slot !== "wish") return null;
   const def = wishOf(p.faction);
   return def ? { def, rank: 1 } : null;
 }
 
-type SlotTimes = { wishReadyAt: number; qReadyAt: number; eReadyAt: number };
+/** The ready times and stock clocks of the slots: the Wish's and Q/E's on PlayerState, the spell's (and the Wish's stock) in `extra`. */
+type SlotTimes = {
+  wishReadyAt: number; qReadyAt: number; eReadyAt: number;
+  extra?: { wishFullAt?: number; spellReadyAt?: number; spellFullAt?: number } | null;
+};
 
-/** The synced ready time of a slot (server ms; 0 = ready). The only reader of wishReadyAt / qReadyAt / eReadyAt. */
+/** The synced ready time of a slot (server ms; 0 = ready). The only reader of wishReadyAt / qReadyAt / eReadyAt / spellReadyAt. */
 export function slotReadyAt(p: SlotTimes, slot: AbilitySlot): number {
-  return slot === "wish" ? p.wishReadyAt : slot === "q" ? p.qReadyAt : p.eReadyAt;
+  switch (slot) {
+    case "wish": return p.wishReadyAt;
+    case "q": return p.qReadyAt;
+    case "e": return p.eReadyAt;
+    case "spell": return p.extra?.spellReadyAt ?? 0;
+    default: {
+      const unknown: never = slot;
+      void unknown;
+      return 0;
+    }
+  }
 }
 
 export function setSlotReadyAt(p: SlotTimes, slot: AbilitySlot, at: number): void {
   if (slot === "wish") p.wishReadyAt = at;
   else if (slot === "q") p.qReadyAt = at;
-  else p.eReadyAt = at;
+  else if (slot === "e") p.eReadyAt = at;
+  else if (p.extra) p.extra.spellReadyAt = at;
+}
+
+/** True for a slot whose casts run a synced stock clock (`slotFullAt`): the Wish (Blaze Step's charges) and the spell (its reload). */
+export function slotHasStock(slot: AbilitySlot): boolean {
+  return slot === "wish" || slot === "spell";
+}
+
+/** A slot's stock clock: when all its charges are back (chargesAt; 0 or past = full). 0 for a slot without one (Q and E today). */
+export function slotFullAt(p: SlotTimes, slot: AbilitySlot): number {
+  return slot === "wish" ? p.extra?.wishFullAt ?? 0 : slot === "spell" ? p.extra?.spellFullAt ?? 0 : 0;
+}
+
+export function setSlotFullAt(p: SlotTimes, slot: AbilitySlot, at: number): void {
+  if (!p.extra) return;
+  if (slot === "wish") p.extra.wishFullAt = at;
+  else if (slot === "spell") p.extra.spellFullAt = at;
 }
 
 /**
@@ -335,6 +386,14 @@ export function chargesAt(fullAt: number, now: number, max: number, rechargeMs: 
 export function spendCharge(fullAt: number, now: number, max: number, rechargeMs: number): { fullAt: number; readyAt: number } {
   const full = Math.max(fullAt, now) + rechargeMs;
   return { fullAt: full, readyAt: Math.max(0, full - (max - 1) * rechargeMs) };
+}
+
+/**
+ * When a slot with this stock clock can next be cast: a charge is in hand one full recharge per missing charge before `fullAt`,
+ * so the slot waits only while every charge is out (spendCharge's `readyAt`, for a clock taken over as it stands: a found spell).
+ */
+export function stockReadyAt(fullAt: number, max: number, rechargeMs: number): number {
+  return fullAt > 0 ? Math.max(0, fullAt - (Math.max(1, max) - 1) * rechargeMs) : 0;
 }
 
 /** The time the next charge arrives while below the maximum (else 0). */

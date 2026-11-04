@@ -9,6 +9,7 @@ import { install as installCamps } from "./camps";
 import { install as installChests } from "./chests";
 import { install as installConsumables } from "./consumables";
 import { install as installTraders } from "./traders";
+import { install as installSpells } from "./spells";
 import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
 import { install as installFireRoam } from "./fireRoam";
@@ -62,6 +63,9 @@ const MODULES: Array<(world: World) => void> = [
   installCampHeal,
   installConsumables,
   installTraders,
+  // After loot and quests: its raidStarted link lays the spell finds clear of every container already placed, and its dropBody link
+  // drops the held spell after the body.
+  installSpells,
   // The phase-B cards' hooks (hitLanded, blocked, overkilled, a system after the damage, a mod source): after the modules whose
   // hooks they chain onto (abilities' statuses, the faction layer's heal), before the mirrors are folded.
   installCardHooks,

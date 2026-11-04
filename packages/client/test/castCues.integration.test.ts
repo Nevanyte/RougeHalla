@@ -13,7 +13,7 @@ import { WishFx } from "../src/render/WishFx";
 import { RaidScene } from "../src/scenes/RaidScene";
 import { argsOf, fakeScene } from "./fakes";
 import { afterAll, beforeAll } from "vitest";
-import { mapFromTiles, TILE_FLOOR, WISHES, type AbilityId } from "@raid/shared";
+import { ABILITIES, ABILITY_IDS, mapFromTiles, TILE_FLOOR, WISHES, type AbilityId } from "@raid/shared";
 import { updateSettings } from "../src/settings";
 
 // Written with Freeze as the unit cast (Frost's Wish until Frost Wall, which is aimed with a preview instead): this file's Frost
@@ -399,5 +399,64 @@ describe("a placed Wish (Frost Wall) is aimed with a preview first", () => {
     raid.castSlot("wish");
     expect(castSent()).toHaveLength(1);
     expect(aim.draw).not.toHaveBeenCalled();
+  });
+});
+
+// The spell slot (Shift): no spell exists yet, so this block registers one for its own tests (vitest isolates the file's modules).
+describe("the spell slot", () => {
+  const SPELL = "clientTestSpell" as AbilityId;
+  const def = {
+    id: SPELL, name: "Test Spell", blurb: "", kind: "spell", faction: null, flat: true, ownOrder: false, dropsLock: false,
+    cancelledBy: ["stun", "silence"], blockedBy: ["stun", "silence"], ai: ["buff"], telegraph: "none", icon: "cross", color: 0xffffff,
+    ranks: [{ cooldownMs: 8000, charges: 2, castMs: 0, targeting: { kind: "self" }, shape: { kind: "none" }, effects: [] }],
+  } as const;
+  beforeAll(() => {
+    (ABILITY_IDS as AbilityId[]).push(SPELL);
+    (ABILITIES as Record<string, unknown>)[SPELL] = def;
+  });
+  afterAll(() => {
+    (ABILITY_IDS as AbilityId[]).pop();
+    delete (ABILITIES as Record<string, unknown>)[SPELL];
+  });
+
+  function holding(spell: string) {
+    const w = castable("fire");
+    Object.assign(w.me, { extra: { spell, spellReadyAt: 0, spellFullAt: 0, wishFullAt: 0 } });
+    const spellDeny = vi.fn();
+    (w.raid as unknown as { spellSlot: unknown }).spellSlot = { deny: spellDeny, update: () => {} };
+    vi.stubGlobal("document", { activeElement: null });
+    const key = (code: string) => (w.raid as unknown as { handleKey(e: unknown): void }).handleKey({
+      code, repeat: false, ctrlKey: false, metaKey: false, altKey: false, target: null, preventDefault: () => {},
+    });
+    return { ...w, spellDeny, key };
+  }
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("either Shift casts the held spell on slot \"spell\", with an order number; R still casts the Wish", () => {
+    const { key, castSent } = holding(SPELL);
+    key("ShiftLeft");
+    expect(castSent()).toHaveLength(1);
+    expect(castSent()[0]).toMatchObject({ slot: "spell" });
+    expect(typeof castSent()[0]!.seq).toBe("number");
+    const second = holding(SPELL);
+    second.key("ShiftRight");
+    expect(second.castSent()[0]).toMatchObject({ slot: "spell" });
+  });
+
+  it("an empty slot sends nothing (nothing found yet, or an id that is no spell)", () => {
+    for (const held of ["", "blaze"]) {
+      const { key, castSent } = holding(held);
+      key("ShiftLeft");
+      expect(castSent()).toEqual([]);
+    }
+  });
+
+  it("a spell with every use out says when it is back, and sends nothing", () => {
+    const { key, castSent, spellDeny, me } = holding(SPELL);
+    Object.assign(me.extra as Record<string, number>, { spellReadyAt: 5000, spellFullAt: 13_000 });
+    key("ShiftLeft");
+    expect(castSent()).toEqual([]);
+    expect(spellDeny).toHaveBeenCalledTimes(1);
+    expect(String(spellDeny.mock.calls[0]![0])).toMatch(/^Ready in /);
   });
 });

@@ -22,9 +22,11 @@ export type PlayerStatus = "lobby" | "alive" | "dead" | "mia";
  * A chest holds one weapon and stays (opened) once emptied; a ground weapon vanishes when taken; a body holds what a
  * fallen player carried. A "reward" (roguelike R5) is a cleared camp's shared skill chest: no items, its options in the
  * container's `options`/`takenBy`/`pickers`, taken with `choose` (never `pickup`), gone at `expiresAt`. A "quest"
- * container holds a quest token or parcel (shared/quests.ts): picking it up never changes the weapon slots.
+ * container holds a quest token or parcel (shared/quests.ts): picking it up never changes the weapon slots. A "spell" is one
+ * found spell (shared/spells.ts): its one item's `def` is the spell's AbilityId and its `readyAt` the copy's reload clock; picking
+ * it up puts it in the spell slot, and the spell held before lies down in its place with its own clock.
  */
-export type ContainerKind = "chest" | "ground" | "body" | "reward" | "quest" | "consumable" | "cannon";
+export type ContainerKind = "chest" | "ground" | "body" | "reward" | "quest" | "consumable" | "cannon" | "spell";
 
 /**
  * Client -> server. Keys are the Colyseus message types. Angles are radians on the ground plane, measured from where

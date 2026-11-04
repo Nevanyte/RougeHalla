@@ -62,7 +62,8 @@ export function abilityTip(
   const cooldown = cooldownMs ?? abilityCooldownMs(def, rank, context);
   const time = cooldown >= 60_000 ? `${num(cooldown / 60_000)} min` : `${num(cooldown / 1000)} s`;
   const charges = maxCharges(def, rank);
-  lines.push(charges > 1 ? `Charges: up to ${charges}, one back every ${time}` : `Cooldown: ${time}`);
+  if (def.kind === "spell") lines.push(charges > 1 ? `Reload: ${charges} uses, one back every ${time}` : `Reload: ${time}`);
+  else lines.push(charges > 1 ? `Charges: up to ${charges}, one back every ${time}` : `Cooldown: ${time}`);
   return lines.join("\n");
 }
 

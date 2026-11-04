@@ -15,6 +15,7 @@ import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema
 import { dropStatChest } from "./chests";
 import { pickConsumable, useCannon } from "./consumables";
 import { setSlot, slotItem } from "./combatant";
+import { takeSpell } from "./spells";
 import { hasFlag } from "./mods";
 import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
 import { actionBlocked } from "./status";
@@ -145,6 +146,8 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   // Movement reach, not sight: a hand does not go through a fence (centres 56 u apart across one tile, INTERACT_RANGE 56).
   if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
   if (box.kind === "cannon") { useCannon(world, c, box); return; }
+  // A spell find goes in the spell slot, never a weapon slot (sim/spells.ts).
+  if (box.kind === "spell") { takeSpell(world, c, box); return; }
   if (box.kind === "chest") {
     // The first opening of one of the few stat crates offers 1 of 3 stat boosts (sim/chests.ts), contested for CHEST_SECONDS.
     if (!box.opened && crateHoldsStatChest(world, box.id)) dropStatChest(world, box);

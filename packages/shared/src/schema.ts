@@ -33,6 +33,11 @@ export const PlayerExtraState = schema({
    * order or another fighter's act: a lower bound. Clients draw a remote player ahead only while it is 1 or more.
    */
   walkTicks: t.uint8().default(0),
+  /** The spell held in the spell slot (key Shift; shared/spells.ts): an AbilityId of kind "spell", "" = none. One at a time. */
+  spell: t.string().default(""),
+  /** The spell slot's ready time and its reload's stock clock (slotReadyAt / slotFullAt in abilities.ts; 0 = ready / full). */
+  spellReadyAt: t.uint32().default(0),
+  spellFullAt: t.uint32().default(0),
 }, "PlayerExtraState");
 export type PlayerExtraState = SchemaType<typeof PlayerExtraState>;
 
@@ -283,7 +288,7 @@ export const ContainerState = schema({
   takenBy: t.array("string"),
   /** Every player who has made their one pick here, an option or a skip, in the order they made it. */
   pickers: t.array("string"),
-  /** Travel cannon cooldown and destination; zero on ordinary containers. */
+  /** Travel cannon cooldown and destination; zero on ordinary containers. A "spell" find: its copy's reload clock (when all its charges are back). */
   readyAt: t.uint32().default(0),
   targetX: t.float32().default(0),
   targetY: t.float32().default(0),

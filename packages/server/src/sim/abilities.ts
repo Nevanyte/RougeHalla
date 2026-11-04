@@ -16,7 +16,8 @@
 import {
   ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, bushAt, circleClear, MASK_MOVE, PLAYER_RADIUS, segmentClear, wallCells, wallSegmentFor, BUSH_REVEAL_MS, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
   GALLOWS_PATIENCE_EXTRA_MS, GALLOWS_PATIENCE_STUN_MS, hasLineOfSight,
-  HIDDEN_REVEAL_MS, MAX_REWIND_MS, maxCharges, rankOf, setSlotReadyAt, slotReadyAt, spendCharge, TICK_MS, WISH_LOCK_SECONDS,
+  HIDDEN_REVEAL_MS, MAX_REWIND_MS, maxCharges, rankOf, setSlotFullAt, setSlotReadyAt, slotFullAt, slotHasStock, slotReadyAt, spendCharge, TICK_MS,
+  WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
   type Vec2,
 } from "@raid/shared";
@@ -162,15 +163,15 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   }
 
   const prevReadyAt = slotReadyAt(c.s, cmd.slot);
-  const prevFullAt = c.s.extra.wishFullAt;
-  // For a charged Wish the cooldown is one charge's recharge: a cast takes one off the stock clock and the slot is ready again when
-  // a charge is in hand (with a single charge this is exactly now + cooldown).
+  const prevFullAt = slotFullAt(c.s, cmd.slot);
+  // For a charged ability the cooldown is one charge's recharge (a spell's reload): a cast takes one off the slot's stock clock and
+  // the slot is ready again when a charge is in hand (with a single charge this is exactly now + cooldown).
   const cooldownMs = abilityCooldownMs(def, rank, { training: world.config.training === true, wishCooldownMult: wishCooldownMultOf(c.s) });
-  if (cmd.slot === "wish") {
-    // With one charge the stock clock is the ready time itself (nothing else to trust).
+  if (slotHasStock(cmd.slot)) {
+    // A single-charge Wish keeps no clock but its ready time (nothing else to trust); a spell's clock is its copy's, always kept.
     const max = maxCharges(def, rank);
-    const spent = spendCharge(max > 1 ? c.s.extra.wishFullAt : 0, now, max, cooldownMs);
-    c.s.extra.wishFullAt = spent.fullAt;
+    const spent = spendCharge(max > 1 || cmd.slot === "spell" ? prevFullAt : 0, now, max, cooldownMs);
+    setSlotFullAt(c.s, cmd.slot, spent.fullAt);
     setSlotReadyAt(c.s, cmd.slot, spent.readyAt);
   } else setSlotReadyAt(c.s, cmd.slot, now + cooldownMs);
   // Wishful Thinking shortens this cooldown, never under half of it (G13): it needs to know when the Wish was spent and for how long.
@@ -224,7 +225,7 @@ export function cancelCast(world: World, c: Combatant, reason: CastEndReason, re
   world.hooks.castEnded?.(world, c, cast.ability, reason);
   if (refund && c.kind === "player") {
     setSlotReadyAt(c.s, cast.slot, cast.prevReadyAt);
-    if (cast.slot === "wish" && cast.prevFullAt !== undefined) c.s.extra.wishFullAt = cast.prevFullAt;
+    if (cast.prevFullAt !== undefined) setSlotFullAt(c.s, cast.slot, cast.prevFullAt);
   }
   c.rt.cast = null;
   refreshEffects(world, c);

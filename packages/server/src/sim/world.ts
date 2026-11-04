@@ -196,7 +196,7 @@ export interface CastRuntime {
   landing: Vec2 | null;
   /** The slot's ready time before the cast spent it, restored when the arena cancels the cast. */
   prevReadyAt: number;
-  /** The Wish stock clock (wishFullAt) before the cast, restored with prevReadyAt on a refund. */
+  /** The slot's stock clock (slotFullAt: the Wish's charges, the spell's reload) before the cast, restored with prevReadyAt on a refund. */
   prevFullAt?: number;
   /** From the cast's `t`, clamped like a weapon's lag; unused until skills rewind. */
   lagMs: number;
@@ -698,6 +698,8 @@ export interface WorldHooks {
   mobKilled?(world: World, killer: PlayerRuntime, mob: { type: MobTypeId; zone: FactionId; camp: number; elite: boolean; at: Vec2 }): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it): a Sentenced's mark on it climbs. */
   weaponSwapped?(world: World, c: Combatant): void;
+  /** A player took a spell find into the spell slot (sim/spells.ts), the one held before already laid down. */
+  spellTaken?(world: World, c: Combatant, spell: AbilityId): void;
   /**
    * A tier-4 mark just blocked execute damage on `victim` (the Sentenced): `denied` maps each foe whose execute was cut to the damage
    * (after mitigation) that was held back. Called after the ledger pass (payLater), once per victim per pass.
@@ -1063,7 +1065,7 @@ type ChainableHook =
   | "fighterOut" | "runEnded" | "attackStarted" | "inputsApplied" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled"
   | "blocked" | "overkilled" | "executeDenied"
   | "healed" | "rewardOffered" | "rewardChosen" | "consumableUsed" | "consumableGranted" | "questAccepted" | "questCompleted"
-  | "castAccepted" | "castEnded";
+  | "castAccepted" | "castEnded" | "spellTaken";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

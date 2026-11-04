@@ -39,7 +39,7 @@ function rig() {
     trainingBar:view,deathPending:()=>false,markIsDim:()=>false,ground:{statesOf:()=>({}),forget:noop},projectiles:view,fieldView:view,syncContainers:noop,updateChestPanel:noop,updateQuestDialog:noop,
     questView:view,questLog:{trackedId:null,update:noop,setDestination:noop},updateTargets:noop,opponentInspector:view,traderPanel:view,traderView:view,
     streamAim:noop,fx:view,wishFx:view,trackArenaDamage:noop,feedback:view,hud:{...view,setTerrain:noop},weaponBar:view,
-    updateWishSlot:noop,updatePlanning:noop,trackRoute:noop,
+    updateAbilitySlots:noop,updatePlanning:noop,trackRoute:noop,
   });
   return {scene,state,me,foe,mob,frame:(time:number)=>{now=time;state.serverTime=time;scene.update(time);}};
 }

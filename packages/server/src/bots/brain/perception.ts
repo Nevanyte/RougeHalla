@@ -59,7 +59,7 @@ export interface FighterLike {
 export interface PlayerLike extends FighterLike {
   readonly name: string;
   /** PlayerState.extra (the child that holds the fields past Colyseus's 63-field limit); only what a client reads. */
-  readonly extra?: { readonly bushRevealUntil?: number };
+  readonly extra?: { readonly bushRevealUntil?: number; readonly spell?: string; readonly spellReadyAt?: number; readonly spellFullAt?: number };
   readonly bot: boolean;
   readonly barrier: number;
   readonly bounty: number;
@@ -307,6 +307,7 @@ export function detectFeatures(probe: FeatureProbe): Features {
     planning: accepts("plan"),
     chests: accepts("choose"),
     skills: accepts("cast") && has(player, "qReadyAt") && has(player, "eReadyAt") && skillSlotsFilled(),
+    spells: accepts("cast") && has((player as { extra?: object } | null)?.extra, "spell"),
     relics: has(player, "build"),
     camps: has(probe.state, "camps"),
     hazards,
@@ -693,6 +694,7 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   if (effects) extras.effects = effects;
   const wish = ctx.features.wishes && me ? wishView(me) : null;
   if (wish) extras.wish = wish;
+  if (ctx.features.spells && me) extras.spell = spellView(me);
   if (ctx.features.fields && state.fields) extras.fields = seeFields(state.fields, seen, sx, sy);
   if (ctx.features.chests) extras.chests = seeChests(state, ctx.map, self, selfId, canSee);
   if (ctx.features.camps && state.camps) extras.camps = seeCamps(state.camps, ctx.map, ctx.canSee !== undefined, selfId);
@@ -706,6 +708,16 @@ function wishView(me: PlayerLike): WishView | null {
   if (!slot) return null;
   return {
     ability: slot.def.id, def: slot.def, rank: slot.rank, readyAt: u32(me.wishReadyAt ?? 0),
+    casting: ((me.effects ?? 0) & EFFECT_CASTING) !== 0,
+  };
+}
+
+/** The spell slot as the weapon bar shows it: the spell held (null: none), when it is ready (a use in hand), whether a cast is under way. */
+function spellView(me: PlayerLike): WishView | null {
+  const slot = abilityInSlot(me, "spell");
+  if (!slot) return null;
+  return {
+    ability: slot.def.id, def: slot.def, rank: slot.rank, readyAt: u32(me.extra?.spellReadyAt ?? 0),
     casting: ((me.effects ?? 0) & EFFECT_CASTING) !== 0,
   };
 }
@@ -759,6 +771,12 @@ function seeContainers(state: StateLike, map: GameMap, self: SelfView, near: (x:
       // A chest (or a newer kind) is drawn shut while it holds a weapon.
       closed = firstWeapon(b.c) !== null;
       weapon = closed ? undefined : null;
+    }
+    if (b.kind === "spell") {
+      // A spell find: its rune shows which spell it is, and F reaches it like a weapon (the pickup names its id).
+      const spell = b.c.items?.at(0)?.def;
+      out.push({ id: b.id, kind: b.kind, x: b.x, y: b.y, label: "", closed: true, weapon: null, interactable: b.reach, ...(spell ? { spell } : {}) });
+      continue;
     }
     out.push({
       id: b.id, kind: b.kind, x: b.x, y: b.y, label: b.kind === "body" ? b.c.label : "", closed, weapon, interactable: isTarget,

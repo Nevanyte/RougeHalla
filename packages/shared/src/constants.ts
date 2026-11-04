@@ -695,6 +695,12 @@ export const PLAYER_REGEN_SHARE_IN = 0;
 /** Time since the last hit dealt or taken after which the out-of-combat pace applies (the heal lockout's length). */
 export const PLAYER_REGEN_QUIET_MS = 3000;
 
+// --- Spells (shared/spells.ts, sim/spells.ts): found on the map, one held at a time in the spell slot (key Shift) ---
+/** Spell finds placed in each zone when the run starts (none while no spell exists). Best guess: about 1 a player on a full map. */
+export const SPELL_FINDS_PER_ZONE = 2;
+/** A spell find stays this far (tiles, centre to centre) from every other container placed at run start, a weapon on its ground spot included. */
+export const SPELL_FIND_CLEARANCE_TILES = 2;
+
 // Stat chests: a few world crates offer 1 of 3 multiplicative stat boosts (shared/src/chestBoosts.ts). A camp clear never drops one.
 /** How many crates of a map hold a stat chest (best guess: far rarer than the ~25 crates). Chosen privately from the world's secret salt; the rest give only their potion. */
 export const STAT_CHEST_CRATES_PER_MAP = 3;

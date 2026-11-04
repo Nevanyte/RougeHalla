@@ -32,7 +32,7 @@ export function floorPoint(i = 0): Vec2 {
 export function features(over: Partial<Features> = {}): Features {
   return {
     messageTypes: CORE_MESSAGES, wishes: false, statusEffects: false, fields: false, planning: false, chests: false,
-    skills: false, relics: false, camps: false, hazards: false, ...over,
+    skills: false, spells: false, relics: false, camps: false, hazards: false, ...over,
   };
 }
 

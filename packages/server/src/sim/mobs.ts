@@ -10,6 +10,7 @@ import { MobState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import { InputQueue } from "./inputs";
 import { dropWeapon } from "./loot";
+import { dropSpell, trainingSpells } from "./spells";
 import { planPath } from "./movement";
 import { chainHook, collisionMap, newWeaponRuntime, nextId, type World } from "./world";
 
@@ -151,6 +152,11 @@ export function spawnTraining(world: World): void {
       const at = spots[i];
       if (at) dropWeapon(world, at, def);
     });
+    // And one find of every spell (none exist yet): a swap lays the held one down in its place, so the rack keeps them all.
+    for (const spell of trainingSpells()) {
+      const at = nearest(() => true);
+      if (at) dropSpell(world, at, spell);
+    }
   }
 }
 

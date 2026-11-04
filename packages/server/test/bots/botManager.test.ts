@@ -682,7 +682,7 @@ describe("the delay line", () => {
   it("never sends a message the server does not take", () => {
     const only: Features = {
       messageTypes: ["move", "stop"], wishes: false, statusEffects: false, fields: false, planning: false, chests: false,
-      skills: false, relics: false, camps: false, hazards: false,
+      skills: false, spells: false, relics: false, camps: false, hazards: false,
     };
     const { w, m, loop, ids, by } = scriptedRun(1, {}, { features: only });
     by.get(ids[0]!)!.todo = [click(w.state.serverTime, lock("x")), click(w.state.serverTime, move(5))];
