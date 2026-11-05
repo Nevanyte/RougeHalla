@@ -56,6 +56,13 @@ edit an applied migration.
   `node --import tsx tools/persist-fixtures/cosmetics.ts --check`. This is profile/API support; publishing equipped looks
   in live snapshots and Unity is still pending.
 
+## Account service reads
+
+`account.rs` adds the leaderboard rows (equipped title included), the owner's rank (`row_number()` over the same ordering as
+the listing, `gv DESC, callsign COLLATE "C"`), the month list, `ping`, `Error::is_unavailable` and `Store::gv_epoch` (bumped
+after COMMIT by every result that credits GV; leaderboard caches compare it). Token hashes are compared with `ct_eq`.
+The HTTP routes are in `rh-server` (`api.rs`, ADR 0006 addendum).
+
 ## Admin tool
 
 ```

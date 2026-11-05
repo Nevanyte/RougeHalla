@@ -10,6 +10,7 @@
 //!
 //! Achievement rules read durable counters and grant ids/cosmetics inside the result transaction.
 
+pub mod account;
 pub mod achievements;
 pub mod admin;
 pub mod cosmetics;
@@ -68,6 +69,15 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Constant-time equality for secrets (token hashes): the time does not depend on where the first difference is.
+pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = a.len() ^ b.len();
+    for i in 0..a.len().max(b.len()) {
+        diff |= usize::from(a.get(i).copied().unwrap_or(0) ^ b.get(i).copied().unwrap_or(0));
+    }
+    diff == 0
+}
+
 pub fn hash_token(token: &str) -> [u8; 32] {
     Sha256::digest(token.as_bytes()).into()
 }
@@ -121,6 +131,9 @@ pub enum EquipOutcome {
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
+    /// Bumped (after COMMIT) whenever a result transaction credits GV; clones of the store share it. Leaderboard caches
+    /// compare it to know when to drop (see `account.rs`). Other hosts' credits are not seen here: caches also expire.
+    gv_epoch: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
 type ProfileRow = (
@@ -155,13 +168,16 @@ impl Store {
             .acquire_timeout(Duration::from_secs(30))
             .connect(url)
             .await?;
-        let store = Store { pool };
+        let store = Store::from_pool(pool);
         store.check_schema().await?;
         Ok(store)
     }
 
     pub fn from_pool(pool: PgPool) -> Store {
-        Store { pool }
+        Store {
+            pool,
+            gv_epoch: Default::default(),
+        }
     }
 
     pub fn pool(&self) -> &PgPool {
@@ -256,7 +272,7 @@ impl Store {
         .bind(callsign)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.and_then(|(id, stored)| (stored == hash_token(token)).then_some(id)))
+        Ok(row.and_then(|(id, stored)| ct_eq(&stored, &hash_token(token)).then_some(id)))
     }
 
     pub async fn get_profile(&self, callsign: &str) -> Result<Option<Profile>> {
@@ -621,6 +637,29 @@ impl Store {
         crash: bool,
         ended_at_ms: Option<i64>,
     ) -> Result<RecordOutcome> {
+        let out = self
+            .record_inner_tx(match_id, pid, fence, r, meta, crash, ended_at_ms)
+            .await;
+        if let Ok(RecordOutcome::Applied { gv_credited, .. }) = &out {
+            if *gv_credited > 0 {
+                self.gv_epoch
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        out
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn record_inner_tx(
+        &self,
+        match_id: Uuid,
+        pid: i64,
+        fence: i64,
+        r: &MatchResult,
+        meta: &MatchMeta,
+        crash: bool,
+        ended_at_ms: Option<i64>,
+    ) -> Result<RecordOutcome> {
         let mut tx = self.pool.begin().await?;
         // The lease row is the per-profile mutex: everything below runs serialized per callsign.
         let lease: Option<(Uuid, i64, bool)> = sqlx::query_as(
@@ -921,7 +960,9 @@ async fn locked_authorized(
     .bind(callsign)
     .fetch_optional(conn)
     .await?;
-    Ok(row.filter(|(_, h)| *h == hash_token(token)).map(|(c, _)| c))
+    Ok(row
+        .filter(|(_, h)| ct_eq(h, &hash_token(token)))
+        .map(|(c, _)| c))
 }
 
 /// Counts and GV from the sim are whole and non-negative; anything else counts as 0 (legacy `wholeAmount`).

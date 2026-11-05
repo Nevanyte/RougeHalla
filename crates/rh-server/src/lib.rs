@@ -1,6 +1,7 @@
 //! Roguehalla live server: the thin adapter between sockets/wall clock/hosting and the deterministic core (rh-sim).
 //! See docs/CONTRACTS.md (C-NET, C-TICK) and docs/adr/0002-transport-and-protocol.md, 0004-hosting.md.
 
+pub mod api;
 pub mod conn;
 pub mod director;
 pub mod hosting;
@@ -39,6 +40,12 @@ pub fn public_router(director: Arc<Director>) -> Router {
         .route("/ping", get(ping))
         .route("/probe", get(|| async { Html(PROBE_PAGE) }))
         .with_state(director)
+}
+
+/// [`public_router`] plus the account service (`/api/*`, `/readyz`): profile claim/open, shop, leaderboard, health. Serve it
+/// with [`serve`], which provides the peer address the per-address caps are keyed by.
+pub fn public_router_with_api(director: Arc<Director>, api: api::AccountApi) -> Router {
+    public_router(director.clone()).merge(api::router(director, api))
 }
 
 /// The local control listener for the hosting bridge (bind it to 127.0.0.1 only).
@@ -178,7 +185,7 @@ pub async fn serve_with(
     handle: Handle,
     acceptor: NoDelay,
 ) -> io::Result<()> {
-    let svc = router.into_make_service();
+    let svc = router.into_make_service_with_connect_info::<SocketAddr>();
     match tls {
         Some(cfg) => {
             axum_server::bind(bind)

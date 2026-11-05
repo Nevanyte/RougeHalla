@@ -4,6 +4,10 @@
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
+//!       [--new-profiles-per-hour 30] [--new-profiles-per-ip-per-hour 10] [--passcode-fails-per-minute 6]
+//!       [--passcode-fails-per-minute-all 40] [--shop-burst 6] [--shop-per-second 3] [--api-timeout-secs 10]
+//!       [--leaderboard-ttl-secs 5] [--api-cors-origins '*'|origin,origin] [--client-ip-header NAME [--trusted-proxies ip,ip]]
+//!       (account API: PLAYTEST_PASSCODE env sets the claim passcode; 0 disables a limit; see docs/adr/0006-persistence.md)
 //!       [--lease-ttl-secs 120] [--lease-renew-secs 30] [--lease-db-timeout-secs 5]
 //!       [--result-spool <dir> [--result-spool-max 4096] [--result-retry-secs 900]]   (needs postgres + --database-url)
 //!
@@ -15,6 +19,7 @@
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
 //! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits.
 
+use rh_server::api::{AccountApi, ApiConfig, CorsPolicy};
 use rh_server::director::{Director, DirectorConfig, LeasePolicy};
 use rh_server::hosting::Lifecycle;
 use rh_server::persist::{Auth, Persistence};
@@ -118,6 +123,68 @@ fn lease_policy(args: &[String]) -> Result<LeasePolicy, String> {
     Ok(policy)
 }
 
+/// Account API settings. The passcode comes from `PLAYTEST_PASSCODE` (the legacy name), never from argv, so it cannot show in a
+/// process list. A limit of 0 turns that guard off (an edge limiter then owns it).
+fn api_config(args: &[String]) -> Result<ApiConfig, String> {
+    let mut cfg = ApiConfig {
+        passcode: std::env::var("PLAYTEST_PASSCODE")
+            .ok()
+            .filter(|p| !p.is_empty()),
+        ..ApiConfig::default()
+    };
+    let int = |name: &str, default: u32| -> Result<u32, String> {
+        match arg(args, name) {
+            None => Ok(default),
+            Some(v) => v
+                .parse()
+                .map_err(|_| format!("{name} requires a non-negative whole number")),
+        }
+    };
+    cfg.new_profiles_per_hour = int("--new-profiles-per-hour", cfg.new_profiles_per_hour)?;
+    cfg.new_profiles_per_ip_per_hour = int(
+        "--new-profiles-per-ip-per-hour",
+        cfg.new_profiles_per_ip_per_hour,
+    )?;
+    cfg.passcode_fails_per_minute =
+        int("--passcode-fails-per-minute", cfg.passcode_fails_per_minute)?;
+    cfg.passcode_fails_per_minute_all = int(
+        "--passcode-fails-per-minute-all",
+        cfg.passcode_fails_per_minute_all,
+    )?;
+    cfg.shop_burst = f64::from(int("--shop-burst", cfg.shop_burst as u32)?);
+    cfg.shop_per_second = f64::from(int("--shop-per-second", cfg.shop_per_second as u32)?);
+    cfg.request_timeout = Duration::from_secs(u64::from(int("--api-timeout-secs", 10)?.max(1)));
+    cfg.leaderboard_ttl = Duration::from_secs(u64::from(int("--leaderboard-ttl-secs", 5)?));
+    if let Some(list) = arg(args, "--api-cors-origins") {
+        cfg.cors = if list.trim() == "*" {
+            CorsPolicy::Any
+        } else {
+            CorsPolicy::Origins(
+                list.split(',')
+                    .map(|o| o.trim().trim_end_matches('/').to_ascii_lowercase())
+                    .filter(|o| !o.is_empty())
+                    .collect(),
+            )
+        };
+    }
+    if let Some(name) = arg(args, "--client-ip-header") {
+        cfg.client_ip_header = Some(
+            name.parse()
+                .map_err(|_| format!("--client-ip-header: {name:?} is not a header name"))?,
+        );
+    }
+    if let Some(list) = arg(args, "--trusted-proxies") {
+        for p in list.split(',').filter(|p| !p.trim().is_empty()) {
+            cfg.trusted_proxies.push(
+                p.trim()
+                    .parse()
+                    .map_err(|_| format!("--trusted-proxies: {p:?} is not an IP address"))?,
+            );
+        }
+    }
+    Ok(cfg)
+}
+
 #[tokio::main]
 async fn main() {
     // One explicit TLS crypto provider (ring): with none selected rustls panics at the first handshake.
@@ -176,6 +243,17 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    let api_cfg = api_config(&args).unwrap_or_else(|e| {
+        eprintln!("[server] invalid account API settings: {e}");
+        std::process::exit(2);
+    });
+    #[cfg(feature = "postgres")]
+    let account = match &auth {
+        Auth::Postgres(store) => AccountApi::postgres(store.clone(), api_cfg),
+        _ => AccountApi::disabled(api_cfg),
+    };
+    #[cfg(not(feature = "postgres"))]
+    let account = AccountApi::disabled(api_cfg);
     #[cfg(feature = "postgres")]
     let spool = match spool_settings(&args) {
         Ok(None) => None,
@@ -232,7 +310,7 @@ async fn main() {
     // the background against the database: an outage delays the replay, never startup or a tick.
     #[cfg(feature = "postgres")]
     director.recover_spooled();
-    let app = rh_server::public_router(director.clone());
+    let app = rh_server::public_router_with_api(director.clone(), account);
 
     if let Some(control) = arg(&args, "--control") {
         let addr: SocketAddr = control.parse().expect("--control");

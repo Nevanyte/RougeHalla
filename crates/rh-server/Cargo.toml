@@ -24,6 +24,7 @@ rh-policy = { path = "../rh-policy" }
 rh-headless = { path = "../rh-headless" }
 rh-persist = { path = "../rh-persist", optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
+sha2 = "0.10"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "signal"] }
 axum = { version = "0.8", features = ["ws"] }
 axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }

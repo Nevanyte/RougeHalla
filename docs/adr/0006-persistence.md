@@ -172,3 +172,61 @@ existing assertions are untouched; no schema change.
 
 An actual managed-database failover (Aurora), host replacement, power-loss durability, pool exhaustion under load, and
 a spool on a network filesystem (whose rename/fsync semantics were not examined; use a local filesystem).
+
+## Addendum: account HTTP service (P-PERSIST-2 REST, P-PERSIST-3 leaderboard, P-PERSIST-5 guards)
+
+**Placement.** The legacy `/api/*` contracts are served by `rh-server` on the PUBLIC listener beside `/ws`
+(`rh_server::public_router_with_api`, code in `crates/rh-server/src/api.rs`), not by a separate service and never on the control
+listener. Reasons: one process already holds the pool and the catalog, the browser client addresses one origin per region
+(`apiBase()`), and a separate `rh-api` would add a deploy unit with no isolation gain (all writers share one primary anyway).
+The module has no dependency on the director, so it can be lifted into its own binary if the edge later wants that; the routes are
+a plain `Router`.
+
+**Contracts** (legacy `index.ts`, status codes and JSON shapes kept; the legacy TypeScript client works unchanged):
+`GET /api/profile/:name` claims a free name (fresh 256-bit random token, 64 hex characters, returned once; only SHA-256 is
+stored) or opens it with `x-profile-token` (else 403). The open response echoes the CALLER'S OWN presented token because the legacy
+client persists `token` from every profile response; no stored secret exists to leak, and no other profile's token appears anywhere.
+Passcode (`PLAYTEST_PASSCODE` environment variable, never argv) and the new-profile caps apply to claims only; the caps (30 per
+hour total, 10 per address) are reserved before the insert and refunded when no name was created. Purchase and equip validate the
+cosmetic id and slot against the Rust catalog before the atomic `Store::purchase`/`equip` calls. Leaderboard: UTC month key, repeated or malformed `month`
+is 400, `limit` follows the legacy regex and clamp 1..=100, `you` only with the named profile's own token. Bodies are capped at
+1 KiB and parsed as strict JSON (unknown fields, trailing bytes and non-objects are 400, wrong media type 415, too large 413).
+Whole requests are bounded by `--api-timeout-secs` (default 10; 408).
+
+**Idempotency.** The legacy contract has no purchase id. Idempotency is by ownership: under the profile row lock a second
+purchase of an owned item answers 409 `already_owned` and never debits twice; concurrent purchases serialise on that lock, so
+GV cannot be spent twice (tested with 24 parallel requests). An optional `Idempotency-Key: <uuid>` header (an extension) becomes
+the durable `purchases.purchase_id`: a retry of the same key and item returns 200 with the same single debit, a key reused for
+another item is 409. A request cancelled by a client or the timeout is a rolled-back or committed transaction, never a partial one.
+
+**Leaderboard cache and invalidation.** Pages (top 100 per month, plus the month list) are cached per month. `Store` carries a
+GV-credit epoch (`Store::gv_epoch`, shared by its clones); `record_inner` bumps it after COMMIT whenever a result credits GV, so the
+result writer (director, any room) invalidates the cache without calling into the API. The epoch is read BEFORE the query and
+stored with the page, so a credit that lands mid-query makes the page stale rather than the new epoch masking it. Credits made by
+OTHER hosts are not visible to this process: `--leaderboard-ttl-secs` (default 5) bounds that staleness. Months with no GV are
+not cached. `you` is computed per request, uncached. Purchases never touch the board (GV earned, not balance, is ranked).
+
+**Rate limits and addresses.** Limits live in `api/limits.rs` and are called by handlers; each is disabled by a 0, which is how an
+edge limiter takes over. They are per process (N hosts allow N times the caps). Caps key on the TCP peer address; a forwarded
+header (`--client-ip-header`) is read only from a loopback or `--trusted-proxies` peer, a repeated header counts as absent, a
+comma list uses its last entry; `X-Forwarded-For` is otherwise never trusted. Wrong passcodes are throttled before comparison
+(6/min per address, 40/min total); the passcode and token hashes are compared in constant time (`ct_eq`, also now used for token
+hashes in `rh-persist`). Shop bucket (burst 6, 3/s) is per profile id and charged only after the token is proven.
+
+**CORS.** The legacy server answered `*` in development and an allowlist only when hosting. The Rust default is the safe one: no
+allow header unless `--api-cors-origins` lists origins (or `*` for development); no credentials header is ever sent.
+
+**Memory mode.** Without `--database-url` (or without the `postgres` feature) profile, shop and leaderboard routes answer 503
+`storage_unavailable` with a plain message; `/api/health` stays 200 and `/readyz` reports `storage: memory`. There is no in-memory
+account store: it would be a second implementation of the money rules.
+
+**Health.** `/api/health` is `{ok:true}`. `/readyz` is 200 only while the lifecycle is `ready` (not starting or draining) and a
+bounded `SELECT 1` (cached 1 s) succeeds; the body names the lifecycle state and `ok|unavailable|memory`, nothing else (no DSN,
+no counts). Storage outages answer 503 with `Retry-After`; a claim whose insert failed issues no token.
+
+**Not covered / still open.** Hyper header-read (slowloris) timeouts and TLS-level limits are the edge's job; no per-address limit
+exists for requests with invalid tokens (a flood costs one indexed lookup each); lobby presence and matchmaking `/api/lobby*`
+are not ported (404); pool exhaustion and Aurora failover remain P-PERSIST-4. A claim whose response is lost leaves the name
+claimed with an unrecoverable token, as in the legacy server (the legacy 503 body returned the token; the Rust server issues none on failure).
+Evidence: `crates/rh-server/tests/account_api.rs` (11 tests, real PostgreSQL through the real router), `account_api_memory.rs`,
+`crates/rh-persist/tests/account.rs`.
