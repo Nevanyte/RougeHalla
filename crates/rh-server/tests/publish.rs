@@ -91,7 +91,7 @@ fn reference(
             }),
             SeenEvent::Hit { victim, by, amount } => fx.push(WireFx::Hit {
                 victim: victim.0,
-                by: by.0,
+                by: by.map_or(u32::MAX, |b| b.0),
                 amount: amount as f32,
             }),
         }

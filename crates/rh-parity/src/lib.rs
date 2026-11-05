@@ -568,7 +568,8 @@ fn canon(e: &Event) -> Option<Value> {
             amount,
             weapon,
         } => {
-            json!({"kind": "hit", "id": fid(*victim), "by": fid(*by), "amount": amount, "weapon": weapon.as_str()})
+            // None is the legacy null: no fighter dealt it (`by`), no weapon dealt it (`weapon`).
+            json!({"kind": "hit", "id": fid(*victim), "by": by.map(fid), "amount": amount, "weapon": weapon.map(|w| w.as_str())})
         }
         Event::Death { id, by, .. } => json!({"kind": "death", "id": fid(*id), "by": by.map(fid)}),
         Event::Victory { id, draw } => json!({"kind": "victory", "id": id.map(fid), "draw": draw}),

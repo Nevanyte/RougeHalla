@@ -17,9 +17,12 @@ use crate::systems::{credit, settle, weapons, Cx};
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
     pub(crate) victim: PlayerId,
-    pub(crate) by: PlayerId,
+    /// Who dealt it; `None` for damage no fighter dealt (legacy `SUDDEN_DEATH_KILLER`, terrain). Such a hit takes no PvP
+    /// factor, gives no damage credit and no rival credit.
+    pub(crate) by: Option<PlayerId>,
     pub(crate) packet: Packet,
-    pub(crate) weapon: WeaponId,
+    /// What dealt it; `None` for damage no weapon dealt (an ability, a field).
+    pub(crate) weapon: Option<WeaponId>,
     pub(crate) stagger: bool,
 }
 
@@ -86,7 +89,7 @@ struct Bufs<'a> {
     idxs: &'a mut Vec<usize>,
     amounts: &'a mut Vec<f64>,
     order: &'a mut Vec<(usize, usize)>,
-    hits: &'a mut Vec<(f64, PlayerId)>,
+    hits: &'a mut Vec<(f64, Option<PlayerId>)>,
 }
 
 /// System (legacy step.ts, the ledger's opening): the entries a hook link deferred last tick (returned damage, Overkill's
@@ -140,7 +143,7 @@ pub(crate) fn apply(cx: &mut Cx) {
     mults.clear();
     for (n, e) in ledger.iter().enumerate() {
         let vslot = w.idx(e.victim);
-        let by_slot = w.idx(e.by);
+        let by_slot = e.by.and_then(|b| w.idx(b));
         entry_next.push(NONE);
         // The hit's place in the action order (anyone not in it, such as a leaver, after everyone), looked up once here.
         entry_rank.push(by_slot.and_then(|b| rank.get(b)).map_or(u32::MAX, |&r| r));
@@ -266,7 +269,7 @@ fn apply_victim(
 }
 
 /// Legacy `applyHits` for a player victim: the hits land together; the kill goes to the largest rival hit.
-fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
+fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f64 {
     let w = &mut *pass.w;
     let now = w.server_time;
     {
@@ -289,8 +292,8 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
             top = Some(h);
         }
         // A source still in the run (not resolved) is an attacker; anyone else is a name only.
-        if let Some(si) = w.idx(*by) {
-            if !w.players[si].resolved && *by != victim_id {
+        if let Some((si, by)) = by.and_then(|b| w.idx(b).map(|si| (si, b))) {
+            if !w.players[si].resolved && by != victim_id {
                 let src = &mut w.players[si];
                 if !src.credit.damaged.contains(&victim_id) {
                     src.credit.damaged.push(victim_id);
@@ -306,7 +309,7 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
     }
     let Some(top) = top else { return 0.0 };
     if let Some(r) = top_rival {
-        w.players[vi].credit.last_hit = Some((hits[r].1, now));
+        w.players[vi].credit.last_hit = hits[r].1.map(|b| (b, now));
     }
     let v = &mut w.players[vi];
     if v.vitals.barrier > 0.0 {
@@ -332,15 +335,17 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
         };
     }
     let killer = top_rival.unwrap_or(top);
-    let (_, kid) = &hits[killer];
-    let killer_idx = w.idx(*kid).filter(|&k| !w.players[k].resolved);
+    let kid = hits[killer].1;
+    let killer_idx = kid
+        .and_then(|k| w.idx(k))
+        .filter(|&k| !w.players[k].resolved);
     let killer_bot = killer_idx.map(|k| w.players[k].seat.bot).unwrap_or(false);
     let (vx, vy) = (w.players[vi].body.x, w.players[vi].body.y);
     {
         let v = &mut w.players[vi];
         // The killer, by id: the roster names it when the result is built (legacy: the attacker's name, or the source
         // name of one who already left).
-        v.fate.killed_by = Some(*kid);
+        v.fate.killed_by = kid;
         if killer_bot {
             v.fate.killed_by_bot = true;
         }
@@ -349,10 +354,10 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, PlayerId)]) -> f64 {
         id: victim_id,
         x: vx,
         y: vy,
-        by: killer_idx.map(|_| *kid),
+        by: killer_idx.and(kid),
     });
     let credited = match top_rival {
-        Some(r) => Some(hits[r].1),
+        Some(r) => hits[r].1,
         None => credit::recent_rival(w, vi, now),
     };
     if let Some(c) = credited {

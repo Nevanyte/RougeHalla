@@ -60,7 +60,7 @@ pub(crate) struct TickScratch {
     pub(crate) idxs: Vec<usize>,
     pub(crate) amounts: Vec<f64>,
     pub(crate) order: Vec<(usize, usize)>,
-    pub(crate) hits: Vec<(f64, PlayerId)>,
+    pub(crate) hits: Vec<(f64, Option<PlayerId>)>,
     /// Who still stands, collected only when the settle needs the ids (the end of a run).
     pub(crate) alive: Vec<PlayerId>,
     /// A path search's output, copied into the fighter's path when the order replaces it.

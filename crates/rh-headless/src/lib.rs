@@ -347,15 +347,23 @@ mod tests {
         let sim = env.sim;
         let hit = |amount| Event::Hit {
             victim: PlayerId(1),
-            by: PlayerId(2),
+            by: Some(PlayerId(2)),
             amount,
-            weapon: rh_sim::WeaponId::Fists,
+            weapon: Some(rh_sim::WeaponId::Fists),
         };
         let one = |events: &[Event]| {
             let mut d = digest::OutcomeDigest::new();
             d.tick(&sim, events);
             d.value()
         };
+        let free = Event::Hit {
+            victim: PlayerId(1),
+            by: None,
+            amount: 10.0,
+            weapon: None,
+        };
+        assert_ne!(one(&[hit(10.0)]), one(&[free.clone()]));
+        assert_eq!(one(&[free.clone()]), one(&[free]));
         assert_eq!(one(&[hit(10.0)]), one(&[hit(10.0)]));
         assert_ne!(one(&[hit(10.0)]), one(&[hit(10.000000000000002)]));
         assert_ne!(one(&[hit(10.0)]), one(&[]));

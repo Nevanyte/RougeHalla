@@ -138,9 +138,11 @@ impl OutcomeDigest {
             } => {
                 self.s("hit");
                 self.w(victim.0 as u64);
-                self.w(by.0 as u64);
+                // A fighter's hit folds exactly as before; a sourceless one folds as a source no id can be and a weapon
+                // name no weapon has.
+                self.w(by.map_or(u64::MAX, |b| b.0 as u64));
                 self.f(*amount);
-                self.s(weapon.as_str());
+                self.s(weapon.map_or("", |w| w.as_str()));
             }
             Event::Stagger { id } => {
                 self.s("stagger");

@@ -22,11 +22,14 @@ pub enum Event {
         y: f64,
         a: f64,
     },
+    /// `by` is `None` for damage no fighter dealt (sudden death, terrain) and `weapon` is `None` for damage no weapon
+    /// dealt (an ability, a field); every hit the slice produces has both. Names are resolved from the roster (players) or
+    /// content (future mob types) only when a result or a client needs them, never stored here.
     Hit {
         victim: PlayerId,
-        by: PlayerId,
+        by: Option<PlayerId>,
         amount: f64,
-        weapon: WeaponId,
+        weapon: Option<WeaponId>,
     },
     Stagger {
         id: PlayerId,
@@ -66,8 +69,11 @@ pub enum Visibility {
     Everyone,
     /// Observers who are the actor or can see it.
     IfSeen(PlayerId),
-    /// Observers who can see `seen`, or who are `by`.
-    IfSeenOrBy { seen: PlayerId, by: PlayerId },
+    /// Observers who can see `seen`, or who are `by` (nobody, when the source is `None`).
+    IfSeenOrBy {
+        seen: PlayerId,
+        by: Option<PlayerId>,
+    },
     /// Not part of any observation: server and persistence only, or delivered by a dedicated path (a player's own result).
     ServerOnly,
 }

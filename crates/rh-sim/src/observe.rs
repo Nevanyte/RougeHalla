@@ -67,7 +67,8 @@ pub enum SeenEvent {
     },
     Hit {
         victim: PlayerId,
-        by: PlayerId,
+        /// `None`: no fighter dealt it (sudden death, terrain).
+        by: Option<PlayerId>,
         amount: f64,
     },
     Death {
@@ -198,7 +199,7 @@ fn filter_events(
         let shown = match e.visibility() {
             Visibility::Everyone => true,
             Visibility::IfSeen(id) => can_see(id),
-            Visibility::IfSeenOrBy { seen, by } => can_see(seen) || Some(by) == me,
+            Visibility::IfSeenOrBy { seen, by } => can_see(seen) || (by.is_some() && by == me),
             Visibility::ServerOnly => false,
         };
         if shown {
@@ -452,9 +453,9 @@ mod tests {
             },
             Event::Hit {
                 victim: b,
-                by: a,
+                by: Some(a),
                 amount: 3.0,
-                weapon: WeaponId::Fists,
+                weapon: Some(WeaponId::Fists),
             },
             Event::Stagger { id: b },
             Event::Death {

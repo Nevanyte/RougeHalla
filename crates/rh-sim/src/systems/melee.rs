@@ -101,9 +101,9 @@ fn resolve_swings(cx: &mut Cx) {
             let victim = w.players[ti].id;
             ledger.push(Entry {
                 victim,
-                by: req.attacker,
+                by: Some(req.attacker),
                 packet: req.packet,
-                weapon: req.weapon,
+                weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
             });
         }
