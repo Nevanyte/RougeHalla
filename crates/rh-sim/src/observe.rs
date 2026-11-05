@@ -181,6 +181,7 @@ fn begin(sim: &Sim, cache: &mut Option<&mut SightCache>) {
             std::sync::Arc::as_ptr(&k.arena) as usize,
             k.digest,
             sim.players().len(),
+            u64::from(sim.tick()),
         );
     }
 }

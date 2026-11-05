@@ -40,6 +40,24 @@ const EMPTY: Entry = Entry {
     blocked: false,
 };
 
+/// What the cache remembers of one viewer: where it stood the last tick it was observed, and whether it stood still.
+/// A viewer that moved cannot hit any entry it owns (every key carries its position), so it skips the table.
+#[derive(Clone, Copy)]
+struct Viewer {
+    id: u32,
+    tick: u64,
+    pos: [u64; 2],
+    /// Probe the table for this viewer this tick (it stood exactly where it stood the previous tick it was observed).
+    probe: bool,
+}
+
+const NO_VIEWER: Viewer = Viewer {
+    id: u32::MAX,
+    tick: u64::MAX,
+    pos: [0; 2],
+    probe: false,
+};
+
 /// Hit and miss counts (diagnostics only; they never influence a verdict).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SightStats {
@@ -51,6 +69,11 @@ pub struct SightCache {
     entries: Vec<Entry>,
     /// `entries.len() - 1` (a power of two).
     mask: usize,
+    /// Direct-mapped by viewer id (a power-of-two length); a collision only resets the mode: a bypass or a probe,
+    /// never a different verdict.
+    viewers: Vec<Viewer>,
+    /// The tick of the current pass (set by `begin`).
+    tick: u64,
     arena: usize,
     digest: u64,
     /// The roster size the table is sized for.
@@ -78,6 +101,8 @@ impl SightCache {
     pub fn new() -> Self {
         Self {
             entries: Vec::new(),
+            viewers: Vec::new(),
+            tick: 0,
             mask: 0,
             arena: 0,
             digest: 0,
@@ -89,6 +114,7 @@ impl SightCache {
     /// Empties the table (the next lookups all miss).
     pub fn clear(&mut self) {
         self.entries.fill(EMPTY);
+        self.viewers.fill(NO_VIEWER);
     }
 
     pub fn stats(&self) -> SightStats {
@@ -98,7 +124,8 @@ impl SightCache {
     /// Readies the cache for one observation pass over a sim with `players` players on the arena `(arena, digest)`:
     /// drops the table when the arena differs from the one it was filled on, grows it when the roster outgrew it.
     #[inline]
-    pub(crate) fn begin(&mut self, arena: usize, digest: u64, players: usize) {
+    pub(crate) fn begin(&mut self, arena: usize, digest: u64, players: usize, tick: u64) {
+        self.tick = tick;
         if arena != self.arena
             || digest != self.digest
             || players > self.players
@@ -115,6 +142,9 @@ impl SightCache {
             .clamp(MIN_ENTRIES, MAX_ENTRIES);
         self.entries.clear();
         self.entries.resize(want, EMPTY);
+        self.viewers.clear();
+        self.viewers
+            .resize(players.next_power_of_two().max(8), NO_VIEWER);
         self.mask = want - 1;
         self.arena = arena;
         self.digest = digest;
@@ -135,6 +165,21 @@ impl SightCache {
         bx: f64,
         by: f64,
     ) -> bool {
+        debug_assert!(!self.entries.is_empty(), "begin() first");
+        // The viewer's mode for this tick, decided on its first lookup of the tick: a viewer that moved since the last
+        // tick it was observed owns no entry that can hit, so it takes the plain traversal with no probe and no store.
+        let vi = viewer.0 as usize & (self.viewers.len() - 1);
+        let v = &mut self.viewers[vi];
+        if v.id != viewer.0 || v.tick != self.tick {
+            let pos = [ax.to_bits(), ay.to_bits()];
+            v.probe = v.id == viewer.0 && v.pos == pos;
+            v.id = viewer.0;
+            v.tick = self.tick;
+            v.pos = pos;
+        }
+        if !v.probe {
+            return ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
+        }
         let bits = [ax.to_bits(), ay.to_bits(), bx.to_bits(), by.to_bits()];
         let key = (u64::from(viewer.0) << 32) | u64::from(other.0);
         if key == NO_KEY {
@@ -144,6 +189,8 @@ impl SightCache {
         let e = &mut self.entries[(h >> 40) as usize & self.mask];
         if e.key == key && e.bits == bits {
             self.stats.hits += 1;
+            #[cfg(debug_assertions)]
+            debug_assert_eq!(e.blocked, ray_blocked(map, ax, ay, bx, by, MASK_SIGHT));
             return e.blocked;
         }
         self.stats.misses += 1;
