@@ -4,10 +4,10 @@ Owner's goal: "do a final optimization sweep, and make provable improvements to 
 for the rest of the project. The architecture should NOT be 1:1 as legacy version but in new languages but should also be
 substantially improved." Gameplay stays identical to legacy: every package keeps the parity report at all MATCH.
 
-Status at `3ad072b` (head of `optimization_port` when this was written): the audit packages P1-P7b, P10a, P5a-P5d, **P8,
-P9, the CI perf gate, the P10b measurement and the server hardening (H-server)** are merged. **Still in progress on other
-branches: H-sim (restore hardening in `rh-sim`) and P10c (protocol v3, the per-connection snapshot delta that ADR 0010
-accepted)**, then the final review of those two. The wire is protocol v2 until P10c merges. This file is the handoff: read it,
+Status at `2e8682c` (head of `optimization_port` when this was written): the audit packages P1-P7b, P10a, P5a-P5d, P8,
+P9, the CI perf gate, the P10b measurement, the server hardening (H-server, H-server-2), the restore hardening (**H-sim**) and
+the records (Docs-2) are merged. **Still in progress on another branch: P10c (protocol v3, the per-connection snapshot delta
+that ADR 0010 accepted)**, then its review and merge. The wire is protocol v2 until P10c merges. This file is the handoff: read it,
 then [PACKAGES.md](PACKAGES.md). (The sweep was paused once to move development from the cloud session to a local Mac; the
 macOS resume notes are kept below.)
 
@@ -57,6 +57,9 @@ below was re-measured for this record. Merge commits are listed in [PACKAGES.md]
 | CI perf gate | `.github/workflows/perfproof.yml`: perfproof A/B against the PR merge-base (or a manual baseline), Ir ratio <= 1.03, no allocation increase, behaviour fingerprints equal unless the PR description declares `Perf-Allow-Fingerprint: ...` (read at run time, re-triggered on `edited`); path filter `crates/**`, `parity/**`, `Cargo.*`, `rust-toolchain.toml`, `tools/perfproof/**`; [CONTRIBUTING.md](../../CONTRIBUTING.md) section. Merge `03dbcd4` | dry run of the exact command line on `sim_crowded_8` (self-compare against `a0e705e`): 7,546 vs 7,545 Ir (0.9998), allocations 0.13 = 0.13, fingerprints equal; `actionlint` clean. **Not yet observed on a real pull request** (cache mapping, valgrind install time) |
 | P10b delta measurement | `deltabench` (feature `synthetic`) prototypes a lossless per-connection delta incl. a self-block delta; [ADR 0010](../adr/0010-snapshot-delta.md); no runtime or wire change. Merge `55786a7`; ADR then **Accepted**: protocol v3 adopted, implemented by P10c (in progress) | 8 players, whole stream 908 -> 345 B/player/s (**62.0% saved**, gate 25%); publish Ir about 1.06x (an **estimate** from callgrind of the prototype's functions, not a perfproof A/B; gate 1.10x); 204 synthetic fighters 36,601 -> 21,933 B/s (40.1%, still above 20 KB/s, so the "204 needs it" clause is not what passes the gate); 1000 fighters 165,614 -> 100,936 (917 mean visible exceeds `MAX_ACTORS` 512: a follow-up for mob interest management) |
 | H-server hardening | director: owner token per profile entry, `Reserved`/`Seated`/`Leaving`, lease states, a lease never given back while a result is due or in flight, permanent write refusals (`NoLease`, `StaleFence`) stop at once, one `LEAVING_WAIT` deadline per admission starting before auth; rooms: a panic is caught and reported `Closed` (`crashed`), overload applies the queued commands; conn: Ping/Pong charged to the frame bucket, reader fairness after `FAIR_STREAK` (32), Welcome and Reject under `SEND_TIMEOUT`; Events and Fx through a refusing encoder (counted per room); `SnapshotWriter` removed; 10 new `malformedServer` vectors in `v2.json` (server and client vectors byte-identical), JS probe and C# encoders refuse what Rust refuses; `MemoryStore::strict` for deterministic director tests. Merge `3ad072b` | each fix has a test that fails when the fix is reverted (mutation-checked): dead-lobby retry waits for its own give-back, deadline refused at exactly 3.000 s, result in flight keeps the lease, refused write not retried, room panic frees seats and leases, overloaded room applies queued commands, reader sees a finished writer after exactly 32 frames, Ping flood closed `RateLimited`; `pg_e2e` and director/conn/room tests 20 of 20 under 4 CPU burners; `wire_seed1_8bots` 25,811 -> 25,918 Ir/step (**+0.41%**), `headless_seed1_8bots` 7,299 -> 7,299, `densitybench` 3,963,550 -> 3,975,454 Ir per match-second (**+0.30%**, measured by hand), every deterministic count and fingerprint identical; C# 138 tests, JS 663 checks, browser proof PASS |
+| H-server-2 | follow-ups to H-server: camelCase `/info` keys, no `sessions` entry for a gone room, duplicate result reports give their lease back, a test rename. Merge `65b08a2` | director tests for each; no sim, wire or perf claim |
+| Docs-2 | contracts and records for P8, P9, CI, the P10b decision and H-server; corrected noise floor and P7b scaling proof. Merge `ff57609` | docs only |
+| H-sim restore hardening | `Sim::restore` refuses (typed `CheckpointError::Malformed`) every state the tick cannot survive: ids and roster order, clock and tick, rewind gap >= `TICK_MS`, coordinates within the arena + `COORD_MARGIN` (1024), kill/join/down counter bounds, carried weapons, pending actions, queued inputs re-validated; saturating counters and tile arithmetic as the second layer; `Command` opaque (built only by `validate` or a re-validating `Deserialize`); `run_replay` checks `REPLAY_FORMAT`; rh-sim README (`FighterCore`/`FighterRef`, restore rules) and backlog write scopes corrected. Merge `2e8682c` | each rule has a refusal test; a mutation fuzz that also submits, joins and leaves after restore; `crates/rh-headless/tests/restore_real.rs`: 0 false refusals over bot matches (5 seeds, 2-8 players, every 5th tick) and lobby matches (joins, leaves, random validated inputs); an earlier corpus of 817k real checkpoints showed 0 refusals before the coordinate and counter rules were added; perfproof vs `3ad072b` (limit 1.02): Ir ratios 1.0045, 1.0056 (`sim_duel_chase`, the maximum), 1.0011 and 1.0014 on four workloads, allocations and bytes identical, fingerprints identical, base-recorded replays verify; parity all MATCH (13 slice scenarios + 1 capture-only, 300 pathfinding queries); the reviews found four panics reachable through restore (pending action, queued inputs, clock, `next_id`), then dense rewind histories, out-of-arena coordinates and impossible counters, all fixed before the merge |
 
 Gates on each merge: fmt and clippy clean, the workspace tests (with PostgreSQL), parity all MATCH, the C# tests and
 `sync-net.sh --check` when client-unity or the wire changed, and the browser proof when the server or wire changed. The
@@ -92,14 +95,12 @@ The merge commit messages summarize each report and left out some of its misses.
 - **Cumulative sim ratios** against `7d94332` mix in P7b's harness change (see the note under "Cumulative"); behaviour identity
   to `7d94332` rests on the chain of per-package A/B comparisons, because the base prints no outcome digest or final hash.
 
-## In progress, NOT merged (other branches)
-- **H-sim** (restore hardening in `rh-sim`, from the sweep-wide review; scope in [PACKAGES.md](PACKAGES.md)). Its branch had a
-  review requiring fixes at the time of writing. Nothing from it is documented as shipped.
+## In progress, NOT merged (another branch)
 - **P10c protocol v3** (per-connection snapshot delta, [ADR 0010](../adr/0010-snapshot-delta.md); a stateful writer task,
   base-tick reference, full frame on join, resume and resync; Rust, C# and JS mirrors; fixtures `v3.json`). Its review required
   fixes at the time of writing. **The wire is protocol v2 until it merges**; `PROTOCOL_VERSION` is 2 and only
   `protocol/fixtures/v2.json` exists. It needs a real `wire_seed1_8bots` perfproof A/B (the 1.06x is an estimate).
-- Then the final review of those two and the last update of the status records.
+- Then its review, the merge and the last update of the status records (the v3 figures replace the v2 ones marked "before protocol v3" below).
 
 ## Known issues
 - The `pg_e2e` rejoin flake is FIXED (P5d: two admission races and a test race) and H-server removed the remaining
@@ -120,7 +121,6 @@ The merge commit messages summarize each report and left out some of its misses.
 | Follow-up | Lives in |
 |---|---|
 | Make `Credit.damaged` membership O(1); restate the P7b scaling proof | this file (Corrections); `crates/rh-sim/src/systems/ledger.rs` |
-| `Sim::restore` accepts `next_id == u32::MAX` (the next join overflows); make the join fallible or refuse | H-sim scope if it takes it, else a mechanic packet touching `sim.rs` |
 | Privatize `TileMap` `w`/`h`/`tiles` (add accessors) | P8/P3 reviews; `crates/rh-sim/src/map.rs` |
 | Separate `spawn_rng` from `spawn_seed` or use a keyed hash before any public replay or checkpoint export | CONTRACTS C-RNG; ADR 0007 |
 | Isolate the P8 step-cost increase (+1.2% / +0.6% Ir) | P8 report |
@@ -142,7 +142,7 @@ PostgreSQL 16 (Homebrew `postgresql@16`); Docker Desktop (for perfproof); Unity 
 (for P-UNITY-1; prefer the newest 6.0 patch over the pinned `6000.0.23f1`, which predates a Unity security advisory).
 
 ```
-git fetch origin optimization_port   # plus the branches of the packages still in progress (H-sim, P10c)
+git fetch origin optimization_port   # plus the branches of the packages still in progress (P10c)
 git checkout optimization_port
 export PGBIN="$(brew --prefix postgresql@16)/bin"   # tools/pgtest/start.sh defaults to Linux paths
 eval "$(tools/pgtest/start.sh)"                       # throwaway cluster; tools/pgtest/stop.sh stops it
@@ -167,29 +167,40 @@ Agents: run Claude Code in the repo and invoke the stage workflow with `scriptPa
 10. Give each worktree its own target dir (the default) and keep an
 eye on disk: `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only` keeps each worktree's build small.
 
-## Cumulative (merged head `3ad072b` vs the Stage 1 head `7d94332`)
-Measured for this record at `3ad072b` with `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only`:
-`python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,wire_seed1_8bots,headless_seed1_8bots,headless_arena_8bots --allow-fingerprint-change wire_seed1_8bots,finalStateHash,stateHashFold`
-(x86_64 cloud container, 4 vCPU; deterministic counts per unit of work; the declared changes are the P10a wire bytes and the P8
-hash definition; the gate printed `pass`). The earlier record of this table was taken at `a0e705e`, before P8, P9 and H-server.
+## Cumulative (merged head `2e8682c` vs the Stage 1 head `7d94332`; sim side)
+Measured for this record at `2e8682c` with `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only`:
+`python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,headless_seed1_8bots,headless_arena_8bots`
+(x86_64 cloud container, 4 vCPU; deterministic counts per unit of work; no `--allow-fingerprint-change` was needed, the gate
+printed `pass`; the base prints no fingerprint for these rows). The wire row was not re-run: it keeps the `3ad072b` figure,
+protocol v2, **before protocol v3**, and is replaced when P10c merges. The previous records of this table were taken at
+`3ad072b` and `a0e705e`.
 
 | Workload | Instructions | Allocations | Allocated bytes |
 |---|---|---|---|
-| sim_crowded_8 (8 players brawling, per step) | 15,271 -> 7,632 (0.500x; see note) | 19.32 -> 0.13 | 1,804 -> 124 |
-| sim_duel_chase (pathfinding, per step) | 5,897 -> 3,009 (0.510x; see note) | 10.71 -> 0.07 | 625 -> 57 |
-| sim_fists_duel (per step) | 5,516 -> 2,724 (0.494x; see note) | 10.45 -> 0.18 | 669 -> 112 |
-| wire_seed1_8bots (step + observe + encode for 8, per step) | 50,692 -> 25,918 (0.511x) | 72.16 -> 9.08 | 5,273 -> 366 |
-| headless_seed1_8bots (full bot tick, per tick) | 14,647 -> 7,299 (0.498x) | 13.34 -> 0.06 | 1,502 -> 262 |
-| headless_arena_8bots (per tick) | 48,844 -> 21,791 (0.446x) | 32.15 -> 0.46 | 5,014 -> 252 |
+| sim_crowded_8 (8 players brawling, per step) | 15,273 -> 7,667 (0.502x; see note) | 19.32 -> 0.13 | 1,804 -> 124 |
+| sim_duel_chase (pathfinding, per step) | 5,899 -> 3,030 (0.514x; see note) | 10.71 -> 0.07 | 625 -> 57 |
+| sim_fists_duel (per step) | 5,511 -> 2,718 (0.493x; see note) | 10.45 -> 0.18 | 669 -> 112 |
+| wire_seed1_8bots (step + observe + encode for 8, per step; v2 at `3ad072b`, before protocol v3, not re-run) | 50,692 -> 25,918 (0.511x) | 72.16 -> 9.08 | 5,273 -> 366 |
+| headless_seed1_8bots (full bot tick, per tick) | 14,647 -> 7,307 (0.499x) | 13.34 -> 0.06 | 1,502 -> 262 |
+| headless_arena_8bots (per tick) | 48,844 -> 21,836 (0.447x) | 32.15 -> 0.46 | 5,014 -> 252 |
 
-Against `a0e705e` (the previous record of this table) the sim rows went up by 1.0% to 2.2% (P8's statics digest and hash walk;
+Against `3ad072b` (the previous record) the sim-side rows moved by +0.46% (`sim_crowded_8` 7,632 -> 7,667), +0.70%
+(`sim_duel_chase` 3,009 -> 3,030), -0.22% (`sim_fists_duel` 2,724 -> 2,718), +0.11% (`headless_seed1_8bots` 7,299 -> 7,307) and
++0.21% (`headless_arena_8bots` 21,791 -> 21,836), with allocations and bytes unchanged: H-sim's saturating tile arithmetic and
+the per-coordinate finiteness test in the pathfinder (its report measured at most 1.0056 against `3ad072b`; not isolated
+further, and `sim_duel_chase` is above the noise floor). The base column differs by up to 5 Ir from the earlier record
+(15,271, 5,897, 5,516), which is noise.
+
+Against `a0e705e` the sim rows went up by 1.0% to 2.2% (P8's statics digest and hash walk;
 `sim_crowded_8` 7,545 -> 7,632, `sim_duel_chase` 2,979 -> 3,009, `sim_fists_duel` 2,665 -> 2,724), which is above the
 +-0.3% noise; the wire and headless rows went down by P9 (wire 32,345 -> 25,918, headless 10,124 -> 7,299, arena 41,315 ->
 21,791).
 
-Behaviour fingerprints: outcome digests are identical to the ones recorded per package (crowded_8 `81840e347e82edd9`,
-duel_chase `2a0afa364dd6bf10`, fists_duel `7a3fb62cf2aceb59`, wire `12e2915af47124fd`, headless_seed1 `cf2d4984cfd44b3a`,
-headless_arena `8794abeb297abb79`), but the base at `7d94332` prints no outcome digest or final hash, so perfproof's "same
+Behaviour fingerprints: outcome digests are identical to the ones recorded per package and to the `3ad072b` record (crowded_8
+`81840e347e82edd9`, duel_chase `2a0afa364dd6bf10`, fists_duel `7a3fb62cf2aceb59`, headless_seed1 `cf2d4984cfd44b3a`,
+headless_arena `8794abeb297abb79`; wire `12e2915af47124fd` at `3ad072b`); this run's final state hashes (crowded_8
+`59579cc78d027da2`, duel_chase `3d6422f23d5f8d93`, fists_duel `c520e9eae08b7ef7`) and state-hash folds (headless_seed1
+`39f3a3170600b491`, headless_arena `1852586132e59e61`) are recorded here for the next comparison, but the base at `7d94332` prints no outcome digest or final hash, so perfproof's "same
 behaviour: yes" is vacuous for them in this comparison; behaviour identity to `7d94332` rests on the chain of per-package A/B
 comparisons. The only changed fingerprints are the declared ones: the P10a wire bytes (1,888 -> 908 B/player/s, mean snapshot
 89.8 -> 43.0 B) and the P8 hash values (the final state hash and the state-hash fold changed definition).
@@ -211,6 +222,6 @@ writer wakes 1.0 per human-tick, 1.0947 frames and 92.83 B per human-tick. Ir pe
 (+0.30%), both from the H-server report (callgrind at `--secs 10` and `20`, by hand; perfproof has no densitybench
 workload), not re-run for this record.
 
-The largest gains still to come: per-connection deltas (P10c: 908 -> about 345 B/player/s at 8 players by the ADR 0010
+The largest gains still to come: per-connection deltas (P10c, in review: 908 -> about 345 B/player/s at 8 players by the ADR 0010
 measurement, wire Ir about 1.06x by estimate), a cheaper raycast or sight test (about 29% of the wire workload), the O(1)
 `damaged` membership in the ledger, and the melee candidate scan.

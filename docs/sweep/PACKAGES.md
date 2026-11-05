@@ -9,7 +9,7 @@ architect/critic/proposal ids (SA1, SH2, OW1, SD5, ...) are in [audit_result.jso
 (packages, target architecture, harness, bugs), `critic` (issues per package, missing items) and `audit:<lens>` (proposals
 with designs and baseline measurements).
 
-Dependencies (all merged except H-sim and P10c): P7a after P2b; P5b after P5a; P7b after P7a; P5c after P5b; P8 after P7b; P9
+Dependencies (all merged except P10c): P7a after P2b; P5b after P5a; P7b after P7a; P5c after P5b; P8 after P7b; P9
 after P7b + P5c + P10a; P10b after P9; H-server after P9 and P5d; H-sim after P8; P10c after P10b's ADR 0010 and H-server (both
 edit `rh-protocol`, `conn.rs` and the C#/JS codecs); then the final review. Packages on different lines of that graph can run in parallel when their write scopes
 are disjoint (the sim track P7a -> P7b -> P8 and the server track P5b -> P5c are disjoint).
@@ -44,15 +44,13 @@ Earlier packages (perfproof, P1, P6, P2a, P3, P4, P5a-1, P5a-2) are listed in th
 - **H-server** server hardening (director owner tokens and lease states, one admission deadline, permanent write refusals stop,
   room panic reports `Closed`, overload applies queued commands, Ping/Pong charged and a fair reader, refusing Events/Fx encode,
   stricter JS/C# codecs, `SnapshotWriter` removed): merge `3ad072b`. Wire +0.41% Ir, densitybench +0.30% Ir.
-
-## H-sim: restore hardening (in progress; scope from the sweep-wide review)
-Scope: `crates/rh-sim/**` (restore, input and checkpoint paths), `crates/rh-sim/README.md`, the backlog packets' write scopes
-for `rh-sim` mechanics. Do: `Sim::restore` refuses every state the tick cannot survive (a bad pending action, queued inputs
-that `validate` would change, a server time outside the tick range, `next_id == u32::MAX`), one refusal test per rule and a
-fuzz test; `Command` opaque (built only by `validate()` or a decode that re-validates); correct the `rh-sim` README
-(`FighterCore`, `credit`/`settle`, `step_into`) and the backlog packets that still name `sim.rs`. Proofs: parity all MATCH,
-fingerprints identical, Ir within 1.02x, base-recorded replays still verify. Status: implemented, its review required fixes;
-not merged.
+- **H-server-2** (camelCase `/info` keys, no session for a gone room, duplicate result reports give their lease back, a test
+  rename): merge `65b08a2`.
+- **Docs-2** (contracts and records for P8, P9, CI, the P10b decision and H-server; corrected noise floor and P7b scaling
+  proof): merge `ff57609`.
+- **H-sim** restore hardening (`Sim::restore` refuses every state the tick cannot survive, saturating counters, opaque `Command`,
+  `run_replay` format check, `restore_real.rs`, rh-sim README and backlog write scopes corrected): merge `2e8682c`. Ir within
+  1.0056 of `3ad072b`, fingerprints and allocations identical.
 
 ## P10c: protocol v3, per-connection snapshot delta (in progress; ADR 0010 Accepted)
 Scope: `crates/rh-protocol/**`, `crates/rh-server/src/{conn,outbox,room,wire}.rs`, `client-unity/RoguehallaNet/**`,
@@ -67,5 +65,5 @@ merged. **Until it merges the wire is v2 and docs describe v2.**
 ## Final: review, then the last status update
 The sweep-wide review of the merged work (correctness, parity, contracts, proofs) ran at `a0e705e`; its findings are applied
 in the records (docs/sweep/README.md corrections, docs/CONTRACTS.md, docs/MIGRATION.md) and in H-server/H-sim. What remains:
-review H-sim and P10c, merge them, rerun every gate and the cumulative perfproof, and update the checkpoint in
+review P10c, merge it, rerun every gate and the cumulative perfproof (including `wire_seed1_8bots`), and update the checkpoint in
 docs/MIGRATION.md and the status table in docs/CONTRACTS.md (P10c turns "C-NET v3 Accepted, Not run" into a validated v3).

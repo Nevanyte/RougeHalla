@@ -15,8 +15,8 @@ H-server; the revision and results are recorded in [MIGRATION.md](MIGRATION.md))
 | C-TICK | Fixed 20 Hz step; sim time +50 ms per step; fixed system order, held as an executable schedule checked against the legacy record | Accepted, FROZEN | Passed | parity suite; `rh-parity/tests/schedule.rs`; `rh-sim/src/systems/tests.rs`; `rh-server` pacer unit tests; `rh-server/tests/density.rs` |
 | C-RNG | No entropy in the core; injected secrets; one stream per purpose; the state hash is server-private (it depends on `spawn_seed`) | Accepted, FROZEN | Passed (with the known tie-outcome observability and the state-hash oracle limit below) | `rh-sim/tests/observe.rs`; `tie_kill_credit_*` parity fixtures; determinism tests; `rh-sim/tests/hash_coverage.rs` (statics secrets held out and asserted) |
 | C-NUM | f64, legacy order, no FMA, `libm` transcendentals | Accepted, FROZEN | Passed (x86_64) / Not run (aarch64) | parity suite |
-| C-DET | Replays (`rh-replay/2`) and checkpoints (`rh-checkpoint/3`) reproduce every step hash; the state hash is derived from the serialized `World` (0 unhashed leaves); live = headless; the tick allocates nothing in steady state | Accepted, FROZEN | Passed (P8 merged; restore hardening H-sim is in progress on another branch) | `rh-headless/tests/env.rs`, `rh-server/tests/equivalence.rs`, `rh-sim/tests/{checkpoint,hash_coverage,replay,no_alloc}.rs`, `rh-sim/src/hash.rs` unit tests, `rh-sim/clippy.toml` |
-| C-INPUT | One input path for every actor (including in-tick actors via `Cx::submit`); validation; order budget; ≤ 6 actions/tick | Accepted, FROZEN | Passed | `rh-sim` input unit tests; flood policy test; live tests |
+| C-DET | Replays (`rh-replay/2`) and checkpoints (`rh-checkpoint/3`) reproduce every step hash; the state hash is derived from the serialized `World` (0 unhashed leaves); live = headless; the tick allocates nothing in steady state | Accepted, FROZEN | Passed (P8 and H-sim merged) | `rh-headless/tests/{env,restore_real}.rs`, `rh-server/tests/equivalence.rs`, `rh-sim/tests/{checkpoint,hash_coverage,replay,no_alloc}.rs`, `rh-sim/src/hash.rs` unit tests, `rh-sim/clippy.toml` |
+| C-INPUT | One input path for every actor (including in-tick actors via `Cx::submit`); validation; `Command` opaque (only `validate` or a re-validating decode builds one); order budget; ≤ 6 actions/tick | Accepted, FROZEN | Passed (H-sim merged) | `rh-sim` input unit tests (incl. the `Command` decode refusals); `rh-sim/tests/replay.rs`; flood policy test; live tests |
 | C-OBS | Three views (state / public snapshot / observation); no leaks; every event declares who may perceive it (exhaustive `visibility`/`class`); catch-up wakes judge each step against its own sight | Accepted, FROZEN | Passed (slice) | `rh-sim/tests/{observe,kernel}.rs`, `rh-server/tests/publish.rs` |
 | C-NET | Protocol v2 framing, limits, versioning, event classes, resume, liveness, batched egress, fair guarded reader, refusing encoders. Protocol v3 (per-connection delta, ADR 0010) is **Accepted, not shipped**: the wire is v2 until packet P10c merges | Accepted, FROZEN (v2); v3 Accepted (ADR 0010) | Passed for v2 (loopback and in-process density runs; no real-network or socket-level load test yet). v3: Not run (implementation in progress) | `rh-protocol/tests`, C# tests (138 at H-server), `tools/protocol-js/check-vectors.mjs` (12 server vectors, 31 malformed, 663 checks), `rh-server/tests/{live,transport,density,publish}.rs`, `conn.rs`/`room.rs` unit tests, browser proof |
 | C-MAP | Server-sent canonical map | Accepted | Passed (blob + hash) | protocol vectors; browser proof `admission_and_map` |
@@ -96,11 +96,28 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   (a validating run of the same serializer): no non-finite float (a sentinel is an `Option`), no `skip_serializing_if`, no
   `flatten`, no sequence of unknown length; `#[serde(skip)]` is the only way to leave a field out and every use is pinned.
   A decoded value is complete (`TileMap::rebuild` and `Sim::after_restore` are gone); malformed or truncated input is an
-  `Err`, and `Sim::restore` refuses a `next_id` not past the last player id (`CheckpointError::Malformed`). The ADR 0007
+  `Err`. The ADR 0007
   rules are a lint: `crates/rh-sim/clippy.toml` (and `rh-policy/clippy.toml`) disallow `HashMap`/`HashSet`, platform-libm
   `f64` transcendentals, `mul_add`, `Instant` and `SystemTime`; a sanctioned use carries an `#[allow]` with its reason.
-- Not done yet: `Sim::restore` still accepts `next_id == u32::MAX` (the next join then overflows; possible at base too) and
-  `TileMap` keeps public `w`/`h`/`tiles`; both are in [sweep/README.md](sweep/README.md) under follow-ups.
+- Restore refuses every state the tick cannot survive (H-sim): `Sim::restore` returns the typed
+  `CheckpointError::Malformed` for the rule families `check_world` (`crates/rh-sim/src/checkpoint.rs`) implements:
+  (1) ids and roster order: `next_id` greater than the last player and roster id and not `u32::MAX`; roster and player
+  order are checked by their own decoders; (2) clock and tick: `server_time` within `0..=u32::MAX x TICK_MS` (where
+  `+= TICK_MS` and the rewind cutoff are exact) and `tick` not `u32::MAX`; (3) rewind history: consecutive samples at least
+  `TICK_MS` apart (this also covers order and NaN) and none dated after `server_time`; (4) coordinates: every body,
+  rewind sample, path point and arena spawn finite and within the map extent plus `COORD_MARGIN` (1024); (5) counters:
+  `joined`, `rt.downs_between_ticks` and every `credit.kills` at most the roster length, `credit.bot_kills` at most
+  `credit.kills`; (6) carried weapons: fists only (the slice has no item flow); (7) pending actions: only a fist swing
+  with finite times, angle and packet; (8) queued inputs: each queued move, aim and action is re-run through `validate`
+  and any value it would change is refused (`InputQueue::check`). Layer two: arithmetic the tick cannot bound by a check
+  saturates where results stay bit-identical for in-range values (`inputs.dropped`, `credit.kills`/`bot_kills`, the
+  bounty and gv sums, the settle total, `rt.downs_between_ticks`, `joined`, tile arithmetic in `snap_to_floor` and
+  `circle_clear`, a finiteness test per coordinate in `find_path_into`), so a refused-by-neither state still cannot panic
+  or wrap differently in debug and release. `rh-headless/tests/restore_real.rs` proves no false refusal: it checkpoints
+  bot matches (5 seeds, 2 to 8 players, every 5th tick) and lobby matches (joins, leaves and random validated inputs) and
+  asserts every restore succeeds with an equal hash and steps on identically. A packet that moves bodies past
+  `COORD_MARGIN` or adds items or ranged actions must widen these rules and the `hash_coverage` seeds.
+- Not done yet: `TileMap` keeps public `w`/`h`/`tiles` ([sweep/README.md](sweep/README.md), follow-ups).
 - A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, statics, world}`; deserialization
   builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
@@ -121,6 +138,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   harness only.
 - An actor inside the tick (a future mob brain) uses `Cx::submit`, which goes through the same validate, `OrderBudget` and
   `InputQueue`; `input::accept` is the only code that enqueues.
+- `Command` is opaque (H-sim): its field is private, and the only ways to hold one are `validate` and a `Deserialize` that
+  runs `validate` again and refuses anything it would change, so no fixture or edited replay can hand the sim an
+  unvalidated command. It serializes as the plain variant, so recorded replays keep their shape. `run_replay` checks
+  `REPLAY_FORMAT` (`rh-replay/2`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
 - The network layer additionally caps frames (1 KiB, 16 commands, 60 frames/s burst 120 per connection).
 
 ## C-OBS: views and leaks
@@ -263,6 +284,10 @@ figures are taken by hand).
 
 ## Change log
 - Stage 1: initial contracts.
+- Core sweep, H-sim record (merged at `2e8682c`; P10c in progress): C-DET gained the restore refusal rules (two layers,
+  refusal and saturating arithmetic) and `restore_real.rs`, which replaces the "not done yet" note on `next_id`; C-INPUT
+  records the opaque `Command` and the replay format check. H-server-2 (camelCase `/info` keys, no session for a gone room,
+  duplicate result reports give their lease back) changed no contract text.
 - Core sweep, final record (P8, P9, CI, P10b measurement and H-server merged at `3ad072b`; H-sim and P10c in progress):
   C-DET gained the derived state hash, `rh-replay/2` and the layout rule and lints; C-RNG records that the state hash is
   server-private (it depends on `spawn_seed` through `spawn_rng`); C-OBS gained exhaustive event visibility and class,

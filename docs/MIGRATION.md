@@ -12,9 +12,9 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 | Stage 1 revision | the head of `optimization_port` carrying this file (Stage 1 commits: `114156b`..HEAD; see `git log 75c5b83..`) |
 | Working tree at handoff | clean (everything committed and pushed) |
 | Verdict | **READY FOR THE BULK PORT WITH EXTERNAL GATES** (gates below) |
-| Sweep revision | `3ad072b` on `optimization_port`: P2b, P10a, P7a, P5b, P5c, P7b, P5d, **P8, P9, the CI perf gate, the P10b measurement and H-server** are merged (`git log --merges 07bc297..3ad072b`) |
-| Next | Finish the core optimization sweep ([sweep/README.md](sweep/README.md)): **H-sim** (restore hardening) and **P10c** (protocol v3, per-connection delta, ADR 0010 accepted) are in progress on other branches, then the review of those two and the last status update; then backlog wave 0 (P-CAPTURE-1) and wave 1. The wire is protocol v2 until P10c merges |
-| Sweep status | **In progress** (two packages open); the Stage 1 tables below are kept as recorded and marked, the "Sweep results" section carries the current numbers (merged table and corrections: sweep/README.md) |
+| Sweep revision | `2e8682c` on `optimization_port`: P2b, P10a, P7a, P5b, P5c, P7b, P5d, P8, P9, the CI perf gate, the P10b measurement, H-server, **H-server-2 and H-sim** are merged (`git log --merges 07bc297..2e8682c`) |
+| Next | Finish the core optimization sweep ([sweep/README.md](sweep/README.md)): only **P10c** (protocol v3, per-connection delta, ADR 0010 accepted) remains, in review on another branch, then the last status update; then backlog wave 0 (P-CAPTURE-1) and wave 1. The wire is protocol v2 until P10c merges |
+| Sweep status | **In progress** (one package open: P10c); the Stage 1 tables below are kept as recorded and marked, the "Sweep results" section carries the current numbers (merged table and corrections: sweep/README.md) |
 
 ### External gates (cannot be resolved inside this repository)
 1. **Unity Editor + license**: none was available. The Unity project (`client-unity/UnityProject`) was never opened,
@@ -147,12 +147,12 @@ are historical, not re-measured), memory per match (the slice's `Sim` is small; 
 (200 matches / 1,600 players) remains an assumption (ADR 0004). The sweep added an in-process density estimate, clearly
 labelled below ("Sweep results"); it is not AWS capacity.
 
-## Sweep results (core optimization sweep, in progress; merged head `3ad072b`)
+## Sweep results (core optimization sweep, in progress; merged head `2e8682c`)
 Machine for every number here: x86_64 cloud container, 4 vCPU (Intel Xeon @ 2.80 GHz, shared), Linux 6.18. Instruction and
 allocation figures are **deterministic counts** (valgrind callgrind Ir and DHAT, identical run to run); wall times are not
-used for any claim. Packages merged: P2b, P10a, P7a, P5b, P5c, P7b, P5d, P8, P9, the CI gate, the P10b measurement and
-H-server (details, per-package proofs, the merge-message omissions and the corrections to merged claims:
-[sweep/README.md](sweep/README.md)). In progress: H-sim and P10c. **Protocol v3 is not shipped**: every wire figure below is
+used for any claim. Packages merged: P2b, P10a, P7a, P5b, P5c, P7b, P5d, P8, P9, the CI gate, the P10b measurement,
+H-server, H-server-2 and H-sim (details, per-package proofs, the merge-message omissions and the corrections to merged claims:
+[sweep/README.md](sweep/README.md)). In progress: P10c. **Protocol v3 is not shipped**: every wire figure below is
 protocol v2.
 
 **Noise floor.** perfproof's self-comparison noise is about +-0.1% (up to 0.3% on the smallest per-step workloads), not the
@@ -170,21 +170,25 @@ protocol v2.
 | CI perf gate | `perfproof.yml`: Ir <= 1.03x, no allocation increase, declared fingerprints; dry run passes; not yet seen on a real PR |
 | P10b delta measurement | 62.0% of bytes at 8 players (908 -> 345 B/player/s), about 1.06x publish Ir (estimate); decision: protocol v3, implementation P10c in progress |
 | H-server hardening | wire 25,811 -> 25,918 Ir/step (+0.41%), densitybench +0.30% Ir per match-second, fingerprints identical |
+| H-server-2 | small server follow-ups (camelCase `/info` keys, no session for a gone room, duplicate result reports give their lease back); no sim or wire figure |
+| H-sim restore hardening | `Sim::restore` refuses every state the tick cannot survive (rules: CONTRACTS C-DET), saturating counters, opaque `Command`; Ir vs `3ad072b` within 1.0056 on four workloads (worst `sim_duel_chase`), allocations and fingerprints identical, base-recorded replays verify; 0 false refusals on real matches (`restore_real.rs`) |
 
-**Cumulative against the Stage 1 head `7d94332`, measured at `3ad072b`** (`python3 tools/perfproof/perfproof.py --baseline 7d94332
---only sim_crowded_8,sim_duel_chase,sim_fists_duel,wire_seed1_8bots,headless_seed1_8bots,headless_arena_8bots
---allow-fingerprint-change wire_seed1_8bots,finalStateHash,stateHashFold`; needs valgrind; gate: pass):
+**Cumulative against the Stage 1 head `7d94332`, sim side measured at `2e8682c`** (`python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,headless_seed1_8bots,headless_arena_8bots`; needs valgrind; gate: pass; the wire row was not re-run and is the `3ad072b` figure under protocol v2, **before protocol v3**):
 
 | Workload (per step / tick) | Instructions | Allocations |
 |---|---|---|
-| sim_crowded_8 | 15,271 -> 7,632 (0.500x, harness caveat) | 19.32 -> 0.13 |
-| sim_duel_chase | 5,897 -> 3,009 (0.510x, harness caveat) | 10.71 -> 0.07 |
-| sim_fists_duel | 5,516 -> 2,724 (0.494x, harness caveat) | 10.45 -> 0.18 |
-| wire_seed1_8bots | 50,692 -> 25,918 (0.511x) | 72.16 -> 9.08 |
-| headless_seed1_8bots | 14,647 -> 7,299 (0.498x) | 13.34 -> 0.06 |
-| headless_arena_8bots | 48,844 -> 21,791 (0.446x) | 32.15 -> 0.46 |
+| sim_crowded_8 | 15,273 -> 7,667 (0.502x, harness caveat) | 19.32 -> 0.13 |
+| sim_duel_chase | 5,899 -> 3,030 (0.514x, harness caveat) | 10.71 -> 0.07 |
+| sim_fists_duel | 5,511 -> 2,718 (0.493x, harness caveat) | 10.45 -> 0.18 |
+| wire_seed1_8bots (v2, at `3ad072b`, before protocol v3) | 50,692 -> 25,918 (0.511x) | 72.16 -> 9.08 |
+| headless_seed1_8bots | 14,647 -> 7,307 (0.499x) | 13.34 -> 0.06 |
+| headless_arena_8bots | 48,844 -> 21,836 (0.447x) | 32.15 -> 0.46 |
 
-At `a0e705e` (before P8, P9, H-server) the same table read 7,545 / 2,979 / 2,665 for the three sim rows, 32,345 for wire,
+Against `3ad072b` (the previous record) the sim-side rows moved by +0.46% (crowded_8, 7,632 -> 7,667), +0.70% (duel_chase,
+3,009 -> 3,030), -0.22% (fists_duel, 2,724 -> 2,718), +0.11% (headless_seed1, 7,299 -> 7,307) and +0.21% (headless_arena,
+21,791 -> 21,836); the H-sim report measured at most 1.0056 against `3ad072b` (saturating tile arithmetic and the finiteness
+test in the pathfinder), not isolated further. Allocations and bytes per unit are unchanged and every fingerprint equals the
+previous record. At `a0e705e` (before P8, P9, H-server) the same table read 7,545 / 2,979 / 2,665 for the three sim rows, 32,345 for wire,
 10,124 for headless_seed1 and 41,315 for headless_arena. The sim rows rose 1.0% to 2.2% with P8 (the statics digest and the hash
 walk; above the noise floor), the wire and headless rows fell with P9.
 
@@ -198,7 +202,7 @@ values.
 **Wire** (`cargo run --release -p rh-server --bin wirebench`, seed 1, 8 bots, 2,400 steps, payload bytes only):
 **908 B/player/s** (snapshot 859, fx 48, events 0; 22.9 frames per player-second; mean snapshot 43.0 B; mean 1.49 actors in
 sight; Welcome 4,911 B), against 1,888 B/player/s (mean snapshot 89.8 B) under protocol v1 at `7d94332`: 0.481x. The wire workload
-is 0.511x Ir/step of Stage 1 at `3ad072b`, including everything else that changed. With protocol v3 (P10c, in progress) the
+is 0.511x Ir/step of Stage 1 at `3ad072b` (v2, before protocol v3; not re-measured since), including everything else that changed. With protocol v3 (P10c, in review) the
 ADR 0010 measurement predicts about 345 B/player/s; that is not shipped and not part of any number here.
 
 **Server density** (`densitybench`, in-process: the real Room, Outbox and Pacer on a paused clock, in-process clients, no
@@ -326,8 +330,9 @@ consequential minor ones are fixed above (4-16). Accepted as open, with owners:
 6. Observation scope (current sight only) is stricter than legacy (120 s tile trail): the client will show less until
    P-VISION-1.
 7. The CI perf gate has not run on a real pull request, and the state hash is server-private (never log or export it).
-8. Protocol v3 (P10c) and restore hardening (H-sim) are unmerged: until they land the wire is v2 and `Sim::restore` still
-   accepts some states the tick cannot survive (for example `next_id == u32::MAX`).
+8. Protocol v3 (P10c) is unmerged: until it lands the wire is v2. Restore hardening (H-sim) is merged: `Sim::restore` refuses
+   the states the tick cannot survive (CONTRACTS C-DET); a packet that moves bodies past `COORD_MARGIN` or adds items or ranged
+   actions must widen those rules.
 
 ## Agents used in Stage 1 (recorded per the brief)
 Verified once: Claude Code 2.1.318; the Agent tool exposed a model and an effort setting per invocation; no `.claude/agents`
