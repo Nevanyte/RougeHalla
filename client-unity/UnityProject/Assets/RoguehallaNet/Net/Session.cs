@@ -21,7 +21,9 @@ namespace Roguehalla.Net
     public sealed class SessionOptions
     {
         public string Url = "ws://127.0.0.1:7777/ws";
-        public string Profile = "", Token = "", Build = "web-0.1.0";
+        public string Profile = "", Build = "web-0.1.0";
+        /// <summary>Opaque admission credential sent in the Hello (at most <see cref="Wire.MaxTicket"/> bytes); the profile stays the display name.</summary>
+        public byte[] Ticket = new byte[0];
         /// <summary>0 means "unknown": the server answers ContentMismatch and its reason names the hash.</summary>
         public ulong ContentHash;
         public byte? Faction;
@@ -174,12 +176,12 @@ namespace Roguehalla.Net
                 Send(new ClientMsg.Hello
                 {
                     Protocol = Wire.ProtocolVersion, ContentHash = _o.ContentHash, Build = _o.Build, Profile = _o.Profile,
-                    Token = _o.Token, Faction = _o.Faction, Resume = _resuming ? SessionToken : null,
+                    Ticket = _o.Ticket, Faction = _o.Faction, Resume = _resuming ? SessionToken : null,
                 });
             }
             catch (EncodeException e)
             {
-                // A build, profile or token over 255 bytes cannot be sent (the codec never truncates it): say so, do not retry.
+                // A build or profile over 255 bytes, or a ticket over the bound, cannot be sent (the codec never truncates it): say so, do not retry.
                 Fail("cannot send Hello: " + e.Message);
                 _t.Close();
                 return;

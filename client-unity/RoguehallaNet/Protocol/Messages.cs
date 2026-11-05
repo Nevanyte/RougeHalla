@@ -48,7 +48,7 @@ namespace Roguehalla.Net.Protocol
             {
                 case THello:
                 {
-                    var h = new Hello { Protocol = r.U16(), ContentHash = r.U64(), Build = r.Str(), Profile = r.Str(), Token = r.Str() };
+                    var h = new Hello { Protocol = r.U16(), ContentHash = r.U64(), Build = r.Str(), Profile = r.Str(), Ticket = r.Blob(Wire.MaxTicket) };
                     if (r.Flag()) h.Faction = r.U8();
                     if (r.Flag()) h.Resume = r.Array16();
                     msg = h;
@@ -89,14 +89,17 @@ namespace Roguehalla.Net.Protocol
         {
             public ushort Protocol = Wire.ProtocolVersion;
             public ulong ContentHash;
-            public string Build = "", Profile = "", Token = "";
+            public string Build = "", Profile = "";
+            /// <summary>Opaque admission credential (at most <see cref="Wire.MaxTicket"/> bytes); P-HOST-1 defines its contents.</summary>
+            public byte[] Ticket = new byte[0];
             public byte? Faction;
             public byte[] Resume;
 
             public override byte[] Encode()
             {
                 var w = new Writer();
-                w.U8(THello); w.U16(Protocol); w.U64(ContentHash); w.Str(Build); w.Str(Profile); w.Str(Token);
+                if (Ticket != null && Ticket.Length > Wire.MaxTicket) throw new EncodeException("ticket of " + Ticket.Length + " bytes does not fit the wire (max " + Wire.MaxTicket + ")");
+                w.U8(THello); w.U16(Protocol); w.U64(ContentHash); w.Str(Build); w.Str(Profile); w.Blob(Ticket);
                 if (Faction.HasValue) { w.U8(1); w.U8(Faction.Value); } else w.U8(0);
                 if (Resume != null)
                 {
@@ -187,11 +190,10 @@ namespace Roguehalla.Net.Protocol
             ReadyInMs = o.ReadyInMs; Kills = o.Kills; Bounty = o.Bounty; Gv = o.Gv; MoveSeq = o.MoveSeq;
         }
 
-        // Head word bits (rh-protocol lib.rs): the self's field bits 0..9, phase in bits 12..13, bit 15 = a self follows.
-        internal const ushort HKit = 1 << 0, HHp = 1 << 1, HReady = 1 << 4, HKills = 1 << 5, HBounty = 1 << 6, HGv = 1 << 7,
-            HMoveSeq = 1 << 8, HMaxHpF32 = 1 << 9, HPresent = 1 << 15;
-        internal const int StatusShift = 2, PhaseShift = 12;
-        internal const ushort SelfBits = 0x03ff | HPresent, Known = SelfBits | (3 << PhaseShift);
+        // Head bits (rh-protocol lib.rs, append only): a varint, so bits below 7 take one byte.
+        internal const uint HPresent = 1 << 0, HKit = 1 << 1, HHp = 1 << 2, HReady = 1 << 3, HKills = 1 << 4, HBounty = 1 << 5,
+            HMoveSeq = 1 << 6, HGv = 1 << 7, HMaxHpF32 = 1 << 8, HStatus = 1 << 9, HPhase = 1 << 10;
+        internal const uint SelfBits = 0x03ff, Known = SelfBits | HPhase;
 
         static bool MaxHpIsVarint(float v)
         {
@@ -201,10 +203,11 @@ namespace Roguehalla.Net.Protocol
 
         internal static byte Kit(byte faction, byte weapon) { return (byte)((faction & 0x0f) | (weapon << 4)); }
 
-        internal ushort Head(byte phase)
+        /// <summary>The head of a Snapshot: the present bit and every field that differs from its default (this is the self), and the phase bit when the phase is not the default.</summary>
+        internal uint Head(byte phase)
         {
-            int m = (phase & 3) << PhaseShift;
-            m |= HPresent | ((Status & 3) << StatusShift);
+            uint m = HPresent;
+            if (phase != Wire.DefaultPhase) m |= HPhase;
             if (Kit(Faction, Weapon) != 0) m |= HKit;
             if (BitConverter.SingleToInt32Bits(Hp) != BitConverter.SingleToInt32Bits(MaxHp)) m |= HHp;
             if (ReadyInMs != 0) m |= HReady;
@@ -213,11 +216,15 @@ namespace Roguehalla.Net.Protocol
             if (Gv != 0) m |= HGv;
             if (MoveSeq != 0) m |= HMoveSeq;
             if (!MaxHpIsVarint(MaxHp)) m |= HMaxHpF32;
-            return (ushort)m;
+            if (Status != Wire.DefaultStatus) m |= HStatus;
+            return m;
         }
 
-        /// <summary>Bytes after the head word.</summary>
-        internal int Length(ushort head)
+        /// <summary>Bytes of the head itself, with the phase byte that follows the self when the head has the phase bit.</summary>
+        internal static int HeadLength(uint head) { return Writer.VarintLength(head) + ((head & HPhase) != 0 ? 1 : 0); }
+
+        /// <summary>Bytes of the self record after the head.</summary>
+        internal int Length(uint head)
         {
             int n = Writer.VarintLength(Id) + 12;
             n += (head & HMaxHpF32) != 0 ? 4 : Writer.VarintLength((uint)MaxHp);
@@ -226,13 +233,14 @@ namespace Roguehalla.Net.Protocol
             if ((head & HReady) != 0) n += 2;
             if ((head & HKills) != 0) n += Writer.VarintLength(Kills);
             if ((head & HBounty) != 0) n += Writer.VarintLength(Bounty);
-            if ((head & HGv) != 0) n += Writer.VarintLength(Gv);
             if ((head & HMoveSeq) != 0) n += 1;
+            if ((head & HGv) != 0) n += Writer.VarintLength(Gv);
+            if ((head & HStatus) != 0) n += 1;
             return n;
         }
 
-        /// <summary>Reads the self after its head word (<paramref name="head"/> has HPresent set).</summary>
-        internal void Read(ref Reader r, ushort head)
+        /// <summary>Reads the self after its head (<paramref name="head"/> has HPresent set); the phase, if the head has one, is the caller's.</summary>
+        internal void Read(ref Reader r, uint head)
         {
             Id = r.Varint(); X = r.F32(); Y = r.F32(); Facing = r.F32();
             MaxHp = (head & HMaxHpF32) != 0 ? r.F32() : r.VarintU16("max_hp");
@@ -241,12 +249,12 @@ namespace Roguehalla.Net.Protocol
             ReadyInMs = (head & HReady) != 0 ? r.U16() : (ushort)0;
             Kills = (head & HKills) != 0 ? r.VarintU16("kills") : (ushort)0;
             Bounty = (head & HBounty) != 0 ? r.VarintU16("bounty") : (ushort)0;
-            Gv = (head & HGv) != 0 ? r.VarintU16("gv") : (ushort)0;
             MoveSeq = (head & HMoveSeq) != 0 ? r.U8() : (byte)0;
-            Status = (byte)((head >> StatusShift) & 3);
+            Gv = (head & HGv) != 0 ? r.VarintU16("gv") : (ushort)0;
+            Status = (head & HStatus) != 0 ? r.Code(Wire.MaxStatusCode, "status") : Wire.DefaultStatus;
         }
 
-        internal void Write(Writer w, ushort head)
+        internal void Write(Writer w, uint head)
         {
             w.Varint(Id); w.F32(X); w.F32(Y); w.F32(Facing);
             if ((head & HMaxHpF32) != 0) w.F32(MaxHp); else w.Varint((uint)MaxHp);
@@ -255,8 +263,9 @@ namespace Roguehalla.Net.Protocol
             if ((head & HReady) != 0) w.U16(ReadyInMs);
             if ((head & HKills) != 0) w.Varint(Kills);
             if ((head & HBounty) != 0) w.Varint(Bounty);
-            if ((head & HGv) != 0) w.Varint(Gv);
             if ((head & HMoveSeq) != 0) w.U8(MoveSeq);
+            if ((head & HGv) != 0) w.Varint(Gv);
+            if ((head & HStatus) != 0) w.U8(Status);
         }
     }
 
@@ -274,28 +283,31 @@ namespace Roguehalla.Net.Protocol
         /// <summary>hp fraction in hundredths (0..100).</summary>
         public byte HpPct;
         public byte Status, Weapon;
+        /// <summary>What the entity is: 0 = player (the default; costs no byte). The id namespace is shared by every kind.</summary>
+        public byte Kind;
 
-        // Actor mask bits: 0 kit, 1 hp, 2..3 status (inline), 4 bounty, 5..7 reserved.
-        internal const byte MKit = 1 << 0, MHp = 1 << 1, MBounty = 1 << 4, MKnown = MKit | MHp | (3 << 2) | MBounty;
-        internal const int StatusShift = 2;
+        // Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind. A varint.
+        internal const uint MKit = 1 << 0, MHp = 1 << 1, MStatus = 1 << 2, MBounty = 1 << 3, MKind = 1 << 4, MKnown = MKit | MHp | MStatus | MBounty | MKind;
         internal const byte DefaultHpPct = 100;
 
-        internal byte Mask()
+        internal uint Mask()
         {
-            int m = (Status & 3) << StatusShift;
+            uint m = 0;
             if (WireSelf.Kit(Faction, Weapon) != 0) m |= MKit;
             if (HpPct != DefaultHpPct) m |= MHp;
+            if (Status != Wire.DefaultStatus) m |= MStatus;
             if (Bounty != 0) m |= MBounty;
-            return (byte)m;
+            if (Kind != 0) m |= MKind;
+            return m;
         }
 
         internal static uint IdField(uint id, bool first, uint prev) { return first ? id : unchecked(id - prev); }
 
         internal int Length(bool first, uint prev)
         {
-            byte m = Mask();
-            return Writer.VarintLength(IdField(Id, first, prev)) + 7 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
-                + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0);
+            uint m = Mask();
+            return Writer.VarintLength(IdField(Id, first, prev)) + Writer.VarintLength(m) + 6 + ((m & MKit) != 0 ? 1 : 0) + ((m & MHp) != 0 ? 1 : 0)
+                + ((m & MStatus) != 0 ? 1 : 0) + ((m & MBounty) != 0 ? Writer.VarintLength(Bounty) : 0) + ((m & MKind) != 0 ? 1 : 0);
         }
 
         /// <summary>Reads one actor; the first has an absolute id, each later one the (non-zero) gap from <paramref name="prev"/>.</summary>
@@ -310,37 +322,42 @@ namespace Roguehalla.Net.Protocol
                 if (field == 0 || id > uint.MaxValue) throw new DecodeException(DecodeError.BadField, "actor order");
                 a.Id = (uint)id;
             }
-            byte mask = r.U8();
+            uint mask = r.Varint();
             if ((mask & ~MKnown) != 0) throw new DecodeException(DecodeError.BadField, "actor mask");
             a.X = Quant.DequantizePos(r.U16()); a.Y = Quant.DequantizePos(r.U16()); a.Facing = Quant.DequantizeFacing(r.U16());
             if ((mask & MKit) != 0) { byte k = r.U8(); a.Faction = (byte)(k & 0x0f); a.Weapon = (byte)(k >> 4); } else { a.Faction = 0; a.Weapon = 0; }
             a.HpPct = (mask & MHp) != 0 ? r.U8() : DefaultHpPct;
             if (a.HpPct > 100) throw new DecodeException(DecodeError.BadField, "hp_pct");
+            a.Status = (mask & MStatus) != 0 ? r.Code(Wire.MaxStatusCode, "status") : Wire.DefaultStatus;
             a.Bounty = (mask & MBounty) != 0 ? r.VarintU16("bounty") : (ushort)0;
-            a.Status = (byte)((mask >> StatusShift) & 3);
+            a.Kind = (mask & MKind) != 0 ? r.U8() : (byte)0;
             return a;
         }
 
         internal void Write(Writer w, bool first, uint prev)
         {
-            byte m = Mask();
-            w.Varint(IdField(Id, first, prev)); w.U8(m);
+            uint m = Mask();
+            w.Varint(IdField(Id, first, prev)); w.Varint(m);
             w.U16(Quant.QuantizePos(X)); w.U16(Quant.QuantizePos(Y)); w.U16(Quant.QuantizeFacing(Facing));
             if ((m & MKit) != 0) w.U8(WireSelf.Kit(Faction, Weapon));
             if ((m & MHp) != 0) w.U8(HpPct);
+            if ((m & MStatus) != 0) w.U8(Status);
             if ((m & MBounty) != 0) w.Varint(Bounty);
+            if ((m & MKind) != 0) w.U8(Kind);
         }
     }
 
     /// <summary>
-    /// The changed self fields of a snapshot delta: <see cref="Mask"/> has the head's field bits (0..11); only the fields whose
-    /// bit is set mean anything. The self's id is the base's.
+    /// The changed self fields of a snapshot delta: <see cref="Mask"/> has the head's self field bits; only the fields whose bit is
+    /// set mean anything. The self's id is the base's. Bit numbers are append only (rh-protocol delta.rs).
     /// </summary>
     public struct SelfDelta
     {
-        public const ushort FX = 1 << 0, FY = 1 << 1, FFacing = 1 << 2, FHp = 1 << 3, FMaxHp = 1 << 4, FKit = 1 << 5, FReady = 1 << 6,
-            FKills = 1 << 7, FBounty = 1 << 8, FGv = 1 << 9, FMoveSeq = 1 << 10, FStatus = 1 << 11;
-        public ushort Mask;
+        public const uint FX = 1 << 1, FY = 1 << 2, FFacing = 1 << 3, FMoveSeq = 1 << 4, FHp = 1 << 5, FReady = 1 << 6,
+            FMaxHp = 1 << 9, FKit = 1 << 10, FKills = 1 << 11, FBounty = 1 << 12, FGv = 1 << 13, FStatus = 1 << 14;
+        /// <summary>The self field bits (never the present, departed or phase bits of the head).</summary>
+        public const uint Fields = 0x7e7e;
+        public uint Mask;
         public float X, Y, Facing, Hp, MaxHp;
         public byte Kit;
         public ushort ReadyInMs, Kills, Bounty, Gv;
@@ -348,25 +365,21 @@ namespace Roguehalla.Net.Protocol
         /// <summary>The new status (0..3) when <see cref="FStatus"/> is set in <see cref="Mask"/>.</summary>
         public byte StatusValue;
 
-        internal static SelfDelta Read(ref Reader r, ushort mask)
+        internal static SelfDelta Read(ref Reader r, uint mask)
         {
             var s = new SelfDelta { Mask = mask };
             if ((mask & FX) != 0) s.X = r.F32();
             if ((mask & FY) != 0) s.Y = r.F32();
             if ((mask & FFacing) != 0) s.Facing = r.F32();
+            if ((mask & FMoveSeq) != 0) s.MoveSeq = r.U8();
             if ((mask & FHp) != 0) s.Hp = r.F32();
+            if ((mask & FReady) != 0) s.ReadyInMs = r.U16();
             if ((mask & FMaxHp) != 0) s.MaxHp = r.F32();
             if ((mask & FKit) != 0) s.Kit = r.U8();
-            if ((mask & FReady) != 0) s.ReadyInMs = r.U16();
             if ((mask & FKills) != 0) s.Kills = r.VarintU16("kills");
             if ((mask & FBounty) != 0) s.Bounty = r.VarintU16("bounty");
             if ((mask & FGv) != 0) s.Gv = r.VarintU16("gv");
-            if ((mask & FMoveSeq) != 0) s.MoveSeq = r.U8();
-            if ((mask & FStatus) != 0)
-            {
-                s.StatusValue = r.U8();
-                if (s.StatusValue > Wire.MaxStatusCode) throw new DecodeException(DecodeError.BadField, "status");
-            }
+            if ((mask & FStatus) != 0) s.StatusValue = r.Code(Wire.MaxStatusCode, "status");
             return s;
         }
 
@@ -375,14 +388,14 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FX) != 0) w.F32(X);
             if ((Mask & FY) != 0) w.F32(Y);
             if ((Mask & FFacing) != 0) w.F32(Facing);
+            if ((Mask & FMoveSeq) != 0) w.U8(MoveSeq);
             if ((Mask & FHp) != 0) w.F32(Hp);
+            if ((Mask & FReady) != 0) w.U16(ReadyInMs);
             if ((Mask & FMaxHp) != 0) w.F32(MaxHp);
             if ((Mask & FKit) != 0) w.U8(Kit);
-            if ((Mask & FReady) != 0) w.U16(ReadyInMs);
             if ((Mask & FKills) != 0) w.Varint(Kills);
             if ((Mask & FBounty) != 0) w.Varint(Bounty);
             if ((Mask & FGv) != 0) w.Varint(Gv);
-            if ((Mask & FMoveSeq) != 0) w.U8(MoveSeq);
             if ((Mask & FStatus) != 0) w.U8(StatusValue);
         }
 
@@ -391,30 +404,31 @@ namespace Roguehalla.Net.Protocol
             if ((Mask & FX) != 0) s.X = X;
             if ((Mask & FY) != 0) s.Y = Y;
             if ((Mask & FFacing) != 0) s.Facing = Facing;
+            if ((Mask & FMoveSeq) != 0) s.MoveSeq = MoveSeq;
             if ((Mask & FHp) != 0) s.Hp = Hp;
+            if ((Mask & FReady) != 0) s.ReadyInMs = ReadyInMs;
             if ((Mask & FMaxHp) != 0) s.MaxHp = MaxHp;
             if ((Mask & FKit) != 0) { s.Faction = (byte)(Kit & 0x0f); s.Weapon = (byte)(Kit >> 4); }
-            if ((Mask & FReady) != 0) s.ReadyInMs = ReadyInMs;
             if ((Mask & FKills) != 0) s.Kills = Kills;
             if ((Mask & FBounty) != 0) s.Bounty = Bounty;
             if ((Mask & FGv) != 0) s.Gv = Gv;
-            if ((Mask & FMoveSeq) != 0) s.MoveSeq = MoveSeq;
             if ((Mask & FStatus) != 0) s.Status = StatusValue;
         }
     }
 
     /// <summary>
-    /// One changed remote actor of a snapshot delta: <see cref="Mask"/> (bits <see cref="X"/>..<see cref="Bounty"/>) says which
-    /// quantized fields are carried; the status always is. A new actor carries every field (<see cref="All"/>).
+    /// One changed remote actor of a snapshot delta: <see cref="Mask"/> (bits <see cref="MX"/>..<see cref="MKind"/>, append only)
+    /// says which fields are carried; the others mean nothing. A NEW actor (not in the base) starts from the default actor and must
+    /// carry its position (<see cref="MNew"/>).
     /// </summary>
     public struct ActorDelta
     {
-        public const byte MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MAll = 0x3f;
-        public const int StatusShift = 6;
+        public const uint MX = 1 << 0, MY = 1 << 1, MFacing = 1 << 2, MKit = 1 << 3, MHp = 1 << 4, MBounty = 1 << 5, MStatus = 1 << 6,
+            MKind = 1 << 7, MAll = 0xff, MNew = MX | MY | MFacing;
         public uint Id;
-        public byte Mask;
+        public uint Mask;
         public ushort X, Y, Facing;
-        public byte Kit, HpPct, Status;
+        public byte Kit, HpPct, Status, Kind;
         public ushort Bounty;
     }
 
@@ -453,7 +467,7 @@ namespace Roguehalla.Net.Protocol
 
     public abstract class ServerMsg
     {
-        const byte TWelcome = 0x81, TReject = 0x82, TSnapshot = 0x83, TEvents = 0x84, TFx = 0x85, TPong = 0x86, TSnapshotDelta = 0x87;
+        const byte TWelcome = 0x81, TReject = 0x82, TSnapshot = 0x83, TEvents = 0x84, TFx = 0x85, TPong = 0x86, TSnapshotDelta = 0x87, TState = 0x88;
 
         public abstract byte[] Encode();
 
@@ -549,6 +563,14 @@ namespace Roguehalla.Net.Protocol
                     break;
                 }
                 case TPong: msg = new Pong { Nonce = r.U32(), ClientMs = r.F64(), ServerMs = r.F64() }; break;
+                case TState:
+                {
+                    var st = new State { Tick = r.Varint() };
+                    // No key is defined in v4: any item is an unknown key, and keys are strict per version.
+                    if (r.Varint() != 0) throw new DecodeException(DecodeError.BadField, "state key");
+                    msg = st;
+                    break;
+                }
                 default: throw new DecodeException(DecodeError.BadTag);
             }
             r.End();
@@ -601,8 +623,9 @@ namespace Roguehalla.Net.Protocol
             {
                 get
                 {
-                    int n = 1 + Writer.VarintLength(Tick) + Writer.VarintLength(AckInput) + 2;
-                    if (Me != null) n += Me.Length(Me.Head(Phase));
+                    uint head = Me != null ? Me.Head(Phase) : (Phase != Wire.DefaultPhase ? WireSelf.HPhase : 0);
+                    int n = 1 + Writer.VarintLength(Tick) + Writer.VarintLength(AckInput) + WireSelf.HeadLength(head);
+                    if (Me != null) n += Me.Length(head);
                     n += Writer.VarintLength((uint)Actors.Length);
                     uint prev = 0;
                     for (int i = 0; i < Actors.Length; i++) { n += Actors[i].Length(i == 0, prev); prev = Actors[i].Id; }
@@ -626,8 +649,10 @@ namespace Roguehalla.Net.Protocol
                 }
                 var w = new Writer(EncodedLength);
                 w.U8(TSnapshot); w.Varint(Tick); w.Varint(AckInput);
-                if (Me != null) { ushort head = Me.Head(Phase); w.U16(head); Me.Write(w, head); }
-                else w.U16((ushort)((Phase & 3) << WireSelf.PhaseShift));
+                uint head = Me != null ? Me.Head(Phase) : (Phase != Wire.DefaultPhase ? WireSelf.HPhase : 0);
+                w.Varint(head);
+                if (Me != null) Me.Write(w, head);
+                if ((head & WireSelf.HPhase) != 0) w.U8(Phase);
                 w.Varint((uint)Actors.Length);
                 uint prev = 0;
                 for (int i = 0; i < Actors.Length; i++) { Actors[i].Write(w, i == 0, prev); prev = Actors[i].Id; }
@@ -638,10 +663,9 @@ namespace Roguehalla.Net.Protocol
             internal static Snapshot Read(ref Reader r, Snapshot s)
             {
                 s.Tick = r.Varint(); s.AckInput = r.Varint();
-                ushort head = r.U16();
+                uint head = r.Varint();
                 if ((head & ~WireSelf.Known) != 0 || ((head & WireSelf.HPresent) == 0 && (head & WireSelf.SelfBits) != 0))
                     throw new DecodeException(DecodeError.BadField, "head");
-                s.Phase = (byte)((head >> WireSelf.PhaseShift) & 3);
                 if ((head & WireSelf.HPresent) != 0)
                 {
                     var me = s.Me ?? new WireSelf();
@@ -649,6 +673,7 @@ namespace Roguehalla.Net.Protocol
                     s.Me = me;
                 }
                 else s.Me = null;
+                s.Phase = (head & WireSelf.HPhase) != 0 ? r.Code(Wire.MaxPhaseCode, "phase") : Wire.DefaultPhase;
                 uint count = r.Varint();
                 if (count > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, count.ToString());
                 int n = (int)count;
@@ -662,7 +687,7 @@ namespace Roguehalla.Net.Protocol
         }
 
         /// <summary>
-        /// A snapshot as a delta against the last one the connection received (v3; layout in crates/rh-protocol/src/lib.rs). A
+        /// A snapshot as a delta against the last one the connection received (v3, v4 masks; layout in crates/rh-protocol/src/lib.rs). A
         /// client does not use this directly: <see cref="SnapshotTracker"/> applies it and hands out the resolved
         /// <see cref="Snapshot"/>. The lists are arrays with counts so that a tracker's one instance decodes every frame without
         /// garbage.
@@ -670,7 +695,9 @@ namespace Roguehalla.Net.Protocol
         public sealed class SnapshotDelta : ServerMsg
         {
             public uint Tick, BaseTick, AckInput;
+            /// <summary>The new phase when <see cref="HasPhase"/> (a delta carries a field only when it differs from the base).</summary>
             public byte Phase;
+            public bool HasPhase;
             public bool HasSelf;
             public SelfDelta Me;
             public ActorDelta[] Changed = new ActorDelta[8];
@@ -678,9 +705,8 @@ namespace Roguehalla.Net.Protocol
             public uint[] Departed = new uint[8];
             public int DepartedCount;
 
-            // Head word: bit 15 a self follows, bit 14 a departed list follows, bits 12..13 phase, bits 0..11 the self fields.
-            const ushort HDeparted = 1 << 14, HPresent = 1 << 15, Fields = 0x0fff;
-            const int PhaseShift = 12;
+            // Head bits (append only): 0 a self follows (its fields are SelfDelta.Fields), 7 a departed list follows, 8 the phase changed.
+            const uint HPresent = 1 << 0, HDeparted = 1 << 7, HPhase = 1 << 8, Known = HPresent | SelfDelta.Fields | HPhase | HDeparted;
 
             /// <summary>Reads the body of a delta frame (after the tag): syntax and ranges only; whether it applies is the tracker's question.</summary>
             internal static SnapshotDelta Read(ref Reader r, SnapshotDelta d)
@@ -690,11 +716,12 @@ namespace Roguehalla.Net.Protocol
                 if (age < 1 || age > Wire.MaxDeltaAge || age > d.Tick) throw new DecodeException(DecodeError.BadField, "base age");
                 d.BaseTick = d.Tick - age;
                 d.AckInput = r.Varint();
-                ushort head = r.U16();
-                if ((head & HPresent) == 0 && (head & Fields) != 0) throw new DecodeException(DecodeError.BadField, "head");
-                d.Phase = (byte)((head >> PhaseShift) & 3);
+                uint head = r.Varint();
+                if ((head & ~Known) != 0 || ((head & HPresent) == 0 && (head & SelfDelta.Fields) != 0)) throw new DecodeException(DecodeError.BadField, "head");
                 d.HasSelf = (head & HPresent) != 0;
-                d.Me = d.HasSelf ? SelfDelta.Read(ref r, (ushort)(head & Fields)) : default(SelfDelta);
+                d.Me = d.HasSelf ? SelfDelta.Read(ref r, head & SelfDelta.Fields) : default(SelfDelta);
+                d.HasPhase = (head & HPhase) != 0;
+                d.Phase = d.HasPhase ? r.Code(Wire.MaxPhaseCode, "phase") : (byte)0;
                 uint n = r.Varint();
                 if (n > (uint)Wire.MaxActors) throw new DecodeException(DecodeError.TooMany, n.ToString());
                 if (d.Changed.Length < n) d.Changed = new ActorDelta[Math.Max((int)n, d.Changed.Length * 2)];
@@ -708,15 +735,16 @@ namespace Roguehalla.Net.Protocol
                     prev = (uint)id;
                     ActorDelta a = default(ActorDelta);
                     a.Id = prev;
-                    byte m = r.U8();
-                    a.Mask = (byte)(m & ActorDelta.MAll);
-                    a.Status = (byte)(m >> ActorDelta.StatusShift);
+                    a.Mask = r.Varint();
+                    if ((a.Mask & ~ActorDelta.MAll) != 0) throw new DecodeException(DecodeError.BadField, "actor mask");
                     if ((a.Mask & ActorDelta.MX) != 0) a.X = r.U16();
                     if ((a.Mask & ActorDelta.MY) != 0) a.Y = r.U16();
                     if ((a.Mask & ActorDelta.MFacing) != 0) a.Facing = r.U16();
                     if ((a.Mask & ActorDelta.MKit) != 0) a.Kit = r.U8();
                     if ((a.Mask & ActorDelta.MHp) != 0) { a.HpPct = r.U8(); if (a.HpPct > 100) throw new DecodeException(DecodeError.BadField, "hp_pct"); }
                     if ((a.Mask & ActorDelta.MBounty) != 0) a.Bounty = r.VarintU16("bounty");
+                    if ((a.Mask & ActorDelta.MStatus) != 0) a.Status = r.Code(Wire.MaxStatusCode, "status");
+                    if ((a.Mask & ActorDelta.MKind) != 0) a.Kind = r.U8();
                     d.Changed[i] = a;
                 }
                 d.DepartedCount = 0;
@@ -743,37 +771,42 @@ namespace Roguehalla.Net.Protocol
             public override byte[] Encode()
             {
                 if (Tick < BaseTick + 1 || Tick - BaseTick > Wire.MaxDeltaAge) throw new ArgumentException("base age");
-                if (Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
+                if (HasPhase && Phase > Wire.MaxPhaseCode) throw new ArgumentException("phase");
                 if (ChangedCount > Wire.MaxActors || DepartedCount > Wire.MaxActors) throw new ArgumentException("too many actors");
-                if (HasSelf && (Me.Mask & ~Fields) != 0) throw new ArgumentException("head");
+                if (HasSelf && (Me.Mask & ~SelfDelta.Fields) != 0) throw new ArgumentException("head");
                 if (HasSelf && (Me.Mask & SelfDelta.FStatus) != 0 && Me.StatusValue > Wire.MaxStatusCode) throw new ArgumentException("status");
                 for (int i = 0; i < ChangedCount; i++)
                 {
                     var a = Changed[i];
-                    if (a.Status > Wire.MaxStatusCode || (a.Mask & ~ActorDelta.MAll) != 0) throw new ArgumentException("actor mask or status");
+                    if ((a.Mask & ActorDelta.MStatus) != 0 && a.Status > Wire.MaxStatusCode) throw new ArgumentException("status");
+                    if ((a.Mask & ~ActorDelta.MAll) != 0) throw new ArgumentException("actor mask");
                     if ((a.Mask & ActorDelta.MHp) != 0 && a.HpPct > 100) throw new ArgumentException("hp_pct");
                     if (i > 0 && a.Id <= Changed[i - 1].Id) throw new ArgumentException("actor ids must strictly ascend");
                 }
                 for (int i = 1; i < DepartedCount; i++) if (Departed[i] <= Departed[i - 1]) throw new ArgumentException("departed ids must strictly ascend");
                 var w = new Writer();
                 w.U8(TSnapshotDelta); w.Varint(Tick); w.Varint(Tick - BaseTick); w.Varint(AckInput);
-                ushort head = (ushort)((Phase & 3) << PhaseShift);
-                if (HasSelf) head |= (ushort)(HPresent | (Me.Mask & Fields));
+                uint head = 0;
+                if (HasSelf) head |= HPresent | (Me.Mask & SelfDelta.Fields);
+                if (HasPhase) head |= HPhase;
                 if (DepartedCount > 0) head |= HDeparted;
-                w.U16(head);
+                w.Varint(head);
                 if (HasSelf) Me.Write(w);
+                if (HasPhase) w.U8(Phase);
                 w.Varint((uint)ChangedCount);
                 for (int i = 0; i < ChangedCount; i++)
                 {
                     var a = Changed[i];
                     w.Varint(i == 0 ? a.Id : a.Id - Changed[i - 1].Id);
-                    w.U8((byte)((a.Mask & ActorDelta.MAll) | (a.Status << ActorDelta.StatusShift)));
+                    w.Varint(a.Mask & ActorDelta.MAll);
                     if ((a.Mask & ActorDelta.MX) != 0) w.U16(a.X);
                     if ((a.Mask & ActorDelta.MY) != 0) w.U16(a.Y);
                     if ((a.Mask & ActorDelta.MFacing) != 0) w.U16(a.Facing);
                     if ((a.Mask & ActorDelta.MKit) != 0) w.U8(a.Kit);
                     if ((a.Mask & ActorDelta.MHp) != 0) w.U8(a.HpPct);
                     if ((a.Mask & ActorDelta.MBounty) != 0) w.Varint(a.Bounty);
+                    if ((a.Mask & ActorDelta.MStatus) != 0) w.U8(a.Status);
+                    if ((a.Mask & ActorDelta.MKind) != 0) w.U8(a.Kind);
                 }
                 if (DepartedCount > 0)
                 {
@@ -839,6 +872,16 @@ namespace Roguehalla.Net.Protocol
                 }
                 return w.Finish();
             }
+        }
+
+        /// <summary>
+        /// Keyed state, the latest value per key (reserved in v4: no key exists yet, so only the empty State decodes). Once keys
+        /// exist a Welcome (join and resume) is followed by a full State.
+        /// </summary>
+        public sealed class State : ServerMsg
+        {
+            public uint Tick;
+            public override byte[] Encode() { var w = new Writer(); w.U8(TState); w.Varint(Tick); w.Varint(0); return w.Finish(); }
         }
 
         public sealed class Pong : ServerMsg

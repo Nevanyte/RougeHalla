@@ -1,66 +1,78 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v3.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v4.json` (docs/CONTRACTS.md C-NET).
 //!
-//! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Optional values: `u8 flag (0/1) + value`. Lists:
-//! `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown tags and
-//! trailing bytes are malformed. Size limits are enforced before decoding ([`MAX_CLIENT_FRAME`], [`MAX_SERVER_FRAME`]).
+//! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
+//! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
+//! tags and trailing bytes are malformed. Size limits are enforced before decoding ([`MAX_CLIENT_FRAME`], [`MAX_SERVER_FRAME`]).
 //!
-//! # What changed in v2 (Snapshot and Fx; every other message is as in v1)
+//! Counters are canonical unsigned LEB128 varints ([`Writer::varint`]); a decoder rejects a longer-than-necessary form. Time is
+//! not sent: the server's clock is always `tick * 50 ms` ([`snapshot_server_ms`]). The SELF view keeps full precision
+//! (prediction and reconciliation need it); remote actors and swing effects are quantized ([`quant`]: positions 1/8 u, angles
+//! 2 pi / 65536, hp_pct exact). Factions and weapons are 4-bit codes, status and phase 2-bit codes: the encoders refuse a larger
+//! one ([`EncodeError::BadValue`]) rather than truncate it.
 //!
-//! Counters are canonical unsigned LEB128 varints ([`Writer::varint`]). Time is not sent: the server's clock is always
-//! `tick * 50 ms` ([`snapshot_server_ms`]), so a decoder derives it. A field equal to its default is left out and its
-//! mask bit is clear.
+//! # Field masks (protocol v4; docs/adr/0011-protocol-v4.md)
 //!
-//! ```text
-//! Snapshot  0x83, tick varint, ack_input varint,
-//!   head u16   bit 15 a self follows; bits 12..13 phase; bits 0..9 the self's fields (all zero without a self)
-//!   [self: id varint, x f32, y f32, facing f32, then per head bit:
-//!      max_hp  f32 when bit 9 is set, else a varint (an integer in 0..=65535: the usual case)
-//!      0 kit u8 (faction | weapon << 4; default 0)     1 hp f32 (default = max_hp)    bits 2..3 status (inline, 0..=3)
-//!      4 ready_in_ms u16 (0)    5 kills varint (0)    6 bounty varint (0)    7 gv varint (0)    8 move_seq u8 (0)]
-//!   actor_count varint (<= MAX_ACTORS), then per actor (the observation sorts them by id; ids must strictly ascend):
-//!     id varint (the first actor's id, then the gap from the previous one), mask u8, x u16, y u16, facing u16, then
-//!     per mask bit: 0 kit u8 (default 0)   1 hp_pct u8 (default 100)   bounty varint when bit 4 (default 0)
-//!     mask bits 2..3 hold the status (inline, 0..=3); bits 5..7 are reserved and must be zero
-//! Fx        0x85, tick varint, count varint (<= 65535), then per item
-//!     swing 1: by varint, weapon u8, x u16, y u16, a u16 (quantized as remote actors are)
-//!     hit   2: victim varint, by varint, amount f32
-//! ```
-//!
-//! The SELF view keeps full precision (prediction and reconciliation need it); remote actors and swing effects are
-//! quantized ([`quant`]: positions 1/8 u, angles 2 pi / 65536, hp_pct exact). Factions and weapons are 4-bit codes, status
-//! and phase 2-bit codes: the encoders refuse a larger one ([`EncodeError::BadValue`]) rather than truncate it. Decoders
-//! reject reserved bits, values out of range (hp_pct over 100, a varint past its type), ids that do not strictly ascend, a
-//! count over [`MAX_ACTORS`] and a non-canonical varint; the encoders never write such a frame.
-//!
-//! # What changed in v3 (snapshot deltas; every other message is as in v2 except the new client `Resync`)
-//!
-//! A connection's snapshots are either FULL (tag 0x83, the v2 layout above, byte for byte) or a DELTA (tag 0x87) against the
-//! last snapshot that connection's writer wrote to the socket. TCP is ordered and reliable, so that base needs no client
-//! ack: the client's base is simply the last snapshot it applied. Module [`delta`] has the layout, the writer-side
-//! [`ConnEncoder`] (which picks Full or Delta per frame) and the reader-side [`SnapshotTracker`] (which REFUSES, never repairs,
-//! a delta it cannot apply: unknown base, unknown or departed actor, out-of-range field).
+//! Every presence mask (the Full head, the Full actor mask, the Delta head, the actor-delta mask) is a canonical LEB128
+//! varint: one byte while its set bits are below bit 7, so the common frame pays nothing for the room to grow. Bit numbers are
+//! APPEND ONLY: a bit is never renumbered or reused; a new field is a new top bit plus its codec arm in the three decoders
+//! (Rust, C#, JS). A decoder still REFUSES a bit it does not know (strict per version: nothing is skippable), so a mask can only
+//! gain bits in a version bump. Lifecycle status and the match phase are ordinary fields: a field equal to its default is left
+//! out and its bit is clear ([`DEFAULT_STATUS`] alive, [`DEFAULT_PHASE`] active, kind 0 = player).
 //!
 //! ```text
-//! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint,
-//!   head u16   bit 15 a self follows (its id is the base's); bit 14 a departed list follows; bits 12..13 phase;
-//!              bits 0..11 which self fields follow (all zero without a self)
-//!   [self fields, in bit order, only those whose bit is set:
-//!      0 x f32  1 y f32  2 facing f32  3 hp f32  4 max_hp f32  5 kit u8  6 ready_in_ms u16  7 kills varint  8 bounty varint
-//!      9 gv varint  10 move_seq u8  11 status u8 (0..=3)]
-//!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id:
-//!     id varint (the first's id, then the gap), mask u8, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8
-//!     4 hp_pct u8  5 bounty varint; bits 6..7 hold the status (always present). A new actor carries all six fields.
-//!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 14
-//! Resync    0x05 (client -> server, no body): "send me a full snapshot"; the server honours at most one per second.
+//! Snapshot  0x83, tick varint, ack_input varint, head varint, [self], actor_count varint (<= MAX_ACTORS), actors
+//!   head bits  0 a self follows   1 kit   2 hp   3 ready_in_ms   4 kills   5 bounty   6 move_seq   7 gv   8 max_hp is an f32
+//!              9 status   10 phase      (bits 1..=9 need bit 0; bit 10 is the match phase, self or not)
+//!   [self: id varint, x f32, y f32, facing f32, max_hp (f32 with bit 8, else a varint in 0..=65535), then per set bit, in
+//!      bit order: 1 kit u8 (faction | weapon << 4; default 0)  2 hp f32 (default = max_hp)  3 ready_in_ms u16 (0)
+//!      4 kills varint (0)  5 bounty varint (0)  6 move_seq u8 (0)  7 gv varint (0)  9 status u8 0..=3 (default 1)
+//!      10 phase u8 0..=3 (default 1; follows the self, or the head when there is none)]
+//!   per actor (the observation sorts them by id; ids must strictly ascend): id varint (the first actor's id, then the gap
+//!     from the previous one), mask varint, x u16, y u16, facing u16, then per mask bit: 0 kit u8 (default 0)
+//!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)
+//! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint, head varint
+//!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms
+//!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status
+//!   [self fields, in bit order, only those whose bit is set: x f32, y f32, facing f32, move_seq u8, hp f32, ready_in_ms u16,
+//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3)]   bits 1..=6 and 9..=14 need bit 0
+//!   [phase u8 (0..=3) with bit 8: the new phase (a delta carries a field only when it differs from the base)]
+//!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id: id varint (the first's id, then the gap),
+//!     mask varint, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8  4 hp_pct u8  5 bounty varint  6 status u8
+//!     7 kind u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
+//!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 7
 //! ```
+//!
+//! # Snapshots and deltas (v3, unchanged in v4)
+//!
+//! A connection's snapshots are either FULL (tag 0x83) or a DELTA (tag 0x87) against the last snapshot that connection's writer
+//! wrote to the socket. TCP is ordered and reliable, so that base needs no client ack: the client's base is simply the last
+//! snapshot it applied. Module [`delta`] has the writer-side [`ConnEncoder`] (which picks Full or Delta per frame) and the
+//! reader-side [`SnapshotTracker`] (which REFUSES, never repairs, a delta it cannot apply: unknown base, unknown or departed
+//! actor, out-of-range field). `Resync` (0x05, client to server, no body) asks for a Full snapshot; the server honours at most
+//! one per second.
 //!
 //! The writer sends a Full snapshot for the first one after a Welcome (a resumed connection always starts so), after a
 //! `Resync`, when its base is older than [`MAX_DELTA_AGE`] ticks, when the self appears or changes id, and whenever the
 //! delta would not be smaller than the full frame. The room never encodes a snapshot: it hands each connection's writer the
 //! observation's wire data ([`SnapshotData`]), so a snapshot a slow client skips is never encoded at all.
+//!
+//! # Channels and the reserved State message (v4)
+//!
+//! Three channels carry the game to a client: Snapshot (per-tick scalars, lossless chain), Events (reliable one-shot
+//! announcements) and Fx (droppable). Anything else the client needs to KEEP (collections, match-level state) is KEYED STATE:
+//! `State 0x88, tick varint, count varint, then per item [key varint][record]`, the latest value per key, the record layout
+//! defined by the key. v4 defines no key, so its decoders accept only an empty State (`count 0`) and refuse any item. Rule: a
+//! Welcome (join and resume) is followed by a full State once keys exist, so a resumed or recovered client never depends on an
+//! event it may have missed; events stay for one-shot announcements. The player's own `Result` is the one event the server
+//! keeps and re-sends after a resume.
+//!
+//! # Actor ids
+//!
+//! A wire actor id names one entity for the whole match, across every kind of entity (players, and later mobs), and is never
+//! reused within a match; `kind` says what it is (0 = player). See docs/CONTRACTS.md C-NET.
 //!
 //! This crate does not depend on the simulation: the server maps sim types to these wire types, so internal refactors never
 //! change the wire by accident.
@@ -85,7 +97,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 3;
+pub const PROTOCOL_VERSION: u16 = 4;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -96,6 +108,9 @@ pub const TICK_MS: u32 = 50;
 pub fn snapshot_server_ms(tick: u32) -> f64 {
     tick as f64 * TICK_MS as f64
 }
+/// Longest admission ticket a Hello may carry. With the other Hello fields at their maxima (two 255-byte strings, a faction and a
+/// resume token) the frame is 11 + 2*256 + 2 + 17 + 2 + 448 = 992 bytes, under [`MAX_CLIENT_FRAME`] (a test holds it).
+pub const MAX_TICKET: usize = 448;
 /// A client frame larger than this is malformed (the largest legal one, an Input with 16 commands, is under 400 bytes).
 pub const MAX_CLIENT_FRAME: usize = 1024;
 /// A server frame larger than this is a server bug (a Welcome with a map blob is the largest).
@@ -198,8 +213,12 @@ pub enum ClientMsg {
         protocol: u16,
         content_hash: u64,
         build: String,
+        /// The requested display name (the callsign).
         profile: String,
-        token: String,
+        /// Opaque admission credential, at most [`MAX_TICKET`] bytes: what P-HOST-1 defines (a game-session player id or a
+        /// signed join token). The server's admission checks it where the credentials were checked before; with no hosting
+        /// layer it is the callsign's secret as UTF-8 bytes.
+        ticket: Vec<u8>,
         faction: Option<u8>,
         resume: Option<[u8; 16]>,
     },
@@ -251,6 +270,9 @@ pub struct WireActor {
     pub status: u8,
     pub weapon: u8,
     pub bounty: u16,
+    /// What the entity is: 0 = player (the default, which costs no byte). Other kinds are assigned by the packet that adds
+    /// them; the id namespace is shared by every kind.
+    pub kind: u8,
 }
 
 impl WireActor {
@@ -378,7 +400,17 @@ pub enum ServerMsg {
         client_ms: f64,
         server_ms: f64,
     },
+    /// Keyed state, the latest value per key (v4, reserved: no key exists yet, so `items` is always empty). See the crate docs.
+    State {
+        tick: u32,
+        items: Vec<StateItem>,
+    },
 }
+
+/// One keyed record of a [`ServerMsg::State`]. No key is defined in v4, so the type has no value: a decoder refuses any item
+/// and an encoder cannot build one. The first key adds a variant (and a protocol bump).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StateItem {}
 
 const T_HELLO: u8 = 0x01;
 const T_INPUT: u8 = 0x02;
@@ -392,6 +424,7 @@ const T_EVENTS: u8 = 0x84;
 const T_FX: u8 = 0x85;
 const T_PONG: u8 = 0x86;
 const T_SNAPSHOT_DELTA: u8 = 0x87;
+const T_STATE: u8 = 0x88;
 
 const C_MOVE: u8 = 1;
 const C_STOP: u8 = 2;
@@ -424,7 +457,7 @@ impl ClientMsg {
                 content_hash: r.u64()?,
                 build: r.str()?,
                 profile: r.str()?,
-                token: r.str()?,
+                ticket: r.blob(MAX_TICKET)?,
                 faction: r.opt(|r| r.u8())?,
                 resume: r.opt(|r| r.array16())?,
             },
@@ -472,31 +505,35 @@ impl ClientMsg {
     }
 }
 
-/// Head word bits (protocol v2): the self's field bits 0..=9, phase in bits 12..=13, bit 15 = a self follows.
-pub(crate) const HM_KIT: u16 = 1 << 0;
-pub(crate) const HM_HP: u16 = 1 << 1;
-/// Bits 2..=3: the self's status code, always present (no default).
-pub(crate) const HM_STATUS_SHIFT: u16 = 2;
-pub(crate) const HM_READY: u16 = 1 << 4;
-pub(crate) const HM_KILLS: u16 = 1 << 5;
-pub(crate) const HM_BOUNTY: u16 = 1 << 6;
-pub(crate) const HM_GV: u16 = 1 << 7;
-pub(crate) const HM_MOVE_SEQ: u16 = 1 << 8;
+/// Full head bits (protocol v4; append only, see the crate docs). A head is a varint: bits below 7 take one byte.
+pub(crate) const HM_PRESENT: u32 = 1 << 0;
+pub(crate) const HM_KIT: u32 = 1 << 1;
+pub(crate) const HM_HP: u32 = 1 << 2;
+pub(crate) const HM_READY: u32 = 1 << 3;
+pub(crate) const HM_KILLS: u32 = 1 << 4;
+pub(crate) const HM_BOUNTY: u32 = 1 << 5;
+pub(crate) const HM_MOVE_SEQ: u32 = 1 << 6;
+pub(crate) const HM_GV: u32 = 1 << 7;
 /// `max_hp` is written as an f32 (it is not an integer in 0..=65535); otherwise as a varint.
-pub(crate) const HM_MAXHP_F32: u16 = 1 << 9;
-pub(crate) const HM_PHASE_SHIFT: u16 = 12;
-pub(crate) const HM_PRESENT: u16 = 1 << 15;
+pub(crate) const HM_MAXHP_F32: u32 = 1 << 8;
+pub(crate) const HM_STATUS: u32 = 1 << 9;
+pub(crate) const HM_PHASE: u32 = 1 << 10;
 /// Bits that belong to the self; a head without a self must have none of them set.
-pub(crate) const HM_SELF_BITS: u16 = 0x03ff | HM_PRESENT;
-pub(crate) const HM_KNOWN: u16 = HM_SELF_BITS | (3 << HM_PHASE_SHIFT);
-/// Actor mask bits: bit 0 kit, bit 1 hp, bits 2..=3 status (always present), bit 4 bounty, bits 5..=7 reserved.
-pub(crate) const AM_KIT: u8 = 1 << 0;
-pub(crate) const AM_HP: u8 = 1 << 1;
-pub(crate) const AM_STATUS_SHIFT: u8 = 2;
-pub(crate) const AM_BOUNTY: u8 = 1 << 4;
-pub(crate) const AM_KNOWN: u8 = AM_KIT | AM_HP | (3 << AM_STATUS_SHIFT) | AM_BOUNTY;
+pub(crate) const HM_SELF_BITS: u32 = 0x03ff;
+pub(crate) const HM_KNOWN: u32 = HM_SELF_BITS | HM_PHASE;
+/// Full actor mask bits (append only): 0 kit, 1 hp, 2 status, 3 bounty, 4 kind.
+pub(crate) const AM_KIT: u32 = 1 << 0;
+pub(crate) const AM_HP: u32 = 1 << 1;
+pub(crate) const AM_STATUS: u32 = 1 << 2;
+pub(crate) const AM_BOUNTY: u32 = 1 << 3;
+pub(crate) const AM_KIND: u32 = 1 << 4;
+pub(crate) const AM_KNOWN: u32 = AM_KIT | AM_HP | AM_STATUS | AM_BOUNTY | AM_KIND;
 /// The hp a clear hp bit stands for.
 pub(crate) const DEFAULT_HP_PCT: u8 = 100;
+/// The status a clear status bit stands for: alive (0 lobby, 1 alive, 2 dead, 3 mia: docs/CONTRACTS.md C-NET).
+pub const DEFAULT_STATUS: u8 = 1;
+/// The phase a clear phase bit stands for: active (0 lobby, 1 active, 2 ended).
+pub const DEFAULT_PHASE: u8 = 1;
 /// Largest faction, weapon (4 bits each in the kit byte), status and phase (2 bits each) the wire can carry.
 pub const MAX_KIT_CODE: u8 = 15;
 pub const MAX_STATUS_CODE: u8 = 3;
@@ -506,8 +543,8 @@ pub(crate) fn varint_u16(r: &mut Reader, what: &'static str) -> Result<u16, Deco
     u16::try_from(r.varint()?).map_err(|_| DecodeError::BadField(what))
 }
 
-/// The self record after its head word (`mask` has HM_PRESENT set).
-fn read_self(r: &mut Reader, mask: u16) -> Result<WireSelf, DecodeError> {
+/// The self record after its head (`mask` has HM_PRESENT set). The phase, if the head has one, is read by the caller.
+fn read_self(r: &mut Reader, mask: u32) -> Result<WireSelf, DecodeError> {
     let id = r.varint()?;
     let x = r.f32()?;
     let y = r.f32()?;
@@ -535,12 +572,17 @@ fn read_self(r: &mut Reader, mask: u16) -> Result<WireSelf, DecodeError> {
     } else {
         0
     };
+    let move_seq = if mask & HM_MOVE_SEQ != 0 { r.u8()? } else { 0 };
     let gv = if mask & HM_GV != 0 {
         varint_u16(r, "gv")?
     } else {
         0
     };
-    let move_seq = if mask & HM_MOVE_SEQ != 0 { r.u8()? } else { 0 };
+    let status = if mask & HM_STATUS != 0 {
+        code(r, MAX_STATUS_CODE, "status")?
+    } else {
+        DEFAULT_STATUS
+    };
     Ok(WireSelf {
         id,
         faction,
@@ -549,7 +591,7 @@ fn read_self(r: &mut Reader, mask: u16) -> Result<WireSelf, DecodeError> {
         facing,
         hp,
         max_hp,
-        status: ((mask >> HM_STATUS_SHIFT) & 3) as u8,
+        status,
         weapon,
         ready_in_ms,
         kills,
@@ -557,6 +599,14 @@ fn read_self(r: &mut Reader, mask: u16) -> Result<WireSelf, DecodeError> {
         gv,
         move_seq,
     })
+}
+
+/// A byte that must be at most `max`.
+pub(crate) fn code(r: &mut Reader, max: u8, what: &'static str) -> Result<u8, DecodeError> {
+    match r.u8()? {
+        v if v <= max => Ok(v),
+        _ => Err(DecodeError::BadField(what)),
+    }
 }
 
 /// One actor; `prev` is the previous actor's id (ids strictly ascend: the first is absolute, the rest are gaps).
@@ -569,7 +619,7 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
             _ => return Err(DecodeError::BadField("actor order")),
         },
     };
-    let mask = r.u8()?;
+    let mask = r.varint()?;
     if mask & !AM_KNOWN != 0 {
         return Err(DecodeError::BadField("actor mask"));
     }
@@ -590,11 +640,17 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
     if hp_pct > 100 {
         return Err(DecodeError::BadField("hp_pct"));
     }
+    let status = if mask & AM_STATUS != 0 {
+        code(r, MAX_STATUS_CODE, "status")?
+    } else {
+        DEFAULT_STATUS
+    };
     let bounty = if mask & AM_BOUNTY != 0 {
         varint_u16(r, "bounty")?
     } else {
         0
     };
+    let kind = if mask & AM_KIND != 0 { r.u8()? } else { 0 };
     Ok(WireActor {
         id,
         faction,
@@ -602,9 +658,10 @@ fn read_actor(r: &mut Reader, prev: Option<u32>) -> Result<WireActor, DecodeErro
         y,
         facing,
         hp_pct,
-        status: (mask >> AM_STATUS_SHIFT) & 3,
+        status,
         weapon,
         bounty,
+        kind,
     })
 }
 
@@ -640,15 +697,19 @@ impl ServerMsg {
             T_SNAPSHOT => {
                 let tick = r.varint()?;
                 let ack_input = r.varint()?;
-                let head = r.u16()?;
+                let head = r.varint()?;
                 if head & !HM_KNOWN != 0 || (head & HM_PRESENT == 0 && head & HM_SELF_BITS != 0) {
                     return Err(DecodeError::BadField("head"));
                 }
-                let phase = ((head >> HM_PHASE_SHIFT) & 3) as u8;
                 let me = if head & HM_PRESENT != 0 {
                     Some(read_self(&mut r, head)?)
                 } else {
                     None
+                };
+                let phase = if head & HM_PHASE != 0 {
+                    code(&mut r, MAX_PHASE_CODE, "phase")?
+                } else {
+                    DEFAULT_PHASE
                 };
                 let n = r.varint()? as usize;
                 if n > MAX_ACTORS {
@@ -670,6 +731,17 @@ impl ServerMsg {
                 }
             }
             T_SNAPSHOT_DELTA => ServerMsg::SnapshotDelta(delta::read_snapshot_delta(&mut r)?),
+            T_STATE => {
+                let tick = r.varint()?;
+                // No key is defined in v4: any item is an unknown key, and keys are strict per version.
+                if r.varint()? != 0 {
+                    return Err(DecodeError::BadField("state key"));
+                }
+                ServerMsg::State {
+                    tick,
+                    items: Vec::new(),
+                }
+            }
             T_EVENTS => {
                 let tick = r.u32()?;
                 let n = r.u16()? as usize;
@@ -739,5 +811,19 @@ impl ServerMsg {
         };
         r.end()?;
         Ok(msg)
+    }
+}
+
+#[cfg(test)]
+mod mask_numbers {
+    use super::*;
+
+    /// The Full actor mask bit numbers are append only (docs/adr/0011-protocol-v4.md).
+    #[test]
+    fn full_actor_mask_bit_numbers_are_pinned() {
+        assert_eq!(
+            [AM_KIT, AM_HP, AM_STATUS, AM_BOUNTY, AM_KIND],
+            [1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4]
+        );
     }
 }

@@ -1,4 +1,5 @@
-//! Protocol v3: per-connection snapshot deltas (docs/adr/0010-snapshot-delta.md). Layout: the crate docs ([`crate`]).
+//! Per-connection snapshot deltas (protocol v3, docs/adr/0010-snapshot-delta.md) with the v4 append-only varint masks
+//! (docs/adr/0011-protocol-v4.md). Layout: the crate docs ([`crate`]).
 //!
 //! Three pieces, one per side of the socket:
 //!
@@ -15,8 +16,8 @@
 //! tick (quantized as always), and the self block is exact (bitwise, so -0.0 and NaN payloads survive).
 
 use super::{
-    actor_looks_bad, head_word, id_field, kit, list, self_len, snapshot_fault, write_snapshot_head,
-    Fixed, MAX_ACTOR_LEN,
+    actor_looks_bad, head_len, head_word, id_field, kit, list, self_len, snapshot_fault,
+    write_snapshot_head, Fixed, MAX_ACTOR_LEN,
 };
 use crate::codec::{varint_len, DecodeError, EncodeError, Reader, Writer};
 use crate::*;
@@ -29,48 +30,56 @@ pub const MAX_DELTA_AGE: u32 = 64;
 /// of refusals always gets its Full frame, and a client that asks in a flood costs the writer one Full per interval.
 pub const MIN_FORCED_FULL_TICKS: u32 = 20;
 
-/// Delta head word: bit 15 a self follows, bit 14 a departed list follows, bits 12..=13 the phase, bits 0..=11 the self
-/// fields that follow (the same order as the bits).
-const DH_X: u16 = 1 << 0;
-const DH_Y: u16 = 1 << 1;
-const DH_FACING: u16 = 1 << 2;
-const DH_HP: u16 = 1 << 3;
-const DH_MAX_HP: u16 = 1 << 4;
-const DH_KIT: u16 = 1 << 5;
-const DH_READY: u16 = 1 << 6;
-const DH_KILLS: u16 = 1 << 7;
-const DH_BOUNTY: u16 = 1 << 8;
-const DH_GV: u16 = 1 << 9;
-const DH_MOVE_SEQ: u16 = 1 << 10;
-const DH_STATUS: u16 = 1 << 11;
-const DH_FIELDS: u16 = 0x0fff;
-const DH_PHASE_SHIFT: u16 = 12;
-const DH_DEPARTED: u16 = 1 << 14;
-const DH_PRESENT: u16 = 1 << 15;
+/// Delta head bits (protocol v4, append only). A varint: bits below 7 take one byte, so the fields that change nearly every
+/// tick of a moving player sit there. Bit 0: a self follows (its fields are bits 1..=6 and 9..=14, data in bit order); bit 7: a
+/// departed list follows the actors; bit 8: the phase changed (its byte follows the self).
+pub const DH_PRESENT: u32 = 1 << 0;
+pub const DH_X: u32 = 1 << 1;
+pub const DH_Y: u32 = 1 << 2;
+pub const DH_FACING: u32 = 1 << 3;
+pub const DH_MOVE_SEQ: u32 = 1 << 4;
+pub const DH_HP: u32 = 1 << 5;
+pub const DH_READY: u32 = 1 << 6;
+pub const DH_DEPARTED: u32 = 1 << 7;
+pub const DH_PHASE: u32 = 1 << 8;
+pub const DH_MAX_HP: u32 = 1 << 9;
+pub const DH_KIT: u32 = 1 << 10;
+pub const DH_KILLS: u32 = 1 << 11;
+pub const DH_BOUNTY: u32 = 1 << 12;
+pub const DH_GV: u32 = 1 << 13;
+pub const DH_STATUS: u32 = 1 << 14;
+/// The self field bits (a head without a self must have none of them).
+pub const DH_FIELDS: u32 = 0x7e7e;
+pub const DH_KNOWN: u32 = DH_PRESENT | DH_FIELDS | DH_PHASE | DH_DEPARTED;
 
-/// Actor delta mask: bits 0..=5 the fields that follow, bits 6..=7 the status (always present).
-pub const AD_X: u8 = 1 << 0;
-pub const AD_Y: u8 = 1 << 1;
-pub const AD_FACING: u8 = 1 << 2;
-pub const AD_KIT: u8 = 1 << 3;
-pub const AD_HP: u8 = 1 << 4;
-pub const AD_BOUNTY: u8 = 1 << 5;
-/// Every field: what a new actor (one the base does not hold) must carry.
-pub const AD_ALL: u8 = 0x3f;
-const AD_STATUS_SHIFT: u8 = 6;
+/// Actor delta mask bits (append only): the fields that follow, in bit order.
+pub const AD_X: u32 = 1 << 0;
+pub const AD_Y: u32 = 1 << 1;
+pub const AD_FACING: u32 = 1 << 2;
+pub const AD_KIT: u32 = 1 << 3;
+pub const AD_HP: u32 = 1 << 4;
+pub const AD_BOUNTY: u32 = 1 << 5;
+pub const AD_STATUS: u32 = 1 << 6;
+pub const AD_KIND: u32 = 1 << 7;
+/// Every field.
+pub const AD_ALL: u32 = 0xff;
+/// What a new actor (one the base does not hold) must carry: its position. Every other field starts at its default.
+pub const AD_NEW: u32 = AD_X | AD_Y | AD_FACING;
 
 /// Fewest bytes a self takes after the head word (id, x y facing, a one-byte max_hp) and an actor takes in a Full frame (id, mask,
 /// x y facing).
 const MIN_SELF: usize = 1 + 12 + 1;
 const MIN_ACTOR: usize = 1 + 1 + 6;
+/// Fewest bytes a Snapshot head takes (a one-byte varint).
+const MIN_HEAD: usize = 1;
 
-/// Largest self delta after the head word: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
-/// move_seq, status.
-const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1;
-/// Largest delta head: tag, tick (5), age, ack (5), head word, the self delta, the changed count (3).
-const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 2 + MAX_SELF_DELTA + 3;
-/// Largest changed-actor record: id 5, mask, x y facing 6, kit, hp, bounty 3.
-const MAX_ACTOR_DELTA: usize = 5 + 1 + 6 + 1 + 1 + 3;
+/// Largest self delta after the head: x, y, facing, hp, max_hp (4 each), kit, ready (2), kills, bounty, gv (3 each),
+/// move_seq, status, phase.
+const MAX_SELF_DELTA: usize = 20 + 1 + 2 + 9 + 1 + 1 + 1;
+/// Largest delta head: tag, tick (5), age, ack (5), head (1 placeholder), the self delta, the changed count (3).
+const MAX_DELTA_HEAD: usize = 1 + 5 + 1 + 5 + 1 + MAX_SELF_DELTA + 3;
+/// Largest changed-actor record: id 5, mask 2, x y facing 6, kit, hp, bounty 3, status, kind.
+const MAX_ACTOR_DELTA: usize = 5 + 2 + 6 + 1 + 1 + 3 + 1 + 1;
 
 /// A remote actor as a connection remembers and sends it: exactly what the wire carries (15 bytes of fields).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -86,9 +95,24 @@ pub struct QActor {
     pub hp_pct: u8,
     pub status: u8,
     pub bounty: u16,
+    /// What the entity is (0 = player).
+    pub kind: u8,
 }
 
 impl QActor {
+    /// The actor a delta's new entry starts from: every optional field at its default (position zero; a new entry carries it).
+    pub const NEW: QActor = QActor {
+        id: 0,
+        x: 0,
+        y: 0,
+        facing: 0,
+        kit: 0,
+        hp_pct: DEFAULT_HP_PCT,
+        status: DEFAULT_STATUS,
+        bounty: 0,
+        kind: 0,
+    };
+
     /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
     /// its bit width, an `hp_pct` over 100, a position off the wire grid), or the actor as it goes over the wire. The check is
     /// per actor, so a result can be reused wherever the same actor is shown; the ascending order of ids belongs to a list and
@@ -113,6 +137,7 @@ impl QActor {
             hp_pct: a.hp_pct,
             status: a.status,
             bounty: a.bounty,
+            kind: a.kind,
         }
     }
 
@@ -128,21 +153,28 @@ impl QActor {
             status: self.status,
             weapon: self.kit >> 4,
             bounty: self.bounty,
+            kind: self.kind,
         }
     }
 
-    /// The v2 actor mask: status inline, a bit per optional field that differs from its default.
+    /// The Full actor mask: a bit per field that differs from its default.
     #[inline]
-    fn full_mask(&self) -> u8 {
-        let mut m = (self.status & 3) << AM_STATUS_SHIFT;
+    fn full_mask(&self) -> u32 {
+        let mut m = 0;
         if self.kit != 0 {
             m |= AM_KIT;
         }
         if self.hp_pct != DEFAULT_HP_PCT {
             m |= AM_HP;
         }
+        if self.status != DEFAULT_STATUS {
+            m |= AM_STATUS;
+        }
         if self.bounty != 0 {
             m |= AM_BOUNTY;
+        }
+        if self.kind != 0 {
+            m |= AM_KIND;
         }
         m
     }
@@ -154,11 +186,13 @@ impl QActor {
             + 7
             + (self.kit != 0) as usize
             + (self.hp_pct != DEFAULT_HP_PCT) as usize
+            + (self.status != DEFAULT_STATUS) as usize
             + if self.bounty != 0 {
                 varint_len(self.bounty as u32)
             } else {
                 0
             }
+            + (self.kind != 0) as usize
     }
 }
 
@@ -168,7 +202,7 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     let m = q.full_mask();
     let mut w = Fixed::<MAX_ACTOR_LEN>::new();
     w.varint(id_field(q.id, prev));
-    w.u8(m);
+    w.varint(m);
     w.u16(q.x);
     w.u16(q.y);
     w.u16(q.facing);
@@ -178,8 +212,14 @@ fn write_full_actor(out: &mut Writer, q: &QActor, prev: Option<u32>) {
     if m & AM_HP != 0 {
         w.u8(q.hp_pct);
     }
+    if m & AM_STATUS != 0 {
+        w.u8(q.status);
+    }
     if m & AM_BOUNTY != 0 {
         w.varint(q.bounty as u32);
+    }
+    if m & AM_KIND != 0 {
+        w.u8(q.kind);
     }
     w.put(out);
 }
@@ -302,7 +342,7 @@ impl SnapshotData {
         b.min_len = (1
             + varint_len(tick)
             + varint_len(ack_input)
-            + 2
+            + MIN_HEAD
             + varint_len(declared as u32)
             + me.as_ref().map_or(0, |_| MIN_SELF)
             + MIN_ACTOR * declared) as u32;
@@ -331,14 +371,12 @@ impl SnapshotData {
     /// Exact size of this snapshot's Full frame (a pass over the actors: the writer asks only when a delta is not clearly
     /// smaller).
     pub fn full_len(&self) -> usize {
+        let head = head_word(self.phase, self.me.as_ref());
         let mut n = 1
             + varint_len(self.tick)
             + varint_len(self.ack_input)
-            + 2
-            + self
-                .me
-                .as_ref()
-                .map_or(0, |s| self_len(s, head_word(self.phase, Some(s))))
+            + head_len(head)
+            + self.me.as_ref().map_or(0, |s| self_len(s, head))
             + varint_len(self.actors.len() as u32);
         let mut prev = None;
         for q in &self.actors {
@@ -542,9 +580,29 @@ fn put<const N: usize>(out: &mut Vec<u8>, f: &Fixed<N>) {
     out.truncate(len + f.n);
 }
 
+/// The mask of the fields of `q` that differ from `p` (the same actor in the base), bits as [`AD_X`]...
+#[inline]
+fn actor_delta_mask(p: &QActor, q: &QActor) -> u32 {
+    (p.x != q.x) as u32
+        | ((p.y != q.y) as u32) << 1
+        | ((p.facing != q.facing) as u32) << 2
+        | ((p.kit != q.kit) as u32) << 3
+        | ((p.hp_pct != q.hp_pct) as u32) << 4
+        | ((p.bounty != q.bounty) as u32) << 5
+        | ((p.status != q.status) as u32) << 6
+        | ((p.kind != q.kind) as u32) << 7
+}
+
+/// The mask of a NEW actor: its position, and every other field that is not the default.
+#[inline]
+fn new_actor_mask(q: &QActor) -> u32 {
+    AD_NEW | actor_delta_mask(&QActor::NEW, q)
+}
+
 /// Appends the delta of `cur` against `base` to `out` (the caller has checked [`ConnEncoder::delta_possible`]'s conditions).
-/// One pass: the head is written with its departed bit and the changed count as placeholders that are patched once the actors
-/// have been walked (the count is one byte unless 128 or more actors changed), and each changed actor is appended as it is found.
+/// One pass: the head and the changed count are written as one-byte placeholders that are patched once the actors have been
+/// walked (the head is one byte unless a bit from 7 up is set; the count is one byte unless 128 or more actors changed), and
+/// each changed actor is appended as it is found.
 fn write_delta(
     base: &SnapshotData,
     cur: &SnapshotData,
@@ -560,10 +618,14 @@ fn write_delta(
     f.varint(age);
     f.varint(cur.ack_input);
     let head_at = f.n;
-    f.u16(0);
-    let mut head = ((cur.phase as u16) & 3) << DH_PHASE_SHIFT;
+    f.u8(0);
+    let mut head = 0u32;
     if let (Some(bm), Some(cm)) = (&base.me, &cur.me) {
         head |= DH_PRESENT | write_self_delta(&mut f, bm, cm);
+    }
+    if cur.phase != base.phase {
+        head |= DH_PHASE;
+        f.u8(cur.phase);
     }
     let count_at = f.n;
     f.u8(0);
@@ -576,27 +638,19 @@ fn write_delta(
             departed.push(b[i].id);
             i += 1;
         }
-        let (mask, same_status) = if i < b.len() && b[i].id == q.id {
-            let p = &b[i];
+        let mask = if i < b.len() && b[i].id == q.id {
+            let m = actor_delta_mask(&b[i], q);
             i += 1;
-            (
-                (p.x != q.x) as u8
-                    | ((p.y != q.y) as u8) << 1
-                    | ((p.facing != q.facing) as u8) << 2
-                    | ((p.kit != q.kit) as u8) << 3
-                    | ((p.hp_pct != q.hp_pct) as u8) << 4
-                    | ((p.bounty != q.bounty) as u8) << 5,
-                p.status == q.status,
-            )
+            if m == 0 {
+                continue;
+            }
+            m
         } else {
-            (AD_ALL, false)
+            new_actor_mask(q)
         };
-        if mask == 0 && same_status {
-            continue;
-        }
         let mut w = Fixed::<MAX_ACTOR_DELTA>::new();
         w.varint(if changed == 0 { q.id } else { q.id - last });
-        w.u8(mask | (q.status & 3) << AD_STATUS_SHIFT);
+        w.varint(mask);
         if mask & AD_X != 0 {
             w.u16(q.x);
         }
@@ -615,6 +669,12 @@ fn write_delta(
         if mask & AD_BOUNTY != 0 {
             w.varint(q.bounty as u32);
         }
+        if mask & AD_STATUS != 0 {
+            w.u8(q.status);
+        }
+        if mask & AD_KIND != 0 {
+            w.u8(q.kind);
+        }
         put(out, &w);
         last = q.id;
         changed += 1;
@@ -626,13 +686,24 @@ fn write_delta(
         write_departed(&mut w, departed);
         *out = w.finish();
     }
-    out[start + head_at..start + head_at + 2].copy_from_slice(&head.to_le_bytes());
+    // The count sits after the head, so it is patched first (a widening there does not move the head).
     if changed < 0x80 {
         out[start + count_at] = changed as u8;
     } else {
         // 128 or more changed actors: the count is a two-byte varint (at most 512).
         let v = [(changed as u8) | 0x80, (changed >> 7) as u8];
         out.splice(start + count_at..start + count_at + 1, v);
+    }
+    if head < 0x80 {
+        out[start + head_at] = head as u8;
+    } else {
+        // A bit from 7 up (a departure, the phase, a rarely changing field): a two-byte varint, three for bit 14.
+        let mut v = [0u8; 3];
+        let n = varint_len(head);
+        for (k, b) in v[..n].iter_mut().enumerate() {
+            *b = (head >> (7 * k)) as u8 & 0x7f | if k + 1 < n { 0x80 } else { 0 };
+        }
+        out.splice(start + head_at..start + head_at + 1, v[..n].iter().copied());
     }
 }
 
@@ -647,8 +718,8 @@ fn write_departed(w: &mut Writer, ids: &[u32]) {
 
 /// The self fields of `c` that differ from `b`, written in bit order; returns their head bits.
 #[inline]
-fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -> u16 {
-    let mut m = 0u16;
+fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -> u32 {
+    let mut m = 0u32;
     // Bitwise comparisons: -0.0 and NaN payloads must survive.
     if c.x.to_bits() != b.x.to_bits() {
         m |= DH_X;
@@ -662,9 +733,17 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_FACING;
         f.f32(c.facing);
     }
+    if c.move_seq != b.move_seq {
+        m |= DH_MOVE_SEQ;
+        f.u8(c.move_seq);
+    }
     if c.hp.to_bits() != b.hp.to_bits() {
         m |= DH_HP;
         f.f32(c.hp);
+    }
+    if c.ready_in_ms != b.ready_in_ms {
+        m |= DH_READY;
+        f.u16(c.ready_in_ms);
     }
     if c.max_hp.to_bits() != b.max_hp.to_bits() {
         m |= DH_MAX_HP;
@@ -674,10 +753,6 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
     if k != kit(b.faction, b.weapon) {
         m |= DH_KIT;
         f.u8(k);
-    }
-    if c.ready_in_ms != b.ready_in_ms {
-        m |= DH_READY;
-        f.u16(c.ready_in_ms);
     }
     if c.kills != b.kills {
         m |= DH_KILLS;
@@ -691,10 +766,6 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
         m |= DH_GV;
         f.varint(c.gv as u32);
     }
-    if c.move_seq != b.move_seq {
-        m |= DH_MOVE_SEQ;
-        f.u8(c.move_seq);
-    }
     if c.status != b.status {
         m |= DH_STATUS;
         f.u8(c.status);
@@ -702,11 +773,11 @@ fn write_self_delta(f: &mut Fixed<MAX_DELTA_HEAD>, b: &WireSelf, c: &WireSelf) -
     m
 }
 
-/// The changed self fields of a delta: `mask` has the head's field bits (0..=11); only the fields whose bit is set mean
-/// anything (the others are zero).
+/// The changed self fields of a delta: `mask` has the head's self field bits (never the present, phase or departed bits); only
+/// the fields whose bit is set mean anything (the others are zero).
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct SelfDelta {
-    pub mask: u16,
+    pub mask: u32,
     pub x: f32,
     pub y: f32,
     pub facing: f32,
@@ -772,7 +843,7 @@ impl SelfDelta {
         let mut f = Fixed::<MAX_DELTA_HEAD>::new();
         let mask = write_self_delta(&mut f, b, c);
         // Only the fields in the mask mean anything (the others are zero, as a decoder reads them back).
-        let keep = |bit: u16| mask & bit != 0;
+        let keep = |bit: u32| mask & bit != 0;
         SelfDelta {
             mask,
             x: if keep(DH_X) { c.x } else { 0.0 },
@@ -795,11 +866,11 @@ impl SelfDelta {
     }
 }
 
-/// One changed remote actor of a delta: `mask` (bits [`AD_X`]..[`AD_BOUNTY`]) says which fields of `q` are carried; the others
-/// are zero and mean nothing. The status is always carried.
+/// One changed remote actor of a delta: `mask` (bits [`AD_X`]..[`AD_KIND`]) says which fields of `q` are carried; the others
+/// are zero and mean nothing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActorDelta {
-    pub mask: u8,
+    pub mask: u32,
     pub q: QActor,
 }
 
@@ -826,7 +897,12 @@ impl ActorDelta {
         if self.mask & AD_BOUNTY != 0 {
             a.bounty = self.q.bounty;
         }
-        a.status = self.q.status;
+        if self.mask & AD_STATUS != 0 {
+            a.status = self.q.status;
+        }
+        if self.mask & AD_KIND != 0 {
+            a.kind = self.q.kind;
+        }
         a
     }
 }
@@ -837,11 +913,12 @@ pub struct SnapshotDelta {
     pub tick: u32,
     /// The tick of the snapshot this one is relative to (`tick - base_age`, 1..=[`MAX_DELTA_AGE`] behind).
     pub base_tick: u32,
-    pub phase: u8,
+    /// `Some` when the phase differs from the base's.
+    pub phase: Option<u8>,
     pub ack_input: u32,
     /// `Some` when the frame has a self (the base must have one too); the id is the base's.
     pub me: Option<SelfDelta>,
-    /// Ascending by id; a new actor carries every field ([`AD_ALL`]).
+    /// Ascending by id; a new actor carries at least its position ([`AD_NEW`]), the rest starts at the defaults.
     pub changed: Vec<ActorDelta>,
     /// Ascending ids that were in the base and are gone.
     pub departed: Vec<u32>,
@@ -864,24 +941,21 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
     for q in c {
         match b.binary_search_by_key(&q.id, |p| p.id) {
             Ok(i) => {
-                let p = &b[i];
-                let mask = (p.x != q.x) as u8
-                    | ((p.y != q.y) as u8) << 1
-                    | ((p.facing != q.facing) as u8) << 2
-                    | ((p.kit != q.kit) as u8) << 3
-                    | ((p.hp_pct != q.hp_pct) as u8) << 4
-                    | ((p.bounty != q.bounty) as u8) << 5;
-                if mask != 0 || p.status != q.status {
+                let mask = actor_delta_mask(&b[i], q);
+                if mask != 0 {
                     changed.push(ActorDelta {
                         mask,
                         q: mask_fields(q, mask),
                     });
                 }
             }
-            Err(_) => changed.push(ActorDelta {
-                mask: AD_ALL,
-                q: *q,
-            }),
+            Err(_) => {
+                let mask = new_actor_mask(q);
+                changed.push(ActorDelta {
+                    mask,
+                    q: mask_fields(q, mask),
+                })
+            }
         }
     }
     let departed = b
@@ -892,7 +966,7 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
     Some(SnapshotDelta {
         tick: cur.tick,
         base_tick: base.tick,
-        phase: cur.phase,
+        phase: (cur.phase != base.phase).then_some(cur.phase),
         ack_input: cur.ack_input,
         me,
         changed,
@@ -901,7 +975,7 @@ pub fn diff(base: &SnapshotData, cur: &SnapshotData) -> Option<SnapshotDelta> {
 }
 
 /// `q` with the fields outside `mask` zeroed (what a decoder reads back).
-fn mask_fields(q: &QActor, mask: u8) -> QActor {
+fn mask_fields(q: &QActor, mask: u32) -> QActor {
     QActor {
         id: q.id,
         x: if mask & AD_X != 0 { q.x } else { 0 },
@@ -909,8 +983,9 @@ fn mask_fields(q: &QActor, mask: u8) -> QActor {
         facing: if mask & AD_FACING != 0 { q.facing } else { 0 },
         kit: if mask & AD_KIT != 0 { q.kit } else { 0 },
         hp_pct: if mask & AD_HP != 0 { q.hp_pct } else { 0 },
-        status: q.status,
+        status: if mask & AD_STATUS != 0 { q.status } else { 0 },
         bounty: if mask & AD_BOUNTY != 0 { q.bounty } else { 0 },
+        kind: if mask & AD_KIND != 0 { q.kind } else { 0 },
     }
 }
 
@@ -920,14 +995,17 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
     w.varint(d.tick);
     w.varint(d.tick.wrapping_sub(d.base_tick));
     w.varint(d.ack_input);
-    let mut head = ((d.phase as u16) & 3) << DH_PHASE_SHIFT;
+    let mut head = 0u32;
     if let Some(s) = &d.me {
         head |= DH_PRESENT | (s.mask & DH_FIELDS);
+    }
+    if d.phase.is_some() {
+        head |= DH_PHASE;
     }
     if !d.departed.is_empty() {
         head |= DH_DEPARTED;
     }
-    w.u16(head);
+    w.varint(head);
     if let Some(s) = &d.me {
         let m = s.mask;
         if m & DH_X != 0 {
@@ -939,17 +1017,20 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_FACING != 0 {
             w.f32(s.facing);
         }
+        if m & DH_MOVE_SEQ != 0 {
+            w.u8(s.move_seq);
+        }
         if m & DH_HP != 0 {
             w.f32(s.hp);
+        }
+        if m & DH_READY != 0 {
+            w.u16(s.ready_in_ms);
         }
         if m & DH_MAX_HP != 0 {
             w.f32(s.max_hp);
         }
         if m & DH_KIT != 0 {
             w.u8(s.kit);
-        }
-        if m & DH_READY != 0 {
-            w.u16(s.ready_in_ms);
         }
         if m & DH_KILLS != 0 {
             w.varint(s.kills as u32);
@@ -960,19 +1041,19 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if m & DH_GV != 0 {
             w.varint(s.gv as u32);
         }
-        if m & DH_MOVE_SEQ != 0 {
-            w.u8(s.move_seq);
-        }
         if m & DH_STATUS != 0 {
             w.u8(s.status);
         }
+    }
+    if let Some(p) = d.phase {
+        w.u8(p);
     }
     w.varint(d.changed.len() as u32);
     let mut prev: Option<u32> = None;
     for a in &d.changed {
         w.varint(id_field(a.q.id, prev));
         prev = Some(a.q.id);
-        w.u8((a.mask & AD_ALL) | (a.q.status & 3) << AD_STATUS_SHIFT);
+        w.varint(a.mask & AD_ALL);
         if a.mask & AD_X != 0 {
             w.u16(a.q.x);
         }
@@ -991,6 +1072,12 @@ pub(crate) fn write_message(w: &mut Writer, d: &SnapshotDelta) {
         if a.mask & AD_BOUNTY != 0 {
             w.varint(a.q.bounty as u32);
         }
+        if a.mask & AD_STATUS != 0 {
+            w.u8(a.q.status);
+        }
+        if a.mask & AD_KIND != 0 {
+            w.u8(a.q.kind);
+        }
     }
     if !d.departed.is_empty() {
         write_departed(w, &d.departed);
@@ -1008,7 +1095,7 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
     list("actors", d.changed.len(), MAX_ACTORS)?;
     list("departed", d.departed.len(), MAX_ACTORS)?;
     let bad = |why| Err(EncodeError::BadValue(why));
-    if d.phase > MAX_PHASE_CODE {
+    if d.phase.is_some_and(|p| p > MAX_PHASE_CODE) {
         return bad("phase");
     }
     match d.tick.checked_sub(d.base_tick) {
@@ -1028,7 +1115,7 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
         if a.mask & !AD_ALL != 0 {
             return bad("actor mask");
         }
-        if a.q.status > MAX_STATUS_CODE {
+        if a.mask & AD_STATUS != 0 && a.q.status > MAX_STATUS_CODE {
             return bad("status");
         }
         if a.mask & AD_HP != 0 && a.q.hp_pct > 100 {
@@ -1045,7 +1132,7 @@ pub(crate) fn message_check(d: &SnapshotDelta) -> Result<(), EncodeError> {
     Ok(())
 }
 
-fn read_self_delta(r: &mut Reader, mask: u16) -> Result<SelfDelta, DecodeError> {
+fn read_self_delta(r: &mut Reader, mask: u32) -> Result<SelfDelta, DecodeError> {
     let mut s = SelfDelta {
         mask,
         ..SelfDelta::default()
@@ -1059,17 +1146,20 @@ fn read_self_delta(r: &mut Reader, mask: u16) -> Result<SelfDelta, DecodeError> 
     if mask & DH_FACING != 0 {
         s.facing = r.f32()?;
     }
+    if mask & DH_MOVE_SEQ != 0 {
+        s.move_seq = r.u8()?;
+    }
     if mask & DH_HP != 0 {
         s.hp = r.f32()?;
+    }
+    if mask & DH_READY != 0 {
+        s.ready_in_ms = r.u16()?;
     }
     if mask & DH_MAX_HP != 0 {
         s.max_hp = r.f32()?;
     }
     if mask & DH_KIT != 0 {
         s.kit = r.u8()?;
-    }
-    if mask & DH_READY != 0 {
-        s.ready_in_ms = r.u16()?;
     }
     if mask & DH_KILLS != 0 {
         s.kills = crate::varint_u16(r, "kills")?;
@@ -1080,14 +1170,8 @@ fn read_self_delta(r: &mut Reader, mask: u16) -> Result<SelfDelta, DecodeError> 
     if mask & DH_GV != 0 {
         s.gv = crate::varint_u16(r, "gv")?;
     }
-    if mask & DH_MOVE_SEQ != 0 {
-        s.move_seq = r.u8()?;
-    }
     if mask & DH_STATUS != 0 {
-        s.status = r.u8()?;
-        if s.status > MAX_STATUS_CODE {
-            return Err(DecodeError::BadField("status"));
-        }
+        s.status = crate::code(r, MAX_STATUS_CODE, "status")?;
     }
     Ok(s)
 }
@@ -1112,13 +1196,17 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         return Err(DecodeError::BadField("base age"));
     }
     let ack_input = r.varint()?;
-    let head = r.u16()?;
-    if head & DH_PRESENT == 0 && head & DH_FIELDS != 0 {
+    let head = r.varint()?;
+    if head & !DH_KNOWN != 0 || (head & DH_PRESENT == 0 && head & DH_FIELDS != 0) {
         return Err(DecodeError::BadField("head"));
     }
-    let phase = ((head >> DH_PHASE_SHIFT) & 3) as u8;
     let me = if head & DH_PRESENT != 0 {
         Some(read_self_delta(r, head & DH_FIELDS)?)
+    } else {
+        None
+    };
+    let phase = if head & DH_PHASE != 0 {
+        Some(crate::code(r, MAX_PHASE_CODE, "phase")?)
     } else {
         None
     };
@@ -1131,11 +1219,12 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
     for _ in 0..n {
         let id = read_id(r, prev, "actor order")?;
         prev = Some(id);
-        let m = r.u8()?;
-        let mask = m & AD_ALL;
+        let mask = r.varint()?;
+        if mask & !AD_ALL != 0 {
+            return Err(DecodeError::BadField("actor mask"));
+        }
         let mut q = QActor {
             id,
-            status: m >> AD_STATUS_SHIFT,
             ..QActor::default()
         };
         if mask & AD_X != 0 {
@@ -1158,6 +1247,12 @@ pub(crate) fn read_snapshot_delta(r: &mut Reader) -> Result<SnapshotDelta, Decod
         }
         if mask & AD_BOUNTY != 0 {
             q.bounty = crate::varint_u16(r, "bounty")?;
+        }
+        if mask & AD_STATUS != 0 {
+            q.status = crate::code(r, MAX_STATUS_CODE, "status")?;
+        }
+        if mask & AD_KIND != 0 {
+            q.kind = r.u8()?;
         }
         changed.push(ActorDelta { mask, q });
     }
@@ -1202,7 +1297,7 @@ pub enum DeltaError {
     UnknownDeparted(u32),
     /// An actor both changed and departed.
     DepartedAndChanged(u32),
-    /// An actor the held snapshot does not list, carried without every field.
+    /// An actor the held snapshot does not list, carried without its position.
     IncompleteNewActor(u32),
     /// The result would list more than [`MAX_ACTORS`] actors.
     TooManyActors(usize),
@@ -1362,7 +1457,9 @@ impl SnapshotTracker {
         std::mem::swap(&mut self.actors, &mut out);
         self.scratch = out;
         self.tick = Some(d.tick);
-        self.phase = d.phase;
+        if let Some(p) = d.phase {
+            self.phase = p;
+        }
         self.ack_input = d.ack_input;
         self.me = me;
         Ok(())
@@ -1402,10 +1499,15 @@ impl SnapshotTracker {
                 out.push(ch.apply(&base[bi]));
                 bi += 1;
             } else {
-                if ch.mask != AD_ALL {
+                if ch.mask & AD_NEW != AD_NEW {
                     return Err(DeltaError::IncompleteNewActor(ch.q.id));
                 }
-                out.push(ch.q.to_wire());
+                // A new actor starts from the default one: the fields it does not carry are at their defaults.
+                let start = QActor {
+                    id: ch.q.id,
+                    ..QActor::NEW
+                };
+                out.push(ch.apply(&start.to_wire()));
             }
         }
         flush(&mut bi, &mut di, None, out)?;

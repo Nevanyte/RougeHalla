@@ -9,7 +9,7 @@ namespace Roguehalla.Net.Tests
 {
     public class ProtocolVectorTests
     {
-        static JsonElement Fixture() { return JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol", "fixtures", "v3.json"))).RootElement; }
+        static JsonElement Fixture() { return JsonDocument.Parse(File.ReadAllText(Path.Combine(Util.RepoRoot(), "protocol", "fixtures", Util.FixtureName))).RootElement; }
 
         static IEnumerable<TestCaseData> Vectors(string section)
         {
@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV3() { Assert.AreEqual(3, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV4() { Assert.AreEqual(4, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -79,7 +79,7 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(0x1122334455667788UL, h.ContentHash);
             Assert.AreEqual("web-0.1.0", h.Build);
             Assert.AreEqual("Nevan_01", h.Profile);
-            Assert.AreEqual("tok-abc", h.Token);
+            CollectionAssert.AreEqual(System.Text.Encoding.UTF8.GetBytes("tok-abc"), h.Ticket);
             Assert.AreEqual((byte)4, h.Faction);
             Assert.IsNull(h.Resume);
             var r = Client<ClientMsg.Hello>("hello_resume");
@@ -155,10 +155,10 @@ namespace Roguehalla.Net.Tests
             var two = new string('\u00e9', 128); // 256 bytes
             var e = Assert.Throws<EncodeException>(() => new ServerMsg.Reject { Code = RejectCode.Malformed, Reason = two }.Encode());
             StringAssert.Contains("256", e.Message);
-            Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Token = two }.Encode());
+            Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Ticket = new byte[Wire.MaxTicket + 1] }.Encode());
             Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Profile = two }.Encode());
             Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Build = two }.Encode());
-            Assert.DoesNotThrow(() => new ClientMsg.Hello { Build = ok, Profile = ok, Token = ok }.Encode());
+            Assert.DoesNotThrow(() => new ClientMsg.Hello { Build = ok, Profile = ok, Ticket = new byte[Wire.MaxTicket] }.Encode());
         }
 
         [Test]
@@ -282,6 +282,7 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(e.GetProperty("facingBits").GetInt64(), (long)(uint)Bits(a.Facing));
                 Assert.AreEqual(e.GetProperty("hpPct").GetByte(), a.HpPct); Assert.AreEqual(e.GetProperty("status").GetByte(), a.Status);
                 Assert.AreEqual(e.GetProperty("weapon").GetByte(), a.Weapon); Assert.AreEqual(e.GetProperty("bounty").GetUInt16(), a.Bounty);
+                Assert.AreEqual(e.GetProperty("kind").GetByte(), a.Kind);
             }
         }
 
@@ -295,10 +296,16 @@ namespace Roguehalla.Net.Tests
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
-                case "trailing_byte": want = DecodeError.Trailing; break;
-                case "overlong_varint": case "varint_past_u32": case "varint_too_long": want = DecodeError.BadVarint; break;
+                case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
+                case "state_truncated": want = DecodeError.Truncated; break;
+                case "overlong_varint": case "varint_past_u32": case "varint_too_long": case "head_overlong_varint": case "actor_mask_overlong_varint":
+                case "delta_head_overlong_varint":
+                    want = DecodeError.BadVarint; break;
                 case "too_many_actors": case "fx_too_many": want = DecodeError.TooMany; break;
-                case "head_self_bit_without_present_bit": case "head_reserved_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
+                case "head_self_bit_without_present_bit": case "head_unknown_bit": case "self_max_hp_over_u16": case "actor_reserved_mask_bit":
+                case "self_status_over_3": case "phase_over_3": case "actor_status_over_3": case "actor_unknown_mask_bit_after_kind":
+                case "state_unknown_key": case "delta_head_unknown_bit": case "delta_phase_over_3": case "delta_actor_mask_unknown_bit":
+                case "delta_actor_status_over_3":
                 case "actor_id_gap_zero": case "actor_id_overflow": case "actor_hp_over_100": case "actor_bounty_over_u16":
                 case "delta_age_zero": case "delta_age_over_max": case "delta_age_past_tick": case "delta_head_field_without_present_bit":
                 case "delta_self_status_over_3": case "delta_actor_id_gap_zero": case "delta_actor_hp_over_100": case "delta_actor_bounty_over_u16":
@@ -322,8 +329,8 @@ namespace Roguehalla.Net.Tests
         {
             Assert.AreEqual(5050.0, Server<ServerMsg.Snapshot>("snapshot").ServerMs);
             Assert.AreEqual(1000000 * 50.0, Server<ServerMsg.Snapshot>("snapshot_full").ServerMs);
-            // The frame of a spectator snapshot at tick 1 is 6 bytes: tag, tick, ack, head u16, count.
-            Assert.AreEqual(6, new ServerMsg.Snapshot { Tick = 1 }.Encode().Length);
+            // The frame of a spectator snapshot in the default phase at tick 1 is 5 bytes: tag, tick, ack, a one-byte head varint, count.
+            Assert.AreEqual(5, new ServerMsg.Snapshot { Tick = 1, Phase = Wire.DefaultPhase }.Encode().Length);
         }
 
         [Test]
@@ -422,9 +429,28 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(SrvHex(name), Util.ToHex(d.Encode()), name);
             }
             var full = Server<ServerMsg.SnapshotDelta>("snapshot_delta");
-            Assert.AreEqual(1000000u, full.Tick); Assert.AreEqual(999990u, full.BaseTick); Assert.AreEqual((byte)2, full.Phase);
+            Assert.AreEqual(1000000u, full.Tick); Assert.AreEqual(999990u, full.BaseTick); Assert.IsTrue(full.HasPhase); Assert.AreEqual((byte)2, full.Phase);
             Assert.IsTrue(full.HasSelf); Assert.AreEqual(2, full.ChangedCount); Assert.AreEqual(2, full.DepartedCount);
             Assert.AreEqual(70000u, full.Departed[1]); Assert.AreEqual(128u, full.Changed[1].Id); Assert.AreEqual(ActorDelta.MAll, full.Changed[1].Mask);
+        }
+
+        [Test]
+        public void TheReservedStateMessageDecodesOnlyEmpty()
+        {
+            var st = Server<ServerMsg.State>("state_empty");
+            Assert.AreEqual(300u, st.Tick);
+            Assert.AreEqual(SrvHex("state_empty"), Util.ToHex(st.Encode()));
+        }
+
+        [Test]
+        public void DefaultsAndKindCostNothingAndNonDefaultsAreExplicit()
+        {
+            // An alive player (kind 0) in the active phase takes exactly the bytes of the five required actor fields.
+            var calm = new ServerMsg.Snapshot { Tick = 1, Phase = Wire.DefaultPhase, Actors = new[] { new WireActor { Id = 4, Status = Wire.DefaultStatus, HpPct = 100 } } };
+            Assert.AreEqual(13, calm.Encode().Length, "tag, tick, ack, head, count, id, mask, x y facing");
+            var mob = (ServerMsg.Snapshot)ServerMsg.Decode(new ServerMsg.Snapshot { Tick = 1, Phase = 2, Actors = new[] { new WireActor { Id = 9, Status = 2, HpPct = 100, Kind = 7 } } }.Encode());
+            Assert.AreEqual((byte)2, mob.Phase); Assert.AreEqual((byte)2, mob.Actors[0].Status); Assert.AreEqual((byte)7, mob.Actors[0].Kind);
+            Assert.AreEqual((byte)0, Server<ServerMsg.Snapshot>("snapshot").Actors[0].Kind);
         }
 
         [Test]

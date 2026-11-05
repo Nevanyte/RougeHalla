@@ -4,9 +4,9 @@ use rh_protocol::*;
 #[test]
 fn committed_vectors_match_the_encoder() {
     let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v3.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v4.json");
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v3.json (run the protocol-fixtures bin)");
+        .expect("protocol/fixtures/v4.json (run the protocol-fixtures bin)");
     assert_eq!(
         committed,
         manifest(),
@@ -55,13 +55,29 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             }
             "unknown_tag" | "client_tag_from_server" => BadTag(0),
             "trailing_byte" => Trailing(0),
-            "overlong_varint" | "varint_past_u32" | "varint_too_long" => BadVarint,
-            "head_self_bit_without_present_bit" | "head_reserved_bit" => BadField("head"),
+            "overlong_varint"
+            | "varint_past_u32"
+            | "varint_too_long"
+            | "head_overlong_varint"
+            | "actor_mask_overlong_varint"
+            | "delta_head_overlong_varint" => BadVarint,
+            "head_self_bit_without_present_bit" | "head_unknown_bit" | "delta_head_unknown_bit" => {
+                BadField("head")
+            }
+            "self_status_over_3" | "actor_status_over_3" | "delta_actor_status_over_3" => {
+                BadField("status")
+            }
+            "phase_over_3" | "delta_phase_over_3" => BadField("phase"),
+            "state_unknown_key" => BadField("state key"),
+            "state_truncated" => Truncated,
+            "state_trailing_byte" => Trailing(0),
             "self_max_hp_over_u16" => BadField("max_hp"),
             "fx_too_many" => TooMany(0),
             "fx_bad_tag" => BadTag(0),
             "too_many_actors" => TooMany(0),
-            "actor_reserved_mask_bit" => BadField("actor mask"),
+            "actor_reserved_mask_bit"
+            | "actor_unknown_mask_bit_after_kind"
+            | "delta_actor_mask_unknown_bit" => BadField("actor mask"),
             "actor_id_gap_zero" | "actor_id_overflow" => BadField("actor order"),
             "actor_hp_over_100" => BadField("hp_pct"),
             "actor_bounty_over_u16" => BadField("bounty"),

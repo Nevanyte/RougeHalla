@@ -45,8 +45,9 @@ pub enum EncodeError {
     BadValue(&'static str),
     /// An [`crate::SnapshotData::build`] iterator that yielded a different number of actors than its `len()` announced.
     CountMismatch { declared: usize, written: usize },
-    /// A string longer than the 255 bytes a `u8` length can carry (`what`: "build", "profile", "token", "reason" or
-    /// "killed_by"). The encoder never truncates: a cut token would fail as a bad credential with no hint why.
+    /// A string longer than the 255 bytes a `u8` length can carry (`what`: "build", "profile", "reason" or "killed_by"), or
+    /// an admission ticket over [`crate::MAX_TICKET`] (`what`: "ticket"). The encoder never truncates: a cut ticket would
+    /// fail as a bad credential with no hint why.
     StringTooLong { what: &'static str, len: usize },
     /// A NaN or infinite float in a client message (client decoders reject them).
     NonFinite,
@@ -72,6 +73,11 @@ pub const MAX_STR: usize = 255;
 /// Encoded size of [`Writer::str`]: the u8 length plus the bytes.
 pub fn str_len(s: &str) -> usize {
     1 + s.len()
+}
+
+/// Encoded size of [`Writer::blob`]: the u16 length plus the bytes.
+pub fn blob_len(b: &[u8]) -> usize {
+    2 + b.len()
 }
 
 /// The encoders' check that `s` fits [`Writer::str`].
@@ -157,6 +163,17 @@ impl Writer {
         );
         self.u8(s.len() as u8);
         self.bytes(s.as_bytes());
+    }
+    /// `u16 length + bytes` (opaque, e.g. the admission ticket). The message encoders check the bound first; a blob a `u16`
+    /// cannot count is a caller bug and panics rather than write a wrong frame.
+    pub fn blob(&mut self, b: &[u8]) {
+        assert!(
+            b.len() <= u16::MAX as usize,
+            "blob of {} bytes does not fit the wire",
+            b.len()
+        );
+        self.u16(b.len() as u16);
+        self.bytes(b);
     }
     pub fn opt<T>(&mut self, v: Option<&T>, f: impl FnOnce(&mut Self, &T)) {
         match v {
@@ -262,6 +279,14 @@ impl<'a> Reader<'a> {
         let n = self.u8()? as usize;
         let b = self.take(n)?;
         String::from_utf8(b.to_vec()).map_err(|_| DecodeError::BadUtf8)
+    }
+    /// `u16 length + bytes`, at most `max` bytes (checked before anything is copied).
+    pub fn blob(&mut self, max: usize) -> Result<Vec<u8>, DecodeError> {
+        let n = self.u16()? as usize;
+        if n > max {
+            return Err(DecodeError::TooMany(n));
+        }
+        Ok(self.take(n)?.to_vec())
     }
     pub fn opt<T>(
         &mut self,

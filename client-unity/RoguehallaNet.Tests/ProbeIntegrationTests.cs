@@ -10,7 +10,7 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net.Tests
 {
-    /// <summary>Runs the real probe (ClientWebSocket) against a tiny in-process WebSocket server that speaks rh-protocol v3 (Full snapshots only; deltas are covered by the vector chains and SessionTests).</summary>
+    /// <summary>Runs the real probe (ClientWebSocket) against a tiny in-process WebSocket server that speaks rh-protocol v4 (Full snapshots only; deltas are covered by the vector chains and SessionTests).</summary>
     public class ProbeIntegrationTests
     {
         static int FreePort() { var l = new TcpListener(IPAddress.Loopback, 0); l.Start(); int p = ((IPEndPoint)l.LocalEndpoint).Port; l.Stop(); return p; }
@@ -70,7 +70,7 @@ namespace Roguehalla.Net.Tests
             StringAssert.Contains("\"welcome\":true", json);
             StringAssert.Contains("\"rejects\":[]", json);
             StringAssert.Contains("\"errors\":[]", json);
-            Assert.AreEqual("probe1", hello.Profile); Assert.AreEqual("t1", hello.Token); Assert.AreEqual(0UL, hello.ContentHash);
+            Assert.AreEqual("probe1", hello.Profile); CollectionAssert.AreEqual(new byte[] { (byte)'t', (byte)'1' }, hello.Ticket); Assert.AreEqual(0UL, hello.ContentHash);
             Assert.GreaterOrEqual(pings, 2); Assert.GreaterOrEqual(moves, 3); Assert.IsTrue(left);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             Assert.Greater(doc.RootElement.GetProperty("snapshots").GetInt32(), 20);

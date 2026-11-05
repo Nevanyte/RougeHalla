@@ -118,7 +118,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
             protocol,
             content_hash,
             profile,
-            token,
+            ticket,
             faction,
             resume,
             ..
@@ -126,7 +126,7 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
             protocol,
             content_hash,
             profile,
-            token,
+            ticket,
             faction,
             resume,
         },

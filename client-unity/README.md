@@ -1,14 +1,14 @@
 # client-unity: Roguehalla Unity (Web) client, Stage 1
 
-Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v3 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v3.json`; a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
+Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v4 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v4.json`, [ADR 0011](../docs/adr/0011-protocol-v4.md); a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
 
 ## Layout
 
 | Path | What | Status |
 |---|---|---|
 | `RoguehallaNet/` | `netstandard2.1`, C# 9 library: `Protocol/` (byte-exact wire mirror, map blob), `Net/` (SnapshotBuffer, RenderClock, LocalMotion, InputSender, ClockSync, Session, ITransport). No engine, reflection, serializers, threads or `unsafe`. | built and tested |
-| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 180 tests pass |
-| `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; tested against a fake server and run against the real server (protocol 3) |
+| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 199 tests pass |
+| `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; tested against a fake server and run against the real server (protocol 4) |
 | `UnityProject/` | Unity 6 project skeleton (WebGL jslib bridge, transports, `MatchClient`, views, bootstrap, editor build menu) | **NOT OPENED, NOT COMPILED, NO WEB BUILD** |
 | `sync-net.sh` | copies the library sources into `UnityProject/Assets/RoguehallaNet/` (`--check` verifies) | works |
 
@@ -29,7 +29,7 @@ Gameplay scripts (HUD, views, abilities, input) are written against `Net/` only:
 
 `SelfView.HpPct` rounds half up (the old `ArenaView` used banker's rounding), caps at 100, and is 0 for a non-finite Hp: a cosmetic HUD difference only.
 
-Unnamed `RejectCode` values are legal: a newer server may refuse for a reason this build has no name for, which ends the session as `Rejected` with `RejectCode` set to the raw value (`(ushort)code`, `Enum.IsDefined` false) and `RejectReason` holding the server's text. A Hello string (build, profile, token) over 255 bytes is never cut: the encoder throws `EncodeException` and the session fails with that reason.
+Unnamed `RejectCode` values are legal: a newer server may refuse for a reason this build has no name for, which ends the session as `Rejected` with `RejectCode` set to the raw value (`(ushort)code`, `Enum.IsDefined` false) and `RejectReason` holding the server's text. A Hello string (build, profile) over 255 bytes, or an admission ticket (`SessionOptions.Ticket`, opaque bytes, at most `Wire.MaxTicket`) over its bound, is never cut: the encoder throws `EncodeException` and the session fails with that reason. The probe's `--token` is sent as the ticket's UTF-8 bytes.
 
 ## Probe
 
@@ -37,8 +37,8 @@ Unnamed `RejectCode` values are legal: a newer server may refuse for a reason th
 dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7777/ws --profile probe1 --token t1 --seconds 10 \
     [--content-hash <u64>] [--faction 0..4] [--insecure]
 ```
-Sends Hello (protocol 3; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
-`{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (P10c, protocol 3): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
+Sends Hello (protocol 4; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
+`{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (P10c, protocol 4): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
 
 ## Unity: status and steps
 

@@ -3,16 +3,20 @@ using System.Text;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire constants of rh-protocol v3 (crates/rh-protocol/src/lib.rs).</summary>
+    /// <summary>Wire constants of rh-protocol v4 (crates/rh-protocol/src/lib.rs).</summary>
     public static class Wire
     {
-        public const ushort ProtocolVersion = 3;
+        public const ushort ProtocolVersion = 4;
         /// <summary>Most ticks a snapshot delta's base may be behind it (a writer that skipped more sends a Full snapshot).</summary>
         public const uint MaxDeltaAge = 64;
         /// <summary>Milliseconds per server tick: a Snapshot's server time is Tick * TickMs, exactly (it is not sent).</summary>
         public const int TickMs = 50;
         /// <summary>Largest faction and weapon (4 bits each in the kit byte), status and phase (2 bits each) a frame can carry.</summary>
         public const int MaxKitCode = 15, MaxStatusCode = 3, MaxPhaseCode = 3;
+        /// <summary>The status and phase a clear mask bit stands for: alive, active (0 lobby, 1 alive, 2 dead, 3 mia / 0 lobby, 1 active, 2 ended).</summary>
+        public const byte DefaultStatus = 1, DefaultPhase = 1;
+        /// <summary>Longest Hello admission ticket; the largest legal Hello is 992 bytes, under <see cref="MaxClientFrame"/>.</summary>
+        public const int MaxTicket = 448;
         public const int MaxClientFrame = 1024;
         public const int MaxServerFrame = 256 * 1024;
         public const int MaxCommandsPerInput = 16;
@@ -126,6 +130,15 @@ namespace Roguehalla.Net.Protocol
             Bytes(b);
         }
 
+        /// <summary>u16 length + bytes (an opaque blob such as the admission ticket); over 65535 bytes throws <see cref="EncodeException"/>.</summary>
+        public void Blob(byte[] b)
+        {
+            b = b ?? new byte[0];
+            if (b.Length > ushort.MaxValue) throw new EncodeException("blob of " + b.Length + " bytes does not fit the wire");
+            U16((ushort)b.Length);
+            Bytes(b);
+        }
+
         /// <summary>The frame. Returns the writer's own buffer when it is exactly full (no copy), so do not write after this.</summary>
         public byte[] Finish()
         {
@@ -195,6 +208,14 @@ namespace Roguehalla.Net.Protocol
             return (ushort)v;
         }
 
+        /// <summary>A byte that must be at most <paramref name="max"/> (a status or phase code); <paramref name="what"/> names the field in the error.</summary>
+        public byte Code(int max, string what)
+        {
+            byte v = U8();
+            if (v > max) throw new DecodeException(DecodeError.BadField, what);
+            return v;
+        }
+
         public ulong U64() { int p = Take(8); ulong v = 0; for (int i = 7; i >= 0; i--) v = (v << 8) | _buf[p + i]; return v; }
 
         public float F32()
@@ -219,6 +240,17 @@ namespace Roguehalla.Net.Protocol
             int p = Take(n);
             try { return Strict.GetString(_buf, p, n); }
             catch (ArgumentException) { throw new DecodeException(DecodeError.BadUtf8); }
+        }
+
+        /// <summary>u16 length + bytes, at most <paramref name="max"/> (checked before anything is copied).</summary>
+        public byte[] Blob(int max)
+        {
+            int n = U16();
+            if (n > max) throw new DecodeException(DecodeError.TooMany, n.ToString());
+            int p = Take(n);
+            var r = new byte[n];
+            Buffer.BlockCopy(_buf, p, r, 0, n);
+            return r;
         }
 
         /// <summary>Option flag: 0 absent, 1 present, anything else is an error.</summary>

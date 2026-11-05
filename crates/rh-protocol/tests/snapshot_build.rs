@@ -14,6 +14,7 @@ fn actor(i: u32) -> WireActor {
         status: (i % 4) as u8,
         weapon: (i % 7) as u8,
         bounty: (i * 977) as u16,
+        kind: (i % 3) as u8,
     }
 }
 

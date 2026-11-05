@@ -10,7 +10,9 @@ namespace Roguehalla.Client
 {
     public sealed class MatchClient : MonoBehaviour
     {
-        public string Url = "ws://127.0.0.1:7777/ws", Profile = "unity1", Token = "t1";
+        public string Url = "ws://127.0.0.1:7777/ws", Profile = "unity1";
+        /// <summary>The admission ticket, sent as its UTF-8 bytes (the dev server checks the callsign secret; P-HOST-1 defines hosted tickets).</summary>
+        public string Token = "t1";
         public ulong ContentHash;
         /// <summary>-1 = server default.</summary>
         public int Faction = -1;
@@ -32,7 +34,7 @@ namespace Roguehalla.Client
         {
             Session = new Session(TransportFactory.Create(), new SessionOptions
             {
-                Url = Url, Profile = Profile, Token = Token, ContentHash = ContentHash, Build = "unity-web-0.1.0",
+                Url = Url, Profile = Profile, Ticket = System.Text.Encoding.UTF8.GetBytes(Token ?? ""), ContentHash = ContentHash, Build = "unity-web-0.1.0",
                 Faction = Faction >= 0 ? (byte)Faction : (byte?)null, Now = NowMs,
             });
             Session.StateChanged += s => Debug.Log("[net] " + s + (Session.RejectCode.HasValue ? " " + Session.RejectCode + ": " + Session.RejectReason : "") + (Session.Error != null ? " " + Session.Error : ""));

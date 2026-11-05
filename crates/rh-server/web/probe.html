@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v3 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v4 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v3 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v3.json) ----
+// ---- protocol v4 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v4.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -35,6 +35,8 @@ class W {
   bytes(a) { this.need(a.length); this.b.set(a, this.n); this.n += a.length; }
   // At most 255 bytes; longer is refused, never cut (like rh-protocol and the C# mirror).
   str(s) { const e = new TextEncoder().encode(s); if (e.length > 255) throw new Error("string of " + e.length + " bytes does not fit the wire (max 255)"); this.u8(e.length); this.bytes(e); }
+  // u16 length + bytes: the opaque admission ticket (at most MAX_TICKET bytes; longer is refused, never cut).
+  blob(a) { if (a.length > MAX_TICKET) throw new Error("ticket of " + a.length + " bytes does not fit the wire (max " + MAX_TICKET + ")"); this.u16(a.length); this.bytes(a); }
   out() { return this.b.slice(0, this.n); }
 }
 class R {
@@ -54,6 +56,8 @@ class R {
     throw new Error("bad varint");
   }
   varintU16(what) { const v = this.varint(); if (v > 65535) throw new Error("bad " + what); return v; }
+  // A byte that must be at most `max` (a status or phase code).
+  code(max, what) { const v = this.u8(); if (v > max) throw new Error("bad " + what); return v; }
   u64() { const x = this.v.getBigUint64(this.p, true); this.p += 8; return x; }
   f32() { const x = this.v.getFloat32(this.p, true); this.p += 4; return x; }
   f64() { const x = this.v.getFloat64(this.p, true); this.p += 8; return x; }
@@ -71,13 +75,16 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 3;
+const PROTOCOL = 4;
+const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
 const dqPos = (q) => q / 8;
 const dqAngle = (q) => Math.fround(((q << 16) >> 16) * FACING_STEP_F32);
-function hello(contentHash, profile, token, faction, resume) {
-  const w = new W(); w.u8(1); w.u16(PROTOCOL); w.u64(contentHash); w.str("probe-js"); w.str(profile); w.str(token);
+// `ticket`: opaque admission credential bytes (a string is sent as its UTF-8); `profile` is the display name.
+function hello(contentHash, profile, ticket, faction, resume) {
+  const w = new W(); w.u8(1); w.u16(PROTOCOL); w.u64(contentHash); w.str("probe-js"); w.str(profile);
+  w.blob(typeof ticket === "string" ? new TextEncoder().encode(ticket) : ticket);
   if (faction === null) w.u8(0); else { w.u8(1); w.u8(faction); }
   if (!resume) w.u8(0); else { w.u8(1); w.bytes(resume); }
   return w.out();
@@ -124,23 +131,25 @@ function decodeBody(r) {
     return { t: "reject", code, reason: r.str() };
   }
   if (tag === 0x83) {
-    const tick = r.varint(), ack = r.varint(), head = r.u16();
-    // bit 15 a self follows, bits 12..13 phase, bits 0..9 the self's fields; the rest is reserved.
-    if ((head & ~0xb3ff) !== 0 || ((head & 0x8000) === 0 && (head & 0x83ff) !== 0)) throw new Error("bad head");
-    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: (head >> 12) & 3, ack, me: null, actors: [] };
-    if (head & 0x8000) {
+    const tick = r.varint(), ack = r.varint(), head = r.varint();
+    // Append-only varint head: bit 0 a self follows, bits 1..9 its fields, bit 10 the phase; any other bit is refused.
+    if ((head & ~0x7ff) !== 0 || ((head & 1) === 0 && (head & 0x3ff) !== 0)) throw new Error("bad head");
+    const s = { t: "snapshot", tick, serverMs: tick * 50, phase: 1, ack, me: null, actors: [] };
+    if (head & 1) {
       const id = r.varint(), x = r.f32(), y = r.f32(), facing = r.f32();
-      const maxHp = (head & 0x200) ? r.f32() : r.varintU16("max_hp");
+      const maxHp = (head & 0x100) ? r.f32() : r.varintU16("max_hp");
       let faction = 0, weapon = 0;
-      if (head & 1) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
-      const hp = (head & 2) ? r.f32() : maxHp;
-      const readyIn = (head & 0x10) ? r.u16() : 0;
-      const kills = (head & 0x20) ? r.varintU16("kills") : 0;
-      const bounty = (head & 0x40) ? r.varintU16("bounty") : 0;
+      if (head & 2) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
+      const hp = (head & 4) ? r.f32() : maxHp;
+      const readyIn = (head & 8) ? r.u16() : 0;
+      const kills = (head & 0x10) ? r.varintU16("kills") : 0;
+      const bounty = (head & 0x20) ? r.varintU16("bounty") : 0;
+      const moveSeq = (head & 0x40) ? r.u8() : 0;
       const gv = (head & 0x80) ? r.varintU16("gv") : 0;
-      const moveSeq = (head & 0x100) ? r.u8() : 0;
-      s.me = { id, faction, x, y, facing, hp, maxHp, status: (head >> 2) & 3, weapon, readyIn, kills, bounty, gv, moveSeq };
+      const status = (head & 0x200) ? r.code(3, "status") : 1;
+      s.me = { id, faction, x, y, facing, hp, maxHp, status, weapon, readyIn, kills, bounty, gv, moveSeq };
     }
+    if (head & 0x400) s.phase = r.code(3, "phase");
     const n = r.varint();
     if (n > 512) throw new Error("too many actors");
     let prev = null;
@@ -149,15 +158,17 @@ function decodeBody(r) {
       let id = field;
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
-      const mask = r.u8();
+      const mask = r.varint();
       if (mask & ~0x1f) throw new Error("bad actor mask");
       const x = dqPos(r.u16()), y = dqPos(r.u16()), facing = dqAngle(r.u16());
       let faction = 0, weapon = 0;
       if (mask & 1) { const k = r.u8(); faction = k & 15; weapon = k >> 4; }
       const hpPct = (mask & 2) ? r.u8() : 100;
       if (hpPct > 100) throw new Error("bad hp_pct");
-      const bounty = (mask & 0x10) ? r.varintU16("bounty") : 0;
-      s.actors.push({ id, faction, x, y, facing, hpPct, status: (mask >> 2) & 3, weapon, bounty });
+      const status = (mask & 4) ? r.code(3, "status") : 1;
+      const bounty = (mask & 8) ? r.varintU16("bounty") : 0;
+      const kind = (mask & 0x10) ? r.u8() : 0;
+      s.actors.push({ id, faction, x, y, facing, hpPct, status, weapon, bounty, kind });
     }
     return s;
   }
@@ -165,26 +176,27 @@ function decodeBody(r) {
     // A snapshot delta: syntax and ranges only (Tracker decides whether it applies).
     const tick = r.varint(), age = r.varint();
     if (age < 1 || age > 64 || age > tick) throw new Error("bad base age");
-    const ack = r.varint(), head = r.u16();
-    // bit 15 a self follows, bit 14 a departed list follows, bits 12..13 phase, bits 0..11 the self fields.
-    if ((head & 0x8000) === 0 && (head & 0x0fff) !== 0) throw new Error("bad head");
-    const d = { t: "delta", tick, baseTick: tick - age, phase: (head >> 12) & 3, ack, me: null, changed: [], departed: [] };
-    if (head & 0x8000) {
-      const m = head & 0x0fff, s = { mask: m };
-      if (m & 0x001) s.x = r.f32();
-      if (m & 0x002) s.y = r.f32();
-      if (m & 0x004) s.facing = r.f32();
-      if (m & 0x008) s.hp = r.f32();
-      if (m & 0x010) s.maxHp = r.f32();
-      if (m & 0x020) s.kit = r.u8();
-      if (m & 0x040) s.readyIn = r.u16();
-      if (m & 0x080) s.kills = r.varintU16("kills");
-      if (m & 0x100) s.bounty = r.varintU16("bounty");
-      if (m & 0x200) s.gv = r.varintU16("gv");
-      if (m & 0x400) s.moveSeq = r.u8();
-      if (m & 0x800) { s.status = r.u8(); if (s.status > 3) throw new Error("bad status"); }
+    const ack = r.varint(), head = r.varint();
+    // Append-only varint head: bit 0 a self follows (fields: bits 1..6 and 9..14), bit 7 a departed list follows, bit 8 the phase changed.
+    if ((head & ~0x7fff) !== 0 || ((head & 1) === 0 && (head & 0x7e7e) !== 0)) throw new Error("bad head");
+    const d = { t: "delta", tick, baseTick: tick - age, phase: null, ack, me: null, changed: [], departed: [] };
+    if (head & 1) {
+      const m = head & 0x7e7e, s = { mask: m };
+      if (m & 0x0002) s.x = r.f32();
+      if (m & 0x0004) s.y = r.f32();
+      if (m & 0x0008) s.facing = r.f32();
+      if (m & 0x0010) s.moveSeq = r.u8();
+      if (m & 0x0020) s.hp = r.f32();
+      if (m & 0x0040) s.readyIn = r.u16();
+      if (m & 0x0200) s.maxHp = r.f32();
+      if (m & 0x0400) s.kit = r.u8();
+      if (m & 0x0800) s.kills = r.varintU16("kills");
+      if (m & 0x1000) s.bounty = r.varintU16("bounty");
+      if (m & 0x2000) s.gv = r.varintU16("gv");
+      if (m & 0x4000) s.status = r.code(3, "status");
       d.me = s;
     }
+    if (head & 0x100) d.phase = r.code(3, "phase");
     const n = r.varint();
     if (n > 512) throw new Error("too many actors");
     let prev = null;
@@ -193,16 +205,20 @@ function decodeBody(r) {
       let id = field;
       if (prev !== null) { id = prev + field; if (field === 0 || id > 0xffffffff) throw new Error("bad actor order"); }
       prev = id;
-      const m = r.u8(), mask = m & 0x3f, a = { id, mask, status: m >> 6 };
+      const mask = r.varint();
+      if (mask & ~0xff) throw new Error("bad actor mask");
+      const a = { id, mask };
       if (mask & 1) a.x = r.u16();
       if (mask & 2) a.y = r.u16();
       if (mask & 4) a.facing = r.u16();
       if (mask & 8) a.kit = r.u8();
       if (mask & 16) { a.hpPct = r.u8(); if (a.hpPct > 100) throw new Error("bad hp_pct"); }
       if (mask & 32) a.bounty = r.varintU16("bounty");
+      if (mask & 64) a.status = r.code(3, "status");
+      if (mask & 128) a.kind = r.u8();
       d.changed.push(a);
     }
-    if (head & 0x4000) {
+    if (head & 0x80) {
       const k = r.varint();
       if (k === 0) throw new Error("bad departed");
       if (k > 512) throw new Error("too many actors");
@@ -241,6 +257,12 @@ function decodeBody(r) {
     return f;
   }
   if (tag === 0x86) return { t: "pong", nonce: r.u32(), clientMs: r.f64(), serverMs: r.f64() };
+  if (tag === 0x88) {
+    // Keyed state (reserved): v4 defines no key, so only the empty State decodes.
+    const st = { t: "state", tick: r.varint() };
+    if (r.varint() !== 0) throw new Error("bad state key");
+    return st;
+  }
   throw new Error("unknown tag " + tag);
 }
 
@@ -253,7 +275,7 @@ class Tracker {
   decode(buf) { return this.apply(decode(buf)); }
   apply(m) {
     if (m.t === "welcome") { this.reset(); return m; }
-    if (m.t === "snapshot") { this.base = { tick: m.tick, me: m.me, actors: m.actors }; return m; }
+    if (m.t === "snapshot") { this.base = { tick: m.tick, phase: m.phase, me: m.me, actors: m.actors }; return m; }
     if (m.t !== "delta") return m;
     const b = this.base;
     if (!b) throw refused("no_base");
@@ -271,7 +293,9 @@ class Tracker {
       }
     };
     const upd = (a, ch) => {
-      const n = { ...a, id: ch.id, status: ch.status };
+      const n = { ...a, id: ch.id };
+      if (ch.mask & 64) n.status = ch.status;
+      if (ch.mask & 128) n.kind = ch.kind;
       if (ch.mask & 1) n.x = dqPos(ch.x);
       if (ch.mask & 2) n.y = dqPos(ch.y);
       if (ch.mask & 4) n.facing = dqAngle(ch.facing);
@@ -287,8 +311,9 @@ class Tracker {
         out.push(upd(b.actors[bi], ch));
         bi++;
       } else {
-        if (ch.mask !== 0x3f) throw refused("incomplete_new_actor");
-        out.push(upd({}, ch));
+        // A new actor starts from the default actor and must carry its position (bits 0..2).
+        if ((ch.mask & 7) !== 7) throw refused("incomplete_new_actor");
+        out.push(upd({ faction: 0, weapon: 0, hpPct: 100, status: 1, bounty: 0, kind: 0 }, ch));
       }
     }
     flush(null);
@@ -297,22 +322,22 @@ class Tracker {
     let me = null;
     if (m.me) {
       const d = m.me, s = { ...b.me };
-      if (d.mask & 0x001) s.x = d.x;
-      if (d.mask & 0x002) s.y = d.y;
-      if (d.mask & 0x004) s.facing = d.facing;
-      if (d.mask & 0x008) s.hp = d.hp;
-      if (d.mask & 0x010) s.maxHp = d.maxHp;
-      if (d.mask & 0x020) { s.faction = d.kit & 15; s.weapon = d.kit >> 4; }
-      if (d.mask & 0x040) s.readyIn = d.readyIn;
-      if (d.mask & 0x080) s.kills = d.kills;
-      if (d.mask & 0x100) s.bounty = d.bounty;
-      if (d.mask & 0x200) s.gv = d.gv;
-      if (d.mask & 0x400) s.moveSeq = d.moveSeq;
-      if (d.mask & 0x800) s.status = d.status;
+      if (d.mask & 0x0002) s.x = d.x;
+      if (d.mask & 0x0004) s.y = d.y;
+      if (d.mask & 0x0008) s.facing = d.facing;
+      if (d.mask & 0x0010) s.moveSeq = d.moveSeq;
+      if (d.mask & 0x0020) s.hp = d.hp;
+      if (d.mask & 0x0040) s.readyIn = d.readyIn;
+      if (d.mask & 0x0200) s.maxHp = d.maxHp;
+      if (d.mask & 0x0400) { s.faction = d.kit & 15; s.weapon = d.kit >> 4; }
+      if (d.mask & 0x0800) s.kills = d.kills;
+      if (d.mask & 0x1000) s.bounty = d.bounty;
+      if (d.mask & 0x2000) s.gv = d.gv;
+      if (d.mask & 0x4000) s.status = d.status;
       me = s;
     }
-    const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase, ack: m.ack, me, actors: out };
-    this.base = { tick: s.tick, me: s.me, actors: s.actors };
+    const s = { t: "snapshot", tick: m.tick, serverMs: m.tick * 50, phase: m.phase === null ? b.phase : m.phase, ack: m.ack, me, actors: out };
+    this.base = { tick: s.tick, phase: s.phase, me: s.me, actors: s.actors };
     return s;
   }
 }
@@ -320,7 +345,7 @@ class Tracker {
 // ---- probe state (read by automated browser tests through window.__probe) ----
 const qs = new URLSearchParams(location.search);
 const profile = qs.get("profile") || ("web" + Math.floor(Math.random() * 1e6));
-const token = qs.get("token") || "dev";
+const ticket = qs.get("ticket") || qs.get("token") || "dev";
 const faction = qs.has("faction") ? Number(qs.get("faction")) : null;
 const P = window.__probe = { welcome: null, snapshots: 0, lastTick: 0, me: null, actors: [], events: [], results: [], rejects: [], rtts: [], fx: 0, errors: [], refused: [], fullSnapshots: 0, deltaSnapshots: 0, resyncs: 0, firstSnapshotAfterWelcome: [], resumes: 0, inputSeq: 0, moveSeq: 0, open: false };
 const tracker = new Tracker();
@@ -337,7 +362,7 @@ async function connect(resume) {
   const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
   ws = new WebSocket(url);
   ws.binaryType = "arraybuffer";
-  ws.onopen = () => { P.open = true; P.helloAt = performance.now(); ws.send(hello(contentHash, profile, token, faction, resume ? session : null)); };
+  ws.onopen = () => { P.open = true; P.helloAt = performance.now(); ws.send(hello(contentHash, profile, ticket, faction, resume ? session : null)); };
   ws.onclose = () => { P.open = false; };
   ws.onerror = () => P.errors.push("socket error");
   ws.onmessage = (ev) => {

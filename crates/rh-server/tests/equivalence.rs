@@ -76,7 +76,7 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
         content_hash: rh_sim::content::content_hash(),
         build: String::new(),
         profile: "oscar".into(),
-        token: "t".into(),
+        ticket: b"t".to_vec(),
         faction: Some(2),
         resume,
     };

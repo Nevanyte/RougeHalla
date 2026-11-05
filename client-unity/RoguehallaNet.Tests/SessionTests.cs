@@ -17,7 +17,7 @@ namespace Roguehalla.Net.Tests
         public void Setup()
         {
             _now = 1000; _t = new FakeTransport();
-            _s = new Session(_t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Token = "tok", Faction = 2, Now = () => _now, ReconnectBaseMs = 500, MaxReconnectAttempts = 3 });
+            _s = new Session(_t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Ticket = System.Text.Encoding.UTF8.GetBytes("tok"), Faction = 2, Now = () => _now, ReconnectBaseMs = 500, MaxReconnectAttempts = 3 });
         }
 
         static ServerMsg.Welcome Welcome()
@@ -38,7 +38,7 @@ namespace Roguehalla.Net.Tests
             _t.Open();
             Assert.AreEqual(SessionState.HelloSent, _s.State);
             var h = _t.LastSent<ClientMsg.Hello>();
-            Assert.AreEqual(Wire.ProtocolVersion, h.Protocol); Assert.AreEqual("p", h.Profile); Assert.AreEqual("tok", h.Token); Assert.AreEqual((byte)2, h.Faction); Assert.IsNull(h.Resume);
+            Assert.AreEqual(Wire.ProtocolVersion, h.Protocol); Assert.AreEqual("p", h.Profile); CollectionAssert.AreEqual(new byte[] { (byte)'t', (byte)'o', (byte)'k' }, h.Ticket); Assert.AreEqual((byte)2, h.Faction); Assert.IsNull(h.Resume);
             _t.Deliver(Welcome());
             CollectionAssert.AreEqual(new[] { SessionState.Connecting, SessionState.HelloSent, SessionState.InMatch }, states);
             Assert.AreEqual(3u, _s.PlayerId); Assert.IsNotNull(_s.Motion); CollectionAssert.AreEqual(Token, _s.SessionToken);
@@ -83,9 +83,9 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
-        public void ATokenTooLongForTheWireFailsTheSessionInsteadOfBeingCut()
+        public void ATicketTooLongForTheWireFailsTheSessionInsteadOfBeingCut()
         {
-            var s = new Session(_t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Token = new string('t', 300), Now = () => _now });
+            var s = new Session(_t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Ticket = new byte[Wire.MaxTicket + 1], Now = () => _now });
             s.Connect(); _t.Open();
             Assert.AreEqual(SessionState.Failed, s.State);
             StringAssert.Contains("Hello", s.Error);
@@ -128,6 +128,22 @@ namespace Roguehalla.Net.Tests
             CollectionAssert.AreEqual(Token, _t.LastSent<ClientMsg.Hello>().Resume);
             _t.Deliver(Welcome());
             Assert.AreEqual(SessionState.InMatch, _s.State);
+        }
+
+        [Test]
+        public void AResultResentAfterAResumeWelcomeIsKeptAndTheReservedStateIsHarmless()
+        {
+            ToMatch();
+            _t.Drop(); _now += 500; _s.Update(); _t.Open();
+            _t.Deliver(Welcome());
+            // The server keeps the resolved run on the seat and queues it behind the resumed Welcome (protocol v4).
+            var ev = new ServerMsg.Events { Tick = 9 };
+            ev.List.Add(new WireEvent { Kind = EventKind.Result, Result = new WireResult { Outcome = 2, Place = 2, Players = 2 } });
+            _t.Deliver(ev);
+            Assert.IsNotNull(_s.LastResult); Assert.AreEqual(2, _s.LastResult.Place);
+            // A State frame is accepted and changes nothing (no key exists in v4).
+            _t.Deliver(new ServerMsg.State { Tick = 9 });
+            Assert.AreEqual(SessionState.InMatch, _s.State); Assert.AreEqual(0, _s.DecodeErrors);
         }
 
         [Test]

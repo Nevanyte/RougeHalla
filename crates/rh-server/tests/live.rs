@@ -19,7 +19,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v3), and `recv` resolves
+/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v4), and `recv` resolves
 /// both to `ServerMsg::Snapshot`, as a client does. A Welcome resets the decoder, so a resumed connection starts afresh.
 struct Ws {
     sock: WebSocketStream<MaybeTlsStream<TcpStream>>,
@@ -141,7 +141,7 @@ fn hello(profile: &str) -> ClientMsg {
         content_hash: rh_sim::content::content_hash(),
         build: "test".into(),
         profile: profile.into(),
-        token: "t".into(),
+        ticket: b"t".to_vec(),
         faction: None,
         resume: None,
     }
@@ -265,7 +265,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             content_hash: 0,
             build: String::new(),
             profile: "x1".into(),
-            token: String::new(),
+            ticket: Vec::new(),
             faction: None,
             resume: None,
         },
@@ -278,7 +278,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             ..
         })
     ));
-    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v3.
+    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v4.
     let mut ws = connect(&s.url).await;
     send(
         &mut ws,
@@ -287,7 +287,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             content_hash: rh_sim::content::content_hash(),
             build: String::new(),
             profile: "x1v1".into(),
-            token: String::new(),
+            ticket: Vec::new(),
             faction: None,
             resume: None,
         },
@@ -297,7 +297,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
         Some(ServerMsg::Reject {
             code: RejectCode::ProtocolMismatch,
             reason,
-        }) => assert!(reason.contains("protocol 3"), "{reason}"),
+        }) => assert!(reason.contains("protocol 4"), "{reason}"),
         other => panic!("{other:?}"),
     }
     // Wrong content hash: the reason names the server's.
@@ -309,7 +309,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             content_hash: 1,
             build: String::new(),
             profile: "x2".into(),
-            token: String::new(),
+            ticket: Vec::new(),
             faction: None,
             resume: None,
         },
@@ -325,8 +325,8 @@ async fn refusals_happen_before_a_seat_is_taken() {
     // The envelope: a Hello of another version whose layout this build cannot parse (junk after the prefix, or nothing but
     // the prefix) still gets ProtocolMismatch, not Malformed. Same protocol with junk stays Malformed.
     for frame in [
-        vec![0x01, 4, 0, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3],
-        vec![0x01, 4, 0],
+        vec![0x01, 3, 0, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3],
+        vec![0x01, 3, 0],
         vec![0x01, 0xff, 0xff, 7],
     ] {
         let mut ws = connect(&s.url).await;
@@ -335,12 +335,12 @@ async fn refusals_happen_before_a_seat_is_taken() {
             Some(ServerMsg::Reject {
                 code: RejectCode::ProtocolMismatch,
                 reason,
-            }) => assert!(reason.contains("protocol 3"), "{reason}"),
+            }) => assert!(reason.contains("protocol 4"), "{reason}"),
             other => panic!("{other:?}"),
         }
     }
     let mut ws = connect(&s.url).await;
-    ws.send(Message::Binary(vec![0x01, 3, 0, 9, 9].into()))
+    ws.send(Message::Binary(vec![0x01, 4, 0, 9, 9].into()))
         .await
         .unwrap();
     assert!(matches!(
@@ -431,7 +431,7 @@ async fn a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia() {
             content_hash: rh_sim::content::content_hash(),
             build: String::new(),
             profile: "echo".into(),
-            token: "t".into(),
+            ticket: b"t".to_vec(),
             faction: None,
             resume: Some(session),
         },
@@ -469,7 +469,7 @@ async fn a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia() {
             content_hash: rh_sim::content::content_hash(),
             build: String::new(),
             profile: "echo".into(),
-            token: "t".into(),
+            ticket: b"t".to_vec(),
             faction: None,
             resume: Some(session),
         },
@@ -482,6 +482,69 @@ async fn a_dropped_client_resumes_its_seat_and_a_lapsed_one_is_mia() {
             ..
         })
     ));
+}
+
+/// Protocol v4: a player's own Result is kept on its seat. A client that was away (inside the reconnect grace) when its run
+/// resolved receives the Result after the resumed Welcome, instead of never.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_player_who_reconnects_after_the_match_resolved_still_receives_their_result() {
+    let s = start(duel_arena(), |c| {
+        c.reconnect_grace = Duration::from_secs(20);
+        c.linger = Duration::from_secs(20);
+    })
+    .await;
+    // Fire (alpha) will not fight; Holy (bravo) does and wins.
+    let (mut a, ida, session) = join(&s.url, "alpha", Some(0)).await;
+    let (mut b, idb, _) = join(&s.url, "bravo", Some(4)).await;
+    let mut pos = std::collections::HashMap::new();
+    for ws in [&mut a, &mut b] {
+        while let Some(m) = recv(ws).await {
+            if let ServerMsg::Snapshot {
+                me: Some(me),
+                phase: 1,
+                ..
+            } = m
+            {
+                pos.insert(me.id, me.x);
+                break;
+            }
+        }
+    }
+    let (xa, xb) = (pos[&ida], pos[&idb]);
+    drop(a);
+    send(
+        &mut b,
+        attack(1, if xa > xb { 0.0 } else { std::f32::consts::PI }),
+    )
+    .await;
+    let (rb, _) = until_result(&mut b).await;
+    assert_eq!(rb.expect("bravo's result").outcome, 0, "bravo won");
+    // Alpha comes back inside the grace: its run resolved while it was away.
+    let mut a2 = connect(&s.url).await;
+    send(
+        &mut a2,
+        ClientMsg::Hello {
+            protocol: PROTOCOL_VERSION,
+            content_hash: rh_sim::content::content_hash(),
+            build: String::new(),
+            profile: "alpha".into(),
+            ticket: b"t".to_vec(),
+            faction: None,
+            resume: Some(session),
+        },
+    )
+    .await;
+    match recv(&mut a2).await {
+        Some(ServerMsg::Welcome { player_id, .. }) => assert_eq!(player_id, ida),
+        other => panic!("expected a resumed Welcome, got {other:?}"),
+    }
+    let (ra, snaps) = until_result(&mut a2).await;
+    let ra = ra.expect("alpha's own result, re-sent after the resume");
+    assert_eq!((ra.outcome, ra.place), (2, 2), "alpha died: {ra:?}");
+    assert!(
+        snaps <= 2,
+        "the Result follows the Welcome at once ({snaps})"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -681,7 +744,7 @@ async fn a_replaced_connection_can_neither_steer_nor_detach_the_resumed_seat() {
             content_hash: rh_sim::content::content_hash(),
             build: String::new(),
             profile: "romeo".into(),
-            token: "t".into(),
+            ticket: b"t".to_vec(),
             faction: None,
             resume: Some(session),
         },

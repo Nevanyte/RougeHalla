@@ -14,14 +14,17 @@ namespace Roguehalla.Net.Tests
             return b;
         }
 
+        /// <summary>The golden vectors of the version this build speaks (only the current version's file is kept).</summary>
+        public static string FixtureName { get { return "v" + Roguehalla.Net.Protocol.Wire.ProtocolVersion + ".json"; } }
+
         public static string ToHex(byte[] b) { return BitConverter.ToString(b).Replace("-", "").ToLowerInvariant(); }
 
-        /// <summary>Walks up from the test assembly to the repo root (the directory holding protocol/fixtures/v3.json).</summary>
+        /// <summary>Walks up from the test assembly to the repo root (the directory holding the current version's protocol/fixtures file).</summary>
         public static string RepoRoot()
         {
             var d = new DirectoryInfo(AppContext.BaseDirectory);
-            while (d != null && !File.Exists(Path.Combine(d.FullName, "protocol", "fixtures", "v3.json"))) d = d.Parent;
-            if (d == null) throw new FileNotFoundException("protocol/fixtures/v3.json not found above " + AppContext.BaseDirectory);
+            while (d != null && !File.Exists(Path.Combine(d.FullName, "protocol", "fixtures", Util.FixtureName))) d = d.Parent;
+            if (d == null) throw new FileNotFoundException("protocol/fixtures/" + FixtureName + " not found above " + AppContext.BaseDirectory);
             return d.FullName;
         }
     }

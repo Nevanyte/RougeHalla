@@ -114,6 +114,8 @@ fn wire_actor(a: &rh_sim::observe::ActorView) -> WireActor {
         status: status(a.status),
         weapon: a.weapon.code(),
         bounty: sat16(a.bounty),
+        // Every actor is a player today; a mob packet maps its kind here (the id namespace is shared: docs/adr/0011).
+        kind: 0,
     }
 }
 

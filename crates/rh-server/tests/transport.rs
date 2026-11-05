@@ -99,7 +99,7 @@ fn hello() -> ClientMsg {
         content_hash: rh_sim::content::content_hash(),
         build: "test".into(),
         profile: "tester".into(),
-        token: "t".into(),
+        ticket: b"t".to_vec(),
         faction: None,
         resume: None,
     }
@@ -213,7 +213,7 @@ async fn welcomed(
         content_hash: rh_sim::content::content_hash(),
         build: "test".into(),
         profile: name.into(),
-        token: "t".into(),
+        ticket: b"t".to_vec(),
         faction: None,
         resume: None,
     };

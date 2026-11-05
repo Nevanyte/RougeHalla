@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 pub enum Auth {
-    /// Local development: any well-formed callsign; the token is not checked.
+    /// Local development: any well-formed callsign; the ticket is not checked.
     Dev,
     /// callsign (lower-cased) -> token.
     Static(HashMap<String, String>),
@@ -19,14 +19,20 @@ pub enum Auth {
 }
 
 impl Auth {
-    pub async fn verify(&self, profile: &str, token: &str) -> bool {
+    /// Whether `ticket` (the Hello's opaque admission credential) admits `profile`. Without a hosting layer the ticket is the
+    /// callsign's secret as UTF-8 bytes; what P-HOST-1 puts in it (a player-session id, a signed join token) is checked here, at
+    /// the same place in the admission order, and never reaches the room.
+    pub async fn verify(&self, profile: &str, ticket: &[u8]) -> bool {
         match self {
             Auth::Dev => true,
             Auth::Static(m) => m
                 .get(&profile.to_ascii_lowercase())
-                .is_some_and(|t| t == token),
+                .is_some_and(|t| t.as_bytes() == ticket),
             #[cfg(feature = "postgres")]
-            Auth::Postgres(store) => store.verify_token(profile, token).await.unwrap_or(false),
+            Auth::Postgres(store) => match std::str::from_utf8(ticket) {
+                Ok(token) => store.verify_token(profile, token).await.unwrap_or(false),
+                Err(_) => false,
+            },
         }
     }
 }

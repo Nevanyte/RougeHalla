@@ -37,7 +37,7 @@ namespace Roguehalla.Probe
             byte faction;
             var opts = new SessionOptions
             {
-                Url = url, Profile = Arg(args, "--profile", "probe1"), Token = Arg(args, "--token", "t1"), ContentHash = hash,
+                Url = url, Profile = Arg(args, "--profile", "probe1"), Ticket = System.Text.Encoding.UTF8.GetBytes(Arg(args, "--token", "t1")), ContentHash = hash,
                 Faction = byte.TryParse(Arg(args, "--faction", ""), out faction) ? faction : (byte?)null, Build = "probe-0.1.0",
             };
             var clock = Stopwatch.StartNew();

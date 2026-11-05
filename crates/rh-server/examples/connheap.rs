@@ -112,7 +112,7 @@ async fn clients(url: String, conns: usize, secs: u64) {
                 content_hash: rh_sim::content::content_hash(),
                 build: "connheap".into(),
                 profile: format!("p{i}"),
-                token: "t".into(),
+                ticket: b"t".to_vec(),
                 faction: None,
                 resume: None,
             };

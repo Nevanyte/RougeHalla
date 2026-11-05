@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v3 (Full and delta snapshots) over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v4 (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -26,6 +26,10 @@ let log = "";
 server.stderr.on("data", (d) => { log += d; });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let i = 0; i < 100 && !log.includes("wss/https"); i++) await sleep(100);
+// Listening is not ready: until the server marks itself ready it answers a Hello with "server draining". Poll /info for it.
+const { get } = await import("node:https");
+const info = () => new Promise((res) => get({ host: "127.0.0.1", port, path: "/info", rejectUnauthorized: false }, (r) => { let b = ""; r.on("data", (d) => { b += d; }); r.on("end", () => { try { res(JSON.parse(b)); } catch { res(null); } }); }).on("error", () => res(null)));
+for (let i = 0; i < 100 && (await info())?.state !== "ready"; i++) await sleep(100);
 
 const browser = await chromium.launch();
 const ctxA = await browser.newContext({ ignoreHTTPSErrors: true });
@@ -52,12 +56,12 @@ try {
   await wait(a, () => window.__probe.phase === 1);
   pass("run_started");
 
-  // Protocol 3: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
+  // Protocol 4: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 3 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_3_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_3_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === 4 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_4_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_4_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
@@ -113,6 +117,15 @@ try {
   const ok = ra.outcome === 2 && rb.outcome === 0 && ra.place === 2 && rb.place === 1;
   ok ? pass("authoritative_results", { alpha: ra, bravo: rb }) : fail("authoritative_results", JSON.stringify({ ra, rb }));
 
+  // Protocol 4: the player's own Result is kept on its seat. Alpha resumes after its run resolved and receives that Result again
+  // (identical), instead of never.
+  await a.evaluate(() => window.__probe.dropAndResume());
+  await wait(a, () => window.__probe.resumes === 1 && window.__probe.open);
+  await wait(a, () => window.__probe.results.length >= 2, 10000).catch(() => {});
+  const resent = await a.evaluate(() => window.__probe.results);
+  resent.length >= 2 && JSON.stringify(resent[1]) === JSON.stringify(resent[0])
+    ? pass("resume_after_the_run_resolved_resends_the_result", { result: resent[1] }) : fail("resume_after_the_run_resolved_resends_the_result", JSON.stringify(resent));
+
   const pa = await a.evaluate(() => ({ joinMs: window.__probe.joinMs, snapshots: window.__probe.snapshots, fullSnapshots: window.__probe.fullSnapshots, deltaSnapshots: window.__probe.deltaSnapshots, resyncs: window.__probe.resyncs, refusedDeltas: window.__probe.refused, fx: window.__probe.fx, rtts: window.__probe.rtts, errors: window.__probe.errors, rejects: window.__probe.rejects }));
   const sorted = [...pa.rtts].sort((x, y) => x - y);
   const resumeMs = await b.evaluate(() => window.__probe.resumeMs);
@@ -121,9 +134,13 @@ try {
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
 } catch (e) {
   fail("exception", String(e));
+  // What each page saw, to tell a refused connection from a stalled one.
+  report.pageState = await Promise.all([a, b].map((p) => p.evaluate(() => { const P = window.__probe || {}; return { welcome: P.welcome, snapshots: P.snapshots, errors: P.errors, rejects: P.rejects, refused: P.refused, open: P.open }; }).catch(() => null)));
 } finally {
   await browser.close();
   server.kill("SIGINT");
+  // SIGINT starts a graceful drain: wait for the exit so a run right after this one finds its port free.
+  await Promise.race([new Promise((res) => server.once("exit", res)), sleep(20000)]);
 }
 const failed = Object.values(report.checks).some((v) => typeof v === "string" && v.startsWith("FAIL"));
 report.verdict = failed ? "FAIL" : "PASS";

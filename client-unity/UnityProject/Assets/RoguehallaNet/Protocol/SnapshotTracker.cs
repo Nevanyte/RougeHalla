@@ -3,7 +3,7 @@ using System;
 namespace Roguehalla.Net.Protocol
 {
     /// <summary>
-    /// A snapshot delta that cannot be applied to the snapshot the client holds (protocol v3). The client REFUSES such a delta
+    /// A snapshot delta that cannot be applied to the snapshot the client holds (protocol v3, masks of v4). The client REFUSES such a delta
     /// (it never repairs or clamps), keeps what it holds, and asks the server for a Full snapshot. <see cref="Code"/> is the
     /// stable name the golden vectors use (rh-protocol <c>DeltaError::code</c>).
     /// </summary>
@@ -25,6 +25,7 @@ namespace Roguehalla.Net.Protocol
     {
         bool _has;
         uint _tick;
+        byte _phase;
         readonly WireSelf _me = new WireSelf();
         bool _hasMe;
         WireActor[] _actors = new WireActor[16];
@@ -89,8 +90,12 @@ namespace Roguehalla.Net.Protocol
                 }
                 else
                 {
-                    if (ch.Mask != ActorDelta.MAll) throw new DeltaException("incomplete_new_actor", ch.Id.ToString());
-                    _next[o++] = Updated(default(WireActor), ch);
+                    // A new actor starts from the default one: the fields it does not carry are at their defaults.
+                    if ((ch.Mask & ActorDelta.MNew) != ActorDelta.MNew) throw new DeltaException("incomplete_new_actor", ch.Id.ToString());
+                    var fresh = default(WireActor);
+                    fresh.HpPct = WireActor.DefaultHpPct;
+                    fresh.Status = Wire.DefaultStatus;
+                    _next[o++] = Updated(fresh, ch);
                 }
             }
             Flush(d, 0, false, ref bi, ref di, ref o);
@@ -100,7 +105,8 @@ namespace Roguehalla.Net.Protocol
             // Everything checked: commit.
             var swap = _actors; _actors = _next; _next = swap; _count = o;
             _tick = d.Tick;
-            s.Tick = d.Tick; s.Phase = d.Phase; s.AckInput = d.AckInput;
+            if (d.HasPhase) _phase = d.Phase;
+            s.Tick = d.Tick; s.Phase = _phase; s.AckInput = d.AckInput;
             if (d.HasSelf)
             {
                 var me = s.Me ?? new WireSelf();
@@ -136,7 +142,8 @@ namespace Roguehalla.Net.Protocol
             if ((ch.Mask & ActorDelta.MKit) != 0) { a.Faction = (byte)(ch.Kit & 0x0f); a.Weapon = (byte)(ch.Kit >> 4); }
             if ((ch.Mask & ActorDelta.MHp) != 0) a.HpPct = ch.HpPct;
             if ((ch.Mask & ActorDelta.MBounty) != 0) a.Bounty = ch.Bounty;
-            a.Status = ch.Status;
+            if ((ch.Mask & ActorDelta.MStatus) != 0) a.Status = ch.Status;
+            if ((ch.Mask & ActorDelta.MKind) != 0) a.Kind = ch.Kind;
             return a;
         }
 
@@ -144,6 +151,7 @@ namespace Roguehalla.Net.Protocol
         {
             _has = true;
             _tick = s.Tick;
+            _phase = s.Phase;
             _hasMe = s.Me != null;
             if (_hasMe) _me.CopyFrom(s.Me);
             int n = s.Actors.Length;
