@@ -126,8 +126,7 @@ WORKLOADS = [
       lambda out, side: ["--verify-replay", replay_path(out, 3000, side.split(".")[0]), "--ignore-content-hash"],
       "steps", ["verified", "steps", "finalHash", "contentHash"], digest=False, prepare=record_base_replays),
 ]
-PACKAGES = {"parity-bench": "rh-parity", "wirebench": "rh-server", "rh-headless": "rh-headless",
-            "loadbench": "rh-server"}
+PACKAGES = {"parity-bench": "rh-parity", "wirebench": "rh-server", "rh-headless": "rh-headless"}
 
 
 def sh(cmd, cwd=None, env=None, capture=True):
