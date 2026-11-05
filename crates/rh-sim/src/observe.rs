@@ -272,6 +272,11 @@ fn observe_with(
         // A plain loop (not a filter-map extend): the viewer's own record, then each other seated player in store order,
         // the radius test before the line (a cheap reject of most far pairs), the same two conditions as [`sees`].
         out.visible.reserve(sim.players().len());
+        // Decided once per observation: a viewer that moved takes the plain traversal with no table in the loop.
+        let probing = match &mut cache {
+            Some(c) => c.probing(m.id, ax, ay),
+            None => false,
+        };
         for o in sim.players() {
             if o.id == m.id || o.status == Status::Lobby {
                 continue;
@@ -279,8 +284,8 @@ fn observe_with(
             let (dx, dy) = (o.body.x - ax, o.body.y - ay);
             if dx * dx + dy * dy <= limit
                 && !match &mut cache {
-                    Some(c) => c.blocked(map, m.id, o.id, ax, ay, o.body.x, o.body.y),
-                    None => ray_blocked(map, ax, ay, o.body.x, o.body.y, MASK_SIGHT),
+                    Some(c) if probing => c.probe(map, m.id, o.id, ax, ay, o.body.x, o.body.y),
+                    _ => ray_blocked(map, ax, ay, o.body.x, o.body.y, MASK_SIGHT),
                 }
             {
                 out.visible.push(ActorView {

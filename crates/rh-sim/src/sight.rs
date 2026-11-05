@@ -151,11 +151,29 @@ impl SightCache {
         self.players = players;
     }
 
-    /// `ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)`, reusing the stored verdict when this ordered pair was last asked
-    /// for exactly these endpoints. Call [`SightCache::begin`] first.
+    /// Whether `viewer`, standing at `(ax, ay)`, probes the table this tick. Decided on its first call of the tick: a
+    /// viewer that moved since the last tick it was observed owns no entry that can hit, so it takes the plain traversal
+    /// with no probe and no store. Call [`SightCache::begin`] first; idempotent within a tick.
+    #[inline]
+    pub(crate) fn probing(&mut self, viewer: PlayerId, ax: f64, ay: f64) -> bool {
+        debug_assert!(!self.viewers.is_empty(), "begin() first");
+        let vi = viewer.0 as usize & (self.viewers.len() - 1);
+        let v = &mut self.viewers[vi];
+        if v.id != viewer.0 || v.tick != self.tick {
+            let pos = [ax.to_bits(), ay.to_bits()];
+            v.probe = v.id == viewer.0 && v.pos == pos;
+            v.id = viewer.0;
+            v.tick = self.tick;
+            v.pos = pos;
+        }
+        v.probe
+    }
+
+    /// `ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)` through the table (the caller found [`SightCache::probing`]
+    /// true): the stored verdict when this ordered pair was last asked for exactly these endpoints.
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn blocked(
+    pub(crate) fn probe(
         &mut self,
         map: &TileMap,
         viewer: PlayerId,
@@ -166,20 +184,6 @@ impl SightCache {
         by: f64,
     ) -> bool {
         debug_assert!(!self.entries.is_empty(), "begin() first");
-        // The viewer's mode for this tick, decided on its first lookup of the tick: a viewer that moved since the last
-        // tick it was observed owns no entry that can hit, so it takes the plain traversal with no probe and no store.
-        let vi = viewer.0 as usize & (self.viewers.len() - 1);
-        let v = &mut self.viewers[vi];
-        if v.id != viewer.0 || v.tick != self.tick {
-            let pos = [ax.to_bits(), ay.to_bits()];
-            v.probe = v.id == viewer.0 && v.pos == pos;
-            v.id = viewer.0;
-            v.tick = self.tick;
-            v.pos = pos;
-        }
-        if !v.probe {
-            return ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
-        }
         let bits = [ax.to_bits(), ay.to_bits(), bx.to_bits(), by.to_bits()];
         let key = (u64::from(viewer.0) << 32) | u64::from(other.0);
         if key == NO_KEY {
@@ -197,5 +201,25 @@ impl SightCache {
         let blocked = ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
         *e = Entry { bits, key, blocked };
         blocked
+    }
+
+    /// [`SightCache::probing`] then the table or the plain traversal: for a caller that asks one pair at a time.
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn blocked(
+        &mut self,
+        map: &TileMap,
+        viewer: PlayerId,
+        other: PlayerId,
+        ax: f64,
+        ay: f64,
+        bx: f64,
+        by: f64,
+    ) -> bool {
+        if self.probing(viewer, ax, ay) {
+            self.probe(map, viewer, other, ax, ay, bx, by)
+        } else {
+            ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)
+        }
     }
 }
