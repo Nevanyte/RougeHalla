@@ -287,6 +287,17 @@ fn main() {
             break;
         }
     }
+    if args.iter().any(|a| a == "--sight-stats") {
+        eprintln!(
+            "sight memo: publisher {:?}, bots {:?}",
+            publisher.sight_stats(),
+            match &src {
+                Source::Match(e) => format!("{:?}", e.sight_stats()),
+                #[cfg(feature = "bench")]
+                Source::Crowd(_) => "n/a (synthetic crowd has no bots)".to_string(),
+            }
+        );
+    }
     let secs = steps as f64 * 0.05;
     let fighters = synthetic
         .map(|n| format!("\"fighters\":{n},\"snapshotRefusals\":{snapshot_refusals},"))

@@ -255,9 +255,27 @@ pub struct Publisher {
     actors: ActorMemo,
     events: Vec<WireEvent>,
     fx: Vec<WireFx>,
+    /// Line-of-sight verdicts the observations reuse for pairs whose endpoints did not move (derived, exact).
+    sight: rh_sim::SightCache,
 }
 
 impl Publisher {
+    /// Hits and misses of the publisher's line-of-sight memo so far (diagnostics).
+    pub fn sight_stats(&self) -> rh_sim::SightStats {
+        self.sight.stats()
+    }
+
+    /// [`rh_sim::observe_events_into`] through the publisher's line-of-sight memo (same events appended).
+    pub fn observe_events_into(
+        &mut self,
+        sim: &rh_sim::Sim,
+        viewer: rh_sim::PlayerId,
+        events: &[rh_sim::Event],
+        out: &mut Vec<SeenEvent>,
+    ) {
+        rh_sim::observe_events_into_cached(sim, viewer, events, out, &mut self.sight);
+    }
+
     /// The observation of the last [`Publisher::frames`] call.
     pub fn observation(&self) -> &Observation {
         &self.obs
@@ -294,7 +312,7 @@ impl Publisher {
         earlier: &mut Vec<SeenEvent>,
         all: &[rh_sim::Event],
     ) -> ViewFrames {
-        rh_sim::observe_into(sim, viewer, last_step, &mut self.obs);
+        rh_sim::observe_into_cached(sim, viewer, last_step, &mut self.obs, &mut self.sight);
         if !earlier.is_empty() {
             earlier.append(&mut self.obs.events);
             std::mem::swap(earlier, &mut self.obs.events);

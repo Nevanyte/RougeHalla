@@ -16,6 +16,7 @@ use crate::events::{Class, Visibility};
 use crate::fighter::FighterRef;
 use crate::geometry::ray_blocked;
 use crate::map::MASK_SIGHT;
+use crate::sight::SightCache;
 use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 
 pub const OBSERVATION_VERSION: u16 = 1;
@@ -157,11 +158,32 @@ impl Default for Observation {
 /// Whether `me` sees `other`: inside the vision radius with a clear line on the sight mask (the verdict-only traversal,
 /// asserted equal to `raycast(..).hit` in tests/kernel.rs). Written against the read-only
 /// [`FighterRef`] view, so anything that fights (a player now, a mob later) is seen the same way.
-fn sees(sim: &Sim, me: FighterRef<'_>, other: FighterRef<'_>) -> bool {
+fn sees(
+    sim: &Sim,
+    me: FighterRef<'_>,
+    other: FighterRef<'_>,
+    cache: &mut Option<&mut SightCache>,
+) -> bool {
     let (a, b) = (me.pos(), other.pos());
     let (dx, dy) = (b.x - a.x, b.y - a.y);
     dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
-        && !ray_blocked(&sim.arena().map, a.x, a.y, b.x, b.y, MASK_SIGHT)
+        && !match cache {
+            Some(c) => c.blocked(&sim.arena().map, me.id(), other.id(), a.x, a.y, b.x, b.y),
+            None => ray_blocked(&sim.arena().map, a.x, a.y, b.x, b.y, MASK_SIGHT),
+        }
+}
+
+/// Readies `cache` for a pass over `sim` (it drops entries computed on another arena).
+fn begin(sim: &Sim, cache: &mut Option<&mut SightCache>) {
+    if let Some(c) = cache {
+        let k = &sim.k;
+        c.begin(
+            std::sync::Arc::as_ptr(&k.arena) as usize,
+            k.digest,
+            sim.players().len(),
+            u64::from(sim.tick()),
+        );
+    }
 }
 
 /// The events an observer is shown, in order: each is judged by its own declared [`Event::visibility`] against `can_see`
@@ -197,6 +219,29 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
 /// [`observe`] into a caller-owned buffer: `out` is cleared and refilled (its vectors keep their capacity, so a steady-state
 /// call allocates nothing). The content is exactly what [`observe`] returns.
 pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Observation) {
+    observe_with(sim, viewer, events, out, None);
+}
+
+/// [`observe_into`] reusing line-of-sight verdicts from `cache` for pairs whose endpoints are bit-identical to the last
+/// time that ordered pair was tested (see [`SightCache`]). The content is exactly what [`observe_into`] fills.
+pub fn observe_into_cached(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Observation,
+    cache: &mut SightCache,
+) {
+    observe_with(sim, viewer, events, out, Some(cache));
+}
+
+fn observe_with(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Observation,
+    mut cache: Option<&mut SightCache>,
+) {
+    begin(sim, &mut cache);
     let me = sim.player(viewer);
     let now = sim.server_time();
     out.version = OBSERVATION_VERSION;
@@ -227,13 +272,21 @@ pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Obs
         // A plain loop (not a filter-map extend): the viewer's own record, then each other seated player in store order,
         // the radius test before the line (a cheap reject of most far pairs), the same two conditions as [`sees`].
         out.visible.reserve(sim.players().len());
+        // Decided once per observation: a viewer that moved takes the plain traversal with no table in the loop.
+        let probing = match &mut cache {
+            Some(c) => c.probing(m.id, ax, ay),
+            None => false,
+        };
         for o in sim.players() {
             if o.id == m.id || o.status == Status::Lobby {
                 continue;
             }
             let (dx, dy) = (o.body.x - ax, o.body.y - ay);
             if dx * dx + dy * dy <= limit
-                && !ray_blocked(map, ax, ay, o.body.x, o.body.y, MASK_SIGHT)
+                && !match &mut cache {
+                    Some(c) if probing => c.probe(map, m.id, o.id, ax, ay, o.body.x, o.body.y),
+                    _ => ray_blocked(map, ax, ay, o.body.x, o.body.y, MASK_SIGHT),
+                }
             {
                 out.visible.push(ActorView {
                     id: o.id,
@@ -277,13 +330,37 @@ pub fn observe_events_into(
     events: &[Event],
     out: &mut Vec<SeenEvent>,
 ) {
+    observe_events_with(sim, viewer, events, out, None);
+}
+
+/// [`observe_events_into`] reusing verdicts from `cache` (see [`SightCache`]); appends exactly the same events.
+pub fn observe_events_into_cached(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Vec<SeenEvent>,
+    cache: &mut SightCache,
+) {
+    observe_events_with(sim, viewer, events, out, Some(cache));
+}
+
+fn observe_events_with(
+    sim: &Sim,
+    viewer: PlayerId,
+    events: &[Event],
+    out: &mut Vec<SeenEvent>,
+    mut cache: Option<&mut SightCache>,
+) {
+    begin(sim, &mut cache);
+    let cache = std::cell::RefCell::new(cache);
     let me = sim.player(viewer);
     let me_id = me.map(|m| m.id);
     let can_see = |id: PlayerId| {
         Some(id) == me_id
             || me.is_some_and(|m| {
                 sim.player(id).is_some_and(|o| {
-                    o.status != Status::Lobby && sees(sim, m.fighter(), o.fighter())
+                    o.status != Status::Lobby
+                        && sees(sim, m.fighter(), o.fighter(), &mut cache.borrow_mut())
                 })
             })
     };
