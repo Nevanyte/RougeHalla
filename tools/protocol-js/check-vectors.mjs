@@ -1,5 +1,5 @@
 // Holds the JS decoder of the browser probe (crates/rh-server/web/probe.html) to the golden vectors in
-// protocol/fixtures/v3.json: every server vector decodes, a Snapshot or Fx decodes to exactly the fields (floats as bit
+// protocol/fixtures/v<PROTOCOL>.json: every server vector decodes, a Snapshot or Fx decodes to exactly the fields (floats as bit
 // patterns) the vector lists, every frame in malformedServer is rejected for the documented reason, and every truncation of
 // every server vector throws, and every chain of frames replays on a Tracker to the recorded snapshot at every step (a delta it
 // cannot apply is refused for the recorded reason and changes nothing). The decoder block is lifted out of the page between its two marker comments.
@@ -10,11 +10,13 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const html = readFileSync(join(root, "crates/rh-server/web/probe.html"), "utf8");
-const a = html.indexOf("// ---- protocol v3");
+const a = html.search(/\/\/ ---- protocol v\d+/);
 const b = html.indexOf("// ---- probe state");
 if (a < 0 || b < 0) throw new Error("probe.html markers not found");
 const { decode, Tracker } = new Function(`"use strict"; ${html.slice(a, b)}; return { decode, Tracker };`)();
-const fx = JSON.parse(readFileSync(join(root, "protocol/fixtures/v3.json"), "utf8"));
+const version = /const PROTOCOL = (\d+);/.exec(html.slice(a, b))[1];
+const fx = JSON.parse(readFileSync(join(root, `protocol/fixtures/v${version}.json`), "utf8"));
+if (fx.protocol !== Number(version)) throw new Error(`the page speaks protocol ${version}, the vectors ${fx.protocol}`);
 
 const bytes = (hex) => Uint8Array.from(hex.match(/../g) ?? [], (h) => parseInt(h, 16)).buffer;
 const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
@@ -37,7 +39,7 @@ function checkSnapshot(m, d, n) {
     eq(m.actors.length, d.actors.length, `${n} actors`);
     d.actors.forEach((e, i) => {
       const s = m.actors[i];
-      for (const k of ["id", "faction", "hpPct", "status", "weapon", "bounty"]) eq(s[k], e[k], `${n} actor ${i}.${k}`);
+      for (const k of ["id", "faction", "hpPct", "status", "weapon", "bounty", "kind"]) eq(s[k], e[k], `${n} actor ${i}.${k}`);
       for (const [k, jk] of [["x", "xBits"], ["y", "yBits"], ["facing", "facingBits"]]) eq(bits(s[k]), e[jk], `${n} actor ${i}.${k}`);
     });
 }
@@ -65,7 +67,11 @@ const reason = {
   empty: /./, truncated_snapshot: /./, self_truncated: /./, actor_count_without_actors: /./,
   unknown_tag: /unknown tag/, client_tag_from_server: /unknown tag/, trailing_byte: /trailing/,
   overlong_varint: /varint/, varint_past_u32: /varint/, varint_too_long: /varint/,
-  head_self_bit_without_present_bit: /head/, head_reserved_bit: /head/, self_max_hp_over_u16: /max_hp/,
+  head_self_bit_without_present_bit: /head/, head_unknown_bit: /head/, head_overlong_varint: /varint/, self_status_over_3: /status/, phase_over_3: /phase/,
+  self_max_hp_over_u16: /max_hp/, actor_status_over_3: /status/, actor_mask_overlong_varint: /varint/, actor_unknown_mask_bit_after_kind: /actor mask/,
+  state_unknown_key: /state key/, state_trailing_byte: /trailing/, state_truncated: /./,
+  delta_head_unknown_bit: /head/, delta_head_overlong_varint: /varint/, delta_phase_over_3: /phase/, delta_actor_mask_unknown_bit: /actor mask/,
+  delta_actor_status_over_3: /status/,
   too_many_actors: /too many actors/, actor_reserved_mask_bit: /actor mask/, actor_id_gap_zero: /actor order/, actor_id_overflow: /actor order/,
   actor_hp_over_100: /hp_pct/, actor_bounty_over_u16: /bounty/, fx_too_many: /too many fx/, fx_bad_tag: /bad fx/,
   delta_age_zero: /base age/, delta_age_over_max: /base age/, delta_age_past_tick: /base age/, delta_head_field_without_present_bit: /head/,
@@ -118,4 +124,4 @@ for (const c of fx.chains) {
   });
 }
 
-console.log(`JS decoder agrees with protocol/fixtures/v3.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);
+console.log(`JS decoder agrees with protocol/fixtures/v${version}.json: ${fx.server.length} server vectors, ${fx.malformedServer.length} malformed, ${fx.chains.length} chains, ${checks} checks`);

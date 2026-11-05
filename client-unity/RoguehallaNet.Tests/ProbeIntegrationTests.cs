@@ -70,7 +70,7 @@ namespace Roguehalla.Net.Tests
             StringAssert.Contains("\"welcome\":true", json);
             StringAssert.Contains("\"rejects\":[]", json);
             StringAssert.Contains("\"errors\":[]", json);
-            Assert.AreEqual("probe1", hello.Profile); Assert.AreEqual("t1", hello.Token); Assert.AreEqual(0UL, hello.ContentHash);
+            Assert.AreEqual("probe1", hello.Profile); CollectionAssert.AreEqual(new byte[] { (byte)'t', (byte)'1' }, hello.Ticket); Assert.AreEqual(0UL, hello.ContentHash);
             Assert.GreaterOrEqual(pings, 2); Assert.GreaterOrEqual(moves, 3); Assert.IsTrue(left);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             Assert.Greater(doc.RootElement.GetProperty("snapshots").GetInt32(), 20);
