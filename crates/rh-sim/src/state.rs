@@ -3,7 +3,9 @@
 use crate::constants::{MAX_PLAYERS, MAX_REWIND_MS, TICK_MS};
 use crate::content::{FactionId, WeaponId};
 use crate::events::Event;
-use crate::fighter::{Body, Credit, Fate, FighterCore, FighterRef, Motion, Seat, Vitals};
+use crate::fighter::{
+    Body, Credit, Fate, FighterCore, FighterIx, FighterRef, Motion, Seat, Vitals,
+};
 use crate::input::{InputQueue, OrderBudget};
 use crate::math::Vec2;
 use crate::results::{GvBreakdown, Outcome};
@@ -570,6 +572,60 @@ impl World {
 
     pub(crate) fn player(&self, id: PlayerId) -> Option<&Player> {
         self.players.get(id)
+    }
+
+    // The fighter list: every actor that fights, addressed by [`FighterIx`]. Players are all of it today (indices
+    // `0..players.len()`, join order); a mob store joins after them, and these accessors are the only place that knows
+    // which store an index belongs to, so the systems written against them do not change when it does.
+
+    /// How many fighters there are (present, standing or not).
+    #[inline]
+    pub(crate) fn fighter_count(&self) -> usize {
+        self.players.len()
+    }
+
+    /// The index of the fighter with id `id`, if present.
+    #[inline]
+    pub(crate) fn fighter_idx(&self, id: PlayerId) -> Option<FighterIx> {
+        self.players.idx(id).map(FighterIx::of_slot)
+    }
+
+    /// Whether the fighter at `ix` is a seated player (the PvP rules, the order budget and the run's bookkeeping apply to
+    /// players only).
+    #[inline]
+    pub(crate) fn is_player(&self, ix: FighterIx) -> bool {
+        ix.slot() < self.players.len()
+    }
+
+    /// The core every fighter has.
+    #[inline]
+    pub(crate) fn core(&self, ix: FighterIx) -> &FighterCore {
+        &self.players[ix.slot()].core
+    }
+
+    #[inline]
+    pub(crate) fn core_mut(&mut self, ix: FighterIx) -> &mut FighterCore {
+        &mut self.players[ix.slot()].core
+    }
+
+    /// Whether the fighter at `ix` still stands in the run.
+    #[inline]
+    pub(crate) fn standing(&self, ix: FighterIx) -> bool {
+        self.players[ix.slot()].standing()
+    }
+
+    /// Whether the fighter at `ix` is alive (its status, not its settle state: a downed player not yet resolved is not).
+    #[inline]
+    pub(crate) fn alive(&self, ix: FighterIx) -> bool {
+        self.players[ix.slot()].status == Status::Alive
+    }
+
+    /// Where a command for the fighter at `ix` is queued and the order budget it spends: a player's seat budget; an actor
+    /// that is not a seat (a mob) has none (legacy rate-limits at the network edge, not in the sim).
+    #[inline]
+    pub(crate) fn intake(&mut self, ix: FighterIx) -> (&mut InputQueue, Option<&mut OrderBudget>) {
+        let p = &mut self.players[ix.slot()];
+        (&mut p.core.inputs, Some(&mut p.seat.budget))
     }
 
     pub(crate) fn new(secrets: &Secrets) -> Self {

@@ -8,7 +8,7 @@
 //!     behaves identically attached to the live server or to the headless runner.
 
 use futures_util::{SinkExt, StreamExt};
-use rh_policy::{drive_seats, scripted, Seat};
+use rh_policy::{drive_seats, scripted, MatchStart, Seat};
 use rh_protocol::{ClientMsg, ServerMsg, WireCommand, WireEvent, PROTOCOL_VERSION};
 use rh_server::director::{Director, DirectorConfig};
 use rh_server::hosting::Lifecycle;
@@ -196,10 +196,9 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
                             let id = sim.players().last().unwrap().id;
                             bot_ids.push(id);
                             seats.push(Seat::new(
-                                id,
+                                &MatchStart::of(&sim, id, p.seed),
                                 Box::new(scripted::Brawler::new(p.interval)),
                                 Box::new(scripted::Idle),
-                                p.seed,
                             ));
                         }
                         ReplayInput::Command { player, .. } if bot_ids.contains(player) => {} // the bots decide again below

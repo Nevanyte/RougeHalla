@@ -11,17 +11,81 @@
 
 pub mod scripted;
 
+use rh_sim::content::content_hash;
 use rh_sim::{
     observe_events_into, observe_events_into_cached, observe_into, observe_into_cached, validate,
-    Event, Observation, PlayerId, RawCommand, SeenEvent, SightCache, Sim,
+    Arena, Event, Observation, PlayerId, RawCommand, SeenEvent, SightCache, Sim,
+    OBSERVATION_VERSION,
 };
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
 /// Version of this contract (observation + command shapes + cadence rules). A policy built for another major version
 /// must not be attached.
-pub const POLICY_CONTRACT_VERSION: u16 = 1;
+///
+/// Version 2: `Policy::reset` takes a [`MatchStart`] (the public match context) instead of `(seed, me)`; `Seat::new` and
+/// `AsyncSeat::spawn` take the same [`MatchStart`] and fault on a contract or observation-version mismatch.
+pub const POLICY_CONTRACT_VERSION: u16 = 2;
+
+/// Everything a policy may know about a match before its first observation, all of it public static data (the map
+/// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
+#[derive(Clone, Debug)]
+pub struct MatchStart {
+    /// The player this policy plays.
+    pub me: PlayerId,
+    /// The policy's OWN randomness seed (never a match secret).
+    pub seed: u64,
+    /// The static map and spawn points (public data; shared, never mutated).
+    pub arena: Arc<Arena>,
+    /// Identity of the rules the sim runs under ([`rh_sim::content_hash`]).
+    pub content_hash: u64,
+    /// The observation shape the seat will deliver ([`rh_sim::OBSERVATION_VERSION`]).
+    pub observation_version: u16,
+    /// Milliseconds per simulation tick.
+    pub tick_ms: f64,
+}
+
+impl MatchStart {
+    /// The context of a match running in `sim`, for the policy of `me` with its own `seed`. Reads only public statics.
+    pub fn of(sim: &Sim, me: PlayerId, seed: u64) -> Self {
+        Self {
+            me,
+            seed,
+            arena: Arc::clone(sim.shared_arena()),
+            content_hash: {
+                // The rules of a build never change: fold the registry once per process.
+                static HASH: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+                *HASH.get_or_init(content_hash)
+            },
+            observation_version: OBSERVATION_VERSION,
+            tick_ms: rh_sim::constants::TICK_MS,
+        }
+    }
+
+    /// The same context for the fallback policy: its randomness is decorrelated from the policy's (`seed` is already mixed by the caller).
+    fn with_seed(&self, seed: u64) -> Self {
+        Self {
+            seed,
+            ..self.clone()
+        }
+    }
+}
+
+/// Why a policy cannot be attached to a match, if it cannot (ADR 0005: incompatible policies are refused at attach).
+fn attach_fault(spec: &PolicySpec, m: &MatchStart) -> Option<Fault> {
+    if spec.contract != POLICY_CONTRACT_VERSION {
+        Some(Fault::IncompatibleContract {
+            contract: spec.contract,
+        })
+    } else if spec.observation_version != m.observation_version {
+        Some(Fault::IncompatibleObservation {
+            version: spec.observation_version,
+        })
+    } else {
+        None
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PolicySpec {
@@ -35,9 +99,9 @@ pub struct PolicySpec {
 
 pub trait Policy: Send {
     fn spec(&self) -> PolicySpec;
-    /// Called at the start of every match (independent environment resets). `seed` is the policy's OWN randomness (never a
-    /// match secret).
-    fn reset(&mut self, seed: u64, me: PlayerId);
+    /// Called at the start of every match (independent environment resets) with the match's public context. `m.seed` is
+    /// the policy's OWN randomness (never a match secret).
+    fn reset(&mut self, m: &MatchStart);
     /// May keep memory of earlier observations; must not depend on anything else about the match.
     fn decide(&mut self, obs: &Observation) -> Vec<RawCommand>;
     /// [`Policy::decide`] into a caller-owned buffer (cleared by the caller; the buffer keeps its capacity, so a policy that
@@ -61,6 +125,10 @@ pub enum Fault {
     },
     IncompatibleContract {
         contract: u16,
+    },
+    /// The policy was built for another [`rh_sim::OBSERVATION_VERSION`] than the one the seat delivers.
+    IncompatibleObservation {
+        version: u16,
     },
 }
 
@@ -97,22 +165,18 @@ pub struct Seat {
 pub const MAX_PENDING_EVENTS: usize = 256;
 
 impl Seat {
-    pub fn new(
-        player: PlayerId,
-        mut policy: Box<dyn Policy>,
-        mut fallback: Box<dyn Policy>,
-        seed: u64,
-    ) -> Self {
+    /// A seat for `m.me`. A policy whose contract or observation version does not match is attached already faulted: its
+    /// fallback plays the whole match.
+    pub fn new(m: &MatchStart, mut policy: Box<dyn Policy>, mut fallback: Box<dyn Policy>) -> Self {
         let spec = policy.spec();
         let interval = spec.decision_interval_ticks.max(1);
-        policy.reset(seed, player);
-        fallback.reset(seed ^ 0x9e37_79b9_7f4a_7c15, player);
-        let fault =
-            (spec.contract != POLICY_CONTRACT_VERSION).then_some(Fault::IncompatibleContract {
-                contract: spec.contract,
-            });
+        let fault = attach_fault(&spec, m);
+        if fault.is_none() {
+            policy.reset(m);
+        }
+        fallback.reset(&m.with_seed(m.seed ^ 0x9e37_79b9_7f4a_7c15));
         Self {
-            player,
+            player: m.me,
             policy,
             fallback,
             fault,
@@ -293,32 +357,40 @@ pub struct AsyncSeat {
     next_tick: u32,
     pub late: u64,
     pub stats: SeatStats,
+    /// Set at spawn when the policy cannot be attached (see [`Seat::new`]); the fallback then decides every turn and no
+    /// thread is started.
+    pub fault: Option<Fault>,
 }
 
 impl AsyncSeat {
     pub fn spawn(
-        player: PlayerId,
+        m: &MatchStart,
         mut policy: Box<dyn Policy>,
         mut fallback: Box<dyn Policy>,
-        seed: u64,
         deadline_ticks: u32,
     ) -> Self {
-        let interval = policy.spec().decision_interval_ticks.max(1);
-        policy.reset(seed, player);
-        fallback.reset(seed ^ 1, player);
+        let spec = policy.spec();
+        let interval = spec.decision_interval_ticks.max(1);
+        let fault = attach_fault(&spec, m);
+        if fault.is_none() {
+            policy.reset(m);
+        }
+        fallback.reset(&m.with_seed(m.seed ^ 1));
         let (tx, req_rx) = mpsc::channel::<(u32, Observation)>();
         let (res_tx, rx) = mpsc::channel::<(u32, Vec<RawCommand>)>();
-        std::thread::spawn(move || {
-            while let Ok((tick, obs)) = req_rx.recv() {
-                let cmds =
-                    catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).unwrap_or_default();
-                if res_tx.send((tick, cmds)).is_err() {
-                    break;
+        if fault.is_none() {
+            std::thread::spawn(move || {
+                while let Ok((tick, obs)) = req_rx.recv() {
+                    let cmds =
+                        catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).unwrap_or_default();
+                    if res_tx.send((tick, cmds)).is_err() {
+                        break;
+                    }
                 }
-            }
-        });
+            });
+        }
         Self {
-            player,
+            player: m.me,
             tx,
             rx,
             fallback,
@@ -328,11 +400,21 @@ impl AsyncSeat {
             next_tick: 0,
             late: 0,
             stats: SeatStats::default(),
+            fault,
         }
     }
 
     /// Called once per tick with the current observation; returns the commands to submit this tick.
     pub fn poll(&mut self, obs: &Observation) -> Vec<RawCommand> {
+        if self.fault.is_some() {
+            if obs.tick < self.next_tick {
+                return Vec::new();
+            }
+            self.next_tick = obs.tick + self.interval;
+            self.stats.decisions += 1;
+            self.stats.fallback_decisions += 1;
+            return self.fallback.decide(obs);
+        }
         let mut out = Vec::new();
         while let Ok((asked, cmds)) = self.rx.try_recv() {
             if Some(asked) == self.pending {
@@ -358,5 +440,142 @@ impl AsyncSeat {
             }
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scripted::{Brawler, Idle};
+    use rh_sim::{FactionId, Placement, Secrets, SimConfig, Vec2};
+    use std::sync::Mutex;
+
+    type Seen = Arc<Mutex<Vec<(PlayerId, u64, usize, u64, u16, f64)>>>;
+
+    fn sim() -> Sim {
+        let place = Placement {
+            profile: "a".into(),
+            faction: FactionId::ALL[0],
+            bot: true,
+            at: Vec2::new(2000.0, 2000.0),
+            hp: None,
+        };
+        Sim::reset_active(
+            SimConfig::default(),
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(1),
+            &[place],
+        )
+    }
+
+    /// A policy that records what it was told at reset and declares any versions.
+    struct Probe {
+        contract: u16,
+        observation_version: u16,
+        seen: Seen,
+    }
+    impl Policy for Probe {
+        fn spec(&self) -> PolicySpec {
+            PolicySpec {
+                name: "probe".into(),
+                version: "1".into(),
+                contract: self.contract,
+                observation_version: self.observation_version,
+                decision_interval_ticks: 1,
+            }
+        }
+        fn reset(&mut self, m: &MatchStart) {
+            self.seen.lock().unwrap().push((
+                m.me,
+                m.seed,
+                m.arena.spawns.len(),
+                m.content_hash,
+                m.observation_version,
+                m.tick_ms,
+            ));
+        }
+        fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
+            Vec::new()
+        }
+    }
+
+    fn probe(contract: u16, observation_version: u16) -> (Probe, Seen) {
+        let seen = Seen::default();
+        (
+            Probe {
+                contract,
+                observation_version,
+                seen: Arc::clone(&seen),
+            },
+            seen,
+        )
+    }
+
+    #[test]
+    fn reset_receives_the_public_match_context() {
+        let sim = sim();
+        let me = sim.players()[0].id;
+        let m = MatchStart::of(&sim, me, 77);
+        let (p, seen) = probe(POLICY_CONTRACT_VERSION, OBSERVATION_VERSION);
+        let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
+        assert!(seat.fault.is_none());
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(
+            seen[0],
+            (
+                me,
+                77,
+                sim.arena().spawns.len(),
+                rh_sim::content::content_hash(),
+                OBSERVATION_VERSION,
+                rh_sim::constants::TICK_MS
+            )
+        );
+        assert!(Arc::ptr_eq(&m.arena, sim.shared_arena()));
+    }
+
+    #[test]
+    fn a_seat_refuses_a_policy_of_another_contract_or_observation_version() {
+        let sim = sim();
+        let m = MatchStart::of(&sim, sim.players()[0].id, 1);
+        let (p, _) = probe(POLICY_CONTRACT_VERSION + 1, OBSERVATION_VERSION);
+        let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
+        assert_eq!(
+            seat.fault,
+            Some(Fault::IncompatibleContract {
+                contract: POLICY_CONTRACT_VERSION + 1
+            })
+        );
+        let (p, _) = probe(POLICY_CONTRACT_VERSION, OBSERVATION_VERSION + 1);
+        let seat = Seat::new(&m, Box::new(p), Box::new(Idle));
+        assert_eq!(
+            seat.fault,
+            Some(Fault::IncompatibleObservation {
+                version: OBSERVATION_VERSION + 1
+            })
+        );
+        assert!(Seat::new(&m, Box::new(Brawler::new(2)), Box::new(Idle))
+            .fault
+            .is_none());
+    }
+
+    #[test]
+    fn an_async_seat_faults_and_plays_its_fallback_on_a_mismatch() {
+        let sim = sim();
+        let m = MatchStart::of(&sim, sim.players()[0].id, 1);
+        let (p, _) = probe(POLICY_CONTRACT_VERSION, OBSERVATION_VERSION + 1);
+        let mut seat = AsyncSeat::spawn(&m, Box::new(p), Box::new(Idle), 3);
+        assert_eq!(
+            seat.fault,
+            Some(Fault::IncompatibleObservation {
+                version: OBSERVATION_VERSION + 1
+            })
+        );
+        let obs = rh_sim::observe(&sim, m.me, &[]);
+        assert!(seat.poll(&obs).is_empty());
+        assert_eq!(seat.stats.fallback_decisions, 1);
+        let ok = AsyncSeat::spawn(&m, Box::new(Brawler::new(1)), Box::new(Idle), 3);
+        assert!(ok.fault.is_none());
     }
 }

@@ -1,7 +1,7 @@
 //! Scripted policies: a simple brawler (the reference bot of the slice), an idle fallback, and fault-injection policies for
 //! tests. The legacy human-like bot brain (packages/server/src/bots) is NOT ported yet (docs/backlog P-BOTS-1).
 
-use crate::{Policy, PolicySpec, POLICY_CONTRACT_VERSION};
+use crate::{MatchStart, Policy, PolicySpec, POLICY_CONTRACT_VERSION};
 use rh_sim::observe::Observation;
 use rh_sim::{PlayerId, RawCommand, OBSERVATION_VERSION};
 
@@ -22,7 +22,7 @@ impl Policy for Idle {
     fn spec(&self) -> PolicySpec {
         spec("idle", 1)
     }
-    fn reset(&mut self, _: u64, _: PlayerId) {}
+    fn reset(&mut self, _: &MatchStart) {}
     fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
         Vec::new()
     }
@@ -59,9 +59,9 @@ impl Policy for Brawler {
     fn spec(&self) -> PolicySpec {
         spec("brawler", self.interval)
     }
-    fn reset(&mut self, seed: u64, me: PlayerId) {
-        self.rng = seed | 1;
-        self.me = me;
+    fn reset(&mut self, m: &MatchStart) {
+        self.rng = m.seed | 1;
+        self.me = m.me;
         self.wander = None;
     }
     fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
@@ -120,7 +120,7 @@ impl Policy for Panicky {
     fn spec(&self) -> PolicySpec {
         spec("panicky", 1)
     }
-    fn reset(&mut self, _: u64, _: PlayerId) {}
+    fn reset(&mut self, _: &MatchStart) {}
     fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
         if self.0 == 0 {
             panic!("test policy failure");
@@ -136,7 +136,7 @@ impl Policy for Slow {
     fn spec(&self) -> PolicySpec {
         spec("slow", 1)
     }
-    fn reset(&mut self, _: u64, _: PlayerId) {}
+    fn reset(&mut self, _: &MatchStart) {}
     fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
         std::thread::sleep(self.0);
         vec![RawCommand::Stop { seq: None }]
@@ -149,7 +149,7 @@ impl Policy for Flood {
     fn spec(&self) -> PolicySpec {
         spec("flood", 1)
     }
-    fn reset(&mut self, _: u64, _: PlayerId) {}
+    fn reset(&mut self, _: &MatchStart) {}
     fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
         let mut v = Vec::new();
         for i in 0..100 {

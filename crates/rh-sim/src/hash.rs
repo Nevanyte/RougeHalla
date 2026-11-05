@@ -456,14 +456,14 @@ mod tests {
                 Box::new(|s| {
                     s.w.deferred.defer_hit(crate::systems::ledger::Entry {
                         victim: PlayerId(1),
-                        by: PlayerId(2),
+                        by: Some(PlayerId(2)),
                         packet: crate::state::Packet {
                             raw: 1.0,
                             phys: 1.0,
                             magic: 0.0,
                             true_: 0.0,
                         },
-                        weapon: crate::content::WeaponId::Fists,
+                        weapon: Some(crate::content::WeaponId::Fists),
                         stagger: false,
                     })
                 }),

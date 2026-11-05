@@ -147,6 +147,10 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.weapon == b.weapon
 }
 
+/// The wire's `Fx::Hit.by` is required (protocol v3). A hit no fighter dealt (sudden death, terrain) has none: it is sent
+/// with this id, which no actor has. No producer emits one yet; the first one makes `by` optional in a protocol bump.
+const WIRE_NO_SOURCE: u32 = u32::MAX;
+
 /// Highest actor id (exclusive) [`ActorMemo`] remembers; an actor with a higher id is converted every time.
 const MEMO_IDS: usize = rh_protocol::MAX_ACTORS;
 
@@ -215,7 +219,7 @@ fn to_wire(e: &SeenEvent) -> Wire {
         }),
         SeenEvent::Hit { victim, by, amount } => Wire::Fx(WireFx::Hit {
             victim: victim.0,
-            by: by.0,
+            by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
             amount: amount as f32,
         }),
     }

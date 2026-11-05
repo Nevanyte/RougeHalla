@@ -5,32 +5,35 @@
 //! order salt, the clock and the collision map, and searches paths. A queued action is run by its handler in the
 //! schedule's `ACTIONS` table (legacy `world.actions[kind]`).
 
+use crate::fighter::{FighterCore, FighterIx};
 use crate::input::{self, ActionCmd, Command, MoveCmd, Reject};
 use crate::map::TileMap;
 use crate::math::Vec2;
 use crate::pathfind::{plan_path_into, Pathfinder};
 use crate::rng::action_order_in_place;
 use crate::schedule::{self, ActionId};
-use crate::state::{Player, PlayerId, Status, World};
+use crate::state::{PlayerId, World};
 use crate::systems::{weapons, Cx};
 
 /// Queues a validated command for the next tick through the seat's order budget (sim time): what `Sim::submit` and
 /// `Cx::submit` both run, the only way a command reaches a queue (C-INPUT). A seat that is not present drops it.
 pub(crate) fn submit(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Reject> {
     let now = w.server_time;
-    let Some(i) = w.idx(id) else {
+    let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
-    input::accept(&mut w.players[i], cmd, now, true)
+    let (queue, budget) = w.intake(ix);
+    input::accept(queue, budget, cmd, now)
 }
 
 /// Queues a command with no order budget: the parity harness only (the legacy capture fed the sim directly).
 pub(crate) fn submit_unbudgeted(w: &mut World, id: PlayerId, cmd: Command) -> Result<(), Reject> {
     let now = w.server_time;
-    let Some(i) = w.idx(id) else {
+    let Some(ix) = w.fighter_idx(id) else {
         return Ok(());
     };
-    input::accept(&mut w.players[i], cmd, now, false)
+    let (queue, _) = w.intake(ix);
+    input::accept(queue, None, cmd, now)
 }
 
 /// System (legacy step.actionOrder): the tick's secret action order, kept as slots in apply order (`action_order`) and as
@@ -55,8 +58,8 @@ pub(crate) fn action_order(cx: &mut Cx) {
 /// System (legacy step.applyInputs for players): every present player's queued inputs, in the action order.
 pub(crate) fn apply_players(cx: &mut Cx) {
     for r in 0..cx.s.action_order.len() {
-        let slot = cx.s.action_order[r] as usize;
-        apply_inputs(cx, slot);
+        let ix = FighterIx(cx.s.action_order[r]);
+        apply_inputs(cx, ix);
     }
 }
 
@@ -67,20 +70,20 @@ pub(crate) fn drain_all(cx: &mut Cx) {
     }
 }
 
-fn apply_inputs(cx: &mut Cx, i: usize) {
+fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
     let now = cx.w.server_time;
-    cx.w.players[i].inputs.drain_into(&mut cx.s.drained);
+    cx.w.core_mut(ix).inputs.drain_into(&mut cx.s.drained);
     let (mv, aim) = (cx.s.drained.mv, cx.s.drained.aim);
     let (move_before, aim_before) = (cx.s.drained.move_before, cx.s.drained.aim_before);
     let n = cx.s.drained.actions.len();
     for k in 0..=n {
-        if cx.w.players[i].status != Status::Alive {
+        if !cx.w.alive(ix) {
             return;
         }
         if k == move_before.min(n) {
             if let Some(mv) = mv {
                 apply_move(
-                    &mut cx.w.players[i],
+                    cx.w.core_mut(ix),
                     &cx.k.arena.map,
                     cx.pf,
                     &mut cx.s.path,
@@ -90,11 +93,11 @@ fn apply_inputs(cx: &mut Cx, i: usize) {
         }
         if k == aim_before.min(n) {
             if let Some(a) = aim {
-                weapons::set_aim(&mut cx.w.players[i], now, a);
+                weapons::set_aim(cx.w.core_mut(ix), now, a);
             }
         }
         if let Some(cmd) = cx.s.drained.actions.get(k).copied() {
-            schedule::run_action(cx, action_id(&cmd), i, &cmd);
+            schedule::run_action(cx, action_id(&cmd), ix, &cmd);
         }
     }
 }
@@ -107,7 +110,7 @@ fn action_id(cmd: &ActionCmd) -> ActionId {
 }
 
 fn apply_move(
-    p: &mut Player,
+    p: &mut FighterCore,
     map: &TileMap,
     pf: &mut Pathfinder,
     out: &mut Vec<Vec2>,

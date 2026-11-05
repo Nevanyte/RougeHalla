@@ -6,7 +6,7 @@ use crate::metrics::{self, Histogram, Metrics};
 use crate::outbox::{Outbox, OutboxCounters};
 use crate::pacer::Pacer;
 use crate::wire;
-use rh_policy::{drive_seats_with, scripted, Seat};
+use rh_policy::{drive_seats_with, scripted, MatchStart, Seat};
 use rh_protocol::map::{EncodedMap, MapBlob};
 use rh_protocol::{encode_welcome, RejectCode, WelcomeHeader};
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
@@ -581,10 +581,9 @@ impl Room {
                 }),
             });
             self.bots.push(Seat::new(
-                id,
+                &MatchStart::of(&self.sim, id, seed),
                 Box::new(scripted::Brawler::new(interval)),
                 Box::new(scripted::Idle),
-                seed,
             ));
         }
     }

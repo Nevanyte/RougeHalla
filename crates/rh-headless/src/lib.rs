@@ -5,7 +5,7 @@
 
 pub mod digest;
 
-use rh_policy::{drive_seats_with, scripted, submit_all, Policy, Seat, SeatStats};
+use rh_policy::{drive_seats_with, scripted, submit_all, MatchStart, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
     observe, Arena, Event, FactionId, Observation, Phase, Placement, PlayerId, RawCommand,
@@ -103,10 +103,9 @@ impl Env {
             let id = sim.players()[i].id;
             match a.agent {
                 Agent::Policy { policy } => seats.push(Seat::new(
-                    id,
+                    &MatchStart::of(&sim, id, seed.wrapping_mul(31).wrapping_add(i as u64)),
                     policy,
                     Box::new(scripted::Idle),
-                    seed.wrapping_mul(31).wrapping_add(i as u64),
                 )),
                 Agent::External => external.push(id),
             }
@@ -348,15 +347,26 @@ mod tests {
         let sim = env.sim;
         let hit = |amount| Event::Hit {
             victim: PlayerId(1),
-            by: PlayerId(2),
+            by: Some(PlayerId(2)),
             amount,
-            weapon: rh_sim::WeaponId::Fists,
+            weapon: Some(rh_sim::WeaponId::Fists),
         };
         let one = |events: &[Event]| {
             let mut d = digest::OutcomeDigest::new();
             d.tick(&sim, events);
             d.value()
         };
+        let free = Event::Hit {
+            victim: PlayerId(1),
+            by: None,
+            amount: 10.0,
+            weapon: None,
+        };
+        assert_ne!(one(&[hit(10.0)]), one(std::slice::from_ref(&free)));
+        assert_eq!(
+            one(std::slice::from_ref(&free)),
+            one(std::slice::from_ref(&free))
+        );
         assert_eq!(one(&[hit(10.0)]), one(&[hit(10.0)]));
         assert_ne!(one(&[hit(10.0)]), one(&[hit(10.000000000000002)]));
         assert_ne!(one(&[hit(10.0)]), one(&[]));

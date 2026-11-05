@@ -91,7 +91,7 @@ fn reference(
             }),
             SeenEvent::Hit { victim, by, amount } => fx.push(WireFx::Hit {
                 victim: victim.0,
-                by: by.0,
+                by: by.map_or(u32::MAX, |b| b.0),
                 amount: amount as f32,
             }),
         }
@@ -436,7 +436,7 @@ impl rh_policy::Policy for Recorder {
             decision_interval_ticks: self.interval,
         }
     }
-    fn reset(&mut self, _seed: u64, _me: PlayerId) {}
+    fn reset(&mut self, _m: &rh_policy::MatchStart) {}
     fn decide(&mut self, obs: &Observation) -> Vec<rh_sim::RawCommand> {
         self.log
             .lock()
@@ -470,22 +470,20 @@ fn a_slow_seat_is_told_every_event_a_fast_seat_is_told() {
     let mut seats = Vec::new();
     for (i, id) in ids.iter().enumerate().skip(1) {
         seats.push(rh_policy::Seat::new(
-            *id,
+            &rh_policy::MatchStart::of(&sim, *id, i as u64),
             Box::new(Brawler::new(2)),
             Box::new(rh_policy::scripted::Idle),
-            i as u64,
         ));
     }
     let watcher = ids[0];
     for (interval, log) in [(1, &fast), (4, &slow)] {
         seats.push(rh_policy::Seat::new(
-            watcher,
+            &rh_policy::MatchStart::of(&sim, watcher, 0),
             Box::new(Recorder {
                 interval,
                 log: Arc::clone(log),
             }),
             Box::new(rh_policy::scripted::Idle),
-            0,
         ));
     }
     let mut last = Vec::new();

@@ -207,14 +207,14 @@ fn a_hook_with_no_ported_link_changes_nothing() {
 fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
     ledger::Entry {
         victim: PlayerId(victim),
-        by: PlayerId(by),
+        by: Some(PlayerId(by)),
         packet: Packet {
             raw,
             phys: raw,
             magic: 0.0,
             true_: 0.0,
         },
-        weapon: crate::content::WeaponId::Fists,
+        weapon: Some(crate::content::WeaponId::Fists),
         stagger: false,
     }
 }
@@ -318,6 +318,63 @@ fn a_payout_of_the_pass_lands_in_the_same_tick_not_the_next() {
         json["world"].get("pay").is_none(),
         "the payout queue is never part of a checkpoint"
     );
+}
+
+/// A hit nobody dealt (legacy: sudden death, `by` null): it damages, it takes no PvP factor, and it credits no one. A kill
+/// by it names no killer.
+#[test]
+fn a_sourceless_hit_damages_and_credits_no_one() {
+    let mut s = sim();
+    let (sourced, mut free) = (hit(1, 2, 4.0), hit(1, 2, 4.0));
+    free.by = None;
+    free.weapon = None;
+    let max = s.w.players[1].vitals.max_hp;
+    s.w.deferred.defer_hit(free);
+    s.step();
+    let taken = max - s.w.players[1].vitals.hp;
+    assert!(taken > 0.0, "the sourceless hit landed");
+    assert!(
+        s.w.players[0].credit.damaged.is_empty() && s.w.players[1].credit.last_hit.is_none(),
+        "and gave nobody damage or rival credit"
+    );
+    let mut t = sim();
+    t.w.deferred.defer_hit(sourced);
+    t.step();
+    assert!(
+        t.w.players[0].credit.damaged.contains(&PlayerId(2)),
+        "a sourced hit does"
+    );
+    let taken_sourced = max - t.w.players[1].vitals.hp;
+    assert!(
+        taken > taken_sourced,
+        "the sourceless hit takes no PvP factor (sourced {taken_sourced}, free {taken})"
+    );
+
+    let mut k = sim();
+    k.w.players[1].vitals.hp = 1.0;
+    // A rival's recent hit does not make the arena's kill theirs (legacy: sudden death credits nobody).
+    let now = k.w.server_time;
+    k.w.players[1].credit.last_hit = Some((PlayerId(1), now));
+    k.w.deferred.defer_hit(free);
+    let evs = k.step();
+    assert_eq!(k.w.players[1].vitals.hp, 0.0);
+    assert_eq!(k.w.players[1].fate.killed_by, None);
+    assert_eq!(k.w.players[0].credit.kills, 0);
+    assert!(
+        !evs.iter().any(|e| matches!(e, Event::Gv { .. })),
+        "no GV paid"
+    );
+    assert!(evs.iter().any(|e| matches!(
+        e,
+        Event::Hit {
+            by: None,
+            weapon: None,
+            ..
+        }
+    )));
+    assert!(evs
+        .iter()
+        .any(|e| matches!(e, Event::Death { by: None, .. })));
 }
 
 /// Three fighters spread out on the practice arena, named p0 p1 p2 (ids 1 2 3), one hit point each.
@@ -524,9 +581,9 @@ fn melee_reference(
             }
             ledger.push(ledger::Entry {
                 victim: w.players[ti].id,
-                by: req.attacker,
+                by: Some(req.attacker),
                 packet: req.packet,
-                weapon: req.weapon,
+                weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
             });
         }

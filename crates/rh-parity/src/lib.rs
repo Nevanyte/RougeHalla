@@ -568,7 +568,9 @@ fn canon(e: &Event) -> Option<Value> {
             amount,
             weapon,
         } => {
-            json!({"kind": "hit", "id": fid(*victim), "by": fid(*by), "amount": amount, "weapon": weapon.as_str()})
+            // `by` None is the legacy SUDDEN_DEATH_KILLER string ("sudden death"); `weapon` None is the legacy null
+            // (ability / card damage chunks). The packet that ports sudden death fixes its weapon.
+            json!({"kind": "hit", "id": fid(*victim), "by": by.map_or_else(|| "sudden death".to_string(), fid), "amount": amount, "weapon": weapon.map(|w| w.as_str())})
         }
         Event::Death { id, by, .. } => json!({"kind": "death", "id": fid(*id), "by": by.map(fid)}),
         Event::Victory { id, draw } => json!({"kind": "victory", "id": id.map(fid), "draw": draw}),
