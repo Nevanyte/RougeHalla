@@ -147,7 +147,8 @@ Sentenced and shared landmark recipe support now pass the 634-test native worksp
 modes and parity (97 compared/13 capture-only/300 paths). Canonical inventory is 112 with the previous 90 unchanged.
 Independent gameplay, public/session and shared-helper reviews are accepted after their concrete findings were repaired.
 Current content is `aa629bdb1a320371`, checkpoint /14, replay /12, observation 11, policy 8 and wire 5; all 21 content tests
-pass. Public marker identity and same-tick state corrections follow ADR 0014. Dense report limits remain explicit;
+pass. Code checkpoint `165f61b6` also passed full Rust CI `42078813203` and legacy recapture CI `42078813201`.
+Public marker identity and same-tick state corrections follow ADR 0014. Dense report limits remain explicit;
 private damage is never truncated for presentation. The one explicit source arena helper case remains reference-only.
 Shared helper tests now reject empty inventories and detect the previously surviving round/distance changes. A test-only
 serde_json dependency reuses the locked version; no package source, protocol, Unity, cloud or DNS change accompanies this
