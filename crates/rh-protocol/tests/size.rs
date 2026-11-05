@@ -20,6 +20,7 @@ fn slice_actors(n: u32, tick: u32) -> Vec<WireActor> {
             status: 1 + (k % 2) as u8,
             weapon: 1 + (k % 5) as u8,
             bounty: 0,
+            kind: 0,
         })
         .collect()
 }
@@ -62,7 +63,8 @@ fn v2_costs_at_most_half_of_v1_with_204_remote_actors() {
     // Per actor: the empty-actor frame is the fixed part.
     let fixed = snapshot(0, 2000).encode().len();
     let per_actor = (snapshot(204, 2000).encode().len() - fixed) as f64 / 204.0;
-    assert!(per_actor <= 10.1, "{per_actor} B per actor (v1: 22)");
+    // v4: a status other than alive is an explicit byte (v3 packed it into the mask), and this mix has half its actors dead.
+    assert!(per_actor <= 10.6, "{per_actor} B per actor (v1: 22)");
 }
 
 #[test]

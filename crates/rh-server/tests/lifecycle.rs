@@ -78,7 +78,7 @@ async fn admit(
                 protocol: PROTOCOL_VERSION,
                 content_hash: rh_sim::content::content_hash(),
                 profile: profile.into(),
-                token: "t".into(),
+                ticket: b"t".to_vec(),
                 faction: None,
                 resume: None,
             },

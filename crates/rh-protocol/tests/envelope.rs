@@ -8,15 +8,15 @@ fn hello_prefix_is_read_without_decoding_the_rest() {
         content_hash: 1,
         build: "b".into(),
         profile: "p".into(),
-        token: "t".into(),
+        ticket: b"t".to_vec(),
         faction: None,
         resume: None,
     }
     .encode();
     assert_eq!(ClientMsg::hello_protocol(&hello), Some(PROTOCOL_VERSION));
     // Another version with arbitrary trailing bytes: the prefix answers, the full decode would not.
-    let future = [0x01, 4, 0, 0xde, 0xad, 0xbe, 0xef, 0x01];
-    assert_eq!(ClientMsg::hello_protocol(&future), Some(4));
+    let future = [0x01, 5, 0, 0xde, 0xad, 0xbe, 0xef, 0x01];
+    assert_eq!(ClientMsg::hello_protocol(&future), Some(5));
     assert!(ClientMsg::decode(&future).is_err());
     assert_eq!(ClientMsg::hello_protocol(&[0x01, 4]), None);
     assert_eq!(ClientMsg::hello_protocol(&[]), None);
@@ -56,20 +56,19 @@ fn every_named_reject_code_round_trips() {
 fn strings_over_255_bytes_are_refused_not_truncated() {
     let long = "é".repeat(128); // 256 bytes
     let ok = "x".repeat(255);
-    let hello = |build: &str, profile: &str, token: &str| ClientMsg::Hello {
+    let hello = |build: &str, profile: &str, ticket: &[u8]| ClientMsg::Hello {
         protocol: PROTOCOL_VERSION,
         content_hash: 0,
         build: build.into(),
         profile: profile.into(),
-        token: token.into(),
+        ticket: ticket.to_vec(),
         faction: None,
         resume: None,
     };
-    assert!(hello(&ok, &ok, &ok).try_encode().is_ok());
+    assert!(hello(&ok, &ok, ok.as_bytes()).try_encode().is_ok());
     for (what, m) in [
-        ("build", hello(&long, "", "")),
-        ("profile", hello("", &long, "")),
-        ("token", hello("", "", &long)),
+        ("build", hello(&long, "", b"")),
+        ("profile", hello("", &long, b"")),
     ] {
         assert_eq!(
             m.try_encode(),
@@ -141,5 +140,51 @@ fn an_events_frame_with_an_overlong_killer_name_is_refused() {
             what: "killed_by",
             len: 256
         })
+    );
+}
+
+fn hello_with(ticket: Vec<u8>) -> ClientMsg {
+    ClientMsg::Hello {
+        protocol: PROTOCOL_VERSION,
+        content_hash: u64::MAX,
+        build: "b".repeat(255),
+        profile: "p".repeat(255),
+        ticket,
+        faction: Some(15),
+        resume: Some([0xff; 16]),
+    }
+}
+
+/// The admission ticket is an opaque blob with a u16 length: the largest Hello (every other field at its maximum) fits the
+/// client frame limit, round-trips byte for byte, and a ticket past the bound is refused by the encoder and the decoder.
+#[test]
+fn the_largest_legal_hello_fits_the_client_frame_limit() {
+    let ticket: Vec<u8> = (0..MAX_TICKET).map(|i| (i % 251) as u8).collect();
+    let m = hello_with(ticket);
+    let bytes = m.try_encode().expect("a Hello at every maximum encodes");
+    assert!(bytes.len() <= MAX_CLIENT_FRAME, "{} bytes", bytes.len());
+    assert_eq!(bytes.len(), 11 + 2 * 256 + 2 + 17 + 2 + MAX_TICKET);
+    assert_eq!(ClientMsg::decode(&bytes), Ok(m));
+    // An empty ticket and a ticket with NUL and non-UTF-8 bytes are just bytes.
+    for t in [vec![], vec![0, 0xff, 0xfe, 0]] {
+        let m = hello_with(t);
+        assert_eq!(ClientMsg::decode(&m.encode()), Ok(m));
+    }
+    let long = hello_with(vec![7; MAX_TICKET + 1]);
+    assert_eq!(
+        long.try_encode(),
+        Err(EncodeError::StringTooLong {
+            what: "ticket",
+            len: MAX_TICKET + 1
+        })
+    );
+    // The decoder refuses a length over the bound before it copies anything.
+    let mut forged = hello_with(vec![7; MAX_TICKET]).encode();
+    let at = 1 + 2 + 8 + 256 + 256;
+    forged[at..at + 2].copy_from_slice(&(MAX_TICKET as u16 + 1).to_le_bytes());
+    forged.push(7);
+    assert_eq!(
+        ClientMsg::decode(&forged),
+        Err(DecodeError::TooMany(MAX_TICKET + 1))
     );
 }

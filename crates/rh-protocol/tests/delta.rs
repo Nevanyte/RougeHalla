@@ -1,5 +1,5 @@
 //! Protocol v3 snapshot deltas: the writer's encoder and the client's tracker, held to each other and to the Full frame.
-use rh_protocol::delta::{diff, AD_ALL, AD_X, AD_Y, MIN_FORCED_FULL_TICKS};
+use rh_protocol::delta::{diff, AD_ALL, AD_X, AD_Y, DH_X, MIN_FORCED_FULL_TICKS};
 use rh_protocol::*;
 
 struct Rng(u64);
@@ -63,6 +63,8 @@ fn actor(id: u32, rng: &mut Rng) -> WireActor {
         status: 1,
         weapon: rng.below(6) as u8,
         bounty: if rng.chance(20) { 28 } else { 0 },
+        // From the id, not the generator: the random walk's draws (and so its natural Full frames) stay as they were.
+        kind: if id % 7 == 0 { 2 } else { 0 },
     }
 }
 
@@ -588,6 +590,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
             hp_pct: 100,
             status: 1,
             bounty: 0,
+            kind: 0,
         })];
         d.departed.clear();
     });
@@ -601,10 +604,10 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let d = SnapshotDelta {
         tick: 11,
         base_tick: 10,
-        phase: 1,
+        phase: None,
         ack_input: 0,
         me: Some(SelfDelta {
-            mask: 1,
+            mask: DH_X,
             x: 1.0,
             ..SelfDelta::default()
         }),
@@ -619,7 +622,7 @@ fn deltas_that_do_not_apply_are_refused_and_change_nothing() {
     let d = ServerMsg::SnapshotDelta(SnapshotDelta {
         tick: 11,
         base_tick: 10,
-        phase: 1,
+        phase: None,
         ack_input: 0,
         me: None,
         changed: vec![],
@@ -658,7 +661,7 @@ fn a_delta_cannot_grow_the_actor_list_past_max_actors() {
     let d = SnapshotDelta {
         tick: 2,
         base_tick: 1,
-        phase: 1,
+        phase: None,
         ack_input: 0,
         me: None,
         changed: vec![ActorDelta {

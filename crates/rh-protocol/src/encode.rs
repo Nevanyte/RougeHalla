@@ -14,7 +14,7 @@
 //! [`SnapshotData`] byte-identical to it and to the golden vectors. A v2 Snapshot's size depends on its content (field masks, varints), so
 //! `encoded_len()` walks the actors once (no allocation) instead of multiplying.
 
-use crate::codec::{str_fits, str_len, varint_len, EncodeError, Writer};
+use crate::codec::{blob_len, str_fits, str_len, varint_len, EncodeError, Writer};
 use crate::map::EncodedMap;
 use crate::*;
 
@@ -134,7 +134,7 @@ impl Frame for ClientMsg {
             ClientMsg::Hello {
                 build,
                 profile,
-                token,
+                ticket,
                 faction,
                 resume,
                 ..
@@ -143,7 +143,7 @@ impl Frame for ClientMsg {
                     + 8
                     + str_len(build)
                     + str_len(profile)
-                    + str_len(token)
+                    + blob_len(ticket)
                     + opt_len(faction.is_some(), 1)
                     + opt_len(resume.is_some(), 16)
             }
@@ -160,12 +160,17 @@ impl Frame for ClientMsg {
             ClientMsg::Hello {
                 build,
                 profile,
-                token,
+                ticket,
                 ..
             } => {
                 str_fits("build", build)?;
                 str_fits("profile", profile)?;
-                str_fits("token", token)?;
+                if ticket.len() > MAX_TICKET {
+                    return Err(EncodeError::StringTooLong {
+                        what: "ticket",
+                        len: ticket.len(),
+                    });
+                }
             }
             ClientMsg::Input { commands, .. } => {
                 list("commands", commands.len(), MAX_COMMANDS_PER_INPUT)?;
@@ -188,7 +193,7 @@ impl Frame for ClientMsg {
                 content_hash,
                 build,
                 profile,
-                token,
+                ticket,
                 faction,
                 resume,
             } => {
@@ -197,7 +202,7 @@ impl Frame for ClientMsg {
                 w.u64(*content_hash);
                 w.str(build);
                 w.str(profile);
-                w.str(token);
+                w.blob(ticket);
                 w.opt(faction.as_ref(), |w, f| w.u8(*f));
                 w.opt(resume.as_ref(), |w, r| w.bytes(r));
             }
@@ -299,11 +304,12 @@ fn kit(faction: u8, weapon: u8) -> u8 {
     (faction & 0x0f) | (weapon << 4)
 }
 
-/// The head word of a Snapshot: the phase, and for a self its present bit, field bits and status.
-fn head_word(phase: u8, me: Option<&WireSelf>) -> u16 {
-    let mut m = (phase as u16 & 3) << HM_PHASE_SHIFT;
+/// The head of a Snapshot: for a self its present bit and the bits of every field that differs from its default, and the phase
+/// bit when the phase is not the default.
+fn head_word(phase: u8, me: Option<&WireSelf>) -> u32 {
+    let mut m = if phase != DEFAULT_PHASE { HM_PHASE } else { 0 };
     let Some(s) = me else { return m };
-    m |= HM_PRESENT | ((s.status as u16 & 3) << HM_STATUS_SHIFT);
+    m |= HM_PRESENT;
     if kit(s.faction, s.weapon) != 0 {
         m |= HM_KIT;
     }
@@ -329,11 +335,14 @@ fn head_word(phase: u8, me: Option<&WireSelf>) -> u16 {
     if !max_hp_is_varint(s.max_hp) {
         m |= HM_MAXHP_F32;
     }
+    if s.status != DEFAULT_STATUS {
+        m |= HM_STATUS;
+    }
     m
 }
 
-/// Bytes of the self record after its head word.
-fn self_len(s: &WireSelf, mask: u16) -> usize {
+/// Bytes of the self record after its head (`mask` is [`head_word`]).
+fn self_len(s: &WireSelf, mask: u32) -> usize {
     let mut n = varint_len(s.id) + 12;
     n += if mask & HM_MAXHP_F32 != 0 {
         4
@@ -361,7 +370,16 @@ fn self_len(s: &WireSelf, mask: u16) -> usize {
     if mask & HM_MOVE_SEQ != 0 {
         n += 1;
     }
+    if mask & HM_STATUS != 0 {
+        n += 1;
+    }
     n
+}
+
+/// Bytes of the head itself, with the phase byte that follows it when `mask` has the phase bit.
+#[inline]
+fn head_len(mask: u32) -> usize {
+    varint_len(mask) + (mask & HM_PHASE != 0) as usize
 }
 
 /// A record built on the stack (no capacity checks per byte), then appended to the frame with one copy: the byte-wise
@@ -431,75 +449,69 @@ impl<const N: usize> Fixed<N> {
     }
 }
 
-/// Largest Snapshot head: tag, tick, ack (5 each at most), head word, a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
-/// kills, bounty, gv 3 each, move_seq) and the actor count.
-const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 5;
-/// Largest actor: id 5, mask, x, y, facing, kit, hp, bounty 3.
-const MAX_ACTOR_LEN: usize = 5 + 1 + 6 + 1 + 1 + 3;
+/// Largest Snapshot head: tag, tick, ack (5 each at most), head (2), a full self (id 5, 12, max_hp 4, kit, hp 4, ready 2,
+/// kills, bounty, gv 3 each, move_seq, status), the phase and the actor count.
+const MAX_HEAD_LEN: usize = 1 + 5 + 5 + 2 + 5 + 12 + 4 + 1 + 4 + 2 + 9 + 1 + 1 + 1 + 5;
+/// Largest actor: id 5, mask 1, x, y, facing, kit, hp, status, bounty 3, kind.
+const MAX_ACTOR_LEN: usize = 5 + 1 + 6 + 1 + 1 + 1 + 3 + 1;
 
-/// Writes the self record and returns its head word, in one pass over the optional fields (the same word [`head_word`]
-/// computes for [`self_len`]; a debug assertion holds them equal). The caller patches the word in.
+/// Writes the self record for the head word `m` ([`head_word`] of `s`), fields in bit order.
 #[inline]
-fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, phase: u8, s: &WireSelf) -> u16 {
-    let mut m = ((phase as u16 & 3) << HM_PHASE_SHIFT)
-        | HM_PRESENT
-        | ((s.status as u16 & 3) << HM_STATUS_SHIFT);
+fn write_self(w: &mut Fixed<MAX_HEAD_LEN>, m: u32, s: &WireSelf) {
     w.varint(s.id);
     let [x0, x1, x2, x3] = s.x.to_le_bytes();
     let [y0, y1, y2, y3] = s.y.to_le_bytes();
     let [f0, f1, f2, f3] = s.facing.to_le_bytes();
     w.bytes([x0, x1, x2, x3, y0, y1, y2, y3, f0, f1, f2, f3]);
-    if max_hp_is_varint(s.max_hp) {
-        w.varint(s.max_hp as u32);
-    } else {
-        m |= HM_MAXHP_F32;
+    if m & HM_MAXHP_F32 != 0 {
         w.f32(s.max_hp);
+    } else {
+        w.varint(s.max_hp as u32);
     }
-    let k = kit(s.faction, s.weapon);
-    if k != 0 {
-        m |= HM_KIT;
-        w.u8(k);
+    if m & HM_KIT != 0 {
+        w.u8(kit(s.faction, s.weapon));
     }
-    // Bitwise: -0.0 and NaN payloads must survive.
-    if s.hp.to_bits() != s.max_hp.to_bits() {
-        m |= HM_HP;
+    if m & HM_HP != 0 {
         w.f32(s.hp);
     }
-    if s.ready_in_ms != 0 {
-        m |= HM_READY;
+    if m & HM_READY != 0 {
         w.u16(s.ready_in_ms);
     }
-    if s.kills != 0 {
-        m |= HM_KILLS;
+    if m & HM_KILLS != 0 {
         w.varint(s.kills as u32);
     }
-    if s.bounty != 0 {
-        m |= HM_BOUNTY;
+    if m & HM_BOUNTY != 0 {
         w.varint(s.bounty as u32);
     }
-    if s.gv != 0 {
-        m |= HM_GV;
-        w.varint(s.gv as u32);
-    }
-    if s.move_seq != 0 {
-        m |= HM_MOVE_SEQ;
+    if m & HM_MOVE_SEQ != 0 {
         w.u8(s.move_seq);
     }
-    m
+    if m & HM_GV != 0 {
+        w.varint(s.gv as u32);
+    }
+    if m & HM_STATUS != 0 {
+        w.u8(s.status);
+    }
 }
 
-/// The actor mask of `a`: the status inline, and a bit for every optional field that differs from its default.
+/// The actor mask of `a`: a bit for every field that differs from its default.
 #[inline]
-fn actor_mask(a: &WireActor) -> u8 {
-    let mut m = (a.status & 3) << AM_STATUS_SHIFT;
+fn actor_mask(a: &WireActor) -> u32 {
+    let mut m = 0;
     if kit(a.faction, a.weapon) != 0 {
         m |= AM_KIT;
     }
     if a.hp_pct != DEFAULT_HP_PCT {
         m |= AM_HP;
     }
+    if a.status != DEFAULT_STATUS {
+        m |= AM_STATUS;
+    }
     if a.bounty != 0 {
         m |= AM_BOUNTY;
+    }
+    if a.kind != 0 {
+        m |= AM_KIND;
     }
     m
 }
@@ -509,15 +521,17 @@ fn actor_mask(a: &WireActor) -> u8 {
 fn actor_len(a: &WireActor, prev: Option<u32>) -> usize {
     let m = actor_mask(a);
     varint_len(id_field(a.id, prev))
-        + 1
+        + varint_len(m)
         + 6
         + (m & AM_KIT != 0) as usize
         + (m & AM_HP != 0) as usize
+        + (m & AM_STATUS != 0) as usize
         + if m & AM_BOUNTY != 0 {
             varint_len(a.bounty as u32)
         } else {
             0
         }
+        + (m & AM_KIND != 0) as usize
 }
 
 /// The id as written: the first actor's absolute id, then the gap to the previous one (the observation sorts by id, so a
@@ -586,7 +600,7 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     let m = actor_mask(a);
     let mut w = Fixed::<MAX_ACTOR_LEN>::new();
     w.varint(id_field(a.id, prev));
-    w.u8(m);
+    w.varint(m);
     w.u16(quant::quantize_pos(a.x));
     w.u16(quant::quantize_pos(a.y));
     w.u16(quant::quantize_facing(a.facing));
@@ -596,8 +610,14 @@ fn write_actor(out: &mut Writer, a: &WireActor, prev: Option<u32>) {
     if m & AM_HP != 0 {
         w.u8(a.hp_pct);
     }
+    if m & AM_STATUS != 0 {
+        w.u8(a.status);
+    }
     if m & AM_BOUNTY != 0 {
         w.varint(a.bounty as u32);
+    }
+    if m & AM_KIND != 0 {
+        w.u8(a.kind);
     }
     w.put(out);
 }
@@ -610,10 +630,11 @@ fn snapshot_len(
     me: Option<&WireSelf>,
     actors: &[WireActor],
 ) -> usize {
+    let head = head_word(phase, me);
     1 + varint_len(tick)
         + varint_len(ack_input)
-        + 2
-        + me.map_or(0, |s| self_len(s, head_word(phase, Some(s))))
+        + head_len(head)
+        + me.map_or(0, |s| self_len(s, head))
         + varint_len(actors.len() as u32)
         + actors
             .iter()
@@ -635,14 +656,14 @@ fn write_snapshot_head(
     f.u8(T_SNAPSHOT);
     f.varint(tick);
     f.varint(ack_input);
-    let at = f.n;
-    f.u16(0);
-    let head = match me {
-        Some(s) => write_self(&mut f, phase, s),
-        None => (phase as u16 & 3) << HM_PHASE_SHIFT,
-    };
-    debug_assert_eq!(head, head_word(phase, me));
-    f.b[at..at + 2].copy_from_slice(&head.to_le_bytes());
+    let head = head_word(phase, me);
+    f.varint(head);
+    if let Some(s) = me {
+        write_self(&mut f, head, s);
+    }
+    if head & HM_PHASE != 0 {
+        f.u8(phase);
+    }
     f.varint(actors as u32);
     f.put(w);
 }
@@ -671,6 +692,7 @@ impl Frame for ServerMsg {
                     + fx.iter().map(fx_len).sum::<usize>()
             }
             ServerMsg::Pong { .. } => 1 + 4 + 8 + 8,
+            ServerMsg::State { tick, items } => 1 + varint_len(*tick) + varint_len(items.len() as u32),
         }
     }
 
@@ -717,6 +739,10 @@ impl Frame for ServerMsg {
                 str_fits("reason", reason)?
             }
             ServerMsg::Pong { .. } => {}
+            ServerMsg::State { items, .. } => {
+                // `StateItem` has no value in v4: only the empty State exists.
+                debug_assert!(items.is_empty());
+            }
         }
         frame_size(len, Self::MAX_FRAME)
     }
@@ -861,6 +887,14 @@ impl Frame for ServerMsg {
                             w.f32(amount);
                         }
                     }
+                }
+            }
+            ServerMsg::State { tick, items } => {
+                w.u8(T_STATE);
+                w.varint(*tick);
+                w.varint(items.len() as u32);
+                for it in items {
+                    match *it {}
                 }
             }
             ServerMsg::Pong {

@@ -8,7 +8,7 @@ use crate::pacer::Pacer;
 use crate::wire;
 use rh_policy::{drive_seats_with, scripted, Seat};
 use rh_protocol::map::{EncodedMap, MapBlob};
-use rh_protocol::{encode_welcome, RejectCode, WelcomeHeader};
+use rh_protocol::{encode_welcome, RejectCode, ServerMsg, WelcomeHeader, WireEvent, WireResult};
 use rh_sim::replay::{BotPolicy, Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
     Arena, Event, FactionId, Phase, PlayerId, RunResult, Secrets, SeenEvent, Sim, SimConfig,
@@ -201,6 +201,10 @@ struct HumanSeat {
     carry: Vec<SeenEvent>,
     /// A snapshot the connection's outbox handed back, to build the next one in (no allocation per tick).
     spare: Option<rh_protocol::SnapshotData>,
+    /// This player's own resolved run, kept on the seat so a client that was away when it resolved (the reconnect grace, or a
+    /// TooSlow close that dropped its queued events) still receives it: it is re-sent after a resume's Welcome (protocol v4,
+    /// docs/adr/0011-protocol-v4.md).
+    result: Option<WireResult>,
 }
 
 pub struct Room {
@@ -377,11 +381,12 @@ impl Room {
                 let r = match self.humans.iter_mut().find(|h| h.session == session) {
                     None => Err(RejectCode::NoSuchSession),
                     Some(h) => {
-                        let old = h.outbox.replace(outbox);
+                        let old = h.outbox.replace(outbox.clone());
                         // From now on only the new connection speaks for this seat.
                         h.conn = conn;
                         h.dropped_at = None;
                         let (player, session) = (h.player, h.session);
+                        let resolved = h.result.clone();
                         if let Some(old) = old {
                             old.close(RejectCode::Kicked);
                             self.retire_outbox(&old);
@@ -391,6 +396,18 @@ impl Room {
                             dropped: false,
                         });
                         self.sim.mark_dropped(player, false);
+                        // The run this player already resolved: the one reliable event that is not state the client can read
+                        // back, so it is queued behind the Welcome (which the connection writes first).
+                        if let Some(r) = resolved {
+                            let frame = ServerMsg::Events {
+                                tick: self.sim.tick(),
+                                events: vec![WireEvent::Result(r)],
+                            }
+                            .try_encode();
+                            if let Ok(frame) = frame {
+                                outbox.important(frame);
+                            }
+                        }
                         // A fresh Welcome is the resync: full map and the current tick; the next snapshot follows.
                         Ok(JoinOk {
                             player,
@@ -515,6 +532,7 @@ impl Room {
             ack_input: 0,
             carry: Vec::new(),
             spare: None,
+            result: None,
         });
         self.fill_bots();
         let _ = self.reports.send(RoomReport::Seated {
@@ -683,6 +701,7 @@ impl Room {
         let t = std::time::Instant::now();
         // The buffer leaves the room for the call (publish borrows the room mutably) and comes back.
         let all_events = std::mem::take(&mut self.wake_events);
+        self.keep_results(&all_events);
         self.publish(&all_events);
         self.metrics
             .publish_us
@@ -773,6 +792,17 @@ impl Room {
             self.metrics
                 .outbox_pushes
                 .fetch_add(pushes, Ordering::Relaxed);
+        }
+    }
+
+    /// Keeps each human's own resolved result on its seat (see [`HumanSeat::result`]).
+    fn keep_results(&mut self, events: &[Event]) {
+        for e in events {
+            if let Event::Resolved { id, result, bot: false } = e {
+                if let Some(h) = self.humans.iter_mut().find(|h| h.player == *id) {
+                    h.result = Some(wire::result(result));
+                }
+            }
         }
     }
 

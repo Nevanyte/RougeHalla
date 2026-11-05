@@ -1,12 +1,15 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v3.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v4.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
 
-use crate::delta::{AD_ALL, AD_BOUNTY, AD_HP, AD_X};
+use crate::delta::{
+    AD_ALL, AD_BOUNTY, AD_HP, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP, DH_KILLS, DH_MOVE_SEQ, DH_PHASE,
+    DH_PRESENT, DH_STATUS, DH_X, DH_Y,
+};
 use crate::map::MapBlob;
 use crate::*;
-use crate::{AM_BOUNTY, AM_HP};
+use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_STATUS};
 
 // The aim of -3.1415927 is deliberate: an f32 at the -PI edge of the angle range.
 #[allow(clippy::approx_constant)]
@@ -19,7 +22,7 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 content_hash: 0x1122_3344_5566_7788,
                 build: "web-0.1.0".into(),
                 profile: "Nevan_01".into(),
-                token: "tok-abc".into(),
+                ticket: b"tok-abc".to_vec(),
                 faction: Some(4),
                 resume: None,
             },
@@ -31,9 +34,22 @@ pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
                 content_hash: 7,
                 build: "".into(),
                 profile: "Ünïcode".into(),
-                token: "".into(),
+                ticket: Vec::new(),
                 faction: None,
                 resume: Some([9; 16]),
+            },
+        ),
+        // An opaque binary ticket of the longest legal size (the whole Hello stays under MAX_CLIENT_FRAME).
+        (
+            "hello_ticket_max",
+            ClientMsg::Hello {
+                protocol: PROTOCOL_VERSION,
+                content_hash: 1,
+                build: "b".repeat(255),
+                profile: "p".repeat(255),
+                ticket: (0..MAX_TICKET).map(|i| (i * 7 + 3) as u8).collect(),
+                faction: Some(15),
+                resume: Some([0xab; 16]),
             },
         ),
         (
@@ -143,6 +159,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     status: 1,
                     weapon: 5,
                     bounty: 28,
+                    kind: 0,
                 }],
             },
         ),
@@ -189,6 +206,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                     status: 1,
                     weapon: 0,
                     bounty: 0,
+                    kind: 0,
                 }],
             },
         ),
@@ -227,6 +245,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         status: 2,
                         weapon: 5,
                         bounty: 127,
+                        kind: 0,
                     },
                     WireActor {
                         id: 128,
@@ -238,6 +257,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         status: 3,
                         weapon: 0,
                         bounty: 128,
+                        kind: 0,
                     },
                     WireActor {
                         id: 70_000,
@@ -249,6 +269,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         status: 1,
                         weapon: 2,
                         bounty: 65535,
+                        kind: 2,
                     },
                     WireActor {
                         id: u32::MAX,
@@ -260,6 +281,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         status: 1,
                         weapon: 0,
                         bounty: 0,
+                        kind: 255,
                     },
                 ],
             },
@@ -296,7 +318,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 tick: 102,
                 base_tick: 101,
-                phase: 1,
+                phase: None,
                 ack_input: 42,
                 me: None,
                 changed: vec![],
@@ -309,21 +331,22 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
             ServerMsg::SnapshotDelta(SnapshotDelta {
                 tick: 1_000_000,
                 base_tick: 999_990,
-                phase: 2,
+                phase: Some(2),
                 ack_input: 300,
                 me: Some(SelfDelta {
-                    mask: 0x0801 | 0x0002 | 0x0008 | 0x0080 | 0x0400,
+                    mask: DH_X | DH_Y | DH_HP | DH_KILLS | DH_MOVE_SEQ | DH_STATUS | DH_GV,
                     x: 5119.875,
                     y: 0.1,
                     hp: -0.0,
                     kills: 200,
+                    gv: 16384,
                     move_seq: 255,
                     status: 2,
                     ..SelfDelta::default()
                 }),
                 changed: vec![
                     ActorDelta {
-                        mask: AD_X | AD_HP,
+                        mask: AD_X | AD_HP | AD_STATUS,
                         q: QActor {
                             id: 2,
                             x: 65535,
@@ -343,6 +366,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                             hp_pct: 100,
                             status: 3,
                             bounty: 65535,
+                            kind: 0,
                         },
                     },
                 ],
@@ -433,6 +457,14 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 fx: vec![],
             },
         ),
+        // The reserved keyed-state message: no key exists in v4, so only the empty State decodes.
+        (
+            "state_empty",
+            ServerMsg::State {
+                tick: 300,
+                items: vec![],
+            },
+        ),
         (
             "pong",
             ServerMsg::Pong {
@@ -481,12 +513,12 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
 
 /// A small valid Snapshot to corrupt: tick 1, ack 0, `head`, then `body` (a self, if the head says so), an actor count and
 /// the actors' bytes.
-fn snapshot_bytes(head: u16, body: &[u8], count: u32, actors: &[u8]) -> Vec<u8> {
+fn snapshot_bytes(head: u32, body: &[u8], count: u32, actors: &[u8]) -> Vec<u8> {
     let mut w = Writer::default();
     w.u8(0x83);
     w.varint(1);
     w.varint(0);
-    w.u16(head);
+    w.varint(head);
     w.bytes(body);
     w.varint(count);
     w.bytes(actors);
@@ -522,8 +554,8 @@ fn welcome_map(w: u16, h: u16, hash: Option<u32>, runs: &[(u8, u16)]) -> Vec<u8>
 }
 
 /// One minimal actor record: id 1, `mask`, x y facing all 0, then `extra`.
-fn actor_bytes(mask: u8, extra: &[u8]) -> Vec<u8> {
-    let mut a = vec![1, mask, 0, 0, 0, 0, 0, 0];
+fn actor_bytes(mask: u32, extra: &[u8]) -> Vec<u8> {
+    let mut a = vec![1, mask as u8, 0, 0, 0, 0, 0, 0];
     a.extend_from_slice(extra);
     a
 }
@@ -545,6 +577,7 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             status: 1,
             weapon: 0,
             bounty: 0,
+            kind: 0,
         }],
     }
     .encode();
@@ -570,14 +603,27 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ),
         (
             "head_self_bit_without_present_bit",
-            snapshot_bytes(0x0001, &[], 0, &[]),
+            snapshot_bytes(0x0002, &[], 0, &[]),
         ),
-        ("head_reserved_bit", snapshot_bytes(0x8400, &[], 0, &[])),
-        ("self_truncated", snapshot_bytes(0x8000, &[], 0, &[])),
+        // Bit 11 is not a field of this version: a mask bit a decoder does not know is refused, never skipped.
+        ("head_unknown_bit", snapshot_bytes(0x0801, &[], 0, &[])),
+        // The head 0x80 0x00 is a two-byte zero: the canonical form is one byte.
+        ("head_overlong_varint", vec![0x83, 0, 0, 0x80, 0x00, 0]),
+        ("self_truncated", snapshot_bytes(0x0001, &[], 0, &[])),
+        (
+            "self_status_over_3",
+            snapshot_bytes(
+                0x0201,
+                &[vec![1], vec![0; 12], vec![1], vec![4]].concat(),
+                0,
+                &[],
+            ),
+        ),
+        ("phase_over_3", snapshot_bytes(0x0400, &[4], 0, &[])),
         (
             "self_max_hp_over_u16",
             snapshot_bytes(
-                0x8000,
+                0x0001,
                 &[vec![1], vec![0; 12], vec![0x80, 0x80, 0x04]].concat(),
                 0,
                 &[],
@@ -615,6 +661,20 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
             ),
         ),
         (
+            "actor_status_over_3",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_STATUS, &[4])),
+        ),
+        // The actor mask 0x80 0x00 is a two-byte zero.
+        (
+            "actor_mask_overlong_varint",
+            snapshot_bytes(0, &[], 1, &[1, 0x80, 0x00, 0, 0, 0, 0, 0, 0]),
+        ),
+        // Kind (bit 4) is known; the next bit is not.
+        (
+            "actor_unknown_mask_bit_after_kind",
+            snapshot_bytes(0, &[], 1, &actor_bytes(AM_KIND << 1, &[])),
+        ),
+        (
             "actor_hp_over_100",
             snapshot_bytes(0, &[], 1, &actor_bytes(AM_HP, &[101])),
         ),
@@ -625,6 +685,10 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Fx: a count past u16, a bad item tag.
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
         ("fx_bad_tag", vec![0x85, 0, 1, 9]),
+        // State: v4 defines no key, so any item is refused; truncated and trailing bytes are as ever.
+        ("state_unknown_key", vec![0x88, 0, 1, 0]),
+        ("state_trailing_byte", vec![0x88, 0, 0, 0]),
+        ("state_truncated", vec![0x88, 0]),
         // Reject: code 0 is not a code (codes start at 1; an unnamed code above that is accepted, see the "reject_code_unknown"
         // server vector); a reason that is not UTF-8 (the same strictness for every server string).
         ("reject_code_zero", vec![0x82, 0, 0, 0]),
@@ -679,6 +743,7 @@ fn wa(id: u32, x: f32, y: f32, hp_pct: u8, status: u8) -> WireActor {
         status,
         weapon: 2,
         bounty: 0,
+        kind: 0,
     }
 }
 
@@ -741,7 +806,7 @@ fn empty_delta() -> SnapshotDelta {
     SnapshotDelta {
         tick: 11,
         base_tick: 10,
-        phase: 1,
+        phase: None,
         ack_input: 4,
         me: Some(SelfDelta::default()),
         changed: vec![],
@@ -764,7 +829,10 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
             .collect()
     };
     let mut s3 = crowd(1.0);
-    s3.push(wa(7, 9.0, 9.0, 100, 1));
+    s3.push(WireActor {
+        kind: 3,
+        ..wa(7, 9.0, 9.0, 100, 1)
+    });
     s3.sort_by_key(|a| a.id);
     let mut s4 = crowd(2.0);
     s4.remove(1);
@@ -772,6 +840,7 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
     s4[2].status = 2;
     s4[3].bounty = 300;
     s4[4].weapon = 5;
+    s4[3].kind = 7;
     let mut self4 = chain_self(402.0);
     self4.hp = -0.0;
     self4.max_hp = 1145.5;
@@ -858,16 +927,12 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
         chains.push((name, vec![base, bad, ok]));
     };
     let new_actor = |id: u32| ActorDelta {
-        mask: AD_ALL,
+        mask: AD_NEW,
         q: QActor {
             id,
             x: 8,
             y: 8,
-            facing: 0,
-            kit: 0,
-            hp_pct: 100,
-            status: 1,
-            bounty: 0,
+            ..QActor::default()
         },
     };
     refusal(
@@ -981,13 +1046,13 @@ pub fn chain_samples() -> Vec<(&'static str, Vec<ChainStep>)> {
 }
 
 /// A delta frame with a hand-written body: tag, tick, age, ack, `head`, then `rest`.
-fn delta_bytes(tick: u32, age: u32, head: u16, rest: &[u8]) -> Vec<u8> {
+fn delta_bytes(tick: u32, age: u32, head: u32, rest: &[u8]) -> Vec<u8> {
     let mut w = Writer::default();
     w.u8(0x87);
     w.varint(tick);
     w.varint(age);
     w.varint(0);
-    w.u16(head);
+    w.varint(head);
     w.bytes(rest);
     w.finish()
 }
@@ -1009,8 +1074,8 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
     });
     let mut trailing = valid.clone();
     trailing.push(0);
-    let record = |id: u8, mask: u8, extra: &[u8]| -> Vec<u8> {
-        let mut v = vec![id, mask];
+    let record = |id: u8, mask: u32, extra: &[u8]| -> Vec<u8> {
+        let mut v = vec![id, mask as u8];
         v.extend_from_slice(extra);
         v
     };
@@ -1020,11 +1085,27 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
         ("delta_age_past_tick", delta_bytes(5, 6, 0, &[0])),
         (
             "delta_head_field_without_present_bit",
-            delta_bytes(10, 1, 0x0001, &[0]),
+            delta_bytes(10, 1, DH_X, &[0]),
+        ),
+        // Bit 15 is not a field of this version.
+        ("delta_head_unknown_bit", delta_bytes(10, 1, 1 << 15, &[0])),
+        (
+            "delta_head_overlong_varint",
+            vec![0x87, 10, 1, 0, 0x80, 0x00, 0],
         ),
         (
             "delta_self_status_over_3",
-            delta_bytes(10, 1, 0x8800, &[4, 0]),
+            delta_bytes(10, 1, DH_PRESENT | DH_STATUS, &[4, 0]),
+        ),
+        ("delta_phase_over_3", delta_bytes(10, 1, DH_PHASE, &[4, 0])),
+        // Actor delta bit 8 is not a field of this version.
+        (
+            "delta_actor_mask_unknown_bit",
+            delta_bytes(10, 1, 0, &[1, 1, 0x80, 0x02]),
+        ),
+        (
+            "delta_actor_status_over_3",
+            delta_bytes(10, 1, 0, &[vec![1], record(1, AD_STATUS, &[4])].concat()),
         ),
         (
             "delta_actor_id_gap_zero",
@@ -1052,14 +1133,14 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_too_many_actors",
             delta_bytes(10, 1, 0, &[0x81, 0x04]),
         ),
-        ("delta_departed_empty", delta_bytes(10, 1, 0x4000, &[0, 0])),
+        ("delta_departed_empty", delta_bytes(10, 1, DH_DEPARTED, &[0, 0])),
         (
             "delta_departed_id_gap_zero",
-            delta_bytes(10, 1, 0x4000, &[0, 2, 5, 0]),
+            delta_bytes(10, 1, DH_DEPARTED, &[0, 2, 5, 0]),
         ),
         (
             "delta_departed_too_many",
-            delta_bytes(10, 1, 0x4000, &[0, 0x81, 0x04]),
+            delta_bytes(10, 1, DH_DEPARTED, &[0, 0x81, 0x04]),
         ),
         ("delta_truncated", valid[..valid.len() - 1].to_vec()),
         ("delta_trailing_byte", trailing),
@@ -1111,7 +1192,7 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
         .iter()
         .map(|a| {
             format!(
-                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}}}",
+                "{{\"id\": {}, \"faction\": {}, \"xBits\": {}, \"yBits\": {}, \"facingBits\": {}, \"hpPct\": {}, \"status\": {}, \"weapon\": {}, \"bounty\": {}, \"kind\": {}}}",
                 a.id,
                 a.faction,
                 bits(a.x),
@@ -1120,7 +1201,8 @@ fn decoded_snapshot_json(m: &ServerMsg) -> String {
                 a.hp_pct,
                 a.status,
                 a.weapon,
-                a.bounty
+                a.bounty,
+                a.kind
             )
         })
         .collect();
@@ -1157,7 +1239,7 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
 /// The manifest JSON (hand-written to keep this crate dependency-free; field names are the C# and JS tests' contract).
 /// A server vector's `debug` is the message a client DECODES (quantized), not the sample as written.
 pub fn manifest() -> String {
-    let mut out = String::from("{\n  \"format\": \"rh-protocol-vectors/3\",\n  \"protocol\": ");
+    let mut out = String::from("{\n  \"format\": \"rh-protocol-vectors/4\",\n  \"protocol\": ");
     out.push_str(&PROTOCOL_VERSION.to_string());
     out.push_str(",\n  \"client\": [\n");
     let c = client_samples();

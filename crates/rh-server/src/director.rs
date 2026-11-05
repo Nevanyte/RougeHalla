@@ -174,7 +174,8 @@ pub struct Hello {
     pub protocol: u16,
     pub content_hash: u64,
     pub profile: String,
-    pub token: String,
+    /// Opaque admission credential ([`rh_protocol::ClientMsg::Hello`]).
+    pub ticket: Vec<u8>,
     pub faction: Option<u8>,
     pub resume: Option<[u8; 16]>,
 }
@@ -296,7 +297,7 @@ impl Director {
         if self.lifecycle.draining() {
             return Err((RejectCode::ServerDraining, "server draining".into()));
         }
-        if !self.auth.verify(&h.profile, &h.token).await {
+        if !self.auth.verify(&h.profile, &h.ticket).await {
             return Err((RejectCode::BadCredentials, "bad credentials".into()));
         }
         let key = h.profile.to_ascii_lowercase();
@@ -976,7 +977,7 @@ mod tests {
             protocol: PROTOCOL_VERSION,
             content_hash: rh_sim::content::content_hash(),
             profile: profile.into(),
-            token: String::new(),
+            ticket: Vec::new(),
             faction: None,
             resume: None,
         }

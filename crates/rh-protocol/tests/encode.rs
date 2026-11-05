@@ -16,6 +16,7 @@ fn actor(i: u32) -> WireActor {
         status: (i % 4) as u8,
         weapon: (i % 7) as u8,
         bounty: (i * 977) as u16,
+        kind: (i % 3) as u8,
     }
 }
 
@@ -175,7 +176,7 @@ fn max_actors_encodes_and_one_more_is_refused_not_clamped() {
     w.u8(0x83);
     w.varint(1);
     w.varint(0);
-    w.u16(0);
+    w.varint(0);
     w.varint(MAX_ACTORS as u32 + 1);
     for _ in 0..=MAX_ACTORS {
         w.varint(1);

@@ -58,6 +58,7 @@ fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
                 status: 1,
                 weapon: 1 + (k % 5) as u8,
                 bounty: 0,
+                kind: 0,
             });
             SnapshotData::build(100 + i, 1, i * 3, Some(me), actors).expect("a legal snapshot")
         })

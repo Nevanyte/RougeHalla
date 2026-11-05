@@ -143,7 +143,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         content_hash: rh_sim::content::content_hash(),
         build: String::new(),
         profile: p.into(),
-        token: t.into(),
+        ticket: t.as_bytes().to_vec(),
         faction: Some(f),
         resume: None,
     };
@@ -376,7 +376,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
         content_hash: rh_sim::content::content_hash(),
         build: String::new(),
         profile: p.into(),
-        token: t.into(),
+        ticket: t.as_bytes().to_vec(),
         faction: None,
         resume: None,
     };
