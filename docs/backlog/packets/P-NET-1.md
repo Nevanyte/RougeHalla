@@ -23,7 +23,7 @@ None. The Unity project is not compiled yet (P-UNITY-1), so all C# work lands in
 `client-unity/RoguehallaNet/**`, `client-unity/RoguehallaNet.Tests/**`, `client-unity/sync-net.sh` outputs (run it), `protocol/fixtures/` (new files only), `crates/rh-server/src/{conn.rs,room.rs,rtt.rs}`, `crates/rh-server/tests/`, `docs/PLAYER_PREDICTION.md` (append a Rust/Unity status section). `rh-sim` changes only to `note_lag` bounding (small, flag it to the coordinator: shared file).
 
 ## Contracts and references
-C-NET (protocol v3, vectors in `protocol/fixtures/v4.json`; the client keeps the `SnapshotTracker` and Resync handling; any new field is a version bump with golden vectors on both sides), C-PARITY (the C# A* must match `findPath` outputs: the pathfinding fixture has 300 queries), C-INPUT (no extra orders per second from prediction), ADR 0008 (prediction scope: only the local walk; never attacks, damage, deaths or other players).
+C-NET (protocol v4, vectors in `protocol/fixtures/v4.json`; the client keeps the `SnapshotTracker` and Resync handling; any new field is a version bump with golden vectors on both sides), C-PARITY (the C# A* must match `findPath` outputs: the pathfinding fixture has 300 queries), C-INPUT (no extra orders per second from prediction), ADR 0008 (prediction scope: only the local walk; never attacks, damage, deaths or other players).
 
 ## Behaviour to preserve
 - Server authority: the client sends inputs only; prediction is presentation; nothing it computes is sent except orders the player gave.

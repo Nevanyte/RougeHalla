@@ -1,6 +1,6 @@
 # Core sweep: packages
 
-Every package of the core sweep is merged; this file keeps one line per package and the spec of the last one (P10c). Each is implemented by one engineer agent in its own
+Every package of the core sweep, the efficiency pass and the lock-in pass is merged; this file keeps one line per package and the spec of P10c. Each is implemented by one engineer agent in its own
 git worktree and branch (`tools/sweep/core-stage.workflow.js`), reviewed independently, fixed, then merged by the coordinator,
 who re-runs every gate. Every package keeps the parity report at all MATCH, proves its claims with
 `tools/perfproof/perfproof.py` (deterministic instruction and allocation counts against the merge-base, behaviour
@@ -11,7 +11,7 @@ with designs and baseline measurements).
 
 Dependencies (all merged): P7a after P2b; P5b after P5a; P7b after P7a; P5c after P5b; P8 after P7b; P9
 after P7b + P5c + P10a; P10b after P9; H-server after P9 and P5d; H-sim after P8; P10c after P10b's ADR 0010 and H-server (both
-edit `rh-protocol`, `conn.rs` and the C#/JS codecs); then the final review. Packages on different lines of that graph can run in parallel when their write scopes
+edit `rh-protocol`, `conn.rs` and the C#/JS codecs); then the final review; the efficiency pass (E-sim, E-pub, E-backlog, E-simplify, E-sight) followed, then the lock-in pass (L-envelope and L-durable, L-sim after E-sight, L-v4 stacked on L-envelope). Packages on different lines of that graph can run in parallel when their write scopes
 are disjoint (the sim track P7a -> P7b -> P8 and the server track P5b -> P5c are disjoint).
 
 Coordinator decisions that bind them: `dhat` is a dev-dependency of rh-sim (P7a's zero-allocation test); ADR numbers continue
@@ -54,6 +54,19 @@ Earlier packages (perfproof, P1, P6, P2a, P3, P4, P5a-1, P5a-2) are listed in th
 - **P10c** protocol v3, per-connection snapshot delta ([ADR 0010](../adr/0010-snapshot-delta.md); spec below): merge `ae0c37b`.
   908 -> 305 B/player/s at 8 players, wire Ir 1.048x, gameplay fingerprints identical.
 
+## Efficiency and lock-in pass (merged into `optimization_port`; numbers and follow-ups in [README.md](README.md))
+Each was specified by the final efficiency review (`E-*`) or the lock-in review (`L-*`) and merged with a fix pass where its
+review blocked.
+- **E-sim** kernel fast paths, bit-identical (melee rewind sharing, padded sight grid, 3x3 `circle_clear`, `wrap_angle`, sorted check): merge `e5659ff`.
+- **E-pub** server publish path (per-wake shared quantization, right-sized frames, one snapshot builder, retired `deltabench` and the v2 streaming encoder): merge `ce9b73f`.
+- **E-backlog** docs: P-UNITY-PERF-1 (Codex stage) and P-NET-7: merge `5de66bc`.
+- **E-simplify** type-aware content scan, lease conformance table, dead APIs: merge `41040fe`.
+- **E-sight** exact-endpoint sight memo (derived, never hashed): merge `bee8f3f`.
+- **L-durable** `profile_id`, versioned match record, tolerant blobs, `schema_compat`, build and content headers, pinned durable ids: merge `c31ef9b`.
+- **L-envelope** frozen cross-version envelope, owned Unity `Net/` views: merge `4eaff55`.
+- **L-sim** policy contract v2, optional damage source, `FighterIx`: merge `e766dea`.
+- **L-v4** protocol v4 ([ADR 0011](../adr/0011-protocol-v4.md)): merge `b326676`.
+
 ## P10c: protocol v3, per-connection snapshot delta (merged at `ae0c37b`; ADR 0010 Accepted, implemented)
 Scope: `crates/rh-protocol/**`, `crates/rh-server/src/{conn,outbox,room,wire}.rs`, `client-unity/RoguehallaNet/**`,
 `crates/rh-server/web/probe.html`, `tools/protocol-js/**`, fixtures `protocol/fixtures/v3.json`. Do: the writer task keeps the
@@ -69,4 +82,4 @@ protocol rules are in CONTRACTS C-NET.
 The sweep-wide review of the merged work (correctness, parity, contracts, proofs) ran at `a0e705e`; its findings are applied
 in the records (docs/sweep/README.md corrections, docs/CONTRACTS.md, docs/MIGRATION.md) and in H-server/H-sim. P10c is merged,
 the status records (checkpoint, C-NET row) and the cumulative numbers are updated, and the sweep is complete. What follows is
-the final efficiency review of the whole result, then the backlog bulk port ([docs/backlog/README.md](../backlog/README.md)).
+the efficiency and lock-in passes (above), then the backlog bulk port ([docs/backlog/README.md](../backlog/README.md)).

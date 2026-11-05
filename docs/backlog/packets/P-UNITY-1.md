@@ -24,7 +24,7 @@ needs nothing new (`cargo run -p rh-server`). Visual direction ([../../VISUAL_DI
 `client-unity/UnityProject/**` (except `Assets/RoguehallaNet/*.cs`, owned by `sync-net.sh`), `client-unity/README.md`, `client-unity/BUILD_REPORT.md`, `docs/adr/0008-unity-client.md` (status line and "confirmed" values, coordinator reviews), `tools/browser-proof/unity-proof.mjs`. Library changes under `client-unity/RoguehallaNet/**` are allowed only for compile fixes and need `dotnet test` + `sync-net.sh` (and the protocol golden vectors must stay byte-identical).
 
 ## Contracts and references
-C-NET (protocol v3 and its C# mirror; the content hash in Hello must match or the server refuses: `ContentMismatch`), C-MAP (the Welcome carries the map blob), C-OBS, ADR 0002, 0003, 0008. Prediction scope in `client-unity/README.md` (walk only; remote actors interpolated 70-150 ms in the past).
+C-NET (protocol v4 and its C# mirror; the content hash in Hello must match or the server refuses: `ContentMismatch`), C-MAP (the Welcome carries the map blob), C-OBS, ADR 0002, 0003, 0008. Prediction scope in `client-unity/README.md` (walk only; remote actors interpolated 70-150 ms in the past).
 
 ## Behaviour to preserve
 - The wire (`RoguehallaNet/Protocol`) is the contract; do not hand-edit it to make Unity compile, fix call sites instead. Admission order and refusal reasons: `docs/CONTRACTS.md` C-NET.

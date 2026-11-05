@@ -4,11 +4,13 @@ Owner's goal: "do a final optimization sweep, and make provable improvements to 
 for the rest of the project. The architecture should NOT be 1:1 as legacy version but in new languages but should also be
 substantially improved." Gameplay stays identical to legacy: every package keeps the parity report at all MATCH.
 
-**Status: the core optimization sweep is COMPLETE.** `optimization_port` at `ae0c37b` holds every package: the audit
-packages P1-P7b, P10a, P5a-P5d, P8, P9, the CI perf gate, the P10b measurement, the server hardening (H-server, H-server-2),
-the restore hardening (H-sim), the records (Docs-2) and **P10c (protocol v3, the per-connection snapshot delta of ADR 0010)**.
-The wire is protocol v3. Next: the final efficiency review of the whole result, then the backlog bulk port
-([../backlog/README.md](../backlog/README.md)). This file is the record and the handoff: read it, then
+**Status: the core optimization sweep, the efficiency pass and the lock-in pass are COMPLETE.** `optimization_port` at
+`b326676` holds every package: the audit packages P1-P7b, P10a, P5a-P5d, P8, P9, the CI perf gate, the P10b measurement, the
+server hardening (H-server, H-server-2), the restore hardening (H-sim), the records (Docs-2), **P10c (protocol v3, the
+per-connection snapshot delta of ADR 0010)** at `ae0c37b`, then the efficiency packages (E-sim, E-pub, E-backlog, E-simplify,
+E-sight) and the lock-in packages (L-envelope, L-durable, L-sim, **L-v4: protocol v4**, [ADR 0011](../adr/0011-protocol-v4.md)).
+The wire is protocol v4. Next: the backlog bulk port ([../backlog/README.md](../backlog/README.md)); the Unity client
+efficiency packet P-UNITY-PERF-1 is for the Codex stage. This file is the record and the handoff: read it, then
 [PACKAGES.md](PACKAGES.md). (The sweep was paused once to move development from the cloud session to a local Mac; the
 macOS resume notes are kept below.)
 
@@ -103,6 +105,54 @@ The merge commit messages summarize each report and left out some of its misses.
 - **Cumulative sim ratios** against `7d94332` mix in P7b's harness change (see the note under "Cumulative"); behaviour identity
   to `7d94332` rests on the chain of per-package A/B comparisons, because the base prints no outcome digest or final hash.
 
+## Efficiency and lock-in pass (merged at `b326676`)
+Two stages ran after the core sweep, each package by one engineer agent on its own branch, an independent review, a fix pass
+where the review blocked, and a coordinator merge (merge commits `e5659ff` .. `b326676`, `git log --first-parent
+056bb31..b326676`). The first stage (efficiency) took the final efficiency review's findings; the second (lock-in) fixed the
+decisions that are cheap now and expensive after the bulk port, chiefly the durable data model and the wire. Every package
+kept the parity report at all MATCH. Numbers are deterministic counts from the package reports (perfproof against the
+package's merge-base unless noted); the cumulative table below was re-measured for this record.
+
+| Package (merge) | What it changed | Proven |
+|---|---|---|
+| E-sim (`e5659ff`) | bit-identical kernel fast paths: melee rewinds once per body and tick (rewound positions shared across consecutive swings with an equal rewind time, the empty queue tested first); `circle_clear` returns at once on a 3x3 block of floor; `ray_blocked` walks a padded (w+2) x (h+2) tile grid with a running index and an exact incremental tile edge (a zero mask keeps the checked walk); `wrap_angle` skips the `%` for \|a\| < 2 PI; the visible and players orders are an `is_sorted` check with an unstable-sort fallback (no allocation) | Ir per unit vs `056bb31`: `sim_crowded_8` 7,657 -> 7,382 (0.964x), `sim_duel_chase` 3,030 -> 2,784 (0.919x), `sim_fists_duel` 0.999x, `paths_300` 501,763 -> 475,576 per query (0.948x, 0 mismatches), wire 0.940x, `headless_arena_8bots` 21,838 -> 19,052 (0.872x), `verify_replay` 0.992x; scalebench step N=32 0.924x and N=212 1,562,992 -> 1,297,737 (0.830x) with identical final hashes; every fingerprint identical; `kernel.rs` asserts each fast path equals the plain formulation (all masks incl. 0, three maps, a tile-exact `circle_clear` grid, 2M bit patterns for `wrap_angle`) |
+| E-pub (`ce9b73f`) | server publish path: each actor is checked and quantized once per wake for all viewers (a memo keyed by the whole view, compared bitwise); frames assemble in a kept buffer and are copied to their exact size; one snapshot builder (`SnapshotData::build_checked`) with every refusal tested against the message encoder; the superseded v2 streaming encoder and the `deltabench` prototype are retired (the crowd bytes now come from the shipped codec: `wirebench --synthetic N`) | wire Ir 27,178 -> 27,041 per step (0.950x); **allocated bytes per wire step 827 -> 107** at an equal allocation count (9.08); `v3.json` byte-identical, 305 B/player/s; `densitybench` Ir per match-second -1.0% and allocated bytes -47% (A) and -0.9% / -54% (B), frames and bytes identical; 204 synthetic fighters -5.7% Ir with identical output; 7 of 7 refusal mutations killed |
+| E-backlog (`5de66bc`) | docs only: the ready packet [P-UNITY-PERF-1](../backlog/packets/P-UNITY-PERF-1.md) (instanced remote-actor draws and the Mesh leak, an allocation-free netcode, Fx skip with no consumer, WebGL compression, GPU fill) for the Codex stage, and the coarse P-NET-7 entry (unchanged snapshots) with its evidence; each Unity figure is labelled MEASURED (.NET, JIT caveat), READ (counted from the code) or ESTIMATE (no Editor was available) | n/a |
+| E-simplify (`41040fe`) | the content scan is type-aware (a number-free const needs no exemption; `NON_GAMEPLAY` 58 -> 17 entries; a stale exemption fails); one lease-rules conformance table runs against both the strict memory store and rh-persist; `Sim::path_searches` and a stale perfproof entry removed | mutation checks: an unregistered numeric const, a number-bearing tuple and array, a stale exemption all fail the scan and a number-free table passes; the conformance table fails when the memory store bumps the fence on a re-acquire |
+| E-sight (`bee8f3f`) | the exact-endpoint sight memo `rh_sim::SightCache` (per ordered (viewer, other) pair, validated by the four endpoint `f64` bit patterns and the arena; derived state, never hashed or checkpointed), shared by the publisher, the bot seats and headless; a viewer that moved since its last observed tick skips the table (the miss path is the plain traversal) | wire 25,554 -> 22,362 Ir per step (0.875x), `headless_arena_8bots` 19,052 -> 15,857 (0.832x), `headless_seed1_8bots` 0.985x, `sim_crowded_8` 1.000x, `verify_replay` 1.000x; hit rate in `wirebench` seed 1: publisher 57%, bot seats 48%; the worst case, all-moving humans, costs +0.30% (`densitybench` A, 1.0030x) and +0.04% (B, 1.0004x) of Ir per match-second; fingerprints identical |
+| L-envelope (`4eaff55`) | the cross-version envelope is frozen: the Hello version prefix is read before the full decode, unknown Reject codes decode in Rust, C# and JS, strings over 255 bytes are refused and never truncated in all encoders; Unity gets owned `Net/` views (`Session.Me` is a `SelfView`, `InterpActor` and the enums) | no protocol bump (`v3.json` differs only by the `reject_code_unknown` vector moving to the server list); wire 25,408 = 25,408 Ir (1.0000x), allocations 9.08, bytes 107; fingerprints identical |
+| L-durable (`c31ef9b`) | surrogate `profile_id` key (the callsign is a renamable display attribute) with all child tables referencing it; the complete versioned match record (`"v":1`) and an idempotent `matches` row; tolerant profile blobs; the `schema_compat.min_binary` gate; replays and checkpoints name their build and content hash and `Sim::restore` enforces the hash (`ContentMismatch`); durable content ids pinned (`durable_ids.rs`, in the default test run); a live match banks, renews and releases by the `profile_id` its admission got; ADR 0006 single-writer note. `0001_init.sql` was rewritten in place (no production database exists) | gameplay unchanged: `headless_seed1_8bots` 7,183 = 7,183 Ir, `verify_replay` of base-recorded replays verified (final hash `f464ee5c2287a3e7`), fingerprints identical; rename mid-match tests |
+| L-sim (`e766dea`) | policy contract v2 (`reset(&MatchStart)`, version faults with a safe fallback, `OBSERVATION_VERSION` 2); the damage source is optional (`Entry.by`, `Event::Hit.by`, `weapon` are `Option`; a sourceless kill credits nobody, as legacy sudden death) and parity canonicalises a sourceless `by` as `"sudden death"`; `FighterIx` addressing with `World` accessors, ready for mobs | Ir at most 1.0045x (`sim_crowded_8`) of the base over seven workloads, allocations equal, `no_alloc` 0, every fingerprint identical, base-recorded replays verify |
+| L-v4 (`b326676`) | protocol v4 ([ADR 0011](../adr/0011-protocol-v4.md)): append-only varint presence masks, status and phase as fields with defaults, actor kind and the id-namespace rule, the reserved State message (`0x88`, empty), the admission ticket in the Hello, the Result re-sent after a resume; the Rust, C# and JS decoders pass `protocol/fixtures/v4.json` | **305 -> 285 B/player/s** (mean snapshot 12.8 -> 11.8 B; bound 320); wire 25,407 -> 25,512 Ir per step (1.0041x), allocations 9.08, bytes 107 -> 99; headless 1.0000x; every gameplay fingerprint identical, only the two declared byte keys changed; C# 199 tests; JS 2,078 checks |
+| CI (`2450a7b`, `31f129f`) | the Postgres step runs every PostgreSQL-backed `rh-server` test (`pg_e2e`, `lease_conformance` and the admission-key regression); clippy also runs with the default features | n/a |
+
+**Cumulative against the Stage 1 head `7d94332`** is in the Cumulative section below (all 6 workloads, `b326676`).
+
+### What was dropped, and why
+- **SIM-4's summed-area table (clear-bbox fast path)**: the padded grid and the incremental edge already gave `paths_300` -5.2%;
+  a table adds about 100 KB per mask per map and needs its own containment proof. Revisit if rays dominate again.
+- **SIM-5(b), a dot-product pre-test before `atan2`/`asin`**: `libm` is 1.8% of `sim_crowded_8`; the saving appears only at
+  N >= 128 (5 to 7%), and a sound version needs a written error bound for `libm`. Do it with P-MOBS-1 if crowd melee shows in a profile.
+- **OBS-6**: the whole per-actor encode loop is 0.74% of the wire run, not worth a change.
+- **CX1 step (c)**: `ServerMsg::Snapshot` keeps its own encoder: it is the independent reference writer that the Full-equals-v2 tests and the
+  vector generator compare against; routing it through `SnapshotData` would remove that cross-check.
+- **Sorting melee swings by rewind time** (to widen the shared rewound-position table): it would change the ledger order.
+- **One sight memo shared by the publisher and the bot seats**: they never ask for the same ordered pairs. **An adaptive bypass
+  of the memo for low hit rates** was not built (the moving-viewer skip made it unnecessary: 1.0030x worst case).
+- **A synthetic 204-fighter no-alloc test** for the sort fallback: unreachable for the id-ordered store, and no gain was claimed.
+- **Cross-region and renewal work in L-durable** (a `rename_profile` admin API, lease renewal in the server): not part of the
+  lock-in; the store has the by-id renew, the server does not call it (P-PERSIST-2).
+
+### Effects worth knowing
+- E-pub's exact-size frames cost +2.6% Ir per step alone (about 90 Ir per frame); the shared actor memo saves about 3.0%; the pair
+  nets -0.5%. They stay because the owner asked for the allocated-bytes regression of P10c (366 -> 827) to be undone.
+- A non-default status or phase costs two extra bytes in a Full frame under v4 (free in v3); deltas and the 8-bot run are not affected.
+- At 1000 synthetic fighters 757 of 800 viewer snapshots are refused (up to 834 visible against `MAX_ACTORS` 512): a product limit for
+  the mobs stage (an interest cap in the publisher, a gameplay decision), identical on the base and the candidate.
+- Real-network cost: in a live run the kernel socket work is about 53% of server CPU, about one `sendto` per viewer-tick. It is
+  **not addressed** by any package here; the candidate fix is P-NET-7 (unchanged snapshots), which now builds on v4 and needs a
+  v5 bump and an owner decision ([backlog](../backlog/README.md), P-NET-7 evidence).
+
 ## Known issues
 - The `pg_e2e` rejoin flake is FIXED (P5d: two admission races and a test race) and H-server removed the remaining
   per-attempt wait (one deadline per admission). Do not reopen it without a failing run.
@@ -113,15 +163,16 @@ The merge commit messages summarize each report and left out some of its misses.
   (`sim_crowded_8`, `sim_duel_chase`; attributed only by the engineer's change list: saturating tile arithmetic and the
   pathfinder's finiteness test).
   P10c's +4.8% on the wire row is attributed (the delta encoder in the writer) and inside its 1.10x gate.
-- Not measured: protocol v3 over a real network. The delta numbers are in-process (`wirebench`, perfproof, density runs,
+- Not measured: protocol v4 (and v3) over a real network. The delta numbers are in-process (`wirebench`, perfproof, density runs,
   loopback browser and C# probes). A client that keeps refusing deltas costs one Full frame per 20 ticks, so the saving
   shrinks with loss; there is no server counter for Resync requests yet.
 - Ledger cost per entry grows 1.60x from N=32 to 212 in steady state (see Corrections); per-fighter step cost still grows with N
   in a packed melee (1,730 -> 7,204 Ir per fighter at N=8 -> 212, from the O(attackers x bodies) melee candidate scan).
 - The state hash is server-private (it depends on `spawn_seed`): never log or export it (CONTRACTS C-RNG). The director keeps
   the last 4 replays in memory; serving or exporting one needs `spawn_rng` separated from `spawn_seed`, or a keyed hash.
-- `wire_seed1_8bots` is 0.799x of `a0e705e`: `ray_blocked` is about 29% of the run, a cheaper raycast or fixed-point sight test
-  is the next cut (a symmetric sight definition would change observation behaviour and needs a decision).
+- (Resolved by E-sim and E-sight.) `wire_seed1_8bots` was 0.799x of `a0e705e` with `ray_blocked` about 29% of the run; the padded
+  grid and the sight memo took it to 22,344 Ir per step at `b326676`. A symmetric sight definition would still change observation
+  behaviour and needs a decision.
 - perfproof's absolute instruction counts are architecture-specific (the numbers here are x86_64); compare A/B on one machine.
 
 ## Follow-ups still open (and where each lives)
@@ -131,17 +182,34 @@ The merge commit messages summarize each report and left out some of its misses.
 | Privatize `TileMap` `w`/`h`/`tiles` (add accessors) | P8/P3 reviews; `crates/rh-sim/src/map.rs` |
 | Separate `spawn_rng` from `spawn_seed` or use a keyed hash before any public replay or checkpoint export | CONTRACTS C-RNG; ADR 0007 |
 | Isolate the P8 (+1.2% / +0.6% Ir) and H-sim (+0.45-0.56% Ir) step-cost increases | P8 and H-sim reports |
-| P10c: wire allocated bytes per step 366 -> 827 (each frame reserves `min_len` + `MAX_DELTA_HEAD` + `MAX_ACTOR_DELTA`, a delta averages 12.8 B; the allocation count rose by 0.004 per step, 9.08 after rounding, visible only with `--max-alloc-increase 0`): size the frame from the previous frame or encode from a writer scratch buffer | `crates/rh-protocol/src/delta.rs`, `crates/rh-server/src/conn.rs` |
 | P10c: C# `SnapshotTracker.CopyActorsTo` (like the Full decode) allocates a new `Actors` array when the visible actor count changes; needs an array plus count API | `client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs` |
 | P10c: a server counter for Resync requests received and deferred | `crates/rh-server/src/room.rs`, `conn.rs` |
 | perfproof: require `verified:true` on the candidate in every mode; add `density_practice` / `density_seed1` workloads | `tools/perfproof/perfproof.py` |
 | First real pull-request run of the CI gate (cache mapping, valgrind install time, the cancel-in-progress behaviour on an edited description) | `.github/workflows/perfproof.yml` |
 | `wirebench` measures only single-step wakes; add a multi-step-wake (carry) workload | `crates/rh-server/src/bin/wirebench.rs` |
-| `observe_into` inlines the sight test that `sees()` also holds: a change to one must change the other | `crates/rh-sim/src/observe.rs` |
 | 1000 fighters means 917 visible actors against `MAX_ACTORS` 512: bound the observation | backlog P-MOBS-1, P-VISION-1 |
-| Fold the `synthetic` feature of `deltabench` into the existing `bench` feature (optional) | `crates/rh-server/Cargo.toml` |
 | `pg_e2e` case for a dead-lobby retry needs a test seam; `RoomCmd::Crash` is test-only, so no end-to-end crash test over WebSockets | `crates/rh-server/tests/pg_e2e.rs`, `room.rs` |
 | Lease renewal and the crash lockout, the result spool | backlog P-PERSIST-2 |
+| Closed by the efficiency pass: the P10c allocated-bytes regression (E-pub, 827 -> 107), the inlined sight test in `observe_into` (E-sight: both go through `SightCache::blocked` or `ray_blocked`), the `synthetic` feature of `deltabench` (E-pub deleted both) | this file, "Efficiency and lock-in pass" |
+| Kernel and socket work is about 53% of server CPU in a live run, about one `sendto` per viewer-tick; no package addresses it (P-NET-7 would) | backlog P-NET-7 evidence; `crates/rh-server/src/conn.rs` |
+| Unity client efficiency for the Codex stage: instanced actors and the Mesh leak, alloc-free netcode, Fx skip, WebGL compression, GPU fill | backlog [P-UNITY-PERF-1](../backlog/packets/P-UNITY-PERF-1.md) |
+| P-NET-7 (unchanged snapshots) now builds on v4: it needs a v5 bump, `DH_HELD` as Delta head bit 15, and an owner decision | backlog P-NET-7, [ADR 0011](../adr/0011-protocol-v4.md) |
+| The first State key (P-ARENA-1 or P-CARDS) defines its record, the C# and JS arms and the State sent after each Welcome, and bumps the protocol; a mob kind (P-MOBS-1) follows the id-namespace rule | CONTRACTS C-NET; `crates/rh-server/src/wire.rs` |
+| The C# `Session` sets no Ended state from a re-sent Result (`MatchEnded` is not re-sent; derive it from the phase); owned `Net/` views for `MapBlob`, Events/Fx, `WireResult` and `Welcome` | `client-unity/RoguehallaNet/Net/Session.cs`; client-unity README |
+| 1000 fighters: 757 of 800 viewer snapshots exceed `MAX_ACTORS` and are refused; an interest cap (nearest N) is a gameplay and observation decision | backlog P-MOBS-1, P-VISION-1; `crates/rh-server/src/wire.rs` |
+| Route `weapons::update` and `movement::multipliers` through `fighter_count()`/`core(ix)` before the mob store lands (bit-identical); make `FighterIx.0` `pub(crate)` | `crates/rh-sim/src/systems/{weapons,movement}.rs`, `fighter.rs` |
+| Arena (sourceless) damage: does the PvP hit cap apply (legacy `ledger.ts:264`)? Make `Fx::Hit.by` optional in a protocol bump when the first producer lands (`WIRE_NO_SOURCE` is a stop-gap) | `crates/rh-sim/src/systems/ledger.rs`; `crates/rh-server/src/wire.rs`; backlog P-ARENA/P-COMBAT |
+| The deferred legacy id counter (`world.idCounter`, hashed) belongs to P-MOBS-1; earlier packets keep ids local | CONTRACTS C-TICK; backlog README shared-file rules |
+| Wrap `policy.reset` and the fallback's `reset`/`decide` in `catch_unwind` (map a panic to `Fault::Panicked`) | `crates/rh-policy/src/lib.rs` |
+| Set `RH_BUILD` to the commit id in the release pipeline (until then `BUILD_ID` is `dev-<crate version>` and the build in `matches`, replays and checkpoints says nothing); fill `matches.region` and `placement` (`--instance-id`) | Dockerfile / CI; backlog P-HOST-1 |
+| Fill `faction`, `weapon` in the stored result and use the killer's `profile_id` for `killedBy`; collapse `record_inner` (about 13 statements per result) and measure round trips; lease renewal and the result spool | backlog P-PERSIST-2, P-PERSIST-4; `crates/rh-persist/src/lib.rs` |
+| A lint that fails a migration with `DROP` or `ALTER ... TYPE` that does not raise `schema_compat.min_binary`; `check_schema` uses `to_regclass`, which follows `search_path` | `crates/rh-persist/tests/schema.rs`; `crates/rh-persist/src/lib.rs` |
+| The legacy v2 importer fills a profile with missing stats or progress fields with zeros; validate the required legacy keys in `parse_v2` | `crates/rh-persist/src/legacy.rs` |
+| The `matches` row is written by whichever player's result commits first (the first `MatchMeta` wins); `Roster.humans` counts lobby joins and `bots` the bots at the first result: reword or fix; a test that the kept replay's `match_id` equals `matches.match_id` | `crates/rh-server/src/room.rs`, `persist.rs` |
+| Memory strict store accepts any profile name and ignores the lease owner (the lease conformance suite documents the gap) | `crates/rh-server/tests/lease_conformance.rs` |
+| Dead names left after E-simplify: `rh_headless::centre_of`, `Env::external_players`, `geometry::walkable_segment` | `crates/rh-headless/src/lib.rs`, `crates/rh-sim/src/geometry.rs` |
+| Melee candidate scan is still O(attackers x bodies) (a uniform grid over rewound positions, candidates re-sorted by slot to keep the ledger order, if mobs need it); sort scratch in `observe_into` dominates allocations at 204 visible | `crates/rh-sim/src/systems/melee.rs`, `observe.rs`; backlog P-MOBS-1 |
+| If all-moving rooms matter, an adaptive bypass of the sight memo while the recent hit rate is low (exact either way); keying `begin()` on the digest alone so the table survives restores | `crates/rh-sim/src/sight.rs` |
 | Unity client efficiency (instanced actors, allocation-free netcode, WebGL compression, GPU fill; deferred to the Codex stage) and the protocol v4 idea for unchanged snapshots (owner decision) | backlog [P-UNITY-PERF-1](../backlog/packets/P-UNITY-PERF-1.md), P-NET-7 ([README](../backlog/README.md)) |
 
 ## Resuming on macOS
@@ -175,7 +243,43 @@ Agents: run Claude Code in the repo and invoke the stage workflow with `scriptPa
 10. Give each worktree its own target dir (the default) and keep an
 eye on disk: `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only` keeps each worktree's build small.
 
-## Cumulative (merged head `ae0c37b` vs the Stage 1 head `7d94332`)
+## Cumulative (merged head `b326676` vs the Stage 1 head `7d94332`)
+Measured for this record on the head of `optimization_port` (`b326676`; the working tree also carried these documentation edits,
+which touch no code), with `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only`:
+`python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,wire_seed1_8bots,headless_seed1_8bots,headless_arena_8bots --allow-fingerprint-change wire_seed1_8bots.bytesPerPlayerPerSec,wire_seed1_8bots.meanSnapshotBytes`
+(x86_64 cloud container, 4 vCPU, deterministic counts per unit of work; gate `pass`; the declared changes are the two wire byte
+keys, 1,888 -> 285 B/player/s and mean snapshot 89.8 -> 11.8 B).
+
+| Workload | Instructions | Allocations | Allocated bytes | vs the `ae0c37b` record |
+|---|---|---|---|---|
+| sim_crowded_8 (8 players brawling, per step) | 15,272 -> 7,432 (0.487x; see note) | 19.32 -> 0.13 | 1,804 -> 125 | 7,667 -> 7,432 (0.969x) |
+| sim_duel_chase (pathfinding, per step) | 5,895 -> 2,790 (0.473x; see note) | 10.71 -> 0.07 | 625 -> 58 | 3,030 -> 2,790 (0.921x) |
+| sim_fists_duel (per step) | 5,518 -> 2,718 (0.493x; see note) | 10.45 -> 0.18 | 669 -> 116 | 2,718 -> 2,718 (1.000x) |
+| wire_seed1_8bots (step + observe + encode for 8, per step; protocol v4) | 50,692 -> 22,344 (0.441x) | 72.16 -> 9.08 | 5,273 -> 99 | 27,179 -> 22,344 (0.822x); bytes 827 -> 99 |
+| headless_seed1_8bots (full bot tick, per tick) | 14,647 -> 7,098 (0.485x) | 13.34 -> 0.06 | 1,502 -> 284 | 7,307 -> 7,098 (0.971x) |
+| headless_arena_8bots (per tick) | 48,845 -> 15,912 (0.326x) | 32.15 -> 0.47 | 5,014 -> 281 | 21,836 -> 15,912 (0.729x) |
+
+Wire bytes (`wirebench`, seed 1, 8 bots, payload only): 1,888 B/player/s at Stage 1 (protocol v1), 908 with v2 (P10a), 305 with
+v3 (P10c), **285 with v4** (L-v4): 0.151x of Stage 1; mean snapshot 89.8 -> 43.0 -> 12.8 -> 11.8 B.
+
+Behaviour fingerprints equal the `ae0c37b` record exactly: outcome digests (crowded_8 `81840e347e82edd9`, duel_chase
+`2a0afa364dd6bf10`, fists_duel `7a3fb62cf2aceb59`, headless_seed1 `cf2d4984cfd44b3a`, headless_arena `8794abeb297abb79`, wire
+`12e2915af47124fd`), the final state hashes (crowded_8 `59579cc78d027da2`, duel_chase `3d6422f23d5f8d93`, fists_duel
+`c520e9eae08b7ef7`) and the state-hash folds (headless_seed1 `39f3a3170600b491`, headless_arena `1852586132e59e61`). So the
+efficiency and lock-in passes changed no gameplay outcome. The base at `7d94332` prints none of these for the sim rows, so
+identity to `7d94332` itself still rests on the chain of per-package A/B comparisons.
+
+The headless rows allocate 22 to 29 more bytes per tick than at `ae0c37b` (262 -> 284 and 252 -> 281) at an equal allocation count
+(0.06; 0.46 -> 0.47). The E-sim report measured +1 to +17 B per unit on four rows and attributes it to the noise of the
+long-minus-short difference method; it was not isolated further, and `no_alloc.rs` stays at 0 allocations per steady-state step.
+
+**Note on the `sim_*` rows** (unchanged): they run `parity_bench`. At `7d94332` that harness parsed the fixture's JSON inside the
+measured loop; P7b moved the parsing out. The base side of the table runs the old harness and the candidate the new one, so the
+`sim_*` rows (instructions, allocations and bytes alike) include the removal of the harness's own work and overstate the
+simulator's gain. The `wire_*` and `headless_*` rows do not use `parity_bench`. The same-harness figures of the P7b report
+(crowded_8 0.595x, duel_chase 0.612x at `94a34c1`/`29d341c`, an uncommitted overlay) are described below and cannot be re-run.
+
+### Previous record: `ae0c37b` vs `7d94332`
 The sim and headless rows were measured at `2e8682c` with `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only`:
 `python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,headless_seed1_8bots,headless_arena_8bots`
 (x86_64 cloud container, 4 vCPU; deterministic counts per unit of work; no `--allow-fingerprint-change` was needed, the gate
@@ -247,5 +351,6 @@ before v3 and not re-run): notifies 1.0 and writer wakes 1.0 per human-tick, 1.0
 (+0.30%), both from the H-server report (callgrind at `--secs 10` and `20`, by hand; perfproof has no densitybench
 workload), not re-run for this record.
 
-The largest gains still to come (backlog work and the final efficiency review): a cheaper raycast or sight test (about 29% of
-the wire workload), the O(1) `damaged` membership in the ledger, and the melee candidate scan.
+The cheaper raycast and sight test named here as the next cut were done by E-sim and E-sight. What remains of the largest gains
+(follow-ups table): the O(1) `damaged` membership in the ledger, the melee candidate scan at mob scale, and the kernel socket
+cost of the live wire (P-NET-7).

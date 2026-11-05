@@ -19,7 +19,7 @@ it through `Sim::submit` and `Sim::step` (or `Sim::step_into`, the allocation-fr
 | `schedule.rs`, `hooks.rs` | The tick as data: `PHASES`, the registration lists, `ACTIONS` and the hook chains (each row a legacy name, a config gate and `Ported`/`Pending`), the loop that runs them, and hook dispatch (`hooks::fire`). |
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
 | `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/2; other tags are refused. |
-| `checkpoint.rs` | `{format, statics, world}` serde layout, the `rh-checkpoint/3` tag and `CheckpointError`. |
+| `checkpoint.rs` | `{format, content_hash, build, statics, world}` serde layout (restore refuses another content hash), the `rh-checkpoint/3` tag and `CheckpointError`. |
 | `input.rs` | `RawCommand` (as it arrives), `validate`, and `Command`, an opaque type: it is built only by `validate` or by decoding, which validates again and refuses a command validation would change, so a replay cannot inject an unvalidated command (C-INPUT). Also the order budget and the per-fighter queue. |
 | `observe.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
 
@@ -64,7 +64,7 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 ### Checkpoints
 
-`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/3", "statics": ..., "world": ...}` with the tag first.
+`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/3", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
 cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a
