@@ -14,6 +14,13 @@ use rh_placement::fake::RegionBehaviour;
 use rh_placement::ledger::{DnsStep, Phase, Resolution, StartStep, StopStep, TermStep};
 use serde_json::Value;
 
+/// A barrier that never fires fails the test instead of hanging it.
+async fn bounded<T>(f: impl std::future::Future<Output = T>) -> T {
+    tokio::time::timeout(std::time::Duration::from_secs(30), f)
+        .await
+        .expect("a fake barrier never fired: the expected request was never sent")
+}
+
 fn code(v: &Value) -> &str {
     v["code"].as_str().unwrap_or("")
 }
@@ -125,7 +132,7 @@ async fn a_start_accepted_with_a_lost_receipt_is_found_by_its_binding_and_cleane
         .fake
         .notify_on(Op::Start, Matcher::key(&key), Stage::Applied);
     let child = h.spawn(&["place", "crashB01"], &[]);
-    applied.wait().await; // the provider accepted the start; the child never gets the answer
+    bounded(applied.wait()).await; // the provider accepted the start; the child never gets the answer
     H::sigkill(child);
 
     let t = h.mine("crashB01", ZONE);
@@ -184,7 +191,7 @@ async fn a_fulfilled_placement_whose_dns_receipt_was_lost_is_cleaned_not_offered
         .fake
         .notify_on(Op::DnsUpsert, Matcher::key(&host), Stage::Applied);
     let child = h.spawn(&["place", "crashC01"], &[]);
-    applied.wait().await; // the record is written; the answer is withheld
+    bounded(applied.wait()).await; // the record is written; the answer is withheld
     H::sigkill(child);
 
     assert!(h.fake.dns().contains_key(&host), "the upsert was applied");

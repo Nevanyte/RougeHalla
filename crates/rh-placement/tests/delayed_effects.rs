@@ -26,6 +26,13 @@ fn dur(backend_ms: u64) -> DurabilityConfig {
     }
 }
 
+/// A barrier that never fires (a mutant or a regression changed the order of effects) fails the test instead of hanging it.
+async fn bounded<T>(f: impl std::future::Future<Output = T>) -> T {
+    tokio::time::timeout(Duration::from_secs(30), f)
+        .await
+        .expect("a fake barrier never fired: the expected request was never sent")
+}
+
 fn unavailable(r: &Result<rh_placement::service::JoinOffer, PlaceError>) -> bool {
     matches!(r, Err(PlaceError::ServiceUnavailable(_)))
 }
@@ -50,7 +57,7 @@ async fn a_stop_applied_after_takeover_changes_nothing_and_the_stale_worker_cann
     let rq = request(id, "alice");
     let scope = rh_placement::ledger::Scope::default();
     let (res, ()) = tokio::join!(a.place_scoped(&scope, &rq), async {
-        held.wait().await; // A's stop is sent and held: the provider has not applied it
+        bounded(held.wait()).await; // A's stop is sent and held: the provider has not applied it
         let row = h.row(id).await;
         assert_eq!(
             row.state.attempts[0].stop,
@@ -71,7 +78,7 @@ async fn a_stop_applied_after_takeover_changes_nothing_and_the_stale_worker_cann
             .fake
             .notify_on(Op::Stop, Matcher::key(&key), Stage::Applied);
         assert_eq!(h.fake.release_all(), 1);
-        applied.wait().await; // A's old stop is applied late
+        bounded(applied.wait()).await; // A's old stop is applied late
     });
     assert!(unavailable(&res), "{res:?}");
     assert_eq!(
@@ -113,7 +120,7 @@ async fn held_cleanup(op: Op, id: &str) {
     let rq = request(id, "alice");
     let scope = rh_placement::ledger::Scope::default();
     let (res, ()) = tokio::join!(a.place_scoped(&scope, &rq), async {
-        held.wait().await;
+        bounded(held.wait()).await;
         let row = h.row(id).await;
         assert_eq!(row.phase, Phase::Active);
         assert!(
@@ -143,7 +150,7 @@ async fn held_cleanup(op: Op, id: &str) {
         assert!(row.state.offer.is_none());
         let applied = h.fake.notify_on(op, Matcher::key(&key), Stage::Applied);
         assert_eq!(h.fake.release_all(), 1);
-        applied.wait().await; // A's old operation lands after B finished
+        bounded(applied.wait()).await; // A's old operation lands after B finished
     });
     assert!(unavailable(&res), "{res:?}");
     let trace = late_ops(&h, id);
@@ -200,7 +207,7 @@ async fn a_stale_worker_whose_dns_check_succeeds_late_cannot_publish_an_offer() 
     let rq = request(id, "alice");
     let scope = rh_placement::ledger::Scope::default();
     let (res, ()) = tokio::join!(a.place_scoped(&scope, &rq), async {
-        held.wait().await;
+        bounded(held.wait()).await;
         assert_eq!(
             h.row(id).await.state.attempts[0].dns,
             DnsStep::Intent { host: host.clone() }
@@ -307,7 +314,7 @@ async fn ambiguous_start(settle_after: Duration) -> (H, String) {
     // The provider now applies the old start (the first of the three; the others find the id taken).
     let applied = h.fake.notify_on(Op::Start, Matcher::any(), Stage::Applied);
     assert_eq!(h.fake.release_all(), 3);
-    applied.wait().await;
+    bounded(applied.wait()).await;
     let t = h.mine(&id, ZONE);
     assert!(t.iter().any(|m| m.op == Op::Start && m.late), "{t:?}");
     drop((a, b));
