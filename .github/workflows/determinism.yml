@@ -1,0 +1,210 @@
+name: Native determinism
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "crates/**"
+      - "parity/**"
+      - "tools/determinism/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/determinism.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: determinism-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  produce:
+    name: Produce CI artifacts (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            runner_arch: X64
+            uname_arch: x86_64
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            runner_arch: ARM64
+            uname_arch: aarch64
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: never
+      EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out the requested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Assert native architecture and clean source
+        env:
+          EXPECTED_RUNNER_ARCH: ${{ matrix.runner_arch }}
+          EXPECTED_UNAME_ARCH: ${{ matrix.uname_arch }}
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain)"
+          test "$RUNNER_OS" = Linux
+          test "$RUNNER_ARCH" = "$EXPECTED_RUNNER_ARCH"
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = "$EXPECTED_UNAME_ARCH"
+          rustc -vV
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"
+      - name: Cache release build (${{ matrix.target }})
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: determinism-release-${{ matrix.target }}
+      - name: Focused simulation, policy, and headless tests
+        run: cargo test --release --locked -p rh-sim -p rh-policy -p rh-headless
+      - name: Legacy parity report
+        run: cargo run --release --locked -p rh-parity --bin parity-report
+      - name: Determinism CI sweep
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          cargo run --release --locked -p rh-headless --bin determinism_sweep -- \
+            ci --out "$RUNNER_TEMP/determinism-ci-$EXPECTED_TARGET"
+      - name: Check source identity and required outputs
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain)"
+          out="$RUNNER_TEMP/determinism-ci-$EXPECTED_TARGET"
+          for file in manifest.json provenance.json replay.json; do
+            test -s "$out/$file"
+          done
+      - name: Upload canonical CI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: determinism-ci-${{ matrix.target }}
+          path: ${{ runner.temp }}/determinism-ci-${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: determinism-ci-failure-${{ matrix.target }}
+          path: ${{ runner.temp }}/determinism-ci-${{ matrix.target }}/failure.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  verify-foreign-replay:
+    name: Verify ${{ matrix.recorded_target }} replay on ${{ matrix.target }}
+    needs: produce
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            runner_arch: X64
+            uname_arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            recorded_target: aarch64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            runner_arch: ARM64
+            uname_arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            recorded_target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: never
+      EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out the requested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Toolchain (from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Assert native architecture and clean source
+        env:
+          EXPECTED_RUNNER_ARCH: ${{ matrix.runner_arch }}
+          EXPECTED_UNAME_ARCH: ${{ matrix.uname_arch }}
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test -z "$(git status --porcelain)"
+          test "$RUNNER_OS" = Linux
+          test "$RUNNER_ARCH" = "$EXPECTED_RUNNER_ARCH"
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = "$EXPECTED_UNAME_ARCH"
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"
+      - name: Cache release build (${{ matrix.target }})
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: determinism-release-${{ matrix.target }}
+      - name: Download foreign replay artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: determinism-ci-${{ matrix.recorded_target }}
+          path: ${{ runner.temp }}/foreign-replay
+      - name: Verify foreign replay with the content gate enabled
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/foreign-replay/replay.json"
+          cargo run --release --locked -p rh-headless --bin rh-headless -- \
+            --verify-replay "$RUNNER_TEMP/foreign-replay/replay.json"
+
+  compare:
+    name: Compare native CI artifacts
+    needs: produce
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out comparator and inventory
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Download x86_64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: determinism-ci-x86_64-unknown-linux-gnu
+          path: ${{ runner.temp }}/determinism-left
+      - name: Download aarch64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: determinism-ci-aarch64-unknown-linux-gnu
+          path: ${{ runner.temp }}/determinism-right
+      - name: Strict cross-architecture comparison
+        run: |
+          python3 tools/determinism/compare.py \
+            "$RUNNER_TEMP/determinism-left" "$RUNNER_TEMP/determinism-right" \
+            --preset ci \
+            --left-target x86_64-unknown-linux-gnu \
+            --right-target aarch64-unknown-linux-gnu
+
+  gate:
+    name: Native determinism gate
+    needs: [compare, verify-foreign-replay]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      COMPARE_RESULT: ${{ needs.compare.result }}
+      FOREIGN_REPLAY_RESULT: ${{ needs.verify-foreign-replay.result }}
+    steps:
+      - name: Require comparison and both replay directions
+        run: |
+          set -euo pipefail
+          test "$COMPARE_RESULT" = success
+          test "$FOREIGN_REPLAY_RESULT" = success

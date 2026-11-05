@@ -1,0 +1,297 @@
+{
+  "format": "rh-determinism-inventory/1",
+  "ci": [
+    {
+      "id": "practice-truncated-off",
+      "seed": 5,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-short-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-short-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-short-2", "faction": "Plague", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-short-3", "faction": "Frost", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 10,
+      "checkpoint_steps": [4, 9],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "practice-terminal-off",
+      "seed": 5,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-terminal-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-terminal-1", "faction": "Holy", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 20000,
+      "checkpoint_steps": [0, 100, 400],
+      "expected_stop": "terminal"
+    },
+    {
+      "id": "practice-seed17-duel-off",
+      "seed": 17,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-duel-0", "faction": "Plague", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-duel-1", "faction": "Frost", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 120,
+      "checkpoint_steps": [59, 119],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "practice-seed23-six-off",
+      "seed": 23,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-six-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-six-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-six-2", "faction": "Plague", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-six-3", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-six-4", "faction": "Holy", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-six-5", "faction": "Fire", "policy": "brawler", "cadence": 4}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 240,
+      "checkpoint_steps": [79, 159, 239],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "map-seed1-four-off",
+      "seed": 11,
+      "arena": {"file": {"path": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json"}},
+      "players": [
+        {"profile": "ci-map-0", "faction": "Holy", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-map-1", "faction": "Fire", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-map-2", "faction": "Sentenced", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-map-3", "faction": "Plague", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 120,
+      "checkpoint_steps": [39, 79, 119],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "practice-all-current-factions",
+      "seed": 29,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-factions-0", "faction": "Holy", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-factions-1", "faction": "Plague", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-factions-2", "faction": "Fire", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-factions-3", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-factions-4", "faction": "Sentenced", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "EngagementHolyPlagueFireFrostSentenced"},
+      "max_ticks": 360,
+      "checkpoint_steps": [119, 239, 359],
+      "expected_stop": "truncated"
+    }
+  ],
+  "soak": [
+    {
+      "id": "practice-truncated-off",
+      "seed": 5,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-short-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-short-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-short-2", "faction": "Plague", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-short-3", "faction": "Frost", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 10,
+      "checkpoint_steps": [4, 9],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "practice-terminal-off",
+      "seed": 5,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-terminal-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-terminal-1", "faction": "Holy", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 20000,
+      "checkpoint_steps": [0, 100, 400],
+      "expected_stop": "terminal"
+    },
+    {
+      "id": "practice-seed17-duel-off",
+      "seed": 17,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-duel-0", "faction": "Plague", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-duel-1", "faction": "Frost", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 120,
+      "checkpoint_steps": [59, 119],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "practice-seed23-six-off",
+      "seed": 23,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-six-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-six-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-six-2", "faction": "Plague", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-six-3", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-six-4", "faction": "Holy", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-six-5", "faction": "Fire", "policy": "brawler", "cadence": 4}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 240,
+      "checkpoint_steps": [79, 159, 239],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "map-seed1-four-off",
+      "seed": 11,
+      "arena": {"file": {"path": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json"}},
+      "players": [
+        {"profile": "ci-map-0", "faction": "Holy", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-map-1", "faction": "Fire", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-map-2", "faction": "Sentenced", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-map-3", "faction": "Plague", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 120,
+      "checkpoint_steps": [39, 79, 119],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "practice-all-current-factions",
+      "seed": 29,
+      "arena": "practice",
+      "players": [
+        {"profile": "ci-factions-0", "faction": "Holy", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-factions-1", "faction": "Plague", "policy": "brawler", "cadence": 3},
+        {"profile": "ci-factions-2", "faction": "Fire", "policy": "brawler", "cadence": 4},
+        {"profile": "ci-factions-3", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "ci-factions-4", "faction": "Sentenced", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "EngagementHolyPlagueFireFrostSentenced"},
+      "max_ticks": 360,
+      "checkpoint_steps": [119, 239, 359],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-practice-seed31-two-off",
+      "seed": 31,
+      "arena": "practice",
+      "players": [
+        {"profile": "soak-two-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-two-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 400,
+      "checkpoint_steps": [199, 399],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-practice-seed32-three-off",
+      "seed": 32,
+      "arena": "practice",
+      "players": [
+        {"profile": "soak-three-0", "faction": "Plague", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-three-1", "faction": "Frost", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-three-2", "faction": "Holy", "policy": "brawler", "cadence": 4}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 400,
+      "checkpoint_steps": [199, 399],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-practice-seed33-four-off",
+      "seed": 33,
+      "arena": "practice",
+      "players": [
+        {"profile": "soak-four-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-four-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-four-2", "faction": "Plague", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-four-3", "faction": "Frost", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 400,
+      "checkpoint_steps": [199, 399],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-practice-seed34-six-off",
+      "seed": 34,
+      "arena": "practice",
+      "players": [
+        {"profile": "soak-six-0", "faction": "Holy", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-six-1", "faction": "Fire", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-six-2", "faction": "Sentenced", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-six-3", "faction": "Plague", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-six-4", "faction": "Frost", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-six-5", "faction": "Holy", "policy": "brawler", "cadence": 4}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 400,
+      "checkpoint_steps": [199, 399],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-practice-seed35-eight-off",
+      "seed": 35,
+      "arena": "practice",
+      "players": [
+        {"profile": "soak-eight-0", "faction": "Fire", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-eight-1", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-eight-2", "faction": "Plague", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-eight-3", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-eight-4", "faction": "Holy", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-eight-5", "faction": "Fire", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-eight-6", "faction": "Sentenced", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-eight-7", "faction": "Plague", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 400,
+      "checkpoint_steps": [199, 399],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-map-seed1-four-off",
+      "seed": 41,
+      "arena": {"file": {"path": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json"}},
+      "players": [
+        {"profile": "soak-map-0", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-map-1", "faction": "Holy", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-map-2", "faction": "Fire", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-map-3", "faction": "Sentenced", "policy": "brawler", "cadence": 2}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "Off"},
+      "max_ticks": 400,
+      "checkpoint_steps": [99, 199, 399],
+      "expected_stop": "truncated"
+    },
+    {
+      "id": "soak-practice-seed42-eight-all-factions",
+      "seed": 42,
+      "arena": "practice",
+      "players": [
+        {"profile": "soak-factions-0", "faction": "Holy", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-factions-1", "faction": "Plague", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-factions-2", "faction": "Fire", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-factions-3", "faction": "Frost", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-factions-4", "faction": "Sentenced", "policy": "brawler", "cadence": 3},
+        {"profile": "soak-factions-5", "faction": "Holy", "policy": "brawler", "cadence": 4},
+        {"profile": "soak-factions-6", "faction": "Plague", "policy": "brawler", "cadence": 2},
+        {"profile": "soak-factions-7", "faction": "Fire", "policy": "brawler", "cadence": 3}
+      ],
+      "sim": {"min_players": 2, "lobby_seconds": 30.0, "fill_seconds": 5.0, "pvp_rules": true, "weapon_specials": true, "faction_mode": "EngagementHolyPlagueFireFrostSentenced"},
+      "max_ticks": 360,
+      "checkpoint_steps": [199, 359],
+      "expected_stop": "truncated"
+    }
+  ]
+}
