@@ -337,6 +337,9 @@ func (f *fakeControl) leave(w http.ResponseWriter, r *http.Request) {
 				rm.seen[p.psess] = p.status
 				rm.players = append(rm.players[:i], rm.players[i+1:]...)
 				state = "dropped"
+			} else {
+				errJSON(w, 409, "not_final") // the real server refuses to drop a record that has not ended
+				return
 			}
 		}
 		break

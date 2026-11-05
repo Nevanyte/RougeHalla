@@ -12,7 +12,8 @@ import (
 // and the child with it; if the child dies the bridge learns through exit and ends the process (bridge.serverCrashed).
 type serverProc struct {
 	cmd  *exec.Cmd
-	exit chan error // receives the Wait result once; buffered
+	exit chan error    // receives the Wait result once; buffered. The bridge's main loop consumes it.
+	done chan struct{} // closed when the child has exited; stop waits on this, never on exit (the main loop may have taken it)
 }
 
 func startServer(bin string, args []string) (*serverProc, error) {
@@ -23,8 +24,12 @@ func startServer(bin string, args []string) (*serverProc, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s: %w", bin, err)
 	}
-	p := &serverProc{cmd: cmd, exit: make(chan error, 1)}
-	go func() { p.exit <- cmd.Wait() }()
+	p := &serverProc{cmd: cmd, exit: make(chan error, 1), done: make(chan struct{})}
+	go func() {
+		err := cmd.Wait()
+		p.exit <- err
+		close(p.done)
+	}()
 	return p, nil
 }
 
@@ -35,8 +40,7 @@ func (p *serverProc) stop(grace time.Duration) {
 	}
 	_ = syscall.Kill(-p.cmd.Process.Pid, syscall.SIGTERM)
 	select {
-	case err := <-p.exit:
-		p.exit <- err // keep the value for other readers
+	case <-p.done:
 	case <-time.After(grace):
 		_ = syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
 	}
