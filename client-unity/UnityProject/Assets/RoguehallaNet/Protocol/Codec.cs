@@ -69,6 +69,12 @@ namespace Roguehalla.Net.Protocol
         public DecodeException(DecodeError error, string detail = null) : base(detail == null ? error.ToString() : error + ": " + detail) { Error = error; }
     }
 
+    /// <summary>A message the wire cannot carry (a string over 255 bytes). The encoder never truncates or repairs.</summary>
+    public sealed class EncodeException : Exception
+    {
+        public EncodeException(string message) : base(message) { }
+    }
+
     /// <summary>Little-endian writer built by hand so the bytes never depend on the host's endianness or on BinaryWriter.</summary>
     public sealed class Writer
     {
@@ -111,16 +117,13 @@ namespace Roguehalla.Net.Protocol
         public void F64(double v) { U64(unchecked((ulong)BitConverter.DoubleToInt64Bits(v))); }
         public void Bytes(byte[] b) { Ensure(b.Length); Buffer.BlockCopy(b, 0, _buf, _len, b.Length); _len += b.Length; }
 
-        /// <summary>u8 length + UTF-8; longer strings are cut at a character boundary to at most 255 bytes, as the Rust writer does.</summary>
+        /// <summary>u8 length + UTF-8. A string over 255 bytes throws <see cref="EncodeException"/>: it is never cut (the Rust writer refuses too).</summary>
         public void Str(string s)
         {
             byte[] b = Encoding.UTF8.GetBytes(s ?? "");
-            int end = Math.Min(b.Length, 255);
-            while (end > 0 && end < b.Length && (b[end] & 0xC0) == 0x80) end--;
-            U8((byte)end);
-            Ensure(end);
-            Buffer.BlockCopy(b, 0, _buf, _len, end);
-            _len += end;
+            if (b.Length > 255) throw new EncodeException("string of " + b.Length + " bytes does not fit the wire (max 255)");
+            U8((byte)b.Length);
+            Bytes(b);
         }
 
         /// <summary>The frame. Returns the writer's own buffer when it is exactly full (no copy), so do not write after this.</summary>

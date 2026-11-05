@@ -106,26 +106,50 @@ pub const MAX_COMMANDS_PER_INPUT: usize = 16;
 /// more ([`EncodeError::TooMany`]); deciding what fits is the observation's job, never the codec's.
 pub const MAX_ACTORS: usize = 512;
 
-/// Why the server refuses or closes a session. Codes are wire format (append only).
+/// Why the server refuses or closes a session. Codes are wire format and append only: a decoder that meets a code it does
+/// not know keeps it as [`RejectCode::Unknown`] (it never fails the frame), so a newer server can always tell an older
+/// client why it was refused. `Unknown(n)` with a known `n` encodes as that code but decodes as the named variant.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RejectCode {
-    ProtocolMismatch = 1,
-    ContentMismatch = 2,
-    BadCredentials = 3,
-    ProfileInUse = 4,
-    MatchFull = 5,
-    RateLimited = 6,
-    Malformed = 7,
-    TooSlow = 8,
-    ServerDraining = 9,
-    NoSuchSession = 10,
-    Kicked = 11,
+    ProtocolMismatch,
+    ContentMismatch,
+    BadCredentials,
+    ProfileInUse,
+    MatchFull,
+    RateLimited,
+    Malformed,
+    TooSlow,
+    ServerDraining,
+    NoSuchSession,
+    Kicked,
+    /// A code this build does not name (including 0), kept raw.
+    Unknown(u16),
 }
 
 impl RejectCode {
-    pub fn from_u16(v: u16) -> Option<Self> {
+    /// The wire value.
+    pub fn code(self) -> u16 {
         use RejectCode::*;
-        Some(match v {
+        match self {
+            ProtocolMismatch => 1,
+            ContentMismatch => 2,
+            BadCredentials => 3,
+            ProfileInUse => 4,
+            MatchFull => 5,
+            RateLimited => 6,
+            Malformed => 7,
+            TooSlow => 8,
+            ServerDraining => 9,
+            NoSuchSession => 10,
+            Kicked => 11,
+            Unknown(v) => v,
+        }
+    }
+
+    /// Total: a value this build does not name becomes [`RejectCode::Unknown`].
+    pub fn from_u16(v: u16) -> Self {
+        use RejectCode::*;
+        match v {
             1 => ProtocolMismatch,
             2 => ContentMismatch,
             3 => BadCredentials,
@@ -137,8 +161,8 @@ impl RejectCode {
             9 => ServerDraining,
             10 => NoSuchSession,
             11 => Kicked,
-            _ => return None,
-        })
+            _ => Unknown(v),
+        }
     }
 }
 
@@ -376,6 +400,17 @@ const C_ATTACK: u8 = 4;
 const C_RELEASE: u8 = 5;
 
 impl ClientMsg {
+    /// The protocol version a Hello frame announces, read from its first three bytes (`[0x01][protocol u16]`) and nothing
+    /// else: `None` if the frame is not a Hello or is shorter than that prefix. Those three bytes and the whole Reject frame
+    /// never change across protocol versions, so a server reads this BEFORE [`ClientMsg::decode`] and answers a client of
+    /// another version with [`RejectCode::ProtocolMismatch`] whatever follows (a future Hello may add fields).
+    pub fn hello_protocol(frame: &[u8]) -> Option<u16> {
+        match frame {
+            [T_HELLO, lo, hi, ..] => Some(u16::from_le_bytes([*lo, *hi])),
+            _ => None,
+        }
+    }
+
     /// Decodes an untrusted client frame. Size limit, finite floats, list bounds and no trailing bytes are enforced here.
     pub fn decode(frame: &[u8]) -> Result<Self, DecodeError> {
         if frame.len() > MAX_CLIENT_FRAME {
@@ -592,9 +627,13 @@ impl ServerMsg {
                 map: map::MapBlob::read(&mut r)?,
             },
             T_REJECT => {
+                // Any code above 0 decodes (unnamed ones as `Unknown`); 0 is not a code.
                 let code = r.u16()?;
+                if code == 0 {
+                    return Err(DecodeError::BadTag(0));
+                }
                 ServerMsg::Reject {
-                    code: RejectCode::from_u16(code).ok_or(DecodeError::BadTag(code as u8))?,
+                    code: RejectCode::from_u16(code),
                     reason: r.str()?,
                 }
             }

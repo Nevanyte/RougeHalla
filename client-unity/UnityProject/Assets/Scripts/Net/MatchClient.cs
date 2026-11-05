@@ -91,8 +91,7 @@ namespace Roguehalla.Client
         {
             if (Arena == null) return;
             Session.Snapshots.Sample(Session.Clock.RenderMs, _actors);
-            var me = Session.Latest != null ? Session.Latest.Me : null;
-            Arena.Present(_actors, me, Session.Motion, _aimAngle);
+            Arena.Present(_actors, Session.Me, Session.Motion, _aimAngle);
             if (Cam != null && Session.Motion != null && Session.Motion.Initialized) Arena.Follow(Cam, Session.Motion.DrawnX, Session.Motion.DrawnY);
         }
     }

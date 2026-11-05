@@ -64,7 +64,16 @@ namespace Roguehalla.Net
         public byte[] SessionToken { get; private set; }
         public MapBlob Map { get { return Welcome == null ? null : Welcome.Map; } }
         public uint PlayerId { get { return Welcome == null ? 0 : Welcome.PlayerId; } }
+        readonly SelfView _me = new SelfView();
+        bool _hasMe;
         /// <summary>
+        /// The local player as of the newest applied snapshot, or null before the first one and while spectating (no self). Gameplay
+        /// code reads this, not <see cref="Latest"/>: it is one owned object overwritten in place per snapshot (so it makes no garbage
+        /// and never aliases a recycled snapshot), with typed codes. Copy values out to keep them past the frame.
+        /// </summary>
+        public SelfView Me { get { return _hasMe ? _me : null; } }
+        /// <summary>
+        /// CODEC LAYER (netcode and tests only; gameplay uses <see cref="Me"/> and <see cref="Snapshots"/>.Sample).
         /// The newest snapshot received. Snapshot objects (this one, those raised by SnapshotReceived and those in Snapshots) are
         /// recycled for later frames once they fall out of the 40-snapshot buffer: read them when they arrive or per frame, and
         /// copy what must outlive that.
@@ -160,11 +169,21 @@ namespace Roguehalla.Net
         {
             if (State != SessionState.Connecting && State != SessionState.Reconnecting) return;
             _attemptInFlight = false;
-            Send(new ClientMsg.Hello
+            try
             {
-                Protocol = Wire.ProtocolVersion, ContentHash = _o.ContentHash, Build = _o.Build, Profile = _o.Profile,
-                Token = _o.Token, Faction = _o.Faction, Resume = _resuming ? SessionToken : null,
-            });
+                Send(new ClientMsg.Hello
+                {
+                    Protocol = Wire.ProtocolVersion, ContentHash = _o.ContentHash, Build = _o.Build, Profile = _o.Profile,
+                    Token = _o.Token, Faction = _o.Faction, Resume = _resuming ? SessionToken : null,
+                });
+            }
+            catch (EncodeException e)
+            {
+                // A build, profile or token over 255 bytes cannot be sent (the codec never truncates it): say so, do not retry.
+                Fail("cannot send Hello: " + e.Message);
+                _t.Close();
+                return;
+            }
             Set(SessionState.HelloSent);
         }
 
@@ -247,7 +266,12 @@ namespace Roguehalla.Net
             {
                 SnapshotsReceived++;
                 Latest = snap;
-                if (Snapshots.Add(snap)) Clock.OnSnapshot(now, snap.ServerMs);
+                if (Snapshots.Add(snap))
+                {
+                    Clock.OnSnapshot(now, snap.ServerMs);
+                    _hasMe = snap.Me != null;
+                    if (_hasMe) _me.CopyFrom(snap.Me);
+                }
                 if (snap.Me != null && Motion != null) Motion.OnSnapshot(snap.Me, now);
                 if (SnapshotReceived != null) SnapshotReceived(snap);
                 return;
@@ -296,6 +320,7 @@ namespace Roguehalla.Net
             _attempt = 0;
             // A fresh Welcome restarts the timelines: a resume may land after a long gap, with a new map object.
             Snapshots.Clear();
+            _hasMe = false;
             _needFull = false;
             Clock.Reset();
             Clock.TickMs = w.TickRate > 0 ? 1000.0 / w.TickRate : 50;

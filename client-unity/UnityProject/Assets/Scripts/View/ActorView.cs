@@ -16,9 +16,9 @@ namespace Roguehalla.Client
             new Color32(0xff, 0x70, 0x43, 255), new Color32(0x95, 0x75, 0xcd, 255), new Color32(0x9c, 0xcc, 0x65, 255),
             new Color32(0x4f, 0xc3, 0xf7, 255), new Color32(0xff, 0xf1, 0x76, 255),
         };
-        public static Color32 FactionColor(int f) { return f >= 0 && f < FactionColors.Length ? FactionColors[f] : new Color32(0xb0, 0xb0, 0xb0, 255); }
+        public static Color32 FactionColor(FactionId f) { int i = (int)f; return i < FactionColors.Length ? FactionColors[i] : new Color32(0xb0, 0xb0, 0xb0, 255); }
 
-        public static ActorView Create(Transform parent, Material mat, int faction, bool local)
+        public static ActorView Create(Transform parent, Material mat, FactionId faction, bool local)
         {
             var go = new GameObject("Actor");
             go.transform.SetParent(parent, false);

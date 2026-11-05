@@ -322,6 +322,34 @@ async fn refusals_happen_before_a_seat_is_taken() {
         }) => assert!(reason.contains(&format!("{:016x}", rh_sim::content::content_hash()))),
         other => panic!("{other:?}"),
     }
+    // The envelope: a Hello of another version whose layout this build cannot parse (junk after the prefix, or nothing but
+    // the prefix) still gets ProtocolMismatch, not Malformed. Same protocol with junk stays Malformed.
+    for frame in [
+        vec![0x01, 4, 0, 0xde, 0xad, 0xbe, 0xef, 1, 2, 3],
+        vec![0x01, 4, 0],
+        vec![0x01, 0xff, 0xff, 7],
+    ] {
+        let mut ws = connect(&s.url).await;
+        ws.send(Message::Binary(frame.into())).await.unwrap();
+        match recv(&mut ws).await {
+            Some(ServerMsg::Reject {
+                code: RejectCode::ProtocolMismatch,
+                reason,
+            }) => assert!(reason.contains("protocol 3"), "{reason}"),
+            other => panic!("{other:?}"),
+        }
+    }
+    let mut ws = connect(&s.url).await;
+    ws.send(Message::Binary(vec![0x01, 3, 0, 9, 9].into()))
+        .await
+        .unwrap();
+    assert!(matches!(
+        recv(&mut ws).await,
+        Some(ServerMsg::Reject {
+            code: RejectCode::Malformed,
+            ..
+        })
+    ));
     // Malformed first frame, and a text frame.
     let mut ws = connect(&s.url).await;
     ws.send(Message::Binary(vec![0x7f].into())).await.unwrap();

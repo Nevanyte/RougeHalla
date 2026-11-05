@@ -14,7 +14,7 @@
 //! [`SnapshotData`] byte-identical to it and to the golden vectors. A v2 Snapshot's size depends on its content (field masks, varints), so
 //! `encoded_len()` walks the actors once (no allocation) instead of multiplying.
 
-use crate::codec::{str_len, varint_len, EncodeError, Writer};
+use crate::codec::{str_fits, str_len, varint_len, EncodeError, Writer};
 use crate::map::EncodedMap;
 use crate::*;
 
@@ -157,6 +157,16 @@ impl Frame for ClientMsg {
 
     fn check(&self, len: usize) -> Result<(), EncodeError> {
         match self {
+            ClientMsg::Hello {
+                build,
+                profile,
+                token,
+                ..
+            } => {
+                str_fits("build", build)?;
+                str_fits("profile", profile)?;
+                str_fits("token", token)?;
+            }
             ClientMsg::Input { commands, .. } => {
                 list("commands", commands.len(), MAX_COMMANDS_PER_INPUT)?;
                 if !commands.iter().all(command_finite) {
@@ -676,7 +686,16 @@ impl Frame for ServerMsg {
                 }
             }
             ServerMsg::SnapshotDelta(d) => delta::message_check(d)?,
-            ServerMsg::Events { events, .. } => list("events", events.len(), u16::MAX as usize)?,
+            ServerMsg::Events { events, .. } => {
+                list("events", events.len(), u16::MAX as usize)?;
+                for e in events {
+                    if let WireEvent::Result(r) = e {
+                        if let Some(k) = &r.killed_by {
+                            str_fits("killed_by", k)?;
+                        }
+                    }
+                }
+            }
             ServerMsg::Fx { fx, .. } => {
                 list("fx", fx.len(), u16::MAX as usize)?;
                 let swing_off_grid = |f: &WireFx| {
@@ -687,7 +706,17 @@ impl Frame for ServerMsg {
                     return Err(EncodeError::BadValue("position"));
                 }
             }
-            ServerMsg::Reject { .. } | ServerMsg::Pong { .. } => {}
+            ServerMsg::Reject { code, reason } => {
+                // Code 0 is not a code (every decoder refuses it), and a named code must be built as its variant.
+                let c = code.code();
+                if c == 0
+                    || (matches!(code, RejectCode::Unknown(_)) && RejectCode::from_u16(c) != *code)
+                {
+                    return Err(EncodeError::BadValue("reject code"));
+                }
+                str_fits("reason", reason)?
+            }
+            ServerMsg::Pong { .. } => {}
         }
         frame_size(len, Self::MAX_FRAME)
     }
@@ -751,7 +780,7 @@ impl Frame for ServerMsg {
             }
             ServerMsg::Reject { code, reason } => {
                 w.u8(T_REJECT);
-                w.u16(*code as u16);
+                w.u16(code.code());
                 w.str(reason);
             }
             ServerMsg::Snapshot {
@@ -851,7 +880,7 @@ impl Frame for ServerMsg {
 impl ServerMsg {
     /// The frame, in one allocation of exactly [`ServerMsg::encoded_len`] bytes. A message decoders would reject (more
     /// than [`MAX_ACTORS`] actors, an oversized frame, a bad map) panics in debug builds and is NOT repaired in release
-    /// builds; use [`ServerMsg::try_encode`] or [`ServerMsg::encode_into`] where that can happen.
+    /// builds, except that a string over 255 bytes panics in release too (the writer never truncates); use [`ServerMsg::try_encode`] or [`ServerMsg::encode_into`] where that can happen.
     pub fn encode(&self) -> Vec<u8> {
         encode_exact(self)
     }

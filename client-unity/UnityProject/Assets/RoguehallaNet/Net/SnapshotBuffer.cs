@@ -4,10 +4,14 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net
 {
+    /// <summary>A remote actor as drawn at a render time: owned by the caller's list, typed codes.</summary>
     public struct InterpActor
     {
         public uint Id;
-        public byte Faction, HpPct, Status, Weapon;
+        public FactionId Faction;
+        public ActorStatus Status;
+        public WeaponId Weapon;
+        public byte HpPct;
         public float X, Y, Facing;
         public ushort Bounty;
     }
@@ -104,7 +108,7 @@ namespace Roguehalla.Net
             for (int i = 0; i < cur.Length; i++)
             {
                 ref readonly WireActor c = ref cur[i];
-                var o = new InterpActor { Id = c.Id, Faction = c.Faction, HpPct = c.HpPct, Status = c.Status, Weapon = c.Weapon, Bounty = c.Bounty, X = c.X, Y = c.Y, Facing = c.Facing };
+                var o = new InterpActor { Id = c.Id, Faction = (FactionId)c.Faction, HpPct = c.HpPct, Status = (ActorStatus)c.Status, Weapon = (WeaponId)c.Weapon, Bounty = c.Bounty, X = c.X, Y = c.Y, Facing = c.Facing };
                 int k = -1;
                 if (merge)
                 {

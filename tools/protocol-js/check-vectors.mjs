@@ -44,6 +44,7 @@ function checkSnapshot(m, d, n) {
 
 for (const v of fx.server) {
   const m = decode(bytes(v.hex));
+  if (v.name === "reject_code_unknown") { eq(m.code, 12, `${v.name} code`); eq(m.reason, "", `${v.name} reason`); }
   if (v.decoded === undefined) continue;
   const d = v.decoded, n = v.name;
   if (m.t === "snapshot") {
@@ -71,7 +72,7 @@ const reason = {
   delta_self_status_over_3: /status/, delta_actor_id_gap_zero: /actor order/, delta_actor_hp_over_100: /hp_pct/,
   delta_actor_bounty_over_u16: /bounty/, delta_too_many_actors: /too many actors/, delta_departed_empty: /departed/,
   delta_departed_id_gap_zero: /departed order/, delta_departed_too_many: /too many actors/, delta_truncated: /./, delta_trailing_byte: /trailing/,
-  reject_code_zero: /reject code/, reject_code_unknown: /reject code/, server_bad_utf8: /utf-8/,
+  reject_code_zero: /reject code/, server_bad_utf8: /utf-8/,
   map_zero_size: /map size/, map_too_large: /map size/, map_bad_tile: /map run/, map_zero_run: /map run/,
   map_run_past_size: /map run/, map_short: /map length/, map_hash_mismatch: /map hash/,
 };
