@@ -209,14 +209,13 @@ impl Outbox {
     /// Encodes `snap` for this connection: a Full frame or a delta against the last snapshot encoded here. Called by the
     /// drain, which is the connection's writer.
     fn encode_snapshot(&self, snap: SnapshotData) -> Vec<u8> {
-        // The frame is built in the Vec the batch will own (no scratch copy): a delta is far smaller than this, a Full frame
-        // grows it once.
-        let mut frame = Vec::with_capacity(snap.frame_capacity());
         let mut w = self.writer.lock().expect("snapshot writer lock");
         if self.resync.swap(false, Ordering::Relaxed) {
             w.enc.request_full();
         }
-        let kind = w.enc.encode(snap, &mut frame);
+        // Assembled in the encoder's own buffer and copied out to the frame's exact size: one allocation of the frame's length,
+        // not of the worst case (a delta is a fraction of that).
+        let (frame, kind) = w.enc.encode_frame(snap);
         let spare = w.enc.take_spare();
         drop(w);
         let counter = match kind {

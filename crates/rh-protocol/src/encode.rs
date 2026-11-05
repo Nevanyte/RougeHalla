@@ -6,12 +6,12 @@
 //! * `try_encode()` is the same single exact allocation, but returns an [`EncodeError`] instead of writing a frame
 //!   decoders would reject (the server's Events and Fx path). `encode_into(&mut Vec<u8>)` appends to a caller's buffer
 //!   (reused across frames: no allocation once it is warm) with the same refusals.
-//! * [`encode_snapshot_into`] streams a Snapshot's actors from the caller's own data (an iterator), so the server encodes
-//!   straight from an observation without building a `Vec<WireActor>` first, with the same refusals.
+//! * The server does not encode `ServerMsg::Snapshot` at all: it builds a [`SnapshotData`] ([`SnapshotData::build_with`], which
+//!   refuses what these encoders refuse) and its connection's [`ConnEncoder`] writes the Full or Delta frame.
 //! * [`encode_welcome`] takes a map that was RLE-encoded once ([`crate::map::MapBlob::pre_encode`]).
 //!
-//! One layout: `ServerMsg::Snapshot` and [`encode_snapshot_into`] share the same header and actor writers, and a test holds
-//! every path byte-identical to the golden vectors. A v2 Snapshot's size depends on its content (field masks, varints), so
+//! One layout: `ServerMsg::Snapshot` is the reference writer of the v2 Snapshot, and tests hold the Full frame of a
+//! [`SnapshotData`] byte-identical to it and to the golden vectors. A v2 Snapshot's size depends on its content (field masks, varints), so
 //! `encoded_len()` walks the actors once (no allocation) instead of multiplying.
 
 use crate::codec::{str_len, varint_len, EncodeError, Writer};
@@ -21,13 +21,6 @@ use crate::*;
 /// Protocol v3: per-connection snapshot deltas. A child module so it reaches this module's private writers.
 #[path = "delta.rs"]
 pub mod delta;
-
-/// Fewest bytes a Snapshot takes before its actors and self: tag, tick, phase, ack, mask (2), count.
-const MIN_SNAPSHOT_HEAD_LEN: usize = 1 + 1 + 1 + 1 + 2 + 1;
-/// Fewest bytes a self takes after its mask: id and four floats.
-const MIN_SELF_LEN: usize = 1 + 16;
-/// Fewest bytes one actor takes: id, mask, x, y, facing.
-const MIN_ACTOR_LEN: usize = 1 + 1 + 6;
 
 /// Welcome up to the map: `tag, protocol u16, content_hash u64, match_id 16, player_id u32, session 16, tick_rate u8,
 /// tick u32, server_ms f64`.
@@ -935,62 +928,6 @@ pub fn encode_welcome_into(
     w.bytes(map.as_bytes());
     *out = w.finish();
     Ok(len)
-}
-
-/// Appends one Snapshot frame to `out` from an iterator of the caller's actors: the bytes of the equivalent
-/// `ServerMsg::Snapshot`, and its refusals (an `hp_pct` over 100, a position off the grid, ids that do not strictly
-/// ascend, a faction, weapon, status or phase over its bit width, more than [`MAX_ACTORS`] actors). The iterator's `len()`
-/// is the announced actor count (it goes first on the wire, a varint); an iterator that yields another number is a
-/// [`EncodeError::CountMismatch`]. On any error `out` is left as it was. Returns the frame's length.
-pub fn encode_snapshot_into<I>(
-    out: &mut Vec<u8>,
-    tick: u32,
-    phase: u8,
-    ack_input: u32,
-    me: Option<&WireSelf>,
-    actors: I,
-) -> Result<usize, EncodeError>
-where
-    I: ExactSizeIterator<Item = WireActor>,
-{
-    let declared = actors.len();
-    list("actors", declared, MAX_ACTORS)?;
-    let start = out.len();
-    let mut fault = if phase > MAX_PHASE_CODE
-        || me.is_some_and(|s| (s.faction | s.weapon) > MAX_KIT_CODE || s.status > MAX_STATUS_CODE)
-    {
-        snapshot_fault(phase, me, &[])
-    } else {
-        None
-    };
-    let mut w = Writer::from_vec(std::mem::take(out));
-    w.reserve(MIN_SNAPSHOT_HEAD_LEN + me.map_or(0, |_| MIN_SELF_LEN) + MIN_ACTOR_LEN * declared);
-    write_snapshot_head(&mut w, tick, phase, ack_input, me, declared);
-    let (mut last, mut n) = (None, 0usize);
-    for a in actors {
-        write_actor(&mut w, &a, last);
-        if actor_looks_bad(&a, last) && fault.is_none() {
-            fault = snapshot_fault(0, None, std::slice::from_ref(&a))
-                .or(last.is_some_and(|p| a.id <= p).then_some("actor order"));
-        }
-        last = Some(a.id);
-        n += 1;
-    }
-    let result = if n != declared {
-        Err(EncodeError::CountMismatch {
-            declared,
-            written: n,
-        })
-    } else if let Some(why) = fault {
-        Err(EncodeError::BadValue(why))
-    } else {
-        Ok(w.len() - start)
-    };
-    if result.is_err() {
-        w.truncate(start);
-    }
-    *out = w.finish();
-    result
 }
 
 #[cfg(test)]

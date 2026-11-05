@@ -66,9 +66,8 @@
 //! change the wire by accident.
 //!
 //! Encoding (module `encode`): every message knows its exact `encoded_len()`, so `encode()` allocates the frame once and
-//! never regrows it, `encode_into()` appends to a caller's reused buffer, and [`encode_snapshot_into`] streams a
-//! Snapshot's actors straight from the caller's own data (no intermediate `Vec<WireActor>`). The fallible paths
-//! (`try_encode`, `encode_into`, [`encode_snapshot_into`]) refuse, with an [`EncodeError`], any message a decoder would reject (more
+//! never regrows it, and `encode_into()` appends to a caller's reused buffer. The fallible paths (`try_encode`, `encode_into`,
+//! and the server's [`SnapshotData::build`]) refuse, with an [`EncodeError`], any message a decoder would reject (more
 //! than [`MAX_ACTORS`] actors, an oversized frame, a bad map): the codec never clamps or drops what the observation chose.
 
 pub mod codec;
@@ -83,7 +82,7 @@ pub use delta::{
     ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
     SnapshotTracker, TrackError, MAX_DELTA_AGE,
 };
-pub use encode::{encode_snapshot_into, encode_welcome, encode_welcome_into, WelcomeHeader};
+pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
 pub const PROTOCOL_VERSION: u16 = 3;

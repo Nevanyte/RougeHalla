@@ -1,22 +1,17 @@
-//! Encoder cost, isolated from observation and simulation: a fixed pool of server frames shaped like the slice's
-//! (Snapshots with 0-3 visible actors and a self, plus some Fx), encoded `--frames` times. Run under valgrind and divide
-//! the difference of two runs by the difference in frames, so the fixed cost (process start, building the pool) cancels:
+//! Cost of the shipped snapshot writer, isolated from observation and simulation: a fixed ring of one viewer's snapshots (a
+//! self and `--actors N` remote actors drifting a little each tick, as in a fight; default the slice's mix of 0 to 3), written
+//! `--frames` times by a connection's `ConnEncoder` (protocol v3), with an Fx frame every eighth. Run under valgrind and divide
+//! the difference of two runs by the difference in frames, so the fixed cost (process start, building the ring) cancels:
 //!   cargo build --release -p rh-protocol --example encodebench
-//!   valgrind --tool=callgrind target/release/examples/encodebench --frames 20000 [--mode encode|into|stream] [--actors N]
+//!   valgrind --tool=callgrind target/release/examples/encodebench --frames 20000 [--mode delta|full] [--actors N]
 //!   valgrind --tool=dhat      target/release/examples/encodebench --frames 20000 ...
-//! Modes: `encode` = ServerMsg::encode() per frame (a fresh Vec each); `into` = encode_into() into one reused buffer;
-//! `stream` = Snapshots through encode_snapshot_into (actors streamed from the pool's slices, the server's path), Fx
-//! through encode_into.
-//! `--actors N` gives every Snapshot N actors instead of the slice mix. The output's fnv is a hash of every frame's bytes:
-//! with `--check` it must be the same for every mode (and for any revision of the encoder); without it the frames are
-//! not hashed (so a measured run counts only the encoder) and fnv stays at its seed.
-//!
-//! `--report [--actors N] [--shape slice|worst]` encodes the pool once and prints the wire cost against protocol v1's fixed
-//! layout (a v1 Snapshot was 18 + (1 or 37, the self) + 2 + 22 per actor bytes; no encoder for it is kept, the formula is
-//! the layout in the v1 docs): total bytes of the Snapshots, the per-actor cost of both, and their ratio. `slice` (the
-//! default) gives every actor the field mix the slice measures (a faction on 4 of 5, damaged, alive or dead, a weapon, no
-//! bounty); `worst` sets every optional field (a faction, a weapon, a bounty, damage).
-use rh_protocol::{ServerMsg, WireActor, WireFx, WireSelf};
+//! Modes: `delta` = `ConnEncoder::encode_frame` (the writer's path: a Delta against the last frame written, a Full frame when
+//! that is smaller or first); `full` = `SnapshotData::encode_full_into` into one reused buffer (the v2 layout, what a Resync or
+//! a first frame costs). `--check` hashes every frame's bytes (FNV-1a) into `fnv`; without it the frames are not hashed, so a
+//! measured run counts only the encoder.
+//! Each frame clones its ring entry (one allocation, which the writer gets from the room in production).
+//! The bench for the whole publish path (observation, quantization, encode) is `wirebench`, which also takes `--synthetic N`.
+use rh_protocol::{ConnEncoder, ServerMsg, SnapshotData, WireActor, WireFx, WireSelf};
 
 fn arg(args: &[String], k: &str) -> Option<String> {
     args.iter()
@@ -24,77 +19,62 @@ fn arg(args: &[String], k: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
-fn pool(fixed_actors: Option<usize>, slice: bool) -> Vec<ServerMsg> {
+/// 64 consecutive snapshots of one viewer. Actors move on most ticks, turn, and sometimes change health, as on the seed-1 map.
+fn ring(fixed_actors: Option<usize>) -> Vec<SnapshotData> {
     // The slice's mean is 1.49 visible actors per snapshot; this mix averages 1.5.
     const MIX: [usize; 8] = [1, 2, 1, 0, 2, 3, 1, 2];
     (0..64u32)
         .map(|i| {
-            if i % 8 == 7 {
-                let mut fx = vec![WireFx::Swing {
-                    by: i,
-                    weapon: (i % 7) as u8,
-                    x: 400.0 + i as f32,
-                    y: 320.0,
-                    a: 0.25 * i as f32,
-                }];
-                if i % 16 == 15 {
-                    fx.push(WireFx::Hit {
-                        victim: i + 1,
-                        by: i,
-                        amount: 17.5,
-                    });
-                }
-                return ServerMsg::Fx { tick: i, fx };
-            }
-            let n = fixed_actors.unwrap_or(MIX[i as usize % 8]);
-            ServerMsg::Snapshot {
-                tick: 100 + i,
-                phase: 1,
-                ack_input: i * 3,
-                me: Some(WireSelf {
-                    id: i % 8 + 1,
-                    faction: (i % 5) as u8,
-                    x: 100.0 + i as f32,
-                    y: 200.5 + i as f32,
-                    facing: 0.1 * i as f32,
-                    hp: 1000.0 - i as f32,
-                    max_hp: 1145.0,
-                    status: 0,
-                    weapon: (i % 7) as u8,
-                    ready_in_ms: (i * 10) as u16,
-                    kills: (i % 3) as u16,
-                    bounty: (i % 4) as u16,
-                    gv: i as u16,
-                    move_seq: i as u8,
-                }),
-                actors: (0..n as u32)
-                    .map(|k| WireActor {
-                        id: k * 2 + 1,
-                        faction: (k % 5) as u8,
-                        x: 300.0 + (i * 7 + k) as f32,
-                        y: 410.25 - k as f32,
-                        facing: -1.0 + 0.01 * (i + k) as f32,
-                        hp_pct: if slice {
-                            ((i + k) % 100) as u8
-                        } else {
-                            ((i + k) % 101) as u8
-                        },
-                        status: if slice {
-                            1 + (k % 2) as u8
-                        } else {
-                            (k % 2) as u8
-                        },
-                        weapon: if slice {
-                            1 + (k % 5) as u8
-                        } else {
-                            (k % 7) as u8
-                        },
-                        bounty: if slice { 0 } else { (k * 5) as u16 },
-                    })
-                    .collect(),
-            }
+            let n = fixed_actors.unwrap_or(MIX[i as usize % 8]) as u32;
+            let me = WireSelf {
+                id: 1000,
+                faction: (i % 5) as u8,
+                x: 100.0 + i as f32 * 0.5,
+                y: 200.5,
+                facing: 0.1 * i as f32,
+                hp: 1000.0 - (i / 8) as f32,
+                max_hp: 1145.0,
+                status: 1,
+                weapon: 3,
+                ready_in_ms: (i * 10 % 300) as u16,
+                kills: (i / 32) as u16,
+                bounty: 0,
+                gv: 0,
+                move_seq: i as u8,
+            };
+            let actors = (0..n).map(|k| WireActor {
+                id: k * 2 + 1,
+                faction: (k % 5) as u8,
+                x: 300.0
+                    + k as f32 * 3.0
+                    + if (i + k) % 4 != 0 {
+                        i as f32 * 0.25
+                    } else {
+                        0.0
+                    },
+                y: 410.25 - k as f32,
+                facing: -1.0 + 0.01 * ((i / 3) + k) as f32,
+                hp_pct: 100 - ((i / 16 + k) % 4) as u8 * 10,
+                status: 1,
+                weapon: 1 + (k % 5) as u8,
+                bounty: 0,
+            });
+            SnapshotData::build(100 + i, 1, i * 3, Some(me), actors).expect("a legal snapshot")
         })
         .collect()
+}
+
+fn fx_frame(i: usize) -> ServerMsg {
+    ServerMsg::Fx {
+        tick: i as u32,
+        fx: vec![WireFx::Swing {
+            by: 1,
+            weapon: (i % 7) as u8,
+            x: 400.0 + (i % 64) as f32,
+            y: 320.0,
+            a: 0.25,
+        }],
+    }
 }
 
 fn fnv(mut h: u64, b: &[u8]) -> u64 {
@@ -105,8 +85,7 @@ fn fnv(mut h: u64, b: &[u8]) -> u64 {
     h
 }
 
-/// Hashes the frame with `--check`; otherwise only keeps the optimiser from discarding it (so a measured run counts the
-/// encoder, not the hash).
+/// Hashes the frame with `--check`; otherwise only keeps the optimiser from discarding it.
 fn sink(hash: bool, h: u64, b: &[u8]) -> u64 {
     if hash {
         fnv(h, b)
@@ -116,106 +95,49 @@ fn sink(hash: bool, h: u64, b: &[u8]) -> u64 {
     }
 }
 
-/// Protocol v1's Snapshot size (fixed layout: 18 header + self flag/36 + 2 count + 22 per actor).
-fn v1_snapshot_len(me: bool, actors: usize) -> usize {
-    18 + if me { 37 } else { 1 } + 2 + 22 * actors
-}
-
-fn report(pool: &[ServerMsg], fixed: Option<usize>, slice: bool) {
-    let (mut v1, mut v2, mut v2_empty, mut actors, mut snaps) =
-        (0usize, 0usize, 0usize, 0usize, 0usize);
-    for m in pool {
-        if let ServerMsg::Snapshot {
-            tick,
-            phase,
-            ack_input,
-            me,
-            actors: a,
-        } = m
-        {
-            snaps += 1;
-            actors += a.len();
-            v1 += v1_snapshot_len(me.is_some(), a.len());
-            v2 += m.encoded_len();
-            v2_empty += ServerMsg::Snapshot {
-                tick: *tick,
-                phase: *phase,
-                ack_input: *ack_input,
-                me: *me,
-                actors: vec![],
-            }
-            .encoded_len();
-        }
-    }
-    let per_actor_v2 = (v2 - v2_empty) as f64 / actors.max(1) as f64;
-    println!(
-        "{{\"shape\":\"{}\",\"actorsPerSnapshot\":\"{}\",\"snapshots\":{snaps},\"v1Bytes\":{v1},\"v2Bytes\":{v2},\"ratio\":{:.3},\"bytesPerActorV1\":22,\"bytesPerActorV2\":{per_actor_v2:.2},\"actorRatio\":{:.3}}}",
-        if slice { "slice" } else { "worst" },
-        fixed.map_or("mix".to_string(), |n| n.to_string()),
-        v2 as f64 / v1 as f64,
-        per_actor_v2 / 22.0
-    );
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let frames: usize = arg(&args, "--frames")
         .and_then(|v| v.parse().ok())
         .unwrap_or(20_000);
-    let mode = arg(&args, "--mode").unwrap_or_else(|| "encode".into());
+    let mode = arg(&args, "--mode").unwrap_or_else(|| "delta".into());
     let fixed = arg(&args, "--actors").and_then(|v| v.parse().ok());
     let hash = args.iter().any(|a| a == "--check");
-    let slice = arg(&args, "--shape").as_deref() != Some("worst");
-    let pool = pool(fixed, slice);
-    if args.iter().any(|a| a == "--report") {
-        report(&pool, fixed, slice);
-        return;
-    }
-    let (mut bytes, mut h) = (0u64, 0xcbf2_9ce4_8422_2325u64);
+    let ring = ring(fixed);
+    let fx: Vec<ServerMsg> = (0..8).map(fx_frame).collect();
+    let (mut bytes, mut h, mut full, mut delta) = (0u64, 0xcbf2_9ce4_8422_2325u64, 0u64, 0u64);
+    let mut enc = ConnEncoder::new();
     let mut buf = Vec::new();
     for i in 0..frames {
-        let m = &pool[i % pool.len()];
+        if i % 8 == 7 {
+            buf.clear();
+            fx[i / 8 % 8].encode_into(&mut buf).expect("legal frame");
+            bytes += buf.len() as u64;
+            h = sink(hash, h, &buf);
+            continue;
+        }
+        let snap = ring[i % ring.len()].clone();
         match mode.as_str() {
-            "encode" => {
-                let b = m.encode();
-                bytes += b.len() as u64;
-                h = sink(hash, h, &b);
-            }
-            "into" => {
-                buf.clear();
-                m.encode_into(&mut buf).expect("legal frame");
-                bytes += buf.len() as u64;
-                h = sink(hash, h, &buf);
-            }
-            "stream" => {
-                buf.clear();
-                match m {
-                    ServerMsg::Snapshot {
-                        tick,
-                        phase,
-                        ack_input,
-                        me,
-                        actors,
-                    } => {
-                        rh_protocol::encode_snapshot_into(
-                            &mut buf,
-                            *tick,
-                            *phase,
-                            *ack_input,
-                            me.as_ref(),
-                            actors.iter().copied(),
-                        )
-                        .expect("legal frame");
-                    }
-                    _ => {
-                        m.encode_into(&mut buf).expect("legal frame");
-                    }
+            "delta" => {
+                let (frame, kind) = enc.encode_frame(snap);
+                match kind {
+                    rh_protocol::FrameKind::Full => full += 1,
+                    rh_protocol::FrameKind::Delta => delta += 1,
                 }
+                bytes += frame.len() as u64;
+                h = sink(hash, h, &frame);
+            }
+            "full" => {
+                buf.clear();
+                snap.encode_full_into(&mut buf);
+                full += 1;
                 bytes += buf.len() as u64;
                 h = sink(hash, h, &buf);
             }
             other => panic!("unknown --mode {other}"),
         }
     }
-    println!("{{\"mode\":\"{mode}\",\"frames\":{frames},\"bytes\":{bytes},\"fnv\":\"{h:016x}\"}}");
+    println!(
+        "{{\"mode\":\"{mode}\",\"frames\":{frames},\"bytes\":{bytes},\"fullFrames\":{full},\"deltaFrames\":{delta},\"fnv\":\"{h:016x}\"}}"
+    );
 }

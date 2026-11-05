@@ -4,9 +4,10 @@
 
 use rh_protocol::quant::POS_MAX;
 use rh_protocol::{
-    ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf,
+    QActor, ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WireResult,
+    WireSelf,
 };
-use rh_sim::observe::{Observation, SeenEvent};
+use rh_sim::observe::{ActorView, Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
 use rh_sim::{RawCommand, RunResult};
@@ -126,52 +127,56 @@ pub fn snapshot(obs: &Observation, ack_input: u32) -> ServerMsg {
     }
 }
 
-/// The Snapshot frame of `obs`: byte-identical to `snapshot(obs, ack_input).try_encode()`, but streamed actor by actor
-/// into the caller's reused `scratch` buffer, so no `Vec<WireActor>` is built and the only allocation is the returned
-/// frame (one block of exactly its size, which the outbox then owns). An observation the codec refuses (a position off the
-/// wire grid) is an error, never a repaired frame.
-pub fn encode_snapshot(
-    obs: &Observation,
-    ack_input: u32,
-    scratch: &mut Vec<u8>,
-) -> Result<Vec<u8>, rh_protocol::EncodeError> {
-    scratch.clear();
-    let me = obs.me.as_ref().map(wire_self);
-    rh_protocol::encode_snapshot_into(
-        scratch,
-        obs.tick,
-        phase(obs.phase),
-        ack_input,
-        me.as_ref(),
-        obs.visible.iter().map(wire_actor),
-    )?;
-    Ok(scratch.clone())
+/// An actor checked and quantized for the wire: [`QActor::checked`] of its [`wire_actor`].
+#[inline]
+fn checked_actor(a: &ActorView) -> Result<QActor, &'static str> {
+    QActor::checked(&wire_actor(a))
 }
 
-/// The snapshot of `obs` as the wire data a connection's writer encodes (protocol v3): the actors quantized, the self at full
-/// precision, validated. Its Full frame is byte-identical to `snapshot(obs, ack_input).try_encode()`. An observation the codec
-/// refuses (a position off the wire grid) is an error, never a repaired snapshot.
-pub fn snapshot_data(
-    obs: &Observation,
-    ack_input: u32,
-) -> Result<SnapshotData, rh_protocol::EncodeError> {
-    snapshot_data_with(None, obs, ack_input)
+/// Whether two views are the same actor state, bit for bit (`0.0` and `-0.0`, or two NaNs, never count as equal).
+#[inline]
+fn same_view(a: &ActorView, b: &ActorView) -> bool {
+    a.id == b.id
+        && a.x.to_bits() == b.x.to_bits()
+        && a.y.to_bits() == b.y.to_bits()
+        && a.facing.to_bits() == b.facing.to_bits()
+        && a.hp_frac.to_bits() == b.hp_frac.to_bits()
+        && a.bounty == b.bounty
+        && a.status == b.status
+        && a.faction == b.faction
+        && a.weapon == b.weapon
 }
 
-/// [`snapshot_data`] built in the block of a finished snapshot (see [`SnapshotData::build_with`]).
-pub fn snapshot_data_with(
-    spare: Option<SnapshotData>,
-    obs: &Observation,
-    ack_input: u32,
-) -> Result<SnapshotData, rh_protocol::EncodeError> {
-    SnapshotData::build_with(
-        spare,
-        obs.tick,
-        phase(obs.phase),
-        ack_input,
-        obs.me.as_ref().map(wire_self),
-        obs.visible.iter().map(wire_actor),
-    )
+/// Highest actor id (exclusive) [`ActorMemo`] remembers; an actor with a higher id is converted every time.
+const MEMO_IDS: usize = rh_protocol::MAX_ACTORS;
+
+/// The wire form of each actor last shown, by id. An actor is the same to every viewer who sees it, so its check and
+/// quantization is done once per distinct state rather than once per viewer (and not again while it stands still). The key is
+/// the whole view, compared bitwise, and the result is a pure function of it: a stale entry cannot be returned.
+#[derive(Default)]
+struct ActorMemo {
+    slots: Vec<Option<(ActorView, Result<QActor, &'static str>)>>,
+}
+
+impl ActorMemo {
+    #[inline]
+    fn get(&mut self, a: &ActorView) -> Result<QActor, &'static str> {
+        let i = a.id.0 as usize;
+        if i >= MEMO_IDS {
+            return checked_actor(a);
+        }
+        if i >= self.slots.len() {
+            self.slots.resize_with(i + 1, || None);
+        }
+        match &mut self.slots[i] {
+            Some((src, q)) if same_view(src, a) => *q,
+            slot => {
+                let q = checked_actor(a);
+                *slot = Some((a.clone(), q));
+                q
+            }
+        }
+    }
 }
 
 /// What one observed event is on the wire: the reliable Events frame or the disposable Fx frame. Exhaustive over
@@ -247,6 +252,7 @@ impl ViewFrames {
 #[derive(Default)]
 pub struct Publisher {
     obs: Observation,
+    actors: ActorMemo,
     events: Vec<WireEvent>,
     fx: Vec<WireFx>,
 }
@@ -345,7 +351,15 @@ impl Publisher {
             }
             frame
         };
-        let snapshot = snapshot_data_with(spare, &self.obs, ack_input);
+        let memo = &mut self.actors;
+        let snapshot = SnapshotData::build_checked(
+            spare,
+            tick,
+            phase(self.obs.phase),
+            ack_input,
+            self.obs.me.as_ref().map(wire_self),
+            self.obs.visible.iter().map(|a| memo.get(a)),
+        );
         ViewFrames {
             important,
             fx,
@@ -465,25 +479,116 @@ mod tests {
         assert!(env.sim.tick() > 0);
     }
 
-    /// The streamed frame is the message's frame, byte for byte, over a whole match (every viewer, every tick), and the
-    /// scratch buffer it reuses never leaks one frame into the next.
+    /// The snapshot the Publisher hands a connection (its actors checked once for all viewers and remembered across ticks) is
+    /// the one built straight from the observation, and its Full frame is the message's frame, byte for byte, over a whole
+    /// match (every viewer, every tick).
     #[test]
-    fn encode_snapshot_is_byte_identical_to_the_message_encoding() {
+    fn the_published_snapshot_is_the_one_built_from_the_observation_over_a_match() {
         let mut env = seed1_match(900);
         let ids: Vec<_> = env.sim.players().iter().map(|p| p.id).collect();
-        let mut frames = 0;
-        let mut scratch = Vec::new();
+        let mut publisher = Publisher::default();
+        let (mut frames, mut with_actors) = (0, 0);
+        let mut spare = None;
         for t in 0..900u32 {
             let out = env.step(&[]);
             for id in &ids {
-                let obs = rh_sim::observe(&env.sim, *id, &out.events);
-                let streamed = encode_snapshot(&obs, t, &mut scratch).expect("encodes");
-                assert_eq!(streamed, snapshot(&obs, t).try_encode().expect("encodes"));
-                assert_eq!(streamed.capacity(), streamed.len());
+                let f = publisher.frames_in(
+                    spare.take(),
+                    &env.sim,
+                    *id,
+                    t,
+                    &out.events,
+                    &mut Vec::new(),
+                    &out.events,
+                );
+                let got = f.snapshot.expect("builds");
+                let obs = publisher.observation();
+                let want = SnapshotData::build(
+                    obs.tick,
+                    phase(obs.phase),
+                    t,
+                    obs.me.as_ref().map(wire_self),
+                    obs.visible.iter().map(wire_actor),
+                )
+                .expect("builds");
+                assert_eq!(got, want);
+                let mut full = Vec::new();
+                got.encode_full_into(&mut full);
+                assert_eq!(full, snapshot(obs, t).try_encode().expect("encodes"));
                 frames += 1;
+                with_actors += !got.actors().is_empty() as u32;
+                // A recycled block builds the same snapshot.
+                spare = Some(got);
             }
         }
-        assert!(frames > 1000);
+        assert!(frames > 1000 && with_actors > 300, "{frames} {with_actors}");
+    }
+
+    fn view(id: u32) -> ActorView {
+        ActorView {
+            id: rh_sim::PlayerId(id),
+            faction: FactionId::ALL[1],
+            x: 100.3,
+            y: 50.7,
+            facing: 0.5,
+            hp_frac: 0.75,
+            status: Status::Alive,
+            weapon: rh_sim::content::WeaponId::ALL[2],
+            bounty: 3,
+        }
+    }
+
+    /// The memo is a cache of a pure function: whatever it holds, `get` is what a fresh conversion gives, for a hit, for every
+    /// field that changes (a miss), for the values that compare equal but convert differently (`0.0` and `-0.0`), for a
+    /// refused actor (and the actor after it is good again), and for an id past the memo.
+    #[test]
+    fn the_actor_memo_is_always_a_fresh_conversion() {
+        let mut memo = ActorMemo::default();
+        let mut a = view(5);
+        type Edit = Box<dyn Fn(&mut ActorView)>;
+        let edits: Vec<(&str, Edit)> = vec![
+            ("same", Box::new(|_| {})),
+            ("x", Box::new(|a| a.x = 101.25)),
+            ("y", Box::new(|a| a.y = 51.0)),
+            ("facing", Box::new(|a| a.facing = -2.0)),
+            ("hp", Box::new(|a| a.hp_frac = 0.01)),
+            ("bounty", Box::new(|a| a.bounty = 70_000)),
+            ("status", Box::new(|a| a.status = Status::Dead)),
+            ("faction", Box::new(|a| a.faction = FactionId::ALL[3])),
+            (
+                "weapon",
+                Box::new(|a| a.weapon = rh_sim::content::WeaponId::ALL[4]),
+            ),
+            ("zero", Box::new(|a| a.x = 0.0)),
+            ("negative zero", Box::new(|a| a.x = -0.0)),
+            ("off the grid", Box::new(|a| a.x = 1.0e9)),
+            ("nan", Box::new(|a| a.y = f64::NAN)),
+            ("good again", Box::new(|a| (a.x, a.y) = (10.0, 10.0))),
+        ];
+        for (name, edit) in edits {
+            edit(&mut a);
+            for round in 0..3 {
+                assert_eq!(memo.get(&a), checked_actor(&a), "{name} round {round}");
+            }
+            // Another id never aliases it.
+            let other = view(6);
+            assert_eq!(memo.get(&other), checked_actor(&other), "{name}: other id");
+            assert_eq!(memo.get(&a), checked_actor(&a), "{name}: after another id");
+        }
+        assert_eq!(checked_actor(&view(1)).map(|q| q.id), Ok(1));
+        assert_eq!(
+            checked_actor(&ActorView {
+                x: 1.0e9,
+                ..view(1)
+            }),
+            Err("position")
+        );
+        for id in [MEMO_IDS as u32 - 1, MEMO_IDS as u32, MEMO_IDS as u32 + 1000] {
+            let v = view(id);
+            assert_eq!(memo.get(&v), checked_actor(&v), "id {id}");
+            assert_eq!(memo.get(&v), checked_actor(&v), "id {id} again");
+        }
+        assert!(memo.slots.len() <= MEMO_IDS);
     }
 
     /// The seed-1 160 x 160 map (and the nominal world) fits the u16 position grid, and over a whole match every remote

@@ -1,4 +1,4 @@
-//! The encoder paths (encode, try_encode, encode_into, encode_snapshot_into, encode_welcome) all write the golden-vector bytes,
+//! The encoder paths (encode, try_encode, encode_into, encode_welcome) all write the golden-vector bytes,
 //! size every frame exactly, and refuse instead of repair any frame a decoder would reject.
 use rh_protocol::map::MapBlob;
 use rh_protocol::quant::POS_MAX;
@@ -68,8 +68,9 @@ fn decoded_form(m: &ServerMsg) -> ServerMsg {
     }
 }
 
-/// A Snapshot message through the streaming encoder the server uses (`encode_snapshot_into`).
-fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
+/// The Full frame the server's writer produces for a Snapshot message (`SnapshotData::build` then `encode_full_into`): the
+/// production path of a Snapshot, with its refusals.
+fn full_frame(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     let ServerMsg::Snapshot {
         tick,
         phase,
@@ -80,36 +81,8 @@ fn stream(out: &mut Vec<u8>, m: &ServerMsg) -> Result<usize, EncodeError> {
     else {
         panic!("not a snapshot")
     };
-    rh_protocol::encode_snapshot_into(
-        out,
-        *tick,
-        *phase,
-        *ack_input,
-        me.as_ref(),
-        actors.iter().copied(),
-    )
-}
-
-/// An `ExactSizeIterator` that claims `claim` actors and yields `left`.
-struct Liar {
-    left: u32,
-    claim: usize,
-}
-
-impl Iterator for Liar {
-    type Item = WireActor;
-    fn next(&mut self) -> Option<WireActor> {
-        (self.left > 0).then(|| {
-            self.left -= 1;
-            actor(10 - self.left)
-        })
-    }
-}
-
-impl ExactSizeIterator for Liar {
-    fn len(&self) -> usize {
-        self.claim
-    }
+    let snap = SnapshotData::build(*tick, *phase, *ack_input, *me, actors.iter().copied())?;
+    Ok(snap.encode_full_into(out))
 }
 
 #[test]
@@ -153,8 +126,8 @@ fn every_path_writes_the_same_bytes() {
         assert_eq!(&out[3..], &want[..], "{name}");
         if matches!(m, ServerMsg::Snapshot { .. }) {
             let mut out = prefix.to_vec();
-            assert_eq!(stream(&mut out, &m), Ok(want.len()), "{name}");
-            assert_eq!(&out[3..], &want[..], "{name}: encode_snapshot_into");
+            assert_eq!(full_frame(&mut out, &m), Ok(want.len()), "{name}");
+            assert_eq!(&out[3..], &want[..], "{name}: SnapshotData full frame");
         }
     }
 }
@@ -169,170 +142,10 @@ fn a_reused_buffer_stops_allocating() {
         buf.clear();
         m.encode_into(&mut buf).unwrap();
         buf.clear();
-        stream(&mut buf, &m).unwrap();
+        full_frame(&mut buf, &m).unwrap();
     }
     assert_eq!((buf.as_ptr(), buf.capacity()), (ptr, cap));
     assert_eq!(buf, m.encode());
-}
-
-#[test]
-fn encode_snapshot_into_matches_the_message_for_every_size() {
-    for n in [0u32, 1, 2, 14, 68, 300, MAX_ACTORS as u32] {
-        for m in [snapshot(None, n), snapshot(Some(me()), n)] {
-            let mut out = Vec::new();
-            assert_eq!(stream(&mut out, &m), Ok(m.encoded_len()));
-            assert_eq!(out, m.encode());
-            assert_eq!(ServerMsg::decode(&out), Ok(decoded_form(&m)));
-        }
-    }
-    // The announced count is exact: another number of actors is refused, and the frame is removed.
-    for announced in [0usize, 3, 400] {
-        let mut out = vec![7];
-        let r = rh_protocol::encode_snapshot_into(
-            &mut out,
-            101,
-            1,
-            42,
-            Some(&me()),
-            Liar {
-                left: 5,
-                claim: announced,
-            },
-        );
-        assert_eq!(
-            r,
-            Err(EncodeError::CountMismatch {
-                declared: announced,
-                written: 5
-            })
-        );
-        assert_eq!(out, [7], "announced {announced}");
-    }
-}
-
-/// `encode_snapshot_into` is the message's frame byte for byte, appends after existing bytes, and refuses (leaving the
-/// buffer untouched) exactly what the message encoder refuses.
-#[test]
-fn encode_snapshot_into_matches_the_message_and_its_refusals() {
-    for n in [0u32, 1, 2, 14, 68, 300, MAX_ACTORS as u32] {
-        for m in [snapshot(None, n), snapshot(Some(me()), n)] {
-            let mut out = vec![9, 9];
-            assert_eq!(stream(&mut out, &m), Ok(m.encoded_len()));
-            assert_eq!(&out[..2], &[9, 9]);
-            assert_eq!(&out[2..], &m.encode()[..]);
-        }
-    }
-    let ServerMsg::Snapshot { actors, .. } = snapshot(Some(me()), 3) else {
-        unreachable!()
-    };
-    let bad_variants: Vec<Vec<WireActor>> = vec![
-        actors
-            .iter()
-            .map(|a| WireActor { hp_pct: 101, ..*a })
-            .collect(),
-        actors
-            .iter()
-            .map(|a| WireActor { x: f32::NAN, ..*a })
-            .collect(),
-        actors
-            .iter()
-            .map(|a| WireActor { faction: 16, ..*a })
-            .collect(),
-        actors.iter().rev().copied().collect(),
-    ];
-    for bad in bad_variants {
-        let mut a = vec![7u8];
-        let mut b = vec![7u8];
-        let via_into =
-            rh_protocol::encode_snapshot_into(&mut a, 101, 1, 42, Some(&me()), bad.iter().copied());
-        let msg = ServerMsg::Snapshot {
-            tick: 101,
-            phase: 1,
-            ack_input: 42,
-            me: Some(me()),
-            actors: bad,
-        };
-        assert!(via_into.is_err());
-        assert_eq!(via_into, msg.encode_into(&mut b));
-        assert_eq!(via_into.map(|_| ()), msg.try_encode().map(|_| ()));
-        assert_eq!((a, b), (vec![7u8], vec![7u8]));
-    }
-    // A count that disagrees with the iterator's own length is a mismatch, and over the limit is TooMany.
-    let mut out = vec![7u8];
-    let mut it = (0..5).map(actor);
-    it.next();
-    let r = rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, it);
-    assert!(r.is_ok());
-    let mut out = vec![7u8];
-    let many: Vec<WireActor> = (0..(MAX_ACTORS as u32 + 1)).map(actor).collect();
-    assert!(matches!(
-        rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, many.into_iter()),
-        Err(EncodeError::TooMany { .. })
-    ));
-    assert_eq!(out, [7]);
-}
-
-/// An `ExactSizeIterator` that lies about its length (announces 5, yields 4) is a count mismatch, never a frame whose
-/// announced count disagrees with its actors, and the caller's buffer is untouched.
-#[test]
-fn a_lying_exact_size_iterator_is_a_count_mismatch_and_leaves_the_buffer_alone() {
-    let mut out = vec![7u8, 8];
-    let r = rh_protocol::encode_snapshot_into(
-        &mut out,
-        1,
-        1,
-        1,
-        Some(&me()),
-        Liar { left: 4, claim: 5 },
-    );
-    assert_eq!(
-        r,
-        Err(EncodeError::CountMismatch {
-            declared: 5,
-            written: 4
-        })
-    );
-    assert_eq!(out, [7, 8]);
-    // The other way (claims 3, yields 4) is a mismatch too.
-    let r = rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, Liar { left: 4, claim: 3 });
-    assert_eq!(
-        r,
-        Err(EncodeError::CountMismatch {
-            declared: 3,
-            written: 4
-        })
-    );
-    assert_eq!(out, [7, 8]);
-    // And a truthful one still writes (the buffer is reusable after a refusal).
-    assert!(
-        rh_protocol::encode_snapshot_into(&mut out, 1, 1, 1, None, Liar { left: 4, claim: 4 })
-            .is_ok()
-    );
-}
-
-#[test]
-fn an_announced_count_over_the_limit_is_too_many() {
-    let mut out = vec![7];
-    let r = rh_protocol::encode_snapshot_into(
-        &mut out,
-        101,
-        1,
-        42,
-        None,
-        Liar {
-            left: 1,
-            claim: 1000,
-        },
-    );
-    assert!(matches!(
-        r,
-        Err(EncodeError::TooMany {
-            what: "actors",
-            n: 1000,
-            ..
-        })
-    ));
-    assert_eq!(out, [7]);
 }
 
 #[test]
@@ -355,8 +168,8 @@ fn max_actors_encodes_and_one_more_is_refused_not_clamped() {
         [1, 2, 3],
         "a refused frame leaves the buffer untouched"
     );
-    assert_eq!(stream(&mut out, &over), Err(err));
-    assert_eq!(out, [1, 2, 3], "a refused streamed frame is removed");
+    assert_eq!(full_frame(&mut out, &over), Err(err));
+    assert_eq!(out, [1, 2, 3], "a refused snapshot writes nothing");
     // What every decoder does with the frame the encoder refuses to write (hand-built: 513 minimal actors).
     let mut w = Writer::default();
     w.u8(0x83);
@@ -641,7 +454,10 @@ fn positions_outside_the_quantizable_range_are_refused_not_clamped() {
         );
         assert_eq!(out, vec![9u8], "an error leaves the buffer unchanged");
         let mut out = Vec::new();
-        assert_eq!(stream(&mut out, &m), Err(EncodeError::BadValue("position")));
+        assert_eq!(
+            full_frame(&mut out, &m),
+            Err(EncodeError::BadValue("position"))
+        );
         assert!(out.is_empty());
     }
     let swing = |x: f32, y: f32| ServerMsg::Fx {

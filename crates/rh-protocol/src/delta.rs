@@ -89,7 +89,19 @@ pub struct QActor {
 }
 
 impl QActor {
-    /// `a` as it goes over the wire (the caller has checked it: [`SnapshotData::build`] does).
+    /// `a` checked and quantized: the first reason a decoder would reject the actor on its own (a faction, weapon or status over
+    /// its bit width, an `hp_pct` over 100, a position off the wire grid), or the actor as it goes over the wire. The check is
+    /// per actor, so a result can be reused wherever the same actor is shown; the ascending order of ids belongs to a list and
+    /// is checked by [`SnapshotData::build_checked`].
+    #[inline]
+    pub fn checked(a: &WireActor) -> Result<Self, &'static str> {
+        if actor_looks_bad(a, None) {
+            return Err(snapshot_fault(0, None, std::slice::from_ref(a)).unwrap_or("actor"));
+        }
+        Ok(Self::from_wire(a))
+    }
+
+    /// `a` as it goes over the wire (the caller has checked it: [`QActor::checked`] does).
     #[inline]
     pub fn from_wire(a: &WireActor) -> Self {
         QActor {
@@ -205,7 +217,7 @@ impl std::ops::Deref for SnapshotData {
 impl SnapshotData {
     /// Quantizes and checks a snapshot, refusing (never repairing) anything a decoder would reject: more than [`MAX_ACTORS`]
     /// actors, a phase, status, faction or weapon over its bit width, an `hp_pct` over 100, a position off the wire grid,
-    /// ids that do not strictly ascend, or an iterator whose length lies. The same refusals as `encode_snapshot_into`.
+    /// ids that do not strictly ascend, or an iterator whose length lies.
     pub fn build<I>(
         tick: u32,
         phase: u8,
@@ -232,6 +244,31 @@ impl SnapshotData {
     where
         I: ExactSizeIterator<Item = WireActor>,
     {
+        Self::build_checked(
+            spare,
+            tick,
+            phase,
+            ack_input,
+            me,
+            actors.map(|a| QActor::checked(&a)),
+        )
+    }
+
+    /// [`SnapshotData::build_with`] from actors already checked and quantized one by one ([`QActor::checked`]): a caller that
+    /// shows the same actor to several viewers does that work once and passes the result to each. Every refusal of
+    /// [`SnapshotData::build_with`] is made here: the list limit, the head, the first faulty actor (an `Err` item, reported in
+    /// list order), ids that do not strictly ascend, and an iterator whose length lies.
+    pub fn build_checked<I>(
+        spare: Option<SnapshotData>,
+        tick: u32,
+        phase: u8,
+        ack_input: u32,
+        me: Option<WireSelf>,
+        actors: I,
+    ) -> Result<Self, EncodeError>
+    where
+        I: ExactSizeIterator<Item = Result<QActor, &'static str>>,
+    {
         let declared = actors.len();
         list("actors", declared, MAX_ACTORS)?;
         if phase > MAX_PHASE_CODE
@@ -249,13 +286,10 @@ impl SnapshotData {
         out.reserve(declared);
         let mut prev: Option<u32> = None;
         for a in actors {
-            if actor_looks_bad(&a, prev) {
-                let why = snapshot_fault(0, None, std::slice::from_ref(&a))
-                    .or(prev.is_some_and(|p| a.id <= p).then_some("actor order"))
-                    .unwrap_or("actor");
-                return Err(EncodeError::BadValue(why));
+            let q = a.map_err(EncodeError::BadValue)?;
+            if prev.is_some_and(|p| q.id <= p) {
+                return Err(EncodeError::BadValue("actor order"));
             }
-            let q = QActor::from_wire(&a);
             prev = Some(q.id);
             out.push(q);
         }
@@ -314,7 +348,7 @@ impl SnapshotData {
         n
     }
 
-    /// A capacity to build this snapshot's frame in without growing: its least Full size plus room for the stack records a delta
+    /// A capacity to build this snapshot's frame in without growing (what [`ConnEncoder::encode_frame`] reserves): its least Full size plus room for the stack records a delta
     /// is assembled from (they are copied whole, then trimmed).
     pub fn frame_capacity(&self) -> usize {
         self.min_len() + MAX_DELTA_HEAD + MAX_ACTOR_DELTA
@@ -326,7 +360,8 @@ impl SnapshotData {
         self.min_len as usize
     }
 
-    /// Appends this snapshot as a Full frame (the v2 layout): the same bytes `encode_snapshot_into` writes for it.
+    /// Appends this snapshot as a Full frame (the v2 layout): the same bytes `ServerMsg::Snapshot` encodes to for
+    /// [`SnapshotData::decoded`].
     pub fn encode_full_into(&self, out: &mut Vec<u8>) -> usize {
         let start = out.len();
         let mut w = Writer::from_vec(std::mem::take(out));
@@ -387,7 +422,13 @@ pub struct ConnEncoder {
     departed: Vec<u32>,
     /// The base before the current one, free to build the next snapshot in ([`ConnEncoder::take_spare`]).
     spare: Option<SnapshotData>,
+    /// The buffer [`ConnEncoder::encode_frame`] assembles a frame in before copying it to its exact size.
+    scratch: Vec<u8>,
 }
+
+/// Largest scratch buffer a [`ConnEncoder`] keeps between frames: a bigger one (a Full frame of a crowd) is freed once it has
+/// been copied out, so a connection holds no more than this beyond its snapshots.
+const SCRATCH_KEEP: usize = 2048;
 
 impl ConnEncoder {
     pub fn new() -> Self {
@@ -412,6 +453,7 @@ impl ConnEncoder {
             + self.base.as_ref().map_or(0, |b| b.memory_bytes())
             + self.spare.as_ref().map_or(0, SnapshotData::memory_bytes)
             + self.departed.capacity() * 4
+            + self.scratch.capacity()
     }
 
     /// The snapshot the base replaced, finished with: pass it to [`SnapshotData::build_with`] for the next snapshot, so the
@@ -440,6 +482,22 @@ impl ConnEncoder {
             (Some(bm), Some(cm)) => bm.id == cm.id,
             (None, Some(_)) => false,
         }
+    }
+
+    /// The frame for `snap` in one allocation of exactly its size (what the socket writer owns until it is sent), and its kind.
+    /// The frame is assembled in a buffer this encoder keeps between calls and copied out, so the only allocation per frame is
+    /// the frame itself: assembled in a fresh buffer, a 13-byte delta would sit in a block sized for the worst case (the stack
+    /// records are copied whole before they are trimmed). Otherwise exactly [`ConnEncoder::encode`].
+    pub fn encode_frame(&mut self, snap: SnapshotData) -> (Vec<u8>, FrameKind) {
+        let mut scratch = std::mem::take(&mut self.scratch);
+        scratch.clear();
+        scratch.reserve(snap.frame_capacity());
+        let kind = self.encode(snap, &mut scratch);
+        let frame = scratch.clone();
+        if scratch.capacity() <= SCRATCH_KEEP {
+            self.scratch = scratch;
+        }
+        (frame, kind)
     }
 
     /// Appends the frame for `snap` to `out` and makes `snap` the base of the next one: a Delta when that is possible and
