@@ -33,8 +33,8 @@ class W {
   f32(x) { this.need(4); this.v.setFloat32(this.n, x, true); this.n += 4; }
   f64(x) { this.need(8); this.v.setFloat64(this.n, x, true); this.n += 8; }
   bytes(a) { this.need(a.length); this.b.set(a, this.n); this.n += a.length; }
-  // At most 255 bytes, cut at a character boundary (never inside a UTF-8 sequence), like rh-protocol and the C# mirror.
-  str(s) { const e = new TextEncoder().encode(s); let n = Math.min(e.length, 255); while (n < e.length && (e[n] & 0xc0) === 0x80) n--; this.u8(n); this.bytes(e.subarray(0, n)); }
+  // At most 255 bytes; longer is refused, never cut (like rh-protocol and the C# mirror).
+  str(s) { const e = new TextEncoder().encode(s); if (e.length > 255) throw new Error("string of " + e.length + " bytes does not fit the wire (max 255)"); this.u8(e.length); this.bytes(e); }
   out() { return this.b.slice(0, this.n); }
 }
 class R {

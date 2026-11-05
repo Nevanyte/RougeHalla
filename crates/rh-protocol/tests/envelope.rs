@@ -99,3 +99,47 @@ fn the_writer_itself_never_truncates() {
     let mut w = Writer::default();
     w.str(&"x".repeat(256));
 }
+
+#[test]
+fn reject_code_zero_and_misnamed_unknowns_are_refused_by_the_encoder() {
+    let m = |code| ServerMsg::Reject {
+        code,
+        reason: String::new(),
+    };
+    assert_eq!(
+        m(RejectCode::Unknown(0)).try_encode(),
+        Err(EncodeError::BadValue("reject code"))
+    );
+    assert_eq!(
+        m(RejectCode::Unknown(7)).try_encode(),
+        Err(EncodeError::BadValue("reject code"))
+    );
+    assert!(m(RejectCode::Unknown(12)).try_encode().is_ok());
+    assert!(m(RejectCode::Kicked).try_encode().is_ok());
+}
+
+#[test]
+fn an_events_frame_with_an_overlong_killer_name_is_refused() {
+    let ev = |name: String| ServerMsg::Events {
+        tick: 1,
+        events: vec![WireEvent::Result(WireResult {
+            outcome: 0,
+            place: 1,
+            players: 2,
+            kills: 0,
+            killed_by: Some(name),
+            gv_total: 0,
+            gv_win: 0,
+            duration_sec: 0,
+            win_bonus_withheld: false,
+        })],
+    };
+    assert!(ev("k".repeat(255)).try_encode().is_ok());
+    assert_eq!(
+        ev("k".repeat(256)).try_encode(),
+        Err(EncodeError::StringTooLong {
+            what: "killed_by",
+            len: 256
+        })
+    );
+}

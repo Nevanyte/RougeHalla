@@ -706,7 +706,16 @@ impl Frame for ServerMsg {
                     return Err(EncodeError::BadValue("position"));
                 }
             }
-            ServerMsg::Reject { reason, .. } => str_fits("reason", reason)?,
+            ServerMsg::Reject { code, reason } => {
+                // Code 0 is not a code (every decoder refuses it), and a named code must be built as its variant.
+                let c = code.code();
+                if c == 0
+                    || (matches!(code, RejectCode::Unknown(_)) && RejectCode::from_u16(c) != *code)
+                {
+                    return Err(EncodeError::BadValue("reject code"));
+                }
+                str_fits("reason", reason)?
+            }
             ServerMsg::Pong { .. } => {}
         }
         frame_size(len, Self::MAX_FRAME)
@@ -871,7 +880,7 @@ impl Frame for ServerMsg {
 impl ServerMsg {
     /// The frame, in one allocation of exactly [`ServerMsg::encoded_len`] bytes. A message decoders would reject (more
     /// than [`MAX_ACTORS`] actors, an oversized frame, a bad map) panics in debug builds and is NOT repaired in release
-    /// builds; use [`ServerMsg::try_encode`] or [`ServerMsg::encode_into`] where that can happen.
+    /// builds, except that a string over 255 bytes panics in release too (the writer never truncates); use [`ServerMsg::try_encode`] or [`ServerMsg::encode_into`] where that can happen.
     pub fn encode(&self) -> Vec<u8> {
         encode_exact(self)
     }

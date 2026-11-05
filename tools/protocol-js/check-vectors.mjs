@@ -44,6 +44,7 @@ function checkSnapshot(m, d, n) {
 
 for (const v of fx.server) {
   const m = decode(bytes(v.hex));
+  if (v.name === "reject_code_unknown") { eq(m.code, 12, `${v.name} code`); eq(m.reason, "", `${v.name} reason`); }
   if (v.decoded === undefined) continue;
   const d = v.decoded, n = v.name;
   if (m.t === "snapshot") {

@@ -35,6 +35,7 @@ namespace Roguehalla.Net
             {
                 if (!(MaxHp > 0f)) return 100;
                 float p = 100f * (Hp < 0f ? 0f : Hp) / MaxHp;
+                if (float.IsNaN(p)) return 0;
                 return p > 100f ? 100 : (int)(p + 0.5f);
             }
         }

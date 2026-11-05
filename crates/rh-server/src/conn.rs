@@ -73,7 +73,7 @@ where
 
 /// The longest Reject reason the wire carries (wire strings carry a u8 length). The diagnostic text of a
 /// refusal is cut here, on a char boundary, by the caller that owns it: the codec itself never truncates.
-const MAX_REASON: usize = 255;
+const MAX_REASON: usize = rh_protocol::codec::MAX_STR;
 
 fn clip_reason(reason: &str) -> &str {
     let mut end = reason.len().min(MAX_REASON);
@@ -412,6 +412,20 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_long_reason_is_clipped_on_a_char_boundary_and_still_encodes() {
+        let long = "é".repeat(300);
+        let c = clip_reason(&long);
+        assert_eq!(c.len(), 254);
+        assert!(long.is_char_boundary(c.len()));
+        let m = ServerMsg::Reject {
+            code: RejectCode::ProfileInUse,
+            reason: c.into(),
+        };
+        assert!(m.try_encode().is_ok());
+        assert_eq!(clip_reason("short"), "short");
+    }
     use std::convert::Infallible;
     use std::pin::Pin;
     use std::task::{Context, Poll};
