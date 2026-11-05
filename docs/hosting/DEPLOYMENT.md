@@ -37,7 +37,7 @@ the smaller risk. The IaC is **prepared only, never applied**.
 
 **Validation, no AWS** (`hosting/infra/fleet/validate.sh`, pinned `python:3.12.8-slim`, `cfn-lint==1.59.0`, `parliament==1.6.4`): both
 templates lint clean for their Regions (`fleet.cfn.yaml` for `us-west-2`, `budget.cfn.yaml` for `us-east-1`), including warnings
-(`--include-checks W`); the IAM JSON parses and passes parliament at severity LOW. Lint proves schema validity, **not** that AWS accepts the
+(`--include-checks W`); the IAM JSON parses and passes parliament at severity LOW. The pinned-image run was done before the last template edit (`MaxInstances` capped at 1, comments); after it the Docker daemon stopped answering, so the final templates were re-linted with the same `cfn-lint==1.59.0` installed in a host virtualenv (Python 3.14): both clean. Lint proves schema validity, **not** that AWS accepts the
 values (instance-type availability, vCPU/memory fit, port ranges, the fleet role's log permission): those fail only on a real create.
 
 **Finding: no ContainerFleet resource type in ca-central-1.** cfn-lint 1.59.0 reports `E3006 Resource type 'AWS::GameLift::ContainerFleet'

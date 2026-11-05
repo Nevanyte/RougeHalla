@@ -10,7 +10,7 @@ const P = {
   undetectedHours: 24, // teardown delay: nobody noticed (a budget e-mail lags by hours; Budgets refreshes up to 3x a day)
   instancesPerLocation: 1, // MaxInstances is capped at 1 in the template
   ecrGb: 1, ecrUsdPerGbMonth: 0.1, // a full month of 1 GB (lifecycle keeps 6 images of about 50 MB each)
-  alarmMetrics: 9, alarmUsdPerMetricMonth: 0.1, // 8 alarms, one of them with 2 metrics, a full month, no free tier assumed
+  alarmMetrics: 8, alarmUsdPerMetricMonth: 0.1, // 7 alarms, one of them with 2 metrics, a full month, no free tier assumed
   logGb: 0.5, logUsdPerGb: 0.55, logStorageGbMonth: 0.5, logStorageUsd: 0.033, // ca-central-1 (higher) rates
   transferAllowanceUsd: 1.0, // image pulls and any data transfer not named as free (1 GB cross-Region is 0.09; generous)
   ipv4Usd: 0.005, // per public IPv4 per hour, if billed separately for fleet instances (UNVERIFIED), per instance

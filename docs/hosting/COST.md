@@ -40,7 +40,7 @@ The template allows only `c6g c7g c5 c5a c6i`; the worst case below uses the dea
 | Other item | Price (read 2026-11-05) | Note |
 |---|---|---|
 | ECR private storage | $0.10 per GB-month (both Regions) | same-Region pulls by EC2/Lambda/Fargate are free; GameLift-fleet pulls are not named (UNVERIFIED), the plan carries a $1 allowance. Cross-Region $0.09/GB |
-| CloudWatch standard alarm | $0.10 per alarm metric-month (10 free) | the metric-math alarm has 2 metrics; 9 alarm metrics in total |
+| CloudWatch standard alarm | $0.10 per alarm metric-month (10 free) | the metric-math alarm has 2 metrics; 8 alarm metrics in total (7 alarms) |
 | CloudWatch Logs | ingestion $0.50/GB us-west-2, $0.55/GB ca-central-1; storage $0.03 / $0.033 per GB-month (5 GB ingestion free) | the log group keeps 3 days; whether fleet logs bill as "vended" or custom is UNVERIFIED |
 | CloudWatch custom metric / dashboard | $0.30 per metric-month / $3.00 per dashboard-month | none created |
 | AWS Budgets | $0; action-enabled budgets free for the first 62 budget-days then $0.10 per day | one budget with one action |
@@ -51,17 +51,17 @@ The template allows only `c6g c7g c5 c5a c6i`; the worst case below uses the dea
 ## 3. Worst case (arithmetic: `node hosting/scripts/worst-case-cost.mjs`)
 
 Assumptions, all of them chosen to over-state: every instance runs at the dearest allowed type for the **4 h hard limit plus a 24 h teardown delay** (28 h); 1 instance per
-location; a full month of 1 GB of ECR, of all 9 alarm metrics and 0.5 GB of logs; a $1 transfer allowance; an IPv4 charge per instance-hour; and a 25 % buffer for items nobody listed.
+location; a full month of 1 GB of ECR, of all 8 alarm metrics and 0.5 GB of logs; a $1 transfer allowance; an IPv4 charge per instance-hour; and a 25 % buffer for items nobody listed.
 
 | Scenario | Instances | ECR | CloudWatch | Transfer | IPv4 | +25 % | Total USD | **Total CAD at 1.50** | Margin to CAD 20 |
 |---|---|---|---|---|---|---|---|---|---|
-| Stage 1: us-west-2 only | 3.05 | 0.10 | 1.19 | 1.00 | 0.14 | 1.37 | 6.85 | **10.28** | 9.72 |
-| Stages 1+2: us-west-2 + ca-central-1 remote location | 6.38 | 0.10 | 1.19 | 1.00 | 0.28 | 2.24 | 11.19 | **16.79** | 3.21 |
+| Stage 1: us-west-2 only | 3.05 | 0.10 | 1.09 | 1.00 | 0.14 | 1.35 | 6.73 | **10.09** | 9.91 |
+| Stages 1+2: us-west-2 + ca-central-1 remote location | 6.38 | 0.10 | 1.09 | 1.00 | 0.28 | 2.21 | 11.07 | **16.60** | 3.40 |
 
 Expected if everything goes to plan (3 h of `c6g.large` in us-west-2): about **USD 0.68, CAD 1.03** at the buffer rate.
 
-Reading it: **Stage 1 fits with a CAD 9.72 margin (49 %).** Stages 1+2 fit with a CAD 3.21 margin (16 %), which is thin once any other spend (Codex's, or Cost Explorer lag) is
-counted: stage 2 therefore needs its own explicit approval and a confirmed remaining allowance of at least CAD 17. The worst case does **not** cover: someone raising `MaxInstances` outside the template
+Reading it: **Stage 1 fits with a CAD 9.91 margin (50 %).** Stages 1+2 fit with a CAD 3.40 margin (17 %), which is thin once any other spend (Codex's, or Cost Explorer lag) is
+counted: stage 2 therefore needs its own explicit approval and a confirmed remaining allowance of at least CAD 17 (worst case 16.60). The worst case does **not** cover: someone raising `MaxInstances` outside the template
 (it refuses), a GameLift price change, an unlisted service, or a teardown that fails silently for longer than 24 h (the 25 % buffer is not a day of two more instances).
 
 ## 4. The cloud experiment (NOT RUN: needs owner approval and AWS credentials, none on this machine)
@@ -73,7 +73,7 @@ Pass/fail table (all **NOT RUN**), each step with its evidence and its stop cond
 
 | # | Step | Evidence | Stop if |
 |---|---|---|---|
-| 0 | Owner approves stage 1 in writing, confirms remaining allowance >= CAD 10.28, supplies a named sandbox profile | Cost Explorer screenshot/number | not confirmed |
+| 0 | Owner approves stage 1 in writing, confirms remaining allowance >= CAD 10.09, supplies a named sandbox profile | Cost Explorer screenshot/number | not confirmed |
 | 1 | `hosting/infra/fleet/validate.sh`, `hosting/scripts/test-aws-scripts.sh`, `teardown.sh --dry-run`, `verify-no-billable.sh --dry-run` (no AWS) | exit 0, call lists read | any fails |
 | 2 | Apply the Dockerfile `RH_BUILD` change ([DEPLOYMENT.md](DEPLOYMENT.md) 3.1); build `linux/arm64` image locally with `--build-arg RH_BUILD=<id>` | image id, `docker run` smoke | fails |
 | 3 | Create `budget.cfn.yaml` (us-east-1), then `fleet.cfn.yaml` repository only (`DesiredInstances=0` first), `docker push` the tag | stack events, `ecr describe-images` | any create fails |
@@ -110,7 +110,7 @@ hosting/scripts/verify-no-billable.sh --experiment stg1 --yes             # must
 
 ## 7. What the owner should decide before this runs
 
-Whether the remaining allowance covers CAD 10.28 (stage 1) or CAD 16.79 (stages 1+2) *on top of what is already spent*; which profile to use; whether the `RH_BUILD` Dockerfile change is accepted;
+Whether the remaining allowance covers CAD 10.09 (stage 1) or CAD 16.60 (stages 1+2) *on top of what is already spent*; which profile to use; whether the `RH_BUILD` Dockerfile change is accepted;
 and whether to accept the unverified assumptions (instance type availability for container fleets, protection under scale-in, image reaching a remote location).
 
 ## 8. After teardown
