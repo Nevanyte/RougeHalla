@@ -65,6 +65,7 @@ function rowsOf(map: GameMap): string[] {
 
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
 import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages/server/src/sim/vision";
+import { targetingScenarios } from "./scenarios/targeting";
 import { visionScenarios } from "./scenarios/vision";
 import { createScenarioWorld, DEFAULT_MODULES } from "./world";
 import type { Scenario, Input, Ctx } from "./scenarios/types";
@@ -178,6 +179,18 @@ function run(sc: Scenario): unknown {
       });
     }
     for (const kind of sc.record ?? []) {
+      if (kind === "locks") extras.locks = canonicalJson([...world.state.players.entries()].map(([id, p]) => {
+        const rt = world.players.get(id)!;
+        const w = rt.weapon;
+        return {
+          id, mirror: p.attackTarget, lock: w.lock, seen: w.lockSeen, lostAt: w.lockLosLostAt,
+          planAt: Number.isFinite(w.lockPlanAt) ? w.lockPlanAt : null,
+          searchAt: Number.isFinite(w.lockSearchAt) ? w.lockSearchAt : null,
+          goal: w.lockGoal, attackMove: w.attackMoveGoal, path: rt.path, held: w.held,
+          pressedAt: w.pressedAt, bufferedUntil: w.bufferedUntil, a: w.aim, aimAt: w.aimAt,
+          lagMs: w.lagMs, rootUntil: w.rootUntil, pendingTarget: w.action?.target ?? null, moveSeq: p.moveSeq,
+        };
+      }));
       if (kind === "combat") extras.combat = canonicalJson([...world.state.players.entries()].map(([id, p]) => {
         const w = world.players.get(id)!.weapon;
         return { id, weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot, drawStartedAt: p.drawStartedAt,
@@ -464,7 +477,7 @@ const SCENARIOS: Scenario[] = [
     packet: "P-COMBAT-2",
     requires: ["projEnd", "launch"],
     name: "bow_wand_capture",
-    description: "CAPTURE ONLY (projectiles are not in the Rust slice yet): a bow and a wand fighter trade shots at range.",
+    description: "A bow and a locked wand trade shots in the full world. Consumable spawns allocate three shared entity IDs during the duel; that producer remains pending.",
     parity: "capture-only",
     rows: OPEN,
     randomSeed: 12,
@@ -512,7 +525,15 @@ function pathfindingFixture(seed: number, queries: number): unknown {
 
 mkdirSync(OUT, { recursive: true });
 const only = process.argv.indexOf("--only") > 0 ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios]) {
+// Preserve the historical full-world capture, including its consumable entity allocations.
+const longDuel = SCENARIOS.find(s => s.name === "bow_wand_capture")!;
+const lockTwin: Scenario = {
+  ...longDuel, name: "bow_wand_lock_combat", packet: "P-COMBAT-3", parity: "slice",
+  description: "Bow cursor versus wand lock under explicit combat modules, without consumable allocations.",
+  modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
+  requires: ["input:target", "launch", "projEnd", "death"],
+};
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

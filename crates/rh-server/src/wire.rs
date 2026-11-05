@@ -186,11 +186,12 @@ impl ActorMemo {
     }
 }
 
-/// What one observed event is on the wire: the reliable Events frame or the disposable Fx frame. Exhaustive over
-/// [`SeenEvent`] (no wildcard): a new kind of observed event cannot reach a client without a wire form being chosen.
+/// Each observed event's explicit protocol-5 treatment. Exhaustive over [`SeenEvent`] (no wildcard): a new core
+/// event needs a deliberate wire mapping or an explicit omission until a compatible transport is implemented.
 enum Wire {
     Event(WireEvent),
     Fx(WireFx),
+    OmittedInV5,
 }
 
 fn to_wire(e: &SeenEvent) -> Wire {
@@ -213,6 +214,8 @@ fn to_wire(e: &SeenEvent) -> Wire {
             weapon: weapon.code(),
         }),
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
+        // Target locking is currently a core/policy/headless feature. Protocol 5 has no cancel telegraph.
+        SeenEvent::AttackCancelled { .. } => Wire::OmittedInV5,
         SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
             reason: match reason {
                 rh_sim::PickupRefusal::Blocked => 1,
@@ -357,6 +360,7 @@ impl Publisher {
                     debug_assert_eq!(e.class(), Class::Fx);
                     self.fx.push(w);
                 }
+                Wire::OmittedInV5 => {}
             }
         }
         for e in all {
@@ -803,6 +807,10 @@ mod tests {
         assert!(matches!(
             to_wire(&SeenEvent::Stagger { id }),
             Wire::Fx(WireFx::Stagger { id: 2 })
+        ));
+        assert!(matches!(
+            to_wire(&SeenEvent::AttackCancelled { id }),
+            Wire::OmittedInV5
         ));
         for (reason, code) in [
             (PickupRefusal::Blocked, 1),

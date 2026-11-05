@@ -74,6 +74,9 @@ pub enum Event {
         #[serde(default)]
         target_visible: bool,
     },
+    AttackCancelled {
+        id: PlayerId,
+    },
     Stagger {
         id: PlayerId,
     },
@@ -141,9 +144,10 @@ impl Event {
         match *self {
             Event::Swing { by, .. } => Visibility::IfSeen(by),
             Event::Hit { victim, by, .. } => Visibility::IfSeenOrBy { seen: victim, by },
-            Event::Block { id, .. } | Event::Stagger { id } | Event::Death { id, .. } => {
-                Visibility::IfSeen(id)
-            }
+            Event::Block { id, .. }
+            | Event::AttackCancelled { id }
+            | Event::Stagger { id }
+            | Event::Death { id, .. } => Visibility::IfSeen(id),
             Event::PickupRefused { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::ProjectileLaunched(_)
@@ -167,6 +171,7 @@ impl Event {
             Event::Swing { .. }
             | Event::Hit { .. }
             | Event::Block { .. }
+            | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
             Event::PickupRefused { .. } => Class::Important,
             Event::ProjectileLaunched(_)

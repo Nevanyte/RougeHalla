@@ -1,5 +1,32 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
+## Next bounded slice: engagement and Holy
+
+Source review after C3 selected shared player engagement, authoritative landed-damage accounting and Holy lifesteal
+as the first implementation slice. Other faction signatures remain pending. Capture uses the existing explicit module
+list in its original installation order; do not add a blanket claim that all signature installers are ported.
+
+Holy reads HP/maxHP in `factions.beforeDamage`, excluding barriers. Its heal amount uses actual landed rows after
+barrier apportionment; instantaneous Hit/hitLanded FX keep their pre-barrier amounts. Player overkill remains credited.
+The existing ledger discards these landed rows, so add ordered reusable scratch rather than deriving healing from FX.
+Heal FX carry recipient and actual gained amount; there is no `Holy` damage signature kind. Full/dead recipients emit
+no artificial heal. A fighter killed in this ledger pass cannot heal itself alive afterward.
+
+Record physical block contacts at melee/projectile producers into trusted scratch. `Sim::step_into` accepts a caller-owned
+event buffer, so old or invented caller Block events must never affect gameplay. Process actual ledger contacts first,
+physical blocks second, preserving source iteration order. Blocks can engage at zero damage without starting heal
+lockout. Add a prefilled-output-versus-empty-buffer state/hash regression.
+
+Private signature target/reach/contact/forget clocks are separate from C3 wand locks and never enter observations.
+Contact tie ranking uses the source salted tick/FNV/one-Mulberry formulation, not action order. Add finite optional clocks
+and checkpoint validation. Keep unused afterWeapons/Fire/Frost rows pending rather than installing placeholder handlers.
+
+Use genuine Holy-only installed-module captures, then verify whether the original full-default `signature_holy` trace
+can be compared unchanged. Holy-only deaths can still trigger unrelated corpse systems; prove their inactivity or use
+the explicitly identified module set. Ordinary `heal` lockout boundary tests can call the actual source helper directly;
+do not invent a heal command or pretend an unported terrain/chest producer exists. Full Fire/Plague/Frost/Sentenced,
+cards, mobs, wards, training and teleport cleanup remain later work.
+
 ## ID and outcome
 P-FACTION-1. Between players with no cards (power 0), the five factions' signatures run exactly as in legacy: Fire burn +
 backlash, Plague disease + execute, Sentenced tiered mark, Frost chill (rate aura + movement chill + ranged chill), Holy

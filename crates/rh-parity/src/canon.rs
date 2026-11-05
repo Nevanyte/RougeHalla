@@ -106,6 +106,7 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::PickupRefused { id, reason, .. } => {
             json!({"kind":"toast", "to":fid(*id), "text":reason.message()})
         }
+        Event::AttackCancelled { id } => json!({"kind":"cancel","id":fid(*id)}),
         Event::Stagger { id } => json!({"kind": "stagger", "id": fid(*id)}),
         Event::RaidStarted => json!({"kind": "raidStarted"}),
         Event::Gv { .. } | Event::Resolved { .. } => return None,

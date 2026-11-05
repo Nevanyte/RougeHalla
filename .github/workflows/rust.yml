@@ -59,6 +59,8 @@ jobs:
         run: node --import tsx tools/map-fixtures/foundations.ts --check
       - name: Full map exports still match the legacy reference
         run: node --import tsx tools/map-fixtures/full-map.ts --check
+      - name: Zone partitions still match the legacy reference
+        run: node --import tsx tools/map-fixtures/zones-partition.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

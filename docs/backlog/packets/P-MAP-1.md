@@ -24,9 +24,9 @@ simulation boundary requested by the owner. No new crate or dependencies are nee
 tool can later provide sweep/print; tools/map-fixtures exports actual reference observations. The `rh-map/2` name below
 is an export format, not a separate gameplay implementation. Full-layer export, pins and independent certifier remain.
 
-M0 full-layer admission and M1 deterministic trig/grid/fixed layout are implemented and independently reviewed. They
-do not claim a complete generator, public rich-map transport or seed-pin parity. Next M2a ports actual zone partitioning
-and compares real pre-styler intermediate arrays/draws; M2b then adds camp sites and initial territories. Post-styler repair
+M0 full-layer admission, M1 deterministic trig/grid/fixed layout and M2a exact zone partitioning are implemented and
+independently reviewed. They do not claim a complete generator, public rich-map transport or seed-pin parity. M2a compares
+real pre-styler intermediate arrays and consumed RNG words; next M2b adds camp sites and initial territories. Post-styler repair
 waits for real stage inputs. New rule definitions must drive both the implementation and allocation-free content words.
 
 ## Exclusive write scope

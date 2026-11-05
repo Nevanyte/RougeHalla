@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 /// Version 2: `Policy::reset` takes a [`MatchStart`] (the public match context) instead of `(seed, me)`; `Seat::new` and
 /// `AsyncSeat::spawn` take the same [`MatchStart`] and fault on a contract or observation-version mismatch.
 /// Version 3 proposals use observer-issued pickup handles.
-pub const POLICY_CONTRACT_VERSION: u16 = 3;
+pub const POLICY_CONTRACT_VERSION: u16 = 4;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).

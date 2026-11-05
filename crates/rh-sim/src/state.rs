@@ -330,6 +330,7 @@ pub struct Packet {
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PendingAction {
+    pub target: Option<PlayerId>,
     pub kind: ActionKind,
     pub weapon: WeaponId,
     pub started_at: f64,
@@ -373,8 +374,21 @@ pub struct Shred {
 }
 
 /// A fighter's weapon state: the carried items and the active slot, and the runtime of the swing in progress.
+/// Private wand chase state. Search budgets survive a dropped or replaced lock.
+#[derive(Clone, Copy, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Targeting {
+    pub target: Option<PlayerId>,
+    pub seen: bool,
+    pub lost_at: Option<f64>,
+    pub plan_at: Option<f64>,
+    pub search_at: Option<f64>,
+    pub goal: Option<Vec2>,
+    pub attack_move: Option<Vec2>,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct WeaponRt {
+    pub targeting: Targeting,
     /// Carried items; an empty slot fights with fists.
     /// Armor reduction folded after damage, used by the next tick's ledger.
     pub armor_shred: f64,
@@ -398,6 +412,7 @@ pub struct WeaponRt {
 impl Default for WeaponRt {
     fn default() -> Self {
         Self {
+            targeting: Targeting::default(),
             armor_shred: 0.0,
             shreds: Vec::with_capacity(MAX_PLAYERS),
             weapon0: None,

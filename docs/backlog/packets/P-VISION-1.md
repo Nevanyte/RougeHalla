@@ -25,9 +25,17 @@ the geometry against which each old reveal occurred, or replace the representati
 Do not re-evaluate old reveals against changed geometry. No Unity gameplay implementation is permitted.
 
 Target locking must use legitimate public target records before resolving a private actor. In the legacy implementation
-target lookup can trigger a private vision refresh. Hidden and absent guesses must not create different refresh cadence
-or responses: establish the caller's due refresh at a deterministic action boundary independently of candidate existence,
-then perform read-only lookup/visibility tests. Preserve the normal input budget and record resolved misses for replay.
+target lookup can trigger a private vision refresh. Independent paired-world reproduction found 33 differing tile
+deadlines after an unsuccessful hidden-ID guess and 13 differing visible cells almost 30 seconds later. Attack-move
+autonomous scanning reproduced the leak too. Hidden and absent guesses must not create different refresh cadence.
+
+The reviewed C3 correction computes one prospective due pre-movement self-origin view independently of candidate
+existence. Fully hidden/missing candidates never commit an early refresh. A legitimately visible candidate commits
+the due sample at the source sight-check position, even if range, weapon, re-click or path throttling later refuses it.
+This deliberately corrects the concealed-candidate side effect; it does not claim identical private trail tapes for that
+legacy defect. Autonomous acquisition uses authoritative prospective sight independently of delivered public records.
+Explicit public commands require the last successfully delivered actor record and current visibility. Preserve normal
+budgeting and record resolved misses for replay; zero remains an invalid ID rather than a budgeted miss.
 
 ## Acceptance for later producers
 

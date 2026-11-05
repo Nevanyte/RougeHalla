@@ -598,7 +598,10 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         items::expire_shred(cx);
         Flow::Continue
     }),
-    pending("targets", Gate::Always, "P-COMBAT-3"),
+    ported("targets", Gate::Always, |cx| {
+        crate::systems::targeting::update(cx);
+        Flow::Continue
+    }),
     ported("weapons", Gate::Always, |cx| {
         weapons::update(cx);
         Flow::Continue
@@ -772,7 +775,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "target",
         "targeting",
         Gate::Always,
-        Run::Pending("P-COMBAT-3"),
+        Run::Ported(crate::systems::targeting::target),
     ),
     action(
         ActionId::Choose,
@@ -1550,8 +1553,8 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The slice's world: the capture plan runs 18 phases and three registered systems.
-        assert_eq!(CAPTURE_PLAN.phases.live().len(), 18);
+        // The slice's world: the capture plan runs 19 phases and three registered systems.
+        assert_eq!(CAPTURE_PLAN.phases.live().len(), 19);
         assert_eq!(CAPTURE_PLAN.systems.live().len(), 3);
         // Training swaps the settle for a pending one: no ported settle in that world yet.
         assert!(!TRAINING_PLAN

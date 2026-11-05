@@ -134,3 +134,163 @@ fn publication_and_policy_cadence_cannot_change_a_moving_viewers_trail_or_replay
     assert_eq!(sparse.into_replay().unwrap(), replay);
     assert_eq!(run_replay(&replay).unwrap().0.state_hash(), h);
 }
+
+#[test]
+fn a_viewed_target_and_budgeted_guesses_share_the_recorded_headless_path() {
+    let mut arena = practice_arena();
+    let from = Vec2::new(100., 272.);
+    arena.spawns = vec![from, Vec2::new(390., 272.)];
+    let agents = (0..2)
+        .map(|i| AgentSpec {
+            profile: format!("actor{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            agent: Agent::External,
+        })
+        .collect();
+    let mut env = Env::new(
+        EnvConfig {
+            arena,
+            sim: SimConfig::default(),
+            max_ticks: 300,
+            record: true,
+        },
+        agents,
+        0,
+    );
+    env.seed_weapon_container(ContainerKind::Ground, from, &[WeaponId::Wand])
+        .unwrap();
+    let initial = env.observations();
+    let handle = initial[0].props[0].handle;
+    let other = initial[0].visible[0].id;
+    let picked = env.step(&[vec![PublicCommand::Pickup { handle }]]);
+    assert_eq!(
+        picked.observations[0].me.as_ref().unwrap().weapon,
+        WeaponId::Wand
+    );
+    let miss = PublicCommand::Target {
+        actor: PlayerId(899),
+    };
+    let hit = PublicCommand::Target { actor: other };
+    let locked = env.step(&[vec![miss, hit]]);
+    assert_eq!(
+        locked.observations[0].me.as_ref().unwrap().attack_target,
+        Some(other)
+    );
+    for _ in 0..40 {
+        env.advance(&[]);
+    }
+    let cp = serde_json::to_value(&env.sim).unwrap();
+    let restored = Sim::restore(cp).unwrap();
+    let (mut fresh, obs) = Env::from_external_checkpoint(restored, 300).unwrap();
+    assert_eq!(obs[0].me.as_ref().unwrap().attack_target, Some(other));
+    for _ in 0..20 {
+        env.advance(&[]);
+        fresh.advance(&[]);
+        assert_eq!(fresh.sim.state_hash(), env.sim.state_hash());
+        assert_eq!(fresh.last_events(), env.last_events());
+    }
+    let hash = env.sim.state_hash();
+    let replay = env.into_replay().unwrap();
+    let commands: Vec<_> = replay
+        .ticks
+        .iter()
+        .flat_map(|tick| &tick.inputs)
+        .filter_map(|input| match input {
+            rh_sim::replay::ReplayInput::Command {
+                player: PlayerId(1),
+                cmd,
+            } => Some(*cmd),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        commands[1..],
+        [
+            rh_sim::validate(rh_sim::RawCommand::MissingTarget).unwrap(),
+            rh_sim::validate(rh_sim::RawCommand::Target { id: other }).unwrap()
+        ]
+    );
+    assert_eq!(run_replay(&replay).unwrap().0.state_hash(), hash);
+}
+
+struct TakeWandAndLock;
+impl Policy for TakeWandAndLock {
+    fn spec(&self) -> PolicySpec {
+        PolicySpec {
+            decision_interval_ticks: 1,
+            ..Idle.spec()
+        }
+    }
+    fn reset(&mut self, _: &MatchStart) {}
+    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
+        let Some(me) = &obs.me else {
+            return vec![];
+        };
+        if me.weapon != WeaponId::Wand {
+            return obs
+                .props
+                .iter()
+                .find(|p| p.cue.focused)
+                .map(|p| PublicCommand::Pickup { handle: p.handle })
+                .into_iter()
+                .collect();
+        }
+        if me.attack_target.is_none() {
+            return obs
+                .visible
+                .first()
+                .map(|a| PublicCommand::Target { actor: a.id })
+                .into_iter()
+                .collect();
+        }
+        vec![]
+    }
+}
+#[test]
+fn an_inline_policy_locks_via_its_delivered_actor_rows() {
+    let mut arena = practice_arena();
+    let spawn = Vec2::new(100., 272.);
+    arena.spawns = vec![spawn, Vec2::new(360., 272.)];
+    let specs = vec![
+        AgentSpec {
+            profile: "policy".into(),
+            faction: FactionId::Holy,
+            bot: true,
+            agent: Agent::Policy {
+                policy: Box::new(TakeWandAndLock),
+            },
+        },
+        AgentSpec {
+            profile: "other".into(),
+            faction: FactionId::Frost,
+            bot: false,
+            agent: Agent::External,
+        },
+    ];
+    let mut env = Env::new(
+        EnvConfig {
+            arena,
+            sim: SimConfig::default(),
+            max_ticks: 50,
+            record: true,
+        },
+        specs,
+        0,
+    );
+    env.seed_weapon_container(ContainerKind::Ground, spawn, &[WeaponId::Wand])
+        .unwrap();
+    for _ in 0..6 {
+        env.advance(&[]);
+    }
+    let own = rh_sim::observe(&env.sim, PlayerId(1), &[]);
+    assert_eq!(own.me.unwrap().attack_target, Some(PlayerId(2)));
+    let hash = env.sim.state_hash();
+    assert_eq!(
+        run_replay(&env.into_replay().unwrap())
+            .unwrap()
+            .0
+            .state_hash(),
+        hash
+    );
+}

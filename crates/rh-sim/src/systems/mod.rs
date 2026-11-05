@@ -18,6 +18,7 @@ pub(crate) mod melee;
 pub(crate) mod movement;
 pub(crate) mod projectiles;
 pub(crate) mod settle;
+pub(crate) mod targeting;
 pub(crate) mod weapons;
 
 use crate::events::Event;

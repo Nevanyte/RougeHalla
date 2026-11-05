@@ -1,4 +1,5 @@
-//! Seat-local item offers. The simulation never knows which ticks an observer sampled.
+//! Seat-local item offers and actor records for public command intake.
+//! The simulation never knows which ticks an observer sampled.
 //! A batch changes only on publicly distinguishable cues or a scheduled renewal.
 use crate::constants::{INTERACT_RANGE, MASK_MOVE};
 use crate::geometry::ray_blocked;
@@ -119,6 +120,9 @@ pub struct ItemObserver {
     rows: Vec<VisibleProp>,
     retired: Vec<Retired>,
     scratch: Vec<Candidate>,
+    // The last successfully delivered actor rows, independent of item offer renewal.
+    actors: Vec<PlayerId>,
+    staged_actors: Vec<PlayerId>,
     vision: crate::vision::TileVisionCache,
 }
 
@@ -133,6 +137,8 @@ impl ItemObserver {
             rows: Vec::new(),
             retired: Vec::new(),
             scratch: Vec::new(),
+            actors: Vec::new(),
+            staged_actors: Vec::new(),
             vision: Default::default(),
         }
     }
@@ -250,6 +256,9 @@ impl ItemObserver {
             return Err(OfferError::HandlesExhausted);
         }
         crate::observe::observe_with(sim, self.viewer, events, out, cache);
+        self.staged_actors.clear();
+        self.staged_actors
+            .extend(out.visible.iter().map(|actor| actor.id));
         out.inventory = sim.player(self.viewer).map(|me| Inventory {
             active_slot: me.weapon.slot,
             slots: [me.weapon.weapon0, me.weapon.weapon1],
@@ -288,22 +297,38 @@ impl ItemObserver {
     /// Return exactly the command to submit and record, including a normal budgeted miss for an absent,
     /// expired or now-invisible target. A handle cannot resolve outside this viewer's bindings.
     pub fn resolve(&self, sim: &Sim, proposal: PublicCommand) -> Result<Command, Reject> {
-        proposal.resolve(|handle| {
-            let id = self.current.lookup(handle).or_else(|| {
-                self.retired
-                    .iter()
-                    .filter(|b| {
-                        sim.tick()
-                            .checked_sub(b.tick)
-                            .is_some_and(|age| age < GRACE)
-                    })
-                    .find_map(|b| b.bindings.lookup(handle))
-            })?;
-            let me = sim.player(self.viewer)?;
-            let i = sim.containers().binary_search_by_key(&id, |c| c.id).ok()?;
-            crate::vision::point_visible(&sim.arena().map, me, sim.containers()[i].at, sim.tick())
+        proposal.resolve(
+            |handle| {
+                let id = self.current.lookup(handle).or_else(|| {
+                    self.retired
+                        .iter()
+                        .filter(|b| {
+                            sim.tick()
+                                .checked_sub(b.tick)
+                                .is_some_and(|age| age < GRACE)
+                        })
+                        .find_map(|b| b.bindings.lookup(handle))
+                })?;
+                let me = sim.player(self.viewer)?;
+                let i = sim.containers().binary_search_by_key(&id, |c| c.id).ok()?;
+                crate::vision::point_visible(
+                    &sim.arena().map,
+                    me,
+                    sim.containers()[i].at,
+                    sim.tick(),
+                )
                 .then_some(id)
-        })
+            },
+            |actor| {
+                self.actors.binary_search(&actor).is_ok()
+                    && sim
+                        .player(self.viewer)
+                        .zip(sim.player(actor))
+                        .is_some_and(|(me, other)| {
+                            crate::vision::actor_visible(&sim.arena().map, me, other, sim.tick())
+                        })
+            },
+        )
     }
 }
 
@@ -322,6 +347,7 @@ impl PreparedOffer<'_> {
 
     pub fn commit(self) {
         let s = self.observer;
+        std::mem::swap(&mut s.actors, &mut s.staged_actors);
         if self.absent {
             // A permanently removed viewer may be sampled again in the departure tick. No handle is
             // issued for this clear, and no prior target may survive the departure.

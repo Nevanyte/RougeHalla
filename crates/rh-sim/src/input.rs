@@ -11,11 +11,20 @@
 use crate::constants::{MAX_ACTIONS_PER_TICK, ORDER_BURST, ORDER_PER_SECOND, WORLD_H, WORLD_W};
 use crate::math::wrap_angle;
 
-/// A proposal from a public seat. Pickup can name only an observer-issued handle.
+/// A proposal from a public seat. Pickup names an issued item handle; target names an actor
+/// from the viewer’s most recently delivered complete observation.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum PublicCommand {
+    Target {
+        actor: crate::PlayerId,
+    },
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
     Move {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+    },
+    AttackMove {
         x: f64,
         y: f64,
         seq: Option<u8>,
@@ -47,8 +56,17 @@ pub enum PublicCommand {
 /// Trusted fixture/replay-side proposal. Public seats use [`PublicCommand`].
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RawCommand {
+    Target {
+        id: crate::PlayerId,
+    },
+    MissingTarget,
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
     Move {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+    },
+    AttackMove {
         x: f64,
         y: f64,
         seq: Option<u8>,
@@ -89,6 +107,9 @@ pub struct Command(Kind);
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 enum Kind {
+    Target { id: crate::PlayerId },
+    MissingTarget,
+    AttackMove { x: f64, y: f64, seq: Option<u8> },
     Move { x: f64, y: f64, seq: Option<u8> },
     Stop { seq: Option<u8> },
     Aim { a: f64 },
@@ -104,8 +125,18 @@ impl PublicCommand {
     pub(crate) fn resolve(
         self,
         lookup: impl FnOnce(crate::PickupHandle) -> Option<u32>,
+        seen: impl FnOnce(crate::PlayerId) -> bool,
     ) -> Result<Command, Reject> {
         validate(match self {
+            Self::Target { actor } if actor.0 == 0 => return Err(Reject::InvalidTarget),
+            Self::Target { actor } => {
+                if seen(actor) {
+                    RawCommand::Target { id: actor }
+                } else {
+                    RawCommand::MissingTarget
+                }
+            }
+            Self::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Self::Pickup { handle } => match lookup(handle) {
                 Some(container_id) => RawCommand::Pickup { container_id },
                 None => RawCommand::MissingPickup,
@@ -123,6 +154,9 @@ impl PublicCommand {
 impl Kind {
     fn raw(self) -> RawCommand {
         match self {
+            Kind::Target { id } => RawCommand::Target { id },
+            Kind::MissingTarget => RawCommand::MissingTarget,
+            Kind::AttackMove { x, y, seq } => RawCommand::AttackMove { x, y, seq },
             Kind::MissingPickup => RawCommand::MissingPickup,
             Kind::Swap { slot } => RawCommand::Swap { slot },
             Kind::Pickup { container_id } => RawCommand::Pickup { container_id },
@@ -160,6 +194,7 @@ pub(crate) fn cmd(raw: RawCommand) -> Command {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reject {
+    InvalidTarget,
     NonFinite,
     InvalidSlot,
     InvalidContainer,
@@ -190,6 +225,13 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         RawCommand::Swap { slot } if slot.is_some_and(|i| i > 1) => {
             return Err(Reject::InvalidSlot)
         }
+        RawCommand::Target { id } if id.0 == 0 => return Err(Reject::InvalidTarget),
+        RawCommand::Target { id } => Kind::Target { id },
+        RawCommand::MissingTarget => Kind::MissingTarget,
+        RawCommand::AttackMove { x, y, seq } => {
+            let (x, y) = clamp_pt(x, y)?;
+            Kind::AttackMove { x, y, seq }
+        }
         RawCommand::MissingPickup => Kind::MissingPickup,
         RawCommand::Pickup { container_id: 0 } => return Err(Reject::InvalidContainer),
         RawCommand::Swap { slot } => Kind::Swap { slot },
@@ -213,12 +255,15 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum MoveCmd {
+    AttackMove { x: f64, y: f64, seq: Option<u8> },
     Move { x: f64, y: f64, seq: Option<u8> },
     Stop { seq: Option<u8> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) enum ActionCmd {
+    Target { id: crate::PlayerId },
+    MissingTarget,
     Attack { a: f64, t: Option<f64> },
     Release { a: f64, t: Option<f64> },
     Swap { slot: Option<u8> },
@@ -294,11 +339,19 @@ impl InputQueue {
         if let Some(MoveCmd::Move { x, y, seq }) = self.mv {
             same(RawCommand::Move { x, y, seq }, Kind::Move { x, y, seq })?;
         }
+        if let Some(MoveCmd::AttackMove { x, y, seq }) = self.mv {
+            same(
+                RawCommand::AttackMove { x, y, seq },
+                Kind::AttackMove { x, y, seq },
+            )?;
+        }
         if let Some(a) = self.aim {
             same(RawCommand::Aim { a }, Kind::Aim { a })?;
         }
         for act in self.actions.as_slice() {
             match *act {
+                ActionCmd::Target { id } => same(RawCommand::Target { id }, Kind::Target { id })?,
+                ActionCmd::MissingTarget => same(RawCommand::MissingTarget, Kind::MissingTarget)?,
                 ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
                 ActionCmd::Swap { slot } => same(RawCommand::Swap { slot }, Kind::Swap { slot })?,
                 ActionCmd::Pickup { container_id } => same(
@@ -376,6 +429,12 @@ impl InputQueue {
                 self.mv = Some(MoveCmd::Move { x, y, seq });
                 self.move_before = self.actions.len();
             }
+            Kind::AttackMove { x, y, seq } => {
+                self.mv = Some(MoveCmd::AttackMove { x, y, seq });
+                self.move_before = self.actions.len();
+            }
+            Kind::Target { id } => return self.push_action(ActionCmd::Target { id }),
+            Kind::MissingTarget => return self.push_action(ActionCmd::MissingTarget),
             Kind::Stop { seq } => {
                 self.mv = Some(MoveCmd::Stop { seq });
                 self.move_before = self.actions.len();

@@ -200,6 +200,10 @@ impl OutcomeDigest {
                 self.s(reason.message());
                 self.w(*target_visible as u64);
             }
+            Event::AttackCancelled { id } => {
+                self.s("cancel");
+                self.w(id.0 as u64);
+            }
             Event::Stagger { id } => {
                 self.s("stagger");
                 self.w(id.0 as u64);

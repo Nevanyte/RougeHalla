@@ -413,6 +413,34 @@ pub fn content_hash_of_map_definition(
     stagger_weapons: &[WeaponId],
     definition: &crate::mapgen::coliseum::FixedDefinition<'_>,
 ) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        definition,
+        &crate::mapgen::zones::default_definition(),
+    )
+}
+
+/// The exact zone-partition definition is shared by generation and this identity fold.
+pub fn content_hash_of_zone_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::zones::ZoneDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        &crate::mapgen::coliseum::default_definition(),
+        definition,
+    )
+}
+
+fn content_hash_of_map_definitions(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    coliseum: &crate::mapgen::coliseum::FixedDefinition<'_>,
+    zones: &crate::mapgen::zones::ZoneDefinition,
+) -> u64 {
     let mut h = Fnv::new();
 
     h.str("registry");
@@ -423,7 +451,10 @@ pub fn content_hash_of_map_definition(
     }
 
     h.str("mapgen/coliseum/1");
-    crate::mapgen::coliseum::visit_content(definition, |word| h.u64(word));
+    crate::mapgen::coliseum::visit_content(coliseum, |word| h.u64(word));
+
+    h.str("mapgen/zones/partition/1");
+    crate::mapgen::zones::visit_content(zones, |word| h.u64(word));
 
     h.str("factions");
     for f in FactionId::ALL {

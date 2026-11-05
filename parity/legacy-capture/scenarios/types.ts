@@ -19,7 +19,7 @@ export interface Scenario {
   modules?: string[];
   config?: Partial<SimConfig>;
   secrets?: { rewardSalt?: [number, number, number, number]; questSalt?: [number, number, number, number] };
-  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat">;
+  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks">;
   generatedMapSeed?: number;
   vision?: { viewers: string[]; points: Vec2[]; spawnSeed?: number };
   containers?: Array<{ weapon: string; at: Vec2 }>;

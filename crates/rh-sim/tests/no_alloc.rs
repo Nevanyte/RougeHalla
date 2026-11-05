@@ -83,6 +83,14 @@ fn load(name: &str) -> Scenario {
         let g = |k: &str| m.get(k).and_then(Value::as_f64);
         let seq = m.get("seq").and_then(Value::as_u64).map(|v| v as u8);
         let raw = match i["type"].as_str().unwrap() {
+            "target" => RawCommand::Target {
+                id: PlayerId(m["id"].as_str().unwrap()[1..].parse::<u32>().unwrap() + 1),
+            },
+            "attackMove" => RawCommand::AttackMove {
+                x: g("x").unwrap(),
+                y: g("y").unwrap(),
+                seq,
+            },
             "move" => RawCommand::Move {
                 x: g("x").unwrap(),
                 y: g("y").unwrap(),
@@ -127,11 +135,11 @@ fn load(name: &str) -> Scenario {
 }
 
 /// Runs the scenario, returning (steady steps counted, allocations in them, the first offending tick).
-fn run(name: &str, warm_up: u32) -> (u32, u64, Option<u32>) {
+fn run(name: &str, warm_up: u32, end: u32) -> (u32, u64, Option<u32>) {
     let mut sc = load(name);
     let mut out: Vec<Event> = Vec::with_capacity(64);
     let (mut steady, mut allocs, mut first_bad) = (0u32, 0u64, None);
-    for n in 0..sc.ticks {
+    for n in 0..sc.ticks.min(end) {
         let tick = sc.sim.tick() + 1;
         for (id, cmd) in &sc.by_tick[tick as usize] {
             let _ = sc.sim.submit_unbudgeted(*id, *cmd);
@@ -168,7 +176,7 @@ fn a_steady_state_step_allocates_nothing() {
         "shield_block_riposte",
         "pickup_replace_drop",
     ] {
-        let (steady, allocs, first_bad) = run(name, WARM_UP_TICKS);
+        let (steady, allocs, first_bad) = run(name, WARM_UP_TICKS, u32::MAX);
         assert!(
             steady >= 100,
             "{name}: only {steady} steady steps were counted"
@@ -187,8 +195,20 @@ fn a_steady_state_step_allocates_nothing() {
         "sword_swing_ball",
         "wand_splash_group",
     ] {
-        let (steady, allocs, bad) = run(name, 40);
+        let (steady, allocs, bad) = run(name, 40, u32::MAX);
         assert_eq!(steady, 56, "{name}");
+        assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
+    }
+    // Track repeated accepted/rejected wall searches and the live LOS-grace chase before
+    // the first flight of those scenarios grows its own independent projectile buffers.
+    for (name, warm, end) in [
+        ("bow_wand_lock_combat", 200, u32::MAX),
+        ("wand_path_search_throttle", 6, 24),
+        ("wand_lock_los_grace", 18, 37),
+        ("wand_attack_move_id_tie", 35, u32::MAX),
+    ] {
+        let (steady, allocs, bad) = run(name, warm, end);
+        assert!(steady > 10, "{name}");
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
 }

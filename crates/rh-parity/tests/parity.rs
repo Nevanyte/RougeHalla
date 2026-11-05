@@ -798,3 +798,117 @@ fn a_final_bush_attack_still_restores_after_its_pending_deadline_passes() {
         assert!(rh_sim::Sim::restore(&cp).is_err());
     }
 }
+
+#[test]
+fn target_fixtures_pin_first_sight_grace_and_committed_retarget_rules() {
+    fn locks(fx: &Fixture, tick: u32) -> &serde_json::Value {
+        &fx.ticks
+            .iter()
+            .find(|row| row.tick == tick)
+            .unwrap()
+            .locks
+            .as_ref()
+            .unwrap()[0]
+    }
+    let fixture = |name: &str| load(&fixtures_dir().join(format!("{name}.json")));
+    for (name, tick) in [("move", 4), ("stop", 4), ("attackMove", 5)] {
+        let fx = fixture(&format!("locked_cast_preserves_{name}"));
+        assert_eq!(locks(&fx, tick)["lock"], serde_json::Value::Null);
+        assert_eq!(locks(&fx, tick)["pendingTarget"], "p1");
+        assert!(fx
+            .ticks
+            .iter()
+            .flat_map(|t| &t.launches)
+            .any(|p| p["targetId"] == "p1"));
+        assert!(!fx
+            .ticks
+            .iter()
+            .flat_map(|t| &t.events)
+            .any(|e| e["kind"] == "cancel"));
+    }
+    let mut grace = fixture("wand_lock_los_grace");
+    assert_eq!(locks(&grace, 8)["lostAt"], 400.);
+    assert_eq!(locks(&grace, 37)["lock"], "p1");
+    assert!(locks(&grace, 38)["lock"].is_null());
+    let changed = grace.ticks.iter_mut().find(|t| t.tick == 38).unwrap();
+    changed.locks.as_mut().unwrap()[0]["lock"] = "p1".into();
+    assert!(compare(&grace)
+        .mismatches
+        .iter()
+        .any(|m| m.contains("tick 38: locks[0].lock")));
+    let chase = fixture("wand_lock_chase_wall");
+    assert_eq!(locks(&chase, 3)["lock"], "p1");
+    assert_eq!(locks(&chase, 37)["seen"], false);
+    assert_eq!(locks(&chase, 38)["seen"], true);
+    let retarget = fixture("wand_lock_retarget");
+    assert_eq!(locks(&retarget, 5)["pendingTarget"], "p1");
+    assert_eq!(locks(&retarget, 6)["pendingTarget"], "p2");
+    assert!(retarget
+        .ticks
+        .iter()
+        .find(|t| t.tick == 6)
+        .unwrap()
+        .events
+        .iter()
+        .any(|e| e["kind"] == "cancel"));
+    let throttle = fixture("wand_path_search_throttle");
+    for (tick, at) in [(3, 150.), (7, 150.), (8, 400.), (12, 400.), (13, 650.)] {
+        assert_eq!(locks(&throttle, tick)["searchAt"], at);
+    }
+    let twin = fixture("bow_wand_lock_combat");
+    assert_eq!(twin.ticks.len(), 727);
+    assert_eq!(twin.results.len(), 2);
+    let original = fixture("bow_wand_capture");
+    assert_eq!(original.parity, "capture-only");
+    assert_eq!(twin.inputs.len(), original.inputs.len());
+}
+
+#[test]
+fn active_chase_and_in_flight_lock_restore_with_identical_continuations() {
+    for name in [
+        "wand_lock_los_grace",
+        "locked_cast_preserves_attackMove",
+        "wand_lock_range_and_swap",
+    ] {
+        let fx = load(&fixtures_dir().join(format!("{name}.json")));
+        let step = |s: &mut rh_sim::Sim, tick| {
+            for input in fx.inputs.iter().filter(|i| i.tick == tick) {
+                s.submit_unbudgeted(
+                    pid(&input.player),
+                    rh_sim::validate(raw_command_pub(input).unwrap()).unwrap(),
+                )
+                .unwrap();
+            }
+            s.step()
+        };
+        let mut sim = build(&fx);
+        for tick in 2..=39 {
+            let events = step(&mut sim, tick);
+            if matches!(tick, 3 | 5 | 8 | 12 | 37) {
+                let cp = serde_json::to_value(&sim).unwrap();
+                let mut restored = rh_sim::Sim::restore(&cp).unwrap();
+                assert_eq!(sim.state_hash(), restored.state_hash());
+                assert_eq!(
+                    rh_sim::observe(&sim, pid("p0"), &events),
+                    rh_sim::observe(&restored, pid("p0"), &events)
+                );
+                let mut a = sim.clone();
+                for next in tick + 1..=tick + 8 {
+                    assert_eq!(step(&mut a, next), step(&mut restored, next));
+                    assert_eq!(a.state_hash(), restored.state_hash());
+                }
+                if tick == 3 {
+                    let mut corrupt = cp.clone();
+                    corrupt["world"]["players"][0]["core"]["weapon"]["targeting"]["search_at"] =
+                        1e300.into();
+                    assert!(rh_sim::Sim::restore(&corrupt).is_err());
+                    corrupt["world"]["players"][0]["core"]["weapon"]["targeting"]["search_at"] =
+                        serde_json::Value::Null;
+                    corrupt["world"]["players"][0]["core"]["weapon"]["targeting"]["target"] =
+                        0.into();
+                    assert!(rh_sim::Sim::restore(&corrupt).is_err());
+                }
+            }
+        }
+    }
+}

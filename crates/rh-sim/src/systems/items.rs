@@ -93,7 +93,9 @@ pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
 fn weapon_changed(p: &mut FighterCore, now: f64) {
     weapons::cancel_action(p, now);
     p.weapon.ready_at = p.weapon.ready_at.max(now) + SWAP_SECONDS * 1000.0;
-    // P-COMBAT-3: changing to a weapon other than wand drops an existing targeting lock.
+    if p.active_weapon() != WeaponId::Wand {
+        super::targeting::drop_lock(p);
+    }
 }
 
 pub(crate) fn swap(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {

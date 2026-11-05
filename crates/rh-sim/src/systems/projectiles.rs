@@ -16,6 +16,7 @@ use crate::{Event, PlayerId, TileMap, WeaponId};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Spawn {
+    pub target: Option<PlayerId>,
     pub owner: PlayerId,
     pub weapon: WeaponId,
     pub aim: f64,
@@ -88,7 +89,7 @@ pub(crate) fn spawn(cx: &mut Cx) {
             velocity: Vec2::new(cos(req.aim) * speed, sin(req.aim) * speed),
             time: cx.w.server_time,
             range,
-            target: None,
+            target: req.target,
         };
         launch(cx.w, &mut cx.s.flight.swept, cx.ev, start, req.packet, 0);
     }
@@ -729,6 +730,7 @@ mod tests {
             let p = &mut s.w.players[1];
             p.weapon.weapon0 = Some(weapon);
             p.weapon.action = Some(crate::state::PendingAction {
+                target: None,
                 kind: crate::state::ActionKind::Swing,
                 weapon,
                 started_at: now,

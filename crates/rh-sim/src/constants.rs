@@ -71,6 +71,17 @@ content! {
     PLAYER_RADIUS: f64 = 12.0, "u";
     PLAYER_SPEED: f64 = 170.0, "u/s";
     VISION_RADIUS: f64 = 900.0, "u";
+    TARGET_RANGE: f64 = 640.0, "u";
+    TARGET_REPATH_MS: f64 = 250.0, "ms";
+    TARGET_LOS_GRACE_MS: f64 = 1500.0, "ms";
+    TARGET_GOAL_MOVED: f64 = 8.0, "u";
+    ATTACK_MOVE_ARRIVAL: f64 = 10.0, "u";
+    LOCK_CONTACT: f64 = 40.0, "u";
+    LOCK_INTERCEPT_EPS: f64 = 1e-9, "quadratic coefficient";
+    LOCK_FAR_SHARE: f64 = 0.88, "share of range";
+    LOCK_ATTACK_SHARE: f64 = 0.96, "share of range";
+    MOB_AIM_DEADBAND: f64 = 2.0 * crate::math::PI / 180.0, "rad";
+    VELOCITY_WINDOW_MS: f64 = 100.0, "ms";
     VISION_TRAIL_MS: f64 = 30_000.0, "ms";
     VISION_UPDATE_MS: f64 = 100.0, "ms";
     BUSH_REVEAL_RADIUS: f64 = 64.0, "u";

@@ -1,5 +1,13 @@
 # P-COMBAT-3: target lock and the locked-windup cancel
 
+## Stage 2 implementation boundary
+
+The Rust core/policy/headless phase is implemented and independently reviewed. Explicit public targets require
+delivered actor records, and unseen guesses are budgeted misses. The approved hidden-candidate vision correction,
+actual capture counts, checkpoint repairs and numeric-ID ordering scope are recorded in
+[evidence](../../evidence/stage2-targeting-zones/README.md). Live protocol-5 inputs, target metadata and cancel
+presentation remain open; the v5 adapter explicitly omits the new core cancel event.
+
 ## ID and outcome
 P-COMBAT-3. The wand-only target lock (`target {id}`), its server-played chase/aim/trigger, its drop rules, exact committed
 cast/cancellation behavior, and attack-move (`attackMove`), with actual source captures. Preserve the original full-world

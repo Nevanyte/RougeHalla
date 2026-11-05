@@ -27,3 +27,9 @@ words; representative geometry and pillar mutations must also change generated l
 with `decor:false`, and compares it against direct generation of the accepted attempt. The capture includes all
 GameMap fields. `--check` verifies all four JSON files under `crates/rh-sim/src/mapdata/fixtures/` byte for byte.
 Its oracle records direct legacy bush/region queries; hashes are captured metadata, not Rust-computed identities.
+
+`zones-partition.ts` captures actual M2a zone partition inputs/outputs and consumed RNG words, including the real
+five-draw generator prefix and subsequent continuation. It writes only `mapgen/fixtures/zones-partition.json`;
+`--check` verifies exact bytes with the same pinned runtime. The 1,024-stream scan has 398 retrying successes and no
+terminal-failing generated seed. A separately labelled constant-zero RNG call covers the actual helper's failure path.
+See `crates/rh-sim/src/mapgen/zones/README.md` for the API and the unimplemented camp/territory/full-generator stages.

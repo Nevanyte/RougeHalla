@@ -31,6 +31,8 @@ fn note_lag(p: &mut FighterCore, now: f64, t: Option<f64>) {
 }
 
 pub(crate) fn handle_press(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>) {
+    super::targeting::drop_lock(p);
+    p.weapon.targeting.attack_move = None;
     set_aim(p, now, a);
     note_lag(p, now, t);
     let w = &mut p.weapon;
@@ -42,7 +44,9 @@ pub(crate) fn handle_press(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>
 }
 
 pub(crate) fn handle_release(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>) {
-    set_aim(p, now, a);
+    if p.weapon.targeting.target.is_none() {
+        set_aim(p, now, a);
+    }
     if t.is_some() {
         note_lag(p, now, t);
     }
@@ -76,13 +80,13 @@ pub(crate) fn update(cx: &mut Cx) {
 
 fn step_weapon(cx: &mut Cx, ix: FighterIx) {
     let now = cx.w.server_time;
-    let p = cx.w.core_mut(ix);
-    let weapon = p.active_weapon();
-    if let Some(act) = p.weapon.action {
+    let weapon = cx.w.core(ix).active_weapon();
+    if let Some(act) = cx.w.core(ix).weapon.action {
         if now + TIE_EPS_MS >= act.lands_at {
-            land(p, now, &mut cx.s.melee, &mut cx.s.flight.spawns, act);
+            land(cx, ix, act);
         }
     }
+    let p = cx.w.core_mut(ix);
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
     if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.weapon.ready_at {
         let f = paced(p.vitals.faction);
@@ -100,7 +104,7 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         let p = cx.w.core_mut(ix);
         if tm.windup == 0.0 {
             if let Some(act) = p.weapon.action {
-                land(p, now, &mut cx.s.melee, &mut cx.s.flight.spawns, act);
+                land(cx, ix, act);
             }
         }
     }
@@ -132,6 +136,11 @@ fn start_attack(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, weapon: Weap
     p.weapon.action = Some(PendingAction {
         kind,
         weapon,
+        target: p
+            .weapon
+            .targeting
+            .target
+            .filter(|_| weapon == WeaponId::Wand),
         started_at: start,
         lands_at,
         a: aim,
@@ -154,19 +163,20 @@ fn start_attack(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, weapon: Weap
     }
 }
 
-fn land(
-    p: &mut FighterCore,
-    now: f64,
-    melee: &mut Vec<MeleeReq>,
-    spawns: &mut Vec<Spawn>,
-    act: PendingAction,
-) {
+fn land(cx: &mut Cx, ix: FighterIx, act: PendingAction) {
+    let now = cx.w.server_time;
+    let target = act
+        .target
+        .and_then(|id| cx.w.player(id))
+        .filter(|other| other.standing() && other.id != cx.w.core(ix).id)
+        .map(|other| (other.id, other.pos()));
+    let p = cx.w.core_mut(ix);
     p.weapon.action = None;
     match act.kind {
         ActionKind::Swing => {
             let rewind_t = now - MAX_REWIND_MS.min(TICK_MS.max(p.weapon.lag_ms));
             let attacker = p.id;
-            melee.push(MeleeReq {
+            cx.s.melee.push(MeleeReq {
                 attacker,
                 weapon: act.weapon,
                 a: act.a,
@@ -175,12 +185,15 @@ fn land(
             });
         }
         ActionKind::Cast | ActionKind::Draw => {
-            let aim = if act.kind == ActionKind::Draw {
+            let aim = if let Some((_, at)) = target {
+                crate::math::atan2(at.y - p.body.y, at.x - p.body.x)
+            } else if act.kind == ActionKind::Draw {
                 p.weapon.aim
             } else {
                 act.a
             };
-            spawns.push(Spawn {
+            cx.s.flight.spawns.push(Spawn {
+                target: target.map(|(id, _)| id),
                 owner: p.id,
                 weapon: act.weapon,
                 aim,
@@ -224,12 +237,22 @@ pub(crate) fn weapon_shape(w: WeaponId) -> Shape {
     weapon(w).shape
 }
 
-/// Legacy `releaseTrigger` for the slice (no lock, no attack-move): let go of the trigger and cancel what was in progress
+/// Legacy `releaseTrigger`: clear target orders, let go of the trigger and cancel what was in progress
 /// (no landing; a pending swing or cast takes its root with it).
 pub(crate) fn release_trigger(p: &mut FighterCore, now: f64) {
+    super::targeting::drop_lock(p);
+    p.weapon.targeting.attack_move = None;
     p.weapon.held = false;
     p.weapon.buffered_until = 0.0;
     cancel_action(p, now);
+}
+
+pub(super) fn cancel_locked(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>) {
+    if let Some(act) = p.weapon.action.filter(|a| a.target.is_some()) {
+        p.weapon.ready_at = act.started_at;
+        cancel_action(p, now);
+        ev.push(Event::AttackCancelled { id: p.id });
+    }
 }
 
 pub(crate) fn cancel_action(p: &mut FighterCore, now: f64) {

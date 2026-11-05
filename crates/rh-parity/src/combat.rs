@@ -99,3 +99,26 @@ pub(super) fn compare(rep: &mut Report, sim: &Sim, t: &crate::FixTick, require_c
         }
     }
 }
+
+pub(super) fn compare_locks(rep: &mut Report, sim: &Sim, t: &crate::FixTick) {
+    let Some(record) = &t.locks else {
+        rep.fail(format!("tick {}: missing settled locks stream", t.tick));
+        return;
+    };
+    let rows:Vec<_>=sim.players().iter().map(|p|{
+        let w=&p.weapon;
+        let lock=&w.targeting;
+        let id=lock.target.map(fid);
+        json!({"id":fid(p.id),"mirror":id.as_deref().unwrap_or(""),"lock":id,"seen":lock.seen,"lostAt":lock.lost_at.unwrap_or(0.0),
+            "planAt":lock.plan_at,"searchAt":lock.search_at,"goal":lock.goal,"attackMove":lock.attack_move,
+            "path":p.motion.path.as_slice(),"held":w.held,"pressedAt":w.pressed_at,"bufferedUntil":w.buffered_until,
+            "a":w.aim,"aimAt":w.aim_at,"lagMs":w.lag_ms,"rootUntil":w.root_until,"pendingTarget":w.action.and_then(|a|a.target).map(fid),"moveSeq":p.motion.move_seq})
+    }).collect();
+    if let Some(d) = first_difference(
+        "locks",
+        &super::canon::rounded(Value::Array(rows)),
+        &Value::Array(record.clone()),
+    ) {
+        rep.fail(format!("tick {}: {d}", t.tick));
+    }
+}

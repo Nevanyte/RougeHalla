@@ -35,7 +35,8 @@ export const catalogue: Scenario[] = [
     drive: duel,
   })),
   {
-    ...base("wand_lock", "P-COMBAT-2", "Wand target lock follows a moving enemy, then stop cancels the lock."),
+    ...base("wand_lock", "P-COMBAT-3", "Wand target lock follows a moving enemy, then stop cancels the lock."),
+    parity: "slice", record: ["locks", "combat", "containers", "statuses"],
     requires: ["input:target", "projEnd", "launch"],
     players: [{ id: "p0", faction: "fire", at: { x: 400, y: 320 }, weapon0: "wand" }, { id: "p1", faction: "holy", at: { x: 600, y: 320 } }],
     drive: ({ tick, send }) => {

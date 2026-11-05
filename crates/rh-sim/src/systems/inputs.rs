@@ -91,7 +91,7 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
                 );
             }
         }
-        if k == aim_before.min(n) {
+        if k == aim_before.min(n) && cx.w.core(ix).weapon.targeting.target.is_none() {
             if let Some(a) = aim {
                 weapons::set_aim(cx.w.core_mut(ix), now, a);
             }
@@ -104,6 +104,7 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
 
 fn action_id(cmd: &ActionCmd) -> ActionId {
     match cmd {
+        ActionCmd::Target { .. } | ActionCmd::MissingTarget => ActionId::Target,
         ActionCmd::Swap { .. } => ActionId::Swap,
         ActionCmd::Pickup { .. } | ActionCmd::MissingPickup => ActionId::Pickup,
         ActionCmd::Attack { .. } => ActionId::Attack,
@@ -118,14 +119,15 @@ fn apply_move(
     out: &mut Vec<Vec2>,
     mv: MoveCmd,
 ) {
-    // cancelLockedWindup / dropLock: no target lock in the slice.
+    // Move/stop preserve a committed ranged cast. Only a wand can have a targeted pending action.
+    super::targeting::drop_lock(p);
     let from = p.pos();
     let (stop, seq) = match mv {
         MoveCmd::Stop { seq } => {
             out.clear();
             (true, seq)
         }
-        MoveCmd::Move { x, y, seq } => {
+        MoveCmd::Move { x, y, seq } | MoveCmd::AttackMove { x, y, seq } => {
             plan_path_into(pf, map, from, Vec2::new(x, y), out);
             (false, seq)
         }
@@ -134,6 +136,16 @@ fn apply_move(
     if stop || !out.is_empty() {
         p.motion.path.set_from(out);
     }
+    p.weapon.targeting.attack_move = match mv {
+        MoveCmd::AttackMove { x, y, .. }
+            if !out.is_empty()
+                || crate::math::hypot(x - from.x, y - from.y)
+                    <= crate::constants::ATTACK_MOVE_ARRIVAL =>
+        {
+            Some(Vec2::new(x, y))
+        }
+        _ => None,
+    };
     if let Some(s) = seq {
         p.motion.move_seq = s;
     }

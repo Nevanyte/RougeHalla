@@ -180,6 +180,8 @@ pub struct FixTick {
     #[serde(default)]
     pub combat: Option<Vec<Value>>,
     #[serde(default)]
+    pub locks: Option<Vec<Value>>,
+    #[serde(default)]
     pub vision: Option<Vec<VisionView>>,
 }
 
@@ -622,9 +624,13 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             fx.parity
         ),
     );
-    let combat_packet = matches!(fx.packet.as_deref(), Some("P-COMBAT-1" | "P-COMBAT-2"));
-    let isolated_combat =
-        (combat_packet || fx.packet.as_deref() == Some("P-VISION-1")) && c.modules.is_some();
+    let combat_packet = matches!(
+        fx.packet.as_deref(),
+        Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
+    );
+    let isolated_combat = (combat_packet || fx.packet.as_deref() == Some("P-VISION-1"))
+        && c.modules.is_some()
+        && c.world != CAPTURE_WORLD;
     need(
         if c.options.is_empty() && !isolated_combat {
             c.world == CAPTURE_WORLD
@@ -937,8 +943,14 @@ pub fn compare(fx: &Fixture) -> Report {
             &sim,
             t,
             fx.parity == "slice"
-                && matches!(fx.packet.as_deref(), Some("P-COMBAT-1" | "P-COMBAT-2")),
+                && matches!(
+                    fx.packet.as_deref(),
+                    Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
+                ),
         );
+        if fx.packet.as_deref() == Some("P-COMBAT-3") || t.locks.is_some() {
+            combat::compare_locks(&mut rep, &sim, t);
+        }
         if vision::compare(&mut rep, &sim, fx, t) {
             occurred.insert("state:vision".into());
         }

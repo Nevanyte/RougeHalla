@@ -17,10 +17,12 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 5;
+pub const OBSERVATION_VERSION: u16 = 6;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
+    /// The owner’s attack lock, when that actor is also visible in this frame.
+    pub attack_target: Option<PlayerId>,
     pub id: PlayerId,
     pub faction: FactionId,
     pub x: f64,
@@ -60,6 +62,9 @@ pub enum SeenEvent {
         id: PlayerId,
         by: Option<PlayerId>,
         weapon: WeaponId,
+    },
+    AttackCancelled {
+        id: PlayerId,
     },
     Stagger {
         id: PlayerId,
@@ -119,6 +124,7 @@ impl SeenEvent {
             SeenEvent::Swing { .. }
             | SeenEvent::Hit { .. }
             | SeenEvent::Block { .. }
+            | SeenEvent::AttackCancelled { .. }
             | SeenEvent::Stagger { .. } => Class::Fx,
             SeenEvent::PickupRefused { .. } => Class::Important,
         }
@@ -159,6 +165,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             by: can_see(by).then_some(by),
             weapon,
         }),
+        Event::AttackCancelled { id } => Some(SeenEvent::AttackCancelled { id }),
         Event::Stagger { id } => Some(SeenEvent::Stagger { id }),
         Event::PickupRefused {
             reason,
@@ -298,6 +305,7 @@ pub(crate) fn observe_with(
     out.server_time = now;
     out.phase = sim.phase();
     out.me = me.map(|p| SelfView {
+        attack_target: None,
         id: p.id,
         faction: p.vitals.faction,
         x: p.body.x,
@@ -354,6 +362,13 @@ pub(crate) fn observe_with(
     // Ids are unique, so any sort gives this order; the unstable one never allocates (the stable one does from ~85 entries).
     if !out.visible.is_sorted_by_key(|a| a.id) {
         out.visible.sort_unstable_by_key(|a| a.id);
+    }
+    if let (Some(p), Some(view)) = (me, &mut out.me) {
+        view.attack_target = p
+            .weapon
+            .targeting
+            .target
+            .filter(|id| out.visible.binary_search_by_key(id, |a| a.id).is_ok());
     }
     out.events.clear();
     let me_id = me.map(|m| m.id);
@@ -518,6 +533,7 @@ mod tests {
                 weapon: Some(WeaponId::Fists),
             },
             Event::Stagger { id: b },
+            Event::AttackCancelled { id: b },
             Event::Block {
                 id: b,
                 by: a,

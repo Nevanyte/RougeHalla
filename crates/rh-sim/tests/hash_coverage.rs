@@ -188,6 +188,61 @@ fn item_fight() -> Sim {
     sim
 }
 
+fn locked_attack() -> Sim {
+    let p = Placement {
+        profile: "wand".into(),
+        faction: FactionId::Holy,
+        bot: false,
+        at: Vec2::new(100., 272.),
+        hp: None,
+        weapon0: Some(rh_sim::WeaponId::Wand),
+        weapon1: None,
+    };
+    let rival = Placement {
+        profile: "rival".into(),
+        at: Vec2::new(700., 272.),
+        ..p.clone()
+    };
+    let distant = Placement {
+        profile: "distant".into(),
+        at: Vec2::new(1280., 272.),
+        ..rival.clone()
+    };
+    let mut sim = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(5),
+        &[p, rival, distant],
+    );
+    sim.submit(
+        PlayerId(1),
+        cmd(RawCommand::AttackMove {
+            x: 640.,
+            y: 272.,
+            seq: Some(5),
+        }),
+    )
+    .unwrap();
+    sim.step();
+    assert_eq!(
+        sim.player(PlayerId(1))
+            .unwrap()
+            .weapon
+            .action
+            .unwrap()
+            .target,
+        Some(PlayerId(2))
+    );
+    assert!(sim
+        .player(PlayerId(1))
+        .unwrap()
+        .weapon
+        .targeting
+        .goal
+        .is_some());
+    sim
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut mid = crowded_8();
     drive(&mut mid, 40);
@@ -197,6 +252,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     drive(&mut fuse, 400);
     vec![
         ("item fight", item_fight()),
+        ("wand attack-move", locked_attack()),
         ("crowded_8 @40", mid),
         ("crowded_8 @700", late),
         ("short fuse @400", fuse),
@@ -370,6 +426,16 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.resolved", "a live target lock requires an unresolved standing owner; resolved also changes the hash in unlocked matches"),
+    ("world.players.*.status", "a live target lock requires a standing owner; status also changes the hash in unlocked matches"),
+    ("world.players.*.core.weapon.weapon0", "a live target lock requires its active slot to hold a wand; carried weapons are separately perturbed in unlocked matches"),
+    ("world.players.*.core.weapon.slot", "a live target lock cannot switch its active slot to fists; slot is separately perturbed in unlocked matches"),
+    ("world.players.*.core.weapon.action.kind","kind must agree with the held weapon"),
+    ("world.players.*.core.weapon.action.weapon","pending weapon must be the held one"),
+
+    ("world.players.*.core.weapon.targeting.seen","a lock must exist to mark prior direct sight"),
+    ("world.players.*.core.weapon.targeting.target","the holder must name another joined actor and retain a lock while seen"),
+
     ("world.players.*.vision.reveals.*.tick","vision samples are at least one refresh interval apart, in tick order"),
     ("world.phase","settled live flights belong only to an active world"),
     ("world.server_time","settled projectile clock equals the world clock"),
@@ -434,6 +500,9 @@ fn seeds(pat: &str) -> Vec<Value> {
             "kind": "Swing", "weapon": "Fists", "started_at": 1.0, "lands_at": 2.0, "a": 0.5,
             "packet": {"raw": 1.0, "phys": 1.0, "magic": 0.0, "true_": 0.0}
         })],
+        "world.players.*.core.weapon.targeting.goal" => {
+            vec![serde_json::json!({"x":360.0,"y":272.0})]
+        }
         "world.players.*.credit.announce" => vec![serde_json::json!([1.0, 1])],
         _ => vec![],
     }

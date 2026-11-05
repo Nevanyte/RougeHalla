@@ -106,6 +106,7 @@ fn reference(
                 weapon: weapon.code(),
             }),
             SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
+            SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 5.
             SeenEvent::PickupRefused { reason } => events.push(WireEvent::PickupRefused {
                 reason: match reason {
                     rh_sim::PickupRefusal::Blocked => 1,

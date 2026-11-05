@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/7";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/8";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -426,6 +426,33 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     for p in w.players.iter() {
         p.vision.check(w.tick, near)?;
+        let lock = &p.weapon.targeting;
+        let valid_foe = |id: crate::PlayerId| id != p.id && w.roster.name(id).is_some();
+        let valid_time = |t: f64| (0.0..=w.server_time).contains(&t);
+        if lock.target.is_some_and(|id| {
+            !valid_foe(id)
+                || w.phase != crate::Phase::Active
+                || !p.standing()
+                || p.active_weapon() != WeaponId::Wand
+        }) || (lock.target.is_none() && (lock.seen || lock.goal.is_some()))
+            || (lock.goal.is_some() && lock.plan_at.is_none())
+            || (lock.lost_at.is_some() && !lock.seen)
+            || [lock.lost_at, lock.plan_at, lock.search_at]
+                .into_iter()
+                .flatten()
+                .any(|t| !valid_time(t))
+            || lock.goal.is_some_and(|g| !near(g.x, g.y))
+            || lock.attack_move.is_some_and(|g| {
+                !(0.0..=crate::constants::WORLD_W).contains(&g.x)
+                    || !(0.0..=crate::constants::WORLD_H).contains(&g.y)
+            })
+            || p.weapon.action.is_some_and(|a| {
+                a.target
+                    .is_some_and(|id| a.weapon != WeaponId::Wand || !valid_foe(id))
+            })
+        {
+            return Err(format!("invalid target lock state for player {}", p.id.0));
+        }
         if !p.bush.check(w.server_time, w.phase) {
             return Err(format!("invalid bush exposure for player {}", p.id.0));
         }

@@ -108,30 +108,7 @@ impl VisionTrail {
             .iter()
             .rev()
             .take_while(|r| tick - r.tick < trail_ticks() && after.is_none_or(|old| r.tick > old))
-            .find_map(|r| {
-                if let Some(layers) = map.layers() {
-                    let rect = layers.coliseum().rect;
-                    // Membership is the source's regionGrid; the revealed area is the whole
-                    // rectangle, including its hidden walls and chamfered corners.
-                    if tx >= i64::from(rect.x)
-                        && ty >= i64::from(rect.y)
-                        && tx < i64::from(rect.x) + i64::from(rect.w)
-                        && ty < i64::from(rect.y) + i64::from(rect.h)
-                        && layers.is_coliseum_at_world(r.origin.x, r.origin.y)
-                    {
-                        return Some(r.tick);
-                    }
-                }
-                let (sx, sy) = tile(r.origin);
-                // VisionMemory.update retains the standing tile even at a radius boundary.
-                let seen = if (sx, sy) == (tx, ty) {
-                    !map.blocked(sx, sy, MASK_SIGHT)
-                } else {
-                    in_radius(r.origin, centre)
-                        && !scene_line_blocked(map, r.origin.x, r.origin.y, centre.x, centre.y)
-                };
-                seen.then_some(r.tick)
-            })
+            .find_map(|r| reveals_tile(map, r.origin, tx, ty, centre).then_some(r.tick))
     }
     fn remembers(&self, map: &TileMap, at: Vec2, tick: u32) -> bool {
         if !(at.x + at.y).is_finite() {
@@ -165,6 +142,29 @@ fn tile(at: Vec2) -> (i64, i64) {
 }
 fn in_map(map: &TileMap, tx: i64, ty: i64) -> bool {
     (0..i64::from(map.w)).contains(&tx) && (0..i64::from(map.h)).contains(&ty)
+}
+fn reveals_tile(map: &TileMap, origin: Vec2, tx: i64, ty: i64, centre: Vec2) -> bool {
+    if let Some(layers) = map.layers() {
+        let rect = layers.coliseum().rect;
+        // Membership is the source's regionGrid; the revealed area is the whole
+        // rectangle, including its hidden walls and chamfered corners.
+        if tx >= i64::from(rect.x)
+            && ty >= i64::from(rect.y)
+            && tx < i64::from(rect.x) + i64::from(rect.w)
+            && ty < i64::from(rect.y) + i64::from(rect.h)
+            && layers.is_coliseum_at_world(origin.x, origin.y)
+        {
+            return true;
+        }
+    }
+    let (sx, sy) = tile(origin);
+    // VisionMemory.update retains the standing tile even at a radius boundary.
+    if (sx, sy) == (tx, ty) {
+        !map.blocked(sx, sy, MASK_SIGHT)
+    } else {
+        in_radius(origin, centre)
+            && !scene_line_blocked(map, origin.x, origin.y, centre.x, centre.y)
+    }
 }
 fn in_radius(a: Vec2, b: Vec2) -> bool {
     let dx = b.x - a.x;
@@ -252,6 +252,10 @@ pub(crate) fn actor_with(
     {
         return false;
     }
+    bush_visible(map, viewer, target, tick)
+}
+
+fn bush_visible(map: &TileMap, viewer: &Player, target: &Player, tick: u32) -> bool {
     if let Some(layers) = map.layers() {
         let at = target.pos();
         let bush = layers.bush_at_world(at.x, at.y);
@@ -267,6 +271,51 @@ pub(crate) fn actor_with(
         }
     }
     true
+}
+
+pub(crate) fn actor_visible(map: &TileMap, viewer: &Player, target: &Player, tick: u32) -> bool {
+    actor_with(map, viewer, target, tick, || {
+        scene_line_blocked(
+            map,
+            viewer.body.x,
+            viewer.body.y,
+            target.body.x,
+            target.body.y,
+        )
+    })
+}
+
+/// Evaluate the viewer's due pre-movement reveal before committing it. Legacy's lookup itself
+/// updates the trail; a concealed candidate cannot cause a different refresh than a missing one.
+pub(crate) fn gameplay_actor_visible(
+    map: &TileMap,
+    viewer: &Player,
+    target: &Player,
+    tick: u32,
+) -> bool {
+    if actor_visible(map, viewer, target, tick) {
+        return true;
+    }
+    if viewer.status != Status::Alive
+        || target.status == Status::Lobby
+        || !bush_visible(map, viewer, target, tick)
+        || viewer
+            .vision
+            .reveals
+            .back()
+            .is_some_and(|r| tick - r.tick < refresh_ticks())
+    {
+        return false;
+    }
+    let (tx, ty) = tile(target.pos());
+    in_map(map, tx, ty)
+        && reveals_tile(
+            map,
+            viewer.pos(),
+            tx,
+            ty,
+            Vec2::new((tx as f64 + 0.5) * TILE, (ty as f64 + 0.5) * TILE),
+        )
 }
 
 pub(crate) fn point_visible(map: &TileMap, viewer: &Player, point: Vec2, tick: u32) -> bool {

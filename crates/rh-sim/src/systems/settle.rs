@@ -188,6 +188,9 @@ fn end_run(
     for p in &mut w.players {
         p.weapon.shreds.clear();
     }
+    for p in &mut w.players {
+        super::targeting::drop_lock(p);
+    }
     hooks::fire(&mut Hx { k, w, ev }, HookArgs::RunEnded);
     ev.push(Event::Victory { id: winner, draw });
     ev.push(Event::RaidEnded);
