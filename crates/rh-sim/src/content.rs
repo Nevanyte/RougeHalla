@@ -599,6 +599,54 @@ pub fn content_hash_of_terrain_gate_definition(
     )
 }
 
+/// Camp/crate/ground placement consumes the same borrowed definition visited here.
+pub fn content_hash_of_spot_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::spots::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            spots: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Final shape admission and loot clearing use these same live policy values.
+pub fn content_hash_of_tail_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::tail::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            tail: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Safety-net and territory-repair policy uses the same borrowed terrain classification.
+pub fn content_hash_of_repair_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::repair::Definition<'_>,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            repair: *definition,
+            ..Default::default()
+        },
+    )
+}
+
 /// Signature classification affects damage budgets and reporting, so it is content as well.
 pub fn content_hash_of_signature_rules(
     registry: &[Entry],
@@ -627,6 +675,9 @@ struct MapDefinitions<'rules, 'pillars> {
     recipes: crate::mapgen::landmarks::recipes::Definitions<'pillars>,
     records: &'rules crate::mapgen::records::Definition<'pillars>,
     terrain_gate: &'rules crate::mapgen::terrain_gate::TerrainGateDefinition<'pillars>,
+    spots: &'rules crate::mapgen::spots::Definition,
+    tail: &'rules crate::mapgen::tail::Definition,
+    repair: crate::mapgen::repair::Definition<'pillars>,
 }
 
 impl Default for MapDefinitions<'_, '_> {
@@ -644,6 +695,11 @@ impl Default for MapDefinitions<'_, '_> {
             recipes: crate::mapgen::landmarks::recipes::default_definitions(),
             records: &crate::mapgen::records::DEFAULT_DEFINITION,
             terrain_gate: &crate::mapgen::terrain_gate::DEFAULT_DEFINITION,
+            spots: &crate::mapgen::spots::DEFAULT_DEFINITION,
+            tail: &crate::mapgen::tail::DEFAULT_DEFINITION,
+            repair: crate::mapgen::repair::default_definition(
+                &crate::mapgen::terrain_gate::GENERATOR_TILE_CLASSES,
+            ),
         }
     }
 }
@@ -676,6 +732,9 @@ fn content_hash_of_definitions(
         recipes,
         records,
         terrain_gate,
+        spots,
+        tail,
+        repair,
     } = definitions;
     let mut h = Fnv::new();
 
@@ -728,6 +787,15 @@ fn content_hash_of_definitions(
 
     h.str("mapgen/terrain-gate/1");
     crate::mapgen::terrain_gate::visit_content(terrain_gate, |word| h.u64(word));
+
+    h.str("mapgen/spots/1");
+    crate::mapgen::spots::visit_content(spots, |word| h.u64(word));
+
+    h.str("mapgen/tail/1");
+    crate::mapgen::tail::visit_content(tail, |word| h.u64(word));
+
+    h.str("mapgen/repair/1");
+    crate::mapgen::repair::visit_content(&repair, |word| h.u64(word));
 
     h.str("signatures/1");
     h.u64(signature_rules.len() as u64);

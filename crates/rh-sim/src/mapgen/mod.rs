@@ -9,7 +9,10 @@ pub mod grid_topology;
 pub mod landmarks;
 pub mod map_hash;
 pub mod records;
+pub mod repair;
 pub mod spawns;
+pub mod spots;
+pub mod tail;
 pub mod terrain_gate;
 pub mod zones;
 

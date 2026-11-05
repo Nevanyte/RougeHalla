@@ -1,0 +1,258 @@
+{
+  "status": "accepted bounded tail leaf",
+  "frozenManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/tail-root-oracle/frozen-manifest.json",
+  "initialManifestAll5FilesMatch": true,
+  "all75SourceHashesMatch": true,
+  "canonicalProof": {
+    "producer": "root",
+    "session": 74506,
+    "runtime": "Linux x64 Node22.23.4",
+    "bytes": 758046,
+    "actualCases": 9,
+    "labelledPropHookCases": 1,
+    "buriedCases": 48,
+    "iceCases": 120,
+    "shapeCases": 12,
+    "fixtureSha256": "05120a2adcfc010e1698874b7d49b04209ff72a4a9198fc57f8e9543130c218e",
+    "captureExit": 0,
+    "byteCheckExit": 0,
+    "attribution": "producer canonical capture; reviewer verified manifest, source hashes, fixture and strict comparisons"
+  },
+  "independentBaseline": {
+    "repositoryTestsPassed": 5,
+    "sourceAndAdmissionTestsPassed": 2
+  },
+  "independentDiagnostic": {
+    "runtime": {
+      "node": "v25.8.1",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "completeOriginalOutputAndHashControls": 2,
+    "terrainCases": 24,
+    "lootCases": 48,
+    "shapeCases": 48,
+    "malformedNoWriteChecks": 40,
+    "shapeReasonCounts": {
+      "A:unowned": 4,
+      "A:wallPiece": 25,
+      "None": 19
+    }
+  },
+  "mutationsInitial": [
+    {
+      "name": "buried-low-cleared",
+      "killed": true
+    },
+    {
+      "name": "buried-removed",
+      "killed": true
+    },
+    {
+      "name": "hook-ignored",
+      "killed": true
+    },
+    {
+      "name": "ice-low-neighbor-ignored",
+      "killed": true
+    },
+    {
+      "name": "props-class-ignored",
+      "killed": true
+    },
+    {
+      "name": "props-order-reversed",
+      "killed": true
+    },
+    {
+      "name": "loot-pool-ignored",
+      "killed": false
+    },
+    {
+      "name": "loot-crates-ignored",
+      "killed": true
+    },
+    {
+      "name": "loot-ground-ignored",
+      "killed": true
+    },
+    {
+      "name": "bush-pool-added",
+      "killed": true
+    },
+    {
+      "name": "shape-low-unowned-ignored",
+      "killed": true
+    },
+    {
+      "name": "shape-ownership-ignored",
+      "killed": true
+    },
+    {
+      "name": "shape-zones-joined",
+      "killed": true
+    },
+    {
+      "name": "shape-threshold-inclusive",
+      "killed": true
+    },
+    {
+      "name": "shape-only-first-piece",
+      "killed": true
+    },
+    {
+      "name": "empty-cases",
+      "killed": true
+    },
+    {
+      "name": "duplicate-genuine",
+      "killed": true
+    },
+    {
+      "name": "duplicate-buried",
+      "killed": true
+    },
+    {
+      "name": "duplicate-ice",
+      "killed": true
+    },
+    {
+      "name": "duplicate-shape",
+      "killed": true
+    },
+    {
+      "name": "unknown-root",
+      "killed": true
+    },
+    {
+      "name": "unknown-phase",
+      "killed": true
+    },
+    {
+      "name": "duplicate-phase",
+      "killed": true
+    },
+    {
+      "name": "shape-owner-evidence-overwritten",
+      "killed": false
+    },
+    {
+      "name": "picked-pool-evidence-overwritten",
+      "killed": false
+    },
+    {
+      "name": "custom-prop-evidence-removed",
+      "killed": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "R1",
+      "severity": "P2 evidence",
+      "issue": "Removing original picked-pool filtering survives repository tests",
+      "repairStatus": "fixed and independent original mutant/attack now fails repository tests",
+      "independentControl": "fresh source corpus detects same mutant"
+    },
+    {
+      "id": "R2",
+      "severity": "P2 evidence",
+      "issue": "Genuine shapeInput.featureGrid all255 substitution survives repository tests",
+      "repairStatus": "fixed and independent original mutant/attack now fails repository tests"
+    },
+    {
+      "id": "R3",
+      "severity": "P2 evidence",
+      "issue": "Genuine original picked pool arbitrary distinct indices substitution survives repository tests",
+      "repairStatus": "fixed and independent original mutant/attack now fails repository tests"
+    }
+  ],
+  "runtimeDefectsFound": [],
+  "liveSourceEdits": false,
+  "blockingGaps": [],
+  "finalManifest": {
+    "base": "568f58a134e8a2ce7b5bbf432c14585a18b1e42b",
+    "files": [
+      {
+        "path": "crates/rh-sim/src/mapgen/tail/mod.rs",
+        "sha256": "4568a6167502b7d9f36a3532cc4ea678797779c73b8f91189fb6705b0db751c8",
+        "bytes": 6779
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/tail/tests.rs",
+        "sha256": "2220b6f9f5b19ca24d9115621a777eb94507bb2af634087b6ba8e3ffff33889b",
+        "bytes": 19035
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/tail/README.md",
+        "sha256": "37054ddaaccdeedafe1aae3754253fa82d7b27ff1acdfe80de1869dc6303e1fd",
+        "bytes": 3659
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/fixtures/map-tail.json",
+        "sha256": "05120a2adcfc010e1698874b7d49b04209ff72a4a9198fc57f8e9543130c218e",
+        "bytes": 758046
+      },
+      {
+        "path": "tools/map-fixtures/tail.ts",
+        "sha256": "a9696e49f10e8ccd0aaaeea798285b1a104910ddd30c83b084b9f45becb277a9",
+        "bytes": 9550
+      }
+    ],
+    "canonical": {
+      "session": 74506,
+      "capture_exit": 0,
+      "byte_check_exit": 0,
+      "runtime": "Linux x64 Node22.23.4",
+      "bytes": 758046,
+      "actual_cases": 9,
+      "labelled_prop_hook_cases": 1,
+      "buried_cases": 48,
+      "ice_cases": 120,
+      "shape_cases": 12
+    },
+    "pending": "independent review and combined integration",
+    "focused_tests": {
+      "passed": 5,
+      "failed": 0,
+      "log": "tail-root-repaired-focused.log"
+    },
+    "repairs": [
+      "source-injected pool halo props",
+      "recomputed exact original stage5 pools",
+      "genuine final feature ownership bound to accepted records"
+    ]
+  },
+  "finalIndependentBaseline": {
+    "repositoryTestsPassed": 5,
+    "independentTestsPassed": 2,
+    "failed": 0,
+    "log": "/tmp/rh-tail-review/final-baseline.log"
+  },
+  "repairedFindingsVerification": [
+    {
+      "name": "loot-pool-ignored",
+      "killedByRepairedRepositoryTests": true
+    },
+    {
+      "name": "shape-owner-evidence-overwritten",
+      "killedByRepairedRepositoryTests": true
+    },
+    {
+      "name": "picked-pool-evidence-overwritten",
+      "killedByRepairedRepositoryTests": true
+    }
+  ],
+  "finalMutationTotals": {
+    "runtimeMutantsKilled": 15,
+    "runtimeMutants": 15,
+    "fixtureAttacksKilled": 11,
+    "fixtureAttacks": 11,
+    "method": "initial checks plus focused retest of three survivors after repair; unchanged production code"
+  },
+  "scopeLimits": [
+    "Stage10 cleanup,postground decor/bush exclusion,source shape gate only",
+    "Does not establish complete generator,finished-map pins or independent certifier"
+  ],
+  "finalManifestAll5FilesMatch": true,
+  "productionCodeUnchangedDuringRepairs": true
+}

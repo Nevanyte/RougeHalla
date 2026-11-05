@@ -86,7 +86,7 @@ Astra/high. Runtime-only model overrides are explicit; no unsupported global set
 | P-PERSIST-2 ending metadata | Explicit join choice and selected raw slot after drop now reach the existing fenced writer. | Fifteen actual legacy room/store cases and 72 independent combinations agree; real-PG full counters, duplicate/rename/stale/rollback/old-v1, wire/privacy and replay/restore/digest checks pass. Defaults and posthumous winners preserve actual legacy semantics. See `parity/persistence/README.md`. |
 | P-UNITY-1 bootstrap | Exact Editor and packages, real compile, Web build and Chromium movement over HTTP/WS and HTTPS/WSS passed. The full client packet is still open. | Protocol-4 bootstrap is historical. Current protocol-5 build is 53,892,988 bytes; each smoke receives 54 snapshots (ticks 2->53), move sequence 0->16 and changed authoritative position, with no page/console errors. Four ReadPixels warnings per run; no performance guarantee. See `docs/evidence/stage2-unity-v5/`. |
 | Client authority correction | Removed unverified client walk/collision code; current local view follows accepted server positions. Requested same-tick Full recovery works without allowing ordinary duplicates to corrupt the delta base. | 214 C# tests and independent duplicate/stale/recovery reproductions passed; Unity library copies match. Local view clears on self absence; verified native mesh ownership fix retained. These later source changes still require a fresh Web build. |
-| Integrated native gate | Latest `cargo test --workspace --all-features --locked`: 634 passed, 0 failed, 1 intentionally ignored heap measurement, no filtered tests. Both workspace Clippy modes and formatting passed. | Previous 90 canonical values unchanged; 22 Sentenced traces bring inventory to 112. Parity: 97 compared/13 capture-only/300 paths, all MATCH. All three independent reviews and source oracles pass. Prior diagnostic checkpoint `c5e016ef` passed Rust CI `42070970303`; new gameplay commit CI remains to be observed. |
+| Integrated native gate | Latest `cargo test --workspace --all-features --locked`: 703 passed, 0 failed, 1 intentionally ignored heap measurement, no filtered tests. Both workspace Clippy modes and formatting passed. | Existing gameplay fixture bytes unchanged. Parity: 97 compared/13 capture-only/300 paths, all MATCH. Spots/repair/tail independent reviews and canonical source oracles pass. Prior code checkpoint `568f58a1` passed Rust/C# CI `42096841501`; new placement checkpoint CI remains to be observed. |
 | Shared loot/inventory | P-NET-ITEMS-1 core/policy/headless implemented and independently reviewed. Policies and external observers discover, pick and swap using only public offers. Live integration remains **open**. | Observation 4, policy contract 3, checkpoint /5, replay /3. Privacy, exact targets/grace, async failure/deadline, budgeted misses and restore checked. 512 changed rows allocate zero after warm-up. See `docs/evidence/stage2-items/`. Socket State/resume, source setup bounds, wire costs and Unity item UI remain. |
 | Full game / cloud / release gates | Not achieved | Remaining backlog and Stage 2 prompt still apply in full; baseline checks do not imply full-game parity or release readiness |
 
@@ -172,9 +172,22 @@ Two fixture-inventory defects were repaired and independently retested; aggregat
 mutations. Current content is `52d21bbbf403dd64`; checkpoint /14, replay /12, observation 11, policy 8 and wire 5 remain
 unchanged. The pure exact formatter adds pinned ryu-js1.0.3 (archive/licenses verified; local compiler1.97, no local
 MSRV1.85 execution). Source hash omissions and the narrower bounded terrain diagnostic domain are explicit in ADR0016.
-See `docs/evidence/stage2-map-finalization/`. CI for this new code checkpoint remains to be observed.
-Next are remaining map stages/orchestration, independent certification and pins. Camp/loot spots and repair are
-progressing in isolated parallel scopes and require final review/integration; no full generator or pin claim follows.
+See `docs/evidence/stage2-map-finalization/`. Code checkpoint `568f58a1` passed Rust foundation CI `42096841501` (Rust and C# jobs), including
+the three new source recaptures, PostgreSQL, headless and browser checks.
+Camp/crate/ground spots, safety nets/territory repair and final terrain/decor/shape checks now pass the **703-test**
+native workspace/all-features/locked gate (0 failed/filtered, one intentional heap measurement ignored), formatting
+and both strict Clippy configurations. Parity remains 97 compared/13 capture-only/300 paths, all MATCH. All three
+canonical recaptures/byte-checks and independent reviews pass. Review repaired two malformed-definition panics and
+three tail evidence gaps; original failing controls now detect the fixes. Thirty-nine new aggregate policy mutations
+pass. Repair reuses the existing balancer and a compile-time view of the existing terrain table. Content is now
+`a35c49ba5c73e88b`; checkpoint /14, replay /12, observation 11, policy 8 and wire 5 are unchanged.
+See `docs/evidence/stage2-map-placement/`. Full orchestration, stage-six stylers, independent certifier integration
+and canonical pins remain open. No full generator or performance claim follows.
+Kimi PR24 (`3558f83a`) passed native Linux x86_64/aarch64 production, exact comparison and foreign replay verification
+in both directions (CI `42093826602`). Coordinator comparator25 and focused Rust12 tests pass. It is merged as
+`1d26fd61`; fresh native verification of that merge is running as `42101769249`. This is implemented-domain evidence,
+not full-game completion. Claude PR25–27 are under independent review and are not yet merged; confirmed adapter
+identity/kick/load/placement/operation-guard defects are being repaired before integration.
 Auxiliary factions, status/cards/abilities/mobs/bots and reliable item State/client integration remain open.
 Claude owns the reserved server/persistence/hosting work and Kimi the separate determinism sweep (backlog handoff packets).
 Unity visuals stay deferred; no full-game/pin/performance or cloud staging/production release is implied.

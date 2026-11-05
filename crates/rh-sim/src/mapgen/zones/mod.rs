@@ -179,6 +179,21 @@ fn quotas(total: usize) -> [i32; ZONES + 1] {
         }
     })
 }
+/// Reuse the exact partition balancer for post-territory zone repair.
+/// The caller intentionally may ignore the returned completion flag, as the source does.
+pub(crate) fn balance_repair(context: &ZoneContext<'_>, zone: &mut [u8], keep: &[u8]) -> bool {
+    assert_eq!(zone.len(), N);
+    assert_eq!(keep.len(), N);
+    let fixed = context.fixed;
+    growth::balance(
+        &fixed.painted_mask,
+        &fixed.painted,
+        zone,
+        &quotas(fixed.painted.len()),
+        keep,
+        &context.rules,
+    )
+}
 pub fn partition_zones(
     context: &ZoneContext<'_>,
     rng: &mut impl FnMut() -> f64,

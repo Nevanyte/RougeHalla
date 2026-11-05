@@ -6,7 +6,7 @@ use crate::map::{tile_to_world_center, world_to_tile, MASK_MOVE, TILE_FLOOR, TIL
 use crate::mapdata::{GameMapData, WorldPt};
 pub use rules::{
     default_definition, visit_content, PropKind, TerrainGateDefinition, TerrainKind,
-    DEFAULT_DEFINITION,
+    DEFAULT_DEFINITION, GENERATOR_TILE_CLASSES,
 };
 
 #[derive(Default)]

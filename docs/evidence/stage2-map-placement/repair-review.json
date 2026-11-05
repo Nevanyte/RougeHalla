@@ -1,0 +1,196 @@
+{
+  "decision": "ACCEPT bounded pure safety-nets and post-territory repair leaf; coordinator integration gates remain separate",
+  "remainingActionableDefects": [],
+  "reviewedOwnedManifest": {
+    "baseRevision": "998fc95d29e50a537dfa5bc62dc98a9aa11675a8",
+    "sourceFrozen": true,
+    "canonicalFixtureFrozen": true,
+    "canonicalByteCheck": "passed Linux x64 Node22.23.4 capture + exact --check",
+    "files": [
+      {
+        "path": "crates/rh-sim/src/mapgen/repair/README.md",
+        "sha256": "c2c33604479c8a7a18e813d9e35f59cdd04a117795163fb6519779e1c7c3c94e",
+        "bytes": 2320
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/repair/mod.rs",
+        "sha256": "8ee010433775410ef33f31f0891a23053914fa95d3790248e1bdb6af96016ecf",
+        "bytes": 27920
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/repair/rules.rs",
+        "sha256": "23883ea93f71220183214a6fec93b0d5ae834546f5ade79f1ecedbda955ccfc8",
+        "bytes": 1089
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/repair/tests.rs",
+        "sha256": "606611ec858b654c40d1cbd8942e9542620309dfdbba86f1bb062b5ea6924c2e",
+        "bytes": 23456
+      },
+      {
+        "path": "tools/map-fixtures/repair.ts",
+        "sha256": "a573326d4a9190cb15a3f52f6aa27cee59ee2edfcaaaf8ea0e57d4fd437721db",
+        "bytes": 23333
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/fixtures/map-repair.json",
+        "sha256": "5c372064aa1553b0c0640dc88a5ffeac7773b75de82695b2b11be5eb363937ba",
+        "bytes": 31135962
+      }
+    ]
+  },
+  "independentValidation": {
+    "nativeTestsPassed": 7,
+    "restoredSourceParityPassed": true,
+    "behavioralMutantsDetected": 7,
+    "mutations": {
+      "source_sha256": "8ee010433775410ef33f31f0891a23053914fa95d3790248e1bdb6af96016ecf",
+      "results": [
+        {
+          "name": "disable-far-wall",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "fae08a5724268abdbd7be30c8f17f15c5373de530b00cde8d5739857ea76fa6e"
+        },
+        {
+          "name": "disable-stray-wall",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "e74a9dbfa8ae05477b51b8041f5a00225b8acdfa260930e8f73ae768a7abd618"
+        },
+        {
+          "name": "ignore-fits-preference",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "7e6fc24fda1042fcbc9e471c99e48c8a227560c068387268c99f5830b15e5a37"
+        },
+        {
+          "name": "skip-zone-balance",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "0743386dfdb25b5357e0971b4de197cfd3a7ad36a8eb79a2393faabde3443593"
+        },
+        {
+          "name": "ignore-landmark-keep",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "f8b82d0e2417f74019f1992a17780abf6465c157633285afe21b25e531e05a7e"
+        },
+        {
+          "name": "ignore-crate-keep",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "11a15c09d2103f803aba230c47f56c036a9503cba3d00b663ecbbe8c471bd723"
+        },
+        {
+          "name": "skip-final-radius",
+          "exit": 101,
+          "test_assertion_failure": true,
+          "compile_error": false,
+          "log_sha256": "ee3364064b0d47d15f5cb08b1566470c90d3564ed1d5617d8abbfa33df61d8dc"
+        }
+      ]
+    },
+    "sourceProvenance": {
+      "allSourceHashesMatchLive": true,
+      "sourceFiles": 75,
+      "fixtureSha256": "5c372064aa1553b0c0640dc88a5ffeac7773b75de82695b2b11be5eb363937ba",
+      "stageInventory": {
+        "nets-entry": 44,
+        "nets-connectivity": 44,
+        "nets-exit": 42,
+        "post-entry": 60,
+        "territories-return": 60,
+        "terrain-rezone-entry": 59,
+        "infill-entry": 54,
+        "infill-exit": 54,
+        "reach-entry": 53,
+        "post-exit": 50,
+        "territory-operation": 110,
+        "refused:A:floorShare": 1,
+        "refused:A:radiusPost": 3,
+        "refused:repair": 1,
+        "refused:A:rezoneLow": 1,
+        "refused:A:rezoneCrate": 2,
+        "refused:A:rezoneLandmark": 1,
+        "refused:A:rezonePool": 1,
+        "refused:A:campCut": 1,
+        "refused:A:poolCut": 1
+      }
+    },
+    "sharedDependencies": {
+      "crates/rh-sim/src/mapgen/zones/growth.rs": {
+        "sha256": "819af3c52ceb0ec09ead75b33aa7348ea482faf9db30107577cb69ece9e8b123",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/zones/rules.rs": {
+        "sha256": "2e8e6a85a8fed08dfb047db2c289a5235f65756019282cb026b14c6fce060ab2",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/zones/metrics.rs": {
+        "sha256": "4694b6614966625a1809f04c997c3f8274a3aee83bb64a935467035768c6edbf",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/zones/camps/mod.rs": {
+        "sha256": "59dec64169a9ebeefd9eb45ac8d6596762d5656e1a5c1e34ad62d475b3c75bc4",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/zones/camps/rules.rs": {
+        "sha256": "96791769a530a76d37aa054272465c109bfe2c80cd48e03e043b6da6ef9a5ced",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/spawns/rules.rs": {
+        "sha256": "f8e59f1731220753f79739875de3ebbda7f60a0fe41be59164c173745a6f1778",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/coliseum.rs": {
+        "sha256": "526faa8a711ccd3d7288a936cf7fafa7a590df07446f97ad89d76ab784fb311b",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/grid_ops.rs": {
+        "sha256": "8c60299980b55d461eb4ae41e4b5e2823fcf17cd179251ac4b9c6a69b641d4f1",
+        "matchesLive": true
+      },
+      "crates/rh-sim/src/mapgen/terrain_gate/rules.rs": {
+        "sha256": "1ce074421dd7e05d16a217e422eb19cecd74a32a851af9061c1dc35f34527335",
+        "matchesLive": true
+      }
+    }
+  },
+  "fixedFindings": [
+    {
+      "finding": "Malformed packed-key definitions could panic after caller-state writes",
+      "reproduction": "protected-cross-zone pre-state; tiles[294]=WALL; peel_ceiling=1000000; balance_tolerance=-1; multiplication overflow in growth.rs287 and state_changed=true",
+      "resolution": "All realizable neighbor score intermediate operations and nonnegative i32 packed-key ranges checked in preflight; independent same-state invalid-ceiling controls now return error without writes."
+    },
+    {
+      "finding": "Original evidence did not execute either wall-up branch, painted-zone transfer or actual balance movement, and protection cases masked independent crate/landmark inputs",
+      "resolution": "Added actual-source selected synthetic controls with operation-phase inventory and observable balance changes; independent behavioral mutants now fail."
+    },
+    {
+      "finding": "beforeNets invalid tile bytes admitted; infill return unasserted; CampCut missing region expectation was circular",
+      "resolution": "Preflight byte validation, exact infill return assertion and preserved-region controls added."
+    },
+    {
+      "finding": "First frozen test expected16 synthetic names despite22 fixture cases",
+      "resolution": "Corrected exact22-name inventory, refreshed test hash, baseline passed before mutation tests."
+    }
+  ],
+  "sourceReviewConclusions": [
+    "Source partial writes, refusal order, per-camp and neighbor iteration order, lower-ID ties, fit preference, stray first-round break, source sweep>60 bound, ignored balance completion and trace order match TS.",
+    "Shared balance wrapper passes fixed painted mask/list, exact quotas, mutable zone and keep=(floor OR ring) to existing balancer. Nine shared dependency files match current live source.",
+    "Both APIs accept no RNG. Canonical source entry/exit draw counts and continuations match; producer source RNG-draw mutation is rejected.",
+    "Borrowed zone/camp/spawn/terrain definitions drive runtime decisions; repair-owned rules are read by runtime and content visitor."
+  ],
+  "limits": [
+    "40 actual generator runs all succeed and have no territory operations; hard repair paths are transparently labelled source-derived synthetics, not claims of failed production seeds.",
+    "No full generator/orchestration, independent certifier, pinned seed parity, performance sweep or integration/content-fold signoff is implied.",
+    "Canonical JS evidence is producer Linux x64 Node22.23.4 capture and byte-check; independent reviewer ran native Rust and inspected exact source provenance without duplicating canonical captures."
+  ]
+}

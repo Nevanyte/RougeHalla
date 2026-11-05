@@ -61,6 +61,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("mapgen/grid_topology.rs", "COST", "integer chamfer-distance algorithm representation, not combat or map-shape tuning; exact legacy differential fixtures"),
     ("mapgen/zones/mod.rs", "ZONES", "derived from the existing hashed faction identity table"),
     ("mapgen/zones/mod.rs", "N", "grid area derived from registered map dimensions"),
+    ("mapgen/spots/mod.rs", "N", "grid area derived from registered map dimensions"),
+    ("mapgen/repair/mod.rs", "N", "grid area derived from registered map dimensions"),
     ("mapgen/zones/growth.rs", "KEY", "Int32 packed heap-key encoding; total key/tile order is pinned by exact differential partition fixtures, not a tunable rule"),
     ("mapgen/zones/camps/mod.rs", "KEY", "Int32 packed camp/territory heap ordering; exact differential fixtures pin representation and ties"),
     ("map.rs", "TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
@@ -97,6 +99,9 @@ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     ("mapgen/terrain_gate/rules.rs", "DEFAULT_DEFINITION", "terrain acceptance tables and halo distances are live inputs folded by content_hash_of_terrain_gate_definition"),
     ("mapgen/terrain_gate/rules.rs", "KINDS", "default terrain key/class/home rows are traversed by the actual terrain acceptance definition and content visitor"),
     ("mapgen/terrain_gate/rules.rs", "PROPS", "default prop key/class rows are traversed by the actual terrain acceptance definition and content visitor"),
+    ("mapgen/terrain_gate/rules.rs", "GENERATOR_TILE_CLASSES", "derived from the sole KINDS table and folded through the live repair definition"),
+    ("mapgen/spots/rules.rs", "DEFAULT_DEFINITION", "live camp/crate/ground placement tuning is traversed by content_hash_of_spot_definition"),
+    ("mapgen/tail/mod.rs", "DEFAULT_DEFINITION", "final wall-piece admission and loot exclusion tuning is traversed by content_hash_of_tail_definition"),
     (
         "factions.rs", "ALL",
         "signature identities and each live is_dot classification are folded by content_hash_of_signature_rules",
@@ -368,7 +373,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x52d2_1bbb_f403_dd64;
+const GOLDEN_CONTENT_HASH: u64 = 0xa35c_49ba_5c73_e88b;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

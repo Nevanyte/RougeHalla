@@ -63,6 +63,18 @@ pub const KINDS: [TerrainKind; 8] = [
         home: Some(5),
     },
 ];
+/// Generator clearing-class view derived from the sole terrain table. NONE is never tested as a hazard.
+pub const GENERATOR_TILE_CLASSES: [u8; KINDS.len()] = {
+    let mut out = [TILE_FLOOR; KINDS.len()];
+    let mut i = 0;
+    while i < KINDS.len() {
+        if let Some(tile) = KINDS[i].tile {
+            out[i] = tile;
+        }
+        i += 1;
+    }
+    out
+};
 pub const PROPS: [PropKind<'static>; 34] = [
     PropKind {
         key: "ember_vent",

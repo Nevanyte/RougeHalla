@@ -1,0 +1,75 @@
+{
+  "decision": "accept bounded pure spots leaf",
+  "blockingGaps": [],
+  "supersedes": "Earlier five-versus-seven fixture blocker is resolved; canonical fixture refreshed and strict target passes.",
+  "finalManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/spots-work/final-manifest.json",
+  "manifestVerification": {
+    "ownedFiles": 7,
+    "allSha256AndLengthsMatch": true
+  },
+  "producerCanonicalEvidence": {
+    "attribution": "producer capture and byte-check, independently inspected evidence and fixture",
+    "runtime": {
+      "node": "v22.23.4",
+      "platform": "linux",
+      "arch": "x64"
+    },
+    "session": 62491,
+    "bytes": 10929392,
+    "sha256": "fe6003335391be65ab58d2176eb79733a7c7d66ffe466b3fd28e1ad8809642d8",
+    "inventory": {
+      "cases": 7,
+      "camps": 350,
+      "crateZones": 35,
+      "ground": 7,
+      "units": 7
+    },
+    "captureAndByteCheckExit": 0,
+    "sourceShaMatchesActual": true,
+    "completeOutputAndHashControls": 7
+  },
+  "independentVerification": {
+    "strictTarget": {
+      "passed": 6,
+      "failed": 0,
+      "log": "/tmp/rh-spots-independent-review/final-strict-gate.log"
+    },
+    "fixtureRngReplay": {
+      "words": 200879,
+      "actualStreams": 21,
+      "syntheticStreams": 7,
+      "initialAndEndStates": "exact",
+      "continuationWordsPerStream": 8
+    },
+    "hostSyntheticDifferential": {
+      "attribution": "independent diagnostic only; not canonical proof",
+      "node": "v25.8.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "cases": 96,
+      "camp": 32,
+      "crates": 32,
+      "ground": 32,
+      "crateRefusals": 12,
+      "comparison": "exact outputs, ground masks, draw counts and next words"
+    }
+  },
+  "resolvedFindings": [
+    {
+      "priority": "P2",
+      "issue": "unbounded crate_gap caused mark arithmetic overflow after RNG consumption",
+      "repair": "bound crate_gap before draws",
+      "independentControl": "gap2 accepted; gap160 and usize::MAX refused with zero draws; final regression passes all three APIs"
+    },
+    {
+      "issue": "continuation/event/refusal fixture strictness gaps",
+      "repair": "exact continuation lengths, full ordered crate event vectors, independent captured ground counts/results, pinned synthetic counts",
+      "verification": "final strict target passed"
+    }
+  ],
+  "scopeLimits": [
+    "Pure camp/crate/ground placement leaf only",
+    "Full generator orchestration, independent certifier and pin parity remain outside this review"
+  ],
+  "reviewerSourceEdits": false
+}

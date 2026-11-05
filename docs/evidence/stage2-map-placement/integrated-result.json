@@ -1,0 +1,19 @@
+{
+  "passed": 703,
+  "failed": 0,
+  "ignored": 1,
+  "filtered": 0,
+  "fmt": true,
+  "clippy_all": true,
+  "clippy_default": true,
+  "content": "a35c49ba5c73e88b",
+  "parity": 97,
+  "capture_only": 13,
+  "paths": 300,
+  "new_map_policy_mutations": 39,
+  "checkpoint": 14,
+  "replay": 12,
+  "observation": 11,
+  "policy": 8,
+  "protocol": 5
+}

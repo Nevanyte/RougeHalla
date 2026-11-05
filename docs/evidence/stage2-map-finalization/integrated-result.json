@@ -32,5 +32,10 @@
     "terrain InputError domain documented",
     "MSRV1.85 not executed locally"
   ],
-  "ci": "pending push"
+  "ci": {
+    "run": 42096841501,
+    "revision": "568f58a134e8a2ce7b5bbf432c14585a18b1e42b",
+    "rust": "success",
+    "csharp": "success"
+  }
 }

@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 672 tests passed with all features, 0 failed/filtered and one explicitly
+Native arm64 integration on `optimization_port`: 703 tests passed with all features, 0 failed/filtered and one explicitly
 ignored heap measurement. Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -23,7 +23,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
 - C-DET/C-NUM: checkpoint format is `rh-checkpoint/14`, replay `rh-replay/12`, observation version 11; content identity
-  `52d21bbbf403dd64`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+  `a35c49ba5c73e88b`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now
@@ -496,6 +496,12 @@ figures are taken by hand).
 (`a_changed_rule_is_caught`).
 
 ## Change log
+
+- Stage 2 placement/repair/tail (2026-11-05): native all-feature/locked gate: 703 passed, 0 failed, one intentionally ignored; both strict
+  Clippy modes, formatting and parity (97 compared, 13 capture-only, 300 paths) pass. Canonical source bytechecks and independent
+  runtime/admission/inventory reviews pass; packed-key/spacing admission and three fixture gaps repaired. New content
+  `a35c49ba5c73e88b`, formats unchanged; full generator/certifier/pins remain open. Kimi PR24 native workflow
+  `42093826602` proves Linux x86_64/aarch64 comparison and both foreign-replay directions for its bounded inventory.
 
 - Stage 2 map finalization (2026-11-05): pure canonical records, exact ECMAScript map identity and ordered terrain
   validation are independently reviewed and integrated. Native all-feature/locked gate: 672 passed, 0 failed/filtered,

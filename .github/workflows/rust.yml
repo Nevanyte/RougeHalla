@@ -117,6 +117,12 @@ jobs:
         run: node --import tsx tools/map-fixtures/landmark-stage.ts --check
       - name: Final map records still match the actual generator
         run: node --import tsx tools/map-fixtures/records.ts --check
+      - name: Camp crate and ground placement still match the actual generator
+        run: node --import tsx tools/map-fixtures/spots.ts --check
+      - name: Safety nets and territory repair still match the actual generator
+        run: node --import tsx tools/map-fixtures/repair.ts --check
+      - name: Terrain cleanup loot decor and final shape gate still match the actual generator
+        run: node --import tsx tools/map-fixtures/tail.ts --check
       - name: Ordered terrain validation still matches the actual source
         run: node --import tsx tools/map-fixtures/terrain-gate.ts --check
       - name: Exact map hash and Number strings still match the actual source
