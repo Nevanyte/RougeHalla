@@ -219,6 +219,8 @@ impl Persistence {
     ) -> Result<Recorded, RecordError> {
         match self {
             Persistence::Memory(s) => {
+                // The in-memory store keeps no match rows, so it has no use for the roster (the Postgres arm does).
+                let _ = &roster;
                 if s.leases.is_some() && !s.record_delay.is_zero() {
                     tokio::time::sleep(s.record_delay).await;
                 }
