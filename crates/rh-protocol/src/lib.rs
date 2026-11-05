@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v2.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v3.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Optional values: `u8 flag (0/1) + value`. Lists:
 //! `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown tags and
@@ -35,6 +35,33 @@
 //! reject reserved bits, values out of range (hp_pct over 100, a varint past its type), ids that do not strictly ascend, a
 //! count over [`MAX_ACTORS`] and a non-canonical varint; the encoders never write such a frame.
 //!
+//! # What changed in v3 (snapshot deltas; every other message is as in v2 except the new client `Resync`)
+//!
+//! A connection's snapshots are either FULL (tag 0x83, the v2 layout above, byte for byte) or a DELTA (tag 0x87) against the
+//! last snapshot that connection's writer wrote to the socket. TCP is ordered and reliable, so that base needs no client
+//! ack: the client's base is simply the last snapshot it applied. Module [`delta`] has the layout, the writer-side
+//! [`ConnEncoder`] (which picks Full or Delta per frame) and the reader-side [`SnapshotTracker`] (which REFUSES, never repairs,
+//! a delta it cannot apply: unknown base, unknown or departed actor, out-of-range field).
+//!
+//! ```text
+//! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint,
+//!   head u16   bit 15 a self follows (its id is the base's); bit 14 a departed list follows; bits 12..13 phase;
+//!              bits 0..11 which self fields follow (all zero without a self)
+//!   [self fields, in bit order, only those whose bit is set:
+//!      0 x f32  1 y f32  2 facing f32  3 hp f32  4 max_hp f32  5 kit u8  6 ready_in_ms u16  7 kills varint  8 bounty varint
+//!      9 gv varint  10 move_seq u8  11 status u8 (0..=3)]
+//!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id:
+//!     id varint (the first's id, then the gap), mask u8, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8
+//!     4 hp_pct u8  5 bounty varint; bits 6..7 hold the status (always present). A new actor carries all six fields.
+//!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 14
+//! Resync    0x05 (client -> server, no body): "send me a full snapshot"; the server honours at most one per second.
+//! ```
+//!
+//! The writer sends a Full snapshot for the first one after a Welcome (a resumed connection always starts so), after a
+//! `Resync`, when its base is older than [`MAX_DELTA_AGE`] ticks, when the self appears or changes id, and whenever the
+//! delta would not be smaller than the full frame. The room never encodes a snapshot: it hands each connection's writer the
+//! observation's wire data ([`SnapshotData`]), so a snapshot a slow client skips is never encoded at all.
+//!
 //! This crate does not depend on the simulation: the server maps sim types to these wire types, so internal refactors never
 //! change the wire by accident.
 //!
@@ -46,15 +73,20 @@
 
 pub mod codec;
 mod encode;
+pub use encode::delta;
 pub mod map;
 pub mod quant;
 pub mod samples;
 
 pub use codec::{DecodeError, EncodeError, Reader, Writer};
+pub use delta::{
+    ActorDelta, ConnEncoder, DeltaError, FrameKind, QActor, SelfDelta, SnapshotData, SnapshotDelta,
+    SnapshotTracker, TrackError, MAX_DELTA_AGE,
+};
 pub use encode::{encode_snapshot_into, encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 2;
+pub const PROTOCOL_VERSION: u16 = 3;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -158,6 +190,10 @@ pub enum ClientMsg {
         client_ms: f64,
     },
     Leave,
+    /// "Send me a full snapshot": the client refused a delta it could not apply (v3). The server answers with a Full
+    /// snapshot at its next tick, or at the first tick at least 20 (one second) after its previous forced Full if that is
+    /// later: a request is never dropped, only deferred ([`delta::MIN_FORCED_FULL_TICKS`]).
+    Resync,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -304,6 +340,8 @@ pub enum ServerMsg {
         me: Option<WireSelf>,
         actors: Vec<WireActor>,
     },
+    /// A snapshot as a delta against the last one the connection received (v3); see [`delta`].
+    SnapshotDelta(SnapshotDelta),
     Events {
         tick: u32,
         events: Vec<WireEvent>,
@@ -323,12 +361,14 @@ const T_HELLO: u8 = 0x01;
 const T_INPUT: u8 = 0x02;
 const T_PING: u8 = 0x03;
 const T_LEAVE: u8 = 0x04;
+const T_RESYNC: u8 = 0x05;
 const T_WELCOME: u8 = 0x81;
 const T_REJECT: u8 = 0x82;
 const T_SNAPSHOT: u8 = 0x83;
 const T_EVENTS: u8 = 0x84;
 const T_FX: u8 = 0x85;
 const T_PONG: u8 = 0x86;
+const T_SNAPSHOT_DELTA: u8 = 0x87;
 
 const C_MOVE: u8 = 1;
 const C_STOP: u8 = 2;
@@ -390,6 +430,7 @@ impl ClientMsg {
                 client_ms: r.f64()?,
             },
             T_LEAVE => ClientMsg::Leave,
+            T_RESYNC => ClientMsg::Resync,
             t => return Err(DecodeError::BadTag(t)),
         };
         r.end()?;
@@ -427,7 +468,7 @@ pub const MAX_KIT_CODE: u8 = 15;
 pub const MAX_STATUS_CODE: u8 = 3;
 pub const MAX_PHASE_CODE: u8 = 3;
 
-fn varint_u16(r: &mut Reader, what: &'static str) -> Result<u16, DecodeError> {
+pub(crate) fn varint_u16(r: &mut Reader, what: &'static str) -> Result<u16, DecodeError> {
     u16::try_from(r.varint()?).map_err(|_| DecodeError::BadField(what))
 }
 
@@ -590,6 +631,7 @@ impl ServerMsg {
                     actors,
                 }
             }
+            T_SNAPSHOT_DELTA => ServerMsg::SnapshotDelta(delta::read_snapshot_delta(&mut r)?),
             T_EVENTS => {
                 let tick = r.u32()?;
                 let n = r.u16()? as usize;

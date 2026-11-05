@@ -5,7 +5,9 @@
 #![allow(irrefutable_let_patterns)]
 
 use futures_util::{SinkExt, StreamExt};
-use rh_protocol::{ClientMsg, RejectCode, ServerMsg, WireCommand, WireEvent, PROTOCOL_VERSION};
+use rh_protocol::{
+    ClientMsg, RejectCode, ServerMsg, SnapshotTracker, WireCommand, WireEvent, PROTOCOL_VERSION,
+};
 use rh_server::director::{Director, DirectorConfig};
 use rh_server::hosting::Lifecycle;
 use rh_server::persist::{Auth, Persistence};
@@ -17,7 +19,25 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
+/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v3), and `recv` resolves
+/// both to `ServerMsg::Snapshot`, as a client does. A Welcome resets the decoder, so a resumed connection starts afresh.
+struct Ws {
+    sock: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    track: SnapshotTracker,
+}
+
+impl std::ops::Deref for Ws {
+    type Target = WebSocketStream<MaybeTlsStream<TcpStream>>;
+    fn deref(&self) -> &Self::Target {
+        &self.sock
+    }
+}
+
+impl std::ops::DerefMut for Ws {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sock
+    }
+}
 const TEST_TICK: Duration = Duration::from_millis(3);
 
 /// A 12x8 room whose two spawns are 32 u apart: both fighters are in fists reach from the first tick.
@@ -89,10 +109,13 @@ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server 
 }
 
 async fn connect(url: &str) -> Ws {
-    tokio_tungstenite::connect_async(url)
-        .await
-        .expect("connect")
-        .0
+    Ws {
+        sock: tokio_tungstenite::connect_async(url)
+            .await
+            .expect("connect")
+            .0,
+        track: SnapshotTracker::new(),
+    }
 }
 
 async fn send(ws: &mut Ws, m: ClientMsg) {
@@ -102,9 +125,9 @@ async fn send(ws: &mut Ws, m: ClientMsg) {
 /// The next server message, or None if the socket closed or nothing came within 3 s.
 async fn recv(ws: &mut Ws) -> Option<ServerMsg> {
     loop {
-        match tokio::time::timeout(Duration::from_secs(3), ws.next()).await {
+        match tokio::time::timeout(Duration::from_secs(3), ws.sock.next()).await {
             Ok(Some(Ok(Message::Binary(b)))) => {
-                return Some(ServerMsg::decode(&b).expect("server frames decode"))
+                return Some(ws.track.decode(&b).expect("server frames decode and apply"))
             }
             Ok(Some(Ok(Message::Close(_)))) | Ok(None) | Ok(Some(Err(_))) | Err(_) => return None,
             Ok(Some(Ok(_))) => continue,
@@ -255,7 +278,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             ..
         })
     ));
-    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v2.
+    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v3.
     let mut ws = connect(&s.url).await;
     send(
         &mut ws,
@@ -274,7 +297,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
         Some(ServerMsg::Reject {
             code: RejectCode::ProtocolMismatch,
             reason,
-        }) => assert!(reason.contains("protocol 2"), "{reason}"),
+        }) => assert!(reason.contains("protocol 3"), "{reason}"),
         other => panic!("{other:?}"),
     }
     // Wrong content hash: the reason names the server's.
@@ -543,6 +566,72 @@ async fn a_stalled_client_does_not_stall_the_match() {
         span > 80,
         "the room kept stepping for the reading client ({span} ticks in 0.8 s at 5 ms a tick)"
     );
+}
+
+/// The first byte (0x83 Full, 0x87 delta) of every snapshot frame that arrives within `ms`.
+async fn snapshot_kinds_for(ws: &mut Ws, ms: u64) -> Vec<u8> {
+    let mut kinds = Vec::new();
+    let end = tokio::time::Instant::now() + Duration::from_millis(ms);
+    while let Ok(Some(Ok(m))) = tokio::time::timeout_at(end, ws.sock.next()).await {
+        if let Message::Binary(b) = m {
+            if b[0] == 0x83 || b[0] == 0x87 {
+                kinds.push(b[0]);
+            }
+        }
+    }
+    kinds
+}
+
+/// Protocol v3 over a real socket: the first snapshot is Full and deltas follow; a Resync is answered by exactly one Full
+/// snapshot; Resyncs that follow within the interval between forced Full frames (20 ticks) are not lost: each burst of them ends
+/// with one more Full snapshot and deltas resume (a client that asks once per burst of refusals can never freeze).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_resync_is_answered_with_a_full_snapshot_and_never_dropped() {
+    let s = start(duel_arena(), |_| {}).await;
+    let (mut ws, _, _) = join(&s.url, "tango2", None).await;
+    let full = |k: &[u8]| k.iter().filter(|b| **b == 0x83).count();
+    let first = snapshot_kinds_for(&mut ws, 300).await;
+    assert!(first.len() > 20, "{}", first.len());
+    assert_eq!(first[0], 0x83, "the first snapshot after a Welcome is Full");
+    assert!(first[1..].iter().all(|k| *k == 0x87), "then deltas");
+
+    send(&mut ws, ClientMsg::Resync).await;
+    let answered = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(full(&answered), 1, "one Full per Resync");
+    assert!(
+        answered.len() > 20 && answered.last() == Some(&0x87),
+        "deltas resume"
+    );
+
+    // Two refusals back to back (the second inside the 20-tick interval between forced Full frames): the first is answered at
+    // once, the second is not dropped but answered when the interval ends. Two Full frames, then deltas.
+    send(&mut ws, ClientMsg::Resync).await;
+    tokio::time::sleep(Duration::from_millis(15)).await; // a few ticks: the two requests are not one
+    send(&mut ws, ClientMsg::Resync).await;
+    let deferred = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(
+        full(&deferred),
+        2,
+        "the early Resync is answered, not dropped"
+    );
+    assert!(deferred.len() > 20 && deferred.last() == Some(&0x87));
+    // A burst is answered by a bounded number of Full frames (one per interval at most), and the last one always is.
+    for _ in 0..4 {
+        send(&mut ws, ClientMsg::Resync).await;
+        tokio::time::sleep(Duration::from_millis(15)).await;
+    }
+    let burst = snapshot_kinds_for(&mut ws, 300).await;
+    assert!(
+        (2..=4).contains(&full(&burst)),
+        "{} Full frames",
+        full(&burst)
+    );
+    assert!(burst.len() > 20 && burst.last() == Some(&0x87));
+
+    // The connection is fine and quiet again.
+    let quiet = snapshot_kinds_for(&mut ws, 300).await;
+    assert_eq!(full(&quiet), 0);
+    assert!(quiet.len() > 20);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

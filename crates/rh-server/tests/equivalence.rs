@@ -85,13 +85,14 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
         .await
         .unwrap();
     let mut session = [0u8; 16];
+    let mut track = rh_protocol::SnapshotTracker::new();
     let mut seq = 0u32;
     let mut snaps = 0;
     let mut dropped_once = false;
     let result: Option<rh_protocol::WireResult>;
     loop {
         let msg = match tokio::time::timeout(Duration::from_secs(10), ws.next()).await {
-            Ok(Some(Ok(Message::Binary(b)))) => ServerMsg::decode(&b).unwrap(),
+            Ok(Some(Ok(Message::Binary(b)))) => track.decode(&b).unwrap(),
             Ok(Some(Ok(_))) => continue,
             other => panic!("socket ended early: {other:?}"),
         };

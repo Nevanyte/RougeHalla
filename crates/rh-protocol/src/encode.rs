@@ -18,6 +18,10 @@ use crate::codec::{str_len, varint_len, EncodeError, Writer};
 use crate::map::EncodedMap;
 use crate::*;
 
+/// Protocol v3: per-connection snapshot deltas. A child module so it reaches this module's private writers.
+#[path = "delta.rs"]
+pub mod delta;
+
 /// Fewest bytes a Snapshot takes before its actors and self: tag, tick, phase, ack, mask (2), count.
 const MIN_SNAPSHOT_HEAD_LEN: usize = 1 + 1 + 1 + 1 + 2 + 1;
 /// Fewest bytes a self takes after its mask: id and four floats.
@@ -154,7 +158,7 @@ impl Frame for ClientMsg {
                 1 + 4 + 2 + commands.iter().map(command_len).sum::<usize>()
             }
             ClientMsg::Ping { .. } => 1 + 4 + 8,
-            ClientMsg::Leave => 1,
+            ClientMsg::Leave | ClientMsg::Resync => 1,
         }
     }
 
@@ -233,6 +237,7 @@ impl Frame for ClientMsg {
                 w.f64(*client_ms);
             }
             ClientMsg::Leave => w.u8(T_LEAVE),
+            ClientMsg::Resync => w.u8(T_RESYNC),
         }
     }
 }
@@ -653,6 +658,7 @@ impl Frame for ServerMsg {
                 me,
                 actors,
             } => snapshot_len(*tick, *phase, *ack_input, me.as_ref(), actors),
+            ServerMsg::SnapshotDelta(d) => delta::message_len(d),
             ServerMsg::Events { events, .. } => {
                 1 + 4 + 2 + events.iter().map(event_len).sum::<usize>()
             }
@@ -676,6 +682,7 @@ impl Frame for ServerMsg {
                     return Err(EncodeError::BadValue(why));
                 }
             }
+            ServerMsg::SnapshotDelta(d) => delta::message_check(d)?,
             ServerMsg::Events { events, .. } => list("events", events.len(), u16::MAX as usize)?,
             ServerMsg::Fx { fx, .. } => {
                 list("fx", fx.len(), u16::MAX as usize)?;
@@ -768,6 +775,7 @@ impl Frame for ServerMsg {
                     prev = Some(a.id);
                 }
             }
+            ServerMsg::SnapshotDelta(d) => delta::write_message(w, d),
             ServerMsg::Events { tick, events } => {
                 w.u8(T_EVENTS);
                 w.u32(*tick);

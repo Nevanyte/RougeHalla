@@ -135,12 +135,13 @@ fn single_step_frames_are_byte_identical_to_the_message_encoding_on_every_viewer
             let (want_imp, want_fx, want_snap) = reference(&obs, ack, *id, &events);
             assert_eq!(got.important, want_imp, "events, tick {t} viewer {}", id.0);
             assert_eq!(got.fx, want_fx, "fx, tick {t} viewer {}", id.0);
-            assert_eq!(
-                got.snapshot.as_ref().expect("encodes"),
-                &want_snap,
-                "snapshot, tick {t} viewer {}",
-                id.0
-            );
+            // The snapshot reaches the connection as wire data; its Full frame is the reference frame, byte for byte.
+            let mut full = Vec::new();
+            got.snapshot
+                .as_ref()
+                .expect("encodes")
+                .encode_full_into(&mut full);
+            assert_eq!(full, want_snap, "snapshot, tick {t} viewer {}", id.0);
             assert!(earlier.is_empty());
             viewer_ticks += 1;
             with_events += u32::from(got.important.is_some());
@@ -208,6 +209,8 @@ impl Told {
                 ServerMsg::Events { events, .. } => self.events.extend(events),
                 ServerMsg::Fx { fx, .. } => self.fx.extend(fx),
                 ServerMsg::Snapshot { tick, .. } => self.snapshot_ticks.push(tick),
+                // Only the tick matters here, and a delta carries it.
+                ServerMsg::SnapshotDelta(d) => self.snapshot_ticks.push(d.tick),
                 _ => {}
             }
         }
@@ -408,8 +411,8 @@ fn the_publisher_tells_a_swing_by_the_sight_of_the_step_it_happened_in() {
         assert_eq!(swung, told, "gap {gap}");
         assert!(earlier.is_empty(), "the carry is consumed by the frames");
         // One snapshot, for the final state.
-        let snap = ServerMsg::decode(&f.snapshot.unwrap()).unwrap();
-        assert!(matches!(snap, ServerMsg::Snapshot { tick, .. } if tick == sim.tick()));
+        let snap = f.snapshot.unwrap();
+        assert_eq!(snap.tick(), sim.tick());
     }
 }
 

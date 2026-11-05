@@ -53,3 +53,58 @@ decoder must produce (floats as bit patterns), so the Rust, C# and JS decoders a
 (0.48x), mean Snapshot 89.8 -> 43.0 bytes; at 204 synthetic remote actors with the slice's field mix the per-actor cost falls from 22 to 10.0 bytes (0.456x of v1; with
 every optional field set, 11.8 bytes, 0.54x: `cargo run --release -p rh-protocol --example encodebench -- --report --actors 204`).
 **Not done (P10b):** a per-connection delta against the last frame written, which needs connection state in the writer task.
+
+## Addendum: protocol v3 (per-connection snapshot deltas)
+
+**Status:** Accepted and implemented (packet P10c; the decision and its numbers are [ADR 0010](0010-snapshot-delta.md)). The server
+speaks only v3 and refuses an older Hello with `ProtocolMismatch`; vectors are `protocol/fixtures/v3.json` (v2.json is gone: the
+rule is vectors for the current version only).
+
+**What changed** (layout: `crates/rh-protocol/src/lib.rs` module docs and `delta.rs`; every other message is as in v2):
+- A connection's snapshots are Full (tag 0x83, the v2 layout byte for byte) or Delta (tag 0x87) against the last snapshot that
+  connection's WRITER wrote to the socket. TCP is ordered and reliable, so the base needs no client ack: the client's base is the
+  last snapshot it applied. A Delta carries its tick, its age (1 to 64 ticks behind: the base is `tick - age`), the ack, and a head
+  word (self present, departed list present, phase, and which of 12 self fields follow); then the changed self fields at their v2
+  encodings (exact, bitwise), the changed actors (a mask and only the changed quantized fields; a new actor carries all of them) and
+  the departed ids. Everything is lossless: a chain of frames equals the Full frame of the same tick.
+- The room no longer encodes snapshots. It hands each connection's outbox the validated wire data of the tick (`SnapshotData`:
+  remote actors already quantized, the self at full precision, a lower bound of its Full frame size); the writer encodes when it drains
+  (`Outbox::drain_into`), so a snapshot a slow client skips is never encoded, encoding is off the room task, and "latest wins" is
+  unchanged. The writer keeps one base per connection (bounded by `MAX_ACTORS`: 16 B per actor plus two scratch lists).
+- The writer sends a Full frame for: the first snapshot after a Welcome (so a resumed connection ALWAYS starts Full), a client
+  `Resync`, a base more than 64 ticks old (or not older than the new tick), a self that appears or changes id, and a delta that
+  would not be smaller than the Full frame.
+- Clients (Rust `SnapshotTracker`, C# `SnapshotTracker`, JS `Tracker`) hold the last snapshot applied and REFUSE, never repair or
+  clamp, a delta whose base is not the one held, that updates or departs an unknown actor, that lists an actor both ways, that gives
+  a new actor without every field, that has a self without a base self, that would pass `MAX_ACTORS`, or that is malformed (a
+  reserved or out-of-range field, a bad age, ids that do not strictly ascend, truncation, trailing bytes). A refusal changes
+  nothing. The C# `Session` and the JS probe answer a refusal with one client message, `Resync` (tag 0x05, no body), skip deltas
+  until a Full frame arrives, and do not disconnect. The server never drops a `Resync`: the writer answers it with a Full frame,
+  but at least 20 ticks (1 s) after its previous forced Full, so a request that arrives sooner stays pending and is answered when
+  the interval ends (a client asks once per burst of refusals and must be able to rely on that answer). The interval is counted in
+  ticks, so it is deterministic; a client that sends one before every snapshot gets one forced Full per 20 ticks, not one per
+  request, and the frame-rate bucket bounds the flood itself. As defence in depth the clients repeat a request still unanswered
+  after 2 s (with the next refused delta), longer than the server's interval so a well-behaved server never sees a repeat.
+  The refusal of a remote actor off the position grid (H-server) happens in `SnapshotData::build`, so it holds for Full frames and
+  deltas alike (a Delta carries only grid codes of a built snapshot; the C# `ActorDelta` fields are grid codes by type).
+- C-OBS: a Delta names only actors the Full frame of that tick lists, and its departed list only ids the client was told about;
+  `tests/snapshot_delta.rs` checks both over a whole match for every viewer.
+
+**Measured** (`wirebench --ticks 2400`, seed-1 map, 8 bots, payload bytes only, every snapshot written): 908 -> 305 bytes per
+player per second (66%; the ADR 0010 prototype measured 345). Snapshot frames 43.0 -> 12.8 bytes on average (8 Full, 19,192
+Delta). The 2-byte head (self field bits in the head word, the status as a rare byte, no id in the self delta) is where this beats
+the prototype's 4 (head word plus a separate 2-byte mask).
+
+**Cost** on top of H-server (`perfproof.py --baseline 2e8682c --only wire_seed1_8bots,headless_seed1_8bots`): wire 25,929 ->
+27,178 Ir per step (1.048x), allocations 9.08 -> 9.08 per step, allocated bytes 366 -> 827 per step (each frame reserves room
+for a Full frame; see below), headless 0.9999x, every gameplay fingerprint identical (only `bytesPerPlayerPerSec` 908 -> 305 and
+`meanSnapshotBytes` 43.0 -> 12.8 change, declared). Before that merge (`--baseline 8e54a25`, deterministic counts): the wire workload (`wirebench`, the sim step
+included) goes 25,811 -> 27,282 Ir per step (1.057x) with allocations per step unchanged (9.08) and every gameplay fingerprint
+identical (the declared byte counts aside); on the publish path alone (observe plus encode, 2,047 Ir per viewer-tick in ADR 0010)
+it is +184 Ir per viewer-tick, about 1.09x. Two things keep it there: a snapshot is validated and quantized once in the room and
+its heap block cycles room -> outbox slot -> writer base -> spare -> room (no allocation or copy of the snapshot per tick), and
+the writer builds a delta in one pass into the frame it hands to the socket. Memory per connection: the pending slot, the writer's
+base and one spare, each a block of about 100 B plus 16 B per visible actor (a few hundred bytes at 8 players; 10.5 KB measured
+for the base and spare at `MAX_ACTORS`, the bound is a few tens of KB).
+
+

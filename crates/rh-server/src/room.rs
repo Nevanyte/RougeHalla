@@ -123,7 +123,8 @@ pub struct RoomStats {
     pub step_us_max: u64,
     pub late_wakes: u64,
     pub dropped_steps: u64,
-    /// Bytes of every frame the room encoded for its humans.
+    /// Bytes the room handed to its humans' outboxes: events and fx frames, and each snapshot at a lower bound of the size of
+    /// its Full frame (the connection's writer encodes it, as a delta when it can: `snapshot_bytes_sent` has the real bytes).
     pub bytes_out: u64,
     /// Bytes of the frames the outboxes accepted (at most `bytes_out`: a closed outbox takes nothing).
     pub bytes_enqueued_total: u64,
@@ -131,6 +132,11 @@ pub struct RoomStats {
     pub fx_dropped: u64,
     /// Snapshots a slow client skipped because a newer one replaced them.
     pub snapshots_skipped: u64,
+    /// Snapshot frames the connections' writers encoded as Full frames and as deltas (protocol v3), and their bytes: what the
+    /// snapshots cost on the wire.
+    pub snapshots_full: u64,
+    pub snapshots_delta: u64,
+    pub snapshot_bytes_sent: u64,
     /// Snapshots the encoder refused to send (never a repaired frame): counted here, logged once per room.
     pub snapshot_refusals: u64,
     /// Refusal log lines printed: at most one per room, however many refusals there were.
@@ -193,6 +199,8 @@ struct HumanSeat {
     /// What this human could know of the wake's steps before the last, judged step by step as they ran (empty between
     /// wakes and on every one-step wake).
     carry: Vec<SeenEvent>,
+    /// A snapshot the connection's outbox handed back, to build the next one in (no allocation per tick).
+    spare: Option<rh_protocol::SnapshotData>,
 }
 
 pub struct Room {
@@ -506,6 +514,7 @@ impl Room {
             dropped_at: None,
             ack_input: 0,
             carry: Vec::new(),
+            spare: None,
         });
         self.fill_bots();
         let _ = self.reports.send(RoomReport::Seated {
@@ -709,7 +718,8 @@ impl Room {
                 h.carry.clear();
                 continue;
             };
-            let frames = self.publisher.frames(
+            let frames = self.publisher.frames_in(
+                h.spare.take(),
                 &self.sim,
                 h.player,
                 h.ack_input,
@@ -742,17 +752,18 @@ impl Room {
                     None
                 }
             };
-            let bytes: usize = [&frames.important, &frames.fx, &snap]
+            let bytes: usize = [&frames.important, &frames.fx]
                 .into_iter()
                 .flatten()
                 .map(Vec::len)
-                .sum();
+                .sum::<usize>()
+                + snap.as_ref().map_or(0, rh_protocol::SnapshotData::min_len);
             if bytes > 0 {
                 self.bytes_out += bytes as u64;
                 bytes_total += bytes as u64;
                 pushes += 1;
                 // One lock and one notify for the client's whole tick.
-                out.push_tick(frames.important, frames.fx, snap);
+                h.spare = out.push_tick(frames.important, frames.fx, snap);
             }
         }
         if pushes > 0 {
@@ -830,6 +841,9 @@ impl Room {
             bytes_enqueued_total: outboxes.bytes_enqueued_total,
             fx_dropped: outboxes.fx_dropped,
             snapshots_skipped: outboxes.snapshots_skipped,
+            snapshots_full: outboxes.snapshots_full,
+            snapshots_delta: outboxes.snapshots_delta,
+            snapshot_bytes_sent: outboxes.snapshot_bytes_sent,
             snapshot_refusals: self.snapshot_refusals,
             snapshot_refusals_logged: self.snapshot_refusals_logged,
             frame_refusals: self.frame_refusals,

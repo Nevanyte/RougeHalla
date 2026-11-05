@@ -173,13 +173,14 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
     // Wait for the run (the lobby discards inputs, as in legacy), then both hold attack toward the other.
     let mut xs = Vec::new();
     for ws in sockets.iter_mut() {
+        let mut track = rh_protocol::SnapshotTracker::new();
         loop {
             let b = match tokio::time::timeout(Duration::from_secs(10), ws.next()).await {
                 Ok(Some(Ok(Message::Binary(b)))) => b,
                 Ok(Some(Ok(_))) => continue,
                 other => panic!("no run: {other:?}"),
             };
-            match ServerMsg::decode(&b).unwrap() {
+            match track.decode(&b).unwrap() {
                 ServerMsg::Snapshot {
                     me: Some(me),
                     phase: 1,
@@ -382,6 +383,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
             .unwrap();
         socks.push(ws);
     }
+    let mut track = rh_protocol::SnapshotTracker::new();
     loop {
         let Ok(Some(Ok(Message::Binary(b)))) =
             tokio::time::timeout(Duration::from_secs(10), socks[0].next()).await
@@ -389,7 +391,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
             panic!("no run")
         };
         if matches!(
-            ServerMsg::decode(&b).unwrap(),
+            track.decode(&b).unwrap(),
             ServerMsg::Snapshot { phase: 1, .. }
         ) {
             break;

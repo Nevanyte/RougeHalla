@@ -114,6 +114,7 @@ where
         .await
         .unwrap();
     let (mut welcomed, mut snaps) = (false, 0);
+    let mut track = rh_protocol::SnapshotTracker::new();
     while snaps < snapshots {
         let next = tokio::time::timeout(Duration::from_secs(3), ws.next())
             .await
@@ -121,7 +122,7 @@ where
             .expect("socket open")
             .expect("frame");
         let Message::Binary(b) = next else { continue };
-        match ServerMsg::decode(&b).expect("server frames decode") {
+        match track.decode(&b).expect("server frames decode and apply") {
             ServerMsg::Welcome { tick_rate, .. } => {
                 assert_eq!(tick_rate, 20);
                 welcomed = true;
