@@ -9,6 +9,8 @@ pub mod outbox;
 pub mod pacer;
 pub mod persist;
 pub mod room;
+#[cfg(feature = "postgres")]
+pub mod spool;
 pub mod wire;
 
 use axum::extract::{State, WebSocketUpgrade};
@@ -104,6 +106,7 @@ async fn control_health(State(d): State<Arc<Director>>) -> impl IntoResponse {
             "state": d.lifecycle.state_name(),
             "rooms": d.room_count(),
             "metrics": metrics::process().json(),
+            "results": d.result_metrics(),
         })),
     )
 }

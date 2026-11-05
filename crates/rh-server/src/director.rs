@@ -247,11 +247,29 @@ struct Inner {
     results_failed: u64,
     /// Results the store refused for good (no lease, stale fence): not retried.
     results_refused: u64,
+    /// Durable-spool accounting (see `spool.rs`): a result is first `spooled` (fsynced, survives a process restart on this
+    /// host) and later `committed` (`results_ok`: PostgreSQL has it, the only host-loss-durable point).
+    results_spooled: u64,
+    /// Results whose append failed because the spool was full (they fall back to in-memory retry only).
+    spool_full: u64,
+    /// Results whose append failed on I/O (same fallback).
+    spool_errors: u64,
+    /// Spooled results committed (or found already applied) by the startup recovery pass.
+    results_recovered: u64,
+    /// Records moved to the dead-letter directory by this process (refused, unreadable at startup, out of time).
+    results_dead_lettered: u64,
     replays: Vec<rh_sim::replay::Replay>,
 }
 
 /// Attempts per result write (100 ms doubling to 5 s: about two minutes in all). Only transient errors are retried.
 pub const RESULT_ATTEMPTS: u32 = 30;
+
+/// How a spooled result ended in this process.
+#[cfg(feature = "postgres")]
+enum SpoolEnd {
+    Committed { applied: bool },
+    DeadLettered,
+}
 
 pub struct Director {
     /// Result writes in flight (the process waits for them before exiting).
@@ -268,6 +286,12 @@ pub struct Director {
     freed: Notify,
     /// This director, for the tasks it spawns (lease give-backs) from `&self`.
     me: std::sync::Weak<Director>,
+    /// The durable result spool (`--result-spool`); `None` keeps the in-memory-only retry.
+    #[cfg(feature = "postgres")]
+    spool: Option<Arc<crate::spool::ResultSpool>>,
+    /// Bounds the spooled writes in flight at once, so a recovery pass cannot stampede the connection pool.
+    #[cfg(feature = "postgres")]
+    spool_permits: tokio::sync::Semaphore,
 }
 
 /// How long an admission waits, in all (one deadline shared by its retries), for a profile that is mid-release (its lease
@@ -298,6 +322,40 @@ impl Director {
         auth: Arc<Auth>,
         lifecycle: Arc<Lifecycle>,
     ) -> Arc<Self> {
+        Self::build(
+            cfg,
+            persistence,
+            auth,
+            lifecycle,
+            #[cfg(feature = "postgres")]
+            None,
+        )
+    }
+
+    /// As [`Director::new`], with the durable result spool. Panics if the persistence is not PostgreSQL: a spool record
+    /// can only be replayed into the durable store.
+    #[cfg(feature = "postgres")]
+    pub fn new_with_spool(
+        cfg: DirectorConfig,
+        persistence: Arc<Persistence>,
+        auth: Arc<Auth>,
+        lifecycle: Arc<Lifecycle>,
+        spool: Arc<crate::spool::ResultSpool>,
+    ) -> Arc<Self> {
+        assert!(
+            persistence.is_durable(),
+            "a result spool needs the PostgreSQL store"
+        );
+        Self::build(cfg, persistence, auth, lifecycle, Some(spool))
+    }
+
+    fn build(
+        cfg: DirectorConfig,
+        persistence: Arc<Persistence>,
+        auth: Arc<Auth>,
+        lifecycle: Arc<Lifecycle>,
+        #[cfg(feature = "postgres")] spool: Option<Arc<crate::spool::ResultSpool>>,
+    ) -> Arc<Self> {
         cfg.leases.validate().expect("invalid lease policy");
         if let Err(e) = crate::wire::arena_fits(&cfg.arena) {
             panic!("refusing to host this arena: {e}");
@@ -315,6 +373,10 @@ impl Director {
             lifecycle,
             freed: Notify::new(),
             me: me.clone(),
+            #[cfg(feature = "postgres")]
+            spool,
+            #[cfg(feature = "postgres")]
+            spool_permits: tokio::sync::Semaphore::new(8),
         });
         tokio::spawn(Self::report_loop(d.clone(), rx));
         d
@@ -846,50 +908,10 @@ impl Director {
                     d.pending_writes
                         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     tokio::spawn(async move {
-                        let mut delay = Duration::from_millis(100);
                         // Whether the lease is gone after the write: released by its transaction, or no longer ours.
-                        let mut lease_gone = false;
-                        for attempt in 0..RESULT_ATTEMPTS {
-                            match d
-                                .persistence
-                                .record_with_id(
-                                    match_id,
-                                    &profile,
-                                    fence,
-                                    &result,
-                                    roster,
-                                    key.id(),
-                                )
-                                .await
-                            {
-                                Ok(Recorded::Applied) => {
-                                    d.inner.lock().expect("director").results_ok += 1;
-                                    lease_gone = true;
-                                    break;
-                                }
-                                // A duplicate report: the store answers before it looks at the lease, so the lease the
-                                // caller holds (if any) is still live. It is not marked gone: the seat's ordinary
-                                // fenced give-back releases it (a no-op when the lease already moved on).
-                                Ok(Recorded::AlreadyApplied) => {
-                                    d.inner.lock().expect("director").results_ok += 1;
-                                    break;
-                                }
-                                Err(RecordError::Refused(e)) => {
-                                    eprintln!("[results] {profile}: refused by the store, not retried: {e}");
-                                    d.inner.lock().expect("director").results_refused += 1;
-                                    lease_gone = true;
-                                    break;
-                                }
-                                Err(e) if attempt == RESULT_ATTEMPTS - 1 => {
-                                    eprintln!("[results] giving up on {profile}: {e}");
-                                    d.inner.lock().expect("director").results_failed += 1;
-                                }
-                                Err(_) => {
-                                    tokio::time::sleep(delay).await;
-                                    delay = (delay * 2).min(Duration::from_secs(5));
-                                }
-                            }
-                        }
+                        let lease_gone = d
+                            .write_result(match_id, &profile, fence, &result, roster, key.id())
+                            .await;
                         let mut inner = d.inner.lock().expect("director");
                         match owner {
                             Some(gen) => {
@@ -1104,6 +1126,347 @@ impl Director {
     /// Recorded replays of the last closed rooms (private: they hold match secrets).
     pub fn take_replays(&self) -> Vec<rh_sim::replay::Replay> {
         std::mem::take(&mut self.inner.lock().expect("director").replays)
+    }
+
+    /// Writes one result off the room task and says whether the lease is gone afterwards (released by the write's own
+    /// transaction, or no longer ours). With a spool the record is made durable first (see `spool.rs`); without one, or
+    /// when the spool is full or unwritable, this is the in-memory retry that predates the spool.
+    async fn write_result(
+        self: &Arc<Self>,
+        match_id: MatchId,
+        profile: &str,
+        fence: i64,
+        result: &rh_sim::RunResult,
+        roster: crate::room::Roster,
+        durable_id: Option<i64>,
+    ) -> bool {
+        #[cfg(feature = "postgres")]
+        if let Some((name, rec, spool)) = self
+            .spool_result(match_id, profile, fence, result, roster, durable_id)
+            .await
+        {
+            return match self.drive_spooled(&spool, &name, &rec, false).await {
+                // The write released the lease itself.
+                SpoolEnd::Committed { applied: true } => true,
+                // A duplicate: the ordinary fenced give-back releases the lease (a no-op if it moved on).
+                SpoolEnd::Committed { applied: false } => false,
+                // Refused for good, or out of time. The lease is deliberately NOT released: a release would make a
+                // later operator replay of the dead letter impossible, and an unreleased lease only expires.
+                SpoolEnd::DeadLettered => true,
+            };
+        }
+        self.write_unspooled(match_id, profile, fence, result, roster, durable_id)
+            .await
+    }
+
+    async fn write_unspooled(
+        self: &Arc<Self>,
+        match_id: MatchId,
+        profile: &str,
+        fence: i64,
+        result: &rh_sim::RunResult,
+        roster: crate::room::Roster,
+        durable_id: Option<i64>,
+    ) -> bool {
+        let d = self;
+        let key_id = durable_id;
+        let mut delay = Duration::from_millis(100);
+        let mut lease_gone = false;
+        for attempt in 0..RESULT_ATTEMPTS {
+            match d
+                .persistence
+                .record_with_id(match_id, profile, fence, result, roster, key_id)
+                .await
+            {
+                Ok(Recorded::Applied) => {
+                    d.inner.lock().expect("director").results_ok += 1;
+                    lease_gone = true;
+                    break;
+                }
+                // A duplicate report: the store answers before it looks at the lease, so the lease the
+                // caller holds (if any) is still live. It is not marked gone: the seat's ordinary
+                // fenced give-back releases it (a no-op when the lease already moved on).
+                Ok(Recorded::AlreadyApplied) => {
+                    d.inner.lock().expect("director").results_ok += 1;
+                    break;
+                }
+                Err(RecordError::Refused(e)) => {
+                    eprintln!("[results] {profile}: refused by the store, not retried: {e}");
+                    d.inner.lock().expect("director").results_refused += 1;
+                    lease_gone = true;
+                    break;
+                }
+                Err(e) if attempt == RESULT_ATTEMPTS - 1 => {
+                    eprintln!("[results] giving up on {profile}: {e}");
+                    d.inner.lock().expect("director").results_failed += 1;
+                }
+                Err(_) => {
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(Duration::from_secs(5));
+                }
+            }
+        }
+        lease_gone
+    }
+
+    /// Result-handoff counters for `/control/health` (loopback only; `/info` and its pinned key set are unchanged).
+    /// `spooled`: fsynced locally (survives a process restart on this host). `committed`: in PostgreSQL (the only
+    /// host-loss-durable point; the same count as `resultsOk` in `/info`).
+    pub fn result_metrics(&self) -> serde_json::Value {
+        let inner = self.inner.lock().expect("director");
+        serde_json::json!({
+            "spooled": inner.results_spooled,
+            "committed": inner.results_ok,
+            "recovered": inner.results_recovered,
+            "refused": inner.results_refused,
+            "failed": inner.results_failed,
+            "deadLettered": inner.results_dead_lettered,
+            "spoolFull": inner.spool_full,
+            "spoolErrors": inner.spool_errors,
+            "spoolPending": self.spool_pending(),
+            "spoolDead": self.spool_dead(),
+        })
+    }
+
+    #[cfg(feature = "postgres")]
+    fn spool_pending(&self) -> usize {
+        self.spool.as_ref().map_or(0, |s| s.stats().pending)
+    }
+    #[cfg(feature = "postgres")]
+    fn spool_dead(&self) -> usize {
+        self.spool.as_ref().map_or(0, |s| s.stats().dead)
+    }
+    #[cfg(not(feature = "postgres"))]
+    fn spool_pending(&self) -> usize {
+        0
+    }
+    #[cfg(not(feature = "postgres"))]
+    fn spool_dead(&self) -> usize {
+        0
+    }
+
+    /// Makes the result durable locally before the first database attempt. `None` means no spool record exists (no
+    /// spool, no durable identity, full, or unwritable) and the caller retries in memory only: the result is then in
+    /// the wider loss window, which is counted and logged, never hidden.
+    #[cfg(feature = "postgres")]
+    async fn spool_result(
+        &self,
+        match_id: MatchId,
+        profile: &str,
+        fence: i64,
+        result: &rh_sim::RunResult,
+        roster: crate::room::Roster,
+        durable_id: Option<i64>,
+    ) -> Option<(
+        String,
+        crate::spool::SpoolRecord,
+        Arc<crate::spool::ResultSpool>,
+    )> {
+        let spool = self.spool.clone()?;
+        let id = durable_id?;
+        let meta = self.persistence.spool_meta(roster)?;
+        let rec = crate::spool::SpoolRecord::new(
+            uuid::Uuid::from_bytes(match_id),
+            id,
+            profile,
+            fence,
+            meta,
+            crate::persist::pg::to_persist(result),
+        );
+        let name = rec.file_name();
+        let (s2, r2) = (spool.clone(), rec.clone());
+        let appended = tokio::task::spawn_blocking(move || s2.append(&r2)).await;
+        match appended {
+            Ok(Ok(_)) => {
+                self.inner.lock().expect("director").results_spooled += 1;
+                eprintln!(
+                    "[results] spooled match={} profile_id={id} fence={fence} (durable on this host only; not yet committed)",
+                    rec.match_id
+                );
+                Some((name, rec, spool))
+            }
+            Ok(Err(crate::spool::SpoolError::Full)) => {
+                self.inner.lock().expect("director").spool_full += 1;
+                eprintln!(
+                    "[results] spool FULL: match={} profile_id={id} is retried in memory only",
+                    rec.match_id
+                );
+                None
+            }
+            other => {
+                self.inner.lock().expect("director").spool_errors += 1;
+                let why = match other {
+                    Ok(Err(e)) => e.to_string(),
+                    Err(e) => e.to_string(),
+                    Ok(Ok(_)) => unreachable!(),
+                };
+                eprintln!("[results] spool append failed ({why}): match={} profile_id={id} is retried in memory only", rec.match_id);
+                None
+            }
+        }
+    }
+
+    /// Replays one spooled record through the fenced store path until it commits, is refused for good, or `retry_deadline`
+    /// passes. The record is removed only after the commit (or a definitive `AlreadyApplied`); refused or out-of-time
+    /// records are dead-lettered. Never acquires, renews or releases a lease.
+    #[cfg(feature = "postgres")]
+    async fn drive_spooled(
+        &self,
+        spool: &Arc<crate::spool::ResultSpool>,
+        name: &str,
+        rec: &crate::spool::SpoolRecord,
+        recovered: bool,
+    ) -> SpoolEnd {
+        let deadline = tokio::time::Instant::now() + spool.cfg.retry_deadline;
+        let mut delay = spool.cfg.backoff_initial;
+        loop {
+            let attempt = {
+                let _permit = self.spool_permits.acquire().await.expect("semaphore");
+                self.persistence.record_spooled(rec).await
+            };
+            let dead = |reason: String| {
+                let (s, n) = (spool.clone(), name.to_owned());
+                async move {
+                    let r = reason.clone();
+                    if let Ok(Err(e)) =
+                        tokio::task::spawn_blocking(move || s.dead_letter(&n, &r)).await
+                    {
+                        eprintln!("[results] could not dead-letter record: {e}");
+                    }
+                }
+            };
+            match attempt {
+                Ok(done) => {
+                    let (s, n) = (spool.clone(), name.to_owned());
+                    if let Ok(Err(e)) = tokio::task::spawn_blocking(move || s.remove(&n)).await {
+                        // The result IS committed; a leftover record is replayed as AlreadyApplied and cleared.
+                        eprintln!("[results] committed but could not remove its spool record: {e}");
+                    }
+                    {
+                        let mut inner = self.inner.lock().expect("director");
+                        inner.results_ok += 1;
+                        if recovered {
+                            inner.results_recovered += 1;
+                        }
+                    }
+                    eprintln!(
+                        "[results] committed match={} profile_id={} ({}{})",
+                        rec.match_id,
+                        rec.profile_id,
+                        if done == Recorded::Applied {
+                            "applied"
+                        } else {
+                            "already applied"
+                        },
+                        if recovered {
+                            ", recovered from spool"
+                        } else {
+                            ""
+                        }
+                    );
+                    return SpoolEnd::Committed {
+                        applied: done == Recorded::Applied,
+                    };
+                }
+                Err(RecordError::Refused(e)) => {
+                    dead(format!("refused by the store: {e}")).await;
+                    {
+                        let mut inner = self.inner.lock().expect("director");
+                        inner.results_refused += 1;
+                        inner.results_dead_lettered += 1;
+                    }
+                    eprintln!(
+                        "[results] DEAD-LETTERED match={} profile_id={}: refused by the store ({e}); never retried",
+                        rec.match_id, rec.profile_id
+                    );
+                    return SpoolEnd::DeadLettered;
+                }
+                Err(RecordError::Transient(e)) => {
+                    if tokio::time::Instant::now() + delay >= deadline {
+                        dead(format!("retry deadline exceeded; last error: {e}")).await;
+                        {
+                            let mut inner = self.inner.lock().expect("director");
+                            inner.results_failed += 1;
+                            inner.results_dead_lettered += 1;
+                        }
+                        eprintln!(
+                            "[results] DEAD-LETTERED match={} profile_id={}: retry deadline exceeded ({e})",
+                            rec.match_id, rec.profile_id
+                        );
+                        return SpoolEnd::DeadLettered;
+                    }
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(spool.cfg.backoff_max);
+                }
+            }
+        }
+    }
+
+    /// Startup recovery: replays every spooled record left by an earlier process through the SAME fenced path with its
+    /// original fence, identity and metadata. Call once, before the listener accepts admissions. Each profile with a
+    /// pending record is held `Leaving` (no lease state) until its records resolve, so an admission in this process cannot
+    /// race the replay; recovery itself takes, renews and releases no lease. Records the store refuses (a newer fence,
+    /// a released lease) are dead-lettered, never retried forever. Returns how many records were found. Blocking scan,
+    /// then background tasks: a database outage does not delay startup or any tick.
+    #[cfg(feature = "postgres")]
+    pub fn recover_spooled(self: &Arc<Self>) -> usize {
+        let Some(spool) = self.spool.clone() else {
+            return 0;
+        };
+        let records = spool.scan();
+        let dead_on_scan = spool.stats().dead_total;
+        if dead_on_scan > 0 {
+            self.inner.lock().expect("director").results_dead_lettered += dead_on_scan;
+        }
+        if !records.is_empty() {
+            eprintln!(
+                "[results] recovering {} spooled result(s) from {}",
+                records.len(),
+                spool.dir().display()
+            );
+        }
+        let n = records.len();
+        for (name, rec) in records {
+            let key = ProfileKey::Durable(rec.profile_id);
+            let match_id = rec.match_uuid().map(|u| *u.as_bytes()).unwrap_or([0; 16]);
+            let gen = {
+                let mut inner = self.inner.lock().expect("director");
+                inner.gens += 1;
+                let fresh = inner.gens;
+                let seat = inner.profiles.entry(key.clone()).or_insert(ProfileSeat {
+                    renewal: None,
+                    gen: fresh,
+                    match_id,
+                    fence: rec.fence,
+                    state: SeatState::Leaving,
+                    result_due: false,
+                    writes: 0,
+                    lease: LeaseState::Gone,
+                });
+                seat.writes += 1;
+                seat.gen
+            };
+            let spool = spool.clone();
+            let d = self.clone();
+            d.pending_writes
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            tokio::spawn(async move {
+                d.drive_spooled(&spool, &name, &rec, true).await;
+                let mut inner = d.inner.lock().expect("director");
+                let mut mine = false;
+                if let Some(s) = inner.profiles.get_mut(&key).filter(|s| s.gen == gen) {
+                    s.writes -= 1;
+                    mine = true;
+                }
+                if mine {
+                    d.advance(&mut inner, &key);
+                }
+                drop(inner);
+                d.pending_writes
+                    .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
+        n
     }
 
     /// Waits (at most `max`) until no result write is in flight. Called before the process exits.

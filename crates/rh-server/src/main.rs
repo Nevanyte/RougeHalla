@@ -5,6 +5,12 @@
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
 //!       [--lease-ttl-secs 120] [--lease-renew-secs 30] [--lease-db-timeout-secs 5]
+//!       [--result-spool <dir> [--result-spool-max 4096] [--result-retry-secs 900]]   (needs postgres + --database-url)
+//!
+//! `--result-spool` makes each result durable on this host (fsynced record) before the first database attempt and replays
+//! leftovers at startup through the fenced store path; without it results are retried in memory only (a process loss
+//! loses an unwritten result). A spool survives a process restart on the same volume, NOT host replacement: only the
+//! PostgreSQL commit does. See docs/adr/0006-persistence.md, "Addendum: durable result handoff".
 //!
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
 //! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits.
@@ -48,6 +54,47 @@ fn arg(args: &[String], k: &str) -> Option<String> {
     args.iter()
         .position(|a| a == k)
         .and_then(|i| args.get(i + 1).cloned())
+}
+
+/// `--result-spool <dir>` with `--result-spool-max` (pending plus dead-lettered records, default 4096) and
+/// `--result-retry-secs` (per-result retry deadline before dead-lettering, default 900).
+#[cfg(feature = "postgres")]
+fn spool_settings(
+    args: &[String],
+) -> Result<Option<(std::path::PathBuf, rh_server::spool::SpoolConfig)>, String> {
+    let Some(dir) = arg(args, "--result-spool") else {
+        if args.iter().any(|a| a == "--result-spool") {
+            return Err("--result-spool requires a directory".into());
+        }
+        for k in ["--result-spool-max", "--result-retry-secs"] {
+            if args.iter().any(|a| a == k) {
+                return Err(format!("{k} needs --result-spool"));
+            }
+        }
+        return Ok(None);
+    };
+    if dir.starts_with("--") || dir.is_empty() {
+        return Err("--result-spool requires a directory".into());
+    }
+    let whole = |name: &str| -> Result<Option<u64>, String> {
+        match args.iter().position(|a| a == name) {
+            None => Ok(None),
+            Some(i) => args
+                .get(i + 1)
+                .and_then(|s| s.parse::<u64>().ok())
+                .filter(|n| *n > 0)
+                .map(Some)
+                .ok_or_else(|| format!("{name} requires a positive whole number")),
+        }
+    };
+    let mut cfg = rh_server::spool::SpoolConfig::default();
+    if let Some(n) = whole("--result-spool-max")? {
+        cfg.max_records = usize::try_from(n).map_err(|_| "--result-spool-max too large")?;
+    }
+    if let Some(n) = whole("--result-retry-secs")? {
+        cfg.retry_deadline = Duration::from_secs(n);
+    }
+    Ok(Some((dir.into(), cfg)))
 }
 
 fn lease_policy(args: &[String]) -> Result<LeasePolicy, String> {
@@ -129,12 +176,62 @@ async fn main() {
         None => (Persistence::memory(), auth),
         Some(url) => durable(&url, &args).await,
     };
+    #[cfg(feature = "postgres")]
+    let spool = match spool_settings(&args) {
+        Ok(None) => None,
+        Ok(Some((dir, scfg))) => {
+            if arg(&args, "--database-url").is_none() {
+                eprintln!("[server] --result-spool needs --database-url (a spool replays into PostgreSQL)");
+                std::process::exit(2);
+            }
+            match rh_server::spool::ResultSpool::open(&dir, scfg) {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    eprintln!(
+                        "[server] cannot open the result spool {}: {e}",
+                        dir.display()
+                    );
+                    std::process::exit(2);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[server] invalid result spool settings: {e}");
+            std::process::exit(2);
+        }
+    };
+    #[cfg(not(feature = "postgres"))]
+    if args.iter().any(|a| a.starts_with("--result-spool")) {
+        eprintln!("[server] --result-spool needs a build with `--features postgres`");
+        std::process::exit(2);
+    }
+    #[cfg(feature = "postgres")]
+    let director = match spool {
+        Some(spool) => Director::new_with_spool(
+            cfg,
+            Arc::new(persistence),
+            Arc::new(auth),
+            lifecycle.clone(),
+            spool,
+        ),
+        None => Director::new(
+            cfg,
+            Arc::new(persistence),
+            Arc::new(auth),
+            lifecycle.clone(),
+        ),
+    };
+    #[cfg(not(feature = "postgres"))]
     let director = Director::new(
         cfg,
         Arc::new(persistence),
         Arc::new(auth),
         lifecycle.clone(),
     );
+    // Replay what an earlier process left in the spool (original fence and metadata), before any admission. This runs in
+    // the background against the database: an outage delays the replay, never startup or a tick.
+    #[cfg(feature = "postgres")]
+    director.recover_spooled();
     let app = rh_server::public_router(director.clone());
 
     if let Some(control) = arg(&args, "--control") {
@@ -255,6 +352,34 @@ mod tests {
                 .ttl,
             Duration::from_secs(3600)
         );
+    }
+
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn spool_cli_is_optional_validated_and_bounded() {
+        assert!(spool_settings(&[]).unwrap().is_none());
+        let (dir, cfg) = spool_settings(&args(&[
+            "--result-spool",
+            "/var/rh/spool",
+            "--result-spool-max",
+            "10",
+            "--result-retry-secs",
+            "60",
+        ]))
+        .unwrap()
+        .unwrap();
+        assert_eq!(dir, std::path::PathBuf::from("/var/rh/spool"));
+        assert_eq!(cfg.max_records, 10);
+        assert_eq!(cfg.retry_deadline, Duration::from_secs(60));
+        for bad in [
+            vec!["--result-spool"],
+            vec!["--result-spool", "--bind"],
+            vec!["--result-spool-max", "5"],
+            vec!["--result-spool", "d", "--result-spool-max", "0"],
+            vec!["--result-spool", "d", "--result-retry-secs", "x"],
+        ] {
+            assert!(spool_settings(&args(&bad)).is_err(), "{bad:?}");
+        }
     }
 
     #[test]
