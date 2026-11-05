@@ -26,18 +26,18 @@ const MAX_ENTRIES: usize = 1 << 16;
 #[derive(Clone, Copy)]
 struct Entry {
     bits: [u64; 4],
-    viewer: u32,
-    other: u32,
+    /// `viewer << 32 | other`, or [`NO_KEY`] for an empty entry.
+    key: u64,
     blocked: bool,
-    used: bool,
 }
+
+/// The key of an empty entry: no pair is asked under it (a lookup with this key bypasses the table).
+const NO_KEY: u64 = u64::MAX;
 
 const EMPTY: Entry = Entry {
     bits: [0; 4],
-    viewer: 0,
-    other: 0,
+    key: NO_KEY,
     blocked: false,
-    used: false,
 };
 
 /// Hit and miss counts (diagnostics only; they never influence a verdict).
@@ -53,6 +53,8 @@ pub struct SightCache {
     mask: usize,
     arena: usize,
     digest: u64,
+    /// The roster size the table is sized for.
+    players: usize,
     stats: SightStats,
 }
 
@@ -79,6 +81,7 @@ impl SightCache {
             mask: 0,
             arena: 0,
             digest: 0,
+            players: 0,
             stats: SightStats::default(),
         }
     }
@@ -94,17 +97,28 @@ impl SightCache {
 
     /// Readies the cache for one observation pass over a sim with `players` players on the arena `(arena, digest)`:
     /// drops the table when the arena differs from the one it was filled on, grows it when the roster outgrew it.
+    #[inline]
     pub(crate) fn begin(&mut self, arena: usize, digest: u64, players: usize) {
+        if arena != self.arena
+            || digest != self.digest
+            || players > self.players
+            || self.entries.is_empty()
+        {
+            self.resize(arena, digest, players);
+        }
+    }
+
+    #[cold]
+    fn resize(&mut self, arena: usize, digest: u64, players: usize) {
         let want = (players * players * SLOTS_PER_PAIR)
             .next_power_of_two()
             .clamp(MIN_ENTRIES, MAX_ENTRIES);
-        if arena != self.arena || digest != self.digest || want > self.entries.len() {
-            self.entries.clear();
-            self.entries.resize(want, EMPTY);
-            self.mask = want - 1;
-            self.arena = arena;
-            self.digest = digest;
-        }
+        self.entries.clear();
+        self.entries.resize(want, EMPTY);
+        self.mask = want - 1;
+        self.arena = arena;
+        self.digest = digest;
+        self.players = players;
     }
 
     /// `ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)`, reusing the stored verdict when this ordered pair was last asked
@@ -122,22 +136,19 @@ impl SightCache {
         by: f64,
     ) -> bool {
         let bits = [ax.to_bits(), ay.to_bits(), bx.to_bits(), by.to_bits()];
-        let h =
-            ((u64::from(viewer.0) << 32) | u64::from(other.0)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        let key = (u64::from(viewer.0) << 32) | u64::from(other.0);
+        if key == NO_KEY {
+            return ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
+        }
+        let h = key.wrapping_mul(0x9E37_79B9_7F4A_7C15);
         let e = &mut self.entries[(h >> 40) as usize & self.mask];
-        if e.used && e.viewer == viewer.0 && e.other == other.0 && e.bits == bits {
+        if e.key == key && e.bits == bits {
             self.stats.hits += 1;
             return e.blocked;
         }
         self.stats.misses += 1;
         let blocked = ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
-        *e = Entry {
-            bits,
-            viewer: viewer.0,
-            other: other.0,
-            blocked,
-            used: true,
-        };
+        *e = Entry { bits, key, blocked };
         blocked
     }
 }
