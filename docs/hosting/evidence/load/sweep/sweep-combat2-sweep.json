@@ -1,0 +1,30 @@
+{
+  "command": "rh-load sweep --server-bin target/release/rh-server --levels 400 --duration 40 --ramp-per-sec 25 --aggression 0.5 --label sweep-combat2 --out-dir target/load/sweep --hardware-label Apple M5 Pro 18-core 64 GB",
+  "label": "sweep-combat2",
+  "rows": [
+    {
+      "bytesPerSecInP50": 1435.728,
+      "clientIntervalMsP50": 50,
+      "clientIntervalMsP95": 51,
+      "clientIntervalMsP99": 52,
+      "cpuCoresSteadyMean": 1.826,
+      "degraded": false,
+      "droppedSteps": 0,
+      "harnessCpuCoresNote": "see series",
+      "helloToWelcomeMsP95": 1.142,
+      "latenessUsP99": 2559,
+      "matches": 400,
+      "players": 3200,
+      "playersNeverAdmitted": 0,
+      "reasons": [],
+      "report": "target/load/sweep/sweep-combat2-m400.json",
+      "roomsSteadyMean": 422.575,
+      "rssMbPeak": 228.6,
+      "stepUsMax": 6528,
+      "stepUsP50": 15,
+      "stepUsP99": 95,
+      "ticksMissed": 0
+    }
+  ],
+  "schema": "rh-load-sweep/1"
+}

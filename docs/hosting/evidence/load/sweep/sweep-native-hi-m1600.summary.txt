@@ -1,0 +1,23 @@
+rh-load run sweep-native-hi-m1600  (baseline slice only, not full-game capacity)
+revision 3d91abc3a350a2890f90bf8f9ab13b818f14c2d0-dirty  profile release  protocol 5  content aa629bdb1a320371
+host: Apple M5 Pro 18-core 64 GB (Apple M5 Pro) | 18 cores | 64 GiB | Darwin 25.6.0 | arch aarch64 | emulated false
+transport: ws (plain, loopback)   raw output: target/load/sweep/sweep-native-hi-m1600.json
+scenario: 1600 matches x 8 players (12800 players), ramp 40/s, steady 40 s, think 150 ms, aggression 0, reconnect 0 (every 20 s), churn clients 0, slow 0 , max-rooms 1608
+timing: ramp 40.01 s, steady 40.00 s, total 93.63 s
+cold start: control health 7.71 ms, public port 7.79 ms
+capacity: rooms peak 1137 (steady mean 905, min 582), players wanted 12800 admitted 11284 never admitted 1516
+server cpu (cores): steady mean 2.12 max 2.81 whole-run mean 2.07 | rss MB peak 527.90 mean 341.08
+server step us: p50 19 p99 111 max 62539 (steps 1346899, dropped 34) | publish us p50 15 p99 63 | wake lateness us p50 1535 p99 49151 max 173592
+client snapshot interval ms (50 ideal): n=2286056 p50 0 p95 176 p99 1071 p99.9 3000 max 3000 | late>100ms 128095 >200ms 110343 >500ms 59921 | ticks missed 12739
+connect ms: n=18535 p50 1002.09 p95 12006.65 p99 14156.57 max 25885.44
+hello->welcome ms: n=17502 p50 0.20 p95 123.60 p99 1577.70 max 14308.93
+welcome->first snapshot ms: n=10977 p50 42.14 p95 56.62 p99 403.55 max 15018.01
+resume hello->welcome ms: no samples
+refusals by reason: {"Malformed":122,"ProfileInUse":856}   connect errors 23735
+bandwidth per client B/s in: n=15785 p50 440.83 p95 774.86 p99 831.64 max 973.63
+bandwidth per client B/s out: n=15785 p50 93.87 p95 98.92 p99 100.71 max 104.57
+reconnect: attempts 0 ok 0 failed 0 success rate n/a failures {}
+slow consumers: started 0 outcomes {}
+churn: joins 0 leaves 0
+play: results 391 inputs 2232181 snapshots 4787238 decode errors 0 abnormal ends 6777 other {"closed before welcome":13,"connect: tcp connect timeout":23585,"connect: ws handshake timeout":150,"end: Kicked":212,"end: closed":6757,"end: send failed":20,"welcome timeout":42}
+verdict: DEGRADED ["server dropped 34 steps (pacer backlog)","wake lateness p99 49151 us over 25000 us","client snapshot interval p99 1071 ms over 100 ms (two ticks)"]
