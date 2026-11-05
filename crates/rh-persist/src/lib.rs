@@ -549,7 +549,7 @@ impl Store {
         let Some(pid) = self.profile_id(callsign).await? else {
             return Ok(RecordOutcome::NoLease);
         };
-        self.record_inner(match_id, pid, fence, result, meta, false)
+        self.record_inner(match_id, pid, fence, result, meta, false, None)
             .await
     }
 
@@ -562,8 +562,34 @@ impl Store {
         result: &MatchResult,
         meta: &MatchMeta,
     ) -> Result<RecordOutcome> {
-        self.record_inner(match_id, profile_id, fence, result, meta, false)
+        self.record_inner(match_id, profile_id, fence, result, meta, false, None)
             .await
+    }
+
+    /// [`Store::record_result_by_id`] for a result replayed from a durable spool record (rh-server's crash recovery):
+    /// `ended_at_ms` (Unix milliseconds) is the time the match's result was originally produced, and becomes the `matches`
+    /// row's `ended_at` (advanced with `greatest`, as for any later result) instead of the commit time. Every
+    /// other check, the fence included, is identical: a replay never bypasses a newer owner. `applied_at`, the GV month
+    /// and achievement timestamps stay the commit time (they record when the credit landed).
+    pub async fn record_result_by_id_at(
+        &self,
+        match_id: Uuid,
+        profile_id: i64,
+        fence: i64,
+        result: &MatchResult,
+        meta: &MatchMeta,
+        ended_at_ms: Option<i64>,
+    ) -> Result<RecordOutcome> {
+        self.record_inner(
+            match_id,
+            profile_id,
+            fence,
+            result,
+            meta,
+            false,
+            ended_at_ms,
+        )
+        .await
     }
 
     /// Test seam: does every write of `record_result`, then kills its own backend before COMMIT (as a crashed host
@@ -580,10 +606,11 @@ impl Store {
         let Some(pid) = self.profile_id(callsign).await? else {
             return Ok(RecordOutcome::NoLease);
         };
-        self.record_inner(match_id, pid, fence, result, meta, true)
+        self.record_inner(match_id, pid, fence, result, meta, true, None)
             .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn record_inner(
         &self,
         match_id: Uuid,
@@ -592,6 +619,7 @@ impl Store {
         r: &MatchResult,
         meta: &MatchMeta,
         crash: bool,
+        ended_at_ms: Option<i64>,
     ) -> Result<RecordOutcome> {
         let mut tx = self.pool.begin().await?;
         // The lease row is the per-profile mutex: everything below runs serialized per callsign.
@@ -706,9 +734,10 @@ impl Store {
         // The match row is shared by every player's result of the match: the first transaction inserts it, the others
         // find it (a concurrent one waits for that commit; nothing here waits on another player's row, so no cycle).
         sqlx::query(
-            "INSERT INTO matches (match_id, owner, region, placement_id, build, content_hash, humans, bots)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             ON CONFLICT (match_id) DO UPDATE SET ended_at = greatest(matches.ended_at, now())",
+            "INSERT INTO matches (match_id, owner, region, placement_id, build, content_hash, humans, bots, ended_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce(to_timestamp($9::bigint::float8 / 1000.0), now()))
+             ON CONFLICT (match_id) DO UPDATE
+             SET ended_at = greatest(matches.ended_at, coalesce(to_timestamp($9::bigint::float8 / 1000.0), now()))",
         )
         .bind(match_id)
         .bind(&meta.owner)
@@ -718,6 +747,7 @@ impl Store {
         .bind(meta.content_hash as i64)
         .bind(i32::try_from(meta.humans).unwrap_or(i32::MAX))
         .bind(i32::try_from(meta.bots).unwrap_or(i32::MAX))
+        .bind(ended_at_ms)
         .execute(&mut *tx)
         .await?;
         sqlx::query(

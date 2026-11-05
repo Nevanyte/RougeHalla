@@ -82,3 +82,9 @@ the tests FAIL (set `RH_SKIP_PG_TESTS=1` to skip deliberately).
 
 CI (GitHub Actions): `services: postgres: { image: postgres:16, env: { POSTGRES_PASSWORD: pw }, ports: ["5432:5432"] }`
 and `DATABASE_URL=postgres://postgres:pw@localhost:5432/postgres`.
+
+## Replaying a spooled result
+
+`Store::record_result_by_id_at(match, profile_id, fence, result, meta, Some(ended_at_ms))` is `record_result_by_id` plus the
+original result time for `matches.ended_at`; it is what `rh-server --result-spool` recovery calls (ADR 0006, durable result
+handoff addendum). The fence check is identical, so a replay never bypasses a newer owner.

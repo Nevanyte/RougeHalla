@@ -83,3 +83,92 @@ old text, and only throwaway test databases did. From the first real deployment 
   Profiles are not region-homed, and leases and fences depend on that: per-region primaries would break fencing. A cross-region
   result transaction holds the profile row lock for several round trips (an estimate, not measured; P-PERSIST-4 measures it); collapsing it into fewer round trips is
   P-PERSIST-4. P-HOST-1 passes the GameLift compute or instance id as `--instance-id` so lease owners are meaningful.
+
+## Addendum: durable result handoff (P-CLAUDE-INFRA-1, 2026-11-05)
+
+Before this addendum a result was retried in memory (about two minutes) off the room task; if the process died or the
+retries ran out, the result was gone. `rh-server --result-spool <dir>` adds a local, fsynced spool and a startup recovery
+pass. Code: `crates/rh-server/src/spool.rs`, `Director::{write_result, drive_spooled, recover_spooled}`,
+`Persistence::record_spooled`. Tests: `crates/rh-server/tests/result_recovery.rs` (real PostgreSQL).
+
+### The boundary, stated exactly
+
+A result passes three points. **Emitted**: the room task sent `RoomReport::Result` on an in-memory channel (not durable).
+**Spooled**: a versioned, CRC-checked record was written to a temporary file, `fsync`ed, renamed to
+`<match>-<profile_id>.rec` and the directory `fsync`ed (durable on this host and volume; logged and counted as `spooled`).
+**Committed**: the fenced PostgreSQL transaction returned `Applied` or `AlreadyApplied` (logged and counted as `committed`;
+the only point that survives host loss). A record is removed only after the commit (or after a definitive
+`AlreadyApplied`).
+
+The result can still be lost: (a) between emitted and the directory fsync (the process dies in that window; milliseconds on
+a healthy disk); (b) when the append fails (spool full, unwritable, record over 64 KiB), in which case the result takes the
+old in-memory retry path and is counted (`spoolFull`, `spoolErrors`) and logged; (c) with no `--result-spool` (unchanged
+behaviour, documented in `--help` text at the top of `main.rs`); (d) on host replacement or volume loss. A match
+interrupted before it emitted results has no result to recover. Nothing recovers an unrecorded result and nothing invents
+one for an interrupted match.
+
+### Scope: process restart yes, host loss no
+
+The spool survives a process crash or restart on the same host/volume. It does **not** survive host replacement; only the
+PostgreSQL commit does. We deliberately do not claim more and did not build an off-host record: that needs another
+durable dependency (queue or object store) with its own durability, fencing and failure analysis, and a result held there
+would still have to pass the same fence check at the database. Hosting (P-HOST) may place the spool on a persistent
+volume; that makes a replaced instance recoverable only if the volume is reattached, which is a deployment decision to be
+proved, not assumed. `tools/pgtest/start.sh` runs PostgreSQL with `fsync=off`; the local tests prove process-kill
+behaviour, not power-loss durability.
+
+### Observability
+
+The loopback `GET /control/health` JSON has a `results` object: `spooled`, `committed` (same count as `resultsOk` in
+`/info`), `recovered`, `refused`, `failed`, `deadLettered`, `spoolFull`, `spoolErrors`, `spoolPending`, `spoolDead`. `/info`
+and its pinned key set are unchanged. Log lines say `spooled match=... (durable on this host only; not yet committed)`,
+`committed match=... (applied|already applied[, recovered from spool])` and `DEAD-LETTERED match=...: <reason>`; they carry the
+match id and profile id, never a token or ticket.
+
+### Recovery rules
+
+- **Same fenced path.** Startup replays each record through `Store::record_result_by_id_at` (the same transaction as
+  `record_result_by_id`) with the ORIGINAL profile id, fence, stored result document and match metadata (owner, region,
+  placement, build, content hash, humans, bots) captured when the result was produced. The restarted build's values are
+  never substituted (test: a record with owner `dead-host`, build `old-build-7` and a distinct content hash lands with
+  exactly those values).
+- **No lease action.** Recovery never acquires, renews or releases a lease. A newer owner's fence gives `StaleFence`; a
+  released or foreign lease gives `NoLease`; both are *permanent* refusals and the record is moved to `<dir>/dead/` with a
+  `.reason` file (metrics `deadLettered`, `spoolDead`; log line with match and profile id only). Test: after a
+  takeover the new owner's lease row (match, fence, release state, owner, expiry) is byte-identical after recovery.
+- **Duplicates.** A record whose result was already committed returns `AlreadyApplied`, is cleared, and credits nothing
+  (tests: committed-before-crash; the same record replayed twice).
+- **Bounded retry.** A transient error is retried with backoff (default 100 ms doubling to 5 s) until `--result-retry-secs`
+  (default 900) passes, then the record is dead-lettered as out of time (`failed`, `deadLettered`). Dead
+  letters are never retried by the server; an operator can move one back into the spool directory before a start, and it
+  is replayed through the same fenced path (it is refused again if a newer owner exists).
+- **Corrupt records.** A truncated, bit-flipped, empty, wrong-version or misnamed file is dead-lettered at startup with its
+  parse reason, never deleted and never retried. Half-written temporaries are deleted at open (they were never
+  acknowledged).
+- **No blocking.** Spool I/O runs on `spawn_blocking`, database attempts on the director's tasks; recovery runs in the
+  background. A database outage delays commits, never startup or a tick (test: with PostgreSQL stopped, snapshot ticks keep
+  advancing, the match ends, results are spooled, and after the restart both commit and the spool drains).
+- **Admission gate.** For each profile with a pending record, the director holds a `Leaving` entry with no lease state
+  until its records resolve, so an admission in the same process waits (the existing `LEAVING_WAIT`) or is refused
+  `ProfileInUse` instead of racing the replay. This cannot stop a different host admitting the profile after the lease TTL:
+  that host's new fence is then exactly why the old record becomes a dead letter. A result must therefore commit within
+  the lease TTL after its process dies; recovery on restart is first-come against the next admission, by design.
+- **Live path.** With a spool the live write is the same loop as recovery (spool, then retry until committed, refused or
+  the deadline). The lease is not released when a record is dead-lettered, so an operator replay remains possible; the lease
+  then simply expires.
+- **Bound.** `--result-spool-max` (default 4096) caps pending plus dead-lettered records. When full, new results fall back
+  to the in-memory retry (counted and logged, never dropped silently, never blocking a tick).
+
+### Contract change (one, additive)
+
+`Store::record_result_by_id_at(.., ended_at_ms)` is new; `record_result_by_id` is unchanged and calls it with `None`. A
+replayed result would otherwise stamp `matches.ended_at` with the recovery time, which misstates when the match ended.
+With `Some(ms)` the `matches` row takes that time (still advanced with `greatest` by later results). `applied_at`, the
+monthly GV bucket and achievement timestamps stay the commit time: they record when the credit landed, as for any retried
+result today, so a result recovered after midnight on the last day of a month credits the month it commits in. All
+existing assertions are untouched; no schema change.
+
+### Not covered
+
+An actual managed-database failover (Aurora), host replacement, power-loss durability, pool exhaustion under load, and
+a spool on a network filesystem (whose rename/fsync semantics were not examined; use a local filesystem).
