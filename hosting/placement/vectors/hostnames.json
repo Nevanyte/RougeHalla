@@ -1,0 +1,30 @@
+{
+  "zone": "g.rougehalla.com",
+  "cases": [
+    {
+      "region": "us-west-2",
+      "placementId": "rh-req00001-1",
+      "hostname": "us-west-2-me6lguklsmky.g.rougehalla.com"
+    },
+    {
+      "region": "ca-central-1",
+      "placementId": "rh-req00001-2",
+      "hostname": "ca-central-1-ur6iblost56t.g.rougehalla.com"
+    },
+    {
+      "region": "us-east-2",
+      "placementId": "rh-AbCdEf0123456789-1",
+      "hostname": "us-east-2-savzsjhvomxx.g.rougehalla.com"
+    },
+    {
+      "region": "us-west-2",
+      "placementId": "rh-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz-3",
+      "hostname": "us-west-2-n7mr6oa3fjuk.g.rougehalla.com"
+    },
+    {
+      "region": "ca-central-1",
+      "placementId": "a",
+      "hostname": "ca-central-1-zklycewkdo64.g.rougehalla.com"
+    }
+  ]
+}
