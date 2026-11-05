@@ -14,19 +14,21 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 456 tests passed with all features, 0 failed/filtered and one explicitly
-ignored heap measurement. Formatting and full-feature workspace Clippy with warnings denied passed. The preceding
+Native arm64 integration on `optimization_port`: 489 tests passed with all features, 0 failed/filtered and one explicitly
+ignored heap measurement. Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
 
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
-  outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 29 compared
-  scenarios and 300 path queries MATCH; 15 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/7`, replay `rh-replay/5`, observation version 5; content identity
-  `226b6513e953bbea`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+  outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 42 compared
+  scenarios and 300 path queries MATCH; 14 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/8`, replay `rh-replay/6`, observation version 6; content identity
+  `94b1832fdca005e4`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
-  content identity; all 46 recaptured files and both map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
+  content identity; all 58 recaptured files and all three map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata.
+  Exact zone partitioning shares its 28-field content definition. Independent hash coverage examined 17,613 leaves with
+  zero unhashed and complete optional coverage. Invalid lock owners and goal/timer tuples are refused at restore.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy
@@ -36,15 +38,19 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   The actual 30-second private trail, bushes and attack exposure now govern all point/actor/prop/event projections;
   reads do not mutate authoritative memory. Independent point-query, reconnect and restore checks passed. Retained
   observer memo measurements apply to headless/policy only; ward/hunter producers and dynamic geometry remain open.
-- C-POLICY: contract v3 proposes `PublicCommand`s. Observer-local handles resolve into trusted commands before the normal
+- C-POLICY: contract v4 proposes `PublicCommand`s. Observer-local handles resolve into trusted commands before the normal
   action budget; explicit misses are recorded/replayed. Async seats own their projection and discard late/panicked output.
+  Target/AttackMove share the same Rust path. Explicit targets need delivered actor membership and current sight;
+  autonomous acquisition is independent of publication. Hidden targets never enter the owner target mirror.
 - C-NET: protocol 5 ([ADR 0012](adr/0012-combat-protocol-v5.md)), strict combat codecs and frozen Hello/Reject envelope.
   Rust 73, C# 220 and JS 3,344 codec checks plus real Chromium WSS proof passed. Oversize, BOM and wrong-version regressions
   were reproduced and corrected. Actual Unity Web build and movement over WS/WSS also passed; no valid public TLS claim.
 - C-PERSIST: achievement ids, timestamps and reward cosmetics commit with the fenced result. 83 legacy observations
   and 32 real-PG tests passed, including concurrent duplicate result and crash rollback. The cosmetic catalog and look
-  packing match 301 additional legacy observations; all 35 persistence checks passed. Live ending-kit metadata,
-  renewals/recovery and the full profile API remain open; the store proof does not establish them.
+  packing match 301 additional legacy observations; all 35 persistence checks passed. Live renewals now have confirmed
+  room deadlines, stable authenticated IDs and cancellation-safe acquisition/reservation cleanup. Real PostgreSQL
+  rename/reassignment, row-lock, cancellation and host-takeover probes passed. Defaults are 120/30/5 s with a one-hour TTL
+  cap. Live ending-kit metadata, unwritten-result crash recovery and the full profile API remain open.
 - Client authority: the straight-line predictor is removed; local coordinates come only from accepted server snapshots.
   Later C# suite: 214 passed, including duplicate/base poisoning and requested same-tick recovery. Native ownership cleanup
   is preserved; current-source Unity Web verification remains pending. Prediction needs Rust-vector parity before activation.
@@ -71,8 +77,8 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
 - `rh_sim::Sim::step` advances exactly `TICK_MS` (50 ms) of simulation time; nothing else advances time
   (`crates/rh-sim/src/sim.rs`). `Sim::step_into(&mut Vec<Event>)` is the allocation-free entry (`step` wraps it).
 - Active tick order (legacy `packages/server/src/sim/step.ts`): mark tick start → inputs in the secret action order →
-  [abilities] → [target locks] → weapons → [afterWeapons] → movement (all multipliers read before anyone moves) → history
-  → [projectiles] → melee (rewound) → [beforeDamage: signatures, terrain, statuses] → [sudden death] → ledger → systems →
+  [abilities] → target locks → weapons → [afterWeapons] → movement (all multipliers read before anyone moves) → history
+  → projectiles → melee (rewound) → [beforeDamage: signatures, terrain, statuses] → [sudden death] → ledger → systems →
   settle. Bracketed phases are not ported; a port inserts them at that position (backlog packets say where).
 - The order is data and executable: `crates/rh-sim/src/schedule.rs` holds the phases, systems, hook chains, actions, move
   modifiers and modifier sources as tables whose rows are Ported (a function) or Pending (the backlog packet that ports it);
@@ -131,9 +137,9 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 
 ## C-DET: reproducibility
 - Same arena + config + secrets + inputs ⇒ the same state hash after every step on declared targets.
-- `rh_sim::replay::Replay` (`rh-replay/5`) records the start (typed reset or lobby), secrets, every input with its tick
+- `rh_sim::replay::Replay` (`rh-replay/6`) records the start (typed reset or lobby), secrets, every input with its tick
   (joins, commands as submitted, drops, leaves) and each step's hash; `run_replay` checks every hash. Any other tag
-  (including `/1` through `/4` or unknown) is refused with `ReplayError::Format { found }` before a step runs. Stage 2 adds
+  (including `/1` through `/5` or unknown) is refused with `ReplayError::Format { found }` before a step runs. Stage 2 adds
   resolved pickup misses, private flight and vision state; accepted commands replay independently of public observation timing.
 - State identity by construction (P8, [adr/0007-determinism.md](adr/0007-determinism.md) addendum): `Sim::state_hash` is
   derived from the serialized `World` by a serde `Serializer` (`crates/rh-sim/src/hash.rs`, `HashSer`: 64-bit words,
@@ -169,7 +175,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   inputs are empty and rule (8) is covered only by the unit test `a_queued_input_validation_would_change_is_refused`. A packet that moves bodies past
   `COORD_MARGIN` or adds items or ranged actions must widen these rules and the `hash_coverage` seeds.
 - Not done yet: `TileMap` keeps public `w`/`h`/`tiles` ([sweep/README.md](sweep/README.md), follow-ups).
-- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/7`) is `{format, content_hash, build, statics, world}`; deserialization
+- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/8`) is `{format, content_hash, build, statics, world}`; deserialization
   builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
   world carries `roster` (append-only join names, leavers included; `killed_by` and `winner` are ids resolved to names only
@@ -205,7 +211,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 - `Command` is opaque (H-sim): its field is private, and the only ways to hold one are `validate` and a `Deserialize` that
   runs `validate` again and refuses anything it would change, so no fixture or edited replay can hand the sim an
   unvalidated command. It serializes as the plain variant, so recorded replays keep their shape. `run_replay` checks
-  `REPLAY_FORMAT` (`rh-replay/5`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
+  `REPLAY_FORMAT` (`rh-replay/6`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
 - The network layer additionally caps frames (1 KiB, 16 commands, 60 frames/s burst 120 per connection).
 
 ## C-OBS: views and leaks
@@ -375,7 +381,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 
 ## C-POLICY
 See [adr/0005-policy-seam.md](adr/0005-policy-seam.md). `rh_policy::{Policy, Seat, AsyncSeat, drive_seats}`.
-- Contract v2 (L-sim): `POLICY_CONTRACT_VERSION` is 2 and `OBSERVATION_VERSION` is 2. `Policy::reset(&mut self, m: &MatchStart)`
+- Current Stage 2 contract v4 uses observation 6 and public Target/AttackMove alongside public item offers. Target actor
+  membership changes only on successful complete delivery and resets on reconnect. Trusted resolution and budgeted
+  misses precede authoritative intake; headless/live policy seats share the same simulation rules.
+- Historical contract v2 (L-sim): `POLICY_CONTRACT_VERSION` was 2 and `OBSERVATION_VERSION` was 2. `Policy::reset(&mut self, m: &MatchStart)`
   replaces `reset(seed, me)`; `MatchStart { me, seed, arena: Arc<Arena>, content_hash, observation_version, tick_ms }`, where
   `seed` is the policy's own public seed (never `Secrets`) and the arena is public static data (map and spawn points).
   `Seat::new` and `AsyncSeat::spawn` attach a policy whose contract or observation version differs already faulted (a typed
@@ -466,6 +475,14 @@ figures are taken by hand).
 (`a_changed_rule_is_caught`).
 
 ## Change log
+- Stage 2 targeting/zone/live-lease integration (2026-11-05): C-POLICY moves to v4 and observation 6; C-DET to checkpoint
+  /8 and replay /6. C-OBS deliberately corrects a reproduced legacy hidden-ID side effect: a failed guess changed 33 tile
+  deadlines and 13 later visible cells. The independently reviewed prospective-view rule commits only legitimate
+  visibility, preserving supported positive timing and making concealed/missing probes equal. Numeric public-ID ties
+  retain the existing Rust carrier. C-PERSIST now renews off-room and binds live ownership to authenticated durable IDs
+  through rename, wait, cancellation and result retry; ID-less ambiguous receipts refuse. See
+  [targeting/zone evidence](evidence/stage2-targeting-zones/README.md), [lease evidence](evidence/stage2-leases/README.md)
+  and ADR 0006. Full game, complete map generator, public targeting transport and cloud release remain open.
 - Efficiency and lock-in passes (merged at `b326676`; E-sim, E-pub, E-backlog, E-simplify, E-sight, L-envelope, L-durable, L-sim,
   L-v4): C-NET moved to protocol v4 (ADR 0011: append-only varint masks, actor kind and the id namespace, the reserved State
   message, the admission ticket, the Result kept across a resume) and gained the frozen cross-version envelope and the Unity

@@ -90,7 +90,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 |---|---|---|---|---|
 | P-COMBAT-1 | Items and the other melee weapons: pickup/swap/drop, sword stagger, shield block/riposte, axe shred, weapon specials flag, weapon racks for tests | P-CAPTURE-1 (soft) | Core implemented and reviewed (Stage 2); live discovery is P-NET-ITEMS-1 | server/src/sim/loot.ts, weapons.ts, melee.ts; shared/weapons.ts, interactions.ts |
 | P-COMBAT-2 | Projectiles: bow/wand, lead aim, wand splash, ball vs arrow, swing vs ball | P-COMBAT-1 (merge first for sword/shield cases) | Authoritative phase implemented/reviewed; viewer projection/transport and lock-driven creation remain | server/src/sim/projectiles.ts, weapons.ts; shared/weapons.ts, interactions.ts, policies.ts |
-| P-COMBAT-3 | Target lock (wand click) and locked-windup cancel | P-COMBAT-2 | Ready packet | server/src/sim/targeting.ts, weapons.ts; shared/constants.ts |
+| P-COMBAT-3 | Target lock (wand click), committed-cast/cancel behavior and attack-move | P-COMBAT-2 | Core/policy/headless implemented and reviewed; live protocol/client target integration remains | server/src/sim/targeting.ts, weapons.ts; shared/constants.ts |
 | P-COMBAT-4 | Loot world: weapon crates, ground spots, bodies drop weapons, loot tables, `holdBirth` | P-COMBAT-1, P-MAP-1 (crate/ground spots) | Coarse | server/src/sim/loot.ts, lootTables.ts |
 | P-FACTION-1 | Faction signatures (burn, backlash, disease + execute, mark, chill) with engagement rules, lifesteal; capture tool `signatures: true` | P-COMBAT-1 | Ready packet | server/src/sim/factions.ts; shared/factions.ts, signatures.ts, signatureShares.ts, mark.ts |
 | P-FACTION-2 | Fire roam | P-FACTION-1, P-STATUS-1 | Coarse | server/src/sim/fireRoam.ts; shared/fireRoam.ts; docs/FIRE_ROAM.md |
@@ -138,7 +138,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0 full-layer admission and M1 foundations implemented/reviewed in rh-sim; zones/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
+| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0/M1 and M2a exact zone partition implemented/reviewed in rh-sim; camps/territories/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
 | P-MAP-2 | Public layers on the wire (zones, terrain, features, camps, spawn subset): `MapBlob` v2 + C# decode | P-MAP-1 (or `rh-map/2` export), P-NET-3 | Coarse | shared/mapWire.ts, map.ts |
 | P-MAP-3 | Off-tick certified-map pool (worker/thread, target 8, refill 6, fallback, hang watchdog) | P-MAP-1 | Coarse | server/src/mapPool.ts, mapWorker.ts |
 | P-MAP-4 | Client art data: decor/props from the public seed (cosmetic, unhashed), zone art inputs for Unity | P-MAP-2, P-UI-8 | Coarse | shared/propKinds.ts, client/src/render/zoneArt/* |
@@ -208,7 +208,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | In progress (transactional achievements verified; live metadata/renewal/API remain) | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
+| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | Achievements/catalog/live renewal implemented and reviewed; ending-kit metadata, crash recovery and REST remain | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
 | P-PERSIST-3 | Leaderboard months, shop catalog parity, cosmetics `look` word in `rh-protocol` | P-PERSIST-2 | Catalog/validated look packing implemented (57 entries, 301 legacy cases); leaderboard/API and wire presentation remain | ProfileStore.ts, shared/cosmetics.ts |
 | P-PERSIST-4 | Aurora failover and pool-exhaustion tests; retry/backoff sizing | P-PERSIST-2 | Coarse | none (ADR 0006 "not yet tested") |
 | P-PERSIST-5 | New-profile rate caps and passcode equivalents at the edge | P-PERSIST-2, P-HOST-2 | Coarse | server/src/guards/*, config.ts |

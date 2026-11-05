@@ -14,6 +14,13 @@ trigger-enforced) - `matches` (one row per match; `ended_at` is the time of the 
 `profile_id`. The callsign is resolved once, at admission (`acquire_lease` returns the id); a live match then records, renews and
 releases by id (`*_by_id`), so a rename mid-match is safe. The callsign forms resolve per call, for edge and admin callers.
 
+The live server additionally binds the ID to successful token verification, before admission waits. Its live-only
+acquisition/renewal paths use bounded transactions/nonblocking row locks, captured match/fence and unexpired rows.
+Director defaults are TTL 120 s / renew 30 s / database budget 5 s (TTL maximum one hour); room deadlines prevent
+expired gameplay and cancellation cleanup retires abandoned reservations/leases. These guarantees are independently
+tested against PostgreSQL and documented in [ADR 0006](../../docs/adr/0006-persistence.md). Edge/admin renewal APIs keep
+their existing semantics; live results/releases never infer an old principal from a reassigned display name.
+
 The initial migration was rewritten in place before any production database existed. After the first deployment, never
 edit an applied migration.
 

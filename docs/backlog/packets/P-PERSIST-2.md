@@ -1,5 +1,14 @@
 # P-PERSIST-2: production persistence wiring in `rh-server`
 
+## Stage 2 checkpoint
+
+Transactional achievements/catalog and live lease renewal are implemented and independently reviewed. Live ownership
+uses the authenticated durable ID through rename, admission waits, cancellation, result retries and release. Defaults
+are TTL 120 s / renewal 30 s / database budget 5 s, with a one-hour TTL cap. See
+[ADR 0006](../../adr/0006-persistence.md) and [evidence](../../evidence/stage2-leases/README.md). No production database,
+AWS deployment or schema change is implied. Ending faction/weapon metadata, unwritten-result recovery and profile
+REST routes remain open. The original pre-implementation descriptions below are retained as source/acceptance scope.
+
 ## ID and outcome
 P-PERSIST-2. `rh-server` runs in production on PostgreSQL through `rh-persist`: callsign/token auth against the database,
 fenced session leases that are **renewed** while a match runs, the achievements system ported and evaluated inside

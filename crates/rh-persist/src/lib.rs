@@ -244,13 +244,19 @@ impl Store {
     }
 
     pub async fn verify_token(&self, callsign: &str, token: &str) -> Result<bool> {
-        let stored: Option<Vec<u8>> = sqlx::query_scalar(
-            "SELECT token_sha256 FROM profiles WHERE lower(callsign) = lower($1)",
+        Ok(self.verify_token_id(callsign, token).await?.is_some())
+    }
+
+    /// The identity and credential are read from the same row. A later rename can
+    /// change the display name but never the principal this token authenticated.
+    pub async fn verify_token_id(&self, callsign: &str, token: &str) -> Result<Option<i64>> {
+        let row: Option<(i64, Vec<u8>)> = sqlx::query_as(
+            "SELECT profile_id, token_sha256 FROM profiles WHERE lower(callsign) = lower($1)",
         )
         .bind(callsign)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(stored.is_some_and(|s| s == hash_token(token)))
+        Ok(row.and_then(|(id, stored)| (stored == hash_token(token)).then_some(id)))
     }
 
     pub async fn get_profile(&self, callsign: &str) -> Result<Option<Profile>> {
@@ -331,6 +337,78 @@ impl Store {
         }
     }
 
+    /// Prepare a fresh (never idempotently shared) live admission in a rollback-on-drop
+    /// transaction. Caller only commits after all locking/SQL has succeeded. NOWAIT handles
+    /// existing rows, lock_timeout also bounds inserts/FK and conflicting first admissions.
+    pub async fn prepare_live_lease(
+        &self,
+        profile_id: i64,
+        match_id: Uuid,
+        owner: &str,
+        ttl: Duration,
+        db_timeout: Duration,
+    ) -> Result<(sqlx::Transaction<'static, sqlx::Postgres>, i64, String)> {
+        let mut tx = self.pool.begin().await?;
+        let ms = db_timeout.as_millis().clamp(1, i32::MAX as u128);
+        sqlx::query(
+            "SELECT set_config('lock_timeout',$1,true), set_config('statement_timeout',$1,true)",
+        )
+        .bind(format!("{ms}ms"))
+        .execute(&mut *tx)
+        .await?;
+        let exists = sqlx::query_scalar::<_, i64>(
+            "SELECT profile_id FROM profiles WHERE profile_id=$1 FOR UPDATE NOWAIT",
+        )
+        .bind(profile_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if exists.is_none() {
+            return Err(Error::UnknownProfile(profile_id.to_string()));
+        }
+        sqlx::query("SELECT profile_id FROM session_leases WHERE profile_id=$1 FOR UPDATE NOWAIT")
+            .bind(profile_id)
+            .execute(&mut *tx)
+            .await?;
+        let (fence,writing_xid)=sqlx::query_as("INSERT INTO session_leases(profile_id,match_id,owner,fence,expires_at)
+            VALUES($1,$2,$3,1,clock_timestamp()+make_interval(secs=>$4))
+            ON CONFLICT(profile_id) DO UPDATE SET fence=session_leases.fence+1, match_id=EXCLUDED.match_id,
+            owner=EXCLUDED.owner, expires_at=EXCLUDED.expires_at,released_at=NULL
+            WHERE session_leases.released_at IS NOT NULL OR session_leases.expires_at < clock_timestamp()
+            RETURNING fence,xmin::text").bind(profile_id).bind(match_id).bind(owner).bind(ttl.as_secs_f64())
+            .fetch_optional(&mut *tx).await?.ok_or_else(||Error::Conflict("profile already leased".into()))?;
+        Ok((tx, fence, writing_xid))
+    }
+
+    /// An unclaimed commit acknowledgement may follow a disconnect. Only the very row
+    /// version written by this transaction can be reclaimed: an aborted insert may
+    /// otherwise have the same not-yet-published fence as somebody else's next insert.
+    pub async fn release_unclaimed_acquire(
+        &self,
+        id: i64,
+        m: Uuid,
+        fence: i64,
+        writing_xid: &str,
+    ) -> Result<bool> {
+        let result=sqlx::query("UPDATE session_leases SET released_at=now(), expires_at=now()
+            WHERE profile_id=$1 AND match_id=$2 AND fence=$3 AND xmin::text=$4 AND released_at IS NULL")
+            .bind(id).bind(m).bind(fence).bind(writing_xid).execute(&self.pool).await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Read-only diagnostics for a caller with an identifiable profile but without
+    /// proof that it was admitted under the supplied fence.
+    pub async fn result_fence_status(&self, id: i64, m: Uuid, fence: i64) -> Result<(bool, bool)> {
+        Ok(sqlx::query_as(
+            "SELECT EXISTS(SELECT FROM match_results WHERE match_id=$1 AND profile_id=$2),
+            EXISTS(SELECT FROM session_leases WHERE profile_id=$2 AND fence<>$3)",
+        )
+        .bind(m)
+        .bind(id)
+        .bind(fence)
+        .fetch_one(&self.pool)
+        .await?)
+    }
+
     /// Extends a lease the caller still holds (fence matches and it was not released). An expired lease nobody took
     /// over can be renewed: the fence, not the clock, is what protects. By callsign: for edge and admin callers; a
     /// live match renews by the id its admission got ([`Store::renew_lease_by_id`]), which a rename cannot move.
@@ -361,6 +439,32 @@ impl Store {
         Ok(n == 1)
     }
 
+    /// Live director heartbeat. Unlike administrative renewal, an expired row cannot be
+    /// revived. A busy row is a transient database error, never an UPDATE left waiting
+    /// behind another transaction after the caller's local timeout. Lock the row before
+    /// judging its expiry; a completed result/takeover instead yields no matching row.
+    pub async fn try_renew_live_lease(
+        &self,
+        profile_id: i64,
+        match_id: Uuid,
+        fence: i64,
+        ttl: Duration,
+    ) -> Result<bool> {
+        let changed = sqlx::query(
+            "WITH owned AS MATERIALIZED (
+                 SELECT profile_id, expires_at FROM session_leases
+                 WHERE profile_id = $1 AND match_id = $2 AND fence = $3 AND released_at IS NULL
+                 FOR UPDATE NOWAIT
+             )
+             UPDATE session_leases AS l
+             SET expires_at = statement_timestamp() + make_interval(secs => $4)
+             FROM owned WHERE l.profile_id = owned.profile_id AND owned.expires_at > clock_timestamp()",
+        )
+        .bind(profile_id).bind(match_id).bind(fence).bind(ttl.as_secs_f64())
+        .execute(&self.pool).await?.rows_affected();
+        Ok(changed == 1)
+    }
+
     /// Gives the slot back. The row stays (marked released) so the fence is never reused. False when the fence is
     /// stale or the lease was already released. By callsign, for edge and admin callers.
     pub async fn release_lease(&self, callsign: &str, fence: i64) -> Result<bool> {
@@ -372,12 +476,34 @@ impl Store {
 
     /// [`Store::release_lease`] by `profile_id`.
     pub async fn release_lease_by_id(&self, profile_id: i64, fence: i64) -> Result<bool> {
+        self.release_owned_lease(profile_id, fence, None).await
+    }
+
+    /// A room's deferred give-back names its match as well as its fence. If a callsign
+    /// has been reassigned, the new profile can legitimately have the same numeric fence.
+    pub async fn release_match_lease_by_id(
+        &self,
+        profile_id: i64,
+        match_id: Uuid,
+        fence: i64,
+    ) -> Result<bool> {
+        self.release_owned_lease(profile_id, fence, Some(match_id))
+            .await
+    }
+
+    async fn release_owned_lease(
+        &self,
+        profile_id: i64,
+        fence: i64,
+        match_id: Option<Uuid>,
+    ) -> Result<bool> {
         let n = sqlx::query(
             "UPDATE session_leases SET released_at = now(), expires_at = now()
-             WHERE profile_id = $1 AND fence = $2 AND released_at IS NULL",
+             WHERE profile_id = $1 AND fence = $2 AND released_at IS NULL AND ($3::uuid IS NULL OR match_id = $3)",
         )
         .bind(profile_id)
         .bind(fence)
+        .bind(match_id)
         .execute(&self.pool)
         .await?
         .rows_affected();

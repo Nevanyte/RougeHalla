@@ -18,7 +18,29 @@ whole-file snapshot, last writer wins). Many hosts writing results would lose up
 killed mid-transaction, double-spend, import/reconcile): `crates/rh-persist/tests/`. Not yet tested: Aurora failover,
 connection-pool exhaustion under load. Stage 2 achievements are now ported and verified against 83 legacy observations;
 the 57-entry cosmetic catalog and validated look words match 301 further legacy observations. Live profile routes,
-result faction/weapon metadata and lease renewal remain separate integration work.
+result faction/weapon metadata remain separate integration work. Stage 2 lease renewal and identity/cancellation
+repairs are verified against local PostgreSQL; see the live-ownership addendum below.
+
+## Addendum: live ownership and cancellation
+
+PostgreSQL authentication captures the durable profile ID from the token-verified row. Admission reservations, room
+reports, renewals, result retries and give-backs use that identity plus admission generation/match/fence. Display-name
+changes cannot create a second seat for the same principal or redirect a waiting authenticated login to a replacement
+profile. Distinct principals can safely retain the same historical display label. Missing or ambiguous ID-less live
+receipts refuse to write/release rather than resolving a reassigned callsign.
+
+The director renews off the room task. Defaults are a 120 s TTL, 30 s interval and 5 s database-call budget; validation
+requires positive interval/timeout, their sum below TTL, and TTL at most one hour. CLI flags are `--lease-ttl-secs`,
+`--lease-renew-secs` and `--lease-db-timeout-secs`. Renewal uses captured IDs and a live-only unexpired, matching row
+guard with nonblocking row acquisition. A busy row retains the prior confirmed deadline and retries. Rooms check that
+deadline before commands/resume and every simulation step; a delayed success cannot revive an expired seat. Resolved
+result delivery survives the release of its lease. Pending result writes retain their independent fenced lifecycle.
+
+Live acquisition has transaction/cancellation cleanup, and an exact-generation reservation guard covers abandoned
+admissions before and after a join is submitted. Stale cleanup cannot release a successor. The existing Store edge/admin
+APIs retain their stated per-call name resolution and expired-renewal semantics; they are distinct from live receipts.
+No schema or dependency change was needed. Actual row-lock, cancellation, rename/reassignment, late-commit and abrupt
+host-stop reproductions and remaining deployment limits are in [the evidence](../evidence/stage2-leases/README.md).
 
 
 ## Addendum: durable-data lock-in (L-durable)

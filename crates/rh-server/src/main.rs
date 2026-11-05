@@ -4,11 +4,12 @@
 //!       [--control 127.0.0.1:7778] [--map parity/maps/seed1.map.json] [--max-rooms 16] [--fill-bots 8]
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
+//!       [--lease-ttl-secs 120] [--lease-renew-secs 30] [--lease-db-timeout-secs 5]
 //!
 //! Without TLS flags it serves plain ws:// (local development only; browsers on https pages require wss://).
 //! SIGTERM / Ctrl-C drain: no new admissions, active matches finish, then the process exits.
 
-use rh_server::director::{Director, DirectorConfig};
+use rh_server::director::{Director, DirectorConfig, LeasePolicy};
 use rh_server::hosting::Lifecycle;
 use rh_server::persist::{Auth, Persistence};
 use std::net::SocketAddr;
@@ -49,6 +50,27 @@ fn arg(args: &[String], k: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
+fn lease_policy(args: &[String]) -> Result<LeasePolicy, String> {
+    let defaults = LeasePolicy::default();
+    let seconds = |name: &str, default: Duration| -> Result<Duration, String> {
+        match args.iter().position(|a| a == name) {
+            None => Ok(default),
+            Some(i) => args
+                .get(i + 1)
+                .and_then(|s| s.parse::<u64>().ok())
+                .map(Duration::from_secs)
+                .ok_or_else(|| format!("{name} requires a whole number of seconds")),
+        }
+    };
+    let policy = LeasePolicy {
+        ttl: seconds("--lease-ttl-secs", defaults.ttl)?,
+        renew_interval: seconds("--lease-renew-secs", defaults.renew_interval)?,
+        db_timeout: seconds("--lease-db-timeout-secs", defaults.db_timeout)?,
+    };
+    policy.validate().map_err(str::to_owned)?;
+    Ok(policy)
+}
+
 #[tokio::main]
 async fn main() {
     // One explicit TLS crypto provider (ring): with none selected rustls panics at the first handshake.
@@ -79,6 +101,10 @@ async fn main() {
         weapon_specials: true,
     };
     let cfg = DirectorConfig {
+        leases: lease_policy(&args).unwrap_or_else(|e| {
+            eprintln!("[server] invalid lease settings: {e}");
+            std::process::exit(2);
+        }),
         max_rooms: num("--max-rooms", 16.0) as usize,
         fill_bots_to: num("--fill-bots", 0.0) as usize,
         ..DirectorConfig::new(sim, arena)
@@ -197,4 +223,53 @@ async fn main() {
         .await
         .expect("server");
     eprintln!("[server] terminated");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn lease_cli_accepts_defaults_and_a_valid_override() {
+        assert_eq!(lease_policy(&[]).unwrap().ttl, Duration::from_secs(120));
+        let policy = lease_policy(&args(&[
+            "--lease-ttl-secs",
+            "15",
+            "--lease-renew-secs",
+            "4",
+            "--lease-db-timeout-secs",
+            "2",
+        ]))
+        .unwrap();
+        assert_eq!(policy.ttl, Duration::from_secs(15));
+        assert_eq!(policy.renew_interval, Duration::from_secs(4));
+        assert_eq!(policy.db_timeout, Duration::from_secs(2));
+        assert_eq!(
+            lease_policy(&args(&["--lease-ttl-secs", "3600"]))
+                .unwrap()
+                .ttl,
+            Duration::from_secs(3600)
+        );
+    }
+
+    #[test]
+    fn lease_cli_refuses_invalid_values_and_expiry_without_renewal_headroom() {
+        for values in [
+            vec!["--lease-ttl-secs"],
+            vec!["--lease-ttl-secs", "NaN"],
+            vec!["--lease-ttl-secs", "-1"],
+            vec!["--lease-ttl-secs", "0"],
+            vec!["--lease-ttl-secs", "35"],
+            vec!["--lease-ttl-secs", "3601"],
+            vec!["--lease-renew-secs", "0"],
+            vec!["--lease-db-timeout-secs", "0"],
+            vec!["--lease-ttl-secs", "18446744073709551615"],
+        ] {
+            assert!(lease_policy(&args(&values)).is_err(), "{values:?}");
+        }
+    }
 }

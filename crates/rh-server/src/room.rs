@@ -59,6 +59,14 @@ pub struct JoinOk {
     pub clock: Arc<AtomicU64>,
 }
 
+/// The admission that produced a seat. Durable identity and generation survive
+/// resume, departure, and deferred reports; callsigns are only display names.
+#[derive(Clone, Copy, Debug)]
+pub struct Admission {
+    pub gen: u64,
+    pub profile_id: Option<i64>,
+}
+
 pub enum RoomCmd {
     /// `conn` identifies the connection (unique per process); `fence` is the profile's session-lease fence.
     Join {
@@ -67,6 +75,17 @@ pub enum RoomCmd {
         outbox: Arc<Outbox>,
         conn: u64,
         fence: i64,
+        reply: oneshot::Sender<Result<JoinOk, RejectCode>>,
+    },
+    /// A durable admission. This deadline belongs to this exact seat, including after any resume.
+    JoinLeased {
+        admission: Admission,
+        profile: String,
+        faction: Option<FactionId>,
+        outbox: Arc<Outbox>,
+        conn: u64,
+        fence: i64,
+        deadline: tokio::sync::watch::Receiver<Instant>,
         reply: oneshot::Sender<Result<JoinOk, RejectCode>>,
     },
     Resume {
@@ -102,6 +121,7 @@ pub enum RoomReport {
     /// A human left its seat. `result_pending`: it left a run it was still standing in, so its (MIA) result follows in a
     /// `Result` report; the director keeps the profile reserved until that result is written.
     Left {
+        admission: Option<Admission>,
         match_id: MatchId,
         profile: String,
         fence: i64,
@@ -109,6 +129,7 @@ pub enum RoomReport {
     },
     /// `fence`: the session-lease fence the result was earned under (None for a bot).
     Result {
+        admission: Option<Admission>,
         match_id: MatchId,
         profile: String,
         bot: bool,
@@ -209,7 +230,16 @@ pub struct RoomConfig {
     pub linger: Duration,
 }
 
+/// Retained after leave so a delayed result still names its exact admitted owner.
+struct SeatRecord {
+    player: PlayerId,
+    fence: Option<i64>,
+    admission: Option<Admission>,
+}
+
 struct HumanSeat {
+    admission: Option<Admission>,
+    deadline: Option<tokio::sync::watch::Receiver<Instant>>,
     player: PlayerId,
     conn: u64,
     fence: i64,
@@ -268,7 +298,7 @@ pub struct Room {
     opened_at: Instant,
     had_human: bool,
     /// Every human's lease fence, kept after it leaves: its result may be reported a step later.
-    fences: Vec<(PlayerId, i64)>,
+    fences: Vec<SeatRecord>,
     reported_phase: Phase,
     /// Tests: wall time every wake burns (an overloaded host).
     #[cfg(test)]
@@ -387,6 +417,8 @@ impl Room {
     }
 
     pub fn handle(&mut self, cmd: RoomCmd, now: Instant) {
+        let now = now.max(Instant::now());
+        self.expire_leases(now);
         match cmd {
             RoomCmd::Join {
                 profile,
@@ -396,8 +428,32 @@ impl Room {
                 fence,
                 reply,
             } => {
-                let r = self.join(profile, faction, outbox, conn, fence);
+                let r = self.join(profile, faction, outbox, conn, fence, None);
                 let _ = reply.send(r);
+            }
+            RoomCmd::JoinLeased {
+                admission,
+                profile,
+                faction,
+                outbox,
+                conn,
+                fence,
+                deadline,
+                reply,
+            } => {
+                let result = if *deadline.borrow() <= now {
+                    Err(RejectCode::ProfileInUse)
+                } else {
+                    self.join(
+                        profile,
+                        faction,
+                        outbox,
+                        conn,
+                        fence,
+                        Some((admission, deadline)),
+                    )
+                };
+                let _ = reply.send(result);
             }
             RoomCmd::Resume {
                 session,
@@ -512,6 +568,7 @@ impl Room {
         outbox: Arc<Outbox>,
         conn: u64,
         fence: i64,
+        lease: Option<(Admission, tokio::sync::watch::Receiver<Instant>)>,
     ) -> Result<JoinOk, RejectCode> {
         if self.draining {
             return Err(RejectCode::ServerDraining);
@@ -545,10 +602,17 @@ impl Room {
             policy: None,
         });
         let session = random16();
-        self.fences.push((player, fence));
+        let admission = lease.as_ref().map(|(identity, _)| *identity);
+        self.fences.push(SeatRecord {
+            player,
+            fence: Some(fence),
+            admission,
+        });
         // A room that has had a human closes the moment it has none again (see `wake`).
         self.had_human = true;
         self.humans.push(HumanSeat {
+            admission,
+            deadline: lease.map(|(_, deadline)| deadline),
             player,
             conn,
             fence,
@@ -606,6 +670,27 @@ impl Room {
         }
     }
 
+    /// Expire before processing commands and before stepping queued inputs. A committed result
+    /// already ended this human's gameplay; its reliable delivery survives release of the lease.
+    fn expire_leases(&mut self, now: Instant) {
+        let mut i = 0;
+        while i < self.humans.len() {
+            let h = &self.humans[i];
+            if h.deadline.as_ref().is_some_and(|d| *d.borrow() <= now)
+                && h.result.is_none()
+                && self.sim.player(h.player).is_some_and(|p| !p.resolved)
+            {
+                let id = h.player;
+                if let Some(seat) = self.fences.iter_mut().find(|s| s.player == id) {
+                    seat.fence = None; // This forced MIA is not authorized to bank a result.
+                }
+                self.leave(id);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
     fn leave(&mut self, player: PlayerId) {
         if let Some(i) = self.humans.iter().position(|h| h.player == player) {
             let h = self.humans.remove(i);
@@ -615,11 +700,16 @@ impl Room {
             }
             // Leaving a run one still stands in is MIA: the sim resolves it now and its result is reported with the next
             // step's events; the director holds the profile until it is written.
-            let result_pending = self.sim.phase() == Phase::Active
+            let result_pending = self
+                .fences
+                .iter()
+                .any(|seat| seat.player == player && seat.fence.is_some())
+                && self.sim.phase() == Phase::Active
                 && self.sim.player(player).is_some_and(|p| !p.resolved);
             self.record(ReplayInput::Leave { player });
             self.sim.remove_player(player);
             let _ = self.reports.send(RoomReport::Left {
+                admission: h.admission,
                 match_id: self.id,
                 profile: h.profile,
                 fence: h.fence,
@@ -634,6 +724,7 @@ impl Room {
 
     /// Runs the steps the grid owes and publishes once. Returns false when the room should close.
     pub fn wake(&mut self, now: Instant) -> bool {
+        self.expire_leases(now);
         // Reconnect grace: a seat whose client did not come back is a leave (MIA in a run).
         let expired: Vec<PlayerId> = self
             .humans
@@ -696,6 +787,7 @@ impl Room {
                     }
                 },
             );
+            self.expire_leases(Instant::now().max(now));
             self.step_events.clear();
             self.sim.step_into(&mut self.step_events);
             let us = t.elapsed().as_micros().min(u32::MAX as u128) as u32;
@@ -842,12 +934,20 @@ impl Room {
     fn report_results(&self, events: &[Event]) {
         for e in events {
             if let Event::Resolved { id, result, bot } = e {
-                let fence = if *bot {
-                    None
+                let (fence, admission) = if *bot {
+                    (None, None)
                 } else {
-                    self.fences.iter().find(|(p, _)| p == id).map(|(_, f)| *f)
+                    let Some(seat) = self
+                        .fences
+                        .iter()
+                        .find(|seat| seat.player == *id && seat.fence.is_some())
+                    else {
+                        continue;
+                    };
+                    (seat.fence, seat.admission)
                 };
                 let _ = self.reports.send(RoomReport::Result {
+                    admission,
                     match_id: self.id,
                     profile: result.profile.clone(),
                     bot: *bot,
@@ -874,6 +974,7 @@ impl Room {
             // A result this seat earned was reported above or earlier; the director keeps the profile until its write
             // lands (the write releases the lease), so `result_pending` stays about results still to come.
             let _ = self.reports.send(RoomReport::Left {
+                admission: h.admission,
                 match_id: self.id,
                 profile: h.profile,
                 fence: h.fence,
@@ -1043,6 +1144,70 @@ mod tests {
             reconnect_grace: RECONNECT_GRACE,
             linger: LINGER,
         }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_renewal_that_observes_the_result_release_preserves_reliable_resume() {
+        let start = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (reports, mut rx) = mpsc::unbounded_channel();
+        let mut room = Room::new([7; 16], cfg(tick), reports, start);
+        let (validity, deadline) = tokio::sync::watch::channel(start + Duration::from_secs(120));
+        let (reply, joined) = oneshot::channel();
+        room.handle(
+            RoomCmd::JoinLeased {
+                admission: Admission {
+                    gen: 1,
+                    profile_id: None,
+                },
+                profile: "Winner".into(),
+                faction: None,
+                outbox: Arc::new(Outbox::default()),
+                conn: 1,
+                fence: 4,
+                deadline,
+                reply,
+            },
+            start,
+        );
+        let winner = joined.await.unwrap().unwrap();
+        let other = room
+            .join(
+                "Other".into(),
+                None,
+                Arc::new(Outbox::default()),
+                2,
+                1,
+                None,
+            )
+            .unwrap();
+        assert!(room.wake(start + tick));
+        assert_eq!(room.sim.phase(), Phase::Active);
+        room.leave(other.player);
+        assert!(room.wake(start + tick * 2));
+        assert!(std::iter::from_fn(|| rx.try_recv().ok()).any(
+            |r| matches!(r, RoomReport::Result{fence:Some(4),profile,..} if profile=="Winner")
+        ));
+        // Durable record_result released this fence, but its director completion is still in
+        // flight when renewal returns false. The room must still deliver the already earned result.
+        validity.send_replace(start);
+        let out = Arc::new(Outbox::default());
+        let (reply, resumed) = oneshot::channel();
+        room.handle(
+            RoomCmd::Resume {
+                session: winner.session,
+                outbox: out.clone(),
+                conn: 3,
+                reply,
+            },
+            start + tick * 3,
+        );
+        assert_eq!(resumed.await.unwrap().unwrap().player, winner.player);
+        let mut frames = Vec::new();
+        let drained = out.drain_into(&mut frames);
+        assert!(drained.close.is_none());
+        assert!(frames.iter().any(|frame|matches!(rh_protocol::ServerMsg::decode(frame),
+            Ok(rh_protocol::ServerMsg::Events{events,..}) if events.iter().any(|e|matches!(e,WireEvent::Result(_))))));
     }
 
     /// Under sustained overload (every wake takes 1.5 slots, so the next step is always already due when the loop looks
