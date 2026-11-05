@@ -219,6 +219,7 @@ fn main() {
     let mut encoders: Vec<ConnEncoder> = ids.iter().map(|_| ConnEncoder::new()).collect();
     let mut spares: Vec<Option<rh_protocol::SnapshotData>> = ids.iter().map(|_| None).collect();
     let (mut event_bytes, mut fx_bytes) = (0u64, 0u64);
+    let mut snapshot_refusals = 0u64;
     let mut steps = 0;
     let mut digest = args
         .iter()
@@ -248,21 +249,27 @@ fn main() {
                 events,
             );
             visible_sum += publisher.observation().visible.len() as u64;
-            let snap = f.snapshot.expect("snapshot encodes");
-            if compare_full {
-                full_bytes += snap.full_len() as u64;
+            match f.snapshot {
+                Ok(snap) => {
+                    if compare_full {
+                        full_bytes += snap.full_len() as u64;
+                    }
+                    // The connection writer's work: encode against the last frame it wrote, into an owned frame.
+                    let (frame, kind) = encoders[k].encode_frame(snap);
+                    match kind {
+                        FrameKind::Full => full_frames += 1,
+                        FrameKind::Delta => delta_frames += 1,
+                    }
+                    spares[k] = encoders[k].take_spare();
+                    snap_bytes += frame.len() as u64;
+                    snaps += 1;
+                    bytes += frame.len() as u64;
+                    frames += 1;
+                }
+                // A crowd past MAX_ACTORS in sight is refused by the codec (the room skips that snapshot): counted here.
+                Err(_) if synthetic.is_some() => snapshot_refusals += 1,
+                Err(e) => panic!("snapshot encodes: {e}"),
             }
-            // The connection writer's work: encode against the last frame it wrote, into an owned frame.
-            let (frame, kind) = encoders[k].encode_frame(snap);
-            match kind {
-                FrameKind::Full => full_frames += 1,
-                FrameKind::Delta => delta_frames += 1,
-            }
-            spares[k] = encoders[k].take_spare();
-            snap_bytes += frame.len() as u64;
-            snaps += 1;
-            bytes += frame.len() as u64;
-            frames += 1;
             if let Some(imp) = &f.important {
                 bytes += imp.len() as u64;
                 event_bytes += imp.len() as u64;
@@ -282,7 +289,7 @@ fn main() {
     }
     let secs = steps as f64 * 0.05;
     let fighters = synthetic
-        .map(|n| format!("\"fighters\":{n},"))
+        .map(|n| format!("\"fighters\":{n},\"snapshotRefusals\":{snapshot_refusals},"))
         .unwrap_or_default();
     let digest = digest
         .map(|d| format!("\"outcomeDigest\":\"{}\",", d.hex()))
