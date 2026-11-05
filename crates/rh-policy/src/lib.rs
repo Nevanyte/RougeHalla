@@ -1,7 +1,7 @@
 //! The policy contract (docs/CONTRACTS.md C-POLICY; docs/adr/0005-policy-seam.md).
 //!
 //! A policy sees ONLY the immutable per-player [`Observation`] (what a human client is sent: no hidden state, no RNG, no
-//! privileged diagnostics) and proposes [`RawCommand`]s. Proposals go through the same validation, order budget and input
+//! privileged diagnostics) and proposes [`PublicCommand`]s. Proposals go through the same validation, order budget and input
 //! queue as a human's ([`drive_seats`] calls `rh_sim::validate` and `Sim::submit`), so no policy gets extra actions per
 //! simulated second. Each policy declares its decision cadence in ticks; the cadence is identical live and headless.
 //!
@@ -13,9 +13,8 @@ pub mod scripted;
 
 use rh_sim::content::content_hash;
 use rh_sim::{
-    observe_events_into, observe_events_into_cached, observe_into, observe_into_cached, validate,
-    Arena, Event, Observation, PlayerId, RawCommand, SeenEvent, SightCache, Sim,
-    OBSERVATION_VERSION,
+    observe_events_into, observe_events_into_cached, Arena, Event, ItemObserver, Observation,
+    OfferError, PlayerId, PublicCommand, SeenEvent, SightCache, Sim, OBSERVATION_VERSION,
 };
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{mpsc, Arc};
@@ -26,7 +25,8 @@ use std::time::{Duration, Instant};
 ///
 /// Version 2: `Policy::reset` takes a [`MatchStart`] (the public match context) instead of `(seed, me)`; `Seat::new` and
 /// `AsyncSeat::spawn` take the same [`MatchStart`] and fault on a contract or observation-version mismatch.
-pub const POLICY_CONTRACT_VERSION: u16 = 2;
+/// Version 3 proposals use observer-issued pickup handles.
+pub const POLICY_CONTRACT_VERSION: u16 = 3;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -103,17 +103,19 @@ pub trait Policy: Send {
     /// the policy's OWN randomness (never a match secret).
     fn reset(&mut self, m: &MatchStart);
     /// May keep memory of earlier observations; must not depend on anything else about the match.
-    fn decide(&mut self, obs: &Observation) -> Vec<RawCommand>;
+    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand>;
     /// [`Policy::decide`] into a caller-owned buffer (cleared by the caller; the buffer keeps its capacity, so a policy that
     /// overrides this allocates nothing per decision). The default wraps `decide`, so a policy written before this existed
     /// is unchanged; a policy that overrides it must propose the same commands as its `decide`.
-    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<RawCommand>) {
+    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
         out.extend(self.decide(obs));
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Fault {
+    ItemObservation(OfferError),
+    WorkerStopped,
     Panicked,
     /// The inline call took longer than its wall-clock budget (live seats only; reported, then the fallback takes over).
     OverBudget {
@@ -143,7 +145,6 @@ pub struct SeatStats {
 
 /// One policy-driven player. Holds the policy, its fallback and the cadence.
 pub struct Seat {
-    pub player: PlayerId,
     policy: Box<dyn Policy>,
     fallback: Box<dyn Policy>,
     pub fault: Option<Fault>,
@@ -153,8 +154,9 @@ pub struct Seat {
     pub budget: Option<Duration>,
     pub stats: SeatStats,
     /// Reused every decision tick (never read between ticks): the seat's observation and its proposal buffer.
+    observer: ItemObserver,
     obs: Observation,
-    cmds: Vec<RawCommand>,
+    cmds: Vec<PublicCommand>,
     /// What this seat could perceive of the steps since its last decision, each step judged against that step's own line of
     /// sight; at most [`MAX_PENDING_EVENTS`] (the newest). Prepended to the next observation's events, then emptied.
     pending: Vec<SeenEvent>,
@@ -176,7 +178,6 @@ impl Seat {
         }
         fallback.reset(&m.with_seed(m.seed ^ 0x9e37_79b9_7f4a_7c15));
         Self {
-            player: m.me,
             policy,
             fallback,
             fault,
@@ -184,10 +185,15 @@ impl Seat {
             interval,
             budget: None,
             stats: SeatStats::default(),
+            observer: ItemObserver::new(m.me),
             obs: Observation::default(),
             cmds: Vec::new(),
             pending: Vec::new(),
         }
+    }
+
+    pub fn player(&self) -> PlayerId {
+        self.observer.viewer()
     }
 
     /// Whether this seat decides on `tick`. A seat that does not want a tick is not shown an observation for it (the
@@ -197,14 +203,14 @@ impl Seat {
     }
 
     /// The commands this seat proposes on `obs.tick` (empty when it is not due).
-    pub fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
+    pub fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut out = Vec::new();
         self.decide_into(obs, &mut out);
         out
     }
 
     /// [`Seat::decide`] appending to `out`.
-    pub fn decide_into(&mut self, obs: &Observation, out: &mut Vec<RawCommand>) {
+    pub fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
         if !self.wants(obs.tick) {
             return;
         }
@@ -279,7 +285,7 @@ fn drive_inner(
     mut submitted: impl FnMut(PlayerId, rh_sim::Command),
 ) {
     for seat in seats.iter_mut() {
-        if !sim.player(seat.player).is_some_and(|p| p.standing()) {
+        if !sim.player(seat.player()).is_some_and(|p| p.standing()) {
             continue;
         }
         if !seat.wants(sim.tick()) {
@@ -288,12 +294,12 @@ fn drive_inner(
                 match sight.as_deref_mut() {
                     Some(c) => observe_events_into_cached(
                         sim,
-                        seat.player,
+                        seat.player(),
                         last_events,
                         &mut seat.pending,
                         c,
                     ),
-                    None => observe_events_into(sim, seat.player, last_events, &mut seat.pending),
+                    None => observe_events_into(sim, seat.player(), last_events, &mut seat.pending),
                 }
                 let over = seat.pending.len().saturating_sub(MAX_PENDING_EVENTS);
                 seat.pending.drain(..over);
@@ -303,39 +309,50 @@ fn drive_inner(
         // The seat's own buffers, moved out for the call (a move of a few words, no allocation).
         let mut obs = std::mem::take(&mut seat.obs);
         let mut cmds = std::mem::take(&mut seat.cmds);
-        match sight.as_deref_mut() {
-            Some(c) => observe_into_cached(sim, seat.player, last_events, &mut obs, c),
-            None => observe_into(sim, seat.player, last_events, &mut obs),
+        if let Err(err) =
+            seat.observer
+                .observe_into(sim, last_events, &mut obs, sight.as_deref_mut())
+        {
+            seat.fault = Some(Fault::ItemObservation(err));
+            seat.obs = obs;
+            seat.cmds = cmds;
+            continue;
         }
-        if !seat.pending.is_empty() {
-            seat.pending.append(&mut obs.events);
-            std::mem::swap(&mut seat.pending, &mut obs.events);
-            let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
-            obs.events.drain(..over);
-        }
+        prepend_pending(&mut seat.pending, &mut obs);
         cmds.clear();
         seat.decide_into(&obs, &mut cmds);
-        for raw in cmds.drain(..) {
-            seat.stats.proposed += 1;
-            let Ok(c) = validate(raw) else {
-                seat.stats.rejected += 1;
-                continue;
-            };
-            submitted(seat.player, c);
-            match sim.submit(seat.player, c) {
-                Ok(()) => seat.stats.accepted += 1,
-                Err(_) => seat.stats.rejected += 1,
-            }
-        }
+        submit_all(sim, &seat.observer, &cmds, &mut seat.stats, &mut submitted);
         seat.obs = obs;
         seat.cmds = cmds;
     }
 }
 
-pub fn submit_all(sim: &mut Sim, player: PlayerId, cmds: Vec<RawCommand>, stats: &mut SeatStats) {
-    for raw in cmds {
+fn prepend_pending(pending: &mut Vec<SeenEvent>, obs: &mut Observation) {
+    if !pending.is_empty() {
+        pending.append(&mut obs.events);
+        std::mem::swap(pending, &mut obs.events);
+        let over = obs.events.len().saturating_sub(MAX_PENDING_EVENTS);
+        obs.events.drain(..over);
+    }
+}
+
+/// Resolve each proposal against the owner's delivered offer, record every validated attempt, and
+/// run the normal sim intake even for a missing pickup or an order that exhausts the budget.
+pub fn submit_all(
+    sim: &mut Sim,
+    observer: &ItemObserver,
+    cmds: &[PublicCommand],
+    stats: &mut SeatStats,
+    mut submitted: impl FnMut(PlayerId, rh_sim::Command),
+) {
+    let player = observer.viewer();
+    for &proposal in cmds {
         stats.proposed += 1;
-        match validate(raw).and_then(|c| sim.submit(player, c)) {
+        let result = observer.resolve(sim, proposal).and_then(|command| {
+            submitted(player, command);
+            sim.submit(player, command)
+        });
+        match result {
             Ok(()) => stats.accepted += 1,
             Err(_) => stats.rejected += 1,
         }
@@ -347,9 +364,11 @@ pub fn submit_all(sim: &mut Sim, player: PlayerId, cmds: Vec<RawCommand>, stats:
 /// otherwise the fallback decides that turn and the late answer is discarded. Not deterministic by nature (it depends on
 /// wall time): live use only; the replay records the commands actually applied, so a recorded match still replays exactly.
 pub struct AsyncSeat {
-    pub player: PlayerId,
+    observer: ItemObserver,
+    obs: Observation,
+    seen: Vec<SeenEvent>,
     tx: mpsc::Sender<(u32, Observation)>,
-    rx: mpsc::Receiver<(u32, Vec<RawCommand>)>,
+    rx: mpsc::Receiver<(u32, Option<Vec<PublicCommand>>)>,
     fallback: Box<dyn Policy>,
     pending: Option<u32>,
     deadline_ticks: u32,
@@ -377,12 +396,11 @@ impl AsyncSeat {
         }
         fallback.reset(&m.with_seed(m.seed ^ 1));
         let (tx, req_rx) = mpsc::channel::<(u32, Observation)>();
-        let (res_tx, rx) = mpsc::channel::<(u32, Vec<RawCommand>)>();
+        let (res_tx, rx) = mpsc::channel::<(u32, Option<Vec<PublicCommand>>)>();
         if fault.is_none() {
             std::thread::spawn(move || {
                 while let Ok((tick, obs)) = req_rx.recv() {
-                    let cmds =
-                        catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).unwrap_or_default();
+                    let cmds = catch_unwind(AssertUnwindSafe(|| policy.decide(&obs))).ok();
                     if res_tx.send((tick, cmds)).is_err() {
                         break;
                     }
@@ -390,7 +408,9 @@ impl AsyncSeat {
             });
         }
         Self {
-            player: m.me,
+            observer: ItemObserver::new(m.me),
+            obs: Observation::default(),
+            seen: Vec::new(),
             tx,
             rx,
             fallback,
@@ -404,42 +424,71 @@ impl AsyncSeat {
         }
     }
 
-    /// Called once per tick with the current observation; returns the commands to submit this tick.
-    pub fn poll(&mut self, obs: &Observation) -> Vec<RawCommand> {
-        if self.fault.is_some() {
-            if obs.tick < self.next_tick {
-                return Vec::new();
-            }
-            self.next_tick = obs.tick + self.interval;
-            self.stats.decisions += 1;
-            self.stats.fallback_decisions += 1;
-            return self.fallback.decide(obs);
+    pub fn player(&self) -> PlayerId {
+        self.observer.viewer()
+    }
+
+    /// Poll the worker once per tick. Only an actual request or fallback gets an observation and
+    /// an offer; completed proposals resolve against this same seat, including delayed clicks.
+    pub fn poll(
+        &mut self,
+        sim: &mut Sim,
+        events: &[Event],
+        submitted: impl FnMut(PlayerId, rh_sim::Command),
+    ) -> Result<(), OfferError> {
+        let tick = sim.tick();
+        let mut cmds = Vec::new();
+        let expired = self
+            .pending
+            .filter(|asked| tick > asked.saturating_add(self.deadline_ticks));
+        if expired.is_some() {
+            self.pending = None;
+            self.late += 1;
         }
-        let mut out = Vec::new();
-        while let Ok((asked, cmds)) = self.rx.try_recv() {
+        let mut panicked = false;
+        while let Ok((asked, answer)) = self.rx.try_recv() {
             if Some(asked) == self.pending {
                 self.pending = None;
-                out = cmds;
-            } else {
+                if let Some(proposals) = answer {
+                    cmds = proposals;
+                } else {
+                    self.fault = Some(Fault::Panicked);
+                    panicked = true;
+                }
+            } else if Some(asked) != expired {
                 self.late += 1;
             }
         }
-        if let Some(asked) = self.pending {
-            if obs.tick > asked + self.deadline_ticks {
-                self.pending = None;
-                self.late += 1;
+        let fallback = expired.is_some() || panicked;
+        let due = tick >= self.next_tick && self.pending.is_none();
+        if due || fallback {
+            let offer = self
+                .observer
+                .prepare_into(sim, events, &mut self.obs, None)?;
+            prepend_pending(&mut self.seen, &mut self.obs);
+            if due {
+                self.stats.decisions += 1;
+                self.next_tick = tick.saturating_add(self.interval);
+                if self.fault.is_none() {
+                    if self.tx.send((tick, self.obs.clone())).is_ok() {
+                        self.pending = Some(tick);
+                    } else {
+                        self.fault = Some(Fault::WorkerStopped);
+                    }
+                }
+            }
+            if fallback || self.fault.is_some() {
                 self.stats.fallback_decisions += 1;
-                out = self.fallback.decide(obs);
+                cmds = self.fallback.decide(&self.obs);
             }
+            offer.commit(); // Delivered to the worker, fallback, or both.
+        } else if !events.is_empty() {
+            observe_events_into(sim, self.player(), events, &mut self.seen);
+            let over = self.seen.len().saturating_sub(MAX_PENDING_EVENTS);
+            self.seen.drain(..over);
         }
-        if self.pending.is_none() && obs.tick >= self.next_tick {
-            self.next_tick = obs.tick + self.interval;
-            self.stats.decisions += 1;
-            if self.tx.send((obs.tick, obs.clone())).is_ok() {
-                self.pending = Some(obs.tick);
-            }
-        }
-        out
+        submit_all(sim, &self.observer, &cmds, &mut self.stats, submitted);
+        Ok(())
     }
 }
 
@@ -496,7 +545,7 @@ mod tests {
                 m.tick_ms,
             ));
         }
-        fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
+        fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
             Vec::new()
         }
     }
@@ -563,8 +612,153 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::disallowed_methods)] // Wall-clock timeout only in the test harness polling a real worker.
+    fn async_worker_and_fallback_resolve_only_actually_delivered_offers() {
+        struct Click {
+            log: mpsc::Sender<rh_sim::PickupHandle>,
+            first: bool,
+            incompatible: bool,
+        }
+        impl Policy for Click {
+            fn spec(&self) -> PolicySpec {
+                PolicySpec {
+                    contract: POLICY_CONTRACT_VERSION + u16::from(self.incompatible),
+                    decision_interval_ticks: 25,
+                    ..Idle.spec()
+                }
+            }
+            fn reset(&mut self, _: &MatchStart) {}
+            fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
+                let handle = obs.props.iter().find(|p| p.cue.focused).unwrap().handle;
+                self.log.send(handle).unwrap();
+                if std::mem::take(&mut self.first) {
+                    return Vec::new();
+                }
+                vec![PublicCommand::Pickup { handle }]
+            }
+        }
+        for use_fallback in [true, false] {
+            let position = Vec2::new(100., 272.);
+            let p = Placement {
+                profile: "worker".into(),
+                faction: FactionId::Holy,
+                bot: false,
+                at: position,
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            };
+            let second = Placement {
+                profile: "second".into(),
+                at: Vec2::new(1300., 272.),
+                ..p.clone()
+            };
+            let mut sim = Sim::reset_active(
+                SimConfig::default(),
+                rh_sim::arenas::practice_arena(),
+                Secrets::from_seed(3),
+                &[p, second],
+            );
+            sim.seed_weapon_container(
+                rh_sim::ContainerKind::Ground,
+                Vec2::new(1300., 272.),
+                &[rh_sim::WeaponId::Bow],
+            )
+            .unwrap();
+            sim.seed_weapon_container(
+                rh_sim::ContainerKind::Ground,
+                position,
+                &[rh_sim::WeaponId::Axe],
+            )
+            .unwrap();
+            let (tx, rx) = mpsc::channel();
+            let click = |incompatible| Click {
+                log: tx.clone(),
+                first: true,
+                incompatible,
+            };
+            let me = PlayerId(1);
+            let mut seat = AsyncSeat::spawn(
+                &MatchStart::of(&sim, me, 3),
+                Box::new(click(use_fallback)),
+                Box::new(click(false)),
+                100,
+            );
+            seat.poll(&mut sim, &[], |_, _| panic!("no first action"))
+                .unwrap();
+            assert_eq!(rx.recv_timeout(Duration::from_secs(2)).unwrap().get(), 1);
+            let start = Instant::now();
+            while seat.pending.is_some() {
+                assert!(start.elapsed() < Duration::from_secs(2));
+                std::thread::yield_now();
+                seat.poll(&mut sim, &[], |_, _| panic!("no first action"))
+                    .unwrap();
+            }
+            for _ in 1..25 {
+                sim.step();
+                seat.poll(&mut sim, &[], |_, _| panic!("no skipped-tick action"))
+                    .unwrap();
+                assert_eq!(
+                    seat.observer
+                        .resolve(
+                            &sim,
+                            PublicCommand::Pickup {
+                                handle: rh_sim::PickupHandle::new(2).unwrap()
+                            }
+                        )
+                        .unwrap(),
+                    rh_sim::validate(rh_sim::RawCommand::MissingPickup).unwrap()
+                );
+            }
+            sim.step();
+            seat.poll(&mut sim, &[], |_, _| {}).unwrap();
+            assert_eq!(rx.recv_timeout(Duration::from_secs(2)).unwrap().get(), 2);
+            // Worker result delivery is asynchronous. Poll this frozen tick until the accepted answer
+            // arrives, bounded so a regression cannot hang the test suite.
+            let start = Instant::now();
+            while seat.stats.accepted == 0 {
+                assert!(start.elapsed() < Duration::from_secs(2));
+                std::thread::yield_now();
+                seat.poll(&mut sim, &[], |_, _| {}).unwrap();
+            }
+            sim.step();
+            assert_eq!(
+                sim.player(me).unwrap().weapon.weapon0,
+                Some(rh_sim::WeaponId::Axe)
+            );
+        }
+    }
+
+    #[test]
+    fn a_late_or_panicked_async_answer_uses_the_observed_fallback() {
+        for late in [true, false] {
+            let mut sim = sim();
+            let m = MatchStart::of(&sim, sim.players()[0].id, 1);
+            let mut seat = AsyncSeat::spawn(&m, Box::new(Idle), Box::new(Idle), 0);
+            // Feed a controlled completion; no scheduling race in the deadline/panic assertions.
+            let (tx, rx) = mpsc::channel();
+            seat.rx = rx;
+            let asked = sim.tick();
+            seat.pending = Some(asked);
+            seat.next_tick = asked + 100;
+            if late {
+                tx.send((asked, Some(vec![PublicCommand::Stop { seq: None }])))
+                    .unwrap();
+                sim.step();
+            } else {
+                tx.send((asked, None)).unwrap();
+            }
+            seat.poll(&mut sim, &[], |_, _| panic!("bad worker answer submitted"))
+                .unwrap();
+            assert_eq!(seat.stats.fallback_decisions, 1);
+            assert_eq!(seat.late, u64::from(late));
+            assert_eq!(seat.fault, (!late).then_some(Fault::Panicked));
+        }
+    }
+
+    #[test]
     fn an_async_seat_faults_and_plays_its_fallback_on_a_mismatch() {
-        let sim = sim();
+        let mut sim = sim();
         let m = MatchStart::of(&sim, sim.players()[0].id, 1);
         let (p, _) = probe(POLICY_CONTRACT_VERSION, OBSERVATION_VERSION + 1);
         let mut seat = AsyncSeat::spawn(&m, Box::new(p), Box::new(Idle), 3);
@@ -574,8 +768,8 @@ mod tests {
                 version: OBSERVATION_VERSION + 1
             })
         );
-        let obs = rh_sim::observe(&sim, m.me, &[]);
-        assert!(seat.poll(&obs).is_empty());
+        seat.poll(&mut sim, &[], |_, _| panic!("idle fallback submitted"))
+            .unwrap();
         assert_eq!(seat.stats.fallback_decisions, 1);
         let ok = AsyncSeat::spawn(&m, Box::new(Brawler::new(1)), Box::new(Idle), 3);
         assert!(ok.fault.is_none());

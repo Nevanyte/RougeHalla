@@ -9,6 +9,10 @@ continuity"). Requirement IDs (R-*) are referenced from the backlog.
 - R-AUTH-1. The full gameplay simulation and the authoritative multiplayer server are written in Rust (`crates/`).
 - R-AUTH-2. Unity supplies presentation, input and narrowly defined client prediction only (the local player's walk;
   never attacks, damage, deaths, other players or outcomes). Unity is never a second gameplay authority.
+- R-AUTH-2a. All game rules, physics, collision, combat, AI and bot behaviour live only in the Rust simulation/policy/
+  headless stack (`rh-sim`, `rh-policy`, `rh-headless`). Local movement prediction is the sole client exception: it mirrors
+  Rust movement, passes Rust test vectors, is always corrected by authoritative state, and is never used by headless or
+  future ML runs. Unity render animation and projectile presentation never decide hits or other game outcomes.
 - R-AUTH-3. Clients send inputs only; the server never accepts positions, damage or outcomes from a client.
 
 ## R-WEB: Unity browser client
@@ -111,3 +115,5 @@ and no model-based bans.
 - R-PROC-1. Keep the legacy game runnable while its replacement is built; preserve unrelated changes.
 - R-PROC-2. Never imply full-game parity or release readiness from a partial slice; never claim zero defects.
 - R-PROC-3. Decisions are recorded as ADRs; decision status is tracked separately from validation status.
+- R-PROC-4. Owner priority (2026-11-05): complete the Rust simulation, meaningful parity and headless support ahead of
+  Unity visual work. The maximum sustainable client-performance goal remains for the client verification stage.

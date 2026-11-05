@@ -15,6 +15,9 @@ Read in this order: [docs/MIGRATION.md](docs/MIGRATION.md) (state, checkpoint, c
 and the verified [docs/legacy/INVENTORY.md](docs/legacy/INVENTORY.md).
 
 Non-negotiables:
+- Prioritize complete Rust gameplay, parity and headless ahead of Unity visuals (owner instruction 2026-11-05).
+- Unity contains no game rules, physics, combat or AI. Its sole gameplay exception is narrow local movement prediction,
+  mirrored from Rust, checked with Rust vectors and always corrected by the server; headless/policy runs never use it.
 - `rh-sim` is pure (no I/O, clock, entropy); fixed 20 Hz step; the legacy tick order is never reordered (C-TICK).
 - Every actor (human, bot, future policy) acts only through `validate` + `Sim::submit` (C-INPUT); observations never
   leak hidden state (C-OBS); secrets never leave the server (C-RNG).

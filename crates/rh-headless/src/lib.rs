@@ -8,8 +8,9 @@ pub mod digest;
 use rh_policy::{drive_seats_with, scripted, submit_all, MatchStart, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
-    observe, Arena, Event, FactionId, Observation, Phase, Placement, PlayerId, RawCommand,
-    RunResult, Secrets, SightCache, Sim, SimConfig, Vec2,
+    Arena, ContainerKind, Event, FactionId, ItemObserver, Observation, OfferError, Phase,
+    Placement, PlayerId, PublicCommand, RunResult, Secrets, SightCache, Sim, SimConfig, Vec2,
+    WeaponId,
 };
 
 pub enum Agent {
@@ -55,12 +56,13 @@ pub struct Progress {
 }
 
 pub struct Env {
-    cfg: EnvConfig,
+    max_ticks: u32,
     pub sim: Sim,
     seats: Vec<Seat>,
     /// The seats' line-of-sight memo (derived, outside the sim).
     sight: SightCache,
     external: Vec<PlayerId>,
+    observers: Vec<ItemObserver>,
     recorder: Option<Recorder>,
     last_events: Vec<Event>,
     start_tick: u32,
@@ -114,15 +116,52 @@ impl Env {
         }
         let start_tick = sim.tick();
         Self {
-            cfg,
+            max_ticks: cfg.max_ticks,
             sim,
             seats,
             sight: SightCache::new(),
+            observers: external.iter().copied().map(ItemObserver::new).collect(),
             external,
             recorder,
             last_events: Vec::new(),
             start_tick,
         }
+    }
+
+    /// Start a fresh external session from authoritative state. All seats are external in this
+    /// session. The caller discards the old transport/input stream; its policy lifecycle and offers
+    /// are deliberately not restored. Already queued private commands stay in the simulation.
+    pub fn from_external_checkpoint(
+        sim: Sim,
+        max_ticks: u32,
+    ) -> Result<(Self, Vec<Observation>), OfferError> {
+        let external: Vec<_> = sim.players().iter().map(|p| p.id).collect();
+        let mut env = Self {
+            max_ticks,
+            seats: Vec::new(),
+            sight: SightCache::new(),
+            observers: external.iter().copied().map(ItemObserver::new).collect(),
+            external,
+            recorder: None,
+            last_events: Vec::new(),
+            start_tick: sim.tick(),
+            sim,
+        };
+        let full = env.try_observations()?;
+        Ok((env, full))
+    }
+
+    /// Deliver one external player's observation into a reusable buffer. This samples only this
+    /// seat. The agent index follows external_players() order.
+    pub fn observe_external_into(
+        &mut self,
+        agent: usize,
+        out: &mut Observation,
+    ) -> Result<(), OfferError> {
+        self.observers
+            .get_mut(agent)
+            .ok_or(OfferError::UnknownExternalSeat)?
+            .observe_into(&self.sim, &self.last_events, out, Some(&mut self.sight))
     }
 
     /// Hits and misses of the seats' line-of-sight memo so far (diagnostics).
@@ -134,15 +173,61 @@ impl Env {
         &self.external
     }
 
-    pub fn observations(&self) -> Vec<Observation> {
-        self.external
-            .iter()
-            .map(|id| observe(&self.sim, *id, &self.last_events))
-            .collect()
+    /// Trusted scenario setup. Record it in the same input order as live actions.
+    pub fn seed_weapon_container(
+        &mut self,
+        kind: ContainerKind,
+        at: Vec2,
+        weapons: &[WeaponId],
+    ) -> Result<(), &'static str> {
+        self.sim.seed_weapon_container(kind, at, weapons)?;
+        if let Some(rec) = self.recorder.as_mut() {
+            rec.record(ReplayInput::WeaponRack {
+                kind,
+                at,
+                weapons: weapons.to_vec(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Sample all external observers atomically. Only a returned observation issues handles.
+    pub fn try_observations(&mut self) -> Result<Vec<Observation>, OfferError> {
+        let mut observations = Vec::with_capacity(self.observers.len());
+        let mut offers = Vec::with_capacity(self.observers.len());
+        for observer in &mut self.observers {
+            let mut observation = Observation::default();
+            offers.push(observer.prepare_into(
+                &self.sim,
+                &self.last_events,
+                &mut observation,
+                None,
+            )?);
+            observations.push(observation);
+        }
+        for offer in offers {
+            offer.commit();
+        }
+        Ok(observations)
+    }
+
+    pub fn observations(&mut self) -> Vec<Observation> {
+        self.try_observations()
+            .expect("scene exceeds external observation bounds")
     }
 
     /// One fixed step: external agents' commands (one list per external player, in order), then the seats, then the sim.
-    pub fn step(&mut self, external_cmds: &[Vec<RawCommand>]) -> StepOut {
+    pub fn step(&mut self, external_cmds: &[Vec<PublicCommand>]) -> StepOut {
+        self.try_step(external_cmds)
+            .expect("scene exceeds external observation bounds")
+    }
+
+    /// Advance once, returning a typed error if a complete public view cannot be delivered.
+    /// After such an error the simulation has stepped but no external observer issued new handles.
+    pub fn try_step(
+        &mut self,
+        external_cmds: &[Vec<PublicCommand>],
+    ) -> Result<StepOut, OfferError> {
         let p = self.advance(external_cmds);
         let events = self.last_events.clone();
         let results = events
@@ -155,28 +240,33 @@ impl Env {
                 }
             })
             .collect();
-        StepOut {
+        Ok(StepOut {
             tick: p.tick,
-            observations: self.observations(),
+            observations: self.try_observations()?,
             events,
             terminated: p.terminated,
             truncated: p.truncated,
             results,
-        }
+        })
     }
 
     /// [`Env::step`] without the owned report: the step's events stay in the env ([`Env::last_events`], one buffer
     /// reused every step through `Sim::step_into`), so a runner that only folds them allocates nothing per step on the
     /// sim's side.
-    pub fn advance(&mut self, external_cmds: &[Vec<RawCommand>]) -> Progress {
+    pub fn advance(&mut self, external_cmds: &[Vec<PublicCommand>]) -> Progress {
         let mut ext_stats = SeatStats::default();
-        for (id, cmds) in self.external.iter().zip(external_cmds) {
-            for raw in cmds {
-                if let (Some(rec), Ok(cmd)) = (self.recorder.as_mut(), rh_sim::validate(*raw)) {
-                    rec.record(ReplayInput::Command { player: *id, cmd });
-                }
-            }
-            submit_all(&mut self.sim, *id, cmds.clone(), &mut ext_stats);
+        for (observer, cmds) in self.observers.iter().zip(external_cmds) {
+            submit_all(
+                &mut self.sim,
+                observer,
+                cmds,
+                &mut ext_stats,
+                |player, cmd| {
+                    if let Some(rec) = self.recorder.as_mut() {
+                        rec.record(ReplayInput::Command { player, cmd });
+                    }
+                },
+            );
         }
         self.drive_and_record();
         self.last_events.clear();
@@ -185,7 +275,7 @@ impl Env {
             rec.stepped(&self.sim);
         }
         let terminated = self.sim.phase() == Phase::Ended;
-        let truncated = !terminated && self.sim.tick() - self.start_tick >= self.cfg.max_ticks;
+        let truncated = !terminated && self.sim.tick() - self.start_tick >= self.max_ticks;
         Progress {
             tick: self.sim.tick(),
             terminated,
@@ -216,7 +306,7 @@ impl Env {
     pub fn seat_stats(&self) -> Vec<(PlayerId, SeatStats, Option<rh_policy::Fault>)> {
         self.seats
             .iter()
-            .map(|s| (s.player, s.stats.clone(), s.fault.clone()))
+            .map(|s| (s.player(), s.stats.clone(), s.fault.clone()))
             .collect()
     }
 

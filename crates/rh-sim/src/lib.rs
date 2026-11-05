@@ -17,6 +17,7 @@ pub mod geometry;
 mod hash;
 mod hooks;
 pub mod input;
+pub mod item_view;
 pub mod map;
 pub mod math;
 pub mod observe;
@@ -37,7 +38,11 @@ pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
 pub use content::{FactionId, WeaponId};
 pub use events::PickupRefusal;
 pub use events::{Class, Visibility};
-pub use input::{validate, Command, RawCommand, Reject};
+pub use input::{validate, Command, PublicCommand, RawCommand, Reject};
+pub use item_view::{
+    Inventory, ItemObserver, OfferError, PickupHandle, PropCue, PropKind, VisibleProp,
+    MAX_VISIBLE_PROPS,
+};
 pub use map::TileMap;
 pub use math::Vec2;
 pub use observe::{

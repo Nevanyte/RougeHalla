@@ -7,6 +7,11 @@ ball-vs-arrow deletion, sword swing vs ball, shield arrow reflection, `projEnd` 
 representation of a launch (announced once, never updated) and replay of it on the client side contract.
 
 ## Dependencies
+Stage 2 implementation order: first the authoritative Rust flight/interactions, trusted events and parity/headless/replay
+evidence; then legitimate observer projection and coordinated transport. Keep this packet open until both stages pass.
+Unity receives presentation data only and never simulates collision, hits, reflections or damage. Existing generalized
+capture/launch tracking is already implemented by P-CAPTURE-1; extend it rather than rebuilding that prerequisite.
+
 P-COMBAT-1 should merge first (sword swing vs ball and shield reflection need the sword/shield melee and `Placement.weapon0`).
 The directional-only parts (bow, wand without a lock) can start in parallel. Homing wand balls need P-COMBAT-3's lock; this
 packet ports the `targetId` flight but cannot create a locked shot until P-COMBAT-3.
@@ -39,10 +44,10 @@ shooter or the path: decide and leak-test), C-NET (fx are droppable; `projEnd` m
 - Launch point is the shooter's **rewound** (drawn) position for `attack` inputs; for locked attacks the server aims from the present with `leadAim` and `lagMs = TICK_MS` (P-COMBAT-3). Projectiles loosed this tick leave from the authoritative release position and first move next tick's sweep. A hit lands in the ledger of the tick it connects, after melee.
 - Timings: bow windup `min(0.5, 0.55 * interval)` with `drawStartedAt` synced, wand `min(0.45, 0.5 * interval)`; ranged users are rooted only for the final `RANGED_RELEASE_PAUSE_MS` 200 ms of the windup (`windingUp`), a stagger never cancels a bow draw. Homing wand ball (locked): flies toward the target's position at each substep time at its launch speed, dies after 5000 ms or when the target is not standing.
 - A projectile outlives its owner; a kill by a departed shooter is credited by name only (no GV/bounty).
-- `Rust` already has `Draw` actions and the release pause in `systems/weapons.rs` (`start_attack`, `move_multiplier`, `RANGED_RELEASE_PAUSE_MS`); `land` has a `debug_assert` that ranged attacks are unreachable, to be replaced by the real path (and `check_world` in `checkpoint.rs` currently refuses a carried bow or wand): verify against fixtures, do not re-derive.
+- Rust already has Draw/Cast actions and release pause in `systems/weapons.rs`; carried bow/wand are accepted. `land` currently clears the draw pause without creating a projectile. Replace that stub with the real spawn path; verify current callers and fixtures.
 
 ## Acceptance checks
-1. Fix the capture first: `canonicalEvent` maps `projEnd` to `{kind}` only and launches are not events. Extend the capture (coordinate with P-CAPTURE-1) to record every launch (`world.projectiles` additions per tick: id, kind, owner, x, y, vx, vy, t, range, targetId) and `projEnd` with `x, y, why`.
+1. Preserve the generalized P-CAPTURE-1 event and launch tracking, including same-tick projectile destruction. Extend scenarios/requirements as needed; never discard launch/end fields or ignore unknown events to make parity pass.
 2. New slice scenarios with **directional inputs only**: `bow_duel` (two bows, stand and trade), `wand_duel`, `ball_vs_arrow`, `sword_swing_ball`, `shield_arrow_reflect`, `wand_splash_group` (3+ players), `projectile_outlives_owner` (owner leaves, MIA). Re-capture `bow_wand_capture` as is; it contains a wand `target` input, so it flips to `slice` in P-COMBAT-3, not here.
 3. `cargo test -p rh-parity` passes; hits compared by tick, victim, attacker, weapon (exact) and amount (2e-6); launches and ends by tick/id/kind exact and positions within 2e-6.
 4. Unit tests: substep order (ball deletes arrow before body test), closest-approach head-on case, reflection chain limits, range left after reflection, starting-inside rule, 5 s homing cap (stub target).

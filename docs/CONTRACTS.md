@@ -14,23 +14,30 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 395 tests passed with all features, 386 with default features,
-0 failed/filtered, and one explicitly ignored heap measurement in each run. Formatting and full-feature workspace
-Clippy with warnings denied passed. Full-game, AWS, browser-matrix and release gates remain open.
+Native arm64 integration on `optimization_port`: 411 tests passed with all features, 0 failed/filtered and one explicitly
+ignored heap measurement. Formatting and full-feature workspace Clippy with warnings denied passed. The preceding
+foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
+`c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
 
 - C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 20 compared
   scenarios and 300 path queries MATCH; 15 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
-- C-DET/C-NUM: checkpoint format is `rh-checkpoint/4` for item state, observation version 3; content identity
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/5`, replay `rh-replay/3`, observation version 4; content identity
   `b0b7169709bd0a83`. Hash coverage, replay/restore and six steady-state allocation fixtures passed on arm64.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
-  and earlier-step/cached projection checks passed. **Visible item discovery/self inventory is still open** (P-NET-ITEMS-1).
+  and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy
+  seats through reusable `ItemObserver`s; raw IDs and concealed contents never appear. Independent review verified
+  corrections for collocated hints, same-tick departure, immutable observer identity and async fallback/deadlines.
+  Live item State/client integration is still open (P-NET-ITEMS-1).
+- C-POLICY: contract v3 proposes `PublicCommand`s. Observer-local handles resolve into trusted commands before the normal
+  action budget; explicit misses are recorded/replayed. Async seats own their projection and discard late/panicked output.
 - C-NET: protocol 5 ([ADR 0012](adr/0012-combat-protocol-v5.md)), strict combat codecs and frozen Hello/Reject envelope.
   Rust 73, C# 220 and JS 3,344 codec checks plus real Chromium WSS proof passed. Oversize, BOM and wrong-version regressions
   were reproduced and corrected. Actual Unity Web build and movement over WS/WSS also passed; no valid public TLS claim.
 - C-PERSIST: achievement ids, timestamps and reward cosmetics commit with the fenced result. 83 legacy observations
-  and 32 real-PG tests passed, including concurrent duplicate result and crash rollback. Live ending-kit metadata,
+  and 32 real-PG tests passed, including concurrent duplicate result and crash rollback. The cosmetic catalog and look
+  packing match 301 additional legacy observations; all 35 persistence checks passed. Live ending-kit metadata,
   renewals/recovery and the full profile API remain open; the store proof does not establish them.
 
 ### Historical Stage 1 record
@@ -115,10 +122,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 
 ## C-DET: reproducibility
 - Same arena + config + secrets + inputs ⇒ the same state hash after every step on declared targets.
-- `rh_sim::replay::Replay` (`rh-replay/2`) records the start (typed reset or lobby), secrets, every input with its tick
+- `rh_sim::replay::Replay` (`rh-replay/3`) records the start (typed reset or lobby), secrets, every input with its tick
   (joins, commands as submitted, drops, leaves) and each step's hash; `run_replay` checks every hash. Any other tag
-  (`rh-replay/1` or unknown) is refused with `ReplayError::Format { found }` before a step runs: P8 redefined the per-step
-  hashes once, so an `rh-replay/1` file cannot verify on any build.
+  (including `/1`, `/2` or unknown) is refused with `ReplayError::Format { found }` before a step runs. Stage 2 adds an
+  explicit resolved pickup miss; private accepted commands replay independently of public observation timing.
 - State identity by construction (P8, [adr/0007-determinism.md](adr/0007-determinism.md) addendum): `Sim::state_hash` is
   derived from the serialized `World` by a serde `Serializer` (`crates/rh-sim/src/hash.rs`, `HashSer`: 64-bit words,
   length-prefixed sequences, maps and strings, enum variant index, `Option` tag), seeded with a digest of the statics
@@ -153,13 +160,13 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   inputs are empty and rule (8) is covered only by the unit test `a_queued_input_validation_would_change_is_refused`. A packet that moves bodies past
   `COORD_MARGIN` or adds items or ranged actions must widen these rules and the `hash_coverage` seeds.
 - Not done yet: `TileMap` keeps public `w`/`h`/`tiles` ([sweep/README.md](sweep/README.md), follow-ups).
-- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, content_hash, build, statics, world}`; deserialization
+- A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/5`) is `{format, content_hash, build, statics, world}`; deserialization
   builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
   world carries `roster` (append-only join names, leavers included; `killed_by` and `winner` are ids resolved to names only
   in results). Fighter path and rewind history serialize as their logical sequence (path from the cursor; history oldest
   first, a fixed inline ring) and the action queue as a list of at most `MAX_ACTIONS_PER_TICK`. Scratch is never part of a
-  checkpoint. Any other tag (`rh-checkpoint/1`, `/2`, or none) is refused with a typed `CheckpointError`
+  checkpoint. Any other tag (including `/1` through `/4`, or none) is refused with a typed `CheckpointError`
   (`UnsupportedFormat` / `MissingFormat`), never an untyped parse error.
 - The steady-state tick allocates nothing: `rh-sim/tests/no_alloc.rs` (dhat) asserts 0 allocations per `step_into` on
   crowded_8, duel_chase and fists_duel. New per-tick lists go in `TickScratch` (cleared, never taken); new per-entity queues
@@ -189,7 +196,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 - `Command` is opaque (H-sim): its field is private, and the only ways to hold one are `validate` and a `Deserialize` that
   runs `validate` again and refuses anything it would change, so no fixture or edited replay can hand the sim an
   unvalidated command. It serializes as the plain variant, so recorded replays keep their shape. `run_replay` checks
-  `REPLAY_FORMAT` (`rh-replay/2`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
+  `REPLAY_FORMAT` (`rh-replay/3`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
 - The network layer additionally caps frames (1 KiB, 16 commands, 60 frames/s burst 120 per connection).
 
 ## C-OBS: views and leaks
@@ -198,6 +205,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   `VISION_RADIUS` with a clear line on the sight mask; sorted by public id; hp as a bar (hundredths); events filtered to
   what the viewer could perceive. Clients and policies receive the same observation. `observe_into` fills caller-owned
   buffers (`observe` wraps it).
+- Action-producing observers use one `ItemObserver` per seat, not disposable `observe` previews. Its public offers change
+  only with public cues or scheduled renewal; immutable exact-target handles have 20 ticks of retired grace and never
+  rebind to a replacement. Preparation commits only after delivery. `Env::observe_external_into` and policy seats own
+  those lifetimes; sim-only restore begins a new external observer epoch. Unsupported view size is an explicit error.
 - Event visibility is declared, not inferred (P9): `Event::visibility()` and `Event::class()` (`crates/rh-sim/src/events.rs`)
   are exhaustive matches, and observation and the wire mapping (`SeenEvent`) are exhaustive too; a new event variant fails
   to compile until it says who may perceive it and whether it is important or droppable. `is_important` is gone.

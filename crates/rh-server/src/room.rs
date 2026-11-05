@@ -531,7 +531,7 @@ impl Room {
             {
                 self.record(ReplayInput::Leave { player: bot });
                 self.sim.remove_player(bot);
-                self.bots.retain(|s| s.player != bot);
+                self.bots.retain(|s| s.player() != bot);
             }
         }
         let player = self

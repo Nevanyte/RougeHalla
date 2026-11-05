@@ -19,7 +19,7 @@ use crate::map::MASK_SIGHT;
 use crate::sight::SightCache;
 use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 
-pub const OBSERVATION_VERSION: u16 = 3;
+pub const OBSERVATION_VERSION: u16 = 4;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -104,6 +104,8 @@ pub struct Observation {
     pub server_time: f64,
     pub phase: Phase,
     pub me: Option<SelfView>,
+    pub inventory: Option<crate::Inventory>,
+    pub props: Vec<crate::VisibleProp>,
     pub visible: Vec<ActorView>,
     pub events: Vec<SeenEvent>,
 }
@@ -195,6 +197,8 @@ impl Default for Observation {
             server_time: 0.0,
             phase: Phase::Lobby,
             me: None,
+            inventory: None,
+            props: Vec::new(),
             visible: Vec::new(),
             events: Vec::new(),
         }
@@ -256,6 +260,7 @@ fn filter_events(
     }
 }
 
+/// Disposable preview, with handles scoped to this call. Use [`crate::ItemObserver`] for actions.
 /// The observation of player `viewer` after a step whose events are `events` (pass the step's return value).
 pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
     let mut obs = Observation::default();
@@ -263,13 +268,15 @@ pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
     obs
 }
 
-/// [`observe`] into a caller-owned buffer: `out` is cleared and refilled (its vectors keep their capacity, so a steady-state
-/// call allocates nothing). The content is exactly what [`observe`] returns.
+/// Disposable preview into a caller-owned buffer. For reusable scratch, stable handles and fallible
+/// scene bounds, deliver observations through [`crate::ItemObserver::observe_into`].
 pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Observation) {
-    observe_with(sim, viewer, events, out, None);
+    crate::ItemObserver::new(viewer)
+        .observe_into(sim, events, out, None)
+        .expect("scene exceeds item observation bounds");
 }
 
-/// [`observe_into`] reusing line-of-sight verdicts from `cache` for pairs whose endpoints are bit-identical to the last
+/// Disposable [`observe_into`] reusing line-of-sight verdicts from `cache` for pairs whose endpoints are bit-identical to the last
 /// time that ordered pair was tested (see [`SightCache`]). The content is exactly what [`observe_into`] fills.
 pub fn observe_into_cached(
     sim: &Sim,
@@ -278,10 +285,12 @@ pub fn observe_into_cached(
     out: &mut Observation,
     cache: &mut SightCache,
 ) {
-    observe_with(sim, viewer, events, out, Some(cache));
+    crate::ItemObserver::new(viewer)
+        .observe_into(sim, events, out, Some(cache))
+        .expect("scene exceeds item observation bounds");
 }
 
-fn observe_with(
+pub(crate) fn observe_with(
     sim: &Sim,
     viewer: PlayerId,
     events: &[Event],

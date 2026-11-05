@@ -11,7 +11,40 @@
 use crate::constants::{MAX_ACTIONS_PER_TICK, ORDER_BURST, ORDER_PER_SECOND, WORLD_H, WORLD_W};
 use crate::math::wrap_angle;
 
-/// A command as it arrives (decoded from the wire or proposed by a policy), not yet validated.
+/// A proposal from a public seat. Pickup can name only an observer-issued handle.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum PublicCommand {
+    /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
+    Move {
+        x: f64,
+        y: f64,
+        seq: Option<u8>,
+    },
+    Stop {
+        seq: Option<u8>,
+    },
+    /// Cursor aim (radians).
+    Aim {
+        a: f64,
+    },
+    /// Press the trigger toward `a`; `t` is the client's render time (lag compensation), clamped by the server.
+    Attack {
+        a: f64,
+        t: Option<f64>,
+    },
+    Release {
+        a: f64,
+        t: Option<f64>,
+    },
+    Swap {
+        slot: Option<u8>,
+    },
+    Pickup {
+        handle: crate::PickupHandle,
+    },
+}
+
+/// Trusted fixture/replay-side proposal. Public seats use [`PublicCommand`].
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RawCommand {
     /// Walk to a point (right click / WASD goal). `seq` is echoed in the player's `move_seq` once applied.
@@ -42,6 +75,8 @@ pub enum RawCommand {
     Pickup {
         container_id: u32,
     },
+    /// A nonzero public handle did not resolve at intake. Still spends the normal budget.
+    MissingPickup,
 }
 
 /// A validated command: points finite and clamped to the world, angles finite and wrapped. Opaque on purpose: the only
@@ -61,11 +96,34 @@ enum Kind {
     Release { a: f64, t: Option<f64> },
     Swap { slot: Option<u8> },
     Pickup { container_id: u32 },
+    MissingPickup,
+}
+
+impl PublicCommand {
+    /// All ordinary proposals and resolved exact targets pass through the existing validator.
+    pub(crate) fn resolve(
+        self,
+        lookup: impl FnOnce(crate::PickupHandle) -> Option<u32>,
+    ) -> Result<Command, Reject> {
+        validate(match self {
+            Self::Pickup { handle } => match lookup(handle) {
+                Some(container_id) => RawCommand::Pickup { container_id },
+                None => RawCommand::MissingPickup,
+            },
+            Self::Move { x, y, seq } => RawCommand::Move { x, y, seq },
+            Self::Stop { seq } => RawCommand::Stop { seq },
+            Self::Aim { a } => RawCommand::Aim { a },
+            Self::Attack { a, t } => RawCommand::Attack { a, t },
+            Self::Release { a, t } => RawCommand::Release { a, t },
+            Self::Swap { slot } => RawCommand::Swap { slot },
+        })
+    }
 }
 
 impl Kind {
     fn raw(self) -> RawCommand {
         match self {
+            Kind::MissingPickup => RawCommand::MissingPickup,
             Kind::Swap { slot } => RawCommand::Swap { slot },
             Kind::Pickup { container_id } => RawCommand::Pickup { container_id },
             Kind::Move { x, y, seq } => RawCommand::Move { x, y, seq },
@@ -132,6 +190,7 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
         RawCommand::Swap { slot } if slot.is_some_and(|i| i > 1) => {
             return Err(Reject::InvalidSlot)
         }
+        RawCommand::MissingPickup => Kind::MissingPickup,
         RawCommand::Pickup { container_id: 0 } => return Err(Reject::InvalidContainer),
         RawCommand::Swap { slot } => Kind::Swap { slot },
         RawCommand::Pickup { container_id } => Kind::Pickup { container_id },
@@ -164,6 +223,7 @@ pub(crate) enum ActionCmd {
     Release { a: f64, t: Option<f64> },
     Swap { slot: Option<u8> },
     Pickup { container_id: u32 },
+    MissingPickup,
 }
 
 /// The actions queued for one tick: the first `len` of `MAX_ACTIONS_PER_TICK` inline slots (the cap is a constant, so the
@@ -239,6 +299,7 @@ impl InputQueue {
         }
         for act in self.actions.as_slice() {
             match *act {
+                ActionCmd::MissingPickup => same(RawCommand::MissingPickup, Kind::MissingPickup)?,
                 ActionCmd::Swap { slot } => same(RawCommand::Swap { slot }, Kind::Swap { slot })?,
                 ActionCmd::Pickup { container_id } => same(
                     RawCommand::Pickup { container_id },
@@ -323,6 +384,7 @@ impl InputQueue {
                 self.aim = Some(a);
                 self.aim_before = self.actions.len();
             }
+            Kind::MissingPickup => return self.push_action(ActionCmd::MissingPickup),
             Kind::Swap { slot } => return self.push_action(ActionCmd::Swap { slot }),
             Kind::Pickup { container_id } => {
                 return self.push_action(ActionCmd::Pickup { container_id })

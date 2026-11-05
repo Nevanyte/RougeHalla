@@ -39,6 +39,9 @@ edits and commits belong to `optimization_port`.
   The temporary PostgreSQL cluster listens on loopback only; its state/credentials are kept outside the repository.
 - Owner choices confirmed 2026-11-05: **MIT** for project-authored code and **Apple M5 Pro** as the initial performance reference. The owner then replaced the 60 FPS goal with **highest sustainable frame rate**, preserving intended quality and measuring CPU/GPU frame times separately from display limits. Third-party/Unity terms remain separate; full-game performance is unverified.
 - `caffeinate -i` is running for this work and is to be stopped after work completes.
+- Owner priority update (2026-11-05): finish Rust simulation, parity and headless before Unity visual expansion. All rules,
+  physics, collision, combat, AI and bots belong only to Rust. The sole Unity gameplay exception is local movement
+  prediction checked against Rust vectors and always server-corrected; headless/policy runs never call Unity.
 
 ### Execution and current evidence
 
@@ -64,15 +67,18 @@ Astra/high. Runtime-only model overrides are explicit; no unsupported global set
 | P-PERSIST-2 store portion | Achievements and cosmetics now commit atomically with fenced/idempotent results, including concurrent retry and crash rollback. | 26 catalog entries and 83 legacy evaluator observations agree; 32 PG tests passed. Live faction/ending-weapon metadata, lease renewal, crash recovery and REST routes remain open. |
 | Profile catalog prerequisite | All 57 legacy cosmetics, prices, slots and validated look-word packing are available in `rh-persist`; no runtime Node dependency. | 301 actual legacy look observations agree; all 35 persistence checks passed (32 PostgreSQL integration tests plus 3 catalog unit tests), Clippy passed. HTTP/API and live look presentation remain open. |
 | P-UNITY-1 bootstrap | Exact Editor and packages, real compile, Web build and Chromium movement over HTTP/WS and HTTPS/WSS passed. The full client packet is still open. | Protocol-4 bootstrap is historical. Current protocol-5 build is 53,892,988 bytes; each smoke receives 54 snapshots (ticks 2->53), move sequence 0->16 and changed authoritative position, with no page/console errors. Four ReadPixels warnings per run; no performance guarantee. See `docs/evidence/stage2-unity-v5/`. |
-| Integrated native gate | `cargo test --workspace --all-features`: 395 passed, 0 failed, 1 intentionally ignored heap measurement, no filtered tests. Full-workspace Clippy with warnings denied and formatting passed. | A second test-setup race was corrected by waiting for three measured overload wakes under the original 3-second deadline; 10/10 targeted and 50/50 server library tests passed before the integrated run. Default features: 386 passed, 0 failed, 1 ignored and none filtered; default-feature Clippy also passed. |
-| Live loot/inventory integration | **Open**, P-NET-ITEMS-1. The core can pick a trusted fixture target, but clients/policies still need a public discovery path. | Implement observer-local exact-target handles, visible props and owner inventory; test hidden-ID/count noninterference, actual headless and socket pickup, reconnect/resync and Unity UI. Do not call the current slice the complete playable port. |
+| Integrated native gate | Latest `cargo test --workspace --all-features`: 411 passed, 0 failed, 1 intentionally ignored heap measurement, no filtered tests. Full-workspace Clippy with warnings denied and formatting passed. | Prior foundation gate: 395 all-feature/386 default-feature tests passed; Rust/C#/browser and legacy recapture CI passed at `c93b659d`. |
+| Shared loot/inventory | P-NET-ITEMS-1 core/policy/headless implemented and independently reviewed. Policies and external observers discover, pick and swap using only public offers. Live integration remains **open**. | Observation 4, policy contract 3, checkpoint /5, replay /3. Privacy, exact targets/grace, async failure/deadline, budgeted misses and restore checked. 512 changed rows allocate zero after warm-up. See `docs/evidence/stage2-items/`. Socket State/resume, source setup bounds, wire costs and Unity item UI remain. |
 | Full game / cloud / release gates | Not achieved | Remaining backlog and Stage 2 prompt still apply in full; baseline checks do not imply full-game parity or release readiness |
 
 Integrated foundation is committed and pushed as `c93b659d`. The chat now uses its managed worktree on
 `optimization_port`; the previous implementation checkout is detached at that revision and preserved. Both legacy recapture
-and Rust foundation CI passed, including C#, PostgreSQL and Chromium WSS. P-NET-ITEMS-1 shared public observation/intake and P-UNITY-PERF-1 measured client
-optimization are active in exclusive scopes. Next: reliable item State/Unity integration; P-COMBAT-2 projectiles and
-P-PERSIST-2 remaining work are subsequent dependency-ready packets.
+and Rust foundation CI passed, including C#, PostgreSQL and Chromium WSS. P-NET-ITEMS-1 shared public observation/intake
+has passed independent review and the 411-test integrated gate. Unity's measured mesh-leak repair is preserved; unverified
+instancing is archived as an inactive patch. Further visual work and long profiling are suspended in favor of Rust completion.
+The unverified straight-line client predictor is being removed in favor of accepted authoritative positions until Rust-vector
+parity exists. Next: P-COMBAT-2 projectiles with parity/headless; reliable item State/client
+integration and P-PERSIST-2 remaining work stay open.
 All gameplay/core, Unity full-flow, browser-matrix/performance, AWS lifecycle/scaling, migration and release requirements
 from the Stage 2 prompt remain in scope. No cloud staging or production release is implied by these local gates.
 

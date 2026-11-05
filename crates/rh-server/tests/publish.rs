@@ -461,7 +461,7 @@ impl rh_policy::Policy for Recorder {
         }
     }
     fn reset(&mut self, _m: &rh_policy::MatchStart) {}
-    fn decide(&mut self, obs: &Observation) -> Vec<rh_sim::RawCommand> {
+    fn decide(&mut self, obs: &Observation) -> Vec<rh_sim::PublicCommand> {
         self.log
             .lock()
             .unwrap()

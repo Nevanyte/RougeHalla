@@ -3,7 +3,7 @@
 
 use crate::{MatchStart, Policy, PolicySpec, POLICY_CONTRACT_VERSION};
 use rh_sim::observe::Observation;
-use rh_sim::{PlayerId, RawCommand, OBSERVATION_VERSION};
+use rh_sim::{PlayerId, PublicCommand, OBSERVATION_VERSION};
 
 fn spec(name: &str, interval: u32) -> PolicySpec {
     PolicySpec {
@@ -23,7 +23,7 @@ impl Policy for Idle {
         spec("idle", 1)
     }
     fn reset(&mut self, _: &MatchStart) {}
-    fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
+    fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
         Vec::new()
     }
 }
@@ -64,12 +64,12 @@ impl Policy for Brawler {
         self.me = m.me;
         self.wander = None;
     }
-    fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
+    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut out = Vec::new();
         self.decide_into(obs, &mut out);
         out
     }
-    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<RawCommand>) {
+    fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
         let Some(me) = &obs.me else { return };
         let target = obs
             .visible
@@ -87,12 +87,12 @@ impl Policy for Brawler {
                 let d = rh_sim::math::sqrt(dx * dx + dy * dy);
                 let a = rh_sim::math::atan2(dy, dx);
                 if d < 80.0 {
-                    out.push(RawCommand::Attack {
+                    out.push(PublicCommand::Attack {
                         a,
                         t: Some(obs.server_time - 100.0),
                     });
                 } else {
-                    out.push(RawCommand::Move {
+                    out.push(PublicCommand::Move {
                         x: t.x,
                         y: t.y,
                         seq: None,
@@ -107,7 +107,7 @@ impl Policy for Brawler {
                     let (rx, ry) = (self.next(), self.next());
                     self.wander = Some((me.x + (rx - 0.5) * 600.0, me.y + (ry - 0.5) * 600.0));
                     let (x, y) = self.wander.unwrap();
-                    out.push(RawCommand::Move { x, y, seq: None });
+                    out.push(PublicCommand::Move { x, y, seq: None });
                 }
             }
         }
@@ -121,7 +121,7 @@ impl Policy for Panicky {
         spec("panicky", 1)
     }
     fn reset(&mut self, _: &MatchStart) {}
-    fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
+    fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
         if self.0 == 0 {
             panic!("test policy failure");
         }
@@ -137,9 +137,9 @@ impl Policy for Slow {
         spec("slow", 1)
     }
     fn reset(&mut self, _: &MatchStart) {}
-    fn decide(&mut self, _: &Observation) -> Vec<RawCommand> {
+    fn decide(&mut self, _: &Observation) -> Vec<PublicCommand> {
         std::thread::sleep(self.0);
-        vec![RawCommand::Stop { seq: None }]
+        vec![PublicCommand::Stop { seq: None }]
     }
 }
 
@@ -150,19 +150,19 @@ impl Policy for Flood {
         spec("flood", 1)
     }
     fn reset(&mut self, _: &MatchStart) {}
-    fn decide(&mut self, obs: &Observation) -> Vec<RawCommand> {
+    fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
         let mut v = Vec::new();
         for i in 0..100 {
-            v.push(RawCommand::Attack {
+            v.push(PublicCommand::Attack {
                 a: i as f64 * 0.01,
                 t: Some(obs.server_time),
             });
-            v.push(RawCommand::Move {
+            v.push(PublicCommand::Move {
                 x: 100.0 + i as f64,
                 y: 100.0,
                 seq: None,
             });
-            v.push(RawCommand::Aim { a: f64::NAN });
+            v.push(PublicCommand::Aim { a: f64::NAN });
         }
         v
     }

@@ -1,12 +1,12 @@
 //! The two weapon slots, swaps and run-only loot (legacy weapons.ts and loot.ts).
 use super::{weapons, Cx};
-use crate::constants::{INTERACT_RANGE, MASK_MOVE, SWAP_SECONDS};
+use crate::constants::SWAP_SECONDS;
 use crate::events::{Event, PickupRefusal};
 use crate::fighter::{FighterCore, FighterIx};
-use crate::geometry::ray_blocked;
 use crate::hooks::{HookArgs, Hx};
 use crate::input::ActionCmd;
-use crate::math::{hypot, Vec2};
+use crate::item_view::{pickup_reach, point_visible};
+use crate::math::Vec2;
 use crate::state::{Container, ContainerKind, WeaponItem, WeaponRt, World};
 use crate::{Sim, WeaponId};
 
@@ -208,10 +208,16 @@ pub(crate) fn drop_body(hx: &mut Hx, args: &HookArgs) {
     );
 }
 
-fn pickup_check(cx: &Cx, ix: FighterIx, id: u32, blocked: bool) -> Result<usize, PickupRefusal> {
+fn pickup_check(
+    cx: &Cx,
+    ix: FighterIx,
+    id: Option<u32>,
+    blocked: bool,
+) -> Result<usize, PickupRefusal> {
     if blocked {
         return Err(PickupRefusal::Blocked);
     }
+    let id = id.ok_or(PickupRefusal::NothingThere)?;
     let i =
         cx.w.containers
             .binary_search_by_key(&id, |c| c.id)
@@ -221,21 +227,21 @@ fn pickup_check(cx: &Cx, ix: FighterIx, id: u32, blocked: bool) -> Result<usize,
         return Err(PickupRefusal::NothingThere);
     }
     let p = cx.w.core(ix).pos();
-    if hypot(p.x - c.at.x, p.y - c.at.y) > INTERACT_RANGE {
-        return Err(PickupRefusal::TooFar);
-    }
-    if ray_blocked(&cx.k.arena.map, p.x, p.y, c.at.x, c.at.y, MASK_MOVE) {
-        return Err(PickupRefusal::Unreachable);
+    pickup_reach(&cx.k.arena.map, p, c.at)?;
+    if !point_visible(&cx.k.arena.map, p, c.at) {
+        return Err(PickupRefusal::NothingThere);
     }
     Ok(i)
 }
 
 pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
-    let ActionCmd::Pickup { container_id } = *cmd else {
-        return;
+    let id = match *cmd {
+        ActionCmd::Pickup { container_id } => Some(container_id),
+        ActionCmd::MissingPickup => None,
+        _ => return,
     };
     // P-STATUS-1: stun/ability cast refuses before even looking up the requested id.
-    let result = pickup_check(cx, ix, container_id, false).and_then(|i| take(cx, ix, i));
+    let result = pickup_check(cx, ix, id, !cx.w.standing(ix)).and_then(|i| take(cx, ix, i));
     if let Err(reason) = result {
         // A client can guess run-local ids. Only a visible prop can give it a
         // distance, reach or empty-container hint. A blocked order still reports
@@ -245,21 +251,11 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
             PickupRefusal::TooFar | PickupRefusal::Unreachable | PickupRefusal::NothingToTake => {
                 let i =
                     cx.w.containers
-                        .binary_search_by_key(&container_id, |c| c.id)
+                        .binary_search_by_key(&id.expect("present target"), |c| c.id)
                         .expect("target of refused pickup still present");
                 let from = cx.w.core(ix).pos();
                 let at = cx.w.containers[i].at;
-                let (dx, dy) = (at.x - from.x, at.y - from.y);
-                dx * dx + dy * dy
-                    <= crate::constants::VISION_RADIUS * crate::constants::VISION_RADIUS
-                    && !ray_blocked(
-                        &cx.k.arena.map,
-                        from.x,
-                        from.y,
-                        at.x,
-                        at.y,
-                        crate::constants::MASK_SIGHT,
-                    )
+                point_visible(&cx.k.arena.map, from, at)
             }
         };
         cx.ev.push(Event::PickupRefused {
@@ -376,23 +372,23 @@ mod tests {
         };
         let ix = cx.w.fighter_idx(PlayerId(1)).unwrap();
         assert_eq!(
-            pickup_check(&cx, ix, chest + 1, true),
+            pickup_check(&cx, ix, Some(chest + 1), true),
             Err(PickupRefusal::Blocked)
         );
         assert_eq!(
-            pickup_check(&cx, ix, chest, true),
+            pickup_check(&cx, ix, Some(chest), true),
             Err(PickupRefusal::Blocked)
         );
         assert_eq!(
-            pickup_check(&cx, ix, chest, false),
+            pickup_check(&cx, ix, Some(chest), false),
             Err(PickupRefusal::NothingThere)
         );
         cx.w.tick += 1;
         assert_eq!(
-            pickup_check(&cx, ix, chest, false),
+            pickup_check(&cx, ix, Some(chest), false),
             Err(PickupRefusal::NothingThere)
         );
         cx.w.tick += 1;
-        assert_eq!(pickup_check(&cx, ix, chest, false), Ok(0));
+        assert_eq!(pickup_check(&cx, ix, Some(chest), false), Ok(0));
     }
 }

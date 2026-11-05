@@ -261,7 +261,7 @@ impl<'de> serde::Deserialize<'de> for Path {
 /// payouts are `Copy`), so a hit never clones a name and a shooter who already left is still named.
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize)]
 pub(crate) struct Roster {
-    names: Vec<(PlayerId, String)>,
+    names: Vec<(PlayerId, std::sync::Arc<str>)>,
 }
 
 impl Roster {
@@ -271,7 +271,7 @@ impl Roster {
             self.names.last().is_none_or(|(l, _)| *l < id),
             "roster ids must be appended in ascending order"
         );
-        self.names.push((id, name.to_string()));
+        self.names.push((id, name.into()));
     }
 
     /// How many players ever joined.
@@ -286,8 +286,12 @@ impl Roster {
 
     /// The display name `id` joined with (a leaver's too).
     pub(crate) fn name(&self, id: PlayerId) -> Option<&str> {
+        self.label(id).map(AsRef::as_ref)
+    }
+
+    pub(crate) fn label(&self, id: PlayerId) -> Option<&std::sync::Arc<str>> {
         let i = self.names.binary_search_by_key(&id, |(p, _)| *p).ok()?;
-        Some(self.names[i].1.as_str())
+        Some(&self.names[i].1)
     }
 }
 
@@ -297,7 +301,7 @@ impl<'de> serde::Deserialize<'de> for Roster {
         #[derive(serde::Deserialize)]
         #[serde(rename = "Roster")]
         struct Raw {
-            names: Vec<(PlayerId, String)>,
+            names: Vec<(PlayerId, std::sync::Arc<str>)>,
         }
         let Raw { names } = Raw::deserialize(d)?;
         if names.windows(2).any(|w| w[0].0 >= w[1].0) {

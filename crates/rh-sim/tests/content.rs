@@ -31,6 +31,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("map.rs", "TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
+    ("item_view.rs", "MAX_VISIBLE_PROPS", "public item view size limit, does not change the simulation"),
+    ("item_view.rs", "GRACE", "observer-local renewal and input lifetime, never part of the world"),
     ("observe.rs", "OBSERVATION_VERSION", "observation layout version (a format, versioned on its own), not a rule"),
     ("hash.rs", "K", "mixing multiplier of the state hash (an observer, never read by the simulation)"),
     ("math.rs", "PI", "mathematical constant"),

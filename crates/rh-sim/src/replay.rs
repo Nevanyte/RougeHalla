@@ -7,9 +7,8 @@ use crate::content::FactionId;
 use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
-/// The tag every replay carries. `rh-replay/2`: per-step hashes are the serde-derived word hash of `hash.rs` (`rh-replay/1`
-/// held the hand-listed byte-wise FNV hashes, which no build can reproduce any more). [`run_replay`] refuses any other tag.
-pub const REPLAY_FORMAT: &str = "rh-replay/2";
+/// Version 3 records resolved exact targets and explicit public misses. [`run_replay`] refuses other formats.
+pub const REPLAY_FORMAT: &str = "rh-replay/3";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
 /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps

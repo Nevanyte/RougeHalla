@@ -4,7 +4,7 @@
 use rh_headless::*;
 use rh_policy::scripted::{Brawler, Flood, Idle, Panicky};
 use rh_sim::arenas::practice_arena;
-use rh_sim::{FactionId, RawCommand, SimConfig};
+use rh_sim::{FactionId, PublicCommand, SimConfig};
 
 fn bots(n: usize) -> Vec<AgentSpec> {
     (0..n)
@@ -203,12 +203,12 @@ fn external_agents_act_through_the_same_path() {
     let obs = env.observations();
     let me = obs[0].me.clone().unwrap();
     let out = env.step(&[vec![
-        RawCommand::Move {
+        PublicCommand::Move {
             x: me.x + 200.0,
             y: me.y,
             seq: Some(5),
         },
-        RawCommand::Aim { a: f64::NAN },
+        PublicCommand::Aim { a: f64::NAN },
     ]]);
     assert_eq!(out.observations[0].me.as_ref().unwrap().move_seq, 5);
     let after = env.step(&[vec![]]).observations[0].me.clone().unwrap();
