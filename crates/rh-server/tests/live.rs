@@ -19,7 +19,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v3), and `recv` resolves
+/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v4), and `recv` resolves
 /// both to `ServerMsg::Snapshot`, as a client does. A Welcome resets the decoder, so a resumed connection starts afresh.
 struct Ws {
     sock: WebSocketStream<MaybeTlsStream<TcpStream>>,

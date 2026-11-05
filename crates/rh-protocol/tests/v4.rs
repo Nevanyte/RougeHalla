@@ -285,3 +285,45 @@ fn undefined_mask_bits_are_refused_never_skipped() {
     let overlong = [0x83, 1, 0, 0x80, 0x00, 0];
     assert_eq!(ServerMsg::decode(&overlong), Err(DecodeError::BadVarint));
 }
+
+/// The Delta head and the actor-delta mask bit numbers are wire format and append only, like the Full head: this table is the
+/// contract that the crate docs repeat. A number that moves fails here.
+#[test]
+fn delta_head_and_actor_delta_bit_numbers_are_pinned() {
+    use rh_protocol::delta::*;
+    let head = [
+        (DH_PRESENT, 0),
+        (DH_X, 1),
+        (DH_Y, 2),
+        (DH_FACING, 3),
+        (DH_MOVE_SEQ, 4),
+        (DH_HP, 5),
+        (DH_READY, 6),
+        (DH_DEPARTED, 7),
+        (DH_PHASE, 8),
+        (DH_MAX_HP, 9),
+        (DH_KIT, 10),
+        (DH_KILLS, 11),
+        (DH_BOUNTY, 12),
+        (DH_GV, 13),
+        (DH_STATUS, 14),
+    ];
+    for (c, bit) in head {
+        assert_eq!(c, 1u32 << bit, "delta head bit {bit}");
+    }
+    assert_eq!(DH_KNOWN, (1 << 15) - 1);
+    let ad = [
+        (AD_X, 0),
+        (AD_Y, 1),
+        (AD_FACING, 2),
+        (AD_KIT, 3),
+        (AD_HP, 4),
+        (AD_BOUNTY, 5),
+        (AD_STATUS, 6),
+        (AD_KIND, 7),
+    ];
+    for (c, bit) in ad {
+        assert_eq!(c, 1u32 << bit, "actor-delta bit {bit}");
+    }
+    assert_eq!(AD_ALL, 0xff);
+}

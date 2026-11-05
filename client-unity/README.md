@@ -7,8 +7,8 @@ Client for the Rust authoritative server (`crates/rh-server`), speaking rh-proto
 | Path | What | Status |
 |---|---|---|
 | `RoguehallaNet/` | `netstandard2.1`, C# 9 library: `Protocol/` (byte-exact wire mirror, map blob), `Net/` (SnapshotBuffer, RenderClock, LocalMotion, InputSender, ClockSync, Session, ITransport). No engine, reflection, serializers, threads or `unsafe`. | built and tested |
-| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 180 tests pass |
-| `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; tested against a fake server and run against the real server (protocol 3) |
+| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 199 tests pass |
+| `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; tested against a fake server and run against the real server (protocol 4) |
 | `UnityProject/` | Unity 6 project skeleton (WebGL jslib bridge, transports, `MatchClient`, views, bootstrap, editor build menu) | **NOT OPENED, NOT COMPILED, NO WEB BUILD** |
 | `sync-net.sh` | copies the library sources into `UnityProject/Assets/RoguehallaNet/` (`--check` verifies) | works |
 
@@ -37,8 +37,8 @@ Unnamed `RejectCode` values are legal: a newer server may refuse for a reason th
 dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:7777/ws --profile probe1 --token t1 --seconds 10 \
     [--content-hash <u64>] [--faction 0..4] [--insecure]
 ```
-Sends Hello (protocol 3; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
-`{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (P10c, protocol 3): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
+Sends Hello (protocol 4; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
+`{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (P10c, protocol 4): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
 
 ## Unity: status and steps
 

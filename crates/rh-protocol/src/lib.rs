@@ -34,15 +34,15 @@
 //!     from the previous one), mask varint, x u16, y u16, facing u16, then per mask bit: 0 kit u8 (default 0)
 //!     1 hp_pct u8 (default 100)  2 status u8 0..=3 (default 1)  3 bounty varint (0)  4 kind u8 (0 = player)
 //! SnapshotDelta 0x87, tick varint, base_age varint (tick - base tick, 1..=MAX_DELTA_AGE), ack_input varint, head varint
-//!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms   7 max_hp
-//!              8 kit   9 kills   10 bounty   11 gv   12 status   13 phase   14 a departed list follows
+//!   head bits  0 a self follows (its id is the base's)   1 x   2 y   3 facing   4 move_seq   5 hp   6 ready_in_ms
+//!              7 a departed list follows   8 phase   9 max_hp   10 kit   11 kills   12 bounty   13 gv   14 status
 //!   [self fields, in bit order, only those whose bit is set: x f32, y f32, facing f32, move_seq u8, hp f32, ready_in_ms u16,
-//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3)]   bits 1..=12 need bit 0
-//!   [phase u8 (0..=3) with bit 13: the new phase (a delta carries a field only when it differs from the base)]
+//!      max_hp f32, kit u8, kills varint, bounty varint, gv varint, status u8 (0..=3)]   bits 1..=6 and 9..=14 need bit 0
+//!   [phase u8 (0..=3) with bit 8: the new phase (a delta carries a field only when it differs from the base)]
 //!   changed_count varint (<= MAX_ACTORS), then per changed actor, ascending by id: id varint (the first's id, then the gap),
 //!     mask varint, then per mask bit: 0 x u16  1 y u16  2 facing u16  3 kit u8  4 hp_pct u8  5 bounty varint  6 status u8
 //!     7 kind u8. A NEW actor (not in the base) starts from the default actor and must carry bits 0..=2 (its position).
-//!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 14
+//!   [departed_count varint (1..=MAX_ACTORS), then the ids: the first's id, then gaps]    only with head bit 7
 //! ```
 //!
 //! # Snapshots and deltas (v3, unchanged in v4)
@@ -811,5 +811,19 @@ impl ServerMsg {
         };
         r.end()?;
         Ok(msg)
+    }
+}
+
+#[cfg(test)]
+mod mask_numbers {
+    use super::*;
+
+    /// The Full actor mask bit numbers are append only (docs/adr/0011-protocol-v4.md).
+    #[test]
+    fn full_actor_mask_bit_numbers_are_pinned() {
+        assert_eq!(
+            [AM_KIT, AM_HP, AM_STATUS, AM_BOUNTY, AM_KIND],
+            [1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4]
+        );
     }
 }

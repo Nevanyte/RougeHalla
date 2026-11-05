@@ -10,7 +10,7 @@ using Roguehalla.Net.Protocol;
 
 namespace Roguehalla.Net.Tests
 {
-    /// <summary>Runs the real probe (ClientWebSocket) against a tiny in-process WebSocket server that speaks rh-protocol v3 (Full snapshots only; deltas are covered by the vector chains and SessionTests).</summary>
+    /// <summary>Runs the real probe (ClientWebSocket) against a tiny in-process WebSocket server that speaks rh-protocol v4 (Full snapshots only; deltas are covered by the vector chains and SessionTests).</summary>
     public class ProbeIntegrationTests
     {
         static int FreePort() { var l = new TcpListener(IPAddress.Loopback, 0); l.Start(); int p = ((IPEndPoint)l.LocalEndpoint).Port; l.Stop(); return p; }

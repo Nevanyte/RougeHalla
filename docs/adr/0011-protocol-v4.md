@@ -22,7 +22,8 @@ the room to grow. Rules:
   becomes skippable, so a frame is either exactly understood or refused.
 - The common case is placed in the one-byte region: the Delta head puts present, x, y, facing, move_seq, hp and ready_in_ms
   in bits 0..6; the actor-delta mask puts x, y, facing, kit, hp, bounty and status there. Bits for rarely changing fields
-  (kills, bounty, gv, status, max_hp) and for the departed list and the phase take a second byte when set.
+  (max_hp, kit, kills, bounty, gv, status), the departed list and the phase sit above bit 6 and widen the head varint when set
+  (status, bit 14, makes it three bytes).
 - Lifecycle status and match phase leave the masks (they were 2-bit codes packed into spare bits) and become ordinary fields with
   defaults: a clear bit means alive (status 1) and active (phase 1). A Delta carries the phase only when it differs from the base's;
   a new actor in a Delta starts from the default actor and must carry its position, plus whatever differs from the defaults.
@@ -42,7 +43,10 @@ decoder accepts exactly the empty State (the Rust type has no value for an item)
 full State once keys exist, which makes a resumed or recovered client independent of any event it missed. The server sends no State
 today. The one gap that exists today is fixed now: the player's own `Result` is kept on its seat and re-sent after the Welcome of a
 resume, so a client that was away when its run resolved (the reconnect grace, or a TooSlow close that dropped its queued frames) still
-receives it. `MatchEnded` is public state a rejoining client derives from the phase.
+receives it, provided it resumes before the reconnect grace lapses and the room closes (after that the resume is `NoSuchSession` and the
+Result lives only in durable storage). The Result is re-sent on every resume, including when the client already got it live, so
+clients must treat a `Result` as idempotent; the re-sent Events frame carries the current tick, not the tick of resolution. The
+seat's copy is in memory only: a future room recovery must restore it from the durable results. `MatchEnded` is public state a rejoining client derives from the phase.
 
 **4. Admission ticket in the Hello.** `token: str` becomes `ticket: bytes` (`u16` length, at most `MAX_TICKET` = 448 bytes), and
 `profile` stays the requested display name. The largest legal Hello (every field at its maximum) is 992 bytes, under the 1 KiB
