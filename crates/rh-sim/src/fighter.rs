@@ -12,6 +12,30 @@ use crate::math::Vec2;
 use crate::results::GvBreakdown;
 use crate::state::{History, Path, PlayerId, WeaponRt};
 
+/// A fighter's place in the tick's fighter list: the address the systems use for "the n-th fighter", whoever it is.
+///
+/// Players occupy `0..players.len()` in join order, so the order the systems iterate (and the legacy tick depends on) is
+/// the index order; mobs will follow them in id order (legacy `standingCombatants`: players, then mobs). An index is valid
+/// for the tick that produced it: a join or a leave between ticks renumbers the later fighters, so one is never stored
+/// across a step, a checkpoint or a replay (the stable name of a fighter is its [`PlayerId`] / `EntityId`). It is not
+/// serialized, not hashed and has no wire form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FighterIx(pub u32);
+
+impl FighterIx {
+    /// The index of the fighter in slot `slot` of the player store.
+    #[inline]
+    pub(crate) fn of_slot(slot: usize) -> Self {
+        Self(slot as u32)
+    }
+
+    /// The slot in the player store (valid for a player: see [`crate::state::World::is_player`]).
+    #[inline]
+    pub(crate) fn slot(self) -> usize {
+        self.0 as usize
+    }
+}
+
 /// Where a fighter is and what it faces, with the short history the rewind (lag compensation) reads.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Body {

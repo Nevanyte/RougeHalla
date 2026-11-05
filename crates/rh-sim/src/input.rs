@@ -10,7 +10,6 @@
 
 use crate::constants::{MAX_ACTIONS_PER_TICK, ORDER_BURST, ORDER_PER_SECOND, WORLD_H, WORLD_W};
 use crate::math::wrap_angle;
-use crate::state::Player;
 
 /// A command as it arrives (decoded from the wire or proposed by a policy), not yet validated.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -269,19 +268,19 @@ pub(crate) struct Drained {
     pub(crate) actions: ActionBuf,
 }
 
-/// The seat's intake (C-INPUT): a validated command spends the seat's order budget (unless `budgeted` is false, the
-/// parity harness only: the legacy capture fed the sim directly) and joins its queue with the arrival-order rules. The
-/// only function that writes an [`InputQueue`] outside this module's tests.
+/// The intake (C-INPUT): a validated command spends the order budget it is given (`None`: an actor with no seat, or the
+/// parity harness, whose legacy capture fed the sim directly) and joins the queue with the arrival-order rules. The only
+/// function that writes an [`InputQueue`] outside this module's tests.
 pub(crate) fn accept(
-    p: &mut Player,
+    queue: &mut InputQueue,
+    budget: Option<&mut OrderBudget>,
     cmd: Command,
     now_ms: f64,
-    budgeted: bool,
 ) -> Result<(), Reject> {
-    if budgeted && !p.seat.budget.allow(&cmd, now_ms) {
+    if budget.is_some_and(|b| !b.allow(&cmd, now_ms)) {
         return Err(Reject::OverBudget);
     }
-    p.inputs.push(cmd)
+    queue.push(cmd)
 }
 
 impl InputQueue {

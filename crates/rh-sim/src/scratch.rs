@@ -14,6 +14,7 @@
 //! nothing (`tests/no_alloc.rs` counts it). A new system that needs a list adds a field here.
 
 use crate::constants::MAX_PLAYERS;
+use crate::fighter::FighterIx;
 use crate::input::Drained;
 use crate::math::Vec2;
 use crate::state::PlayerId;
@@ -33,7 +34,7 @@ pub(crate) struct TickScratch {
     /// Each slot's place in `action_order` (the rank of kill credit among a victim's hits), by slot.
     pub(crate) rank: Vec<u32>,
     /// Indices of the players standing when this tick's move multipliers were read (legacy `standingCombatants`).
-    pub(crate) standing: Vec<usize>,
+    pub(crate) standing: Vec<FighterIx>,
     /// Their move multipliers, aligned with `standing`: every one is read before anyone moves.
     pub(crate) mults: Vec<f64>,
     /// Melee swings that landed this tick, resolved after movement (rewound).
@@ -43,7 +44,7 @@ pub(crate) struct TickScratch {
     /// Players downed during this step, settled at its end.
     pub(crate) downed_this_tick: Vec<PlayerId>,
     /// The fighters standing when the melee queue is resolved.
-    pub(crate) bodies: Vec<usize>,
+    pub(crate) bodies: Vec<FighterIx>,
     /// The standing bodies' positions at one rewind time, aligned with `bodies` (the melee pass fills it once per distinct
     /// rewind time instead of once per swing).
     pub(crate) rewound: Vec<Vec2>,

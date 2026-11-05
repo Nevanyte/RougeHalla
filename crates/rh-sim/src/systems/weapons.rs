@@ -9,18 +9,19 @@ use crate::content::{
     Shape, Timings, WeaponId,
 };
 use crate::events::Event;
+use crate::fighter::{FighterCore, FighterIx};
 use crate::input::ActionCmd;
-use crate::state::{ActionKind, Packet, PendingAction, Player};
+use crate::state::{ActionKind, Packet, PendingAction};
 use crate::systems::melee::MeleeReq;
 use crate::systems::Cx;
 
-pub(crate) fn set_aim(p: &mut Player, now: f64, a: f64) {
+pub(crate) fn set_aim(p: &mut FighterCore, now: f64, a: f64) {
     p.weapon.aim = a;
     p.weapon.aim_at = now;
     p.body.facing = a;
 }
 
-fn note_lag(p: &mut Player, now: f64, t: Option<f64>) {
+fn note_lag(p: &mut FighterCore, now: f64, t: Option<f64>) {
     let lag = match t {
         None => TICK_MS,
         Some(t) => now - t,
@@ -28,7 +29,7 @@ fn note_lag(p: &mut Player, now: f64, t: Option<f64>) {
     p.weapon.lag_ms = MAX_REWIND_MS.min(TICK_MS.max(lag));
 }
 
-pub(crate) fn handle_press(p: &mut Player, now: f64, a: f64, t: Option<f64>) {
+pub(crate) fn handle_press(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>) {
     set_aim(p, now, a);
     note_lag(p, now, t);
     let w = &mut p.weapon;
@@ -39,7 +40,7 @@ pub(crate) fn handle_press(p: &mut Player, now: f64, a: f64, t: Option<f64>) {
     w.buffered_until = now + ATTACK_BUFFER_MS;
 }
 
-pub(crate) fn handle_release(p: &mut Player, now: f64, a: f64, t: Option<f64>) {
+pub(crate) fn handle_release(p: &mut FighterCore, now: f64, a: f64, t: Option<f64>) {
     set_aim(p, now, a);
     if t.is_some() {
         note_lag(p, now, t);
@@ -48,18 +49,18 @@ pub(crate) fn handle_release(p: &mut Player, now: f64, a: f64, t: Option<f64>) {
 }
 
 /// Action handler `attack` (legacy weapons.ts, `world.actions.attack`): press the trigger toward the command's angle.
-pub(crate) fn on_attack(cx: &mut Cx, i: usize, cmd: &ActionCmd) {
+pub(crate) fn on_attack(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     if let ActionCmd::Attack { a, t } = *cmd {
         let now = cx.w.server_time;
-        handle_press(&mut cx.w.players[i], now, a, t);
+        handle_press(cx.w.core_mut(ix), now, a, t);
     }
 }
 
 /// Action handler `release` (legacy weapons.ts, `world.actions.release`).
-pub(crate) fn on_release(cx: &mut Cx, i: usize, cmd: &ActionCmd) {
+pub(crate) fn on_release(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     if let ActionCmd::Release { a, t } = *cmd {
         let now = cx.w.server_time;
-        handle_release(&mut cx.w.players[i], now, a, t);
+        handle_release(cx.w.core_mut(ix), now, a, t);
     }
 }
 
@@ -69,12 +70,12 @@ pub(crate) fn update(cx: &mut Cx) {
     let now = w.server_time;
     for p in &mut w.players {
         if p.standing() {
-            step_weapon(p, now, ev, &mut s.melee);
+            step_weapon(&mut p.core, now, ev, &mut s.melee);
         }
     }
 }
 
-fn step_weapon(p: &mut Player, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<MeleeReq>) {
+fn step_weapon(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<MeleeReq>) {
     let weapon = p.active_weapon();
     if let Some(act) = p.weapon.action {
         if now + TIE_EPS_MS >= act.lands_at {
@@ -95,7 +96,7 @@ fn step_weapon(p: &mut Player, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<Me
     }
 }
 
-fn start_attack(p: &mut Player, now: f64, ev: &mut Vec<Event>, weapon: WeaponId, tm: Timings) {
+fn start_attack(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, weapon: WeaponId, tm: Timings) {
     let f = paced(p.vitals.faction);
     let base = damage_per_hit(&f, weapon, 1.0);
     let shares: DamageShares = damage_shares(&f);
@@ -143,7 +144,7 @@ fn start_attack(p: &mut Player, now: f64, ev: &mut Vec<Event>, weapon: WeaponId,
     }
 }
 
-fn land(p: &mut Player, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAction) {
+fn land(p: &mut FighterCore, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAction) {
     p.weapon.action = None;
     match act.kind {
         ActionKind::Swing => {
@@ -169,7 +170,7 @@ fn land(p: &mut Player, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAction)
 
 /// The weapon's own movement multiplier (legacy `moveMultiplierOf`): 0 while a swing winds up, a shot is released or
 /// a root holds, else 1.
-pub(crate) fn move_multiplier(p: &Player, now: f64) -> f64 {
+pub(crate) fn move_multiplier(p: &FighterCore, now: f64) -> f64 {
     let winding = match p.weapon.action {
         Some(a) => a.kind == ActionKind::Swing || now >= a.lands_at - RANGED_RELEASE_PAUSE_MS,
         None => false,
@@ -182,7 +183,7 @@ pub(crate) fn move_multiplier(p: &Player, now: f64) -> f64 {
 }
 
 /// Legacy `stagger`: cancels a pending swing or cast (not a draw), once per immunity window.
-pub(crate) fn stagger(p: &mut Player, now: f64, ev: &mut Vec<Event>) {
+pub(crate) fn stagger(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>) {
     if now < p.weapon.stagger_immune_until {
         return;
     }
@@ -204,7 +205,7 @@ pub(crate) fn weapon_shape(w: WeaponId) -> Shape {
 
 /// Legacy `releaseTrigger` for the slice (no lock, no attack-move): let go of the trigger and cancel what was in progress
 /// (no landing; a pending swing or cast takes its root with it).
-pub(crate) fn release_trigger(p: &mut Player, now: f64) {
+pub(crate) fn release_trigger(p: &mut FighterCore, now: f64) {
     p.weapon.held = false;
     p.weapon.buffered_until = 0.0;
     if let Some(a) = p.weapon.action {

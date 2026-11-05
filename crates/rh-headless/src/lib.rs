@@ -362,8 +362,11 @@ mod tests {
             amount: 10.0,
             weapon: None,
         };
-        assert_ne!(one(&[hit(10.0)]), one(&[free.clone()]));
-        assert_eq!(one(&[free.clone()]), one(&[free]));
+        assert_ne!(one(&[hit(10.0)]), one(std::slice::from_ref(&free)));
+        assert_eq!(
+            one(std::slice::from_ref(&free)),
+            one(std::slice::from_ref(&free))
+        );
         assert_eq!(one(&[hit(10.0)]), one(&[hit(10.0)]));
         assert_ne!(one(&[hit(10.0)]), one(&[hit(10.000000000000002)]));
         assert_ne!(one(&[hit(10.0)]), one(&[]));

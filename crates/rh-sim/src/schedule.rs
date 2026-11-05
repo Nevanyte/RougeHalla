@@ -20,9 +20,10 @@
 //! The tables are `pub(crate)` (their rows hold `fn(&mut Cx)`); [`tables`] projects them as plain data for the
 //! conformance test.
 
+use crate::fighter::{FighterCore, FighterIx};
 use crate::hooks::LinkFn;
 use crate::input::ActionCmd;
-use crate::state::{Player, World};
+use crate::state::World;
 use crate::statics::MatchStatic;
 use crate::systems::{credit, inputs, ledger, loot, melee, movement, settle, weapons, Cx};
 
@@ -159,7 +160,7 @@ pub(crate) type PhaseFn = fn(&mut Cx) -> Flow;
 /// A system of a registration list (legacy `SimSystem`; the step is the fixed `TICK_MS`).
 pub(crate) type SystemFn = fn(&mut Cx);
 /// A factor on one fighter's move speed (legacy `MoveModifier`); the product is folded in table order.
-pub(crate) type MoveFn = fn(&World, &Player, f64) -> f64;
+pub(crate) type MoveFn = fn(&World, &FighterCore, f64) -> f64;
 /// What one mod source adds to a fighter's stat mirrors (legacy `ModContribution`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct ModContribution {
@@ -170,9 +171,9 @@ pub(crate) struct ModContribution {
     pub(crate) shield: Option<f64>,
 }
 /// A source the stat mirrors fold in besides the fighter's own rows (legacy `ModSource`).
-pub(crate) type SourceFn = fn(&World, &Player) -> Option<ModContribution>;
-/// An action handler (legacy `ActionHandler`): the queued command of the fighter at index `i`.
-pub(crate) type ActionFn = fn(&mut Cx, usize, &ActionCmd);
+pub(crate) type SourceFn = fn(&World, &FighterCore) -> Option<ModContribution>;
+/// An action handler (legacy `ActionHandler`): the queued command of the fighter at `ix`.
+pub(crate) type ActionFn = fn(&mut Cx, FighterIx, &ActionCmd);
 
 /// A hook link's mode (the record's `mode`): how it joined the chain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -462,7 +463,7 @@ fn no_phase(_: &mut Cx) -> Flow {
     Flow::Continue
 }
 fn no_system(_: &mut Cx) {}
-fn no_modifier(_: &World, _: &Player, _: f64) -> f64 {
+fn no_modifier(_: &World, _: &FighterCore, _: f64) -> f64 {
     1.0
 }
 
@@ -547,14 +548,14 @@ fn list_systems(cx: &mut Cx) -> Flow {
     Flow::Continue
 }
 
-/// Runs the handler of a queued action for the fighter at index `i` (legacy `world.actions[cmd.kind]?.(...)`): a
+/// Runs the handler of a queued action for the fighter at `ix` (legacy `world.actions[cmd.kind]?.(...)`): a
 /// command whose handler is pending or gated off is dropped, as legacy drops a kind nobody registered.
-pub(crate) fn run_action(cx: &mut Cx, id: ActionId, i: usize, cmd: &ActionCmd) {
+pub(crate) fn run_action(cx: &mut Cx, id: ActionId, ix: FighterIx, cmd: &ActionCmd) {
     if let Some(f) = Plan::of(cx.k).actions[id as usize] {
         #[cfg(feature = "schedule-trace")]
         cx.w.trace
             .push(TraceEntry::Action(ACTIONS[id as usize].name));
-        f(cx, i, cmd);
+        f(cx, ix, cmd);
     }
 }
 
@@ -680,7 +681,7 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
 ];
 /// Legacy `moveModifiers` (`world.moveModifiers`, folded `acc * modifier(c)` in registration order, then floored).
 /// `movement::multipliers` folds fighter by fighter, each fighter's whole chain before the next fighter's, as legacy does.
-/// A [`MoveFn`] takes `&World` and `&Player` today because no modifier is ported: the first one that has a side effect
+/// A [`MoveFn`] takes `&World` and the fighter's `&FighterCore` (any fighter's, not only a player's) today because no modifier is ported: the first one that has a side effect
 /// (`terrainEffects.applyBog` counts hazard seconds) or that also runs for mobs (`mobLife.mobRoleMove`, P-MOBS-1) widens
 /// the signature to a mutable context and a combatant reference in the packet that ports it, with the loop unchanged.
 static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [

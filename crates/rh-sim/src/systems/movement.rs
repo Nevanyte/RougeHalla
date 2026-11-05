@@ -3,9 +3,9 @@
 //! Touches the standing fighters' positions, facing, paths and history; reads the clock.
 
 use crate::constants::*;
+use crate::fighter::{FighterCore, FighterIx};
 use crate::math::{atan2, hypot};
 use crate::schedule;
-use crate::state::Player;
 use crate::systems::{weapons, Cx};
 
 /// System (legacy step.ts, `movement:multipliers(moveModifiers)`): the standing fighters and every one's move speed, read
@@ -19,8 +19,8 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     s.mults.clear();
     for (i, p) in w.players.iter().enumerate() {
         if p.standing() {
-            s.standing.push(i);
-            s.mults.push(weapons::move_multiplier(p, now));
+            s.standing.push(FighterIx::of_slot(i));
+            s.mults.push(weapons::move_multiplier(&p.core, now));
         }
     }
     // Fighter-major, as legacy: each fighter's whole chain runs (in table order) before the next fighter's. None is
@@ -29,7 +29,7 @@ pub(crate) fn multipliers(cx: &mut Cx) {
     if !modifiers.is_empty() {
         for (m, &i) in s.mults.iter_mut().zip(&s.standing) {
             for &(_, modifier) in modifiers {
-                *m *= modifier(w, &w.players[i], TICK_MS);
+                *m *= modifier(w, w.core(i), TICK_MS);
             }
         }
     }
@@ -45,8 +45,8 @@ pub(crate) fn walk(cx: &mut Cx) {
     let Cx { w, s, .. } = cx;
     let now = w.server_time;
     let dt = TICK_MS / 1000.0;
-    for (&i, &mult) in s.standing.iter().zip(&s.mults) {
-        let p = &mut w.players[i];
+    for (&ix, &mult) in s.standing.iter().zip(&s.mults) {
+        let p = w.core_mut(ix);
         let aiming = p.weapon.aim_at > 0.0 && now - p.weapon.aim_at < AIM_STALE_MS;
         advance_along_path(p, dt, aiming, mult);
     }
@@ -57,15 +57,15 @@ pub(crate) fn walk(cx: &mut Cx) {
 pub(crate) fn record_history(cx: &mut Cx) {
     let Cx { w, s, .. } = cx;
     let now = w.server_time;
-    for &i in &s.standing {
-        record_sample(&mut w.players[i], now);
+    for &ix in &s.standing {
+        record_sample(w.core_mut(ix), now);
     }
     s.standing.clear();
     s.mults.clear();
 }
 
 /// Walks along the path at PLAYER_SPEED x `speed_mult` for `dt` seconds (legacy `advanceAlongPath`).
-fn advance_along_path(p: &mut Player, dt: f64, keep_facing: bool, speed_mult: f64) {
+fn advance_along_path(p: &mut FighterCore, dt: f64, keep_facing: bool, speed_mult: f64) {
     let mut budget = PLAYER_SPEED * speed_mult * dt;
     while budget > 0.0 && !p.motion.path.is_empty() {
         let Some(target) = p.motion.path.first() else {
@@ -90,7 +90,7 @@ fn advance_along_path(p: &mut Player, dt: f64, keep_facing: bool, speed_mult: f6
     }
 }
 
-fn record_sample(p: &mut Player, now: f64) {
+fn record_sample(p: &mut FighterCore, now: f64) {
     let (x, y) = (p.body.x, p.body.y);
     p.body.history.record(now, x, y);
 }

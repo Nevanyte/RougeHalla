@@ -6,6 +6,7 @@
 use crate::constants::*;
 use crate::content::{mitigate_shares, pvp_factor, DamageShares, WeaponId};
 use crate::events::Event;
+use crate::fighter::FighterIx;
 use crate::results::Outcome;
 use crate::scratch::{TickScratch, NONE};
 use crate::state::{Packet, PlayerId, World};
@@ -136,18 +137,21 @@ pub(crate) fn apply(cx: &mut Cx) {
     victims.clear();
     entry_next.clear();
     entry_rank.clear();
-    if slot_head.len() < w.players.len() {
-        slot_head.resize(w.players.len(), NONE);
-        slot_tail.resize(w.players.len(), NONE);
+    if slot_head.len() < w.fighter_count() {
+        slot_head.resize(w.fighter_count(), NONE);
+        slot_tail.resize(w.fighter_count(), NONE);
     }
     mults.clear();
     for (n, e) in ledger.iter().enumerate() {
-        let vslot = w.idx(e.victim);
-        let by_slot = e.by.and_then(|b| w.idx(b));
+        let vix = w.fighter_idx(e.victim);
+        let bix = e.by.and_then(|b| w.fighter_idx(b));
         entry_next.push(NONE);
         // The hit's place in the action order (anyone not in it, such as a leaver, after everyone), looked up once here.
-        entry_rank.push(by_slot.and_then(|b| rank.get(b)).map_or(u32::MAX, |&r| r));
-        if let Some(v) = vslot {
+        entry_rank.push(
+            bix.and_then(|b| rank.get(b.slot()))
+                .map_or(u32::MAX, |&r| r),
+        );
+        if let Some(v) = vix.map(FighterIx::slot) {
             if slot_head[v] == NONE {
                 victims.push(v as u32);
                 slot_head[v] = n as u32;
@@ -156,8 +160,13 @@ pub(crate) fn apply(cx: &mut Cx) {
             }
             slot_tail[v] = n as u32;
         }
+        // The PvP factor is for a player hitting a player: a mob on either side, or no attacker, takes none.
         mults.push(
-            if k.config.pvp_rules && vslot.is_some() && by_slot.is_some() {
+            if k.config.pvp_rules
+                && vix
+                    .zip(bix)
+                    .is_some_and(|(v, b)| w.is_player(v) && w.is_player(b))
+            {
                 pvp_factor(0.0)
             } else {
                 1.0
