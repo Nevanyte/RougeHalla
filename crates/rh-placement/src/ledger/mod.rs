@@ -177,6 +177,7 @@ pub struct Record {
 // ---- typed recovery state (serialized as JSON) ----
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct LedgerState {
     pub attempts: Vec<AttemptRec>,
     pub offer: Option<OfferRecord>,
