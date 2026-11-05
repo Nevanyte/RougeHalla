@@ -142,6 +142,7 @@ The merge commit messages summarize each report and left out some of its misses.
 | Fold the `synthetic` feature of `deltabench` into the existing `bench` feature (optional) | `crates/rh-server/Cargo.toml` |
 | `pg_e2e` case for a dead-lobby retry needs a test seam; `RoomCmd::Crash` is test-only, so no end-to-end crash test over WebSockets | `crates/rh-server/tests/pg_e2e.rs`, `room.rs` |
 | Lease renewal and the crash lockout, the result spool | backlog P-PERSIST-2 |
+| Unity client efficiency (instanced actors, allocation-free netcode, WebGL compression, GPU fill; deferred to the Codex stage) and the protocol v4 idea for unchanged snapshots (owner decision) | backlog [P-UNITY-PERF-1](../backlog/packets/P-UNITY-PERF-1.md), P-NET-7 ([README](../backlog/README.md)) |
 
 ## Resuming on macOS
 Tools: Xcode command line tools; `rustup` (the toolchain comes from `rust-toolchain.toml`); Node 22; the .NET 8 SDK;
