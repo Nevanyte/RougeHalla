@@ -1,6 +1,6 @@
 # ADR 0010: per-connection snapshot delta (packet P10b)
 
-**Status:** Accepted and implemented in packet P10c (protocol v3; see the v3 addendum of [ADR 0002](0002-transport-and-protocol.md)
+**Status:** Accepted, implemented (P10c, `ae0c37b`; protocol v3; see the v3 addendum of [ADR 0002](0002-transport-and-protocol.md)
 for the shipped layout and the measured result, 908 -> 305 B/player/s). **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
 connection, encoded in that connection's writer task (so a skipped snapshot is never encoded and encoding leaves the room
 task), with a full frame on join, resume and resync. It would be protocol v3, a stateful writer, a base-tick reference,
