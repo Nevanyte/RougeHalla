@@ -168,7 +168,7 @@ is **not implemented**; the gain figures are **estimates**.
 - **Idea:** in `ConnEncoder::encode` (`crates/rh-protocol/src/delta.rs`) and the writer, when a delta would carry no self change,
   no changed or departed actor and the same phase and ack, and fewer than H ticks (about 10, below `MAX_DELTA_AGE`) have passed
   since the last frame written, write nothing. The next real delta has age > 1 (decoders accept that today, from
-  backpressure skips) and a new Delta head bit `DH_HELD` (the next free top bit, bit 15, per [ADR 0011](../adr/0011-protocol-v4.md): bits are append-only) tells the client `SnapshotBuffer` to insert a hold copy of the base at
+  backpressure skips) and a new Delta head bit `DH_HELD` (the next free bit, bit 15 unless that packet's measurement says otherwise, since a bit past 13 makes the Delta head three bytes; per [ADR 0011](../adr/0011-protocol-v4.md): bits are append-only) tells the client `SnapshotBuffer` to insert a hold copy of the base at
   tick - 1, so motion is not smeared across the gap. Bump `PROTOCOL_VERSION` to 5 (v4 shipped with L-v4), regenerate the vectors (`protocol/fixtures/v5.json`),
   update the Rust, C# and JS decoders, add a room counter `snapshotsHeld`, and add an addendum to
   [ADR 0011](../adr/0011-protocol-v4.md) and C-NET.

@@ -38,7 +38,7 @@ dotnet run --project client-unity/RoguehallaNet.Probe -- --url ws://127.0.0.1:77
     [--content-hash <u64>] [--faction 0..4] [--insecure]
 ```
 Sends Hello (protocol 4; content hash 0 means "ask": a `ContentMismatch` reject is printed with the server's reason), a Ping per second and a Move order every 500 ms, then prints one JSON line
-`{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (P10c, protocol 4): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
+`{welcome, snapshots, lastTick, deltasRefused, resyncsSent, rttMsP50, rejects, resultSeen, errors}`. Exit codes: 0 clean, 1 errors or no Welcome, 2 usage, 3 rejected. `--insecure` accepts a self-signed certificate for `wss://` (local testing only). Run against the real Rust server (the P10c run, protocol 3; a v4 run at `b0b2bb3` gave 118 and 158 snapshots, no refused delta, no errors): 157 snapshots in 8 s (1 Full, 156 deltas by the server's counters), no refused delta, no Resync, no errors.
 
 ## Unity: status and steps
 

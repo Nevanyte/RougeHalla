@@ -254,10 +254,10 @@ its own merge-base:
 | Package | Result |
 |---|---|
 | E-sim kernel fast paths (bit-identical) | `sim_crowded_8` 0.964x, `sim_duel_chase` 0.919x, `sim_fists_duel` 0.999x, `paths_300` 0.948x, `headless_arena_8bots` 0.872x, wire 0.940x; scalebench step N=212 1,562,992 -> 1,297,737 Ir (0.830x) with identical final hashes; every fingerprint identical |
-| E-pub publish path | wire Ir 0.950x; allocated bytes per wire step 827 -> 107 at equal allocation counts; `densitybench` Ir -1.0% and allocated bytes -47%; v3 bytes identical |
+| E-pub publish path | wire Ir 0.995x; allocated bytes per wire step 827 -> 107 at equal allocation counts; `densitybench` Ir -1.0% and allocated bytes -47%; v3 bytes identical |
 | E-backlog | docs: P-UNITY-PERF-1 (Codex stage), P-NET-7 |
-| E-simplify | type-aware content scan (`NON_GAMEPLAY` 58 -> 17), lease conformance table on both stores, dead APIs removed |
-| E-sight sight memo | wire 0.875x, `headless_arena_8bots` 0.832x, `headless_seed1_8bots` 0.985x; worst case (all-moving humans) +0.30% / +0.04% Ir per match-second; fingerprints identical |
+| E-simplify | type-aware content scan (`NON_GAMEPLAY` 58 -> 17; 23 after E-sight added 6 `sight.rs` entries), lease conformance table on both stores, dead APIs removed |
+| E-sight sight memo | wire 0.875x, `headless_arena_8bots` 0.832x, `headless_seed1_8bots` 0.985x; worst case (all-moving humans) +0.30% / +0.04% whole-process Ir per match-second (10 s minus 4 s); fingerprints identical |
 | L-envelope | frozen Hello prefix and Reject frame, unknown Reject codes decode, strings over 255 bytes refused; owned Unity `Net/` views; wire 1.0000x |
 | L-durable | `profile_id` key, versioned match record and `matches` table, tolerant blobs, `schema_compat` gate, build and content headers on replays and checkpoints, pinned durable ids; gameplay fingerprints identical. **The initial migration `0001_init.sql` changed: local and test databases must be recreated; the first production deployment freezes it** |
 | L-sim | policy contract v2 (`MatchStart`), optional damage source, `FighterIx` addressing; Ir at most 1.0045x, fingerprints identical |
@@ -282,14 +282,14 @@ simulator's gain (same-harness figures from the P7b report, not re-runnable: cro
 the `wire_*` and `headless_*` rows do not use `parity_bench`. Against the `ae0c37b` record above, the same rows read
 7,667 -> 7,432, 3,030 -> 2,790, 2,718 -> 2,718, 27,179 -> 22,344, 7,307 -> 7,098 and 21,836 -> 15,912 Ir. Outcome digests, final
 state hashes and state-hash folds equal the `ae0c37b` record, so the two passes changed no gameplay outcome. The headless rows allocate
-22 to 29 bytes more per tick than at `ae0c37b` at an equal allocation count (not isolated; see the sweep README).
+22 to 29 bytes more per tick than at `ae0c37b` (allocations: `headless_seed1` equal at 0.06, `headless_arena` 0.46 -> 0.47); the `sim_*` rows also moved (124 -> 125, 57 -> 58, 112 -> 116 B per step). The rise splits per the package A/B logs: E-sim +17 (seed1) and +7 (arena), E-sight +5 and +22 (the sight memo table, sized per match and roster); see the sweep README. `no_alloc.rs` stays at 0 per steady-state step.
 
 **Wire** (`wirebench`, seed 1, 8 bots, 2,400 steps, payload only): **285 B/player/s** with v4 (snapshot 236, fx 48; mean snapshot
 11.8 B; 8 Full and 19,192 Delta frames; Welcome 4,911 B). History: 1,888 (v1), 908 (v2), 305 (v3), 285 (v4): 0.151x of Stage 1.
-Crowd: 204 synthetic fighters cost 20,085 B/viewer/s with the shipped codec (`wirebench --synthetic 204`, under the `bench` feature); at
+Crowd: 204 synthetic fighters cost 20,046 B/viewer/s with the v4 codec (`wirebench --synthetic 204 --ticks 60`, under the `bench` feature; 21,855 at the default 2,400 ticks; E-pub measured 20,085 with the v3 codec); at
 1000 fighters 757 of 800 viewer snapshots exceed `MAX_ACTORS` and are refused (a limit for the mobs stage, not new).
 
-**Not measured, not addressed:** the kernel socket cost. In a live run kernel and socket work is about 53% of server CPU, about one
+**Not measured, not addressed:** the kernel socket cost. With idle lobby clients (connheap at 128 connections, strace at 16; the best case for P-NET-7) kernel and socket work is about 53% of server CPU, about one
 `sendto` per viewer-tick; no package here changes that (P-NET-7, which builds on v4, is the candidate and needs an owner decision).
 The `densitybench` capacity estimate above still excludes sockets, TLS and the kernel network, so it is not AWS capacity.
 
@@ -388,7 +388,7 @@ consequential minor ones are fixed above (4-16). Accepted as open, with owners:
 6. Observation scope (current sight only) is stricter than legacy (120 s tile trail): the client will show less until
    P-VISION-1.
 7. The CI perf gate has not run on a real pull request, and the state hash is server-private (never log or export it).
-8. Protocol v4 (L-v4, over the v3 deltas of P10c) is merged and has only been exercised in process and over loopback (no real-network test; kernel socket work is about 53% of server CPU in a live run and is not addressed). Restore hardening (H-sim) is merged: `Sim::restore` refuses
+8. Protocol v4 (L-v4, over the v3 deltas of P10c) is merged and has only been exercised in process and over loopback (no real-network test; with idle lobby clients, kernel socket work is about 53% of server CPU and is not addressed). Restore hardening (H-sim) is merged: `Sim::restore` refuses
    the states the tick cannot survive (CONTRACTS C-DET); a packet that moves bodies past `COORD_MARGIN` or adds items or ranged
    actions must widen those rules.
 
