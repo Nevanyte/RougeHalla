@@ -4,8 +4,8 @@
 //! held to the same quantization, not just to the same bytes.
 
 use crate::delta::{
-    AD_ALL, AD_BOUNTY, AD_HP, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP, DH_KILLS, DH_MOVE_SEQ, DH_PHASE,
-    DH_PRESENT, DH_STATUS, DH_X, DH_Y,
+    AD_ALL, AD_BOUNTY, AD_HP, AD_NEW, AD_STATUS, AD_X, DH_DEPARTED, DH_GV, DH_HP, DH_KILLS,
+    DH_MOVE_SEQ, DH_PHASE, DH_PRESENT, DH_STATUS, DH_X, DH_Y,
 };
 use crate::map::MapBlob;
 use crate::*;
@@ -1133,7 +1133,10 @@ pub fn malformed_deltas() -> Vec<(&'static str, Vec<u8>)> {
             "delta_too_many_actors",
             delta_bytes(10, 1, 0, &[0x81, 0x04]),
         ),
-        ("delta_departed_empty", delta_bytes(10, 1, DH_DEPARTED, &[0, 0])),
+        (
+            "delta_departed_empty",
+            delta_bytes(10, 1, DH_DEPARTED, &[0, 0]),
+        ),
         (
             "delta_departed_id_gap_zero",
             delta_bytes(10, 1, DH_DEPARTED, &[0, 2, 5, 0]),

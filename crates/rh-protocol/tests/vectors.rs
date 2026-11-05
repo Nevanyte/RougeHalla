@@ -55,8 +55,12 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             }
             "unknown_tag" | "client_tag_from_server" => BadTag(0),
             "trailing_byte" => Trailing(0),
-            "overlong_varint" | "varint_past_u32" | "varint_too_long" | "head_overlong_varint"
-            | "actor_mask_overlong_varint" | "delta_head_overlong_varint" => BadVarint,
+            "overlong_varint"
+            | "varint_past_u32"
+            | "varint_too_long"
+            | "head_overlong_varint"
+            | "actor_mask_overlong_varint"
+            | "delta_head_overlong_varint" => BadVarint,
             "head_self_bit_without_present_bit" | "head_unknown_bit" | "delta_head_unknown_bit" => {
                 BadField("head")
             }

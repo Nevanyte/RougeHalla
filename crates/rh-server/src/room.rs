@@ -798,7 +798,12 @@ impl Room {
     /// Keeps each human's own resolved result on its seat (see [`HumanSeat::result`]).
     fn keep_results(&mut self, events: &[Event]) {
         for e in events {
-            if let Event::Resolved { id, result, bot: false } = e {
+            if let Event::Resolved {
+                id,
+                result,
+                bot: false,
+            } = e
+            {
                 if let Some(h) = self.humans.iter_mut().find(|h| h.player == *id) {
                     h.result = Some(wire::result(result));
                 }

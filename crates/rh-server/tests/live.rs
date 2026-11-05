@@ -541,7 +541,10 @@ async fn a_player_who_reconnects_after_the_match_resolved_still_receives_their_r
     let (ra, snaps) = until_result(&mut a2).await;
     let ra = ra.expect("alpha's own result, re-sent after the resume");
     assert_eq!((ra.outcome, ra.place), (2, 2), "alpha died: {ra:?}");
-    assert!(snaps <= 2, "the Result follows the Welcome at once ({snaps})");
+    assert!(
+        snaps <= 2,
+        "the Result follows the Welcome at once ({snaps})"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

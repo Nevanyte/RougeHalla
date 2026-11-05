@@ -692,7 +692,9 @@ impl Frame for ServerMsg {
                     + fx.iter().map(fx_len).sum::<usize>()
             }
             ServerMsg::Pong { .. } => 1 + 4 + 8 + 8,
-            ServerMsg::State { tick, items } => 1 + varint_len(*tick) + varint_len(items.len() as u32),
+            ServerMsg::State { tick, items } => {
+                1 + varint_len(*tick) + varint_len(items.len() as u32)
+            }
         }
     }
 
@@ -893,7 +895,8 @@ impl Frame for ServerMsg {
                 w.u8(T_STATE);
                 w.varint(*tick);
                 w.varint(items.len() as u32);
-                for it in items {
+                // No key exists in v4: `StateItem` has no value, so there is nothing to write after the count.
+                if let Some(it) = items.first() {
                     match *it {}
                 }
             }

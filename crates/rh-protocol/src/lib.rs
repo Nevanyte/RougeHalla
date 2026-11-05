@@ -401,7 +401,10 @@ pub enum ServerMsg {
         server_ms: f64,
     },
     /// Keyed state, the latest value per key (v4, reserved: no key exists yet, so `items` is always empty). See the crate docs.
-    State { tick: u32, items: Vec<StateItem> },
+    State {
+        tick: u32,
+        items: Vec<StateItem>,
+    },
 }
 
 /// One keyed record of a [`ServerMsg::State`]. No key is defined in v4, so the type has no value: a decoder refuses any item

@@ -8,8 +8,8 @@ schema reflection.
 
 **Decision.**
 - Transport: WebSocket binary frames over TLS (`wss://`); one protocol message per frame; TCP's reliability and order.
-- Protocol: `rh-protocol` (v3 since the last addendum below), hand-written little-endian encoding mirrored byte for byte in C#
-  (`client-unity/RoguehallaNet/Protocol`) and pinned by golden vectors (`protocol/fixtures/v3.json` now; the v1 and v2 history is in the addenda) tested on both sides (and by the JS probe decoder).
+- Protocol: `rh-protocol` (v4 since the last addendum below), hand-written little-endian encoding mirrored byte for byte in C#
+  (`client-unity/RoguehallaNet/Protocol`) and pinned by golden vectors (`protocol/fixtures/v4.json` now; the v1 to v3 history is in the addenda) tested on both sides (and by the JS probe decoder).
 - Do **not** reimplement Colyseus. Both ends migrate; the legacy stack keeps its own protocol until it is retired.
 - Replication: each client gets its OWN observation every tick (`rh_sim::observe`): itself in full, others only while in
   sight. This is the interest management the legacy Known TODOs asked for, and it is exactly what policies observe.
@@ -107,4 +107,11 @@ the writer builds a delta in one pass into the frame it hands to the socket. Mem
 base and one spare, each a block of about 100 B plus 16 B per visible actor (a few hundred bytes at 8 players; 10.5 KB measured
 for the base and spare at `MAX_ACTORS`, the bound is a few tens of KB).
 
+## Addendum: protocol v4 (lock-in)
 
+**Status:** Accepted and implemented (package L-v4; the decision, the rules and the how-to-add-a-field recipe are
+[ADR 0011](0011-protocol-v4.md)). The server speaks only v4 and refuses an older Hello with `ProtocolMismatch`; vectors are
+`protocol/fixtures/v4.json` (v3.json is gone). In short: every presence mask is a canonical varint with append-only bit numbers
+(unknown bits refused); status and phase are ordinary fields with defaults; actors carry a `kind` (0 = player); `State` (0x88) is
+reserved for keyed state (empty today); the Hello carries `ticket: bytes` instead of `token: str`; a resumed seat is re-sent its own
+`Result`. Measured: 305 -> 285 bytes per player per second at 8 players.

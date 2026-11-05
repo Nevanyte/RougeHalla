@@ -1,6 +1,6 @@
 # client-unity: Roguehalla Unity (Web) client, Stage 1
 
-Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v3 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v3.json`; a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
+Client for the Rust authoritative server (`crates/rh-server`), speaking rh-protocol v4 (`crates/rh-protocol`, golden vectors in `protocol/fixtures/v4.json`, [ADR 0011](../docs/adr/0011-protocol-v4.md); a snapshot carries `tick` only and `Snapshot.ServerMs` is derived as `Tick * 50`; remote actors arrive quantized, see `Quant`; snapshots arrive as Full frames and deltas against the last one received, which `SnapshotTracker` applies, and `Session` asks for a Full one with `Resync` when it refuses a delta).
 
 ## Layout
 
@@ -29,7 +29,7 @@ Gameplay scripts (HUD, views, abilities, input) are written against `Net/` only:
 
 `SelfView.HpPct` rounds half up (the old `ArenaView` used banker's rounding), caps at 100, and is 0 for a non-finite Hp: a cosmetic HUD difference only.
 
-Unnamed `RejectCode` values are legal: a newer server may refuse for a reason this build has no name for, which ends the session as `Rejected` with `RejectCode` set to the raw value (`(ushort)code`, `Enum.IsDefined` false) and `RejectReason` holding the server's text. A Hello string (build, profile, token) over 255 bytes is never cut: the encoder throws `EncodeException` and the session fails with that reason.
+Unnamed `RejectCode` values are legal: a newer server may refuse for a reason this build has no name for, which ends the session as `Rejected` with `RejectCode` set to the raw value (`(ushort)code`, `Enum.IsDefined` false) and `RejectReason` holding the server's text. A Hello string (build, profile) over 255 bytes, or an admission ticket (`SessionOptions.Ticket`, opaque bytes, at most `Wire.MaxTicket`) over its bound, is never cut: the encoder throws `EncodeException` and the session fails with that reason. The probe's `--token` is sent as the ticket's UTF-8 bytes.
 
 ## Probe
 

@@ -157,17 +157,28 @@ fn the_common_delta_masks_are_one_byte() {
     f.clear();
     assert_eq!(enc.encode(b.clone(), &mut f), FrameKind::Delta);
     // tag, tick, age, ack, then the head.
-    assert!(f[4] < 0x80, "the head of a moving player is one byte: {:#x}", f[4]);
+    assert!(
+        f[4] < 0x80,
+        "the head of a moving player is one byte: {:#x}",
+        f[4]
+    );
     let ServerMsg::SnapshotDelta(d) = ServerMsg::decode(&f).unwrap() else {
         panic!("a delta")
     };
-    assert!(d.changed.iter().all(|c| c.mask < 0x80), "one-byte actor masks");
+    assert!(
+        d.changed.iter().all(|c| c.mask < 0x80),
+        "one-byte actor masks"
+    );
     assert_eq!(d.phase, None, "the phase is carried only when it changed");
     // A self that did not change at all is a head of 1 (just the present bit).
     let quiet = snap(12, DEFAULT_PHASE, b.me().copied(), &moved);
     f.clear();
     enc.encode(quiet, &mut f);
-    assert_eq!((f[4], f.len()), (1, 6), "tag tick age ack head count: {f:?}");
+    assert_eq!(
+        (f[4], f.len()),
+        (1, 6),
+        "tag tick age ack head count: {f:?}"
+    );
 }
 
 /// The phase is a delta field only when it changes, and the tracker keeps the old phase otherwise.
@@ -202,8 +213,16 @@ fn new_actors_start_from_defaults_and_kind_and_status_changes_are_deltas() {
     let b = snap(11, DEFAULT_PHASE, None, &[changed, mob]);
     let d = diff(&a, &b).unwrap();
     assert_eq!(d.changed.len(), 2);
-    assert_eq!(d.changed[0].mask, AD_KIND | AD_STATUS, "known actor: only what changed");
-    assert_eq!(d.changed[1].mask, AD_NEW | AD_KIND, "new actor: position and the non-default kind; kit, hp, status, bounty are defaults");
+    assert_eq!(
+        d.changed[0].mask,
+        AD_KIND | AD_STATUS,
+        "known actor: only what changed"
+    );
+    assert_eq!(
+        d.changed[1].mask,
+        AD_NEW | AD_KIND,
+        "new actor: position and the non-default kind; kit, hp, status, bounty are defaults"
+    );
     let mut enc = ConnEncoder::new();
     let mut t = SnapshotTracker::new();
     for s in [a, b] {
@@ -244,13 +263,25 @@ fn the_reserved_state_message_is_empty_today() {
 fn undefined_mask_bits_are_refused_never_skipped() {
     // A Full head with bit 11, a Full actor mask with bit 5, a delta head with bit 15, a delta actor mask with bit 8.
     let full_head_bit = [0x83, 1, 0, 0x81, 0x10, 0];
-    assert_eq!(ServerMsg::decode(&full_head_bit), Err(DecodeError::BadField("head")));
+    assert_eq!(
+        ServerMsg::decode(&full_head_bit),
+        Err(DecodeError::BadField("head"))
+    );
     let actor_bit = [0x83, 1, 0, 0, 1, 1, 0x20, 0, 0, 0, 0, 0, 0];
-    assert_eq!(ServerMsg::decode(&actor_bit), Err(DecodeError::BadField("actor mask")));
+    assert_eq!(
+        ServerMsg::decode(&actor_bit),
+        Err(DecodeError::BadField("actor mask"))
+    );
     let delta_head_bit = [0x87, 10, 1, 0, 0x80, 0x80, 0x02, 0];
-    assert_eq!(ServerMsg::decode(&delta_head_bit), Err(DecodeError::BadField("head")));
+    assert_eq!(
+        ServerMsg::decode(&delta_head_bit),
+        Err(DecodeError::BadField("head"))
+    );
     let delta_actor_bit = [0x87, 10, 1, 0, 0, 1, 1, 0x80, 0x02];
-    assert_eq!(ServerMsg::decode(&delta_actor_bit), Err(DecodeError::BadField("actor mask")));
+    assert_eq!(
+        ServerMsg::decode(&delta_actor_bit),
+        Err(DecodeError::BadField("actor mask"))
+    );
     let overlong = [0x83, 1, 0, 0x80, 0x00, 0];
     assert_eq!(ServerMsg::decode(&overlong), Err(DecodeError::BadVarint));
 }
