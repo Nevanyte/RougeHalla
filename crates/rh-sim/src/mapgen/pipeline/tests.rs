@@ -2,6 +2,8 @@ use super::*;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
+#[path = "styled_tests.rs"]
+mod styled;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Fixture {
@@ -368,3 +370,6 @@ fn strict_lossless_codec_rejects_malformed_or_empty_layers() {
         vec![0; 25600]
     );
 }
+
+#[path = "styled_controls.rs"]
+mod styled_controls;

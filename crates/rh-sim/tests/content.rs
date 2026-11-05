@@ -28,6 +28,24 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/style_zones/tests.rs", "CASES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
+    ("mapgen/style_zones/tests.rs", "SOURCE_NAMES", "cfg(test)-only exact source open-case/provenance inventory; never read by runtime policy"),
+    ("mapgen/pipeline/styled_controls.rs", "INPUTS", "cfg(test)-only exact source input/provenance inventory; never read by runtime policy"),
+    ("mapgen/pipeline/styled_controls.rs", "SOURCE_FILES", "cfg(test)-only exact source input/provenance inventory; never read by runtime policy"),
+    ("mapgen/pipeline/style_contract_tests.rs", "STATEMENTS", "cfg(test)-only exact source case/statement/provenance inventory, never read by runtime policy"),
+    ("mapgen/style_warren/tests.rs", "FIXED", "cfg(test)-only immutable fixed-layout memo used by oracle fixture setup; not a gameplay definition or runtime cache"),
+    ("mapgen/style_warren/tests.rs", "CASES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_warren/tests.rs", "UNITS", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_warren/tests.rs", "SOURCES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_scorch/tests.rs", "CASES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_scorch/tests.rs", "UNITS", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_scorch/tests.rs", "SOURCES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_rime/tests.rs", "CASES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_rime/tests.rs", "UNITS", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_rime/tests.rs", "SOURCES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_gallows/tests.rs", "CASES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_gallows/tests.rs", "UNITS", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
+    ("mapgen/style_gallows/tests.rs", "SOURCES", "cfg(test)-only exact source case/provenance inventory; never read by runtime decisions"),
     ("mapgen/style_features/tests.rs","FIXTURE_DIGEST","cfg(test)-only byte-integrity guard for the captured helper fixture; never read by runtime algorithms"),
     ("mapgen/style_sanctum/tests.rs","CASES","cfg(test)-only exact genuine source-case identity inventory"),
     ("mapgen/style_sanctum/tests.rs","UNITS","cfg(test)-only labelled direct source-case inventory"),
@@ -108,6 +126,8 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("mapgen/style_zones/mod.rs", "ENTRIES", "actual five-faction callback identity and phase metadata folded by style_zones::visit_entries into aggregate content"),
+    ("mapgen/style_rime/shape.rs", "NORMALS", "actual facet geometry coordinates folded through the same style_rime::visit_content definition visitor"),
     ("mapgen/style_features/rules.rs","DEFAULT_DEFINITION","all eleven shared feature arithmetic/search policies are folded by content_hash_of_style_features_definition"),
     ("mapgen/style_features/mod.rs","DIR8","derived topology-bearing coordinates used by callbacks are folded directly by content_hash"),
     ("mapgen/style_features/mod.rs","CHAMFER_FAR","typed alias of DEFAULT_DEFINITION.chamfer_far, folded by the same feature definition visitor"),
@@ -121,7 +141,7 @@ const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
     ("mapgen/certify/rules.rs", "ZONES", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
     ("mapgen/certify/rules.rs", "WEAPONS", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
     ("mapgen/certify/rules.rs", "LANDMARKS", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
-    ("mapgen/pipeline/rules.rs", "DEFAULT_DEFINITION", "actual plain orchestration retry/feature limits folded by content_hash_of_pipeline_definition"),
+    ("mapgen/pipeline/rules.rs", "DEFAULT_DEFINITION", "actual plain/styled orchestration retry/feature limits folded by content_hash_of_pipeline_definition"),
     ("mapgen/style_runtime/rules.rs", "DEFAULT_DEFINITION", "all sixteen guarded-runtime/stream/route policies folded by content_hash_of_style_runtime_definition"),
     ("mapgen/style_runtime/mod.rs", "MAX_CELLS", "shared route-index representation/admission bound folded directly by content_hash"),
     ("mapgen/style_runtime/mod.rs", "DIAMOND2", "actual LOW support/release neighborhood coordinates folded directly by content_hash"),
@@ -404,7 +424,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x58dc_066a_da48_c13f;
+const GOLDEN_CONTENT_HASH: u64 = 0x1053_33d9_ac5d_8d92;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

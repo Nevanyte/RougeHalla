@@ -1,0 +1,174 @@
+{
+  "result": "ACCEPT",
+  "scope": "Full default five-faction styled pipeline orchestration and wrappers, plus three new durable source-control regression files. Separate registry and contract reviews remain their designated reviewers' authority.",
+  "controlsManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-frozen-manifest.json",
+  "controlsManifestSha256": "8c8a1b417c794560f6529b6e17aa7c98ad03f47c554032f7331e8722634d0c69",
+  "evidence": {
+    "originalStyledPins": {
+      "count": 200,
+      "fullDecoratedDtos": 200,
+      "strictIndependentCertificates": 400,
+      "test": "independent_all_original_styled_pins_complete_decorated_maps",
+      "sourceBinding": "Unmodified original mapPins.ts; certified-map bare DTO backbone and separately captured ordered props. Source styled-pipeline.ts actually regenerates both decor modes and checks complete bare DTO and decor-only delta."
+    },
+    "freshActualSource": {
+      "attempts": 16,
+      "maps": 15,
+      "nulls": 1,
+      "mainStreamPhases": 195,
+      "options": "decor, shapeGates, bushes; fresh, negative, above-u32 and maximum safe-integer metadata",
+      "observer": "Every actual reference and observation copy compares complete GameMap/null/hash. Only local draw-count and phase/pool observation added; source execution body otherwise unchanged.",
+      "retry": "Genuine seed2459 attempt0 prefix refusal and attempt1 success; certified/generate first-success wrappers and explicit-attempt rejection/maps captured.",
+      "native": "Complete DTOs, hashes, all main-stream continuation words and exact original/kept pool lists match. Spawns\u2192Styler\u2192Nets retains the same main stream and original pool."
+    },
+    "plainPreservation": "Existing11 actual-source controls,120 main-stream traces and retry-wrapper test passed unchanged.",
+    "strictControls": "Exact named source75 inventory; exact16 case/options inventory,2 wrappers,7 explicit selections; required nullable keys; duplicate object keys rejected at every JSON depth; unknown/missing fields and checked integer narrowing rejected; exact canonical byte integrity.",
+    "mutations": {
+      "killed": [
+        "main-stream-draw",
+        "omit-styling",
+        "discard-decor",
+        "pool-hazard-radius",
+        "plain-crate-policy",
+        "skip-first-retry"
+      ],
+      "allRuntimeFailures": true,
+      "compileFailuresCredited": 0,
+      "notes": "T8 pool5\u2192halo and unstyled crates both fail real seed200 phase continuations. Mutations isolated to private pipeline copy and byte-for-byte restored. Initial mutation runner stopped at formatting-sensitive replacement before applying third mutant; resumed remaining four, with no semantic survivor or compile credit."
+    },
+    "validation": "Final default and all-feature controls suites each2 tests; strict default/all-feature lib/tests Clippy; owned-file rustfmt check; canonical Linux x64 Node22.23.4 capture and public --check all pass.",
+    "contractCrossCheck": "Independent1944 source first-breach combinations (144 accepted) shared with designated contract reviewer; they report exact equality with their matrix and additionally cover labelled diagnostics/T8 inputs. No duplicate native contract implementation delivered."
+  },
+  "codeReview": {
+    "singleOrchestrator": "Styled and plain APIs share build_attempt and first-attempt loop. Stage6 moves owned layers into guarded runtime and back; main RNG untouched; source original pool masks preserved; every downstream styled-dependent stage receives styled=true.",
+    "runtimeBodyBinding": "reviewed-integration-inputs.json records exact tested/live files. Live pipeline difference is only cfg(test) contract-module registration. Live registry difference is only visit_entries extraction and visit_content delegation; no runtime-execution change.",
+    "rimeNormals": "Content visitor reads the actual shape::NORMALS array; all eight ordered coordinates match unchanged source and geometry execution. No shadow table.",
+    "headless": "Read-only reviewed new map_loading test and inspected coordinator passing3-test log: native generated seeds1 and2459 enter MapExport metadata/collision admission,8 requested bots with200-tick cap, checkpoint continuation and replay with full metadata retained. Export validation does not recompute mapHash; hash correctness is separately proved by source comparisons."
+  },
+  "limitations": [
+    "No full-workspace gate or performance claim from this review.",
+    "No genuine terminal-null certifiedMap seed captured; proof includes a genuine single-attempt refusal and successful retry.",
+    "Registry final input-admission/dispatch acceptance belongs to its separate review; future runtime-body changes require review refresh.",
+    "Headless integration was code/log reviewed here, not independently rerun."
+  ],
+  "findings": [
+    {
+      "issue": "Controls typed source inventory initially accepted replacing a non-mapgen key while retaining75 entries; exact whole-byte integrity still protected frozen corpus.",
+      "resolution": "Added exact75 SOURCE_FILES set and rename-key rejection control before final freeze; final tests pass."
+    }
+  ],
+  "artifacts": {
+    "controls-frozen-manifest.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-frozen-manifest.json",
+      "sha256": "8c8a1b417c794560f6529b6e17aa7c98ad03f47c554032f7331e8722634d0c69"
+    },
+    "controls-handoff.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-handoff.json",
+      "sha256": "1569f8dfd596a36f76395baf7fb8188fe65aae0e0e79ed6dee42fd9585772fba"
+    },
+    "proposed-controls-registration.patch": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/proposed-controls-registration.patch",
+      "sha256": "dc5a07f91c1d391e7b58667704ac80b795e7ea71bca1d4f7054a2249dd50ca27"
+    },
+    "reviewed-integration-inputs.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/reviewed-integration-inputs.json",
+      "sha256": "5a682723bff9141038cef9d5954a056ff71f3b03e10bf436844e022ba444eb2c"
+    },
+    "initial-native-input-hashes.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/initial-native-input-hashes.json",
+      "sha256": "5fed09644bf4d1eb982f4fc44f7e77a8d4d6f22e7fe3153e07597360302abc5b"
+    },
+    "source-integrity.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/source-integrity.json",
+      "sha256": "686bbfb972cc5567e2a6dd94f1083cc778e036c87b61db35a08e417961482666"
+    },
+    "fresh-source.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/fresh-source.json",
+      "sha256": "9d9b50e5566af6e1b3b5385c2985e2c5adbb32362fafe5dd92d1d967d6a80a62"
+    },
+    "fresh-source.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/fresh-source.log",
+      "sha256": "5ba613487ad87eec1b6d4aa02a8646993d243c8af153be958f29c65c54120d65"
+    },
+    "controls-capture.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-capture.log",
+      "sha256": "ff9fca42012da8f549951e68789a6c500f1333b07af5c48958a5e921b27dc0c9"
+    },
+    "controls-bytecheck.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-bytecheck.log",
+      "sha256": "ff9fca42012da8f549951e68789a6c500f1333b07af5c48958a5e921b27dc0c9"
+    },
+    "controls-final-validation.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-final-validation.json",
+      "sha256": "d4f98003be4208dfc2d03ce5f038eb9dc1ccb216a27dd08ce7c62cfb2864ad2b"
+    },
+    "controls-final-default.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-final-default.log",
+      "sha256": "2fdcaa8309bdf0adb23a20a034ef77ea8c5a020f9c54db9ba820647586f92a0e"
+    },
+    "controls-final-all-v2.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-final-all-v2.log",
+      "sha256": "d06ef892fc0337eef6e1bbc75cad1b9cf20d29a32749ecdd7445f279d0059300"
+    },
+    "clippy-default.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/clippy-default.log",
+      "sha256": "411afac4f291bc2cd8b3a3f02151d7c89e938b17615aa14eea4df5d35ecd9f19"
+    },
+    "clippy-all.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/clippy-all.log",
+      "sha256": "a137325f58e0a068914f261638f56e85fecd62b378f9d4cae8817ae7e7b3da4b"
+    },
+    "controls-fmt.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/controls-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "independent-full200.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/independent-full200.log",
+      "sha256": "37a464cd05f16794830e1f7d42f7155e9bbaf1ef56ebde7df44bf03df53a4c9b"
+    },
+    "plain-phase-preservation.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/plain-phase-preservation.log",
+      "sha256": "f13d7d1994bbae9e24ed8f5f839ffed25153265ddccd1e6666068d7e337db07d"
+    },
+    "mutation-results.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutation-results.json",
+      "sha256": "469b71257f6f1e5f3afe8c803771af10aa7d1d52d5d86b62e0496d517a359cdf"
+    },
+    "contract-source.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/contract-source.json",
+      "sha256": "420f8e61972789d8d5939f5b758879006ca2968dbbdbb0f21ed44e1c99baf4cd"
+    },
+    "contract-source.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/contract-source.log",
+      "sha256": "3ec10a1da89b568237d7354b38ee8d25d0bcda7670164a2bf14ede6c23380cdc"
+    },
+    "mutant-main-stream-draw.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutant-main-stream-draw.log",
+      "sha256": "ea79333db93bc2aa52fbeaf5c1af7084e10c05c8120390b4bd62869d6d2d8224"
+    },
+    "mutant-omit-styling.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutant-omit-styling.log",
+      "sha256": "9a122888fbcde44c88f3ce48e5569fac39f60f2e0cad04835867d7ddb29afb41"
+    },
+    "mutant-discard-decor.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutant-discard-decor.log",
+      "sha256": "9c253060b4eb4fab8a4412ef898d20f9cb4c74e6bf8cb921bf84df5ac5e257e2"
+    },
+    "mutant-pool-hazard-radius.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutant-pool-hazard-radius.log",
+      "sha256": "9407414951f0fabf9d8f9005b7312756b0a908a0dcc75ca559757df0f7b769e9"
+    },
+    "mutant-plain-crate-policy.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutant-plain-crate-policy.log",
+      "sha256": "64a81655b64c61b94e6ef97da80d8290a9faf415679cbf2d847f04e1c32e4420"
+    },
+    "mutant-skip-first-retry.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/styled-pipeline-independent-review/mutant-skip-first-retry.log",
+      "sha256": "74ca22c04c201ec41f2e3c8dc213b7baf7261d5f4fec0b2b898c021203a121c0"
+    }
+  },
+  "headlessCoordinatorLog": {
+    "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-integration/headless-generated.log",
+    "sha256": "f4e7f33b1346760c28d75ad5095d7c324d3a5c68fc9c6235cfdcd5bf97a9e183"
+  }
+}

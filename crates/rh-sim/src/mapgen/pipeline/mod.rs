@@ -1,10 +1,10 @@
-//! The actual thirteen-stage attempt, currently exposed only with stage-six styling disabled.
+//! The actual thirteen-stage attempt, with plain and five-faction styled entry points.
 //! Default faction landmarks and elite bushes remain enabled. No I/O, clock, entropy or global cache.
 use super::{
     attempt, bushes,
     coliseum::{FixedLayout, CX, CY, H, W},
     landmarks::{recipes, stage},
-    records, repair, spawns, spots, tail, terrain_gate, zones,
+    records, repair, spawns, spots, style_runtime, style_zones, tail, terrain_gate, zones,
 };
 use crate::constants::{PLAYER_RADIUS, TILE};
 use crate::map::TileMap;
@@ -13,6 +13,9 @@ use crate::math::Vec2;
 use crate::pathfind::Pathfinder;
 use crate::rng::Mulberry32;
 mod rules;
+mod style_contract;
+#[cfg(test)]
+mod style_contract_tests;
 pub use rules::{default_definition, visit_content, Definition, DEFAULT_DEFINITION};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -35,6 +38,7 @@ pub enum Phase {
     Prefix,
     Landmarks,
     Spawns,
+    Styler,
     Nets,
     Crates,
     Post,
@@ -57,6 +61,7 @@ pub enum Refusal {
     Prefix,
     Landmarks,
     SpawnPool,
+    StyleBreach(String),
     Repair(repair::Refusal),
     Crates,
     Ground,
@@ -70,6 +75,7 @@ pub enum Refusal {
 pub enum Error {
     Input(attempt::AttemptInputError),
     Definition,
+    Style(style_runtime::Error),
     Leaf(&'static str),
     AttemptRefused(Refusal),
     Exhausted,
@@ -103,6 +109,7 @@ pub struct Pipeline<'f> {
     terrain: terrain_gate::TerrainGateDefinition<'static>,
     records: records::Definition<'static>,
     terrain_on: Vec<Option<u8>>,
+    styles: style_zones::Registry<'f>,
 }
 impl<'f> Pipeline<'f> {
     pub fn new(fixed: &'f FixedLayout) -> Self {
@@ -144,6 +151,7 @@ impl<'f> Pipeline<'f> {
             terrain,
             records: records::default_definition(),
             terrain_on: terrain.kinds.iter().map(|k| k.tile).collect(),
+            styles: style_zones::Registry::new(fixed).map_err(Error::Style)?,
         })
     }
     pub fn plain_attempt(
@@ -153,7 +161,7 @@ impl<'f> Pipeline<'f> {
         options: Options,
     ) -> Result<Option<GameMapData>, Error> {
         Ok(self
-            .build_attempt(seed, number, options, &mut |_, _, _| {})?
+            .build_attempt(seed, number, options, false, &mut |_, _, _| {})?
             .map)
     }
     pub fn plain_attempt_with_trace(
@@ -163,14 +171,15 @@ impl<'f> Pipeline<'f> {
         options: Options,
     ) -> Result<(AttemptReport, Vec<Trace>), Error> {
         let mut trace = Vec::new();
-        let report = self.build_attempt(seed, number, options, &mut |phase, rng, pool| {
-            let mut next = rng.clone();
-            trace.push(Trace {
-                phase,
-                continuation: core::array::from_fn(|_| next.next_u32()),
-                pool: pool.to_vec(),
-            });
-        })?;
+        let report =
+            self.build_attempt(seed, number, options, false, &mut |phase, rng, pool| {
+                let mut next = rng.clone();
+                trace.push(Trace {
+                    phase,
+                    continuation: core::array::from_fn(|_| next.next_u32()),
+                    pool: pool.to_vec(),
+                });
+            })?;
         Ok((report, trace))
     }
     pub fn certified_plain(
@@ -187,13 +196,67 @@ impl<'f> Pipeline<'f> {
         options: Options,
     ) -> Result<GameMapData, Error> {
         if let Some(n) = number {
-            let report = self.build_attempt(seed, n, options, &mut |_, _, _| {})?;
+            let report = self.build_attempt(seed, n, options, false, &mut |_, _, _| {})?;
             return report
                 .map
                 .ok_or_else(|| Error::AttemptRefused(report.refusal.expect("refused attempt")));
         }
         self.first_plain(seed, self.limits.generate_attempts, options)?
             .ok_or(Error::Exhausted)
+    }
+    /// Complete source styling; the main map stream is shared with the plain orchestrator.
+    pub fn styled_attempt(
+        &self,
+        seed: i64,
+        number: u64,
+        options: Options,
+    ) -> Result<Option<GameMapData>, Error> {
+        Ok(self
+            .build_attempt(seed, number, options, true, &mut |_, _, _| {})?
+            .map)
+    }
+    pub fn styled_attempt_with_trace(
+        &self,
+        seed: i64,
+        number: u64,
+        options: Options,
+    ) -> Result<(AttemptReport, Vec<Trace>), Error> {
+        let mut trace = Vec::new();
+        let report = self.build_attempt(seed, number, options, true, &mut |phase, rng, pool| {
+            let mut next = rng.clone();
+            trace.push(Trace {
+                phase,
+                continuation: core::array::from_fn(|_| next.next_u32()),
+                pool: pool.to_vec(),
+            });
+        })?;
+        Ok((report, trace))
+    }
+    pub fn certified_styled(
+        &self,
+        seed: i64,
+        options: Options,
+    ) -> Result<Option<GameMapData>, Error> {
+        first_attempt(self.limits.certified_attempts, |n| {
+            self.styled_attempt(seed, n, options)
+        })
+    }
+    pub fn generate_styled(
+        &self,
+        seed: i64,
+        number: Option<u64>,
+        options: Options,
+    ) -> Result<GameMapData, Error> {
+        if let Some(n) = number {
+            let report = self.build_attempt(seed, n, options, true, &mut |_, _, _| {})?;
+            return report
+                .map
+                .ok_or_else(|| Error::AttemptRefused(report.refusal.expect("refused attempt")));
+        }
+        first_attempt(self.limits.generate_attempts, |n| {
+            self.styled_attempt(seed, n, options)
+        })?
+        .ok_or(Error::Exhausted)
     }
     fn first_plain(
         &self,
@@ -203,13 +266,13 @@ impl<'f> Pipeline<'f> {
     ) -> Result<Option<GameMapData>, Error> {
         first_attempt(limit, |n| self.plain_attempt(seed, n, options))
     }
-    // One orchestrator owns the stage order. Future checked styling belongs at stage six below;
-    // it must use this same continuation, original pool masks and tail rather than another pipeline.
+    // One orchestrator owns both modes, including the same main RNG, original pool masks and tail.
     fn build_attempt(
         &self,
         seed: i64,
         number: u64,
         options: Options,
+        styled: bool,
         observe: &mut impl FnMut(Phase, &Mulberry32, &[usize]),
     ) -> Result<AttemptReport, Error> {
         let Some(mut frame) =
@@ -269,11 +332,78 @@ impl<'f> Pipeline<'f> {
             &state.feature_owner,
             &picked.protection.halo,
         );
-        // Stage six: plain means exactly styleZones:null. All earlier/later stages are unchanged.
+        // Stage six: callbacks use private map streams; the attempt's main stream is untouched.
         let mut props: Vec<MapProp> = Vec::new();
+        if styled {
+            let before = state.tiles.clone();
+            let mut style = style_runtime::State::new(
+                W,
+                H,
+                core::mem::take(&mut state.tiles),
+                core::mem::take(&mut state.terrain),
+                props,
+                core::mem::take(&mut state.features),
+                core::mem::take(&mut state.feature_owner),
+            )
+            .map_err(Error::Style)?;
+            let members: Vec<i32> = pool.iter().map(|&t| t as i32).collect();
+            let result = self.styles.apply(
+                &style_zones::Input {
+                    w: W,
+                    h: H,
+                    seed,
+                    attempt: number,
+                    order: &order,
+                    zone: &state.zone,
+                    territory: Some(&state.territory_grid),
+                    camps: &prefix.style_camps,
+                    protect: &protect,
+                    spawns: &members,
+                    centre_walk: Some(&picked.preparation.centre_walk),
+                    decor: options.decor,
+                    no_block: None,
+                    no_prop: None,
+                    caps: None,
+                },
+                &mut style,
+            );
+            let layers = style.into_layers();
+            state.tiles = layers.tiles;
+            state.terrain = layers.terrain;
+            state.features = layers.features;
+            state.feature_owner = layers.feature_owner;
+            props = layers.props;
+            result.map_err(Error::Style)?;
+            if !options.decor {
+                props.clear();
+            }
+            // The source observes this lap before refusing a breach and before T8 (which uses no RNG).
+            observe(Phase::Styler, &frame.rng, &pool);
+            if let Some(breach) = style_contract::check(
+                &style_contract::Input {
+                    before: &before,
+                    tiles: &state.tiles,
+                    terrain: &state.terrain,
+                    zone: &state.zone,
+                    protect: &protect,
+                    order: &order,
+                    features: &state.features,
+                    feature_owner: &state.feature_owner,
+                    gates: options.shape_gates,
+                },
+                &self.terrain,
+            )? {
+                return Ok(AttemptReport::refused(Refusal::StyleBreach(breach)));
+            }
+            style_contract::clear_pool_hazards(
+                &mut state.terrain,
+                &picked.protection.pool5,
+                &self.terrain,
+            )?;
+        }
         let empty = vec![Vec::new(); zones::ZONES];
         let input = repair::Input {
-            styled: false,
+            styled,
             order: &order,
             camps: &camps,
             clearing: &prefix.clearing,
@@ -308,7 +438,7 @@ impl<'f> Pipeline<'f> {
                 features: &state.features,
                 pool: &pool,
                 camps: &camps,
-                styled: false,
+                styled,
             },
             &mut || frame.rng.next_f64(),
             &self.spots,
@@ -321,7 +451,7 @@ impl<'f> Pipeline<'f> {
         let all_crates: Vec<_> = crates_by_zone.iter().flatten().copied().collect();
         observe(Phase::Crates, &frame.rng, &pool);
         let input = repair::Input {
-            styled: false,
+            styled,
             order: &order,
             camps: &camps,
             clearing: &prefix.clearing,
@@ -351,7 +481,7 @@ impl<'f> Pipeline<'f> {
         observe(Phase::Post, &frame.rng, &pool);
         tail::clear_terrain(
             &self.terrain,
-            false,
+            styled,
             &state.tiles,
             &mut state.terrain,
             &mut props,
@@ -473,7 +603,7 @@ impl<'f> Pipeline<'f> {
         if !terrain_gate::validate(
             &map,
             &terrain_gate::Options {
-                styled: false,
+                styled,
                 prop_kinds: None,
             },
         )

@@ -14,7 +14,7 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
 
-Native arm64 integration on `optimization_port`: 944 tests passed with all features, 0 failed/filtered and two explicitly
+Native arm64 integration on `optimization_port`: 997 tests passed with all features, 0 failed/filtered and two explicitly
 ignored tests (heap measurement and manual bridge E2E; the latter passed at the preceding external integration). Formatting and full/default-feature workspace Clippy with warnings denied passed. The preceding
 foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/browser and legacy recapture CI passed at
 `c93b659d`. Full-game, AWS, browser-matrix and release gates remain open.
@@ -23,7 +23,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 97 compared
   scenarios and 300 path queries MATCH; 13 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
 - C-DET/C-NUM: checkpoint format is `rh-checkpoint/14`, replay `rh-replay/12`, observation version 11; content identity
-  `58dc066ada48c13f`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
+  `105333d9ac5d8d92`. Projectile state is hashed/restored, invalid packet/identity headroom is refused, and the six new
   flight fixtures allocate zero over 336 measured steady steps. Fixed map geometry uses one definition folded into the
   content identity; all 76 recaptured files and all seven map oracles agree on Linux x64 Node 22.23.4. Full admitted gameplay
   layers participate in static hashing and checkpoint validation. Captured legacy map hashes remain unverified metadata at structural import; the separate exact source hash now
@@ -37,16 +37,18 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   admission faction and result metadata are hashed/restored without changing observations or wire-result bytes.
   DoT caps replace hit caps, with ordered source budgets, post-barrier accounting and source-exact private windows.
   All 449 new trace ticks restore/continue. Spawn/bush runtime definitions share 27/11 words with their identity folds.
-- C-DET/C-PARITY: complete plain orchestration reproduces all 200 original plain pins and complete DTOs, preserving
-  real landmarks, bushes and original pool masks. The independent hard certifier matches 307 canonical source cases,
-  64 labels and 488 ordered diagnostics. Stage-six runtime matches 20 actual zones and independently reviewed operations;
-  faction callbacks/dispatch/styled pins remain open. Crate ownership retains source Uint16 IDs through failed attempts
-  instead of narrowing them. Source cases at 255/256/257/65535 and five semantic mutants pass. Prop homes share the sole
-  catalog; threshold/stream/retry/home identity mutations move aggregate content. See `evidence/stage2-map-pipeline/`.
-  Shared style helpers and Holy callbacks are now integrated: 2,800 fresh helper cases, 88 fresh complete Holy contexts
-  plus an explicit surface-input probe, canonical bytechecks and shared stage-four regressions pass. Continuous native
-  callbacks for all factions and styled pins remain pending. Source-prefix fixture restoration is test-only, bounded
-  and atomic; it never supplies expected post-callback answers. See `evidence/stage2-holy-style/`.
+- C-DET/C-PARITY: complete plain/styled orchestration and all five callbacks reproduce all 400 original seed pins,
+ 8 original OPEN pins and complete DTOs, including 160,996 ordered styled props. The independent hard certifier
+ matches307 canonical source cases and all 400 pinned maps (800 base/zone checks). Original pool masks and stage
+ RNG order survive styling, repair and final spawn dropping. Sixteen additional styled cases preserve 195 main-stream
+ continuations, actual null/retry/option/wide metadata and source observer noninterference. Standalone registry proof
+ covers18 source cases plus14 fresh cases, private streams and repeated-state behavior; malformed initial geometry,
+ Forge and watchtower metadata refuse before any write. Post-hook proof covers 37 labelled/1,944 Cartesian inputs
+ and 6 original-pool T8 cases. Source-prefix restoration is test-only, bounded and atomic; expected post-state is never
+ supplied as an input. Callback/registry policies and actual Rime normals are folded into identity. Native generated
+ maps enter ordinary headless play, checkpoint continuation and serialized replay. Quiet M5 Pro release medians:
+ plain 13.47 ms /styled 22.21 ms, versus paired source 29.48 ms /45.32 ms,both decor:false. These figures measure map
+ generation only. See `evidence/stage2-styled-map/` and the earlier `stage2-map-pipeline/`/`stage2-holy-style/` evidence.
 - C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
   ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
   and earlier-step/cached projection checks passed. Public item discovery/self inventory now works for headless/policy
@@ -62,7 +64,7 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   eligibility, anonymous source redaction/exact sums and every-step Rust projection. Fresh sessions/gaps cannot recover
   private history; derived reports are instance-bound and outside authoritative hashes/checkpoints. Independent actual
   live/headless/policy checks, 5,400 generated transitions and five impactful mutations pass.
-- C-POLICY: contract v5 proposes `PublicCommand`s. Observer-local handles resolve into trusted commands before the normal
+- C-POLICY: contract v8 proposes `PublicCommand`s. Observer-local handles resolve into trusted commands before the normal
   action budget; explicit misses are recorded/replayed. Async seats own their projection and discard late/panicked output.
   Target/AttackMove share the same Rust path. Explicit targets need delivered actor membership and current sight;
   autonomous acquisition is independent of publication. Hidden targets never enter the owner target mirror.

@@ -1,0 +1,156 @@
+{
+  "status": "accepted for the bounded Warren stage-six callback leaf and reviewed excluded shared seams",
+  "originalManifestSha256": "b22ceafa86d22924efc01a8e4f157e78d0390a4b80a4a7f69493a21cf2d13f63",
+  "reviewedSeamSha256": "2d36cb0733146e2fcea5e050e58a625f35ef8db157df4089c5e2fd2caea5a9a0",
+  "findings": [
+    {
+      "id": "raw-input-visibility",
+      "status": "repaired",
+      "detail": "CampNodeInputs/camp_nodes_from narrowed to pub(crate); body only used with admitted runtime geometry."
+    },
+    {
+      "id": "jitter-derived-envelope",
+      "status": "repaired and independently verified",
+      "detail": "Constructor refuses nonfinite or >=3.5 derived jitter extent; default and zero accepted, excessive ratio/tiny divisor/cutoff refused. Independent original refusal repro failed before repair and passes after."
+    }
+  ],
+  "freshSource": {
+    "actualNew": 6,
+    "directNew": 24,
+    "directRepeated": 14,
+    "totalRows": 44,
+    "file": "fresh-source.json",
+    "sha256": "b170839e710134fc1b58fedb0012075b1034f394e4fa1e9c97698fd7ea0b7254",
+    "captureScriptSha256": "43b3486361c8f06dacb516fa194822f2f1f3d09a8af82682279c6c05ba6abd5c",
+    "canonicalNode": "Linux x64 Node22.23.4",
+    "image": "c86ecead9e55",
+    "sourceReadOnly": true,
+    "fullFinalDtoAndHashNoninterference": true
+  },
+  "native": [
+    {
+      "command": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "style_warren",
+        "--locked"
+      ],
+      "exit": 0,
+      "log": "tests-default.log"
+    },
+    {
+      "command": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "style_warren",
+        "--locked"
+      ],
+      "exit": 0,
+      "log": "tests-all.log"
+    },
+    {
+      "command": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "mapgen::landmarks",
+        "--locked"
+      ],
+      "exit": 0,
+      "log": "shared-regressions.log"
+    }
+  ],
+  "mutants": {
+    "authoredRuntimeFailures": 14,
+    "auditedLogs": "mutation-log-audit.json",
+    "freshRuntimeFailures": 4,
+    "results": "independent-mutation-results.json"
+  },
+  "canonicalCheck": "canonical-final-check.log; revised env-name source tool byte-exact against unchanged fixture",
+  "limits": [
+    "Source-captured initial prerequisite state, no native earlier faction callback proof",
+    "All actual outcomes are maps; terminal null not exercised",
+    "No full styled generator, workspace, allocation or performance claim"
+  ],
+  "acceptedManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-warren-work/frozen-manifest.json",
+  "acceptedManifestSha256": "b4b70464789673d082fb4882cd71f4ab3adf7fd1f16c2807dbcbf0e96df3a076",
+  "acceptedOwnedFiles": [
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-warren.json",
+      "bytes": 5197511,
+      "sha256": "88d2252c7fcfb524556ba1809fc3715947c2cd504a95c6459acfaefca66a859d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/README.md",
+      "bytes": 3889,
+      "sha256": "8542a7e5a4fba3b15877224022b145a690a0e7da1224d5eef1374830e0649699"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/mod.rs",
+      "bytes": 10490,
+      "sha256": "83b9e1c77d0060297c0c09cafa0e3d7e0d07339afc76e0cb02f01532a4fad947"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/planning.rs",
+      "bytes": 14341,
+      "sha256": "be7488383aceb65e58fe162ff2ad2183b3083537a57fe7551dea9bfbf9ef52a0"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/rules.rs",
+      "bytes": 4334,
+      "sha256": "799ea54ce39eb245d9964d1f8bb94b9f99740b6827eac5e3891540abab61d124"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/shape.rs",
+      "bytes": 9515,
+      "sha256": "f917017a8fd303ec47bab43391d64da41bfe3b4eeb631eadbd9b32354d868020"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/tests.rs",
+      "bytes": 33020,
+      "sha256": "398a19592fd89671ff9ef773c3618463df725a574806474e4c7247447ee7d236"
+    },
+    {
+      "path": "tools/map-fixtures/style-warren.ts",
+      "bytes": 12764,
+      "sha256": "c1e3acb3b49716e8be7e849318d52fe3c3bb051c9b2ec9ef26619d07b02b64e4"
+    }
+  ],
+  "finalNative": {
+    "allFeatures": "tests-final-all.log: 9 passed (author6 + fresh44-row replay + own jitter refusal + exact native walk-field replay on14 contexts)",
+    "defaultBeforeAdmissionOnlyRevision": "tests-default.log: 6 passed",
+    "sharedSeam": "shared-regressions.log: 37 passed",
+    "sharedPatchApplyCheck": "git apply --check against live passed read-only"
+  },
+  "sourceValidation": [
+    "reviewed observer rewrites only caller/context hooks and imports; full original final DTO and hash equality mandatory",
+    "Plan/phase layers/features/owners/counters/scratch/reserved and noise/RNG continuations compared exactly",
+    "fresh inputs include real attempts, global camp indices with excluded camp, route baseline, protections, cap and seed variations",
+    "four independent mutations fail at stream continuation, feature id,20-vs19 route prune, and road-order plan respectively"
+  ],
+  "prefixSeamSha256": "25ff0b77a85d16000627d2572e73c97978a09e7b7f87574d4a8bc347212cb00f",
+  "notes": [
+    "v1 original freeze and failure evidence retained",
+    "Only modified production behavior in v2 is admission refusal for unsupported jitter envelopes; default callback body/fixture unchanged",
+    "Rime and prior accepted review artifacts untouched"
+  ],
+  "evidenceHashes": {
+    "reviewed-original-manifest.json": "b22ceafa86d22924efc01a8e4f157e78d0390a4b80a4a7f69493a21cf2d13f63",
+    "reviewed-final-manifest.json": "b4b70464789673d082fb4882cd71f4ab3adf7fd1f16c2807dbcbf0e96df3a076",
+    "reviewed-shared-seams.patch": "2d36cb0733146e2fcea5e050e58a625f35ef8db157df4089c5e2fd2caea5a9a0",
+    "fresh-source.json": "b170839e710134fc1b58fedb0012075b1034f394e4fa1e9c97698fd7ea0b7254",
+    "fresh-source.log": "8d4419bf407e396e6feaac1f76d294995cf195089bb0406c6eaca04e3730e198",
+    "canonical-final-check.log": "53399400a51c76a85d86afe8e5db9c652bce00b65bd7f9cb3b01158d0fdde3ec",
+    "tests-final-all.log": "312b44bc0a6b1e89717dcc303683e8a8f9e8b84e3d74f12dafa06ad3b3a9b2e4",
+    "shared-regressions.log": "ace52ac44f58ad928d8deb2f5c6df08a209d88c3135e5b995163884ecf39bd57",
+    "independent-mutation-results.json": "25159a092c8d292068f0e6039e8d2b55caa897bc386b42b491b2b75f77267237",
+    "mutation-log-audit.json": "445f6fc47f97286fe78e4ccbe6bb7e16dec87f75eb27c55dda282470b82eebcd",
+    "jitter-admission-original.log": "101bd7fb627021c8b062b9777d3b762b8fb27cdec3d096489d245c48a19ba6b8"
+  }
+}

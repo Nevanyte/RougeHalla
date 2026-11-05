@@ -134,6 +134,76 @@ fn disc(ext: &mut [u8], w: usize, h: usize, cx: f64, cy: f64, r: f64) {
         }
     }
 }
+/// Shared radius estimate; callers provide admitted camp metadata in source order.
+pub(crate) fn radius4(
+    d: &Definition<'_>,
+    index: usize,
+    mine: &[crate::mapgen::landmarks::runtime::CampInfo],
+) -> f64 {
+    let k = &mine[index];
+    let hi = if k.elite {
+        d.radius_elite_max4
+    } else {
+        d.radius_max4
+    };
+    let mut near2 = -1.0;
+    for (p, o) in mine.iter().enumerate() {
+        if p == index {
+            continue;
+        }
+        let dx = (k.x - o.x) as f64;
+        let dy = (k.y - o.y) as f64;
+        let v = dx * dx + dy * dy;
+        if near2 < 0.0 || v < near2 {
+            near2 = v;
+        }
+    }
+    if near2 < 0.0 {
+        hi
+    } else {
+        (2.0 * sqrt(near2) - d.radius_subtract)
+            .floor()
+            .max(d.radius_min4)
+            .min(hi)
+    }
+}
+#[derive(Clone, Copy)]
+pub(crate) struct Frame {
+    pub ux: f64,
+    pub uy: f64,
+    pub vx: f64,
+    pub vy: f64,
+    pub cx: f64,
+    pub cy: f64,
+}
+impl Frame {
+    pub fn new(w: usize, h: usize, zone: &crate::mapgen::landmarks::runtime::ZoneInfo) -> Self {
+        let (cx, cy) = (w as f64 / 2.0, h as f64 / 2.0);
+        let (mut ux, mut uy) = (zone.centroid.x - cx, zone.centroid.y - cy);
+        let m = sqrt(ux * ux + uy * uy);
+        if m > 0.0 {
+            ux /= m;
+            uy /= m;
+        } else {
+            ux = 1.0;
+            uy = 0.0;
+        }
+        Self {
+            ux,
+            uy,
+            vx: -uy,
+            vy: ux,
+            cx,
+            cy,
+        }
+    }
+    pub fn depth(self, x: f64, y: f64) -> f64 {
+        (x - self.cx) * self.ux + (y - self.cy) * self.uy
+    }
+    pub fn lateral(self, x: f64, y: f64) -> f64 {
+        (x - self.cx) * self.vx + (y - self.cy) * self.vy
+    }
+}
 impl<'a> Recipe<'a> {
     pub fn from_definition(d: &Definition<'a>) -> Result<Self, TemplateError> {
         Ok(Self {
@@ -149,52 +219,11 @@ impl<'a> Recipe<'a> {
         }
         let mine = rt.geometry().camps.clone();
         let (w, h) = (rt.state().w, rt.state().h);
-        let r_est: Vec<f64> = mine
-            .iter()
-            .enumerate()
-            .map(|(q, k)| {
-                let hi = if k.elite {
-                    d.radius_elite_max4
-                } else {
-                    d.radius_max4
-                };
-                let mut near2 = -1.0;
-                for (p, o) in mine.iter().enumerate() {
-                    if p == q {
-                        continue;
-                    }
-                    let dx = (k.x - o.x) as f64;
-                    let dy = (k.y - o.y) as f64;
-                    let v = dx * dx + dy * dy;
-                    if near2 < 0.0 || v < near2 {
-                        near2 = v
-                    }
-                }
-                if near2 < 0.0 {
-                    hi / 4.0
-                } else {
-                    (2.0 * sqrt(near2) - d.radius_subtract)
-                        .floor()
-                        .max(d.radius_min4)
-                        .min(hi)
-                        / 4.0
-                }
-            })
+        let r_est: Vec<f64> = (0..mine.len())
+            .map(|q| radius4(&d, q, &mine) / 4.0)
             .collect();
-        let (cx, cy) = (w as f64 / 2.0, h as f64 / 2.0);
-        let (mut ux, mut uy) = (
-            rt.geometry().info.centroid.x - cx,
-            rt.geometry().info.centroid.y - cy,
-        );
-        let m = sqrt(ux * ux + uy * uy);
-        if m > 0.0 {
-            ux /= m;
-            uy /= m
-        } else {
-            ux = 1.0;
-            uy = 0.0
-        }
-        let depth = |x: f64, y: f64| (x - cx) * ux + (y - cy) * uy;
+        let frame = Frame::new(w, h, &rt.geometry().info);
+        let depth = |x, y| frame.depth(x, y);
         let bb = rt.geometry().info.bbox;
         let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
         for y in bb.y..bb.y + bb.h as i32 {

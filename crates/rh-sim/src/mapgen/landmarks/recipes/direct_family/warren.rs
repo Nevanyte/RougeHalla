@@ -62,15 +62,15 @@ pub struct Recipe<'a> {
     template: ParsedTemplate,
 }
 #[derive(Clone, Debug)]
-struct Road {
-    a: usize,
-    b: usize,
-    dx: f64,
-    dy: f64,
-    d2: f64,
-    len: f64,
+pub(crate) struct Road {
+    pub(crate) a: usize,
+    pub(crate) b: usize,
+    pub(crate) dx: f64,
+    pub(crate) dy: f64,
+    pub(crate) d2: f64,
+    pub(crate) len: f64,
 }
-fn roads(nodes: &[Node], min2: f64) -> Vec<Road> {
+pub(crate) fn roads(nodes: &[Node], min2: f64) -> Vec<Road> {
     let mut out = Vec::new();
     for [a, b] in gabriel_edges(nodes) {
         let dx = nodes[b].x - nodes[a].x;

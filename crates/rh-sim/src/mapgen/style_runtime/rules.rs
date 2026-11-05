@@ -42,7 +42,7 @@ pub fn default_definition() -> Definition {
     DEFAULT_DEFINITION
 }
 impl Definition {
-    pub(super) fn validate(&self) -> Result<(), Error> {
+    pub(crate) fn validate(&self) -> Result<(), Error> {
         if !self.footprint_percent.is_finite()
             || !(0.0..=100.0).contains(&self.footprint_percent)
             || !self.rim_tiles.is_finite()

@@ -1,0 +1,1248 @@
+{
+  "format": "rh-stage2-styled-map-integration/1",
+  "branch": "optimization_port",
+  "baseCommit": "8e9e9e54a98145f80baa4cd15613f1afd6554b96",
+  "contentHash": "105333d9ac5d8d92",
+  "formats": {
+    "checkpoint": 14,
+    "replay": 12,
+    "observation": 11,
+    "policy": 8,
+    "wire": 5
+  },
+  "native": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "rust": "1.97.0",
+    "suites": 109,
+    "passed": 997,
+    "failed": 0,
+    "ignored": 2,
+    "filtered": 0,
+    "workspaceAllFeatures": true,
+    "strictClippyAllAndDefaultFeatures": true,
+    "formatting": true
+  },
+  "parity": {
+    "comparedScenarios": 97,
+    "captureOnly": 13,
+    "paths": 300,
+    "allMatch": true
+  },
+  "mapProof": {
+    "plainOriginalPins": 200,
+    "styledOriginalPins": 200,
+    "openOriginalPins": 8,
+    "hardCertificates": 800,
+    "styledProps": 160996,
+    "styledAdditionalAttempts": 16,
+    "styledAdditionalPhaseContinuations": 195,
+    "openCases": 18,
+    "contractLabelledCases": 37,
+    "contractCartesianCases": 1944,
+    "originalPoolCases": 6
+  },
+  "logs": [
+    {
+      "file": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "clippy-all.log",
+      "sha256": "f7cb655023b413b6636600d6823c105d57f14a1f96821b81c0aeb86db4bdbe10"
+    },
+    {
+      "file": "clippy-default.log",
+      "sha256": "54d67f0c375cd23a4300012ede3cf541130717d9ab82730fd13b053d527f3fe7"
+    },
+    {
+      "file": "gate.log",
+      "sha256": "dab92a7e1da7ce8018848160742708059283227482a23de916f0fcbd3d1a0d09"
+    },
+    {
+      "file": "parity.log",
+      "sha256": "b6b8bccb3f24717b34fb91f83bbac4843efd706c7aff672552061fb1320c310a"
+    },
+    {
+      "file": "canonical-leaves.log",
+      "sha256": "52892039c7afc990f2c9af6e0e9aa5c5705aec72e5a5129e4d0911da39a4dcf1"
+    },
+    {
+      "file": "canonical-full.log",
+      "sha256": "92fbdfbf79cc307bd15614b68333bd70cf74b6ac82106b26b595db065715a7f6"
+    },
+    {
+      "file": "canonical-registry-controls.log",
+      "sha256": "55398e35b4856508d6ae44f6645bc8ef38c84414157ead097cbd6031b2c50430"
+    },
+    {
+      "file": "headless-generated.log",
+      "sha256": "f4e7f33b1346760c28d75ad5095d7c324d3a5c68fc9c6235cfdcd5bf97a9e183"
+    }
+  ],
+  "limits": [
+    "Two explicitly ignored manual checks remain: heap measurement and bridge E2E; the latter passed at prior external integration.",
+    "Standalone quiet map-generation performance is recorded separately; no full-game or rendered-FPS claim.",
+    "Full gameplay, live map pool/transport, Unity flows, cloud operations and release remain open."
+  ],
+  "sourceFiles": [
+    {
+      "path": ".github/workflows/rust.yml",
+      "sha256": "d76beab2f28bfd0e8679b21ca05fecbc72def84758a152786e786b29f7019613"
+    },
+    {
+      "path": "crates/rh-headless/tests/map_loading.rs",
+      "sha256": "e6850750cecdda6adda2bce367fef1fa7a5ea8bcffe2db74b2425c049b3a3f92"
+    },
+    {
+      "path": "crates/rh-sim/src/arenas.rs",
+      "sha256": "30c29358131ecd5f7a8bb86e745e34328ef489de52810d6885d646ee96670651"
+    },
+    {
+      "path": "crates/rh-sim/src/checkpoint.rs",
+      "sha256": "f6d3ea137d16bd8e243d7c97b66de0735465939f3c2f2fc8330307a111026fa6"
+    },
+    {
+      "path": "crates/rh-sim/src/constants.rs",
+      "sha256": "cfd085a67ff919f1663875997cc5cc289fe56e22a11774eb79fb597024f30fdb"
+    },
+    {
+      "path": "crates/rh-sim/src/content.rs",
+      "sha256": "69ba4db04d38dd376112aa08be033cd989e87b0425d117fb143989bdf21450c2"
+    },
+    {
+      "path": "crates/rh-sim/src/events.rs",
+      "sha256": "24b1ed91388a5ed8ff78332f2665b920703dd304a457ae19787639d850a75fd4"
+    },
+    {
+      "path": "crates/rh-sim/src/factions.rs",
+      "sha256": "38092948817cde24bab0f4a9b3148d23f1c4ce90eb6fb4c890e80ad4d3ea43e1"
+    },
+    {
+      "path": "crates/rh-sim/src/fighter.rs",
+      "sha256": "dc411b8bfe96aa5f05e9cbd7ed491454c6ac6ebfaddf402529321f032e8a51e9"
+    },
+    {
+      "path": "crates/rh-sim/src/fx_projector/exact.rs",
+      "sha256": "21d66a3e07476dcf5487d003b79cb0fc4d0449844e07de98a4ff81b4397a516a"
+    },
+    {
+      "path": "crates/rh-sim/src/fx_projector/mod.rs",
+      "sha256": "121adb7656c8441a714d2a48ce3285738916d8283b38b7cdd2002c97ccf34c61"
+    },
+    {
+      "path": "crates/rh-sim/src/fx_projector/tests.rs",
+      "sha256": "5d90a6603d62ac5956ee0c15ed534eb44414cb6289437d3c22eeea12958db04b"
+    },
+    {
+      "path": "crates/rh-sim/src/fx_report.rs",
+      "sha256": "66e4fafff1991282367b9f20d2463f86bbbfb88ec2c9ab6ef6d1e8672558dbe1"
+    },
+    {
+      "path": "crates/rh-sim/src/geometry.rs",
+      "sha256": "2b8270a121657a93a397f7f12e4b525fbab08fbdcdba30a05a2fa1049ade0c14"
+    },
+    {
+      "path": "crates/rh-sim/src/hash.rs",
+      "sha256": "70b344e8e3b4ce263e3ec302aa409884c3d5801d41c0482ba4b251ad0b9c63b6"
+    },
+    {
+      "path": "crates/rh-sim/src/hooks.rs",
+      "sha256": "91c0667d405bc4e4963a9dc8381f2350a832e3a2de534f8c4c207834c6350896"
+    },
+    {
+      "path": "crates/rh-sim/src/input.rs",
+      "sha256": "93fdba383cae3b63ef633c8de4d481b4689595ef9dd7d25b227a200171569bb8"
+    },
+    {
+      "path": "crates/rh-sim/src/item_view.rs",
+      "sha256": "94a01c16005cbfc8167a8667ff1efbae74205ee43d871a6f42c84d683f617048"
+    },
+    {
+      "path": "crates/rh-sim/src/lib.rs",
+      "sha256": "88f266976f1b3ad6580465aca7a39ec27778a0933ca023cc87b68b3b748be5bb"
+    },
+    {
+      "path": "crates/rh-sim/src/map.rs",
+      "sha256": "d63ef81e8e301f29b97a92c7938f9db23246118eb28ca61eeedbcb0b21939883"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/README.md",
+      "sha256": "46faf4aab3687b28371668adb0de7dd980dd4a4c4d9aeba97e332b6c915ddc2b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/fixtures/README.md",
+      "sha256": "21b51c4c007d0d4e88188da5727beef5ced31d7824405aacc7f73fa19cf19221"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/fixtures/domain-maps.json",
+      "sha256": "fde14f30f00a38b4227f1379e4ef03e4e2a4d880bff1581ab3609df9dd97236f"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/fixtures/oracle.json",
+      "sha256": "89d978d55124d31ea48970d4a4c5b0a52fb1299d90d2c133d5e3879a906a7d49"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json",
+      "sha256": "7c95efad61f47942d10921d7f1bc16acb43306f370cf368e0693a69d456441e7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/fixtures/seed2.map.json",
+      "sha256": "b5bf54b03239184dd3da779fba74b5d79da69d7e980ea6e8e80a7dd10228abd7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/mod.rs",
+      "sha256": "3afbbbbd997842bab3ce8ea323e0f38f7ea21b150eee837093ea19d00762c5fb"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/model.rs",
+      "sha256": "5a8c62575da7fdbd294ef2d328ec8352544dd7602db9f210f97035f105b8d4a9"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/tests.rs",
+      "sha256": "421747b106c12627b8ca11844ee96020d59d7660725dce5dc8df88b99fa1192d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapdata/validate.rs",
+      "sha256": "782b29d612b05591cb9f079424ac77dac336e5d31cf676f9e69d5db08e3e072a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/attempt/README.md",
+      "sha256": "d0b26e0967d5d8860b836b16f069ea58cf68ce510659d2f68eb46926aa50a98b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/attempt/mod.rs",
+      "sha256": "902436ff67c8166a7f178187993b4234a1022079911fd1f1471bfe91a123e932"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/attempt/rules.rs",
+      "sha256": "93c1130c6061484f89746144bd0103d0886b16716a9a4b1ad99d037e992e0312"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/attempt/tests.rs",
+      "sha256": "2381d09c3b15e8dbef67a8aad4181c805ae5610f9e19ea779d002777851b0669"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/bushes/README.md",
+      "sha256": "4d2fd8cb75afaa3391160b95fc3713da661e7889fed36aee965820bf977ba216"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/bushes/mod.rs",
+      "sha256": "229ccdcc160fee63968d8eb8c0dec6f3427bf7d830c876003b23aab546ee095d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/bushes/rules.rs",
+      "sha256": "39be700a491e7af3055112158e34de87e3ea8b9d5a8664cc292cefee9eb00ae5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/bushes/tests.rs",
+      "sha256": "b54c36b3143e24d0d2de18689d6227ed02d02e478350956b07310fbf1bfcbe37"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/README.md",
+      "sha256": "ddbbf5da60a530a210732f16e4fe3034d9a68ad5a270a7dc5ce59b8142b13d0a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/diagnostics.rs",
+      "sha256": "ead52000e84050266c8049d69bb91311fdb1b3f67512d5df5a97835252f88f18"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/features.rs",
+      "sha256": "7ca14aac694849ffc44d28956fce5becd578dff21feee13613064490a07b0194"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/inventory.rs",
+      "sha256": "038f2bce165c5009b8862aa1e67b32edd523f9d9a72f338f3a94511e89a65a1a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/labels.rs",
+      "sha256": "d874685b15fdedfa44c123ba15bf048c25ce750ad63bfc108fa335799fd1bc6d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/mod.rs",
+      "sha256": "0b516720ba579a2d66fcd87edc52dea44e0d9bd1cfb4c47eb84d60ce47cfcc01"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/numeric.rs",
+      "sha256": "e2e7eead7e1ace4b68b7316a5b3701e50f5470d3bccdabe789aa22635972faa8"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/review_expected.rs",
+      "sha256": "c3d6ad03e007b1fbe72d38c8599c6844d41e26aa99e4120257a5c5136ed3ccd7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/rules.rs",
+      "sha256": "b7d6b6dcae6655655977c6144269e47c26ff08530b1c6caa2cd32e85ce3e35dd"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/terrain.rs",
+      "sha256": "32af43a1126629d235731f4bbb804efa4dadc6dcfaf1af643c28e152473e65a3"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/certify/tests.rs",
+      "sha256": "2ad69a34876d24cd15653de848dd9e02f9c0a7b6b4d037b17645330b83b4423c"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/coliseum.rs",
+      "sha256": "526faa8a711ccd3d7288a936cf7fafa7a590df07446f97ad89d76ab784fb311b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/det_math.rs",
+      "sha256": "565a4fd76fae936f16875cdacc32685c5efe22544a64071344d26690a8e1cbc5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/README.md",
+      "sha256": "9c9ef9b585ffb394cd77aaa922696458b1c001b28b58680f6304cc5ada20d297"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/attempt-frame.json",
+      "sha256": "35648fb9c3a29e7311a90e709c5261905d28324317201a0a923f18568fa323a4"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/bushes.json",
+      "sha256": "2d952f75ebdd127d4b314b5197aaa7c65a011ce24287e523b06566b24f78b0f9"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/foundations.json",
+      "sha256": "17da78d47f07f6ece5e3607b5bdb2afee241ddf5a06956657943044b1d3f91f5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-recipes-direct.json",
+      "sha256": "93df59c7c258dea802533723450889e2ec51f88e6838c95d3cbb36ea1e383ce2"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-recipes-search.json",
+      "sha256": "70927e2b4403f191e98534a4bef00ba1305cb6c4a266770918bbada05cb88bc6"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-runtime.json",
+      "sha256": "8ab699986b3c396d98e203ce226a70f3c1063a81c74fc6195fd9fc60d92773c6"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-search.json",
+      "sha256": "e22c6bf43c6943cf78c547364d47a7bcdd345ffd06a9482ef2cb0a9177fc5188"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-stage.json",
+      "sha256": "80cc19aab42206e0005ee5564eefcfef2c1f722e518c27f837f537de1b82b9c5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-support.json",
+      "sha256": "b3fc34682ff8ee970305fe7f5b5fad424619e55a2ae076b802a4e2ca97aad848"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/landmark-templates.json",
+      "sha256": "f394396e1cf43b79906026a5676ef736f1ff98818deba19ddf57d48d47545590"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-certify.json",
+      "sha256": "600267af8d96cb0078181818d445c93e9848e2f4cfdbbba6f1480ea8dcf13716"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-hash.json",
+      "sha256": "e759b79b4d12e4cfa12a40b12109d161eea4fa886d4aac73b64e910b96ade6e4"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-plain-pipeline.json",
+      "sha256": "16fb176897d1b08e7efde285a09eb7295ae8ff5c8c326d964f04c2a24e5c021e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-records.json",
+      "sha256": "78c82721b4810a8b244d8a64be18d49d8bcdb490e9d8a57b1edb48324138f1be"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-repair.json",
+      "sha256": "5c372064aa1553b0c0640dc88a5ffeac7773b75de82695b2b11be5eb363937ba"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-spots-owner-width.json",
+      "sha256": "057c391f632c60cb56b9667ded8db8e1cf0e1fcdffb975aaace5603a19d53dd3"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-spots.json",
+      "sha256": "fe6003335391be65ab58d2176eb79733a7c7d66ffe466b3fd28e1ad8809642d8"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-styled-controls.json",
+      "sha256": "da99746cabba195ffca2cc424bbaf629fce1e5513a8e538e5f414be27c975072"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-styled-pipeline.json",
+      "sha256": "1ac5736d074fee6557ecf645bcd084e73f8eff0ee4b1d68738e4a3a09c45d398"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-tail.json",
+      "sha256": "05120a2adcfc010e1698874b7d49b04209ff72a4a9198fc57f8e9543130c218e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/spawns.json",
+      "sha256": "c8d588539c73ab30f84c1b56d3f21b69bff62ab41a48e024b5b2857bf3fd6f21"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-contract.json",
+      "sha256": "e69eead0b44c674d8034cd5957451e325a65deb601d5d6dd3afe9eaf6cf69eb9"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-features.json",
+      "sha256": "88705f9c7b6db61c9a1e9513004359cf907de9b8b6f70c93b9c31981a5b0a15e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-gallows.json",
+      "sha256": "fbc7607589a1acbf76e4f6fd8be53056fe7ab02a8a97157287e6117615436749"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-rime.json",
+      "sha256": "4d9ee0c7d2c19ec8ad321ada7750c4a5c592756a4197a3ce95577d09eac235c0"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-runtime.json",
+      "sha256": "d054328fef0903c08ea08acbef32a0daaae14ffea32766dae544d0dc72ace96a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-sanctum.json",
+      "sha256": "265b77937043ffad7854babf0c2e944533896442528291fa4b953edd45151331"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-scorch.json",
+      "sha256": "b5bafe898ee98d73850b1e7299affe36fb3d715fff33d2a6e4b1a2f731afa94b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-warren.json",
+      "sha256": "88d2252c7fcfb524556ba1809fc3715947c2cd504a95c6459acfaefca66a859d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/styled-open.json",
+      "sha256": "bbca028fb5da00d97172b828fc8675a2a82d94feb031bc1539f7d306b6170a5f"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/terrain-gate.json",
+      "sha256": "404ccd67e606038b8231ee6ff08fc7db6abfa231e8f6c110e8c09c35b8fac5da"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/zones-camps.json",
+      "sha256": "981af58296d87133346c277f3ee4d07beec0417e5af6fc87ad3fc6ea2c300bb7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/zones-partition.json",
+      "sha256": "72249e9fbff78eed86c284926d56cf68cb94e7e7baa39077ccf7580c2cd97c3e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/grid_ops.rs",
+      "sha256": "8c60299980b55d461eb4ae41e4b5e2823fcf17cd179251ac4b9c6a69b641d4f1"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/grid_topology.rs",
+      "sha256": "64771a43fe874c19c79dc9f364ea90cf0539747945d5576170f86283c3f697a1"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/mod.rs",
+      "sha256": "e62fbe676e6f52f88b70c22de8e26cbe87f0e2d002309dc3a5ba3cad88f9c22d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipe_support/README.md",
+      "sha256": "9639fcbe17d8f8fcea88f55eebcccdfd3509517b0a88c4b7addb22a016505c2d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipe_support/mod.rs",
+      "sha256": "4c9f163042c020947fa43a696473d4751a9dd8a99669c45c4f1c94f1fac67676"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipe_support/tests.rs",
+      "sha256": "8f4cca28ad2eb094dbc8f355dd71a5b8c7f6a834f311e99316466d7a3e07e697"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/README.md",
+      "sha256": "748c93c2718e51079509090cc0a30f3055c10a5be326e622182fa3b49d088730"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/README.md",
+      "sha256": "f501cb974320db0d58dcb9813a6b750f89975524ead272be47fabbb17c2f4e5b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/mod.rs",
+      "sha256": "8c5a1986e2ac3f2b5d570d5e9c70b141b24ce4f68dfd9f500cbc756880e91195"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/rime.rs",
+      "sha256": "b2c649595564e495440537a0a8188d8dc2744d05d86d1d0823afa61cdfcd0c76"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/sanctum.rs",
+      "sha256": "7c96008c2c2e27dfbe0cf12d3c99f624d999d05ff3d442d52ff28ccd3dd3113b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/tests.rs",
+      "sha256": "a2419befc50edd6ef2db4662e6a720425a1aa4fbd0bdddd7351752b7022225fc"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/warren.rs",
+      "sha256": "0c16c132214270434321754e0cd5971f0940e875d4e2a7fd4382917599631af6"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/mod.rs",
+      "sha256": "0ae2815b1c577331d50269cf7031819f48e78502ee3be2d3669cc4a9f132eb85"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/README.md",
+      "sha256": "421eecbf225686a30c65362a7ba4dfb4450be82dd644b485bcbb952e7feae954"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/evidence.json",
+      "sha256": "6a5a21a720a2a8c16f1c02d957af0e660efa3c82591d775e48507c7aed0657ed"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/gallows.rs",
+      "sha256": "9e7a0ef5ce730887e5bfa84ff7a97c971df738ce3d5f1f3dbc974eab1dcd8b33"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/mod.rs",
+      "sha256": "9d61f05a46e67392c25f0152d45b0c08ffa98f104462a4a9f491a15cee4bdd20"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/scorch.rs",
+      "sha256": "fc157740ef8c8e07db8440ef01e5297fe99820254dd99eee76df98cc86deb2f5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/tests.rs",
+      "sha256": "f73b8cf31643b14a7eaa8ae19997bb44332318e12dd07f5f10e90df6e2c3df8d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/runtime/README.md",
+      "sha256": "aaeed479795d663ee2cbc300269f4e84b6dd49a77d9ada01493bca86635b7b5f"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/runtime/geometry.rs",
+      "sha256": "d1341556510bbca5236821fcdd4bb74e95eb70cdeedbd03fbeb8520248da1322"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/runtime/mod.rs",
+      "sha256": "9b2b45e1e32ee7368d748213f6da82d9a5147789b97bd3b4bd6dd41add0a84ea"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/runtime/rules.rs",
+      "sha256": "7ebcade9ec171c99f230ac753bf943a72870238ec0bf55e72eaf7c32eb6eef59"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/runtime/tests.rs",
+      "sha256": "55ffe278b0ef5dfb5b9f47523de326ad103ffab45bbbf5bacbf9f7947eb82dc5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/search/README.md",
+      "sha256": "7422b7cab97f59432584d9aa1868073be400727aadb8ec8fbd3e0da9a390b2c4"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/search/mod.rs",
+      "sha256": "30a9ea4477709c9c9bc77359b8b1c86bd21d71c77ba2e70c385c13aadec77641"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/search/tables.rs",
+      "sha256": "a122339dcf167120c65127c6150c6d39d644172fe59d28ad1b5b90e215f9f62b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/search/tests.rs",
+      "sha256": "99405f696027b3c1d6f7df1bf6a0d6e7b6c6b47f07b0bf67b7363d62bae4657c"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/stage/README.md",
+      "sha256": "77b0e34c92d415df71ef36ee37ceb36dc1232c8be68c13847efc701e2667186a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/stage/mod.rs",
+      "sha256": "26a9e13f9614cc0b51777aa90cc642b0bf629acc45f9b43b222c6f9ea0cbaa7d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/stage/tests.rs",
+      "sha256": "673f8ef07705c19d4c95ea45bd3be17ad0fa0623b95d34346234cadc3c479783"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/templates/README.md",
+      "sha256": "ae5c4e90c268a7eb753b674ae95dbe2518ec7ac884a8d585e5fb2052efc5455d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/templates/mod.rs",
+      "sha256": "9384475342e44c92b853fcb3f321adac49558e3e13dc86d9d9c92aa808ad3028"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/landmarks/templates/tests.rs",
+      "sha256": "b07b06a62d3266f28ce36c34447b79d6d1be5dbcc8ddfae038e48138400923ac"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/map_hash/README.md",
+      "sha256": "dd159dafeea30d0d9cced0b68123bebcbda0365d270720c7796d31547deeac35"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/map_hash/mod.rs",
+      "sha256": "f0fe75f091ded1b81ca15dba75b1474d59a161e40c32ea588af9ed2f81ca9ab5"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/map_hash/tests.rs",
+      "sha256": "5b34b6e72cad48a1742cf849fb1db2cc004eef1be58ed2491c176f9ae81d39b7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/mod.rs",
+      "sha256": "baad4ae4ba965763dac6a9ffb2b70545025aff3b95db0b780361a6ea3267802d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/README.md",
+      "sha256": "ae37a4c03fbdfbba8198f322dae59859d1d224f85d42642689fb617877d1b000"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/mod.rs",
+      "sha256": "632e3e13c1c8349c070695b73d96d738c975b3919d705c6b995007ed06ea5d3f"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/rules.rs",
+      "sha256": "565bee05a969c417120ea041eb0e0645df13152d200ae9e73f50f5d841276944"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/style_contract.rs",
+      "sha256": "6b9bbbfe150cc55a384b4189c55bfdaf238e4f6618cd944df6abdbbd8dabd691"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/style_contract_tests.rs",
+      "sha256": "6615c018299284b3d5adec6538a46528140e0d70b4e4ba44c36f2bd024d0979e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/styled_controls.rs",
+      "sha256": "d974b9369b29ece9ece8b26e7ee7b71e925e1b92097e032d1e0d921b0c94a288"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/styled_tests.rs",
+      "sha256": "f29da9364dbf8b47bd066c92e32c43d6bf55a887bc425ea2333a8dbd9d8a3d2b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/tests.rs",
+      "sha256": "91c4db4fae45d0ae006bb19ae0d9872d6432c170d0467d0a9deaafc5cbd7ff7a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/records/mod.rs",
+      "sha256": "c2a966e13ea0f3ce11496ea1de64a35ff4e4170793a571e0d5651e9d472a1f9e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/records/rules.rs",
+      "sha256": "9af37ac80000aa06921a340db47e5c1c11479bb323a33f50cc4fbea8a80cd7db"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/records/tests.rs",
+      "sha256": "c5492f616c3bc35f0f10c345eb4e9edeca8223aab0ce1300554a1eff90a61016"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/repair/README.md",
+      "sha256": "c2c33604479c8a7a18e813d9e35f59cdd04a117795163fb6519779e1c7c3c94e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/repair/mod.rs",
+      "sha256": "8ee010433775410ef33f31f0891a23053914fa95d3790248e1bdb6af96016ecf"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/repair/rules.rs",
+      "sha256": "23883ea93f71220183214a6fec93b0d5ae834546f5ade79f1ecedbda955ccfc8"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/repair/tests.rs",
+      "sha256": "606611ec858b654c40d1cbd8942e9542620309dfdbba86f1bb062b5ea6924c2e"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spawns/README.md",
+      "sha256": "2315ac9cd08dd0e6ce685e0ba675d13d90a805d3b5bf9ccc8c3ee98d32aa7a3b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spawns/mod.rs",
+      "sha256": "791c75865d7023295f7207a52b30fd1112bd9f4a2e969ee6c2b0bee65d213d18"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spawns/rules.rs",
+      "sha256": "f8e59f1731220753f79739875de3ebbda7f60a0fe41be59164c173745a6f1778"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spawns/tests.rs",
+      "sha256": "c2bcc20145ed310003e71412908138ad145d4ed0b5de84b2843ee4771e7396ef"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spots/crates.rs",
+      "sha256": "7993cf33f04439d4cfce0200704ab3ef927ec401a2def88fe0b55c34ff5ad898"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spots/ground.rs",
+      "sha256": "938f125aca6f802cbb137eab0650110226aaee8534a0ca293492ccf7d283b5ff"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spots/mod.rs",
+      "sha256": "157eb6ac388beeda6ae3e3be6f5c81f6145717fb34b88a41a4c3812fdb16e152"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spots/owner_width_tests.rs",
+      "sha256": "f14ae7042df7656456222796a4d799710747ce0474156b260371752046f8498f"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spots/rules.rs",
+      "sha256": "39e20891008f25b01b7d95727830476110de37b23cac22e3290510ceaf1b5384"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/spots/tests.rs",
+      "sha256": "96b0ce14b4de15784c72816fd5d0129285b5a42dec66db3fad702ac24ecbbe2b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/README.md",
+      "sha256": "4671a9ee84dfec62939c9476e8ffdaea9d69926fc3a48f0b4dcb87c148adbbcd"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/fields.rs",
+      "sha256": "5ed81263da851cf51fa6982e7c2bce1157bfeea2eb8bc00c512824a1f7062b04"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/geometry.rs",
+      "sha256": "d40c5105f94531f939e3ed04b3009fc6d9c2e384a30aa1074c5af34e46612754"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/graphs.rs",
+      "sha256": "af4871d315bea075af41a1c6d99f87c555e1c31718af286fd37b457d9c689795"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/mod.rs",
+      "sha256": "32d1c6ab16f139370682243b2de9e8f5d99f7e07d5817857d7906b8b4fc5eb9d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/rules.rs",
+      "sha256": "7c2ef14d8a5a413434ae6fa3f1d2f9e0d59f734d7300bffa1327fea85c043fc0"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/search.rs",
+      "sha256": "ba34315dc25e5dfea6bdfcb56aafa4a51280fedab030ab1c1afa31511916ca0f"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_features/tests.rs",
+      "sha256": "648c1e4caa6b68f1d394229f9657897c7abe5726ad3b6134951a18f0ac09167a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/README.md",
+      "sha256": "5e3aea7d5d6a38c3e3b408ee75890131178370e7e73c19bfb62cfe84cf0b69bd"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/detours.rs",
+      "sha256": "6945dc01e5c6640b3e275b72cb25566bbb5b57c0da6023cde03235e060caae3c"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/mod.rs",
+      "sha256": "778fa502222353c107499dda84ab789c64fa69df9cf477d62cfd20855b90b4d4"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/rows.rs",
+      "sha256": "b8a523cffa3b9e97bdc066b82a3a54037172d241bbeb8b46409a25bc663c7026"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/rules.rs",
+      "sha256": "cd55fb931db5e4abc913f83b5b1df31377c7424980b2604f14453cd0302b3505"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/shape.rs",
+      "sha256": "e6ec5f189658b755da0b945047aa0f1a5f0f503d7fe424ef956a259b1d8286cb"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_gallows/tests.rs",
+      "sha256": "1baf224923f74564f9aa5904a3508721e43574cae54f23a8e8e50dced0bd1a67"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/README.md",
+      "sha256": "e19aef3f1ac34a89515a46a8ef91ad054b124309611f845a9495ebff956e97e7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/lakes.rs",
+      "sha256": "493b06e076244be20f68693676fbab8c22fad1c98512a1aebafa5707d9aaee4b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/mod.rs",
+      "sha256": "8d3de1cf8fb6000f41d445eb433a0e0df7b0d102c0151da5c88e3f73f110d9ff"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/routes.rs",
+      "sha256": "d743b47a011ee3307b37a87d68402820b3d6e58193201aeb829bbd97c2572d80"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/rules.rs",
+      "sha256": "49af63f4438fd74bfbc8a5b04448151f02b366503a1bbe3c70b27d0334e292b8"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/shape.rs",
+      "sha256": "618f2f3cbfd53e45314609c898afae171d098b7845ea3d26dc3643e4636b8a34"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_rime/tests.rs",
+      "sha256": "2074672b34673ce5d072652fc314686518cb6f6b4af30a9aeaf8307c7e37d4dc"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/README.md",
+      "sha256": "2feef42fdea6755550d94846ae524e92d24e94ee1590e8a0ae87d8c2a16131d2"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/connectivity.rs",
+      "sha256": "28aef3d70c9a4df19aae2922ad0c5dd55d4e5037a8e10df09e4cb0dbc2f10a77"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/contexts.rs",
+      "sha256": "7fe156c8bcae09c42744be31056af290dc62b85223481f63a3b59d6bbd6a7d5d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/mod.rs",
+      "sha256": "961aeb15b684b83e889d6684d3678c4af4dc2fb849b5125eed6cb58c894c91e3"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/route.rs",
+      "sha256": "fef950f75fe4883c337e29ea2e99dd491fbfa2355ff1aa8e693b9601374a4fba"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/rules.rs",
+      "sha256": "fef4fa827a3bbb55ea54a686755ba5ac00413ddfe0b4668abc1c60e8d4de8f22"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/tests.rs",
+      "sha256": "14feae90f6d8cc2b89b405851a96ef0e385d731577a2d1f67f9190974794977c"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_runtime/transactions.rs",
+      "sha256": "c67213bebfc2e2bce13fbcfe0137d1dd4d04564b50b7d405014ec4a9d32007ef"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_sanctum/README.md",
+      "sha256": "f4e831fb5e2b52448f1a12aac5998ed25987f1736f7b1d2699fd1a1434422ab1"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_sanctum/mod.rs",
+      "sha256": "9f544ea2dcd3513fcc3092da2715acc82fe1ccdf430ecc61e8f791cdea5e5b15"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_sanctum/tests.rs",
+      "sha256": "bfc7e399d1e79ee5664f88f42a8decbfbbe7cf1f85680c11bd469391f8b9bc9d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/README.md",
+      "sha256": "8c9feb10bbf074670e039e054ea5a3dabc2da52dde2de1ca92dc27209e4f0260"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/craters.rs",
+      "sha256": "28f38d22b288bd3e1fc52a13f39aa833ed9c7bb6fc60256fa0883f8ae41253e0"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/mod.rs",
+      "sha256": "53b3d974dd4edc9b6a4bd765d61a1acd7db39720f703e2696a80f9a6ae17881d"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/raster.rs",
+      "sha256": "da0eef01928f7701721e40631efcc976df603c5f21acced6951f89eff512b3c7"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/river.rs",
+      "sha256": "6152f7932ddc9ba6da8391baadd34d8d62659f9542561eed955475031453a119"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/rules.rs",
+      "sha256": "b0d04f19c4cbe61515bf09bdb7d952692ded4560415c9e3c44b359c5cb6d10b8"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/tests.rs",
+      "sha256": "1f7672327275cc3d2c3d56925fe8641445bd4e4fda00145907ab20d2742b9c96"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/README.md",
+      "sha256": "8542a7e5a4fba3b15877224022b145a690a0e7da1224d5eef1374830e0649699"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/mod.rs",
+      "sha256": "83b9e1c77d0060297c0c09cafa0e3d7e0d07339afc76e0cb02f01532a4fad947"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/planning.rs",
+      "sha256": "be7488383aceb65e58fe162ff2ad2183b3083537a57fe7551dea9bfbf9ef52a0"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/rules.rs",
+      "sha256": "799ea54ce39eb245d9964d1f8bb94b9f99740b6827eac5e3891540abab61d124"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/shape.rs",
+      "sha256": "f917017a8fd303ec47bab43391d64da41bfe3b4eeb631eadbd9b32354d868020"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_warren/tests.rs",
+      "sha256": "398a19592fd89671ff9ef773c3618463df725a574806474e4c7247447ee7d236"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_zones/README.md",
+      "sha256": "42ddc24c37eb008a2c83d8c5a9892f4254ad08db57cc124032f67648f093233a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_zones/mod.rs",
+      "sha256": "3afb23f4e2861b2913a600d56337a22f868164b3c7f318e448cac4fbe2f7c636"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_zones/tests.rs",
+      "sha256": "4c6a3a4165bc28f7e795a33d2472de4ea94eb2d126c111c1d3b3635a5054a8ce"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/tail/README.md",
+      "sha256": "37054ddaaccdeedafe1aae3754253fa82d7b27ff1acdfe80de1869dc6303e1fd"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/tail/mod.rs",
+      "sha256": "4568a6167502b7d9f36a3532cc4ea678797779c73b8f91189fb6705b0db751c8"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/tail/tests.rs",
+      "sha256": "2220b6f9f5b19ca24d9115621a777eb94507bb2af634087b6ba8e3ffff33889b"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/terrain_gate/README.md",
+      "sha256": "5ee73f460a670066df496127db314469d1f9baa0b942d99dda303d81f677ccc4"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/terrain_gate/mod.rs",
+      "sha256": "10dfd6e86bd927231d15429dd8968e0eae73123d5f62d325667fa7af4a82fb72"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/terrain_gate/rules.rs",
+      "sha256": "31b06cd05bb84cedd6053dbb2fc9d618e953b6bf6768386a83e22f8f0551bc0a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/terrain_gate/tests.rs",
+      "sha256": "8111ce0a294c3816aa35078c1a4943052d9363fa5ee11833d4b4c56b19aacded"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/tests.rs",
+      "sha256": "3a08ddd57b936e392e67f7509094e41389bff0e7d7a987a529126b318afe7f5a"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/README.md",
+      "sha256": "a3e5b233186e033a28ef7cc4a8031108c00d6ca612982388151bda905faac765"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/camps/README.md",
+      "sha256": "8dc13855450e8c4d47a41e19498488beecbc3560623b145c536aacd434858895"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/camps/mod.rs",
+      "sha256": "59dec64169a9ebeefd9eb45ac8d6596762d5656e1a5c1e34ad62d475b3c75bc4"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/camps/rules.rs",
+      "sha256": "96791769a530a76d37aa054272465c109bfe2c80cd48e03e043b6da6ef9a5ced"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/camps/tests.rs",
+      "sha256": "f34501bf8fafd8dda5a38d720b1cfef240e3ee69aa9ed44d50d3e6c8e2476948"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/growth.rs",
+      "sha256": "819af3c52ceb0ec09ead75b33aa7348ea482faf9db30107577cb69ece9e8b123"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/metrics.rs",
+      "sha256": "4694b6614966625a1809f04c997c3f8274a3aee83bb64a935467035768c6edbf"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/mod.rs",
+      "sha256": "cc8e12e449a7f807f1a27379240b195967af496dcc922d69d69dc8c45adf1622"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/rules.rs",
+      "sha256": "2e8e6a85a8fed08dfb047db2c289a5235f65756019282cb026b14c6fce060ab2"
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/zones/tests.rs",
+      "sha256": "cc00fe22ea122566ed9330f24e2425124266b8911789cf8db205b250f948bffd"
+    },
+    {
+      "path": "crates/rh-sim/src/math.rs",
+      "sha256": "cb1b2f77eb8775fa5757270bd46c1a3e8dd80a5acbd0f5338a2b8d771dfdf752"
+    },
+    {
+      "path": "crates/rh-sim/src/observe.rs",
+      "sha256": "1032e08e100261677a69976c2d664690a3dce8c68c5ce304fbd8201ea97ddc36"
+    },
+    {
+      "path": "crates/rh-sim/src/pathfind.rs",
+      "sha256": "f2041cd2512bebba8d3407885b495529007cb5091d33f171c01a48ef2a7c1394"
+    },
+    {
+      "path": "crates/rh-sim/src/replay.rs",
+      "sha256": "a3c6c540c58d97fba7adb3e75230513712bce438b86c45c4169e9b5ba7a47574"
+    },
+    {
+      "path": "crates/rh-sim/src/results.rs",
+      "sha256": "d5ba73d3c9818ab830751b35c7c84a72ac60e7b849bc86d366f6f167e5158672"
+    },
+    {
+      "path": "crates/rh-sim/src/results/tests.rs",
+      "sha256": "f96ce95df2e1b414941f9105107aa073ebc95d44588224ca19e069993efd1f38"
+    },
+    {
+      "path": "crates/rh-sim/src/rng.rs",
+      "sha256": "460fa815777b3e9a76b0f685986a90a5c1e70006168a5cbe39fa8917727ee871"
+    },
+    {
+      "path": "crates/rh-sim/src/schedule.rs",
+      "sha256": "5eca1b7b4e9555b7a596d9951fb9118ed351fb2f8f768ad60811456640b17694"
+    },
+    {
+      "path": "crates/rh-sim/src/scratch.rs",
+      "sha256": "511096980c61d191caf0e4eb18096a8ebcc7c40f6592ada432362b681bcc82f8"
+    },
+    {
+      "path": "crates/rh-sim/src/sight.rs",
+      "sha256": "52ed3edac149d81833fda4b07f189425d8db962ce04d03fa2225a93e5702da0c"
+    },
+    {
+      "path": "crates/rh-sim/src/sim.rs",
+      "sha256": "591182d896d87e2b9ad35fa6592ffe10dd8af2829e59846d59d058f765384bc0"
+    },
+    {
+      "path": "crates/rh-sim/src/state.rs",
+      "sha256": "67851e01658ee15c4403b404fc657363952fa852000b8245cb5e44f8a19b4342"
+    },
+    {
+      "path": "crates/rh-sim/src/statics.rs",
+      "sha256": "a8f2179938b58316106dc90651c8275c265670901567c6a653bee651ee2d710f"
+    },
+    {
+      "path": "crates/rh-sim/src/store.rs",
+      "sha256": "f14a5bf6dda0c9b4f376eecf93f8897f37f11957390cd5cd8ea8f510bff8284b"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/credit.rs",
+      "sha256": "58664aa1b505875813a8b5d6e0856d7c3bdc73e2e8beb3843d716125d237be8b"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/fire.rs",
+      "sha256": "0df9b38bbe6e6c89fbb645e5d009ac9d059baba3a2e42b8dce4b07ab730f5bb0"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/frost.rs",
+      "sha256": "a9db2423a50d9cdf75f76a2857fbc828d08fa21f962e3c1706ab9c5347dd5827"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/heal.rs",
+      "sha256": "304366664f2fddcc24d20c001cbd38d09d27367a0a8e8b1d06defab5809d06ff"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/inputs.rs",
+      "sha256": "af701734c8c08503aa9160fa154f3f3d46c2482285349406ed095bea3e71b1a3"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/items.rs",
+      "sha256": "009da897efe11be76913eee32fa7003bd8bdbee15a073b7f01d4c8589b0ade21"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/ledger.rs",
+      "sha256": "b702c43d5e484c9d7ef98773ccb73a553338a999faec4e413c8b3288b47f62a5"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/lobby.rs",
+      "sha256": "12a710cde23ad546fe9befdf32690fc71f2bcbabe1dfda3b7c1cecdc929682c0"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/loot.rs",
+      "sha256": "59ec20cf3d711d58df788f833b955608813182d72f2902f17c80a1dc03aa06a1"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/melee.rs",
+      "sha256": "0364aa8a26fd045d22eec941113d78a913717603f07f02a239dc3374f421dd45"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/mod.rs",
+      "sha256": "ca29bdb2c68a85e4d996756295776ff1d4cbd0bcd7bd396f9fb0bb59e64d77f3"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/movement.rs",
+      "sha256": "3c5d3cf95d100e15e1967c8e3f2069e45f705acbf44d53551e7638c5a603f18c"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/plague.rs",
+      "sha256": "850a6e69c91b43aba4f74fd70b1a496f16b05b5c12834da8c960f44a3e512100"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/projectiles.rs",
+      "sha256": "471e7c722d439144e0adb8709717c0466f460878a65618f1c867764c222aab10"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced.rs",
+      "sha256": "94a6fb367eb7895e3acfbba5813be69d830653332185f9bf811e76a49f3a3e62"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/actual_source_tests.rs",
+      "sha256": "e8fdd504d8006e43c5a0dd144b2b736e4a551fd75923c3e4ef7ebea85d67f3c1"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/public_tests.rs",
+      "sha256": "c115659ce4b179891b15036d117adaa76071fa39967241b368e30ea2166c0ff5"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/sentenced/tests.rs",
+      "sha256": "8ab610d51ebd7b2a3f6b0414807d55b691a374330a28bb9f01733eb7b205e9f3"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/settle.rs",
+      "sha256": "5e8afcac0b4dc209f4f858ce3c2294aec4410160dbbd026cc3de677cc5dfcb0a"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/signatures.rs",
+      "sha256": "efd2dee8195236e0cd842b8301e04031b7273a021a2579ed4ae43d3a301197bf"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/targeting.rs",
+      "sha256": "0e43c80b6937b8c36ac1eb76c701cfb5fbcb5a41d6b8ddd2bb04b79e7f2fe2fa"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/tests.rs",
+      "sha256": "d32bc07baf0f3dfa8adf324b3275906956db0b3a6fd04603666d5b8a7779279b"
+    },
+    {
+      "path": "crates/rh-sim/src/systems/weapons.rs",
+      "sha256": "72c5c212a6789170807eb789dabd340b52a2eaefd3e38b4bda518b1919f45d38"
+    },
+    {
+      "path": "crates/rh-sim/src/vision.rs",
+      "sha256": "d8b2040c185810fe53984897e1dac3e61cf99d33eb4f17f2064451c4a5437bc5"
+    },
+    {
+      "path": "tools/map-fixtures/README.md",
+      "sha256": "72c14bcb6a42abaf6bc2a9a12be5491caa97942929c087862503aa7cab10ed97"
+    },
+    {
+      "path": "tools/map-fixtures/attempt-frame.ts",
+      "sha256": "86e378baf2885ffb993a718134a2bd0ff721f81d6adfb9ea96b2b41888e9bcda"
+    },
+    {
+      "path": "tools/map-fixtures/bushes.ts",
+      "sha256": "1b501095e37de491fc702668818be69b204ce3edeb54444c2e6d2997f069c910"
+    },
+    {
+      "path": "tools/map-fixtures/certify.ts",
+      "sha256": "c92ed3e2dc2f8131b8b976c77d187110c95543bf5528b3c87af71c37d34a1678"
+    },
+    {
+      "path": "tools/map-fixtures/foundations.ts",
+      "sha256": "9415a8e62954b7c2c8e0f031753fdfab44949fe033a099d283af26a3668229f3"
+    },
+    {
+      "path": "tools/map-fixtures/full-map.ts",
+      "sha256": "9a231e1f87a70eed03e61f6a635d43a06302ac70b6cd2a0e33d0abafe7d611cb"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-recipes-direct.ts",
+      "sha256": "924bce6cecd9fc0d87fc935ee328f17d48e37aee0d3085ebcc5dc84005404655"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-recipes-search.ts",
+      "sha256": "630848a76e68e2dd51dacdd13c016fd6db04049bf7498faaeacfb5ce7cc8fae2"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-runtime.ts",
+      "sha256": "2aedf3ea9cbff3efb29759761ba0f16339aad50e43a604b31a4f28791daa4e4c"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-search.ts",
+      "sha256": "c1ab65e70387a7cb70e1a9e27bb2e40b9e83b1e54ba373f75725d6ba479713f1"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-stage.ts",
+      "sha256": "145bd272cf84298a3e38da2594df42bf15672963043913e163eb674871085b45"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-support.ts",
+      "sha256": "bd61275170ec605dcf02f2063200968e1b7b5920a3b0ac64d0c3657e6899efe7"
+    },
+    {
+      "path": "tools/map-fixtures/landmark-templates.ts",
+      "sha256": "414c6cadbb6e384d4e7566813cc9066001d03f9ac494a0ddb49ca7c1e30b0f3d"
+    },
+    {
+      "path": "tools/map-fixtures/map-hash.ts",
+      "sha256": "21578f3b3154a73fe0c2684bd6a246b1f3743c2a1700d4ba6d49fa0eebbaa430"
+    },
+    {
+      "path": "tools/map-fixtures/plain-pipeline.ts",
+      "sha256": "0adc6f31b9d990e3eb36ddf6cb1ba86d1ab62c08b96be0eb24a5c8ab89aeb925"
+    },
+    {
+      "path": "tools/map-fixtures/records.ts",
+      "sha256": "6727ee4ee0cfc90a8e99c755a0b95b4b1ead854c06485a54f9cd6194012eceef"
+    },
+    {
+      "path": "tools/map-fixtures/repair.ts",
+      "sha256": "a573326d4a9190cb15a3f52f6aa27cee59ee2edfcaaaf8ea0e57d4fd437721db"
+    },
+    {
+      "path": "tools/map-fixtures/spawns.ts",
+      "sha256": "e9455f0fff88a941144fdd65d5927936380a6f5a83fd0d4da8588aae30361be7"
+    },
+    {
+      "path": "tools/map-fixtures/spots-owner-width.ts",
+      "sha256": "30a90791a5ad807d9a104178191cea4c1e99747740fd7ef5e432502ed66cad01"
+    },
+    {
+      "path": "tools/map-fixtures/spots.ts",
+      "sha256": "9f1f975a5d80f8a17c363140e87f71ecfb8ba850d6c769f81e12f22e6c719921"
+    },
+    {
+      "path": "tools/map-fixtures/style-contract.ts",
+      "sha256": "1de73eacab5e29ba9a31b5f3f5087345f67099efa3ef09ebd38e98c2d886467f"
+    },
+    {
+      "path": "tools/map-fixtures/style-features.ts",
+      "sha256": "aad11fcba106cb07152479c318a66a9e9159fae0529fd1ac8225aed6c572d9f2"
+    },
+    {
+      "path": "tools/map-fixtures/style-gallows.ts",
+      "sha256": "c16c0b553f74ce7f81d5306729f937c15136a35f531e3dcfe1d5d8fe6f2774eb"
+    },
+    {
+      "path": "tools/map-fixtures/style-rime.ts",
+      "sha256": "d2014cc23f3a741e8ef3392d93c8a632c105426196725cca65fb3ff5aad001b7"
+    },
+    {
+      "path": "tools/map-fixtures/style-runtime.ts",
+      "sha256": "340bf015c6564562dad6c8b2b15bc2b39c14a7100c89e1618c22876a71271d58"
+    },
+    {
+      "path": "tools/map-fixtures/style-sanctum.ts",
+      "sha256": "d5ec897cdcafb6d68664576434a88753dd57c9a37ae3208aa4494707a352fc88"
+    },
+    {
+      "path": "tools/map-fixtures/style-scorch.ts",
+      "sha256": "14ea10d20044ed9712c8564a2b7d8c5b84d2f244031246ce7906805541d1c15c"
+    },
+    {
+      "path": "tools/map-fixtures/style-warren.ts",
+      "sha256": "c1e3acb3b49716e8be7e849318d52fe3c3bb051c9b2ec9ef26619d07b02b64e4"
+    },
+    {
+      "path": "tools/map-fixtures/styled-controls.ts",
+      "sha256": "c0e9ca4d72910afb654e6cbe55af61f86e805f761950c536ed9f5a6f04285d61"
+    },
+    {
+      "path": "tools/map-fixtures/styled-open.ts",
+      "sha256": "1d36beb693ff73822ae7a3de1d36675e36fc0a0d19942ec4b29fe0f4c138c060"
+    },
+    {
+      "path": "tools/map-fixtures/styled-pipeline.ts",
+      "sha256": "4d54c961adf9630822deb7d56dfeb9662acf3e29681ecb1a180f7cddfea2bbfa"
+    },
+    {
+      "path": "tools/map-fixtures/tail.ts",
+      "sha256": "a9696e49f10e8ccd0aaaeea798285b1a104910ddd30c83b084b9f45becb277a9"
+    },
+    {
+      "path": "tools/map-fixtures/terrain-gate.ts",
+      "sha256": "c0fb3cf1d98eee1cf101f6953d20a6bc3c25b58c37cc35bb3c2590d47b54534f"
+    },
+    {
+      "path": "tools/map-fixtures/zones-camps.ts",
+      "sha256": "c8971f01c3f0fa4c59c495a9f4716d8abf52bb2fb9ffdd7e65cf6e42a7c35b0e"
+    },
+    {
+      "path": "tools/map-fixtures/zones-partition.ts",
+      "sha256": "79a0bf0f61618da4113ceb9eaff4adf9c13e7225db4970d0e0d085a247eb35d7"
+    }
+  ],
+  "performanceEvidence": "performance.json",
+  "benchmarkHarness": "tools/map-bench/README.md"
+}

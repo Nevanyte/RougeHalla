@@ -1,0 +1,168 @@
+{
+  "format": "rh-style-zones-independent-review/1",
+  "decision": "ACCEPT",
+  "producerManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-work/frozen-manifest.json",
+  "producerManifestSha256": "7d3ea282ca150e7eae8e2c07c8a5ccd016bfbaef1eafe49e25d9e12542647199",
+  "sharedSeamSha256": "bea6cbbc3aa609bdd197e952e2f469dc475c57ec1316cf525a507864ab77ccef",
+  "reviewedRegistrySha256": "3afb23f4e2861b2913a600d56337a22f868164b3c7f318e448cac4fbe2f7c636",
+  "checks": {
+    "frozenOwnedFiles": 5,
+    "unchangedSourceAndTestHashes": 77,
+    "producerCompleteCasesReplayed": 18,
+    "freshCompleteCases": 14,
+    "sameNativeStateSecondInvocations": 2,
+    "originalOpenPins": 8,
+    "canonicalCaptureBytecheck": true,
+    "registryDefaultTests": 10,
+    "registryAllFeatureTests": 10,
+    "scorchRegressionTests": 8,
+    "rimeRegressionTests": 10,
+    "strictClippyDefaultAndAllFeature": true,
+    "rustfmt": true,
+    "independentSemanticMutantsKilled": 5,
+    "producerFinalSemanticMutantsAudited": 6
+  },
+  "findingsResolved": [
+    {
+      "finding": "Equal-area80x320 Fire/Frost geometry refusal after earlierwrites",
+      "initial": "ErrDefinition after2features/274props",
+      "fixed": "Unchanged entire State before reset via original Rime dimension admission."
+    },
+    {
+      "finding": "Initial malformed relevant watchtower/Forge boxes rejected after shape or previous-zone writes",
+      "initial": "96x96watchtower ErrFeature after3features/118props;Forge ErrFeature after3features",
+      "fixed": "Original leaf bbox admission extracted into crate-only admit_inputs; active-faction preflight before reset."
+    },
+    {
+      "finding": "Fixture source inventory and phase RNG metadata had insufficient checks",
+      "fixed": "Exact77names, wholebytes, presencebooleans, checkedseed/drawcount and independent seedadvance/continuation validation; rawduplicate/unknown/missing/narrowing negatives."
+    }
+  ],
+  "freshInputs": {
+    "fullSeeds": [
+      17,
+      41,
+      97,
+      31337
+    ],
+    "wideSeed": 37,
+    "wideDimensions": [
+      [
+        72,
+        96
+      ],
+      [
+        96,
+        72
+      ],
+      [
+        128,
+        128
+      ]
+    ],
+    "controls": [
+      "zero caps and decorfalse",
+      "all noBlock2/noProp1",
+      "reversed faction order",
+      "allfive faction entriesFire",
+      "emptyorder"
+    ],
+    "repeatSeeds": [
+      17,
+      41
+    ]
+  },
+  "inputSeparation": "Source OPEN builders construct inputs; observers execute actual styleZones and verify complete unobserved/observed caller+reports and two full-generator map/null/hash controls. Native expected states are only comparisons. Repeated probes retain actual prior native State and compare its durable inputs to independently constructed source second-call INPUT before invoking the registry again.",
+  "mutations": {
+    "independent": [
+      "omit-pass-reset",
+      "reset-per-zone",
+      "ignore-no-prop-override",
+      "wrong-shape-stream",
+      "invent-gallows-surface"
+    ],
+    "timing": "Independent5 ran before admission extraction with unchanged valid execution branches; final14valid cases and all refusal probes rerun after repair. Producer6mutants bind finalruntime hash, including omit-input-preflight. No compile failures counted."
+  },
+  "productionDelta": "Compared current live registry to frozen body: same default definitions, ordered dispatch, route guard, callbacks, component cache, caps and reports. Added generic no-op observation wrapper with immutable events and final streams, plus existing Scorch/Rime initial-metadata preflight before reset/anyzone. Shared reset clears only wrote/scratch once per call; validate visibility is crate-only. Leaf extraction preserves prior arithmetic and conditions.",
+  "dependencyDelta": "Private review retains coordinator current Rime NORMALS content fold and visibility plus coordinator expected-word test repair; these three files differ from producer dependency snapshots only in content-visitation metadata, with no geometry behavior change. No frozen Rime/Holy/Scorch artifact altered.",
+  "limits": [
+    "Standalone default registry and declared OPEN/input domain; no arbitrary custom styler/routeGuard injection.",
+    "No independent repeat of full200 maps or fullworkspace/performance claims; root and separate pipeline reviewer own those.",
+    "Malformed-input guarantee covers admitted initialmetadata and existing leaf preflight; no broad transactional redesign."
+  ],
+  "evidence": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/final-default.log",
+      "sha256": "ad29239186db8d9dd4e23323a4d097dc7d3d8df97b4b471f02ebae36255d9883"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/final-all-features.log",
+      "sha256": "07641c0c34c8b19eaa61e28b40eedae2b6441668aed6d24c4ceae7cceab9a77d"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/clippy-default.log",
+      "sha256": "b899f2816e5bba012f74152953afca5f7b3a7917da5d3873b29d016904ae56b2"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/clippy-all-features.log",
+      "sha256": "05a2ce384e9d1524e5818e9248f012cf832d7c93201588630c939485171b3561"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/final-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/scorch-shared-regression.log",
+      "sha256": "7b04fe4c0531efaf272606e85e36d414cb03c75e5c35ef67e4447e9196362428"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/rime-shared-regression.log",
+      "sha256": "b1c032e2934e5690fed0f6b73f82549a5b0251828fd163b60b44da05e3652258"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/capture.log",
+      "sha256": "b27ed108f03dfc102bac1d05b59a0af242d668cf579a71f4c3e88eedbf9fb887"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/check.log",
+      "sha256": "5a4a4f50029c31d2be9e14ae43dc969b83f535e536daaf0cf8118daf7e94652b"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/fresh-native-repaired.log",
+      "sha256": "452aef7b3a60c12a9c7dba5a35f08d6ff0db7a6fd5063433d5abe2094f50f3e9"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/initial-preflight-repro.log",
+      "sha256": "28675f1fbec187e96dd6c93f02b568600f0f80c78dc6902c4e4c8bf0fab43b32"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/repaired-preflight.log",
+      "sha256": "19f282b50ebc324b49e743a9267def8d49b541e0f83d32df625e41db57a8bd79"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/prior-pass-admission.log",
+      "sha256": "1b673ca9d1fde844f48454980d900a993acf36c583d64c9e7e28da307a94b96e"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/mutation-results.json",
+      "sha256": "162472811907904db249b8e33a28d06512f9c88282878448e14415d47ed30952"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/fresh-styled-open.json",
+      "sha256": "5b7e5075b2a8c2800aa492e77643eb5f921411ddb4d4581b6f858a7ac3a34752"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/production-integration-delta.patch",
+      "sha256": "4fdf0589f9ee5c909bd49289a71eb0c0db04a937cc044b8bac7ee63ac1738d99"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/repo/tools/map-fixtures/styled-open-review.ts",
+      "sha256": "87451eb50e73e7b77e6157eebeb73500894a8b0ef8ce5a68959a260f5b7a1262"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-zones-independent-review/repo/crates/rh-sim/src/mapgen/style_zones/tests.rs",
+      "sha256": "09b15f41897817f20014013b35dc017e4f20c0eb3e684697b720c1d6935cea96"
+    }
+  ],
+  "noLiveOrProducerEdits": true
+}

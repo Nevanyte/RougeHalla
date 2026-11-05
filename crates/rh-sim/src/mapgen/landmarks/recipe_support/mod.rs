@@ -251,13 +251,50 @@ pub fn camp_nodes(
 ) -> Vec<Node> {
     let s = rt.state();
     let g = rt.geometry();
+    camp_nodes_from(
+        CampNodeInputs {
+            w: s.w,
+            h: s.h,
+            mask: &g.mask,
+            tiles: &s.tiles,
+            info: &g.info,
+            camps: &g.camps,
+        },
+        dist_fp,
+        ring_road,
+        d,
+    )
+}
+/// Borrowed read-only source CampSource, shared by landmark and stage-six contexts.
+pub(crate) struct CampNodeInputs<'a> {
+    pub w: usize,
+    pub h: usize,
+    pub mask: &'a [u8],
+    pub tiles: &'a [u8],
+    pub info: &'a crate::mapgen::landmarks::runtime::ZoneInfo,
+    pub camps: &'a [crate::mapgen::landmarks::runtime::CampInfo],
+}
+pub(crate) fn camp_nodes_from(
+    input: CampNodeInputs<'_>,
+    dist_fp: Option<&[u8]>,
+    ring_road: u8,
+    d: &RecipeSupportDefinition,
+) -> Vec<Node> {
+    let CampNodeInputs {
+        w,
+        h,
+        mask,
+        tiles,
+        info,
+        camps,
+    } = input;
     let mut out = Vec::new();
-    for c in &g.camps {
+    for c in camps {
         if c.x < 0
             || c.y < 0
-            || c.x as usize >= s.w
-            || c.y as usize >= s.h
-            || g.mask[c.y as usize * s.w + c.x as usize] != 1
+            || c.x as usize >= w
+            || c.y as usize >= h
+            || mask[c.y as usize * w + c.x as usize] != 1
         {
             continue;
         }
@@ -269,16 +306,16 @@ pub fn camp_nodes(
             elite: c.elite,
         });
     }
-    let Some(fp) = dist_fp.filter(|fp| fp.len() == s.w * s.h) else {
+    let Some(fp) = dist_fp.filter(|fp| fp.len() == w * h) else {
         return out;
     };
-    let bb = g.info.bbox;
+    let bb = info.bbox;
     let mut best = None;
     let mut bd = f64::INFINITY;
     for y in bb.y..bb.y + bb.h as i32 {
         for x in bb.x..bb.x + bb.w as i32 {
-            let i = y as usize * s.w + x as usize;
-            if g.mask[i] == 0 || s.tiles[i] != TILE_FLOOR {
+            let i = y as usize * w + x as usize;
+            if mask[i] == 0 || tiles[i] != TILE_FLOOR {
                 continue;
             }
             let range = fp[i] as u16;
@@ -287,8 +324,8 @@ pub fn camp_nodes(
             {
                 continue;
             }
-            let ex = x as f64 + 0.5 - g.info.centroid.x;
-            let ey = y as f64 + 0.5 - g.info.centroid.y;
+            let ex = x as f64 + 0.5 - info.centroid.x;
+            let ey = y as f64 + 0.5 - info.centroid.y;
             let e = ex * ex + ey * ey;
             if e < bd {
                 bd = e;
@@ -298,8 +335,8 @@ pub fn camp_nodes(
     }
     if let Some(i) = best {
         out.push(Node {
-            x: (i % s.w) as f64,
-            y: (i / s.w) as f64,
+            x: (i % w) as f64,
+            y: (i / w) as f64,
             kind: NodeKind::Door,
             camp: -1,
             elite: false,

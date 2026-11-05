@@ -1,0 +1,47 @@
+{
+  "format": "rh-style-contract-independent-review/1",
+  "decision": "ACCEPT within declared typed fixture domain",
+  "manifestSha256": "a28095b41f75353621adb766d8f506ff35eee285bfc345c47f5e60f50c155694",
+  "handoffSha256": "a21713c2efdefaaa88fdc18b598d185646ee5ea45f517ee9762fdad8155a8334",
+  "reviewedProductionHelper": {
+    "path": "crates/rh-sim/src/mapgen/pipeline/style_contract.rs",
+    "sha256": "6b9bbbfe150cc55a384b4189c55bfdaf238e4f6618cd944df6abdbbd8dabd691"
+  },
+  "evidence": [
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/capture.log",
+      "sha256": "9ca1f2bb20b9d321d3431a6189101d47f6161e71d477704b8ea89f28106f9a1d"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/check.log",
+      "sha256": "0264e522321b3f73512887a10aecb833a83e16e44f97b403425831789bec36d3"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/final-default.log",
+      "sha256": "71e4120ecc79ef9a413fdda63baf25569b4fa950594eb05154e79545eb6d66cf"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/final-all-features.log",
+      "sha256": "1ee23872d615ebebc81ff3f849298be88178724ddaa40ef97a073ff24d465957"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/clippy-default.log",
+      "sha256": "52d1aa7768caf52a417797adf6c10ace1a5af13a75681fca51aad3dc10dbec53"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/clippy-all-features.log",
+      "sha256": "1f9e3c26ec050fac1d2fd7b90a3f3ca03defe13a619697c512698964dd9272a3"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-contract-work/mutation-results.json",
+      "sha256": "5fd63b9c2307da213bc0e2e6e344908916ab24d70f98bee2d31f93f4a82edea9"
+    }
+  ],
+  "summary": "Six focused tests pass default and all-feature modes; strict library/test Clippy both modes and owned-file fmt pass. Canonical Linux amd64 Node22.23.4 capture bytecheck passes; 75 source hashes match live. 37 named cases, 1944 independent cross-checked matrix cases and 6 T8 cases match exact source results. Six behavior mutants detected without compile failures.",
+  "nonBlockingBoundary": "Legacy dangling-owner exception differs from native defensive diagnostic outside admitted fixture owner references; no default or valid-owner semantic mismatch found.",
+  "noLiveEdits": true
+}

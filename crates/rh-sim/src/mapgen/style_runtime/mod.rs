@@ -146,6 +146,15 @@ impl State {
             scratch: Scratch::new(n),
         })
     }
+    /// A source styleZones invocation creates fresh shared pass-local arrays, retaining durable layers.
+    pub(crate) fn reset_pass(&mut self) {
+        self.wrote.fill(0);
+        self.scratch.mark.fill(0);
+        self.scratch.qa.fill(0);
+        self.scratch.qb.fill(0);
+        self.scratch.depth.fill(0);
+        self.scratch.epoch = 0;
+    }
     pub fn w(&self) -> usize {
         self.w
     }

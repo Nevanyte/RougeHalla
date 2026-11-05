@@ -1,0 +1,122 @@
+{
+  "result": "ACCEPT",
+  "scope": "Gallows/Sentenced stage-six shape and props only; source has no surface callback. Independent read-only review of producer; all added probes and mutations isolated to private scratch.",
+  "manifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-work/frozen-manifest.json",
+  "manifestSha256": "428b986e1a94d221f5b60883b6c461e50c5ad9aa4d3298d7efe4faf3db3d2469",
+  "ownedCount": 9,
+  "sharedSeams": [],
+  "findings": [],
+  "evidence": {
+    "canonical": "Cached Linux amd64 Node22.23.4 bytecheck exactly matches frozen 6 actual +23 labelled direct corpus.",
+    "freshSource": {
+      "rows": 53,
+      "freshActual": 6,
+      "freshDirect": 24,
+      "repeatedOriginalDirect": 23,
+      "fullCallerNoninterference": "All six fresh genuine attempts compare complete final GameMap DTO and mapHash to uninstrumented default caller. All completed maps; no terminal-null specimen.",
+      "comparison": "Every typed plan, phase layer, feature, ownership, runtime counter, runtime scratch and stream continuation matches native replay. No surface context or stream2 is created."
+    },
+    "nativeTests": {
+      "default": 11,
+      "allFeatures": 11,
+      "oldSearchFamily": 4,
+      "walkFields": 16,
+      "admittedPolicyCombinations": 7
+    },
+    "sourceHashes": {
+      "count": 75,
+      "allMatchLive": true,
+      "note": "Integrity binding accompanies executable differential proof; hashes alone are not parity evidence."
+    },
+    "mutants": {
+      "authoredRuntimeKilled": 16,
+      "independentRuntimeKilled": [
+        "extra-props-draw",
+        "row-phase",
+        "keep-recorded-row",
+        "detour-cap-even"
+      ],
+      "initialIndependentSurvivor": {
+        "name": "detour-cap",
+        "change": "cap+1",
+        "explanation": "Corpus uses even detour limits; endpoints have equal checkerboard parity, so all finite path lengths are even. Raising these limits by one is observationally equivalent. Original survivor preserved without kill credit; +2 changes actual admission and is killed."
+      },
+      "compileFailuresCredited": 0
+    },
+    "admission": "Checked fixture narrowing and unique-key schema, exact named sections, malformed-plan preflight/no-write controls replayed. Constructor numeric bounds reviewed for i32/i16 arithmetic, zero loops, Viterbi domain, and private BFS stamp lifetime. Seven admitted extreme policy combinations execute shape and props on genuine source-captured direct input.",
+    "privateScratch": "Planned L/BFS buffers are source-private with the source lifetime; source INPUT runtime scratch is restored only before callbacks. No expected phase or post-state is injected.",
+    "authorValidation": "Frozen author fmt and strict default/all-feature Clippy all-target logs inspected; no new dependencies or shared production edits."
+  },
+  "limitations": [
+    "No continuous native prior-callback or full styled-generator proof.",
+    "No full workspace gate or performance claim.",
+    "Factory admission deliberately bounded to documented typed domain, including rejecting zero period.",
+    "Native plans preserve source feature indices and phase authority; fixtures are source input boundary proof."
+  ],
+  "artifacts": {
+    "canonical-check.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/canonical-check.log",
+      "sha256": "ab74fa2cf3266330d55ca3bed92c7cb3504727d09d937ec638b0e9eaab17a502"
+    },
+    "fresh-source.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/fresh-source.json",
+      "sha256": "a969d65456e7e1caeb4414a83d770a25ca7332b7c95d642e890e1f9022e64a4d"
+    },
+    "fresh-source.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/fresh-source.log",
+      "sha256": "4476cf6573fbfc4d6ce350797d05d3bb16457d7d4c3cf0d93e4e98fe8b47783a"
+    },
+    "tests-final-default.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/tests-final-default.log",
+      "sha256": "73cdfbcfcc98c65b6b0b743ddc11b4be54d45e96d5d3e4f2e811a4c2510c40a6"
+    },
+    "tests-final-all.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/tests-final-all.log",
+      "sha256": "8d9074eb52dd66b1248c562a28cd2910faa13d2fba1b6a6426b2ad44315a4b96"
+    },
+    "old-search-family.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/old-search-family.log",
+      "sha256": "b6b0b43553292db650bf850b030dcfac9074c1bcd2cbdb6842807b5d6f02a5c4"
+    },
+    "source-hash-verification.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/source-hash-verification.json",
+      "sha256": "fa26f15efcf50753f6f0e7477311ac0335bd81ab36ff3fb7004d088503722b0b"
+    },
+    "mutation-log-audit.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/mutation-log-audit.json",
+      "sha256": "90e46a2e4c815b41be9fc76438923c7bef1b3f86155f9e6fcccdca3d1f53a05a"
+    },
+    "independent-mutation-results.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/independent-mutation-results.json",
+      "sha256": "4fca8e92cacb9bd141026671d78bd7cad585bfd8cab6157989413e89bf687dd7"
+    },
+    "independent-mutation-even-results.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/independent-mutation-even-results.json",
+      "sha256": "eec67f5a0ac016b55bb9655a742686aabf0f488e10a91fc444813d41a6d23bcb"
+    },
+    "mutant-detour-cap.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/mutant-detour-cap.log",
+      "sha256": "88c85d631cf9372c15f713d9feafa5d5992ab2488daa767c8ecc298b259e2220"
+    },
+    "mutant-detour-cap-even.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/mutant-detour-cap-even.log",
+      "sha256": "4524b337177068f6e4c50898afa0a6979dbd06272ac5f465b5f948b80169dda5"
+    },
+    "mutant-extra-props-draw.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/mutant-extra-props-draw.log",
+      "sha256": "6a934ae5d373c890a16d5fbd0a3dac066a5f34bbe6a2294a5d2edbb5356a68bd"
+    },
+    "mutant-row-phase.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/mutant-row-phase.log",
+      "sha256": "add7c96ae1d7e343b8539c578621416d9d2568a1feca6fe91d0e63ab5760131e"
+    },
+    "mutant-keep-recorded-row.log": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/mutant-keep-recorded-row.log",
+      "sha256": "db5bf9838a09b10e8f0cc6b782dadc88ae7a92f490e99dbd39ef24ffac4e76e7"
+    },
+    "final-validation.json": {
+      "path": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-gallows-independent-review/final-validation.json",
+      "sha256": "c3e48c225be8dcd2ddc99ad42c85ef1eede9142c0f2885b0f7109592060e0d1c"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+[package]
+name = "rh-map-styled-bench"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace]
+
+[dependencies]
+rh-sim = { path = "../../crates/rh-sim" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+debug = 1

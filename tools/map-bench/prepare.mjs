@@ -1,0 +1,20 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { here, inventory, pinArrays, repo, revision, rhSimDependencyVersions, stateDirectory } from "./source.mjs";
+
+const state = stateDirectory();
+mkdirSync(state, { recursive: true });
+const pins = pinArrays();
+writeFileSync(`${state}/pins.json`, JSON.stringify({ format: "rh-map-bench-pins/1", mapPinsSha256: pins.sha256, plain: pins.plain.slice(0, 40), styled: pins.styled.slice(0, 40) }, null, 2) + "\n");
+const dependencyVersions = rhSimDependencyVersions();
+const before = inventory();
+const target = `${state}/target`;
+const built = spawnSync("cargo", ["build", "--offline", "--locked", "--release", "--manifest-path", `${here}/Cargo.toml`, "--target-dir", target], { cwd: repo, encoding: "utf8" });
+const log = `${built.stdout ?? ""}${built.stderr ?? ""}`;
+writeFileSync(`${state}/build.log`, log);
+process.stdout.write(log);
+if (built.status !== 0) throw new Error(`release build exited ${built.status}; see ${state}/build.log`);
+const after = inventory();
+if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error("tracked inputs changed during build; rebuild after the source tree is stable");
+writeFileSync(`${state}/build-source.json`, JSON.stringify({ revision: revision(), source_fingerprint: after, pins_sha256: pins.sha256, pins_snapshot_sha256: after.find(row => row.path === "state/pins.json").sha256, rh_sim_dependency_versions: dependencyVersions, release_debug: 1 }, null, 2) + "\n");
+console.log(`Release binary built and bound to ${after.length} input hashes. State: ${state}`);

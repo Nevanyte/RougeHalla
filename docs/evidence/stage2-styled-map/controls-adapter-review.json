@@ -1,0 +1,8 @@
+{
+  "format": "rh-styled-controls-adapter-read-review/1",
+  "manifestSha256": "8c8a1b417c794560f6529b6e17aa7c98ad03f47c554032f7331e8722634d0c69",
+  "decision": "ACCEPT read-only source/native adapter inspection",
+  "scope": "Reviewed observational source copy, actual caller DTO/null/hash noninterference,16 declared input cases,195 main-stream continuations, retry and explicit wrapper cases, typed required nullable fields, rawduplicate visitor, exact inventories and narrowing controls. Compared all75 source hashes to live.",
+  "resolvedFinding": "Replaced source-name count-only check with exact75 SOURCE_FILES and rename-key negative control before freeze.",
+  "limits": "Did not repeat full200 proof or independently execute adapter tests; producer default/allfeature/Clippy/canonical/mutation logs and root full pipeline run remain separate evidence. No production changes made."
+}

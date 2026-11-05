@@ -1,0 +1,33 @@
+{
+  "nativeBinary": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/map-styled-bench-final/target/release/rh-map-styled-bench: Mach-O 64-bit executable arm64",
+  "quietBefore": [
+    "  5.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+    "  3.5 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+    "  2.7 /Applications/Docker.app/Contents/MacOS/Docker Desktop.app/Contents/Frameworks/Docker Desktop Helper (Renderer).app/Contents/MacOS/Docker Desktop Helper (Renderer)",
+    "  1.7 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+    "  1.2 /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "  0.7 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+    "  0.4 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+    "  0.4 /Applications/Kimi Code.app/Contents/MacOS/Kimi Code",
+    "  0.3 cloudflared",
+    "  0.2 /Users/nevinmckinnon/Library/Application Support/Claude/claude-code/2.1.317/91184d3d9ba3/claude.app/Contents/MacOS/claude"
+  ],
+  "quietAfter": [
+    "  4.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+    "  4.7 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+    "  1.5 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+    "  0.6 /usr/libexec/opendirectoryd",
+    "  0.5 /Applications/Kimi Code.app/Contents/MacOS/Kimi Code",
+    "  0.4 /usr/sbin/cfprefsd",
+    "  0.4 /usr/libexec/logd",
+    "  0.3 /usr/sbin/notifyd",
+    "  0.3 /usr/sbin/cfprefsd",
+    "  0.2 /usr/libexec/syspolicyd"
+  ],
+  "releaseBuildSha256": "68296893218b22665e13977d76b0721a2cea6ce34f2823d9592386dcc7257af8",
+  "limits": [
+    "Single quiet native M5 Pro run, 40 seeds per mode with5warmups; both modes decor:false.",
+    "Map creation only; no steady game-tick, browser, GPU or rendered-FPS inference.",
+    "This paired workload differs from historical default-decor CI timing samples."
+  ]
+}

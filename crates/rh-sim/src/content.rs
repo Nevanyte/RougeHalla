@@ -662,7 +662,89 @@ pub fn content_hash_of_style_sanctum_definition(
     )
 }
 
-/// Bounded complete-plain orchestration uses these same retry and feature limits.
+/// Warren geometry, route repair and decor read the same borrowed definition as this identity fold.
+pub fn content_hash_of_style_warren_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_warren::Definition<'_>,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_warren: *definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Scorch nested crater/river/decor policies participate in the same aggregate identity.
+pub fn content_hash_of_style_scorch_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_scorch::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_scorch: *definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Frost callback geometry, ICE growth, path repair and decor share this exact identity fold.
+pub fn content_hash_of_style_rime_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_rime::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_rime: *definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Sentenced row definitions and the actual resolved factory dials are content, including route policy.
+pub fn content_hash_of_style_gallows_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_gallows::Definition<'_>,
+    dials: &crate::mapgen::style_gallows::Dials,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_gallows: *definition,
+            style_gallows_dials: dials.clone(),
+            ..Default::default()
+        },
+    )
+}
+
+/// Actual callback identity/phase metadata drives the registry and aggregate rules identity.
+pub fn content_hash_of_style_registry_entries(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    entries: &[crate::mapgen::style_zones::Entry],
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_registry: entries,
+            ..Default::default()
+        },
+    )
+}
+
+/// Bounded plain/styled orchestration uses these same retry and feature limits.
 pub fn content_hash_of_pipeline_definition(
     registry: &[Entry],
     stagger_weapons: &[WeaponId],
@@ -756,6 +838,12 @@ struct MapDefinitions<'rules, 'pillars> {
     terrain_gate: &'rules crate::mapgen::terrain_gate::TerrainGateDefinition<'pillars>,
     style_features: &'rules crate::mapgen::style_features::Definition,
     style_sanctum: &'rules crate::mapgen::style_sanctum::Definition,
+    style_warren: crate::mapgen::style_warren::Definition<'pillars>,
+    style_scorch: crate::mapgen::style_scorch::Definition,
+    style_rime: crate::mapgen::style_rime::Definition,
+    style_gallows: crate::mapgen::style_gallows::Definition<'pillars>,
+    style_gallows_dials: crate::mapgen::style_gallows::Dials,
+    style_registry: &'rules [crate::mapgen::style_zones::Entry],
     pipeline: &'rules crate::mapgen::pipeline::Definition,
     certify: &'rules crate::mapgen::certify::rules::Definition,
     style_runtime: &'rules crate::mapgen::style_runtime::Definition,
@@ -781,6 +869,12 @@ impl Default for MapDefinitions<'_, '_> {
             terrain_gate: &crate::mapgen::terrain_gate::DEFAULT_DEFINITION,
             style_features: &crate::mapgen::style_features::DEFAULT_DEFINITION,
             style_sanctum: &crate::mapgen::style_sanctum::DEFAULT_DEFINITION,
+            style_warren: crate::mapgen::style_warren::default_definition(),
+            style_scorch: crate::mapgen::style_scorch::default_definition(),
+            style_rime: crate::mapgen::style_rime::default_definition(),
+            style_gallows: crate::mapgen::style_gallows::default_definition(),
+            style_gallows_dials: crate::mapgen::style_gallows::default_dials(),
+            style_registry: &crate::mapgen::style_zones::ENTRIES,
             pipeline: &crate::mapgen::pipeline::DEFAULT_DEFINITION,
             certify: &crate::mapgen::certify::rules::R,
             style_runtime: &crate::mapgen::style_runtime::DEFAULT_DEFINITION,
@@ -823,6 +917,12 @@ fn content_hash_of_definitions(
         terrain_gate,
         style_features,
         style_sanctum,
+        style_warren,
+        style_scorch,
+        style_rime,
+        style_gallows,
+        style_gallows_dials,
+        style_registry,
         pipeline,
         certify,
         style_runtime,
@@ -896,6 +996,19 @@ fn content_hash_of_definitions(
     }
     h.str("mapgen/style-sanctum/1");
     crate::mapgen::style_sanctum::visit_content(style_sanctum, |word| h.u64(word));
+    h.str("mapgen/style-warren/1");
+    crate::mapgen::style_warren::visit_content(&style_warren, |word| h.u64(word));
+    h.str("mapgen/style-scorch/1");
+    crate::mapgen::style_scorch::visit_content(&style_scorch, |word| h.u64(word));
+    h.str("mapgen/style-rime/1");
+    crate::mapgen::style_rime::visit_content(&style_rime, |word| h.u64(word));
+    h.str("mapgen/style-gallows/1");
+    crate::mapgen::style_gallows::visit_content(&style_gallows, &style_gallows_dials, |word| {
+        h.u64(word)
+    });
+
+    h.str("mapgen/style-zones/1");
+    crate::mapgen::style_zones::visit_entries(style_registry, |word| h.u64(word));
 
     h.str("mapgen/style-runtime/1");
     crate::mapgen::style_runtime::visit_content(style_runtime, |word| h.u64(word));

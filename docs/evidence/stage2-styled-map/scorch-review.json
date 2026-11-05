@@ -1,0 +1,176 @@
+{
+  "status": "accepted for bounded Fire/Scorch stage-six callbacks and reviewed excluded geometry seam",
+  "originalManifestSha256": "9ee4ca12184cd2000ad5b3917bc88d7ad6031f67350bc8d3b56fb9a4bbc67c45",
+  "geometrySeamSha256": "c5aed15d69ce4c1adf30a1ef1370a04e471c0c4984753dc46ddabba675d6fc50",
+  "campNodesSeamSha256": "2d36cb0733146e2fcea5e050e58a625f35ef8db157df4089c5e2fd2caea5a9a0",
+  "helperAcceptedManifestSha256": "831f07f02d2120ce909d962377291eb509cc85615be3ba2f8b32897e1b24820d",
+  "helperDependencyVerification": "All9 copied helper Rust/readme/fixture files match accepted831f07 hashes; later934 manifest metadata differs only",
+  "findings": [
+    {
+      "id": "jitter-raster-overflow",
+      "status": "repaired and independently verified",
+      "detail": "Admitted jitter_strength100000 panics first actual fixture at raster.rs147 i32 multiplication; private constructor override only",
+      "log": "jitter-overflow-repro.log",
+      "resolution": "Constructor admits jitter_strength only0..16; genuine-input endpoint execution and exhaustive bounded interpolation controls pass."
+    },
+    {
+      "id": "empty-river-window",
+      "status": "repaired and independently verified",
+      "detail": "Admitted length_min0 with target2/offset-2 and enough trials reaches path[len] anchor; private constructor override only",
+      "log": "empty-window-repro.log",
+      "resolution": "Constructor requires positive minimum window length; exact malicious policy refuses and same policy with minimum1 executes without panic."
+    },
+    {
+      "id": "zero-distance-rim-radius",
+      "status": "repaired and independently verified",
+      "detail": "Admitted Forge radius_min4=2 can include zero-distance ring sample; callback must refuse that unsupported domain to avoid NaN-to-integer mismatch. Author adding callback-only minimum3 and endpoint execution controls.",
+      "resolution": "Callback-only shared Forge radius minimum3; radius2 refusal and radius3/64+jitter16 execution controls pass. Shared definition/default unchanged."
+    }
+  ],
+  "freshSource": {
+    "actualNew": 6,
+    "directNew": 24,
+    "directRepeated": 15,
+    "totalRows": 45,
+    "sha256": "5b0a83d814b8311d3c68b100484ebc4710040586255566cbba8827fe75601211",
+    "canonicalNode": "Linux x64 Node22.23.4",
+    "image": "c86ecead9e55",
+    "sourceMount": "read-only",
+    "fullFinalDtoAndHashNoninterference": true,
+    "branches": [
+      0,
+      1,
+      2
+    ]
+  },
+  "native": [
+    {
+      "command": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "style_scorch",
+        "--locked"
+      ],
+      "exit": 0,
+      "log": "tests-default.log"
+    },
+    {
+      "command": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--all-features",
+        "--lib",
+        "style_scorch",
+        "--locked"
+      ],
+      "exit": 0,
+      "log": "tests-all.log"
+    },
+    {
+      "command": [
+        "test",
+        "-p",
+        "rh-sim",
+        "--lib",
+        "mapgen::landmarks",
+        "--locked"
+      ],
+      "exit": 0,
+      "log": "shared-regressions.log"
+    }
+  ],
+  "mutants": {
+    "authoredRuntimeFailureLogs": 15,
+    "auditedLogs": "mutation-log-audit.json",
+    "freshRuntimeFailures": 4,
+    "results": "independent-mutation-results.json"
+  },
+  "canonicalCheck": "canonical-check.log byte-exact pass; source tool and fixture hashes unchanged in v2",
+  "limits": [
+    "Genuine source pre-Fire input restores prior scratch; no native prior-callback proof",
+    "All actual cases return maps; terminal null outcome not exercised",
+    "No full styled generator, workspace, allocation or performance claim"
+  ],
+  "acceptedManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-scorch-work/frozen-manifest-v2.json",
+  "acceptedManifestSha256": "66bf0e9434908c28c390f4af58fce99a81ac376841378ab4f2fde1918d0f5955",
+  "acceptedOwnedFiles": [
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/README.md",
+      "sha256": "8c9feb10bbf074670e039e054ea5a3dabc2da52dde2de1ca92dc27209e4f0260",
+      "bytes": 5171
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/craters.rs",
+      "sha256": "28f38d22b288bd3e1fc52a13f39aa833ed9c7bb6fc60256fa0883f8ae41253e0",
+      "bytes": 9410
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/mod.rs",
+      "sha256": "0758c041953897ae5d2ec7c3e868cacee9a36b0d20a3b0b0e2244aac5f0631c3",
+      "bytes": 12786
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/raster.rs",
+      "sha256": "da0eef01928f7701721e40631efcc976df603c5f21acced6951f89eff512b3c7",
+      "bytes": 6984
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/river.rs",
+      "sha256": "6152f7932ddc9ba6da8391baadd34d8d62659f9542561eed955475031453a119",
+      "bytes": 23074
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/rules.rs",
+      "sha256": "b0d04f19c4cbe61515bf09bdb7d952692ded4560415c9e3c44b359c5cb6d10b8",
+      "bytes": 8202
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/style_scorch/tests.rs",
+      "sha256": "1f7672327275cc3d2c3d56925fe8641445bd4e4fda00145907ab20d2742b9c96",
+      "bytes": 36794
+    },
+    {
+      "path": "tools/map-fixtures/style-scorch.ts",
+      "sha256": "14ea10d20044ed9712c8564a2b7d8c5b84d2f244031246ce7906805541d1c15c",
+      "bytes": 12140
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/style-scorch.json",
+      "sha256": "b5bafe898ee98d73850b1e7299affe36fb3d715fff33d2a6e4b1a2f731afa94b",
+      "bytes": 4755233
+    }
+  ],
+  "prefixSeamSha256": "25ff0b77a85d16000627d2572e73c97978a09e7b7f87574d4a8bc347212cb00f",
+  "finalNative": {
+    "allFeatures": "tests-final-all.log:11 passed (author8 + fresh45-row replay + own admission repros + native walk-field control)",
+    "defaultPreAdmissionRevision": "tests-default.log:8 passed",
+    "sharedRegressions": "shared-regressions.log:37 passed",
+    "routeInputs": "12 direct route baselines exactly recomputed from starting tiles via native walk_field16",
+    "sharedPatchApplyCheck": "git apply --check against live passed read-only"
+  },
+  "sourceReview": [
+    "Observed source caller/context imports and taps only; whole final GameMap and map hash equal unchanged original on6 actual capture calls and6 fresh actual controls",
+    "Typed native callback replay compares all phase plans, layer writes, features/owners, props, scratch, reservation, counters and full RNG values/continuations",
+    "Source0/1/2-draw branches retained; explicit ford-merge and extra-stretch breach cases use actual walkField16 inputs",
+    "Reuses exact accepted helper paths/graphs and existing radius/Frame extraction; no second algorithm or post-state injection"
+  ],
+  "evidenceHashes": {
+    "reviewed-original-manifest.json": "9ee4ca12184cd2000ad5b3917bc88d7ad6031f67350bc8d3b56fb9a4bbc67c45",
+    "reviewed-final-manifest.json": "66bf0e9434908c28c390f4af58fce99a81ac376841378ab4f2fde1918d0f5955",
+    "reviewed-shared-geometry.patch": "c5aed15d69ce4c1adf30a1ef1370a04e471c0c4984753dc46ddabba675d6fc50",
+    "fresh-source.json": "5b0a83d814b8311d3c68b100484ebc4710040586255566cbba8827fe75601211",
+    "fresh-source.log": "1e1f750f7081616ff61b955aabe6a737a03ded7e9034368f8788483a140716d1",
+    "canonical-check.log": "45b556e518cf3633d427267edae8f0a88d04b08d5f573e2b45c71899e2e5f5c3",
+    "tests-final-all.log": "d38e657919953f71ba3e190d67483803810ea6c16fa7d4172255fbef1f3e9b6f",
+    "shared-regressions.log": "0a14fae5b648597b6878ae3b65ac76deecc64b054ba5fcf22141425a294b2d77",
+    "independent-mutation-results.json": "46c909624466feb54aa5d50c20b37a1dd9eccc61e0dd8c6b7daeebd8498d0649",
+    "mutation-log-audit.json": "906293d2c93e5f96b247d7ddb7946a3cc412b7e9151e3f045265b61a881cb51a",
+    "jitter-overflow-repro.log": "758dca7a9b4170b7f48e05998c8524d7e3152118f48db24c1219fd06c80dbc00",
+    "empty-window-repro.log": "46b9b5ac64e1f3d28d698641a609b6af742f4f3f051d1c2a162f3a56474eaf42",
+    "walk-fields.log": "427cc0b468998b81c5f82c64db81308eca949c5c85952b118809e5b3e2d81bc0"
+  },
+  "preservation": "Frozen Rime/Warren/Holy/helper evidence untouched; producer read-only, all review probes private."
+}

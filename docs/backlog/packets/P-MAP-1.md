@@ -8,6 +8,17 @@ ADR 0003 allows either). Until then the server keeps playing `rh-map/1` exports.
 receive the map: ADR 0003), so cross-engine float drift is not a client problem; it is a parity-with-legacy and a
 self-determinism problem.
 
+## Completion checkpoint (2026-11-05)
+
+Complete implementation and independent review: all 200 original plain pins,200 original styled pins,8 original OPEN
+pins and full DTOs match;800 independent hard checks pass. The997-test native workspace gate, both strict Clippy modes,
+formatting and gameplay parity pass. Quiet native M5 Pro release medians are 13.47 ms plain and22.21 ms styled, versus
+paired actual Node 22.23.4 source 29.48 ms and45.32 ms,both decor:false (40 seeds,5 warmups/mode). Reproducible off-core
+harness: `tools/map-bench`. Source fingerprints, raw samples, limitations and reviews:
+[completion evidence](../../evidence/stage2-styled-map/README.md). CI refresh awaits the integration commit.
+The incremental milestone text below is historical; MIGRATION remains the status record. Live map-pool operation,
+public transport and full gameplay remain separate packets.
+
 ## Dependencies
 Current stage-four checkpoint: all five actual recipes and ordered admission are implemented, independently reviewed
 and integrated behind the pure stage API. The 649-test local gate, exact source stage/callback traces and content

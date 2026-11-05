@@ -1,0 +1,73 @@
+{
+  "status": "accepted-bounded-rime-stage-six-leaf",
+  "ownedManifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-rime-work/revision2/frozen-manifest.json",
+  "ownedManifestSha256": "5bbecce5780b962f09bf98911c2b141464a4350b9de52fd062d091cdc3c5ce89",
+  "ownedFileCount": 9,
+  "sharedSeam": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/style-rime-work/revision2/shared-rime.patch",
+  "sharedSeamSha256": "5a4b638ef3be198a20917dacb500be051661125bb623342df33872da68e8f17c",
+  "previousFreezeUnchanged": {
+    "manifestSha256": "f4ee3437ecf850762a76ed7aa3c460e0aac316d1f5cc8297d0d87f590005b208",
+    "allNineOwnedHashes": true
+  },
+  "resolvedFindings": [
+    {
+      "finding": "Malformed relevant watchtower bbox panicked after a prior shelf prop write.",
+      "repair": "Preflight relevant feature boxes before either continuation callback mutates state or plan.",
+      "independentProof": "Original partial-write panic reproduced in admission-repros.log. Same private input now returns Error::Feature without panic or state writes in final default/all-feature suites; surface also tested with a paintable lake cell."
+    },
+    {
+      "finding": "Infinite or excessively large fixed gate coordinates admitted unbounded route sampling.",
+      "repair": "Validate finite bounded gate coordinates/order and array sizes at construction; verify gate/mouth coordinates lie inside matching callback geometry before any shape guard or continuation work.",
+      "independentProof": "Original infinite-coordinate constructor acceptance reproduced. Final exact control now refuses it; producer tests additionally check grid and mouth mismatch with unchanged runtime/plan."
+    }
+  ],
+  "checks": {
+    "focusedDefault": "final-default.log:14 passed",
+    "focusedAllFeatures": "final-all.log:14 passed",
+    "sharedRegression": "shared-regressions.log:37 passed; shared seam unchanged in v2",
+    "canonical": "canonical-capture.log and canonical-bytecheck.log; Linux amd64 Node22.23.4, cached image c86ecead9e55 --pull=never; read-only source/private executable dependency tmpfs",
+    "canonicalBytes": 4397535,
+    "canonicalSha256": "4d9ee0c7d2c19ec8ad321ada7750c4a5c592756a4197a3ce95577d09eac235c0",
+    "freshDifferential": {
+      "log": "fresh-replay.log and final suites",
+      "actualNew": 6,
+      "directNew": 24,
+      "directRepeated": 14,
+      "totalFullReplayRows": 44,
+      "fullPlanAndStates": true,
+      "allStreamContinuations": true,
+      "actualFullOriginalObservedMapAndHashEquality": true,
+      "all75OriginalSourceHashesMatchLive": true
+    },
+    "facets": "20 exported source facet cases retained in both final suites; complete ordered cells and draw continuations",
+    "numericSafety": "numeric-boundaries.log plus final suites:7 admitted boundary combinations exercise value weights/octaves, growth/smoothing, facet/radius, headland/spire iteration, route widths, zero growth ratio and zero facet extents on genuine source input",
+    "producerClippyAndFormat": "revision2 clippy-all.log,clippy-default.log,fmt.log checked successful",
+    "sourceAndFixtureUnchanged": true,
+    "sharedPatchAppliesToCurrentLive": true
+  },
+  "mutations": {
+    "producerRuntimeLogsVerified": 21,
+    "independentRuntimeMutantsCaught": 4,
+    "independentResults": "mutation-results.json",
+    "independentControls": [
+      "Mere feature lake index",
+      "Empty-shape extra RNG draw",
+      "Inclusive ICE ring cutoff",
+      "Actual Pathfinder player radius"
+    ],
+    "compileFailureCredits": 0,
+    "revisionBinding": "v2 changes admission only; default policy, callback execution after admission, source tool, fixture and shared seam remain unchanged. All final default parity suites rerun."
+  },
+  "reviewMethod": [
+    "Producer trees were read-only; all extra tests, fresh source inputs and mutants used private review copy.",
+    "Private test overlay reuses strict full replay; no expected post-state is restored as input.",
+    "Shared raw FieldInput/ClearanceOptions APIs are crate-private and fed from admitted runtime geometry.",
+    "Surface ring boundary replaces only explicitly labelled first-lake tile INPUT derived independently from source shape and valid floor distances4/5/6/255."
+  ],
+  "limits": [
+    "The genuine source pre-zone prefix is a prerequisite INPUT; prior native callbacks and continuous full generation remain coordinator work.",
+    "All actual attempts in these corpora return maps. Conditional map/null/hash equality is enforced, but a terminal-null result is not covered.",
+    "Explicit ring boundary is a continuation test, not a natural-shape reachability claim.",
+    "No full-workspace, full gameplay, styled pin, allocation or performance claim."
+  ]
+}

@@ -79,11 +79,31 @@ pub struct Recipe<'a> {
     definition: Definition<'a>,
     template: ParsedTemplate,
 }
-fn clearance(rt: &LandmarkRuntime<'_>, inputs: &RecipeInputs<'_>, d: &Definition<'_>) -> Vec<i32> {
-    let s = rt.state();
-    let g = rt.geometry();
-    let (w, h) = (s.w, s.h);
-    let bb = g.info.bbox;
+/// Internal admitted geometry shared by stage-four and stage-six Rime fields.
+pub(crate) struct FieldInput<'a> {
+    pub w: usize,
+    pub h: usize,
+    pub zone: &'a crate::mapgen::landmarks::runtime::ZoneInfo,
+    pub mask: &'a [u8],
+    pub tiles: &'a [u8],
+    pub hard: &'a [u8],
+    pub camps: &'a [crate::mapgen::landmarks::runtime::CampInfo],
+    pub ring: &'a [u8],
+}
+pub(crate) struct ClearanceOptions<'a> {
+    pub spawns: &'a [i32],
+    pub corridor: Option<&'a [u8]>,
+    pub margin_spawn: i32,
+    pub margin_corridor: i32,
+}
+pub(crate) fn clearance_field(
+    c: &FieldInput<'_>,
+    d: &Definition<'_>,
+    options: ClearanceOptions<'_>,
+    owned: impl Fn(i32) -> bool,
+) -> Vec<i32> {
+    let (w, h) = (c.w, c.h);
+    let bb = c.zone.bbox;
     let (x0, y0, x1, y1) = (
         (bb.x - 3).max(0) as usize,
         (bb.y - 3).max(0) as usize,
@@ -91,30 +111,42 @@ fn clearance(rt: &LandmarkRuntime<'_>, inputs: &RecipeInputs<'_>, d: &Definition
         (bb.y + bb.h as i32 + 2).min(h as i32 - 1) as usize,
     );
     let mut out = vec![0; w * h];
-    let ring = inputs.fixed.ring.len() == w * h;
+    let ring = c.ring.len() == w * h;
     for y in y0..=y1 {
         for x in x0..=x1 {
             let i = y * w + x;
-            let mut v = if g.mask[i] == 1 {
+            let mut v = if c.mask[i] == 1 {
                 1 << 20
             } else {
                 -d.margin_edge
             };
-            if ring && inputs.fixed.ring[i] == 1 && v > -d.margin_ring {
+            if ring && c.ring[i] == 1 && v > -d.margin_ring {
                 v = -d.margin_ring;
             }
-            if g.mask[i] == 1 && v > -d.margin_landmark && rt.is_owned(i as i32) {
+            if c.mask[i] == 1 && v > -d.margin_landmark && owned(i as i32) {
                 v = -d.margin_landmark;
+            }
+            if c.mask[i] == 1
+                && options.corridor.is_some_and(|v| v[i] == 1)
+                && v > -options.margin_corridor
+            {
+                v = -options.margin_corridor;
             }
             out[i] = v;
         }
     }
-    for c in &g.camps {
-        if c.x >= 0 && c.y >= 0 && c.x < w as i32 && c.y < h as i32 {
-            let i = c.y as usize * w + c.x as usize;
-            if g.mask[i] == 1 && out[i] > -d.margin_camp {
+    for camp in c.camps {
+        if camp.x >= 0 && camp.y >= 0 && camp.x < w as i32 && camp.y < h as i32 {
+            let i = camp.y as usize * w + camp.x as usize;
+            if c.mask[i] == 1 && out[i] > -d.margin_camp {
                 out[i] = -d.margin_camp;
             }
+        }
+    }
+    for &i in options.spawns {
+        let i = i as usize;
+        if out[i] > -options.margin_spawn {
+            out[i] = -options.margin_spawn;
         }
     }
     for y in y0..=y1 {
@@ -157,24 +189,60 @@ fn clearance(rt: &LandmarkRuntime<'_>, inputs: &RecipeInputs<'_>, d: &Definition
     }
     out
 }
-fn seeds(rt: &LandmarkRuntime<'_>, clr: &[i32], d: &Definition<'_>) -> Vec<usize> {
+fn fields<'a>(rt: &'a LandmarkRuntime<'_>, ring: &'a [u8]) -> FieldInput<'a> {
     let s = rt.state();
     let g = rt.geometry();
-    let mut allow = vec![0u8; s.w * s.h];
-    let bb = g.info.bbox;
+    FieldInput {
+        w: s.w,
+        h: s.h,
+        zone: &g.info,
+        mask: &g.mask,
+        tiles: &s.tiles,
+        hard: rt.original_hard(),
+        camps: &g.camps,
+        ring,
+    }
+}
+fn clearance(rt: &LandmarkRuntime<'_>, inputs: &RecipeInputs<'_>, d: &Definition<'_>) -> Vec<i32> {
+    clearance_field(
+        &fields(rt, &inputs.fixed.ring),
+        d,
+        ClearanceOptions {
+            spawns: &[],
+            corridor: None,
+            margin_spawn: 0,
+            margin_corridor: 0,
+        },
+        |i| rt.is_owned(i),
+    )
+}
+pub(crate) fn allow_field(
+    c: &FieldInput<'_>,
+    clr: &[i32],
+    d: &Definition<'_>,
+    owned: impl Fn(i32) -> bool,
+) -> Vec<u8> {
+    let mut allow = vec![0; c.w * c.h];
+    let bb = c.zone.bbox;
     for y in bb.y..bb.y + bb.h as i32 {
         for x in bb.x..bb.x + bb.w as i32 {
-            let i = y as usize * s.w + x as usize;
-            if g.mask[i] == 1
-                && s.tiles[i] == TILE_FLOOR
-                && rt.original_hard()[i] == 0
+            let i = y as usize * c.w + x as usize;
+            if c.mask[i] == 1
+                && c.tiles[i] == TILE_FLOOR
+                && c.hard[i] == 0
                 && clr[i] >= d.clearance_slack
-                && !rt.is_owned(i as i32)
+                && !owned(i as i32)
             {
                 allow[i] = 1;
             }
         }
     }
+    allow
+}
+fn seeds(rt: &LandmarkRuntime<'_>, clr: &[i32], d: &Definition<'_>) -> Vec<usize> {
+    let s = rt.state();
+    let g = rt.geometry();
+    let allow = allow_field(&fields(rt, &[]), clr, d, |i| rt.is_owned(i));
     let first = argmax_in(clr, &allow, 0, clr.len() as isize);
     #[cfg(test)]
     super::plan(
@@ -193,7 +261,7 @@ fn seeds(rt: &LandmarkRuntime<'_>, clr: &[i32], d: &Definition<'_>) -> Vec<usize
     }
     out
 }
-pub(super) fn second_seed(
+pub(crate) fn second_seed(
     w: usize,
     clr: &[i32],
     allow: &[u8],
