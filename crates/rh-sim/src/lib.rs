@@ -19,6 +19,7 @@ mod hooks;
 pub mod input;
 pub mod item_view;
 pub mod map;
+pub mod mapgen;
 pub mod math;
 pub mod observe;
 pub mod pathfind;
@@ -53,5 +54,7 @@ pub use sight::{SightCache, SightStats};
 pub use sim::{
     Arena, Event, Outcome, Phase, Placement, PlayerId, RunResult, Secrets, Sim, SimConfig, Status,
 };
-pub use state::{Container, ContainerKind, WeaponItem};
+pub use state::{
+    Container, ContainerKind, ProjectileEnd, ProjectileKind, ProjectileLaunch, WeaponItem,
+};
 pub use store::{EntityId, Store};

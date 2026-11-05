@@ -2,6 +2,7 @@
 //! room uses (observe -> wire -> protocol encode), on a headless 8-bot match.
 //!   cargo run --release -p rh-server --bin wirebench -- [--map parity/maps/seed1.map.json] [--ticks 2400] [--seed 1]
 //!                                                     [--digest]
+//!                                                     [--trace-output PATH]
 //! `--digest` adds `outcomeDigest`, the match's hash-independent behaviour fingerprint (rh_headless::digest), folded
 //! outside the timed sections.
 //! Protocol v3: each viewer has its own `ConnEncoder` (the connection writer's state, as `Outbox::drain_into` uses it) and
@@ -16,6 +17,11 @@ use rh_policy::scripted::Brawler;
 use rh_protocol::{ConnEncoder, FrameKind, ServerMsg};
 use rh_sim::{Event, FactionId, SimConfig};
 use std::time::Instant;
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    path::PathBuf,
+};
 
 /// What the bench steps and publishes: the headless 8-bot match, or (feature `bench`) a synthetic crowd.
 enum Source {
@@ -142,8 +148,24 @@ fn arg(args: &[String], k: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
+fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        out.push(DIGITS[(b >> 4) as usize] as char);
+        out.push(DIGITS[(b & 15) as usize] as char);
+    }
+    out
+}
+
+fn trace_line<T: serde::Serialize>(writer: &mut BufWriter<File>, value: &T) {
+    serde_json::to_writer(&mut *writer, value).expect("write trace JSON");
+    writer.write_all(b"\n").expect("write trace newline");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    let trace_path = arg(&args, "--trace-output").map(PathBuf::from);
     let synthetic: Option<usize> =
         arg(&args, "--synthetic").map(|v| v.parse().expect("--synthetic N"));
     #[cfg(not(feature = "bench"))]
@@ -151,6 +173,9 @@ fn main() {
         synthetic.is_none(),
         "--synthetic needs a build with --features bench"
     );
+    if args.iter().any(|a| a == "--trace-output") && arg(&args, "--trace-output").is_none() {
+        panic!("--trace-output requires a PATH");
+    }
     let ticks: u32 = arg(&args, "--ticks")
         .and_then(|v| v.parse().ok())
         .unwrap_or(2400);
@@ -188,22 +213,6 @@ fn main() {
             )))
         }
     };
-    let blob = {
-        let map = &src.sim().arena().map;
-        rh_protocol::map::MapBlob::new(map.w as u16, map.h as u16, map.tiles.clone())
-    };
-    let welcome = ServerMsg::Welcome {
-        protocol: rh_protocol::PROTOCOL_VERSION,
-        content_hash: 0,
-        match_id: [0; 16],
-        player_id: 1,
-        session: [0; 16],
-        tick_rate: 20,
-        tick: 0,
-        server_ms: 0.0,
-        map: blob,
-    }
-    .encode();
     // The viewers: every player of the match, or eight spread over the crowd.
     let all: Vec<_> = src.sim().players().iter().map(|p| p.id).collect();
     let ids: Vec<_> = if synthetic.is_some() {
@@ -211,6 +220,48 @@ fn main() {
     } else {
         all
     };
+    let welcome = ServerMsg::Welcome {
+        protocol: rh_protocol::PROTOCOL_VERSION,
+        content_hash: rh_sim::content::content_hash(),
+        match_id: [0; 16],
+        player_id: ids.first().expect("at least one viewer").0,
+        session: [0; 16],
+        tick_rate: 20,
+        tick: 0,
+        server_ms: 0.0,
+        map: rh_protocol::map::MapBlob::new(
+            src.sim().arena().map.w as u16,
+            src.sim().arena().map.h as u16,
+            src.sim().arena().map.tiles.clone(),
+        ),
+    }
+    .encode();
+    // Diagnostic trace captures one real viewer's public wire frames. Capture work is deliberately
+    // outside benchmark timing/claims; no writer is allocated or touched in the default run.
+    let mut trace = trace_path.map(|path| {
+        let file =
+            File::create(&path).unwrap_or_else(|e| panic!("trace output {}: {e}", path.display()));
+        BufWriter::new(file)
+    });
+    let trace_enabled = trace.is_some();
+    if let Some(w) = trace.as_mut() {
+        let viewer_id = ids.first().expect("at least one viewer").0;
+        let map = &src.sim().arena().map;
+        trace_line(
+            w,
+            &serde_json::json!({
+                "record":"header", "format":"rougehalla-wire-trace", "version":1,
+                "protocol":rh_protocol::PROTOCOL_VERSION, "contentHash":format!("{:016x}", rh_sim::content::content_hash()),
+                "provenance":"wirebench offline diagnostic; one actual selected viewer; trace capture excluded from benchmark claims",
+                "workload": if synthetic.is_some() { "synthetic-practice-crowd" } else { "headless-default-map-8-bot-match" },
+                "syntheticFighters": synthetic, "seed": seed, "requestedTicks": ticks,
+                "map": if synthetic.is_some() { "practice-arena".to_owned() } else { arg(&args, "--map").unwrap_or_else(|| "parity/maps/seed1.map.json".to_owned()) }, "mapWidth":map.w, "mapHeight":map.h,
+                "viewerPlayerId":viewer_id, "tickRate":20,
+                "mapBlobHex":hex(rh_protocol::map::MapBlob::new(map.w as u16, map.h as u16, map.tiles.clone()).pre_encode().expect("valid map").as_bytes()),
+                "welcomeHex":hex(&welcome)
+            }),
+        );
+    }
     let viewers = ids.len() as f64;
     let (mut bytes, mut frames, mut enc_ns, mut step_ns, mut n) = (0u64, 0u64, 0u128, 0u128, 0u64);
     let (mut snap_bytes, mut snaps, mut visible_sum) = (0u64, 0u64, 0u64);
@@ -250,6 +301,8 @@ fn main() {
                 &mut earlier,
                 events,
             );
+            let capture_viewer = trace.is_some() && k == 0;
+            let trace_tick = src.sim().tick();
             visible_sum += publisher.observation().visible.len() as u64;
             match f.snapshot {
                 Ok(snap) => {
@@ -258,6 +311,14 @@ fn main() {
                     }
                     // The connection writer's work: encode against the last frame it wrote, into an owned frame.
                     let (frame, kind) = encoders[k].encode_frame(snap);
+                    if capture_viewer {
+                        if let Some(w) = trace.as_mut() {
+                            trace_line(
+                                w,
+                                &serde_json::json!({"record":"frame","tick":trace_tick,"viewerPlayerId":id.0,"kind":match kind { FrameKind::Full => "snapshot", FrameKind::Delta => "delta" },"bytesHex":hex(&frame)}),
+                            );
+                        }
+                    }
                     match kind {
                         FrameKind::Full => full_frames += 1,
                         FrameKind::Delta => delta_frames += 1,
@@ -273,21 +334,44 @@ fn main() {
                 Err(e) => panic!("snapshot encodes: {e}"),
             }
             if let Some(imp) = &f.important {
+                if capture_viewer {
+                    if let Some(w) = trace.as_mut() {
+                        trace_line(
+                            w,
+                            &serde_json::json!({"record":"frame","tick":trace_tick,"viewerPlayerId":id.0,"kind":"important","bytesHex":hex(imp)}),
+                        );
+                    }
+                }
                 bytes += imp.len() as u64;
                 event_bytes += imp.len() as u64;
                 frames += 1;
             }
             if let Some(fx) = &f.fx {
+                if capture_viewer {
+                    if let Some(w) = trace.as_mut() {
+                        trace_line(
+                            w,
+                            &serde_json::json!({"record":"frame","tick":trace_tick,"viewerPlayerId":id.0,"kind":"fx","bytesHex":hex(fx)}),
+                        );
+                    }
+                }
                 bytes += fx.len() as u64;
                 fx_bytes += fx.len() as u64;
                 frames += 1;
             }
             n += 1;
         }
-        enc_ns += t.elapsed().as_nanos();
+        // Trace mode includes file/hex serialization in the viewer loop, so its encode-time metric
+        // is intentionally suppressed instead of presenting contaminated timing as a benchmark.
+        if !trace_enabled {
+            enc_ns += t.elapsed().as_nanos();
+        }
         if terminated {
             break;
         }
+    }
+    if let Some(mut w) = trace {
+        w.flush().expect("flush trace");
     }
     if args.iter().any(|a| a == "--sight-stats") {
         eprintln!(
@@ -307,8 +391,18 @@ fn main() {
     let digest = digest
         .map(|d| format!("\"outcomeDigest\":\"{}\",", d.hex()))
         .unwrap_or_default();
+    let encode_us = if trace_enabled {
+        "null".to_string()
+    } else {
+        format!("{:.2}", enc_ns as f64 / 1000.0 / n.max(1) as f64)
+    };
+    let note = if trace_enabled {
+        "diagnostic trace capture; capture timing excluded from benchmark claims"
+    } else {
+        "payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice; with --synthetic the viewers are 8 of the fighters"
+    };
     println!(
-        "{{\"map\":\"{}x{}\",\"players\":{},{fighters}\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"snapshotBytesPerPlayerPerSec\":{:.0},\"fullSnapshotBytesPerPlayerPerSec\":{},\"fullSnapshotFrames\":{full_frames},\"deltaSnapshotFrames\":{delta_frames},\"eventBytesPerPlayerPerSec\":{:.0},\"fxBytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{:.2},\"simStepUsMean\":{:.2},\"note\":\"payload bytes only (no WebSocket/TCP/TLS framing); bots, no mobs: the slice; with --synthetic the viewers are 8 of the fighters\"}}",
+        "{{\"map\":\"{}x{}\",\"players\":{},{fighters}\"steps\":{steps},{digest}\"welcomeBytes\":{},\"bytesPerPlayerPerSec\":{:.0},\"snapshotBytesPerPlayerPerSec\":{:.0},\"fullSnapshotBytesPerPlayerPerSec\":{},\"fullSnapshotFrames\":{full_frames},\"deltaSnapshotFrames\":{delta_frames},\"eventBytesPerPlayerPerSec\":{:.0},\"fxBytesPerPlayerPerSec\":{:.0},\"framesPerPlayerPerSec\":{:.1},\"meanSnapshotBytes\":{:.1},\"meanVisibleActors\":{:.2},\"observeEncodeUsPerPlayerTick\":{encode_us},\"simStepUsMean\":{:.2},\"note\":\"{note}\"}}",
         src.sim().arena().map.w,
         src.sim().arena().map.h,
         ids.len(),
@@ -325,7 +419,6 @@ fn main() {
         frames as f64 / viewers / secs,
         snap_bytes as f64 / snaps.max(1) as f64,
         visible_sum as f64 / n.max(1) as f64,
-        enc_ns as f64 / 1000.0 / n.max(1) as f64,
         step_ns as f64 / 1000.0 / steps.max(1) as f64
     );
 }

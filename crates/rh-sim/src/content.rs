@@ -399,6 +399,20 @@ pub fn content_hash_of(registry: &[Entry]) -> u64 {
 
 /// [`content_hash_of`] with the stagger rule flag table given as well (for the perturbation tests).
 pub fn content_hash_of_rules(registry: &[Entry], stagger_weapons: &[WeaponId]) -> u64 {
+    content_hash_of_map_definition(
+        registry,
+        stagger_weapons,
+        &crate::mapgen::coliseum::default_definition(),
+    )
+}
+
+/// The map foundation's fixed geometry is content too. The same definition drives generation;
+/// this entry point lets the identity tests perturb it without constructing a map.
+pub fn content_hash_of_map_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::coliseum::FixedDefinition<'_>,
+) -> u64 {
     let mut h = Fnv::new();
 
     h.str("registry");
@@ -407,6 +421,9 @@ pub fn content_hash_of_rules(registry: &[Entry], stagger_weapons: &[WeaponId]) -
         h.str(e.name);
         h.val(&e.val);
     }
+
+    h.str("mapgen/coliseum/1");
+    crate::mapgen::coliseum::visit_content(definition, |word| h.u64(word));
 
     h.str("factions");
     for f in FactionId::ALL {

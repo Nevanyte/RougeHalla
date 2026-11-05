@@ -25,7 +25,9 @@ use crate::hooks::LinkFn;
 use crate::input::ActionCmd;
 use crate::state::World;
 use crate::statics::MatchStatic;
-use crate::systems::{credit, inputs, items, ledger, loot, melee, movement, settle, weapons, Cx};
+use crate::systems::{
+    credit, inputs, items, ledger, loot, melee, movement, projectiles, settle, weapons, Cx,
+};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Gates: which rows a world has
@@ -613,8 +615,14 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         movement::record_history(cx);
         Flow::Continue
     }),
-    pending("projectiles:sweep", Gate::Always, "P-COMBAT-2"),
-    pending("projectiles:spawn", Gate::Always, "P-COMBAT-2"),
+    ported("projectiles:sweep", Gate::Always, |cx| {
+        projectiles::sweep(cx);
+        Flow::Continue
+    }),
+    ported("projectiles:spawn", Gate::Always, |cx| {
+        projectiles::spawn(cx);
+        Flow::Continue
+    }),
     ported("melee", Gate::Always, |cx| {
         melee::resolve(cx);
         Flow::Continue
@@ -633,7 +641,10 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         Flow::Continue
     }),
     // Nothing flies once the run is over.
-    pending("projectiles:clearIfEnded", Gate::Always, "P-COMBAT-2"),
+    ported("projectiles:clearIfEnded", Gate::Always, |cx| {
+        projectiles::finish(cx);
+        Flow::Continue
+    }),
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1538,8 +1549,8 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The slice's world: the capture plan runs 15 phases and two registered systems.
-        assert_eq!(CAPTURE_PLAN.phases.live().len(), 15);
+        // The slice's world: the capture plan runs 18 phases and two registered systems.
+        assert_eq!(CAPTURE_PLAN.phases.live().len(), 18);
         assert_eq!(CAPTURE_PLAN.systems.live().len(), 2);
         // Training swaps the settle for a pending one: no ported settle in that world yet.
         assert!(!TRAINING_PLAN

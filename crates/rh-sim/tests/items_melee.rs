@@ -377,6 +377,7 @@ fn a_visible_block_keeps_a_hidden_attackers_identity_private() {
             id: PlayerId(1),
             by: PlayerId(3),
             weapon: Sword,
+            passive: false,
         },
         Event::Stagger { id: PlayerId(3) },
     ];

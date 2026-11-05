@@ -1,0 +1,5 @@
+Run first eval in advancing Unity Play mode:
+var parent=new GameObject("MeshLifetimeProbe");var material=new Material(Shader.Find("Roguehalla/VertexColor"));int before=Resources.FindObjectsOfTypeAll<Mesh>().Length;SessionState.SetInt("rh.meshProbeBefore",before);SessionState.SetInt("rh.meshProbeFrame",Time.frameCount);for(int i=0;i<100;i++){var actor=Roguehalla.Client.ActorView.Create(parent.transform,material,(Roguehalla.Net.FactionId)(i%5),false);UnityEngine.Object.DestroyImmediate(actor.gameObject);}UnityEngine.Object.Destroy(parent);UnityEngine.Object.Destroy(material);return new {frame=Time.frameCount,meshesBefore=before,scheduledForDestruction=Resources.FindObjectsOfTypeAll<Mesh>().Length-before};
+
+Run second eval after the destruction frame has advanced:
+int before=SessionState.GetInt("rh.meshProbeBefore",-1);return new {cycles=100,frameAdvanced=Time.frameCount>SessionState.GetInt("rh.meshProbeFrame",int.MaxValue),meshesBefore=before,meshesAfter=Resources.FindObjectsOfTypeAll<Mesh>().Length,leaked=Resources.FindObjectsOfTypeAll<Mesh>().Length-before};

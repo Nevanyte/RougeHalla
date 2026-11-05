@@ -4,6 +4,14 @@
 //! ulp of `atan2`, `hypot`, `exp` and `asin`; the parity harness tolerates exactly that (parity/README.md).
 
 #[inline]
+pub fn sin(x: f64) -> f64 {
+    libm::sin(x)
+}
+#[inline]
+pub fn cos(x: f64) -> f64 {
+    libm::cos(x)
+}
+#[inline]
 pub fn atan2(y: f64, x: f64) -> f64 {
     libm::atan2(y, x)
 }

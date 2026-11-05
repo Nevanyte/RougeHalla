@@ -370,6 +370,14 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.phase","settled live flights belong only to an active world"),
+    ("world.server_time","settled projectile clock equals the world clock"),
+    ("world.projectiles.*.launch.kind", "flight kind and catalog speed agree"),
+    ("world.projectiles.*.launch.id","run entity ids are allocated, distinct and monotone"),
+    ("world.projectiles.*.launch.reflected", "reflected requires a return count and a shield arrow"),
+    ("world.projectiles.*.reflections", "return count agrees with the launch"),
+    ("world.projectiles.*.halved","only a ball can be intercepted by a sword"),
+    ("world.projectiles.*.time","settled projectiles end exactly at the simulation clock"),
     ("world.item_counter", "item identities are bounded by twice the number of allocated containers"),
     ("world.containers.*.items.#len", "weapon item storage has two slots"),
     ("world.containers.*.opened", "only chests can be opened"),
@@ -473,6 +481,8 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             "Died",
             "Chest",
             "Ground",
+            "Arrow",
+            "Ball",
         ] {
             s.push(extra.into());
         }
@@ -664,7 +674,7 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
     cp["world"]["deferred"]["hits"] = serde_json::json!([{
         "victim": 2, "by": 1,
         "packet": {"raw": 5.0, "phys": 4.0, "magic": 1.0, "true_": 0.0},
-        "weapon": "Fists", "stagger": true
+        "weapon": "Fists", "stagger": true, "scale": 1.0, "derived":false, "projectile":null
     }]);
     let queued = Sim::restore(&cp).expect("a checkpoint with a queued hit restores");
     assert_ne!(
@@ -688,6 +698,63 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
         sim.state_hash(),
         "a roster name is hashed"
     );
+}
+
+#[test]
+fn in_flight_projectile_leaves_are_hashed_or_validated() {
+    for weapon in [rh_sim::WeaponId::Bow, rh_sim::WeaponId::Wand] {
+        let p = Placement {
+            profile: "shooter".into(),
+            faction: FactionId::Holy,
+            at: Vec2::new(100., 272.),
+            hp: None,
+            weapon0: Some(weapon),
+            weapon1: None,
+            bot: false,
+        };
+        let target = Placement {
+            profile: "target".into(),
+            at: Vec2::new(980., 272.),
+            ..p.clone()
+        };
+        let mut sim = Sim::reset_active(
+            SimConfig::default(),
+            practice_arena(),
+            Secrets::from_seed(3),
+            &[
+                p,
+                target.clone(),
+                Placement {
+                    profile: "third".into(),
+                    ..target.clone()
+                },
+                Placement {
+                    profile: "fourth".into(),
+                    ..target
+                },
+            ],
+        );
+        sim.submit(PlayerId(1), cmd(RawCommand::Attack { a: 0., t: None }))
+            .unwrap();
+        while !sim
+            .step()
+            .iter()
+            .any(|e| matches!(e, rh_sim::Event::ProjectileLaunched(_)))
+        {}
+        sim.step();
+        let mut tally = Tally::default();
+        perturb_all(&sim, &BTreeMap::new(), &mut tally);
+        report("in flight", &tally);
+        assert!(tally.unhashed.is_empty(), "{:?}", tally.unhashed);
+        assert!(tally
+            .perturbed
+            .iter()
+            .any(|p| p == "world.projectiles.*.packet.raw"));
+        assert!(tally
+            .perturbed
+            .iter()
+            .any(|p| p == "world.projectiles.*.launch.origin.x"));
+    }
 }
 
 #[test]

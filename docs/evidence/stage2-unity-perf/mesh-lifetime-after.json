@@ -1,0 +1,12 @@
+{
+  "output": null,
+  "diagnostics": [],
+  "success": true,
+  "result": {
+    "cycles": 100,
+    "frameAdvanced": true,
+    "meshesBefore": 1,
+    "meshesAfter": 1,
+    "leaked": 0
+  }
+}

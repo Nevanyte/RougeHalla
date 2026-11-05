@@ -1,0 +1,90 @@
+{
+  "baseRevision": "c93b659d",
+  "branch": "optimization_port",
+  "contentHash": "b0b7169709bd0a83",
+  "protocol": 5,
+  "editor": "6000.0.85f2",
+  "optimizedBuildBytes": 53927318,
+  "sources": [
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs",
+      "sha256": "bd6de14122e07d9f388a719a7f20f25965e876b6de416477c178fd81c945ea6b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "sha256": "4ac676f2b34f5628de0eaac7022c0cd4aa036b9d001270042d4a5f00a31243ce"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ActorBatches.cs",
+      "sha256": "a0e96c3fa8a2a46d6c17c829b39efd45b8115883de7173c5fbb71a9cebcd5b3e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Resources/Shaders/RhVertexColor.shader",
+      "sha256": "55b3c6e425424922bdac6e3e220d99251baee3d6f55f7a3ea794e06d8482e45c"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/RhBuild.cs",
+      "sha256": "c2ea6ba6ca66436caad0cc47896bcb9b2f0ebf2c51a3a855c35d2797cf05298d"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/packages-lock.json",
+      "sha256": "27778a44ea7a9f0b6a2415929b8b0321a898ec5428a3e88ac95f671c08374166"
+    }
+  ],
+  "artifacts": [
+    {
+      "variant": "baseline",
+      "path": "Build/Web.data",
+      "bytes": 9917295,
+      "sha256": "7fca434bcff9e163d8a1b0bd90b752e566350a093f0b46ecb76cc69583ca514c"
+    },
+    {
+      "variant": "baseline",
+      "path": "Build/Web.framework.js",
+      "bytes": 431541,
+      "sha256": "57449413fb78137389aa45fea0034317eac191c7b6dfe32966c0f27d70961d80"
+    },
+    {
+      "variant": "baseline",
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "a93d3cdc402f79a81568861d877bcced313f28688bded8e8a48a7bccb7281e86"
+    },
+    {
+      "variant": "baseline",
+      "path": "Build/Web.wasm",
+      "bytes": 43498231,
+      "sha256": "810d19dab9819fad5500a47c0b2b7f95c5b058b15d7726dc4f8085a49c0ed72a"
+    },
+    {
+      "variant": "compiledInstancing",
+      "path": "Build/Web.data",
+      "bytes": 9935451,
+      "sha256": "14c06ca89815b1ea13fd2d78fa9629df1c791ece6e73df3c73c93a16c5f46722"
+    },
+    {
+      "variant": "compiledInstancing",
+      "path": "Build/Web.framework.js",
+      "bytes": 431513,
+      "sha256": "b5c3bed4c4370a285f8def560c7872aadc7effaafcf33e4117b48ebbc069f564"
+    },
+    {
+      "variant": "compiledInstancing",
+      "path": "Build/Web.loader.js",
+      "bytes": 26455,
+      "sha256": "21bc87e78a563c0d97bf831ec2b064bbdb6fd7c8dd3fdda9488f82cdf6007f98"
+    },
+    {
+      "variant": "compiledInstancing",
+      "path": "Build/Web.wasm",
+      "bytes": 43514433,
+      "sha256": "7a381873b5fa68a0b5a77faed931cc72c1c337fb2e3b6e2e990751bbd082d3d0"
+    }
+  ],
+  "status": "Archival compiled instancing draft; not current active/released source",
+  "activeRuntimeChangeOnly": "ActorView native mesh ownership cleanup",
+  "activeActorViewSha256": "bd6de14122e07d9f388a719a7f20f25965e876b6de416477c178fd81c945ea6b",
+  "draftPatchSha256": "6411b2856480cead1840aec9a747c14880a849dcfca83df4bf90de476e9dc30e",
+  "deferredPatchBase": "120ecd93",
+  "deferredPatchArchive": "deferred-instancing.patch.gz"
+}

@@ -84,6 +84,7 @@ pub(crate) fn raw_command(i: &FixInput) -> Option<RawCommand> {
 
 /// Every legacy event kind with a complete Rust projection. Unknown kinds always fail.
 pub const EVENT_KINDS: &[&str] = &[
+    "projEnd",
     "windup",
     "swing",
     "hit",

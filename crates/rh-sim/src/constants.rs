@@ -83,6 +83,18 @@ content! {
     AXE_SHRED_ARMOR: f64 = 3.0, "armor";
     AXE_SHRED_CAP: f64 = 6.0, "armor";
     AXE_SHRED_MS: f64 = 3000.0, "ms";
+    ARROW_RADIUS: f64 = 7.0, "u";
+    RANGED_SLACK: f64 = 2.0, "u";
+    PROJECTILE_SUBSTEP_MS: f64 = 10.0, "ms";
+    HOMING_LIFETIME_MS: f64 = 5000.0, "ms";
+    BALL_ARROW_RADIUS: f64 = 28.0, "u";
+    BALL_AFTER_ARROW: f64 = 0.6, "factor";
+    ARROW_REFLECT_SHARE: f64 = 0.15, "fraction";
+    MAX_ARROW_REFLECTIONS: u8 = 2, "reflections";
+    SWORD_BALL_SCALE: f64 = 0.5, "factor";
+    BALL_SAMPLE_STEP: f64 = 1.0, "u";
+    WAND_SPLASH_RADIUS: f64 = 48.0, "u";
+    WAND_SPLASH_SHARE: f64 = 0.3, "fraction";
     SWAP_SECONDS: f64 = 0.25, "s";
     MOVE_MULT_FLOOR: f64 = 0.35, "factor";
     /// A cooldown or windup that ends exactly on a tick is due on that tick whatever way float noise falls.

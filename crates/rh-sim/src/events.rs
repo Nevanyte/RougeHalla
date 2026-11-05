@@ -31,6 +31,12 @@ impl PickupRefusal {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Event {
     RaidStarted,
+    ProjectileLaunched(crate::ProjectileLaunch),
+    ProjectileEnded {
+        launch: crate::ProjectileLaunch,
+        at: crate::Vec2,
+        reason: crate::ProjectileEnd,
+    },
     Windup {
         by: PlayerId,
         weapon: WeaponId,
@@ -58,6 +64,7 @@ pub enum Event {
         id: PlayerId,
         by: PlayerId,
         weapon: WeaponId,
+        passive: bool,
     },
     PickupRefused {
         id: PlayerId,
@@ -139,7 +146,9 @@ impl Event {
             }
             Event::PickupRefused { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
-            Event::RaidStarted
+            Event::ProjectileLaunched(_)
+            | Event::ProjectileEnded { .. }
+            | Event::RaidStarted
             | Event::Windup { .. }
             | Event::Gv { .. }
             | Event::RaidEnded
@@ -160,9 +169,12 @@ impl Event {
             | Event::Block { .. }
             | Event::Stagger { .. } => Class::Fx,
             Event::PickupRefused { .. } => Class::Important,
-            Event::RaidStarted | Event::Windup { .. } | Event::Gv { .. } | Event::RaidEnded => {
-                Class::ServerOnly
-            }
+            Event::ProjectileLaunched(_)
+            | Event::ProjectileEnded { .. }
+            | Event::RaidStarted
+            | Event::Windup { .. }
+            | Event::Gv { .. }
+            | Event::RaidEnded => Class::ServerOnly,
         }
     }
 }

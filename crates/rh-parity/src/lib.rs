@@ -616,9 +616,10 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             fx.parity
         ),
     );
-    let isolated_melee = fx.packet.as_deref() == Some("P-COMBAT-1") && c.modules.is_some();
+    let combat_packet = matches!(fx.packet.as_deref(), Some("P-COMBAT-1" | "P-COMBAT-2"));
+    let isolated_combat = combat_packet && c.modules.is_some();
     need(
-        if c.options.is_empty() && !isolated_melee {
+        if c.options.is_empty() && !isolated_combat {
             c.world == CAPTURE_WORLD
         } else {
             c.world == "createScenarioWorld: explicit recorded modules/options/map seed"
@@ -716,7 +717,7 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             modules.iter().map(String::as_str).eq(MODULES
                 .iter()
                 .copied()
-                .filter(|m| !isolated_melee || *m != "consumables")),
+                .filter(|m| !isolated_combat || *m != "consumables")),
             "legacyConfig.modules are not the slice module order".into(),
         );
     }
@@ -921,7 +922,8 @@ pub fn compare(fx: &Fixture) -> Report {
             &mut rep,
             &sim,
             t,
-            fx.parity == "slice" && fx.packet.as_deref() == Some("P-COMBAT-1"),
+            fx.parity == "slice"
+                && matches!(fx.packet.as_deref(), Some("P-COMBAT-1" | "P-COMBAT-2")),
         );
         if sim.players().iter().any(|p| !p.weapon.shreds.is_empty()) {
             occurred.insert("state:shred".into());
@@ -948,17 +950,26 @@ pub fn compare(fx: &Fixture) -> Report {
         ) {
             rep.fail(format!("tick {}: {d}", t.tick));
         }
+        let launches = all.iter().filter_map(canon::launch).collect();
+        if let Some(d) = first_difference(
+            "launches",
+            &Value::Array(launches),
+            &Value::Array(t.launches.clone()),
+        ) {
+            rep.fail(format!("tick {}: {d}", t.tick));
+        }
+        for event in &all {
+            if let Event::ProjectileEnded { reason, .. } = event {
+                occurred.insert(format!("end:{}", canon::end_reason(*reason)));
+            }
+        }
         if !t.launches.is_empty() {
             occurred.insert("launch".to_string());
         }
         if t.mobs.as_ref().is_some_and(|m| !m.is_empty()) {
             occurred.insert("state:mobs".to_string());
         }
-        for (name, present) in [
-            ("launches", !t.launches.is_empty()),
-            ("mobs", t.mobs.is_some()),
-            ("fields", t.fields.is_some()),
-        ] {
+        for (name, present) in [("mobs", t.mobs.is_some()), ("fields", t.fields.is_some())] {
             if present && unported.insert(name.to_string()) {
                 rep.fail(format!(
                     "tick {}: unported stream {name}: no comparison in the harness",

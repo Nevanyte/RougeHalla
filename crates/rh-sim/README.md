@@ -18,8 +18,8 @@ it through `Sim::submit` and `Sim::step` (or `Sim::step_into`, the allocation-fr
 | `systems/` | One file per legacy module; every entry point is `fn(&mut Cx)`. See below. |
 | `schedule.rs`, `hooks.rs` | The tick as data: `PHASES`, the registration lists, `ACTIONS` and the hook chains (each row a legacy name, a config gate and `Ported`/`Pending`), the loop that runs them, and hook dispatch (`hooks::fire`). |
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
-| `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/3; other tags are refused. |
-| `checkpoint.rs` | `{format, content_hash, build, statics, world}` serde layout (restore refuses another content hash), the `rh-checkpoint/5` tag and `CheckpointError`. |
+| `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/4; other tags are refused. |
+| `checkpoint.rs` | `{format, content_hash, build, statics, world}` serde layout (restore refuses another content hash), the `rh-checkpoint/6` tag and `CheckpointError`. |
 | `item_view.rs` | Per-seat item observations and exact pickup offers. `ItemObserver::prepare_into` stages a full observation and commits handles only on delivery. Retired batches have 20 ticks of grace. |
 | `input.rs` | `PublicCommand` (observer proposal), `RawCommand` (trusted resolved/fixture input), `validate`, and `Command`, an opaque type: it is built only by `validate` or by decoding, which validates again and refuses a command validation would change, so a replay cannot inject an unvalidated command (C-INPUT). Also the order budget and the per-fighter queue. |
 | `observe.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
@@ -65,7 +65,7 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 ### Checkpoints
 
-`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/5", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
+`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/6", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
 cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a
@@ -75,7 +75,7 @@ dated after `server_time` (a denser one fills the ring within a few steps); any 
 spawn that is non-finite or more than 1024 units past the map (huge coordinates overflow the tile arithmetic, and opposite
 extremes cancel in a finiteness sum); `bot_kills` above `kills`, `kills` above the roster length, `joined` or
 `downs_between_ticks` above the roster length (natural bounds: a kill needs a victim, a down a fighter); a carried fist item or invalid active slot, an action whose kind or weapon mismatches the hand,
-invalid container or item identities, invalid shred timers or values, and queued inputs outside validation bounds. Counters with no natural bound (`inputs.dropped`, the gv parts and their sum) use saturating arithmetic, which is
+invalid container, item or flight identities, invalid flight positions, velocities, clocks or reflection counts, invalid shred timers or values, and queued inputs outside validation bounds. Counters with no natural bound (`inputs.dropped`, the gv parts and their sum) use saturating arithmetic, which is
 bit-identical below `u32::MAX`. These are the rules the tick is known to rely on: each has a refusal test in
 `checkpoint.rs`; a few hundred random and structured mutations of a real checkpoint restore, step, take commands and
 join/leave without a panic; and `rh-headless/tests/restore_real.rs` restores checkpoints of real bot and lobby matches at
@@ -85,8 +85,8 @@ hundreds of steps and asserts none is refused. A change that makes
 The arena is an `Arc<Arena>` (serde `rc`): it serializes exactly as a plain `Arena`, so replay JSON is unchanged, and
 `Sim::new` / `Sim::reset_active` accept anything `Into<Arc<Arena>>` (an `Arena` by value, or a shared `Arc`).
 
-Weapon containers and item UIDs use separate monotonic run-local counters. Container IDs map to the legacy
-`c` plus base-36 counter. An item UID is its decimal counter in fixture projections. Both counters and live items
-are authoritative checkpoint and hash fields. UIDs consume no random stream. The ledger folds active axe shred
-after damage for the next tick's armor mirror. Ranged windups can be cancelled by swaps or stagger; the projectile
-sweep and spawn rows remain P-COMBAT-2.
+Containers and projectiles share the legacy run-local entity counter. Fixtures encode its value in base 36
+after `c` or `p`. An item UID uses its own decimal counter. Both counters and live gear and missiles are
+authoritative checkpoint and hash fields. The ledger folds active axe shred after damage. Directional bow
+and wand shots leave after movement, sweep on subsequent ticks, and can outlive the shooter. The simulation
+keeps complete launch/end events private until viewer-specific projectile presentation is implemented.

@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/5";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/6";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -238,6 +238,19 @@ fn content_mismatch(checkpoint: u64) -> Option<CheckpointError> {
     (checkpoint != build).then_some(CheckpointError::ContentMismatch { checkpoint, build })
 }
 
+/// A projectile starts with its faction's weapon damage. Reflections, interceptions and arrow
+/// deletions only reduce it. Check pending ranged packets too, before they can become a flight.
+fn valid_ranged_packet(packet: crate::state::Packet, weapon: WeaponId) -> bool {
+    let maximum = crate::FactionId::ALL
+        .into_iter()
+        .map(|id| crate::content::damage_per_hit(&crate::content::paced(id), weapon, 1.0))
+        .fold(0.0, f64::max);
+    let shares = [packet.phys, packet.magic, packet.true_];
+    (0.0..=maximum).contains(&packet.raw)
+        && shares.iter().all(|v| (0.0..=1.0).contains(v))
+        && (shares.iter().sum::<f64>() - 1.0).abs() <= 4.0 * f64::EPSILON
+}
+
 /// The invariants the tick relies on and the serde shape cannot express. A state that breaks one would panic (or silently
 /// misbehave) a few steps later, so a checkpoint carrying it is refused here instead.
 fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
@@ -304,17 +317,30 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     let mut last_container = 0;
     let mut item_ids = std::collections::BTreeSet::new();
-    if w.container_counter
-        > u32::MAX
-            - 2 * crate::constants::MAX_PLAYERS as u32
-                * crate::constants::MAX_ACTIONS_PER_TICK as u32
-        || w.item_counter > u64::from(w.container_counter) * 2
+    let seats = w.roster.len().max(crate::constants::MAX_PLAYERS) as u64;
+    let per_seat = crate::constants::MAX_ACTIONS_PER_TICK as u64
+        + 1
+        + u64::from(crate::constants::MAX_ARROW_REFLECTIONS);
+    // Seeded rack props can be numerous. Each consumed ground prop needed one action; each
+    // launched shot and its entire reflection chain needed an attack. These account for all
+    // entity ids no longer represented by current containers in this build.
+    let max_allocated = (w.containers.len() as u64).saturating_add(
+        u64::from(w.tick)
+            .saturating_mul(seats)
+            .saturating_mul(per_seat),
+    );
+    if u64::from(w.entity_counter) > max_allocated
+        || w.item_counter > u64::from(w.entity_counter) * 2
     {
-        return Err("invalid loot identity counters".into());
+        return Err("invalid run entity identity counters".into());
     }
+    // Keep enough ids for a full step of inputs, shots, drops and body creation, PLUS every
+    // additional reflection the existing arrows could make. An imported dense volley must
+    // never panic at the shield that reflects it.
+    let mut needed_ids = seats * (2 * crate::constants::MAX_ACTIONS_PER_TICK as u64);
     for c in &w.containers {
         if c.id <= last_container
-            || c.id > w.container_counter
+            || c.id > w.entity_counter
             || !near(c.at.x, c.at.y)
             || c.born_tick > w.tick.saturating_add(1)
             || (c.items[0].is_none() && c.items[1].is_some())
@@ -335,6 +361,55 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 return Err(format!("invalid item in container {}", c.id));
             }
         }
+    }
+    let mut last_projectile = 0;
+    for pr in &w.projectiles {
+        let st = &pr.launch;
+        let weapon = if st.kind == crate::ProjectileKind::Ball {
+            WeaponId::Wand
+        } else {
+            WeaponId::Bow
+        };
+        let crate::content::Shape::Projectile { speed, range } =
+            crate::content::weapon(weapon).shape
+        else {
+            unreachable!()
+        };
+        // One entity counter supplies props and missiles; no id can be reused. Settled flights have
+        // reached the checkpoint clock. They may still belong to a fighter who has since departed.
+        let velocity_ok =
+            |v: crate::Vec2| (crate::math::hypot(v.x, v.y) - speed).abs() <= speed * 1e-10;
+        if w.phase != crate::Phase::Active
+            || st.id <= last_projectile
+            || st.id > w.entity_counter
+            || w.containers.binary_search_by_key(&st.id, |c| c.id).is_ok()
+            || w.roster.name(st.owner).is_none()
+            || st.target.is_some_and(|id| {
+                weapon != WeaponId::Wand || w.roster.name(id).is_none() || id == st.owner
+            })
+            || st.reflected != (pr.reflections > 0)
+            || pr.reflections > crate::constants::MAX_ARROW_REFLECTIONS
+            || (st.reflected && weapon != WeaponId::Bow)
+            || (pr.halved && weapon != WeaponId::Wand)
+            || !(0. ..=range).contains(&st.range)
+            || !(0. ..=st.range).contains(&pr.traveled)
+            || !near(st.origin.x, st.origin.y)
+            || !near(pr.pos.x, pr.pos.y)
+            || !(0. ..=pr.time).contains(&st.time)
+            || pr.time != w.server_time
+            || !velocity_ok(st.velocity)
+            || !velocity_ok(pr.velocity)
+            || !valid_ranged_packet(pr.packet, weapon)
+        {
+            return Err(format!("invalid projectile {}", st.id));
+        }
+        if weapon == WeaponId::Bow {
+            needed_ids += u64::from(crate::constants::MAX_ARROW_REFLECTIONS - pr.reflections);
+        }
+        last_projectile = st.id;
+    }
+    if u64::from(w.entity_counter) + needed_ids > u64::from(u32::MAX) {
+        return Err("insufficient run entity identity headroom".into());
     }
     for p in w.players.iter() {
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
@@ -423,6 +498,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             if a.kind != expected
                 || a.weapon != p.active_weapon()
                 || !finite
+                || (a.kind != ActionKind::Swing && !valid_ranged_packet(pk, a.weapon))
                 || a.lands_at < a.started_at
             {
                 return Err(format!(

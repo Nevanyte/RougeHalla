@@ -226,6 +226,9 @@ fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
         },
         weapon: Some(crate::content::WeaponId::Fists),
         stagger: false,
+        projectile: None,
+        scale: 1.0,
+        derived: false,
         passive: false,
     }
 }
@@ -598,6 +601,9 @@ fn melee_reference(
                 packet: req.packet,
                 weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
+                projectile: None,
+                scale: 1.0,
+                derived: false,
                 passive: false,
             });
         }

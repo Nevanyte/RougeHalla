@@ -156,7 +156,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             amount,
             passive,
         }),
-        Event::Block { id, by, weapon } => Some(SeenEvent::Block {
+        Event::Block { id, by, weapon, .. } => Some(SeenEvent::Block {
             id,
             by: can_see(by).then_some(by),
             weapon,
@@ -180,7 +180,9 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         }),
         Event::Bounty { id, bounty } => Some(SeenEvent::Bounty { id, bounty }),
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
-        Event::RaidStarted
+        Event::ProjectileLaunched(_)
+        | Event::ProjectileEnded { .. }
+        | Event::RaidStarted
         | Event::Windup { .. }
         | Event::Gv { .. }
         | Event::RaidEnded
@@ -491,8 +493,25 @@ mod tests {
     /// there); this list only has to hold them consistent with one another, so extend it with the variant.
     fn every_event() -> Vec<Event> {
         let (a, b) = (PlayerId(1), PlayerId(2));
+        let shot = crate::ProjectileLaunch {
+            id: 1,
+            kind: crate::ProjectileKind::Ball,
+            owner: a,
+            reflected: false,
+            origin: crate::Vec2::new(100., 100.),
+            velocity: crate::Vec2::new(380., 0.),
+            time: 50.,
+            range: 640.,
+            target: None,
+        };
         vec![
             Event::RaidStarted,
+            Event::ProjectileLaunched(shot),
+            Event::ProjectileEnded {
+                launch: shot,
+                at: shot.origin,
+                reason: crate::ProjectileEnd::Hit,
+            },
             Event::Windup {
                 by: a,
                 weapon: WeaponId::Fists,
@@ -518,6 +537,7 @@ mod tests {
                 id: b,
                 by: a,
                 weapon: WeaponId::Sword,
+                passive: false,
             },
             Event::PickupRefused {
                 id: b,

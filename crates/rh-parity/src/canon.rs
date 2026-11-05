@@ -1,5 +1,41 @@
 use crate::{angle_close, close, fid, Event, Sim, Value};
 
+fn projectile_id(n: u32) -> String {
+    super::combat::id36(n).replacen('c', "p", 1)
+}
+fn kind(k: rh_sim::ProjectileKind) -> &'static str {
+    match k {
+        rh_sim::ProjectileKind::Arrow => "arrow",
+        rh_sim::ProjectileKind::Ball => "ball",
+    }
+}
+pub(crate) fn end_reason(r: rh_sim::ProjectileEnd) -> &'static str {
+    use rh_sim::ProjectileEnd::*;
+    match r {
+        Range => "range",
+        Wall => "wall",
+        Hit => "hit",
+        Deleted => "deleted",
+        Destroyed => "destroyed",
+        Reflected => "reflected",
+        Blocked => "blocked",
+        Cleared => "cleared",
+    }
+}
+pub(crate) fn launch(e: &Event) -> Option<Value> {
+    let Event::ProjectileLaunched(p) = e else {
+        return None;
+    };
+    let mut row = serde_json::json!({"id":projectile_id(p.id),"kind":kind(p.kind),"owner":fid(p.owner),"x":p.origin.x,"y":p.origin.y,"vx":p.velocity.x,"vy":p.velocity.y,"t":p.time,"range":p.range});
+    if !p.reflected {
+        row["ownerId"] = serde_json::json!(fid(p.owner));
+    }
+    if let Some(target) = p.target {
+        row["targetId"] = serde_json::json!(fid(target));
+    }
+    Some(rounded(row))
+}
+
 /// Canonical form of a Rust event, matching the capture tool's `canonicalEvent` (GV feedback events are not compared:
 /// GV is checked through the results).
 pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
@@ -42,8 +78,30 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::Bounty { id, bounty } => {
             json!({"kind": "bounty", "id": fid(*id), "name": sim.player(*id).map(|p| p.seat.name.as_str()), "bounty": bounty})
         }
-        Event::Block { id, by, weapon } => {
-            json!({"kind":"block", "id":fid(*id), "by":fid(*by), "weapon":weapon.as_str()})
+        Event::ProjectileLaunched(_) => return None, // compared in the complete launch stream
+        Event::ProjectileEnded {
+            launch: p,
+            at,
+            reason,
+        } => {
+            let mut row = json!({"id":projectile_id(p.id),"kind":"projEnd","proj":kind(p.kind),"x0":p.origin.x,"y0":p.origin.y,"t0":p.time,"x":at.x,"y":at.y,"reason":end_reason(*reason)});
+            if !p.reflected {
+                row["ownerId"] = json!(fid(p.owner));
+            }
+            row
+        }
+        Event::Block {
+            id,
+            by,
+            weapon,
+            passive,
+        } => {
+            let mut row =
+                json!({"kind":"block", "id":fid(*id), "by":fid(*by), "weapon":weapon.as_str()});
+            if *passive {
+                row["passive"] = json!(true);
+            }
+            row
         }
         Event::PickupRefused { id, reason, .. } => {
             json!({"kind":"toast", "to":fid(*id), "text":reason.message()})

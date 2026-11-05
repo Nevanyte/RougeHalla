@@ -1,0 +1,80 @@
+{
+  "browser": "156.0.8078.4",
+  "headless": false,
+  "launchFlags": [
+    "--use-angle=metal",
+    "--enable-gpu"
+  ],
+  "experimentalUncapped": false,
+  "seconds": 1,
+  "errors": [],
+  "contexts": [
+    {
+      "timerQuery": true,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)",
+      "width": 960,
+      "height": 600
+    }
+  ],
+  "visibility": "visible",
+  "dpr": 1,
+  "renderedRafIntervalMs": {
+    "samples": 150,
+    "p50": 6.900000000001455,
+    "p99": 7.300000000001091,
+    "max": 104.10000000000036
+  },
+  "synchronousRafCpuMs": {
+    "samples": 150,
+    "p50": 1.5,
+    "p99": 2,
+    "max": 2.700000047683716
+  },
+  "gpuElapsedMs": {
+    "samples": 150,
+    "p50": 0.424041,
+    "p99": 1.258333,
+    "max": 1.358083
+  },
+  "gpuDisjoint": 0,
+  "draws": {
+    "samples": 150,
+    "p50": 814,
+    "p99": 814,
+    "max": 814
+  },
+  "instances": {
+    "samples": 150,
+    "p50": 814,
+    "p99": 814,
+    "max": 814
+  },
+  "first": {
+    "time": 9104.8,
+    "interval": 7,
+    "cpuMs": 1.8000001907348633,
+    "draws": 814,
+    "instances": 814,
+    "jsHeap": 21858549,
+    "wasmBytes": 69730304
+  },
+  "last": {
+    "time": 10236.6,
+    "interval": 6.899999999999636,
+    "cpuMs": 1.5,
+    "draws": 814,
+    "instances": 814,
+    "jsHeap": 23534868,
+    "wasmBytes": 69730304
+  },
+  "buffers": {
+    "created": 1765,
+    "deleted": 19
+  },
+  "notes": [
+    "Instrumented synchronous RAF callback duration is CPU submission/loop time, not full browser CPU or Unity Profiler PlayerLoop.",
+    "GPU timer query results are measured only when extension available; absent samples mean unavailable, never zero GPU cost.",
+    "Rendered RAF cadence includes browser/display pacing. Uncapped flags are experimental diagnostic settings, not supported player FPS.",
+    "Observer hooks add overhead; compare equivalent workload with the same observer."
+  ]
+}

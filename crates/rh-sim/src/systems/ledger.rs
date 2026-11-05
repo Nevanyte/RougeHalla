@@ -27,6 +27,9 @@ pub(crate) struct Entry {
     /// What dealt it; `None` for damage no weapon dealt (an ability, a field).
     pub(crate) weapon: Option<WeaponId>,
     pub(crate) stagger: bool,
+    pub(crate) projectile: Option<u32>,
+    pub(crate) scale: f64,
+    pub(crate) derived: bool,
     #[serde(default)]
     pub(crate) passive: bool,
 }
@@ -258,7 +261,7 @@ fn apply_victim(
     amounts.clear();
     amounts.extend(idxs.iter().map(|&k| {
         let e = &ledger[k];
-        let raw = e.packet.raw * mults[k];
+        let raw = e.packet.raw * e.scale * mults[k];
         let s = DamageShares {
             phys: e.packet.phys,
             magic: e.packet.magic,

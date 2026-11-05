@@ -1,0 +1,60 @@
+{
+  "browser": "156.0.8078.4",
+  "headless": true,
+  "experimentalUncappedFlags": [],
+  "seconds": 30,
+  "errors": [],
+  "contexts": [
+    {
+      "timerQuery": false,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "width": 300,
+      "height": 150
+    }
+  ],
+  "visibility": "visible",
+  "dpr": 1,
+  "renderedRafIntervalMs": {
+    "samples": 0,
+    "p50": null,
+    "p99": null,
+    "max": null
+  },
+  "synchronousRafCpuMs": {
+    "samples": 0,
+    "p50": null,
+    "p99": null,
+    "max": null
+  },
+  "gpuElapsedMs": {
+    "samples": 0,
+    "p50": null,
+    "p99": null,
+    "max": null
+  },
+  "gpuDisjoint": 0,
+  "draws": {
+    "samples": 0,
+    "p50": null,
+    "p99": null,
+    "max": null
+  },
+  "instances": {
+    "samples": 0,
+    "p50": null,
+    "p99": null,
+    "max": null
+  },
+  "buffers": {
+    "created": 0,
+    "deleted": 0
+  },
+  "notes": [
+    "Instrumented synchronous RAF callback duration is CPU submission/loop time, not full browser CPU or Unity Profiler PlayerLoop.",
+    "GPU timer query results are measured only when extension available; absent samples mean unavailable, never zero GPU cost.",
+    "Rendered RAF cadence includes browser/display pacing. Uncapped flags are experimental diagnostic settings, not supported player FPS.",
+    "Observer hooks add overhead; compare equivalent workload with the same observer."
+  ],
+  "valid": false,
+  "excludedReason": "Initial probe captured a feature-detection context, not the Unity canvas, and selected software SwiftShader. No performance conclusions use this record."
+}

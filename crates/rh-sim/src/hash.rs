@@ -471,6 +471,9 @@ mod tests {
                         },
                         weapon: Some(crate::content::WeaponId::Fists),
                         stagger: false,
+                        projectile: None,
+                        scale: 1.0,
+                        derived: false,
                         passive: false,
                     })
                 }),

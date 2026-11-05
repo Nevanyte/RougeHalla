@@ -36,11 +36,12 @@ pub(crate) fn resolve(cx: &mut Cx) {
 #[inline(never)]
 fn resolve_swings(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
-    let w: &World = w;
+    let w: &mut World = w;
     let TickScratch {
         melee,
         ledger,
         bodies,
+        flight,
         rewound,
         ..
     } = &mut **s;
@@ -116,6 +117,9 @@ fn resolve_swings(cx: &mut Cx) {
                 packet: req.packet,
                 weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
+                projectile: None,
+                scale: 1.0,
+                derived: false,
                 passive: false,
             };
             if blocked {
@@ -123,6 +127,7 @@ fn resolve_swings(cx: &mut Cx) {
                     id: target.id,
                     by: req.attacker,
                     weapon: req.weapon,
+                    passive: false,
                 });
                 if req.weapon == WeaponId::Sword {
                     ledger.push(Entry {
@@ -134,6 +139,9 @@ fn resolve_swings(cx: &mut Cx) {
                         },
                         weapon: Some(WeaponId::Shield),
                         stagger: false,
+                        projectile: None,
+                        scale: 1.0,
+                        derived: false,
                         passive: true,
                     });
                 }
@@ -142,6 +150,7 @@ fn resolve_swings(cx: &mut Cx) {
             }
             ledger.push(entry);
         }
+        super::projectiles::meet_balls(w, flight, ledger, ev, &k.arena.map, req, (reach, half_arc));
     }
     melee.clear();
 }

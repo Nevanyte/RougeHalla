@@ -127,8 +127,7 @@ fn add_container(
     tick: u32,
     between_ticks: bool,
 ) -> u32 {
-    w.container_counter += 1;
-    let id = w.container_counter;
+    let id = w.next_entity_id();
     let items = weapons.map(|weapon| {
         weapon.map(|weapon| {
             w.item_counter += 1;

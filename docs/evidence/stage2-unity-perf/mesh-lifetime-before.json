@@ -1,0 +1,11 @@
+{
+  "output": null,
+  "diagnostics": [],
+  "success": true,
+  "result": {
+    "cycles": 100,
+    "meshesBefore": 0,
+    "meshesAfter": 400,
+    "leaked": 400
+  }
+}

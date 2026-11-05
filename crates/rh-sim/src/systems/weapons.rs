@@ -13,6 +13,7 @@ use crate::fighter::{FighterCore, FighterIx};
 use crate::input::ActionCmd;
 use crate::state::{ActionKind, Packet, PendingAction};
 use crate::systems::melee::MeleeReq;
+use crate::systems::projectiles::Spawn;
 use crate::systems::Cx;
 
 pub(crate) fn set_aim(p: &mut FighterCore, now: f64, a: f64) {
@@ -70,16 +71,22 @@ pub(crate) fn update(cx: &mut Cx) {
     let now = w.server_time;
     for p in &mut w.players {
         if p.standing() {
-            step_weapon(&mut p.core, now, ev, &mut s.melee);
+            step_weapon(&mut p.core, now, ev, &mut s.melee, &mut s.flight.spawns);
         }
     }
 }
 
-fn step_weapon(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, melee: &mut Vec<MeleeReq>) {
+fn step_weapon(
+    p: &mut FighterCore,
+    now: f64,
+    ev: &mut Vec<Event>,
+    melee: &mut Vec<MeleeReq>,
+    spawns: &mut Vec<Spawn>,
+) {
     let weapon = p.active_weapon();
     if let Some(act) = p.weapon.action {
         if now + TIE_EPS_MS >= act.lands_at {
-            land(p, now, melee, act);
+            land(p, now, melee, spawns, act);
         }
     }
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
@@ -90,7 +97,7 @@ fn step_weapon(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, melee: &mut V
         start_attack(p, now, ev, weapon, tm);
         if tm.windup == 0.0 {
             if let Some(act) = p.weapon.action {
-                land(p, now, melee, act);
+                land(p, now, melee, spawns, act);
             }
         }
     }
@@ -144,7 +151,13 @@ fn start_attack(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>, weapon: Weap
     }
 }
 
-fn land(p: &mut FighterCore, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAction) {
+fn land(
+    p: &mut FighterCore,
+    now: f64,
+    melee: &mut Vec<MeleeReq>,
+    spawns: &mut Vec<Spawn>,
+    act: PendingAction,
+) {
     p.weapon.action = None;
     match act.kind {
         ActionKind::Swing => {
@@ -159,7 +172,17 @@ fn land(p: &mut FighterCore, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAc
             });
         }
         ActionKind::Cast | ActionKind::Draw => {
-            // The release ends its movement pause. Projectile creation belongs to P-COMBAT-2.
+            let aim = if act.kind == ActionKind::Draw {
+                p.weapon.aim
+            } else {
+                act.a
+            };
+            spawns.push(Spawn {
+                owner: p.id,
+                weapon: act.weapon,
+                aim,
+                packet: act.packet,
+            });
             p.weapon.draw_started_at = 0.0;
         }
     }

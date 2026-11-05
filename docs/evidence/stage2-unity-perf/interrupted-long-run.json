@@ -1,0 +1,9 @@
+{
+  "workload": "protocol5 public synthetic204 trace",
+  "plannedSeconds": 300,
+  "status": "interrupted",
+  "reason": "User reprioritized Rust simulation/parity/headless; quiet window ended immediately.",
+  "completedMeasurement": false,
+  "partialFrameSamplesRetained": false,
+  "note": "The in-process profile buffer was discarded when the unfinished browser process was stopped. No five-minute result or quiet-window before/after claim is made."
+}

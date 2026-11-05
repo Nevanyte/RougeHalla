@@ -39,6 +39,7 @@ pub(crate) struct TickScratch {
     pub(crate) mults: Vec<f64>,
     /// Melee swings that landed this tick, resolved after movement (rewound).
     pub(crate) melee: Vec<MeleeReq>,
+    pub(crate) flight: crate::systems::projectiles::FlightScratch,
     /// The damage ledger: every hit of the tick, applied at once.
     pub(crate) ledger: Vec<Entry>,
     /// Players downed during this step, settled at its end.
@@ -83,6 +84,7 @@ impl Default for TickScratch {
             standing: Vec::with_capacity(p),
             mults: Vec::with_capacity(p),
             melee: Vec::with_capacity(p),
+            flight: Default::default(),
             ledger: Vec::with_capacity(hits),
             downed_this_tick: Vec::with_capacity(p),
             bodies: Vec::with_capacity(p),

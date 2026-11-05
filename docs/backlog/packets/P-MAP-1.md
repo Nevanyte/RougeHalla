@@ -19,10 +19,18 @@ additively; merge those edits one at a time.
 - Docs: `docs/ZONE_SHAPES_AS_BUILT.md` (as-built reference, section 3 pipeline, 11 gates, 18 how to change a shape), `docs/R2_GENERATOR_AS_BUILT.md`, `docs/R1_GENERATOR_NOTE.md` (history). docs/legacy/CLAUDE_LEGACY.md map sections are partly 136x136/8-camp stale (INVENTORY section 9): 160x160, 10 camps per zone, 2 elites, `BAG_COPIES` 3.
 
 ## New paths
-New crate `crates/rh-map` (generator + `mapcert` module; depends on `rh-sim::{rng,math}` only, no I/O, no clock; a `bin/` for sweep/print), `parity/legacy-capture/capture.ts` export `rh-map/2`, `parity/maps/*.map.json`, a `rh-map` test that reads `packages/shared/test/mapPins.ts` (parse the string list) or a copy exported by capture.
+Stage 2 decision: keep the pure generator and certifier under modular `crates/rh-sim/src/mapgen/`, within the Rust
+simulation boundary requested by the owner. No new crate or dependencies are needed for the foundation. A headless
+tool can later provide sweep/print; tools/map-fixtures exports actual reference observations. The `rh-map/2` name below
+is an export format, not a separate gameplay implementation. Full-layer export, pins and independent certifier remain.
+
+The active first milestone is deterministic trig, grid topology/operations and fixed coliseum layout, with differential
+fixtures. It does not claim a complete generator, richer live-map load or seed-pin parity.
 
 ## Exclusive write scope
-`crates/rh-map/**`, root `Cargo.toml` (workspace member only), `parity/legacy-capture/capture.ts` (export), `parity/maps/`, `crates/rh-sim/src/map.rs` (only to load the new layers), `crates/rh-parity/**` (a map-hash test). No edits under `packages/`.
+Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module
+declaration after it is buildable. Later milestones separately coordinate full-layer loading/export, pin tests and the
+independent certifier. No edits under `packages/`; no simultaneous edits to projectile/core shared files.
 
 ## Contracts and references
 C-MAP (server-sent canonical map), C-RNG (generator streams are a function of the public `(seed, attempt)`; gameplay randomness never derives from the map seed), C-NUM, ADR 0003 (server is the only generator; blob + FNV identity), ADR 0007. `docs/CONTRACTS.md` C-PARITY (hash equality is a discrete outcome).
@@ -44,7 +52,7 @@ C-MAP (server-sent canonical map), C-RNG (generator streams are a function of th
 
 ## Validation commands
 `npx tsx packages/shared/scripts/printMap.ts <seed>` (reference ASCII), `npx tsx packages/shared/scripts/mapSweep.ts <count>` (legacy certifier),
-`npx tsx parity/legacy-capture/capture.ts --only map`, `cargo test -p rh-map` (to be created by this packet), `cargo test --workspace`,
+`npx tsx parity/legacy-capture/capture.ts --only map`, `cargo test -p rh-sim mapgen::`, `node --import tsx tools/map-fixtures/foundations.ts --check`, `cargo test --workspace`,
 `cargo clippy --workspace --all-targets`, `cargo run -p rh-parity --bin parity-report`. Legacy test run for reference: `npm test -w @raid/shared`.
 
 ## Risk and suggested model tier

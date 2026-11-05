@@ -541,6 +541,56 @@ pub(crate) struct ArenaRt {
     pub(crate) downs_between_ticks: u32,
 }
 
+/// Server-private projectile identity uses the same run-local counter as containers (legacy nextId).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ProjectileKind {
+    Arrow,
+    Ball,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ProjectileEnd {
+    Range,
+    Wall,
+    Deleted,
+    Hit,
+    Reflected,
+    Blocked,
+    Destroyed,
+    Cleared,
+}
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ProjectileLaunch {
+    pub id: u32,
+    pub kind: ProjectileKind,
+    pub owner: PlayerId,
+    pub reflected: bool,
+    pub origin: Vec2,
+    pub velocity: Vec2,
+    pub time: f64,
+    pub range: f64,
+    pub target: Option<PlayerId>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct Projectile {
+    pub(crate) launch: ProjectileLaunch,
+    pub(crate) pos: Vec2,
+    pub(crate) velocity: Vec2,
+    pub(crate) time: f64,
+    pub(crate) traveled: f64,
+    pub(crate) packet: Packet,
+    pub(crate) halved: bool,
+    pub(crate) reflections: u8,
+}
+impl Projectile {
+    pub(crate) fn weapon(&self) -> WeaponId {
+        match (self.launch.kind, self.launch.reflected) {
+            (ProjectileKind::Arrow, true) => WeaponId::Shield,
+            (ProjectileKind::Arrow, false) => WeaponId::Bow,
+            (ProjectileKind::Ball, _) => WeaponId::Wand,
+        }
+    }
+}
+
 /// The evolving match state: everything a later tick can depend on. With [`crate::statics::MatchStatic`] it is the whole
 /// checkpoint, and it is what [`crate::Sim::state_hash`] hashes. Per-tick working sets live in
 /// [`crate::scratch::TickScratch`] instead.
@@ -555,8 +605,10 @@ pub(crate) struct World {
     /// In join order (legacy Map insertion order).
     pub(crate) players: Store<Player>,
     pub(crate) next_id: u32,
+    pub(crate) projectiles: Vec<Projectile>,
     pub(crate) containers: Vec<Container>,
-    pub(crate) container_counter: u32,
+    /// Legacy nextId: container and projectile prefixes share one ascending run-local serial.
+    pub(crate) entity_counter: u32,
     pub(crate) item_counter: u64,
     /// Names of everyone who joined, leavers included (append-only; see [`Roster`]).
     pub(crate) roster: Roster,
@@ -611,6 +663,14 @@ pub(crate) struct PayQueue {
 }
 
 impl World {
+    pub(crate) fn next_entity_id(&mut self) -> u32 {
+        self.entity_counter = self
+            .entity_counter
+            .checked_add(1)
+            .expect("run entity id exhausted");
+        self.entity_counter
+    }
+
     /// The slot of a present player (join order = id order): a binary search.
     pub(crate) fn idx(&self, id: PlayerId) -> Option<usize> {
         self.players.idx(id)
@@ -685,7 +745,8 @@ impl World {
             players: Store::new(),
             next_id: 1,
             containers: Vec::with_capacity(4 * MAX_PLAYERS),
-            container_counter: 0,
+            projectiles: Vec::new(),
+            entity_counter: 0,
             item_counter: 0,
             roster: Roster::default(),
             joined: 0,

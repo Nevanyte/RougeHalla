@@ -1,10 +1,8 @@
-//! The outcome digest: a behaviour fingerprint of a run that depends only on what the sim publicly did, never on
-//! `Sim::state_hash` or on any serde layout. Each tick folds the public snapshot ([`rh_sim::public_snapshot`]: every
-//! player's public fields, the clock, the phase and the winner) and the step's events in order (kind, ids and payload,
-//! including each resolved [`RunResult`]). Two runs with the same digest showed the same public behaviour bit for bit
-//! (f64s by their bits), so it stays a valid A/B fingerprint when later packages restructure state or redefine the state
-//! hash. Fields are folded explicitly, one by one, with stable tags: adding a public field or an event variant means
-//! extending this file (the matches are exhaustive, so the compiler says so).
+//! The trusted runner's behaviour fingerprint, independent of the state hash and serde layout.
+//! It folds all fighters and authoritative events, including the identity, origin, owner and target
+//! of hidden projectiles. It is private match diagnostics; policies and clients receive only their
+//! own filtered observations. Explicit field folds keep replay/performance comparisons sensitive
+//! to individual event payloads across serialization changes.
 //!
 //! Also compiled into `rh-parity`'s parity-bench (`#[path]`), so it may use `rh_sim` and `std` only.
 
@@ -105,6 +103,23 @@ impl OutcomeDigest {
         }
     }
 
+    fn flight(&mut self, p: &rh_sim::ProjectileLaunch) {
+        self.w(u64::from(p.id));
+        self.w(p.kind as u64);
+        self.w(u64::from(p.owner.0));
+        self.w(p.reflected as u64);
+        for n in [
+            p.origin.x,
+            p.origin.y,
+            p.velocity.x,
+            p.velocity.y,
+            p.time,
+            p.range,
+        ] {
+            self.f(n);
+        }
+        self.opt(p.target.map(|id| u64::from(id.0)));
+    }
     fn event(&mut self, e: &Event) {
         self.events += 1;
         match e {
@@ -150,7 +165,26 @@ impl OutcomeDigest {
                     self.s("passive");
                 }
             }
-            Event::Block { id, by, weapon } => {
+            Event::ProjectileLaunched(p) => {
+                self.s("projectile");
+                self.flight(p);
+            }
+            Event::ProjectileEnded { launch, at, reason } => {
+                self.s("projEnd");
+                self.flight(launch);
+                self.f(at.x);
+                self.f(at.y);
+                self.w(*reason as u64);
+            }
+            Event::Block {
+                id,
+                by,
+                weapon,
+                passive,
+            } => {
+                if *passive {
+                    self.s("passive");
+                }
                 self.s("block");
                 self.w(id.0 as u64);
                 self.w(by.0 as u64);

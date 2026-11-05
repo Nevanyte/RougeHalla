@@ -127,7 +127,7 @@ fn load(name: &str) -> Scenario {
 }
 
 /// Runs the scenario, returning (steady steps counted, allocations in them, the first offending tick).
-fn run(name: &str) -> (u32, u64, Option<u32>) {
+fn run(name: &str, warm_up: u32) -> (u32, u64, Option<u32>) {
     let mut sc = load(name);
     let mut out: Vec<Event> = Vec::with_capacity(64);
     let (mut steady, mut allocs, mut first_bad) = (0u32, 0u64, None);
@@ -146,7 +146,7 @@ fn run(name: &str) -> (u32, u64, Option<u32>) {
         let ends_a_run = out
             .iter()
             .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. }));
-        if n >= WARM_UP_TICKS && !ends_a_run {
+        if n >= warm_up && !ends_a_run {
             steady += 1;
             allocs += used;
             if used > 0 && first_bad.is_none() {
@@ -168,7 +168,7 @@ fn a_steady_state_step_allocates_nothing() {
         "shield_block_riposte",
         "pickup_replace_drop",
     ] {
-        let (steady, allocs, first_bad) = run(name);
+        let (steady, allocs, first_bad) = run(name, WARM_UP_TICKS);
         assert!(
             steady >= 100,
             "{name}: only {steady} steady steps were counted"
@@ -177,5 +177,18 @@ fn a_steady_state_step_allocates_nothing() {
             allocs, 0,
             "{name}: {allocs} allocations over {steady} steady steps (first at tick {first_bad:?})"
         );
+    } // These short, frozen pressure cases contain 96 steps. Warm the reusable swept/stretches
+      // and ledger buffers through both missile types, then count each remaining complete step.
+    for name in [
+        "bow_duel",
+        "wand_duel",
+        "ball_vs_arrow",
+        "shield_arrow_reflect",
+        "sword_swing_ball",
+        "wand_splash_group",
+    ] {
+        let (steady, allocs, bad) = run(name, 40);
+        assert_eq!(steady, 56, "{name}");
+        assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
 }

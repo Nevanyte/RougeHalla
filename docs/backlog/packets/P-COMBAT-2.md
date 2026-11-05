@@ -2,7 +2,7 @@
 
 ## ID and outcome
 P-COMBAT-2. Bow arrows and wand balls exist in `rh-sim` with legacy-identical flight, hits and interactions: windup + release,
-launch from the rewound shooter position, lead aim for locked/policy shots, the 10 ms substep sweep, wand splash,
+launch from the actual release request origin or authoritative release position, the 10 ms substep sweep, wand splash,
 ball-vs-arrow deletion, sword swing vs ball, shield arrow reflection, `projEnd` reasons; plus the wire/observation
 representation of a launch (announced once, never updated) and replay of it on the client side contract.
 
@@ -36,12 +36,12 @@ C-TICK (projectile sweep sits after history, before melee, with "spawns"), C-DET
 shooter or the path: decide and leak-test), C-NET (fx are droppable; `projEnd` must reach clients that saw the launch), C-PARITY. ADR 0002, 0007.
 
 ## Behaviour to preserve
-- Not in `world`'s synced state: a projectile is a runtime object; a client gets one launch (`x, y, vx, vy, t, range`, optional `ownerId`, `targetId`) and flies it itself; a `projEnd` says where and why (reasons seen in code: `range`, `destroyed`, `cleared`, plus wall/hit/shield variants: read `ProjectileEnd` in `sim/world.ts`).
+- Legacy projectiles are runtime objects outside synced state. A client receives launch presentation data and a server end cue. In this port only Rust advances authoritative flight, tests collision, reflects and deals damage; Unity may animate the permitted launch cue and stop at server cues. Public identity/target disclosure requires a separate observation review.
 - Per substep (10 ms), in this order: move (stop at a wall of `collisionMap`, closed gates included, or at range) -> a ball deletes every enemy arrow within `BALL_ARROW_RADIUS` (tested at the closest approach of the two stretches, in line of sight, never around a corner) keeping `BALL_AFTER_ARROW` 0.6 of its damage per arrow deleted -> first body whose centre, **where it was at that substep time** (history), comes within the reach (`PLAYER_RADIUS + ARROW_RADIUS` for an arrow, `RANGED_HIT_REACH` for a ball). A projectile starting inside reach hits only if heading into the body. Owner never hit.
 - Shield: an arrow on a raised shield's front is stopped and a **new** arrow owned by the holder flies on from the contact point with the mirrored velocity (`reflectVelocity`), full bow range (an already-reflected arrow keeps only the range it has left), `ARROW_REFLECT_SHARE` 0.15 of the damage, the holder takes the rest as a normal hit; after `MAX_ARROW_REFLECTIONS` 2 it is just blocked. A reflection made in a substep starts moving in the next. Reflected-arrow damage is `passive`/returned.
 - Wand splash: an impact also hits every other enemy within 48 u for 30% (`derived` ledger entries, a wall stops it, the primary is never hit twice, a mob's ball never splashes a mob). `weaponSpecials: false` disables it.
-- Swing vs ball: a sword swing meeting an enemy ball in its arc (this tick's stretch, ball radius counted) halves it once (`SWORD_BALL_SCALE`, `halved`); a bash destroys it (`swingVsBall`); it also scales that ball's ledger entry made this tick.
-- Launch point is the shooter's **rewound** (drawn) position for `attack` inputs; for locked attacks the server aims from the present with `leadAim` and `lagMs = TICK_MS` (P-COMBAT-3). Projectiles loosed this tick leave from the authoritative release position and first move next tick's sweep. A hit lands in the ledger of the tick it connects, after melee.
+- Swing vs ball: a sword swing meeting an enemy ball in its arc (this tick's stretch, ball radius counted) halves it once (`SWORD_BALL_SCALE`, `halved`); an axe destroys it and shield bash does nothing (`interactions.ts:swingVsBall`). Interception also scales or cancels that ball's ledger entry made this tick.
+- Launch uses `req.origin` when supplied, otherwise the owner's authoritative release position (`projectiles.ts:spawnProjectiles`). Directional ranged requests currently omit origin. Locked attacks use `leadAim` (P-COMBAT-3). Projectiles first move next tick's sweep; hits settle in their connection tick's ledger after melee.
 - Timings: bow windup `min(0.5, 0.55 * interval)` with `drawStartedAt` synced, wand `min(0.45, 0.5 * interval)`; ranged users are rooted only for the final `RANGED_RELEASE_PAUSE_MS` 200 ms of the windup (`windingUp`), a stagger never cancels a bow draw. Homing wand ball (locked): flies toward the target's position at each substep time at its launch speed, dies after 5000 ms or when the target is not standing.
 - A projectile outlives its owner; a kill by a departed shooter is credited by name only (no GV/bounty).
 - Rust already has Draw/Cast actions and release pause in `systems/weapons.rs`; carried bow/wand are accepted. `land` currently clears the draw pause without creating a projectile. Replace that stub with the real spawn path; verify current callers and fixtures.

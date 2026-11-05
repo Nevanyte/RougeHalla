@@ -28,6 +28,19 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/det_math.rs", "TWO_PI", "mathematical constant"),
+    ("mapgen/coliseum.rs", "W", "typed alias of registered MAP_TILES_W"),
+    ("mapgen/coliseum.rs", "H", "typed alias of registered MAP_TILES_H"),
+    ("mapgen/coliseum.rs", "CX", "centre derived from registered MAP_TILES_W"),
+    ("mapgen/coliseum.rs", "CY", "centre derived from registered MAP_TILES_H"),
+    ("mapgen/grid_ops.rs", "NB4", "fixed orthogonal neighbour order derived from registered width; exact legacy topology fixtures"),
+    ("mapgen/grid_ops.rs", "RING_OFF", "ring offsets derived from registered width; exact legacy topology fixtures"),
+    ("mapgen/grid_topology.rs", "RING_DX", "ring neighbour order of the topology algorithm; all 256 masks checked against legacy"),
+    ("mapgen/grid_topology.rs", "RING_DY", "ring neighbour order of the topology algorithm; all 256 masks checked against legacy"),
+    ("mapgen/grid_topology.rs", "SIMPLE", "derived ring connectivity truth table, not a geometry tunable; all 256 masks checked against legacy"),
+    ("mapgen/grid_topology.rs", "DX", "5/7/11 distance-field neighbour expansion order; exact legacy differential fixtures"),
+    ("mapgen/grid_topology.rs", "DY", "5/7/11 distance-field neighbour expansion order; exact legacy differential fixtures"),
+    ("mapgen/grid_topology.rs", "COST", "integer chamfer-distance algorithm representation, not combat or map-shape tuning; exact legacy differential fixtures"),
     ("map.rs", "TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
@@ -58,6 +71,11 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    (
+        "mapgen/coliseum.rs",
+        "DEFAULT_DEFINITION",
+        "all fixed geometry and pillar-orbit words are read by generation and folded by content_hash_of_map_definition",
+    ),
     (
         "content.rs",
         "ALL",
@@ -291,7 +309,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xb0b7_1697_09bd_0a83;
+const GOLDEN_CONTENT_HASH: u64 = 0x550a_a6db_9096_19c1;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -363,6 +381,36 @@ fn stagger_rule_moves_the_hash() {
     );
     assert_ne!(content_hash_of_rules(REGISTRY, &[WeaponId::Axe]), base);
     assert_eq!(content_hash_of_rules(REGISTRY, STAGGER_WEAPONS), base);
+}
+
+#[test]
+fn fixed_map_geometry_and_pillar_data_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_map_definition;
+    use rh_sim::mapgen::coliseum::{default_definition, PillarOrbit};
+    let mut definition = default_definition();
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_map_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+    definition.ring_road += 1;
+    assert_ne!(
+        content_hash_of_map_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+    definition = default_definition();
+    let mut coordinates = definition.pillars[0].generators.to_vec();
+    coordinates[0].0 += 1;
+    let mut pillars = definition.pillars.to_vec();
+    pillars[0] = PillarOrbit {
+        turns: pillars[0].turns,
+        generators: &coordinates,
+    };
+    definition.pillars = &pillars;
+    assert_ne!(
+        content_hash_of_map_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
 }
 
 #[test]

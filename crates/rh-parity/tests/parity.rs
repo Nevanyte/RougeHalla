@@ -431,9 +431,11 @@ fn every_capture_only_stream_fails_loudly_on_promotion() {
         v["ticks"][0][key] = value;
         let rep = compare(&reparse(&v).unwrap());
         assert!(
-            rep.mismatches
-                .iter()
-                .any(|m| m.contains(&format!("unported stream {key}"))),
+            rep.mismatches.iter().any(|m| if key == "launches" {
+                m.contains("launches.length")
+            } else {
+                m.contains(&format!("unported stream {key}"))
+            }),
             "{:?}",
             rep.mismatches
         );
@@ -623,4 +625,42 @@ fn unported_emblem_is_detected_in_a_full_module_capture() {
         "{:?}",
         report.mismatches
     );
+}
+
+#[test]
+fn directional_projectile_fixtures_require_complete_launch_end_and_authoritative_effects() {
+    for name in [
+        "bow_duel",
+        "wand_duel",
+        "ball_vs_arrow",
+        "sword_swing_ball",
+        "shield_arrow_reflect",
+        "wand_splash_group",
+        "projectile_outlives_owner",
+    ] {
+        let mut fx = load(&fixtures_dir().join(format!("{name}.json")));
+        assert_eq!(fx.packet.as_deref(), Some("P-COMBAT-2"));
+        assert_eq!(fx.parity, "slice");
+        assert!(fx
+            .ticks
+            .iter()
+            .any(|t| t.events.iter().any(|e| e["kind"] == "projEnd")));
+        let launch = fx
+            .ticks
+            .iter_mut()
+            .flat_map(|t| &mut t.launches)
+            .next()
+            .unwrap();
+        launch["targetId"] = serde_json::json!("invented");
+        assert!(compare(&fx)
+            .mismatches
+            .iter()
+            .any(|m| m.contains("launches[0].targetId")));
+    }
+    let fx = load(&fixtures_dir().join("projectile_outlives_owner.json"));
+    let victim = fx.results.iter().find(|r| r.id == "p1").unwrap();
+    assert_eq!(victim.killed_by.as_deref(), Some("P0"));
+    let locked = load(&fixtures_dir().join("bow_wand_capture.json"));
+    assert_eq!(locked.parity, "capture-only");
+    assert!(locked.inputs.iter().any(|i| i.kind == "target"));
 }

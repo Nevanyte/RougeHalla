@@ -66,6 +66,7 @@ function rowsOf(map: GameMap): string[] {
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
 import { createScenarioWorld, DEFAULT_MODULES } from "./world";
 import type { Scenario, Input, Ctx } from "./scenarios/types";
+import { projectileScenarios } from "./scenarios/projectiles";
 import { meleeScenarios } from "./scenarios/melee";
 import { catalogue } from "./scenarios/catalogue";
 
@@ -473,7 +474,7 @@ function pathfindingFixture(seed: number, queries: number): unknown {
 
 mkdirSync(OUT, { recursive: true });
 const only = process.argv.indexOf("--only") > 0 ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };
