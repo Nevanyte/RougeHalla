@@ -1,0 +1,169 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StackAndFleetInTheTwoStagingRegionsOnly",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:ListStacks",
+        "cloudformation:DeleteStack"
+      ],
+      "Resource": "arn:aws:cloudformation:*:*:stack/rougehalla-infra-*/*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": ["us-west-2", "ca-central-1", "us-east-1"] } }
+    },
+    {
+      "Sid": "TemplateValidationHasNoResource",
+      "Effect": "Allow",
+      "Action": "cloudformation:ValidateTemplate",
+      "Resource": "*"
+    },
+    {
+      "Sid": "GameLiftContainerFleetLifecycle",
+      "Effect": "Allow",
+      "Action": [
+        "gamelift:CreateContainerFleet",
+        "gamelift:UpdateContainerFleet",
+        "gamelift:DeleteContainerFleet",
+        "gamelift:DescribeContainerFleet",
+        "gamelift:ListContainerFleets",
+        "gamelift:CreateContainerGroupDefinition",
+        "gamelift:UpdateContainerGroupDefinition",
+        "gamelift:DeleteContainerGroupDefinition",
+        "gamelift:DescribeContainerGroupDefinition",
+        "gamelift:ListContainerGroupDefinitions",
+        "gamelift:ListContainerGroupDefinitionVersions",
+        "gamelift:DescribeFleetCapacity",
+        "gamelift:DescribeFleetDeployment",
+        "gamelift:ListFleetDeployments",
+        "gamelift:DescribeFleetEvents",
+        "gamelift:DescribeFleetLocationCapacity",
+        "gamelift:DescribeScalingPolicies",
+        "gamelift:PutScalingPolicy",
+        "gamelift:DeleteScalingPolicy",
+        "gamelift:UpdateFleetCapacity",
+        "gamelift:StopFleetActions",
+        "gamelift:StartFleetActions",
+        "gamelift:DescribeGameSessions",
+        "gamelift:TagResource",
+        "gamelift:UntagResource",
+        "gamelift:ListTagsForResource"
+      ],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": ["us-west-2", "ca-central-1"] } }
+    },
+    {
+      "Sid": "ImageRegistryForTheExperimentPrefixOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:ListImages",
+        "ecr:PutLifecyclePolicy",
+        "ecr:TagResource",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchDeleteImage"
+      ],
+      "Resource": "arn:aws:ecr:*:*:repository/rougehalla-infra/*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": ["us-west-2", "ca-central-1"] } }
+    },
+    {
+      "Sid": "EcrAuthorizationTokenHasNoResource",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AlarmsTopicsAndLogsForTheExperimentPrefixOnly",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:TagResource",
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource",
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:Subscribe",
+        "sns:Unsubscribe",
+        "sns:TagResource",
+        "sns:GetTopicAttributes",
+        "sns:SetTopicAttributes"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch:*:*:alarm:rougehalla-infra-*",
+        "arn:aws:logs:*:*:log-group:/rougehalla-infra/*",
+        "arn:aws:sns:*:*:rougehalla-infra-*"
+      ],
+      "Condition": { "StringEquals": { "aws:RequestedRegion": ["us-west-2", "ca-central-1"] } }
+    },
+    {
+      "Sid": "ReadOnlyInventoryForVerifyNoBillable",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:ListDashboards",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:GetMetricStatistics",
+        "logs:DescribeLogGroups",
+        "sns:ListTopics",
+        "tag:GetResources",
+        "ec2:DescribeInstances",
+        "budgets:ViewBudget",
+        "ce:GetCostAndUsage",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "FleetRoleCreatedByTheStackAndPassedToGameLiftOnly",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:TagRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/rougehalla-infra-*-fleet-*",
+      "Condition": {
+        "ArnEquals": { "iam:PolicyARN": ["arn:aws:iam::aws:policy/GameLiftContainerFleetPolicy"] }
+      }
+    },
+    {
+      "Sid": "BudgetAndItsActionInUsEast1",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:CreateBudgetAction",
+        "budgets:DeleteBudgetAction",
+        "budgets:DescribeBudgetAction",
+        "budgets:ModifyBudget",
+        "budgets:DeleteBudget",
+        "budgets:CreateBudget",
+        "budgets:ViewBudget"
+      ],
+      "Resource": "arn:aws:budgets::*:budget/rougehalla-infra-*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": ["us-east-1"] } }
+    }
+  ]
+}
