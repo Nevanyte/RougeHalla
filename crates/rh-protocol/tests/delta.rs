@@ -164,20 +164,9 @@ fn full_bytes(s: &SnapshotData) -> Vec<u8> {
     v
 }
 
-/// The v2 encoder's bytes for the same snapshot.
+/// The v2 message encoder's bytes for the same snapshot (an independent writer of the layout).
 fn v2_bytes(s: &SnapshotData) -> Vec<u8> {
-    let actors: Vec<WireActor> = s.actors().iter().map(QActor::to_wire).collect();
-    let mut v = Vec::new();
-    encode_snapshot_into(
-        &mut v,
-        s.tick(),
-        s.phase(),
-        s.ack_input(),
-        s.me(),
-        actors.into_iter(),
-    )
-    .expect("encodes");
-    v
+    s.decoded().try_encode().expect("encodes")
 }
 
 #[test]

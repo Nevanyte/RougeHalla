@@ -43,7 +43,7 @@ pub enum EncodeError {
     BadMap(&'static str),
     /// A value a decoder rejects as out of range (`hp_pct` over 100).
     BadValue(&'static str),
-    /// An [`crate::encode_snapshot_into`] iterator that yielded a different number of actors than its `len()` announced.
+    /// An [`crate::SnapshotData::build`] iterator that yielded a different number of actors than its `len()` announced.
     CountMismatch { declared: usize, written: usize },
     /// A NaN or infinite float in a client message (client decoders reject them).
     NonFinite,
@@ -165,9 +165,6 @@ impl Writer {
         let len = self.buf.len();
         self.buf.extend_from_slice(b);
         self.buf.truncate(len + n);
-    }
-    pub(crate) fn truncate(&mut self, len: usize) {
-        self.buf.truncate(len);
     }
     pub fn finish(self) -> Vec<u8> {
         self.buf
