@@ -7,7 +7,7 @@ Client for the Rust authoritative server (`crates/rh-server`), speaking rh-proto
 | Path | What | Status |
 |---|---|---|
 | `RoguehallaNet/` | `netstandard2.1`, C# 9 library: `Protocol/` (byte-exact wire mirror, map blob), `Net/` (SnapshotBuffer, RenderClock, LocalMotion, InputSender, ClockSync, Session, ITransport). No engine, reflection, serializers, threads or `unsafe`. | built and tested |
-| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 220 tests pass |
+| `RoguehallaNet.Tests/` | NUnit (net8.0): golden vectors, malformed frames, session/recovery and authoritative presentation, probe transport, Unity-copy drift check | 214 tests pass after the authority correction |
 | `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; protocol-5 tests pass; historical real-server protocol-4 runs are recorded below |
 | `UnityProject/` | Unity 6 project skeleton (WebGL jslib bridge, transports, `MatchClient`, views, bootstrap, editor build menu) | Editor compile + Web build verified on 6000.0.85f2; Chromium HTTP/WS and HTTPS/WSS movement smoke passed |
 | `sync-net.sh` | copies the library sources into `UnityProject/Assets/RoguehallaNet/` (`--check` verifies) | works |
@@ -68,12 +68,22 @@ Evidence: [Stage 2 Unity bootstrap](../docs/evidence/stage2-unity/README.md). Th
 - WebGL2 is the baseline; WebGPU is optional and experimental in Unity 6, not used.
 - Brotli/Gzip builds need `Content-Encoding` headers from the host; threaded builds need COOP/COEP. The build script avoids both.
 
-## Prediction scope and limits
+## Presentation and prediction boundary
 - **Remote actors**: drawn 70-150 ms in the past (start 100, follows snapshot jitter), linear interpolation, newest held when starved, no extrapolation. Render time never runs backwards (slows to 80%, catches up at 1%, only jumps forward).
-- **Local player**: only the walk is predicted (170 u/s, radius 12, tiles != 0 block). Snapshots reconcile through a visual offset decaying with tau 100 ms; an error over 96 u snaps. Reconciliation is skipped while a move order's `move_seq` is unacknowledged (expires after 1 s). Attacks, damage, deaths and other players are never predicted.
-- **Limitation**: the server walks an A* path (legacy `findPath`); this model walks a straight line and slides along walls, so around corners it diverges and the server corrects it. Porting `crates/rh-sim/src/pathfind.rs` is a later stage. The comparison uses a one-way latency estimate (`LocalMotion.LatencyMs`, default 50 ms) that is not yet fed from `ClockSync`; a wrong value shows up as a small steady correction.
+- **Local player**: `LocalMotion` currently presents confirmed server self coordinates directly. Orders transmit normally;
+  frame stepping runs no movement or collision calculation. Newer authoritative positions apply even while an order is
+  unacknowledged, and accepted self absence clears the local view. Movement can look stepped at the server cadence until
+  presentation interpolation or verified prediction is completed.
+- The unverified straight-line/wall-slide prototype was removed. Narrow local movement prediction remains P-NET-1: mirror
+  Rust, verify Rust-produced vectors, always accept server correction, and never use this client code in headless runs.
+- Stale/duplicate Full frames cannot replace the delta base or rewind Latest/Me/Motion. A requested same-tick Full can
+  repair that base and replace the newest sample without adding a clock sample; ordinary duplicates remain ignored.
 - Order sequences are 1..255 (0 is `move_seq` before any order). Aim is limited to 40/s, 16 commands per frame.
 
 ## Integrated protocol-5 Web verification
 
-The actual IL2CPP/WebGL player was rebuilt with protocol 5 and content identity `b0b7169709bd0a83`: 53,892,988 bytes, zero C# compiler errors. Chromium HTTP/WS and local self-signed HTTPS/WSS each received 54 snapshots, advanced ticks 2 to 53 and movement sequence 0 to 16, and changed the authoritative position. No page exceptions or console errors occurred; GPU ReadPixels warnings remain. These are transport/movement checks, not combat, full-flow, valid public TLS, browser-matrix or performance-budget proof. See [current evidence](../docs/evidence/stage2-unity-v5/README.md); the separate [protocol-4 bootstrap evidence](../docs/evidence/stage2-unity/README.md) is historical.
+The earlier IL2CPP/WebGL player at protocol 5/content `b0b7169709bd0a83` compiled and passed Chromium WS/local WSS
+movement checks; see [its exact build evidence](../docs/evidence/stage2-unity-v5/README.md). Later authoritative-only
+presentation/recovery changes have passed 214 C# tests and independent reproductions, but need a fresh current-source Web
+build. [Performance evidence](../docs/evidence/stage2-unity-perf/README.md) preserves baseline-only measurements and a
+deferred, inactive instancing patch. Further visual work follows Rust simulation/parity/headless completion.

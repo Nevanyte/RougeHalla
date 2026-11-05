@@ -42,6 +42,16 @@ namespace Roguehalla.Net
         /// <summary>Adds a snapshot; one that is not newer than the newest (duplicate or reordered) is ignored.</summary>
         public bool Add(ServerMsg.Snapshot s)
         {
+            return Add(s, false);
+        }
+
+        internal bool Add(ServerMsg.Snapshot s, bool replaceCurrentTick)
+        {
+            if (replaceCurrentTick && Newest != null && Newest.Tick == s.Tick)
+            {
+                _snaps[_snaps.Count - 1] = s;
+                return true;
+            }
             if (_snaps.Count > 0 && s.ServerMs <= NewestMs) return false;
             _snaps.Add(s);
             if (_snaps.Count > Capacity)

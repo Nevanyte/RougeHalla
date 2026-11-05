@@ -76,7 +76,7 @@ namespace Roguehalla.Net
         public SelfView Me { get { return _hasMe ? _me : null; } }
         /// <summary>
         /// CODEC LAYER (netcode and tests only; gameplay uses <see cref="Me"/> and <see cref="Snapshots"/>.Sample).
-        /// The newest snapshot received. Snapshot objects (this one, those raised by SnapshotReceived and those in Snapshots) are
+        /// The newest accepted snapshot. Snapshot objects (this one, those raised by SnapshotReceived and those in Snapshots) are
         /// recycled for later frames once they fall out of the 40-snapshot buffer: read them when they arrive or per frame, and
         /// copy what must outlive that.
         /// </summary>
@@ -128,7 +128,7 @@ namespace Roguehalla.Net
             _t.Connect(_o.Url);
         }
 
-        /// <summary>Order a move: sent with the next Update and predicted locally.</summary>
+        /// <summary>Order a move: sent with the next Update; the local view follows accepted server snapshots.</summary>
         public void OrderMove(float x, float y)
         {
             byte seq = Input.Move(x, y);
@@ -148,7 +148,7 @@ namespace Roguehalla.Net
             _t.Close();
         }
 
-        /// <summary>Pumps the transport, timers, pings, prediction and queued input. Call once per frame.</summary>
+        /// <summary>Pumps the transport, timers, pings and queued input. Call once per frame.</summary>
         public void Update()
         {
             _t.Poll();
@@ -160,7 +160,6 @@ namespace Roguehalla.Net
             }
             if (State != SessionState.InMatch) return;
             if (now - _lastPing >= _o.PingIntervalMs) { _lastPing = now; Send(Sync.MakePing(now)); }
-            if (Motion != null) Motion.Step(now);
             if (Clock.Ready) Clock.Update(now);
             foreach (var f in Input.Flush(now)) Send(f);
         }
@@ -223,10 +222,55 @@ namespace Roguehalla.Net
 
         void OnReceived(byte[] frame)
         {
+            // SnapshotTracker resets itself when it decodes a Welcome. Ignore unexpected Welcomes before they can disturb the
+            // current connection's delta base; a valid Welcome is handled only during the handshake.
+            if (frame.Length > 0 && frame[0] == 0x81 && State != SessionState.HelloSent)
+            {
+                Ignored++;
+                return;
+            }
+
             ServerMsg msg;
             // A snapshot decodes into the one that last left the buffer (two seconds old), so steady play makes no garbage.
             var spare = Snapshots.TakeSpare();
             bool delta = frame.Length > 0 && frame[0] == 0x87;
+            bool replaceCurrentTick = false;
+            // A stale Full frame must not replace the decoder's delta base. Peek at its tick without allocating; fresh Full
+            // frames still go through the tracker exactly once. A stale candidate is fully decoded before ignoring it so a
+            // malformed old frame is still reported as malformed.
+            if (!delta && frame.Length > 0 && frame[0] == 0x83 && (State == SessionState.InMatch || State == SessionState.Ended))
+            {
+                bool stale = false;
+                try
+                {
+                    var reader = new Reader(frame, frame.Length);
+                    reader.U8();
+                    uint tick = reader.Varint();
+                    var newest = Snapshots.Newest;
+                    if (newest != null)
+                    {
+                        // A requested Full can repair this tick's base without advancing simulation time.
+                        replaceCurrentTick = _needFull && tick == newest.Tick;
+                        stale = tick <= newest.Tick && !replaceCurrentTick;
+                    }
+                }
+                catch (DecodeException)
+                {
+                    // Let the normal decoder report malformed headers consistently.
+                }
+                if (stale)
+                {
+                    try { ServerMsg.Decode(frame, frame.Length, spare); }
+                    catch (DecodeException e)
+                    {
+                        Snapshots.Recycle(spare);
+                        DecodeErrors++; Error = "bad server frame: " + e.Message; return;
+                    }
+                    SnapshotsReceived++;
+                    Snapshots.Recycle(spare);
+                    return;
+                }
+            }
             try { msg = _track.Decode(frame, frame.Length, spare); }
             catch (DeltaException e) { Snapshots.Recycle(spare); RefuseDelta("refused snapshot delta: " + e.Message); return; }
             catch (DecodeException e)
@@ -267,15 +311,19 @@ namespace Roguehalla.Net
             if (snap != null)
             {
                 SnapshotsReceived++;
-                Latest = snap;
-                if (Snapshots.Add(snap))
+                if (Snapshots.Add(snap, replaceCurrentTick))
                 {
-                    Clock.OnSnapshot(now, snap.ServerMs);
+                    Latest = snap;
+                    if (!replaceCurrentTick) Clock.OnSnapshot(now, snap.ServerMs);
                     _hasMe = snap.Me != null;
                     if (_hasMe) _me.CopyFrom(snap.Me);
+                    if (Motion != null)
+                    {
+                        if (_hasMe) Motion.OnSnapshot(snap.Me, now);
+                        else Motion.Clear();
+                    }
+                    if (SnapshotReceived != null) SnapshotReceived(snap);
                 }
-                if (snap.Me != null && Motion != null) Motion.OnSnapshot(snap.Me, now);
-                if (SnapshotReceived != null) SnapshotReceived(snap);
                 return;
             }
             var pong = msg as ServerMsg.Pong;
@@ -322,6 +370,7 @@ namespace Roguehalla.Net
             _attempt = 0;
             // A fresh Welcome restarts the timelines: a resume may land after a long gap, with a new map object.
             Snapshots.Clear();
+            Latest = null;
             _hasMe = false;
             _needFull = false;
             Clock.Reset();

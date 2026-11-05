@@ -1,4 +1,4 @@
-// NOT COMPILED in Stage 1 (no Unity). Owns the Session, pumps it each frame, turns input into orders, exposes state for the view.
+// Owns the network session, turns input into orders and exposes authoritative state for presentation.
 using System;
 using System.Collections.Generic;
 using UnityEngine;

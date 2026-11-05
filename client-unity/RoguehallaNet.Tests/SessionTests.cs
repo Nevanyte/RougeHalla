@@ -212,6 +212,11 @@ namespace Roguehalla.Net.Tests
             return d;
         }
 
+        static ServerMsg.SnapshotDelta DeltaWithoutSelfPositionChange(uint tick, uint baseTick)
+        {
+            return new ServerMsg.SnapshotDelta { Tick = tick, BaseTick = baseTick, HasSelf = true, Me = new SelfDelta { Mask = 0 } };
+        }
+
         int Resyncs() { int n = 0; foreach (var f in _t.Sent) if (f.Length == 1 && f[0] == 5) n++; return n; }
 
         [Test]
@@ -320,7 +325,7 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
-        public void SnapshotsFeedTheBufferClockAndPrediction()
+        public void SnapshotsFeedTheBufferClockAndPresentConfirmedSelfPosition()
         {
             ToMatch();
             _now = 2000;
@@ -330,6 +335,105 @@ namespace Roguehalla.Net.Tests
             _s.OrderMove(100, 40); _s.Update();
             var inp = _t.LastSent<ClientMsg.Input>();
             Assert.AreEqual(CommandKind.Move, inp.Commands[0].Kind); Assert.AreEqual((byte)1, inp.Commands[0].Seq); Assert.IsTrue(_s.Motion.OrderPending);
+            Assert.AreEqual(40, _s.Motion.DrawnX, 1e-3, "sending an order and advancing frames do not predict movement");
+            _now += 50;
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 47, Y = 41, Hp = 10, MoveSeq = 0 } });
+            Assert.AreEqual(47, _s.Motion.DrawnX, 1e-3, "new server position is shown even before the order is acknowledged");
+            Assert.IsTrue(_s.Motion.OrderPending);
+        }
+
+        [Test]
+        public void OlderAndDuplicateSnapshotsCannotRewindPresentedSelf()
+        {
+            ToMatch();
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Id = 3, X = 40, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 55, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = new WireSelf { Id = 3, X = 20, Hp = 10 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, X = 10, Hp = 10 } });
+            Assert.AreEqual(55, _s.Motion.DrawnX, 1e-3);
+            Assert.AreEqual(55, _s.Me.X, 1e-3);
+        }
+
+        [Test]
+        public void StaleFullSnapshotsDoNotPoisonDeltaBaseOrAcceptedSnapshotNotifications()
+        {
+            ToMatch();
+            int notified = 0;
+            _s.SnapshotReceived += _ => notified++;
+            _t.Deliver(FullSnap(3, 55));
+            _t.Deliver(FullSnap(3, 20)); // duplicate tick
+            _t.Deliver(DeltaWithoutSelfPositionChange(4, 3));
+            Assert.AreEqual(55, _s.Me.X, 1e-3);
+            Assert.AreEqual(55, _s.Latest.Me.X, 1e-3);
+            Assert.AreEqual(2, notified, "only accepted full and delta snapshots are published");
+
+            _t.Deliver(FullSnap(2, 10)); // older tick must not replace tick 4 as the delta base
+            _t.Deliver(DeltaWithoutSelfPositionChange(5, 4));
+            Assert.AreEqual(55, _s.Me.X, 1e-3);
+            Assert.AreEqual(55, _s.Latest.Me.X, 1e-3);
+            Assert.AreEqual(3, notified);
+            Assert.AreEqual(5, _s.SnapshotsReceived, "counts all successfully decoded snapshot frames, including stale full frames");
+        }
+
+        [Test]
+        public void RequestedFullAtCurrentTickRepairsTheBaseWithoutAddingAnInterpolationSample()
+        {
+            ToMatch();
+            int notified = 0;
+            _s.SnapshotReceived += _ => notified++;
+            _t.Deliver(FullSnap(2, 30));
+            _t.Deliver(FullSnap(3, 55));
+            _t.Deliver(DeltaWithoutSelfPositionChange(4, 2)); // wrong base, request a full snapshot
+            Assert.AreEqual(1, _s.ResyncsSent);
+
+            _t.Deliver(FullSnap(2, 10)); // too old even while waiting
+            byte[] damaged = FullSnap(3, 99).Encode();
+            Array.Resize(ref damaged, damaged.Length - 1);
+            _t.DeliverRaw(damaged);
+            Assert.AreEqual(1, _s.DecodeErrors);
+            Assert.AreEqual(55, _s.Motion.DrawnX);
+            Assert.AreEqual(2, notified);
+
+            _t.Deliver(FullSnap(3, 77, Actor(9, 8))); // corrected self and previously missing actor
+            Assert.AreEqual(2, _s.Snapshots.Count);
+            Assert.AreEqual(2 * Wire.TickMs, _s.Snapshots.OldestMs);
+            Assert.AreSame(_s.Snapshots.Newest, _s.Latest);
+            Assert.AreEqual(77, _s.Me.X);
+            Assert.AreEqual(77, _s.Motion.DrawnX);
+            Assert.AreEqual(3, notified);
+
+            _t.Deliver(FullSnap(3, 22)); // unsolicited equal tick is again a duplicate
+            var next = DeltaWithoutSelfPositionChange(4, 3);
+            next.ChangedCount = 1;
+            next.Changed[0] = new ActorDelta { Id = 9, Mask = ActorDelta.MX, X = 16 };
+            _t.Deliver(next);
+            _t.Deliver(DeltaWithoutSelfPositionChange(5, 4));
+            Assert.AreEqual(5u, _s.Latest.Tick);
+            Assert.AreEqual(77, _s.Me.X);
+            Assert.AreEqual(2, _s.Latest.Actors[0].X);
+            Assert.AreEqual(1, _s.DeltasRefused);
+            Assert.AreEqual(5, notified);
+            Assert.AreEqual(7, _s.SnapshotsReceived, "includes both discarded full frames, omits malformed frames");
+            _t.Deliver(DeltaWithoutSelfPositionChange(7, 6)); // a separate incident can immediately request recovery
+            Assert.AreEqual(2, _s.ResyncsSent);
+        }
+
+        [Test]
+        public void AcceptedSelfAbsenceClearsPresentationAndFreshWelcomeResetsIt()
+        {
+            ToMatch();
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 2, Me = new WireSelf { Id = 3, X = 40, Hp = 10 } });
+            _s.OrderMove(100, 40);
+            Assert.IsTrue(_s.Motion.OrderPending);
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 3, Me = null });
+            Assert.IsFalse(_s.Motion.Initialized);
+            Assert.IsFalse(_s.Motion.OrderPending);
+
+            _t.Drop(); _now += 500; _s.Update(); _t.Open(); _t.Deliver(Welcome());
+            Assert.IsFalse(_s.Motion.Initialized, "a fresh Welcome starts without a presented self position");
+            Assert.IsNull(_s.Latest, "a fresh Welcome clears the previously accepted snapshot");
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, X = 12, Hp = 10 } });
+            Assert.AreEqual(12, _s.Motion.DrawnX, 1e-3);
         }
 
         [Test]

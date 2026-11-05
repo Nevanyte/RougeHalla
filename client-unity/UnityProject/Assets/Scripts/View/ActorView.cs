@@ -9,6 +9,8 @@ namespace Roguehalla.Client
         public const float Scale = ArenaView.Scale;
         const float Radius = 12f * Scale;
         Transform _nose, _bar;
+        readonly System.Collections.Generic.List<Mesh> _ownedMeshes = new System.Collections.Generic.List<Mesh>(5);
+        void OnDestroy() { foreach (var mesh in _ownedMeshes) if (mesh != null) { if (Application.isPlaying) Destroy(mesh); else DestroyImmediate(mesh); } }
 
         /// <summary>Legacy palette (packages/shared/src/factions.ts): fire, sentenced, plague, frost, holy.</summary>
         static readonly Color32[] FactionColors =
@@ -33,6 +35,7 @@ namespace Roguehalla.Client
 
         GameObject Part(string name, Mesh mesh, Material mat, float y, Vector3 scale, Vector3? offset = null)
         {
+            _ownedMeshes.Add(mesh);
             var go = new GameObject(name);
             go.transform.SetParent(transform, false);
             go.transform.localPosition = (offset ?? Vector3.zero) + new Vector3(0, y, 0);

@@ -1,6 +1,10 @@
 # P-NET-1: client prediction parity and the rewind bound
 
 ## ID and outcome
+Stage 2 interim correction (2026-11-05): the unverified straight-line/wall-slide model is removed from the runtime. The
+current client displays accepted authoritative self positions. This packet must introduce only the narrow movement
+exception after Rust-vector parity and correction checks; no client physics/combat/AI authority is permitted.
+
 P-NET-1. The C# client predicts the local walk with the same A* path the server walks (so corners no longer diverge), sends
 attack render times that the server can trust, the server bounds a client's rewind by its measured RTT, and the
 bandwidth/delta-compression question is answered by measurement. Remote draw-ahead is not in this packet (P-NET-2).
@@ -52,6 +56,6 @@ rewind bound design (it trades fairness against cheating and must be justified w
 - C# `float` vs the server's `f64`: the legacy client used doubles; prediction tolerates drift, but the A* fixture check needs `double` internally (use `double` in the pathfinder, convert at the edge).
 - Language level is C# 9 / netstandard2.1, no reflection, no threads, no `unsafe` in the library.
 - The Unity copy of the library is generated: never edit `Assets/RoguehallaNet/*.cs`; the test fails if stale.
-- The `LatencyMs` estimate in `LocalMotion` is not yet fed from `ClockSync` (README): wire it, or the comparison uses a fixed 50 ms.
+- A future verified predictor must derive any latency estimate from the measured clock/session path; the removed prototype's fixed 50 ms estimate must not be restored by copying it.
 - Do not predict attacks, hp or deaths (ADR 0008). Do not send positions.
 - Time sources: no `DateTime.Now` in the library; time is injected (tests drive a fake clock).

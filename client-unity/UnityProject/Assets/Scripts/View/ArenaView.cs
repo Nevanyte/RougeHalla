@@ -65,14 +65,14 @@ namespace Roguehalla.Client
             b.Quad(new Vector3(a.x, nh, a.z), new Vector3(c.x, nh, c.z), new Vector3(c.x, top, c.z), new Vector3(a.x, top, a.z), col);
         }
 
-        /// <summary>Updates remote actors from the interpolated snapshot and the local one from the prediction.</summary>
+        /// <summary>Updates remote actors from interpolation and the local actor from confirmed server state.</summary>
         public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
             _seen.Clear();
             uint myId = me != null ? me.Id : 0;
             foreach (var a in remote)
             {
-                if (a.Id == myId) continue; // the local player is predicted, not interpolated
+                if (a.Id == myId) continue; // self is presented separately from the confirmed self snapshot
                 ActorView v;
                 if (!_actors.TryGetValue(a.Id, out v)) { v = ActorView.Create(transform, Mat(), a.Faction, false); _actors[a.Id] = v; }
                 v.Place(a.X, a.Y, a.Facing, a.HpPct);
@@ -86,6 +86,11 @@ namespace Roguehalla.Client
             {
                 if (_local == null) _local = ActorView.Create(transform, Mat(), me.Faction, true);
                 _local.Place(motion.DrawnX, motion.DrawnY, aimAngle, me.HpPct);
+            }
+            else if (_local != null)
+            {
+                Destroy(_local.gameObject);
+                _local = null;
             }
         }
 

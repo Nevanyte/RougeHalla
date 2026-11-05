@@ -39,6 +39,9 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   and 32 real-PG tests passed, including concurrent duplicate result and crash rollback. The cosmetic catalog and look
   packing match 301 additional legacy observations; all 35 persistence checks passed. Live ending-kit metadata,
   renewals/recovery and the full profile API remain open; the store proof does not establish them.
+- Client authority: the straight-line predictor is removed; local coordinates come only from accepted server snapshots.
+  Later C# suite: 214 passed, including duplicate/base poisoning and requested same-tick recovery. Native ownership cleanup
+  is preserved; current-source Unity Web verification remains pending. Prediction needs Rust-vector parity before activation.
 
 ### Historical Stage 1 record
 
