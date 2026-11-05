@@ -7,6 +7,7 @@ use crate::backend::*;
 use crate::hostname::game_hostname;
 use crate::model::*;
 use crate::score::{self, Attempt, AttemptKind, Plan, PlanError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::time::{sleep, Instant};
 
@@ -141,11 +142,115 @@ pub struct PlacementService<G, D> {
     pub cfg: ServiceConfig,
     pub gamelift: G,
     pub dns: D,
+    /// Placement ids whose `place_with` future was dropped (client gone, handler timeout) while GameLift could still place
+    /// them. Drop cannot await, so it only records the id; [`PlacementService::reap_abandoned`] releases them. The embedding
+    /// service must call that periodically (a few seconds apart); without it, a dropped request can leave a placed host
+    /// that nobody will ever join.
+    abandoned: Arc<Mutex<Vec<String>>>,
+}
+
+/// Armed from `StartGameSessionPlacement` until the placement is resolved (no host, or published, or released). If the future
+/// is dropped while armed, the placement id is queued for [`PlacementService::reap_abandoned`].
+struct AbandonGuard {
+    list: Arc<Mutex<Vec<String>>>,
+    id: Option<String>,
+}
+
+impl AbandonGuard {
+    fn arm(&mut self, id: String) {
+        self.id = Some(id);
+    }
+    fn disarm(&mut self) {
+        self.id = None;
+    }
+}
+
+impl Drop for AbandonGuard {
+    fn drop(&mut self) {
+        if let Some(id) = self.id.take() {
+            if let Ok(mut l) = self.list.lock() {
+                l.push(id);
+            }
+        }
+    }
 }
 
 impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
     pub fn new(cfg: ServiceConfig, gamelift: G, dns: D) -> Self {
-        Self { cfg, gamelift, dns }
+        Self {
+            cfg,
+            gamelift,
+            dns,
+            abandoned: Arc::default(),
+        }
+    }
+
+    /// Placement ids queued by dropped requests, not yet reaped.
+    pub fn abandoned_count(&self) -> usize {
+        self.abandoned.lock().map(|l| l.len()).unwrap_or(0)
+    }
+
+    /// Releases what dropped `place_with` futures left behind: a still-pending placement is stopped; a fulfilled one gets its
+    /// game session terminated and its (possibly published) name deleted. Ids that could not be resolved because GameLift was
+    /// unavailable stay queued. Returns how many ids were resolved.
+    pub async fn reap_abandoned(&self) -> usize {
+        let ids: Vec<String> = match self.abandoned.lock() {
+            Ok(mut l) => std::mem::take(&mut *l),
+            Err(_) => return 0,
+        };
+        let mut resolved = 0;
+        let mut keep = Vec::new();
+        for id in ids {
+            if self.reap_one(&id).await {
+                resolved += 1;
+            } else {
+                keep.push(id);
+            }
+        }
+        if !keep.is_empty() {
+            if let Ok(mut l) = self.abandoned.lock() {
+                l.extend(keep);
+            }
+        }
+        resolved
+    }
+
+    /// `true` when the placement needs no further attention.
+    async fn reap_one(&self, id: &str) -> bool {
+        let mut st = match self.gamelift.describe_placement(id).await {
+            Ok(st) => st,
+            Err(BackendError::Unavailable(_)) => return false,
+            // NotFound: GameLift has no such placement, nothing to release.
+            Err(_) => return true,
+        };
+        if st.status == PlacementStatus::Pending {
+            match self.gamelift.stop_placement(id).await {
+                Ok(s2) => st = s2,
+                // Refused: a session was created in the meantime; look again.
+                Err(BackendError::Invalid(_)) => match self.gamelift.describe_placement(id).await {
+                    Ok(s2) => st = s2,
+                    Err(_) => return false,
+                },
+                Err(_) => return false,
+            }
+        }
+        if st.status == PlacementStatus::Fulfilled {
+            if let (Some(region), Some(arn)) = (&st.region, &st.game_session_arn) {
+                if let Ok(host) = game_hostname(region, id, &self.cfg.zone) {
+                    let _ = self.dns.delete(&host).await;
+                }
+                return self.gamelift.terminate_game_session(arn).await.is_ok();
+            }
+        }
+        true
+    }
+
+    /// Terminates the fulfilled placement's game session (when its ARN is known): every error exit after `Fulfilled` must
+    /// call this, or the host runs with nobody ever told its name.
+    async fn release(&self, arn: Option<&str>) {
+        if let Some(arn) = arn {
+            let _ = self.gamelift.terminate_game_session(arn).await;
+        }
     }
 
     /// Plan only (no GameLift write): what `place` would ask for. Capacity read failures are ignored (unknown capacity).
@@ -171,6 +276,10 @@ impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
         let policy = &self.cfg.policy;
         let deadline = Instant::now() + policy.total_budget();
         let mut dns_failed = false;
+        let mut guard = AbandonGuard {
+            list: self.abandoned.clone(),
+            id: None,
+        };
         let total = plan.attempts.len();
         for (i, attempt) in plan.attempts.iter().enumerate() {
             let now = Instant::now();
@@ -191,13 +300,20 @@ impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
             let sp = self.start_request(req, i + 1, attempt);
             sp.validate().map_err(PlaceError::Invalid)?;
             let timeout = attempt.timeout.min(deadline - now);
-            match self.run_attempt(&sp, timeout).await? {
+            guard.arm(sp.placement_id.clone());
+            let outcome = self.run_attempt(&sp, timeout).await;
+            if !matches!(outcome, Ok(Outcome::Fulfilled(_))) {
+                guard.disarm(); // run_attempt resolved (or cancelled) the placement itself
+            }
+            match outcome? {
                 Outcome::NoHost => continue,
                 Outcome::Fulfilled(state) => {
                     observe(Progress::PreparingHost {
                         region: state.region.clone().unwrap_or_default(),
                     });
-                    match self.publish(&plan, state, i + 1).await? {
+                    let published = self.publish(&plan, state, i + 1).await;
+                    guard.disarm(); // publish released the host on every non-Ok path
+                    match published? {
                         Ok(offer) => {
                             observe(Progress::Ready {
                                 region: offer.region.clone(),
@@ -337,12 +453,18 @@ impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
             st.port.filter(|p| *p > 0),
             st.game_session_arn.clone(),
         ) else {
+            self.release(st.game_session_arn.as_deref()).await;
             return Err(PlaceError::Invalid(
                 "fulfilled placement is missing region, address, port or session".into(),
             ));
         };
-        let host = game_hostname(&region, &st.placement_id, &self.cfg.zone)
-            .map_err(PlaceError::Invalid)?;
+        let host = match game_hostname(&region, &st.placement_id, &self.cfg.zone) {
+            Ok(h) => h,
+            Err(e) => {
+                self.release(Some(&arn)).await;
+                return Err(PlaceError::Invalid(e));
+            }
+        };
         let ttl = self.cfg.policy.dns_ttl_s;
         let mut ok = false;
         for i in 0..3 {
@@ -727,6 +849,121 @@ mod tests {
             .unwrap();
         assert_eq!(offer.region, "us-west-2");
         assert!(svc.gamelift.terminated().is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn fulfilled_placement_missing_its_port_terminates_the_session() {
+        // A fulfilled placement with an unusable address must not leave a running host behind (P-M4).
+        let gl = FakeGameLift::new(&[(
+            "us-west-2",
+            Fulfil {
+                after_polls: 0,
+                ip: "203.0.113.10".into(),
+                port: 0,
+            },
+        )]);
+        let svc = PlacementService::new(cfg(), gl, FakeDns::new());
+        let e = svc
+            .place(&req(
+                "req00030",
+                vec![member("alice", &[("us-west-2", 30)])],
+            ))
+            .await
+            .unwrap_err();
+        assert!(matches!(e, PlaceError::Invalid(_)), "{e:?}");
+        assert_eq!(
+            svc.gamelift.terminated().len(),
+            1,
+            "the session is terminated"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn hostname_error_after_fulfilment_terminates_the_session() {
+        let gl = FakeGameLift::new(&[("us-west-2", fulfil("203.0.113.10"))]);
+        let mut c = cfg();
+        c.zone = ".bad-zone".into(); // game_hostname refuses it
+        let svc = PlacementService::new(c, gl, FakeDns::new());
+        let e = svc
+            .place(&req(
+                "req00031",
+                vec![member("alice", &[("us-west-2", 30)])],
+            ))
+            .await
+            .unwrap_err();
+        assert!(matches!(e, PlaceError::Invalid(_)), "{e:?}");
+        assert_eq!(
+            svc.gamelift.terminated().len(),
+            1,
+            "the session is terminated"
+        );
+        assert!(svc.dns.records().is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn dropping_place_mid_attempt_queues_the_placement_and_the_reaper_stops_it() {
+        let gl = FakeGameLift::new(&[("us-west-2", NoHost)]);
+        let svc = PlacementService::new(cfg(), gl, FakeDns::new());
+        let r = req("req00032", vec![member("alice", &[("us-west-2", 30)])]);
+        // The caller gives up after 2 s, while the placement is still PENDING at GameLift.
+        let out = tokio::time::timeout(Duration::from_secs(2), svc.place(&r)).await;
+        assert!(out.is_err(), "the place future was dropped mid-attempt");
+        let starts = svc.gamelift.starts();
+        assert_eq!(starts.len(), 1);
+        assert_eq!(
+            svc.abandoned_count(),
+            1,
+            "the dropped placement is recorded"
+        );
+        assert!(
+            !svc.gamelift
+                .calls()
+                .iter()
+                .any(|c| matches!(c, Call::Stop(_))),
+            "dropping cannot cancel by itself: that is the reaper's job"
+        );
+        assert_eq!(svc.reap_abandoned().await, 1);
+        assert!(svc
+            .gamelift
+            .calls()
+            .contains(&Call::Stop(starts[0].0.clone())));
+        assert_eq!(svc.abandoned_count(), 0);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn reaper_terminates_a_placement_that_fulfilled_after_the_drop() {
+        let gl = FakeGameLift::new(&[(
+            "us-west-2",
+            Fulfil {
+                after_polls: 5,
+                ip: "203.0.113.10".into(),
+                port: 35010,
+            },
+        )]);
+        let svc = PlacementService::new(cfg(), gl, FakeDns::new());
+        let r = req("req00033", vec![member("alice", &[("us-west-2", 30)])]);
+        let out = tokio::time::timeout(Duration::from_millis(1500), svc.place(&r)).await;
+        assert!(out.is_err());
+        assert_eq!(svc.abandoned_count(), 1);
+        // Fulfilment arrives while nobody is waiting: reaping finds it fulfilled (or refuses the stop, then re-describes).
+        for _ in 0..6 {
+            let _ = svc.gamelift.describe_placement("rh-req00033-1").await;
+        }
+        assert_eq!(svc.reap_abandoned().await, 1);
+        assert_eq!(svc.gamelift.terminated().len(), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn completed_requests_leave_nothing_for_the_reaper() {
+        let gl = FakeGameLift::new(&[("us-west-2", fulfil("203.0.113.10"))]);
+        let svc = PlacementService::new(cfg(), gl, FakeDns::new());
+        svc.place(&req(
+            "req00034",
+            vec![member("alice", &[("us-west-2", 30)])],
+        ))
+        .await
+        .unwrap();
+        assert_eq!(svc.abandoned_count(), 0);
     }
 
     #[tokio::test(start_paused = true)]
