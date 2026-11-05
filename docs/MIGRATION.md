@@ -186,12 +186,19 @@ and canonical pins remain open. No full generator or performance claim follows.
 Kimi PR24 (`3558f83a`) passed native Linux x86_64/aarch64 production, exact comparison and foreign replay verification
 in both directions (CI `42093826602`). Coordinator comparator25 and focused Rust12 tests pass. It is merged as
 `1d26fd61`; native verification of that merge passed all six jobs in `42101769249`. This is implemented-domain
-evidence, not full-game completion. Claude PR25 and26 are merged with reviewed account-identity, kick-retry and load
+evidence, not full-game completion. Claude PR25 and 26 are merged with reviewed account-identity, kick-retry and load
 harness fixes as `904ad78d` and `cbdf82cf`. PR27 is integrated with five placement/operation/policy/DNS repairs and
-the final905-test workspace gate; its merge-commit CI remains pending. The real local bridge E2E also passed when
+the final 905-test workspace gate; its merge-commit CI remains pending. The real local bridge E2E also passed when
 explicitly invoked. See `docs/evidence/stage2-external-integration/` for the exact scope and limitations.
 Result-spool recovery covers same-volume process restarts; host-volume loss and managed database failover remain open.
 Placement ownership is protected in process, but durable ledger/restart recovery and the production adapters remain open.
+PR27 is merged as `5b1a7aae`. Rust/C# CI `42110941659` and native determinism CI `42110939993` are running for that
+exact code revision. The new manual hosting-validation workflow cannot be dispatched through GitHub yet because it
+is absent from the default branch; its Node/script/template checks passed locally. No default-branch change was made.
+The owner requested two further external goals: Claude's single milestone is durable placement/restart reconciliation
+([P-CLAUDE-PLACEMENT-2](backlog/packets/P-CLAUDE-PLACEMENT-2.md)); Kimi's is the pure Rust stat fold and bounded
+differential stress suite ([P-KIMI-FOLD-1](backlog/packets/P-KIMI-FOLD-1.md)). Their separate scopes require no cloud
+or Unity login. Both remain pending implementation and independent review.
 Auxiliary factions, status/cards/abilities/mobs/bots and reliable item State/client integration remain open.
 The first external handoffs are integrated. Follow the current backlog reservations before starting further parallel work.
 Unity visuals stay deferred; no full-game/pin/performance or cloud staging/production release is implied.

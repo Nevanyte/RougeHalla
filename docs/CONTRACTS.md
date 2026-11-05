@@ -76,9 +76,9 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   failover remain open; this local recovery evidence is not a host-loss guarantee.
 - C-HOST: the local real Go bridge/Rust server/WebSocket E2E passes, including retry after SDK refusal. One managed
   game session uses one process; multiple container groups are the host-density unit. Placement has ownership-bound,
-  cancellation-safe local reconciliation with71 Rust checks, including16 cancellation-receipt identity controls. Its
+  cancellation-safe local reconciliation with 71 Rust checks, including 16 cancellation-receipt identity controls. Its
   bounded ledger is process-local; durable recovery, authenticated HTTP and real AWS/DNS adapters remain open.
-  Template/policy validation and operation guards pass locally; no Stage2 fleet deployment or public TLS proof exists.
+  Template/policy validation and operation guards pass locally; no Stage 2 fleet deployment or public TLS proof exists.
   See `evidence/stage2-external-integration/`.
 - Client authority: the straight-line predictor is removed; local coordinates come only from accepted server snapshots.
   Later C# suite: 214 passed, including duplicate/base poisoning and requested same-tick recovery. Native ownership cleanup

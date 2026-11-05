@@ -32,6 +32,15 @@ refresh is tracked in MIGRATION. Kimi implements bounded Rust verification and n
 changes. Codex independently reviews results and retains shared status/contract/lockfile ownership. Both native architectures, exact comparison and foreign replay directions also passed at merge `1d26fd61`
 (CI `42101769249`); this closes the implemented-domain P-CI-2 gate, not full-game determinism.
 
+**Current external reservations (owner request 2026-11-05).** These two packets can run independently, each from the
+reviewed integration at `5b1a7aae` or a later `optimization_port` containing it. Claude owns
+[P-CLAUDE-PLACEMENT-2](packets/P-CLAUDE-PLACEMENT-2.md): durable PostgreSQL placement identity and crash/restart
+reconciliation, confined to `rh-placement` and its evidence. Kimi owns
+[P-KIMI-FOLD-1](packets/P-KIMI-FOLD-1.md): the pure Rust stat fold and bounded source differential tests, confined to
+new kernel/capture/test/evidence paths and its module declaration. No cloud or Unity account access is needed.
+Neither worker wires new gameplay, edits shared status/lockfiles, deploys or merges its own PR. Codex retains map
+generation and the integration seams. Each packet defines explicit SUCCESS and FAILURE lines.
+
 **Dependency order (earliest first).** A packet may start once everything it depends on is merged; "Ready packet" items have a
 full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the section list below) before they start.
 
@@ -114,6 +123,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-STATUS-1 | Status runtime (14 kinds, `STATUS_RULES`), fields (areas), `displace`, effect bits | P-COMBAT-1 | Coarse | server/src/sim/status.ts, fields.ts, displace.ts; shared/status.ts |
 | P-ABIL-1 | Cast pipeline and the five Wishes (`freeze`, `swarm`, `trial`, `blaze`, `lastStand`), Blaze Step blink, wish lock | P-STATUS-1, P-COMBAT-3 | Coarse | server/src/sim/abilities.ts; shared/abilities.ts, blink.ts |
 | P-CARDS-1 | Stat mirrors and the `foldRows` build fold, card catalog (80 cards), card hooks, on-hit pipeline, guards G1-G13, PvP factor beyond power 0 | P-COMBAT-1, P-STATUS-1 | Coarse | server/src/sim/mods.ts, cardHooks.ts, cardState.ts, onHit.ts, vsProbe.ts, buffs.ts; shared/cards.ts, effects.ts, mods.ts, rules.ts |
+| P-KIMI-FOLD-1 | Pure stat fold, mirrors and numeric chest boosts; 4,096-case CI differential plus 100,000-case bounded stress inventory | Reviewed integration `5b1a7aae`; independent of pending runtime | Ready packet; reserved for Kimi on `kimi/stat-fold-kernel`. Does not complete P-CARDS-1 | shared/mods.ts, effects.ts, chestBoosts.ts, constants.ts |
 | P-CARDS-2 | Camp chests, `choose`, augments, stat chests/crates, chest boosts, skip heal/GV | P-CARDS-1, P-MOBS-1 | Coarse | server/src/sim/chests.ts; shared/rewards.ts, chestBoosts.ts |
 | P-CARDS-3 | Kill augments and mob stat stacks (`MOB_KILL_STACKS` 3) | P-CARDS-1, P-MOBS-1 | Coarse | server/src/sim/killAugments.ts, mobStats.ts; shared/killAugments.ts, mobStats.ts; docs/MOB_PROGRESSION.md |
 | P-CONS-1 | Consumables: stored potions, wind emblems, 75 s cannons, `useConsumable` | P-LOOT-1 or P-COMBAT-4, P-MOBS-1 | Coarse | server/src/sim/consumables.ts; shared/consumables.ts |
@@ -232,6 +242,7 @@ is **not implemented**; the gain figures are **estimates**.
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
 | P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Local bridge/control API implemented/reviewed; actual managed-fleet experiment remains open under CAD20 total cap | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
+| P-CLAUDE-PLACEMENT-2 | Durable placement ownership, fenced claims and abrupt process restart/reconciliation over PostgreSQL | Reviewed integration `5b1a7aae` | Ready packet; reserved for Claude on `claude/durable-placement-ledger`; no cloud deployment | crates/rh-placement/src/service.rs (new adapter infrastructure) |
 | P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
 | P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |
 | P-HOST-4 | Autoscaling, scale-in protection, warm capacity, drain on deployment | P-HOST-1, P-LOAD-2 | Coarse | none |
