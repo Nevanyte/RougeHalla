@@ -5,15 +5,24 @@
 
 use crate::backend::*;
 use crate::hostname::game_hostname;
+use crate::ledger::memory::MemoryLedger;
+use crate::ledger::{
+    fp, mutant, AttemptRec, Begin, Claim, DnsStep, Fulfilled, Identity, Ledger, LedgerError,
+    LedgerState, Mutant, OfferRecord, Phase, ReleaseClaim, ReleaseRec, Resolution, Scope,
+    StartStep, StopStep, TermStep,
+};
 use crate::model::*;
 use crate::score::{self, Attempt, AttemptKind, Plan, PlanError};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, Instant};
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+mod run;
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ServiceConfig {
     pub regions: Vec<RegionConfig>,
     pub policy: PlacementPolicy,
@@ -134,207 +143,267 @@ impl PlaceError {
     }
 }
 
+/// Budgets and retention of the durable machinery. NOT part of [`ServiceConfig`]: the ownership binding and request
+/// identity do not depend on it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DurabilityConfig {
+    /// A `place` call renews its claim at least every third of this; a dead worker is reapable after it.
+    pub worker_lease: Duration,
+    pub reaper_lease: Duration,
+    /// Every ledger call runs under this budget; elapsed means the outcome of a write is unknown.
+    pub db_op_timeout: Duration,
+    /// Every backend (GameLift/DNS) call runs under this budget; elapsed is treated as `Unavailable` (ambiguous).
+    pub backend_op_timeout: Duration,
+    /// A start that never produced a receipt is `Settled` only after two NotFound answers AND this long after its intent.
+    /// Boundary: a provider start delayed beyond it is untracked (the game host's unclaimed-session timeout bounds its cost).
+    pub start_settle_after: Duration,
+    /// Rows one `reap_abandoned` pass claims.
+    pub reap_batch: usize,
+    /// `finished`/`released` rows older than this become tombstones (`purge_retained`).
+    pub retention: Duration,
+}
+
+impl Default for DurabilityConfig {
+    fn default() -> Self {
+        Self {
+            worker_lease: Duration::from_secs(90),
+            reaper_lease: Duration::from_secs(120),
+            db_op_timeout: Duration::from_secs(5),
+            backend_op_timeout: Duration::from_secs(20),
+            start_settle_after: Duration::from_secs(3600),
+            reap_batch: 16,
+            retention: Duration::from_secs(30 * 24 * 3600),
+        }
+    }
+}
+
+/// Why `release_session` did nothing. No DNS call is made for any variant but `Unavailable`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ReleaseError {
+    /// No such request id in this scope (a foreign scope is indistinguishable from absence).
+    Unknown,
+    /// The request exists but `placement_id` is not its offer's.
+    WrongPlacement,
+    /// The request has no offer to release (still active, finished without a host).
+    NotOffered,
+    /// Another release or reaper holds the claim; retry.
+    Busy,
+    /// The ledger or DNS failed; durable release intent is kept and a retry (or the reaper) resumes it.
+    Unavailable(String),
+}
+
+impl std::fmt::Display for ReleaseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReleaseError::Unknown => write!(f, "unknown request"),
+            ReleaseError::WrongPlacement => write!(f, "placement does not match the offer"),
+            ReleaseError::NotOffered => write!(f, "request has no offer to release"),
+            ReleaseError::Busy => write!(f, "release already in progress"),
+            ReleaseError::Unavailable(m) => write!(f, "release unavailable: {m}"),
+        }
+    }
+}
+impl std::error::Error for ReleaseError {}
+
+impl From<OfferRecord> for JoinOffer {
+    fn from(o: OfferRecord) -> Self {
+        JoinOffer {
+            region: o.region,
+            hostname: o.hostname,
+            port: o.port,
+            url: o.url,
+            placement_id: o.placement_id,
+            game_session_arn: o.game_session_arn,
+            player_sessions: o.player_sessions,
+            warnings: o.warnings,
+            attempts_used: o.attempts_used,
+        }
+    }
+}
+
+impl From<&JoinOffer> for OfferRecord {
+    fn from(o: &JoinOffer) -> Self {
+        OfferRecord {
+            region: o.region.clone(),
+            hostname: o.hostname.clone(),
+            port: o.port,
+            url: o.url.clone(),
+            placement_id: o.placement_id.clone(),
+            game_session_arn: o.game_session_arn.clone(),
+            player_sessions: o.player_sessions.clone(),
+            warnings: o.warnings.clone(),
+            attempts_used: o.attempts_used,
+        }
+    }
+}
+
 enum Outcome {
     Fulfilled(PlacementState),
     /// Cancelled, failed, timed out: no host from this attempt.
     NoHost,
 }
 
-pub struct PlacementService<G, D> {
+/// `L` defaults to the process-local [`MemoryLedger`]; use [`PlacementService::with_ledger`] for a durable one.
+pub struct PlacementService<G, D, L = MemoryLedger> {
     ownership_nonce: [u8; 32],
     pub cfg: ServiceConfig,
     pub gamelift: G,
     pub dns: D,
-    requests: Arc<Mutex<BTreeMap<String, RequestRecord>>>,
-}
-// This library has no durable request store. Bound its process-local idempotency ledger;
-// once full, fail closed before any external call. A production wrapper needs durable retention.
-const MAX_REQUESTS: usize = 4096;
-struct RequestRecord {
-    request: PlacementRequest,
-    config: ServiceConfig,
-    phase: RequestPhase,
-    placement_id: Option<String>,
-    binding: Option<String>,
-}
-enum RequestPhase {
-    Active,
-    Abandoned,
-    Reaping,
-    Offered(JoinOffer),
-    Finished,
-}
-struct RequestGuard {
-    requests: Arc<Mutex<BTreeMap<String, RequestRecord>>>,
-    request_id: String,
-    reaper: bool,
-}
-impl RequestGuard {
-    fn arm(&mut self, request: &StartPlacement) {
-        let mut records = self.requests.lock().unwrap();
-        let record = records.get_mut(&self.request_id).unwrap();
-        record.placement_id = Some(request.placement_id.clone());
-        record.binding = Some(request.game_session_data.clone());
-    }
-    fn disarm(&mut self) {
-        self.requests
-            .lock()
-            .unwrap()
-            .get_mut(&self.request_id)
-            .unwrap()
-            .placement_id = None;
-    }
-    fn offered(&mut self, offer: JoinOffer) {
-        let mut requests = self.requests.lock().unwrap();
-        let entry = requests.get_mut(&self.request_id).unwrap();
-        entry.placement_id = None;
-        entry.phase = RequestPhase::Offered(offer);
-    }
-    fn finished(&mut self) {
-        let mut requests = self.requests.lock().unwrap();
-        let entry = requests.get_mut(&self.request_id).unwrap();
-        entry.placement_id = None;
-        entry.phase = RequestPhase::Finished;
-    }
-}
-impl Drop for RequestGuard {
-    fn drop(&mut self) {
-        let mut requests = self.requests.lock().unwrap();
-        let entry = requests.get_mut(&self.request_id).unwrap();
-        if matches!(entry.phase, RequestPhase::Active) && !self.reaper
-            || matches!(entry.phase, RequestPhase::Reaping) && self.reaper
-        {
-            entry.phase = if entry.placement_id.is_some() {
-                RequestPhase::Abandoned
-            } else {
-                RequestPhase::Finished
-            };
-        }
-    }
+    pub durability: DurabilityConfig,
+    ledger: Arc<L>,
 }
 
-impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
-    /// `ownership_nonce` must be globally unique to this service ownership epoch, generated
-    /// by the wrapper using a cryptographic RNG and persisted with its durable request ledger.
-    /// Never reuse it for a fresh/empty ledger. This library does not generate or persist it.
+fn holder_id() -> String {
+    static N: AtomicU64 = AtomicU64::new(0);
+    format!("{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed))
+}
+
+fn ledger_unavailable() -> PlaceError {
+    PlaceError::ServiceUnavailable("placement ledger unavailable".into())
+}
+
+impl<G, D> PlacementService<G, D, MemoryLedger> {
+    /// A service with a fresh process-local ledger (bounded, not durable). `ownership_nonce` must be globally unique to this
+    /// ownership epoch, generated with a cryptographic RNG. Fixed arrays are test values only.
     pub fn new(ownership_nonce: [u8; 32], cfg: ServiceConfig, gamelift: G, dns: D) -> Self {
+        let ledger = MemoryLedger::new();
+        let nonce = ledger
+            .open_epoch_now(ownership_nonce)
+            .expect("a fresh memory ledger has no records");
         Self {
-            ownership_nonce,
+            ownership_nonce: nonce,
             cfg,
             gamelift,
             dns,
-            requests: Arc::default(),
+            durability: DurabilityConfig::default(),
+            ledger: Arc::new(ledger),
         }
     }
 
-    /// Unresolved requests, including cleanup currently in flight.
+    /// Unresolved requests: `active`/`releasing` rows not held by a live worker (cleanup pending or in flight).
     pub fn abandoned_count(&self) -> usize {
-        self.requests
-            .lock()
-            .unwrap()
-            .values()
-            .filter(|r| matches!(r.phase, RequestPhase::Abandoned | RequestPhase::Reaping))
-            .count()
+        self.ledger.counts_now().unresolved
+    }
+}
+
+impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
+    /// A service over any ledger. The ownership nonce is the ledger's (`open_epoch`): `candidate_nonce` is used only when the
+    /// ledger has no epoch and no records, so a restart keeps the old epoch and never mints one over old records.
+    /// Generate `candidate_nonce` with a cryptographic RNG; this crate generates no randomness.
+    pub async fn with_ledger(
+        candidate_nonce: [u8; 32],
+        cfg: ServiceConfig,
+        gamelift: G,
+        dns: D,
+        ledger: L,
+        durability: DurabilityConfig,
+    ) -> Result<Self, LedgerError> {
+        let nonce = tokio::time::timeout(
+            durability.db_op_timeout,
+            ledger.open_epoch(candidate_nonce),
+        )
+        .await
+        .map_err(|_| LedgerError::Timeout)??;
+        Ok(Self {
+            ownership_nonce: nonce,
+            cfg,
+            gamelift,
+            dns,
+            durability,
+            ledger: Arc::new(ledger),
+        })
     }
 
-    /// Cleanup has exclusive ownership of each request. Cancellation of this future restores
-    /// the current item to Abandoned; items not yet visited remain in the ledger.
-    pub async fn reap_abandoned(&self) -> usize {
-        let ids: Vec<_> = self
-            .requests
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|(_, r)| matches!(r.phase, RequestPhase::Abandoned))
-            .map(|(id, _)| id.clone())
-            .collect();
-        let mut resolved = 0;
-        for request_id in ids {
-            let (placement_id, zone, binding) = {
-                let mut requests = self.requests.lock().unwrap();
-                let r = requests.get_mut(&request_id).unwrap();
-                if !matches!(r.phase, RequestPhase::Abandoned) {
-                    continue;
-                }
-                r.phase = RequestPhase::Reaping;
-                (
-                    r.placement_id.clone().unwrap(),
-                    r.config.zone.clone(),
-                    r.binding.clone().unwrap(),
-                )
-            };
-            let mut guard = RequestGuard {
-                requests: self.requests.clone(),
-                request_id,
-                reaper: true,
-            };
-            if self.reap_one(&placement_id, &zone, &binding).await {
-                guard.finished();
-                resolved += 1;
-            }
+    pub fn ledger(&self) -> &L {
+        &self.ledger
+    }
+
+    /// `active`/`releasing` rows not held by a live worker.
+    pub async fn unresolved_count(&self) -> Result<usize, LedgerError> {
+        Ok(self.db(self.ledger.counts()).await?.unresolved)
+    }
+
+    /// Retention: tombstone up to `reap_batch` finished/released rows older than `durability.retention`.
+    /// A tombstone keeps id, scope and fingerprint, so a purged id can never replay or restart.
+    pub async fn purge_retained(&self) -> Result<usize, LedgerError> {
+        self.db(
+            self.ledger
+                .purge(self.durability.reap_batch, self.durability.retention),
+        )
+        .await
+    }
+
+    async fn db<T>(
+        &self,
+        f: impl std::future::Future<Output = Result<T, LedgerError>>,
+    ) -> Result<T, LedgerError> {
+        match tokio::time::timeout(self.durability.db_op_timeout, f).await {
+            Ok(r) => r,
+            Err(_) => Err(LedgerError::Timeout),
         }
-        resolved
     }
 
-    /// `true` when the placement needs no further attention.
-    async fn reap_one(&self, id: &str, zone: &str, binding: &str) -> bool {
-        let mut st = match self.gamelift.describe_placement(id).await {
-            Ok(st) => st,
-            Err(BackendError::NotFound) => return true,
-            Err(_) => return false,
+    /// One backend call under `backend_op_timeout`; elapsed is `Unavailable`.
+    async fn be<T>(
+        &self,
+        label: &str,
+        f: impl std::future::Future<Output = Result<T, BackendError>>,
+    ) -> Result<T, BackendError> {
+        if let Err(m) = fp("before", "backend", label).await {
+            return Err(BackendError::Unavailable(m));
+        }
+        let r = match tokio::time::timeout(self.durability.backend_op_timeout, f).await {
+            Ok(r) => r,
+            Err(_) => Err(BackendError::Unavailable("backend call timed out".into())),
         };
-        // The start response may have been lost or cancelled before AlreadyExists was seen.
-        // A matching id alone never authorizes cleanup of another service's accepted offer.
-        match st.game_session_data.as_deref() {
-            Some(data) if data == binding && st.placement_id == id => {}
-            Some(_) => return true, // foreign placement: no owned work, never mutate it
-            None => return false,   // adapter omitted ownership evidence: retain for reconciliation
+        if let Err(m) = fp("after", "backend", label).await {
+            return Err(BackendError::Unavailable(m));
         }
-        if st.status == PlacementStatus::Pending {
-            match self.gamelift.stop_placement(id).await {
-                Ok(s2) => st = s2,
-                // Refused: a session was created in the meantime; look again.
-                Err(BackendError::Invalid(_)) => match self.gamelift.describe_placement(id).await {
-                    Ok(s2) => st = s2,
-                    Err(_) => return false,
-                },
-                Err(_) => return false,
-            }
-        }
-        if st.placement_id != id || st.game_session_data.as_deref() != Some(binding) {
-            return false;
-        }
-        if st.status == PlacementStatus::Fulfilled {
-            let Some(arn) = &st.game_session_arn else {
-                return false;
-            };
-            let dns_ok = if let Some(region) = &st.region {
-                match game_hostname(region, id, zone) {
-                    Ok(host) => self.dns.delete(&host).await.is_ok(),
-                    Err(_) => true, // publish could never have created this malformed name
-                }
-            } else {
-                true
-            };
-            // The adapter must make this operation idempotent (already gone is success).
-            let terminated = self.gamelift.terminate_game_session(arn).await.is_ok();
-            return dns_ok && terminated;
-        }
-        st.status.is_terminal()
+        r
+    }
+    async fn bk_start(&self, sp: &StartPlacement) -> Result<PlacementState, BackendError> {
+        self.be("start_placement", self.gamelift.start_placement(sp))
+            .await
+    }
+    async fn bk_describe(&self, id: &str) -> Result<PlacementState, BackendError> {
+        self.be("describe_placement", self.gamelift.describe_placement(id))
+            .await
+    }
+    async fn bk_stop(&self, id: &str) -> Result<PlacementState, BackendError> {
+        self.be("stop_placement", self.gamelift.stop_placement(id))
+            .await
+    }
+    async fn bk_terminate(&self, arn: &str) -> Result<(), BackendError> {
+        self.be(
+            "terminate_game_session",
+            self.gamelift.terminate_game_session(arn),
+        )
+        .await
+    }
+    async fn bk_upsert(&self, name: &str, ip: &str, ttl: u32) -> Result<(), BackendError> {
+        self.be("dns_upsert", self.dns.upsert(name, ip, ttl)).await
+    }
+    async fn bk_delete(&self, name: &str) -> Result<(), BackendError> {
+        self.be("dns_delete", self.dns.delete(name)).await
+    }
+    async fn bk_resolve(&self, name: &str) -> Result<Vec<String>, BackendError> {
+        self.be("dns_resolve", self.dns.resolve_authoritative(name))
+            .await
     }
 
     /// Plan only (no GameLift write): what `place` would ask for. Capacity read failures are ignored (unknown capacity).
     pub async fn plan(&self, req: &PlacementRequest) -> Result<Plan, PlaceError> {
-        let capacity = self.gamelift.capacity().await.unwrap_or_default();
-        score::plan(&self.cfg.regions, &self.cfg.policy, &capacity, req).map_err(|e| match e {
-            PlanError::Invalid(m) => PlaceError::Invalid(m),
-            PlanError::UnknownRegion(r) => PlaceError::UnknownRegion(r),
-            PlanError::Refused(r) => PlaceError::Refused(r),
-        })
+        let capacity = self
+            .be("capacity", self.gamelift.capacity())
+            .await
+            .unwrap_or_default();
+        score::plan(&self.cfg.regions, &self.cfg.policy, &capacity, req).map_err(plan_error)
     }
 
+    /// `place_scoped` in the default scope.
     pub async fn place(&self, req: &PlacementRequest) -> Result<JoinOffer, PlaceError> {
-        self.place_with(req, &mut |_| {}).await
+        self.place_with_scoped(&Scope::default(), req, &mut |_| {})
+            .await
     }
 
     pub async fn place_with(
@@ -342,124 +411,81 @@ impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
         req: &PlacementRequest,
         observe: &mut (dyn FnMut(Progress) + Send),
     ) -> Result<JoinOffer, PlaceError> {
-        score::plan(&self.cfg.regions, &self.cfg.policy, &BTreeMap::new(), req).map_err(
-            |e| match e {
-                PlanError::Invalid(m) => PlaceError::Invalid(m),
-                PlanError::UnknownRegion(r) => PlaceError::UnknownRegion(r),
-                PlanError::Refused(r) => PlaceError::Refused(r),
-            },
-        )?;
-        // Claim before any await, including capacity lookup. A retry cannot race cleanup or
-        // overwrite another caller's ownership. Authenticated callers must preserve request identity.
-        {
-            let mut requests = self.requests.lock().unwrap();
-            if let Some(r) = requests.get(&req.request_id) {
-                if r.request != *req || r.config != self.cfg {
-                    return Err(PlaceError::Invalid(
-                        "request id belongs to different input".into(),
-                    ));
-                }
-                return match &r.phase {
-                    RequestPhase::Offered(offer) => Ok(offer.clone()),
-                    RequestPhase::Active => Err(PlaceError::ServiceUnavailable(
-                        "request already in progress".into(),
-                    )),
-                    _ => Err(PlaceError::RequestIdReused),
-                };
+        self.place_with_scoped(&Scope::default(), req, observe)
+            .await
+    }
+
+    pub async fn place_scoped(
+        &self,
+        scope: &Scope,
+        req: &PlacementRequest,
+    ) -> Result<JoinOffer, PlaceError> {
+        self.place_with_scoped(scope, req, &mut |_| {}).await
+    }
+
+    /// `scope` is a trusted namespace (for example the authenticated account): it is part of request identity, not
+    /// authentication. The request id is the ledger key; the same id with another scope, request or config is `Invalid`
+    /// and fails before any external call.
+    pub async fn place_with_scoped(
+        &self,
+        scope: &Scope,
+        req: &PlacementRequest,
+        observe: &mut (dyn FnMut(Progress) + Send),
+    ) -> Result<JoinOffer, PlaceError> {
+        score::plan(&self.cfg.regions, &self.cfg.policy, &BTreeMap::new(), req)
+            .map_err(plan_error)?;
+        let identity = self.identity(scope, req);
+        // Claim before any external call, including the capacity lookup.
+        let lease = self.durability.worker_lease;
+        let began = self
+            .db(self.ledger.begin(&identity, &holder_id(), lease))
+            .await
+            .map_err(|_| ledger_unavailable())?;
+        let claim = match began {
+            Begin::Started(c) => c,
+            Begin::Conflict => {
+                return Err(PlaceError::Invalid(
+                    "request id belongs to different input".into(),
+                ))
             }
-            if requests.len() >= MAX_REQUESTS {
-                return Err(PlaceError::ServiceUnavailable("request ledger full".into()));
+            Begin::Offered(o) => return Ok((*o).into()),
+            Begin::InProgress => {
+                return Err(PlaceError::ServiceUnavailable(
+                    "request already in progress".into(),
+                ))
             }
-            requests.insert(
-                req.request_id.clone(),
-                RequestRecord {
-                    request: req.clone(),
-                    config: self.cfg.clone(),
-                    phase: RequestPhase::Active,
-                    placement_id: None,
-                    binding: None,
-                },
-            );
-        }
-        let mut guard = RequestGuard {
-            requests: self.requests.clone(),
-            request_id: req.request_id.clone(),
-            reaper: false,
+            Begin::Reused(_) => return Err(PlaceError::RequestIdReused),
+            Begin::Full => {
+                return Err(PlaceError::ServiceUnavailable("request ledger full".into()))
+            }
         };
-        let plan = self.plan(req).await?;
-        let policy = &self.cfg.policy;
-        let deadline = Instant::now() + policy.total_budget();
-        let mut dns_failed = false;
-        let total = plan.attempts.len();
-        for (i, attempt) in plan.attempts.iter().enumerate() {
-            let now = Instant::now();
-            if now >= deadline {
-                break;
-            }
-            if i > 0 {
-                observe(Progress::Widening {
-                    after: plan.attempts[i - 1].kind,
-                });
-            }
-            observe(Progress::Searching {
-                attempt: i + 1,
-                of: total,
-                kind: attempt.kind,
-                regions: attempt.locations.clone(),
-            });
-            let sp = self.start_request(req, i + 1, attempt);
-            sp.validate().map_err(PlaceError::Invalid)?;
-            let timeout = attempt.timeout.min(deadline - now);
-            guard.arm(&sp);
-            let outcome = self.run_attempt(&sp, timeout).await;
-            if matches!(
-                outcome,
-                Ok(Outcome::NoHost) | Err(PlaceError::RequestIdReused)
-            ) {
-                guard.disarm();
-            }
-            match outcome? {
-                Outcome::NoHost => continue,
-                Outcome::Fulfilled(state) => {
-                    observe(Progress::PreparingHost {
-                        region: state.region.clone().unwrap_or_default(),
-                    });
-                    let published = self.publish(&plan, state, i + 1).await;
-                    if !matches!(published, Ok(Ok(_))) {
-                        if self
-                            .reap_one(&sp.placement_id, &self.cfg.zone, &sp.game_session_data)
-                            .await
-                        {
-                            guard.disarm();
-                        } else {
-                            return Err(PlaceError::ServiceUnavailable(
-                                "placement cleanup pending".into(),
-                            ));
-                        }
-                    }
-                    match published? {
-                        Ok(offer) => {
-                            guard.offered(offer.clone());
-                            observe(Progress::Ready {
-                                region: offer.region.clone(),
-                            });
-                            return Ok(offer);
-                        }
-                        Err(()) => dns_failed = true,
-                    }
-                }
-            }
-        }
-        if dns_failed {
-            return Err(PlaceError::DnsUnavailable);
-        }
-        match (plan.manual, plan.attempts.first()) {
-            (true, Some(a)) => Err(PlaceError::OverrideUnavailable {
-                region: a.locations[0].clone(),
-            }),
-            _ => Err(PlaceError::NoCapacity {
-                attempts: plan.attempts.len(),
-            }),
+        let mut run = run::Run::new(
+            self,
+            claim,
+            identity.zone,
+            LedgerState::default(),
+            Phase::Active,
+            lease,
+        );
+        let res = run.place(req, observe).await;
+        run.finish_place(res).await
+    }
+
+    fn identity(&self, scope: &Scope, req: &PlacementRequest) -> Identity {
+        let payload = serde_json::to_vec(&(
+            "rh-placement-identity-v1",
+            scope.as_str(),
+            req,
+            &self.cfg,
+        ))
+        .expect("serializable placement identity");
+        Identity {
+            request_id: req.request_id.clone(),
+            scope: scope.as_str().to_string(),
+            fingerprint: format!("{:x}", Sha256::digest(payload)),
+            request_json: serde_json::to_string(req).expect("serializable request"),
+            config_json: serde_json::to_string(&self.cfg).expect("serializable config"),
+            zone: self.cfg.zone.clone(),
         }
     }
 
@@ -487,233 +513,102 @@ impl<G: GameLiftBackend, D: DnsBackend> PlacementService<G, D> {
         }
     }
 
-    /// Start one placement and wait for it, up to `timeout`. On timeout the placement is cancelled; if the cancel races a
-    /// fulfilment, the fulfilled placement is used rather than orphaning a host.
-    async fn run_attempt(
+    /// Explicit session end, called by a trusted session-end hook (not an HTTP authorization). The ledger validates that
+    /// `scope`/`request_id` own an offer whose placement is `placement_id`, records the release intent durably, deletes the
+    /// offer's hostname (in the zone stored with the request) and records completion. A duplicate is `Ok` with no DNS call;
+    /// a retry of a half-done release resumes it. Nothing else deletes an offer's DNS: no automatic path infers session end.
+    pub async fn release_session(
         &self,
-        sp: &StartPlacement,
-        timeout: Duration,
-    ) -> Result<Outcome, PlaceError> {
-        let policy = &self.cfg.policy;
-        let started = Instant::now();
-        let mut tries = 0;
-        let first = loop {
-            match self.gamelift.start_placement(sp).await {
-                Ok(s) => break s,
-                Err(BackendError::AlreadyExists) => {
-                    let existing = self
-                        .gamelift
-                        .describe_placement(&sp.placement_id)
-                        .await
-                        .map_err(unavailable)?;
-                    if existing.game_session_data.is_none() {
-                        return Err(PlaceError::ServiceUnavailable(
-                            "missing placement ownership metadata".into(),
-                        ));
-                    }
-                    if existing.placement_id != sp.placement_id
-                        || existing.game_session_data.as_deref() != Some(&sp.game_session_data)
-                    {
-                        return Err(PlaceError::RequestIdReused);
-                    }
-                    if existing.status.is_terminal()
-                        && existing.status != PlacementStatus::Fulfilled
-                    {
-                        return Err(PlaceError::RequestIdReused);
-                    }
-                    break existing;
-                }
-                Err(BackendError::Invalid(m)) => return Err(PlaceError::Invalid(m)),
-                Err(BackendError::NotFound) => {
-                    return Err(PlaceError::Invalid("placement not found".into()))
-                }
-                Err(BackendError::Unavailable(m)) => {
-                    tries += 1;
-                    if tries >= 3 || started.elapsed() >= timeout {
-                        return Err(PlaceError::ServiceUnavailable(m));
-                    }
-                    sleep(policy.poll_interval()).await;
-                }
-            }
-        };
-        let mut state = first;
-        let mut consecutive_errors = 0;
-        loop {
-            if state.game_session_data.is_none() {
-                return Err(PlaceError::ServiceUnavailable(
-                    "missing placement ownership metadata".into(),
-                ));
-            }
-            if state.placement_id != sp.placement_id
-                || state.game_session_data.as_deref() != Some(&sp.game_session_data)
-            {
-                return Err(PlaceError::RequestIdReused);
-            }
-            match state.status {
-                PlacementStatus::Fulfilled => return Ok(Outcome::Fulfilled(state)),
-                PlacementStatus::Cancelled
-                | PlacementStatus::TimedOut
-                | PlacementStatus::Failed => return Ok(Outcome::NoHost),
-                PlacementStatus::Pending => {}
-            }
-            if started.elapsed() >= timeout {
-                return self.cancel(sp).await;
-            }
-            sleep(policy.poll_interval()).await;
-            match self.gamelift.describe_placement(&sp.placement_id).await {
-                Ok(s) => {
-                    consecutive_errors = 0;
-                    state = s;
-                }
-                Err(BackendError::Unavailable(m)) => {
-                    consecutive_errors += 1;
-                    if consecutive_errors >= 5 {
-                        let _ = self.gamelift.stop_placement(&sp.placement_id).await;
-                        return Err(PlaceError::ServiceUnavailable(m));
-                    }
-                }
-                Err(BackendError::Invalid(m)) => return Err(PlaceError::Invalid(m)),
-                Err(BackendError::AlreadyExists) => {
-                    return Err(PlaceError::Invalid("unexpected AlreadyExists".into()))
-                }
-                Err(BackendError::NotFound) => {
-                    return Err(PlaceError::Invalid("placement not found".into()))
-                }
-            }
+        scope: &Scope,
+        request_id: &str,
+        placement_id: &str,
+    ) -> Result<(), ReleaseError> {
+        let down = |_: LedgerError| ReleaseError::Unavailable("placement ledger unavailable".into());
+        let rec = self
+            .db(self.ledger.get(request_id))
+            .await
+            .map_err(down)?
+            .ok_or(ReleaseError::Unknown)?;
+        if check_release(&rec, scope, placement_id)? {
+            return Ok(());
         }
-    }
-
-    async fn cancel(&self, expected: &StartPlacement) -> Result<Outcome, PlaceError> {
-        let state = match self.gamelift.stop_placement(&expected.placement_id).await {
-            Ok(state) => state,
-            // Refused because a session may have been created in the meantime.
-            Err(BackendError::Invalid(_)) => self
-                .gamelift
-                .describe_placement(&expected.placement_id)
-                .await
-                .map_err(unavailable)?,
-            Err(e) => return Err(unavailable(e)),
-        };
-        // Neither a stop receipt nor the follow-up describe is ownership evidence by id alone.
-        // Keep cleanup armed when the receipt cannot prove the fate of our exact attempt.
-        if state.placement_id != expected.placement_id
-            || state.game_session_data.as_deref() != Some(expected.game_session_data.as_str())
+        let lease = self.durability.reaper_lease;
+        let (claim, rec) = match self
+            .db(self.ledger.claim_for_release(request_id, &holder_id(), lease))
+            .await
+            .map_err(down)?
         {
-            return Err(PlaceError::ServiceUnavailable(
-                "cancellation response has unverified ownership".into(),
-            ));
-        }
-        match state.status {
-            PlacementStatus::Fulfilled => Ok(Outcome::Fulfilled(state)),
-            PlacementStatus::Cancelled | PlacementStatus::TimedOut | PlacementStatus::Failed => {
-                Ok(Outcome::NoHost)
-            }
-            PlacementStatus::Pending => Err(PlaceError::ServiceUnavailable(
-                "cancellation remains pending".into(),
-            )),
-        }
-    }
-
-    /// Fulfilled placement -> verified hostname -> offer. `Ok(Err(()))` means DNS failed.
-    /// The caller must confirm cleanup before continuing with another attempt.
-    async fn publish(
-        &self,
-        plan: &Plan,
-        st: PlacementState,
-        attempts_used: usize,
-    ) -> Result<Result<JoinOffer, ()>, PlaceError> {
-        let region = st
-            .region
-            .clone()
-            .filter(|r| self.cfg.regions.iter().any(|c| &c.id == r));
-        let (Some(region), Some(ip), Some(port), Some(arn)) = (
-            region,
-            st.ip_address.clone(),
-            st.port.filter(|p| *p > 0),
-            st.game_session_arn.clone(),
-        ) else {
-            return Err(PlaceError::Invalid(
-                "fulfilled placement is missing region, address, port or session".into(),
-            ));
+            ReleaseClaim::Claimed(c, r) => (c, *r),
+            ReleaseClaim::Missing => return Err(ReleaseError::Unknown),
+            ReleaseClaim::Busy => return Err(ReleaseError::Busy),
+            ReleaseClaim::AlreadyReleased => return Ok(()),
+            ReleaseClaim::NotReleasable(_) => return Err(ReleaseError::NotOffered),
         };
-        let host = match game_hostname(&region, &st.placement_id, &self.cfg.zone) {
-            Ok(h) => h,
-            Err(e) => {
-                return Err(PlaceError::Invalid(e));
-            }
-        };
-        let ttl = self.cfg.policy.dns_ttl_s;
-        let mut ok = false;
-        for i in 0..3 {
-            match self.dns.upsert(&host, &ip, ttl).await {
-                Ok(()) => {
-                    ok = true;
-                    break;
-                }
-                Err(BackendError::Invalid(_)) => break,
-                Err(_) if i < 2 => sleep(Duration::from_millis(500)).await,
-                Err(_) => {}
-            }
+        let mut run = run::Run::new(
+            self,
+            claim,
+            rec.identity.zone.clone(),
+            rec.state.clone(),
+            rec.phase,
+            lease,
+        );
+        // Re-validate against the claimed row: the first check raced other callers.
+        if let Err(e) = check_release(&rec, scope, placement_id) {
+            run.give_up().await;
+            return Err(e);
         }
-        // The name must be visible at the authoritative servers before the client resolves it: a recursive resolver caches a
-        // miss (NXDOMAIN) for the zone's negative TTL, which would stall the join for minutes.
-        if ok {
-            ok = false;
-            let until = Instant::now() + self.cfg.policy.dns_verify_timeout();
-            loop {
-                if self
-                    .dns
-                    .resolve_authoritative(&host)
-                    .await
-                    .is_ok_and(|v| v.iter().any(|a| a == &ip))
-                {
-                    ok = true;
-                    break;
-                }
-                if Instant::now() >= until {
-                    break;
-                }
-                sleep(Duration::from_millis(250)).await;
-            }
-        }
-        if !ok {
-            return Ok(Err(()));
-        }
-        let mut warnings = plan.warnings.clone();
-        if let (Some(s), false) = (
-            plan.score_of(&region),
-            warnings.iter().any(|w| {
-                matches!(
-                    w,
-                    Warning::HighPing { .. } | Warning::AllRegionsOverLimit { .. }
-                )
-            }),
-        ) {
-            if s.tier == Tier::OverLimit {
-                warnings.push(Warning::HighPing {
-                    region: region.clone(),
-                    worst_ms: s.max_ms.unwrap_or(0),
+        let done = async {
+            if rec.phase == Phase::Offered {
+                let at = run.now().await?;
+                run.state.release = Some(ReleaseRec {
+                    intent_at_ms: at,
+                    done_at_ms: None,
                 });
+                run.commit("release_intent", Phase::Releasing).await?;
+            }
+            run.finish_release().await
+        }
+        .await;
+        match done {
+            Ok(true) => {
+                run.disarm();
+                Ok(())
+            }
+            _ => {
+                run.give_up().await;
+                Err(ReleaseError::Unavailable("release pending".into()))
             }
         }
-        Ok(Ok(JoinOffer {
-            url: format!("wss://{host}:{port}/ws"),
-            hostname: host,
-            region,
-            port,
-            placement_id: st.placement_id,
-            game_session_arn: arn,
-            player_sessions: st.placed_player_sessions,
-            warnings,
-            attempts_used,
-        }))
     }
+}
 
-    /// Remove a finished session's DNS record (the session-end hook and the janitor both call this; deleting a missing record is fine).
-    pub async fn release_host(&self, region: &str, placement_id: &str) -> Result<(), BackendError> {
-        let host =
-            game_hostname(region, placement_id, &self.cfg.zone).map_err(BackendError::Invalid)?;
-        self.dns.delete(&host).await
+/// `Ok(true)`: already released, nothing to do.
+fn check_release(
+    rec: &crate::ledger::Record,
+    scope: &Scope,
+    placement_id: &str,
+) -> Result<bool, ReleaseError> {
+    if rec.identity.scope != scope.as_str() {
+        return Err(ReleaseError::Unknown);
+    }
+    match rec.phase {
+        Phase::Tombstone => match rec.final_phase {
+            Some(Phase::Released) => Ok(true),
+            _ => Err(ReleaseError::NotOffered),
+        },
+        Phase::Offered | Phase::Releasing | Phase::Released => match &rec.state.offer {
+            Some(o) if o.placement_id == placement_id => Ok(rec.phase == Phase::Released),
+            _ => Err(ReleaseError::WrongPlacement),
+        },
+        _ => Err(ReleaseError::NotOffered),
+    }
+}
+
+fn plan_error(e: PlanError) -> PlaceError {
+    match e {
+        PlanError::Invalid(m) => PlaceError::Invalid(m),
+        PlanError::UnknownRegion(r) => PlaceError::UnknownRegion(r),
+        PlanError::Refused(r) => PlaceError::Refused(r),
     }
 }
 
@@ -1292,15 +1187,17 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn release_host_deletes_the_record() {
+    async fn release_session_deletes_the_record() {
+        // Was `release_host(region, placement_id)`: the ID-only deletion path is gone; the release is bound to the ledger.
         let gl = FakeGameLift::new(&[("us-west-2", fulfil("203.0.113.10"))]);
         let svc = PlacementService::new([1; 32], cfg(), gl, FakeDns::new());
         let offer = svc.place(&req("req00019", vec![alice()])).await.unwrap();
-        svc.release_host(&offer.region, &offer.placement_id)
+        let scope = Scope::default();
+        svc.release_session(&scope, "req00019", &offer.placement_id)
             .await
             .unwrap();
         assert!(svc.dns.records().is_empty());
-        svc.release_host(&offer.region, &offer.placement_id)
+        svc.release_session(&scope, "req00019", &offer.placement_id)
             .await
             .unwrap();
     }

@@ -11,10 +11,18 @@ license.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "rt", "macros", "net", "io-util", "sync"] }
+sqlx = { version = "0.8", optional = true, default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["time", "test-util", "macros", "rt"] }
+tokio = { version = "1", features = ["time", "test-util", "macros", "rt", "rt-multi-thread", "sync"] }
+
+[features]
+default = []
+# PostgreSQL-backed placement ledger (`ledger::postgres`). The default build never links sqlx or connects to a database.
+postgres = ["dep:sqlx"]
+# Named fault points and mutants for crash/negative-control tests (`ledger::faults`). Never enable in production.
+fault-injection = []
 
 [[bin]]
 name = "rh-placement"

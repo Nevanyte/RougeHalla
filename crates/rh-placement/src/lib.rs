@@ -8,6 +8,8 @@
 //!   exact `StartGameSessionPlacement` request shape we send ([`backend::StartPlacement`]).
 //! * [`service`]: the orchestration (plan, place, wait, widen, create the hostname, verify it) over those two interfaces.
 //! * [`fake`]: scripted fakes of both, used by this crate's tests.
+//! * [`ledger`]: the durable request ledger (memory store, PostgreSQL store behind feature `postgres`) the service writes its
+//!   intents and outcomes to before and after every external effect, so a restart can reconcile.
 //! * [`hostname`]: the one place a placement id becomes a DNS name (a Node mirror is tested against shared vectors).
 //!
 //! No AWS SDK is linked and no credential is read here. The real GameLift and DNS adapters are separate programs that hold
@@ -16,6 +18,7 @@
 pub mod backend;
 pub mod fake;
 pub mod hostname;
+pub mod ledger;
 pub mod model;
 pub mod score;
 pub mod service;
