@@ -22,7 +22,7 @@ pub enum Event {
         y: f64,
         a: f64,
     },
-    /// `by` is `None` for damage no fighter dealt (sudden death, terrain) and `weapon` is `None` for damage no weapon
+    /// `by` is `None` for damage no fighter dealt (legacy `SUDDEN_DEATH_KILLER`, the arena's own damage; it credits nobody) and `weapon` is `None` for damage no weapon
     /// dealt (an ability, a field); every hit the slice produces has both. Names are resolved from the roster (players) or
     /// content (future mob types) only when a result or a client needs them, never stored here.
     Hit {

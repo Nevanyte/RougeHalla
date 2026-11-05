@@ -28,8 +28,8 @@ use std::time::{Duration, Instant};
 /// `AsyncSeat::spawn` take the same [`MatchStart`] and fault on a contract or observation-version mismatch.
 pub const POLICY_CONTRACT_VERSION: u16 = 2;
 
-/// Everything a policy may know about a match before its first observation, all of it public: what a human client is
-/// sent in its welcome. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
+/// Everything a policy may know about a match before its first observation, all of it public static data (the map
+/// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
 #[derive(Clone, Debug)]
 pub struct MatchStart {
     /// The player this policy plays.
@@ -170,9 +170,11 @@ impl Seat {
     pub fn new(m: &MatchStart, mut policy: Box<dyn Policy>, mut fallback: Box<dyn Policy>) -> Self {
         let spec = policy.spec();
         let interval = spec.decision_interval_ticks.max(1);
-        policy.reset(m);
-        fallback.reset(&m.with_seed(m.seed ^ 0x9e37_79b9_7f4a_7c15));
         let fault = attach_fault(&spec, m);
+        if fault.is_none() {
+            policy.reset(m);
+        }
+        fallback.reset(&m.with_seed(m.seed ^ 0x9e37_79b9_7f4a_7c15));
         Self {
             player: m.me,
             policy,
@@ -369,9 +371,11 @@ impl AsyncSeat {
     ) -> Self {
         let spec = policy.spec();
         let interval = spec.decision_interval_ticks.max(1);
-        policy.reset(m);
-        fallback.reset(&m.with_seed(m.seed ^ 1));
         let fault = attach_fault(&spec, m);
+        if fault.is_none() {
+            policy.reset(m);
+        }
+        fallback.reset(&m.with_seed(m.seed ^ 1));
         let (tx, req_rx) = mpsc::channel::<(u32, Observation)>();
         let (res_tx, rx) = mpsc::channel::<(u32, Vec<RawCommand>)>();
         if fault.is_none() {

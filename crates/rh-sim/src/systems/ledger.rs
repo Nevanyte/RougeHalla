@@ -18,8 +18,10 @@ use crate::systems::{credit, settle, weapons, Cx};
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
     pub(crate) victim: PlayerId,
-    /// Who dealt it; `None` for damage no fighter dealt (legacy `SUDDEN_DEATH_KILLER`, terrain). Such a hit takes no PvP
-    /// factor, gives no damage credit and no rival credit.
+    /// Who dealt it; `None` for damage no fighter dealt (legacy `SUDDEN_DEATH_KILLER`: the arena's own damage). Such a hit takes
+    /// no PvP factor, gives no damage credit and no rival credit, and a kill by it credits nobody (legacy: sudden death is
+    /// the arena's own). Its canonical fx `by`, `weapon` and result `killedBy` ("sudden death") are fixed by the packet that
+    /// ports sudden death.
     pub(crate) by: Option<PlayerId>,
     pub(crate) packet: Packet,
     /// What dealt it; `None` for damage no weapon dealt (an ability, a field).
@@ -367,7 +369,12 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
     });
     let credited = match top_rival {
         Some(r) => hits[r].1,
-        None => credit::recent_rival(w, vi, now),
+        // Legacy arena.ts: a kill whose top hit is the arena's own (sudden death) credits nobody; only a sourced top hit
+        // falls back to the recent rival. A self-hit (the attacker is the victim) credits nobody either.
+        None => hits[top]
+            .1
+            .filter(|b| *b != victim_id)
+            .and_then(|_| credit::recent_rival(w, vi, now)),
     };
     if let Some(c) = credited {
         let bounty = credit::owed_bounty(w, pass.bounty_at_tick_start, vi);

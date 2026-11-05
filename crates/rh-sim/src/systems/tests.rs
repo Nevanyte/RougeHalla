@@ -325,10 +325,9 @@ fn a_payout_of_the_pass_lands_in_the_same_tick_not_the_next() {
 #[test]
 fn a_sourceless_hit_damages_and_credits_no_one() {
     let mut s = sim();
-    let (mut sourced, mut free) = (hit(1, 2, 40.0), hit(1, 2, 40.0));
+    let (sourced, mut free) = (hit(1, 2, 4.0), hit(1, 2, 4.0));
     free.by = None;
     free.weapon = None;
-    sourced.stagger = false;
     let max = s.w.players[1].vitals.max_hp;
     s.w.deferred.defer_hit(free);
     s.step();
@@ -345,14 +344,26 @@ fn a_sourceless_hit_damages_and_credits_no_one() {
         t.w.players[0].credit.damaged.contains(&PlayerId(2)),
         "a sourced hit does"
     );
+    let taken_sourced = max - t.w.players[1].vitals.hp;
+    assert!(
+        taken > taken_sourced,
+        "the sourceless hit takes no PvP factor (sourced {taken_sourced}, free {taken})"
+    );
 
     let mut k = sim();
     k.w.players[1].vitals.hp = 1.0;
+    // A rival's recent hit does not make the arena's kill theirs (legacy: sudden death credits nobody).
+    let now = k.w.server_time;
+    k.w.players[1].credit.last_hit = Some((PlayerId(1), now));
     k.w.deferred.defer_hit(free);
     let evs = k.step();
     assert_eq!(k.w.players[1].vitals.hp, 0.0);
     assert_eq!(k.w.players[1].fate.killed_by, None);
     assert_eq!(k.w.players[0].credit.kills, 0);
+    assert!(
+        !evs.iter().any(|e| matches!(e, Event::Gv { .. })),
+        "no GV paid"
+    );
     assert!(evs.iter().any(|e| matches!(
         e,
         Event::Hit {

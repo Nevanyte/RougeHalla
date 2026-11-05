@@ -19,7 +19,7 @@ use crate::map::MASK_SIGHT;
 use crate::sight::SightCache;
 use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 
-pub const OBSERVATION_VERSION: u16 = 1;
+pub const OBSERVATION_VERSION: u16 = 2;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -67,7 +67,7 @@ pub enum SeenEvent {
     },
     Hit {
         victim: PlayerId,
-        /// `None`: no fighter dealt it (sudden death, terrain).
+        /// `None`: no fighter dealt it (legacy `SUDDEN_DEATH_KILLER`, the arena's own damage).
         by: Option<PlayerId>,
         amount: f64,
     },
@@ -493,6 +493,24 @@ mod tests {
                 },
             },
         ]
+    }
+
+    #[test]
+    fn a_sourceless_hit_on_an_unseen_victim_is_not_shown_to_an_absent_viewer() {
+        let hit = Event::Hit {
+            victim: PlayerId(2),
+            by: None,
+            amount: 5.0,
+            weapon: None,
+        };
+        for me in [None, Some(PlayerId(1))] {
+            let mut out = Vec::new();
+            filter_events(std::slice::from_ref(&hit), me, |_| false, &mut out);
+            assert!(out.is_empty(), "viewer {me:?} must not see it");
+        }
+        let mut out = Vec::new();
+        filter_events(std::slice::from_ref(&hit), None, |_| true, &mut out);
+        assert_eq!(out.len(), 1, "a seen victim's hit is shown");
     }
 
     #[test]

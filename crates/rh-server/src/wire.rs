@@ -147,11 +147,11 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.weapon == b.weapon
 }
 
-/// Highest actor id (exclusive) [`ActorMemo`] remembers; an actor with a higher id is converted every time.
 /// The wire's `Fx::Hit.by` is required (protocol v3). A hit no fighter dealt (sudden death, terrain) has none: it is sent
 /// with this id, which no actor has. No producer emits one yet; the first one makes `by` optional in a protocol bump.
 const WIRE_NO_SOURCE: u32 = u32::MAX;
 
+/// Highest actor id (exclusive) [`ActorMemo`] remembers; an actor with a higher id is converted every time.
 const MEMO_IDS: usize = rh_protocol::MAX_ACTORS;
 
 /// The wire form of each actor last shown, by id. An actor is the same to every viewer who sees it, so its check and
