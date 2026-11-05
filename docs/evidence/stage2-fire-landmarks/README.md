@@ -4,7 +4,10 @@ Branch: `optimization_port`. Native arm64 M5 Pro integration passed **586 tests,
 ignored heap measurement**; formatting and both workspace Clippy modes with warnings denied passed. Parity is
 **65 compared scenarios, 13 capture-only and 300 path queries: all MATCH**. This checkpoint adds a bounded player Fire installation and stage-4 landmark foundations
 inside `rh-sim`. Full gameplay, full map generation/certification/pins, bots, client flows and release gates remain open.
-The integrated gate and current format identities are recorded in [MIGRATION](../../MIGRATION.md).
+The integrated gate and current format identities are recorded in [MIGRATION](../../MIGRATION.md). Commit `7fe10989`
+passed [Rust CI](https://github.com/Nevanyte/RougeHalla/actions/runs/42049800438) and
+[legacy recapture CI](https://github.com/Nevanyte/RougeHalla/actions/runs/42049800443), including PostgreSQL, C#,
+headless runs, all new source oracles and Chromium WSS.
 
 ## Fire gameplay
 
