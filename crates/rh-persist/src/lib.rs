@@ -67,6 +67,36 @@ pub enum Error {
     Conflict(String),
 }
 
+/// Postgres SQLSTATE codes whose errors repeat identically on retry: class 22 (data exception), class 23 (integrity
+/// constraint violation) except `23505` (unique violation: a retry of an idempotent write resolves it into "already
+/// applied" when a concurrent writer won), and class 42 (syntax error or undefined object). Everything else (08
+/// connection, 40 rollback or deadlock, 53 resources, 57 shutdown, 58 I/O) is transient.
+pub fn permanent_sqlstate(code: &str) -> bool {
+    (code.starts_with("22") || code.starts_with("23") || code.starts_with("42")) && code != "23505"
+}
+
+impl Error {
+    /// True when retrying the identical operation can never succeed because the data itself is rejected (invalid input,
+    /// constraint or data-exception violation, decode failure). False for connection, I/O, pool, timeout, deadlock and
+    /// similar trouble, which a retry may cure however long it takes.
+    pub fn is_permanent(&self) -> bool {
+        match self {
+            Error::Invalid(_) | Error::Json(_) | Error::UnknownProfile(_) | Error::Conflict(_) => {
+                true
+            }
+            Error::Db(sqlx::Error::Database(d)) => d.code().is_some_and(|c| permanent_sqlstate(&c)),
+            Error::Db(
+                sqlx::Error::ColumnDecode { .. }
+                | sqlx::Error::Decode(_)
+                | sqlx::Error::ColumnNotFound(_)
+                | sqlx::Error::ColumnIndexOutOfBounds { .. }
+                | sqlx::Error::TypeNotFound { .. },
+            ) => true,
+            _ => false,
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Constant-time equality for secrets (token hashes): the time does not depend on where the first difference is.
@@ -131,7 +161,7 @@ pub enum EquipOutcome {
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
-    /// Bumped (after COMMIT) whenever a result transaction credits GV; clones of the store share it. Leaderboard caches
+    /// Bumped (after COMMIT) whenever a result transaction credits GV or an equip changes a title; clones of the store share it. Leaderboard caches
     /// compare it to know when to drop (see `account.rs`). Other hosts' credits are not seen here: caches also expire.
     gv_epoch: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
@@ -257,6 +287,32 @@ impl Store {
         } else {
             Claim::Forbidden
         })
+    }
+
+    /// Undoes a claim whose token could never be delivered (the request was cancelled after the insert committed):
+    /// deletes the profile only when `token` is its own AND nothing references it yet (a fresh, never-used row). Returns
+    /// whether a row was removed. A row with any history is never touched (the foreign keys refuse it).
+    pub async fn discard_unclaimed_profile(&self, callsign: &str, token: &str) -> Result<bool> {
+        let hash = hash_token(token);
+        let res = sqlx::query(
+            "DELETE FROM profiles p WHERE lower(p.callsign) = lower($1) AND p.token_sha256 = $2
+               AND p.gv = 0 AND p.gv_lifetime = 0
+               AND NOT EXISTS (SELECT 1 FROM session_leases WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM match_results WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM purchases WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM gv_ledger WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM gv_by_month WHERE profile_id = p.profile_id)",
+        )
+        .bind(callsign)
+        .bind(&hash[..])
+        .execute(&self.pool)
+        .await;
+        match res {
+            Ok(r) => Ok(r.rows_affected() == 1),
+            // A concurrent reference (FK violation) means it is in use after all: leave it.
+            Err(sqlx::Error::Database(d)) if d.code().as_deref() == Some("23503") => Ok(false),
+            Err(e) => Err(e.into()),
+        }
     }
 
     pub async fn verify_token(&self, callsign: &str, token: &str) -> Result<bool> {
@@ -888,15 +944,25 @@ impl Store {
                 have: gv,
             });
         };
-        sqlx::query(
-            "INSERT INTO purchases (purchase_id, profile_id, item_id, price) VALUES ($1, $2, $3, $4)",
+        // The key is global. Two different profiles presenting the same key at once both pass the check above (each
+        // holds only its own row lock); the second insert must be a clean conflict, not a primary-key error (a 500).
+        // The transaction is dropped without commit, so this profile's debit and grant roll back.
+        let inserted = sqlx::query(
+            "INSERT INTO purchases (purchase_id, profile_id, item_id, price) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (purchase_id) DO NOTHING",
         )
         .bind(purchase_id)
         .bind(pid)
         .bind(item_id)
         .bind(price)
         .execute(&mut *tx)
-        .await?;
+        .await?
+        .rows_affected();
+        if inserted == 0 {
+            return Err(Error::Conflict(format!(
+                "purchase id {purchase_id} was used for something else"
+            )));
+        }
         sqlx::query(
             "INSERT INTO gv_ledger (profile_id, delta, reason, ref) VALUES ($1, $2, 'purchase', $3)",
         )
@@ -944,6 +1010,9 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;
+        // Leaderboard rows show equipped titles: a cached page is stale now (same signal as a GV credit).
+        self.gv_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(EquipOutcome::Ok)
     }
 }
@@ -1047,4 +1116,29 @@ pub(crate) async fn load_profile(
         achievements: row.7 .0,
         progress: row.8 .0,
     }))
+}
+
+#[cfg(test)]
+mod classify_tests {
+    use super::*;
+
+    #[test]
+    fn permanent_errors_are_split_from_transient_ones() {
+        for code in ["22021", "22P05", "23502", "23503", "23514", "42703"] {
+            assert!(permanent_sqlstate(code), "{code}");
+        }
+        // Retry cures these: unique-violation races resolve to AlreadyApplied, the rest are connection/server trouble.
+        for code in [
+            "23505", "40001", "40P01", "08006", "53300", "57P01", "58030", "XX000",
+        ] {
+            assert!(!permanent_sqlstate(code), "{code}");
+        }
+        assert!(Error::Invalid("x".into()).is_permanent());
+        assert!(Error::Conflict("x".into()).is_permanent());
+        assert!(Error::UnknownProfile("x".into()).is_permanent());
+        assert!(!Error::Db(sqlx::Error::PoolTimedOut).is_permanent());
+        assert!(!Error::Db(sqlx::Error::PoolClosed).is_permanent());
+        assert!(!Error::Db(sqlx::Error::Io(std::io::Error::other("reset"))).is_permanent());
+        assert!(Error::Db(sqlx::Error::ColumnNotFound("c".into())).is_permanent());
+    }
 }

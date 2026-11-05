@@ -1235,3 +1235,96 @@ mod binary {
         let _ = std::fs::remove_file(&token_file);
     }
 }
+
+/// A `POST /control/session` racing `drain` must either be refused (409 draining) or leave a room that drain then closes:
+/// drain must never reach Terminated while a session created during the drain stays alive and unannounced.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_session_created_while_draining_is_refused_or_drained_never_left_live_after_terminated() {
+    let mut refused = 0;
+    let mut created = 0;
+    for i in 0..150 {
+        let cfg = DirectorConfig {
+            tick: TICK,
+            linger: Duration::from_millis(50),
+            max_rooms: 1,
+            require_admit: true,
+            ..DirectorConfig::new(
+                SimConfig {
+                    min_players: 2,
+                    lobby_seconds: 30.0,
+                    fill_seconds: 0.0,
+                    pvp_rules: true,
+                    weapon_specials: true,
+                    faction_mode: rh_sim::FactionMode::Off,
+                },
+                rh_sim::arenas::practice_arena(),
+            )
+        };
+        let lifecycle = Arc::new(Lifecycle::default());
+        let d = Director::new(
+            cfg,
+            Arc::new(Persistence::memory()),
+            Arc::new(Auth::Static(HashMap::new())),
+            lifecycle.clone(),
+        );
+        lifecycle.ready();
+        let (d1, d2) = (d.clone(), d.clone());
+        let create = tokio::spawn(async move { d1.control_create("gs-race", None, None) });
+        let drain = tokio::spawn(async move { d2.drain().await });
+        let res = create.await.unwrap();
+        drain.await.unwrap();
+        match res {
+            Ok(_) => {
+                created += 1;
+                // The room exists, so drain must have told it (or will, having seen it): it closes and only then terminates.
+                let mut closed = false;
+                for _ in 0..100 {
+                    if d.info()["rooms"] == 0 {
+                        closed = true;
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+                assert!(
+                    closed,
+                    "iteration {i}: a session created during the drain stayed live (terminated: {})",
+                    lifecycle.is_terminated()
+                );
+                assert!(
+                    lifecycle.is_terminated(),
+                    "iteration {i}: drained but never terminated"
+                );
+            }
+            Err(e) => {
+                refused += 1;
+                assert_eq!((e.status, e.code), (409, "draining"), "iteration {i}");
+                assert!(lifecycle.is_terminated());
+            }
+        }
+    }
+    eprintln!("drain race: {created} created then drained, {refused} refused");
+}
+
+#[tokio::test]
+async fn health_reports_the_build_id_and_the_new_tick_and_admit_metrics_and_info_is_unchanged() {
+    let r = rig(Opts::default()).await;
+    let h = get(r.control, "/control/health", &[]).await.json();
+    assert_eq!(h["build"], rh_sim::replay::BUILD_ID);
+    assert!(h["metrics"]["lateSteps"].is_u64(), "{h}");
+    for k in ["count", "p50", "p99", "max"] {
+        assert!(h["metrics"]["admitToSeatMs"][k].is_u64(), "{k}: {h}");
+    }
+    // /info (public, pinned key set) does not grow a build key.
+    assert!(r.director.info().get("build").is_none());
+    // Seating one admitted player records one admit-to-seat observation.
+    let before = h["metrics"]["admitToSeatMs"]["count"].as_u64().unwrap();
+    r.create("gs-m", json!({})).await;
+    r.admit("gs-m", "psess-m", "alice").await;
+    let _alice = join(&r, "alice").await;
+    r.wait_player("gs-m", "psess-m", "seated").await;
+    let after = get(r.control, "/control/health", &[]).await.json()["metrics"]["admitToSeatMs"]
+        ["count"]
+        .as_u64()
+        .unwrap();
+    assert!(after > before, "{before} -> {after}");
+}

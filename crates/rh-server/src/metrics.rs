@@ -9,6 +9,7 @@
 
 use std::ops::Deref;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::time::Duration;
 
 /// A relaxed counter alone on its cache line (64 B aligned and padded): rooms on different threads bump different counters
 /// without invalidating each other's line (false sharing). Derefs to the `AtomicU64`.
@@ -219,6 +220,12 @@ pub struct Metrics {
     pub publish_us: AtomicHistogram,
     /// Microseconds between a step's grid slot and the wake that ran it.
     pub lateness_us: AtomicHistogram,
+    /// Steps run by a wake that came later than the deadline budget (one tick period after the step's grid slot): the
+    /// room was already more than a whole tick behind when it started them. See [`Metrics::note_wake`].
+    pub late_steps: Counter,
+    /// Milliseconds from an admit being consumed by a Hello to the room taking the seat (hosted mode only: admits exist
+    /// only under `--require-admit`). Recorded by [`Metrics::note_admit_to_seat`].
+    pub admit_to_seat_ms: AtomicHistogram,
 }
 
 impl Default for Metrics {
@@ -238,7 +245,26 @@ impl Metrics {
             step_us: AtomicHistogram::new(),
             publish_us: AtomicHistogram::new(),
             lateness_us: AtomicHistogram::new(),
+            late_steps: Counter::new(),
+            admit_to_seat_ms: AtomicHistogram::new(),
         }
+    }
+
+    /// One wake that ran `steps` steps `lateness` after the first one's grid slot: records the lateness and, when it
+    /// exceeded `budget` (one tick period), counts the steps as late.
+    pub fn note_wake(&self, lateness: Duration, steps: u32, budget: Duration) {
+        self.lateness_us
+            .record(lateness.as_micros().min(u128::from(u32::MAX)) as u32);
+        if lateness > budget {
+            self.late_steps
+                .fetch_add(u64::from(steps), Ordering::Relaxed);
+        }
+    }
+
+    /// An admit was consumed `took` ago and its seat has now been taken.
+    pub fn note_admit_to_seat(&self, took: Duration) {
+        self.admit_to_seat_ms
+            .record(took.as_millis().min(u128::from(u32::MAX)) as u32);
     }
 
     pub fn json(&self) -> serde_json::Value {
@@ -252,6 +278,8 @@ impl Metrics {
             "stepUs": self.step_us.json(),
             "publishUs": self.publish_us.json(),
             "latenessUs": self.lateness_us.json(),
+            "lateSteps": n(&self.late_steps),
+            "admitToSeatMs": self.admit_to_seat_ms.json(),
             "rssBytes": rss_bytes(),
             "note": "histogram quantiles are bucket upper bounds (at most 25% above the true value, never below); max is exact",
         })
@@ -377,5 +405,36 @@ mod tests {
             a.record(v);
         }
         assert_eq!((a.count(), a.max()), (5, 900));
+    }
+
+    #[test]
+    fn late_steps_count_only_wakes_later_than_the_budget_and_lateness_is_always_recorded() {
+        let m = Metrics::new();
+        let budget = Duration::from_millis(50);
+        m.note_wake(Duration::from_millis(3), 1, budget);
+        m.note_wake(Duration::from_millis(50), 1, budget); // exactly on budget is not late
+        assert_eq!(m.late_steps.load(Ordering::Relaxed), 0);
+        m.note_wake(Duration::from_millis(51), 1, budget);
+        m.note_wake(Duration::from_millis(120), 3, budget);
+        assert_eq!(m.late_steps.load(Ordering::Relaxed), 4);
+        assert_eq!(m.lateness_us.count(), 4);
+        assert_eq!(m.lateness_us.max(), 120_000);
+        let j = m.json();
+        assert_eq!(j["lateSteps"], 4);
+        assert_eq!(j["latenessUs"]["count"], 4);
+    }
+
+    #[test]
+    fn admit_to_seat_is_a_millisecond_histogram_on_the_health_json() {
+        let m = Metrics::new();
+        assert_eq!(m.json()["admitToSeatMs"]["count"], 0);
+        for ms in [12u64, 40, 40, 900] {
+            m.note_admit_to_seat(Duration::from_millis(ms));
+        }
+        m.note_admit_to_seat(Duration::from_secs(10_000_000)); // saturates, never panics
+        let j = m.json();
+        assert_eq!(j["admitToSeatMs"]["count"], 5);
+        assert!(j["admitToSeatMs"]["p50"].as_u64().unwrap() >= 40);
+        assert_eq!(m.admit_to_seat_ms.max(), u64::from(u32::MAX));
     }
 }

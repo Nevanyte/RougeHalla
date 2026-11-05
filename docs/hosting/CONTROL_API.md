@@ -62,7 +62,10 @@ The hosting layer must use the callsign as GameLift `PlayerId` (placement `Desir
 `requireAdmit` is `true` only when the process was started with `--require-admit` (section 4; the flag needs `--control`, and
 a misspelt `--require-*`, `--admit-*` or `--control-*` flag stops the server with exit code 2 instead of being ignored). The bridge refuses to call
 `ProcessReady` unless `control.v == 1` and `requireAdmit == true` (override `--allow-no-admit`, tests and local dev only).
-A server that predates this contract has no `control` object, so the bridge refuses it. A draining server answers 503
+**(as built)** The body also carries `"build"`, the build id (`RH_BUILD`, as in the replay header), so a rolling deploy can verify which build a group
+runs (loopback only; `/info` and its pinned key set do not carry it). `metrics` gains `lateSteps` (steps run by a wake more than one tick period
+after its grid slot) and `admitToSeatMs` (histogram: admit consumed by a Hello to the seat taken). A server that predates this contract has no
+`control` object, so the bridge refuses it. A draining server answers 503
 with `"state":"draining"`; the bridge treats that as healthy-and-leaving (it is intentional, see 6.5).
 
 ### 3.2 `POST /control/session`: create the room for a game session
@@ -174,7 +177,11 @@ parameters).
   is not a way to skip them) and reports `left` with `reason:"kicked"`. **(as built)** The record turns `left`/`kicked` in the
   same call; the room is then told to remove the seat (`RoomCmd::Kick`, the leave path), so a poll right after the call already
   shows it. A kick of an unknown or already-left player is 200.
-  A kick of an `admitted` entry turns it `expired`.
+  A kick of an `admitted` entry turns it `expired`. **(as built)** If that entry's Hello has already consumed the admit and is being
+  seated right now, the kick is refused: **409 `seating_in_progress`** (retry shortly; the next look says `seated`, which a kick
+  handles). Expiring it would let the seat land with the book saying `expired`, a player seated invisibly. A kick must reach the room
+  or not happen: room-mailbox space is reserved before the record changes, so a mailbox that stays full for 2 s is **503
+  `room_busy`** with the record untouched (retry-safe).
 
 Response 200 `{"v":1,"state":"left|expired|dropped|unknown"}`. 404 `no_such_session` for an unknown room.
 
@@ -189,7 +196,8 @@ Response 200 `{"v":1,"state":"left|expired|dropped|unknown"}`. 404 `no_such_sess
 - `abort`: close the room now. Seated players are sent the existing close; their seats and leases are freed; **no Result is
   invented for an interrupted match** (C-PERSIST). `endReason` becomes `ended_by_bridge`.
 
-Idempotent. Response 200 `{"v":1,"phase":"closed|active|ended|lobby"}`; 404 for an unknown room (a closed tombstone answers 200).
+Idempotent. **(as built)** The room's mailbox slot is reserved before the session is marked ending; a room that cannot be told
+within 2 s is 503 `room_busy` and nothing changed. Response 200 `{"v":1,"phase":"closed|active|ended|lobby"}`; 404 for an unknown room (a closed tombstone answers 200).
 **(as built)** `abort` waits up to 2 s for the room to report closed, so its answer is normally `closed`. `graceful` on a room
 that nobody joined closes it at its next wake (see 3.7). A room closed by `abort` reports its still-unused admits `expired`.
 
@@ -197,7 +205,8 @@ that nobody joined closes it at its next wake (see 3.7). A room closed by `abort
 
 Body `{"v":1}` (an empty body stays accepted until the Rust side adopts `v`). Stops admissions (`ServerDraining`), asks every
 room to finish, `Terminated` when the last room closes, process exits. Idempotent. 200 `{"v":1,"state":"draining"|"terminated"}`.
-After drain begins `POST /control/session` and `/control/admit` are 409 `draining`. Draining never ends a running match.
+After drain begins `POST /control/session` and `/control/admit` are 409 `draining`. **(as built)** `session` re-checks the lifecycle under the
+director lock that drain's room scan also takes, so a session created during a drain is refused and drain can never reach `Terminated` with a live room. Draining never ends a running match.
 **(as built)** A draining room with no human that never had one closes at its next wake instead of waiting for the 30 s
 unclaimed-room timeout (no admission can seat after drain, so there is nothing to wait for); a room that has had a human closes
 when its last human leaves, as always. The closed room reports `endReason` `drained`.
@@ -295,7 +304,6 @@ resume inside the grace (no remove, no second accept), a drop past the grace -> 
 drain -> last player leaves -> `ProcessEnding` -> `Destroy` -> exit 0 and rh-server gone.
 
 Known boundaries **(as built)**: admit/seat bookkeeping lives in process memory (rooms are lost with the process, as 6.3
-says); a kick that races the very Hello consuming that admit (the admit is `admitted`, the seat not yet taken) turns the record
-`expired` but cannot stop the seat that Hello is about to take; the bridge's next poll does not see it and the seat leaves
-through the normal grace path. Without `--require-admit` the control endpoints still work, but Hellos are placed by the
+says); a kick that races the very Hello consuming that admit (the admit is `admitted`, the seat not yet taken) is refused with
+409 `seating_in_progress` and is retried (before this was fixed it turned the record `expired` while the seat landed anyway). Without `--require-admit` the control endpoints still work, but Hellos are placed by the
 automatic lobby rules and are not tied to an admit.

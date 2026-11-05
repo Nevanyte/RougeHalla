@@ -5,11 +5,12 @@
 //!       [--min-players 1] [--lobby-seconds 10] [--fill-seconds 3] [--auth dev|static:<file>]
 //!       [--database-url postgres://... [--instance-id id]]   (build with --features postgres)
 //!       [--new-profiles-per-hour 30] [--new-profiles-per-ip-per-hour 10] [--passcode-fails-per-minute 6]
-//!       [--passcode-fails-per-minute-all 40] [--shop-burst 6] [--shop-per-second 3] [--api-timeout-secs 10]
+//!       [--passcode-fails-per-minute-all 40] [--shop-burst 6] [--shop-per-second 3]
+//!       [--lookup-burst 40] [--lookup-per-second 20] [--api-db-concurrency 6] [--api-timeout-secs 10]
 //!       [--leaderboard-ttl-secs 5] [--api-cors-origins '*'|origin,origin] [--client-ip-header NAME [--trusted-proxies ip,ip]]
 //!       (account API: PLAYTEST_PASSCODE env sets the claim passcode; 0 disables a limit; see docs/adr/0006-persistence.md)
 //!       [--lease-ttl-secs 120] [--lease-renew-secs 30] [--lease-db-timeout-secs 5]
-//!       [--result-spool <dir> [--result-spool-max 4096] [--result-retry-secs 900]]   (needs postgres + --database-url)
+//!       [--result-spool <dir> [--result-spool-max 4096] [--result-dead-max 1024] [--result-retry-secs 900]]   (needs postgres + --database-url)
 //!
 //!       [--control 127.0.0.1:7778 [--control-token-file <file>]] [--require-admit [--admit-ttl-secs 60]]
 //!
@@ -69,8 +70,10 @@ fn arg(args: &[String], k: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
-/// `--result-spool <dir>` with `--result-spool-max` (pending plus dead-lettered records, default 4096) and
-/// `--result-retry-secs` (per-result retry deadline before dead-lettering, default 900).
+/// `--result-spool <dir>` with `--result-spool-max` (pending records, default 4096), `--result-dead-max` (dead letters kept,
+/// default 1024; at the bound a refused record stays pending and is counted and logged) and
+/// `--result-retry-secs` (ALERT threshold, default 900: a result still uncommitted after this long is logged and counted as
+/// stuck, repeatedly; it is never dead-lettered for time, a transient error retries forever).
 #[cfg(feature = "postgres")]
 fn spool_settings(
     args: &[String],
@@ -79,7 +82,11 @@ fn spool_settings(
         if args.iter().any(|a| a == "--result-spool") {
             return Err("--result-spool requires a directory".into());
         }
-        for k in ["--result-spool-max", "--result-retry-secs"] {
+        for k in [
+            "--result-spool-max",
+            "--result-dead-max",
+            "--result-retry-secs",
+        ] {
             if args.iter().any(|a| a == k) {
                 return Err(format!("{k} needs --result-spool"));
             }
@@ -103,6 +110,9 @@ fn spool_settings(
     let mut cfg = rh_server::spool::SpoolConfig::default();
     if let Some(n) = whole("--result-spool-max")? {
         cfg.max_records = usize::try_from(n).map_err(|_| "--result-spool-max too large")?;
+    }
+    if let Some(n) = whole("--result-dead-max")? {
+        cfg.max_dead = usize::try_from(n).map_err(|_| "--result-dead-max too large")?;
     }
     if let Some(n) = whole("--result-retry-secs")? {
         cfg.retry_deadline = Duration::from_secs(n);
@@ -225,6 +235,9 @@ fn api_config(args: &[String]) -> Result<ApiConfig, String> {
     )?;
     cfg.shop_burst = f64::from(int("--shop-burst", cfg.shop_burst as u32)?);
     cfg.shop_per_second = f64::from(int("--shop-per-second", cfg.shop_per_second as u32)?);
+    cfg.lookup_burst = f64::from(int("--lookup-burst", cfg.lookup_burst as u32)?);
+    cfg.lookup_per_second = f64::from(int("--lookup-per-second", cfg.lookup_per_second as u32)?);
+    cfg.db_concurrency = int("--api-db-concurrency", cfg.db_concurrency as u32)? as usize;
     cfg.request_timeout = Duration::from_secs(u64::from(int("--api-timeout-secs", 10)?.max(1)));
     cfg.leaderboard_ttl = Duration::from_secs(u64::from(int("--leaderboard-ttl-secs", 5)?));
     if let Some(list) = arg(args, "--api-cors-origins") {
@@ -515,6 +528,21 @@ mod tests {
                 .ttl,
             Duration::from_secs(3600)
         );
+    }
+
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn spool_dead_bound_is_a_flag_and_retry_secs_is_only_an_alert_threshold() {
+        let (_, cfg) = spool_settings(&args(&["--result-spool", "d", "--result-dead-max", "7"]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(cfg.max_dead, 7);
+        assert_eq!(
+            cfg.max_records, 4096,
+            "dead letters no longer share the pending bound"
+        );
+        assert!(spool_settings(&args(&["--result-dead-max", "7"])).is_err());
+        assert!(spool_settings(&args(&["--result-spool", "d", "--result-dead-max", "0"])).is_err());
     }
 
     #[test]

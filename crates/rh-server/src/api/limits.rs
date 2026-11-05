@@ -25,6 +25,20 @@ pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
     diff == 0
 }
 
+/// The key a per-address cap counts under. IPv4 is the address itself; IPv6 is its /64, because one subscriber is routinely
+/// handed a whole /64 (or more) and could otherwise spread across 2^64 "addresses" to dodge every cap. An IPv4-mapped IPv6
+/// address counts as the IPv4 it carries.
+pub fn limit_key(ip: IpAddr) -> IpAddr {
+    match ip.to_canonical() {
+        IpAddr::V6(v6) => {
+            let mut o = v6.octets();
+            o[8..].fill(0);
+            IpAddr::V6(o.into())
+        }
+        v4 => v4,
+    }
+}
+
 struct Bucket {
     tokens: f64,
     last: Instant,
@@ -132,6 +146,10 @@ impl Window {
         (oldest_counted + self.span).saturating_duration_since(now)
     }
     fn record(&mut self, now: Instant) {
+        // A cap of 0 means "no limit": nothing is ever counted against it, so nothing may accumulate either.
+        if self.max == 0 {
+            return;
+        }
         self.prune(now);
         self.stamps.push_back(now);
     }
@@ -182,6 +200,9 @@ impl AddressWindowLimiter {
 
     fn add(&self, inner: &mut AddressInner, ip: IpAddr, now: Instant) {
         inner.all.record(now);
+        if self.max_per_ip == 0 {
+            return;
+        }
         let span = self.span;
         let max = self.max_per_ip;
         inner
@@ -196,11 +217,12 @@ impl AddressWindowLimiter {
 
     /// Zero when `ip` may go ahead, else how long it must wait.
     pub fn retry_after(&self, ip: IpAddr, now: Instant) -> Duration {
-        Self::wait(&mut lock(&self.inner), ip, now)
+        Self::wait(&mut lock(&self.inner), limit_key(ip), now)
     }
 
     /// Checks and records in one step.
     pub fn reserve(&self, ip: IpAddr, now: Instant) -> Result<(), Duration> {
+        let ip = limit_key(ip);
         let mut inner = lock(&self.inner);
         let wait = Self::wait(&mut inner, ip, now);
         if wait > Duration::ZERO {
@@ -212,6 +234,7 @@ impl AddressWindowLimiter {
 
     /// Takes back the event `reserve` recorded at `at`.
     pub fn refund(&self, ip: IpAddr, at: Instant) {
+        let ip = limit_key(ip);
         let mut inner = lock(&self.inner);
         inner.all.unrecord(at);
         if let Some(w) = inner.per_ip.get_mut(&ip) {
@@ -220,12 +243,20 @@ impl AddressWindowLimiter {
     }
 
     pub fn record(&self, ip: IpAddr, now: Instant) {
+        let ip = limit_key(ip);
         let mut inner = lock(&self.inner);
         self.add(&mut inner, ip, now);
     }
 
     pub fn addresses(&self) -> usize {
         lock(&self.inner).per_ip.len()
+    }
+
+    /// Events currently counted over the whole server (0 for a limiter whose total cap is 0).
+    pub fn counted_total(&self, now: Instant) -> usize {
+        let mut inner = lock(&self.inner);
+        inner.all.prune(now);
+        inner.all.stamps.len()
     }
 }
 
@@ -260,22 +291,25 @@ impl PasscodeGate {
         self.expected.is_some()
     }
 
+    /// One atomic step: a failure slot is RESERVED under the limiter's single lock (which is also the throttle check), and
+    /// handed back when the guess turns out right or absent. Checking first and recording after would let any number of
+    /// concurrent wrong guesses all pass the check before the first one was counted.
     pub fn check(&self, given: Option<&str>, ip: IpAddr, now: Instant) -> PasscodeVerdict {
         let Some(expected) = &self.expected else {
             return PasscodeVerdict::Ok;
         };
-        let wait = self.fails.retry_after(ip, now);
-        if wait > Duration::ZERO {
+        if let Err(wait) = self.fails.reserve(ip, now) {
             return PasscodeVerdict::Throttled(wait);
         }
         let Some(given) = given else {
+            self.fails.refund(ip, now);
             return PasscodeVerdict::Missing;
         };
         let digest: [u8; 32] = Sha256::digest(given.as_bytes()).into();
         if ct_eq(&digest, expected) {
+            self.fails.refund(ip, now);
             return PasscodeVerdict::Ok;
         }
-        self.fails.record(ip, now);
         PasscodeVerdict::Wrong
     }
 }
@@ -367,5 +401,105 @@ mod tests {
         assert!(!ct_eq(b"abc", b"abd"));
         assert!(!ct_eq(b"abc", b"ab"));
         assert!(ct_eq(b"", b""));
+    }
+
+    #[test]
+    fn concurrent_wrong_guesses_cannot_all_pass_the_throttle() {
+        for round in 0..20 {
+            let g = std::sync::Arc::new(PasscodeGate::new(Some("open sesame"), 3, 1000));
+            let t0 = Instant::now();
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(16));
+            let hs: Vec<_> = (0..16)
+                .map(|i| {
+                    let (g, b) = (g.clone(), barrier.clone());
+                    std::thread::spawn(move || {
+                        b.wait();
+                        matches!(
+                            g.check(Some(&format!("guess{i}")), IP1, t0),
+                            PasscodeVerdict::Wrong
+                        )
+                    })
+                })
+                .collect();
+            let wrong = hs
+                .into_iter()
+                .map(|h| h.join().unwrap())
+                .filter(|w| *w)
+                .count();
+            assert_eq!(
+                wrong, 3,
+                "round {round}: only 3 guesses may be compared, the rest are throttled"
+            );
+        }
+    }
+
+    #[test]
+    fn a_right_or_absent_passcode_does_not_spend_a_failure_slot() {
+        let t0 = Instant::now();
+        let g = PasscodeGate::new(Some("pw"), 2, 100);
+        for _ in 0..5 {
+            assert!(matches!(g.check(Some("pw"), IP1, t0), PasscodeVerdict::Ok));
+            assert!(matches!(g.check(None, IP1, t0), PasscodeVerdict::Missing));
+        }
+        assert!(matches!(
+            g.check(Some("x"), IP1, t0),
+            PasscodeVerdict::Wrong
+        ));
+        assert!(matches!(
+            g.check(Some("y"), IP1, t0),
+            PasscodeVerdict::Wrong
+        ));
+        assert!(matches!(
+            g.check(Some("pw"), IP1, t0),
+            PasscodeVerdict::Throttled(_)
+        ));
+    }
+
+    #[test]
+    fn ipv6_counts_by_slash_64_and_mapped_ipv4_as_ipv4() {
+        let a: IpAddr = "2001:db8:1:2:aaaa::1".parse().unwrap();
+        let b: IpAddr = "2001:db8:1:2:bbbb::9".parse().unwrap();
+        let other: IpAddr = "2001:db8:1:3::1".parse().unwrap();
+        assert_eq!(limit_key(a), limit_key(b));
+        assert_ne!(limit_key(a), limit_key(other));
+        assert_eq!(limit_key("::ffff:10.0.0.1".parse().unwrap()), IP1);
+        let t0 = Instant::now();
+        let l = AddressWindowLimiter::new(0, 2, Duration::from_secs(3600));
+        assert!(l.reserve(a, t0).is_ok());
+        assert!(l.reserve(b, t0).is_ok());
+        assert!(
+            l.reserve(a, t0).is_err(),
+            "two addresses of one /64 share a cap"
+        );
+        assert!(l.reserve(other, t0).is_ok());
+        let bk = KeyedBuckets::<IpAddr>::new(1.0, 0.001);
+        assert!(bk.take(&limit_key(a), t0));
+        assert!(!bk.take(&limit_key(b), t0));
+    }
+
+    #[test]
+    fn a_zero_cap_records_nothing() {
+        let t0 = Instant::now();
+        let l = AddressWindowLimiter::new(0, 0, Duration::from_secs(3600));
+        for i in 0..1000 {
+            let ip = IpAddr::V4(std::net::Ipv4Addr::new(
+                10,
+                1,
+                (i / 250) as u8,
+                (i % 250) as u8,
+            ));
+            assert!(l.reserve(ip, t0).is_ok());
+            l.record(ip, t0);
+        }
+        assert_eq!(
+            l.counted_total(t0),
+            0,
+            "no stamps pile up against a cap of 0"
+        );
+        assert_eq!(
+            l.addresses(),
+            0,
+            "no per-address windows are created either"
+        );
     }
 }

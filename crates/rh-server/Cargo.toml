@@ -11,7 +11,7 @@ license.workspace = true
 [features]
 default = []
 # Durable results through rh-persist (PostgreSQL). Off by default so the server builds and runs with no database.
-postgres = ["dep:rh-persist", "dep:uuid"]
+postgres = ["dep:rh-persist", "dep:uuid", "dep:http-body-util"]
 # The benchmarks past the real game: the density benchmark (src/bin/densitybench.rs) runs rooms on a paused tokio clock, which needs
 # tokio's test-util, and `wirebench --synthetic N` runs a crowd past the lobby cap (rh-sim's `bench` constructor). Only features of
 # existing dependencies (no new crate); a default build of the server carries neither.
@@ -24,6 +24,7 @@ rh-policy = { path = "../rh-policy" }
 rh-headless = { path = "../rh-headless" }
 rh-persist = { path = "../rh-persist", optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
+http-body-util = { version = "0.1", optional = true }
 sha2 = "0.10"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "signal"] }
 axum = { version = "0.8", features = ["ws"] }
