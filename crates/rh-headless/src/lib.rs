@@ -85,6 +85,8 @@ impl Env {
                     spawns[(i * 7 + seed as usize) % spawns.len()]
                 },
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             })
             .collect();
         let sim = Sim::reset_active(cfg.sim.clone(), cfg.arena.clone(), secrets, &placements);
@@ -350,6 +352,7 @@ mod tests {
             by: Some(PlayerId(2)),
             amount,
             weapon: Some(rh_sim::WeaponId::Fists),
+            passive: false,
         };
         let one = |events: &[Event]| {
             let mut d = digest::OutcomeDigest::new();
@@ -361,6 +364,7 @@ mod tests {
             by: None,
             amount: 10.0,
             weapon: None,
+            passive: false,
         };
         assert_ne!(one(&[hit(10.0)]), one(std::slice::from_ref(&free)));
         assert_eq!(
@@ -369,6 +373,14 @@ mod tests {
         );
         assert_eq!(one(&[hit(10.0)]), one(&[hit(10.0)]));
         assert_ne!(one(&[hit(10.0)]), one(&[hit(10.000000000000002)]));
+        let mut passive = hit(10.0);
+        if let Event::Hit {
+            passive: marker, ..
+        } = &mut passive
+        {
+            *marker = true;
+        }
+        assert_ne!(one(&[hit(10.0)]), one(&[passive]));
         assert_ne!(one(&[hit(10.0)]), one(&[]));
         // One public field one ulp off.
         // (State is written from outside the core only through a checkpoint.)

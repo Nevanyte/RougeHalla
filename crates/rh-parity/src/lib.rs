@@ -13,6 +13,12 @@ use rh_sim::sim::{Event, GvBreakdown, Outcome, Player, Status};
 use rh_sim::{
     validate, Arena, Placement, PlayerId, RawCommand, Secrets, Sim, SimConfig, TileMap, Vec2,
 };
+mod canon;
+mod combat;
+mod mapping;
+use canon::{canon, first_difference};
+use mapping::raw_command;
+pub use mapping::{raw_command_pub, unread_msg_keys, EVENT_KINDS, INPUT_MSG_KEYS};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::collections::BTreeSet;
@@ -39,6 +45,12 @@ pub struct Fixture {
     pub description: String,
     pub parity: String,
     pub legacy_revision: String,
+    #[serde(default)]
+    pub packet: Option<String>,
+    #[serde(default)]
+    pub requires: Vec<String>,
+    #[serde(default)]
+    pub budgeted: bool,
     pub legacy_config: LegacyConfig,
     pub map: FixMap,
     pub players: Vec<FixPlayer>,
@@ -65,7 +77,29 @@ pub struct LegacyConfig {
     pub random_seed: u32,
     pub mobs_present: u32,
     pub start_events: Vec<String>,
+    #[serde(default)]
+    pub start_event_payloads: Option<Vec<Value>>,
+    #[serde(default)]
+    pub setup: Map<String, Value>,
     pub unexpected_event_types: Vec<String>,
+    #[serde(default)]
+    pub modules: Option<Vec<String>>,
+    #[serde(default)]
+    pub item_uid_scheme: Option<String>,
+    #[serde(default)]
+    pub map_seed: Option<u32>,
+    #[serde(default)]
+    pub options: Map<String, Value>,
+    #[serde(default)]
+    pub secrets: Option<CaptureSecrets>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct CaptureSecrets {
+    pub order_salt: u32,
+    pub reward_salt: [u32; 4],
+    pub quest_salt: [u32; 4],
 }
 
 #[derive(Deserialize)]
@@ -88,6 +122,12 @@ pub struct FixPlayer {
     pub max_hp: f64,
     /// The starting weapon in slot 0 ("" = fists).
     pub weapon0: String,
+    #[serde(default)]
+    pub weapon1: String,
+}
+
+fn accepted_default() -> bool {
+    true
 }
 
 #[derive(Deserialize)]
@@ -98,12 +138,15 @@ pub struct FixInput {
     #[serde(rename = "type")]
     pub kind: String,
     pub msg: Value,
+    #[serde(default = "accepted_default")]
+    pub accepted: bool,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FixAction {
     pub tick: u32,
+    #[serde(alias = "type")]
     pub kind: String,
     pub player: String,
 }
@@ -120,6 +163,18 @@ pub struct FixTick {
     pub server_time: f64,
     pub players: Vec<Entity>,
     pub events: Vec<Value>,
+    #[serde(default)]
+    pub launches: Vec<Value>,
+    #[serde(default)]
+    pub mobs: Option<Vec<Value>>,
+    #[serde(default)]
+    pub fields: Option<Vec<Value>>,
+    #[serde(default)]
+    pub statuses: Option<Vec<Value>>,
+    #[serde(default)]
+    pub containers: Option<Vec<Value>>,
+    #[serde(default)]
+    pub combat: Option<Vec<Value>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -263,65 +318,6 @@ pub fn pid(s: &str) -> PlayerId {
 }
 fn fid(id: PlayerId) -> String {
     format!("p{}", id.0 - 1)
-}
-
-/// The fixture input as a raw command (None for a type outside the slice).
-pub fn raw_command_pub(i: &FixInput) -> Option<RawCommand> {
-    raw_command(i)
-}
-
-/// The `msg` keys each slice input type may carry: [`raw_command`] reads exactly these, so any other key (a future
-/// `charge` on an attack) is reported by [`unread_msg_keys`] instead of being dropped without a word.
-pub const INPUT_MSG_KEYS: [(&str, &[&str]); 5] = [
-    ("move", &["x", "y", "seq"]),
-    ("stop", &["seq"]),
-    ("aim", &["a"]),
-    ("attack", &["a", "t"]),
-    ("release", &["a", "t"]),
-];
-
-/// The keys of a slice input's `msg` that [`raw_command`] does not read (a non-object `msg` reports `<not an object>`).
-/// Empty for an input type outside the slice (that input fails on its own).
-pub fn unread_msg_keys(i: &FixInput) -> Vec<String> {
-    let Some((_, keys)) = INPUT_MSG_KEYS.iter().find(|(k, _)| *k == i.kind) else {
-        return Vec::new();
-    };
-    match i.msg.as_object() {
-        None => vec!["<not an object>".into()],
-        Some(m) => m
-            .keys()
-            .filter(|k| !keys.contains(&k.as_str()))
-            .cloned()
-            .collect(),
-    }
-}
-
-fn raw_command(i: &FixInput) -> Option<RawCommand> {
-    let m = &i.msg;
-    let f = |k: &str| m.get(k).and_then(Value::as_f64);
-    let seq = m
-        .get("seq")
-        .and_then(Value::as_u64)
-        .filter(|v| *v <= 255)
-        .map(|v| v as u8);
-    Some(match i.kind.as_str() {
-        "move" => RawCommand::Move {
-            x: f("x")?,
-            y: f("y")?,
-            seq,
-        },
-        "stop" => RawCommand::Stop { seq },
-        "aim" => RawCommand::Aim { a: f("a")? },
-        "attack" => RawCommand::Attack {
-            a: f("a")?,
-            t: f("t"),
-        },
-        "release" => RawCommand::Release {
-            a: f("a")?,
-            t: f("t"),
-        },
-        _ => return None,
-    })
 }
 
 #[derive(Default, Debug)]
@@ -545,64 +541,21 @@ fn compare_entities<E>(
     }
 }
 
-/// Canonical form of a Rust event, matching the capture tool's `canonicalEvent` (GV feedback events are not compared:
-/// GV is checked through the results).
-fn canon(e: &Event) -> Option<Value> {
-    use serde_json::json;
-    Some(match e {
-        Event::Windup { by, weapon, .. } => {
-            json!({"kind": "windup", "by": fid(*by), "weapon": weapon.as_str()})
-        }
-        Event::Swing {
-            by,
-            weapon,
-            x,
-            y,
-            a,
-        } => {
-            json!({"kind": "swing", "by": fid(*by), "weapon": weapon.as_str(), "x": x, "y": y, "a": a})
-        }
-        Event::Hit {
-            victim,
-            by,
-            amount,
-            weapon,
-        } => {
-            // `by` None is the legacy SUDDEN_DEATH_KILLER string ("sudden death"); `weapon` None is the legacy null
-            // (ability / card damage chunks). The packet that ports sudden death fixes its weapon.
-            json!({"kind": "hit", "id": fid(*victim), "by": by.map_or_else(|| "sudden death".to_string(), fid), "amount": amount, "weapon": weapon.map(|w| w.as_str())})
-        }
-        Event::Death { id, by, .. } => json!({"kind": "death", "id": fid(*id), "by": by.map(fid)}),
-        Event::Victory { id, draw } => json!({"kind": "victory", "id": id.map(fid), "draw": draw}),
-        Event::RaidEnded => json!({"kind": "raidEnded"}),
-        Event::Bounty { .. } => json!({"kind": "bounty"}),
-        Event::Stagger { id } => json!({"kind": "stagger", "id": fid(*id)}),
-        Event::Gv { .. } | Event::Resolved { .. } | Event::RaidStarted => return None,
-    })
-}
-
-fn same_value(key: &str, a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Number(x), Value::Number(y)) => {
-            let (x, y) = (x.as_f64().unwrap(), y.as_f64().unwrap());
-            if key == "a" {
-                angle_close(x, y)
-            } else {
-                close(x, y)
-            }
-        }
-        (Value::Object(x), Value::Object(y)) => {
-            x.len() == y.len()
-                && x.iter()
-                    .all(|(k, v)| y.get(k).is_some_and(|w| same_value(k, v, w)))
-        }
-        _ => a == b,
-    }
-}
-
 /// Builds the Rust sim for a fixture: same map, same placements, the recorded secret order salt.
 pub fn build(fx: &Fixture) -> Sim {
-    let map = TileMap::from_rows(&fx.map.rows).expect("fixture map");
+    try_build(fx).expect("valid fixture setup")
+}
+fn try_build(fx: &Fixture) -> Result<Sim, String> {
+    let map = TileMap::from_rows(&fx.map.rows).map_err(|e| e.to_string())?;
+    let carried = |value: &str, slot: &str| {
+        if value.is_empty() {
+            return Ok(None);
+        }
+        WeaponId::parse(value)
+            .filter(|w| *w != WeaponId::Fists)
+            .map(Some)
+            .ok_or_else(|| format!("invalid {slot}: {value}"))
+    };
     let arena = Arena {
         map,
         spawns: Vec::new(),
@@ -610,19 +563,35 @@ pub fn build(fx: &Fixture) -> Sim {
     let placements: Vec<Placement> = fx
         .players
         .iter()
-        .map(|p| Placement {
-            profile: p.id.to_uppercase(),
-            faction: FactionId::parse(&p.faction).expect("faction"),
-            bot: false,
-            at: Vec2::new(p.x, p.y),
-            hp: Some(p.hp),
+        .map(|p| {
+            Ok(Placement {
+                profile: p.id.to_uppercase(),
+                faction: FactionId::parse(&p.faction)
+                    .ok_or_else(|| format!("invalid faction {}", p.faction))?,
+                bot: false,
+                at: Vec2::new(p.x, p.y),
+                hp: Some(p.hp),
+                weapon0: carried(&p.weapon0, "weapon0")?,
+                weapon1: carried(&p.weapon1, "weapon1")?,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, String>>()?;
     let secrets = Secrets {
         order_salt: fx.legacy_config.order_salt,
         spawn_seed: 0,
     };
-    Sim::reset_active(SimConfig::default(), arena, secrets, &placements)
+    let mut config = SimConfig::default();
+    for (key, value) in &fx.legacy_config.options {
+        if key != "weaponSpecials" {
+            return Err(format!("unported legacyConfig.options key {key}"));
+        }
+        config.weapon_specials = value
+            .as_bool()
+            .ok_or_else(|| "weaponSpecials must be boolean".to_string())?;
+    }
+    let mut sim = Sim::reset_active(config, arena, secrets, &placements);
+    combat::seed(&mut sim, &fx.legacy_config.setup)?;
+    Ok(sim)
 }
 
 /// The legacy configuration a fixture was captured under, checked against what the Rust harness reproduces. Every key
@@ -647,10 +616,17 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             fx.parity
         ),
     );
+    let isolated_melee = fx.packet.as_deref() == Some("P-COMBAT-1") && c.modules.is_some();
     need(
-        c.world == CAPTURE_WORLD,
+        if c.options.is_empty() && !isolated_melee {
+            c.world == CAPTURE_WORLD
+        } else {
+            c.world == "createScenarioWorld: explicit recorded modules/options/map seed"
+                && c.modules.is_some()
+                && c.map_seed.is_none()
+        },
         format!(
-            "legacyConfig.world {:?} is not the slice configuration",
+            "legacyConfig.world {:?} does not match this fixture's module configuration",
             c.world
         ),
     );
@@ -687,6 +663,63 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             c.unexpected_event_types
         ),
     );
+    need(
+        c.item_uid_scheme
+            .as_deref()
+            .is_none_or(|s| s == "sequential/1"),
+        "unsupported item UID scheme".into(),
+    );
+    if let Some(payloads) = &c.start_event_payloads {
+        need(
+            payloads == &[serde_json::json!({ "kind": "raidStarted" })],
+            "legacyConfig.startEventPayloads differ from the slice's raidStarted".into(),
+        );
+    }
+    need(
+        c.map_seed.is_none(),
+        "generated map metadata is not replayed by this slice".into(),
+    );
+    if let Some(secrets) = &c.secrets {
+        need(
+            secrets.order_salt == c.order_salt
+                && secrets.reward_salt == [1, 2, 3, 4]
+                && secrets.quest_salt == [5, 6, 7, 8],
+            "legacyConfig.secrets differ from the injected slice secrets".into(),
+        );
+    }
+    if let Some(modules) = &c.modules {
+        const MODULES: &[&str] = &[
+            "loot",
+            "weapons",
+            "targeting",
+            "projectiles",
+            "mobs",
+            "buffs",
+            "feed",
+            "camps",
+            "chests",
+            "killAugments",
+            "mobLife",
+            "mobAI",
+            "terrainEffects",
+            "regen",
+            "abilities",
+            "quests",
+            "vision",
+            "campHeal",
+            "consumables",
+            "traders",
+            "cardHooks",
+            "mods",
+        ];
+        need(
+            modules.iter().map(String::as_str).eq(MODULES
+                .iter()
+                .copied()
+                .filter(|m| !isolated_melee || *m != "consumables")),
+            "legacyConfig.modules are not the slice module order".into(),
+        );
+    }
     let m = &fx.map;
     need(
         m.tile == rh_sim::constants::TILE,
@@ -712,6 +745,14 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
                 "{} maxHp {} != the faction's {} ({})",
                 p.id, p.max_hp, rp.vitals.max_hp, p.faction
             ),
+        );
+        let w1 = (!p.weapon1.is_empty()).then(|| WeaponId::parse(&p.weapon1));
+        need(
+            match w1 {
+                None => rp.weapon.weapon1.is_none(),
+                Some(w) => w.is_some() && rp.weapon.weapon1 == w,
+            },
+            format!("{} weapon1 {:?} is not applied", p.id, p.weapon1),
         );
         let w0 = (!p.weapon0.is_empty()).then(|| WeaponId::parse(&p.weapon0));
         need(
@@ -746,7 +787,43 @@ pub fn compare(fx: &Fixture) -> Report {
             fx.legacy_config.order_salt, fx.legacy_config.random_seed, salt
         ));
     }
-    let mut sim = build(fx);
+    let mut occurred = BTreeSet::new();
+    let timeline: BTreeSet<_> = fx.ticks.iter().map(|t| t.tick).collect();
+    for (index, i) in fx.inputs.iter().enumerate() {
+        if !timeline.contains(&i.tick) || (index > 0 && fx.inputs[index - 1].tick > i.tick) {
+            rep.fail(format!(
+                "input {} at tick {} is outside or out of order in the captured timeline",
+                i.kind, i.tick
+            ));
+        }
+        if !INPUT_MSG_KEYS.iter().any(|(kind, _)| *kind == i.kind) {
+            rep.fail(format!(
+                "tick {}: unmapped input kind {}: no comparison in the harness",
+                i.tick, i.kind
+            ));
+        }
+    }
+    for (index, a) in fx.actions.iter().enumerate() {
+        if !timeline.contains(&a.tick) || (index > 0 && fx.actions[index - 1].tick > a.tick) {
+            rep.fail(format!(
+                "action {} at tick {} is outside or out of order in the captured timeline",
+                a.kind, a.tick
+            ));
+        }
+        if !["remove", "leave", "drop", "reconnect", "join"].contains(&a.kind.as_str()) {
+            rep.fail(format!("tick {}: unmapped action kind {}", a.tick, a.kind));
+        }
+    }
+    if !rep.mismatches.is_empty() {
+        return rep;
+    }
+    let mut sim = match try_build(fx) {
+        Ok(sim) => sim,
+        Err(e) => {
+            rep.fail(format!("precondition: {e}"));
+            return rep;
+        }
+    };
     for m in preconditions(fx, &sim) {
         rep.fail(m);
     }
@@ -760,6 +837,20 @@ pub fn compare(fx: &Fixture) -> Report {
                 break;
             }
             let i = inputs.next().unwrap();
+            if i.tick != t.tick {
+                rep.fail(format!(
+                    "input {} for tick {} was consumed at tick {}",
+                    i.kind, i.tick, t.tick
+                ));
+                continue;
+            }
+            if sim.player(pid(&i.player)).is_none() {
+                rep.fail(format!(
+                    "tick {}: input {} names absent player {}",
+                    i.tick, i.kind, i.player
+                ));
+                continue;
+            }
             for k in unread_msg_keys(i) {
                 rep.fail(format!(
                     "tick {}: input {} msg key {k} is not read by the harness",
@@ -768,22 +859,42 @@ pub fn compare(fx: &Fixture) -> Report {
             }
             let Some(raw) = raw_command(i) else {
                 rep.fail(format!(
-                    "tick {}: input type {} is not in the slice",
+                    "tick {}: unmapped input kind {}: no comparison in the harness",
                     i.tick, i.kind
                 ));
                 continue;
             };
-            match validate(raw) {
+            let accepted = match validate(raw) {
                 Ok(cmd) => {
-                    let _ = sim.submit_unbudgeted(pid(&i.player), cmd);
+                    if fx.budgeted {
+                        sim.submit(pid(&i.player), cmd)
+                    } else {
+                        sim.submit_unbudgeted(pid(&i.player), cmd)
+                    }
                 }
-                Err(e) => rep.fail(format!(
-                    "tick {}: legacy accepted {} but Rust rejected it: {e:?}",
-                    i.tick, i.kind
-                )),
+                Err(e) => Err(e),
+            };
+            if accepted.is_ok() != i.accepted {
+                rep.fail(format!(
+                    "tick {}: input {} acceptance mismatch: legacy {}, Rust {:?}",
+                    i.tick, i.kind, i.accepted, accepted
+                ));
+            } else {
+                occurred.insert(format!("input:{}", i.kind));
             }
         }
         let events = sim.step();
+        let ours: Vec<Value> = events.iter().filter_map(|e| canon(e, &sim)).collect();
+        for a in fx.actions.iter().filter(|a| a.tick == t.tick) {
+            if sim.player(pid(&a.player)).is_none() {
+                rep.fail(format!(
+                    "tick {}: action {} names absent player {}",
+                    a.tick, a.kind, a.player
+                ));
+            } else {
+                occurred.insert(format!("action:{}", a.kind));
+            }
+        }
         apply_actions(&mut sim, fx, t.tick);
         // Events emitted between steps (a leave's MIA result) travel with the NEXT step's events, as in legacy.
         let all: Vec<Event> = events;
@@ -806,26 +917,64 @@ pub fn compare(fx: &Fixture) -> Report {
             &PLAYERS,
             &t.players,
         );
+        combat::compare(
+            &mut rep,
+            &sim,
+            t,
+            fx.parity == "slice" && fx.packet.as_deref() == Some("P-COMBAT-1"),
+        );
+        if sim.players().iter().any(|p| !p.weapon.shreds.is_empty()) {
+            occurred.insert("state:shred".into());
+        }
         // events
-        let ours: Vec<Value> = all.iter().filter_map(canon).collect();
         rep.events += t.events.len();
-        if ours.len() != t.events.len()
-            || !ours
-                .iter()
-                .zip(&t.events)
-                .all(|(a, b)| same_value("", a, b))
-        {
-            rep.fail(format!(
-                "tick {}: events\n  rust   {}\n  legacy {}",
-                t.tick,
-                Value::Array(ours.clone()),
-                Value::Array(t.events.clone())
-            ));
+        for e in &t.events {
+            let kind = e
+                .get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or("<missing kind>");
+            occurred.insert(kind.to_string());
+            if !EVENT_KINDS.contains(&kind) && unported.insert(format!("event:{kind}")) {
+                rep.fail(format!(
+                    "tick {}: unmapped event kind {kind}: no comparison in the harness",
+                    t.tick
+                ));
+            }
+        }
+        if let Some(d) = first_difference(
+            "events",
+            &Value::Array(ours),
+            &Value::Array(t.events.clone()),
+        ) {
+            rep.fail(format!("tick {}: {d}", t.tick));
+        }
+        if !t.launches.is_empty() {
+            occurred.insert("launch".to_string());
+        }
+        if t.mobs.as_ref().is_some_and(|m| !m.is_empty()) {
+            occurred.insert("state:mobs".to_string());
+        }
+        for (name, present) in [
+            ("launches", !t.launches.is_empty()),
+            ("mobs", t.mobs.is_some()),
+            ("fields", t.fields.is_some()),
+        ] {
+            if present && unported.insert(name.to_string()) {
+                rep.fail(format!(
+                    "tick {}: unported stream {name}: no comparison in the harness",
+                    t.tick
+                ));
+            }
         }
         for e in &all {
             if let Event::Resolved { id, result, .. } = e {
                 rust_results.push((t.tick, *id, result.clone()));
             }
+        }
+    }
+    for required in &fx.requires {
+        if !occurred.contains(required) {
+            rep.fail(format!("required kind {required} never occurred"));
         }
     }
     // results
@@ -864,9 +1013,9 @@ pub fn apply_actions(sim: &mut Sim, fx: &Fixture, tick: u32) {
     for a in fx.actions.iter().filter(|a| a.tick == tick) {
         let p = pid(&a.player);
         match a.kind.as_str() {
-            "remove" => sim.remove_player(p),
+            "remove" | "leave" => sim.remove_player(p),
             "drop" => sim.mark_dropped(p, true),
-            "reconnect" => sim.mark_dropped(p, false),
+            "reconnect" | "join" => sim.mark_dropped(p, false),
             other => panic!("unknown fixture action {other}"),
         }
     }

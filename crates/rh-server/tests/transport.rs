@@ -44,6 +44,7 @@ async fn start(tls: bool) -> Started {
         lobby_seconds: 30.0,
         fill_seconds: 0.0,
         pvp_rules: true,
+        weapon_specials: true,
     };
     let cfg = DirectorConfig {
         tick: TEST_TICK,

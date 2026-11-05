@@ -8,8 +8,8 @@ checkpoint), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [docs/CONTRACTS.md](d
 ## Setup
 - Rust: the toolchain is pinned in `rust-toolchain.toml` (rustup installs it on first use).
 - .NET 8 SDK for the C# net library tests (no Unity needed for them).
-- Node 22+ and `npm ci` for the legacy game and the parity capture tool.
-- PostgreSQL 16 binaries for the persistence tests (`tools/pgtest/start.sh` starts a throwaway cluster).
+- Node 22+ and `npm ci` for the legacy game and capture tools; exact committed fixture generation uses Linux x64 and Node 22.23.4 (`parity/README.md`).
+- PostgreSQL 16 binaries for the persistence tests (`tools/pgtest/start.sh` starts a throwaway cluster). On macOS set `PGBIN=/opt/homebrew/opt/postgresql@16/bin` (or your installation path). `PGBIN=... bash tools/pgtest/smoke.sh` verifies start/reuse/stop without touching the test cluster already in use.
 - Unity 6 LTS only for the Unity project itself (see `client-unity/README.md`).
 
 ## Everyday commands (no Unity, no AWS)
@@ -24,7 +24,7 @@ cargo run -p rh-server -- --self-signed --fill-bots 4 --min-players 1 --fill-sec
 npm i --no-save playwright@1.63.0 && npx playwright install chromium   # once, for the browser proof
 node tools/browser-proof/proof.mjs                  # Chromium over WSS end to end (after cargo build -p rh-server)
 dotnet test client-unity/RoguehallaNet.Tests        # any .NET 8 SDK on PATH
-npx tsx parity/legacy-capture/capture.ts            # re-capture legacy fixtures after a legacy change
+npx tsx parity/legacy-capture/capture.ts            # exact fixture generation requires Linux x64 + Node 22.23.4 (parity/README.md)
 ```
 
 ## Performance gate
@@ -55,4 +55,5 @@ python3 tools/perfproof/perfproof.py --help         # workloads, --only, the gat
   decoders must all pass them.
 - Every ported mechanic arrives with captured legacy fixtures and a parity test.
 - Shared files (`Cargo.lock`, `docs/MIGRATION.md`, the CONTRACTS status table) are edited by one coordinator at a time.
-- No license is declared yet: do not add third-party assets without recording their license.
+- Project-authored code uses the MIT license (`LICENSE`, owner choice 2026-11-05). Dependencies and third-party assets
+  retain their own terms; record provenance/license before adding or redistributing them. Unity remains separately licensed.

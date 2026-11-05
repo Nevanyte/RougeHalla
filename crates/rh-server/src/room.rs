@@ -1031,6 +1031,7 @@ mod tests {
                 lobby_seconds: 30.0,
                 fill_seconds: 0.0,
                 pvp_rules: true,
+                weapon_specials: true,
             },
             arena: assets.arena,
             welcome_map: assets.welcome_map,
@@ -1063,30 +1064,37 @@ mod tests {
             }
         });
         let task = tokio::spawn(run_room(room, rx));
-        // Let it fall behind: several overloaded wakes before the command arrives.
-        tokio::time::sleep(tick * 5).await;
-        let (reply, got) = oneshot::channel();
-        tx.send(RoomCmd::Join {
-            profile: "alpha".into(),
-            faction: None,
-            outbox: Arc::new(Outbox::default()),
-            conn: 1,
-            fence: 1,
-            reply,
-        })
-        .await
-        .unwrap();
-        let ok = tokio::time::timeout(Duration::from_secs(3), got)
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        let result = async {
+            while metrics.wakes.load(Ordering::Relaxed) < 3 {
+                if tokio::time::Instant::now() >= deadline {
+                    return Err("room did not reach overload: fewer than 3 wakes before deadline");
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+
+            let (reply, got) = oneshot::channel();
+            tx.send(RoomCmd::Join {
+                profile: "alpha".into(),
+                faction: None,
+                outbox: Arc::new(Outbox::default()),
+                conn: 1,
+                fence: 1,
+                reply,
+            })
             .await
-            .expect("the join is applied while the room is overloaded")
-            .unwrap()
-            .expect("seated");
-        assert!(
-            metrics.wakes.load(Ordering::Relaxed) >= 3,
-            "it was stepping all along"
-        );
-        drop(ok);
+            .map_err(|_| "room command channel closed before the join was queued")?;
+            let ok = tokio::time::timeout_at(deadline, got)
+                .await
+                .map_err(|_| "the join was not applied while the room was overloaded")?
+                .map_err(|_| "room dropped the join reply")?
+                .map_err(|_| "join was not seated")?;
+            drop(ok);
+            Ok::<(), &str>(())
+        }
+        .await;
         task.abort();
         ticker.abort();
+        result.expect("overloaded room test condition");
     }
 }

@@ -11,7 +11,7 @@ namespace Roguehalla.Net.Protocol
         Malformed = 7, TooSlow = 8, ServerDraining = 9, NoSuchSession = 10, Kicked = 11,
     }
 
-    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5 }
+    public enum CommandKind : byte { Move = 1, Stop = 2, Aim = 3, Attack = 4, Release = 5, Swap = 6, Pickup = 7 }
 
     /// <summary>A client command. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireCommand
@@ -22,9 +22,13 @@ namespace Roguehalla.Net.Protocol
         public float A;
         /// <summary>Order sequence echoed in Snapshot.me.move_seq (Move, Stop).</summary>
         public byte? Seq;
+        public byte? Slot;
+        public uint ContainerId;
         /// <summary>Client render time in server ms (Attack, Release); lag compensation, clamped by the server.</summary>
         public double? T;
 
+        public static WireCommand Swap(byte? slot = null) { return new WireCommand { Kind = CommandKind.Swap, Slot = slot }; }
+        public static WireCommand Pickup(uint containerId) { return new WireCommand { Kind = CommandKind.Pickup, ContainerId = containerId }; }
         public static WireCommand Move(float x, float y, byte? seq) { return new WireCommand { Kind = CommandKind.Move, X = x, Y = y, Seq = seq }; }
         public static WireCommand Stop(byte? seq) { return new WireCommand { Kind = CommandKind.Stop, Seq = seq }; }
         public static WireCommand Aim(float a) { return new WireCommand { Kind = CommandKind.Aim, A = a }; }
@@ -64,6 +68,8 @@ namespace Roguehalla.Net.Protocol
                         byte tag = r.U8();
                         switch (tag)
                         {
+                            case 6: { byte? slot = r.Flag() ? r.U8() : (byte?)null; if (slot > 1) throw new DecodeException(DecodeError.BadField, "slot"); inp.Commands.Add(WireCommand.Swap(slot)); break; }
+                            case 7: { uint id = r.U32(); if (id == 0) throw new DecodeException(DecodeError.BadField, "container"); inp.Commands.Add(WireCommand.Pickup(id)); break; }
                             case 1: { float x = r.F32(), y = r.F32(); inp.Commands.Add(WireCommand.Move(x, y, r.Flag() ? r.U8() : (byte?)null)); break; }
                             case 2: inp.Commands.Add(WireCommand.Stop(r.Flag() ? r.U8() : (byte?)null)); break;
                             case 3: inp.Commands.Add(WireCommand.Aim(r.F32())); break;
@@ -128,6 +134,8 @@ namespace Roguehalla.Net.Protocol
                     w.U8((byte)c.Kind);
                     switch (c.Kind)
                     {
+                        case CommandKind.Swap: if (c.Slot > 1) throw new ArgumentException("slot"); Opt(w, c.Slot); break;
+                        case CommandKind.Pickup: if (c.ContainerId == 0) throw new ArgumentException("container"); w.U32(c.ContainerId); break;
                         case CommandKind.Move: w.F32(c.X); w.F32(c.Y); Opt(w, c.Seq); break;
                         case CommandKind.Stop: Opt(w, c.Seq); break;
                         case CommandKind.Aim: w.F32(c.A); break;
@@ -147,6 +155,8 @@ namespace Roguehalla.Net.Protocol
             {
                 switch (c.Kind)
                 {
+                    case CommandKind.Swap: return c.Slot.HasValue ? 3 : 2;
+                    case CommandKind.Pickup: return 5;
                     case CommandKind.Move: return 9 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Stop: return 1 + (c.Seq.HasValue ? 2 : 1);
                     case CommandKind.Aim: return 5;
@@ -432,7 +442,7 @@ namespace Roguehalla.Net.Protocol
         public ushort Bounty;
     }
 
-    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4 }
+    public enum EventKind : byte { Death = 1, Bounty = 2, MatchEnded = 3, Result = 4, PickupRefused = 5 }
 
     /// <summary>Reliable, ordered events. Only the fields of its Kind are meaningful.</summary>
     public sealed class WireEvent
@@ -444,6 +454,7 @@ namespace Roguehalla.Net.Protocol
         public uint? Winner;
         public bool Draw;
         public WireResult Result;
+        public byte PickupReason;
     }
 
     public sealed class WireResult
@@ -455,12 +466,14 @@ namespace Roguehalla.Net.Protocol
         public bool WinBonusWithheld;
     }
 
-    public enum FxKind : byte { Swing = 1, Hit = 2 }
+    public enum FxKind : byte { Swing = 1, Hit = 2, Block = 3, Stagger = 4 }
 
     public sealed class WireFx
     {
         public FxKind Kind;
         public uint By, Victim;
+        public uint Id;
+        public bool Passive;
         public byte Weapon;
         public float X, Y, A, Amount;
     }
@@ -519,6 +532,7 @@ namespace Roguehalla.Net.Protocol
                         var ev = new WireEvent { Kind = (EventKind)tag };
                         switch (tag)
                         {
+                            case 5: ev.PickupReason = r.U8(); if (ev.PickupReason < 1 || ev.PickupReason > 5) throw new DecodeException(DecodeError.BadField, "pickup reason"); break;
                             case 1: ev.Id = r.U32(); if (r.Flag()) ev.By = r.U32(); break;
                             case 2: ev.Id = r.U32(); ev.Bounty = r.U16(); break;
                             case 3: if (r.Flag()) ev.Winner = r.U32(); ev.Draw = r.U8() != 0; break;
@@ -555,7 +569,9 @@ namespace Roguehalla.Net.Protocol
                                 f.List.Add(sw);
                                 break;
                             }
-                            case 2: { uint victim = r.Varint(), by = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = r.F32() }); break; }
+                            case 3: f.List.Add(new WireFx { Kind = FxKind.Block, Id = r.Varint(), By = r.Varint(), Weapon = r.U8() }); break;
+                            case 4: f.List.Add(new WireFx { Kind = FxKind.Stagger, Id = r.Varint() }); break;
+                            case 2: { uint victim = r.Varint(), by = r.Varint(); f.List.Add(new WireFx { Kind = FxKind.Hit, Victim = victim, By = by, Amount = r.F32(), Passive = r.Flag() }); break; }
                             default: throw new DecodeException(DecodeError.BadTag, tag.ToString());
                         }
                     }
@@ -824,13 +840,29 @@ namespace Roguehalla.Net.Protocol
 
             public override byte[] Encode()
             {
-                var w = new Writer();
+                if (List.Count > ushort.MaxValue) throw new ArgumentException("too many events");
+                int len = 7;
+                foreach (var e in List)
+                {
+                    switch (e.Kind)
+                    {
+                        case EventKind.Death: len += 6 + (e.By.HasValue ? 4 : 0); break;
+                        case EventKind.Bounty: len += 7; break;
+                        case EventKind.MatchEnded: len += 3 + (e.Winner.HasValue ? 4 : 0); break;
+                        case EventKind.PickupRefused: len += 2; break;
+                        case EventKind.Result: len += 20 + (e.Result.KilledBy == null ? 0 : 1 + System.Text.Encoding.UTF8.GetByteCount(e.Result.KilledBy)); break;
+                        default: throw new EncodeException("event kind");
+                    }
+                    if (len > Wire.MaxServerFrame) throw new ArgumentException("frame too large");
+                }
+                var w = new Writer(len);
                 w.U8(TEvents); w.U32(Tick); w.U16((ushort)List.Count);
                 foreach (var e in List)
                 {
                     w.U8((byte)e.Kind);
                     switch (e.Kind)
                     {
+                        case EventKind.PickupRefused: if (e.PickupReason < 1 || e.PickupReason > 5) throw new ArgumentException("pickup reason"); w.U8(e.PickupReason); break;
                         case EventKind.Death: w.U32(e.Id); if (e.By.HasValue) { w.U8(1); w.U32(e.By.Value); } else w.U8(0); break;
                         case EventKind.Bounty: w.U32(e.Id); w.U16(e.Bounty); break;
                         case EventKind.MatchEnded: if (e.Winner.HasValue) { w.U8(1); w.U32(e.Winner.Value); } else w.U8(0); w.U8((byte)(e.Draw ? 1 : 0)); break;
@@ -858,17 +890,24 @@ namespace Roguehalla.Net.Protocol
                 if (List.Count > ushort.MaxValue) throw new ArgumentException("too many fx");
                 // Like rh-protocol: a swing off the position grid is refused, never saturated.
                 foreach (var f in List)
+                {
+                    if (f.Kind != FxKind.Swing && f.Kind != FxKind.Hit && f.Kind != FxKind.Block && f.Kind != FxKind.Stagger)
+                        throw new EncodeException("fx kind");
                     if (f.Kind == FxKind.Swing && (!Quant.PosInRange(f.X) || !Quant.PosInRange(f.Y))) throw new ArgumentException("position");
+                }
                 int len = 1 + Writer.VarintLength(Tick) + Writer.VarintLength((uint)List.Count);
                 foreach (var f in List)
-                    len += f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 4;
+                    len += f.Kind == FxKind.Block ? 2 + Writer.VarintLength(f.Id) + Writer.VarintLength(f.By) : f.Kind == FxKind.Stagger ? 1 + Writer.VarintLength(f.Id) : f.Kind == FxKind.Swing ? 1 + Writer.VarintLength(f.By) + 1 + 6 : 1 + Writer.VarintLength(f.Victim) + Writer.VarintLength(f.By) + 5;
+                if (len > Wire.MaxServerFrame) throw new ArgumentException("frame too large");
                 var w = new Writer(len);
                 w.U8(TFx); w.Varint(Tick); w.Varint((uint)List.Count);
                 foreach (var f in List)
                 {
                     w.U8((byte)f.Kind);
                     if (f.Kind == FxKind.Swing) { w.Varint(f.By); w.U8(f.Weapon); w.U16(Quant.QuantizePos(f.X)); w.U16(Quant.QuantizePos(f.Y)); w.U16(Quant.QuantizeFacing(f.A)); }
-                    else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); }
+                    else if (f.Kind == FxKind.Block) { w.Varint(f.Id); w.Varint(f.By); w.U8(f.Weapon); }
+                    else if (f.Kind == FxKind.Stagger) w.Varint(f.Id);
+                    else { w.Varint(f.Victim); w.Varint(f.By); w.F32(f.Amount); w.U8((byte)(f.Passive ? 1 : 0)); }
                 }
                 return w.Finish();
             }

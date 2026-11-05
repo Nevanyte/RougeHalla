@@ -1,4 +1,4 @@
-//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v4.json` is
+//! The golden vectors: deterministic sample messages, and frames that must be rejected. `protocol/fixtures/v5.json` is
 //! generated from these (`cargo run -p rh-protocol --bin protocol-fixtures`) and read by the Rust, C# and JS tests. A
 //! Snapshot or Fx vector also carries what a client must DECODE (floats as their exact bit patterns), so the three decoders are
 //! held to the same quantization, not just to the same bytes.
@@ -15,6 +15,18 @@ use crate::{AM_BOUNTY, AM_HP, AM_KIND, AM_STATUS};
 #[allow(clippy::approx_constant)]
 pub fn client_samples() -> Vec<(&'static str, ClientMsg)> {
     vec![
+        (
+            "input_combat",
+            ClientMsg::Input {
+                seq: 43,
+                commands: vec![
+                    WireCommand::Swap { slot: None },
+                    WireCommand::Swap { slot: Some(0) },
+                    WireCommand::Swap { slot: Some(1) },
+                    WireCommand::Pickup { container_id: 42 },
+                ],
+            },
+        ),
         (
             "hello",
             ClientMsg::Hello {
@@ -98,6 +110,47 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
         })
         .collect();
     vec![
+        (
+            "reject_unknown_bom",
+            ServerMsg::Reject {
+                code: RejectCode::Unknown(300),
+                reason: "\u{feff}a".into(),
+            },
+        ),
+        (
+            "fx_combat",
+            ServerMsg::Fx {
+                tick: 10,
+                fx: vec![
+                    WireFx::Block {
+                        id: 2,
+                        by: u32::MAX,
+                        weapon: 1,
+                    },
+                    WireFx::Block {
+                        id: 2,
+                        by: 1,
+                        weapon: 2,
+                    },
+                    WireFx::Stagger { id: 2 },
+                    WireFx::Hit {
+                        victim: 2,
+                        by: u32::MAX,
+                        amount: 4.0,
+                        passive: true,
+                    },
+                ],
+            },
+        ),
+        (
+            "pickup_refusals",
+            ServerMsg::Events {
+                tick: 10,
+                events: (1..=5)
+                    .map(|reason| WireEvent::PickupRefused { reason })
+                    .collect(),
+            },
+        ),
         (
             "welcome",
             ServerMsg::Welcome {
@@ -425,6 +478,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         victim: 2,
                         by: 1,
                         amount: 17.690966,
+                        passive: false,
                     },
                 ],
             },
@@ -446,6 +500,7 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                         victim: 128,
                         by: u32::MAX,
                         amount: 0.5,
+                        passive: false,
                     },
                 ],
             },
@@ -498,6 +553,9 @@ pub fn malformed_client() -> Vec<(&'static str, Vec<u8>)> {
     bad_utf8.extend_from_slice(&[0; 8]);
     bad_utf8.extend_from_slice(&[2, 0xff, 0xfe]);
     vec![
+        ("swap_bad_slot", vec![2, 1, 0, 0, 0, 1, 0, 6, 1, 2]),
+        ("swap_bad_flag", vec![2, 1, 0, 0, 0, 1, 0, 6, 2]),
+        ("pickup_bad_id", vec![2, 1, 0, 0, 0, 1, 0, 7, 0, 0, 0, 0]),
         ("empty", vec![]),
         ("unknown_tag", vec![0x7f]),
         ("server_tag_from_client", vec![0x81]),
@@ -587,6 +645,12 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         ("empty", vec![]),
         ("unknown_tag", vec![0x7f]),
         ("client_tag_from_server", vec![0x01]),
+        ("hit_bad_passive", vec![0x85, 0, 1, 2, 1, 2, 0, 0, 0, 0, 2]),
+        ("pickup_bad_reason_zero", vec![0x84, 0, 0, 0, 0, 1, 0, 5, 0]),
+        (
+            "pickup_bad_reason_unknown",
+            vec![0x84, 0, 0, 0, 0, 1, 0, 5, 6],
+        ),
         ("truncated_snapshot", good[..good.len() - 1].to_vec()),
         ("trailing_byte", trailing),
         // tick 0x80 0x00 is a two-byte zero: the canonical form is one byte.
@@ -1224,14 +1288,16 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
     let items: Vec<String> = fx
         .iter()
         .map(|f| match *f {
+            WireFx::Block { id, by, weapon } => format!("{{\"k\":\"block\",\"id\":{id},\"by\":{by},\"weapon\":{weapon}}}"),
+            WireFx::Stagger { id } => format!("{{\"k\":\"stagger\",\"id\":{id}}}"),
             WireFx::Swing { by, weapon, x, y, a } => format!(
                 "{{\"k\": \"swing\", \"by\": {by}, \"weapon\": {weapon}, \"xBits\": {}, \"yBits\": {}, \"aBits\": {}}}",
                 bits(x),
                 bits(y),
                 bits(a)
             ),
-            WireFx::Hit { victim, by, amount } => format!(
-                "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"amountBits\": {}}}",
+            WireFx::Hit { victim, by, amount, passive } => format!(
+                "{{\"k\": \"hit\", \"victim\": {victim}, \"by\": {by}, \"passive\": {passive}, \"amountBits\": {}}}",
                 bits(amount)
             ),
         })
@@ -1242,7 +1308,7 @@ fn decoded_fx_json(m: &ServerMsg) -> String {
 /// The manifest JSON (hand-written to keep this crate dependency-free; field names are the C# and JS tests' contract).
 /// A server vector's `debug` is the message a client DECODES (quantized), not the sample as written.
 pub fn manifest() -> String {
-    let mut out = String::from("{\n  \"format\": \"rh-protocol-vectors/4\",\n  \"protocol\": ");
+    let mut out = String::from("{\n  \"format\": \"rh-protocol-vectors/5\",\n  \"protocol\": ");
     out.push_str(&PROTOCOL_VERSION.to_string());
     out.push_str(",\n  \"client\": [\n");
     let c = client_samples();

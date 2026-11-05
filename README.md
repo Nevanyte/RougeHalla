@@ -591,3 +591,7 @@ Client and tooling:
 - The server's private RNG (loot, spawn assignment) is `Math.random`, which is not cryptographically secure.
 
 Combat port source: [verified live version and branch](docs/COMBAT_UPGRADE_BASE.md).
+
+## License
+
+Project-authored code is available under the [MIT license](LICENSE), selected by the owner on 2026-11-05. Third-party dependencies and assets retain their original terms. Unity tooling and runtime licensing are separate; redistribution review is tracked in `docs/backlog/README.md` (P-OSS-2).

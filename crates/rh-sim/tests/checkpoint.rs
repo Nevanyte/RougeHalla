@@ -34,6 +34,8 @@ fn crowded_8() -> Sim {
             bot: false,
             at: Vec2::new(400.0 + 28.0 * (i % 4) as f64, 400.0 + 28.0 * (i / 4) as f64),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     Sim::reset_active(
@@ -98,7 +100,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
             "a checkpoint must not carry the scratch key `{banned}`"
         );
     }
-    assert_eq!(json["format"], "rh-checkpoint/3");
+    assert_eq!(json["format"], "rh-checkpoint/4");
     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
     assert_eq!(
         top.len(),
@@ -208,7 +210,7 @@ fn a_truncated_or_garbled_checkpoint_is_an_error_never_a_panic() {
         "null",
         "[]",
         "42",
-        "\"rh-checkpoint/3\"",
+        "\"rh-checkpoint/4\"",
         "{}",
         "{\"format\":3}",
     ] {
@@ -274,7 +276,7 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
     assert_eq!(good["build"], rh_sim::replay::BUILD_ID);
     assert!(serde_json::to_string(&a)
         .unwrap()
-        .starts_with("{\"format\":\"rh-checkpoint/3\",\"content_hash\":"));
+        .starts_with("{\"format\":\"rh-checkpoint/4\",\"content_hash\":"));
     assert!(Sim::restore(&good).is_ok());
 
     // Other content: refused with the typed error, whichever side of the tag it arrives on, and even when the payload
@@ -289,7 +291,7 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
     other["world"] = Value::from("not a world");
     assert_eq!(Sim::restore(&other).err(), Some(expect.clone()));
     let text = format!(
-        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/3\"}}",
+        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/4\"}}",
         content ^ 1
     );
     assert_eq!(

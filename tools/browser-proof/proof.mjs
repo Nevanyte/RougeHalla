@@ -1,4 +1,4 @@
-// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v4 (Full and delta snapshots) over WSS to rh-server through the browser's own
+// Browser-to-Rust proof (Stage 1): real Chromium pages speak protocol v5 (Full and delta snapshots) over WSS to rh-server through the browser's own
 // WebSocket API (the transport a Unity Web build's jslib bridge uses). Two players join, the match starts, a movement order
 // is acknowledged, one player drops and resumes its seat, they fight, and both receive authoritative results.
 //
@@ -7,6 +7,7 @@
 // TLS here is a SELF-SIGNED localhost certificate (the browser is told to accept it). A publicly valid certificate and DNS
 // name are an external gate (docs/hosting/STAGING_EXPERIMENT.md). Prints one JSON report; exits non-zero on a failure.
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,12 +57,12 @@ try {
   await wait(a, () => window.__probe.phase === 1);
   pass("run_started");
 
-  // Protocol 4: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
+  // Protocol 5: the first snapshot of a connection is Full, and the stream that follows is deltas the page's own decoder applies.
   await wait(a, () => window.__probe.deltaSnapshots > 20);
   const kinds = await a.evaluate(() => ({ first: window.__probe.firstSnapshotAfterWelcome, full: window.__probe.fullSnapshots, delta: window.__probe.deltaSnapshots, refused: window.__probe.refused, resyncs: window.__probe.resyncs }));
   const info0 = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
-  info0.protocol === 4 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
-    ? pass("protocol_4_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_4_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
+  info0.protocol === 5 && kinds.first[0] === "full" && kinds.delta > kinds.full && kinds.refused.length === 0 && kinds.resyncs === 0
+    ? pass("protocol_5_full_first_then_deltas", { protocol: info0.protocol, ...kinds }) : fail("protocol_5_full_first_then_deltas", JSON.stringify([info0.protocol, kinds]));
 
   // A resync request is answered with a Full snapshot, and deltas continue from it.
   const f0 = await a.evaluate(() => window.__probe.fullSnapshots);
@@ -117,7 +118,7 @@ try {
   const ok = ra.outcome === 2 && rb.outcome === 0 && ra.place === 2 && rb.place === 1;
   ok ? pass("authoritative_results", { alpha: ra, bravo: rb }) : fail("authoritative_results", JSON.stringify({ ra, rb }));
 
-  // Protocol 4: the player's own Result is kept on its seat. Alpha resumes after its run resolved and receives that Result again
+  // Protocol 5: the player's own Result is kept on its seat. Alpha resumes after its run resolved and receives that Result again
   // (identical), instead of never.
   await a.evaluate(() => window.__probe.dropAndResume());
   await wait(a, () => window.__probe.resumes === 1 && window.__probe.open);
@@ -132,6 +133,17 @@ try {
   report.measured = { joinMs: pa.joinMs, resumeHelloToWelcomeMs: resumeMs, snapshots: pa.snapshots, fullSnapshots: pa.fullSnapshots, deltaSnapshots: pa.deltaSnapshots, resyncs: pa.resyncs, refusedDeltas: pa.refusedDeltas, fxFrames: pa.fx, rttMsP50: sorted[sorted.length >> 1], rttMsMax: sorted[sorted.length - 1], pageErrors: pa.errors, rejects: pa.rejects };
   report.serverInfo = await a.evaluate(() => fetch("/info", { cache: "no-store" }).then((r) => r.json()));
   consoleErrors.length === 0 && pa.errors.length === 0 ? pass("no_page_errors") : fail("no_page_errors", JSON.stringify([consoleErrors, pa.errors]));
+  const vectors = JSON.parse(readFileSync(resolve(repo, "protocol/fixtures/v5.json"), "utf8"));
+  const mismatch = await a.evaluate((hex) => {
+    const bytes = Uint8Array.from(hex.match(/../g), h => parseInt(h, 16)); bytes[1] = 4;
+    const before = JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base });
+    ws.onmessage({ data: bytes.buffer });
+    // Even a subsequently queued valid Welcome cannot revive this rejected connection.
+    bytes[1] = 5; ws.onmessage({ data: bytes.buffer });
+    return { preserved: before === JSON.stringify({ welcome: window.__probe.welcome, snapshots: window.__probe.snapshots, base: tracker.base }), reject: window.__probe.rejects.at(-1), closing: ws.readyState >= 2 };
+  }, vectors.server.find(v => v.name === "welcome").hex);
+  mismatch.preserved && mismatch.reject?.code === 1 && mismatch.closing ? pass("wrong_protocol_welcome_refused_before_state", mismatch) : fail("wrong_protocol_welcome_refused_before_state", JSON.stringify(mismatch));
+
 } catch (e) {
   fail("exception", String(e));
   // What each page saw, to tell a refused connection from a stalled one.

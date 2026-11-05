@@ -1,0 +1,6 @@
+Unity 6000.0.85f2 (b028303d8e7d), WebGL IL2CPP
+WebGL build: Succeeded -> Build/Web; bytes=53892988
+Exiting batchmode successfully now!
+Compiler error CS occurrences: 0
+
+Only build outcome lines retained; licensing/authentication diagnostics and absolute machine paths are excluded.

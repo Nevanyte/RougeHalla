@@ -9,7 +9,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 publish = false
-# No license is declared: the repository has none yet (an owner decision, docs/REQUIREMENTS.md "Open-source readiness").
+license = "MIT"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

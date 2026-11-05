@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "command": "install",
+  "data": {
+    "completedUids": [
+      "6000.0.85f2-arm64",
+      "webgl"
+    ],
+    "items": [
+      {
+        "uid": "6000.0.85f2-arm64",
+        "name": "6000.0.85f2-arm64",
+        "kind": "editor",
+        "status": "installed"
+      },
+      {
+        "uid": "webgl",
+        "name": "Web Build Support",
+        "kind": "module",
+        "status": "installed"
+      }
+    ]
+  },
+  "errors": [],
+  "warnings": []
+}

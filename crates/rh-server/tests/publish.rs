@@ -89,10 +89,31 @@ fn reference(
                 y: y as f32,
                 a: a as f32,
             }),
-            SeenEvent::Hit { victim, by, amount } => fx.push(WireFx::Hit {
+            SeenEvent::Hit {
+                victim,
+                by,
+                amount,
+                passive,
+            } => fx.push(WireFx::Hit {
                 victim: victim.0,
                 by: by.map_or(u32::MAX, |b| b.0),
                 amount: amount as f32,
+                passive,
+            }),
+            SeenEvent::Block { id, by, weapon } => fx.push(WireFx::Block {
+                id: id.0,
+                by: by.map_or(u32::MAX, |b| b.0),
+                weapon: weapon.code(),
+            }),
+            SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
+            SeenEvent::PickupRefused { reason } => events.push(WireEvent::PickupRefused {
+                reason: match reason {
+                    rh_sim::PickupRefusal::Blocked => 1,
+                    rh_sim::PickupRefusal::NothingThere => 2,
+                    rh_sim::PickupRefusal::TooFar => 3,
+                    rh_sim::PickupRefusal::Unreachable => 4,
+                    rh_sim::PickupRefusal::NothingToTake => 5,
+                },
             }),
         }
     }
@@ -244,6 +265,7 @@ impl Hand {
                 lobby_seconds: 1.0,
                 fill_seconds: 0.0,
                 pvp_rules: true,
+                weapon_specials: true,
             },
             arena: assets.arena.clone(),
             welcome_map: assets.welcome_map.clone(),
@@ -370,6 +392,8 @@ fn the_publisher_tells_a_swing_by_the_sight_of_the_step_it_happened_in() {
             bot: false,
             at: Vec2::new(x, 272.0),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         };
         let mut sim = Sim::reset_active(
             SimConfig::default(),
@@ -462,6 +486,8 @@ fn a_slow_seat_is_told_every_event_a_fast_seat_is_told() {
         bot: true,
         at: Vec2::new(2000.0 + 70.0 * i as f64, 2000.0 + 40.0 * (i % 3) as f64),
         hp: None,
+        weapon0: None,
+        weapon1: None,
     };
     let places: Vec<_> = (0..7).map(place).collect();
     let mut sim = Sim::reset_active(SimConfig::default(), arena, Secrets::from_seed(5), &places);

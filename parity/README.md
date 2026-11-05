@@ -8,7 +8,7 @@ headless on hand-built maps, with every nondeterministic input injected:
 - Client messages go through the real validator (`enqueueClientMessage`) and are recorded verbatim, with the tick they were queued for.
 
 ```
-npx tsx parity/legacy-capture/capture.ts                 # all scenarios -> parity/fixtures/*.json
+npm exec --yes --package=node@22.23.4 -- node --import tsx parity/legacy-capture/capture.ts  # all scenarios
 npx tsx parity/legacy-capture/capture.ts --only rewind   # one scenario
 cargo test -p rh-parity                                  # replays every "slice" fixture through the Rust core and compares
 cargo run -p rh-parity --bin parity-report               # the same comparison as a human-readable report
@@ -55,7 +55,7 @@ would no longer be install order). Production at the recorded revision: 74 stati
 wrap, 1 replace), 73 links installed plus the createWorld default, 1 conditional site not taken (mobs' dummies-only
 `raidStarted`).
 
-Legacy configuration of every scenario (also recorded in each file's `legacyConfig`): `signatures: false` (faction
+Legacy configuration of the original slice scenarios (also recorded in each file's `legacyConfig`): `signatures: false` (faction
 signatures, Fire roam, bruiser passives, Plague corpses/zombies and the Sentenced hunt are not installed), `walkHints: false`,
 no mobs, quests, hazards or regen, PvP rules on (the PvP factor at card power 0 is 0.77, hit cap 35% of max hp), no cards,
 players start on fists. This is the configuration the Rust slice implements; the other mechanics are in `docs/backlog/`.
@@ -67,15 +67,22 @@ players start on fists. This is the configuration the Rust slice implements; the
 | `map.rows` | One string per tile row: `#` wall, `~` LOW (fence/lava/crevasse class), `.` floor. Tile = 32 u. |
 | `legacyConfig.orderSalt` | The injected secret salt behind `actionOrder` and `tieRank`. |
 | `legacyConfig.world`, `tickMs`, `mobsPresent`, `startEvents`, `unexpectedEventTypes` | How the fixture was captured (asserted, see below). |
+| `legacyConfig.modules`, `options`, `secrets`, `setup`, `mapSeed`, `itemUidScheme` | Explicit module order, scenario configuration overrides, injected salts, initial loose weapons, optional generated-map seed and deterministic sequential item UIDs (`"1"`, `"2"`, ...; container IDs retain legacy `c` + base36). Non-default settings fail slice preconditions until replayed. |
+| `legacyConfig.startEventPayloads` | Every initial non-GV/non-result event, including private planning deals. Slice asserts exactly `raidStarted`. |
+| `requires`, `packet` | Kinds that must occur and the packet responsible for promotion from capture-only. Prefixes `input:`, `action:` and `state:` identify other streams; `launch` requires an actual projectile birth. |
+| `budgeted` | Optional; true submits through the ordinary per-player order budget. `order_budget` exercises real token-bucket refusals/refill; original fixtures retain their unbudgeted compatibility path. |
 | `legacyConfig.startTick` / `startServerTime` | The run started on the first step; players are then placed at `players[].x/y` (history reset). |
 | `players` | id, faction, start position and hp, `maxHp` (the faction's) and `weapon0` (`""` = fists). |
-| `inputs` | `{tick, player, type, msg}`: queued just before the step that makes `state.tick == tick`. |
+| `actions` | Between-step leaves, dropped connections and reconnects, applied after the recorded tick. Original `{kind: "remove" | "drop" | "reconnect"}` records stay readable; `{type: "leave" | "drop" | "join"}` is also accepted (`join` reattaches an existing seat). Their events travel with the next step. |
+| `ticks[].launches` | Every new projectile insertion, including reflected and same-tick-ended projectiles: full immutable launch payload plus owner. Ends retain every `projEnd` field (`reason`, coordinates, original time and owner). |
+| `inputs` | `{tick, player, type, msg, accepted?}` (`accepted` defaults true; false records a refusal): queued just before the step that makes `state.tick == tick`. |
 | `ticks` | Per step: `serverTime`, every player's `x, y, facing, hp, status, readyAt` (rounded to 1e-6), and canonical events (`hit` with amount, `swing` with origin and angle, `death`, `victory`, `raidEnded`, ...). |
 | `notCompared` | Optional: per-entity keys deliberately not compared (`"players.<key>"`). |
 | `results` | Every `resolved` result: outcome, place, players, kills, killedBy, GV total/win/kills, and its tick. |
 
-Every key is read: an unknown key anywhere (a new per-tick entity list such as `mobs`, a new player field) makes
-the fixture unreadable, so the gate fails instead of passing on a key it never compared. The keys that describe how the
+Every key is read: an unknown key anywhere makes the fixture unreadable. Known capture-only streams (`launches`,
+`mobs`, `fields`) parse for catalogue discovery, but explicitly fail comparison as an
+`unported stream` even when their recorded list is empty. A new player field fails without a projection. The keys that describe how the
 fixture was captured are asserted as **preconditions** (`rh_parity::preconditions`): `legacyConfig.world` is the slice
 configuration above, `tickMs` is 50, `startTick` 1 and `startServerTime` 50, `mobsPresent` 0, `startEvents`
 `[raidStarted]`, `unexpectedEventTypes` empty, `map.tile` 32 and `w`/`h` match `rows`, each player's `maxHp` is the
@@ -85,8 +92,7 @@ Per-tick entity state is compared through a projection table per entity kind (`r
 class exact/abs/angle, Rust getter). A legacy key with no projection fails as `unported key players.<k>`, unless the
 fixture lists it in the optional top-level `notCompared` (`["players.<k>", ...]`, for a key deliberately not compared;
 a compared key there is refused), and a projected key the legacy entity lacks fails too. A new per-player field is one
-capture field plus one projection line; a new entity kind (mobs, projectiles) is one `FixTick` list plus one
-`EntityKind` table.
+capture field plus one projection line; a new entity kind adds its `EntityKind` table and removes its explicit unported-stream refusal when the comparison is complete.
 
 Scenario files are found by their leading `"format": "rh-legacy-scenario/1"` key (capture.ts writes it first; the peek
 reads the valid UTF-8 prefix of the first 256 bytes, so a multibyte character cut at the boundary cannot hide it), so
@@ -95,9 +101,9 @@ any other `*.json` file in `fixtures/` (no leading `format` key, or another form
 and `parity-report` (`UNRECOGNISED ...`, exit 1), so a fixture can neither drop out of the gate nor join it unseen. The
 `msg` of each slice input type may only carry the keys the harness reads (`rh_parity::INPUT_MSG_KEYS`: move `x, y, seq`,
 stop `seq`, aim `a`, attack and release `a, t`); any other key fails the comparison. `cargo run -p rh-parity --bin parity-report`
-prints `13 slice scenarios + 1 capture-only, 300 pathfinding queries: all MATCH` when the gate is green.
+prints `14 slice scenarios + 14 capture-only, 300 pathfinding queries: all MATCH` when the gate is green.
 
-`parity: "slice"` fixtures are compared by the Rust harness. `parity: "capture-only"` fixtures (projectiles) are for the
+`parity: "slice"` fixtures are compared by the Rust harness. `parity: "capture-only"` fixtures (the catalogue below) are for the
 backlog packets that port those mechanics.
 
 `pathfinding_seed1.json` (`rh-legacy-pathfinding/1`) holds the 160x160 tile layer of the generated map of seed 1 (the
@@ -121,3 +127,64 @@ public snapshot and events, folded field by field, independent of `Sim::state_ha
 queries above), plus the state hashes the binaries report and a verification of baseline-recorded replays by both
 builds (`rh-headless --verify-replay FILE [--ignore-content-hash]`; the flag skips the content gate only, never the
 per-step hash comparison).
+
+
+## Capture helpers and mechanic catalogue
+
+`legacy-capture/canon.ts` recursively sorts payload keys and applies `r6` to every number. Every fx payload survives,
+including future kinds; `toast`, `plan`, `questReveal` and lifecycle events keep their fields. GV feedback remains checked
+through results and `resolved` keeps its result stream. Rust's `canon.rs` projects every field of each supported event;
+`mapping.rs` lists supported event/input kinds. A missing kind fails with its name. Mismatches identify the first tick,
+array index and differing field. Only declared continuous numeric fields receive `2e-6`; timing/count fields compare
+exactly after canonical rounding. These offline fixtures can include private planning/status data; they are not player
+observations.
+
+`world.ts` defaults to the real `createGameWorld` assembler. A scenario may declare an explicit `modules: string[]` of
+exported installers, in production order, to opt into particular faction signatures/passives. An executable equivalence
+test checks the default list against `createGameWorld`, including its hidden RNG draw and complete state. Optional
+`budgeted` uses the real legacy `TokenBucket` on simulation time and records acceptance, including over-budget and queue-full refusals. Rust compares every validation/submission outcome. Inputs/actions must fall on a captured tick in nondecreasing order; requirements count replayed records, so surplus or out-of-order records cannot pass. Optional `config`, `secrets`, initial `containers`, `generatedMapSeed` and `record` declarations keep setup reproducible.
+
+The six P-COMBAT-1 scenarios in `scenarios/melee.ts` record each hand, slot, windup, stagger immunity,
+armor mirror, per-source shred, and every field of every container on every tick. They install the usual legacy
+modules in their recorded order except `consumables`, which periodically spawns unrelated map pickups.
+`swap_cooldown` also sets `weaponSpecials: false`, which disables the axe shred (and future wand splash).
+Shield blocks, passive returns and sword stagger retain their ordinary rules. `emblem_during_melee` retains
+the full production module installation: its wind-emblem container appears at tick 238. It remains capture-only
+for P-CONS-1, and a regression test requires that the current simulation report this specific missing container.
+All six matched cases run through death and settlement for at least 200 ticks. The comparison requires the
+full combat, status and container streams on every tick. Container IDs use base 36 after a leading `c`,
+and decimal item UIDs come from the injected `sequential/1` counter.
+
+The executable skeletons in `scenarios/catalogue.ts` remain capture-only until their named packets implement complete
+comparisons. Each records nonempty `requires`; a test verifies those requirements occurred.
+
+| Scenarios | Promotion packet |
+|---|---|
+| `swap_pickup`, `sword_duel`, `axe_duel`, `shield_duel` | P-COMBAT-1 |
+| `bow_wand_capture`, `wand_lock` | P-COMBAT-2 |
+| `signature_fire`, `signature_frost`, `signature_holy`, `signature_plague`, `signature_sentenced` | P-FACTION-1 |
+| `planning`, `coliseum_sudden_death` | P-ARENA-1 |
+| `mob_camp` (real generated-map camp spawns) | P-MOBS-1 |
+
+The camp skeleton captures four ticks to avoid storing repeated full rosters; its mechanic packet extends combat coverage.
+Existing slice fixtures keep their original state, tick, result and input comparisons. Generic recording adds windup
+`a/ms`, death `x/y`, victory `name`, bounty `id/name/bounty` and the complete previously collapsed `projEnd` payload.
+
+## Recapture gate
+
+Use Node **22.23.4 on Linux x86_64**, the exact CI runtime/platform. macOS arm64 produces five raw input-angle
+ULP differences in the existing scenarios even with the same Node version; Linux x86_64 reproduces the original inputs
+exactly. Use an isolated Linux x86_64 container for committed recaptures from a Mac. The diff deliberately refuses those
+platform differences instead of rounding or tolerating recorded inputs. `.github/workflows/parity-recapture.yml` installs dependencies, runs capture
+helper/mutation tests, re-captures into a fresh temporary directory with a 600-second timeout, runs `check-recapture.mjs --generated`, then `cargo test -p rh-parity`.
+The diff compares every committed/current JSON file under `fixtures/` and `maps/`, including additions/deletions (a removed scenario cannot leave a stale fixture behind), ignoring
+only the independently authored `maps/duel.map.json` when comparing generated inventory and the top-level `legacyRevision`. It names changed scenarios and tells the author to update Rust or deliberately
+re-record when a legacy rule changes. No numerical tolerance is applied to the recapture diff.
+
+Local full capture before the four-tick `order_budget` case (27 scenarios plus 300 path queries and the map) measured **2.42 s** wall time on macOS arm64 with Node
+25.8.1 (diagnostic capture; committed outputs were generated with Linux x86_64 Node 22.23.4); the CI runner time is not yet measured. The ten-minute CI timeout enforces the packet's maximum.
+
+```
+node --import tsx --test parity/legacy-capture/*.test.ts
+node parity/legacy-capture/check-recapture.mjs          # compare with HEAD, ignoring provenance only
+```

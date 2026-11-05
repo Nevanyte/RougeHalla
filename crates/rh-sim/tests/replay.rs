@@ -22,6 +22,8 @@ fn placements() -> Vec<Placement> {
             bot: false,
             at: Vec2::new(400.0 + 30.0 * i as f64, 420.0),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         })
         .collect()
 }

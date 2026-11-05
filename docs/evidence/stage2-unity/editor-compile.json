@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "command": "command console status",
+  "data": {
+    "command": "console status",
+    "parameters": {},
+    "result": {
+      "entries": [],
+      "cursor": 3,
+      "returned": 0,
+      "dropped": false,
+      "reset": false,
+      "counts": {
+        "error": 0,
+        "warn": 2,
+        "log": 1
+      },
+      "groundTruth": {
+        "sampledUtc": "2026-11-05T04:58:50.110292Z",
+        "ageMs": 215,
+        "compilationFailed": false,
+        "compiling": false,
+        "consoleErrors": 0,
+        "consoleWarnings": 0,
+        "consoleLogs": 0,
+        "seeded": true
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "[local-home]/.codex/worktrees/rougehalla-stage2/RougeHalla/client-unity/UnityProject"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

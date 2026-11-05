@@ -168,7 +168,7 @@ limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WE
   HDR-off as a budget decision, not a permanent rule: VISUAL_DIRECTION lights and emissive accents may need it back.
 
 ## Behaviour to preserve
-- Wire bytes identical: `protocol/fixtures/v4.json` untouched; the Rust, C# and JS vector tests pass unchanged.
+- Wire bytes identical: the current `protocol/fixtures/v<PROTOCOL_VERSION>.json` stays untouched; the Rust, C# and JS vector tests pass unchanged.
 - `Session` semantics: `Ignored` is counted exactly as today; a malformed Fx frame still counts in `DecodeErrors` and sets the same `Error`; send order and the
   `InputSender` rate limits are unchanged; prediction scope (walk only; remote actors interpolated 70-150 ms in the past) and
   interpolation output are unchanged.

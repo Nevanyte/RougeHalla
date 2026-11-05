@@ -51,13 +51,31 @@ fn load(name: &str) -> Scenario {
             bot: false,
             at: Vec2::new(f(p, "x"), f(p, "y")),
             hp: Some(f(p, "hp")),
+            weapon0: p["weapon0"].as_str().and_then(rh_sim::WeaponId::parse),
+            weapon1: p["weapon1"].as_str().and_then(rh_sim::WeaponId::parse),
         })
         .collect();
     let secrets = Secrets {
         order_salt: fx["legacyConfig"]["orderSalt"].as_u64().unwrap() as u32,
         spawn_seed: 0,
     };
-    let sim = Sim::reset_active(SimConfig::default(), arena, secrets, &placements);
+    let config = SimConfig {
+        weapon_specials: fx["legacyConfig"]["options"]["weaponSpecials"]
+            .as_bool()
+            .unwrap_or(true),
+        ..Default::default()
+    };
+    let mut sim = Sim::reset_active(config, arena, secrets, &placements);
+    if let Some(drops) = fx["legacyConfig"]["setup"]["containers"].as_array() {
+        for drop in drops {
+            sim.seed_weapon_container(
+                rh_sim::ContainerKind::Ground,
+                Vec2::new(f(&drop["at"], "x"), f(&drop["at"], "y")),
+                &[rh_sim::WeaponId::parse(drop["weapon"].as_str().unwrap()).unwrap()],
+            )
+            .unwrap();
+        }
+    }
     let ticks = fx["ticks"].as_array().unwrap().len() as u32;
     let mut by_tick: Vec<Vec<(PlayerId, Command)>> = vec![Vec::new(); ticks as usize + 2];
     for i in fx["inputs"].as_array().unwrap() {
@@ -79,6 +97,20 @@ fn load(name: &str) -> Scenario {
             "release" => RawCommand::Release {
                 a: g("a").unwrap(),
                 t: g("t"),
+            },
+            "swap" => RawCommand::Swap {
+                slot: m["slot"].as_u64().map(|n| n as u8),
+            },
+            "pickup" => RawCommand::Pickup {
+                container_id: u32::from_str_radix(
+                    m["containerId"]
+                        .as_str()
+                        .unwrap()
+                        .strip_prefix('c')
+                        .unwrap(),
+                    36,
+                )
+                .unwrap(),
             },
             other => panic!("input type {other}"),
         };
@@ -128,7 +160,14 @@ fn run(name: &str) -> (u32, u64, Option<u32>) {
 #[test]
 fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
-    for name in ["crowded_8", "duel_chase", "fists_duel"] {
+    for name in [
+        "crowded_8",
+        "duel_chase",
+        "fists_duel",
+        "axe_shred_stack",
+        "shield_block_riposte",
+        "pickup_replace_drop",
+    ] {
         let (steady, allocs, first_bad) = run(name);
         assert!(
             steady >= 100,

@@ -19,7 +19,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v4), and `recv` resolves
+/// A client socket and its snapshot decoder: snapshots arrive as Full frames and deltas (protocol v5), and `recv` resolves
 /// both to `ServerMsg::Snapshot`, as a client does. A Welcome resets the decoder, so a resumed connection starts afresh.
 struct Ws {
     sock: WebSocketStream<MaybeTlsStream<TcpStream>>,
@@ -76,6 +76,7 @@ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server 
         lobby_seconds: 30.0,
         fill_seconds: 0.0,
         pvp_rules: true,
+        weapon_specials: true,
     };
     let mut cfg = DirectorConfig {
         tick: TEST_TICK,
@@ -280,7 +281,7 @@ async fn refusals_happen_before_a_seat_is_taken() {
             ..
         })
     ));
-    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only v4.
+    // A protocol-1 client (the previous wire) is refused with the same reject: the server speaks only its current version.
     let mut ws = connect(&s.url).await;
     send(
         &mut ws,
@@ -299,7 +300,10 @@ async fn refusals_happen_before_a_seat_is_taken() {
         Some(ServerMsg::Reject {
             code: RejectCode::ProtocolMismatch,
             reason,
-        }) => assert!(reason.contains("protocol 4"), "{reason}"),
+        }) => assert!(
+            reason.contains(&format!("protocol {PROTOCOL_VERSION}")),
+            "{reason}"
+        ),
         other => panic!("{other:?}"),
     }
     // Wrong content hash: the reason names the server's.
@@ -337,14 +341,26 @@ async fn refusals_happen_before_a_seat_is_taken() {
             Some(ServerMsg::Reject {
                 code: RejectCode::ProtocolMismatch,
                 reason,
-            }) => assert!(reason.contains("protocol 4"), "{reason}"),
+            }) => assert!(
+                reason.contains(&format!("protocol {PROTOCOL_VERSION}")),
+                "{reason}"
+            ),
             other => panic!("{other:?}"),
         }
     }
     let mut ws = connect(&s.url).await;
-    ws.send(Message::Binary(vec![0x01, 4, 0, 9, 9].into()))
-        .await
-        .unwrap();
+    ws.send(Message::Binary(
+        vec![
+            0x01,
+            PROTOCOL_VERSION as u8,
+            (PROTOCOL_VERSION >> 8) as u8,
+            9,
+            9,
+        ]
+        .into(),
+    ))
+    .await
+    .unwrap();
     assert!(matches!(
         recv(&mut ws).await,
         Some(ServerMsg::Reject {

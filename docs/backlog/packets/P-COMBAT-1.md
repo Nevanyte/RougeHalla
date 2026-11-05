@@ -40,7 +40,7 @@ C-TICK (weapons phase position), C-INPUT (new `swap`/`pickup` commands go throug
 - Sword stagger: an unblocked sword hit staggers (cancels a pending windup or cast, then `STAGGER_IMMUNITY_SECONDS` 1.1 s immunity; a bow draw is not interrupted). The Rust slice already has `Event::Stagger` and `stagger_immune_until`: confirm it against a captured sword fight rather than assuming it is complete.
 - Shield: a raised shield (always up while in hand) blocks a **frontal** sword or bash hit (`angleBetween(atan2(...), facing) <= SHIELD_HALF_ARC + 1e-9`, 60 degrees): `SHIELD_BLOCK_SHARE` 0.07 of the hit is stopped, 0.93 lands and never staggers; the riposte returns `RIPOSTE_SHARE` 0.5 of the **blocked part** (`raw * 0.07 * 0.5`) to the attacker as a `passive` hit with weapon `shield`. Fists pierce shields (`shieldOutcome`).
 - Axe shred: each axe hit takes `AXE_SHRED_ARMOR` 3 off the target for `AXE_SHRED_MS` 3000, summing to `AXE_SHRED_CAP` 6 (a negative armor bonus; total armor stops at 0; a weapon never scales with a debuff). Wand splash is P-COMBAT-2.
-- `SimConfig.weaponSpecials: false` leaves every weapon with its damage alone (legacy flag used by the faction parity harness): add the same flag.
+- Verified Stage 2 correction: `weaponSpecials: false` disables axe shred and the later wand splash; shield block/riposte and sword stagger still apply. The actual `melee.ts` guards and captured cases take precedence over the original packet's broader wording. Rust exposes the flag as `SimConfig.weapon_specials`.
 - Doc/code note: docs/legacy/CLAUDE_LEGACY.md says sword/bash windup 0.1 s; the code has `SWORD_WINDUP`/`BASH_WINDUP` 0.1 for the NPC profile and 0 for players. Code wins.
 
 ## Acceptance checks
@@ -70,3 +70,7 @@ shield/riposte ledger part; medium for pickup/swap.
 - Item uids: legacy uses `randomUUID`; the core has no entropy: derive ids from a counter and keep them out of the state hash only if ids are not gameplay-visible (decide and document).
 - Legacy events emitted between ticks (a leave) travel with the next step.
 - Adding a weapon-carrying field to observations/protocol is a shared-file change (version bump, C# mirror, golden vectors).
+
+## Stage 2 integration status
+
+Core acceptance is implemented and reviewed: six new cases (2,698 ticks, 1,162 events, 12 results), 20 total compared scenarios and 300 path queries MATCH. The shield-share mutation is caught. New observation privacy tests preserve trusted legacy events while redacting hidden target/source details. Protocol 5 carries weapon inputs/effects. This does not establish a complete live loot flow: legitimate visible-container discovery and both self slots are P-NET-ITEMS-1, and projectile release is P-COMBAT-2. The full Stage 2 goal remains open.

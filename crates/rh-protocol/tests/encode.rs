@@ -251,7 +251,8 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
             WireFx::Hit {
                 victim: 1,
                 by: 2,
-                amount: 3.0
+                amount: 3.0,
+                passive: false,
             };
             u16::MAX as usize + 1
         ],
@@ -275,16 +276,17 @@ fn other_lists_and_sizes_decoders_reject_are_refused() {
             WireFx::Hit {
                 victim: 1,
                 by: 2,
-                amount: 3.0
+                amount: 3.0,
+                passive: false,
             };
             40_000
         ],
     };
-    // tag 1, tick 1, count 3 (a varint of 40000), then 1 + 1 + 1 + 4 per hit.
+    // tag 1, tick 1, count 3 (a varint of 40000), then 1 + 1 + 1 + 4 + 1 per hit.
     assert_eq!(
         big.try_encode(),
         Err(EncodeError::TooLarge {
-            len: 5 + 7 * 40_000,
+            len: 5 + 8 * 40_000,
             max: MAX_SERVER_FRAME
         })
     );

@@ -5,7 +5,6 @@
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
-/Packages/packages-lock.json
 *.csproj
 *.sln
 *.suo

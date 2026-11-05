@@ -13,7 +13,7 @@ const html = readFileSync(join(root, "crates/rh-server/web/probe.html"), "utf8")
 const a = html.search(/\/\/ ---- protocol v\d+/);
 const b = html.indexOf("// ---- probe state");
 if (a < 0 || b < 0) throw new Error("probe.html markers not found");
-const { decode, Tracker } = new Function(`"use strict"; ${html.slice(a, b)}; return { decode, Tracker };`)();
+const { decode, decodeClient, input, Tracker } = new Function(`"use strict"; ${html.slice(a, b)}; return { decode, decodeClient, input, Tracker };`)();
 const version = /const PROTOCOL = (\d+);/.exec(html.slice(a, b))[1];
 const fx = JSON.parse(readFileSync(join(root, `protocol/fixtures/v${version}.json`), "utf8"));
 if (fx.protocol !== Number(version)) throw new Error(`the page speaks protocol ${version}, the vectors ${fx.protocol}`);
@@ -27,6 +27,34 @@ const eq = (got, want, what) => {
   checks++;
   if (got !== want) throw new Error(`${what}: got ${got}, want ${want}`);
 };
+
+for (const v of fx.client) {
+  const m = decodeClient(bytes(v.hex)); checks++;
+  if (m.t === "input") eq(Buffer.from(input(m.seq, m.cmds)).toString("hex"), v.hex, v.name + " input encoding");
+  for (let n = 0; n < v.hex.length / 2; n++) { let threw = false; try { decodeClient(bytes(v.hex.slice(0, n * 2))); } catch { threw = true; } eq(threw, true, v.name + " truncated client"); }
+}
+for (const v of fx.malformedClient) { let threw = false; try { decodeClient(bytes(v.hex)); } catch { threw = true; } eq(threw, true, v.name + " malformed client"); }
+const combat = decodeClient(bytes(fx.client.find(v => v.name === "input_combat").hex));
+eq(JSON.stringify(combat.cmds), JSON.stringify([{ k: "swap", slot: null }, { k: "swap", slot: 0 }, { k: "swap", slot: 1 }, { k: "pickup", containerId: 42 }]), "combat command fields");
+const refusals = decode(bytes(fx.server.find(v => v.name === "pickup_refusals").hex));
+eq(JSON.stringify(refusals.events), JSON.stringify([1,2,3,4,5].map(reason => ({ k: "pickupRefused", reason }))), "owner refusal reasons");
+
+const bomReject = decode(bytes(fx.server.find(v => v.name === "reject_unknown_bom").hex));
+eq(bomReject.code, 300, "unknown Reject code"); eq(bomReject.reason, "\uFEFFa", "unknown Reject BOM reason");
+const maxFx = new Uint8Array(262144); maxFx.set([0x85, 0, 0x80, 0x80, 2]);
+for (let i = 0; i < 32767; i++) maxFx.set([3, 1, 255, 255, 255, 255, 15, 1], 5 + i * 8);
+maxFx.set([4, 128, 1], 262141);
+eq(decode(maxFx.buffer).fx.length, 32768, "exact maximum server frame");
+for (const size of [262145, 262149]) {
+  const oversized = new Uint8Array(size); oversized.set(maxFx.subarray(0, 262141));
+  oversized.set(size === 262145 ? [4, 128, 128, 1] : [3, 1, 255, 255, 255, 255, 15, 1], 262141);
+  let err; try { decode(oversized.buffer); } catch (e) { err = e; }
+  eq(err?.message, "frame too large", "server frame cap " + size);
+}
+const wrongWelcome = Uint8Array.from(new Uint8Array(bytes(fx.server.find(v => v.name === "welcome").hex))); wrongWelcome[1] = 4;
+const welcomeTracker = new Tracker(); welcomeTracker.base = { tick: 99 };
+let wrongVersion; try { welcomeTracker.decode(wrongWelcome.buffer); } catch (e) { wrongVersion = e; }
+eq(wrongVersion?.protocolMismatch, true, "wrong Welcome version"); eq(welcomeTracker.base.tick, 99, "wrong Welcome retains baseline");
 
 function checkSnapshot(m, d, n) {
     eq(m.tick, d.tick, `${n} tick`); eq(m.serverMs, d.serverMs, `${n} serverMs`); eq(m.phase, d.phase, `${n} phase`); eq(m.ack, d.ack, `${n} ack`);
@@ -57,13 +85,16 @@ for (const v of fx.server) {
       const s = m.fx[i];
       eq(s.k, e.k, `${n} fx ${i}.k`);
       if (e.k === "swing") { eq(s.by, e.by, `${n} by`); eq(s.weapon, e.weapon, `${n} weapon`); eq(bits(s.x), e.xBits, `${n} x`); eq(bits(s.y), e.yBits, `${n} y`); eq(bits(s.a), e.aBits, `${n} a`); }
-      else { eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
+      else if (e.k === "block") { eq(s.id, e.id, `${n} id`); eq(s.by, e.by, `${n} by`); eq(s.weapon, e.weapon, `${n} weapon`); }
+      else if (e.k === "stagger") eq(s.id, e.id, `${n} id`);
+      else { eq(s.passive, e.passive, `${n} passive`); eq(s.victim, e.victim, `${n} victim`); eq(s.by, e.by, `${n} by`); eq(bits(s.amount), e.amountBits, `${n} amount`); }
     });
   }
 }
 
 // The JS decoder reports a reason as an Error message (RangeError for a read past the end).
 const reason = {
+  hit_bad_passive: /bad option/, pickup_bad_reason_zero: /bad field/, pickup_bad_reason_unknown: /bad field/,
   empty: /./, truncated_snapshot: /./, self_truncated: /./, actor_count_without_actors: /./,
   unknown_tag: /unknown tag/, client_tag_from_server: /unknown tag/, trailing_byte: /trailing/,
   overlong_varint: /varint/, varint_past_u32: /varint/, varint_too_long: /varint/,

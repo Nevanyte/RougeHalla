@@ -104,6 +104,8 @@ fn apply_inputs(cx: &mut Cx, ix: FighterIx) {
 
 fn action_id(cmd: &ActionCmd) -> ActionId {
     match cmd {
+        ActionCmd::Swap { .. } => ActionId::Swap,
+        ActionCmd::Pickup { .. } => ActionId::Pickup,
         ActionCmd::Attack { .. } => ActionId::Attack,
         ActionCmd::Release { .. } => ActionId::Release,
     }

@@ -948,6 +948,7 @@ mod tests {
             lobby_seconds: 30.0,
             fill_seconds: 0.0,
             pvp_rules: true,
+            weapon_specials: true,
         };
         let map = rh_sim::TileMap::from_rows(&["####", "#..#", "#..#", "####"]).unwrap();
         let arena = Arena {

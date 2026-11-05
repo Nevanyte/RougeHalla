@@ -106,6 +106,8 @@ fn encode_into<F: Frame>(m: &F, out: &mut Vec<u8>) -> Result<usize, EncodeError>
 
 fn command_len(c: &WireCommand) -> usize {
     match *c {
+        WireCommand::Swap { slot } => 2 + usize::from(slot.is_some()),
+        WireCommand::Pickup { .. } => 5,
         WireCommand::Move { seq, .. } => 1 + 8 + opt_len(seq.is_some(), 1),
         WireCommand::Stop { seq } => 1 + opt_len(seq.is_some(), 1),
         WireCommand::Aim { .. } => 1 + 4,
@@ -118,7 +120,7 @@ fn command_len(c: &WireCommand) -> usize {
 fn command_finite(c: &WireCommand) -> bool {
     match *c {
         WireCommand::Move { x, y, .. } => x.is_finite() && y.is_finite(),
-        WireCommand::Stop { .. } => true,
+        WireCommand::Stop { .. } | WireCommand::Swap { .. } | WireCommand::Pickup { .. } => true,
         WireCommand::Aim { a } => a.is_finite(),
         WireCommand::Attack { a, t } | WireCommand::Release { a, t } => {
             a.is_finite() && t.is_none_or(f64::is_finite)
@@ -174,6 +176,12 @@ impl Frame for ClientMsg {
             }
             ClientMsg::Input { commands, .. } => {
                 list("commands", commands.len(), MAX_COMMANDS_PER_INPUT)?;
+                if commands.iter().any(|c| {
+                    matches!(c, WireCommand::Swap { slot: Some(s) } if *s > 1)
+                        || matches!(c, WireCommand::Pickup { container_id: 0 })
+                }) {
+                    return Err(EncodeError::BadValue("command"));
+                }
                 if !commands.iter().all(command_finite) {
                     return Err(EncodeError::NonFinite);
                 }
@@ -212,6 +220,14 @@ impl Frame for ClientMsg {
                 w.u16(commands.len() as u16);
                 for c in commands {
                     match *c {
+                        WireCommand::Swap { slot } => {
+                            w.u8(6);
+                            w.opt(slot.as_ref(), |w, s| w.u8(*s));
+                        }
+                        WireCommand::Pickup { container_id } => {
+                            w.u8(7);
+                            w.u32(container_id);
+                        }
                         WireCommand::Move { x, y, seq } => {
                             w.u8(C_MOVE);
                             w.f32(x);
@@ -276,6 +292,7 @@ impl ClientMsg {
 
 fn event_len(e: &WireEvent) -> usize {
     match e {
+        WireEvent::PickupRefused { .. } => 2,
         WireEvent::Death { by, .. } => 1 + 4 + opt_len(by.is_some(), 4),
         WireEvent::Bounty { .. } => 1 + 4 + 2,
         WireEvent::MatchEnded { winner, .. } => 1 + opt_len(winner.is_some(), 4) + 1,
@@ -287,8 +304,10 @@ fn event_len(e: &WireEvent) -> usize {
 
 fn fx_len(f: &WireFx) -> usize {
     match f {
+        WireFx::Block { id, by, .. } => 2 + varint_len(*id) + varint_len(*by),
+        WireFx::Stagger { id } => 1 + varint_len(*id),
         WireFx::Swing { by, .. } => 1 + varint_len(*by) + 1 + 6,
-        WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 4,
+        WireFx::Hit { victim, by, .. } => 1 + varint_len(*victim) + varint_len(*by) + 5,
     }
 }
 
@@ -713,6 +732,10 @@ impl Frame for ServerMsg {
             ServerMsg::Events { events, .. } => {
                 list("events", events.len(), u16::MAX as usize)?;
                 for e in events {
+                    if matches!(e, WireEvent::PickupRefused { reason } if !(1..=5).contains(reason))
+                    {
+                        return Err(EncodeError::BadValue("pickup reason"));
+                    }
                     if let WireEvent::Result(r) = e {
                         if let Some(k) = &r.killed_by {
                             str_fits("killed_by", k)?;
@@ -832,6 +855,10 @@ impl Frame for ServerMsg {
                 w.u16(events.len() as u16);
                 for e in events {
                     match e {
+                        WireEvent::PickupRefused { reason } => {
+                            w.u8(5);
+                            w.u8(*reason);
+                        }
                         WireEvent::Death { id, by } => {
                             w.u8(1);
                             w.u32(*id);
@@ -868,6 +895,16 @@ impl Frame for ServerMsg {
                 w.varint(fx.len() as u32);
                 for f in fx {
                     match *f {
+                        WireFx::Block { id, by, weapon } => {
+                            w.u8(3);
+                            w.varint(id);
+                            w.varint(by);
+                            w.u8(weapon);
+                        }
+                        WireFx::Stagger { id } => {
+                            w.u8(4);
+                            w.varint(id);
+                        }
                         WireFx::Swing {
                             by,
                             weapon,
@@ -882,11 +919,17 @@ impl Frame for ServerMsg {
                             w.u16(quant::quantize_pos(y));
                             w.u16(quant::quantize_facing(a));
                         }
-                        WireFx::Hit { victim, by, amount } => {
+                        WireFx::Hit {
+                            victim,
+                            by,
+                            amount,
+                            passive,
+                        } => {
                             w.u8(2);
                             w.varint(victim);
                             w.varint(by);
                             w.f32(amount);
+                            w.u8(passive as u8);
                         }
                     }
                 }

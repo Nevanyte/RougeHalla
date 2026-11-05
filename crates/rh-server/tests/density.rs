@@ -34,6 +34,7 @@ fn room_cfg() -> RoomConfig {
             lobby_seconds: 30.0,
             fill_seconds: 0.0,
             pvp_rules: true,
+            weapon_specials: true,
         },
         arena: assets.arena,
         welcome_map: assets.welcome_map,

@@ -86,6 +86,8 @@ impl Crowd {
                     bot: true,
                     at: Vec2::new(c.x + r * a.cos(), c.y + r * a.sin()),
                     hp: Some(1.0e12),
+                    weapon0: None,
+                    weapon1: None,
                 });
             }
             ring += 1;

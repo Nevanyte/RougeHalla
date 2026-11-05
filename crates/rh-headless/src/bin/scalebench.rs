@@ -52,6 +52,8 @@ fn placements(n: usize, centre: Vec2) -> Vec<Placement> {
                 bot: true,
                 at: Vec2::new(centre.x + r * a.cos(), centre.y + r * a.sin()),
                 hp: Some(HP),
+                weapon0: None,
+                weapon1: None,
             });
         }
         ring += 1;

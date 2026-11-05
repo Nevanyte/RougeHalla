@@ -1,0 +1,250 @@
+{
+  "date": "2026-11-04",
+  "timezone": "America/Edmonton",
+  "hardware": "Apple M5 Pro",
+  "os": "macOS 26.6.1",
+  "architecture": "aarch64 native",
+  "build": "release, Rust 1.97.0",
+  "baselineRevision": "e7e85338",
+  "candidate": "optimization_port working tree based on 50bb06a, combat/protocol-5 integration",
+  "workload": "identical original captured inputs; three interleaved pairs of 1000 runs after 10 warm-up runs per binary and workload",
+  "scope": "step wall time only; not full-game speedup, instruction counts, hosting density or browser performance",
+  "behavior": "both revisions pass the original canonical slice fixtures; hashes differ because content/checkpoint schemas changed",
+  "measurements": {
+    "crowded_8": {
+      "baseline": [
+        {
+          "impl": "rust",
+          "scenario": "crowded_8",
+          "runs": 1000,
+          "ticks": 901000,
+          "stepUs": {
+            "mean": 0.23,
+            "p50": 0.21,
+            "p99": 0.67,
+            "max": 36.54
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "crowded_8",
+          "runs": 1000,
+          "ticks": 901000,
+          "stepUs": {
+            "mean": 0.23,
+            "p50": 0.21,
+            "p99": 0.67,
+            "max": 23.96
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "crowded_8",
+          "runs": 1000,
+          "ticks": 901000,
+          "stepUs": {
+            "mean": 0.23,
+            "p50": 0.21,
+            "p99": 0.67,
+            "max": 25.12
+          }
+        }
+      ],
+      "current": [
+        {
+          "impl": "rust",
+          "scenario": "crowded_8",
+          "runs": 1000,
+          "ticks": 901000,
+          "stepUs": {
+            "mean": 0.25,
+            "p50": 0.25,
+            "p99": 0.67,
+            "max": 20.04
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "crowded_8",
+          "runs": 1000,
+          "ticks": 901000,
+          "stepUs": {
+            "mean": 0.25,
+            "p50": 0.21,
+            "p99": 0.67,
+            "max": 21.38
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "crowded_8",
+          "runs": 1000,
+          "ticks": 901000,
+          "stepUs": {
+            "mean": 0.25,
+            "p50": 0.25,
+            "p99": 0.67,
+            "max": 27.04
+          }
+        }
+      ]
+    },
+    "duel_chase": {
+      "baseline": [
+        {
+          "impl": "rust",
+          "scenario": "duel_chase",
+          "runs": 1000,
+          "ticks": 716000,
+          "stepUs": {
+            "mean": 0.07,
+            "p50": 0.08,
+            "p99": 0.17,
+            "max": 17.5
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "duel_chase",
+          "runs": 1000,
+          "ticks": 716000,
+          "stepUs": {
+            "mean": 0.08,
+            "p50": 0.08,
+            "p99": 0.17,
+            "max": 18.04
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "duel_chase",
+          "runs": 1000,
+          "ticks": 716000,
+          "stepUs": {
+            "mean": 0.07,
+            "p50": 0.08,
+            "p99": 0.17,
+            "max": 18.79
+          }
+        }
+      ],
+      "current": [
+        {
+          "impl": "rust",
+          "scenario": "duel_chase",
+          "runs": 1000,
+          "ticks": 716000,
+          "stepUs": {
+            "mean": 0.08,
+            "p50": 0.08,
+            "p99": 0.17,
+            "max": 18.42
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "duel_chase",
+          "runs": 1000,
+          "ticks": 716000,
+          "stepUs": {
+            "mean": 0.08,
+            "p50": 0.08,
+            "p99": 0.21,
+            "max": 18.33
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "duel_chase",
+          "runs": 1000,
+          "ticks": 716000,
+          "stepUs": {
+            "mean": 0.08,
+            "p50": 0.08,
+            "p99": 0.17,
+            "max": 19.96
+          }
+        }
+      ]
+    },
+    "fists_duel": {
+      "baseline": [
+        {
+          "impl": "rust",
+          "scenario": "fists_duel",
+          "runs": 1000,
+          "ticks": 280000,
+          "stepUs": {
+            "mean": 0.06,
+            "p50": 0.04,
+            "p99": 0.17,
+            "max": 18.67
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "fists_duel",
+          "runs": 1000,
+          "ticks": 280000,
+          "stepUs": {
+            "mean": 0.06,
+            "p50": 0.04,
+            "p99": 0.17,
+            "max": 18.75
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "fists_duel",
+          "runs": 1000,
+          "ticks": 280000,
+          "stepUs": {
+            "mean": 0.06,
+            "p50": 0.04,
+            "p99": 0.17,
+            "max": 19.29
+          }
+        }
+      ],
+      "current": [
+        {
+          "impl": "rust",
+          "scenario": "fists_duel",
+          "runs": 1000,
+          "ticks": 280000,
+          "stepUs": {
+            "mean": 0.07,
+            "p50": 0.04,
+            "p99": 0.17,
+            "max": 16.96
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "fists_duel",
+          "runs": 1000,
+          "ticks": 280000,
+          "stepUs": {
+            "mean": 0.07,
+            "p50": 0.04,
+            "p99": 0.17,
+            "max": 19.62
+          }
+        },
+        {
+          "impl": "rust",
+          "scenario": "fists_duel",
+          "runs": 1000,
+          "ticks": 280000,
+          "stepUs": {
+            "mean": 0.07,
+            "p50": 0.04,
+            "p99": 0.17,
+            "max": 17.04
+          }
+        }
+      ]
+    }
+  },
+  "measuredAtLocal": "2026-11-04T23:59:49-06:00"
+}

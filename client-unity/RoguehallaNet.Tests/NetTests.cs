@@ -127,6 +127,23 @@ namespace Roguehalla.Net.Tests
     public class InputSenderTests
     {
         [Test]
+        public void WeaponAndPickupIntentsKeepQueueOrderAcrossFrames()
+        {
+            var s = new InputSender();
+            for (int i = 0; i < 15; i++) s.Attack(0, null);
+            s.Swap(); s.Pickup(42); s.Swap(1); s.Release(0, null);
+            s.Swap(2); s.Pickup(0);
+            var frames = s.Flush(0);
+            CollectionAssert.AreEqual(new[] { 16, 3 }, frames.Select(f => f.Commands.Count).ToArray());
+            Assert.AreEqual(CommandKind.Swap, frames[0].Commands[15].Kind); Assert.IsNull(frames[0].Commands[15].Slot);
+            Assert.AreEqual(CommandKind.Pickup, frames[1].Commands[0].Kind); Assert.AreEqual(42u, frames[1].Commands[0].ContainerId);
+            Assert.AreEqual(CommandKind.Swap, frames[1].Commands[1].Kind); Assert.AreEqual((byte)1, frames[1].Commands[1].Slot);
+            Assert.AreEqual(CommandKind.Release, frames[1].Commands[2].Kind); Assert.AreEqual(2, s.Dropped);
+            foreach (var frame in frames) Assert.DoesNotThrow(() => ClientMsg.Decode(frame.Encode()));
+            Assert.AreEqual(0, s.Flush(1).Count);
+        }
+
+        [Test]
         public void AimIsRateLimitedToFortyPerSecond()
         {
             var s = new InputSender();

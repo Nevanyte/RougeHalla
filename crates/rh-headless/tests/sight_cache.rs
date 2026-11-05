@@ -101,6 +101,8 @@ fn a_cache_never_carries_a_verdict_to_another_map() {
                 bot: false,
                 at: Vec2::new(150.0 + 60.0 * i as f64, 176.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             })
             .collect();
         Sim::reset_active(
@@ -137,6 +139,8 @@ fn a_roster_larger_than_the_table_stays_exact() {
                 c.y - 100.0 + (i / 16) as f64 * 20.0,
             ),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     let mut sim = Sim::reset_active(

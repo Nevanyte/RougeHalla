@@ -1,7 +1,7 @@
 //! Roguehalla wire protocol, version [`PROTOCOL_VERSION`]. One message per WebSocket BINARY frame (the only transport a
 //! browser build can use; served as wss:// in production). Little-endian, no reflection: the C# mirror
 //! (`client-unity/RoguehallaNet`) and the JS probe decode the same bytes, and all are held to the golden vectors in
-//! `protocol/fixtures/v4.json` (docs/CONTRACTS.md C-NET).
+//! `protocol/fixtures/v5.json` (docs/CONTRACTS.md C-NET).
 //!
 //! Frame layout: `[tag u8][body]`. Strings: `u8 length + UTF-8`. Blobs: `u16 length + bytes`. Optional values: `u8 flag (0/1) +
 //! value`. Lists: `u16 count + items`. Floats are IEEE-754; a decoder REJECTS non-finite floats in client messages. Unknown
@@ -12,6 +12,14 @@
 //! (prediction and reconciliation need it); remote actors and swing effects are quantized ([`quant`]: positions 1/8 u, angles
 //! 2 pi / 65536, hp_pct exact). Factions and weapons are 4-bit codes, status and phase 2-bit codes: the encoders refuse a larger
 //! one ([`EncodeError::BadValue`]) rather than truncate it.
+//!
+//! # Combat records (v5; docs/adr/0012-combat-protocol-v5.md)
+//!
+//! Input command 6: Swap, strict option flag then slot 0/1; absent toggles. Command 7: Pickup, nonzero container u32.
+//! Hit (Fx 2) adds a strict passive flag after its amount f32. Block (Fx 3) carries id varint, source varint, weapon u8;
+//! Stagger (Fx 4) carries id varint. Source u32::MAX means absent or redacted for Hit and Block.
+//! PickupRefused (Events 5) carries only its owner-filtered reason byte: append-only 1 Blocked, 2 NothingThere,
+//! 3 TooFar, 4 Unreachable, 5 NothingToTake; all other values are refused. No private recipient id is sent.
 //!
 //! # Field masks (protocol v4; docs/adr/0011-protocol-v4.md)
 //!
@@ -97,7 +105,7 @@ pub use delta::{
 pub use encode::{encode_welcome, encode_welcome_into, WelcomeHeader};
 
 /// Bump on any incompatible change (a new tag or field in an existing message). Both ends refuse another major version.
-pub const PROTOCOL_VERSION: u16 = 4;
+pub const PROTOCOL_VERSION: u16 = 5;
 /// Milliseconds per server tick (20 Hz). A Snapshot carries `tick` only: its server time is `tick * TICK_MS` exactly.
 pub const TICK_MS: u32 = 50;
 
@@ -184,6 +192,12 @@ impl RejectCode {
 /// A command as the client sends it (validated again by the server's simulation: never trusted).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireCommand {
+    Swap {
+        slot: Option<u8>,
+    },
+    Pickup {
+        container_id: u32,
+    },
     Move {
         x: f32,
         y: f32,
@@ -326,11 +340,22 @@ pub enum WireEvent {
     },
     /// The player's own resolved run.
     Result(WireResult),
+    PickupRefused {
+        reason: u8,
+    },
 }
 
 /// Presentation effects: a slow client may lose them (the server drops the oldest first under backpressure).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireFx {
+    Block {
+        id: u32,
+        by: u32,
+        weapon: u8,
+    },
+    Stagger {
+        id: u32,
+    },
     Swing {
         by: u32,
         weapon: u8,
@@ -342,6 +367,7 @@ pub enum WireFx {
         victim: u32,
         by: u32,
         amount: f32,
+        passive: bool,
     },
 }
 
@@ -470,6 +496,20 @@ impl ClientMsg {
                 let mut commands = Vec::with_capacity(n);
                 for _ in 0..n {
                     commands.push(match r.u8()? {
+                        6 => {
+                            let slot = r.opt(|r| r.u8())?;
+                            if slot.is_some_and(|s| s > 1) {
+                                return Err(DecodeError::BadField("combat"));
+                            }
+                            WireCommand::Swap { slot }
+                        }
+                        7 => {
+                            let container_id = r.u32()?;
+                            if container_id == 0 {
+                                return Err(DecodeError::BadField("combat"));
+                            }
+                            WireCommand::Pickup { container_id }
+                        }
                         C_MOVE => WireCommand::Move {
                             x: r.f32()?,
                             y: r.f32()?,
@@ -748,6 +788,13 @@ impl ServerMsg {
                 let mut events = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     events.push(match r.u8()? {
+                        5 => {
+                            let reason = r.u8()?;
+                            if !(1..=5).contains(&reason) {
+                                return Err(DecodeError::BadField("combat"));
+                            }
+                            WireEvent::PickupRefused { reason }
+                        }
                         1 => WireEvent::Death {
                             id: r.u32()?,
                             by: r.opt(|r| r.u32())?,
@@ -785,6 +832,12 @@ impl ServerMsg {
                 let mut fx = Vec::with_capacity(n.min(1024));
                 for _ in 0..n {
                     fx.push(match r.u8()? {
+                        3 => WireFx::Block {
+                            id: r.varint()?,
+                            by: r.varint()?,
+                            weapon: r.u8()?,
+                        },
+                        4 => WireFx::Stagger { id: r.varint()? },
                         1 => WireFx::Swing {
                             by: r.varint()?,
                             weapon: r.u8()?,
@@ -796,6 +849,7 @@ impl ServerMsg {
                             victim: r.varint()?,
                             by: r.varint()?,
                             amount: r.f32()?,
+                            passive: r.opt(|_| Ok(()))?.is_some(),
                         },
                         t => return Err(DecodeError::BadTag(t)),
                     });

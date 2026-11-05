@@ -459,6 +459,8 @@ mod tests {
             bot: true,
             at: Vec2::new(2000.0, 2000.0),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         };
         Sim::reset_active(
             SimConfig::default(),

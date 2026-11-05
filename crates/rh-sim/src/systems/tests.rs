@@ -16,6 +16,8 @@ fn sim() -> Sim {
             bot: false,
             at: Vec2::new(300.0 + 600.0 * i as f64, 300.0),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     Sim::reset_active(
@@ -180,7 +182,15 @@ fn the_drop_body_hook_empties_the_slots_through_the_dispatcher() {
     s.w.players[1].weapon.weapon0 = Some(WeaponId::Sword);
     s.w.players[1].weapon.weapon1 = Some(WeaponId::Axe);
     let victim = s.w.players[1].id;
-    with_hx(&mut s, |hx| hooks::fire(hx, HookArgs::DropBody { victim }));
+    with_hx(&mut s, |hx| {
+        hooks::fire(
+            hx,
+            HookArgs::DropBody {
+                victim,
+                between_ticks: false,
+            },
+        )
+    });
     assert_eq!(s.w.players[1].weapon.weapon0, None);
     assert_eq!(s.w.players[1].weapon.weapon1, None);
 }
@@ -216,6 +226,7 @@ fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
         },
         weapon: Some(crate::content::WeaponId::Fists),
         stagger: false,
+        passive: false,
     }
 }
 
@@ -386,6 +397,8 @@ fn sim3() -> Sim {
             bot: false,
             at: Vec2::new(300.0 + 300.0 * i as f64, 300.0),
             hp: Some(1.0),
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     Sim::reset_active(
@@ -585,6 +598,7 @@ fn melee_reference(
                 packet: req.packet,
                 weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
+                passive: false,
             });
         }
     }
@@ -603,6 +617,8 @@ fn shared_rewound_positions_give_the_ledger_of_the_per_pair_pass() {
             bot: false,
             at: Vec2::new(600.0 + 14.0 * (i % 3) as f64, 300.0 + 14.0 * (i / 3) as f64),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     let mut sim = Sim::reset_active(

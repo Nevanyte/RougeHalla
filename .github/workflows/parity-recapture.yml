@@ -1,0 +1,26 @@
+name: Legacy parity recapture
+on:
+  push:
+    paths: ['packages/**', 'parity/legacy-capture/**', 'parity/fixtures/**', 'parity/maps/**', '.github/workflows/parity-recapture.yml']
+  pull_request:
+    paths: ['packages/**', 'parity/legacy-capture/**', 'parity/fixtures/**', 'parity/maps/**', '.github/workflows/parity-recapture.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recapture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx --test parity/legacy-capture/*.test.ts
+      - name: Recapture real legacy simulation (under ten minutes)
+        run: timeout 600s npx tsx parity/legacy-capture/capture.ts --out "$RUNNER_TEMP/parity-recapture"
+      - run: node parity/legacy-capture/check-recapture.mjs --generated "$RUNNER_TEMP/parity-recapture"
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test -p rh-parity --locked

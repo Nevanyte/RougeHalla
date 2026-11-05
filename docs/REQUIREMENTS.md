@@ -17,8 +17,9 @@ continuity"). Requirement IDs (R-*) are referenced from the backlog.
   required.
 - R-WEB-2. Browser constraints are respected: WebSocket (wss) transport through the browser; no native sockets, UDP,
   ICMP, desktop-only libraries or per-frame native FFI; IL2CPP/AOT-safe code (no runtime code generation).
-- R-WEB-3. Initial performance target: 60 FPS on named mid-range desktop hardware (to be named and measured in P-UNITY-1);
-  a target, not a guarantee. Frame time, memory, download size and load time have explicit budgets.
+- R-WEB-3. Initial performance target: 60 FPS. The owner selected the **Apple M5 Pro** as the initial named reference on
+  2026-11-05; no claim about other mid-range hardware follows from its results. Frame time, memory, download size and
+  load time have explicit budgets. The target still requires representative measured gameplay, not just a movement smoke.
 
 ## R-AWS: multiplayer hosting on AWS
 - R-AWS-1. Hundreds of simultaneous matches, up to eight players per match.
@@ -72,9 +73,9 @@ continuity"). Requirement IDs (R-*) are referenced from the backlog.
   (`cargo test --workspace`; `cargo run -p rh-headless`).
 - R-OSS-2. Reproducible setup, local play (`cargo run -p rh-server` + the browser probe today; the Unity client later),
   versioned protocols, contributor instructions ([../CONTRIBUTING.md](../CONTRIBUTING.md)).
-- R-OSS-3. Preserve existing licenses. The repository currently declares NO license (no LICENSE file; every package is
-  `private`): choosing one is an owner decision. Asset and dependency redistribution is reviewed separately from Unity's
-  proprietary tooling (the Unity Editor and its runtime are not redistributable source).
+- R-OSS-3. Preserve existing licenses. The owner selected **MIT** for project-authored code on 2026-11-05 (`LICENSE`).
+  Asset and dependency redistribution remains a separate review; third-party terms and Unity's proprietary tooling
+  are not relicensed. Packages remain private until publishing is deliberately prepared.
 
 ## R-ML: ML architecture only
 - R-ML-1. Future goals: competitive bots and human-like bots, using legitimate player-visible observations (including

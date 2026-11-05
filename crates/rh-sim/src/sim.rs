@@ -1,9 +1,9 @@
-//! The authoritative simulation of the slice: lobby -> active run -> ended, with movement and collision, the fists melee
-//! attack (cooldown, zero-windup player melee, rewound hit test), the damage ledger (PvP factor, mitigation, the PvP hit
+//! The authoritative simulation: lobby -> active run -> ended, movement/collision, item pickup/swap/drop, and melee
+//! weapons (cooldowns, zero-windup player melee, rewound hits and specials), the damage ledger (PvP factor, mitigation, hit
 //! cap, simultaneous resolution), deaths, leaving (MIA), kill credit, bounty, GV and results.
 //!
 //! The tick order is the legacy one (`packages/server/src/sim/step.ts`), minus the phases whose mechanics are not in the
-//! slice (abilities, target lock, projectiles, signatures, statuses, sudden death, mobs, loot): they are `Pending` rows of
+//! port (abilities, target lock, projectiles, signatures, statuses, sudden death, mobs and world loot generation): `Pending` rows of
 //! the schedule tables (`schedule.rs`, checked against the legacy record by `rh-parity/tests/schedule.rs`) and are
 //! ported in place at their legacy position, never reordered.
 //!
@@ -53,6 +53,10 @@ pub struct Placement {
     pub at: Vec2,
     /// hp at the start; the faction's max when `None`.
     pub hp: Option<f64>,
+    #[serde(default)]
+    pub weapon0: Option<crate::WeaponId>,
+    #[serde(default)]
+    pub weapon1: Option<crate::WeaponId>,
 }
 
 impl Sim {
@@ -112,6 +116,8 @@ impl Sim {
         sim.step();
         let t = sim.w.server_time;
         for (pl, spec) in sim.w.players.iter_mut().zip(placements) {
+            pl.weapon.weapon0 = spec.weapon0.filter(|w| *w != crate::WeaponId::Fists);
+            pl.weapon.weapon1 = spec.weapon1.filter(|w| *w != crate::WeaponId::Fists);
             pl.body.x = spec.at.x;
             pl.body.y = spec.at.y;
             pl.body.facing = 0.0;
@@ -162,6 +168,10 @@ impl Sim {
     }
     pub fn player(&self, id: PlayerId) -> Option<&Player> {
         self.w.players.get(id)
+    }
+    /// Recorded callsign, including a fighter who has left (for a body label or hit source).
+    pub fn player_name(&self, id: PlayerId) -> Option<&str> {
+        self.w.roster.name(id)
     }
     pub fn secrets_for_replay(&self) -> Secrets {
         self.k.secrets

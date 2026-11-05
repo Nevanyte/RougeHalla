@@ -18,6 +18,8 @@ fn place(profile: &str, faction: FactionId, x: f64, y: f64, hp: Option<f64>) -> 
         bot: false,
         at: Vec2::new(x, y),
         hp,
+        weapon0: None,
+        weapon1: None,
     }
 }
 
@@ -281,4 +283,175 @@ fn per_step_filtering_judges_each_steps_events_against_that_steps_sight() {
             "gap {gap}: judged against the last step's sight the verdict flips"
         );
     }
+}
+
+/// The full view and both event-only paths used by a multi-step server wake
+/// must agree, including when the sight cache has repeated endpoint pairs.
+fn assert_projection(sim: &Sim, events: &[Event], expected: &[SeenEvent]) -> rh_sim::Observation {
+    let viewer = PlayerId(1);
+    let plain = observe(sim, viewer, events);
+    assert_eq!(plain.events, expected);
+    let mut cache = rh_sim::SightCache::new();
+    let mut cached = rh_sim::Observation::default();
+    for _ in 0..2 {
+        rh_sim::observe_into_cached(sim, viewer, events, &mut cached, &mut cache);
+        assert_eq!(cached, plain);
+        let mut earlier = Vec::new();
+        rh_sim::observe_events_into(sim, viewer, events, &mut earlier);
+        assert_eq!(earlier, expected);
+        earlier.clear();
+        rh_sim::observe_events_into_cached(sim, viewer, events, &mut earlier, &mut cache);
+        assert_eq!(earlier, expected);
+    }
+    plain
+}
+
+#[test]
+fn an_invisible_pickup_guess_matches_an_absent_container_on_every_player_path() {
+    use rh_sim::{ContainerKind, PickupRefusal::*, WeaponId};
+    let ask = cmd(RawCommand::Pickup { container_id: 1 });
+    for (from, at, raw, visible) in [
+        (
+            Vec2::new(100.0, 272.0),
+            Vec2::new(1200.0, 272.0),
+            TooFar,
+            false,
+        ),
+        // One wall tile hides a close prop; a hand cannot reach it either.
+        (
+            Vec2::new(181.0, 176.0),
+            Vec2::new(228.0, 176.0),
+            Unreachable,
+            false,
+        ),
+        // Within sight but beyond reach, or behind the sight-transparent low fence.
+        (
+            Vec2::new(100.0, 272.0),
+            Vec2::new(180.0, 272.0),
+            TooFar,
+            true,
+        ),
+        (
+            Vec2::new(756.0, 400.0),
+            Vec2::new(812.0, 400.0),
+            Unreachable,
+            true,
+        ),
+    ] {
+        let placements = [
+            place("viewer", FactionId::Holy, from.x, from.y, None),
+            place("other", FactionId::Fire, 96.0, 272.0, None),
+        ];
+        let mut absent = Sim::reset_active(
+            SimConfig::default(),
+            practice_arena(),
+            Secrets::from_seed(1),
+            &placements,
+        );
+        let mut with_item = absent.clone();
+        with_item
+            .seed_weapon_container(ContainerKind::Ground, at, &[WeaponId::Sword])
+            .unwrap();
+        absent.submit(PlayerId(1), ask).unwrap();
+        with_item.submit(PlayerId(1), ask).unwrap();
+        let absent_events = absent.step();
+        let item_events = with_item.step();
+        assert!(item_events.iter().any(|e| matches!(e,Event::PickupRefused{reason,target_visible,..} if *reason == raw && *target_visible == visible)));
+        let no_target = [SeenEvent::PickupRefused {
+            reason: NothingThere,
+        }];
+        let absent_view = assert_projection(&absent, &absent_events, &no_target);
+        let view = assert_projection(
+            &with_item,
+            &item_events,
+            &[SeenEvent::PickupRefused {
+                reason: if visible { raw } else { NothingThere },
+            }],
+        );
+        if !visible {
+            assert_eq!(absent_view, view);
+        }
+        assert!(observe(&with_item, PlayerId(2), &item_events)
+            .events
+            .is_empty());
+    }
+    let sim = world(300.0, 400.0, 1);
+    let event = Event::PickupRefused {
+        id: PlayerId(1),
+        reason: Blocked,
+        target_visible: false,
+    };
+    assert_projection(
+        &sim,
+        &[event],
+        &[SeenEvent::PickupRefused { reason: Blocked }],
+    );
+}
+
+#[test]
+fn a_hidden_hit_or_kill_source_is_redacted_at_its_step_on_every_player_path() {
+    let viewer = PlayerId(1);
+    let victim = PlayerId(2);
+    let source = PlayerId(3);
+    let placements = [
+        place("viewer", FactionId::Holy, 100.0, 272.0, None),
+        place("target", FactionId::Fire, 144.0, 272.0, None),
+        place("source", FactionId::Frost, 1015.0, 272.0, None),
+    ];
+    let mut sim = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(2),
+        &placements,
+    );
+    let attributed = |by| {
+        [
+            Event::Hit {
+                victim,
+                by,
+                amount: 5.0,
+                weapon: Some(rh_sim::WeaponId::Shield),
+                passive: true,
+            },
+            Event::Death {
+                id: victim,
+                x: 144.0,
+                y: 272.0,
+                by,
+            },
+        ]
+    };
+    let seen = |by| {
+        [
+            SeenEvent::Hit {
+                victim,
+                by,
+                amount: 5.0,
+                passive: true,
+            },
+            SeenEvent::Death { id: victim, by },
+        ]
+    };
+    sim.submit(
+        viewer,
+        cmd(RawCommand::Move {
+            x: 450.0,
+            y: 272.0,
+            seq: None,
+        }),
+    )
+    .unwrap();
+    let mut earlier_step = Vec::new();
+    let mut cache = rh_sim::SightCache::new();
+    let events = attributed(Some(source));
+    for (n, by) in [None, Some(source)].into_iter().enumerate() {
+        sim.step();
+        assert_projection(&sim, &events, &seen(by));
+        assert_projection(&sim, &attributed(None), &seen(None));
+        rh_sim::observe_events_into_cached(&sim, viewer, &events, &mut earlier_step, &mut cache);
+        assert_eq!(&earlier_step[n * 2..], &seen(by));
+    }
+    assert_eq!(&earlier_step[..2], &seen(None));
+    // Private events and credit keep the actual source even when the public view redacts it.
+    assert_eq!(events, attributed(Some(source)));
 }

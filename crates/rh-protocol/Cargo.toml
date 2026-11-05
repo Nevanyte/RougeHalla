@@ -1,10 +1,11 @@
 [package]
 name = "rh-protocol"
-description = "Roguehalla wire protocol v1: versioned binary messages between the Rust server and the Unity (C#) client."
+description = "Roguehalla wire protocol v5: versioned binary messages between the Rust server and the Unity (C#) client."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 
 [dependencies]
 

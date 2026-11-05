@@ -47,6 +47,12 @@ pub enum ReplayInput {
         player: PlayerId,
         dropped: bool,
     },
+    /// Run-only scenario setup, replayed through the validated rack constructor.
+    WeaponRack {
+        kind: crate::ContainerKind,
+        at: crate::Vec2,
+        weapons: Vec<crate::WeaponId>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -110,7 +116,17 @@ impl Recorder {
                 ticks: Vec::new(),
                 hashes: Vec::new(),
             },
-            pending: Vec::new(),
+            // Scenario setup happens before the first active step, and is reproduced
+            // before its inputs in the same stable order that assigned container/item ids.
+            pending: sim
+                .containers()
+                .iter()
+                .map(|c| ReplayInput::WeaponRack {
+                    kind: c.kind,
+                    at: c.at,
+                    weapons: c.items.iter().flatten().map(|i| i.weapon).collect(),
+                })
+                .collect(),
         }
     }
     pub fn record(&mut self, input: ReplayInput) {
@@ -132,6 +148,13 @@ impl Recorder {
 /// Applies one recorded input to a sim (shared by the recorder's callers and the replayer).
 pub fn apply_input(sim: &mut Sim, input: &ReplayInput) {
     match *input {
+        ReplayInput::WeaponRack {
+            kind,
+            at,
+            ref weapons,
+        } => {
+            let _ = sim.seed_weapon_container(kind, at, weapons);
+        }
         ReplayInput::Join {
             ref profile,
             faction,

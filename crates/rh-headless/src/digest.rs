@@ -135,6 +135,7 @@ impl OutcomeDigest {
                 by,
                 amount,
                 weapon,
+                passive,
             } => {
                 self.s("hit");
                 self.w(victim.0 as u64);
@@ -143,6 +144,27 @@ impl OutcomeDigest {
                 self.w(by.map_or(u64::MAX, |b| b.0 as u64));
                 self.f(*amount);
                 self.s(weapon.map_or("", |w| w.as_str()));
+                // False is the legacy default, so old non-passive outcomes keep their
+                // fingerprint. The explicit marker still detects a newly passive hit.
+                if *passive {
+                    self.s("passive");
+                }
+            }
+            Event::Block { id, by, weapon } => {
+                self.s("block");
+                self.w(id.0 as u64);
+                self.w(by.0 as u64);
+                self.s(weapon.as_str());
+            }
+            Event::PickupRefused {
+                id,
+                reason,
+                target_visible,
+            } => {
+                self.s("pickupRefused");
+                self.w(id.0 as u64);
+                self.s(reason.message());
+                self.w(*target_visible as u64);
             }
             Event::Stagger { id } => {
                 self.s("stagger");

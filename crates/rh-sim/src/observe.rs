@@ -19,7 +19,7 @@ use crate::map::MASK_SIGHT;
 use crate::sight::SightCache;
 use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 
-pub const OBSERVATION_VERSION: u16 = 2;
+pub const OBSERVATION_VERSION: u16 = 3;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -58,6 +58,17 @@ pub struct ActorView {
 /// An event the observer could perceive.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SeenEvent {
+    Block {
+        id: PlayerId,
+        by: Option<PlayerId>,
+        weapon: WeaponId,
+    },
+    Stagger {
+        id: PlayerId,
+    },
+    PickupRefused {
+        reason: crate::PickupRefusal,
+    },
     Swing {
         by: PlayerId,
         weapon: WeaponId,
@@ -67,9 +78,10 @@ pub enum SeenEvent {
     },
     Hit {
         victim: PlayerId,
-        /// `None`: no fighter dealt it (legacy `SUDDEN_DEATH_KILLER`, the arena's own damage).
+        /// Absent for an unseen source or for damage dealt by the arena.
         by: Option<PlayerId>,
         amount: f64,
+        passive: bool,
     },
     Death {
         id: PlayerId,
@@ -104,14 +116,18 @@ impl SeenEvent {
             SeenEvent::Death { .. } | SeenEvent::Bounty { .. } | SeenEvent::Ended { .. } => {
                 Class::Important
             }
-            SeenEvent::Swing { .. } | SeenEvent::Hit { .. } => Class::Fx,
+            SeenEvent::Swing { .. }
+            | SeenEvent::Hit { .. }
+            | SeenEvent::Block { .. }
+            | SeenEvent::Stagger { .. } => Class::Fx,
+            SeenEvent::PickupRefused { .. } => Class::Important,
         }
     }
 }
 
 /// What an observer is shown of `e`, if anything (whether THIS observer may know of it is [`Event::visibility`]'s call).
 /// Exhaustive, no wildcard: a new [`Event`] variant must say here whether it reaches observers at all.
-fn to_seen(e: &Event) -> Option<SeenEvent> {
+fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> {
     match *e {
         Event::Swing {
             by,
@@ -127,14 +143,43 @@ fn to_seen(e: &Event) -> Option<SeenEvent> {
             a,
         }),
         Event::Hit {
-            victim, by, amount, ..
-        } => Some(SeenEvent::Hit { victim, by, amount }),
-        Event::Death { id, by, .. } => Some(SeenEvent::Death { id, by }),
+            victim,
+            by,
+            amount,
+            passive,
+            ..
+        } => Some(SeenEvent::Hit {
+            victim,
+            by: by.filter(|&source| can_see(source)),
+            amount,
+            passive,
+        }),
+        Event::Block { id, by, weapon } => Some(SeenEvent::Block {
+            id,
+            by: can_see(by).then_some(by),
+            weapon,
+        }),
+        Event::Stagger { id } => Some(SeenEvent::Stagger { id }),
+        Event::PickupRefused {
+            reason,
+            target_visible,
+            ..
+        } => {
+            let reason = if target_visible || reason == crate::PickupRefusal::Blocked {
+                reason
+            } else {
+                crate::PickupRefusal::NothingThere
+            };
+            Some(SeenEvent::PickupRefused { reason })
+        }
+        Event::Death { id, by, .. } => Some(SeenEvent::Death {
+            id,
+            by: by.filter(|&source| can_see(source)),
+        }),
         Event::Bounty { id, bounty } => Some(SeenEvent::Bounty { id, bounty }),
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
         Event::RaidStarted
         | Event::Windup { .. }
-        | Event::Stagger { .. }
         | Event::Gv { .. }
         | Event::RaidEnded
         | Event::Resolved { .. } => None,
@@ -198,12 +243,13 @@ fn filter_events(
     for e in events {
         let shown = match e.visibility() {
             Visibility::Everyone => true,
+            Visibility::Owner(id) => Some(id) == me,
             Visibility::IfSeen(id) => can_see(id),
             Visibility::IfSeenOrBy { seen, by } => can_see(seen) || (by.is_some() && by == me),
             Visibility::ServerOnly => false,
         };
         if shown {
-            if let Some(s) = to_seen(e) {
+            if let Some(s) = to_seen(e, &can_see) {
                 out.push(s);
             }
         }
@@ -453,11 +499,22 @@ mod tests {
             },
             Event::Hit {
                 victim: b,
+                passive: false,
                 by: Some(a),
                 amount: 3.0,
                 weapon: Some(WeaponId::Fists),
             },
             Event::Stagger { id: b },
+            Event::Block {
+                id: b,
+                by: a,
+                weapon: WeaponId::Sword,
+            },
+            Event::PickupRefused {
+                id: b,
+                reason: crate::PickupRefusal::NothingThere,
+                target_visible: false,
+            },
             Event::Death {
                 id: b,
                 x: 1.0,
@@ -499,6 +556,7 @@ mod tests {
     fn a_sourceless_hit_on_an_unseen_victim_is_not_shown_to_an_absent_viewer() {
         let hit = Event::Hit {
             victim: PlayerId(2),
+            passive: false,
             by: None,
             amount: 5.0,
             weapon: None,
@@ -516,7 +574,7 @@ mod tests {
     #[test]
     fn the_declarations_agree_with_what_an_observer_is_shown() {
         for e in every_event() {
-            let seen = to_seen(&e);
+            let seen = to_seen(&e, &|_| true);
             // Observed exactly when it is not server-only.
             assert_eq!(
                 seen.is_some(),

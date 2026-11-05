@@ -115,6 +115,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
                 lobby_seconds: 30.0,
                 fill_seconds: 0.0,
                 pvp_rules: true,
+                weapon_specials: true,
             },
             arena,
         )
@@ -365,6 +366,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
                 lobby_seconds: 30.0,
                 fill_seconds: 0.0,
                 pvp_rules: true,
+                weapon_specials: true,
             },
             arena,
         )

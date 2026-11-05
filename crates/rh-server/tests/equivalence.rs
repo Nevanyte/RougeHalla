@@ -50,6 +50,7 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
         lobby_seconds: 30.0,
         fill_seconds: 0.0,
         pvp_rules: true,
+        weapon_specials: true,
     };
     let cfg = DirectorConfig {
         tick: Duration::from_millis(3),

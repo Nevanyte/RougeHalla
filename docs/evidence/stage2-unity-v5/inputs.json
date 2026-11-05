@@ -1,0 +1,148 @@
+{
+  "timestampUtc": "2026-11-05T05:39:21.665774+00:00",
+  "branch": "optimization_port",
+  "headRevision": "50bb06a79b140ace29f8cb8b7b276d1d39854e22",
+  "workingTreeChanges": true,
+  "protocol": 5,
+  "contentHash": "b0b7169709bd0a83",
+  "editor": "6000.0.85f2",
+  "editorRevision": "b028303d8e7d",
+  "packages": {
+    "com.unity.inputsystem": "1.20.0",
+    "com.unity.pipeline": "0.10.0-exp.1",
+    "com.unity.render-pipelines.universal": "17.0.4",
+    "com.unity.test-framework": "1.6.0",
+    "com.unity.ugui": "2.0.0",
+    "com.unity.modules.accessibility": "1.0.0",
+    "com.unity.modules.animation": "1.0.0",
+    "com.unity.modules.assetbundle": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.imageconversion": "1.0.0",
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.modules.jsonserialize": "1.0.0",
+    "com.unity.modules.particlesystem": "1.0.0",
+    "com.unity.modules.physics": "1.0.0",
+    "com.unity.modules.physics2d": "1.0.0",
+    "com.unity.modules.screencapture": "1.0.0",
+    "com.unity.modules.subsystems": "1.0.0",
+    "com.unity.modules.ui": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0",
+    "com.unity.modules.umbra": "1.0.0",
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.unity.modules.unitywebrequestassetbundle": "1.0.0",
+    "com.unity.modules.unitywebrequestaudio": "1.0.0",
+    "com.unity.modules.unitywebrequesttexture": "1.0.0",
+    "com.unity.modules.unitywebrequestwww": "1.0.0"
+  },
+  "sourceHashes": [
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/RhBuild.cs",
+      "sha256": "d04dc180dda9c579ec6b121bad97be36c5622375c7ba1455b1c136e74cef9f4e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Editor/Roguehalla.Editor.asmdef",
+      "sha256": "146cd98a05155e5110e0c165089e25f2ad9ed46bb6ff6f1f27a56b2636aef09d"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/ClockSync.cs",
+      "sha256": "e0deacfce93eb1cff7cd443945e1b5d7ac9bea433037b3042748ef4b3497b769"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/InputSender.cs",
+      "sha256": "6ffa3967063fc5161604dc5b9bce194bde802c1fc4dca7098a371bb311e3b653"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/LocalMotion.cs",
+      "sha256": "02dab9c99c2d02b8741b593d0d624582c4f5b31f4f76568a093ee866a93ef01e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/RenderClock.cs",
+      "sha256": "12cd0a259d5042928282056248624f09ca6548c5fabaf3b10cc802eade89a95b"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Session.cs",
+      "sha256": "53bff012f88c8790f0a413171dbba975e1226b46841928769bac92a1b7b24e55"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/SnapshotBuffer.cs",
+      "sha256": "69059e4e45ed54c3550f0bb4da41c3d8356c84cba33b461d53a97867e2300798"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Net/Views.cs",
+      "sha256": "170349cd5d097a4f4daf1c144c355cea07c8e043467943ff16736844acef7264"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Codec.cs",
+      "sha256": "dfab973837a14757a3dc7415cc21c649bb0c5bcc4a8bc6f774cc50d1899a863f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/MapBlob.cs",
+      "sha256": "84d0c4396a26026c8c5b464a7d4c8931a19a0cc6e54e7f0d4434a778a306f051"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/Messages.cs",
+      "sha256": "eb309af86d77aa6be4b4afff0e38a48cfc7ed0d9b3e34c73f0810262567c9221"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/Protocol/SnapshotTracker.cs",
+      "sha256": "f5ed1dc6722f06bd3cf2ce55ca2d7267856f67b3d039906a5910e50fa71b224f"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/RoguehallaNet/RoguehallaNet.asmdef",
+      "sha256": "c0a5b8110ba3a3c6ec4e3898b2104ee8d4769d3b0ebbe3a38af026708516d199"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/BakedContent.cs",
+      "sha256": "b90dd8fbc649d750b0f32b11000f69ca9d789a24d0d7df851dbb0d0cef822aad"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Bootstrap.cs",
+      "sha256": "1a74e855718a2bcb3e127bf1ce820f86c0375fe30d814099cfd6818abe338ea0"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/MatchClient.cs",
+      "sha256": "2e34a43384be3028de6a5c790068250e4f266ef46cd43b98439f65512e87806e"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/NativeTransport.cs",
+      "sha256": "0cfcc090ba34fa70b629c0c7e2c259d953cb4c4e63013774a71e7f9596242a3a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/TransportFactory.cs",
+      "sha256": "da71cce01240e1c898f55ec6d93bb3dc38a25fcefd008da6951a8a0fb1ed3b21"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Net/WebGLTransport.cs",
+      "sha256": "0372caff91a144a41699cfef0eead6ec05e16a08088a77d6d819aa28c64b9238"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/Roguehalla.Client.asmdef",
+      "sha256": "0ab78e8711dad083e038ed6f373dcd5dfa66f0aeb0114a56882b591312d1b97a"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ActorView.cs",
+      "sha256": "29627636a44f12ecb5a3fec3b575c94cbce863159d6ea791f567d4129bbfa3bc"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/ArenaView.cs",
+      "sha256": "fe002e0caa5bbe2a5e18e03889c34b195ad01eded5843acbef8266d09a8dce01"
+    },
+    {
+      "path": "client-unity/UnityProject/Assets/Scripts/View/MeshUtil.cs",
+      "sha256": "0fc23689965b6023a1b7994616a70615ebf3af5d6805fbf1352678c8d76db5b2"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/manifest.json",
+      "sha256": "491d7bac39be6d354ace569eb7b458cd918fbec414b7a515160f948c7d819ad3"
+    },
+    {
+      "path": "client-unity/UnityProject/Packages/packages-lock.json",
+      "sha256": "27778a44ea7a9f0b6a2415929b8b0321a898ec5428a3e88ac95f671c08374166"
+    },
+    {
+      "path": "client-unity/UnityProject/ProjectSettings/ProjectVersion.txt",
+      "sha256": "b69d970773b64cd47f5e15302a3f56bd4b4d6f27596e63242c41666cd9df9dec"
+    }
+  ],
+  "serverBinarySha256": "4656d7a3d23b72a5c5634b77b4aee6e1aa7fa6db8fddf1fce6eb976761812c5d"
+}

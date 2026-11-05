@@ -6,13 +6,14 @@ what is left. Read first: [../CONTRACTS.md](../CONTRACTS.md) (invariants `C-*`),
 and section 9 "stale-doc discrepancies": the legacy `docs/legacy/CLAUDE_LEGACY.md` is a map, **code wins**).
 
 **What exists (do not re-plan it):** `rh-sim` slice (core layout: [ADR 0009](../adr/0009-core-layout.md) and `crates/rh-sim/README.md`) = lobby -> active -> ended, movement + A* pathfinding (exact legacy port),
-fists melee with zero-windup player swings and lag-compensated rewind, the damage ledger (PvP factor at card power 0,
+fists/sword/shield/axe melee with zero-windup player swings and lag-compensated rewind, pickup/swap/drop, the damage ledger (PvP factor at card power 0,
 mitigation, PvP hit cap, simultaneous resolution, kill credit, bounty + announcements, GV, win bonus gate), leaving (MIA),
 observations (current sight only), replays and checkpoints; `rh-parity` (the legacy slice scenarios and 300 `findPath` queries match; `cargo run -p rh-parity --bin parity-report`);
-`rh-protocol` v1 + C# mirror; `rh-server` (WSS, admission, resume, drain, limits, interest-managed replication, fill bots on
+`rh-protocol` v5 + C#/JS mirrors; `rh-server` (WSS, admission, resume, drain, limits, interest-managed replication, fill bots on
 the policy seat contract, off-tick result sink, private replays); `rh-persist` (Postgres, fenced leases, idempotent
-results, legacy import); `rh-headless`; `tools/browser-proof`; `client-unity` (RoguehallaNet tested; the Unity project was
-**never opened or compiled**). The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
+results, atomic achievements, legacy import); `rh-headless`; `tools/browser-proof`; `client-unity` (RoguehallaNet tested;
+actual Unity 6000.0.85f2 Web build and browser movement verified, full flows still open). Live loot discovery remains
+P-NET-ITEMS-1. The ported tick order is the table `schedule::PHASES` in `crates/rh-sim/src/schedule.rs` (run by `systems::update_active`); unported
 rows are `Pending("P-...")` entries there, named after the legacy rows, and [../CONTRACTS.md](../CONTRACTS.md) C-TICK describes them.
 
 ## How to pick up work
@@ -34,7 +35,7 @@ never in parallel: `crates/rh-sim/src/schedule.rs` (the tick as data: **never re
 from `Pending("P-XXX-n")` to `Ported(fn)` at their legacy position, and `crates/rh-parity/tests/schedule.rs` fails when a
 table stops matching `parity/schedule/legacy_schedule.json`), `crates/rh-sim/src/content.rs` (and `content_hash`),
 `crates/rh-sim/src/observe.rs` (`OBSERVATION_VERSION`), `crates/rh-protocol/**` + `client-unity/RoguehallaNet/Protocol/**` +
-`protocol/fixtures/v4.json` (`PROTOCOL_VERSION`, golden vectors on both sides), `crates/rh-server/src/wire.rs`,
+`protocol/fixtures/v<PROTOCOL_VERSION>.json` (current v5, golden vectors on both sides), `crates/rh-server/src/wire.rs`,
 `Cargo.toml`/`Cargo.lock`, and `parity/legacy-capture/capture.ts`. **A mechanic is a new file, not an edit of a monolith:**
 `crates/rh-sim/src/systems/<mechanic>.rs` (every entry point `fn(&mut Cx)`) plus its rows in `schedule.rs`; its state goes
 in `state.rs` (hashed and checkpointed), its per-tick working sets in `scratch.rs`, and a hook link it ports is a `fn(&mut
@@ -87,7 +88,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-COMBAT-1 | Items and the other melee weapons: pickup/swap/drop, sword stagger, shield block/riposte, axe shred, weapon specials flag, weapon racks for tests | P-CAPTURE-1 (soft) | Ready packet | server/src/sim/loot.ts, weapons.ts, melee.ts; shared/weapons.ts, interactions.ts |
+| P-COMBAT-1 | Items and the other melee weapons: pickup/swap/drop, sword stagger, shield block/riposte, axe shred, weapon specials flag, weapon racks for tests | P-CAPTURE-1 (soft) | Core implemented and reviewed (Stage 2); live discovery is P-NET-ITEMS-1 | server/src/sim/loot.ts, weapons.ts, melee.ts; shared/weapons.ts, interactions.ts |
 | P-COMBAT-2 | Projectiles: bow/wand, lead aim, wand splash, ball vs arrow, swing vs ball | P-COMBAT-1 (merge first for sword/shield cases) | Ready packet | server/src/sim/projectiles.ts, weapons.ts; shared/weapons.ts, interactions.ts, policies.ts |
 | P-COMBAT-3 | Target lock (wand click) and locked-windup cancel | P-COMBAT-2 | Ready packet | server/src/sim/targeting.ts, weapons.ts; shared/constants.ts |
 | P-COMBAT-4 | Loot world: weapon crates, ground spots, bodies drop weapons, loot tables, `holdBirth` | P-COMBAT-1, P-MAP-1 (crate/ground spots) | Coarse | server/src/sim/loot.ts, lootTables.ts |
@@ -127,9 +128,9 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | In progress (Stage 2, `optimization_port`) | parity/legacy-capture/capture.ts |
+| P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | Implemented and reviewed (Stage 2, `optimization_port`) | parity/legacy-capture/capture.ts |
 | P-CI-1 | Rust CI baseline: fmt, clippy `-D warnings`, `cargo test --workspace` with a Postgres service, parity report, headless smoke, browser proof, dotnet job | none | Done (commit 659c4cf, `.github/workflows/rust.yml`); extras are tracked in P-CAPTURE-1 (re-capture job), P-CI-2, P-UI-10, P-OSS-2 | .github/workflows/deploy.yml (legacy manual deploy; untouched) |
-| P-CI-2 | aarch64 run of the determinism/parity suite (ADR 0007 declares the target, never run) | P-CI-1 | Coarse | none |
+| P-CI-2 | Reproducible aarch64 CI run of determinism/parity | P-CI-1 | Local arm64 suite verified in Stage 2; automated CI coverage remains | none |
 | P-HEAD-1 | Headless benches per mechanic (step cost, TTK, duel harness equivalents) as Rust benches, not Node | each mechanic packet | Coarse | server/bench/*, server/src/harness/ |
 | P-PARITY-2 | Full-map and mob scenarios (real generated map, camps) once their packets land | P-MAP-1, P-MOBS-1 | Coarse | parity/legacy-capture/capture.ts |
 
@@ -148,7 +149,8 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 |---|---|---|---|---|
 | P-NET-1 | Prediction parity: C# pathfinding for predicted walks, render-time attack `t`, MAX_REWIND bound per measured RTT, delta-compression decision by measurement | none | Ready packet | client/src/net/localMotion.ts, localPrediction.ts, remoteDraw.ts; shared/interp.ts |
 | P-NET-2 | Remote draw-ahead and the walk hint (presentation only) | P-NET-1 | Coarse | client/src/net/remoteDraw.ts; server/src/sim/walkHint.ts; docs/PLAYER_PREDICTION.md |
-| P-NET-3 | Protocol additions per mechanic: fx kinds, snapshot fields, observation versions (governance of shared files) | each mechanic packet | Coarse | shared/fxCodec.ts, messages.ts, schema.ts; crates/rh-protocol |
+| P-NET-3 | Protocol additions per mechanic: fx kinds, snapshot fields, observation versions (governance of shared files) | each mechanic packet | In progress (combat v5 verified; later mechanics remain) | shared/fxCodec.ts, messages.ts, schema.ts; crates/rh-protocol |
+| P-NET-ITEMS-1 | Public visible-item discovery, private self inventory, exact observer-local pickup handles, headless/live intake and reliable State/Unity integration | P-COMBAT-1; Unity bootstrap for client stage | Ready packet (review finding; no legitimate live item discovery yet) | crates/rh-sim/src/observe.rs; rh-policy; rh-headless; rh-server; client-unity |
 | P-NET-4 | Uplink pacing: aim gate, hold gate, stall watch, order bucket tuning | P-NET-1 | Coarse | client/src/net/uplinkPace.ts, tickPhase.ts |
 | P-NET-5 | Heartbeat/liveness parity (`beat`, 4500 ms timeout, close codes) | none | Coarse | server/src/rooms/RaidRoom.ts, shared/constants.ts |
 | P-NET-6 | Wire-build/content-hash stale-client UX (426 equivalent, reload prompt) | P-UNITY-1 | Coarse | server/src/guards/clientBuild.ts, client/src/ui/reloadPrompt.ts |
@@ -189,8 +191,8 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-UNITY-1 | Open the Unity project, confirm exact Unity 6 LTS + packages, fix compile errors, first Web build over wss, browser matrix, budgets, adaptive quality | none (Unity install/license now available) | In progress (Stage 2; first real compile/build) | client/src/main.ts, scenes/RaidScene.ts |
-| P-UNITY-PERF-1 | Unity client efficiency, deferred to the later Codex stage by owner decision: instanced remote-actor draws (also fixes a Mesh leak), skip Fx decode without a consumer, allocation-free receive/send path, WebGL compression and size settings, GPU fill settings. Unity-side numbers are code estimates (no Editor was available); the .NET numbers carry a JIT caveat (see the packet) | P-UNITY-1 (F2 and F4 are library-only) | Ready packet ([spec](packets/P-UNITY-PERF-1.md); deferred; F1/F3/F5 Blocked on Unity license) | client/src/render/*, net/connection.ts (behaviour reference only) |
+| P-UNITY-1 | Open the Unity project, confirm exact Unity 6 LTS + packages, fix compile errors, first Web build over wss, browser matrix, budgets, adaptive quality | none (Unity install/license now available) | In progress (real v5 compile/Web build/movement verified; full flows, matrix and budgets remain) | client/src/main.ts, scenes/RaidScene.ts |
+| P-UNITY-PERF-1 | Unity client efficiency: instanced remote-actor draws (also fixes a Mesh leak), skip Fx decode without a consumer, allocation-free receive/send path, WebGL compression and size settings, GPU fill settings. Packet estimates require Editor/browser measurement; the .NET numbers carry a JIT caveat | P-UNITY-1 (F2 and F4 are library-only) | Ready packet ([spec](packets/P-UNITY-PERF-1.md)); Editor/license available in Stage 2 | client/src/render/*, net/connection.ts (behaviour reference only) |
 | P-UI-1 | Hub/menu/profile flows: claim, sign-in links, shop, cosmetics, achievements, leaderboard, faction picker | P-UNITY-1, P-PERSIST-2 | Coarse | client/src/scenes/HubScene.ts, hub/, ui/menu.ts, ui/hub/; shared/cosmetics.ts, achievements.ts |
 | P-UI-2 | Matchmaking and region selection UI, latency probes, queue states | P-UNITY-1, P-HOST-3 | Coarse | client/src/net/lobby.ts, ui/lobbyActivity.ts |
 | P-UI-3 | Reconnect UX (banner, resume, TooSlow, stale client) | P-UNITY-1 | Coarse | client/src/ui/banner.ts, net/errors.ts |
@@ -206,7 +208,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | Ready packet | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
+| P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | In progress (transactional achievements verified; live metadata/renewal/API remain) | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
 | P-PERSIST-3 | Leaderboard months, shop catalog parity, cosmetics `look` word in `rh-protocol` | P-PERSIST-2 | Coarse | ProfileStore.ts, shared/cosmetics.ts |
 | P-PERSIST-4 | Aurora failover and pool-exhaustion tests; retry/backoff sizing | P-PERSIST-2 | Coarse | none (ADR 0006 "not yet tested") |
 | P-PERSIST-5 | New-profile rate caps and passcode equivalents at the edge | P-PERSIST-2, P-HOST-2 | Coarse | server/src/guards/*, config.ts |
@@ -254,9 +256,9 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-OSS-1 | License decision (no LICENSE exists; all package.json are private) | owner | Coarse | docs/legacy/INVENTORY.md section 8 |
+| P-OSS-1 | License decision for project-authored code | owner | Resolved 2026-11-05: MIT; dependency/asset audit remains P-OSS-2 | docs/legacy/INVENTORY.md section 8 |
 | P-OSS-2 | Asset and dependency audit: cargo (`cargo deny`/`about`), NuGet, npm, Unity packages, fonts/art provenance, the top-level `Unfinished code/` directory | P-OSS-1 | Coarse | package.json files |
-| P-OSS-3 | CODE_OF_CONDUCT, SECURITY, issue/PR templates, LICENSE file after the decision (`CONTRIBUTING.md` already exists and is correct for today's setup) | P-OSS-1 | Coarse | CONTRIBUTING.md |
+| P-OSS-3 | CODE_OF_CONDUCT, SECURITY, issue/PR templates (`LICENSE` and `CONTRIBUTING.md` exist) | P-OSS-1 | Coarse | CONTRIBUTING.md |
 | P-OSS-4 | Secret scan and history audit before publishing | P-OSS-1 | Coarse | none |
 
 ### 13. ML seams follow-ups (architecture only)
@@ -285,14 +287,16 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 | R-PERSIST | P-PERSIST-2..5, P-MIG-1 |
 | R-PROC | README rules; packets never claim parity beyond what is compared |
 
-## Open owner questions (collected; not resolved here)
+## Owner answers and remaining questions
+
+Owner confirmed 2026-11-05: MIT for project-authored code; Apple M5 Pro is the initial 60 FPS reference; AWS staging is limited to CAD 20 total in the confirmed sandbox, using rougehalla.com. Production cutover remains a later approval. Other decisions remain as recorded below.
 
 Each packet's "Risk" and "Known traps" name the question that blocks it. The author's consolidated list is in the hand-off
 report of this backlog (license, map re-pin if hashes cannot match, hosting spend authorisation, Unity licence/hardware
 naming, `packages/` retirement, bot perception window, and the doc conflicts noted there).
 
 
-## Open owner decisions (recorded at the end of Stage 1; none resolved; items 15-16 were added by the final efficiency review)
+## Historical Stage 1 owner questions (current answers above take precedence)
 1. License: none is declared (no LICENSE file; every package is `private`).
 2. Whether a re-pin is acceptable if the Rust map generator cannot reproduce the legacy pinned hashes (P-MAP-1).
 3. Spending authorization and a sandbox AWS account for the staging experiment; the 200 matches / 1,600 players scenario stays an assumption.

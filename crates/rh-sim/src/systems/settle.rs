@@ -53,6 +53,7 @@ pub(crate) fn down_player(
     let v = &mut w.players[vi];
     v.down = Some(outcome);
     v.motion.path.clear();
+    v.weapon.shreds.clear();
     release_trigger(v, now);
     v.status = if outcome == Outcome::Died {
         Status::Dead
@@ -74,7 +75,13 @@ pub(crate) fn down_player(
         let bounty = hx.w.players[vi].credit.bounty;
         credit::credit_kill(hx.w, hx.ev, c, victim_bot, bounty);
     }
-    hooks::fire(&mut hx, HookArgs::DropBody { victim: id });
+    hooks::fire(
+        &mut hx,
+        HookArgs::DropBody {
+            victim: id,
+            between_ticks: in_step.is_none(),
+        },
+    );
     if let Some(downed) = in_step {
         downed.push(id);
         return;
@@ -177,6 +184,10 @@ fn end_run(
     };
     w.winner = winner.filter(|id| w.player(*id).is_some());
     w.phase = Phase::Ended;
+    // Legacy abilities.runEnded clears statuses after the final stat mirror fold.
+    for p in &mut w.players {
+        p.weapon.shreds.clear();
+    }
     hooks::fire(&mut Hx { k, w, ev }, HookArgs::RunEnded);
     ev.push(Event::Victory { id: winner, draw });
     ev.push(Event::RaidEnded);

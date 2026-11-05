@@ -861,6 +861,8 @@ fn a_replay_is_equal_right_after_decoding() {
             bot: false,
             at: Vec2::new(150.0, 150.0),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         },
         Placement {
             profile: "b".into(),
@@ -868,6 +870,8 @@ fn a_replay_is_equal_right_after_decoding() {
             bot: true,
             at: Vec2::new(600.0, 400.0),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         },
     ];
     let secrets = Secrets {

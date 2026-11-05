@@ -367,6 +367,7 @@ fn what_the_slice_has_ported_stays_ported() {
         "ledger:openWithDeferred",
         "actionOrder",
         "inputs:players(actionOrder)",
+        "abilities",
         "weapons",
         "hooks:afterWeapons",
         "movement:multipliers(moveModifiers)",
@@ -381,7 +382,9 @@ fn what_the_slice_has_ported_stays_ported() {
         assert!(ported(&t.phases).contains(&want), "phase {want} is ported");
     }
     assert!(ported(&t.systems).contains(&"feed.flushAnnouncements"));
-    for a in ["attack", "release"] {
+    assert!(ported(&t.systems).contains(&"mods.updateMods"));
+    assert!(ported(&t.mod_sources).contains(&"cardHooks.cardSource"));
+    for a in ["attack", "release", "swap", "pickup"] {
         assert!(
             t.actions.iter().any(|x| x.name == a && x.pending.is_none()),
             "action {a} is ported"
@@ -457,7 +460,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
     let t = tables();
     let runs = all_runs();
     let mut ticks = 0;
-    let (mut actions, mut drops) = (0, 0);
+    let (mut actions, mut drops, mut hits) = (0, 0, 0);
     for (name, r) in &runs {
         ticks += r.active_ticks.len();
         if let Err(e) = check_trace(&t, &r.active_ticks) {
@@ -471,11 +474,13 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                     assert_eq!(*l, "loot.dropBody", "{name}");
                     drops += 1;
                 }
+                TraceEntry::Hook("hitLanded", "cardHooks.onHitLanded") => hits += 1,
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
             }
         }
     }
+    assert!(hits > 0, "landed hits ran the registered on-hit hook");
     assert!(ticks > 100, "the fixtures ran {ticks} active ticks");
     assert!(actions > 0, "action handlers ran through the ACTIONS table");
     assert!(

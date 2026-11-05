@@ -56,9 +56,16 @@ pub(crate) enum HookArgs {
     /// The lobby just turned into an active raid: players are placed (legacy `raidStarted(world)`).
     RaidStarted,
     /// A player went down with their run gear still on them (legacy `dropBody(world, p)`).
-    DropBody { victim: PlayerId },
+    DropBody {
+        victim: PlayerId,
+        between_ticks: bool,
+    },
     /// A fighter left the fight for good (legacy `fighterOut(world, id, cause)`).
     FighterOut { id: PlayerId, cause: OutCause },
+    HitLanded {
+        entry: crate::systems::ledger::Entry,
+        amount: f64,
+    },
     /// The run just ended: results are out and the phase is ended (legacy `runEnded(world)`).
     RunEnded,
 }
@@ -69,6 +76,7 @@ impl HookArgs {
             HookArgs::RaidStarted => Hook::RaidStarted,
             HookArgs::DropBody { .. } => Hook::DropBody,
             HookArgs::FighterOut { .. } => Hook::FighterOut,
+            HookArgs::HitLanded { .. } => Hook::HitLanded,
             HookArgs::RunEnded => Hook::RunEnded,
         }
     }

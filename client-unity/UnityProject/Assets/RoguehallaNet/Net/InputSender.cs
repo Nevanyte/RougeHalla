@@ -17,7 +17,7 @@ namespace Roguehalla.Net
         uint _frameSeq;
         byte _orderSeq;
 
-        /// <summary>Commands dropped because a number was not finite (the server would refuse the whole frame).</summary>
+        /// <summary>Commands dropped because a value cannot be encoded (the server would refuse the whole frame).</summary>
         public int Dropped { get; private set; }
 
         /// <summary>Order sequence for Move/Stop: 1..255, never 0 (0 is what Snapshot.me.move_seq holds before any order).</summary>
@@ -44,6 +44,20 @@ namespace Roguehalla.Net
         {
             if (!Finite(a)) { Dropped++; return; }
             _aim = WireCommand.Aim(a);
+        }
+
+        /// <summary>Queues a weapon selection intent; absent slot toggles. The server decides whether it can execute.</summary>
+        public void Swap(byte? slot = null)
+        {
+            if (slot > 1) { Dropped++; return; }
+            _queue.Add(WireCommand.Swap(slot));
+        }
+
+        /// <summary>Queues a pickup intent in order with other actions; inventory and range remain server decisions.</summary>
+        public void Pickup(uint containerId)
+        {
+            if (containerId == 0) { Dropped++; return; }
+            _queue.Add(WireCommand.Pickup(containerId));
         }
 
         public void Attack(float a, double? t) { if (!Finite(a)) { Dropped++; return; } _queue.Add(WireCommand.Attack(a, t)); }

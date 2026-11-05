@@ -27,6 +27,8 @@ pub(crate) struct Entry {
     /// What dealt it; `None` for damage no weapon dealt (an ability, a field).
     pub(crate) weapon: Option<WeaponId>,
     pub(crate) stagger: bool,
+    #[serde(default)]
+    pub(crate) passive: bool,
 }
 
 /// What a payout does when it is paid (legacy `payLater(world, () => ...)`, as typed data). The slice has one: a kill's
@@ -34,6 +36,10 @@ pub(crate) struct Entry {
 /// puts the effect in `World::deferred`, which is the NEXT tick's ledger.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum PayLater {
+    AxeShred {
+        victim: PlayerId,
+        source: PlayerId,
+    },
     /// legacy arena.ts `creditKill`: the kill's GV, bounty and rampage, after every victim took their damage.
     CreditKill {
         by: PlayerId,
@@ -45,6 +51,26 @@ pub(crate) enum PayLater {
 impl PayLater {
     fn pay(self, w: &mut World, ev: &mut Vec<Event>) {
         match self {
+            PayLater::AxeShred { victim, source } => {
+                let now = w.server_time;
+                let Some(i) = w.idx(victim) else { return };
+                let p = &mut w.players[i];
+                if !p.standing() {
+                    return;
+                }
+                let shreds = &mut p.weapon.shreds;
+                if let Some(status) = shreds.iter_mut().find(|s| s.source == source) {
+                    status.value = (status.value + AXE_SHRED_ARMOR).min(AXE_SHRED_CAP);
+                    status.until = now + AXE_SHRED_MS;
+                } else {
+                    shreds.push(crate::state::Shred {
+                        source,
+                        value: AXE_SHRED_ARMOR,
+                        started_at: now,
+                        until: now + AXE_SHRED_MS,
+                    });
+                }
+            }
             PayLater::CreditKill {
                 by,
                 victim_bot,
@@ -219,7 +245,10 @@ fn apply_victim(
         return;
     }
     let vf = crate::content::faction(pass.w.players[vi].vitals.faction);
-    let (armor, shield) = (vf.armor.max(0.0), vf.shield);
+    // The armor mirror was folded after last tick's damage pass. A shred reaching
+    // its boundary now still affects this hit; an axe in this pass takes effect afterwards.
+    let armor = (vf.armor - pass.w.players[vi].weapon.armor_shred).max(0.0);
+    let shield = vf.shield;
     let Bufs {
         idxs,
         amounts,
@@ -265,7 +294,19 @@ fn apply_victim(
                 by: e.by,
                 amount: amounts[j],
                 weapon: e.weapon,
+                passive: e.passive,
             });
+            crate::hooks::fire(
+                &mut crate::hooks::Hx {
+                    k: pass.k,
+                    w: pass.w,
+                    ev: pass.ev,
+                },
+                crate::hooks::HookArgs::HitLanded {
+                    entry: *e,
+                    amount: amounts[j],
+                },
+            );
         }
     }
     if pass.w.players[vi].standing()

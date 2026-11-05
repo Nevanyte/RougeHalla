@@ -1,10 +1,12 @@
 [package]
 name = "rh-headless"
+default-run = "rh-headless"
 description = "Headless runner: the same Sim and the same policy seats as the live server, with no waits."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 
 [dependencies]
 rh-sim = { path = "../rh-sim" }

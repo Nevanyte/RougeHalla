@@ -1,10 +1,12 @@
 [package]
 name = "rh-server"
+default-run = "rh-server"
 description = "Roguehalla live authoritative match server: WSS, admission, pacing, interest-managed replication, hosting lifecycle."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 
 [features]
 default = []

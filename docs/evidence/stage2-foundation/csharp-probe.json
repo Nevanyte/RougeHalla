@@ -1,0 +1,18 @@
+{
+  "measuredAtLocal": "2026-11-05T00:18:31.582907-06:00",
+  "protocol": 5,
+  "contentHash": "b0b7169709bd0a83",
+  "serverSha256": "4656d7a3d23b72a5c5634b77b4aee6e1aa7fa6db8fddf1fce6eb976761812c5d",
+  "scope": "C# console transport over loopback WS; not Unity rendering, public TLS, cloud or performance validation",
+  "report": {
+    "welcome": true,
+    "snapshots": 59,
+    "lastTick": 59,
+    "deltasRefused": 0,
+    "resyncsSent": 0,
+    "rttMsP50": 5.723,
+    "rejects": [],
+    "resultSeen": false,
+    "errors": []
+  }
+}

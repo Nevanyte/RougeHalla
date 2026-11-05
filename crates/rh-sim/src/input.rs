@@ -36,6 +36,12 @@ pub enum RawCommand {
         a: f64,
         t: Option<f64>,
     },
+    Swap {
+        slot: Option<u8>,
+    },
+    Pickup {
+        container_id: u32,
+    },
 }
 
 /// A validated command: points finite and clamped to the world, angles finite and wrapped. Opaque on purpose: the only
@@ -53,11 +59,15 @@ enum Kind {
     Aim { a: f64 },
     Attack { a: f64, t: Option<f64> },
     Release { a: f64, t: Option<f64> },
+    Swap { slot: Option<u8> },
+    Pickup { container_id: u32 },
 }
 
 impl Kind {
     fn raw(self) -> RawCommand {
         match self {
+            Kind::Swap { slot } => RawCommand::Swap { slot },
+            Kind::Pickup { container_id } => RawCommand::Pickup { container_id },
             Kind::Move { x, y, seq } => RawCommand::Move { x, y, seq },
             Kind::Stop { seq } => RawCommand::Stop { seq },
             Kind::Aim { a } => RawCommand::Aim { a },
@@ -93,6 +103,8 @@ pub(crate) fn cmd(raw: RawCommand) -> Command {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reject {
     NonFinite,
+    InvalidSlot,
+    InvalidContainer,
     /// Over the seat's order budget (dropped silently on the wire, counted for diagnostics).
     OverBudget,
     /// The input queue already holds MAX_ACTIONS_PER_TICK actions this tick.
@@ -117,6 +129,12 @@ pub fn validate(raw: RawCommand) -> Result<Command, Reject> {
     };
     let time = |t: Option<f64>| t.filter(|v| v.is_finite());
     Ok(Command(match raw {
+        RawCommand::Swap { slot } if slot.is_some_and(|i| i > 1) => {
+            return Err(Reject::InvalidSlot)
+        }
+        RawCommand::Pickup { container_id: 0 } => return Err(Reject::InvalidContainer),
+        RawCommand::Swap { slot } => Kind::Swap { slot },
+        RawCommand::Pickup { container_id } => Kind::Pickup { container_id },
         RawCommand::Move { x, y, seq } => {
             let (x, y) = clamp_pt(x, y)?;
             Kind::Move { x, y, seq }
@@ -144,6 +162,8 @@ pub(crate) enum MoveCmd {
 pub(crate) enum ActionCmd {
     Attack { a: f64, t: Option<f64> },
     Release { a: f64, t: Option<f64> },
+    Swap { slot: Option<u8> },
+    Pickup { container_id: u32 },
 }
 
 /// The actions queued for one tick: the first `len` of `MAX_ACTIONS_PER_TICK` inline slots (the cap is a constant, so the
@@ -219,6 +239,11 @@ impl InputQueue {
         }
         for act in self.actions.as_slice() {
             match *act {
+                ActionCmd::Swap { slot } => same(RawCommand::Swap { slot }, Kind::Swap { slot })?,
+                ActionCmd::Pickup { container_id } => same(
+                    RawCommand::Pickup { container_id },
+                    Kind::Pickup { container_id },
+                )?,
                 ActionCmd::Attack { a, t } => {
                     same(RawCommand::Attack { a, t }, Kind::Attack { a, t })?
                 }
@@ -297,6 +322,10 @@ impl InputQueue {
             Kind::Aim { a } => {
                 self.aim = Some(a);
                 self.aim_before = self.actions.len();
+            }
+            Kind::Swap { slot } => return self.push_action(ActionCmd::Swap { slot }),
+            Kind::Pickup { container_id } => {
+                return self.push_action(ActionCmd::Pickup { container_id })
             }
             Kind::Attack { a, t } => return self.push_action(ActionCmd::Attack { a, t }),
             Kind::Release { a, t } => return self.push_action(ActionCmd::Release { a, t }),

@@ -102,15 +102,45 @@ fn resolve_swings(cx: &mut Cx) {
             if ray_blocked(&k.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE) {
                 continue;
             }
-            // Shields (block/riposte) need a shield in hand: no item flow in the slice (docs/backlog P-COMBAT-1).
-            let victim = w.core(ti).id;
-            ledger.push(Entry {
-                victim,
+            let target = w.core(ti);
+            let dx = origin.x - at.x;
+            let dy = origin.y - at.y;
+            let blocked = matches!(req.weapon, WeaponId::Sword | WeaponId::Shield)
+                && target.active_weapon() == WeaponId::Shield
+                && ((dx == 0.0 && dy == 0.0)
+                    || angle_between(atan2(dy, dx), target.body.facing)
+                        <= SHIELD_HALF_ARC + ARC_EPS);
+            let mut entry = Entry {
+                victim: target.id,
                 by: Some(req.attacker),
                 packet: req.packet,
                 weapon: Some(req.weapon),
                 stagger: staggers(req.weapon),
-            });
+                passive: false,
+            };
+            if blocked {
+                ev.push(Event::Block {
+                    id: target.id,
+                    by: req.attacker,
+                    weapon: req.weapon,
+                });
+                if req.weapon == WeaponId::Sword {
+                    ledger.push(Entry {
+                        victim: req.attacker,
+                        by: Some(target.id),
+                        packet: Packet {
+                            raw: req.packet.raw * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE,
+                            ..req.packet
+                        },
+                        weapon: Some(WeaponId::Shield),
+                        stagger: false,
+                        passive: true,
+                    });
+                }
+                entry.packet.raw *= 1.0 - SHIELD_BLOCK_SHARE;
+                entry.stagger = false;
+            }
+            ledger.push(entry);
         }
     }
     melee.clear();

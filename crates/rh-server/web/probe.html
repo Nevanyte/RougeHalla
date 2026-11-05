@@ -15,14 +15,14 @@
 <body>
 <main>
   <h1>Roguehalla protocol probe</h1>
-  <p>A browser client for protocol v4 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
+  <p>A browser client for protocol v5 over the browser WebSocket API (the transport a Unity Web build uses). It is a test
   harness for Stage 1, not the game client. Click to walk; hold Space to attack toward the cursor.</p>
   <canvas id="c" width="960" height="640"></canvas>
   <pre id="s">connecting…</pre>
 </main>
 <script>
 "use strict";
-// ---- protocol v4 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v4.json) ----
+// ---- protocol v5 (mirror of crates/rh-protocol; tools/protocol-js/check-vectors.mjs holds this block to protocol/fixtures/v5.json) ----
 class W {
   constructor() { this.b = new Uint8Array(256); this.n = 0; this.v = new DataView(this.b.buffer); }
   need(k) { if (this.n + k > this.b.length) { const nb = new Uint8Array(this.b.length * 2 + k); nb.set(this.b); this.b = nb; this.v = new DataView(nb.buffer); } }
@@ -61,12 +61,12 @@ class R {
   u64() { const x = this.v.getBigUint64(this.p, true); this.p += 8; return x; }
   f32() { const x = this.v.getFloat32(this.p, true); this.p += 4; return x; }
   f64() { const x = this.v.getFloat64(this.p, true); this.p += 8; return x; }
-  bytes(n) { const a = new Uint8Array(this.v.buffer.slice(this.p, this.p + n)); this.p += n; return a; }
+  bytes(n) { if (this.p + n > this.v.byteLength) throw new Error("truncated"); const a = new Uint8Array(this.v.buffer.slice(this.p, this.p + n)); this.p += n; return a; }
   // Strict UTF-8 (fatal), like rh-protocol (String::from_utf8) and the C# mirror.
   str() { const b = this.bytes(this.u8()); try { return UTF8.decode(b); } catch { throw new Error("bad utf-8"); } }
   opt(f) { const t = this.u8(); if (t === 0) return null; if (t === 1) return f(); throw new Error("bad option"); }
 }
-const UTF8 = new TextDecoder("utf-8", { fatal: true });
+const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const MAX_MAP_TILES = 1024 * 1024;
 function fnv(w, h, tiles) {
   let x = 0x811c9dc5;
@@ -75,7 +75,7 @@ function fnv(w, h, tiles) {
   for (const t of tiles) eat(t);
   return x >>> 0;
 }
-const PROTOCOL = 4;
+const PROTOCOL = 5;
 const MAX_TICKET = 448;
 // Quantized remote actors and swings (rh-protocol quant.rs): positions are u16 at 1/8 u, angles u16 over 2 pi read as a signed code.
 const FACING_STEP_F32 = Math.fround(2 * Math.PI / 65536);
@@ -90,19 +90,60 @@ function hello(contentHash, profile, ticket, faction, resume) {
   return w.out();
 }
 function input(seq, cmds) {
+  if (cmds.length > 16) throw new Error("too many commands");
   const w = new W(); w.u8(2); w.u32(seq); w.u16(cmds.length);
   for (const c of cmds) {
     if (c.k === "move") { w.u8(1); w.f32(c.x); w.f32(c.y); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
+    else if (c.k === "swap") { if (c.slot != null && c.slot !== 0 && c.slot !== 1) throw new Error("bad slot"); w.u8(6); if (c.slot == null) w.u8(0); else { w.u8(1); w.u8(c.slot); } }
+    else if (c.k === "pickup") { if (!Number.isInteger(c.containerId) || c.containerId <= 0 || c.containerId > 0xffffffff) throw new Error("bad container"); w.u8(7); w.u32(c.containerId); }
+    else if (c.k === "stop") { w.u8(2); if (c.seq == null) w.u8(0); else { w.u8(1); w.u8(c.seq); } }
+    else if (c.k === "aim") { w.u8(3); w.f32(c.a); }
     else if (c.k === "attack") { w.u8(4); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
-    else if (c.k === "release") { w.u8(5); w.f32(c.a); w.u8(0); }
+    else if (c.k === "release") { w.u8(5); w.f32(c.a); if (c.t == null) w.u8(0); else { w.u8(1); w.f64(c.t); } }
+    else throw new Error("bad command");
   }
   return w.out();
+}
+// Strict client mirror for vector checks; real authority remains validate + Sim::submit.
+function decodeClient(buf) {
+  if (buf.byteLength > 1024) throw new Error("too large");
+  const r = new R(buf), finite = (x) => { if (!Number.isFinite(x)) throw new Error("non-finite"); return x; };
+  let m; const tag = r.u8();
+  if (tag === 1) {
+    m = { t: "hello", protocol: r.u16(), contentHash: r.u64(), build: r.str(), profile: r.str() };
+    const n = r.u16(); if (n > MAX_TICKET) throw new Error("ticket too long");
+    m.ticket = r.bytes(n); m.faction = r.opt(() => r.u8()); m.resume = r.opt(() => r.bytes(16));
+  } else if (tag === 2) {
+    m = { t: "input", seq: r.u32(), cmds: [] }; const n = r.u16();
+    if (n > 16) throw new Error("too many commands");
+    for (let i = 0; i < n; i++) {
+      const k = r.u8(); let c;
+      if (k === 1) c = { k: "move", x: finite(r.f32()), y: finite(r.f32()), seq: r.opt(() => r.u8()) };
+      else if (k === 2) c = { k: "stop", seq: r.opt(() => r.u8()) };
+      else if (k === 3) c = { k: "aim", a: finite(r.f32()) };
+      else if (k === 4 || k === 5) c = { k: k === 4 ? "attack" : "release", a: finite(r.f32()), t: r.opt(() => finite(r.f64())) };
+      else if (k === 6) { const slot = r.opt(() => r.u8()); if (slot !== null && slot > 1) throw new Error("bad slot"); c = { k: "swap", slot }; }
+      else if (k === 7) { const containerId = r.u32(); if (containerId === 0) throw new Error("bad container"); c = { k: "pickup", containerId }; }
+      else throw new Error("bad command");
+      m.cmds.push(c);
+    }
+  } else if (tag === 3) m = { t: "ping", nonce: r.u32(), clientMs: finite(r.f64()) };
+  else if (tag === 4 || tag === 5) m = { t: tag === 4 ? "leave" : "resync" };
+  else throw new Error("bad client tag");
+  if (r.p !== buf.byteLength) throw new Error("trailing bytes");
+  return m;
 }
 function ping(nonce) { const w = new W(); w.u8(3); w.u32(nonce); w.f64(performance.now()); return w.out(); }
 function leave() { return new Uint8Array([4]); }
 // "Send me a full snapshot" (a delta was refused).
 function resync() { return new Uint8Array([5]); }
 function decode(buf) {
+  if (buf.byteLength > 256 * 1024) throw new Error("frame too large");
+  // Refuse a mismatched Welcome before its map is decoded or the tracker changes its baseline.
+  const prefix = new DataView(buf);
+  if (buf.byteLength >= 3 && prefix.getUint8(0) === 0x81 && prefix.getUint16(1, true) !== PROTOCOL) {
+    const e = new Error("protocol mismatch"); e.protocolMismatch = true; throw e;
+  }
   const r = new R(buf);
   const m = decodeBody(r);
   if (r.p !== buf.byteLength) throw new Error("trailing bytes");
@@ -241,6 +282,7 @@ function decodeBody(r) {
       else if (k === 2) e.events.push({ k: "bounty", id: r.u32(), bounty: r.u16() });
       else if (k === 3) e.events.push({ k: "ended", winner: r.opt(() => r.u32()), draw: r.u8() !== 0 });
       else if (k === 4) e.events.push({ k: "result", outcome: r.u8(), place: r.u8(), players: r.u8(), kills: r.u16(), killedBy: r.opt(() => r.str()), gvTotal: r.u32(), gvWin: r.u32(), durationSec: r.u32(), withheld: r.u8() !== 0 });
+      else if (k === 5) { const reason = r.u8(); if (reason < 1 || reason > 5) throw new Error("bad field"); e.events.push({ k: "pickupRefused", reason }); }
       else throw new Error("bad event");
     }
     return e;
@@ -251,7 +293,9 @@ function decodeBody(r) {
     for (let i = 0; i < n; i++) {
       const k = r.u8();
       if (k === 1) { const by = r.varint(), weapon = r.u8(); f.fx.push({ k: "swing", by, weapon, x: dqPos(r.u16()), y: dqPos(r.u16()), a: dqAngle(r.u16()) }); }
-      else if (k === 2) { const victim = r.varint(), by = r.varint(); f.fx.push({ k: "hit", victim, by, amount: r.f32() }); }
+      else if (k === 2) { const victim = r.varint(), by = r.varint(); f.fx.push({ k: "hit", victim, by, amount: r.f32(), passive: r.opt(() => true) !== null }); }
+      else if (k === 3) f.fx.push({ k: "block", id: r.varint(), by: r.varint(), weapon: r.u8() });
+      else if (k === 4) f.fx.push({ k: "stagger", id: r.varint() });
       else throw new Error("bad fx");
     }
     return f;
@@ -360,15 +404,18 @@ async function connect(resume) {
     contentHash = BigInt("0x" + info.contentHash);
   }
   const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
+  let protocolRejected = false;
   ws = new WebSocket(url);
   ws.binaryType = "arraybuffer";
   ws.onopen = () => { P.open = true; P.helloAt = performance.now(); ws.send(hello(contentHash, profile, ticket, faction, resume ? session : null)); };
   ws.onclose = () => { P.open = false; };
   ws.onerror = () => P.errors.push("socket error");
   ws.onmessage = (ev) => {
+    if (protocolRejected) return;
     let m;
     const tag = new Uint8Array(ev.data)[0];
     try { m = tracker.decode(ev.data); } catch (e) {
+      if (e.protocolMismatch) { protocolRejected = true; P.rejects.push({ code: 1, reason: e.message }); ws.close(); return; }
       // A delta that does not apply (or cannot be read) is refused, not fatal: ask for a Full snapshot once and skip deltas until it
       // comes; ask again only if it is RESYNC_RETRY_MS late (the server never drops a request: this covers a lost one).
       if (e.code || tag === 0x87) { P.refused.push(String(e.message)); if (!needFull || performance.now() - resyncAt >= RESYNC_RETRY_MS) askFull(); }

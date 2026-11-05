@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/3";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/4";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -302,6 +302,40 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     if w.tick == u32::MAX {
         return Err("tick is at its maximum".into());
     }
+    let mut last_container = 0;
+    let mut item_ids = std::collections::BTreeSet::new();
+    if w.container_counter
+        > u32::MAX
+            - 2 * crate::constants::MAX_PLAYERS as u32
+                * crate::constants::MAX_ACTIONS_PER_TICK as u32
+        || w.item_counter > u64::from(w.container_counter) * 2
+    {
+        return Err("invalid loot identity counters".into());
+    }
+    for c in &w.containers {
+        if c.id <= last_container
+            || c.id > w.container_counter
+            || !near(c.at.x, c.at.y)
+            || c.born_tick > w.tick.saturating_add(1)
+            || (c.items[0].is_none() && c.items[1].is_some())
+            || (c.kind == crate::ContainerKind::Ground
+                && (c.items[0].is_none() || c.items[1].is_some()))
+            || (c.kind != crate::ContainerKind::Chest && c.opened)
+            || matches!(c.kind, crate::ContainerKind::Body(id) if w.roster.name(id).is_none())
+        {
+            return Err(format!("invalid container {}", c.id));
+        }
+        last_container = c.id;
+        for item in c.items.iter().flatten() {
+            if item.weapon == WeaponId::Fists
+                || item.uid == 0
+                || item.uid > w.item_counter
+                || !item_ids.insert(item.uid)
+            {
+                return Err(format!("invalid item in container {}", c.id));
+            }
+        }
+    }
     for p in w.players.iter() {
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
         // fills the ring.
@@ -346,14 +380,28 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 ));
             }
         }
-        // The slice has no item flow, so nobody carries anything but fists; a bow or wand would reach the ranged attack
-        // path, which is not in the slice (systems/weapons.rs `land`).
-        for item in [p.weapon.weapon0, p.weapon.weapon1].into_iter().flatten() {
-            if item != WeaponId::Fists {
-                return Err(format!("player {}: carries {item:?}", p.id.0));
+        if p.weapon.slot > 1
+            || [p.weapon.weapon0, p.weapon.weapon1].contains(&Some(WeaponId::Fists))
+        {
+            return Err(format!("player {}: invalid carried weapon or slot", p.id.0));
+        }
+        if !(0.0..=crate::constants::AXE_SHRED_CAP).contains(&p.weapon.armor_shred) {
+            return Err(format!("player {}: invalid armor mirror", p.id.0));
+        }
+        for (n, shred) in p.weapon.shreds.iter().enumerate() {
+            if w.roster.name(shred.source).is_none()
+                || p.weapon.shreds[..n]
+                    .iter()
+                    .any(|s| s.source == shred.source)
+                || !(shred.value == crate::constants::AXE_SHRED_ARMOR
+                    || shred.value == crate::constants::AXE_SHRED_CAP)
+                || !(0.0..=w.server_time).contains(&shred.started_at)
+                || !(shred.until > w.server_time
+                    && shred.until <= w.server_time + crate::constants::AXE_SHRED_MS)
+            {
+                return Err(format!("player {}: invalid axe shred", p.id.0));
             }
         }
-        // The same goes for the action in flight: only a fist swing exists in the slice, with finite times and angle.
         if let Some(a) = p.weapon.action {
             let pk = a.packet;
             let finite = [
@@ -367,7 +415,16 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             ]
             .iter()
             .all(|v| v.is_finite());
-            if a.kind != ActionKind::Swing || a.weapon != WeaponId::Fists || !finite {
+            let expected = match a.weapon {
+                WeaponId::Bow => ActionKind::Draw,
+                WeaponId::Wand => ActionKind::Cast,
+                _ => ActionKind::Swing,
+            };
+            if a.kind != expected
+                || a.weapon != p.active_weapon()
+                || !finite
+                || a.lands_at < a.started_at
+            {
                 return Err(format!(
                     "player {}: pending {:?} action with {:?} (or a non-finite value)",
                     p.id.0, a.kind, a.weapon
@@ -527,6 +584,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(200.0, 200.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             },
             Placement {
                 profile: "b".into(),
@@ -534,6 +593,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(600.0, 600.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             },
             Placement {
                 profile: "c".into(),
@@ -541,6 +602,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(900.0, 300.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             },
         ];
         Sim::reset_active(
@@ -1033,15 +1096,15 @@ mod tests {
     }
 
     #[test]
-    fn a_carried_ranged_weapon_is_refused() {
+    fn carried_weapons_restore_but_fists_are_not_an_item() {
         for item in ["Bow", "Wand", "Sword"] {
             let mut json = stepped(5);
             json["world"]["players"][2]["core"]["weapon"]["weapon1"] = item.into();
-            assert!(refusal(&json).contains("carries"), "{item}");
+            assert!(Sim::restore(&json).is_ok(), "{item}");
         }
         let mut json = stepped(5);
         json["world"]["players"][2]["core"]["weapon"]["weapon0"] = "Fists".into();
-        assert!(Sim::restore(&json).is_ok());
+        assert!(refusal(&json).contains("invalid carried"));
     }
 
     /// Every node of a JSON document, as a path of keys and indices.

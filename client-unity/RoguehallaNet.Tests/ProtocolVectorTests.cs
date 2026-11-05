@@ -33,7 +33,7 @@ namespace Roguehalla.Net.Tests
             throw new KeyNotFoundException(name);
         }
 
-        [Test] public void FixtureIsProtocolV4() { Assert.AreEqual(4, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
+        [Test] public void FixtureIsProtocolV5() { Assert.AreEqual(5, Wire.ProtocolVersion); Assert.AreEqual(Wire.ProtocolVersion, Fixture().GetProperty("protocol").GetInt32()); }
 
         [TestCaseSource(nameof(ClientVectors))]
         public void ClientVectorRoundTripsByteForByte(string name, string hex)
@@ -86,6 +86,83 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual("Ünïcode", r.Profile);
             Assert.IsNull(r.Faction);
             CollectionAssert.AreEqual(new byte[] { 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9 }, r.Resume);
+        }
+
+        [TestCase(0)]
+        [TestCase(5)]
+        [TestCase(255)]
+        public void FxEncoderRefusesUndefinedKindsBeforeWriting(int kind)
+        {
+            var fx = new ServerMsg.Fx();
+            fx.List.Add(new WireFx { Kind = FxKind.Stagger, Id = 1 });
+            fx.List.Add(new WireFx { Kind = (FxKind)kind });
+            Assert.Throws<EncodeException>(() => fx.Encode());
+        }
+
+        [TestCase(0)]
+        [TestCase(6)]
+        [TestCase(255)]
+        public void EventsEncoderRefusesUndefinedKindsBeforeWriting(int kind)
+        {
+            var events = new ServerMsg.Events();
+            events.List.Add(new WireEvent { Kind = EventKind.PickupRefused, PickupReason = 1 });
+            events.List.Add(new WireEvent { Kind = (EventKind)kind });
+            Assert.Throws<EncodeException>(() => events.Encode());
+        }
+
+        [Test]
+        public void ServerEncodersEnforceExactFrameAndCountBoundaries()
+        {
+            var fx = new ServerMsg.Fx();
+            var block = new WireFx { Kind = FxKind.Block, Id = 1, By = uint.MaxValue, Weapon = 1 };
+            for (int i = 0; i < 32767; i++) fx.List.Add(block);
+            var stagger = new WireFx { Kind = FxKind.Stagger, Id = 128 }; fx.List.Add(stagger);
+            byte[] max = fx.Encode(); Assert.AreEqual(Wire.MaxServerFrame, max.Length);
+            Assert.DoesNotThrow(() => ServerMsg.Decode(max));
+            stagger.Id = 16384; Assert.Throws<ArgumentException>(() => fx.Encode());
+            var plusOne = new byte[max.Length + 1]; Array.Copy(max, plusOne, max.Length);
+            Assert.AreEqual(DecodeError.TooLarge, Assert.Throws<DecodeException>(() => ServerMsg.Decode(plusOne)).Error);
+            fx.List[fx.List.Count - 1] = block; Assert.Throws<ArgumentException>(() => fx.Encode());
+
+            var events = new ServerMsg.Events();
+            var result = new WireEvent { Kind = EventKind.Result, Result = new WireResult() };
+            for (int i = 0; i < 13105; i++) events.List.Add(result);
+            var last = new WireEvent { Kind = EventKind.Result, Result = new WireResult { KilledBy = new string('a', 16) } };
+            events.List.Add(last);
+            max = events.Encode(); Assert.AreEqual(Wire.MaxServerFrame, max.Length);
+            Assert.DoesNotThrow(() => ServerMsg.Decode(max));
+            last.Result.KilledBy += "a"; Assert.Throws<ArgumentException>(() => events.Encode());
+            events.List.Clear();
+            for (int i = 0; i < ushort.MaxValue; i++) events.List.Add(new WireEvent { Kind = EventKind.PickupRefused, PickupReason = 1 });
+            Assert.DoesNotThrow(() => ServerMsg.Decode(events.Encode()));
+            events.List.Add(new WireEvent { Kind = EventKind.PickupRefused, PickupReason = 1 });
+            Assert.Throws<ArgumentException>(() => events.Encode());
+        }
+
+        [Test]
+        public void UnknownRejectPreservesLeadingBom()
+        {
+            var r = Server<ServerMsg.Reject>("reject_unknown_bom");
+            Assert.AreEqual((ushort)300, (ushort)r.Code); Assert.AreEqual("\uFEFFa", r.Reason);
+        }
+
+        [Test]
+        public void CombatCommandsAndPrivateRefusalsKeepEveryField()
+        {
+            var i = Client<ClientMsg.Input>("input_combat");
+            Assert.AreEqual(4, i.Commands.Count);
+            Assert.AreEqual(CommandKind.Swap, i.Commands[0].Kind); Assert.IsNull(i.Commands[0].Slot);
+            Assert.AreEqual((byte)0, i.Commands[1].Slot); Assert.AreEqual((byte)1, i.Commands[2].Slot);
+            Assert.AreEqual(CommandKind.Pickup, i.Commands[3].Kind); Assert.AreEqual(42u, i.Commands[3].ContainerId);
+            var e = Server<ServerMsg.Events>("pickup_refusals");
+            Assert.AreEqual(5, e.List.Count);
+            for (int n = 0; n < 5; n++) { Assert.AreEqual(EventKind.PickupRefused, e.List[n].Kind); Assert.AreEqual(n + 1, e.List[n].PickupReason); }
+            var f = Server<ServerMsg.Fx>("fx_combat");
+            Assert.AreEqual(uint.MaxValue, f.List[0].By); Assert.AreEqual(1u, f.List[1].By);
+            Assert.IsTrue(f.List[3].Passive); Assert.AreEqual(uint.MaxValue, f.List[3].By);
+            foreach (var bad in new[] { WireCommand.Swap(2), WireCommand.Pickup(0) }) {
+                var input = new ClientMsg.Input(); input.Commands.Add(bad); Assert.Throws<ArgumentException>(() => input.Encode());
+            }
         }
 
         [Test]
@@ -240,8 +317,11 @@ namespace Roguehalla.Net.Tests
                         Assert.AreEqual(it.GetProperty("xBits").GetInt64(), (long)(uint)Bits(f.X)); Assert.AreEqual(it.GetProperty("yBits").GetInt64(), (long)(uint)Bits(f.Y));
                         Assert.AreEqual(it.GetProperty("aBits").GetInt64(), (long)(uint)Bits(f.A));
                     }
+                    else if (it.GetProperty("k").GetString() == "block") { Assert.AreEqual(FxKind.Block, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By); Assert.AreEqual(it.GetProperty("weapon").GetByte(), f.Weapon); }
+                    else if (it.GetProperty("k").GetString() == "stagger") { Assert.AreEqual(FxKind.Stagger, f.Kind); Assert.AreEqual(it.GetProperty("id").GetUInt32(), f.Id); }
                     else
                     {
+                        Assert.AreEqual(it.GetProperty("passive").GetBoolean(), f.Passive);
                         Assert.AreEqual(FxKind.Hit, f.Kind);
                         Assert.AreEqual(it.GetProperty("victim").GetUInt32(), f.Victim); Assert.AreEqual(it.GetProperty("by").GetUInt32(), f.By);
                         Assert.AreEqual(it.GetProperty("amountBits").GetInt64(), (long)(uint)Bits(f.Amount));
@@ -295,6 +375,8 @@ namespace Roguehalla.Net.Tests
             switch (name)
             {
                 case "empty": case "truncated_snapshot": case "self_truncated": case "actor_count_without_actors": want = DecodeError.Truncated; break;
+                case "hit_bad_passive": want = DecodeError.BadTag; break;
+                case "pickup_bad_reason_zero": case "pickup_bad_reason_unknown": want = DecodeError.BadField; break;
                 case "unknown_tag": case "client_tag_from_server": case "fx_bad_tag": want = DecodeError.BadTag; break;
                 case "trailing_byte": case "state_trailing_byte": want = DecodeError.Trailing; break;
                 case "state_truncated": want = DecodeError.Truncated; break;

@@ -5,8 +5,10 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mapFromTiles, mulberry32, TICK_MS, TILE_FLOOR, TILE_LOW, TILE_WALL, type FactionId } from "@raid/shared";
-import { createGameWorld } from "../../packages/server/src/sim/gameplay";
-import { enqueueClientMessage } from "../../packages/server/src/sim/inputs";
+import { createScenarioWorld } from "./world";
+import { markDropped, markReconnected } from "../../packages/server/src/sim/arena";
+import { dropWeapon } from "../../packages/server/src/sim/loot";
+import { createIntake } from "./intake";
 import { addPlayer, removePlayer, step } from "../../packages/server/src/sim/step";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,12 +22,19 @@ function once(): number[] {
   const w = rows[0]!.length, h = rows.length;
   const tiles = new Uint8Array(w * h);
   rows.forEach((r, y) => { for (let x = 0; x < w; x++) tiles[y * w + x] = r[x] === "#" ? TILE_WALL : r[x] === "~" ? TILE_LOW : TILE_FLOOR; });
-  const world = createGameWorld({
-    seed: 11, map: mapFromTiles(w, h, tiles, 11),
-    config: { minPlayers: fx.players.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
-    random: mulberry32(fx.legacyConfig.randomSeed), rewardSalt: [1, 2, 3, 4], questSalt: [5, 6, 7, 8],
-  }, { signatures: false, walkHints: false });
-  for (const p of fx.players) addPlayer(world, p.id, p.id.toUpperCase(), { faction: p.faction as FactionId });
+  if (fx.legacyConfig.mapSeed !== undefined) throw new Error("benchmark requires the captured hand-built map; generated-map workloads are not comparable yet");
+  const world = createScenarioWorld({
+    name, randomSeed: fx.legacyConfig.randomSeed, players: fx.players,
+    modules: fx.legacyConfig.modules,
+    config: fx.legacyConfig.options,
+    secrets: fx.legacyConfig.secrets,
+  } as any, mapFromTiles(w, h, tiles, 11));
+  for (const c of fx.legacyConfig.setup?.containers ?? []) dropWeapon(world, c.at, c.weapon);
+  for (const p of fx.players) {
+    const s = addPlayer(world, p.id, p.id.toUpperCase(), { faction: p.faction as FactionId });
+    s.weapon0 = p.weapon0 ?? "";
+    s.weapon1 = p.weapon1 ?? "";
+  }
   step(world, TICK_MS);
   for (const p of fx.players) {
     const s = world.state.players.get(p.id)!;
@@ -33,17 +42,27 @@ function once(): number[] {
     world.players.get(p.id)!.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
   }
   const out: number[] = [];
+  const intake = createIntake(fx.budgeted ?? false);
   let k = 0;
   for (const t of fx.ticks) {
     while (k < fx.inputs.length && fx.inputs[k].tick <= t.tick) {
       const i = fx.inputs[k++];
       const rt = world.players.get(i.player);
-      if (rt) enqueueClientMessage(rt.inputs, i.type, i.msg);
+      if (!rt) throw new Error(`input for missing player ${i.player}`);
+      const accepted = intake(i.player, rt.inputs, i.type, i.msg, world.state.serverTime, world.config.training);
+      if (accepted !== (i.accepted ?? true)) throw new Error(`tick ${i.tick}: input acceptance differs from fixture`);
     }
     const t0 = process.hrtime.bigint();
     step(world, TICK_MS);
     out.push(Number(process.hrtime.bigint() - t0) / 1000);
-    if (name === "leave_mia" && t.tick === 40) removePlayer(world, "p2");
+    for (const action of fx.actions ?? []) {
+      if (action.tick !== t.tick) continue;
+      const kind = action.type ?? action.kind;
+      if (kind === "remove" || kind === "leave") removePlayer(world, action.player);
+      else if (kind === "drop") markDropped(world, action.player);
+      else if (kind === "reconnect" || kind === "join") markReconnected(world, action.player);
+      else throw new Error(`unmapped action ${kind}`);
+    }
   }
   return out;
 }

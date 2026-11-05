@@ -4,9 +4,9 @@ use rh_protocol::*;
 #[test]
 fn committed_vectors_match_the_encoder() {
     let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v4.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../protocol/fixtures/v5.json");
     let committed = std::fs::read_to_string(&path)
-        .expect("protocol/fixtures/v4.json (run the protocol-fixtures bin)");
+        .expect("protocol/fixtures/v5.json (run the protocol-fixtures bin)");
     assert_eq!(
         committed,
         manifest(),
@@ -53,6 +53,8 @@ fn malformed_server_frames_are_rejected_for_the_documented_reason() {
             "empty" | "truncated_snapshot" | "self_truncated" | "actor_count_without_actors" => {
                 Truncated
             }
+            "pickup_bad_reason_zero" | "pickup_bad_reason_unknown" => BadField("combat"),
+            "hit_bad_passive" => BadTag(2),
             "unknown_tag" | "client_tag_from_server" => BadTag(0),
             "trailing_byte" => Trailing(0),
             "overlong_varint"

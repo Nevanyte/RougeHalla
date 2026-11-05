@@ -41,6 +41,8 @@ fn crowded_8() -> Sim {
             bot: i % 3 == 2,
             at: Vec2::new(400.0 + 28.0 * (i % 4) as f64, 400.0 + 28.0 * (i / 4) as f64),
             hp: None,
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     Sim::reset_active(
@@ -115,6 +117,8 @@ fn short_fuse() -> Sim {
             bot: i % 4 == 3,
             at: Vec2::new(400.0 + 20.0 * (i % 4) as f64, 400.0 + 20.0 * (i / 4) as f64),
             hp: Some(3.0),
+            weapon0: None,
+            weapon1: None,
         })
         .collect();
     Sim::reset_active(
@@ -150,6 +154,40 @@ fn with_queued_inputs() -> Sim {
     s
 }
 
+fn item_fight() -> Sim {
+    let ps = (0..3)
+        .map(|i| Placement {
+            profile: format!("fighter{i}"),
+            faction: FactionId::Fire,
+            bot: false,
+            at: Vec2::new(400.0 + 32.0 * i as f64, 400.0),
+            hp: None,
+            weapon0: Some(rh_sim::WeaponId::Axe),
+            weapon1: Some(rh_sim::WeaponId::Shield),
+        })
+        .collect::<Vec<_>>();
+    let mut sim = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(2),
+        &ps,
+    );
+    sim.seed_weapon_container(
+        rh_sim::ContainerKind::Chest,
+        ps[0].at,
+        &[rh_sim::WeaponId::Wand, rh_sim::WeaponId::Bow],
+    )
+    .unwrap();
+    sim.submit(PlayerId(1), cmd(RawCommand::Attack { a: 0.0, t: None }))
+        .unwrap();
+    sim.step();
+    sim.submit(PlayerId(1), cmd(RawCommand::Swap { slot: Some(1) }))
+        .unwrap();
+    sim.submit(PlayerId(1), cmd(RawCommand::Pickup { container_id: 1 }))
+        .unwrap();
+    sim
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut mid = crowded_8();
     drive(&mut mid, 40);
@@ -158,6 +196,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("item fight", item_fight()),
         ("crowded_8 @40", mid),
         ("crowded_8 @700", late),
         ("short fuse @400", fuse),
@@ -331,6 +370,12 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.item_counter", "item identities are bounded by twice the number of allocated containers"),
+    ("world.containers.*.items.#len", "weapon item storage has two slots"),
+    ("world.containers.*.opened", "only chests can be opened"),
+    ("world.containers.*.id", "container ids are unique and cannot exceed the allocated counter"),
+    ("world.containers.*.items.*.uid", "item ids must be unique, nonzero and allocated"),
+    ("world.players.*.core.weapon.shreds.*.value", "axe stacks use discrete rule values"),
     (
         "statics.arena.map.w",
         "TileMap::new checks w*h == tiles.len()",
@@ -374,8 +419,7 @@ const VALIDATED: &[(&str, &str)] = &[
 fn seeds(pat: &str) -> Vec<Value> {
     match pat {
         "world.players.*.core.weapon.weapon0" | "world.players.*.core.weapon.weapon1" => {
-            // Fists is the only item a restore accepts while the slice has no item flow (checkpoint.rs `check_world`).
-            vec![serde_json::json!("Fists")]
+            vec![serde_json::json!("Axe"), serde_json::json!("Bow")]
         }
         "world.players.*.core.weapon.action" => vec![serde_json::json!({
             "kind": "Swing", "weapon": "Fists", "started_at": 1.0, "lands_at": 2.0, "a": 0.5,
@@ -427,6 +471,8 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
             "Draw",
             "Won",
             "Died",
+            "Chest",
+            "Ground",
         ] {
             s.push(extra.into());
         }
@@ -449,12 +495,25 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
         }
         let secret = p.starts_with("statics.secrets");
         let tries: Vec<Value> = match item.kind {
+            Kind::Leaf if pat == "world.players.*.core.weapon.armor_shred" => {
+                vec![serde_json::json!(3.0), serde_json::json!(6.0)]
+            }
+            Kind::Leaf if pat == "world.players.*.core.weapon.shreds.*.value" => {
+                vec![serde_json::json!(if leaf == &serde_json::json!(3.0) {
+                    6.0
+                } else {
+                    3.0
+                })]
+            }
             Kind::Len | Kind::Subtree => vec![Value::Null],
             Kind::Leaf if leaf.is_null() => {
                 let mut v = pool.get(&pat).cloned().unwrap_or_default();
                 v.extend(seeds(&pat));
                 v.extend([serde_json::json!(1), serde_json::json!(1.5)]);
                 v
+            }
+            Kind::Leaf if pat == "world.containers.*.kind" => {
+                vec![serde_json::json!({"Body": 1}), serde_json::json!("Chest")]
             }
             Kind::Leaf => candidates(leaf, &strings),
         };
@@ -474,6 +533,9 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
         };
         let mut result = None;
         for cand in tries {
+            if item.kind == Kind::Leaf && cand == *leaf {
+                continue;
+            }
             let mut v = base.clone();
             match item.kind {
                 Kind::Len => {

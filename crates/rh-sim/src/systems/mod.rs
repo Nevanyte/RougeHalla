@@ -10,6 +10,7 @@
 
 pub(crate) mod credit;
 pub(crate) mod inputs;
+pub(crate) mod items;
 pub(crate) mod ledger;
 pub(crate) mod lobby;
 pub(crate) mod loot;

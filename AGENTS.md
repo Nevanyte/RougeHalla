@@ -3,9 +3,10 @@
 Roguehalla is being migrated from a TypeScript/Colyseus/Phaser game (`packages/`, still runnable) to a Rust authoritative
 server (`crates/`) and a Unity browser client (`client-unity/`). Stage 1 (foundation) is done; the bulk port is next.
 
-**The core optimization sweep, the efficiency pass and the lock-in pass are complete** ([docs/sweep/README.md](docs/sweep/README.md):
-every package is merged at `b326676`, including protocol v4, ADR 0011). The wire is v4. Next: the backlog bulk port (and
-P-UNITY-PERF-1 in the Codex stage); packets that edit `crates/rh-sim` follow the core layout rules in their write scopes
+**The core optimization sweep, the efficiency pass and the lock-in pass are complete** ([docs/sweep/README.md](docs/sweep/README.md),
+merged at `b326676`). Stage 2 on `optimization_port` adds melee/items, capture coverage, protocol 5 and a verified Unity Web
+bootstrap. Full gameplay and client flows remain in progress; use the current checkpoint in `docs/MIGRATION.md`.
+Packets that edit `crates/rh-sim` follow the core layout rules in their write scopes
 ([docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)).
 
 Read in this order: [docs/MIGRATION.md](docs/MIGRATION.md) (state, checkpoint, commands, results), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md),

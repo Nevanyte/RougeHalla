@@ -76,6 +76,7 @@ async fn main() {
         lobby_seconds: num("--lobby-seconds", 30.0),
         fill_seconds: num("--fill-seconds", 5.0),
         pvp_rules: true,
+        weapon_specials: true,
     };
     let cfg = DirectorConfig {
         max_rooms: num("--max-rooms", 16.0) as usize,

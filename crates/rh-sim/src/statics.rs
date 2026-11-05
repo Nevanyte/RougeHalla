@@ -77,6 +77,13 @@ pub struct SimConfig {
     pub fill_seconds: f64,
     /// The PvP factor and hit cap (legacy `pvpRules`). A live run never turns it off.
     pub pvp_rules: bool,
+    /// Enables the axe's shred and the wand's splash in the legacy rules.
+    #[serde(default = "specials_enabled")]
+    pub weapon_specials: bool,
+}
+
+fn specials_enabled() -> bool {
+    true
 }
 
 impl Default for SimConfig {
@@ -86,6 +93,7 @@ impl Default for SimConfig {
             lobby_seconds: 30.0,
             fill_seconds: 5.0,
             pvp_rules: true,
+            weapon_specials: true,
         }
     }
 }

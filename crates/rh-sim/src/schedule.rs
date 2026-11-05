@@ -25,7 +25,7 @@ use crate::hooks::LinkFn;
 use crate::input::ActionCmd;
 use crate::state::World;
 use crate::statics::MatchStatic;
-use crate::systems::{credit, inputs, ledger, loot, melee, movement, settle, weapons, Cx};
+use crate::systems::{credit, inputs, items, ledger, loot, melee, movement, settle, weapons, Cx};
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Gates: which rows a world has
@@ -455,6 +455,7 @@ pub(crate) struct Plan {
     pub(crate) before_damage: Compiled<SystemFn, 3>,
     pub(crate) systems: Compiled<SystemFn, 24>,
     pub(crate) move_modifiers: Compiled<MoveFn, 7>,
+    pub(crate) mod_sources: Compiled<SourceFn, 6>,
     /// Indexed by [`ActionId`]; `None` is pending or gated off (the command is dropped).
     actions: [Option<ActionFn>; 13],
 }
@@ -463,6 +464,9 @@ fn no_phase(_: &mut Cx) -> Flow {
     Flow::Continue
 }
 fn no_system(_: &mut Cx) {}
+fn no_source(_: &World, _: &FighterCore) -> Option<ModContribution> {
+    None
+}
 fn no_modifier(_: &World, _: &FighterCore, _: f64) -> f64 {
     1.0
 }
@@ -485,6 +489,7 @@ impl Plan {
             before_damage: Compiled::compile(&BEFORE_DAMAGE, g, no_system),
             systems: Compiled::compile(&SYSTEMS, g, no_system),
             move_modifiers: Compiled::compile(&MOVE_MODIFIERS, g, no_modifier),
+            mod_sources: Compiled::compile(&MOD_SOURCES, g, no_source),
             actions,
         }
     }
@@ -585,7 +590,11 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
         Flow::Continue
     }),
     pending("inputs:mobs(insertionOrder)", Gate::Always, "P-MOBS-1"),
-    pending("abilities", Gate::Always, "P-ABIL-1"),
+    // The axe is the first ported status. P-ABIL-1 extends this phase with casts.
+    ported("abilities", Gate::Always, |cx| {
+        items::expire_shred(cx);
+        Flow::Continue
+    }),
     pending("targets", Gate::Always, "P-COMBAT-3"),
     ported("weapons", Gate::Always, |cx| {
         weapons::update(cx);
@@ -666,7 +675,8 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
     pending("plagueCorpses.<anonymous>", Gate::Signatures, "P-FACTION-3"),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
-    pending("mods.updateMods", Gate::Always, "P-CARDS-1"),
+    // The only ported stat source is axe shred. P-CARDS-1 extends this fold with cards.
+    ported("mods.updateMods", Gate::Always, items::fold_armor),
     pending(
         "plagueZombies.updateZombies",
         Gate::Signatures,
@@ -701,15 +711,12 @@ static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
     ),
     pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
 ];
-/// Legacy `modSources` (`world.modSources`, the stat-mod sources `mods.updateMods` folds). A table only: the loop that
-/// consumes it is `mods.updateMods` (P-CARDS-1, the `mods.updateMods` row of [`SYSTEMS`]), and the first packet that flips a
-/// row here adds that loop with it; until then flipping a row would run nothing, so the conformance test only holds the
-/// names, order and gates.
+/// Legacy stat modifier sources, folded after damage in registration order.
 static MOD_SOURCES: [Item<SourceFn>; 6] = [
     pending("factions.markTaxSource", Gate::Signatures, "P-FACTION-1"),
     pending("abilities.attackSlowSource", Gate::Always, "P-STATUS-1"),
     pending("consumables.<anonymous>", Gate::Always, "P-CONS-1"),
-    pending("cardHooks.cardSource", Gate::Always, "P-CARDS-1"),
+    ported("cardHooks.cardSource", Gate::Always, items::shred_source),
     pending("fireRoam.roamingSpeed", Gate::Signatures, "P-FACTION-2"),
     pending(
         "bruiserPassives.frozenJustice",
@@ -725,7 +732,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "pickup",
         "loot",
         Gate::Always,
-        Run::Pending("P-COMBAT-1"),
+        Run::Ported(items::pickup),
     ),
     action(
         ActionId::Attack,
@@ -746,7 +753,7 @@ pub(crate) static ACTIONS: [ActionRow; 13] = [
         "swap",
         "weapons",
         Gate::Always,
-        Run::Pending("P-COMBAT-1"),
+        Run::Ported(items::swap),
     ),
     action(
         ActionId::Target,
@@ -828,7 +835,7 @@ static DROP_BODY: [Link; 4] = [
         "loot.dropBody",
         Mode::Replace,
         Gate::Always,
-        loot::drop_body,
+        items::drop_body,
     ),
     pending_link(
         "training.<arrow>",
@@ -1198,11 +1205,11 @@ static CAMP_CLEARED: [Link; 3] = [
     ),
 ];
 static HIT_LANDED: [Link; 4] = [
-    pending_link(
+    ported_link(
         "cardHooks.onHitLanded",
         Mode::Append,
         Gate::Always,
-        "P-CARDS-1",
+        items::hit_landed,
     ),
     pending_link(
         "fireRoam.onHitLanded",
@@ -1531,9 +1538,9 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The slice's world: the capture plan runs 14 phases and one registered system.
-        assert_eq!(CAPTURE_PLAN.phases.live().len(), 14);
-        assert_eq!(CAPTURE_PLAN.systems.live().len(), 1);
+        // The slice's world: the capture plan runs 15 phases and two registered systems.
+        assert_eq!(CAPTURE_PLAN.phases.live().len(), 15);
+        assert_eq!(CAPTURE_PLAN.systems.live().len(), 2);
         // Training swaps the settle for a pending one: no ported settle in that world yet.
         assert!(!TRAINING_PLAN
             .phases
@@ -1561,6 +1568,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(300.0 + 40.0 * i as f64, 300.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             })
             .collect();
         crate::Sim::reset_active(

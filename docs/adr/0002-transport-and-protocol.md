@@ -8,8 +8,8 @@ schema reflection.
 
 **Decision.**
 - Transport: WebSocket binary frames over TLS (`wss://`); one protocol message per frame; TCP's reliability and order.
-- Protocol: `rh-protocol` (v4 since the last addendum below), hand-written little-endian encoding mirrored byte for byte in C#
-  (`client-unity/RoguehallaNet/Protocol`) and pinned by golden vectors (`protocol/fixtures/v4.json` now; the v1 to v3 history is in the addenda) tested on both sides (and by the JS probe decoder).
+- Protocol: `rh-protocol` (currently v5, [ADR 0012](0012-combat-protocol-v5.md)), hand-written little-endian encoding mirrored byte for byte in C#
+  (`client-unity/RoguehallaNet/Protocol`) and pinned by current-version golden vectors (`protocol/fixtures/v5.json`; earlier versions are in Git history) tested on both sides (and by the JS probe decoder).
 - Do **not** reimplement Colyseus. Both ends migrate; the legacy stack keeps its own protocol until it is retired.
 - Replication: each client gets its OWN observation every tick (`rh_sim::observe`): itself in full, others only while in
   sight. This is the interest management the legacy Known TODOs asked for, and it is exactly what policies observe.
@@ -115,3 +115,9 @@ for the base and spare at `MAX_ACTORS`, the bound is a few tens of KB).
 (unknown bits refused); status and phase are ordinary fields with defaults; actors carry a `kind` (0 = player); `State` (0x88) is
 reserved for keyed state (empty today); the Hello carries `ticket: bytes` instead of `token: str`; a resumed seat is re-sent its own
 `Result`. Measured: 305 -> 285 bytes per player per second at 8 players.
+
+## Addendum: protocol v5 (Stage 2 combat)
+
+The current server speaks v5. [ADR 0012](0012-combat-protocol-v5.md) adds Swap/Pickup inputs, passive Hit, Block/Stagger
+effects and owner-only pickup refusals. The frozen cross-version Hello/Reject envelope remains unchanged. Current vectors
+are `protocol/fixtures/v5.json`; the v4 statements above record that earlier decision.

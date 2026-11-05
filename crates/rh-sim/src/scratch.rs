@@ -75,7 +75,7 @@ impl Default for TickScratch {
     /// swing on every other), so a normal match never grows a buffer: not even on its first crowded tick. Later packets
     /// that add actors (mobs) grow them once, to their high-water mark.
     fn default() -> Self {
-        let (p, hits) = (MAX_PLAYERS, MAX_PLAYERS * MAX_PLAYERS);
+        let (p, hits) = (MAX_PLAYERS, 2 * MAX_PLAYERS * MAX_PLAYERS);
         Self {
             bounty_at_tick_start: Vec::with_capacity(p),
             action_order: Vec::with_capacity(p),

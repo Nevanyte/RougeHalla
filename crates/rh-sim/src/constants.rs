@@ -76,6 +76,13 @@ content! {
     ATTACK_BUFFER_MS: f64 = 150.0, "ms";
     AIM_STALE_MS: f64 = 1000.0, "ms";
     STAGGER_IMMUNITY_SECONDS: f64 = 1.1, "s";
+    INTERACT_RANGE: f64 = 56.0, "u";
+    SHIELD_HALF_ARC: f64 = std::f64::consts::PI / 3.0, "rad";
+    SHIELD_BLOCK_SHARE: f64 = 0.07, "fraction";
+    RIPOSTE_SHARE: f64 = 0.5, "fraction";
+    AXE_SHRED_ARMOR: f64 = 3.0, "armor";
+    AXE_SHRED_CAP: f64 = 6.0, "armor";
+    AXE_SHRED_MS: f64 = 3000.0, "ms";
     SWAP_SECONDS: f64 = 0.25, "s";
     MOVE_MULT_FLOOR: f64 = 0.35, "factor";
     /// A cooldown or windup that ends exactly on a tick is due on that tick whatever way float noise falls.

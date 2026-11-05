@@ -4,7 +4,7 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
-## Stage 2 working checkpoint (2026-11-04)
+## Stage 2 working checkpoint (2026-11-05)
 
 Implementation branch: **`optimization_port`**, starting at `e7e85338` (the closing Stage 1 documentation merge).
 Implementation checkout: a separate local worktree; the original `Fix-autos` checkout and its untracked prompt files are
@@ -32,10 +32,12 @@ edits and commits belong to `optimization_port`.
 - Practice domain: **`rougehalla.com`**. Existing Cloudflare authentication can read its active zone and reports DNS-edit
   capability. No DNS write has been attempted. Production **`play.roguehalla.com`** must remain unchanged; production
   cutover requires later owner authorization.
-- Unity Personal sign-in/license and Web module are available. The project pins an old `6000.0.23f1`; the Unity worker is
-  installing the current 6.0 LTS patch `6000.0.85f2` to preserve the URP 17.0 baseline. Actual compile/build is in progress.
+- Unity Personal sign-in/license and Web module are available. The project now pins Unity `6000.0.85f2` (revision
+  `b028303d8e7d`), with a resolved package lock and URP 17.0.4. Both the first protocol-4 bootstrap and the rebuilt
+  protocol-5 IL2CPP/WebGL player compiled and ran in Chromium. Evidence below keeps these two revisions distinct.
 - Installed local prerequisites: Rust/Cargo 1.97.0 (rustfmt/clippy), .NET SDK 8.0.427, PostgreSQL 16.15. Docker is running.
   The temporary PostgreSQL cluster listens on loopback only; its state/credentials are kept outside the repository.
+- Owner choices confirmed 2026-11-05: **MIT** for project-authored code, and **Apple M5 Pro** as the initial 60 FPS reference. Third-party/Unity terms remain separate, and the performance target is not yet verified under full gameplay.
 - `caffeinate -i` is running for this work and is to be stopped after work completes.
 
 ### Execution and current evidence
@@ -47,20 +49,28 @@ overrides through the actual delegation tool. The config keys were checked again
 [official configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) and the installed CLI
 (`0.166.0-alpha.6`): `codex app-server --strict-config --print-startup-config` exited 0, and `codex debug models` confirmed
 Luna, Sol 6.1 and Astra plus their low/medium/high effort levels. No global model or permission settings are changed.
-Normally two workers are active; the initial extra validation worker runs only frozen-baseline checks independently
-while the Unity Editor installs and capture code is developed.
+Normally two workers are active; additional independent validation and critical-review workers are used when their
+exclusive scopes allow useful parallel work. Routine test setup used Luna/low; combat and independent reviews used
+Astra/high. Runtime-only model overrides are explicit; no unsupported global settings were persisted.
 
 | Work | Current status | Next evidence |
 |---|---|---|
-| Frozen foundation baseline | Partial pass on native arm64 at `e7e85338`; both workspace and PostgreSQL server runs fail `live::draining_refuses_new_players_and_lets_the_match_finish` (13 other live tests pass). Diagnosis in progress; full foundation gate is not green. | fmt/clippy passed; parity 13 slice scenarios + 300 paths MATCH; C# 199 passed; JS 2,078 checks passed; Unity library copy current; `/info` reports protocol 4 and content hash `f47c30e6c8ca3493`. Complete remaining test targets and browser proof. |
-| macOS PG helper portability | Empty optional command-prefix arrays failed under Apple Bash 3.2; helpers now use a root-aware function | Passed fresh start, SQL query, existing-cluster reuse, stop and state-file cleanup under `/bin/bash` with real PG 16.15. |
-| P-CAPTURE-1 | In progress | Generic fail-closed event comparison, catalogue, recapture CI, unchanged existing behavior |
-| P-UNITY-1 | In progress | Exact Editor/package lock, compile, actual Web build and browser smoke |
+| Frozen foundation baseline | `e7e85338` was not fully green: the drain test sent attacks in the lobby, then both clients timed out. The fixed test waits for active spawns, aims correctly, checks both results and termination; a disconnect-on-drain mutation fails it. | Baseline fmt/clippy, 13 slice scenarios + 300 paths, C# 199 and JS 2,078 passed. A follow-up all-feature run passed 361 tests/1 ignored with only the known drain test filtered. Baseline practice headless: 4/4 matches terminated (2,286 ticks), replay verified (737 steps); large map: 4/4 intentionally truncated at 4,000 ticks. |
+| PG helper portability | Empty command-prefix arrays failed under Apple Bash 3.2; root status checks also missed a running root-owned cluster. Both execution paths now use the correct OS user. | `tools/pgtest/smoke.sh` passed start/query/same URL and postmaster PID reuse/stop/cleanup on macOS Bash 3.2 + PG 16.15 and as root in a throwaway Linux container + PG 15. No host service installed. |
+| P-CAPTURE-1 | Implemented, critically reviewed; no ignored unknown event/input/action or unconsumed timeline records. Real production order-budget defaults and acceptance outcomes are compared. | 8 TS helper checks, all Rust harness checks, exact fresh output inventory comparison; Linux x64 Node 22.23.4 recaptures reproduce. Every old gameplay value is preserved apart from provenance and explicitly added event/setup fields. |
+| P-COMBAT-1 core | Melee weapons, pickup/swap/drop, shield/riposte, sword stagger, per-source axe shred, replay/checkpoint and steady allocations implemented. | Six new legacy cases: 2,698 ticks, 1,162 events, 12 results; max position error 0, max HP error 5e-7. 20 compared scenarios and 300 paths MATCH; 15 scenarios remain capture-only. A 7% -> 9% shield mutation fails at tick 3. Checkpoint is `/4`, observation version is 3, content hash `b0b7169709bd0a83`. |
+| Privacy corrections | Hidden pickup targets no longer differ from absent targets in owner feedback; unseen hit and death sources are redacted. Full authoritative event reasons and credit remain unchanged. | Differential absent/far/wall-hidden tests, LOW-fence and visible-distant positives, full/cached/earlier-step event paths; reverting projection rules fails the new tests. Independent recheck passed all 8 observation tests. |
+| P-NET-3 combat transport | Protocol 5, ADR 0012, actual Swap/Pickup input-queue methods, passive Hit, Block/Stagger and private refusal events implemented in Rust/C#/JS. Cross-version envelope unchanged. | 73 Rust protocol tests, 220 C# tests, 3,344 JS checks, 9 wire tests, source-copy check and actual Chromium WSS proof passed. Oversize frames, unknown enum encodings, BOM preservation and wrong-version Welcome were corrected and independently rechecked. |
+| P-PERSIST-2 store portion | Achievements and cosmetics now commit atomically with fenced/idempotent results, including concurrent retry and crash rollback. | 26 catalog entries and 83 legacy evaluator observations agree; 32 PG tests passed. Live faction/ending-weapon metadata, lease renewal, crash recovery and REST routes remain open. |
+| P-UNITY-1 bootstrap | Exact Editor and packages, real compile, Web build and Chromium movement over HTTP/WS and HTTPS/WSS passed. The full client packet is still open. | Protocol-4 bootstrap is historical. Current protocol-5 build is 53,892,988 bytes; each smoke receives 54 snapshots (ticks 2->53), move sequence 0->16 and changed authoritative position, with no page/console errors. Four ReadPixels warnings per run; no performance guarantee. See `docs/evidence/stage2-unity-v5/`. |
+| Integrated native gate | `cargo test --workspace --all-features`: 395 passed, 0 failed, 1 intentionally ignored heap measurement, no filtered tests. Full-workspace Clippy with warnings denied and formatting passed. | A second test-setup race was corrected by waiting for three measured overload wakes under the original 3-second deadline; 10/10 targeted and 50/50 server library tests passed before the integrated run. Default features: 386 passed, 0 failed, 1 ignored and none filtered; default-feature Clippy also passed. |
+| Live loot/inventory integration | **Open**, P-NET-ITEMS-1. The core can pick a trusted fixture target, but clients/policies still need a public discovery path. | Implement observer-local exact-target handles, visible props and owner inventory; test hidden-ID/count noninterference, actual headless and socket pickup, reconnect/resync and Unity UI. Do not call the current slice the complete playable port. |
 | Full game / cloud / release gates | Not achieved | Remaining backlog and Stage 2 prompt still apply in full; baseline checks do not imply full-game parity or release readiness |
 
-Next dependency-ready implementation: integrate and review P-CAPTURE-1, then P-COMBAT-1; continue Unity build validation
-in parallel. Shared schema/status/lockfile changes remain coordinator-owned. Later packets must update this checkpoint
-with exact validation, failures and next ready work before interruption.
+Next: land the reviewed integration batch, implement P-NET-ITEMS-1's shared public observation/intake path, then its reliable
+State/Unity integration; P-COMBAT-2 projectiles and P-PERSIST-2 remaining work are subsequent dependency-ready packets.
+All gameplay/core, Unity full-flow, browser-matrix/performance, AWS lifecycle/scaling, migration and release requirements
+from the Stage 2 prompt remain in scope. No cloud staging or production release is implied by these local gates.
 
 ## Checkpoint (end of Stage 1)
 

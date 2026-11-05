@@ -18,14 +18,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  FACTIONS, findPath, generateMap, mapFromTiles, mapHashU32, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL,
+  decodeFlat, FACTIONS, findPath, generateMap, mapFromTiles, mapHashU32, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL,
   type FactionId, type GameMap, type Vec2,
 } from "@raid/shared";
-import { createGameWorld } from "../../packages/server/src/sim/gameplay";
-import { enqueueClientMessage } from "../../packages/server/src/sim/inputs";
+import { dropWeapon } from "../../packages/server/src/sim/loot";
+import { createIntake } from "./intake";
 import { addPlayer, removePlayer, step } from "../../packages/server/src/sim/step";
 import { markDropped, markReconnected } from "../../packages/server/src/sim/arena";
-import type { SimEvent, World } from "../../packages/server/src/sim/world";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../..");
@@ -64,64 +63,24 @@ function rowsOf(map: GameMap): string[] {
   return out;
 }
 
-interface PlayerDef { id: string; faction: FactionId; at: Vec2; hp?: number; weapon0?: string }
-interface Input { tick: number; player: string; type: string; msg: unknown }
-interface Ctx { world: World; tick: number; send: (player: string, type: string, msg: unknown) => void; pos: (id: string) => Vec2 }
-interface Scenario {
-  name: string;
-  description: string;
-  /** Which parts the Rust slice is expected to reproduce (the harness reads this). */
-  parity: "slice" | "capture-only";
-  rows: string[];
-  randomSeed: number;
-  players: PlayerDef[];
-  maxTicks: number;
-  /** Called before each step with the tick about to run. */
-  drive: (ctx: Ctx) => void;
-  /** Out-of-band actions applied between steps, after the step of `tick` (as the Room does): a leave, a dropped connection,
-   * a reconnect. Recorded in the fixture's `actions` so the Rust harness replays them. */
-  actions?: Array<{ tick: number; kind: "remove" | "drop" | "reconnect"; player: string }>;
-}
-
-const r6 = (v: number): number => Math.round(v * 1e6) / 1e6;
-
-function canonicalEvent(e: SimEvent): unknown | null {
-  if (e.type === "resolved") return null; // reported in `results`
-  if (e.type !== "fx") return e.type === "raidEnded" ? { kind: "raidEnded" } : null;
-  const fx = e.fx;
-  switch (fx.kind) {
-    case "hit": return { kind: "hit", id: fx.id, by: fx.by, amount: r6(fx.amount), weapon: fx.weapon, ...(fx.sig ? { sig: fx.sig } : {}), ...(fx.passive ? { passive: true } : {}) };
-    case "swing": return { kind: "swing", by: fx.by, weapon: fx.weapon, x: r6(fx.x), y: r6(fx.y), a: r6(fx.a) };
-    case "death": return { kind: "death", id: fx.id, by: fx.by };
-    case "victory": return { kind: "victory", id: fx.id, draw: fx.draw };
-    case "windup": return { kind: "windup", by: fx.by, weapon: fx.weapon };
-    case "block": return { kind: "block", id: fx.id, by: fx.by };
-    case "stagger": return { kind: "stagger", id: fx.id };
-    case "cancel": return { kind: "cancel", id: fx.id };
-    default: return { kind: fx.kind };
-  }
-}
+import { canonicalEvent, canonicalJson, r6 } from "./canon";
+import { createScenarioWorld, DEFAULT_MODULES } from "./world";
+import type { Scenario, Input, Ctx } from "./scenarios/types";
+import { meleeScenarios } from "./scenarios/melee";
+import { catalogue } from "./scenarios/catalogue";
 
 function run(sc: Scenario): unknown {
-  const map = parseRows(sc.rows);
-  const world = createGameWorld({
-    seed: 11,
-    map,
-    config: {
-      minPlayers: sc.players.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
-      suddenDeathSeconds: 3600,
-    },
-    random: mulberry32(sc.randomSeed),
-    rewardSalt: [1, 2, 3, 4],
-    questSalt: [5, 6, 7, 8],
-  }, { signatures: false, walkHints: false });
+  const map = sc.generatedMapSeed === undefined ? parseRows(sc.rows) : generateMap(sc.generatedMapSeed);
+  const world = createScenarioWorld(sc, map);
+  for (const c of sc.containers ?? []) dropWeapon(world, c.at, c.weapon);
   for (const p of sc.players) {
     const s = addPlayer(world, p.id, p.id.toUpperCase(), { faction: p.faction });
     s.weapon0 = p.weapon0 ?? "";
+    s.weapon1 = p.weapon1 ?? "";
   }
   // The lobby closes on the first step (minPlayers reached, fillSeconds 0): the run starts there.
   const startEvents = step(world, TICK_MS);
-  if (world.state.phase !== "active") throw new Error(`${sc.name}: run did not start`);
+  if (world.state.phase !== "active" && world.state.phase !== "planning") throw new Error(`${sc.name}: run did not start`);
   for (const p of sc.players) {
     const s = world.state.players.get(p.id)!;
     s.x = p.at.x;
@@ -131,6 +90,7 @@ function run(sc: Scenario): unknown {
     world.players.get(p.id)!.history = [{ t: world.state.serverTime, x: p.at.x, y: p.at.y }];
   }
   const inputs: Input[] = [];
+  const intake = createIntake(sc.budgeted ?? false);
   const ticks: unknown[] = [];
   const results: unknown[] = [];
   const unexpected = new Set<string>();
@@ -139,21 +99,29 @@ function run(sc: Scenario): unknown {
     tick: 0,
     send: (player, type, msg) => {
       const rt = world.players.get(player);
-      if (!rt) return;
-      if (!enqueueClientMessage(rt.inputs, type, msg)) throw new Error(`${sc.name}: rejected ${type}`);
-      inputs.push({ tick: ctx.tick, player, type, msg });
+      if (!rt) throw new Error(`${sc.name}: input for unknown player ${player}`);
+      const accepted = intake(player, rt.inputs, type, msg, world.state.serverTime, world.config.training);
+      inputs.push({ tick: ctx.tick, player, type, msg, ...(!accepted ? { accepted: false } : {}) });
     },
     pos: (id) => { const s = world.state.players.get(id)!; return { x: s.x, y: s.y }; },
   };
+  let launches: unknown[] = [];
+  const setProjectile = world.projectiles.set.bind(world.projectiles);
+  world.projectiles.set = (id, projectile) => {
+    launches.push(canonicalJson({ ...projectile.launch, owner: projectile.owner }));
+    return setProjectile(id, projectile);
+  };
   const startTick = world.state.tick;
-  for (let i = 0; i < sc.maxTicks && world.state.phase === "active"; i++) {
+  for (let i = 0; i < sc.maxTicks && (world.state.phase === "active" || world.state.phase === "planning"); i++) {
+    launches = [];
     ctx.tick = world.state.tick + 1;
     sc.drive(ctx);
     const events = step(world, TICK_MS);
     for (const a of sc.actions ?? []) {
       if (a.tick !== ctx.tick) continue;
-      if (a.kind === "remove") removePlayer(world, a.player);
-      else if (a.kind === "drop") markDropped(world, a.player);
+      const kind = a.type ?? a.kind;
+      if (kind === "remove" || kind === "leave") removePlayer(world, a.player);
+      else if (kind === "drop") markDropped(world, a.player);
       else markReconnected(world, a.player);
     }
     const evs: unknown[] = [];
@@ -165,12 +133,25 @@ function run(sc: Scenario): unknown {
       }
       const c = canonicalEvent(e);
       if (c) evs.push(c);
-      else if (e.type !== "gv" && e.type !== "toast") unexpected.add(e.type);
+      else if (e.type !== "gv") unexpected.add(e.type);
     }
     const players = [...world.state.players.entries()].map(([id, s]) => ({
       id, x: r6(s.x), y: r6(s.y), facing: r6(s.facing), hp: r6(s.hp), status: s.status, readyAt: r6(s.readyAt),
     }));
-    ticks.push({ tick: ctx.tick, serverTime: world.state.serverTime, players, events: evs });
+    const extras: Record<string, unknown> = {};
+    for (const kind of sc.record ?? []) {
+      if (kind === "combat") extras.combat = canonicalJson([...world.state.players.entries()].map(([id, p]) => {
+        const w = world.players.get(id)!.weapon;
+        return { id, weapon0: p.weapon0, weapon1: p.weapon1, slot: p.slot, drawStartedAt: p.drawStartedAt,
+          staggerImmuneUntil: w.staggerImmuneUntil, armorBonus: decodeFlat(p.armorBonus),
+          action: w.action ? { kind: w.action.kind, weapon: w.action.weapon, a: w.action.a, landsAt: w.action.landsAt } : null };
+      }));
+      if (kind === "mobs") extras.mobs = [...world.state.mobs.entries()].map(([id, m]) => canonicalJson({ ...m.toJSON(), id }));
+      if (kind === "fields") extras.fields = canonicalJson([...(world.abilities?.fields.values() ?? [])]);
+      if (kind === "statuses") extras.statuses = canonicalJson([...world.players.entries(), ...world.mobs.entries()].map(([id, rt]) => ({ id, statuses: rt.statuses ?? [] })));
+      if (kind === "containers") extras.containers = [...world.state.containers.entries()].map(([id, c]) => canonicalJson({ ...c.toJSON(), id }));
+    }
+    ticks.push({ tick: ctx.tick, serverTime: world.state.serverTime, players, events: evs, ...(launches.length ? { launches } : {}), ...extras });
   }
   const mobs = world.state.mobs.size;
   return {
@@ -178,9 +159,17 @@ function run(sc: Scenario): unknown {
     scenario: sc.name,
     description: sc.description,
     parity: sc.parity,
+    ...(sc.budgeted ? { budgeted: true } : {}),
     legacyRevision: revision(),
+    ...(sc.packet ? { packet: sc.packet } : {}),
+    ...(sc.requires?.length ? { requires: sc.requires } : {}),
     legacyConfig: {
-      world: "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards",
+      world: !sc.modules && !sc.config && sc.generatedMapSeed === undefined ? "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards" : "createScenarioWorld: explicit recorded modules/options/map seed",
+      modules: sc.modules ?? DEFAULT_MODULES,
+      itemUidScheme: "sequential/1",
+      options: sc.config ?? {},
+      ...(sc.generatedMapSeed === undefined ? {} : { mapSeed: sc.generatedMapSeed }),
+      secrets: { orderSalt: world.orderSalt, rewardSalt: sc.secrets?.rewardSalt ?? [1, 2, 3, 4], questSalt: sc.secrets?.questSalt ?? [5, 6, 7, 8] },
       tickMs: TICK_MS,
       randomSeed: sc.randomSeed,
       orderSalt: world.orderSalt,
@@ -188,10 +177,12 @@ function run(sc: Scenario): unknown {
       startServerTime: startTick * TICK_MS,
       mobsPresent: mobs,
       startEvents: startEvents.map((e) => e.type),
+      startEventPayloads: startEvents.map(canonicalEvent).filter(e => e !== null),
+      ...(sc.containers ? { setup: { containers: sc.containers } } : {}),
       unexpectedEventTypes: [...unexpected],
     },
-    map: { w: map.w, h: map.h, tile: TILE, rows: sc.rows },
-    players: sc.players.map((p) => ({ id: p.id, faction: p.faction, x: p.at.x, y: p.at.y, hp: p.hp ?? FACTIONS[p.faction].hp, maxHp: FACTIONS[p.faction].hp, weapon0: p.weapon0 ?? "" })),
+    map: { w: map.w, h: map.h, tile: TILE, rows: rowsOf(map) },
+    players: sc.players.map((p) => ({ id: p.id, faction: p.faction, x: p.at.x, y: p.at.y, hp: p.hp ?? FACTIONS[p.faction].hp, maxHp: FACTIONS[p.faction].hp, weapon0: p.weapon0 ?? "", ...(p.weapon1 ? { weapon1: p.weapon1 } : {}) })),
     inputs,
     actions: sc.actions ?? [],
     ticks,
@@ -231,9 +222,22 @@ const dist = (a: Vec2, b: Vec2): number => Math.hypot(b.x - a.x, b.y - a.y);
 // ---- scenarios ----------------------------------------------------------------------------------------------------------
 const SCENARIOS: Scenario[] = [
   {
+    name: "order_budget",
+    description: "Thirty orders exhaust the real edge bucket; excess/coalesced orders reject, aim remains free, and simulation-time refill admits later orders.",
+    parity: "slice", budgeted: true, requires: ["input:move", "input:aim"],
+    rows: OPEN, randomSeed: 12,
+    players: [{ id: "p0", faction: "fire", at: { x: 400, y: 320 } }, { id: "p1", faction: "holy", at: { x: 800, y: 320 } }],
+    maxTicks: 4,
+    drive: ({ tick, send, pos }) => {
+      for (let i = 0; i < (tick === 2 ? 35 : 1); i++) send("p0", "move", pos("p0"));
+      send("p0", "aim", { a: 0 });
+    },
+  },
+  {
     name: "movement_walls",
     description: "Two walkers path around an L wall, a pillar block and a LOW fence; a replacement order mid-walk, a stop, and a seq echo.",
     parity: "slice",
+    requires: ["input:move", "input:stop"],
     rows: WALLS,
     randomSeed: 12,
     players: [{ id: "p0", faction: "fire", at: T(3, 3) }, { id: "p1", faction: "holy", at: T(3, 17) }],
@@ -253,6 +257,7 @@ const SCENARIOS: Scenario[] = [
     name: "fists_duel",
     description: "Fire vs Holy on fists, standing in reach, both pressing a directional attack every tick with a 100 ms render lag, until one dies.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 12,
     players: [{ id: "p0", faction: "fire", at: { x: 400, y: 320 } }, { id: "p1", faction: "holy", at: { x: 456, y: 320 } }],
@@ -268,6 +273,7 @@ const SCENARIOS: Scenario[] = [
     name: "duel_chase",
     description: "Plague chases a walking Frost: move orders toward the target and attack presses only when within fists reach (72 + 12).",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 99,
     players: [{ id: "p0", faction: "plague", at: { x: 200, y: 300 } }, { id: "p1", faction: "frost", at: { x: 420, y: 330 } }],
@@ -286,6 +292,7 @@ const SCENARIOS: Scenario[] = [
     name: "simultaneous_lethal",
     description: "Both fighters at low hp hit each other in the same tick: both die; the higher hp fraction at tick start wins.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 12,
     players: [{ id: "p0", faction: "holy", at: { x: 400, y: 320 }, hp: 10 }, { id: "p1", faction: "holy", at: { x: 450, y: 320 }, hp: 12 }],
@@ -301,6 +308,7 @@ const SCENARIOS: Scenario[] = [
     name: "simultaneous_draw",
     description: "Equal hp fractions, mutual lethal hits in one tick: a draw (place 1 each, no win bonus).",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 12,
     players: [{ id: "p0", faction: "holy", at: { x: 400, y: 320 }, hp: 10 }, { id: "p1", faction: "holy", at: { x: 450, y: 320 }, hp: 10 }],
@@ -316,6 +324,7 @@ const SCENARIOS: Scenario[] = [
     name: "rewind",
     description: "The target walks out of reach; an attack whose render time saw it in reach hits (rewind), the same swing at lag 50 ms misses.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 12,
     players: [
@@ -335,6 +344,7 @@ const SCENARIOS: Scenario[] = [
     name: "crowded_8",
     description: "Eight fighters of all factions in a tight ring, each pressing at its nearest standing foe every tick: ordering, kill credit and simultaneous deaths.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: ARENA,
     randomSeed: 4242,
     players: (["fire", "sentenced", "plague", "frost", "holy", "fire", "plague", "holy"] as FactionId[]).map((faction, i) => {
@@ -364,6 +374,7 @@ const SCENARIOS: Scenario[] = [
     name: "leave_mia",
     description: "Three fighters; one leaves mid-run (MIA, removed between ticks as the Room does), then a duel decides the winner.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 7,
     players: [{ id: "p0", faction: "frost", at: { x: 400, y: 320 } }, { id: "p1", faction: "plague", at: { x: 450, y: 320 } }, { id: "p2", faction: "sentenced", at: { x: 900, y: 320 } }],
@@ -380,6 +391,7 @@ const SCENARIOS: Scenario[] = [
     name: "drop_releases_trigger",
     description: "p0 holds attack; its connection drops after tick 11 (queued inputs drained, trigger released), a late press at 12 holds it again, and the reconnect after tick 30 releases it: no swing after 30.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: 12,
     players: [{ id: "p0", faction: "plague", at: { x: 400, y: 320 } }, { id: "p1", faction: "frost", at: { x: 450, y: 320 } }],
@@ -393,6 +405,7 @@ const SCENARIOS: Scenario[] = [
     name: `tie_kill_credit_${seed}`,
     description: "Two attackers of one faction land equal hits on a victim in the same tick and kill it together: the kill (credit, GV, killedBy) goes to whichever comes first in the SECRET action order, which this seed's salt decides.",
     parity: "slice",
+    requires: ["windup", "hit"],
     rows: OPEN,
     randomSeed: seed,
     players: [
@@ -409,6 +422,8 @@ const SCENARIOS: Scenario[] = [
     },
   })),
   {
+    packet: "P-COMBAT-2",
+    requires: ["projEnd", "launch"],
     name: "bow_wand_capture",
     description: "CAPTURE ONLY (projectiles are not in the Rust slice yet): a bow and a wand fighter trade shots at range.",
     parity: "capture-only",
@@ -458,7 +473,7 @@ function pathfindingFixture(seed: number, queries: number): unknown {
 
 mkdirSync(OUT, { recursive: true });
 const only = process.argv.indexOf("--only") > 0 ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
-for (const sc of SCENARIOS) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

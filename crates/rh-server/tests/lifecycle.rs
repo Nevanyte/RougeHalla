@@ -49,6 +49,7 @@ fn sim_config() -> SimConfig {
         lobby_seconds: 30.0,
         fill_seconds: 0.0,
         pvp_rules: true,
+        weapon_specials: true,
     }
 }
 
@@ -424,6 +425,7 @@ async fn room_heap_probe() {
         lobby_seconds: 0.0,
         fill_seconds: 0.0,
         pvp_rules: true,
+        weapon_specials: true,
     };
     let mut cfg = DirectorConfig::new(sim, arena);
     cfg.max_rooms = n;

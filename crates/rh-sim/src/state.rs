@@ -334,10 +334,47 @@ pub struct PendingAction {
     pub packet: Packet,
 }
 
+/// A run-only item. Its identity is allocated by the world without consuming any RNG.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct WeaponItem {
+    pub uid: u64,
+    pub weapon: WeaponId,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ContainerKind {
+    Ground,
+    Chest,
+    Body(PlayerId),
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Container {
+    pub id: u32,
+    pub kind: ContainerKind,
+    pub at: Vec2,
+    pub opened: bool,
+    /// First item at index zero, second if a body held both weapons.
+    pub items: [Option<WeaponItem>; 2],
+    pub(crate) born_tick: u32,
+}
+
+/// An axe's armor shred has a separate refresh timer for every source.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Shred {
+    pub source: PlayerId,
+    pub started_at: f64,
+    pub until: f64,
+    pub value: f64,
+}
+
 /// A fighter's weapon state: the carried items and the active slot, and the runtime of the swing in progress.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct WeaponRt {
-    /// Carried items; `None` fights with fists. The slice has no item flow, so these stay `None`.
+    /// Carried items; an empty slot fights with fists.
+    /// Armor reduction folded after damage, used by the next tick's ledger.
+    pub armor_shred: f64,
+    pub shreds: Vec<Shred>,
     pub weapon0: Option<WeaponId>,
     pub weapon1: Option<WeaponId>,
     pub slot: u8,
@@ -357,6 +394,8 @@ pub struct WeaponRt {
 impl Default for WeaponRt {
     fn default() -> Self {
         Self {
+            armor_shred: 0.0,
+            shreds: Vec::with_capacity(MAX_PLAYERS),
             weapon0: None,
             weapon1: None,
             slot: 0,
@@ -512,6 +551,9 @@ pub(crate) struct World {
     /// In join order (legacy Map insertion order).
     pub(crate) players: Store<Player>,
     pub(crate) next_id: u32,
+    pub(crate) containers: Vec<Container>,
+    pub(crate) container_counter: u32,
+    pub(crate) item_counter: u64,
     /// Names of everyone who joined, leavers included (append-only; see [`Roster`]).
     pub(crate) roster: Roster,
     pub(crate) joined: usize,
@@ -638,6 +680,9 @@ impl World {
             winner: None,
             players: Store::new(),
             next_id: 1,
+            containers: Vec::with_capacity(4 * MAX_PLAYERS),
+            container_counter: 0,
+            item_counter: 0,
             roster: Roster::default(),
             joined: 0,
             spawn_rng: Mulberry32::new(secrets.spawn_seed),

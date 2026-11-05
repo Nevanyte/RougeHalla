@@ -50,7 +50,7 @@ namespace Roguehalla.Client
             mc.Url = Query(s, "server", DefaultUrl);
             mc.Profile = Query(s, "profile", "web" + UnityEngine.Random.Range(1000, 9999));
             mc.Token = Query(s, "token", Guid.NewGuid().ToString("N"));
-            ulong hash; if (ulong.TryParse(Query(s, "hash", "0"), out hash)) mc.ContentHash = hash;
+            ulong hash; if (ulong.TryParse(Query(s, "hash", BakedContent.Hash.ToString(System.Globalization.CultureInfo.InvariantCulture)), out hash)) mc.ContentHash = hash;
             int faction; if (int.TryParse(Query(s, "faction", "-1"), out faction)) mc.Faction = faction;
         }
     }

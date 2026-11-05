@@ -4,6 +4,28 @@ use crate::content::WeaponId;
 use crate::results::{GvReason, RunResult};
 use crate::state::PlayerId;
 
+/// A private legacy pickup toast.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PickupRefusal {
+    Blocked,
+    NothingThere,
+    TooFar,
+    Unreachable,
+    NothingToTake,
+}
+
+impl PickupRefusal {
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::Blocked => "Can't do that now",
+            Self::NothingThere => "Nothing there",
+            Self::TooFar => "Too far away",
+            Self::Unreachable => "Can't reach that",
+            Self::NothingToTake => "Nothing to take",
+        }
+    }
+}
+
 /// What a step reports. Every variant declares who may know of it ([`Event::visibility`]) and how a client receives it
 /// ([`Event::class`]); important events (deaths, results, the end) are never dropped, fx may be (docs/CONTRACTS.md C-NET-5).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -30,6 +52,20 @@ pub enum Event {
         by: Option<PlayerId>,
         amount: f64,
         weapon: Option<WeaponId>,
+        passive: bool,
+    },
+    Block {
+        id: PlayerId,
+        by: PlayerId,
+        weapon: WeaponId,
+    },
+    PickupRefused {
+        id: PlayerId,
+        reason: PickupRefusal,
+        /// The requester could see the target when its order was applied. Private
+        /// metadata for projecting the toast; movement later in the tick cannot reveal it.
+        #[serde(default)]
+        target_visible: bool,
     },
     Stagger {
         id: PlayerId,
@@ -67,6 +103,8 @@ pub enum Event {
 pub enum Visibility {
     /// Every observer (legacy: bounty announcements and the end of the run go to the whole room).
     Everyone,
+    /// Only the addressed player.
+    Owner(PlayerId),
     /// Observers who are the actor or can see it.
     IfSeen(PlayerId),
     /// Observers who can see `seen`, or who are `by` (nobody, when the source is `None`).
@@ -96,11 +134,13 @@ impl Event {
         match *self {
             Event::Swing { by, .. } => Visibility::IfSeen(by),
             Event::Hit { victim, by, .. } => Visibility::IfSeenOrBy { seen: victim, by },
-            Event::Death { id, .. } => Visibility::IfSeen(id),
+            Event::Block { id, .. } | Event::Stagger { id } | Event::Death { id, .. } => {
+                Visibility::IfSeen(id)
+            }
+            Event::PickupRefused { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
             Event::RaidStarted
             | Event::Windup { .. }
-            | Event::Stagger { .. }
             | Event::Gv { .. }
             | Event::RaidEnded
             | Event::Resolved { .. } => Visibility::ServerOnly,
@@ -115,12 +155,14 @@ impl Event {
             | Event::Bounty { .. }
             | Event::Victory { .. }
             | Event::Resolved { .. } => Class::Important,
-            Event::Swing { .. } | Event::Hit { .. } => Class::Fx,
-            Event::RaidStarted
-            | Event::Windup { .. }
-            | Event::Stagger { .. }
-            | Event::Gv { .. }
-            | Event::RaidEnded => Class::ServerOnly,
+            Event::Swing { .. }
+            | Event::Hit { .. }
+            | Event::Block { .. }
+            | Event::Stagger { .. } => Class::Fx,
+            Event::PickupRefused { .. } => Class::Important,
+            Event::RaidStarted | Event::Windup { .. } | Event::Gv { .. } | Event::RaidEnded => {
+                Class::ServerOnly
+            }
         }
     }
 }

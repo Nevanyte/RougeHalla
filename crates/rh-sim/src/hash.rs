@@ -380,6 +380,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(200.0, 200.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             },
             Placement {
                 profile: "b".into(),
@@ -387,6 +389,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(600.0, 600.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             },
             Placement {
                 profile: "c".into(),
@@ -394,6 +398,8 @@ mod tests {
                 bot: false,
                 at: Vec2::new(900.0, 300.0),
                 hp: None,
+                weapon0: None,
+                weapon1: None,
             },
         ];
         Sim::reset_active(
@@ -465,6 +471,7 @@ mod tests {
                         },
                         weapon: Some(crate::content::WeaponId::Fists),
                         stagger: false,
+                        passive: false,
                     })
                 }),
             ),

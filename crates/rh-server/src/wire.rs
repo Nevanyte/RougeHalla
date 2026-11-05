@@ -19,6 +19,8 @@ pub fn command(c: WireCommand) -> RawCommand {
             y: y as f64,
             seq,
         },
+        WireCommand::Swap { slot } => RawCommand::Swap { slot },
+        WireCommand::Pickup { container_id } => RawCommand::Pickup { container_id },
         WireCommand::Stop { seq } => RawCommand::Stop { seq },
         WireCommand::Aim { a } => RawCommand::Aim { a: a as f64 },
         WireCommand::Attack { a, t } => RawCommand::Attack { a: a as f64, t },
@@ -149,8 +151,7 @@ fn same_view(a: &ActorView, b: &ActorView) -> bool {
         && a.weapon == b.weapon
 }
 
-/// The wire's `Fx::Hit.by` is required (protocol v3). A hit no fighter dealt (sudden death, terrain) has none: it is sent
-/// with this id, which no actor has. No producer emits one yet; the first one makes `by` optional in a protocol bump.
+/// Source absent or redacted by observation: no actor has this sentinel (Hit and Block).
 const WIRE_NO_SOURCE: u32 = u32::MAX;
 
 /// Highest actor id (exclusive) [`ActorMemo`] remembers; an actor with a higher id is converted every time.
@@ -206,6 +207,21 @@ fn to_wire(e: &SeenEvent) -> Wire {
             winner: winner.map(|w| w.0),
             draw,
         }),
+        SeenEvent::Block { id, by, weapon } => Wire::Fx(WireFx::Block {
+            id: id.0,
+            by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
+            weapon: weapon.code(),
+        }),
+        SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
+        SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
+            reason: match reason {
+                rh_sim::PickupRefusal::Blocked => 1,
+                rh_sim::PickupRefusal::NothingThere => 2,
+                rh_sim::PickupRefusal::TooFar => 3,
+                rh_sim::PickupRefusal::Unreachable => 4,
+                rh_sim::PickupRefusal::NothingToTake => 5,
+            },
+        }),
         SeenEvent::Swing {
             by,
             weapon,
@@ -219,10 +235,16 @@ fn to_wire(e: &SeenEvent) -> Wire {
             y: y as f32,
             a: a as f32,
         }),
-        SeenEvent::Hit { victim, by, amount } => Wire::Fx(WireFx::Hit {
+        SeenEvent::Hit {
+            victim,
+            by,
+            amount,
+            passive,
+        } => Wire::Fx(WireFx::Hit {
             victim: victim.0,
             by: by.map_or(WIRE_NO_SOURCE, |b| b.0),
             amount: amount as f32,
+            passive,
         }),
     }
 }
@@ -745,6 +767,64 @@ mod tests {
         };
         assert_eq!(encode_or_refuse(&bad, &mut refused), None);
         assert_eq!(refused, Some(rh_protocol::EncodeError::NonFinite));
+    }
+
+    #[test]
+    fn combat_mapping_preserves_privacy_passive_and_channels() {
+        use rh_sim::{PickupRefusal, PlayerId};
+        let id = PlayerId(2);
+        assert!(matches!(
+            to_wire(&SeenEvent::Death { id, by: None }),
+            Wire::Event(WireEvent::Death { id: 2, by: None })
+        ));
+        for passive in [false, true] {
+            let e = SeenEvent::Hit {
+                victim: id,
+                by: None,
+                amount: 3.0,
+                passive,
+            };
+            assert_eq!(e.class(), Class::Fx);
+            assert!(
+                matches!(to_wire(&e), Wire::Fx(WireFx::Hit { by: WIRE_NO_SOURCE, passive: p, .. }) if p == passive)
+            );
+        }
+        for by in [None, Some(PlayerId(1))] {
+            let e = SeenEvent::Block {
+                id,
+                by,
+                weapon: rh_sim::content::WeaponId::ALL[1],
+            };
+            assert_eq!(e.class(), Class::Fx);
+            assert!(
+                matches!(to_wire(&e), Wire::Fx(WireFx::Block { by: b, .. }) if b == by.map_or(WIRE_NO_SOURCE, |p| p.0))
+            );
+        }
+        assert!(matches!(
+            to_wire(&SeenEvent::Stagger { id }),
+            Wire::Fx(WireFx::Stagger { id: 2 })
+        ));
+        for (reason, code) in [
+            (PickupRefusal::Blocked, 1),
+            (PickupRefusal::NothingThere, 2),
+            (PickupRefusal::TooFar, 3),
+            (PickupRefusal::Unreachable, 4),
+            (PickupRefusal::NothingToTake, 5),
+        ] {
+            let e = SeenEvent::PickupRefused { reason };
+            assert_eq!(e.class(), Class::Important);
+            assert!(
+                matches!(to_wire(&e), Wire::Event(WireEvent::PickupRefused { reason: r }) if r == code)
+            );
+        }
+        assert!(matches!(
+            command(WireCommand::Swap { slot: None }),
+            RawCommand::Swap { slot: None }
+        ));
+        assert!(matches!(
+            command(WireCommand::Pickup { container_id: 42 }),
+            RawCommand::Pickup { container_id: 42 }
+        ));
     }
 
     fn flat_arena(w: u32, h: u32) -> rh_sim::Arena {

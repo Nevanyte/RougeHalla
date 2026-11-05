@@ -159,10 +159,7 @@ fn land(p: &mut FighterCore, now: f64, melee: &mut Vec<MeleeReq>, act: PendingAc
             });
         }
         ActionKind::Cast | ActionKind::Draw => {
-            // Projectiles are not in the slice and no ranged weapon can be held in it: there is no item flow, and
-            // `Sim::restore` refuses a checkpoint that carries one or a pending ranged action (`check_world`), so this is unreachable in every build
-            // (docs/backlog P-COMBAT-2).
-            debug_assert!(false, "ranged attacks are not in the slice");
+            // The release ends its movement pause. Projectile creation belongs to P-COMBAT-2.
             p.weapon.draw_started_at = 0.0;
         }
     }
@@ -190,9 +187,7 @@ pub(crate) fn stagger(p: &mut FighterCore, now: f64, ev: &mut Vec<Event>) {
     p.weapon.stagger_immune_until = now + STAGGER_IMMUNITY_SECONDS * 1000.0;
     if let Some(a) = p.weapon.action {
         if a.kind != ActionKind::Draw {
-            p.weapon.root_until = p.weapon.root_until.min(now);
-            p.weapon.action = None;
-            p.weapon.draw_started_at = 0.0;
+            cancel_action(p, now);
             let id = p.id;
             ev.push(Event::Stagger { id });
         }
@@ -208,10 +203,12 @@ pub(crate) fn weapon_shape(w: WeaponId) -> Shape {
 pub(crate) fn release_trigger(p: &mut FighterCore, now: f64) {
     p.weapon.held = false;
     p.weapon.buffered_until = 0.0;
-    if let Some(a) = p.weapon.action {
-        if a.kind != ActionKind::Draw {
-            p.weapon.root_until = p.weapon.root_until.min(now);
-        }
+    cancel_action(p, now);
+}
+
+pub(crate) fn cancel_action(p: &mut FighterCore, now: f64) {
+    if p.weapon.action.is_some_and(|a| a.kind != ActionKind::Draw) {
+        p.weapon.root_until = p.weapon.root_until.min(now);
     }
     p.weapon.action = None;
     p.weapon.draw_started_at = 0.0;

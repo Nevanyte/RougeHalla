@@ -12,6 +12,29 @@ revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 ha
 
 ## Status table
 
+### Stage 2 validation addendum (takes precedence over the historical Stage 1 rows below)
+
+Native arm64 integration on `optimization_port`: 395 tests passed with all features, 386 with default features,
+0 failed/filtered, and one explicitly ignored heap measurement in each run. Formatting and full-feature workspace
+Clippy with warnings denied passed. Full-game, AWS, browser-matrix and release gates remain open.
+
+- C-INPUT/C-PARITY: weapon inputs use the existing validation/action budget. The harness now compares real admission
+  outcomes, rejects unconsumed or unordered records, and checks requirements only for replayed records. 20 compared
+  scenarios and 300 path queries MATCH; 15 scenarios are explicitly capture-only. Exact recapture runs Linux x64 Node 22.23.4.
+- C-DET/C-NUM: checkpoint format is `rh-checkpoint/4` for item state, observation version 3; content identity
+  `b0b7169709bd0a83`. Hash coverage, replay/restore and six steady-state allocation fixtures passed on arm64.
+- C-OBS: hidden pickup targets are indistinguishable from absent targets in requester feedback. Hit/Death/Block source
+  ids are redacted when unseen; authoritative credit and trusted parity events are preserved. Independent differential
+  and earlier-step/cached projection checks passed. **Visible item discovery/self inventory is still open** (P-NET-ITEMS-1).
+- C-NET: protocol 5 ([ADR 0012](adr/0012-combat-protocol-v5.md)), strict combat codecs and frozen Hello/Reject envelope.
+  Rust 73, C# 220 and JS 3,344 codec checks plus real Chromium WSS proof passed. Oversize, BOM and wrong-version regressions
+  were reproduced and corrected. Actual Unity Web build and movement over WS/WSS also passed; no valid public TLS claim.
+- C-PERSIST: achievement ids, timestamps and reward cosmetics commit with the fenced result. 83 legacy observations
+  and 32 real-PG tests passed, including concurrent duplicate result and crash rollback. Live ending-kit metadata,
+  renewals/recovery and the full profile API remain open; the store proof does not establish them.
+
+### Historical Stage 1 record
+
 | ID | Contract | Decision | Validation | Tests |
 |---|---|---|---|---|
 | C-TICK | Fixed 20 Hz step; sim time +50 ms per step; fixed system order, held as an executable schedule checked against the legacy record | Accepted, FROZEN | Passed | parity suite; `rh-parity/tests/schedule.rs`; `rh-sim/src/systems/tests.rs`; `rh-server` pacer unit tests; `rh-server/tests/density.rs` |
@@ -206,9 +229,9 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   sight only (stricter). Porting the trail must keep the leak tests green (packet P-VISION-1).
 
 ## C-NET: protocol and sessions
-- `crates/rh-protocol` v4 (`PROTOCOL_VERSION = 4`, [ADR 0011](adr/0011-protocol-v4.md)), mirrored in
-  `client-unity/RoguehallaNet/Protocol`; golden vectors `protocol/fixtures/v4.json` (vectors for the current version only,
-  `v3.json` is gone; regenerated with `cargo run -p rh-protocol --bin protocol-fixtures`). The Rust and C# suites and
+- `crates/rh-protocol` v5 (`PROTOCOL_VERSION = 5`, [ADR 0012](adr/0012-combat-protocol-v5.md), building on ADR 0011), mirrored in
+  `client-unity/RoguehallaNet/Protocol`; golden vectors `protocol/fixtures/v5.json` (vectors for the current version only,
+  older fixtures are in Git history; regenerated with `cargo run -p rh-protocol --bin protocol-fixtures`). The Rust and C# suites and
   `tools/protocol-js/check-vectors.mjs` (the `probe.html` decoder) assert byte equality, malformed-frame rejection and replay of
   the delta chains. The `malformedServer` vectors cover Reject code 0, a reason that is not UTF-8, every MapBlob rule and the
   malformed deltas; code 12 (unnamed) is a valid server vector; all three decoders reject the malformed ones. The C# encoders
