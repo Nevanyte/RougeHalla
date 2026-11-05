@@ -1368,6 +1368,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rh-placement"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "rh-policy"
 version = "0.1.0"
 dependencies = [

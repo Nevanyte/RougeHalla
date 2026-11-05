@@ -1,0 +1,17 @@
+{
+  "regions": [
+    {"id": "us-west-2", "label": "Oregon"},
+    {"id": "ca-central-1", "label": "Montreal"},
+    {"id": "us-east-2", "label": "Ohio"}
+  ],
+  "capacity": {"us-west-2": {"available_sessions": 0}, "ca-central-1": {"available_sessions": 6}},
+  "queue": "rh-placement-queue",
+  "request": {
+    "request_id": "demo0001",
+    "party": [
+      {"callsign": "alice", "age_s": 4, "rtt_ms": {"us-west-2": 24, "ca-central-1": 66, "us-east-2": 98}},
+      {"callsign": "bobby", "age_s": 9, "rtt_ms": {"us-west-2": 31, "ca-central-1": 71, "us-east-2": 104}},
+      {"callsign": "carol", "age_s": 2, "rtt_ms": {"us-west-2": 150, "ca-central-1": 118, "us-east-2": 61}}
+    ]
+  }
+}
