@@ -84,7 +84,7 @@ The merge commit messages summarize each report and left out some of its misses.
 - **H-sim** (`2e8682c`): the subject says "no false refusals on real matches" and omits the step cost, +0.45-0.56% Ir on
   the sim workloads (above the noise floor, not isolated); the 817k-checkpoint corpus predates the coordinate and counter
   rules, so `restore_real.rs` (smaller, current) is the live evidence.
-- **P10c** (`ae0c37b`): the 1.048x wire Ir and the allocated bytes 366 -> 827 per step are in the report, not the subject.
+- **P10c** (`ae0c37b`): the allocated bytes 366 -> 827 per step are in the report, not the subject (the subject does name the 1.048x wire Ir).
 - **P7a** (`94a34c1`) did report that duel_chase missed its 0.62x target; it is repeated under Known issues.
 
 ### Corrections to merged claims
@@ -111,7 +111,8 @@ The merge commit messages summarize each report and left out some of its misses.
 - Unattributed Ir increases: P5d +0.26% (densitybench), P8 +1.2% (`sim_crowded_8`) and +0.6% (`headless_seed1_8bots`), H-server
   +0.41% (wire) and +0.30% (densitybench; attributable to the added guards), H-sim +0.45% to +0.56% on the sim workloads
   (`sim_crowded_8`, `sim_duel_chase`; attributed only by the engineer's change list: saturating tile arithmetic and the
-  pathfinder's finiteness test), P10c +4.8% on the wire row (the delta encoder in the writer; inside its 1.10x gate).
+  pathfinder's finiteness test).
+  P10c's +4.8% on the wire row is attributed (the delta encoder in the writer) and inside its 1.10x gate.
 - Not measured: protocol v3 over a real network. The delta numbers are in-process (`wirebench`, perfproof, density runs,
   loopback browser and C# probes). A client that keeps refusing deltas costs one Full frame per 20 ticks, so the saving
   shrinks with loss; there is no server counter for Resync requests yet.
@@ -130,16 +131,16 @@ The merge commit messages summarize each report and left out some of its misses.
 | Privatize `TileMap` `w`/`h`/`tiles` (add accessors) | P8/P3 reviews; `crates/rh-sim/src/map.rs` |
 | Separate `spawn_rng` from `spawn_seed` or use a keyed hash before any public replay or checkpoint export | CONTRACTS C-RNG; ADR 0007 |
 | Isolate the P8 (+1.2% / +0.6% Ir) and H-sim (+0.45-0.56% Ir) step-cost increases | P8 and H-sim reports |
-| P10c: wire allocated bytes per step 366 -> 827 (each frame reserves `min_len` + `MAX_DELTA_HEAD` + `MAX_ACTOR_DELTA`, a delta averages 12.8 B): size the frame from the previous frame or encode from a writer scratch buffer | `crates/rh-protocol/src/delta.rs`, `crates/rh-server/src/conn.rs` |
+| P10c: wire allocated bytes per step 366 -> 827 (each frame reserves `min_len` + `MAX_DELTA_HEAD` + `MAX_ACTOR_DELTA`, a delta averages 12.8 B; the allocation count rose by 0.004 per step, 9.08 after rounding, visible only with `--max-alloc-increase 0`): size the frame from the previous frame or encode from a writer scratch buffer | `crates/rh-protocol/src/delta.rs`, `crates/rh-server/src/conn.rs` |
 | P10c: C# `SnapshotTracker.CopyActorsTo` (like the Full decode) allocates a new `Actors` array when the visible actor count changes; needs an array plus count API | `client-unity/RoguehallaNet/Protocol/SnapshotTracker.cs` |
-| P10c: a server counter for Resync requests received and deferred (+0.004 allocations per step on the wire row, visible only with `--max-alloc-increase 0`) | `crates/rh-server/src/room.rs`, `conn.rs` |
+| P10c: a server counter for Resync requests received and deferred | `crates/rh-server/src/room.rs`, `conn.rs` |
 | perfproof: require `verified:true` on the candidate in every mode; add `density_practice` / `density_seed1` workloads | `tools/perfproof/perfproof.py` |
 | First real pull-request run of the CI gate (cache mapping, valgrind install time, the cancel-in-progress behaviour on an edited description) | `.github/workflows/perfproof.yml` |
 | `wirebench` measures only single-step wakes; add a multi-step-wake (carry) workload | `crates/rh-server/src/bin/wirebench.rs` |
 | `observe_into` inlines the sight test that `sees()` also holds: a change to one must change the other | `crates/rh-sim/src/observe.rs` |
 | 1000 fighters means 917 visible actors against `MAX_ACTORS` 512: bound the observation | backlog P-MOBS-1, P-VISION-1 |
 | Fold the `synthetic` feature of `deltabench` into the existing `bench` feature (optional) | `crates/rh-server/Cargo.toml` |
-| `pg_e2e` case for a dead-lobby retry needs a test seam; `RoomCmd::Crash` is test-only, so no end-to-end crash test over WebSockets; `AlreadyApplied` results do not give the lease back (benign) | `crates/rh-server/tests/pg_e2e.rs`, `room.rs` |
+| `pg_e2e` case for a dead-lobby retry needs a test seam; `RoomCmd::Crash` is test-only, so no end-to-end crash test over WebSockets | `crates/rh-server/tests/pg_e2e.rs`, `room.rs` |
 | Lease renewal and the crash lockout, the result spool | backlog P-PERSIST-2 |
 
 ## Resuming on macOS

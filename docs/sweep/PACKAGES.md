@@ -46,13 +46,13 @@ Earlier packages (perfproof, P1, P6, P2a, P3, P4, P5a-1, P5a-2) are listed in th
   stricter JS/C# codecs, `SnapshotWriter` removed): merge `3ad072b`. Wire +0.41% Ir, densitybench +0.30% Ir.
 - **H-server-2** (camelCase `/info` keys, no session for a gone room, duplicate result reports give their lease back, a test
   rename): merge `65b08a2`.
-- **P10c** protocol v3, per-connection snapshot delta ([ADR 0010](../adr/0010-snapshot-delta.md); spec below): merge `ae0c37b`.
-  908 -> 305 B/player/s at 8 players, wire Ir 1.048x, gameplay fingerprints identical.
 - **Docs-2** (contracts and records for P8, P9, CI, the P10b decision and H-server; corrected noise floor and P7b scaling
   proof): merge `ff57609`.
-- **H-sim** restore hardening (`Sim::restore` refuses every state the tick cannot survive, saturating counters, opaque `Command`,
+- **H-sim** restore hardening (`Sim::restore` refuses the states its rules cover, saturating counters, opaque `Command`,
   `run_replay` format check, `restore_real.rs`, rh-sim README and backlog write scopes corrected): merge `2e8682c`. Ir within
   1.0056 of `3ad072b`, fingerprints and allocations identical.
+- **P10c** protocol v3, per-connection snapshot delta ([ADR 0010](../adr/0010-snapshot-delta.md); spec below): merge `ae0c37b`.
+  908 -> 305 B/player/s at 8 players, wire Ir 1.048x, gameplay fingerprints identical.
 
 ## P10c: protocol v3, per-connection snapshot delta (merged at `ae0c37b`; ADR 0010 Accepted, implemented)
 Scope: `crates/rh-protocol/**`, `crates/rh-server/src/{conn,outbox,room,wire}.rs`, `client-unity/RoguehallaNet/**`,

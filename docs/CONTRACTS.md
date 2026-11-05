@@ -101,7 +101,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   `Err`. The ADR 0007
   rules are a lint: `crates/rh-sim/clippy.toml` (and `rh-policy/clippy.toml`) disallow `HashMap`/`HashSet`, platform-libm
   `f64` transcendentals, `mul_add`, `Instant` and `SystemTime`; a sanctioned use carries an `#[allow]` with its reason.
-- Restore refuses every state the tick cannot survive (H-sim): `Sim::restore` returns the typed
+- Restore refuses the states the rules below cover (H-sim): `Sim::restore` returns the typed
   `CheckpointError::Malformed` for the rule families `check_world` (`crates/rh-sim/src/checkpoint.rs`) implements:
   (1) ids and roster order: `next_id` greater than the last player and roster id and not `u32::MAX`; roster and player
   order are checked by their own decoders; (2) clock and tick: `server_time` within `0..=u32::MAX x TICK_MS` (where
@@ -179,7 +179,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   Delta (tag 0x87) against the last snapshot that connection's writer wrote. The room hands the outbox validated
   `SnapshotData` and the writer encodes it when it drains (latest-wins is unchanged; a snapshot that was skipped is never
   encoded). A Full frame goes out for: the first snapshot after a Welcome (a resume always starts Full), an answered Resync,
-  a base older than 64 ticks (`MAX_DELTA_AGE`), a self that appears or changes id, and a delta not smaller than the Full
+  a base older than 64 ticks (`MAX_DELTA_AGE`), a self that appears or changes id, a snapshot whose tick is not later than its base's, and a delta not smaller than the Full
   frame. A client refuses, never repairs, a delta it cannot apply (unknown base, malformed) and answers with Resync
   (0x05). The server never drops a Resync: it is answered by a Full frame at the next snapshot, or at the first one at least
   20 ticks (`MIN_FORCED_FULL_TICKS`) after the last forced Full, so a flood costs one Full per interval. Clients repeat an
@@ -191,8 +191,9 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   a position outside the grid is `EncodeError::BadValue`, and the server refuses at startup an arena that does not fit
   (`wire::arena_fits`). `SnapshotData::build` applies every refusal of the encoders, off-grid positions included, so no
   Delta can carry one.
-- Every server frame that can be refused goes through a refusing encoder: Snapshot (`encode_snapshot_into`, and the delta
-  encoder in the writer task), Events and Fx (`try_encode`, one exact allocation, `wire::encode_or_refuse`). A refused frame
+- Every server frame that can be refused goes through a refusing encoder: Snapshot (`SnapshotData::build`/`build_with`, called by
+  `Publisher::frames` in the room, with the same refusals as `encode_snapshot_into`; the writer's `ConnEncoder::encode` takes
+  only validated data and cannot fail), Events and Fx (`try_encode`, one exact allocation, `wire::encode_or_refuse`). A refused frame
   is never clamped or repaired: it is not sent, it is counted per room (`snapshotRefusals`, `frameRefusals` in `/info`
   `closedRooms`) and logged once per room, not per tick and viewer. `SnapshotWriter` was removed (it had no production
   caller and a second refusal path).
@@ -228,7 +229,7 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
 - Telemetry: a room's step times are a fixed 384-byte log-linear histogram (`crates/rh-server/src/metrics.rs`, 4 sub-buckets
   per power of two). `/info` `closedRooms` `stepUsP50` and `stepUsP99` are **bucket upper bounds** (never below the true
   value, at most 25% above it); `stepUsMax` and `ticks` are exact. `/control/health` also carries process-wide counters
-  and histogram summaries under `metrics` (wakes, steps, droppedSteps, bytesOut, outboxPushes, stepUs, publishUs,
+  and histogram summaries under `metrics` (wakes, steps, droppedSteps, bytesOut (snapshots at `min_len`, as per room), outboxPushes, stepUs, publishUs,
   latenessUs, rssBytes). `/info` also carries `resultsRefused` (result writes the store refused for good) and, per closed
   room, `crashed`, `frameRefusals` and `frameRefusalsLogged` (all room stats keys are camelCase since H-server-2, pinned by
   `info_and_closed_room_keys_are_exactly_these_camel_case_names`).

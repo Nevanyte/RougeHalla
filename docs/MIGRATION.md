@@ -149,7 +149,7 @@ labelled below ("Sweep results"); it is not AWS capacity.
 
 ## Sweep results (core optimization sweep, complete; merged head `ae0c37b`)
 Machine for every number here: x86_64 cloud container, 4 vCPU (Intel Xeon @ 2.80 GHz, shared), Linux 6.18. Instruction and
-allocation figures are **deterministic counts** (valgrind callgrind Ir and DHAT, identical run to run); wall times are not
+allocation figures are **deterministic counts** (valgrind callgrind Ir and DHAT, deterministic up to the stated noise floor); wall times are not
 used for any claim. Packages merged: P2b, P10a, P7a, P5b, P5c, P7b, P5d, P8, P9, the CI gate, the P10b measurement,
 H-server, H-server-2, H-sim and P10c (details, per-package proofs, the merge-message omissions and the corrections to merged
 claims: [sweep/README.md](sweep/README.md)). The wire is **protocol v3**; figures labelled v2 or Stage 1 are history.
@@ -170,7 +170,7 @@ claims: [sweep/README.md](sweep/README.md)). The wire is **protocol v3**; figure
 | P10b delta measurement | 62.0% of bytes at 8 players (908 -> 345 B/player/s), about 1.06x publish Ir (estimate); decision: protocol v3, shipped as P10c |
 | H-server hardening | wire 25,811 -> 25,918 Ir/step (+0.41%), densitybench +0.30% Ir per match-second, fingerprints identical |
 | H-server-2 | small server follow-ups (camelCase `/info` keys, no session for a gone room, duplicate result reports give their lease back); no sim or wire figure |
-| H-sim restore hardening | `Sim::restore` refuses every state the tick cannot survive (rules: CONTRACTS C-DET), saturating counters, opaque `Command`; Ir vs `3ad072b` within 1.0056 on four workloads (worst `sim_duel_chase`), allocations and fingerprints identical, base-recorded replays verify; 0 false refusals on real matches (`restore_real.rs`) |
+| H-sim restore hardening | `Sim::restore` refuses the states its rules cover (rules: CONTRACTS C-DET), saturating counters, opaque `Command`; Ir vs `3ad072b` within 1.0056 on four workloads (worst `sim_duel_chase`), allocations and fingerprints identical, base-recorded replays verify; 0 false refusals on between-step checkpoints of bot and lobby matches (`restore_real.rs`) |
 | P10c protocol v3 | per-connection Full/Delta snapshots encoded in the writer task, deferred never-dropped Resync (forced Fulls 20 ticks apart); wirebench 908 -> 305 B/player/s (mean snapshot 43.0 -> 12.8 B); `wire_seed1_8bots` 25,929 -> 27,178 Ir/step (1.0482x vs `2e8682c`), allocations 9.08 = 9.08, allocated bytes 366 -> 827; outcome digest and state-hash folds identical; Rust, C# (175 tests) and JS (1,945 checks) agree on `v3.json` |
 
 **Cumulative against the Stage 1 head `7d94332`** (sim and headless rows measured at `2e8682c`: `python3 tools/perfproof/perfproof.py --baseline 7d94332 --only sim_crowded_8,sim_duel_chase,sim_fists_duel,headless_seed1_8bots,headless_arena_8bots`; they stay valid at `ae0c37b` because P10c changed nothing in `crates/rh-sim`, `rh-headless` or `rh-policy` (`git diff --stat 2e8682c ae0c37b` on them is empty). The wire row was measured at `ae0c37b`: `python3 tools/perfproof/perfproof.py --baseline 7d94332 --only wire_seed1_8bots --allow-fingerprint-change wire_seed1_8bots.bytesPerPlayerPerSec,wire_seed1_8bots.meanSnapshotBytes`. Needs valgrind; gate: pass for both):
