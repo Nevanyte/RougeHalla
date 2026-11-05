@@ -66,6 +66,22 @@ against a narrow interface (`DnsBackend`), so either works.
   (lifetime - renewal lead - margin)*. With 90-day certificates renewed at 30 days, 30-day fleet replacement and one-session processes this holds; at the 64-day
   lifetime (2027-02-10) renew at ~21 days left; at 45 days (2028) renew at 15 days and replace idle processes within 14 days (fleet package: scheduled replacement). A
   reload-on-change in `rh-server` would remove the rule but touches `crates/rh-server`; not done here (proposal: `RustlsConfig::reload_from_pem_file` on a timer, optional).
+- **Trade-off in the fleet role, and its minimisation.** Fleet-role credentials are injected into *every* container of the group (AWS docs, section 1), so the
+  internet-facing match container can read the wildcard-cert secret, not only the sync container. This design accepts that for staging. It is minimised, not
+  removed: `CertReaderPolicy` allows `secretsmanager:GetSecretValue` on exactly one secret ARN (no wildcard, no `Describe`/`List`), only over TLS
+  (`aws:SecureTransport`; a `secretsmanager:VersionStage` condition was left out because its effect on a request without a stage is UNVERIFIED); the key is EC P-256 on a `g.` wildcard with a short life; and nothing else in the account is reachable
+  from the match container (the placement service's policy is a different principal). A secret **resource policy** naming the fleet role would not help (the
+  role is the problem, not the secret), and a second role for the sync container is not possible on container fleets (one role per fleet, UNVERIFIED beyond the docs
+  quoted in section 1).
+- **Alternative: no wildcard key on game hosts** (clearly a different architecture; not implemented, listed so the owner can choose it knowingly):
+  1. *Proxy layer* (option B): TLS terminates on a small always-on tier per Region (NLB with TLS listeners or an own proxy) that forwards plain `ws` to the game
+     process. The key lives only on that tier; the fleet role then needs no secret permission at all (delete `CertReaderPolicy`). Costs: the tier's spend and
+     ops, an extra hop, and a network path to GameLift-managed instances (VPC peering is unsupported for container fleets; public-IP targets: UNVERIFIED).
+  2. *Per-host short-lived certificate*: each host obtains its own certificate for its own `<region>-<token>.g.rougehalla.com` name (ACME DNS-01 through a **signing
+     service we run**, not from the host; the host only sends a CSR for the one name it was placed under, authenticated by its GameLift player-session/compute
+     identity). A stolen key then impersonates one name for hours, not the whole `g.` subtree. Costs: Let's Encrypt limits (50 certificates per registered
+     domain per week, 5 per exact name) make this unusable at match rate on Let's Encrypt; it needs a CA/ACME provider with high issuance limits or a private CA
+     trusted by the client (not possible for browsers). Treat it as viable only with such a provider.
 - Let's Encrypt's 5-per-exact-name limit means a failed pipeline cannot be re-run more than five times a week: use staging for every experiment.
 
 ## 5. Per-placement DNS lifecycle (`hosting/infra/edge/dns/`)
@@ -129,4 +145,6 @@ and port 443 is not allowed in `InstanceConnectionPortRange`; the owner will not
 ## 10. Files
 
 `hosting/infra/edge/{queue.cfn.yaml, cert/issue-wildcard.sh, dns/{hostname.mjs,cloudflare.mjs,dns-lifecycle.mjs,dns.test.mjs}}`, `hosting/placement/vectors/hostnames.json`,
-`crates/rh-placement/src/hostname.rs`. Template check: `cfn-lint 1.59.0` in `python:3.13-slim`, no findings.
+`crates/rh-placement/src/hostname.rs`. Template check: `cfn-lint 1.59.0` in `python:3.13-slim`, no findings. `TerminateGameSession`, `StopGameSessionPlacement` and `DescribeGameSessionPlacement` have **no** resource-level
+permissions (VERIFIED 2026-11-05 against AWS's service reference for the `gamelift` prefix, `https://servicereference.us-east-1.amazonaws.com/v1/gamelift/gamelift.json` v1.5: empty
+resource list for all three; only `StartGameSessionPlacement` names a resource, the queue), so the placement policy keeps `Resource: "*"` for them.

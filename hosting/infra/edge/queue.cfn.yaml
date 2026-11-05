@@ -115,7 +115,16 @@ Resources:
             Effect: Allow
             Action: gamelift:StartGameSessionPlacement
             Resource: !GetAtt Queue.Arn
-          # Resource-level support for these three is UNVERIFIED; they are read/cancel/cleanup and cannot create capacity.
+          # VERIFIED 2026-11-05: none of these three supports resource-level permissions. AWS's machine-readable Service
+          # Reference for the `gamelift` prefix (https://servicereference.us-east-1.amazonaws.com/v1/gamelift/gamelift.json,
+          # the data behind the Service Authorization Reference) lists no resource types for DescribeGameSessionPlacement,
+          # StopGameSessionPlacement or TerminateGameSession (only StartGameSessionPlacement has one: gameSessionQueue), and
+          # the only GameLift resource type besides the queue is `fleet`. So `Resource: "*"` is required. A global
+          # `aws:RequestedRegion` condition was considered and NOT added: whether calls for sessions in other fleet locations
+          # carry the home Region is UNVERIFIED, and a wrong guess would silently break orphan cleanup. They are read/cancel/cleanup and cannot create capacity. The one with real reach is
+          # TerminateGameSession: this principal can end ANY game session in the account's queue Region; the blast radius is
+          # accepted for the placement service only (it holds no other fleet authority) and is why this role must stay
+          # exclusive to that service.
           - Sid: DescribeStopTerminate
             Effect: Allow
             Action:
@@ -142,10 +151,21 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
+          # TRADE-OFF, stated plainly (docs/hosting/TLS_DNS.md section 4): the fleet role is injected into EVERY container of the
+          # group (AWS docs), including the internet-facing match container, so a compromised match process can read this
+          # secret and with it the wildcard PRIVATE KEY. The statement is already as tight as the platform allows: exactly one
+          # secret (no wildcard, no other action), TLS only. (A `secretsmanager:VersionStage` condition was considered and NOT added: whether
+          # a GetSecretValue that omits the stage carries the key is UNVERIFIED, and a wrong guess would lock the sync out.) What this cannot do is separate the
+          # sync container from the match container: GameLift gives container fleets one role per fleet. The alternatives that
+          # remove the key from game hosts (a TLS-terminating proxy layer, or a short-lived per-host certificate) are in
+          # TLS_DNS.md, "Alternative: no wildcard key on game hosts"; they are NOT implemented here.
           - Sid: ReadWildcardCert
             Effect: Allow
             Action: secretsmanager:GetSecretValue
             Resource: !Ref WildcardCertSecret
+            Condition:
+              Bool:
+                aws:SecureTransport: "true"
 
 Outputs:
   QueueArn:
