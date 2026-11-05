@@ -30,3 +30,19 @@ path = "src/bin/rh-placement.rs"
 
 [lints]
 workspace = true
+
+# Test-only child service process for the crash/restart harness (tests/crash_restart.rs). Never built by default.
+[[bin]]
+name = "placement-crash-child"
+path = "src/bin/placement-crash-child.rs"
+required-features = ["postgres", "fault-injection"]
+
+[[test]]
+name = "crash_restart"
+path = "tests/crash_restart.rs"
+required-features = ["postgres", "fault-injection"]
+
+[[test]]
+name = "delayed_effects"
+path = "tests/delayed_effects.rs"
+required-features = ["postgres", "fault-injection"]

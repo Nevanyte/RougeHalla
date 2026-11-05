@@ -27,6 +27,11 @@ fn database_url() -> String {
 }
 
 impl TestDb {
+    /// The database's name (the crash harness hands it to a child process; the URL itself is never exposed).
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub async fn create() -> TestDb {
         let admin = PgConnectOptions::from_str(&database_url()).expect("DATABASE_URL parses");
         let nanos = std::time::SystemTime::now()
