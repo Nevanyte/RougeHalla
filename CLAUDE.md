@@ -3,10 +3,10 @@
 Roguehalla is being migrated from a TypeScript/Colyseus/Phaser game (`packages/`, still runnable) to a Rust authoritative
 server (`crates/`) and a Unity browser client (`client-unity/`). Stage 1 (foundation) is done; the bulk port is next.
 
-**In progress: the core optimization sweep** ([docs/sweep/README.md](docs/sweep/README.md): P8, P9, the CI perf gate, the P10b
-measurement and H-server are merged at `3ad072b`; H-sim (restore hardening) and P10c (protocol v3 delta, ADR 0010) are still in
-progress, specs in [docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)). The wire is v2 until P10c merges. Finish the sweep before backlog packets
-that edit `crates/rh-sim`.
+**The core optimization sweep is complete** ([docs/sweep/README.md](docs/sweep/README.md): every package is merged at `ae0c37b`,
+including P10c, protocol v3 per-connection deltas, ADR 0010). The wire is v3. Next: the final efficiency review, then the
+backlog bulk port; packets that edit `crates/rh-sim` follow the core layout rules in their write scopes
+([docs/sweep/PACKAGES.md](docs/sweep/PACKAGES.md)).
 
 Read in this order: [docs/MIGRATION.md](docs/MIGRATION.md) (state, checkpoint, commands, results), [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md),
 [docs/CONTRACTS.md](docs/CONTRACTS.md), [docs/backlog/README.md](docs/backlog/README.md) and its ready packets,

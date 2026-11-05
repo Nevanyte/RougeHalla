@@ -1,6 +1,6 @@
 # Core sweep: packages
 
-Merged packages (one line each) and the specs of the packages still open. Each is implemented by one engineer agent in its own
+Every package of the core sweep is merged; this file keeps one line per package and the spec of the last one (P10c). Each is implemented by one engineer agent in its own
 git worktree and branch (`tools/sweep/core-stage.workflow.js`), reviewed independently, fixed, then merged by the coordinator,
 who re-runs every gate. Every package keeps the parity report at all MATCH, proves its claims with
 `tools/perfproof/perfproof.py` (deterministic instruction and allocation counts against the merge-base, behaviour
@@ -9,7 +9,7 @@ architect/critic/proposal ids (SA1, SH2, OW1, SD5, ...) are in [audit_result.jso
 (packages, target architecture, harness, bugs), `critic` (issues per package, missing items) and `audit:<lens>` (proposals
 with designs and baseline measurements).
 
-Dependencies (all merged except H-sim and P10c): P7a after P2b; P5b after P5a; P7b after P7a; P5c after P5b; P8 after P7b; P9
+Dependencies (all merged): P7a after P2b; P5b after P5a; P7b after P7a; P5c after P5b; P8 after P7b; P9
 after P7b + P5c + P10a; P10b after P9; H-server after P9 and P5d; H-sim after P8; P10c after P10b's ADR 0010 and H-server (both
 edit `rh-protocol`, `conn.rs` and the C#/JS codecs); then the final review. Packages on different lines of that graph can run in parallel when their write scopes
 are disjoint (the sim track P7a -> P7b -> P8 and the server track P5b -> P5c are disjoint).
@@ -44,28 +44,29 @@ Earlier packages (perfproof, P1, P6, P2a, P3, P4, P5a-1, P5a-2) are listed in th
 - **H-server** server hardening (director owner tokens and lease states, one admission deadline, permanent write refusals stop,
   room panic reports `Closed`, overload applies queued commands, Ping/Pong charged and a fair reader, refusing Events/Fx encode,
   stricter JS/C# codecs, `SnapshotWriter` removed): merge `3ad072b`. Wire +0.41% Ir, densitybench +0.30% Ir.
+- **H-server-2** (camelCase `/info` keys, no session for a gone room, duplicate result reports give their lease back, a test
+  rename): merge `65b08a2`.
+- **Docs-2** (contracts and records for P8, P9, CI, the P10b decision and H-server; corrected noise floor and P7b scaling
+  proof): merge `ff57609`.
+- **H-sim** restore hardening (`Sim::restore` refuses the states its rules cover, saturating counters, opaque `Command`,
+  `run_replay` format check, `restore_real.rs`, rh-sim README and backlog write scopes corrected): merge `2e8682c`. Ir within
+  1.0056 of `3ad072b`, fingerprints and allocations identical.
+- **P10c** protocol v3, per-connection snapshot delta ([ADR 0010](../adr/0010-snapshot-delta.md); spec below): merge `ae0c37b`.
+  908 -> 305 B/player/s at 8 players, wire Ir 1.048x, gameplay fingerprints identical.
 
-## H-sim: restore hardening (in progress; scope from the sweep-wide review)
-Scope: `crates/rh-sim/**` (restore, input and checkpoint paths), `crates/rh-sim/README.md`, the backlog packets' write scopes
-for `rh-sim` mechanics. Do: `Sim::restore` refuses every state the tick cannot survive (a bad pending action, queued inputs
-that `validate` would change, a server time outside the tick range, `next_id == u32::MAX`), one refusal test per rule and a
-fuzz test; `Command` opaque (built only by `validate()` or a decode that re-validates); correct the `rh-sim` README
-(`FighterCore`, `credit`/`settle`, `step_into`) and the backlog packets that still name `sim.rs`. Proofs: parity all MATCH,
-fingerprints identical, Ir within 1.02x, base-recorded replays still verify. Status: implemented, its review required fixes;
-not merged.
-
-## P10c: protocol v3, per-connection snapshot delta (in progress; ADR 0010 Accepted)
+## P10c: protocol v3, per-connection snapshot delta (merged at `ae0c37b`; ADR 0010 Accepted, implemented)
 Scope: `crates/rh-protocol/**`, `crates/rh-server/src/{conn,outbox,room,wire}.rs`, `client-unity/RoguehallaNet/**`,
 `crates/rh-server/web/probe.html`, `tools/protocol-js/**`, fixtures `protocol/fixtures/v3.json`. Do: the writer task keeps the
 last snapshot it wrote and encodes Full or Delta against it (a skipped snapshot is never encoded); Full on join, resume and
 resync; decoders in Rust, C# and JS refuse, never repair, a delta that does not apply and answer with a rate-limited Resync;
 bump `PROTOCOL_VERSION` to 3 and regenerate the golden vectors; the browser proof and C# probe pass. Proofs: whole-stream bytes
 per player at 8 players against the ADR's 345 B/s prototype, `wire_seed1_8bots` perfproof A/B <= 1.10x Ir, allocations per step
-not increased, fingerprints identical except the declared byte change. Status: implemented, its review required fixes; not
-merged. **Until it merges the wire is v2 and docs describe v2.**
+not increased, fingerprints identical except the declared byte change. Result: 305 B/player/s (v2: 908), wire Ir 1.0482x,
+allocations count equal, fingerprints identical except the declared byte keys; Rust, C# and JS agree on `v3.json`. The
+protocol rules are in CONTRACTS C-NET.
 
-## Final: review, then the last status update
+## Final: review, then the last status update (done)
 The sweep-wide review of the merged work (correctness, parity, contracts, proofs) ran at `a0e705e`; its findings are applied
-in the records (docs/sweep/README.md corrections, docs/CONTRACTS.md, docs/MIGRATION.md) and in H-server/H-sim. What remains:
-review H-sim and P10c, merge them, rerun every gate and the cumulative perfproof, and update the checkpoint in
-docs/MIGRATION.md and the status table in docs/CONTRACTS.md (P10c turns "C-NET v3 Accepted, Not run" into a validated v3).
+in the records (docs/sweep/README.md corrections, docs/CONTRACTS.md, docs/MIGRATION.md) and in H-server/H-sim. P10c is merged,
+the status records (checkpoint, C-NET row) and the cumulative numbers are updated, and the sweep is complete. What follows is
+the final efficiency review of the whole result, then the backlog bulk port ([docs/backlog/README.md](../backlog/README.md)).

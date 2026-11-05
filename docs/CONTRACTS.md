@@ -2,8 +2,10 @@
 
 Invariants of the Rust foundation, each linked to its canonical source (code is the source of truth; this file only names
 and points) and to the tests that hold it. **Decision status** (Accepted / Provisional) is independent of **validation
-status** (Passed / Failed / Blocked / Not run). Validation columns refer to `optimization_port` at `3ad072b` (the merge of
-H-server; the revision and results are recorded in [MIGRATION.md](MIGRATION.md)) unless a cell says otherwise.
+status** (Passed / Failed / Blocked / Not run). Validation columns refer to `optimization_port` at `ae0c37b` (the merge of
+P10c, the last package of the core sweep; the revision and results are recorded in [MIGRATION.md](MIGRATION.md)) unless a
+cell says otherwise. The evidence behind each cell is the gate run of the package that last changed it, on that package's own
+revision; [sweep/README.md](sweep/README.md) says which (H-sim and H-server-2 have no merge-time run recorded).
 
 **FROZEN** means: the baseline ordinary workers preserve. The coordinator may amend a FROZEN contract only with evidence
 (a failing scenario or a measurement) and an independent review, recorded in an ADR or in this file's change log.
@@ -15,10 +17,10 @@ H-server; the revision and results are recorded in [MIGRATION.md](MIGRATION.md))
 | C-TICK | Fixed 20 Hz step; sim time +50 ms per step; fixed system order, held as an executable schedule checked against the legacy record | Accepted, FROZEN | Passed | parity suite; `rh-parity/tests/schedule.rs`; `rh-sim/src/systems/tests.rs`; `rh-server` pacer unit tests; `rh-server/tests/density.rs` |
 | C-RNG | No entropy in the core; injected secrets; one stream per purpose; the state hash is server-private (it depends on `spawn_seed`) | Accepted, FROZEN | Passed (with the known tie-outcome observability and the state-hash oracle limit below) | `rh-sim/tests/observe.rs`; `tie_kill_credit_*` parity fixtures; determinism tests; `rh-sim/tests/hash_coverage.rs` (statics secrets held out and asserted) |
 | C-NUM | f64, legacy order, no FMA, `libm` transcendentals | Accepted, FROZEN | Passed (x86_64) / Not run (aarch64) | parity suite |
-| C-DET | Replays (`rh-replay/2`) and checkpoints (`rh-checkpoint/3`) reproduce every step hash; the state hash is derived from the serialized `World` (0 unhashed leaves); live = headless; the tick allocates nothing in steady state | Accepted, FROZEN | Passed (P8 merged; restore hardening H-sim is in progress on another branch) | `rh-headless/tests/env.rs`, `rh-server/tests/equivalence.rs`, `rh-sim/tests/{checkpoint,hash_coverage,replay,no_alloc}.rs`, `rh-sim/src/hash.rs` unit tests, `rh-sim/clippy.toml` |
-| C-INPUT | One input path for every actor (including in-tick actors via `Cx::submit`); validation; order budget; ≤ 6 actions/tick | Accepted, FROZEN | Passed | `rh-sim` input unit tests; flood policy test; live tests |
+| C-DET | Replays (`rh-replay/2`) and checkpoints (`rh-checkpoint/3`) reproduce every step hash; the state hash is derived from the serialized `World` (0 unhashed leaves); live = headless; the tick allocates nothing in steady state | Accepted, FROZEN | Passed (P8; H-sim tests ran on the H-sim branch head `fec4572`, no merge-time gate run is recorded for `2e8682c`) | `rh-headless/tests/{env,restore_real}.rs`, `rh-server/tests/equivalence.rs`, `rh-sim/tests/{checkpoint,hash_coverage,replay,no_alloc}.rs`, `rh-sim/src/hash.rs` unit tests, `rh-sim/clippy.toml` |
+| C-INPUT | One input path for every actor (including in-tick actors via `Cx::submit`); validation; `Command` opaque (only `validate` or a re-validating decode builds one); order budget; ≤ 6 actions/tick | Accepted, FROZEN | Passed (H-sim tests on its branch head `fec4572`) | `rh-sim` input unit tests (incl. the `Command` decode refusals); `rh-sim/tests/replay.rs`; flood policy test; live tests |
 | C-OBS | Three views (state / public snapshot / observation); no leaks; every event declares who may perceive it (exhaustive `visibility`/`class`); catch-up wakes judge each step against its own sight | Accepted, FROZEN | Passed (slice) | `rh-sim/tests/{observe,kernel}.rs`, `rh-server/tests/publish.rs` |
-| C-NET | Protocol v2 framing, limits, versioning, event classes, resume, liveness, batched egress, fair guarded reader, refusing encoders. Protocol v3 (per-connection delta, ADR 0010) is **Accepted, not shipped**: the wire is v2 until packet P10c merges | Accepted, FROZEN (v2); v3 Accepted (ADR 0010) | Passed for v2 (loopback and in-process density runs; no real-network or socket-level load test yet). v3: Not run (implementation in progress) | `rh-protocol/tests`, C# tests (138 at H-server), `tools/protocol-js/check-vectors.mjs` (12 server vectors, 31 malformed, 663 checks), `rh-server/tests/{live,transport,density,publish}.rs`, `conn.rs`/`room.rs` unit tests, browser proof |
+| C-NET | Protocol v3 (per-connection snapshot delta, ADR 0010, shipped by P10c): Full frames (the v2 layout) and Deltas against the last snapshot the connection's writer wrote; Resync deferred, never dropped (forced Full frames spaced by 20 ticks); framing, limits, versioning, event classes, resume, liveness, batched egress, fair guarded reader, refusing encoders | Accepted, FROZEN (v3) | Passed for v3 (loopback, in-process density runs, browser proof incl. resync and resume, C# probe against the real server; no real-network load test yet) | `rh-protocol/tests` (delta.rs 18, vectors.rs 11), C# tests (175), `tools/protocol-js/check-vectors.mjs` (14 server vectors, 45 malformed, 9 chains, 1945 checks), `rh-server/tests/{live,transport,density,publish,snapshot_delta}.rs`, `conn.rs`/`room.rs` unit tests, browser proof |
 | C-MAP | Server-sent canonical map | Accepted | Passed (blob + hash) | protocol vectors; browser proof `admission_and_map` |
 | C-POLICY | Seat contract, cadence, faults, async deadline; a seat is observed only on its decision ticks, events between decisions accumulate (bounded) | Accepted, FROZEN | Passed | `rh-headless/tests/env.rs`, equivalence test, `rh-policy` unit tests |
 | C-PERSIST | Idempotent results, fenced leases, ledger reconciliation; one owned entry per profile in the director (owner token, lease states), a lease never given back while a result is due or in flight | Accepted, FROZEN | Store: Passed (local PG 16). Server path: Passed for results, MIA results, lease release on leave/close, rejoin after a leave and the director state machine (`pg_e2e`: 30 of 30 under CPU load after P5d, 20 of 20 after H-server; director unit tests on strict memory leases). **Lease renewal not implemented**, a crashed host's leases wait for their TTL (3600 s), and unwritten results live only in memory (~2 min of retries) | `rh-persist/tests`, `rh-server/src/director.rs` unit tests, `rh-server/tests/pg_e2e.rs` |
@@ -96,11 +98,30 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   (a validating run of the same serializer): no non-finite float (a sentinel is an `Option`), no `skip_serializing_if`, no
   `flatten`, no sequence of unknown length; `#[serde(skip)]` is the only way to leave a field out and every use is pinned.
   A decoded value is complete (`TileMap::rebuild` and `Sim::after_restore` are gone); malformed or truncated input is an
-  `Err`, and `Sim::restore` refuses a `next_id` not past the last player id (`CheckpointError::Malformed`). The ADR 0007
+  `Err`. The ADR 0007
   rules are a lint: `crates/rh-sim/clippy.toml` (and `rh-policy/clippy.toml`) disallow `HashMap`/`HashSet`, platform-libm
   `f64` transcendentals, `mul_add`, `Instant` and `SystemTime`; a sanctioned use carries an `#[allow]` with its reason.
-- Not done yet: `Sim::restore` still accepts `next_id == u32::MAX` (the next join then overflows; possible at base too) and
-  `TileMap` keeps public `w`/`h`/`tiles`; both are in [sweep/README.md](sweep/README.md) under follow-ups.
+- Restore refuses the states the rules below cover (H-sim): `Sim::restore` returns the typed
+  `CheckpointError::Malformed` for the rule families `check_world` (`crates/rh-sim/src/checkpoint.rs`) implements:
+  (1) ids and roster order: `next_id` greater than the last player and roster id and not `u32::MAX`; roster and player
+  order are checked by their own decoders; (2) clock and tick: `server_time` within `0..=u32::MAX x TICK_MS` (where
+  `+= TICK_MS` and the rewind cutoff are exact) and `tick` not `u32::MAX`; (3) rewind history: consecutive samples at least
+  `TICK_MS` apart (this also covers order and NaN) and none dated after `server_time`; (4) coordinates: every body,
+  rewind sample, path point and arena spawn finite and within the map extent plus `COORD_MARGIN` (1024); (5) counters:
+  `joined`, `rt.downs_between_ticks` and every `credit.kills` at most the roster length, `credit.bot_kills` at most
+  `credit.kills`; (6) carried weapons: fists only (the slice has no item flow); (7) pending actions: only a fist swing
+  with finite times, angle and packet; (8) queued inputs: each queued move, aim and action is re-run through `validate`
+  and any value it would change is refused (`InputQueue::check`). Layer two: arithmetic the tick cannot bound by a check
+  saturates where results stay bit-identical for in-range values (`inputs.dropped`, `credit.kills`/`bot_kills`, the
+  bounty and gv sums, the settle total, `rt.downs_between_ticks`, `joined`, tile arithmetic in `snap_to_floor` and
+  `circle_clear`, a finiteness test per coordinate in `find_path_into`), so a state neither layer refuses is not known to
+  panic or to wrap differently in debug and release (800-mutation fuzz, unit tests). `rh-headless/tests/restore_real.rs`
+  shows no false refusal for between-step checkpoints: bot matches (5 seeds, 2 to 8 players, every 5th tick) restore with an
+  equal hash and then step on identically with the original for 3 steps; lobby matches (joins, leaves and random validated
+  inputs) restore with an equal hash, checked every 7th step. Every checkpoint there is taken after `step()`, so the queued
+  inputs are empty and rule (8) is covered only by the unit test `a_queued_input_validation_would_change_is_refused`. A packet that moves bodies past
+  `COORD_MARGIN` or adds items or ranged actions must widen these rules and the `hash_coverage` seeds.
+- Not done yet: `TileMap` keeps public `w`/`h`/`tiles` ([sweep/README.md](sweep/README.md), follow-ups).
 - A checkpoint (`crates/rh-sim/src/checkpoint.rs`, tag `rh-checkpoint/3`) is `{format, statics, world}`; deserialization
   builds every derived table (the decoded value is complete, see above) and the restored sim continues identically (`rh-sim/tests/checkpoint.rs`). Players are serialized
   in id order as nested components (core{id, body, vitals, weapon, motion}, seat, credit, fate, status, down, resolved); the
@@ -121,6 +142,10 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   harness only.
 - An actor inside the tick (a future mob brain) uses `Cx::submit`, which goes through the same validate, `OrderBudget` and
   `InputQueue`; `input::accept` is the only code that enqueues.
+- `Command` is opaque (H-sim): its field is private, and the only ways to hold one are `validate` and a `Deserialize` that
+  runs `validate` again and refuses anything it would change, so no fixture or edited replay can hand the sim an
+  unvalidated command. It serializes as the plain variant, so recorded replays keep their shape. `run_replay` checks
+  `REPLAY_FORMAT` (`rh-replay/2`) first (C-DET). Queued inputs inside a restored checkpoint get the same re-validation.
 - The network layer additionally caps frames (1 KiB, 16 commands, 60 frames/s burst 120 per connection).
 
 ## C-OBS: views and leaks
@@ -144,22 +169,37 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   sight only (stricter). Porting the trail must keep the leak tests green (packet P-VISION-1).
 
 ## C-NET: protocol and sessions
-- `crates/rh-protocol` v2 (`PROTOCOL_VERSION = 2`), mirrored in `client-unity/RoguehallaNet/Protocol`; golden vectors
-  `protocol/fixtures/v2.json` (regenerated with `cargo run -p rh-protocol --bin protocol-fixtures`; the Rust and C# test
-  suites and `tools/protocol-js/check-vectors.mjs` assert byte equality and malformed-frame rejection). Since H-server the
-  `malformedServer` vectors also cover Reject codes outside 1..=11, a reason that is not UTF-8 and every MapBlob rule, and the
-  Rust, C# and JS decoders all reject them; the C# encoders refuse off-grid positions as Rust does.
-- **Protocol v3 is accepted but not shipped.** [ADR 0010](adr/0010-snapshot-delta.md) adopts a per-connection snapshot delta
-  (62% of bytes at 8 players at an estimated 1.06x publish Ir; the gate passed). It is implemented by packet P10c, which is
-  in progress; until it merges the wire, the fixtures and the decoders are v2. Nothing here describes v3 as a behaviour.
-- Snapshots (v2): no `server_ms` (decoders derive it as tick x `TICK_MS`); the self view is full precision; remote actors are
-  quantized (position on a 1/8 u grid, facing, hp as a percent, a per-actor field mask) and encoded with varints
-  (`crates/rh-protocol/src/quant.rs`, `encode.rs`). Quantization **refuses, never clamps**: a position outside the grid is
-  `EncodeError::BadValue`, and the server refuses at startup an arena that does not fit (`wire::arena_fits`).
-- Every server frame that can be refused goes through a refusing encoder: Snapshot (`encode_snapshot_into`), Events and Fx
-  (`try_encode`, one exact allocation, `wire::encode_or_refuse`). A refused frame is never clamped or repaired: it is not
-  sent, it is counted per room (`snapshot_refusals`, `frame_refusals` in `/info` `closedRooms`) and logged once per room, not
-  per tick and viewer. `SnapshotWriter` was removed (it had no production caller and a second refusal path).
+- `crates/rh-protocol` v3 (`PROTOCOL_VERSION = 3`), mirrored in `client-unity/RoguehallaNet/Protocol`; golden vectors
+  `protocol/fixtures/v3.json` (vectors for the current version only, `v2.json` is gone; regenerated with
+  `cargo run -p rh-protocol --bin protocol-fixtures`). The Rust and C# suites and `tools/protocol-js/check-vectors.mjs`
+  (the `probe.html` decoder) assert byte equality, malformed-frame rejection and replay of the delta chains. The
+  `malformedServer` vectors cover Reject codes outside 1..=11, a reason that is not UTF-8, every MapBlob rule and the
+  malformed deltas; all three decoders reject them. The C# encoders refuse off-grid positions as Rust does.
+- Snapshots (v3, [ADR 0010](adr/0010-snapshot-delta.md), P10c): per connection, a Full frame (tag 0x83, the v2 layout) or a
+  Delta (tag 0x87) against the last snapshot that connection's writer wrote. The room hands the outbox validated
+  `SnapshotData` and the writer encodes it when it drains (latest-wins is unchanged; a snapshot that was skipped is never
+  encoded). A Full frame goes out for: the first snapshot after a Welcome (a resume always starts Full), an answered Resync,
+  a base older than 64 ticks (`MAX_DELTA_AGE`), a self that appears or changes id, a snapshot whose tick is not later than its base's, and a delta not smaller than the Full
+  frame. A client refuses, never repairs, a delta it cannot apply (unknown base, malformed) and answers with Resync
+  (0x05). The server never drops a Resync: it is answered by a Full frame at the next snapshot, or at the first one at least
+  20 ticks (`MIN_FORCED_FULL_TICKS`) after the last forced Full, so a flood costs one Full per interval. Clients repeat an
+  unanswered Resync with the next refused delta after 2 s. Decoders refuse unknown bases and malformed deltas and never
+  clamp. 908 -> 305 B/player/s at 8 players on the slice; 1.048x wire Ir ([sweep/README.md](sweep/README.md)).
+- Snapshot content (both frame kinds): no `server_ms` (decoders derive it as tick x `TICK_MS`); the self view is full
+  precision; remote actors are quantized (position on a 1/8 u grid, facing, hp as a percent, a per-actor field mask) and
+  encoded with varints (`crates/rh-protocol/src/quant.rs`, `encode.rs`, `delta.rs`). Quantization **refuses, never clamps**:
+  a position outside the grid is `EncodeError::BadValue`, and the server refuses at startup an arena that does not fit
+  (`wire::arena_fits`). `SnapshotData::build` applies every refusal of the encoders, off-grid positions included, so no
+  Delta can carry one.
+- Every server frame that can be refused goes through a refusing encoder: Snapshot (`SnapshotData::build`/`build_with`, called by
+  `Publisher::frames` in the room, with the same refusals as `encode_snapshot_into`; the writer's `ConnEncoder::encode` takes
+  only validated data and cannot fail), Events and Fx (`try_encode`, one exact allocation, `wire::encode_or_refuse`). A refused frame
+  is never clamped or repaired: it is not sent, it is counted per room (`snapshotRefusals`, `frameRefusals` in `/info`
+  `closedRooms`) and logged once per room, not per tick and viewer. `SnapshotWriter` was removed (it had no production
+  caller and a second refusal path).
+- Per-room counters: `snapshotsFull`, `snapshotsDelta` and `snapshotBytesSent` hold the wire figures of the snapshots.
+  `bytesOut` and `bytesEnqueuedTotal` count a snapshot at `min_len`, a lower bound of its Full frame, so they are not the
+  wire figure for snapshots.
 - Codes: status 0 lobby / 1 alive / 2 dead / 3 mia; phase 0 lobby / 1 active / 2 ended; outcome 0 won / 1 draw / 2 died /
   3 mia; faction and weapon codes are `FactionId::ALL` / `WeaponId::ALL` order (append only) (`crates/rh-server/src/wire.rs`).
 - Admission order (all refusals before a seat is taken): protocol version → content hash → resume token → callsign
@@ -187,11 +227,12 @@ See [adr/0007-determinism.md](adr/0007-determinism.md). `rh_sim::math` is the on
   Close); a write stuck for that long ends the connection. Each connection has a process-unique id: a
   seat ignores input, disconnect and leave from a connection its resume replaced.
 - Telemetry: a room's step times are a fixed 384-byte log-linear histogram (`crates/rh-server/src/metrics.rs`, 4 sub-buckets
-  per power of two). `/info` `closedRooms` `step_us_p50` and `step_us_p99` are **bucket upper bounds** (never below the true
-  value, at most 25% above it); `step_us_max` and `ticks` are exact. `/control/health` also carries process-wide counters
-  and histogram summaries under `metrics` (wakes, steps, droppedSteps, bytesOut, outboxPushes, stepUs, publishUs,
+  per power of two). `/info` `closedRooms` `stepUsP50` and `stepUsP99` are **bucket upper bounds** (never below the true
+  value, at most 25% above it); `stepUsMax` and `ticks` are exact. `/control/health` also carries process-wide counters
+  and histogram summaries under `metrics` (wakes, steps, droppedSteps, bytesOut (snapshots at `min_len`, as per room), outboxPushes, stepUs, publishUs,
   latenessUs, rssBytes). `/info` also carries `resultsRefused` (result writes the store refused for good) and, per closed
-  room, `crashed`, `frame_refusals` and `frame_refusals_logged` (the room stats serialize in snake_case).
+  room, `crashed`, `frameRefusals` and `frameRefusalsLogged` (all room stats keys are camelCase since H-server-2, pinned by
+  `info_and_closed_room_keys_are_exactly_these_camel_case_names`).
 - Every room phase change is reported to the director; a lobby that closed into its run is never offered to a new player.
 - Crash safety (H-server): each call into a room (wake, handle, close) is wrapped in `catch_unwind`. A panic closes the
   room's connections and reports `Closed` with `crashed = true`, so the director frees its seats and gives their leases
@@ -263,14 +304,22 @@ figures are taken by hand).
 
 ## Change log
 - Stage 1: initial contracts.
-- Core sweep, final record (P8, P9, CI, P10b measurement and H-server merged at `3ad072b`; H-sim and P10c in progress):
+- Core sweep complete (P10c merged at `ae0c37b`): C-NET moved to protocol v3 (per-connection Delta frames encoded in the
+  writer task, deferred never-dropped Resync with forced Fulls spaced by 20 ticks, `v3.json` replaces `v2.json`, the room
+  counters `snapshotsFull`/`snapshotsDelta`/`snapshotBytesSent`); ADR 0010 is implemented. The status table now names the
+  revision each H-sim cell was validated on. Evidence: [sweep/README.md](sweep/README.md).
+- Core sweep, H-sim record (merged at `2e8682c`): C-DET gained the restore refusal rules (two layers,
+  refusal and saturating arithmetic) and `restore_real.rs`, which replaces the "not done yet" note on `next_id`; C-INPUT
+  records the opaque `Command` and the replay format check. H-server-2 renamed the `/info` closed-room keys to camelCase (`stepUsP50`, `frameRefusals`, ...; C-NET), and its other
+  fixes (no session for a gone room, duplicate result reports give their lease back) changed no contract text.
+- Core sweep, final record (P8, P9, CI, P10b measurement and H-server merged at `3ad072b`):
   C-DET gained the derived state hash, `rh-replay/2` and the layout rule and lints; C-RNG records that the state hash is
   server-private (it depends on `spawn_seed` through `spawn_rng`); C-OBS gained exhaustive event visibility and class,
   per-ordered-pair sight and per-step catch-up filtering; C-POLICY gained due-only observation and the bounded event
   accumulation (256, oldest dropped); C-PERSIST was rewritten around owner tokens, lease states and one admission
   deadline (the earlier "4 x `LEAVING_WAIT`" worst case is gone); C-NET gained the Ping/Pong bucket charge, reader
   fairness, bounded Welcome and Reject sends, refusing Events/Fx encoders and stricter decoders; C-TICK gained the
-  overload drain; C-HOST gained room-crash safety; C-PERF is new. Protocol v3 is accepted (ADR 0010) and not shipped.
+  overload drain; C-HOST gained room-crash safety; C-PERF is new. Protocol v3 was accepted (ADR 0010) and shipped later by P10c.
   Evidence: [sweep/README.md](sweep/README.md).
 - Core sweep, first record (P2b, P10a, P7a, P5b, P5c, P7b, P5d merged; P8, P9, P10b, CI pending at that time): C-TICK gained the executable schedule,
   hooks, the same-tick `payLater` seam and the biased room loop; C-NET moved to protocol v2 and gained batched egress, the

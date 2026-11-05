@@ -8,8 +8,8 @@ schema reflection.
 
 **Decision.**
 - Transport: WebSocket binary frames over TLS (`wss://`); one protocol message per frame; TCP's reliability and order.
-- Protocol: `rh-protocol` (v2 since the addendum below), hand-written little-endian encoding mirrored byte for byte in C#
-  (`client-unity/RoguehallaNet/Protocol`) and pinned by golden vectors (`protocol/fixtures/v2.json`) tested on both sides (and by the JS probe decoder).
+- Protocol: `rh-protocol` (v3 since the last addendum below), hand-written little-endian encoding mirrored byte for byte in C#
+  (`client-unity/RoguehallaNet/Protocol`) and pinned by golden vectors (`protocol/fixtures/v3.json` now; the v1 and v2 history is in the addenda) tested on both sides (and by the JS probe decoder).
 - Do **not** reimplement Colyseus. Both ends migrate; the legacy stack keeps its own protocol until it is retired.
 - Replication: each client gets its OWN observation every tick (`rh_sim::observe`): itself in full, others only while in
   sight. This is the interest management the legacy Known TODOs asked for, and it is exactly what policies observe.
