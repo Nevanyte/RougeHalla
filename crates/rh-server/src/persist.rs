@@ -4,7 +4,7 @@
 //! is refused without the live lease and releases it in the same step) so the director's ownership can be tested without
 //! a database. `Postgres` (feature `postgres`) is rh-persist, the real transactional store.
 
-use crate::room::MatchId;
+use crate::room::{MatchId, Roster};
 use rh_sim::RunResult;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -99,12 +99,27 @@ pub enum Persistence {
     Postgres {
         store: std::sync::Arc<rh_persist::Store>,
         owner: String,
+        /// The `profile_id` each live lease was admitted under, by `(lower-cased admission callsign, fence)`. Every call after
+        /// admission (release, result) goes by this id, so a rename of the profile mid-match cannot lose the result or
+        /// strand the lease. A miss (a process that did not admit it) falls back to the callsign. Entries are replaced by
+        /// the next admission under the same name, so the map holds at most one per distinct name.
+        held: Mutex<HashMap<(String, i64), i64>>,
     },
 }
 
 impl Persistence {
     pub fn memory() -> Self {
         Persistence::Memory(Box::default())
+    }
+
+    /// The durable store (rh-persist); `owner` names this host in its leases.
+    #[cfg(feature = "postgres")]
+    pub fn postgres(store: std::sync::Arc<rh_persist::Store>, owner: String) -> Self {
+        Persistence::Postgres {
+            store,
+            owner,
+            held: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Takes the profile's session lease for this match; returns its fence.
@@ -138,7 +153,7 @@ impl Persistence {
                 }
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, owner } => {
+            Persistence::Postgres { store, owner, held } => {
                 let lease = store
                     .acquire_lease(
                         profile,
@@ -148,6 +163,12 @@ impl Persistence {
                     )
                     .await
                     .map_err(|e| format!("lease refused: {e}"))?;
+                // One entry per admission name: a newer admission replaces the older ones (a duplicate report for a finished
+                // lease keeps resolving to the profile it was earned by, never to whoever holds the name now).
+                let name = profile.to_ascii_lowercase();
+                let mut held = held.lock().expect("held");
+                held.retain(|(n, _), _| *n != name);
+                held.insert((name, lease.fence), lease.profile_id);
                 Ok(lease.fence)
             }
         }
@@ -173,10 +194,16 @@ impl Persistence {
                 }
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, .. } => store
-                .release_lease(profile, fence)
-                .await
-                .map_err(|e| e.to_string()),
+            Persistence::Postgres { store, held, .. } => {
+                let key = (profile.to_ascii_lowercase(), fence);
+                let id = held.lock().expect("held").get(&key).copied();
+                let released = match id {
+                    Some(id) => store.release_lease_by_id(id, fence).await,
+                    None => store.release_lease(profile, fence).await,
+                }
+                .map_err(|e| e.to_string())?;
+                Ok(released)
+            }
         }
     }
 
@@ -188,6 +215,7 @@ impl Persistence {
         profile: &str,
         fence: i64,
         r: &RunResult,
+        roster: Roster,
     ) -> Result<Recorded, RecordError> {
         match self {
             Persistence::Memory(s) => {
@@ -222,13 +250,18 @@ impl Persistence {
                 Ok(Recorded::Applied)
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, .. } => {
+            Persistence::Postgres { store, owner, held } => {
                 let res = crate::persist::pg::to_persist(r);
-                match store
-                    .record_result(uuid::Uuid::from_bytes(m), profile, fence, &res)
-                    .await
-                    .map_err(|e| RecordError::Transient(e.to_string()))?
-                {
+                let meta = crate::persist::pg::match_meta(owner, roster);
+                let key = (profile.to_ascii_lowercase(), fence);
+                let id = held.lock().expect("held").get(&key).copied();
+                let mid = uuid::Uuid::from_bytes(m);
+                let outcome = match id {
+                    Some(id) => store.record_result_by_id(mid, id, fence, &res, &meta).await,
+                    None => store.record_result(mid, profile, fence, &res, &meta).await,
+                }
+                .map_err(|e| RecordError::Transient(e.to_string()))?;
+                match outcome {
                     rh_persist::RecordOutcome::Applied { .. } => Ok(Recorded::Applied),
                     rh_persist::RecordOutcome::AlreadyApplied => Ok(Recorded::AlreadyApplied),
                     other @ (rh_persist::RecordOutcome::NoLease
@@ -246,8 +279,23 @@ pub mod pg {
     //! Mapping from the simulation's RunResult to rh-persist's MatchResult (the legacy RunResult shape).
     use rh_sim::sim::Outcome;
 
-    /// Faction and weapon per-win counters need the player's faction and weapon at the end, which RunResult does not carry
-    /// yet (docs/backlog P-PERSIST-2).
+    /// The `matches` row of a match: the host that played it, the build and rules it ran under, and who was in it. Region and
+    /// placement id stay unset until the hosting adapter reports them (P-HOST-1).
+    pub fn match_meta(owner: &str, roster: super::Roster) -> rh_persist::MatchMeta {
+        rh_persist::MatchMeta {
+            owner: owner.to_owned(),
+            region: None,
+            placement_id: None,
+            build: rh_sim::replay::BUILD_ID.to_owned(),
+            content_hash: rh_sim::content::content_hash(),
+            humans: roster.humans,
+            bots: roster.bots,
+        }
+    }
+
+    /// Every field of the `RunResult` is kept (the record is stored whole). The per-win faction and weapon counters need the
+    /// player's faction and weapon at the end, which RunResult does not carry yet (docs/backlog P-PERSIST-2), so those two
+    /// stay `None`.
     pub fn to_persist(r: &rh_sim::RunResult) -> rh_persist::MatchResult {
         let g = &r.gv;
         rh_persist::MatchResult {
@@ -269,6 +317,20 @@ pub mod pg {
             faction: None,
             weapon: None,
             win_qualified: r.outcome == Outcome::Won && !r.win_bonus_withheld,
+            duration_sec: i64::from(r.duration_sec),
+            killed_by: r.killed_by.clone(),
+            killed_by_bot: r.killed_by_bot,
+            place: i64::from(r.place),
+            players: i64::from(r.players),
+            win_bonus_withheld: r.win_bonus_withheld,
+            // Durable spellings (append only): stored in match records.
+            win_bonus_why: r.win_bonus_why.map(|w| {
+                match w {
+                    rh_sim::results::WinBonusWhy::Starters => "starters",
+                    rh_sim::results::WinBonusWhy::Opponents => "opponents",
+                }
+                .to_owned()
+            }),
         }
     }
 }

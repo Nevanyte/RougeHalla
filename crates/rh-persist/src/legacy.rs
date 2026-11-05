@@ -197,6 +197,7 @@ fn parse_v1(key: &str, v: &Value) -> Result<Profile> {
             draws: 0,
             deaths: st.deaths,
             kills: st.kills,
+            ..Stats::default()
         },
         cosmetics: Cosmetics::default(),
         achievements: BTreeMap::new(),

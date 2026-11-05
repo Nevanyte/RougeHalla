@@ -4,6 +4,8 @@
 //! * one live match per profile, across hosts, by a lease with a monotonic fence;
 //! * a match result is applied at most once per (match, profile), and a stale writer changes nothing;
 //! * `profiles.gv` only moves together with an append-only `gv_ledger` row;
+//! * a profile is its surrogate `profile_id`; the callsign is a unique, renamable display attribute that callers pass at the
+//!   API edge and that is resolved to the id once per call;
 //! * a purchase is idempotent by id and cannot overdraw.
 //!
 //! Achievements are NOT ported yet (`achievements_pending`): the counters they read (`progress`, `stats`) are kept
@@ -24,9 +26,15 @@ use uuid::Uuid;
 
 pub use model::*;
 
-static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+/// `ignore_missing`: a database migrated by a NEWER binary (additive migrations, expand/contract) has applied versions this
+/// binary does not embed; whether it may still run is decided by `schema_compat.min_binary`, not by the version list.
+static MIGRATOR: sqlx::migrate::Migrator = {
+    let mut m = sqlx::migrate!("./migrations");
+    m.ignore_missing = true;
+    m
+};
 
-/// The newest schema version this binary knows.
+/// The newest schema version this binary knows (its "binary version" for the `schema_compat` gate).
 pub fn known_schema_version() -> i64 {
     MIGRATOR.iter().map(|m| m.version).max().unwrap_or(0)
 }
@@ -40,9 +48,9 @@ pub enum Error {
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
     #[error(
-        "database schema v{db} is newer than this binary understands (v{binary}); refusing to run"
+        "the database requires a binary of schema version {required} or newer (schema_compat.min_binary); this binary is v{binary}; refusing to run"
     )]
-    SchemaTooNew { db: i64, binary: i64 },
+    SchemaTooNew { required: i64, binary: i64 },
     #[error("unknown profile {0:?}")]
     UnknownProfile(String),
     #[error("profile {callsign:?} is already in a live match ({match_id}, owner {owner})")]
@@ -66,6 +74,8 @@ pub fn hash_token(token: &str) -> [u8; 32] {
 /// Proof of ownership of a profile's live-match slot. A writer presents `fence` with its result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lease {
+    pub profile_id: i64,
+    /// The profile's callsign when the lease was taken (display only: the lease is keyed by `profile_id`).
     pub callsign: String,
     pub match_id: Uuid,
     pub owner: String,
@@ -113,6 +123,7 @@ pub struct Store {
 }
 
 type ProfileRow = (
+    i64,
     String,
     Vec<u8>,
     i64,
@@ -124,7 +135,7 @@ type ProfileRow = (
 );
 
 impl Store {
-    /// Connects and refuses a database whose schema is newer than this binary (it does not migrate).
+    /// Connects and refuses a database whose `schema_compat.min_binary` is above this binary (it does not migrate).
     pub async fn connect(url: &str) -> Result<Store> {
         Self::connect_with(url, 16).await
     }
@@ -148,7 +159,7 @@ impl Store {
         &self.pool
     }
 
-    /// Applies the embedded migrations (after the too-new check).
+    /// Applies the embedded migrations (after the compatibility check).
     pub async fn migrate(&self) -> Result<()> {
         self.check_schema().await?;
         MIGRATOR.run(&self.pool).await?;
@@ -170,14 +181,27 @@ impl Store {
         Ok(v)
     }
 
+    /// The compatibility floor: refuses when the database says this binary is too old to run against it. A newer
+    /// migration alone does not refuse (an additive one keeps `min_binary` where it was); a database with no
+    /// `schema_compat` table is not migrated yet and passes.
     async fn check_schema(&self) -> Result<()> {
-        if let Some(db) = self.schema_version().await? {
-            let binary = known_schema_version();
-            if db > binary {
-                return Err(Error::SchemaTooNew { db, binary });
-            }
+        let exists: bool = sqlx::query_scalar("SELECT to_regclass('schema_compat') IS NOT NULL")
+            .fetch_one(&self.pool)
+            .await?;
+        if !exists {
+            return Ok(());
         }
-        Ok(())
+        let required: Option<i32> = sqlx::query_scalar("SELECT min_binary FROM schema_compat")
+            .fetch_optional(&self.pool)
+            .await?;
+        let binary = known_schema_version();
+        match required {
+            Some(r) if i64::from(r) > binary => Err(Error::SchemaTooNew {
+                required: i64::from(r),
+                binary,
+            }),
+            _ => Ok(()),
+        }
     }
 
     // ---- profiles -------------------------------------------------------------------------------------------
@@ -231,7 +255,8 @@ impl Store {
             return Ok(vec![]);
         }
         let rows = sqlx::query(
-            "SELECT callsign, gv FROM gv_by_month WHERE month = $1 AND gv > 0 ORDER BY gv DESC, callsign LIMIT $2",
+            "SELECT p.callsign, m.gv FROM gv_by_month m JOIN profiles p USING (profile_id)
+             WHERE m.month = $1 AND m.gv > 0 ORDER BY m.gv DESC, p.callsign LIMIT $2",
         )
         .bind(month)
         .bind(limit.clamp(1, 1000))
@@ -251,11 +276,11 @@ impl Store {
         owner: &str,
         ttl: Duration,
     ) -> Result<Lease> {
-        let canon = self.canonical(callsign).await?;
+        let (profile_id, canon) = self.resolve(callsign).await?;
         let fence: Option<i64> = sqlx::query_scalar(
-            "INSERT INTO session_leases (callsign, match_id, owner, fence, expires_at)
+            "INSERT INTO session_leases (profile_id, match_id, owner, fence, expires_at)
              VALUES ($1, $2, $3, 1, now() + make_interval(secs => $4))
-             ON CONFLICT (callsign) DO UPDATE SET
+             ON CONFLICT (profile_id) DO UPDATE SET
                fence = CASE WHEN session_leases.released_at IS NULL
                               AND session_leases.match_id = EXCLUDED.match_id
                               AND session_leases.owner = EXCLUDED.owner
@@ -267,7 +292,7 @@ impl Store {
                 OR (session_leases.match_id = EXCLUDED.match_id AND session_leases.owner = EXCLUDED.owner)
              RETURNING fence",
         )
-        .bind(&canon)
+        .bind(profile_id)
         .bind(match_id)
         .bind(owner)
         .bind(ttl.as_secs_f64())
@@ -275,6 +300,7 @@ impl Store {
         .await?;
         match fence {
             Some(fence) => Ok(Lease {
+                profile_id,
                 callsign: canon,
                 match_id,
                 owner: owner.to_owned(),
@@ -282,9 +308,9 @@ impl Store {
             }),
             None => {
                 let (m, o): (Uuid, String) = sqlx::query_as(
-                    "SELECT match_id, owner FROM session_leases WHERE callsign = $1",
+                    "SELECT match_id, owner FROM session_leases WHERE profile_id = $1",
                 )
-                .bind(&canon)
+                .bind(profile_id)
                 .fetch_one(&self.pool)
                 .await?;
                 Err(Error::LeaseHeld {
@@ -297,13 +323,27 @@ impl Store {
     }
 
     /// Extends a lease the caller still holds (fence matches and it was not released). An expired lease nobody took
-    /// over can be renewed: the fence, not the clock, is what protects.
+    /// over can be renewed: the fence, not the clock, is what protects. By callsign: for edge and admin callers; a
+    /// live match renews by the id its admission got ([`Store::renew_lease_by_id`]), which a rename cannot move.
     pub async fn renew_lease(&self, callsign: &str, fence: i64, ttl: Duration) -> Result<bool> {
+        match self.profile_id(callsign).await? {
+            Some(pid) => self.renew_lease_by_id(pid, fence, ttl).await,
+            None => Ok(false),
+        }
+    }
+
+    /// [`Store::renew_lease`] by `profile_id` (the id [`Lease::profile_id`] carried out of admission).
+    pub async fn renew_lease_by_id(
+        &self,
+        profile_id: i64,
+        fence: i64,
+        ttl: Duration,
+    ) -> Result<bool> {
         let n = sqlx::query(
             "UPDATE session_leases SET expires_at = now() + make_interval(secs => $3)
-             WHERE lower(callsign) = lower($1) AND fence = $2 AND released_at IS NULL",
+             WHERE profile_id = $1 AND fence = $2 AND released_at IS NULL",
         )
-        .bind(callsign)
+        .bind(profile_id)
         .bind(fence)
         .bind(ttl.as_secs_f64())
         .execute(&self.pool)
@@ -313,13 +353,21 @@ impl Store {
     }
 
     /// Gives the slot back. The row stays (marked released) so the fence is never reused. False when the fence is
-    /// stale or the lease was already released.
+    /// stale or the lease was already released. By callsign, for edge and admin callers.
     pub async fn release_lease(&self, callsign: &str, fence: i64) -> Result<bool> {
+        match self.profile_id(callsign).await? {
+            Some(pid) => self.release_lease_by_id(pid, fence).await,
+            None => Ok(false),
+        }
+    }
+
+    /// [`Store::release_lease`] by `profile_id`.
+    pub async fn release_lease_by_id(&self, profile_id: i64, fence: i64) -> Result<bool> {
         let n = sqlx::query(
             "UPDATE session_leases SET released_at = now(), expires_at = now()
-             WHERE lower(callsign) = lower($1) AND fence = $2 AND released_at IS NULL",
+             WHERE profile_id = $1 AND fence = $2 AND released_at IS NULL",
         )
-        .bind(callsign)
+        .bind(profile_id)
         .bind(fence)
         .execute(&self.pool)
         .await?
@@ -327,9 +375,11 @@ impl Store {
         Ok(n == 1)
     }
 
-    async fn canonical(&self, callsign: &str) -> Result<String> {
-        sqlx::query_scalar::<_, String>(
-            "SELECT callsign FROM profiles WHERE lower(callsign) = lower($1)",
+    /// The `(profile_id, callsign)` a name (any case) belongs to: the one lookup at the API edge, after which everything
+    /// runs on the id.
+    async fn resolve(&self, callsign: &str) -> Result<(i64, String)> {
+        sqlx::query_as::<_, (i64, String)>(
+            "SELECT profile_id, callsign FROM profiles WHERE lower(callsign) = lower($1)",
         )
         .bind(callsign)
         .fetch_optional(&self.pool)
@@ -337,17 +387,47 @@ impl Store {
         .ok_or_else(|| Error::UnknownProfile(callsign.to_owned()))
     }
 
+    /// The surrogate id of a profile by callsign (any case); `None` when unknown.
+    pub async fn profile_id(&self, callsign: &str) -> Result<Option<i64>> {
+        Ok(
+            sqlx::query_scalar("SELECT profile_id FROM profiles WHERE lower(callsign) = lower($1)")
+                .bind(callsign)
+                .fetch_optional(&self.pool)
+                .await?,
+        )
+    }
+
     // ---- results --------------------------------------------------------------------------------------------
 
-    /// Banks one match for one player in ONE transaction. See the module docs for the order of the checks.
+    /// Banks one match for one player in ONE transaction. See the module docs for the order of the checks. `meta`
+    /// describes the match; its `matches` row is inserted by the first result of the match and found by the others.
+    /// By callsign (resolved here): for edge and admin callers; a live match banks by the id its admission got
+    /// ([`Store::record_result_by_id`]), so a rename between admission and result cannot lose or misdirect it.
     pub async fn record_result(
         &self,
         match_id: Uuid,
         callsign: &str,
         fence: i64,
         result: &MatchResult,
+        meta: &MatchMeta,
     ) -> Result<RecordOutcome> {
-        self.record_inner(match_id, callsign, fence, result, false)
+        let Some(pid) = self.profile_id(callsign).await? else {
+            return Ok(RecordOutcome::NoLease);
+        };
+        self.record_inner(match_id, pid, fence, result, meta, false)
+            .await
+    }
+
+    /// [`Store::record_result`] by `profile_id`.
+    pub async fn record_result_by_id(
+        &self,
+        match_id: Uuid,
+        profile_id: i64,
+        fence: i64,
+        result: &MatchResult,
+        meta: &MatchMeta,
+    ) -> Result<RecordOutcome> {
+        self.record_inner(match_id, profile_id, fence, result, meta, false)
             .await
     }
 
@@ -360,41 +440,37 @@ impl Store {
         callsign: &str,
         fence: i64,
         result: &MatchResult,
+        meta: &MatchMeta,
     ) -> Result<RecordOutcome> {
-        self.record_inner(match_id, callsign, fence, result, true)
+        let Some(pid) = self.profile_id(callsign).await? else {
+            return Ok(RecordOutcome::NoLease);
+        };
+        self.record_inner(match_id, pid, fence, result, meta, true)
             .await
     }
 
     async fn record_inner(
         &self,
         match_id: Uuid,
-        callsign: &str,
+        pid: i64,
         fence: i64,
         r: &MatchResult,
+        meta: &MatchMeta,
         crash: bool,
     ) -> Result<RecordOutcome> {
         let mut tx = self.pool.begin().await?;
-        let Some(canon) = sqlx::query_scalar::<_, String>(
-            "SELECT callsign FROM profiles WHERE lower(callsign) = lower($1)",
-        )
-        .bind(callsign)
-        .fetch_optional(&mut *tx)
-        .await?
-        else {
-            return Ok(RecordOutcome::NoLease);
-        };
         // The lease row is the per-profile mutex: everything below runs serialized per callsign.
         let lease: Option<(Uuid, i64, bool)> = sqlx::query_as(
-            "SELECT match_id, fence, released_at IS NOT NULL FROM session_leases WHERE callsign = $1 FOR UPDATE",
+            "SELECT match_id, fence, released_at IS NOT NULL FROM session_leases WHERE profile_id = $1 FOR UPDATE",
         )
-        .bind(&canon)
+        .bind(pid)
         .fetch_optional(&mut *tx)
         .await?;
         let applied: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM match_results WHERE match_id = $1 AND callsign = $2)",
+            "SELECT EXISTS (SELECT 1 FROM match_results WHERE match_id = $1 AND profile_id = $2)",
         )
         .bind(match_id)
-        .bind(&canon)
+        .bind(pid)
         .fetch_one(&mut *tx)
         .await?;
         if applied {
@@ -411,8 +487,8 @@ impl Store {
         }
 
         let (stats, progress): (Json<Stats>, Json<Progress>) =
-            sqlx::query_as("SELECT stats, progress FROM profiles WHERE callsign = $1 FOR UPDATE")
-                .bind(&canon)
+            sqlx::query_as("SELECT stats, progress FROM profiles WHERE profile_id = $1 FOR UPDATE")
+                .bind(pid)
                 .fetch_one(&mut *tx)
                 .await?;
         let (mut stats, mut progress) = (stats.0, progress.0);
@@ -426,9 +502,9 @@ impl Store {
                 .await?;
         sqlx::query(
             "UPDATE profiles SET gv = gv + $2, gv_lifetime = gv_lifetime + $2, stats = $3, progress = $4,
-                    updated_at = now() WHERE callsign = $1",
+                    updated_at = now() WHERE profile_id = $1",
         )
-        .bind(&canon)
+        .bind(pid)
         .bind(gv)
         .bind(Json(&stats))
         .bind(Json(&progress))
@@ -436,18 +512,18 @@ impl Store {
         .await?;
         if gv > 0 {
             sqlx::query(
-                "INSERT INTO gv_by_month (callsign, month, gv) VALUES ($1, $2, $3)
-                 ON CONFLICT (callsign, month) DO UPDATE SET gv = gv_by_month.gv + EXCLUDED.gv",
+                "INSERT INTO gv_by_month (profile_id, month, gv) VALUES ($1, $2, $3)
+                 ON CONFLICT (profile_id, month) DO UPDATE SET gv = gv_by_month.gv + EXCLUDED.gv",
             )
-            .bind(&canon)
+            .bind(pid)
             .bind(&month)
             .bind(gv)
             .execute(&mut *tx)
             .await?;
             sqlx::query(
-                "INSERT INTO gv_ledger (callsign, delta, reason, ref) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO gv_ledger (profile_id, delta, reason, ref) VALUES ($1, $2, $3, $4)",
             )
-            .bind(&canon)
+            .bind(pid)
             .bind(gv)
             .bind(if r.outcome.is_some() {
                 "run"
@@ -458,19 +534,39 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         }
+        // The match row is shared by every player's result of the match: the first transaction inserts it, the others
+        // find it (a concurrent one waits for that commit; nothing here waits on another player's row, so no cycle).
         sqlx::query(
-            "INSERT INTO match_results (match_id, callsign, result, fence) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO matches (match_id, owner, region, placement_id, build, content_hash, humans, bots)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (match_id) DO UPDATE SET ended_at = greatest(matches.ended_at, now())",
         )
         .bind(match_id)
-        .bind(&canon)
-        .bind(Json(r))
+        .bind(&meta.owner)
+        .bind(&meta.region)
+        .bind(&meta.placement_id)
+        .bind(&meta.build)
+        .bind(meta.content_hash as i64)
+        .bind(i32::try_from(meta.humans).unwrap_or(i32::MAX))
+        .bind(i32::try_from(meta.bots).unwrap_or(i32::MAX))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO match_results (match_id, profile_id, result, fence) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(match_id)
+        .bind(pid)
+        .bind(Json(StoredResult {
+            v: RESULT_VERSION,
+            result: r.clone(),
+        }))
         .bind(fence)
         .execute(&mut *tx)
         .await?;
         sqlx::query(
-            "UPDATE session_leases SET released_at = now(), expires_at = now() WHERE callsign = $1",
+            "UPDATE session_leases SET released_at = now(), expires_at = now() WHERE profile_id = $1",
         )
-        .bind(&canon)
+        .bind(pid)
         .execute(&mut *tx)
         .await?;
         if crash {
@@ -508,16 +604,16 @@ impl Store {
             return Err(Error::Invalid("negative price".into()));
         }
         let mut tx = self.pool.begin().await?;
-        let Some(canon) = locked_authorized(&mut tx, callsign, token).await? else {
+        let Some(pid) = locked_authorized(&mut tx, callsign, token).await? else {
             return Ok(PurchaseOutcome::BadToken);
         };
-        let prior: Option<(String, String)> =
-            sqlx::query_as("SELECT callsign, item_id FROM purchases WHERE purchase_id = $1")
+        let prior: Option<(i64, String)> =
+            sqlx::query_as("SELECT profile_id, item_id FROM purchases WHERE purchase_id = $1")
                 .bind(purchase_id)
                 .fetch_optional(&mut *tx)
                 .await?;
         if let Some((c, item)) = prior {
-            if c == canon && item == item_id {
+            if c == pid && item == item_id {
                 return Ok(PurchaseOutcome::AlreadyApplied);
             }
             return Err(Error::Conflict(format!(
@@ -525,8 +621,8 @@ impl Store {
             )));
         }
         let (gv, mut cosmetics): (i64, Json<Cosmetics>) =
-            sqlx::query_as("SELECT gv, cosmetics FROM profiles WHERE callsign = $1")
-                .bind(&canon)
+            sqlx::query_as("SELECT gv, cosmetics FROM profiles WHERE profile_id = $1")
+                .bind(pid)
                 .fetch_one(&mut *tx)
                 .await?;
         if cosmetics.owned.iter().any(|o| o == item_id) {
@@ -541,9 +637,9 @@ impl Store {
         cosmetics.owned.push(item_id.to_owned());
         let left: Option<i64> = sqlx::query_scalar(
             "UPDATE profiles SET gv = gv - $2, cosmetics = $3, updated_at = now()
-             WHERE callsign = $1 AND gv >= $2 RETURNING gv",
+             WHERE profile_id = $1 AND gv >= $2 RETURNING gv",
         )
-        .bind(&canon)
+        .bind(pid)
         .bind(price)
         .bind(&cosmetics)
         .fetch_optional(&mut *tx)
@@ -555,18 +651,18 @@ impl Store {
             });
         };
         sqlx::query(
-            "INSERT INTO purchases (purchase_id, callsign, item_id, price) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO purchases (purchase_id, profile_id, item_id, price) VALUES ($1, $2, $3, $4)",
         )
         .bind(purchase_id)
-        .bind(&canon)
+        .bind(pid)
         .bind(item_id)
         .bind(price)
         .execute(&mut *tx)
         .await?;
         sqlx::query(
-            "INSERT INTO gv_ledger (callsign, delta, reason, ref) VALUES ($1, $2, 'purchase', $3)",
+            "INSERT INTO gv_ledger (profile_id, delta, reason, ref) VALUES ($1, $2, 'purchase', $3)",
         )
-        .bind(&canon)
+        .bind(pid)
         .bind(-price)
         .bind(purchase_id.to_string())
         .execute(&mut *tx)
@@ -585,12 +681,12 @@ impl Store {
         item_id: Option<&str>,
     ) -> Result<EquipOutcome> {
         let mut tx = self.pool.begin().await?;
-        let Some(canon) = locked_authorized(&mut tx, callsign, token).await? else {
+        let Some(pid) = locked_authorized(&mut tx, callsign, token).await? else {
             return Ok(EquipOutcome::BadToken);
         };
         let mut cosmetics: Json<Cosmetics> =
-            sqlx::query_scalar("SELECT cosmetics FROM profiles WHERE callsign = $1")
-                .bind(&canon)
+            sqlx::query_scalar("SELECT cosmetics FROM profiles WHERE profile_id = $1")
+                .bind(pid)
                 .fetch_one(&mut *tx)
                 .await?;
         match item_id {
@@ -604,8 +700,8 @@ impl Store {
                 cosmetics.equipped.insert(slot.to_owned(), id.to_owned());
             }
         }
-        sqlx::query("UPDATE profiles SET cosmetics = $2, updated_at = now() WHERE callsign = $1")
-            .bind(&canon)
+        sqlx::query("UPDATE profiles SET cosmetics = $2, updated_at = now() WHERE profile_id = $1")
+            .bind(pid)
             .bind(&cosmetics)
             .execute(&mut *tx)
             .await?;
@@ -614,14 +710,14 @@ impl Store {
     }
 }
 
-/// Locks the profile row and checks the token; the canonical callsign, or `None` for an unknown name or bad token.
+/// Locks the profile row and checks the token; the `profile_id`, or `None` for an unknown name or bad token.
 async fn locked_authorized(
     conn: &mut PgConnection,
     callsign: &str,
     token: &str,
-) -> Result<Option<String>> {
-    let row: Option<(String, Vec<u8>)> = sqlx::query_as(
-        "SELECT callsign, token_sha256 FROM profiles WHERE lower(callsign) = lower($1) FOR UPDATE",
+) -> Result<Option<i64>> {
+    let row: Option<(i64, Vec<u8>)> = sqlx::query_as(
+        "SELECT profile_id, token_sha256 FROM profiles WHERE lower(callsign) = lower($1) FOR UPDATE",
     )
     .bind(callsign)
     .fetch_optional(conn)
@@ -679,7 +775,7 @@ pub(crate) async fn load_profile(
     lock: bool,
 ) -> Result<Option<Profile>> {
     let sql = format!(
-        "SELECT callsign, token_sha256, gv, gv_lifetime, stats, cosmetics, achievements, progress
+        "SELECT profile_id, callsign, token_sha256, gv, gv_lifetime, stats, cosmetics, achievements, progress
          FROM profiles WHERE lower(callsign) = lower($1){}",
         if lock { " FOR UPDATE" } else { "" }
     );
@@ -691,24 +787,24 @@ pub(crate) async fn load_profile(
         return Ok(None);
     };
     let months: Vec<(String, i64)> =
-        sqlx::query_as("SELECT month, gv FROM gv_by_month WHERE callsign = $1")
-            .bind(&row.0)
+        sqlx::query_as("SELECT month, gv FROM gv_by_month WHERE profile_id = $1")
+            .bind(row.0)
             .fetch_all(&mut *conn)
             .await?;
     let token_sha256: [u8; 32] = row
-        .1
+        .2
         .as_slice()
         .try_into()
         .map_err(|_| Error::Invalid("token hash is not 32 bytes".into()))?;
     Ok(Some(Profile {
-        callsign: row.0,
+        callsign: row.1,
         token_sha256,
-        gv: row.2,
-        gv_lifetime: row.3,
+        gv: row.3,
+        gv_lifetime: row.4,
         gv_by_month: months.into_iter().collect(),
-        stats: row.4 .0,
-        cosmetics: row.5 .0,
-        achievements: row.6 .0,
-        progress: row.7 .0,
+        stats: row.5 .0,
+        cosmetics: row.6 .0,
+        achievements: row.7 .0,
+        progress: row.8 .0,
     }))
 }

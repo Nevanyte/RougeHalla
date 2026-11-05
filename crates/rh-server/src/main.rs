@@ -18,19 +18,22 @@ use std::time::Duration;
 /// `--database-url`: profiles, credentials, session leases and results in PostgreSQL (feature `postgres`).
 #[cfg(feature = "postgres")]
 async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
-    let store = Arc::new(
-        rh_persist::Store::connect(url)
-            .await
-            .expect("connect to PostgreSQL"),
-    );
+    // The startup schema gate: a database whose `schema_compat.min_binary` is above this binary (an older server meeting a
+    // newer, incompatible schema during a rollout) is refused here, with a plain message and a non-zero exit, before the
+    // server takes a single connection.
+    let store = match rh_persist::Store::connect(url).await {
+        Ok(s) => Arc::new(s),
+        Err(e @ rh_persist::Error::SchemaTooNew { .. }) => {
+            eprintln!("rh-server: {e}");
+            std::process::exit(78);
+        }
+        Err(e) => panic!("connect to PostgreSQL: {e}"),
+    };
     store.migrate().await.expect("migrate");
     let owner =
         arg(args, "--instance-id").unwrap_or_else(|| format!("rh-server-{}", std::process::id()));
     (
-        Persistence::Postgres {
-            store: store.clone(),
-            owner,
-        },
+        Persistence::postgres(store.clone(), owner),
         Auth::Postgres(store),
     )
 }

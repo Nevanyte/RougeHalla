@@ -5,10 +5,30 @@ JSON file, one writer, mirrored to R2 as a last-writer-wins snapshot) so many ma
 
 ## Schema (v1, `migrations/0001_init.sql`)
 
-`profiles` (callsign PK, case-insensitive unique via `lower(callsign)`; `token_sha256` only; `gv >= 0`; JSON stats,
-cosmetics, achievements, progress) - `gv_by_month` - `gv_ledger` (append-only, trigger-enforced) - `match_results`
-(PK `(match_id, callsign)`: the idempotency key) - `session_leases` (callsign PK, owner, **fence**, expiry; rows are
-never deleted so a fence is never reused) - `purchases` (idempotency keys of the shop).
+`profiles` (`profile_id` identity PK; `callsign` a unique-by-`lower()` display name that may be renamed; `token_sha256`
+only; `gv >= 0`; JSON stats, cosmetics, achievements, progress) - `gv_by_month` - `gv_ledger` (append-only,
+trigger-enforced) - `matches` (one row per match; `ended_at` is the time of the latest recorded result: owner, region, placement, build, content hash, humans, bots, replay ref) -
+`match_results` (PK `(match_id, profile_id)`: the idempotency key; `result` is the versioned full record) -
+`session_leases` (`profile_id` PK, owner, **fence**, expiry; rows are never deleted so a fence is never reused) -
+`purchases` (idempotency keys of the shop) - `schema_compat` (one row: `min_binary`). Every child table references
+`profile_id`. The callsign is resolved once, at admission (`acquire_lease` returns the id); a live match then records, renews and
+releases by id (`*_by_id`), so a rename mid-match is safe. The callsign forms resolve per call, for edge and admin callers.
+
+The initial migration was rewritten in place before any production database existed. After the first deployment, never
+edit an applied migration.
+
+## Durable data rules
+
+- **Ids are append only.** Faction, weapon, cosmetic and achievement id strings (and the `outcome` / `winBonusWhy`
+  spellings) are keys and values in stored JSON. Add, never rename or reuse; `rh-server/tests/durable_ids.rs` and `rh-persist/tests/ids.rs` pin them (both in the default test run).
+- **Blobs are tolerant.** `Stats`, `Progress` and `Cosmetics` have `#[serde(default)]` and a flattened `rest` map: a new field
+  needs a default, and unknown keys survive a write-back by an older binary. Never change the meaning of an existing key.
+- **Expand/contract.** An additive migration (new table, new nullable or defaulted column) does not touch
+  `schema_compat.min_binary`; old binaries keep running while the fleet updates. A migration old binaries cannot survive
+  (drop or retype a column, change a meaning) first ships the tolerant code in a release, and only the later migration that
+  removes the old shape sets `UPDATE schema_compat SET min_binary = <that migration's version>`. A binary whose newest
+  migration is below `min_binary` refuses to start.
+- **One writable primary.** Leases and fences assume exactly one global writer (ADR 0006).
 
 ## Guarantees (each has a test in `tests/`)
 
@@ -19,7 +39,7 @@ never deleted so a fence is never reused) - `purchases` (idempotency keys of the
 - `gv` only changes with a ledger row: `rh-persist-admin reconcile` proves `gv == sum(ledger)` per profile.
 - `purchase` is idempotent by `purchase_id`, debits under the profile row lock with `gv >= price`, never touches
   `gv_lifetime` or `gv_by_month`.
-- The binary refuses a database whose schema is newer than it knows (`Store::connect`, `migrate`).
+- The binary refuses a database whose `schema_compat.min_binary` is above its own version (`Store::connect`, `migrate`); a database with only additive newer migrations is accepted.
 - Achievements are NOT ported (`achievements_pending`): the counters they read are kept as the legacy `recordRun` keeps them.
 
 ## Admin tool

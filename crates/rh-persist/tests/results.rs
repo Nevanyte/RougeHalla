@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use common::{run, setup};
 use rh_persist::admin::reconcile;
-use rh_persist::{Claim, Error, GvBreakdown, MatchResult, Outcome, RecordOutcome};
+use rh_persist::{Claim, Error, GvBreakdown, MatchMeta, MatchResult, Outcome, RecordOutcome};
 use uuid::Uuid;
 
 const TTL: Duration = Duration::from_secs(60);
@@ -27,7 +27,7 @@ async fn duplicate_submission_credits_once() {
     assert_eq!(lease.fence, 1);
     let first = db
         .store
-        .record_result(m, "alice", lease.fence, &run(40))
+        .record_result(m, "alice", lease.fence, &run(40), &MatchMeta::unknown())
         .await
         .unwrap();
     assert_eq!(
@@ -39,7 +39,7 @@ async fn duplicate_submission_credits_once() {
     );
     let second = db
         .store
-        .record_result(m, "alice", lease.fence, &run(40))
+        .record_result(m, "alice", lease.fence, &run(40), &MatchMeta::unknown())
         .await
         .unwrap();
     assert_eq!(second, RecordOutcome::AlreadyApplied);
@@ -70,6 +70,7 @@ async fn stats_follow_the_legacy_record_run() {
                 faction: Some(faction.into()),
                 weapon: Some(weapon.into()),
                 win_qualified: qualified,
+                ..Default::default()
             }
         };
     for (r, _) in [
@@ -97,7 +98,7 @@ async fn stats_follow_the_legacy_record_run() {
             .unwrap();
         assert!(applied(
             &db.store
-                .record_result(m, "carol", l.fence, &r)
+                .record_result(m, "carol", l.fence, &r, &MatchMeta::unknown())
                 .await
                 .unwrap()
         ));
@@ -126,14 +127,14 @@ async fn retry_after_lost_acknowledgement_from_another_server() {
     let a = db.store.clone();
     let lease = a.acquire_lease("dave", m, "srv-a", TTL).await.unwrap();
     assert!(applied(
-        &a.record_result(m, "dave", lease.fence, &run(25))
+        &a.record_result(m, "dave", lease.fence, &run(25), &MatchMeta::unknown())
             .await
             .unwrap()
     ));
     // The ack never reached srv-a; it (or a replacement host, a new pool) retries the same write later.
     let b = db.other_server().await;
     let retry = b
-        .record_result(m, "dave", lease.fence, &run(25))
+        .record_result(m, "dave", lease.fence, &run(25), &MatchMeta::unknown())
         .await
         .unwrap();
     assert_eq!(retry, RecordOutcome::AlreadyApplied);
@@ -142,7 +143,7 @@ async fn retry_after_lost_acknowledgement_from_another_server() {
     let l2 = b.acquire_lease("dave", m2, "srv-b", TTL).await.unwrap();
     assert_eq!(l2.fence, 2);
     assert_eq!(
-        a.record_result(m, "dave", lease.fence, &run(25))
+        a.record_result(m, "dave", lease.fence, &run(25), &MatchMeta::unknown())
             .await
             .unwrap(),
         RecordOutcome::AlreadyApplied
@@ -174,7 +175,7 @@ async fn fifty_concurrent_matches_on_one_profile_lose_no_update() {
                 }
             };
             store
-                .record_result(m, "erin", lease.fence, &run(i))
+                .record_result(m, "erin", lease.fence, &run(i), &MatchMeta::unknown())
                 .await
                 .unwrap()
         }));
@@ -189,7 +190,7 @@ async fn fifty_concurrent_matches_on_one_profile_lose_no_update() {
     assert_eq!(p.gv_by_month.values().sum::<i64>(), 1275);
     assert_eq!(db.ledger_sum("erin").await, 1275);
     assert_eq!(db.count("gv_ledger").await, 50);
-    let fence: i64 = sqlx::query_scalar("SELECT fence FROM session_leases WHERE callsign = 'erin'")
+    let fence: i64 = sqlx::query_scalar("SELECT fence FROM session_leases WHERE profile_id = (SELECT profile_id FROM profiles WHERE callsign = 'erin')")
         .fetch_one(db.store.pool())
         .await
         .unwrap();
@@ -217,7 +218,9 @@ async fn two_servers_racing_the_same_result_apply_exactly_once() {
         let fence = lease.fence;
         tasks.push(tokio::spawn(async move {
             b.wait().await;
-            s.record_result(m, "frank", fence, &run(100)).await.unwrap()
+            s.record_result(m, "frank", fence, &run(100), &MatchMeta::unknown())
+                .await
+                .unwrap()
         }));
     }
     let mut outcomes = Vec::new();
@@ -259,7 +262,7 @@ async fn stale_fence_changes_nothing_and_the_new_owner_applies() {
         Err(Error::LeaseHeld { owner, .. }) if owner == "srv-a"
     ));
     // ...until A's expires (A's host hung).
-    sqlx::query("UPDATE session_leases SET expires_at = now() - interval '1 second' WHERE callsign = 'gina'")
+    sqlx::query("UPDATE session_leases SET expires_at = now() - interval '1 second' WHERE profile_id = (SELECT profile_id FROM profiles WHERE callsign = 'gina')")
         .execute(db.store.pool())
         .await
         .unwrap();
@@ -273,7 +276,7 @@ async fn stale_fence_changes_nothing_and_the_new_owner_applies() {
     // A wakes up and writes late.
     let late = db
         .store
-        .record_result(ma, "gina", a.fence, &run(500))
+        .record_result(ma, "gina", a.fence, &run(500), &MatchMeta::unknown())
         .await
         .unwrap();
     assert_eq!(late, RecordOutcome::StaleFence);
@@ -287,7 +290,7 @@ async fn stale_fence_changes_nothing_and_the_new_owner_applies() {
 
     assert!(applied(
         &db.store
-            .record_result(mb, "gina", b.fence, &run(30))
+            .record_result(mb, "gina", b.fence, &run(30), &MatchMeta::unknown())
             .await
             .unwrap()
     ));
@@ -308,7 +311,7 @@ async fn crash_before_commit_applies_nothing_and_a_retry_applies_once() {
     // All writes done inside the transaction, then the backend is killed before COMMIT.
     let crashed = db
         .store
-        .record_result_crash_before_commit(m, "hank", lease.fence, &run(77))
+        .record_result_crash_before_commit(m, "hank", lease.fence, &run(77), &MatchMeta::unknown())
         .await;
     assert!(
         crashed.is_err(),
@@ -328,7 +331,7 @@ async fn crash_before_commit_applies_nothing_and_a_retry_applies_once() {
 
     let retry = db
         .store
-        .record_result(m, "hank", lease.fence, &run(77))
+        .record_result(m, "hank", lease.fence, &run(77), &MatchMeta::unknown())
         .await
         .unwrap();
     assert_eq!(
@@ -340,7 +343,7 @@ async fn crash_before_commit_applies_nothing_and_a_retry_applies_once() {
     );
     assert_eq!(
         db.store
-            .record_result(m, "hank", lease.fence, &run(77))
+            .record_result(m, "hank", lease.fence, &run(77), &MatchMeta::unknown())
             .await
             .unwrap(),
         RecordOutcome::AlreadyApplied
@@ -385,14 +388,14 @@ async fn lease_semantics() {
     assert!(db.store.release_lease("iris", 2).await.unwrap());
     assert_eq!(
         db.store
-            .record_result(m2, "iris", 2, &run(5))
+            .record_result(m2, "iris", 2, &run(5), &MatchMeta::unknown())
             .await
             .unwrap(),
         RecordOutcome::NoLease
     );
     assert_eq!(
         db.store
-            .record_result(m2, "nobody", 1, &run(5))
+            .record_result(m2, "nobody", 1, &run(5), &MatchMeta::unknown())
             .await
             .unwrap(),
         RecordOutcome::NoLease

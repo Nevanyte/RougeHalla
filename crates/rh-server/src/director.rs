@@ -559,6 +559,7 @@ impl Director {
                     bot,
                     fence,
                     result,
+                    roster,
                 } => {
                     if bot {
                         continue; // bots never touch persistence (legacy rule)
@@ -591,7 +592,7 @@ impl Director {
                         for attempt in 0..RESULT_ATTEMPTS {
                             match d
                                 .persistence
-                                .record(match_id, &profile, fence, &result)
+                                .record(match_id, &profile, fence, &result, roster)
                                 .await
                             {
                                 Ok(Recorded::Applied) => {
@@ -865,6 +866,7 @@ impl Director {
 mod tests {
     use super::*;
     use crate::persist::MemoryStore;
+    use crate::room::Roster;
 
     fn entry(phase: Phase, seated: usize, reserved: usize) -> RoomEntry {
         RoomEntry {
@@ -1192,6 +1194,7 @@ mod tests {
                 bot: false,
                 fence: Some(fence),
                 result: some_result("papa"),
+                roster: Roster::default(),
             })
             .unwrap();
         d.reports
@@ -1300,6 +1303,7 @@ mod tests {
                 bot: false,
                 fence: Some(fence),
                 result: some_result("papa"),
+                roster: Roster::default(),
             })
             .unwrap();
         let t0 = tokio::time::Instant::now();
@@ -1525,7 +1529,7 @@ mod tests {
         let f1 = d.persistence.acquire("papa", m).await.unwrap();
         assert_eq!(
             d.persistence
-                .record(m, "papa", f1, &some_result("papa"))
+                .record(m, "papa", f1, &some_result("papa"), Roster::default())
                 .await,
             Ok(Recorded::Applied)
         );
@@ -1552,6 +1556,7 @@ mod tests {
                 bot: false,
                 fence: Some(f2),
                 result: some_result("papa"),
+                roster: Roster::default(),
             })
             .unwrap();
         settle().await;

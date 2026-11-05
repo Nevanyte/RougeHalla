@@ -12,6 +12,13 @@
 //! formulas (`attack_interval`, `damage_per_hit`, `pvp_factor`, `bounty_for`, `player_timings`) to their results.
 //! `tests/content.rs` fails when a `const` appears anywhere in `crates/rh-sim/src` that is neither registered nor listed
 //! (with a reason) as not gameplay, and when changing any single registry row leaves the hash unchanged.
+//!
+//! ## Durable ids (append only)
+//!
+//! The `as_str` spellings of [`FactionId`] and [`WeaponId`], and the cosmetic and achievement id strings the profile store
+//! keeps, are DURABLE identifiers: they are jsonb keys and values in stored profiles (`winsByFaction`, `cosmetics`,
+//! `achievements`) and in match records. Add new ones, never rename or reuse one. `crates/rh-server/tests/durable_ids.rs`
+//! pins the strings and fails on any change.
 
 use crate::constants::*;
 pub use crate::constants::{ContentVal, Entry, REGISTRY};
