@@ -341,6 +341,39 @@ async fn a_rename_after_admission_banks_once_and_frees_the_lease() {
         .await;
 }
 
+/// NOWAIT reports contention separately from the definitive live-lease answer. In particular,
+/// the director's expired-seat give-back can acquire the row as soon as our test lock commits.
+/// Retry only that documented transient error; a successful renewal or any other error must
+/// still reach the assertion. The callback lets the regression release its lock after a real 55P03.
+#[cfg(feature = "postgres")]
+async fn renew_after_row_contention(
+    store: &rh_persist::Store,
+    profile: i64,
+    match_id: uuid::Uuid,
+    fence: i64,
+    ttl: std::time::Duration,
+    mut busy: impl FnMut(),
+) -> rh_persist::Result<bool> {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            match store
+                .try_renew_live_lease(profile, match_id, fence, ttl)
+                .await
+            {
+                Err(rh_persist::Error::Db(sqlx::Error::Database(error)))
+                    if error.code().as_deref() == Some("55P03") =>
+                {
+                    busy();
+                    tokio::task::yield_now().await;
+                }
+                answer => return answer,
+            }
+        }
+    })
+    .await
+    .expect("lease row stayed busy instead of producing a definitive renewal answer")
+}
+
 /// A real actor stays leased across its initial TTL, including a callsign reassignment. Lock its
 /// lease row through the next deadline: room ticks continue, its current connection (resumed
 /// during the stall) closes, and an old host cannot bank the resulting forced MIA.
@@ -453,6 +486,10 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
     );
 
     let mut lock = store.pool().begin().await.unwrap();
+    let lock_pid: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+        .fetch_one(&mut *lock)
+        .await
+        .unwrap();
     sqlx::query("SELECT profile_id FROM session_leases WHERE profile_id=$1 FOR UPDATE")
         .bind(pid)
         .execute(&mut *lock)
@@ -501,9 +538,33 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
         guard_live,
         "a busy row must not stop other seats from renewing"
     );
+    // Expiry suppresses the forced MIA write, then Left(result_pending=false) queues the
+    // director's fenced give-back. Observe that actual contender before unblocking it;
+    // committing our lock does not mean its UPDATE has finished with the row.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let releasing: bool = sqlx::query_scalar(
+                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity
+                 WHERE datname=current_database() AND $1=ANY(pg_blocking_pids(pid))
+                 AND query LIKE 'UPDATE session_leases SET released_at = now(), expires_at = now()%')",
+            )
+            .bind(lock_pid)
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+            if releasing {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("expired seat did not queue its fenced lease give-back");
     lock.commit().await.unwrap();
     assert!(
-        !store.try_renew_live_lease(pid, mid, 1, ttl).await.unwrap(),
+        !renew_after_row_contention(&store, pid, mid, 1, ttl, || {})
+            .await
+            .unwrap(),
         "an expired live lease cannot be revived"
     );
     let newer = store
@@ -615,6 +676,124 @@ mod admission_identity {
                 .unwrap();
         }
     }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn renewal_probe_waits_for_contenders_but_never_revives_an_expired_lease() {
+        let Some(db) = Db::new().await else { return };
+        let ttl = Duration::from_secs(3);
+        // Cover both an expired, unreleased row and a give-back holding its UPDATE open.
+        // No timing guess: the holder commits only after the probe actually receives 55P03.
+        for (name, release) in [("Expired", false), ("GivingBack", true)] {
+            db.db.create_profile(name, "token").await.unwrap();
+            let mid = uuid::Uuid::new_v4();
+            let lease = db.db.acquire_lease(name, mid, "old", ttl).await.unwrap();
+            assert!(renew_after_row_contention(
+                &db.db,
+                lease.profile_id,
+                mid,
+                lease.fence,
+                ttl,
+                || {}
+            )
+            .await
+            .unwrap());
+            sqlx::query("UPDATE session_leases SET expires_at=clock_timestamp()-interval '1 second' WHERE profile_id=$1")
+                .bind(lease.profile_id).execute(db.db.pool()).await.unwrap();
+            let mut holder = db.db.pool().begin().await.unwrap();
+            sqlx::query("SELECT profile_id FROM session_leases WHERE profile_id=$1 FOR UPDATE")
+                .bind(lease.profile_id)
+                .execute(&mut *holder)
+                .await
+                .unwrap();
+            if release {
+                sqlx::query("UPDATE session_leases SET released_at=now(), expires_at=now() WHERE profile_id=$1 AND match_id=$2 AND fence=$3")
+                    .bind(lease.profile_id).bind(mid).bind(lease.fence)
+                    .execute(&mut *holder).await.unwrap();
+            }
+            let (busy, observed) = tokio::sync::oneshot::channel();
+            let mut busy = Some(busy);
+            let (answer, ()) = tokio::join!(
+                renew_after_row_contention(&db.db, lease.profile_id, mid, lease.fence, ttl, || {
+                    if let Some(busy) = busy.take() {
+                        busy.send(()).unwrap();
+                    }
+                }),
+                async {
+                    observed.await.unwrap();
+                    holder.commit().await.unwrap();
+                }
+            );
+            assert!(
+                !answer.unwrap(),
+                "{name}: contention must not revive expiry"
+            );
+            let (expired, released): (bool, bool) = sqlx::query_as(
+                "SELECT expires_at<=clock_timestamp(), released_at IS NOT NULL FROM session_leases WHERE profile_id=$1",
+            )
+            .bind(lease.profile_id)
+            .fetch_one(db.db.pool())
+            .await
+            .unwrap();
+            assert!(expired);
+            assert_eq!(released, release);
+            let newer = db
+                .db
+                .acquire_lease(name, uuid::Uuid::new_v4(), "new", ttl)
+                .await
+                .unwrap();
+            assert!(newer.fence > lease.fence);
+            assert!(!renew_after_row_contention(
+                &db.db,
+                lease.profile_id,
+                mid,
+                lease.fence,
+                ttl,
+                || {}
+            )
+            .await
+            .unwrap());
+            let old = Persistence::postgres(db.db.clone(), "old".into());
+            assert_eq!(
+                old.record_by_id(
+                    *mid.as_bytes(),
+                    lease.profile_id,
+                    lease.fence,
+                    &result(name),
+                    Default::default(),
+                )
+                .await,
+                Err(RecordError::Refused("StaleFence".into()))
+            );
+            let banked: i64 =
+                sqlx::query_scalar("SELECT count(*) FROM match_results WHERE profile_id=$1")
+                    .bind(lease.profile_id)
+                    .fetch_one(db.db.pool())
+                    .await
+                    .unwrap();
+            assert_eq!(banked, 0);
+        }
+        // A different SQLSTATE is returned, never retried or treated as expiry.
+        sqlx::query("ALTER TABLE session_leases RENAME TO unavailable_leases")
+            .execute(db.db.pool())
+            .await
+            .unwrap();
+        let error = renew_after_row_contention(&db.db, 1, uuid::Uuid::nil(), 1, ttl, || {
+            panic!("missing relation is not row contention")
+        })
+        .await
+        .unwrap_err();
+        assert!(matches!(error,
+            rh_persist::Error::Db(sqlx::Error::Database(error))
+                if error.code().as_deref() == Some("42P01")
+        ));
+        db.db.pool().close().await;
+        assert!(matches!(
+            renew_after_row_contention(&db.db, 1, uuid::Uuid::nil(), 1, ttl, || panic!("not busy"))
+                .await,
+            Err(rh_persist::Error::Db(sqlx::Error::PoolClosed))
+        ));
+        db.finish().await;
+    }
+
     fn hello(name: &str, token: &str) -> Hello {
         Hello {
             protocol: PROTOCOL_VERSION,

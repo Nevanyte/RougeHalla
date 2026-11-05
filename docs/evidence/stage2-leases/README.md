@@ -1,7 +1,8 @@
 # Live lease renewal and durable identity
 
 Branch: `optimization_port`. Local PostgreSQL 16 proof only. No AWS resources, production database or DNS change is
-implied. Profile REST routes, durable crash recovery of unwritten results and live ending-kit metadata remain open.
+implied. Profile REST routes and durable crash recovery of unwritten results remain open. Ending metadata was completed
+later; see [its evidence](../stage2-ending-attempt/README.md).
 
 ## Behavior
 
@@ -60,3 +61,18 @@ The whole-workspace integration result is recorded in [MIGRATION.md](../../MIGRA
 
 Final integration passed 489 tests with no failures/filters and one intentional ignored heap measurement. Formatting
 and all/default-feature workspace Clippy passed. No schema migration or runtime dependency was added.
+
+## CI contention regression (2026-11-05)
+
+Run `42021808231` at `135ad2d5` exposed a test race after lease expiry: the director's fenced give-back UPDATE queued
+behind the test's row lock and could acquire it immediately after commit. A direct NOWAIT renewal probe then legitimately
+returned SQLSTATE 55P03 instead of the expected definitive false. Production renewal already treats this as transient.
+
+The test now observes the actual queued give-back, releases its lock, and retries only 55P03 under a bounded deadline.
+It still requires `Ok(false)`, takeover with a larger fence, stale-result refusal and no banked forced MIA. A handshake
+regression forces real contention on both an expired unreleased row and a give-back row; unrelated database errors
+propagate immediately. Existing TTL, sleeps and safety assertions are unchanged; production code is unchanged.
+
+Three focused real-PG repeats, all seven PG conformance cases, the memory case and focused Clippy passed. Root's full
+PostgreSQL-enabled server suite passed 127 tests with zero failures and one existing ignored heap measurement. CI
+verification of this correction is pending.

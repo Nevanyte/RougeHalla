@@ -92,7 +92,11 @@ parity exists (`c6906268`, 214 C# tests). P-COMBAT-2 authoritative flight and ma
 431-test gate and CI at `d8c4af9f`. Vision and M0 full layers passed the integrated 456-test gate and CI at `fcfb4d09`.
 Targeting, zone partitioning and live leases passed the integrated 489-test gate and CI at `e42f5d97`. Holy engagement
 and initial camps passed the integrated 505-test gate and CI at `29e4747c`. Ending metadata and the actual attempt prefix
-passed the integrated 521-test gate. Current content is `e639a5f9fc48e272`, checkpoint /10, replay /8, observation 7,
+passed the integrated 521-test gate and are pushed as `135ad2d5`. Its Rust CI run `42021808231` passed default Rust,
+full/default Clippy and C#, then hit SQLSTATE 55P03 in the lease proof's direct expired-renew assertion: the director's
+lease give-back can take the row after the test releases its lock. The test-only correction retains every safety assertion
+and retries only that transient SQLSTATE; controlled contention and the full 127-test PG server suite passed. CI for the
+correction is pending; later steps did not run on the failed revision. Current content is `e639a5f9fc48e272`, checkpoint /10, replay /8, observation 7,
 policy contract 4, wire 5. The Holy foundation flag defaults off and does not claim other faction effects.
 Next: Plague/shared DoT reporting and actual spawn/landmark foundations; reliable item State/client
 integration and P-PERSIST-2 remaining work stay open.
