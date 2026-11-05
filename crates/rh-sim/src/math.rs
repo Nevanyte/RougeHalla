@@ -33,7 +33,13 @@ pub const PI: f64 = core::f64::consts::PI;
 
 /// A finite angle wrapped to (-PI, PI] (legacy `wrapAngle`: `%` is exact for any finite input).
 pub fn wrap_angle(a: f64) -> f64 {
-    let mut w = a % (2.0 * PI);
+    // IEEE fmod returns its first operand unchanged (zero sign included) when it is smaller in magnitude than the divisor, so
+    // the call is skipped for the angles that are already in range; NaN and infinities fail the test and take the `%`.
+    let mut w = if a.abs() < 2.0 * PI {
+        a
+    } else {
+        a % (2.0 * PI)
+    };
     if w > PI {
         w -= 2.0 * PI;
     } else if w <= -PI {

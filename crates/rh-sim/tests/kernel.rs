@@ -947,3 +947,143 @@ fn the_sight_verdict_is_not_symmetric_so_each_ordered_pair_is_judged_alone() {
         assert!(asym > 0, "{name}: no asymmetric pair found in 2e6 segments");
     }
 }
+
+// ---- E-sim: the padded-grid ray walk, the 3x3 floor shortcut of circle_clear and the in-range wrap_angle ----
+
+/// A small map with every tile class, a wall ring and an island, so masks other than the three constants matter.
+fn mixed_map() -> TileMap {
+    TileMap::from_rows(&[
+        "###########",
+        "#....~....#",
+        "#.##...#..#",
+        "#.#~~~.#..#",
+        "#.....~...#",
+        "#.#.###.#.#",
+        "#....~....#",
+        "###########",
+    ])
+    .unwrap()
+}
+
+#[test]
+fn ray_blocked_equals_raycast_hit_for_every_mask_including_zero() {
+    let mut all = maps();
+    all.push(("mixed", mixed_map()));
+    for (name, map) in all {
+        let mut r = Rng(0x5eed_00e1 ^ map.layer_hash() as u64);
+        for k in 0..300_000u32 {
+            let (x0, y0, x1, y1) = segment(&mut r, &map);
+            let mask = [0u8, 1, 2, 3, 0x80, 0xff, MASK_SIGHT, MASK_MELEE][(k % 8) as usize];
+            assert_eq!(
+                ray_blocked(&map, x0, y0, x1, y1, mask),
+                raycast(&map, x0, y0, x1, y1, mask).hit,
+                "{name}: ({x0:?},{y0:?})->({x1:?},{y1:?}) mask {mask}"
+            );
+        }
+    }
+}
+
+#[test]
+fn circle_clear_matches_the_legacy_loop_on_every_tile_and_sub_tile_offset() {
+    let mut all = maps();
+    all.push(("mixed", mixed_map()));
+    let ulp_below = f64::from_bits(TILE.to_bits() - 1);
+    let offsets = [0.0, 0.1, 16.0, 31.9999, ulp_below];
+    let radii = [
+        1.0,
+        6.0,
+        PLAYER_RADIUS,
+        12.000000000000002,
+        31.99,
+        32.0,
+        33.0,
+    ];
+    for (name, map) in all {
+        let (w, h) = (map.w as i64, map.h as i64);
+        let mut fast = 0u64;
+        // Every tile plus a ring of two tiles outside the map.
+        for ty in -2..h + 2 {
+            for tx in -2..w + 2 {
+                for &ox in &offsets {
+                    for &oy in &offsets {
+                        let p = Vec2::new(tx as f64 * TILE + ox, ty as f64 * TILE + oy);
+                        for &radius in &radii {
+                            for mask in [MASK_MOVE, MASK_SIGHT, MASK_MELEE, 0u8] {
+                                assert_eq!(
+                                    circle_clear(&map, p, radius, mask),
+                                    legacy_circle_clear(&map, p, radius, mask),
+                                    "{name}: {p:?} r {radius} mask {mask}"
+                                );
+                            }
+                        }
+                    }
+                }
+                fast += map.is_floor(tx, ty) as u64;
+            }
+        }
+        assert!(fast > 0);
+    }
+    // Non-finite inputs stay refused.
+    let map = mixed_map();
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert!(!circle_clear(&map, Vec2::new(bad, 40.0), 12.0, MASK_MOVE));
+        assert!(!circle_clear(&map, Vec2::new(40.0, 40.0), bad, MASK_MOVE));
+    }
+}
+
+#[test]
+fn wrap_angle_equals_the_plain_remainder_formulation() {
+    use rh_sim::math::{wrap_angle, PI};
+    fn reference(a: f64) -> f64 {
+        let mut w = a % (2.0 * PI);
+        if w > PI {
+            w -= 2.0 * PI;
+        } else if w <= -PI {
+            w += 2.0 * PI;
+        }
+        w
+    }
+    let check = |a: f64| {
+        let (got, want) = (wrap_angle(a), reference(a));
+        assert!(
+            got.to_bits() == want.to_bits() || (got.is_nan() && want.is_nan()),
+            "{a:?}: {got:?} vs {want:?}"
+        );
+    };
+    // Specials and the guard boundary, with their neighbouring floats.
+    let tau = 2.0 * PI;
+    let mut specials = vec![
+        0.0,
+        -0.0,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::MIN_POSITIVE,
+        f64::MAX,
+        f64::MIN,
+        5e-324,
+        PI,
+        -PI,
+        tau,
+        -tau,
+    ];
+    for base in [PI, -PI, tau, -tau, 0.0, 1.0, -1.0, 3.0 * PI, 1e6, 1e300] {
+        for d in -4i64..=4 {
+            specials.push(f64::from_bits((base.to_bits() as i64 + d) as u64));
+        }
+    }
+    for a in specials {
+        check(a);
+    }
+    // A fine sweep over and just beyond one turn either side, then random bit patterns.
+    let mut a = -tau - 1e-3;
+    while a < tau + 1e-3 {
+        check(a);
+        a += 1e-6;
+    }
+    let mut r = Rng(0x5eed_0a9e);
+    for _ in 0..2_000_000 {
+        check(f64::from_bits(r.next()));
+        check(r.range(-4.0 * PI, 4.0 * PI));
+    }
+}

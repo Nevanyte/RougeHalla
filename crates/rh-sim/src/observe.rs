@@ -254,7 +254,10 @@ pub fn observe_into(sim: &Sim, viewer: PlayerId, events: &[Event], out: &mut Obs
         }
     }
     // Public id order, never join order (a no-op scan when the store already iterates in id order).
-    out.visible.sort_by_key(|a| a.id);
+    // Ids are unique, so any sort gives this order; the unstable one never allocates (the stable one does from ~85 entries).
+    if !out.visible.is_sorted_by_key(|a| a.id) {
+        out.visible.sort_unstable_by_key(|a| a.id);
+    }
     out.events.clear();
     let me_id = me.map(|m| m.id);
     let visible = &out.visible;
@@ -333,7 +336,9 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
             bounty: p.credit.bounty,
         })
         .collect();
-    players.sort_by_key(|p| p.id);
+    if !players.is_sorted_by_key(|p| p.id) {
+        players.sort_unstable_by_key(|p| p.id);
+    }
     PublicSnapshot {
         tick: sim.tick(),
         server_time: sim.server_time(),

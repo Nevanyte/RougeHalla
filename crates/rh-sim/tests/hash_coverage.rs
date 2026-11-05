@@ -650,8 +650,8 @@ fn the_serde_skips_are_exactly_the_documented_ones() {
     let documented: &[(&str, usize, &str)] = &[
         (
             "map.rs",
-            2,
-            "TileMap: derived tables (components, A* step mask), rebuilt by TileMap::new while decoding",
+            3,
+            "TileMap: derived tables (components, A* step mask, padded tile grid), rebuilt by TileMap::new while decoding",
         ),
         (
             "state.rs",

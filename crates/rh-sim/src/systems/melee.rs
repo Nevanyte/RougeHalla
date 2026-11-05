@@ -24,20 +24,33 @@ pub(crate) struct MeleeReq {
 /// System (legacy melee.resolveMelee): every swing that landed this tick, tested against the bodies standing at its
 /// rewound time; each contact joins the ledger. Reads the world (it moves nobody and damages nobody); the melee queue
 /// is empty afterwards.
+#[inline]
 pub(crate) fn resolve(cx: &mut Cx) {
+    // Most ticks have no swing: the empty test comes before the frame of the pass that has the work.
+    if !cx.s.melee.is_empty() {
+        resolve_swings(cx);
+    }
+}
+
+#[inline(never)]
+fn resolve_swings(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
     let w: &World = w;
     let TickScratch {
         melee,
         ledger,
         bodies,
+        rewound,
         ..
     } = &mut **s;
-    if melee.is_empty() {
-        return;
-    }
     bodies.clear();
     bodies.extend((0..w.players.len()).filter(|&i| w.players[i].standing()));
+    // When two swings share a rewind time (every bot swing in a tick does) the bodies' rewound positions are computed once per
+    // run of equal times (exact bits) and the swings read them. `position_at` is a pure function of a world this system does
+    // not change, so a reused value is the very same `Vec2`. Swings that all differ (one swing, or humans with their own lag)
+    // keep the direct path, which has no table to fill.
+    let shared = repeats_a_time(melee);
+    let mut rewound_t: Option<u64> = None;
     for req in melee.iter() {
         let Some(ai) = w.idx(req.attacker) else {
             continue;
@@ -48,7 +61,20 @@ pub(crate) fn resolve(cx: &mut Cx) {
         let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
             continue;
         };
-        let origin = w.players[ai].position_at(req.rewind_t);
+        if shared && rewound_t != Some(req.rewind_t.to_bits()) {
+            rewound.clear();
+            rewound.extend(
+                bodies
+                    .iter()
+                    .map(|&i| w.players[i].position_at(req.rewind_t)),
+            );
+            rewound_t = Some(req.rewind_t.to_bits());
+        }
+        // The attacker stands, so it is one of `bodies` (ascending slots).
+        let origin = match shared.then(|| bodies.binary_search(&ai)) {
+            Some(Ok(k)) => rewound[k],
+            _ => w.players[ai].position_at(req.rewind_t),
+        };
         ev.push(Event::Swing {
             by: req.attacker,
             weapon: req.weapon,
@@ -56,11 +82,15 @@ pub(crate) fn resolve(cx: &mut Cx) {
             y: origin.y,
             a: req.a,
         });
-        for &ti in bodies.iter() {
+        for (bi, &ti) in bodies.iter().enumerate() {
             if ti == ai {
                 continue;
             }
-            let at = w.players[ti].position_at(req.rewind_t);
+            let at = if shared {
+                rewound[bi]
+            } else {
+                w.players[ti].position_at(req.rewind_t)
+            };
             if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
                 continue;
             }
@@ -79,6 +109,15 @@ pub(crate) fn resolve(cx: &mut Cx) {
         }
     }
     melee.clear();
+}
+
+/// Does any of the first swings have the rewind time (exact bits) of an earlier one?
+fn repeats_a_time(melee: &[MeleeReq]) -> bool {
+    melee.iter().take(16).enumerate().any(|(i, r)| {
+        melee[..i]
+            .iter()
+            .any(|q| q.rewind_t.to_bits() == r.rewind_t.to_bits())
+    })
 }
 
 /// Is `p` (a disc of radius `r`) inside the arc? Legacy `inArc`.
