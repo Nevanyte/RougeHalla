@@ -30,6 +30,27 @@ pub const UNCLAIMED_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub type MatchId = [u8; 16];
 
+/// The canonical UUID text of a match id (the form the durable store and replay headers use).
+pub fn match_id_string(id: MatchId) -> String {
+    let h: String = id.iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        "{}-{}-{}-{}-{}",
+        &h[0..8],
+        &h[8..12],
+        &h[12..16],
+        &h[16..20],
+        &h[20..32]
+    )
+}
+
+/// Who was in a match, for its durable record (`matches.humans` / `matches.bots`): humans that ever took a seat, bots
+/// that were placed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Roster {
+    pub humans: u32,
+    pub bots: u32,
+}
+
 pub struct JoinOk {
     pub player: PlayerId,
     pub session: [u8; 16],
@@ -93,6 +114,7 @@ pub enum RoomReport {
         bot: bool,
         fence: Option<i64>,
         result: RunResult,
+        roster: Roster,
     },
     Closed {
         match_id: MatchId,
@@ -272,9 +294,11 @@ impl Room {
             spawn_seed: random_u32(),
         });
         let sim = Sim::new(cfg.sim.clone(), cfg.arena, secrets);
-        let recorder = cfg
-            .record
-            .then(|| Recorder::new(&sim, cfg.sim, ReplayStart::Lobby));
+        let recorder = cfg.record.then(|| {
+            let mut r = Recorder::new(&sim, cfg.sim, ReplayStart::Lobby);
+            r.replay.match_id = Some(match_id_string(id));
+            r
+        });
         Self {
             id,
             sim,
@@ -791,6 +815,10 @@ impl Room {
                     bot: *bot,
                     fence,
                     result: result.clone(),
+                    roster: Roster {
+                        humans: self.fences.len() as u32,
+                        bots: self.bots.len() as u32,
+                    },
                 });
             }
         }

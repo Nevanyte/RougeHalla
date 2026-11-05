@@ -71,9 +71,9 @@ pub async fn import_legacy(store: &Store, text: &str, dry_run: bool) -> Result<I
 }
 
 async fn insert_profile(conn: &mut sqlx::PgConnection, p: &Profile) -> Result<()> {
-    sqlx::query(
+    let profile_id: i64 = sqlx::query_scalar(
         "INSERT INTO profiles (callsign, token_sha256, gv, gv_lifetime, stats, cosmetics, achievements, progress)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING profile_id",
     )
     .bind(&p.callsign)
     .bind(&p.token_sha256[..])
@@ -83,19 +83,19 @@ async fn insert_profile(conn: &mut sqlx::PgConnection, p: &Profile) -> Result<()
     .bind(Json(&p.cosmetics))
     .bind(Json(&p.achievements))
     .bind(Json(&p.progress))
-    .execute(&mut *conn)
+    .fetch_one(&mut *conn)
     .await?;
     for (month, gv) in &p.gv_by_month {
-        sqlx::query("INSERT INTO gv_by_month (callsign, month, gv) VALUES ($1, $2, $3)")
-            .bind(&p.callsign)
+        sqlx::query("INSERT INTO gv_by_month (profile_id, month, gv) VALUES ($1, $2, $3)")
+            .bind(profile_id)
             .bind(month)
             .bind(gv)
             .execute(&mut *conn)
             .await?;
     }
     // The opening balance: from here on sum(ledger) == gv for the profile.
-    sqlx::query("INSERT INTO gv_ledger (callsign, delta, reason, ref) VALUES ($1, $2, 'legacy_import', 'opening')")
-        .bind(&p.callsign)
+    sqlx::query("INSERT INTO gv_ledger (profile_id, delta, reason, ref) VALUES ($1, $2, 'legacy_import', 'opening')")
+        .bind(profile_id)
         .bind(p.gv)
         .execute(&mut *conn)
         .await?;
@@ -147,13 +147,13 @@ pub async fn reconcile(store: &Store) -> Result<ReconcileReport> {
     .await?;
     r.mismatches = sqlx::query_as(
         "SELECT p.callsign, p.gv, coalesce(l.s, 0)::bigint FROM profiles p
-         LEFT JOIN (SELECT callsign, sum(delta) AS s FROM gv_ledger GROUP BY callsign) l USING (callsign)
+         LEFT JOIN (SELECT profile_id, sum(delta) AS s FROM gv_ledger GROUP BY profile_id) l USING (profile_id)
          WHERE p.gv <> coalesce(l.s, 0) ORDER BY p.callsign",
     )
     .fetch_all(pool)
     .await?;
     r.month_lifetime_gaps = sqlx::query_scalar(
-        "SELECT count(*) FROM profiles p WHERE p.gv_lifetime <> coalesce((SELECT sum(gv) FROM gv_by_month m WHERE m.callsign = p.callsign), 0)",
+        "SELECT count(*) FROM profiles p WHERE p.gv_lifetime <> coalesce((SELECT sum(gv) FROM gv_by_month m WHERE m.profile_id = p.profile_id), 0)",
     )
     .fetch_one(pool)
     .await?;

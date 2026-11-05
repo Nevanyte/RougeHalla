@@ -150,7 +150,9 @@ async fn run(p: &Persistence, backend: &str, name: &str, ops: &[Op]) {
                 assert_eq!(p.release(profile, fence).await, Ok(want), "{at}");
             }
             Record(profile, m, fence, ref want) => {
-                let got = p.record(mid(m), profile, fence, &result(profile)).await;
+                let got = p
+                    .record(mid(m), profile, fence, &result(profile), Default::default())
+                    .await;
                 let got = match got {
                     Ok(Recorded::Applied) => Rec::Applied,
                     Ok(Recorded::AlreadyApplied) => Rec::AlreadyApplied,

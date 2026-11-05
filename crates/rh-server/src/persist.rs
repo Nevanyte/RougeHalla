@@ -4,7 +4,7 @@
 //! is refused without the live lease and releases it in the same step) so the director's ownership can be tested without
 //! a database. `Postgres` (feature `postgres`) is rh-persist, the real transactional store.
 
-use crate::room::MatchId;
+use crate::room::{MatchId, Roster};
 use rh_sim::RunResult;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -188,6 +188,7 @@ impl Persistence {
         profile: &str,
         fence: i64,
         r: &RunResult,
+        roster: Roster,
     ) -> Result<Recorded, RecordError> {
         match self {
             Persistence::Memory(s) => {
@@ -222,10 +223,11 @@ impl Persistence {
                 Ok(Recorded::Applied)
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, .. } => {
+            Persistence::Postgres { store, owner } => {
                 let res = crate::persist::pg::to_persist(r);
+                let meta = crate::persist::pg::match_meta(owner, roster);
                 match store
-                    .record_result(uuid::Uuid::from_bytes(m), profile, fence, &res)
+                    .record_result(uuid::Uuid::from_bytes(m), profile, fence, &res, &meta)
                     .await
                     .map_err(|e| RecordError::Transient(e.to_string()))?
                 {
@@ -246,8 +248,23 @@ pub mod pg {
     //! Mapping from the simulation's RunResult to rh-persist's MatchResult (the legacy RunResult shape).
     use rh_sim::sim::Outcome;
 
-    /// Faction and weapon per-win counters need the player's faction and weapon at the end, which RunResult does not carry
-    /// yet (docs/backlog P-PERSIST-2).
+    /// The `matches` row of a match: the host that played it, the build and rules it ran under, and who was in it. Region and
+    /// placement id stay unset until the hosting adapter reports them (P-HOST-1).
+    pub fn match_meta(owner: &str, roster: super::Roster) -> rh_persist::MatchMeta {
+        rh_persist::MatchMeta {
+            owner: owner.to_owned(),
+            region: None,
+            placement_id: None,
+            build: rh_sim::replay::BUILD_ID.to_owned(),
+            content_hash: rh_sim::content::content_hash(),
+            humans: roster.humans,
+            bots: roster.bots,
+        }
+    }
+
+    /// Every field of the `RunResult` is kept (the record is stored whole). The per-win faction and weapon counters need the
+    /// player's faction and weapon at the end, which RunResult does not carry yet (docs/backlog P-PERSIST-2), so those two
+    /// stay `None`.
     pub fn to_persist(r: &rh_sim::RunResult) -> rh_persist::MatchResult {
         let g = &r.gv;
         rh_persist::MatchResult {
@@ -269,6 +286,20 @@ pub mod pg {
             faction: None,
             weapon: None,
             win_qualified: r.outcome == Outcome::Won && !r.win_bonus_withheld,
+            duration_sec: i64::from(r.duration_sec),
+            killed_by: r.killed_by.clone(),
+            killed_by_bot: r.killed_by_bot,
+            place: i64::from(r.place),
+            players: i64::from(r.players),
+            win_bonus_withheld: r.win_bonus_withheld,
+            // Durable spellings (append only): stored in match records.
+            win_bonus_why: r.win_bonus_why.map(|w| {
+                match w {
+                    rh_sim::results::WinBonusWhy::Starters => "starters",
+                    rh_sim::results::WinBonusWhy::Opponents => "opponents",
+                }
+                .to_owned()
+            }),
         }
     }
 }

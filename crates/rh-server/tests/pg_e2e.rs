@@ -264,10 +264,29 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
         .await
         .unwrap();
     assert_eq!(results, 2);
-    let fences: Vec<i64> = sqlx::query_scalar("SELECT fence FROM session_leases ORDER BY callsign")
-        .fetch_all(store.pool())
+    // One match row for both results, naming the build and rules that played it and the host that owned the leases.
+    let (build, hash, owner, humans): (String, i64, String, i32) =
+        sqlx::query_as("SELECT build, content_hash, owner, humans FROM matches")
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    assert_eq!(build, rh_sim::replay::BUILD_ID);
+    assert_eq!(hash as u64, rh_sim::content::content_hash());
+    assert_eq!((owner.as_str(), humans), ("test-host", 2));
+    let doc: serde_json::Value = sqlx::query_scalar("SELECT result FROM match_results LIMIT 1")
+        .fetch_one(store.pool())
         .await
         .unwrap();
+    assert_eq!(doc["v"], 1);
+    assert!(
+        doc["durationSec"].is_number() && doc["place"].is_number(),
+        "{doc}"
+    );
+    let fences: Vec<i64> =
+        sqlx::query_scalar("SELECT fence FROM session_leases ORDER BY profile_id")
+            .fetch_all(store.pool())
+            .await
+            .unwrap();
     assert_eq!(fences, vec![1, 1], "each profile held one fenced lease");
 
     // The match is over, but its seats are held until the players leave (the room lingers): a profile in a live seat is
@@ -410,7 +429,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
     for _ in 0..60 {
         tokio::time::sleep(Duration::from_millis(100)).await;
         let rows: Vec<(String, i64)> =
-            sqlx::query_as("SELECT callsign, fence FROM match_results ORDER BY callsign")
+            sqlx::query_as("SELECT p.callsign, r.fence FROM match_results r JOIN profiles p USING (profile_id) ORDER BY p.callsign")
                 .fetch_all(store.pool())
                 .await
                 .unwrap();

@@ -4,7 +4,7 @@
 use std::str::FromStr;
 use std::time::Duration;
 
-use rh_persist::{Claim, GvBreakdown, MatchResult, Outcome, RecordOutcome, Store};
+use rh_persist::{Claim, GvBreakdown, MatchMeta, MatchResult, Outcome, RecordOutcome, Store};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{ConnectOptions, Connection, PgConnection};
 use uuid::Uuid;
@@ -94,7 +94,7 @@ impl TestDb {
             .unwrap();
         let out = self
             .store
-            .record_result(m, name, lease.fence, &run(gv))
+            .record_result(m, name, lease.fence, &run(gv), &MatchMeta::unknown())
             .await
             .unwrap();
         assert!(matches!(out, RecordOutcome::Applied { .. }), "{out:?}");
@@ -103,7 +103,8 @@ impl TestDb {
 
     pub async fn ledger_sum(&self, name: &str) -> i64 {
         sqlx::query_scalar(
-            "SELECT coalesce(sum(delta), 0)::bigint FROM gv_ledger WHERE callsign = $1",
+            "SELECT coalesce(sum(l.delta), 0)::bigint FROM gv_ledger l JOIN profiles p USING (profile_id)
+             WHERE lower(p.callsign) = lower($1)",
         )
         .bind(name)
         .fetch_one(self.store.pool())
@@ -132,5 +133,6 @@ pub fn run(gv: i64) -> MatchResult {
         faction: None,
         weapon: None,
         win_qualified: false,
+        ..Default::default()
     }
 }
