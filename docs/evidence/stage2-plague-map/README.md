@@ -3,7 +3,8 @@
 Branch: `optimization_port`. Native arm64 M5 Pro integration passed **557 tests, zero failures/filters and one intentional
 ignored heap measurement**. Formatting and all/default-feature workspace Clippy with warnings denied passed. Parity is
 **61 compared scenarios, 13 capture-only and 300 path queries: all MATCH**. The original 72 capture files are unchanged;
-four new traces bring the canonical inventory to 76 files. CI for this checkpoint is pending.
+four new traces bring the canonical inventory to 76 files. Commit `0fc178a0` passed Rust CI `42033821121` and legacy
+recapture CI `42033821099`, including all new source/map checks, PostgreSQL, C#, headless and Chromium WSS.
 
 ## Rust combat and temporal observations
 

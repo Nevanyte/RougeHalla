@@ -103,7 +103,9 @@ headless and Chromium WSS. Plague, temporal observations, spawn stages and elite
 combat and projection reviews passed, including the repaired foreign-session async reply. Current content is
 `44fb7ebcf48f519f`, checkpoint /11, replay /9, observation 8, policy 5 and wire 5. FactionMode defaults Off; explicit
 EngagementHoly and EngagementHolyPlague remain partial installations. New signature presentation is explicitly omitted
-from wire 5. Source canonical inventory is 76 files; the old 72 values remain unchanged. CI for this checkpoint is pending.
+from wire 5. Source canonical inventory is 76 files; the old 72 values remain unchanged. Checkpoint `0fc178a0` passed
+Rust CI `42033821121` and legacy recapture CI `42033821099`, including the standalone proofs, map oracles, PostgreSQL,
+C#, headless and Chromium WSS.
 See `docs/evidence/stage2-plague-map/` for source precision, 449 continuations, 220 measured zero-allocation steady steps,
 map differential/mutation coverage, 540 independent exact-sum cases and reviewed public lifecycle behavior.
 Next: Fire signatures and the selected whole-wall landmark guard/runtime; reliable item State/client integration,
