@@ -1,0 +1,29 @@
+[package]
+name = "rh-load"
+description = "Roguehalla load and soak harness: scripted, authenticated WS/WSS sessions against a real rh-server (protocol v5), with measurements."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+# Library use only: the Hello's content hash and the world tile size (to turn a floor tile of the Welcome map into a click
+# target). The harness implements no game rule.
+rh-sim = { path = "../rh-sim" }
+rh-protocol = { path = "../rh-protocol" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "process", "signal"] }
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+getrandom = "0.2"
+
+[dev-dependencies]
+rh-server = { path = "../rh-server" }
+axum = "0.8"
+axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
+
+[lints]
+workspace = true
