@@ -94,6 +94,15 @@ fn cases() -> Vec<Case> {
             ],
         ),
         (
+            "a released lease checks the fence before the lease: a different fence is stale",
+            &["Golf"],
+            vec![
+                Acquire("Golf", 1, Some(1)),
+                Release("Golf", 1, true),
+                Record("Golf", 1, 5, Rec::Refused("StaleFence")),
+            ],
+        ),
+        (
             "profiles are independent, and so are their results for one match",
             &["Echo", "Foxtrot"],
             vec![
@@ -201,4 +210,8 @@ async fn rh_persist_follows_the_lease_table() {
         };
         run(&p, "postgres", name, &ops).await;
     }
+    drop(store);
+    let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)"))
+        .execute(admin.pool())
+        .await;
 }
