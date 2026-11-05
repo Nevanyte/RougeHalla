@@ -255,7 +255,11 @@ pub struct PlacementService<G, D, L = MemoryLedger> {
 
 fn holder_id() -> String {
     static N: AtomicU64 = AtomicU64::new(0);
-    format!("{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed))
+    format!(
+        "{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 fn ledger_unavailable() -> PlaceError {
@@ -298,12 +302,10 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
         ledger: L,
         durability: DurabilityConfig,
     ) -> Result<Self, LedgerError> {
-        let nonce = tokio::time::timeout(
-            durability.db_op_timeout,
-            ledger.open_epoch(candidate_nonce),
-        )
-        .await
-        .map_err(|_| LedgerError::Timeout)??;
+        let nonce =
+            tokio::time::timeout(durability.db_op_timeout, ledger.open_epoch(candidate_nonce))
+                .await
+                .map_err(|_| LedgerError::Timeout)??;
         Ok(Self {
             ownership_nonce: nonce,
             cfg,
@@ -326,11 +328,10 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
     /// Retention: tombstone up to `reap_batch` finished/released rows older than `durability.retention`.
     /// A tombstone keeps id, scope and fingerprint, so a purged id can never replay or restart.
     pub async fn purge_retained(&self) -> Result<usize, LedgerError> {
-        self.db(
-            self.ledger
-                .purge(self.durability.reap_batch, self.durability.retention),
-        )
-        .await
+        self.db(self
+            .ledger
+            .purge(self.durability.reap_batch, self.durability.retention))
+            .await
     }
 
     async fn db<T>(
@@ -472,13 +473,9 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
     }
 
     fn identity(&self, scope: &Scope, req: &PlacementRequest) -> Identity {
-        let payload = serde_json::to_vec(&(
-            "rh-placement-identity-v1",
-            scope.as_str(),
-            req,
-            &self.cfg,
-        ))
-        .expect("serializable placement identity");
+        let payload =
+            serde_json::to_vec(&("rh-placement-identity-v1", scope.as_str(), req, &self.cfg))
+                .expect("serializable placement identity");
         Identity {
             request_id: req.request_id.clone(),
             scope: scope.as_str().to_string(),
@@ -523,7 +520,8 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
         request_id: &str,
         placement_id: &str,
     ) -> Result<(), ReleaseError> {
-        let down = |_: LedgerError| ReleaseError::Unavailable("placement ledger unavailable".into());
+        let down =
+            |_: LedgerError| ReleaseError::Unavailable("placement ledger unavailable".into());
         let rec = self
             .db(self.ledger.get(request_id))
             .await
@@ -534,7 +532,9 @@ impl<G: GameLiftBackend, D: DnsBackend, L: Ledger> PlacementService<G, D, L> {
         }
         let lease = self.durability.reaper_lease;
         let (claim, rec) = match self
-            .db(self.ledger.claim_for_release(request_id, &holder_id(), lease))
+            .db(self
+                .ledger
+                .claim_for_release(request_id, &holder_id(), lease))
             .await
             .map_err(down)?
         {

@@ -7,7 +7,11 @@ use ledger_support::pg::{setup, teardown};
 
 mod postgres {
     use super::{setup, teardown};
-    crate::conformance_cases!(tokio::test(flavor = "multi_thread", worker_threads = 4), setup, teardown);
+    crate::conformance_cases!(
+        tokio::test(flavor = "multi_thread", worker_threads = 4),
+        setup,
+        teardown
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

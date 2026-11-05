@@ -301,7 +301,10 @@ impl<T: GameLiftBackend> GameLiftBackend for Tamper<T> {
         res
     }
     async fn describe_placement(&self, id: &str) -> Result<PlacementState, BackendError> {
-        self.inner.describe_placement(id).await.map(|s| self.alter(s))
+        self.inner
+            .describe_placement(id)
+            .await
+            .map(|s| self.alter(s))
     }
     async fn stop_placement(&self, id: &str) -> Result<PlacementState, BackendError> {
         self.inner.stop_placement(id).await.map(|s| self.alter(s))
@@ -364,7 +367,12 @@ impl<T, L: Ledger> Probe<T, L> {
     pub fn effects(&self) -> Vec<(String, bool)> {
         self.seen.lock().unwrap().clone()
     }
-    async fn check(&self, effect: &str, placement_id: Option<&str>, f: impl Fn(&LedgerState, &str) -> bool) {
+    async fn check(
+        &self,
+        effect: &str,
+        placement_id: Option<&str>,
+        f: impl Fn(&LedgerState, &str) -> bool,
+    ) {
         // placement ids are `rh-<request id>-<n>`
         let pid = placement_id.unwrap_or_default().to_string();
         let ok = match pid
@@ -419,11 +427,12 @@ impl<T: GameLiftBackend, L: Ledger> GameLiftBackend for Probe<T, L> {
     }
     async fn terminate_game_session(&self, arn: &str) -> Result<(), BackendError> {
         let ok = match self.ledger.get("probe001").await {
-            Ok(Some(rec)) => rec
-                .state
-                .attempts
-                .iter()
-                .any(|a| a.terminate == TermStep::Intent { arn: arn.to_string() }),
+            Ok(Some(rec)) => rec.state.attempts.iter().any(|a| {
+                a.terminate
+                    == TermStep::Intent {
+                        arn: arn.to_string(),
+                    }
+            }),
             _ => false,
         };
         self.seen.lock().unwrap().push(("terminate".into(), ok));

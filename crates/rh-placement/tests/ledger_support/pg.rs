@@ -39,7 +39,9 @@ impl TestDb {
             N.fetch_add(1, Ordering::SeqCst),
             nanos % 1_000_000_000
         );
-        let mut c = PgConnection::connect_with(&admin).await.expect("connect to DATABASE_URL");
+        let mut c = PgConnection::connect_with(&admin)
+            .await
+            .expect("connect to DATABASE_URL");
         sqlx::query(&format!("CREATE DATABASE {name}"))
             .execute(&mut c)
             .await
@@ -63,9 +65,12 @@ impl TestDb {
 
     pub async fn drop_db(self) {
         if let Ok(mut c) = PgConnection::connect_with(&self.admin).await {
-            let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {} WITH (FORCE)", self.name))
-                .execute(&mut c)
-                .await;
+            let _ = sqlx::query(&format!(
+                "DROP DATABASE IF EXISTS {} WITH (FORCE)",
+                self.name
+            ))
+            .execute(&mut c)
+            .await;
         }
     }
 }

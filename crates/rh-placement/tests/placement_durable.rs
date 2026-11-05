@@ -152,8 +152,16 @@ async fn restart_recovers_a_committed_offer_and_keeps_the_epoch<L: Ledger + 'sta
     drop(s1);
     // A new process: another candidate nonce, the same ledger and provider.
     let s2 = w.svc(2).await;
-    assert_eq!(w.raw.open_epoch([7; 32]).await.unwrap(), [1; 32], "the epoch stays the first one");
-    assert_eq!(s2.place(&req("req00001")).await.unwrap(), offer, "an identical retry replays the committed offer");
+    assert_eq!(
+        w.raw.open_epoch([7; 32]).await.unwrap(),
+        [1; 32],
+        "the epoch stays the first one"
+    );
+    assert_eq!(
+        s2.place(&req("req00001")).await.unwrap(),
+        offer,
+        "an identical retry replays the committed offer"
+    );
     assert_eq!(w.calls(), before, "the replay makes no backend call at all");
     // Automatic recovery never touches an offered session, however long it has been.
     tokio::time::sleep(s2.durability.worker_lease * 3).await;
@@ -171,33 +179,54 @@ async fn conflicting_retries_fail_before_any_backend_call<L: Ledger + 'static>(l
     let before = w.calls();
     let mut other = req("req00002");
     other.party[0].callsign = "mallory".into();
-    assert!(matches!(s.place_scoped(&scope, &other).await, Err(PlaceError::Invalid(_))));
+    assert!(matches!(
+        s.place_scoped(&scope, &other).await,
+        Err(PlaceError::Invalid(_))
+    ));
     // Same request, another scope: the id is one ledger key and the scope is part of identity.
     let foreign = Scope::new("account-b").unwrap();
-    assert!(matches!(s.place_scoped(&foreign, &req("req00002")).await, Err(PlaceError::Invalid(_))));
-    assert!(matches!(s.place(&req("req00002")).await, Err(PlaceError::Invalid(_))), "default scope is a scope too");
+    assert!(matches!(
+        s.place_scoped(&foreign, &req("req00002")).await,
+        Err(PlaceError::Invalid(_))
+    ));
+    assert!(
+        matches!(s.place(&req("req00002")).await, Err(PlaceError::Invalid(_))),
+        "default scope is a scope too"
+    );
     // Same request, changed configuration (another service instance).
     let mut c2 = cfg();
     c2.queue_name = "other-queue".into();
     let s2 = w.svc_with(2, c2, dur()).await;
-    assert!(matches!(s2.place_scoped(&scope, &req("req00002")).await, Err(PlaceError::Invalid(_))));
+    assert!(matches!(
+        s2.place_scoped(&scope, &req("req00002")).await,
+        Err(PlaceError::Invalid(_))
+    ));
     assert_eq!(w.calls(), before, "no capacity read, no start, nothing");
-    assert_eq!(s.place_scoped(&scope, &req("req00002")).await.unwrap(), offer);
+    assert_eq!(
+        s.place_scoped(&scope, &req("req00002")).await.unwrap(),
+        offer
+    );
     assert_eq!(w.calls(), before);
     // The stored identity is complete.
     let rec = w.row("req00002").await;
     assert_eq!(rec.identity.scope, "account-a");
     assert_eq!(rec.identity.zone, "g.rougehalla.com");
-    assert!(rec.identity.request_json.contains("req00002") && rec.identity.config_json.contains("rh-q"));
+    assert!(
+        rec.identity.request_json.contains("req00002") && rec.identity.config_json.contains("rh-q")
+    );
 }
 
-async fn conflicting_retry_while_another_worker_is_in_progress_fails_before_effects<L: Ledger + 'static>(l: Shared<L>) {
+async fn conflicting_retry_while_another_worker_is_in_progress_fails_before_effects<
+    L: Ledger + 'static,
+>(
+    l: Shared<L>,
+) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     let gate = Arc::new(Gate::default());
     *w.gl.hold_start_effect.lock().unwrap() = Some(gate.clone());
     let rq = req("req00003");
-        let first = s.place(&rq);
+    let first = s.place(&rq);
     let control = async {
         gate.arrived.notified().await;
         let calls = w.calls();
@@ -216,7 +245,11 @@ async fn conflicting_retry_while_another_worker_is_in_progress_fails_before_effe
 }
 
 async fn scope_is_part_of_identity<L: Ledger + 'static>(l: Shared<L>) {
-    assert!(Scope::new("").is_err() && Scope::new("has space").is_err() && Scope::new("x".repeat(129)).is_err());
+    assert!(
+        Scope::new("").is_err()
+            && Scope::new("has space").is_err()
+            && Scope::new("x".repeat(129)).is_err()
+    );
     assert_eq!(Scope::default().as_str(), "default");
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
@@ -238,7 +271,10 @@ async fn with_ledger_refuses_records_without_an_epoch<L: Ledger + 'static>(l: Sh
         config_json: "{}".into(),
         zone: "z.example.com".into(),
     };
-    assert!(matches!(l.begin(&id, "w", Duration::from_secs(60)).await.unwrap(), Begin::Started(_)));
+    assert!(matches!(
+        l.begin(&id, "w", Duration::from_secs(60)).await.unwrap(),
+        Begin::Started(_)
+    ));
     let r = PlacementService::with_ledger(
         [5; 32],
         cfg(),
@@ -248,7 +284,10 @@ async fn with_ledger_refuses_records_without_an_epoch<L: Ledger + 'static>(l: Sh
         dur(),
     )
     .await;
-    assert!(matches!(r, Err(rh_placement::ledger::LedgerError::Corrupt(_))), "a new epoch is never minted over old records");
+    assert!(
+        matches!(r, Err(rh_placement::ledger::LedgerError::Corrupt(_))),
+        "a new epoch is never minted over old records"
+    );
 }
 
 // ---- DB outage and uncertain commit ----
@@ -259,7 +298,11 @@ async fn failed_offer_commit_is_not_turned_into_cleanup<L: Ledger + 'static>(l: 
     w.fl.offer_write.store(FAIL_BEFORE, Ordering::SeqCst);
     let e = s.place(&req("req00006")).await.unwrap_err();
     assert!(matches!(e, PlaceError::ServiceUnavailable(_)), "{e:?}");
-    assert_eq!(w.fl.offer_writes.load(Ordering::SeqCst), 3, "bounded retries of the unchanged write");
+    assert_eq!(
+        w.fl.offer_writes.load(Ordering::SeqCst),
+        3,
+        "bounded retries of the unchanged write"
+    );
     // The worker did NOT start cleanup because a write failed: the host and name are still there.
     assert_eq!((w.mutations(), w.deletes().len()), (0, 0));
     assert_eq!(w.dns.inner.records().len(), 1);
@@ -269,25 +312,38 @@ async fn failed_offer_commit_is_not_turned_into_cleanup<L: Ledger + 'static>(l: 
     // The row is the reaper's now, which cleans a never-offered host.
     w.fl.offer_write.store(PASS, Ordering::SeqCst);
     assert_eq!(s.reap_abandoned().await, 1);
-    assert_eq!((w.gl.inner.terminated().len(), w.dns.inner.records().len()), (1, 0));
+    assert_eq!(
+        (w.gl.inner.terminated().len(), w.dns.inner.records().len()),
+        (1, 0)
+    );
     assert_eq!(w.row("req00006").await.phase, Phase::Finished);
 }
 
-async fn uncertain_commit_that_landed_returns_the_offer_and_is_protected<L: Ledger + 'static>(l: Shared<L>) {
+async fn uncertain_commit_that_landed_returns_the_offer_and_is_protected<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     w.fl.offer_write.store(COMMIT_THEN_FAIL, Ordering::SeqCst);
-    let offer = s.place(&req("req00007")).await.expect("the commit landed: the stored outcome is the answer");
+    let offer = s
+        .place(&req("req00007"))
+        .await
+        .expect("the commit landed: the stored outcome is the answer");
     assert_eq!(w.fl.offer_writes.load(Ordering::SeqCst), 1);
     let rec = w.row("req00007").await;
     assert_eq!(rec.phase, Phase::Offered);
-    assert_eq!(rec.state.offer.as_ref().map(|o| o.hostname.clone()), Some(offer.hostname.clone()));
+    assert_eq!(
+        rec.state.offer.as_ref().map(|o| o.hostname.clone()),
+        Some(offer.hostname.clone())
+    );
     assert_eq!(s.reap_abandoned().await, 0);
     assert_eq!((w.mutations(), w.deletes().len()), (0, 0));
     assert_eq!(s.place(&req("req00007")).await.unwrap(), offer);
 }
 
-async fn uncertain_commit_with_an_unreadable_database_stops_without_cleanup<L: Ledger + 'static>(l: Shared<L>) {
+async fn uncertain_commit_with_an_unreadable_database_stops_without_cleanup<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     w.fl.offer_write.store(COMMIT_THEN_FAIL, Ordering::SeqCst);
@@ -300,7 +356,10 @@ async fn uncertain_commit_with_an_unreadable_database_stops_without_cleanup<L: L
     w.fl.offer_write.store(PASS, Ordering::SeqCst);
     assert_eq!(w.row("req00008").await.phase, Phase::Offered);
     let s2 = w.svc(2).await;
-    let offer = s2.place(&req("req00008")).await.expect("an identical retry recovers the committed offer");
+    let offer = s2
+        .place(&req("req00008"))
+        .await
+        .expect("an identical retry recovers the committed offer");
     assert!(offer.hostname.starts_with("us-west-2-"));
     assert_eq!(s2.reap_abandoned().await, 0);
     assert_eq!((w.mutations(), w.deletes().len()), (0, 0));
@@ -311,14 +370,23 @@ async fn outage_before_the_first_write_makes_no_external_call<L: Ledger + 'stati
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     w.fl.all_down.store(true, Ordering::SeqCst);
-    assert!(matches!(s.place(&req("req00009")).await, Err(PlaceError::ServiceUnavailable(_))));
-    assert_eq!(w.calls(), 0, "the ledger is written before any capacity read or start");
+    assert!(matches!(
+        s.place(&req("req00009")).await,
+        Err(PlaceError::ServiceUnavailable(_))
+    ));
+    assert_eq!(
+        w.calls(),
+        0,
+        "the ledger is written before any capacity read or start"
+    );
     assert_eq!(s.reap_abandoned().await, 0);
 }
 
 // ---- receipts and cleanup ----
 
-async fn missing_and_foreign_receipts_stay_unresolved_or_untouched<L: Ledger + 'static>(l: Shared<L>) {
+async fn missing_and_foreign_receipts_stay_unresolved_or_untouched<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, RegionBehaviour::NoHost);
     let s = w.svc(1).await;
     // Missing ownership evidence: unresolved, nothing mutated, still discoverable.
@@ -327,7 +395,11 @@ async fn missing_and_foreign_receipts_stay_unresolved_or_untouched<L: Ledger + '
     w.gl.tamper.store(T_MISSING, Ordering::SeqCst);
     assert_eq!(s.reap_abandoned().await, 0);
     assert_eq!(w.mutations(), 0);
-    assert_eq!(s.unresolved_count().await.unwrap(), 1, "kept for reconciliation");
+    assert_eq!(
+        s.unresolved_count().await.unwrap(),
+        1,
+        "kept for reconciliation"
+    );
     assert!(w.row("req00010").await.state.attempts[0].is_open());
     // Evidence comes back: our own binding is cleaned up (stop), nothing else is.
     w.gl.tamper.store(T_NONE, Ordering::SeqCst);
@@ -341,23 +413,36 @@ async fn missing_and_foreign_receipts_stay_unresolved_or_untouched<L: Ledger + '
         w.gl.tamper.store(mode, Ordering::SeqCst);
         assert_eq!(s.reap_abandoned().await, 1);
         w.gl.tamper.store(T_NONE, Ordering::SeqCst);
-        assert_eq!(w.mutations(), before, "foreign evidence never authorizes a stop or a termination");
+        assert_eq!(
+            w.mutations(),
+            before,
+            "foreign evidence never authorizes a stop or a termination"
+        );
         assert!(w.deletes().is_empty());
         let a = &w.row(&id).await.state.attempts[0];
         assert_eq!(a.resolution, Resolution::Foreign);
         // The provider-side placement is still pending: nobody touched it.
-        let st = w.gl.inner.describe_placement(&a.placement_id).await.unwrap();
+        let st =
+            w.gl.inner
+                .describe_placement(&a.placement_id)
+                .await
+                .unwrap();
         assert_eq!(st.status, rh_placement::backend::PlacementStatus::Pending);
     }
 }
 
-async fn lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding<L: Ledger + 'static>(l: Shared<L>) {
+async fn lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     // The provider accepted the start; the receipt was lost with the process.
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     abandon_after_start(&w, &s, "req00011").await;
     let rec = w.row("req00011").await;
-    assert!(matches!(rec.state.attempts[0].start, StartStep::Intent { .. }), "only the intent was durable");
+    assert!(
+        matches!(rec.state.attempts[0].start, StartStep::Intent { .. }),
+        "only the intent was durable"
+    );
     // Fulfilment arrives while nobody waits.
     for _ in 0..3 {
         let _ = w.gl.inner.describe_placement("rh-req00011-1").await;
@@ -366,7 +451,10 @@ async fn lost_receipt_is_recovered_by_the_reaper_with_the_stored_binding<L: Ledg
     let s2 = w.svc(2).await;
     assert_eq!(s2.reap_abandoned().await, 1);
     assert_eq!(w.gl.inner.terminated().len(), 1);
-    assert_eq!(w.row("req00011").await.state.attempts[0].resolution, Resolution::CleanedUp);
+    assert_eq!(
+        w.row("req00011").await.state.attempts[0].resolution,
+        Resolution::CleanedUp
+    );
 }
 
 async fn cleanup_effect_failure_keeps_the_attempt_unresolved<L: Ledger + 'static>(l: Shared<L>) {
@@ -380,17 +468,31 @@ async fn cleanup_effect_failure_keeps_the_attempt_unresolved<L: Ledger + 'static
     assert_eq!(s.reap_abandoned().await, 0);
     let rec = w.row("req00012").await;
     assert_eq!(rec.phase, Phase::Active);
-    assert!(rec.state.attempts[0].is_open(), "an unconfirmed effect is not done");
-    assert!(matches!(rec.state.attempts[0].dns, DnsStep::DeleteIntent { .. }), "the intent survives");
+    assert!(
+        rec.state.attempts[0].is_open(),
+        "an unconfirmed effect is not done"
+    );
+    assert!(
+        matches!(rec.state.attempts[0].dns, DnsStep::DeleteIntent { .. }),
+        "the intent survives"
+    );
     assert_eq!(w.dns.inner.records().len(), 1);
     assert!(w.gl.inner.terminated().is_empty());
     // The retry performs the effects and only then records completion.
     assert_eq!(s.reap_abandoned().await, 1);
-    assert_eq!((w.dns.inner.records().len(), w.gl.inner.terminated().len()), (0, 1));
-    assert_eq!(w.row("req00012").await.state.attempts[0].resolution, Resolution::CleanedUp);
+    assert_eq!(
+        (w.dns.inner.records().len(), w.gl.inner.terminated().len()),
+        (0, 1)
+    );
+    assert_eq!(
+        w.row("req00012").await.state.attempts[0].resolution,
+        Resolution::CleanedUp
+    );
 }
 
-async fn original_zone_is_used_after_the_configured_zone_changes<L: Ledger + 'static>(l: Shared<L>) {
+async fn original_zone_is_used_after_the_configured_zone_changes<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     w.fl.offer_write.store(FAIL_BEFORE, Ordering::SeqCst);
@@ -403,7 +505,11 @@ async fn original_zone_is_used_after_the_configured_zone_changes<L: Ledger + 'st
     moved.zone = "g2.example.net".into();
     let s2 = w.svc_with(2, moved, dur()).await;
     assert_eq!(s2.reap_abandoned().await, 1);
-    assert_eq!(w.deletes(), [host], "the host in the ORIGINAL zone is deleted, no other name is touched");
+    assert_eq!(
+        w.deletes(),
+        [host],
+        "the host in the ORIGINAL zone is deleted, no other name is touched"
+    );
     assert!(w.dns.inner.records().is_empty());
     assert_eq!(w.row("req00013").await.identity.zone, "g.rougehalla.com");
 }
@@ -416,7 +522,7 @@ async fn stale_worker_cannot_complete_after_takeover<L: Ledger + 'static>(l: Sha
     let gate = Arc::new(Gate::default());
     *w.gl.hold_start_receipt.lock().unwrap() = Some(gate.clone());
     let rq = req("req00014");
-        let worker = s.place(&rq);
+    let worker = s.place(&rq);
     let control = async {
         gate.arrived.notified().await; // the provider applied the start; the worker holds the receipt
         tokio::time::sleep(s.durability.worker_lease * 3).await; // its lease runs out
@@ -426,7 +532,10 @@ async fn stale_worker_cannot_complete_after_takeover<L: Ledger + 'static>(l: Sha
     };
     let (res, reaped) = tokio::join!(worker, control);
     assert_eq!(reaped, 1);
-    assert!(matches!(res, Err(PlaceError::ServiceUnavailable(_))), "{res:?}");
+    assert!(
+        matches!(res, Err(PlaceError::ServiceUnavailable(_))),
+        "{res:?}"
+    );
     let rec = w.row("req00014").await;
     assert_eq!((rec.phase, rec.fence), (Phase::Finished, 2));
     assert!(rec.state.offer.is_none());
@@ -437,7 +546,47 @@ async fn stale_worker_cannot_complete_after_takeover<L: Ledger + 'static>(l: Sha
     assert_eq!(rec.state.attempts[0].resolution, Resolution::NoHost);
 }
 
-async fn start_that_was_never_seen_is_not_settled_by_one_not_found<L: Ledger + 'static>(l: Shared<L>) {
+async fn stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
+    let w = World::new(l, RegionBehaviour::NoHost);
+    let s = w.svc(1).await;
+    let gate = Arc::new(Gate::default());
+    *w.gl.hold_start_receipt.lock().unwrap() = Some(gate.clone());
+    let rq = req("req00040");
+    let worker = s.place(&rq);
+    let control = async {
+        gate.arrived.notified().await;
+        tokio::time::sleep(s.durability.worker_lease * 3).await;
+        // The takeover cannot prove ownership (receipts lack metadata): it leaves the row ACTIVE and unresolved.
+        w.gl.tamper.store(T_MISSING, Ordering::SeqCst);
+        let n = s.reap_abandoned().await;
+        w.gl.tamper.store(T_NONE, Ordering::SeqCst);
+        gate.release.notify_one();
+        n
+    };
+    let (res, reaped) = tokio::join!(worker, control);
+    assert_eq!(reaped, 0);
+    assert!(
+        matches!(res, Err(PlaceError::ServiceUnavailable(_))),
+        "{res:?}"
+    );
+    let rec = w.row("req00040").await;
+    assert_eq!((rec.phase, rec.fence), (Phase::Active, 2));
+    assert!(
+        matches!(rec.state.attempts[0].start, StartStep::Intent { .. }),
+        "a stale acceptance must not overwrite the takeover's row"
+    );
+    assert_eq!(
+        s.unresolved_count().await.unwrap(),
+        1,
+        "the work stays discoverable"
+    );
+}
+
+async fn start_that_was_never_seen_is_not_settled_by_one_not_found<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, RegionBehaviour::NoHost);
     let s = w.svc(1).await;
     let gate = Arc::new(Gate::default());
@@ -473,9 +622,16 @@ async fn start_that_was_never_seen_is_not_settled_by_one_not_found<L: Ledger + '
         .await
         .unwrap();
     assert_eq!(s.reap_abandoned().await, 1);
-    assert!(w.gl.inner.calls().contains(&Call::Stop("rh-req00015-1".into())));
+    assert!(w
+        .gl
+        .inner
+        .calls()
+        .contains(&Call::Stop("rh-req00015-1".into())));
     let rec = w.row("req00015").await;
-    assert_eq!((rec.phase, rec.state.attempts[0].stop), (Phase::Finished, StopStep::Resolved));
+    assert_eq!(
+        (rec.phase, rec.state.attempts[0].stop),
+        (Phase::Finished, StopStep::Resolved)
+    );
 }
 
 async fn two_not_found_answers_long_after_the_start_settle_it<L: Ledger + 'static>(l: Shared<L>) {
@@ -500,29 +656,47 @@ async fn two_not_found_answers_long_after_the_start_settle_it<L: Ledger + 'stati
     assert_eq!(s.reap_abandoned().await, 0, "one NotFound proves nothing");
     assert_eq!(s.reap_abandoned().await, 1);
     let rec = w.row("req00016").await;
-    assert_eq!((rec.phase, rec.state.attempts[0].resolution), (Phase::Finished, Resolution::Settled));
+    assert_eq!(
+        (rec.phase, rec.state.attempts[0].resolution),
+        (Phase::Finished, Resolution::Settled)
+    );
 }
 
 // ---- explicit release ----
 
-async fn release_session_is_bound_to_scope_request_and_placement<L: Ledger + 'static>(l: Shared<L>) {
+async fn release_session_is_bound_to_scope_request_and_placement<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     let scope = Scope::new("account-a").unwrap();
     let offer = s.place_scoped(&scope, &req("req00017")).await.unwrap();
     let pid = offer.placement_id.clone();
     // Wrong scope, wrong request, wrong placement: refused, and no DNS call is made.
-    assert_eq!(s.release_session(&Scope::new("account-b").unwrap(), "req00017", &pid).await, Err(ReleaseError::Unknown));
-    assert_eq!(s.release_session(&scope, "req99999", &pid).await, Err(ReleaseError::Unknown));
-    assert_eq!(s.release_session(&scope, "req00017", "rh-req00017-2").await, Err(ReleaseError::WrongPlacement));
-    assert_eq!(s.release_session(&scope, "req00017", "").await, Err(ReleaseError::WrongPlacement));
+    assert_eq!(
+        s.release_session(&Scope::new("account-b").unwrap(), "req00017", &pid)
+            .await,
+        Err(ReleaseError::Unknown)
+    );
+    assert_eq!(
+        s.release_session(&scope, "req99999", &pid).await,
+        Err(ReleaseError::Unknown)
+    );
+    assert_eq!(
+        s.release_session(&scope, "req00017", "rh-req00017-2").await,
+        Err(ReleaseError::WrongPlacement)
+    );
+    assert_eq!(
+        s.release_session(&scope, "req00017", "").await,
+        Err(ReleaseError::WrongPlacement)
+    );
     assert!(w.deletes().is_empty());
     assert_eq!(w.dns.inner.records().len(), 1);
     assert_eq!(w.row("req00017").await.phase, Phase::Offered);
     // Authorized.
     s.release_session(&scope, "req00017", &pid).await.unwrap();
     assert!(w.dns.inner.records().is_empty());
-    assert_eq!(w.deletes(), [offer.hostname.clone()]);
+    assert_eq!(w.deletes(), std::slice::from_ref(&offer.hostname));
     let rec = w.row("req00017").await;
     assert_eq!(rec.phase, Phase::Released);
     let rel = rec.state.release.unwrap();
@@ -531,9 +705,15 @@ async fn release_session_is_bound_to_scope_request_and_placement<L: Ledger + 'st
     s.release_session(&scope, "req00017", &pid).await.unwrap();
     assert_eq!(w.deletes().len(), 1);
     // A released identity never replays its dead join URL.
-    assert_eq!(s.place_scoped(&scope, &req("req00017")).await, Err(PlaceError::RequestIdReused));
+    assert_eq!(
+        s.place_scoped(&scope, &req("req00017")).await,
+        Err(PlaceError::RequestIdReused)
+    );
     let s2 = w.svc(2).await;
-    assert_eq!(s2.place_scoped(&scope, &req("req00017")).await, Err(PlaceError::RequestIdReused));
+    assert_eq!(
+        s2.place_scoped(&scope, &req("req00017")).await,
+        Err(PlaceError::RequestIdReused)
+    );
     assert_eq!(s2.reap_abandoned().await, 0);
 }
 
@@ -542,10 +722,16 @@ async fn release_of_a_request_without_an_offer_is_refused<L: Ledger + 'static>(l
     let s = w.svc(1).await;
     abandon_after_start(&w, &s, "req00018").await;
     let scope = Scope::default();
-    assert_eq!(s.release_session(&scope, "req00018", "rh-req00018-1").await, Err(ReleaseError::NotOffered));
+    assert_eq!(
+        s.release_session(&scope, "req00018", "rh-req00018-1").await,
+        Err(ReleaseError::NotOffered)
+    );
     assert!(w.deletes().is_empty());
     assert_eq!(s.reap_abandoned().await, 1);
-    assert_eq!(s.release_session(&scope, "req00018", "rh-req00018-1").await, Err(ReleaseError::NotOffered));
+    assert_eq!(
+        s.release_session(&scope, "req00018", "rh-req00018-1").await,
+        Err(ReleaseError::NotOffered)
+    );
     assert!(w.deletes().is_empty());
 }
 
@@ -556,12 +742,16 @@ async fn release_uses_the_original_zone<L: Ledger + 'static>(l: Shared<L>) {
     let mut moved = cfg();
     moved.zone = "g2.example.net".into();
     let s2 = w.svc_with(2, moved, dur()).await;
-    s2.release_session(&Scope::default(), "req00019", &offer.placement_id).await.unwrap();
+    s2.release_session(&Scope::default(), "req00019", &offer.placement_id)
+        .await
+        .unwrap();
     assert_eq!(w.deletes(), [offer.hostname]);
     assert!(w.deletes()[0].ends_with(".g.rougehalla.com"));
 }
 
-async fn a_half_done_release_is_resumed_by_retry_and_by_the_reaper<L: Ledger + 'static>(l: Shared<L>) {
+async fn a_half_done_release_is_resumed_by_retry_and_by_the_reaper<L: Ledger + 'static>(
+    l: Shared<L>,
+) {
     let w = World::new(l, fulfil());
     let s = w.svc(1).await;
     let scope = Scope::default();
@@ -569,22 +759,36 @@ async fn a_half_done_release_is_resumed_by_retry_and_by_the_reaper<L: Ledger + '
     let b = s.place(&req("req00023")).await.unwrap();
     // DNS delete fails once: the release intent is durable, the row is `releasing`, the error is retryable.
     w.dns.fail_deletes.store(1, Ordering::SeqCst);
-    assert!(matches!(s.release_session(&scope, "req00022", &a.placement_id).await, Err(ReleaseError::Unavailable(_))));
+    assert!(matches!(
+        s.release_session(&scope, "req00022", &a.placement_id).await,
+        Err(ReleaseError::Unavailable(_))
+    ));
     let rec = w.row("req00022").await;
     assert_eq!(rec.phase, Phase::Releasing);
     assert!(rec.state.release.is_some_and(|r| r.done_at_ms.is_none()));
     assert_eq!(w.dns.inner.records().len(), 2);
     // A replayed offer is not offered for a releasing session.
-    assert_eq!(s.place(&req("req00022")).await, Err(PlaceError::RequestIdReused));
+    assert_eq!(
+        s.place(&req("req00022")).await,
+        Err(PlaceError::RequestIdReused)
+    );
     // The reaper completes the recorded release (and only that: the other offer is untouched).
     assert_eq!(s.reap_abandoned().await, 1);
     assert_eq!(w.row("req00022").await.phase, Phase::Released);
     assert_eq!(w.row("req00023").await.phase, Phase::Offered);
-    assert_eq!(w.dns.inner.records().keys().cloned().collect::<Vec<_>>(), [b.hostname.clone()]);
+    assert_eq!(
+        w.dns.inner.records().keys().cloned().collect::<Vec<_>>(),
+        std::slice::from_ref(&b.hostname)
+    );
     // A retry on a releasing row resumes it too.
     w.dns.fail_deletes.store(1, Ordering::SeqCst);
-    assert!(s.release_session(&scope, "req00023", &b.placement_id).await.is_err());
-    s.release_session(&scope, "req00023", &b.placement_id).await.unwrap();
+    assert!(s
+        .release_session(&scope, "req00023", &b.placement_id)
+        .await
+        .is_err());
+    s.release_session(&scope, "req00023", &b.placement_id)
+        .await
+        .unwrap();
     assert!(w.dns.inner.records().is_empty());
     assert_eq!(w.row("req00023").await.phase, Phase::Released);
 }
@@ -599,14 +803,32 @@ async fn retention_purge_keeps_tombstones_that_never_replay<L: Ledger + 'static>
     let scope = Scope::default();
     let offer = s.place(&req("req00024")).await.unwrap();
     let kept = s.place(&req("req00025")).await.unwrap();
-    s.release_session(&scope, "req00024", &offer.placement_id).await.unwrap();
+    s.release_session(&scope, "req00024", &offer.placement_id)
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(200)).await;
-    assert_eq!(s.purge_retained().await.unwrap(), 1, "only the released row; the offered one is never purged");
+    assert_eq!(
+        s.purge_retained().await.unwrap(),
+        1,
+        "only the released row; the offered one is never purged"
+    );
     let rec = w.row("req00024").await;
-    assert_eq!((rec.phase, rec.final_phase), (Phase::Tombstone, Some(Phase::Released)));
-    assert_eq!(s.place(&req("req00024")).await, Err(PlaceError::RequestIdReused));
-    assert!(matches!(s.place_scoped(&Scope::new("x").unwrap(), &req("req00024")).await, Err(PlaceError::Invalid(_))));
-    s.release_session(&scope, "req00024", &offer.placement_id).await.unwrap(); // duplicate after purge: still Ok
+    assert_eq!(
+        (rec.phase, rec.final_phase),
+        (Phase::Tombstone, Some(Phase::Released))
+    );
+    assert_eq!(
+        s.place(&req("req00024")).await,
+        Err(PlaceError::RequestIdReused)
+    );
+    assert!(matches!(
+        s.place_scoped(&Scope::new("x").unwrap(), &req("req00024"))
+            .await,
+        Err(PlaceError::Invalid(_))
+    ));
+    s.release_session(&scope, "req00024", &offer.placement_id)
+        .await
+        .unwrap(); // duplicate after purge: still Ok
     assert_eq!(s.place(&req("req00025")).await.unwrap(), kept);
 }
 
@@ -615,32 +837,61 @@ async fn retention_purge_keeps_tombstones_that_never_replay<L: Ledger + 'static>
 async fn every_effect_is_preceded_by_its_committed_intent<L: Ledger + 'static>(l: Shared<L>) {
     // Publication fails -> inline cleanup: start, dns upsert, dns delete and terminate are all sent.
     let ledger = Arc::new(l);
-    let gl = Probe::new(FakeGameLift::new(&[("us-west-2", fulfil())]), ledger.clone());
+    let gl = Probe::new(
+        FakeGameLift::new(&[("us-west-2", fulfil())]),
+        ledger.clone(),
+    );
     let dns = Probe::new(FakeDns::new().failing_upserts(1000), ledger.clone());
-    let s = PlacementService::with_ledger([1; 32], cfg(), Shared::new(gl), Shared::new(dns), Shared(ledger.clone()), dur())
-        .await
-        .unwrap();
+    let s = PlacementService::with_ledger(
+        [1; 32],
+        cfg(),
+        Shared::new(gl),
+        Shared::new(dns),
+        Shared(ledger.clone()),
+        dur(),
+    )
+    .await
+    .unwrap();
     let e = s.place(&req("probe001")).await.unwrap_err();
     assert_eq!(e, PlaceError::DnsUnavailable);
     let mut seen = s.gamelift.effects();
     seen.extend(s.dns.effects());
     for kind in ["start", "upsert", "delete", "terminate"] {
-        assert!(seen.iter().any(|(k, _)| k == kind), "{kind} was not exercised: {seen:?}");
+        assert!(
+            seen.iter().any(|(k, _)| k == kind),
+            "{kind} was not exercised: {seen:?}"
+        );
     }
     let bad: Vec<_> = seen.iter().filter(|(_, ok)| !ok).collect();
-    assert!(bad.is_empty(), "effects sent before their intent was committed: {bad:?}");
+    assert!(
+        bad.is_empty(),
+        "effects sent before their intent was committed: {bad:?}"
+    );
 }
 
 async fn a_stop_is_preceded_by_its_committed_intent<L: Ledger + 'static>(l: Shared<L>) {
     let ledger = Arc::new(l);
-    let gl = Probe::new(FakeGameLift::new(&[("us-west-2", RegionBehaviour::NoHost)]), ledger.clone());
+    let gl = Probe::new(
+        FakeGameLift::new(&[("us-west-2", RegionBehaviour::NoHost)]),
+        ledger.clone(),
+    );
     let mut c = cfg();
     c.policy.attempt_timeout_ms = 1_000;
     c.policy.total_budget_ms = 1_000;
-    let s = PlacementService::with_ledger([1; 32], c, Shared::new(gl), Shared::new(FakeDns::new()), Shared(ledger.clone()), dur())
-        .await
-        .unwrap();
-    assert!(matches!(s.place(&req("probe001")).await, Err(PlaceError::NoCapacity { .. })));
+    let s = PlacementService::with_ledger(
+        [1; 32],
+        c,
+        Shared::new(gl),
+        Shared::new(FakeDns::new()),
+        Shared(ledger.clone()),
+        dur(),
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        s.place(&req("probe001")).await,
+        Err(PlaceError::NoCapacity { .. })
+    ));
     let seen = s.gamelift.effects();
     assert!(seen.iter().any(|(k, _)| k == "stop"), "{seen:?}");
     assert!(seen.iter().all(|(_, ok)| *ok), "{seen:?}");
@@ -656,7 +907,10 @@ async fn foreign_receipts_never_authorize_cleanup<L: Ledger + 'static>(l: Shared
     }
     w.gl.tamper.store(T_FOREIGN, Ordering::SeqCst);
     assert_eq!(s.reap_abandoned().await, 1);
-    assert!(w.gl.inner.terminated().is_empty(), "a foreign session was terminated");
+    assert!(
+        w.gl.inner.terminated().is_empty(),
+        "a foreign session was terminated"
+    );
     assert!(w.deletes().is_empty());
     assert_eq!(w.mutations(), 0);
 }
@@ -691,6 +945,7 @@ macro_rules! all_cases {
             cleanup_effect_failure_keeps_the_attempt_unresolved,
             original_zone_is_used_after_the_configured_zone_changes,
             stale_worker_cannot_complete_after_takeover,
+            stale_worker_cannot_overwrite_a_takeover_that_left_work_unresolved,
             start_that_was_never_seen_is_not_settled_by_one_not_found,
             two_not_found_answers_long_after_the_start_settle_it,
             release_session_is_bound_to_scope_request_and_placement,
@@ -706,8 +961,8 @@ macro_rules! all_cases {
 }
 
 mod memory {
-    use rh_placement::ledger::memory::MemoryLedger;
     use super::Shared;
+    use rh_placement::ledger::memory::MemoryLedger;
     async fn setup() -> (Shared<MemoryLedger>, ()) {
         (Shared::new(MemoryLedger::new()), ())
     }
@@ -720,11 +975,18 @@ mod memory {
         use super::*;
         let w = World::new(
             Shared::new(MemoryLedger::new()),
-            RegionBehaviour::Fulfil { after_polls: 12, ip: "203.0.113.1".into(), port: 35010 },
+            RegionBehaviour::Fulfil {
+                after_polls: 12,
+                ip: "203.0.113.1".into(),
+                port: 35010,
+            },
         );
         let mut c = cfg();
         c.policy.poll_interval_ms = 1_000;
-        let d = DurabilityConfig { worker_lease: Duration::from_secs(3), ..dur() };
+        let d = DurabilityConfig {
+            worker_lease: Duration::from_secs(3),
+            ..dur()
+        };
         let s = w.svc_with(1, c, d).await;
         let rq = req("req00030");
         let worker = s.place(&rq);
@@ -749,7 +1011,7 @@ mod memory {
         *w.gl.hold_start_receipt.lock().unwrap() = Some(gate.clone());
         {
             let rq = req("req00031");
-        let fut = s.place(&rq);
+            let fut = s.place(&rq);
             tokio::pin!(fut);
             tokio::select! { _ = &mut fut => panic!(), _ = gate.arrived.notified() => {} }
         }
@@ -772,5 +1034,9 @@ mod postgres {
         l.pool().close().await;
         db.drop_db().await;
     }
-    all_cases!(tokio::test(flavor = "multi_thread", worker_threads = 4), setup, teardown);
+    all_cases!(
+        tokio::test(flavor = "multi_thread", worker_threads = 4),
+        setup,
+        teardown
+    );
 }

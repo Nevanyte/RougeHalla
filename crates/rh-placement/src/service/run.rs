@@ -121,7 +121,10 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                 Ok(()) => {
                     let r = self
                         .svc
-                        .db(self.svc.ledger.write(&self.claim, &self.state, phase, self.lease))
+                        .db(self
+                            .svc
+                            .ledger
+                            .write(&self.claim, &self.state, phase, self.lease))
                         .await;
                     match (r, fp("after", "write", label).await) {
                         (Ok(_), Err(m)) => Err(LedgerError::Unavailable(m)),
@@ -164,7 +167,11 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
 
     async fn reconcile(&self, phase: Phase) -> Reconciled {
         for i in 0..3u32 {
-            match self.svc.db(self.svc.ledger.get(&self.claim.request_id)).await {
+            match self
+                .svc
+                .db(self.svc.ledger.get(&self.claim.request_id))
+                .await
+            {
                 Ok(Some(rec)) => {
                     if rec.fence != self.claim.fence {
                         return Reconciled::Lost;
@@ -303,9 +310,8 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                                 )
                                 .into());
                             }
-                            if let Err(e) = other {
-                                return Err(e);
-                            }
+                            // A hard error is returned now; `Ok(Err(()))` is a DNS failure: widen.
+                            let _dns_failed = other?;
                             dns_failed = true;
                         }
                     }
@@ -397,7 +403,10 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                 }
                 Owner::Ours => {}
             }
-            if existing_attempt && state.status.is_terminal() && state.status != PlacementStatus::Fulfilled {
+            if existing_attempt
+                && state.status.is_terminal()
+                && state.status != PlacementStatus::Fulfilled
+            {
                 self.resolve(idx, Resolution::NoHost);
                 self.commit("attempt_resolved", Phase::Active).await?;
                 return Err(PlaceError::RequestIdReused.into());
@@ -413,9 +422,9 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             }
             match state.status {
                 PlacementStatus::Fulfilled => return Ok(Outcome::Fulfilled(state)),
-                PlacementStatus::Cancelled | PlacementStatus::TimedOut | PlacementStatus::Failed => {
-                    return Ok(Outcome::NoHost)
-                }
+                PlacementStatus::Cancelled
+                | PlacementStatus::TimedOut
+                | PlacementStatus::Failed => return Ok(Outcome::NoHost),
                 PlacementStatus::Pending => {}
             }
             if started.elapsed() >= timeout {
@@ -487,10 +496,9 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
                 Ok(Outcome::Fulfilled(st))
             }
             StopResult::Terminal(_) => Ok(Outcome::NoHost),
-            StopResult::Pending => Err(PlaceError::ServiceUnavailable(
-                "cancellation remains pending".into(),
-            )
-            .into()),
+            StopResult::Pending => {
+                Err(PlaceError::ServiceUnavailable("cancellation remains pending".into()).into())
+            }
             StopResult::Unverified => Err(PlaceError::ServiceUnavailable(
                 "cancellation response has unverified ownership".into(),
             )
@@ -524,8 +532,8 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
             )
             .into());
         };
-        let host = game_hostname(&region, &st.placement_id, &svc.cfg.zone)
-            .map_err(PlaceError::Invalid)?;
+        let host =
+            game_hostname(&region, &st.placement_id, &svc.cfg.zone).map_err(PlaceError::Invalid)?;
         {
             let a = &mut self.state.attempts[idx];
             a.status = Some(PlacementStatus::Fulfilled);
@@ -723,7 +731,9 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
         }
         a.terminate = TermStep::Done;
         a.resolution = Resolution::CleanedUp;
-        if self.phase == Phase::Active && self.committed.attempts[idx].resolution == Resolution::CleanedUp {
+        if self.phase == Phase::Active
+            && self.committed.attempts[idx].resolution == Resolution::CleanedUp
+        {
             return Ok(true);
         }
         self.commit("cleanup_done", Phase::Active).await?;
@@ -739,9 +749,9 @@ impl<'a, G: GameLiftBackend, D: DnsBackend, L: Ledger> Run<'a, G, D, L> {
         match a.status {
             Some(PlacementStatus::Fulfilled) if accepted => {
                 if let Some(f) = &a.fulfilled {
-                    let host = a.dns_host().or_else(|| {
-                        game_hostname(&f.region, &a.placement_id, &self.zone).ok()
-                    });
+                    let host = a
+                        .dns_host()
+                        .or_else(|| game_hostname(&f.region, &a.placement_id, &self.zone).ok());
                     return self.cleanup_fulfilled(idx, f.arn.clone(), host).await;
                 }
                 return Ok(false);

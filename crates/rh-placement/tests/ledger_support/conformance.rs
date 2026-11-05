@@ -104,14 +104,18 @@ pub async fn begin_identical_is_in_progress_then_reused<L: Ledger>(fx: &Fx<L>) {
     // Same identity while a live worker holds it, from either handle.
     for l in [&fx.a, &fx.b] {
         assert_eq!(
-            l.begin(&ident("req00001", "s", "f"), "w2", LONG).await.unwrap(),
+            l.begin(&ident("req00001", "s", "f"), "w2", LONG)
+                .await
+                .unwrap(),
             Begin::InProgress
         );
     }
     // After the worker gives up, the abandoned row is not re-startable: a new id is needed.
     fx.a.relinquish(&c).await.unwrap();
     assert_eq!(
-        fx.b.begin(&ident("req00001", "s", "f"), "w2", LONG).await.unwrap(),
+        fx.b.begin(&ident("req00001", "s", "f"), "w2", LONG)
+            .await
+            .unwrap(),
         Begin::Reused(Phase::Active)
     );
 }
@@ -119,7 +123,9 @@ pub async fn begin_identical_is_in_progress_then_reused<L: Ledger>(fx: &Fx<L>) {
 pub async fn begin_conflicting_request_or_config_fails<L: Ledger>(fx: &Fx<L>) {
     started(&*fx.a, "req00002", LONG).await;
     assert_eq!(
-        fx.b.begin(&ident("req00002", "s", "other"), "w2", LONG).await.unwrap(),
+        fx.b.begin(&ident("req00002", "s", "other"), "w2", LONG)
+            .await
+            .unwrap(),
         Begin::Conflict
     );
 }
@@ -145,11 +151,15 @@ pub async fn begin_different_scope_same_id_conflicts<L: Ledger>(fx: &Fx<L>) {
 pub async fn offered_replays_only_to_the_identical_identity<L: Ledger>(fx: &Fx<L>) {
     offered(&*fx.a, "req00005").await;
     assert_eq!(
-        fx.b.begin(&ident("req00005", "s", "f"), "w2", LONG).await.unwrap(),
+        fx.b.begin(&ident("req00005", "s", "f"), "w2", LONG)
+            .await
+            .unwrap(),
         Begin::Offered(Box::new(offer("req00005")))
     );
     assert_eq!(
-        fx.b.begin(&ident("req00005", "s", "g"), "w2", LONG).await.unwrap(),
+        fx.b.begin(&ident("req00005", "s", "g"), "w2", LONG)
+            .await
+            .unwrap(),
         Begin::Conflict
     );
     let r = fx.b.get("req00005").await.unwrap().unwrap();
@@ -198,7 +208,9 @@ pub async fn claim_expiry_and_takeover<L: Ledger>(fx: &Fx<L>) {
     assert!(fx.a.claim_reapable("r2", LONG, 8).await.unwrap().is_empty());
     // A row with a live reaper claim reads as in progress to an identical retry? No: a reaper's row is abandoned work.
     assert_eq!(
-        fx.a.begin(&ident("req00008", "s", "f"), "w", LONG).await.unwrap(),
+        fx.a.begin(&ident("req00008", "s", "f"), "w", LONG)
+            .await
+            .unwrap(),
         Begin::Reused(Phase::Active)
     );
 }
@@ -211,9 +223,15 @@ pub async fn concurrent_claim_reapable_is_exclusive<L: Ledger + 'static>(fx: &Fx
     pass_lease().await;
     let mut tasks = Vec::new();
     for i in 0..4 {
-        let l = if i % 2 == 0 { fx.a.clone() } else { fx.b.clone() };
+        let l = if i % 2 == 0 {
+            fx.a.clone()
+        } else {
+            fx.b.clone()
+        };
         tasks.push(tokio::spawn(async move {
-            l.claim_reapable(&format!("reaper-{i}"), LONG, N).await.unwrap()
+            l.claim_reapable(&format!("reaper-{i}"), LONG, N)
+                .await
+                .unwrap()
         }));
     }
     let mut seen = std::collections::BTreeSet::new();
@@ -223,10 +241,18 @@ pub async fn concurrent_claim_reapable_is_exclusive<L: Ledger + 'static>(fx: &Fx
             total += 1;
             assert_eq!(claim.fence, 2, "{}", claim.request_id);
             assert_eq!(rec.fence, 2);
-            assert!(seen.insert(claim.request_id.clone()), "{} claimed twice", claim.request_id);
+            assert!(
+                seen.insert(claim.request_id.clone()),
+                "{} claimed twice",
+                claim.request_id
+            );
         }
     }
-    assert_eq!((total, seen.len()), (N, N), "every row is claimed exactly once");
+    assert_eq!(
+        (total, seen.len()),
+        (N, N),
+        "every row is claimed exactly once"
+    );
 }
 
 pub async fn stale_worker_cannot_commit_offer_or_finish<L: Ledger>(fx: &Fx<L>) {
@@ -235,7 +261,11 @@ pub async fn stale_worker_cannot_commit_offer_or_finish<L: Ledger>(fx: &Fx<L>) {
     s.attempts.push(attempt("req00009"));
     fx.a.write(&old, &s, Phase::Active, SHORT).await.unwrap();
     pass_lease().await;
-    let (new, _) = fx.b.claim_reapable("reaper", LONG, 8).await.unwrap().remove(0);
+    let (new, _) =
+        fx.b.claim_reapable("reaper", LONG, 8)
+            .await
+            .unwrap()
+            .remove(0);
     // The stale worker finished a fulfilment and tries to commit the offer, or to finish the row.
     assert_eq!(
         fx.a.write(&old, &offered_state("req00009"), Phase::Offered, LONG)
@@ -288,7 +318,9 @@ pub async fn store_refuses_offered_with_cleanup_intent<L: Ledger>(fx: &Fx<L>) {
     let r = fx.b.get(id).await.unwrap().unwrap();
     assert_eq!((r.phase, r.state), (Phase::Active, LedgerState::default()));
     assert_eq!(
-        fx.a.write(&c, &offered_state(id), Phase::Offered, LONG).await.unwrap(),
+        fx.a.write(&c, &offered_state(id), Phase::Offered, LONG)
+            .await
+            .unwrap(),
         WriteOutcome::Written
     );
 }
@@ -301,22 +333,39 @@ pub async fn offered_released_and_finished_rows_are_never_reapable<L: Ledger>(fx
         .unwrap();
     // released: offer -> release claim -> releasing -> released
     offered(&*fx.a, "req00013").await;
-    let ReleaseClaim::Claimed(rc, _) = fx.a.claim_for_release("req00013", "rel", LONG).await.unwrap()
+    let ReleaseClaim::Claimed(rc, _) =
+        fx.a.claim_for_release("req00013", "rel", LONG)
+            .await
+            .unwrap()
     else {
         panic!("claim");
     };
-    fx.a.write(&rc, &offered_state("req00013"), Phase::Releasing, LONG).await.unwrap();
-    fx.a.write(&rc, &offered_state("req00013"), Phase::Released, LONG).await.unwrap();
+    fx.a.write(&rc, &offered_state("req00013"), Phase::Releasing, LONG)
+        .await
+        .unwrap();
+    fx.a.write(&rc, &offered_state("req00013"), Phase::Released, LONG)
+        .await
+        .unwrap();
     pass_lease().await;
-    assert!(fx.b.claim_reapable("r", LONG, 100).await.unwrap().is_empty());
+    assert!(fx
+        .b
+        .claim_reapable("r", LONG, 100)
+        .await
+        .unwrap()
+        .is_empty());
     for id in ["req00011", "req00012", "req00013"] {
         let r = fx.b.get(id).await.unwrap().unwrap();
-        assert!(matches!(r.phase, Phase::Offered | Phase::Finished | Phase::Released), "{id}");
+        assert!(
+            matches!(r.phase, Phase::Offered | Phase::Finished | Phase::Released),
+            "{id}"
+        );
         assert_eq!(r.claim.kind, ClaimKind::None);
     }
     // Writes cannot revive them either.
     assert_eq!(
-        fx.a.write(&rc, &resolved_state("req00013"), Phase::Active, LONG).await.unwrap(),
+        fx.a.write(&rc, &resolved_state("req00013"), Phase::Active, LONG)
+            .await
+            .unwrap(),
         WriteOutcome::Fenced
     );
 }
@@ -330,34 +379,51 @@ pub async fn relinquish_frees_only_the_holders_claim<L: Ledger>(fx: &Fx<L>) {
     // The stale holder's relinquish does not free the new claim.
     fx.a.relinquish(&c).await.unwrap();
     assert!(fx.a.claim_reapable("r2", LONG, 8).await.unwrap().is_empty());
-    assert_eq!(fx.a.get(id).await.unwrap().unwrap().claim.holder.as_deref(), Some("r"));
+    assert_eq!(
+        fx.a.get(id).await.unwrap().unwrap().claim.holder.as_deref(),
+        Some("r")
+    );
     fx.b.relinquish(&new).await.unwrap();
     assert_eq!(fx.a.claim_reapable("r2", LONG, 8).await.unwrap().len(), 1);
 }
 
 pub async fn release_claims<L: Ledger>(fx: &Fx<L>) {
     assert_eq!(
-        fx.a.claim_for_release("nothere", "rel", LONG).await.unwrap(),
+        fx.a.claim_for_release("nothere", "rel", LONG)
+            .await
+            .unwrap(),
         ReleaseClaim::Missing
     );
     started(&*fx.a, "req00015", LONG).await;
     assert_eq!(
-        fx.a.claim_for_release("req00015", "rel", LONG).await.unwrap(),
+        fx.a.claim_for_release("req00015", "rel", LONG)
+            .await
+            .unwrap(),
         ReleaseClaim::NotReleasable(Phase::Active)
     );
     offered(&*fx.a, "req00016").await;
-    let ReleaseClaim::Claimed(rc, rec) = fx.a.claim_for_release("req00016", "rel", LONG).await.unwrap()
+    let ReleaseClaim::Claimed(rc, rec) =
+        fx.a.claim_for_release("req00016", "rel", LONG)
+            .await
+            .unwrap()
     else {
         panic!("claim");
     };
-    assert_eq!((rc.fence, rc.kind, rec.phase), (2, ClaimKind::Release, Phase::Offered));
+    assert_eq!(
+        (rc.fence, rc.kind, rec.phase),
+        (2, ClaimKind::Release, Phase::Offered)
+    );
     // A release in flight: second claimant is busy, and a retry of the request never replays the offer.
     assert_eq!(
-        fx.b.claim_for_release("req00016", "rel2", LONG).await.unwrap(),
+        fx.b.claim_for_release("req00016", "rel2", LONG)
+            .await
+            .unwrap(),
         ReleaseClaim::Busy
     );
     assert_eq!(
-        fx.b.begin(&ident("req00016", "s", "f"), "w", LONG).await.unwrap(),
+        fx.b.begin(&ident("req00016", "s", "f"), "w", LONG)
+            .await
+            .unwrap(),
         Begin::Reused(Phase::Offered)
     );
     // The intent is durable; giving up the claim hands the releasing row to the reaper.
@@ -366,14 +432,23 @@ pub async fn release_claims<L: Ledger>(fx: &Fx<L>) {
     fx.a.relinquish(&rc).await.unwrap();
     let got = fx.b.claim_reapable("r", LONG, 8).await.unwrap();
     assert_eq!(got.len(), 1);
-    assert_eq!((got[0].0.kind, got[0].1.phase), (ClaimKind::Release, Phase::Releasing));
-    fx.b.write(&got[0].0, &s, Phase::Released, LONG).await.unwrap();
     assert_eq!(
-        fx.a.claim_for_release("req00016", "rel", LONG).await.unwrap(),
+        (got[0].0.kind, got[0].1.phase),
+        (ClaimKind::Release, Phase::Releasing)
+    );
+    fx.b.write(&got[0].0, &s, Phase::Released, LONG)
+        .await
+        .unwrap();
+    assert_eq!(
+        fx.a.claim_for_release("req00016", "rel", LONG)
+            .await
+            .unwrap(),
         ReleaseClaim::AlreadyReleased
     );
     assert_eq!(
-        fx.a.begin(&ident("req00016", "s", "f"), "w", LONG).await.unwrap(),
+        fx.a.begin(&ident("req00016", "s", "f"), "w", LONG)
+            .await
+            .unwrap(),
         Begin::Reused(Phase::Released)
     );
 }
@@ -382,7 +457,9 @@ pub async fn counts_follow_the_phases<L: Ledger>(fx: &Fx<L>) {
     started(&*fx.a, "req00017", LONG).await;
     offered(&*fx.a, "req00018").await;
     let c = started(&*fx.a, "req00019", LONG).await;
-    fx.a.write(&c, &resolved_state("req00019"), Phase::Finished, LONG).await.unwrap();
+    fx.a.write(&c, &resolved_state("req00019"), Phase::Finished, LONG)
+        .await
+        .unwrap();
     let d = started(&*fx.a, "req00020", LONG).await;
     fx.a.relinquish(&d).await.unwrap();
     let n = fx.b.counts().await.unwrap();
@@ -395,9 +472,14 @@ pub async fn counts_follow_the_phases<L: Ledger>(fx: &Fx<L>) {
 pub async fn purge_makes_tombstones_that_never_replay<L: Ledger>(fx: &Fx<L>) {
     // Two final rows, one offered row, one active row.
     let c = started(&*fx.a, "purge001", LONG).await;
-    fx.a.write(&c, &resolved_state("purge001"), Phase::Finished, LONG).await.unwrap();
+    fx.a.write(&c, &resolved_state("purge001"), Phase::Finished, LONG)
+        .await
+        .unwrap();
     offered(&*fx.a, "purge002").await;
-    let ReleaseClaim::Claimed(rc, _) = fx.a.claim_for_release("purge002", "rel", LONG).await.unwrap()
+    let ReleaseClaim::Claimed(rc, _) =
+        fx.a.claim_for_release("purge002", "rel", LONG)
+            .await
+            .unwrap()
     else {
         panic!()
     };
@@ -415,7 +497,11 @@ pub async fn purge_makes_tombstones_that_never_replay<L: Ledger>(fx: &Fx<L>) {
     assert_eq!(fx.b.purge(10, Duration::from_millis(10)).await.unwrap(), 0);
     for (id, was) in [("purge001", Phase::Finished), ("purge002", Phase::Released)] {
         let r = fx.b.get(id).await.unwrap().unwrap();
-        assert_eq!((r.phase, r.final_phase), (Phase::Tombstone, Some(was)), "{id}");
+        assert_eq!(
+            (r.phase, r.final_phase),
+            (Phase::Tombstone, Some(was)),
+            "{id}"
+        );
         assert_eq!(r.state, LedgerState::default());
         assert!(r.identity.request_json.is_empty() && r.identity.config_json.is_empty());
         // A purged id never replays, restarts or is reaped; a different identity still conflicts.
@@ -424,17 +510,27 @@ pub async fn purge_makes_tombstones_that_never_replay<L: Ledger>(fx: &Fx<L>) {
             Begin::Reused(Phase::Tombstone)
         );
         assert_eq!(
-            fx.a.begin(&ident(id, "s", "different"), "w", LONG).await.unwrap(),
+            fx.a.begin(&ident(id, "s", "different"), "w", LONG)
+                .await
+                .unwrap(),
             Begin::Conflict
         );
         assert_eq!(
-            fx.a.begin(&ident(id, "other-scope", "f"), "w", LONG).await.unwrap(),
+            fx.a.begin(&ident(id, "other-scope", "f"), "w", LONG)
+                .await
+                .unwrap(),
             Begin::Conflict
         );
     }
     // Offered and active rows are untouched.
-    assert_eq!(fx.b.get("purge003").await.unwrap().unwrap().phase, Phase::Offered);
-    assert_eq!(fx.b.get("purge004").await.unwrap().unwrap().phase, Phase::Active);
+    assert_eq!(
+        fx.b.get("purge003").await.unwrap().unwrap().phase,
+        Phase::Offered
+    );
+    assert_eq!(
+        fx.b.get("purge004").await.unwrap().unwrap().phase,
+        Phase::Active
+    );
     assert!(fx.b.claim_reapable("r", LONG, 10).await.unwrap().is_empty());
     assert_eq!(fx.b.counts().await.unwrap().tombstones, 2);
 }
@@ -459,8 +555,14 @@ pub async fn epoch_open_returns_the_stored_nonce<L: Ledger>(fx: &Fx<L>) {
 pub async fn concurrent_epoch_open_agrees<L: Ledger + 'static>(fx: &Fx<L>) {
     let mut t = Vec::new();
     for i in 0..6u8 {
-        let l = if i % 2 == 0 { fx.a.clone() } else { fx.b.clone() };
-        t.push(tokio::spawn(async move { l.open_epoch([i + 1; 32]).await.unwrap() }));
+        let l = if i % 2 == 0 {
+            fx.a.clone()
+        } else {
+            fx.b.clone()
+        };
+        t.push(tokio::spawn(async move {
+            l.open_epoch([i + 1; 32]).await.unwrap()
+        }));
     }
     let mut got = std::collections::BTreeSet::new();
     for h in t {
@@ -476,7 +578,9 @@ pub async fn illegal_phase_moves_are_refused<L: Ledger>(fx: &Fx<L>) {
         let r = fx.a.write(&c, &offered_state("req00021"), p, LONG).await;
         assert!(matches!(r, Err(LedgerError::Refused(_))), "{p:?}: {r:?}");
     }
-    let r = fx.a.write(&c, &LedgerState::default(), Phase::Tombstone, LONG).await;
+    let r =
+        fx.a.write(&c, &LedgerState::default(), Phase::Tombstone, LONG)
+            .await;
     assert!(matches!(r, Err(LedgerError::Refused(_))), "{r:?}");
 }
 

@@ -22,14 +22,32 @@ async fn memory_store_is_bounded_fails_closed_and_never_evicts() {
     use rh_placement::ledger::{memory::MEMORY_CAP, Begin, Ledger};
     let l = MemoryLedger::new();
     for i in 0..MEMORY_CAP {
-        let b = l.begin(&ident(&format!("cap{i:05}"), "s", "f"), "w", LONG).await.unwrap();
+        let b = l
+            .begin(&ident(&format!("cap{i:05}"), "s", "f"), "w", LONG)
+            .await
+            .unwrap();
         assert!(matches!(b, Begin::Started(_)));
     }
-    assert_eq!(l.begin(&ident("capextra", "s", "f"), "w", LONG).await.unwrap(), Begin::Full);
+    assert_eq!(
+        l.begin(&ident("capextra", "s", "f"), "w", LONG)
+            .await
+            .unwrap(),
+        Begin::Full
+    );
     assert_eq!(l.counts().await.unwrap().total, MEMORY_CAP);
     // Existing ids are still answered (never evicted), and a full store still reports conflicts.
-    assert_eq!(l.begin(&ident("cap00000", "s", "g"), "w", LONG).await.unwrap(), Begin::Conflict);
-    assert_eq!(l.begin(&ident("cap00000", "s", "f"), "w", LONG).await.unwrap(), Begin::InProgress);
+    assert_eq!(
+        l.begin(&ident("cap00000", "s", "g"), "w", LONG)
+            .await
+            .unwrap(),
+        Begin::Conflict
+    );
+    assert_eq!(
+        l.begin(&ident("cap00000", "s", "f"), "w", LONG)
+            .await
+            .unwrap(),
+        Begin::InProgress
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -37,7 +55,11 @@ async fn memory_relinquish_blocking_is_synchronous_and_fenced() {
     use ledger_support::conformance::{ident, LONG};
     use rh_placement::ledger::{Begin, Ledger};
     let l = MemoryLedger::new();
-    let Begin::Started(c) = l.begin(&ident("blk00001", "s", "f"), "w", LONG).await.unwrap() else {
+    let Begin::Started(c) = l
+        .begin(&ident("blk00001", "s", "f"), "w", LONG)
+        .await
+        .unwrap()
+    else {
         panic!()
     };
     l.relinquish_blocking(&c);

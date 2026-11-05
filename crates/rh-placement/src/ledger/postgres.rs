@@ -177,9 +177,10 @@ impl PgLedger {
             )
             .execute(&mut *tx)
             .await?;
-            let current: Option<i64> = sqlx::query_scalar("SELECT max(version) FROM rh_placement_schema")
-                .fetch_one(&mut *tx)
-                .await?;
+            let current: Option<i64> =
+                sqlx::query_scalar("SELECT max(version) FROM rh_placement_schema")
+                    .fetch_one(&mut *tx)
+                    .await?;
             match current {
                 Some(v) if v > SCHEMA_VERSION => {
                     return Ok(Err(LedgerError::Corrupt(
@@ -212,10 +213,7 @@ impl PgLedger {
         }
     }
 
-    async fn classify_missed_write(
-        &self,
-        claim: &Claim,
-    ) -> Result<WriteOutcome, LedgerError> {
+    async fn classify_missed_write(&self, claim: &Claim) -> Result<WriteOutcome, LedgerError> {
         // The CAS matched no row: either the claim is gone (Fenced) or the phase move was illegal (Refused).
         let row = self.get(&claim.request_id).await?;
         match row {
@@ -255,8 +253,8 @@ impl Ledger for PgLedger {
                 Ok(n)
             })
             .await?;
-        let nonce = nonce
-            .ok_or_else(|| LedgerError::Corrupt("records exist without an epoch".into()))?;
+        let nonce =
+            nonce.ok_or_else(|| LedgerError::Corrupt("records exist without an epoch".into()))?;
         <[u8; 32]>::try_from(nonce.as_slice())
             .map_err(|_| LedgerError::Corrupt("stored epoch has the wrong length".into()))
     }

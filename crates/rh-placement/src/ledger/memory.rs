@@ -98,7 +98,9 @@ impl MemoryLedger {
             return Ok(e);
         }
         if !g.rows.is_empty() {
-            return Err(LedgerError::Corrupt("records exist without an epoch".into()));
+            return Err(LedgerError::Corrupt(
+                "records exist without an epoch".into(),
+            ));
         }
         g.epoch = Some(candidate);
         Ok(candidate)

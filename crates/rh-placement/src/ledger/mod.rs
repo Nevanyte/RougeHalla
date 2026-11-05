@@ -347,7 +347,10 @@ pub fn validate_write(state: &LedgerState, phase: Phase) -> Result<(), LedgerErr
                     .find(|a| a.placement_id == offer.placement_id)
                 {
                     if a.terminate != TermStep::None
-                        || matches!(a.dns, DnsStep::DeleteIntent { .. } | DnsStep::Deleted { .. })
+                        || matches!(
+                            a.dns,
+                            DnsStep::DeleteIntent { .. } | DnsStep::Deleted { .. }
+                        )
                         || a.stop == StopStep::Intent
                     {
                         return refuse("offer for a placement with cleanup or stop in flight");
