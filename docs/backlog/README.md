@@ -105,7 +105,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-CONS-1 | Consumables: stored potions, wind emblems, 75 s cannons, `useConsumable` | P-LOOT-1 or P-COMBAT-4, P-MOBS-1 | Coarse | server/src/sim/consumables.ts; shared/consumables.ts |
 | P-TRADE-1 | Neutral traders and per-run stat exchanges, `trade` | P-CARDS-3 | Coarse | server/src/sim/traders.ts; shared/traders.ts |
 | P-QUEST-1 | K1 quests (20 defs, 10 known), accept, carriers, hidden offers, lifecycle | P-MOBS-1, P-CARDS-3, P-MAP-1 | Coarse | server/src/sim/quests.ts; shared/quests.ts; docs/quests.md |
-| P-VISION-1 | Vision: 120 s revealed-tile trail, owned wards, private `vision` restore, bushes (`bushConceals`) | P-MAP-1 (bush layer), P-NET-3 | Coarse | server/src/sim/vision.ts; shared/vision.ts, bushes.ts |
+| P-VISION-1 | Vision: actual 30 s private trail, owned wards, restore, bushes (`bushConceals`) | P-MAP-1 (bush layer), P-NET-3 | Trail/bush/attack-exposure prerequisite implemented and reviewed; remaining producers/dynamic geometry in [packet](packets/P-VISION-1.md) | server/src/sim/vision.ts; shared/vision.ts, bushes.ts |
 | P-TERRAIN-1 | Hazards: ember burn, bog slow, ice slide (`walkFighter`), light heal; faction exemptions | P-MAP-1 (terrain layer), P-FACTION-1 | Coarse | server/src/sim/terrainEffects.ts; shared/terrain.ts, walk.ts |
 | P-ARENA-1 | Planning phase + spawn deal from a private stream, coliseum schedule/teleport/gates, patience, sudden death | none (map gates need P-MAP-1 data; use `rh-map/1` first) | Ready packet | server/src/sim/planning.ts, arena.ts, step.ts; shared/planning.ts, coliseum.ts, rules.ts |
 | P-ARENA-2 | Training rooms and the `train` console (card/stat/camp/chest/clear) | P-CARDS-2, P-MOBS-1 | Coarse | server/src/sim/training.ts; shared/training.ts |
@@ -138,7 +138,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M1 foundations implemented/reviewed in rh-sim; full layers, zones/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
+| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0 full-layer admission and M1 foundations implemented/reviewed in rh-sim; zones/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
 | P-MAP-2 | Public layers on the wire (zones, terrain, features, camps, spawn subset): `MapBlob` v2 + C# decode | P-MAP-1 (or `rh-map/2` export), P-NET-3 | Coarse | shared/mapWire.ts, map.ts |
 | P-MAP-3 | Off-tick certified-map pool (worker/thread, target 8, refill 6, fallback, hang watchdog) | P-MAP-1 | Coarse | server/src/mapPool.ts, mapWorker.ts |
 | P-MAP-4 | Client art data: decor/props from the public seed (cosmetic, unhashed), zone art inputs for Unity | P-MAP-2, P-UI-8 | Coarse | shared/propKinds.ts, client/src/render/zoneArt/* |

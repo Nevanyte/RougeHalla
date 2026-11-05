@@ -11,6 +11,9 @@ Stage 2 implementation order: first the authoritative Rust flight/interactions, 
 evidence; then legitimate observer projection and coordinated transport. Keep this packet open until both stages pass.
 Unity receives presentation data only and never simulates collision, hits, reflections or damage. Existing generalized
 capture/launch tracking is already implemented by P-CAPTURE-1; extend it rather than rebuilding that prerequisite.
+The owner's strict physics boundary also supersedes the old launch-once client flight model: transport authoritative
+visible projectile positions for presentation interpolation. Unity must not integrate projectile flight, range or homing.
+Launch/end cues can accompany those samples; measure their actual bandwidth when implementing the viewer-specific stage.
 
 P-COMBAT-1 should merge first (sword swing vs ball and shield reflection need the sword/shield melee and `Placement.weapon0`).
 The directional-only parts (bow, wand without a lock) can start in parallel. Homing wand balls need P-COMBAT-3's lock; this

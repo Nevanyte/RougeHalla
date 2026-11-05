@@ -371,7 +371,9 @@ fn a_visible_block_keeps_a_hidden_attackers_identity_private() {
         player(2, 420.0, [None; 2]),
         player(3, 1500.0, [Some(Sword), None]),
     ];
-    let sim = world(&ps, true);
+    let mut arena = practice_arena();
+    arena.spawns = vec![ps[1].at]; // no prior discoverable tile near the distant attacker
+    let sim = Sim::reset_active(SimConfig::default(), arena, Secrets::from_seed(4), &ps);
     let events = [
         Event::Block {
             id: PlayerId(1),

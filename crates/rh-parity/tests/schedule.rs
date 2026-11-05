@@ -285,7 +285,11 @@ fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>]) -> Result<(), String> {
                 }
                 TraceEntry::Hook(h, l) => {
                     // Between steps (a leave) a hook runs before the tick's first phase.
-                    if !matches!(phase, "" | "ledger:apply" | "settle") {
+                    let allowed = match *h {
+                        "attackStarted" => phase == "weapons",
+                        _ => matches!(phase, "" | "ledger:apply" | "settle"),
+                    };
+                    if !allowed {
                         return Err(format!("hook {h} link {l} ran in phase {phase:?}"));
                     }
                 }
@@ -460,7 +464,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
     let t = tables();
     let runs = all_runs();
     let mut ticks = 0;
-    let (mut actions, mut drops, mut hits) = (0, 0, 0);
+    let (mut actions, mut drops, mut hits, mut attacks) = (0, 0, 0, 0);
     for (name, r) in &runs {
         ticks += r.active_ticks.len();
         if let Err(e) = check_trace(&t, &r.active_ticks) {
@@ -475,12 +479,17 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                     drops += 1;
                 }
                 TraceEntry::Hook("hitLanded", "cardHooks.onHitLanded") => hits += 1,
+                TraceEntry::Hook("attackStarted", "abilities.onAttackStarted") => attacks += 1,
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
             }
         }
     }
     assert!(hits > 0, "landed hits ran the registered on-hit hook");
+    assert!(
+        attacks > 0,
+        "weapon windups ran the registered bush exposure hook"
+    );
     assert!(ticks > 100, "the fixtures ran {ticks} active ticks");
     assert!(actions > 0, "action handlers ran through the ACTIONS table");
     assert!(

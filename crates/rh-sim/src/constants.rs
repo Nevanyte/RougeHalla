@@ -71,6 +71,10 @@ content! {
     PLAYER_RADIUS: f64 = 12.0, "u";
     PLAYER_SPEED: f64 = 170.0, "u/s";
     VISION_RADIUS: f64 = 900.0, "u";
+    VISION_TRAIL_MS: f64 = 30_000.0, "ms";
+    VISION_UPDATE_MS: f64 = 100.0, "ms";
+    BUSH_REVEAL_RADIUS: f64 = 64.0, "u";
+    BUSH_REVEAL_MS: f64 = 1000.0, "ms";
     MAX_PLAYERS: usize = 8, "seats";
     MAX_ACTIONS_PER_TICK: usize = 6, "commands/tick";
     ATTACK_BUFFER_MS: f64 = 150.0, "ms";

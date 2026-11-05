@@ -67,37 +67,40 @@ pub(crate) fn on_release(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 
 /// System (legacy weapons.updateWeapons): every standing fighter's weapon state machine, in join order.
 pub(crate) fn update(cx: &mut Cx) {
-    let Cx { w, s, ev, .. } = cx;
-    let now = w.server_time;
-    for p in &mut w.players {
-        if p.standing() {
-            step_weapon(&mut p.core, now, ev, &mut s.melee, &mut s.flight.spawns);
+    for i in 0..cx.w.players.len() {
+        if cx.w.players[i].standing() {
+            step_weapon(cx, FighterIx::of_slot(i));
         }
     }
 }
 
-fn step_weapon(
-    p: &mut FighterCore,
-    now: f64,
-    ev: &mut Vec<Event>,
-    melee: &mut Vec<MeleeReq>,
-    spawns: &mut Vec<Spawn>,
-) {
+fn step_weapon(cx: &mut Cx, ix: FighterIx) {
+    let now = cx.w.server_time;
+    let p = cx.w.core_mut(ix);
     let weapon = p.active_weapon();
     if let Some(act) = p.weapon.action {
         if now + TIE_EPS_MS >= act.lands_at {
-            land(p, now, melee, spawns, act);
+            land(p, now, &mut cx.s.melee, &mut cx.s.flight.spawns, act);
         }
     }
     let wants = p.weapon.held || now <= p.weapon.buffered_until;
     if p.weapon.action.is_none() && wants && now + TIE_EPS_MS >= p.weapon.ready_at {
-        // The timings are pure content formulas of the faction and the weapon: read only when an attack starts.
         let f = paced(p.vitals.faction);
         let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
-        start_attack(p, now, ev, weapon, tm);
+        start_attack(p, now, cx.ev, weapon, tm);
+        let id = p.id;
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                k: cx.k,
+                w: cx.w,
+                ev: cx.ev,
+            },
+            crate::hooks::HookArgs::AttackStarted(id),
+        );
+        let p = cx.w.core_mut(ix);
         if tm.windup == 0.0 {
             if let Some(act) = p.weapon.action {
-                land(p, now, melee, spawns, act);
+                land(p, now, &mut cx.s.melee, &mut cx.s.flight.spawns, act);
             }
         }
     }

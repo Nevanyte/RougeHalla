@@ -8,7 +8,7 @@ use crate::sim::Arena;
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct MapFile {
     pub format: String,
-    pub seed: Option<u32>,
+    pub seed: Option<i64>,
     pub rows: Vec<String>,
     pub spawns: Vec<[f64; 2]>,
 }
@@ -23,6 +23,21 @@ impl MapFile {
             map,
             spawns: self.spawns.iter().map(|s| Vec2::new(s[0], s[1])).collect(),
         })
+    }
+}
+
+impl crate::mapdata::ValidatedMap {
+    /// Moves an admitted full map into the same arena type used by live and headless simulation.
+    pub fn into_arena(self) -> Result<Arena, crate::map::MapError> {
+        let (w, h, tiles, layers) = self.into_parts();
+        let spawns = layers
+            .data()
+            .spawns
+            .iter()
+            .map(|point| Vec2::new(point.x, point.y))
+            .collect();
+        let map = TileMap::new(w, h, tiles)?.with_layers(layers)?;
+        Ok(Arena { map, spawns })
     }
 }
 

@@ -1,14 +1,15 @@
 # P-COMBAT-3: target lock and the locked-windup cancel
 
 ## ID and outcome
-P-COMBAT-3. The wand-only target lock (`target {id}`), its server-played chase/aim/trigger, its drop rules, the player's own
-order cancelling a locked windup, and the attack-move variant (`attackMove`), all legacy-identical. `bow_wand_capture`
-(a wand `target` input) flips from `capture-only` to `slice`.
+P-COMBAT-3. The wand-only target lock (`target {id}`), its server-played chase/aim/trigger, its drop rules, exact committed
+cast/cancellation behavior, and attack-move (`attackMove`), with actual source captures. Preserve the original full-world
+`bow_wand_capture` as capture-only until its consumable-produced entity allocations are ported; do not remap IDs or strip
+modules to relabel that trace as matching. A separately named explicit-module combat fixture can test this prerequisite.
 
 ## Dependencies
 P-COMBAT-2 (projectiles, homing balls, `leadAim`). P-COMBAT-1 (swap drops the lock unless the new weapon is a wand).
-Visibility of lock targets uses sight (`canPlayerSeeActor`): the slice has current sight only; the 120 s revealed-tile trail
-(P-VISION-1) can change which targets are lockable, so keep the check behind one function.
+Visibility uses `canPlayerSeeActor`: the 30-second trail/bush prerequisite is implemented (P-VISION-1), correcting stale
+120-second text. Ward/hunter/training and ability producers remain pending; do not introduce substitute flags for them.
 
 ## Relevant legacy paths (verified)
 - `packages/server/src/sim/targeting.ts`: `lockable` (l.24), `handleTarget` (l.30), `updateTargets` (l.74), `acquireAttackMoveTarget`, `resumeAttackMove`, `follow`, `chase`, `sealedOff`; `GOAL_MOVED` 8.
@@ -31,20 +32,29 @@ C-INPUT (`target` is a normal validated command; one path search per `TARGET_REP
 (`updateTargets` position), C-OBS, C-PARITY. ADR 0005 (policies may issue `target` through the same seat path).
 
 ## Behaviour to preserve
-- Only the **wand** locks (`handleTarget`: `activeWeapon === "wand"`); the game client sends `target` for the wand and `attack`/`release` for everything else. Mobs never lock.
+- Only the **wand** locks (`handleTarget`: `activeWeapon === "wand"`); the game client sends `target` for the wand and `attack`/`release` for everything else. Mobs never lock. Other weapons still walk an accepted attack-move point; acquisition alone is wand-gated.
 - `lockable`: target standing, not evading, not untargetable (Swarm, P-ABIL-1), hostile, visible to the locker (players), within `TARGET_RANGE` 640 u. Line of sight is not needed to lock, only to attack; a target out of sight needs a path (one search; an order sooner than `TARGET_REPATH_MS` after the last is refused). Re-clicking the locked fighter changes nothing (no cooldown loss, trigger kept). A new lock clears the earlier walk and lets go of the trigger; the old lock's pending windup is cancelled unless it already targets the new fighter.
 - Each tick (`follow`): drop to `resumeAttackMove` when the locker is not standing, the target is gone/unlockable, or the weapon is no longer the wand; a stunned locker keeps the lock but does not chase/aim/fire; sight bookkeeping (`lockSeen`, `lockLosLostAt`; a target seen once and then out of sight for `TARGET_LOS_GRACE_MS` 1.5 s is dropped, a target never seen is chased behind the wall); `decide(...)` with `lockSpacing("wand")`: `far = 0.88 * 640`, `attackRange = 0.96 * 640`, `retreatBelow 0`, lead speed from the policy; movement re-planned at most every `TARGET_REPATH_MS` and only if the goal moved over `GOAL_MOVED` 8 u or the path ran out; a goal with no path that is out of sight, or provably in another move component (`sealedOff`, `moveComponents`), ends the lock.
 - A locked attack has **no client `t`**: `lagMs = TICK_MS`; it is aimed from the present with `leadAim` on the target's velocity; the wand ball homes on the target (`targetId`, P-COMBAT-2). Facing follows `out.aim` when it differs by `MOB_AIM_DEADBAND`.
 - Orders replace each other in arrival order within a tick (`moveBefore`/`aimBefore` indexes in the Rust `InputQueue` already model this): `move`/`stop`/`attack` drop the lock (an unreachable `move` still does); `target` lets go of the trigger.
-- The player's own `move`, `stop` or an accepted `target` on another fighter **cancels a locked windup** that has not landed (`cancelLockedWindup`): no ball/arrow/swing, `readyAt = action.startedAt` (cooldown refunded), root cut, bow `drawStartedAt` cleared, a `cancel` fx for the telegraph. Re-clicking the same target, a refused `target`, a landed attack and an `attack` input cancel nothing. A directional windup (mob, harness, `attack` input) stays committed.
-- Attack-move (`attackMove {x, y}`): wand only; walks the point order and acquires the nearest lockable hostile in `attackRange` with line of sight (ties: cursor distance, then smaller id); after losing a target it resumes the point order (`resumeAttackMove`).
+- `step.ts::applyMove` calls `cancelLockedWindup(..., true)` for move/stop/attack-move: a committed targeted wand cast
+  survives these orders (`playtestCombatControls.test.ts:67–75`). An accepted different target, unless already the pending
+  target, and fresh attack-move acquisition use non-preserving cancellation: refund `readyAt = startedAt`, cut root,
+  clear draw start and emit cancel. Same-target re-click, refused target, landed attack and ordinary attack cancel nothing.
+  Directional windups remain committed. The old packet's cancel-by-move expectation was stale.
+- Attack-move walks its accepted point for any weapon. With a wand it acquires the nearest lockable hostile in
+  `attackRange` with line of sight (ties: cursor distance, then smaller id); after losing a target it resumes the point order.
 - `endRun` and the teleport drop every lock; a swap to a non-wand drops it.
 - Doc/code note: docs/legacy/CLAUDE_LEGACY.md describes bows as locking in older text; code and "Live playtest controls" say wand only.
 
 ## Acceptance checks
-1. Re-capture `bow_wand_capture`, set `parity: "slice"` in `capture.ts`, and make `cargo test -p rh-parity` pass on it (727 ticks, 56 hits, 1 death, uses a wand lock plus a directional bow).
-2. New slice scenarios: `wand_lock_chase_wall` (target behind a wall, chased then seen), `lock_cancel_by_move` (windup cancelled, cooldown refunded, `cancel` fx), `lock_drop_los_grace` (1.5 s), `lock_reclick_noop`, `attack_move_acquire`.
-3. Unit tests: path-search throttle (spam `target` every tick -> at most one search per 250 ms), `sealedOff` drop, stunned stub keeps the lock, lock accepted at 640 and refused at 641 u.
+1. Compare the existing 100-tick `wand_lock` plus strict new scenarios; retain the original 727-tick full-world bow/wand
+   fixture until its real consumable allocations exist. Its launch IDs skip 40->42, 87->89 and 125->127; investigate actual
+   producer/RNG effects rather than renumbering. Capture settled lock/path/trigger/timer/action state and launch/end IDs.
+2. New cases: behind-wall chase, 1.5 s direct-LOS grace, re-click no-op, move/stop/attack-move preserving the committed
+   wand cast, accepted retarget refund/cancel, autonomous acquisition/ties/resume, swap/drop and terminal cleanup.
+3. Unit tests: independent order-search and chase-replan throttles (each at most once per 250 ms; together up to two),
+   sealed-component drop and exact 640/641 range boundary. Stun/untargetable integration waits for actual status producers.
 4. Replay/checkpoint determinism with an active lock.
 5. Tolerance: ticks/events/targets exact; positions and facings within 2e-6 (a path replanned one tick later is a failure, not noise).
 
@@ -62,3 +72,9 @@ with the ported A*, and float-sensitive aiming. Read `targeting.test.ts` first a
 - `moveComponents` is a cached flood per map; the Rust map may need it added (check `crates/rh-sim/src/map.rs`).
 - A refused `target` is silent (no toast), and still counts toward the order budget.
 - Do not accept positions from clients; `target` carries an id only.
+- Public targets resolve only actors from the last successfully delivered actor view that remain legitimately visible.
+  Hidden/missing guesses consume identical budget and replay as explicit misses. Observer target records are derived,
+  session-owned and reset on disconnect. Target metadata in SelfView must obey the same simultaneous visibility filter.
+- Legacy candidate lookup may refresh private vision before refusal. Test odd-phase moving paired worlds with hidden
+  versus absent candidates, including later expiry. Any deliberate correction of that concealed-existence side effect
+  must have concrete evidence and independent C-OBS review; do not mask private trace fields or widen tolerances.

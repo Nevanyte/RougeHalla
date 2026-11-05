@@ -23,6 +23,14 @@ fn place(profile: &str, faction: FactionId, x: f64, y: f64, hp: Option<f64>) -> 
     }
 }
 
+/// The raid begins on the viewer's side of the wall. A random old spawn on the other
+/// side would legitimately reveal those tiles for the duration of its trail.
+fn arena_at(origin: Vec2) -> rh_sim::Arena {
+    let mut arena = practice_arena();
+    arena.spawns = vec![origin];
+    arena
+}
+
 /// The practice arena: pillars at tile column 6 (x 192..224) rows 4..6 (y 128..224). A viewer west of the pillar and a
 /// hidden player east of it, both at y = 176, cannot see each other; a third player stands in plain view.
 fn world(hidden_x: f64, hidden_hp: f64, salt: u32) -> Sim {
@@ -33,7 +41,7 @@ fn world(hidden_x: f64, hidden_hp: f64, salt: u32) -> Sim {
     ];
     Sim::reset_active(
         SimConfig::default(),
-        practice_arena(),
+        arena_at(ps[0].at),
         Secrets {
             order_salt: salt,
             spawn_seed: 1,
@@ -107,7 +115,7 @@ fn visible_actors_are_sorted_by_public_id_and_counted_only_when_seen() {
     ];
     let mut sim = Sim::reset_active(
         SimConfig::default(),
-        practice_arena(),
+        arena_at(ps[0].at),
         Secrets::from_seed(3),
         &ps,
     );
@@ -344,7 +352,7 @@ fn an_invisible_pickup_guess_matches_an_absent_container_on_every_player_path() 
         ];
         let mut absent = Sim::reset_active(
             SimConfig::default(),
-            practice_arena(),
+            arena_at(from),
             Secrets::from_seed(1),
             &placements,
         );
@@ -400,7 +408,7 @@ fn a_hidden_hit_or_kill_source_is_redacted_at_its_step_on_every_player_path() {
     ];
     let mut sim = Sim::reset_active(
         SimConfig::default(),
-        practice_arena(),
+        arena_at(placements[0].at),
         Secrets::from_seed(2),
         &placements,
     );

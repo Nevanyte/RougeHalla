@@ -256,6 +256,7 @@ impl Sim {
     /// grace) and the trigger is released, since the release the client sends will never arrive.
     pub fn mark_dropped(&mut self, id: PlayerId, dropped: bool) {
         let now = self.w.server_time;
+        let tick = self.w.tick;
         let active = self.w.phase == Phase::Active;
         if let Some(i) = self.w.idx(id) {
             let p = &mut self.w.players[i];
@@ -266,6 +267,11 @@ impl Sim {
                 p.inputs.clear();
             } else {
                 p.seat.dropped_at = None;
+                // Legacy reconnect sends a vision snapshot, which refreshes this viewer only.
+                // The replayable lifecycle input owns that refresh, never a socket encode.
+                if active {
+                    crate::vision::refresh_player(p, tick);
+                }
             }
             release_trigger(p, now);
         }

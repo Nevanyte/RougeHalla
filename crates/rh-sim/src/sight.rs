@@ -1,10 +1,10 @@
 //! A derived memo of line-of-sight verdicts, outside the deterministic world (never hashed, checkpointed or serialized).
 //!
-//! `ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)` is a pure function of its arguments over an arena that never changes, so
+//! `scene_line_blocked(map, ax, ay, bx, by)` is a pure function of its arguments over an arena that never changes, so
 //! the verdict for a pair whose two endpoints are bit-identical to the last time that pair was asked is the same bool.
 //! Dead bodies stay observed and idle fighters keep their positions, so a share of the in-radius pairs repeats from one
 //! observation to the next. An entry stores the four coordinate bit patterns it was computed for and is used only when all
-//! four match exactly, so a hit returns precisely what `ray_blocked` would (no epoch, no invalidation to get wrong).
+//! four match exactly, so a hit returns precisely what the scene sight line would (no epoch, no invalidation to get wrong).
 //!
 //! * Ordered: the key is (viewer, other); sight is not assumed symmetric.
 //! * Bounded: a direct-mapped table sized from the player count (a colliding pair just overwrites: a miss, never a wrong answer).
@@ -12,9 +12,9 @@
 //! * Arena-keyed: the table is dropped when it meets a different arena (a restore, a new match), by the arena's
 //!   identity and statics digest, so an entry can never outlive the map it was computed on.
 
-use crate::geometry::ray_blocked;
-use crate::map::{TileMap, MASK_SIGHT};
+use crate::map::TileMap;
 use crate::state::PlayerId;
+use crate::vision::scene_line_blocked;
 
 /// Table entries per ordered pair of players (a direct-mapped table collides less with room to spare).
 const SLOTS_PER_PAIR: usize = 4;
@@ -169,7 +169,7 @@ impl SightCache {
         v.probe
     }
 
-    /// `ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)` through the table (the caller found [`SightCache::probing`]
+    /// `scene_line_blocked(map, ax, ay, bx, by)` through the table (the caller found [`SightCache::probing`]
     /// true): the stored verdict when this ordered pair was last asked for exactly these endpoints.
     #[inline]
     #[allow(clippy::too_many_arguments)]
@@ -187,18 +187,18 @@ impl SightCache {
         let bits = [ax.to_bits(), ay.to_bits(), bx.to_bits(), by.to_bits()];
         let key = (u64::from(viewer.0) << 32) | u64::from(other.0);
         if key == NO_KEY {
-            return ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
+            return scene_line_blocked(map, ax, ay, bx, by);
         }
         let h = key.wrapping_mul(0x9E37_79B9_7F4A_7C15);
         let e = &mut self.entries[(h >> 40) as usize & self.mask];
         if e.key == key && e.bits == bits {
             self.stats.hits += 1;
             #[cfg(debug_assertions)]
-            debug_assert_eq!(e.blocked, ray_blocked(map, ax, ay, bx, by, MASK_SIGHT));
+            debug_assert_eq!(e.blocked, scene_line_blocked(map, ax, ay, bx, by));
             return e.blocked;
         }
         self.stats.misses += 1;
-        let blocked = ray_blocked(map, ax, ay, bx, by, MASK_SIGHT);
+        let blocked = scene_line_blocked(map, ax, ay, bx, by);
         *e = Entry { bits, key, blocked };
         blocked
     }
@@ -219,7 +219,7 @@ impl SightCache {
         if self.probing(viewer, ax, ay) {
             self.probe(map, viewer, other, ax, ay, bx, by)
         } else {
-            ray_blocked(map, ax, ay, bx, by, MASK_SIGHT)
+            scene_line_blocked(map, ax, ay, bx, by)
         }
     }
 }

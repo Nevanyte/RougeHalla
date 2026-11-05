@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/6";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/7";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -265,6 +265,19 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         if !near(s.x, s.y) {
             return Err(format!("spawn ({}, {}) is outside the arena", s.x, s.y));
         }
+        if k.arena.map.layers().is_some()
+            && !crate::geometry::circle_clear(
+                &k.arena.map,
+                *s,
+                crate::constants::PLAYER_RADIUS,
+                crate::constants::MASK_MOVE,
+            )
+        {
+            return Err(format!(
+                "spawn ({}, {}) is not walkable on the layered arena",
+                s.x, s.y
+            ));
+        }
     }
     // The counters the tick increments cannot be past what the match could have produced: the roster holds everyone who
     // ever joined, a join adds one, a kill needs a victim and a down needs a fighter.
@@ -412,6 +425,10 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         return Err("insufficient run entity identity headroom".into());
     }
     for p in w.players.iter() {
+        p.vision.check(w.tick, near)?;
+        if !p.bush.check(w.server_time, w.phase) {
+            return Err(format!("invalid bush exposure for player {}", p.id.0));
+        }
         // Samples are appended in time order and never dated after the clock: a future-dated one is never trimmed and
         // fills the ring.
         if !near(p.body.x, p.body.y) {

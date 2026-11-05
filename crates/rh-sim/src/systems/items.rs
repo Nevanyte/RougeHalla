@@ -5,9 +5,10 @@ use crate::events::{Event, PickupRefusal};
 use crate::fighter::{FighterCore, FighterIx};
 use crate::hooks::{HookArgs, Hx};
 use crate::input::ActionCmd;
-use crate::item_view::{pickup_reach, point_visible};
+use crate::item_view::pickup_reach;
 use crate::math::Vec2;
 use crate::state::{Container, ContainerKind, WeaponItem, WeaponRt, World};
+use crate::vision::point_visible;
 use crate::{Sim, WeaponId};
 
 // P-STATUS-1 extends expiry to the other statuses. The armor mirror used by the
@@ -227,7 +228,7 @@ fn pickup_check(
     }
     let p = cx.w.core(ix).pos();
     pickup_reach(&cx.k.arena.map, p, c.at)?;
-    if !point_visible(&cx.k.arena.map, p, c.at) {
+    if !point_visible(&cx.k.arena.map, &cx.w.players[ix.slot()], c.at, cx.w.tick) {
         return Err(PickupRefusal::NothingThere);
     }
     Ok(i)
@@ -252,9 +253,9 @@ pub(crate) fn pickup(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
                     cx.w.containers
                         .binary_search_by_key(&id.expect("present target"), |c| c.id)
                         .expect("target of refused pickup still present");
-                let from = cx.w.core(ix).pos();
+                let viewer = &cx.w.players[ix.slot()];
                 let at = cx.w.containers[i].at;
-                point_visible(&cx.k.arena.map, from, at)
+                point_visible(&cx.k.arena.map, viewer, at, cx.w.tick)
             }
         };
         cx.ev.push(Event::PickupRefused {

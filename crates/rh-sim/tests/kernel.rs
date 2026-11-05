@@ -823,9 +823,9 @@ fn malformed_maps_are_decode_errors_and_decoded_maps_are_complete() {
 
     for (name, map) in maps() {
         let text = serde_json::to_string(&map).unwrap();
-        // The serialized shape is unchanged: exactly w, h and tiles.
+        // Internal maps now account for the optional gameplay layers explicitly, including absence.
         let want = format!(
-            r#"{{"w":{},"h":{},"tiles":{}}}"#,
+            r#"{{"w":{},"h":{},"tiles":{},"layers":null}}"#,
             map.w,
             map.h,
             serde_json::to_string(&map.tiles).unwrap()

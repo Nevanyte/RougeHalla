@@ -6,20 +6,18 @@
 //!   THIS to each client (interest management) and future policies receive THIS, so humans, scripted bots and learned
 //!   policies decide from the same information.
 //!
-//! Leak rules: other actors appear only while in sight (within VISION_RADIUS with a clear line on the sight mask); they are
+//! Other actors appear at their current position only within the living viewer’s direct sight or unexpired tile trail. They are
 //! sorted by public id, never by join order, action order or hidden state; counts are counts of visible things; events are
 //! filtered by what the observer could see; nothing derived from a secret stream is included.
 
-use crate::constants::VISION_RADIUS;
 use crate::content::{FactionId, WeaponId};
 use crate::events::{Class, Visibility};
-use crate::fighter::FighterRef;
-use crate::geometry::ray_blocked;
-use crate::map::MASK_SIGHT;
 use crate::sight::SightCache;
 use crate::sim::{Event, Phase, PlayerId, Sim, Status};
+use crate::state::Player;
+use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 4;
+pub const OBSERVATION_VERSION: u16 = 5;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -207,22 +205,15 @@ impl Default for Observation {
     }
 }
 
-/// Whether `me` sees `other`: inside the vision radius with a clear line on the sight mask (the verdict-only traversal,
-/// asserted equal to `raycast(..).hit` in tests/kernel.rs). Written against the read-only
-/// [`FighterRef`] view, so anything that fights (a player now, a mob later) is seen the same way.
-fn sees(
-    sim: &Sim,
-    me: FighterRef<'_>,
-    other: FighterRef<'_>,
-    cache: &mut Option<&mut SightCache>,
-) -> bool {
-    let (a, b) = (me.pos(), other.pos());
-    let (dx, dy) = (b.x - a.x, b.y - a.y);
-    dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
-        && !match cache {
-            Some(c) => c.blocked(&sim.arena().map, me.id(), other.id(), a.x, a.y, b.x, b.y),
-            None => ray_blocked(&sim.arena().map, a.x, a.y, b.x, b.y, MASK_SIGHT),
-        }
+/// The same current line and private trail apply to full observations and event-only catch-up.
+fn sees(sim: &Sim, me: &Player, other: &Player, cache: &mut Option<&mut SightCache>) -> bool {
+    let map = &sim.arena().map;
+    let a = me.pos();
+    let b = other.pos();
+    actor_with(map, me, other, sim.tick(), || match cache {
+        Some(c) => c.blocked(map, me.id, other.id, a.x, a.y, b.x, b.y),
+        None => scene_line_blocked(map, a.x, a.y, b.x, b.y),
+    })
 }
 
 /// Readies `cache` for a pass over `sim` (it drops entries computed on another arena).
@@ -326,9 +317,7 @@ pub(crate) fn observe_with(
     if let Some(m) = me {
         let map = &sim.arena().map;
         let (ax, ay) = (m.body.x, m.body.y);
-        let limit = VISION_RADIUS * VISION_RADIUS;
-        // A plain loop (not a filter-map extend): the viewer's own record, then each other seated player in store order,
-        // the radius test before the line (a cheap reject of most far pairs), the same two conditions as [`sees`].
+        // Use the same actor verdict as the event-only pass; the table memoizes direct lines only.
         out.visible.reserve(sim.players().len());
         // Decided once per observation: a viewer that moved takes the plain traversal with no table in the loop.
         let probing = match &mut cache {
@@ -339,13 +328,10 @@ pub(crate) fn observe_with(
             if o.id == m.id || o.status == Status::Lobby {
                 continue;
             }
-            let (dx, dy) = (o.body.x - ax, o.body.y - ay);
-            if dx * dx + dy * dy <= limit
-                && !match &mut cache {
-                    Some(c) if probing => c.probe(map, m.id, o.id, ax, ay, o.body.x, o.body.y),
-                    _ => ray_blocked(map, ax, ay, o.body.x, o.body.y, MASK_SIGHT),
-                }
-            {
+            if actor_with(map, m, o, sim.tick(), || match &mut cache {
+                Some(c) if probing => c.probe(map, m.id, o.id, ax, ay, o.body.x, o.body.y),
+                _ => scene_line_blocked(map, ax, ay, o.body.x, o.body.y),
+            }) {
                 out.visible.push(ActorView {
                     id: o.id,
                     faction: o.vitals.faction,
@@ -417,8 +403,7 @@ fn observe_events_with(
         Some(id) == me_id
             || me.is_some_and(|m| {
                 sim.player(id).is_some_and(|o| {
-                    o.status != Status::Lobby
-                        && sees(sim, m.fighter(), o.fighter(), &mut cache.borrow_mut())
+                    o.status != Status::Lobby && sees(sim, m, o, &mut cache.borrow_mut())
                 })
             })
     };

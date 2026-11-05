@@ -43,6 +43,8 @@ jobs:
         run: cargo run -p rh-parity --bin parity-report
       - name: Headless smoke (real 160x160 map, 8 bots)
         run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
+      - name: Headless smoke (full gameplay map layers, 8 bots)
+        run: cargo run --release -p rh-headless -- --matches 1 --players 8 --map crates/rh-sim/src/mapdata/fixtures/seed1.map.json --max-ticks 4000
       - name: JS probe decoder vs the golden vectors
         run: node tools/protocol-js/check-vectors.mjs
       - uses: actions/setup-node@v4
@@ -55,6 +57,8 @@ jobs:
         run: node --import tsx tools/persist-fixtures/cosmetics.ts --check
       - name: Map foundations still match the legacy reference
         run: node --import tsx tools/map-fixtures/foundations.ts --check
+      - name: Full map exports still match the legacy reference
+        run: node --import tsx tools/map-fixtures/full-map.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

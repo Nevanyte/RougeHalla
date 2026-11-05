@@ -437,6 +437,8 @@ impl WeaponRt {
 pub struct Player {
     pub core: FighterCore,
     pub seat: Seat,
+    pub(crate) vision: crate::vision::VisionTrail,
+    pub(crate) bush: crate::vision::BushExposure,
     pub credit: Credit,
     pub fate: Fate,
     pub status: Status,
@@ -474,6 +476,8 @@ impl Player {
         hp: f64,
     ) -> Self {
         Self {
+            vision: Default::default(),
+            bush: Default::default(),
             core: FighterCore {
                 id,
                 body: Body {

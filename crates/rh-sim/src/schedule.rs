@@ -594,6 +594,7 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
     pending("inputs:mobs(insertionOrder)", Gate::Always, "P-MOBS-1"),
     // The axe is the first ported status. P-ABIL-1 extends this phase with casts.
     ported("abilities", Gate::Always, |cx| {
+        crate::vision::apply_exposures(cx);
         items::expire_shred(cx);
         Flow::Continue
     }),
@@ -680,7 +681,7 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
     pending("regen.regenPass", Gate::Always, "P-MOBS-2"),
     pending("abilities.abilityDotFx", Gate::Always, "P-ABIL-1"),
     pending("quests.questSystem", Gate::Quests, "P-QUEST-1"),
-    pending("vision.refreshVision", Gate::Always, "P-VISION-1"),
+    ported("vision.refreshVision", Gate::Always, crate::vision::refresh),
     pending("consumables.updateConsumables", Gate::Always, "P-CONS-1"),
     pending("traders.updateTraders", Gate::NotTraining, "P-TRADE-1"),
     pending("cardHooks.afterDamage", Gate::Always, "P-CARDS-1"),
@@ -923,11 +924,11 @@ static ATTACK_STARTED: [Link; 3] = [
         Gate::Signatures,
         "P-FACTION-1",
     ),
-    pending_link(
+    ported_link(
         "abilities.onAttackStarted",
         Mode::Append,
         Gate::Always,
-        "P-ABIL-1",
+        crate::vision::attack_started,
     ),
     pending_link(
         "fireRoam.onAttackStarted",
@@ -1020,11 +1021,11 @@ static RAID_STARTED: [Link; 14] = [
         Gate::Quests,
         "P-QUEST-1",
     ),
-    pending_link(
+    ported_link(
         "vision.refreshAllVision",
         Mode::Append,
         Gate::Always,
-        "P-VISION-1",
+        crate::vision::raid_started,
     ),
     pending_link(
         "consumables.<arrow>",
@@ -1549,9 +1550,9 @@ mod tests {
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);
             }
         }
-        // The slice's world: the capture plan runs 18 phases and two registered systems.
+        // The slice's world: the capture plan runs 18 phases and three registered systems.
         assert_eq!(CAPTURE_PLAN.phases.live().len(), 18);
-        assert_eq!(CAPTURE_PLAN.systems.live().len(), 2);
+        assert_eq!(CAPTURE_PLAN.systems.live().len(), 3);
         // Training swaps the settle for a pending one: no ported settle in that world yet.
         assert!(!TRAINING_PLAN
             .phases

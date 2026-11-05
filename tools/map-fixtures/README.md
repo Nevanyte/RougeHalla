@@ -22,3 +22,8 @@ reads this definition; `visit_content(&definition, word_callback)` yields its 89
 building a map. Dimensions, world scale and inner spawn count use the existing scalar content registry.
 Tests mutate every scalar field, orbit turn count and pillar coordinate and require different content
 words; representative geometry and pillar mutations must also change generated layout cells/spawns.
+
+`full-map.ts` captures the separate M0 `rh-map/2` DTO fixtures for seeds 1 and 2 using the actual certified generator
+with `decor:false`, and compares it against direct generation of the accepted attempt. The capture includes all
+GameMap fields. `--check` verifies all four JSON files under `crates/rh-sim/src/mapdata/fixtures/` byte for byte.
+Its oracle records direct legacy bush/region queries; hashes are captured metadata, not Rust-computed identities.

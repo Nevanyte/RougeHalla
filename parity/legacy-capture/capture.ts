@@ -64,6 +64,8 @@ function rowsOf(map: GameMap): string[] {
 }
 
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
+import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages/server/src/sim/vision";
+import { visionScenarios } from "./scenarios/vision";
 import { createScenarioWorld, DEFAULT_MODULES } from "./world";
 import type { Scenario, Input, Ctx } from "./scenarios/types";
 import { projectileScenarios } from "./scenarios/projectiles";
@@ -71,7 +73,7 @@ import { meleeScenarios } from "./scenarios/melee";
 import { catalogue } from "./scenarios/catalogue";
 
 function run(sc: Scenario): unknown {
-  const map = sc.generatedMapSeed === undefined ? parseRows(sc.rows) : generateMap(sc.generatedMapSeed);
+  const map = sc.generatedMapSeed === undefined ? parseRows(sc.rows) : generateMap(sc.generatedMapSeed, undefined, sc.vision?.spawnSeed === undefined ? undefined : { decor: false });
   const world = createScenarioWorld(sc, map);
   for (const c of sc.containers ?? []) dropWeapon(world, c.at, c.weapon);
   for (const p of sc.players) {
@@ -79,9 +81,16 @@ function run(sc: Scenario): unknown {
     s.weapon0 = p.weapon0 ?? "";
     s.weapon1 = p.weapon1 ?? "";
   }
+  // The explicit generated-map visibility scenario injects a separate known shuffle stream
+  // before the real lobby closes. Preserve and compare the actual raid-start positions as well.
+  if (sc.vision?.spawnSeed !== undefined) world.random = mulberry32(sc.vision.spawnSeed);
   // The lobby closes on the first step (minPlayers reached, fillSeconds 0): the run starts there.
   const startEvents = step(world, TICK_MS);
   if (world.state.phase !== "active" && world.state.phase !== "planning") throw new Error(`${sc.name}: run did not start`);
+  const visionMap = sc.vision?.spawnSeed === undefined ? undefined : {
+    seed: map.seed, hash: mapHashU32(map), spawnSeed: sc.vision.spawnSeed,
+    bootstrap: [...world.state.players.entries()].map(([id,p]) => ({id,x:p.x,y:p.y})),
+  };
   for (const p of sc.players) {
     const s = world.state.players.get(p.id)!;
     s.x = p.at.x;
@@ -90,6 +99,13 @@ function run(sc: Scenario): unknown {
     if (p.hp !== undefined) s.hp = p.hp;
     world.players.get(p.id)!.history = [{ t: world.state.serverTime, x: p.at.x, y: p.at.y }];
   }
+  // The raid-start hook has already sampled every alive seat at this clock. Keep these references
+  // so the recorder can prove that its later reads do not refresh the authoritative trail.
+  const vision = (sc.vision?.viewers ?? []).map(id => {
+    const memory = getVisionMemory(world, id);
+    if (!memory) throw new Error(`${sc.name}: missing installed vision for ${id}`);
+    return { id, memory };
+  });
   const inputs: Input[] = [];
   const intake = createIntake(sc.budgeted ?? false);
   const ticks: unknown[] = [];
@@ -123,7 +139,12 @@ function run(sc: Scenario): unknown {
       const kind = a.type ?? a.kind;
       if (kind === "remove" || kind === "leave") removePlayer(world, a.player);
       else if (kind === "drop") markDropped(world, a.player);
-      else markReconnected(world, a.player);
+      else {
+        markReconnected(world, a.player);
+        // A real room sends this seat its vision snapshot on reconnect. This is a replayable
+        // lifecycle input, separate from the observational sampling below.
+        getVisionMemory(world, a.player);
+      }
     }
     const evs: unknown[] = [];
     for (const e of events) {
@@ -140,6 +161,22 @@ function run(sc: Scenario): unknown {
       id, x: r6(s.x), y: r6(s.y), facing: r6(s.facing), hp: r6(s.hp), status: s.status, readyAt: r6(s.readyAt),
     }));
     const extras: Record<string, unknown> = {};
+    // After the first complete staggered window an installed, continuously active viewer has
+    // sampled ≤one tick ago. Assert the actual getter changes no cell, on every recorded read.
+    if (sc.vision && ctx.tick >= startTick + 3) {
+      extras.vision = vision.map(({ id, memory }) => {
+        const before = memory.expiresAt.slice();
+        const lastUpdate = Reflect.get(memory, "lastUpdate");
+        if (typeof lastUpdate !== "number") throw new Error("legacy vision refresh clock changed shape");
+        const points = sc.vision!.points.map(p => canPlayerSee(world, id, p));
+        const actors = [...world.state.players.entries()].filter(([other, p]) => other !== id && canPlayerSeeActor(world, id, other, p))
+          .map(([other]) => other);
+        if (Reflect.get(memory, "lastUpdate") !== lastUpdate || before.some((value, index) => value !== memory.expiresAt[index])) {
+          throw new Error(`${sc.name}: observer refreshed ${id} at tick ${ctx.tick}`);
+        }
+        return { viewer: id, points, actors };
+      });
+    }
     for (const kind of sc.record ?? []) {
       if (kind === "combat") extras.combat = canonicalJson([...world.state.players.entries()].map(([id, p]) => {
         const w = world.players.get(id)!.weapon;
@@ -163,6 +200,7 @@ function run(sc: Scenario): unknown {
     ...(sc.budgeted ? { budgeted: true } : {}),
     legacyRevision: revision(),
     ...(sc.packet ? { packet: sc.packet } : {}),
+    ...(sc.vision ? { visionPlan: { viewers: sc.vision.viewers, points: sc.vision.points, ...(visionMap ? { map: visionMap } : {}) } } : {}),
     ...(sc.requires?.length ? { requires: sc.requires } : {}),
     legacyConfig: {
       world: !sc.modules && !sc.config && sc.generatedMapSeed === undefined ? "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards" : "createScenarioWorld: explicit recorded modules/options/map seed",
@@ -474,7 +512,7 @@ function pathfindingFixture(seed: number, queries: number): unknown {
 
 mkdirSync(OUT, { recursive: true });
 const only = process.argv.indexOf("--only") > 0 ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

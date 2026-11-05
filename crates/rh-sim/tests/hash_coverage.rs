@@ -370,6 +370,7 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.vision.reveals.*.tick","vision samples are at least one refresh interval apart, in tick order"),
     ("world.phase","settled live flights belong only to an active world"),
     ("world.server_time","settled projectile clock equals the world clock"),
     ("world.projectiles.*.launch.kind", "flight kind and catalog speed agree"),
@@ -516,6 +517,11 @@ fn perturb_all(sim: &Sim, pool: &BTreeMap<String, Vec<Value>>, tally: &mut Tally
                 })]
             }
             Kind::Len | Kind::Subtree => vec![Value::Null],
+            Kind::Leaf if pat == "world.players.*.bush.pending" && leaf.is_null() => {
+                vec![serde_json::json!(
+                    sim.tick() as f64 * rh_sim::constants::TICK_MS + 1000.0
+                )]
+            }
             Kind::Leaf if leaf.is_null() => {
                 let mut v = pool.get(&pat).cloned().unwrap_or_default();
                 v.extend(seeds(&pat));
@@ -645,6 +651,25 @@ fn every_serialized_leaf_of_a_match_changes_the_state_hash() {
         "serialized leaves the state hash does not see: {:#?}",
         all.unhashed
     );
+    // A certified map supplies the optional layers. Exercise that root on its matching
+    // collision map; independently perturbing every one of its 25,600 tiles is unnecessary.
+    let file: rh_sim::mapdata::MapExport =
+        serde_json::from_str(include_str!("../src/mapdata/fixtures/seed1.map.json")).unwrap();
+    let layered = Sim::new(
+        SimConfig::default(),
+        file.validate().unwrap().into_arena().unwrap(),
+        Secrets::from_seed(1),
+    );
+    let mut cp = serde_json::to_value(&layered).unwrap();
+    let path = ["statics", "arena", "map", "layers"].map(String::from);
+    let layers = at_mut(&mut cp, &path);
+    assert!(layers.is_object());
+    *layers = Value::Null;
+    assert_ne!(
+        Sim::restore(&cp).unwrap().state_hash(),
+        layered.state_hash()
+    );
+    all.perturbed.push(path_of(&path));
     // An optional leaf that is `None` in a scenario must be perturbed as a `Some` in at least one scenario.
     let perturbed: BTreeSet<&String> = all.perturbed.iter().collect();
     let never: BTreeSet<&String> = all

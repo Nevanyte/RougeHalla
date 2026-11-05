@@ -19,6 +19,7 @@ mod hooks;
 pub mod input;
 pub mod item_view;
 pub mod map;
+pub mod mapdata;
 pub mod mapgen;
 pub mod math;
 pub mod observe;
@@ -34,6 +35,7 @@ pub mod state;
 pub mod statics;
 pub mod store;
 mod systems;
+mod vision;
 
 pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
 pub use content::{FactionId, WeaponId};

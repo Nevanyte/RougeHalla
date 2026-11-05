@@ -396,12 +396,30 @@ pub struct MatchSummary {
     pub outcome_digest: Option<u64>,
 }
 
-/// Loads an `rh-map/1` file.
+/// Loads a legacy `rh-map/1` collision file or an admitted `rh-map/2` full gameplay map.
 pub fn load_arena(path: &str) -> Result<Arena, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
-    let f: rh_sim::arenas::MapFile =
-        serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
-    f.into_arena()
+    #[derive(serde::Deserialize)]
+    struct Tag {
+        format: String,
+    }
+    let tag: Tag = serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+    match tag.format.as_str() {
+        "rh-map/1" => {
+            let file: rh_sim::arenas::MapFile =
+                serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+            file.into_arena()
+        }
+        "rh-map/2" => {
+            let file: rh_sim::mapdata::MapExport =
+                serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+            file.validate()
+                .map_err(|e| format!("{path}: {e}"))?
+                .into_arena()
+                .map_err(|e| format!("{path}: {e}"))
+        }
+        other => Err(format!("{path}: unknown map format {other:?}")),
+    }
 }
 
 pub fn centre_of(a: &Arena) -> Vec2 {

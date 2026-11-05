@@ -4,7 +4,7 @@
 //!
 //! Every way to obtain a [`TileMap`] goes through [`TileMap::new`]: deserialization too (`serde(try_from)`), so a decoded
 //! map is either complete (shape checked, derived tables built) or an `Err`. It is never a value that panics on first use.
-//! Equality and hashing look at the real data (`w`, `h`, `tiles`), not the derived tables.
+//! Equality and authoritative serialization include admitted gameplay layers, never the derived navigation tables.
 
 use crate::constants::TILE;
 
@@ -21,7 +21,7 @@ pub use crate::constants::{MASK_MELEE, MASK_MOVE, MASK_SIGHT};
 pub const STEP_DX: [i64; 8] = [1, -1, 0, 0, 1, 1, -1, -1];
 pub const STEP_DY: [i64; 8] = [0, 0, 1, -1, 1, -1, 1, -1];
 
-/// The serialized form is `{w, h, tiles}` (the derived tables are not serialized); decoding goes through
+/// The internal serialized form is `{w, h, tiles, layers}` (null when absent; derived tables are not serialized); decoding goes through
 /// [`TileMapRepr`] and [`TileMap::new`].
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(try_from = "TileMapRepr")]
@@ -31,6 +31,8 @@ pub struct TileMap {
     pub w: u32,
     pub h: u32,
     pub tiles: Vec<u8>,
+    /// Optional admitted public gameplay layers. Exposed read-only so collision and metadata remain one map.
+    layers: Option<std::sync::Arc<crate::mapdata::MapLayers>>,
     /// 4-connected component id of every floor tile, -1 elsewhere (legacy `moveComponents`).
     #[serde(skip)]
     comps: Vec<i32>,
@@ -47,24 +49,30 @@ pub struct TileMap {
 
 /// The wire/checkpoint shape of a [`TileMap`]: exactly its serialized fields.
 #[derive(serde::Deserialize)]
-#[serde(rename = "TileMap")]
+#[serde(rename = "TileMap", deny_unknown_fields)]
 struct TileMapRepr {
     w: u32,
     h: u32,
     tiles: Vec<u8>,
+    #[serde(default)]
+    layers: Option<std::sync::Arc<crate::mapdata::MapLayers>>,
 }
 
 impl TryFrom<TileMapRepr> for TileMap {
     type Error = MapError;
     fn try_from(r: TileMapRepr) -> Result<Self, MapError> {
-        TileMap::new(r.w, r.h, r.tiles)
+        let map = TileMap::new(r.w, r.h, r.tiles)?;
+        match r.layers {
+            Some(layers) => map.with_layers(layers),
+            None => Ok(map),
+        }
     }
 }
 
 impl PartialEq for TileMap {
     fn eq(&self, o: &Self) -> bool {
         // The derived tables are functions of these three, so they never need comparing.
-        self.w == o.w && self.h == o.h && self.tiles == o.tiles
+        self.w == o.w && self.h == o.h && self.tiles == o.tiles && self.layers == o.layers
     }
 }
 impl Eq for TileMap {}
@@ -73,6 +81,12 @@ impl std::hash::Hash for TileMap {
         self.w.hash(state);
         self.h.hash(state);
         self.tiles.hash(state);
+        // Equality still checks all metadata; collisions in this cheap public-map lookup hash are permitted.
+        // The authoritative statics digest separately hashes the complete serialized layers.
+        self.layers
+            .as_ref()
+            .map(|layers| layers.legacy_map_hash_u32())
+            .hash(state);
     }
 }
 
@@ -81,6 +95,7 @@ pub enum MapError {
     Shape { w: u32, h: u32, len: usize },
     BadRow { row: usize, len: usize },
     BadChar { row: usize, col: usize, ch: char },
+    Layers(String),
 }
 
 impl std::fmt::Display for MapError {
@@ -109,10 +124,33 @@ impl TileMap {
             w,
             h,
             tiles,
+            layers: None,
             comps,
             nav,
             padded,
         })
+    }
+
+    /// Admits full static metadata against this exact collision grid and dimension pair.
+    pub fn with_layers(
+        mut self,
+        layers: impl Into<std::sync::Arc<crate::mapdata::MapLayers>>,
+    ) -> Result<Self, MapError> {
+        let layers = layers.into();
+        if layers.dimensions() != (self.w, self.h) {
+            return Err(MapError::Layers(
+                "metadata dimensions differ from collision map".into(),
+            ));
+        }
+        layers
+            .validate_for_tiles(&self.tiles)
+            .map_err(|error| MapError::Layers(error.to_string()))?;
+        self.layers = Some(layers);
+        Ok(self)
+    }
+
+    pub fn layers(&self) -> Option<&crate::mapdata::MapLayers> {
+        self.layers.as_deref()
     }
 
     /// Parses the fixture/row form: `#` wall, `~` low, `.` floor.

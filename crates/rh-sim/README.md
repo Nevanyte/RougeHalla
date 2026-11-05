@@ -18,8 +18,9 @@ it through `Sim::submit` and `Sim::step` (or `Sim::step_into`, the allocation-fr
 | `systems/` | One file per legacy module; every entry point is `fn(&mut Cx)`. See below. |
 | `schedule.rs`, `hooks.rs` | The tick as data: `PHASES`, the registration lists, `ACTIONS` and the hook chains (each row a legacy name, a config gate and `Ported`/`Pending`), the loop that runs them, and hook dispatch (`hooks::fire`). |
 | `events.rs`, `results.rs` | `Event`; `RunResult`, `GvBreakdown`, `Outcome`. |
-| `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/4; other tags are refused. |
-| `checkpoint.rs` | `{format, content_hash, build, statics, world}` serde layout (restore refuses another content hash), the `rh-checkpoint/6` tag and `CheckpointError`. |
+| `hash.rs` | `Sim::state_hash`: the World serialized through a word-wise serde hasher, seeded with the statics digest (no statics secrets; server-private, see ADR 0007). Replays are rh-replay/5; other tags are refused. |
+| `checkpoint.rs` | `{format, content_hash, build, statics, world}` serde layout (restore refuses another content hash), the `rh-checkpoint/7` tag and `CheckpointError`. |
+| `vision.rs` | A living viewer sees the first wall face and live activity on its own revealed tiles for 30 seconds. Immutable-map origins refresh at 100 ms intervals. Actor/prop projections, catch-up events and pickup feedback read the same frozen trail. |
 | `item_view.rs` | Per-seat item observations and exact pickup offers. `ItemObserver::prepare_into` stages a full observation and commits handles only on delivery. Retired batches have 20 ticks of grace. |
 | `input.rs` | `PublicCommand` (observer proposal), `RawCommand` (trusted resolved/fixture input), `validate`, and `Command`, an opaque type: it is built only by `validate` or by decoding, which validates again and refuses a command validation would change, so a replay cannot inject an unvalidated command (C-INPUT). Also the order budget and the per-fighter queue. |
 | `observe.rs`, `replay.rs`, `rng.rs`, `map.rs`, `geometry.rs`, `pathfind.rs`, `content.rs`, `constants.rs`, `math.rs`, `arenas.rs` | Unchanged in role: the C-OBS filter, command validation and budgets, the replay recorder/runner, the RNG, collision, A*, tables. |
@@ -65,7 +66,7 @@ reached with `Hx::pay_later` and typed `ledger::PayLater` variants. Inside the t
 
 ### Checkpoints
 
-`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/6", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
+`serde_json::to_value(&sim)` yields `{"format": "rh-checkpoint/7", "content_hash": ..., "build": ..., "statics": ..., "world": ...}` with the tag first.
 `Sim::restore(deserializer)` (or plain `Deserialize`) rebuilds the derived map tables and starts with empty scratch; a
 missing tag, another tag or a payload without its parts is refused with a typed `CheckpointError`. So is a state the tick
 cannot survive (`CheckpointError::Malformed`): `next_id` at or below a seated or past player id, or at `u32::MAX`; a

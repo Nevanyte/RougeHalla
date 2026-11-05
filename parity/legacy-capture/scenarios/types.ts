@@ -21,6 +21,7 @@ export interface Scenario {
   secrets?: { rewardSalt?: [number, number, number, number]; questSalt?: [number, number, number, number] };
   record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat">;
   generatedMapSeed?: number;
+  vision?: { viewers: string[]; points: Vec2[]; spawnSeed?: number };
   containers?: Array<{ weapon: string; at: Vec2 }>;
   /** Called before each step with the tick about to run. */
   drive: (ctx: Ctx) => void;

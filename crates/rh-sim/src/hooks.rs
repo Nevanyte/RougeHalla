@@ -61,7 +61,11 @@ pub(crate) enum HookArgs {
         between_ticks: bool,
     },
     /// A fighter left the fight for good (legacy `fighterOut(world, id, cause)`).
-    FighterOut { id: PlayerId, cause: OutCause },
+    FighterOut {
+        id: PlayerId,
+        cause: OutCause,
+    },
+    AttackStarted(PlayerId),
     HitLanded {
         entry: crate::systems::ledger::Entry,
         amount: f64,
@@ -77,6 +81,7 @@ impl HookArgs {
             HookArgs::DropBody { .. } => Hook::DropBody,
             HookArgs::FighterOut { .. } => Hook::FighterOut,
             HookArgs::HitLanded { .. } => Hook::HitLanded,
+            HookArgs::AttackStarted(_) => Hook::AttackStarted,
             HookArgs::RunEnded => Hook::RunEnded,
         }
     }

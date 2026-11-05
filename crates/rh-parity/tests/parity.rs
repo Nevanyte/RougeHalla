@@ -664,3 +664,137 @@ fn directional_projectile_fixtures_require_complete_launch_end_and_authoritative
     assert_eq!(locked.parity, "capture-only");
     assert!(locked.inputs.iter().any(|i| i.kind == "target"));
 }
+
+#[test]
+fn installed_vision_compares_complete_private_views_and_the_exclusive_deadline() {
+    let mut fx = load(&fixtures_dir().join("vision_trail_wall.json"));
+    let seen = |tick: u32| {
+        fx.ticks
+            .iter()
+            .find(|t| t.tick == tick)
+            .unwrap()
+            .vision
+            .as_ref()
+            .unwrap()[0]
+            .actors
+            .contains(&"p1".into())
+    };
+    assert!(seen(64) && seen(619));
+    assert!(!seen(620));
+    let frame = fx
+        .ticks
+        .iter_mut()
+        .find(|t| t.tick == 620)
+        .unwrap()
+        .vision
+        .as_mut()
+        .unwrap();
+    frame[0].actors.push("p1".into());
+    frame[2].points.pop();
+    assert!(compare(&fx)
+        .mismatches
+        .iter()
+        .any(|m| m.contains("tick 620: vision")));
+}
+
+#[test]
+fn installed_bush_and_coliseum_sight_survives_a_pending_attack_checkpoint() {
+    let mut fx = load(&fixtures_dir().join("vision_bush_coliseum.json"));
+    for tick in [4, 6, 7, 32, 33] {
+        let row = fx
+            .ticks
+            .iter()
+            .find(|t| t.tick == tick)
+            .unwrap()
+            .vision
+            .as_ref()
+            .unwrap();
+        assert!(row[0].points[0], "outside observer sees the ground");
+        let has_attacker = |i: usize| row[i].actors.iter().any(|id| id == "p1");
+        assert_eq!(has_attacker(0), (7..33).contains(&tick));
+        assert!(has_attacker(2), "outside observer at exactly 64 units");
+        assert!(has_attacker(3), "same-bush observer at 96 units");
+        assert_eq!(row[4].points, [false, true, false], "coliseum rectangle");
+    }
+    let mut sim = build(&fx);
+    while sim.tick() < 6 {
+        let tick = sim.tick() + 1;
+        for i in fx.inputs.iter().filter(|i| i.tick == tick) {
+            let raw = raw_command_pub(i).unwrap();
+            sim.submit(pid(&i.player), rh_sim::validate(raw).unwrap())
+                .unwrap();
+        }
+        sim.step();
+    }
+    let cp = serde_json::to_value(&sim).unwrap();
+    let pending = cp["world"]["players"][1]["bush"]["pending"]
+        .as_f64()
+        .unwrap();
+    let until = cp["world"]["players"][1]["bush"]["until"].as_f64().unwrap();
+    assert!(pending > 1600.0 && pending <= 1650.0 && until == 0.0);
+    let mut changed = cp.clone();
+    changed["world"]["players"][1]["bush"]["pending"] = (pending - 1.0).into();
+    assert_ne!(
+        rh_sim::Sim::restore(&changed).unwrap().state_hash(),
+        sim.state_hash()
+    );
+    changed["world"]["players"][1]["bush"]["pending"] = 1.0.into();
+    assert!(rh_sim::Sim::restore(&changed).is_err());
+    changed["world"]["players"][1]["bush"]["pending"] = 1e300.into();
+    assert!(rh_sim::Sim::restore(&changed).is_err());
+
+    let mut restored = rh_sim::Sim::restore(&cp).unwrap();
+    for tick in 7..=34 {
+        assert_eq!(sim.step(), restored.step());
+        assert_eq!(sim.state_hash(), restored.state_hash());
+        assert_eq!(
+            rh_sim::observe(&sim, pid("p0"), &[]),
+            rh_sim::observe(&restored, pid("p0"), &[])
+        );
+        if tick == 7 {
+            let mut applied = serde_json::to_value(&sim).unwrap();
+            assert_eq!(applied["world"]["players"][1]["bush"]["until"], pending);
+            assert!(applied["world"]["players"][1]["bush"]["pending"].is_null());
+            applied["world"]["players"][1]["bush"]["until"] = (pending - 1.0).into();
+            assert_ne!(
+                rh_sim::Sim::restore(&applied).unwrap().state_hash(),
+                sim.state_hash()
+            );
+        }
+    }
+    fx.vision_plan.as_mut().unwrap().map.as_mut().unwrap().hash ^= 1;
+    assert!(compare(&fx)
+        .mismatches
+        .iter()
+        .any(|m| m.contains("map collision/seed/hash")));
+}
+
+#[test]
+fn a_final_bush_attack_still_restores_after_its_pending_deadline_passes() {
+    let fx = load(&fixtures_dir().join("vision_bush_coliseum.json"));
+    let mut sim = build(&fx);
+    for id in ["p0", "p2", "p3", "p4"] {
+        sim.remove_player(pid(id));
+    }
+    let press = rh_sim::RawCommand::Attack { a: 0.0, t: None };
+    sim.submit(pid("p1"), rh_sim::validate(press).unwrap())
+        .unwrap();
+    sim.step();
+    assert_eq!(sim.phase(), rh_sim::Phase::Ended);
+    for _ in 0..40 {
+        sim.step();
+    }
+    let mut cp = serde_json::to_value(&sim).unwrap();
+    let pending = cp["world"]["players"][0]["bush"]["pending"]
+        .as_f64()
+        .unwrap();
+    assert!(pending > 0.0 && pending < sim.server_time());
+    let mut restored = rh_sim::Sim::restore(&cp).unwrap();
+    assert_eq!(sim.state_hash(), restored.state_hash());
+    assert_eq!(sim.step(), restored.step());
+    assert_eq!(sim.state_hash(), restored.state_hash());
+    for invalid in [-1.0, 1e300] {
+        cp["world"]["players"][0]["bush"]["pending"] = invalid.into();
+        assert!(rh_sim::Sim::restore(&cp).is_err());
+    }
+}

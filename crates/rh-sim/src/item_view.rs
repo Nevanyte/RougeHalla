@@ -1,6 +1,6 @@
 //! Seat-local item offers. The simulation never knows which ticks an observer sampled.
 //! A batch changes only on publicly distinguishable cues or a scheduled renewal.
-use crate::constants::{INTERACT_RANGE, MASK_MOVE, MASK_SIGHT, VISION_RADIUS};
+use crate::constants::{INTERACT_RANGE, MASK_MOVE};
 use crate::geometry::ray_blocked;
 use crate::{
     Command, ContainerKind, Event, Observation, PickupRefusal, PlayerId, PublicCommand, Reject,
@@ -66,12 +66,6 @@ pub enum OfferError {
     UnknownExternalSeat,
 }
 
-pub(crate) fn point_visible(map: &TileMap, from: Vec2, at: Vec2) -> bool {
-    let (dx, dy) = (at.x - from.x, at.y - from.y);
-    dx * dx + dy * dy <= VISION_RADIUS * VISION_RADIUS
-        && !ray_blocked(map, from.x, from.y, at.x, at.y, MASK_SIGHT)
-}
-
 /// The same authoritative hand reach decides whether F offers the item and whether the action lands.
 pub(crate) fn pickup_reach(map: &TileMap, from: Vec2, at: Vec2) -> Result<(), PickupRefusal> {
     if crate::math::hypot(from.x - at.x, from.y - at.y) > INTERACT_RANGE {
@@ -125,6 +119,7 @@ pub struct ItemObserver {
     rows: Vec<VisibleProp>,
     retired: Vec<Retired>,
     scratch: Vec<Candidate>,
+    vision: crate::vision::TileVisionCache,
 }
 
 impl ItemObserver {
@@ -138,6 +133,7 @@ impl ItemObserver {
             rows: Vec::new(),
             retired: Vec::new(),
             scratch: Vec::new(),
+            vision: Default::default(),
         }
     }
 
@@ -157,11 +153,12 @@ impl ItemObserver {
         let Some(me) = sim.player(self.viewer) else {
             return Ok(());
         };
+        self.vision.begin(sim, me, self.sampled.is_some());
         let from = me.pos();
         let map = &sim.arena().map;
         let mut best: Option<(usize, f64, Option<WeaponId>)> = None;
         for c in sim.containers() {
-            if !point_visible(map, from, c.at) {
+            if !self.vision.sees(map, me, c.at, sim.tick()) {
                 continue;
             }
             if self.scratch.len() == MAX_VISIBLE_PROPS {
@@ -304,7 +301,8 @@ impl ItemObserver {
             })?;
             let me = sim.player(self.viewer)?;
             let i = sim.containers().binary_search_by_key(&id, |c| c.id).ok()?;
-            point_visible(&sim.arena().map, me.pos(), sim.containers()[i].at).then_some(id)
+            crate::vision::point_visible(&sim.arena().map, me, sim.containers()[i].at, sim.tick())
+                .then_some(id)
         })
     }
 }
@@ -391,9 +389,11 @@ mod tests {
             weapon0: None,
             weapon1: None,
         };
+        let mut arena = practice_arena();
+        arena.spawns = vec![Vec2::new(x, y)];
         Sim::reset_active(
             SimConfig::default(),
-            practice_arena(),
+            arena,
             Secrets::from_seed(4),
             &[
                 place("viewer", Vec2::new(x, y), FactionId::Holy),
@@ -700,6 +700,11 @@ mod tests {
         let mut s = world(100., 272.);
         rack(&mut s, ContainerKind::Ground, 100., 272., &[Axe]);
         rack(&mut s, ContainerKind::Ground, 1400., 272., &[Bow]);
+        // Both started in the left lobby spawn. Let the right-hand viewer's old trail expire
+        // before issuing either seat its first public handle.
+        for _ in 0..=(crate::constants::VISION_TRAIL_MS / crate::constants::TICK_MS) as u32 {
+            s.step();
+        }
         let (mut a, mut b) = (
             ItemObserver::new(PlayerId(1)),
             ItemObserver::new(PlayerId(2)),

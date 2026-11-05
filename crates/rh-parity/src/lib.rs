@@ -16,6 +16,7 @@ use rh_sim::{
 mod canon;
 mod combat;
 mod mapping;
+mod vision;
 use canon::{canon, first_difference};
 use mapping::raw_command;
 pub use mapping::{raw_command_pub, unread_msg_keys, EVENT_KINDS, INPUT_MSG_KEYS};
@@ -23,6 +24,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+pub use vision::{VisionPlan, VisionView};
 
 /// Absolute tolerance on continuous values: the fixture rounds to 1e-6; one rounding step plus libm-vs-V8 ulps.
 pub const TOL: f64 = 2e-6;
@@ -52,6 +54,8 @@ pub struct Fixture {
     #[serde(default)]
     pub budgeted: bool,
     pub legacy_config: LegacyConfig,
+    #[serde(default)]
+    pub vision_plan: Option<VisionPlan>,
     pub map: FixMap,
     pub players: Vec<FixPlayer>,
     pub inputs: Vec<FixInput>,
@@ -175,6 +179,8 @@ pub struct FixTick {
     pub containers: Option<Vec<Value>>,
     #[serde(default)]
     pub combat: Option<Vec<Value>>,
+    #[serde(default)]
+    pub vision: Option<Vec<VisionView>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -556,10 +562,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
             .map(Some)
             .ok_or_else(|| format!("invalid {slot}: {value}"))
     };
-    let arena = Arena {
-        map,
-        spawns: Vec::new(),
-    };
+    let arena = vision::arena(fx, map)?;
     let placements: Vec<Placement> = fx
         .players
         .iter()
@@ -578,7 +581,7 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         .collect::<Result<Vec<_>, String>>()?;
     let secrets = Secrets {
         order_salt: fx.legacy_config.order_salt,
-        spawn_seed: 0,
+        spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig::default();
     for (key, value) in &fx.legacy_config.options {
@@ -588,6 +591,9 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         config.weapon_specials = value
             .as_bool()
             .ok_or_else(|| "weaponSpecials must be boolean".to_string())?;
+    }
+    if let Some(meta) = vision::source(fx) {
+        vision::verify_bootstrap(meta, &arena, &placements, &config, secrets)?;
     }
     let mut sim = Sim::reset_active(config, arena, secrets, &placements);
     combat::seed(&mut sim, &fx.legacy_config.setup)?;
@@ -617,14 +623,15 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         ),
     );
     let combat_packet = matches!(fx.packet.as_deref(), Some("P-COMBAT-1" | "P-COMBAT-2"));
-    let isolated_combat = combat_packet && c.modules.is_some();
+    let isolated_combat =
+        (combat_packet || fx.packet.as_deref() == Some("P-VISION-1")) && c.modules.is_some();
     need(
         if c.options.is_empty() && !isolated_combat {
             c.world == CAPTURE_WORLD
         } else {
             c.world == "createScenarioWorld: explicit recorded modules/options/map seed"
                 && c.modules.is_some()
-                && c.map_seed.is_none()
+                && c.map_seed == vision::source(fx).map(|m| m.seed)
         },
         format!(
             "legacyConfig.world {:?} does not match this fixture's module configuration",
@@ -677,7 +684,7 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         );
     }
     need(
-        c.map_seed.is_none(),
+        c.map_seed == vision::source(fx).map(|m| m.seed),
         "generated map metadata is not replayed by this slice".into(),
     );
     if let Some(secrets) = &c.secrets {
@@ -714,10 +721,17 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             "mods",
         ];
         need(
-            modules.iter().map(String::as_str).eq(MODULES
-                .iter()
-                .copied()
-                .filter(|m| !isolated_combat || *m != "consumables")),
+            if vision::source(fx).is_some() {
+                modules
+                    .iter()
+                    .map(String::as_str)
+                    .eq(vision::LAYER_MODULES.iter().copied())
+            } else {
+                modules.iter().map(String::as_str).eq(MODULES
+                    .iter()
+                    .copied()
+                    .filter(|m| !isolated_combat || *m != "consumables"))
+            },
             "legacyConfig.modules are not the slice module order".into(),
         );
     }
@@ -925,6 +939,9 @@ pub fn compare(fx: &Fixture) -> Report {
             fx.parity == "slice"
                 && matches!(fx.packet.as_deref(), Some("P-COMBAT-1" | "P-COMBAT-2")),
         );
+        if vision::compare(&mut rep, &sim, fx, t) {
+            occurred.insert("state:vision".into());
+        }
         if sim.players().iter().any(|p| !p.weapon.shreds.is_empty()) {
             occurred.insert("state:shred".into());
         }

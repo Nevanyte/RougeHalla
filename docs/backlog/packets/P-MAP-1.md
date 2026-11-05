@@ -24,8 +24,10 @@ simulation boundary requested by the owner. No new crate or dependencies are nee
 tool can later provide sweep/print; tools/map-fixtures exports actual reference observations. The `rh-map/2` name below
 is an export format, not a separate gameplay implementation. Full-layer export, pins and independent certifier remain.
 
-The active first milestone is deterministic trig, grid topology/operations and fixed coliseum layout, with differential
-fixtures. It does not claim a complete generator, richer live-map load or seed-pin parity.
+M0 full-layer admission and M1 deterministic trig/grid/fixed layout are implemented and independently reviewed. They
+do not claim a complete generator, public rich-map transport or seed-pin parity. Next M2a ports actual zone partitioning
+and compares real pre-styler intermediate arrays/draws; M2b then adds camp sites and initial territories. Post-styler repair
+waits for real stage inputs. New rule definitions must drive both the implementation and allocation-free content words.
 
 ## Exclusive write scope
 Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module
