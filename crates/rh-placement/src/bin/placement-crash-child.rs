@@ -13,7 +13,7 @@
 //! The database URL is never printed.
 
 #[path = "../../tests/support/remote_fake/mod.rs"]
-#[allow(dead_code, unused_imports)]
+#[allow(unused_imports)]
 mod remote_fake;
 
 use remote_fake::{RemoteDns, RemoteGameLift};
@@ -173,7 +173,10 @@ async fn run(args: &[String]) -> serde_json::Value {
         }
         Some("release") => {
             let scope = Scope::new(args.get(1).expect("scope")).expect("scope");
-            let (id, placement) = (args.get(2).expect("request id"), args.get(3).expect("placement id"));
+            let (id, placement) = (
+                args.get(2).expect("request id"),
+                args.get(3).expect("placement id"),
+            );
             match svc.release_session(&scope, id, placement).await {
                 Ok(()) => json!({"ok": true}),
                 Err(e) => json!({"ok": false, "error": format!("{e:?}")}),

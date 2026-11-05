@@ -100,10 +100,7 @@ impl H {
     pub fn command(&self, args: &[&str], envs: &[(&str, &str)]) -> Command {
         let mut c = Command::new(env!("CARGO_BIN_EXE_placement-crash-child"));
         c.args(args)
-            .env(
-                "RH_CHILD_DB",
-                self.db.as_ref().expect("database").name(),
-            )
+            .env("RH_CHILD_DB", self.db.as_ref().expect("database").name())
             .env("RF_ADDR", self.fake.addr().to_string())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -251,12 +248,21 @@ impl H {
                 panic!("a foreign object was mutated: {m:?}");
             }
         }
-        assert!(self.fake.dns().contains_key(FOREIGN_HOST), "foreign DNS gone");
+        assert!(
+            self.fake.dns().contains_key(FOREIGN_HOST),
+            "foreign DNS gone"
+        );
         let p = self.fake.placements();
         let f = p.get(FOREIGN_ID).expect("foreign placement kept");
-        assert_eq!(f.game_session_data.as_deref(), Some(r#"{"requestId":"foreign","ownership":"somebody-else"}"#));
+        assert_eq!(
+            f.game_session_data.as_deref(),
+            Some(r#"{"requestId":"foreign","ownership":"somebody-else"}"#)
+        );
         assert!(
-            self.fake.terminated().iter().all(|a| !a.contains("foreign")),
+            self.fake
+                .terminated()
+                .iter()
+                .all(|a| !a.contains("foreign")),
             "a foreign session was terminated"
         );
     }
