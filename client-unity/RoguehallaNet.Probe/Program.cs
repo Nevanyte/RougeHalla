@@ -90,6 +90,8 @@ namespace Roguehalla.Probe
             sb.Append("{\"welcome\":").Append(welcome ? "true" : "false");
             sb.Append(",\"snapshots\":").Append(session.SnapshotsReceived);
             sb.Append(",\"lastTick\":").Append(session.Latest == null ? 0 : session.Latest.Tick);
+            sb.Append(",\"deltasRefused\":").Append(session.DeltasRefused);
+            sb.Append(",\"resyncsSent\":").Append(session.ResyncsSent);
             sb.Append(",\"rttMsP50\":").Append(p50);
             sb.Append(",\"rejects\":").Append(JsonList(rejects));
             sb.Append(",\"resultSeen\":").Append(result ? "true" : "false");

@@ -3,7 +3,9 @@
 //! 1 draw, 2 died, 3 mia; faction and weapon codes are the content tables' order.
 
 use rh_protocol::quant::POS_MAX;
-use rh_protocol::{ServerMsg, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf};
+use rh_protocol::{
+    ServerMsg, SnapshotData, WireActor, WireCommand, WireEvent, WireFx, WireResult, WireSelf,
+};
 use rh_sim::observe::{Observation, SeenEvent};
 use rh_sim::sim::{Outcome, Phase, Status};
 use rh_sim::Class;
@@ -146,6 +148,32 @@ pub fn encode_snapshot(
     Ok(scratch.clone())
 }
 
+/// The snapshot of `obs` as the wire data a connection's writer encodes (protocol v3): the actors quantized, the self at full
+/// precision, validated. Its Full frame is byte-identical to `snapshot(obs, ack_input).try_encode()`. An observation the codec
+/// refuses (a position off the wire grid) is an error, never a repaired snapshot.
+pub fn snapshot_data(
+    obs: &Observation,
+    ack_input: u32,
+) -> Result<SnapshotData, rh_protocol::EncodeError> {
+    snapshot_data_with(None, obs, ack_input)
+}
+
+/// [`snapshot_data`] built in the block of a finished snapshot (see [`SnapshotData::build_with`]).
+pub fn snapshot_data_with(
+    spare: Option<SnapshotData>,
+    obs: &Observation,
+    ack_input: u32,
+) -> Result<SnapshotData, rh_protocol::EncodeError> {
+    SnapshotData::build_with(
+        spare,
+        obs.tick,
+        phase(obs.phase),
+        ack_input,
+        obs.me.as_ref().map(wire_self),
+        obs.visible.iter().map(wire_actor),
+    )
+}
+
 /// What one observed event is on the wire: the reliable Events frame or the disposable Fx frame. Exhaustive over
 /// [`SeenEvent`] (no wildcard): a new kind of observed event cannot reach a client without a wire form being chosen.
 enum Wire {
@@ -194,20 +222,23 @@ pub struct ViewFrames {
     pub important: Option<Vec<u8>>,
     /// Disposable fx the viewer can see, if any.
     pub fx: Option<Vec<u8>>,
-    /// The state snapshot; an error when the codec refuses the observation (never a repaired frame).
-    pub snapshot: Result<Vec<u8>, rh_protocol::EncodeError>,
+    /// The state snapshot as wire data for the connection's writer to encode (Full or delta); an error when the codec
+    /// refuses the observation (never a repaired snapshot).
+    pub snapshot: Result<SnapshotData, rh_protocol::EncodeError>,
     /// The first refusal of the Events or Fx frame (that frame is then `None`): the codec never clamps or repairs one.
     pub refused: Option<rh_protocol::EncodeError>,
 }
 
 impl ViewFrames {
+    /// Bytes handed to the outbox: the events and fx frames, and the snapshot at a lower bound of the size of its Full frame
+    /// ([`SnapshotData::min_len`]; the writer sends a Full frame or a smaller delta and counts the real bytes).
     pub fn bytes(&self) -> usize {
         [&self.important, &self.fx]
             .into_iter()
             .flatten()
             .map(Vec::len)
             .sum::<usize>()
-            + self.snapshot.as_ref().map_or(0, Vec::len)
+            + self.snapshot.as_ref().map_or(0, SnapshotData::min_len)
     }
 }
 
@@ -218,7 +249,6 @@ pub struct Publisher {
     obs: Observation,
     events: Vec<WireEvent>,
     fx: Vec<WireFx>,
-    scratch: Vec<u8>,
 }
 
 impl Publisher {
@@ -235,6 +265,22 @@ impl Publisher {
     /// * `all`: every event of the wake, for the viewer's own result (a dedicated path, not an observed event).
     pub fn frames(
         &mut self,
+        sim: &rh_sim::Sim,
+        viewer: rh_sim::PlayerId,
+        ack_input: u32,
+        last_step: &[rh_sim::Event],
+        earlier: &mut Vec<SeenEvent>,
+        all: &[rh_sim::Event],
+    ) -> ViewFrames {
+        self.frames_in(None, sim, viewer, ack_input, last_step, earlier, all)
+    }
+
+    /// [`Publisher::frames`] with the snapshot built in `spare`, a snapshot a connection has finished with
+    /// ([`rh_protocol::ConnEncoder::take_spare`], [`crate::outbox::Outbox::push_tick`]).
+    #[allow(clippy::too_many_arguments)]
+    pub fn frames_in(
+        &mut self,
+        spare: Option<SnapshotData>,
         sim: &rh_sim::Sim,
         viewer: rh_sim::PlayerId,
         ack_input: u32,
@@ -299,7 +345,7 @@ impl Publisher {
             }
             frame
         };
-        let snapshot = encode_snapshot(&self.obs, ack_input, &mut self.scratch);
+        let snapshot = snapshot_data_with(spare, &self.obs, ack_input);
         ViewFrames {
             important,
             fx,

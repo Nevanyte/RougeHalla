@@ -225,6 +225,12 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
                     .encode(),
                 );
             }
+            Ok(ClientMsg::Resync) => {
+                // The client refused a delta: it gets a Full frame. The request is never dropped; the writer spaces forced Full
+                // frames by MIN_FORCED_FULL_TICKS and keeps a request that arrives sooner pending (the frame bucket above
+                // bounds a flood).
+                outbox.request_resync();
+            }
             Ok(ClientMsg::Leave) => {
                 let _ = room.send(RoomCmd::Leave { player, conn }).await;
                 left = true;
@@ -423,6 +429,17 @@ mod tests {
         fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Infallible>> {
             Poll::Ready(Ok(()))
         }
+    }
+
+    fn snap(tick: u32) -> rh_protocol::SnapshotData {
+        rh_protocol::SnapshotData::build(tick, 1, 0, None, std::iter::empty()).expect("valid")
+    }
+
+    /// The Full frame of `snap(tick)`.
+    fn snap_frame(tick: u32) -> Vec<u8> {
+        let mut v = Vec::new();
+        snap(tick).encode_full_into(&mut v);
+        v
     }
 
     fn bin(m: &Message) -> &[u8] {
@@ -633,7 +650,7 @@ mod tests {
         let out = Outbox::default();
         // A tick for a client that is also owed a Pong: pong, events, fx, snapshot.
         out.important(vec![1, 1]);
-        out.push_tick(Some(vec![1, 2]), Some(vec![2, 1]), Some(vec![3, 1]));
+        out.push_tick(Some(vec![1, 2]), Some(vec![2, 1]), Some(snap(1)));
         let mut batch = Vec::new();
         let d = out.wait_drain(&mut batch).await;
         assert_eq!(d.frames, 4);
@@ -647,14 +664,15 @@ mod tests {
             "the flush comes after every frame"
         );
         let got: Vec<&[u8]> = sink.sent.iter().map(bin).collect();
-        assert_eq!(got, vec![&[1u8, 1][..], &[1, 2], &[2, 1], &[3, 1]]);
+        let full = snap_frame(1);
+        assert_eq!(got, vec![&[1u8, 1][..], &[1, 2], &[2, 1], &full[..]]);
         assert!(batch.is_empty());
     }
 
     #[tokio::test]
     async fn a_close_shares_the_flush_of_the_frames_before_it() {
         let out = Outbox::default();
-        out.push_tick(Some(vec![7]), Some(vec![8]), Some(vec![9]));
+        out.push_tick(Some(vec![7]), Some(vec![8]), Some(snap(9)));
         out.close(RejectCode::RateLimited);
         let mut batch = Vec::new();
         let d = out.wait_drain(&mut batch).await;

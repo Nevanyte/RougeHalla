@@ -4,6 +4,7 @@
 // all on one base. Or args {scratch, base, chains: [[pkg, pkg, ...], ...]}: chains run in parallel; inside a chain each
 // package is STACKED on the previous package's final branch (its fix branch if it had one), so a dependent package starts
 // without waiting for the coordinator's merge; a chain stops if a package is still blocked after its fix and re-review.
+// args.split_review (or pkg.split_review) splits each review over three Opus agents (contracts, proofs, safety).
 // Optional args.audit overrides the audit record path. Implementers and fixers run on Sonnet (a package may set model/effort for
 // a consequential design), reviewers on Opus (owner policy).
 export const meta = {
@@ -70,7 +71,7 @@ const REVIEW = {
   required: ['verdict', 'blocking', 'nonblocking'],
 }
 
-const reviewPrompt = (pkg, rep, BASE, extra) => `You are an independent senior reviewer. Do NOT edit files, commit or switch branches in the main checkout (/home/user/RougeHalla, branch optimization_port). Use read-only git (git diff ${BASE}..${rep.branch}, git show, git log) and read files at that revision with git show ${rep.branch}:<path>. You may create a throwaway worktree under ${SP}/review-${pkg.id} (git worktree add --detach ${SP}/review-${pkg.id} ${rep.branch}) to build and run tests or perfproof there, and must remove it when done (git worktree remove --force).
+const reviewPrompt = (pkg, rep, BASE, extra, section) => `You are an independent senior reviewer${section ? ` covering ONE SECTION of a review split across three reviewers (the other two cover the other sections; stay inside yours): ${section.focus}` : ''}. Do NOT edit files, commit or switch branches in the main checkout (/home/user/RougeHalla, branch optimization_port). Use read-only git (git diff ${BASE}..${rep.branch}, git show, git log) and read files at that revision with git show ${rep.branch}:<path>. You may create a throwaway worktree under ${SP}/review-${pkg.id} (git worktree add --detach ${SP}/review-${pkg.id}${section ? '-' + section.key : ''} ${rep.branch}) to build and run tests or perfproof there, and must remove it when done (git worktree remove --force).
 
 Context:
 ${brief(BASE).slice(0, 2700)}
@@ -84,13 +85,33 @@ ${JSON.stringify(rep)}
 ${extra || ''}
 Review the branch diff for: behaviour changes that would break parity or a contract (f64 operation order, A* tie-breaking, event order, observation contents, hashing/checkpoint coverage, C-TICK/C-INPUT/C-OBS/C-RNG); proofs that are not real (thresholds not met, numbers not reproducible, fingerprints that differ); spec items silently skipped; tests that would not catch a regression; writes outside scope; unsafe or panicking paths introduced; docs that overstate. Re-run the cheap gates that matter for your doubts. Blocking = must be fixed before merge. Be concrete (file:line, fix).`
 
+// A split review (args.split_review or pkg.split_review) spreads one review over three shorter Opus agents, one section
+// each, so a container restart or a timeout loses less; their findings are merged and any blocking finding blocks.
+const SECTIONS = [
+  { key: 'contracts', focus: 'BEHAVIOUR AND CONTRACTS: parity and bit-identity (f64 operation order, A* tie-breaking, event order), observation contents and leaks, hashing/checkpoint coverage, wire compatibility, C-TICK/C-INPUT/C-OBS/C-RNG/C-NET/C-PERSIST.' },
+  { key: 'proofs', focus: 'PROOFS AND TESTS: every claimed number and threshold reproduced or shown wrong, fingerprints, spec items silently skipped, tests that would not catch a regression (mutate the code to check the important ones).' },
+  { key: 'safety', focus: 'SAFETY AND SCOPE: panics and unbounded growth reachable from untrusted input, concurrency and races, resource limits, writes outside the declared scope, docs that overstate.' },
+]
+async function review(pkg, rep, BASE, label, extra) {
+  if (!(args.split_review || pkg.split_review)) {
+    return agent(reviewPrompt(pkg, rep, BASE, extra), { label, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })
+  }
+  const parts = (await parallel(SECTIONS.map(sec => () => agent(reviewPrompt(pkg, rep, BASE, extra, sec),
+    { label: `${label}:${sec.key}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })))).filter(Boolean)
+  if (parts.length < SECTIONS.length) log(`${label}: ${SECTIONS.length - parts.length} review section(s) returned nothing`)
+  if (!parts.length) return null
+  const blocking = parts.flatMap(p => p.blocking)
+  return { verdict: blocking.length ? 'fix-required' : 'accept', blocking, nonblocking: parts.flatMap(p => p.nonblocking),
+    sections_missing: SECTIONS.length - parts.length }
+}
+
 async function runPackage(pkg, BASE) {
   const B = brief(BASE)
   const rep = await agent(`${B}\n\nYOUR ASSIGNMENT: package ${pkg.id}: ${pkg.title}\n\n${pkg.resume ? `RESUMING: an earlier engineer started this package and was stopped. Do NOT create pkg/${pkg.id}; instead run git checkout ${pkg.resume} (it is not checked out anywhere else). Its commits so far: ${pkg.resume_note}. Read them (git log -p ${BASE}..HEAD) and the spec, then finish the remaining work, keeping their design unless it is wrong (say so). Your report covers the whole package (branch = ${pkg.resume}).\n\n` : ''}${pkg.spec}`,
     { label: `impl:${pkg.id}`, phase: 'Implement', schema: REPORT, isolation: 'worktree', model: pkg.model || 'sonnet', effort: pkg.effort || 'medium' })
   if (!rep) return null
-  const rv = await agent(reviewPrompt(pkg, rep, BASE), { label: `review:${pkg.id}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })
-  const x = { rep, rv, base: BASE, final_branch: rep.branch, final_head: rep.head_sha, accepted: !!rv && (rv.verdict === 'accept' || !rv.blocking.length) }
+  const rv = await review(pkg, rep, BASE, `review:${pkg.id}`)
+  const x = { rep, rv, base: BASE, final_branch: rep.branch, final_head: rep.head_sha, accepted: !!rv && !rv.sections_missing && (rv.verdict === 'accept' || !rv.blocking.length) }
   if (!rv || x.accepted) return x
   const fix = await agent(`${B}\n\nYOUR ASSIGNMENT: fix the blocking review findings on package ${pkg.id} (${pkg.title}). Instead of creating pkg/${pkg.id}, run: git checkout -b pkg/${pkg.id}-fix ${rep.branch} (the original branch is ${rep.branch} at ${rep.head_sha}). Fix every blocking finding below (or explain precisely why one is wrong, with evidence), re-run all gates, commit, and return the full structured report for the package as it now stands (branch = pkg/${pkg.id}-fix).\n\nPACKAGE SPEC:\n${pkg.spec}\n\nBLOCKING FINDINGS:\n${JSON.stringify(rv.blocking)}\n\nNON-BLOCKING NOTES (address if cheap):\n${JSON.stringify(rv.nonblocking)}`,
     { label: `fix:${pkg.id}`, phase: 'Fix', schema: REPORT, isolation: 'worktree', model: pkg.model || 'sonnet', effort: pkg.effort || 'medium' })
@@ -99,10 +120,9 @@ async function runPackage(pkg, BASE) {
   x.final_branch = fix.branch; x.final_head = fix.head_sha
   if (args.chains) {
     // Stacked work builds on this branch: confirm the fix before the next package depends on it.
-    const rv2 = await agent(reviewPrompt(pkg, fix, BASE, `\nThis is a RE-REVIEW after a fix pass. The earlier blocking findings were:\n${JSON.stringify(rv.blocking)}\nCheck each is resolved (or convincingly refuted) and that the fix introduced nothing new.\n`),
-      { label: `rereview:${pkg.id}`, phase: 'Review', schema: REVIEW, model: 'opus', effort: 'high' })
+    const rv2 = await review(pkg, fix, BASE, `rereview:${pkg.id}`, `\nThis is a RE-REVIEW after a fix pass. The earlier blocking findings were:\n${JSON.stringify(rv.blocking)}\nCheck each is resolved (or convincingly refuted) and that the fix introduced nothing new.\n`)
     x.rereview = rv2
-    x.accepted = !!rv2 && (rv2.verdict === 'accept' || !rv2.blocking.length)
+    x.accepted = !!rv2 && !rv2.sections_missing && (rv2.verdict === 'accept' || !rv2.blocking.length)
   }
   return x
 }

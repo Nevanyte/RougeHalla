@@ -27,6 +27,12 @@ namespace Roguehalla.Net
         public byte? Faction;
         public int MaxReconnectAttempts = 5;
         public double ReconnectBaseMs = 500, ReconnectMaxMs = 8000, PingIntervalMs = 1000;
+        /// <summary>
+        /// A Resync still unanswered after this long is sent again with the next refused delta. The server never drops a Resync
+        /// and answers within one second (it spaces forced Full frames by 20 ticks), so this only matters if a request or its
+        /// answer is lost; it is longer than that second so a well-behaved server never sees a repeat.
+        /// </summary>
+        public double ResyncRetryMs = 2000;
         /// <summary>Monotonic clock in ms.</summary>
         public Func<double> Now;
     }
@@ -43,6 +49,12 @@ namespace Roguehalla.Net
         int _attempt;
         double _nextAttemptAt, _lastPing = double.NegativeInfinity;
         bool _attemptInFlight;
+        // Snapshots arrive as Full frames and deltas (protocol v3): the tracker holds the last one applied. After a refused delta
+        // the session asks for a Full snapshot once and ignores deltas (they all name a base it does not hold) until one arrives;
+        // it asks again only if the answer is ResyncRetryMs late.
+        readonly SnapshotTracker _track = new SnapshotTracker();
+        bool _needFull;
+        double _lastResyncAt;
 
         public SessionState State { get; private set; }
         public RejectCode? RejectCode { get; private set; }
@@ -63,6 +75,10 @@ namespace Roguehalla.Net
         public int SnapshotsReceived { get; private set; }
         public int DecodeErrors { get; private set; }
         public int Ignored { get; private set; }
+        /// <summary>Snapshot deltas the client refused (it could not apply them); each burst makes it send one Resync.</summary>
+        public int DeltasRefused { get; private set; }
+        /// <summary>Resync requests sent to the server.</summary>
+        public int ResyncsSent { get; private set; }
 
         public readonly SnapshotBuffer Snapshots = new SnapshotBuffer();
         public readonly RenderClock Clock = new RenderClock();
@@ -189,9 +205,18 @@ namespace Roguehalla.Net
             ServerMsg msg;
             // A snapshot decodes into the one that last left the buffer (two seconds old), so steady play makes no garbage.
             var spare = Snapshots.TakeSpare();
-            try { msg = ServerMsg.Decode(frame, frame.Length, spare); }
-            catch (DecodeException e) { Snapshots.Recycle(spare); DecodeErrors++; Error = "bad server frame: " + e.Message; return; }
+            bool delta = frame.Length > 0 && frame[0] == 0x87;
+            try { msg = _track.Decode(frame, frame.Length, spare); }
+            catch (DeltaException e) { Snapshots.Recycle(spare); RefuseDelta("refused snapshot delta: " + e.Message); return; }
+            catch (DecodeException e)
+            {
+                Snapshots.Recycle(spare);
+                // A malformed delta is a delta the client cannot apply: ask for a Full snapshot rather than carry on or disconnect.
+                if (delta) { RefuseDelta("bad snapshot delta: " + e.Message); return; }
+                DecodeErrors++; Error = "bad server frame: " + e.Message; return;
+            }
             if (!ReferenceEquals(msg, spare)) Snapshots.Recycle(spare);
+            if (frame.Length > 0 && frame[0] == 0x83) _needFull = false;
 
             var reject = msg as ServerMsg.Reject;
             if (reject != null)
@@ -244,6 +269,23 @@ namespace Roguehalla.Net
             if (fx != null && FxReceived != null) FxReceived(fx);
         }
 
+        /// <summary>
+        /// A delta did not apply: keep the snapshot held, and (once per burst, while in the match or after it ended: snapshots still
+        /// arrive) ask for a Full one; a burst that outlasts ResyncRetryMs asks again (defence in depth: the server never drops one).
+        /// </summary>
+        void RefuseDelta(string why)
+        {
+            DeltasRefused++;
+            Error = why;
+            if (State != SessionState.InMatch && State != SessionState.Ended) return;
+            double now = Now;
+            if (_needFull && now - _lastResyncAt < _o.ResyncRetryMs) return;
+            _needFull = true;
+            _lastResyncAt = now;
+            ResyncsSent++;
+            Send(new ClientMsg.Resync());
+        }
+
         void OnWelcome(ServerMsg.Welcome w)
         {
             if (State != SessionState.HelloSent) { Ignored++; return; }
@@ -254,6 +296,7 @@ namespace Roguehalla.Net
             _attempt = 0;
             // A fresh Welcome restarts the timelines: a resume may land after a long gap, with a new map object.
             Snapshots.Clear();
+            _needFull = false;
             Clock.Reset();
             Clock.TickMs = w.TickRate > 0 ? 1000.0 / w.TickRate : 50;
             Motion = new LocalMotion(w.Map);
