@@ -299,7 +299,7 @@ fn apply_victim(
             if !(amounts[j] > 0.0) {
                 continue;
             }
-            if e.sig.is_some() {
+            if e.sig.is_some_and(crate::factions::SignatureKind::is_dot) {
                 if let Some((_, sum)) = dot_sums.iter_mut().find(|(id, _)| *id == by) {
                     *sum += amounts[j]
                 } else {
@@ -311,7 +311,7 @@ fn apply_victim(
         }
         for (j, &index) in idxs.iter().enumerate() {
             let e = &ledger[index];
-            if e.sig.is_none() {
+            if !e.sig.is_some_and(crate::factions::SignatureKind::is_dot) {
                 continue;
             }
             if let Some((_, sum)) = dot_sums.iter().find(|(id, _)| Some(*id) == e.by) {
@@ -352,7 +352,17 @@ fn apply_victim(
                     amount: amounts[j] * landed_share,
                 });
             }
-            if e.sig.is_none() {
+            if let Some(sig) = e.sig.filter(|sig| !sig.is_dot()) {
+                if let Some(by) = e.by {
+                    pass.ev.push(Event::SignatureHit {
+                        victim: v,
+                        by,
+                        sig,
+                        weapon: e.weapon,
+                        amount: amounts[j],
+                    });
+                }
+            } else if e.sig.is_none() {
                 pass.ev.push(Event::Hit {
                     victim: v,
                     by: e.by,

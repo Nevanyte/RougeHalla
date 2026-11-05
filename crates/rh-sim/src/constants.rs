@@ -183,5 +183,9 @@ content! {
     PVP_DOT_CAP_SHARE: f64 = 0.15, "fraction/s";
     SIG_DISEASED: u8 = 4, "bits";
     SIG_EXECUTE: u8 = 8, "bits";
+    FIRE_BURN_DPS: f64 = 28.0, "damage/s";
+    FIRE_BACKLASH: f64 = 128.0, "damage/s times foe interval";
+    SIG_BURNING: u8 = 2, "bits";
+    LANDMARK_GAP: f64 = 3.0, "tiles";
 
 }

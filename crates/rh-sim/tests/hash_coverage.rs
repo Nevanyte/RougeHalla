@@ -476,7 +476,7 @@ const VALIDATED: &[(&str, &str)] = &[
     ("world.factions.dot_since","flush clock is finite and no later than server time; gate-off runtime must be default"),
     ("world.players.*.core.signature.dot_paused_until","pause is finite and bounded by the maximum weapon windup; gate-off state is default"),
     ("world.players.*.core.signature.bits","only Disease/Execute bits exist in the Plague mode"),
-    ("world.factions.dot.*.sig","only the implemented Disease signature is representable"),
+    ("world.factions.dot.*.sig","only delayed Disease/Burn signatures are valid; Backlash is instantaneous"),
     ("world.factions.dot.*.by","private source identity belongs to retained roster and differs from victim"),
     ("world.factions.dot.*.victim","private victim identity belongs to retained roster and differs from source"),
     ("statics.config.faction_mode","nondefault signature state requires its partial foundation gate"),

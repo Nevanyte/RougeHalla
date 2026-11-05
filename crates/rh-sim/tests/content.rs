@@ -28,9 +28,15 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/landmarks/templates/mod.rs", "WALL", "internal parsed-cell role encoding; source differential proves all role mappings, not a geometry tunable"),
+    ("mapgen/landmarks/templates/mod.rs", "FLOOR", "internal parsed-cell role encoding, not a geometry tunable"),
+    ("mapgen/landmarks/templates/mod.rs", "DOOR", "internal parsed-cell role encoding, not a geometry tunable"),
+    ("mapgen/landmarks/templates/mod.rs", "NOOK", "internal parsed-cell role encoding, not a geometry tunable"),
+    ("mapgen/landmarks/templates/mod.rs", "LIGHT", "internal parsed-cell role encoding, not a geometry tunable"),
     ("fx_report.rs", "FX_REPORT_EVENTS_MAX", "sealed projection report capacity; unsupported scenes fail explicitly, never changes gameplay"),
     ("fx_report.rs", "FX_REPORT_OPS_MAX", "derived per-step projection operation capacity, not a rule"),
     ("fx_report.rs", "FX_PUBLIC_BUCKETS_MAX", "bounded viewer-local public report storage, never read by gameplay"),
+    ("fx_report.rs", "FX_INSTANT_BUCKETS_MAX", "bounded same-tick projected signature output, not a game rule"),
     ("fx_report.rs", "FX_OUTPUT_EVENTS_MAX", "derived projected output capacity; explicit refusal rather than truncation"),
     ("mapgen/det_math.rs", "TWO_PI", "mathematical constant"),
     ("mapgen/coliseum.rs", "W", "typed alias of registered MAP_TILES_W"),
@@ -79,6 +85,14 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    (
+        "factions.rs", "ALL",
+        "signature identities and each live is_dot classification are folded by content_hash_of_signature_rules",
+    ),
+    (
+        "mapgen/landmarks/runtime/rules.rs", "DEFAULT_DEFINITION",
+        "all three landmark guard rules drive runtime and the allocation-free content fold",
+    ),
     (
         "mapgen/bushes/rules.rs",
         "DEFAULT_DEFINITION",
@@ -342,7 +356,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x44fb_7ebc_f48f_519f;
+const GOLDEN_CONTENT_HASH: u64 = 0x03c4_ef09_9f39_21cd;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -598,6 +612,69 @@ fn every_bush_rule_moves_the_content_hash() {
         );
         assert!(hashes.insert(hash), "bush rule {index} collided");
     }
+}
+
+#[test]
+fn landmark_guard_rules_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_landmark_definition;
+    use rh_sim::mapgen::landmarks::runtime::{default_definition, LandmarkDefinition};
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_landmark_definition(REGISTRY, STAGGER_WEAPONS, &default_definition()),
+        base
+    );
+    let mutations: &[fn(&mut LandmarkDefinition)] = &[
+        |d| d.join_checks += 1,
+        |d| d.footprint_percent += 1.0,
+        |d| d.rim_tiles += 1.0,
+    ];
+    for (index, mutate) in mutations.iter().enumerate() {
+        let mut definition = default_definition();
+        mutate(&mut definition);
+        assert_ne!(
+            content_hash_of_landmark_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+            base,
+            "landmark rule {index} omitted from content identity"
+        );
+    }
+}
+
+#[test]
+fn signature_identity_and_dot_classification_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_signature_rules;
+    use rh_sim::factions::SignatureKind;
+    let rules = SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
+    assert_eq!(
+        rules,
+        [
+            (SignatureKind::Disease, true),
+            (SignatureKind::Burn, true),
+            (SignatureKind::Backlash, false)
+        ]
+    );
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_signature_rules(REGISTRY, STAGGER_WEAPONS, &rules),
+        base
+    );
+    for index in 0..rules.len() {
+        let mut changed = rules;
+        changed[index].1 = !changed[index].1;
+        assert_ne!(
+            content_hash_of_signature_rules(REGISTRY, STAGGER_WEAPONS, &changed),
+            base
+        );
+    }
+    assert_ne!(
+        content_hash_of_signature_rules(REGISTRY, STAGGER_WEAPONS, &rules[..2]),
+        base
+    );
+    let mut reordered = rules;
+    reordered.swap(0, 1);
+    assert_ne!(
+        content_hash_of_signature_rules(REGISTRY, STAGGER_WEAPONS, &reordered),
+        base
+    );
 }
 
 #[test]

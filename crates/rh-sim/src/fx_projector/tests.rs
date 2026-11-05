@@ -302,3 +302,152 @@ fn trusted_active_reset_does_not_expose_bootstrap_report() {
     clone.step();
     assert!(clone.fx_report().complete);
 }
+
+// Pipeline-consistent helper reports isolate projection from producer rules. Raw rows remain private.
+fn instant_report(
+    s: &Sim,
+    tick: u32,
+    rows: &[(u32, f64, WeaponId)],
+    reverse_hidden: bool,
+) -> FxTickReport {
+    let mut r = report(s, tick, 3, &[], false);
+    r.viewers.push(PlayerId(4));
+    r.seen.push(15);
+    // Real physical FX before/after the fixed ledger boundary must keep their relative position.
+    r.events.push(Event::Hit {
+        victim: PlayerId(2),
+        by: Some(PlayerId(1)),
+        amount: 4.,
+        weapon: Some(WeaponId::Sword),
+        passive: false,
+    });
+    if reverse_hidden {
+        r.events.insert(
+            0,
+            Event::SignatureHit {
+                victim: PlayerId(3),
+                by: PlayerId(4),
+                sig: SignatureKind::Backlash,
+                weapon: Some(WeaponId::Axe),
+                amount: 8.,
+            },
+        );
+    }
+    for &(by, amount, weapon) in rows {
+        r.events.push(Event::SignatureHit {
+            victim: PlayerId(2),
+            by: PlayerId(by),
+            sig: SignatureKind::Backlash,
+            weapon: Some(weapon),
+            amount,
+        });
+    }
+    r.ops.push(Op::InstantFlush(r.events.len()));
+    r.events.push(Event::Heal {
+        id: PlayerId(2),
+        amount: 2.,
+    });
+    r
+}
+#[test]
+fn instant_anonymous_exact_sum_fixed_marker_and_delayed_independence() {
+    let s = sim();
+    let t = s.tick();
+    let mut a = FxProjector::attach(&s, PlayerId(1));
+    let mut b = FxProjector::attach(&s, PlayerId(1));
+    let hidden = [
+        (3, 1e16, WeaponId::Axe),
+        (3, 1., WeaponId::Bow),
+        (3, 1., WeaponId::Wand),
+    ];
+    let r = instant_report(&s, t + 1, &hidden, false);
+    let mut other = instant_report(
+        &s,
+        t + 1,
+        &[
+            (3, 1., WeaponId::Wand),
+            (3, 1., WeaponId::Bow),
+            (3, 1e16, WeaponId::Sword),
+        ],
+        true,
+    );
+    a.feed(&r).unwrap();
+    b.feed(&other).unwrap();
+    assert_eq!(a.events(), b.events());
+    assert!(
+        matches!(a.events(), [SeenEvent::Hit {..},SeenEvent::SignatureHit {by:None,weapon:None,sig:SignatureKind::Backlash,amount,..},SeenEvent::Heal {..}] if *amount==10000000000000002.)
+    );
+    assert_eq!(a.feed(&r), Ok(FeedStatus::Duplicate));
+    // Burn is retained; an instant flush neither duplicates nor clears it.
+    other = instant_report(&s, t + 2, &[(3, 4., WeaponId::Bow)], false);
+    other.ops.insert(
+        0,
+        Op::Contribution(LandedHit {
+            victim: PlayerId(2),
+            by: Some(PlayerId(3)),
+            sig: Some(SignatureKind::Burn),
+            weapon: Some(WeaponId::Axe),
+            amount: 7.,
+        }),
+    );
+    a.feed(&other).unwrap();
+    assert_eq!(amount(&a), 4.);
+    let flush = report(&s, t + 3, 3, &[], true);
+    a.feed(&flush).unwrap();
+    assert!(matches!(
+        a.events(),
+        [SeenEvent::SignatureHit {
+            sig: SignatureKind::Burn,
+            amount: 7.,
+            ..
+        }]
+    ));
+    a.feed(&report(&s, t + 4, 3, &[], true)).unwrap();
+    assert!(a.events().is_empty());
+}
+#[test]
+fn instant_count_redaction_and_explicit_bounds() {
+    let s = sim();
+    let t = s.tick();
+    let mut a = FxProjector::attach(&s, PlayerId(1));
+    let mut b = FxProjector::attach(&s, PlayerId(1));
+    a.feed(&instant_report(&s, t + 1, &[(3, 8., WeaponId::Bow)], false))
+        .unwrap();
+    b.feed(&instant_report(
+        &s,
+        t + 1,
+        &[(3, 4., WeaponId::Axe), (3, 4., WeaponId::Wand)],
+        false,
+    ))
+    .unwrap();
+    assert_eq!(a.events(), b.events());
+    let mut invalid = instant_report(&s, t + 2, &[(3, 1., WeaponId::Bow)], false);
+    invalid.ops.push(Op::InstantFlush(invalid.events.len()));
+    assert_eq!(a.feed(&invalid), Err(FxError::UnsupportedBounds));
+    assert!(a.events().is_empty());
+    b.rebind(&s, PlayerId(1));
+    let many = instant_report(&s, t + 1, &vec![(3, 1., WeaponId::Bow); 17], false);
+    assert_eq!(b.feed(&many), Err(FxError::UnsupportedBounds));
+}
+#[test]
+fn every_empty_active_ledger_has_one_fixed_marker_and_no_stale_instant_output() {
+    let mut s = sim();
+    let mut p = FxProjector::attach(&s, PlayerId(1));
+    for _ in 0..25 {
+        s.step();
+        let r = s.fx_report();
+        assert_eq!(
+            r.ops
+                .iter()
+                .filter(|op| matches!(op, Op::InstantFlush(_)))
+                .count(),
+            1
+        );
+        assert!(!r
+            .events
+            .iter()
+            .any(|e| matches!(e, Event::SignatureHit { .. })));
+        p.feed(r).unwrap();
+        assert!(p.events().is_empty());
+    }
+}

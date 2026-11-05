@@ -648,6 +648,9 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
     pending("suddenDeath(notTraining)", Gate::NotTraining, "P-ARENA-1"),
     ported("ledger:apply", Gate::Always, |cx| {
         ledger::apply(cx);
+        cx.s.fx
+            .ops
+            .push(crate::fx_report::Op::InstantFlush(cx.ev.len()));
         Flow::Continue
     }),
     ported("hooks:systems", Gate::Always, list_systems),
@@ -668,7 +671,11 @@ pub(crate) static PHASES: [Item<PhaseFn>; 23] = [
 // ---------------------------------------------------------------------------------------------------------------------
 
 static AFTER_WEAPONS: [Item<SystemFn>; 3] = [
-    pending("factions.afterWeapons", Gate::Signatures, "P-FACTION-1"),
+    ported(
+        "factions.afterWeapons",
+        Gate::Signatures,
+        crate::systems::signatures::after_weapons,
+    ),
     pending("bruiserPassives.update", Gate::Signatures, "P-FACTION-5"),
     pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
 ];

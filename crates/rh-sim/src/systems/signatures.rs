@@ -81,6 +81,36 @@ fn largest<'a>(
     }
     best.map(|(id, _)| id)
 }
+pub(crate) fn after_weapons(cx: &mut Cx) {
+    let s = &mut cx.s;
+    s.performed.clear();
+    s.performed_bounded =
+        s.melee.len() + s.flight.spawns.len() <= crate::fx_report::FX_INSTANT_BUCKETS_MAX;
+    // Each weapon update has exactly two request-producing land sites: an old due action,
+    // then a newly started zero-windup action. Check the per-owner limit independently.
+    for a in s
+        .melee
+        .iter()
+        .map(|m| crate::factions::PerformedAttack {
+            by: m.attacker,
+            weapon: m.weapon,
+        })
+        .chain(
+            s.flight
+                .spawns
+                .iter()
+                .map(|p| crate::factions::PerformedAttack {
+                    by: p.owner,
+                    weapon: p.weapon,
+                }),
+        )
+    {
+        if s.performed.iter().filter(|p| p.by == a.by).count() >= 2 {
+            s.performed_bounded = false;
+        }
+        s.performed.push(a);
+    }
+}
 /// The original beforeDamage row, currently implementing only player engagement.
 pub(crate) fn before_damage(cx: &mut Cx) {
     let Cx { k, w, s, .. } = cx;
@@ -199,7 +229,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             && f.contact_at.is_some_and(|t| now - t <= trade + TIE_EPS_MS);
     }
     if k.config.faction_mode.plague() {
-        super::plague::damage(k, w, &mut s.ledger);
+        super::plague::damage(k, w, &s.performed, &mut s.ledger);
     }
 }
 /// Ordered post-barrier landed damage feeds combat clocks and surviving Holy attackers.
@@ -207,7 +237,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
     s.dealt.clear();
     for h in &s.landed {
-        if h.sig.is_some() {
+        if h.sig.is_some_and(crate::factions::SignatureKind::is_dot) {
             super::plague::accumulate(w, h);
             s.fx.ops.push(crate::fx_report::Op::Contribution(*h));
         }

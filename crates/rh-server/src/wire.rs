@@ -818,12 +818,15 @@ mod tests {
             to_wire(&SeenEvent::Heal { id, amount: 1.0 }),
             Wire::OmittedInV5
         ));
-        for by in [None, Some(id)] {
+        for (by, sig) in [None, Some(id)]
+            .into_iter()
+            .flat_map(|by| rh_sim::factions::SignatureKind::ALL.map(|sig| (by, sig)))
+        {
             assert!(matches!(
                 to_wire(&SeenEvent::SignatureHit {
                     victim: id,
                     by,
-                    sig: rh_sim::factions::SignatureKind::Disease,
+                    sig,
                     weapon: Some(rh_sim::WeaponId::Axe),
                     amount: 10.
                 }),

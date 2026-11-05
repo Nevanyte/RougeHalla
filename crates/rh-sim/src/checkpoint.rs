@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/11";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/12";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -426,7 +426,15 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         return Err("insufficient run entity identity headroom".into());
     }
     for e in &w.deferred.hits {
-        if (e.execute && e.sig.is_none()) || (e.sig.is_some() && !k.config.faction_mode.plague()) {
+        if (e.execute && e.sig != Some(crate::factions::SignatureKind::Disease))
+            || e.sig.is_some_and(|s| {
+                if s == crate::factions::SignatureKind::Disease {
+                    !k.config.faction_mode.plague()
+                } else {
+                    !k.config.faction_mode.fire()
+                }
+            })
+        {
             return Err(
                 "deferred signature requires its producer mode and execute qualification".into(),
             );
@@ -436,12 +444,14 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
         || (!k.config.faction_mode.engagement()
             && w.factions != crate::factions::FactionRuntime::default())
         || (!k.config.faction_mode.plague() && !w.factions.dot.is_empty())
-        || w.factions.dot.len() > crate::constants::MAX_PLAYERS * crate::constants::MAX_PLAYERS
+        || w.factions.dot.len() > 2 * crate::constants::MAX_PLAYERS * crate::constants::MAX_PLAYERS
     {
         return Err("invalid faction runtime".into());
     }
     for (i, b) in w.factions.dot.iter().enumerate() {
-        if !b.amount.is_finite()
+        if !b.sig.is_dot()
+            || (b.sig == crate::factions::SignatureKind::Burn && !k.config.faction_mode.fire())
+            || !b.amount.is_finite()
             || !(b.amount > 0.0)
             || b.by == b.victim
             || w.roster.name(b.by).is_none()
@@ -460,8 +470,13 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
             || !sig.hp_frac.is_finite()
             || !(0.0..=w.server_time + crate::constants::WAND_WINDUP_MAX_S * 1000.0)
                 .contains(&sig.dot_paused_until)
-            || sig.bits & !(crate::constants::SIG_DISEASED | crate::constants::SIG_EXECUTE) != 0
+            || sig.bits
+                & !(crate::constants::SIG_DISEASED
+                    | crate::constants::SIG_EXECUTE
+                    | crate::constants::SIG_BURNING)
+                != 0
             || (!k.config.faction_mode.plague() && sig.bits != 0)
+            || (!k.config.faction_mode.fire() && sig.bits & crate::constants::SIG_BURNING != 0)
             || [sig.reach_at, sig.contact_at, sig.combat_at]
                 .into_iter()
                 .flatten()

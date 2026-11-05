@@ -49,13 +49,17 @@ separate stream, internal camp order, provisional feature records and original m
 combined integration gate. Landmark runtime/templates/callbacks remain a separate prerequisite before claiming plain
 generation. Existing strict differential and pin rules continue to apply.
 
-The next selected packet is the stage-4 whole-wall landmark guard/runtime, excluding template search and callbacks.
+The stage-4 whole-wall landmark guard/runtime is implemented and independently reviewed, excluding template search and callbacks.
 Replay every actual placement request (including refusals) and reservation from genuine initial arrays; guard counters
 are assertions, never replay inputs. Actual seeds 0/1/17 produced no stateful canBlock calls outside placement, and all
 read-only open probes left guard state unchanged. A labelled reduced-budget source case proves skipping a refused
 request changes the next result: join budget survives rollback. Scorch's hard/open override changes its planning view;
-its inherited placement closure still uses the original transactional hard mask. Implement this bounded runtime only
-as the next bounded packet after this checkpoint. Template/search/planning-cache/callback selection remains a later exact port.
+its inherited placement closure still uses the original transactional hard mask. Full per-command arrays/scratch/counters,
+refusal-budget behavior and malformed terrain admission are tested. The separate template/stamp leaf is also implemented and independently reviewed: seven checked-in differential tests
+replay actual helper calls and complete runtime state, and inventory assertions reject truncated captures. Source Int32
+offset semantics are preserved for valid indices; invalid overflow artifacts are explicitly refused instead of aliasing
+tile zero. Search/planning-cache/callback selection remains a later exact port. See
+[the bounded evidence](../../evidence/stage2-fire-landmarks/README.md).
 
 ## Exclusive write scope
 Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module

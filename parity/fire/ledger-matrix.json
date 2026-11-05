@@ -1,0 +1,1205 @@
+{
+  "format": "rh-fire-ledger-matrix/1",
+  "modules": [
+    "loot",
+    "weapons",
+    "targeting",
+    "projectiles",
+    "factions",
+    "mobs",
+    "buffs",
+    "feed",
+    "camps",
+    "chests",
+    "killAugments",
+    "mobLife",
+    "mobAI",
+    "terrainEffects",
+    "regen",
+    "abilities",
+    "quests",
+    "vision",
+    "campHeal",
+    "traders",
+    "cardHooks",
+    "mods"
+  ],
+  "cases": [
+    {
+      "setup": {
+        "name": "same-source-disease-execute",
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "sig": "disease"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "weapon": "axe",
+          "sig": "disease"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 991.4125,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 1.7175
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 6.87
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "mixed-hit-dot",
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "backlash",
+            "weapon": "sword",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": "backlash"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "sig": "disease"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "weapon": "sword",
+          "sig": "backlash"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "weapon": "axe",
+          "sig": "disease"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 590.6625,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 1.7175
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 6.87
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "two-sources",
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p1",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p1",
+          "amount": 8.5875,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "sig": "disease"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p1",
+          "amount": 8.5875,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "weapon": "axe",
+          "sig": "disease"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 982.825,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 1.7175
+        },
+        {
+          "victim": "p2",
+          "by": "p1",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 8.5875
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 6.87
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "reverse-private-order",
+        "entries": [
+          {
+            "by": "p1",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p1",
+          "amount": 8.5875,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "sig": "disease"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "sig": "burn"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p1",
+          "amount": 8.5875,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "weapon": "axe",
+          "sig": "disease"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "weapon": "axe",
+          "sig": "burn"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 982.825,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p1",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 8.5875
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 6.87
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 1.7175
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "partial-barrier",
+        "barrier": 5,
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "sig": "disease"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 0.7175000000000001,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 2.8700000000000006,
+          "weapon": "axe",
+          "sig": "disease"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 996.4125,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 0.7175000000000001
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 2.8700000000000006
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "full-barrier",
+        "barrier": 500,
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [],
+      "landed": [],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 1000,
+          "barrier": 491.4125,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": []
+    },
+    {
+      "setup": {
+        "name": "immunity",
+        "immune": 1000,
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "backlash",
+            "weapon": "sword",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [],
+      "landed": [],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 1000,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": []
+    },
+    {
+      "setup": {
+        "name": "overkill",
+        "hp": 1,
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p1",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 8.5875,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p1",
+          "amount": 8.5875,
+          "sig": "burn"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 8.5875,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p1",
+          "amount": 8.5875,
+          "weapon": "axe",
+          "sig": "burn"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 0,
+          "barrier": 0,
+          "status": "dead"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 8.5875
+        },
+        {
+          "victim": "p2",
+          "by": "p1",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 8.5875
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "departed-source",
+        "depart": "p0",
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175000000000002,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.870000000000001,
+          "sig": "disease"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175000000000002,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.870000000000001,
+          "weapon": "axe",
+          "sig": "disease"
+        }
+      ],
+      "players": [
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 991.4125,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 1.7175000000000002
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 6.870000000000001
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "disabled-pvp",
+        "pvp": false,
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 20,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 15,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 11.235955056179776,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 8.426966292134832,
+          "sig": "disease"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 11.235955056179776,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 8.426966292134832,
+          "weapon": "axe",
+          "sig": "disease"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 980.3370786516854,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 11.235955056179776
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 8.426966292134832
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "zero-and-scaled",
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 0,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 30,
+            "execute": false,
+            "scale": 0.2,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 0,
+            "execute": true,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 2.5955056179775284,
+          "sig": "burn"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 2.5955056179775284,
+          "weapon": "axe",
+          "sig": "burn"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 997.4044943820224,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1145,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 2.5955056179775284
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "distinct-victims",
+        "entries": [
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p2"
+          },
+          {
+            "by": "p0",
+            "raw": 1000,
+            "execute": false,
+            "scale": 1,
+            "sig": "burn",
+            "weapon": "axe",
+            "victim": "p3"
+          },
+          {
+            "by": "p0",
+            "raw": 4000,
+            "execute": true,
+            "scale": 1,
+            "sig": "disease",
+            "weapon": "axe",
+            "victim": "p2"
+          }
+        ]
+      },
+      "hooks": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "sig": "disease"
+        },
+        {
+          "victim": "p3",
+          "by": "p0",
+          "amount": 8.5875,
+          "sig": "burn"
+        }
+      ],
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 1.7175,
+          "weapon": "axe",
+          "sig": "burn"
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 6.87,
+          "weapon": "axe",
+          "sig": "disease"
+        },
+        {
+          "victim": "p3",
+          "by": "p0",
+          "amount": 8.5875,
+          "weapon": "axe",
+          "sig": "burn"
+        }
+      ],
+      "players": [
+        {
+          "id": "p0",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p1",
+          "hp": 950,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p2",
+          "hp": 991.4125,
+          "barrier": 0,
+          "status": "alive"
+        },
+        {
+          "id": "p3",
+          "hp": 1136.4125,
+          "barrier": 0,
+          "status": "alive"
+        }
+      ],
+      "buckets": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 1.7175
+        },
+        {
+          "victim": "p2",
+          "by": "p0",
+          "sig": "disease",
+          "weapon": "axe",
+          "amount": 6.87
+        },
+        {
+          "victim": "p3",
+          "by": "p0",
+          "sig": "burn",
+          "weapon": "axe",
+          "amount": 8.5875
+        }
+      ]
+    }
+  ]
+}

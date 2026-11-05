@@ -29,6 +29,8 @@ pub(crate) const NONE: u32 = u32::MAX;
 
 #[derive(Debug)]
 pub(crate) struct TickScratch {
+    pub(crate) performed: Vec<crate::factions::PerformedAttack>,
+    pub(crate) performed_bounded: bool,
     pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
     pub(crate) dot_sums: Vec<(PlayerId, f64)>,
     pub(crate) fx: crate::fx_report::TickFx,
@@ -90,6 +92,8 @@ impl Default for TickScratch {
     fn default() -> Self {
         let (p, hits) = (MAX_PLAYERS, 2 * MAX_PLAYERS * MAX_PLAYERS);
         Self {
+            performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
+            performed_bounded: true,
             ledger_diagnostics: Vec::with_capacity(hits),
             dot_sums: Vec::with_capacity(p),
             fx: crate::fx_report::TickFx {

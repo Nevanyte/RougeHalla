@@ -10,12 +10,17 @@ use crate::{
     statics::MatchStatic,
     Event, FactionId, WeaponId,
 };
-pub(crate) fn damage(_k: &MatchStatic, w: &World, ledger: &mut Vec<Entry>) {
+pub(crate) fn damage(
+    k: &MatchStatic,
+    w: &World,
+    performed: &[crate::factions::PerformedAttack],
+    ledger: &mut Vec<Entry>,
+) {
     let now = w.server_time;
     for p in w
         .players
         .iter()
-        .filter(|p| p.standing() && p.vitals.faction == FactionId::Plague && p.signature.engaged)
+        .filter(|p| p.standing() && p.signature.engaged)
     {
         let Some(t) = p
             .signature
@@ -25,6 +30,12 @@ pub(crate) fn damage(_k: &MatchStatic, w: &World, ledger: &mut Vec<Entry>) {
         else {
             continue;
         };
+        if p.vitals.faction == FactionId::Fire && k.config.faction_mode.fire() {
+            super::fire::damage(p, t, now, performed, ledger);
+        }
+        if p.vitals.faction != FactionId::Plague {
+            continue;
+        }
         let weapon = p.active_weapon();
         let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.0));
         let dot = content::weapon(weapon).dps_mult * ((TICK_MS - paused) / 1000.0);
@@ -128,7 +139,8 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
         let p = &w.players[i];
         if !k.config.faction_mode.plague()
             || !p.standing()
-            || p.vitals.faction != FactionId::Plague
+            || !(p.vitals.faction == FactionId::Plague
+                || (p.vitals.faction == FactionId::Fire && k.config.faction_mode.fire()))
             || !p.signature.engaged
         {
             continue;
@@ -141,7 +153,12 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
         else {
             continue;
         };
+        let fire = p.vitals.faction == FactionId::Fire;
         let t = &mut w.players[t];
+        if fire {
+            t.signature.bits |= SIG_BURNING;
+            continue;
+        }
         t.signature.bits |= SIG_DISEASED;
         if t.vitals.max_hp > 0. && t.vitals.hp / t.vitals.max_hp < PLAGUE_EXECUTE_BAND {
             t.signature.bits |= SIG_EXECUTE;

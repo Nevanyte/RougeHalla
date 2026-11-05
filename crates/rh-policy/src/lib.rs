@@ -27,7 +27,8 @@ use std::time::{Duration, Instant};
 /// `AsyncSeat::spawn` take the same [`MatchStart`] and fault on a contract or observation-version mismatch.
 /// Version 3 proposals use observer-issued pickup handles. Version 4 binds actor targeting to complete delivery.
 /// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
-pub const POLICY_CONTRACT_VERSION: u16 = 5;
+/// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
+pub const POLICY_CONTRACT_VERSION: u16 = 6;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -854,9 +855,16 @@ mod temporal_tests {
     use super::*;
     use rh_sim::{FactionId, FactionMode, Placement, RawCommand, Secrets, SimConfig, Vec2};
     fn scene() -> Sim {
+        scene_with(false)
+    }
+    fn scene_with(fire: bool) -> Sim {
         Sim::reset_active(
             SimConfig {
-                faction_mode: FactionMode::EngagementHolyPlague,
+                faction_mode: if fire {
+                    FactionMode::EngagementHolyPlagueFire
+                } else {
+                    FactionMode::EngagementHolyPlague
+                },
                 ..Default::default()
             },
             rh_sim::arenas::practice_arena(),
@@ -865,7 +873,11 @@ mod temporal_tests {
                 .map(|i| Placement {
                     profile: format!("p{i}"),
                     faction: if i == 0 {
-                        FactionId::Plague
+                        if fire {
+                            FactionId::Fire
+                        } else {
+                            FactionId::Plague
+                        }
                     } else {
                         FactionId::Holy
                     },
@@ -877,6 +889,85 @@ mod temporal_tests {
                 })
                 .collect::<Vec<_>>(),
         )
+    }
+    #[test]
+    fn fire_instant_and_delayed_sync_async_projection() {
+        let mut sim = scene_with(true);
+        sim.submit(
+            PlayerId(2),
+            rh_sim::validate(RawCommand::Attack {
+                a: std::f64::consts::PI,
+                t: None,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let start = MatchStart::of(&sim, PlayerId(2), 1);
+        let mut seats = vec![Seat::new(
+            &start,
+            Box::new(scripted::Idle),
+            Box::new(scripted::Idle),
+        )];
+        let mut asynchronous = AsyncSeat::spawn(
+            &start,
+            Box::new(scripted::Idle),
+            Box::new(scripted::Idle),
+            2,
+        );
+        seats[0].bind_fx(&sim).unwrap();
+        asynchronous.bind_fx(&sim).unwrap();
+        sim.submit(
+            PlayerId(1),
+            rh_sim::validate(RawCommand::Attack { a: 0., t: None }).unwrap(),
+        )
+        .unwrap();
+        let mut empty = 0;
+        for _ in 0..20 {
+            let events = sim.step();
+            empty += usize::from(events.is_empty());
+            feed_seats(&sim, &mut seats);
+            asynchronous.feed_fx(&sim);
+            let count = seats[0].pending.len();
+            feed_seats(&sim, &mut seats);
+            asynchronous.feed_fx(&sim);
+            assert_eq!(seats[0].pending.len(), count);
+        }
+        assert_eq!(seats[0].bind_fx(&sim), Err(rh_sim::FxError::AlreadyBound));
+        assert_eq!(
+            asynchronous.bind_fx(&sim),
+            Err(rh_sim::FxError::AlreadyBound)
+        );
+        assert!(empty > 0);
+        assert_eq!(seats[0].pending, asynchronous.seen);
+        assert!(seats[0]
+            .pending
+            .iter()
+            .any(|e| matches!(e, SeenEvent::SignatureHit { .. })));
+        assert_eq!(
+            seats[0]
+                .observer
+                .resolve(&sim, PublicCommand::Target { actor: PlayerId(1) }),
+            seats[0].observer.resolve(
+                &sim,
+                PublicCommand::Target {
+                    actor: PlayerId(999)
+                }
+            )
+        );
+        let mut foreign = sim.clone();
+        foreign.step();
+        feed_seats(&foreign, &mut seats);
+        asynchronous.feed_fx(&foreign);
+        assert!(seats[0].pending.is_empty());
+        assert!(asynchronous.seen.is_empty());
+        assert_eq!(
+            seats[0].fault,
+            Some(Fault::FxProjection(rh_sim::FxError::ForeignInstance))
+        );
+        assert_eq!(
+            asynchronous.fault,
+            Some(Fault::FxProjection(rh_sim::FxError::ForeignInstance))
+        );
     }
     #[test]
     fn synchronous_and_async_feed_do_not_depend_on_decisions_or_raw_event_presence() {

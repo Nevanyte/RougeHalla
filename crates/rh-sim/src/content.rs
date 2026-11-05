@@ -503,6 +503,36 @@ pub fn content_hash_of_bush_definition(
     )
 }
 
+/// The whole-wall landmark guard shares its actual runtime definition with this fold.
+pub fn content_hash_of_landmark_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::landmarks::runtime::LandmarkDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            landmarks: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Signature classification affects damage budgets and reporting, so it is content as well.
+pub fn content_hash_of_signature_rules(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    signature_rules: &[(crate::factions::SignatureKind, bool)],
+) -> u64 {
+    content_hash_of_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions::default(),
+        signature_rules,
+    )
+}
+
 /// Borrowed rule definitions avoid duplicating default lists at every perturbation entry point.
 struct MapDefinitions<'rules, 'pillars> {
     coliseum: &'rules crate::mapgen::coliseum::FixedDefinition<'pillars>,
@@ -511,6 +541,7 @@ struct MapDefinitions<'rules, 'pillars> {
     attempt: &'rules crate::mapgen::attempt::AttemptDefinition,
     spawns: &'rules crate::mapgen::spawns::SpawnDefinition,
     bushes: &'rules crate::mapgen::bushes::BushDefinition,
+    landmarks: &'rules crate::mapgen::landmarks::runtime::LandmarkDefinition,
 }
 
 impl Default for MapDefinitions<'_, '_> {
@@ -522,6 +553,7 @@ impl Default for MapDefinitions<'_, '_> {
             attempt: &crate::mapgen::attempt::DEFAULT_DEFINITION,
             spawns: &crate::mapgen::spawns::DEFAULT_DEFINITION,
             bushes: &crate::mapgen::bushes::DEFAULT_DEFINITION,
+            landmarks: &crate::mapgen::landmarks::runtime::DEFAULT_DEFINITION,
         }
     }
 }
@@ -531,6 +563,16 @@ fn content_hash_of_map_definitions(
     stagger_weapons: &[WeaponId],
     definitions: MapDefinitions<'_, '_>,
 ) -> u64 {
+    let signature_rules = crate::factions::SignatureKind::ALL.map(|kind| (kind, kind.is_dot()));
+    content_hash_of_definitions(registry, stagger_weapons, definitions, &signature_rules)
+}
+
+fn content_hash_of_definitions(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definitions: MapDefinitions<'_, '_>,
+    signature_rules: &[(crate::factions::SignatureKind, bool)],
+) -> u64 {
     let MapDefinitions {
         coliseum,
         zones,
@@ -538,6 +580,7 @@ fn content_hash_of_map_definitions(
         attempt,
         spawns,
         bushes,
+        landmarks,
     } = definitions;
     let mut h = Fnv::new();
 
@@ -565,6 +608,16 @@ fn content_hash_of_map_definitions(
 
     h.str("mapgen/elite-bushes/1");
     crate::mapgen::bushes::visit_content(bushes, |word| h.u64(word));
+
+    h.str("mapgen/landmark-runtime/1");
+    crate::mapgen::landmarks::runtime::visit_content(landmarks, |word| h.u64(word));
+
+    h.str("signatures/1");
+    h.u64(signature_rules.len() as u64);
+    for &(kind, is_dot) in signature_rules {
+        h.str(kind.as_str());
+        h.u64(u64::from(is_dot));
+    }
 
     h.str("factions");
     for f in FactionId::ALL {

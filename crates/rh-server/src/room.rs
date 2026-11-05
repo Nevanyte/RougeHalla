@@ -1165,6 +1165,74 @@ mod tests {
         }
     }
 
+    #[test]
+    fn live_fire_feed_matches_core() {
+        let now = Instant::now();
+        let tick = Duration::from_millis(50);
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let mut room = Room::new([9; 16], cfg(tick), tx, now);
+        for (i, faction) in [FactionId::Fire, FactionId::Holy].into_iter().enumerate() {
+            room.join(
+                format!("p{i}"),
+                Some(faction),
+                Arc::new(Outbox::default()),
+                i as u64 + 1,
+                1,
+                None,
+            )
+            .unwrap();
+        }
+        let placements = [FactionId::Fire, FactionId::Holy]
+            .into_iter()
+            .enumerate()
+            .map(|(i, faction)| rh_sim::Placement {
+                profile: format!("p{i}"),
+                faction,
+                bot: false,
+                at: rh_sim::Vec2::new(400. + 56. * i as f64, 320.),
+                hp: None,
+                weapon0: None,
+                weapon1: None,
+            })
+            .collect::<Vec<_>>();
+        room.sim = Sim::reset_active(
+            SimConfig {
+                faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFire,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(7),
+            &placements,
+        );
+        for h in &mut room.humans {
+            h.fx.rebind(&room.sim, h.player);
+        }
+        let mut reference = room.sim.clone();
+        let mut projector = rh_sim::FxProjector::attach(&reference, PlayerId(1));
+        let mut signatures = 0;
+        for n in 1..=40 {
+            if n == 2 {
+                for (id, a) in [(PlayerId(1), 0.), (PlayerId(2), std::f64::consts::PI)] {
+                    let cmd = rh_sim::validate(rh_sim::RawCommand::Attack { a, t: None }).unwrap();
+                    room.sim.submit(id, cmd).unwrap();
+                    reference.submit(id, cmd).unwrap();
+                }
+            }
+            reference.step();
+            projector.feed(reference.fx_report()).unwrap();
+            assert!(room.wake(now + tick * n));
+            assert_eq!(room.sim.state_hash(), reference.state_hash());
+            assert_eq!(room.humans[0].fx.events(), projector.events());
+            signatures += projector
+                .events()
+                .iter()
+                .filter(|e| matches!(e, SeenEvent::SignatureHit { .. }))
+                .count();
+        }
+        assert!(signatures > 2);
+        assert_eq!(room.frame_refusals, 0);
+    }
+
     #[tokio::test(start_paused = true)]
     async fn a_renewal_that_observes_the_result_release_preserves_reliable_resume() {
         let start = Instant::now();

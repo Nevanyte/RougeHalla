@@ -1,5 +1,21 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
+## Implemented slice: player Fire
+
+`FactionMode::EngagementHolyPlagueFire` adds player Burn and Backlash to the explicit partial installation; the default
+remains Off. Burn uses unpaused engaged time. Backlash consumes the genuine afterWeapons snapshot of melee requests,
+then projectile spawns, preserving duplicates and request-time weapons; real whiffs and attacks on third parties count.
+Cancelled windups, reflections and splash do not create extra performed requests. Backlash is instantaneous physical
+damage and does not consume the shared DoT budget or pause with Burn/Disease. Private FX retain the actual pre-barrier
+amount while sustain reads landed damage.
+
+The separate report-local instant projection, fixed ledger-return marker, hidden-source merging and retained delayed
+windows follow [ADR 0013](../../adr/0013-temporal-damage-projection.md). Both independent Fire gameplay and public/session
+reviews passed, including 540 captured ticks, 720 additional exact-source steps and their checkpoint continuations.
+The standalone ledger fixture now requires all twelve ordered cases, preventing an empty fixture from passing.
+Frost, Sentenced, Fire roam and other auxiliary/card/mob producers remain open. Protocol 5 explicitly omits these new
+signature effects/bits; no presentation or game rules were added to Unity.
+
 ## Implemented slice: Plague and temporal public reporting
 
 Implemented and independently reviewed with the 557-test combined gate. Plague plus shared DoT accounting/reporting precedes Fire with

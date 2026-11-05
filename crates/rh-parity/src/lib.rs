@@ -600,7 +600,9 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
-        faction_mode: if plague::enabled(fx) {
+        faction_mode: if plague::fire(fx) {
+            rh_sim::FactionMode::EngagementHolyPlagueFire
+        } else if plague::enabled(fx) {
             rh_sim::FactionMode::EngagementHolyPlague
         } else if holy::enabled(fx) {
             rh_sim::FactionMode::EngagementHoly
@@ -660,7 +662,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
     );
     need(
         c.rust_slice.as_deref()
-            == if plague::enabled(fx) {
+            == if plague::fire(fx) {
+                Some("player-engagement-holy-plague-fire/1")
+            } else if plague::enabled(fx) {
                 Some("player-engagement-holy-plague/1")
             } else {
                 holy::enabled(fx).then_some("player-engagement-holy/1")

@@ -55,3 +55,37 @@ run-end flushes, and discarded item prepares. Observation schedules must not cha
 Measure warmed projection allocations. Independent critical review and integrated parity/headless gates passed; see [evidence](../evidence/stage2-plague-map/README.md).
 
 See [P-FACTION-1](../backlog/packets/P-FACTION-1.md), legacy `sim/factions.ts`, `sim/ledger.ts`, and existing C-OBS/C-POLICY.
+
+## Fire extension: implemented and independently reviewed
+
+Two independently executed actual-source probes demonstrate that per-row Backlash redaction discloses unseen source
+count. A helper pair leaves the same visible HP but emits one anonymous amount versus two half amounts. A separate
+actual Fire-producer pair uses three hidden bow Fire fighters versus four hidden fist Fire fighters: all visible actor
+rows, including exact HP, agree through ticks 2–17, while tick 13 emits three versus four retaliation rows totalling
+111.90727380248373. These are new producer/projection requirements, not a claim that the full Fire installer is ported.
+
+A pipeline-consistent helper also demonstrates that grouping at the first private Backlash row leaks hidden ordering:
+an ineligible hit on a hidden victim changes public `[Hit, Backlash]` into `[Backlash, Hit]`. A fixed marker is required.
+Keep trusted individual instantaneous events source-exact and server-only. Accumulate eligible instantaneous rows in
+report-local buckets with the same redaction, public-key order, hidden-weapon suppression and exact addition rules.
+Emit them at a fixed marker **immediately after `ledger::apply` returns to its schedule row**, before faction
+afterDamage/Holy healing. This follows any payout drain performed by that call. Preserve the source's early empty-ledger
+return: the marker exists even when it emits nothing, without adding a payout drain to that path. Ordinary physical-hit
+behavior is unchanged.
+
+Instant amounts come from actual emitted pre-barrier FX; full absorption produces no FX. Post-barrier landed amounts
+remain for sustain and delayed Burn/Disease reports. Separate instantaneous buckets from retained DoT buckets: neither
+flush may clear, duplicate or retain the other's rows. Introduce explicit `is_dot()` classification; all signature kinds
+remain excluded from physical-contact and axe-shred production.
+
+For eight current players, delayed capacity becomes 128: two DoT kinds times 56 named directed pairs plus eight
+anonymous victim buckets. Active joins are refused. Each weapon update has at most two request-producing land calls,
+so performed requests and per-owner requests are bounded by 16 and two respectively. One engaged target per Fire then
+bounds Backlash rows by 16. Check those distinct limits, one instantaneous marker, at most 16 delayed rows/two delayed
+flushes/one reset, 20 operations and 784 projected outputs (`512 + 2*128 + 16`). Unsupported reports fail explicitly.
+
+The partial mode is EngagementHolyPlagueFire, default Off. Versions are checkpoint /12, replay /10,
+observation 9 and policy 6; protocol 5 keeps explicit omission. Checkpoints must reject Backlash in delayed buckets and
+execute on non-Disease entries. Actual performed-request captures, paired privacy/order regressions, mixed
+periodic/terminal windows, session/cadence and allocation checks passed independent gameplay and public reviews. No other
+faction/auxiliary/card/AP/mob producer or complete Fire installer is implied.

@@ -6,6 +6,7 @@ pub mod coliseum;
 pub mod det_math;
 pub mod grid_ops;
 pub mod grid_topology;
+pub mod landmarks;
 pub mod spawns;
 pub mod zones;
 

@@ -1,7 +1,9 @@
 //! Session-local public temporal projection. Feeding never grants action handles.
 mod exact;
 use crate::factions::SignatureKind;
-use crate::fx_report::{FxTickReport, Op, FX_OUTPUT_EVENTS_MAX, FX_PUBLIC_BUCKETS_MAX};
+use crate::fx_report::{
+    FxTickReport, Op, FX_INSTANT_BUCKETS_MAX, FX_OUTPUT_EVENTS_MAX, FX_PUBLIC_BUCKETS_MAX,
+};
 use crate::{PlayerId, SeenEvent, Sim};
 use exact::ExactSum;
 use std::sync::Arc;
@@ -39,6 +41,7 @@ pub struct FxProjector {
     last: u32,
     disabled: bool,
     buckets: Vec<Bucket>,
+    instant: Vec<Bucket>,
     events: Vec<SeenEvent>,
 }
 impl FxProjector {
@@ -49,6 +52,7 @@ impl FxProjector {
             last: sim.tick(),
             disabled: false,
             buckets: Vec::with_capacity(FX_PUBLIC_BUCKETS_MAX),
+            instant: Vec::with_capacity(FX_INSTANT_BUCKETS_MAX),
             events: Vec::with_capacity(FX_OUTPUT_EVENTS_MAX),
         }
     }
@@ -58,6 +62,7 @@ impl FxProjector {
         self.last = sim.tick();
         self.disabled = false;
         self.buckets.clear();
+        self.instant.clear();
         self.events.clear();
     }
     pub fn viewer(&self) -> PlayerId {
@@ -96,6 +101,7 @@ impl FxProjector {
     }
     fn fail(&mut self, e: FxError) -> Result<FeedStatus, FxError> {
         self.buckets.clear();
+        self.instant.clear();
         self.events.clear();
         self.disabled = true;
         Err(e)
@@ -130,6 +136,60 @@ impl FxProjector {
                 FeedStatus::Advanced
             });
         };
+        self.instant.clear();
+        let markers = r
+            .ops
+            .iter()
+            .filter(|o| matches!(o, Op::InstantFlush(_)))
+            .count();
+        let raw_instant = r
+            .events
+            .iter()
+            .filter(|e| matches!(e, crate::Event::SignatureHit { sig, .. } if !sig.is_dot()))
+            .count();
+        if markers > 1 || raw_instant > FX_INSTANT_BUCKETS_MAX || (raw_instant > 0 && markers != 1)
+        {
+            return self.fail(FxError::UnsupportedBounds);
+        }
+        for event in &r.events {
+            let crate::Event::SignatureHit {
+                victim,
+                by,
+                sig,
+                weapon,
+                amount,
+            } = *event
+            else {
+                continue;
+            };
+            if sig.is_dot() || (!r.sees(viewer, victim) && by != self.viewer) {
+                continue;
+            }
+            let by = r.sees(viewer, by).then_some(by);
+            let weapon = if by.is_some() { weapon } else { None };
+            let index = if let Some(i) = self
+                .instant
+                .iter()
+                .position(|b| (b.victim, b.by, b.sig) == (victim, by, sig))
+            {
+                i
+            } else {
+                if self.instant.len() == FX_INSTANT_BUCKETS_MAX {
+                    return self.fail(FxError::UnsupportedBounds);
+                }
+                self.instant.push(Bucket {
+                    victim,
+                    by,
+                    sig,
+                    weapon,
+                    sum: ExactSum::default(),
+                });
+                self.instant.len() - 1
+            };
+            if self.instant[index].sum.add(amount).is_err() {
+                return self.fail(FxError::InvalidAmount);
+            }
+        }
         let mut cursor = 0;
         for op in &r.ops {
             match *op {
@@ -163,7 +223,10 @@ impl FxProjector {
                         return self.fail(FxError::InvalidAmount);
                     }
                 }
-                Op::Flush(at) | Op::Reset(at) => {
+                Op::Flush(at) | Op::Reset(at) | Op::InstantFlush(at) => {
+                    if at < cursor || at > r.events.len() {
+                        return self.fail(FxError::UnsupportedBounds);
+                    }
                     crate::observe::filter_events(
                         &r.events[cursor..at],
                         Some(self.viewer),
@@ -171,10 +234,14 @@ impl FxProjector {
                         &mut self.events,
                     );
                     cursor = at;
-                    if matches!(op, Op::Flush(_)) {
-                        self.buckets
-                            .sort_unstable_by_key(|b| (b.victim, b.by, b.sig));
-                        for b in &self.buckets {
+                    if matches!(op, Op::Flush(_) | Op::InstantFlush(_)) {
+                        let buckets = if matches!(op, Op::InstantFlush(_)) {
+                            &mut self.instant
+                        } else {
+                            &mut self.buckets
+                        };
+                        buckets.sort_unstable_by_key(|b| (b.victim, b.by, b.sig));
+                        for b in buckets.iter() {
                             let Ok(amount) = b.sum.rounded() else {
                                 return self.fail(FxError::Overflow);
                             };
@@ -189,7 +256,11 @@ impl FxProjector {
                             }
                         }
                     }
-                    self.buckets.clear();
+                    if matches!(op, Op::InstantFlush(_)) {
+                        self.instant.clear();
+                    } else {
+                        self.buckets.clear();
+                    }
                 }
             }
         }
@@ -199,6 +270,7 @@ impl FxProjector {
             |id| r.sees(viewer, id),
             &mut self.events,
         );
+        self.instant.clear();
         Ok(if gap {
             FeedStatus::Gap
         } else {

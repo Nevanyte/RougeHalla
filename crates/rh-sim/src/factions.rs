@@ -5,7 +5,29 @@ use crate::{PlayerId, WeaponId};
 )]
 pub enum SignatureKind {
     Disease,
+    Burn,
+    Backlash,
 }
+impl SignatureKind {
+    pub const ALL: [Self; 3] = [Self::Disease, Self::Burn, Self::Backlash];
+    pub const fn is_dot(self) -> bool {
+        matches!(self, Self::Disease | Self::Burn)
+    }
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Disease => "disease",
+            Self::Burn => "burn",
+            Self::Backlash => "backlash",
+        }
+    }
+}
+/// Trusted afterWeapons snapshot, before either producer queue is consumed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct PerformedAttack {
+    pub by: PlayerId,
+    pub weapon: WeaponId,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DotBucket {
     pub victim: PlayerId,
@@ -52,6 +74,9 @@ impl From<crate::systems::ledger::Entry> for DamageView {
 impl crate::Sim {
     pub fn faction_runtime(&self) -> &FactionRuntime {
         &self.w.factions
+    }
+    pub fn performed_attacks(&self) -> &[PerformedAttack] {
+        &self.s.performed
     }
     pub fn damage_entries(&self) -> &[DamageView] {
         &self.s.ledger_diagnostics

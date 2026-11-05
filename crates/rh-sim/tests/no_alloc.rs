@@ -60,7 +60,9 @@ fn load(name: &str) -> Scenario {
         spawn_seed: 0,
     };
     let config = SimConfig {
-        faction_mode: if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague/1" {
+        faction_mode: if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague-fire/1" {
+            rh_sim::FactionMode::EngagementHolyPlagueFire
+        } else if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague/1" {
             rh_sim::FactionMode::EngagementHolyPlague
         } else if fx["packet"] == "P-FACTION-1" && fx["parity"] == "slice" {
             rh_sim::FactionMode::EngagementHoly
@@ -292,6 +294,9 @@ fn a_steady_state_step_allocates_nothing() {
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
     for name in [
+        "fire_whiff_thirdparty",
+        "fire_wand_pause",
+        "fire_projectile_requests",
         "plague_thresholds_swap",
         "plague_wand_pause",
         "holy_lifesteal_low_hp",

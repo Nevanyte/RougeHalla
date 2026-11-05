@@ -3,8 +3,10 @@ use std::sync::Arc;
 // Representation limits for the bounded eight-player producer. Checked before copying.
 pub(crate) const FX_REPORT_EVENTS_MAX: usize = 512;
 pub(crate) const FX_REPORT_OPS_MAX: usize = 20;
-pub(crate) const FX_PUBLIC_BUCKETS_MAX: usize = 64;
-pub(crate) const FX_OUTPUT_EVENTS_MAX: usize = FX_REPORT_EVENTS_MAX + 2 * FX_PUBLIC_BUCKETS_MAX;
+pub(crate) const FX_PUBLIC_BUCKETS_MAX: usize = 128;
+pub(crate) const FX_INSTANT_BUCKETS_MAX: usize = 16;
+pub(crate) const FX_OUTPUT_EVENTS_MAX: usize =
+    FX_REPORT_EVENTS_MAX + 2 * FX_PUBLIC_BUCKETS_MAX + FX_INSTANT_BUCKETS_MAX;
 use crate::systems::signatures::LandedHit;
 use crate::{Event, PlayerId, Sim};
 #[derive(Debug)]
@@ -35,6 +37,7 @@ pub(crate) enum Op {
     Contribution(LandedHit),
     Flush(usize),
     Reset(usize),
+    InstantFlush(usize),
 }
 #[derive(Debug, Default)]
 pub(crate) struct TickFx {
@@ -88,8 +91,38 @@ impl Sim {
         r.seen.clear();
         r.ops.clear();
         r.events.clear();
-        r.bounded = self.w.players.len() <= 8
+        r.bounded = self.s.performed_bounded
+            && self.w.players.len() <= 8
             && events.len() <= FX_REPORT_EVENTS_MAX
+            && events
+                .iter()
+                .filter(|e| {
+                    matches!(
+                        e,
+                        Event::SignatureHit {
+                            sig: crate::factions::SignatureKind::Backlash,
+                            ..
+                        }
+                    )
+                })
+                .count()
+                <= FX_INSTANT_BUCKETS_MAX
+            && self
+                .s
+                .fx
+                .ops
+                .iter()
+                .filter(|o| matches!(o, Op::InstantFlush(_)))
+                .count()
+                <= 1
+            && self
+                .s
+                .fx
+                .ops
+                .iter()
+                .filter(|o| matches!(o, Op::Reset(_)))
+                .count()
+                <= 1
             && self.s.fx.ops.len() <= FX_REPORT_OPS_MAX
             && self
                 .s
@@ -126,6 +159,7 @@ impl Sim {
             .extend(self.s.fx.ops.iter().cloned().map(|op| match op {
                 Op::Flush(i) => Op::Flush(i - offset),
                 Op::Reset(i) => Op::Reset(i - offset),
+                Op::InstantFlush(i) => Op::InstantFlush(i - offset),
                 o => o,
             }));
         r.events.extend_from_slice(events);

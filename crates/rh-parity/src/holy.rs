@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 pub(super) fn enabled(fx: &Fixture) -> bool {
     fx.packet.as_deref() == Some("P-FACTION-1")
         && fx.parity == "slice"
-        && fx.legacy_config.rust_slice.as_deref() != Some("player-engagement-holy-plague/1")
+        && !super::plague::enabled(fx)
 }
 pub(super) fn modules_match(fx: &Fixture) -> bool {
     let expected = [

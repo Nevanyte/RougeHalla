@@ -9,6 +9,7 @@
 //! called from anywhere else, and a mechanic packet adds `systems/<mechanic>.rs` plus the flip of its rows.
 
 pub(crate) mod credit;
+pub(crate) mod fire;
 pub(crate) mod heal;
 pub(crate) mod inputs;
 pub(crate) mod items;
@@ -60,6 +61,8 @@ impl Cx<'_> {
 
 /// One fixed step of the phase the match is in (the clock has already advanced).
 pub(crate) fn step(cx: &mut Cx) {
+    cx.s.performed.clear();
+    cx.s.performed_bounded = true;
     match cx.w.phase {
         Phase::Lobby => lobby::update(cx),
         Phase::Active => update_active(cx),

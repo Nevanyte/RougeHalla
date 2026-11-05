@@ -44,11 +44,11 @@ pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
         Event::SignatureHit {
             victim,
             by,
-            sig: _,
+            sig,
             weapon,
             amount,
         } => {
-            json!({"kind":"hit","id":fid(*victim),"by":fid(*by),"sig":"disease","weapon":weapon.map(|w|w.as_str()),"amount":amount})
+            json!({"kind":"hit","id":fid(*victim),"by":fid(*by),"sig":sig.as_str(),"weapon":weapon.map(|w|w.as_str()),"amount":amount})
         }
         Event::Windup { by, weapon, a, ms } => {
             json!({"kind": "windup", "by": fid(*by), "weapon": weapon.as_str(), "a": a, "ms": ms})

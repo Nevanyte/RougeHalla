@@ -63,6 +63,12 @@ jobs:
           cmp parity/plague/ledger-matrix.json "$RUNNER_TEMP/plague-ledger.json"
           node --import tsx tools/plague-fixtures/hidden-history.ts "$RUNNER_TEMP/plague-hidden.json" > "$RUNNER_TEMP/plague-hidden.log"
           cmp parity/plague/hidden-history.json "$RUNNER_TEMP/plague-hidden.json"
+      - name: Fire ledger and hidden-instant proofs still match the actual source
+        run: |
+          node --import tsx tools/fire-fixtures/ledger-matrix.ts "$RUNNER_TEMP/fire-ledger.json"
+          cmp parity/fire/ledger-matrix.json "$RUNNER_TEMP/fire-ledger.json"
+          node --import tsx tools/fire-fixtures/hidden-instant.ts "$RUNNER_TEMP/fire-hidden.json" > "$RUNNER_TEMP/fire-hidden.log"
+          cmp parity/fire/hidden-instant.json "$RUNNER_TEMP/fire-hidden.json"
       - name: Map foundations still match the legacy reference
         run: node --import tsx tools/map-fixtures/foundations.ts --check
       - name: Full map exports still match the legacy reference
@@ -77,6 +83,10 @@ jobs:
         run: node --import tsx tools/map-fixtures/spawns.ts --check
       - name: Elite bushes still match the actual legacy generator
         run: node --import tsx tools/map-fixtures/bushes.ts --check
+      - name: Whole-wall landmark runtime still matches the actual legacy generator
+        run: node --import tsx tools/map-fixtures/landmark-runtime.ts --check
+      - name: Landmark templates and stamps still match the actual legacy generator
+        run: node --import tsx tools/map-fixtures/landmark-templates.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server
