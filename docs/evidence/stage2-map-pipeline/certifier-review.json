@@ -1,0 +1,22 @@
+{
+  "decision": "accepted-bounded-hard-certifier",
+  "unresolvedFindings": 0,
+  "repairedFindings": 5,
+  "ownedManifestSha256": "db35bfb81177bb10af28147d9321fe6f486a7f422259cdd48a743ebdfa3c81d5",
+  "canonicalRuntime": "Linux x64 Node22.23.4",
+  "independentSourceControls": 12,
+  "independentOriginalFaultModeCases": 107,
+  "exactBinary64FixedRows": 11156,
+  "semanticMutantsDetected": 15,
+  "semanticMutantsTotal": 15,
+  "rawDuplicateUnknownFieldRefusals": 5,
+  "malformedRleRefusals": 8,
+  "permanentRegressionArraysChecked": 10,
+  "producerFinalTestsPassed": 9,
+  "fixtureSha256": "600267af8d96cb0078181818d445c93e9848e2f4cfdbbba6f1480ea8dcf13716",
+  "limits": [
+    "160x160 bounded DTO domain",
+    "report-only statistics excluded",
+    "no claim of full Rust generation, pins, performance or gameplay completeness"
+  ]
+}

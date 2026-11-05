@@ -1,0 +1,77 @@
+{
+  "status": "PASS",
+  "base": "de6f1c19",
+  "scope": "complete plain orchestration, independent hard certifier, guarded style runtime, Uint16 crate ownership",
+  "contentHash": "d6a8763491c65535",
+  "formats": {
+    "checkpoint": 14,
+    "replay": 12,
+    "observation": 11,
+    "policy": 8,
+    "wire": 5
+  },
+  "workspaceAllFeaturesLocked": {
+    "suites": 108,
+    "passed": 931,
+    "failed": 0,
+    "ignored": 2,
+    "filtered": 0
+  },
+  "ignored": [
+    "manual heap measurement",
+    "manual Go bridge E2E (passed at preceding external integration, not rerun here)"
+  ],
+  "fmt": true,
+  "clippyAllFeatures": true,
+  "clippyDefaultFeatures": true,
+  "parity": {
+    "compared": 97,
+    "captureOnly": 13,
+    "paths": 300,
+    "allMatch": true
+  },
+  "headlessSmoke": {
+    "matches": 1,
+    "players": 8,
+    "seed": 17,
+    "ticks": 200,
+    "intentionallyTruncated": true,
+    "fullLayerMap": "crates/rh-sim/src/mapdata/fixtures/seed1.map.json",
+    "replaySteps": 200,
+    "verified": true,
+    "contentOverride": false
+  },
+  "canonical": {
+    "runtime": "Linux amd64 Node22.23.4",
+    "cachedImage": "c86ecead9e55",
+    "readonlyRepository": true,
+    "bytechecks": [
+      "certify.ts",
+      "style-runtime.ts",
+      "plain-pipeline.ts",
+      "spots-owner-width.ts"
+    ]
+  },
+  "newAggregatePolicyMutations": 156,
+  "initialGateFailure": "new constant classifications, remaining guard geometry folding and expected content identity needed coordinator integration; corrected and full gate rerun",
+  "logs": {
+    "gate-initial.log": "988054878e942ef565a1b6b5fa52fedcbab7618860ced0443f1ffcf6cb38aa41",
+    "content-registry-repair.log": "8bcde3a00a6c2f4d64e1feeef7c61c90feffe9525bf42521027d70a81d713b54",
+    "content-registry-final.log": "442247270cb7a94c72ebd54aca3e93b1afb7a678936b99fdbd741ab81d6d29c0",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "clippy-all.log": "768303c315dcd6f049664ade793a1dfcb8460c73fbc585687ccb97348ad113c5",
+    "clippy-default.log": "5075bcb81656cefc16775547eaa8017029740439528e3314fac0eed2e5b9664d",
+    "gate.log": "32c949db1780c91ac48075526c23c1047c602ee793e421ef690825fe70f9fdc9",
+    "parity.log": "d7403880ac7cc52691e335d5f21147a42884d4d0638753562c00f5a7c0865770",
+    "canonical-checks.log": "7c2fb056d6cb39e3686334111e1f39adfa2e1c9b2d950aa45e32d9bdf4d41067",
+    "owner-width-canonical.log": "16dc7b365a4564fdafe07de85ab39eb8fd2371037b859d3676cf35b92f165601",
+    "headless.log": "7e48e344b30a4fcb1c24eba29e815b0d7edd697daa306ed4cb6239953c68cd6f",
+    "replay.log": "85c5650a6032d95541418dcf0074cadaed17ae413b82c5187f7642d82ea8928f"
+  },
+  "limits": [
+    "styled faction callbacks/dispatcher and original styled pins remain open",
+    "no full-game parity or performance proof",
+    "no Unity, cloud, DNS or production changes",
+    "no dependency or Cargo.lock change"
+  ]
+}

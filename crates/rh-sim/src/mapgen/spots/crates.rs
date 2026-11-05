@@ -5,7 +5,7 @@ pub struct CrateInput<'a> {
     pub tiles: &'a [u8],
     pub terrain: &'a [u8],
     pub zone: &'a [u8],
-    pub feature_owner: &'a [u8],
+    pub feature_owner: &'a [u16],
     pub features: &'a [MapFeature],
     pub pool: &'a [usize],
     pub camps: &'a [CampSite],
@@ -63,7 +63,10 @@ pub fn weapon_crates(
         camps,
         styled,
     } = input;
-    lengths(&[tiles, terrain, zone, feature_owner, &fixed.ring])?;
+    lengths(&[tiles, terrain, zone, &fixed.ring])?;
+    if feature_owner.len() != N {
+        return Err(Error::Length);
+    }
     indices(pool)?;
     if zone.iter().any(|&z| z as usize > ZONES) {
         return Err(Error::Index);

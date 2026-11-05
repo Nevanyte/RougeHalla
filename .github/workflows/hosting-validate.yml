@@ -1,10 +1,16 @@
-# Manual only. Validates the prepared hosting infrastructure and the fleet scripts with NO cloud access and NO secrets:
+# Validates the prepared hosting infrastructure and the fleet scripts with NO cloud access and NO secrets:
 # cfn-lint and parliament in a pinned image, the scaling-policy unit tests, and the teardown/verify/rollout script tests against a
 # stub `aws`. It never deploys anything (docs/hosting/DEPLOYMENT.md section 4).
 name: Hosting validate
 
 on:
   workflow_dispatch:
+  push:
+    branches: [optimization_port]
+    paths: ["hosting/**", "crates/rh-placement/**", ".github/workflows/hosting-validate.yml"]
+  pull_request:
+    branches: [optimization_port]
+    paths: ["hosting/**", "crates/rh-placement/**", ".github/workflows/hosting-validate.yml"]
 
 permissions:
   contents: read

@@ -599,6 +599,54 @@ pub fn content_hash_of_terrain_gate_definition(
     )
 }
 
+/// The independent hard-certifier thresholds are part of generator content identity.
+pub fn content_hash_of_certify_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::certify::rules::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            certify: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Stage-six guards, transactions and stream selection share the execution policy.
+pub fn content_hash_of_style_runtime_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::style_runtime::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            style_runtime: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Bounded complete-plain orchestration uses these same retry and feature limits.
+pub fn content_hash_of_pipeline_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::pipeline::Definition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            pipeline: definition,
+            ..Default::default()
+        },
+    )
+}
+
 /// Camp/crate/ground placement consumes the same borrowed definition visited here.
 pub fn content_hash_of_spot_definition(
     registry: &[Entry],
@@ -675,6 +723,9 @@ struct MapDefinitions<'rules, 'pillars> {
     recipes: crate::mapgen::landmarks::recipes::Definitions<'pillars>,
     records: &'rules crate::mapgen::records::Definition<'pillars>,
     terrain_gate: &'rules crate::mapgen::terrain_gate::TerrainGateDefinition<'pillars>,
+    pipeline: &'rules crate::mapgen::pipeline::Definition,
+    certify: &'rules crate::mapgen::certify::rules::Definition,
+    style_runtime: &'rules crate::mapgen::style_runtime::Definition,
     spots: &'rules crate::mapgen::spots::Definition,
     tail: &'rules crate::mapgen::tail::Definition,
     repair: crate::mapgen::repair::Definition<'pillars>,
@@ -695,6 +746,9 @@ impl Default for MapDefinitions<'_, '_> {
             recipes: crate::mapgen::landmarks::recipes::default_definitions(),
             records: &crate::mapgen::records::DEFAULT_DEFINITION,
             terrain_gate: &crate::mapgen::terrain_gate::DEFAULT_DEFINITION,
+            pipeline: &crate::mapgen::pipeline::DEFAULT_DEFINITION,
+            certify: &crate::mapgen::certify::rules::R,
+            style_runtime: &crate::mapgen::style_runtime::DEFAULT_DEFINITION,
             spots: &crate::mapgen::spots::DEFAULT_DEFINITION,
             tail: &crate::mapgen::tail::DEFAULT_DEFINITION,
             repair: crate::mapgen::repair::default_definition(
@@ -732,6 +786,9 @@ fn content_hash_of_definitions(
         recipes,
         records,
         terrain_gate,
+        pipeline,
+        certify,
+        style_runtime,
         spots,
         tail,
         repair,
@@ -787,6 +844,20 @@ fn content_hash_of_definitions(
 
     h.str("mapgen/terrain-gate/1");
     crate::mapgen::terrain_gate::visit_content(terrain_gate, |word| h.u64(word));
+
+    h.str("mapgen/plain-pipeline/1");
+    crate::mapgen::pipeline::visit_content(pipeline, |word| h.u64(word));
+
+    h.str("mapgen/hard-certifier/1");
+    crate::mapgen::certify::rules::visit_definition(certify, |word| h.u64(word));
+    h.str("mapgen/style-runtime/1");
+    crate::mapgen::style_runtime::visit_content(style_runtime, |word| h.u64(word));
+    h.u64(crate::mapgen::style_runtime::MAX_CELLS as u64);
+    h.u64(crate::mapgen::style_runtime::DIAMOND2.len() as u64);
+    for (dx, dy) in crate::mapgen::style_runtime::DIAMOND2 {
+        h.u64(dx as u64);
+        h.u64(dy as u64);
+    }
 
     h.str("mapgen/spots/1");
     crate::mapgen::spots::visit_content(spots, |word| h.u64(word));

@@ -114,7 +114,11 @@ fn terrain_gate_identity_covers_all_ordered_tables_and_thresholds() {
         } = *kind;
     }
     for prop in base.props {
-        let terrain_gate::PropKind { key: _, on: _ } = *prop;
+        let terrain_gate::PropKind {
+            key: _,
+            on: _,
+            home: _,
+        } = *prop;
     }
 
     for index in 0..base.kinds.len() {
@@ -205,6 +209,29 @@ fn terrain_gate_identity_covers_all_ordered_tables_and_thresholds() {
             ..base
         };
         assert_terrain_changed(baseline, &d, &format!("prop {index} on"));
+
+        props[index] = terrain_gate::PropKind {
+            home: None,
+            ..original
+        };
+        let d = terrain_gate::TerrainGateDefinition {
+            props: &props,
+            ..base
+        };
+        assert_terrain_changed(baseline, &d, &format!("prop {index} home"));
+        props[index] = terrain_gate::PropKind {
+            home: Some(if original.home == Some(Zone::Fire) {
+                Zone::Holy
+            } else {
+                Zone::Fire
+            }),
+            ..original
+        };
+        let d = terrain_gate::TerrainGateDefinition {
+            props: &props,
+            ..base
+        };
+        assert_terrain_changed(baseline, &d, &format!("prop {index} home identity"));
     }
     {
         let mut props = base.props.to_vec();

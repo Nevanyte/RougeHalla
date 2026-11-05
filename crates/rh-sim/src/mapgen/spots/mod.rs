@@ -171,3 +171,6 @@ fn open3(tiles: &[u8], i: usize) -> bool {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod owner_width_tests;

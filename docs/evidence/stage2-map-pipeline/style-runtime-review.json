@@ -1,0 +1,22 @@
+{
+  "status": "bounded-accept",
+  "frozenManifestSha256": "d0f6a97bb1d76b6e59fbbfbd845f75999d5b7f4bd9ac4ec5f30b7d477ea5e9db",
+  "ownedFiles": 10,
+  "canonicalRuntime": [
+    "v22.23.4",
+    "linux",
+    "x64"
+  ],
+  "sourceHashesVerified": 75,
+  "freshCases": 19,
+  "freshFullStateCalls": 661,
+  "bitExactNoiseControls": 768,
+  "copiedNativeTestsPassed": 7,
+  "capturedEvents": 285680,
+  "extraCorruptionAttacks": 24,
+  "independentSemanticMutantsDetected": 17,
+  "mutantCorpusCalls": 661,
+  "unresolvedRuntimeFindings": [],
+  "integrationSeam": "Coordinator adds home to sole shared PropKind and content visitor; current runtime borrows aligned homes.",
+  "scope": "Guarded stage-six runtime, transactions, routes, surface/props, connectivity. Not five callbacks, geometry/search toolkit, dispatcher, complete generator or styled pins."
+}

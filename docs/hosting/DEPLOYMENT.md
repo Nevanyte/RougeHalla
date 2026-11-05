@@ -111,7 +111,7 @@ workflows cannot be triggered automatically. No DNS, no Cloudflare, no `deploy.y
 
 ## 4. Workflows
 
-`.github/workflows/hosting-validate.yml` (manual `workflow_dispatch`, no secrets): runs the template/IAM validation, the policy unit tests and the
+`.github/workflows/hosting-validate.yml` (manual dispatch plus relevant `optimization_port` pushes/PRs, no secrets): runs the template/IAM validation, probe/DNS/scaling/ownership regression checks and the
 AWS-script tests (stub `aws`). `.github/workflows/hosting-fleet-deploy.yml` (manual `workflow_dispatch` only): `plan` (change set, nothing
 executed) is the default; `deploy` needs the typed confirmation `I-HAVE-OWNER-APPROVAL`, a protected GitHub environment and an OIDC role
 **variable** (`AWS_DEPLOY_ROLE_ARN`, not a secret); no secret is stored in any file. Teardown is deliberately not a workflow mode: it runs from the owner's

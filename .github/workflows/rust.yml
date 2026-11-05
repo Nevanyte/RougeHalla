@@ -119,6 +119,8 @@ jobs:
         run: node --import tsx tools/map-fixtures/records.ts --check
       - name: Camp crate and ground placement still match the actual generator
         run: node --import tsx tools/map-fixtures/spots.ts --check
+      - name: Crate ownership preserves source Uint16 IDs
+        run: node --import tsx tools/map-fixtures/spots-owner-width.ts --check
       - name: Safety nets and territory repair still match the actual generator
         run: node --import tsx tools/map-fixtures/repair.ts --check
       - name: Terrain cleanup loot decor and final shape gate still match the actual generator
@@ -127,6 +129,12 @@ jobs:
         run: node --import tsx tools/map-fixtures/terrain-gate.ts --check
       - name: Exact map hash and Number strings still match the actual source
         run: node --import tsx tools/map-fixtures/map-hash.ts --check
+      - name: Independent hard-map certificate still matches the actual source
+        run: node --import tsx tools/map-fixtures/certify.ts --check
+      - name: Stage-six guarded runtime still matches the actual source
+        run: node --import tsx tools/map-fixtures/style-runtime.ts --check
+      - name: Complete plain pipeline and original pins still match the actual source
+        run: node --import tsx tools/map-fixtures/plain-pipeline.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

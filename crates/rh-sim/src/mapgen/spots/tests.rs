@@ -2,6 +2,7 @@ use super::*;
 use crate::rng::Mulberry32;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
+static EMPTY_OWNER: [u16; N] = [0; N];
 fn fixture() -> Value {
     serde_json::from_str(include_str!("../fixtures/map-spots.json")).unwrap()
 }
@@ -110,7 +111,7 @@ fn exact_actual_operations_and_rng_inventory() {
         let tiles = val::<Vec<u8>>(&i["tiles"]);
         let terrain = val::<Vec<u8>>(&i["terrain"]);
         let zone = val::<Vec<u8>>(&i["zone"]);
-        let owner = val::<Vec<u8>>(&i["featureOwner"]);
+        let owner = val::<Vec<u16>>(&i["featureOwner"]);
         let features = val::<Vec<MapFeature>>(&i["features"]);
         let pool = val::<Vec<usize>>(&i["pool"]);
         let camps = val::<Vec<CampSite>>(&i["camps"]);
@@ -351,7 +352,7 @@ fn explicit_synthetic_fallback_and_refusals_preserve_draws() {
                     tiles: &tiles,
                     terrain: &empty,
                     zone: &zone,
-                    feature_owner: &empty,
+                    feature_owner: &EMPTY_OWNER,
                     features: &[],
                     pool: &[],
                     camps: &[],
@@ -448,7 +449,7 @@ fn malformed_admission_draws_nothing() {
                 tiles: &[],
                 terrain: &empty,
                 zone: &empty,
-                feature_owner: &empty,
+                feature_owner: &EMPTY_OWNER,
                 features: &[],
                 pool: &[],
                 camps: &[],
@@ -544,7 +545,7 @@ fn definitions_drive_behavior_and_every_word() {
             tiles: &tiles,
             terrain: &empty,
             zone: &zone,
-            feature_owner: &empty,
+            feature_owner: &EMPTY_OWNER,
             features: &[],
             pool: &[],
             camps: &[],
@@ -616,7 +617,7 @@ fn malformed_crate_gap_is_refused_before_any_draw_or_camp_mutation() {
                     tiles: &empty,
                     terrain: &empty,
                     zone: &zone,
-                    feature_owner: &empty,
+                    feature_owner: &EMPTY_OWNER,
                     features: &[],
                     pool: &[],
                     camps: &[],

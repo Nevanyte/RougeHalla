@@ -1,0 +1,100 @@
+{
+  "disposition": "ACCEPT frozen six-file pure plain pipeline handoff; no blocking defect found in bounded review",
+  "manifestSha256": "86118aa94e5e82ae57efbd856eccac0b7fa466c27d77d9bcaf7a26b1945a2061",
+  "manifestTextSha256": "63b80fbff408f10d770992a02f52730af641ba4ad5839cc3944f911cdcd5889d",
+  "acceptedFiles": [
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/README.md",
+      "sha256": "470d12a15ec5c5d888408beadb90a81c43b5a96dce2da415fb1eb078a9bc7c2c",
+      "bytes": 4185
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/mod.rs",
+      "sha256": "8a69c1928b336de63c5bea3339cc405fa6aea67f1c5d0b249bc1c58892c57e99",
+      "bytes": 19766
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/rules.rs",
+      "sha256": "565bee05a969c417120ea041eb0e0645df13152d200ae9e73f50f5d841276944",
+      "bytes": 617
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/pipeline/tests.rs",
+      "sha256": "2f5e67eb1b0dedc21f8c514410f8e252898c81d4dcf3580be58e114aea5d47e2",
+      "bytes": 11532
+    },
+    {
+      "path": "tools/map-fixtures/plain-pipeline.ts",
+      "sha256": "0adc6f31b9d990e3eb36ddf6cb1ba86d1ab62c08b96be0eb24a5c8ab89aeb925",
+      "bytes": 6865
+    },
+    {
+      "path": "crates/rh-sim/src/mapgen/fixtures/map-plain-pipeline.json",
+      "sha256": "16fb176897d1b08e7efde285a09eb7295ae8ff5c8c326d964f04c2a24e5c021e",
+      "bytes": 11326170
+    }
+  ],
+  "source": {
+    "canonicalRuntime": "Linux amd64 Node22.23.4",
+    "cachedDockerImage": "c86ecead9e55",
+    "freshByteCheckExitCode": 0,
+    "fixtureBytes": 11326170,
+    "sourceInventoryFiles": 75,
+    "originalPinFileSha256": "cc1e7c0682f9426ecef97c8b4e8df70c307319456a0b64562d171074410d1d45"
+  },
+  "baseline": {
+    "testsPassed": 5,
+    "originalPinsAndCompleteMaps": 200,
+    "hardCertificates": 400,
+    "phaseContinuations": 120
+  },
+  "independent": {
+    "attempts": 49,
+    "completeMaps": 48,
+    "nulls": 1,
+    "phaseContinuations": 384,
+    "hardCertificates": 90,
+    "untracedRepeats": 49,
+    "sourceSemanticControls": 6,
+    "rustSemanticMutants": [
+      {
+        "name": "omit-original-pool5",
+        "exitCode": 101,
+        "assertionKilled": true
+      },
+      {
+        "name": "omit-loot-bush-avoidance",
+        "exitCode": 101,
+        "assertionKilled": true
+      }
+    ],
+    "probeTestPassed": true,
+    "deliveryFmtPassed": true
+  },
+  "integrationConditions": [
+    "Register pipeline and separately frozen certifier modules",
+    "Fold all three orchestration definition words into content identity",
+    "Coordinator-owned spots ownership widening and high-ID source control must be verified at integrated revision"
+  ],
+  "limits": [
+    "plain styleZones:null only with actual landmarks and default bushes",
+    "bounded inventories, not complete styled generator or full-game parity",
+    "no performance or quiet benchmark claim",
+    "no live writes, pins or lock edits by reviewer"
+  ],
+  "evidence": {
+    "out/baseline-tests.log": "956ce4156034f22a1ecb1ff3fc263900d8d052c6d0c369449ffae410b1b23126",
+    "out/certifier-identity.json": "57430f0af8780dfbbbc27403287db0a6a95cfa6af29b92f08a43d2e231d0b008",
+    "out/fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "out/identity.json": "e705c21faffab1fecf2d11452fa64c575a1e7d38a2bfcfef535c6855eb17abdd",
+    "out/independent-cases.json": "fbbd0259090861f614cd217bbb5a27a52f0f0e9d7a6a015409b379ff6978a25f",
+    "out/independent-controls.json": "a4cc6d84c9b582d8f994582baecba69f9163d3e628c8854391e74a7f7b11bcf9",
+    "out/inventory.json": "faabb169bde550b70f1576c18b4bc5bcd270443374846b0759d502818f776968",
+    "out/mutant-omit-loot-bush-avoidance.log": "7360a6698b861337d3198d80c5cfcee691251163cc5d45f3fb015a288989c029",
+    "out/mutant-omit-original-pool5.log": "a603945c7b1aaef8b74a0ebbebe9218c59b481cc76047fff3ac8a6b6d60ff5d6",
+    "out/npm.log": "6c2dc3d27bbc0e13ee6ee69d8827fbc071c7ecd0451fcf40bb3c3a1d291a71ae",
+    "out/probe-build.log": "9f450f94f11625b68e69168c3ea18e17cd08fd525fd647857a49598bde9f20aa",
+    "out/probe-tests.log": "fa5a41c5494f7f3691bb378cbf0c7fdd2f131f73b293a8dbae194878aec36267",
+    "out/source.log": "c4e65a32c9c11140cd145adcedeec7c2df70950390c53e5bdea8d004d9718bd6"
+  }
+}

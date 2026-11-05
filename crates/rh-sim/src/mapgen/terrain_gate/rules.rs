@@ -1,6 +1,7 @@
 //! Generator acceptance data only. Physical classes, movement mask, tile scale and snap radius
 //! reuse the existing content identity. Gameplay surface effects belong to a later packet.
 use crate::map::{TILE_FLOOR, TILE_LOW, TILE_WALL};
+use crate::mapdata::Zone;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TerrainKind {
     pub key: &'static str,
@@ -11,6 +12,7 @@ pub struct TerrainKind {
 pub struct PropKind<'a> {
     pub key: &'a str,
     pub on: u8,
+    pub home: Option<Zone>,
 }
 #[derive(Clone, Copy, Debug)]
 pub struct TerrainGateDefinition<'a> {
@@ -79,138 +81,172 @@ pub const PROPS: [PropKind<'static>; 34] = [
     PropKind {
         key: "ember_vent",
         on: TILE_FLOOR,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "glow_crack",
         on: TILE_WALL,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "basalt_shard",
         on: TILE_WALL,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "ash_drift",
         on: TILE_FLOOR,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "banner",
         on: TILE_WALL,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "chain",
         on: TILE_LOW,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "gallows",
         on: TILE_WALL,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "cell_bars",
         on: TILE_WALL,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "lantern",
         on: TILE_FLOOR,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "fungus_cap",
         on: TILE_WALL,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "bubble",
         on: TILE_FLOOR,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "drip",
         on: TILE_WALL,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "pipe",
         on: TILE_WALL,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "ice_spire",
         on: TILE_WALL,
+        home: Some(Zone::Frost),
     },
     PropKind {
         key: "snow_drift",
         on: TILE_FLOOR,
+        home: Some(Zone::Frost),
     },
     PropKind {
         key: "frost_sparkle",
         on: TILE_FLOOR,
+        home: Some(Zone::Frost),
     },
     PropKind {
         key: "icicle",
         on: TILE_WALL,
+        home: Some(Zone::Frost),
     },
     PropKind {
         key: "column_cap",
         on: TILE_WALL,
+        home: Some(Zone::Holy),
     },
     PropKind {
         key: "banner_red",
         on: TILE_WALL,
+        home: Some(Zone::Holy),
     },
     PropKind {
         key: "candelabra",
         on: TILE_FLOOR,
+        home: Some(Zone::Holy),
     },
     PropKind {
         key: "rubble",
         on: TILE_FLOOR,
+        home: Some(Zone::Holy),
     },
     PropKind {
         key: "stained_glass",
         on: TILE_FLOOR,
+        home: Some(Zone::Holy),
     },
     PropKind {
         key: "crater_lip",
         on: TILE_WALL,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "anvil",
         on: TILE_FLOOR,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "slag_heap",
         on: TILE_FLOOR,
+        home: Some(Zone::Fire),
     },
     PropKind {
         key: "gate_post",
         on: TILE_LOW,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "stocks",
         on: TILE_FLOOR,
+        home: Some(Zone::Sentenced),
     },
     PropKind {
         key: "tunnel_beam",
         on: TILE_WALL,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "burrow_rubble",
         on: TILE_FLOOR,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "reed",
         on: TILE_FLOOR,
+        home: Some(Zone::Plague),
     },
     PropKind {
         key: "tower_frost",
         on: TILE_WALL,
+        home: Some(Zone::Frost),
     },
     PropKind {
         key: "ice_crack",
         on: TILE_FLOOR,
+        home: Some(Zone::Frost),
     },
     PropKind {
         key: "altar",
         on: TILE_FLOOR,
+        home: Some(Zone::Holy),
     },
     PropKind {
         key: "brazier",
         on: TILE_FLOOR,
+        home: Some(Zone::Holy),
     },
 ];
 pub const DEFAULT_DEFINITION: TerrainGateDefinition<'static> = TerrainGateDefinition {
@@ -242,6 +278,7 @@ pub fn visit_content(d: &TerrainGateDefinition<'_>, mut word: impl FnMut(u64)) {
             word(u64::from(b));
         }
         word(u64::from(p.on));
+        word(p.home.map_or(256, |home| u64::from(home.code())));
     }
     word(u64::from(d.ice));
     word(d.spawn_hazard_half as u64);

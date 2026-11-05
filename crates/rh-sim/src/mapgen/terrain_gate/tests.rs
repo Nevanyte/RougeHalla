@@ -81,6 +81,7 @@ fn actual_source_ordered_problems() {
                     PropKind {
                         key: &p.key,
                         on: p.on,
+                        home: None,
                     }
                 })
                 .collect::<Vec<_>>()

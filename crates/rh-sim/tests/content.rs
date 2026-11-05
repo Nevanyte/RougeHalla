@@ -28,6 +28,14 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/certify/labels.rs", "LABELS", "human-readable ordered diagnostic wording; numbers in descriptions are never decision thresholds; exact source diagnostic fixtures cover every label"),
+    ("mapgen/certify/review_expected.rs", "EXPECTED", "cfg(test)-only independently captured expected failure arrays, never read by runtime decisions"),
+    ("mapgen/certify/terrain.rs", "KEYS", "terrain names used only in diagnostic messages, not terrain acceptance decisions"),
+    ("mapgen/certify/terrain.rs", "PROP_KEYS", "prop names used only in diagnostic messages, not prop acceptance decisions"),
+    ("mapgen/spots/tests.rs", "EMPTY_OWNER", "cfg(test)-only all-zero ownership input for malformed and synthetic crate fixtures"),
+    ("mapgen/style_runtime/tests.rs", "OPERATIONS", "cfg(test)-only transcript operation-name inventory; protects fixtures without driving runtime rules"),
+    ("mapgen/style_runtime/tests.rs", "ARRAYS", "cfg(test)-only names of compared scratch/layer fields; never runtime tuning"),
+
     ("mapgen/landmarks/recipes/direct_family/tests.rs", "TRACE", "cfg(test)-only observational transcript storage; not present in production and never drives recipe decisions"),
     ("mapgen/landmarks/recipes/direct_family/tests.rs", "SOURCE_INVENTORY", "cfg(test)-only exact reference-source path/SHA inventory; validates evidence, never drives runtime rules"),
     ("mapgen/landmarks/recipes/direct_family/tests.rs", "CASE_INVENTORY", "cfg(test)-only exact reference-case identity/state-count inventory; not runtime tuning"),
@@ -95,10 +103,23 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("mapgen/certify/rules.rs", "R", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "TERRAIN", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "PROP_CLASSES", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "KINDS", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "PATH_HAZARDS", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "ZONES", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "WEAPONS", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/certify/rules.rs", "LANDMARKS", "independent hard-check runtime definition/table folded by certify::rules::visit_definition into content_hash"),
+    ("mapgen/pipeline/rules.rs", "DEFAULT_DEFINITION", "actual plain orchestration retry/feature limits folded by content_hash_of_pipeline_definition"),
+    ("mapgen/style_runtime/rules.rs", "DEFAULT_DEFINITION", "all sixteen guarded-runtime/stream/route policies folded by content_hash_of_style_runtime_definition"),
+    ("mapgen/style_runtime/mod.rs", "MAX_CELLS", "shared route-index representation/admission bound folded directly by content_hash"),
+    ("mapgen/style_runtime/mod.rs", "DIAMOND2", "actual LOW support/release neighborhood coordinates folded directly by content_hash"),
+
     ("mapgen/records/rules.rs", "DEFAULT_DEFINITION", "canonical faction/weapon policy and ICE identity are live inputs folded by content_hash_of_records_definition"),
     ("mapgen/terrain_gate/rules.rs", "DEFAULT_DEFINITION", "terrain acceptance tables and halo distances are live inputs folded by content_hash_of_terrain_gate_definition"),
     ("mapgen/terrain_gate/rules.rs", "KINDS", "default terrain key/class/home rows are traversed by the actual terrain acceptance definition and content visitor"),
-    ("mapgen/terrain_gate/rules.rs", "PROPS", "default prop key/class rows are traversed by the actual terrain acceptance definition and content visitor"),
+    ("mapgen/terrain_gate/rules.rs", "PROPS", "default prop key/class/home rows are traversed by the actual terrain acceptance definition and content visitor"),
     ("mapgen/terrain_gate/rules.rs", "GENERATOR_TILE_CLASSES", "derived from the sole KINDS table and folded through the live repair definition"),
     ("mapgen/spots/rules.rs", "DEFAULT_DEFINITION", "live camp/crate/ground placement tuning is traversed by content_hash_of_spot_definition"),
     ("mapgen/tail/mod.rs", "DEFAULT_DEFINITION", "final wall-piece admission and loot exclusion tuning is traversed by content_hash_of_tail_definition"),
@@ -373,7 +394,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xa35c_49ba_5c73_e88b;
+const GOLDEN_CONTENT_HASH: u64 = 0xd6a8_7634_91c6_5535;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

@@ -1,0 +1,575 @@
+//! The actual thirteen-stage attempt, currently exposed only with stage-six styling disabled.
+//! Default faction landmarks and elite bushes remain enabled. No I/O, clock, entropy or global cache.
+use super::{
+    attempt, bushes,
+    coliseum::{FixedLayout, CX, CY, H, W},
+    landmarks::{recipes, stage},
+    records, repair, spawns, spots, tail, terrain_gate, zones,
+};
+use crate::constants::{PLAYER_RADIUS, TILE};
+use crate::map::TileMap;
+use crate::mapdata::{GameMapData, MapProp, WorldPt, Zone};
+use crate::math::Vec2;
+use crate::pathfind::Pathfinder;
+use crate::rng::Mulberry32;
+mod rules;
+pub use rules::{default_definition, visit_content, Definition, DEFAULT_DEFINITION};
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Options {
+    pub decor: bool,
+    pub shape_gates: bool,
+    pub bushes: bool,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            decor: true,
+            shape_gates: true,
+            bushes: true,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Phase {
+    Prefix,
+    Landmarks,
+    Spawns,
+    Nets,
+    Crates,
+    Post,
+    Terrain,
+    Ground,
+    Bushes,
+    SpawnGate,
+    Records,
+    Gates,
+}
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Trace {
+    pub phase: Phase,
+    pub continuation: [u32; 4],
+    pub pool: Vec<usize>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Refusal {
+    Prefix,
+    Landmarks,
+    SpawnPool,
+    Repair(repair::Refusal),
+    Crates,
+    Ground,
+    SpawnWalk,
+    SpawnRatio,
+    Features,
+    Shape(String),
+    Terrain,
+}
+#[derive(Debug)]
+pub enum Error {
+    Input(attempt::AttemptInputError),
+    Definition,
+    Leaf(&'static str),
+    AttemptRefused(Refusal),
+    Exhausted,
+}
+#[derive(Debug)]
+pub struct AttemptReport {
+    pub map: Option<GameMapData>,
+    pub refusal: Option<Refusal>,
+}
+impl AttemptReport {
+    fn refused(why: Refusal) -> Self {
+        Self {
+            map: None,
+            refusal: Some(why),
+        }
+    }
+}
+/// Immutable derived contexts and parsed recipes are reused by every attempt. The fixed layout is caller-owned.
+pub struct Pipeline<'f> {
+    fixed: &'f FixedLayout,
+    prefix: attempt::AttemptContext<'f>,
+    landmarks: stage::StageContext<'f>,
+    spawns: spawns::SpawnContext<'f>,
+    zones: zones::ZoneContext<'f>,
+    recipes: recipes::Recipes<'static>,
+    shared: stage::Definitions<'static>,
+    limits: Definition,
+    spots: spots::Definition,
+    bushes: bushes::BushDefinition,
+    tail: tail::Definition,
+    terrain: terrain_gate::TerrainGateDefinition<'static>,
+    records: records::Definition<'static>,
+    terrain_on: Vec<Option<u8>>,
+}
+impl<'f> Pipeline<'f> {
+    pub fn new(fixed: &'f FixedLayout) -> Self {
+        Self::from_definition(fixed, &default_definition()).expect("default orchestration bounds")
+    }
+    pub fn from_definition(fixed: &'f FixedLayout, d: &Definition) -> Result<Self, Error> {
+        if d.certified_attempts == 0
+            || d.certified_attempts > d.generate_attempts
+            || d.generate_attempts > 64
+            || d.features_max > u16::MAX as usize
+        {
+            return Err(Error::Definition);
+        }
+        let shared = stage::Definitions::default();
+        let terrain = terrain_gate::default_definition();
+        Ok(Self {
+            fixed,
+            prefix: attempt::AttemptContext::from_definitions(
+                fixed,
+                &attempt::default_definition(),
+                &shared.zones,
+                &shared.camps,
+            ),
+            landmarks: stage::StageContext::from_definitions(fixed, &shared),
+            spawns: spawns::SpawnContext::from_definitions(
+                fixed,
+                &shared.spawns,
+                &shared.fixed,
+                &shared.zones,
+                &shared.camps,
+            ),
+            zones: zones::ZoneContext::from_definition(fixed, &shared.zones),
+            recipes: recipes::Recipes::default(),
+            shared,
+            limits: *d,
+            spots: spots::default_definition(),
+            bushes: bushes::default_definition(),
+            tail: tail::default_definition(),
+            terrain,
+            records: records::default_definition(),
+            terrain_on: terrain.kinds.iter().map(|k| k.tile).collect(),
+        })
+    }
+    pub fn plain_attempt(
+        &self,
+        seed: i64,
+        number: u64,
+        options: Options,
+    ) -> Result<Option<GameMapData>, Error> {
+        Ok(self
+            .build_attempt(seed, number, options, &mut |_, _, _| {})?
+            .map)
+    }
+    pub fn plain_attempt_with_trace(
+        &self,
+        seed: i64,
+        number: u64,
+        options: Options,
+    ) -> Result<(AttemptReport, Vec<Trace>), Error> {
+        let mut trace = Vec::new();
+        let report = self.build_attempt(seed, number, options, &mut |phase, rng, pool| {
+            let mut next = rng.clone();
+            trace.push(Trace {
+                phase,
+                continuation: core::array::from_fn(|_| next.next_u32()),
+                pool: pool.to_vec(),
+            });
+        })?;
+        Ok((report, trace))
+    }
+    pub fn certified_plain(
+        &self,
+        seed: i64,
+        options: Options,
+    ) -> Result<Option<GameMapData>, Error> {
+        self.first_plain(seed, self.limits.certified_attempts, options)
+    }
+    pub fn generate_plain(
+        &self,
+        seed: i64,
+        number: Option<u64>,
+        options: Options,
+    ) -> Result<GameMapData, Error> {
+        if let Some(n) = number {
+            let report = self.build_attempt(seed, n, options, &mut |_, _, _| {})?;
+            return report
+                .map
+                .ok_or_else(|| Error::AttemptRefused(report.refusal.expect("refused attempt")));
+        }
+        self.first_plain(seed, self.limits.generate_attempts, options)?
+            .ok_or(Error::Exhausted)
+    }
+    fn first_plain(
+        &self,
+        seed: i64,
+        limit: u64,
+        options: Options,
+    ) -> Result<Option<GameMapData>, Error> {
+        first_attempt(limit, |n| self.plain_attempt(seed, n, options))
+    }
+    // One orchestrator owns the stage order. Future checked styling belongs at stage six below;
+    // it must use this same continuation, original pool masks and tail rather than another pipeline.
+    fn build_attempt(
+        &self,
+        seed: i64,
+        number: u64,
+        options: Options,
+        observe: &mut impl FnMut(Phase, &Mulberry32, &[usize]),
+    ) -> Result<AttemptReport, Error> {
+        let Some(mut frame) =
+            attempt::begin_attempt(&self.prefix, seed, number).map_err(Error::Input)?
+        else {
+            return Ok(AttemptReport::refused(Refusal::Prefix));
+        };
+        observe(Phase::Prefix, &frame.rng, &[]);
+        let Some(landmark) = self
+            .landmarks
+            .apply(&frame, &self.recipes)
+            .map_err(Error::Input)?
+        else {
+            return Ok(AttemptReport::refused(Refusal::Landmarks));
+        };
+        observe(Phase::Landmarks, &frame.rng, &[]);
+        let prefix = &frame.state;
+        let mut camps = prefix.layout.camps.clone();
+        let order: Vec<Zone> = prefix
+            .order
+            .iter()
+            .map(|f| match f {
+                crate::content::FactionId::Fire => Zone::Fire,
+                crate::content::FactionId::Sentenced => Zone::Sentenced,
+                crate::content::FactionId::Plague => Zone::Plague,
+                crate::content::FactionId::Frost => Zone::Frost,
+                crate::content::FactionId::Holy => Zone::Holy,
+            })
+            .collect();
+        let mut state = repair::State {
+            tiles: landmark.state.tiles,
+            terrain: vec![0; W * H],
+            zone: prefix.partition.zone.clone(),
+            territory_grid: prefix.layout.territory_grid.clone(),
+            region_grid: vec![0; W * H],
+            feature_owner: landmark.state.feature_owner,
+            features: landmark.state.features,
+        };
+        let picked = spawns::prepare_and_pick(
+            &self.spawns,
+            &spawns::PoolInput {
+                tiles: &state.tiles,
+                zone: &state.zone,
+                landmark_near1: &landmark.masks.near1,
+                camps: &camps,
+            },
+            &mut || frame.rng.next_f64(),
+        );
+        let Some(picked) = picked else {
+            return Ok(AttemptReport::refused(Refusal::SpawnPool));
+        };
+        let pool = picked.pool;
+        observe(Phase::Spawns, &frame.rng, &pool);
+        let protect = self.spawns.style_protect(
+            &camps,
+            &landmark.masks.near1,
+            &state.feature_owner,
+            &picked.protection.halo,
+        );
+        // Stage six: plain means exactly styleZones:null. All earlier/later stages are unchanged.
+        let mut props: Vec<MapProp> = Vec::new();
+        let empty = vec![Vec::new(); zones::ZONES];
+        let input = repair::Input {
+            styled: false,
+            order: &order,
+            camps: &camps,
+            clearing: &prefix.clearing,
+            pool: &pool,
+            protect: &protect,
+            landmark_box: &landmark.masks.boxes,
+            crates_by_zone: &empty,
+            buildings: &landmark.buildings,
+        };
+        let rd = repair::default_definition(&terrain_gate::GENERATOR_TILE_CLASSES);
+        let nets = match repair::safety_nets(&rd, self.fixed, &mut state, &input)
+            .map_err(|_| Error::Leaf("safety nets admission"))?
+        {
+            Ok(v) => v,
+            Err(r) => return Ok(AttemptReport::refused(Refusal::Repair(r))),
+        };
+        observe(Phase::Nets, &frame.rng, &pool);
+        spots::camp_spots(
+            &self.zones,
+            &mut camps,
+            &mut || frame.rng.next_f64(),
+            &self.spots,
+        )
+        .map_err(|_| Error::Leaf("camp spots admission"))?;
+        let crates = spots::weapon_crates(
+            spots::CrateInput {
+                fixed: self.fixed,
+                tiles: &state.tiles,
+                terrain: &state.terrain,
+                zone: &state.zone,
+                feature_owner: &state.feature_owner,
+                features: &state.features,
+                pool: &pool,
+                camps: &camps,
+                styled: false,
+            },
+            &mut || frame.rng.next_f64(),
+            &self.spots,
+        )
+        .map_err(|_| Error::Leaf("crates admission"))?;
+        if crates.refusal.is_some() {
+            return Ok(AttemptReport::refused(Refusal::Crates));
+        }
+        let crates_by_zone: Vec<_> = crates.zones.into_iter().map(|z| z.chosen).collect();
+        let all_crates: Vec<_> = crates_by_zone.iter().flatten().copied().collect();
+        observe(Phase::Crates, &frame.rng, &pool);
+        let input = repair::Input {
+            styled: false,
+            order: &order,
+            camps: &camps,
+            clearing: &prefix.clearing,
+            pool: &pool,
+            protect: &protect,
+            landmark_box: &landmark.masks.boxes,
+            crates_by_zone: &crates_by_zone,
+            buildings: &landmark.buildings,
+        };
+        let post = match repair::post_repair(
+            &rd,
+            &repair::SharedDefinitions {
+                zones: &self.shared.zones,
+                camps: &self.shared.camps,
+                spawns: &self.shared.spawns,
+            },
+            self.fixed,
+            &mut state,
+            &input,
+            &nets,
+        )
+        .map_err(|_| Error::Leaf("post repair admission"))?
+        {
+            Ok(v) => v,
+            Err(r) => return Ok(AttemptReport::refused(Refusal::Repair(r))),
+        };
+        observe(Phase::Post, &frame.rng, &pool);
+        tail::clear_terrain(
+            &self.terrain,
+            false,
+            &state.tiles,
+            &mut state.terrain,
+            &mut props,
+        )
+        .map_err(|_| Error::Leaf("terrain cleanup admission"))?;
+        observe(Phase::Terrain, &frame.rng, &pool);
+        let ground = spots::ground_spots(
+            spots::GroundInput {
+                fixed: self.fixed,
+                tiles: &state.tiles,
+                terrain: &state.terrain,
+                terrain_on: &self.terrain_on,
+                landmark_box: &landmark.masks.boxes,
+                clearing: &prefix.clearing,
+                crates: &all_crates,
+                pool: &pool,
+            },
+            &mut || frame.rng.next_f64(),
+            &self.spots,
+        )
+        .map_err(|_| Error::Leaf("ground admission"))?;
+        if ground.refusal.is_some() {
+            return Ok(AttemptReport::refused(Refusal::Ground));
+        }
+        let ground_spots: Vec<_> = ground.chosen.into_iter().map(world).collect();
+        observe(Phase::Ground, &frame.rng, &pool);
+        let avoid =
+            tail::clear_loot_decor(&self.tail, &pool, &all_crates, &ground_spots, &mut props)
+                .map_err(|_| Error::Leaf("loot decor admission"))?;
+        if options.bushes {
+            bushes::place_elite_bushes(
+                &self.bushes,
+                &bushes::BushInput {
+                    w: W,
+                    h: H,
+                    seed,
+                    attempt: number,
+                    tiles: &state.tiles,
+                    terrain: &state.terrain,
+                    zone: &state.zone,
+                    territory_grid: &state.territory_grid,
+                    protect: &protect,
+                    pool5: &picked.protection.pool5,
+                    avoid: Some(&avoid),
+                    camps: &camps,
+                    order: &order,
+                    terrain_none: 0,
+                },
+                &mut state.features,
+                &mut state.feature_owner,
+            );
+        }
+        observe(Phase::Bushes, &frame.rng, &pool);
+        let gate = spawn_gate(
+            &state.tiles,
+            &state.terrain,
+            &state.zone,
+            &pool,
+            &self.shared.spawns,
+            &self.terrain,
+        )?;
+        let kept = match gate {
+            Ok(v) => v,
+            Err(r) => return Ok(AttemptReport::refused(r)),
+        };
+        observe(Phase::SpawnGate, &frame.rng, &kept);
+        if state.features.len() > self.limits.features_max {
+            return Ok(AttemptReport::refused(Refusal::Features));
+        }
+        let record_buildings: Vec<crate::mapdata::TileRect> = landmark
+            .buildings
+            .iter()
+            .map(|b| {
+                Ok(crate::mapdata::TileRect {
+                    x: b.x,
+                    y: b.y,
+                    w: u32::try_from(b.w).map_err(|_| Error::Leaf("building width"))?,
+                    h: u32::try_from(b.h).map_err(|_| Error::Leaf("building height"))?,
+                })
+            })
+            .collect::<Result<_, Error>>()?;
+        let map = records::finalize(
+            &self.records,
+            &self.shared.zones,
+            self.fixed,
+            &records::Input {
+                seed,
+                attempt: number,
+                tiles: &state.tiles,
+                terrain: &state.terrain,
+                props: &props,
+                region_grid: &state.region_grid,
+                zone: &state.zone,
+                order: &order,
+                camps: &camps,
+                reach2: &post.reach2,
+                pool: &kept,
+                crates_by_zone: &crates_by_zone,
+                landmark_box: &landmark.masks.boxes,
+                buildings: &record_buildings,
+                ground_spots: &ground_spots,
+                drafts: &state.features,
+                feature_owner: &state.feature_owner,
+            },
+            &mut state.territory_grid,
+        )
+        .map_err(|_| Error::Leaf("records admission"))?;
+        observe(Phase::Records, &frame.rng, &kept);
+        if options.shape_gates {
+            if let Some(r) =
+                tail::shape_gate(&self.tail, &map.tiles, &map.feature_grid, &state.zone)
+                    .map_err(|_| Error::Leaf("shape admission"))?
+            {
+                return Ok(AttemptReport::refused(Refusal::Shape(
+                    r.source_reason().into(),
+                )));
+            }
+        }
+        if !terrain_gate::validate(
+            &map,
+            &terrain_gate::Options {
+                styled: false,
+                prop_kinds: None,
+            },
+        )
+        .map_err(|_| Error::Leaf("terrain gate admission"))?
+        .is_empty()
+        {
+            return Ok(AttemptReport::refused(Refusal::Terrain));
+        }
+        observe(Phase::Gates, &frame.rng, &kept);
+        Ok(AttemptReport {
+            map: Some(map),
+            refusal: None,
+        })
+    }
+}
+fn world(t: usize) -> WorldPt {
+    WorldPt {
+        x: (t % W) as f64 * TILE + TILE / 2.0,
+        y: (t / W) as f64 * TILE + TILE / 2.0,
+    }
+}
+fn first_attempt<T, E>(
+    limit: u64,
+    mut attempt: impl FnMut(u64) -> Result<Option<T>, E>,
+) -> Result<Option<T>, E> {
+    for n in 0..limit {
+        if let Some(map) = attempt(n)? {
+            return Ok(Some(map));
+        }
+    }
+    Ok(None)
+}
+fn spawn_gate(
+    tiles: &[u8],
+    terrain: &[u8],
+    zone: &[u8],
+    pool: &[usize],
+    d: &spawns::SpawnDefinition,
+    kinds: &terrain_gate::TerrainGateDefinition<'_>,
+) -> Result<Result<Vec<usize>, Refusal>, Error> {
+    let view =
+        TileMap::new(W as u32, H as u32, tiles.to_vec()).map_err(|_| Error::Leaf("spawn view"))?;
+    let centre = Vec2 {
+        x: f64::from(CX) * TILE + TILE / 2.0,
+        y: f64::from(CY) * TILE + TILE / 2.0,
+    };
+    let mut pf = Pathfinder::default();
+    let mut walks = Vec::new();
+    let mut hazards = Vec::new();
+    for &t in pool {
+        let w = world(t);
+        let from = Vec2 { x: w.x, y: w.y };
+        let path = pf.find_path(&view, from, centre, PLAYER_RADIUS);
+        if path.is_empty() {
+            return Ok(Err(Refusal::SpawnWalk));
+        }
+        let mut prior = from;
+        let mut length = 0.0;
+        let mut seen = vec![false; W * H];
+        let mut hz = 0;
+        let mut a = t;
+        for p in path {
+            let dx = p.x - prior.x;
+            let dy = p.y - prior.y;
+            length += (dx * dx + dy * dy).sqrt();
+            let b = (p.y / TILE).floor() as usize * W + (p.x / TILE).floor() as usize;
+            spawns::walk_segment(
+                (a % W) as i32,
+                (a / W) as i32,
+                (b % W) as i32,
+                (b / W) as i32,
+                |x, y| {
+                    let i = y as usize * W + x as usize;
+                    if !seen[i] {
+                        seen[i] = true;
+                        if matches!(
+                            kinds.kinds[terrain[i] as usize].key,
+                            "ember" | "bog" | "ice"
+                        ) {
+                            hz += 1;
+                        }
+                    }
+                    false
+                },
+            );
+            a = b;
+            prior = p;
+        }
+        walks.push(length);
+        hazards.push(hz);
+    }
+    Ok(
+        spawns::gate_spawn_walks(d, pool, &walks, &hazards, |t| zone[t])
+            .map(|indices| indices.into_iter().map(|i| pool[i]).collect())
+            .ok_or(Refusal::SpawnRatio),
+    )
+}
+#[cfg(test)]
+mod tests;

@@ -33,8 +33,9 @@ findings. The manual validation workflow now runs all five existing Node test fi
 
 Final code revision `5b1a7aae` passed all six native determinism jobs in CI `42110939993`: both Linux architectures,
 exact result comparison, both foreign-replay directions and the aggregate gate. Rust foundation CI `42110941659`
-remains in progress; its C# job passed. The new manual hosting workflow cannot yet be dispatched because GitHub requires
-it on the default branch; its checks were run locally, and no default-branch change was made.
+also passed both Rust and C# jobs. The initially manual-only hosting workflow could not be dispatched before GitHub
+discovered it; the later map checkpoint enables relevant `optimization_port` push/PR validation without cloud access.
+Deployment remains manual and no default-branch change was made.
 
 Current simulation content remains `a35c49ba5c73e88b`; checkpoint 14/replay 12/observation 11/policy 8/wire 5 are unchanged.
 Same-volume result-spool process recovery is implemented; host-volume loss and managed database failover are unproved.

@@ -1,0 +1,83 @@
+{
+  "disposition": "PASS; frozen handoff ready for coordinator integration",
+  "manifestSha256": "6fb6ba1fa232d878573e508a729bbe1644db46f3612b1292714819e9cf36cf3b",
+  "manifestTextSha256": "7c51afb8794b62c732bf8e4c4ee57b75ef1550b4dc1a94c7fe6a9caee98bf892",
+  "canonicalCaptureAndBytecheckExitCode": 0,
+  "runtime": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "cachedDockerImage": "c86ecead9e55",
+  "fixtureBytes": 49019,
+  "sourceBlockSha256": "d6c948d5aa500f5ad5ac8be2bce48e2703944dc6e853e8752be48ec9d3b9dc41",
+  "cases": 12,
+  "ownerIds": [
+    255,
+    256,
+    257,
+    65535
+  ],
+  "zoneOutputs": 60,
+  "rngDraws": 396,
+  "continuationWords": 96,
+  "malformedAdmissionZeroDrawCases": 21,
+  "newTestsPassed": 2,
+  "restoredAllSpotsTestsPassed": 8,
+  "strictLibAndTestsClippyExitCode": 0,
+  "newRustFileFmtCheckExitCode": 0,
+  "semanticMutants": [
+    {
+      "name": "narrow-floor-owner",
+      "exitCode": 101,
+      "semanticAssertionKilled": true
+    },
+    {
+      "name": "narrow-wall-owner",
+      "exitCode": 101,
+      "semanticAssertionKilled": true
+    },
+    {
+      "name": "wrap-both-sides",
+      "exitCode": 101,
+      "semanticAssertionKilled": true
+    },
+    {
+      "name": "drop-high-landmarks",
+      "exitCode": 101,
+      "semanticAssertionKilled": true
+    },
+    {
+      "name": "omit-owner-length-check",
+      "exitCode": 101,
+      "semanticAssertionKilled": true
+    }
+  ],
+  "reviewedCoordinatorCurrentHashes": {
+    "crates/rh-sim/src/mapgen/spots/mod.rs": "d9b35f985aa88bf00fe13527723381b82c3032ed2cbc5386e4357793feba8825",
+    "crates/rh-sim/src/mapgen/spots/crates.rs": "7993cf33f04439d4cfce0200704ab3ef927ec401a2def88fe0b55c34ff5ad898",
+    "crates/rh-sim/src/mapgen/spots/tests.rs": "96b0ce14b4de15784c72816fd5d0129285b5a42dec66db3fad702ac24ecbbe2b",
+    "crates/rh-sim/src/mapgen/pipeline/mod.rs": "f4fb8f728355a612e861f46b43ee22f4b0ec6817af9a901dfe9a8dd6e2768f31"
+  },
+  "coordinatorDiffFinding": "No issue found: u16 input, separate length admission before RNG, comparisons retain full width, plain caller directly borrows original u16 owners.",
+  "limits": [
+    "Synthetic crate-leaf boundary inputs, not generated full maps",
+    "Final feature-grid byte width and maximum250 unchanged",
+    "No styled-generator or performance claim"
+  ],
+  "evidenceHashes": {
+    "out/clippy.log": "145253f6168a8d37a00bfa2a627d89d313c90ac9a6a7860da5500bd68beb74e8",
+    "out/final-tests.log": "3afd1da804c6f2d9e9b246c18036f1e92f5b05cc3d3b844c3ab4e4413a2d008e",
+    "out/fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "out/map-spots-owner-width.json": "057c391f632c60cb56b9667ded8db8e1cf0e1fcdffb975aaace5603a19d53dd3",
+    "out/mutant-drop-high-landmarks.log": "5f951f91a3d997fd4bad02429e78b8d460d27dca3ad1776a19d3f034820349b1",
+    "out/mutant-narrow-floor-owner.log": "2d137c67c54aca49f6e8691e4f334de3dd290755138da7d1aed62f97b7b08f40",
+    "out/mutant-narrow-wall-owner.log": "73cd5adbe7d826f6a09ace658acbea4e9ea20d48c45503f4b3844a77efc2a110",
+    "out/mutant-omit-owner-length-check.log": "b8fda5572f92906b78ba5c37ddfc86440eb7debf2a3db149f1dab8de75554c84",
+    "out/mutant-wrap-both-sides.log": "50832c4c9e18030815d24a5325513153ea208f86abf208b40df28c98128a2947",
+    "out/mutations.json": "fd24b4c16b33bd3a48d2bbb944d2e2c9a4c3380d0760d41122a341ecc0719ff0",
+    "out/npm.log": "5f860ca9d023efdf88cc2877644bb4f9f388a725fcfe8900d0893b10975da3d7",
+    "out/source.log": "d1242d3192d7f8473a62f5a4ce00b803edbb729605133403ef4b54cde5a958e9",
+    "out/tests.log": "9c0e4ce9d11c7ae6c75819424be72919b70fe7a8fd97dcbb2b64246db69caa7f"
+  }
+}
