@@ -28,6 +28,11 @@ impl Pacer {
         }
     }
 
+    /// The tick period (the deadline budget a wake is judged late against).
+    pub fn period(&self) -> Duration {
+        self.period
+    }
+
     /// The instant of the next slot.
     pub fn next_deadline(&self) -> Instant {
         self.anchor + self.period * (self.steps as u32 + 1)

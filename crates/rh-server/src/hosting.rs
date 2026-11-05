@@ -5,10 +5,19 @@
 //!   Starting --ready--> Ready --(sessions run)--> Draining --(last room closes)--> Terminated
 //!
 //! * readiness/health: `GET /control/health` (200 while Ready and healthy, 503 otherwise) and the state name in `/info`;
-//! * allocation: rooms are created on admission today; creating one ahead of a GameLift placement (a session-start
-//!   endpoint for the bridge) is backlog packet P-HOST-1;
-//! * draining (scale-in, deployment, SIGTERM, GameLift onProcessTerminate): `POST /control/drain` stops admissions; active
-//!   matches play to their end; `Terminated` is reached when the last room closes, and the binary exits.
+//! * allocation: by default rooms are created on admission (the fullest open lobby, else a new one). With `--require-admit`
+//!   (hosted mode) rooms exist only through `POST /control/session` (one per game session; GameLift allows one game session
+//!   per server process, so the hosted image runs `--max-rooms 1`), and a Hello is admitted only with an admit posted to
+//!   `POST /control/admit`, checked as an additional step after the profile credential check and before the fenced lease
+//!   (docs/hosting/CONTROL_API.md section 4; `director.rs` `admit_once`). The admit never authenticates anyone;
+//! * the control API (`/control/{health,session,admit,leave,rooms,end,drain}`): bookkeeping and HTTP in `control.rs`, the room
+//!   and admission hooks in `director.rs`/`room.rs`. It is served only by the loopback control listener (`main.rs` asserts the
+//!   address; the public router has no `/control` route). The bridge polls `GET /control/rooms` (player status `admitted`,
+//!   `seated`, `away` for the reconnect grace, `left`, `expired`; room phase and `rev`);
+//! * draining (scale-in, deployment, SIGTERM, GameLift onProcessTerminate): `POST /control/drain` stops admissions and new
+//!   sessions; active matches play to their end (a draining room nobody ever joined closes at once); `Terminated` is reached when
+//!   the last room closes, and the binary exits. `POST /control/end` does the same per room (`graceful`) or closes it now
+//!   without inventing a result (`abort`).
 
 use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::sync::Notify;

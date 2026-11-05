@@ -56,6 +56,13 @@ edit an applied migration.
   `node --import tsx tools/persist-fixtures/cosmetics.ts --check`. This is profile/API support; publishing equipped looks
   in live snapshots and Unity is still pending.
 
+## Account service reads
+
+`account.rs` adds the leaderboard rows (equipped title included), the owner's rank (`row_number()` over the same ordering as
+the listing, `gv DESC, callsign COLLATE "C"`), the month list, `ping`, `Error::is_unavailable` and `Store::gv_epoch` (bumped
+after COMMIT by every result that credits GV; leaderboard caches compare it). Token hashes are compared with `ct_eq`.
+The HTTP routes are in `rh-server` (`api.rs`, ADR 0006 addendum).
+
 ## Admin tool
 
 ```
@@ -82,3 +89,9 @@ the tests FAIL (set `RH_SKIP_PG_TESTS=1` to skip deliberately).
 
 CI (GitHub Actions): `services: postgres: { image: postgres:16, env: { POSTGRES_PASSWORD: pw }, ports: ["5432:5432"] }`
 and `DATABASE_URL=postgres://postgres:pw@localhost:5432/postgres`.
+
+## Replaying a spooled result
+
+`Store::record_result_by_id_at(match, profile_id, fence, result, meta, Some(ended_at_ms))` is `record_result_by_id` plus the
+original result time for `matches.ended_at`; it is what `rh-server --result-spool` recovery calls (ADR 0006, durable result
+handoff addendum). The fence check is identical, so a replay never bypasses a newer owner.

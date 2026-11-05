@@ -85,7 +85,11 @@ pub enum RecordError {
     /// The store refused it for good (no live lease for this match, or a newer fence): a retry can never succeed, and
     /// the lease is no longer this write's to release.
     Refused(String),
-    /// I/O or connection trouble: worth a retry.
+    /// The store rejected the data itself (invalid input, a constraint or data-exception violation, a decode error):
+    /// retrying the identical write can never succeed. Handled like [`RecordError::Refused`] (dead-lettered, never
+    /// retried); kept separate so logs and metrics can tell a refusal by the rules from a poisoned record.
+    Permanent(String),
+    /// I/O or connection trouble: worth a retry, however long it lasts.
     Transient(String),
 }
 
@@ -93,8 +97,20 @@ impl std::fmt::Display for RecordError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RecordError::Refused(e) => write!(f, "refused ({e})"),
+            RecordError::Permanent(e) => write!(f, "permanent store error ({e})"),
             RecordError::Transient(e) => f.write_str(e),
         }
+    }
+}
+
+/// Splits a store error into permanent (the record itself is bad) and transient (try again); see
+/// [`rh_persist::Error::is_permanent`].
+#[cfg(feature = "postgres")]
+pub fn classify_store_error(e: &rh_persist::Error) -> RecordError {
+    if e.is_permanent() {
+        RecordError::Permanent(e.to_string())
+    } else {
+        RecordError::Transient(e.to_string())
     }
 }
 
@@ -482,6 +498,63 @@ impl Persistence {
         }
     }
 
+    /// Whether results land in PostgreSQL (the only store a spool record can be replayed into).
+    pub fn is_durable(&self) -> bool {
+        match self {
+            Persistence::Memory(_) => false,
+            #[cfg(feature = "postgres")]
+            Persistence::Postgres { .. } => true,
+        }
+    }
+
+    /// The match metadata this process would record for a result now (owner, this build, this content). The spool
+    /// captures it when the result is produced so that a replay by another build still writes the original values.
+    #[cfg(feature = "postgres")]
+    pub(crate) fn spool_meta(&self, roster: Roster) -> Option<crate::spool::SpoolMeta> {
+        match self {
+            Persistence::Postgres { owner, .. } => Some(crate::spool::SpoolMeta::from_persist(
+                &pg::match_meta(owner, roster),
+            )),
+            Persistence::Memory(_) => None,
+        }
+    }
+
+    /// Replays a spooled record through the same fenced `record_result_by_id` transaction as a live result, with the
+    /// ORIGINAL profile id, fence, result document and match metadata. It never acquires, renews or releases a lease:
+    /// a newer owner's fence makes it `Refused("StaleFence")`, a released or foreign lease `Refused("NoLease")`, and a
+    /// duplicate `AlreadyApplied` (the store answers that before it looks at the lease).
+    #[cfg(feature = "postgres")]
+    pub async fn record_spooled(
+        &self,
+        rec: &crate::spool::SpoolRecord,
+    ) -> Result<Recorded, RecordError> {
+        let Persistence::Postgres { store, .. } = self else {
+            return Err(RecordError::Refused("no durable store".into()));
+        };
+        let mid = rec
+            .match_uuid()
+            .map_err(|e| RecordError::Refused(format!("bad match id: {e}")))?;
+        let outcome = store
+            .record_result_by_id_at(
+                mid,
+                rec.profile_id,
+                rec.fence,
+                &rec.result,
+                &rec.meta.to_persist(),
+                Some(rec.spooled_at_ms),
+            )
+            .await
+            .map_err(|e| classify_store_error(&e))?;
+        match outcome {
+            rh_persist::RecordOutcome::Applied { .. } => Ok(Recorded::Applied),
+            rh_persist::RecordOutcome::AlreadyApplied => Ok(Recorded::AlreadyApplied),
+            other
+            @ (rh_persist::RecordOutcome::NoLease | rh_persist::RecordOutcome::StaleFence) => {
+                Err(RecordError::Refused(format!("{other:?}")))
+            }
+        }
+    }
+
     /// Compatibility wrapper for callers with a callsign. Refuses an observed reassignment:
     /// the tuple (name, match, fence) can name two different profiles. Live directors use
     /// the authenticated ID and never enter this lookup.
@@ -599,7 +672,7 @@ impl Persistence {
                 let outcome = store
                     .record_result_by_id(mid, id, fence, &res, &meta)
                     .await
-                    .map_err(|e| RecordError::Transient(e.to_string()))?;
+                    .map_err(|e| classify_store_error(&e))?;
                 match outcome {
                     rh_persist::RecordOutcome::Applied { .. } => Ok(Recorded::Applied),
                     rh_persist::RecordOutcome::AlreadyApplied => Ok(Recorded::AlreadyApplied),

@@ -1,8 +1,11 @@
 # GameLift container fleet staging experiment
 
-> **Stage 1 note (coordinator).** The Rust server's local control API is `/control/health` and `/control/drain` today
-> (`crates/rh-server/src/lib.rs`). The `/internal/*` endpoint names below were this evaluation's proposal; the remaining
-> bridge endpoints (session start, player admission/leave, ended) are backlog packet P-HOST-1, which reconciles the names.
+> **Corrected 2026-11-05 (P-CLAUDE-INFRA-1).** The `/internal/*` names and the `matchd` stub of the first draft are replaced by the
+> contract in [CONTROL_API.md](CONTROL_API.md) (`/control/*`) and by the real `rh-server` + `glbridge` image built from
+> `hosting/Dockerfile` (`hosting/README.md`). One server process hosts one game session (GAMELIFT_VERIFIED.md section 3), so
+> the density step varies container groups per instance, each with `--max-rooms 1`. Facts: [GAMELIFT_VERIFIED.md](GAMELIFT_VERIFIED.md).
+> The Rust side of the control API is not implemented yet; do not start this experiment until it is and a local run of the image
+> against the real server passes. Still NOT RUN; no command here is authorised.
 
 STATUS: **NOT RUN.** Written 2026-11-04 with no AWS access. Every command below is unexecuted. Command and parameter names were checked against the AWS CLI/API reference pages cited in `GAMELIFT_EVALUATION.md`; items marked `[verify: aws gamelift <cmd> help]` were not confirmed from a doc page and must be checked against `aws gamelift help` before use.
 Nothing here authorizes spending. Run only in a dedicated sandbox account after the owner approves the budget in section 1.
@@ -10,9 +13,9 @@ Nothing here authorizes spending. Run only in a dedicated sandbox account after 
 Goal: prove, on a throwaway fleet, that a Rust match process behind a Go SDK bridge can be allocated, admitted, reconnected, completed, replaced and drained on GameLift managed containers, reachable from a browser over valid `wss://`.
 
 ## 0. Test artifacts to prepare (before any AWS call)
-- `matchd`: Rust stub with the localhost contract: `POST /internal/start`, `/internal/admit`, `/internal/leave`, `/internal/drain`, `GET /internal/healthz`; serves WSS on the container port; WSS echo plus a `finish` command that ends the match.
-- `glbridge`: Go supervisor using the official Go server SDK (`github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk`; pin a tag). Build both for `linux/arm64` and `linux/amd64` (two images, tags `-arm64`, `-amd64`).
-- Dockerfile per evaluation 2c: entrypoint `glbridge`, stdout logging. Image architecture must match the instance type or the deployment fails.
+- `rh-server` with the loopback control API of CONTROL_API.md (`/control/session`, `/admit`, `/rooms`, `/leave`, `/end`, `/drain`, `/health`) and `--max-rooms 1 --require-admit`; serves WSS on the container port with its own certificate. The match ends by the normal game rules (or `POST /control/end` from the bridge), there is no echo stub.
+- `glbridge`: Go supervisor (`hosting/glbridge/`) using the official Go server SDK `github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk/v5` at `v5.6.0` (pinned in go.mod; pure Go, no cgo). Build the image for `linux/arm64` and `linux/amd64` (two images, tags `-arm64`, `-amd64`) from `hosting/Dockerfile`.
+- Entrypoint `glbridge`, stdout logging. Image architecture must match the instance type or the deployment fails.
 - A throwaway domain `play-test.<your-domain>` in Route 53, a wildcard cert for `*.usw2.play-test.<your-domain>` (ACME DNS-01) stored in Secrets Manager.
 - A static page + HTTPS ping endpoint per Region (Lambda Function URL returning 204 with CORS) for step 11.
 
@@ -50,7 +53,7 @@ Need: room for 6+ vCPU of Standard On-Demand in both Regions; note the GameLift 
 - `secretsmanager:CreateSecret`, `secretsmanager:GetSecretValue`, `secretsmanager:DeleteSecret`
 - `cloudwatch:GetMetricData`, `budgets:*` (sandbox only), `service-quotas:*` read, `ec2:DescribeRegions`
 ### 1.4 Fleet service role
-The fleet role needs the managed policy `GameLiftContainerFleetPolicy` ([API CreateContainerFleet](https://docs.aws.amazon.com/gameliftservers/latest/apireference/API_CreateContainerFleet.html)); the trust policy principals are in [setting-up-role](https://docs.aws.amazon.com/gamelift/latest/developerguide/setting-up-role.html) `[verify against that page; do not guess]`. Add a read grant on the cert secret if matchd/glbridge fetch it via `GetFleetRoleCredentials`.
+The fleet role needs the managed policy `GameLiftContainerFleetPolicy` ([API CreateContainerFleet](https://docs.aws.amazon.com/gameliftservers/latest/apireference/API_CreateContainerFleet.html)); the trust policy principals are in [setting-up-role](https://docs.aws.amazon.com/gamelift/latest/developerguide/setting-up-role.html) `[verify against that page; do not guess]`. Add a read grant on the cert secret if glbridge fetches it via `GetFleetRoleCredentials`.
 ```bash
 aws iam create-role --role-name gl-staging-fleet --assume-role-policy-document file://trust.json
 aws iam attach-role-policy --role-name gl-staging-fleet \
@@ -61,10 +64,10 @@ export FLEET_ROLE_ARN=$(aws iam get-role --role-name gl-staging-fleet --query Ro
 ## 2. Image push (per Region that hosts a fleet)
 CGDs and ECR images are Region resources; create the CGD in the fleet's home Region ([regions doc](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/gamelift-regions.html)).
 ```bash
-aws ecr create-repository --repository-name rh-matchd --region $HOME_REGION
+aws ecr create-repository --repository-name rh-match --region $HOME_REGION
 aws ecr get-login-password --region $HOME_REGION | docker login --username AWS --password-stdin $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com
-docker buildx build --platform linux/arm64 -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-matchd:s1-arm64 --push .
-docker buildx build --platform linux/amd64 -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-matchd:s1-amd64 --push .
+docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg RH_BUILD=$(git rev-parse --short=12 HEAD) -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-match:s1-arm64 --push .
+docker buildx build --platform linux/amd64 -f hosting/Dockerfile --build-arg RH_BUILD=$(git rev-parse --short=12 HEAD) -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-match:s1-amd64 --push .
 ```
 Expect: images visible; each single-architecture.
 
@@ -75,16 +78,16 @@ aws gamelift create-container-group-definition --region $HOME_REGION \
   --operating-system AMAZON_LINUX_2023 \
   --total-memory-limit-mebibytes 3000 --total-vcpu-limit 1.0 \
   --game-server-container-definition '{
-     "ContainerName":"matchd",
-     "ImageUri":"'$ACCT'.dkr.ecr.'$HOME_REGION'.amazonaws.com/rh-matchd:s1-arm64",
-     "ServerSdkVersion":"5.4.0",
+     "ContainerName":"rh-match",
+     "ImageUri":"'$ACCT'.dkr.ecr.'$HOME_REGION'.amazonaws.com/rh-match:s1-arm64",
+     "ServerSdkVersion":"5.6.0",
      "Vcpu":0.25,
      "PortConfiguration":{"ContainerPortRanges":[{"FromPort":35000,"ToPort":35000,"Protocol":"TCP"}]},
      "EnvironmentOverride":[{"Name":"MATCHD_MODE","Value":"staging"}]}' \
   --version-description "s1"
 aws gamelift describe-container-group-definition --name rh-match-s1 --region $HOME_REGION   # wait for Status READY
 ```
-`ServerSdkVersion` must be the Go SDK version actually vendored (placeholder shown). The TCP protocol on the container port is the first thing to confirm; the doc example response shows TCP while its request shows UDP.
+`ServerSdkVersion` must be the Go SDK version actually vendored (`5.6.0`, go.mod). The TCP protocol on the container port is the first thing to confirm; the doc example response shows TCP while its request shows UDP.
 
 Fleet. Ports: default inbound is UDP, so set both ranges manually (TCP). 8 groups/instance x 1 port, doubled = 16 ports.
 ```bash
@@ -142,7 +145,7 @@ aws gamelift start-game-session-placement --region $HOME_REGION \
   --game-properties Key=mode,Value=standard
 aws gamelift describe-game-session-placement --placement-id <id> --region $HOME_REGION
 ```
-Expect: `PENDING` -> `FULFILLED`; `GameSessionRegion=us-west-2` (lowest latency); result has `IpAddress`, `DnsName`, `Port`, and two `PlacedPlayerSessions`; SNS message on fulfillment. glbridge log shows `OnStartGameSession` with the `GameSessionData`, matchd ack, `ActivateGameSession` OK; game session status `ACTIVE` (`aws gamelift describe-game-sessions --fleet-id $FLEET_ID --region $HOME_REGION`). Record placement latency (request to FULFILLED).
+Expect: `PENDING` -> `FULFILLED`; `GameSessionRegion=us-west-2` (lowest latency); result has `IpAddress`, `DnsName`, `Port`, and two `PlacedPlayerSessions`; SNS message on fulfillment. glbridge log shows `OnStartGameSession` with the `GameSessionData`, `/control/session` answered, `ActivateGameSession` OK; game session status `ACTIVE` (`aws gamelift describe-game-sessions --fleet-id $FLEET_ID --region $HOME_REGION`). Record placement latency (request to FULFILLED).
 Repeat with latencies reversed (ca-central-1 lower) and expect `GameSessionRegion=ca-central-1`. Repeat with `--priority-configuration-override` `[verify parameter name in CLI: aws gamelift start-game-session-placement help]` = manual region selection; note it cannot be combined with `--player-latencies`.
 Repeat with a latency over the 80 ms cap for us-west-2 and see it skipped during the first 20 s (sliding policy).
 
@@ -151,17 +154,17 @@ Connect with a WSS client carrying the player-session id from `PlacedPlayerSessi
 ```bash
 aws gamelift describe-player-sessions --game-session-id <gsid> --region $HOME_REGION
 ```
-Expect: sessions `RESERVED` -> `ACTIVE` after matchd `/internal/admit` -> `AcceptPlayerSession`. Negative tests: bogus id rejected; reuse of an id from another game session rejected; wait 60 s with no connect and observe the reservation time out; 9th player rejected by `MaximumPlayerSessionCount`.
+Expect: sessions `RESERVED` -> `ACTIVE` after the bridge's `/control/admit` and the server's `seated` report -> `AcceptPlayerSession`; record the delay between FULFILLED and the first accepted Hello (the bridge polls `DescribePlayerSessions` every second, so one refused-and-retried connect is expected). Negative tests: bogus id rejected; reuse of an id from another game session rejected; wait 60 s with no connect and observe the reservation time out; 9th player rejected by `MaximumPlayerSessionCount`.
 
 ## 7. Step 5 - Reconnect
-1. Kill the client socket; reconnect within matchd's grace window with the same player-session id.
-2. Expect-either: (a) `AcceptPlayerSession` succeeds again; or (b) it errors because the session is already ACTIVE. Record which. If (b), design: glbridge skips the second Accept (matchd keeps its own reconnect token) and calls `RemovePlayerSession` only on grace expiry.
+1. Kill the client socket; reconnect within rh-server's grace window (10 s) using the 16-byte resume token with the same player-session id.
+2. Expect-either: (a) `AcceptPlayerSession` succeeds again; or (b) it errors because the session is already ACTIVE. Record which. If (b), design: glbridge skips the second Accept (rh-server keeps its own reconnect token; this is what the bridge already does) and calls `RemovePlayerSession` only on grace expiry.
 3. Let the grace expire and verify `RemovePlayerSession` frees the slot (`describe-player-sessions` shows `COMPLETED`/removed, `describe-game-sessions` current player count drops).
 4. Browser tab-sleep case: hold a socket idle 90 s and confirm the proxy path keeps it alive.
 
 ## 8. Step 6 - Completion and replacement
-Send `finish` over WSS -> matchd calls `/internal/ended` -> glbridge `ProcessEnding()` + exit 0.
-Expect: game session `TERMINATED`; a fresh group reaches `ProcessReady` (capacity returns to 8 idle) within seconds-to-minutes (record). Crash test: `kill -9` matchd inside the container (via `aws gamelift get-compute-access` + SSM/exec only if supported `[verify]`, otherwise make matchd exit non-zero on a debug command): expect the game server container (essential) to restart the group and a fleet event; the session ends abnormally. Record that clients see a socket close and that the backend learns via SNS/`describe-game-sessions` (not instantly).
+Let the match end (or `POST /control/end` from inside the container for a forced end) -> `/control/rooms` shows the room `closed` -> glbridge drains, `ProcessEnding()` + `Destroy()` + exit 0.
+Expect: game session `TERMINATED`; a fresh group reaches `ProcessReady` (capacity returns to 8 idle) within seconds-to-minutes (record). Crash test: `kill -9` rh-server inside the container (via `aws gamelift get-compute-access` + SSM/exec only if supported `[verify]`, otherwise start a test image whose rh-server exits non-zero on a debug command): expect the game server container (essential) to restart the group and a fleet event; the session ends abnormally. Record that clients see a socket close and that the backend learns via SNS/`describe-game-sessions` (not instantly).
 
 ## 9. Step 7 - TLS and DNS reachable from a browser (the blocker test)
 Test A - GameLift-issued cert on containers:
@@ -177,7 +180,7 @@ aws route53 change-resource-record-sets --hosted-zone-id $ZONE --change-batch '{
 dig +short m-place-s1.usw2.play-test.<your-domain>
 openssl s_client -connect m-place-s1.usw2.play-test.<your-domain>:<Port> -servername m-place-s1.usw2.play-test.<your-domain> </dev/null | openssl x509 -noout -subject -dates
 ```
-Expect: matchd serves the wildcard cert on the container port (fetched from Secrets Manager); a Chrome tab on `https://app-test.<your-domain>/` opens `new WebSocket("wss://m-place-s1.usw2.play-test.<your-domain>:<Port>/ws")` with no certificate warning, mixed-content or CSP error, and receives the echo. Run in Chrome, Firefox and Safari (Safari stricter on cert chains). Record: DNS propagation to first successful handshake (target under 10 s after FULFILLED), TLS handshake time, whether a non-443 port is blocked on a corporate/school network test (compare to 443 only if you can expose 443: the connection range may include 443 `[verify allowed]`).
+Expect: rh-server serves the wildcard cert (`--tls-cert/--tls-key`, passed through `GLBRIDGE_TLS_CERT/KEY`) on the container port (fetched from Secrets Manager); a Chrome tab on `https://app-test.<your-domain>/` opens `new WebSocket("wss://m-place-s1.usw2.play-test.<your-domain>:<Port>/ws")` with no certificate warning, mixed-content or CSP error, and completes a Hello/Welcome with a real profile token. Run in Chrome, Firefox and Safari (Safari stricter on cert chains). Record: DNS propagation to first successful handshake (target under 10 s after FULFILLED), TLS handshake time, whether a non-443 port is blocked on a corporate/school network test (compare to 443 only if you can expose 443: the connection range may include 443 `[verify allowed]`).
 Test C (only if A and B both fail): front with a regional proxy. Out of scope for this run; note and stop.
 
 ## 10. Step 8 - Draining and scale-in protection
@@ -190,7 +193,7 @@ aws gamelift put-scaling-policy --fleet-id $FLEET_ID --name rh-target --policy-t
 Tests:
 1. Fill the fleet: start 17 placements (8 per instance x 2 + 1) with a slow, never-ending match. Expect `PercentAvailableGameSessions` to fall below target and a third instance to be added (max 3). Record scale-up time (instance launch + image pull + ProcessReady).
 2. Pin one match as the only session on instance B, end all others, then lower desired to 1. Expect GameLift **not to** terminate the protected instance; instance count stays until that match ends; record which instance GameLift chooses (the emptiest or not) over three repetitions.
-3. Override: `aws gamelift update-game-session --game-session-id <id> --protection-policy NoProtection` `[verify]`, repeat step 2 and expect `onProcessTerminate` at scale-down: glbridge must POST `/internal/drain`, matchd announces and finishes, `GetTerminationTime()` is logged. Record the allowed shutdown time.
+3. Override: `aws gamelift update-game-session --game-session-id <id> --protection-policy NoProtection` `[verify]`, repeat step 2 and expect `onProcessTerminate` at scale-down: glbridge must POST `/control/drain`, rh-server refuses new admissions and the match finishes, `GetTerminationTime()` is logged. Record the allowed shutdown time.
 4. Fleet deployment under load: with 3 live matches on separate instances, publish CGD version 2 and
 ```bash
 aws gamelift update-container-fleet --fleet-id $FLEET_ID --region $HOME_REGION \
@@ -205,7 +208,7 @@ Expect: status `UPDATING`; protected instances replaced only after their matches
 Deploy `https://ping.<region-code>.play-test.<your-domain>/p` (204, CORS `*`) in us-west-2 and ca-central-1. From a browser in Calgary/Vancouver/Montreal (use VPN-free real connections), run 1 warm-up and 10 timed fetches per Region on a reused connection; send the medians as `PlayerLatencies`. Compare against measured WSS ping to the sessions placed in each Region (offset and ranking agreement). Record RTT numbers: this is the only real answer to "is us-west-2 OK for western Canada" and whether ca-central-1 or Denver (`us-west-2-den-1`, requires opt-in and a fleet location) is worth adding.
 
 ## 12. Step 10 - Density benchmark (cost input)
-Raise `GameServerContainerGroupsPerInstance` through 4, 8, 12, 16 (deployment each time) with real Rust match load (8 bot clients, 20 Hz). Record per-instance CPU, memory, tick p99, and whether GameLift refuses the value above the calculated maximum (`MaximumGameServerContainerGroupsPerInstance`). Feed the winning density into the cost table in `GAMELIFT_EVALUATION.md` section 5.3 and replace the estimates.
+Raise `GameServerContainerGroupsPerInstance` through 4, 8, 12, 16 (deployment each time; each group is one `--max-rooms 1` process, GAMELIFT_VERIFIED.md section 3.3) with real Rust match load (8 bot clients, 20 Hz) using the P-LOAD-1 harness. Also record per-group RSS and the 50 MiB log router cost. Record per-instance CPU, memory, tick p99, and whether GameLift refuses the value above the calculated maximum (`MaximumGameServerContainerGroupsPerInstance`). Feed the winning density into the cost table in `GAMELIFT_EVALUATION.md` section 5.3 and replace the estimates.
 
 ## 13. Pass / fail summary table (fill in when run)
 | # | Question | Pass condition | Result |
@@ -236,7 +239,7 @@ aws gamelift update-fleet-capacity --fleet-id $FLEET_ID --location ca-central-1 
 aws gamelift delete-container-fleet --fleet-id $FLEET_ID --region $HOME_REGION
 aws gamelift list-container-group-definition-versions --name rh-match-s1 --region $HOME_REGION
 aws gamelift delete-container-group-definition --name rh-match-s1 --region $HOME_REGION   # [verify: version-number-to-delete]
-aws ecr delete-repository --repository-name rh-matchd --force --region $HOME_REGION
+aws ecr delete-repository --repository-name rh-match --force --region $HOME_REGION
 aws logs delete-log-group --log-group-name /rh/staging --region $HOME_REGION
 aws sns delete-topic --topic-arn arn:aws:sns:$HOME_REGION:$ACCT:rh-placement --region $HOME_REGION
 aws route53 change-resource-record-sets --hosted-zone-id $ZONE --change-batch file://delete-records.json

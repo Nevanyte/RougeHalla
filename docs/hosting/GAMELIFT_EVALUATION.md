@@ -1,8 +1,11 @@
 # Amazon GameLift Servers (managed containers + queues) evaluation
 
-> **Stage 1 note (coordinator).** The Rust server's local control API is `/control/health` and `/control/drain` today
-> (`crates/rh-server/src/lib.rs`). The `/internal/*` endpoint names below were this evaluation's proposal; the remaining
-> bridge endpoints (session start, player admission/leave, ended) are backlog packet P-HOST-1, which reconciles the names.
+> **Corrected 2026-11-05 (P-CLAUDE-INFRA-1).** Facts were re-read from AWS's documentation and the Go SDK source in
+> [GAMELIFT_VERIFIED.md](GAMELIFT_VERIFIED.md), which wins wherever the two differ. Corrections made in this file: one
+> game server process hosts exactly one game session (1.3, 2c); the bridge contract is the implemented `/control/*` API of
+> [CONTROL_API.md](CONTROL_API.md), not the `/internal/*` names originally proposed (2c); the Go SDK module is `.../v5`,
+> `v5.6.0`, no cgo (2c); ca-central-1 is a home Region only for single-location managed fleets (4.1). Sections not named
+> here (pricing, ECS comparison, quotas) were NOT re-verified and keep their UNVERIFIED labels.
 
 Status: research only. Nothing here was run against AWS (no credentials in this environment).
 Research date: 2026-11-04. All docs were fetched on that date; AWS pages change, so re-check before committing money.
@@ -38,6 +41,7 @@ Doc base used below (abbreviated as DG = `https://docs.aws.amazon.com/gameliftse
 ### 1.3 Processes per instance
 - Capacity unit: one game server process = one game session. `Game sessions per instance = processes per game server container x game server container groups per instance`. [DG containers-scaling](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/containers-scaling.html)
 - Simplest layout: one container, one process, N replicas of the group per instance. This maps cleanly to "one Rust process hosts one match".
+- **Correction (2026-11-05): this is the only supported layout, not just the simplest.** GameLift places one game session on a server process that "is not hosting a game session" and counts the process as one session of capacity; the Go SDK holds a single game-session id per process (evidence in [GAMELIFT_VERIFIED.md](GAMELIFT_VERIFIED.md) section 3). ADR 0004's "several matches per process" is replaced by `rh-server --max-rooms 1` per container group, N groups per instance, with the memory cost worked out there.
 - `GameServerContainerGroupsPerInstance`: 1 to 5000; default is the calculated maximum; a manual value is honored only if below the calculated maximum. [API CreateContainerFleet](https://docs.aws.amazon.com/gameliftservers/latest/apireference/API_CreateContainerFleet.html)
 - The calculated maximum is `min(vCPU fit, memory fit, connection-port fit)`; memory reserve is 8% under 5,000 MiB, 6% to 9,999, 5% to 89,999; logging adds 50 MiB per group. c5.large/c6i.large/c7i.large: 4,096 MiB total, 3,768 MiB available; c9g.large 3,768; c5.xlarge/c6i.xlarge 7,700. [DG containers-design-fleet](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/containers-design-fleet.html)
 - Without `TotalVcpuLimit` a group can burst into idle instance CPU (needs a per-container `Vcpu`). Same page.
@@ -76,7 +80,7 @@ Verified sequence ([DG gamelift-sdk-server-api](https://docs.aws.amazon.com/game
 4. End: `ProcessEnding()` then exit. "To recycle and refresh hosting resources, shut down each server process after the game session is complete." GameLift starts a fresh process/group.
 5. `onProcessTerminate` fires on persistent unhealthiness, scale-down, or Spot interruption; the server calls `ProcessEnding`.
 - Player sessions: quota 200 per game session; reserved sessions time out after 60 s by default (adjustable). [General Reference](https://docs.aws.amazon.com/general/latest/gr/gamelift.html)
-- Reconnect semantics (re-`AcceptPlayerSession` for an already ACTIVE player session): UNVERIFIED. Staging step tests it; fallback is our own reconnect token inside the Rust process, and treating GameLift player sessions as admission only.
+- Reconnect semantics (re-`AcceptPlayerSession` for an already ACTIVE player session): UNVERIFIED (still, 2026-11-05; the bridge never re-accepts: the Rust resume token is authoritative, see CONTROL_API.md section 5). Staging step tests it; fallback is our own reconnect token inside the Rust process, and treating GameLift player sessions as admission only.
 - Container-only helper: `ListContainersNetworkInfo()`. Same Go SDK page.
 
 ## 2. Rust integration
@@ -99,18 +103,18 @@ Source: [repo README](https://github.com/amazon-gamelift/amazon-gamelift-servers
 - Health checks and SIGTERM behavior of the wrapper: UNVERIFIED (README does not say).
 - Use: day-1 smoke test of allocation and placement with zero SDK code; admission would use our own signed join token carried in `GameProperties`/`GameSessionData`, so GameLift would not know player counts (affects `PercentAvailableGameSessions`? no: that metric counts sessions, not players; matchmaking slot logic would not apply).
 
-### 2c. Recommended bridge: Go supervisor in the game server container
+### 2c. Recommended bridge: Go supervisor in the game server container (implemented: `hosting/glbridge/`)
 ```
-GameLift agent <-> [glbridge (Go, SDK)] <-localhost HTTP/UDS-> [matchd (Rust sim)] <-WSS-> browsers
+GameLift agent <-> [glbridge (Go, SDK v5.6.0)] <-loopback HTTP, /control/*-> [rh-server (Rust)] <-WSS-> browsers
 ```
-- One image, `ENTRYPOINT glbridge`. glbridge: `InitSDK`, spawn `matchd` (idle, listening), `ProcessReady(port)`.
-- `OnStartGameSession(gs)`: POST `/internal/start {gameSessionId, properties, data}` to matchd; when matchd returns ready, `ActivateGameSession()`.
-- matchd on WSS join: POST `/internal/admit {playerSessionId}`; glbridge calls `AcceptPlayerSession`; response gates the join. On disconnect past reconnect grace: `/internal/leave` -> `RemovePlayerSession`.
-- `OnProcessTerminate`: POST `/internal/drain`; matchd stops accepting, finishes or checkpoints; glbridge `ProcessEnding()` + `Destroy()` + exit.
-- `OnHealthCheck`: glbridge pings matchd `/internal/healthz`.
-- Match end: matchd exits 0 or calls `/internal/ended`; glbridge `ProcessEnding`, exit, GameLift replaces the group.
-- Keeps all AWS types out of the simulation crate; matchd only knows a six-endpoint localhost contract, testable without AWS (Anywhere fleet or a fake).
-- Open: the SDK must run in the game server container (UNVERIFIED that a support container may call it). Go SDK arm64 build: UNVERIFIED (Go cross-compiles; check cgo use). Rust-in-same-image is an extra cost: two binaries, one image, one architecture.
+- One image, `ENTRYPOINT glbridge`. glbridge: `InitSDK`, launch `rh-server --max-rooms 1 --require-admit --control 127.0.0.1:<port>`, wait for `/control/health`, `ProcessReady(port)`.
+- `OnStartGameSession(gs)`: `POST /control/session` (idempotent); only then `ActivateGameSession()`. A refused session (409 draining or at capacity) is never activated.
+- Players: the bridge lists the session's `RESERVED` player sessions and `POST /control/admit {playerSessionId, callsign}`; the player's Hello still carries the profile token, checked unchanged, and the admit is an additional precondition (CONTROL_API.md section 4). When `GET /control/rooms` shows the player `seated` the bridge calls `AcceptPlayerSession` once; when it shows `left` (after the server's reconnect grace) it calls `RemovePlayerSession` and acknowledges with `POST /control/leave`.
+- `OnProcessTerminate`: `POST /control/drain`; wait for the room to close (bounded by the termination time); `ProcessEnding()` + `Destroy()` + exit.
+- `OnHealthCheck`: `GET /control/health` (a draining 503 is reported healthy).
+- Match end: room `closed` in `/control/rooms` -> drain -> `ProcessEnding` -> exit; GameLift replaces the group. A process never hosts a second session.
+- Keeps all AWS types out of the simulation crate; rh-server only knows the loopback contract, testable without AWS (`hosting/glbridge` tests use a fake SDK and a fake control server).
+- Built here: Go SDK `.../go-server-sdk/v5` `v5.6.0` needs no cgo and builds for linux/arm64 and linux/amd64 (GAMELIFT_VERIFIED.md section 4). Still UNVERIFIED: running on a real Graviton GameLift host, and the SDK inside a support container (not needed).
 
 ## 3. TLS and DNS for browsers (wss://)
 
@@ -144,6 +148,7 @@ From [DG gamelift-regions](https://docs.aws.amazon.com/gameliftservers/latest/de
 - `CreateContainerFleet` says it may be created "in any AWS Regions that Amazon GameLift Servers supports for multi-location fleets" ([API](https://docs.aws.amazon.com/gameliftservers/latest/apireference/API_CreateContainerFleet.html)). Read strictly, a container fleet's **home** must be a multi-location home Region (us-west-2 for us), with ca-central-1 only as a remote location. Whether ca-central-1 can be a container-fleet home: UNVERIFIED -> staging step 3.
 - Multi-location fleet: a home Region plus remote locations (Regions or Local Zones); capacity is set per location; limit 10 locations per fleet (adjustable). Instance type must exist everywhere. [DG gamelift-regions](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/gamelift-regions.html), [quotas](https://docs.aws.amazon.com/general/latest/gr/gamelift.html)
 - Local Zones and non-default Regions require opt-in and `ec2:DescribeRegions` in the admin policy. Same page.
+- **2026-11-05:** the table above was re-read and holds: ca-central-1 is a home Region for *single-location* managed fleets (not multi-location) and a remote location; ca-west-1 is absent. Whether a *container* fleet may have ca-central-1 as home stays UNVERIFIED (the container API page ties container fleets to multi-location home Regions).
 - Western Canada: nearest listed hosting is us-west-2 (Oregon) and its Denver/LA/Phoenix zones; ca-central-1 is Montreal. Real RTT: UNVERIFIED; measure from Calgary/Vancouver test clients (staging step 11).
 
 ### 4.2 Queues and latency
