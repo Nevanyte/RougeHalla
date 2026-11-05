@@ -109,6 +109,18 @@ jobs:
         run: node --import tsx tools/map-fixtures/landmark-search.ts --check
       - name: Landmark recipe support still matches the actual legacy helpers
         run: node --import tsx tools/map-fixtures/landmark-support.ts --check
+      - name: Scorch and Gallows recipes still match the actual legacy callbacks
+        run: node --import tsx tools/map-fixtures/landmark-recipes-search.ts --check
+      - name: Rime Sanctum and Warren recipes still match the actual legacy callbacks
+        run: node --import tsx tools/map-fixtures/landmark-recipes-direct.ts --check
+      - name: Ordered landmark admission and masks still match the actual generator
+        run: node --import tsx tools/map-fixtures/landmark-stage.ts --check
+      - name: Final map records still match the actual generator
+        run: node --import tsx tools/map-fixtures/records.ts --check
+      - name: Ordered terrain validation still matches the actual source
+        run: node --import tsx tools/map-fixtures/terrain-gate.ts --check
+      - name: Exact map hash and Number strings still match the actual source
+        run: node --import tsx tools/map-fixtures/map-hash.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

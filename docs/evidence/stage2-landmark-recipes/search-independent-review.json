@@ -1,0 +1,65 @@
+{
+  "scope": "Independent read-only Scorch/Gallows review; no full-map parity claim",
+  "frozenFilesVerified": 7,
+  "sourceHashesVerified": 19,
+  "baselineTestsPassed": 4,
+  "extraCases": [
+    [
+      2,
+      0
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      42,
+      0
+    ],
+    [
+      123,
+      0
+    ],
+    [
+      1001,
+      2
+    ],
+    [
+      9007199254740991,
+      1
+    ]
+  ],
+  "extraTargetZones": 12,
+  "extraTargetSearches": 24,
+  "extraAttempts": 58,
+  "extraRefusals": 34,
+  "extraSourceFinalNulls": 0,
+  "extraRustComparisonPassed": true,
+  "mutations": [
+    {
+      "name": "scorch-margin-order",
+      "detected": true
+    },
+    {
+      "name": "scorch-simple-check",
+      "detected": true
+    },
+    {
+      "name": "scorch-elite-radius",
+      "detected": true
+    },
+    {
+      "name": "scorch-door-facing",
+      "detected": true
+    },
+    {
+      "name": "gallows-territory-penalty",
+      "detected": true
+    },
+    {
+      "name": "gallows-double-penalty",
+      "detected": true
+    }
+  ],
+  "findings": []
+}

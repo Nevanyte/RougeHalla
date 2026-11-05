@@ -1,0 +1,103 @@
+{
+  "scope": "Exact legacy mapHash and Number string helper only; no full generator, certification or pin claim",
+  "repairedManifestFiles": {
+    "crates/rh-sim/src/mapgen/map_hash/mod.rs": {
+      "sha256": "f0fe75f091ded1b81ca15dba75b1474d59a161e40c32ea588af9ed2f81ca9ab5",
+      "bytes": 5012
+    },
+    "crates/rh-sim/src/mapgen/map_hash/tests.rs": {
+      "sha256": "5b34b6e72cad48a1742cf849fb1db2cc004eef1be58ed2491c176f9ae81d39b7",
+      "bytes": 25642
+    },
+    "crates/rh-sim/src/mapgen/map_hash/README.md": {
+      "sha256": "dd159dafeea30d0d9cced0b68123bebcbda0365d270720c7796d31547deeac35",
+      "bytes": 8290
+    },
+    "tools/map-fixtures/map-hash.ts": {
+      "sha256": "21578f3b3154a73fe0c2684bd6a246b1f3743c2a1700d4ba6d49fa0eebbaa430",
+      "bytes": 11108
+    },
+    "crates/rh-sim/src/mapgen/fixtures/map-hash.json": {
+      "sha256": "e759b79b4d12e4cfa12a40b12109d161eea4fa886d4aac73b64e910b96ade6e4",
+      "bytes": 14974041
+    }
+  },
+  "sourceHashesVerified": 39,
+  "repairedBaselineTestsPassed": 9,
+  "extraDistinctNumberPatterns": 194634,
+  "extraRawFuzzWords": 160000,
+  "extraRawFuzzSeed": "d1b54a32d192ed03",
+  "extraDenseEdgeULPRadius": 512,
+  "extraMapCases": 8,
+  "extraNewMapInputs": 7,
+  "extraRepeatedMaxSafeControl": 1,
+  "extraUniqueAdmittedRadiusMaps": 961,
+  "extraFieldMutations": 106,
+  "extraComparisonPassed": true,
+  "semanticMutations": [
+    {
+      "name": "fnv-operation-order",
+      "detected": true
+    },
+    {
+      "name": "metadata-order",
+      "detected": true
+    },
+    {
+      "name": "point-list-length",
+      "detected": true
+    },
+    {
+      "name": "camp-area-omission",
+      "detected": true
+    },
+    {
+      "name": "ordered-jobs",
+      "detected": true
+    },
+    {
+      "name": "signed-feature-payload",
+      "detected": true
+    },
+    {
+      "name": "hash-source-omitted-coliseum",
+      "detected": true
+    },
+    {
+      "name": "negative-zero-hash",
+      "detected": true
+    }
+  ],
+  "repairedFixtureMutationChecks": [
+    {
+      "name": "repaired-numeric-collapse",
+      "detected": true,
+      "inventoryError": true
+    },
+    {
+      "name": "repaired-missing-max-finite",
+      "detected": true,
+      "inventoryError": true
+    }
+  ],
+  "finding": {
+    "description": "All 949 numericMaps could collapse to repeated radius-zero probes while eight tests passed",
+    "status": "repaired; nine-test baseline passes, original collapse and unique MAX_FINITE replacement now rejected by inventory checks"
+  },
+  "dependency": {
+    "version": "ryu-js =1.0.3",
+    "archiveSha256": "04d056b875a9d2e6cb9a61d127afee9ac5999b9f87bcb32079d1318e505be714",
+    "all52ExtractedFilesMatchArchive": true,
+    "licenseFilesVerified": [
+      "Apache-2.0",
+      "BSL-1.0"
+    ],
+    "declaredMsrv": "1.71",
+    "executedToolchain": "1.97.0",
+    "projectMsrv185Execution": "not run; only1.97 installed",
+    "noStd": true,
+    "buildScript": false,
+    "mandatoryRuntimeDependencies": 0,
+    "primaryUpstream": "https://github.com/boa-dev/ryu-js"
+  }
+}

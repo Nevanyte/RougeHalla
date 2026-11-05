@@ -114,6 +114,11 @@ impl<'session, 'state, P: PlanningPolicy> LandmarkSearch<'session, 'state, P> {
     pub fn runtime(&self) -> &LandmarkRuntime<'state> {
         self.rt
     }
+    /// Read-only test evidence for actual recipe/search composition; absent from production builds.
+    #[cfg(test)]
+    pub(crate) fn diagnostics(&self) -> &[serde_json::Value] {
+        &self.diagnostics
+    }
     pub fn reset(&mut self) {
         self.tab = None;
         #[cfg(test)]

@@ -551,6 +551,54 @@ pub fn content_hash_of_landmark_support_definition(
     )
 }
 
+/// Actual callback tunables and live template rows/keys/jobs share the same definitions as execution.
+pub fn content_hash_of_landmark_recipe_definitions(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::landmarks::recipes::Definitions<'_>,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            recipes: *definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Canonical record ordering and region defaults use this same live definition.
+pub fn content_hash_of_records_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::records::Definition<'_>,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            records: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// The actual terrain acceptance tables and protection distances share the execution definitions.
+pub fn content_hash_of_terrain_gate_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::terrain_gate::TerrainGateDefinition<'_>,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            terrain_gate: definition,
+            ..Default::default()
+        },
+    )
+}
+
 /// Signature classification affects damage budgets and reporting, so it is content as well.
 pub fn content_hash_of_signature_rules(
     registry: &[Entry],
@@ -576,6 +624,9 @@ struct MapDefinitions<'rules, 'pillars> {
     landmarks: &'rules crate::mapgen::landmarks::runtime::LandmarkDefinition,
     landmark_search: &'rules crate::mapgen::landmarks::search::SearchDefinition,
     recipe_support: &'rules crate::mapgen::landmarks::recipe_support::RecipeSupportDefinition,
+    recipes: crate::mapgen::landmarks::recipes::Definitions<'pillars>,
+    records: &'rules crate::mapgen::records::Definition<'pillars>,
+    terrain_gate: &'rules crate::mapgen::terrain_gate::TerrainGateDefinition<'pillars>,
 }
 
 impl Default for MapDefinitions<'_, '_> {
@@ -590,6 +641,9 @@ impl Default for MapDefinitions<'_, '_> {
             landmarks: &crate::mapgen::landmarks::runtime::DEFAULT_DEFINITION,
             landmark_search: &crate::mapgen::landmarks::search::DEFAULT_DEFINITION,
             recipe_support: &crate::mapgen::landmarks::recipe_support::DEFAULT_DEFINITION,
+            recipes: crate::mapgen::landmarks::recipes::default_definitions(),
+            records: &crate::mapgen::records::DEFAULT_DEFINITION,
+            terrain_gate: &crate::mapgen::terrain_gate::DEFAULT_DEFINITION,
         }
     }
 }
@@ -619,6 +673,9 @@ fn content_hash_of_definitions(
         landmarks,
         landmark_search,
         recipe_support,
+        recipes,
+        records,
+        terrain_gate,
     } = definitions;
     let mut h = Fnv::new();
 
@@ -662,6 +719,15 @@ fn content_hash_of_definitions(
             h.u64(coordinate as u64);
         }
     }
+
+    h.str("mapgen/landmark-recipes/1");
+    crate::mapgen::landmarks::recipes::visit_content(&recipes, |word| h.u64(word));
+
+    h.str("mapgen/records/1");
+    crate::mapgen::records::visit_content(records, |word| h.u64(word));
+
+    h.str("mapgen/terrain-gate/1");
+    crate::mapgen::terrain_gate::visit_content(terrain_gate, |word| h.u64(word));
 
     h.str("signatures/1");
     h.u64(signature_rules.len() as u64);

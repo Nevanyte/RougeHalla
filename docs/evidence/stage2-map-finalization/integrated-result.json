@@ -1,0 +1,36 @@
+{
+  "passed": 672,
+  "failed": 0,
+  "ignored": 1,
+  "filtered": 0,
+  "fmt": true,
+  "clippy_all": true,
+  "clippy_default": true,
+  "content": "52d21bbbf403dd64",
+  "checkpoint": 14,
+  "replay": 12,
+  "observation": 11,
+  "policy": 8,
+  "protocol": 5,
+  "parity": 97,
+  "capture_only": 13,
+  "paths": 300,
+  "records_tests": 4,
+  "terrain_tests": 8,
+  "hash_tests": 9,
+  "aggregate_content_tests": 2,
+  "aggregate_content_mutations": 127,
+  "records_genuine_cross_leaf_cases": 9,
+  "source_recapture": {
+    "runtime": "Linux x64 Node22.23.4",
+    "all_three_byte_exact": true
+  },
+  "limits": [
+    "not full generator",
+    "not independent map certifier",
+    "not canonical pins",
+    "terrain InputError domain documented",
+    "MSRV1.85 not executed locally"
+  ],
+  "ci": "pending push"
+}

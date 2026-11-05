@@ -1,0 +1,16 @@
+{
+  "passed": 649,
+  "failed": 0,
+  "ignored": 1,
+  "filtered": 0,
+  "fmt": true,
+  "clippy_all": true,
+  "clippy_default": true,
+  "content": "1e0774e8e0ba1649",
+  "parity": 97,
+  "capture_only": 13,
+  "paths": 300,
+  "actual_stage_cases": 8,
+  "actual_stage_zones": 40,
+  "content_mutations": 767
+}

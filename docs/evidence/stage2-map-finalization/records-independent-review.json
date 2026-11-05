@@ -1,0 +1,116 @@
+{
+  "scope": "Records finalization only over actual post-bush, post-spawn-gate inputs; no full Rust generator/hash/pin claim",
+  "repairedManifest": {
+    "crates/rh-sim/src/mapgen/records/mod.rs": "c2a966e13ea0f3ce11496ea1de64a35ff4e4170793a571e0d5651e9d472a1f9e",
+    "crates/rh-sim/src/mapgen/records/rules.rs": "9af37ac80000aa06921a340db47e5c1c11479bb323a33f50cc4fbea8a80cd7db",
+    "crates/rh-sim/src/mapgen/records/tests.rs": "88502a424469a8e193ab102d1d0501e63061962f7547217a885de77a40d3a05d",
+    "crates/rh-sim/src/mapgen/fixtures/map-records.json": "78c82721b4810a8b244d8a64be18d49d8bcdb490e9d8a57b1edb48324138f1be",
+    "tools/map-fixtures/records.ts": "6727ee4ee0cfc90a8e99c755a0b95b4b1ead854c06485a54f9cd6194012eceef"
+  },
+  "manifestVerified": true,
+  "sourceHashesVerified": 75,
+  "baselineTestsPassed": 4,
+  "independentExtraTestsPassed": 2,
+  "extraActualCases": [
+    [
+      2,
+      0,
+      false,
+      false
+    ],
+    [
+      3,
+      0,
+      false,
+      false
+    ],
+    [
+      42,
+      0,
+      true,
+      false
+    ],
+    [
+      123,
+      0,
+      true,
+      true
+    ],
+    [
+      1001,
+      2,
+      false,
+      true
+    ],
+    [
+      9007199254740991,
+      1,
+      false,
+      false
+    ],
+    [
+      -9007199254740991,
+      0,
+      true,
+      false
+    ],
+    [
+      99,
+      3,
+      true,
+      true
+    ]
+  ],
+  "extraReached": 8,
+  "extraSyntheticActualSourceCases": 2,
+  "atomicRefusals": [
+    "missing pole",
+    "invalid territory reference",
+    "out-of-bounds camp site",
+    "negative reach"
+  ],
+  "borrowChecks": [
+    "faction order",
+    "each weapon content word",
+    "camp radius",
+    "fixed gates"
+  ],
+  "finding": {
+    "description": "Four pinned genuine comparisons could be removed as null/null while all four tests passed",
+    "status": "fixed by coordinator; clean repaired baseline passed 4/4 and same deletion failed at tests.rs:204"
+  },
+  "mutations": [
+    {
+      "name": "camp-within-faction-order",
+      "detected": true
+    },
+    {
+      "name": "pole-landmark-exclusion",
+      "detected": true
+    },
+    {
+      "name": "feature-stable-log-order",
+      "detected": true
+    },
+    {
+      "name": "region-painted-area",
+      "detected": true
+    },
+    {
+      "name": "spawn-round-robin-order",
+      "detected": true
+    },
+    {
+      "name": "owner-remapping",
+      "detected": true
+    },
+    {
+      "name": "fixture-radius-input",
+      "detected": true
+    },
+    {
+      "name": "fixture-spawn-input",
+      "detected": true
+    }
+  ]
+}
