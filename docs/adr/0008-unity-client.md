@@ -17,7 +17,10 @@ The later snapshot-only client correction is library-tested and still needs a fr
 - Stale/duplicate Full snapshots are validated without replacing the delta base. Only an accepted newer snapshot updates
   public Latest/Me/Motion or invokes SnapshotReceived; decoded-frame counters remain separate. A fresh Welcome resets
   that timeline and an accepted self absence clears the local presentation.
-- Existing art only (colored primitives and the legacy palette); visual targets: [../VISUAL_DIRECTION.md](../VISUAL_DIRECTION.md).
+- Owner amendment 2026-11-05: visual assets need not match legacy art one-to-one. Compatible open-source assets,
+  original Unity/procedural assets and creative visual redesign are allowed; retain readability, authoritative Rust
+  geometry and third-party terms. This supersedes the initial existing-art-only clause. Targets:
+  [../VISUAL_DIRECTION.md](../VISUAL_DIRECTION.md).
 
 **To confirm (packets P-UNITY-1/P-NET-1):** fresh current-source Web build, full browser matrix, flows, verified narrow
 prediction, frame time/loading/memory. The owner selected M5 Pro initially and requests maximum sustainable frame rate,

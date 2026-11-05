@@ -42,6 +42,9 @@ edits and commits belong to `optimization_port`.
 - Owner priority update (2026-11-05): finish Rust simulation, parity and headless before Unity visual expansion. All rules,
   physics, collision, combat, AI and bots belong only to Rust. The sole Unity gameplay exception is local movement
   prediction checked against Rust vectors and always server-corrected; headless/policy runs never call Unity.
+- Owner visual update (2026-11-05): assets need not match the legacy art one-to-one. Compatible open-source assets,
+  original assets made with Unity tooling and creative presentation changes are allowed, superseding existing-art-only
+  restrictions. Readability, Rust authority, source asset terms and Rust-first priority remain. See R-VIS and ADR0008.
 
 ### Execution and current evidence
 

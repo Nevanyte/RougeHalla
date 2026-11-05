@@ -67,13 +67,17 @@ continuity"). Requirement IDs (R-*) are referenced from the backlog.
 - R-OPT-3. Server CPU, network RTT, browser CPU/GPU, memory, download size and operating complexity are separate budgets.
   No automatic improvement is promised from adopting Rust, Unity or AWS.
 
-## R-VIS: restrained visual upgrade
-- R-VIS-1. Existing art only. Improve affordable render resolution, lighting/materials, smoothness and polish
-  ([VISUAL_DIRECTION.md](VISUAL_DIRECTION.md)).
-- R-VIS-2. Preserve silhouettes, identity, geometry, hitboxes and competitive readability. No new artwork, sprite
-  replacement, character/environment redesign or generated images.
+## R-VIS: Unity visual design
+- R-VIS-1. Owner update 2026-11-05 supersedes the original existing-art-only restriction: assets need not match the legacy
+  art one-to-one. Compatible open-source assets and original assets made with Unity tooling, including procedural
+  geometry/materials, are allowed. Take creative liberties with the presentation ([VISUAL_DIRECTION.md](VISUAL_DIRECTION.md)).
+- R-VIS-2. Character/environment artwork, silhouettes and presentation may be redesigned. Preserve competitive
+  readability, clear faction/role cues and faithful presentation of authoritative positions, reach, collision geometry
+  and gameplay-critical indicators. Art changes do not authorize changes to Rust game rules or Unity gameplay authority.
 - R-VIS-3. Adaptive quality with manual overrides and an accessible low tier; essential gameplay indicators on every
   tier; no effect may reveal a hidden actor.
+- R-VIS-4. Record third-party asset provenance and preserve redistribution/attribution terms under R-OSS. Rust gameplay,
+  parity and headless completion retain priority over visual expansion; pursue the highest sustainable M5 Pro rate.
 
 ## R-OSS: open-source readiness
 - R-OSS-1. Game code and a standalone headless Rust engine build and test without Unity or AWS

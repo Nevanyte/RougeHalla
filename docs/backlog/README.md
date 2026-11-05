@@ -306,7 +306,7 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 | R-AWS (hosting, regions, scaling, TLS, 200/1,600 assumption) | P-HOST-1..6, P-UI-2, P-LOAD-1..3 |
 | R-GAME (continuity) | sections 1-4, P-PARITY-2, P-CAPTURE-1 |
 | R-OPT (measured optimization) | P-LOAD-3, P-HEAD-1, cross-cutting rule above |
-| R-VIS (restrained visual upgrade) | P-UI-7, P-UI-8, P-UI-9, P-MAP-4 |
+| R-VIS (creative Unity visuals with compatible open-source/original assets) | P-UI-7, P-UI-8, P-UI-9, P-MAP-4 |
 | R-OSS | P-OSS-1..4, P-CI-1/2 |
 | R-ML (architecture only) | P-BOTS-1, P-ML-1..4 |
 | R-PERSIST | P-PERSIST-2..5, P-MIG-1 |
