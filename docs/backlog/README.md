@@ -18,6 +18,13 @@ rows are `Pending("P-...")` entries there, named after the legacy rows, and [../
 
 ## How to pick up work
 
+**Parallel Claude handoff (owner request 2026-11-05).** The three technical adapter workstreams—durable recovery/accounts,
+AWS lifecycle/secure regional placement, and density/scaling/deployment validation—are reserved for a separate Claude
+branch under [P-CLAUDE-INFRA-1](packets/P-CLAUDE-INFRA-1.md). That packet defines file ownership, dependencies, budget and
+acceptance evidence. Codex retains Rust gameplay/map generation/parity/headless and Unity. Read the handoff before
+starting server adapter, persistence or hosting work; the original prompt's no-Claude assumption is superseded by the
+owner's new instruction. This reservation is not a completion claim for any listed backlog item.
+
 **Dependency order (earliest first).** A packet may start once everything it depends on is merged; "Ready packet" items have a
 full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the section list below) before they start.
 
