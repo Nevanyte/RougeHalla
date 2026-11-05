@@ -19,6 +19,7 @@ mod frost;
 mod holy;
 mod mapping;
 mod plague;
+mod sentenced;
 mod vision;
 use canon::{canon, first_difference};
 use mapping::raw_command;
@@ -196,6 +197,8 @@ pub struct FixTick {
     pub plague: Option<Value>,
     #[serde(default)]
     pub frost: Option<Value>,
+    #[serde(default)]
+    pub sentenced: Option<Value>,
     #[serde(default)]
     pub holy_inactive: Option<Value>,
     #[serde(default)]
@@ -581,7 +584,24 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
             .map(Some)
             .ok_or_else(|| format!("invalid {slot}: {value}"))
     };
-    let arena = vision::arena(fx, map)?;
+    let mut arena = vision::arena(fx, map)?;
+    if let Some(spawns) = fx.legacy_config.setup.get("bootstrapSpawns") {
+        if !sentenced::enabled(fx) || !fx.scenario.starts_with("sentenced_privacy_") {
+            return Err(
+                "explicit bootstrap is only supported by the Sentenced public producer triple"
+                    .into(),
+            );
+        }
+        let points: Vec<Vec2> =
+            serde_json::from_value(spawns.clone()).map_err(|e| e.to_string())?;
+        if points.len() != 8 || points.iter().any(|p| p.x != 320. || p.y != 320.) {
+            return Err(
+                "Sentenced public producer bootstrap must be eight exact320,320 spawn points"
+                    .into(),
+            );
+        }
+        arena.spawns = points;
+    }
     let placements: Vec<Placement> = fx
         .players
         .iter()
@@ -603,7 +623,9 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
-        faction_mode: if plague::frost(fx) {
+        faction_mode: if sentenced::enabled(fx) {
+            rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced
+        } else if plague::frost(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFireFrost
         } else if plague::fire(fx) {
             rh_sim::FactionMode::EngagementHolyPlagueFire
@@ -617,12 +639,14 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         ..Default::default()
     };
     for (key, value) in &fx.legacy_config.options {
-        if key != "weaponSpecials" {
-            return Err(format!("unported legacyConfig.options key {key}"));
-        }
-        config.weapon_specials = value
+        let v = value
             .as_bool()
-            .ok_or_else(|| "weaponSpecials must be boolean".to_string())?;
+            .ok_or_else(|| format!("{key} must be boolean"))?;
+        match key.as_str() {
+            "weaponSpecials" => config.weapon_specials = v,
+            "pvpRules" if sentenced::enabled(fx) => config.pvp_rules = v,
+            _ => return Err(format!("unported legacyConfig.options key {key}")),
+        }
     }
     if let Some(meta) = vision::source(fx) {
         vision::verify_bootstrap(meta, &arena, &placements, &config, secrets)?;
@@ -639,7 +663,9 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         }
         sim = Sim::restore(checkpoint).map_err(|e| e.to_string())?;
     }
-    combat::seed(&mut sim, &fx.legacy_config.setup)?;
+    let mut setup = fx.legacy_config.setup.clone();
+    setup.remove("bootstrapSpawns");
+    combat::seed(&mut sim, &setup)?;
     Ok(sim)
 }
 
@@ -667,7 +693,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
     );
     need(
         c.rust_slice.as_deref()
-            == if plague::frost(fx) {
+            == if sentenced::enabled(fx) {
+                Some("player-engagement-holy-plague-fire-frost-sentenced/1")
+            } else if plague::frost(fx) {
                 Some("player-engagement-holy-plague-fire-frost/1")
             } else if plague::fire(fx) {
                 Some("player-engagement-holy-plague-fire/1")
@@ -909,6 +937,9 @@ pub fn compare(fx: &Fixture) -> Report {
     for m in preconditions(fx, &sim) {
         rep.fail(m);
     }
+    for m in sentenced::preflight(fx) {
+        rep.fail(m);
+    }
     let not_compared: BTreeSet<&str> = fx.not_compared.iter().map(String::as_str).collect();
     let mut unported = BTreeSet::new();
     let mut inputs = fx.inputs.iter().peekable();
@@ -977,6 +1008,7 @@ pub fn compare(fx: &Fixture) -> Report {
                 occurred.insert(format!("action:{}", a.kind));
             }
         }
+        let mark_visuals = sentenced::visuals(&sim);
         apply_actions(&mut sim, fx, t.tick);
         // Events emitted between steps (a leave's MIA result) travel with the NEXT step's events, as in legacy.
         let all: Vec<Event> = events;
@@ -1011,6 +1043,7 @@ pub fn compare(fx: &Fixture) -> Report {
         );
         plague::compare(&mut rep, &sim, fx, t);
         frost::compare(&mut rep, &sim, fx, t);
+        sentenced::compare(&mut rep, &sim, fx, t, &ours, &mark_visuals);
         holy::compare(&mut rep, &sim, fx, t);
         if fx.packet.as_deref() == Some("P-COMBAT-3") || t.locks.is_some() {
             combat::compare_locks(&mut rep, &sim, t);

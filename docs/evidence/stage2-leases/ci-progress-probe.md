@@ -19,4 +19,4 @@ Controlled negative cases distinguish whole-process outage from an asynchronousl
 renewals; both must fail for their intended reason. The unchanged production positive control passes. The revised
 standalone/nested PostgreSQL targets passed all **7 + 9 tests**, independently and again in the working checkout;
 warnings-denied server Clippy passed. This strengthens verification and evidence collection; it is **not a claimed
-production fix**. Fresh CI must still be observed.
+production fix**. Follow-up `c5e016ef` passed full [Rust CI](https://github.com/Nevanyte/RougeHalla/actions/runs/42070970303), including both PostgreSQL targets, C#, source checks, headless and Chromium WSS. The original historical cause remains unproven.

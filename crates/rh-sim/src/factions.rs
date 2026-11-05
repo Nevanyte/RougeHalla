@@ -7,9 +7,10 @@ pub enum SignatureKind {
     Disease,
     Burn,
     Backlash,
+    Mark,
 }
 impl SignatureKind {
-    pub const ALL: [Self; 3] = [Self::Disease, Self::Burn, Self::Backlash];
+    pub const ALL: [Self; 4] = [Self::Disease, Self::Burn, Self::Backlash, Self::Mark];
     pub const fn is_dot(self) -> bool {
         matches!(self, Self::Disease | Self::Burn)
     }
@@ -18,6 +19,7 @@ impl SignatureKind {
             Self::Disease => "disease",
             Self::Burn => "burn",
             Self::Backlash => "backlash",
+            Self::Mark => "mark",
         }
     }
 }
@@ -51,6 +53,10 @@ pub struct DamageView {
     pub weapon: Option<WeaponId>,
     pub sig: Option<SignatureKind>,
     pub execute: bool,
+    pub passive: bool,
+    pub derived: bool,
+    pub projectile: Option<u32>,
+    pub stagger: bool,
     pub phys: f64,
     pub magic: f64,
     pub true_: f64,
@@ -65,6 +71,10 @@ impl From<crate::systems::ledger::Entry> for DamageView {
             weapon: e.weapon,
             sig: e.sig,
             execute: e.execute,
+            passive: e.passive,
+            derived: e.derived,
+            projectile: e.projectile,
+            stagger: e.stagger,
             phys: e.packet.phys,
             magic: e.packet.magic,
             true_: e.packet.true_,
@@ -72,6 +82,10 @@ impl From<crate::systems::ledger::Entry> for DamageView {
     }
 }
 impl crate::Sim {
+    /// Trusted pass-start owner/marked-foe denial index, stable through ledger payouts.
+    pub fn mark_denials(&self) -> &[Option<(PlayerId, PlayerId)>; crate::constants::MAX_PLAYERS] {
+        &self.s.mark_denials
+    }
     pub fn faction_runtime(&self) -> &FactionRuntime {
         &self.w.factions
     }

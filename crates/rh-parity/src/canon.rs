@@ -41,6 +41,9 @@ pub(crate) fn launch(e: &Event) -> Option<Value> {
 pub(crate) fn canon(e: &Event, sim: &Sim) -> Option<Value> {
     use serde_json::json;
     Some(rounded(match e {
+        Event::MarkNotice { recipient, notice } => {
+            json!({"kind":"toast","to":fid(*recipient),"text":notice.message()})
+        }
         Event::SignatureHit {
             victim,
             by,

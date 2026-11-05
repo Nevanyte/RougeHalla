@@ -123,6 +123,11 @@ impl OutcomeDigest {
     fn event(&mut self, e: &Event) {
         self.events += 1;
         match e {
+            Event::MarkNotice { recipient, notice } => {
+                self.s("mark_notice");
+                self.w(recipient.0 as u64);
+                self.s(notice.message());
+            }
             Event::SignatureHit {
                 victim,
                 by,

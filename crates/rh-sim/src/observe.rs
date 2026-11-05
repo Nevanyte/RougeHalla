@@ -17,10 +17,14 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 10;
+pub const OBSERVATION_VERSION: u16 = 11;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
+    pub mark_tier: u8,
+    pub brand: u8,
+    pub mark_by: Option<PlayerId>,
+    pub mark_tax: u8,
     pub sig: u8,
     /// The owner’s attack lock, when that actor is also visible in this frame.
     pub attack_target: Option<PlayerId>,
@@ -44,6 +48,10 @@ pub struct SelfView {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorView {
+    pub mark_tier: u8,
+    pub brand: u8,
+    pub mark_by: Option<PlayerId>,
+    pub mark_tax: u8,
     pub sig: u8,
     pub id: PlayerId,
     pub faction: FactionId,
@@ -201,7 +209,8 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         }),
         Event::Bounty { id, bounty } => Some(SeenEvent::Bounty { id, bounty }),
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
-        Event::SignatureHit { .. }
+        Event::MarkNotice { .. }
+        | Event::SignatureHit { .. }
         | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
         | Event::RaidStarted
@@ -277,6 +286,17 @@ pub(crate) fn filter_events(
     }
 }
 
+/// Mark presentation uses current survivors, including between-step departures. Other stored bits
+/// retain their source timing; projection never writes the private signature diagnostics.
+fn projected_signature_bits(bits: u8, tier: u8) -> u8 {
+    (bits & !crate::constants::SIG_EXEC_BLOCKED)
+        | if tier >= crate::constants::MARK_TOP_TIER {
+            crate::constants::SIG_EXEC_BLOCKED
+        } else {
+            0
+        }
+}
+
 /// Disposable preview, with handles scoped to this call. Use [`crate::ItemObserver`] for actions.
 /// The observation of player `viewer` after a step whose events are `events` (pass the step's return value).
 pub fn observe(sim: &Sim, viewer: PlayerId, events: &[Event]) -> Observation {
@@ -322,7 +342,14 @@ pub(crate) fn observe_with(
     out.server_time = now;
     out.phase = sim.phase();
     out.me = me.map(|p| SelfView {
-        sig: p.signature.bits,
+        mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
+        brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
+        mark_by: None,
+        mark_tax: 0,
+        sig: projected_signature_bits(
+            p.signature.bits,
+            crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
+        ),
         attack_target: None,
         id: p.id,
         faction: p.vitals.faction,
@@ -359,7 +386,14 @@ pub(crate) fn observe_with(
                 _ => scene_line_blocked(map, ax, ay, o.body.x, o.body.y),
             }) {
                 out.visible.push(ActorView {
-                    sig: o.signature.bits,
+                    mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, o.id),
+                    brand: crate::systems::sentenced::public_mark_tier(&sim.w, o.id) * 25,
+                    mark_by: None,
+                    mark_tax: 0,
+                    sig: projected_signature_bits(
+                        o.signature.bits,
+                        crate::systems::sentenced::public_mark_tier(&sim.w, o.id),
+                    ),
                     id: o.id,
                     faction: o.vitals.faction,
                     x: o.body.x,
@@ -395,7 +429,25 @@ pub(crate) fn observe_with(
     // `visible` is sorted by id: a binary search instead of a scan per event.
     let can_see =
         |id: PlayerId| Some(id) == me_id || visible.binary_search_by_key(&id, |v| v.id).is_ok();
-    filter_events(events, me_id, can_see, &mut out.events);
+    if let Some(me) = &mut out.me {
+        me.mark_by =
+            crate::systems::sentenced::public_mark_by(&sim.w, me.id, me.mark_tier, can_see);
+    }
+    // Select only after visibility is settled; a hidden tied owner never suppresses a visible one.
+    for i in 0..out.visible.len() {
+        let actor = &out.visible[i];
+        let by =
+            crate::systems::sentenced::public_mark_by(&sim.w, actor.id, actor.mark_tier, |id| {
+                Some(id) == me_id || out.visible.binary_search_by_key(&id, |a| a.id).is_ok()
+            });
+        out.visible[i].mark_by = by;
+    }
+    filter_events(
+        events,
+        me_id,
+        |id| Some(id) == me_id || out.visible.binary_search_by_key(&id, |a| a.id).is_ok(),
+        &mut out.events,
+    );
 }
 
 /// Appends to `out` what `viewer` may know of `events` as the sim stands NOW, without building the whole observation. A
@@ -448,6 +500,10 @@ fn observe_events_with(
 /// replicate this to a playing client: it ignores line of sight.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PublicPlayer {
+    pub mark_tier: u8,
+    pub brand: u8,
+    pub mark_by: Option<PlayerId>,
+    pub mark_tax: u8,
     pub id: PlayerId,
     pub name: String,
     pub bot: bool,
@@ -476,6 +532,10 @@ pub fn public_snapshot(sim: &Sim) -> PublicSnapshot {
         .players()
         .iter()
         .map(|p| PublicPlayer {
+            mark_tier: crate::systems::sentenced::public_mark_tier(&sim.w, p.id),
+            brand: crate::systems::sentenced::public_mark_tier(&sim.w, p.id) * 25,
+            mark_by: None,
+            mark_tax: 0,
             id: p.id,
             name: p.seat.name.clone(),
             bot: p.seat.bot,

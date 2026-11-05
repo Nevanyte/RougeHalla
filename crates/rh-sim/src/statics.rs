@@ -79,6 +79,7 @@ pub enum FactionMode {
     EngagementHolyPlague,
     EngagementHolyPlagueFire,
     EngagementHolyPlagueFireFrost,
+    EngagementHolyPlagueFireFrostSentenced,
 }
 impl FactionMode {
     pub const fn engagement(self) -> bool {
@@ -87,16 +88,27 @@ impl FactionMode {
     pub const fn fire(self) -> bool {
         matches!(
             self,
-            Self::EngagementHolyPlagueFire | Self::EngagementHolyPlagueFireFrost
+            Self::EngagementHolyPlagueFire
+                | Self::EngagementHolyPlagueFireFrost
+                | Self::EngagementHolyPlagueFireFrostSentenced
         )
     }
     pub const fn frost(self) -> bool {
-        matches!(self, Self::EngagementHolyPlagueFireFrost)
+        matches!(
+            self,
+            Self::EngagementHolyPlagueFireFrost | Self::EngagementHolyPlagueFireFrostSentenced
+        )
+    }
+    pub const fn sentenced(self) -> bool {
+        matches!(self, Self::EngagementHolyPlagueFireFrostSentenced)
     }
     pub const fn supports(self, sig: crate::factions::SignatureKind) -> bool {
         match sig {
             crate::factions::SignatureKind::Disease => self.plague(),
-            _ => self.fire(),
+            crate::factions::SignatureKind::Burn | crate::factions::SignatureKind::Backlash => {
+                self.fire()
+            }
+            crate::factions::SignatureKind::Mark => self.sentenced(),
         }
     }
     pub const fn plague(self) -> bool {
@@ -105,6 +117,7 @@ impl FactionMode {
             Self::EngagementHolyPlague
                 | Self::EngagementHolyPlagueFire
                 | Self::EngagementHolyPlagueFireFrost
+                | Self::EngagementHolyPlagueFireFrostSentenced
         )
     }
 }

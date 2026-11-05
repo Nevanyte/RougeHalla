@@ -65,6 +65,7 @@ function rowsOf(map: GameMap): string[] {
 
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
 import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages/server/src/sim/vision";
+import { sentencedScenarios } from "./scenarios/sentenced";
 import { frostScenarios } from "./scenarios/frost";
 import { fireScenarios } from "./scenarios/fire";
 import { plagueScenarios } from "./scenarios/plague";
@@ -79,7 +80,9 @@ import { meleeScenarios } from "./scenarios/melee";
 import { catalogue } from "./scenarios/catalogue";
 
 function run(sc: Scenario): unknown {
+  if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1" && (process.version!=="v22.23.4" || process.platform!=="linux" || process.arch!=="x64")) throw new Error("Sentenced source fixtures require Linux x64 Node22.23.4");
   const map = sc.generatedMapSeed === undefined ? parseRows(sc.rows) : generateMap(sc.generatedMapSeed, undefined, sc.vision?.spawnSeed === undefined ? undefined : { decor: false });
+  if(sc.bootstrapSpawns) map.spawns=sc.bootstrapSpawns;
   const world = createScenarioWorld(sc, map);
   for (const c of sc.containers ?? []) dropWeapon(world, c.at, c.weapon);
   for (const p of sc.players) {
@@ -137,8 +140,14 @@ function run(sc: Scenario): unknown {
   };
   let rawLedger: unknown[] = [];
   let performed: unknown[] = [];
-  if((sc.factionSlice === "player-engagement-holy-plague-fire/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost/1")) world.afterWeapons.push(w => {performed=[...w.combat.melee.map(m=>({by:m.attacker,weapon:m.weapon})),...w.combat.spawns.map(p=>({by:p.owner,weapon:p.weapon}))];});
+  let markDenials: unknown[] = [];
+  let markFlags: unknown[] = [];
+  if((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1"))) world.afterWeapons.push(w => {performed=[...w.combat.melee.map(m=>({by:m.attacker,weapon:m.weapon})),...w.combat.spawns.map(p=>({by:p.owner,weapon:p.weapon}))];});
   if(sc.factionSlice) world.beforeDamage.push(w=>{rawLedger=canonicalJson(w.combat.ledger.map(e=>({victim:e.victim,by:e.by.id,raw:e.packet.raw,scale:e.scale,weapon:e.weapon,sig:e.sig??null,execute:e.execute??false,phys:e.packet.phys,magic:e.packet.magic,true_:e.packet.true}))) as unknown[];});
+  if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1") world.beforeDamage.push(w => {
+    markFlags=w.combat.ledger.map(e=>({passive:e.passive??false,derived:e.derived??false,projectile:e.projectile??null,stagger:e.stagger??false}));
+    markDenials = [...(w.combat.marks?.denies ?? [])].flatMap(([owner,foes])=>[...foes].map(foe=>({owner,foe})));
+  });
   const startTick = world.state.tick;
   for (let i = 0; i < sc.maxTicks && (world.state.phase === "active" || world.state.phase === "planning"); i++) {
     launches = [];
@@ -174,14 +183,20 @@ function run(sc: Scenario): unknown {
     }));
     const extras: Record<string, unknown> = {};
     if(sc.factionSlice) extras.plague=canonicalJson({
-      ...((sc.factionSlice === "player-engagement-holy-plague-fire/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost/1") ? {performed} : {}),
+      ...((sc.factionSlice === "player-engagement-holy-plague-fire/1" || (sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1")) ? {performed} : {}),
       raw:rawLedger,
       landed:world.combat.landed.map(h=>({victim:h.victim,by:h.by,amount:h.amount,sig:h.sig??null,weapon:h.weapon})),
       dotSince:world.factions!.dotSince,
       buckets:[...world.factions!.dot.values()],
       fighters:[...world.state.players.entries()].map(([id,p])=>{const f=signatureState(world,id);return {id,target:f?.target??null,inReach:f?.inReach??false,engaged:f?.engaged??false,reachAt:Number.isFinite(f?.reachAt)?f!.reachAt:null,contactAt:Number.isFinite(f?.contactAt)?f!.contactAt:null,combatAt:Number.isFinite(f?.combatAt)?f!.combatAt:null,hpFrac:f?.hpFrac??1,pause:f?.dotPausedUntil??0,bits:p.sig};})
     });
-    if(sc.factionSlice === "player-engagement-holy-plague-fire-frost/1") extras.frost=canonicalJson([...world.state.players.entries()].map(([id,p])=>{const f=signatureState(world,id);const w=world.players.get(id)!.weapon;return {id,chill:f?.chill??1,chillers:f?.chillers??[],exposureStartedAt:Number.isFinite(f?.chillExposureStartedAt)?f!.chillExposureStartedAt:null,lastNearAt:Number.isFinite(f?.chillLastNearAt)?f!.chillLastNearAt:null,rangedUntil:Number.isFinite(f?.rangedChillUntil)?f!.rangedChillUntil:null,move:f?.frostMoveMult??1,readyAt:p.readyAt,bufferedUntil:w.bufferedUntil,pressedAt:w.pressedAt,drawStartedAt:p.drawStartedAt,action:w.action?{kind:w.action.kind,startedAt:w.action.startedAt,landsAt:w.action.landsAt}:null};}));
+    if((sc.factionSlice === "player-engagement-holy-plague-fire-frost/1" || sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1")) extras.frost=canonicalJson([...world.state.players.entries()].map(([id,p])=>{const f=signatureState(world,id);const w=world.players.get(id)!.weapon;return {id,chill:f?.chill??1,chillers:f?.chillers??[],exposureStartedAt:Number.isFinite(f?.chillExposureStartedAt)?f!.chillExposureStartedAt:null,lastNearAt:Number.isFinite(f?.chillLastNearAt)?f!.chillLastNearAt:null,rangedUntil:Number.isFinite(f?.rangedChillUntil)?f!.rangedChillUntil:null,move:f?.frostMoveMult??1,readyAt:p.readyAt,bufferedUntil:w.bufferedUntil,pressedAt:w.pressedAt,drawStartedAt:p.drawStartedAt,action:w.action?{kind:w.action.kind,startedAt:w.action.startedAt,landsAt:w.action.landsAt}:null};}));
+    if(sc.factionSlice === "player-engagement-holy-plague-fire-frost-sentenced/1") extras.sentenced=canonicalJson({
+      denials:markDenials,
+      flags:markFlags,
+      fighters:[...world.state.players.entries()].map(([id,p])=>{const f=signatureState(world,id);return {id,tier:f?.tier??0,hits:f?.markHits??0,progress:f?.markProgress??0,swaps:f?.markSwaps??0,denied:f?.markDenied??false,farSince:Number.isFinite(f?.farSince)?f!.farSince:null,ampUntil:f?.ampUntil??0,sentence:p.sentence,legacyMarkBy:p.markBy,markTier:p.markTier,brand:p.brand,markTax:p.markTax};}),
+      notices:events.filter(e=>e.type==='toast').map(e=>canonicalEvent(e)),
+    });
     // After the first complete staggered window an installed, continuously active viewer has
     // sampled ≤one tick ago. Assert the actual getter changes no cell, on every recorded read.
     if (sc.vision && ctx.tick >= startTick + 3) {
@@ -265,7 +280,7 @@ function run(sc: Scenario): unknown {
       mobsPresent: mobs,
       startEvents: startEvents.map((e) => e.type),
       startEventPayloads: startEvents.map(canonicalEvent).filter(e => e !== null),
-      ...(sc.containers ? { setup: { containers: sc.containers } } : {}),
+      ...((sc.containers || sc.bootstrapSpawns) ? { setup: { ...(sc.containers ? {containers:sc.containers} : {}), ...(sc.bootstrapSpawns ? {bootstrapSpawns:sc.bootstrapSpawns} : {}) } } : {}),
       unexpectedEventTypes: [...unexpected],
     },
     map: { w: map.w, h: map.h, tile: TILE, rows: rowsOf(map) },
@@ -568,7 +583,7 @@ const lockTwin: Scenario = {
   modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
   requires: ["input:target", "launch", "projEnd", "death"],
 };
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, lockTwin]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, ...fireScenarios, ...frostScenarios, ...sentencedScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

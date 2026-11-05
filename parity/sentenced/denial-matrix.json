@@ -1,0 +1,701 @@
+{
+  "format": "rh-sentenced-denial-matrix/1",
+  "provenance": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "kind": "helper-only arbitrary direct ledger executes; actual installed index, ledger, payouts and afterDamage; not gameplay intake",
+    "modules": [
+      "loot",
+      "weapons",
+      "targeting",
+      "projectiles",
+      "factions",
+      "mobs",
+      "buffs",
+      "feed",
+      "camps",
+      "chests",
+      "killAugments",
+      "mobLife",
+      "mobAI",
+      "terrainEffects",
+      "regen",
+      "abilities",
+      "quests",
+      "vision",
+      "campHeal",
+      "traders",
+      "cardHooks",
+      "mods"
+    ],
+    "exports": [
+      "packages/server/src/sim/ledger.ts::recordHit",
+      "packages/server/src/sim/ledger.ts::applyLedger",
+      "packages/server/src/sim/factions.ts::installFactions"
+    ]
+  },
+  "cases": [
+    {
+      "setup": {
+        "name": "no-execute",
+        "hp": 20,
+        "rows": [
+          [
+            1,
+            10,
+            false
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 10,
+        "barrier": 0,
+        "sentence": 0,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 0
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 10,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": []
+    },
+    {
+      "setup": {
+        "name": "deny",
+        "hp": 20,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 1,
+        "barrier": 0,
+        "sentence": 1,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": true,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 19,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "barrier",
+        "hp": 20,
+        "barrier": 100,
+        "rows": [
+          [
+            1,
+            200,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 1,
+        "barrier": 0,
+        "sentence": 1,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": true,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 19,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "multiple-execute",
+        "hp": 20,
+        "rows": [
+          [
+            1,
+            70,
+            true
+          ],
+          [
+            1,
+            30,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 1.0000000000000036,
+        "barrier": 0,
+        "sentence": 1,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": true,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 13.299999999999997,
+          "sig": "disease",
+          "weapon": "fists"
+        },
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 5.699999999999999,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "ordinary-disease-lethal",
+        "hp": 20,
+        "rows": [
+          [
+            1,
+            100,
+            false
+          ],
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 0,
+        "barrier": 0,
+        "sentence": 1,
+        "status": "dead",
+        "target": null,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 100,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "other-foe-execute-lethal",
+        "hp": 20,
+        "rows": [
+          [
+            2,
+            100,
+            true
+          ],
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 0,
+        "barrier": 0,
+        "sentence": 1,
+        "status": "dead",
+        "target": null,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p2",
+          "amount": 100,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "pvp",
+        "hp": 1,
+        "pvp": true,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 1,
+        "barrier": 0,
+        "sentence": 1,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": true,
+        "ampUntil": 12000
+      },
+      "landed": [],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "already-denied",
+        "hp": 20,
+        "denied": true,
+        "stacks": 2,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 1,
+        "barrier": 0,
+        "sentence": 2,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": true,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 19,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "stack-cap",
+        "hp": 20,
+        "stacks": 5,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 1,
+        "barrier": 0,
+        "sentence": 5,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": true,
+        "ampUntil": 12000
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 19,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": [
+        {
+          "to": "p1",
+          "text": "Execute blocked - already sentenced."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "no-top-tier",
+        "hp": 20,
+        "tier": 3,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [],
+      "result": {
+        "hp": 0,
+        "barrier": 0,
+        "sentence": 0,
+        "status": "dead",
+        "target": null,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 0
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 100,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": []
+    },
+    {
+      "setup": {
+        "name": "nonlethal",
+        "hp": 200,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 100,
+        "barrier": 0,
+        "sentence": 0,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 0
+      },
+      "landed": [
+        {
+          "victim": "p0",
+          "by": "p1",
+          "amount": 100,
+          "sig": "disease",
+          "weapon": "fists"
+        }
+      ],
+      "notices": []
+    },
+    {
+      "setup": {
+        "name": "fully-barrier",
+        "hp": 20,
+        "barrier": 500,
+        "rows": [
+          [
+            1,
+            100,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 20,
+        "barrier": 400,
+        "sentence": 0,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 0
+      },
+      "landed": [],
+      "notices": []
+    },
+    {
+      "setup": {
+        "name": "zero",
+        "hp": 20,
+        "rows": [
+          [
+            1,
+            0,
+            true
+          ]
+        ]
+      },
+      "denies": [
+        {
+          "owner": "p0",
+          "foes": [
+            "p1"
+          ]
+        }
+      ],
+      "result": {
+        "hp": 20,
+        "barrier": 0,
+        "sentence": 0,
+        "status": "alive",
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "ampUntil": 0
+      },
+      "landed": [],
+      "notices": []
+    }
+  ],
+  "referenceOnly": {
+    "reason": "source explicit arena flag has no current Rust producer or typed representation; excluded from accepted helper parity",
+    "cases": [
+      {
+        "setup": {
+          "name": "ordinary-arena-lethal",
+          "hp": 20,
+          "rows": [
+            [
+              1,
+              100,
+              true
+            ],
+            [
+              null,
+              100,
+              false
+            ]
+          ]
+        },
+        "denies": [
+          {
+            "owner": "p0",
+            "foes": [
+              "p1"
+            ]
+          }
+        ],
+        "result": {
+          "hp": 0,
+          "barrier": 0,
+          "sentence": 1,
+          "status": "dead",
+          "target": null,
+          "tier": 0,
+          "hits": 0,
+          "progress": 0,
+          "swaps": 0,
+          "denied": false,
+          "ampUntil": 12000
+        },
+        "landed": [],
+        "notices": [
+          {
+            "to": "p1",
+            "text": "Execute blocked - already sentenced."
+          }
+        ]
+      }
+    ]
+  }
+}

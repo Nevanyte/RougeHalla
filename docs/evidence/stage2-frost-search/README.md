@@ -93,3 +93,7 @@ Use the pinned Rust toolchain, disposable PostgreSQL 16 and Linux x64 Node 22.23
 formatting, both Clippy modes, parity report, the three byte-compared Frost proof tools and
 `node --import tsx tools/map-fixtures/landmark-search.ts --check`. CI includes these source oracles. Sol 6.1/medium workers
 implemented both packets; independent Sol 6.1/high reviews follow the recorded fallback after Astra capacity failures.
+
+The original Rust CI at `485c6f9e` failed the lease proof's clock-progress assertion. Test-only diagnostic follow-up
+`c5e016ef` passed Rust CI `42070970303`; production timing was unchanged. See the
+[diagnostic evidence](../stage2-leases/ci-progress-probe.md). The original cause remains unproven.

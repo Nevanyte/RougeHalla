@@ -30,6 +30,10 @@ impl PickupRefusal {
 /// ([`Event::class`]); important events (deaths, results, the end) are never dropped, fx may be (docs/CONTRACTS.md C-NET-5).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Event {
+    MarkNotice {
+        recipient: PlayerId,
+        notice: MarkNotice,
+    },
     /// Source-exact private delayed chunk. Public projection consumes per-tick contributions instead.
     SignatureHit {
         victim: PlayerId,
@@ -163,7 +167,8 @@ impl Event {
             | Event::Death { id, .. } => Visibility::IfSeen(id),
             Event::PickupRefused { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
-            Event::SignatureHit { .. }
+            Event::MarkNotice { .. }
+            | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
@@ -189,13 +194,31 @@ impl Event {
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
             Event::PickupRefused { .. } => Class::Important,
-            Event::SignatureHit { .. }
+            Event::MarkNotice { .. }
+            | Event::SignatureHit { .. }
             | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
             | Event::Windup { .. }
             | Event::Gv { .. }
             | Event::RaidEnded => Class::ServerOnly,
+        }
+    }
+}
+
+/// Private source notices, fixed text without per-step string allocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum MarkNotice {
+    Marked,
+    CarriedOut,
+    ExecuteBlocked,
+}
+impl MarkNotice {
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::Marked => "Sentenced marked you.",
+            Self::CarriedOut => "Your sentence has been carried out.",
+            Self::ExecuteBlocked => "Execute blocked - already sentenced.",
         }
     }
 }

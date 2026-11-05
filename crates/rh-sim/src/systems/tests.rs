@@ -273,6 +273,8 @@ fn a_deferred_hit_opens_the_next_ticks_ledger() {
 fn credit(by: u32) -> ledger::PayLater {
     ledger::PayLater::CreditKill {
         by: PlayerId(by),
+        victim: PlayerId(99),
+        outcome: crate::Outcome::Died,
         victim_bot: false,
         bounty: 0,
     }
@@ -305,7 +307,7 @@ fn pay_later_inside_the_pass_waits_for_its_end_and_pays_in_order() {
     );
     assert_eq!(s.w.pay.items, vec![credit(1), credit(2), credit(1)]);
     let mut ev = Vec::new();
-    ledger::pay_all(&mut s.w, &mut ev);
+    ledger::pay_all(&s.k, &mut s.w, &mut ev);
     assert_eq!(
         (s.w.players[0].credit.kills, s.w.players[1].credit.kills),
         (2, 1)

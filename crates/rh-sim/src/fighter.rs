@@ -4,7 +4,7 @@
 //! one of its components), so a new kind of fighter is a new wrapper around the same core, not a copy of the systems.
 //!
 //! The components own their data only; the rules live in `systems/`. All of it is plain data that serializes, hashes and
-//! checkpoints (the layout is `rh-checkpoint/13`).
+//! checkpoints (the layout is `rh-checkpoint/14`).
 
 use crate::content::{FactionId, WeaponId};
 use crate::input::{InputQueue, OrderBudget};
@@ -149,6 +149,7 @@ pub struct Seat {
 /// What a fighter has earned and whom it hurt.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Credit {
+    pub sentence: u8,
     pub kills: u32,
     pub bot_kills: u32,
     pub bounty: u32,
@@ -172,6 +173,8 @@ pub struct Fate {
 /// This is trusted checkpoint state, never an observation or a target-admission source.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Signature {
+    pub mark: Mark,
+
     pub chill: f64,
     /// Stable private source IDs, in source insertion order. Unused cells are None.
     pub chillers: [Option<PlayerId>; crate::constants::MAX_PLAYERS],
@@ -194,6 +197,7 @@ pub struct Signature {
 impl Default for Signature {
     fn default() -> Self {
         Self {
+            mark: Mark::default(),
             chill: 1.0,
             chillers: [None; crate::constants::MAX_PLAYERS],
             chiller_count: 0,
@@ -215,6 +219,7 @@ impl Default for Signature {
 }
 impl Signature {
     pub(crate) fn clear_target(&mut self) {
+        self.mark.reset();
         self.target = None;
         self.in_reach = false;
         self.engaged = false;
@@ -224,5 +229,26 @@ impl Signature {
         self.clear_target();
         self.target = Some(target);
         self.contact_at = Some(now);
+    }
+}
+
+/// Private singleton Mark state. Amplifier linger survives target resets.
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Mark {
+    pub tier: u8,
+    pub hits: u64,
+    pub progress: f64,
+    pub swaps: u64,
+    pub denied: bool,
+    pub far_since: Option<f64>,
+    pub amp_until: f64,
+}
+impl Mark {
+    pub(crate) fn reset(&mut self) {
+        let amp_until = self.amp_until;
+        *self = Self {
+            amp_until,
+            ..Self::default()
+        };
     }
 }

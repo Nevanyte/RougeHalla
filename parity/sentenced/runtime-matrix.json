@@ -1,0 +1,3296 @@
+{
+  "format": "rh-sentenced-runtime-matrix/1",
+  "provenance": {
+    "node": "v22.23.4",
+    "platform": "linux",
+    "arch": "x64",
+    "kind": "trusted private setup and actual installed beforeDamage; not ordinary gameplay intake",
+    "modules": [
+      "loot",
+      "weapons",
+      "targeting",
+      "projectiles",
+      "factions",
+      "mobs",
+      "buffs",
+      "feed",
+      "camps",
+      "chests",
+      "killAugments",
+      "mobLife",
+      "mobAI",
+      "terrainEffects",
+      "regen",
+      "abilities",
+      "quests",
+      "vision",
+      "campHeal",
+      "traders",
+      "cardHooks",
+      "mods"
+    ],
+    "exports": [
+      "packages/server/src/sim/factions.ts::installFactions",
+      "packages/server/src/sim/ledger.ts::recordHit"
+    ],
+    "sourceFiles": [
+      "packages/server/src/sim/factions.ts",
+      "packages/shared/src/mark.ts",
+      "packages/shared/src/factions.ts",
+      "packages/shared/src/signatureShares.ts"
+    ]
+  },
+  "cases": [
+    {
+      "setup": {
+        "name": "fists-1",
+        "weapon": "fists",
+        "hits": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "fists-3",
+        "weapon": "fists",
+        "hits": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "fists-6",
+        "weapon": "fists",
+        "hits": 6
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 6,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "fists-9",
+        "weapon": "fists",
+        "hits": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "fists-12",
+        "weapon": "fists",
+        "hits": 12
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 12,
+        "progress": 12,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.731999999999996,
+          "weapon": "fists",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "sword-1",
+        "weapon": "sword",
+        "hits": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "sword-3",
+        "weapon": "sword",
+        "hits": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "sword-6",
+        "weapon": "sword",
+        "hits": 6
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 6,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "sword-9",
+        "weapon": "sword",
+        "hits": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "sword-12",
+        "weapon": "sword",
+        "hits": 12
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 12,
+        "progress": 12,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "axe-1",
+        "weapon": "axe",
+        "hits": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "axe-3",
+        "weapon": "axe",
+        "hits": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "axe-6",
+        "weapon": "axe",
+        "hits": 6
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 6,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "axe-9",
+        "weapon": "axe",
+        "hits": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "axe-12",
+        "weapon": "axe",
+        "hits": 12
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 12,
+        "progress": 12,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 56.6775,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "shield-1",
+        "weapon": "shield",
+        "hits": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "shield-3",
+        "weapon": "shield",
+        "hits": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "shield-6",
+        "weapon": "shield",
+        "hits": 6
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 6,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "shield-9",
+        "weapon": "shield",
+        "hits": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "shield-12",
+        "weapon": "shield",
+        "hits": 12
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 12,
+        "progress": 12,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 48.3046875,
+          "weapon": "shield",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "bow-1",
+        "weapon": "bow",
+        "hits": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "bow-3",
+        "weapon": "bow",
+        "hits": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "bow-6",
+        "weapon": "bow",
+        "hits": 6
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 6,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "bow-9",
+        "weapon": "bow",
+        "hits": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "bow-12",
+        "weapon": "bow",
+        "hits": 12
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 12,
+        "progress": 12,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "wand-1",
+        "weapon": "wand",
+        "hits": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "wand-3",
+        "weapon": "wand",
+        "hits": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "wand-6",
+        "weapon": "wand",
+        "hits": 6
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 6,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "wand-9",
+        "weapon": "wand",
+        "hits": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 9,
+        "progress": 9,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "wand-12",
+        "weapon": "wand",
+        "hits": 12
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 12,
+        "progress": 12,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "distance-299.999999",
+        "hits": 3,
+        "weapon": "wand",
+        "distance": 299.999999
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "distance-300",
+        "hits": 3,
+        "weapon": "wand",
+        "distance": 300
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "distance-300.000001",
+        "hits": 3,
+        "weapon": "wand",
+        "distance": 300.000001
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "distance-640",
+        "hits": 3,
+        "weapon": "wand",
+        "distance": 640
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "distance-640.000001",
+        "hits": 3,
+        "weapon": "wand",
+        "distance": 640.000001
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": 10000,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 24.98181818181818,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "stacks-1",
+        "weapon": "axe",
+        "hits": 3,
+        "stacks": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 1
+      },
+      "pulses": [
+        {
+          "raw": 65.179125,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 65.179125,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 65.179125,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "stacks-5",
+        "weapon": "axe",
+        "hits": 3,
+        "stacks": 5
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 5
+      },
+      "pulses": [
+        {
+          "raw": 99.18562500000002,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 99.18562500000002,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 99.18562500000002,
+          "weapon": "axe",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "chill-1",
+        "weapon": "bow",
+        "hits": 1,
+        "chill": 0.6799999999999999
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1.4705882352941178,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "chill-2",
+        "weapon": "bow",
+        "hits": 2,
+        "chill": 0.6799999999999999
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 2,
+        "progress": 2.9411764705882355,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "chill-3",
+        "weapon": "bow",
+        "hits": 3,
+        "chill": 0.6799999999999999
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 4.411764705882353,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "chill-6",
+        "weapon": "bow",
+        "hits": 6,
+        "chill": 0.6799999999999999
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 6,
+        "progress": 8.823529411764707,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 42.27692307692308,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "filter-passive",
+        "weapon": "bow",
+        "hits": 3,
+        "flag": "passive"
+      },
+      "result": {
+        "target": "p1",
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "filter-derived",
+        "weapon": "bow",
+        "hits": 3,
+        "flag": "derived"
+      },
+      "result": {
+        "target": "p1",
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "filter-sig",
+        "weapon": "bow",
+        "hits": 3,
+        "flag": "sig"
+      },
+      "result": {
+        "target": "p1",
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "filter-noWeapon",
+        "weapon": "bow",
+        "hits": 3,
+        "flag": "noWeapon"
+      },
+      "result": {
+        "target": "p1",
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "filter-zeroScale",
+        "weapon": "bow",
+        "hits": 3,
+        "flag": "zeroScale"
+      },
+      "result": {
+        "target": "p1",
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "filter-immune",
+        "weapon": "bow",
+        "hits": 3,
+        "flag": "immune"
+      },
+      "result": {
+        "target": "p1",
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "swaps-0",
+        "weapon": "sword",
+        "hits": 1,
+        "priorHits": 1,
+        "priorProgress": 1,
+        "priorTier": 1,
+        "swaps": 0
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 2,
+        "progress": 2,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "swaps-1",
+        "weapon": "sword",
+        "hits": 1,
+        "priorHits": 1,
+        "priorProgress": 1,
+        "priorTier": 1,
+        "swaps": 1
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 2,
+        "progress": 2,
+        "swaps": 1,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "swaps-2",
+        "weapon": "sword",
+        "hits": 1,
+        "priorHits": 1,
+        "priorProgress": 1,
+        "priorTier": 1,
+        "swaps": 2
+      },
+      "result": {
+        "target": "p1",
+        "tier": 3,
+        "hits": 2,
+        "progress": 2,
+        "swaps": 2,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "swaps-3",
+        "weapon": "sword",
+        "hits": 1,
+        "priorHits": 1,
+        "priorProgress": 1,
+        "priorTier": 1,
+        "swaps": 3
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 2,
+        "progress": 2,
+        "swaps": 3,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "swaps-9",
+        "weapon": "sword",
+        "hits": 1,
+        "priorHits": 1,
+        "priorProgress": 1,
+        "priorTier": 1,
+        "swaps": 9
+      },
+      "result": {
+        "target": "p1",
+        "tier": 4,
+        "hits": 2,
+        "progress": 2,
+        "swaps": 9,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 35.94767441860465,
+          "weapon": "sword",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "far-age-1499.999999",
+        "weapon": "bow",
+        "hits": 1,
+        "distance": 641,
+        "farAge": 1499.999999
+      },
+      "result": {
+        "target": "p1",
+        "tier": 1,
+        "hits": 1,
+        "progress": 1,
+        "swaps": 0,
+        "denied": false,
+        "farSince": 8500.000001,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 21.13846153846154,
+          "weapon": "bow",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    },
+    {
+      "setup": {
+        "name": "far-age-1500",
+        "weapon": "bow",
+        "hits": 1,
+        "distance": 641,
+        "farAge": 1500
+      },
+      "result": {
+        "target": null,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "far-age-1500.000001",
+        "weapon": "bow",
+        "hits": 1,
+        "distance": 641,
+        "farAge": 1500.000001
+      },
+      "result": {
+        "target": null,
+        "tier": 0,
+        "hits": 0,
+        "progress": 0,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [],
+      "events": []
+    },
+    {
+      "setup": {
+        "name": "stagger-not-paused",
+        "weapon": "wand",
+        "hits": 3,
+        "pause": 11000
+      },
+      "result": {
+        "target": "p1",
+        "tier": 2,
+        "hits": 3,
+        "progress": 3,
+        "swaps": 0,
+        "denied": false,
+        "farSince": null,
+        "ampUntil": 0,
+        "sentence": 0
+      },
+      "pulses": [
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        },
+        {
+          "raw": 49.96363636363636,
+          "weapon": "wand",
+          "phys": 0.4,
+          "magic": 0.6,
+          "true_": 0,
+          "scale": 1
+        }
+      ],
+      "events": [
+        {
+          "to": "p1",
+          "text": "Sentenced marked you."
+        }
+      ]
+    }
+  ]
+}

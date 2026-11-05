@@ -37,6 +37,7 @@ pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
             fx.ops.push(crate::fx_report::Op::Reset(hx.ev.len()));
         }
         for p in hx.w.players.iter_mut() {
+            p.credit.sentence = 0;
             p.signature = Default::default();
         }
     }
@@ -231,6 +232,20 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             .reach_at
             .is_some_and(|t| now - t <= ENGAGE_LINGER_MS + TIE_EPS_MS)
             && f.contact_at.is_some_and(|t| now - t <= trade + TIE_EPS_MS);
+    }
+    if k.config.faction_mode.sentenced() {
+        super::sentenced::before_damage(k, w, &mut s.ledger, cx.ev);
+    }
+    s.mark_denials = [None; MAX_PLAYERS];
+    if k.config.faction_mode.sentenced() {
+        for (i, p) in w.players.iter().enumerate() {
+            if p.standing()
+                && p.vitals.faction == FactionId::Sentenced
+                && p.signature.mark.tier >= MARK_TOP_TIER
+            {
+                s.mark_denials[i] = p.signature.target.map(|target| (p.id, target));
+            }
+        }
     }
     if k.config.faction_mode.plague() {
         super::plague::damage(k, w, &s.performed, &mut s.ledger);

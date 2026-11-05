@@ -77,7 +77,7 @@ impl core::fmt::Display for AttemptInputError {
     }
 }
 impl std::error::Error for AttemptInputError {}
-fn validate_input(seed: i64, attempt: u64) -> Result<(), AttemptInputError> {
+pub(crate) fn validate_input(seed: i64, attempt: u64) -> Result<(), AttemptInputError> {
     if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&seed) {
         return Err(AttemptInputError::SeedNotSafeInteger);
     }
@@ -94,7 +94,7 @@ fn initial_number(seed: i64, attempt: u64, definition: &AttemptDefinition) -> f6
     }
 }
 /// ECMA ToUint32: truncate first, then positive modulo, with nonfinite/zero mapped to zero.
-fn to_uint32(value: f64) -> u32 {
+pub(crate) fn to_uint32(value: f64) -> u32 {
     if !value.is_finite() || value == 0.0 {
         return 0;
     }

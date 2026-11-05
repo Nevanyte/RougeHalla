@@ -187,6 +187,10 @@ impl<'a> LandmarkRuntime<'a> {
     pub fn original_hard(&self) -> &[u8] {
         self.hard
     }
+    /// The immutable transaction territory grid; planning must use this same view.
+    pub fn territory(&self) -> Option<&[u8]> {
+        self.territory
+    }
     pub fn counters(&self) -> Counters {
         self.counters
     }

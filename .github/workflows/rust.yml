@@ -77,6 +77,16 @@ jobs:
           cmp parity/frost/runtime-matrix.json "$RUNNER_TEMP/frost-runtime.json"
           node --import tsx tools/frost-fixtures/ranged-ledger.ts "$RUNNER_TEMP/frost-ranged.json"
           cmp parity/frost/ranged-ledger.json "$RUNNER_TEMP/frost-ranged.json"
+      - name: Sentenced runtime, denial and public proofs still match the actual source
+        run: |
+          node --import tsx tools/sentenced-fixtures/runtime-matrix.ts "$RUNNER_TEMP/sentenced-runtime.json"
+          cmp parity/sentenced/runtime-matrix.json "$RUNNER_TEMP/sentenced-runtime.json"
+          node --import tsx tools/sentenced-fixtures/denial-matrix.ts "$RUNNER_TEMP/sentenced-denial.json"
+          cmp parity/sentenced/denial-matrix.json "$RUNNER_TEMP/sentenced-denial.json"
+          node --import tsx tools/sentenced-fixtures/public-pairs.ts "$RUNNER_TEMP/sentenced-public.json" > "$RUNNER_TEMP/sentenced-public.log"
+          cmp parity/sentenced/public-pairs.json "$RUNNER_TEMP/sentenced-public.json"
+          node --import tsx tools/sentenced-fixtures/hidden-history-pair.ts "$RUNNER_TEMP/sentenced-history.json" > "$RUNNER_TEMP/sentenced-history.log"
+          cmp parity/sentenced/hidden-history-pair.json "$RUNNER_TEMP/sentenced-history.json"
       - name: Map foundations still match the legacy reference
         run: node --import tsx tools/map-fixtures/foundations.ts --check
       - name: Full map exports still match the legacy reference
@@ -97,6 +107,8 @@ jobs:
         run: node --import tsx tools/map-fixtures/landmark-templates.ts --check
       - name: Landmark search and scoped cache still match the actual legacy generator
         run: node --import tsx tools/map-fixtures/landmark-search.ts --check
+      - name: Landmark recipe support still matches the actual legacy helpers
+        run: node --import tsx tools/map-fixtures/landmark-support.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

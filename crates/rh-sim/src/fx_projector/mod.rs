@@ -147,7 +147,9 @@ impl FxProjector {
             .iter()
             .filter(|e| matches!(e, crate::Event::SignatureHit { sig, .. } if !sig.is_dot()))
             .count();
-        if markers > 1 || raw_instant > FX_INSTANT_BUCKETS_MAX || (raw_instant > 0 && markers != 1)
+        if markers > 1
+            || raw_instant > crate::fx_report::FX_REPORT_EVENTS_MAX
+            || (raw_instant > 0 && markers != 1)
         {
             return self.fail(FxError::UnsupportedBounds);
         }

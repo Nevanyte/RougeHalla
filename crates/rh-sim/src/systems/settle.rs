@@ -73,7 +73,18 @@ pub(crate) fn down_player(
     );
     if let Some(c) = credited {
         let bounty = hx.w.players[vi].credit.bounty;
-        credit::credit_kill(hx.w, hx.ev, c, victim_bot, bounty);
+        credit::credit_kill(
+            hx.k,
+            hx.w,
+            hx.ev,
+            c,
+            credit::KillVictim {
+                id,
+                outcome,
+                bot: victim_bot,
+            },
+            bounty,
+        );
     }
     hooks::fire(
         &mut hx,

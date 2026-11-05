@@ -65,6 +65,15 @@ explicit reset preserves source invalidation semantics. The sparse-success fixtu
 now fails. See [search evidence](../../evidence/stage2-frost-search/README.md). Callback selection and recipes remain a later exact port. See
 [the bounded evidence](../../evidence/stage2-fire-landmarks/README.md).
 
+Shared read-only recipe support is now implemented and independently reviewed: typed safe metadata and independent
+zero-draw streams, exact noise/scale/direction/distance/argmax/camp-node/Gabriel helpers, current-floor doors and borrowed
+fixed rules. Seven full source-output/hash controls cover 35 contexts. Exact inventories and direct scalar boundaries
+repair empty-fixture and missed rounding/distance mutations; eight repository tests pass and the same mutants fail.
+Root folds all six helper words plus the fixed direction table. These helpers do not implement a recipe or full stage 4.
+The next packet is the actual five-faction callbacks and coordinator-owned stage admission, then the remaining pipeline,
+certifier and pins. No no-landmark substitute or re-pin is implied. See
+[helper evidence](../../evidence/stage2-sentenced-support/README.md).
+
 ## Exclusive write scope
 Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module
 declaration after it is buildable. Later milestones separately coordinate full-layer loading/export, pin tests and the

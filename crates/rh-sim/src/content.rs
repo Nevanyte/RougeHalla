@@ -535,6 +535,22 @@ pub fn content_hash_of_landmark_search_definition(
     )
 }
 
+/// Shared recipe helpers consume one definition; fixed direction encodings are folded alongside it.
+pub fn content_hash_of_landmark_support_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::landmarks::recipe_support::RecipeSupportDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            recipe_support: definition,
+            ..Default::default()
+        },
+    )
+}
+
 /// Signature classification affects damage budgets and reporting, so it is content as well.
 pub fn content_hash_of_signature_rules(
     registry: &[Entry],
@@ -559,6 +575,7 @@ struct MapDefinitions<'rules, 'pillars> {
     bushes: &'rules crate::mapgen::bushes::BushDefinition,
     landmarks: &'rules crate::mapgen::landmarks::runtime::LandmarkDefinition,
     landmark_search: &'rules crate::mapgen::landmarks::search::SearchDefinition,
+    recipe_support: &'rules crate::mapgen::landmarks::recipe_support::RecipeSupportDefinition,
 }
 
 impl Default for MapDefinitions<'_, '_> {
@@ -572,6 +589,7 @@ impl Default for MapDefinitions<'_, '_> {
             bushes: &crate::mapgen::bushes::DEFAULT_DEFINITION,
             landmarks: &crate::mapgen::landmarks::runtime::DEFAULT_DEFINITION,
             landmark_search: &crate::mapgen::landmarks::search::DEFAULT_DEFINITION,
+            recipe_support: &crate::mapgen::landmarks::recipe_support::DEFAULT_DEFINITION,
         }
     }
 }
@@ -600,6 +618,7 @@ fn content_hash_of_definitions(
         bushes,
         landmarks,
         landmark_search,
+        recipe_support,
     } = definitions;
     let mut h = Fnv::new();
 
@@ -633,6 +652,16 @@ fn content_hash_of_definitions(
 
     h.str("mapgen/landmark-search/1");
     crate::mapgen::landmarks::search::visit_content(landmark_search, |word| h.u64(word));
+
+    h.str("mapgen/landmark-recipe-support/1");
+    crate::mapgen::landmarks::recipe_support::visit_content(recipe_support, |word| h.u64(word));
+    let directions = crate::mapgen::landmarks::recipe_support::DIR16;
+    h.u64(directions.len() as u64);
+    for direction in directions {
+        for coordinate in direction {
+            h.u64(coordinate as u64);
+        }
+    }
 
     h.str("signatures/1");
     h.u64(signature_rules.len() as u64);
@@ -715,10 +744,30 @@ fn content_hash_of_definitions(
     for exposure in [0.0, 999.0, 1000.0, 1001.0, 2500.0, 3999.0, 4000.0, 4001.0] {
         h.f64(crate::systems::frost::move_multiplier(exposure));
     }
+    h.str("sentenced/base-pulse/1");
+    for weapon in WeaponId::ALL {
+        for sentence in [0, 1, 5] {
+            for target_max_hp in [1.0, 1000.0, 1234.5] {
+                for near in [false, true] {
+                    h.f64(sentenced_pulse(weapon, target_max_hp, sentence, near));
+                }
+            }
+        }
+    }
     h.0
 }
 
 /// Holy's unmodified sustain share. Cards and camp rewards are separate future producers.
 pub fn holy_lifesteal_fraction(hp_frac: f64) -> f64 {
     HOLY_LEECH_CAP.min(HOLY_LEECH_BASE + HOLY_LEECH_MISSING * (1.0 - hp_frac))
+}
+
+/// Source-exact base-player Mark pulse before mitigation. Tier/linger amplifiers and build/hunt
+/// modifiers are neutral in this installation. The counter's kill cap is enforced where it grows;
+/// the source percentage helper itself does not clamp a supplied sentence count.
+pub fn sentenced_pulse(weapon_id: WeaponId, target_max_hp: f64, sentence: u8, near: bool) -> f64 {
+    let spec = paced(FactionId::Sentenced);
+    let weight = spec.rate * weapon(weapon_id).dps_mult * attack_interval(&spec, weapon_id, 1.0);
+    let pct = MARK_BASE_PCT * DUEL_PACE + (MARK_KILL_PCT * DUEL_PACE) * f64::from(sentence);
+    pct * target_max_hp * weight * if near { 1.0 } else { MARK_FAR_SHARE }
 }

@@ -114,6 +114,16 @@ pub(crate) fn swap(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
     if p.weapon.can_swap(target, false) {
         p.weapon.slot = target;
         weapon_changed(p, now);
+        let id = p.id;
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                k: cx.k,
+                w: cx.w,
+                ev: cx.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::WeaponSwapped(id),
+        );
     }
 }
 
@@ -291,10 +301,23 @@ fn take(cx: &mut Cx, ix: FighterIx, i: usize) -> Result<(), PickupRefusal> {
     } else {
         p.weapon.weapon1.replace(item.weapon)
     };
-    if slot == p.weapon.slot {
+    let changed = slot == p.weapon.slot;
+    if changed {
         weapon_changed(p, now);
     }
+    let id = p.id;
     let at = p.pos();
+    if changed {
+        crate::hooks::fire(
+            &mut crate::hooks::Hx {
+                k: cx.k,
+                w: cx.w,
+                ev: cx.ev,
+                fx: None,
+            },
+            crate::hooks::HookArgs::WeaponSwapped(id),
+        );
+    }
     if vanished {
         cx.w.containers.remove(i);
     }

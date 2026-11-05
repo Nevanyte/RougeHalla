@@ -10,6 +10,7 @@ pub(super) fn enabled(fx: &Fixture) -> bool {
                 "player-engagement-holy-plague/1"
                     | "player-engagement-holy-plague-fire/1"
                     | "player-engagement-holy-plague-fire-frost/1"
+                    | "player-engagement-holy-plague-fire-frost-sentenced/1"
             )
         )
 }
@@ -41,6 +42,7 @@ pub(super) fn modules_match(fx: &Fixture) -> bool {
     fx.players.iter().all(|p| {
         matches!(p.faction.as_str(), "holy" | "plague" | "fire")
             || (frost(fx) && p.faction == "frost")
+            || (super::sentenced::enabled(fx) && p.faction == "sentenced")
     }) && fx
         .legacy_config
         .modules
@@ -86,12 +88,18 @@ pub(super) fn fire(fx: &Fixture) -> bool {
             Some(
                 "player-engagement-holy-plague-fire/1"
                     | "player-engagement-holy-plague-fire-frost/1"
+                    | "player-engagement-holy-plague-fire-frost-sentenced/1"
             )
         )
 }
 
 pub(super) fn frost(fx: &Fixture) -> bool {
     enabled(fx)
-        && fx.legacy_config.rust_slice.as_deref()
-            == Some("player-engagement-holy-plague-fire-frost/1")
+        && fx.legacy_config.rust_slice.as_deref().is_some_and(|s| {
+            matches!(
+                s,
+                "player-engagement-holy-plague-fire-frost/1"
+                    | "player-engagement-holy-plague-fire-frost-sentenced/1"
+            )
+        })
 }

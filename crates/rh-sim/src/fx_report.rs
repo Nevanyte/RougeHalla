@@ -100,13 +100,14 @@ impl Sim {
                     matches!(
                         e,
                         Event::SignatureHit {
-                            sig: crate::factions::SignatureKind::Backlash,
+                            sig: crate::factions::SignatureKind::Backlash
+                                | crate::factions::SignatureKind::Mark,
                             ..
                         }
                     )
                 })
                 .count()
-                <= FX_INSTANT_BUCKETS_MAX
+                <= FX_REPORT_EVENTS_MAX
             && self
                 .s
                 .fx

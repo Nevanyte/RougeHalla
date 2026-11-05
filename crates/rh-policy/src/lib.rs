@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 /// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
 /// Version 6 adds Fire Burn and canonically merged, report-local Backlash effects.
 /// Version 7 adds player Frost chilled bits and the resulting attack/movement clocks.
-pub const POLICY_CONTRACT_VERSION: u16 = 7;
+pub const POLICY_CONTRACT_VERSION: u16 = 8;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -226,6 +226,9 @@ impl Seat {
 
     /// [`Seat::decide`] appending to `out`.
     pub fn decide_into(&mut self, obs: &Observation, out: &mut Vec<PublicCommand>) {
+        if matches!(self.fault, Some(Fault::FxProjection(_))) {
+            return;
+        }
         if !self.wants(obs.tick) {
             return;
         }
@@ -296,6 +299,10 @@ pub fn drive_seats_with(
 /// Compatibility for an unbound seat attaches at the current tick and excludes that already completed report.
 pub fn feed_seats(sim: &Sim, seats: &mut [Seat]) {
     for seat in seats {
+        if matches!(seat.fault, Some(Fault::FxProjection(_))) {
+            seat.pending.clear();
+            continue;
+        }
         let viewer = seat.player();
         let Some(fx) = seat.fx.as_mut() else {
             seat.fx = Some(rh_sim::FxProjector::attach(sim, viewer));
@@ -329,6 +336,10 @@ fn drive_inner(
 ) {
     feed_seats(sim, seats);
     for seat in seats.iter_mut() {
+        // A failed presentation session cannot commit actor eligibility or authorize commands.
+        if matches!(seat.fault, Some(Fault::FxProjection(_))) {
+            continue;
+        }
         if !sim.player(seat.player()).is_some_and(|p| p.standing()) {
             continue;
         }
@@ -1255,7 +1266,111 @@ mod frost_tests {
         assert!(seen
             .iter()
             .any(|o| o.me.as_ref().is_some_and(|p| p.sig & 1 != 0)));
-        assert!(seen.iter().all(|o| o.version == 10));
-        assert_eq!(POLICY_CONTRACT_VERSION, 7);
+        assert!(seen.iter().all(|o| o.version == 11));
+        assert_eq!(POLICY_CONTRACT_VERSION, 8);
     }
 }
+
+#[cfg(test)]
+mod sentenced_temporal_tests {
+    use super::*;
+    use rh_sim::RawCommand;
+    fn scene() -> Sim {
+        Sim::reset_active(
+            rh_sim::SimConfig {
+                faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            rh_sim::Secrets::from_seed(12),
+            &(0..3)
+                .map(|i| rh_sim::Placement {
+                    profile: format!("p{i}"),
+                    faction: if i == 0 {
+                        rh_sim::FactionId::Sentenced
+                    } else {
+                        rh_sim::FactionId::Holy
+                    },
+                    bot: false,
+                    at: rh_sim::Vec2::new(400. + i as f64 * 56., 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                })
+                .collect::<Vec<_>>(),
+        )
+    }
+    #[test]
+    fn sentenced_synchronous_async_feed_retains_every_step() {
+        let mut sim = scene();
+        let start = MatchStart::of(&sim, PlayerId(2), 1);
+        let mut seats = vec![Seat::new(
+            &start,
+            Box::new(scripted::Idle),
+            Box::new(scripted::Idle),
+        )];
+        let mut asynchronous = AsyncSeat::spawn(
+            &start,
+            Box::new(scripted::Idle),
+            Box::new(scripted::Idle),
+            2,
+        );
+        seats[0].bind_fx(&sim).unwrap();
+        asynchronous.bind_fx(&sim).unwrap();
+        sim.submit(
+            PlayerId(1),
+            rh_sim::validate(RawCommand::Attack { a: 0., t: None }).unwrap(),
+        )
+        .unwrap();
+        let mut empty = 0;
+        for _ in 0..20 {
+            let events = sim.step();
+            empty += usize::from(events.is_empty());
+            feed_seats(&sim, &mut seats);
+            asynchronous.feed_fx(&sim);
+            let count = seats[0].pending.len();
+            feed_seats(&sim, &mut seats);
+            asynchronous.feed_fx(&sim);
+            assert_eq!(seats[0].pending.len(), count);
+        }
+        assert_eq!(seats[0].bind_fx(&sim), Err(rh_sim::FxError::AlreadyBound));
+        assert_eq!(
+            asynchronous.bind_fx(&sim),
+            Err(rh_sim::FxError::AlreadyBound)
+        );
+        assert!(empty > 0);
+        assert_eq!(seats[0].pending, asynchronous.seen);
+        assert!(seats[0]
+            .pending
+            .iter()
+            .any(|e| matches!(e, SeenEvent::SignatureHit { .. })));
+        assert_eq!(
+            seats[0]
+                .observer
+                .resolve(&sim, PublicCommand::Target { actor: PlayerId(1) }),
+            seats[0].observer.resolve(
+                &sim,
+                PublicCommand::Target {
+                    actor: PlayerId(999)
+                }
+            )
+        );
+        let mut foreign = sim.clone();
+        foreign.step();
+        feed_seats(&foreign, &mut seats);
+        asynchronous.feed_fx(&foreign);
+        assert!(seats[0].pending.is_empty());
+        assert!(asynchronous.seen.is_empty());
+        assert_eq!(
+            seats[0].fault,
+            Some(Fault::FxProjection(rh_sim::FxError::ForeignInstance))
+        );
+        assert_eq!(
+            asynchronous.fault,
+            Some(Fault::FxProjection(rh_sim::FxError::ForeignInstance))
+        );
+    }
+}
+
+#[cfg(test)]
+mod sentenced_projection_fault_tests;

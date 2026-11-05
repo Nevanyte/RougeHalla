@@ -1,5 +1,21 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
+## Implemented slice: base-player Sentenced
+
+`EngagementHolyPlagueFireFrostSentenced` adds singleton power-zero Mark with source-exact hit filtering, batch promotion,
+per-hit weapon pulses, accepted swaps, kill stacks, pass-start execute denial and typed payouts/hooks. Earlier modes and
+default Off preserve gameplay. Mark is instantaneous and not stagger-paused; neutral base amp/tax/suppression/AS factors
+are specialized out rather than exposed as unused knobs. Their nonneutral/card domains remain later work.
+
+Twenty-two ordinary-source traces compare 5,042 ticks/restores, including genuine old-wand/new-bow same-pass hits.
+Independent gameplay and public reviews pass after repairing stale public EXEC_BLOCKED and sync projection-fault driving.
+[ADR 0014](../../adr/0014-sentenced-public-state.md) specifies survivor fields and eligible-before-numeric marker identity;
+actual hidden-source producer pairs verify ID, count/history and order privacy. The 634-test workspace gate, parity,
+content and warmed allocation checks pass. See [evidence](../../evidence/stage2-sentenced-support/README.md).
+
+The explicit source arena flag is reference-only until a real producer/representation is ported; it is not `by=None`.
+Grouped mob/camp marks, hunt, auxiliary installers, cards/AP/resistance, abilities, transport and client flows remain open.
+
 ## Implemented slice: base-player Frost
 
 `FactionMode::EngagementHolyPlagueFireFrost` adds rate aura, proximity/thaw movement and ranged movement chill together.
@@ -11,7 +27,7 @@ Off and prior modes retain their gameplay. There are no Unity rules or new trans
 Ten ordinary-input traces compare 2,265 ticks and every-tick continuations. Separate actual-source helper/runtime/ledger
 proofs, 2,728 independent trusted/helper cases, headless/policy/privacy/hash/restore and warmed zero-allocation checks pass.
 The combined workspace gate passed 602 tests; independent review is accepted. See
-[bounded evidence](../../evidence/stage2-frost-search/README.md). Sentenced Mark, auxiliary installers, cards/AP/resistance,
+[bounded evidence](../../evidence/stage2-frost-search/README.md). Auxiliary installers, cards/AP/resistance,
 mobs and elite passives remain open. Protocol 5 continues to omit signature bits/effects.
 
 ## Implemented slice: player Fire
@@ -27,7 +43,7 @@ The separate report-local instant projection, fixed ledger-return marker, hidden
 windows follow [ADR 0013](../../adr/0013-temporal-damage-projection.md). Both independent Fire gameplay and public/session
 reviews passed, including 540 captured ticks, 720 additional exact-source steps and their checkpoint continuations.
 The standalone ledger fixture now requires all twelve ordered cases, preventing an empty fixture from passing.
-Sentenced, Fire roam and other auxiliary/card/mob producers remain open. Protocol 5 explicitly omits these new
+Fire roam and other auxiliary/card/mob producers remain open. Protocol 5 explicitly omits these new
 signature effects/bits; no presentation or game rules were added to Unity.
 
 ## Implemented slice: Plague and temporal public reporting
@@ -85,7 +101,7 @@ and checkpoint validation. Keep remaining unported rows pending rather than inst
 Use genuine Holy-only installed-module captures, then verify whether the original full-default `signature_holy` trace
 can be compared unchanged. Holy-only deaths can still trigger unrelated corpse systems; prove their inactivity or use
 the explicitly identified module set. Ordinary `heal` lockout boundary tests can call the actual source helper directly;
-do not invent a heal command or pretend an unported terrain/chest producer exists. Sentenced, auxiliary Fire/Plague and elite passives,
+do not invent a heal command or pretend an unported terrain/chest producer exists. Auxiliary Fire/Plague and elite passives,
 cards, mobs, wards, training and teleport cleanup remain later work.
 
 ## ID and outcome

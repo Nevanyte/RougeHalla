@@ -21,6 +21,7 @@ pub(crate) mod melee;
 pub(crate) mod movement;
 pub(crate) mod plague;
 pub(crate) mod projectiles;
+pub(crate) mod sentenced;
 pub(crate) mod settle;
 pub(crate) mod signatures;
 pub(crate) mod targeting;

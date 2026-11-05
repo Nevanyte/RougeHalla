@@ -41,6 +41,10 @@ pub(crate) struct Entry {
 /// puts the effect in `World::deferred`, which is the NEXT tick's ledger.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum PayLater {
+    ExecuteDenied {
+        owner: PlayerId,
+        denied: super::sentenced::Denied,
+    },
     AxeShred {
         victim: PlayerId,
         source: PlayerId,
@@ -48,14 +52,20 @@ pub(crate) enum PayLater {
     /// legacy arena.ts `creditKill`: the kill's GV, bounty and rampage, after every victim took their damage.
     CreditKill {
         by: PlayerId,
+        victim: PlayerId,
+        outcome: Outcome,
         victim_bot: bool,
         bounty: u32,
     },
 }
 
 impl PayLater {
-    fn pay(self, w: &mut World, ev: &mut Vec<Event>) {
+    fn pay(self, k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {
         match self {
+            PayLater::ExecuteDenied { owner, denied } => crate::hooks::fire(
+                &mut crate::hooks::Hx { k, w, ev, fx: None },
+                crate::hooks::HookArgs::ExecuteDenied { owner, denied },
+            ),
             PayLater::AxeShred { victim, source } => {
                 let now = w.server_time;
                 let Some(i) = w.idx(victim) else { return };
@@ -78,39 +88,53 @@ impl PayLater {
             }
             PayLater::CreditKill {
                 by,
+                victim,
+                outcome,
                 victim_bot,
                 bounty,
-            } => credit::credit_kill(w, ev, by, victim_bot, bounty),
+            } => credit::credit_kill(
+                k,
+                w,
+                ev,
+                by,
+                credit::KillVictim {
+                    id: victim,
+                    outcome,
+                    bot: victim_bot,
+                },
+                bounty,
+            ),
         }
     }
 }
 
 /// Legacy `payLater`: queues `p` while the ledger pass runs and pays it at once otherwise (a hook fired outside the pass:
 /// `remove_player`, the lobby, the run's end).
-pub(crate) fn pay_later(w: &mut World, ev: &mut Vec<Event>, p: PayLater) {
+pub(crate) fn pay_later(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, p: PayLater) {
     if w.pay.collecting {
         w.pay.items.push(p);
     } else {
-        p.pay(w, ev);
+        p.pay(k, w, ev);
     }
 }
 
 /// Ends the pass: everyone has taken their damage, so the queued payouts go out in the order they were queued. A payout
 /// that itself calls `pay_later` pays at once, as in legacy (`collecting` is off by then).
-pub(crate) fn pay_all(w: &mut World, ev: &mut Vec<Event>) {
+pub(crate) fn pay_all(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>) {
     w.pay.collecting = false;
     // Index, not take: the queue keeps its capacity, and a payout cannot queue another (it pays at once now).
     let mut i = 0;
     while i < w.pay.items.len() {
         let p = w.pay.items[i];
         i += 1;
-        p.pay(w, ev);
+        p.pay(k, w, ev);
     }
     w.pay.items.clear();
 }
 
 /// What applying one victim's hits touches: everything but the ledger, which it only reads.
 struct Pass<'a> {
+    denies: [Option<PlayerId>; MAX_PLAYERS],
     k: &'a MatchStatic,
     w: &'a mut World,
     ev: &'a mut Vec<Event>,
@@ -221,7 +245,20 @@ pub(crate) fn apply(cx: &mut Cx) {
     }
     w.pay.items.clear();
     w.pay.collecting = true;
+    // Freeze the pass-start denial index before any victim application or payout.
+    let mut denies = [None; MAX_PLAYERS];
+    if k.config.faction_mode.sentenced() {
+        for (i, p) in w.players.iter().enumerate() {
+            if p.standing()
+                && p.vitals.faction == crate::FactionId::Sentenced
+                && p.signature.mark.tier >= MARK_TOP_TIER
+            {
+                denies[i] = p.signature.target;
+            }
+        }
+    }
     let mut pass = Pass {
+        denies,
         k,
         w,
         ev,
@@ -248,7 +285,7 @@ pub(crate) fn apply(cx: &mut Cx) {
         slot_tail[vi] = NONE;
         apply_victim(&mut pass, &mut bufs, vi, ledger, mults, entry_rank);
     }
-    pay_all(pass.w, pass.ev);
+    pay_all(pass.k, pass.w, pass.ev);
     ledger.clear();
 }
 
@@ -318,6 +355,37 @@ fn apply_victim(
                 if *sum > budget {
                     amounts[j] *= budget / *sum;
                 }
+            }
+        }
+    }
+    if let Some(foe) = pass.denies[vi] {
+        let total: f64 = amounts.iter().sum();
+        let execute: f64 = idxs
+            .iter()
+            .enumerate()
+            .filter(|(_, &index)| ledger[index].execute && ledger[index].by == Some(foe))
+            .map(|(j, _)| amounts[j])
+            .sum();
+        let pool = pass.w.players[vi].vitals.hp + pass.w.players[vi].vitals.barrier;
+        let allowed = execute.min(pool - 1. - (total - execute)).max(0.);
+        let held = execute - allowed;
+        if held > MARK_EXECUTE_EPS {
+            let mut denied = super::sentenced::Denied::default();
+            for (j, &index) in idxs.iter().enumerate() {
+                let e = &ledger[index];
+                if e.execute && e.by == Some(foe) && amounts[j] > 0. {
+                    let cut = amounts[j] * (1. - allowed / execute);
+                    amounts[j] -= cut;
+                    denied.add(foe, cut);
+                }
+            }
+            if denied.any() {
+                pay_later(
+                    pass.k,
+                    pass.w,
+                    pass.ev,
+                    PayLater::ExecuteDenied { owner: v, denied },
+                );
             }
         }
     }
@@ -496,10 +564,13 @@ fn apply_hits(pass: &mut Pass, vi: usize, hits: &[(f64, Option<PlayerId>)]) -> f
     if let Some(c) = credited {
         let bounty = credit::owed_bounty(w, pass.bounty_at_tick_start, vi);
         pay_later(
+            pass.k,
             w,
             pass.ev,
             PayLater::CreditKill {
                 by: c,
+                victim: victim_id,
+                outcome: Outcome::Died,
                 victim_bot,
                 bounty,
             },

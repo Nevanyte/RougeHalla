@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/13";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/14";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -427,13 +427,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     for e in &w.deferred.hits {
         if (e.execute && e.sig != Some(crate::factions::SignatureKind::Disease))
-            || e.sig.is_some_and(|s| {
-                if s == crate::factions::SignatureKind::Disease {
-                    !k.config.faction_mode.plague()
-                } else {
-                    !k.config.faction_mode.fire()
-                }
-            })
+            || e.sig.is_some_and(|s| !k.config.faction_mode.supports(s))
         {
             return Err(
                 "deferred signature requires its producer mode and execute qualification".into(),
@@ -466,6 +460,7 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     for p in w.players.iter() {
         p.vision.check(w.tick, near)?;
         let sig = &p.signature;
+        crate::systems::sentenced::validate(k, w, p)?;
         super::systems::frost::validate_signature(k.config.faction_mode.frost(), w, p.id, sig)?;
         if (!k.config.faction_mode.engagement() && *sig != crate::fighter::Signature::default())
             || !sig.hp_frac.is_finite()
@@ -475,10 +470,13 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
                 & !(crate::constants::SIG_CHILLED
                     | crate::constants::SIG_DISEASED
                     | crate::constants::SIG_EXECUTE
-                    | crate::constants::SIG_BURNING)
+                    | crate::constants::SIG_BURNING
+                    | crate::constants::SIG_EXEC_BLOCKED)
                 != 0
             || (!k.config.faction_mode.plague() && sig.bits != 0)
             || (!k.config.faction_mode.fire() && sig.bits & crate::constants::SIG_BURNING != 0)
+            || (!k.config.faction_mode.sentenced()
+                && sig.bits & crate::constants::SIG_EXEC_BLOCKED != 0)
             || [sig.reach_at, sig.contact_at, sig.combat_at]
                 .into_iter()
                 .flatten()

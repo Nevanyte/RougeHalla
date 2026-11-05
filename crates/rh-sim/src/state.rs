@@ -523,6 +523,7 @@ impl Player {
                 dropped_at: None,
             },
             credit: Credit {
+                sentence: 0,
                 kills: 0,
                 bot_kills: 0,
                 bounty: 0,

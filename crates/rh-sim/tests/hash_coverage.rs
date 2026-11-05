@@ -299,6 +299,26 @@ fn frost_window() -> Sim {
     s
 }
 
+// Trusted representative Mark checkpoint: counter and optional-clock leaves must also perturb.
+fn sentenced_window() -> Sim {
+    let s = holy_engaged();
+    let mut cp = serde_json::to_value(&s).unwrap();
+    cp["statics"]["config"]["faction_mode"] =
+        serde_json::json!("EngagementHolyPlagueFireFrostSentenced");
+    cp["world"]["players"][0]["core"]["vitals"]["faction"] = serde_json::json!("Sentenced");
+    let mut s = Sim::restore(cp).unwrap();
+    for _ in 0..10 {
+        s.step();
+    }
+    assert!(s.players()[0].signature.mark.tier > 0);
+    let mut cp = serde_json::to_value(&s).unwrap();
+    let now = s.server_time();
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["far_since"] = serde_json::json!(now);
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["amp_until"] =
+        serde_json::json!(now + 1000.);
+    Sim::restore(cp).unwrap()
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut mid = crowded_8();
     drive(&mut mid, 40);
@@ -307,6 +327,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("Sentenced window", sentenced_window()),
         ("Frost window", frost_window()),
         ("Plague window", plague_window()),
         ("Holy engaged", holy_engaged()),
@@ -485,6 +506,15 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.core.vitals.faction","nondefault Mark runtime is owned only by a Sentenced faction"),
+    ("world.players.*.core.signature.mark.tier","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.core.signature.mark.hits","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.core.signature.mark.progress","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.core.signature.mark.swaps","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.core.signature.mark.denied","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.core.signature.mark.far_since","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.core.signature.mark.amp_until","trusted singleton Mark requires its mode/faction, legal progress/tier/counters, target and bounded clocks"),
+    ("world.players.*.credit.sentence","Sentenced-only persistent stacks require the final mode and cap at five"),
     ("world.players.*.core.signature.chill","trusted Frost domain, mode, canonical source storage and episode constraints"),
     ("world.players.*.core.signature.chillers.#len","trusted Frost domain, mode, canonical source storage and episode constraints"),
     ("world.players.*.core.signature.chillers.*","trusted Frost domain, mode, canonical source storage and episode constraints"),

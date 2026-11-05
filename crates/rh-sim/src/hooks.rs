@@ -39,7 +39,7 @@ impl Hx<'_> {
     /// hook fires outside the pass.
     #[cfg_attr(not(test), allow(dead_code))] // the first link that pays later is P-ABIL-1 / P-STATUS-1; tests use it now
     pub(crate) fn pay_later(&mut self, p: PayLater) {
-        ledger::pay_later(self.w, self.ev, p);
+        ledger::pay_later(self.k, self.w, self.ev, p);
     }
 }
 
@@ -67,6 +67,16 @@ pub(crate) enum HookArgs {
         id: PlayerId,
         cause: OutCause,
     },
+    WeaponSwapped(PlayerId),
+    PlayerKilled {
+        by: PlayerId,
+        victim: PlayerId,
+        outcome: crate::results::Outcome,
+    },
+    ExecuteDenied {
+        owner: PlayerId,
+        denied: crate::systems::sentenced::Denied,
+    },
     AttackStarted(PlayerId),
     HitLanded {
         entry: crate::systems::ledger::Entry,
@@ -84,6 +94,9 @@ impl HookArgs {
             HookArgs::FighterOut { .. } => Hook::FighterOut,
             HookArgs::HitLanded { .. } => Hook::HitLanded,
             HookArgs::AttackStarted(_) => Hook::AttackStarted,
+            HookArgs::WeaponSwapped(_) => Hook::WeaponSwapped,
+            HookArgs::PlayerKilled { .. } => Hook::PlayerKilled,
+            HookArgs::ExecuteDenied { .. } => Hook::ExecuteDenied,
             HookArgs::RunEnded => Hook::RunEnded,
         }
     }

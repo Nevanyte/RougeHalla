@@ -577,6 +577,10 @@ mod tests {
 
     fn view(id: u32) -> ActorView {
         ActorView {
+            mark_tier: 0,
+            brand: 0,
+            mark_by: None,
+            mark_tax: 0,
             sig: 0,
             id: rh_sim::PlayerId(id),
             faction: FactionId::ALL[1],

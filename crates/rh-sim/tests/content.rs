@@ -28,6 +28,8 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/landmarks/recipe_support/mod.rs", "DEFAULT_DEFINITION", "all six shared helper tunables drive execution and are folded by content_hash_of_landmark_support_definition"),
+    ("mapgen/landmarks/recipe_support/mod.rs", "DIR16", "fixed bearing encoding, not an independent tuning knob; every signed coordinate is folded by content_hash and source differential tests pin all directions"),
     ("mapgen/landmarks/search/mod.rs", "DEFAULT_DEFINITION", "both search tunables drive selection and are folded by content_hash_of_landmark_search_definition"),
     ("mapgen/landmarks/templates/mod.rs", "WALL", "internal parsed-cell role encoding; source differential proves all role mappings, not a geometry tunable"),
     ("mapgen/landmarks/templates/mod.rs", "FLOOR", "internal parsed-cell role encoding, not a geometry tunable"),
@@ -357,7 +359,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x30c9_741f_fc6a_bb77;
+const GOLDEN_CONTENT_HASH: u64 = 0xaa62_9bdb_1a32_0371;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -670,6 +672,44 @@ fn landmark_search_rules_move_the_content_hash() {
 }
 
 #[test]
+fn landmark_support_rules_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_landmark_support_definition;
+    use rh_sim::mapgen::landmarks::recipe_support::{default_definition, RecipeSupportDefinition};
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_landmark_support_definition(
+            REGISTRY,
+            STAGGER_WEAPONS,
+            &default_definition()
+        ),
+        base
+    );
+    let mutations: &[fn(&mut RecipeSupportDefinition)] = &[
+        |d| d.ref_zone_tiles += 1.0,
+        |d| d.landmarks_per_zone += 1,
+        |d| d.landmark_stream += 1,
+        |d| d.noise_stream_offset += 1,
+        |d| d.door_min_offset += 1,
+        |d| d.door_max_offset += 1,
+    ];
+    let mut hashes = BTreeSet::new();
+    for (index, mutate) in mutations.iter().enumerate() {
+        let mut definition = default_definition();
+        mutate(&mut definition);
+        let hash =
+            content_hash_of_landmark_support_definition(REGISTRY, STAGGER_WEAPONS, &definition);
+        assert_ne!(
+            hash, base,
+            "landmark support rule {index} omitted from content identity"
+        );
+        assert!(
+            hashes.insert(hash),
+            "landmark support rule {index} collided"
+        );
+    }
+}
+
+#[test]
 fn signature_identity_and_dot_classification_move_the_content_hash() {
     use rh_sim::content::content_hash_of_signature_rules;
     use rh_sim::factions::SignatureKind;
@@ -679,7 +719,8 @@ fn signature_identity_and_dot_classification_move_the_content_hash() {
         [
             (SignatureKind::Disease, true),
             (SignatureKind::Burn, true),
-            (SignatureKind::Backlash, false)
+            (SignatureKind::Backlash, false),
+            (SignatureKind::Mark, false)
         ]
     );
     let base = content_hash();

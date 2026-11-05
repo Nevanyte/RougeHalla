@@ -365,11 +365,263 @@ fn frost_crowded() {
     );
 }
 
+/// Eight-player real command production, Mark tiers/swaps, mixed signatures and every retained feed.
+fn sentenced_crowded() {
+    let ps: Vec<_> = (0..8)
+        .map(|i| Placement {
+            profile: format!("f{i}"),
+            faction: [
+                FactionId::Sentenced,
+                FactionId::Fire,
+                FactionId::Plague,
+                FactionId::Frost,
+                FactionId::Holy,
+                FactionId::Sentenced,
+                FactionId::Fire,
+                FactionId::Plague,
+            ][i],
+            bot: false,
+            at: Vec2::new(400. + (i % 4) as f64 * 25., 320. + (i / 4) as f64 * 25.),
+            hp: Some(24000.),
+            weapon0: Some(if i % 2 == 0 {
+                rh_sim::WeaponId::Bow
+            } else {
+                rh_sim::WeaponId::Wand
+            }),
+            weapon1: Some(rh_sim::WeaponId::Sword),
+        })
+        .collect();
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
+            ..Default::default()
+        },
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(31),
+        &ps,
+    );
+    let mut out = Vec::with_capacity(256);
+    let mut projectors: Vec<_> = (1..=8)
+        .map(|i| rh_sim::FxProjector::attach(&sim, PlayerId(i)))
+        .collect();
+    let mut observers: Vec<_> = (1..=8)
+        .map(|i| rh_sim::ItemObserver::new(PlayerId(i)))
+        .collect();
+    let mut views: Vec<_> = (0..8).map(|_| rh_sim::Observation::default()).collect();
+    let mut caches: Vec<_> = (0..8).map(|_| rh_sim::SightCache::default()).collect();
+    let (mut allocations, mut measured, mut draws, mut pulses, mut top_tiers) = (0, 0, 0, 0, 0);
+    let (mut max_raw, mut max_instant, mut max_keys) = (0, 0, 0);
+    for t in 0..1060 {
+        if t % 25 == 0 {
+            for i in 1..=8 {
+                sim.submit(
+                    PlayerId(i),
+                    validate(RawCommand::Attack {
+                        a: if i % 2 == 0 { std::f64::consts::PI } else { 0. },
+                        t: None,
+                    })
+                    .unwrap(),
+                )
+                .unwrap();
+            }
+        }
+        if t % 80 == 60 {
+            for i in 1..=8 {
+                sim.submit(
+                    PlayerId(i),
+                    validate(RawCommand::Swap { slot: None }).unwrap(),
+                )
+                .unwrap();
+            }
+        }
+        if t % 200 == 30 || t % 200 == 180 {
+            let x = if t % 200 == 30 { 800. } else { 475. };
+            sim.submit(
+                PlayerId(2),
+                validate(RawCommand::Move {
+                    x,
+                    y: 345.,
+                    seq: None,
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        #[cfg(feature = "schedule-trace")]
+        sim.clear_schedule_trace();
+        out.clear();
+        let before = dhat::HeapStats::get().total_blocks;
+        sim.step_into(&mut out);
+        for i in 0..8 {
+            projectors[i].feed(sim.fx_report()).unwrap();
+            observers[i]
+                .observe_into(&sim, &out, &mut views[i], Some(&mut caches[i]))
+                .unwrap();
+        }
+        let used = dhat::HeapStats::get().total_blocks - before;
+        max_raw = max_raw.max(out.len());
+        let mut keys = [None; 16];
+        let mut nkeys = 0;
+        let mut instant = 0;
+        for e in &out {
+            if let Event::SignatureHit {
+                victim, by, sig, ..
+            } = *e
+            {
+                if !sig.is_dot() {
+                    instant += 1;
+                    let key = (victim, by, sig);
+                    if !keys[..nkeys].contains(&Some(key)) {
+                        keys[nkeys] = Some(key);
+                        nkeys += 1;
+                    }
+                }
+            }
+        }
+        max_instant = max_instant.max(instant);
+        max_keys = max_keys.max(nkeys);
+        pulses += sim
+            .damage_entries()
+            .iter()
+            .filter(|e| e.sig == Some(rh_sim::factions::SignatureKind::Mark))
+            .count();
+        top_tiers += sim
+            .players()
+            .iter()
+            .filter(|p| p.signature.mark.tier == 4)
+            .count();
+        if t >= 400
+            && !out
+                .iter()
+                .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. }))
+        {
+            allocations += used;
+            measured += 1;
+        }
+        if sim.players().iter().any(|p| {
+            p.signature.chill < 1.
+                && p.weapon
+                    .action
+                    .is_some_and(|a| a.kind == rh_sim::state::ActionKind::Draw)
+        }) {
+            draws += 1;
+        }
+    }
+    assert!(
+        measured >= 600 && draws > 10 && pulses > 50 && top_tiers > 50,
+        "measured={measured} draws={draws} pulses={pulses} top_tiers={top_tiers}"
+    );
+    eprintln!("Sentenced crowded: {measured} measured zeroalloc steps; rawmax={max_raw}, instantmax={max_instant}, namedkeymax={max_keys}, pulses={pulses}, top-tierframes={top_tiers}");
+    assert!(max_keys <= 8);
+    assert_eq!(
+        allocations, 0,
+        "eight-player mixed Sentenced allocations over {measured} steps"
+    );
+}
+
+/// Helper-only legal trusted tier-four/low-HP setup. Restore/refill happens outside each measured
+/// denial pass; this isolates the same-tick payout and index rebuild from ordinary reachability.
+fn sentenced_denial_refills() {
+    let ps: Vec<_> = (0..3)
+        .map(|i| Placement {
+            profile: format!("d{i}"),
+            faction: if i == 0 {
+                FactionId::Sentenced
+            } else if i == 1 {
+                FactionId::Plague
+            } else {
+                FactionId::Holy
+            },
+            bot: false,
+            at: Vec2::new(400. + i as f64 * 56., 320.),
+            hp: None,
+            weapon0: if i == 2 {
+                Some(rh_sim::WeaponId::Axe)
+            } else {
+                None
+            },
+            weapon1: None,
+        })
+        .collect();
+    let sim = Sim::reset_active(
+        SimConfig {
+            faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrostSentenced,
+            ..Default::default()
+        },
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(12),
+        &ps,
+    );
+    let mut cp = serde_json::to_value(&sim).unwrap();
+    let now = sim.server_time();
+    cp["world"]["players"][0]["core"]["vitals"]["hp"] = serde_json::json!(20.);
+    cp["world"]["players"][0]["core"]["vitals"]["barrier"] = serde_json::json!(60.);
+    for (i, target) in [(0, 2), (1, 1)] {
+        let sig = &mut cp["world"]["players"][i]["core"]["signature"];
+        sig["target"] = serde_json::json!(target);
+        sig["engaged"] = serde_json::json!(true);
+        sig["in_reach"] = serde_json::json!(true);
+        sig["contact_at"] = serde_json::json!(now);
+        sig["reach_at"] = serde_json::json!(now);
+    }
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["tier"] = serde_json::json!(4);
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["hits"] = serde_json::json!(9);
+    cp["world"]["players"][0]["core"]["signature"]["mark"]["progress"] = serde_json::json!(9.);
+    let mut allocations = 0;
+    for _ in 0..32 {
+        let mut sim = Sim::restore(&cp).unwrap();
+        let mut out = Vec::with_capacity(512);
+        let mut projector = rh_sim::FxProjector::attach(&sim, PlayerId(1));
+        let mut observer = rh_sim::ItemObserver::new(PlayerId(1));
+        let mut view = rh_sim::Observation::default();
+        let mut cache = rh_sim::SightCache::default();
+        sim.submit(
+            PlayerId(3),
+            validate(RawCommand::Attack {
+                a: std::f64::consts::PI,
+                t: None,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let mut measured = false;
+        for _ in 0..100 {
+            out.clear();
+            #[cfg(feature = "schedule-trace")]
+            sim.clear_schedule_trace();
+            let before = dhat::HeapStats::get().total_blocks;
+            sim.step_into(&mut out);
+            projector.feed(sim.fx_report()).unwrap();
+            observer
+                .observe_into(&sim, &out, &mut view, Some(&mut cache))
+                .unwrap();
+            let used = dhat::HeapStats::get().total_blocks - before;
+            if sim.players()[0].signature.mark.denied {
+                assert!(sim.players()[0].standing());
+                assert_eq!(sim.players()[0].credit.sentence, 1);
+                allocations += used;
+                measured = true;
+                break;
+            }
+        }
+        assert!(
+            measured,
+            "warm normal DoT/shred passes precede the measured denial"
+        );
+    }
+    assert_eq!(
+        allocations, 0,
+        "restored/refilled helper-only denial payout passes"
+    );
+}
+
 #[test]
 fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
     holy_crowded();
     frost_crowded();
+    sentenced_crowded();
+    sentenced_denial_refills();
     for name in [
         "crowded_8",
         "duel_chase",

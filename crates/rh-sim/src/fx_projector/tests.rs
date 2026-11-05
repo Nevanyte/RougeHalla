@@ -426,7 +426,7 @@ fn instant_count_redaction_and_explicit_bounds() {
     assert_eq!(a.feed(&invalid), Err(FxError::UnsupportedBounds));
     assert!(a.events().is_empty());
     b.rebind(&s, PlayerId(1));
-    let many = instant_report(&s, t + 1, &vec![(3, 1., WeaponId::Bow); 17], false);
+    let many = instant_report(&s, t + 1, &vec![(3, 1., WeaponId::Bow); 513], false);
     assert_eq!(b.feed(&many), Err(FxError::UnsupportedBounds));
 }
 #[test]
@@ -450,4 +450,29 @@ fn every_empty_active_ledger_has_one_fixed_marker_and_no_stale_instant_output() 
         p.feed(r).unwrap();
         assert!(p.events().is_empty());
     }
+}
+
+#[test]
+fn helper_mark_raw_rows_have_separate_envelope_from_public_keys() {
+    let s = sim();
+    let mut p = FxProjector::attach(&s, PlayerId(1));
+    let rows = vec![(3, 1., WeaponId::Bow); 128];
+    let mut r = instant_report(&s, s.tick() + 1, &rows, false);
+    for e in &mut r.events {
+        if let Event::SignatureHit { sig, .. } = e {
+            *sig = SignatureKind::Mark;
+        }
+    }
+    p.feed(&r).unwrap();
+    assert!(
+        matches!(p.events(),[SeenEvent::Hit {..},SeenEvent::SignatureHit {by:None,weapon:None,sig:SignatureKind::Mark,amount,..},SeenEvent::Heal {..}] if *amount==128.)
+    );
+    // Rows are never truncated to the public bucket capacity or performed-request count.
+    let mut over = instant_report(&s, s.tick() + 2, &vec![(3, 1., WeaponId::Bow); 513], false);
+    for e in &mut over.events {
+        if let Event::SignatureHit { sig, .. } = e {
+            *sig = SignatureKind::Mark;
+        }
+    }
+    assert_eq!(p.feed(&over), Err(FxError::UnsupportedBounds));
 }

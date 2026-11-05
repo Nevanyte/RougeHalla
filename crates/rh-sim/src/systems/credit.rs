@@ -29,11 +29,19 @@ pub(crate) fn recent_rival(w: &World, vi: usize, at: f64) -> Option<PlayerId> {
     (!w.players[si].resolved).then_some(by)
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct KillVictim {
+    pub id: PlayerId,
+    pub outcome: crate::results::Outcome,
+    pub bot: bool,
+}
+
 pub(crate) fn credit_kill(
+    k: &crate::statics::MatchStatic,
     w: &mut World,
     ev: &mut Vec<Event>,
     by: PlayerId,
-    victim_bot: bool,
+    victim: KillVictim,
     bounty: u32,
 ) {
     let Some(bi) = w.idx(by) else { return };
@@ -41,14 +49,22 @@ pub(crate) fn credit_kill(
         return;
     }
     w.players[bi].credit.kills = w.players[bi].credit.kills.saturating_add(1);
-    if victim_bot {
+    if victim.bot {
         w.players[bi].credit.bot_kills = w.players[bi].credit.bot_kills.saturating_add(1);
     } else {
         credit(w, ev, bi, GvReason::Kill, GV_KILL);
     }
-    if bounty > 0 && !victim_bot {
+    if bounty > 0 && !victim.bot {
         credit(w, ev, bi, GvReason::Bounty, bounty);
     }
+    crate::hooks::fire(
+        &mut crate::hooks::Hx { k, w, ev, fx: None },
+        crate::hooks::HookArgs::PlayerKilled {
+            by,
+            victim: victim.id,
+            outcome: victim.outcome,
+        },
+    );
     update_bounty(w, ev, bi);
 }
 

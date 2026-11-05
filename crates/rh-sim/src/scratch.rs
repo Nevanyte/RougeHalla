@@ -33,6 +33,7 @@ pub(crate) struct TickScratch {
     pub(crate) attack_started: [bool; MAX_PLAYERS],
     pub(crate) performed: Vec<crate::factions::PerformedAttack>,
     pub(crate) performed_bounded: bool,
+    pub(crate) mark_denials: [Option<(PlayerId, PlayerId)>; MAX_PLAYERS],
     pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
     pub(crate) dot_sums: Vec<(PlayerId, f64)>,
     pub(crate) fx: crate::fx_report::TickFx,
@@ -97,6 +98,7 @@ impl Default for TickScratch {
             attack_started: [false; MAX_PLAYERS],
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
+            mark_denials: [None; MAX_PLAYERS],
             ledger_diagnostics: Vec::with_capacity(hits),
             dot_sums: Vec::with_capacity(p),
             fx: crate::fx_report::TickFx {

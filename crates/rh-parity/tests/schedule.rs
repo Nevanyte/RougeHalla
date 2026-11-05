@@ -287,6 +287,7 @@ fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>], gates: &Gates) -> Result<(
                     // Between steps (a leave) a hook runs before the tick's first phase.
                     let allowed = match *h {
                         "attackStarted" => phase == "weapons",
+                        "weaponSwapped" => phase == "inputs:players(actionOrder)",
                         _ => matches!(phase, "" | "ledger:apply" | "settle"),
                     };
                     if !allowed {
@@ -405,6 +406,19 @@ fn what_the_slice_has_ported_stays_ported() {
         .1
         .iter()
         .any(|l| l.legacy == "factions.<arrow>" && l.pending.is_none()));
+    for (hook, legacy) in [
+        (Hook::WeaponSwapped, "factions.onWeaponSwapped"),
+        (Hook::PlayerKilled, "factions.onPlayerKilled"),
+        (Hook::ExecuteDenied, "factions.onExecuteDenied"),
+    ] {
+        let links = &t.hooks.iter().find(|(h, _)| *h == hook).unwrap().1;
+        assert!(
+            links
+                .iter()
+                .any(|link| link.legacy == legacy && link.pending.is_none()),
+            "{legacy} is ported through its typed hook"
+        );
+    }
     for a in ["attack", "release", "swap", "pickup"] {
         assert!(
             t.actions.iter().any(|x| x.name == a && x.pending.is_none()),
@@ -505,6 +519,9 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("attackStarted", "abilities.onAttackStarted") => attacks += 1,
                 TraceEntry::Hook("runEnded", "factions.flushDotFx") => {}
                 TraceEntry::Hook("attackStarted", "factions.<arrow>") => {}
+                TraceEntry::Hook("weaponSwapped", "factions.onWeaponSwapped") => {}
+                TraceEntry::Hook("playerKilled", "factions.onPlayerKilled") => {}
+                TraceEntry::Hook("executeDenied", "factions.onExecuteDenied") => {}
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
             }
@@ -814,6 +831,11 @@ fn rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
 
 /// The text of a source file before its first `#[cfg(test)]` (the production code).
 fn production_text(text: &str) -> &str {
+    // A separately stored module can be test-only through this compiler-enforced inner attribute.
+    // Its parent's cfg is outside this file, so require the attribute in the scanned text itself.
+    if text.starts_with("#![cfg(test)]") {
+        return "";
+    }
     match text.find("#[cfg(test)]") {
         Some(at) => &text[..at],
         None => text,
@@ -909,4 +931,22 @@ fn the_call_guard_rejects_a_system_called_from_another_file() {
         "fn ok() {}\n#[cfg(test)]\nmod t { fn f() { settle::settle(cx); } }".to_string(),
     )];
     assert!(offenders(&in_tests, &calls).is_empty(), "test code may");
+    let child = vec![(
+        "actual_source_tests.rs".to_string(),
+        "#![cfg(test)]\nfn probe(cx: &mut Cx) { ledger::apply(cx); settle::settle(cx); }"
+            .to_string(),
+    )];
+    assert!(
+        offenders(&child, &calls).is_empty(),
+        "an explicitly cfg(test) child is not production"
+    );
+    let impostor = vec![(
+        "actual_source_tests.rs".to_string(),
+        "fn probe(cx: &mut Cx) { settle::settle(cx); }".to_string(),
+    )];
+    assert_eq!(
+        offenders(&impostor, &calls),
+        vec!["actual_source_tests.rs: settle::settle"],
+        "a test-like filename alone grants no exception"
+    );
 }

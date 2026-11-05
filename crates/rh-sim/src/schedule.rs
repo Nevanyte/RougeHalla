@@ -969,11 +969,11 @@ static ATTACK_STARTED: [Link; 3] = [
         "P-FACTION-2",
     ),
 ];
-static WEAPON_SWAPPED: [Link; 1] = [pending_link(
+static WEAPON_SWAPPED: [Link; 1] = [ported_link(
     "factions.onWeaponSwapped",
     Mode::Append,
     Gate::Signatures,
-    "P-FACTION-1",
+    crate::systems::sentenced::weapon_swapped,
 )];
 static HURT: [Link; 2] = [
     pending_link(
@@ -990,11 +990,11 @@ static HURT: [Link; 2] = [
     ),
 ];
 static PLAYER_KILLED: [Link; 3] = [
-    pending_link(
+    ported_link(
         "factions.onPlayerKilled",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::sentenced::player_killed,
     ),
     pending_link(
         "killAugments.onPlayerKilled",
@@ -1009,11 +1009,11 @@ static PLAYER_KILLED: [Link; 3] = [
         "P-QUEST-1",
     ),
 ];
-static EXECUTE_DENIED: [Link; 1] = [pending_link(
+static EXECUTE_DENIED: [Link; 1] = [ported_link(
     "factions.onExecuteDenied",
     Mode::Append,
     Gate::Signatures,
-    "P-FACTION-1",
+    crate::systems::sentenced::execute_denied,
 )];
 static RAID_STARTED: [Link; 14] = [
     ported_link(

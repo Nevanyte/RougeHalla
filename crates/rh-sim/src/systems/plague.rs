@@ -139,6 +139,9 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
     if k.config.faction_mode.frost() {
         super::frost::after_damage(w);
     }
+    if k.config.faction_mode.sentenced() {
+        super::sentenced::after_damage(w);
+    }
     for i in 0..w.players.len() {
         let p = &w.players[i];
         if !k.config.faction_mode.plague()

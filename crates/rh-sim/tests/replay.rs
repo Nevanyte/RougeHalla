@@ -1,4 +1,4 @@
-//! Replay files (docs/CONTRACTS.md C-DET): `rh-replay/11`, a typed refusal of any other format, and a decoded replay that is
+//! Replay files (docs/CONTRACTS.md C-DET): `rh-replay/12`, a typed refusal of any other format, and a decoded replay that is
 //! complete (a malformed map is an `Err` while decoding, not a panic later).
 
 use rh_sim::arenas::practice_arena;
@@ -58,7 +58,7 @@ fn recorded(ticks: u32) -> Replay {
 fn a_recorded_replay_is_tagged_roundtrips_complete_and_verifies() {
     let r = recorded(120);
     assert_eq!(r.format, REPLAY_FORMAT);
-    assert_eq!(REPLAY_FORMAT, "rh-replay/11");
+    assert_eq!(REPLAY_FORMAT, "rh-replay/12");
     let back: Replay = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
     assert_eq!(back, r, "equal right after decoding, with no rebuild call");
     let (sim, _) = run_replay(&back).expect("a decoded replay verifies");
