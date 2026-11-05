@@ -391,6 +391,32 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
         sync::{atomic::Ordering, Arc},
         time::Duration,
     };
+    // Observe the actual actor's public snapshots, independently of its shared Pong clock.
+    // Keeping these observations also distinguishes a room that closed from a room blocked on I/O.
+    #[derive(Default)]
+    struct Probe {
+        tracker: rh_protocol::SnapshotTracker,
+        latest: Option<(u32, u8, u32, Option<u8>)>,
+        close: Option<RejectCode>,
+    }
+    impl Probe {
+        fn poll(&mut self, outbox: &Outbox) {
+            let mut frames = Vec::new();
+            self.close = outbox.drain_into(&mut frames).close.or(self.close);
+            for frame in frames {
+                if let rh_protocol::ServerMsg::Snapshot {
+                    tick,
+                    phase,
+                    ack_input,
+                    me,
+                    ..
+                } = self.tracker.decode(&frame).unwrap()
+                {
+                    self.latest = Some((tick, phase, ack_input, me.map(|me| me.status)));
+                }
+            }
+        }
+    }
     let Ok(url) = std::env::var("DATABASE_URL") else {
         if std::env::var("RH_SKIP_PG_TESTS").as_deref() == Ok("1") {
             return;
@@ -448,11 +474,16 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
         .unwrap();
     let mut remaining = Vec::new();
     for (name, conn) in [("Guard", 2), ("Scout", 3)] {
+        let outbox = Arc::new(Outbox::default());
         let (tx, join) = director
-            .admit(hello(name, None), Arc::new(Outbox::default()), conn)
+            .admit(hello(name, None), outbox.clone(), conn)
             .await
             .unwrap();
-        remaining.push((tx, join.player, conn));
+        assert!(
+            Arc::ptr_eq(&first.clock, &join.clock),
+            "all three seats must share the room being measured"
+        );
+        remaining.push((tx, join.player, conn, outbox, Probe::default()));
     }
     let (pid,mid,initial):(i64,uuid::Uuid,f64)=sqlx::query_as(
         "SELECT profile_id,match_id,EXTRACT(EPOCH FROM expires_at)::float8 FROM session_leases JOIN profiles USING(profile_id) WHERE callsign='Archer'")
@@ -495,24 +526,88 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
         .execute(&mut *lock)
         .await
         .unwrap();
-    // The first heartbeat has already encountered the lock. Busy is transient; the prior
+    // Confirm the actual row lock, including the transient SQLSTATE rather than treating
+    // every database error as evidence of contention. This does not retry or renew the row.
+    let blocked = store.try_renew_live_lease(pid, mid, 1, ttl).await;
+    assert!(
+        matches!(blocked,
+        Err(rh_persist::Error::Db(sqlx::Error::Database(ref error)))
+            if error.code().as_deref() == Some("55P03")),
+        "expected real row contention: {blocked:?}"
+    );
+    // Allow the director's heartbeat to encounter the lock. Busy is transient; the prior
     // confirmed deadline remains valid and the seat may still resume.
     tokio::time::sleep(Duration::from_millis(350)).await;
     let resumed = Arc::new(Outbox::default());
-    director
+    let (resumed_tx, resumed_join) = director
         .admit(hello("Archer", Some(first.session)), resumed.clone(), 4)
         .await
         .unwrap();
+    assert!(Arc::ptr_eq(&first.clock, &resumed_join.clock));
+    // A distinct input ack proves that a post-lock command reached this exact resumed seat.
+    // Every later snapshot proves a completed room step while our transaction still owns the lock.
+    resumed_tx
+        .send(rh_server::room::RoomCmd::Input {
+            player: resumed_join.player,
+            conn: 4,
+            seq: 7001,
+            commands: vec![],
+        })
+        .await
+        .unwrap();
+    let mut archer_probe = Probe::default();
     let before = f64::from_bits(first.clock.load(Ordering::Relaxed));
-    tokio::time::sleep(ttl + Duration::from_millis(300)).await;
+    let until = tokio::time::Instant::now() + ttl + Duration::from_millis(300);
+    let mut progress_before_expiry = None;
+    loop {
+        archer_probe.poll(&resumed);
+        if archer_probe.latest.is_some_and(|(tick, phase, ack, _)| {
+            phase == 1 && ack == 7001 && rh_protocol::snapshot_server_ms(tick) > before + 500.
+        }) {
+            progress_before_expiry = archer_probe.latest;
+        }
+        for (_, _, _, outbox, probe) in &mut remaining {
+            probe.poll(outbox);
+        }
+        if tokio::time::Instant::now() >= until {
+            break;
+        }
+        tokio::time::sleep_until(
+            until.min(tokio::time::Instant::now() + Duration::from_millis(10)),
+        )
+        .await;
+    }
+    let lease_state: Vec<(i64, bool, f64, bool)> = sqlx::query_as(
+        "SELECT profile_id, expires_at>clock_timestamp(), EXTRACT(EPOCH FROM expires_at)::float8,
+         released_at IS NOT NULL FROM session_leases ORDER BY profile_id",
+    )
+    .fetch_all(store.pool())
+    .await
+    .unwrap();
+    let after = f64::from_bits(first.clock.load(Ordering::Relaxed));
+    let diagnostics = format!("before={before} after={after} archer={:?} remaining={:?} leases={lease_state:?} director={}",
+        (archer_probe.latest, archer_probe.close), remaining.iter().map(|(_, player, _, _, probe)| (player, probe.latest, probe.close)).collect::<Vec<_>>(), director.info());
+    // Check the live peers first: their expiry/normal room closure is not evidence that
+    // the locked row blocked the actor. Fail with the actual seat/phase/clock/deadline state.
+    for (_, player, _, _, probe) in &remaining {
+        assert!(
+            probe.close.is_none(),
+            "unlocked peer {player:?} closed: {diagnostics}"
+        );
+        assert!(
+            probe.latest.is_some_and(|(_, phase, _, _)| phase == 1),
+            "unlocked peer {player:?} was not active: {diagnostics}"
+        );
+    }
+    assert!(
+        progress_before_expiry.is_some(),
+        "no acknowledged actor progress while the lease row was locked: {diagnostics}"
+    );
     assert!(
         f64::from_bits(first.clock.load(Ordering::Relaxed)) > before + 500.,
-        "stalled store must not block room ticks"
+        "stalled store must not block room ticks: {diagnostics}"
     );
-    assert_eq!(
-        resumed.drain_into(&mut vec![]).close,
-        Some(RejectCode::Kicked)
-    );
+    assert_eq!(archer_probe.close, Some(RejectCode::Kicked));
     assert!(matches!(
         director
             .admit(
@@ -531,12 +626,13 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
     .await
     .unwrap();
     assert!(expired);
-    let guard_live:bool = sqlx::query_scalar(
-        "SELECT expires_at > clock_timestamp() FROM session_leases JOIN profiles USING(profile_id) WHERE callsign='Guard'")
+    let peers_live: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM session_leases JOIN profiles USING(profile_id)
+         WHERE callsign IN ('Guard','Scout') AND expires_at>clock_timestamp() AND released_at IS NULL")
         .fetch_one(store.pool()).await.unwrap();
-    assert!(
-        guard_live,
-        "a busy row must not stop other seats from renewing"
+    assert_eq!(
+        peers_live, 2,
+        "a busy row must not stop either other seat from renewing: {diagnostics}"
     );
     // Expiry suppresses the forced MIA write, then Left(result_pending=false) queues the
     // director's fenced give-back. Observe that actual contender before unblocking it;
@@ -582,7 +678,7 @@ async fn director_renews_live_seats_by_id_and_expires_only_the_stalled_seat() {
         )
         .await;
     assert_eq!(late, Err(RecordError::Refused("StaleFence".into())));
-    for (tx, player, conn) in remaining {
+    for (tx, player, conn, _, _) in remaining {
         tx.send(rh_server::room::RoomCmd::Leave { player, conn })
             .await
             .unwrap();
