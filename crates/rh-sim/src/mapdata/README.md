@@ -41,8 +41,10 @@ Terrain, buildings, feature parameters and every other captured layer remain par
 Both match the actual legacy queries at every tile centre and captured grid-edge samples. Out-of-grid or nonfinite
 points return none/zero. The coliseum tile rectangle is separately available through `coliseum().rect`.
 
-`legacyMapHashU32` is oracle metadata. No Rust implementation of the complete generator hash has been substituted
-or claimed to verify it. Existing `rh-map/1`, map pins and prior parity capture values are untouched. The admitted layers
+`legacyMapHashU32` remains oracle metadata at this structural import boundary. The separate pure
+`mapgen::map_hash::map_hash` now reproduces the source compatibility identity; import does not call it or treat it as a
+certificate. That source identity omits props, coliseum and region mob-camp lists, while static simulation hashing
+includes all gameplay layers. Existing `rh-map/1`, map pins and prior parity capture values are untouched. The admitted layers
 now load through the actual headless runner and survive simulation/checkpoint/replay integration. Full map generation,
 zones/styles, independent certification, public map transport and seed-pin parity remain later milestones.
 

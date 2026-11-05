@@ -12,7 +12,10 @@ self-determinism problem.
 Current stage-four checkpoint: all five actual recipes and ordered admission are implemented, independently reviewed
 and integrated behind the pure stage API. The 649-test local gate, exact source stage/callback traces and content
 coverage pass; see [ADR0015](../../adr/0015-landmark-recipes.md). Remaining pipeline/finished generator/certifier/pins
-are still required. Existing milestone descriptions below retain earlier incremental evidence; use MIGRATION for status.
+are still required. Pure record finalization, exact source map identity and terrain acceptance are now integrated and
+independently reviewed; see [ADR0016](../../adr/0016-map-finalization.md). Camp/loot spots and repair are isolated next
+workstreams, with no final acceptance until canonical capture and review pass. Existing milestone descriptions below
+retain earlier incremental evidence; use MIGRATION for status.
 
 None to start. Milestone M0 (an `rh-map/2` exporter) unblocks P-MOBS-1 (camps), P-ARENA-1 (coliseum/spawn zones), P-TERRAIN-1,
 P-VISION-1 (bushes), P-QUEST-1 and P-COMBAT-4 (crate/ground spots). P-MOBS-1 and P-ARENA-1 add their fields to the same export

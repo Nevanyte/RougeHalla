@@ -1,0 +1,103 @@
+{
+  "status": "No blocking correctness finding in documented terrain-gate domain; root visitor registration and final integration remain root-owned",
+  "reviewedManifest": {
+    "baseline": "c7b140a3",
+    "scratchOnly": true,
+    "ownedFiles": [
+      {
+        "path": "crates/rh-sim/src/mapgen/terrain_gate/README.md",
+        "bytes": 3549,
+        "sha256": "01e264eabc68105e92a2a0848d20fd6a901801ffd83bc9d4fc5910139996ac4d"
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/terrain_gate/mod.rs",
+        "bytes": 15794,
+        "sha256": "951097bc0657fb346fbad16948656509b9faa8f8144c0b6281464849d0f5ee6e"
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/terrain_gate/rules.rs",
+        "bytes": 5130,
+        "sha256": "1ce074421dd7e05d16a217e422eb19cecd74a32a851af9061c1dc35f34527335"
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/terrain_gate/tests.rs",
+        "bytes": 12203,
+        "sha256": "b1c415ba81175d6489b9d8268f27d2c10691a093f9510ce1e723471b0b10b68d"
+      },
+      {
+        "path": "tools/map-fixtures/terrain-gate.ts",
+        "bytes": 9906,
+        "sha256": "c0fb3cf1d98eee1cf101f6953d20a6bc3c25b58c37cc35bb3c2590d47b54534f"
+      },
+      {
+        "path": "crates/rh-sim/src/mapgen/fixtures/terrain-gate.json",
+        "bytes": 4623833,
+        "sha256": "404ccd67e606038b8231ee6ff08fc7db6abfa231e8f6c110e8c09c35b8fac5da"
+      }
+    ],
+    "checks": {
+      "rustFocused": "8 passed;0 failed;0 ignored after real exact formatter integration; all9bit-decoded numeric T9 source messages exactly compared",
+      "rustToolchain": "1.97.0-aarch64-apple-darwin; edition2021; API MSRV1.85 compatibility reviewed, toolchain1.85 not installed/run",
+      "rustfmt": "cargo fmt --all -- --check passed",
+      "clippy": "cargo clippy -p rh-sim --all-targets --locked -- -D warnings passed with frozen exact formatter and ryu-js1.0.3",
+      "sourceCaptureAndByteExactCheck": "Linux x64 Node22.23.4 Docker c86ecead9e55 passed:403 cases,39 transitive sources,11 rules",
+      "semanticMutants": "15/15 ordinary gate mutants +1numeric formatting mutant detected by runtime failures; originals restored",
+      "numericRegression": "Rust Display replacement detected: expected1e+21 vs actual1000000000000000000000; exact helper restored; all8tests passed"
+    },
+    "pending": [
+      "coordinator parent module declaration and content visitor registration",
+      "coordinator shared formatter/dependency/lock integration",
+      "independent review and coordinator integrated gates"
+    ],
+    "limits": [
+      "not mapCertify independent certifier",
+      "not full map generator/pin parity",
+      "no hazard gameplay effects",
+      "scratch-only parent mapgen module declaration used to build tests and excluded from owned delivery",
+      "no live-tree edits or git commits; dependency/lock changes isolated to authorized scratch harness and excluded from delivery",
+      "copied frozen map_hash module+fixture are byte-identical and excluded from terrain delivery"
+    ],
+    "scratchHarnessOnly": [
+      "crates/rh-sim/Cargo.toml: ryu-js = \"=1.0.3\"",
+      "Cargo.lock: one ryu-js1.0.3 entry",
+      "crates/rh-sim/src/mapgen/mod.rs: pub mod terrain_gate; pub mod map_hash;",
+      "crates/rh-sim/src/mapgen/map_hash/** copied byte-identically",
+      "crates/rh-sim/src/mapgen/fixtures/map-hash.json copied byte-identically"
+    ]
+  },
+  "sourceOracle": {
+    "runtime": "Linux x64 Node22.23.4",
+    "image": "sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
+    "producerCases": 403,
+    "producerAccepted": 78,
+    "independentCases": 427,
+    "independentAccepted": 37,
+    "independentRefused": 390,
+    "independentNumericExact": 7,
+    "producerNumericExact": 9,
+    "independentCaseSha256": "c9cce340751c5d0d83cb7919dddff899029c6b00f209b2c7336ec55de12382f0",
+    "sourceHashesVerified": 39
+  },
+  "checks": {
+    "finalRust": "10 passed 0 failed; includes8producer plus2independent tests",
+    "finalSourceCheck": "403 cases39sources11rules exact",
+    "producerSemanticMutants": "15 runtime test failures verified",
+    "reviewSemanticFaultsKilled": 7,
+    "reviewInventorySchemaControlsKilled": 4,
+    "reviewUnhashedLeafControlKilled": 1,
+    "additionalSchemaRefusals": [
+      "unknown option",
+      "unknown faction variant",
+      "unknown gate-side variant",
+      "unknown nested WorldPt field"
+    ]
+  },
+  "notes": [
+    "The component MASK_MOVE mutant is equivalent because MASK_MOVE is0xff; excluded from semantic kill count.",
+    "ICE last-row mutant initially survived; adding open-bottom-border source witness killed it. This strengthened review corpus, not production code.",
+    "Large finite camp r is admitted by MapExport but can exceed terrain gate work bound. Explicit narrower metadata domain; source T8 necessarily refuses such radius for an in-bounds center. No source-accepted imported/generator map false refusal found.",
+    "Nonfinite props reach sourceT9 rather than InputError, including NaN/infinities. MAX_VALUE plus MAX_VALUE exact error message verified after formatter integration.",
+    "Only helper-wrapper production change between original and updated terrain gate; all ordinary rules unchanged.",
+    "No live repo, status, dependency, lockfile or commits modified. Dedicated scratch owns all additional harness/output."
+  ]
+}

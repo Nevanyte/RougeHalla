@@ -93,6 +93,10 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    ("mapgen/records/rules.rs", "DEFAULT_DEFINITION", "canonical faction/weapon policy and ICE identity are live inputs folded by content_hash_of_records_definition"),
+    ("mapgen/terrain_gate/rules.rs", "DEFAULT_DEFINITION", "terrain acceptance tables and halo distances are live inputs folded by content_hash_of_terrain_gate_definition"),
+    ("mapgen/terrain_gate/rules.rs", "KINDS", "default terrain key/class/home rows are traversed by the actual terrain acceptance definition and content visitor"),
+    ("mapgen/terrain_gate/rules.rs", "PROPS", "default prop key/class rows are traversed by the actual terrain acceptance definition and content visitor"),
     (
         "factions.rs", "ALL",
         "signature identities and each live is_dot classification are folded by content_hash_of_signature_rules",
@@ -364,7 +368,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x1e07_74e8_e0ba_1649;
+const GOLDEN_CONTENT_HASH: u64 = 0x52d2_1bbb_f403_dd64;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

@@ -7,7 +7,10 @@ pub mod det_math;
 pub mod grid_ops;
 pub mod grid_topology;
 pub mod landmarks;
+pub mod map_hash;
+pub mod records;
 pub mod spawns;
+pub mod terrain_gate;
 pub mod zones;
 
 #[cfg(test)]

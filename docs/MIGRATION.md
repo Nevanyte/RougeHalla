@@ -161,9 +161,20 @@ including exact original protection, building order, masks, complete runtime sta
 additional corpora and semantic mutants pass; two concrete test-evidence gaps were repaired and independently rechecked.
 All 767 recipe-content perturbations pass. Current content is `1e0774e8e0ba1649`; checkpoint /14, replay /12,
 observation 11, policy 8 and wire 5 are unchanged. New source recapture checks are in Rust CI; the new checkpoint's CI
-remains pending until its pushed run completes. See ADR0015 and `docs/evidence/stage2-landmark-recipes/`.
-Next are remaining map stages/orchestration, independent certification and pins. Map record finalization, terrain
-validation and exact source map hashing are progressing in isolated parallel scopes, not yet integrated or accepted.
+passed for code checkpoint `998fc95d` in Rust foundation CI `42089479662` (Rust and C# jobs).
+See ADR0015 and `docs/evidence/stage2-landmark-recipes/`.
+Pure map record finalization, terrain validation and exact source map identity now pass the **672-test** native
+workspace/all-features/locked gate (0 failures/filtered, one intentional heap measurement ignored), formatting and both
+strict workspace Clippy configurations. Parity remains 97 compared/13 capture-only/300 paths, all MATCH; existing
+gameplay fixture bytes are unchanged. All three leaves passed canonical Linux x64 Node22.23.4 byte-exact recapture
+and independent review. Every genuine record output also reproduces its source hash and passes terrain/M0 admission.
+Two fixture-inventory defects were repaired and independently retested; aggregate content checks cover 127 new policy
+mutations. Current content is `52d21bbbf403dd64`; checkpoint /14, replay /12, observation 11, policy 8 and wire 5 remain
+unchanged. The pure exact formatter adds pinned ryu-js1.0.3 (archive/licenses verified; local compiler1.97, no local
+MSRV1.85 execution). Source hash omissions and the narrower bounded terrain diagnostic domain are explicit in ADR0016.
+See `docs/evidence/stage2-map-finalization/`. CI for this new code checkpoint remains to be observed.
+Next are remaining map stages/orchestration, independent certification and pins. Camp/loot spots and repair are
+progressing in isolated parallel scopes and require final review/integration; no full generator or pin claim follows.
 Auxiliary factions, status/cards/abilities/mobs/bots and reliable item State/client integration remain open.
 Claude owns the reserved server/persistence/hosting work and Kimi the separate determinism sweep (backlog handoff packets).
 Unity visuals stay deferred; no full-game/pin/performance or cloud staging/production release is implied.
