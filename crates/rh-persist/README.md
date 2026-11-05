@@ -40,7 +40,10 @@ edit an applied migration.
 - `purchase` is idempotent by `purchase_id`, debits under the profile row lock with `gv >= price`, never touches
   `gv_lifetime` or `gv_by_month`.
 - The binary refuses a database whose `schema_compat.min_binary` is above its own version (`Store::connect`, `migrate`); a database with only additive newer migrations is accepted.
-- Achievements are NOT ported (`achievements_pending`): the counters they read are kept as the legacy `recordRun` keeps them.
+- Achievement ids and cosmetic rewards are evaluated and granted in the same fenced result transaction. The catalog,
+  thresholds and unlock order match 83 observations of the real legacy evaluator, including withheld wins and previously
+  unlocked ids. Retrying a result cannot award twice; a crash before commit rolls back rewards with the payout.
+  Recheck the legacy rules with `node --import tsx tools/persist-fixtures/achievements.ts --check`.
 
 ## Admin tool
 

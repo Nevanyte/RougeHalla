@@ -1,0 +1,2507 @@
+{
+  "format": "rh-achievement-parity/1",
+  "source": "packages/shared/src/achievements.ts",
+  "catalog": [
+    {
+      "id": "first_blood",
+      "goal": {
+        "kind": "stat",
+        "stat": "kills",
+        "min": 1
+      },
+      "reward": [
+        "title-bloodied"
+      ]
+    },
+    {
+      "id": "slayer",
+      "goal": {
+        "kind": "stat",
+        "stat": "kills",
+        "min": 10
+      },
+      "reward": [
+        "title-slayer"
+      ]
+    },
+    {
+      "id": "reaper",
+      "goal": {
+        "kind": "stat",
+        "stat": "kills",
+        "min": 50
+      },
+      "reward": [
+        "title-reaper"
+      ]
+    },
+    {
+      "id": "rampage",
+      "goal": {
+        "kind": "progress",
+        "key": "bestRunKills",
+        "min": 5
+      },
+      "reward": [
+        "title-rampage",
+        "trail-comet"
+      ]
+    },
+    {
+      "id": "bounty_hunter",
+      "goal": {
+        "kind": "progress",
+        "key": "bountyRuns",
+        "min": 1
+      },
+      "reward": [
+        "title-bounty-hunter",
+        "outline-bounty"
+      ]
+    },
+    {
+      "id": "first_win",
+      "goal": {
+        "kind": "progress",
+        "key": "qualifiedWins",
+        "min": 1
+      },
+      "reward": [
+        "title-victor",
+        "skin-laurel"
+      ]
+    },
+    {
+      "id": "champion",
+      "goal": {
+        "kind": "progress",
+        "key": "qualifiedWins",
+        "min": 5
+      },
+      "reward": [
+        "title-champion"
+      ]
+    },
+    {
+      "id": "warlord",
+      "goal": {
+        "kind": "progress",
+        "key": "qualifiedWins",
+        "min": 20
+      },
+      "reward": [
+        "title-warlord"
+      ]
+    },
+    {
+      "id": "veteran",
+      "goal": {
+        "kind": "stat",
+        "stat": "runs",
+        "min": 25
+      },
+      "reward": [
+        "title-veteran",
+        "skin-ghost"
+      ]
+    },
+    {
+      "id": "glorious",
+      "goal": {
+        "kind": "lifetimeGv",
+        "min": 1000
+      },
+      "reward": [
+        "title-glorious"
+      ]
+    },
+    {
+      "id": "win_fire",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "fire",
+        "min": 1
+      },
+      "reward": [
+        "title-pyre-lord"
+      ]
+    },
+    {
+      "id": "win_sentenced",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "sentenced",
+        "min": 1
+      },
+      "reward": [
+        "title-the-judge"
+      ]
+    },
+    {
+      "id": "win_plague",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "plague",
+        "min": 1
+      },
+      "reward": [
+        "title-rat-king"
+      ]
+    },
+    {
+      "id": "win_frost",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "frost",
+        "min": 1
+      },
+      "reward": [
+        "title-ice-wall"
+      ]
+    },
+    {
+      "id": "win_holy",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "holy",
+        "min": 1
+      },
+      "reward": [
+        "title-demon-blood"
+      ]
+    },
+    {
+      "id": "cycle_breaker",
+      "goal": {
+        "kind": "everyFactionWins",
+        "min": 1
+      },
+      "reward": [
+        "title-cycle-breaker"
+      ]
+    },
+    {
+      "id": "gild_fire",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "fire",
+        "min": 3
+      },
+      "reward": [
+        "gilded-fire"
+      ]
+    },
+    {
+      "id": "gild_sentenced",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "sentenced",
+        "min": 3
+      },
+      "reward": [
+        "gilded-sentenced"
+      ]
+    },
+    {
+      "id": "gild_plague",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "plague",
+        "min": 3
+      },
+      "reward": [
+        "gilded-plague"
+      ]
+    },
+    {
+      "id": "gild_frost",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "frost",
+        "min": 3
+      },
+      "reward": [
+        "gilded-frost"
+      ]
+    },
+    {
+      "id": "gild_holy",
+      "goal": {
+        "kind": "factionWins",
+        "faction": "holy",
+        "min": 3
+      },
+      "reward": [
+        "gilded-holy"
+      ]
+    },
+    {
+      "id": "gild_sword",
+      "goal": {
+        "kind": "weaponWins",
+        "weapon": "sword",
+        "min": 5
+      },
+      "reward": [
+        "gilded-sword"
+      ]
+    },
+    {
+      "id": "gild_axe",
+      "goal": {
+        "kind": "weaponWins",
+        "weapon": "axe",
+        "min": 5
+      },
+      "reward": [
+        "gilded-axe"
+      ]
+    },
+    {
+      "id": "gild_bow",
+      "goal": {
+        "kind": "weaponWins",
+        "weapon": "bow",
+        "min": 5
+      },
+      "reward": [
+        "gilded-bow"
+      ]
+    },
+    {
+      "id": "gild_wand",
+      "goal": {
+        "kind": "weaponWins",
+        "weapon": "wand",
+        "min": 5
+      },
+      "reward": [
+        "gilded-wand"
+      ]
+    },
+    {
+      "id": "gild_shield",
+      "goal": {
+        "kind": "weaponWins",
+        "weapon": "shield",
+        "min": 5
+      },
+      "reward": [
+        "gilded-shield"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "label": "new profile",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "first_blood threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "first_blood threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 1
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood"
+      ]
+    },
+    {
+      "label": "first_blood threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 2
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood"
+      ]
+    },
+    {
+      "label": "slayer threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 9
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood"
+      ]
+    },
+    {
+      "label": "slayer threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 10
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood",
+        "slayer"
+      ]
+    },
+    {
+      "label": "slayer threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 11
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood",
+        "slayer"
+      ]
+    },
+    {
+      "label": "reaper threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 49
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood",
+        "slayer"
+      ]
+    },
+    {
+      "label": "reaper threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 50
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood",
+        "slayer",
+        "reaper"
+      ]
+    },
+    {
+      "label": "reaper threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 51
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood",
+        "slayer",
+        "reaper"
+      ]
+    },
+    {
+      "label": "rampage threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 4,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "rampage threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 5,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "rampage"
+      ]
+    },
+    {
+      "label": "rampage threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 6,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "rampage"
+      ]
+    },
+    {
+      "label": "bounty_hunter threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "bounty_hunter threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 1,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "bounty_hunter"
+      ]
+    },
+    {
+      "label": "bounty_hunter threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 2,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "bounty_hunter"
+      ]
+    },
+    {
+      "label": "first_win threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "first_win threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 1,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win"
+      ]
+    },
+    {
+      "label": "first_win threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 2,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win"
+      ]
+    },
+    {
+      "label": "champion threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 4,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win"
+      ]
+    },
+    {
+      "label": "champion threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 5,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win",
+        "champion"
+      ]
+    },
+    {
+      "label": "champion threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 6,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win",
+        "champion"
+      ]
+    },
+    {
+      "label": "warlord threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 19,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win",
+        "champion"
+      ]
+    },
+    {
+      "label": "warlord threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 20,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win",
+        "champion",
+        "warlord"
+      ]
+    },
+    {
+      "label": "warlord threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 21,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "first_win",
+        "champion",
+        "warlord"
+      ]
+    },
+    {
+      "label": "veteran threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 24,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "veteran threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 25,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "veteran"
+      ]
+    },
+    {
+      "label": "veteran threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 26,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "veteran"
+      ]
+    },
+    {
+      "label": "glorious threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 999
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "glorious threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 1000
+      },
+      "unlocked": {},
+      "expected": [
+        "glorious"
+      ]
+    },
+    {
+      "label": "glorious threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 1001
+      },
+      "unlocked": {},
+      "expected": [
+        "glorious"
+      ]
+    },
+    {
+      "label": "win_fire threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 0
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "win_fire threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 1
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire"
+      ]
+    },
+    {
+      "label": "win_fire threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire"
+      ]
+    },
+    {
+      "label": "win_sentenced threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "sentenced": 0
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "win_sentenced threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "sentenced": 1
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_sentenced"
+      ]
+    },
+    {
+      "label": "win_sentenced threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "sentenced": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_sentenced"
+      ]
+    },
+    {
+      "label": "win_plague threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "plague": 0
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "win_plague threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "plague": 1
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_plague"
+      ]
+    },
+    {
+      "label": "win_plague threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "plague": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_plague"
+      ]
+    },
+    {
+      "label": "win_frost threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "frost": 0
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "win_frost threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "frost": 1
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_frost"
+      ]
+    },
+    {
+      "label": "win_frost threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "frost": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_frost"
+      ]
+    },
+    {
+      "label": "win_holy threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "holy": 0
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "win_holy threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "holy": 1
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_holy"
+      ]
+    },
+    {
+      "label": "win_holy threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "holy": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_holy"
+      ]
+    },
+    {
+      "label": "cycle_breaker threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 0,
+            "sentenced": 0,
+            "plague": 0,
+            "frost": 0,
+            "holy": 0
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "cycle_breaker threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 1,
+            "sentenced": 1,
+            "plague": 1,
+            "frost": 1,
+            "holy": 1
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire",
+        "win_sentenced",
+        "win_plague",
+        "win_frost",
+        "win_holy",
+        "cycle_breaker"
+      ]
+    },
+    {
+      "label": "cycle_breaker threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 2,
+            "sentenced": 2,
+            "plague": 2,
+            "frost": 2,
+            "holy": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire",
+        "win_sentenced",
+        "win_plague",
+        "win_frost",
+        "win_holy",
+        "cycle_breaker"
+      ]
+    },
+    {
+      "label": "gild_fire threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire"
+      ]
+    },
+    {
+      "label": "gild_fire threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 3
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire",
+        "gild_fire"
+      ]
+    },
+    {
+      "label": "gild_fire threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "fire": 4
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_fire",
+        "gild_fire"
+      ]
+    },
+    {
+      "label": "gild_sentenced threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "sentenced": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_sentenced"
+      ]
+    },
+    {
+      "label": "gild_sentenced threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "sentenced": 3
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_sentenced",
+        "gild_sentenced"
+      ]
+    },
+    {
+      "label": "gild_sentenced threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "sentenced": 4
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_sentenced",
+        "gild_sentenced"
+      ]
+    },
+    {
+      "label": "gild_plague threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "plague": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_plague"
+      ]
+    },
+    {
+      "label": "gild_plague threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "plague": 3
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_plague",
+        "gild_plague"
+      ]
+    },
+    {
+      "label": "gild_plague threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "plague": 4
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_plague",
+        "gild_plague"
+      ]
+    },
+    {
+      "label": "gild_frost threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "frost": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_frost"
+      ]
+    },
+    {
+      "label": "gild_frost threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "frost": 3
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_frost",
+        "gild_frost"
+      ]
+    },
+    {
+      "label": "gild_frost threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "frost": 4
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_frost",
+        "gild_frost"
+      ]
+    },
+    {
+      "label": "gild_holy threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "holy": 2
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_holy"
+      ]
+    },
+    {
+      "label": "gild_holy threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "holy": 3
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_holy",
+        "gild_holy"
+      ]
+    },
+    {
+      "label": "gild_holy threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {
+            "holy": 4
+          },
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "win_holy",
+        "gild_holy"
+      ]
+    },
+    {
+      "label": "gild_sword threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "sword": 4
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "gild_sword threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "sword": 5
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_sword"
+      ]
+    },
+    {
+      "label": "gild_sword threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "sword": 6
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_sword"
+      ]
+    },
+    {
+      "label": "gild_axe threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "axe": 4
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "gild_axe threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "axe": 5
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_axe"
+      ]
+    },
+    {
+      "label": "gild_axe threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "axe": 6
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_axe"
+      ]
+    },
+    {
+      "label": "gild_bow threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "bow": 4
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "gild_bow threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "bow": 5
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_bow"
+      ]
+    },
+    {
+      "label": "gild_bow threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "bow": 6
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_bow"
+      ]
+    },
+    {
+      "label": "gild_wand threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "wand": 4
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "gild_wand threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "wand": 5
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_wand"
+      ]
+    },
+    {
+      "label": "gild_wand threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "wand": 6
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_wand"
+      ]
+    },
+    {
+      "label": "gild_shield threshold -1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "shield": 4
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": []
+    },
+    {
+      "label": "gild_shield threshold +0",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "shield": 5
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_shield"
+      ]
+    },
+    {
+      "label": "gild_shield threshold +1",
+      "snapshot": {
+        "stats": {
+          "runs": 0,
+          "wins": 0,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {
+            "shield": 6
+          }
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "gild_shield"
+      ]
+    },
+    {
+      "label": "all goals met in catalog order",
+      "snapshot": {
+        "stats": {
+          "runs": 100,
+          "wins": 100,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 100
+        },
+        "progress": {
+          "qualifiedWins": 100,
+          "bountyRuns": 100,
+          "bestRunKills": 100,
+          "winsByFaction": {
+            "fire": 100,
+            "sentenced": 100,
+            "plague": 100,
+            "frost": 100,
+            "holy": 100
+          },
+          "winsByWeapon": {
+            "sword": 100,
+            "axe": 100,
+            "bow": 100,
+            "wand": 100,
+            "shield": 100
+          }
+        },
+        "gvLifetime": 100000
+      },
+      "unlocked": {},
+      "expected": [
+        "first_blood",
+        "slayer",
+        "reaper",
+        "rampage",
+        "bounty_hunter",
+        "first_win",
+        "champion",
+        "warlord",
+        "veteran",
+        "glorious",
+        "win_fire",
+        "win_sentenced",
+        "win_plague",
+        "win_frost",
+        "win_holy",
+        "cycle_breaker",
+        "gild_fire",
+        "gild_sentenced",
+        "gild_plague",
+        "gild_frost",
+        "gild_holy",
+        "gild_sword",
+        "gild_axe",
+        "gild_bow",
+        "gild_wand",
+        "gild_shield"
+      ]
+    },
+    {
+      "label": "zero timestamp is already unlocked",
+      "snapshot": {
+        "stats": {
+          "runs": 100,
+          "wins": 100,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 100
+        },
+        "progress": {
+          "qualifiedWins": 100,
+          "bountyRuns": 100,
+          "bestRunKills": 100,
+          "winsByFaction": {
+            "fire": 100,
+            "sentenced": 100,
+            "plague": 100,
+            "frost": 100,
+            "holy": 100
+          },
+          "winsByWeapon": {
+            "sword": 100,
+            "axe": 100,
+            "bow": 100,
+            "wand": 100,
+            "shield": 100
+          }
+        },
+        "gvLifetime": 100000
+      },
+      "unlocked": {
+        "first_blood": 0,
+        "first_win": 0,
+        "win_fire": 17,
+        "unknown_future_id": 42
+      },
+      "expected": [
+        "slayer",
+        "reaper",
+        "rampage",
+        "bounty_hunter",
+        "champion",
+        "warlord",
+        "veteran",
+        "glorious",
+        "win_sentenced",
+        "win_plague",
+        "win_frost",
+        "win_holy",
+        "cycle_breaker",
+        "gild_fire",
+        "gild_sentenced",
+        "gild_plague",
+        "gild_frost",
+        "gild_holy",
+        "gild_sword",
+        "gild_axe",
+        "gild_bow",
+        "gild_wand",
+        "gild_shield"
+      ]
+    },
+    {
+      "label": "all already unlocked",
+      "snapshot": {
+        "stats": {
+          "runs": 100,
+          "wins": 100,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 100
+        },
+        "progress": {
+          "qualifiedWins": 100,
+          "bountyRuns": 100,
+          "bestRunKills": 100,
+          "winsByFaction": {
+            "fire": 100,
+            "sentenced": 100,
+            "plague": 100,
+            "frost": 100,
+            "holy": 100
+          },
+          "winsByWeapon": {
+            "sword": 100,
+            "axe": 100,
+            "bow": 100,
+            "wand": 100,
+            "shield": 100
+          }
+        },
+        "gvLifetime": 100000
+      },
+      "unlocked": {
+        "first_blood": 0,
+        "slayer": 0,
+        "reaper": 0,
+        "rampage": 0,
+        "bounty_hunter": 0,
+        "first_win": 0,
+        "champion": 0,
+        "warlord": 0,
+        "veteran": 0,
+        "glorious": 0,
+        "win_fire": 0,
+        "win_sentenced": 0,
+        "win_plague": 0,
+        "win_frost": 0,
+        "win_holy": 0,
+        "cycle_breaker": 0,
+        "gild_fire": 0,
+        "gild_sentenced": 0,
+        "gild_plague": 0,
+        "gild_frost": 0,
+        "gild_holy": 0,
+        "gild_sword": 0,
+        "gild_axe": 0,
+        "gild_bow": 0,
+        "gild_wand": 0,
+        "gild_shield": 0
+      },
+      "expected": []
+    },
+    {
+      "label": "unqualified wins never grant win goals",
+      "snapshot": {
+        "stats": {
+          "runs": 100,
+          "wins": 100,
+          "draws": 0,
+          "deaths": 0,
+          "kills": 0
+        },
+        "progress": {
+          "qualifiedWins": 0,
+          "bountyRuns": 0,
+          "bestRunKills": 0,
+          "winsByFaction": {},
+          "winsByWeapon": {}
+        },
+        "gvLifetime": 0
+      },
+      "unlocked": {},
+      "expected": [
+        "veteran"
+      ]
+    }
+  ]
+}

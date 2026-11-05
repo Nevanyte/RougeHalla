@@ -39,7 +39,20 @@ async fn concurrent_purchases_cannot_overspend() {
     assert_eq!(ok, 1, "two 70-GV purchases cannot both fit in 100");
     let p = db.store.get_profile("mona").await.unwrap().unwrap();
     assert_eq!(p.gv, 30);
-    assert_eq!(p.cosmetics.owned.len(), 1);
+    assert_eq!(p.cosmetics.owned.len(), before.cosmetics.owned.len() + 1);
+    assert_eq!(
+        p.cosmetics
+            .owned
+            .iter()
+            .filter(|id| id.starts_with("item-"))
+            .count(),
+        1
+    );
+    assert!(before
+        .cosmetics
+        .owned
+        .iter()
+        .all(|id| p.cosmetics.owned.contains(id)));
     // Legacy rule: spending touches the balance only.
     assert_eq!(p.gv_lifetime, before.gv_lifetime);
     assert_eq!(p.gv_by_month, before.gv_by_month);
@@ -112,7 +125,8 @@ async fn purchase_is_idempotent_by_id_and_checks_the_token() {
         .await
         .is_err());
     let p = db.store.get_profile("nora").await.unwrap().unwrap();
-    assert_eq!((p.gv, p.cosmetics.owned.len()), (60, 1));
+    assert_eq!(p.gv, 60);
+    assert_eq!(p.cosmetics.owned, ["title-bloodied", "skin-ember"]);
 
     // Equip.
     assert_eq!(

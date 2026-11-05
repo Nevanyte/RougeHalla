@@ -8,9 +8,9 @@
 //!   API edge and that is resolved to the id once per call;
 //! * a purchase is idempotent by id and cannot overdraw.
 //!
-//! Achievements are NOT ported yet (`achievements_pending`): the counters they read (`progress`, `stats`) are kept
-//! exactly as the legacy `recordRun` keeps them, and `RecordOutcome::Applied::unlocked` is always empty.
+//! Achievement rules read durable counters and grant ids/cosmetics inside the result transaction.
 
+pub mod achievements;
 pub mod admin;
 pub mod legacy;
 pub mod model;
@@ -91,7 +91,7 @@ pub enum Claim {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordOutcome {
-    /// `gv_credited` is what was added to the balance; `unlocked` is always empty until achievements are ported.
+    /// `gv_credited` is what was added to the balance; `unlocked` follows the legacy achievement catalog order.
     Applied {
         gv_credited: i64,
         unlocked: Vec<String>,
@@ -132,6 +132,14 @@ type ProfileRow = (
     Json<Cosmetics>,
     Json<BTreeMap<String, i64>>,
     Json<Progress>,
+);
+
+type ResultProfileRow = (
+    i64,
+    Json<Stats>,
+    Json<Progress>,
+    Json<Cosmetics>,
+    Json<BTreeMap<String, i64>>,
 );
 
 impl Store {
@@ -486,15 +494,47 @@ impl Store {
             return Ok(RecordOutcome::NoLease);
         }
 
-        let (stats, progress): (Json<Stats>, Json<Progress>) =
-            sqlx::query_as("SELECT stats, progress FROM profiles WHERE profile_id = $1 FOR UPDATE")
-                .bind(pid)
-                .fetch_one(&mut *tx)
-                .await?;
-        let (mut stats, mut progress) = (stats.0, progress.0);
+        let (lifetime_gv, stats, progress, cosmetics, achievements): ResultProfileRow =
+            sqlx::query_as(
+                "SELECT gv_lifetime, stats, progress, cosmetics, achievements
+             FROM profiles WHERE profile_id = $1 FOR UPDATE",
+            )
+            .bind(pid)
+            .fetch_one(&mut *tx)
+            .await?;
+        let (mut stats, mut progress, mut cosmetics, mut achievements) =
+            (stats.0, progress.0, cosmetics.0, achievements.0);
         let gv = whole(r.gv.total);
         if let Some(outcome) = r.outcome {
             apply_run(&mut stats, &mut progress, outcome, r);
+        }
+        // A completed run evaluates even with zero GV. A voided run mirrors bankGv:
+        // only a positive payout can unlock a lifetime achievement.
+        let earned = if r.outcome.is_some() || gv > 0 {
+            achievements::evaluate(
+                &stats,
+                &progress,
+                lifetime_gv.saturating_add(gv),
+                &achievements,
+            )
+        } else {
+            Vec::new()
+        };
+        let unlocked: Vec<String> = earned.iter().map(|a| a.id.to_owned()).collect();
+        if !earned.is_empty() {
+            let at: i64 = sqlx::query_scalar(
+                "SELECT greatest(0, floor(extract(epoch FROM transaction_timestamp()) * 1000))::bigint",
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+            for a in earned {
+                achievements.insert(a.id.to_owned(), at);
+                for id in a.reward {
+                    if !cosmetics.owned.iter().any(|owned| owned == id) {
+                        cosmetics.owned.push((*id).to_owned());
+                    }
+                }
+            }
         }
         let month: String =
             sqlx::query_scalar("SELECT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM')")
@@ -502,12 +542,14 @@ impl Store {
                 .await?;
         sqlx::query(
             "UPDATE profiles SET gv = gv + $2, gv_lifetime = gv_lifetime + $2, stats = $3, progress = $4,
-                    updated_at = now() WHERE profile_id = $1",
+                    cosmetics = $5, achievements = $6, updated_at = now() WHERE profile_id = $1",
         )
         .bind(pid)
         .bind(gv)
         .bind(Json(&stats))
         .bind(Json(&progress))
+        .bind(Json(&cosmetics))
+        .bind(Json(&achievements))
         .execute(&mut *tx)
         .await?;
         if gv > 0 {
@@ -583,7 +625,7 @@ impl Store {
         tx.commit().await?;
         Ok(RecordOutcome::Applied {
             gv_credited: gv,
-            unlocked: Vec::new(),
+            unlocked,
         })
     }
 

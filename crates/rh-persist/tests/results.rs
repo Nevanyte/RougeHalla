@@ -34,7 +34,7 @@ async fn duplicate_submission_credits_once() {
         first,
         RecordOutcome::Applied {
             gv_credited: 40,
-            unlocked: vec![]
+            unlocked: vec!["first_blood".into()]
         }
     );
     let second = db
@@ -320,6 +320,8 @@ async fn crash_before_commit_applies_nothing_and_a_retry_applies_once() {
     let p = db.store.get_profile("hank").await.unwrap().unwrap();
     assert_eq!((p.gv, p.gv_lifetime, p.stats.runs), (0, 0, 0));
     assert!(p.gv_by_month.is_empty());
+    assert!(p.achievements.is_empty());
+    assert!(!p.cosmetics.owned.iter().any(|id| id == "title-bloodied"));
     assert_eq!(db.count("match_results").await, 0);
     assert_eq!(db.count("gv_ledger").await, 0);
     // The lease is still ours (its release was part of the lost transaction).
@@ -338,7 +340,7 @@ async fn crash_before_commit_applies_nothing_and_a_retry_applies_once() {
         retry,
         RecordOutcome::Applied {
             gv_credited: 77,
-            unlocked: vec![]
+            unlocked: vec!["first_blood".into()]
         }
     );
     assert_eq!(

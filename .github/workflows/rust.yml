@@ -5,9 +5,9 @@ name: Rust foundation
 on:
   push:
     branches: [main, optimization_port]
-    paths: ["crates/**", "protocol/**", "parity/**", "client-unity/RoguehallaNet/**", "client-unity/RoguehallaNet.Tests/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
+    paths: ["crates/**", "protocol/**", "parity/**", "packages/shared/src/**", "package.json", "package-lock.json", "client-unity/RoguehallaNet/**", "client-unity/RoguehallaNet.Tests/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
   pull_request:
-    paths: ["crates/**", "protocol/**", "parity/**", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
+    paths: ["crates/**", "protocol/**", "parity/**", "packages/shared/src/**", "package.json", "package-lock.json", "client-unity/**", "tools/**", "Cargo.*", "rust-toolchain.toml", ".github/workflows/rust.yml"]
   workflow_dispatch:
 
 permissions:
@@ -45,6 +45,12 @@ jobs:
         run: cargo run --release -p rh-headless -- --matches 4 --players 8 --map parity/maps/seed1.map.json --max-ticks 4000
       - name: JS probe decoder vs the golden vectors
         run: node tools/protocol-js/check-vectors.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+      - run: npm ci
+      - name: Durable achievement rules still match the legacy evaluator
+        run: node --import tsx tools/persist-fixtures/achievements.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server
