@@ -80,6 +80,10 @@ pub struct SimConfig {
     /// Enables the axe's shred and the wand's splash in the legacy rules.
     #[serde(default = "specials_enabled")]
     pub weapon_specials: bool,
+    /// Partial player-only faction foundation: engagement and Holy lifesteal.
+    /// Other faction producers and installers remain pending. Recorded in replay identity.
+    #[serde(default)]
+    pub holy_foundation: bool,
 }
 
 fn specials_enabled() -> bool {
@@ -94,6 +98,7 @@ impl Default for SimConfig {
             fill_seconds: 5.0,
             pvp_rules: true,
             weapon_specials: true,
+            holy_foundation: false,
         }
     }
 }

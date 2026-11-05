@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/8";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/9";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -426,6 +426,22 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     }
     for p in w.players.iter() {
         p.vision.check(w.tick, near)?;
+        let sig = &p.signature;
+        if (!k.config.holy_foundation && *sig != crate::fighter::Signature::default())
+            || !sig.hp_frac.is_finite()
+            || [sig.reach_at, sig.contact_at, sig.combat_at]
+                .into_iter()
+                .flatten()
+                .any(|t| !(0.0..=w.server_time).contains(&t))
+            || sig
+                .target
+                .is_some_and(|id| id == p.id || w.roster.name(id).is_none())
+            || (sig.target.is_some() && sig.contact_at.is_none())
+            || (sig.target.is_none() && (sig.in_reach || sig.engaged || sig.reach_at.is_some()))
+            || ((sig.in_reach || sig.engaged) && sig.reach_at.is_none())
+        {
+            return Err(format!("invalid signature state for player {}", p.id.0));
+        }
         let lock = &p.weapon.targeting;
         let valid_foe = |id: crate::PlayerId| id != p.id && w.roster.name(id).is_some();
         let valid_time = |t: f64| (0.0..=w.server_time).contains(&t);
@@ -817,7 +833,7 @@ mod tests {
             Err(CheckpointError::Malformed(_))
         ));
         // A payload of another layout is still refused by its tag, whatever it holds.
-        let alien = serde_json::json!({"format": "rh-checkpoint/9", "statics": 1, "world": [2]});
+        let alien = serde_json::json!({"format": "rh-checkpoint/999", "statics": 1, "world": [2]});
         assert!(matches!(
             Sim::restore(&alien),
             Err(CheckpointError::UnsupportedFormat { .. })

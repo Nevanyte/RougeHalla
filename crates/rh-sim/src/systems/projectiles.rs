@@ -306,6 +306,13 @@ fn reflect(cx: &mut Cx, s: Stretch, t: f64, victim: usize, at: Vec2) {
     let holder = &cx.w.players[victim];
     let id = holder.id;
     let facing = holder.body.facing;
+    if cx.k.config.holy_foundation {
+        cx.s.blocks.push(crate::systems::signatures::BlockContact {
+            attacker: pr.launch.owner,
+            holder: id,
+            passive: pr.launch.reflected,
+        });
+    }
     cx.ev.push(Event::Block {
         id,
         by: pr.launch.owner,

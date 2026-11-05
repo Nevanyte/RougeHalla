@@ -1,6 +1,7 @@
 //! Exact pre-styler zone partition foundation from legacy zones.ts.
 //! No camps, territories, post-styler repair, complete generator or certifier.
 //! Fixed-size slices have W*H cells. The injected RNG yields finite values in [0,1).
+pub mod camps;
 mod growth;
 mod metrics;
 mod rules;

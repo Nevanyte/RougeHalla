@@ -418,6 +418,7 @@ pub fn content_hash_of_map_definition(
         stagger_weapons,
         definition,
         &crate::mapgen::zones::default_definition(),
+        &crate::mapgen::zones::camps::default_definition(),
     )
 }
 
@@ -432,6 +433,22 @@ pub fn content_hash_of_zone_definition(
         stagger_weapons,
         &crate::mapgen::coliseum::default_definition(),
         definition,
+        &crate::mapgen::zones::camps::default_definition(),
+    )
+}
+
+/// Camp placement rules share one definition with the initial territory generator.
+pub fn content_hash_of_camp_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::zones::camps::CampDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        &crate::mapgen::coliseum::default_definition(),
+        &crate::mapgen::zones::default_definition(),
+        definition,
     )
 }
 
@@ -440,6 +457,7 @@ fn content_hash_of_map_definitions(
     stagger_weapons: &[WeaponId],
     coliseum: &crate::mapgen::coliseum::FixedDefinition<'_>,
     zones: &crate::mapgen::zones::ZoneDefinition,
+    camps: &crate::mapgen::zones::camps::CampDefinition,
 ) -> u64 {
     let mut h = Fnv::new();
 
@@ -455,6 +473,9 @@ fn content_hash_of_map_definitions(
 
     h.str("mapgen/zones/partition/1");
     crate::mapgen::zones::visit_content(zones, |word| h.u64(word));
+
+    h.str("mapgen/zones/camps/1");
+    crate::mapgen::zones::camps::visit_content(camps, |word| h.u64(word));
 
     h.str("factions");
     for f in FactionId::ALL {
@@ -517,4 +538,9 @@ fn content_hash_of_map_definitions(
         h.u64(bounty_for(k) as u64);
     }
     h.0
+}
+
+/// Holy's unmodified sustain share. Cards and camp rewards are separate future producers.
+pub fn holy_lifesteal_fraction(hp_frac: f64) -> f64 {
+    HOLY_LEECH_CAP.min(HOLY_LEECH_BASE + HOLY_LEECH_MISSING * (1.0 - hp_frac))
 }

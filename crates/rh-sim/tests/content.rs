@@ -44,6 +44,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("mapgen/zones/mod.rs", "ZONES", "derived from the existing hashed faction identity table"),
     ("mapgen/zones/mod.rs", "N", "grid area derived from registered map dimensions"),
     ("mapgen/zones/growth.rs", "KEY", "Int32 packed heap-key encoding; total key/tile order is pinned by exact differential partition fixtures, not a tunable rule"),
+    ("mapgen/zones/camps/mod.rs", "KEY", "Int32 packed camp/territory heap ordering; exact differential fixtures pin representation and ties"),
     ("map.rs", "TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
@@ -74,6 +75,11 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    (
+        "mapgen/zones/camps/rules.rs",
+        "DEFAULT_DEFINITION",
+        "all 13 camp/initial-territory tunables drive generation and are folded by content_hash_of_camp_definition",
+    ),
     (
         "mapgen/zones/rules.rs",
         "DEFAULT_DEFINITION",
@@ -317,7 +323,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x94b1_832f_dca0_05e4;
+const GOLDEN_CONTENT_HASH: u64 = 0x038e_e74f_114d_47bf;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -439,6 +445,28 @@ fn zone_partition_rules_move_the_content_hash() {
     definition.annulus_lo = f64::from_bits(definition.annulus_lo.to_bits() ^ 1);
     assert_ne!(
         content_hash_of_zone_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+}
+
+#[test]
+fn camp_rules_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_camp_definition;
+    let mut definition = rh_sim::mapgen::zones::camps::default_definition();
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_camp_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+    definition.camp_gap += 1.0;
+    assert_ne!(
+        content_hash_of_camp_definition(REGISTRY, STAGGER_WEAPONS, &definition),
+        base
+    );
+    definition = rh_sim::mapgen::zones::camps::default_definition();
+    definition.halo_window += 1;
+    assert_ne!(
+        content_hash_of_camp_definition(REGISTRY, STAGGER_WEAPONS, &definition),
         base
     );
 }

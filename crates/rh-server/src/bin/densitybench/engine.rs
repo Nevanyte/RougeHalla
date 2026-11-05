@@ -209,6 +209,7 @@ pub async fn run(o: &Opts, check_frames: bool) -> Report {
         fill_seconds: 0.0,
         pvp_rules: true,
         weapon_specials: true,
+        holy_foundation: false,
     };
     let (rep_tx, mut rep_rx) = mpsc::unbounded_channel();
     let rss0 = rh_server::metrics::rss_bytes();

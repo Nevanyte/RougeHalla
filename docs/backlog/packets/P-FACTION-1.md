@@ -1,6 +1,10 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
-## Next bounded slice: engagement and Holy
+## Stage 2 bounded slice: engagement and Holy
+
+Implemented and independently reviewed in `SimConfig.holy_foundation` (default false): private engagement, trusted
+landed/contact provenance, Holy lifesteal and internal heal. Checkpoint /9, replay /7, observation 7 and policy 4; live
+Heal transport and all other faction effects remain open. See [evidence](../../evidence/stage2-holy-camps/README.md).
 
 Source review after C3 selected shared player engagement, authoritative landed-damage accounting and Holy lifesteal
 as the first implementation slice. Other faction signatures remain pending. Capture uses the existing explicit module

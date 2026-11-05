@@ -92,7 +92,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-COMBAT-2 | Projectiles: bow/wand, lead aim, wand splash, ball vs arrow, swing vs ball | P-COMBAT-1 (merge first for sword/shield cases) | Authoritative phase implemented/reviewed; viewer projection/transport and lock-driven creation remain | server/src/sim/projectiles.ts, weapons.ts; shared/weapons.ts, interactions.ts, policies.ts |
 | P-COMBAT-3 | Target lock (wand click), committed-cast/cancel behavior and attack-move | P-COMBAT-2 | Core/policy/headless implemented and reviewed; live protocol/client target integration remains | server/src/sim/targeting.ts, weapons.ts; shared/constants.ts |
 | P-COMBAT-4 | Loot world: weapon crates, ground spots, bodies drop weapons, loot tables, `holdBirth` | P-COMBAT-1, P-MAP-1 (crate/ground spots) | Coarse | server/src/sim/loot.ts, lootTables.ts |
-| P-FACTION-1 | Faction signatures (burn, backlash, disease + execute, mark, chill) with engagement rules, lifesteal; capture tool `signatures: true` | P-COMBAT-1 | Ready packet | server/src/sim/factions.ts; shared/factions.ts, signatures.ts, signatureShares.ts, mark.ts |
+| P-FACTION-1 | Faction signatures (burn, backlash, disease + execute, mark, chill) with engagement rules, lifesteal; shared engagement/Holy foundation | P-COMBAT-1 | Engagement/Holy implemented and reviewed, default off; other faction effects remain | server/src/sim/factions.ts; shared/factions.ts, signatures.ts, signatureShares.ts, mark.ts |
 | P-FACTION-2 | Fire roam | P-FACTION-1, P-STATUS-1 | Coarse | server/src/sim/fireRoam.ts; shared/fireRoam.ts; docs/FIRE_ROAM.md |
 | P-FACTION-3 | Plague corpses, owned zombie, `consumeCorpse` | P-FACTION-1, P-MOBS-1 | Coarse | server/src/sim/plagueCorpses.ts, plagueZombies.ts; shared/plagueCorpses.ts; docs/PLAGUE_CORPSES.md |
 | P-FACTION-4 | Sentenced hunt (`huntTarget`) | P-FACTION-1 | Coarse | server/src/sim/sentencedHunt.ts; shared/sentencedHunt.ts; docs/SENTENCED_HUNT.md, SENTENCED_REDESIGN.md |
@@ -138,7 +138,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0/M1 and M2a exact zone partition implemented/reviewed in rh-sim; camps/territories/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
+| P-MAP-1 | Port the generator and the independent certifier; reproduce the pinned hashes or record an owner-approved re-pin | none | M0/M1, M2a partition and M2b initial camps/territories implemented/reviewed; spots/repair/styles/generator/certifier/pins remain | shared/mapgen.ts, zones.ts, coliseum.ts, zoneStyle/*, gridOps.ts, gridTopology.ts, detMath.ts, test/mapCertify.ts, test/mapPins.ts |
 | P-MAP-2 | Public layers on the wire (zones, terrain, features, camps, spawn subset): `MapBlob` v2 + C# decode | P-MAP-1 (or `rh-map/2` export), P-NET-3 | Coarse | shared/mapWire.ts, map.ts |
 | P-MAP-3 | Off-tick certified-map pool (worker/thread, target 8, refill 6, fallback, hang watchdog) | P-MAP-1 | Coarse | server/src/mapPool.ts, mapWorker.ts |
 | P-MAP-4 | Client art data: decor/props from the public seed (cosmetic, unhashed), zone art inputs for Unity | P-MAP-2, P-UI-8 | Coarse | shared/propKinds.ts, client/src/render/zoneArt/* |

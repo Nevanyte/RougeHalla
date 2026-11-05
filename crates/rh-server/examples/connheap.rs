@@ -53,6 +53,7 @@ async fn server(args: &[String], conns: usize, secs: u64) {
         fill_seconds: 5.0,
         pvp_rules: true,
         weapon_specials: true,
+        holy_foundation: false,
     };
     let cfg = DirectorConfig {
         max_rooms: 64,

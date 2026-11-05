@@ -261,8 +261,8 @@ fn expected_order(t: &Tables, g: &Gates) -> Vec<TraceEntry> {
 
 /// The executed rows of every active tick equal the table's order, an action handler runs only between the inputs and
 /// the weapons, and a hook link runs only where its call site is.
-fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>]) -> Result<(), String> {
-    let want = expected_order(t, &Gates::CAPTURE);
+fn check_trace(t: &Tables, ticks: &[Vec<TraceEntry>], gates: &Gates) -> Result<(), String> {
+    let want = expected_order(t, gates);
     for (n, tick) in ticks.iter().enumerate() {
         let got: Vec<TraceEntry> = tick
             .iter()
@@ -416,6 +416,7 @@ fn what_the_slice_has_ported_stays_ported() {
 
 /// Replays a fixture and returns the trace of every active step, plus the trace of what ran between steps (a leave).
 struct Run {
+    gates: Gates,
     active_ticks: Vec<Vec<TraceEntry>>,
     between: Vec<TraceEntry>,
 }
@@ -424,6 +425,11 @@ fn run(fx: &Fixture) -> Run {
     let mut sim = build(fx);
     let _ = sim.schedule_trace();
     let mut out = Run {
+        gates: if sim.config().holy_foundation {
+            Gates::HOLY_FOUNDATION
+        } else {
+            Gates::CAPTURE
+        },
         active_ticks: Vec::new(),
         between: Vec::new(),
     };
@@ -467,7 +473,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
     let (mut actions, mut drops, mut hits, mut attacks) = (0, 0, 0, 0);
     for (name, r) in &runs {
         ticks += r.active_ticks.len();
-        if let Err(e) = check_trace(&t, &r.active_ticks) {
+        if let Err(e) = check_trace(&t, &r.active_ticks, &r.gates) {
             panic!("{name}: {e}");
         }
         for e in r.active_ticks.iter().flatten().chain(&r.between) {
@@ -742,21 +748,21 @@ fn a_changed_gate_or_an_invented_packet_is_rejected() {
 fn an_execution_that_is_not_the_table_is_rejected() {
     // The trace is what the code did; a table in another order (swapped phases, a moved system, a dropped row) is not it.
     let runs = all_runs();
-    let ticks: Vec<Vec<TraceEntry>> = runs
-        .iter()
-        .flat_map(|(_, r)| r.active_ticks.clone())
-        .collect();
-    assert!(check_trace(&tables(), &ticks).is_ok());
+    let check = |t: &Tables| {
+        runs.iter()
+            .try_for_each(|(_, r)| check_trace(t, &r.active_ticks, &r.gates))
+    };
+    assert!(check(&tables()).is_ok());
 
     let mut t = tables();
     let a = t.phases.iter().position(|e| e.legacy == "weapons").unwrap();
     let b = t.phases.iter().position(|e| e.legacy == "melee").unwrap();
     t.phases.swap(a, b);
-    assert!(check_trace(&t, &ticks).is_err(), "swapped phases");
+    assert!(check(&t).is_err(), "swapped phases");
 
     let mut t = tables();
     drop_row(&mut t.phases, "movement:recordHistory");
-    assert!(check_trace(&t, &ticks).is_err(), "a dropped phase");
+    assert!(check(&t).is_err(), "a dropped phase");
 
     // The systems list under the capture gates: move the one ported system to the front of the list. Its position is
     // visible in the trace only relative to other ported rows, so move the whole `hooks:systems` phase instead.
@@ -773,10 +779,7 @@ fn an_execution_that_is_not_the_table_is_rejected() {
         .position(|e| e.legacy == "ledger:apply")
         .unwrap();
     t.phases.insert(to, row);
-    assert!(
-        check_trace(&t, &ticks).is_err(),
-        "systems before the ledger"
-    );
+    assert!(check(&t).is_err(), "systems before the ledger");
 }
 
 fn rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {

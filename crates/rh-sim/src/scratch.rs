@@ -4,6 +4,9 @@
 //! When each field is (re)written, and why a stale value is never read:
 //! * `bounty_at_tick_start`, `action_order`, `rank` (all by slot): rewritten at the start of every active tick (markTickStart, the action order) and
 //!   read only later in that same tick (the kill bounty, kill-credit ranks, the inputs in that order);
+//! * `blocks`, `landed`: cleared at ledger open, filled only by physical producers/the ledger, then read by signatures.
+//!   `landed` also supports a trusted last-pass diagnostic; neither is serialized or hashed.
+//! * `contacts`, `dealt`: rewritten by their signature pass before use.
 //! * `standing`, `mults`: written by `movement:multipliers`, read by `movement:walk` and `movement:recordHistory`, which
 //!   empties them (the fighters standing when the multipliers were read, and each one's move speed this tick);
 //! * `melee`, `ledger`, `downed_this_tick`: filled and drained within one active tick, empty at the end of every step (asserted in debug builds, with `slot_head`/`slot_tail`: all `NONE` between ledger passes);
@@ -42,6 +45,12 @@ pub(crate) struct TickScratch {
     pub(crate) flight: crate::systems::projectiles::FlightScratch,
     /// The damage ledger: every hit of the tick, applied at once.
     pub(crate) ledger: Vec<Entry>,
+    /// Physical blocks recorded by producers, never recovered from caller-owned output.
+    pub(crate) blocks: Vec<crate::systems::signatures::BlockContact>,
+    /// Positive post-barrier damage in victim/entry order. Cleared when opening the next ledger.
+    pub(crate) landed: Vec<crate::systems::signatures::LandedHit>,
+    pub(crate) contacts: Vec<crate::systems::signatures::Contact>,
+    pub(crate) dealt: Vec<(PlayerId, f64)>,
     /// Players downed during this step, settled at its end.
     pub(crate) downed_this_tick: Vec<PlayerId>,
     /// The fighters standing when the melee queue is resolved.
@@ -86,6 +95,10 @@ impl Default for TickScratch {
             melee: Vec::with_capacity(p),
             flight: Default::default(),
             ledger: Vec::with_capacity(hits),
+            blocks: Vec::with_capacity(hits),
+            landed: Vec::with_capacity(hits),
+            contacts: Vec::with_capacity(hits),
+            dealt: Vec::with_capacity(p),
             downed_this_tick: Vec::with_capacity(p),
             bodies: Vec::with_capacity(p),
             rewound: Vec::with_capacity(p),

@@ -64,6 +64,27 @@ pub fn hash_seed(seed: u32, attempt: u32, zone: u32, stream: u32) -> u32 {
     h ^ (h >> 16)
 }
 
+/// Legacy `tieRank` for the canonical actor namespace p0, p1, ... (numeric public ID minus one).
+/// One independent draw; this neither advances a stream nor depends on hidden actor population.
+pub(crate) fn tie_rank(salt: u32, tick: u32, id: crate::PlayerId) -> u32 {
+    let mut h = (salt ^ tick.wrapping_mul(0x9e37_79b1) ^ u32::from(b'p')).wrapping_mul(0x0100_0193);
+    let mut digits = [0u8; 10];
+    let mut n = id.0 - 1;
+    let mut at = digits.len();
+    loop {
+        at -= 1;
+        digits[at] = b'0' + (n % 10) as u8;
+        n /= 10;
+        if n == 0 {
+            break;
+        }
+    }
+    for &digit in &digits[at..] {
+        h = (h ^ u32::from(digit)).wrapping_mul(0x0100_0193);
+    }
+    Mulberry32::new(h).next_u32()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -48,7 +48,8 @@ export const catalogue: Scenario[] = [
   ...(["fire", "frost", "holy", "plague", "sentenced"] as FactionId[]).map((faction): Scenario => ({
     ...base(`signature_${faction}`, "P-FACTION-1", `${faction} signature in sustained close combat; full faction module order, including passives.`),
     modules: Object.keys(MODULES).filter(name => name !== "walkHint"),
-    record: ["statuses", "fields"], requires: ["hit"], maxTicks: 160,
+    ...(faction === "holy" ? {parity: "slice" as const} : {}),
+    record: faction === "holy" ? ["statuses", "fields", "signatures", "landed", "combat", "containers", "holyInactive"] : ["statuses", "fields"], requires: ["hit"], maxTicks: 160,
     players: [{ id: "p0", faction, at: { x: 400, y: 320 } }, { id: "p1", faction: "holy", at: { x: 456, y: 320 } }],
     drive: duel,
   })),

@@ -4,7 +4,7 @@
 //! one of its components), so a new kind of fighter is a new wrapper around the same core, not a copy of the systems.
 //!
 //! The components own their data only; the rules live in `systems/`. All of it is plain data that serializes, hashes and
-//! checkpoints (the layout is `rh-checkpoint/8`).
+//! checkpoints (the layout is `rh-checkpoint/9`).
 
 use crate::content::{FactionId, WeaponId};
 use crate::input::{InputQueue, OrderBudget};
@@ -72,6 +72,8 @@ pub struct FighterCore {
     pub vitals: Vitals,
     /// The weapon state: the carried items, the active slot and the runtime of the swing in progress.
     pub weapon: WeaponRt,
+    /// Private engagement and sustain clocks, independent of weapon target locks.
+    pub signature: Signature,
     pub motion: Motion,
     pub(crate) inputs: InputQueue,
 }
@@ -162,4 +164,44 @@ pub struct Credit {
 pub struct Fate {
     pub killed_by: Option<PlayerId>,
     pub killed_by_bot: bool,
+}
+
+/// Player engagement and Holy sustain state. Optional timestamps encode the legacy negative-infinity sentinel.
+/// This is trusted checkpoint state, never an observation or a target-admission source.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Signature {
+    pub target: Option<PlayerId>,
+    pub in_reach: bool,
+    pub engaged: bool,
+    pub reach_at: Option<f64>,
+    pub contact_at: Option<f64>,
+    pub combat_at: Option<f64>,
+    /// HP/maxHP immediately before the ledger, excluding barrier.
+    pub hp_frac: f64,
+}
+impl Default for Signature {
+    fn default() -> Self {
+        Self {
+            target: None,
+            in_reach: false,
+            engaged: false,
+            reach_at: None,
+            contact_at: None,
+            combat_at: None,
+            hp_frac: 1.0,
+        }
+    }
+}
+impl Signature {
+    pub(crate) fn clear_target(&mut self) {
+        self.target = None;
+        self.in_reach = false;
+        self.engaged = false;
+        self.reach_at = None;
+    }
+    pub(crate) fn set_target(&mut self, target: PlayerId, now: f64) {
+        self.clear_target();
+        self.target = Some(target);
+        self.contact_at = Some(now);
+    }
 }

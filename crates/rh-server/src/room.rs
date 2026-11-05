@@ -1133,6 +1133,7 @@ mod tests {
                 fill_seconds: 0.0,
                 pvp_rules: true,
                 weapon_specials: true,
+                holy_foundation: false,
             },
             arena: assets.arena,
             welcome_map: assets.welcome_map,

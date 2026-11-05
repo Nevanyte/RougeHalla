@@ -15,6 +15,7 @@ use rh_sim::{
 };
 mod canon;
 mod combat;
+mod holy;
 mod mapping;
 mod vision;
 use canon::{canon, first_difference};
@@ -91,6 +92,8 @@ pub struct LegacyConfig {
     #[serde(default)]
     pub item_uid_scheme: Option<String>,
     #[serde(default)]
+    pub rust_slice: Option<String>,
+    #[serde(default)]
     pub map_seed: Option<u32>,
     #[serde(default)]
     pub options: Map<String, Value>,
@@ -124,6 +127,8 @@ pub struct FixPlayer {
     pub y: f64,
     pub hp: f64,
     pub max_hp: f64,
+    #[serde(default)]
+    pub barrier: f64,
     /// The starting weapon in slot 0 ("" = fists).
     pub weapon0: String,
     #[serde(default)]
@@ -181,6 +186,12 @@ pub struct FixTick {
     pub combat: Option<Vec<Value>>,
     #[serde(default)]
     pub locks: Option<Vec<Value>>,
+    #[serde(default)]
+    pub signatures: Option<Vec<Value>>,
+    #[serde(default)]
+    pub landed: Option<Vec<Value>>,
+    #[serde(default)]
+    pub holy_inactive: Option<Value>,
     #[serde(default)]
     pub vision: Option<Vec<VisionView>>,
 }
@@ -585,7 +596,10 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         order_salt: fx.legacy_config.order_salt,
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
-    let mut config = SimConfig::default();
+    let mut config = SimConfig {
+        holy_foundation: holy::enabled(fx),
+        ..Default::default()
+    };
     for (key, value) in &fx.legacy_config.options {
         if key != "weaponSpecials" {
             return Err(format!("unported legacyConfig.options key {key}"));
@@ -598,6 +612,17 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         vision::verify_bootstrap(meta, &arena, &placements, &config, secrets)?;
     }
     let mut sim = Sim::reset_active(config, arena, secrets, &placements);
+    if fx.players.iter().any(|p| p.barrier != 0.0) {
+        if !holy::enabled(fx) {
+            return Err("initial barrier requires the explicit Holy foundation fixture".into());
+        }
+        let mut checkpoint = serde_json::to_value(&sim).map_err(|e| e.to_string())?;
+        for (i, p) in fx.players.iter().enumerate() {
+            checkpoint["world"]["players"][i]["core"]["vitals"]["barrier"] =
+                serde_json::json!(p.barrier);
+        }
+        sim = Sim::restore(checkpoint).map_err(|e| e.to_string())?;
+    }
     combat::seed(&mut sim, &fx.legacy_config.setup)?;
     Ok(sim)
 }
@@ -624,13 +649,18 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             fx.parity
         ),
     );
+    need(
+        c.rust_slice.as_deref() == holy::enabled(fx).then_some("player-engagement-holy/1"),
+        "legacyConfig.rustSlice must identify the partial foundation exactly".into(),
+    );
     let combat_packet = matches!(
         fx.packet.as_deref(),
         Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
     );
-    let isolated_combat = (combat_packet || fx.packet.as_deref() == Some("P-VISION-1"))
-        && c.modules.is_some()
-        && c.world != CAPTURE_WORLD;
+    let isolated_combat =
+        (combat_packet || holy::enabled(fx) || fx.packet.as_deref() == Some("P-VISION-1"))
+            && c.modules.is_some()
+            && c.world != CAPTURE_WORLD;
     need(
         if c.options.is_empty() && !isolated_combat {
             c.world == CAPTURE_WORLD
@@ -727,7 +757,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             "mods",
         ];
         need(
-            if vision::source(fx).is_some() {
+            if holy::enabled(fx) {
+                holy::modules_match(fx)
+            } else if vision::source(fx).is_some() {
                 modules
                     .iter()
                     .map(String::as_str)
@@ -948,6 +980,7 @@ pub fn compare(fx: &Fixture) -> Report {
                     Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
                 ),
         );
+        holy::compare(&mut rep, &sim, fx, t);
         if fx.packet.as_deref() == Some("P-COMBAT-3") || t.locks.is_some() {
             combat::compare_locks(&mut rep, &sim, t);
         }
@@ -998,7 +1031,14 @@ pub fn compare(fx: &Fixture) -> Report {
         if t.mobs.as_ref().is_some_and(|m| !m.is_empty()) {
             occurred.insert("state:mobs".to_string());
         }
-        for (name, present) in [("mobs", t.mobs.is_some()), ("fields", t.fields.is_some())] {
+        for (name, present) in [
+            ("mobs", t.mobs.is_some()),
+            (
+                "fields",
+                t.fields.is_some()
+                    && !(holy::enabled(fx) && t.fields.as_ref().is_some_and(Vec::is_empty)),
+            ),
+        ] {
             if present && unported.insert(name.to_string()) {
                 rep.fail(format!(
                     "tick {}: unported stream {name}: no comparison in the harness",

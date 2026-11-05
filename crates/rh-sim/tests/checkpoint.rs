@@ -100,7 +100,7 @@ fn a_checkpoint_contains_no_scratch_keys() {
             "a checkpoint must not carry the scratch key `{banned}`"
         );
     }
-    assert_eq!(json["format"], "rh-checkpoint/8");
+    assert_eq!(json["format"], "rh-checkpoint/9");
     let top: Vec<&String> = json.as_object().unwrap().keys().collect();
     assert_eq!(
         top.len(),
@@ -149,11 +149,11 @@ fn the_format_tag_is_refused_before_the_payload_whatever_the_key_order() {
         assert_eq!(b.state_hash(), a.state_hash(), "{order:?}");
     }
     let mut prior = good.clone();
-    prior["format"] = "rh-checkpoint/7".into();
+    prior["format"] = "rh-checkpoint/8".into();
     assert_eq!(
         Sim::restore(prior).err(),
         Some(CheckpointError::UnsupportedFormat {
-            found: "rh-checkpoint/7".into()
+            found: "rh-checkpoint/8".into()
         })
     );
     // A stale layout under a stale tag is refused by its tag, wherever the tag is, even though its payload would not parse.
@@ -218,7 +218,7 @@ fn a_truncated_or_garbled_checkpoint_is_an_error_never_a_panic() {
         "null",
         "[]",
         "42",
-        "\"rh-checkpoint/8\"",
+        "\"rh-checkpoint/9\"",
         "{}",
         "{\"format\":3}",
     ] {
@@ -284,7 +284,7 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
     assert_eq!(good["build"], rh_sim::replay::BUILD_ID);
     assert!(serde_json::to_string(&a)
         .unwrap()
-        .starts_with("{\"format\":\"rh-checkpoint/8\",\"content_hash\":"));
+        .starts_with("{\"format\":\"rh-checkpoint/9\",\"content_hash\":"));
     assert!(Sim::restore(&good).is_ok());
 
     // Other content: refused with the typed error, whichever side of the tag it arrives on, and even when the payload
@@ -299,7 +299,7 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
     other["world"] = Value::from("not a world");
     assert_eq!(Sim::restore(&other).err(), Some(expect.clone()));
     let text = format!(
-        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/8\"}}",
+        "{{\"world\":1,\"content_hash\":{},\"format\":\"rh-checkpoint/9\"}}",
         content ^ 1
     );
     assert_eq!(

@@ -243,6 +243,38 @@ fn locked_attack() -> Sim {
     sim
 }
 
+fn holy_engaged() -> Sim {
+    let ps: Vec<_> = (0..3)
+        .map(|i| Placement {
+            profile: format!("h{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(400.0 + 28.0 * i as f64, 320.0),
+            hp: Some(500.0),
+            weapon0: None,
+            weapon1: None,
+        })
+        .collect();
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            holy_foundation: true,
+            ..Default::default()
+        },
+        practice_arena(),
+        Secrets::from_seed(9),
+        &ps,
+    );
+    for i in 1..=2 {
+        sim.submit(PlayerId(i), cmd(RawCommand::Attack { a: 0.0, t: None }))
+            .unwrap();
+    }
+    for _ in 0..4 {
+        sim.step();
+    }
+    assert!(sim.players()[0].signature.engaged);
+    sim
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut mid = crowded_8();
     drive(&mut mid, 40);
@@ -251,6 +283,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("Holy engaged", holy_engaged()),
         ("item fight", item_fight()),
         ("wand attack-move", locked_attack()),
         ("crowded_8 @40", mid),
@@ -426,6 +459,15 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("statics.config.holy_foundation","nondefault signature state requires its partial foundation gate"),
+    ("world.players.*.core.signature.target","signature targets name another actor in the roster"),
+    ("world.players.*.core.signature.in_reach","reach requires a target and reach timestamp; gate-off state is default"),
+    ("world.players.*.core.signature.engaged","engagement requires a target and reach timestamp; gate-off state is default"),
+    ("world.players.*.core.signature.reach_at","finite past timestamp only; gate-off state is default"),
+    ("world.players.*.core.signature.contact_at","targets require a finite contact timestamp; gate-off state is default"),
+    ("world.players.*.core.signature.combat_at","finite past timestamp only; gate-off state is default"),
+    ("world.players.*.core.signature.hp_frac","pre-ledger fraction must be finite; gate-off state is default"),
+
     ("world.players.*.resolved", "a live target lock requires an unresolved standing owner; resolved also changes the hash in unlocked matches"),
     ("world.players.*.status", "a live target lock requires a standing owner; status also changes the hash in unlocked matches"),
     ("world.players.*.core.weapon.weapon0", "a live target lock requires its active slot to hold a wand; carried weapons are separately perturbed in unlocked matches"),

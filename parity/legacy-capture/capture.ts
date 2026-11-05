@@ -65,6 +65,8 @@ function rowsOf(map: GameMap): string[] {
 
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
 import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages/server/src/sim/vision";
+import { holyScenarios } from "./scenarios/holy";
+import { signatureState } from "../../packages/server/src/sim/factions";
 import { targetingScenarios } from "./scenarios/targeting";
 import { visionScenarios } from "./scenarios/vision";
 import { createScenarioWorld, DEFAULT_MODULES } from "./world";
@@ -98,6 +100,7 @@ function run(sc: Scenario): unknown {
     s.y = p.at.y;
     s.facing = 0;
     if (p.hp !== undefined) s.hp = p.hp;
+    if (p.barrier !== undefined) s.barrier = p.barrier;
     world.players.get(p.id)!.history = [{ t: world.state.serverTime, x: p.at.x, y: p.at.y }];
   }
   // The raid-start hook has already sampled every alive seat at this clock. Keep these references
@@ -179,6 +182,20 @@ function run(sc: Scenario): unknown {
       });
     }
     for (const kind of sc.record ?? []) {
+      if (kind === "holyInactive") extras.holyInactive = canonicalJson({
+        corpses:world.state.plagueCorpses.size,mobs:world.state.mobs.size,containers:world.state.containers.size,
+        players:[...world.state.players.entries()].map(([id,p])=>({id,faction:p.faction,status:p.status,
+          roamCharge:p.roamCharge,roamReady:p.roamReady,frostEliteGuard:p.frostEliteGuard,campClears:p.campClears,
+          corpseStacks:p.corpseStacks,plagueZombieId:p.plagueZombieId,huntTarget:p.huntTarget,huntStacks:p.huntStacks})),
+      });
+      if (kind === "signatures") extras.signatures = canonicalJson([...world.state.players.keys()].map(id => {
+        const f = signatureState(world,id);
+        if(!f) return {id, target:null,inReach:false,engaged:false,reachAt:null,contactAt:null,combatAt:null,hpFrac:1};
+        const finite=(n:number)=>Number.isFinite(n)?n:null;
+        return {id,target:f.target,inReach:f.inReach,engaged:f.engaged,reachAt:finite(f.reachAt),contactAt:finite(f.contactAt),combatAt:finite(f.combatAt),hpFrac:f.hpFrac};
+      }));
+      if (kind === "landed") extras.landed = canonicalJson(world.combat.landed.map(h=>({victim:h.victim,by:h.by,amount:h.amount})));
+
       if (kind === "locks") extras.locks = canonicalJson([...world.state.players.entries()].map(([id, p]) => {
         const rt = world.players.get(id)!;
         const w = rt.weapon;
@@ -219,6 +236,7 @@ function run(sc: Scenario): unknown {
       world: !sc.modules && !sc.config && sc.generatedMapSeed === undefined ? "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards" : "createScenarioWorld: explicit recorded modules/options/map seed",
       modules: sc.modules ?? DEFAULT_MODULES,
       itemUidScheme: "sequential/1",
+      ...(sc.packet === "P-FACTION-1" && sc.parity === "slice" ? {rustSlice:"player-engagement-holy/1"} : {}),
       options: sc.config ?? {},
       ...(sc.generatedMapSeed === undefined ? {} : { mapSeed: sc.generatedMapSeed }),
       secrets: { orderSalt: world.orderSalt, rewardSalt: sc.secrets?.rewardSalt ?? [1, 2, 3, 4], questSalt: sc.secrets?.questSalt ?? [5, 6, 7, 8] },
@@ -234,7 +252,7 @@ function run(sc: Scenario): unknown {
       unexpectedEventTypes: [...unexpected],
     },
     map: { w: map.w, h: map.h, tile: TILE, rows: rowsOf(map) },
-    players: sc.players.map((p) => ({ id: p.id, faction: p.faction, x: p.at.x, y: p.at.y, hp: p.hp ?? FACTIONS[p.faction].hp, maxHp: FACTIONS[p.faction].hp, weapon0: p.weapon0 ?? "", ...(p.weapon1 ? { weapon1: p.weapon1 } : {}) })),
+    players: sc.players.map((p) => ({ id: p.id, faction: p.faction, x: p.at.x, y: p.at.y, hp: p.hp ?? FACTIONS[p.faction].hp, maxHp: FACTIONS[p.faction].hp, ...(p.barrier === undefined ? {} : {barrier:p.barrier}), weapon0: p.weapon0 ?? "", ...(p.weapon1 ? { weapon1: p.weapon1 } : {}) })),
     inputs,
     actions: sc.actions ?? [],
     ticks,
@@ -533,7 +551,7 @@ const lockTwin: Scenario = {
   modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
   requires: ["input:target", "launch", "projEnd", "death"],
 };
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, lockTwin]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

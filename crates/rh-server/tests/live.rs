@@ -77,6 +77,7 @@ async fn start(arena: Arena, tweak: impl FnOnce(&mut DirectorConfig)) -> Server 
         fill_seconds: 0.0,
         pvp_rules: true,
         weapon_specials: true,
+        holy_foundation: false,
     };
     let mut cfg = DirectorConfig {
         tick: TEST_TICK,

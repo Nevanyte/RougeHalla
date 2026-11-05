@@ -74,6 +74,10 @@ pub enum Event {
         #[serde(default)]
         target_visible: bool,
     },
+    Heal {
+        id: PlayerId,
+        amount: f64,
+    },
     AttackCancelled {
         id: PlayerId,
     },
@@ -145,6 +149,7 @@ impl Event {
             Event::Swing { by, .. } => Visibility::IfSeen(by),
             Event::Hit { victim, by, .. } => Visibility::IfSeenOrBy { seen: victim, by },
             Event::Block { id, .. }
+            | Event::Heal { id, .. }
             | Event::AttackCancelled { id }
             | Event::Stagger { id }
             | Event::Death { id, .. } => Visibility::IfSeen(id),
@@ -171,6 +176,7 @@ impl Event {
             Event::Swing { .. }
             | Event::Hit { .. }
             | Event::Block { .. }
+            | Event::Heal { .. }
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
             Event::PickupRefused { .. } => Class::Important,

@@ -1217,6 +1217,7 @@ mod tests {
             fill_seconds: 0.0,
             pvp_rules: true,
             weapon_specials: true,
+            holy_foundation: false,
         };
         let map = rh_sim::TileMap::from_rows(&["####", "#..#", "#..#", "####"]).unwrap();
         let arena = Arena {

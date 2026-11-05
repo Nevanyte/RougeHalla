@@ -99,6 +99,7 @@ async fn main() {
         fill_seconds: num("--fill-seconds", 5.0),
         pvp_rules: true,
         weapon_specials: true,
+        holy_foundation: false,
     };
     let cfg = DirectorConfig {
         leases: lease_policy(&args).unwrap_or_else(|e| {

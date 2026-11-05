@@ -17,7 +17,7 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 6;
+pub const OBSERVATION_VERSION: u16 = 7;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
@@ -62,6 +62,10 @@ pub enum SeenEvent {
         id: PlayerId,
         by: Option<PlayerId>,
         weapon: WeaponId,
+    },
+    Heal {
+        id: PlayerId,
+        amount: f64,
     },
     AttackCancelled {
         id: PlayerId,
@@ -124,6 +128,7 @@ impl SeenEvent {
             SeenEvent::Swing { .. }
             | SeenEvent::Hit { .. }
             | SeenEvent::Block { .. }
+            | SeenEvent::Heal { .. }
             | SeenEvent::AttackCancelled { .. }
             | SeenEvent::Stagger { .. } => Class::Fx,
             SeenEvent::PickupRefused { .. } => Class::Important,
@@ -165,6 +170,7 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
             by: can_see(by).then_some(by),
             weapon,
         }),
+        Event::Heal { id, amount } => Some(SeenEvent::Heal { id, amount }),
         Event::AttackCancelled { id } => Some(SeenEvent::AttackCancelled { id }),
         Event::Stagger { id } => Some(SeenEvent::Stagger { id }),
         Event::PickupRefused {

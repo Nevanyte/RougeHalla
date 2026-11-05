@@ -93,11 +93,20 @@ impl Gates {
         training: true,
     };
 
-    /// The gates of a match. The slice has no switch for any of them yet and plays the capture world; the packet that
-    /// adds a switch (P-FACTION-1: signatures) reads it from the match configuration here.
-    pub(crate) const fn of(_k: &MatchStatic) -> Gates {
-        Gates::CAPTURE
+    /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
+    /// Other signature producers remain Pending even in the latter plan.
+    pub(crate) const fn of(k: &MatchStatic) -> Gates {
+        if k.config.holy_foundation {
+            Gates::HOLY_FOUNDATION
+        } else {
+            Gates::CAPTURE
+        }
     }
+    /// Partial explicit-module plan: only engagement and Holy sustain are implemented.
+    pub const HOLY_FOUNDATION: Gates = Gates {
+        signatures: true,
+        ..Gates::CAPTURE
+    };
 }
 
 impl Gate {
@@ -501,10 +510,12 @@ impl Plan {
         let g = Gates::of(k);
         if g == Gates::PRODUCTION {
             &PRODUCTION_PLAN
+        } else if g == Gates::HOLY_FOUNDATION {
+            &HOLY_FOUNDATION_PLAN
         } else if g == Gates::TRAINING {
             &TRAINING_PLAN
         } else {
-            // `Gates::of` yields one of the three recorded worlds today. A config switch that makes another combination
+            // A config switch that makes another combination
             // must add its plan (and its record) here: it never silently plays the capture world.
             assert!(
                 g == Gates::CAPTURE,
@@ -517,6 +528,7 @@ impl Plan {
 
 static PRODUCTION_PLAN: Plan = Plan::compile(&Gates::PRODUCTION);
 static CAPTURE_PLAN: Plan = Plan::compile(&Gates::CAPTURE);
+static HOLY_FOUNDATION_PLAN: Plan = Plan::compile(&Gates::HOLY_FOUNDATION);
 static TRAINING_PLAN: Plan = Plan::compile(&Gates::TRAINING);
 
 /// Runs compiled phases in order: the one place `updateActive`'s systems are called from.
@@ -661,13 +673,23 @@ static AFTER_WEAPONS: [Item<SystemFn>; 3] = [
     pending("plagueZombies.<anonymous>", Gate::Signatures, "P-FACTION-3"),
 ];
 static BEFORE_DAMAGE: [Item<SystemFn>; 3] = [
-    pending("factions.signatureDamage", Gate::Signatures, "P-FACTION-1"),
+    // Shared player engagement only. Other factions' damage remains pending.
+    ported(
+        "factions.signatureDamage",
+        Gate::Signatures,
+        crate::systems::signatures::before_damage,
+    ),
     pending("terrainEffects.burnPass", Gate::Always, "P-TERRAIN-1"),
     pending("abilities.statusDamage", Gate::Always, "P-STATUS-1"),
 ];
 static SYSTEMS: [Item<SystemFn>; 24] = [
     pending("fireRoam.update", Gate::Signatures, "P-FACTION-2"),
-    pending("factions.afterDamage", Gate::Signatures, "P-FACTION-1"),
+    // Combat clocks and Holy sustain only. Chill/marks/DoT remain pending.
+    ported(
+        "factions.afterDamage",
+        Gate::Signatures,
+        crate::systems::signatures::after_damage,
+    ),
     pending("factions.healOverTime", Gate::Signatures, "P-FACTION-1"),
     pending("mobs.resetDummies", Gate::Always, "P-MOBS-1"),
     pending("buffs.expireBoosts", Gate::Always, "P-CARDS-2"),
@@ -987,11 +1009,11 @@ static EXECUTE_DENIED: [Link; 1] = [pending_link(
     "P-FACTION-1",
 )];
 static RAID_STARTED: [Link; 14] = [
-    pending_link(
+    ported_link(
         "factions.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::signatures::raid_started,
     ),
     pending_link(
         "mobs.spawnTraining",

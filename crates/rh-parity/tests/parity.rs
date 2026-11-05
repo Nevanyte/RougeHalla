@@ -475,7 +475,7 @@ fn first_event_field_and_exact_timing_are_reported() {
 #[test]
 fn every_catalogue_scenario_declares_its_owner_and_exercises_its_requirements() {
     let captures = scenarios("capture-only");
-    assert!(captures.len() >= 14);
+    assert!(captures.len() >= 13); // genuine signature_holy promoted with strict inactive-installer proof
     for fx in captures {
         assert!(
             fx.packet.as_deref().is_some_and(|p| p.starts_with("P-")),

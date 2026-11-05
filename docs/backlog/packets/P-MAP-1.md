@@ -26,8 +26,20 @@ is an export format, not a separate gameplay implementation. Full-layer export, 
 
 M0 full-layer admission, M1 deterministic trig/grid/fixed layout and M2a exact zone partitioning are implemented and
 independently reviewed. They do not claim a complete generator, public rich-map transport or seed-pin parity. M2a compares
-real pre-styler intermediate arrays and consumed RNG words; next M2b adds camp sites and initial territories. Post-styler repair
+real pre-styler intermediate arrays and consumed RNG words. M2b adds camp sites and initial territories. Post-styler repair
 waits for real stage inputs. New rule definitions must drive both the implementation and allocation-free content words.
+
+M2b initial camp placement/territories/reach is also implemented and independently reviewed; camp spots, post-styler
+repair and canonical record renumbering remain open. Next M3a is the actual attempt prefix through stage 3, retaining
+the advanced RNG and internal IDs. Camp failure redraws zones within the four layout attempts on the same stream;
+partition failure ends the attempt. Seed 17 exercises the distinction. Capture private stages using an isolated actual
+module copy with export-only exposure/read-only taps, and require final output/hash equality with the unmodified caller.
+Never reconstruct pre-repair inputs from final DTOs.
+
+`PINNED_PLAIN` disables only `styleZones`: real landmarks and bushes still run. A no-landmarks diagnostic variant is
+not plain-pin parity. Camp radius is fractional `sqrt(reach2) * TILE` and participates in the legacy hash; exact
+ECMAScript number strings and UTF-16 hashing are required, not integer-only formatting. Full plain pins must wait for
+the actual landmark runtime/callbacks, safety nets, spot/crate/repair passes, tail records and all acceptance gates.
 
 ## Exclusive write scope
 Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module
@@ -40,7 +52,7 @@ C-MAP (server-sent canonical map), C-RNG (generator streams are a function of th
 ## Behaviour to preserve
 - **Determinism rules (legacy, enforced by a Math spy test):** only `+ - * /`, `sqrt`, `floor`, `ceil`, `round`, `abs`, `min`, `max`, `sign`, `imul` and bit operations; `detSin/detCos` from `detMath.ts`; no `pow/exp/log/atan2/hypot/sin/cos/random`; integer value noise, integer 5/7 and 5-7-11 distance fields and heap keys; total comparators (value, then tile index). Port with `i32/u32/wrapping_mul` where the TypeScript uses `Math.imul` and `>>> 0`; JS `Math.round` rounds half toward +infinity (`rh_sim::math::js_round`).
 - One `mulberry32` stream per attempt (`seed` for attempt 0, else `seed + attempt * 0x9e3779b1`), drawn **only at stages 1, 2, 5, 8 and 11 in a fixed order**; each zone's styler draws from `mulberry32(hashSeed(seed, attempt, zone, stream))` (`STYLE_STREAM` 0 shape, 1 decor, 2 surface, 3 landmark). Changing draw order moves every map.
-- `mapHash` (l.1024) is FNV-1a 32 over: seed, attempt, w, h, `tiles`, `terrain`, `regionGrid`, `territoryGrid`, camps (id, zone, centre, r, spots, eliteSpot, chest, area, radius), spawn pool (+zone), regions (id, pole, area, spawns, chestSpots), buildings, `featureGrid`, features (kind, variant, zone, jobs, ax, ay, p, bbox, tiles), spawns, crateSpots, groundSpots. Numbers are hashed as **`String(n)`** (JS number formatting; all hashed values are integers or tile centres): reproduce exactly. Props are not hashed.
+- `mapHash` (l.1024) is FNV-1a 32 over: seed, attempt, w, h, `tiles`, `terrain`, `regionGrid`, `territoryGrid`, camps (id, zone, centre, r, spots, eliteSpot, chest, area, radius), spawn pool (+zone), regions (id, pole, area, spawns, chestSpots), buildings, `featureGrid`, features (kind, variant, zone, jobs, ax, ay, p, bbox, tiles), spawns, crateSpots, groundSpots. Numbers are hashed as **`String(n)`** (exact ECMAScript number formatting, including fractional camp radii): reproduce exactly. Strings hash UTF-16 low/high bytes and a 0x1f delimiter; props are not hashed.
 - What an attempt certifies (hard checks; no relaxed attempt): one 4-connected floor piece; four 4-wide gates (n,e,s,w) as the only arena links, arena sealed when gates close; 5 zones of ~equal painted area (within 8 tiles), floor share max/min <= 1.15, >= 24 ring-road tiles per zone, <= 100 sliver tiles; 10 camps per zone (`CAMPS_PER_ZONE`), 2 elite (`ELITES_PER_ZONE`, farthest from the coliseum, >= 16 apart when possible), `CAMP_GAP` 9, territories partition the zone (`territoryGrid` = 1 + camp index), territory radius <= 30 tiles; spawn pool 24-32 in >= 4 zones with the 10-tile rule; spawn gate: `findPath` walks to the coliseum centre within ratio 1.2 and <= 8 hazard tiles (`A:spawnRatio`); terrain T1-T11 (`validateTerrain`); shape gates (every zone wall/LOW tile belongs to a feature, no wall piece < 6 tiles, <= 250 features). `certifiedMap` tries attempts 0..15.
 - Perf (legacy gates, quiet Apple M5 Pro): styled 130 ms / plain 71 ms median per map at the CI yardstick (`mapgen.perf.test.ts`); the Rust port should be faster, record the number.
 

@@ -17,15 +17,16 @@ fenced session leases that are **renewed** while a match runs, the achievements 
 remaining feature that the Rust stack lacks (P-MIG-1 can then rehearse the import).
 
 ## Dependencies
-None to start. Note: while this backlog was written, a parallel worker was adding `--database-url`/`--instance-id` (feature `postgres`) to `crates/rh-server/src/main.rs` and a `tests/pg_e2e.rs`; re-read the tree (`git log`, `git status`) before starting and build on what landed rather than redoing it. Faction/weapon in results touches `rh-sim::RunResult` (a small additive change; weapon-in-hand at the end is
-`Player::active_weapon`, items arrive with P-COMBAT-1: until then it is always `fists`/none and the counters are tested with
-injected values). Cosmetics `look` on the wire is P-PERSIST-3.
+PostgreSQL wiring, achievements/catalog and live leases are now implemented; build on those paths. Ending metadata
+touches `RunResult`, private admission state and resolution. Preserve the original join `Option<FactionId>` before
+runtime defaulting, and read the raw selected carried slot after existing body-drop order. Empty hand is absent, not
+synthesized `Fists`. Coordinate these shared core fields with the active faction slice. Cosmetics `look` is P-PERSIST-3.
 
 ## Relevant legacy paths (verified)
 - Legacy store: `packages/server/src/persistence/ProfileStore.ts` (929 lines: `claim`, `recordRun` l.668, `bankGv` l.693, `purchase`, `equip`, leaderboard cache, `evaluateAchievements` call l.827, v1 migration), `FileSnapshotMirror.ts`, `RemoteSnapshot.ts` (R2 mirror, retired by P-MIG-3).
 - HTTP: `packages/server/src/index.ts` l.366-516 (`/readyz`, `/api/health`, `GET /api/profile/:name` claim/open with token header and passcode gate, `POST /api/profile/:name/purchase` and `/equip` with token and a shop bucket, `GET /api/leaderboard?month&limit&name`), guards in `packages/server/src/guards/` and `config.ts` defaults (new profiles: 30 an hour in all, 10 per address; shop burst 6 / 3 per second; only when hosting).
 - Shared rules: `packages/shared/src/achievements.ts` (130 lines: `ACHIEVEMENTS`, `AchievementGoal`, `evaluateAchievements(snapshot, unlocked)`), `cosmetics.ts` (catalog, slots, prices, `isForSale`), `messages.ts` (`ProfileDTO`, `ProfileResponse`, `PROFILE_RE`, `JoinOptions`).
-- Rust: `crates/rh-persist/` (`Store`: `create_profile`, `verify_token`, `get_profile`, `leaderboard`, `acquire_lease`, `renew_lease` l.301, `release_lease`, `record_result`, `purchase`, `equip`; `model.rs`: `MatchResult { outcome, kills, gv, faction, weapon, win_qualified }`, `Progress`, `Stats`; `migrations/0001_init.sql`; README guarantees), `crates/rh-server/src/{persist.rs,director.rs,main.rs}` (`Auth::Postgres`, `Persistence::Postgres`; `--database-url`, `--instance-id` under `--features postgres`; `to_persist` sets `faction: None, weapon: None`; lease TTL is a fixed 3600 s and **nothing calls `renew_lease`**).
+- Rust: `crates/rh-persist/` (`Store`: `create_profile`, `verify_token`, `get_profile`, `leaderboard`, `acquire_lease`, `renew_lease` l.301, `release_lease`, `record_result`, `purchase`, `equip`; `model.rs`: `MatchResult { outcome, kills, gv, faction, weapon, win_qualified }`, `Progress`, `Stats`; `migrations/0001_init.sql`; README guarantees), `crates/rh-server/src/{persist.rs,director.rs,main.rs}` (`Auth::Postgres`, `Persistence::Postgres`; `--database-url`, `--instance-id` under `--features postgres`; `to_persist` sets `faction: None, weapon: None`; live renewal and stable-ID admission are now implemented with confirmed room deadlines (ADR 0006)).
 
 ## New paths
 `crates/rh-server/src/api.rs` (profile HTTP routes; or a new crate `rh-api` if the coordinator prefers a separate service: decide in the first PR, record in ADR 0006), `crates/rh-persist/src/achievements.rs` + a migration `0002_*.sql` only if the schema needs it, `crates/rh-server/tests/persist_pg.rs`, achievements data tables as Rust consts generated from `achievements.ts`/`cosmetics.ts` with a parity test.
@@ -69,4 +70,7 @@ renewal and the achievements port; medium for the REST routes.
 - Do not hold a Postgres transaction across an await on a room channel; lease and result paths already use short transactions.
 - Month keys are UTC; use the same `monthKey` semantics as `shared` (read `ProfileStore`/`rules` for it).
 - Connection pool exhaustion and Aurora failover are untested (ADR 0006); size the pool and set timeouts, then hand P-PERSIST-4 the open points.
-- Legacy results carry the weapon *in hand at the end*; a dead player's slots are cleared by `dropBody`: capture the weapon before the drop.
+- Actual `RaidRoom.settle` reads the selected raw slot after `dropBody` clears both slots. Death, active MIA and a
+  simultaneous-down winner therefore have no weapon metadata; do not capture a predeath weapon and change qualified
+  win progression. Only explicitly selected join factions count, not the runtime default. Verify through actual
+  `RaidRoom.settle` -> `recordRun` interception; sim resolved payloads alone do not contain this adapter metadata.

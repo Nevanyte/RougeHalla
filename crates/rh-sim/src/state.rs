@@ -510,6 +510,7 @@ impl Player {
                     hp_frac_at_tick_start: 1.0,
                 },
                 weapon: WeaponRt::default(),
+                signature: Default::default(),
                 motion: Motion::default(),
                 inputs: InputQueue::default(),
             },

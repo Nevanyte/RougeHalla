@@ -216,6 +216,7 @@ fn to_wire(e: &SeenEvent) -> Wire {
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
         // Target locking is currently a core/policy/headless feature. Protocol 5 has no cancel telegraph.
         SeenEvent::AttackCancelled { .. } => Wire::OmittedInV5,
+        SeenEvent::Heal { .. } => Wire::OmittedInV5,
         SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
             reason: match reason {
                 rh_sim::PickupRefusal::Blocked => 1,
@@ -810,6 +811,10 @@ mod tests {
         ));
         assert!(matches!(
             to_wire(&SeenEvent::AttackCancelled { id }),
+            Wire::OmittedInV5
+        ));
+        assert!(matches!(
+            to_wire(&SeenEvent::Heal { id, amount: 1.0 }),
             Wire::OmittedInV5
         ));
         for (reason, code) in [

@@ -60,6 +60,7 @@ fn load(name: &str) -> Scenario {
         spawn_seed: 0,
     };
     let config = SimConfig {
+        holy_foundation: fx["packet"] == "P-FACTION-1" && fx["parity"] == "slice",
         weapon_specials: fx["legacyConfig"]["options"]["weaponSpecials"]
             .as_bool()
             .unwrap_or(true),
@@ -165,9 +166,85 @@ fn run(name: &str, warm_up: u32, end: u32) -> (u32, u64, Option<u32>) {
     (steady, allocs, first_bad)
 }
 
+/// Eight real Holy sword users in one melee arc cluster. Each contacts several victims per pass.
+fn holy_crowded() {
+    let ps: Vec<_> = (0..8)
+        .map(|i| {
+            let a = i as f64 * std::f64::consts::TAU / 8.0;
+            Placement {
+                profile: format!("h{i}"),
+                faction: FactionId::Holy,
+                bot: false,
+                at: Vec2::new(
+                    400. + 30. * rh_sim::math::cos(a),
+                    400. + 30. * rh_sim::math::sin(a),
+                ),
+                hp: None,
+                weapon0: Some(rh_sim::WeaponId::Sword),
+                weapon1: None,
+            }
+        })
+        .collect();
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            holy_foundation: true,
+            ..Default::default()
+        },
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(19),
+        &ps,
+    );
+    for (i, p) in ps.iter().enumerate() {
+        sim.submit(
+            PlayerId(i as u32 + 1),
+            validate(RawCommand::Attack {
+                a: rh_sim::math::atan2(400. - p.at.y, 400. - p.at.x),
+                t: None,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    let mut out = Vec::with_capacity(512);
+    let (mut measured, mut allocations, mut heals) = (0, 0, 0);
+    for n in 0..120 {
+        out.clear();
+        #[cfg(feature = "schedule-trace")]
+        sim.clear_schedule_trace();
+        let before = dhat::HeapStats::get().total_blocks;
+        sim.step_into(&mut out);
+        let used = dhat::HeapStats::get().total_blocks - before;
+        heals += out
+            .iter()
+            .filter(|e| matches!(e, Event::Heal { .. }))
+            .count();
+        if n >= 12
+            && !out
+                .iter()
+                .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. }))
+        {
+            measured += 1;
+            allocations += used;
+        }
+        if sim.phase() == rh_sim::Phase::Ended {
+            break;
+        }
+    }
+    eprintln!(
+        "Holy crowded: {measured} measured steps, {heals} real heals, {allocations} allocations"
+    );
+    assert!(heals >= 8);
+    assert!(measured >= 10);
+    assert_eq!(
+        allocations, 0,
+        "crowded Holy allocations over {measured} measured steps"
+    );
+}
+
 #[test]
 fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
+    holy_crowded();
     for name in [
         "crowded_8",
         "duel_chase",
@@ -198,6 +275,19 @@ fn a_steady_state_step_allocates_nothing() {
         let (steady, allocs, bad) = run(name, 40, u32::MAX);
         assert_eq!(steady, 56, "{name}");
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
+    }
+    for name in [
+        "holy_lifesteal_low_hp",
+        "holy_sword_shield",
+        "holy_arrow_reflection",
+        "holy_wand_splash",
+        "holy_contact_forget",
+        "holy_contact_tie_12",
+    ] {
+        let (steady, allocs, bad) = run(name, 40, u32::MAX);
+        eprintln!("{name}: {steady} measured steps, {allocs} allocations");
+        assert!(steady >= 25, "{name}");
+        assert_eq!(allocs, 0, "{name}: allocation at {bad:?}");
     }
     // Track repeated accepted/rejected wall searches and the live LOS-grace chase before
     // the first flight of those scenarios grows its own independent projectile buffers.

@@ -40,6 +40,7 @@ fn resolve_swings(cx: &mut Cx) {
     let TickScratch {
         melee,
         ledger,
+        blocks,
         bodies,
         flight,
         rewound,
@@ -123,6 +124,13 @@ fn resolve_swings(cx: &mut Cx) {
                 passive: false,
             };
             if blocked {
+                if k.config.holy_foundation {
+                    blocks.push(crate::systems::signatures::BlockContact {
+                        attacker: req.attacker,
+                        holder: target.id,
+                        passive: false,
+                    });
+                }
                 ev.push(Event::Block {
                     id: target.id,
                     by: req.attacker,

@@ -114,6 +114,7 @@ struct Pass<'a> {
     ev: &'a mut Vec<Event>,
     bounty_at_tick_start: &'a [u32],
     downed: &'a mut Vec<PlayerId>,
+    landed: &'a mut Vec<crate::systems::signatures::LandedHit>,
 }
 
 /// One victim's working lists (tick scratch, reused for every victim of the pass).
@@ -131,6 +132,8 @@ struct Bufs<'a> {
 /// defers, so the queue is empty until P-CARDS-1.
 pub(crate) fn open(cx: &mut Cx) {
     let Cx { w, s, .. } = cx;
+    s.blocks.clear();
+    s.landed.clear();
     s.ledger.clear();
     s.ledger.append(&mut w.deferred.hits);
     s.melee.clear();
@@ -144,6 +147,7 @@ pub(crate) fn apply(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
     let TickScratch {
         ledger,
+        landed,
         rank,
         bounty_at_tick_start,
         downed_this_tick,
@@ -212,6 +216,7 @@ pub(crate) fn apply(cx: &mut Cx) {
         ev,
         bounty_at_tick_start,
         downed: downed_this_tick,
+        landed,
     };
     let mut bufs = Bufs {
         idxs,
@@ -285,13 +290,27 @@ fn apply_victim(
     order.sort_unstable();
     hits.clear();
     hits.extend(order.iter().map(|&(_, j)| (amounts[j], ledger[idxs[j]].by)));
+    let barrier_before = pass.w.players[vi].vitals.barrier;
+    let total: f64 = amounts.iter().sum();
     let applied = apply_hits(pass, vi, hits);
     if !(applied > 0.0) {
         return;
     }
+    let landed_share = if total > 0.0 {
+        (1.0 - (barrier_before - pass.w.players[vi].vitals.barrier) / total).max(0.0)
+    } else {
+        0.0
+    };
     for (j, &k) in idxs.iter().enumerate() {
         if amounts[j] > 0.0 {
             let e = &ledger[k];
+            if pass.k.config.holy_foundation {
+                pass.landed.push(crate::systems::signatures::LandedHit {
+                    victim: v,
+                    by: e.by,
+                    amount: amounts[j] * landed_share,
+                });
+            }
             pass.ev.push(Event::Hit {
                 victim: v,
                 by: e.by,

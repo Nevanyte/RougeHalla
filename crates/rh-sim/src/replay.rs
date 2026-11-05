@@ -7,8 +7,8 @@ use crate::content::FactionId;
 use crate::input::Command;
 use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 
-/// Version 5 includes the per-viewer vision trails used by the simulation. [`run_replay`] refuses other formats.
-pub const REPLAY_FORMAT: &str = "rh-replay/6";
+/// Version 7 includes the explicitly partial Holy-foundation configuration and engagement state. [`run_replay`] refuses other formats.
+pub const REPLAY_FORMAT: &str = "rh-replay/7";
 
 /// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
 /// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps

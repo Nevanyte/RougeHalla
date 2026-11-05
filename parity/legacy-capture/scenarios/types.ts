@@ -1,6 +1,6 @@
 import type { FactionId, Vec2 } from "@raid/shared";
 import type { World, SimConfig } from "../../../packages/server/src/sim/world";
-export interface PlayerDef { id: string; faction: FactionId; at: Vec2; hp?: number; weapon0?: string; weapon1?: string }
+export interface PlayerDef { id: string; faction: FactionId; at: Vec2; hp?: number; barrier?: number; weapon0?: string; weapon1?: string }
 export interface Input { tick: number; player: string; type: string; msg: unknown; accepted?: boolean }
 export interface Ctx { world: World; tick: number; send: (player: string, type: string, msg: unknown) => void; pos: (id: string) => Vec2 }
 export interface Scenario {
@@ -19,7 +19,7 @@ export interface Scenario {
   modules?: string[];
   config?: Partial<SimConfig>;
   secrets?: { rewardSalt?: [number, number, number, number]; questSalt?: [number, number, number, number] };
-  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks">;
+  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks" | "signatures" | "landed" | "holyInactive">;
   generatedMapSeed?: number;
   vision?: { viewers: string[]; points: Vec2[]; spawnSeed?: number };
   containers?: Array<{ weapon: string; at: Vec2 }>;

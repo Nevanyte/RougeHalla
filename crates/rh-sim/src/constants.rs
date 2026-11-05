@@ -116,6 +116,16 @@ content! {
     TIE_EPS_MS: f64 = 1e-6, "ms";
     RANGED_RELEASE_PAUSE_MS: f64 = 200.0, "ms";
 
+    // ---- player engagement and Holy sustain (partial faction foundation) ----
+    ENGAGE_LINGER_MS: f64 = 1250.0, "ms";
+    ENGAGE_TRADE_SECONDS: f64 = 3.0, "s";
+    ENGAGE_TRADE_SLACK_SECONDS: f64 = 0.5, "s";
+    TARGET_FORGET_MS: f64 = 10000.0, "ms";
+    HEAL_LOCKOUT_MS: f64 = 3000.0, "ms";
+    HOLY_LEECH_BASE: f64 = 0.07, "fraction";
+    HOLY_LEECH_MISSING: f64 = 0.6, "fraction";
+    HOLY_LEECH_CAP: f64 = 0.6, "fraction";
+
     // ---- scoring and bounty ----
     KILL_CREDIT_SECONDS: f64 = 5.0, "s";
     GV_KILL: u32 = 10, "GV";

@@ -45,6 +45,7 @@ async fn start(tls: bool) -> Started {
         fill_seconds: 0.0,
         pvp_rules: true,
         weapon_specials: true,
+        holy_foundation: false,
     };
     let cfg = DirectorConfig {
         tick: TEST_TICK,

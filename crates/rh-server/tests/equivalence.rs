@@ -51,6 +51,7 @@ async fn a_live_match_replays_and_its_bots_decide_identically_headless() {
         fill_seconds: 0.0,
         pvp_rules: true,
         weapon_specials: true,
+        holy_foundation: false,
     };
     let cfg = DirectorConfig {
         tick: Duration::from_millis(3),

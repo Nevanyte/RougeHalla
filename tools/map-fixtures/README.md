@@ -33,3 +33,8 @@ five-draw generator prefix and subsequent continuation. It writes only `mapgen/f
 `--check` verifies exact bytes with the same pinned runtime. The 1,024-stream scan has 398 retrying successes and no
 terminal-failing generated seed. A separately labelled constant-zero RNG call covers the actual helper's failure path.
 See `crates/rh-sim/src/mapgen/zones/README.md` for the API and the unimplemented camp/territory/full-generator stages.
+
+`zones-camps.ts` adds actual M2b `placeCamps` and initial territory/reach captures on the same stream after partitioning.
+Its 128-stream scan records 116 successes and 12 terminal failures (no retrying successes); ten full cases retain complete
+camp fields, arrays, input/draw transcripts and continuation words. `--check` verifies `mapgen/fixtures/zones-camps.json`
+with the same pinned runtime. Camp spots, post-styler repair, canonical record renumbering and full generation remain open.
