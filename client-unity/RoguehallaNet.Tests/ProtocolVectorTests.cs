@@ -136,6 +136,32 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void AnUnnamedRejectCodeDecodesAsItselfAndRoundTrips()
+        {
+            // The vector "reject_code_unknown" is code 12 with an empty reason: every decoder accepts it (codes are append only).
+            var rj = Server<ServerMsg.Reject>("reject_code_unknown");
+            Assert.AreEqual((ushort)12, (ushort)rj.Code); Assert.IsFalse(Enum.IsDefined(typeof(RejectCode), rj.Code));
+            Assert.AreEqual(SrvHex("reject_code_unknown"), Util.ToHex(rj.Encode()));
+            var big = (ServerMsg.Reject)ServerMsg.Decode(new ServerMsg.Reject { Code = (RejectCode)0xFFFF, Reason = "update required" }.Encode());
+            Assert.AreEqual((ushort)0xFFFF, (ushort)big.Code); Assert.AreEqual("update required", big.Reason);
+            Assert.AreEqual(DecodeError.BadTag, Assert.Throws<DecodeException>(() => ServerMsg.Decode(new byte[] { 0x82, 0, 0, 0 })).Error, "0 is not a code");
+        }
+
+        [Test]
+        public void StringsOver255BytesAreRefusedNotTruncated()
+        {
+            var ok = new string('x', 255);
+            Assert.AreEqual(1 + 255, new ServerMsg.Reject { Code = RejectCode.Malformed, Reason = ok }.Encode().Length - 3);
+            var two = new string('\u00e9', 128); // 256 bytes
+            var e = Assert.Throws<EncodeException>(() => new ServerMsg.Reject { Code = RejectCode.Malformed, Reason = two }.Encode());
+            StringAssert.Contains("256", e.Message);
+            Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Token = two }.Encode());
+            Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Profile = two }.Encode());
+            Assert.Throws<EncodeException>(() => new ClientMsg.Hello { Build = two }.Encode());
+            Assert.DoesNotThrow(() => new ClientMsg.Hello { Build = ok, Profile = ok, Token = ok }.Encode());
+        }
+
+        [Test]
         public void RejectSnapshotFields()
         {
             var rj = Server<ServerMsg.Reject>("reject");
@@ -281,7 +307,7 @@ namespace Roguehalla.Net.Tests
                 case "delta_too_many_actors": case "delta_departed_too_many": want = DecodeError.TooMany; break;
                 case "delta_truncated": want = DecodeError.Truncated; break;
                 case "delta_trailing_byte": want = DecodeError.Trailing; break;
-                case "reject_code_zero": case "reject_code_unknown": want = DecodeError.BadTag; break;
+                case "reject_code_zero": want = DecodeError.BadTag; break;
                 case "server_bad_utf8": want = DecodeError.BadUtf8; break;
                 case "map_zero_size": case "map_too_large": case "map_bad_tile": case "map_zero_run": case "map_run_past_size":
                 case "map_short": case "map_hash_mismatch":
@@ -415,15 +441,6 @@ namespace Roguehalla.Net.Tests
             var p = Client<ClientMsg.Ping>("ping");
             Assert.AreEqual(0xdeadbeefu, p.Nonce); Assert.AreEqual(1.5, p.ClientMs);
             Assert.IsInstanceOf<ClientMsg.Leave>(Client<ClientMsg.Leave>("leave"));
-        }
-
-        [Test]
-        public void LongStringsAreCutAtACharacterBoundary()
-        {
-            // 128 two-byte characters = 256 bytes: the writer keeps 127 whole characters (254 bytes), as the Rust writer does.
-            var h = new ClientMsg.Hello { Profile = new string('é', 128) };
-            var back = (ClientMsg.Hello)ClientMsg.Decode(h.Encode());
-            Assert.AreEqual(new string('é', 127), back.Profile);
         }
 
         [Test]

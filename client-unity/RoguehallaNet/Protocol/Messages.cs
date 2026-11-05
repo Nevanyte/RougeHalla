@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 namespace Roguehalla.Net.Protocol
 {
-    /// <summary>Wire format: append only.</summary>
+    /// <summary>Wire format: append only. A decoder accepts any code above 0: a value this enum does not name decodes as itself
+    /// (<c>(RejectCode)n</c>, so <c>Enum.IsDefined</c> is false) and ends the session as Rejected with the reason text.</summary>
     public enum RejectCode : ushort
     {
         ProtocolMismatch = 1, ContentMismatch = 2, BadCredentials = 3, ProfileInUse = 4, MatchFull = 5, RateLimited = 6,
@@ -484,7 +485,7 @@ namespace Roguehalla.Net.Protocol
                 case TReject:
                 {
                     ushort code = r.U16();
-                    if (code < 1 || code > 11) throw new DecodeException(DecodeError.BadTag, "reject code " + code);
+                    if (code < 1) throw new DecodeException(DecodeError.BadTag, "reject code " + code);
                     msg = new Reject { Code = (RejectCode)code, Reason = r.Str() };
                     break;
                 }

@@ -120,7 +120,7 @@ function decodeBody(r) {
   }
   if (tag === 0x82) {
     const code = r.u16();
-    if (code < 1 || code > 11) throw new Error("bad reject code " + code);
+    if (code < 1) throw new Error("bad reject code " + code);
     return { t: "reject", code, reason: r.str() };
   }
   if (tag === 0x83) {

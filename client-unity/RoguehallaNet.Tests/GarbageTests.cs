@@ -174,6 +174,27 @@ namespace Roguehalla.Net.Tests
             Assert.AreEqual(0.0, b);
             Assert.AreEqual(actors, o.Count);
         }
+
+        [Test]
+        public void SessionMeMakesNoGarbageOnTheSteadyPath()
+        {
+            double now = 1000;
+            var t = new FakeTransport();
+            var s = new Session(t, new SessionOptions { Now = () => now });
+            s.Connect(); t.Open();
+            t.Deliver(new ServerMsg.Welcome { Protocol = Wire.ProtocolVersion, MatchId = new byte[16], Session = new byte[16], PlayerId = 3, TickRate = 20, Map = new MapBlob(4, 4, new byte[16]) });
+            var frames = new byte[64][];
+            for (int i = 0; i < frames.Length; i++) frames[i] = Snap(BaseTick, 8).Encode();
+            uint tick = BaseTick;
+            // Warm up past the buffer so decodes recycle, then measure the receive path including the Me copy.
+            for (int i = 0; i < 200; i++) { SetTick(frames[i % 64], ++tick); t.DeliverRaw(frames[i % 64]); var m = s.Me; }
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            float sum = 0;
+            for (int i = 0; i < 2000; i++) { SetTick(frames[i % 64], ++tick); t.DeliverRaw(frames[i % 64]); sum += s.Me.X; }
+            long after = GC.GetAllocatedBytesForCurrentThread();
+            Assert.Greater(sum, 0f);
+            Assert.AreEqual(0, after - before, "Session.Me allocates nothing per snapshot");
+        }
     }
 
     public class SnapshotReuseTests
@@ -255,6 +276,9 @@ namespace Roguehalla.Net.Tests
                 Assert.AreEqual(has, me != null, "tick " + k);
                 if (has) Assert.AreEqual((float)k, me.X);
                 Assert.AreEqual(k, s.Latest.Tick);
+                // The owned view the scripts use instead: same answers, never a recycled snapshot's object.
+                Assert.AreEqual(has, s.Me != null, "view tick " + k);
+                if (has) Assert.AreEqual((float)k, s.Me.X);
             }
             Assert.AreEqual(40, s.Snapshots.Count);
         }
@@ -267,7 +291,7 @@ namespace Roguehalla.Net.Tests
             var o = new List<InterpActor>();
             foreach (var cur in b.Actors)
             {
-                var x = new InterpActor { Id = cur.Id, Faction = cur.Faction, HpPct = cur.HpPct, Status = cur.Status, Weapon = cur.Weapon, Bounty = cur.Bounty, X = cur.X, Y = cur.Y, Facing = cur.Facing };
+                var x = new InterpActor { Id = cur.Id, Faction = (FactionId)cur.Faction, HpPct = cur.HpPct, Status = (ActorStatus)cur.Status, Weapon = (WeaponId)cur.Weapon, Bounty = cur.Bounty, X = cur.X, Y = cur.Y, Facing = cur.Facing };
                 WireActor p;
                 if (prev.TryGetValue(cur.Id, out p))
                 {

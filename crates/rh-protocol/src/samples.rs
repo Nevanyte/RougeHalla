@@ -103,6 +103,14 @@ pub fn server_samples() -> Vec<(&'static str, ServerMsg)> {
                 reason: "client protocol 1, server 2".into(),
             },
         ),
+        // A code no build of this protocol names yet: decoders accept it and carry the raw value and the reason text.
+        (
+            "reject_code_unknown",
+            ServerMsg::Reject {
+                code: RejectCode::Unknown(12),
+                reason: String::new(),
+            },
+        ),
         (
             "snapshot",
             ServerMsg::Snapshot {
@@ -617,9 +625,9 @@ pub fn malformed_server() -> Vec<(&'static str, Vec<u8>)> {
         // Fx: a count past u16, a bad item tag.
         ("fx_too_many", vec![0x85, 0, 0x80, 0x80, 0x04]),
         ("fx_bad_tag", vec![0x85, 0, 1, 9]),
-        // Reject: a code outside 1..=11; a reason that is not UTF-8 (the same strictness for every server string).
+        // Reject: code 0 is not a code (codes start at 1; an unnamed code above that is accepted, see the "reject_code_unknown"
+        // server vector); a reason that is not UTF-8 (the same strictness for every server string).
         ("reject_code_zero", vec![0x82, 0, 0, 0]),
-        ("reject_code_unknown", vec![0x82, 12, 0, 0]),
         ("server_bad_utf8", vec![0x82, 7, 0, 2, 0xc3, 0x28]),
         // Welcome maps: every MapBlob rule, one fault each.
         ("map_zero_size", welcome_map(0, 4, None, &[])),

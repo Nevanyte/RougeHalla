@@ -72,6 +72,53 @@ namespace Roguehalla.Net.Tests
         }
 
         [Test]
+        public void AnUnknownRejectCodeStillEndsTheSessionWithItsReason()
+        {
+            _s.Connect(); _t.Open();
+            _t.Deliver(new ServerMsg.Reject { Code = (RejectCode)42, Reason = "update required" });
+            Assert.AreEqual(SessionState.Rejected, _s.State);
+            Assert.AreEqual((ushort)42, (ushort)_s.RejectCode.Value); Assert.AreEqual("update required", _s.RejectReason);
+            Assert.AreEqual(0, _s.DecodeErrors);
+            _t.Drop(); Assert.AreEqual(SessionState.Rejected, _s.State);
+        }
+
+        [Test]
+        public void ATokenTooLongForTheWireFailsTheSessionInsteadOfBeingCut()
+        {
+            var s = new Session(_t, new SessionOptions { Url = "ws://x/ws", Profile = "p", Token = new string('t', 300), Now = () => _now });
+            s.Connect(); _t.Open();
+            Assert.AreEqual(SessionState.Failed, s.State);
+            StringAssert.Contains("Hello", s.Error);
+            Assert.AreEqual(0, _t.Sent.Count, "nothing was sent");
+            Assert.IsTrue(_t.CloseCalled);
+        }
+
+        [Test]
+        public void MeIsAnOwnedTypedCopyOfTheNewestAppliedSnapshot()
+        {
+            ToMatch();
+            Assert.IsNull(_s.Me, "no snapshot yet");
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 1, Me = new WireSelf { Id = 3, Faction = 4, Weapon = 5, Status = 1, Hp = 50, MaxHp = 200, X = 7 } });
+            var me = _s.Me;
+            Assert.AreEqual(3u, me.Id); Assert.AreEqual(FactionId.Holy, me.Faction); Assert.AreEqual(WeaponId.Fists, me.Weapon);
+            Assert.AreEqual(ActorStatus.Alive, me.Status); Assert.AreEqual(25, me.HpPct); Assert.AreEqual(7f, me.X);
+            Assert.AreNotSame(_s.Latest.Me, me, "not the recycled wire object");
+            // Run the 40-snapshot buffer over: the wire objects are recycled, the view stays valid and current.
+            for (uint k = 2; k < 120; k++) _t.Deliver(new ServerMsg.Snapshot { Tick = k, Me = new WireSelf { Id = 3, X = k, MaxHp = 10, Hp = 10 } });
+            Assert.AreSame(me, _s.Me); Assert.AreEqual(119f, _s.Me.X); Assert.AreEqual(100, _s.Me.HpPct);
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 120, Me = null });
+            Assert.IsNull(_s.Me, "spectating: no self");
+            // A stale (reordered) snapshot does not rewind it.
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 121, Me = new WireSelf { Id = 3, X = 500 } });
+            _t.Deliver(new ServerMsg.Snapshot { Tick = 100, Me = new WireSelf { Id = 3, X = 1 } });
+            Assert.AreEqual(500f, _s.Me.X);
+            // A fresh Welcome (a resume after a drop) clears it until the next snapshot.
+            _t.Drop(); _now += 500; _s.Update(); _t.Open(); _t.Deliver(Welcome());
+            Assert.AreEqual(SessionState.InMatch, _s.State);
+            Assert.IsNull(_s.Me);
+        }
+
+        [Test]
         public void TooSlowInAMatchResumesTheSeatInsteadOfEnding()
         {
             ToMatch();

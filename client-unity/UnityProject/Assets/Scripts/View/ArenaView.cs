@@ -66,7 +66,7 @@ namespace Roguehalla.Client
         }
 
         /// <summary>Updates remote actors from the interpolated snapshot and the local one from the prediction.</summary>
-        public void Present(List<InterpActor> remote, WireSelf me, LocalMotion motion, float aimAngle)
+        public void Present(List<InterpActor> remote, SelfView me, LocalMotion motion, float aimAngle)
         {
             _seen.Clear();
             uint myId = me != null ? me.Id : 0;
@@ -85,7 +85,7 @@ namespace Roguehalla.Client
             if (me != null && motion != null && motion.Initialized)
             {
                 if (_local == null) _local = ActorView.Create(transform, Mat(), me.Faction, true);
-                _local.Place(motion.DrawnX, motion.DrawnY, aimAngle, me.MaxHp > 0 ? Mathf.RoundToInt(100f * Mathf.Max(0, me.Hp) / me.MaxHp) : 100);
+                _local.Place(motion.DrawnX, motion.DrawnY, aimAngle, me.HpPct);
             }
         }
 

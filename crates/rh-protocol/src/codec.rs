@@ -45,6 +45,9 @@ pub enum EncodeError {
     BadValue(&'static str),
     /// An [`crate::SnapshotData::build`] iterator that yielded a different number of actors than its `len()` announced.
     CountMismatch { declared: usize, written: usize },
+    /// A string longer than the 255 bytes a `u8` length can carry (`what`: "build", "profile", "token", "reason" or
+    /// "killed_by"). The encoder never truncates: a cut token would fail as a bad credential with no hint why.
+    StringTooLong { what: &'static str, len: usize },
     /// A NaN or infinite float in a client message (client decoders reject them).
     NonFinite,
 }
@@ -63,18 +66,20 @@ pub const fn varint_len(v: u32) -> usize {
     (38 - (v | 1).leading_zeros() as usize) / 7
 }
 
-/// Encoded size of [`Writer::str`]: the u8 length plus the bytes it keeps.
+/// Longest string the wire carries (a `u8` length).
+pub const MAX_STR: usize = 255;
+
+/// Encoded size of [`Writer::str`]: the u8 length plus the bytes.
 pub fn str_len(s: &str) -> usize {
-    1 + str_cut(s)
+    1 + s.len()
 }
 
-/// How many bytes of `s` [`Writer::str`] keeps: at most 255, ending on a char boundary.
-fn str_cut(s: &str) -> usize {
-    let mut end = s.len().min(255);
-    while !s.is_char_boundary(end) {
-        end -= 1;
+/// The encoders' check that `s` fits [`Writer::str`].
+pub(crate) fn str_fits(what: &'static str, s: &str) -> Result<(), EncodeError> {
+    if s.len() > MAX_STR {
+        return Err(EncodeError::StringTooLong { what, len: s.len() });
     }
-    end
+    Ok(())
 }
 
 #[derive(Default)]
@@ -142,11 +147,16 @@ impl Writer {
     pub fn bytes(&mut self, b: &[u8]) {
         self.buf.extend_from_slice(b);
     }
-    /// `u8 length + UTF-8`; longer strings are truncated at a char boundary to 255 bytes.
+    /// `u8 length + UTF-8`. Never truncates: a string over [`MAX_STR`] bytes is a caller bug (the message encoders refuse it
+    /// first with [`EncodeError::StringTooLong`], via `try_encode` / `encode_into`), so it panics rather than write a wrong frame.
     pub fn str(&mut self, s: &str) {
-        let end = str_cut(s);
-        self.u8(end as u8);
-        self.bytes(&s.as_bytes()[..end]);
+        assert!(
+            s.len() <= MAX_STR,
+            "string of {} bytes does not fit the wire (max {MAX_STR})",
+            s.len()
+        );
+        self.u8(s.len() as u8);
+        self.bytes(s.as_bytes());
     }
     pub fn opt<T>(&mut self, v: Option<&T>, f: impl FnOnce(&mut Self, &T)) {
         match v {

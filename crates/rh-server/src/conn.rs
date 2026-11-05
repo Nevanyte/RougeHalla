@@ -9,7 +9,7 @@ use crate::outbox::Outbox;
 use crate::room::RoomCmd;
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
-use rh_protocol::{ClientMsg, RejectCode, ServerMsg};
+use rh_protocol::{ClientMsg, RejectCode, ServerMsg, PROTOCOL_VERSION};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -71,10 +71,22 @@ where
     matches!(tokio::time::timeout(SEND_TIMEOUT, all).await, Ok(Ok(())))
 }
 
+/// The longest Reject reason the wire carries (wire strings carry a u8 length). The diagnostic text of a
+/// refusal is cut here, on a char boundary, by the caller that owns it: the codec itself never truncates.
+const MAX_REASON: usize = 255;
+
+fn clip_reason(reason: &str) -> &str {
+    let mut end = reason.len().min(MAX_REASON);
+    while !reason.is_char_boundary(end) {
+        end -= 1;
+    }
+    &reason[..end]
+}
+
 async fn reject(sock: &mut WebSocket, code: RejectCode, reason: &str) {
     let frame = ServerMsg::Reject {
         code,
-        reason: reason.into(),
+        reason: clip_reason(reason).into(),
     }
     .encode();
     send_bounded(sock, [Message::Binary(frame.into()), Message::Close(None)]).await;
@@ -88,6 +100,19 @@ pub async fn serve(mut sock: WebSocket, director: Arc<Director>) {
             return;
         }
     };
+    // The envelope first: a Hello of another protocol version is answered with ProtocolMismatch whatever its layout, so an
+    // old cached client always gets the reload hint even after a version changes the fields behind these three bytes.
+    if let Some(theirs) = ClientMsg::hello_protocol(&first) {
+        if theirs != PROTOCOL_VERSION {
+            reject(
+                &mut sock,
+                RejectCode::ProtocolMismatch,
+                &format!("server speaks protocol {PROTOCOL_VERSION}, client {theirs}"),
+            )
+            .await;
+            return;
+        }
+    }
     let hello = match ClientMsg::decode(&first) {
         Ok(ClientMsg::Hello {
             protocol,

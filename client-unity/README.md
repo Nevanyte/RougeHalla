@@ -7,7 +7,7 @@ Client for the Rust authoritative server (`crates/rh-server`), speaking rh-proto
 | Path | What | Status |
 |---|---|---|
 | `RoguehallaNet/` | `netstandard2.1`, C# 9 library: `Protocol/` (byte-exact wire mirror, map blob), `Net/` (SnapshotBuffer, RenderClock, LocalMotion, InputSender, ClockSync, Session, ITransport). No engine, reflection, serializers, threads or `unsafe`. | built and tested |
-| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 128 tests pass |
+| `RoguehallaNet.Tests/` | NUnit (net8.0): every golden vector round-trips byte for byte, malformed frames rejected, Net logic, Session with a fake transport, the probe against an in-process WebSocket server, Unity-copy drift check | 180 tests pass |
 | `RoguehallaNet.Probe/` | console client over `ClientWebSocket` | built; tested against a fake server and run against the real server (protocol 3) |
 | `UnityProject/` | Unity 6 project skeleton (WebGL jslib bridge, transports, `MatchClient`, views, bootstrap, editor build menu) | **NOT OPENED, NOT COMPILED, NO WEB BUILD** |
 | `sync-net.sh` | copies the library sources into `UnityProject/Assets/RoguehallaNet/` (`--check` verifies) | works |
@@ -20,6 +20,14 @@ dotnet test client-unity/RoguehallaNet.Tests
 client-unity/sync-net.sh                    # after ANY change under RoguehallaNet/Protocol or Net
 ```
 `dotnet test` fails if the Unity copy is stale. The dotnet library is the source of truth; never edit `Assets/RoguehallaNet/*.cs`.
+
+## API for gameplay code
+
+Gameplay scripts (HUD, views, abilities, input) are written against `Net/` only: `Session` (state, `Me`, `Snapshots.Sample`, `Clock`, `Motion`, `Input`, `OrderMove`), `SelfView` (the local player: one owned object the session overwrites per applied snapshot, so it never aliases a recycled snapshot and makes no garbage), `InterpActor` (a remote actor at the render time) and the typed codes `ActorStatus`, `FactionId`, `WeaponId` (`Net/Views.cs`; a value outside the named ones is a newer server's, so cast and never assume).
+
+**`Protocol/*` is internal to the netcode.** `ServerMsg`, `ClientMsg`, `WireSelf`, `WireActor`, `WireEvent`, `WireFx`, the raw byte codes and `Session.Latest` / the `SnapshotReceived` payload are the codec layer: their objects are recycled once they leave the 40-snapshot buffer and their fields change with every protocol bump. Do not import them from `Assets/Scripts`. A protocol change is absorbed in `Net/` (the copy into `SelfView` / `InterpActor`), not in every script.
+
+Unnamed `RejectCode` values are legal: a newer server may refuse for a reason this build has no name for, which ends the session as `Rejected` with `RejectCode` set to the raw value (`(ushort)code`, `Enum.IsDefined` false) and `RejectReason` holding the server's text. A Hello string (build, profile, token) over 255 bytes is never cut: the encoder throws `EncodeException` and the session fails with that reason.
 
 ## Probe
 
