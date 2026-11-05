@@ -120,7 +120,7 @@ behaviour, not power-loss durability.
 ### Observability
 
 The loopback `GET /control/health` JSON has a `results` object: `spooled`, `committed` (same count as `resultsOk` in
-`/info`), `recovered`, `refused`, `failed`, `deadLettered`, `spoolFull`, `spoolErrors`, `spoolPending`, `spoolDead`. `/info`
+`/info`), `recovered`, `refused`, `failed`, `deadLettered`, `spoolFull`, `spoolErrors`, `spoolPending`, `spoolDead`, `stuckAlerts`, `deadOverflow`. `/info`
 and its pinned key set are unchanged. Log lines say `spooled match=... (durable on this host only; not yet committed)`,
 `committed match=... (applied|already applied[, recovered from spool])` and `DEAD-LETTERED match=...: <reason>`; they carry the
 match id and profile id, never a token or ticket.
@@ -138,10 +138,20 @@ match id and profile id, never a token or ticket.
   takeover the new owner's lease row (match, fence, release state, owner, expiry) is byte-identical after recovery.
 - **Duplicates.** A record whose result was already committed returns `AlreadyApplied`, is cleared, and credits nothing
   (tests: committed-before-crash; the same record replayed twice).
-- **Bounded retry.** A transient error is retried with backoff (default 100 ms doubling to 5 s) until `--result-retry-secs`
-  (default 900) passes, then the record is dead-lettered as out of time (`failed`, `deadLettered`). Dead
-  letters are never retried by the server; an operator can move one back into the spool directory before a start, and it
-  is replayed through the same fenced path (it is refused again if a newer owner exists).
+- **Retry without a deadline.** A transient error (connection, pool, timeout, deadlock, shutdown: anything the database
+  may cure) is retried with backoff (default 100 ms doubling to 5 s, then every 5 s) **for as long as it takes**. It is never
+  dead-lettered for time: a database outage of any length would otherwise free the seat, let the lease expire, let a new
+  owner take the profile, and turn the later replay into `StaleFence` (a lost result). The record stays pending and the
+  profile gate stays held; this costs nothing during an outage because admission needs the same database. `--result-retry-secs`
+  (default 900) is only an **alert threshold**: a result still uncommitted after it is logged `STUCK match=... profile_id=...`
+  and counted (`stuckAlerts` in `/control/health`), again every interval, while it keeps retrying. (Before this fix the flag
+  was a deadline that dead-lettered; the old default of 15 minutes was the loss window.)
+- **Definitive refusals only are dead-lettered.** `StaleFence`, `NoLease`, and a *permanent* store error (the database rejects
+  the data itself: SQLSTATE class 22 data exception, class 23 constraint violation except `23505` unique violation, which a
+  retry resolves to `AlreadyApplied`, class 42, or an invalid-input/decode error; see `rh_persist::Error::is_permanent`,
+  `RecordError::Permanent`) move to `<dir>/dead/` with a `.reason`. Dead letters are never retried by the server; an operator
+  can move one back into the spool directory before a start, and it is replayed through the same fenced path (it is refused
+  again if a newer owner exists).
 - **Corrupt records.** A truncated, bit-flipped, empty, wrong-version or misnamed file is dead-lettered at startup with its
   parse reason, never deleted and never retried. Half-written temporaries are deleted at open (they were never
   acknowledged).
@@ -153,11 +163,16 @@ match id and profile id, never a token or ticket.
   `ProfileInUse` instead of racing the replay. This cannot stop a different host admitting the profile after the lease TTL:
   that host's new fence is then exactly why the old record becomes a dead letter. A result must therefore commit within
   the lease TTL after its process dies; recovery on restart is first-come against the next admission, by design.
-- **Live path.** With a spool the live write is the same loop as recovery (spool, then retry until committed, refused or
-  the deadline). The lease is not released when a record is dead-lettered, so an operator replay remains possible; the lease
+- **Live path.** With a spool the live write is the same loop as recovery (spool, then retry until committed or definitively
+  refused). The lease is not released when a record is dead-lettered, so an operator replay remains possible; the lease
   then simply expires.
-- **Bound.** `--result-spool-max` (default 4096) caps pending plus dead-lettered records. When full, new results fall back
-  to the in-memory retry (counted and logged, never dropped silently, never blocking a tick).
+- **Bounds.** `--result-spool-max` (default 4096) caps *pending* records only; dead letters do not count toward it, so a
+  burst of refusals cannot shut the spool to new results. `--result-dead-max` (default 1024) bounds `dead/`. At that bound a
+  further definitive refusal is **not moved**: its record stays in place (pending, never deleted), the server stops retrying
+  it in this process, counts it (`deadOverflow`) and logs `DEAD-LETTER DIRECTORY FULL ...` on every occurrence; a restart
+  tries it again, and the operator frees space by clearing `dead/`. When the pending bound is full, new results fall back to
+  the in-memory retry (counted and logged, never dropped silently, never blocking a tick). Concurrent appends of one
+  `(match, profile)` count it once; a dead-letter for a record that was committed meanwhile is a no-op (no orphan `.reason`).
 
 ### Contract change (one, additive)
 
@@ -204,7 +219,7 @@ GV-credit epoch (`Store::gv_epoch`, shared by its clones); `record_inner` bumps 
 result writer (director, any room) invalidates the cache without calling into the API. The epoch is read BEFORE the query and
 stored with the page, so a credit that lands mid-query makes the page stale rather than the new epoch masking it. Credits made by
 OTHER hosts are not visible to this process: `--leaderboard-ttl-secs` (default 5) bounds that staleness. Months with no GV are
-not cached. `you` is computed per request, uncached. Purchases never touch the board (GV earned, not balance, is ranked).
+cached too (a bounded map: stale entries go first, then empty months). An equip also bumps the epoch, because rows show titles. `you` is computed per request, uncached. Purchases never touch the board (GV earned, not balance, is ranked).
 
 **Rate limits and addresses.** Limits live in `api/limits.rs` and are called by handlers; each is disabled by a 0, which is how an
 edge limiter takes over. They are per process (N hosts allow N times the caps). Caps key on the TCP peer address; a forwarded
@@ -212,6 +227,22 @@ header (`--client-ip-header`) is read only from a loopback or `--trusted-proxies
 comma list uses its last entry; `X-Forwarded-For` is otherwise never trusted. Wrong passcodes are throttled before comparison
 (6/min per address, 40/min total); the passcode and token hashes are compared in constant time (`ct_eq`, also now used for token
 hashes in `rh-persist`). Shop bucket (burst 6, 3/s) is per profile id and charged only after the token is proven.
+Every `/api/profile*` and `/api/leaderboard` request first spends one token from a **per-address** bucket
+(`--lookup-burst` 40, `--lookup-per-second` 20, 0 disables), before any database query; an empty bucket is 429 `rate_limited`
+with `Retry-After`. The legacy answers (403 for someone else's name, claim of a free one) are decided after it and unchanged.
+IPv6 addresses are keyed by their /64 in every per-address cap (IPv4-mapped addresses as the IPv4 they carry). A cap of 0
+records nothing. The passcode throttle reserves its failure slot and checks in one step under one lock (concurrent wrong
+guesses cannot all pass), handing the slot back for a right or absent passcode. The account API also has its own bound on
+concurrent database users (`--api-db-concurrency`, default 6 of the pool's 16, 0 = unbounded): a request waits up to 2 s for a
+slot and then gets 503 `busy`, so anonymous lookups cannot take every connection from lease and result writes. A slot is
+held around database work only, never while a request body is read.
+
+**Claim cancellation safety.** A claim's INSERT, its answer and any compensation run in a task the request timeout cannot
+cancel; the handler only waits for it, and the answer is built from the insert (`Profile::fresh`), not a read-back. If the
+handler is gone (timeout, client left) by the time the claim commits, nobody can receive the token, so the task deletes the
+fresh, history-free profile (`Store::discard_unclaimed_profile`) and returns the new-profile reservation; the caller's retry
+claims the name. The reservation is returned on every exit that leaves no claimed name (error, lost race, panic, undone
+claim). A concurrent same `Idempotency-Key` from two different profiles is a clean 409, not a primary-key 500.
 
 **CORS.** The legacy server answered `*` in development and an allowlist only when hosting. The Rust default is the safe one: no
 allow header unless `--api-cors-origins` lists origins (or `*` for development); no credentials header is ever sent.

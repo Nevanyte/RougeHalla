@@ -267,8 +267,10 @@ struct Inner {
     spool_errors: u64,
     /// Spooled results committed (or found already applied) by the startup recovery pass.
     results_recovered: u64,
-    /// Records moved to the dead-letter directory by this process (refused, unreadable at startup, out of time).
+    /// Records moved to the dead-letter directory by this process (refused, permanently rejected, unreadable at startup).
     results_dead_lettered: u64,
+    /// Alerts raised for results unresolved past `retry_deadline` (they keep retrying; nothing is dead-lettered for time).
+    results_stuck_alerts: u64,
     replays: Vec<rh_sim::replay::Replay>,
 }
 
@@ -1091,11 +1093,15 @@ impl Director {
                     profile,
                     event,
                 } => {
-                    this.inner
+                    let took = this
+                        .inner
                         .lock()
                         .expect("director")
                         .control
                         .on_seat(match_id, &profile, event);
+                    if let Some(took) = took {
+                        crate::metrics::process().note_admit_to_seat(took);
+                    }
                 }
                 RoomReport::Phase { match_id, phase } => {
                     let mut inner = this.inner.lock().expect("director");
@@ -1240,6 +1246,14 @@ impl Director {
             _ => return Err(CtlError::conflict("draining", "the server is draining")),
         }
         let mut inner = self.inner.lock().expect("director");
+        // Re-checked under the lock: `drain` flips the lifecycle first and only then reads the rooms under this same lock, so
+        // a create that still sees `ready` here has its room in place before drain looks (drain then waits for it), and a
+        // create that comes later is refused. Without this a session created during a drain could outlive `Terminated`.
+        match self.lifecycle.state_name() {
+            "ready" => {}
+            "starting" => return Err(CtlError::new(503, "not_ready", "the server is starting")),
+            _ => return Err(CtlError::conflict("draining", "the server is draining")),
+        }
         inner.control.sweep(tokio::time::Instant::now());
         match inner.control.check_create(gsid, max_players, fill)? {
             crate::control::CreateCheck::Existing {
@@ -1310,21 +1324,29 @@ impl Director {
         psid: &str,
         mode: LeaveMode,
     ) -> Result<serde_json::Value, CtlError> {
-        let (out, tx) = {
-            let mut inner = self.inner.lock().expect("director");
-            let out = inner
+        // A kick must reach the room or not happen at all: room-mailbox space is reserved BEFORE the book is touched, so a
+        // full mailbox answers 503 with the player still as it was (the bridge retries), never `left` with the room unaware.
+        let tx = if mode == LeaveMode::Kick {
+            let inner = self.inner.lock().expect("director");
+            inner
                 .control
-                .leave(gsid, psid, mode, tokio::time::Instant::now())?;
-            let tx = out
-                .kick
-                .as_ref()
-                .and_then(|(room, _)| inner.rooms.get(room).map(|r| r.tx.clone()));
-            (out, tx)
+                .room_of(gsid)
+                .and_then(|room| inner.rooms.get(&room).map(|r| r.tx.clone()))
+        } else {
+            None
         };
-        if let (Some((_, profile)), Some(tx)) = (out.kick, tx) {
-            let _ =
-                tokio::time::timeout(Duration::from_secs(2), tx.send(RoomCmd::Kick { profile }))
-                    .await;
+        let permit = match &tx {
+            Some(tx) => reserve_room_slot(tx, Duration::from_secs(2)).await?,
+            None => None,
+        };
+        let out = {
+            let mut inner = self.inner.lock().expect("director");
+            inner
+                .control
+                .leave(gsid, psid, mode, tokio::time::Instant::now())?
+        };
+        if let (Some((_, profile)), Some(permit)) = (out.kick, permit) {
+            permit.send(RoomCmd::Kick { profile });
         }
         Ok(serde_json::json!({"v": crate::control::API_VERSION, "state": out.state}))
     }
@@ -1335,18 +1357,28 @@ impl Director {
         gsid: &str,
         mode: EndMode,
     ) -> Result<serde_json::Value, CtlError> {
-        let (out, tx) = {
-            let mut inner = self.inner.lock().expect("director");
-            let out = inner.control.end(gsid, mode, tokio::time::Instant::now())?;
-            let tx = inner.rooms.get(&out.room).map(|r| r.tx.clone());
-            (out, tx)
+        // Same rule as `control_leave`: the room's mailbox slot is reserved before the book changes, so a room that cannot
+        // be told is a 503 and the session is not marked ending.
+        let tx = {
+            let inner = self.inner.lock().expect("director");
+            inner
+                .control
+                .room_of(gsid)
+                .and_then(|room| inner.rooms.get(&room).map(|r| r.tx.clone()))
         };
-        if let (Some(m), Some(tx)) = (out.tell_room, tx) {
-            let cmd = match m {
+        let permit = match &tx {
+            Some(tx) => reserve_room_slot(tx, Duration::from_secs(2)).await?,
+            None => None,
+        };
+        let out = {
+            let mut inner = self.inner.lock().expect("director");
+            inner.control.end(gsid, mode, tokio::time::Instant::now())?
+        };
+        if let (Some(m), Some(permit)) = (out.tell_room, permit) {
+            permit.send(match m {
                 EndMode::Graceful => RoomCmd::Drain,
                 EndMode::Abort => RoomCmd::Abort,
-            };
-            let _ = tokio::time::timeout(Duration::from_secs(2), tx.send(cmd)).await;
+            });
         }
         if out.tell_room == Some(EndMode::Abort) {
             let until = tokio::time::Instant::now() + Duration::from_secs(2);
@@ -1401,7 +1433,7 @@ impl Director {
                 SpoolEnd::Committed { applied: true } => true,
                 // A duplicate: the ordinary fenced give-back releases the lease (a no-op if it moved on).
                 SpoolEnd::Committed { applied: false } => false,
-                // Refused for good, or out of time. The lease is deliberately NOT released: a release would make a
+                // Refused for good. The lease is deliberately NOT released: a release would make a
                 // later operator replay of the dead letter impossible, and an unreleased lease only expires.
                 SpoolEnd::DeadLettered => true,
             };
@@ -1441,7 +1473,7 @@ impl Director {
                     d.inner.lock().expect("director").results_ok += 1;
                     break;
                 }
-                Err(RecordError::Refused(e)) => {
+                Err(RecordError::Refused(e) | RecordError::Permanent(e)) => {
                     eprintln!("[results] {profile}: refused by the store, not retried: {e}");
                     d.inner.lock().expect("director").results_refused += 1;
                     lease_gone = true;
@@ -1472,6 +1504,8 @@ impl Director {
             "refused": inner.results_refused,
             "failed": inner.results_failed,
             "deadLettered": inner.results_dead_lettered,
+            "stuckAlerts": inner.results_stuck_alerts,
+            "deadOverflow": self.spool_dead_overflow(),
             "spoolFull": inner.spool_full,
             "spoolErrors": inner.spool_errors,
             "spoolPending": self.spool_pending(),
@@ -1486,6 +1520,16 @@ impl Director {
     #[cfg(feature = "postgres")]
     fn spool_dead(&self) -> usize {
         self.spool.as_ref().map_or(0, |s| s.stats().dead)
+    }
+    #[cfg(feature = "postgres")]
+    fn spool_dead_overflow(&self) -> u64 {
+        self.spool
+            .as_ref()
+            .map_or(0, |s| s.stats().dead_overflow_total)
+    }
+    #[cfg(not(feature = "postgres"))]
+    fn spool_dead_overflow(&self) -> u64 {
+        0
     }
     #[cfg(not(feature = "postgres"))]
     fn spool_pending(&self) -> usize {
@@ -1557,9 +1601,12 @@ impl Director {
         }
     }
 
-    /// Replays one spooled record through the fenced store path until it commits, is refused for good, or `retry_deadline`
-    /// passes. The record is removed only after the commit (or a definitive `AlreadyApplied`); refused or out-of-time
-    /// records are dead-lettered. Never acquires, renews or releases a lease.
+    /// Replays one spooled record through the fenced store path until it commits or is refused for good. A TRANSIENT
+    /// error is retried forever at `backoff_max` (a database outage of any length must not lose a result; the profile
+    /// gate stays held, which costs nothing because admission needs the same database). `retry_deadline` is only an
+    /// alert threshold: past it the record is logged and counted as stuck, repeatedly. The record is removed only after
+    /// the commit (or a definitive `AlreadyApplied`); a definitive refusal ([`RecordError::Refused`] or
+    /// [`RecordError::Permanent`]) is dead-lettered. Never acquires, renews or releases a lease.
     #[cfg(feature = "postgres")]
     async fn drive_spooled(
         &self,
@@ -1568,7 +1615,9 @@ impl Director {
         rec: &crate::spool::SpoolRecord,
         recovered: bool,
     ) -> SpoolEnd {
-        let deadline = tokio::time::Instant::now() + spool.cfg.retry_deadline;
+        let started = tokio::time::Instant::now();
+        let alert_every = spool.cfg.retry_deadline.max(Duration::from_millis(1));
+        let mut next_alert = started + alert_every;
         let mut delay = spool.cfg.backoff_initial;
         loop {
             let attempt = {
@@ -1579,10 +1628,13 @@ impl Director {
                 let (s, n) = (spool.clone(), name.to_owned());
                 async move {
                     let r = reason.clone();
-                    if let Ok(Err(e)) =
-                        tokio::task::spawn_blocking(move || s.dead_letter(&n, &r)).await
-                    {
-                        eprintln!("[results] could not dead-letter record: {e}");
+                    match tokio::task::spawn_blocking(move || s.dead_letter(&n, &r)).await {
+                        Ok(Ok(out)) => out,
+                        Ok(Err(e)) => {
+                            eprintln!("[results] could not dead-letter record: {e}");
+                            crate::spool::DeadOutcome::Overflow
+                        }
+                        Err(_) => crate::spool::DeadOutcome::Overflow,
                     }
                 }
             };
@@ -1619,32 +1671,49 @@ impl Director {
                         applied: done == Recorded::Applied,
                     };
                 }
-                Err(RecordError::Refused(e)) => {
-                    dead(format!("refused by the store: {e}")).await;
+                Err(e @ (RecordError::Refused(_) | RecordError::Permanent(_))) => {
+                    let permanent = matches!(e, RecordError::Permanent(_));
+                    let why = match &e {
+                        RecordError::Refused(w) => format!("refused by the store: {w}"),
+                        RecordError::Permanent(w) => format!("permanent store error: {w}"),
+                        RecordError::Transient(_) => unreachable!(),
+                    };
+                    let out = dead(why.clone()).await;
                     {
                         let mut inner = self.inner.lock().expect("director");
-                        inner.results_refused += 1;
-                        inner.results_dead_lettered += 1;
+                        if permanent {
+                            inner.results_failed += 1;
+                        } else {
+                            inner.results_refused += 1;
+                        }
+                        if out == crate::spool::DeadOutcome::Moved {
+                            inner.results_dead_lettered += 1;
+                        }
                     }
                     eprintln!(
-                        "[results] DEAD-LETTERED match={} profile_id={}: refused by the store ({e}); never retried",
-                        rec.match_id, rec.profile_id
+                        "[results] DEAD-LETTERED match={} profile_id={}: {why}; never retried{}",
+                        rec.match_id,
+                        rec.profile_id,
+                        if out == crate::spool::DeadOutcome::Overflow {
+                            " (dead-letter directory full or unwritable: the record stays pending)"
+                        } else {
+                            ""
+                        }
                     );
                     return SpoolEnd::DeadLettered;
                 }
                 Err(RecordError::Transient(e)) => {
-                    if tokio::time::Instant::now() + delay >= deadline {
-                        dead(format!("retry deadline exceeded; last error: {e}")).await;
-                        {
-                            let mut inner = self.inner.lock().expect("director");
-                            inner.results_failed += 1;
-                            inner.results_dead_lettered += 1;
-                        }
+                    let now = tokio::time::Instant::now();
+                    if now >= next_alert {
+                        next_alert = now + alert_every;
+                        self.inner.lock().expect("director").results_stuck_alerts += 1;
                         eprintln!(
-                            "[results] DEAD-LETTERED match={} profile_id={}: retry deadline exceeded ({e})",
-                            rec.match_id, rec.profile_id
+                            "[results] STUCK match={} profile_id={}: still not committed after {}s ({e}); keeps retrying every {}s at most, never dead-lettered for time",
+                            rec.match_id,
+                            rec.profile_id,
+                            started.elapsed().as_secs(),
+                            spool.cfg.backoff_max.as_secs().max(1)
                         );
-                        return SpoolEnd::DeadLettered;
                     }
                     tokio::time::sleep(delay).await;
                     delay = (delay * 2).min(spool.cfg.backoff_max);
@@ -1742,6 +1811,24 @@ impl Director {
 
     pub fn room_count(&self) -> usize {
         self.inner.lock().expect("director").rooms.len()
+    }
+}
+
+/// Reserves one slot in a room's command mailbox (bounded wait). `Ok(None)`: the room is already gone, so there is nobody to
+/// tell and the book's own close handling covers the seats. `Err`: the mailbox stayed full, 503 (retry-safe: nothing has
+/// changed yet).
+pub(crate) async fn reserve_room_slot(
+    tx: &tokio::sync::mpsc::Sender<RoomCmd>,
+    wait: Duration,
+) -> Result<Option<tokio::sync::mpsc::Permit<'_, RoomCmd>>, CtlError> {
+    match tokio::time::timeout(wait, tx.reserve()).await {
+        Ok(Ok(p)) => Ok(Some(p)),
+        Ok(Err(_closed)) => Ok(None),
+        Err(_) => Err(CtlError::new(
+            503,
+            "room_busy",
+            "the room is not accepting commands right now; retry shortly",
+        )),
     }
 }
 
@@ -2802,5 +2889,30 @@ mod tests {
         assert_eq!(open_lobby(&inner.rooms), Some(m));
         inner.rooms.get_mut(&m).unwrap().reserved += 1;
         assert_eq!(open_lobby(&inner.rooms), None, "never over-offered");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_full_room_mailbox_is_a_503_and_a_closed_one_means_nobody_to_tell() {
+        let (tx, rx) = mpsc::channel::<RoomCmd>(1);
+        tx.send(RoomCmd::Drain).await.unwrap();
+        let e = reserve_room_slot(&tx, Duration::from_secs(2))
+            .await
+            .map(|_| ())
+            .unwrap_err();
+        assert_eq!((e.status, e.code), (503, "room_busy"));
+        // Space frees: the reservation succeeds and its send cannot fail.
+        let mut rx = rx;
+        rx.recv().await.unwrap();
+        let permit = reserve_room_slot(&tx, Duration::from_secs(2))
+            .await
+            .unwrap()
+            .expect("slot");
+        permit.send(RoomCmd::Drain);
+        assert!(matches!(rx.recv().await, Some(RoomCmd::Drain)));
+        drop(rx);
+        assert!(reserve_room_slot(&tx, Duration::from_secs(2))
+            .await
+            .unwrap()
+            .is_none());
     }
 }

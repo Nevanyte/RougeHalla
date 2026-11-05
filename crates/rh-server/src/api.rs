@@ -66,6 +66,15 @@ pub struct ApiConfig {
     /// One profile's shop/equip bucket (legacy burst 6, 3 a second; 0 = no limit).
     pub shop_burst: f64,
     pub shop_per_second: f64,
+    /// Per client address (IPv6: per /64), over every `/api/profile*` and `/api/leaderboard` request, checked BEFORE any
+    /// database query: a burst, then a steady rate a second (either 0 = no limit, for an edge limiter to own).
+    pub lookup_burst: f64,
+    pub lookup_per_second: f64,
+    /// How many account-API requests may use the database at once (0 = unbounded). The account API shares the pool with
+    /// lease and result writes; this keeps a flood of anonymous lookups from taking every connection.
+    pub db_concurrency: usize,
+    /// How long a request waits for one of those slots before it is answered 503.
+    pub db_queue_wait: Duration,
     pub cors: CorsPolicy,
     pub client_ip_header: Option<HeaderName>,
     pub trusted_proxies: Vec<IpAddr>,
@@ -86,6 +95,10 @@ impl Default for ApiConfig {
             passcode_fails_per_minute_all: 40,
             shop_burst: 6.0,
             shop_per_second: 3.0,
+            lookup_burst: 40.0,
+            lookup_per_second: 20.0,
+            db_concurrency: 6,
+            db_queue_wait: Duration::from_secs(2),
             cors: CorsPolicy::Origins(vec![]),
             client_ip_header: None,
             trusted_proxies: vec![],
@@ -139,6 +152,10 @@ pub(crate) struct Shared {
     pub new_profiles: AddressWindowLimiter,
     pub passcode: PasscodeGate,
     pub shop: KeyedBuckets<i64>,
+    /// Per-address (/64) bucket for every profile and leaderboard request, spent before any database query.
+    pub lookups: KeyedBuckets<IpAddr>,
+    /// The account API's own bound on concurrent database users (`None` = unbounded).
+    pub db_slots: Option<Arc<tokio::sync::Semaphore>>,
     #[cfg(feature = "postgres")]
     pub store: Option<Arc<rh_persist::Store>>,
     #[cfg(feature = "postgres")]
@@ -173,6 +190,9 @@ pub fn router(director: Arc<Director>, api: AccountApi) -> Router {
             cfg.passcode_fails_per_minute_all,
         ),
         shop: KeyedBuckets::new(cfg.shop_burst, cfg.shop_per_second),
+        lookups: KeyedBuckets::new(cfg.lookup_burst, cfg.lookup_per_second),
+        db_slots: (cfg.db_concurrency > 0)
+            .then(|| Arc::new(tokio::sync::Semaphore::new(cfg.db_concurrency))),
         #[cfg(feature = "postgres")]
         store: api.store,
         #[cfg(feature = "postgres")]
@@ -189,7 +209,7 @@ pub fn router(director: Arc<Director>, api: AccountApi) -> Router {
         .route("/api/health", get(health));
     #[cfg(feature = "postgres")]
     let router = if st.a.store.is_some() {
-        router.merge(profile::routes())
+        router.merge(profile::routes().route_layer(from_fn_with_state(st.clone(), profile::guard)))
     } else {
         router.merge(unavailable_routes())
     };

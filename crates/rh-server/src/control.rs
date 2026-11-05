@@ -120,6 +120,8 @@ struct PlayerRec {
     /// `Admitted` and being consumed by the admission with this generation: the Hello that took it is acquiring its lease or
     /// waiting for the room's reply. Restored to pending if that admission fails, cleared when the room seats it.
     seating: Option<u64>,
+    /// When the admission that holds `seating` consumed the admit (for the admit-to-seat metric).
+    consumed_at: Option<Instant>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -462,6 +464,7 @@ impl ControlBook {
             expires_at: now + ttl,
             grace_until: None,
             seating: None,
+            consumed_at: None,
         });
         s.bump();
         Ok(AdmitOut {
@@ -500,6 +503,7 @@ impl ControlBook {
                     && p.callsign.eq_ignore_ascii_case(callsign)
             }) {
                 p.seating = Some(gen);
+                p.consumed_at = Some(now);
                 return Some(Taken {
                     room: s.room,
                     gsid: s.gsid.clone(),
@@ -518,17 +522,17 @@ impl ControlBook {
             for p in s.players.iter_mut() {
                 if p.status == PStatus::Admitted && p.seating == Some(gen) {
                     p.seating = None;
+                    p.consumed_at = None;
                 }
             }
         }
     }
 
-    /// The room's report about one seat.
-    pub fn on_seat(&mut self, room: MatchId, profile: &str, event: SeatEvent) {
+    /// The room's report about one seat. Returns how long the admit had been consumed when its seat was first taken
+    /// (`Admitted` to `Seated`; `None` for every other event, including a resume).
+    pub fn on_seat(&mut self, room: MatchId, profile: &str, event: SeatEvent) -> Option<Duration> {
         let grace = self.grace;
-        let Some(s) = self.find_room_mut(room) else {
-            return;
-        };
+        let s = self.find_room_mut(room)?;
         let Some(p) = s.players.iter_mut().find(|p| {
             p.callsign.eq_ignore_ascii_case(profile)
                 && matches!(
@@ -536,12 +540,19 @@ impl ControlBook {
                     PStatus::Admitted | PStatus::Seated | PStatus::Away
                 )
         }) else {
-            return; // a seat that never had an admit (a room joined outside the control API)
+            return None; // a seat that never had an admit (a room joined outside the control API)
         };
+        let mut took = None;
         let changed = match (p.status, event) {
             (PStatus::Admitted, SeatEvent::Seated) | (PStatus::Away, SeatEvent::Seated) => {
+                if p.status == PStatus::Admitted {
+                    took = p
+                        .consumed_at
+                        .map(|t| Instant::now().saturating_duration_since(t));
+                }
                 p.status = PStatus::Seated;
                 p.seating = None;
+                p.consumed_at = None;
                 p.grace_until = None;
                 true
             }
@@ -567,6 +578,7 @@ impl ControlBook {
         if changed {
             s.bump();
         }
+        took
     }
 
     pub fn on_phase(&mut self, room: MatchId, phase: Phase) {
@@ -674,6 +686,15 @@ impl ControlBook {
                 let p = &mut s.players[i];
                 let mut kick = None;
                 match p.status {
+                    // The player's Hello consumed this admit and is being seated right now. Expiring it here would let the
+                    // seat land afterwards with the book saying `expired`: a player seated invisibly. Refuse; the bridge
+                    // retries (the next look says `seated`, which a kick handles).
+                    PStatus::Admitted if p.seating.is_some() => {
+                        return Err(CtlError::conflict(
+                            "seating_in_progress",
+                            "that player is being seated right now; retry the kick shortly",
+                        ));
+                    }
                     PStatus::Admitted => {
                         p.status = PStatus::Expired;
                         p.seating = None;
@@ -724,6 +745,14 @@ impl ControlBook {
             room: s.room,
             tell_room: Some(mode),
         })
+    }
+
+    /// The room of a game session, if the book has one.
+    pub fn room_of(&self, gsid: &str) -> Option<MatchId> {
+        self.sessions
+            .iter()
+            .find(|s| s.gsid == gsid)
+            .map(|s| s.room)
     }
 
     pub fn phase_of(&self, gsid: &str) -> Option<CPhase> {
@@ -904,8 +933,9 @@ async fn read_object(body: Body, optional: bool) -> Result<Value, CtlError> {
 
 fn typed<T: serde::de::DeserializeOwned>(v: Value) -> Result<T, CtlError> {
     serde_json::from_value(v).map_err(|e| {
-        let mut m = e.to_string();
-        m.truncate(160);
+        // By characters: `String::truncate(160)` panics when byte 160 falls inside a multibyte character, and the message
+        // can echo attacker-chosen field names.
+        let m: String = e.to_string().chars().take(160).collect();
         CtlError::bad_request(m)
     })
 }
@@ -923,6 +953,9 @@ async fn health(State(c): State<Ctl>) -> Response {
             "v": API_VERSION,
             "state": d.lifecycle.state_name(),
             "rooms": d.room_count(),
+            // The build this process runs (`RH_BUILD`), so a rolling deploy can verify which build each group has. Only here,
+            // not in `/info`, whose key set is pinned.
+            "build": rh_sim::replay::BUILD_ID,
             "metrics": crate::metrics::process().json(),
             "results": d.result_metrics(),
             "control": d.control_info(),
@@ -1243,5 +1276,86 @@ mod tests {
         assert!(!game_session_id_ok(&"g".repeat(1025)));
         assert!(!game_session_id_ok("a\nb"));
         assert!(!player_session_id_ok(&"p".repeat(129)));
+    }
+
+    #[test]
+    fn a_long_error_message_with_multibyte_characters_is_truncated_by_chars_not_bytes() {
+        #[derive(serde::Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct Req {
+            #[allow(dead_code)]
+            v: u64,
+        }
+        // The message echoes the unknown field: 15 bytes of prefix, then 2-byte characters, so byte 160 is mid-character.
+        let name = "\u{e9}".repeat(200);
+        let v = serde_json::json!({"v": 1, name: 1});
+        let e = typed::<Req>(v).unwrap_err();
+        assert_eq!(e.status, 400);
+        assert!(e.message.chars().count() <= 160);
+        assert!(e.message.starts_with("unknown field"));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_kick_never_expires_an_admit_whose_hello_is_being_seated() {
+        let mut b = book();
+        b.insert("g", [1; 16], 4, 0);
+        let t0 = Instant::now();
+        b.admit("g", "p1", "alice", Duration::from_secs(30), t0, false)
+            .unwrap();
+        let taken = b.take_admit("alice", t0, 7).expect("consumed by a Hello");
+        assert_eq!(taken.psid, "p1");
+        let e = b.leave("g", "p1", LeaveMode::Kick, t0).unwrap_err();
+        assert_eq!((e.status, e.code), (409, "seating_in_progress"));
+        // Nothing changed: still admitted to the bridge, and the seat can still land.
+        b.on_seat([1; 16], "alice", SeatEvent::Seated);
+        let out = b.leave("g", "p1", LeaveMode::Kick, t0).unwrap();
+        assert_eq!(out.state, "left");
+        // A failed admission puts the admit back; then a kick expires it as before.
+        b.admit("g", "p2", "bob", Duration::from_secs(30), t0, false)
+            .unwrap();
+        b.take_admit("bob", t0, 8).unwrap();
+        b.restore_gen(8);
+        assert_eq!(
+            b.leave("g", "p2", LeaveMode::Kick, t0).unwrap().state,
+            "expired"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn on_seat_reports_admit_to_seat_time_for_the_first_seat_only() {
+        let mut b = book();
+        b.insert("g", [1; 16], 4, 0);
+        let t0 = Instant::now();
+        b.admit("g", "p1", "alice", Duration::from_secs(30), t0, false)
+            .unwrap();
+        tokio::time::advance(Duration::from_secs(5)).await; // time spent before the Hello: not counted
+        b.take_admit("alice", Instant::now(), 1).unwrap();
+        tokio::time::advance(Duration::from_millis(250)).await;
+        assert_eq!(
+            b.on_seat([1; 16], "alice", SeatEvent::Seated),
+            Some(Duration::from_millis(250))
+        );
+        // A later resume (Away, then Seated again) is not an admit-to-seat time.
+        b.on_seat([1; 16], "alice", SeatEvent::Away { at: Instant::now() });
+        assert_eq!(b.on_seat([1; 16], "alice", SeatEvent::Seated), None);
+        // An admission that fails and is retried measures from the retry's consumption.
+        b.admit(
+            "g",
+            "p2",
+            "bob",
+            Duration::from_secs(30),
+            Instant::now(),
+            false,
+        )
+        .unwrap();
+        b.take_admit("bob", Instant::now(), 2).unwrap();
+        tokio::time::advance(Duration::from_secs(3)).await;
+        b.restore_gen(2);
+        b.take_admit("bob", Instant::now(), 3).unwrap();
+        tokio::time::advance(Duration::from_millis(40)).await;
+        assert_eq!(
+            b.on_seat([1; 16], "bob", SeatEvent::Seated),
+            Some(Duration::from_millis(40))
+        );
     }
 }

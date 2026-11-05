@@ -879,10 +879,10 @@ impl Room {
                 .dropped_steps
                 .fetch_add(dropped, Ordering::Relaxed);
         }
-        self.metrics.lateness_us.record(
-            now.saturating_duration_since(slot)
-                .as_micros()
-                .min(u128::from(u32::MAX)) as u32,
+        self.metrics.note_wake(
+            now.saturating_duration_since(slot),
+            steps,
+            self.pacer.period(),
         );
         self.wake_events.clear();
         for _ in 0..steps {

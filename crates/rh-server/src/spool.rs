@@ -30,7 +30,7 @@
 //!
 //! ```text
 //! <dir>/<match-uuid>-<profile-id>.rec     pending (the name is the idempotency key)
-//! <dir>/dead/<name>.rec  + <name>.reason  permanently refused / unreadable / out of time: operator-owned, never retried
+//! <dir>/dead/<name>.rec  + <name>.reason  definitively refused or unreadable: operator-owned, never retried
 //! <dir>/.<name>.<pid>.<n>.tmp             half-written: removed at open (never acknowledged)
 //! ```
 //!
@@ -41,6 +41,7 @@
 //! exists.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -205,9 +206,16 @@ pub fn decode(bytes: &[u8], expect_name: Option<&str>) -> Result<SpoolRecord, St
 
 #[derive(Clone, Copy, Debug)]
 pub struct SpoolConfig {
-    /// Pending plus dead-lettered records the directory may hold. Appends beyond it fail with [`SpoolError::Full`].
+    /// Pending records the directory may hold (dead letters do not count). Appends beyond it fail with
+    /// [`SpoolError::Full`].
     pub max_records: usize,
-    /// How long one result is retried in this process (live or recovered) before it is dead-lettered as out of time.
+    /// Dead letters kept in `dead/`. At the bound a further definitive refusal is NOT moved: its record stays where it is
+    /// (pending, never deleted), the server stops retrying it in this process, counts it (`dead_overflow_total`) and logs
+    /// loudly. A restart tries it again; the operator frees space by clearing `dead/`.
+    pub max_dead: usize,
+    /// An ALERT threshold, not a deadline: a result still unresolved after this long (live or recovered) is logged and
+    /// counted as stuck, repeatedly every interval. A transient error never dead-letters a result, however long the
+    /// database is away; only a definitive refusal does.
     pub retry_deadline: Duration,
     pub backoff_initial: Duration,
     pub backoff_max: Duration,
@@ -217,6 +225,7 @@ impl Default for SpoolConfig {
     fn default() -> Self {
         Self {
             max_records: 4096,
+            max_dead: 1024,
             retry_deadline: Duration::from_secs(15 * 60),
             backoff_initial: Duration::from_millis(100),
             backoff_max: Duration::from_secs(5),
@@ -257,14 +266,27 @@ pub struct SpoolStats {
     pub dead_total: u64,
     pub full_total: u64,
     pub io_errors_total: u64,
+    /// Definitive refusals that could not be moved to `dead/` because it was at `max_dead`.
+    pub dead_overflow_total: u64,
+}
+
+/// What [`ResultSpool::dead_letter`] did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeadOutcome {
+    Moved,
+    /// `dead/` is at `max_dead`: the record was left in place (still pending, never deleted).
+    Overflow,
+    /// The record was already gone (committed or moved by someone else): nothing to do.
+    AlreadyGone,
 }
 
 pub struct ResultSpool {
     dir: PathBuf,
     dead: PathBuf,
     pub cfg: SpoolConfig,
-    /// Reserved slots (pending + dead), guarded so concurrent appends cannot overshoot `max_records`.
-    slots: Mutex<()>,
+    /// Names being appended right now, guarded together with the slot counts so concurrent appends of one name or of
+    /// many cannot double count or overshoot the bounds.
+    slots: Mutex<HashSet<String>>,
     pending: AtomicUsize,
     dead_count: AtomicUsize,
     spooled_total: AtomicU64,
@@ -272,6 +294,7 @@ pub struct ResultSpool {
     dead_total: AtomicU64,
     full_total: AtomicU64,
     io_errors_total: AtomicU64,
+    dead_overflow_total: AtomicU64,
     tmp_seq: AtomicU64,
 }
 
@@ -310,7 +333,7 @@ impl ResultSpool {
             dir,
             dead,
             cfg,
-            slots: Mutex::new(()),
+            slots: Mutex::new(HashSet::new()),
             pending: AtomicUsize::new(pending),
             dead_count: AtomicUsize::new(dead_n),
             spooled_total: AtomicU64::new(0),
@@ -318,6 +341,7 @@ impl ResultSpool {
             dead_total: AtomicU64::new(0),
             full_total: AtomicU64::new(0),
             io_errors_total: AtomicU64::new(0),
+            dead_overflow_total: AtomicU64::new(0),
             tmp_seq: AtomicU64::new(0),
         }))
     }
@@ -338,6 +362,7 @@ impl ResultSpool {
             dead_total: self.dead_total.load(Ordering::SeqCst),
             full_total: self.full_total.load(Ordering::SeqCst),
             io_errors_total: self.io_errors_total.load(Ordering::SeqCst),
+            dead_overflow_total: self.dead_overflow_total.load(Ordering::SeqCst),
         }
     }
 
@@ -351,16 +376,17 @@ impl ResultSpool {
         }
         let final_path = self.dir.join(&name);
         {
-            let _g = self.slots.lock().expect("spool slots");
-            if final_path.exists() {
+            let mut inflight = self.slots.lock().expect("spool slots");
+            // Another append of the same (match, profile) is mid-write: it owns the slot and the original is kept.
+            if inflight.contains(&name) || final_path.exists() {
                 return Ok(Appended::AlreadyPresent);
             }
-            let used = self.pending.load(Ordering::SeqCst) + self.dead_count.load(Ordering::SeqCst);
-            if used >= self.cfg.max_records {
+            if self.pending.load(Ordering::SeqCst) >= self.cfg.max_records {
                 self.full_total.fetch_add(1, Ordering::SeqCst);
                 return Err(SpoolError::Full);
             }
             self.pending.fetch_add(1, Ordering::SeqCst);
+            inflight.insert(name.clone());
         }
         let write = || -> io::Result<()> {
             let tmp = self.dir.join(format!(
@@ -378,7 +404,9 @@ impl ResultSpool {
             }
             sync_dir(&self.dir)
         };
-        match write() {
+        let res = write();
+        self.slots.lock().expect("spool slots").remove(&name);
+        match res {
             Ok(()) => {
                 self.spooled_total.fetch_add(1, Ordering::SeqCst);
                 Ok(Appended::New)
@@ -408,24 +436,61 @@ impl ResultSpool {
     }
 
     /// Moves a pending record to `dead/` with a reason, for an operator. The reason must not contain secrets (callers pass
-    /// store outcomes and parse errors only). Blocking.
-    pub fn dead_letter(&self, name: &str, reason: &str) -> io::Result<()> {
+    /// store outcomes and parse errors only). A record that is already gone is success (nothing left to move, and the
+    /// reason file is cleaned up). At `max_dead` the record is left in place and [`DeadOutcome::Overflow`] is returned:
+    /// nothing pending is ever deleted. Blocking.
+    pub fn dead_letter(&self, name: &str, reason: &str) -> io::Result<DeadOutcome> {
         let from = self.dir.join(name);
+        let to = self.dead.join(name);
+        let existed_dead = to.exists();
+        if !existed_dead {
+            // Reserve a dead slot under the lock so concurrent dead-letters cannot overshoot the bound.
+            let _g = self.slots.lock().expect("spool slots");
+            if self.dead_count.load(Ordering::SeqCst) >= self.cfg.max_dead {
+                self.dead_overflow_total.fetch_add(1, Ordering::SeqCst);
+                eprintln!(
+                    "[spool] DEAD-LETTER DIRECTORY FULL ({} records): {name} stays pending and will not be retried \
+                     until restart; reason: {reason}. An operator must clear {}",
+                    self.cfg.max_dead,
+                    self.dead.display()
+                );
+                return Ok(DeadOutcome::Overflow);
+            }
+            self.dead_count.fetch_add(1, Ordering::SeqCst);
+        }
+        let release = |this: &Self| {
+            if !existed_dead {
+                this.dead_count.fetch_sub(1, Ordering::SeqCst);
+            }
+        };
         let reason_file = self.dead.join(format!("{name}.reason"));
-        let mut f = File::create(&reason_file)?;
-        writeln!(f, "{reason}")?;
-        f.sync_all()?;
-        drop(f);
-        let existed_dead = self.dead.join(name).exists();
-        fs::rename(&from, self.dead.join(name))?;
+        let wrote = (|| -> io::Result<()> {
+            let mut f = File::create(&reason_file)?;
+            writeln!(f, "{reason}")?;
+            f.sync_all()
+        })();
+        if let Err(e) = wrote {
+            release(self);
+            return Err(e);
+        }
+        match fs::rename(&from, &to) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                // Committed and removed (or moved) while we were here: success, and no orphan reason file.
+                let _ = fs::remove_file(&reason_file);
+                release(self);
+                return Ok(DeadOutcome::AlreadyGone);
+            }
+            Err(e) => {
+                release(self);
+                return Err(e);
+            }
+        }
         sync_dir(&self.dead)?;
         sync_dir(&self.dir)?;
         self.pending.fetch_sub(1, Ordering::SeqCst);
-        if !existed_dead {
-            self.dead_count.fetch_add(1, Ordering::SeqCst);
-        }
         self.dead_total.fetch_add(1, Ordering::SeqCst);
-        Ok(())
+        Ok(DeadOutcome::Moved)
     }
 
     /// Reads every pending record. A file that is not a usable record is dead-lettered here (with the parse reason).
@@ -575,5 +640,94 @@ mod tests {
         .unwrap();
         assert!(reason.starts_with("corrupt:"), "{reason}");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn dead_letters_do_not_consume_the_pending_bound_and_have_their_own() {
+        let dir = temp("deadbound");
+        let spool = ResultSpool::open(
+            &dir,
+            SpoolConfig {
+                max_records: 2,
+                max_dead: 1,
+                ..SpoolConfig::default()
+            },
+        )
+        .unwrap();
+        spool.append(&rec(1)).unwrap();
+        spool.append(&rec(2)).unwrap();
+        assert!(matches!(spool.append(&rec(3)), Err(SpoolError::Full)));
+        // One dead letter frees a pending slot and does not take one.
+        assert_eq!(
+            spool.dead_letter(&rec(1).file_name(), "refused").unwrap(),
+            DeadOutcome::Moved
+        );
+        assert_eq!((spool.stats().pending, spool.stats().dead), (1, 1));
+        assert_eq!(
+            spool.append(&rec(3)).unwrap(),
+            Appended::New,
+            "dead letters are not counted as pending"
+        );
+        // The dead bound (1) is reached: the next refusal is kept pending, counted, never deleted.
+        assert_eq!(
+            spool.dead_letter(&rec(2).file_name(), "refused").unwrap(),
+            DeadOutcome::Overflow
+        );
+        assert!(
+            dir.join(rec(2).file_name()).exists(),
+            "pending record is never deleted"
+        );
+        assert!(!spool.dead_dir().join(rec(2).file_name()).exists());
+        assert_eq!(spool.stats().dead, 1);
+        assert_eq!(spool.stats().dead_overflow_total, 1);
+        assert_eq!(spool.stats().pending, 2);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_dead_letter_for_a_record_that_is_already_gone_is_success_and_leaves_no_reason_file() {
+        let dir = temp("gone");
+        let spool = ResultSpool::open(&dir, SpoolConfig::default()).unwrap();
+        let name = rec(1).file_name();
+        assert_eq!(
+            spool.dead_letter(&name, "raced with the commit").unwrap(),
+            DeadOutcome::AlreadyGone
+        );
+        assert!(!spool.dead_dir().join(format!("{name}.reason")).exists());
+        let st = spool.stats();
+        assert_eq!((st.pending, st.dead, st.dead_total), (0, 0, 0));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn concurrent_appends_of_one_record_count_it_once() {
+        for round in 0..30u128 {
+            let dir = temp(&format!("race{round}"));
+            let spool = ResultSpool::open(&dir, SpoolConfig::default()).unwrap();
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(8));
+            let hs: Vec<_> = (0..8)
+                .map(|_| {
+                    let (s, b) = (spool.clone(), barrier.clone());
+                    let mut r = rec(1);
+                    r.match_id = uuid::Uuid::from_u128(round + 100).to_string();
+                    std::thread::spawn(move || {
+                        b.wait();
+                        s.append(&r).unwrap()
+                    })
+                })
+                .collect();
+            let news = hs
+                .into_iter()
+                .map(|h| h.join().unwrap())
+                .filter(|a| *a == Appended::New)
+                .count();
+            assert_eq!(news, 1, "round {round}");
+            assert_eq!(
+                spool.stats().pending,
+                1,
+                "pending must not double count (round {round})"
+            );
+            let _ = fs::remove_dir_all(&dir);
+        }
     }
 }

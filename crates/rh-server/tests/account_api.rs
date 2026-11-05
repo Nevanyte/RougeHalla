@@ -37,6 +37,10 @@ fn open_cfg() -> ApiConfig {
         new_profiles_per_ip_per_hour: 0,
         shop_burst: 0.0,
         shop_per_second: 0.0,
+        // The per-address lookup bucket and the database-slot bound are examined by their own tests below.
+        lookup_burst: 0.0,
+        lookup_per_second: 0.0,
+        db_concurrency: 0,
         ..ApiConfig::default()
     }
 }
@@ -992,5 +996,281 @@ async fn storage_outage_is_503_and_readiness_fails() {
         r.json().get("token").is_none(),
         "no token is issued for a claim that was not stored"
     );
+    rig.done().await;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review fixes: lookup bucket, database slots, cancellation-safe claim, cache, ids
+// ---------------------------------------------------------------------------------------------------------------------
+
+impl Rig {
+    async fn db_conn(&self) -> PgConnection {
+        PgConnection::connect_with(&self.admin.clone().database(&self.db))
+            .await
+            .unwrap()
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn lookups_are_limited_per_address_before_any_database_query() {
+    let rig = rig(ApiConfig {
+        lookup_burst: 4.0,
+        lookup_per_second: 0.01,
+        ..open_cfg()
+    })
+    .await;
+    // Mixed profile and leaderboard requests share one bucket; the legacy answers are untouched while it lasts.
+    assert_eq!(
+        get(rig.addr, "/api/profile/Nobody1", &[]).await.status,
+        200,
+        "free name is claimed"
+    );
+    assert_eq!(
+        get(rig.addr, "/api/profile/Nobody1", &[]).await.status,
+        403,
+        "taken name stays 403"
+    );
+    assert_eq!(get(rig.addr, "/api/leaderboard", &[]).await.status, 200);
+    assert_eq!(
+        get(rig.addr, "/api/leaderboard?month=1999-12", &[])
+            .await
+            .status,
+        200
+    );
+    // Storage goes away entirely: an exhausted bucket must still answer 429, proving no query was attempted first.
+    rig.store.pool().close().await;
+    for path in [
+        "/api/profile/Nobody2",
+        "/api/leaderboard?month=1998-01&name=Nobody1",
+    ] {
+        let r = get(rig.addr, path, &[]).await;
+        assert_eq!(r.status, 429, "{path}: {}", r.body);
+        assert_eq!(r.json()["code"], "rate_limited");
+        assert!(r.header("retry-after").is_some());
+    }
+    let r = post_json(rig.addr, "/api/profile/Nobody1/equip", &[], "{}").await;
+    assert_eq!(
+        r.status, 429,
+        "the shop routes share the per-address bucket"
+    );
+    rig.done().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_account_api_has_its_own_bounded_database_concurrency() {
+    let rig = rig(ApiConfig {
+        db_concurrency: 1,
+        db_queue_wait: Duration::from_millis(150),
+        ..open_cfg()
+    })
+    .await;
+    // Block reads of `profiles`: the first request takes the only slot and waits on the database.
+    let mut locker = rig.db_conn().await;
+    sqlx::query("BEGIN").execute(&mut locker).await.unwrap();
+    sqlx::query("LOCK TABLE profiles IN ACCESS EXCLUSIVE MODE")
+        .execute(&mut locker)
+        .await
+        .unwrap();
+    let addr = rig.addr;
+    let first = tokio::spawn(async move { get(addr, "/api/profile/Slotty", &[]).await });
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let r = get(rig.addr, "/api/leaderboard?month=1999-01", &[]).await;
+    assert_eq!(r.status, 503, "{}", r.body);
+    assert_eq!(r.json()["code"], "busy");
+    assert!(r.header("retry-after").is_some());
+    sqlx::query("COMMIT").execute(&mut locker).await.unwrap();
+    assert_eq!(
+        first.await.unwrap().status,
+        200,
+        "the waiting request completes once the database answers"
+    );
+    assert_eq!(
+        get(rig.addr, "/api/leaderboard?month=1999-01", &[])
+            .await
+            .status,
+        200,
+        "the slot was released"
+    );
+    rig.done().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn empty_month_leaderboards_are_cached_too() {
+    let rig = rig(ApiConfig {
+        leaderboard_ttl: Duration::from_secs(600),
+        ..open_cfg()
+    })
+    .await;
+    let r = get(rig.addr, "/api/leaderboard?month=1999-12", &[]).await;
+    assert_eq!(
+        (r.status, r.json()["entries"].as_array().unwrap().len()),
+        (200, 0)
+    );
+    // With storage gone, only a cached answer can still be served.
+    rig.store.pool().close().await;
+    let r = get(rig.addr, "/api/leaderboard?month=1999-12", &[]).await;
+    assert_eq!(
+        r.status, 200,
+        "an empty month is served from cache: {}",
+        r.body
+    );
+    rig.done().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_claim_cancelled_by_the_request_timeout_is_undone_and_its_reservation_returned() {
+    let rig = rig(ApiConfig {
+        request_timeout: Duration::from_millis(300),
+        new_profiles_per_ip_per_hour: 1,
+        ..open_cfg()
+    })
+    .await;
+    // Inserts block (reads do not): the claim's INSERT outlives the 300 ms request timeout.
+    let mut locker = rig.db_conn().await;
+    sqlx::query("BEGIN").execute(&mut locker).await.unwrap();
+    sqlx::query("LOCK TABLE profiles IN SHARE MODE")
+        .execute(&mut locker)
+        .await
+        .unwrap();
+    let r = get(rig.addr, "/api/profile/Strand", &[]).await;
+    assert_eq!(r.status, 408, "{}", r.body);
+    sqlx::query("COMMIT").execute(&mut locker).await.unwrap();
+    // The insert now commits in the task the timeout cannot cancel; nobody can receive the token, so the claim is undone.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let mut c = rig.db_conn().await;
+    for _ in 0..100 {
+        let n: i64 = sqlx::query_scalar("SELECT count(*) FROM profiles")
+            .fetch_one(&mut c)
+            .await
+            .unwrap();
+        if n == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM profiles")
+        .fetch_one(&mut c)
+        .await
+        .unwrap();
+    assert_eq!(
+        n, 0,
+        "a claim whose token was never delivered must not strand the name"
+    );
+    // And the per-address new-profile reservation (1 an hour) came back: the retry claims the name.
+    let r = get(rig.addr, "/api/profile/Strand", &[]).await;
+    assert_eq!(r.status, 200, "{}", r.body);
+    assert_eq!(r.json()["created"], true);
+    rig.done().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_claim_answers_from_its_insert_with_the_same_profile_a_later_open_returns() {
+    let rig = rig(open_cfg()).await;
+    let r = get(rig.addr, "/api/profile/Fresh1", &[]).await;
+    assert_eq!(r.status, 200);
+    let j = r.json();
+    let token = j["token"].as_str().unwrap();
+    let opened = get(
+        rig.addr,
+        "/api/profile/Fresh1",
+        &[("x-profile-token", token)],
+    )
+    .await
+    .json();
+    assert_eq!(
+        j["profile"], opened["profile"],
+        "Profile::fresh must match the column defaults"
+    );
+    rig.done().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn equip_invalidates_the_cached_leaderboard_titles() {
+    let rig = rig(ApiConfig {
+        leaderboard_ttl: Duration::from_secs(600),
+        ..open_cfg()
+    })
+    .await;
+    let token = rig.claim("Titled").await;
+    rig.bank("Titled", 10).await;
+    let title = cosmetics::catalog()
+        .iter()
+        .find(|c| c.slot == "title")
+        .expect("a title exists");
+    sqlx::query("UPDATE profiles SET cosmetics = jsonb_set(cosmetics, '{owned}', $1::jsonb) WHERE lower(callsign)='titled'")
+        .bind(serde_json::json!([title.id]))
+        .execute(rig.store.pool())
+        .await
+        .unwrap();
+    let before = get(rig.addr, "/api/leaderboard", &[]).await.json();
+    assert!(before["entries"][0].get("title").is_none(), "{before}");
+    let r = rig
+        .equip(
+            "Titled",
+            &token,
+            &format!(r#"{{"slot":"title","id":"{}"}}"#, title.id),
+        )
+        .await;
+    assert_eq!(r.status, 200, "{}", r.body);
+    let after = get(rig.addr, "/api/leaderboard", &[]).await.json();
+    assert_eq!(
+        after["entries"][0]["title"],
+        title.id.as_str(),
+        "the cached page was dropped by the equip"
+    );
+    rig.done().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn one_idempotency_key_from_two_profiles_at_once_is_a_clean_409_never_a_500() {
+    let rig = rig(open_cfg()).await;
+    let mut who = vec![];
+    for n in ["KeyA", "KeyB"] {
+        let t = rig.claim(n).await;
+        rig.bank(n, 100_000).await;
+        who.push((n, t));
+    }
+    let owned = rig.profile("KeyA", &who[0].1).await["cosmetics"]["owned"].clone();
+    let item = buyable(&owned)[0].id.clone();
+    for round in 0..40 {
+        let key = Uuid::new_v4().to_string();
+        let mut hs = vec![];
+        for (n, t) in &who {
+            let (addr, n, t, key, item) = (
+                rig.addr,
+                n.to_string(),
+                t.clone(),
+                key.clone(),
+                item.clone(),
+            );
+            hs.push(tokio::spawn(async move {
+                // A fresh item each round per profile is not needed: the second round's AlreadyOwned is a 409 as well.
+                post_json(
+                    addr,
+                    &format!("/api/profile/{n}/purchase"),
+                    &[
+                        ("x-profile-token", t.as_str()),
+                        ("idempotency-key", key.as_str()),
+                    ],
+                    &format!(r#"{{"id":"{item}"}}"#),
+                )
+                .await
+            }));
+        }
+        for h in hs {
+            let r = h.await.unwrap();
+            assert!(
+                matches!(r.status, 200 | 409),
+                "round {round}: {} {}",
+                r.status,
+                r.body
+            );
+        }
+        // Give both profiles the item back so every round races on the key rather than on ownership.
+        sqlx::query("UPDATE profiles SET cosmetics = jsonb_set(cosmetics, '{owned}', '[]'::jsonb)")
+            .execute(rig.store.pool())
+            .await
+            .unwrap();
+    }
     rig.done().await;
 }

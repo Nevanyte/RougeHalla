@@ -1,13 +1,14 @@
 //! Profile, shop and leaderboard handlers (feature `postgres`). See the module docs of `api` for the layering.
 
-use super::limits::PasscodeVerdict;
+use super::limits::{limit_key, PasscodeVerdict};
 use super::{
     current_month, err, json, log_internal, method_not_allowed, with_retry_after, ClientAddr, St,
     IDEMPOTENCY_HEADER, MAX_BODY_BYTES, PASSCODE_HEADER, PROFILE_TOKEN_HEADER,
 };
 use axum::body::to_bytes;
-use axum::extract::{Path, Query, Request};
+use axum::extract::{Path, Query, Request, State};
 use axum::http::{header, HeaderMap, Method, StatusCode};
+use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::any;
 use axum::{Extension, Router};
@@ -29,6 +30,54 @@ pub(super) fn routes() -> Router<St> {
         .route("/api/profile/{name}/purchase", any(purchase))
         .route("/api/profile/{name}/equip", any(equip))
         .route("/api/leaderboard", any(leaderboard))
+}
+
+/// A held account-API database slot (see `ApiConfig::db_concurrency`). Dropping it frees the slot.
+type Slot = Option<tokio::sync::OwnedSemaphorePermit>;
+
+/// First stop of every `/api/profile*` and `/api/leaderboard` request, before any handler or database query: the
+/// per-address (/64) token bucket. An exhausted bucket is answered 429 without touching storage. The legacy contracts
+/// (403 for someone else's name, claim of a free one) are decided by the handlers after this and are unchanged.
+pub(super) async fn guard(
+    State(st): State<St>,
+    Extension(ClientAddr(ip)): Extension<ClientAddr>,
+    req: Request,
+    next: Next,
+) -> Response {
+    if !st.a.lookups.take(&limit_key(ip), Instant::now()) {
+        return with_retry_after(
+            json(
+                StatusCode::TOO_MANY_REQUESTS,
+                serde_json::json!({
+                    "error": "too many requests, slow down",
+                    "code": "rate_limited",
+                }),
+            ),
+            Duration::from_secs(1),
+        );
+    }
+    next.run(req).await
+}
+
+/// Waits (bounded) for one of the account API's database slots; 503 when none frees up in time. Take it around database
+/// work only, never while reading a request body (a stalled client must not hold a slot).
+async fn slot(st: &St) -> Result<Slot, Response> {
+    let Some(sem) = &st.a.db_slots else {
+        return Ok(None);
+    };
+    match tokio::time::timeout(st.a.cfg.db_queue_wait, sem.clone().acquire_owned()).await {
+        Ok(Ok(p)) => Ok(Some(p)),
+        _ => Err(with_retry_after(
+            json(
+                StatusCode::SERVICE_UNAVAILABLE,
+                serde_json::json!({
+                    "error": "profile service busy; retry shortly",
+                    "code": "busy",
+                }),
+            ),
+            Duration::from_secs(1),
+        )),
+    }
 }
 
 const LEADERBOARD_DEFAULT_LIMIT: i64 = 20;
@@ -203,8 +252,7 @@ async fn read_body<T: serde::de::DeserializeOwned>(
     }
     let bytes = to_bytes(body, MAX_BODY_BYTES).await.map_err(|e| {
         // The only failure of a limited read is the limit (or a client that went away).
-        let too_large =
-            std::error::Error::source(&e).is_some_and(|s| s.to_string().contains("length limit"));
+        let too_large = is_length_limit(&e);
         json(
             if too_large {
                 StatusCode::PAYLOAD_TOO_LARGE
@@ -223,6 +271,12 @@ async fn read_body<T: serde::de::DeserializeOwned>(
             serde_json::json!({ "error": "malformed request", "code": "bad_request" }),
         )
     })
+}
+
+/// True only when the failed read hit the body limit: the error's source IS the length-limit type (not merely a message
+/// that mentions one).
+fn is_length_limit(e: &axum::Error) -> bool {
+    std::error::Error::source(e).is_some_and(|s| s.is::<http_body_util::LengthLimitError>())
 }
 
 fn name_of(p: Result<Path<String>, axum::extract::rejection::PathRejection>) -> Option<String> {
@@ -246,6 +300,10 @@ async fn claim(
     };
     let store = store_of(&st);
     let presented = token_of(req.headers());
+    let slot = match slot(&st).await {
+        Ok(s) => s,
+        Err(r) => return r,
+    };
     match authed(store, &name, presented).await {
         // Opening: the caller's own token proves ownership; it is echoed back because the legacy client stores the
         // `token` of every profile response. Nothing the server holds is returned (it holds only a hash).
@@ -289,7 +347,9 @@ async fn claim(
             )
         }
     }
-    // Reserved before the insert so concurrent claims cannot all pass one check; refunded unless a name was created.
+    // Reserved before the insert so concurrent claims cannot all pass one check; the guard hands the reservation back on
+    // every exit that did not leave a claimed name behind (error, lost race, panic, or a claim whose token could not be
+    // delivered and was undone).
     if let Err(wait) = st.a.new_profiles.reserve(ip, now) {
         return with_retry_after(
             err(
@@ -299,28 +359,81 @@ async fn claim(
             wait,
         );
     }
-    let token = new_token();
-    match store.create_profile(&name, &token).await {
-        Ok(Claim::Created) => {}
-        Ok(_) => {
+    let reservation = Reservation {
+        shared: st.a.clone(),
+        ip,
+        at: now,
+        armed: true,
+    };
+    // The commit, its answer and the compensation run in a task the request timeout cannot cancel: cancelling a handler
+    // between the INSERT and the response would leave a claimed name whose token nobody ever received. The handler only
+    // waits for the task's answer; if it has gone (timeout, client left), the task undoes the claim itself. There is no
+    // `.await` between the reservation above and this spawn, so cancellation cannot lose the reservation.
+    let (tx, rx) = tokio::sync::oneshot::channel::<Response>();
+    let store = store.clone();
+    tokio::spawn(async move {
+        let _slot = slot; // held until the commit and any compensation are done
+        let mut reservation = reservation;
+        let token = new_token();
+        let answer = match store.create_profile(&name, &token).await {
+            Ok(Claim::Created) => {
+                // Answered from the insert itself: a read-back could fail or be cancelled with the token already minted.
+                let body = serde_json::json!({
+                    "profile": dto(Profile::fresh(&name)),
+                    "token": token,
+                    "created": true,
+                });
+                match tx.send(json(StatusCode::OK, body)) {
+                    Ok(()) => reservation.keep(),
+                    Err(_) => {
+                        // Nobody is waiting for the token: free the name again (a fresh row with no history) so the
+                        // caller's retry can claim it, and give the reservation back.
+                        match store.discard_unclaimed_profile(&name, &token).await {
+                            Ok(true) => {}
+                            Ok(false) | Err(_) => {
+                                reservation.keep();
+                                log_internal(
+                                    "GET /api/profile",
+                                    &"claim committed but its response was lost; name left claimed",
+                                );
+                            }
+                        }
+                    }
+                }
+                return;
+            }
             // Lost a race for the name.
-            st.a.new_profiles.refund(ip, now);
-            return forbidden_profile();
-        }
-        Err(e) => {
-            st.a.new_profiles.refund(ip, now);
-            return store_err("GET /api/profile", e);
-        }
+            Ok(_) => forbidden_profile(),
+            Err(e) => store_err("GET /api/profile", e),
+        };
+        let _ = tx.send(answer);
+    });
+    match rx.await {
+        Ok(r) => r,
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
     }
-    match store.get_profile(&name).await {
-        Ok(Some(p)) => json(
-            StatusCode::OK,
-            serde_json::json!({ "profile": dto(p), "token": token, "created": true }),
-        ),
-        // The name exists (we just created it) but could not be read back: the caller has no other way to learn the
-        // token, so say so rather than discard it silently.
-        Ok(None) => err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
-        Err(e) => store_err("GET /api/profile", e),
+}
+
+/// A new-profile reservation that is given back unless [`Reservation::keep`] is called (a name was created and its token
+/// delivered or deliberately left).
+struct Reservation {
+    shared: Arc<super::Shared>,
+    ip: std::net::IpAddr,
+    at: Instant,
+    armed: bool,
+}
+
+impl Reservation {
+    fn keep(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for Reservation {
+    fn drop(&mut self) {
+        if self.armed {
+            self.shared.new_profiles.refund(self.ip, self.at);
+        }
     }
 }
 
@@ -369,9 +482,12 @@ async fn shop_prelude<T: serde::de::DeserializeOwned>(
     };
     let (parts, body) = req.into_parts();
     let token = token_of(&parts.headers).to_owned();
-    let pid = authed(store_of(st), &name, &token)
-        .await
-        .map_err(|e| store_err("POST /api/profile/shop", e))?;
+    let pid = {
+        let _slot = slot(st).await?;
+        authed(store_of(st), &name, &token)
+            .await
+            .map_err(|e| store_err("POST /api/profile/shop", e))?
+    };
     // Only a request that proves the profile's token spends from its bucket (legacy `shopRateLimit`).
     if let Some(pid) = pid {
         if !st.a.shop.take(&pid, Instant::now()) {
@@ -420,6 +536,10 @@ async fn purchase(
     }
     let price = item.price.unwrap_or(0);
     let store = store_of(&st);
+    let _slot = match slot(&st).await {
+        Ok(s) => s,
+        Err(r) => return r,
+    };
     match store
         .purchase(&name, &token, purchase_id, &item.id, price)
         .await
@@ -472,6 +592,10 @@ async fn equip(
         _ => return shop_err("bad_request", None),
     };
     let store = store_of(&st);
+    let _slot = match self::slot(&st).await {
+        Ok(s) => s,
+        Err(r) => return r,
+    };
     match store.equip(&name, &token, slot, item_id).await {
         Ok(EquipOutcome::Ok) => current_profile(store, &name).await,
         Ok(EquipOutcome::NotOwned) => shop_err("not_owned", None),
@@ -515,19 +639,19 @@ async fn board_rows(st: &St, month: &str) -> Result<Arc<Vec<LeaderRow>>, rh_pers
     }
     let rows = Arc::new(store.leaderboard_rows(month, LEADERBOARD_MAX_LIMIT).await?);
     let mut b = board(st);
-    // A month nobody banked GV in costs one indexed query and no cache entry, so a caller cannot fill the map with them.
-    if rows.is_empty() {
-        b.rows.remove(month);
-    } else {
+    // Empty months are cached too (a caller probing arbitrary months would otherwise cost one query per request), but
+    // under the same bound: when full, stale entries go first, then the empty ones, then everything.
+    if b.rows.len() >= 64 && !b.rows.contains_key(month) {
+        b.rows
+            .retain(|_, (e, at, _)| *e == epoch && at.elapsed() < ttl);
         if b.rows.len() >= 64 {
-            b.rows
-                .retain(|_, (e, at, _)| *e == epoch && at.elapsed() < ttl);
-            if b.rows.len() >= 64 {
-                b.rows.clear();
-            }
+            b.rows.retain(|_, (_, _, r)| !r.is_empty());
         }
-        b.rows.insert(month.to_owned(), (epoch, now, rows.clone()));
+        if b.rows.len() >= 64 {
+            b.rows.clear();
+        }
     }
+    b.rows.insert(month.to_owned(), (epoch, now, rows.clone()));
     Ok(rows)
 }
 
@@ -586,6 +710,10 @@ async fn leaderboard(axum::extract::State(st): axum::extract::State<St>, req: Re
         _ => return err(StatusCode::BAD_REQUEST, "invalid month, expected YYYY-MM"),
     };
     let limit = parse_limit(single(&pairs, "limit")) as usize;
+    let _slot = match slot(&st).await {
+        Ok(s) => s,
+        Err(r) => return r,
+    };
     let rows = match board_rows(&st, &month).await {
         Ok(r) => r,
         Err(e) => return store_err("GET /api/leaderboard", e),
@@ -646,5 +774,16 @@ mod tests {
         for bad in ["", "abc", "1.5", "1e3", " 5", "0x10", "+", "-"] {
             assert_eq!(p(bad), 20, "{bad:?}");
         }
+    }
+
+    #[tokio::test]
+    async fn only_the_length_limit_error_type_means_payload_too_large() {
+        let limit = to_bytes(axum::body::Body::from(vec![0u8; 16]), 4)
+            .await
+            .unwrap_err();
+        assert!(is_length_limit(&limit));
+        // A different failure whose text happens to say "length limit" is not a 413.
+        let lookalike = axum::Error::new(std::io::Error::other("length limit exceeded"));
+        assert!(!is_length_limit(&lookalike));
     }
 }

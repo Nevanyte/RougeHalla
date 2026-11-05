@@ -124,6 +124,7 @@ fn quick_cfg() -> SpoolConfig {
         retry_deadline: Duration::from_secs(30),
         backoff_initial: Duration::from_millis(20),
         backoff_max: Duration::from_millis(200),
+        ..SpoolConfig::default()
     }
 }
 
@@ -436,14 +437,21 @@ async fn a_stale_fence_is_dead_lettered_and_the_new_owners_lease_is_untouched() 
     db.drop_db().await;
 }
 
+/// REPLACES `retry_exhaustion_dead_letters_and_an_operator_requeue_replays_it`, whose assertions encoded the defect
+/// (review finding H1): it waited for a TRANSIENT outage to push the record into `dead/` with reason "retry deadline
+/// exceeded", expected `failed == 1 && deadLettered == 1`, and expected the profile gate released. In production that
+/// loses a result in any outage longer than the deadline: the seat is freed, the lease expires, a new owner takes the
+/// profile and a later replay is StaleFence. The corrected contract: a transient error never dead-letters for time; the
+/// record stays pending, retries at `backoff_max`, the gate stays held, and `retry_deadline` only raises alerts.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn retry_exhaustion_dead_letters_and_an_operator_requeue_replays_it() {
+async fn a_long_outage_never_dead_letters_a_result_and_the_record_commits_when_the_database_returns(
+) {
     let db = fresh_db("exhaust").await;
     let m = Uuid::new_v4();
     let (rec, _lease) = leased_record(&db, "delta", m, 33).await;
     let dir = spool_dir("exhaust");
     let cfg = SpoolConfig {
-        retry_deadline: Duration::from_millis(800),
+        retry_deadline: Duration::from_millis(300),
         ..quick_cfg()
     };
     let spool = ResultSpool::open(&dir, cfg).unwrap();
@@ -460,34 +468,29 @@ async fn retry_exhaustion_dead_letters_and_an_operator_requeue_replays_it() {
     };
     let d = director_with(broken, "host", spool.clone(), arena());
     assert_eq!(d.recover_spooled(), 1);
+    // Several alert intervals pass: the alert threshold is crossed repeatedly and nothing is dead-lettered.
+    wait_until("repeated stuck alerts", 20, || async {
+        info(&d, "stuckAlerts") >= 3
+    })
+    .await;
+    assert!(
+        files(&dir.join("dead"), ".rec").is_empty(),
+        "a transient outage must never move a record to dead/"
+    );
+    assert_eq!(files(&dir, ".rec"), vec![rec.file_name()], "still pending");
+    assert_eq!(info(&d, "deadLettered"), 0);
+    assert_eq!(info(&d, "failed"), 0);
+    assert_eq!(info(&d, "spoolPending"), 1);
     assert_eq!(
         info(&d, "players"),
         1,
-        "the profile is gated while its record is unresolved"
+        "the profile gate stays held while its record is unresolved"
     );
-    wait_until("deadline dead-letter", 20, || async {
-        files(&dir.join("dead"), ".rec").len() == 1
-    })
-    .await;
-    let reason =
-        std::fs::read_to_string(dir.join("dead").join(format!("{}.reason", rec.file_name())))
-            .unwrap();
-    assert!(reason.contains("retry deadline exceeded"), "{reason}");
-    wait_until("metrics", 5, || async {
-        info(&d, "failed") == 1 && info(&d, "deadLettered") == 1
-    })
-    .await;
-    wait_until("gate released", 5, || async { info(&d, "players") == 0 }).await;
     assert_eq!(db.count("match_results").await, 0);
     drop(d);
 
-    // Operator replay: move the dead letter back and start a healthy process. The lease was never released or taken,
-    // so the original fence still applies.
-    std::fs::rename(
-        dir.join("dead").join(rec.file_name()),
-        dir.join(rec.file_name()),
-    )
-    .unwrap();
+    // The database is back (a healthy process on the same spool): the record commits with the original fence, which
+    // still applies because nothing released or took the lease.
     let spool = ResultSpool::open(&dir, quick_cfg()).unwrap();
     let d = director_with(db.store.clone(), "host", spool, arena());
     assert_eq!(d.recover_spooled(), 1);
@@ -497,6 +500,34 @@ async fn retry_exhaustion_dead_letters_and_an_operator_requeue_replays_it() {
     .await;
     assert_eq!(db.store.get_profile("delta").await.unwrap().unwrap().gv, 33);
     db.reconcile_clean().await;
+    db.drop_db().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_permanent_store_error_is_dead_lettered_not_retried_forever() {
+    let db = fresh_db("permanent").await;
+    let m = Uuid::new_v4();
+    // A NUL byte in the owner text: PostgreSQL rejects the data itself (SQLSTATE 22021), and it always will.
+    let (mut rec, _lease) = leased_record(&db, "poison", m, 5).await;
+    rec.meta.owner = "bad\0owner".into();
+    let dir = spool_dir("permanent");
+    let spool = ResultSpool::open(&dir, quick_cfg()).unwrap();
+    spool.append(&rec).unwrap();
+    let d = director_with(db.store.clone(), "host", spool, arena());
+    assert_eq!(d.recover_spooled(), 1);
+    wait_until("permanent error dead-lettered", 20, || async {
+        files(&dir.join("dead"), ".rec").len() == 1
+    })
+    .await;
+    let reason =
+        std::fs::read_to_string(dir.join("dead").join(format!("{}.reason", rec.file_name())))
+            .unwrap();
+    assert!(reason.contains("permanent store error"), "{reason}");
+    wait_until("metrics", 5, || async {
+        info(&d, "failed") == 1 && info(&d, "deadLettered") == 1
+    })
+    .await;
+    assert_eq!(db.count("match_results").await, 0);
     db.drop_db().await;
 }
 
