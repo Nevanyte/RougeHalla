@@ -28,6 +28,10 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("fx_report.rs", "FX_REPORT_EVENTS_MAX", "sealed projection report capacity; unsupported scenes fail explicitly, never changes gameplay"),
+    ("fx_report.rs", "FX_REPORT_OPS_MAX", "derived per-step projection operation capacity, not a rule"),
+    ("fx_report.rs", "FX_PUBLIC_BUCKETS_MAX", "bounded viewer-local public report storage, never read by gameplay"),
+    ("fx_report.rs", "FX_OUTPUT_EVENTS_MAX", "derived projected output capacity; explicit refusal rather than truncation"),
     ("mapgen/det_math.rs", "TWO_PI", "mathematical constant"),
     ("mapgen/coliseum.rs", "W", "typed alias of registered MAP_TILES_W"),
     ("mapgen/coliseum.rs", "H", "typed alias of registered MAP_TILES_H"),
@@ -75,6 +79,16 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
 /// (file, name, reason).
 const TABLES_FOLDED_BY_HASH: &[(&str, &str, &str)] = &[
+    (
+        "mapgen/bushes/rules.rs",
+        "DEFAULT_DEFINITION",
+        "all 11 elite-bush tunables drive runtime and are folded by content_hash_of_bush_definition",
+    ),
+    (
+        "mapgen/spawns/rules.rs",
+        "DEFAULT_DEFINITION",
+        "all 27 spawn/protection/gate tunables drive runtime and are folded by content_hash_of_spawn_definition",
+    ),
     (
         "mapgen/attempt/rules.rs",
         "DEFAULT_DEFINITION",
@@ -328,7 +342,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xe639_a5f9_fc48_e272;
+const GOLDEN_CONTENT_HASH: u64 = 0x44fb_7ebc_f48f_519f;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -496,6 +510,94 @@ fn attempt_prefix_rules_move_the_content_hash() {
         content_hash_of_attempt_definition(REGISTRY, STAGGER_WEAPONS, &definition),
         base
     );
+}
+
+#[test]
+fn every_spawn_rule_moves_the_content_hash() {
+    use rh_sim::content::content_hash_of_spawn_definition;
+    use rh_sim::mapgen::spawns::{default_definition, SpawnDefinition};
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_spawn_definition(REGISTRY, STAGGER_WEAPONS, &default_definition()),
+        base
+    );
+    let mutations: &[fn(&mut SpawnDefinition)] = &[
+        |d| d.separation += 1.0,
+        |d| d.safe_separation += 1.0,
+        |d| d.camp_pick += 1,
+        |d| d.ring_lo += 1.0,
+        |d| d.ring_hi += 1.0,
+        |d| d.pick_target += 1,
+        |d| d.pool_min += 1,
+        |d| d.pool_zones += 1,
+        |d| d.pick_band += 1.0,
+        |d| d.tries += 1,
+        |d| d.walk_ratio_max += 1.0,
+        |d| d.hazard_walk_max += 1,
+        |d| d.quantile_first += 1,
+        |d| d.quantile_last += 1,
+        |d| d.quantile_denominator += 1,
+        |d| d.score_weight += 1,
+        |d| d.early_extra += 1,
+        |d| d.scan_margin += 1,
+        |d| d.pool_halo_margin += 1,
+        |d| d.pool5_margin += 1,
+        |d| d.corner_open += 1,
+        |d| d.landmark_road_margin += 1,
+        |d| d.landmark_lane_margin += 1,
+        |d| d.landmark_clearing_margin += 1,
+        |d| d.style_road_margin += 1,
+        |d| d.style_lane_margin += 1,
+        |d| d.landmark_box_margin += 1,
+    ];
+    assert_eq!(mutations.len(), 27);
+    let mut hashes = BTreeSet::new();
+    for (index, mutate) in mutations.iter().enumerate() {
+        let mut definition = default_definition();
+        mutate(&mut definition);
+        let hash = content_hash_of_spawn_definition(REGISTRY, STAGGER_WEAPONS, &definition);
+        assert_ne!(
+            hash, base,
+            "spawn rule {index} omitted from content identity"
+        );
+        assert!(hashes.insert(hash), "spawn rule {index} collided");
+    }
+}
+
+#[test]
+fn every_bush_rule_moves_the_content_hash() {
+    use rh_sim::content::content_hash_of_bush_definition;
+    use rh_sim::mapgen::bushes::{default_definition, BushDefinition};
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_bush_definition(REGISTRY, STAGGER_WEAPONS, &default_definition()),
+        base
+    );
+    let mutations: &[fn(&mut BushDefinition)] = &[
+        |d| d.stream += 1,
+        |d| d.camp_stream_stride += 1,
+        |d| d.patches_min += 1,
+        |d| d.patches_max += 1,
+        |d| d.tiles_min += 1,
+        |d| d.tiles_max += 1,
+        |d| d.near_min_d2 += 1,
+        |d| d.near_max_d2 += 1,
+        |d| d.centre_sep_d2 += 1,
+        |d| d.scan_radius += 1,
+        |d| d.tries_per_patch += 1,
+    ];
+    assert_eq!(mutations.len(), 11);
+    let mut hashes = BTreeSet::new();
+    for (index, mutate) in mutations.iter().enumerate() {
+        let mut definition = default_definition();
+        mutate(&mut definition);
+        let hash = content_hash_of_bush_definition(REGISTRY, STAGGER_WEAPONS, &definition);
+        assert_ne!(
+            hash, base,
+            "bush rule {index} omitted from content identity"
+        );
+        assert!(hashes.insert(hash), "bush rule {index} collided");
+    }
 }
 
 #[test]

@@ -65,6 +65,7 @@ function rowsOf(map: GameMap): string[] {
 
 import { canonicalEvent, canonicalJson, r6 } from "./canon";
 import { canPlayerSee, canPlayerSeeActor, getVisionMemory } from "../../packages/server/src/sim/vision";
+import { plagueScenarios } from "./scenarios/plague";
 import { holyScenarios } from "./scenarios/holy";
 import { signatureState } from "../../packages/server/src/sim/factions";
 import { targetingScenarios } from "./scenarios/targeting";
@@ -132,9 +133,12 @@ function run(sc: Scenario): unknown {
     launches.push(canonicalJson({ ...projectile.launch, owner: projectile.owner }));
     return setProjectile(id, projectile);
   };
+  let rawLedger: unknown[] = [];
+  if(sc.factionSlice) world.beforeDamage.push(w=>{rawLedger=canonicalJson(w.combat.ledger.map(e=>({victim:e.victim,by:e.by.id,raw:e.packet.raw,scale:e.scale,weapon:e.weapon,sig:e.sig??null,execute:e.execute??false,phys:e.packet.phys,magic:e.packet.magic,true_:e.packet.true}))) as unknown[];});
   const startTick = world.state.tick;
   for (let i = 0; i < sc.maxTicks && (world.state.phase === "active" || world.state.phase === "planning"); i++) {
     launches = [];
+    rawLedger = [];
     ctx.tick = world.state.tick + 1;
     sc.drive(ctx);
     const events = step(world, TICK_MS);
@@ -165,6 +169,13 @@ function run(sc: Scenario): unknown {
       id, x: r6(s.x), y: r6(s.y), facing: r6(s.facing), hp: r6(s.hp), status: s.status, readyAt: r6(s.readyAt),
     }));
     const extras: Record<string, unknown> = {};
+    if(sc.factionSlice) extras.plague=canonicalJson({
+      raw:rawLedger,
+      landed:world.combat.landed.map(h=>({victim:h.victim,by:h.by,amount:h.amount,sig:h.sig??null,weapon:h.weapon})),
+      dotSince:world.factions!.dotSince,
+      buckets:[...world.factions!.dot.values()],
+      fighters:[...world.state.players.entries()].map(([id,p])=>{const f=signatureState(world,id);return {id,target:f?.target??null,inReach:f?.inReach??false,engaged:f?.engaged??false,reachAt:Number.isFinite(f?.reachAt)?f!.reachAt:null,contactAt:Number.isFinite(f?.contactAt)?f!.contactAt:null,combatAt:Number.isFinite(f?.combatAt)?f!.combatAt:null,hpFrac:f?.hpFrac??1,pause:f?.dotPausedUntil??0,bits:p.sig};})
+    });
     // After the first complete staggered window an installed, continuously active viewer has
     // sampled ≤one tick ago. Assert the actual getter changes no cell, on every recorded read.
     if (sc.vision && ctx.tick >= startTick + 3) {
@@ -236,7 +247,7 @@ function run(sc: Scenario): unknown {
       world: !sc.modules && !sc.config && sc.generatedMapSeed === undefined ? "createGameWorld(signatures:false, walkHints:false), hand-built map, mobs/quests/hazards/regen off, pvpRules on (default), no cards" : "createScenarioWorld: explicit recorded modules/options/map seed",
       modules: sc.modules ?? DEFAULT_MODULES,
       itemUidScheme: "sequential/1",
-      ...(sc.packet === "P-FACTION-1" && sc.parity === "slice" ? {rustSlice:"player-engagement-holy/1"} : {}),
+      ...(sc.packet === "P-FACTION-1" && sc.parity === "slice" ? {rustSlice:sc.factionSlice??"player-engagement-holy/1"} : {}),
       options: sc.config ?? {},
       ...(sc.generatedMapSeed === undefined ? {} : { mapSeed: sc.generatedMapSeed }),
       secrets: { orderSalt: world.orderSalt, rewardSalt: sc.secrets?.rewardSalt ?? [1, 2, 3, 4], questSalt: sc.secrets?.questSalt ?? [5, 6, 7, 8] },
@@ -551,7 +562,7 @@ const lockTwin: Scenario = {
   modules: DEFAULT_MODULES.filter(m => m !== "consumables"), record: ["combat", "containers", "statuses", "locks"],
   requires: ["input:target", "launch", "projEnd", "death"],
 };
-for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, lockTwin]) {
+for (const sc of [...SCENARIOS, ...catalogue, ...meleeScenarios, ...projectileScenarios, ...visionScenarios, ...targetingScenarios, ...holyScenarios, ...plagueScenarios, lockTwin]) {
   if (only && sc.name !== only) continue;
   const t0 = performance.now();
   const fx = run(sc) as { ticks: unknown[]; results: unknown[]; legacyConfig: { unexpectedEventTypes: string[]; mobsPresent: number } };

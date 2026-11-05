@@ -617,6 +617,7 @@ impl Projectile {
 /// [`crate::scratch::TickScratch`] instead.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct World {
+    pub(crate) factions: crate::factions::FactionRuntime,
     pub(crate) tick: u32,
     pub(crate) server_time: f64,
     pub(crate) phase: Phase,
@@ -757,6 +758,7 @@ impl World {
 
     pub(crate) fn new(secrets: &Secrets) -> Self {
         Self {
+            factions: Default::default(),
             tick: 0,
             server_time: 0.0,
             phase: Phase::Lobby,

@@ -63,7 +63,7 @@ pub(crate) fn down_player(
     let victim_bot = v.seat.bot;
     let id = v.id;
     // Legacy order: fighterOut, the kill credit, then dropBody.
-    let mut hx = Hx { k, w, ev };
+    let mut hx = Hx { k, w, ev, fx: None };
     hooks::fire(
         &mut hx,
         HookArgs::FighterOut {
@@ -98,6 +98,7 @@ pub(crate) fn settle(cx: &mut Cx) {
     let TickScratch {
         downed_this_tick: downed,
         alive,
+        fx,
         ..
     } = &mut **s;
     w.rt.downs_between_ticks = 0;
@@ -107,7 +108,7 @@ pub(crate) fn settle(cx: &mut Cx) {
     if standing == 0 || (contested && standing == 1) {
         alive.clear();
         alive.extend(w.players.iter().filter(|p| p.standing()).map(|p| p.id));
-        end_run(k, w, ev, alive, downed, contested);
+        end_run(k, w, ev, alive, downed, contested, fx);
         downed.clear();
         return;
     }
@@ -128,6 +129,7 @@ fn end_run(
     alive: &[PlayerId],
     downed: &[PlayerId],
     contested: bool,
+    fx: &mut crate::fx_report::TickFx,
 ) {
     let mut winners: Vec<PlayerId> = Vec::new();
     if alive.len() == 1 {
@@ -191,7 +193,15 @@ fn end_run(
     for p in &mut w.players {
         super::targeting::drop_lock(p);
     }
-    hooks::fire(&mut Hx { k, w, ev }, HookArgs::RunEnded);
+    hooks::fire(
+        &mut Hx {
+            k,
+            w,
+            ev,
+            fx: Some(fx),
+        },
+        HookArgs::RunEnded,
+    );
     ev.push(Event::Victory { id: winner, draw });
     ev.push(Event::RaidEnded);
 }

@@ -20,7 +20,7 @@ use serde::ser::{SerializeStruct, Serializer};
 use std::fmt;
 
 /// The tag every checkpoint carries. Bump it when the layout of `statics` or `world` changes incompatibly.
-pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/10";
+pub const CHECKPOINT_FORMAT: &str = "rh-checkpoint/11";
 
 /// How far past the map edge a fighter, waypoint or spawn may be and still restore (real states stay inside the map).
 const COORD_MARGIN: f64 = 1024.0;
@@ -225,6 +225,7 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
             return Err(self.refuse(CheckpointError::Malformed(why)));
         }
         Ok(Sim {
+            projection: crate::fx_report::Projection::empty_at(w.tick),
             k,
             w,
             s: TickScratch::default(),
@@ -424,11 +425,43 @@ fn check_world(k: &MatchStatic, w: &World) -> Result<(), String> {
     if u64::from(w.entity_counter) + needed_ids > u64::from(u32::MAX) {
         return Err("insufficient run entity identity headroom".into());
     }
+    for e in &w.deferred.hits {
+        if (e.execute && e.sig.is_none()) || (e.sig.is_some() && !k.config.faction_mode.plague()) {
+            return Err(
+                "deferred signature requires its producer mode and execute qualification".into(),
+            );
+        }
+    }
+    if !(0.0..=w.server_time).contains(&w.factions.dot_since)
+        || (!k.config.faction_mode.engagement()
+            && w.factions != crate::factions::FactionRuntime::default())
+        || (!k.config.faction_mode.plague() && !w.factions.dot.is_empty())
+        || w.factions.dot.len() > crate::constants::MAX_PLAYERS * crate::constants::MAX_PLAYERS
+    {
+        return Err("invalid faction runtime".into());
+    }
+    for (i, b) in w.factions.dot.iter().enumerate() {
+        if !b.amount.is_finite()
+            || !(b.amount > 0.0)
+            || b.by == b.victim
+            || w.roster.name(b.by).is_none()
+            || w.roster.name(b.victim).is_none()
+            || w.factions.dot[..i]
+                .iter()
+                .any(|a| (a.by, a.victim, a.sig) == (b.by, b.victim, b.sig))
+        {
+            return Err("invalid private DoT bucket".into());
+        }
+    }
     for p in w.players.iter() {
         p.vision.check(w.tick, near)?;
         let sig = &p.signature;
-        if (!k.config.holy_foundation && *sig != crate::fighter::Signature::default())
+        if (!k.config.faction_mode.engagement() && *sig != crate::fighter::Signature::default())
             || !sig.hp_frac.is_finite()
+            || !(0.0..=w.server_time + crate::constants::WAND_WINDUP_MAX_S * 1000.0)
+                .contains(&sig.dot_paused_until)
+            || sig.bits & !(crate::constants::SIG_DISEASED | crate::constants::SIG_EXECUTE) != 0
+            || (!k.config.faction_mode.plague() && sig.bits != 0)
             || [sig.reach_at, sig.contact_at, sig.combat_at]
                 .into_iter()
                 .flatten()

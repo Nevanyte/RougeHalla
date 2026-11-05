@@ -60,7 +60,13 @@ fn load(name: &str) -> Scenario {
         spawn_seed: 0,
     };
     let config = SimConfig {
-        holy_foundation: fx["packet"] == "P-FACTION-1" && fx["parity"] == "slice",
+        faction_mode: if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague/1" {
+            rh_sim::FactionMode::EngagementHolyPlague
+        } else if fx["packet"] == "P-FACTION-1" && fx["parity"] == "slice" {
+            rh_sim::FactionMode::EngagementHoly
+        } else {
+            rh_sim::FactionMode::Off
+        },
         weapon_specials: fx["legacyConfig"]["options"]["weaponSpecials"]
             .as_bool()
             .unwrap_or(true),
@@ -139,6 +145,12 @@ fn load(name: &str) -> Scenario {
 fn run(name: &str, warm_up: u32, end: u32) -> (u32, u64, Option<u32>) {
     let mut sc = load(name);
     let mut out: Vec<Event> = Vec::with_capacity(64);
+    let mut projectors: Vec<_> = sc
+        .sim
+        .players()
+        .iter()
+        .map(|p| rh_sim::FxProjector::attach(&sc.sim, p.id))
+        .collect();
     let (mut steady, mut allocs, mut first_bad) = (0u32, 0u64, None);
     for n in 0..sc.ticks.min(end) {
         let tick = sc.sim.tick() + 1;
@@ -151,6 +163,9 @@ fn run(name: &str, warm_up: u32, end: u32) -> (u32, u64, Option<u32>) {
         sc.sim.clear_schedule_trace();
         let before = dhat::HeapStats::get().total_blocks;
         sc.sim.step_into(&mut out);
+        for projector in &mut projectors {
+            projector.feed(sc.sim.fx_report()).unwrap();
+        }
         let used = dhat::HeapStats::get().total_blocks - before;
         let ends_a_run = out
             .iter()
@@ -187,7 +202,7 @@ fn holy_crowded() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
-            holy_foundation: true,
+            faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
         rh_sim::arenas::practice_arena(),
@@ -277,6 +292,8 @@ fn a_steady_state_step_allocates_nothing() {
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
     for name in [
+        "plague_thresholds_swap",
+        "plague_wand_pause",
         "holy_lifesteal_low_hp",
         "holy_sword_shield",
         "holy_arrow_reflection",

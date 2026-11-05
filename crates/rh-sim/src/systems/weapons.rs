@@ -95,6 +95,7 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         let id = p.id;
         crate::hooks::fire(
             &mut crate::hooks::Hx {
+                fx: None,
                 k: cx.k,
                 w: cx.w,
                 ev: cx.ev,

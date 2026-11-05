@@ -17,10 +17,11 @@ use crate::sim::{Event, Phase, PlayerId, Sim, Status};
 use crate::state::Player;
 use crate::vision::{actor_with, scene_line_blocked};
 
-pub const OBSERVATION_VERSION: u16 = 7;
+pub const OBSERVATION_VERSION: u16 = 8;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SelfView {
+    pub sig: u8,
     /// The owner’s attack lock, when that actor is also visible in this frame.
     pub attack_target: Option<PlayerId>,
     pub id: PlayerId,
@@ -43,6 +44,7 @@ pub struct SelfView {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorView {
+    pub sig: u8,
     pub id: PlayerId,
     pub faction: FactionId,
     pub x: f64,
@@ -58,6 +60,13 @@ pub struct ActorView {
 /// An event the observer could perceive.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SeenEvent {
+    SignatureHit {
+        victim: PlayerId,
+        by: Option<PlayerId>,
+        sig: crate::factions::SignatureKind,
+        weapon: Option<WeaponId>,
+        amount: f64,
+    },
     Block {
         id: PlayerId,
         by: Option<PlayerId>,
@@ -125,7 +134,8 @@ impl SeenEvent {
             SeenEvent::Death { .. } | SeenEvent::Bounty { .. } | SeenEvent::Ended { .. } => {
                 Class::Important
             }
-            SeenEvent::Swing { .. }
+            SeenEvent::SignatureHit { .. }
+            | SeenEvent::Swing { .. }
             | SeenEvent::Hit { .. }
             | SeenEvent::Block { .. }
             | SeenEvent::Heal { .. }
@@ -191,7 +201,8 @@ fn to_seen(e: &Event, can_see: &impl Fn(PlayerId) -> bool) -> Option<SeenEvent> 
         }),
         Event::Bounty { id, bounty } => Some(SeenEvent::Bounty { id, bounty }),
         Event::Victory { id, draw } => Some(SeenEvent::Ended { winner: id, draw }),
-        Event::ProjectileLaunched(_)
+        Event::SignatureHit { .. }
+        | Event::ProjectileLaunched(_)
         | Event::ProjectileEnded { .. }
         | Event::RaidStarted
         | Event::Windup { .. }
@@ -244,7 +255,7 @@ fn begin(sim: &Sim, cache: &mut Option<&mut SightCache>) {
 
 /// The events an observer is shown, in order: each is judged by its own declared [`Event::visibility`] against `can_see`
 /// (which already includes the observer itself).
-fn filter_events(
+pub(crate) fn filter_events(
     events: &[Event],
     me: Option<PlayerId>,
     can_see: impl Fn(PlayerId) -> bool,
@@ -311,6 +322,7 @@ pub(crate) fn observe_with(
     out.server_time = now;
     out.phase = sim.phase();
     out.me = me.map(|p| SelfView {
+        sig: p.signature.bits,
         attack_target: None,
         id: p.id,
         faction: p.vitals.faction,
@@ -347,6 +359,7 @@ pub(crate) fn observe_with(
                 _ => scene_line_blocked(map, ax, ay, o.body.x, o.body.y),
             }) {
                 out.visible.push(ActorView {
+                    sig: o.signature.bits,
                     id: o.id,
                     faction: o.vitals.faction,
                     x: o.body.x,

@@ -13,8 +13,8 @@ pub mod scripted;
 
 use rh_sim::content::content_hash;
 use rh_sim::{
-    observe_events_into, observe_events_into_cached, Arena, Event, ItemObserver, Observation,
-    OfferError, PlayerId, PublicCommand, SeenEvent, SightCache, Sim, OBSERVATION_VERSION,
+    Arena, Event, ItemObserver, Observation, OfferError, PlayerId, PublicCommand, SeenEvent,
+    SightCache, Sim, OBSERVATION_VERSION,
 };
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{mpsc, Arc};
@@ -25,8 +25,9 @@ use std::time::{Duration, Instant};
 ///
 /// Version 2: `Policy::reset` takes a [`MatchStart`] (the public match context) instead of `(seed, me)`; `Seat::new` and
 /// `AsyncSeat::spawn` take the same [`MatchStart`] and fault on a contract or observation-version mismatch.
-/// Version 3 proposals use observer-issued pickup handles.
-pub const POLICY_CONTRACT_VERSION: u16 = 4;
+/// Version 3 proposals use observer-issued pickup handles. Version 4 binds actor targeting to complete delivery.
+/// Version 5 feeds temporally eligible signature effects every tick, independently of decision cadence.
+pub const POLICY_CONTRACT_VERSION: u16 = 5;
 
 /// Everything a policy may know about a match before its first observation, all of it public static data (the map
 /// and spawn points), never match state. Never a [`rh_sim::Secrets`] value and never the sim itself (C-OBS, C-RNG, C-POLICY).
@@ -114,6 +115,7 @@ pub trait Policy: Send {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Fault {
+    FxProjection(rh_sim::FxError),
     ItemObservation(OfferError),
     WorkerStopped,
     Panicked,
@@ -155,6 +157,7 @@ pub struct Seat {
     pub stats: SeatStats,
     /// Reused every decision tick (never read between ticks): the seat's observation and its proposal buffer.
     observer: ItemObserver,
+    fx: Option<rh_sim::FxProjector>,
     obs: Observation,
     cmds: Vec<PublicCommand>,
     /// What this seat could perceive of the steps since its last decision, each step judged against that step's own line of
@@ -186,6 +189,7 @@ impl Seat {
             budget: None,
             stats: SeatStats::default(),
             observer: ItemObserver::new(m.me),
+            fx: None,
             obs: Observation::default(),
             cmds: Vec::new(),
             pending: Vec::new(),
@@ -194,6 +198,15 @@ impl Seat {
 
     pub fn player(&self) -> PlayerId {
         self.observer.viewer()
+    }
+    /// Establish a fresh presentation session BEFORE its first owned simulation step.
+    /// Binding is one-time: a new simulation/session requires a new seat.
+    pub fn bind_fx(&mut self, sim: &Sim) -> Result<(), rh_sim::FxError> {
+        if self.fx.is_some() {
+            return Err(rh_sim::FxError::AlreadyBound);
+        }
+        self.fx = Some(rh_sim::FxProjector::attach(sim, self.player()));
+        Ok(())
     }
 
     /// Whether this seat decides on `tick`. A seat that does not want a tick is not shown an observation for it (the
@@ -277,41 +290,55 @@ pub fn drive_seats_with(
     drive_inner(sim, seats, last_events, Some(sight), submitted);
 }
 
+/// Canonical presentation feed. Bind each seat before its first owned step, then call after EVERY step.
+/// Compatibility for an unbound seat attaches at the current tick and excludes that already completed report.
+pub fn feed_seats(sim: &Sim, seats: &mut [Seat]) {
+    for seat in seats {
+        let viewer = seat.player();
+        let Some(fx) = seat.fx.as_mut() else {
+            seat.fx = Some(rh_sim::FxProjector::attach(sim, viewer));
+            continue;
+        };
+        match fx.feed(sim.fx_report()) {
+            Ok(rh_sim::FeedStatus::Duplicate) => {}
+            Ok(_) => {
+                if let Err(e) = fx.append_into(sim, viewer, &mut seat.pending) {
+                    seat.pending.clear();
+                    seat.fault = Some(Fault::FxProjection(e));
+                    continue;
+                }
+                let over = seat.pending.len().saturating_sub(MAX_PENDING_EVENTS);
+                seat.pending.drain(..over);
+            }
+            Err(e) => {
+                seat.pending.clear();
+                seat.fault = Some(Fault::FxProjection(e));
+            }
+        }
+    }
+}
+
 fn drive_inner(
     sim: &mut Sim,
     seats: &mut [Seat],
-    last_events: &[Event],
+    _last_events: &[Event],
     mut sight: Option<&mut SightCache>,
     mut submitted: impl FnMut(PlayerId, rh_sim::Command),
 ) {
+    feed_seats(sim, seats);
     for seat in seats.iter_mut() {
         if !sim.player(seat.player()).is_some_and(|p| p.standing()) {
             continue;
         }
         if !seat.wants(sim.tick()) {
-            // Not a decision tick: no observation, only what this step's events tell the seat.
-            if !last_events.is_empty() {
-                match sight.as_deref_mut() {
-                    Some(c) => observe_events_into_cached(
-                        sim,
-                        seat.player(),
-                        last_events,
-                        &mut seat.pending,
-                        c,
-                    ),
-                    None => observe_events_into(sim, seat.player(), last_events, &mut seat.pending),
-                }
-                let over = seat.pending.len().saturating_sub(MAX_PENDING_EVENTS);
-                seat.pending.drain(..over);
-            }
             continue;
         }
         // The seat's own buffers, moved out for the call (a move of a few words, no allocation).
         let mut obs = std::mem::take(&mut seat.obs);
         let mut cmds = std::mem::take(&mut seat.cmds);
-        if let Err(err) =
-            seat.observer
-                .observe_into(sim, last_events, &mut obs, sight.as_deref_mut())
+        if let Err(err) = seat
+            .observer
+            .observe_into(sim, &[], &mut obs, sight.as_deref_mut())
         {
             seat.fault = Some(Fault::ItemObservation(err));
             seat.obs = obs;
@@ -365,6 +392,7 @@ pub fn submit_all(
 /// wall time): live use only; the replay records the commands actually applied, so a recorded match still replays exactly.
 pub struct AsyncSeat {
     observer: ItemObserver,
+    fx: Option<rh_sim::FxProjector>,
     obs: Observation,
     seen: Vec<SeenEvent>,
     tx: mpsc::Sender<(u32, Observation)>,
@@ -409,6 +437,7 @@ impl AsyncSeat {
         }
         Self {
             observer: ItemObserver::new(m.me),
+            fx: None,
             obs: Observation::default(),
             seen: Vec::new(),
             tx,
@@ -427,15 +456,65 @@ impl AsyncSeat {
     pub fn player(&self) -> PlayerId {
         self.observer.viewer()
     }
+    /// Attach before the first owned step. Feed every later step even when no worker poll is due.
+    /// Binding is one-time. A new session requires a new worker seat, so old replies cannot cross it.
+    pub fn bind_fx(&mut self, sim: &Sim) -> Result<(), rh_sim::FxError> {
+        if self.fx.is_some() {
+            return Err(rh_sim::FxError::AlreadyBound);
+        }
+        self.fx = Some(rh_sim::FxProjector::attach(sim, self.player()));
+        Ok(())
+    }
+
+    /// Feed every completed tick independently of worker polling/delivery. An unbound seat starts
+    /// a fresh baseline here; call `bind_fx` before its first owned step to retain that step.
+    pub fn feed_fx(&mut self, sim: &Sim) {
+        if matches!(self.fault, Some(Fault::FxProjection(_))) {
+            return;
+        }
+        let viewer = self.player();
+        let Some(fx) = self.fx.as_mut() else {
+            self.fx = Some(rh_sim::FxProjector::attach(sim, viewer));
+            return;
+        };
+        match fx.feed(sim.fx_report()) {
+            Ok(rh_sim::FeedStatus::Duplicate) => {}
+            Ok(_) => {
+                if let Err(e) = fx.append_into(sim, viewer, &mut self.seen) {
+                    self.seen.clear();
+                    self.pending = None;
+                    self.fault = Some(Fault::FxProjection(e));
+                    return;
+                }
+                let over = self.seen.len().saturating_sub(MAX_PENDING_EVENTS);
+                self.seen.drain(..over);
+            }
+            Err(e) => {
+                self.seen.clear();
+                self.pending = None;
+                self.fault = Some(Fault::FxProjection(e));
+            }
+        }
+    }
 
     /// Poll the worker once per tick. Only an actual request or fallback gets an observation and
     /// an offer; completed proposals resolve against this same seat, including delayed clicks.
     pub fn poll(
         &mut self,
         sim: &mut Sim,
-        events: &[Event],
+        _events: &[Event],
         submitted: impl FnMut(PlayerId, rh_sim::Command),
     ) -> Result<(), OfferError> {
+        self.feed_fx(sim);
+        // A presentation-session failure also invalidates the worker's command authority.
+        // It cannot recover by waiting for the next decision tick; a new session needs a new seat.
+        if let Some(Fault::FxProjection(error)) = self.fault {
+            self.pending = None;
+            while self.rx.try_recv().is_ok() {
+                self.late += 1;
+            }
+            return Err(OfferError::FxProjection(error));
+        }
         let tick = sim.tick();
         let mut cmds = Vec::new();
         let expired = self
@@ -447,7 +526,7 @@ impl AsyncSeat {
         }
         let mut panicked = false;
         while let Ok((asked, answer)) = self.rx.try_recv() {
-            if Some(asked) == self.pending {
+            if self.fault.is_none() && Some(asked) == self.pending {
                 self.pending = None;
                 if let Some(proposals) = answer {
                     cmds = proposals;
@@ -462,9 +541,7 @@ impl AsyncSeat {
         let fallback = expired.is_some() || panicked;
         let due = tick >= self.next_tick && self.pending.is_none();
         if due || fallback {
-            let offer = self
-                .observer
-                .prepare_into(sim, events, &mut self.obs, None)?;
+            let offer = self.observer.prepare_into(sim, &[], &mut self.obs, None)?;
             prepend_pending(&mut self.seen, &mut self.obs);
             if due {
                 self.stats.decisions += 1;
@@ -482,10 +559,6 @@ impl AsyncSeat {
                 cmds = self.fallback.decide(&self.obs);
             }
             offer.commit(); // Delivered to the worker, fallback, or both.
-        } else if !events.is_empty() {
-            observe_events_into(sim, self.player(), events, &mut self.seen);
-            let over = self.seen.len().saturating_sub(MAX_PENDING_EVENTS);
-            self.seen.drain(..over);
         }
         submit_all(sim, &self.observer, &cmds, &mut self.stats, submitted);
         Ok(())
@@ -773,5 +846,238 @@ mod tests {
         assert_eq!(seat.stats.fallback_decisions, 1);
         let ok = AsyncSeat::spawn(&m, Box::new(Brawler::new(1)), Box::new(Idle), 3);
         assert!(ok.fault.is_none());
+    }
+}
+
+#[cfg(test)]
+mod temporal_tests {
+    use super::*;
+    use rh_sim::{FactionId, FactionMode, Placement, RawCommand, Secrets, SimConfig, Vec2};
+    fn scene() -> Sim {
+        Sim::reset_active(
+            SimConfig {
+                faction_mode: FactionMode::EngagementHolyPlague,
+                ..Default::default()
+            },
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(1),
+            &(0..3)
+                .map(|i| Placement {
+                    profile: format!("p{i}"),
+                    faction: if i == 0 {
+                        FactionId::Plague
+                    } else {
+                        FactionId::Holy
+                    },
+                    bot: false,
+                    at: Vec2::new(400. + 56. * i as f64, 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                })
+                .collect::<Vec<_>>(),
+        )
+    }
+    #[test]
+    fn synchronous_and_async_feed_do_not_depend_on_decisions_or_raw_event_presence() {
+        let mut sim = scene();
+        let start = MatchStart::of(&sim, PlayerId(2), 1);
+        let mut seats = vec![Seat::new(
+            &start,
+            Box::new(scripted::Idle),
+            Box::new(scripted::Idle),
+        )];
+        let mut asynchronous = AsyncSeat::spawn(
+            &start,
+            Box::new(scripted::Idle),
+            Box::new(scripted::Idle),
+            2,
+        );
+        seats[0].bind_fx(&sim).unwrap();
+        asynchronous.bind_fx(&sim).unwrap();
+        sim.submit(
+            PlayerId(1),
+            rh_sim::validate(RawCommand::Attack { a: 0., t: None }).unwrap(),
+        )
+        .unwrap();
+        let mut empty = 0;
+        for _ in 0..20 {
+            let events = sim.step();
+            empty += usize::from(events.is_empty());
+            feed_seats(&sim, &mut seats);
+            asynchronous.feed_fx(&sim);
+            let count = seats[0].pending.len();
+            feed_seats(&sim, &mut seats);
+            asynchronous.feed_fx(&sim);
+            assert_eq!(seats[0].pending.len(), count);
+        }
+        assert_eq!(seats[0].bind_fx(&sim), Err(rh_sim::FxError::AlreadyBound));
+        assert_eq!(
+            asynchronous.bind_fx(&sim),
+            Err(rh_sim::FxError::AlreadyBound)
+        );
+        assert!(empty > 0);
+        assert_eq!(seats[0].pending, asynchronous.seen);
+        assert!(seats[0]
+            .pending
+            .iter()
+            .any(|e| matches!(e, SeenEvent::SignatureHit { .. })));
+        assert_eq!(
+            seats[0]
+                .observer
+                .resolve(&sim, PublicCommand::Target { actor: PlayerId(1) }),
+            seats[0].observer.resolve(
+                &sim,
+                PublicCommand::Target {
+                    actor: PlayerId(999)
+                }
+            )
+        );
+        let mut foreign = sim.clone();
+        foreign.step();
+        feed_seats(&foreign, &mut seats);
+        asynchronous.feed_fx(&foreign);
+        assert!(seats[0].pending.is_empty());
+        assert!(asynchronous.seen.is_empty());
+        assert_eq!(
+            seats[0].fault,
+            Some(Fault::FxProjection(rh_sim::FxError::ForeignInstance))
+        );
+        assert_eq!(
+            asynchronous.fault,
+            Some(Fault::FxProjection(rh_sim::FxError::ForeignInstance))
+        );
+    }
+}
+
+#[cfg(test)]
+mod async_session_tests {
+    use super::*;
+    use rh_sim::{FactionId, Placement, Secrets, SimConfig, Vec2};
+    struct Controlled {
+        received: mpsc::Sender<u32>,
+        release: mpsc::Receiver<()>,
+    }
+    impl Policy for Controlled {
+        fn spec(&self) -> PolicySpec {
+            let mut spec = scripted::Idle.spec();
+            spec.decision_interval_ticks = 100;
+            spec
+        }
+        fn reset(&mut self, _: &MatchStart) {}
+        fn decide(&mut self, obs: &Observation) -> Vec<PublicCommand> {
+            self.received.send(obs.tick).unwrap();
+            self.release.recv().unwrap();
+            vec![PublicCommand::Move {
+                x: 800.,
+                y: 320.,
+                seq: None,
+            }]
+        }
+    }
+    fn seat(sim: &Sim) -> (AsyncSeat, mpsc::Receiver<u32>, mpsc::Sender<()>) {
+        let (sent, received) = mpsc::channel();
+        let (release, wait) = mpsc::channel();
+        let mut seat = AsyncSeat::spawn(
+            &MatchStart::of(sim, PlayerId(1), 7),
+            Box::new(Controlled {
+                received: sent,
+                release: wait,
+            }),
+            Box::new(scripted::Idle),
+            20,
+        );
+        seat.bind_fx(sim).unwrap();
+        (seat, received, release)
+    }
+    #[test]
+    #[allow(clippy::disallowed_methods)] // Harness timeout for a real worker handshake, never a policy decision.
+    fn a_real_late_worker_reply_cannot_cross_a_faulted_session() {
+        let mut original = Sim::reset_active(
+            SimConfig::default(),
+            rh_sim::arenas::practice_arena(),
+            Secrets::from_seed(5),
+            &(0..2)
+                .map(|i| Placement {
+                    profile: format!("p{i}"),
+                    faction: FactionId::Holy,
+                    bot: false,
+                    at: Vec2::new(400. + 800. * i as f64, 320.),
+                    hp: None,
+                    weapon0: None,
+                    weapon1: None,
+                })
+                .collect::<Vec<_>>(),
+        );
+        let (mut old, received, release) = seat(&original);
+        old.poll(&mut original, &[], |_, _| panic!("worker is held"))
+            .unwrap();
+        assert_eq!(received.recv_timeout(Duration::from_secs(5)).unwrap(), 1);
+        assert_eq!(old.pending, Some(1));
+        assert_eq!(old.next_tick, 101);
+        let mut foreign = original.clone();
+        foreign.step();
+        let before_hash = foreign.state_hash();
+        let refused = Err(OfferError::FxProjection(rh_sim::FxError::ForeignInstance));
+        assert_eq!(
+            old.poll(&mut foreign, &[], |_, _| panic!("fault cannot submit")),
+            refused
+        );
+        assert!(old.pending.is_none());
+        release.send(()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while old.late == 0 {
+            assert!(
+                Instant::now() < deadline,
+                "real worker reply did not arrive"
+            );
+            assert_eq!(
+                old.poll(&mut foreign, &[], |_, _| panic!("stale reply submitted")),
+                refused
+            );
+            std::thread::yield_now();
+        }
+        assert_eq!(
+            foreign.state_hash(),
+            before_hash,
+            "fault/polls queued no input"
+        );
+        assert_eq!(old.stats.accepted, 0);
+        assert_eq!(old.stats.fallback_decisions, 0);
+        assert_eq!(
+            old.next_tick, 101,
+            "failure did not advance decision cadence"
+        );
+        let before = foreign.player(PlayerId(1)).unwrap().pos();
+        foreign.step();
+        assert_eq!(
+            foreign.player(PlayerId(1)).unwrap().pos(),
+            before,
+            "stale move must not execute"
+        );
+        // A new seat bound to this actual instance accepts its own real reply between decision ticks.
+        let (mut fresh, received, release) = seat(&foreign);
+        fresh
+            .poll(&mut foreign, &[], |_, _| panic!("fresh worker is held"))
+            .unwrap();
+        assert_eq!(
+            received.recv_timeout(Duration::from_secs(5)).unwrap(),
+            foreign.tick()
+        );
+        release.send(()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut submitted = 0;
+        while fresh.pending.is_some() {
+            assert!(Instant::now() < deadline);
+            fresh
+                .poll(&mut foreign, &[], |_, _| submitted += 1)
+                .unwrap();
+            std::thread::yield_now();
+        }
+        assert_eq!(submitted, 1);
+        assert_eq!(fresh.stats.accepted, 1);
+        assert_eq!(fresh.fault, None);
+        foreign.step();
+        assert_eq!(foreign.player(PlayerId(1)).unwrap().body.x, before.x + 8.5);
     }
 }

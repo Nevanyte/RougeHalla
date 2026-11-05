@@ -257,7 +257,7 @@ fn holy_engaged() -> Sim {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
-            holy_foundation: true,
+            faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
         practice_arena(),
@@ -275,6 +275,17 @@ fn holy_engaged() -> Sim {
     sim
 }
 
+fn plague_window() -> Sim {
+    let mut sim = holy_engaged();
+    let mut cp = serde_json::to_value(&sim).unwrap();
+    cp["statics"]["config"]["faction_mode"] = serde_json::json!("EngagementHolyPlague");
+    cp["world"]["players"][0]["core"]["vitals"]["faction"] = serde_json::json!("Plague");
+    sim = Sim::restore(cp).unwrap();
+    sim.step();
+    assert!(!sim.faction_runtime().dot.is_empty());
+    sim
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut mid = crowded_8();
     drive(&mut mid, 40);
@@ -283,6 +294,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("Plague window", plague_window()),
         ("Holy engaged", holy_engaged()),
         ("item fight", item_fight()),
         ("wand attack-move", locked_attack()),
@@ -459,7 +471,15 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
-    ("statics.config.holy_foundation","nondefault signature state requires its partial foundation gate"),
+    ("world.deferred.hits.*.execute","execute requires a signature-qualified entry"),
+    ("world.deferred.hits.*.sig","signature entries require the explicit Plague producer mode"),
+    ("world.factions.dot_since","flush clock is finite and no later than server time; gate-off runtime must be default"),
+    ("world.players.*.core.signature.dot_paused_until","pause is finite and bounded by the maximum weapon windup; gate-off state is default"),
+    ("world.players.*.core.signature.bits","only Disease/Execute bits exist in the Plague mode"),
+    ("world.factions.dot.*.sig","only the implemented Disease signature is representable"),
+    ("world.factions.dot.*.by","private source identity belongs to retained roster and differs from victim"),
+    ("world.factions.dot.*.victim","private victim identity belongs to retained roster and differs from source"),
+    ("statics.config.faction_mode","nondefault signature state requires its partial foundation gate"),
     ("world.players.*.core.signature.target","signature targets name another actor in the roster"),
     ("world.players.*.core.signature.in_reach","reach requires a target and reach timestamp; gate-off state is default"),
     ("world.players.*.core.signature.engaged","engagement requires a target and reach timestamp; gate-off state is default"),
@@ -809,7 +829,8 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
     let mut cp = serde_json::to_value(&sim).unwrap();
     cp["world"]["deferred"]["hits"] = serde_json::json!([{
         "victim": 2, "by": 1,
-        "packet": {"raw": 5.0, "phys": 4.0, "magic": 1.0, "true_": 0.0},
+        "sig": null,"execute": false,
+            "packet": {"raw": 5.0, "phys": 4.0, "magic": 1.0, "true_": 0.0},
         "weapon": "Fists", "stagger": true, "scale": 1.0, "derived":false, "projectile":null
     }]);
     let queued = Sim::restore(&cp).expect("a checkpoint with a queued hit restores");
@@ -823,9 +844,27 @@ fn a_deferred_queue_and_every_roster_name_are_hashed() {
     report("queued hit", &t);
     assert!(t.unhashed.is_empty(), "{:?}", t.unhashed);
     assert!(
-        t.changed > 0 && !t.validated.iter().any(|p| p.contains("deferred")),
+        t.changed > 0
+            && t.validated
+                .iter()
+                .filter(|p| p.contains("deferred"))
+                .all(|p| p.ends_with("execute") || p.ends_with("sig")),
         "the queued hit's own leaves were perturbed and hashed"
     );
+    // The new optional signature and execute qualification are independently hash-covered
+    // on a valid qualified queue; the Off queue above must refuse them.
+    cp["statics"]["config"]["faction_mode"] = serde_json::json!("EngagementHolyPlague");
+    cp["world"]["deferred"]["hits"][0]["sig"] = serde_json::json!("Disease");
+    cp["world"]["deferred"]["hits"][0]["execute"] = serde_json::json!(false);
+    let qualified = Sim::restore(&cp).unwrap();
+    let mut q = Tally::default();
+    perturb_all(&qualified, &BTreeMap::new(), &mut q);
+    assert!(q.unhashed.is_empty());
+    assert!(q.perturbed.iter().any(|p| p == "world.deferred.hits.*.sig"));
+    assert!(q
+        .perturbed
+        .iter()
+        .any(|p| p == "world.deferred.hits.*.execute"));
     // The roster (the join names) is deliberately covered: a name is outcome (killed_by, the winner).
     let mut renamed = serde_json::to_value(&sim).unwrap();
     renamed["world"]["roster"]["names"][0][1] = "someone else".into();

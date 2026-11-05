@@ -17,6 +17,7 @@ mod canon;
 mod combat;
 mod holy;
 mod mapping;
+mod plague;
 mod vision;
 use canon::{canon, first_difference};
 use mapping::raw_command;
@@ -190,6 +191,8 @@ pub struct FixTick {
     pub signatures: Option<Vec<Value>>,
     #[serde(default)]
     pub landed: Option<Vec<Value>>,
+    #[serde(default)]
+    pub plague: Option<Value>,
     #[serde(default)]
     pub holy_inactive: Option<Value>,
     #[serde(default)]
@@ -597,7 +600,13 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
         spawn_seed: vision::source(fx).map_or(0, |m| m.spawn_seed),
     };
     let mut config = SimConfig {
-        holy_foundation: holy::enabled(fx),
+        faction_mode: if plague::enabled(fx) {
+            rh_sim::FactionMode::EngagementHolyPlague
+        } else if holy::enabled(fx) {
+            rh_sim::FactionMode::EngagementHoly
+        } else {
+            rh_sim::FactionMode::Off
+        },
         ..Default::default()
     };
     for (key, value) in &fx.legacy_config.options {
@@ -613,8 +622,8 @@ fn try_build(fx: &Fixture) -> Result<Sim, String> {
     }
     let mut sim = Sim::reset_active(config, arena, secrets, &placements);
     if fx.players.iter().any(|p| p.barrier != 0.0) {
-        if !holy::enabled(fx) {
-            return Err("initial barrier requires the explicit Holy foundation fixture".into());
+        if !holy::enabled(fx) && !plague::enabled(fx) {
+            return Err("initial barrier requires an explicit faction foundation fixture".into());
         }
         let mut checkpoint = serde_json::to_value(&sim).map_err(|e| e.to_string())?;
         for (i, p) in fx.players.iter().enumerate() {
@@ -650,17 +659,24 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
         ),
     );
     need(
-        c.rust_slice.as_deref() == holy::enabled(fx).then_some("player-engagement-holy/1"),
+        c.rust_slice.as_deref()
+            == if plague::enabled(fx) {
+                Some("player-engagement-holy-plague/1")
+            } else {
+                holy::enabled(fx).then_some("player-engagement-holy/1")
+            },
         "legacyConfig.rustSlice must identify the partial foundation exactly".into(),
     );
     let combat_packet = matches!(
         fx.packet.as_deref(),
         Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
     );
-    let isolated_combat =
-        (combat_packet || holy::enabled(fx) || fx.packet.as_deref() == Some("P-VISION-1"))
-            && c.modules.is_some()
-            && c.world != CAPTURE_WORLD;
+    let isolated_combat = (combat_packet
+        || holy::enabled(fx)
+        || plague::enabled(fx)
+        || fx.packet.as_deref() == Some("P-VISION-1"))
+        && c.modules.is_some()
+        && c.world != CAPTURE_WORLD;
     need(
         if c.options.is_empty() && !isolated_combat {
             c.world == CAPTURE_WORLD
@@ -757,7 +773,9 @@ pub fn preconditions(fx: &Fixture, sim: &Sim) -> Vec<String> {
             "mods",
         ];
         need(
-            if holy::enabled(fx) {
+            if plague::enabled(fx) {
+                plague::modules_match(fx)
+            } else if holy::enabled(fx) {
                 holy::modules_match(fx)
             } else if vision::source(fx).is_some() {
                 modules
@@ -980,6 +998,7 @@ pub fn compare(fx: &Fixture) -> Report {
                     Some("P-COMBAT-1" | "P-COMBAT-2" | "P-COMBAT-3")
                 ),
         );
+        plague::compare(&mut rep, &sim, fx, t);
         holy::compare(&mut rep, &sim, fx, t);
         if fx.packet.as_deref() == Some("P-COMBAT-3") || t.locks.is_some() {
             combat::compare_locks(&mut rep, &sim, t);

@@ -58,6 +58,7 @@ pub struct VisibleProp {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OfferError {
+    FxProjection(crate::FxError),
     TooManyProps,
     PositionOutOfRange,
     InvalidBodyLabel,

@@ -41,10 +41,21 @@ not plain-pin parity. Camp radius is fractional `sqrt(reach2) * TILE` and partic
 ECMAScript number strings and UTF-16 hashing are required, not integer-only formatting. Full plain pins must wait for
 the actual landmark runtime/callbacks, safety nets, spot/crate/repair passes, tail records and all acceptance gates.
 
-Next bounded source work is spawn-pool preparation and the independent gate walk decision using actual captured
-post-landmark layers. Do not substitute empty landmark masks. The original picked pool's protection masks survive
-later gate member removal. Landmark runtime/templates/callbacks remain a separate prerequisite before claiming plain
+M3b spawn-pool preparation, protection and standalone gate walk decisions are implemented and independently reviewed
+on actual post-landmark/final layers. No empty landmark masks are substituted. The original picked pool's protection
+masks survive later gate member removal. Parent/content hooks and the combined 557-test native gate pass.
+Actual elite-bush placement on genuine stage-11b inputs is also implemented and independently reviewed, with its
+separate stream, internal camp order, provisional feature records and original masks preserved. Both leaves passed the
+combined integration gate. Landmark runtime/templates/callbacks remain a separate prerequisite before claiming plain
 generation. Existing strict differential and pin rules continue to apply.
+
+The next selected packet is the stage-4 whole-wall landmark guard/runtime, excluding template search and callbacks.
+Replay every actual placement request (including refusals) and reservation from genuine initial arrays; guard counters
+are assertions, never replay inputs. Actual seeds 0/1/17 produced no stateful canBlock calls outside placement, and all
+read-only open probes left guard state unchanged. A labelled reduced-budget source case proves skipping a refused
+request changes the next result: join budget survives rollback. Scorch's hard/open override changes its planning view;
+its inherited placement closure still uses the original transactional hard mask. Implement this bounded runtime only
+as the next bounded packet after this checkpoint. Template/search/planning-cache/callback selection remains a later exact port.
 
 ## Exclusive write scope
 Initial foundation worker: new `crates/rh-sim/src/mapgen/**` and `tools/map-fixtures/**` only. Coordinator adds the module

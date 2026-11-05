@@ -461,6 +461,8 @@ mod tests {
                 "deferred hit",
                 Box::new(|s| {
                     s.w.deferred.defer_hit(crate::systems::ledger::Entry {
+                        sig: None,
+                        execute: false,
                         victim: PlayerId(1),
                         by: Some(PlayerId(2)),
                         packet: crate::state::Packet {

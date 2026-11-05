@@ -123,6 +123,20 @@ impl OutcomeDigest {
     fn event(&mut self, e: &Event) {
         self.events += 1;
         match e {
+            Event::SignatureHit {
+                victim,
+                by,
+                sig,
+                weapon,
+                amount,
+            } => {
+                self.s("signature_hit");
+                self.w(victim.0 as u64);
+                self.w(by.0 as u64);
+                self.w(*sig as u64);
+                self.s(weapon.map_or("-", |w| w.as_str()));
+                self.f(*amount);
+            }
             Event::RaidStarted => self.s("raidStarted"),
             Event::Windup { by, weapon, a, ms } => {
                 self.s("windup");

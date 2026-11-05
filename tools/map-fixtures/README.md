@@ -43,3 +43,15 @@ with the same pinned runtime. Camp spots, post-styler repair, canonical record r
 taps. It verifies complete final output/hash equality against the unmodified real caller, then compares exact intermediate
 arrays and RNG words. Fourteen cases include real camp-failure redraws and wide/signed attempt arithmetic. `--check`
 verifies `mapgen/fixtures/attempt-frame.json`; a frame is not a finished map or a plain-pin claim.
+
+`spawns.ts` observes actual post-landmark pool selection/protection and final spawn-gate inputs, requiring complete
+final map/hash equality with the unmodified caller before recording intermediate values. It captures real landmarks,
+bushes, dropped members, exact paths/lengths/hazards and RNG continuation. `--check` verifies `mapgen/fixtures/spawns.json`
+on the same pinned runtime. Original pool protection survives gate removal. Labelled direct-helper boundaries are not
+invented map seeds. Production path measurement and full generator orchestration remain open.
+
+`bushes.ts` observes actual elite-bush placement on genuine repaired stage-11b inputs, retaining internal camp order,
+features, real landmarks, protection/pool masks and loot avoidance. Full final-output/hash equality is required before
+trusting taps. `--check` verifies `mapgen/fixtures/bushes.json`; full feature drafts/ownership and each per-camp stream's
+seed, draws and continuation are exact. Other layers and the main attempt RNG remain unchanged. Draft records are not
+final admitted map records; complete generation and certification remain open.

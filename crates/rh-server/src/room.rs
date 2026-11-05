@@ -238,6 +238,7 @@ struct SeatRecord {
 }
 
 struct HumanSeat {
+    fx: rh_sim::FxProjector,
     admission: Option<Admission>,
     deadline: Option<tokio::sync::watch::Receiver<Instant>>,
     player: PlayerId,
@@ -468,6 +469,8 @@ impl Room {
                         // From now on only the new connection speaks for this seat.
                         h.conn = conn;
                         h.dropped_at = None;
+                        h.fx.rebind(&self.sim, h.player);
+                        h.carry.clear();
                         let (player, session) = (h.player, h.session);
                         let resolved = h.result.clone();
                         if let Some(old) = old {
@@ -611,6 +614,7 @@ impl Room {
         // A room that has had a human closes the moment it has none again (see `wake`).
         self.had_human = true;
         self.humans.push(HumanSeat {
+            fx: rh_sim::FxProjector::attach(&self.sim, player),
             admission,
             deadline: lease.map(|(_, deadline)| deadline),
             player,
@@ -667,6 +671,11 @@ impl Room {
                 Box::new(scripted::Brawler::new(interval)),
                 Box::new(scripted::Idle),
             ));
+            self.bots
+                .last_mut()
+                .expect("new bot")
+                .bind_fx(&self.sim)
+                .expect("new bot is unbound");
         }
     }
 
@@ -773,7 +782,7 @@ impl Room {
                 .min(u128::from(u32::MAX)) as u32,
         );
         self.wake_events.clear();
-        for n in 0..steps {
+        for _ in 0..steps {
             let t = std::time::Instant::now();
             let rec = &mut self.recorder;
             drive_seats_with(
@@ -796,19 +805,28 @@ impl Room {
             }
             self.step_us.record(us);
             self.metrics.step_us.record(us);
-            if n + 1 < steps {
-                // C-OBS on a catch-up wake: this step's events are judged against THIS step's line of sight, now, not
-                // against the last step's (an attacker who steps out of sight in a later step must not hide its swing,
-                // and one who steps into sight must not reveal an earlier one). One snapshot still goes out, for the
-                // final state.
-                for h in &mut self.humans {
-                    if h.outbox.is_some() {
-                        self.publisher.observe_events_into(
-                            &self.sim,
-                            h.player,
-                            &self.step_events,
-                            &mut h.carry,
-                        );
+            rh_policy::feed_seats(&self.sim, &mut self.bots);
+            for h in &mut self.humans {
+                if h.outbox.is_none() {
+                    h.fx.rebind(&self.sim, h.player);
+                    h.carry.clear();
+                    continue;
+                }
+                match h.fx.feed(self.sim.fx_report()).and_then(|status| {
+                    if status != rh_sim::FeedStatus::Duplicate {
+                        h.fx.append_into(&self.sim, h.player, &mut h.carry)?;
+                    }
+                    Ok(status)
+                }) {
+                    Ok(rh_sim::FeedStatus::Duplicate) => {}
+                    Ok(_) => {}
+                    Err(e) => {
+                        h.carry.clear();
+                        self.frame_refusals += 1;
+                        if self.frame_refusals_logged == 0 {
+                            self.frame_refusals_logged += 1;
+                            eprintln!("[room] temporal projection refused: {e:?}");
+                        }
                     }
                 }
             }
@@ -861,7 +879,7 @@ impl Room {
                 &self.sim,
                 h.player,
                 h.ack_input,
-                &self.last_events,
+                &[],
                 &mut h.carry,
                 events,
             );
@@ -1133,7 +1151,7 @@ mod tests {
                 fill_seconds: 0.0,
                 pvp_rules: true,
                 weapon_specials: true,
-                holy_foundation: false,
+                faction_mode: rh_sim::FactionMode::Off,
             },
             arena: assets.arena,
             welcome_map: assets.welcome_map,

@@ -113,6 +113,8 @@ fn resolve_swings(cx: &mut Cx) {
                     || angle_between(atan2(dy, dx), target.body.facing)
                         <= SHIELD_HALF_ARC + ARC_EPS);
             let mut entry = Entry {
+                sig: None,
+                execute: false,
                 victim: target.id,
                 by: Some(req.attacker),
                 packet: req.packet,
@@ -124,7 +126,7 @@ fn resolve_swings(cx: &mut Cx) {
                 passive: false,
             };
             if blocked {
-                if k.config.holy_foundation {
+                if k.config.faction_mode.engagement() {
                     blocks.push(crate::systems::signatures::BlockContact {
                         attacker: req.attacker,
                         holder: target.id,
@@ -139,6 +141,8 @@ fn resolve_swings(cx: &mut Cx) {
                 });
                 if req.weapon == WeaponId::Sword {
                     ledger.push(Entry {
+                        sig: None,
+                        execute: false,
                         victim: req.attacker,
                         by: Some(target.id),
                         packet: Packet {

@@ -62,6 +62,14 @@ fn start_raid(k: &MatchStatic, w: &mut World, s: &mut TickScratch, ev: &mut Vec<
     w.rt.downs_between_ticks = 0;
     w.winner = None;
     // Legacy startRaid: beginRun, then the raidStarted hook chain, then the event.
-    hooks::fire(&mut Hx { k, w, ev }, HookArgs::RaidStarted);
+    hooks::fire(
+        &mut Hx {
+            k,
+            w,
+            ev,
+            fx: Some(&mut s.fx),
+        },
+        HookArgs::RaidStarted,
+    );
     ev.push(Event::RaidStarted);
 }

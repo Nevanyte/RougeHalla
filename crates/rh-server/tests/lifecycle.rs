@@ -50,7 +50,7 @@ fn sim_config() -> SimConfig {
         fill_seconds: 0.0,
         pvp_rules: true,
         weapon_specials: true,
-        holy_foundation: false,
+        faction_mode: rh_sim::FactionMode::Off,
     }
 }
 
@@ -427,7 +427,7 @@ async fn room_heap_probe() {
         fill_seconds: 0.0,
         pvp_rules: true,
         weapon_specials: true,
-        holy_foundation: false,
+        faction_mode: rh_sim::FactionMode::Off,
     };
     let mut cfg = DirectorConfig::new(sim, arena);
     cfg.max_rooms = n;

@@ -169,6 +169,7 @@ fn a_proposal_is_validated_before_it_queues() {
 fn with_hx<R>(sim: &mut Sim, f: impl FnOnce(&mut Hx) -> R) -> R {
     let mut ev = Vec::new();
     f(&mut Hx {
+        fx: None,
         k: &sim.k,
         w: &mut sim.w,
         ev: &mut ev,
@@ -216,6 +217,8 @@ fn a_hook_with_no_ported_link_changes_nothing() {
 
 fn hit(by: u32, victim: u32, raw: f64) -> ledger::Entry {
     ledger::Entry {
+        sig: None,
+        execute: false,
         victim: PlayerId(victim),
         by: Some(PlayerId(by)),
         packet: Packet {
@@ -596,6 +599,8 @@ fn melee_reference(
                 continue;
             }
             ledger.push(ledger::Entry {
+                sig: None,
+                execute: false,
                 victim: w.players[ti].id,
                 by: Some(req.attacker),
                 packet: req.packet,

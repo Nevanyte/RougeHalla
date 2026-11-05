@@ -29,6 +29,9 @@ pub(crate) const NONE: u32 = u32::MAX;
 
 #[derive(Debug)]
 pub(crate) struct TickScratch {
+    pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
+    pub(crate) dot_sums: Vec<(PlayerId, f64)>,
+    pub(crate) fx: crate::fx_report::TickFx,
     /// Every player's bounty at the start of the tick (legacy `bountyAtTickStart`), by slot: a kill pays what the victim
     /// was worth before the tick's own kills raised it.
     pub(crate) bounty_at_tick_start: Vec<u32>,
@@ -87,6 +90,11 @@ impl Default for TickScratch {
     fn default() -> Self {
         let (p, hits) = (MAX_PLAYERS, 2 * MAX_PLAYERS * MAX_PLAYERS);
         Self {
+            ledger_diagnostics: Vec::with_capacity(hits),
+            dot_sums: Vec::with_capacity(p),
+            fx: crate::fx_report::TickFx {
+                ops: Vec::with_capacity(20),
+            },
             bounty_at_tick_start: Vec::with_capacity(p),
             action_order: Vec::with_capacity(p),
             rank: Vec::with_capacity(p),

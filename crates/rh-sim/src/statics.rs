@@ -70,6 +70,23 @@ impl Secrets {
     }
 }
 
+/// Explicitly partial faction installations. Unimplemented factions never silently activate.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum FactionMode {
+    #[default]
+    Off,
+    EngagementHoly,
+    EngagementHolyPlague,
+}
+impl FactionMode {
+    pub const fn engagement(self) -> bool {
+        !matches!(self, Self::Off)
+    }
+    pub const fn plague(self) -> bool {
+        matches!(self, Self::EngagementHolyPlague)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SimConfig {
     pub min_players: usize,
@@ -83,7 +100,7 @@ pub struct SimConfig {
     /// Partial player-only faction foundation: engagement and Holy lifesteal.
     /// Other faction producers and installers remain pending. Recorded in replay identity.
     #[serde(default)]
-    pub holy_foundation: bool,
+    pub faction_mode: FactionMode,
 }
 
 fn specials_enabled() -> bool {
@@ -98,7 +115,7 @@ impl Default for SimConfig {
             fill_seconds: 5.0,
             pvp_rules: true,
             weapon_specials: true,
-            holy_foundation: false,
+            faction_mode: FactionMode::Off,
         }
     }
 }

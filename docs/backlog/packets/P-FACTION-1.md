@@ -1,16 +1,17 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
-## Planned next slice: Plague and temporal public reporting
+## Implemented slice: Plague and temporal public reporting
 
-Implementation has not started. Source audit selects Plague plus shared DoT accounting/reporting first, then Fire with
+Implemented and independently reviewed with the 557-test combined gate. Plague plus shared DoT accounting/reporting precedes Fire with
 the genuine afterWeapons attack snapshot. Disease and execute are two ordered Disease entries; execute is a private
-flag, not a new signature kind. Both read the source pre-ledger HP fraction without barrier. The proportional DoT cap
+flag, not a new signature kind. Execute reads the target's pre-ledger HP fraction without barrier; Holy sustain reads
+the source's fraction. The proportional DoT cap
 replaces the instantaneous hit cap for those entries; barrier apportionment follows. A stagger's own tick is not paused;
 with current player timings only wand produces a positive later pause (bow exempt, melee windups zero).
 
 An actual-source paired probe found a delayed visibility leak: hidden earlier Plague damage produced chunks
 12.146966292134834 versus 8.097977528089888 at tick 11, despite identical visible HP/signature history since tick 9.
-The safe proposed public boundary is per-contribution eligibility at its settled tick, with canonical flush timing.
+The public boundary is per-contribution eligibility at its settled tick, with canonical flush timing.
 Both visible portions in that pair total 4.048988764044944, with the unseen source redacted. Trusted private totals,
 damage, summation and flush events must remain source-exact.
 
@@ -18,7 +19,10 @@ Redact source identity before public bucket keys/order/first-weapon selection; a
 hidden source count or history. Live/headless/policy share a canonical every-tick Rust projection feed independent of
 decision/delivery cadence. Fresh reconnect/restore sessions discard prior public-window entitlement; skipped history
 cannot be rebuilt from the current view. Game rules never consume projector output. API continuity/checkpoint details
-need independent review before implementation. No aggregation belongs in Unity.
+are resolved by the independently reviewed design in [ADR 0013](../../adr/0013-temporal-damage-projection.md): sealed
+per-step reports with frozen settled eligibility, private instance tokens, fresh-session baselines, explicit gaps and
+idempotent reads. Anonymous sums must be exact and rounded once so private source order cannot alter their low bits.
+Implementation, independent core/public review and the post-fix native gate passed; see [evidence](../../evidence/stage2-plague-map/README.md). No aggregation belongs in Unity.
 
 Whole-window suppression is a possible conservative alternative only if eligibility covers every tick of the entire
 window, including zero-damage ticks. Requiring visibility only for actual contributions leaks through event absence.
@@ -26,9 +30,8 @@ Keep the original Fire/Plague full-world traces capture-only until unrelated ins
 
 ## Stage 2 bounded slice: engagement and Holy
 
-Implemented and independently reviewed in `SimConfig.holy_foundation` (default false): private engagement, trusted
-landed/contact provenance, Holy lifesteal and internal heal. Checkpoint /9, replay /7, observation 7 and policy 4; live
-Heal transport and all other faction effects remain open. See [evidence](../../evidence/stage2-holy-camps/README.md).
+Originally implemented as `SimConfig.holy_foundation`; now represented by explicit `FactionMode::EngagementHoly` (default Off): private engagement, trusted
+landed/contact provenance, Holy lifesteal and internal heal. Its historical gate used checkpoint /9, replay /7, observation 7 and policy 4; current formats are recorded above and in MIGRATION. Live Heal transport and remaining faction effects stay open. See [evidence](../../evidence/stage2-holy-camps/README.md).
 
 Source review after C3 selected shared player engagement, authoritative landed-damage accounting and Holy lifesteal
 as the first implementation slice. Other faction signatures remain pending. Capture uses the existing explicit module
@@ -52,7 +55,7 @@ and checkpoint validation. Keep unused afterWeapons/Fire/Frost rows pending rath
 Use genuine Holy-only installed-module captures, then verify whether the original full-default `signature_holy` trace
 can be compared unchanged. Holy-only deaths can still trigger unrelated corpse systems; prove their inactivity or use
 the explicitly identified module set. Ordinary `heal` lockout boundary tests can call the actual source helper directly;
-do not invent a heal command or pretend an unported terrain/chest producer exists. Full Fire/Plague/Frost/Sentenced,
+do not invent a heal command or pretend an unported terrain/chest producer exists. Full Fire/Frost/Sentenced, auxiliary Plague,
 cards, mobs, wards, training and teleport cleanup remain later work.
 
 ## ID and outcome

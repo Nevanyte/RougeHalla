@@ -38,6 +38,7 @@ pub use crate::systems::melee::in_arc;
 /// nor the path search state is ever serialized).
 #[derive(Clone, Debug)]
 pub struct Sim {
+    pub(crate) projection: crate::fx_report::Projection,
     pub(crate) k: MatchStatic,
     pub(crate) w: World,
     pub(crate) s: TickScratch,
@@ -62,6 +63,7 @@ pub struct Placement {
 impl Sim {
     pub fn new(config: SimConfig, arena: impl Into<Arc<Arena>>, secrets: Secrets) -> Self {
         Self {
+            projection: Default::default(),
             k: MatchStatic::new(config, arena, secrets),
             w: World::new(&secrets),
             s: TickScratch::default(),
@@ -131,6 +133,9 @@ impl Sim {
             });
         }
         sim.take_events();
+        // Trusted placement overrides happen after the synthetic bootstrap step. No report
+        // from that earlier geometry is a completed observation of this new session.
+        sim.projection = crate::fx_report::Projection::empty_at(sim.tick());
         sim
     }
 
@@ -288,6 +293,7 @@ impl Sim {
             // Legacy removePlayer: the hook fires after the down and before the seat is removed.
             let cause = OutCause::Removed;
             let mut hx = Hx {
+                fx: None,
                 k: cx.k,
                 w: cx.w,
                 ev: cx.ev,
@@ -321,6 +327,8 @@ impl Sim {
     /// (a leave's result), then the step's own, in order. `out` is not cleared, so a caller that loops reuses one buffer
     /// (`out.clear()` between steps) and a steady-state step allocates nothing (`tests/no_alloc.rs`).
     pub fn step_into(&mut self, out: &mut Vec<Event>) {
+        let event_start = out.len();
+        self.s.fx.ops.clear();
         self.w.server_time += TICK_MS;
         self.w.tick += 1;
         out.append(&mut self.w.pending_events);
@@ -331,6 +339,7 @@ impl Sim {
             ev: out,
             pf: &mut self.pf,
         });
+        self.finish_fx_report(&out[event_start..], event_start);
         debug_assert!(
             self.s.is_settled(),
             "tick-local buffers must be empty at the end of a step"

@@ -96,7 +96,7 @@ impl Gates {
     /// The match uses the baseline capture plan or the explicitly partial Holy foundation.
     /// Other signature producers remain Pending even in the latter plan.
     pub(crate) const fn of(k: &MatchStatic) -> Gates {
-        if k.config.holy_foundation {
+        if k.config.faction_mode.engagement() {
             Gates::HOLY_FOUNDATION
         } else {
             Gates::CAPTURE
@@ -1090,11 +1090,11 @@ static RAID_STARTED: [Link; 14] = [
     ),
 ];
 static RUN_ENDED: [Link; 12] = [
-    pending_link(
+    ported_link(
         "factions.flushDotFx",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::plague::run_ended,
     ),
     pending_link(
         "chests.clearChests",

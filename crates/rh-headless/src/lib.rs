@@ -63,6 +63,10 @@ pub struct Env {
     sight: SightCache,
     external: Vec<PlayerId>,
     observers: Vec<ItemObserver>,
+    fx: Vec<rh_sim::FxProjector>,
+    fx_fault: Option<rh_sim::FxError>,
+    fx_pending: Vec<Vec<rh_sim::SeenEvent>>,
+    fx_delivered: Vec<bool>,
     recorder: Option<Recorder>,
     last_events: Vec<Event>,
     start_tick: u32,
@@ -114,17 +118,30 @@ impl Env {
                 Agent::External => external.push(id),
             }
         }
+        for seat in &mut seats {
+            seat.bind_fx(&sim).expect("new policy seat is unbound");
+        }
         let start_tick = sim.tick();
         Self {
             max_ticks: cfg.max_ticks,
-            sim,
             seats,
             sight: SightCache::new(),
             observers: external.iter().copied().map(ItemObserver::new).collect(),
+            fx: external
+                .iter()
+                .map(|&id| rh_sim::FxProjector::attach(&sim, id))
+                .collect(),
+            fx_fault: None,
+            fx_pending: external
+                .iter()
+                .map(|_| Vec::with_capacity(rh_policy::MAX_PENDING_EVENTS))
+                .collect(),
+            fx_delivered: vec![false; external.len()],
             external,
             recorder,
             last_events: Vec::new(),
             start_tick,
+            sim,
         }
     }
 
@@ -141,6 +158,16 @@ impl Env {
             seats: Vec::new(),
             sight: SightCache::new(),
             observers: external.iter().copied().map(ItemObserver::new).collect(),
+            fx: external
+                .iter()
+                .map(|&id| rh_sim::FxProjector::attach(&sim, id))
+                .collect(),
+            fx_fault: None,
+            fx_pending: external
+                .iter()
+                .map(|_| Vec::with_capacity(rh_policy::MAX_PENDING_EVENTS))
+                .collect(),
+            fx_delivered: vec![false; external.len()],
             external,
             recorder: None,
             last_events: Vec::new(),
@@ -158,10 +185,19 @@ impl Env {
         agent: usize,
         out: &mut Observation,
     ) -> Result<(), OfferError> {
+        if let Some(e) = self.fx_fault {
+            return Err(OfferError::FxProjection(e));
+        }
+        let fx = self.fx.get(agent).ok_or(OfferError::UnknownExternalSeat)?;
+        fx.check_delivery(&self.sim, self.external[agent])
+            .map_err(OfferError::FxProjection)?;
         self.observers
             .get_mut(agent)
             .ok_or(OfferError::UnknownExternalSeat)?
-            .observe_into(&self.sim, &self.last_events, out, Some(&mut self.sight))
+            .observe_into(&self.sim, &[], out, Some(&mut self.sight))?;
+        out.events.extend_from_slice(&self.fx_pending[agent]);
+        self.fx_delivered[agent] = true;
+        Ok(())
     }
 
     /// Hits and misses of the seats' line-of-sight memo so far (diagnostics).
@@ -193,21 +229,26 @@ impl Env {
 
     /// Sample all external observers atomically. Only a returned observation issues handles.
     pub fn try_observations(&mut self) -> Result<Vec<Observation>, OfferError> {
+        if let Some(e) = self.fx_fault {
+            return Err(OfferError::FxProjection(e));
+        }
         let mut observations = Vec::with_capacity(self.observers.len());
         let mut offers = Vec::with_capacity(self.observers.len());
-        for observer in &mut self.observers {
+        for (agent, (observer, fx)) in self.observers.iter_mut().zip(&self.fx).enumerate() {
             let mut observation = Observation::default();
-            offers.push(observer.prepare_into(
-                &self.sim,
-                &self.last_events,
-                &mut observation,
-                None,
-            )?);
+            let viewer = observer.viewer();
+            offers.push(observer.prepare_into(&self.sim, &[], &mut observation, None)?);
+            fx.check_delivery(&self.sim, viewer)
+                .map_err(OfferError::FxProjection)?;
+            observation
+                .events
+                .extend_from_slice(&self.fx_pending[agent]);
             observations.push(observation);
         }
         for offer in offers {
             offer.commit();
         }
+        self.fx_delivered.fill(true);
         Ok(observations)
     }
 
@@ -271,6 +312,30 @@ impl Env {
         self.drive_and_record();
         self.last_events.clear();
         self.sim.step_into(&mut self.last_events);
+        rh_policy::feed_seats(&self.sim, &mut self.seats);
+        for (i, fx) in self.fx.iter_mut().enumerate() {
+            if self.fx_delivered[i] {
+                self.fx_pending[i].clear();
+                self.fx_delivered[i] = false;
+            }
+            match fx.feed(self.sim.fx_report()).and_then(|status| {
+                if status != rh_sim::FeedStatus::Duplicate {
+                    fx.append_into(&self.sim, self.external[i], &mut self.fx_pending[i])?;
+                }
+                Ok(status)
+            }) {
+                Ok(_) => {
+                    let over = self.fx_pending[i]
+                        .len()
+                        .saturating_sub(rh_policy::MAX_PENDING_EVENTS);
+                    self.fx_pending[i].drain(..over);
+                }
+                Err(e) => {
+                    self.fx_pending[i].clear();
+                    self.fx_fault = Some(e);
+                }
+            }
+        }
         if let Some(rec) = self.recorder.as_mut() {
             rec.stepped(&self.sim);
         }

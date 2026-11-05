@@ -30,6 +30,14 @@ impl PickupRefusal {
 /// ([`Event::class`]); important events (deaths, results, the end) are never dropped, fx may be (docs/CONTRACTS.md C-NET-5).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Event {
+    /// Source-exact private delayed chunk. Public projection consumes per-tick contributions instead.
+    SignatureHit {
+        victim: PlayerId,
+        by: PlayerId,
+        sig: crate::factions::SignatureKind,
+        weapon: Option<WeaponId>,
+        amount: f64,
+    },
     RaidStarted,
     ProjectileLaunched(crate::ProjectileLaunch),
     ProjectileEnded {
@@ -155,7 +163,8 @@ impl Event {
             | Event::Death { id, .. } => Visibility::IfSeen(id),
             Event::PickupRefused { id, .. } => Visibility::Owner(id),
             Event::Bounty { .. } | Event::Victory { .. } => Visibility::Everyone,
-            Event::ProjectileLaunched(_)
+            Event::SignatureHit { .. }
+            | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
             | Event::Windup { .. }
@@ -180,7 +189,8 @@ impl Event {
             | Event::AttackCancelled { .. }
             | Event::Stagger { .. } => Class::Fx,
             Event::PickupRefused { .. } => Class::Important,
-            Event::ProjectileLaunched(_)
+            Event::SignatureHit { .. }
+            | Event::ProjectileLaunched(_)
             | Event::ProjectileEnded { .. }
             | Event::RaidStarted
             | Event::Windup { .. }

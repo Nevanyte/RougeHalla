@@ -12,7 +12,10 @@ pub mod checkpoint;
 pub mod constants;
 pub mod content;
 pub mod events;
+pub mod factions;
 pub mod fighter;
+pub mod fx_projector;
+pub mod fx_report;
 pub mod geometry;
 mod hash;
 mod hooks;
@@ -41,6 +44,7 @@ pub use checkpoint::{CheckpointError, CHECKPOINT_FORMAT};
 pub use content::{FactionId, WeaponId};
 pub use events::PickupRefusal;
 pub use events::{Class, Visibility};
+pub use fx_projector::{FeedStatus, FxError, FxProjector};
 pub use input::{validate, Command, PublicCommand, RawCommand, Reject};
 pub use item_view::{
     Inventory, ItemObserver, OfferError, PickupHandle, PropCue, PropKind, VisibleProp,
@@ -59,6 +63,7 @@ pub use sim::{
 pub use state::{
     Container, ContainerKind, ProjectileEnd, ProjectileKind, ProjectileLaunch, WeaponItem,
 };
+pub use statics::FactionMode;
 pub use store::{EntityId, Store};
 
 pub use systems::signatures::LandedHit;

@@ -11,8 +11,8 @@
 //!   mechanic it belongs to does not exist yet;
 //! * the effective chain follows the record's modes: links run in install order, and a live `replace` link drops every
 //!   link before it (`schedule::chain_from`, the one function dispatch and the conformance test both use);
-//! * a link gets a [`Hx`], not the whole tick: the statics, the world and the event log. It cannot touch the tick scratch
-//!   or the path search, so a reaction decides from its arguments and the world and defers what it pays, never mid-pass
+//! * a link gets a [`Hx`], not the whole tick: the statics, the world and the event log, plus an optional write-only derived FX marker sink.
+//!   It cannot read gameplay tick scratch or the path search, so a reaction decides from its arguments and the world and defers what it pays, never mid-pass
 //!   (legacy: "decide from the arguments and pay with payLater");
 //! * there are two deferrals, and a link picks the one its legacy code calls. `payLater` (same tick, after the ledger pass,
 //!   or at once outside it) is [`Hx::pay_later`] with a typed [`PayLater`](crate::systems::ledger::PayLater) variant; a
@@ -27,6 +27,8 @@ use crate::systems::ledger::{self, PayLater};
 
 /// What a hook link may touch (see the module docs).
 pub(crate) struct Hx<'a> {
+    /// Write-only derived presentation markers; never gameplay input.
+    pub(crate) fx: Option<&'a mut crate::fx_report::TickFx>,
     pub(crate) k: &'a MatchStatic,
     pub(crate) w: &'a mut World,
     pub(crate) ev: &'a mut Vec<Event>,

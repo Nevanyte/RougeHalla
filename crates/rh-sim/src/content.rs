@@ -416,10 +416,10 @@ pub fn content_hash_of_map_definition(
     content_hash_of_map_definitions(
         registry,
         stagger_weapons,
-        definition,
-        &crate::mapgen::zones::default_definition(),
-        &crate::mapgen::zones::camps::default_definition(),
-        &crate::mapgen::attempt::default_definition(),
+        MapDefinitions {
+            coliseum: definition,
+            ..Default::default()
+        },
     )
 }
 
@@ -432,10 +432,10 @@ pub fn content_hash_of_zone_definition(
     content_hash_of_map_definitions(
         registry,
         stagger_weapons,
-        &crate::mapgen::coliseum::default_definition(),
-        definition,
-        &crate::mapgen::zones::camps::default_definition(),
-        &crate::mapgen::attempt::default_definition(),
+        MapDefinitions {
+            zones: definition,
+            ..Default::default()
+        },
     )
 }
 
@@ -448,10 +448,10 @@ pub fn content_hash_of_camp_definition(
     content_hash_of_map_definitions(
         registry,
         stagger_weapons,
-        &crate::mapgen::coliseum::default_definition(),
-        &crate::mapgen::zones::default_definition(),
-        definition,
-        &crate::mapgen::attempt::default_definition(),
+        MapDefinitions {
+            camps: definition,
+            ..Default::default()
+        },
     )
 }
 
@@ -464,21 +464,81 @@ pub fn content_hash_of_attempt_definition(
     content_hash_of_map_definitions(
         registry,
         stagger_weapons,
-        &crate::mapgen::coliseum::default_definition(),
-        &crate::mapgen::zones::default_definition(),
-        &crate::mapgen::zones::camps::default_definition(),
-        definition,
+        MapDefinitions {
+            attempt: definition,
+            ..Default::default()
+        },
     )
+}
+
+/// Spawn selection/protection and gate decisions use the same rules as this fold.
+pub fn content_hash_of_spawn_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::spawns::SpawnDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            spawns: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Elite-bush rules share the actual placement definition with the content identity.
+pub fn content_hash_of_bush_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::bushes::BushDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            bushes: definition,
+            ..Default::default()
+        },
+    )
+}
+
+/// Borrowed rule definitions avoid duplicating default lists at every perturbation entry point.
+struct MapDefinitions<'rules, 'pillars> {
+    coliseum: &'rules crate::mapgen::coliseum::FixedDefinition<'pillars>,
+    zones: &'rules crate::mapgen::zones::ZoneDefinition,
+    camps: &'rules crate::mapgen::zones::camps::CampDefinition,
+    attempt: &'rules crate::mapgen::attempt::AttemptDefinition,
+    spawns: &'rules crate::mapgen::spawns::SpawnDefinition,
+    bushes: &'rules crate::mapgen::bushes::BushDefinition,
+}
+
+impl Default for MapDefinitions<'_, '_> {
+    fn default() -> Self {
+        Self {
+            coliseum: &crate::mapgen::coliseum::DEFAULT_DEFINITION,
+            zones: &crate::mapgen::zones::DEFAULT_DEFINITION,
+            camps: &crate::mapgen::zones::camps::DEFAULT_DEFINITION,
+            attempt: &crate::mapgen::attempt::DEFAULT_DEFINITION,
+            spawns: &crate::mapgen::spawns::DEFAULT_DEFINITION,
+            bushes: &crate::mapgen::bushes::DEFAULT_DEFINITION,
+        }
+    }
 }
 
 fn content_hash_of_map_definitions(
     registry: &[Entry],
     stagger_weapons: &[WeaponId],
-    coliseum: &crate::mapgen::coliseum::FixedDefinition<'_>,
-    zones: &crate::mapgen::zones::ZoneDefinition,
-    camps: &crate::mapgen::zones::camps::CampDefinition,
-    attempt: &crate::mapgen::attempt::AttemptDefinition,
+    definitions: MapDefinitions<'_, '_>,
 ) -> u64 {
+    let MapDefinitions {
+        coliseum,
+        zones,
+        camps,
+        attempt,
+        spawns,
+        bushes,
+    } = definitions;
     let mut h = Fnv::new();
 
     h.str("registry");
@@ -499,6 +559,12 @@ fn content_hash_of_map_definitions(
 
     h.str("mapgen/attempt-prefix/1");
     crate::mapgen::attempt::visit_content(attempt, |word| h.u64(word));
+
+    h.str("mapgen/spawns/1");
+    crate::mapgen::spawns::visit_content(spawns, |word| h.u64(word));
+
+    h.str("mapgen/elite-bushes/1");
+    crate::mapgen::bushes::visit_content(bushes, |word| h.u64(word));
 
     h.str("factions");
     for f in FactionId::ALL {

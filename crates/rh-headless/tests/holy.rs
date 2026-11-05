@@ -15,7 +15,7 @@ fn env() -> Env {
         EnvConfig {
             arena,
             sim: SimConfig {
-                holy_foundation: true,
+                faction_mode: rh_sim::FactionMode::EngagementHoly,
                 ..Default::default()
             },
             max_ticks: 400,
@@ -82,7 +82,7 @@ fn external_holy_heals_replay_without_public_sampling_and_restore_in_engagement(
     assert!(heals > 20);
     let hash = full.sim.state_hash();
     let replay = full.into_replay().unwrap();
-    assert!(replay.config.holy_foundation);
+    assert!(replay.config.faction_mode.engagement());
     assert_eq!(replay, sparse.into_replay().unwrap());
     assert_eq!(run_replay(&replay).unwrap().0.state_hash(), hash);
 }

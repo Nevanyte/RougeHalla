@@ -19,9 +19,10 @@ export interface Scenario {
   modules?: string[];
   config?: Partial<SimConfig>;
   secrets?: { rewardSalt?: [number, number, number, number]; questSalt?: [number, number, number, number] };
-  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks" | "signatures" | "landed" | "holyInactive">;
+  record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks" | "signatures" | "landed" | "holyInactive" | "plague">;
   generatedMapSeed?: number;
   vision?: { viewers: string[]; points: Vec2[]; spawnSeed?: number };
+  factionSlice?: "player-engagement-holy-plague/1";
   containers?: Array<{ weapon: string; at: Vec2 }>;
   /** Called before each step with the tick about to run. */
   drive: (ctx: Ctx) => void;

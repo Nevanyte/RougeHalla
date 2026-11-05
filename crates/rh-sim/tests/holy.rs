@@ -17,7 +17,7 @@ fn scene() -> Sim {
         .collect();
     Sim::reset_active(
         SimConfig {
-            holy_foundation: true,
+            faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
         Arena {
@@ -144,7 +144,7 @@ fn private_signature_state_is_validated_and_cannot_be_installed_gate_off() {
         assert!(Sim::restore(cp).is_err(), "{field}");
     }
     let mut cp = base.clone();
-    cp["statics"]["config"]["holy_foundation"] = false.into();
+    cp["statics"]["config"]["faction_mode"] = false.into();
     assert!(Sim::restore(cp).is_err());
     let mut cp = base.clone();
     cp["world"]["players"][0]["core"]["signature"]["target"] = serde_json::Value::Null;
@@ -188,7 +188,7 @@ fn heal_visibility_reveals_only_recipient_and_does_not_change_older_views() {
     ];
     let mut sim = Sim::reset_active(
         SimConfig {
-            holy_foundation: true,
+            faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
         Arena {
@@ -236,7 +236,7 @@ fn trusted_initial_hp_above_maximum_keeps_its_unclamped_source_fraction() {
         .collect();
     let mut sim = Sim::reset_active(
         SimConfig {
-            holy_foundation: true,
+            faction_mode: rh_sim::FactionMode::EngagementHoly,
             ..Default::default()
         },
         rh_sim::arenas::practice_arena(),

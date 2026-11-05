@@ -3,6 +3,8 @@
 Branch: `optimization_port`. The integrated native gate passed **521 tests, zero failures/filters and one intentional
 ignored heap measurement**. Formatting and all/default-feature workspace Clippy passed. The gameplay report remains
 57 compared scenarios/13 capture-only plus 300 path queries; existing gameplay fixture values are unchanged.
+Ending/attempt integration is committed at `135ad2d5`; after a test-only lease contention repair, Rust CI `42023715522`
+at `f4f38755` passed all jobs, including the new oracles, PostgreSQL, C# and Chromium WSS.
 
 ## Ending metadata
 

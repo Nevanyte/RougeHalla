@@ -107,7 +107,7 @@ fn reference(
             }),
             SeenEvent::Stagger { id } => fx.push(WireFx::Stagger { id: id.0 }),
             SeenEvent::AttackCancelled { .. } => {} // No cancel telegraph in protocol 5.
-            SeenEvent::Heal { .. } => {}            // No heal effect in protocol 5.
+            SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => {} // No heal effect in protocol 5.
             SeenEvent::PickupRefused { reason } => events.push(WireEvent::PickupRefused {
                 reason: match reason {
                     rh_sim::PickupRefusal::Blocked => 1,
@@ -268,7 +268,7 @@ impl Hand {
                 fill_seconds: 0.0,
                 pvp_rules: true,
                 weapon_specials: true,
-                holy_foundation: false,
+                faction_mode: rh_sim::FactionMode::Off,
             },
             arena: assets.arena.clone(),
             welcome_map: assets.welcome_map.clone(),

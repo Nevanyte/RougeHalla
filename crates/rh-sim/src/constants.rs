@@ -176,4 +176,12 @@ content! {
     /// The start tile's centre becomes a waypoint when the start is in a wall or farther than this from the centre on
     /// either axis.
     START_CENTER_SLACK: f64 = 0.5, "u";
+    PLAGUE_DPS: f64 = 52.0, "damage/s";
+    PLAGUE_EXECUTE_DPS: f64 = 325.0, "damage/s";
+    PLAGUE_EXECUTE_BAND: f64 = 0.5, "fraction";
+    DOT_FX_MS: f64 = 500.0, "ms";
+    PVP_DOT_CAP_SHARE: f64 = 0.15, "fraction/s";
+    SIG_DISEASED: u8 = 4, "bits";
+    SIG_EXECUTE: u8 = 8, "bits";
+
 }

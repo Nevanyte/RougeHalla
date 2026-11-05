@@ -76,7 +76,12 @@ pub(crate) fn hit_landed(hx: &mut Hx, args: &HookArgs) {
     let HookArgs::HitLanded { entry, .. } = *args else {
         return;
     };
-    if !hx.k.config.weapon_specials || entry.passive || entry.weapon != Some(WeaponId::Axe) {
+    if !hx.k.config.weapon_specials
+        || entry.passive
+        || entry.derived
+        || entry.sig.is_some()
+        || entry.weapon != Some(WeaponId::Axe)
+    {
         return;
     }
     let Some(source) = entry.by.filter(|id| hx.w.idx(*id).is_some()) else {

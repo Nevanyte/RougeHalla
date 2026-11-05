@@ -17,6 +17,7 @@ pub(crate) mod lobby;
 pub(crate) mod loot;
 pub(crate) mod melee;
 pub(crate) mod movement;
+pub(crate) mod plague;
 pub(crate) mod projectiles;
 pub(crate) mod settle;
 pub(crate) mod signatures;

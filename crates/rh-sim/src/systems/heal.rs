@@ -52,7 +52,7 @@ mod tests {
             .collect();
         let mut sim = Sim::reset_active(
             SimConfig {
-                holy_foundation: true,
+                faction_mode: crate::FactionMode::EngagementHoly,
                 ..Default::default()
             },
             practice_arena(),

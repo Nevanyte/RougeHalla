@@ -17,6 +17,8 @@ use crate::systems::{credit, settle, weapons, Cx};
 /// roster only when a result needs it (`World::roster`), so a hit never clones a string.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Entry {
+    pub(crate) sig: Option<crate::factions::SignatureKind>,
+    pub(crate) execute: bool,
     pub(crate) victim: PlayerId,
     /// Who dealt it; `None` for damage no fighter dealt (legacy `SUDDEN_DEATH_KILLER`: the arena's own damage). Such a hit takes
     /// no PvP factor, gives no damage credit and no rival credit, and a kill by it credits nobody (legacy: sudden death is
@@ -123,6 +125,7 @@ struct Bufs<'a> {
     amounts: &'a mut Vec<f64>,
     order: &'a mut Vec<(usize, usize)>,
     hits: &'a mut Vec<(f64, Option<PlayerId>)>,
+    dot_sums: &'a mut Vec<(PlayerId, f64)>,
 }
 
 /// System (legacy step.ts, the ledger's opening): the entries a hook link deferred last tick (returned damage, Overkill's
@@ -132,6 +135,7 @@ struct Bufs<'a> {
 /// defers, so the queue is empty until P-CARDS-1.
 pub(crate) fn open(cx: &mut Cx) {
     let Cx { w, s, .. } = cx;
+    s.ledger_diagnostics.clear();
     s.blocks.clear();
     s.landed.clear();
     s.ledger.clear();
@@ -145,6 +149,12 @@ pub(crate) fn open(cx: &mut Cx) {
 /// the pass. The ledger is empty afterwards.
 pub(crate) fn apply(cx: &mut Cx) {
     let Cx { k, w, s, ev, .. } = cx;
+    s.ledger_diagnostics.extend(
+        s.ledger
+            .iter()
+            .copied()
+            .map(crate::factions::DamageView::from),
+    );
     let TickScratch {
         ledger,
         landed,
@@ -161,6 +171,7 @@ pub(crate) fn apply(cx: &mut Cx) {
         amounts,
         order,
         hits,
+        dot_sums,
         ..
     } = &mut **s;
     if ledger.is_empty() {
@@ -223,6 +234,7 @@ pub(crate) fn apply(cx: &mut Cx) {
         amounts,
         order,
         hits,
+        dot_sums,
     };
     for &vi in victims.iter() {
         let vi = vi as usize;
@@ -262,6 +274,7 @@ fn apply_victim(
         amounts,
         order,
         hits,
+        dot_sums,
     } = b;
     amounts.clear();
     amounts.extend(idxs.iter().map(|&k| {
@@ -276,9 +289,35 @@ fn apply_victim(
     }));
     if pass.k.config.pvp_rules {
         let cap = PVP_HIT_CAP_SHARE * pass.w.players[vi].vitals.max_hp;
-        for a in amounts.iter_mut() {
-            if *a > 0.0 && *a > cap {
-                *a = cap;
+        let budget = PVP_DOT_CAP_SHARE * pass.w.players[vi].vitals.max_hp * (TICK_MS / 1000.0);
+        dot_sums.clear();
+        for (j, &index) in idxs.iter().enumerate() {
+            let e = &ledger[index];
+            let Some(by) = e.by.filter(|id| pass.w.roster.name(*id).is_some()) else {
+                continue;
+            };
+            if !(amounts[j] > 0.0) {
+                continue;
+            }
+            if e.sig.is_some() {
+                if let Some((_, sum)) = dot_sums.iter_mut().find(|(id, _)| *id == by) {
+                    *sum += amounts[j]
+                } else {
+                    dot_sums.push((by, amounts[j]));
+                }
+            } else if amounts[j] > cap {
+                amounts[j] = cap;
+            }
+        }
+        for (j, &index) in idxs.iter().enumerate() {
+            let e = &ledger[index];
+            if e.sig.is_none() {
+                continue;
+            }
+            if let Some((_, sum)) = dot_sums.iter().find(|(id, _)| Some(*id) == e.by) {
+                if *sum > budget {
+                    amounts[j] *= budget / *sum;
+                }
             }
         }
     }
@@ -304,22 +343,27 @@ fn apply_victim(
     for (j, &k) in idxs.iter().enumerate() {
         if amounts[j] > 0.0 {
             let e = &ledger[k];
-            if pass.k.config.holy_foundation {
+            if pass.k.config.faction_mode.engagement() {
                 pass.landed.push(crate::systems::signatures::LandedHit {
+                    sig: e.sig,
+                    weapon: e.weapon,
                     victim: v,
                     by: e.by,
                     amount: amounts[j] * landed_share,
                 });
             }
-            pass.ev.push(Event::Hit {
-                victim: v,
-                by: e.by,
-                amount: amounts[j],
-                weapon: e.weapon,
-                passive: e.passive,
-            });
+            if e.sig.is_none() {
+                pass.ev.push(Event::Hit {
+                    victim: v,
+                    by: e.by,
+                    amount: amounts[j],
+                    weapon: e.weapon,
+                    passive: e.passive,
+                });
+            }
             crate::hooks::fire(
                 &mut crate::hooks::Hx {
+                    fx: None,
                     k: pass.k,
                     w: pass.w,
                     ev: pass.ev,

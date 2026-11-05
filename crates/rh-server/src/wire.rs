@@ -216,7 +216,7 @@ fn to_wire(e: &SeenEvent) -> Wire {
         SeenEvent::Stagger { id } => Wire::Fx(WireFx::Stagger { id: id.0 }),
         // Target locking is currently a core/policy/headless feature. Protocol 5 has no cancel telegraph.
         SeenEvent::AttackCancelled { .. } => Wire::OmittedInV5,
-        SeenEvent::Heal { .. } => Wire::OmittedInV5,
+        SeenEvent::SignatureHit { .. } | SeenEvent::Heal { .. } => Wire::OmittedInV5,
         SeenEvent::PickupRefused { reason } => Wire::Event(WireEvent::PickupRefused {
             reason: match reason {
                 rh_sim::PickupRefusal::Blocked => 1,
@@ -577,6 +577,7 @@ mod tests {
 
     fn view(id: u32) -> ActorView {
         ActorView {
+            sig: 0,
             id: rh_sim::PlayerId(id),
             faction: FactionId::ALL[1],
             x: 100.3,
@@ -817,6 +818,18 @@ mod tests {
             to_wire(&SeenEvent::Heal { id, amount: 1.0 }),
             Wire::OmittedInV5
         ));
+        for by in [None, Some(id)] {
+            assert!(matches!(
+                to_wire(&SeenEvent::SignatureHit {
+                    victim: id,
+                    by,
+                    sig: rh_sim::factions::SignatureKind::Disease,
+                    weapon: Some(rh_sim::WeaponId::Axe),
+                    amount: 10.
+                }),
+                Wire::OmittedInV5
+            ));
+        }
         for (reason, code) in [
             (PickupRefusal::Blocked, 1),
             (PickupRefusal::NothingThere, 2),

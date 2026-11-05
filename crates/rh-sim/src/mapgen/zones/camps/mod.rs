@@ -29,6 +29,10 @@ impl<'z, 'f> CampContext<'z, 'f> {
     pub fn new(zones: &'z ZoneContext<'f>) -> Self {
         Self::from_definition(zones, &default_definition())
     }
+    /// Definition-derived camp protection geometry, shared with later map stages.
+    pub fn halo_offsets(&self) -> &[i32] {
+        &self.halo_offsets
+    }
     /// Positive, bounded geometry is required; elite selection supports the source's at-most-two elite slots.
     pub fn from_definition(zones: &'z ZoneContext<'f>, definition: &CampDefinition) -> Self {
         assert!(

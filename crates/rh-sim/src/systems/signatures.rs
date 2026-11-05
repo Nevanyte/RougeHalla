@@ -15,6 +15,8 @@ pub(crate) struct BlockContact {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct LandedHit {
+    pub sig: Option<crate::factions::SignatureKind>,
+    pub weapon: Option<WeaponId>,
     pub victim: PlayerId,
     pub by: Option<PlayerId>,
     pub amount: f64,
@@ -29,6 +31,11 @@ pub(crate) struct Contact {
 
 pub(crate) fn raid_started(hx: &mut Hx, args: &HookArgs) {
     if *args == HookArgs::RaidStarted {
+        hx.w.factions.dot.clear();
+        hx.w.factions.dot_since = hx.w.server_time;
+        if let Some(fx) = hx.fx.as_deref_mut() {
+            fx.ops.push(crate::fx_report::Op::Reset(hx.ev.len()));
+        }
         for p in hx.w.players.iter_mut() {
             p.signature = Default::default();
         }
@@ -99,7 +106,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
     s.contacts.clear();
     for e in &s.ledger {
         let raw = e.packet.raw * e.scale;
-        if let Some(by) = e.by.filter(|_| raw > 0.0) {
+        if let Some(by) = e.by.filter(|_| raw > 0.0 && e.sig.is_none()) {
             contact(
                 w,
                 &mut s.contacts,
@@ -191,12 +198,19 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             .is_some_and(|t| now - t <= ENGAGE_LINGER_MS + TIE_EPS_MS)
             && f.contact_at.is_some_and(|t| now - t <= trade + TIE_EPS_MS);
     }
+    if k.config.faction_mode.plague() {
+        super::plague::damage(k, w, &mut s.ledger);
+    }
 }
 /// Ordered post-barrier landed damage feeds combat clocks and surviving Holy attackers.
 pub(crate) fn after_damage(cx: &mut Cx) {
-    let Cx { w, s, ev, .. } = cx;
+    let Cx { k, w, s, ev, .. } = cx;
     s.dealt.clear();
     for h in &s.landed {
+        if h.sig.is_some() {
+            super::plague::accumulate(w, h);
+            s.fx.ops.push(crate::fx_report::Op::Contribution(*h));
+        }
         for id in [Some(h.victim), h.by].into_iter().flatten() {
             if let Some(i) = w.idx(id).filter(|&i| w.players[i].standing()) {
                 w.players[i].signature.combat_at = Some(w.server_time);
@@ -219,6 +233,7 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             heal::apply(w, ev, i, gain, heal::Kind::Lifesteal);
         }
     }
+    super::plague::after_damage(k, w, ev, &mut s.fx);
 }
 
 impl crate::Sim {

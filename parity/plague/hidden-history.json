@@ -1,0 +1,452 @@
+{
+  "format": "rh-plague-hidden-history/1",
+  "setup": {
+    "map": {
+      "w": 118,
+      "h": 52,
+      "kind": "all-floor",
+      "seed": 11
+    },
+    "randomSeed": 12,
+    "modules": [
+      "loot",
+      "weapons",
+      "targeting",
+      "projectiles",
+      "factions",
+      "mobs",
+      "buffs",
+      "feed",
+      "camps",
+      "chests",
+      "killAugments",
+      "mobLife",
+      "mobAI",
+      "terrainEffects",
+      "regen",
+      "abilities",
+      "quests",
+      "vision",
+      "campHeal",
+      "traders",
+      "cardHooks",
+      "mods"
+    ],
+    "moveTick": 2,
+    "move": {
+      "x": 1125,
+      "y": 768
+    },
+    "attack": [
+      3,
+      6
+    ],
+    "initialVictimHp": [
+      1004.048988764045,
+      1000
+    ],
+    "players": [
+      {
+        "id": "p0",
+        "faction": "holy",
+        "x": 1040,
+        "y": 768
+      },
+      {
+        "id": "p1",
+        "faction": "holy",
+        "x": 2000,
+        "y": 768
+      },
+      {
+        "id": "p2",
+        "faction": "plague",
+        "x": 2056,
+        "y": 768
+      }
+    ],
+    "weapons": "fists",
+    "release": "following tick with a=PI",
+    "eligible": 4.048988764044944
+  },
+  "a": {
+    "bootstrap": [
+      {
+        "id": "p0",
+        "x": 320,
+        "y": 320
+      },
+      {
+        "id": "p1",
+        "x": 320,
+        "y": 320
+      },
+      {
+        "id": "p2",
+        "x": 320,
+        "y": 320
+      }
+    ],
+    "rows": [
+      {
+        "tick": 2,
+        "x": 1048.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 1004.048988764045,
+        "sig": 0,
+        "landed": [],
+        "chunks": []
+      },
+      {
+        "tick": 3,
+        "x": 1057,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 996.7400449438203,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 4,
+        "x": 1065.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 995.390382022472,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 5,
+        "x": 1074,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 994.0407191011236,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 6,
+        "x": 1082.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 992.6910561797753,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 7,
+        "x": 1091,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 991.3413932584269,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 8,
+        "x": 1099.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 989.9917303370786,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 9,
+        "x": 1108,
+        "visible": true,
+        "sourceVisible": false,
+        "hp": 988.6420674157303,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 10,
+        "x": 1116.5,
+        "visible": true,
+        "sourceVisible": false,
+        "hp": 987.2924044943819,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 11,
+        "x": 1125,
+        "visible": true,
+        "sourceVisible": false,
+        "hp": 985.9427415730336,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": [
+          {
+            "kind": "hit",
+            "id": "p1",
+            "by": "p2",
+            "amount": 12.146966292134834,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ]
+      }
+    ]
+  },
+  "b": {
+    "bootstrap": [
+      {
+        "id": "p0",
+        "x": 320,
+        "y": 320
+      },
+      {
+        "id": "p1",
+        "x": 320,
+        "y": 320
+      },
+      {
+        "id": "p2",
+        "x": 320,
+        "y": 320
+      }
+    ],
+    "rows": [
+      {
+        "tick": 2,
+        "x": 1048.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 1000,
+        "sig": 0,
+        "landed": [],
+        "chunks": []
+      },
+      {
+        "tick": 3,
+        "x": 1057,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 1000,
+        "sig": 0,
+        "landed": [],
+        "chunks": []
+      },
+      {
+        "tick": 4,
+        "x": 1065.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 1000,
+        "sig": 0,
+        "landed": [],
+        "chunks": []
+      },
+      {
+        "tick": 5,
+        "x": 1074,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 1000,
+        "sig": 0,
+        "landed": [],
+        "chunks": []
+      },
+      {
+        "tick": 6,
+        "x": 1082.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 992.6910561797753,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 7,
+        "x": 1091,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 991.3413932584269,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 8,
+        "x": 1099.5,
+        "visible": false,
+        "sourceVisible": false,
+        "hp": 989.9917303370786,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 9,
+        "x": 1108,
+        "visible": true,
+        "sourceVisible": false,
+        "hp": 988.6420674157303,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 10,
+        "x": 1116.5,
+        "visible": true,
+        "sourceVisible": false,
+        "hp": 987.2924044943819,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": []
+      },
+      {
+        "tick": 11,
+        "x": 1125,
+        "visible": true,
+        "sourceVisible": false,
+        "hp": 985.9427415730336,
+        "sig": 4,
+        "landed": [
+          {
+            "victim": "p1",
+            "by": "p2",
+            "amount": 1.3496629213483147,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ],
+        "chunks": [
+          {
+            "kind": "hit",
+            "id": "p1",
+            "by": "p2",
+            "amount": 8.097977528089888,
+            "weapon": "fists",
+            "sig": "disease"
+          }
+        ]
+      }
+    ]
+  }
+}

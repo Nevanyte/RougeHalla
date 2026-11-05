@@ -4,7 +4,7 @@
 //! one of its components), so a new kind of fighter is a new wrapper around the same core, not a copy of the systems.
 //!
 //! The components own their data only; the rules live in `systems/`. All of it is plain data that serializes, hashes and
-//! checkpoints (the layout is `rh-checkpoint/10`).
+//! checkpoints (the layout is `rh-checkpoint/11`).
 
 use crate::content::{FactionId, WeaponId};
 use crate::input::{InputQueue, OrderBudget};
@@ -172,6 +172,8 @@ pub struct Fate {
 /// This is trusted checkpoint state, never an observation or a target-admission source.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Signature {
+    pub dot_paused_until: f64,
+    pub bits: u8,
     pub target: Option<PlayerId>,
     pub in_reach: bool,
     pub engaged: bool,
@@ -184,6 +186,8 @@ pub struct Signature {
 impl Default for Signature {
     fn default() -> Self {
         Self {
+            dot_paused_until: 0.0,
+            bits: 0,
             target: None,
             in_reach: false,
             engaged: false,

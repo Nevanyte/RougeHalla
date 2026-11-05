@@ -74,5 +74,5 @@ regression forces real contention on both an expired unreleased row and a give-b
 propagate immediately. Existing TTL, sleeps and safety assertions are unchanged; production code is unchanged.
 
 Three focused real-PG repeats, all seven PG conformance cases, the memory case and focused Clippy passed. Root's full
-PostgreSQL-enabled server suite passed 127 tests with zero failures and one existing ignored heap measurement. CI
-verification of this correction is pending.
+PostgreSQL-enabled server suite passed 127 tests with zero failures and one existing ignored heap measurement. Correction
+`f4f38755` passed Rust CI `42023715522`, including all PostgreSQL-backed server tests, C#, headless and Chromium WSS.

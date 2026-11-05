@@ -35,7 +35,7 @@ fn room_cfg() -> RoomConfig {
             fill_seconds: 0.0,
             pvp_rules: true,
             weapon_specials: true,
-            holy_foundation: false,
+            faction_mode: rh_sim::FactionMode::Off,
         },
         arena: assets.arena,
         welcome_map: assets.welcome_map,
