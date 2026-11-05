@@ -19,7 +19,7 @@ not what is drawn.
 | Area | Target | Notes |
 |---|---|---|
 | Resolution | Render at device pixel ratio up to 2x, capped by a pixel budget (legacy: 4K budget) with dynamic resolution on the low tier | More pixels do not create missing source-art detail. |
-| Frame pacing | 60 FPS on Apple M5 Pro, the owner's initial reference selected 2026-11-05; smooth frame pacing (no hitches on join or map build) | Measure the client separately. This initial hardware choice does not establish performance on other mid-range desktops. |
+| Frame pacing | Highest sustainable frame rate on Apple M5 Pro with intended quality intact; smooth pacing without join/map-build hitches | Owner updated the goal on 2026-11-05: explore the performance limit rather than stop at 60 FPS. Measure CPU/GPU frame times separately from browser/display caps and server throughput. |
 | Lighting/materials | URP 2D/3D lights for soft ambient + per-zone tint; subtle rim on walls; emissive faction accents; contact shadows under discs | Never let darkness hide an actor that is in sight. |
 | Post-processing | Restrained: mild bloom on emissives, color grading per zone, optional vignette; off on the low tier | No depth of field, no heavy motion blur. |
 | Particles | Hits, swings, deaths, camp clears, Wishes: short-lived, capped counts; reduced-motion setting zeroes motion effects (legacy `juiceScale`) | Never over gameplay-critical indicators. |

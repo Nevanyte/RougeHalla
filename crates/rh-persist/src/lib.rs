@@ -12,6 +12,7 @@
 
 pub mod achievements;
 pub mod admin;
+pub mod cosmetics;
 pub mod legacy;
 pub mod model;
 

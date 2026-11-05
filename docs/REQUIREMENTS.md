@@ -17,9 +17,12 @@ continuity"). Requirement IDs (R-*) are referenced from the backlog.
   required.
 - R-WEB-2. Browser constraints are respected: WebSocket (wss) transport through the browser; no native sockets, UDP,
   ICMP, desktop-only libraries or per-frame native FFI; IL2CPP/AOT-safe code (no runtime code generation).
-- R-WEB-3. Initial performance target: 60 FPS. The owner selected the **Apple M5 Pro** as the initial named reference on
-  2026-11-05; no claim about other mid-range hardware follows from its results. Frame time, memory, download size and
-  load time have explicit budgets. The target still requires representative measured gameplay, not just a movement smoke.
+- R-WEB-3. Pursue the **highest sustainable frame rate** while preserving intended gameplay, readability and visual
+  quality. The owner selected **Apple M5 Pro** as the initial named reference on 2026-11-05 and explicitly replaced the
+  earlier 60 FPS goal with a request to measure how far performance can be pushed. Report CPU/GPU frame-time
+  distributions and browser/display limits separately; do not infer rendered FPS from the Rust server's throughput.
+  Frame time, memory, download size and load time have explicit measured budgets. Verify representative crowded
+  gameplay, not just a movement smoke; results do not establish performance on other hardware.
 
 ## R-AWS: multiplayer hosting on AWS
 - R-AWS-1. Hundreds of simultaneous matches, up to eight players per match.

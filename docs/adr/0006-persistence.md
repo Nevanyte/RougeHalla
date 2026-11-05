@@ -16,7 +16,9 @@ whole-file snapshot, last writer wins). Many hosts writing results would lose up
 
 **Evidence.** The persistence tests against a real local PostgreSQL 16 (duplicates, concurrent writers, stale fences, a connection
 killed mid-transaction, double-spend, import/reconcile): `crates/rh-persist/tests/`. Not yet tested: Aurora failover,
-connection-pool exhaustion under load, achievements (not ported).
+connection-pool exhaustion under load. Stage 2 achievements are now ported and verified against 83 legacy observations;
+the 57-entry cosmetic catalog and validated look words match 301 further legacy observations. Live profile routes,
+result faction/weapon metadata and lease renewal remain separate integration work.
 
 
 ## Addendum: durable-data lock-in (L-durable)

@@ -150,7 +150,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-NET-1 | Prediction parity: C# pathfinding for predicted walks, render-time attack `t`, MAX_REWIND bound per measured RTT, delta-compression decision by measurement | none | Ready packet | client/src/net/localMotion.ts, localPrediction.ts, remoteDraw.ts; shared/interp.ts |
 | P-NET-2 | Remote draw-ahead and the walk hint (presentation only) | P-NET-1 | Coarse | client/src/net/remoteDraw.ts; server/src/sim/walkHint.ts; docs/PLAYER_PREDICTION.md |
 | P-NET-3 | Protocol additions per mechanic: fx kinds, snapshot fields, observation versions (governance of shared files) | each mechanic packet | In progress (combat v5 verified; later mechanics remain) | shared/fxCodec.ts, messages.ts, schema.ts; crates/rh-protocol |
-| P-NET-ITEMS-1 | Public visible-item discovery, private self inventory, exact observer-local pickup handles, headless/live intake and reliable State/Unity integration | P-COMBAT-1; Unity bootstrap for client stage | Ready packet (review finding; no legitimate live item discovery yet) | crates/rh-sim/src/observe.rs; rh-policy; rh-headless; rh-server; client-unity |
+| P-NET-ITEMS-1 | Public visible-item discovery, private self inventory, exact observer-local pickup handles, headless/live intake and reliable State/Unity integration | P-COMBAT-1; Unity bootstrap for client stage | In progress (shared core/policy/headless implementation; live gate remains open) | crates/rh-sim/src/observe.rs; rh-policy; rh-headless; rh-server; client-unity |
 | P-NET-4 | Uplink pacing: aim gate, hold gate, stall watch, order bucket tuning | P-NET-1 | Coarse | client/src/net/uplinkPace.ts, tickPhase.ts |
 | P-NET-5 | Heartbeat/liveness parity (`beat`, 4500 ms timeout, close codes) | none | Coarse | server/src/rooms/RaidRoom.ts, shared/constants.ts |
 | P-NET-6 | Wire-build/content-hash stale-client UX (426 equivalent, reload prompt) | P-UNITY-1 | Coarse | server/src/guards/clientBuild.ts, client/src/ui/reloadPrompt.ts |
@@ -209,7 +209,7 @@ is **not implemented**; the gain figures are **estimates**.
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
 | P-PERSIST-2 | Wire `rh-server` to `rh-persist` in production: Postgres auth, lease renewal, achievements port, faction/weapon in results, profile REST API port | none | In progress (transactional achievements verified; live metadata/renewal/API remain) | server/src/persistence/ProfileStore.ts, index.ts (`/api/profile*`, `/api/leaderboard`), shared/achievements.ts, cosmetics.ts |
-| P-PERSIST-3 | Leaderboard months, shop catalog parity, cosmetics `look` word in `rh-protocol` | P-PERSIST-2 | Coarse | ProfileStore.ts, shared/cosmetics.ts |
+| P-PERSIST-3 | Leaderboard months, shop catalog parity, cosmetics `look` word in `rh-protocol` | P-PERSIST-2 | Catalog/validated look packing implemented (57 entries, 301 legacy cases); leaderboard/API and wire presentation remain | ProfileStore.ts, shared/cosmetics.ts |
 | P-PERSIST-4 | Aurora failover and pool-exhaustion tests; retry/backoff sizing | P-PERSIST-2 | Coarse | none (ADR 0006 "not yet tested") |
 | P-PERSIST-5 | New-profile rate caps and passcode equivalents at the edge | P-PERSIST-2, P-HOST-2 | Coarse | server/src/guards/*, config.ts |
 
@@ -277,7 +277,7 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 | Requirement | Items |
 |---|---|
 | R-AUTH (Rust authority) | every section 1 item; P-NET-1 (prediction limits) |
-| R-WEB (Unity Web, 60 FPS target, budgets) | P-UNITY-1, P-UI-* |
+| R-WEB (Unity Web, highest sustainable frame rate, budgets) | P-UNITY-1, P-UNITY-PERF-1, P-UI-* |
 | R-AWS (hosting, regions, scaling, TLS, 200/1,600 assumption) | P-HOST-1..6, P-UI-2, P-LOAD-1..3 |
 | R-GAME (continuity) | sections 1-4, P-PARITY-2, P-CAPTURE-1 |
 | R-OPT (measured optimization) | P-LOAD-3, P-HEAD-1, cross-cutting rule above |
@@ -289,7 +289,7 @@ Explicitly out of scope: training, rewards, datasets, model runtimes, Python bin
 
 ## Owner answers and remaining questions
 
-Owner confirmed 2026-11-05: MIT for project-authored code; Apple M5 Pro is the initial 60 FPS reference; AWS staging is limited to CAD 20 total in the confirmed sandbox, using rougehalla.com. Production cutover remains a later approval. Other decisions remain as recorded below.
+Owner confirmed 2026-11-05: MIT for project-authored code; Apple M5 Pro is the initial performance reference. The subsequent performance instruction supersedes the old 60 FPS goal: pursue the highest sustainable rate with intended quality intact and report browser/display limits separately. AWS staging is limited to CAD 20 total in the confirmed sandbox, using rougehalla.com. Production cutover remains a later approval. Other decisions remain as recorded below.
 
 Each packet's "Risk" and "Known traps" name the question that blocks it. The author's consolidated list is in the hand-off
 report of this backlog (license, map re-pin if hashes cannot match, hosting spend authorisation, Unity licence/hardware

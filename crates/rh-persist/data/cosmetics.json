@@ -1,0 +1,472 @@
+[
+  {
+    "id": "skin-crimson",
+    "slot": "skin",
+    "name": "Crimson",
+    "code": 1,
+    "color": 15022389,
+    "price": 40
+  },
+  {
+    "id": "skin-amber",
+    "slot": "skin",
+    "name": "Amber",
+    "code": 2,
+    "color": 16757504,
+    "price": 40
+  },
+  {
+    "id": "skin-lime",
+    "slot": "skin",
+    "name": "Lime",
+    "code": 3,
+    "color": 8172354,
+    "price": 40
+  },
+  {
+    "id": "skin-teal",
+    "slot": "skin",
+    "name": "Teal",
+    "code": 4,
+    "color": 44225,
+    "price": 40
+  },
+  {
+    "id": "skin-azure",
+    "slot": "skin",
+    "name": "Azure",
+    "code": 5,
+    "color": 2001125,
+    "price": 60
+  },
+  {
+    "id": "skin-violet",
+    "slot": "skin",
+    "name": "Violet",
+    "code": 6,
+    "color": 9315498,
+    "price": 60
+  },
+  {
+    "id": "skin-magenta",
+    "slot": "skin",
+    "name": "Magenta",
+    "code": 7,
+    "color": 14162784,
+    "price": 60
+  },
+  {
+    "id": "skin-slate",
+    "slot": "skin",
+    "name": "Slate",
+    "code": 8,
+    "color": 6323595,
+    "price": 60
+  },
+  {
+    "id": "skin-bone",
+    "slot": "skin",
+    "name": "Bone",
+    "code": 9,
+    "color": 15527921,
+    "price": 100
+  },
+  {
+    "id": "skin-obsidian",
+    "slot": "skin",
+    "name": "Obsidian",
+    "code": 10,
+    "color": 2503224,
+    "price": 100
+  },
+  {
+    "id": "skin-coral",
+    "slot": "skin",
+    "name": "Coral",
+    "code": 11,
+    "color": 16747109,
+    "price": 100
+  },
+  {
+    "id": "skin-laurel",
+    "slot": "skin",
+    "name": "Laurel",
+    "code": 12,
+    "color": 12634675
+  },
+  {
+    "id": "skin-ghost",
+    "slot": "skin",
+    "name": "Ghost",
+    "code": 13,
+    "color": 13621468
+  },
+  {
+    "id": "outline-white",
+    "slot": "outline",
+    "name": "White edge",
+    "code": 1,
+    "color": 16777215,
+    "width": 3,
+    "price": 50
+  },
+  {
+    "id": "outline-black",
+    "slot": "outline",
+    "name": "Black edge",
+    "code": 2,
+    "color": 0,
+    "width": 4,
+    "price": 50
+  },
+  {
+    "id": "outline-neon",
+    "slot": "outline",
+    "name": "Neon edge",
+    "code": 3,
+    "color": 7798531,
+    "width": 3,
+    "price": 80
+  },
+  {
+    "id": "outline-red",
+    "slot": "outline",
+    "name": "Red edge",
+    "code": 4,
+    "color": 16717636,
+    "width": 3,
+    "price": 80
+  },
+  {
+    "id": "outline-cyan",
+    "slot": "outline",
+    "name": "Cyan edge",
+    "code": 5,
+    "color": 1638399,
+    "width": 3,
+    "price": 80
+  },
+  {
+    "id": "outline-magenta",
+    "slot": "outline",
+    "name": "Magenta edge",
+    "code": 6,
+    "color": 16056407,
+    "width": 3,
+    "price": 80
+  },
+  {
+    "id": "outline-bounty",
+    "slot": "outline",
+    "name": "Bounty edge",
+    "code": 7,
+    "color": 16740096,
+    "width": 5
+  },
+  {
+    "id": "trail-ember",
+    "slot": "trail",
+    "name": "Ember",
+    "code": 1,
+    "color": 16740419,
+    "style": "dots",
+    "price": 100
+  },
+  {
+    "id": "trail-mist",
+    "slot": "trail",
+    "name": "Mist",
+    "code": 2,
+    "color": 15527921,
+    "style": "streak",
+    "price": 120
+  },
+  {
+    "id": "trail-sparks",
+    "slot": "trail",
+    "name": "Sparks",
+    "code": 3,
+    "color": 16772696,
+    "style": "sparks",
+    "price": 150
+  },
+  {
+    "id": "trail-toxic",
+    "slot": "trail",
+    "name": "Toxic",
+    "code": 4,
+    "color": 10275941,
+    "style": "dots",
+    "price": 120
+  },
+  {
+    "id": "trail-frost",
+    "slot": "trail",
+    "name": "Frostbite",
+    "code": 5,
+    "color": 8445674,
+    "style": "streak",
+    "price": 150
+  },
+  {
+    "id": "trail-void",
+    "slot": "trail",
+    "name": "Void",
+    "code": 6,
+    "color": 11225020,
+    "style": "sparks",
+    "price": 180
+  },
+  {
+    "id": "trail-comet",
+    "slot": "trail",
+    "name": "Comet",
+    "code": 7,
+    "color": 16777215,
+    "style": "streak"
+  },
+  {
+    "id": "title-rookie",
+    "slot": "title",
+    "name": "Rookie",
+    "code": 1,
+    "text": "Rookie",
+    "color": 11583173,
+    "price": 30
+  },
+  {
+    "id": "title-wanderer",
+    "slot": "title",
+    "name": "Wanderer",
+    "code": 2,
+    "text": "Wanderer",
+    "color": 9489145,
+    "price": 60
+  },
+  {
+    "id": "title-gladiator",
+    "slot": "title",
+    "name": "Gladiator",
+    "code": 3,
+    "text": "Gladiator",
+    "color": 16764032,
+    "price": 150
+  },
+  {
+    "id": "title-unbroken",
+    "slot": "title",
+    "name": "Unbroken",
+    "code": 4,
+    "text": "Unbroken",
+    "color": 10868391,
+    "price": 200
+  },
+  {
+    "id": "title-bloodied",
+    "slot": "title",
+    "name": "Bloodied",
+    "code": 10,
+    "text": "Bloodied",
+    "color": 15702682
+  },
+  {
+    "id": "title-slayer",
+    "slot": "title",
+    "name": "Slayer",
+    "code": 11,
+    "text": "Slayer",
+    "color": 15684432
+  },
+  {
+    "id": "title-reaper",
+    "slot": "title",
+    "name": "Reaper",
+    "code": 12,
+    "text": "Reaper",
+    "color": 12000284
+  },
+  {
+    "id": "title-bounty-hunter",
+    "slot": "title",
+    "name": "Bounty Hunter",
+    "code": 13,
+    "text": "Bounty Hunter",
+    "color": 16758605
+  },
+  {
+    "id": "title-victor",
+    "slot": "title",
+    "name": "Victor",
+    "code": 14,
+    "text": "Victor",
+    "color": 16773494
+  },
+  {
+    "id": "title-champion",
+    "slot": "title",
+    "name": "Champion",
+    "code": 15,
+    "text": "Champion",
+    "color": 16766287
+  },
+  {
+    "id": "title-warlord",
+    "slot": "title",
+    "name": "Warlord",
+    "code": 16,
+    "text": "Warlord",
+    "color": 16748288
+  },
+  {
+    "id": "title-rampage",
+    "slot": "title",
+    "name": "Rampage",
+    "code": 17,
+    "text": "Rampage",
+    "color": 16740419
+  },
+  {
+    "id": "title-veteran",
+    "slot": "title",
+    "name": "Veteran",
+    "code": 18,
+    "text": "Veteran",
+    "color": 11583173
+  },
+  {
+    "id": "title-glorious",
+    "slot": "title",
+    "name": "Glorious",
+    "code": 19,
+    "text": "Glorious",
+    "color": 16769154
+  },
+  {
+    "id": "title-cycle-breaker",
+    "slot": "title",
+    "name": "Cycle Breaker",
+    "code": 20,
+    "text": "Cycle Breaker",
+    "color": 13538264
+  },
+  {
+    "id": "title-pyre-lord",
+    "slot": "title",
+    "name": "Pyre Lord",
+    "code": 21,
+    "text": "Pyre Lord",
+    "color": 16740419
+  },
+  {
+    "id": "title-the-judge",
+    "slot": "title",
+    "name": "The Judge",
+    "code": 22,
+    "text": "The Judge",
+    "color": 9795021
+  },
+  {
+    "id": "title-rat-king",
+    "slot": "title",
+    "name": "Rat King",
+    "code": 23,
+    "text": "Rat King",
+    "color": 10275941
+  },
+  {
+    "id": "title-ice-wall",
+    "slot": "title",
+    "name": "Ice Wall",
+    "code": 24,
+    "text": "Ice Wall",
+    "color": 5227511
+  },
+  {
+    "id": "title-demon-blood",
+    "slot": "title",
+    "name": "Holy",
+    "code": 25,
+    "text": "Holy",
+    "color": 16773494
+  },
+  {
+    "id": "gilded-fire",
+    "slot": "gold-fire",
+    "name": "Gilded Fire",
+    "code": 1,
+    "target": "fire",
+    "price": 400
+  },
+  {
+    "id": "gilded-sentenced",
+    "slot": "gold-sentenced",
+    "name": "Gilded Sentenced",
+    "code": 2,
+    "target": "sentenced",
+    "price": 400
+  },
+  {
+    "id": "gilded-plague",
+    "slot": "gold-plague",
+    "name": "Gilded Plague",
+    "code": 3,
+    "target": "plague",
+    "price": 400
+  },
+  {
+    "id": "gilded-frost",
+    "slot": "gold-frost",
+    "name": "Gilded Frost",
+    "code": 4,
+    "target": "frost",
+    "price": 400
+  },
+  {
+    "id": "gilded-holy",
+    "slot": "gold-holy",
+    "name": "Gilded Holy",
+    "code": 5,
+    "target": "holy",
+    "price": 400
+  },
+  {
+    "id": "gilded-sword",
+    "slot": "gold-sword",
+    "name": "Golden Sword",
+    "code": 6,
+    "target": "sword",
+    "price": 300
+  },
+  {
+    "id": "gilded-axe",
+    "slot": "gold-axe",
+    "name": "Golden Axe",
+    "code": 7,
+    "target": "axe",
+    "price": 300
+  },
+  {
+    "id": "gilded-bow",
+    "slot": "gold-bow",
+    "name": "Golden Bow",
+    "code": 8,
+    "target": "bow",
+    "price": 300
+  },
+  {
+    "id": "gilded-wand",
+    "slot": "gold-wand",
+    "name": "Golden Wand",
+    "code": 9,
+    "target": "wand",
+    "price": 300
+  },
+  {
+    "id": "gilded-shield",
+    "slot": "gold-shield",
+    "name": "Golden Shield",
+    "code": 10,
+    "target": "shield",
+    "price": 300
+  }
+]

@@ -51,6 +51,8 @@ jobs:
       - run: npm ci
       - name: Durable achievement rules still match the legacy evaluator
         run: node --import tsx tools/persist-fixtures/achievements.ts --check
+      - name: Shop catalog and validated look words still match the legacy reference
+        run: node --import tsx tools/persist-fixtures/cosmetics.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

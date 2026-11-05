@@ -44,6 +44,10 @@ edit an applied migration.
   thresholds and unlock order match 83 observations of the real legacy evaluator, including withheld wins and previously
   unlocked ids. Retrying a result cannot award twice; a crash before commit rolls back rewards with the payout.
   Recheck the legacy rules with `node --import tsx tools/persist-fixtures/achievements.ts --check`.
+- `cosmetics` exposes the 57-entry legacy catalog, server-owned prices and slot-checked look words. The 301 captured
+  observations reject unowned, unknown and mismatched entries and cover combined golden variants. Recheck with
+  `node --import tsx tools/persist-fixtures/cosmetics.ts --check`. This is profile/API support; publishing equipped looks
+  in live snapshots and Unity is still pending.
 
 ## Admin tool
 
