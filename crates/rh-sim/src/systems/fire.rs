@@ -16,7 +16,8 @@ pub(crate) fn damage(
     let weapon = p.active_weapon();
     let mult = content::weapon(weapon).dps_mult;
     let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.0));
-    let burn = FIRE_BURN_DPS * DUEL_PACE * (mult * ((TICK_MS - paused) / 1000.0));
+    let burn =
+        FIRE_BURN_DPS * DUEL_PACE * (mult * ((TICK_MS - paused) / 1000.0) * p.signature.chill);
     let mut push = |sig, raw, phys, magic| {
         if raw > 0.0 {
             ledger.push(Entry {
@@ -44,7 +45,8 @@ pub(crate) fn damage(
         let raw = FIRE_BACKLASH
             * DUEL_PACE
             * content::attack_interval(&content::paced(t.vitals.faction), a.weapon, 1.)
-            * mult;
+            * mult
+            * p.signature.chill;
         push(SignatureKind::Backlash, raw, 1., 0.);
     }
 }

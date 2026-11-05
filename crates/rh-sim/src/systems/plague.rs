@@ -38,7 +38,8 @@ pub(crate) fn damage(
         }
         let weapon = p.active_weapon();
         let paused = TICK_MS.min((p.signature.dot_paused_until - (now - TICK_MS)).max(0.0));
-        let dot = content::weapon(weapon).dps_mult * ((TICK_MS - paused) / 1000.0);
+        let dot =
+            content::weapon(weapon).dps_mult * ((TICK_MS - paused) / 1000.0) * p.signature.chill;
         for (raw, execute) in [
             (PLAGUE_DPS * DUEL_PACE * dot, false),
             (
@@ -134,6 +135,9 @@ pub(crate) fn after_damage(k: &MatchStatic, w: &mut World, ev: &mut Vec<Event>, 
                     p.signature.dot_paused_until.max(now + tm.windup * 1000.);
             }
         }
+    }
+    if k.config.faction_mode.frost() {
+        super::frost::after_damage(w);
     }
     for i in 0..w.players.len() {
         let p = &w.players[i];

@@ -69,6 +69,14 @@ jobs:
           cmp parity/fire/ledger-matrix.json "$RUNNER_TEMP/fire-ledger.json"
           node --import tsx tools/fire-fixtures/hidden-instant.ts "$RUNNER_TEMP/fire-hidden.json" > "$RUNNER_TEMP/fire-hidden.log"
           cmp parity/fire/hidden-instant.json "$RUNNER_TEMP/fire-hidden.json"
+      - name: Frost helpers and installed runtime still match the actual source
+        run: |
+          node --import tsx tools/frost-fixtures/helpers.ts "$RUNNER_TEMP/frost-helpers.json"
+          cmp parity/frost/helpers.json "$RUNNER_TEMP/frost-helpers.json"
+          node --import tsx tools/frost-fixtures/runtime-matrix.ts "$RUNNER_TEMP/frost-runtime.json"
+          cmp parity/frost/runtime-matrix.json "$RUNNER_TEMP/frost-runtime.json"
+          node --import tsx tools/frost-fixtures/ranged-ledger.ts "$RUNNER_TEMP/frost-ranged.json"
+          cmp parity/frost/ranged-ledger.json "$RUNNER_TEMP/frost-ranged.json"
       - name: Map foundations still match the legacy reference
         run: node --import tsx tools/map-fixtures/foundations.ts --check
       - name: Full map exports still match the legacy reference
@@ -87,6 +95,8 @@ jobs:
         run: node --import tsx tools/map-fixtures/landmark-runtime.ts --check
       - name: Landmark templates and stamps still match the actual legacy generator
         run: node --import tsx tools/map-fixtures/landmark-templates.ts --check
+      - name: Landmark search and scoped cache still match the actual legacy generator
+        run: node --import tsx tools/map-fixtures/landmark-search.ts --check
       - name: Browser proof (Chromium over WSS)
         run: |
           cargo build -p rh-server

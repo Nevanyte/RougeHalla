@@ -10,6 +10,7 @@
 
 pub(crate) mod credit;
 pub(crate) mod fire;
+pub(crate) mod frost;
 pub(crate) mod heal;
 pub(crate) mod inputs;
 pub(crate) mod items;

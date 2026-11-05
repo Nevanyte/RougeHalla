@@ -29,6 +29,8 @@ pub(crate) const NONE: u32 = u32::MAX;
 
 #[derive(Debug)]
 pub(crate) struct TickScratch {
+    /// Rewritten before weapons; only the actual start site marks an action new.
+    pub(crate) attack_started: [bool; MAX_PLAYERS],
     pub(crate) performed: Vec<crate::factions::PerformedAttack>,
     pub(crate) performed_bounded: bool,
     pub(crate) ledger_diagnostics: Vec<crate::factions::DamageView>,
@@ -92,6 +94,7 @@ impl Default for TickScratch {
     fn default() -> Self {
         let (p, hits) = (MAX_PLAYERS, 2 * MAX_PLAYERS * MAX_PLAYERS);
         Self {
+            attack_started: [false; MAX_PLAYERS],
             performed: Vec::with_capacity(crate::fx_report::FX_INSTANT_BUCKETS_MAX),
             performed_bounded: true,
             ledger_diagnostics: Vec::with_capacity(hits),

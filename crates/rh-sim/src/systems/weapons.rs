@@ -71,6 +71,7 @@ pub(crate) fn on_release(cx: &mut Cx, ix: FighterIx, cmd: &ActionCmd) {
 
 /// System (legacy weapons.updateWeapons): every standing fighter's weapon state machine, in join order.
 pub(crate) fn update(cx: &mut Cx) {
+    cx.s.attack_started.fill(false);
     for i in 0..cx.w.players.len() {
         if cx.w.players[i].standing() {
             step_weapon(cx, FighterIx::of_slot(i));
@@ -93,6 +94,9 @@ fn step_weapon(cx: &mut Cx, ix: FighterIx) {
         let tm = player_timings(weapon, attack_interval(&f, weapon, 1.0));
         start_attack(p, now, cx.ev, weapon, tm);
         let id = p.id;
+        if cx.k.config.faction_mode.frost() {
+            cx.s.attack_started[ix.slot()] = true;
+        }
         crate::hooks::fire(
             &mut crate::hooks::Hx {
                 fx: None,

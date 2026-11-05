@@ -739,10 +739,10 @@ static SYSTEMS: [Item<SystemFn>; 24] = [
 /// (`terrainEffects.applyBog` counts hazard seconds) or that also runs for mobs (`mobLife.mobRoleMove`, P-MOBS-1) widens
 /// the signature to a mutable context and a combatant reference in the packet that ports it, with the loop unchanged.
 static MOVE_MODIFIERS: [Item<MoveFn>; 7] = [
-    pending(
+    ported(
         "factions.frostMovementModifier",
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::frost::movement_modifier,
     ),
     pending("buffs.moveSpeedMult", Gate::Always, "P-CARDS-2"),
     pending("mobLife.mobRoleMove", Gate::Always, "P-MOBS-1"),
@@ -950,11 +950,11 @@ static TELEPORTED: [Link; 13] = [
     pending_link("walkHint.zeroAll", Mode::Append, Gate::WalkHints, "P-NET-2"),
 ];
 static ATTACK_STARTED: [Link; 3] = [
-    pending_link(
+    ported_link(
         "factions.<arrow>",
         Mode::Append,
         Gate::Signatures,
-        "P-FACTION-1",
+        crate::systems::frost::attack_started,
     ),
     ported_link(
         "abilities.onAttackStarted",
@@ -1576,7 +1576,14 @@ mod tests {
                 names(plan.before_damage.live()),
                 ported_live(&t.before_damage)
             );
-            assert_eq!(plan.move_modifiers.live().len(), 0, "none ported yet");
+            assert_eq!(
+                plan.move_modifiers
+                    .live()
+                    .iter()
+                    .map(|(n, _)| *n)
+                    .collect::<Vec<_>>(),
+                ported_live(&t.move_modifiers)
+            );
             for a in &ACTIONS {
                 let live = a.gate.on(&g) && matches!(a.run, Run::Ported(_));
                 assert_eq!(plan.actions[a.id as usize].is_some(), live, "{}", a.name);

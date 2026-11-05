@@ -1,3 +1,4 @@
-//! Landmark runtime and template foundations; search and callback selection remain separate.
+//! Landmark runtime, template and search foundations; faction callback selection remains separate.
 pub mod runtime;
+pub mod search;
 pub mod templates;

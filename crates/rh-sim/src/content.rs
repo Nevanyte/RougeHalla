@@ -519,6 +519,22 @@ pub fn content_hash_of_landmark_definition(
     )
 }
 
+/// Search defaults drive candidate selection and placement attempts, and share their runtime definition.
+pub fn content_hash_of_landmark_search_definition(
+    registry: &[Entry],
+    stagger_weapons: &[WeaponId],
+    definition: &crate::mapgen::landmarks::search::SearchDefinition,
+) -> u64 {
+    content_hash_of_map_definitions(
+        registry,
+        stagger_weapons,
+        MapDefinitions {
+            landmark_search: definition,
+            ..Default::default()
+        },
+    )
+}
+
 /// Signature classification affects damage budgets and reporting, so it is content as well.
 pub fn content_hash_of_signature_rules(
     registry: &[Entry],
@@ -542,6 +558,7 @@ struct MapDefinitions<'rules, 'pillars> {
     spawns: &'rules crate::mapgen::spawns::SpawnDefinition,
     bushes: &'rules crate::mapgen::bushes::BushDefinition,
     landmarks: &'rules crate::mapgen::landmarks::runtime::LandmarkDefinition,
+    landmark_search: &'rules crate::mapgen::landmarks::search::SearchDefinition,
 }
 
 impl Default for MapDefinitions<'_, '_> {
@@ -554,6 +571,7 @@ impl Default for MapDefinitions<'_, '_> {
             spawns: &crate::mapgen::spawns::DEFAULT_DEFINITION,
             bushes: &crate::mapgen::bushes::DEFAULT_DEFINITION,
             landmarks: &crate::mapgen::landmarks::runtime::DEFAULT_DEFINITION,
+            landmark_search: &crate::mapgen::landmarks::search::DEFAULT_DEFINITION,
         }
     }
 }
@@ -581,6 +599,7 @@ fn content_hash_of_definitions(
         spawns,
         bushes,
         landmarks,
+        landmark_search,
     } = definitions;
     let mut h = Fnv::new();
 
@@ -611,6 +630,9 @@ fn content_hash_of_definitions(
 
     h.str("mapgen/landmark-runtime/1");
     crate::mapgen::landmarks::runtime::visit_content(landmarks, |word| h.u64(word));
+
+    h.str("mapgen/landmark-search/1");
+    crate::mapgen::landmarks::search::visit_content(landmark_search, |word| h.u64(word));
 
     h.str("signatures/1");
     h.u64(signature_rules.len() as u64);
@@ -678,6 +700,20 @@ fn content_hash_of_definitions(
     }
     for k in 0..10 {
         h.u64(bounty_for(k) as u64);
+    }
+    h.str("frost/formulas/1");
+    for multiplier in [1.0, 1.0 - FROST_SLOW] {
+        for remaining in [-1.0, 0.0, 1.0, 33.999, 34.0, 50.0, 75.0] {
+            h.f64(crate::systems::frost::stretch_until(
+                1000.0 + remaining,
+                1000.0,
+                TICK_MS,
+                multiplier,
+            ));
+        }
+    }
+    for exposure in [0.0, 999.0, 1000.0, 1001.0, 2500.0, 3999.0, 4000.0, 4001.0] {
+        h.f64(crate::systems::frost::move_multiplier(exposure));
     }
     h.0
 }

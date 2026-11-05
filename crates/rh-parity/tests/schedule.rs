@@ -388,6 +388,23 @@ fn what_the_slice_has_ported_stays_ported() {
     assert!(ported(&t.systems).contains(&"feed.flushAnnouncements"));
     assert!(ported(&t.systems).contains(&"mods.updateMods"));
     assert!(ported(&t.mod_sources).contains(&"cardHooks.cardSource"));
+    assert!(ported(&t.move_modifiers).contains(&"factions.frostMovementModifier"));
+    assert!(t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::Teleported)
+        .unwrap()
+        .1
+        .iter()
+        .any(|l| l.legacy == "factions.<arrow>" && l.pending == Some("P-FACTION-1")));
+    assert!(t
+        .hooks
+        .iter()
+        .find(|(h, _)| *h == Hook::AttackStarted)
+        .unwrap()
+        .1
+        .iter()
+        .any(|l| l.legacy == "factions.<arrow>" && l.pending.is_none()));
     for a in ["attack", "release", "swap", "pickup"] {
         assert!(
             t.actions.iter().any(|x| x.name == a && x.pending.is_none()),
@@ -487,6 +504,7 @@ fn a_match_runs_its_ported_rows_in_table_order() {
                 TraceEntry::Hook("hitLanded", "cardHooks.onHitLanded") => hits += 1,
                 TraceEntry::Hook("attackStarted", "abilities.onAttackStarted") => attacks += 1,
                 TraceEntry::Hook("runEnded", "factions.flushDotFx") => {}
+                TraceEntry::Hook("attackStarted", "factions.<arrow>") => {}
                 TraceEntry::Hook(h, l) => panic!("{name}: hook {h} link {l} is not ported"),
                 _ => {}
             }

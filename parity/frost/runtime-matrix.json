@@ -1,0 +1,556 @@
+{
+  "format": "rh-frost-runtime-matrix/1",
+  "modules": [
+    "loot",
+    "weapons",
+    "targeting",
+    "projectiles",
+    "factions",
+    "mobs",
+    "buffs",
+    "feed",
+    "camps",
+    "chests",
+    "killAugments",
+    "mobLife",
+    "mobAI",
+    "terrainEffects",
+    "regen",
+    "abilities",
+    "quests",
+    "vision",
+    "campHeal",
+    "traders",
+    "cardHooks",
+    "mods"
+  ],
+  "kind": "trusted private setup; actual installed afterDamage and movement modifier; not gameplay intake",
+  "cases": [
+    {
+      "setup": {
+        "name": "inclusive-radius",
+        "distance": 100
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "outside-radius",
+        "distance": 100.000001
+      },
+      "beforeMove": 1,
+      "liveMove": 1,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": null,
+        "lastNearAt": null,
+        "rangedUntil": null,
+        "move": 1,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "forward-edge",
+        "edges": [
+          [
+            0,
+            1
+          ]
+        ]
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "reverse-edge",
+        "edges": [
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "multi-min-dedup",
+        "edges": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0",
+          "p2"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "hold-boundary",
+        "exposure": 1000
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 9000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "thaw-quantization",
+        "exposure": 1015
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 8985,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.701,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "thaw-mid",
+        "exposure": 2500
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 7500,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.85,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "thaw-end",
+        "exposure": 4000
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 6000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 1,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "brief-gap",
+        "distance": 101,
+        "exposure": 2000,
+        "lastAgo": 50
+      },
+      "beforeMove": 1,
+      "liveMove": 1,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 8000,
+        "lastNearAt": 9950,
+        "rangedUntil": null,
+        "move": 1,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "gap-expiry",
+        "distance": 101,
+        "exposure": 4500,
+        "lastAgo": 4000
+      },
+      "beforeMove": 1,
+      "liveMove": 1,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": null,
+        "lastNearAt": null,
+        "rangedUntil": null,
+        "move": 1,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "switch-retains-episode",
+        "edges": [
+          [
+            2,
+            1
+          ]
+        ],
+        "exposure": 2500,
+        "lastAgo": 50
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p2"
+        ],
+        "exposureStartedAt": 7500,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.85,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "return-reset-exact",
+        "exposure": 6000,
+        "lastAgo": 4000
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "ranged-expired",
+        "edges": [],
+        "rangedLeft": 0
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 1,
+        "chillers": [],
+        "exposureStartedAt": null,
+        "lastNearAt": null,
+        "rangedUntil": 10000,
+        "move": 1,
+        "readyAt": 10100,
+        "bufferedUntil": 10100,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 0
+      }
+    },
+    {
+      "setup": {
+        "name": "ranged-just-active",
+        "edges": [],
+        "rangedLeft": 0.000001
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 1,
+        "chillers": [],
+        "exposureStartedAt": null,
+        "lastNearAt": null,
+        "rangedUntil": 10000.000001,
+        "move": 0.85,
+        "readyAt": 10100,
+        "bufferedUntil": 10100,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 0
+      }
+    },
+    {
+      "setup": {
+        "name": "near-ranged-min",
+        "rangedLeft": 500
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": 10500,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "thawed-ranged-min",
+        "exposure": 3000,
+        "rangedLeft": 500
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 7000,
+        "lastNearAt": 10000,
+        "rangedUntil": 10500,
+        "move": 0.85,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "draw-short-clock",
+        "readyLeft": 16.5,
+        "bufferLeft": 30,
+        "drawLeft": 17.125
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10024.264705882353,
+        "bufferedUntil": 10044.117647058823,
+        "drawStartedAt": 9008.058823529413,
+        "action": {
+          "kind": "draw",
+          "startedAt": 9008.058823529413,
+          "landsAt": 10025.183823529413
+        },
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "draw-full-clock",
+        "readyLeft": 100,
+        "bufferLeft": 100,
+        "drawLeft": 100
+      },
+      "beforeMove": 0.7,
+      "liveMove": 0.7,
+      "result": {
+        "chill": 0.6799999999999999,
+        "chillers": [
+          "p0"
+        ],
+        "exposureStartedAt": 10000,
+        "lastNearAt": 10000,
+        "rangedUntil": null,
+        "move": 0.7,
+        "readyAt": 10116,
+        "bufferedUntil": 10116,
+        "drawStartedAt": 9016,
+        "action": {
+          "kind": "draw",
+          "startedAt": 9016,
+          "landsAt": 10116
+        },
+        "bits": 1
+      }
+    },
+    {
+      "setup": {
+        "name": "departed-live-recheck",
+        "depart": 0
+      },
+      "beforeMove": 0.7,
+      "liveMove": 1,
+      "result": {
+        "chill": 1,
+        "chillers": [],
+        "exposureStartedAt": null,
+        "lastNearAt": null,
+        "rangedUntil": null,
+        "move": 1,
+        "readyAt": 10100,
+        "bufferedUntil": 10100,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 0
+      }
+    },
+    {
+      "setup": {
+        "name": "dead-live-recheck",
+        "dead": 0
+      },
+      "beforeMove": 0.7,
+      "liveMove": 1,
+      "result": {
+        "chill": 1,
+        "chillers": [],
+        "exposureStartedAt": null,
+        "lastNearAt": null,
+        "rangedUntil": null,
+        "move": 1,
+        "readyAt": 10100,
+        "bufferedUntil": 10100,
+        "drawStartedAt": 0,
+        "action": null,
+        "bits": 0
+      }
+    }
+  ]
+}

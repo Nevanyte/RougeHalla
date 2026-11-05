@@ -82,6 +82,9 @@ fn largest<'a>(
     best.map(|(id, _)| id)
 }
 pub(crate) fn after_weapons(cx: &mut Cx) {
+    if cx.k.config.faction_mode.frost() {
+        super::frost::after_weapons(cx);
+    }
     let s = &mut cx.s;
     s.performed.clear();
     s.performed_bounded =
@@ -214,6 +217,7 @@ pub(crate) fn before_damage(cx: &mut Cx) {
             && has_line_of_sight(&k.arena.map, p.pos(), t.pos(), mask);
         let cadence = |p: &crate::state::Player| {
             content::attack_interval(&content::paced(p.vitals.faction), p.active_weapon(), 1.0)
+                / p.signature.chill
         };
         let trade = ENGAGE_TRADE_SECONDS
             .max(cadence(p).max(cadence(t)) + ENGAGE_TRADE_SLACK_SECONDS)
@@ -262,6 +266,9 @@ pub(crate) fn after_damage(cx: &mut Cx) {
             let gain = amount * content::holy_lifesteal_fraction(p.signature.hp_frac);
             heal::apply(w, ev, i, gain, heal::Kind::Lifesteal);
         }
+    }
+    if k.config.faction_mode.frost() {
+        super::frost::ranged_hits(w, &s.landed);
     }
     super::plague::after_damage(k, w, ev, &mut s.fx);
 }

@@ -286,6 +286,19 @@ fn plague_window() -> Sim {
     sim
 }
 
+fn frost_window() -> Sim {
+    let s = holy_engaged();
+    let mut cp = serde_json::to_value(&s).unwrap();
+    cp["statics"]["config"]["faction_mode"] = serde_json::json!("EngagementHolyPlagueFireFrost");
+    cp["world"]["players"][1]["core"]["vitals"]["faction"] = serde_json::json!("Frost");
+    let mut s = Sim::restore(cp).unwrap();
+    for _ in 0..5 {
+        s.step();
+    }
+    assert!(s.players().iter().any(|p| p.signature.chill < 1.));
+    s
+}
+
 fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut mid = crowded_8();
     drive(&mut mid, 40);
@@ -294,6 +307,7 @@ fn scenarios() -> Vec<(&'static str, Sim)> {
     let mut fuse = short_fuse();
     drive(&mut fuse, 400);
     vec![
+        ("Frost window", frost_window()),
         ("Plague window", plague_window()),
         ("Holy engaged", holy_engaged()),
         ("item fight", item_fight()),
@@ -471,6 +485,15 @@ fn candidates(leaf: &Value, strings: &[String]) -> Vec<Value> {
 
 /// Patterns whose perturbation the restore may refuse, and why. Any other refusal fails the test.
 const VALIDATED: &[(&str, &str)] = &[
+    ("world.players.*.core.signature.chill","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.chillers.#len","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.chillers.*","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.chiller_count","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.exposure_started_at","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.last_near_at","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.ranged_chill_until","trusted Frost domain, mode, canonical source storage and episode constraints"),
+    ("world.players.*.core.signature.frost_move_mult","trusted Frost domain, mode, canonical source storage and episode constraints"),
+
     ("world.deferred.hits.*.execute","execute requires a signature-qualified entry"),
     ("world.deferred.hits.*.sig","signature entries require the explicit Plague producer mode"),
     ("world.factions.dot_since","flush clock is finite and no later than server time; gate-off runtime must be default"),

@@ -28,6 +28,7 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/landmarks/search/mod.rs", "DEFAULT_DEFINITION", "both search tunables drive selection and are folded by content_hash_of_landmark_search_definition"),
     ("mapgen/landmarks/templates/mod.rs", "WALL", "internal parsed-cell role encoding; source differential proves all role mappings, not a geometry tunable"),
     ("mapgen/landmarks/templates/mod.rs", "FLOOR", "internal parsed-cell role encoding, not a geometry tunable"),
     ("mapgen/landmarks/templates/mod.rs", "DOOR", "internal parsed-cell role encoding, not a geometry tunable"),
@@ -356,7 +357,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0x03c4_ef09_9f39_21cd;
+const GOLDEN_CONTENT_HASH: u64 = 0x30c9_741f_fc6a_bb77;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {
@@ -636,6 +637,35 @@ fn landmark_guard_rules_move_the_content_hash() {
             base,
             "landmark rule {index} omitted from content identity"
         );
+    }
+}
+
+#[test]
+fn landmark_search_rules_move_the_content_hash() {
+    use rh_sim::content::content_hash_of_landmark_search_definition;
+    use rh_sim::mapgen::landmarks::search::{default_definition, SearchDefinition};
+    let base = content_hash();
+    assert_eq!(
+        content_hash_of_landmark_search_definition(
+            REGISTRY,
+            STAGGER_WEAPONS,
+            &default_definition()
+        ),
+        base
+    );
+    let mutations: &[fn(&mut SearchDefinition)] =
+        &[|d| d.default_tries += 1, |d| d.origin_stride += 1];
+    let mut hashes = BTreeSet::new();
+    for (index, mutate) in mutations.iter().enumerate() {
+        let mut definition = default_definition();
+        mutate(&mut definition);
+        let hash =
+            content_hash_of_landmark_search_definition(REGISTRY, STAGGER_WEAPONS, &definition);
+        assert_ne!(
+            hash, base,
+            "landmark search rule {index} omitted from content identity"
+        );
+        assert!(hashes.insert(hash), "landmark search rule {index} collided");
     }
 }
 

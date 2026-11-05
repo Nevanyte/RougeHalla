@@ -1,0 +1,266 @@
+{
+  "format": "rh-frost-ranged-ledger/1",
+  "modules": [
+    "loot",
+    "weapons",
+    "targeting",
+    "projectiles",
+    "factions",
+    "mobs",
+    "buffs",
+    "feed",
+    "camps",
+    "chests",
+    "killAugments",
+    "mobLife",
+    "mobAI",
+    "terrainEffects",
+    "regen",
+    "abilities",
+    "quests",
+    "vision",
+    "campHeal",
+    "traders",
+    "cardHooks",
+    "mods"
+  ],
+  "kind": "trusted direct ledger setup; actual recordHit/applyLedger/installed afterDamage; not gameplay intake",
+  "cases": [
+    {
+      "setup": {
+        "name": "bow",
+        "weapon": "bow"
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        }
+      ],
+      "until": 1300
+    },
+    {
+      "setup": {
+        "name": "wand",
+        "weapon": "wand"
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "wand"
+        }
+      ],
+      "until": 1300
+    },
+    {
+      "setup": {
+        "name": "refresh",
+        "weapon": "bow",
+        "until": 1000
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        }
+      ],
+      "until": 1300
+    },
+    {
+      "setup": {
+        "name": "expired-refresh",
+        "weapon": "bow",
+        "until": 75
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        }
+      ],
+      "until": 1300
+    },
+    {
+      "setup": {
+        "name": "full-barrier",
+        "weapon": "bow",
+        "barrier": 500
+      },
+      "landed": [],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "partial-barrier",
+        "weapon": "bow",
+        "barrier": 1
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 399.75,
+          "sig": null,
+          "weapon": "bow"
+        }
+      ],
+      "until": 1300
+    },
+    {
+      "setup": {
+        "name": "immunity",
+        "weapon": "bow",
+        "immune": 1000
+      },
+      "landed": [],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "lethal-victim",
+        "weapon": "bow",
+        "hp": 1
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        }
+      ],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "dead-shooter-same-pass",
+        "weapon": "bow",
+        "shooterHp": 1,
+        "killShooter": true
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        },
+        {
+          "victim": "p0",
+          "by": "p3",
+          "amount": 344.75,
+          "sig": null,
+          "weapon": "sword"
+        }
+      ],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "dead-victim-same-pass",
+        "weapon": "bow",
+        "hp": 1,
+        "killVictim": true
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        },
+        {
+          "victim": "p2",
+          "by": "p3",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "sword"
+        }
+      ],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "departed-shooter",
+        "weapon": "bow",
+        "depart": 0
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "bow"
+        }
+      ],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "departed-victim",
+        "weapon": "bow",
+        "depart": 2
+      },
+      "landed": [],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "melee-not-ranged",
+        "weapon": "sword"
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 400.75,
+          "sig": null,
+          "weapon": "sword"
+        }
+      ],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "signature-not-weapon",
+        "weapon": "bow",
+        "sig": "burn"
+      },
+      "landed": [
+        {
+          "victim": "p2",
+          "by": "p0",
+          "amount": 8.5875,
+          "sig": "burn",
+          "weapon": "bow"
+        }
+      ],
+      "until": null
+    },
+    {
+      "setup": {
+        "name": "zero-damage",
+        "weapon": "wand",
+        "raw": 0
+      },
+      "landed": [],
+      "until": null
+    }
+  ]
+}

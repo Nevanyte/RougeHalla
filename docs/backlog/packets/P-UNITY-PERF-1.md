@@ -1,5 +1,14 @@
 # P-UNITY-PERF-1: Unity client efficiency (instanced actors, allocation-free netcode, build size, GPU fill)
 
+## Current owner direction (2026-11-05)
+
+Finish the Rust simulation, parity and headless work before Unity visual expansion. The performance objective is the
+highest sustainable frame rate on the M5 Pro while preserving intended quality; 60 FPS is not a target or stopping gate.
+Measure CPU/GPU frame times separately from display/browser limits and report observed results without assuming a
+thousand-frame-per-second outcome. The measured mesh-ownership repair is already preserved; the unverified instancing
+patch remains inactive pending justified before/after evidence. Later verified versions and measurements are recorded
+in [MIGRATION](../../MIGRATION.md); the review figures below retain their historical revision labels.
+
 ## ID and outcome
 P-UNITY-PERF-1. The browser client stops paying per-actor GameObject costs and steady-state garbage: remote actors are drawn
 with a handful of instanced draws instead of about 4 draw calls and 8 native transform calls each, the native `Mesh` leak on

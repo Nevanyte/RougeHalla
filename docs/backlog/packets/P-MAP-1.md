@@ -58,7 +58,11 @@ its inherited placement closure still uses the original transactional hard mask.
 refusal-budget behavior and malformed terrain admission are tested. The separate template/stamp leaf is also implemented and independently reviewed: seven checked-in differential tests
 replay actual helper calls and complete runtime state, and inventory assertions reject truncated captures. Source Int32
 offset semantics are preserved for valid indices; invalid overflow artifacts are explicitly refused instead of aliasing
-tile zero. Search/planning-cache/callback selection remains a later exact port. See
+tile zero. Exact search/planning-cache is now implemented and independently reviewed, including real Gallows reuse/pruning,
+Scorch margin views and Rime fallback with prior guard budget. Five actual cases and thirty helper streams retain exact
+callback/heap/SAT/attempt order and source numeric behavior. Scoped ownership prevents foreign cache/runtime replacement;
+explicit reset preserves source invalidation semantics. The sparse-success fixture gap is repaired and the same mutation
+now fails. See [search evidence](../../evidence/stage2-frost-search/README.md). Callback selection and recipes remain a later exact port. See
 [the bounded evidence](../../evidence/stage2-fire-landmarks/README.md).
 
 ## Exclusive write scope

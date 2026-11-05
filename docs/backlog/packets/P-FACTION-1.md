@@ -1,5 +1,19 @@
 # P-FACTION-1: faction signatures, engagement, lifesteal and chill
 
+## Implemented slice: base-player Frost
+
+`FactionMode::EngagementHolyPlagueFireFrost` adds rate aura, proximity/thaw movement and ranged movement chill together.
+The preceding tick's chill drives attack clocks, carried-start correction, engagement cadence and Fire/Plague consumers.
+Private source/episode clocks are checkpointed and hashed; observations expose existing chilled bits and legitimate
+timing/movement consequences. Ephemeral actual-start markers preserve action identity across stretched ongoing Draws.
+Off and prior modes retain their gameplay. There are no Unity rules or new transport effects in this slice.
+
+Ten ordinary-input traces compare 2,265 ticks and every-tick continuations. Separate actual-source helper/runtime/ledger
+proofs, 2,728 independent trusted/helper cases, headless/policy/privacy/hash/restore and warmed zero-allocation checks pass.
+The combined workspace gate passed 602 tests; independent review is accepted. See
+[bounded evidence](../../evidence/stage2-frost-search/README.md). Sentenced Mark, auxiliary installers, cards/AP/resistance,
+mobs and elite passives remain open. Protocol 5 continues to omit signature bits/effects.
+
 ## Implemented slice: player Fire
 
 `FactionMode::EngagementHolyPlagueFire` adds player Burn and Backlash to the explicit partial installation; the default
@@ -13,7 +27,7 @@ The separate report-local instant projection, fixed ledger-return marker, hidden
 windows follow [ADR 0013](../../adr/0013-temporal-damage-projection.md). Both independent Fire gameplay and public/session
 reviews passed, including 540 captured ticks, 720 additional exact-source steps and their checkpoint continuations.
 The standalone ledger fixture now requires all twelve ordered cases, preventing an empty fixture from passing.
-Frost, Sentenced, Fire roam and other auxiliary/card/mob producers remain open. Protocol 5 explicitly omits these new
+Sentenced, Fire roam and other auxiliary/card/mob producers remain open. Protocol 5 explicitly omits these new
 signature effects/bits; no presentation or game rules were added to Unity.
 
 ## Implemented slice: Plague and temporal public reporting
@@ -71,7 +85,7 @@ and checkpoint validation. Keep remaining unported rows pending rather than inst
 Use genuine Holy-only installed-module captures, then verify whether the original full-default `signature_holy` trace
 can be compared unchanged. Holy-only deaths can still trigger unrelated corpse systems; prove their inactivity or use
 the explicitly identified module set. Ordinary `heal` lockout boundary tests can call the actual source helper directly;
-do not invent a heal command or pretend an unported terrain/chest producer exists. Frost/Sentenced, auxiliary Fire/Plague,
+do not invent a heal command or pretend an unported terrain/chest producer exists. Sentenced, auxiliary Fire/Plague and elite passives,
 cards, mobs, wards, training and teleport cleanup remain later work.
 
 ## ID and outcome
@@ -106,7 +120,7 @@ C-TICK (signatures sit in `[beforeDamage]`, after melee and before sudden death 
 - **Targets:** each fighter has at most one target: the last enemy it hit; a fighter with none takes whoever hits it; a shield block counts as the attacker's contact; a passive hit (riposte, reflected arrow) only gives a target to a fighter that has none; same-tick choice never depends on order (hit target kept, else the largest hit, ties by a salted per-tick hash); forgotten after `TARGET_FORGET_SECONDS` 10 without a trade, when not standing, and at the coliseum teleport.
 - **Engaged** = target within `engageRange(weapon)` with a clear line (present positions) within the last `ENGAGE_LINGER_SECONDS`, and a hit or block between the pair within the trade window (`tradeWindowMs`: 3 s, longer for a slow chilled pair, plus 0.5 s slack). Every signature bonus is multiplied by the wielded weapon's `dpsMult` and mitigated as its own damage type.
 - Fire (`burn` 28, `backlash` 128 on the sheet; paced x `DUEL_PACE` 2): burn every tick while engaged; backlash on each attack the target performs = `backlash x` the target's **unbuffed** interval (foe-independent per second). Plague (`plague` 52, `execute` 325): disease every tick + execute `execute x max(0, 0.5 - foeHpFrac)` as a **separate** ledger entry, reading the target hp fraction at tick start. Sentenced (`mark_pct` 0.045, `mark_kill` 0.00675, `tier_hits` 3): a pulse per landed hit on its target, a share of the target's max hp, weight uses full attack speed, tiers climb by hits (or target weapon swaps), tier 4 denies the target's execute; tax/suppress/amp are neutral (1) on the reworked sheet. Frost: rate aura `slow` 0.32 (chilled fighters' cooldown progress, bow draw and press buffer are stretched every tick; windups other than the bow draw are not), movement chill x0.7 within 100 u (hold 1 s, thaw 3 s), ranged chill x0.85 for 1.2 s, everything the chilled fighter deals (signatures included) is multiplied by its chill. Holy: `lifestealFraction = min(0.6, 0.07 + 0.6 x (1 - hpFrac at tick start))` of damage landed, no lockout, applied **after** the tick's damage (a fighter the tick kills is dead whatever it healed).
-- `heal()`: 3 s out-of-combat lockout; every lifesteal exempt. Lifesteal reads the hp the hits removed (`landedShare`); overkill on a player counts. A landed stagger pauses the staggered fighter's burn/disease/mark for its weapon's windup (none for a bow).
+- `heal()`: 3 s out-of-combat lockout; every lifesteal exempt. Lifesteal reads the hp the hits removed (`landedShare`); overkill on a player counts. A landed stagger pauses the staggered fighter's Burn/Disease for its weapon's windup (none for a bow). Instantaneous Backlash and Mark do not use that DoT pause.
 - PvP caps from the Rust ledger apply: DoT per source per victim is held to `PVP_DOT_CAP_SHARE` 0.15 of max hp per second (a budget per tick). This budget replaces the instantaneous hit cap for DoT entries; barrier apportionment follows.
 - Hit events carry the signature kind (`sig`) and `passive`; DoT damage is reported in `DOT_FX_MS` 500 chunks, not per tick (`flushDotFx`).
 - **Docs disagree:** docs/legacy/CLAUDE_LEGACY.md "Current faction rework" and `docs/SENTENCED_REDESIGN.md` describe the same mark but several older paragraphs in docs/legacy/CLAUDE_LEGACY.md (faction counters, `BEATS`) are historical; `shared/src/signatures.ts` `factionEdge` is always 0. Code wins.

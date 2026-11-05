@@ -188,4 +188,15 @@ content! {
     SIG_BURNING: u8 = 2, "bits";
     LANDMARK_GAP: f64 = 3.0, "tiles";
 
+    // Base power-zero player Frost (shared factions/signatures).
+    FROST_SLOW: f64 = 0.32, "fraction";
+    CHILL_MOVE_RADIUS: f64 = 100., "u";
+    CHILL_MOVE_MULT: f64 = 0.7, "multiplier";
+    CHILL_MOVE_HOLD_MS: f64 = 1000., "ms";
+    CHILL_MOVE_THAW_MS: f64 = 3000., "ms";
+    CHILL_MOVE_RESET_MS: f64 = CHILL_MOVE_HOLD_MS + CHILL_MOVE_THAW_MS, "ms";
+    FROST_RANGED_CHILL_MS: f64 = 1200., "ms";
+    FROST_RANGED_CHILL_MULT: f64 = 0.85, "multiplier";
+    FROST_MOVE_QUANTIZATION: f64 = 1000., "steps/multiplier";
+    SIG_CHILLED: u8 = 1, "bits";
 }

@@ -60,7 +60,11 @@ fn load(name: &str) -> Scenario {
         spawn_seed: 0,
     };
     let config = SimConfig {
-        faction_mode: if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague-fire/1" {
+        faction_mode: if fx["legacyConfig"]["rustSlice"]
+            == "player-engagement-holy-plague-fire-frost/1"
+        {
+            rh_sim::FactionMode::EngagementHolyPlagueFireFrost
+        } else if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague-fire/1" {
             rh_sim::FactionMode::EngagementHolyPlagueFire
         } else if fx["legacyConfig"]["rustSlice"] == "player-engagement-holy-plague/1" {
             rh_sim::FactionMode::EngagementHolyPlague
@@ -258,10 +262,114 @@ fn holy_crowded() {
     );
 }
 
+/// Eight-player Frost, ongoing Draws/Casts and repeated exposure departures/returns, every retained observer feed.
+fn frost_crowded() {
+    let ps: Vec<_> = (0..8)
+        .map(|i| Placement {
+            profile: format!("f{i}"),
+            faction: if i % 4 == 0 {
+                FactionId::Frost
+            } else {
+                FactionId::Holy
+            },
+            bot: false,
+            at: Vec2::new(400. + (i % 4) as f64 * 25., 320. + (i / 4) as f64 * 25.),
+            hp: Some(8000.),
+            weapon0: Some(if i % 2 == 0 {
+                rh_sim::WeaponId::Bow
+            } else {
+                rh_sim::WeaponId::Wand
+            }),
+            weapon1: None,
+        })
+        .collect();
+    let mut sim = Sim::reset_active(
+        SimConfig {
+            faction_mode: rh_sim::FactionMode::EngagementHolyPlagueFireFrost,
+            ..Default::default()
+        },
+        rh_sim::arenas::practice_arena(),
+        Secrets::from_seed(31),
+        &ps,
+    );
+    let mut out = Vec::with_capacity(256);
+    let mut projectors: Vec<_> = (1..=8)
+        .map(|i| rh_sim::FxProjector::attach(&sim, PlayerId(i)))
+        .collect();
+    let mut observers: Vec<_> = (1..=8)
+        .map(|i| rh_sim::ItemObserver::new(PlayerId(i)))
+        .collect();
+    let mut views: Vec<_> = (0..8).map(|_| rh_sim::Observation::default()).collect();
+    let mut caches: Vec<_> = (0..8).map(|_| rh_sim::SightCache::default()).collect();
+    let (mut allocations, mut measured, mut draws) = (0, 0, 0);
+    for t in 0..660 {
+        if t % 25 == 0 {
+            for i in 1..=8 {
+                sim.submit(
+                    PlayerId(i),
+                    validate(RawCommand::Attack {
+                        a: if i % 2 == 0 { std::f64::consts::PI } else { 0. },
+                        t: None,
+                    })
+                    .unwrap(),
+                )
+                .unwrap();
+            }
+        }
+        if t % 200 == 30 || t % 200 == 180 {
+            let x = if t % 200 == 30 { 800. } else { 475. };
+            sim.submit(
+                PlayerId(2),
+                validate(RawCommand::Move {
+                    x,
+                    y: 345.,
+                    seq: None,
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        #[cfg(feature = "schedule-trace")]
+        sim.clear_schedule_trace();
+        out.clear();
+        let before = dhat::HeapStats::get().total_blocks;
+        sim.step_into(&mut out);
+        for i in 0..8 {
+            projectors[i].feed(sim.fx_report()).unwrap();
+            observers[i]
+                .observe_into(&sim, &out, &mut views[i], Some(&mut caches[i]))
+                .unwrap();
+        }
+        let used = dhat::HeapStats::get().total_blocks - before;
+        if t >= 200
+            && !out
+                .iter()
+                .any(|e| matches!(e, Event::Resolved { .. } | Event::Victory { .. }))
+        {
+            allocations += used;
+            measured += 1;
+        }
+        if sim.players().iter().any(|p| {
+            p.signature.chill < 1.
+                && p.weapon
+                    .action
+                    .is_some_and(|a| a.kind == rh_sim::state::ActionKind::Draw)
+        }) {
+            draws += 1;
+        }
+    }
+    assert!(measured >= 400 && draws > 100);
+    assert_eq!(
+        allocations, 0,
+        "eight-player Frost allocations over {measured} steps"
+    );
+}
+
 #[test]
 fn a_steady_state_step_allocates_nothing() {
     let _profiler = dhat::Profiler::builder().testing().build();
     holy_crowded();
+    frost_crowded();
     for name in [
         "crowded_8",
         "duel_chase",
@@ -294,6 +402,10 @@ fn a_steady_state_step_allocates_nothing() {
         assert_eq!(allocs, 0, "{name}: first allocation at {bad:?}");
     }
     for name in [
+        "frost_weapon_bow",
+        "frost_weapon_wand",
+        "frost_multisource_thaw",
+        "frost_ranged_splash",
         "fire_whiff_thirdparty",
         "fire_wand_pause",
         "fire_projectile_requests",
@@ -306,7 +418,13 @@ fn a_steady_state_step_allocates_nothing() {
         "holy_contact_forget",
         "holy_contact_tie_12",
     ] {
-        let (steady, allocs, bad) = run(name, 40, u32::MAX);
+        // These movement fixtures first exercise path search at tick100/tick66.
+        let warm = match name {
+            "frost_multisource_thaw" => 110,
+            "frost_ranged_splash" => 90,
+            _ => 40,
+        };
+        let (steady, allocs, bad) = run(name, warm, u32::MAX);
         eprintln!("{name}: {steady} measured steps, {allocs} allocations");
         assert!(steady >= 25, "{name}");
         assert_eq!(allocs, 0, "{name}: allocation at {bad:?}");

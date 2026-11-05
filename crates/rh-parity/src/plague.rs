@@ -6,7 +6,11 @@ pub(super) fn enabled(fx: &Fixture) -> bool {
         && fx.parity == "slice"
         && matches!(
             fx.legacy_config.rust_slice.as_deref(),
-            Some("player-engagement-holy-plague/1" | "player-engagement-holy-plague-fire/1")
+            Some(
+                "player-engagement-holy-plague/1"
+                    | "player-engagement-holy-plague-fire/1"
+                    | "player-engagement-holy-plague-fire-frost/1"
+            )
         )
 }
 pub(super) fn modules_match(fx: &Fixture) -> bool {
@@ -34,14 +38,14 @@ pub(super) fn modules_match(fx: &Fixture) -> bool {
         "cardHooks",
         "mods",
     ];
-    fx.players
-        .iter()
-        .all(|p| matches!(p.faction.as_str(), "holy" | "plague" | "fire"))
-        && fx
-            .legacy_config
-            .modules
-            .as_ref()
-            .is_some_and(|m| m.iter().map(String::as_str).eq(expected))
+    fx.players.iter().all(|p| {
+        matches!(p.faction.as_str(), "holy" | "plague" | "fire")
+            || (frost(fx) && p.faction == "frost")
+    }) && fx
+        .legacy_config
+        .modules
+        .as_ref()
+        .is_some_and(|m| m.iter().map(String::as_str).eq(expected))
 }
 pub(super) fn compare(rep: &mut Report, sim: &rh_sim::Sim, fx: &Fixture, t: &FixTick) {
     if !enabled(fx) {
@@ -77,5 +81,17 @@ pub(super) fn compare(rep: &mut Report, sim: &rh_sim::Sim, fx: &Fixture, t: &Fix
 
 pub(super) fn fire(fx: &Fixture) -> bool {
     enabled(fx)
-        && fx.legacy_config.rust_slice.as_deref() == Some("player-engagement-holy-plague-fire/1")
+        && matches!(
+            fx.legacy_config.rust_slice.as_deref(),
+            Some(
+                "player-engagement-holy-plague-fire/1"
+                    | "player-engagement-holy-plague-fire-frost/1"
+            )
+        )
+}
+
+pub(super) fn frost(fx: &Fixture) -> bool {
+    enabled(fx)
+        && fx.legacy_config.rust_slice.as_deref()
+            == Some("player-engagement-holy-plague-fire-frost/1")
 }

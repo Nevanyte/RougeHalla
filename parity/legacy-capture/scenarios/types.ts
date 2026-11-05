@@ -22,7 +22,7 @@ export interface Scenario {
   record?: Array<"mobs" | "fields" | "statuses" | "containers" | "combat" | "locks" | "signatures" | "landed" | "holyInactive" | "plague">;
   generatedMapSeed?: number;
   vision?: { viewers: string[]; points: Vec2[]; spawnSeed?: number };
-  factionSlice?: "player-engagement-holy-plague/1" | "player-engagement-holy-plague-fire/1";
+  factionSlice?: "player-engagement-holy-plague/1" | "player-engagement-holy-plague-fire/1" | "player-engagement-holy-plague-fire-frost/1";
   containers?: Array<{ weapon: string; at: Vec2 }>;
   /** Called before each step with the tick about to run. */
   drive: (ctx: Ctx) => void;

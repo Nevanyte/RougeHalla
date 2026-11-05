@@ -78,13 +78,20 @@ pub enum FactionMode {
     EngagementHoly,
     EngagementHolyPlague,
     EngagementHolyPlagueFire,
+    EngagementHolyPlagueFireFrost,
 }
 impl FactionMode {
     pub const fn engagement(self) -> bool {
         !matches!(self, Self::Off)
     }
     pub const fn fire(self) -> bool {
-        matches!(self, Self::EngagementHolyPlagueFire)
+        matches!(
+            self,
+            Self::EngagementHolyPlagueFire | Self::EngagementHolyPlagueFireFrost
+        )
+    }
+    pub const fn frost(self) -> bool {
+        matches!(self, Self::EngagementHolyPlagueFireFrost)
     }
     pub const fn supports(self, sig: crate::factions::SignatureKind) -> bool {
         match sig {
@@ -95,7 +102,9 @@ impl FactionMode {
     pub const fn plague(self) -> bool {
         matches!(
             self,
-            Self::EngagementHolyPlague | Self::EngagementHolyPlagueFire
+            Self::EngagementHolyPlague
+                | Self::EngagementHolyPlagueFire
+                | Self::EngagementHolyPlagueFireFrost
         )
     }
 }
