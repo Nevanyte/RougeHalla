@@ -5,7 +5,7 @@
 
 pub mod digest;
 
-use rh_policy::{drive_seats_with, scripted, submit_all, Policy, Seat, SeatStats};
+use rh_policy::{drive_seats_with, scripted, submit_all, MatchStart, Policy, Seat, SeatStats};
 use rh_sim::replay::{Recorder, Replay, ReplayInput, ReplayStart};
 use rh_sim::{
     observe, Arena, Event, FactionId, Observation, Phase, Placement, PlayerId, RawCommand,
@@ -103,10 +103,9 @@ impl Env {
             let id = sim.players()[i].id;
             match a.agent {
                 Agent::Policy { policy } => seats.push(Seat::new(
-                    id,
+                    &MatchStart::of(&sim, id, seed.wrapping_mul(31).wrapping_add(i as u64)),
                     policy,
                     Box::new(scripted::Idle),
-                    seed.wrapping_mul(31).wrapping_add(i as u64),
                 )),
                 Agent::External => external.push(id),
             }
