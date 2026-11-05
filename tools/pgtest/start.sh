@@ -4,6 +4,16 @@
 # Postgres refuses to run as root: when run as root this creates/uses the OS user `pgtest` and runs the cluster as it.
 set -euo pipefail
 
+# Empty arrays under `set -u` fail on the Bash 3.2 shipped with macOS.
+# Keep the same root/non-root execution paths without an optional array prefix.
+run_pg() {
+  if [ "$(id -u)" = 0 ]; then
+    runuser -u pgtest -- "$@"
+  else
+    "$@"
+  fi
+}
+
 PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}"
 [ -x "$PGBIN/initdb" ] || { echo "postgres binaries not found (set PGBIN)" >&2; exit 1; }
 
@@ -16,11 +26,9 @@ fi
 
 if [ "$(id -u)" = 0 ]; then
   id pgtest >/dev/null 2>&1 || useradd -m -s /bin/bash pgtest
-  RUN=(runuser -u pgtest --)
   DIR="$(mktemp -d /tmp/rh-pgtest.XXXXXX)"
   chown pgtest "$DIR"
 else
-  RUN=()
   DIR="$(mktemp -d "${TMPDIR:-/tmp}/rh-pgtest.XXXXXX")"
 fi
 chmod 755 "$STATE_DIR"
@@ -28,8 +36,8 @@ chmod 755 "$STATE_DIR"
 # A free TCP port.
 PORT="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
 
-"${RUN[@]}" "$PGBIN/initdb" -D "$DIR/data" -U postgres --auth=trust -E UTF8 >"$DIR/initdb.log" 2>&1
-"${RUN[@]}" "$PGBIN/pg_ctl" -D "$DIR/data" -l "$DIR/postgres.log" -w \
+run_pg "$PGBIN/initdb" -D "$DIR/data" -U postgres --auth=trust -E UTF8 >"$DIR/initdb.log" 2>&1
+run_pg "$PGBIN/pg_ctl" -D "$DIR/data" -l "$DIR/postgres.log" -w \
   -o "-p $PORT -k $DIR -c listen_addresses=127.0.0.1 -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=300" \
   start >/dev/null
 

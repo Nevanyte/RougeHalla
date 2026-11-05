@@ -4,6 +4,64 @@ The single status record of the Rust + Unity + AWS migration. **Only the coordin
 [REQUIREMENTS.md](REQUIREMENTS.md). Invariants and their validation status: [CONTRACTS.md](CONTRACTS.md). Remaining work:
 [backlog/README.md](backlog/README.md). Decisions: [adr/](adr/README.md).
 
+## Stage 2 working checkpoint (2026-11-04)
+
+Implementation branch: **`optimization_port`**, starting at `e7e85338` (the closing Stage 1 documentation merge).
+Implementation checkout: a separate local worktree; the original `Fix-autos` checkout and its untracked prompt files are
+preserved. A detached, unmodified checkout of `e7e85338` is used only to establish the baseline. All Stage 2 implementation
+edits and commits belong to `optimization_port`.
+
+### Current architecture, before Stage 2 changes
+
+| Boundary | Implemented state at `e7e85338` | Evidence / remaining scope |
+|---|---|---|
+| Live reference | TypeScript npm workspaces: shared rules/map/content, authoritative Colyseus/Express server, Phaser browser client. A Cloudflare Worker routes to a game container; a singleton profile file is mirrored to private R2. | `packages/`, `deployment/cloudflare/`; retained as the gameplay reference and production rollback path. |
+| Rust core | `rh-sim`: fixed 20 Hz deterministic simulation; `Sim` facade, immutable `MatchStatic`, serialized `World`, derived `TickScratch`, explicit RNG, ordered entity store, executable tick and hook tables. | `crates/rh-sim/README.md`, `sim.rs`, `state.rs`, `schedule.rs`. Only movement, fists combat, ledger/credit/results and lifecycle are ported; Pending rows mark the other mechanics. |
+| Live Rust adapter | Axum/Tokio WSS transport, director/rooms, bounded outboxes, input validation, pacing, reconnect/resync, liveness, drain and local health/control APIs. | `crates/rh-server/src/{lib,main,director,room,conn}.rs`; real AWS lifecycle integration remains unproven. |
+| Network | Custom binary protocol v4, full snapshots and per-connection deltas, append-only masks, bounded State channel, admission ticket and result re-send. Rust/C#/JS golden fixtures. | `crates/rh-protocol/`, `protocol/fixtures/v4.json`, ADRs 0002/0010/0011; no Colyseus compatibility layer. |
+| Headless/policies | `rh-headless` drives the same `Sim` without wall-clock waits; `rh-policy` contract v2 supplies immutable observations, reset/cadence/deadline/fallback handling. | `crates/rh-headless/src/lib.rs`, ADR 0005. Full legacy bot behavior is still pending. No models or ML training are authorized. |
+| Persistence | PostgreSQL store with surrogate profile ids, atomic/idempotent results, append-only GV ledger, fenced session ownership and schema compatibility. | `crates/rh-persist/README.md`; lease renewal, crash recovery, full profile API and achievements still need completion. |
+| Unity | Engine-independent C# protocol/session/prediction library plus a skeletal Unity project and browser WebSocket bridge. Presentation/input only; walk prediction is narrow and still lacks pathfinding parity. | `client-unity/README.md`, `UnityProject/Assets/Scripts/`; first real Editor compile and Web build have not yet been verified. |
+| Verification | Legacy capture/parity fixtures, replay/checkpoint/hash/leak tests, native server/PG integration tests, JS vectors, C# tests, browser proof and performance harness. | Existing Stage 1 results below are historical. Fresh arm64 baseline checks are running before Stage 2 evidence is claimed. |
+
+### Session authorization and environment
+
+- AWS staging account was confirmed by the owner; the total authorized staging spend is **CAD 20**, not a monthly target.
+  Cloud resources must be planned against the remaining total with cleanup; the old experiment's USD 150 ceiling is not
+  authorized. No Stage 2 cloud resources have been created yet.
+- Practice domain: **`rougehalla.com`**. Existing Cloudflare authentication can read its active zone and reports DNS-edit
+  capability. No DNS write has been attempted. Production **`play.roguehalla.com`** must remain unchanged; production
+  cutover requires later owner authorization.
+- Unity Personal sign-in/license and Web module are available. The project pins an old `6000.0.23f1`; the Unity worker is
+  installing the current 6.0 LTS patch `6000.0.85f2` to preserve the URP 17.0 baseline. Actual compile/build is in progress.
+- Installed local prerequisites: Rust/Cargo 1.97.0 (rustfmt/clippy), .NET SDK 8.0.427, PostgreSQL 16.15. Docker is running.
+  The temporary PostgreSQL cluster listens on loopback only; its state/credentials are kept outside the repository.
+- `caffeinate -i` is running for this work and is to be stopped after work completes.
+
+### Execution and current evidence
+
+Project-scoped worker defaults are in `.codex/config.toml`: Luna/low for ordinary work, with explicit Sol/medium overrides
+for the capture harness and Unity integration. The calling coordinator's model is not changed by pretending to set a
+different model; consequential changes receive an independent Astra/high review. This session has verified model/effort
+overrides through the actual delegation tool. The config keys were checked against the
+[official configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) and the installed CLI
+(`0.166.0-alpha.6`): `codex app-server --strict-config --print-startup-config` exited 0, and `codex debug models` confirmed
+Luna, Sol 6.1 and Astra plus their low/medium/high effort levels. No global model or permission settings are changed.
+Normally two workers are active; the initial extra validation worker runs only frozen-baseline checks independently
+while the Unity Editor installs and capture code is developed.
+
+| Work | Current status | Next evidence |
+|---|---|---|
+| Frozen foundation baseline | Partial pass on native arm64 at `e7e85338`; both workspace and PostgreSQL server runs fail `live::draining_refuses_new_players_and_lets_the_match_finish` (13 other live tests pass). Diagnosis in progress; full foundation gate is not green. | fmt/clippy passed; parity 13 slice scenarios + 300 paths MATCH; C# 199 passed; JS 2,078 checks passed; Unity library copy current; `/info` reports protocol 4 and content hash `f47c30e6c8ca3493`. Complete remaining test targets and browser proof. |
+| macOS PG helper portability | Empty optional command-prefix arrays failed under Apple Bash 3.2; helpers now use a root-aware function | Passed fresh start, SQL query, existing-cluster reuse, stop and state-file cleanup under `/bin/bash` with real PG 16.15. |
+| P-CAPTURE-1 | In progress | Generic fail-closed event comparison, catalogue, recapture CI, unchanged existing behavior |
+| P-UNITY-1 | In progress | Exact Editor/package lock, compile, actual Web build and browser smoke |
+| Full game / cloud / release gates | Not achieved | Remaining backlog and Stage 2 prompt still apply in full; baseline checks do not imply full-game parity or release readiness |
+
+Next dependency-ready implementation: integrate and review P-CAPTURE-1, then P-COMBAT-1; continue Unity build validation
+in parallel. Shared schema/status/lockfile changes remain coordinator-owned. Later packets must update this checkpoint
+with exact validation, failures and next ready work before interruption.
+
 ## Checkpoint (end of Stage 1)
 
 | | |

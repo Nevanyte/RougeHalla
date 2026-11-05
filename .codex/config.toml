@@ -1,0 +1,7 @@
+# Project defaults for ordinary work. Consequential changes use explicit stronger
+# model/effort overrides and an independent reviewer (docs/MIGRATION.md).
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 2
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "low"

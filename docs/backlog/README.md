@@ -127,7 +127,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | Ready packet | parity/legacy-capture/capture.ts |
+| P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | In progress (Stage 2, `optimization_port`) | parity/legacy-capture/capture.ts |
 | P-CI-1 | Rust CI baseline: fmt, clippy `-D warnings`, `cargo test --workspace` with a Postgres service, parity report, headless smoke, browser proof, dotnet job | none | Done (commit 659c4cf, `.github/workflows/rust.yml`); extras are tracked in P-CAPTURE-1 (re-capture job), P-CI-2, P-UI-10, P-OSS-2 | .github/workflows/deploy.yml (legacy manual deploy; untouched) |
 | P-CI-2 | aarch64 run of the determinism/parity suite (ADR 0007 declares the target, never run) | P-CI-1 | Coarse | none |
 | P-HEAD-1 | Headless benches per mechanic (step cost, TTK, duel harness equivalents) as Rust benches, not Node | each mechanic packet | Coarse | server/bench/*, server/src/harness/ |
@@ -189,7 +189,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-UNITY-1 | Open the Unity project, confirm exact Unity 6 LTS + packages, fix compile errors, first Web build over wss, browser matrix, budgets, adaptive quality | none (needs a Unity install/license) | Ready packet (Blocked on Unity license) | client/src/main.ts, scenes/RaidScene.ts |
+| P-UNITY-1 | Open the Unity project, confirm exact Unity 6 LTS + packages, fix compile errors, first Web build over wss, browser matrix, budgets, adaptive quality | none (Unity install/license now available) | In progress (Stage 2; first real compile/build) | client/src/main.ts, scenes/RaidScene.ts |
 | P-UNITY-PERF-1 | Unity client efficiency, deferred to the later Codex stage by owner decision: instanced remote-actor draws (also fixes a Mesh leak), skip Fx decode without a consumer, allocation-free receive/send path, WebGL compression and size settings, GPU fill settings. Unity-side numbers are code estimates (no Editor was available); the .NET numbers carry a JIT caveat (see the packet) | P-UNITY-1 (F2 and F4 are library-only) | Ready packet ([spec](packets/P-UNITY-PERF-1.md); deferred; F1/F3/F5 Blocked on Unity license) | client/src/render/*, net/connection.ts (behaviour reference only) |
 | P-UI-1 | Hub/menu/profile flows: claim, sign-in links, shop, cosmetics, achievements, leaderboard, faction picker | P-UNITY-1, P-PERSIST-2 | Coarse | client/src/scenes/HubScene.ts, hub/, ui/menu.ts, ui/hub/; shared/cosmetics.ts, achievements.ts |
 | P-UI-2 | Matchmaking and region selection UI, latency probes, queue states | P-UNITY-1, P-HOST-3 | Coarse | client/src/net/lobby.ts, ui/lobbyActivity.ts |
@@ -215,7 +215,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Ready packet (Blocked on AWS credentials/budget) | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
+| P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Ready packet (sandbox confirmed; CAD 20 total cap; bound the experiment before spending) | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
 | P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
 | P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |
 | P-HOST-4 | Autoscaling, scale-in protection, warm capacity, drain on deployment | P-HOST-1, P-LOAD-2 | Coarse | none |
