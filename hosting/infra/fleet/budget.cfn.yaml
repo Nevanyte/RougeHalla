@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  RougeHalla P-CLAUDE-INFRA-1 cost notification and a spending-STOP-ADJACENT action (us-east-1 only, AWS Budgets). PREPARED ONLY,
+  NEVER APPLIED. A budget alert is not a hard stop: Budgets data refreshes up to three times a day and a notification arrives
+  after the money is spent; the action below only attaches a deny policy to the operator role (it blocks creating new billable
+  resources and raising capacity, it does NOT stop instances that are already running). The real stop is teardown.sh and the
+  time limit in docs/hosting/COST.md. Budget actions need the stack in us-east-1.
+
+Parameters:
+  Experiment:
+    Type: String
+    AllowedPattern: '[a-z][a-z0-9-]{2,20}'
+  LimitUsd:
+    Type: Number
+    Default: 8
+    MinValue: 1
+    MaxValue: 14
+    Description: >-
+      Account-wide monthly cost limit in USD. The packet cap is CAD 20 TOTAL; 8 USD is about CAD 11.4 at 1.3961 + 2.5 percent
+      (docs/hosting/COST.md sections 2 and 3). Account-wide because tag-filtered budgets need the cost-allocation tag activated first
+      (UNVERIFIED) and the sandbox account carries nothing else.
+  NotifyEmail:
+    Type: String
+    AllowedPattern: '.+@.+'
+  OperatorRoleName:
+    Type: String
+    Description: Name of the existing IAM role the operator profile assumes; the action attaches the deny policy to it.
+  BudgetsActionRoleName:
+    Type: String
+    Default: rougehalla-infra-budget-action
+    Description: Role the Budgets service assumes to attach the deny policy (created here).
+
+Resources:
+  DenyNewBillable:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'rougehalla-infra-${Experiment}-deny-new-billable'
+      Description: Attached by the budget action at 100 percent actual spend. Blocks creating or growing billable resources; teardown calls stay allowed.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyCreateAndGrow
+            Effect: Deny
+            Action:
+              - gamelift:CreateContainerFleet
+              - gamelift:CreateContainerGroupDefinition
+              - gamelift:UpdateContainerFleet
+              - gamelift:UpdateContainerGroupDefinition
+              - gamelift:CreateGameSessionQueue
+              - ecr:CreateRepository
+              - ecr:PutImage
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:ExecuteChangeSet
+            Resource: '*'
+      # NOTE: GameLift documents no condition key for the requested capacity (UNVERIFIED), so UpdateFleetCapacity cannot be denied
+      # only when it raises capacity. It stays allowed (teardown.sh needs it to scale to zero), which means a runaway scale-out by
+      # a still-permitted caller is not blocked by this policy; the fleet's MaxSize (MaxInstances) is the cap on that.
+
+  BudgetsActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref BudgetsActionRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: budgets.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: attach-the-deny-policy-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [iam:AttachRolePolicy, iam:DetachRolePolicy]
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${OperatorRoleName}'
+                Condition:
+                  ArnEquals: { 'iam:PolicyARN': !Ref DenyNewBillable }
+
+  Budget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub 'rougehalla-infra-${Experiment}'
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: { Amount: !Ref LimitUsd, Unit: USD }
+      NotificationsWithSubscribers:
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 25, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref NotifyEmail }]
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 50, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref NotifyEmail }]
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 80, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref NotifyEmail }]
+        - Notification: { NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref NotifyEmail }]
+
+  BudgetAction:
+    Type: AWS::Budgets::BudgetsAction
+    Properties:
+      BudgetName: !Ref Budget
+      NotificationType: ACTUAL
+      ActionType: APPLY_IAM_POLICY
+      ActionThreshold: { Type: PERCENTAGE, Value: 100 }
+      ApprovalModel: AUTOMATIC
+      ExecutionRoleArn: !GetAtt BudgetsActionRole.Arn
+      Definition:
+        IamActionDefinition:
+          PolicyArn: !Ref DenyNewBillable
+          Roles: [!Ref OperatorRoleName]
+      Subscribers: [{ Type: EMAIL, Address: !Ref NotifyEmail }]
+
+Outputs:
+  BudgetName:
+    Value: !Ref Budget

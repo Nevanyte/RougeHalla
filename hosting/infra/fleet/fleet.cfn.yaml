@@ -1,0 +1,441 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  RougeHalla P-CLAUDE-INFRA-1 staging fleet (one Region): ECR repository, GameLift container group definition
+  (glbridge + rh-server --max-rooms 1 --require-admit), container fleet with FullProtection and target-tracking scale-in,
+  guardrail alarms, log group. PREPARED ONLY, NEVER APPLIED (docs/hosting/COST.md needs owner approval). Deploy it in us-west-2 (ca-central-1 is a
+  remote location, see RemoteLocation); the budget lives in budget.cfn.yaml (us-east-1).
+
+# Facts this template depends on, with their sources and UNVERIFIED items, are in docs/hosting/DEPLOYMENT.md section 1 and
+# docs/hosting/GAMELIFT_VERIFIED.md. Property names read from the CloudFormation Template Reference on 2026-11-05 and checked
+# by cfn-lint 1.59.0 (hosting/infra/fleet/validate.sh).
+
+Parameters:
+  Experiment:
+    Type: String
+    Description: Short id of this experiment; goes into every name and the Project/Experiment tags teardown.sh searches by.
+    AllowedPattern: '[a-z][a-z0-9-]{2,20}'
+  TeardownBy:
+    Type: String
+    Description: Date (YYYY-MM-DD) by which everything must be gone; written as a tag and checked by verify-no-billable.sh.
+    AllowedPattern: '20[0-9]{2}-[01][0-9]-[0-3][0-9]'
+  ImageTag:
+    Type: String
+    Description: Immutable build tag of the image in the repository (the RH_BUILD value, never "latest").
+    AllowedPattern: '[A-Za-z0-9_.-]{4,64}'
+  InstanceType:
+    Type: String
+    Default: c6g.large
+    AllowedValues: [c6g.large, c7g.large, c5.large, c5a.large, c6i.large]
+    Description: >-
+      Smallest suitable types only (cost cap). arm64 types need a linux/arm64 image, x86 types a linux/amd64 image
+      (docs/hosting/GAMELIFT_VERIFIED.md section 10). Availability in the Region for container fleets is UNVERIFIED until the
+      first create call.
+  ImageArchitecture:
+    Type: String
+    Default: arm64
+    AllowedValues: [arm64, amd64]
+    Description: Must match InstanceType (c*g = arm64). Only used in a tag and the output, as a reviewer's cross-check.
+  GroupsPerInstance:
+    Type: Number
+    Default: 4
+    MinValue: 1
+    MaxValue: 16
+    Description: >-
+      Container groups (= concurrent game sessions) per instance. 4 is a conservative starting point, NOT a measured capacity
+      (full-game memory and CPU are unmeasured, docs/hosting/SCALING.md section 8).
+  GroupMemoryMiB:
+    Type: Number
+    Default: 256
+    MinValue: 64
+    MaxValue: 2048
+  GroupVcpu:
+    Type: Number
+    Default: 0.4
+    MinValue: 0.125
+    MaxValue: 2
+    Description: TotalVcpuLimit of one group. GroupsPerInstance x GroupVcpu must fit the instance (2 vCPU on a .large).
+  MaxInstances:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 1
+    Description: >-
+      THE COST CAP, per location. Auto scaling never exceeds it. docs/hosting/COST.md prices the CAD 20 plan on exactly 1 per
+      location, so the template refuses more: raising it needs a reviewed new budget, not a parameter.
+  DesiredInstances:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    MaxValue: 1
+  TargetAvailablePercent:
+    Type: Number
+    Default: 25
+    MinValue: 5
+    MaxValue: 75
+    Description: Target tracking on PercentAvailableGameSessions (docs/hosting/SCALING.md section 3).
+  FleetProtection:
+    Type: String
+    Default: FullProtection
+    AllowedValues: [FullProtection, NoProtection]
+  GamePort:
+    Type: Number
+    Default: 35000
+    Description: Container port glbridge/rh-server listen on (GLBRIDGE_GAME_PORT in hosting/Dockerfile).
+  ConnectionPortFrom:
+    Type: Number
+    Default: 33000
+  ConnectionPortTo:
+    Type: Number
+    Default: 33063
+    Description: Instance ports mapped to container ports; must hold at least GroupsPerInstance ports.
+  EnableFleetLogs:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Fleet log router to CloudWatch Logs (adds 50 MiB per group and log ingestion cost). Whether the fleet role's managed policy already allows the log writes is UNVERIFIED.
+  RemoteLocation:
+    Type: String
+    Default: ''
+    AllowedValues: ['', ca-central-1]
+    Description: >-
+      Optional second location of THIS fleet (the home Region must be us-west-2). cfn-lint 1.59.0 reports that CloudFormation has
+      no AWS::GameLift::ContainerFleet in ca-central-1, so ca-central-1 is reached as a REMOTE location of the us-west-2 fleet (the
+      location table in docs/hosting/GAMELIFT_VERIFIED.md section 9 allows it); a ca-central-1 HOME fleet would be created with the
+      CLI (docs/hosting/DEPLOYMENT.md section 2). Whether GameLift copies the image to a remote location by itself is UNVERIFIED.
+  AlarmEmail:
+    Type: String
+    Default: ''
+    Description: Optional e-mail for the alarm topic (the subscription must be confirmed by hand). Empty creates the topic only.
+
+Conditions:
+  Logs: !Equals [!Ref EnableFleetLogs, 'true']
+  Remote: !Not [!Equals [!Ref RemoteLocation, '']]
+  HasEmail: !Not [!Equals [!Ref AlarmEmail, '']]
+
+Mappings: {}
+
+Resources:
+  # ---- image registry -------------------------------------------------------------------------------------------------
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      RepositoryName: !Sub 'rougehalla-infra/${Experiment}/rh-match'
+      ImageTagMutability: IMMUTABLE # a build tag always names the same bytes: rollback is a pointer change, not a rebuild
+      EmptyOnDelete: true # teardown must not stop at a non-empty repository
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {"rules":[{"rulePriority":1,"description":"keep the last 6 images (cost: storage is per GB-month)","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":6},"action":{"type":"expire"}}]}
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: Logs
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/rougehalla-infra/${Experiment}/fleet'
+      RetentionInDays: 3 # cost: ingestion is billed per GB, storage per GB-month
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  # ---- identity: the fleet role is the only role this stack creates; its permissions are AWS's managed policy -----------------
+  FleetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'rougehalla-infra-${Experiment}-fleet-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: gamelift.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/GameLiftContainerFleetPolicy'
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  # ---- the container group: ONE game server container = glbridge (ENTRYPOINT) + its child rh-server --max-rooms 1 --------------
+  GroupDefinition:
+    Type: AWS::GameLift::ContainerGroupDefinition
+    Properties:
+      Name: !Sub 'rougehalla-${Experiment}-match'
+      ContainerGroupType: GAME_SERVER
+      OperatingSystem: AMAZON_LINUX_2023
+      TotalMemoryLimitMebibytes: !Ref GroupMemoryMiB
+      TotalVcpuLimit: !Ref GroupVcpu
+      VersionDescription: !Sub 'RH_BUILD ${ImageTag}'
+      GameServerContainerDefinition:
+        ContainerName: rh-match
+        ImageUri: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/rougehalla-infra/${Experiment}/rh-match:${ImageTag}'
+        ServerSdkVersion: 5.6.0
+        PortConfiguration:
+          ContainerPortRanges:
+            - { FromPort: !Ref GamePort, ToPort: !Ref GamePort, Protocol: TCP }
+        EnvironmentOverride:
+          - { Name: GLBRIDGE_GAME_PORT, Value: !Ref GamePort }
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+        - { Key: RhBuild, Value: !Ref ImageTag }
+        - { Key: Architecture, Value: !Ref ImageArchitecture }
+
+  # ---- the fleet --------------------------------------------------------------------------------------------------------------
+  Fleet:
+    Type: AWS::GameLift::ContainerFleet
+    Properties:
+      Description: !Sub 'RougeHalla ${Experiment} (staging; teardown by ${TeardownBy})'
+      FleetRoleArn: !GetAtt FleetRole.Arn
+      GameServerContainerGroupDefinitionName: !Ref GroupDefinition
+      GameServerContainerGroupsPerInstance: !Ref GroupsPerInstance
+      InstanceType: !Ref InstanceType
+      BillingType: ON_DEMAND # Spot interruption handling is not measured (ADR 0004 item 5)
+      # Active-match protection: an ACTIVE game session is never chosen for scale-down or unhealthy-instance retirement.
+      NewGameSessionProtectionPolicy: !Ref FleetProtection
+      # WSS is TCP. Both fields must be set by hand for TCP ("undefined behavior" otherwise, GAMELIFT_VERIFIED.md section 10);
+      # GameLift then stops managing them. Only the connection range is opened, never the container or SSH ports.
+      InstanceConnectionPortRange: { FromPort: !Ref ConnectionPortFrom, ToPort: !Ref ConnectionPortTo }
+      InstanceInboundPermissions:
+        - { FromPort: !Ref ConnectionPortFrom, ToPort: !Ref ConnectionPortTo, IpRange: 0.0.0.0/0, Protocol: TCP }
+      # Staged, protected deployment with automatic rollback (docs/hosting/DEPLOYMENT.md section 3).
+      DeploymentConfiguration:
+        ProtectionStrategy: WITH_PROTECTION
+        MinimumHealthyPercentage: 75
+        ImpairmentStrategy: ROLLBACK
+      LogConfiguration: !If
+        - Logs
+        - { LogDestination: CLOUDWATCH, LogGroupArn: !GetAtt LogGroup.Arn }
+        - !Ref AWS::NoValue
+      MetricGroups: [rougehalla-fleet]
+      Locations: !If
+        - Remote
+        - - Location: !Ref AWS::Region
+            LocationCapacity: { DesiredEC2Instances: !Ref DesiredInstances, MinSize: 0, MaxSize: !Ref MaxInstances }
+          - Location: !Ref RemoteLocation
+            LocationCapacity: { DesiredEC2Instances: !Ref DesiredInstances, MinSize: 0, MaxSize: !Ref MaxInstances }
+        - - Location: !Ref AWS::Region
+            LocationCapacity: { DesiredEC2Instances: !Ref DesiredInstances, MinSize: 0, MaxSize: !Ref MaxInstances }
+      ScalingPolicies:
+        # Target tracking on available session capacity. With few instances the AWS docs say target tracking is coarse, so the
+        # buffer is also enforced by the warm-capacity rule below (SCALING.md section 3).
+        - Name: target-available-sessions
+          PolicyType: TargetBased
+          MetricName: PercentAvailableGameSessions
+          TargetConfiguration: { TargetValue: !Ref TargetAvailablePercent }
+        - Name: keep-one-idle-instance
+          PolicyType: RuleBased
+          MetricName: IdleInstances
+          ComparisonOperator: LessThanThreshold
+          Threshold: 1
+          EvaluationPeriods: 5
+          ScalingAdjustmentType: ChangeInCapacity
+          ScalingAdjustment: 1
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  # ---- alarms (notification only: an alarm never changes capacity) -----------------------------------------------------------
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'rougehalla-infra-${Experiment}-alarms'
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  AlarmSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  AtCapacityCap:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-instances-at-cap'
+      AlarmDescription: ActiveInstances reached MaxInstances; demand is being refused or queued (SCALING.md section 5).
+      Namespace: AWS/GameLift
+      MetricName: ActiveInstances
+      Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: !Ref MaxInstances
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  LowHeadroom:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-low-available-sessions'
+      AlarmDescription: Less than 10 percent of game session capacity is free for 10 minutes.
+      Namespace: AWS/GameLift
+      MetricName: PercentAvailableGameSessions
+      Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }]
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  ProcessCrashes:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-server-process-abnormal-termination'
+      AlarmDescription: A server process ended abnormally (the bridge exits non-zero when rh-server dies; DEPLOYMENT.md section 3 rollback gate).
+      Namespace: AWS/GameLift
+      MetricName: ServerProcessAbnormalTerminations
+      Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  UnhealthyProcesses:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-unhealthy-server-processes'
+      AlarmDescription: Not every server process is healthy for 10 minutes (a deployment health gate signal).
+      Namespace: AWS/GameLift
+      MetricName: PercentHealthyServerProcesses
+      Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }]
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 100
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  CpuGuardrail:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-container-cpu-high'
+      AlarmDescription: Container CPU above 75 percent per instance for 15 minutes (SCALING.md guardrails). The exact dimensions the metric carries are UNVERIFIED.
+      Namespace: AWS/GameLift
+      MetricName: ContainerCPUUtilizationPerInstance
+      Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 75
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  MemoryGuardrail:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-container-memory-high'
+      AlarmDescription: Container memory utilisation above 80 percent for 15 minutes (SCALING.md guardrails).
+      Namespace: AWS/GameLift
+      MetricName: ContainerMemoryUtilization
+      Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+  IdleTooLong:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'rougehalla-infra-${Experiment}-idle-instances-billing'
+      AlarmDescription: >-
+        COST: instances are running but no game session was active for 60 minutes. Tear down (RUNBOOKS.md section 7) unless a
+        test is in progress. Notification only; nothing stops the instances.
+      EvaluationPeriods: 12
+      DatapointsToAlarm: 12
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: idle
+          Expression: IF(inst >= 1 AND sessions == 0, 1, 0)
+          Label: instances running with no active session
+          ReturnData: true
+        - Id: inst
+          ReturnData: false
+          MetricStat:
+            Stat: Maximum
+            Period: 300
+            Metric: { Namespace: AWS/GameLift, MetricName: ActiveInstances, Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }] }
+        - Id: sessions
+          ReturnData: false
+          MetricStat:
+            Stat: Maximum
+            Period: 300
+            Metric: { Namespace: AWS/GameLift, MetricName: ActiveGameSessions, Dimensions: [{ Name: FleetId, Value: !GetAtt Fleet.FleetId }] }
+      AlarmActions: [!Ref AlarmTopic]
+      Tags:
+        - { Key: Project, Value: rougehalla-infra }
+        - { Key: Experiment, Value: !Ref Experiment }
+        - { Key: TeardownBy, Value: !Ref TeardownBy }
+        - { Key: Owner, Value: nevanyte }
+
+Outputs:
+  FleetId:
+    Value: !GetAtt Fleet.FleetId
+  RepositoryUri:
+    Value: !GetAtt Repository.RepositoryUri
+  GroupDefinitionArn:
+    Value: !GetAtt GroupDefinition.ContainerGroupDefinitionArn
+  AlarmTopicArn:
+    Value: !Ref AlarmTopic

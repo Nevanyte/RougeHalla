@@ -1,0 +1,82 @@
+# Manual only, and prepared, never run (docs/hosting/DEPLOYMENT.md section 4, docs/hosting/COST.md). There is no push, schedule or
+# pull_request trigger. The default mode `plan` only creates a CloudFormation change set and prints it; `deploy` needs the
+# typed confirmation AND the protected `hosting-staging` environment (configure required reviewers on it). Credentials are never stored in
+# a file: the job assumes the role named by the repository VARIABLE AWS_DEPLOY_ROLE_ARN through GitHub OIDC (no secret, no static key).
+# Sandbox account only: hosting/scripts/lib/guard.sh refuses any other account. Production (play.roguehalla.com, deploy.yml) is not touched.
+name: Hosting fleet (staging, manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan (change set only) | deploy. Teardown is deliberately not offered here: hosting/scripts/teardown.sh needs a named profile and --yes on the owner's machine"
+        type: choice
+        options: [plan, deploy]
+        default: plan
+      experiment:
+        description: "experiment id, lowercase, e.g. stg1"
+        required: true
+        type: string
+      image_tag:
+        description: "immutable image tag (the RH_BUILD value), required for plan/deploy"
+        required: false
+        type: string
+      teardown_by:
+        description: "YYYY-MM-DD by which everything must be gone"
+        required: false
+        type: string
+      confirm:
+        description: "type I-HAVE-OWNER-APPROVAL to allow deploy"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: hosting-fleet-staging
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: hosting-staging
+    env:
+      MODE: ${{ inputs.mode }}
+      EXPERIMENT: ${{ inputs.experiment }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      TEARDOWN_BY: ${{ inputs.teardown_by }}
+      CONFIRM: ${{ inputs.confirm }}
+      REGION: us-west-2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse an unconfirmed deploy
+        run: |
+          if [ "$MODE" != plan ] && [ "$CONFIRM" != I-HAVE-OWNER-APPROVAL ]; then
+            echo "deploy needs confirm=I-HAVE-OWNER-APPROVAL" >&2; exit 1
+          fi
+          [[ "$EXPERIMENT" =~ ^[a-z][a-z0-9-]{2,20}$ ]] || { echo "bad experiment id" >&2; exit 1; }
+      - name: Validate templates first (no cloud access)
+        run: hosting/infra/fleet/validate.sh
+      - name: Assume the deploy role (OIDC, no stored secret)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-west-2
+          role-session-name: rougehalla-hosting-staging
+      - name: Plan (change set only, nothing executed)
+        if: ${{ inputs.mode == 'plan' }}
+        run: |
+          aws cloudformation deploy --no-execute-changeset --region "$REGION" \
+            --stack-name "rougehalla-infra-$EXPERIMENT-fleet" --template-file hosting/infra/fleet/fleet.cfn.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides "Experiment=$EXPERIMENT" "ImageTag=$IMAGE_TAG" "TeardownBy=$TEARDOWN_BY"
+      - name: Deploy
+        if: ${{ inputs.mode == 'deploy' }}
+        run: |
+          aws cloudformation deploy --region "$REGION" \
+            --stack-name "rougehalla-infra-$EXPERIMENT-fleet" --template-file hosting/infra/fleet/fleet.cfn.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides "Experiment=$EXPERIMENT" "ImageTag=$IMAGE_TAG" "TeardownBy=$TEARDOWN_BY"
