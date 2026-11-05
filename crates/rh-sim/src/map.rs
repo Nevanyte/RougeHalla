@@ -38,6 +38,11 @@ pub struct TileMap {
     /// tile and, for a diagonal, both orthogonal neighbours it squeezes between are floor too (legacy corner rule).
     #[serde(skip)]
     nav: Vec<u8>,
+    /// The tiles in a grid padded by one tile of 0xFF on every side ((w + 2) x (h + 2), row-major): a tile outside the map
+    /// is blocked for every nonzero mask, so a ray that has left the start tile reads neighbours with one slice access and
+    /// no bounds compare (see [`TileMap::padded_blocked`]).
+    #[serde(skip)]
+    padded: Vec<u8>,
 }
 
 /// The wire/checkpoint shape of a [`TileMap`]: exactly its serialized fields.
@@ -99,12 +104,14 @@ impl TileMap {
         }
         let comps = move_components(&tiles, w as usize, h as usize);
         let nav = nav_masks(&tiles, w as usize, h as usize);
+        let padded = padded_tiles(&tiles, w as usize, h as usize);
         Ok(Self {
             w,
             h,
             tiles,
             comps,
             nav,
+            padded,
         })
     }
 
@@ -174,6 +181,26 @@ impl TileMap {
     #[inline]
     pub fn nav(&self, index: usize) -> u8 {
         self.nav[index]
+    }
+
+    /// The padded grid's row stride (`w + 2`): the index step of one tile in y.
+    #[inline]
+    pub(crate) fn padded_stride(&self) -> isize {
+        self.w as isize + 2
+    }
+
+    /// The padded-grid index of in-bounds tile `(tx, ty)`.
+    #[inline]
+    pub(crate) fn padded_index(&self, tx: i64, ty: i64) -> isize {
+        (ty as isize + 1) * self.padded_stride() + tx as isize + 1
+    }
+
+    /// [`TileMap::blocked`] for a NONZERO `mask` by padded index: the ring around the map is 0xFF, so a tile outside the map
+    /// is blocked exactly as `blocked` says. `index` must lie within one tile of the map (a ray that only ever moves one
+    /// tile from an in-bounds tile); anything else panics on the slice access.
+    #[inline]
+    pub(crate) fn padded_blocked(&self, index: isize, mask: u8) -> bool {
+        self.padded[index as usize] & mask != 0
     }
 
     /// The world size covered by the map, in world units.
@@ -251,6 +278,16 @@ fn move_components(tiles: &[u8], w: usize, h: usize) -> Vec<i32> {
     }
     let _ = h;
     comp
+}
+
+/// The tiles inside a ring of 0xFF (see [`TileMap::padded_blocked`]).
+fn padded_tiles(tiles: &[u8], w: usize, h: usize) -> Vec<u8> {
+    let pw = w + 2;
+    let mut pad = vec![0xFFu8; pw * (h + 2)];
+    for (y, row) in tiles.chunks_exact(w).enumerate() {
+        pad[(y + 1) * pw + 1..(y + 1) * pw + 1 + w].copy_from_slice(row);
+    }
+    pad
 }
 
 /// The A* step masks (see [`TileMap::nav`]): exactly the bounds, floor and corner tests the legacy inner loop makes per

@@ -44,6 +44,9 @@ pub(crate) struct TickScratch {
     pub(crate) downed_this_tick: Vec<PlayerId>,
     /// The fighters standing when the melee queue is resolved.
     pub(crate) bodies: Vec<usize>,
+    /// The standing bodies' positions at one rewind time, aligned with `bodies` (the melee pass fills it once per distinct
+    /// rewind time instead of once per swing).
+    pub(crate) rewound: Vec<Vec2>,
     /// The ledger pass: the victims' slots in order of first appearance, each entry's outgoing multiplier, and the entries
     /// chained per victim slot (`slot_head`/`slot_tail` by slot, `entry_next` by entry: all `NONE` between passes).
     pub(crate) victims: Vec<u32>,
@@ -82,6 +85,7 @@ impl Default for TickScratch {
             ledger: Vec::with_capacity(hits),
             downed_this_tick: Vec::with_capacity(p),
             bodies: Vec::with_capacity(p),
+            rewound: Vec::with_capacity(p),
             victims: Vec::with_capacity(p),
             ledger_mults: Vec::with_capacity(hits),
             slot_head: vec![NONE; p],

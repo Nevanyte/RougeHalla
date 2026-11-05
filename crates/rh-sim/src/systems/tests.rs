@@ -477,3 +477,147 @@ fn the_far_reject_in_in_arc_gives_the_exact_verdict() {
     }
     assert!(out > 100_000, "the sample has plenty of misses: {out}");
 }
+
+/// The melee pass as it was written before the shared rewound positions: `position_at` per (swing, body) pair.
+fn melee_reference(
+    k: &crate::statics::MatchStatic,
+    w: &crate::state::World,
+    melee: &[melee::MeleeReq],
+    ledger: &mut Vec<ledger::Entry>,
+    ev: &mut Vec<Event>,
+) {
+    use crate::constants::PLAYER_RADIUS;
+    use crate::content::{staggers, Shape};
+    use crate::geometry::ray_blocked;
+    use crate::map::MASK_MELEE;
+    let bodies: Vec<usize> = (0..w.players.len())
+        .filter(|&i| w.players[i].standing())
+        .collect();
+    for req in melee {
+        let Some(ai) = w.idx(req.attacker) else {
+            continue;
+        };
+        if !w.players[ai].standing() {
+            continue;
+        }
+        let Shape::Arc { reach, half_arc } = weapons::weapon_shape(req.weapon) else {
+            continue;
+        };
+        let origin = w.players[ai].position_at(req.rewind_t);
+        ev.push(Event::Swing {
+            by: req.attacker,
+            weapon: req.weapon,
+            x: origin.x,
+            y: origin.y,
+            a: req.a,
+        });
+        for &ti in &bodies {
+            if ti == ai {
+                continue;
+            }
+            let at = w.players[ti].position_at(req.rewind_t);
+            if !melee::in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
+                continue;
+            }
+            if ray_blocked(&k.arena.map, origin.x, origin.y, at.x, at.y, MASK_MELEE) {
+                continue;
+            }
+            ledger.push(ledger::Entry {
+                victim: w.players[ti].id,
+                by: req.attacker,
+                packet: req.packet,
+                weapon: req.weapon,
+                stagger: staggers(req.weapon),
+            });
+        }
+    }
+}
+
+#[test]
+fn shared_rewound_positions_give_the_ledger_of_the_per_pair_pass() {
+    use crate::content::WeaponId;
+    // Nine fighters in a knot, each with a jittery two-second history, then batches of one to seven swings at mixed rewind
+    // times (the bots' common one, a human's own lag, a repeat of an earlier value, a time before the history and one after
+    // it): the ledger and the Swing events must equal the per-pair pass's, and a lone swing takes the direct path.
+    let ps: Vec<Placement> = (0..9)
+        .map(|i| Placement {
+            profile: format!("p{i}"),
+            faction: FactionId::Holy,
+            bot: false,
+            at: Vec2::new(600.0 + 14.0 * (i % 3) as f64, 300.0 + 14.0 * (i / 3) as f64),
+            hp: None,
+        })
+        .collect();
+    let mut sim = Sim::reset_active(
+        SimConfig::default(),
+        practice_arena(),
+        Secrets::from_seed(5),
+        &ps,
+    );
+    let mut rng = crate::rng::Mulberry32::new(99);
+    let base = sim.w.server_time;
+    for n in 1..=40 {
+        let now = base + n as f64 * TICK_MS;
+        for p in sim.w.players.iter_mut() {
+            p.body.x += (rng.next_f64() - 0.5) * 9.0;
+            p.body.y += (rng.next_f64() - 0.5) * 9.0;
+            let (x, y) = (p.body.x, p.body.y);
+            p.body.history.record(now, x, y);
+        }
+    }
+    sim.w.server_time = base + 40.0 * TICK_MS;
+    let now = sim.w.server_time;
+    let ids: Vec<crate::state::PlayerId> = sim.w.players.iter().map(|p| p.id).collect();
+    let pkt = Packet {
+        raw: 10.0,
+        phys: 10.0,
+        magic: 0.0,
+        true_: 0.0,
+    };
+    let mut hits = 0usize;
+    for batch in 0..80u32 {
+        let n = 1 + (batch % 7) as usize;
+        let mut reqs = Vec::new();
+        for j in 0..n {
+            let r = rng.next_f64();
+            let rewind_t = if r < 0.45 {
+                now - TICK_MS
+            } else if r < 0.6 {
+                now - 100.0
+            } else if r < 0.7 {
+                base - 1000.0
+            } else if r < 0.8 {
+                now + 50.0
+            } else {
+                now - rng.next_f64() * 500.0
+            };
+            reqs.push(melee::MeleeReq {
+                attacker: ids[(batch as usize + j * 4) % ids.len()],
+                weapon: [WeaponId::Sword, WeaponId::Fists][j % 2],
+                a: (rng.next_f64() - 0.5) * 6.4,
+                rewind_t,
+                packet: pkt,
+            });
+        }
+        let (mut want_ledger, mut want_ev) = (Vec::new(), Vec::new());
+        melee_reference(&sim.k, &sim.w, &reqs, &mut want_ledger, &mut want_ev);
+        sim.s.melee.extend(reqs.iter().copied());
+        let mut ev = Vec::new();
+        {
+            let mut cx = Cx {
+                k: &sim.k,
+                w: &mut sim.w,
+                s: &mut sim.s,
+                ev: &mut ev,
+                pf: &mut sim.pf,
+            };
+            melee::resolve(&mut cx);
+        }
+        assert_eq!(sim.s.ledger, want_ledger, "batch {batch}");
+        assert_eq!(ev, want_ev, "batch {batch}");
+        assert!(sim.s.melee.is_empty());
+        hits += want_ledger.len();
+        sim.s.ledger.clear();
+    }
+    assert!(hits > 200, "the swings connect: {hits}");
+}

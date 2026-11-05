@@ -133,6 +133,91 @@ pub fn ray_blocked(map: &TileMap, x0: f64, y0: f64, x1: f64, y1: f64, mask: u8) 
     if !(x0 + y0 + x1 + y1).is_finite() {
         return true;
     }
+    if mask == 0 {
+        // The padded ring is blocked only for a nonzero mask; a zero mask (no caller passes one) keeps the bounds-checked walk.
+        return ray_blocked_checked(map, x0, y0, x1, y1, mask);
+    }
+    let tx = floor_i64(x0 / TILE);
+    let ty = floor_i64(y0 / TILE);
+    // The start tile may lie anywhere (up to the coordinate margin outside the map), so it takes the bounds-checked test.
+    if map.blocked(tx, ty, mask) {
+        return true;
+    }
+    let dx = x1 - x0;
+    let dy = y1 - y0;
+    if dx * dx + dy * dy == 0.0 {
+        return false;
+    }
+    let step_x: i64 = if dx > 0.0 {
+        1
+    } else if dx < 0.0 {
+        -1
+    } else {
+        0
+    };
+    let step_y: i64 = if dy > 0.0 {
+        1
+    } else if dy < 0.0 {
+        -1
+    } else {
+        0
+    };
+    // From here the walk is inside the map: it returns the moment it enters a blocked tile, and the ring around the map is
+    // blocked, so every tile it reads (the next tile, and the two corner-squeeze neighbours, each one step from the current
+    // in-bounds tile) is within the padded grid. The padded index moves by one per crossing; the tile edge moves by one
+    // TILE per crossing, which is exactly `(t + (step > 0)) as f64 * TILE` for the new `t` (an integer times a power of two,
+    // exact in f64), so the `t_max` divisions see the very same operands as before.
+    let ix = step_x as isize;
+    let iy = step_y as isize * map.padded_stride();
+    let mut idx = map.padded_index(tx, ty);
+    let mut edge_x = (tx + if step_x > 0 { 1 } else { 0 }) as f64 * TILE;
+    let mut edge_y = (ty + if step_y > 0 { 1 } else { 0 }) as f64 * TILE;
+    let tile_x = step_x as f64 * TILE;
+    let tile_y = step_y as f64 * TILE;
+    let mut t_max_x = if step_x == 0 {
+        f64::INFINITY
+    } else {
+        (edge_x - x0) / dx
+    };
+    let mut t_max_y = if step_y == 0 {
+        f64::INFINITY
+    } else {
+        (edge_y - y0) / dy
+    };
+    loop {
+        let t = if t_max_x < t_max_y { t_max_x } else { t_max_y };
+        if t > 1.0 {
+            return false;
+        }
+        let cross_x = t_max_x <= t;
+        let cross_y = t_max_y <= t;
+        if cross_x
+            && cross_y
+            && (map.padded_blocked(idx + ix, mask) || map.padded_blocked(idx + iy, mask))
+        {
+            return true;
+        }
+        if cross_x {
+            idx += ix;
+            edge_x += tile_x;
+            t_max_x = (edge_x - x0) / dx;
+        }
+        if cross_y {
+            idx += iy;
+            edge_y += tile_y;
+            t_max_y = (edge_y - y0) / dy;
+        }
+        if map.padded_blocked(idx, mask) {
+            return true;
+        }
+    }
+}
+
+/// The bounds-checked walk [`ray_blocked`] was before the padded grid: kept for the zero mask.
+fn ray_blocked_checked(map: &TileMap, x0: f64, y0: f64, x1: f64, y1: f64, mask: u8) -> bool {
+    if !(x0 + y0 + x1 + y1).is_finite() {
+        return true;
+    }
     let mut tx = floor_i64(x0 / TILE);
     let mut ty = floor_i64(y0 / TILE);
     if map.blocked(tx, ty, mask) {
@@ -211,6 +296,15 @@ pub fn circle_clear(map: &TileMap, p: Vec2, radius: f64, mask: u8) -> bool {
         return !map.blocked(tx, ty, mask);
     }
     let reach = 1i64.max(ceil_i64(radius / TILE));
+    // A 3x3 block of floor tiles (nav byte 0xFF: this tile is floor, so in bounds, and all eight neighbours are in bounds
+    // and floor) has no tile blocked for any mask (floor is class 0), so the loop below would `continue` on all nine of
+    // them and return true without a distance test.
+    if reach == 1
+        && map.is_floor(tx, ty)
+        && map.nav(ty as usize * map.w as usize + tx as usize) == 0xFF
+    {
+        return true;
+    }
     let r2 = radius * radius;
     for j in ty.saturating_sub(reach)..=ty.saturating_add(reach) {
         for i in tx.saturating_sub(reach)..=tx.saturating_add(reach) {

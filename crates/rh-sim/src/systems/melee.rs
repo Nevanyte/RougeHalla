@@ -31,6 +31,7 @@ pub(crate) fn resolve(cx: &mut Cx) {
         melee,
         ledger,
         bodies,
+        rewound,
         ..
     } = &mut **s;
     if melee.is_empty() {
@@ -38,6 +39,11 @@ pub(crate) fn resolve(cx: &mut Cx) {
     }
     bodies.clear();
     bodies.extend((0..w.players.len()).filter(|&i| w.players[i].standing()));
+    // With two or more swings the bodies' rewound positions are shared: every bot swing in a tick has the same rewind time, so
+    // they are computed once per distinct time (exact bits) and the swings read them. `position_at` is a pure function of a
+    // world this system does not change, so a reused value is the very same `Vec2`. One swing keeps the direct path.
+    let shared = melee.len() >= 2;
+    let mut rewound_t: Option<u64> = None;
     for req in melee.iter() {
         let Some(ai) = w.idx(req.attacker) else {
             continue;
@@ -48,7 +54,20 @@ pub(crate) fn resolve(cx: &mut Cx) {
         let Shape::Arc { reach, half_arc } = weapon_shape(req.weapon) else {
             continue;
         };
-        let origin = w.players[ai].position_at(req.rewind_t);
+        if shared && rewound_t != Some(req.rewind_t.to_bits()) {
+            rewound.clear();
+            rewound.extend(
+                bodies
+                    .iter()
+                    .map(|&i| w.players[i].position_at(req.rewind_t)),
+            );
+            rewound_t = Some(req.rewind_t.to_bits());
+        }
+        // The attacker stands, so it is one of `bodies` (ascending slots).
+        let origin = match (shared, bodies.binary_search(&ai)) {
+            (true, Ok(k)) => rewound[k],
+            _ => w.players[ai].position_at(req.rewind_t),
+        };
         ev.push(Event::Swing {
             by: req.attacker,
             weapon: req.weapon,
@@ -56,11 +75,15 @@ pub(crate) fn resolve(cx: &mut Cx) {
             y: origin.y,
             a: req.a,
         });
-        for &ti in bodies.iter() {
+        for (bi, &ti) in bodies.iter().enumerate() {
             if ti == ai {
                 continue;
             }
-            let at = w.players[ti].position_at(req.rewind_t);
+            let at = if shared {
+                rewound[bi]
+            } else {
+                w.players[ti].position_at(req.rewind_t)
+            };
             if !in_arc(origin, req.a, reach, half_arc, at, PLAYER_RADIUS) {
                 continue;
             }
