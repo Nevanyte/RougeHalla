@@ -1,0 +1,4 @@
+matches players rooms(steady) cpu(cores) rssMB  step p50/p99/max us  dropped lateness p99us  client int p50/p95/p99 ms  missed  verdict
+     50     400            51       0.27    34       39/319/1668       0         2559         50/51/52       0  healthy
+    200    1600        206.80       0.92 116.80       23/159/3227       0         2559         50/51/52       0  healthy
+    800    6400        853.04       2.20 442.10       15/191/68628   36847       229375         50/182/395  729331  DEGRADED ["server dropped 36847 steps (pacer backlog)","wake lateness p99 229375 us over 25000 us","client snapshot interval p99 395 ms over 100 ms (two ticks)","729331 ticks missed over 6041943 snapshots"]

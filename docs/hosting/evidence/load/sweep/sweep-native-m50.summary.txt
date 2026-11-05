@@ -1,0 +1,23 @@
+rh-load run sweep-native-m50  (baseline slice only, not full-game capacity)
+revision 3d91abc3a350a2890f90bf8f9ab13b818f14c2d0-dirty  profile release  protocol 5  content aa629bdb1a320371
+host: Apple M5 Pro 18-core 64 GB (Apple M5 Pro) | 18 cores | 64 GiB | Darwin 25.6.0 | arch aarch64 | emulated false
+transport: ws (plain, loopback)   raw output: target/load/sweep/sweep-native-m50.json
+scenario: 50 matches x 8 players (400 players), ramp 25/s, steady 40 s, think 150 ms, aggression 0, reconnect 0 (every 20 s), churn clients 0, slow 0 , max-rooms 1024
+timing: ramp 2.00 s, steady 40.00 s, total 45.05 s
+cold start: control health 4.29 ms, public port 4.41 ms
+capacity: rooms peak 50 (steady mean 50, min 50), players wanted 400 admitted 400 never admitted 0
+server cpu (cores): steady mean 0.23 max 0.26 whole-run mean 0.22 | rss MB peak 32.20 mean 29.89
+server step us: p50 31 p99 191 max 4201 (steps 44040, dropped 0) | publish us p50 27 p99 191 | wake lateness us p50 1279 p99 2559 max 9963
+client snapshot interval ms (50 ideal): n=320000 p50 50 p95 51 p99 51 p99.9 56 max 60 | late>100ms 0 >200ms 0 >500ms 0 | ticks missed 0
+connect ms: n=400 p50 0.21 p95 0.34 p99 0.41 max 1.18
+hello->welcome ms: n=400 p50 0.10 p95 0.19 p99 0.25 max 0.65
+welcome->first snapshot ms: n=400 p50 33.73 p95 51.25 p99 51.90 max 52.06
+resume hello->welcome ms: no samples
+refusals by reason: {}   connect errors 0
+bandwidth per client B/s in: n=400 p50 1174.72 p95 1199.79 p99 1206.30 max 1211.09
+bandwidth per client B/s out: n=400 p50 97.17 p95 99.54 p99 100.33 max 101.28
+reconnect: attempts 0 ok 0 failed 0 success rate n/a failures {}
+slow consumers: started 0 outcomes {}
+churn: joins 0 leaves 0
+play: results 0 inputs 116427 snapshots 352247 decode errors 0 abnormal ends 0 other {}
+verdict: healthy []

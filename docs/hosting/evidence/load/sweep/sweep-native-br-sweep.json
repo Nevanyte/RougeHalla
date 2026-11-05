@@ -1,0 +1,32 @@
+{
+  "command": "rh-load sweep --server-bin target/release/rh-server --levels 1000 --duration 40 --ramp-per-sec 30 --aggression 0 --label sweep-native-br --out-dir target/load/sweep --hardware-label Apple M5 Pro 18-core 64 GB",
+  "label": "sweep-native-br",
+  "rows": [
+    {
+      "bytesPerSecInP50": 760.065,
+      "clientIntervalMsP50": 50,
+      "clientIntervalMsP95": 52,
+      "clientIntervalMsP99": 54,
+      "cpuCoresSteadyMean": 2.637,
+      "degraded": true,
+      "droppedSteps": 0,
+      "harnessCpuCoresNote": "see series",
+      "helloToWelcomeMsP95": 3.957,
+      "latenessUsP99": 32767,
+      "matches": 1000,
+      "players": 8000,
+      "playersNeverAdmitted": 89,
+      "reasons": [
+        "wake lateness p99 32767 us over 25000 us"
+      ],
+      "report": "target/load/sweep/sweep-native-br-m1000.json",
+      "roomsSteadyMean": 1018.75,
+      "rssMbPeak": 501.4,
+      "stepUsMax": 4184,
+      "stepUsP50": 19,
+      "stepUsP99": 79,
+      "ticksMissed": 11300
+    }
+  ],
+  "schema": "rh-load-sweep/1"
+}

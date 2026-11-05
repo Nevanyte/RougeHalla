@@ -1,0 +1,23 @@
+rh-load run sweep-native-br-m1000  (baseline slice only, not full-game capacity)
+revision 3d91abc3a350a2890f90bf8f9ab13b818f14c2d0-dirty  profile release  protocol 5  content aa629bdb1a320371
+host: Apple M5 Pro 18-core 64 GB (Apple M5 Pro) | 18 cores | 64 GiB | Darwin 25.6.0 | arch aarch64 | emulated false
+transport: ws (plain, loopback)   raw output: target/load/sweep/sweep-native-br-m1000.json
+scenario: 1000 matches x 8 players (8000 players), ramp 30/s, steady 40 s, think 150 ms, aggression 0, reconnect 0 (every 20 s), churn clients 0, slow 0 , max-rooms 1024
+timing: ramp 33.34 s, steady 40.00 s, total 79.25 s
+cold start: control health 4.24 ms, public port 4.32 ms
+capacity: rooms peak 1024 (steady mean 1018.75, min 959), players wanted 8000 admitted 7911 never admitted 89
+server cpu (cores): steady mean 2.64 max 4.65 whole-run mean 2.54 | rss MB peak 501.40 mean 355.33
+server step us: p50 19 p99 79 max 4184 (steps 1243804, dropped 0) | publish us p50 15 p99 63 | wake lateness us p50 1535 p99 32767 max 100937
+client snapshot interval ms (50 ideal): n=2812890 p50 50 p95 52 p99 54 p99.9 3000 max 3000 | late>100ms 11422 >200ms 9324 >500ms 6605 | ticks missed 11300
+connect ms: n=53065 p50 0.90 p95 4763.83 p99 7010.29 max 18472.57
+hello->welcome ms: n=12362 p50 0.12 p95 3.96 p99 11.59 max 14944.89
+welcome->first snapshot ms: n=12360 p50 45.74 p95 51.94 p99 55.41 max 14714.81
+resume hello->welcome ms: no samples
+refusals by reason: {"Malformed":35,"MatchFull":35405,"ProfileInUse":5233}   connect errors 331
+bandwidth per client B/s in: n=12362 p50 760.07 p95 1149.00 p99 1169.45 max 1195.12
+bandwidth per client B/s out: n=12362 p50 97.36 p95 102.83 p99 105.23 max 110.78
+reconnect: attempts 0 ok 0 failed 0 success rate n/a failures {}
+slow consumers: started 0 outcomes {}
+churn: joins 0 leaves 0
+play: results 306 inputs 2319077 snapshots 5461622 decode errors 0 abnormal ends 6123 other {"closed before welcome":1,"connect: tcp connect timeout":22,"connect: tcp connect: TimedOut":197,"connect: ws handshake timeout":112,"end: Kicked":176,"end: closed":6113,"end: send failed":10,"welcome timeout":29}
+verdict: DEGRADED ["wake lateness p99 32767 us over 25000 us"]
