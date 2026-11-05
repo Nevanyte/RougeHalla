@@ -19,7 +19,7 @@ PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -
 
 STATE_DIR="${RH_PGTEST_STATE:-${TMPDIR:-/tmp}/rh-pgtest-state}"
 mkdir -p "$STATE_DIR"
-if [ -f "$STATE_DIR/dir" ] && "$PGBIN/pg_ctl" status -D "$(cat "$STATE_DIR/dir")/data" >/dev/null 2>&1; then
+if [ -f "$STATE_DIR/dir" ] && run_pg "$PGBIN/pg_ctl" status -D "$(cat "$STATE_DIR/dir")/data" >/dev/null 2>&1; then
   echo "export DATABASE_URL=$(cat "$STATE_DIR/url")"
   exit 0
 fi

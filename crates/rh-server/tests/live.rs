@@ -193,6 +193,22 @@ async fn until_result(ws: &mut Ws) -> (Option<rh_protocol::WireResult>, u32) {
     (None, snaps)
 }
 
+/// The duel spawns are shuffled onto adjacent tiles. Wait for the raid to learn the actual spawn
+/// and to avoid sending an attack the lobby will discard.
+async fn duel_spawn_x(ws: &mut Ws, player: u32) -> f32 {
+    loop {
+        if let ServerMsg::Snapshot {
+            me: Some(me),
+            phase: 1,
+            ..
+        } = recv(ws).await.expect("active duel snapshot")
+        {
+            assert_eq!(me.id, player);
+            return me.x;
+        }
+    }
+}
+
 fn attack(seq: u32, a: f32) -> ClientMsg {
     ClientMsg::Input {
         seq,
@@ -207,21 +223,7 @@ async fn a_full_match_over_websockets_ends_in_authoritative_results_and_durable_
     let (mut b, idb, _) = join(&s.url, "bravo", Some(4)).await; // Holy
     assert_ne!(ida, idb);
     // Hold the trigger toward each other: whichever spawn each got, aim along x toward the other's side.
-    let mut pos = std::collections::HashMap::new();
-    for ws in [&mut a, &mut b] {
-        while let Some(m) = recv(ws).await {
-            if let ServerMsg::Snapshot {
-                me: Some(me),
-                phase: 1,
-                ..
-            } = m
-            {
-                pos.insert(me.id, me.x);
-                break;
-            }
-        }
-    }
-    let (xa, xb) = (pos[&ida], pos[&idb]);
+    let (xa, xb) = tokio::join!(duel_spawn_x(&mut a, ida), duel_spawn_x(&mut b, idb));
     send(
         &mut a,
         attack(1, if xb > xa { 0.0 } else { std::f32::consts::PI }),
@@ -496,21 +498,7 @@ async fn a_player_who_reconnects_after_the_match_resolved_still_receives_their_r
     // Fire (alpha) will not fight; Holy (bravo) does and wins.
     let (mut a, ida, session) = join(&s.url, "alpha", Some(0)).await;
     let (mut b, idb, _) = join(&s.url, "bravo", Some(4)).await;
-    let mut pos = std::collections::HashMap::new();
-    for ws in [&mut a, &mut b] {
-        while let Some(m) = recv(ws).await {
-            if let ServerMsg::Snapshot {
-                me: Some(me),
-                phase: 1,
-                ..
-            } = m
-            {
-                pos.insert(me.id, me.x);
-                break;
-            }
-        }
-    }
-    let (xa, xb) = (pos[&ida], pos[&idb]);
+    let (xa, xb) = tokio::join!(duel_spawn_x(&mut a, ida), duel_spawn_x(&mut b, idb));
     drop(a);
     send(
         &mut b,
@@ -576,7 +564,8 @@ async fn leaving_mid_run_is_mia_with_a_result() {
 async fn draining_refuses_new_players_and_lets_the_match_finish() {
     let s = start(duel_arena(), |_| {}).await;
     let (mut a, ida, _) = join(&s.url, "india", Some(0)).await;
-    let (mut b, _, _) = join(&s.url, "juliet", Some(4)).await;
+    let (mut b, idb, _) = join(&s.url, "juliet", Some(4)).await;
+    let (xa, xb) = tokio::join!(duel_spawn_x(&mut a, ida), duel_spawn_x(&mut b, idb));
     s.director.drain().await;
     let mut late = connect(&s.url).await;
     send(&mut late, hello("kilo")).await;
@@ -587,14 +576,27 @@ async fn draining_refuses_new_players_and_lets_the_match_finish() {
             ..
         })
     ));
-    // The running match still plays to its end.
-    send(&mut a, attack(1, 0.0)).await;
-    send(&mut a, attack(2, std::f32::consts::PI)).await;
-    send(&mut b, attack(1, 0.0)).await;
-    send(&mut b, attack(2, std::f32::consts::PI)).await;
-    let _ = ida;
-    let (ra, _) = until_result(&mut a).await;
-    assert!(ra.is_some(), "the match finished while draining");
+    assert_eq!(s.director.lifecycle.state_name(), "draining");
+    // Both fighters can still play and receive their own combat results while draining.
+    send(
+        &mut a,
+        attack(1, if xb > xa { 0.0 } else { std::f32::consts::PI }),
+    )
+    .await;
+    send(
+        &mut b,
+        attack(1, if xa > xb { 0.0 } else { std::f32::consts::PI }),
+    )
+    .await;
+    let ((ra, _), (rb, _)) = tokio::join!(until_result(&mut a), until_result(&mut b));
+    let (ra, rb) = (ra.expect("india's result"), rb.expect("juliet's result"));
+    assert!(
+        matches!(
+            ((ra.outcome, ra.place), (rb.outcome, rb.place)),
+            ((0, 1), (2, 2)) | ((2, 2), (0, 1))
+        ),
+        "expected a winner and a defeated opponent, got {ra:?} and {rb:?}"
+    );
     for _ in 0..50 {
         if s.director.lifecycle.is_terminated() {
             break;
