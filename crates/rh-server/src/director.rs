@@ -2,6 +2,7 @@
 //! resume, and the off-tick handling of what rooms report (results to durable storage with retries, freed profiles).
 //! Several matches run in one process (one tokio task each); the hosting layer decides how many processes run per host.
 
+use crate::control::{ControlBook, CtlError, EndMode, LeaveMode};
 use crate::hosting::Lifecycle;
 use crate::outbox::Outbox;
 use crate::persist::{Auth, HeldLease, Persistence, ProfileKey, RecordError, Recorded};
@@ -66,6 +67,12 @@ pub struct DirectorConfig {
     pub linger: Duration,
     /// A connection that sends nothing for this long is treated as dropped (clients ping at least every second).
     pub idle_timeout: Duration,
+    /// Hosted mode (`--require-admit`, docs/hosting/CONTROL_API.md section 4): a Hello is admitted only with a matching,
+    /// unexpired, unconsumed admit, checked after the profile credential check and before profile ownership. Rooms then
+    /// exist only through `POST /control/session`. Off: admission is exactly as it always was.
+    pub require_admit: bool,
+    /// Default lifetime of an admit that names no `ttlMs`.
+    pub admit_ttl: Duration,
 }
 
 impl DirectorConfig {
@@ -81,6 +88,8 @@ impl DirectorConfig {
             reconnect_grace: crate::room::RECONNECT_GRACE,
             linger: crate::room::LINGER,
             idle_timeout: crate::conn::IDLE_TIMEOUT,
+            require_admit: false,
+            admit_ttl: Duration::from_millis(crate::control::DEFAULT_TTL_MS),
         }
     }
 }
@@ -237,6 +246,8 @@ impl Drop for PendingAdmission {
 ///   releases the lease itself.
 #[derive(Default)]
 struct Inner {
+    /// The control API's game sessions, admits and player statuses (control.rs). Plain data: no I/O under this lock.
+    control: ControlBook,
     rooms: HashMap<MatchId, RoomEntry>,
     profiles: HashMap<ProfileKey, ProfileSeat>,
     /// The last `ProfileSeat::gen` handed out.
@@ -247,11 +258,31 @@ struct Inner {
     results_failed: u64,
     /// Results the store refused for good (no lease, stale fence): not retried.
     results_refused: u64,
+    /// Durable-spool accounting (see `spool.rs`): a result is first `spooled` (fsynced, survives a process restart on this
+    /// host) and later `committed` (`results_ok`: PostgreSQL has it, the only host-loss-durable point).
+    results_spooled: u64,
+    /// Results whose append failed because the spool was full (they fall back to in-memory retry only).
+    spool_full: u64,
+    /// Results whose append failed on I/O (same fallback).
+    spool_errors: u64,
+    /// Spooled results committed (or found already applied) by the startup recovery pass.
+    results_recovered: u64,
+    /// Records moved to the dead-letter directory by this process (refused, permanently rejected, unreadable at startup).
+    results_dead_lettered: u64,
+    /// Alerts raised for results unresolved past `retry_deadline` (they keep retrying; nothing is dead-lettered for time).
+    results_stuck_alerts: u64,
     replays: Vec<rh_sim::replay::Replay>,
 }
 
 /// Attempts per result write (100 ms doubling to 5 s: about two minutes in all). Only transient errors are retried.
 pub const RESULT_ATTEMPTS: u32 = 30;
+
+/// How a spooled result ended in this process.
+#[cfg(feature = "postgres")]
+enum SpoolEnd {
+    Committed { applied: bool },
+    DeadLettered,
+}
 
 pub struct Director {
     /// Result writes in flight (the process waits for them before exiting).
@@ -268,6 +299,12 @@ pub struct Director {
     freed: Notify,
     /// This director, for the tasks it spawns (lease give-backs) from `&self`.
     me: std::sync::Weak<Director>,
+    /// The durable result spool (`--result-spool`); `None` keeps the in-memory-only retry.
+    #[cfg(feature = "postgres")]
+    spool: Option<Arc<crate::spool::ResultSpool>>,
+    /// Bounds the spooled writes in flight at once, so a recovery pass cannot stampede the connection pool.
+    #[cfg(feature = "postgres")]
+    spool_permits: tokio::sync::Semaphore,
 }
 
 /// How long an admission waits, in all (one deadline shared by its retries), for a profile that is mid-release (its lease
@@ -298,23 +335,65 @@ impl Director {
         auth: Arc<Auth>,
         lifecycle: Arc<Lifecycle>,
     ) -> Arc<Self> {
+        Self::build(
+            cfg,
+            persistence,
+            auth,
+            lifecycle,
+            #[cfg(feature = "postgres")]
+            None,
+        )
+    }
+
+    /// As [`Director::new`], with the durable result spool. Panics if the persistence is not PostgreSQL: a spool record
+    /// can only be replayed into the durable store.
+    #[cfg(feature = "postgres")]
+    pub fn new_with_spool(
+        cfg: DirectorConfig,
+        persistence: Arc<Persistence>,
+        auth: Arc<Auth>,
+        lifecycle: Arc<Lifecycle>,
+        spool: Arc<crate::spool::ResultSpool>,
+    ) -> Arc<Self> {
+        assert!(
+            persistence.is_durable(),
+            "a result spool needs the PostgreSQL store"
+        );
+        Self::build(cfg, persistence, auth, lifecycle, Some(spool))
+    }
+
+    fn build(
+        cfg: DirectorConfig,
+        persistence: Arc<Persistence>,
+        auth: Arc<Auth>,
+        lifecycle: Arc<Lifecycle>,
+        #[cfg(feature = "postgres")] spool: Option<Arc<crate::spool::ResultSpool>>,
+    ) -> Arc<Self> {
         cfg.leases.validate().expect("invalid lease policy");
         if let Err(e) = crate::wire::arena_fits(&cfg.arena) {
             panic!("refusing to host this arena: {e}");
         }
         let (tx, rx) = mpsc::unbounded_channel();
         let map = MapAssets::new(cfg.arena.clone()).expect("the arena's map encodes as a Welcome");
+        let inner = Inner {
+            control: ControlBook::new(cfg.admit_ttl, cfg.reconnect_grace),
+            ..Inner::default()
+        };
         let d = Arc::new_cyclic(|me| Self {
             pending_writes: std::sync::atomic::AtomicUsize::new(0),
             cfg,
             map,
-            inner: Mutex::new(Inner::default()),
+            inner: Mutex::new(inner),
             reports: tx,
             persistence,
             auth,
             lifecycle,
             freed: Notify::new(),
             me: me.clone(),
+            #[cfg(feature = "postgres")]
+            spool,
+            #[cfg(feature = "postgres")]
+            spool_permits: tokio::sync::Semaphore::new(8),
         });
         tokio::spawn(Self::report_loop(d.clone(), rx));
         d
@@ -410,6 +489,19 @@ impl Director {
         else {
             return Err((RejectCode::BadCredentials, "bad credentials".into()));
         };
+        // Hosted mode: an additional precondition after the credential check and before profile ownership and the fenced
+        // lease (CONTROL_API.md section 4). It never replaces authentication and takes no lease. The admit is consumed
+        // below, atomically with the seat reservation; this early look only refuses before any wait.
+        if self.cfg.require_admit
+            && !self
+                .inner
+                .lock()
+                .expect("director")
+                .control
+                .has_admit(&h.profile, tokio::time::Instant::now())
+        {
+            return Err((RejectCode::BadCredentials, "not admitted".into()));
+        }
         // A player who just left (or whose match just closed, or whose previous attempt here just failed) has its lease
         // give-back in flight: wait for it instead of refusing, so a quick rejoin is deterministic. A profile with a live
         // seat, or with another admission in flight, is refused below as before.
@@ -423,41 +515,45 @@ impl Director {
                     "callsign already in a match".into(),
                 ));
             }
-            let open = open_lobby(&inner.rooms)
-                .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
-            let (match_id, tx) = match open {
-                Some(x) => x,
-                None => {
-                    if inner.rooms.len() >= self.cfg.max_rooms {
-                        return Err((RejectCode::MatchFull, "no capacity".into()));
+            let next_gen = inner.gens + 1;
+            let (match_id, tx) = if self.cfg.require_admit {
+                // Hosted mode: the room is the one the admit names (no automatic lobby placement, no room opened here).
+                // The admit is consumed here, in the critical section that reserves the seat; any later failure of this
+                // admission restores it (`unwind`).
+                let Some(taken) =
+                    inner
+                        .control
+                        .take_admit(&h.profile, tokio::time::Instant::now(), next_gen)
+                else {
+                    return Err((RejectCode::BadCredentials, "not admitted".into()));
+                };
+                let target = inner
+                    .rooms
+                    .get(&taken.room)
+                    .map(|r| (r.phase == Phase::Lobby, r.tx.clone()));
+                match target {
+                    Some((true, tx)) => (taken.room, tx),
+                    other => {
+                        inner.control.restore_gen(next_gen);
+                        let why = if other.is_none() {
+                            "match closed"
+                        } else {
+                            "match in progress"
+                        };
+                        return Err((RejectCode::MatchFull, why.into()));
                     }
-                    let id = random16();
-                    let (tx, rx) = mpsc::channel(INBOUND_CAP);
-                    let rc = RoomConfig {
-                        sim: self.cfg.sim.clone(),
-                        arena: self.map.arena.clone(),
-                        welcome_map: self.map.welcome_map.clone(),
-                        fill_bots_to: self.cfg.fill_bots_to,
-                        tick: self.cfg.tick,
-                        record: self.cfg.record,
-                        fixed_secrets: None,
-                        fixed_bot_seed: None,
-                        reconnect_grace: self.cfg.reconnect_grace,
-                        linger: self.cfg.linger,
-                    };
-                    let room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
-                    // A panic in the room still reports `Closed` (room.rs `run_room`), so its seats are freed.
-                    tokio::spawn(run_room(room, rx));
-                    inner.rooms.insert(
-                        id,
-                        RoomEntry {
-                            tx: tx.clone(),
-                            phase: Phase::Lobby,
-                            seated: 0,
-                            reserved: 0,
-                        },
-                    );
-                    (id, tx)
+                }
+            } else {
+                let open = open_lobby(&inner.rooms)
+                    .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
+                match open {
+                    Some(x) => x,
+                    None => {
+                        if inner.rooms.len() >= self.cfg.max_rooms {
+                            return Err((RejectCode::MatchFull, "no capacity".into()));
+                        }
+                        self.spawn_room(&mut inner, self.cfg.fill_bots_to)
+                    }
                 }
             };
             inner.gens += 1;
@@ -597,6 +693,42 @@ impl Director {
         }
     }
 
+    /// Spawns a room task and registers it (the lock is held). Used by admission (a lobby opened on demand) and by the
+    /// control API (a room per game session); never blocks.
+    fn spawn_room(
+        &self,
+        inner: &mut Inner,
+        fill_bots_to: usize,
+    ) -> (MatchId, mpsc::Sender<RoomCmd>) {
+        let id = random16();
+        let (tx, rx) = mpsc::channel(INBOUND_CAP);
+        let rc = RoomConfig {
+            sim: self.cfg.sim.clone(),
+            arena: self.map.arena.clone(),
+            welcome_map: self.map.welcome_map.clone(),
+            fill_bots_to,
+            tick: self.cfg.tick,
+            record: self.cfg.record,
+            fixed_secrets: None,
+            fixed_bot_seed: None,
+            reconnect_grace: self.cfg.reconnect_grace,
+            linger: self.cfg.linger,
+        };
+        let room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
+        // A panic in the room still reports `Closed` (room.rs `run_room`), so its seats are freed.
+        tokio::spawn(run_room(room, rx));
+        inner.rooms.insert(
+            id,
+            RoomEntry {
+                tx: tx.clone(),
+                phase: Phase::Lobby,
+                seated: 0,
+                reserved: 0,
+            },
+        );
+        (id, tx)
+    }
+
     /// There is at most one in-flight renewal per admitted seat. The worker holds neither
     /// the director nor its lock while sleeping or accessing durable storage. Result-pending
     /// and writing seats keep renewing even after their connection and room have gone.
@@ -694,6 +826,8 @@ impl Director {
     /// profile, waits for the give-back instead of racing it).
     fn unwind(&self, key: &ProfileKey, gen: u64, match_id: MatchId, fence: Option<i64>) {
         let mut inner = self.inner.lock().expect("director");
+        // Hosted mode: an admission that took no seat gives the admit back (pending again, same deadline).
+        inner.control.restore_gen(gen);
         let own = inner
             .profiles
             .get(key)
@@ -846,50 +980,10 @@ impl Director {
                     d.pending_writes
                         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     tokio::spawn(async move {
-                        let mut delay = Duration::from_millis(100);
                         // Whether the lease is gone after the write: released by its transaction, or no longer ours.
-                        let mut lease_gone = false;
-                        for attempt in 0..RESULT_ATTEMPTS {
-                            match d
-                                .persistence
-                                .record_with_id(
-                                    match_id,
-                                    &profile,
-                                    fence,
-                                    &result,
-                                    roster,
-                                    key.id(),
-                                )
-                                .await
-                            {
-                                Ok(Recorded::Applied) => {
-                                    d.inner.lock().expect("director").results_ok += 1;
-                                    lease_gone = true;
-                                    break;
-                                }
-                                // A duplicate report: the store answers before it looks at the lease, so the lease the
-                                // caller holds (if any) is still live. It is not marked gone: the seat's ordinary
-                                // fenced give-back releases it (a no-op when the lease already moved on).
-                                Ok(Recorded::AlreadyApplied) => {
-                                    d.inner.lock().expect("director").results_ok += 1;
-                                    break;
-                                }
-                                Err(RecordError::Refused(e)) => {
-                                    eprintln!("[results] {profile}: refused by the store, not retried: {e}");
-                                    d.inner.lock().expect("director").results_refused += 1;
-                                    lease_gone = true;
-                                    break;
-                                }
-                                Err(e) if attempt == RESULT_ATTEMPTS - 1 => {
-                                    eprintln!("[results] giving up on {profile}: {e}");
-                                    d.inner.lock().expect("director").results_failed += 1;
-                                }
-                                Err(_) => {
-                                    tokio::time::sleep(delay).await;
-                                    delay = (delay * 2).min(Duration::from_secs(5));
-                                }
-                            }
-                        }
+                        let lease_gone = d
+                            .write_result(match_id, &profile, fence, &result, roster, key.id())
+                            .await;
                         let mut inner = d.inner.lock().expect("director");
                         match owner {
                             Some(gen) => {
@@ -953,6 +1047,7 @@ impl Director {
                     for k in moved {
                         this.advance(&mut inner, &k);
                     }
+                    let stats_crashed = stats.crashed;
                     if stats.crashed {
                         eprintln!("[director] a room crashed; its seats were freed");
                     }
@@ -966,6 +1061,13 @@ impl Director {
                             inner.replays.remove(0);
                         }
                     }
+                    let draining = this.lifecycle.draining();
+                    inner.control.on_closed(
+                        match_id,
+                        stats_crashed,
+                        draining,
+                        tokio::time::Instant::now(),
+                    );
                     let empty = inner.rooms.is_empty();
                     drop(inner);
                     if empty {
@@ -977,29 +1079,36 @@ impl Director {
                     phase,
                     humans,
                 } => {
-                    if let Some(r) = this
-                        .inner
-                        .lock()
-                        .expect("director")
-                        .rooms
-                        .get_mut(&match_id)
-                    {
+                    let mut inner = this.inner.lock().expect("director");
+                    if let Some(r) = inner.rooms.get_mut(&match_id) {
                         // The admission that took this seat stops being a reservation; the others still are.
                         r.reserved = r.reserved.saturating_sub(1);
                         r.seated = humans;
                         r.phase = phase;
                     }
+                    inner.control.on_phase(match_id, phase);
                 }
-                RoomReport::Phase { match_id, phase } => {
-                    if let Some(r) = this
+                RoomReport::Seat {
+                    match_id,
+                    profile,
+                    event,
+                } => {
+                    let took = this
                         .inner
                         .lock()
                         .expect("director")
-                        .rooms
-                        .get_mut(&match_id)
-                    {
+                        .control
+                        .on_seat(match_id, &profile, event);
+                    if let Some(took) = took {
+                        crate::metrics::process().note_admit_to_seat(took);
+                    }
+                }
+                RoomReport::Phase { match_id, phase } => {
+                    let mut inner = this.inner.lock().expect("director");
+                    if let Some(r) = inner.rooms.get_mut(&match_id) {
                         r.phase = phase;
                     }
+                    inner.control.on_phase(match_id, phase);
                 }
             }
         }
@@ -1101,9 +1210,583 @@ impl Director {
         })
     }
 
+    // ---- the control API (docs/hosting/CONTROL_API.md); the HTTP layer is `control_http` in lib.rs ----
+
+    /// The `control` object of `GET /control/health`: what the bridge checks before it reports the process ready.
+    pub fn control_info(&self) -> serde_json::Value {
+        serde_json::json!({
+            "v": crate::control::API_VERSION,
+            "requireAdmit": self.cfg.require_admit,
+            "maxRooms": self.cfg.max_rooms,
+            "admitTtlMs": self.cfg.admit_ttl.as_millis() as u64,
+        })
+    }
+
+    /// `POST /control/session`: the room for one game session. Idempotent per `gameSessionId`.
+    pub fn control_create(
+        &self,
+        gsid: &str,
+        max_players: Option<usize>,
+        fill_bots_to: Option<usize>,
+    ) -> Result<serde_json::Value, CtlError> {
+        let max_players = max_players.unwrap_or(rh_sim::constants::MAX_PLAYERS);
+        if !(1..=rh_sim::constants::MAX_PLAYERS).contains(&max_players) {
+            return Err(CtlError::bad_request(format!(
+                "maxPlayers must be 1..={}",
+                rh_sim::constants::MAX_PLAYERS
+            )));
+        }
+        let fill = fill_bots_to.unwrap_or(self.cfg.fill_bots_to.min(max_players));
+        if fill > max_players {
+            return Err(CtlError::bad_request("fillBotsTo must be 0..=maxPlayers"));
+        }
+        match self.lifecycle.state_name() {
+            "starting" => return Err(CtlError::new(503, "not_ready", "the server is starting")),
+            "ready" => {}
+            _ => return Err(CtlError::conflict("draining", "the server is draining")),
+        }
+        let mut inner = self.inner.lock().expect("director");
+        // Re-checked under the lock: `drain` flips the lifecycle first and only then reads the rooms under this same lock, so
+        // a create that still sees `ready` here has its room in place before drain looks (drain then waits for it), and a
+        // create that comes later is refused. Without this a session created during a drain could outlive `Terminated`.
+        match self.lifecycle.state_name() {
+            "ready" => {}
+            "starting" => return Err(CtlError::new(503, "not_ready", "the server is starting")),
+            _ => return Err(CtlError::conflict("draining", "the server is draining")),
+        }
+        inner.control.sweep(tokio::time::Instant::now());
+        match inner.control.check_create(gsid, max_players, fill)? {
+            crate::control::CreateCheck::Existing {
+                room,
+                phase,
+                max_players,
+            } => Ok(serde_json::json!({
+                "v": crate::control::API_VERSION, "created": false, "gameSessionId": gsid,
+                "roomId": crate::control::room_id_hex(room), "phase": phase.as_str(), "maxPlayers": max_players,
+            })),
+            crate::control::CreateCheck::New => {
+                if inner.rooms.len() >= self.cfg.max_rooms {
+                    return Err(CtlError::conflict("at_capacity", "no room capacity left"));
+                }
+                let (id, _tx) = self.spawn_room(&mut inner, fill);
+                inner.control.insert(gsid, id, max_players, fill);
+                Ok(serde_json::json!({
+                    "v": crate::control::API_VERSION, "created": true, "gameSessionId": gsid,
+                    "roomId": crate::control::room_id_hex(id), "phase": "lobby", "maxPlayers": max_players,
+                }))
+            }
+        }
+    }
+
+    /// `POST /control/admit`.
+    pub fn control_admit(
+        &self,
+        gsid: &str,
+        psid: &str,
+        callsign: &str,
+        ttl: Option<Duration>,
+    ) -> Result<serde_json::Value, CtlError> {
+        let draining = self.lifecycle.draining();
+        let mut inner = self.inner.lock().expect("director");
+        let ttl = ttl.unwrap_or(self.cfg.admit_ttl);
+        let o = inner.control.admit(
+            gsid,
+            psid,
+            callsign,
+            ttl,
+            tokio::time::Instant::now(),
+            draining,
+        )?;
+        Ok(serde_json::json!({
+            "v": crate::control::API_VERSION, "state": o.state, "gameSessionId": o.game_session_id,
+            "playerSessionId": o.player_session_id, "callsign": o.callsign, "expiresInMs": o.expires_in_ms,
+        }))
+    }
+
+    /// `GET /control/rooms`.
+    pub fn control_rooms(&self) -> serde_json::Value {
+        let mut inner = self.inner.lock().expect("director");
+        let rooms = inner.control.rooms_json(tokio::time::Instant::now());
+        serde_json::json!({
+            "v": crate::control::API_VERSION,
+            "state": self.lifecycle.state_name(),
+            "draining": self.lifecycle.draining(),
+            "maxRooms": self.cfg.max_rooms,
+            "rooms": rooms,
+        })
+    }
+
+    /// `POST /control/leave`. A kick marks the player `left` (reason `kicked`) at once and tells the room, which removes the
+    /// seat through the same path as a disconnect past the grace.
+    pub async fn control_leave(
+        &self,
+        gsid: &str,
+        psid: &str,
+        mode: LeaveMode,
+    ) -> Result<serde_json::Value, CtlError> {
+        // A kick must reach the room or not happen at all: room-mailbox space is reserved BEFORE the book is touched, so a
+        // full mailbox answers 503 with the player still as it was (the bridge retries), never `left` with the room unaware.
+        let tx = if mode == LeaveMode::Kick {
+            let inner = self.inner.lock().expect("director");
+            inner
+                .control
+                .room_of(gsid)
+                .and_then(|room| inner.rooms.get(&room).map(|r| r.tx.clone()))
+        } else {
+            None
+        };
+        let permit = match &tx {
+            Some(tx) => reserve_room_slot(tx, Duration::from_secs(2)).await?,
+            None => None,
+        };
+        let out = {
+            let mut inner = self.inner.lock().expect("director");
+            inner
+                .control
+                .leave(gsid, psid, mode, tokio::time::Instant::now())?
+        };
+        if let (Some((_, profile)), Some(permit)) = (out.kick, permit) {
+            permit.send(RoomCmd::Kick { profile });
+        }
+        Ok(serde_json::json!({"v": crate::control::API_VERSION, "state": out.state}))
+    }
+
+    /// `POST /control/end`. `abort` waits (bounded) for the room to report closed so the answer says so.
+    pub async fn control_end(
+        &self,
+        gsid: &str,
+        mode: EndMode,
+    ) -> Result<serde_json::Value, CtlError> {
+        // Same rule as `control_leave`: the room's mailbox slot is reserved before the book changes, so a room that cannot
+        // be told is a 503 and the session is not marked ending.
+        let tx = {
+            let inner = self.inner.lock().expect("director");
+            inner
+                .control
+                .room_of(gsid)
+                .and_then(|room| inner.rooms.get(&room).map(|r| r.tx.clone()))
+        };
+        let permit = match &tx {
+            Some(tx) => reserve_room_slot(tx, Duration::from_secs(2)).await?,
+            None => None,
+        };
+        let out = {
+            let mut inner = self.inner.lock().expect("director");
+            inner.control.end(gsid, mode, tokio::time::Instant::now())?
+        };
+        if let (Some(m), Some(permit)) = (out.tell_room, permit) {
+            permit.send(match m {
+                EndMode::Graceful => RoomCmd::Drain,
+                EndMode::Abort => RoomCmd::Abort,
+            });
+        }
+        if out.tell_room == Some(EndMode::Abort) {
+            let until = tokio::time::Instant::now() + Duration::from_secs(2);
+            while tokio::time::Instant::now() < until {
+                let closed = self
+                    .inner
+                    .lock()
+                    .expect("director")
+                    .control
+                    .phase_of(gsid)
+                    .is_none_or(|p| p == crate::control::CPhase::Closed);
+                if closed {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+        let phase = self
+            .inner
+            .lock()
+            .expect("director")
+            .control
+            .phase_of(gsid)
+            .unwrap_or(out.phase);
+        Ok(serde_json::json!({"v": crate::control::API_VERSION, "phase": phase.as_str()}))
+    }
+
     /// Recorded replays of the last closed rooms (private: they hold match secrets).
     pub fn take_replays(&self) -> Vec<rh_sim::replay::Replay> {
         std::mem::take(&mut self.inner.lock().expect("director").replays)
+    }
+
+    /// Writes one result off the room task and says whether the lease is gone afterwards (released by the write's own
+    /// transaction, or no longer ours). With a spool the record is made durable first (see `spool.rs`); without one, or
+    /// when the spool is full or unwritable, this is the in-memory retry that predates the spool.
+    async fn write_result(
+        self: &Arc<Self>,
+        match_id: MatchId,
+        profile: &str,
+        fence: i64,
+        result: &rh_sim::RunResult,
+        roster: crate::room::Roster,
+        durable_id: Option<i64>,
+    ) -> bool {
+        #[cfg(feature = "postgres")]
+        if let Some((name, rec, spool)) = self
+            .spool_result(match_id, profile, fence, result, roster, durable_id)
+            .await
+        {
+            return match self.drive_spooled(&spool, &name, &rec, false).await {
+                // The write released the lease itself.
+                SpoolEnd::Committed { applied: true } => true,
+                // A duplicate: the ordinary fenced give-back releases the lease (a no-op if it moved on).
+                SpoolEnd::Committed { applied: false } => false,
+                // Refused for good. The lease is deliberately NOT released: a release would make a
+                // later operator replay of the dead letter impossible, and an unreleased lease only expires.
+                SpoolEnd::DeadLettered => true,
+            };
+        }
+        self.write_unspooled(match_id, profile, fence, result, roster, durable_id)
+            .await
+    }
+
+    async fn write_unspooled(
+        self: &Arc<Self>,
+        match_id: MatchId,
+        profile: &str,
+        fence: i64,
+        result: &rh_sim::RunResult,
+        roster: crate::room::Roster,
+        durable_id: Option<i64>,
+    ) -> bool {
+        let d = self;
+        let key_id = durable_id;
+        let mut delay = Duration::from_millis(100);
+        let mut lease_gone = false;
+        for attempt in 0..RESULT_ATTEMPTS {
+            match d
+                .persistence
+                .record_with_id(match_id, profile, fence, result, roster, key_id)
+                .await
+            {
+                Ok(Recorded::Applied) => {
+                    d.inner.lock().expect("director").results_ok += 1;
+                    lease_gone = true;
+                    break;
+                }
+                // A duplicate report: the store answers before it looks at the lease, so the lease the
+                // caller holds (if any) is still live. It is not marked gone: the seat's ordinary
+                // fenced give-back releases it (a no-op when the lease already moved on).
+                Ok(Recorded::AlreadyApplied) => {
+                    d.inner.lock().expect("director").results_ok += 1;
+                    break;
+                }
+                Err(RecordError::Refused(e) | RecordError::Permanent(e)) => {
+                    eprintln!("[results] {profile}: refused by the store, not retried: {e}");
+                    d.inner.lock().expect("director").results_refused += 1;
+                    lease_gone = true;
+                    break;
+                }
+                Err(e) if attempt == RESULT_ATTEMPTS - 1 => {
+                    eprintln!("[results] giving up on {profile}: {e}");
+                    d.inner.lock().expect("director").results_failed += 1;
+                }
+                Err(_) => {
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(Duration::from_secs(5));
+                }
+            }
+        }
+        lease_gone
+    }
+
+    /// Result-handoff counters for `/control/health` (loopback only; `/info` and its pinned key set are unchanged).
+    /// `spooled`: fsynced locally (survives a process restart on this host). `committed`: in PostgreSQL (the only
+    /// host-loss-durable point; the same count as `resultsOk` in `/info`).
+    pub fn result_metrics(&self) -> serde_json::Value {
+        let inner = self.inner.lock().expect("director");
+        serde_json::json!({
+            "spooled": inner.results_spooled,
+            "committed": inner.results_ok,
+            "recovered": inner.results_recovered,
+            "refused": inner.results_refused,
+            "failed": inner.results_failed,
+            "deadLettered": inner.results_dead_lettered,
+            "stuckAlerts": inner.results_stuck_alerts,
+            "deadOverflow": self.spool_dead_overflow(),
+            "spoolFull": inner.spool_full,
+            "spoolErrors": inner.spool_errors,
+            "spoolPending": self.spool_pending(),
+            "spoolDead": self.spool_dead(),
+        })
+    }
+
+    #[cfg(feature = "postgres")]
+    fn spool_pending(&self) -> usize {
+        self.spool.as_ref().map_or(0, |s| s.stats().pending)
+    }
+    #[cfg(feature = "postgres")]
+    fn spool_dead(&self) -> usize {
+        self.spool.as_ref().map_or(0, |s| s.stats().dead)
+    }
+    #[cfg(feature = "postgres")]
+    fn spool_dead_overflow(&self) -> u64 {
+        self.spool
+            .as_ref()
+            .map_or(0, |s| s.stats().dead_overflow_total)
+    }
+    #[cfg(not(feature = "postgres"))]
+    fn spool_dead_overflow(&self) -> u64 {
+        0
+    }
+    #[cfg(not(feature = "postgres"))]
+    fn spool_pending(&self) -> usize {
+        0
+    }
+    #[cfg(not(feature = "postgres"))]
+    fn spool_dead(&self) -> usize {
+        0
+    }
+
+    /// Makes the result durable locally before the first database attempt. `None` means no spool record exists (no
+    /// spool, no durable identity, full, or unwritable) and the caller retries in memory only: the result is then in
+    /// the wider loss window, which is counted and logged, never hidden.
+    #[cfg(feature = "postgres")]
+    async fn spool_result(
+        &self,
+        match_id: MatchId,
+        profile: &str,
+        fence: i64,
+        result: &rh_sim::RunResult,
+        roster: crate::room::Roster,
+        durable_id: Option<i64>,
+    ) -> Option<(
+        String,
+        crate::spool::SpoolRecord,
+        Arc<crate::spool::ResultSpool>,
+    )> {
+        let spool = self.spool.clone()?;
+        let id = durable_id?;
+        let meta = self.persistence.spool_meta(roster)?;
+        let rec = crate::spool::SpoolRecord::new(
+            uuid::Uuid::from_bytes(match_id),
+            id,
+            profile,
+            fence,
+            meta,
+            crate::persist::pg::to_persist(result),
+        );
+        let name = rec.file_name();
+        let (s2, r2) = (spool.clone(), rec.clone());
+        let appended = tokio::task::spawn_blocking(move || s2.append(&r2)).await;
+        match appended {
+            Ok(Ok(_)) => {
+                self.inner.lock().expect("director").results_spooled += 1;
+                eprintln!(
+                    "[results] spooled match={} profile_id={id} fence={fence} (durable on this host only; not yet committed)",
+                    rec.match_id
+                );
+                Some((name, rec, spool))
+            }
+            Ok(Err(crate::spool::SpoolError::Full)) => {
+                self.inner.lock().expect("director").spool_full += 1;
+                eprintln!(
+                    "[results] spool FULL: match={} profile_id={id} is retried in memory only",
+                    rec.match_id
+                );
+                None
+            }
+            other => {
+                self.inner.lock().expect("director").spool_errors += 1;
+                let why = match other {
+                    Ok(Err(e)) => e.to_string(),
+                    Err(e) => e.to_string(),
+                    Ok(Ok(_)) => unreachable!(),
+                };
+                eprintln!("[results] spool append failed ({why}): match={} profile_id={id} is retried in memory only", rec.match_id);
+                None
+            }
+        }
+    }
+
+    /// Replays one spooled record through the fenced store path until it commits or is refused for good. A TRANSIENT
+    /// error is retried forever at `backoff_max` (a database outage of any length must not lose a result; the profile
+    /// gate stays held, which costs nothing because admission needs the same database). `retry_deadline` is only an
+    /// alert threshold: past it the record is logged and counted as stuck, repeatedly. The record is removed only after
+    /// the commit (or a definitive `AlreadyApplied`); a definitive refusal ([`RecordError::Refused`] or
+    /// [`RecordError::Permanent`]) is dead-lettered. Never acquires, renews or releases a lease.
+    #[cfg(feature = "postgres")]
+    async fn drive_spooled(
+        &self,
+        spool: &Arc<crate::spool::ResultSpool>,
+        name: &str,
+        rec: &crate::spool::SpoolRecord,
+        recovered: bool,
+    ) -> SpoolEnd {
+        let started = tokio::time::Instant::now();
+        let alert_every = spool.cfg.retry_deadline.max(Duration::from_millis(1));
+        let mut next_alert = started + alert_every;
+        let mut delay = spool.cfg.backoff_initial;
+        loop {
+            let attempt = {
+                let _permit = self.spool_permits.acquire().await.expect("semaphore");
+                self.persistence.record_spooled(rec).await
+            };
+            let dead = |reason: String| {
+                let (s, n) = (spool.clone(), name.to_owned());
+                async move {
+                    let r = reason.clone();
+                    match tokio::task::spawn_blocking(move || s.dead_letter(&n, &r)).await {
+                        Ok(Ok(out)) => out,
+                        Ok(Err(e)) => {
+                            eprintln!("[results] could not dead-letter record: {e}");
+                            crate::spool::DeadOutcome::Overflow
+                        }
+                        Err(_) => crate::spool::DeadOutcome::Overflow,
+                    }
+                }
+            };
+            match attempt {
+                Ok(done) => {
+                    let (s, n) = (spool.clone(), name.to_owned());
+                    if let Ok(Err(e)) = tokio::task::spawn_blocking(move || s.remove(&n)).await {
+                        // The result IS committed; a leftover record is replayed as AlreadyApplied and cleared.
+                        eprintln!("[results] committed but could not remove its spool record: {e}");
+                    }
+                    {
+                        let mut inner = self.inner.lock().expect("director");
+                        inner.results_ok += 1;
+                        if recovered {
+                            inner.results_recovered += 1;
+                        }
+                    }
+                    eprintln!(
+                        "[results] committed match={} profile_id={} ({}{})",
+                        rec.match_id,
+                        rec.profile_id,
+                        if done == Recorded::Applied {
+                            "applied"
+                        } else {
+                            "already applied"
+                        },
+                        if recovered {
+                            ", recovered from spool"
+                        } else {
+                            ""
+                        }
+                    );
+                    return SpoolEnd::Committed {
+                        applied: done == Recorded::Applied,
+                    };
+                }
+                Err(e @ (RecordError::Refused(_) | RecordError::Permanent(_))) => {
+                    let permanent = matches!(e, RecordError::Permanent(_));
+                    let why = match &e {
+                        RecordError::Refused(w) => format!("refused by the store: {w}"),
+                        RecordError::Permanent(w) => format!("permanent store error: {w}"),
+                        RecordError::Transient(_) => unreachable!(),
+                    };
+                    let out = dead(why.clone()).await;
+                    {
+                        let mut inner = self.inner.lock().expect("director");
+                        if permanent {
+                            inner.results_failed += 1;
+                        } else {
+                            inner.results_refused += 1;
+                        }
+                        if out == crate::spool::DeadOutcome::Moved {
+                            inner.results_dead_lettered += 1;
+                        }
+                    }
+                    eprintln!(
+                        "[results] DEAD-LETTERED match={} profile_id={}: {why}; never retried{}",
+                        rec.match_id,
+                        rec.profile_id,
+                        if out == crate::spool::DeadOutcome::Overflow {
+                            " (dead-letter directory full or unwritable: the record stays pending)"
+                        } else {
+                            ""
+                        }
+                    );
+                    return SpoolEnd::DeadLettered;
+                }
+                Err(RecordError::Transient(e)) => {
+                    let now = tokio::time::Instant::now();
+                    if now >= next_alert {
+                        next_alert = now + alert_every;
+                        self.inner.lock().expect("director").results_stuck_alerts += 1;
+                        eprintln!(
+                            "[results] STUCK match={} profile_id={}: still not committed after {}s ({e}); keeps retrying every {}s at most, never dead-lettered for time",
+                            rec.match_id,
+                            rec.profile_id,
+                            started.elapsed().as_secs(),
+                            spool.cfg.backoff_max.as_secs().max(1)
+                        );
+                    }
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(spool.cfg.backoff_max);
+                }
+            }
+        }
+    }
+
+    /// Startup recovery: replays every spooled record left by an earlier process through the SAME fenced path with its
+    /// original fence, identity and metadata. Call once, before the listener accepts admissions. Each profile with a
+    /// pending record is held `Leaving` (no lease state) until its records resolve, so an admission in this process cannot
+    /// race the replay; recovery itself takes, renews and releases no lease. Records the store refuses (a newer fence,
+    /// a released lease) are dead-lettered, never retried forever. Returns how many records were found. Blocking scan,
+    /// then background tasks: a database outage does not delay startup or any tick.
+    #[cfg(feature = "postgres")]
+    pub fn recover_spooled(self: &Arc<Self>) -> usize {
+        let Some(spool) = self.spool.clone() else {
+            return 0;
+        };
+        let records = spool.scan();
+        let dead_on_scan = spool.stats().dead_total;
+        if dead_on_scan > 0 {
+            self.inner.lock().expect("director").results_dead_lettered += dead_on_scan;
+        }
+        if !records.is_empty() {
+            eprintln!(
+                "[results] recovering {} spooled result(s) from {}",
+                records.len(),
+                spool.dir().display()
+            );
+        }
+        let n = records.len();
+        for (name, rec) in records {
+            let key = ProfileKey::Durable(rec.profile_id);
+            let match_id = rec.match_uuid().map(|u| *u.as_bytes()).unwrap_or([0; 16]);
+            let gen = {
+                let mut inner = self.inner.lock().expect("director");
+                inner.gens += 1;
+                let fresh = inner.gens;
+                let seat = inner.profiles.entry(key.clone()).or_insert(ProfileSeat {
+                    renewal: None,
+                    gen: fresh,
+                    match_id,
+                    fence: rec.fence,
+                    state: SeatState::Leaving,
+                    result_due: false,
+                    writes: 0,
+                    lease: LeaseState::Gone,
+                });
+                seat.writes += 1;
+                seat.gen
+            };
+            let spool = spool.clone();
+            let d = self.clone();
+            d.pending_writes
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            tokio::spawn(async move {
+                d.drive_spooled(&spool, &name, &rec, true).await;
+                let mut inner = d.inner.lock().expect("director");
+                let mut mine = false;
+                if let Some(s) = inner.profiles.get_mut(&key).filter(|s| s.gen == gen) {
+                    s.writes -= 1;
+                    mine = true;
+                }
+                if mine {
+                    d.advance(&mut inner, &key);
+                }
+                drop(inner);
+                d.pending_writes
+                    .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
+        n
     }
 
     /// Waits (at most `max`) until no result write is in flight. Called before the process exits.
@@ -1128,6 +1811,24 @@ impl Director {
 
     pub fn room_count(&self) -> usize {
         self.inner.lock().expect("director").rooms.len()
+    }
+}
+
+/// Reserves one slot in a room's command mailbox (bounded wait). `Ok(None)`: the room is already gone, so there is nobody to
+/// tell and the book's own close handling covers the seats. `Err`: the mailbox stayed full, 503 (retry-safe: nothing has
+/// changed yet).
+pub(crate) async fn reserve_room_slot(
+    tx: &tokio::sync::mpsc::Sender<RoomCmd>,
+    wait: Duration,
+) -> Result<Option<tokio::sync::mpsc::Permit<'_, RoomCmd>>, CtlError> {
+    match tokio::time::timeout(wait, tx.reserve()).await {
+        Ok(Ok(p)) => Ok(Some(p)),
+        Ok(Err(_closed)) => Ok(None),
+        Err(_) => Err(CtlError::new(
+            503,
+            "room_busy",
+            "the room is not accepting commands right now; retry shortly",
+        )),
     }
 }
 
@@ -2188,5 +2889,30 @@ mod tests {
         assert_eq!(open_lobby(&inner.rooms), Some(m));
         inner.rooms.get_mut(&m).unwrap().reserved += 1;
         assert_eq!(open_lobby(&inner.rooms), None, "never over-offered");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_full_room_mailbox_is_a_503_and_a_closed_one_means_nobody_to_tell() {
+        let (tx, rx) = mpsc::channel::<RoomCmd>(1);
+        tx.send(RoomCmd::Drain).await.unwrap();
+        let e = reserve_room_slot(&tx, Duration::from_secs(2))
+            .await
+            .map(|_| ())
+            .unwrap_err();
+        assert_eq!((e.status, e.code), (503, "room_busy"));
+        // Space frees: the reservation succeeds and its send cannot fail.
+        let mut rx = rx;
+        rx.recv().await.unwrap();
+        let permit = reserve_room_slot(&tx, Duration::from_secs(2))
+            .await
+            .unwrap()
+            .expect("slot");
+        permit.send(RoomCmd::Drain);
+        assert!(matches!(rx.recv().await, Some(RoomCmd::Drain)));
+        drop(rx);
+        assert!(reserve_room_slot(&tx, Duration::from_secs(2))
+            .await
+            .unwrap()
+            .is_none());
     }
 }

@@ -10,6 +10,7 @@
 //!
 //! Achievement rules read durable counters and grant ids/cosmetics inside the result transaction.
 
+pub mod account;
 pub mod achievements;
 pub mod admin;
 pub mod cosmetics;
@@ -66,7 +67,46 @@ pub enum Error {
     Conflict(String),
 }
 
+/// Postgres SQLSTATE codes whose errors repeat identically on retry: class 22 (data exception), class 23 (integrity
+/// constraint violation) except `23505` (unique violation: a retry of an idempotent write resolves it into "already
+/// applied" when a concurrent writer won), and class 42 (syntax error or undefined object). Everything else (08
+/// connection, 40 rollback or deadlock, 53 resources, 57 shutdown, 58 I/O) is transient.
+pub fn permanent_sqlstate(code: &str) -> bool {
+    (code.starts_with("22") || code.starts_with("23") || code.starts_with("42")) && code != "23505"
+}
+
+impl Error {
+    /// True when retrying the identical operation can never succeed because the data itself is rejected (invalid input,
+    /// constraint or data-exception violation, decode failure). False for connection, I/O, pool, timeout, deadlock and
+    /// similar trouble, which a retry may cure however long it takes.
+    pub fn is_permanent(&self) -> bool {
+        match self {
+            Error::Invalid(_) | Error::Json(_) | Error::UnknownProfile(_) | Error::Conflict(_) => {
+                true
+            }
+            Error::Db(sqlx::Error::Database(d)) => d.code().is_some_and(|c| permanent_sqlstate(&c)),
+            Error::Db(
+                sqlx::Error::ColumnDecode { .. }
+                | sqlx::Error::Decode(_)
+                | sqlx::Error::ColumnNotFound(_)
+                | sqlx::Error::ColumnIndexOutOfBounds { .. }
+                | sqlx::Error::TypeNotFound { .. },
+            ) => true,
+            _ => false,
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Constant-time equality for secrets (token hashes): the time does not depend on where the first difference is.
+pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = a.len() ^ b.len();
+    for i in 0..a.len().max(b.len()) {
+        diff |= usize::from(a.get(i).copied().unwrap_or(0) ^ b.get(i).copied().unwrap_or(0));
+    }
+    diff == 0
+}
 
 pub fn hash_token(token: &str) -> [u8; 32] {
     Sha256::digest(token.as_bytes()).into()
@@ -121,6 +161,9 @@ pub enum EquipOutcome {
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
+    /// Bumped (after COMMIT) whenever a result transaction credits GV or an equip changes a title; clones of the store share it. Leaderboard caches
+    /// compare it to know when to drop (see `account.rs`). Other hosts' credits are not seen here: caches also expire.
+    gv_epoch: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
 type ProfileRow = (
@@ -155,13 +198,16 @@ impl Store {
             .acquire_timeout(Duration::from_secs(30))
             .connect(url)
             .await?;
-        let store = Store { pool };
+        let store = Store::from_pool(pool);
         store.check_schema().await?;
         Ok(store)
     }
 
     pub fn from_pool(pool: PgPool) -> Store {
-        Store { pool }
+        Store {
+            pool,
+            gv_epoch: Default::default(),
+        }
     }
 
     pub fn pool(&self) -> &PgPool {
@@ -243,6 +289,32 @@ impl Store {
         })
     }
 
+    /// Undoes a claim whose token could never be delivered (the request was cancelled after the insert committed):
+    /// deletes the profile only when `token` is its own AND nothing references it yet (a fresh, never-used row). Returns
+    /// whether a row was removed. A row with any history is never touched (the foreign keys refuse it).
+    pub async fn discard_unclaimed_profile(&self, callsign: &str, token: &str) -> Result<bool> {
+        let hash = hash_token(token);
+        let res = sqlx::query(
+            "DELETE FROM profiles p WHERE lower(p.callsign) = lower($1) AND p.token_sha256 = $2
+               AND p.gv = 0 AND p.gv_lifetime = 0
+               AND NOT EXISTS (SELECT 1 FROM session_leases WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM match_results WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM purchases WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM gv_ledger WHERE profile_id = p.profile_id)
+               AND NOT EXISTS (SELECT 1 FROM gv_by_month WHERE profile_id = p.profile_id)",
+        )
+        .bind(callsign)
+        .bind(&hash[..])
+        .execute(&self.pool)
+        .await;
+        match res {
+            Ok(r) => Ok(r.rows_affected() == 1),
+            // A concurrent reference (FK violation) means it is in use after all: leave it.
+            Err(sqlx::Error::Database(d)) if d.code().as_deref() == Some("23503") => Ok(false),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub async fn verify_token(&self, callsign: &str, token: &str) -> Result<bool> {
         Ok(self.verify_token_id(callsign, token).await?.is_some())
     }
@@ -256,7 +328,7 @@ impl Store {
         .bind(callsign)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.and_then(|(id, stored)| (stored == hash_token(token)).then_some(id)))
+        Ok(row.and_then(|(id, stored)| ct_eq(&stored, &hash_token(token)).then_some(id)))
     }
 
     pub async fn get_profile(&self, callsign: &str) -> Result<Option<Profile>> {
@@ -549,7 +621,7 @@ impl Store {
         let Some(pid) = self.profile_id(callsign).await? else {
             return Ok(RecordOutcome::NoLease);
         };
-        self.record_inner(match_id, pid, fence, result, meta, false)
+        self.record_inner(match_id, pid, fence, result, meta, false, None)
             .await
     }
 
@@ -562,8 +634,34 @@ impl Store {
         result: &MatchResult,
         meta: &MatchMeta,
     ) -> Result<RecordOutcome> {
-        self.record_inner(match_id, profile_id, fence, result, meta, false)
+        self.record_inner(match_id, profile_id, fence, result, meta, false, None)
             .await
+    }
+
+    /// [`Store::record_result_by_id`] for a result replayed from a durable spool record (rh-server's crash recovery):
+    /// `ended_at_ms` (Unix milliseconds) is the time the match's result was originally produced, and becomes the `matches`
+    /// row's `ended_at` (advanced with `greatest`, as for any later result) instead of the commit time. Every
+    /// other check, the fence included, is identical: a replay never bypasses a newer owner. `applied_at`, the GV month
+    /// and achievement timestamps stay the commit time (they record when the credit landed).
+    pub async fn record_result_by_id_at(
+        &self,
+        match_id: Uuid,
+        profile_id: i64,
+        fence: i64,
+        result: &MatchResult,
+        meta: &MatchMeta,
+        ended_at_ms: Option<i64>,
+    ) -> Result<RecordOutcome> {
+        self.record_inner(
+            match_id,
+            profile_id,
+            fence,
+            result,
+            meta,
+            false,
+            ended_at_ms,
+        )
+        .await
     }
 
     /// Test seam: does every write of `record_result`, then kills its own backend before COMMIT (as a crashed host
@@ -580,10 +678,11 @@ impl Store {
         let Some(pid) = self.profile_id(callsign).await? else {
             return Ok(RecordOutcome::NoLease);
         };
-        self.record_inner(match_id, pid, fence, result, meta, true)
+        self.record_inner(match_id, pid, fence, result, meta, true, None)
             .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn record_inner(
         &self,
         match_id: Uuid,
@@ -592,6 +691,30 @@ impl Store {
         r: &MatchResult,
         meta: &MatchMeta,
         crash: bool,
+        ended_at_ms: Option<i64>,
+    ) -> Result<RecordOutcome> {
+        let out = self
+            .record_inner_tx(match_id, pid, fence, r, meta, crash, ended_at_ms)
+            .await;
+        if let Ok(RecordOutcome::Applied { gv_credited, .. }) = &out {
+            if *gv_credited > 0 {
+                self.gv_epoch
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        out
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn record_inner_tx(
+        &self,
+        match_id: Uuid,
+        pid: i64,
+        fence: i64,
+        r: &MatchResult,
+        meta: &MatchMeta,
+        crash: bool,
+        ended_at_ms: Option<i64>,
     ) -> Result<RecordOutcome> {
         let mut tx = self.pool.begin().await?;
         // The lease row is the per-profile mutex: everything below runs serialized per callsign.
@@ -706,9 +829,10 @@ impl Store {
         // The match row is shared by every player's result of the match: the first transaction inserts it, the others
         // find it (a concurrent one waits for that commit; nothing here waits on another player's row, so no cycle).
         sqlx::query(
-            "INSERT INTO matches (match_id, owner, region, placement_id, build, content_hash, humans, bots)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             ON CONFLICT (match_id) DO UPDATE SET ended_at = greatest(matches.ended_at, now())",
+            "INSERT INTO matches (match_id, owner, region, placement_id, build, content_hash, humans, bots, ended_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce(to_timestamp($9::bigint::float8 / 1000.0), now()))
+             ON CONFLICT (match_id) DO UPDATE
+             SET ended_at = greatest(matches.ended_at, coalesce(to_timestamp($9::bigint::float8 / 1000.0), now()))",
         )
         .bind(match_id)
         .bind(&meta.owner)
@@ -718,6 +842,7 @@ impl Store {
         .bind(meta.content_hash as i64)
         .bind(i32::try_from(meta.humans).unwrap_or(i32::MAX))
         .bind(i32::try_from(meta.bots).unwrap_or(i32::MAX))
+        .bind(ended_at_ms)
         .execute(&mut *tx)
         .await?;
         sqlx::query(
@@ -819,15 +944,25 @@ impl Store {
                 have: gv,
             });
         };
-        sqlx::query(
-            "INSERT INTO purchases (purchase_id, profile_id, item_id, price) VALUES ($1, $2, $3, $4)",
+        // The key is global. Two different profiles presenting the same key at once both pass the check above (each
+        // holds only its own row lock); the second insert must be a clean conflict, not a primary-key error (a 500).
+        // The transaction is dropped without commit, so this profile's debit and grant roll back.
+        let inserted = sqlx::query(
+            "INSERT INTO purchases (purchase_id, profile_id, item_id, price) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (purchase_id) DO NOTHING",
         )
         .bind(purchase_id)
         .bind(pid)
         .bind(item_id)
         .bind(price)
         .execute(&mut *tx)
-        .await?;
+        .await?
+        .rows_affected();
+        if inserted == 0 {
+            return Err(Error::Conflict(format!(
+                "purchase id {purchase_id} was used for something else"
+            )));
+        }
         sqlx::query(
             "INSERT INTO gv_ledger (profile_id, delta, reason, ref) VALUES ($1, $2, 'purchase', $3)",
         )
@@ -875,6 +1010,9 @@ impl Store {
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;
+        // Leaderboard rows show equipped titles: a cached page is stale now (same signal as a GV credit).
+        self.gv_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(EquipOutcome::Ok)
     }
 }
@@ -891,7 +1029,9 @@ async fn locked_authorized(
     .bind(callsign)
     .fetch_optional(conn)
     .await?;
-    Ok(row.filter(|(_, h)| *h == hash_token(token)).map(|(c, _)| c))
+    Ok(row
+        .filter(|(_, h)| ct_eq(h, &hash_token(token)))
+        .map(|(c, _)| c))
 }
 
 /// Counts and GV from the sim are whole and non-negative; anything else counts as 0 (legacy `wholeAmount`).
@@ -976,4 +1116,29 @@ pub(crate) async fn load_profile(
         achievements: row.7 .0,
         progress: row.8 .0,
     }))
+}
+
+#[cfg(test)]
+mod classify_tests {
+    use super::*;
+
+    #[test]
+    fn permanent_errors_are_split_from_transient_ones() {
+        for code in ["22021", "22P05", "23502", "23503", "23514", "42703"] {
+            assert!(permanent_sqlstate(code), "{code}");
+        }
+        // Retry cures these: unique-violation races resolve to AlreadyApplied, the rest are connection/server trouble.
+        for code in [
+            "23505", "40001", "40P01", "08006", "53300", "57P01", "58030", "XX000",
+        ] {
+            assert!(!permanent_sqlstate(code), "{code}");
+        }
+        assert!(Error::Invalid("x".into()).is_permanent());
+        assert!(Error::Conflict("x".into()).is_permanent());
+        assert!(Error::UnknownProfile("x".into()).is_permanent());
+        assert!(!Error::Db(sqlx::Error::PoolTimedOut).is_permanent());
+        assert!(!Error::Db(sqlx::Error::PoolClosed).is_permanent());
+        assert!(!Error::Db(sqlx::Error::Io(std::io::Error::other("reset"))).is_permanent());
+        assert!(Error::Db(sqlx::Error::ColumnNotFound("c".into())).is_permanent());
+    }
 }

@@ -1,7 +1,9 @@
 //! Roguehalla live server: the thin adapter between sockets/wall clock/hosting and the deterministic core (rh-sim).
 //! See docs/CONTRACTS.md (C-NET, C-TICK) and docs/adr/0002-transport-and-protocol.md, 0004-hosting.md.
 
+pub mod api;
 pub mod conn;
+pub mod control;
 pub mod director;
 pub mod hosting;
 pub mod metrics;
@@ -9,12 +11,14 @@ pub mod outbox;
 pub mod pacer;
 pub mod persist;
 pub mod room;
+#[cfg(feature = "postgres")]
+pub mod spool;
 pub mod wire;
 
 use axum::extract::{State, WebSocketUpgrade};
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Json, Router};
 use axum_server::accept::Accept;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
@@ -39,12 +43,21 @@ pub fn public_router(director: Arc<Director>) -> Router {
         .with_state(director)
 }
 
-/// The local control listener for the hosting bridge (bind it to 127.0.0.1 only).
+/// [`public_router`] plus the account service (`/api/*`, `/readyz`): profile claim/open, shop, leaderboard, health. Serve it
+/// with [`serve`], which provides the peer address the per-address caps are keyed by.
+pub fn public_router_with_api(director: Arc<Director>, api: api::AccountApi) -> Router {
+    public_router(director.clone()).merge(api::router(director, api))
+}
+
+/// The local control listener for the hosting bridge (bind it to 127.0.0.1 only; main.rs asserts it). Control routes live
+/// only here, never in [`public_router`].
 pub fn control_router(director: Arc<Director>) -> Router {
-    Router::new()
-        .route("/control/health", get(control_health))
-        .route("/control/drain", post(control_drain))
-        .with_state(director)
+    control::router(director, control::ControlOptions::default())
+}
+
+/// [`control_router`] with options (the optional bearer token).
+pub fn control_router_with(director: Arc<Director>, opts: control::ControlOptions) -> Router {
+    control::router(director, opts)
 }
 
 /// Per-connection WebSocket read buffer. Client frames are at most `MAX_CLIENT_FRAME` (1 KiB) plus a 14-byte header, so
@@ -90,27 +103,6 @@ async fn ping() -> impl IntoResponse {
         ],
         "pong",
     )
-}
-
-async fn control_health(State(d): State<Arc<Director>>) -> impl IntoResponse {
-    let code = if d.lifecycle.healthy() {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(serde_json::json!({
-            "state": d.lifecycle.state_name(),
-            "rooms": d.room_count(),
-            "metrics": metrics::process().json(),
-        })),
-    )
-}
-
-async fn control_drain(State(d): State<Arc<Director>>) -> impl IntoResponse {
-    d.drain().await;
-    Json(serde_json::json!({ "state": d.lifecycle.state_name() }))
 }
 
 /// Callback run on every accepted TCP stream after `TCP_NODELAY` was applied (tests read the socket option back here).
@@ -175,7 +167,7 @@ pub async fn serve_with(
     handle: Handle,
     acceptor: NoDelay,
 ) -> io::Result<()> {
-    let svc = router.into_make_service();
+    let svc = router.into_make_service_with_connect_info::<SocketAddr>();
     match tls {
         Some(cfg) => {
             axum_server::bind(bind)

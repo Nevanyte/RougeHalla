@@ -1,0 +1,8 @@
+*
+!Cargo.toml
+!Cargo.lock
+!crates
+!hosting/glbridge
+!parity/maps/seed1.map.json
+**/target
+**/node_modules

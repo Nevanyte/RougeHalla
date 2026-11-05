@@ -64,6 +64,24 @@ pub struct Profile {
     pub progress: Progress,
 }
 
+impl Profile {
+    /// What a just-created profile reads back as (the column defaults of `profiles`), so a claim can answer from its own
+    /// insert without a second read. A test pins this against the database.
+    pub fn fresh(callsign: &str) -> Self {
+        Self {
+            callsign: callsign.to_owned(),
+            token_sha256: [0; 32],
+            gv: 0,
+            gv_lifetime: 0,
+            gv_by_month: BTreeMap::new(),
+            stats: Stats::default(),
+            cosmetics: Cosmetics::default(),
+            achievements: BTreeMap::new(),
+            progress: Progress::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Outcome {
