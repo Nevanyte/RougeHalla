@@ -110,6 +110,14 @@ pub enum RoomCmd {
         conn: u64,
     },
     Drain,
+    /// The hosting layer revoked this seat (control API `leave` mode `kick`): the same path as a disconnect past the grace.
+    /// The profile is matched ASCII case-insensitively; an unknown profile is ignored.
+    Kick {
+        profile: String,
+    },
+    /// The hosting layer ends the room now (control API `end` mode `abort`): seated players are closed out and their seats
+    /// and leases freed, and no result is invented for an interrupted match.
+    Abort,
     /// Tests: the room task panics (the crash path).
     #[cfg(test)]
     Crash,
@@ -153,6 +161,57 @@ pub enum RoomReport {
     },
     /// The room's phase changed (a lobby that closed into a run must stop receiving joins).
     Phase { match_id: MatchId, phase: Phase },
+    /// One human's seat changed state, for the control API's player list (docs/hosting/CONTROL_API.md section 3.4). Sent
+    /// in the same channel as `Left`, so it is ordered with the seat's other reports. It carries no lease logic.
+    Seat {
+        match_id: MatchId,
+        profile: String,
+        event: SeatEvent,
+    },
+}
+
+/// What happened to a human's seat (see [`RoomReport::Seat`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SeatEvent {
+    Seated,
+    /// The connection dropped at `at`; the seat is held for the reconnect grace.
+    Away {
+        at: Instant,
+    },
+    /// A resume (the 16-byte token) re-attached a connection inside the grace.
+    Back,
+    /// Final: the seat is gone.
+    Gone(GoneReason),
+}
+
+/// Why a seat is gone (the control API's `reason` of a `left` player).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GoneReason {
+    /// The connection stayed away longer than the reconnect grace.
+    GraceExpired,
+    /// A clean leave.
+    Left,
+    /// Revoked by the hosting layer.
+    Kicked,
+    /// The room closed with the player still seated (after its results were delivered).
+    MatchOver,
+    /// The durable lease the seat ran under lapsed (the seat is no longer authorised).
+    LeaseExpired,
+    /// The hosting layer aborted the room.
+    Aborted,
+}
+
+impl GoneReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GoneReason::GraceExpired => "grace_expired",
+            GoneReason::Left => "left",
+            GoneReason::Kicked => "kicked",
+            GoneReason::MatchOver => "match_over",
+            GoneReason::LeaseExpired => "lease_expired",
+            GoneReason::Aborted => "aborted",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
@@ -301,6 +360,8 @@ pub struct Room {
     /// Every human's lease fence, kept after it leaves: its result may be reported a step later.
     fences: Vec<SeatRecord>,
     reported_phase: Phase,
+    /// The room reported `Closed` (the task must end).
+    closed: bool,
     /// Tests: wall time every wake burns (an overloaded host).
     #[cfg(test)]
     stall: Duration,
@@ -370,6 +431,7 @@ impl Room {
             had_human: false,
             fences: Vec::new(),
             reported_phase: Phase::Lobby,
+            closed: false,
             #[cfg(test)]
             stall: Duration::ZERO,
         }
@@ -472,6 +534,7 @@ impl Room {
                         h.fx.rebind(&self.sim, h.player);
                         h.carry.clear();
                         let (player, session) = (h.player, h.session);
+                        let seat_profile = h.profile.clone();
                         let resolved = h.result.clone();
                         if let Some(old) = old {
                             old.close(RejectCode::Kicked);
@@ -482,6 +545,11 @@ impl Room {
                             dropped: false,
                         });
                         self.sim.mark_dropped(player, false);
+                        let _ = self.reports.send(RoomReport::Seat {
+                            match_id: self.id,
+                            profile: seat_profile,
+                            event: SeatEvent::Back,
+                        });
                         // The run this player already resolved: the one reliable event that is not state the client can read
                         // back, so it is queued behind the Welcome (which the connection writes first).
                         if let Some(r) = resolved {
@@ -547,6 +615,13 @@ impl Room {
                     if let Some(old) = old {
                         self.retire_outbox(&old);
                     }
+                    if let Some(h) = self.humans.iter().find(|h| h.player == player) {
+                        let _ = self.reports.send(RoomReport::Seat {
+                            match_id: self.id,
+                            profile: h.profile.clone(),
+                            event: SeatEvent::Away { at: now },
+                        });
+                    }
                 }
             }
             RoomCmd::Leave { player, conn } => {
@@ -555,8 +630,21 @@ impl Room {
                     .iter()
                     .any(|h| h.player == player && h.conn == conn)
                 {
-                    self.leave(player);
+                    self.leave(player, GoneReason::Left);
                 }
+            }
+            RoomCmd::Kick { profile } => {
+                if let Some(player) = self
+                    .humans
+                    .iter()
+                    .find(|h| h.profile.eq_ignore_ascii_case(&profile))
+                    .map(|h| h.player)
+                {
+                    self.leave(player, GoneReason::Kicked);
+                }
+            }
+            RoomCmd::Abort => {
+                self.finish(true);
             }
             RoomCmd::Drain => self.draining = true,
             #[cfg(test)]
@@ -635,6 +723,13 @@ impl Room {
             phase: self.sim.phase(),
             humans: self.humans_present(),
         });
+        if let Some(h) = self.humans.last() {
+            let _ = self.reports.send(RoomReport::Seat {
+                match_id: self.id,
+                profile: h.profile.clone(),
+                event: SeatEvent::Seated,
+            });
+        }
         Ok(JoinOk {
             player,
             session,
@@ -693,14 +788,14 @@ impl Room {
                 if let Some(seat) = self.fences.iter_mut().find(|s| s.player == id) {
                     seat.fence = None; // This forced MIA is not authorized to bank a result.
                 }
-                self.leave(id);
+                self.leave(id, GoneReason::LeaseExpired);
             } else {
                 i += 1;
             }
         }
     }
 
-    fn leave(&mut self, player: PlayerId) {
+    fn leave(&mut self, player: PlayerId, why: GoneReason) {
         if let Some(i) = self.humans.iter().position(|h| h.player == player) {
             let h = self.humans.remove(i);
             if let Some(o) = h.outbox {
@@ -717,6 +812,11 @@ impl Room {
                 && self.sim.player(player).is_some_and(|p| !p.resolved);
             self.record(ReplayInput::Leave { player });
             self.sim.remove_player(player);
+            let _ = self.reports.send(RoomReport::Seat {
+                match_id: self.id,
+                profile: h.profile.clone(),
+                event: SeatEvent::Gone(why),
+            });
             let _ = self.reports.send(RoomReport::Left {
                 admission: h.admission,
                 match_id: self.id,
@@ -745,14 +845,17 @@ impl Room {
             .map(|h| h.player)
             .collect();
         for p in expired {
-            self.leave(p);
+            self.leave(p, GoneReason::GraceExpired);
         }
         if self.humans.is_empty()
             && self.sim.phase() != Phase::Ended
-            && (self.had_human || now.duration_since(self.opened_at) >= UNCLAIMED_TIMEOUT)
+            && (self.had_human
+                || self.draining
+                || now.duration_since(self.opened_at) >= UNCLAIMED_TIMEOUT)
         {
             // Nobody left to play for: a lobby closes; a run's remaining players are all bots or gone. A room nobody has
-            // joined yet waits for its first player (its admission may be acquiring a durable lease off the tick).
+            // joined yet waits for its first player (its admission may be acquiring a durable lease off the tick), unless
+            // the server is draining: no admission can seat after that, so an empty room has nothing left to wait for.
             return self.close();
         }
         let slot = self.pacer.next_deadline();
@@ -981,10 +1084,32 @@ impl Room {
     }
 
     fn close(&mut self) -> bool {
+        self.finish(false)
+    }
+
+    /// Closes the room. `interrupted` (the hosting layer's abort): events not yet reported are discarded, so no result is
+    /// invented for a match that did not finish; seats and leases are freed exactly as for a normal close.
+    fn finish(&mut self, interrupted: bool) -> bool {
+        if self.closed {
+            return false;
+        }
+        self.closed = true;
         // Results emitted between steps (the last human's MIA leave) would otherwise die with the room.
         let pending = self.sim.take_events();
-        self.report_results(&pending);
+        if !interrupted {
+            self.report_results(&pending);
+        }
+        let why = if interrupted {
+            GoneReason::Aborted
+        } else {
+            GoneReason::MatchOver
+        };
         for h in std::mem::take(&mut self.humans) {
+            let _ = self.reports.send(RoomReport::Seat {
+                match_id: self.id,
+                profile: h.profile.clone(),
+                event: SeatEvent::Gone(why),
+            });
             if let Some(o) = &h.outbox {
                 o.close(RejectCode::Kicked);
                 self.retire_outbox(o);
@@ -1007,6 +1132,11 @@ impl Room {
             replay,
         });
         false
+    }
+
+    /// The room reported `Closed`; its task must end.
+    pub fn is_closed(&self) -> bool {
+        self.closed
     }
 
     pub fn stats(&self) -> RoomStats {
@@ -1108,7 +1238,7 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
                     for _ in 0..INBOUND_CAP {
                         match rx.try_recv() {
                             Ok(cmd) => {
-                                if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() { return; }
+                                if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() || room.is_closed() { return; }
                             }
                             Err(mpsc::error::TryRecvError::Empty) => break,
                             Err(mpsc::error::TryRecvError::Disconnected) => {
@@ -1125,7 +1255,7 @@ pub async fn run_room(mut room: Room, mut rx: mpsc::Receiver<RoomCmd>) {
             }
             cmd = rx.recv() => match cmd {
                 Some(cmd) => {
-                    if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() { return; }
+                    if guarded(room, |r| r.handle(cmd, Instant::now())).is_none() || room.is_closed() { return; }
                     let next = room.next_deadline();
                     if next != armed {
                         armed = next;
@@ -1270,7 +1400,7 @@ mod tests {
             .unwrap();
         assert!(room.wake(start + tick));
         assert_eq!(room.sim.phase(), Phase::Active);
-        room.leave(other.player);
+        room.leave(other.player, GoneReason::Left);
         assert!(room.wake(start + tick * 2));
         assert!(std::iter::from_fn(|| rx.try_recv().ok()).any(
             |r| matches!(r, RoomReport::Result{fence:Some(4),profile,..} if profile=="Winner")

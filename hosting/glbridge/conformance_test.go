@@ -8,8 +8,8 @@ import (
 )
 
 // These tests pin the contract itself (docs/hosting/CONTROL_API.md sections 3 and 4) as executable cases against the fake.
-// They are not tests of the Rust server. The Rust control tests (crates/rh-server/tests/control.rs, not yet written) must
-// reproduce each case; keep the names in sync.
+// They are not tests of the Rust server. The Rust control tests (crates/rh-server/tests/control.rs) reproduce each case
+// against the real server; keep the names in sync.
 
 func newClient(t *testing.T) (*fakeControl, *Control) {
 	f := newFakeControl(&recorder{})
@@ -144,6 +144,9 @@ func TestContractLeaveKickAckAndEndAbort(t *testing.T) {
 	rr, _ := c.Rooms(ctx)
 	if p := rr.Rooms[0].Players[0]; p.Status != "left" || p.Reason != "kicked" {
 		t.Fatalf("after kick: %+v", p)
+	}
+	if err := c.Leave(ctx, "gs-1", "psess-404", "ack"); err != nil { // an unknown record is a 200
+		t.Fatalf("ack of unknown: %v", err)
 	}
 	// Idempotent: kick again, ack twice, ack of unknown.
 	for _, mode := range []string{"kick", "ack", "ack"} {

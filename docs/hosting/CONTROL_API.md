@@ -1,9 +1,11 @@
 # Control API v1 (rh-server <-> hosting bridge)
 
-Status: **CONTRACT, Rust side not implemented yet.** Written 2026-11-05 for P-HOST-1 part (a). Implemented so far: only
-`GET /control/health` and `POST /control/drain` (`crates/rh-server/src/lib.rs`). The Go bridge in `hosting/glbridge/` is
-written and tested against this document with a fake control server. Where this file and the Rust code later disagree,
-the code wins and this file is corrected.
+Status: **implemented and tested on both sides.** Written 2026-11-05 for P-HOST-1 part (a); the Rust side is
+`crates/rh-server/src/control.rs` (bookkeeping, HTTP layer) plus the director/room hooks, tested by
+`crates/rh-server/tests/control.rs`; the Go bridge in `hosting/glbridge/` is tested against a fake of this document
+(`conformance_test.go`) and, end to end, against the real server (`crates/rh-server/tests/bridge_e2e.rs`,
+`hosting/scripts/e2e-bridge.sh`). Where this file and the Rust code disagree, the code wins and this file is corrected.
+Clarifications made when the Rust side landed are marked **(as built)**.
 
 Why this shape: GameLift allows exactly one game session per server process ([GAMELIFT_VERIFIED.md](GAMELIFT_VERIFIED.md)
 section 3), so a hosting process serves one session, but the API stays room-keyed (`gameSessionId`) so the same contract
@@ -18,9 +20,12 @@ also serves a self-hosted multi-room process. Nothing here mentions GameLift typ
 - Every request body and every response body carries `"v": 1`. A request with another `v` is `400 unsupported_version`.
   A missing `v` is `400 bad_request`. (GET requests have no body; their responses carry `v`.) Unknown request fields are
   `400 bad_request` (fail closed: a typo must not silently drop a restriction).
-- Errors: `{"v":1,"error":{"code":"<snake_case>","message":"<human text, no secrets>"}}`.
+- Errors: `{"v":1,"error":{"code":"<snake_case>","message":"<human text, no secrets>"}}`. **(as built)** Codes outside the
+  endpoint tables: 400 `bad_request` | `unsupported_version` | `unsupported_property`, 401 `unauthorized`, 413
+  `payload_too_large`, 503 `not_ready`, and 409 `not_final` (ack of a record that has not ended) and `too_many_admits` (the room
+  holds 256 player records, live and final).
 - Optional defense in depth: when the server is started with `--control-token-file <path>`, every request must carry
-  `Authorization: Bearer <token>` (401 otherwise, constant-time compare). The bridge sends it when
+  `Authorization: Bearer <token>` (401 otherwise; the compare is over fixed-length SHA-256 digests, so it is constant time). The bridge sends it when
   `GLBRIDGE_CONTROL_TOKEN` is set. The loopback bind is the primary boundary; the token only guards against a co-located
   process.
 - Time values crossing the API are **relative milliseconds** (`...Ms`), never wall-clock stamps, so bridge and server need no
@@ -54,7 +59,8 @@ The hosting layer must use the callsign as GameLift `PlayerId` (placement `Desir
  "control":{"v":1,"requireAdmit":true,"maxRooms":1,"admitTtlMs":60000}}
 ```
 
-`requireAdmit` is `true` only when the process was started with `--require-admit` (section 4). The bridge refuses to call
+`requireAdmit` is `true` only when the process was started with `--require-admit` (section 4; the flag needs `--control`, and
+a misspelt `--require-*`, `--admit-*` or `--control-*` flag stops the server with exit code 2 instead of being ignored). The bridge refuses to call
 `ProcessReady` unless `control.v == 1` and `requireAdmit == true` (override `--allow-no-admit`, tests and local dev only).
 A server that predates this contract has no `control` object, so the bridge refuses it. A draining server answers 503
 with `"state":"draining"`; the bridge treats that as healthy-and-leaving (it is intentional, see 6.5).
@@ -76,7 +82,7 @@ Response 200: `{"v":1,"created":true,"gameSessionId":"...","roomId":"<hex>","pha
 | state `starting` | 503 `not_ready` |
 | state `draining`/`terminated` | **409 `draining`** |
 | rooms already at `--max-rooms` | **409 `at_capacity`** |
-| same `gameSessionId`, same properties, room still open | 200 `created:false`, same `roomId` (retry-safe) |
+| same `gameSessionId`, same properties, room still open | 200 `created:false`, same `roomId` (retry-safe). **(as built)** "same properties" compares the effective values (an omitted `maxPlayers` is 8, an omitted `fillBotsTo` is `--fill-bots` capped at `maxPlayers`) |
 | same `gameSessionId`, different properties | 409 `session_conflict` |
 | same `gameSessionId`, room already ended/closed | 409 `session_ended` (a hosting layer never reuses an id; do not recreate) |
 
@@ -132,11 +138,13 @@ Player `status`:
 - `seated`: connected and seated. `away`: connection dropped, seat held for the reconnect grace (`graceRemainingMs`, the
   server's `RECONNECT_GRACE`, 10 s today); a resume within it returns to `seated`.
 - `left`: **final**, the seat is gone. `reason` is `grace_expired`, `left` (clean leave), `kicked`, `match_over`
-  (the room closed with the player still seated, after the Result was delivered) or `crashed`.
+  (the room closed with the player still seated, after the Result was delivered), `crashed`, and **(as built)** `lease_expired`
+  (the profile's durable lease lapsed, so the seat is no longer authorised) and `aborted` (`end` mode `abort`).
 - `expired`: an admit nobody used. Final.
 
-`phase` `closed` is final and carries `endReason`: `completed`, `ended_by_bridge`, `drained`, `crashed`. `rev` increases on
-every change to that room. Closed rooms stay listed (a bounded tombstone: the newest 16, at least 10 minutes) so a bridge that
+`phase` `closed` is final and carries `endReason`: `completed` (the match ended), `ended_by_bridge`, `drained` (closed while the
+server or the room was draining), `crashed`, and **(as built)** `abandoned` (every human left before the match ended). `rev` increases on
+every change to that room. Closed rooms stay listed (a bounded tombstone: the newest 16, plus any younger than 10 minutes up to a hard cap of 256) so a bridge that
 polls less often than the room lifetime still observes the end exactly once.
 
 **Event model: poll.** The bridge polls `GET /control/rooms` (default every 500 ms; the contract allows 100 ms..5 s) and
@@ -159,10 +167,13 @@ parameters).
 ```
 
 - `mode:"ack"`: the bridge confirms it has reported a `left`/`expired` record to the hosting layer; the server may drop the
-  record (it keeps the replay marker, section 3.3). Idempotent: unknown or already-dropped record is 200.
+  record (it keeps the replay marker, section 3.3). Idempotent: unknown or already-dropped record is 200. **(as built)** Acking a
+  record that has not ended (`admitted`, `seated`, `away`) is `409 not_final`: it would otherwise silently forget a live seat.
 - `mode:"kick"`: the hosting layer wants the player gone (for example its reservation was revoked). The server removes the
   seat through the **same path as a disconnect past grace** (the Result and lease give-back follow their normal rules; a kick
-  is not a way to skip them) and reports `left` with `reason:"kicked"`. A kick of an unknown or already-left player is 200.
+  is not a way to skip them) and reports `left` with `reason:"kicked"`. **(as built)** The record turns `left`/`kicked` in the
+  same call; the room is then told to remove the seat (`RoomCmd::Kick`, the leave path), so a poll right after the call already
+  shows it. A kick of an unknown or already-left player is 200.
   A kick of an `admitted` entry turns it `expired`.
 
 Response 200 `{"v":1,"state":"left|expired|dropped|unknown"}`. 404 `no_such_session` for an unknown room.
@@ -179,12 +190,17 @@ Response 200 `{"v":1,"state":"left|expired|dropped|unknown"}`. 404 `no_such_sess
   invented for an interrupted match** (C-PERSIST). `endReason` becomes `ended_by_bridge`.
 
 Idempotent. Response 200 `{"v":1,"phase":"closed|active|ended|lobby"}`; 404 for an unknown room (a closed tombstone answers 200).
+**(as built)** `abort` waits up to 2 s for the room to report closed, so its answer is normally `closed`. `graceful` on a room
+that nobody joined closes it at its next wake (see 3.7). A room closed by `abort` reports its still-unused admits `expired`.
 
 ### 3.7 `POST /control/drain` (exists)
 
 Body `{"v":1}` (an empty body stays accepted until the Rust side adopts `v`). Stops admissions (`ServerDraining`), asks every
 room to finish, `Terminated` when the last room closes, process exits. Idempotent. 200 `{"v":1,"state":"draining"|"terminated"}`.
 After drain begins `POST /control/session` and `/control/admit` are 409 `draining`. Draining never ends a running match.
+**(as built)** A draining room with no human that never had one closes at its next wake instead of waiting for the 30 s
+unclaimed-room timeout (no admission can seat after drain, so there is nothing to wait for); a room that has had a human closes
+when its last human leaves, as always. The closed room reports `endReason` `drained`.
 
 ## 4. Binding a GameLift player session to an admission, without bypassing anything
 
@@ -202,10 +218,15 @@ browser to the game server; instead:
    protocol version -> content hash -> resume token -> callsign format -> draining -> **credentials (the profile token,
    unchanged)** -> **admit check (new, only when `--require-admit`)** -> profile ownership (process, then fenced lease)
    -> capacity. All refusals still happen before a seat is taken.
-4. The admit check looks up an unconsumed, unexpired admit for this callsign (admits are keyed by callsign, a callsign holds
-   at most one) and routes the Hello to that admit's room. None -> `Reject BadCredentials` with reason `not admitted`
+4. The admit check looks up an unconsumed, unexpired admit for this callsign (admits are keyed by callsign, ASCII
+   case-insensitively, and a callsign holds at most one) and routes the Hello to that admit's room. None -> `Reject
+   BadCredentials` with reason `not admitted`
    (an existing code; the reason text is the only difference; the client may retry for a few seconds, because the bridge
-   admits on its polling cadence). The admit is **consumed at the same critical section that reserves the seat**. If the
+   admits on its polling cadence). **(as built)** The check has two parts: a read-only look right after the credential check (it refuses before any wait), and the
+   consumption inside the director's critical section that also tests "profile already in a match" and reserves the seat, so
+   two Hellos cannot both take one admit, and a profile already in a match is refused `ProfileInUse` without touching its admit.
+   If the admit's room is gone or no longer a lobby the Hello is refused `MatchFull` (`match closed` / `match in progress`) and
+   the admit stays pending. The admit is **consumed at the same critical section that reserves the seat**. If the
    admission later fails (lease refused, `ProfileInUse`, capacity), the admit is restored to pending with its remaining
    time, so a refused attempt does not burn the reservation, and a successful one cannot be replayed.
 5. The bridge sees `seated` and calls `AcceptPlayerSession`.
@@ -256,10 +277,25 @@ callback reports healthy.
 
 6.6 **Server crash.** If `rh-server` exits unexpectedly the bridge best-effort calls `ProcessEnding` and exits non-zero.
 
-## 7. Tests the Rust side must add (`crates/rh-server/tests/control.rs`)
+## 7. Tests (`crates/rh-server/tests/control.rs`, `bridge_e2e.rs`; all present)
 
 create/admit/leave/end/drain sequences; each 409 above; session and admit idempotency (same request twice, same answer, no
 second room or seat); replay of a consumed or expired admit; `--require-admit` refuses a valid token without an admit and an
 admit without a valid token, and does not change the order of the earlier refusals; a refused admission restores the admit;
 a seated player's `away` -> resume does not appear as `left`; `left` appears only after the grace; abort closes without a
 Result; every `/control/*` path is 404 on the public listener; the control listener refuses a non-loopback `--control`.
+
+Also covered there: the public listener answers 404 to every `/control/*` path and the control listener serves no public route;
+`main.rs` refuses a non-loopback `--control` (real binary); `--require-admit` is parsed (a typo, `=true`, or a missing
+`--control` exits 2; the real binary reports `control.requireAdmit`); the bearer token; body bounds (413) and unknown
+fields/versions; no profile token or control token in any control response; the 256-record and tombstone bounds
+(`control::tests`); and the whole bridge flow with the real Go bridge (fake SDK build), a real `rh-server` and a real
+WebSocket client: `OnStartGameSession` -> session -> admit -> join with the profile credential -> `AcceptPlayerSession`, a
+resume inside the grace (no remove, no second accept), a drop past the grace -> `RemovePlayerSession`, `OnProcessTerminate` ->
+drain -> last player leaves -> `ProcessEnding` -> `Destroy` -> exit 0 and rh-server gone.
+
+Known boundaries **(as built)**: admit/seat bookkeeping lives in process memory (rooms are lost with the process, as 6.3
+says); a kick that races the very Hello consuming that admit (the admit is `admitted`, the seat not yet taken) turns the record
+`expired` but cannot stop the seat that Hello is about to take; the bridge's next poll does not see it and the seat leaves
+through the normal grace path. Without `--require-admit` the control endpoints still work, but Hellos are placed by the
+automatic lobby rules and are not tied to an admit.

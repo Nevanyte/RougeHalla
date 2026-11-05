@@ -64,7 +64,7 @@ func main() {
 		exit = proc.exit
 	}
 
-	b := NewBridge(cfg, realSDK{}, ctl, log, exit)
+	b := NewBridge(cfg, newSDK(), ctl, log, exit)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	sig := make(chan os.Signal, 1)

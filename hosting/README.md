@@ -7,9 +7,9 @@ One image, two binaries (ADR 0004, [docs/hosting/CONTROL_API.md](../docs/hosting
   launches and supervises `rh-server` and maps GameLift's callbacks onto its loopback control API.
 - `rh-server` (Rust, built from the workspace, no cloud SDK).
 
-Status: the bridge and the contract are done and tested against a fake SDK and a fake control server. **The Rust side of the
-control API is not implemented**, so `glbridge` refuses today's `rh-server` (it reports no `control.requireAdmit`), by design.
-Nothing here has run against AWS. Do not push images.
+Status: the bridge, the contract and the Rust side of the control API are done and tested against each other (a fake SDK, a fake
+control server, and the real bridge driving the real server end to end, below). **Nothing here has run against AWS.** Do not push
+images.
 
 ## Tests (no AWS, no Go on the host: use the pinned image)
 
@@ -53,13 +53,42 @@ Cold-build measurements, sizes and cgo result: docs/hosting/GAMELIFT_VERIFIED.md
 | `--allow-no-admit` | off | development only: accept a server without `--require-admit` |
 
 rh-server is always started with `--max-rooms 1 --require-admit` (one process, one game session; docs/hosting/GAMELIFT_VERIFIED.md
-section 3). Example with durable results: `glbridge -- --database-url postgres://...` (the URL then shows in the process list of
+section 3). `--require-admit` needs `--control` and is checked as an extra step after the profile credential check; see
+docs/hosting/CONTROL_API.md section 4. Example with durable results: `glbridge -- --database-url postgres://...` (the URL then shows in the process list of
 the container; prefer a mechanism that does not, once the Rust side supports one).
 
-## Local smoke (what works today)
+## Local smoke
 
 ```bash
 docker run --rm rh-match:dev-arm64        # InitSDK fails outside GameLift: "Either AuthToken or AwsRegion ... are required", exit 1
 docker run --rm --entrypoint /local/game/rh-server rh-match:dev-arm64 --bind 0.0.0.0:35000 --max-rooms 1 \
     --map /local/game/maps/seed1.map.json   # the Rust server alone
+```
+
+## End to end without AWS: the real bridge, the real server, a real client
+
+The bridge has a second build, tag `fakesdk` (`glbridge/sdk_script.go`; the production build and image never contain it), in
+which GameLift is a scripted fake driven over a loopback HTTP port (`GLBRIDGE_FAKE_ADDR`, default `127.0.0.1:7790`;
+`POST /start`, `POST /reserve`, `POST /terminate`, `GET /calls`, `GET /health`; `GLBRIDGE_FAKE_CALLS=<file>` also appends every SDK
+call to a file). Everything else is the production code path: the real supervisor starts the real `rh-server`
+(`--max-rooms 1 --require-admit`), the real control client talks to it.
+
+```bash
+hosting/scripts/e2e-bridge.sh        # about 25 s; needs Docker (for Go) and the Rust toolchain; no AWS, no database
+```
+
+It cross-compiles the fakesdk bridge for the host in the pinned golang image, then runs
+`crates/rh-server/tests/bridge_e2e.rs` (`cargo test -p rh-server --test bridge_e2e -- --ignored`, `RH_GLBRIDGE_FAKE=<binary>`),
+which plays GameLift and a game client through: OnStartGameSession -> session -> two reserved player sessions -> admit -> an
+unadmitted callsign refused -> two clients join with their profile credential -> AcceptPlayerSession (once each) -> a drop and
+resume inside the 10 s grace (no remove, no second accept) -> a drop past the grace -> RemovePlayerSession only after it ->
+OnProcessTerminate -> drain (waits for the room) -> last player leaves -> ProcessEnding -> Destroy -> bridge exit 0, rh-server
+gone. The Rust control tests (no Go needed) are `cargo test -p rh-server --test control`.
+
+The same fake can run in the image, to check the arm64 container itself (not run against AWS):
+
+```bash
+docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg GLBRIDGE_TAGS=fakesdk -t rh-match:fakesdk-arm64 --load .
+# the script and control ports are loopback-only, so the script drives it from inside the container:
+hosting/scripts/docker-smoke.sh rh-match:fakesdk-arm64
 ```

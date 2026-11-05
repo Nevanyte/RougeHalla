@@ -48,6 +48,20 @@ func TestSupervisorStopTerminatesChild(t *testing.T) {
 	}
 }
 
+// The main loop consumes `exit` when the child ends while draining; stop must then return at once, not after the grace.
+func TestSupervisorStopReturnsAtOnceAfterTheExitWasConsumed(t *testing.T) {
+	p, err := startServer("/bin/sh", []string{"-c", "exit 0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-p.exit // the bridge's main loop took the exit
+	start := time.Now()
+	p.stop(5 * time.Second)
+	if d := time.Since(start); d > time.Second {
+		t.Fatalf("stop waited %s for a child that had already exited", d)
+	}
+}
+
 func TestDecodeTerminationTime(t *testing.T) {
 	if ts, err := decodeTerminationTime(1_800_000_000); err != nil || ts.Unix() != 1_800_000_000 {
 		t.Fatalf("epoch seconds: %v %v", ts, err)

@@ -29,7 +29,10 @@ COPY hosting/glbridge/go.mod hosting/glbridge/go.sum ./
 RUN go mod download
 COPY hosting/glbridge ./
 # CGO_ENABLED=0 is asserted, not assumed: the build fails if the SDK ever starts to need cgo.
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /glbridge . \
+# GLBRIDGE_TAGS is empty for every real image. `--build-arg GLBRIDGE_TAGS=fakesdk` builds the local end-to-end image with a
+# scripted fake instead of the GameLift SDK (hosting/README.md); never push or deploy that one.
+ARG GLBRIDGE_TAGS=
+RUN CGO_ENABLED=0 go build -tags "${GLBRIDGE_TAGS}" -trimpath -ldflags="-s -w" -o /glbridge . \
     && go version -m /glbridge | grep -q 'CGO_ENABLED=0'
 
 FROM ${RUNTIME_IMAGE}

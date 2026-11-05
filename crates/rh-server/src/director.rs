@@ -2,6 +2,7 @@
 //! resume, and the off-tick handling of what rooms report (results to durable storage with retries, freed profiles).
 //! Several matches run in one process (one tokio task each); the hosting layer decides how many processes run per host.
 
+use crate::control::{ControlBook, CtlError, EndMode, LeaveMode};
 use crate::hosting::Lifecycle;
 use crate::outbox::Outbox;
 use crate::persist::{Auth, HeldLease, Persistence, ProfileKey, RecordError, Recorded};
@@ -66,6 +67,12 @@ pub struct DirectorConfig {
     pub linger: Duration,
     /// A connection that sends nothing for this long is treated as dropped (clients ping at least every second).
     pub idle_timeout: Duration,
+    /// Hosted mode (`--require-admit`, docs/hosting/CONTROL_API.md section 4): a Hello is admitted only with a matching,
+    /// unexpired, unconsumed admit, checked after the profile credential check and before profile ownership. Rooms then
+    /// exist only through `POST /control/session`. Off: admission is exactly as it always was.
+    pub require_admit: bool,
+    /// Default lifetime of an admit that names no `ttlMs`.
+    pub admit_ttl: Duration,
 }
 
 impl DirectorConfig {
@@ -81,6 +88,8 @@ impl DirectorConfig {
             reconnect_grace: crate::room::RECONNECT_GRACE,
             linger: crate::room::LINGER,
             idle_timeout: crate::conn::IDLE_TIMEOUT,
+            require_admit: false,
+            admit_ttl: Duration::from_millis(crate::control::DEFAULT_TTL_MS),
         }
     }
 }
@@ -237,6 +246,8 @@ impl Drop for PendingAdmission {
 ///   releases the lease itself.
 #[derive(Default)]
 struct Inner {
+    /// The control API's game sessions, admits and player statuses (control.rs). Plain data: no I/O under this lock.
+    control: ControlBook,
     rooms: HashMap<MatchId, RoomEntry>,
     profiles: HashMap<ProfileKey, ProfileSeat>,
     /// The last `ProfileSeat::gen` handed out.
@@ -362,11 +373,15 @@ impl Director {
         }
         let (tx, rx) = mpsc::unbounded_channel();
         let map = MapAssets::new(cfg.arena.clone()).expect("the arena's map encodes as a Welcome");
+        let inner = Inner {
+            control: ControlBook::new(cfg.admit_ttl, cfg.reconnect_grace),
+            ..Inner::default()
+        };
         let d = Arc::new_cyclic(|me| Self {
             pending_writes: std::sync::atomic::AtomicUsize::new(0),
             cfg,
             map,
-            inner: Mutex::new(Inner::default()),
+            inner: Mutex::new(inner),
             reports: tx,
             persistence,
             auth,
@@ -472,6 +487,19 @@ impl Director {
         else {
             return Err((RejectCode::BadCredentials, "bad credentials".into()));
         };
+        // Hosted mode: an additional precondition after the credential check and before profile ownership and the fenced
+        // lease (CONTROL_API.md section 4). It never replaces authentication and takes no lease. The admit is consumed
+        // below, atomically with the seat reservation; this early look only refuses before any wait.
+        if self.cfg.require_admit
+            && !self
+                .inner
+                .lock()
+                .expect("director")
+                .control
+                .has_admit(&h.profile, tokio::time::Instant::now())
+        {
+            return Err((RejectCode::BadCredentials, "not admitted".into()));
+        }
         // A player who just left (or whose match just closed, or whose previous attempt here just failed) has its lease
         // give-back in flight: wait for it instead of refusing, so a quick rejoin is deterministic. A profile with a live
         // seat, or with another admission in flight, is refused below as before.
@@ -485,41 +513,45 @@ impl Director {
                     "callsign already in a match".into(),
                 ));
             }
-            let open = open_lobby(&inner.rooms)
-                .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
-            let (match_id, tx) = match open {
-                Some(x) => x,
-                None => {
-                    if inner.rooms.len() >= self.cfg.max_rooms {
-                        return Err((RejectCode::MatchFull, "no capacity".into()));
+            let next_gen = inner.gens + 1;
+            let (match_id, tx) = if self.cfg.require_admit {
+                // Hosted mode: the room is the one the admit names (no automatic lobby placement, no room opened here).
+                // The admit is consumed here, in the critical section that reserves the seat; any later failure of this
+                // admission restores it (`unwind`).
+                let Some(taken) =
+                    inner
+                        .control
+                        .take_admit(&h.profile, tokio::time::Instant::now(), next_gen)
+                else {
+                    return Err((RejectCode::BadCredentials, "not admitted".into()));
+                };
+                let target = inner
+                    .rooms
+                    .get(&taken.room)
+                    .map(|r| (r.phase == Phase::Lobby, r.tx.clone()));
+                match target {
+                    Some((true, tx)) => (taken.room, tx),
+                    other => {
+                        inner.control.restore_gen(next_gen);
+                        let why = if other.is_none() {
+                            "match closed"
+                        } else {
+                            "match in progress"
+                        };
+                        return Err((RejectCode::MatchFull, why.into()));
                     }
-                    let id = random16();
-                    let (tx, rx) = mpsc::channel(INBOUND_CAP);
-                    let rc = RoomConfig {
-                        sim: self.cfg.sim.clone(),
-                        arena: self.map.arena.clone(),
-                        welcome_map: self.map.welcome_map.clone(),
-                        fill_bots_to: self.cfg.fill_bots_to,
-                        tick: self.cfg.tick,
-                        record: self.cfg.record,
-                        fixed_secrets: None,
-                        fixed_bot_seed: None,
-                        reconnect_grace: self.cfg.reconnect_grace,
-                        linger: self.cfg.linger,
-                    };
-                    let room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
-                    // A panic in the room still reports `Closed` (room.rs `run_room`), so its seats are freed.
-                    tokio::spawn(run_room(room, rx));
-                    inner.rooms.insert(
-                        id,
-                        RoomEntry {
-                            tx: tx.clone(),
-                            phase: Phase::Lobby,
-                            seated: 0,
-                            reserved: 0,
-                        },
-                    );
-                    (id, tx)
+                }
+            } else {
+                let open = open_lobby(&inner.rooms)
+                    .and_then(|id| inner.rooms.get(&id).map(|r| (id, r.tx.clone())));
+                match open {
+                    Some(x) => x,
+                    None => {
+                        if inner.rooms.len() >= self.cfg.max_rooms {
+                            return Err((RejectCode::MatchFull, "no capacity".into()));
+                        }
+                        self.spawn_room(&mut inner, self.cfg.fill_bots_to)
+                    }
                 }
             };
             inner.gens += 1;
@@ -659,6 +691,42 @@ impl Director {
         }
     }
 
+    /// Spawns a room task and registers it (the lock is held). Used by admission (a lobby opened on demand) and by the
+    /// control API (a room per game session); never blocks.
+    fn spawn_room(
+        &self,
+        inner: &mut Inner,
+        fill_bots_to: usize,
+    ) -> (MatchId, mpsc::Sender<RoomCmd>) {
+        let id = random16();
+        let (tx, rx) = mpsc::channel(INBOUND_CAP);
+        let rc = RoomConfig {
+            sim: self.cfg.sim.clone(),
+            arena: self.map.arena.clone(),
+            welcome_map: self.map.welcome_map.clone(),
+            fill_bots_to,
+            tick: self.cfg.tick,
+            record: self.cfg.record,
+            fixed_secrets: None,
+            fixed_bot_seed: None,
+            reconnect_grace: self.cfg.reconnect_grace,
+            linger: self.cfg.linger,
+        };
+        let room = Room::new(id, rc, self.reports.clone(), tokio::time::Instant::now());
+        // A panic in the room still reports `Closed` (room.rs `run_room`), so its seats are freed.
+        tokio::spawn(run_room(room, rx));
+        inner.rooms.insert(
+            id,
+            RoomEntry {
+                tx: tx.clone(),
+                phase: Phase::Lobby,
+                seated: 0,
+                reserved: 0,
+            },
+        );
+        (id, tx)
+    }
+
     /// There is at most one in-flight renewal per admitted seat. The worker holds neither
     /// the director nor its lock while sleeping or accessing durable storage. Result-pending
     /// and writing seats keep renewing even after their connection and room have gone.
@@ -756,6 +824,8 @@ impl Director {
     /// profile, waits for the give-back instead of racing it).
     fn unwind(&self, key: &ProfileKey, gen: u64, match_id: MatchId, fence: Option<i64>) {
         let mut inner = self.inner.lock().expect("director");
+        // Hosted mode: an admission that took no seat gives the admit back (pending again, same deadline).
+        inner.control.restore_gen(gen);
         let own = inner
             .profiles
             .get(key)
@@ -975,6 +1045,7 @@ impl Director {
                     for k in moved {
                         this.advance(&mut inner, &k);
                     }
+                    let stats_crashed = stats.crashed;
                     if stats.crashed {
                         eprintln!("[director] a room crashed; its seats were freed");
                     }
@@ -988,6 +1059,13 @@ impl Director {
                             inner.replays.remove(0);
                         }
                     }
+                    let draining = this.lifecycle.draining();
+                    inner.control.on_closed(
+                        match_id,
+                        stats_crashed,
+                        draining,
+                        tokio::time::Instant::now(),
+                    );
                     let empty = inner.rooms.is_empty();
                     drop(inner);
                     if empty {
@@ -999,29 +1077,32 @@ impl Director {
                     phase,
                     humans,
                 } => {
-                    if let Some(r) = this
-                        .inner
-                        .lock()
-                        .expect("director")
-                        .rooms
-                        .get_mut(&match_id)
-                    {
+                    let mut inner = this.inner.lock().expect("director");
+                    if let Some(r) = inner.rooms.get_mut(&match_id) {
                         // The admission that took this seat stops being a reservation; the others still are.
                         r.reserved = r.reserved.saturating_sub(1);
                         r.seated = humans;
                         r.phase = phase;
                     }
+                    inner.control.on_phase(match_id, phase);
                 }
-                RoomReport::Phase { match_id, phase } => {
-                    if let Some(r) = this
-                        .inner
+                RoomReport::Seat {
+                    match_id,
+                    profile,
+                    event,
+                } => {
+                    this.inner
                         .lock()
                         .expect("director")
-                        .rooms
-                        .get_mut(&match_id)
-                    {
+                        .control
+                        .on_seat(match_id, &profile, event);
+                }
+                RoomReport::Phase { match_id, phase } => {
+                    let mut inner = this.inner.lock().expect("director");
+                    if let Some(r) = inner.rooms.get_mut(&match_id) {
                         r.phase = phase;
                     }
+                    inner.control.on_phase(match_id, phase);
                 }
             }
         }
@@ -1121,6 +1202,176 @@ impl Director {
             "resultsRefused": inner.results_refused,
             "closedRooms": inner.closed.iter().rev().take(8).collect::<Vec<_>>(),
         })
+    }
+
+    // ---- the control API (docs/hosting/CONTROL_API.md); the HTTP layer is `control_http` in lib.rs ----
+
+    /// The `control` object of `GET /control/health`: what the bridge checks before it reports the process ready.
+    pub fn control_info(&self) -> serde_json::Value {
+        serde_json::json!({
+            "v": crate::control::API_VERSION,
+            "requireAdmit": self.cfg.require_admit,
+            "maxRooms": self.cfg.max_rooms,
+            "admitTtlMs": self.cfg.admit_ttl.as_millis() as u64,
+        })
+    }
+
+    /// `POST /control/session`: the room for one game session. Idempotent per `gameSessionId`.
+    pub fn control_create(
+        &self,
+        gsid: &str,
+        max_players: Option<usize>,
+        fill_bots_to: Option<usize>,
+    ) -> Result<serde_json::Value, CtlError> {
+        let max_players = max_players.unwrap_or(rh_sim::constants::MAX_PLAYERS);
+        if !(1..=rh_sim::constants::MAX_PLAYERS).contains(&max_players) {
+            return Err(CtlError::bad_request(format!(
+                "maxPlayers must be 1..={}",
+                rh_sim::constants::MAX_PLAYERS
+            )));
+        }
+        let fill = fill_bots_to.unwrap_or(self.cfg.fill_bots_to.min(max_players));
+        if fill > max_players {
+            return Err(CtlError::bad_request("fillBotsTo must be 0..=maxPlayers"));
+        }
+        match self.lifecycle.state_name() {
+            "starting" => return Err(CtlError::new(503, "not_ready", "the server is starting")),
+            "ready" => {}
+            _ => return Err(CtlError::conflict("draining", "the server is draining")),
+        }
+        let mut inner = self.inner.lock().expect("director");
+        inner.control.sweep(tokio::time::Instant::now());
+        match inner.control.check_create(gsid, max_players, fill)? {
+            crate::control::CreateCheck::Existing {
+                room,
+                phase,
+                max_players,
+            } => Ok(serde_json::json!({
+                "v": crate::control::API_VERSION, "created": false, "gameSessionId": gsid,
+                "roomId": crate::control::room_id_hex(room), "phase": phase.as_str(), "maxPlayers": max_players,
+            })),
+            crate::control::CreateCheck::New => {
+                if inner.rooms.len() >= self.cfg.max_rooms {
+                    return Err(CtlError::conflict("at_capacity", "no room capacity left"));
+                }
+                let (id, _tx) = self.spawn_room(&mut inner, fill);
+                inner.control.insert(gsid, id, max_players, fill);
+                Ok(serde_json::json!({
+                    "v": crate::control::API_VERSION, "created": true, "gameSessionId": gsid,
+                    "roomId": crate::control::room_id_hex(id), "phase": "lobby", "maxPlayers": max_players,
+                }))
+            }
+        }
+    }
+
+    /// `POST /control/admit`.
+    pub fn control_admit(
+        &self,
+        gsid: &str,
+        psid: &str,
+        callsign: &str,
+        ttl: Option<Duration>,
+    ) -> Result<serde_json::Value, CtlError> {
+        let draining = self.lifecycle.draining();
+        let mut inner = self.inner.lock().expect("director");
+        let ttl = ttl.unwrap_or(self.cfg.admit_ttl);
+        let o = inner.control.admit(
+            gsid,
+            psid,
+            callsign,
+            ttl,
+            tokio::time::Instant::now(),
+            draining,
+        )?;
+        Ok(serde_json::json!({
+            "v": crate::control::API_VERSION, "state": o.state, "gameSessionId": o.game_session_id,
+            "playerSessionId": o.player_session_id, "callsign": o.callsign, "expiresInMs": o.expires_in_ms,
+        }))
+    }
+
+    /// `GET /control/rooms`.
+    pub fn control_rooms(&self) -> serde_json::Value {
+        let mut inner = self.inner.lock().expect("director");
+        let rooms = inner.control.rooms_json(tokio::time::Instant::now());
+        serde_json::json!({
+            "v": crate::control::API_VERSION,
+            "state": self.lifecycle.state_name(),
+            "draining": self.lifecycle.draining(),
+            "maxRooms": self.cfg.max_rooms,
+            "rooms": rooms,
+        })
+    }
+
+    /// `POST /control/leave`. A kick marks the player `left` (reason `kicked`) at once and tells the room, which removes the
+    /// seat through the same path as a disconnect past the grace.
+    pub async fn control_leave(
+        &self,
+        gsid: &str,
+        psid: &str,
+        mode: LeaveMode,
+    ) -> Result<serde_json::Value, CtlError> {
+        let (out, tx) = {
+            let mut inner = self.inner.lock().expect("director");
+            let out = inner
+                .control
+                .leave(gsid, psid, mode, tokio::time::Instant::now())?;
+            let tx = out
+                .kick
+                .as_ref()
+                .and_then(|(room, _)| inner.rooms.get(room).map(|r| r.tx.clone()));
+            (out, tx)
+        };
+        if let (Some((_, profile)), Some(tx)) = (out.kick, tx) {
+            let _ =
+                tokio::time::timeout(Duration::from_secs(2), tx.send(RoomCmd::Kick { profile }))
+                    .await;
+        }
+        Ok(serde_json::json!({"v": crate::control::API_VERSION, "state": out.state}))
+    }
+
+    /// `POST /control/end`. `abort` waits (bounded) for the room to report closed so the answer says so.
+    pub async fn control_end(
+        &self,
+        gsid: &str,
+        mode: EndMode,
+    ) -> Result<serde_json::Value, CtlError> {
+        let (out, tx) = {
+            let mut inner = self.inner.lock().expect("director");
+            let out = inner.control.end(gsid, mode, tokio::time::Instant::now())?;
+            let tx = inner.rooms.get(&out.room).map(|r| r.tx.clone());
+            (out, tx)
+        };
+        if let (Some(m), Some(tx)) = (out.tell_room, tx) {
+            let cmd = match m {
+                EndMode::Graceful => RoomCmd::Drain,
+                EndMode::Abort => RoomCmd::Abort,
+            };
+            let _ = tokio::time::timeout(Duration::from_secs(2), tx.send(cmd)).await;
+        }
+        if out.tell_room == Some(EndMode::Abort) {
+            let until = tokio::time::Instant::now() + Duration::from_secs(2);
+            while tokio::time::Instant::now() < until {
+                let closed = self
+                    .inner
+                    .lock()
+                    .expect("director")
+                    .control
+                    .phase_of(gsid)
+                    .is_none_or(|p| p == crate::control::CPhase::Closed);
+                if closed {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+        let phase = self
+            .inner
+            .lock()
+            .expect("director")
+            .control
+            .phase_of(gsid)
+            .unwrap_or(out.phase);
+        Ok(serde_json::json!({"v": crate::control::API_VERSION, "phase": phase.as_str()}))
     }
 
     /// Recorded replays of the last closed rooms (private: they hold match secrets).

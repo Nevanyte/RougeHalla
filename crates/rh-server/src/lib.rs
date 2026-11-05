@@ -3,6 +3,7 @@
 
 pub mod api;
 pub mod conn;
+pub mod control;
 pub mod director;
 pub mod hosting;
 pub mod metrics;
@@ -17,7 +18,7 @@ pub mod wire;
 use axum::extract::{State, WebSocketUpgrade};
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Json, Router};
 use axum_server::accept::Accept;
 use axum_server::tls_rustls::{RustlsAcceptor, RustlsConfig};
@@ -48,12 +49,15 @@ pub fn public_router_with_api(director: Arc<Director>, api: api::AccountApi) -> 
     public_router(director.clone()).merge(api::router(director, api))
 }
 
-/// The local control listener for the hosting bridge (bind it to 127.0.0.1 only).
+/// The local control listener for the hosting bridge (bind it to 127.0.0.1 only; main.rs asserts it). Control routes live
+/// only here, never in [`public_router`].
 pub fn control_router(director: Arc<Director>) -> Router {
-    Router::new()
-        .route("/control/health", get(control_health))
-        .route("/control/drain", post(control_drain))
-        .with_state(director)
+    control::router(director, control::ControlOptions::default())
+}
+
+/// [`control_router`] with options (the optional bearer token).
+pub fn control_router_with(director: Arc<Director>, opts: control::ControlOptions) -> Router {
+    control::router(director, opts)
 }
 
 /// Per-connection WebSocket read buffer. Client frames are at most `MAX_CLIENT_FRAME` (1 KiB) plus a 14-byte header, so
@@ -99,28 +103,6 @@ async fn ping() -> impl IntoResponse {
         ],
         "pong",
     )
-}
-
-async fn control_health(State(d): State<Arc<Director>>) -> impl IntoResponse {
-    let code = if d.lifecycle.healthy() {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(serde_json::json!({
-            "state": d.lifecycle.state_name(),
-            "rooms": d.room_count(),
-            "metrics": metrics::process().json(),
-            "results": d.result_metrics(),
-        })),
-    )
-}
-
-async fn control_drain(State(d): State<Arc<Director>>) -> impl IntoResponse {
-    d.drain().await;
-    Json(serde_json::json!({ "state": d.lifecycle.state_name() }))
 }
 
 /// Callback run on every accepted TCP stream after `TCP_NODELAY` was applied (tests read the socket option back here).
