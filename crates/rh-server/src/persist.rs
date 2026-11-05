@@ -99,12 +99,27 @@ pub enum Persistence {
     Postgres {
         store: std::sync::Arc<rh_persist::Store>,
         owner: String,
+        /// The `profile_id` each live lease was admitted under, by `(lower-cased admission callsign, fence)`. Every call after
+        /// admission (release, result) goes by this id, so a rename of the profile mid-match cannot lose the result or
+        /// strand the lease. A miss (a process that did not admit it) falls back to the callsign. Entries are replaced by
+        /// the next admission under the same name, so the map holds at most one per distinct name.
+        held: Mutex<HashMap<(String, i64), i64>>,
     },
 }
 
 impl Persistence {
     pub fn memory() -> Self {
         Persistence::Memory(Box::default())
+    }
+
+    /// The durable store (rh-persist); `owner` names this host in its leases.
+    #[cfg(feature = "postgres")]
+    pub fn postgres(store: std::sync::Arc<rh_persist::Store>, owner: String) -> Self {
+        Persistence::Postgres {
+            store,
+            owner,
+            held: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Takes the profile's session lease for this match; returns its fence.
@@ -138,7 +153,7 @@ impl Persistence {
                 }
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, owner } => {
+            Persistence::Postgres { store, owner, held } => {
                 let lease = store
                     .acquire_lease(
                         profile,
@@ -148,6 +163,12 @@ impl Persistence {
                     )
                     .await
                     .map_err(|e| format!("lease refused: {e}"))?;
+                // One entry per admission name: a newer admission replaces the older ones (a duplicate report for a finished
+                // lease keeps resolving to the profile it was earned by, never to whoever holds the name now).
+                let name = profile.to_ascii_lowercase();
+                let mut held = held.lock().expect("held");
+                held.retain(|(n, _), _| *n != name);
+                held.insert((name, lease.fence), lease.profile_id);
                 Ok(lease.fence)
             }
         }
@@ -173,10 +194,16 @@ impl Persistence {
                 }
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, .. } => store
-                .release_lease(profile, fence)
-                .await
-                .map_err(|e| e.to_string()),
+            Persistence::Postgres { store, held, .. } => {
+                let key = (profile.to_ascii_lowercase(), fence);
+                let id = held.lock().expect("held").get(&key).copied();
+                let released = match id {
+                    Some(id) => store.release_lease_by_id(id, fence).await,
+                    None => store.release_lease(profile, fence).await,
+                }
+                .map_err(|e| e.to_string())?;
+                Ok(released)
+            }
         }
     }
 
@@ -223,14 +250,18 @@ impl Persistence {
                 Ok(Recorded::Applied)
             }
             #[cfg(feature = "postgres")]
-            Persistence::Postgres { store, owner } => {
+            Persistence::Postgres { store, owner, held } => {
                 let res = crate::persist::pg::to_persist(r);
                 let meta = crate::persist::pg::match_meta(owner, roster);
-                match store
-                    .record_result(uuid::Uuid::from_bytes(m), profile, fence, &res, &meta)
-                    .await
-                    .map_err(|e| RecordError::Transient(e.to_string()))?
-                {
+                let key = (profile.to_ascii_lowercase(), fence);
+                let id = held.lock().expect("held").get(&key).copied();
+                let mid = uuid::Uuid::from_bytes(m);
+                let outcome = match id {
+                    Some(id) => store.record_result_by_id(mid, id, fence, &res, &meta).await,
+                    None => store.record_result(mid, profile, fence, &res, &meta).await,
+                }
+                .map_err(|e| RecordError::Transient(e.to_string()))?;
+                match outcome {
                     rh_persist::RecordOutcome::Applied { .. } => Ok(Recorded::Applied),
                     rh_persist::RecordOutcome::AlreadyApplied => Ok(Recorded::AlreadyApplied),
                     other @ (rh_persist::RecordOutcome::NoLease

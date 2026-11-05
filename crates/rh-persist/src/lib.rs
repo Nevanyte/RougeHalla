@@ -323,14 +323,27 @@ impl Store {
     }
 
     /// Extends a lease the caller still holds (fence matches and it was not released). An expired lease nobody took
-    /// over can be renewed: the fence, not the clock, is what protects.
+    /// over can be renewed: the fence, not the clock, is what protects. By callsign: for edge and admin callers; a
+    /// live match renews by the id its admission got ([`Store::renew_lease_by_id`]), which a rename cannot move.
     pub async fn renew_lease(&self, callsign: &str, fence: i64, ttl: Duration) -> Result<bool> {
+        match self.profile_id(callsign).await? {
+            Some(pid) => self.renew_lease_by_id(pid, fence, ttl).await,
+            None => Ok(false),
+        }
+    }
+
+    /// [`Store::renew_lease`] by `profile_id` (the id [`Lease::profile_id`] carried out of admission).
+    pub async fn renew_lease_by_id(
+        &self,
+        profile_id: i64,
+        fence: i64,
+        ttl: Duration,
+    ) -> Result<bool> {
         let n = sqlx::query(
             "UPDATE session_leases SET expires_at = now() + make_interval(secs => $3)
-             WHERE profile_id = (SELECT profile_id FROM profiles WHERE lower(callsign) = lower($1))
-               AND fence = $2 AND released_at IS NULL",
+             WHERE profile_id = $1 AND fence = $2 AND released_at IS NULL",
         )
-        .bind(callsign)
+        .bind(profile_id)
         .bind(fence)
         .bind(ttl.as_secs_f64())
         .execute(&self.pool)
@@ -340,14 +353,21 @@ impl Store {
     }
 
     /// Gives the slot back. The row stays (marked released) so the fence is never reused. False when the fence is
-    /// stale or the lease was already released.
+    /// stale or the lease was already released. By callsign, for edge and admin callers.
     pub async fn release_lease(&self, callsign: &str, fence: i64) -> Result<bool> {
+        match self.profile_id(callsign).await? {
+            Some(pid) => self.release_lease_by_id(pid, fence).await,
+            None => Ok(false),
+        }
+    }
+
+    /// [`Store::release_lease`] by `profile_id`.
+    pub async fn release_lease_by_id(&self, profile_id: i64, fence: i64) -> Result<bool> {
         let n = sqlx::query(
             "UPDATE session_leases SET released_at = now(), expires_at = now()
-             WHERE profile_id = (SELECT profile_id FROM profiles WHERE lower(callsign) = lower($1))
-               AND fence = $2 AND released_at IS NULL",
+             WHERE profile_id = $1 AND fence = $2 AND released_at IS NULL",
         )
-        .bind(callsign)
+        .bind(profile_id)
         .bind(fence)
         .execute(&self.pool)
         .await?
@@ -381,6 +401,8 @@ impl Store {
 
     /// Banks one match for one player in ONE transaction. See the module docs for the order of the checks. `meta`
     /// describes the match; its `matches` row is inserted by the first result of the match and found by the others.
+    /// By callsign (resolved here): for edge and admin callers; a live match banks by the id its admission got
+    /// ([`Store::record_result_by_id`]), so a rename between admission and result cannot lose or misdirect it.
     pub async fn record_result(
         &self,
         match_id: Uuid,
@@ -389,7 +411,23 @@ impl Store {
         result: &MatchResult,
         meta: &MatchMeta,
     ) -> Result<RecordOutcome> {
-        self.record_inner(match_id, callsign, fence, result, meta, false)
+        let Some(pid) = self.profile_id(callsign).await? else {
+            return Ok(RecordOutcome::NoLease);
+        };
+        self.record_inner(match_id, pid, fence, result, meta, false)
+            .await
+    }
+
+    /// [`Store::record_result`] by `profile_id`.
+    pub async fn record_result_by_id(
+        &self,
+        match_id: Uuid,
+        profile_id: i64,
+        fence: i64,
+        result: &MatchResult,
+        meta: &MatchMeta,
+    ) -> Result<RecordOutcome> {
+        self.record_inner(match_id, profile_id, fence, result, meta, false)
             .await
     }
 
@@ -404,29 +442,23 @@ impl Store {
         result: &MatchResult,
         meta: &MatchMeta,
     ) -> Result<RecordOutcome> {
-        self.record_inner(match_id, callsign, fence, result, meta, true)
+        let Some(pid) = self.profile_id(callsign).await? else {
+            return Ok(RecordOutcome::NoLease);
+        };
+        self.record_inner(match_id, pid, fence, result, meta, true)
             .await
     }
 
     async fn record_inner(
         &self,
         match_id: Uuid,
-        callsign: &str,
+        pid: i64,
         fence: i64,
         r: &MatchResult,
         meta: &MatchMeta,
         crash: bool,
     ) -> Result<RecordOutcome> {
         let mut tx = self.pool.begin().await?;
-        let Some(pid) = sqlx::query_scalar::<_, i64>(
-            "SELECT profile_id FROM profiles WHERE lower(callsign) = lower($1)",
-        )
-        .bind(callsign)
-        .fetch_optional(&mut *tx)
-        .await?
-        else {
-            return Ok(RecordOutcome::NoLease);
-        };
         // The lease row is the per-profile mutex: everything below runs serialized per callsign.
         let lease: Option<(Uuid, i64, bool)> = sqlx::query_as(
             "SELECT match_id, fence, released_at IS NOT NULL FROM session_leases WHERE profile_id = $1 FOR UPDATE",
@@ -506,7 +538,8 @@ impl Store {
         // find it (a concurrent one waits for that commit; nothing here waits on another player's row, so no cycle).
         sqlx::query(
             "INSERT INTO matches (match_id, owner, region, placement_id, build, content_hash, humans, bots)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (match_id) DO NOTHING",
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (match_id) DO UPDATE SET ended_at = greatest(matches.ended_at, now())",
         )
         .bind(match_id)
         .bind(&meta.owner)

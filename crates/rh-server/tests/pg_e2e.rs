@@ -122,10 +122,7 @@ async fn a_match_over_websockets_banks_results_once_in_postgres() {
     let lifecycle = Arc::new(Lifecycle::default());
     let director = Director::new(
         cfg,
-        Arc::new(Persistence::Postgres {
-            store: store.clone(),
-            owner: "test-host".into(),
-        }),
+        Arc::new(Persistence::postgres(store.clone(), "test-host".into())),
         Arc::new(Auth::Postgres(store.clone())),
         lifecycle.clone(),
     );
@@ -375,10 +372,7 @@ async fn an_mia_leave_is_banked_under_its_fence() {
     let lifecycle = Arc::new(Lifecycle::default());
     let director = Director::new(
         cfg,
-        Arc::new(Persistence::Postgres {
-            store: store.clone(),
-            owner: "test-host".into(),
-        }),
+        Arc::new(Persistence::postgres(store.clone(), "test-host".into())),
         Arc::new(Auth::Postgres(store.clone())),
         lifecycle.clone(),
     );

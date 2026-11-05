@@ -142,7 +142,7 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Sim, A::Error> {
         let mut tagged = false;
-        let mut content = None::<u64>;
+        let mut content = None::<Part<u64>>;
         let (mut statics, mut world) = (None::<Part<MatchStatic>>, None::<Part<World>>);
         while let Some(key) = map.next_key::<Key>()? {
             match key {
@@ -152,20 +152,35 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
                         return Err(self.refuse(CheckpointError::UnsupportedFormat { found }));
                     }
                     tagged = true;
-                    if let Some(why) = content.and_then(content_mismatch) {
-                        return Err(self.refuse(why));
+                    // A `content_hash` read before the tag was only held: judged now, the typed reason wins over whatever
+                    // the payload of another content's checkpoint fails on.
+                    if let Some(held) = content.take() {
+                        match held.typed() {
+                            Ok(c) => {
+                                if let Some(why) = content_mismatch(c) {
+                                    return Err(self.refuse(why));
+                                }
+                            }
+                            Err(e) => {
+                                return Err(self.refuse(CheckpointError::Malformed(format!(
+                                    "content_hash: {e}"
+                                ))))
+                            }
+                        }
                     }
                 }
                 Key::ContentHash => {
-                    let checkpoint: u64 = map.next_value()?;
-                    // Checked as soon as it is read when the tag is known good, so the typed reason wins over whatever
-                    // the payload of another content's checkpoint happens to fail on.
+                    // Checked as soon as it is read when the tag is known good (the real serialized order puts the tag
+                    // first), so the typed reason wins over whatever the payload of another content's checkpoint fails on.
+                    // Before the tag it is only held: another layout's `content_hash` need not even be a number.
                     if tagged {
+                        let checkpoint: u64 = map.next_value()?;
                         if let Some(why) = content_mismatch(checkpoint) {
                             return Err(self.refuse(why));
                         }
+                    } else {
+                        content = Some(Part::Held(map.next_value()?));
                     }
-                    content = Some(checkpoint);
                 }
                 // Informational: names the build that can verify this file; it is not compared (never verified across builds).
                 Key::Build => {
@@ -194,9 +209,6 @@ impl<'de> Visitor<'de> for CheckpointVisitor<'_> {
         }
         if !tagged {
             return Err(self.refuse(CheckpointError::MissingFormat));
-        }
-        if let Some(why) = content.and_then(content_mismatch) {
-            return Err(self.refuse(why));
         }
         let (Some(k), Some(w)) = (statics, world) else {
             return Err(self.refuse(CheckpointError::Malformed(

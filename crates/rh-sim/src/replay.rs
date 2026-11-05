@@ -11,8 +11,8 @@ use crate::sim::{Arena, Event, Placement, PlayerId, Secrets, Sim, SimConfig};
 /// held the hand-listed byte-wise FNV hashes, which no build can reproduce any more). [`run_replay`] refuses any other tag.
 pub const REPLAY_FORMAT: &str = "rh-replay/2";
 
-/// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (the release
-/// pipeline sets it to the commit id), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps
+/// Identity of the code this binary was built from: the `RH_BUILD` environment variable at compile time (a release build is meant to set
+/// it to the commit id; nothing in the repo does yet, so every dev build reads the same), else `dev-<crate version>`. It is a compile-time constant, so reading it keeps
 /// `rh-sim` pure. A replay or checkpoint is verified by the build that recorded it and never across builds: the state hash
 /// follows the serialized layout of the world, and `content_hash` does not cover system code, so only the recording commit
 /// can reproduce a stored file. Releases keep their commit buildable (rust-toolchain.toml and Cargo.lock pin the rest).

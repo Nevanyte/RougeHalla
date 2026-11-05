@@ -33,10 +33,7 @@ async fn durable(url: &str, args: &[String]) -> (Persistence, Auth) {
     let owner =
         arg(args, "--instance-id").unwrap_or_else(|| format!("rh-server-{}", std::process::id()));
     (
-        Persistence::Postgres {
-            store: store.clone(),
-            owner,
-        },
+        Persistence::postgres(store.clone(), owner),
         Auth::Postgres(store),
     )
 }

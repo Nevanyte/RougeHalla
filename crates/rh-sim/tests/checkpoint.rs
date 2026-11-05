@@ -297,6 +297,29 @@ fn a_checkpoint_names_its_content_and_build_and_refuses_other_content() {
         Some(expect)
     );
 
+    // The REAL serialized key order (format, content_hash, build, statics, world): other content with a world that does
+    // not parse is still refused as other content, not as malformed.
+    let mut text = serde_json::to_string(&a).unwrap().replace(
+        &format!("\"content_hash\":{content}"),
+        &format!("\"content_hash\":{}", content ^ 1),
+    );
+    let at = text.find("\"world\":").unwrap();
+    text.truncate(at);
+    text.push_str("\"world\":\"not a world\"}");
+    assert_eq!(
+        Sim::restore(&mut serde_json::Deserializer::from_str(&text)).err(),
+        Some(CheckpointError::ContentMismatch {
+            checkpoint: content ^ 1,
+            build: content
+        })
+    );
+    // Another layout's `content_hash` need not be a number: its tag decides, not the shape of this key.
+    let text = "{\"content_hash\":\"x\",\"format\":\"rh-checkpoint/1\"}";
+    assert!(matches!(
+        Sim::restore(&mut serde_json::Deserializer::from_str(text)).err(),
+        Some(CheckpointError::UnsupportedFormat { .. })
+    ));
+
     // A checkpoint written before the keys existed still restores (it cannot be compared).
     let mut old = good.clone();
     old.as_object_mut().unwrap().remove("content_hash");

@@ -61,9 +61,16 @@ fn verify(path: &str, ignore_content_hash: bool) {
     };
     match rh_sim::replay::run_replay(&r) {
         Ok((sim, _)) => println!(
-            "{{\"verified\":true,\"steps\":{},\"finalHash\":\"{:016x}\",\"contentHash\":\"{content}\",\"recordedBuild\":\"{recorded_build}\",\"build\":\"{build_id}\",\"matchId\":\"{match_id}\"}}",
-            r.hashes.len(),
-            sim.state_hash()
+            "{}",
+            serde_json::json!({
+                "verified": true,
+                "steps": r.hashes.len(),
+                "finalHash": format!("{:016x}", sim.state_hash()),
+                "contentHash": content,
+                "recordedBuild": recorded_build,
+                "build": build_id,
+                "matchId": match_id,
+            })
         ),
         Err(e) => {
             // `steps` is the work actually done: the steps replayed up to and including the diverging one.
@@ -73,8 +80,16 @@ fn verify(path: &str, ignore_content_hash: bool) {
                 | rh_sim::replay::ReplayError::Format { .. } => 0,
             };
             println!(
-                "{{\"verified\":false,\"steps\":{done},\"recordedSteps\":{},\"contentHash\":\"{content}\",\"recordedBuild\":\"{recorded_build}\",\"build\":\"{build_id}\",\"error\":\"{e:?}\"}}",
-                r.hashes.len()
+                "{}",
+                serde_json::json!({
+                    "verified": false,
+                    "steps": done,
+                    "recordedSteps": r.hashes.len(),
+                    "contentHash": content,
+                    "recordedBuild": recorded_build,
+                    "build": build_id,
+                    "error": format!("{e:?}"),
+                })
             );
             std::process::exit(1);
         }

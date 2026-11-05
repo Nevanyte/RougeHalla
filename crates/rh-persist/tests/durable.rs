@@ -73,10 +73,22 @@ async fn a_rename_changes_one_row_and_every_link_follows_the_profile_id() {
         "callsigns stay case-insensitively unique"
     );
 
-    // The lease taken under the old name is still this profile's: it banks, the earlier result is still applied.
+    // The lease taken under the old name is still this profile's: the live match banks with the id its admission got
+    // (it does not know the new name), and the earlier result is still applied.
+    assert!(db
+        .store
+        .renew_lease_by_id(lease.profile_id, lease.fence, TTL)
+        .await
+        .unwrap());
     let out = db
         .store
-        .record_result(m2, "newname", lease.fence, &run(5), &MatchMeta::unknown())
+        .record_result_by_id(
+            m2,
+            lease.profile_id,
+            lease.fence,
+            &run(5),
+            &MatchMeta::unknown(),
+        )
         .await
         .unwrap();
     assert!(matches!(out, RecordOutcome::Applied { .. }), "{out:?}");
@@ -124,7 +136,7 @@ async fn the_match_record_is_complete_versioned_and_shared_by_the_players_of_a_m
         place: 2,
         players: 8,
         win_bonus_withheld: true,
-        win_bonus_why: Some("Starters".into()),
+        win_bonus_why: Some("starters".into()),
     };
     for (name, r) in [("ann", &result), ("bob", &run(40))] {
         let l = db
@@ -190,7 +202,7 @@ async fn the_match_record_is_complete_versioned_and_shared_by_the_players_of_a_m
             "place": 2,
             "players": 8,
             "winBonusWithheld": true,
-            "winBonusWhy": "Starters",
+            "winBonusWhy": "starters",
         })
     );
 
@@ -270,5 +282,111 @@ async fn unknown_blob_keys_survive_a_write_back_and_missing_fields_decode() {
     assert_eq!(p.progress.best_run_kills, 0);
     assert!(p.cosmetics.owned.is_empty());
     db.bank("zed", 1).await; // and banking on it works
+    db.teardown().await;
+}
+
+/// The swap: two players hold leases in one match (both fence 1) and moderation renames them so one takes the other's old
+/// name. By-id calls still credit and release the right profiles; the callsign path would have crossed them.
+#[tokio::test]
+async fn a_rename_swap_mid_match_credits_and_releases_the_right_profiles() {
+    let Some(db) = setup().await else { return };
+    db.profile("alice").await;
+    db.profile("bob").await;
+    let m = Uuid::new_v4();
+    let la = db
+        .store
+        .acquire_lease("alice", m, "srv", TTL)
+        .await
+        .unwrap();
+    let lb = db.store.acquire_lease("bob", m, "srv", TTL).await.unwrap();
+    assert_eq!((la.fence, lb.fence), (1, 1));
+    for (id, name) in [
+        (la.profile_id, "tmp"),
+        (lb.profile_id, "alice"),
+        (la.profile_id, "alice2"),
+    ] {
+        sqlx::query("UPDATE profiles SET callsign = $2 WHERE profile_id = $1")
+            .bind(id)
+            .bind(name)
+            .execute(db.store.pool())
+            .await
+            .unwrap();
+    }
+    // "alice" now names bob's profile. Banking alice's run by id must credit alice's profile (now "alice2").
+    let out = db
+        .store
+        .record_result_by_id(m, la.profile_id, la.fence, &run(40), &MatchMeta::unknown())
+        .await
+        .unwrap();
+    assert!(matches!(out, RecordOutcome::Applied { .. }), "{out:?}");
+    assert_eq!(db.ledger_sum("alice2").await, 40);
+    assert_eq!(
+        db.ledger_sum("alice").await,
+        0,
+        "bob's profile is untouched"
+    );
+    // Bob's own result lands on bob's profile, and his lease is renewed by id.
+    assert!(db
+        .store
+        .renew_lease_by_id(lb.profile_id, lb.fence, TTL)
+        .await
+        .unwrap());
+    let out = db
+        .store
+        .record_result_by_id(m, lb.profile_id, lb.fence, &run(7), &MatchMeta::unknown())
+        .await
+        .unwrap();
+    assert!(matches!(out, RecordOutcome::Applied { .. }), "{out:?}");
+    assert_eq!(db.ledger_sum("alice").await, 7);
+    // A lease released by id frees the slot: a new admission for the profile gets the next fence at once.
+    let m2 = Uuid::new_v4();
+    let l2 = db
+        .store
+        .acquire_lease("alice2", m2, "srv", TTL)
+        .await
+        .unwrap();
+    assert_eq!(l2.fence, 2);
+    assert!(db
+        .store
+        .release_lease_by_id(l2.profile_id, l2.fence)
+        .await
+        .unwrap());
+    assert!(!db
+        .store
+        .release_lease_by_id(l2.profile_id, l2.fence)
+        .await
+        .unwrap());
+    assert!(reconcile(&db.store).await.unwrap().ok());
+    db.teardown().await;
+}
+
+/// `matches.ended_at` follows the latest result of the match, not the first.
+#[tokio::test]
+async fn the_match_end_time_advances_with_each_result() {
+    let Some(db) = setup().await else { return };
+    db.profile("ann").await;
+    db.profile("bob").await;
+    let m = Uuid::new_v4();
+    let mut seen = Vec::new();
+    for name in ["ann", "bob"] {
+        let l = db.store.acquire_lease(name, m, "srv", TTL).await.unwrap();
+        db.store
+            .record_result_by_id(m, l.profile_id, l.fence, &run(1), &MatchMeta::unknown())
+            .await
+            .unwrap();
+        let t: f64 = sqlx::query_scalar(
+            "SELECT extract(epoch FROM ended_at)::float8 FROM matches WHERE match_id = $1",
+        )
+        .bind(m)
+        .fetch_one(db.store.pool())
+        .await
+        .unwrap();
+        seen.push(t);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(
+        seen[1] > seen[0],
+        "ended_at must move to the later result: {seen:?}"
+    );
     db.teardown().await;
 }

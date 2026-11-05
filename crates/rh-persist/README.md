@@ -7,11 +7,12 @@ JSON file, one writer, mirrored to R2 as a last-writer-wins snapshot) so many ma
 
 `profiles` (`profile_id` identity PK; `callsign` a unique-by-`lower()` display name that may be renamed; `token_sha256`
 only; `gv >= 0`; JSON stats, cosmetics, achievements, progress) - `gv_by_month` - `gv_ledger` (append-only,
-trigger-enforced) - `matches` (one row per match: owner, region, placement, build, content hash, humans, bots, replay ref) -
+trigger-enforced) - `matches` (one row per match; `ended_at` is the time of the latest recorded result: owner, region, placement, build, content hash, humans, bots, replay ref) -
 `match_results` (PK `(match_id, profile_id)`: the idempotency key; `result` is the versioned full record) -
 `session_leases` (`profile_id` PK, owner, **fence**, expiry; rows are never deleted so a fence is never reused) -
 `purchases` (idempotency keys of the shop) - `schema_compat` (one row: `min_binary`). Every child table references
-`profile_id`; the API takes a callsign and resolves it once per call.
+`profile_id`. The callsign is resolved once, at admission (`acquire_lease` returns the id); a live match then records, renews and
+releases by id (`*_by_id`), so a rename mid-match is safe. The callsign forms resolve per call, for edge and admin callers.
 
 The initial migration was rewritten in place before any production database existed. After the first deployment, never
 edit an applied migration.
@@ -19,7 +20,7 @@ edit an applied migration.
 ## Durable data rules
 
 - **Ids are append only.** Faction, weapon, cosmetic and achievement id strings (and the `outcome` / `winBonusWhy`
-  spellings) are keys and values in stored JSON. Add, never rename or reuse; `rh-server/tests/durable_ids.rs` pins them.
+  spellings) are keys and values in stored JSON. Add, never rename or reuse; `rh-server/tests/durable_ids.rs` and `rh-persist/tests/ids.rs` pin them (both in the default test run).
 - **Blobs are tolerant.** `Stats`, `Progress` and `Cosmetics` have `#[serde(default)]` and a flattened `rest` map: a new field
   needs a default, and unknown keys survive a write-back by an older binary. Never change the meaning of an existing key.
 - **Expand/contract.** An additive migration (new table, new nullable or defaulted column) does not touch

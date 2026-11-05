@@ -72,7 +72,8 @@ CREATE TABLE session_leases (
 -- One row per match that banked a result, written (idempotently) by the first result transaction of the match.
 -- `placement_id` and `region` are the hosting adapter's (GameLift placement, location) and stay NULL until one reports them;
 -- `replay_ref` points at the stored replay once a replay store exists. `content_hash` is the rules identity as a signed
--- 64-bit reinterpretation of the unsigned hash.
+-- 64-bit reinterpretation of the unsigned hash. `ended_at` is the time of the LATEST recorded result of the match (each result
+-- transaction advances it); per-player times are match_results.applied_at.
 CREATE TABLE matches (
     match_id     uuid PRIMARY KEY,
     owner        text NOT NULL,

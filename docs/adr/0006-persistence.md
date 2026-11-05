@@ -14,7 +14,7 @@ whole-file snapshot, last writer wins). Many hosts writing results would lose up
 - Migration from the legacy file: `rh-persist-admin import-legacy --dry-run` then a real run in one transaction;
   `reconcile`; `export-legacy` for inspection. Rollback to the legacy server needs the ORIGINAL file (tokens are hashed).
 
-**Evidence.** 20 tests against a real local PostgreSQL 16 (duplicates, concurrent writers, stale fences, a connection
+**Evidence.** The persistence tests against a real local PostgreSQL 16 (duplicates, concurrent writers, stale fences, a connection
 killed mid-transaction, double-spend, import/reconcile): `crates/rh-persist/tests/`. Not yet tested: Aurora failover,
 connection-pool exhaustion under load, achievements (not ported).
 
@@ -27,11 +27,19 @@ old text, and only throwaway test databases did. From the first real deployment 
 
 - **Identity.** A profile is its surrogate `profile_id` (bigint identity). The callsign is a unique (`lower(callsign)`),
   renamable display attribute. Every child table (`gv_by_month`, `gv_ledger`, `session_leases`, `match_results`,
-  `purchases`) references `profile_id`, so a moderation rename, a legacy case-collision fix or an erasure touches one row and
-  never the append-only ledger. `Store` and the director still take a callsign at the edge and resolve it once per call.
+  `purchases`) references `profile_id`, so a moderation rename or a legacy case-collision fix touches one row and never the
+  append-only ledger. (Deleting a profile is blocked by the ledger and result foreign keys on purpose: a privacy erasure means
+  anonymising the profile row, and `match_results.result.killedBy` and replays keep the killer's callsign as a display snapshot.)
+  The callsign is resolved once, at admission: `Store::acquire_lease` returns the `profile_id`, the server keeps it with the
+  admission, and every later call (`record_result_by_id`, `renew_lease_by_id`, `release_lease_by_id`) goes by that id, so a
+  rename or a name swap while a player is in a live match neither loses the result nor strands the lease. The callsign forms
+  of those calls resolve the name per call and are for edge and admin callers only.
 - **Match record.** `match_results.result` holds the complete `RunResult` fields plus faction and weapon, camelCase, with a
   `"v":1` key. A small `matches` row (match id, owner, region, placement id, build, content hash, ended_at, humans, bots,
-  replay_ref) is inserted idempotently (`ON CONFLICT DO NOTHING`) in the result transaction. `region`, `placement_id` and
+  replay_ref) is inserted by the first result transaction of the match and found by the others (`ON CONFLICT` advances `ended_at` to the
+  latest result, so it is the time of the last recorded result, not of the first player's death; per-player times are
+  `match_results.applied_at`). `humans` is the number of lobby seats taken and `bots` the bots seated when the first result was
+  reported, both a snapshot. `region`, `placement_id` and
   `replay_ref` stay NULL until P-HOST-1 and the replay store (P-OPS-6) report them.
 - **Tolerant blobs and the compat floor.** `stats`, `progress` and `cosmetics` decode with defaults and keep unknown keys
   through a read-modify-write (a flattened catch-all), so an older binary never erases a newer binary's field during a rolling
@@ -41,10 +49,13 @@ old text, and only throwaway test databases did. From the first real deployment 
 - **Replays and checkpoints** name their build (`BUILD_ID`, the `RH_BUILD` environment variable at compile time) and the
   match; checkpoints also carry `content_hash` and `Sim::restore` refuses other content (`CheckpointError::ContentMismatch`).
   Policy: a replay or checkpoint is verified by the build that recorded it, never across builds; releases keep their commit
-  buildable. Format tags are unchanged: the new keys are additive and older files without them still verify (with a warning).
+  buildable. Format tags are unchanged: the new keys are additive and older files without them still verify (`rh-headless
+  --verify-replay` warns about a replay with no build; a checkpoint without the keys restores silently). `RH_BUILD` is not
+  yet set by any pipeline, so every dev build reads `dev-<crate version>`; the release pipeline must set it.
 - **Durable ids** (faction, weapon, cosmetic and achievement strings, outcome and win-bonus spellings) are append only;
-  `crates/rh-server/tests/durable_ids.rs` pins them.
+  `crates/rh-server/tests/durable_ids.rs` (faction and weapon strings) and
+  `crates/rh-persist/tests/ids.rs` (outcome spellings, win-counter lists) pin them; both run in the default `cargo test`.
 - **Topology.** There is exactly one global writable primary (for example Aurora Global Database with one writer region).
   Profiles are not region-homed, and leases and fences depend on that: per-region primaries would break fencing. A cross-region
-  result transaction holds the profile row lock for a few seconds at worst; collapsing it into fewer round trips is
+  result transaction holds the profile row lock for several round trips (an estimate, not measured; P-PERSIST-4 measures it); collapsing it into fewer round trips is
   P-PERSIST-4. P-HOST-1 passes the GameLift compute or instance id as `--instance-id` so lease owners are meaningful.

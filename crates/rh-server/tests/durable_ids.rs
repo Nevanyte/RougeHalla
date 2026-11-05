@@ -4,13 +4,11 @@
 //! (a rename needs a jsonb key-rewrite migration across every profile, coordinated with deployed binaries).
 //!
 //! Cosmetic and achievement ids join this table in the packet that ports them (P-PERSIST-2).
-#![cfg(feature = "postgres")]
-
-use rh_persist::{GOLD_FACTIONS, GOLD_WEAPONS};
-use rh_server::persist::pg::to_persist;
-use rh_sim::results::{GvBreakdown, WinBonusWhy};
-use rh_sim::sim::Outcome;
-use rh_sim::{FactionId, RunResult, WeaponId};
+//!
+//! The sim-side pin below needs no database or feature, so it runs in the default `cargo test --workspace`. The tests that
+//! need rh-persist (`--features postgres`) are gated individually; the persist-side spellings (the `Outcome` serde names and
+//! the store's win-counter id lists) are also pinned in `crates/rh-persist/tests/ids.rs`, which runs by default too.
+use rh_sim::{FactionId, WeaponId};
 
 /// The pinned spellings, in the order the sim lists them.
 const FACTIONS: [&str; 5] = ["fire", "sentenced", "plague", "frost", "holy"];
@@ -30,8 +28,10 @@ fn faction_and_weapon_id_strings_never_change_silently() {
     }
 }
 
+#[cfg(feature = "postgres")]
 #[test]
 fn the_stores_win_counter_lists_are_subsets_of_the_sims_ids() {
+    use rh_persist::{GOLD_FACTIONS, GOLD_WEAPONS};
     // `count_win` ignores an id it does not list, so a list that drifts from the sim silently stops counting.
     for id in GOLD_FACTIONS {
         assert!(FactionId::parse(id).is_some(), "{id} is not a faction");
@@ -52,8 +52,13 @@ fn the_stores_win_counter_lists_are_subsets_of_the_sims_ids() {
     }
 }
 
+#[cfg(feature = "postgres")]
 #[test]
 fn stored_result_spellings_are_pinned() {
+    use rh_server::persist::pg::to_persist;
+    use rh_sim::results::{GvBreakdown, WinBonusWhy};
+    use rh_sim::sim::Outcome;
+    use rh_sim::RunResult;
     let mut r = RunResult {
         outcome: Outcome::Won,
         profile: "p".into(),

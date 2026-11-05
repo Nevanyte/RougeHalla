@@ -206,12 +206,87 @@ async fn rh_persist_follows_the_lease_table() {
         for profile in profiles {
             store.create_profile(profile, "token").await.unwrap();
         }
-        let p = Persistence::Postgres {
-            store: store.clone(),
-            owner: "conformance".into(),
-        };
+        let p = Persistence::postgres(store.clone(), "conformance".into());
         run(&p, "postgres", name, &ops).await;
     }
+    drop(store);
+    let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)"))
+        .execute(admin.pool())
+        .await;
+}
+
+/// A profile renamed after its admission still banks and releases: the admission's `profile_id` is what the live match
+/// uses, not the callsign (which only the edge resolves). Another profile that takes the old name is not touched.
+#[cfg(feature = "postgres")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_rename_after_admission_banks_once_and_frees_the_lease() {
+    let Ok(url) = std::env::var("DATABASE_URL") else {
+        if std::env::var("RH_SKIP_PG_TESTS").as_deref() == Ok("1") {
+            eprintln!("SKIPPED: RH_SKIP_PG_TESTS=1");
+            return;
+        }
+        panic!("DATABASE_URL is not set (eval \"$(tools/pgtest/start.sh)\")");
+    };
+    let admin = rh_persist::Store::connect(&url).await.unwrap();
+    let db = format!("rh_lease_{}", uuid::Uuid::new_v4().simple());
+    sqlx::query(&format!("CREATE DATABASE {db}"))
+        .execute(admin.pool())
+        .await
+        .unwrap();
+    let db_url = match url.rfind('/') {
+        Some(i) => format!("{}/{db}", &url[..i]),
+        None => panic!("DATABASE_URL has no database name"),
+    };
+    let store = std::sync::Arc::new(rh_persist::Store::connect(&db_url).await.unwrap());
+    store.migrate().await.unwrap();
+    store.create_profile("Oldname", "t1").await.unwrap();
+    store.create_profile("Other", "t2").await.unwrap();
+    let p = Persistence::postgres(store.clone(), "rename".into());
+    let m = mid(9);
+    let fence = p.acquire("Oldname", m).await.unwrap();
+    let other = p.acquire("Other", m).await.unwrap();
+    assert_eq!((fence, other), (1, 1));
+    // Moderation swaps the two names while the match is live.
+    for (from, to) in [("Oldname", "tmp"), ("Other", "Oldname"), ("tmp", "Newname")] {
+        sqlx::query("UPDATE profiles SET callsign = $2 WHERE lower(callsign) = lower($1)")
+            .bind(from)
+            .bind(to)
+            .execute(store.pool())
+            .await
+            .unwrap();
+    }
+    // The room still reports under the admission name: the result lands on the profile admitted, exactly once.
+    let r = p
+        .record(m, "Oldname", fence, &result("Oldname"), Default::default())
+        .await;
+    assert_eq!(r, Ok(Recorded::Applied));
+    let r = p
+        .record(m, "Oldname", fence, &result("Oldname"), Default::default())
+        .await;
+    assert_eq!(r, Ok(Recorded::AlreadyApplied));
+    let count = |name: &'static str| {
+        let pool = store.pool().clone();
+        async move {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT count(*) FROM match_results mr JOIN profiles p USING (profile_id)
+                 WHERE lower(p.callsign) = $1",
+            )
+            .bind(name)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+        }
+    };
+    assert_eq!(
+        count("newname").await,
+        1,
+        "credited to the renamed profile, not the one that took its name"
+    );
+    assert_eq!(count("oldname").await, 0);
+    // The other player's lease is released by id too, and the slot is free at once.
+    assert_eq!(p.release("Other", other).await, Ok(true));
+    assert_eq!(p.acquire("Newname", mid(10)).await, Ok(2));
+    drop(p);
     drop(store);
     let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {db} WITH (FORCE)"))
         .execute(admin.pool())
