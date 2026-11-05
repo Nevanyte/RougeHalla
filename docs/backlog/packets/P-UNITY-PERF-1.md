@@ -15,8 +15,8 @@ packet is implemented yet.** It was written from the efficiency review so that s
   net8.0 Release exe and ran them under the .NET 8 RyuJIT (tiered, PGO), median of many passes after warm-up, on a shared
   4-vCPU container. Timings are wall clock and noisy (about 10%). Allocation bytes are exact
   (`GC.GetAllocatedBytesForCurrentThread`). This is **not** IL2CPP/WebAssembly: expect IL2CPP-wasm to be a few times slower per
-  op; the allocation figures carry over unchanged. Source: the review profile of revision `ae0c37b` (protocol v3; the library
-  code is identical at `056bb31`).
+  op; the allocation figures carry over unchanged. Sources: the review profile of revision `ae0c37b` (protocol v3; the library
+  code is identical at `056bb31`) and, for the F2 per-item Fx figures, the efficiency review's own harness (`eff-client-fx`) at `056bb31`.
 - **READ**: counted from the code (object, renderer and call counts). Exact for the code as written; says nothing about time.
 - **ESTIMATE**: an expectation, not a measurement. **No Unity Editor was available**, so no Unity-side cost (draw calls,
   frame time, Mesh memory, download size) was measured. Every Unity item below must be sized by the profile this packet asks
@@ -67,7 +67,7 @@ limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WE
   actors that is about 1020 GameObjects, 816 renderers and about 816 draw calls (272 at 68, 32 at 8) plus one for the map, and
   about 8 native transform calls per actor per frame (about 1600 per frame at 204) although snapshots arrive at 20 Hz. Every
   arrival costs 5 `new GameObject`, 9 `AddComponent`, 4 `new Mesh`, 12 `List`s and about 100 `Cos/Sin` calls.
-- **Leak (READ):** `ArenaView.Present` :71-72 calls `Destroy(gameObject)` on departure, but the `Mesh` objects built in `ToMesh`
+- **Leak (READ):** `ArenaView.Present` :83 calls `Destroy(gameObject)` on departure, but the `Mesh` objects built in `ToMesh`
   are native objects that are not destroyed with it: 4 meshes leak per departure. In the 204-fighter stream there are about 0.15
   departures per snapshot, about 3 per second, so about 12 meshes per second (about 43k per hour); nonzero at 8 actors too, since
   vision (900 u) makes actors enter and leave. **ESTIMATE:** about 1.3 KB of vertex data each plus Mesh and GL-buffer overhead,
@@ -109,7 +109,7 @@ limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WE
 - **Mechanism:** in `Session.OnReceived`, when `frame[0] == 0x85` and `FxReceived == null`, call a new allocation-free
   `ServerMsg.ValidateFx(frame, length)`: the same `Reader` walk as the `TFx` case (tick varint, the count check against
   `ushort.MaxValue`, tag 1/2 bodies, the trailing-bytes check, the same `DecodeException`) but building nothing; then return,
-  counting `DecodeErrors` exactly as today. When a view starts consuming Fx (swing and hit visuals, P-UI-7), decode into a
+  counting `DecodeErrors` and `Ignored` (an Fx frame before InMatch or Ended) exactly as today. When a view starts consuming Fx (swing and hit visuals, P-UI-7), decode into a
   Session-owned `FxBatch` (struct `WireFx[]` plus `Count`, reused like `SnapshotDelta.Changed`), valid only during the callback.
   `ServerMsg.Decode` stays for the vectors and the probe. Events frames are rare and may stay as they are.
 - **Expected:** the MEASURED cost removed (216 to 13,896 B per frame); **ESTIMATE:** the validating walk keeps about a third of
@@ -169,7 +169,7 @@ limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WE
 
 ## Behaviour to preserve
 - Wire bytes identical: `protocol/fixtures/v3.json` untouched; the Rust, C# and JS vector tests pass unchanged.
-- `Session` semantics: a malformed Fx frame still counts in `DecodeErrors` and sets the same `Error`; send order and the
+- `Session` semantics: `Ignored` is counted exactly as today; a malformed Fx frame still counts in `DecodeErrors` and sets the same `Error`; send order and the
   `InputSender` rate limits are unchanged; prediction scope (walk only; remote actors interpolated 70-150 ms in the past) and
   interpolation output are unchanged.
 - Visuals: same shapes, colours, heights and draw order; coplanar bodies of different actors already z-fight today (unchanged).
@@ -184,7 +184,7 @@ limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WE
    and after, shows no difference beyond the intended culling of off-screen actors.
 2. F2: a `GarbageTests` case drives a `Session` InMatch on a fake transport with 1,000 Fx frames of 8 and of 200 items and
    asserts 0 B from `GC.GetAllocatedBytesForCurrentThread` after warm-up; a `SessionTests` case feeds every `malformedServer` Fx
-   vector in `v3.json` and asserts `DecodeErrors` and `Error` are identical with and without a subscriber.
+   vector in `v3.json` and asserts `DecodeErrors`, `Ignored` and `Error` are identical with and without a subscriber.
 3. F4: a whole-`Session` `GarbageTests` case replays a recorded N=8 stream (Full then deltas, events, fx) for 2,000 frames while
    calling `Session.Update` with Aim and Move each frame and asserts 0 allocated bytes after warm-up (needs F2 and the
    `CopyActorsTo` follow-up); `EncodeInto` equals `Encode()` byte for byte on every client vector in `v3.json` and on random

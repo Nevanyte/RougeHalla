@@ -152,12 +152,11 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-NET-4 | Uplink pacing: aim gate, hold gate, stall watch, order bucket tuning | P-NET-1 | Coarse | client/src/net/uplinkPace.ts, tickPhase.ts |
 | P-NET-5 | Heartbeat/liveness parity (`beat`, 4500 ms timeout, close codes) | none | Coarse | server/src/rooms/RaidRoom.ts, shared/constants.ts |
 | P-NET-6 | Wire-build/content-hash stale-client UX (426 equivalent, reload prompt) | P-UNITY-1 | Coarse | server/src/guards/clientBuild.ts, client/src/ui/reloadPrompt.ts |
-
 | P-NET-7 | Protocol v4 idea: do not send unchanged snapshots (held marker + heartbeat). Needs an owner decision (byte/packet savings vs a protocol bump); evidence [below](#p-net-7-evidence-obs-3) | owner decision; P-NET-3 (governance of shared wire files) | Coarse (owner decision pending) | shared/messages.ts, schema.ts; crates/rh-protocol |
 
 #### P-NET-7 evidence (OBS-3)
 Source: the final efficiency review at `056bb31`; sim, server and wire numbers are deterministic counts or callgrind figures
-from the review profiles, the unchanged-snapshot rates come from a throwaway observation-statistics bin (not committed) that
+from the review profiles (the 4.2 us user plus 4.7 us kernel per frame and the 53% kernel share are timed measurements from connheap and strace, not deterministic counts), the unchanged-snapshot rates come from a throwaway observation-statistics bin (not committed) that
 ran the production `Publisher` over the wirebench match (seed1, 8 Brawler bots, 8 viewers) and the practice arena. The proposal
 is **not implemented**; the gain figures are **estimates**.
 - **Measured:** 41.8% of snapshots equal that viewer's previous one (self, actors, phase) on seed1 over 2,400 ticks (13.4% over
@@ -293,7 +292,7 @@ report of this backlog (license, map re-pin if hashes cannot match, hosting spen
 naming, `packages/` retirement, bot perception window, and the doc conflicts noted there).
 
 
-## Open owner decisions (recorded at the end of Stage 1; none resolved)
+## Open owner decisions (recorded at the end of Stage 1; none resolved; items 15-16 were added by the final efficiency review)
 1. License: none is declared (no LICENSE file; every package is `private`).
 2. Whether a re-pin is acceptable if the Rust map generator cannot reproduce the legacy pinned hashes (P-MAP-1).
 3. Spending authorization and a sandbox AWS account for the staging experiment; the 200 matches / 1,600 players scenario stays an assumption.
@@ -309,4 +308,4 @@ naming, `packages/` retirement, bot perception window, and the doc conflicts not
 13. Latency ceilings and the party rule (docs/hosting/LATENCY_PROBES.md).
 14. Tie outcomes reveal bits of the secret action order (inherited from legacy; CONTRACTS C-RNG): accept it, or break ties with a separate secret stream (a deliberate legacy behaviour change, needs new fixtures).
 15. Protocol v4 for unchanged snapshots (P-NET-7): byte/packet savings against a protocol bump and new client behaviour.
-16. Unity efficiency (P-UNITY-PERF-1) is deferred to the later Codex stage (decided); its Unity-side numbers need an Editor profile before any budget is set.
+16. Unity efficiency (P-UNITY-PERF-1) is deferred to the later Codex stage (the owner has already decided this, so it is recorded here, not open); its Unity-side numbers need an Editor profile before any budget is set.
