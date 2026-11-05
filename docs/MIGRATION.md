@@ -86,7 +86,7 @@ Astra/high. Runtime-only model overrides are explicit; no unsupported global set
 | P-PERSIST-2 ending metadata | Explicit join choice and selected raw slot after drop now reach the existing fenced writer. | Fifteen actual legacy room/store cases and 72 independent combinations agree; real-PG full counters, duplicate/rename/stale/rollback/old-v1, wire/privacy and replay/restore/digest checks pass. Defaults and posthumous winners preserve actual legacy semantics. See `parity/persistence/README.md`. |
 | P-UNITY-1 bootstrap | Exact Editor and packages, real compile, Web build and Chromium movement over HTTP/WS and HTTPS/WSS passed. The full client packet is still open. | Protocol-4 bootstrap is historical. Current protocol-5 build is 53,892,988 bytes; each smoke receives 54 snapshots (ticks 2->53), move sequence 0->16 and changed authoritative position, with no page/console errors. Four ReadPixels warnings per run; no performance guarantee. See `docs/evidence/stage2-unity-v5/`. |
 | Client authority correction | Removed unverified client walk/collision code; current local view follows accepted server positions. Requested same-tick Full recovery works without allowing ordinary duplicates to corrupt the delta base. | 214 C# tests and independent duplicate/stale/recovery reproductions passed; Unity library copies match. Local view clears on self absence; verified native mesh ownership fix retained. These later source changes still require a fresh Web build. |
-| Integrated native gate | Latest `cargo test --workspace --all-features --locked`: 703 passed, 0 failed, 1 intentionally ignored heap measurement, no filtered tests. Both workspace Clippy modes and formatting passed. | Existing gameplay fixture bytes unchanged. Parity: 97 compared/13 capture-only/300 paths, all MATCH. Spots/repair/tail independent reviews and canonical source oracles pass. Prior code checkpoint `568f58a1` passed Rust/C# CI `42096841501`; new placement checkpoint CI remains to be observed. |
+| Integrated native gate | Latest `cargo test --workspace --all-features --locked`: 905 passed, 0 failed, 2 ignored, no filtered tests. Both workspace Clippy modes and formatting passed. The ignored bridge E2E was then explicitly run and passed; the heap measurement remains manual. | Existing gameplay fixture bytes unchanged. Parity: 97 compared/13 capture-only/300 paths, all MATCH. Map checkpoint `fba510aa`, server integration `904ad78d` and load integration `cbdf82cf` passed Rust/C# CI `42104246778`, `42105176881` and `42106334019`. Final placement integration CI awaits the merge commit. |
 | Shared loot/inventory | P-NET-ITEMS-1 core/policy/headless implemented and independently reviewed. Policies and external observers discover, pick and swap using only public offers. Live integration remains **open**. | Observation 4, policy contract 3, checkpoint /5, replay /3. Privacy, exact targets/grace, async failure/deadline, budgeted misses and restore checked. 512 changed rows allocate zero after warm-up. See `docs/evidence/stage2-items/`. Socket State/resume, source setup bounds, wire costs and Unity item UI remain. |
 | Full game / cloud / release gates | Not achieved | Remaining backlog and Stage 2 prompt still apply in full; baseline checks do not imply full-game parity or release readiness |
 
@@ -185,11 +185,15 @@ See `docs/evidence/stage2-map-placement/`. Full orchestration, stage-six stylers
 and canonical pins remain open. No full generator or performance claim follows.
 Kimi PR24 (`3558f83a`) passed native Linux x86_64/aarch64 production, exact comparison and foreign replay verification
 in both directions (CI `42093826602`). Coordinator comparator25 and focused Rust12 tests pass. It is merged as
-`1d26fd61`; fresh native verification of that merge is running as `42101769249`. This is implemented-domain evidence,
-not full-game completion. Claude PR25–27 are under independent review and are not yet merged; confirmed adapter
-identity/kick/load/placement/operation-guard defects are being repaired before integration.
+`1d26fd61`; native verification of that merge passed all six jobs in `42101769249`. This is implemented-domain
+evidence, not full-game completion. Claude PR25 and26 are merged with reviewed account-identity, kick-retry and load
+harness fixes as `904ad78d` and `cbdf82cf`. PR27 is integrated with five placement/operation/policy/DNS repairs and
+the final905-test workspace gate; its merge-commit CI remains pending. The real local bridge E2E also passed when
+explicitly invoked. See `docs/evidence/stage2-external-integration/` for the exact scope and limitations.
+Result-spool recovery covers same-volume process restarts; host-volume loss and managed database failover remain open.
+Placement ownership is protected in process, but durable ledger/restart recovery and the production adapters remain open.
 Auxiliary factions, status/cards/abilities/mobs/bots and reliable item State/client integration remain open.
-Claude owns the reserved server/persistence/hosting work and Kimi the separate determinism sweep (backlog handoff packets).
+The first external handoffs are integrated. Follow the current backlog reservations before starting further parallel work.
 Unity visuals stay deferred; no full-game/pin/performance or cloud staging/production release is implied.
 All gameplay/core, Unity full-flow, browser-matrix/performance, AWS lifecycle/scaling, migration and release requirements
 from the Stage 2 prompt remain in scope. No cloud staging or production release is implied by these local gates.

@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Roguehalla placement edge (P-HOST-2/3): the GameLift game session queue that location-orders placements, an SNS topic for
+  placement events, empty Secrets Manager shells for the wildcard certificate and the practice-zone DNS token, and two managed
+  policies (placement service, certificate reader). PREPARED, NOT APPLIED: nothing here has been deployed. It does not create
+  fleets (hosting/infra/fleet/** owns them), roles, DNS records, or certificates. See docs/hosting/PLACEMENT.md and TLS_DNS.md.
+
+Parameters:
+  QueueName:
+    Type: String
+    Default: rh-placement-queue
+    AllowedPattern: "^[a-zA-Z0-9-]+$"
+    MaxLength: 128
+  Destination1FleetArn:
+    Type: String
+    Description: >-
+      First container fleet ARN, taken from describe-container-fleet FleetArn (do not construct it). A queue lives in one
+      Region; its destinations may be fleets homed in other Regions (single-location fleets in ca-central-1 and us-west-2, or one
+      multi-location fleet with remote locations: docs/hosting/GAMELIFT_VERIFIED.md section 9).
+  Destination2FleetArn:
+    Type: String
+    Default: ""
+  Destination3FleetArn:
+    Type: String
+    Default: ""
+  AllowedLocations:
+    Type: CommaDelimitedList
+    Default: us-west-2,ca-central-1,us-east-2
+    Description: FilterConfiguration. Placements may only land in these locations, whatever a request asks for.
+  DefaultLocationOrder:
+    Type: CommaDelimitedList
+    Default: us-west-2,ca-central-1,us-east-2
+    Description: Used only by placements that carry no PriorityConfigurationOverride (the placement service always sends one).
+  TimeoutSeconds:
+    Type: Number
+    Default: 45
+    MinValue: 10
+    MaxValue: 600
+    Description: >-
+      Queue-side placement timeout. Must exceed the placement service's per-attempt timeout (20 s default) so the service
+      cancels first and nothing fulfils after the player was told "no capacity".
+  SecretNamePrefix:
+    Type: String
+    Default: rh/edge
+    AllowedPattern: "^[a-zA-Z0-9/_+=.@-]+$"
+
+Conditions:
+  HasDestination2: !Not [!Equals [!Ref Destination2FleetArn, ""]]
+  HasDestination3: !Not [!Equals [!Ref Destination3FleetArn, ""]]
+
+Resources:
+  PlacementEvents:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${QueueName}-events"
+
+  PlacementEventsPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref PlacementEvents]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # GameLift publishes placement events as its service principal. The exact condition key GameLift sets is UNVERIFIED;
+          # aws:SourceAccount is the standard confused-deputy guard and is sufficient here.
+          - Sid: GameLiftPublish
+            Effect: Allow
+            Principal: { Service: gamelift.amazonaws.com }
+            Action: sns:Publish
+            Resource: !Ref PlacementEvents
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  Queue:
+    Type: AWS::GameLift::GameSessionQueue
+    Properties:
+      Name: !Ref QueueName
+      TimeoutInSeconds: !Ref TimeoutSeconds
+      Destinations:
+        - DestinationArn: !Ref Destination1FleetArn
+        - !If [HasDestination2, { DestinationArn: !Ref Destination2FleetArn }, !Ref "AWS::NoValue"]
+        - !If [HasDestination3, { DestinationArn: !Ref Destination3FleetArn }, !Ref "AWS::NoValue"]
+      FilterConfiguration:
+        AllowedLocations: !Ref AllowedLocations
+      # LOCATION first so that PriorityConfigurationOverride is accepted (it needs a queue that prioritises by location).
+      PriorityConfiguration:
+        PriorityOrder: [LOCATION, DESTINATION]
+        LocationOrder: !Ref DefaultLocationOrder
+      # No PlayerLatencyPolicies: the service orders locations itself and never sends PlayerLatencies (the API rejects
+      # PlayerLatencies together with PriorityConfigurationOverride, and averages latencies instead of taking the worst member).
+      NotificationTarget: !Ref PlacementEvents
+      CustomEventData: roguehalla-placement
+
+  WildcardCertSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${SecretNamePrefix}/wildcard-cert"
+      Description: "PEM bundle (fullchain + key) for the game wildcard certificate. Written by the issuer, read by the certificate-sync support container. Empty until issued."
+
+  DnsTokenSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${SecretNamePrefix}/dns-token"
+      Description: "Cloudflare API token (Zone DNS Edit on rougehalla.com only) for the placement service. Empty until provided by the owner."
+
+  PlacementServicePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Least privilege for the placement service (the only holder of GameLift placement credentials).
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: StartOnTheQueueOnly
+            Effect: Allow
+            Action: gamelift:StartGameSessionPlacement
+            Resource: !GetAtt Queue.Arn
+          # VERIFIED 2026-11-05: none of these three supports resource-level permissions. AWS's machine-readable Service
+          # Reference for the `gamelift` prefix (https://servicereference.us-east-1.amazonaws.com/v1/gamelift/gamelift.json,
+          # the data behind the Service Authorization Reference) lists no resource types for DescribeGameSessionPlacement,
+          # StopGameSessionPlacement or TerminateGameSession (only StartGameSessionPlacement has one: gameSessionQueue), and
+          # the only GameLift resource type besides the queue is `fleet`. So `Resource: "*"` is required. A global
+          # `aws:RequestedRegion` condition was considered and NOT added: whether calls for sessions in other fleet locations
+          # carry the home Region is UNVERIFIED, and a wrong guess would silently break orphan cleanup. They are read/cancel/cleanup and cannot create capacity. The one with real reach is
+          # TerminateGameSession: this principal can end ANY game session in the account's queue Region; the blast radius is
+          # accepted for the placement service only (it holds no other fleet authority) and is why this role must stay
+          # exclusive to that service.
+          - Sid: DescribeStopTerminate
+            Effect: Allow
+            Action:
+              - gamelift:DescribeGameSessionPlacement
+              - gamelift:StopGameSessionPlacement
+              - gamelift:TerminateGameSession
+            Resource: "*"
+          - Sid: CapacityMetrics
+            Effect: Allow
+            Action: cloudwatch:GetMetricData
+            Resource: "*"
+          - Sid: ReadDnsToken
+            Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Ref DnsTokenSecret
+
+  CertReaderPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: >-
+        Attach to the container FLEET role (hosting/infra/fleet). Lets only the certificate-sync support container read the one
+        wildcard-cert secret. Fleet-role credentials are injected into every container of the group (AWS docs), so this is the
+        entire AWS authority the match containers have.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # TRADE-OFF, stated plainly (docs/hosting/TLS_DNS.md section 4): the fleet role is injected into EVERY container of the
+          # group (AWS docs), including the internet-facing match container, so a compromised match process can read this
+          # secret and with it the wildcard PRIVATE KEY. The statement is already as tight as the platform allows: exactly one
+          # secret (no wildcard, no other action), TLS only. (A `secretsmanager:VersionStage` condition was considered and NOT added: whether
+          # a GetSecretValue that omits the stage carries the key is UNVERIFIED, and a wrong guess would lock the sync out.) What this cannot do is separate the
+          # sync container from the match container: GameLift gives container fleets one role per fleet. The alternatives that
+          # remove the key from game hosts (a TLS-terminating proxy layer, or a short-lived per-host certificate) are in
+          # TLS_DNS.md, "Alternative: no wildcard key on game hosts"; they are NOT implemented here.
+          - Sid: ReadWildcardCert
+            Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Ref WildcardCertSecret
+            Condition:
+              Bool:
+                aws:SecureTransport: "true"
+
+Outputs:
+  QueueArn:
+    Value: !GetAtt Queue.Arn
+  QueueName:
+    Value: !Ref QueueName
+  PlacementEventsTopicArn:
+    Value: !Ref PlacementEvents
+  PlacementServicePolicyArn:
+    Value: !Ref PlacementServicePolicy
+  CertReaderPolicyArn:
+    Value: !Ref CertReaderPolicy
+  WildcardCertSecretArn:
+    Value: !Ref WildcardCertSecret

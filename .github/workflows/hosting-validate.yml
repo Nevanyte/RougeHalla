@@ -1,0 +1,34 @@
+# Manual only. Validates the prepared hosting infrastructure and the fleet scripts with NO cloud access and NO secrets:
+# cfn-lint and parliament in a pinned image, the scaling-policy unit tests, and the teardown/verify/rollout script tests against a
+# stub `aws`. It never deploys anything (docs/hosting/DEPLOYMENT.md section 4).
+name: Hosting validate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Templates and IAM policy (cfn-lint 1.59.0, parliament 1.6.4 in python:3.12.8-slim)
+        run: hosting/infra/fleet/validate.sh
+      - name: Probe DNS scaling ownership and IAM regression checks
+        run: >-
+          node --test
+          hosting/placement/probe/probe.test.mjs
+          hosting/infra/edge/dns/dns.test.mjs
+          hosting/scripts/fleet-local/policy.test.mjs
+          hosting/scripts/ownership.test.mjs
+          hosting/infra/fleet/iam/policy.test.mjs
+      - name: Teardown, verify and rollout scripts against a stub aws
+        run: hosting/scripts/test-aws-scripts.sh
+      - name: Worst-case cost table still computes
+        run: node hosting/scripts/worst-case-cost.mjs

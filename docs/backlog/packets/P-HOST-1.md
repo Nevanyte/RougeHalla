@@ -31,7 +31,7 @@ C-HOST (Provisional: lifecycle, drain, control API, **no SDK in the Rust process
 - Health: `/control/health` is 200 only while Ready (not Draining); `/healthz` on the public listener is 200 while Ready or Draining (so a drain does not look like death to a load balancer): keep both semantics.
 - Drain: refuse new admissions with `ServerDraining`, let running matches finish, exit when the last room closes (`rooms_empty`). SIGTERM drains the same way. GameLift's `onProcessTerminate` calls drain.
 - GameLift lifecycle (GAMELIFT_EVALUATION 1.9): `InitSDK()` (no parameters on managed fleets) -> `ProcessReady({Port, OnStartGameSession, OnProcessTerminate, OnHealthCheck, OnUpdateGameSession})` once per process -> `OnStartGameSession(gs)` -> the game prepares -> `ActivateGameSession()` -> clients connect with a player-session id -> `AcceptPlayerSession(id)` on join, `RemovePlayerSession(id)` on leave past reconnect grace -> `ProcessEnding()` then exit after the match.
-- Several matches per process are allowed (`--max-rooms`); a game session maps to one room. The density decision is by measurement (staging step 10), not assumed.
+- Managed GameLift mode uses one game session/room per server process (`--max-rooms 1`). Host density uses multiple container groups, measured in staging. Standalone multi-room load measurements do not prove managed-fleet density.
 - Reconnect: the Rust protocol resumes by a 16-byte session token held `RECONNECT_GRACE` (10 s). GameLift's behaviour for re-accepting an ACTIVE player session is UNVERIFIED (evaluation 1.9): treat GameLift player sessions as admission only and keep our own token.
 
 ## Acceptance checks

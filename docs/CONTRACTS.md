@@ -71,7 +71,15 @@ foundation gate passed 395 all-feature/386 default-feature tests; its Rust/C#/br
   rename/reassignment, row-lock, cancellation and host-takeover probes passed. Defaults are 120/30/5 s with a one-hour TTL
   cap. Ending metadata now preserves explicit choice and the selected raw slot after body drop, with exact qualified
   counters and unchanged result-document v1. Defaults/death/MIA/posthumous cases, real-PG retry/rename/rollback and
-  old documents pass. Unwritten-result crash recovery and the full profile API remain open.
+  old documents pass. Claude PR25 adds same-volume result-spool process recovery and profile/account routes;
+  stable-ID authorization/read race regressions pass against real PostgreSQL. Host-volume loss and managed database
+  failover remain open; this local recovery evidence is not a host-loss guarantee.
+- C-HOST: the local real Go bridge/Rust server/WebSocket E2E passes, including retry after SDK refusal. One managed
+  game session uses one process; multiple container groups are the host-density unit. Placement has ownership-bound,
+  cancellation-safe local reconciliation with71 Rust checks, including16 cancellation-receipt identity controls. Its
+  bounded ledger is process-local; durable recovery, authenticated HTTP and real AWS/DNS adapters remain open.
+  Template/policy validation and operation guards pass locally; no Stage2 fleet deployment or public TLS proof exists.
+  See `evidence/stage2-external-integration/`.
 - Client authority: the straight-line predictor is removed; local coordinates come only from accepted server snapshots.
   Later C# suite: 214 passed, including duplicate/base poisoning and requested same-tick recovery. Native ownership cleanup
   is preserved; current-source Unity Web verification remains pending. Prediction needs Rust-vector parity before activation.

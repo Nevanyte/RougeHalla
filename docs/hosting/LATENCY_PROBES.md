@@ -1,5 +1,9 @@
 # Regional latency probes from the browser (specification)
 
+Status 2026-11-05: **implemented** in `hosting/placement/probe/probe.mjs` (tests: `probe.test.mjs`; local proof: `local-proof.mjs`) and consumed by
+`crates/rh-placement`; the party/capacity rules below are now specified and tested in [PLACEMENT.md](PLACEMENT.md), the probe origins and certificates in
+[TLS_DNS.md](TLS_DNS.md). Real-region probing and calibration are NOT RUN. Where this file and the code disagree, the code wins.
+
 Browsers cannot send UDP or ICMP, and GameLift's documented ping beacons are UDP
 ([GAMELIFT_EVALUATION.md](GAMELIFT_EVALUATION.md) 4.3). Probes therefore use HTTPS to OUR game processes, over the same
 path the game's WebSocket uses. Edge-cached responses (a CDN) measure the edge, not the origin, and are not valid probes.
@@ -22,9 +26,16 @@ always-on pool of game hosts in that Region (or a tiny probe service on the same
 - The queue receives every party member's medians (GameLift `PlayerLatencies` per player per Region; a Region a member
   could not reach counts as missing). Placement picks the lowest maximum latency under the ceiling with capacity; a
   manual override uses the queue's priority override (cannot be combined with latencies: [GAMELIFT_EVALUATION.md](GAMELIFT_EVALUATION.md) 4.2).
-- Ceilings and the party rule (max vs mean) are provisional defaults for the owner: max <= 120 ms preferred, 180 ms hard
-  warning.
+- Ceilings and the party rule are provisional defaults for the owner: worst member <= 120 ms preferred, 180 ms hard warning.
+  **Decided in code:** the party rule is the maximum, and GameLift's own latency ordering (an average) is not used: `PlayerLatencies`
+  cannot be combined with a priority override at all (PLACEMENT.md sections 2 and 3). The probe values go to our planner, not to the queue.
 
-## Validation (not run in Stage 1)
+## Implementation notes
+- A probe request is `fetch(<probe>/ping?n=<nonce>, {cache:"no-store", mode:"cors", credentials:"omit"})`, timed with `performance.now()` over the full body; a body other
+  than `pong` (a captive portal) is a failure. One warm-up, five timed samples 150 ms apart, median reported rounded **up** to whole ms; two failures drop the region (`null`).
+- The browser cannot tell an origin from an edge cache by itself (cross-origin response headers are hidden), so origin-ness is guaranteed by deployment (DNS-only records,
+  the game process's own certificate) and *verified by calibration*, never assumed (a probe far faster than the WSS ping-pong means a nearer cache answered).
+
+## Validation (not run against real regions)
 - Compare the probe's median with the in-game RTT (Ping/Pong in protocol v2, unchanged from v1) for the same client and Region: they should
   agree within a few ms after warm-up. Measure from western Canada (Calgary, Vancouver) to `ca-central-1` and `us-west-2`.

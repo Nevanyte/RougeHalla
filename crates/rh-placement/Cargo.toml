@@ -1,0 +1,24 @@
+[package]
+name = "rh-placement"
+description = "Capacity-aware, party-aware region placement for Roguehalla hosting: pure scoring, the GameLift placement request, hostnames, a fake backend. No AWS SDK, no game code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["time", "test-util", "macros", "rt"] }
+
+[[bin]]
+name = "rh-placement"
+path = "src/bin/rh-placement.rs"
+
+[lints]
+workspace = true

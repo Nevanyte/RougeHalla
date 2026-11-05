@@ -18,20 +18,19 @@ rows are `Pending("P-...")` entries there, named after the legacy rows, and [../
 
 ## How to pick up work
 
-**Parallel Claude handoff (owner request 2026-11-05).** The three technical adapter workstreams—durable recovery/accounts,
-AWS lifecycle/secure regional placement, and density/scaling/deployment validation—are reserved for a separate Claude
-branch under [P-CLAUDE-INFRA-1](packets/P-CLAUDE-INFRA-1.md). That packet defines file ownership, dependencies, budget and
-acceptance evidence. Codex retains Rust gameplay/map generation/parity/headless and Unity. Read the handoff before
-starting server adapter, persistence or hosting work; the original prompt's no-Claude assumption is superseded by the
-owner's new instruction. This reservation is not a completion claim for any listed backlog item.
+**First Claude handoff integrated (owner request 2026-11-05).** PR25–27 from
+[P-CLAUDE-INFRA-1](packets/P-CLAUDE-INFRA-1.md) are integrated with coordinator repairs; the broad reservation is closed.
+See [external integration evidence](../evidence/stage2-external-integration/README.md). Same-volume recovery, account
+routes, local lifecycle/load/placement tests and infrastructure preparation are implemented. Durable placement restart
+recovery, real cloud adapters/deployment and full-game capacity remain open. New work requires its own bounded packet.
 
 **Parallel Kimi handoff (owner request 2026-11-05).** [P-KIMI-VERIFY-1](packets/P-KIMI-VERIFY-1.md) reserves new
 headless determinism-sweep files, `tools/determinism/**` and `.github/workflows/determinism.yml` for a separate Kimi
 branch. **Integration update:** PR24 is merged as `1d26fd61`; the exclusive reservation is complete. Native Linux
 x86_64/aarch64 comparison and both replay directions passed at `3558f83a` (CI `42093826602`); the merged revision
 refresh is tracked in MIGRATION. Kimi implements bounded Rust verification and native architecture checks, with no gameplay/shared-library
-changes. Codex independently reviews results and retains shared status/contract/lockfile ownership. P-CI-2 remains open
-until native runs and exact comparison actually pass.
+changes. Codex independently reviews results and retains shared status/contract/lockfile ownership. Both native architectures, exact comparison and foreign replay directions also passed at merge `1d26fd61`
+(CI `42101769249`); this closes the implemented-domain P-CI-2 gate, not full-game determinism.
 
 **Dependency order (earliest first).** A packet may start once everything it depends on is merged; "Ready packet" items have a
 full spec in `packets/<ID>.md`, "Coarse" items need a packet written (copy the section list below) before they start.
@@ -145,7 +144,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 |---|---|---|---|---|
 | P-CAPTURE-1 | Generic event canonicalisation, scenario helpers, more scenarios, CI job re-capturing and diffing when `packages/` changes | none | Implemented and reviewed (Stage 2, `optimization_port`) | parity/legacy-capture/capture.ts |
 | P-CI-1 | Rust CI baseline: fmt, clippy `-D warnings`, `cargo test --workspace` with a Postgres service, parity report, headless smoke, browser proof, dotnet job | none | Done (commit 659c4cf, `.github/workflows/rust.yml`); extras are tracked in P-CAPTURE-1 (re-capture job), P-CI-2, P-UI-10, P-OSS-2 | .github/workflows/deploy.yml (legacy manual deploy; untouched) |
-| P-CI-2 | Reproducible aarch64 CI run of determinism/parity | P-CI-1 | Kimi PR24 implemented/reviewed and merged; native Linux x86_64/aarch64 + exact comparison + both replay directions passed at3558f83a (42093826602); merged-revision refresh running | none |
+| P-CI-2 | Reproducible aarch64 CI run of determinism/parity | P-CI-1 | Done for implemented domain: Kimi PR24 merged at `1d26fd61`; source CI `42093826602` and merge CI `42101769249` passed all six native/comparison/replay jobs | none |
 | P-HEAD-1 | Headless benches per mechanic (step cost, TTK, duel harness equivalents) as Rust benches, not Node | each mechanic packet | Coarse | server/bench/*, server/src/harness/ |
 | P-PARITY-2 | Full-map and mob scenarios (real generated map, camps) once their packets land | P-MAP-1, P-MOBS-1 | Coarse | parity/legacy-capture/capture.ts |
 
@@ -232,7 +231,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Ready packet (sandbox confirmed; CAD 20 total cap; bound the experiment before spending) | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
+| P-HOST-1 | Go SDK bridge sidecar + control API session endpoints + run `docs/hosting/STAGING_EXPERIMENT.md` when authorized | none (AWS gate) | Local bridge/control API implemented/reviewed; actual managed-fleet experiment remains open under CAD20 total cap | deployment/cloudflare/src/containerLifecycle.ts (legacy analogue) |
 | P-HOST-2 | TLS and DNS: wildcard cert, per-placement record, rustls serving | P-HOST-1 | Coarse | none |
 | P-HOST-3 | Region set, HTTPS latency endpoints, queue config, `PlayerLatencies` | P-HOST-1 | Coarse | scripts/latency-probe.mjs, network-probe.mjs |
 | P-HOST-4 | Autoscaling, scale-in protection, warm capacity, drain on deployment | P-HOST-1, P-LOAD-2 | Coarse | none |
@@ -243,7 +242,7 @@ is **not implemented**; the gain figures are **estimates**.
 
 | ID | Outcome | Depends on | Status | Legacy owners |
 |---|---|---|---|---|
-| P-LOAD-1 | Load client: many protocol-v1 sessions with scripted policies over WSS | P-CI-1 | Coarse | server/bench/netProbe*.ts, bandwidth.ts |
+| P-LOAD-1 | Load client: current protocol sessions with scripted policies over WSS | P-CI-1 | Implemented/reviewed in `rh-load`; full-game scenarios remain | server/bench/netProbe*.ts, bandwidth.ts |
 | P-LOAD-2 | Scenario runner at the **provisional** 200 matches / 1,600 players (an assumption, not authorization to spend) | P-LOAD-1, P-HOST-1 | Coarse | none |
 | P-LOAD-3 | Full-game tick cost and bandwidth budgets (avg < 5 ms / p99 < 15 ms tick and < 20 KB/s per client were the legacy gates); extend the existing `parity-bench` (Rust `step()` on captured inputs vs `parity/legacy-capture/bench.ts`) and `wirebench` (bytes per player per second) | mechanic packets | Coarse | server/bench/stepBench.ts, bandwidth.ts |
 
