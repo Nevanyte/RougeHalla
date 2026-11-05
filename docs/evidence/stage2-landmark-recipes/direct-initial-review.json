@@ -1,0 +1,103 @@
+{
+  "frozen_manifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/direct-independent-review/producer-frozen-manifest.json",
+  "frozen_snapshot_restored": {
+    "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/README.md": true,
+    "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/mod.rs": true,
+    "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/rime.rs": true,
+    "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/sanctum.rs": true,
+    "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/tests.rs": true,
+    "crates/rh-sim/src/mapgen/landmarks/recipes/direct_family/warren.rs": true,
+    "tools/map-fixtures/landmark-recipes-direct.ts": true,
+    "crates/rh-sim/src/mapgen/fixtures/landmark-recipes-direct.json": true
+  },
+  "extra_capture": {
+    "cases": [
+      [
+        2,
+        0,
+        "bbcb2bb4"
+      ],
+      [
+        3,
+        0,
+        "ec7f5f53"
+      ],
+      [
+        4,
+        0,
+        "8eeb7661"
+      ],
+      [
+        5,
+        0,
+        "29579f9d"
+      ],
+      [
+        42,
+        0,
+        "3c49275d"
+      ],
+      [
+        314159,
+        0,
+        "d78ee0c5"
+      ],
+      [
+        -17,
+        3,
+        "f7bbb6b9"
+      ],
+      [
+        9007199254740000,
+        2,
+        "ff1418fc"
+      ]
+    ],
+    "states": 581,
+    "zones": 40,
+    "nulls": 0,
+    "sha256": "4afd86e7052b72e951762e41522ccbf09d2cc92bde878143f115e5b41275455d",
+    "environment": [
+      "v22.23.4",
+      "linux",
+      "x64"
+    ],
+    "all_five_live_exit": 0
+  },
+  "frozen_mutants": [
+    {
+      "name": "frozen-extra-corpus",
+      "exit": 0
+    },
+    {
+      "name": "frozen-unknown-event",
+      "exit": 0
+    },
+    {
+      "name": "frozen-searchopen-corruption",
+      "exit": 0
+    },
+    {
+      "name": "frozen-rime-seventh-failure",
+      "exit": 101
+    },
+    {
+      "name": "frozen-rime-unshifted-edge",
+      "exit": 101
+    },
+    {
+      "name": "frozen-sanctum-failedfirst-eight",
+      "exit": 101
+    },
+    {
+      "name": "frozen-warren-strict-road-min",
+      "exit": 101
+    }
+  ],
+  "production_defects_found": 0,
+  "evidence_gaps": [
+    "Unknown event silently ignored",
+    "All 3600 actual Rime searchOpen records can be corrupted and still pass"
+  ],
+  "scope": "Read-only shared checkout. Own snapshot/output only. No full gate/Unity/cloud/ML/commit. Discarded cache patch exception preserved. Model runtime identity unattested."
+}

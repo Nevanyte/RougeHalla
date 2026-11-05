@@ -1,0 +1,54 @@
+{
+  "verdict": "accepted repair; both original evidence findings resolved",
+  "reviewed_manifest": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/direct-independent-review/producer-repaired-manifest.json",
+  "checks": [
+    {
+      "name": "repaired-baseline",
+      "exit": 0
+    },
+    {
+      "name": "repaired-negative-unknown",
+      "exit": 101
+    },
+    {
+      "name": "repaired-negative-all",
+      "exit": 101
+    },
+    {
+      "name": "repaired-negative-index",
+      "exit": 101
+    },
+    {
+      "name": "repaired-negative-value",
+      "exit": 101
+    },
+    {
+      "name": "repaired-negative-validstate",
+      "exit": 101
+    },
+    {
+      "name": "repaired-negative-missing",
+      "exit": 101
+    },
+    {
+      "name": "repaired-negative-order",
+      "exit": 101
+    }
+  ],
+  "extra_all_five_live": {
+    "exit": 0,
+    "cases": 8,
+    "zones": 40,
+    "states": 581,
+    "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/direct-independent-review/repaired-extra-all-five-live.log",
+    "adaptation": "Only scratch CASE_INVENTORY changed to the eight independently captured case tuples/counts; all strict validators retained, foreign callback replay replaced by actual Recipes apply."
+  },
+  "changed_files": [
+    "tests.rs",
+    "README.md"
+  ],
+  "production_tool_fixture_unchanged": true,
+  "source_hashes_verified": 39,
+  "snapshot_restored_to_repaired_manifest": true,
+  "new_findings": []
+}

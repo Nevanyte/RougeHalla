@@ -28,6 +28,11 @@ const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
 /// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
 /// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
+    ("mapgen/landmarks/recipes/direct_family/tests.rs", "TRACE", "cfg(test)-only observational transcript storage; not present in production and never drives recipe decisions"),
+    ("mapgen/landmarks/recipes/direct_family/tests.rs", "SOURCE_INVENTORY", "cfg(test)-only exact reference-source path/SHA inventory; validates evidence, never drives runtime rules"),
+    ("mapgen/landmarks/recipes/direct_family/tests.rs", "CASE_INVENTORY", "cfg(test)-only exact reference-case identity/state-count inventory; not runtime tuning"),
+    ("mapgen/landmarks/recipes/direct_family/tests.rs", "SYNTHETIC_INVENTORY", "cfg(test)-only labelled reference-helper identity/state-count inventory; not runtime tuning"),
+    ("mapgen/landmarks/recipes/search_family/tests.rs", "OBS", "cfg(test)-only observational transcript storage; not present in production and never drives recipe decisions"),
     ("mapgen/landmarks/recipe_support/mod.rs", "DEFAULT_DEFINITION", "all six shared helper tunables drive execution and are folded by content_hash_of_landmark_support_definition"),
     ("mapgen/landmarks/recipe_support/mod.rs", "DIR16", "fixed bearing encoding, not an independent tuning knob; every signed coordinate is folded by content_hash and source differential tests pin all directions"),
     ("mapgen/landmarks/search/mod.rs", "DEFAULT_DEFINITION", "both search tunables drive selection and are folded by content_hash_of_landmark_search_definition"),
@@ -359,7 +364,7 @@ fn hash_golden() {
         content_hash()
     );
 }
-const GOLDEN_CONTENT_HASH: u64 = 0xaa62_9bdb_1a32_0371;
+const GOLDEN_CONTENT_HASH: u64 = 0x1e07_74e8_e0ba_1649;
 
 #[test]
 fn every_registry_row_perturbs_the_hash() {

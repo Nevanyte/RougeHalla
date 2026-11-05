@@ -1,0 +1,61 @@
+{
+  "baseline": "438074d3cbe9c75f7a54fa397c8705a7d1f21a6a",
+  "scope": "Actual Scorch/Gallows stage4 recipes only; direct faction source placements replayed only in isolated leaf test; parent owns complete five-recipe admission and pins.",
+  "checks": {
+    "canonicalCapture": "Linux x64 Node22.23.4; complete output/hash equality 7/7; --check byte equal",
+    "isolatedLeafTests": "4 passed",
+    "isolatedClippy": "rh-sim --all-targets -- -D warnings passed",
+    "format": "rustfmt edition2021 owned Rust files",
+    "mutations": [
+      {
+        "name": "gallows-separation-equality",
+        "detected": true,
+        "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/gallows-separation-equality.log"
+      },
+      {
+        "name": "gallows-shared-cache",
+        "detected": true,
+        "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/gallows-shared-cache.log"
+      },
+      {
+        "name": "scorch-memo-persists",
+        "detected": true,
+        "log": "/Users/nevinmckinnon/.codex/tools/rougehalla-stage2/scorch-memo-persists.log"
+      }
+    ]
+  },
+  "corpus": {
+    "realCases": 7,
+    "zones": 35,
+    "targetZones": 14,
+    "targetSearches": 29,
+    "targetAttempts": 235,
+    "targetRefusals": 208,
+    "syntheticActualCallbacks": 2,
+    "strictSeparationEqualityScoredCandidates": 8,
+    "twoFarScoredCandidates": 140,
+    "actualNullResults": 0,
+    "sourceFiles": 19,
+    "fixtureBytes": 35890286
+  },
+  "scratchChanges": [
+    "git archive 438074d3 plus this leaf and fixture",
+    "pub mod search_family in recipes/mod.rs",
+    "coordinator-authorized cfg(test) read-only search diagnostics getter"
+  ],
+  "limitations": [
+    "No full Rust finished-map pin claim.",
+    "No actual null result found in required seven-case pool; no null-seed claim.",
+    "Synthetic first-refusal case proves second search continues and cache reused, with both searches refusing; no first-refusal/second-success map-seed claim.",
+    "Individual reservation/fit events captured; accepted template/runtime helper checks supply those narrow per-event comparisons."
+  ],
+  "files": {
+    "crates/rh-sim/src/mapgen/fixtures/landmark-recipes-search.json": "70927e2b4403f191e98534a4bef00ba1305cb6c4a266770918bbada05cb88bc6",
+    "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/README.md": "421eecbf225686a30c65362a7ba4dfb4450be82dd644b485bcbb952e7feae954",
+    "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/gallows.rs": "9e7a0ef5ce730887e5bfa84ff7a97c971df738ce3d5f1f3dbc974eab1dcd8b33",
+    "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/mod.rs": "9d61f05a46e67392c25f0152d45b0c08ffa98f104462a4a9f491a15cee4bdd20",
+    "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/scorch.rs": "38d4c284191a1ccf41eb09521e7287fcdb94eb78a5f96ff191a7dcfb59a05bb8",
+    "crates/rh-sim/src/mapgen/landmarks/recipes/search_family/tests.rs": "f73b8cf31643b14a7eaa8ae19997bb44332318e12dd07f5f10e90df6e2c3df8d",
+    "tools/map-fixtures/landmark-recipes-search.ts": "630848a76e68e2dd51dacdd13c016fd6db04049bf7498faaeacfb5ce7cc8fae2"
+  }
+}

@@ -1,6 +1,6 @@
 # Live landmark recipes
 
-This parent owns the common borrowed template representation and, after the recipe leaves are verified, their registry.
+This parent owns the common borrowed template representation and the verified five-faction registry.
 `TemplateDefinition` is live source data: ordered key, rows and jobs. `build()` allocates an owned template for one
 off-tick parse. `visit_content()` enumerates length-delimited UTF-16 key/rows and declaration-order job tags without
 allocation. Runtime selection must not use fixture data as rules.
@@ -17,6 +17,7 @@ enumerates its own live tuning and template content in fixed declaration order. 
 separately. The coordinator owns module declarations, registry selection, content folding and ordered stage admission.
 No recipe consumes the attempt RNG; all actual callbacks consume zero independent context RNG words as well.
 
-Completion requires actual-source captures and real recipe execution, including refused placements and transient
-guard/search effects. Source final-map equality checks validate observational taps; they do not prove finished Rust
-generator pins. Full stage admission, later stages, certification and pins remain separate until integrated and tested.
+Actual-source captures and real recipe execution include refused placements and transient guard/search effects.
+The parent stage test runs all five live callbacks with continuously shared state and exact source admission masks.
+Source final-map equality checks validate observational taps; they do not prove finished Rust generator pins.
+Later stages, finished generation, independent certification and pins remain required.

@@ -146,15 +146,26 @@ and Chromium WSS. The initial failure's exact historical cause remains unproven.
 Sentenced and shared landmark recipe support now pass the 634-test native workspace gate, formatting, both Clippy
 modes and parity (97 compared/13 capture-only/300 paths). Canonical inventory is 112 with the previous 90 unchanged.
 Independent gameplay, public/session and shared-helper reviews are accepted after their concrete findings were repaired.
-Current content is `aa629bdb1a320371`, checkpoint /14, replay /12, observation 11, policy 8 and wire 5; all 21 content tests
+That checkpoint's content is `aa629bdb1a320371`, checkpoint /14, replay /12, observation 11, policy 8 and wire 5; all 21 content tests
 pass. Code checkpoint `165f61b6` also passed full Rust CI `42078813203` and legacy recapture CI `42078813201`.
 Public marker identity and same-tick state corrections follow ADR 0014. Dense report limits remain explicit;
 private damage is never truncated for presentation. The one explicit source arena helper case remains reference-only.
 Shared helper tests now reject empty inventories and detect the previously surviving round/distance changes. A test-only
 serde_json dependency reuses the locked version; no package source, protocol, Unity, cloud or DNS change accompanies this
 checkpoint. See `docs/evidence/stage2-sentenced-support/`.
-Next are the five actual stage-4 landmark recipes and admission, then full map orchestration/certifier/pins. Auxiliary
-factions, status/cards/abilities/mobs/bots, reliable item State/client integration and P-PERSIST-2 remain open.
+The five actual stage-4 landmark recipes, registry and ordered admission now pass the final **649-test** native
+workspace/all-features/locked gate (0 failures/filtered, one intentional heap test ignored), formatting and both strict
+workspace Clippy configurations. Parity remains 97 compared/13 capture-only/300 paths, all matching; the 112 existing
+canonical gameplay fixture files are unchanged. All five live callbacks match across eight actual attempts/40 zones,
+including exact original protection, building order, masks, complete runtime state and RNG continuations. Independent
+additional corpora and semantic mutants pass; two concrete test-evidence gaps were repaired and independently rechecked.
+All 767 recipe-content perturbations pass. Current content is `1e0774e8e0ba1649`; checkpoint /14, replay /12,
+observation 11, policy 8 and wire 5 are unchanged. New source recapture checks are in Rust CI; the new checkpoint's CI
+remains pending until its pushed run completes. See ADR0015 and `docs/evidence/stage2-landmark-recipes/`.
+Next are remaining map stages/orchestration, independent certification and pins. Map record finalization, terrain
+validation and exact source map hashing are progressing in isolated parallel scopes, not yet integrated or accepted.
+Auxiliary factions, status/cards/abilities/mobs/bots and reliable item State/client integration remain open.
+Claude owns the reserved server/persistence/hosting work and Kimi the separate determinism sweep (backlog handoff packets).
 Unity visuals stay deferred; no full-game/pin/performance or cloud staging/production release is implied.
 All gameplay/core, Unity full-flow, browser-matrix/performance, AWS lifecycle/scaling, migration and release requirements
 from the Stage 2 prompt remain in scope. No cloud staging or production release is implied by these local gates.

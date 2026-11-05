@@ -1,4 +1,4 @@
-//! Pure generator stages/foundations (P-MAP-1 through M3b). Full generation and certification remain open.
+//! Pure generator stages/foundations, including the ordered landmark stage. Full generation and certification remain open.
 //! Inputs use row-major grids with exactly `w * h` cells and positive dimensions.
 pub mod attempt;
 pub mod bushes;
