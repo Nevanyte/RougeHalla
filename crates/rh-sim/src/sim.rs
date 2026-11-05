@@ -166,9 +166,6 @@ impl Sim {
     pub fn secrets_for_replay(&self) -> Secrets {
         self.k.secrets
     }
-    pub fn path_searches(&self) -> u64 {
-        self.pf.searches
-    }
 
     pub fn take_events(&mut self) -> Vec<Event> {
         std::mem::take(&mut self.w.pending_events)

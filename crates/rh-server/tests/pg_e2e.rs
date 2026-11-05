@@ -3,6 +3,11 @@
 //!   eval "$(tools/pgtest/start.sh)"; cargo test -p rh-server --features postgres --test pg_e2e
 #![cfg(feature = "postgres")]
 
+/// The lease-rules conformance table, so the Postgres half runs in CI's existing pg_e2e step (the memory half also runs
+/// as its own test target).
+#[path = "lease_conformance.rs"]
+mod lease_conformance;
+
 use futures_util::{SinkExt, StreamExt};
 use rh_protocol::{ClientMsg, ServerMsg, WireCommand, WireEvent, PROTOCOL_VERSION};
 use rh_server::director::{Director, DirectorConfig};

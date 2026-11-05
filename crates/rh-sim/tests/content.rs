@@ -8,25 +8,35 @@ use rh_sim::content::{
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// Every `const` / `static` in `crates/rh-sim/src` that is deliberately not a gameplay number, as (file, name, reason). The
-/// file is part of the key: a gameplay `const DX` or `const ALL` added in some other file is not exempted by its name.
-/// Adding to this list is a review decision: a number that can change an outcome belongs in the registry instead.
+/// Types that cannot carry a number, matched against the declared type with whitespace removed: a const or static of one
+/// of these needs no entry. Anything else, including every struct-typed const, is scanned and must be registered or listed
+/// in NON_GAMEPLAY. (type matcher, why it holds no number)
+const NUMBER_FREE_TYPES: &[(&str, bool, &str)] = &[
+    ("[Link;", true, "hook chain of the schedule (fn pointers and names), pinned by the schedule conformance test (C-TICK)"),
+    ("[Item<", true, "legacy tick/hook/action table of the schedule (names and fn pointers), pinned by the conformance test (C-TICK)"),
+    ("[ActionRow;", true, "action table of the schedule (names and fn pointers), pinned by the conformance test (C-TICK)"),
+    ("[HookRow;", true, "hook table of the schedule (names and chains), pinned by the conformance test (C-TICK)"),
+    ("[Hook;", true, "list of hook names (identifiers)"),
+    ("Plan", false, "compiled schedule plan, built from the tables above and pinned by the conformance test (C-TICK)"),
+    ("Gates", false, "gate set of a schedule plan (bools: which legacy modules the world has)"),
+    ("&str", false, "format tag or name (text)"),
+    ("&[&str]", false, "list of names (text)"),
+];
+
+/// Every other `const` / `static` in `crates/rh-sim/src` that is deliberately not a gameplay number, as (file, name, reason).
+/// The file is part of the key: a gameplay `const DX` or `const ALL` added in some other file is not exempted by its name.
+/// Each entry must match a declaration the scan finds and not be covered by NUMBER_FREE_TYPES. Adding to this list is a
+/// review decision: a number that can change an outcome belongs in the registry instead.
 const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("map.rs", "TILE_FLOOR", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_WALL", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("map.rs", "TILE_LOW", "tile class code of the map encoding; the rule is carried by the MASK_* registry rows"),
     ("observe.rs", "OBSERVATION_VERSION", "observation layout version (a format, versioned on its own), not a rule"),
-    ("replay.rs", "REPLAY_FORMAT", "replay file format string, not a rule"),
     ("hash.rs", "K", "mixing multiplier of the state hash (an observer, never read by the simulation)"),
-    ("hash.rs", "CHECK", "const generic of the hashing serializer: layout validation on or off, not a rule"),
     ("math.rs", "PI", "mathematical constant"),
     ("pathfind.rs", "SQRT2", "mathematical constant"),
-    ("pathfind.rs", "DX", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
-    ("pathfind.rs", "DY", "A* neighbour order table; structural to the algorithm and pinned by the pathfinding parity fixture (300 queries)"),
     ("checkpoint.rs", "COORD_MARGIN", "how far past the map edge a restored coordinate may be; a sanity bound on untrusted checkpoints, never read by the tick"),
-    ("checkpoint.rs", "CHECKPOINT_FORMAT", "checkpoint format tag (a data format, versioned on its own), not a rule"),
     ("scratch.rs", "NONE", "empty marker of the dense per-slot working lists; an index sentinel, not a rule"),
-    ("checkpoint.rs", "FIELDS", "serde field names of the checkpoint visitor; wire layout, not a rule"),
     ("map.rs", "STEP_DX", "A* neighbour offsets in the legacy expansion order; algorithm structure pinned by the pathfinding parity fixture (300 queries), not a tunable rule number"),
     ("map.rs", "STEP_DY", "A* neighbour offsets in the legacy expansion order; algorithm structure pinned by the pathfinding parity fixture (300 queries), not a tunable rule number"),
     ("pathfind.rs", "UNKNOWN", "memo cell state of the string-pull circle_clear cache; internal encoding, not a rule"),
@@ -34,42 +44,7 @@ const NON_GAMEPLAY: &[(&str, &str, &str)] = &[
     ("pathfind.rs", "BLOCKED", "memo cell state of the string-pull circle_clear cache; internal encoding, not a rule"),
     ("rng.rs", "LEGACY_12", "test vector captured from the legacy generator"),
     ("rng.rs", "LEGACY_0", "test vector captured from the legacy generator"),
-    ("schedule.rs", "PRODUCTION", "gate set of a compiled schedule plan (which legacy modules the world has); pinned by the schedule conformance test, not a tunable number"),
-    ("schedule.rs", "CAPTURE", "gate set of a compiled schedule plan (which legacy modules the world has); pinned by the schedule conformance test, not a tunable number"),
-    ("schedule.rs", "TRAINING", "gate set of a compiled schedule plan (which legacy modules the world has); pinned by the schedule conformance test, not a tunable number"),
-    ("schedule.rs", "ALL", "the full gate set (every legacy module present); pinned by the schedule conformance test, not a tunable number"),
     ("schedule.rs", "CAP", "bound of the test-only schedule trace buffer; not a rule"),
-    ("schedule.rs", "N", "const generic length of a compiled schedule list; not a rule"),
-    ("schedule.rs", "PRODUCTION_PLAN", "compiled schedule plan; tick order is pinned by the schedule conformance test (C-TICK), not a tunable number"),
-    ("schedule.rs", "CAPTURE_PLAN", "compiled schedule plan; tick order is pinned by the schedule conformance test (C-TICK), not a tunable number"),
-    ("schedule.rs", "TRAINING_PLAN", "compiled schedule plan; tick order is pinned by the schedule conformance test (C-TICK), not a tunable number"),
-    ("schedule.rs", "PHASES", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "AFTER_WEAPONS", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "BEFORE_DAMAGE", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "SYSTEMS", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "MOVE_MODIFIERS", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "MOD_SOURCES", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "ACTIONS", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
-    ("schedule.rs", "DROP_BODY", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "TELEPORTED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "ATTACK_STARTED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "WEAPON_SWAPPED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "HURT", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "PLAYER_KILLED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "EXECUTE_DENIED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "RAID_STARTED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "RUN_ENDED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "MOB_KILLED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "ARENA_HURT", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "FIGHTER_OUT", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "STATUS_APPLIED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "STAGGERED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "PLANNING_STARTED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "CAMP_CLEARED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "HIT_LANDED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "BLOCKED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "OVERKILLED", "hook name of the schedule's hook table (legacy WorldHooks key); an identifier, not a rule"),
-    ("schedule.rs", "HOOKS", "legacy tick/hook/action table in legacy order; pinned by the schedule conformance test (C-TICK), carries no gameplay number"),
 ];
 
 /// Rules that are tables rather than scalar rows: they are folded by `content_hash` directly (see content.rs). As
@@ -160,8 +135,16 @@ fn is_ident(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-/// Names declared as `const NAME` or `static NAME` (upper case identifiers; `const fn` and `$name` do not match).
-fn declared_consts(code: &str) -> Vec<String> {
+/// A scanned `const NAME: TYPE` / `static NAME: TYPE` declaration; `ty` has its whitespace removed.
+#[derive(Debug, PartialEq)]
+struct Decl {
+    name: String,
+    ty: String,
+}
+
+/// Declarations of `const NAME` or `static NAME` (upper case identifiers; `const fn`, `$name` and const generic parameters
+/// such as `<const N: usize>` do not match).
+fn declared_consts(code: &str) -> Vec<Decl> {
     let mut out = Vec::new();
     for kw in ["const ", "static "] {
         let mut from = 0;
@@ -170,6 +153,14 @@ fn declared_consts(code: &str) -> Vec<String> {
             from = at + kw.len();
             if code[..at].chars().next_back().is_some_and(is_ident) {
                 continue;
+            }
+            if code[..at]
+                .trim_end()
+                .chars()
+                .next_back()
+                .is_some_and(|c| c == '<' || c == ',')
+            {
+                continue; // a const generic parameter, not an item
             }
             let name: String = code[from..].chars().take_while(|c| is_ident(*c)).collect();
             if name
@@ -180,11 +171,34 @@ fn declared_consts(code: &str) -> Vec<String> {
                     .chars()
                     .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
             {
-                out.push(name);
+                let rest = code[from + name.len()..].trim_start();
+                let mut depth = 0i32;
+                let ty: String = rest
+                    .strip_prefix(':')
+                    .unwrap_or("")
+                    .chars()
+                    .take_while(|c| {
+                        match c {
+                            '[' | '<' | '(' => depth += 1,
+                            ']' | '>' | ')' => depth -= 1,
+                            _ => {}
+                        }
+                        !(depth == 0 && (*c == '=' || *c == ';'))
+                    })
+                    .filter(|c| !c.is_whitespace())
+                    .collect();
+                out.push(Decl { name, ty });
             }
         }
     }
     out
+}
+
+/// Does the declared type hold no number (see NUMBER_FREE_TYPES)?
+fn number_free(ty: &str) -> bool {
+    NUMBER_FREE_TYPES
+        .iter()
+        .any(|(m, prefix, _)| if *prefix { ty.starts_with(m) } else { ty == *m })
 }
 
 /// Does `code` mention `name` as a whole word?
@@ -354,16 +368,17 @@ fn stagger_rule_is_registered_data() {
 /// Is `name`, declared in `file`, a number the registry does not account for? constants.rs declares only through content!
 /// (REGISTRY itself is the macro's output); a hand-written const there would bypass the registry. Elsewhere a registered
 /// name may not be declared at all: a second declaration of a registered number is a second, unhashed copy. An unregistered name needs an entry keyed by (file, name) in NON_GAMEPLAY or the folded tables.
-fn is_stray(file: &str, name: &str, registered: &BTreeSet<&str>) -> bool {
+fn is_stray(file: &str, name: &str, ty: &str, registered: &BTreeSet<&str>) -> bool {
     if file == "constants.rs" {
         return name != "REGISTRY";
     }
     if registered.contains(name) {
         return true;
     }
-    !NON_GAMEPLAY
-        .iter()
-        .any(|(f, n, _)| *f == file && *n == name)
+    !number_free(ty)
+        && !NON_GAMEPLAY
+            .iter()
+            .any(|(f, n, _)| *f == file && *n == name)
         && !TABLES_FOLDED_BY_HASH
             .iter()
             .any(|(f, n, _)| *f == file && *n == name)
@@ -380,45 +395,101 @@ fn every_const_in_the_source_tree_is_registered_or_explained() {
         );
     }
     let mut stray = Vec::new();
+    let mut declared = BTreeSet::new();
     let mut found = 0;
     for (file, code) in sources() {
-        for name in declared_consts(&code) {
+        for d in declared_consts(&code) {
             found += 1;
-            if is_stray(&file, &name, &registered) {
-                stray.push(format!("{file}: {name}"));
+            if is_stray(&file, &d.name, &d.ty, &registered) {
+                stray.push(format!("{file}: {} ({})", d.name, d.ty));
+            }
+            if !number_free(&d.ty) {
+                declared.insert((file.clone(), d.name));
             }
         }
     }
     assert!(found > 0, "the scan found no consts at all");
     assert!(
         stray.is_empty(),
-        "consts that are neither in the content! registry nor in NON_GAMEPLAY (or registered names declared a second time): {stray:#?}\n\
+        "consts that are neither in the content! registry nor number-free nor in NON_GAMEPLAY (or registered names declared a second time): {stray:#?}\n\
          a gameplay number is one line in crates/rh-sim/src/constants.rs content!; anything else needs a reason in NON_GAMEPLAY"
     );
+    // Exemptions may not go stale (a rename or a move) or become redundant (the type is number-free).
+    for (f, n, _) in NON_GAMEPLAY.iter().chain(TABLES_FOLDED_BY_HASH) {
+        assert!(
+            declared.contains(&(f.to_string(), n.to_string())),
+            "exemption {f}: {n} matches no number-bearing declaration; remove it"
+        );
+    }
 }
 
 /// A registered number declared a second time (as a module split might do), or a gameplay `const ALL` / `DX` in a file that
-/// is not the listed one, is a stray whatever its value.
+/// is not the listed one, is a stray whatever its value. The type decides what needs no entry at all.
 #[test]
 fn a_second_declaration_of_a_registered_name_is_a_stray() {
     let registered = registry_names();
-    // The scan sees the declaration...
-    let code = "pub const PLAYER_RADIUS: f64 = 13.0;\nconst NOT_A_RULE_X: u8 = 1;";
-    assert_eq!(declared_consts(code), ["PLAYER_RADIUS", "NOT_A_RULE_X"]);
+    let d = |name: &str, ty: &str| Decl {
+        name: name.into(),
+        ty: ty.into(),
+    };
+    // The scan sees the declaration and its type...
+    let code = "pub const PLAYER_RADIUS: f64 = 13.0;\nconst NOT_A_RULE_X: u8 = 1;\n\
+                static H: [Link; 2] = [a, b];\nimpl<const N: usize, const M: bool> X {}\nstruct S<const CHECK: bool>;";
+    assert_eq!(
+        declared_consts(code),
+        [
+            d("PLAYER_RADIUS", "f64"),
+            d("NOT_A_RULE_X", "u8"),
+            d("H", "[Link;2]")
+        ]
+    );
     // ...and rejects it outside constants.rs, with the same value or another.
     assert!(registered.contains("PLAYER_RADIUS"));
-    assert!(is_stray("observe.rs", "PLAYER_RADIUS", &registered));
-    assert!(is_stray("sim/combat.rs", "PLAYER_RADIUS", &registered));
-    assert!(is_stray("constants.rs", "PLAYER_RADIUS", &registered));
+    assert!(is_stray("observe.rs", "PLAYER_RADIUS", "f64", &registered));
+    assert!(is_stray(
+        "sim/combat.rs",
+        "PLAYER_RADIUS",
+        "f64",
+        &registered
+    ));
+    assert!(is_stray(
+        "constants.rs",
+        "PLAYER_RADIUS",
+        "f64",
+        &registered
+    ));
     // No external site is left: the numbers that once lived in pathfind.rs and map.rs are used by registry name only.
-    assert!(is_stray("pathfind.rs", "SNAP_RADIUS", &registered));
-    assert!(is_stray("map.rs", "MASK_MELEE", &registered));
+    assert!(is_stray("pathfind.rs", "SNAP_RADIUS", "f64", &registered));
+    assert!(is_stray("map.rs", "MASK_MELEE", "u8", &registered));
     // Exemptions are per file.
-    assert!(!is_stray("pathfind.rs", "DX", &registered));
-    assert!(is_stray("sim/combat.rs", "DX", &registered));
-    assert!(is_stray("sim.rs", "ALL", &registered));
-    assert!(!is_stray("content.rs", "ALL", &registered));
-    assert!(is_stray("sim.rs", "NOT_A_RULE_X", &registered));
+    assert!(!is_stray("map.rs", "STEP_DX", "[i64;8]", &registered));
+    assert!(is_stray("sim/combat.rs", "STEP_DX", "[i64;8]", &registered));
+    assert!(is_stray("sim.rs", "ALL", "[u8;3]", &registered));
+    assert!(!is_stray("content.rs", "ALL", "[FactionId;5]", &registered));
+    assert!(is_stray("sim.rs", "NOT_A_RULE_X", "u8", &registered));
+    // Number-free types need no entry; a number-bearing struct or numeric table still does.
+    for ty in [
+        "[Link;4]",
+        "[Item<SystemFn>;24]",
+        "[ActionRow;13]",
+        "[HookRow;19]",
+        "[Hook;19]",
+        "Plan",
+        "Gates",
+        "&str",
+        "&[&str]",
+    ] {
+        assert!(
+            !is_stray("schedule.rs", "NEW_TABLE", ty, &registered),
+            "{ty}"
+        );
+    }
+    for ty in ["SomeStruct", "f64", "[f64;3]", "[u32;2]", "&[f64]", "PlanX"] {
+        assert!(
+            is_stray("schedule.rs", "NEW_TABLE", ty, &registered),
+            "{ty}"
+        );
+    }
 }
 
 /// The numbers that were inline literals or site-local consts when the registry was introduced are all used by their
