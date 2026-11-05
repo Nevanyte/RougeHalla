@@ -46,25 +46,44 @@ func main() {
 	flag.DurationVar(&cfg.PollInterval, "poll-interval", cfg.PollInterval, "GET /control/rooms cadence")
 	flag.DurationVar(&cfg.AdmitInterval, "admit-interval", cfg.AdmitInterval, "DescribePlayerSessions cadence")
 	flag.DurationVar(&cfg.DrainDeadline, "drain-deadline", cfg.DrainDeadline, "maximum wait for rooms during drain")
+	flag.DurationVar(&cfg.ServerExitGrace, "server-exit-grace", cfg.ServerExitGrace,
+		"after drain, how long to wait for rh-server to exit by itself (it needs up to 150 s to finish result writes) before ProcessEnding; capped by GameLift's termination time")
 	flag.DurationVar(&cfg.StartTimeout, "start-timeout", cfg.StartTimeout, "maximum wait for rh-server readiness")
 	flag.Parse()
 	extra := flag.Args() // everything after `--` goes to rh-server unchanged (e.g. --database-url)
 
-	ctl := NewControl("http://"+*controlAddr, os.Getenv("GLBRIDGE_CONTROL_TOKEN"))
+	token := os.Getenv("GLBRIDGE_CONTROL_TOKEN")
+	ctl := NewControl("http://"+*controlAddr, token)
 
 	var exit <-chan error
+	removeToken := func() {}
 	var proc *serverProc
 	if !*noServer {
+		tokenFile := ""
+		if token != "" {
+			var rm func()
+			var terr error
+			tokenFile, rm, terr = writeTokenFile(token)
+			if terr != nil {
+				log.Error("cannot write the control token file", "err", terr)
+				os.Exit(ExitFailed)
+			}
+			removeToken = rm
+		}
 		var err error
-		proc, err = startServer(*serverBin, serverArgs(cfg.GamePort, *controlAddr, *mapPath, *tlsCert, *tlsKey, extra))
+		proc, err = startServer(*serverBin, serverArgs(cfg.GamePort, *controlAddr, *mapPath, *tlsCert, *tlsKey, tokenFile, extra))
 		if err != nil {
 			log.Error("cannot start rh-server", "err", err)
+			removeToken()
 			os.Exit(ExitFailed)
 		}
 		exit = proc.exit
 	}
 
 	b := NewBridge(cfg, newSDK(), ctl, log, exit)
+	if proc != nil {
+		b.StopServer = proc.term
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	sig := make(chan os.Signal, 1)
@@ -75,6 +94,7 @@ func main() {
 	if proc != nil {
 		proc.stop(5 * time.Second)
 	}
+	removeToken()
 	log.Info("exit", "code", code)
 	os.Exit(code)
 }

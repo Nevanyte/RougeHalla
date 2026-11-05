@@ -56,6 +56,8 @@ type fakeSDK struct {
 	reserved      []PlayerSession
 	activateErr   error
 	acceptErr     map[string]error
+	acceptFail    map[string]int // psess -> number of transient failures before success
+	onAccept      func(id string)
 	removeFails   map[string]int // psess -> number of failures before success
 	termTime      time.Time
 	initErr       error
@@ -64,7 +66,7 @@ type fakeSDK struct {
 }
 
 func newFakeSDK(rec *recorder) *fakeSDK {
-	return &fakeSDK{rec: rec, acceptErr: map[string]error{}, removeFails: map[string]int{}}
+	return &fakeSDK{rec: rec, acceptErr: map[string]error{}, acceptFail: map[string]int{}, removeFails: map[string]int{}}
 }
 
 func (f *fakeSDK) InitSDK() error {
@@ -90,7 +92,17 @@ func (f *fakeSDK) ActivateGameSession() error {
 func (f *fakeSDK) AcceptPlayerSession(id string) error {
 	f.rec.add("Accept:%s", id)
 	f.mu.Lock()
+	hook := f.onAccept
+	f.mu.Unlock()
+	if hook != nil {
+		hook(id)
+	}
+	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.acceptFail[id] > 0 {
+		f.acceptFail[id]--
+		return errors.New("transient GameLift error (throttled)")
+	}
 	return f.acceptErr[id]
 }
 

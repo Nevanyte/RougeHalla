@@ -228,3 +228,19 @@ func (c *Control) End(ctx context.Context, gameSessionID, mode string) error {
 func (c *Control) Drain(ctx context.Context) error {
 	return c.call(ctx, http.MethodPost, "/control/drain", map[string]any{"v": controlVersion}, nil)
 }
+
+// ProbeUnauthenticated sends GET /control/health without the bearer token and returns the HTTP status. A server that enforces
+// --control-token-file answers 401.
+func (c *Control) ProbeUnauthenticated(ctx context.Context) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Base+"/control/health", nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	return resp.StatusCode, nil
+}

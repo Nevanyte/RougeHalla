@@ -45,6 +45,15 @@ func newHarness(t *testing.T, mut func(*Config, *fakeControl)) *harness {
 	c := NewControl(h.ctl.srv.URL, "")
 	c.Backoff = time.Millisecond
 	c.Retries = 4
+	// Like the real rh-server, the fake exits by itself once it is draining with every room closed.
+	h.ctl.onDrain = func(allClosed bool) {
+		if allClosed {
+			select {
+			case h.exit <- nil:
+			default:
+			}
+		}
+	}
 	h.bridge = NewBridge(cfg, h.sdk, c, slog.New(slog.NewTextHandler(io.Discard, nil)), h.exit)
 	return h
 }
@@ -442,7 +451,7 @@ func TestServerExitDuringDrainIsNotACrash(t *testing.T) {
 
 func TestRejectedPlayerSessionIsKicked(t *testing.T) {
 	h := newHarness(t, nil)
-	h.sdk.acceptErr["psess-bad"] = errTest("player session not valid")
+	h.sdk.acceptErr["psess-bad"] = &RejectedError{Err: errTest("player session not valid")}
 	h.run()
 	h.ready()
 	h.sdk.startSession(session())
@@ -521,4 +530,221 @@ func asAPI(err error, target **APIError) bool {
 		*target = ae
 	}
 	return ok
+}
+
+// seatedBridge returns a harness (not running) with a game session created in the fake control server and psess-1 seated.
+func seatedBridge(t *testing.T, mut func(*Config, *fakeControl)) (*harness, *sessionState) {
+	t.Helper()
+	h := newHarness(t, mut)
+	ctx := context.Background()
+	if _, err := h.bridge.ctl.CreateSession(ctx, gs, SessionProps{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.bridge.ctl.Admit(ctx, gs, "psess-1", "alice"); err != nil {
+		t.Fatal(err)
+	}
+	h.ctl.seat(gs, "psess-1")
+	st := &sessionState{gsID: gs, admitted: map[string]bool{}, accepted: map[string]bool{}, removed: map[string]bool{},
+		kicked: map[string]bool{}, acceptSince: map[string]time.Time{}}
+	return h, st
+}
+
+// B-M3: a transient AWS error is not a verdict. The player must not be kicked; the next poll retries and succeeds.
+func TestTransientAcceptErrorDoesNotKickAndIsRetried(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.SDKRetries = 0 })
+	h.sdk.acceptFail["psess-1"] = 3 // three whole polls fail, the fourth succeeds
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	h.sdk.reserve(PlayerSession{ID: "psess-1", PlayerID: "alice"})
+	waitFor(t, "admit", func() bool { return h.rec.index("ctl:admit:psess-1") >= 0 })
+	h.ctl.seat(gs, "psess-1")
+	waitFor(t, "4 Accept attempts", func() bool { return h.rec.count("Accept:psess-1") >= 4 })
+	h.ctl.setStatus(gs, "psess-1", "left", "grace_expired")
+	// Only an accepted seat is reported gone to GameLift: proves the retry succeeded.
+	waitFor(t, "Remove after the successful accept", func() bool { return h.rec.index("Remove:psess-1") >= 0 })
+	h.never("ctl:leave:kick")
+	h.ctl.closeRoom(gs, "completed")
+	h.wait(3 * time.Second)
+}
+
+// B-M3: retries are bounded: past the reservation window a player GameLift never validated is kicked.
+func TestTransientAcceptErrorIsBoundedByTheGiveUpWindow(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.SDKRetries = 0; c.AcceptGiveUp = 80 * time.Millisecond })
+	h.sdk.acceptErr["psess-1"] = errTest("throttled forever")
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	h.sdk.reserve(PlayerSession{ID: "psess-1", PlayerID: "alice"})
+	waitFor(t, "admit", func() bool { return h.rec.index("ctl:admit:psess-1") >= 0 })
+	h.ctl.seat(gs, "psess-1")
+	waitFor(t, "kick after the window", func() bool { return h.rec.index("ctl:leave:kick:psess-1") >= 0 })
+	if n := h.rec.count("Accept:psess-1"); n < 2 {
+		t.Fatalf("kicked after %d attempts: a transient error must be retried before the window ends", n)
+	}
+	h.ctl.closeRoom(gs, "completed")
+	h.wait(3 * time.Second)
+}
+
+// B-M3: cancellation (shutdown) during AcceptPlayerSession is not a rejection: nobody is kicked.
+func TestCancelledAcceptIsNotARejection(t *testing.T) {
+	h, st := seatedBridge(t, func(c *Config, _ *fakeControl) { c.SDKRetries = 0 })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h.sdk.onAccept = func(string) { cancel() }
+	h.sdk.acceptErr["psess-1"] = errTest("connection closed by shutdown")
+	h.bridge.reconcile(ctx, st)
+	if st.kicked["psess-1"] || st.accepted["psess-1"] {
+		t.Fatalf("kicked=%v accepted=%v after a cancelled accept", st.kicked["psess-1"], st.accepted["psess-1"])
+	}
+	h.never("ctl:leave:kick")
+}
+
+// B-M5: with a token configured, a server that does not enforce it is refused (fail closed); one that does is accepted.
+func TestControlTokenMustBeEnforcedByTheServer(t *testing.T) {
+	h := newHarness(t, nil)
+	h.ctl.token, h.ctl.ignoreToken = "s3cret", true
+	h.bridge.ctl.Token = "s3cret"
+	h.run()
+	if code := h.wait(3 * time.Second); code != ExitFailed {
+		t.Fatalf("exit %d, want failure for a server that ignores the token", code)
+	}
+	h.never("ProcessReady")
+
+	h2 := newHarness(t, nil)
+	h2.ctl.token = "s3cret"
+	h2.bridge.ctl.Token = "s3cret"
+	h2.run()
+	h2.ready() // enforced: the unauthenticated probe got 401
+	h2.sdk.terminate()
+	h2.wait(3 * time.Second)
+}
+
+// B-L6: a server that exits non-zero while draining is a failure, not a clean end.
+func TestServerFailureWhileDrainingIsReportedAsFailure(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.DrainDeadline = 5 * time.Second })
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	waitFor(t, "Activate", func() bool { return h.rec.index("Activate") >= 0 })
+	h.sdk.terminate()
+	waitFor(t, "drain", func() bool { return h.rec.index("ctl:drain") >= 0 })
+	h.exit <- errTest("exit status 101")
+	if code := h.wait(3 * time.Second); code != ExitFailed {
+		t.Fatalf("exit %d, want failure", code)
+	}
+	if h.rec.index("ProcessEnding") < 0 {
+		t.Fatal("ProcessEnding must still be reported")
+	}
+}
+
+// B-L6: the final report frees accepted seats from the last poll when the server is already gone.
+func TestFinalReportRemovesAcceptedGoneSeats(t *testing.T) {
+	h, st := seatedBridge(t, nil)
+	st.accepted["psess-1"] = true
+	st.lastPlayers = []RoomPlayer{{PlayerSessionID: "psess-1", Status: "left"}, {PlayerSessionID: "psess-2", Status: "left"}}
+	h.bridge.finalReport(st)
+	if h.rec.index("Remove:psess-1") < 0 || h.rec.index("Remove:psess-2") >= 0 {
+		t.Fatalf("want only the accepted seat removed: %v", h.rec.snapshot())
+	}
+}
+
+// B-L9: a hung control call must not delay terminate: the drain request goes out while /control/rooms is still hanging.
+func TestTerminatePreemptsAHungPoll(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.PollBudget = 30 * time.Second; c.DrainDeadline = 5 * time.Second })
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	waitFor(t, "Activate", func() bool { return h.rec.index("Activate") >= 0 })
+	hang := make(chan struct{})
+	h.ctl.mu.Lock()
+	h.ctl.hangRooms = hang
+	h.ctl.mu.Unlock()
+	defer func() {
+		select {
+		case <-hang:
+		default:
+			close(hang)
+		}
+	}()
+	waitFor(t, "a poll to hang", func() bool { return h.ctl.hitCount("/control/rooms") > 0 })
+	start := time.Now()
+	h.sdk.terminate()
+	waitFor(t, "drain while rooms hangs", func() bool { return h.rec.index("ctl:drain") >= 0 })
+	if d := time.Since(start); d > 1500*time.Millisecond {
+		t.Fatalf("drain took %s after terminate", d)
+	}
+	close(hang)
+	h.ctl.closeRoom(gs, "completed")
+	h.wait(3 * time.Second)
+}
+
+// Data loss path: ProcessEnding only after rh-server exited. This fake server needs 6 s to exit (longer than the old 5 s
+// kill), and the bridge must wait for it.
+func TestProcessEndingWaitsForASlowServerExit(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.ServerExitGrace = 20 * time.Second })
+	h.ctl.onDrain = func(allClosed bool) {
+		if allClosed {
+			time.AfterFunc(6*time.Second, func() { h.rec.add("server:exit"); h.exit <- nil })
+		}
+	}
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	waitFor(t, "Activate", func() bool { return h.rec.index("Activate") >= 0 })
+	start := time.Now()
+	h.ctl.closeRoom(gs, "completed")
+	if code := h.wait(15 * time.Second); code != ExitOK {
+		t.Fatalf("exit %d, want ok", code)
+	}
+	if d := time.Since(start); d < 6*time.Second {
+		t.Fatalf("ended after %s, before the server exited", d)
+	}
+	h.before("server:exit", "ProcessEnding")
+}
+
+// A server that never exits is cut at the grace: loud, non-zero, ProcessEnding still reported.
+func TestForcedEndWhenServerDoesNotExit(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.ServerExitGrace = 150 * time.Millisecond })
+	h.ctl.onDrain = nil // the server never exits
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	waitFor(t, "Activate", func() bool { return h.rec.index("Activate") >= 0 })
+	h.ctl.closeRoom(gs, "completed")
+	if code := h.wait(3 * time.Second); code != ExitFailed {
+		t.Fatalf("exit %d, want failure for a forced end", code)
+	}
+	if h.rec.index("ProcessEnding") < 0 {
+		t.Fatal("ProcessEnding must be called once the grace forces it")
+	}
+}
+
+// The wait is capped below GameLift's termination time even when the configured grace is much longer.
+func TestServerExitGraceIsCappedByTerminationTime(t *testing.T) {
+	h := newHarness(t, func(c *Config, _ *fakeControl) { c.ServerExitGrace = time.Hour })
+	h.sdk.termTime = time.Now().Add(400 * time.Millisecond)
+	h.ctl.onDrain = nil
+	h.run()
+	h.ready()
+	h.sdk.startSession(session())
+	waitFor(t, "Activate", func() bool { return h.rec.index("Activate") >= 0 })
+	h.ctl.closeRoom(gs, "completed")
+	if code := h.wait(3 * time.Second); code != ExitFailed {
+		t.Fatalf("exit %d, want failure", code)
+	}
+}
+
+// When drain cannot be sent the server will not exit by itself: the bridge asks it to stop and still waits for the exit.
+func TestFailedDrainAsksTheServerToStopThenWaitsForItsExit(t *testing.T) {
+	h := newHarness(t, nil)
+	h.ctl.failBefore["/control/drain"] = 1000
+	h.bridge.StopServer = func() { h.rec.add("stopServer"); h.exit <- nil }
+	h.run()
+	h.ready()
+	h.sdk.terminate()
+	if code := h.wait(3 * time.Second); code != ExitOK {
+		t.Fatalf("exit %d", code)
+	}
+	h.before("stopServer", "ProcessEnding")
 }

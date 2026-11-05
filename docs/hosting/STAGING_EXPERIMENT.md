@@ -66,8 +66,8 @@ CGDs and ECR images are Region resources; create the CGD in the fleet's home Reg
 ```bash
 aws ecr create-repository --repository-name rh-match --region $HOME_REGION
 aws ecr get-login-password --region $HOME_REGION | docker login --username AWS --password-stdin $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com
-docker buildx build --platform linux/arm64 -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-match:s1-arm64 --push .
-docker buildx build --platform linux/amd64 -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-match:s1-amd64 --push .
+docker buildx build --platform linux/arm64 -f hosting/Dockerfile --build-arg RH_BUILD=$(git rev-parse --short=12 HEAD) -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-match:s1-arm64 --push .
+docker buildx build --platform linux/amd64 -f hosting/Dockerfile --build-arg RH_BUILD=$(git rev-parse --short=12 HEAD) -t $ACCT.dkr.ecr.$HOME_REGION.amazonaws.com/rh-match:s1-amd64 --push .
 ```
 Expect: images visible; each single-architecture.
 

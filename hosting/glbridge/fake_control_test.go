@@ -28,6 +28,21 @@ type fakeControl struct {
 	dropAfter   map[string]int    // path -> times to apply, then kill the connection (the client sees a transport error)
 	hits        map[string]int
 	healthState string
+	token       string        // when set (and !ignoreToken) every request needs `Authorization: Bearer <token>`
+	ignoreToken bool          // simulate a server that was not started with --control-token-file
+	hangRooms   chan struct{} // when non-nil, GET /control/rooms blocks until it is closed (or the client gives up)
+	onDrain     func(allClosed bool)
+}
+
+func (f *fakeControl) unauthorized(w http.ResponseWriter, r *http.Request) bool {
+	f.mu.Lock()
+	tok, ignore := f.token, f.ignoreToken
+	f.mu.Unlock()
+	if tok == "" || ignore || r.Header.Get("Authorization") == "Bearer "+tok {
+		return false
+	}
+	errJSON(w, 401, "unauthorized")
+	return true
 }
 
 type fPlayer struct {
@@ -73,6 +88,9 @@ func errJSON(w http.ResponseWriter, status int, code string) {
 // wrap injects the transport faults used by the retry tests, around the real handler.
 func (f *fakeControl) wrap(h func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if f.unauthorized(w, r) {
+			return
+		}
 		f.mu.Lock()
 		f.hits[r.URL.Path]++
 		if f.failBefore[r.URL.Path] > 0 {
@@ -101,6 +119,9 @@ func (f *fakeControl) wrap(h func(http.ResponseWriter, *http.Request)) http.Hand
 }
 
 func (f *fakeControl) health(w http.ResponseWriter, r *http.Request) {
+	if f.unauthorized(w, r) {
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.hits["/control/health"]++
@@ -278,6 +299,16 @@ func (f *fakeControl) expire(rm *fRoom) {
 
 func (f *fakeControl) roomsH(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
+	hang := f.hangRooms
+	f.mu.Unlock()
+	if hang != nil {
+		select {
+		case <-hang:
+		case <-r.Context().Done():
+			return
+		}
+	}
+	f.mu.Lock()
 	defer f.mu.Unlock()
 	rooms := []map[string]any{}
 	for _, id := range f.order {
@@ -378,6 +409,15 @@ func (f *fakeControl) drain(w http.ResponseWriter, r *http.Request) {
 		f.rec.add("ctl:drain")
 	}
 	f.draining = true
+	if f.onDrain != nil {
+		allClosed := true
+		for _, rm := range f.rooms {
+			if rm.phase != "closed" {
+				allClosed = false
+			}
+		}
+		f.onDrain(allClosed)
+	}
 	writeJSON(w, 200, map[string]any{"v": 1, "state": "draining"})
 }
 

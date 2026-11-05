@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // The bridge talks to GameLift only through this interface. main uses sdk_real.go (the official Go server SDK); tests use a
 // fake. Nothing else in the bridge imports a GameLift type, which keeps the AWS surface to one adapter file.
@@ -40,4 +43,20 @@ type SDK interface {
 	TerminationTime() (time.Time, error)
 	ProcessEnding() error
 	Destroy() error
+}
+
+// RejectedError marks an SDK failure that is a definitive GameLift verdict on one player session (invalid, expired, unknown or
+// belonging to another fleet), as opposed to a transient failure (throttling, a websocket or service error, a timeout). Only
+// a RejectedError may get a player kicked: kicking on a transient error would evict a legitimate player for a GameLift blip.
+type RejectedError struct{ Err error }
+
+func (e *RejectedError) Error() string {
+	return "player session rejected by GameLift: " + e.Err.Error()
+}
+func (e *RejectedError) Unwrap() error { return e.Err }
+
+// IsRejected reports whether err is a definitive GameLift rejection of a player session.
+func IsRejected(err error) bool {
+	var r *RejectedError
+	return errors.As(err, &r)
 }

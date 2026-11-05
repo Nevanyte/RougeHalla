@@ -19,7 +19,11 @@ COPY crates crates
 # The image pins the toolchain (1.97.0, same as rust-toolchain.toml); skipping the file avoids a rustup component fetch.
 # `postgres` links rh-persist (durable results). Pass --build-arg RH_FEATURES= for a database-free build.
 ARG RH_FEATURES=postgres
-RUN cargo build --release --locked -p rh-server --features "${RH_FEATURES}" \
+# RH_BUILD names the build (rh_sim::replay::BUILD_ID, stamped into every replay): required, e.g. the git commit
+# (--build-arg RH_BUILD=$(git rev-parse --short=12 HEAD)). An empty value fails the build, so no image is anonymous.
+ARG RH_BUILD
+RUN test -n "${RH_BUILD}" || { echo "error: --build-arg RH_BUILD=<build id> is required and must not be empty" >&2; exit 1; }
+RUN RH_BUILD="${RH_BUILD}" cargo build --release --locked -p rh-server --features "${RH_FEATURES}" \
     && strip target/release/rh-server \
     && cp target/release/rh-server /rh-server
 
