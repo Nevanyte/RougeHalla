@@ -302,6 +302,11 @@ async fn recovery_commits_once_with_the_original_fence_and_metadata() {
     assert_eq!(fence, lease.fence, "original fence");
     let p = db.store.get_profile("alpha").await.unwrap().unwrap();
     assert_eq!(p.gv, 40);
+    // The counters are bumped just after the record is removed (commit, remove, count); wait for that, then check exactly.
+    wait_until("recovery counted", 5, || async {
+        info(&d, "recovered") >= 1
+    })
+    .await;
     assert_eq!(info(&d, "recovered"), 1);
     assert_eq!(info(&d, "committed"), 1);
     assert_eq!(info(&d, "spoolPending"), 0);
@@ -650,6 +655,11 @@ async fn a_result_is_spooled_before_it_is_committed_and_removed_only_after() {
         files(&dir, ".rec").len() == 2
     })
     .await;
+    // The record file is renamed into place just before "spooled" is counted; wait for the count, then check exactly.
+    wait_until("both spooled counted", 5, || async {
+        info(&d, "spooled") >= 2
+    })
+    .await;
     assert_eq!(info(&d, "spooled"), 2);
     assert_eq!(info(&d, "committed"), 0);
     assert_eq!(
@@ -682,6 +692,11 @@ async fn a_result_is_spooled_before_it_is_committed_and_removed_only_after() {
         2,
         "removed after, never before, the commit"
     );
+    // Counters follow the removal (commit, remove, count); wait for them, then check exactly.
+    wait_until("commits counted", 5, || async {
+        info(&d, "committed") >= 2
+    })
+    .await;
     assert_eq!(info(&d, "committed"), 2);
     assert_eq!(info(&d, "spoolPending"), 0);
     assert!(files(&dir.join("dead"), ".rec").is_empty());

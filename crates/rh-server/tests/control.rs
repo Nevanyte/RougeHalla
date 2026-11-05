@@ -1179,7 +1179,20 @@ mod binary {
         for _ in 0..100 {
             if let Ok(s) = tokio::net::TcpStream::connect(control).await {
                 drop(s);
-                let h = get(control, "/control/health", &auth).await;
+                // During startup under load a connection can be accepted and closed with no reply; the helper panics on
+                // that, so probe in a task and treat a panic as "not ready yet" (the assertions below are unchanged).
+                let probe = tokio::spawn(async move {
+                    get(
+                        control,
+                        "/control/health",
+                        &[("Authorization", "Bearer bin-control-token")],
+                    )
+                    .await
+                });
+                let Ok(h) = probe.await else {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    continue;
+                };
                 if h.status == 200 {
                     health = Some(h.json());
                     break;
