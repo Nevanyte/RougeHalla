@@ -1,7 +1,9 @@
 # ADR 0010: per-connection snapshot delta (packet P10b)
 
 **Status:** Accepted, implemented (P10c, `ae0c37b`; protocol v3; see the v3 addendum of [ADR 0002](0002-transport-and-protocol.md)
-for the shipped layout and the measured result, 908 -> 305 B/player/s). **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
+for the shipped layout and the measured result, 908 -> 305 B/player/s). Protocol v4 ([ADR 0011](0011-protocol-v4.md)) superseded the
+v3 framing (append-only varint masks, 305 -> 285 B/player/s) but kept this delta design unchanged: Full and Delta frames against the
+last snapshot the connection's writer wrote, the deferred Resync, the 64-tick base age and the forced-Full spacing. **Context:** ADR 0002's v2 addendum left one item open: a Snapshot delta against the last frame written to a
 connection, encoded in that connection's writer task (so a skipped snapshot is never encoded and encoding leaves the room
 task), with a full frame on join, resume and resync. It would be protocol v3, a stateful writer, a base-tick reference,
 and mirrors in Rust, C# and JS. The packet was gated on numbers; this records them.
@@ -12,7 +14,7 @@ plus fx). Transport framing is not part of it and is not used here.
 
 ## Method
 
-`crates/rh-server/src/bin/deltabench.rs` (`cargo build --release -p rh-server --features synthetic --bin deltabench`).
+`crates/rh-server/src/bin/deltabench.rs` (`cargo build --release -p rh-server --features synthetic --bin deltabench`). The prototype was removed by package E-pub (`ee5588c`) and its decision run stays reproducible at `55786a7`; the shipped codec reproduces the crowd figures with `cargo run --release -p rh-server --features bench --bin wirebench -- --synthetic 204 --ticks 200` (20,085 B/viewer/s at 204 fighters; at 1000 fighters 757 of 800 viewer snapshots are refused against `MAX_ACTORS` 512, see the backlog).
 It runs the real observation path and prototypes a sensible delta, lossless in every field:
 
 * a base-tick byte (the spec requires it);
@@ -82,4 +84,4 @@ connection always gets a full frame first); bounded per-connection state in the 
 mirror and JS decoder; `protocol/fixtures/v3.json`; tests for resume, full frame, drop, out-of-order and malformed
 deltas; browser proof and C# probe; a perfproof `wire_seed1_8bots` A/B.
 
-Repeat: `target/release/deltabench real`, `deltabench synth 204`, `deltabench synth 1000 100`.
+Repeat (at `55786a7`): `target/release/deltabench real`, `deltabench synth 204`, `deltabench synth 1000 100`.

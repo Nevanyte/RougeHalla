@@ -152,7 +152,7 @@ Paths are relative to `packages/` unless they start with `crates/`, `docs/`, `de
 | P-NET-4 | Uplink pacing: aim gate, hold gate, stall watch, order bucket tuning | P-NET-1 | Coarse | client/src/net/uplinkPace.ts, tickPhase.ts |
 | P-NET-5 | Heartbeat/liveness parity (`beat`, 4500 ms timeout, close codes) | none | Coarse | server/src/rooms/RaidRoom.ts, shared/constants.ts |
 | P-NET-6 | Wire-build/content-hash stale-client UX (426 equivalent, reload prompt) | P-UNITY-1 | Coarse | server/src/guards/clientBuild.ts, client/src/ui/reloadPrompt.ts |
-| P-NET-7 | Protocol v4 idea: do not send unchanged snapshots (held marker + heartbeat). Needs an owner decision (byte/packet savings vs a protocol bump); evidence [below](#p-net-7-evidence-obs-3) | owner decision; P-NET-3 (governance of shared wire files) | Coarse (owner decision pending) | shared/messages.ts, schema.ts; crates/rh-protocol |
+| P-NET-7 | Protocol v5 idea (builds on the shipped v4): do not send unchanged snapshots (held marker + heartbeat). Needs an owner decision (byte/packet savings vs a protocol bump); evidence [below](#p-net-7-evidence-obs-3) | owner decision; P-NET-3 (governance of shared wire files) | Coarse (owner decision pending) | shared/messages.ts, schema.ts; crates/rh-protocol |
 
 #### P-NET-7 evidence (OBS-3)
 Source: the final efficiency review at `056bb31`; sim, server and wire numbers are deterministic counts or callgrind figures
@@ -162,25 +162,25 @@ is **not implemented**; the gain figures are **estimates**.
 - **Measured:** 41.8% of snapshots equal that viewer's previous one (self, actors, phase) on seed1 over 2,400 ticks (13.4% over
   the first 600 ticks; 22.6% on the practice arena, 8 bots, 653 steps). The lobby phase is nearly all empty frames (mean 9.9 B
   per send). The live writer costs about 4.2 us user plus 4.7 us kernel per frame and makes 1.06 `sendto` calls per
-  viewer-tick; kernel and socket work is about 53% of server CPU with idle lobby clients. An empty v3 delta is about 9 B of
+  viewer-tick; kernel and socket work is about 53% of server CPU with idle lobby clients. An empty delta is about 9 B of
   payload and about 54 B of TCP/IP/WS headers (arithmetic from the profile).
 - **Not measured:** the empty-snapshot rate in a real human match (a counter on a real match is the first step).
 - **Idea:** in `ConnEncoder::encode` (`crates/rh-protocol/src/delta.rs`) and the writer, when a delta would carry no self change,
   no changed or departed actor and the same phase and ack, and fewer than H ticks (about 10, below `MAX_DELTA_AGE`) have passed
-  since the last frame written, write nothing. The next real delta has age > 1 (v3 decoders already accept that from
-  backpressure skips) and a new head bit `DH_HELD` tells the client `SnapshotBuffer` to insert a hold copy of the base at
-  tick - 1, so motion is not smeared across the gap. Bump `PROTOCOL_VERSION` to 4, regenerate `protocol/fixtures/v4.json`,
+  since the last frame written, write nothing. The next real delta has age > 1 (decoders accept that today, from
+  backpressure skips) and a new Delta head bit `DH_HELD` (the next free bit, bit 15 unless that packet's measurement says otherwise, since a bit past 13 makes the Delta head three bytes; per [ADR 0011](../adr/0011-protocol-v4.md): bits are append-only) tells the client `SnapshotBuffer` to insert a hold copy of the base at
+  tick - 1, so motion is not smeared across the gap. Bump `PROTOCOL_VERSION` to 5 (v4 shipped with L-v4), regenerate the vectors (`protocol/fixtures/v5.json`),
   update the Rust, C# and JS decoders, add a room counter `snapshotsHeld`, and add an addendum to
-  [ADR 0010](../adr/0010-snapshot-delta.md) and C-NET.
+  [ADR 0011](../adr/0011-protocol-v4.md) and C-NET.
 - **Estimate:** idle lobby up to (H-1)/H of snapshot frames (90% at H = 10), about 9 us server CPU and about 63 B on the wire per
   frame avoided; bot-like matches 13-42% of frames; a wirebench-like match about 530 B/s per player of headers and payload saved
   against 305 B/s of payload today.
 - **Risk:** medium, on the client: fewer arrival samples for `RenderClock`; the hold insertion must be exact; liveness must not
   read silence as loss; the Resync rules are unchanged. No gameplay risk (the sim is untouched).
-- **Owner decision needed:** is the byte/packet saving worth a protocol bump (v4) and the new client behaviour, or should
+- **Owner decision needed:** is the byte/packet saving worth a protocol bump (v5) and the new client behaviour, or should
   unchanged frames stay as they are until the per-player bandwidth or packet rate is a measured problem?
 - **Proof plan when taken:** encoder tests (identical snapshots give one frame per H ticks; the next change carries age > 1 and
-  `DH_HELD`; the decoded chain equals `SnapshotData::decoded()` at every written tick); v4 golden vectors pass in Rust, C# and
+  `DH_HELD`; the decoded chain equals `SnapshotData::decoded()` at every written tick); v5 golden vectors pass in Rust, C# and
   JS; a C# `SnapshotBuffer` test that a held gap followed by a move samples identically to the unsuppressed stream; wirebench
   gains held-frame counts; densitybench lobby frames per human-tick 1.09 to 0.2 or less; connheap CPU per connection-second;
   `node tools/browser-proof/proof.mjs`.
@@ -307,5 +307,5 @@ naming, `packages/` retirement, bot perception window, and the doc conflicts not
 12. Legacy callsigns are case-sensitive; the new store is case-insensitive (import reports case collisions as conflicts): choose how to resolve collisions before cutover (P-MIG-*).
 13. Latency ceilings and the party rule (docs/hosting/LATENCY_PROBES.md).
 14. Tie outcomes reveal bits of the secret action order (inherited from legacy; CONTRACTS C-RNG): accept it, or break ties with a separate secret stream (a deliberate legacy behaviour change, needs new fixtures).
-15. Protocol v4 for unchanged snapshots (P-NET-7): byte/packet savings against a protocol bump and new client behaviour.
+15. Protocol v5 for unchanged snapshots (P-NET-7; v4 shipped as the lock-in bump): byte/packet savings against a protocol bump and new client behaviour.
 16. Unity efficiency (P-UNITY-PERF-1) is deferred to the later Codex stage (the owner has already decided this, so it is recorded here, not open); its Unity-side numbers need an Editor profile before any budget is set.

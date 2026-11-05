@@ -11,8 +11,10 @@ Stage 1). **Decision.**
   need not sample at the same rate, but nobody gets extra actions per simulated second.
 - Faults never stall a match: panic → fallback for the rest of the match; inline over-budget (live) → fallback; an
   `AsyncSeat` (thread + channel) answers by `deadline_ticks` or the fallback decides that turn.
-- Contract version `POLICY_CONTRACT_VERSION` = 1; observation version `OBSERVATION_VERSION` = 1. Incompatible policies are
-  refused at attach time (they run the fallback).
+- Contract version `POLICY_CONTRACT_VERSION` = 2; observation version `OBSERVATION_VERSION` = 2. Incompatible policies are
+  refused at attach time (a typed `Fault` and the fallback plays; package L-sim). v2 replaces `reset(seed, me)` with
+  `reset(&MatchStart)`: `MatchStart { me, seed, arena: Arc<Arena>, content_hash, observation_version, tick_ms }`, where `seed`
+  is the policy's own public seed (never `Secrets`) and the arena is public static data (map and spawn points).
 - Future learned policies attach to the LIVE Rust server through `AsyncSeat` (or a networked equivalent) with normal
   pacing and Unity rendering; batching and model hosting stay outside the deterministic rules. No Python gameplay server.
 

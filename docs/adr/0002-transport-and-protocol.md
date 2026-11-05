@@ -51,7 +51,7 @@ decoder must produce (floats as bit patterns), so the Rust, C# and JS decoders a
 
 **Measured** (`wirebench --ticks 2400`, seed-1 map, 8 bots, payload bytes only): 1888 -> 908 bytes per player per second
 (0.48x), mean Snapshot 89.8 -> 43.0 bytes; at 204 synthetic remote actors with the slice's field mix the per-actor cost falls from 22 to 10.0 bytes (0.456x of v1; with
-every optional field set, 11.8 bytes, 0.54x: `cargo run --release -p rh-protocol --example encodebench -- --report --actors 204`).
+every optional field set, 11.8 bytes, 0.54x: `encodebench --report`, removed by package E-pub with the v1 comparison; the figure is history, reproducible at the commit before `ee5588c`).
 **Not done (P10b):** a per-connection delta against the last frame written, which needs connection state in the writer task.
 
 ## Addendum: protocol v3 (per-connection snapshot deltas)

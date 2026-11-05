@@ -15,7 +15,7 @@ packet is implemented yet.** It was written from the efficiency review so that s
   net8.0 Release exe and ran them under the .NET 8 RyuJIT (tiered, PGO), median of many passes after warm-up, on a shared
   4-vCPU container. Timings are wall clock and noisy (about 10%). Allocation bytes are exact
   (`GC.GetAllocatedBytesForCurrentThread`). This is **not** IL2CPP/WebAssembly: expect IL2CPP-wasm to be a few times slower per
-  op; the allocation figures carry over unchanged. Sources: the review profile of revision `ae0c37b` (protocol v3; the library
+  op; the allocation figures carry over unchanged. Sources: the review profile of revision `ae0c37b` (protocol v3 at that revision; the library
   code is identical at `056bb31`) and, for the F2 per-item Fx figures, the efficiency review's own harness (`eff-client-fx`) at `056bb31`.
 - **READ**: counted from the code (object, renderer and call counts). Exact for the code as written; says nothing about time.
 - **ESTIMATE**: an expectation, not a measurement. **No Unity Editor was available**, so no Unity-side cost (draw calls,
@@ -43,19 +43,19 @@ packet; F4's 0 B steady-state assertion needs it (land it first or together).
 ## New paths
 `client-unity/UnityProject/Assets/Scripts/View/ActorBatches.cs` (instanced remote-actor renderer; name indicative),
 `Assets/Scripts/Net/ReplayTransport.cs` (an `ITransport` that feeds a recorded frame dump into `Session`), a committed version of
-the profile's frame-dump generator behind the existing `synthetic` feature of `rh-server` (N = 8, 68, 204 fighters through
+the profile's frame-dump generator (E-pub removed the `synthetic` feature; the crowd now comes from `wirebench --synthetic N` under the `bench` feature of `rh-server`; N = 8, 68, 204 fighters through
 `Publisher::frames_in` and `ConnEncoder`), a minimal WebGL template under `Assets/WebGLTemplates/`, and the URP asset and
 renderer data (created by `RhBuild` or committed). Results go into `client-unity/BUILD_REPORT.md` (owned by P-UNITY-1).
 
 ## Exclusive write scope
 `client-unity/UnityProject/**` (except `Assets/RoguehallaNet/*.cs`, owned by `sync-net.sh`), `client-unity/RoguehallaNet/**`
 and `client-unity/RoguehallaNet.Tests/**` (then `bash client-unity/sync-net.sh`), `client-unity/BUILD_REPORT.md` (append a
-section), and a new file under `crates/rh-server/src/bin/` for the frame-dump generator behind the `synthetic` feature (no wire
+section), and a new file under `crates/rh-server/src/bin/` for the frame-dump generator behind the `bench` feature (no wire
 code). Not in scope: `crates/rh-protocol`, `protocol/fixtures/**` (the wire is untouched; if a change seems to need a wire edit,
 stop: it belongs to a protocol packet such as P-NET-3 or P-NET-7).
 
 ## Contracts and references
-C-NET (wire v3 and its C# mirror stay byte-identical), C-OBS (nothing here may show an actor the observation did not send; the
+C-NET (wire v4 and its C# mirror stay byte-identical), C-OBS (nothing here may show an actor the observation did not send; the
 camera cull only removes work for actors already visible), C-INPUT (the send path still goes through the `Session` input rate
 limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WEB-3, VISUAL_DIRECTION budgets.
 
@@ -184,10 +184,10 @@ limits), ADR 0008, ADR 0010, [../../REQUIREMENTS.md](../../REQUIREMENTS.md) R-WE
    and after, shows no difference beyond the intended culling of off-screen actors.
 2. F2: a `GarbageTests` case drives a `Session` InMatch on a fake transport with 1,000 Fx frames of 8 and of 200 items and
    asserts 0 B from `GC.GetAllocatedBytesForCurrentThread` after warm-up; a `SessionTests` case feeds every `malformedServer` Fx
-   vector in `v3.json` and asserts `DecodeErrors`, `Ignored` and `Error` are identical with and without a subscriber.
+   vector in `v4.json` and asserts `DecodeErrors`, `Ignored` and `Error` are identical with and without a subscriber.
 3. F4: a whole-`Session` `GarbageTests` case replays a recorded N=8 stream (Full then deltas, events, fx) for 2,000 frames while
    calling `Session.Update` with Aim and Move each frame and asserts 0 allocated bytes after warm-up (needs F2 and the
-   `CopyActorsTo` follow-up); `EncodeInto` equals `Encode()` byte for byte on every client vector in `v3.json` and on random
+   `CopyActorsTo` follow-up); `EncodeInto` equals `Encode()` byte for byte on every client vector in `v4.json` and on random
    Input frames.
 4. F3: four variants built from `RhBuild` (Disabled; Gzip with fallback; Brotli; Brotli with High stripping and size
    optimization), each with `du -b Build/Web/Build/*`, transfer size and time to first frame (Playwright against
