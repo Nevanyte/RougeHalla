@@ -1,0 +1,23 @@
+rh-load run features-wss  (baseline slice only, not full-game capacity)
+revision 1aeb83fbf3bd0e100377ab698f4b11e8e2293cbf  profile release  protocol 5  content aa629bdb1a320371
+host: Apple M5 Pro 18-core 64 GB (Apple M5 Pro) | 18 cores | 64 GiB | Darwin 25.6.0 | arch aarch64 | emulated false
+transport: wss (self-signed, certificate not verified)   raw output: target/load/final/features-wss.json
+scenario: 3 matches x 8 players (24 players), ramp 5/s, steady 60 s, think 150 ms, aggression 0.40, reconnect 0.30 (every 8 s), churn clients 4, slow 0.10 , max-rooms 1024
+timing: ramp 0.43 s, steady 60.00 s, total 63.82 s
+cold start: control health 4.41 ms, public port 4.50 ms
+capacity: rooms peak 5 (steady mean 4.18, min 4), players wanted 24 admitted 24 never admitted 0
+server cpu (cores): steady mean 0.01 max 0.02 whole-run mean 0.01 | rss MB peak 9.30 mean 8.92
+server step us: p50 13 p99 95 max 662 (steps 5207, dropped 0) | publish us p50 15 p99 95 | wake lateness us p50 1791 p99 3793 max 3793
+client snapshot interval ms (50 ideal): n=29009 p50 50 p95 51 p99 52 p99.9 53 max 53 | late>100ms 0 >200ms 0 >500ms 0 | ticks missed 0
+connect ms: n=167 p50 0.53 p95 0.77 p99 1.05 max 1.52
+hello->welcome ms: n=121 p50 0.11 p95 0.18 p99 0.20 max 0.23
+welcome->first snapshot ms: n=167 p50 28.48 p95 50.54 p99 52.99 max 53.42
+resume hello->welcome ms: n=46 p50 0.09 p95 0.12 p99 0.14 max 0.14
+refusals by reason: {}   connect errors 0
+bandwidth per client B/s in: n=59 p50 1309.18 p95 1469.19 p99 1507.73 max 1527.08
+bandwidth per client B/s out: n=59 p50 126.19 p95 156.22 p99 203.98 max 205.13
+reconnect: attempts 46 ok 46 failed 0 success rate 1 failures {}
+slow consumers: started 2 outcomes {"survived":2}
+churn: joins 95 leaves 90
+play: results 4 inputs 8874 snapshots 30653 decode errors 0 abnormal ends 0 other {}
+verdict: healthy []

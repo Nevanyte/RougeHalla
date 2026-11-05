@@ -1,0 +1,62 @@
+{
+  "command": "rh-load sweep --server-bin target/release/rh-server --levels 1200,1600 --duration 40 --ramp-per-sec 40 --aggression 0 --label sweep-native-hi --out-dir target/load/sweep --hardware-label Apple M5 Pro 18-core 64 GB",
+  "label": "sweep-native-hi",
+  "rows": [
+    {
+      "bytesPerSecInP50": 436.361,
+      "clientIntervalMsP50": 0,
+      "clientIntervalMsP95": 52,
+      "clientIntervalMsP99": 128,
+      "cpuCoresSteadyMean": 2.561,
+      "degraded": true,
+      "droppedSteps": 4658,
+      "harnessCpuCoresNote": "see series",
+      "helloToWelcomeMsP95": 15.865,
+      "latenessUsP99": 57343,
+      "matches": 1200,
+      "players": 9600,
+      "playersNeverAdmitted": 329,
+      "reasons": [
+        "server dropped 4658 steps (pacer backlog)",
+        "wake lateness p99 57343 us over 25000 us",
+        "client snapshot interval p99 128 ms over 100 ms (two ticks)",
+        "35155 ticks missed over 4193618 snapshots"
+      ],
+      "report": "target/load/sweep/sweep-native-hi-m1200.json",
+      "roomsSteadyMean": 1207.889,
+      "rssMbPeak": 542.8,
+      "stepUsMax": 16722,
+      "stepUsP50": 19,
+      "stepUsP99": 95,
+      "ticksMissed": 35155
+    },
+    {
+      "bytesPerSecInP50": 440.829,
+      "clientIntervalMsP50": 0,
+      "clientIntervalMsP95": 176,
+      "clientIntervalMsP99": 1071,
+      "cpuCoresSteadyMean": 2.118,
+      "degraded": true,
+      "droppedSteps": 34,
+      "harnessCpuCoresNote": "see series",
+      "helloToWelcomeMsP95": 123.597,
+      "latenessUsP99": 49151,
+      "matches": 1600,
+      "players": 12800,
+      "playersNeverAdmitted": 1516,
+      "reasons": [
+        "server dropped 34 steps (pacer backlog)",
+        "wake lateness p99 49151 us over 25000 us",
+        "client snapshot interval p99 1071 ms over 100 ms (two ticks)"
+      ],
+      "report": "target/load/sweep/sweep-native-hi-m1600.json",
+      "roomsSteadyMean": 905.0,
+      "rssMbPeak": 527.9,
+      "stepUsMax": 62539,
+      "stepUsP50": 19,
+      "stepUsP99": 111,
+      "ticksMissed": 12739
+    }
+  ],
+  "schema": "rh-load-sweep/1"
+}

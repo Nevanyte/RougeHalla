@@ -1,0 +1,23 @@
+rh-load run soak-native  (baseline slice only, not full-game capacity)
+revision 3d91abc3a350a2890f90bf8f9ab13b818f14c2d0-dirty  profile release  protocol 5  content aa629bdb1a320371
+host: Apple M5 Pro 18-core 64 GB (Apple M5 Pro) | 18 cores | 64 GiB | Darwin 25.6.0 | arch aarch64 | emulated false
+transport: ws (plain, loopback)   raw output: target/load/soak/soak-native.json
+scenario: 50 matches x 8 players (400 players), ramp 5/s, steady 660 s, think 150 ms, aggression 0.25, reconnect 0.20 (every 20 s), churn clients 8, slow 0.01 , max-rooms 1024
+timing: ramp 9.84 s, steady 660.00 s, total 675.33 s
+cold start: control health 4.06 ms, public port 4.15 ms
+capacity: rooms peak 152 (steady mean 117.29, min 51), players wanted 400 admitted 400 never admitted 0
+server cpu (cores): steady mean 0.32 max 0.40 whole-run mean 0.31 | rss MB peak 53.90 mean 45.30
+server step us: p50 2 p99 47 max 16774 (steps 1558692, dropped 0) | publish us p50 47 p99 191 | wake lateness us p50 1023 p99 6143 max 49869
+client snapshot interval ms (50 ideal): n=5214328 p50 50 p95 51 p99 55 p99.9 67 max 159 | late>100ms 201 >200ms 0 >500ms 0 | ticks missed 1
+connect ms: n=6822 p50 0.32 p95 1.12 p99 11.62 max 73.40
+hello->welcome ms: n=4038 p50 0.13 p95 0.45 p99 6.16 max 26.11
+welcome->first snapshot ms: n=6807 p50 28.14 p95 50.71 p99 51.72 max 84.05
+resume hello->welcome ms: n=2784 p50 0.10 p95 0.32 p99 5.51 max 26.70
+refusals by reason: {}   connect errors 0
+bandwidth per client B/s in: n=4167 p50 785.56 p95 1380.19 p99 1412.02 max 1455.19
+bandwidth per client B/s out: n=4167 p50 111.59 p95 122.71 p99 129.56 max 290.24
+reconnect: attempts 2784 ok 2784 failed 0 success rate 1 failures {}
+slow consumers: started 4 outcomes {"survived":4}
+churn: joins 2509 leaves 2490
+play: results 1166 inputs 1717059 snapshots 5283748 decode errors 0 abnormal ends 0 other {}
+verdict: healthy []
