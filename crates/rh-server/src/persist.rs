@@ -70,7 +70,7 @@ pub struct MemoryStore {
     pub results: Mutex<Vec<(MatchId, String, RunResult)>>,
     pub(crate) applied: Mutex<HashSet<(MatchId, String)>>,
     /// `Some` in strict mode: the lease table, with rh-persist's rules (`acquire_lease`, `release_lease`,
-    /// `record_result`) minus expiry.
+    /// `record_result`) minus expiry. tests/lease_conformance.rs runs one case table against this and rh-persist.
     pub leases: Option<Mutex<HashMap<String, MemLease>>>,
     /// Strict mode (tests): how long a lease release and a result write take, on the tokio clock (a database round trip).
     pub release_delay: std::time::Duration,
