@@ -36,8 +36,8 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace
-      - name: Server with the durable store (a match over WebSockets banked in PostgreSQL)
-        run: cargo test -p rh-server --features postgres --test pg_e2e
+      - name: Server with the durable store (every PostgreSQL-backed server test, incl. pg_e2e and the lease conformance suite)
+        run: cargo test -p rh-server --features postgres
       - name: Parity report (Rust vs captured legacy scenarios)
         run: cargo run -p rh-parity --bin parity-report
       - name: Headless smoke (real 160x160 map, 8 bots)
